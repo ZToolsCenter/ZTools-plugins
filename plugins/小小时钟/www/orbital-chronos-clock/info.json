@@ -1,0 +1,13 @@
+{
+    "id": "orbital-chronos-clock",
+    "name": "轨道天文时钟",
+    "previewImage": "preview/orbital.png",
+    "introduction": "轨道天文时钟",
+    "category": "normal",
+    "creatDate": "2025-11-28",
+    "updateDate": "2025-11-28",
+    "version": "0.0.1",
+    "price": "0",
+    "multilingual": true,
+    "isVip": false
+}

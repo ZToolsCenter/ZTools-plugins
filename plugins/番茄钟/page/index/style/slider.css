@@ -1,0 +1,75 @@
+
+
+
+
+.time_slider_value {
+    width: 20px;
+    font-weight: 900;
+    color: #2C80FF;
+}
+
+
+.slider-container {
+    width: 270px; /* 滑块的宽度 */
+    height: 2px; /* 滑块条的高度 */
+    position: relative;
+    border-radius: 10px;
+    background: var(--text-color-5);
+    /* box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); */
+    flex: 0 0 auto;
+}
+.slider-container *{
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.short-slider
+{
+    width: 110px;
+}
+
+
+
+.slider-thumb {
+    width: 50px; /* 滑块把手的宽度 */
+    height: 24px; /* 滑块把手的高度 */
+    background: #fff;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    border-radius: 4px; /* 圆形滑块把手 */
+    cursor: ew-resize; /* 鼠标悬停时的指针样式 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #333;
+    font-weight: 500;
+    font-size: 14px;
+    box-shadow: #9f82773e 0px 2px 6px;
+    z-index: 100;
+    gap: 1px;
+    
+}
+.slider-thumb::after{
+    content: attr(unit);
+    user-select: none;
+    -webkit-user-select: none;
+    font-size: 10px;
+    margin-top: 4px;
+    font-weight: 100;
+}
+
+.slider-fill{
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(-90deg, #FFB423, #FF5252);
+    opacity: var(--slider-fill-opacity);
+    border-radius: 10px;
+    box-shadow: var(--kv-shadow-color) 0px 0px 6px;
+}
+
+#slider-container-opacity{
+    width: 300px;
+}

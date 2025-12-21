@@ -1,0 +1,27 @@
+{
+    "main": "index.html",
+    "preload": "preload/services.js",
+    "logo": "logo.png",
+    "pluginSetting": {
+        "single": true
+    },
+    "features": [
+        {
+            "code": "xiaoxiao",
+            "explain": "小小时钟设置界面",
+            "cmds": [
+                "小小时钟"
+            ]
+        }
+    ],
+    "platform": [
+        "win32",
+        "darwin"
+    ],
+    "name": "小小时钟",
+    "pluginName": "小小时钟",
+    "description": "一款简洁好用的全屏时钟工具。内置翻页、像素、iOS待机风等多种精美主题，可跟随系统或按时间自动切换深浅色模式，适合作为屏幕待机显示。",
+    "author": "luosh",
+    "homepage": null,
+    "version": "0.0.2"
+}

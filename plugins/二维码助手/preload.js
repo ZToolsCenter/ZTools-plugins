@@ -1,0 +1,1 @@
+const addon=require(`./${process.platform}-${process.arch}.node`);window.services={qrDecode:e=>new Promise((r=>{addon.qrDecodeForUTools(Buffer.from(e.data),e.width,e.height,(e=>{if(!e)return r([]);r(e.filter((e=>e.data)).map((e=>e.data.toString("utf8"))))}))}))};

@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/css" href="../styles/mask.css"?>
+<svg width="400" height="300" viewBox="0 0 223 154" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 内联样式定义，保留scroll_area的动画效果 -->
+  <style>
+    .scroll_area {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      /* 上下移动动画 */
+      transition: all 0.1s;
+      animation: scroll_area_up 2.5s ease-in-out infinite;
+    }
+
+    @keyframes scroll_area_up {
+      0% {
+        transform: translateY(0);
+      }
+      90% {
+        transform: translateY(-90%);
+      }
+      100% {
+        transform: translateY(-90%);
+      }
+    }
+    
+    .scrollbar_indicator {
+      animation: scrollbar_down 2.5s ease-in-out infinite;
+    }
+    
+    @keyframes scrollbar_down {
+      0% {
+        transform: translateY(0);
+      }
+      90% {
+        transform: translateY(25px);
+      }
+      100% {
+        transform: translateY(25px);
+      }
+    }
+  </style>
+
+  <rect width="223" height="154" fill="white" />
+  <g clip-path="url(#clip0_3930_415)">
+    <rect x="2" y="2" width="162" height="110" fill="#E3E3E3" />
+    <mask id="path-3-outside-1_3930_415" maskUnits="userSpaceOnUse" x="2" y="2" width="162" height="7"
+      fill="black">
+      <rect fill="white" x="2" y="2" width="162" height="7" />
+      <path d="M2 2H164V8H2V2Z" />
+    </mask>
+    <path d="M164 8V7H2V8V9H164V8Z" fill="black" mask="url(#path-3-outside-1_3930_415)" />
+    <path
+      d="M153.699 5C153.699 4.72386 153.923 4.5 154.199 4.5H156.199C156.475 4.5 156.699 4.72386 156.699 5V5C156.699 5.27614 156.475 5.5 156.199 5.5H154.199C153.923 5.5 153.699 5.27614 153.699 5V5Z"
+      fill="black" />
+    <path
+      d="M161.891 3.45727C162.033 3.5992 162.034 3.82967 161.892 3.97172L160.864 4.99923L161.893 6.02813C162.035 6.17005 162.036 6.40053 161.894 6.54257C161.752 6.68459 161.521 6.68459 161.379 6.54257L160.35 5.51368L159.32 6.54326C159.178 6.68529 158.947 6.68529 158.805 6.54326C158.664 6.40122 158.664 6.17074 158.806 6.02882L159.836 4.99923L158.807 3.97103C158.666 3.82898 158.666 3.59851 158.808 3.45658C158.95 3.31493 159.18 3.31493 159.322 3.45658L160.35 4.48478L161.377 3.45727C161.519 3.31561 161.749 3.31562 161.891 3.45727Z"
+      fill="black" />
+    <rect width="21" height="103" transform="translate(2 9)" fill="#E3E3E3" />
+    <rect x="2" y="9" width="21" height="6" fill="#D4D4D4" />
+    <rect x="2" y="16" width="21" height="6" fill="#D4D4D4" />
+    <rect x="2" y="23" width="21" height="6" fill="#D4D4D4" />
+    <rect x="2" y="30" width="21" height="6" fill="#D4D4D4" />
+    <rect x="2" y="37" width="21" height="6" fill="#D4D4D4" />
+    <rect x="2" y="44" width="21" height="6" fill="#D4D4D4" />
+    <rect x="23" y="9" width="1" height="103" fill="black" />
+    <g clip-path="url(#clip1_3930_415)">
+      <rect x="28" y="13" width="126" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="28" y="25" width="65" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="28" y="37" width="74" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="28" y="49" width="29" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="28" y="61" width="65" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="28" y="73" width="52" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="28" y="85" width="29" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="28" y="97" width="52" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="28" y="109" width="103" height="8" rx="3" fill="#D0D0D0" />
+    </g>
+    <rect width="2" height="62" transform="translate(162 29.5)" fill="#E3E3E3" />
+    <rect  opacity="0.46" x="162" y="49.5" width="2" height="16" fill="black" />
+    <rect x="148.5" y="102.5" width="13" height="6" rx="3" fill="#ACACAC" stroke="black" />
+  </g>
+  <rect x="1.5" y="1.5" width="163" height="111" stroke="black" />
+  <g clip-path="url(#clip2_3930_415)">
+    <rect x="54" y="14" width="162" height="110" fill="#E3E3E3" />
+    <mask id="path-27-outside-2_3930_415" maskUnits="userSpaceOnUse" x="54" y="14" width="162" height="7"
+      fill="black">
+      <rect fill="white" x="54" y="14" width="162" height="7" />
+      <path d="M54 14H216V20H54V14Z" />
+    </mask>
+    <path d="M216 20V19H54V20V21H216V20Z" fill="black" mask="url(#path-27-outside-2_3930_415)" />
+    <path
+      d="M205.699 17C205.699 16.7239 205.923 16.5 206.199 16.5H208.199C208.475 16.5 208.699 16.7239 208.699 17V17C208.699 17.2761 208.475 17.5 208.199 17.5H206.199C205.923 17.5 205.699 17.2761 205.699 17V17Z"
+      fill="black" />
+    <path
+      d="M213.891 15.4573C214.033 15.5992 214.034 15.8297 213.892 15.9717L212.864 16.9992L213.893 18.0281C214.035 18.1701 214.036 18.4005 213.894 18.5426C213.752 18.6846 213.521 18.6846 213.379 18.5426L212.35 17.5137L211.32 18.5433C211.178 18.6853 210.947 18.6853 210.805 18.5433C210.664 18.4012 210.664 18.1707 210.806 18.0288L211.836 16.9992L210.807 15.971C210.666 15.829 210.666 15.5985 210.808 15.4566C210.95 15.3149 211.18 15.3149 211.322 15.4566L212.35 16.4848L213.377 15.4573C213.519 15.3156 213.749 15.3156 213.891 15.4573Z"
+      fill="black" />
+    <rect width="21" height="103" transform="translate(54 21)" fill="#E3E3E3" />
+    <rect x="54" y="21" width="21" height="6" fill="#D4D4D4" />
+    <rect x="54" y="28" width="21" height="6" fill="#D4D4D4" />
+    <rect x="54" y="35" width="21" height="6" fill="#D4D4D4" />
+    <rect x="54" y="42" width="21" height="6" fill="#D4D4D4" />
+    <rect x="54" y="49" width="21" height="6" fill="#D4D4D4" />
+    <rect x="54" y="56" width="21" height="6" fill="#D4D4D4" />
+    <rect x="75" y="21" width="1" height="103" fill="black" />
+    <g clip-path="url(#clip3_3930_415)">
+      <rect x="80" y="25" width="126" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="80" y="37" width="65" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="80" y="49" width="74" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="80" y="61" width="29" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="80" y="73" width="65" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="80" y="85" width="52" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="80" y="97" width="29" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="80" y="109" width="52" height="8" rx="3" fill="#D0D0D0" />
+      <rect x="80" y="121" width="103" height="8" rx="3" fill="#D0D0D0" />
+    </g>
+    <rect width="2" height="62" transform="translate(214 41.5)" fill="#E3E3E3" />
+    <rect opacity="0.46" x="214" y="61.5" width="2" height="16" fill="black" />
+    <rect x="200.5" y="114.5" width="13" height="6" rx="3" fill="#ACACAC" stroke="black" />
+  </g>
+  <rect x="53.5" y="13.5" width="163" height="111" stroke="black" />
+  <g clip-path="url(#clip4_3930_415)">
+    <rect x="27" y="31" width="162" height="110" fill="#E3E3E3" />
+    <mask id="path-51-outside-3_3930_415" maskUnits="userSpaceOnUse" x="27" y="31" width="162" height="7"
+      fill="black">
+      <rect fill="white" x="27" y="31" width="162" height="7" />
+      <path d="M27 31H189V37H27V31Z" />
+    </mask>
+    <path d="M189 37V36H27V37V38H189V37Z" fill="black" mask="url(#path-51-outside-3_3930_415)" />
+    <path
+      d="M178.699 34C178.699 33.7239 178.923 33.5 179.199 33.5H181.199C181.475 33.5 181.699 33.7239 181.699 34V34C181.699 34.2761 181.475 34.5 181.199 34.5H179.199C178.923 34.5 178.699 34.2761 178.699 34V34Z"
+      fill="black" />
+    <path
+      d="M186.891 32.4573C187.033 32.5992 187.034 32.8297 186.892 32.9717L185.864 33.9992L186.893 35.0281C187.035 35.1701 187.036 35.4005 186.894 35.5426C186.752 35.6846 186.521 35.6846 186.379 35.5426L185.35 34.5137L184.32 35.5433C184.178 35.6853 183.947 35.6853 183.805 35.5433C183.664 35.4012 183.664 35.1707 183.806 35.0288L184.836 33.9992L183.807 32.971C183.666 32.829 183.666 32.5985 183.808 32.4566C183.95 32.3149 184.18 32.3149 184.322 32.4566L185.35 33.4848L186.377 32.4573C186.519 32.3156 186.749 32.3156 186.891 32.4573Z"
+      fill="black" />
+    <rect width="21" height="103" transform="translate(27 38)" fill="#E3E3E3" />
+    <rect x="27" y="38" width="21" height="6" fill="#D4D4D4" />
+    <rect x="27" y="45" width="21" height="6" fill="#D4D4D4" />
+    <rect x="27" y="52" width="21" height="6" fill="#D4D4D4" />
+    <rect x="27" y="59" width="21" height="6" fill="#D4D4D4" />
+    <rect x="27" y="66" width="21" height="6" fill="#D4D4D4" />
+    <rect x="27" y="73" width="21" height="6" fill="#D4D4D4" />
+    <rect x="48" y="38" width="1" height="103" fill="black" />
+    <g clip-path="url(#clip5_3930_415)">
+      <g class="scroll_area">
+        <rect width="138" height="403" transform="translate(49 38)" fill="white" />
+        <rect x="53" y="42" width="126" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="54" width="65" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="66" width="74" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="78" width="29" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="90" width="65" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="102" width="52" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="114" width="29" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="126" width="52" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="138" width="103" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="150" width="35" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="162" width="26" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="174" width="39" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="186" width="62" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="198" width="126" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="210" width="65" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="222" width="74" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="234" width="29" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="246" width="65" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="258" width="52" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="270" width="29" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="282" width="52" height="8" rx="3" fill="#2CB3FF" />
+        <rect x="53" y="294" width="103" height="8" rx="3" fill="#2CB3FF" />
+      </g>
+    </g>
+    <rect width="2" height="62" transform="translate(187 58.5)" fill="#E3E3E3" />
+    <rect opacity="0.46" x="187" y="60" width="2" height="16" fill="black"  class="scrollbar_indicator"/>
+    <rect x="173.5" y="131.5" width="13" height="6" rx="3" fill="#ACACAC" stroke="black" />
+  </g>
+  <rect x="26.5" y="30.5" width="163" height="111" stroke="black" />
+  <defs>
+    <clipPath id="clip0_3930_415">
+      <rect x="2" y="2" width="162" height="110" fill="white" />
+    </clipPath>
+    <clipPath id="clip1_3930_415">
+      <rect width="138" height="103" fill="white" transform="translate(24 9)" />
+    </clipPath>
+    <clipPath id="clip2_3930_415">
+      <rect x="54" y="14" width="162" height="110" fill="white" />
+    </clipPath>
+    <clipPath id="clip3_3930_415">
+      <rect width="138" height="103" fill="white" transform="translate(76 21)" />
+    </clipPath>
+    <clipPath id="clip4_3930_415">
+      <rect x="27" y="31" width="162" height="110" fill="white" />
+    </clipPath>
+    <clipPath id="clip5_3930_415">
+      <rect width="138" height="103" fill="white" transform="translate(49 38)" />
+    </clipPath>
+  </defs>
+</svg> 

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>iOS Standby Clock</title>
+    <script src="js/tailwindcss.js"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              ios: {
+                black: '#000000',
+                gray: '#1C1C1E',
+                lightGray: '#2C2C2E',
+                orange: '#FF9500',
+                red: '#FF3B30',
+                white: '#FFFFFF',
+                offWhite: '#F2F2F7',
+              }
+            },
+            fontFamily: {
+              sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Smooth transition for theme toggle */
+      body {
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+    </style>
+  
+
+  <script type="module" crossorigin src="./assets/index-D78CND45.js"></script>
+</head>
+  <body class="bg-gray-100 dark:bg-black text-gray-900 dark:text-white overflow-hidden">
+    <div id="root"></div>
+</body>
+</html>

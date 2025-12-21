@@ -1,0 +1,42 @@
+{
+  "preload": "preload/preload.js",
+  "main": "index.html",
+  "logo": "https://pic1.zhimg.com/80/v2-8a5188bd51bf5881a7c509436ca4523c_720w.png",
+  "platform": [
+    "win32"
+  ],
+  "features": [
+    {
+      "code": "find",
+      "explain": "基于 Everything 更便捷的文件搜索 + 文件预览",
+      "cmds": [
+        "find",
+        "搜索"
+      ]
+    },
+    {
+      "code": "folderfind",
+      "explain": "选中的文件夹内搜索",
+      "cmds": [
+        {
+          "type": "files",
+          "fileType": "directory",
+          "maxLength": 1,
+          "label": "文件夹内搜索"
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "chardet": "^1.4.0",
+    "iconv-lite": "^0.6.3",
+    "isbinaryfile": "^5.0.0"
+  },
+  "name": "rubick-everything",
+  "pluginName": "本地搜索",
+  "description": "基于 Everything 更便捷的本地文件搜索 + 预览文件",
+  "author": "muwoo",
+  "homePage": "",
+  "version": "2.5.4",
+  "pluginType": "ui"
+}

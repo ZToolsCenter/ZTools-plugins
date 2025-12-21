@@ -1,0 +1,27 @@
+{
+    "version": "1.1.0",
+    "name": "礼花",
+    "description": "庆祝高光时刻！一键发射全屏五彩纸屑 confetti",
+    "logo": "logo.png",
+    "preload": "preload.js",
+    "features": [
+        {
+            "code": "confetti",
+            "explain": "发射全屏五彩纸屑",
+            "cmds": [
+                "礼花",
+                "撒花",
+                "庆祝",
+                "confetti"
+            ],
+            "mainHide": true
+        }
+    ],
+    "platform": [
+        "win32",
+        "darwin",
+        "linux"
+    ],
+    "author": "Aaron",
+    "homepage": null
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tidal Clock</title>
+    <script src="js/tailwindcss.js"></script>
+    <style>
+      
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Outfit', sans-serif;
+        overflow: hidden;
+      }
+
+      /* 
+         Tidal Surge Animations 
+         - Multi-stage keyframes to simulate varying wave heights
+         - Moves from bottom (translateY: 0) upwards (negative translateY)
+         - Adjusted to reach ~65vh max height
+         - Slowed down timing for relaxation
+      */
+      
+      /* Layer 0 (Foam - Background) - Surges highest */
+      @keyframes tide-surge-foam {
+        0% { transform: translateY(0); }
+        20% { transform: translateY(-65vh); } /* High Peak (65%) */
+        40% { transform: translateY(-5vh); }  /* Recede */
+        60% { transform: translateY(-45vh); } /* Low Peak */
+        80% { transform: translateY(-10vh); } /* Recede */
+        90% { transform: translateY(-55vh); } /* Mid Peak */
+        100% { transform: translateY(0); }
+      }
+
+      /* Layer 1 (Mid Water) - Follows foam but slightly lower */
+      @keyframes tide-surge-mid {
+        0% { transform: translateY(0); }
+        20% { transform: translateY(-58vh); }
+        40% { transform: translateY(-4vh); }
+        60% { transform: translateY(-38vh); }
+        80% { transform: translateY(-9vh); }
+        90% { transform: translateY(-48vh); }
+        100% { transform: translateY(0); }
+      }
+
+      /* Layer 2 (Deep Water - Foreground) - Lowest surge */
+      @keyframes tide-surge-deep {
+        0% { transform: translateY(0); }
+        20% { transform: translateY(-50vh); }
+        40% { transform: translateY(-3vh); }
+        60% { transform: translateY(-30vh); }
+        80% { transform: translateY(-8vh); }
+        90% { transform: translateY(-40vh); }
+        100% { transform: translateY(0); }
+      }
+
+      /* Increased duration from 24s to 40s for slower motion */
+      .animate-tide-foam {
+        animation: tide-surge-foam 40s ease-in-out infinite;
+      }
+
+      .animate-tide-mid {
+        animation: tide-surge-mid 40s ease-in-out infinite;
+      }
+
+      .animate-tide-deep {
+        animation: tide-surge-deep 40s ease-in-out infinite;
+      }
+
+      /* Smooth theme transitions */
+      .theme-transition {
+        transition-property: color, background-color, fill, stroke, border-color, opacity;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 1000ms;
+      }
+      
+      /* Glassmorphism utility */
+      .glass {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      
+      .glass-dark {
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+    </style>
+  
+
+  <link rel="stylesheet" href="css/fonts.css">
+  <script type="module" crossorigin src="./assets/index-D4nWg5EH.js"></script>
+</head>
+  <body>
+    <div id="root"></div>
+</body>
+</html>

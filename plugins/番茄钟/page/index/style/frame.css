@@ -1,0 +1,391 @@
+html,
+body {
+  /* background-color: #FBF7F2; */
+  background-color: var(--bg-color);
+  overflow: hidden;
+  margin: 0;
+
+  /* position: relative; */
+}
+body {
+  /* padding: 0px 36px; */
+  display: flex;
+  /* flex-direction: column; */
+  /* gap: 32px; */
+  /* align-items: center;
+    justify-content: center; */
+
+  box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  color: var(--text-color-1);
+  /* transition: all 0.5s ease; */
+}
+
+.sunightBtn{
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 64px;
+  height: 64px;
+  background-color: var(--bg-color);
+  z-index: 2000;
+}
+
+.mainBody {
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.clock {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+
+  position: absolute;
+  transform: translateY(-50%);
+
+  top: calc(50% - 160px);
+
+  padding-right: 5%;
+
+  box-sizing: border-box;
+  transition: all 0.5s ease;
+
+  z-index: 1;
+}
+
+
+.page:not(:has(#todoList .taskItem)) .clock {
+    top: calc(50% - 40px);
+}
+
+.page::-webkit-scrollbar {
+    width: 5px;
+  }
+  
+.page::-webkit-scrollbar-thumb {
+background: #e5d0c5; /* 颜色 */
+border-radius: 5px; /* 圆角 */
+}
+
+.page::-webkit-scrollbar-track {
+background: #ffffffff; /* 颜色 */
+}
+
+@font-face {
+  font-family: "xi";
+  src: url(xi2.ttf);
+  /* src: url(SHPinscher-Regular.ttf); */
+  /* src: url(JonSansTrial-Bold.ttf); */
+  /* src: url(JosefinSans-Regular.ttf); */
+}
+
+.clock .text {
+  font-family: "xi"; 
+  font-size: 70px;
+  font-weight: 500;
+  color: var(--kv-orange-color);
+  user-select: none;
+  -webkit-user-select: none;
+
+  /* 字体底部基线对齐 */
+  vertical-align: bottom;
+  height: 86px;
+
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#minutes {
+  min-width: 150px;
+  text-align: end;
+  /* height: 78px; */
+
+}
+#colon{
+  /* font-size: 50px; */
+  margin: 0 8px;
+  margin-top: -14px;
+  
+}
+
+#seconds {
+  min-width: 150px;
+  text-align: start;
+  /* height: 78px; */
+
+}
+
+
+.todayTomatos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-color-5);
+  position: relative;
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
+.today {
+  /* position: absolute;
+  transform: translateY(-100%);
+  top: -24px;
+  left: 50%; */
+  /* transform: translateX(-50%); */
+  font-weight: 900 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+}
+
+.sta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* width: 80px; */
+  font-size: 16px;
+}
+
+.sta:first-of-type {
+  justify-content: flex-end;
+}
+
+.todayTomatos img {
+  width: 16px;
+  height: 16px;
+  -webkit-user-drag: none;
+}
+
+.todayTomatos span {
+  font-weight: 300;
+  color: var(--text-color-1);
+  
+}
+
+#focusHours{
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--text-color-1);
+}
+
+.sta span:first-of-type {
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--text-color-3);
+}
+.clock * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+.clock .controlBox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0px;
+  margin-bottom: 8px;
+}
+
+.button {
+  /* opacity: 0.5; */
+  width: 40px;
+  height: 40px;
+  background-color: rgb(249, 177, 100,0.3);
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: flex;
+
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s;
+  cursor: pointer;
+
+  color: var(--text-color-6);
+
+  font-size: 15px;
+  font-weight: 600;
+
+  transition: background-color 0.2s;
+  
+  /*  */
+}
+.button:hover {
+  background-color: rgba(210, 184, 99, 0.5) !important;
+}
+.button:active {
+  background-color: rgba(210, 184, 99, 0.8) !important;
+}
+
+.working #continueBtn,
+.breaking #continueBtn,
+.workPaused #pauseBtn,
+.breakPaused #pauseBtn,
+.idle #continueBtn,
+.idle #pauseBtn,
+.idle #stopBtn,
+#beginBtn {
+  display: none;
+}
+.idle #beginBtn {
+  display: flex;
+  width: max-content;
+  padding: 0 24px;
+  background-color: var(--kv-orange-color);
+}
+
+
+
+.state {
+  display: flex;
+  align-items: center;
+  color: var(--text-color-6);
+  font-size: 14px;
+  font-weight: 700;
+
+  padding:6px 10px;
+  background-color: rgb(249, 177, 100,1);
+  border-radius: 18px;
+
+    display: none;
+
+
+
+}
+.state:empty {
+  display: none;
+}
+
+.state img {
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+}
+
+
+
+.button:hover::before {
+  /* content: attr(data-title); */
+  position: absolute;
+  width: max-content;
+  bottom: -4px;
+  transform: translateY(100%);
+  font-weight: 300;
+  color: var(--text-color-3);
+
+  background-color: #fff;
+  padding: 4px 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px var(--text-color-4);
+  z-index: 999;
+}
+
+.working #pauseBtn:hover::before {
+  content: "暂停专注";
+}
+.breaking #pauseBtn:hover::before {
+  content: "暂停休息";
+}
+.workPaused #continueBtn:hover::before {
+  content: "继续专注";
+}
+.breakPaused #continueBtn:hover::before {
+  content: "继续休息";
+}
+.working #stopBtn:hover::before,
+.workPaused #stopBtn:hover::before {
+  content: "结束专注";
+}
+.breaking #stopBtn:hover::before,
+.breakPaused #stopBtn:hover::before {
+  content: "结束休息";
+}
+
+
+.breakPaused .button,
+.breaking .button{
+  background-color: var(--break-btn-bg-color);
+}
+
+.breakPaused .button:hover,
+.breaking .button:hover{
+  background-color: var(--break-btn-bg-color-hover) !important;
+}
+
+
+.continueBtnSvg{
+    fill: #ffb053;
+}
+.pauseBtnSvg{
+    fill: #ffb053;
+}
+.stopBtnSvg{
+    fill: #fc613d;
+}
+
+
+.breaking .continueBtnSvg,
+.breaking .pauseBtnSvg,
+.breakPaused .continueBtnSvg,
+.breakPaused .pauseBtnSvg
+{
+  fill: #9eccb7;
+}
+
+.breaking .stopBtnSvg,
+.breakPaused .stopBtnSvg
+{
+  fill: #9ecab7;
+}
+
+.breaking .text,
+.breakPaused .text
+{
+  color: #9ecab7;
+}
+
+.maskTop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(50% - 50px);
+  background: linear-gradient(180deg, #ffffff 75%, #ffffff00 100%);
+  z-index: 9;
+
+  pointer-events: none;
+}
+
+.maskBottom {
+  position: fixed;
+  top: calc(50% + 110px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(0deg, #ffffff 50%, #ffffff00 100%);
+  z-index: 9;
+
+  pointer-events: none;
+}
+

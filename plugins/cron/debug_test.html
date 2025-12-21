@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cron 表达式调试测试</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-left: 4px solid #ddd;
+        }
+
+        .test-case.success {
+            border-left-color: #4CAF50;
+        }
+
+        .test-case.error {
+            border-left-color: #f44336;
+        }
+
+        .cron {
+            font-weight: bold;
+            color: #1976D2;
+        }
+
+        .error-msg {
+            color: #f44336;
+            font-size: 12px;
+        }
+
+        .success-msg {
+            color: #4CAF50;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Cron 表达式调试测试</h1>
+    <div id="results"></div>
+
+    <script src="script.js"></script>
+    <script>
+        const testCases = [
+            // 基础测试
+            { expr: '* * * * * ?', desc: '每秒执行', version: 'quartz' },
+            { expr: '0 * * * * ?', desc: '每分钟执行', version: 'quartz' },
+            { expr: '0 0 * * * ?', desc: '每小时执行', version: 'quartz' },
+
+            // 指定日测试
+            { expr: '0 0 0 1 * ?', desc: '每月1号执行', version: 'quartz' },
+            { expr: '0 0 0 15 * ?', desc: '每月15号执行', version: 'quartz' },
+            { expr: '0 0 0 1,15 * ?', desc: '每月1号和15号执行', version: 'quartz' },
+            { expr: '0 0 0 1,15,30 * ?', desc: '每月1、15、30号执行', version: 'quartz' },
+
+            // 指定月测试
+            { expr: '0 0 0 1 1 ?', desc: '每年1月1号执行', version: 'quartz' },
+            { expr: '0 0 0 1 6 ?', desc: '每年6月1号执行', version: 'quartz' },
+            { expr: '0 0 0 1 1,6,12 ?', desc: '每年1、6、12月的1号执行', version: 'quartz' },
+
+            // 指定周测试
+            { expr: '0 0 0 ? * 1', desc: '每周日执行', version: 'quartz' },
+            { expr: '0 0 0 ? * 2', desc: '每周一执行', version: 'quartz' },
+            { expr: '0 0 0 ? * 1,3,5', desc: '每周日、二、四执行', version: 'quartz' },
+            { expr: '0 0 0 ? * 2-6', desc: '周一到周五执行', version: 'quartz' },
+
+            // 指定年测试
+            { expr: '0 0 0 1 1 ? 2024', desc: '2024年1月1号执行', version: 'quartz' },
+            { expr: '0 0 0 1 1 ? 2024,2025', desc: '2024和2025年1月1号执行', version: 'quartz' },
+            { expr: '0 0 0 1 1 ? 2024-2026', desc: '2024到2026年1月1号执行', version: 'quartz' },
+
+            // 步长测试
+            { expr: '0 */5 * * * ?', desc: '每5分钟执行', version: 'quartz' },
+            { expr: '0 0 */2 * * ?', desc: '每2小时执行', version: 'quartz' },
+            { expr: '0 0 0 */5 * ?', desc: '每5天执行', version: 'quartz' },
+
+            // Linux 格式测试
+            { expr: '* * * * *', desc: 'Linux: 每分钟执行', version: 'linux' },
+            { expr: '0 * * * *', desc: 'Linux: 每小时执行', version: 'linux' },
+            { expr: '0 0 1 * *', desc: 'Linux: 每月1号执行', version: 'linux' },
+            { expr: '0 0 1 1,6,12 *', desc: 'Linux: 1、6、12月的1号执行', version: 'linux' },
+
+            // Spring 格式测试
+            { expr: '0 0 0 1 * ?', desc: 'Spring: 每月1号执行', version: 'spring' },
+            { expr: '0 0 0 1,15 * ?', desc: 'Spring: 每月1号和15号执行', version: 'spring' },
+
+            // 无效表达式测试
+            { expr: 'invalid', desc: '无效: 非法字符', version: 'quartz', shouldFail: true },
+            { expr: '* * *', desc: '无效: 字段不足', version: 'quartz', shouldFail: true },
+            { expr: '0 0 0 32 * ?', desc: '无效: 日期超出范围(32)', version: 'quartz', shouldFail: true },
+            { expr: '0 0 0 1 13 ?', desc: '无效: 月份超出范围(13)', version: 'quartz', shouldFail: true },
+        ];
+
+        const resultsDiv = document.getElementById('results');
+        let passCount = 0;
+        let failCount = 0;
+
+        testCases.forEach((test, index) => {
+            const div = document.createElement('div');
+            div.className = 'test-case';
+
+            try {
+                const parser = new SimpleCronParser(test.expr, test.version);
+                const nextRuns = parser.getNextExecutions(1);
+
+                if (nextRuns.length > 0) {
+                    if (test.shouldFail) {
+                        div.className += ' error';
+                        div.innerHTML = `
+                            <div><strong>${index + 1}.</strong> <span class="cron">${test.expr}</span> [${test.version}]</div>
+                            <div>${test.desc}</div>
+                            <div class="error-msg">❌ 应该失败但成功了！下次执行: ${nextRuns[0].toLocaleString('zh-CN')}</div>
+                        `;
+                        failCount++;
+                    } else {
+                        div.className += ' success';
+                        div.innerHTML = `
+                            <div><strong>${index + 1}.</strong> <span class="cron">${test.expr}</span> [${test.version}]</div>
+                            <div>${test.desc}</div>
+                            <div class="success-msg">✅ 成功！下次执行: ${nextRuns[0].toLocaleString('zh-CN')}</div>
+                        `;
+                        passCount++;
+                    }
+                } else {
+                    if (test.shouldFail) {
+                        div.className += ' success';
+                        div.innerHTML = `
+                            <div><strong>${index + 1}.</strong> <span class="cron">${test.expr}</span> [${test.version}]</div>
+                            <div>${test.desc}</div>
+                            <div class="success-msg">✅ 正确识别为无效表达式</div>
+                        `;
+                        passCount++;
+                    } else {
+                        div.className += ' error';
+                        div.innerHTML = `
+                            <div><strong>${index + 1}.</strong> <span class="cron">${test.expr}</span> [${test.version}]</div>
+                            <div>${test.desc}</div>
+                            <div class="error-msg">❌ 应该成功但找不到执行时间！</div>
+                        `;
+                        failCount++;
+                    }
+                }
+            } catch (error) {
+                if (test.shouldFail) {
+                    div.className += ' success';
+                    div.innerHTML = `
+                        <div><strong>${index + 1}.</strong> <span class="cron">${test.expr}</span> [${test.version}]</div>
+                        <div>${test.desc}</div>
+                        <div class="success-msg">✅ 正确抛出异常: ${error.message}</div>
+                    `;
+                    passCount++;
+                } else {
+                    div.className += ' error';
+                    div.innerHTML = `
+                        <div><strong>${index + 1}.</strong> <span class="cron">${test.expr}</span> [${test.version}]</div>
+                        <div>${test.desc}</div>
+                        <div class="error-msg">❌ 异常: ${error.message}</div>
+                    `;
+                    failCount++;
+                }
+            }
+
+            resultsDiv.appendChild(div);
+        });
+
+        // 添加总结
+        const summary = document.createElement('div');
+        summary.style.cssText = 'margin-top: 20px; padding: 20px; background: white; font-size: 18px; font-weight: bold;';
+        summary.innerHTML = `
+            <div>测试总结: ${passCount + failCount} 个测试</div>
+            <div style="color: #4CAF50;">✅ 通过: ${passCount}</div>
+            <div style="color: #f44336;">❌ 失败: ${failCount}</div>
+        `;
+        resultsDiv.appendChild(summary);
+    </script>
+</body>
+
+</html>

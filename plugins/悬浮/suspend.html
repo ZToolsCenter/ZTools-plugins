@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<style type="text/css">
+    body {
+        -webkit-app-region: drag;
+        -webkit-user-select: none;
+        margin: 0px;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: hidden;
+        opacity: 1;
+    }
+
+    .body-hover {
+        transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    }
+
+    .body-hover:hover {
+        /* opacity: 0.8; */
+    }
+
+    img {
+        width: 100vw;
+        height: auto;
+        border-radius: 3%;
+        overflow: hidden !important;
+    }
+</style>
+
+<body scroll="no" class="body-hover">
+    <img draggable="false" />
+</body>
+
+<script type="application/javascript">
+    let lock = false;
+    let img = document.querySelector("img")
+    console.log(window.location)
+    let imgKey = window.location.search ? window.location.search.substring(4) : window.location.hash.substring(1);
+    img.src = localStorage[imgKey];
+    let filePath = localStorage[imgKey + "_file"];
+    localStorage.removeItem(imgKey);
+    localStorage.removeItem(imgKey + "_file");
+    window.rotateX = 0;
+    window.rotateY = 0;
+
+    function rotate(degree) {
+        if (lock) {
+            return;
+        }
+        lock = true;
+        //获得图片大小
+        let { width, height } = img;
+        //计算改变后窗口位置和大小
+        let R = Math.sqrt(width * width + height * height);
+        let xOffset = (R - width) / 2;
+        let yOffset = (R - height) / 2;
+        img.src = rotateImage(degree);
+        img.onload = () => {
+            window.moveBounds(yOffset - xOffset, xOffset - yOffset, height, width);
+            lock = false;
+        }
+    }
+
+    let keyCounter = {
+        lastKey: undefined,
+        key: undefined,
+        count: 3,
+        time: 0
+    }
+    let dowingKey = {};
+    document.addEventListener("keyup", event => {
+        delete dowingKey[event.key]
+    })
+    document.addEventListener("keydown", event => {
+        console.log(event.key);
+        //长按操作将加速
+        if (keyCounter.key === event.key && new Date().getTime() - keyCounter.time < 200) {
+            keyCounter.count++
+        } else {
+            keyCounter.key = event.key
+            keyCounter.count = 3;
+            keyCounter.time = 0;
+        }
+        keyCounter.time = new Date().getTime();
+        switch (event.key) {
+            // case "c":
+            // case "C":
+            //     if (dowingKey["Control"] || dowingKey["Meta"]) {
+            //         document.body.className = ""
+            //         //等待透明关闭，再拷贝当前图片
+            //         setTimeout(() => window.copyNowImage(), 100)
+            //     }
+            //     break
+            // case "s":
+            // case "S":
+            //     if (dowingKey["Control"] || dowingKey["Meta"]) {
+            //         document.body.className = ""
+            //         //等待透明关闭，再保存当前图片
+            //         setTimeout(() => window.saveNowImage(), 100)
+            //     }
+            //     break
+            // case "q":
+            // case "Q":
+            //     document.body.className = ""
+            //     //等待透明关闭，再去编辑图片
+            //     setTimeout(() => window.toEdit(), 100)
+            //     break;
+            case "Escape":
+                // 阻止向上传递事件
+                event.stopPropagation();
+                window.close();
+                break;
+            case "ArrowUp":
+                window.moveBounds(0, -keyCounter.count / 3);
+                break;
+            case "ArrowDown":
+                window.moveBounds(0, keyCounter.count / 3);
+                break;
+            case "ArrowLeft":
+                window.moveBounds(-keyCounter.count / 3, 0);
+                break;
+            case "ArrowRight":
+                window.moveBounds(keyCounter.count / 3, 0);
+                break;
+            case "+":
+            case "=":
+                window.resize(keyCounter.count / 2, img.height / img.width);
+                break;
+            case "-":
+            case "_":
+                if (img.width > 100) {
+                    window.resize(0 - keyCounter.count / 2, img.height / img.width);
+                }
+                break;
+            //旋转相关
+            case "【":
+            case "[": {
+                rotate(-90);
+                break;
+            }
+            case "】":
+            case "]": {
+                rotate(90);
+                break;
+            }
+            //左右反转
+            case "Home":
+            case "End":
+                window.rotateY += 180;
+                window.document.body.style.webkitTransform = `rotateX(${window.rotateX}deg) rotateY(${window.rotateY}deg)`
+                break;
+            //上下反转
+            case "PageUp":
+            case "PageDown":
+                window.rotateX -= 180;
+                window.document.body.style.webkitTransform = `rotateX(${window.rotateX}deg) rotateY(${window.rotateY}deg)`
+                break;
+            case "，":
+            case ",":
+                window.modifyOpacity(-0.1);
+                break;
+            case "。":
+            case ".":
+                window.modifyOpacity(0.1);
+                break;
+        }
+        dowingKey[event.key] = true
+    });
+    document.addEventListener("wheel", (e) => {
+        console.log(e);
+        var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
+        if (delta < 0 && img.width <= 100) {
+            return false;
+        }
+        window.resize(delta * 7, img.height / img.width);
+        return false;
+    }, false);
+
+    //重画图片
+    function rotateImage(degree) {
+        degree = degree % 360;
+        let img = document.querySelector("img");
+        let tmpImg = new Image()
+        tmpImg.src = img.src;
+        let canvas = document.createElement('canvas');
+        let cContext = canvas.getContext('2d');
+        let height = tmpImg.height;
+        let width = tmpImg.width;
+        canvas.width = height;
+        canvas.height = width;
+        cContext.translate(canvas.width / 2, canvas.height / 2);
+        cContext.rotate(degree * Math.PI / 180);
+        cContext.drawImage(tmpImg, -width / 2, -height / 2);
+        return canvas.toDataURL();
+    }
+</script>
+
+</html>

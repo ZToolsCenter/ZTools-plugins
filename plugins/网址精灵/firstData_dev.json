@@ -1,0 +1,33 @@
+[
+    {
+        "pid": "",
+        "label": "收集箱",
+        "children": [],
+        "_id": "cat@default"
+    },
+    {
+        "pid": "",
+        "label": "废纸篓",
+        "children": [],
+        "_id": "cat@dustbin"
+    },
+    {
+        "pid": "",
+        "label": "网页快开",
+        "children": [],
+        "_id": "cat@fly"
+    },
+    {
+        "pid": "",
+        "label": "常用",
+        "children": [],
+        "_id": "cat@often"
+    },
+    {
+        "pid": "",
+        "label": "未分类",
+        "tabPosition": "top",
+        "children": [],
+        "_id": "cat_1671245519095"
+    }
+]

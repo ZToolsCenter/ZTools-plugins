@@ -1,0 +1,20 @@
+{
+    "name": "clipboard",
+    "description": "剪贴板",
+    "version": "1.1.1",
+    "main": "index.html",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "development": {
+        "main": "http://localhost:5178/"
+    },
+    "features": [
+        {
+            "code": "clipboard",
+            "explain": "剪贴板",
+            "cmds": [
+                "剪贴板"
+            ]
+        }
+    ]
+}

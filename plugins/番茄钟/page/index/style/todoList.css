@@ -1,0 +1,994 @@
+.listBox {
+    position: absolute;
+
+    overflow: hidden;
+    overflow-y: auto;
+    top: calc(50% - 10px);
+    bottom: calc(50% - 218px);
+
+    width: 80%;
+    max-width: 800px;
+
+    z-index: 10;
+
+    transition: all 0.3s ease-in-out;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    /* 开启弹性滚动 */
+    -webkit-overflow-scrolling: touch;
+
+    background-color: var(--bg-color);
+
+    border-radius: 8px;
+    /* border: var(--taskBox-border-color) 1px solid; */
+
+    padding:0 12px;
+
+    padding-left: 0;
+
+    box-shadow: inset var(--setting-bg-color) 0px 2px 16px, inset var(--text-color-5) 0px 0px 8px;
+    box-sizing: border-box;
+
+    cursor: pointer;
+
+}
+
+.listBox:not(:has(#todoList .taskItem)) {
+    display: none;
+}
+
+.listBox::-webkit-scrollbar {
+    width: 5px;
+    display: none;
+  }
+  
+.listBox::-webkit-scrollbar-thumb {
+background: #e5d0c5; /* 颜色 */
+border-radius: 5px; /* 圆角 */
+}
+
+.listBox::-webkit-scrollbar-track {
+background: #ffffffff; /* 颜色 */
+}
+  
+.taskMode .listBox::-webkit-scrollbar {
+    display: block;
+}
+
+.taskMode .listBox {
+    padding: 0 54px 0 0px;
+
+    display: flex !important;
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+
+    bottom: 0;
+    top: 0;
+    /* transition: none; */
+
+   outline: none;
+   border: #f4f4f400 2px solid;
+   border-left: none;
+   box-shadow: none;
+   cursor: default;
+}
+
+.taskMode #clockBox {
+    opacity: 0;
+    pointer-events: none;
+    top: calc(50% - 240px);
+}
+
+.taskMode .taskItem{
+    height: 64px;
+    display: flex;
+
+}
+
+.taskMode .date{
+    height: 64px;
+    display: flex;
+}
+
+.taskMode .doneList{
+    display: flex;
+    /* flex-direction: column; */
+}
+
+.taskMode .whiteBox{
+    height: 150px;
+}
+#whiteBoxBottom{
+    margin-bottom: 34px;
+}
+
+.taskMode #whiteBoxBottom{
+    height: 50vh;
+}
+
+.whiteBox {
+    /* min-width: 200px; */
+    width: 100%;
+    height:144px;
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    /* transition: all 0.3s ease-in-out; */
+}
+
+.whiteBoxScale{
+
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.whiteBoxScale .scale{
+    height: auto;
+    flex-grow: 1;
+}
+
+
+
+.hidden{
+    display: none !important;
+}
+
+
+#controlBox.waiting{
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+
+.taskMode #whiteBoxTop:has(#anchorTop.hidden)::after{
+    flex-grow: 1;
+    content: "下拉展开";
+
+    font-size: 16px;
+    color: var(--text-color-3);
+    font-weight: 100;
+}
+
+
+
+
+
+.taskMode #whiteBoxTop,
+.taskMode #whiteBoxBottom{
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.taskMode #anchorBottom{
+    display: none;
+}
+
+
+
+.todoList_card {
+    width: -webkit-fill-available;
+    /* flex-grow: 1; */
+    height: max-content;
+
+    display: flex;
+
+    box-sizing: border-box;
+
+    border-radius: 24px;
+    position: relative;
+
+
+}
+
+
+.taskList {
+    flex: 1 1 auto;
+    width: 100%;
+    /* max-width: 100%;
+    min-width: 100%; */
+}
+
+
+
+.todoList {
+
+    height: max-content;
+    display: flex;
+    flex-direction: column;
+    padding: 0px;
+    box-sizing: border-box;
+    /* background-color: #fff; */
+    /* padding-left: 30px; */
+
+    position: relative;
+
+    padding-right: 4px;
+
+}
+
+
+#todoList:has(.draggingAni)::before{
+    content: "拖动至此，设为在做";
+    position: absolute;
+    left: 50%;
+    top: 12px;
+    transform: translateX(-50%);
+
+    height: 40px;
+
+    z-index: 2000;
+
+    font-size: 16px;
+    color: var(--text-color-3);
+    border: var(--border-color) 1px dashed;
+    font-weight: 300;
+    padding: 0px 8px;
+    box-sizing: border-box;
+    border-radius: 8px;
+    background-color: var(--bg-color);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    pointer-events: none;
+
+    
+}
+
+.doneList {
+    display: none;
+}
+
+
+
+
+.date {
+    height: 48px;
+    display: none;
+
+    position: relative;
+
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.date span{
+    flex-grow: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: start;
+
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-color-1);
+
+    border-top: var(--border-color) 1px dashed;
+}
+
+
+.taskItem {
+    width: 100%;
+    height: 48px;
+
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    border-radius: 8px;
+    padding: 0px;
+    box-sizing: border-box;
+
+    /* 高度变化动时长指定 */
+    transition: height 0.9s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+
+
+    /* cursor: grab; */
+    user-select: none;
+    -webkit-user-select: none;
+
+
+}
+
+.taskMode .currentList .taskContent{
+    cursor: grab;
+}
+
+.taskMode .currentList:hover::after{
+    content: "拖动排序  双击编辑  单击空白处返回";
+    position: fixed;
+    left: calc(50% + 40px);
+    bottom: 80px;
+    /* width: 80%; */
+    transform: translateX(-50%);
+    font-size: 16px;
+    color:  var(--text-color-4);
+    font-weight: 400;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 100;
+    white-space: pre;
+    border-radius: 8px;
+    padding: 8px 12px;
+    background-color: var(--bg-color);
+    /* box-shadow: #00000022 0px 2px 12px; */
+    /* border: #00000022 1px solid; */
+
+    opacity: 1;
+}
+
+.doneBtn:hover::after{
+    content: "完成任务";
+    position: absolute;
+    bottom: 0px;
+    width: max-content;
+    transform: translateY(100%);
+    font-size: 14px;
+    color: var(--text-color-2);
+    font-weight: 300;
+
+    z-index: 100;
+
+    border: var(--border-color) 1px solid;
+    border-radius: 8px;
+    padding: 4px 8px;
+    background-color: var(--bg-color);
+
+    opacity: 1;
+}
+
+.delBtn:hover::after{
+    content: "删除任务";
+    position: absolute;
+    bottom: 0px;
+    width: max-content;
+    transform: translateY(100%);
+    font-size: 14px;
+    color: var(--text-color-2);
+    font-weight: 300;
+
+    z-index: 100;
+
+    border: var(--border-color) 1px solid;
+    border-radius: 8px;
+    padding: 4px 8px;
+    background-color: var(--bg-color);
+
+    opacity: 1;
+}
+
+.settopBtn:hover::after{
+    content: "设为在做";
+    position: absolute;
+    bottom: 0px;
+    width: max-content;
+    transform: translateY(100%);
+    font-size: 14px;
+    color: var(--text-color-2);
+    font-weight: 300;
+
+    z-index: 1000;
+
+    border-radius: 8px;
+    padding: 4px 8px;
+    background-color: var(--bg-color);
+    border: var(--border-color) 1px solid;
+
+    opacity: 1;
+}
+
+.taskContent {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-grow: 1;
+    border-radius: 8px;
+    box-sizing: border-box;
+    height: 100%;
+    
+}
+
+.taskContent:hover {
+    background: var(--activeTask-bg-linear-hover);
+
+}
+
+
+.noHover .taskContent {
+    background: transparent !important;
+    transition: none;
+    /* cursor: none; */
+}
+.noHover .taskContent:hover {
+    background: transparent !important;
+    transition: none;
+}
+
+
+
+.currentList> :first-child::after {
+    content: "";
+    position: absolute;
+    top: 0px;
+    left: calc(200px - 50vw);
+    right: calc(250px - 50vw);
+    
+
+    height: 100%;
+    background: var(--activeTask-bg-linear);
+    z-index: -1;
+    
+}
+
+
+
+
+/* ---------------------------- 刻度 ------------------------------- */
+.taskMode .scale{
+    margin-right: 32px;
+}
+
+
+.scale {
+    width: 40px;
+    height: 100%;
+    display: flex;
+    align-items: self-start;
+
+    flex-direction: column;
+    justify-content: space-around;
+
+    position: relative;
+    flex: 0 0 auto;
+
+
+
+    top: 0;
+    bottom: 0;
+
+    margin-right: 8px;
+
+}
+
+
+.scale .s {
+    background-color: var(--kv-red-color);
+
+    height: 2px;
+    border-radius: 3px;
+    box-sizing: border-box;
+
+    transform-origin: 0%;
+}
+
+.s.short {
+    width: 2px;
+}
+
+.s.mid {
+    width: 6px;
+}
+
+.s.long {
+    width: 24px;
+}
+
+.op {
+    opacity: var(--scale-opacity);
+
+}
+
+
+
+
+
+
+.title {
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--text-color-1);
+    cursor: text;
+    user-select: text;
+    -webkit-user-select: text;
+    /* min-width: 150px; */
+    /* flex-grow: 1; */
+    /* width: fit-content;
+    flex: 1 1 auto; */
+    max-width: 70%;
+
+    display: -webkit-box; /* 使用 flexbox 的旧版本 -webkit-box 模型 */
+    -webkit-box-orient: vertical; /* 垂直布局 */
+    -webkit-line-clamp: 2; /* 限制为两行 */
+    overflow: hidden; /* 隐藏超出部分 */
+    text-overflow: ellipsis; /* 使用省略号表示被截断的文本 */
+
+    word-break: break-all;
+    word-wrap: break-word;
+
+
+}
+
+
+
+
+.tomatos {
+    display: flex;
+    /* display: none; */
+    gap: 4px;
+    /* position: absolute; */
+    /* right: 8px; */
+    flex: 1 0 auto;
+    /* width: max-content; */
+    margin-left: auto; /* 将最后一个元素推到容器的最右边 */
+    max-width: 50%;
+    align-items: center;
+    justify-content: flex-end;
+    padding-left: 32px;
+
+    /* max-width: 220px;  */
+    flex-wrap: wrap;
+
+    /* white-space: break-spaces; */
+
+}
+.tomatos span{
+    display: flex;
+    align-items: self-end;
+    justify-content: flex-end;
+    height: 22px;
+}
+
+.tomatos img {
+    width: 16px;
+    height: 16px;
+    -webkit-user-drag: none;
+}
+
+
+.tags {
+    width: max-content;
+    box-sizing: border-box;
+    flex:0 0 auto;
+    font-size: 12px;
+    color: var(--text-color-6);
+    padding: 2px 8px;
+    padding-bottom: 3px;
+    border-radius: 8px;
+    background-color: var(--kv-orange-color);
+    max-width: 140px;
+    overflow: hidden;
+
+    display: -webkit-box !important; /* 使用 flexbox 的旧版本 -webkit-box 模型 */
+    -webkit-box-orient: vertical; /* 垂直布局 */
+    -webkit-line-clamp: 2; /* 限制为两行 */
+    overflow: hidden; /* 隐藏超出部分 */
+
+    
+
+    text-overflow: ellipsis; /* 使用省略号表示被截断的文本 */
+    word-break: break-all;
+    word-wrap: break-word;
+
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+
+
+.done {
+    cursor: default !important;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+
+
+}
+
+.done .title {
+    text-decoration: line-through;
+    text-decoration-color: var(--text-color-0);
+    /* 设置删除线的颜色 */
+    /* text-decoration-style: dotted;     */
+    text-decoration-thickness: 1px;
+    /* 设置删除线的厚度 */
+
+}
+
+/* .done .title,
+.done .tags {
+    opacity: 1;
+}
+
+.done .tomatos {
+    opacity:1;
+
+} */
+
+
+
+
+.draggingAni {
+    animation: draggingAni 0.3s infinite;
+
+}
+
+@keyframes draggingAni {
+
+    0%,
+    100% {
+        transform: rotate(0deg)
+    }
+
+    25% {
+        transform: rotate(0.3deg)
+    }
+
+    75% {
+        transform: rotate(-0.3deg)
+    }
+}
+
+
+.movingTop {
+    transition-delay: 0s !important;
+    animation: itemFloatingTop 0.5s cubic-bezier(0.28, -0.55, 0.27, 1.55) forwards;
+}
+
+.movingBottom {
+    transition-delay: 0s !important;
+    animation: itemFloatingBottom 0.5s cubic-bezier(0.28, -0.55, 0.27, 1.55) forwards;
+}
+
+@keyframes itemFloatingTop {
+    0% {
+        transform: translate(0px, 30px);
+    }
+
+    100% {
+        transform: translate(0px, 0px);
+    }
+
+}
+
+@keyframes itemFloatingBottom {
+    0% {
+        transform: translate(0px, -30px);
+    }
+
+    100% {
+        transform: translate(0px, 0px);
+    }
+}
+
+
+.currentList>.taskItem .title {
+    font-size: 17px;
+
+}
+
+.currentList>:first-child .settopBtn {
+    display: none;
+}
+
+
+
+
+.inputBox {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+
+
+.editable {
+
+    outline: none;
+
+    flex-grow: 1;
+    display: flex;
+
+    flex-wrap: wrap;
+    white-space: pre-wrap;
+    /* 允许内容换行 */
+    word-break: break-word;
+    /* 允许单词在需要时换行 */
+
+    align-items: center;
+    font-size: 16px;
+    line-height: 32px;
+    margin-bottom: 4px;
+
+    max-height: 50vh;
+
+    overflow-y: auto;
+
+
+    padding: 0px;
+    border-radius: 8px;
+    box-sizing: border-box;
+
+}
+
+
+
+.taskAddBox:has(.editable:focus) {
+    box-shadow: #ff9c6dd1 0 0 0px 1px,#ff9b6d4b 0px 2px 8px;
+}
+
+
+.submitBtn {
+    content: "↩︎";
+    color: var(--text-color-2);
+    font-size: 12px;
+    font-weight: 400;
+
+    border: var(--border-color) 1px solid;
+    border-radius: 8px;
+
+
+    padding: 0px 8px;
+    height: 24px;
+    width: 28px;
+    margin: 7px 0;
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+
+    flex: 0 0 auto;
+
+    cursor: pointer;
+
+}
+
+.editable.empty::before {
+    content: attr(data-placeholder);
+    color: var(--text-color-3);
+    font-size: 16px;
+    font-weight: 300;
+    pointer-events: none;
+    position: relative;
+    left: 0px;
+    /* 禁止换行 */
+    white-space: nowrap;
+    flex-grow: 1;
+    /* 禁止换行 */
+}
+
+.editingIcon{
+    display: none;
+    position: absolute;
+    transform: translate(-100%,-50%);
+    top:50%;
+    left:-8px;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+
+    color: var(--kv-orange-color);
+    background-color: var(--bg-color);
+    border-radius: 16px;
+    /* outline: #000 1px solid; */
+
+    padding: 0px 8px;
+
+    box-sizing: border-box;
+    /* box-shadow: #00000022 0px 2px 12px; */
+}
+
+
+.editingMask .taskItem,.editingMask  .date {
+opacity: 0.5;
+pointer-events: none;
+}
+
+.editingItem{
+    opacity: 1 !important;
+}
+
+.taskAddBox {
+    position: absolute;
+
+    transform: translateX(-50%);
+    left: 50%;
+    bottom: 16px;
+
+
+    width: 80%;
+    max-width: 800px;
+    height: max-content;
+
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    box-sizing: border-box;
+
+    padding: 8px 16px;
+    border-radius: 16px;
+
+    background-color: var(--bg-color);
+    box-shadow: var(--border-color) 0px 2px 16px;
+
+    /* cursor: pointer; */
+    /* transition: all 0.3s; */
+    z-index: 10;
+}
+
+
+.hashSelect {
+    display: flex;
+    display: none;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    position: absolute;
+    top:-16px;
+    transform: translateY(-100%);
+    /* width: max-content; */
+    overflow-x: visible;
+
+    width: calc(100% - 32px);
+    height: max-content;
+
+}
+
+.hashTag {
+    color: var(--text-color-6);
+
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: max-content;
+
+
+
+
+
+}
+
+.hashTag>div {
+    border-radius: 4px;
+    /* border: #fff 1px solid; */
+    background-color: #00000022;
+    color: var(--text-color-6);
+    font-size: 12px;
+    width: 22px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+
+}
+
+
+.tag {
+    color: var(--text-color-6);
+    margin-left: 4px;
+    padding: 2px 8px;
+    padding-bottom: 3px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 400;
+    margin: 8px 0;
+    /* display: none; */
+    width: max-content;
+    flex: 0 0 auto;
+    max-width: 90px;
+    /* 超长截断 */
+    white-space: nowrap;      /* 禁止文本换行 */
+    overflow: hidden;         /* 隐藏超出容器的文本 */
+    text-overflow: ellipsis;  /* 使用省略号表示截断的文本 */
+
+    user-select: none;
+    -webkit-user-select: none;
+
+    cursor: pointer;
+
+
+}
+
+
+
+.taskBtnBox {
+    display: none;
+    /* display: flex; */
+    gap: 0px;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    width: max-content;
+    flex: 1 0 auto;
+    z-index: 10;
+    padding-left: 32px;
+    margin-right: -10px;
+}
+
+.taskBtnBox span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    border-radius: 8px;
+
+}
+
+
+.taskItem:hover .tomatos {
+    display: none;
+}
+
+.taskItem:hover .taskBtnBox {
+    display: flex;
+}
+
+.taskBtnBox img{
+    pointer-events: none;
+}
+
+.done .settopBtn img,
+.archivedList .settopBtn img {
+    transform: rotate(180deg);
+}
+
+
+.settopBtn:hover{
+    background-color: rgba(63, 126, 249, 0.10);
+}
+.delBtn:hover{
+    background-color: rgba(255, 94, 25, 0.07);
+}
+.doneBtn:hover{
+    background-color: rgba(31, 255, 169, 0.10);
+}
+
+.currentList> :first-child .doneBtn:hover{
+    background-color: rgb(243, 255, 250);
+}
+
+
+.anchor {
+    flex-grow: 1;
+
+    z-index: 9;
+    pointer-events: none;
+
+    font-size: 16px;
+    color: var(--text-color-2);
+    font-weight: 300;
+
+}
+
+
+
+
+
+

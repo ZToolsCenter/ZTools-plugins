@@ -1,0 +1,171 @@
+.card {
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+
+    flex-grow: 1 1 0;
+    background: #fffffffa;
+    margin: 0 20px;
+    border-radius:0 0 8px 8px;
+    padding: 16px;
+    border: #00000022 1px solid;
+
+    margin-top: -1px;
+
+}
+
+.cardContent {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.cardContentItemTitle {
+    font-weight: 200;
+    font-size: 16px;
+    border-left: #FC613D 2px solid;
+    color: #00000099;
+    padding-left: 4px;
+    line-height: 16px;
+    margin-left: 8px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+}
+
+
+.cardContentItemTitle :first-child {
+    flex-grow: 1;
+}
+
+.todoList {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+}
+
+.taskItem {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 8px;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 100;
+
+    box-sizing: border-box;
+    position: relative;
+
+    color: #000000aa;
+
+}
+
+.taskItem .leftBox {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-grow: 1;
+}
+
+.taskItem .tomatos {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.taskItem img {
+    width: 18px;
+    height: 18px;
+}
+
+.taskItem.completed {
+    opacity: 0.5;
+    text-decoration: line-through;
+    display: none;
+}
+
+
+
+
+
+.taskItem.inProgress {
+    background: #FFBC7F11;
+}
+
+
+
+.taskItem.inProgress:hover .btn {
+    display: flex;
+}
+
+.taskItem:hover {
+    background: #FFBC7F66;
+}
+.taskItem:active {
+    background: #FFBC7F33;
+}
+
+.taskItem .btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 32px;
+    height: 24px;
+    background: #FFFFFF99;
+    border: 1px solid #00843D;
+    border-radius: 22px;
+    display: none;
+
+}
+
+.room {
+    padding: 8px;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); /* 每格大小 */
+}
+
+
+.room img{
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    /* margin-right: 8px; */
+}
+
+
+.todoList:nth-child(1) {
+    /* content: '1'; */
+    font-size: 16px;
+    font-weight: 900;
+    color: #00000099;
+    width: 24px;
+    height: 24px;
+    background-color: #00843D;
+
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.todoList {
+    counter-reset: item; /* 初始化计数器 */
+  }
+  
+  .todoList > * {
+    counter-increment: item; /* 递增计数器 */
+    position: relative; /* 为了使伪元素定位 */
+  }
+  
+  .todoList > *::before {
+    content:  "" counter(item); /* 显示计数器的值 */
+
+    text-align: right; /* 序号右对齐 */
+
+    font-weight: 900;
+    color: #00000099;
+  }

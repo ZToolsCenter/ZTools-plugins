@@ -1,0 +1,28 @@
+{
+    "logo": "assets/logo.png",
+    "preload": "core/preload.js",
+    "platform": [
+        "win32",
+        "darwin",
+        "linux"
+    ],
+    "features": [
+        {
+            "code": "长截图",
+            "explain": "长截图",
+            "cmds": [
+                "长截图"
+            ],
+            "mainHide": true
+        }
+    ],
+    "pluginSetting": {
+        "height": 500
+    },
+    "name": "长截图",
+    "pluginName": "长截图",
+    "description": "长截图",
+    "author": "李不烦",
+    "homepage": "lbfnote.com",
+    "version": "3.0.4"
+}

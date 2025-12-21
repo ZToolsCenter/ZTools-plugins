@@ -1,0 +1,148 @@
+#darkModeSwitch {
+    position: absolute;
+    bottom: 60px;
+
+    height: min-content;
+    width: min-content;
+
+    font-size: 16px;
+
+
+
+}
+
+
+
+
+.select-button {
+    height: 32px;
+    width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+
+    flex: 1 1 auto;
+
+    border-radius: 50%;
+}
+
+.select-button[data-value="light"] {
+    border: 1px solid var(--kv-shadow-color);
+}
+
+.select-button[data-value="dark"] {
+    border: 1px solid #fff;
+}
+
+.select-button[data-value="auto"] {
+    border: 1px solid var(--text-color-4);
+}
+
+
+.select-button img {
+    height: 18px;
+    width: 18px;
+}
+
+
+.select-dropdown {
+    position: absolute;
+    top: 0;
+    left: 54%;
+    transform: translateY(-100%);
+
+    width: max-content;
+
+    background-color: var(--bg-color);
+
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+
+    display: none;
+}
+
+#darkModeSwitch.open .select-dropdown {
+    display: flex;
+    flex-direction: column;
+}
+
+.select-options {
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    padding: 8px;
+    gap: 8px;
+}
+
+.select-option {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    padding: 6px 10px 6px 6px;
+
+    flex: 0 0 auto;
+
+    gap: 8px;
+
+    border-radius: 10px;
+
+}
+
+.select-option:hover {
+    background-color: var(--mask-color-light);
+
+}
+
+.select-option[data-value="light"] .select-option-icon-box {
+    border: 1px solid var(--kv-shadow-color);
+}
+
+.select-option[data-value="dark"] .select-option-icon-box {
+    border: 1px solid #fff;
+
+}
+
+.select-option[data-value="auto"] .select-option-icon-box {
+    border: 1px solid var(--text-color-4);
+}
+
+
+
+.select-option[data-value="light"] {
+    background-color: #fff;
+    color: #000;
+}
+
+.select-option[data-value="light"]:hover {
+    background-color: #f7f7f7;
+}
+
+
+
+
+.select-option[data-value="dark"] {
+    background-color: #555;
+    color: #fff;
+}
+
+.select-option[data-value="dark"]:hover {
+    background-color: #444;
+}
+
+
+
+.select-option-icon {
+    height: 18px;
+    width: 18px;
+}
+
+.select-option-icon-box {
+    height: 26px;
+    width: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+}

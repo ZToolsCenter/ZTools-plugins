@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Screen Selector</title>
+  <link rel="stylesheet" href="../styles/mask.css" />
+  <link rel="stylesheet" href="../styles/ctrl2.css" />
+  <link rel="stylesheet" href="../styles/shop.css" />
+</head>
+
+<body>
+  <div class="guidanceCard_bg" id="guidanceCard_bg">
+    <div class="guidanceCard" id="guidance">
+      <div class="guidanceCard_close" id="guidanceCard_close">跳过</div>
+
+      <H4>
+        使用教学
+        <span class="progressBar" id="progressBar">
+
+        </span>
+      </H4>
+
+      <div class="questionCard">
+        <H2>
+          一分钟，了解使用方法
+        </H2>
+
+        <div class="startGuidanceBtn">
+          立即开始
+        </div>
+
+      </div>
+
+      <div class="questionCard">
+        <H2>
+          应该选择哪个截图区域？
+        </H2>
+        <img src="../assets/diagram.svg" alt="截图区域示例" width="400" height="300">
+
+        <div class="answerBox">
+
+          <div class="answerItem answerA wrongAnswer">
+            <span>A</span>
+            <span>
+              全屏截图
+            </span>
+            <div class="wrongFlag">❌</div>
+            <div class="selectionExample"></div>
+          </div>
+          <div class="answerItem answerB  wrongAnswer">
+            <span>B</span>
+            <span>
+              截取整个应用窗口
+            </span>
+            <div class="wrongFlag">❌</div>
+            <div class="selectionExample"></div>
+          </div>
+          <div class="answerItem answerC  wrongAnswer">
+            <span>C</span>
+            <span>
+              只截取滚动区域，不截取侧边栏、导航栏等
+            </span>
+            <div class="wrongFlag">❌</div>
+            <div class="selectionExample"></div>
+          </div>
+          <div class="answerItem answerD  rightAnswer">
+            <span>D</span>
+            <span>
+              在C的基础上，再尽量避开滚动条和悬浮按钮
+            </span>
+            <div class="rightFlag">✅</div>
+            <div class="selectionExample"></div>
+          </div>
+
+
+        </div>
+
+      </div>
+
+      <div class="questionCard">
+        <H2>
+          选定滚动方向后，怎么开始截图？
+        </H2>
+
+
+        <div class="answerBox">
+          <div class="answerItem wrongAnswer">
+            <span>A</span>
+            <span>
+              掏出手机开始拍照
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+
+          <div class="answerItem wrongAnswer">
+            <span>B</span>
+            <span>
+              愣着
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+
+          <div class="answerItem rightAnswer">
+            <span>C</span>
+            <span>
+              鼠标移动到截图区域外，然后从上到下滚动页面，或者使用自动滚动功能
+            </span>
+            <div class="rightFlag">✅</div>
+          </div>
+          <div class="answerItem  wrongAnswer">
+            <span>D</span>
+            <span>
+              鼠标移动到截图区域外，然后从下到上滚动页面
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+
+
+
+
+
+        </div>
+
+      </div>
+
+      <div class="questionCard">
+        <H2>
+          什么元素会干扰截图？
+        </H2>
+
+
+        <div class="answerBox">
+
+          <div class="answerItem answerA wrongAnswer">
+            <span>A</span>
+            <span>
+              悬浮按钮、标题栏、侧边栏等固定元素
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+          <div class="answerItem answerB wrongAnswer">
+            <span>B</span>
+            <span>
+              动图、视频、滚动条等变化元素
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+          <div class="answerItem answerC wrongAnswer">
+            <span>C</span>
+            <span>
+              大片纯色、重复元素
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+          <div class="answerItem answerD wrongAnswer">
+            <span>D</span>
+            <span>
+              画面闪烁、变化
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+          <div class="answerItem answerE rightAnswer">
+            <span>E</span>
+            <span>
+              以上全部
+            </span>
+            <div class="rightFlag">✅</div>
+          </div>
+
+
+        </div>
+
+      </div>
+
+      <div class="questionCard">
+        <H2>
+          滚动后不拼接新图怎么办？
+        </H2>
+
+
+        <div class="answerBox">
+
+          <div class="answerItem answerA wrongAnswer">
+            <span>A</span>
+            <span>
+              在最后截图的区域来回滚动
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+          <div class="answerItem answerB wrongAnswer">
+            <span>B</span>
+            <span>
+              点击强制截图按钮，然后拖动图片微调
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+
+
+          <div class="answerItem answerE rightAnswer">
+            <span>E</span>
+            <span>
+              以上全部
+            </span>
+            <div class="rightFlag">✅</div>
+          </div>
+
+
+        </div>
+
+      </div>
+
+      <div class="questionCard">
+        <H2>
+          错误拼接后怎么处理？
+        </H2>
+
+
+        <div class="answerBox">
+
+          <div class="answerItem answerA wrongAnswer">
+            <span>A</span>
+            <span>
+              调整截图区域重试，避免干扰元素
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+          <div class="answerItem answerB wrongAnswer">
+            <span>B</span>
+            <span>
+              在预览界面拖动图片微调
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+          <div class="answerItem answerC wrongAnswer">
+            <span>C</span>
+            <span>
+              在预览界面按键盘↑↓键微调
+            </span>
+            <div class="wrongFlag">❌</div>
+          </div>
+
+          <div class="answerItem answerE rightAnswer">
+            <span>E</span>
+            <span>
+              以上全部
+            </span>
+            <div class="rightFlag">✅</div>
+          </div>
+
+
+        </div>
+
+      </div>
+
+
+
+      <div class="questionCard">
+        <H2>
+          恭喜！完成教学
+        </H2>
+
+        <div class="endBtn" id="endBtn">
+          <span>
+            完成教学
+          </span>
+
+        </div>
+      </div>
+
+
+
+    </div>
+  </div>
+  <div id="originOverlay" class="overlay">
+    <span>选择滚动区域</span>
+    <span>避开固定元素，如：滚动条、标题栏、悬浮按钮</span>
+  </div>
+  <div class="BtnBox" id="btnBox">
+    <div id="confirmBtn" class="ctrlBtn">
+      <img src="../assets/confirm.svg" alt="确认" width="20" height="14" />
+    </div>
+    <div id="exitBtn" class="ctrlBtn">
+      <img src="../assets/exit.svg" alt="退出" width="16" height="16" />
+    </div>
+    <div id="saveBtn" class="ctrlBtn">
+      <img src="../assets/save.svg" alt="保存" width="15" height="15" />
+    </div>
+    <!-- <div id="settingBtn" class="ctrlBtn">
+      <img src="../assets/setting.svg" alt="设置" width="17" height="17" />
+    </div> -->
+    <div id="questionBtn" class="ctrlBtn">
+      <img src="../assets/question.svg" alt="帮助" width="15" height="15" />
+    </div>
+    <!-- <line class="line"></line> -->
+
+    <!-- <div class="ztoolsBtnBox"> -->
+    <!-- <div id="floatBtn" class="ctrlBtn">
+        <img src="../assets/float.svg" alt="悬浮" width="15" height="15" />
+      </div>
+      <div id="editBtn" class="ctrlBtn">
+        <img src="../assets/edit.svg" alt="编辑" width="15" height="15" />
+      </div>
+      <div id="uploadBtn" class="ctrlBtn">
+        <img src="../assets/upload.svg" alt="上传" width="17" height="15" />
+      </div>
+      <div id="ocrBtn" class="ctrlBtn">
+        <img src="../assets/ocr.svg" alt="OCR" width="15" height="15" />
+      </div> -->
+    <!-- <div id="cutBtn" class="ctrlBtn">
+        <img src="../assets/cut.svg" alt="自动分块" width="15" height="15" />
+
+
+        <div id="cutBtnSetting" class="btnEx btnExSetting">
+          <div class='btnExSettingTitle'>
+            <img src='../assets/pro.svg'>将截图平均分成<input id="cutSlider" type='range' min='2' max='30'
+              value='3'><span>3</span>份
+          </div>
+          <div class="btnExSettingContainer">
+            <div id="cutBtnResultInfo" class="btnExSettingInfo"></div>
+            <span>保存到</span>
+            <div class="btnExSettingSwitch" id="cutBtnSettingSwitch" data-switch="1"><span
+                data-switch="1">剪贴板</span><span data-switch="2">文件夹</span></div>
+          </div>
+        </div>
+
+
+      </div> -->
+
+    <!-- </div> -->
+    <line class="line"></line>
+    <div id="forceBtn" class="ctrlBtn">
+      <img src="../assets/force.svg" alt="强制拼接" width="17" height="17" />
+    </div>
+    <!-- <div id="autoBtn" class="ctrlBtn">
+      <img src="../assets/auto.svg" alt="自动拼接" width="15" height="15" />
+    </div> -->
+    <div id="ctrlNotice"></div>
+  </div>
+
+  <div id="selection">
+    <div class="pseudo" id="pseudo_1"></div>
+    <div class="pseudo"></div>
+    <div class="handle nw"></div>
+    <div class="handle ne"></div>
+    <div class="handle sw"></div>
+    <div class="handle se"></div>
+    <div class="handle n"></div>
+    <div class="handle s"></div>
+    <div class="handle e"></div>
+    <div class="handle w"></div>
+
+    <div id="startButton">开始长截图</div>
+    <div id="fpsNotice"></div>
+
+    <div id="sizeNotice"></div>
+  </div>
+
+  <div class="BtnBox canvasCtrlBox" id="canvasCtrlBox">
+
+    <div id="moveBtn" class="ctrlBtn">
+      <img src="../assets/move.svg" alt="移动" width="15" height="15" />
+    </div>
+    <div id="zoominBtn" class="ctrlBtn">
+      <img src="../assets/zoomin.svg" alt="放大" width="15" height="15" />
+    </div>
+    <div id="zoomoutBtn" class="ctrlBtn">
+      <img src="../assets/zoomout.svg" alt="缩小" width="15" height="15" />
+    </div>
+
+    <div class="line"></div>
+
+    <div id="bothmoveBtn" class="ctrlBtn active">
+      <img src="../assets/bothmove.svg" alt="移动" width="15" height="15" />
+    </div>
+
+    <div id="canvasTips" class="canvasTips">
+      <span id="moveTips">拖动或按↑↓键可微调拼接位置，按del、⌫可删除</span>
+      <!-- <img src="../assets/pro.svg" style="margin-right: 4px" /> -->
+    </div>
+  </div>
+
+  <div id="canvasBox">
+    <div class="canvasBoxAbsolute" id="canvasBoxAbsolute">
+      <canvas id="canvas" width="5" height="5"></canvas>
+    </div>
+  </div>
+
+
+  <video width="100%" height="100%" autoplay style="display: none"></video>
+
+  <!-- 加载应用模块 -->
+  <script src="../components/shop.js" type="module"></script>
+  <script type="module" src="../core/main.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,281 @@
+.popup_mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  background-color: #00000088;
+  /* backdrop-filter: blur(4px); */
+  display: none;
+
+}
+
+.shop_popup .vip_card{
+  width: 420px;
+}
+
+
+.cancel{
+  width: 100%;
+  height: 40px;
+  border: #00000099 1px solid;
+  border-radius: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 8px;
+}
+.cancel:hover{
+  background-color: #00000008;
+}
+
+.shop_popup {
+  position: fixed;
+  z-index: 500;
+  bottom: 10px;
+  left: 10px;
+
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  width: max-content;
+  height: fit-content;
+
+  border-radius: 42px;
+  padding: 24px;
+  padding-top: 16px;
+  box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  /* backdrop-filter: blur(10px); */
+  background-color: #fff;
+  /* cursor: url(../pic/thanks.svg), auto; */
+  /* border: #000000 1px solid; */
+
+  display: none;
+
+  box-shadow: #00000022 0px 4px 46px 0px;
+
+
+}
+
+.shop_popup_title {
+  color: #000;
+  font-size: 18px;
+  font-weight: 900;
+  /* padding: 8px 16px; */
+  margin-bottom: 16px;
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.shop_popup .vip_card {
+  margin-bottom: 16px;
+}
+
+
+
+.vip_card {
+  margin-top: -8px;
+  position: relative;
+
+  /* background-color: #fffffff1; */
+  height: 90px;
+  width: 460px;
+  border-radius: 24px;
+  border: #e9e9e9 0.5px solid;
+  display: flex;
+  align-items: center;
+  padding-left: 24px;
+  box-sizing: border-box;
+  cursor: url('../assets/thanks.svg'), auto;
+
+  /* background: linear-gradient(80deg, #b862ff66 0%, #2c80ff66 25%, #b862ff66 50%, #2c80ff66 75%, #b862ff66 100%); */
+  background:  linear-gradient(84.2deg, rgba(255, 221, 183, 0.15) 0%, rgba(255, 148, 23, 0.15) 19.24%, rgba(184, 229, 168, 0.17525) 47.29%, rgba(164, 230, 214, 0.233) 61.35%, rgba(116, 205, 255, 0.29) 83.13%, rgba(255, 221, 183, 0.15) 100%) #fff;
+
+
+  /* background: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet);  */
+  background-size: 200% auto;
+  /* 设置背景尺寸为两倍元素宽度，使渐变填充超出元素范围 */
+  animation: gradientAnimation 8s linear infinite;
+
+  opacity: 1;
+  z-index: 2;
+
+  box-shadow: #00000016 0px 4px 16px;
+
+  outline: #00000012 1px solid;
+
+
+}
+
+.vip_card svg {
+  margin-bottom: 4px;
+}
+
+.vip_card::after {
+  content: "";
+  position: absolute;
+  width: calc(100% + 0px);
+  height: calc(100% + 0px);
+  left: 0px;
+  top: 0px;
+
+  /* background-color: #fff; */
+
+
+  /* 使用动画 */
+  z-index: -1;
+  /* filter: blur(16px); */
+
+}
+
+
+@keyframes gradientAnimation {
+  0% {
+    background-position: 100% 30%;
+    /* 开始时渐变填充在左边 */
+  }
+
+  100% {
+    background-position: -100% 70%;
+    /* 结束时渐变填充在右边 */
+  }
+}
+
+.vip_btn {
+  position: absolute;
+  right: 20px;
+  font-size: 14px;
+  /* color: #5b76a3c7; */
+}
+
+
+.vip_card_unactive {
+  background: linear-gradient(265.88deg, #2C80FF11 2.17%, #AA3FFF11 98.57%);
+  border: #ffffff55 1px solid;
+}
+
+.vip_card_unactive::after {
+  content: none;
+}
+
+
+
+.good {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 24px;
+  height: 32px;
+  /* border: #fff 1px solid; */
+  border-radius: 24px;
+  color: #00000099;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+
+
+}
+
+.good:hover {
+  background-color: #00000006;
+}
+
+/* 点击效果 */
+.good:active {
+  background-color: #ffffff33;
+}
+
+.good :last-child {
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffbe1b;
+  display: flex;
+  align-items: center;
+
+}
+
+.good :first-child {
+  display: flex;
+  align-items: center;
+}
+
+.rmb {
+  font-size: 14px !important;
+  margin-right: 4px;
+}
+
+.discount {
+  padding: 2px 4px;
+  margin-left: 4px;
+  /* background-color: #00000055; */
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px 0 8px 0;
+
+  color: #fff !important;
+
+background: linear-gradient(90deg, #FFCA8A 0%, #7EE6B4 100%);
+
+
+}
+
+.shop_popup_close {
+  position: absolute;
+  top: -32px;
+
+  /* width: 100%; */
+  height: 40px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 8px;
+  border-radius: 24px;
+  box-sizing: border-box;
+  background-color: #ffffff22;
+  cursor: pointer;
+}
+
+.shop_popup_close:hover {
+  background-color: black;
+}
+
+
+.tbyc_pro_tips {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  height: 50px;
+
+  padding-bottom: 4px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  color: #fff;
+  font-size: 16px;
+  line-height: 16px;
+  font-weight: 100;
+
+  background-color: rgb(62, 130, 255);
+
+  display: none;
+}
+
+.tbyc_pro_tips .pro_btn {
+  margin-left: 16px;
+  cursor: pointer;
+  /* 下划线 */
+  text-decoration: underline;
+}

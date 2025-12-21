@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>烟花</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      font-family: 'Arial', sans-serif;
+      background: transparent;
+    }
+
+    canvas {
+      margin: 0 auto;
+      width: 100%;
+      height: 100%;
+      /*background-color: #fff;*/
+    }
+  </style>
+</head>
+
+<body>
+  <canvas class="canvas" id="pag"></canvas>
+  <script src="lib/libpag.min.js"></script>
+  <script>
+    // 等待所有资源加载完成
+    window.addEventListener('load', async () => {
+      try {
+        if (typeof window.libpag.PAGInit !== 'function') {
+          ztools.showNotification('libpag 库加载失败');
+          return;
+        }
+        // ztools.showNotification('libpag 库加载成功');
+
+        // 实例化 PAG，指定 wasm 文件路径
+        const PAG = await window.libpag.PAGInit({
+          locateFile: (file) => {
+            if (file === 'libpag.wasm') {
+              return 'lib/libpag.wasm';
+            }
+            return file;
+          }
+        });
+
+        if (!PAG) {
+          ztools.showNotification('PAG 初始化失败');
+          return;
+        }
+        // ztools.showNotification('PAG 初始化成功');
+
+        // 获取 PAG 素材数据
+        const fireworks = [
+          'final-01-蓝色720.pag',
+          'final-02-金色720.pag',
+          'final-03-粉色720.pag',
+          'final-07-橙色720.pag'
+        ]
+
+        const buffer = await fetch(fireworks[Math.floor(Math.random() * fireworks.length)]).then((response) => response.arrayBuffer());
+
+        // 检查 PAGFile 是否存在
+        if (!PAG.PAGFile) {
+          ztools.showNotification('PAGFile 不存在，请检查 PAG 库是否正确加载');
+          return;
+        }
+
+        // 加载 PAG 素材为 PAGFile 对象
+        const pagFile = await PAG.PAGFile.load(buffer);
+
+        // 获取画布元素
+        const canvas = document.getElementById('pag');
+
+        // 计算高清渲染尺寸
+        const styleDeclaration = window.getComputedStyle(canvas, null);
+        const width = Number(styleDeclaration.width.replace('px', ''));
+        const height = Number(styleDeclaration.height.replace('px', ''));
+        const dpr = window.devicePixelRatio;
+
+        // 设置画布尺寸为 PAGFile 的尺寸
+        canvas.width = pagFile.width();
+        canvas.height = pagFile.height();
+
+        // 实例化 PAGView 对象，添加配置参数
+        const pagView = await PAG.PAGView.init(pagFile, canvas, {
+          useScale: true, // 启用高清渲染
+          firstFrame: true, // 首帧渲染
+          useCanvas2D: false // 使用 WebGL 渲染
+        });
+
+        // 监听播放完成事件
+        pagView.addListener('onAnimationEnd', () => {
+          setTimeout(() => {
+            pagView.destroy(); // 销毁 PAGView 实例
+            window.close();
+          }, 1000);
+        });
+
+        // 监听窗口大小变化
+        window.addEventListener('resize', () => {
+          const newStyleDeclaration = window.getComputedStyle(canvas, null);
+          const newWidth = Number(newStyleDeclaration.width.replace('px', ''));
+          const newHeight = Number(newStyleDeclaration.height.replace('px', ''));
+          canvas.width = newWidth * dpr;
+          canvas.height = newHeight * dpr;
+          pagView.updateSize();
+          pagView.flush();
+        });
+
+        // 播放烟花音效
+        const audio = new Audio('firework.mp3');
+        audio.volume = 0.5;
+        audio.play();
+        // 播放 PAGView
+        await pagView.play();
+      } catch (e) {
+        console.error('初始化失败:', e);
+        ztools.showNotification('PAG 播放失败: ' + e.message);
+      }
+    });
+  </script>
+</body>
+
+</html>

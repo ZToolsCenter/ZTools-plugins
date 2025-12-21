@@ -1,0 +1,59 @@
+{
+    "main": "index.html",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "features": [
+        {
+            "code": "collection",
+            "explain": "记录「文本」「代码」「图片」，快捷输出",
+            "cmds": [
+                "备忘",
+                "快贴",
+                {
+                    "type": "over",
+                    "label": "备忘记录"
+                },
+                {
+                    "type": "files",
+                    "fileType": "file",
+                    "match": "/\\.(?:jpg|jpeg|png)$/i",
+                    "maxLength": 1,
+                    "label": "备忘记录"
+                },
+                {
+                    "type": "img",
+                    "label": "备忘记录"
+                }
+            ]
+        },
+        {
+            "code": "record",
+            "explain": "文本默默记录，保存后直接退出",
+            "cmds": [
+                {
+                    "type": "over",
+                    "label": "默默记录"
+                }
+            ]
+        },
+        {
+            "code": "search",
+            "explain": "备忘记录搜索",
+            "mainPush": true,
+            "cmds": [
+                {
+                    "type": "over",
+                    "maxLength": 40,
+                    "exclude": "/[\\\\\\/\\t\\n]/",
+                    "label": "备忘搜索"
+                }
+            ]
+        }
+    ],
+    "name": "备忘快贴",
+    "pluginName": "备忘快贴",
+    "description": "记录「文本」「代码」「图片」，快捷输出",
+    "author": "福州猿力信息科技有限公司",
+    "homepage": "https://u.tools",
+    "version": "4.1.0"
+}

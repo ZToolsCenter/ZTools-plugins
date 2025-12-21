@@ -1,0 +1,17 @@
+{
+    "name": "super-mario",
+    "description": "超级玛丽",
+    "version": "1.0.0",
+    "main": "index.html",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "features": [
+        {
+            "code": "super-mario",
+            "explain": "超级玛丽",
+            "cmds": [
+                "超级玛丽"
+            ]
+        }
+    ]
+}

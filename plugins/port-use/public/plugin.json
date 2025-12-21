@@ -1,0 +1,20 @@
+{
+    "name": "port-use",
+    "description": "端口占用",
+    "version": "1.0.0",
+    "main": "index.html",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "development": {
+        "main": "http://localhost:5179/"
+    },
+    "features": [
+        {
+            "code": "port-use",
+            "explain": "端口占用",
+            "cmds": [
+                "端口占用"
+            ]
+        }
+    ]
+}

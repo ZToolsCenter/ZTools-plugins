@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>CFJ</title>
+  <link rel="stylesheet" href="../../base/css/color.css" />
+  <style>
+    html,
+    body {
+      overflow: hidden;
+
+      padding: 0;
+      margin: 0;
+
+      border-radius: 0px;
+    }
+
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    body {
+      width: 100%;
+      height: 100vh;
+    }
+
+    .contextMenu {
+      overflow: hidden;
+
+      position: fixed;
+
+      left: 8px;
+      top: 8px;
+      right: 8px;
+      bottom: 8px;
+
+      display: flex;
+      flex-direction: column;
+
+      background-color: var(--bg-color);
+      border: var(--border-color) solid 1px;
+      border-radius: 12px;
+
+      box-sizing: border-box;
+
+      box-shadow: var(--border-color) 0px 2px 6px;
+
+      z-index: 1000;
+    }
+
+    .item {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+
+      font-weight: 400;
+      font-size: 16px;
+      color: var(--text-color-2);
+      height: min-content;
+
+      flex: 1 0 auto;
+      cursor: pointer;
+    }
+
+    .item:hover {
+      background-color: var(--text-color-5);
+    }
+
+    .item:active {
+      background-color: var(--text-color-4);
+    }
+
+    #autoHideAni {
+      font-size: 13px;
+      color: #c5c5c5;
+      font-weight: 100;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="contextMenu">
+    <div class="item" onclick="window.ipcRenderer.sendTo(indexPageId, 'contextMenuExce', 'hideFloat')">关闭浮窗</div>
+    <div class="item" onclick="window.ipcRenderer.sendTo(indexPageId, 'contextMenuExce', 'hidePile')" id="hidePile">
+      隐藏番茄堆
+      <span id="autoHideAni">已设置专注时隐藏</span>
+    </div>
+    <!-- <div class="item" onclick="window.ipcRenderer.sendTo(indexPageId, 'contextMenuExce', 'showStatistic')">统计</div>
+      <div class="item" onclick="window.ipcRenderer.sendTo(indexPageId, 'contextMenuExce', 'showSetting')">设置</div>
+      <div class="item" onclick="window.ipcRenderer.sendTo(indexPageId, 'contextMenuExce', 'showAudio')">白噪音设置</div>
+      <div class="item" onclick="window.ipcRenderer.sendTo(indexPageId, 'contextMenuExce', 'showAccount')">账号</div>
+      <div class="item" onclick="window.ipcRenderer.sendTo(indexPageId, 'contextMenuExce', 'exit')">完全退出</div> -->
+  </div>
+
+  <script>
+    var indexPageId = null;
+    window.ipcRenderer.on("toContextMenu", (event, message) => {
+      indexPageId = message.senderId;
+    });
+
+    window.addEventListener("blur", () => {
+      console.log("blur");
+      window.ipcRenderer.sendTo(indexPageId, "contextMenuExce", "blur");
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const pileShown = params.get("pileShown");
+    if (pileShown == "false") {
+      document.getElementById("hidePile").innerText = "显示番茄堆";
+      document.getElementById("hidePile").onclick = () => window.ipcRenderer.sendTo(indexPageId, "contextMenuExce", "showPile");
+    }
+
+    const autoHideAni = params.get("autoHideAni");
+    if (autoHideAni == "true") {
+      document.getElementById("autoHideAni").style.display = "flex";
+    }
+
+    function setDarkMode(state) {
+      console.log("setDarkMode", state);
+      switch (state) {
+        case "dark":
+          document.documentElement.setAttribute("data-theme", "dark");
+          break;
+        case "light":
+          document.documentElement.removeAttribute("data-theme");
+          break;
+        case "auto":
+          if (utools.isDarkColors()) {
+            document.documentElement.setAttribute("data-theme", "dark");
+          } else {
+            document.documentElement.removeAttribute("data-theme");
+          }
+          break;
+      }
+    }
+
+    const darkMode = params.get("darkMode");
+    setDarkMode(darkMode);
+  </script>
+</body>
+
+</html>
