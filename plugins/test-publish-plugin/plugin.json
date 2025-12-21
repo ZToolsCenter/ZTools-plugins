@@ -3,7 +3,7 @@
   "pluginName": "测试发布插件",
   "description": "用于测试CLI publish功能的插件 - 已更新",
   "author": "Test User",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "main": "index.html",
   "logo": "logo.png",
   "features": [
