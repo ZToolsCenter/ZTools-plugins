@@ -1,9 +1,9 @@
 {
   "name": "test-publish-plugin",
   "pluginName": "测试发布插件",
-  "description": "用于测试CLI publish功能的插件",
+  "description": "用于测试CLI publish功能的插件 - 已更新",
   "author": "Test User",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.html",
   "logo": "logo.png",
   "features": [
@@ -11,6 +11,11 @@
       "code": "test",
       "explain": "测试功能",
       "cmds": ["test"]
+    },
+    {
+      "code": "new-feature",
+      "explain": "新功能",
+      "cmds": ["new"]
     }
   ]
 }
