@@ -53,6 +53,21 @@ git-init.bat
 chmod +x git-init.sh && ./git-init.sh
 ```
 
-## 许可证
+## 📜 开源许可
 
-MIT
+本项目基于 [GNU Affero General Public License v3.0 (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0.html) 许可进行开源
+
+### ⚠️ 重要说明
+
+- **本项目仅供个人学习研究使用，禁止用于商业及非法用途**
+- 任何修改和分发都必须基于 AGPL-3.0 进行，源代码必须一并提供
+- 派生作品必须同样采用 AGPL-3.0，并注明原始项目
+- 禁止修改程序原版权信息（可添加二开作者信息）
+
+### 📌 原项目
+
+本项目基于 [SPlayer](https://github.com/imsyy/SPlayer) 进行移植和修改
+
+- 原作者: [imsyy](https://github.com/imsyy)
+- 原项目: https://github.com/imsyy/SPlayer
+- 许可证: AGPL-3.0
