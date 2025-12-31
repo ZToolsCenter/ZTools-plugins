@@ -1,18 +1,17 @@
 {
-  "name": "splayerz",
+  "name": "SPlayerZ",
   "version": "1.0.0",
   "private": true,
   "description": "SPlayerZ - ZTools Plugin for Music Player",
   "scripts": {
     "dev": "pnpm --filter @splayerz/ztools-plugin dev",
-    "build": "pnpm --filter @splayerz/ztools-plugin build",
-    "package": "pnpm --filter @splayerz/ztools-plugin package"
+    "build": "pnpm --filter @splayerz/ztools-plugin build"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=18",
+    "node": ">=20",
     "pnpm": ">=9"
   }
 }
