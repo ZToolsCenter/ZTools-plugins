@@ -5,7 +5,8 @@
   "description": "SPlayerZ - ZTools Plugin for Music Player",
   "scripts": {
     "dev": "pnpm --filter @splayerz/ztools-plugin dev",
-    "build": "pnpm --filter @splayerz/ztools-plugin build"
+    "build": "pnpm --filter @splayerz/ztools-plugin build",
+    "package": "pnpm --filter @splayerz/ztools-plugin package"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
