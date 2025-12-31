@@ -151,16 +151,20 @@ function assetQueryPlugin(): Plugin {
   return {
     name: 'asset-query-handler',
     transformIndexHtml(html) {
-      // 在 HTML 中移除 ?asset 查询参数
-      return html.replace(/\/images\/([^"'?]+)\?asset/g, '/images/$1');
+      // 在 HTML 中移除 ?asset 查询参数,保留路径
+      return html.replace(/(['"])\/images\/([^"'?]+)\?asset(['"])/g, '$1/images/$2$3');
     },
     transform(code, id) {
-      // 在 JS/TS 文件中移除 ?asset 查询参数
+      // 在 JS/TS/Vue 文件中移除 ?asset 查询参数,保留路径
       if (id.endsWith('.vue') || id.endsWith('.ts') || id.endsWith('.js')) {
-        return {
-          code: code.replace(/\/images\/([^"'?]+)\?asset/g, '/images/$1'),
-          map: null
-        };
+        // 匹配字符串中的路径: "/images/xxx.jpg?asset" -> "/images/xxx.jpg"
+        const newCode = code.replace(/(['"])\/images\/([^"'?]+)\?asset(['"])/g, '$1/images/$2$3');
+        if (newCode !== code) {
+          return {
+            code: newCode,
+            map: null
+          };
+        }
       }
     }
   };
