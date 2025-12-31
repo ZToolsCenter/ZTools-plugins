@@ -1,5 +1,5 @@
 {
-  "name": "@splayer/ztools-plugin",
+  "name": "@splayerz/ztools-plugin",
   "version": "1.0.0",
   "description": "简约音乐播放器 - 支持网易云音乐、本地音乐、桌面歌词",
   "type": "module",
