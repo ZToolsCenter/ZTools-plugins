@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    
+    "strict": false,
+    "noImplicitAny": false,
+    
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../electron/src/*"],
+      "@shared": ["../electron/src/types/shared.ts"],
+      "@plugin/*": ["./src/*"]
+    },
+    
+    "types": ["@ztools-center/ztools-api-types", "vite/client"]
+  },
+  "include": [
+    "src/**/*",
+    "../electron/src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "../electron/electron/**/*"
+  ]
+}
