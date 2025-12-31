@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { copyFileSync, existsSync, mkdirSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -34,6 +34,24 @@ preloadFiles.forEach(file => {
   copyFileSync(src, dest);
   console.log(`✅ preload/${file}`);
 });
+
+// 复制 images 目录
+const imagesDir = join(publicDir, 'images');
+const distImagesDir = join(distDir, 'images');
+if (existsSync(imagesDir)) {
+  if (!existsSync(distImagesDir)) {
+    mkdirSync(distImagesDir, { recursive: true });
+  }
+  const imageFiles = readdirSync(imagesDir);
+  imageFiles.forEach(file => {
+    const src = join(imagesDir, file);
+    const dest = join(distImagesDir, file);
+    if (statSync(src).isFile()) {
+      copyFileSync(src, dest);
+      console.log(`✅ images/${file}`);
+    }
+  });
+}
 
 // 安装 preload 依赖
 console.log('📦 安装 preload 依赖...');
