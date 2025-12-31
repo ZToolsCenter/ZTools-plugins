@@ -13,6 +13,7 @@ dist/
 build/
 out/
 release/
+*.zip
 
 # Misc
 .DS_Store
