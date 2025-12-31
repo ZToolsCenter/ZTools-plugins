@@ -146,12 +146,33 @@ function fastifyServerPlugin(): Plugin {
   };
 }
 
+// 修复图片路径插件
+function fixImagePathPlugin(): Plugin {
+  return {
+    name: 'fix-image-path',
+    enforce: 'post',
+    generateBundle(_, bundle) {
+      // 遍历所有生成的文件
+      for (const fileName in bundle) {
+        const file = bundle[fileName];
+        if (file.type === 'chunk' && fileName.endsWith('.js')) {
+          // 替换 /images/ 为 ./images/
+          file.code = file.code.replace(/["']\/images\//g, (match) => {
+            return match.replace('/images/', './images/');
+          });
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
   plugins: [
     vue(),
     wasm(),
     fastifyServerPlugin(),
+    fixImagePathPlugin(),
     AutoImport({
       imports: [
         'vue',
