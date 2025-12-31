@@ -1,4 +1,4 @@
-# SPlayer ZTools 插件
+# SPlayerZ
 
 SPlayer 的 ZTools 插件版本,支持在 ZTools 中播放网易云音乐。
 
