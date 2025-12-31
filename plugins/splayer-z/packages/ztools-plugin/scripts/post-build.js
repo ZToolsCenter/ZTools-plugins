@@ -1,6 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = join(__dirname, '../dist');
@@ -26,13 +27,26 @@ if (!existsSync(preloadDir)) {
   mkdirSync(preloadDir, { recursive: true });
 }
 
-const preloadFiles = ['package.json', 'services.js'];
+const preloadFiles = ['package.json', 'services.js', 'api-server.js'];
 preloadFiles.forEach(file => {
   const src = join(publicDir, 'preload', file);
   const dest = join(preloadDir, file);
   copyFileSync(src, dest);
   console.log(`✅ preload/${file}`);
 });
+
+// 安装 preload 依赖
+console.log('📦 安装 preload 依赖...');
+try {
+  execSync('npm install --production --no-package-lock', {
+    cwd: preloadDir,
+    stdio: 'inherit'
+  });
+  console.log('✅ preload 依赖安装完成');
+} catch (error) {
+  console.error('❌ preload 依赖安装失败:', error.message);
+  process.exit(1);
+}
 
 console.log('🎉 ZTools 插件构建完成!');
 console.log(`📁 输出目录: ${distDir}`);
