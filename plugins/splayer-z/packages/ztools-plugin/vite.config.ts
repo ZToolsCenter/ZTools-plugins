@@ -147,6 +147,7 @@ function fastifyServerPlugin(): Plugin {
 }
 
 export default defineConfig({
+  base: './',
   plugins: [
     vue(),
     wasm(),

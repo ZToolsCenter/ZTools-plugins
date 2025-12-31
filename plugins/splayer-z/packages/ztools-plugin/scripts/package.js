@@ -1,8 +1,7 @@
-import { createWriteStream, existsSync, readdirSync, statSync } from 'fs';
-import { basename, join } from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import archiver from 'archiver';
+import { createWriteStream, existsSync } from 'fs';
+import { basename, dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = join(__dirname, '../dist');
