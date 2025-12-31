@@ -1,42 +1,19 @@
 {
-  "name": "splayer-monorepo",
+  "name": "splayerz",
   "version": "1.0.0",
   "private": true,
-  "description": "SPlayer Monorepo - Electron App & ZTools Plugin",
+  "description": "SPlayerZ - ZTools Plugin for Music Player",
   "scripts": {
-    "dev:electron": "pnpm --filter @splayer/electron dev",
-    "dev:plugin": "pnpm --filter @splayer/ztools-plugin dev",
-    "build:electron": "pnpm --filter @splayer/electron build",
-    "build:plugin": "pnpm --filter @splayer/ztools-plugin build",
-    "package:plugin": "pnpm --filter @splayer/ztools-plugin package",
-    "typecheck": "pnpm --filter @splayer/electron typecheck"
+    "dev": "pnpm --filter @splayerz/ztools-plugin dev",
+    "build": "pnpm --filter @splayerz/ztools-plugin build",
+    "package": "pnpm --filter @splayerz/ztools-plugin package"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=20",
+    "node": ">=18",
     "pnpm": ">=9"
-  },
-  "pnpm": {
-    "overrides": {
-      "dmg-builder": "26.0.12",
-      "electron-builder-squirrel-windows": "26.0.12"
-    },
-    "onlyBuiltDependencies": [
-      "@applemusic-like-lyrics/core",
-      "@applemusic-like-lyrics/lyric",
-      "@applemusic-like-lyrics/vue",
-      "@parcel/watcher",
-      "core-js",
-      "electron",
-      "electron-winstaller",
-      "esbuild",
-      "vue-demi"
-    ],
-    "ignoredBuiltDependencies": [
-      "register-scheme"
-    ]
   }
 }
 
