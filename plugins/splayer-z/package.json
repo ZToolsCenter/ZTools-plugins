@@ -1,0 +1,42 @@
+{
+  "name": "splayer-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SPlayer Monorepo - Electron App & ZTools Plugin",
+  "scripts": {
+    "dev:electron": "pnpm --filter @splayer/electron dev",
+    "dev:plugin": "pnpm --filter @splayer/ztools-plugin dev",
+    "build:electron": "pnpm --filter @splayer/electron build",
+    "build:plugin": "pnpm --filter @splayer/ztools-plugin build",
+    "package:plugin": "pnpm --filter @splayer/ztools-plugin package",
+    "typecheck": "pnpm --filter @splayer/electron typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "pnpm": {
+    "overrides": {
+      "dmg-builder": "26.0.12",
+      "electron-builder-squirrel-windows": "26.0.12"
+    },
+    "onlyBuiltDependencies": [
+      "@applemusic-like-lyrics/core",
+      "@applemusic-like-lyrics/lyric",
+      "@applemusic-like-lyrics/vue",
+      "@parcel/watcher",
+      "core-js",
+      "electron",
+      "electron-winstaller",
+      "esbuild",
+      "vue-demi"
+    ],
+    "ignoredBuiltDependencies": [
+      "register-scheme"
+    ]
+  }
+}
+
