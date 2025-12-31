@@ -1,0 +1,37 @@
+{
+  "name": "@splayer/ztools-plugin",
+  "version": "1.0.0",
+  "description": "简约音乐播放器 - 支持网易云音乐、本地音乐、桌面歌词",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@splayer/electron": "workspace:*",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "vue": "^3.5.25",
+    "vue-router": "^4.6.3",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "naive-ui": "^2.43.2",
+    "@vueuse/core": "^13.9.0",
+    "@neteasecloudmusicapienhanced/api": "^4.29.18",
+    "fastify": "^5.6.2",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/multipart": "^9.3.0",
+    "lodash-es": "^4.17.21"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.2",
+    "vite": "^7.3.0",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^2.2.12",
+    "unplugin-auto-import": "^20.3.0",
+    "unplugin-vue-components": "^29.2.0",
+    "sass": "^1.94.2",
+    "vite-plugin-wasm": "^3.5.0"
+  }
+}
