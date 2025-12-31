@@ -146,37 +146,12 @@ function fastifyServerPlugin(): Plugin {
   };
 }
 
-// 处理 ?asset 查询参数的插件
-function assetQueryPlugin(): Plugin {
-  return {
-    name: 'asset-query-handler',
-    transformIndexHtml(html) {
-      // 在 HTML 中移除 ?asset 查询参数,保留路径
-      return html.replace(/(['"])\/images\/([^"'?]+)\?asset(['"])/g, '$1/images/$2$3');
-    },
-    transform(code, id) {
-      // 在 JS/TS/Vue 文件中移除 ?asset 查询参数,保留路径
-      if (id.endsWith('.vue') || id.endsWith('.ts') || id.endsWith('.js')) {
-        // 匹配字符串中的路径: "/images/xxx.jpg?asset" -> "/images/xxx.jpg"
-        const newCode = code.replace(/(['"])\/images\/([^"'?]+)\?asset(['"])/g, '$1/images/$2$3');
-        if (newCode !== code) {
-          return {
-            code: newCode,
-            map: null
-          };
-        }
-      }
-    }
-  };
-}
-
 export default defineConfig({
   base: './',
   plugins: [
     vue(),
     wasm(),
     fastifyServerPlugin(),
-    assetQueryPlugin(),
     AutoImport({
       imports: [
         'vue',
