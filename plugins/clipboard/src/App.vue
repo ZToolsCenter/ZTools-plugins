@@ -13,6 +13,7 @@ const pageSize = ref(20) // 每页数量
 const hasMore = ref(true) // 是否还有更多数据
 const needsExpand = ref({}) // 存储需要展开按钮的项目ID
 const favorites = ref([]) // 收藏的内容列表
+const searchText = ref('') // 搜索/过滤文本
 
 // 右键菜单相关
 const contextMenu = ref({
@@ -170,17 +171,11 @@ const fetchClipboardHistory = async (append = false) => {
       return
     }
 
-    // 构建filter
-    const filter = {}
-    if (activeTab.value !== 'all') {
-      filter.type = activeTab.value
-    }
-
-    // 调用API
+    // 调用API - filter参数是字符串，用于文本搜索
     const result = await window.ztools.clipboard.getHistory(
       currentPage.value,
       pageSize.value,
-      Object.keys(filter).length > 0 ? filter : undefined
+      searchText.value || undefined
     )
     console.log('API返回数据:', result)
 
@@ -233,9 +228,14 @@ const handleScroll = () => {
   }
 }
 
-// 根据当前tab筛选数据（现在主要用于favorite）
+// 根据当前tab筛选数据
 const filteredData = computed(() => {
-  return clipboardData.value
+  // 如果是 'all' 或 'favorite'，不做类型过滤
+  if (activeTab.value === 'all' || activeTab.value === 'favorite') {
+    return clipboardData.value
+  }
+  // 按类型过滤
+  return clipboardData.value.filter(item => item.type === activeTab.value)
 })
 
 // 切换展开/收起
@@ -526,10 +526,18 @@ onMounted(async () => {
     // 剪贴板内容变化时，刷新数据
     reload()
   })
-  window.ztools.onPluginEnter(() => {
-    // 插件进入时，刷新数据
+  window.ztools.onPluginEnter((param) => {
+    searchText.value = ''
+    // 刷新数据
     reload()
   })
+
+  // 设置搜索框
+  window.ztools.setSubInput((text) => {
+    // 搜索框输入时更新搜索文本并重新加载数据
+    searchText.value = text.text
+    reload()
+  }, '搜索剪贴板内容...', true)
 })
 
 onUnmounted(() => {
