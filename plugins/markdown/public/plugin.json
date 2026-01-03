@@ -1,7 +1,7 @@
 {
     "name": "markdown",
     "description": "Markdown",
-    "version": "1.7.0",
+    "version": "1.7.1",
     "main": "index.html",
     "preload": "preload.js",
     "logo": "logo.png",
