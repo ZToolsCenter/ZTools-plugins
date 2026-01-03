@@ -1,0 +1,49 @@
+{
+  "name": "rubick-json-editor",
+  "version": "1.7.1",
+  "pluginName": "JSON 编辑器",
+  "pluginType": "ui",
+  "main": "index.html",
+  "logo": "https://picx.zhimg.com/80/v2-9829832ee97d87a27ba83995fae70759_720w.png",
+  "preload": "preload.js",
+  "pluginSetting": {
+    "single": false
+  },
+  "features": [
+    {
+      "code": "json",
+      "explain": "Json 格式化编辑",
+      "cmds": [
+        "Json",
+        {
+          "type": "regex",
+          "minLength": 2,
+          "match": "/^\\s*(\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\])\\s*$/",
+          "label": "Json"
+        },
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 1,
+          "match": "/\\.json$/i",
+          "label": "Json"
+        }
+      ]
+    },
+    {
+      "code": "urlparams2json",
+      "explain": "URL Params 转 JSON",
+      "cmds": [
+        {
+          "type": "regex",
+          "minLength": 6,
+          "match": "/^(?:[^\\s=&]{1,40}=[^\\s=&]*&)+[^\\s=&]{1,40}=[^\\s=&]*$/",
+          "label": "URL Params 转 JSON"
+        }
+      ]
+    }
+  ],
+  "description": "JSON 格式化处理",
+  "author": "",
+  "homepage": ""
+}
