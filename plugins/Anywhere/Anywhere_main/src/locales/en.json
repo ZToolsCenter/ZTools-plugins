@@ -1,0 +1,497 @@
+{
+  "app": {
+    "header": {
+      "chats": "Chats 💬",
+      "prompts": "Quick Prompts 🚀",
+      "mcp": "MCP Servers 🔧",
+      "providers": "Providers ☁️",
+      "settings": "Settings ⚙️"
+    },
+    "tabs": {
+      "chats": "Chat History",
+      "prompts": "Quick Prompts",
+      "mcp": "MCP Servers",
+      "providers": "Providers",
+      "settings": "Settings"
+    }
+  },
+  "chats": {
+    "view": {
+      "local": "Local Chats",
+      "cloud": "Cloud Chats"
+    },
+    "info": {
+      "title": "Information",
+      "localDesc": "· Local Chats: Named conversations (saved, loaded from JSON, or opened from cloud) are auto-saved every 15 seconds. All conversations are stored in JSON format at {path}. Different paths can be used on different devices.",
+      "pathNotSet": "Not configured",
+      "cloudDesc": "· Cloud Chats: Conversations uploaded to the cloud, which can be pulled to local at any time."
+    },
+    "configRequired": {
+      "title": "Cloud Chats",
+      "webdavDescription": "Please configure WebDAV URL and data path (data_path) in 'Settings' to use this feature.",
+      "localPathDescription": "Please configure your local chat storage path in the 'Settings' page first"
+    },
+    "table": {
+      "filename": "Chat Name",
+      "modifiedTime": "Modified Time",
+      "size": "Size",
+      "actions": "Actions"
+    },
+    "actions": {
+      "chat": "Chat",
+      "rename": "Rename",
+      "delete": "Delete",
+      "forceSync": "Sync"
+    },
+    "rename": {
+      "promptTitle": "Rename Chat",
+      "promptMessage": "Please enter the new conversation name.",
+      "invalidFilename": "Invalid filename, must end with .json.",
+      "syncTitle": "Sync Operation",
+      "syncCloudConfirm": "A file with the same name exists in the cloud. Rename it synchronously?",
+      "syncLocalConfirm": "A file with the same name exists locally. Rename it synchronously?"
+    },
+    "tooltips": {
+      "syncToCloud": "Upload to Cloud",
+      "syncFromCloud": "Sync from Cloud",
+      "uploadChanges": "Upload {count} new or updated local files",
+      "downloadChanges": "Download {count} new or updated cloud files",
+      "forceUpload": "Force upload this file to the cloud (overwrite)",
+      "forceDownload": "Force download this file from the cloud (overwrite)"
+    },
+    "confirmDelete": "Are you sure you want to permanently delete chat '{filename}'?",
+    "alerts": {
+      "configError": "Failed to get configuration.",
+      "pathNotFound": "Specified WebDAV data path not found.",
+      "pathCreated": "Data path does not exist, has been created automatically.",
+      "fetchFailed": "Failed to fetch chat list.",
+      "loadingChat": "Loading chat...",
+      "restoreInitiated": "Chat has started.",
+      "restoreFailed": "Failed to restore chat.",
+      "renameSuccess": "Rename successful.",
+      "renameFailed": "Rename failed.",
+      "syncInProgress": "Syncing...",
+      "syncPreparingUpload": "Preparing to upload...",
+      "syncPreparingDownload": "Preparing to download...",
+      "syncProcessing": "Processing... {completed}/{total}",
+      "syncCancelled": "Sync operation has been cancelled",
+      "syncSuccessUpload": "{count} files successfully synced to the cloud.",
+      "syncSuccessDownload": "{count} files successfully synced from the cloud.",
+      "syncFailedPartially": "{failedCount} files failed.",
+      "syncFailed": "Sync failed: {message}",
+      "syncConfirmUpload": "This will upload all local conversations to the cloud, overwriting any files with the same name. Continue?",
+      "syncConfirmUploadTitle": "Upload to Cloud",
+      "syncConfirmDownload": "This will download all cloud conversations to your local machine, overwriting any files with the same name. Continue?",
+      "syncConfirmDownloadTitle": "Sync from Cloud",
+      "syncNoUpload": "All local files are up-to-date or newer on the cloud. Nothing to upload.",
+      "syncNoDownload": "All cloud files are synced or newer locally. Nothing to download.",
+      "confirmSyncDeleteTitle": "Confirm Sync Deletion",
+      "confirmSyncDeleteMessage": "{count} of the selected files also exist on the {location}. Do you want to delete them from there as well?",
+      "webdavRequired": "Please configure WebDAV first",
+      "localPathRequired": "Please configure local chat path first",
+      "continueConfirm": "Continue?",
+      "restoreChat": "Restore Chat"
+    }
+  },
+  "prompts": {
+    "allPrompts": "ALL",
+    "searchPlaceholder": "Search name or content...",
+    "noPrompts": "No prompts defined yet.",
+    "noPromptsInTag": "No prompts in this tag.",
+    "addExistingPrompt": "Add Existing Prompt",
+    "addNewPrompt": "Add New Prompt",
+    "editPrompt": "Edit Prompt",
+    "addNewTag": "Add New Tag",
+    "assignPromptsToTag": "Add Prompts to '{tagName}'",
+    "promptKeyLabel": "Name",
+    "promptKeyPlaceholder": "e.g., CodeGeneration",
+    "typeLabel": "Type",
+    "iconLabel": "Icon",
+    "iconUploadTip": "Supports {formats} format, max size {maxSize}.",
+    "dragIconHere": "Drag ",
+    "orClickToUpload": "or click",
+    "disableAll": "Disable All",
+    "enableAll": "Enable All",
+    "openWindow": "Open Dialog Window",
+    "deletePrompt": "Delete this Prompt",
+    "inputPlaceholder": "Enter prompt content...",
+    "selectNewModel": "Please select a new model",
+    "icon": {
+      "uploadText": "Drag/Paste<br>Click to Upload",
+      "downloadTooltip": "Download Icon",
+      "removeTooltip": "Remove Icon"
+    },
+    "iconEditor": {
+      "hint": "Drag to move / Scroll to scale",
+      "scale": "Scale",
+      "radius": "Radius",
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "background": {
+      "imageLabel": "Window Background Image (URL)",
+      "imagePlaceholder": "Enter image link (http/https/data:image)",
+      "opacityLabel": "Background Opacity",
+      "blurLabel": "Background Blur"
+    },
+    "regex": {
+      "label": "Custom Regex Match",
+      "tooltip": "When the input type is 'Text', you can set a regular expression here to match specific content.1. Format must be /.../flags, e.g., /^https?:\\/\\// to match URLs.2. Important: Backslashes \\ in the expression must be escaped as \\\\.3. flags are optional, like i for case-insensitivity (e.g., /hello/i).4. Leave empty to match any text.Quick Reference:• . - Matches any character except newline• \\d - Matches any digit• \\s - Matches any whitespace (space, tab, newline)• \\S - Matches any non-whitespace• \\w - Matches word characters (a-z, A-Z, 0-9, _)• [...] - Matches any character in the set, e.g., [abc]• * - Matches 0 or more times• + - Matches 1 or more times• ? - Matches 0 or 1 time• ^ - Matches start of string• $ - Matches end of string",
+      "placeholder": "/.../flags (empty for any text)"
+    },
+    "typeOptions": {
+      "general": "General",
+      "text": "Text",
+      "image": "Screenshot",
+      "files": "Files"
+    },
+    "showModeLabel": "Show Mode",
+    "showModeOptions": {
+      "fastinput": "Fast Input",
+      "window": "Standalone Window"
+    },
+    "promptKeyLabelShort": "Name",
+    "modelLabel": "Model",
+    "llmParametersLabel": "Model Parameters",
+    "llmParametersRemark": "Only effective for the current Quick Prompt model; no longer effective after switching to other models",
+    "AssistantParametersLabel": "Quick Prompt Parameters",
+    "sendDirectLabel": "Direct Text/Screenshot Sending",
+    "sendFileLabel": "Direct File Sending",
+    "ifTextNecessary": "Add Text Info",
+    "streamLabel": "Stream Responses",
+    "enableTemperatureLabel": "Custom Temperature",
+    "temperatureLabel": "Temperature Settings",
+    "promptContentLabel": "Prompt Content",
+    "enabledLabel": "Enabled",
+    "addToTagLabel": "Add to Tag (Optional)",
+    "addToTagPlaceholder": "Select tag (optional)",
+    "tagNameLabel": "Tag Name",
+    "selectPromptsToAddLabel": "Select Prompts to Add",
+    "selectPromptsPlaceholder": "Choose prompts",
+    "isAlwaysOnTopLabel": "Always on Top",
+    "autoCloseOnBlurLabel": "Auto-close on Blur",
+    "replaceModels": "Replace Models",
+    "replaceModelsDialog": {
+      "title": "Bulk Replace Models",
+      "sourceModel": "Source Model",
+      "targetModel": "Target Model"
+    },
+    "alerts": {
+      "tagNameEmpty": "Tag name cannot be empty.",
+      "tagExists": "Tag \"{tagName}\" already exists.",
+      "promptKeyEmpty": "Prompt name cannot be empty.",
+      "promptKeyExists": "Prompt name \"{newKey}\" already exists.",
+      "targetTagNotFound": "Target tag not found.",
+      "noPromptsToAssign": "No other prompts available to assign to this tag.",
+      "invalidImageFormat": "Invalid image format. Please use {formats}.",
+      "imageSizeTooLarge": "Image size exceeds {maxSize}.",
+      "modelsReplacedSuccess": "Successfully replaced the model for {count} prompts.",
+      "refreshSuccess": "Quick Prompts configuration has been refreshed!",
+      "noIconToDownload": "No icon available to download.",
+      "selectModels": "Please select source and target models.",
+      "sameModels": "Source and target models cannot be the same.",
+      "configFetchFailed": "Failed to fetch latest prompts settings, data might be stale.",
+      "promptNotFound": "Prompt not found, it may have been deleted.",
+      "saveFailed": "Configuration save failed, please try again.",
+      "saveSettingFailed": "Save failed"
+    },
+    "tooltips": {
+      "moveLeft": "Move Left",
+      "moveRight": "Move Right",
+      "removeFromTag": "Remove prompt from this tag",
+      "sendDirect": "When enabled, selected text or screenshot will be sent directly to the AI.",
+      "sendFile": "When enabled, selected files will be sent directly to the AI for processing.",
+      "ifTextNecessary": "Once enabled, if the user sends an empty text message, a timestamp is added to ensure that every request contains text, satisfying the requirements of some service providers (e.g., Vertex).",
+      "reasoningEffort": "Sets the computational budget for the model's reasoning process. Higher values may yield more thorough answers but increase latency and cost.",
+      "isAlwaysOnTopTooltip": "Enable to keep the window always on top of other windows.",
+      "autoCloseOnBlurTooltip": "Enable to close the standalone window when it loses focus.",
+      "defaultMcpServers": "When set, the selected MCP services will be automatically enabled when this assistant is opened in a standalone window."
+    },
+    "voiceLabel": "Default Voice",
+    "voicePlaceholder": "Select a voice or disable",
+    "voiceTooltip": "Select a voice to enable speech output by default. The model must support speech output. Select 'Disable' to not use it.",
+    "voiceOptions": {
+      "off": "Disable"
+    },
+    "reasoningEffortLabel": "Reasoning Effort",
+    "reasoningEffort": {
+      "default": "Default",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "defaultMcpServersLabel": "MCP",
+    "defaultMcpServersPlaceholder": "Select default MCP services for this assistant"
+  },
+  "mcp": {
+    "title": "MCP Servers",
+    "addServer": "Add MCP Server",
+    "editJson": "Edit JSON",
+    "noServers": "No MCP servers configured.",
+    "searchPlaceholder": "Search name, description, provider or tags...",
+    "noMatch": "No matching services found",
+    "addServerTitle": "Add New MCP Server",
+    "editServerTitle": "Edit MCP Server",
+    "nameLabel": "Name",
+    "descriptionLabel": "Description",
+    "typeLabel": "Type",
+    "activeLabel": "Active",
+    "persistentOn": "Persistent connection ON",
+    "persistentOff": "Persistent connection OFF",
+    "testConnectionTooltip": "Test Connection / View Cached Tools",
+    "refreshTooltip": "Force Refresh (Reconnect)",
+    "connecting": "Connecting and fetching tool list...",
+    "connectionSuccess": "Connected! Found {count} tools",
+    "connectionFailed": "Connection Failed",
+    "toolList": "Tool List:",
+    "cached": "Cached",
+    "noDescription": "No description",
+    "noToolsProvided": "No tools provided by this service",
+    "refreshConfig": "Refresh MCP Configuration",
+    "typeOptions": {
+      "stdio": "Stdio",
+      "http": "Streamable HTTP",
+      "sse": "SSE"
+    },
+    "stdio": {
+      "command": "Command",
+      "args": "Arguments",
+      "env": "Environment Variables"
+    },
+    "http": {
+      "url": "Base URL",
+      "headers": "Request Headers"
+    },
+    "advanced": "Advanced/Optional Settings",
+    "registryUrl": "Registry URL",
+    "providerName": "Provider Name",
+    "providerUrl": "Provider URL",
+    "logoUrl": "Logo URL",
+    "tags": "Tags",
+    "argsPlaceholder": "Enter one argument per line",
+    "envPlaceholder": "KEY1: VALUE1\nKEY2: VALUE2",
+    "headersPlaceholder": "Header-Name: Header-Value\nAuthorization: Bearer token",
+    "tagsPlaceholder": "Enter tags separated by commas",
+    "alerts": {
+      "deleteConfirmTitle": "Confirm Deletion",
+      "deleteConfirmText": "Are you sure you want to delete the MCP server '{name}'?",
+      "saveSuccess": "MCP server saved successfully.",
+      "saveFailed": "Failed to save MCP server.",
+      "deleteSuccess": "MCP server deleted successfully.",
+      "deleteFailed": "Failed to delete MCP server.",
+      "invalidJson": "Invalid JSON format. Please check your input.",
+      "jsonError": "JSON must be an object containing the \"mcpServers\" key.",
+      "configCopied": "Server config copied to clipboard",
+      "refreshSuccess": "MCP config refreshed!",
+      "configInvalid": "Failed to get valid config data.",
+      "refreshFailed": "Refresh failed, please try again later.",
+      "testSuccess": "Connection successful.",
+      "testFailed": "Connection failed. Please check your configuration."
+    },
+    "jsonDialog": {
+      "title": "Edit MCP Servers JSON",
+      "description": "Warning: Directly editing the JSON can cause issues if the format is incorrect. Proceed with caution."
+    },
+    "persistent": {
+      "label": "Persistent Connection",
+      "tooltip": "After enabling, a persistent connection will be maintained, which will occupy one slot of the total number of connections (up to 5). This is suitable for certain Stdio services that cannot be disconnected."
+    }
+  },
+  "providers": {
+    "addProviderBtn": "Add Provider",
+    "noProviders": "No providers yet.",
+    "statusOff": "Off",
+    "unnamedProvider": "Unnamed Provider",
+    "editNameTooltip": "Edit Name",
+    "moveUpTooltip": "Move Up",
+    "moveDownTooltip": "Move Down",
+    "deleteProviderTooltip": "Delete Provider",
+    "apiKeyLabel": "API Key",
+    "apiKeyPlaceholder": "Enter API Key (multiple can be entered, separated by commas)",
+    "apiKeyDescription": "You can enter multiple API keys separated by commas.",
+    "apiUrlLabel": "API URL",
+    "apiUrlPlaceholder": "e.g., https://api.openai.com/v1",
+    "modelsLabel": "Models",
+    "searchModelsPlaceholder": "Search models",
+    "noModelsAdded": "No models added yet.",
+    "getModelsFromApiBtn": "Get Models from API",
+    "addManuallyBtn": "Add Manually",
+    "selectProviderOrAdd": "Select a provider or add a new one",
+    "addProviderDialogTitle": "Add New Provider",
+    "providerNameLabel": "Provider Name",
+    "providerNamePlaceholder": "e.g., OpenAI Main Account",
+    "changeProviderNameDialogTitle": "Change Provider Name",
+    "addModelDialogTitle": "Add Model Manually",
+    "modelNameIdLabel": "Model Name/ID",
+    "modelNameIdPlaceholder": "e.g., gpt-4, text-davinci-003",
+    "availableModelsDialogTitle": "Available Models from API",
+    "table": {
+      "modelId": "Model ID",
+      "ownedBy": "Owned By",
+      "action": "Action"
+    },
+    "noModelsFoundError": "No models found or API error.",
+    "noModelsMatchSearch": "No models match search.",
+    "addModelTooltip": "Add Model",
+    "removeModelTooltip": "Remove Model",
+    "alerts": {
+      "providerUrlNotSet": "Provider URL is not set.",
+      "fetchModelsError": "Error {status}: {message}",
+      "fetchModelsFailedDefault": "Failed to fetch models.",
+      "configSaveFailed": "Failed to save configuration.",
+      "saveFailed": "Save failed"
+    }
+  },
+  "setting": {
+    "language": {
+      "label": "Language",
+      "english": "English",
+      "chinese": "中文",
+      "japanese": "日本語",
+      "russian": "Русский",
+      "selectPlaceholder": "Select Language"
+    },
+    "voice": {
+      "title": "Voice Settings  (Voice Name - Custom Description)",
+      "description": "Manage the list of voices available for speech synthesis.",
+      "add": "Add Voice",
+      "addPromptTitle": "Add New Voice",
+      "addPromptMessage": "Please enter the voice name (e.g., alloy).",
+      "addSuccess": "Voice added successfully.",
+      "addFailExists": "Voice already exists.",
+      "addFailEmpty": "Voice name cannot be empty.",
+      "editPromptTitle": "Edit Voice Name",
+      "editPromptMessage": "Please enter the new voice name",
+      "editSuccess": "Voice modified successfully"
+    },
+    "title": "General Settings",
+    "isAlwaysOnTop_global": {
+      "label": "Global Always on Top",
+      "description": "Globally control whether all assistant windows are always on top"
+    },
+    "autoCloseOnBlur_global": {
+      "label": "Global Auto-close on Blur",
+      "description": "Globally control whether all assistant windows close automatically on blur"
+    },
+    "skipLineBreak": {
+      "label": "Skip Line Breaks on Send",
+      "description": "Enable to skip line breaks when selecting text."
+    },
+    "ctrlEnter": {
+      "label": "Ctrl+Enter to Send",
+      "description": "Enable to send messages by pressing Ctrl+Enter."
+    },
+    "notification": {
+      "label": "Show Success Notification",
+      "description": "Enable to show a notification on successful response."
+    },
+    "darkMode": {
+      "label": "Theme",
+      "description": "Light mode or dark mode",
+      "dark": "Dark",
+      "light": "Light",
+      "system": "Follow System"
+    },
+    "fixPosition": {
+      "label": "Fix Window Position",
+      "description": "Enable to fix the position where the dialog window appears."
+    },
+    "dataManagement": {
+      "title": "Data Management",
+      "exportLabel": "Export Configuration",
+      "exportDesc": "Export all current settings to a JSON file. Note: The configuration file contains sensitive information, do not share it.",
+      "exportButton": "Export",
+      "importLabel": "Import Configuration",
+      "importDesc": "Import settings from a JSON file. This will overwrite current settings.",
+      "importButton": "Import"
+    },
+    "dimensions": {
+      "widthLabel": "Window Width (px)",
+      "heightLabel": "Window Height (px)"
+    },
+    "webdav": {
+      "url": "WebDAV URL",
+      "urlPlaceholder": "http://localhost:8080",
+      "username": "WebDAV Username",
+      "usernamePlaceholder": "WebDAV Username",
+      "password": "WebDAV Password",
+      "passwordPlaceholder": "WebDAV Password",
+      "path": "WebDAV Config Path",
+      "pathPlaceholder": "/anywhere",
+      "dataPath": "WebDAV Data Path",
+      "dataPathPlaceholder": "/anywhere_data",
+      "backupRestoreTitle": "Config Backup & Restore",
+      "backupButton": "Backup to WebDAV",
+      "restoreButton": "Manage Backups",
+      "localChatPath": "Local Chat Path",
+      "localChatPathPlaceholder": "Please select a local folder to store chat history",
+      "selectFolder": "Select Folder",
+      "webdavDescription": "Please configure WebDAV URL and data path in 'Settings' first",
+      "backup": {
+        "confirmTitle": "Confirm Backup Filename",
+        "confirmMessage": "Please enter the backup filename. It is recommended to use the default name to keep the timestamp.",
+        "invalidFilename": "Invalid filename, must end with .json.",
+        "cancelled": "Backup cancelled.",
+        "emptyFilenameError": "Filename cannot be empty.",
+        "inputFilename": "Please enter filename"
+      },
+      "manager": {
+        "title": "Backup Data Management",
+        "pathNotFound": "The specified WebDAV path does not exist.",
+        "fetchFailed": "Failed to fetch backup list.",
+        "filename": "Filename",
+        "modifiedTime": "Modified Time",
+        "size": "Size",
+        "actions": "Actions",
+        "restore": "Restore",
+        "delete": "Delete",
+        "confirmRestore": "Are you sure you want to restore this backup file '{filename}'? This will overwrite your current configuration.",
+        "confirmDelete": "Are you sure you want to permanently delete the file '{filename}'?",
+        "noFileSelected": "No files selected.",
+        "confirmDeleteMultiple": "Are you sure you want to permanently delete the {count} selected files?",
+        "deleteSuccess": "Deleted successfully.",
+        "deleteFailed": "Deletion failed.",
+        "deleteSuccessMultiple": "Selected files deleted successfully.",
+        "deleteFailedMultiple": "Error deleting selected files."
+      },
+      "alerts": {
+        "urlRequired": "WebDAV URL cannot be empty.",
+        "backupInProgress": "Backing up...",
+        "backupSuccess": "Backup successful.",
+        "backupFailed": "Backup failed.",
+        "fileNotFound": "Backup file not found.",
+        "restoreInProgress": "Restoring...",
+        "restoreSuccess": "Restore successful.",
+        "restoreFailed": "Restore failed."
+      }
+    },
+    "alerts": {
+      "importSuccess": "Configuration imported successfully.",
+      "importFailed": "Configuration import failed.",
+      "saveSuccess": "Saved successfully!",
+      "saveFailedPrefix": "Failed to save setting: "
+    }
+  },
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "add": "Add",
+    "delete": "Delete",
+    "edit": "Edit",
+    "save": "Save",
+    "close": "Close",
+    "assignSelected": "Assign Selected",
+    "addTag": "Add Tag",
+    "removeIcon": "Remove",
+    "downloadIcon": "Download",
+    "warningTitle": "Warning",
+    "refresh": "Refresh",
+    "deleteSelected": "Delete",
+    "noFileSelected": "No files selected.",
+    "confirmDeleteMultiple": "Are you sure you want to permanently delete the {count} selected files?",
+    "deleteSuccess": "Deleted successfully.",
+    "deleteFailed": "Deletion failed.",
+    "deleteSuccessMultiple": "Selected files deleted successfully.",
+    "deleteFailedMultiple": "Error deleting selected files."
+  }
+}

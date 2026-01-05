@@ -1,0 +1,497 @@
+{
+  "app": {
+    "header": {
+      "chats": "对话 💬",
+      "prompts": "快捷助手 🚀",
+      "mcp": "MCP 服务 🔧",
+      "providers": "服务商 ☁️",
+      "settings": "设置 ⚙️"
+    },
+    "tabs": {
+      "chats": "历史对话",
+      "prompts": "快捷助手",
+      "mcp": "MCP 服务",
+      "providers": "服务商",
+      "settings": "设置"
+    }
+  },
+  "chats": {
+    "view": {
+      "local": "本地对话",
+      "cloud": "云端对话"
+    },
+    "info": {
+      "title": "说明",
+      "localDesc": "· 本地对话：每隔15秒自动保存已命名的对话到本地（已保存的对话、json文件加载的对话、打开的云端对话），所有对话以json格式存储在 {path}，支持不同设备不同路径。",
+      "pathNotSet": "尚未配置",
+      "cloudDesc": "· 云端对话：上传到云端的对话，可以随时拉取到本地。"
+    },
+    "configRequired": {
+      "title": "云端对话",
+      "webdavDescription": "请先在“设置”中配置 WebDAV URL 和数据路径 (data_path) 以使用此功能",
+      "localPathDescription": "请先在“设置”页面配置您的本地对话存储路径"
+    },
+    "table": {
+      "filename": "对话名称",
+      "modifiedTime": "修改时间",
+      "size": "大小",
+      "actions": "操作"
+    },
+    "actions": {
+      "chat": "聊天",
+      "rename": "重命名",
+      "delete": "删除",
+      "forceSync": "同步"
+    },
+    "rename": {
+      "promptTitle": "重命名对话",
+      "promptMessage": "请输入新的会话名称",
+      "invalidFilename": "文件名无效，必须以 .json 结尾",
+      "syncTitle": "同步操作提示",
+      "syncCloudConfirm": "云端也存在同名文件，是否同步重命名？",
+      "syncLocalConfirm": "本地也存在同名文件，是否同步重命名？"
+    },
+    "tooltips": {
+      "syncToCloud": "上传至云端",
+      "syncFromCloud": "从云端同步",
+      "uploadChanges": "上传本地新增和较新的文件 ({count}个)",
+      "downloadChanges": "下载云端新增和较新的文件 ({count}个)",
+      "forceUpload": "强制上传此文件到云端 (覆盖)",
+      "forceDownload": "强制从云端下载此文件 (覆盖)"
+    },
+    "confirmDelete": "您确定要永久删除对话 '{filename}' 吗？",
+    "alerts": {
+      "configError": "获取配置失败",
+      "pathNotFound": "未找到指定的WebDAV数据路径",
+      "pathCreated": "数据路径不存在，已自动创建",
+      "fetchFailed": "获取对话列表失败",
+      "loadingChat": "正在加载对话...",
+      "restoreInitiated": "对话已开始",
+      "restoreFailed": "恢复对话失败",
+      "renameSuccess": "重命名成功",
+      "renameFailed": "重命名失败",
+      "syncInProgress": "同步中...",
+      "syncPreparingUpload": "准备上传...",
+      "syncPreparingDownload": "准备下载...",
+      "syncProcessing": "处理中... {completed}/{total}",
+      "syncCancelled": "同步操作已取消",
+      "syncSuccessUpload": "{count}个文件成功同步到云端。",
+      "syncSuccessDownload": "{count}个文件成功同步到本地。",
+      "syncFailedPartially": "{failedCount}个文件失败。",
+      "syncFailed": "同步失败: {message}",
+      "syncConfirmUpload": "这将把所有本地对话上传到云端，同名文件将被覆盖。是否继续？",
+      "syncConfirmUploadTitle": "上传到云端",
+      "syncConfirmDownload": "这将把所有云端对话下载到本地，同名文件将被覆盖。是否继续？",
+      "syncConfirmDownloadTitle": "从云端同步",
+      "syncNoUpload": "所有本地文件均已是最新或云端版本较新，无需上传。",
+      "syncNoDownload": "所有云端文件均已同步或本地版本较新，无需下载。",
+      "confirmSyncDeleteTitle": "同步删除确认",
+      "confirmSyncDeleteMessage": "您选择的文件中，有 {count} 个在 {location} 也存在。是否要一并删除？",
+      "webdavRequired": "请先配置WebDAV",
+      "localPathRequired": "请先配置本地对话路径",
+      "continueConfirm": "是否继续？",
+      "restoreChat": "恢复聊天"
+    }
+  },
+  "prompts": {
+    "allPrompts": "全部",
+    "searchPlaceholder": "搜索名称或内容...",
+    "noPrompts": "尚未定义任何快捷助手",
+    "noPromptsInTag": "此标签下没有快捷助手",
+    "addExistingPrompt": "添加已有快捷助手",
+    "addNewPrompt": "新增快捷助手",
+    "editPrompt": "编辑快捷助手",
+    "addNewTag": "新增标签",
+    "assignPromptsToTag": "添加快捷助手到 '{tagName}'",
+    "promptKeyLabel": "名称",
+    "promptKeyPlaceholder": "例如, CodeGeneration",
+    "typeLabel": "类型",
+    "iconLabel": "图标",
+    "iconUploadTip": "支持 {formats} 格式，最大 {maxSize}",
+    "dragIconHere": "拖拽",
+    "orClickToUpload": "或点击",
+    "disableAll": "全部禁用",
+    "enableAll": "全部启用",
+    "openWindow": "直接打开对话窗口",
+    "deletePrompt": "删除此快捷助手",
+    "inputPlaceholder": "请输入提示词内容...",
+    "selectNewModel": "请选择新的模型",
+    "icon": {
+      "uploadText": "拖拽/粘贴<br>点击上传",
+      "downloadTooltip": "下载图标",
+      "removeTooltip": "移除图标"
+    },
+    "iconEditor": {
+      "hint": "拖拽移动 / 滚轮缩放",
+      "scale": "缩放",
+      "radius": "圆角",
+      "cancel": "取消",
+      "confirm": "确定使用"
+    },
+    "background": {
+      "imageLabel": "窗口背景图片 (URL)",
+      "imagePlaceholder": "输入图片链接 (http/https/data:image)",
+      "opacityLabel": "背景不透明度",
+      "blurLabel": "背景模糊度"
+    },
+    "regex": {
+      "label": "自定义正则匹配",
+      "tooltip": "当输入类型为'文本'时，可通过此项设置正则表达式来匹配特定内容。1. 格式必须为 /.../flags，例如 /^https?:\\/\\// 用于匹配网址。2. 重要：表达式中的反斜杠 \\ 必须转义写成 \\\\。3. flags 是可选标志，如 i 表示不区分大小写 (例如 /hello/i)。4. 如果留空，则会匹配任意文本。常用符号速查:• . - 匹配除换行外的任意字符• \\d - 匹配任意数字• \\s - 匹配任意空白符 (空格, tab, 换行)• \\S - 匹配任意非空白符• \\w - 匹配字母、数字、下划线• [...] - 匹配括号内任一字符, 如 [abc]• * - 匹配0次或多次• + - 匹配1次或多次• ? - 匹配0次或1次• ^ - 匹配开头• $ - 匹配结尾",
+      "placeholder": "/.../flags (留空则匹配任意文本)"
+    },
+    "typeOptions": {
+      "general": "通用",
+      "text": "文本",
+      "image": "截图",
+      "files": "文件"
+    },
+    "showModeLabel": "显示模式",
+    "showModeOptions": {
+      "fastinput": "快捷输入",
+      "window": "独立窗口"
+    },
+    "promptKeyLabelShort": "名称",
+    "modelLabel": "模型",
+    "llmParametersLabel": "模型参数",
+    "llmParametersRemark": "仅当前 快捷助手 模型生效，更换其他模型后不再生效",
+    "AssistantParametersLabel": "快捷助手参数",
+    "sendDirectLabel": "文本/截图直接发送",
+    "sendFileLabel": "文件直接发送",
+    "ifTextNecessary": "补充文本信息",
+    "streamLabel": "流式响应",
+    "enableTemperatureLabel": "自定义温度",
+    "temperatureLabel": "温度设置",
+    "promptContentLabel": "快捷助手内容",
+    "enabledLabel": "启用",
+    "addToTagLabel": "添加到标签 (可选)",
+    "addToTagPlaceholder": "选择标签 (可选)",
+    "tagNameLabel": "标签名",
+    "selectPromptsToAddLabel": "选择要添加的快捷助手",
+    "selectPromptsPlaceholder": "选择快捷助手",
+    "isAlwaysOnTopLabel": "窗口置顶",
+    "autoCloseOnBlurLabel": "失焦关闭",
+    "replaceModels": "替换模型",
+    "replaceModelsDialog": {
+      "title": "批量替换模型",
+      "sourceModel": "源模型",
+      "targetModel": "目标模型"
+    },
+    "alerts": {
+      "tagNameEmpty": "标签名不能为空",
+      "tagExists": "标签 \"{tagName}\" 已存在",
+      "promptKeyEmpty": "快捷助手名称不能为空",
+      "promptKeyExists": "快捷助手名称 \"{newKey}\" 已存在",
+      "targetTagNotFound": "目标标签未找到",
+      "noPromptsToAssign": "没有其他可分配到此标签的快捷助手",
+      "invalidImageFormat": "图片格式无效请使用 {formats}",
+      "imageSizeTooLarge": "图片大小超过 {maxSize}",
+      "modelsReplacedSuccess": "成功替换了 {count} 个快捷助手的模型。",
+      "refreshSuccess": "快捷助手配置已刷新！",
+      "noIconToDownload": "没有可供下载的图标。",
+      "selectModels": "请选择源模型和目标模型。",
+      "sameModels": "源模型和目标模型不能相同。",
+      "configFetchFailed": "无法获取最新的快捷助手设置，可能显示旧数据。",
+      "promptNotFound": "快捷助手不存在，可能已被其他操作删除。",
+      "saveFailed": "配置保存失败，请重试",
+      "saveSettingFailed": "保存失败"
+    },
+    "tooltips": {
+      "moveLeft": "左移",
+      "moveRight": "右移",
+      "removeFromTag": "从此标签移除快捷助手",
+      "sendDirect": "开启后，选中文字或截图后将直接发送给AI",
+      "sendFile": "开启后，选中文件后将直接发送给AI并处理结果",
+      "ifTextNecessary": "开启后，用户如果发送空文本消息则添加时间戳，以确保每次请求都包含文本，满足部分服务商要求（vertex）",
+      "reasoningEffort": "设置模型思考过程的计算预算。更高的值可能会产生更详尽的回答，但会增加延迟和成本。",
+      "isAlwaysOnTopTooltip": "启用以使窗口始终保持在最上层。",
+      "autoCloseOnBlurTooltip": "启用以在独立窗口失去焦点时将其关闭。",
+      "defaultMcpServers": "设置后，在独立窗口打开此助手时将自动启用所选的MCP服务。"
+    },
+    "voiceLabel": "默认声音",
+    "voicePlaceholder": "选择一个声音或关闭",
+    "voiceTooltip": "选择声音后默认开启语音输出，模型须支持语音输出，选择“关闭”则不使用",
+    "voiceOptions": {
+      "off": "关闭"
+    },
+    "reasoningEffortLabel": "思考预算",
+    "reasoningEffort": {
+      "default": "默认",
+      "low": "低",
+      "medium": "中",
+      "high": "高"
+    },
+    "defaultMcpServersLabel": "MCP",
+    "defaultMcpServersPlaceholder": "选择此助手默认启用的MCP服务"
+  },
+  "mcp": {
+    "title": "MCP 服务",
+    "addServer": "添加 MCP 服务",
+    "editJson": "编辑 JSON",
+    "noServers": "尚未配置 MCP 服务。",
+    "searchPlaceholder": "搜索名称、描述、提供者或标签...",
+    "noMatch": "未找到匹配的服务",
+    "addServerTitle": "添加新 MCP 服务",
+    "editServerTitle": "编辑 MCP 服务",
+    "nameLabel": "名称",
+    "descriptionLabel": "描述",
+    "typeLabel": "类型",
+    "activeLabel": "启用",
+    "persistentOn": "持久连接已开启",
+    "persistentOff": "持久连接已关闭",
+    "testConnectionTooltip": "测试连接 / 查看缓存工具",
+    "refreshTooltip": "强制刷新（重新连接获取）",
+    "connecting": "正在连接并获取工具列表...",
+    "connectionSuccess": "连接成功！获取到 {count} 个工具",
+    "connectionFailed": "连接失败",
+    "toolList": "工具列表:",
+    "cached": "已缓存",
+    "noDescription": "无描述",
+    "noToolsProvided": "该服务未提供任何工具",
+    "refreshConfig": "刷新 MCP 服务配置",
+    "typeOptions": {
+      "stdio": "Stdio",
+      "http": "可流式 HTTP",
+      "sse": "SSE"
+    },
+    "stdio": {
+      "command": "命令",
+      "args": "参数",
+      "env": "环境变量"
+    },
+    "http": {
+      "url": "基础 URL",
+      "headers": "请求头"
+    },
+    "advanced": "高级/可选设置",
+    "registryUrl": "注册表 URL",
+    "providerName": "服务商名称",
+    "providerUrl": "服务商链接",
+    "logoUrl": "图标链接",
+    "tags": "标签",
+    "argsPlaceholder": "每行输入一个参数",
+    "envPlaceholder": "KEY1: VALUE1\nKEY2: VALUE2",
+    "headersPlaceholder": "Header-Name: Header-Value\nAuthorization: Bearer token",
+    "tagsPlaceholder": "输入标签，以逗号分隔",
+    "alerts": {
+      "deleteConfirmTitle": "确认删除",
+      "deleteConfirmText": "您确定要删除 MCP 服务 “{name}” 吗？",
+      "saveSuccess": "MCP 服务保存成功。",
+      "saveFailed": "MCP 服务保存失败。",
+      "deleteSuccess": "MCP 服务删除成功。",
+      "deleteFailed": "MCP 服务删除失败。",
+      "invalidJson": "JSON 格式无效，请检查您的输入。",
+      "jsonError": "JSON必须是一个包含 \"mcpServers\" 键的对象。",
+      "configCopied": "服务器配置已复制到剪贴板",
+      "refreshSuccess": "MCP 服务配置已刷新！",
+      "configInvalid": "未能获取到有效的配置数据。",
+      "refreshFailed": "刷新配置失败，请稍后重试。",
+      "testSuccess":"测试成功。",
+      "testFailed": "测试失败，请检查您的配置。"
+    },
+    "jsonDialog": {
+      "title": "编辑 MCP 服务 JSON",
+      "description": "警告：直接编辑 JSON 可能会导致问题，如果格式不正确。请谨慎操作。"
+    },
+    "persistent": {
+      "label": "持久连接",
+      "tooltip": "开启后将保持长连接，会占用总连接数（最多5个），适合部分无法断开的Stdio服务。"
+    }
+  },
+  "providers": {
+    "addProviderBtn": "添加服务商",
+    "noProviders": "暂无服务商",
+    "statusOff": "关闭",
+    "unnamedProvider": "未命名服务商",
+    "editNameTooltip": "编辑名称",
+    "moveUpTooltip": "上移",
+    "moveDownTooltip": "下移",
+    "deleteProviderTooltip": "删除服务商",
+    "apiKeyLabel": "API 密钥",
+    "apiKeyPlaceholder": "输入 API 密钥 (可输入多个，用逗号分隔)",
+    "apiKeyDescription": "可以输入多个 API 密钥，用逗号分隔",
+    "apiUrlLabel": "API URL",
+    "apiUrlPlaceholder": "例如, https://api.openai.com/v1",
+    "modelsLabel": "模型",
+    "searchModelsPlaceholder": "搜索模型",
+    "noModelsAdded": "尚未添加模型",
+    "getModelsFromApiBtn": "从 API 获取模型",
+    "addManuallyBtn": "手动添加",
+    "selectProviderOrAdd": "选择一个服务商或添加新的",
+    "addProviderDialogTitle": "添加新服务商",
+    "providerNameLabel": "服务商名称",
+    "providerNamePlaceholder": "例如, OpenAI 主账户",
+    "changeProviderNameDialogTitle": "更改服务商名称",
+    "addModelDialogTitle": "手动添加模型",
+    "modelNameIdLabel": "模型名称/ID",
+    "modelNameIdPlaceholder": "例如, gpt-4, text-davinci-003",
+    "availableModelsDialogTitle": "API 可用模型",
+    "table": {
+      "modelId": "模型 ID",
+      "ownedBy": "所有者",
+      "action": "操作"
+    },
+    "noModelsFoundError": "未找到模型或 API 错误",
+    "noModelsMatchSearch": "未找到匹配的模型",
+    "addModelTooltip": "添加模型",
+    "removeModelTooltip": "移除模型",
+    "alerts": {
+      "providerUrlNotSet": "服务商 URL 未设置",
+      "fetchModelsError": "错误 {status}: {message}",
+      "fetchModelsFailedDefault": "获取模型失败",
+      "configSaveFailed": "保存配置失败",
+      "saveFailed": "保存失败"
+    }
+  },
+  "setting": {
+    "language": {
+      "label": "语言",
+      "english": "English",
+      "chinese": "中文",
+      "japanese": "日本語",
+      "russian": "Русский",
+      "selectPlaceholder": "选择语言"
+    },
+    "voice": {
+      "title": "语音设置  (声音名称-自定义描述)",
+      "description": "管理可用于语音合成的声音列表",
+      "add": "添加声音",
+      "addPromptTitle": "添加新声音",
+      "addPromptMessage": "请输入声音名称（例如, alloy）",
+      "addSuccess": "声音添加成功",
+      "addFailExists": "声音已存在",
+      "addFailEmpty": "声音名称不能为空",
+      "editPromptTitle": "修改声音名称",
+      "editPromptMessage": "请输入新的声音名称",
+      "editSuccess": "声音修改成功"
+    },
+    "title": "通用设置",
+    "isAlwaysOnTop_global": {
+      "label": "全局窗口置顶",
+      "description": "统一控制所有快捷助手的窗口是否置顶"
+    },
+    "autoCloseOnBlur_global": {
+      "label": "全局失焦关闭",
+      "description": "统一控制所有快捷助手的窗口是否在失焦后自动关闭"
+    },
+    "skipLineBreak": {
+      "label": "发送时跳过换行符",
+      "description": "启用以在划词时跳过换行符"
+    },
+    "ctrlEnter": {
+      "label": "Ctrl+Enter 发送",
+      "description": "启用以通过按 Ctrl+Enter 发送消息"
+    },
+    "notification": {
+      "label": "显示成功通知",
+      "description": "启用以在响应成功时显示通知"
+    },
+    "darkMode": {
+      "label": "主题",
+      "description": "浅色模式或深色模式",
+      "dark": "深色",
+      "light": "浅色",
+      "system": "跟随系统"
+    },
+    "fixPosition": {
+      "label": "固定窗口位置",
+      "description": "启用以固定对话窗口出现的位置"
+    },
+    "dataManagement": {
+      "title": "数据管理",
+      "exportLabel": "导出配置",
+      "exportDesc": "将当前所有设置导出为 JSON 文件， 注意配置文件包含敏感信息，切勿分享",
+      "exportButton": "导出",
+      "importLabel": "导入配置",
+      "importDesc": "从 JSON 文件导入设置，这将覆盖当前设置",
+      "importButton": "导入"
+    },
+    "dimensions": {
+      "widthLabel": "窗口宽度 (px)",
+      "heightLabel": "窗口高度 (px)"
+    },
+    "webdav": {
+      "url": "WebDAV 地址",
+      "urlPlaceholder": "http://localhost:8080",
+      "username": "WebDAV 用户名",
+      "usernamePlaceholder": "WebDAV 用户名",
+      "password": "WebDAV 密码",
+      "passwordPlaceholder": "WebDAV 密码",
+      "path": "WebDAV 配置路径",
+      "pathPlaceholder": "/anywhere",
+      "dataPath": "WebDAV 数据路径",
+      "dataPathPlaceholder": "/anywhere_data",
+      "backupRestoreTitle": "配置备份与恢复",
+      "backupButton": "备份到 WebDAV",
+      "restoreButton": "管理备份",
+      "localChatPath": "本地对话路径",
+      "localChatPathPlaceholder": "请选择用于存放对话记录的本地文件夹",
+      "selectFolder": "选择文件夹",
+      "webdavDescription": "请先在“设置”页面配置 WebDAV URL 和数据路径",
+      "backup": {
+        "confirmTitle": "确认备份文件名",
+        "confirmMessage": "请输入备份文件名建议使用默认文件名以保留时间戳",
+        "invalidFilename": "文件名无效，必须以 .json 结尾",
+        "cancelled": "备份已取消",
+        "emptyFilenameError": "文件名不能为空",
+        "inputFilename": "请输入文件名"
+      },
+      "manager": {
+        "title": "备份数据管理",
+        "pathNotFound": "指定的 WebDAV 路径不存在",
+        "fetchFailed": "获取备份列表失败",
+        "filename": "文件名",
+        "modifiedTime": "修改时间",
+        "size": "大小",
+        "actions": "操作",
+        "restore": "恢复",
+        "delete": "删除",
+        "confirmRestore": "您确定要恢复此备份文件 '{filename}' 吗？此操作将覆盖您当前的配置",
+        "confirmDelete": "您确定要永久删除文件 '{filename}' 吗？",
+        "noFileSelected": "未选择任何文件",
+        "confirmDeleteMultiple": "您确定要永久删除选中的 {count} 个文件吗？",
+        "deleteSuccess": "删除成功",
+        "deleteFailed": "删除失败",
+        "deleteSuccessMultiple": "选中的文件已成功删除",
+        "deleteFailedMultiple": "删除选中的文件时出错"
+      },
+      "alerts": {
+        "urlRequired": "WebDAV 地址不能为空",
+        "backupInProgress": "正在备份...",
+        "backupSuccess": "备份成功",
+        "backupFailed": "备份失败",
+        "fileNotFound": "未找到备份文件",
+        "restoreInProgress": "正在恢复...",
+        "restoreSuccess": "恢复成功",
+        "restoreFailed": "恢复失败"
+      }
+    },
+    "alerts": {
+      "importSuccess": "配置导入成功",
+      "importFailed": "配置导入失败",
+      "saveSuccess": "保存成功！",
+      "saveFailedPrefix": "保存设置失败: "
+    }
+  },
+  "common": {
+    "cancel": "取消",
+    "confirm": "确认",
+    "add": "添加",
+    "delete": "删除",
+    "edit": "编辑",
+    "save": "保存",
+    "close": "关闭",
+    "assignSelected": "分配选中",
+    "addTag": "添加标签",
+    "removeIcon": "移除",
+    "downloadIcon": "下载",
+    "warningTitle": "警告",
+    "refresh": "刷新",
+    "deleteSelected": "删除",
+    "noFileSelected": "未选择任何文件",
+    "confirmDeleteMultiple": "您确定要永久删除选中的 {count} 个文件吗？",
+    "deleteSuccess": "删除成功",
+    "deleteFailed": "删除失败",
+    "deleteSuccessMultiple": "选中的文件已成功删除",
+    "deleteFailedMultiple": "删除选中的文件时出错"
+  }
+}
