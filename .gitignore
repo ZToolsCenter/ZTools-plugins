@@ -13,3 +13,7 @@ out
 # 构建产物
 release/
 !release/.gitkeep
+
+# 便签特殊排除
+!/plugins/sticky-note/dist
+!/plugins/sticky-note/dist/vditor/dist

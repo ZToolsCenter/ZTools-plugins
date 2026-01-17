@@ -1,0 +1,37 @@
+{
+	"main": "dist/index.html",
+	"preload": "ztools-preload/preload.js",
+	"development": {
+		"main": "http://127.0.0.1:5173"
+	},
+	"logo": "logo.png",
+	"features": [
+		{
+			"code": "home",
+			"explain": "打开便签列表",
+			"cmds": [
+				"便签",
+				"悬浮便签",
+				"便签列表"
+			]
+		},
+		{
+			"code": "new-note",
+			"explain": "新建悬浮便签",
+			"cmds": [
+				"新便签",
+				"普通便签"
+			]
+		},
+		{
+			"code": "view-recent-note",
+			"explain": "打开最近创建的5个便签",
+			"cmds": [
+				"批量打开便签"
+			]
+		}
+	],
+	"pluginSetting": {
+		"height": 600
+	}
+}
