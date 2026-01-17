@@ -61,17 +61,18 @@ jobs:
         run: |
           node scripts/generate-plugins-json.js
 
-      - name: Read changelog
+      - name: Prepare release body
         if: steps.detect.outputs.has_changes == 'true'
-        id: changelog
         run: |
+          echo "## 更新的插件" > release/release-body.md
           if [ -f release/changelog.txt ]; then
-            echo "changelog<<EOF" >> $GITHUB_OUTPUT
-            cat release/changelog.txt >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            cat release/changelog.txt >> release/release-body.md
           else
-            echo "changelog=无变更信息" >> $GITHUB_OUTPUT
+            echo "无变更信息" >> release/release-body.md
           fi
+          echo "" >> release/release-body.md
+          echo "## 所有插件" >> release/release-body.md
+          echo "本次release包含所有历史插件的最新版本。" >> release/release-body.md
 
       - name: Create Release
         if: steps.detect.outputs.has_changes == 'true'
@@ -79,12 +80,7 @@ jobs:
         with:
           tag_name: v${{ steps.detect.outputs.release_version }}
           name: Release v${{ steps.detect.outputs.release_version }}
-          body: |
-            ## 更新的插件
-            ${{ steps.changelog.outputs.changelog }}
-
-            ## 所有插件
-            本次release包含所有历史插件的最新版本。
+          body_path: release/release-body.md
           files: |
             release/*.zip
             release/plugins.json
