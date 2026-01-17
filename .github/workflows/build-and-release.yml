@@ -84,6 +84,7 @@ jobs:
           files: |
             release/*.zip
             release/plugins.json
+            release/latest
           draft: false
           prerelease: false
         env:
