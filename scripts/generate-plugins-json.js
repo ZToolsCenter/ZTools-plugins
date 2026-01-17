@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, createReadStream } from 'fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, createReadStream, statSync } from 'fs';
 import { join, extname } from 'path';
 import { execSync } from 'child_process';
 import sharp from 'sharp';
@@ -96,7 +96,7 @@ function findPluginJson(dir) {
   for (const file of files) {
     const fullPath = join(dir, file);
     try {
-      const stat = require('fs').statSync(fullPath);
+      const stat = statSync(fullPath);
       if (stat.isDirectory()) {
         const found = findPluginJson(fullPath);
         if (found) return found;
@@ -130,7 +130,7 @@ function findLogoFile(dir, logoFileName) {
   for (const file of files) {
     const fullPath = join(dir, file);
     try {
-      const stat = require('fs').statSync(fullPath);
+      const stat = statSync(fullPath);
       if (stat.isDirectory() && !file.includes('node_modules')) {
         const found = findLogoFile(fullPath, logoFileName);
         if (found) return found;

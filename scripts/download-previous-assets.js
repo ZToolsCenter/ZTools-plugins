@@ -21,7 +21,6 @@ function getRepoInfo() {
   }
 
   // 从git remote解析
-  const { execSync } = require('child_process');
   try {
     const remote = execSync('git remote get-url origin', { encoding: 'utf-8' }).trim();
     const match = remote.match(/github\.com[:/](.+?)\/(.+?)(\.git)?$/);

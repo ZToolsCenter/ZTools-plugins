@@ -102,8 +102,7 @@ if (changedPlugins.length === 0) {
 
   // 写入GitHub Actions输出
   if (process.env.GITHUB_OUTPUT) {
-    const fs = require('fs');
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, 'has_changes=false\n');
+    writeFileSync(process.env.GITHUB_OUTPUT, 'has_changes=false\n', { flag: 'a' });
   }
 
   process.exit(0);
@@ -131,11 +130,15 @@ const releaseVersion = generateReleaseVersion();
 
 // 输出到GitHub Actions
 if (process.env.GITHUB_OUTPUT) {
-  const fs = require('fs');
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_changes=true\n`);
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_version=${releaseVersion}\n`);
-  // 多行输出需要特殊处理
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed_plugins<<EOF\n${changeLog}\nEOF\n`);
+  const outputContent = [
+    'has_changes=true',
+    `release_version=${releaseVersion}`,
+    `changed_plugins<<EOF`,
+    changeLog,
+    'EOF'
+  ].join('\n') + '\n';
+
+  writeFileSync(process.env.GITHUB_OUTPUT, outputContent, { flag: 'a' });
 }
 
 console.log('构建信息:');
