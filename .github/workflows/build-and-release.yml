@@ -1,0 +1,82 @@
+name: Build and Release Plugins
+
+on:
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:
+    inputs:
+      build_all:
+        description: '构建所有插件（而不是仅构建变动的插件）'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史用于检测变动
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Detect changed plugins
+        id: detect
+        run: |
+          node scripts/detect-changes.js
+        env:
+          BUILD_ALL: ${{ github.event.inputs.build_all || 'false' }}
+
+      - name: Build plugins
+        if: steps.detect.outputs.has_changes == 'true'
+        run: |
+          node scripts/build-plugins.js
+
+      - name: Download previous release assets
+        if: steps.detect.outputs.has_changes == 'true'
+        run: |
+          node scripts/download-previous-assets.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate plugins.json
+        if: steps.detect.outputs.has_changes == 'true'
+        run: |
+          node scripts/generate-plugins-json.js
+
+      - name: Create Release
+        if: steps.detect.outputs.has_changes == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.detect.outputs.release_version }}
+          name: Release v${{ steps.detect.outputs.release_version }}
+          body: |
+            ## 更新的插件
+            ${{ steps.detect.outputs.changed_plugins }}
+
+            ## 所有插件
+            本次release包含所有历史插件的最新版本。
+          files: |
+            release/*.zip
+            release/plugins.json
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

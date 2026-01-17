@@ -9,3 +9,7 @@ out
 .vscode/settings.json
 /.history
 .idea
+
+# 构建产物
+release/
+!release/.gitkeep

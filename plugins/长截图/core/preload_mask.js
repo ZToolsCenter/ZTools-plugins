@@ -32,12 +32,12 @@ const { writeFile, copyFile } = require("fs");
 window.writeFile = writeFile;
 window.copyFile = copyFile;
 
-if (isMacOs) {
-  // 在 macOS 上使用我们的自定义模块
-  const macScroll = require("./mac-scroll");
-  window.nodeWinMouse = macScroll; // 提供与 node-win-mouse 兼容的接口
-} else {
-  // 在其他平台上继续使用 node-win-mouse
-  const nodeWinMouse = require("node-win-mouse");
-  window.nodeWinMouse = nodeWinMouse;
-}
+// if (isMacOs) {
+//   // 在 macOS 上使用我们的自定义模块
+//   const macScroll = require("./mac-scroll");
+//   window.nodeWinMouse = macScroll; // 提供与 node-win-mouse 兼容的接口
+// } else {
+//   // 在其他平台上继续使用 node-win-mouse
+//   const nodeWinMouse = require("node-win-mouse");
+//   window.nodeWinMouse = nodeWinMouse;
+// }

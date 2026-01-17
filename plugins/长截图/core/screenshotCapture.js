@@ -77,26 +77,26 @@ class ScreenshotCapture {
                         }
                     } else {
 
-                        if (this.selectionViewStatus === "autoScroll" && Date.now() - this.waitTime > 800) {
-                            updateCtrlNotice("自动滚动中，请不要移动鼠标，否则会停止自动滚动");
+                        // if (this.selectionViewStatus === "autoScroll" && Date.now() - this.waitTime > 800) {
+                        //     updateCtrlNotice("自动滚动中，请不要移动鼠标，否则会停止自动滚动");
 
-                            nodeWinMouse.scroll(-window.scaledHeight / 8);
+                        //     nodeWinMouse.scroll(-window.scaledHeight / 8);
 
-                            // 暂停
-                            await new Promise(resolve => setTimeout(resolve, 100));
+                        //     // 暂停
+                        //     await new Promise(resolve => setTimeout(resolve, 100));
 
-                            // 当前时间戳
-                            this.waitTime = Date.now();
-                        }
+                        //     // 当前时间戳
+                        //     this.waitTime = Date.now();
+                        // }
 
-                        const result = await this.takeScreenshotAndCalculateDistanse();
+                        // const result = await this.takeScreenshotAndCalculateDistanse();
 
 
-                        if (result.status === 1) {
-                            this.waitTime = 0;
-                        } else {
-                            updateCtrlNotice('可能有动态内容，等待匹配，自动滚动中请勿移动鼠标');
-                        }
+                        // if (result.status === 1) {
+                        //     this.waitTime = 0;
+                        // } else {
+                        //     updateCtrlNotice('可能有动态内容，等待匹配，自动滚动中请勿移动鼠标');
+                        // }
                     }
 
 

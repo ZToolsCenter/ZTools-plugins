@@ -1,0 +1,23 @@
+{
+  "name": "ztools-plugins",
+  "version": "1.0.0",
+  "description": "ZTools插件中心仓库",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "detect": "node scripts/detect-changes.js",
+    "detect:all": "node scripts/detect-changes.js --all",
+    "build": "node scripts/build-plugins.js",
+    "generate": "node scripts/generate-plugins-json.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^20.0.2",
+    "archiver": "^6.0.1",
+    "sharp": "^0.33.1",
+    "unzipper": "^0.12.3"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
