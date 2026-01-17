@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from 'child_process';
-import { existsSync, readFileSync, readdirSync, statSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, statSync, mkdirSync, writeFileSync } from 'fs';
 import { join, resolve } from 'path';
 import archiver from 'archiver';
 import { createWriteStream } from 'fs';
@@ -243,11 +243,20 @@ async function packagePlugin(pluginName, version) {
 }
 
 /**
+ * 生成latest文件，记录当前发布的版本号
+ */
+function generateLatestFile(releaseVersion) {
+  const latestFilePath = join(RELEASE_DIR, 'latest');
+  writeFileSync(latestFilePath, releaseVersion, 'utf-8');
+  console.log(`✓ 生成latest文件: ${latestFilePath} (${releaseVersion})`);
+}
+
+/**
  * 主函数
  */
 async function main() {
   const buildInfo = getBuildInfo();
-  const { changedPlugins } = buildInfo;
+  const { changedPlugins, releaseVersion } = buildInfo;
 
   console.log(`准备构建 ${changedPlugins.length} 个插件...`);
 
@@ -303,6 +312,9 @@ async function main() {
     });
     process.exit(1);
   }
+
+  // 生成latest文件，记录当前发布版本号
+  generateLatestFile(releaseVersion);
 
   console.log('\n✓ 所有插件构建完成');
 }
