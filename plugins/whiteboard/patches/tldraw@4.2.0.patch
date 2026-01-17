@@ -1,0 +1,13 @@
+diff --git a/dist-esm/lib/utils/export/exportAs.mjs b/dist-esm/lib/utils/export/exportAs.mjs
+index 8aee89a7215a0a98691bb02a0b99b83f1ba1e0c4..680358739ccf43e0c6ffee248daaa09e81659d5a 100644
+--- a/dist-esm/lib/utils/export/exportAs.mjs
++++ b/dist-esm/lib/utils/export/exportAs.mjs
+@@ -17,7 +17,7 @@ async function exportAs(editor, ids, opts) {
+   name += `.${opts.format}`;
+   const { blob } = await editor.toImage(ids, opts);
+   const file = new File([blob], name, { type: blob.type });
+-  downloadFile(file);
++  window.preload ? window.preload.downloadFile(file, file.name) : downloadFile(file);
+ }
+ function getTimestamp() {
+   const now = /* @__PURE__ */ new Date();

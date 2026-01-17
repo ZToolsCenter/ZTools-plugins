@@ -1,0 +1,20 @@
+{
+    "name": "白板",
+    "description": "白板是一款高性能绘图工具，提供无限画布和丰富的绘图能力，让用户能够轻松地进行创意表达、头脑风暴。",
+    "main": "index.html",
+    "logo": "icon.png",
+    "preload": "preload.js",
+    "version": "1.0.0",
+    "development": {
+        "main": "http://localhost:5178"
+    },
+    "features": [
+        {
+            "code": "main",
+            "explain": "白板是一款高性能绘图工具，提供无限画布和丰富的绘图能力，让用户能够轻松地进行创意表达、头脑风暴。",
+            "cmds": [
+                "白板"
+            ]
+        }
+    ]
+}

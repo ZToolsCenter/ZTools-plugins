@@ -1,0 +1,22 @@
+{
+    "name": "ctool-adapter-firefox",
+    "main": "./dist/index.js",
+    "module": "./dist/esm/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "pnpm exec tsup-node",
+        "release": "node dist/release.js",
+        "adapter-build": "pnpm run build",
+        "platform-release": "pnpm run release"
+    },
+    "dependencies": {
+        "ctool-adapter-base": "workspace:*",
+        "ctool-config": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/firefox-webext-browser": "^94.0.1",
+        "@types/node": "catalog:",
+        "tsup": "catalog:",
+        "typescript": "catalog:"
+    }
+}

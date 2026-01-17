@@ -1,0 +1,27 @@
+{
+    "name": "ctool-site",
+    "private": true,
+    "scripts": {
+        "check": "vue-tsc -b",
+        "dev": "pnpm run check && vite --host",
+        "build": "pnpm run check && vite build"
+    },
+    "dependencies": {
+        "ctool-config": "workspace:*",
+        "normalize.css": "^8.0.1",
+        "tippy.js": "^6.3.7",
+        "vue": "catalog:"
+    },
+    "devDependencies": {
+        "@types/node": "catalog:",
+        "@vitejs/plugin-vue": "catalog:",
+        "typescript": "catalog:",
+        "vite": "catalog:",
+        "vite-plugin-html-config": "^2.0.2",
+        "vite-plugin-pwa": "^0.20.5",
+        "vite-svg-loader": "^4.0.0",
+        "vue-tsc": "catalog:",
+        "workbox-build": "^7.1.1",
+        "workbox-window": "^7.1.0"
+    }
+}
