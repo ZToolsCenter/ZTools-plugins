@@ -288,6 +288,29 @@ async function main() {
       console.log(`  - ${p.name} v${p.version}: ${p.description}`);
     });
 
+    // 生成变更日志（用于 GitHub Release）
+    const buildInfo = existsSync(BUILD_INFO_FILE)
+      ? JSON.parse(readFileSync(BUILD_INFO_FILE, 'utf-8'))
+      : { changedPlugins: [] };
+
+    const changedPluginNames = buildInfo.changedPlugins || [];
+    const changedPluginsInfo = plugins.filter(p =>
+      changedPluginNames.some(name =>
+        p.name === name || p.name.toLowerCase() === name.toLowerCase()
+      )
+    );
+
+    const changeLog = changedPluginsInfo.length > 0
+      ? changedPluginsInfo.map(p => `${p.name} v${p.version}: ${p.description}`).join('\n')
+      : '无变更插件信息';
+
+    // 保存变更日志到文件
+    const changeLogPath = join(RELEASE_DIR, 'changelog.txt');
+    writeFileSync(changeLogPath, changeLog);
+    console.log(`\n变更日志已保存到: ${changeLogPath}`);
+    console.log('变更内容:');
+    console.log(changeLog);
+
     console.log('\n✓ plugins.json生成完成');
   } finally {
     // 清理临时目录

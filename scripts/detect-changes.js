@@ -63,24 +63,6 @@ function detectChangedPlugins() {
 }
 
 /**
- * 读取插件的plugin.json
- */
-function getPluginInfo(pluginName) {
-  const pluginJsonPaths = [
-    join(PLUGINS_DIR, pluginName, 'plugin.json'),
-    join(PLUGINS_DIR, pluginName, 'public', 'plugin.json'),
-  ];
-
-  for (const path of pluginJsonPaths) {
-    if (existsSync(path)) {
-      return JSON.parse(readFileSync(path, 'utf-8'));
-    }
-  }
-
-  return null;
-}
-
-/**
  * 生成release版本号
  */
 function generateReleaseVersion() {
@@ -110,32 +92,15 @@ if (changedPlugins.length === 0) {
 
 console.log(`检测到 ${changedPlugins.length} 个插件变动:`, changedPlugins);
 
-// 获取变动插件的详细信息
-const pluginDetails = changedPlugins.map(name => {
-  const info = getPluginInfo(name);
-  return {
-    name,
-    version: info?.version || 'unknown',
-    description: info?.description || ''
-  };
-});
-
-// 生成变动说明
-const changeLog = pluginDetails
-  .map(p => `- **${p.name}** v${p.version}: ${p.description}`)
-  .join('\n');
-
 // 生成release版本号
 const releaseVersion = generateReleaseVersion();
 
-// 输出到GitHub Actions
+// 输出到GitHub Actions（只输出插件名称列表）
 if (process.env.GITHUB_OUTPUT) {
   const outputContent = [
     'has_changes=true',
     `release_version=${releaseVersion}`,
-    `changed_plugins<<EOF`,
-    changeLog,
-    'EOF'
+    `changed_plugins=${changedPlugins.join(',')}`
   ].join('\n') + '\n';
 
   writeFileSync(process.env.GITHUB_OUTPUT, outputContent, { flag: 'a' });
@@ -150,9 +115,7 @@ console.log(`  - 变动插件: ${changedPlugins.join(', ')}`);
 const output = {
   hasChanges: true,
   releaseVersion,
-  changedPlugins: changedPlugins,
-  pluginDetails,
-  changeLog
+  changedPlugins: changedPlugins
 };
 
 // 确保release目录存在

@@ -61,6 +61,18 @@ jobs:
         run: |
           node scripts/generate-plugins-json.js
 
+      - name: Read changelog
+        if: steps.detect.outputs.has_changes == 'true'
+        id: changelog
+        run: |
+          if [ -f release/changelog.txt ]; then
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            cat release/changelog.txt >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "changelog=无变更信息" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Release
         if: steps.detect.outputs.has_changes == 'true'
         uses: softprops/action-gh-release@v1
@@ -69,7 +81,7 @@ jobs:
           name: Release v${{ steps.detect.outputs.release_version }}
           body: |
             ## 更新的插件
-            ${{ steps.detect.outputs.changed_plugins }}
+            ${{ steps.changelog.outputs.changelog }}
 
             ## 所有插件
             本次release包含所有历史插件的最新版本。
