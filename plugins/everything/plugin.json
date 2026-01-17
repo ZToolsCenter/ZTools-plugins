@@ -1,25 +1,26 @@
 {
-    "name": "本地搜索",
-    "version": "1.0.1",
-    "description": "基于 Everything 更便捷的文件搜索 + 文件预览",
-    "preload": "preload/preload.js",
-    "main": "index.html",
-    "logo": "logo.png",
-    "platform": [
-        "win32"
-    ],
-    "features": [
+  "name": "everything",
+  "version": "1.0.1",
+  "description": "基于 Everything 更便捷的文件搜索 + 文件预览",
+  "preload": "preload/preload.js",
+  "main": "index.html",
+  "logo": "logo.png",
+  "platform": [
+    "win32"
+  ],
+  "features": [
+    {
+      "code": "find",
+      "explain": "基于 Everything 更便捷的文件搜索 + 文件预览",
+      "cmds": [
+        "find",
+        "搜索",
         {
-            "code": "find",
-            "explain": "基于 Everything 更便捷的文件搜索 + 文件预览",
-            "cmds": [
-                "find",
-                "搜索",
-                {
-                    "type": "over",
-                    "label": "文件搜索"
-                }
-            ]
+          "type": "over",
+          "label": "文件搜索"
         }
-    ]
+      ]
+    }
+  ],
+  "title": "本地搜索"
 }

@@ -1,5 +1,5 @@
 {
-  "name": "密码管理",
+  "name": "utools-upassword",
   "description": "uTools 官方开源、安全、简洁的密码管理器",
   "version": "1.0",
   "main": "index.html",
@@ -21,5 +21,6 @@
         "随机密码"
       ]
     }
-  ]
+  ],
+  "title": "密码管理"
 }

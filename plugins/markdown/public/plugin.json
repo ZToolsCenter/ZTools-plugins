@@ -1,20 +1,21 @@
 {
-    "name": "markdown",
-    "description": "Markdown",
-    "version": "1.7.1",
-    "main": "index.html",
-    "preload": "preload.js",
-    "logo": "logo.png",
-    "development": {
-        "main": "http://localhost:5178/"
-    },
-    "features": [
-        {
-            "code": "markdown",
-            "explain": "Markdown",
-            "cmds": [
-                "Markdown"
-            ]
-        }
-    ]
+  "name": "markdown",
+  "description": "Markdown",
+  "version": "1.7.1",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5178/"
+  },
+  "features": [
+    {
+      "code": "markdown",
+      "explain": "Markdown",
+      "cmds": [
+        "Markdown"
+      ]
+    }
+  ],
+  "title": "markdown"
 }

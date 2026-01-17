@@ -1,0 +1,34 @@
+{
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "unpack": "@(*.exe|aperture)",
+  "platform": [
+    "win32",
+    "darwin"
+  ],
+  "features": [
+    {
+      "code": "recorder",
+      "explain": "专业级屏幕录制工具，提供全屏/窗口/自定义区域三种录制模式",
+      "cmds": [
+        "录屏助手"
+      ]
+    },
+    {
+      "code": "region",
+      "mainHide": true,
+      "explain": "自定义框选区域录制",
+      "cmds": [
+        "区域录屏"
+      ]
+    }
+  ],
+  "name": "screen-recorder",
+  "pluginName": "录屏助手",
+  "description": "专业级屏幕录制工具，提供全屏/窗口/自定义区域三种录制模式，支持实时标记鼠标点击轨迹与键盘输入显示",
+  "author": "uTools 团队",
+  "homepage": "https://u.tools",
+  "version": "2.0.0",
+  "title": "录屏助手"
+}

@@ -1,0 +1,18 @@
+{
+  "name": "floating",
+  "description": "将截图、图片文件置顶悬浮，同时支持缩放、旋转、翻转、增减透明度",
+  "author": "qinyongliang",
+  "homepage": "https://github.com/qinyongliang/",
+  "preload": "preload.js",
+  "version": "1.2.13",
+  "logo": "icon.png",
+  "features": [
+    {
+      "code": "suspend-screenshot",
+      "cmds": [
+        "截图并悬浮"
+      ]
+    }
+  ],
+  "title": "悬浮"
+}

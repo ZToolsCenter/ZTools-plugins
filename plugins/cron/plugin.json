@@ -1,29 +1,30 @@
 {
-    "logo": "logo.png",
-    "main": "index.html",
-    "features": [
-        {
-            "code": "cron",
-            "cmds": [
-                "cron",
-                "cron生成",
-                "定时任务",
-                "crontab",
-                "quartz",
-                "spring cron",
-                "java cron"
-            ],
-            "explain": "Cron 表达式生成器"
-        }
-    ],
-    "platform": [
-        "win32",
-        "darwin",
-        "linux"
-    ],
-    "name": "cron在线表达式",
-    "description": "简单，实用的cron表达式生成小工具，好用请给我一个 5 星好评，甚是感谢",
-    "author": "Evan",
-    "homepage": null,
-    "version": "1.0.0"
+  "logo": "logo.png",
+  "main": "index.html",
+  "features": [
+    {
+      "code": "cron",
+      "cmds": [
+        "cron",
+        "cron生成",
+        "定时任务",
+        "crontab",
+        "quartz",
+        "spring cron",
+        "java cron"
+      ],
+      "explain": "Cron 表达式生成器"
+    }
+  ],
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "name": "cron",
+  "description": "简单，实用的cron表达式生成小工具，好用请给我一个 5 星好评，甚是感谢",
+  "author": "Evan",
+  "homepage": null,
+  "version": "1.0.0",
+  "title": "cron在线表达式"
 }

@@ -1,24 +1,25 @@
 {
-    "version": "1.0.1",
-    "name": "烟花",
-    "description": "在屏幕上绽放烟花",
-    "logo": "logo.png",
-    "preload": "preload.js",
-    "features": [
-        {
-            "code": "fireworks",
-            "explain": "发射全屏烟花",
-            "cmds": [
-                "烟花"
-            ],
-            "mainHide": true
-        }
-    ],
-    "platform": [
-        "win32",
-        "darwin",
-        "linux"
-    ],
-    "author": "Aaron",
-    "homepage": null
+  "version": "1.0.1",
+  "name": "yanhua",
+  "description": "在屏幕上绽放烟花",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "fireworks",
+      "explain": "发射全屏烟花",
+      "cmds": [
+        "烟花"
+      ],
+      "mainHide": true
+    }
+  ],
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "author": "Aaron",
+  "homepage": null,
+  "title": "烟花"
 }

@@ -1,23 +1,24 @@
 {
-    "name": "json-editor",
-    "description": "JSON 编辑器",
-    "version": "1.7.1",
-    "main": "index.html",
-    "preload": "preload.js",
-    "logo": "logo.png",
-    "features": [
+  "name": "json-editor",
+  "description": "JSON 编辑器",
+  "version": "1.7.1",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "clean-cache",
+      "explain": "Json 格式化编辑",
+      "cmds": [
+        "Json",
         {
-            "code": "clean-cache",
-            "explain": "Json 格式化编辑",
-            "cmds": [
-                "Json",
-                {
-                "type": "regex",
-                "minLength": 2,
-                "match": "/^\\s*(\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\])\\s*$/",
-                "label": "Json"
-                }
-            ]
+          "type": "regex",
+          "minLength": 2,
+          "match": "/^\\s*(\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\])\\s*$/",
+          "label": "Json"
         }
-    ]
+      ]
+    }
+  ],
+  "title": "json-editor"
 }

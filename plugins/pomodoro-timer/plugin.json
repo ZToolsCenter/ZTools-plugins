@@ -1,0 +1,29 @@
+{
+  "main": "page/index/index.html",
+  "logo": "logo.png",
+  "preload": "base/js/preload.js",
+  "platform": [
+    "win32",
+    "darwin"
+  ],
+  "features": [
+    {
+      "code": "tomato",
+      "explain": "超级番茄",
+      "cmds": [
+        "超级番茄",
+        "番茄钟"
+      ]
+    }
+  ],
+  "pluginSetting": {
+    "height": 650
+  },
+  "name": "pomodoro-timer",
+  "pluginName": "超级番茄",
+  "description": "番茄钟、长短目标管理、成就感设计，让你对现实上瘾",
+  "author": "李不烦",
+  "homepage": "https://lbfnote.com",
+  "version": "1.0.2",
+  "title": "超级番茄"
+}
