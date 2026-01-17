@@ -11,6 +11,24 @@ const TEMP_DIR = join(RELEASE_DIR, 'temp');
 const BUILD_INFO_FILE = join(RELEASE_DIR, 'build-info.json');
 
 /**
+ * 比较两个版本号
+ * @returns {number} 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+ */
+function compareVersions(v1, v2) {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+  const maxLen = Math.max(parts1.length, parts2.length);
+
+  for (let i = 0; i < maxLen; i++) {
+    const num1 = parts1[i] || 0;
+    const num2 = parts2[i] || 0;
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  return 0;
+}
+
+/**
  * 获取仓库信息
  */
 function getRepoInfo() {
@@ -300,8 +318,17 @@ async function main() {
       )
     );
 
-    const changeLog = changedPluginsInfo.length > 0
-      ? changedPluginsInfo.map(p => `${p.name} v${p.version}: ${p.description}`).join('\n')
+    // 对同名插件去重，只保留版本号最高的
+    const latestChangedPlugins = {};
+    for (const plugin of changedPluginsInfo) {
+      const existing = latestChangedPlugins[plugin.name];
+      if (!existing || compareVersions(plugin.version, existing.version) > 0) {
+        latestChangedPlugins[plugin.name] = plugin;
+      }
+    }
+
+    const changeLog = Object.keys(latestChangedPlugins).length > 0
+      ? Object.values(latestChangedPlugins).map(p => `${p.name} v${p.version}: ${p.description}`).join('\n')
       : '无变更插件信息';
 
     // 保存变更日志到文件
