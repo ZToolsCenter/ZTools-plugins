@@ -1,12 +1,30 @@
 #!/usr/bin/env node
 import { Octokit } from '@octokit/rest';
-import { existsSync, mkdirSync, createWriteStream } from 'fs';
-import { join } from 'path';
-import { pipeline } from 'stream/promises';
+import { existsSync, mkdirSync, createWriteStream, readdirSync, unlinkSync, readFileSync } from 'fs';
+import { join, extname } from 'path';
 import { get } from 'https';
+import { execSync } from 'child_process';
 
 const RELEASE_DIR = 'release';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
+/**
+ * 比较两个版本号
+ * @returns {number} 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+ */
+function compareVersions(v1, v2) {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+  const maxLen = Math.max(parts1.length, parts2.length);
+
+  for (let i = 0; i < maxLen; i++) {
+    const num1 = parts1[i] || 0;
+    const num2 = parts2[i] || 0;
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  return 0;
+}
 
 /**
  * 获取仓库信息
@@ -62,6 +80,81 @@ async function downloadFile(url, destPath) {
       fileStream.on('error', reject);
     }).on('error', reject);
   });
+}
+
+/**
+ * 清理旧版本的插件，只保留每个插件的最新版本
+ */
+function cleanupOldVersions() {
+  console.log('\n清理旧版本插件...');
+
+  // 获取所有zip文件
+  const zipFiles = readdirSync(RELEASE_DIR)
+    .filter(file => extname(file) === '.zip');
+
+  if (zipFiles.length === 0) {
+    console.log('没有找到zip文件');
+    return;
+  }
+
+  // 按插件名分组
+  const pluginGroups = {};
+
+  for (const zipFile of zipFiles) {
+    // 从文件名中提取插件名和版本号
+    // 格式: pluginName-version.zip
+    const match = zipFile.match(/^(.+?)-([\d.]+)\.zip$/);
+    if (!match) {
+      console.log(`跳过无法解析的文件: ${zipFile}`);
+      continue;
+    }
+
+    const [, pluginName, version] = match;
+
+    if (!pluginGroups[pluginName]) {
+      pluginGroups[pluginName] = [];
+    }
+
+    pluginGroups[pluginName].push({
+      fileName: zipFile,
+      version: version
+    });
+  }
+
+  // 对每个插件，只保留最新版本
+  let deletedCount = 0;
+
+  for (const [pluginName, versions] of Object.entries(pluginGroups)) {
+    if (versions.length <= 1) {
+      continue; // 只有一个版本，不需要清理
+    }
+
+    // 按版本号排序，找出最新版本
+    versions.sort((a, b) => compareVersions(b.version, a.version));
+    const latestVersion = versions[0];
+    const oldVersions = versions.slice(1);
+
+    console.log(`\n插件: ${pluginName}`);
+    console.log(`  保留: ${latestVersion.fileName} (v${latestVersion.version})`);
+
+    // 删除旧版本
+    for (const oldVersion of oldVersions) {
+      const filePath = join(RELEASE_DIR, oldVersion.fileName);
+      try {
+        unlinkSync(filePath);
+        console.log(`  删除: ${oldVersion.fileName} (v${oldVersion.version})`);
+        deletedCount++;
+      } catch (error) {
+        console.error(`  删除失败: ${oldVersion.fileName} - ${error.message}`);
+      }
+    }
+  }
+
+  if (deletedCount > 0) {
+    console.log(`\n✓ 清理完成，删除了 ${deletedCount} 个旧版本文件`);
+  } else {
+    console.log('\n✓ 没有需要清理的旧版本');
+  }
 }
 
 /**
@@ -127,6 +220,9 @@ async function main() {
       console.error('下载历史资产时出错:', error.message);
       throw error;
     }
+  } finally {
+    // 无论是否下载成功，都清理旧版本
+    cleanupOldVersions();
   }
 }
 
