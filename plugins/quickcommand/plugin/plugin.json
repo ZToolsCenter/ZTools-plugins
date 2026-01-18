@@ -1,0 +1,60 @@
+{
+  "name": "quickcommand",
+  "title": "快捷命令",
+  "description": "实现具备UI交互的自动化操作，支持可视化拖拽及直接编写脚本两种形式。1.可视化拖拽：支持文件、网络、音视频、图片、文本、浏览器、键鼠、AI对话等超过20种类型的自动化处理，2.编写脚本：支持utools的api，python、js、shell、cmd等多种脚本语言。关联关键词：自动化、可视化、RPA",
+  "main": "index.html",
+  "homepage": "https://github.com/fofolee/uTools-quickcommand",
+  "publishPage": "https://yuanliao.info/d/424",
+  "version": "5.0.1",
+  "development": {
+    "main": "http://127.0.0.1:8080/"
+  },
+  "author": "云之轩",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "pluginSetting": {
+    "single": false
+  },
+  "features": [
+    {
+      "code": "configuration",
+      "explain": "创建或编辑快捷命令",
+      "cmds": ["快捷命令", "QuickCommand"]
+    },
+    {
+      "code": "code",
+      "explain": "运行代码",
+      "cmds": ["运行代码", "RunCode"],
+      "icon": "features/code.png"
+    },
+    {
+      "code": "composer",
+      "explain": "运行可视化编排",
+      "cmds": ["可视化编排", "RunComposer"],
+      "icon": "features/code.png"
+    },
+    {
+      "code": "newcommand",
+      "explain": "快速新建快捷命令",
+      "cmds": ["新建快捷命令", "NewCommand"]
+    },
+    {
+      "code": "importcommand",
+      "explain": "导入快捷命令",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "导入命令",
+          "match": "/(^\\{[\\s\\S]*\"program\" *: *\".*\"[\\s\\S]*\"cmd\" *: *\".*\"[\\s\\S]*\\}$)|(^qc\\/(id|base64)\\/.+)/i",
+          "maxNum": 1
+        }
+      ]
+    },
+    {
+      "code": "server",
+      "explain": "配置快捷命令后台服务",
+      "cmds": ["快捷命令服务配置", "quickcommandServer"],
+      "icon": "features/server.png"
+    }
+  ]
+}

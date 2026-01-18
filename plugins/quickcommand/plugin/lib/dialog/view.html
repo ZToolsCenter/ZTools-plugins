@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>对话框</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- 标题栏 -->
+      <div class="title-bar">
+        <div class="title-left">
+          <img src="../../logo.png" alt="logo" class="logo" />
+          <h1 class="title-text" id="title-text">对话框</h1>
+        </div>
+        <div class="close-btn"></div>
+      </div>
+
+      <div class="content-wrapper">
+        <div id="content"></div>
+
+        <!-- 输入对话框 -->
+        <div id="input">
+          <div id="input-container"></div>
+        </div>
+
+        <!-- 确认对话框 -->
+        <div id="confirm"></div>
+
+        <!-- 按钮选择对话框 -->
+        <div id="buttons">
+          <div id="button-container"></div>
+        </div>
+
+        <!-- 选择列表对话框 -->
+        <div id="select">
+          <div class="filter-input">
+            <input
+              type="text"
+              id="filter-input"
+              placeholder="输入关键字进行筛选"
+            />
+          </div>
+          <div id="select-container" class="select-list"></div>
+        </div>
+
+        <!-- 文本区域对话框 -->
+        <div id="textarea">
+          <textarea id="text-content"></textarea>
+        </div>
+
+        <!-- 等待按钮对话框 -->
+        <div id="wait-button"></div>
+
+        <!-- 进度条对话框 -->
+        <div id="process">
+          <div class="process-buttons">
+            <div class="process-pause-btn" id="process-pause-btn"></div>
+            <div class="process-close-btn" id="process-close-btn"></div>
+          </div>
+          <div class="process-text" id="process-text"></div>
+          <div class="process-bar">
+            <div id="process-bar-inner"></div>
+          </div>
+        </div>
+      </div>
+      <div class="button-bar">
+        <button id="cancel-btn">取消</button>
+        <button id="ok-btn">确定</button>
+      </div>
+    </div>
+  </body>
+</html>
