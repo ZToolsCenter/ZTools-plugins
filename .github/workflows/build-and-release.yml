@@ -1,9 +1,9 @@
 name: Build and Release Plugins
 
 on:
-  # push:
-  #   branches:
-  #     - main
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       build_all:
