@@ -333,7 +333,7 @@ async function main() {
 
     // 保存变更日志到文件
     const changeLogPath = join(RELEASE_DIR, 'changelog.txt');
-    writeFileSync(changeLogPath, changeLog);
+    writeFileSync(changeLogPath, changeLog + '\n');
     console.log(`\n变更日志已保存到: ${changeLogPath}`);
     console.log('变更内容:');
     console.log(changeLog);

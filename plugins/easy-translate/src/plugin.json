@@ -59,6 +59,6 @@
   "description": "支持多种翻译服务(谷歌|有道|百度|DeepL|DeepLX|彩云|小牛|腾讯交互|火山|腾讯云|阿里云)；支持程序员常用的变量命名 (函数命名) 模式；图片翻译；拥有极具表现力的原文、译文发音朗读；支持备份插件设置；ef",
   "author": "Lainbo & Milo",
   "homepage": "https://flowus.cn/4739fa73-4333-475b-a1e9-d6287eda3b26#0d2cc1c1-c6d3-4e3c-9c40-46cecb97c02a",
-  "version": "2.22.1",
+  "version": "2.22.2",
   "title": "易翻翻译"
 }
