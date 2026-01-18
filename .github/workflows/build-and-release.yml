@@ -65,14 +65,20 @@ jobs:
         if: steps.detect.outputs.has_changes == 'true'
         run: |
           echo "## 更新的插件" > release/release-body.md
+          echo "" >> release/release-body.md
           if [ -f release/changelog.txt ]; then
-            cat release/changelog.txt >> release/release-body.md
+            echo "| 插件名称 | 版本 | 描述 |" >> release/release-body.md
+            echo "| --- | --- | --- |" >> release/release-body.md
+            while IFS= read -r line; do
+              # 提取插件名称、版本和描述
+              plugin_name=$(echo "$line" | sed -E 's/ v[0-9]+\.[0-9]+\.[0-9]+:.*//')
+              version=$(echo "$line" | sed -E 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+              description=$(echo "$line" | sed -E 's/.*: //')
+              echo "| $plugin_name | $version | $description |" >> release/release-body.md
+            done < release/changelog.txt
           else
             echo "无变更信息" >> release/release-body.md
           fi
-          echo "" >> release/release-body.md
-          echo "## 所有插件" >> release/release-body.md
-          echo "本次release包含所有历史插件的最新版本。" >> release/release-body.md
 
       - name: Create Release
         if: steps.detect.outputs.has_changes == 'true'
