@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = join(__dirname, '../dist');
 const publicDir = join(__dirname, '../public');
-const electronPublic = join(__dirname, '../../electron/public');
+const electronPublic = join(__dirname, '../SPlayer/public');
 
 console.log('📦 复制 ZTools 插件配置文件...');
 
