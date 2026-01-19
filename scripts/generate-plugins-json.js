@@ -224,6 +224,10 @@ async function processZipFile(zipFileName) {
       }
     }
 
+    // 获取zip文件大小（字节）
+    const zipStats = statSync(zipPath);
+    const sizeInBytes = zipStats.size;
+
     // 生成下载URL
     const { owner, repo } = getRepoInfo();
     const version = getReleaseVersion();
@@ -233,7 +237,8 @@ async function processZipFile(zipFileName) {
     const result = {
       ...pluginInfo,
       downloadUrl,
-      logo: logoBase64 || pluginInfo.logo
+      logo: logoBase64 || pluginInfo.logo,
+      size: sizeInBytes
     };
 
     console.log(`  ✓ 处理完成`);
