@@ -137,7 +137,7 @@ const { timeDisplay, toggleTimeFormat } = useTimeFormat();
   width: 100%;
   height: 80px;
   overflow: hidden;
-  transform: scale(0.85);
+  transform: scale(0.9);
   transform-origin: center bottom;
   .control-content {
     width: 100%;

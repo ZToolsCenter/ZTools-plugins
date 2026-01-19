@@ -9,7 +9,8 @@ import { isDev } from "./env";
 // 生产模式: 使用本地 API 服务器 (由 preload 启动的子进程,端口动态分配)
 function getBaseURL(): string {
   if (isDev) {
-    return "/api/netease";
+    // 开发模式: 使用 Vite 代理，proxy 会自动去掉 /api 前缀
+    return "/api";
   }
 
   // 从 localStorage 读取动态端口,如果没有则使用默认端口
@@ -37,11 +38,6 @@ server.interceptors.request.use(
   (request) => {
     // 动态设置 baseURL (支持端口变化)
     request.baseURL = getBaseURL();
-
-    // 生产模式下，确保请求路径包含 /api/netease 前缀
-    if (!isDev && request.url && !request.url.startsWith('/api/netease')) {
-      request.url = `/api/netease${request.url}`;
-    }
 
     // 直接从 localStorage 获取设置,避免 Vue inject() 上下文问题
     const setting = JSON.parse(localStorage.getItem("setting") || "{}");
