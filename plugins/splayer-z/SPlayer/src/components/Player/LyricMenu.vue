@@ -106,6 +106,7 @@ const resetOffset = () => {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
+  transform: scale(0.9);
   height: 100%;
   width: 80px;
   padding: 20% 0;

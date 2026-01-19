@@ -113,6 +113,7 @@ const handleControls = (key: string) => {
 
 <style scoped lang="scss">
 .right-menu {
+  transform: scale(0.9);
   .menu-icon {
     display: flex;
     align-items: center;
