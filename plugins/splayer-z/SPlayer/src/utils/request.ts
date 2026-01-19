@@ -15,7 +15,7 @@ function getBaseURL(): string {
   // 从 localStorage 读取动态端口,如果没有则使用默认端口
   const savedPort = localStorage.getItem('api_server_port');
   const port = savedPort || '36524';
-  return `http://127.0.0.1:${port}`;
+  return `http://127.0.0.1:${port}/api/netease`;
 }
 
 // 基础配置
