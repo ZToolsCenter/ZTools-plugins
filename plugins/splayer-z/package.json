@@ -1,28 +1,38 @@
 {
-  "name": "SPlayerZ",
+  "name": "@splayerz/ztools-plugin",
   "version": "1.0.0",
-  "private": true,
-  "description": "SPlayerZ - ZTools Plugin for Music Player",
+  "description": "简约音乐播放器 - 支持网易云音乐、本地音乐、桌面歌词",
+  "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @splayerz/ztools-plugin dev",
-    "build": "pnpm --filter @splayerz/ztools-plugin build",
-    "package": "pnpm --filter @splayerz/ztools-plugin package"
+    "dev": "vite",
+    "build": "vite build && node scripts/post-build.js",
+    "package": "pnpm build && node scripts/package.js",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/multipart": "^9.3.0",
+    "@neteasecloudmusicapienhanced/api": "^4.29.18",
+    "@vueuse/core": "^13.9.0",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "fastify": "^5.6.2",
+    "lodash-es": "^4.17.21",
+    "naive-ui": "^2.43.2",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "vue": "^3.5.25",
+    "vue-router": "^4.6.3"
   },
   "devDependencies": {
-    "esbuild": "^0.27.2",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
-  },
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=9"
-  },
-  "pnpm": {
-    "patchedDependencies": {},
-    "packageExtensions": {
-      "@splayer/electron": {
-        "scripts": {}
-      }
-    }
+    "@vitejs/plugin-vue": "^6.0.2",
+    "archiver": "^7.0.1",
+    "sass": "^1.94.2",
+    "typescript": "^5.9.3",
+    "unplugin-auto-import": "^20.3.0",
+    "unplugin-vue-components": "^29.2.0",
+    "vite": "^7.3.0",
+    "vite-plugin-wasm": "^3.5.0",
+    "vue-tsc": "^2.2.12"
   }
 }

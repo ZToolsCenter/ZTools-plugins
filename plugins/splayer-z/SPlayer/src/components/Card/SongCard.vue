@@ -1,0 +1,469 @@
+<template>
+  <div class="song-card">
+    <div :class="['song-content', { play: musicStore.playSong.id === song.id }]">
+      <!-- 序号 -->
+      <div class="num" @dblclick.stop>
+        <n-text v-if="musicStore.playSong.id !== song.id" depth="3">
+          {{ index + 1 }}
+        </n-text>
+        <SvgIcon v-else :size="22" name="Music" />
+        <!-- 播放暂停 -->
+        <SvgIcon
+          :size="28"
+          :name="statusStore.playStatus ? 'Pause' : 'Play'"
+          class="status"
+          @click="player.playOrPause()"
+        />
+        <!-- 播放 -->
+        <SvgIcon :size="28" name="Play" class="play" @click="player.addNextSong(song, true)" />
+      </div>
+      <!-- 标题 -->
+      <div class="title">
+        <!-- 封面 -->
+        <s-image
+          v-if="!hiddenCover"
+          :key="song.cover"
+          :src="song.path ? song.cover : song.coverSize?.s || song.cover"
+          class="cover"
+          @update:show="localCover"
+        />
+        <!-- 信息 -->
+        <n-flex size="small" class="info" vertical>
+          <!-- 名称 -->
+          <div class="name">
+            <n-ellipsis
+              :line-clamp="1"
+              :tooltip="{
+                placement: 'top',
+                width: 'trigger',
+              }"
+              class="name-text"
+            >
+              {{ song?.name || "未知曲目" }}
+              <n-text v-if="song.alia?.length" class="alia" depth="3"> ({{ song.alia }}) </n-text>
+            </n-ellipsis>
+          </div>
+          <n-flex :size="4" :wrap="false" class="desc" align="center">
+            <!-- 音质 -->
+            <n-tag
+              v-if="song?.quality && settingStore.showSongQuality"
+              :type="qualityColor"
+              class="quality"
+              round
+            >
+              {{ song.quality }}
+            </n-tag>
+            <!-- 原唱翻唱 -->
+            <template v-if="settingStore.showSongOriginalTag">
+              <n-tag v-if="song.originCoverType === 1" :bordered="false" type="primary" round>
+                原
+              </n-tag>
+              <n-tag v-if="song.originCoverType === 2" :bordered="false" type="info" round>
+                翻唱
+              </n-tag>
+            </template>
+            <!-- 特权 -->
+            <template v-if="settingStore.showSongPrivilegeTag">
+              <n-tag v-if="song.free === 1" :bordered="false" type="error" round> VIP </n-tag>
+              <n-tag v-if="song.free === 4" :bordered="false" type="error" round> EP </n-tag>
+              <!-- 云盘 -->
+              <n-tag v-if="song?.pc" :bordered="false" class="cloud" type="info" round>
+                <template #icon>
+                  <SvgIcon name="Cloud" />
+                </template>
+              </n-tag>
+            </template>
+            <!-- MV -->
+            <n-tag
+              v-if="song?.mv"
+              :bordered="false"
+              class="mv"
+              type="warning"
+              round
+              @click.stop="
+                router.push({
+                  name: 'video',
+                  query: { id: song.mv },
+                })
+              "
+            >
+              MV
+            </n-tag>
+            <!-- 歌手 -->
+            <div v-if="Array.isArray(song.artists)" class="artists text-hidden">
+              <n-text
+                v-for="ar in song.artists"
+                :key="ar.id"
+                class="ar"
+                @click="openJumpArtist(song.artists, ar.id)"
+              >
+                {{ ar.name }}
+              </n-text>
+            </div>
+            <div v-else-if="song.type === 'radio'" class="artists">
+              <n-text class="ar"> 电台节目 </n-text>
+            </div>
+            <div v-else class="artists text-hidden" @click="openJumpArtist(song.artists)">
+              <n-text class="ar"> {{ song.artists || "未知艺术家" }} </n-text>
+            </div>
+          </n-flex>
+        </n-flex>
+      </div>
+      <!-- 专辑 -->
+      <div v-if="song.type !== 'radio' && !hiddenAlbum" class="album text-hidden">
+        <n-text
+          v-if="isObject(song.album)"
+          class="album-text"
+          @click="
+            router.push({
+              name: 'album',
+              query: { id: song.album?.id },
+            })
+          "
+        >
+          {{ song.album?.name || "未知专辑" }}
+        </n-text>
+        <n-text v-else class="album-text">
+          {{ song.album || "未知专辑" }}
+        </n-text>
+      </div>
+      <!-- 操作 -->
+      <div v-if="song.type !== 'radio'" class="actions" @click.stop @dblclick.stop>
+        <!-- 喜欢歌曲 -->
+        <SvgIcon
+          :name="dataStore.isLikeSong(song.id) ? 'Favorite' : 'FavoriteBorder'"
+          :size="20"
+          @click.stop="toLikeSong(song, !dataStore.isLikeSong(song.id))"
+          @delclick.stop
+        />
+      </div>
+      <!-- 更新日期 -->
+      <n-text v-if="song.type === 'radio'" class="meta date" depth="3">
+        {{ formatTimestamp(song.updateTime) }}
+      </n-text>
+      <!-- 播放量 -->
+      <n-text v-if="song.type === 'radio'" class="meta" depth="3">
+        {{ formatNumber(song.playCount || 0) }}
+      </n-text>
+      <!-- 时长 -->
+      <n-text class="meta" depth="3">{{ msToTime(song.duration) }}</n-text>
+      <!-- 大小 -->
+      <n-text v-if="song.path && song.size && !hiddenSize" class="meta size" depth="3">
+        {{ song.size }}M
+      </n-text>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { QualityType, type SongType } from "@/types/main";
+import { useStatusStore, useMusicStore, useDataStore, useSettingStore } from "@/stores";
+import { formatNumber } from "@/utils/helper";
+import { openJumpArtist } from "@/utils/modal";
+import { toLikeSong } from "@/utils/auth";
+import { isObject } from "lodash-es";
+import { formatTimestamp, msToTime } from "@/utils/time";
+import { usePlayerController } from "@/core/player/PlayerController";
+import { isElectron } from "@/utils/env";
+import { useBlobURLManager } from "@/core/resource/BlobURLManager";
+
+const props = defineProps<{
+  // 歌曲
+  song: SongType;
+  // 索引
+  index: number;
+  // 隐藏信息
+  hiddenCover?: boolean;
+  hiddenAlbum?: boolean;
+  hiddenSize?: boolean;
+}>();
+
+const router = useRouter();
+const dataStore = useDataStore();
+const musicStore = useMusicStore();
+const statusStore = useStatusStore();
+const settingStore = useSettingStore();
+
+const player = usePlayerController();
+const blobURLManager = useBlobURLManager();
+
+// 歌曲数据
+const song = toRef(props, "song");
+
+// 音质颜色
+const qualityColor = computed(() => {
+  if (song.value.quality === QualityType.HiRes) return "warning";
+  if (song.value.quality === QualityType.SQ) return "warning";
+  if (song.value.quality === QualityType.HQ) return "info";
+  return "primary";
+});
+
+// 加载本地歌曲封面
+const localCover = async (show: boolean) => {
+  if (!isElectron || !show) return;
+  // 本地路径
+  const path = song.value.path;
+  if (!path) return;
+  // 当前封面
+  const currentCover = song.value.cover;
+  // 直接复用
+  if (
+    currentCover &&
+    currentCover !== "/images/song.jpg?asset" &&
+    !currentCover.startsWith("blob:")
+  ) {
+    return;
+  }
+  // 缓存生效
+  if (blobURLManager.hasBlobURL(path)) return;
+  // 请求路径
+  const requestPath = path;
+  // 获取封面
+  const coverData = await window.electron.ipcRenderer.invoke("get-music-cover", requestPath);
+  if (song.value.path !== requestPath || !coverData) return;
+  const { data, format } = coverData;
+  const blobURL = blobURLManager.createBlobURL(data, format, requestPath);
+  if (blobURL && song.value.path === requestPath) {
+    song.value.cover = blobURL;
+  }
+};
+</script>
+
+<style lang="scss" scoped>
+.song-card {
+  height: 90px;
+  cursor: pointer;
+  .song-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    flex: 1;
+    border-radius: 12px;
+    border: 2px solid rgba(var(--primary), 0.12);
+    background-color: var(--surface-container-hex);
+    transition:
+      transform 0.1s,
+      background-color 0.3s var(--n-bezier),
+      border-color 0.3s var(--n-bezier);
+    &.play {
+      border-color: rgba(var(--primary), 0.58);
+      background-color: rgba(var(--primary), 0.28);
+    }
+    // &:active {
+    //   transform: scale(0.99);
+    // }
+    &:hover {
+      border-color: rgba(var(--primary), 0.58);
+      .num {
+        .n-text,
+        .n-icon {
+          opacity: 0;
+        }
+        .play {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      &.play {
+        .num {
+          .play {
+            display: none;
+          }
+          .status {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      }
+    }
+  }
+  .num {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    min-width: 40px;
+    font-weight: bold;
+    margin-right: 12px;
+    .n-icon {
+      transition:
+        opacity 0.3s,
+        transform 0.3s;
+      :deep(.svg-container) {
+        color: var(--primary-hex);
+      }
+    }
+    .status,
+    .play {
+      position: absolute;
+      opacity: 0;
+      transform: scale(0.8);
+      transition:
+        opacity 0.3s,
+        transform 0.3s;
+      &:active {
+        opacity: 0.6 !important;
+      }
+    }
+  }
+  .title {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 4px 20px 4px 0;
+    .cover {
+      width: 50px;
+      height: 50px;
+      min-width: 50px;
+      border-radius: 8px;
+      margin-right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .info {
+      .name {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        line-height: normal;
+        font-size: 16px;
+      }
+      .desc {
+        margin-top: 2px;
+        font-size: 13px;
+        .n-tag {
+          --n-height: 18px;
+          font-size: 10px;
+          cursor: pointer;
+          pointer-events: none;
+          &:last-child {
+            margin-right: 0;
+          }
+        }
+        .quality {
+          font-size: 10px;
+        }
+        .cloud {
+          padding: 0 10px;
+          align-items: center;
+          justify-content: center;
+          :deep(.n-tag__icon) {
+            margin-right: 0;
+            width: 100%;
+          }
+          .n-icon {
+            font-size: 12px;
+            color: var(--n-text-color);
+          }
+        }
+        .mv {
+          pointer-events: auto;
+        }
+      }
+      .artists {
+        .ar {
+          display: inline-flex;
+          transition: opacity 0.3s;
+          opacity: 0.6;
+          cursor: pointer;
+          &::after {
+            content: "/";
+            margin: 0 4px;
+          }
+          &:last-child {
+            &::after {
+              display: none;
+            }
+          }
+          &:hover {
+            opacity: 0.8;
+          }
+        }
+      }
+    }
+    .sort {
+      margin-left: 6px;
+      &::after {
+        content: " )";
+      }
+      &::before {
+        content: "( ";
+      }
+    }
+  }
+  .album {
+    flex: 1;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    padding-right: 20px;
+    &:hover {
+      .album-text {
+        color: var(--primary-hex);
+      }
+    }
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    .n-icon {
+      color: var(--primary-hex);
+      transition: transform 0.3s;
+      cursor: pointer;
+      &:hover {
+        transform: scale(1.15);
+      }
+      &:active {
+        transform: scale(1);
+      }
+    }
+  }
+  .meta {
+    width: 50px;
+    font-size: 13px;
+    text-align: center;
+    &.size {
+      width: 60px;
+    }
+    &.date {
+      width: 80px;
+    }
+  }
+  &.header {
+    border: none;
+    background-color: transparent;
+    .n-text {
+      opacity: 0.6;
+    }
+    .title {
+      position: relative;
+      padding: 0 20px 0 0;
+      &.has-sort {
+        &::after {
+          content: "";
+          position: absolute;
+          opacity: 0;
+          top: 0;
+          left: -8px;
+          width: 100%;
+          height: 100%;
+          border-radius: 8px;
+          background-color: rgba(var(--primary), 0.08);
+          transition: opacity 0.3s;
+        }
+        &:hover {
+          &::after {
+            opacity: 1;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

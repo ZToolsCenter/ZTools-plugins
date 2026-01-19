@@ -1,0 +1,6 @@
+{
+  "outputDirectory": "out/renderer",
+  "buildCommand": "SKIP_NATIVE_BUILD=true rimraf dist out && electron-vite build",
+  "framework": null,
+  "installCommand": "pnpm install --ignore-scripts"
+}
