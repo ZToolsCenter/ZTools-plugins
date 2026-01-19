@@ -201,6 +201,8 @@ export default defineConfig({
       '@plugin': resolve(__dirname, 'src'),
       'lodash': 'lodash-es',
     },
+    // 确保依赖去重，避免多个版本
+    dedupe: ['vue', '@vueuse/core', '@vueuse/shared', 'pinia', 'naive-ui'],
   },
   
   css: {
@@ -217,6 +219,18 @@ export default defineConfig({
     __ELECTRON__: false,
   },
   
+  // 优化依赖配置
+  optimizeDeps: {
+    exclude: [
+      // 只排除 Electron 相关包（这些包在浏览器环境不可用）
+      'electron',
+      '@electron-toolkit/preload',
+      '@electron-toolkit/utils',
+      'electron-store',
+      'electron-updater',
+    ],
+  },
+  
   build: {
     outDir: 'dist',
     emptyOutDir: true, // 清空输出目录
@@ -231,7 +245,7 @@ export default defineConfig({
       input: {
         index: resolve(__dirname, 'index.html'),
       },
-      // 外部化 Electron 特定的包
+      // 外部化 Electron 特定的包（只在构建时需要）
       external: [
         'electron',
         '@electron-toolkit/preload',
@@ -258,6 +272,10 @@ export default defineConfig({
   
   server: {
     port: 5173,
+    fs: {
+      // 允许访问 SPlayer 的 node_modules
+      allow: ['..'],
+    },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:36524',
