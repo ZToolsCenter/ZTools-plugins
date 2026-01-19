@@ -1,0 +1,4 @@
+[submodule "SPlayer"]
+	path = SPlayer
+	url = https://github.com/Yueby/SPlayer.git
+	branch = ztools-plugin
