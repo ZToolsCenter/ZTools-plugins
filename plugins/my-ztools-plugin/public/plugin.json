@@ -1,0 +1,52 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "my-ztools-plugin",
+  "title": "my ztools plugin",
+  "description": "A ZTools plugin",
+  "author": "zing",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "hello",
+      "explain": "这是插件应用的第一个功能",
+      "icon": "logo.png",
+      "cmds": ["你好", "hello"]
+    },
+    {
+      "code": "read",
+      "explain": "功能指令+匹配指令示例，使用 node.js 能力读文件",
+      "icon": "logo.png",
+      "cmds": [
+        "读文件",
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 1,
+          "label": "读文件"
+        }
+      ]
+    },
+    {
+      "code": "write",
+      "explain": "匹配指令示例，使用 node.js 能力写文件",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": [
+        {
+          "type": "over",
+          "label": "保存为文件"
+        },
+        {
+          "type": "img",
+          "label": "保存为文件"
+        }
+      ]
+    }
+  ]
+}
