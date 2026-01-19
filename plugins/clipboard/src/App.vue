@@ -14,6 +14,7 @@ const hasMore = ref(true) // 是否还有更多数据
 const needsExpand = ref({}) // 存储需要展开按钮的项目ID
 const favorites = ref([]) // 收藏的内容列表
 const searchText = ref('') // 搜索/过滤文本
+const clipboardListRef = ref(null) // 剪贴板列表容器引用
 
 // 右键菜单相关
 const contextMenu = ref({
@@ -217,13 +218,14 @@ const loadMore = () => {
 }
 
 // 滚动事件处理
-const handleScroll = () => {
+const handleScroll = (event) => {
+  const container = event.target
   // 计算是否滚动到底部（距离底部100px时开始加载）
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-  const windowHeight = window.innerHeight
-  const documentHeight = document.documentElement.scrollHeight
+  const scrollTop = container.scrollTop
+  const scrollHeight = container.scrollHeight
+  const clientHeight = container.clientHeight
 
-  if (scrollTop + windowHeight >= documentHeight - 100) {
+  if (scrollTop + clientHeight >= scrollHeight - 100) {
     loadMore()
   }
 }
@@ -318,7 +320,7 @@ const handleKeydown = (event) => {
 }
 
 // 复制到剪贴板
-const copyToClipboard = async (id) => {
+const copyToClipboard = async (id, shouldPaste = false) => {
   try {
     // 收藏Tab使用 writeContent
     if (activeTab.value === 'favorite') {
@@ -334,16 +336,32 @@ const copyToClipboard = async (id) => {
       await window.ztools.clipboard.writeContent({
         type: item.type,
         content: content
-      })
+      }, shouldPaste)
       console.log('已复制收藏内容到剪贴板')
       return
     }
 
     // 其他列表使用 write
-    await window.ztools.clipboard.write(id)
-    console.log('已复制到剪贴板:', id)
+    await window.ztools.clipboard.write(id, shouldPaste)
+    console.log('已复制到剪贴板:', id, '是否粘贴:', shouldPaste)
   } catch (error) {
     console.error('复制失败:', error)
+  }
+}
+
+// 复制选中项（不粘贴）
+const copySelected = async () => {
+  const selectedItem = filteredData.value[selectedIndex.value]
+  if (selectedItem) {
+    await copyToClipboard(selectedItem.id, false)
+  }
+}
+
+// 粘贴选中项（复制并粘贴）
+const pasteSelected = async () => {
+  const selectedItem = filteredData.value[selectedIndex.value]
+  if (selectedItem) {
+    await copyToClipboard(selectedItem.id, true)
   }
 }
 
@@ -364,34 +382,28 @@ const scrollToSelectedItem = (direction = 'down') => {
   // 使用 nextTick 确保 DOM 已更新
   setTimeout(() => {
     const selectedElement = document.querySelector('.clipboard-item.selected')
-    if (selectedElement) {
-      const tabBar = document.querySelector('.tab-bar')
-      const tabBarHeight = tabBar ? tabBar.offsetHeight : 0
+    const container = clipboardListRef.value
+    if (selectedElement && container) {
+      const containerRect = container.getBoundingClientRect()
       const elementRect = selectedElement.getBoundingClientRect()
 
       if (direction === 'down') {
         // 向下滚动：检查元素底部是否在视口内
-        const isBelowViewport = elementRect.bottom > window.innerHeight
+        const isBelowViewport = elementRect.bottom > containerRect.bottom
 
         if (isBelowViewport) {
-          // 元素底部超出视口，滚动到让元素底部紧贴视口底部
-          const scrollTop = window.pageYOffset + elementRect.bottom - window.innerHeight + 10 // 10px间距
-          window.scrollTo({
-            top: scrollTop,
-            behavior: 'auto' // 不使用平滑滚动
-          })
+          // 元素底部超出容器视口，滚动到让元素底部紧贴容器底部
+          const scrollOffset = elementRect.bottom - containerRect.bottom + 10 // 10px间距
+          container.scrollTop += scrollOffset
         }
       } else {
-        // 向上滚动：检查元素顶部是否被Tab栏遮挡
-        const isAboveViewport = elementRect.top < tabBarHeight
+        // 向上滚动：检查元素顶部是否被遮挡
+        const isAboveViewport = elementRect.top < containerRect.top
 
         if (isAboveViewport) {
-          // 元素被Tab栏遮挡，滚动到让元素顶部在Tab栏下方
-          const scrollTop = window.pageYOffset + elementRect.top - tabBarHeight - 10 // 10px间距
-          window.scrollTo({
-            top: scrollTop,
-            behavior: 'auto' // 不使用平滑滚动
-          })
+          // 元素被遮挡，滚动到让元素顶部在容器顶部
+          const scrollOffset = elementRect.top - containerRect.top - 10 // 10px间距
+          container.scrollTop += scrollOffset
         }
       }
     }
@@ -399,10 +411,10 @@ const scrollToSelectedItem = (direction = 'down') => {
 }
 
 const reload = () => {
-  window.scrollTo({
-    top: 0,
-    behavior: 'auto'
-  })
+  // 滚动到顶部
+  if (clipboardListRef.value) {
+    clipboardListRef.value.scrollTop = 0
+  }
   // 重置分页状态
   currentPage.value = 1
   hasMore.value = true
@@ -516,8 +528,15 @@ watch(activeTab, reload)
 // 监听键盘事件
 onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('scroll', handleScroll)
   window.addEventListener('click', hideContextMenu)
+
+  // 等待 DOM 挂载后再绑定滚动事件
+  nextTick(() => {
+    if (clipboardListRef.value) {
+      clipboardListRef.value.addEventListener('scroll', handleScroll)
+    }
+  })
+
   // 初始加载收藏列表
   await loadFavorites()
   // 初始加载数据
@@ -542,13 +561,17 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('click', hideContextMenu)
+  if (clipboardListRef.value) {
+    clipboardListRef.value.removeEventListener('scroll', handleScroll)
+  }
 })
 </script>
 
 <template>
   <div class="clipboard-app">
+    <!-- 主内容区域 -->
+    <div class="main-content">
     <!-- Tab 导航 -->
     <div class="tab-bar">
       <div
@@ -621,7 +644,7 @@ onUnmounted(() => {
     </div>
 
     <!-- 剪贴板列表 -->
-    <div class="clipboard-list">
+    <div class="clipboard-list" ref="clipboardListRef">
       <!-- 空状态 -->
       <div v-if="!loading && filteredData.length === 0" class="empty-state">
         <div class="empty-icon">📋</div>
@@ -743,21 +766,56 @@ onUnmounted(() => {
         <span class="no-more-text">没有更多了</span>
       </div>
     </div>
+    </div>
 
-    <!-- 清空按钮 -->
-    <button class="clear-btn" @click="clearClipboard" title="清空剪贴板">
-      <svg class="clear-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M3 6h18M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2m3 0v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6h14z"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"/>
-        <path d="M10 11v6M14 11v6"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"/>
-      </svg>
-    </button>
+    <!-- 右侧侧边栏 -->
+    <div class="sidebar">
+      <div class="sidebar-actions">
+        <!-- 复制按钮 -->
+        <button class="sidebar-btn copy-btn" @click="copySelected" title="复制选中项">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <!-- 粘贴按钮 -->
+        <button class="sidebar-btn paste-btn" @click="pasteSelected" title="执行粘贴">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-bottom">
+        <!-- 清空按钮 -->
+        <button class="sidebar-btn clear-btn" @click="clearClipboard" title="清空剪贴板">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 6h18M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2m3 0v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6h14z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"/>
+            <path d="M10 11v6M14 11v6"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
 
     <!-- 右键菜单 -->
     <div
@@ -879,6 +937,7 @@ body {
 <style scoped>
 
 .clipboard-app {
+  display: flex;
   width: 100%;
   min-height: 100vh;
   background: var(--bg-app);
@@ -886,11 +945,19 @@ body {
   color: var(--text-primary);
 }
 
+/* 主内容区域 */
+.main-content {
+  flex: 1;
+  min-width: 0; /* 防止 flex 项目溢出 */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
 /* Tab 导航样式 */
 .tab-bar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  flex-shrink: 0;
   display: flex;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
@@ -937,6 +1004,9 @@ body {
 
 /* 剪贴板列表 */
 .clipboard-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 3px;
 }
 
@@ -1188,40 +1258,75 @@ body {
   font-size: 13px;
 }
 
-/* 清空按钮 */
-.clear-btn {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--primary-color);
-  color: var(--text-white);
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
-  transition: all 0.3s;
+/* 右侧侧边栏 */
+.sidebar {
+  width: 60px;
+  min-height: 100vh;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+}
+
+.sidebar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: var(--text-secondary);
 }
 
-.clear-btn:hover {
-  background: var(--primary-hover);
-  box-shadow: 0 6px 16px rgba(26, 115, 232, 0.4);
-  transform: translateY(-2px);
+.sidebar-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  transform: translateX(-2px);
 }
 
-.clear-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+.sidebar-btn svg {
+  width: 20px;
+  height: 20px;
 }
 
-.clear-icon {
-  width: 24px;
-  height: 24px;
+.sidebar-btn.copy-btn:hover {
+  color: var(--primary-color);
+}
+
+.sidebar-btn.paste-btn:hover {
+  color: #4caf50;
+  border-color: #4caf50;
+}
+
+.sidebar-btn.clear-btn {
+  color: var(--text-danger);
+}
+
+.sidebar-btn.clear-btn:hover {
+  background: var(--bg-danger-light);
+  border-color: var(--text-danger);
+  color: var(--text-danger);
 }
 
 /* 右键菜单 */
