@@ -219,6 +219,7 @@ export default defineConfig({
   
   build: {
     outDir: 'dist',
+    emptyOutDir: true, // 清空输出目录
     minify: 'terser',
     terserOptions: {
       compress: {
@@ -265,5 +266,5 @@ export default defineConfig({
     },
   },
   
-  publicDir: electronPublic,
+  publicDir: resolve(__dirname, 'public'), // 使用 ztools-plugin 自己的 public 目录
 });

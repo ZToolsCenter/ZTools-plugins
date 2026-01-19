@@ -1,3 +1,14 @@
 packages:
-  - 'packages/*'
+  - packages/*
 
+# 忽略所有原生依赖的构建脚本
+ignoredBuiltDependencies:
+  - '@applemusic-like-lyrics/core'
+  - '@applemusic-like-lyrics/lyric'
+  - '@parcel/watcher'
+  - better-sqlite3
+  - core-js
+  - electron
+  - electron-winstaller
+  - esbuild
+  - sharp
