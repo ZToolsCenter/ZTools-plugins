@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } f
 import axiosRetry from "axios-retry";
 import { isLogin } from "./auth";
 import { getCookie } from "./cookie";
-import { isDev, isElectron } from "./env";
+import { isDev } from "./env";
 
 // 获取 API 服务器地址
 // 开发模式: 使用 Vite 代理到本地 Fastify 服务器
@@ -37,6 +37,11 @@ server.interceptors.request.use(
   (request) => {
     // 动态设置 baseURL (支持端口变化)
     request.baseURL = getBaseURL();
+
+    // 生产模式下，确保请求路径包含 /api/netease 前缀
+    if (!isDev && request.url && !request.url.startsWith('/api/netease')) {
+      request.url = `/api/netease${request.url}`;
+    }
 
     // 直接从 localStorage 获取设置,避免 Vue inject() 上下文问题
     const setting = JSON.parse(localStorage.getItem("setting") || "{}");
