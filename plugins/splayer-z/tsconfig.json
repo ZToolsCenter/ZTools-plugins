@@ -18,8 +18,8 @@
     
     "baseUrl": ".",
     "paths": {
-      "@/*": ["../electron/src/*"],
-      "@shared": ["../electron/src/types/shared.ts"],
+      "@/*": ["./SPlayer/src/*"],
+      "@shared": ["./SPlayer/src/types/shared.ts"],
       "@plugin/*": ["./src/*"]
     },
     
@@ -27,11 +27,11 @@
   },
   "include": [
     "src/**/*",
-    "../electron/src/**/*"
+    "./SPlayer/src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "../electron/electron/**/*"
+    "./SPlayer/electron/**/*"
   ]
 }

@@ -8,7 +8,7 @@ import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
 
 // 主项目路径
-const electronRoot = resolve(__dirname, '../electron');
+const electronRoot = resolve(__dirname, 'SPlayer');
 const electronSrc = resolve(electronRoot, 'src');
 const electronPublic = resolve(electronRoot, 'public');
 
@@ -248,7 +248,7 @@ export default defineConfig({
             if (id.includes('pinia')) return 'pinia';
             return 'vendor';
           }
-          if (id.includes('packages/electron/src')) {
+          if (id.includes('SPlayer/src')) {
             return 'splayer-core';
           }
         },
