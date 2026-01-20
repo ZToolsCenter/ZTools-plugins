@@ -78,4 +78,40 @@ if (!allExists) {
 }
 
 console.log('✅ 所有必要文件检查通过');
+
+// 安装 SPlayer 依赖
+console.log('📦 安装 SPlayer 依赖...');
+const packageJsonPath = join(splayerDir, 'package.json');
+if (existsSync(packageJsonPath)) {
+  try {
+    // 检查 node_modules 是否已存在
+    const nodeModulesPath = join(splayerDir, 'node_modules');
+    if (!existsSync(nodeModulesPath)) {
+      console.log('⚙️  开始安装依赖（首次安装可能需要较长时间）...');
+      execSync('pnpm install --frozen-lockfile', {
+        cwd: splayerDir,
+        stdio: 'inherit'
+      });
+      console.log('✅ SPlayer 依赖安装完成');
+    } else {
+      console.log('✅ SPlayer 依赖已存在，跳过安装');
+    }
+  } catch (error) {
+    console.error('❌ 安装 SPlayer 依赖失败:', error.message);
+    console.log('💡 尝试使用 npm 安装...');
+    try {
+      execSync('npm install', {
+        cwd: splayerDir,
+        stdio: 'inherit'
+      });
+      console.log('✅ SPlayer 依赖安装完成（使用 npm）');
+    } catch (npmError) {
+      console.error('❌ npm 安装也失败了');
+      process.exit(1);
+    }
+  }
+} else {
+  console.warn('⚠️  未找到 SPlayer 的 package.json');
+}
+
 console.log('🎉 预构建脚本完成!');
