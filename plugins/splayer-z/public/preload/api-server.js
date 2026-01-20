@@ -60,7 +60,9 @@ async function startServer() {
     if (typeof handler !== 'function') return;
     
     // 转换下划线命名为斜杠路径：login_status -> /login/status
-    const route = '/' + name.replace(/_/g, '/');
+    const slashRoute = '/' + name.replace(/_/g, '/');
+    // 同时保留下划线格式：personal_fm -> /personal_fm
+    const underscoreRoute = '/' + name;
     
     const handleRequest = async (req, reply) => {
       try {
@@ -79,7 +81,7 @@ async function startServer() {
         const result = await handler(params);
         reply.send(result.body);
       } catch (error) {
-        console.error(`❌ API error [${route}]:`, error.message);
+        console.error(`❌ API error [${slashRoute}]:`, error.message);
         reply.code(500).send({ 
           code: 500, 
           message: error.message 
@@ -88,8 +90,15 @@ async function startServer() {
     };
     
     // 注册斜杠格式的路由
-    server.get(route, handleRequest);
-    server.post(route, handleRequest);
+    server.get(slashRoute, handleRequest);
+    server.post(slashRoute, handleRequest);
+    
+    // 如果包含下划线，同时注册下划线格式的路由
+    if (name.includes('_')) {
+      server.get(underscoreRoute, handleRequest);
+      server.post(underscoreRoute, handleRequest);
+    }
+    
     routeCount++;
   });
   
