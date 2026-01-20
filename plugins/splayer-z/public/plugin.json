@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
-  "name": "SPlayerZ",
+  "name": "splayer-z",
+  "title": "SPlayerZ",
   "description": "简约音乐播放器 - 支持网易云音乐、本地音乐、桌面歌词",
   "author": "Yueby",
   "version": "1.0.0",
@@ -15,7 +16,12 @@
       "code": "music",
       "explain": "音乐播放器 - 支持网易云音乐在线播放",
       "icon": "logo.png",
-      "cmds": ["音乐", "music", "播放器", "splayerz"]
+      "cmds": [
+        "音乐",
+        "music",
+        "播放器",
+        "splayerz"
+      ]
     }
   ]
 }
