@@ -120,6 +120,55 @@ jobs:
       - name: Upload to Aliyun OSS
         if: steps.detect.outputs.has_changes == 'true'
         run: |
+          # 读取变更信息
+          BUILD_INFO_FILE="release/build-info.json"
+          CHANGED_PLUGINS=()
+          BUILD_ALL_PLUGINS=false
+
+          if [ -f "$BUILD_INFO_FILE" ]; then
+            # 提取 changedPlugins 数组
+            CHANGED_PLUGINS_JSON=$(cat "$BUILD_INFO_FILE" | grep -o '"changedPlugins":\s*\[.*\]' | sed 's/"changedPlugins":\s*\[//' | sed 's/\]$//' | tr -d '"' | tr ',' '\n')
+
+            # 转换为数组
+            while IFS= read -r plugin; do
+              plugin=$(echo "$plugin" | xargs)  # 去除空格
+              if [ -n "$plugin" ]; then
+                CHANGED_PLUGINS+=("$plugin")
+              fi
+            done <<< "$CHANGED_PLUGINS_JSON"
+
+            echo "本次变更的插件: ${CHANGED_PLUGINS[*]}"
+          fi
+
+          # 检查是否是构建所有插件
+          if [ "${{ github.event.inputs.build_all }}" = "true" ]; then
+            BUILD_ALL_PLUGINS=true
+            echo "模式: 构建所有插件，将上传所有 ZIP 文件"
+          else
+            echo "模式: 仅构建变更插件，将只上传变更的 ${#CHANGED_PLUGINS[@]} 个插件"
+          fi
+
+          # 检查插件是否在变更列表中
+          is_plugin_changed() {
+            local zip_file=$1
+            # 从 ZIP 文件名提取插件名（去除版本号）
+            # 例如: anywhere-1.11.2.zip -> anywhere
+            local plugin_name=$(basename "$zip_file" .zip | sed -E 's/-[0-9]+\.[0-9]+\.[0-9]+$//')
+
+            # 如果是构建所有插件模式，返回 true
+            if [ "$BUILD_ALL_PLUGINS" = "true" ]; then
+              return 0
+            fi
+
+            # 检查插件是否在变更列表中
+            for changed in "${CHANGED_PLUGINS[@]}"; do
+              if [ "$plugin_name" = "$changed" ]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
           # 检查 OSS 文件是否存在
           check_file_exists() {
             local target=$1
@@ -171,9 +220,11 @@ jobs:
           success_count=0
           fail_count=0
           skip_count=0
+          not_changed_count=0
           failed_files=()
 
           # 上传所有 zip 文件（不允许覆盖）
+          echo ""
           echo "========== 开始上传 ZIP 文件 =========="
           zip_count=$(ls -1 release/*.zip 2>/dev/null | wc -l)
           echo "发现 $zip_count 个 ZIP 文件"
@@ -181,6 +232,13 @@ jobs:
           for file in release/*.zip; do
             if [ -f "$file" ]; then
               target="oss://ztools-center/$(basename "$file")"
+
+              # 检查插件是否在本次变更中
+              if ! is_plugin_changed "$file"; then
+                echo "  ○ 跳过: $(basename "$file") (非本次变更)"
+                not_changed_count=$((not_changed_count + 1))
+                continue
+              fi
 
               # 调用上传函数，使用 || true 防止非 0 返回值触发 set -e 退出
               upload_file "$file" "$target" "false" || result=$?
@@ -235,6 +293,9 @@ jobs:
           echo "上传完成！"
           echo "成功: $success_count 个文件"
           echo "跳过: $skip_count 个文件 (已存在)"
+          if [ $not_changed_count -gt 0 ]; then
+            echo "跳过: $not_changed_count 个文件 (非本次变更)"
+          fi
           echo "失败: $fail_count 个文件"
 
           if [ $fail_count -gt 0 ]; then
