@@ -1,5 +1,5 @@
 {
-  "name": "LaTeX-OCR",
+  "name": "latex-ocr",
   "title": "LaTeX公式编辑&识别",
   "description": "LaTeX 公式编辑器，支持 SimpleTex api 识别图片转 LaTeX 公式",
   "author": "paxton",
