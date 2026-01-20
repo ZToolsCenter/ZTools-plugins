@@ -120,24 +120,121 @@ jobs:
       - name: Upload to Aliyun OSS
         if: steps.detect.outputs.has_changes == 'true'
         run: |
-          # 上传所有 zip 文件
+          # 上传函数，支持重试和超时
+          upload_file() {
+            local file=$1
+            local target=$2
+            local allow_overwrite=$3  # true/false
+            local max_retries=3
+            local timeout=10  # 10秒钟超时
+            local force_flag=""
+
+            # 如果允许覆盖，添加 -f 参数
+            if [ "$allow_overwrite" = "true" ]; then
+              force_flag="-f"
+            fi
+
+            for i in $(seq 1 $max_retries); do
+              echo "  尝试 $i/$max_retries: $(basename "$file")"
+
+              # 使用 timeout 命令限制执行时间，添加 --jobs 参数提高上传速度
+              output=$(timeout $timeout ossutil cp "$file" "$target" $force_flag --jobs 3 2>&1)
+              exit_code=$?
+
+              if [ $exit_code -eq 0 ]; then
+                echo "  ✓ 上传成功: $(basename "$file")"
+                return 0
+              else
+                # 检查是否是文件已存在的错误
+                if echo "$output" | grep -q "exist\|already exists\|AlreadyExists"; then
+                  echo "  ⊙ 跳过: $(basename "$file") (OSS 已存在)"
+                  return 2  # 返回特殊状态码表示跳过
+                else
+                  echo "  ✗ 上传失败，错误码: $exit_code"
+                  if [ $i -lt $max_retries ]; then
+                    echo "  等待 5 秒后重试..."
+                    sleep 5
+                  fi
+                fi
+              fi
+            done
+
+            echo "  ✗✗✗ $(basename "$file") 上传失败，已重试 $max_retries 次"
+            return 1
+          }
+
+          # 统计
+          success_count=0
+          fail_count=0
+          skip_count=0
+          failed_files=()
+
+          # 上传所有 zip 文件（不允许覆盖）
+          echo "========== 开始上传 ZIP 文件 =========="
+          zip_count=$(ls -1 release/*.zip 2>/dev/null | wc -l)
+          echo "发现 $zip_count 个 ZIP 文件"
+
           for file in release/*.zip; do
             if [ -f "$file" ]; then
-              ossutil cp "$file" oss://ztools-center/$(basename "$file") -f
-              echo "已上传: $(basename "$file")"
+              target="oss://ztools-center/$(basename "$file")"
+
+              upload_file "$file" "$target" "false"
+              result=$?
+
+              if [ $result -eq 0 ]; then
+                ((success_count++))
+              elif [ $result -eq 2 ]; then
+                ((skip_count++))
+              else
+                ((fail_count++))
+                failed_files+=("$(basename "$file")")
+              fi
             fi
           done
 
-          # 上传 plugins.json
+          # 上传 plugins.json（允许覆盖）
+          echo ""
+          echo "========== 上传 plugins.json =========="
           if [ -f "release/plugins.json" ]; then
-            ossutil cp release/plugins.json oss://ztools-center/plugins.json -f
-            echo "已上传: plugins.json"
+            upload_file "release/plugins.json" "oss://ztools-center/plugins.json" "true"
+            if [ $? -eq 0 ]; then
+              ((success_count++))
+            else
+              ((fail_count++))
+              failed_files+=("plugins.json")
+            fi
           fi
 
-          # 上传 latest 文件
+          # 上传 latest 文件（允许覆盖）
+          echo ""
+          echo "========== 上传 latest 文件 =========="
           if [ -f "release/latest" ]; then
-            ossutil cp release/latest oss://ztools-center/latest -f
-            echo "已上传: latest"
+            upload_file "release/latest" "oss://ztools-center/latest" "true"
+            if [ $? -eq 0 ]; then
+              ((success_count++))
+            else
+              ((fail_count++))
+              failed_files+=("latest")
+            fi
           fi
 
-          echo "✅ 所有文件已成功上传到阿里云 OSS"
+          # 输出结果
+          echo ""
+          echo "========================================="
+          echo "上传完成！"
+          echo "成功: $success_count 个文件"
+          echo "跳过: $skip_count 个文件 (已存在)"
+          echo "失败: $fail_count 个文件"
+
+          if [ $fail_count -gt 0 ]; then
+            echo ""
+            echo "失败的文件列表:"
+            for failed_file in "${failed_files[@]}"; do
+              echo "  - $failed_file"
+            done
+            echo ""
+            echo "⚠️  部分文件上传失败，请检查日志"
+            exit 1
+          else
+            echo "✅ 所有文件已成功上传到阿里云 OSS"
+          fi
