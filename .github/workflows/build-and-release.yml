@@ -95,3 +95,49 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup ossutil
+        if: steps.detect.outputs.has_changes == 'true'
+        run: |
+          wget https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil-v1.7.18-linux-amd64.zip
+          unzip ossutil-v1.7.18-linux-amd64.zip
+          chmod +x ossutil-v1.7.18-linux-amd64/ossutil
+          sudo mv ossutil-v1.7.18-linux-amd64/ossutil /usr/local/bin/ossutil
+
+      - name: Configure ossutil
+        if: steps.detect.outputs.has_changes == 'true'
+        run: |
+          ossutil config -e oss-cn-beijing.aliyuncs.com -i ${{ secrets.ALIYUN_OSS_ACCESS_KEY_ID }} -k ${{ secrets.ALIYUN_OSS_ACCESS_KEY_SECRET }}
+
+      - name: Update plugins.json URLs for OSS
+        if: steps.detect.outputs.has_changes == 'true'
+        run: |
+          node scripts/update-oss-urls.js
+        env:
+          OSS_BUCKET: ztools-center
+          OSS_REGION: oss-cn-beijing
+
+      - name: Upload to Aliyun OSS
+        if: steps.detect.outputs.has_changes == 'true'
+        run: |
+          # 上传所有 zip 文件
+          for file in release/*.zip; do
+            if [ -f "$file" ]; then
+              ossutil cp "$file" oss://ztools-center/$(basename "$file") -f
+              echo "已上传: $(basename "$file")"
+            fi
+          done
+
+          # 上传 plugins.json
+          if [ -f "release/plugins.json" ]; then
+            ossutil cp release/plugins.json oss://ztools-center/plugins.json -f
+            echo "已上传: plugins.json"
+          fi
+
+          # 上传 latest 文件
+          if [ -f "release/latest" ]; then
+            ossutil cp release/latest oss://ztools-center/latest -f
+            echo "已上传: latest"
+          fi
+
+          echo "✅ 所有文件已成功上传到阿里云 OSS"
