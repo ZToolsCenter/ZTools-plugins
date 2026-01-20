@@ -5,7 +5,7 @@
   "main": "/main/index.html",
   "preload": "preload.js",
   "logo": "favicon.png",
-  "auther": "Komorebi-yaodong",
+  "author": "Komorebi-yaodong",
   "homepage": "https://github.com/Komorebi-yaodong",
   "platform": [
     "win32",
