@@ -120,6 +120,16 @@ jobs:
       - name: Upload to Aliyun OSS
         if: steps.detect.outputs.has_changes == 'true'
         run: |
+          # 检查 OSS 文件是否存在
+          check_file_exists() {
+            local target=$1
+            if ossutil stat "$target" >/dev/null 2>&1; then
+              return 0  # 存在
+            else
+              return 1  # 不存在
+            fi
+          }
+
           # 上传函数，支持重试和超时
           upload_file() {
             local file=$1
@@ -127,34 +137,28 @@ jobs:
             local allow_overwrite=$3  # true/false
             local max_retries=3
             local timeout=10  # 10秒钟超时
-            local force_flag=""
 
-            # 如果允许覆盖，添加 -f 参数
-            if [ "$allow_overwrite" = "true" ]; then
-              force_flag="-f"
+            # 如果不允许覆盖，先检查文件是否存在
+            if [ "$allow_overwrite" != "true" ]; then
+              if check_file_exists "$target"; then
+                echo "  ⊙ 跳过: $(basename "$file") (OSS 已存在)"
+                return 2  # 返回特殊状态码表示跳过
+              fi
             fi
 
             for i in $(seq 1 $max_retries); do
               echo "  尝试 $i/$max_retries: $(basename "$file")"
 
               # 使用 timeout 命令限制执行时间，添加 --jobs 参数提高上传速度
-              output=$(timeout $timeout ossutil cp "$file" "$target" $force_flag --jobs 3 2>&1)
-              exit_code=$?
-
-              if [ $exit_code -eq 0 ]; then
+              # 始终使用 -f 参数覆盖（因为到这里说明要么允许覆盖，要么文件不存在）
+              if timeout $timeout ossutil cp "$file" "$target" -f --jobs 3 2>&1; then
                 echo "  ✓ 上传成功: $(basename "$file")"
                 return 0
               else
-                # 检查是否是文件已存在的错误
-                if echo "$output" | grep -q "exist\|already exists\|AlreadyExists"; then
-                  echo "  ⊙ 跳过: $(basename "$file") (OSS 已存在)"
-                  return 2  # 返回特殊状态码表示跳过
-                else
-                  echo "  ✗ 上传失败，错误码: $exit_code"
-                  if [ $i -lt $max_retries ]; then
-                    echo "  等待 5 秒后重试..."
-                    sleep 5
-                  fi
+                echo "  ✗ 上传失败，错误码: $?"
+                if [ $i -lt $max_retries ]; then
+                  echo "  等待 5 秒后重试..."
+                  sleep 5
                 fi
               fi
             done
