@@ -320,7 +320,7 @@ const handleKeydown = (event) => {
 }
 
 // 复制到剪贴板
-const copyToClipboard = async (id, shouldPaste = false) => {
+const copyToClipboard = async (id, shouldPaste = true) => {
   try {
     // 收藏Tab使用 writeContent
     if (activeTab.value === 'favorite') {

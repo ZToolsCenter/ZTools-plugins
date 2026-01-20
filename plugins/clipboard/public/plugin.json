@@ -1,7 +1,7 @@
 {
   "name": "clipboard",
   "description": "剪贴板",
-  "version": "1.1.3",
+  "version": "1.1.5",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.png",
