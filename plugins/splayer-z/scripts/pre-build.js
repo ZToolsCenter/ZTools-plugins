@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, rmSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -32,7 +32,7 @@ if (!existsSync(splayerDir)) {
   }
 } else {
   console.log('✅ SPlayer 目录已存在');
-  
+
   // 检查是否是 git 仓库
   const gitDir = join(splayerDir, '.git');
   if (existsSync(gitDir)) {
@@ -53,7 +53,23 @@ if (!existsSync(splayerDir)) {
       console.warn('⚠️  更新 SPlayer 失败，继续使用现有版本');
     }
   } else {
-    console.log('⚠️  SPlayer 目录存在但不是 git 仓库，跳过更新');
+    console.log('⚠️  SPlayer 目录存在但不是 git 仓库，删除并重新克隆...');
+    try {
+      // 删除无效的 SPlayer 目录
+      rmSync(splayerDir, { recursive: true, force: true });
+      console.log('🗑️  已删除无效目录');
+
+      // 重新克隆
+      console.log(`📥 克隆 SPlayer 仓库 (分支: ${SPLAYER_BRANCH})...`);
+      execSync(`git clone -b ${SPLAYER_BRANCH} --single-branch ${SPLAYER_REPO} SPlayer`, {
+        cwd: rootDir,
+        stdio: 'inherit'
+      });
+      console.log('✅ SPlayer 克隆完成');
+    } catch (error) {
+      console.error('❌ 重新克隆 SPlayer 失败:', error.message);
+      process.exit(1);
+    }
   }
 }
 
