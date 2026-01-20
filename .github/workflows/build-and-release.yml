@@ -126,16 +126,17 @@ jobs:
           BUILD_ALL_PLUGINS=false
 
           if [ -f "$BUILD_INFO_FILE" ]; then
-            # 提取 changedPlugins 数组
-            CHANGED_PLUGINS_JSON=$(cat "$BUILD_INFO_FILE" | grep -o '"changedPlugins":\s*\[.*\]' | sed 's/"changedPlugins":\s*\[//' | sed 's/\]$//' | tr -d '"' | tr ',' '\n')
+            # 使用 node 解析 JSON，更可靠
+            CHANGED_PLUGINS_STR=$(node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync('$BUILD_INFO_FILE', 'utf-8'));
+              console.log(data.changedPlugins.join(' '));
+            ")
 
             # 转换为数组
-            while IFS= read -r plugin; do
-              plugin=$(echo "$plugin" | xargs)  # 去除空格
-              if [ -n "$plugin" ]; then
-                CHANGED_PLUGINS+=("$plugin")
-              fi
-            done <<< "$CHANGED_PLUGINS_JSON"
+            if [ -n "$CHANGED_PLUGINS_STR" ]; then
+              read -ra CHANGED_PLUGINS <<< "$CHANGED_PLUGINS_STR"
+            fi
 
             echo "本次变更的插件: ${CHANGED_PLUGINS[*]}"
           fi
