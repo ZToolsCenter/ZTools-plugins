@@ -182,8 +182,10 @@ jobs:
             if [ -f "$file" ]; then
               target="oss://ztools-center/$(basename "$file")"
 
-              upload_file "$file" "$target" "false"
-              result=$?
+              # 调用上传函数，使用 || true 防止非 0 返回值触发 set -e 退出
+              upload_file "$file" "$target" "false" || result=$?
+              # 如果上面的命令成功（返回0），则 result 未被设置，需要显式设为 0
+              result=${result:-0}
 
               if [ $result -eq 0 ]; then
                 success_count=$((success_count + 1))
@@ -193,6 +195,9 @@ jobs:
                 fail_count=$((fail_count + 1))
                 failed_files+=("$(basename "$file")")
               fi
+
+              # 重置 result 变量
+              result=0
             fi
           done
 
@@ -200,8 +205,9 @@ jobs:
           echo ""
           echo "========== 上传 plugins.json =========="
           if [ -f "release/plugins.json" ]; then
-            upload_file "release/plugins.json" "oss://ztools-center/plugins.json" "true"
-            if [ $? -eq 0 ]; then
+            upload_file "release/plugins.json" "oss://ztools-center/plugins.json" "true" || result=$?
+            result=${result:-0}
+            if [ $result -eq 0 ]; then
               success_count=$((success_count + 1))
             else
               fail_count=$((fail_count + 1))
@@ -213,8 +219,9 @@ jobs:
           echo ""
           echo "========== 上传 latest 文件 =========="
           if [ -f "release/latest" ]; then
-            upload_file "release/latest" "oss://ztools-center/latest" "true"
-            if [ $? -eq 0 ]; then
+            upload_file "release/latest" "oss://ztools-center/latest" "true" || result=$?
+            result=${result:-0}
+            if [ $result -eq 0 ]; then
               success_count=$((success_count + 1))
             else
               fail_count=$((fail_count + 1))

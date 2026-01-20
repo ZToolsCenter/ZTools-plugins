@@ -25,6 +25,6 @@
   "description": "简单，实用的cron表达式生成小工具，好用请给我一个 5 星好评，甚是感谢",
   "author": "Evan",
   "homepage": null,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "title": "cron在线表达式"
 }
