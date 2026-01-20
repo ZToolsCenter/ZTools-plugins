@@ -1,0 +1,3 @@
+packages:
+  - "."
+  - "native/external-media-integration"

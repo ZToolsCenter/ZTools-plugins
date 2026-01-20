@@ -1,0 +1,383 @@
+* {
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  box-sizing: border-box;
+  ::after {
+    box-sizing: border-box;
+  }
+  &:focus {
+    outline: none;
+  }
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+a,
+img,
+video,
+audio {
+  -webkit-user-drag: none;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+// text-hidden
+.text-hidden {
+  display: -webkit-box;
+  overflow: hidden;
+  word-break: break-all;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+// tabs
+.n-tabs {
+  width: 100%;
+  --n-tab-border-radius: 6px !important;
+  .n-tabs-nav {
+    position: relative;
+  }
+  .n-tabs-tab {
+    transition: all 0.3s var(--n-bezier);
+  }
+}
+
+.n-button {
+  &.player {
+    --n-color: rgba(var(--main-cover-color), 0.14);
+    --n-color-hover: rgba(var(--main-cover-color), 0.12);
+    --n-color-pressed: rgba(var(--main-cover-color), 0.08);
+    --n-color-focus: rgba(var(--main-cover-color), 0.12);
+    --n-text-color: rgb(var(--main-cover-color));
+    --n-text-color-hover: rgba(var(--main-cover-color), 0.82);
+    --n-text-color-pressed: rgba(var(--main-cover-color), 0.82);
+    --n-text-color-focus: rgba(var(--main-cover-color), 0.82);
+    --n-text-color-disabled: rgba(var(--main-cover-color), 0.82);
+    --n-color-disabled: rgba(var(--main-cover-color), 0.14);
+  }
+}
+
+.n-switch {
+  &.n-switch--active {
+    .n-switch__rail {
+      background-color: rgba(var(--primary), 0.8);
+    }
+  }
+}
+
+// modal
+.n-modal {
+  max-width: calc(100vw - 40px);
+  border-radius: 8px;
+}
+.n-modal-mask {
+  backdrop-filter: blur(16px);
+}
+.n-modal-scroll-content {
+  justify-content: center;
+}
+
+// drawer
+.n-drawer-mask {
+  backdrop-filter: blur(20px);
+}
+
+// dropdown
+.n-dropdown {
+  --n-border-radius: 8px !important;
+  &.player {
+    --n-color: rgba(var(--main-cover-color), 0.14);
+    --n-prefix-color: rgb(var(--main-cover-color));
+    --n-option-text-color: rgb(var(--main-cover-color));
+    --n-option-text-color-hover: rgb(var(--main-cover-color));
+    --n-option-color-hover: rgba(var(--main-cover-color), 0.14);
+    --n-option-color-active: rgba(var(--main-cover-color), 0.14);
+    box-shadow: 0 0 0 -4px rgba(var(--main-cover-color), 0.24);
+    backdrop-filter: blur(10px);
+  }
+}
+
+.n-popselect-menu {
+  --n-border-radius: 8px !important;
+}
+
+// n-message
+.n-message-container {
+  bottom: 90px !important;
+  .n-message-wrapper {
+    .n-message {
+      border-radius: 12px;
+    }
+  }
+}
+
+// slider
+.n-slider {
+  // .n-slider-rail {
+  //   backdrop-filter: blur(10px);
+  // }
+  .n-slider-handle {
+    transition:
+      opacity 0.3s var(--n-bezier),
+      box-shadow 0.2s var(--n-bezier),
+      transform 0.3s var(--n-bezier),
+      background-color 0.3s var(--n-bezier) !important;
+  }
+}
+.n-slider-handle-indicator {
+  --n-indicator-border-radius: 8px !important;
+}
+
+// popover
+.n-popover {
+  border-radius: 8px !important;
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  &:not(.n-popover--raw) {
+    color: var(--primary-hex);
+  }
+  &.player {
+    color: rgb(var(--main-cover-color));
+    --n-color: rgba(var(--main-cover-color), 0.14);
+    .volume-change {
+      .slider-num {
+        color: rgb(var(--main-cover-color));
+      }
+    }
+    .n-slider {
+      --n-handle-color: rgb(var(--main-cover-color));
+      --n-rail-color: rgba(var(--main-cover-color), 0.2);
+      --n-rail-color-hover: rgba(var(--main-cover-color), 0.3);
+      --n-fill-color: rgb(var(--main-cover-color));
+      --n-fill-color-hover: rgb(var(--main-cover-color));
+    }
+  }
+}
+
+// layout-toggle-bar
+.n-layout-toggle-bar {
+  height: 44px !important;
+  top: calc(50% - 22px) !important;
+  .n-layout-toggle-bar__top,
+  .n-layout-toggle-bar__bottom {
+    height: 24px !important;
+  }
+  .n-layout-toggle-bar__bottom {
+    top: 20px !important;
+  }
+}
+
+// n-scrollbar
+.n-scrollbar {
+  .n-scrollbar-rail {
+    right: 0 !important;
+  }
+  .n-scrollbar-rail__scrollbar {
+    right: 0;
+    transition:
+      width 0.3s,
+      background-color 0.2s var(--n-scrollbar-bezier) !important;
+    &:hover {
+      width: 8px;
+    }
+  }
+}
+
+// notification
+.n-notification {
+  --n-border-radius: 8px !important;
+}
+
+// image
+.n-image {
+  width: 100%;
+  height: 100%;
+  .cover-loading {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    .loading-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 1 !important;
+    }
+  }
+  img {
+    transition: all 0.3s;
+  }
+}
+
+// image-preview
+.n-image-preview-container {
+  .n-image-preview-overlay {
+    backdrop-filter: blur(16px);
+  }
+  .n-image-preview-toolbar {
+    .n-base-icon {
+      padding: 0;
+      margin: 0 8px;
+    }
+  }
+}
+
+// skeleton
+.n-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(var(--primary), 0.08) 25%,
+    rgba(var(--primary), 0.14) 37%,
+    rgba(var(--primary), 0.08) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+}
+
+// n-back-top
+.n-back-top {
+  --n-height: 42px !important;
+  --n-width: 42px !important;
+  border: 1px solid rgba(var(--primary), 0.28);
+}
+
+// select
+.n-select {
+  .n-base-selection {
+    .n-base-selection-label {
+      background-color: var(--n-border-color);
+    }
+  }
+}
+
+// alert
+.n-alert {
+  --n-border-radius: 8px !important;
+}
+
+// tag
+.n-tag {
+  font-size: 13px;
+  padding: 0 16px;
+  line-height: 0;
+  cursor: pointer;
+  transition:
+    transform 0.3s,
+    background-color 0.3s,
+    color 0.3s;
+  background-color: rgba(var(--primary), 0.08);
+  &.choose {
+    background-color: rgba(var(--primary), 0.28);
+    color: var(--primary-hex);
+  }
+  &:hover {
+    background-color: rgba(var(--primary), 0.28);
+    color: var(--primary-hex);
+  }
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+// .n-badge
+.n-badge {
+  .n-badge-sup {
+    background-color: rgba(var(--primary), 0.14);
+    .n-base-slot-machine {
+      color: rgb(var(--primary));
+    }
+  }
+}
+
+.n-base-select-menu {
+  &.player {
+    --n-action-divider-color: rgba(var(--main-cover-color), 0.09) !important;
+    --n-action-text-color: rgba(var(--main-cover-color), 0.82) !important;
+    --n-border-radius: 8px !important;
+    // --n-color: transparent !important;
+    // 这样更好看
+    --n-color: rgba(24, 24, 28, 0.55) !important;
+    --n-group-header-text-color: rgba(var(--main-cover-color), 0.52) !important;
+    --n-option-check-color: rgb(var(--main-cover-color)) !important;
+    --n-option-color-pending: rgba(var(--main-cover-color), 0.09);
+    --n-option-text-color: rgba(var(--main-cover-color), 0.82) !important;
+    --n-option-text-color-active: rgb(var(--main-cover-color)) !important;
+    --n-option-text-color-disabled: rgba(var(--main-cover-color), 0.38) !important;
+    --n-option-text-color-pressed: rgba(var(--main-cover-color), 0.26) !important;
+    --n-option-color-pending: rgba(var(--main-cover-color), 0.09) !important;
+    backdrop-filter: blur(20px);
+    // &::after {
+    //   content: "";
+    //   position: absolute;
+    //   width: 100%;
+    //   height: 100%;
+    //   inset: 0;
+    //   border-radius: 8px;
+    //   background: color-mix(in srgb, rgb(18, 18, 22) 50%, rgb(var(--main-cover-color)) 40%);
+    //   opacity: 0.75;
+    //   z-index: -1;
+    // }
+  }
+}
+
+// input
+.n-input-number {
+  width: 100%;
+}
+
+::selection {
+  background-color: var(--primary-hex);
+  color: var(--background-hex);
+}
+
+// markdown
+.markdown-body {
+  --bgColor-default: var(--background-hex) !important;
+  --bgColor-muted: var(--background-hex) !important;
+  --fgColor-default: var(--n-text-color) !important;
+  margin-top: 12px !important;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+// 列表页通用样式
+.album-list,
+.playlist-list,
+.liked-list,
+.radio-list {
+  display: flex;
+  flex-direction: column;
+  .song-list,
+  .list-comment,
+  .loading,
+  .n-empty {
+    padding-top: 240px;
+    transition:
+      padding 0.3s,
+      opacity 0.3s;
+  }
+  .list-detail.small {
+    & ~ .song-list,
+    & ~ .list-comment,
+    & ~ .loading,
+    & ~ .n-empty {
+      padding-top: 120px;
+    }
+  }
+}

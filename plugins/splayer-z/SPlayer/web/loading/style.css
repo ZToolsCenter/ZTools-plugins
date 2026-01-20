@@ -1,0 +1,115 @@
+:root {
+  --bg-color: #fff;
+  --font-coloe: #000;
+  --primary: #f55e55;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #161616;
+    --font-coloe: #fff;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  box-sizing: border-box;
+  -webkit-user-drag: none;
+}
+
+body {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-color);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+footer {
+  position: absolute;
+  bottom: 20px;
+  font-size: 14px;
+  color: var(--primary);
+  opacity: 0.6;
+}
+
+.logo {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader,
+.loader:before,
+.loader:after {
+  border-radius: 50%;
+  width: 2.5em;
+  height: 2.5em;
+  animation-fill-mode: both;
+  animation: bblFadInOut 1.8s infinite ease-in-out;
+}
+
+.loader {
+  color: var(--primary);
+  font-size: 6px;
+  position: relative;
+  text-indent: -9999em;
+  transform: translateZ(0);
+  animation-delay: -0.16s;
+  margin: 40px 0;
+}
+
+.loader:before,
+.loader:after {
+  content: "";
+  position: absolute;
+  top: 0;
+}
+
+.loader:before {
+  left: -3.5em;
+  animation-delay: -0.32s;
+}
+
+.loader:after {
+  left: 3.5em;
+}
+
+#startApp {
+  opacity: 0;
+  margin-top: 10px;
+  outline: none;
+  border: 2px solid var(--primary);
+  height: 36px;
+  width: 90px;
+  font-size: 14px;
+  border-radius: 12px;
+  color: var(--primary);
+  font-weight: bold;
+  background-color: transparent;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+@keyframes bblFadInOut {
+  0%,
+  80%,
+  100% {
+    box-shadow: 0 2.5em 0 -1.3em;
+  }
+
+  40% {
+    box-shadow: 0 2.5em 0 0;
+  }
+}
