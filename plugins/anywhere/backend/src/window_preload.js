@@ -27,6 +27,8 @@ const {
     writeLocalFile,
     isFileTypeSupported,
     parseFileObject,
+    renameLocalFile,
+    listJsonFiles,
 } = require('./file.js');
 
 const { 
@@ -79,6 +81,8 @@ window.api = {
     copyText,
     handleFilePath,
     saveFile,
+    renameLocalFile,
+    listJsonFiles,
     writeLocalFile,
     sethotkey,
     setZoomFactor,

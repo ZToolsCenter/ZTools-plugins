@@ -117,7 +117,7 @@
     "inputPlaceholder": "プロンプト内容を入力...",
     "selectNewModel": "新しいモデルを選択してください",
     "icon": {
-      "uploadText": "ドラッグ/貼り付け<br>クリックしてアップロード",
+      "uploadText": "ドラッグ/貼り付け\nクリックしてアップロード",
       "downloadTooltip": "アイコンをダウンロード",
       "removeTooltip": "アイコンを削除"
     },
@@ -170,6 +170,7 @@
     "selectPromptsPlaceholder": "クイックアシスタントを選択",
     "isAlwaysOnTopLabel": "常に最前面に表示",
     "autoCloseOnBlurLabel": "フォーカスが外れたら閉じる",
+    "autoSaveChatLabel": "チャット自動保存",
     "replaceModels": "モデルを置換",
     "replaceModelsDialog": {
       "title": "モデルの一括置換",
@@ -205,6 +206,7 @@
       "reasoningEffort": "モデルの思考プロセスの計算予算を設定します。高い値はより詳細な回答をもたらす可能性がありますが、遅延とコストが増加します。",
       "isAlwaysOnTopTooltip": "ウィンドウを常に他のウィンドウより手前に表示します。",
       "autoCloseOnBlurTooltip": "独立したウィンドウがフォーカスを失ったときに自動的に閉じるようにします。",
+      "autoSaveChatTooltip": "オンにすると、チャットは15秒ごとにローカルに自動保存されます（設定でローカルチャットパスの設定が必要）。",
       "defaultMcpServers": "設定すると、このアシスタントをスタンドアロンウィンドウで開いたときに、選択したMCPサービスが自動的に有効になります。"
     },
     "voiceLabel": "デフォルト音声",
@@ -251,7 +253,8 @@
     "typeOptions": {
       "stdio": "Stdio",
       "http": "ストリーミングHTTP",
-      "sse": "SSE"
+      "sse": "SSE",
+      "builtin": "組み込み"
     },
     "stdio": {
       "command": "コマンド",
@@ -330,6 +333,20 @@
       "ownedBy": "所有者",
       "action": "操作"
     },
+    "folders": {
+      "createSuccess": "フォルダを作成しました",
+      "renameSuccess": "フォルダ名を変更しました",
+      "deleteSuccess": "フォルダを削除しました",
+      "deleteConfirmTitle": "削除の確認",
+      "deleteConfirmMessage": "このフォルダを削除しますか？中のサービスプロバイダーはルートディレクトリに移動されます。",
+      "floder_label": "フォルダ",
+      "root": "ルートディレクトリ",
+      "empty": "(空)",
+      "newFolderTitle": "新規フォルダ",
+      "renameFolderTitle": "フォルダ名の変更",
+      "folderNameLabel": "フォルダ名",
+      "folderNamePlaceholder": "名前を入力してください"
+    },
     "noModelsFoundError": "モデルが見つからないか、APIエラーです。",
     "noModelsMatchSearch": "一致するモデルが見つかりませんでした。",
     "addModelTooltip": "モデルを追加",
@@ -372,6 +389,10 @@
     "autoCloseOnBlur_global": {
       "label": "フォーカスが外れたら閉じる (グローバル)",
       "description": "すべてのアシスタントウィンドウがフォーカスを失ったときに自動的に閉じるかどうかをまとめて制御します"
+    },
+    "autoSaveChat_global": {
+      "label": "チャット自動保存 (グローバル)",
+      "description": "すべてのアシスタントがチャットをローカルに自動保存するかどうかをまとめて制御します"
     },
     "skipLineBreak": {
       "label": "送信時に改行をスキップ",

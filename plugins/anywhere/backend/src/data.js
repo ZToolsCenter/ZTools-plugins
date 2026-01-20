@@ -6,6 +6,9 @@ const feature_suffix = "anywhere助手^_^"
 const {
   requestTextOpenAI
 } = require('./input.js');
+const { 
+  getBuiltinServers
+} = require('./mcp_builtin.js');
 
 // 默认配置 (保持不变)
 const defaultConfig = {
@@ -20,6 +23,7 @@ const defaultConfig = {
       },
     },
     providerOrder: ["0",],
+    providerFolders: {},
     prompts: {
       AI: {
         type: "over",
@@ -43,6 +47,7 @@ const defaultConfig = {
         position_y: 0,
         autoCloseOnBlur: true,
         isAlwaysOnTop: true,
+        autoSaveChat: false,
       },
     },
     fastWindowPosition: { x: 0, y: 0 },
@@ -56,6 +61,7 @@ const defaultConfig = {
     fix_position: false,
     isAlwaysOnTop_global: true,
     autoCloseOnBlur_global: true,
+    autoSaveChat_global: false,
     zoom: 1,
     webdav: {
       url: "",
@@ -178,7 +184,26 @@ async function getConfig() {
 
   fullConfigData.config.prompts = promptsDoc ? promptsDoc.data : defaultConfig.config.prompts;
   fullConfigData.config.providers = providersDoc ? providersDoc.data : defaultConfig.config.providers;
-  fullConfigData.config.mcpServers = mcpServersDoc ? mcpServersDoc.data : defaultConfig.config.mcpServers || {};
+  
+  // 合并用户配置和内置服务器
+  const userMcpServers = mcpServersDoc ? mcpServersDoc.data : (defaultConfig.config.mcpServers || {});
+  const builtinServers = getBuiltinServers();
+  
+  // 如果用户数据库里有同名ID，说明用户可能修改了状态(isActive/isPersistent)，合并状态
+  const mergedMcpServers = { ...userMcpServers };
+  
+  for (const [id, server] of Object.entries(builtinServers)) {
+      if (mergedMcpServers[id]) {
+          mergedMcpServers[id] = { 
+              ...server, 
+              isActive: mergedMcpServers[id].isActive,
+              isPersistent: mergedMcpServers[id].isPersistent
+          };
+      } else {
+          mergedMcpServers[id] = server;
+      }
+  }
+  fullConfigData.config.mcpServers = mergedMcpServers;
 
   return fullConfigData;
 }
@@ -214,8 +239,8 @@ function checkConfig(config) {
   // --- 2. 根目录字段清洗 (使用列表驱动) ---
   // 需要删除的废弃字段
   const obsoleteKeys = [
-    'window_width', 'window_height', 'stream', 'autoCloseOnBlur', 'isAlwaysOnTop', 
-    'inputLayout', 'tool_list', 'promptOrder', 'ModelsListByUser', 
+    'window_width', 'window_height', 'stream', 'autoCloseOnBlur', 'isAlwaysOnTop',
+    'inputLayout', 'tool_list', 'promptOrder', 'ModelsListByUser',
     'apiUrl', 'apiKey', 'modelList', 'modelSelect', 'activeProviderId'
   ];
   obsoleteKeys.forEach(key => {
@@ -226,18 +251,20 @@ function checkConfig(config) {
   const rootDefaults = {
     isAlwaysOnTop_global: true,
     autoCloseOnBlur_global: true,
+    autoSaveChat_global: false,
     CtrlEnterToSend: false,
     showNotification: false,
     fix_position: false,
     zoom: 1,
     language: "zh",
+    providerFolders: {},
     mcpServers: {},
     tags: {},
     isDarkMode: false,
     themeMode: "system",
     fastWindowPosition: null,
     // 直接引用 defaultConfig 中的完整列表，避免代码冗长
-    voiceList: defaultConfig.config.voiceList || [] 
+    voiceList: defaultConfig.config.voiceList || []
   };
 
   for (const [key, val] of Object.entries(rootDefaults)) {
@@ -268,7 +295,8 @@ function checkConfig(config) {
       isDirectSend_normal: true, isDirectSend_file: false, ifTextNecessary: false,
       voice: '', reasoning_effort: "default", defaultMcpServers: [],
       window_width: 580, window_height: 740, position_x: 0, position_y: 0,
-      isAlwaysOnTop: true, autoCloseOnBlur: true, matchRegex: "", icon: ""
+      isAlwaysOnTop: true, autoCloseOnBlur: true, matchRegex: "", icon: "",
+      autoSaveChat: false
     };
 
     for (const key of Object.keys(config.prompts)) {
@@ -315,6 +343,7 @@ function checkConfig(config) {
       if (prov.modelSelect !== undefined) { delete prov.modelSelect; flag = true; }
       if (prov.modelListByUser !== undefined) { delete prov.modelListByUser; flag = true; }
       if (prov.enable === undefined) { prov.enable = true; flag = true; }
+      if (prov.folderId === undefined) { prov.folderId = ""; flag = true; }
     }
   }
 
@@ -327,7 +356,7 @@ function checkConfig(config) {
     const validOrder = config.providerOrder
       .map(String)
       .filter(id => config.providers && config.providers[id]);
-    
+
     if (validOrder.length !== config.providerOrder.length) {
       config.providerOrder = validOrder;
       flag = true;
@@ -351,17 +380,17 @@ async function saveSetting(keyPath, value) {
   let docId;
   let targetObjectKey; // 二级键名 (如 promptKey 或 serverId)
   let targetPropKey;   // 属性名 (如 model, enable)
-  
+
   if (rootKey === 'prompts') {
     docId = 'prompts';
     // 逻辑：keyPath 格式为 "prompts.{promptKey}.{property}"
     // 我们需要提取中间的 promptKey，它可能包含点号
     const firstDotIndex = keyPath.indexOf('.');
     const lastDotIndex = keyPath.lastIndexOf('.');
-    
+
     if (firstDotIndex === -1 || lastDotIndex === -1 || firstDotIndex === lastDotIndex) {
-       console.error(`Invalid keyPath for prompts: ${keyPath}`);
-       return { success: false, message: `Invalid keyPath: ${keyPath}` };
+      console.error(`Invalid keyPath for prompts: ${keyPath}`);
+      return { success: false, message: `Invalid keyPath: ${keyPath}` };
     }
 
     targetObjectKey = keyPath.substring(firstDotIndex + 1, lastDotIndex);
@@ -373,25 +402,25 @@ async function saveSetting(keyPath, value) {
     const firstDotIndex = keyPath.indexOf('.');
     const lastDotIndex = keyPath.lastIndexOf('.');
     if (firstDotIndex !== -1 && lastDotIndex !== -1 && firstDotIndex !== lastDotIndex) {
-        targetObjectKey = keyPath.substring(firstDotIndex + 1, lastDotIndex);
-        targetPropKey = keyPath.substring(lastDotIndex + 1);
+      targetObjectKey = keyPath.substring(firstDotIndex + 1, lastDotIndex);
+      targetPropKey = keyPath.substring(lastDotIndex + 1);
     } else {
-        // Fallback for simple paths
-        const parts = keyPath.split('.');
-        targetObjectKey = parts[1];
-        targetPropKey = parts[2];
+      // Fallback for simple paths
+      const parts = keyPath.split('.');
+      targetObjectKey = parts[1];
+      targetPropKey = parts[2];
     }
   } else if (rootKey === 'mcpServers') {
     docId = 'mcpServers';
     // MCP server id 可能包含点号
     const firstDotIndex = keyPath.indexOf('.');
     const lastDotIndex = keyPath.lastIndexOf('.');
-    
+
     if (firstDotIndex !== -1 && lastDotIndex !== -1 && firstDotIndex !== lastDotIndex) {
-        targetObjectKey = keyPath.substring(firstDotIndex + 1, lastDotIndex);
-        targetPropKey = keyPath.substring(lastDotIndex + 1);
+      targetObjectKey = keyPath.substring(firstDotIndex + 1, lastDotIndex);
+      targetPropKey = keyPath.substring(lastDotIndex + 1);
     } else {
-         return { success: false, message: `Invalid keyPath for mcpServers: ${keyPath}` };
+      return { success: false, message: `Invalid keyPath for mcpServers: ${keyPath}` };
     }
   } else {
     docId = 'config';
@@ -406,22 +435,22 @@ async function saveSetting(keyPath, value) {
   let dataToUpdate = (docId === 'config') ? doc.data.config : doc.data;
 
   if (docId === 'config') {
-      const pathParts = keyPath.split('.');
-      let current = dataToUpdate;
-      for (let i = 0; i < pathParts.length - 1; i++) {
-        const part = pathParts[i];
-        if (current[part] === undefined || typeof current[part] !== 'object') {
-          current[part] = {};
-        }
-        current = current[part];
+    const pathParts = keyPath.split('.');
+    let current = dataToUpdate;
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      const part = pathParts[i];
+      if (current[part] === undefined || typeof current[part] !== 'object') {
+        current[part] = {};
       }
-      current[pathParts[pathParts.length - 1]] = value;
+      current = current[part];
+    }
+    current[pathParts[pathParts.length - 1]] = value;
 
   } else {
-      if (!dataToUpdate[targetObjectKey]) {
-          dataToUpdate[targetObjectKey] = {};
-      }
-      dataToUpdate[targetObjectKey][targetPropKey] = value;
+    if (!dataToUpdate[targetObjectKey]) {
+      dataToUpdate[targetObjectKey] = {};
+    }
+    dataToUpdate[targetObjectKey][targetPropKey] = value;
   }
 
   const result = await utools.db.promises.put({
@@ -450,6 +479,29 @@ async function saveSetting(keyPath, value) {
 function updateConfigWithoutFeatures(newConfig) {
   // 在将配置存入数据库前，将其转换为纯净的 JavaScript 对象，以移除 Vue 的响应式 Proxy。
   const plainConfig = JSON.parse(JSON.stringify(newConfig.config));
+  
+  // [关键修改] 在拆分前，过滤 mcpServers，防止内置MCP的全量配置被写入数据库
+  if (plainConfig.mcpServers) {
+      const serverToSave = {};
+      const builtinIds = Object.keys(getBuiltinServers());
+      
+      for (const [id, server] of Object.entries(plainConfig.mcpServers)) {
+          if (server.type === 'builtin' || builtinIds.includes(id)) {
+              // 对于内置服务，仅保存状态，不保存完整定义
+              serverToSave[id] = {
+                  id: server.id,
+                  type: 'builtin',
+                  name: server.name,
+                  isActive: server.isActive,
+                  isPersistent: server.isPersistent
+              };
+          } else {
+              serverToSave[id] = server;
+          }
+      }
+      plainConfig.mcpServers = serverToSave;
+  }
+
   const { baseConfigPart, promptsPart, providersPart, mcpServersPart } = splitConfigForStorage(plainConfig);
 
   // 1. 更新基础配置 (config)
@@ -485,10 +537,11 @@ function updateConfigWithoutFeatures(newConfig) {
   });
 
   // 5. 广播配置更新给所有已打开的独立窗口
+  const fullConfigForFrontend = JSON.parse(JSON.stringify(newConfig.config));
+  
   for (const windowInstance of windowMap.values()) {
     if (!windowInstance.isDestroyed()) {
-      // 发送新的配置对象（plainConfig 即为 config 部分）
-      windowInstance.webContents.send('config-updated', plainConfig);
+      windowInstance.webContents.send('config-updated', fullConfigForFrontend);
     }
   }
 
@@ -519,9 +572,9 @@ function updateConfig(newConfig) {
       if (prompt.type === "general") {
         expectedMatchFeature.cmds.push({ type: "over", label: key, "maxLength": 99999999999 });
         expectedMatchFeature.cmds.push({ type: "img", label: key });
-        expectedMatchFeature.cmds.push({ type: "files", label: key, fileType: "file", match: "/\\.(png|jpeg|jpg|webp|docx|xlsx|xls|csv|pdf|mp3|wav|txt|md|markdown|json|xml|html|htm|css|yml|py|js|ts|java|c|cpp|h|hpp|cs|go|php|rb|rs|sh|sql|vue)$/i" });
+        expectedMatchFeature.cmds.push({ type: "files", label: key, fileType: "file", match: "/\\.(png|jpeg|jpg|webp|docx|xlsx|xls|csv|pdf|mp3|wav|txt|md|markdown|json|xml|html|htm|css|yml|py|js|ts|java|c|cpp|h|hpp|cs|go|php|rb|rs|sh|sql|vue|tex|latex|bib|sty|yaml|yml|ini|bat|log|toml)$/i" });
       } else if (prompt.type === "files") {
-        expectedMatchFeature.cmds.push({ type: "files", label: key, fileType: "file", match: "/\\.(png|jpeg|jpg|webp|docx|xlsx|xls|csv|pdf|mp3|wav|txt|md|markdown|json|xml|html|htm|css|yml|py|js|ts|java|c|cpp|h|hpp|cs|go|php|rb|rs|sh|sql|vue)$/i" });
+        expectedMatchFeature.cmds.push({ type: "files", label: key, fileType: "file", match: "/\\.(png|jpeg|jpg|webp|docx|xlsx|xls|csv|pdf|mp3|wav|txt|md|markdown|json|xml|html|htm|css|yml|py|js|ts|java|c|cpp|h|hpp|cs|go|php|rb|rs|sh|sql|vue|tex|latex|bib|sty|yaml|yml|ini|bat|log|toml)$/i" });
       } else if (prompt.type === "img") {
         expectedMatchFeature.cmds.push({ type: "img", label: key });
       } else if (prompt.type === "over") {
@@ -577,7 +630,7 @@ function getUser() {
 
 function getPosition(config, promptCode) {
   const promptConfig = config.prompts[promptCode];
-  const OVERFLOW_ALLOWANCE = 10; 
+  const OVERFLOW_ALLOWANCE = 10;
 
   // 强制转换为 Number，防止 undefined 或 null 导致 NaN
   let width = Number(promptConfig?.window_width) || 580;
@@ -657,7 +710,7 @@ function getFastInputPosition(config) {
   if (config.fastWindowPosition && typeof config.fastWindowPosition.x === 'number' && typeof config.fastWindowPosition.y === 'number') {
     x = config.fastWindowPosition.x;
     y = config.fastWindowPosition.y;
-    displayBounds = utools.getDisplayNearestPoint({"x":x, "y": y}).bounds;
+    displayBounds = utools.getDisplayNearestPoint({ "x": x, "y": y }).bounds;
   } else {
     // 默认位置：屏幕中央偏下 (90%高度处)
     displayBounds = primaryDisplay.bounds;
@@ -715,7 +768,7 @@ async function openWindow(config, msg) {
     y: y,
     frame: false,
     transparent: false,
-    hasShadow:true,
+    hasShadow: true,
     webPreferences: {
       preload: "./window_preload.js",
       devTools: utools.isDev()
@@ -983,7 +1036,7 @@ function getUrlHash(url) {
 async function getCachedBackgroundImage(url) {
   if (!url) return null;
   const hash = getUrlHash(url);
-  
+
   // 1. 检查映射是否存在
   const cacheDoc = await utools.db.promises.get("background_cache");
   if (!cacheDoc || !cacheDoc.data || !cacheDoc.data[hash]) {
@@ -991,42 +1044,42 @@ async function getCachedBackgroundImage(url) {
   }
 
   const attachmentId = cacheDoc.data[hash];
-  
+
   // 2. 获取附件
   let buffer = await utools.db.promises.getAttachment(attachmentId);
   if (!buffer) return null;
 
   if (buffer.length > 500 * 1024) {
-      // console.log(`[Cache] Image is too large (${(buffer.length/1024/1024).toFixed(2)}MB), compressing...`);
-      try {
-          const image = nativeImage.createFromBuffer(buffer);
-          if (!image.isEmpty()) {
-              const size = image.getSize();
-              // 策略：宽度限制 1920，JPEG 质量 75
-              if (size.width > 1920) {
-                  const newHeight = Math.floor(size.height * (1920 / size.width));
-                  const resizedImage = image.resize({ width: 1920, height: newHeight, quality: 'better' });
-                  buffer = resizedImage.toJPEG(75);
-              } else {
-                  buffer = image.toJPEG(75);
-              }
+    // console.log(`[Cache] Image is too large (${(buffer.length/1024/1024).toFixed(2)}MB), compressing...`);
+    try {
+      const image = nativeImage.createFromBuffer(buffer);
+      if (!image.isEmpty()) {
+        const size = image.getSize();
+        // 策略：宽度限制 1920，JPEG 质量 75
+        if (size.width > 1920) {
+          const newHeight = Math.floor(size.height * (1920 / size.width));
+          const resizedImage = image.resize({ width: 1920, height: newHeight, quality: 'better' });
+          buffer = resizedImage.toJPEG(75);
+        } else {
+          buffer = image.toJPEG(75);
+        }
 
-              (async () => {
-                  try {
-                      // uTools 的 attachment 文档无法直接更新内容，需要删除重建
-                      // 1. 删除旧文档
-                      await utools.db.promises.remove(attachmentId);
-                      // 2. 写入新文档 (ID不变)
-                      await utools.db.promises.postAttachment(attachmentId, buffer, "image/jpeg");
-                      // console.log(`[Cache] Migrated/Compressed image: ${attachmentId}`);
-                  } catch (dbErr) {
-                      console.error("[Cache] Failed to update compressed image to DB:", dbErr);
-                  }
-              })();
+        (async () => {
+          try {
+            // uTools 的 attachment 文档无法直接更新内容，需要删除重建
+            // 1. 删除旧文档
+            await utools.db.promises.remove(attachmentId);
+            // 2. 写入新文档 (ID不变)
+            await utools.db.promises.postAttachment(attachmentId, buffer, "image/jpeg");
+            // console.log(`[Cache] Migrated/Compressed image: ${attachmentId}`);
+          } catch (dbErr) {
+            console.error("[Cache] Failed to update compressed image to DB:", dbErr);
           }
-      } catch (err) {
-          console.warn("[Cache] Failed to compress legacy image, returning original:", err);
+        })();
       }
+    } catch (err) {
+      console.warn("[Cache] Failed to compress legacy image, returning original:", err);
+    }
   }
 
   return buffer;
@@ -1038,7 +1091,7 @@ async function getCachedBackgroundImage(url) {
  */
 async function cacheBackgroundImage(url) {
   if (!url || url.startsWith('data:') || url.startsWith('file:')) return;
-  
+
   const hash = getUrlHash(url);
   const attachmentId = `bg-${hash}`;
 
@@ -1052,8 +1105,8 @@ async function cacheBackgroundImage(url) {
     }
 
     if (cacheDoc.data[hash]) {
-        const existingBuf = await utools.db.promises.getAttachment(cacheDoc.data[hash]);
-        if (existingBuf) return; 
+      const existingBuf = await utools.db.promises.getAttachment(cacheDoc.data[hash]);
+      if (existingBuf) return;
     }
 
     // 2. 下载图片
@@ -1064,42 +1117,42 @@ async function cacheBackgroundImage(url) {
 
     // 3. [新增] 图片压缩处理
     try {
-        const image = nativeImage.createFromBuffer(buffer);
-        if (!image.isEmpty()) {
-            const size = image.getSize();
-            // 如果宽度大于 1920，等比缩放
-            if (size.width > 1920) {
-                const newHeight = Math.floor(size.height * (1920 / size.width));
-                const resizedImage = image.resize({ width: 1920, height: newHeight, quality: 'better' });
-                // 转为 JPEG，质量 75，通常能将大图压到几百KB
-                buffer = resizedImage.toJPEG(75);
-            } else {
-                // 即使尺寸不大，也转为 JPEG 75 压缩体积
-                buffer = image.toJPEG(75);
-            }
+      const image = nativeImage.createFromBuffer(buffer);
+      if (!image.isEmpty()) {
+        const size = image.getSize();
+        // 如果宽度大于 1920，等比缩放
+        if (size.width > 1920) {
+          const newHeight = Math.floor(size.height * (1920 / size.width));
+          const resizedImage = image.resize({ width: 1920, height: newHeight, quality: 'better' });
+          // 转为 JPEG，质量 75，通常能将大图压到几百KB
+          buffer = resizedImage.toJPEG(75);
+        } else {
+          // 即使尺寸不大，也转为 JPEG 75 压缩体积
+          buffer = image.toJPEG(75);
         }
+      }
     } catch (compressErr) {
-        console.warn("[Cache] Image compression failed, using original buffer:", compressErr);
+      console.warn("[Cache] Image compression failed, using original buffer:", compressErr);
     }
 
     // 4. 存储附件 (限制 10MB -> 压缩后通常远小于此)
     if (buffer.length > 10 * 1024 * 1024) {
-        console.warn("Background image too large (>10MB):", url);
-        return;
+      console.warn("Background image too large (>10MB):", url);
+      return;
     }
 
     // 统一存储为 image/jpeg 类型
     const attachResult = await utools.db.promises.postAttachment(attachmentId, buffer, "image/jpeg");
-    
+
     if (attachResult.ok) {
-        // 5. 更新映射文档
-        cacheDoc = await utools.db.promises.get("background_cache"); 
-        cacheDoc.data[hash] = attachmentId;
-        await utools.db.promises.put({
-            _id: "background_cache",
-            data: cacheDoc.data,
-            _rev: cacheDoc._rev
-        });
+      // 5. 更新映射文档
+      cacheDoc = await utools.db.promises.get("background_cache");
+      cacheDoc.data[hash] = attachmentId;
+      await utools.db.promises.put({
+        _id: "background_cache",
+        data: cacheDoc.data,
+        _rev: cacheDoc._rev
+      });
     }
   } catch (error) {
     console.error(`[Cache] Error caching background ${url}:`, error);
@@ -1116,9 +1169,9 @@ async function cleanUpBackgroundCache(fullConfig) {
     // 1. 收集所有正在使用的 URL Hash
     const activeHashes = new Set();
     Object.values(prompts).forEach(p => {
-        if (p.backgroundImage && !p.backgroundImage.startsWith('data:')) {
-            activeHashes.add(getUrlHash(p.backgroundImage));
-        }
+      if (p.backgroundImage && !p.backgroundImage.startsWith('data:')) {
+        activeHashes.add(getUrlHash(p.backgroundImage));
+      }
     });
 
     // 2. 获取缓存记录
@@ -1130,30 +1183,30 @@ async function cleanUpBackgroundCache(fullConfig) {
 
     // 3. 遍历缓存，删除未使用的
     for (const [hash, attachmentId] of Object.entries(cacheData)) {
-        if (!activeHashes.has(hash)) {
-            // 删除附件
-            try {
-                const removeResult = await utools.db.promises.remove(attachmentId);
-                if (removeResult.ok || removeResult.error) { // 即使附件不存在(error)也应该删除映射
-                     delete cacheData[hash];
-                     hasChanges = true;
-                     // console.log(`[Cache] Removed unused background cache: ${attachmentId}`);
-                }
-            } catch (e) {
-                // 附件可能已经不存在了，直接删除映射
-                delete cacheData[hash];
-                hasChanges = true;
-            }
+      if (!activeHashes.has(hash)) {
+        // 删除附件
+        try {
+          const removeResult = await utools.db.promises.remove(attachmentId);
+          if (removeResult.ok || removeResult.error) { // 即使附件不存在(error)也应该删除映射
+            delete cacheData[hash];
+            hasChanges = true;
+            // console.log(`[Cache] Removed unused background cache: ${attachmentId}`);
+          }
+        } catch (e) {
+          // 附件可能已经不存在了，直接删除映射
+          delete cacheData[hash];
+          hasChanges = true;
         }
+      }
     }
 
     // 4. 更新映射文档
     if (hasChanges) {
-        await utools.db.promises.put({
-            _id: "background_cache",
-            data: cacheData,
-            _rev: cacheDoc._rev
-        });
+      await utools.db.promises.put({
+        _id: "background_cache",
+        data: cacheData,
+        _rev: cacheDoc._rev
+      });
     }
   } catch (error) {
     console.error("[Cache] Cleanup failed:", error);

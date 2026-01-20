@@ -28,9 +28,29 @@ const editedContent = ref('');
 const preprocessKatex = (text) => {
   if (!text) return '';
   let processedText = text;
+
+  // 1. 替换非标准连字符
   processedText = processedText.replace(/\u2013/g, '-').replace(/\u2014/g, '-');
-  processedText = processedText.replace(/\\$$([\s\S]*?)\\$$/g, '$$$$$1$$$$');
-  processedText = processedText.replace(/\\$\s*(.*?)\s*\\$/g, '$$$1$');
+
+  // 2. 将 \[ ... \] 转换为 $$ ... $$ (块级公式)
+  processedText = processedText.replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$');
+
+  // 3. 将 \( ... \) 转换为 $ ... $ (行内公式)
+  processedText = processedText.replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$');
+
+  // 4. 将 {align} 和 {equation} 替换为 {aligned}
+  // KaTeX 在 $$...$$ 内部通常不支持 align 环境（它是顶级环境）。
+  // 使用 aligned 环境可以完美解决渲染问题，同时配合下方的 \tag 模拟显示。
+  processedText = processedText.replace(/\\begin\{align\*?\}/g, '\\begin{aligned}');
+  processedText = processedText.replace(/\\end\{align\*?\}/g, '\\end{aligned}');
+  processedText = processedText.replace(/\\begin\{equation\*?\}/g, '\\begin{aligned}');
+  processedText = processedText.replace(/\\end\{equation\*?\}/g, '\\end{aligned}');
+
+  // 5. 模拟 LaTeX \tag{} 显示
+  // 由于 aligned 环境不支持原生 \tag，或者 Markdown 渲染器会吞掉反斜杠，
+  // 将其替换为右侧间距 + 文本的形式： \qquad \text{(...)}
+  processedText = processedText.replace(/(?<!\\)\\tag\s*\{([^{}]+)\}/g, '\\qquad \\text{($1)}');
+
   return processedText;
 };
 
@@ -216,7 +236,8 @@ const truncateFilename = (filename, maxLength = 30) => {
     <div v-if="message.role === 'user'" class="message-wrapper user-wrapper">
       <div class="message-meta-header user-meta-header">
         <span class="timestamp" v-if="message.timestamp">{{ formatTimestamp(message.timestamp) }}</span>
-        <img :src="userAvatar" alt="User Avatar" @click="onAvatarClick('user', $event)" class="chat-avatar-top user-avatar">
+        <img :src="userAvatar" alt="User Avatar" @click="onAvatarClick('user', $event)"
+          class="chat-avatar-top user-avatar">
       </div>
 
       <Bubble class="user-bubble" placement="end" shape="corner" maxWidth="100%">
@@ -265,7 +286,8 @@ const truncateFilename = (filename, maxLength = 30) => {
     <!-- AI 消息 -->
     <div v-if="message.role === 'assistant'" class="message-wrapper ai-wrapper">
       <div class="message-meta-header ai-meta-header">
-        <img :src="aiAvatar" alt="AI Avatar" @click="onAvatarClick('assistant', $event)" class="chat-avatar-top ai-avatar">
+        <img :src="aiAvatar" alt="AI Avatar" @click="onAvatarClick('assistant', $event)"
+          class="chat-avatar-top ai-avatar">
         <div class="meta-info-column">
           <div class="meta-name-row">
             <span class="ai-name">{{ message.aiName }}</span>
@@ -787,18 +809,21 @@ html.dark .chat-message .ai-bubble {
       border-spacing: 0;
       border-collapse: collapse;
       margin-bottom: 1em;
-      
+
       /* 优化表格滚动条样式 */
       &::-webkit-scrollbar {
         height: 6px;
       }
+
       &::-webkit-scrollbar-track {
         background: transparent;
       }
+
       &::-webkit-scrollbar-thumb {
         background-color: var(--el-text-color-disabled);
         border-radius: 3px;
       }
+
       &::-webkit-scrollbar-thumb:hover {
         background-color: var(--el-text-color-secondary);
       }
@@ -834,34 +859,77 @@ html.dark .chat-message .ai-bubble {
   }
 
   :deep(.markdown-mermaid) {
+    background-color: transparent;
     max-width: 100%;
     overflow-x: auto;
     padding: 5px;
     border-radius: 8px;
     box-sizing: border-box;
 
+    .mermaid-content {
+      background-color: rgba(245, 245, 245, 0.5);
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
+
     html.dark & {
-      background-color: #272727;
       color: var(--el-text-color-primary) !important;
     }
 
+    .toolbar-container {
+      border-radius: 18px;
+    }
+
     .mermaid-toolbar {
-      border-radius: 0px;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
 
       html.dark & {
-        background-color: #272727;
+        background-color: rgba(39, 39, 39, 1);
 
         .el-tabs__nav {
           background-color: #2c2e33;
+        }
+        .el-tabs__item.is-active {
+          color: #202123 !important;
+        }
+        .el-tabs__item:hover {
+          color: #202123 !important;
         }
       }
     }
 
     .mermaid-source-code {
       border: hidden;
+      border-top-left-radius: 0px;
+      border-top-right-radius: 0px;
+      background-color: rgba(248, 249, 250, 0.5);
+      padding-bottom: 0px;
+
+      &::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background-color: var(--el-border-color-darker, #4C4D4F);
+        border-radius: 4px;
+      }
+
+      &::-webkit-scrollbar-thumb:hover {
+        background-color: var(--el-text-color-secondary);
+      }
+
+      &::-webkit-scrollbar-corner {
+        background: transparent;
+      }
 
       html.dark & {
-        background-color: #171717;
+        background-color: rgba(23, 23, 23, 0.5);
         color: var(--el-text-color-primary);
       }
     }
@@ -1152,7 +1220,7 @@ html.dark .ai-bubble :deep(.el-thinking .content pre) {
     font-size: 13px;
     transition: border-radius 0.2s;
 
-    &.is-active {
+    &:active {
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;
       border-bottom-color: transparent;

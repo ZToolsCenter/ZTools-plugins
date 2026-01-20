@@ -2,14 +2,14 @@
   "app": {
     "header": {
       "chats": "Chats 💬",
-      "prompts": "Quick Prompts 🚀",
+      "prompts": "Agent Prompts 🚀",
       "mcp": "MCP Servers 🔧",
       "providers": "Providers ☁️",
       "settings": "Settings ⚙️"
     },
     "tabs": {
       "chats": "Chat History",
-      "prompts": "Quick Prompts",
+      "prompts": "Agent Prompts",
       "mcp": "MCP Servers",
       "providers": "Providers",
       "settings": "Settings"
@@ -117,7 +117,7 @@
     "inputPlaceholder": "Enter prompt content...",
     "selectNewModel": "Please select a new model",
     "icon": {
-      "uploadText": "Drag/Paste<br>Click to Upload",
+      "uploadText": "Drag/Paste\nClick to Upload",
       "downloadTooltip": "Download Icon",
       "removeTooltip": "Remove Icon"
     },
@@ -170,6 +170,7 @@
     "selectPromptsPlaceholder": "Choose prompts",
     "isAlwaysOnTopLabel": "Always on Top",
     "autoCloseOnBlurLabel": "Auto-close on Blur",
+    "autoSaveChatLabel": "Auto-save Chat",
     "replaceModels": "Replace Models",
     "replaceModelsDialog": {
       "title": "Bulk Replace Models",
@@ -186,7 +187,7 @@
       "invalidImageFormat": "Invalid image format. Please use {formats}.",
       "imageSizeTooLarge": "Image size exceeds {maxSize}.",
       "modelsReplacedSuccess": "Successfully replaced the model for {count} prompts.",
-      "refreshSuccess": "Quick Prompts configuration has been refreshed!",
+      "refreshSuccess": "Agent Prompts configuration has been refreshed!",
       "noIconToDownload": "No icon available to download.",
       "selectModels": "Please select source and target models.",
       "sameModels": "Source and target models cannot be the same.",
@@ -205,6 +206,7 @@
       "reasoningEffort": "Sets the computational budget for the model's reasoning process. Higher values may yield more thorough answers but increase latency and cost.",
       "isAlwaysOnTopTooltip": "Enable to keep the window always on top of other windows.",
       "autoCloseOnBlurTooltip": "Enable to close the standalone window when it loses focus.",
+      "autoSaveChatTooltip": "When enabled, conversations will be automatically saved to local storage every 15 seconds (requires local chat path configured in settings).",
       "defaultMcpServers": "When set, the selected MCP services will be automatically enabled when this assistant is opened in a standalone window."
     },
     "voiceLabel": "Default Voice",
@@ -251,7 +253,8 @@
     "typeOptions": {
       "stdio": "Stdio",
       "http": "Streamable HTTP",
-      "sse": "SSE"
+      "sse": "SSE",
+      "builtin": "Built-in"
     },
     "stdio": {
       "command": "Command",
@@ -330,6 +333,20 @@
       "ownedBy": "Owned By",
       "action": "Action"
     },
+    "folders": {
+      "createSuccess": "Directory created successfully",
+      "renameSuccess": "Directory renamed successfully",
+      "deleteSuccess": "Directory deleted",
+      "deleteConfirmTitle": "Confirm Deletion",
+      "deleteConfirmMessage": "Are you sure you want to delete this directory? Providers inside will move to root.",
+      "floder_label": "Folder",
+      "root": "Root",
+      "empty": "(Empty)",
+      "newFolderTitle": "New Directory",
+      "renameFolderTitle": "Rename Directory",
+      "folderNameLabel": "Directory Name",
+      "folderNamePlaceholder": "Enter name"
+    },
     "noModelsFoundError": "No models found or API error.",
     "noModelsMatchSearch": "No models match search.",
     "addModelTooltip": "Add Model",
@@ -372,6 +389,10 @@
     "autoCloseOnBlur_global": {
       "label": "Global Auto-close on Blur",
       "description": "Globally control whether all assistant windows close automatically on blur"
+    },
+    "autoSaveChat_global": {
+      "label": "Global Auto-save Chat",
+      "description": "Globally control whether all assistants automatically save chats locally"
     },
     "skipLineBreak": {
       "label": "Skip Line Breaks on Send",
