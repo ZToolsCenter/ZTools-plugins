@@ -67,9 +67,10 @@ function fastifyServerPlugin(): Plugin {
         // 跳过非函数的导出
         if (typeof handler !== 'function') return;
         
-        const snakeCaseName = name.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
-        const route1 = `/api/netease/${snakeCaseName}`;
-        const route2 = `/api/netease/${snakeCaseName.replace(/_/g, '/')}`;
+        // 转换下划线命名为斜杠路径：login_status -> /login/status
+        const slashRoute = '/' + name.replace(/_/g, '/');
+        // 同时保留下划线格式：personal_fm -> /personal_fm
+        const underscoreRoute = '/' + name;
 
         const handleRequest = async (req: any, reply: any) => {
           try {
@@ -93,7 +94,7 @@ function fastifyServerPlugin(): Plugin {
             const result = await (handler as any)(params);
             reply.send(result.body);
           } catch (error: any) {
-            console.error(`❌ API error [${name}]:`, error.message);
+            console.error(`❌ API error [${slashRoute}]:`, error.message);
             reply.code(500).send({
               code: 500,
               error: error.message
@@ -101,10 +102,14 @@ function fastifyServerPlugin(): Plugin {
           }
         };
 
-        server.all(route1, handleRequest);
-        if (route1 !== route2) {
-          server.all(route2, handleRequest);
+        // 注册斜杠格式的路由
+        server.all(slashRoute, handleRequest);
+        
+        // 如果包含下划线，同时注册下划线格式的路由
+        if (name.includes('_')) {
+          server.all(underscoreRoute, handleRequest);
         }
+        
         registeredCount++;
       });
       
