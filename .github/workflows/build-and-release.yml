@@ -182,11 +182,11 @@ jobs:
               result=$?
 
               if [ $result -eq 0 ]; then
-                ((success_count++))
+                success_count=$((success_count + 1))
               elif [ $result -eq 2 ]; then
-                ((skip_count++))
+                skip_count=$((skip_count + 1))
               else
-                ((fail_count++))
+                fail_count=$((fail_count + 1))
                 failed_files+=("$(basename "$file")")
               fi
             fi
@@ -198,9 +198,9 @@ jobs:
           if [ -f "release/plugins.json" ]; then
             upload_file "release/plugins.json" "oss://ztools-center/plugins.json" "true"
             if [ $? -eq 0 ]; then
-              ((success_count++))
+              success_count=$((success_count + 1))
             else
-              ((fail_count++))
+              fail_count=$((fail_count + 1))
               failed_files+=("plugins.json")
             fi
           fi
@@ -211,9 +211,9 @@ jobs:
           if [ -f "release/latest" ]; then
             upload_file "release/latest" "oss://ztools-center/latest" "true"
             if [ $? -eq 0 ]; then
-              ((success_count++))
+              success_count=$((success_count + 1))
             else
-              ((fail_count++))
+              fail_count=$((fail_count + 1))
               failed_files+=("latest")
             fi
           fi
