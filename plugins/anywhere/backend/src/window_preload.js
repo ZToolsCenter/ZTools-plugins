@@ -1,3 +1,4 @@
+window.utools = { ...window.ztools }
 const { ipcRenderer } = require('electron');
 
 const {
@@ -39,10 +40,6 @@ const {
 
 const channel = "window";
 let senderId = null; // [新增] 用于存储当前窗口的唯一ID
-
-window.utools = {
-  ...window.ztools,
-}
 
 window.preload = {
     receiveMsg: (callback) => {

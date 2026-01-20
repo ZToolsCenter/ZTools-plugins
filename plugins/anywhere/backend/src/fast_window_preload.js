@@ -1,3 +1,4 @@
+window.utools = { ...window.ztools }
 const { ipcRenderer } = require('electron');
 const {
     saveFastInputWindowPosition,
@@ -7,10 +8,6 @@ const {
 
 const channel = "fast-window";
 let senderId = null;
-
-window.utools = {
-    ...window.ztools,
-  }
 
 window.preload = {
     // 接收初始化消息 (Config, Code 等)

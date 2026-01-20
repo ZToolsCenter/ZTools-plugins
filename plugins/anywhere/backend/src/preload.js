@@ -1,3 +1,4 @@
+window.utools = { ...window.ztools }
 const {
   getConfig,
   updateConfig,
@@ -44,10 +45,6 @@ const {
   closeMcpClient,
   connectAndFetchTools,
 } = require('./mcp.js');
-
-window.utools = {
-  ...window.ztools,
-}
 
 window.api = {
   getConfig,

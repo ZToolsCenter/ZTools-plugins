@@ -5,9 +5,150 @@ const { exec, spawn } = require('child_process');
 const { handleFilePath, parseFileObject } = require('./file.js');
 
 const isWin = process.platform === 'win32';
+const currentOS = process.platform === 'win32' ? 'Windows' : (process.platform === 'darwin' ? 'macOS' : 'Linux');
 
 // --- Bash Session State ---
 let bashCwd = os.homedir();
+
+// 数据提取函数 (提取标题、作者、简介)
+function extractMetadata(html) {
+    const meta = {
+        title: '',
+        author: '',
+        description: '',
+        siteName: ''
+    };
+
+    // 提取 Title
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (titleMatch) meta.title = titleMatch[1].trim();
+    
+    // 辅助正则：从 meta 标签提取 content
+    const getMetaContent = (propName) => {
+        const regex = new RegExp(`<meta\\s+(?:name|property)=["']${propName}["']\\s+content=["'](.*?)["']`, 'i');
+        const match = html.match(regex);
+        return match ? match[1].trim() : null;
+    };
+
+    // 尝试多种常见的 Meta 标签
+    meta.title = getMetaContent('og:title') || getMetaContent('twitter:title') || meta.title;
+    meta.author = getMetaContent('author') || getMetaContent('article:author') || getMetaContent('og:site_name') || 'Unknown Author';
+    meta.description = getMetaContent('description') || getMetaContent('og:description') || getMetaContent('twitter:description') || '';
+    meta.siteName = getMetaContent('og:site_name') || '';
+
+    return meta;
+}
+
+// HTML 转 Markdown 辅助函数
+function convertHtmlToMarkdown(html) {
+    let text = html;
+
+    // --- 1. 核心内容定位 (尽力而为) ---
+    // 尝试定位常见的文章容器，如果找到，直接丢弃容器外的内容
+    // 注意：正则匹配嵌套标签不可靠，这里只匹配最外层的特定ID容器，如 CSDN 的 content_views
+    // 这种非贪婪匹配在此处仅作为一种尝试，失败则回退到全文清洗
+    const articlePatterns = [
+        /<article[^>]*>([\s\S]*?)<\/article>/i,
+        /<div[^>]*id=["'](?:article_content|content_views|js_content|post-content)["'][^>]*>([\s\S]*?)<\/div>/i,
+        /<main[^>]*>([\s\S]*?)<\/main>/i
+    ];
+    
+    for (const pattern of articlePatterns) {
+        const match = text.match(pattern);
+        if (match && match[1].length > 500) { // 确保提取的内容足够长
+            text = match[1];
+            break;
+        }
+    }
+
+    // --- 2. 移除无关标签 (结构化清洗) ---
+    // 移除 Head (因为元数据已单独提取)
+    text = text.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+    
+    // 移除噪音标签：脚本、样式、导航、页脚、侧边栏、表单、弹窗、推荐框
+    // 增加了对 class 包含 comment, recommend, advertisement 等关键词的 div 的粗略清洗
+    text = text.replace(/<(script|style|svg|noscript|header|footer|nav|aside|iframe|form|button|textarea)[^>]*>[\s\S]*?<\/\1>/gi, '');
+    
+    // 移除具有特定 ID/Class 的噪音区块 (CSDN/通用)
+    // 注意：这是一个简单的关键词匹配，可能会误伤，但能极大净化内容
+    text = text.replace(/<div[^>]*(?:class|id)=["'][^"']*(?:sidebar|comment|recommend|advert|toolbar|operate|login|modal)[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '');
+
+    // --- 3. 移除注释 ---
+    text = text.replace(/<!--[\s\S]*?-->/g, '');
+
+    // --- 4. 元素转换 Markdown ---
+    
+    // 标题
+    text = text.replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (match, level, content) => {
+        return `\n\n${'#'.repeat(level)} ${content.replace(/<[^>]+>/g, '').trim()}\n`;
+    });
+
+    // 列表与段落
+    text = text.replace(/<\/li>/gi, '\n');
+    text = text.replace(/<li[^>]*>/gi, '- ');
+    text = text.replace(/<\/(ul|ol)>/gi, '\n\n');
+    text = text.replace(/<\/(p|div|tr|table|article|section|blockquote)>/gi, '\n');
+    text = text.replace(/<br\s*\/?>/gi, '\n');
+
+    // 图片 (过滤掉 base64 和小图标)
+    text = text.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, (match, src, alt) => {
+        if (src.startsWith('data:image')) return ''; 
+        return `\n![${alt.trim()}](${src})\n`;
+    });
+    text = text.replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, (match, src) => {
+        if (src.startsWith('data:image')) return ''; 
+        return `\n![](${src})\n`;
+    });
+
+    // 链接
+    text = text.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (match, href, content) => {
+        const cleanContent = content.replace(/<[^>]+>/g, '').trim();
+        // 过滤无效链接
+        if (!cleanContent || href.startsWith('javascript:') || href.startsWith('#')) return cleanContent;
+        return ` [${cleanContent}](${href}) `;
+    });
+
+    // 粗体/代码
+    text = text.replace(/<(b|strong)[^>]*>([\s\S]*?)<\/\1>/gi, '**$2**');
+    text = text.replace(/<(code|pre)[^>]*>([\s\S]*?)<\/\1>/gi, '\n```\n$2\n```\n');
+
+    // --- 5. 移除剩余 HTML 标签 ---
+    text = text.replace(/<[^>]+>/g, '');
+
+    // --- 6. 实体解码 ---
+    const entities = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&copy;': '©' };
+    text = text.replace(/&[a-z0-9]+;/gi, (match) => entities[match] || '');
+
+    // --- 7. 行级清洗 (去除残留的导航文本) ---
+    const lines = text.split('\n').map(line => line.trim());
+    const cleanLines = [];
+    
+    // 垃圾关键词库
+    const noiseKeywords = [
+        /^最新推荐/, /^相关推荐/, /^文章标签/, /^版权声明/, /阅读\s*\d/, /点赞/, /收藏/, /分享/, /举报/, 
+        /打赏/, /关注/, /登录/, /注册/, /Copyright/, /All rights reserved/, 
+        /VIP/, /立即使用/, /福利倒计时/, /扫一扫/, /复制链接/
+    ];
+
+    for (let line of lines) {
+        if (!line) continue;
+        // 跳过极短的非句子行（可能是残留的按钮文本）
+        if (line.length < 2 && !line.match(/[a-zA-Z0-9]/)) continue;
+        
+        let isNoise = false;
+        for (const regex of noiseKeywords) {
+            if (regex.test(line)) { isNoise = true; break; }
+        }
+        if (isNoise) continue;
+
+        // 跳过纯导航链接行
+        if (/^\[.{1,15}\]\(http.*\)$/.test(line)) continue;
+
+        cleanLines.push(line);
+    }
+
+    return cleanLines.join('\n\n'); 
+}
 
 // --- Definitions ---
 const BUILTIN_SERVERS = {
@@ -34,13 +175,23 @@ const BUILTIN_SERVERS = {
     "builtin_bash": {
         id: "builtin_bash",
         name: "Shell Executor",
-        description: isWin ? "持久会话中执行 PowerShell 命令" : "持久会话中执行 Bash 命令",
+        description: isWin ? "执行 PowerShell 命令" : "执行 Bash 命令",
         type: "builtin",
         isActive: false,
-        isPersistent: true, // Bash needs state
+        isPersistent: false,
         tags: ["shell", "bash", "cmd"],
         logoUrl: "https://upload.wikimedia.org/wikipedia/commons/4/4b/Bash_Logo_Colored.svg"
-    }
+    },
+    "builtin_search": {
+        id: "builtin_search",
+        name: "Web Search",
+        description: "使用 DuckDuckGo 进行免费联网搜索，获取相关网页标题、链接和摘要；抓取网页内容。",
+        type: "builtin",
+        isActive: false,
+        isPersistent: false,
+        tags: ["search", "web", "fetch"],
+        logoUrl: "https://upload.wikimedia.org/wikipedia/en/9/90/The_DuckDuckGo_Duck.png"
+    },
 };
 
 const BUILTIN_TOOLS = {
@@ -93,16 +244,45 @@ const BUILTIN_TOOLS = {
     "builtin_bash": [
         {
             name: "execute_bash_command",
-            description: "Execute a shell command. Maintains current working directory state. Note: Long-running commands (like servers) will be terminated after 15 seconds to prevent blocking.",
+            description: `Execute a shell command on the current ${currentOS} system. Note: Long-running commands (like servers) will be terminated after 15 seconds to prevent blocking.`,
             inputSchema: {
                 type: "object",
                 properties: {
-                    command: { type: "string", description: "The command to execute (e.g., 'ls -la', 'git status', 'npm install')." }
+                    command: { type: "string", description: `The command to execute (e.g., 'ls -la', 'git status', 'npm install'). Current OS: ${currentOS}.` }
                 },
                 required: ["command"]
             }
         }
-    ]
+    ],
+    "builtin_search": [
+        {
+            name: "web_search",
+            description: "Search the internet for a given query and return the top N results (title, link, snippet).",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    query: { type: "string", description: "The search keywords." },
+                    count: { type: "integer", description: "Number of results to return (default 5, max 10)." },
+                    language: { 
+                        type: "string", 
+                        description: "Preferred language/region code (e.g., 'zh-CN', 'en-US', 'jp'). Defaults to 'zh-CN' for Chinese results." 
+                    }
+                },
+                required: ["query"]
+            }
+        },
+        {
+            name: "fetch_page",
+            description: "Fetch the content of a specific URL and convert it to Markdown format. Use this to read articles, documentation, or search results in detail.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    url: { type: "string", description: "The URL of the webpage to fetch." }
+                },
+                required: ["url"]
+            }
+        }
+    ],
 };
 
 // --- Helpers ---
@@ -443,6 +623,192 @@ const handlers = {
                 resolve(`[CWD: ${bashCwd}]\n${result}`);
             });
         });
+    },
+
+    // Web Search Handler
+    web_search: async ({ query, count = 5, language = 'zh-CN' }) => {
+        try {
+            const limit = Math.min(Math.max(parseInt(count) || 5, 1), 10);
+            const url = "https://html.duckduckgo.com/html/";
+            
+            // --- 1. 简单的语言/地区映射逻辑 ---
+            // DuckDuckGo 使用 'kl' 参数 (例如: cn-zh, us-en, wt-wt)
+            // 浏览器 Header 使用 'Accept-Language' (例如: zh-CN, en-US)
+            
+            let ddgRegion = 'cn-zh'; // 默认: 中国-中文
+            let acceptLang = 'zh-CN,zh;q=0.9,en;q=0.8'; // 默认 Header
+            
+            const langInput = (language || '').toLowerCase();
+
+            if (langInput.includes('en') || langInput.includes('us')) {
+                ddgRegion = 'us-en';
+                acceptLang = 'en-US,en;q=0.9';
+            } else if (langInput.includes('jp') || langInput.includes('ja')) {
+                ddgRegion = 'jp-jp';
+                acceptLang = 'ja-JP,ja;q=0.9,en;q=0.8';
+            } else if (langInput.includes('ru')) {
+                ddgRegion = 'ru-ru';
+                acceptLang = 'ru-RU,ru;q=0.9,en;q=0.8';
+            } else if (langInput === 'all' || langInput === 'world') {
+                ddgRegion = 'wt-wt'; // 全球
+                acceptLang = 'en-US,en;q=0.9';
+            }
+            // 默认为 zh-CN (无需 else，初始化已设置)
+
+            // --- 2. 构造请求 ---
+            const headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": acceptLang, // 动态语言头
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Origin": "https://html.duckduckgo.com",
+                "Referer": "https://html.duckduckgo.com/"
+            };
+
+            const body = new URLSearchParams();
+            body.append('q', query);
+            body.append('b', '');
+            body.append('kl', ddgRegion); // 动态地区参数
+
+            const response = await fetch(url, { 
+                method: 'POST',
+                headers: headers,
+                body: body
+            });
+
+            if (!response.ok) throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+            const html = await response.text();
+
+            const results = [];
+            
+            // --- 3. 解析逻辑 (保持鲁棒性) ---
+            const titleLinkRegex = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+            const snippetRegex = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
+
+            const titles = [...html.matchAll(titleLinkRegex)];
+            const snippets = [...html.matchAll(snippetRegex)];
+
+            const decodeHtml = (str) => {
+                if (!str) return "";
+                return str
+                    .replace(/&amp;/g, '&')
+                    .replace(/&quot;/g, '"')
+                    .replace(/&#39;/g, "'")
+                    .replace(/&lt;/g, "<")
+                    .replace(/&gt;/g, ">")
+                    .replace(/&nbsp;/g, " ")
+                    .replace(/<b>/g, "")
+                    .replace(/<\/b>/g, "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+            };
+
+            for (let i = 0; i < titles.length && i < limit; i++) {
+                let link = titles[i][1];
+                const titleRaw = titles[i][2];
+                const snippetRaw = snippets[i] ? snippets[i][1] : "";
+
+                try {
+                    if (link.includes('uddg=')) {
+                        const urlObj = new URL(link, "https://html.duckduckgo.com");
+                        const uddg = urlObj.searchParams.get("uddg");
+                        if (uddg) link = decodeURIComponent(uddg);
+                    }
+                } catch(e) {}
+
+                results.push({
+                    title: decodeHtml(titleRaw),
+                    link: link,
+                    snippet: decodeHtml(snippetRaw)
+                });
+            }
+            
+            if (results.length === 0) {
+                // 如果是中文搜索无结果，可能是 DDG 的中文索引问题，提示用户尝试英文
+                if (ddgRegion === 'cn-zh') {
+                     return JSON.stringify({ message: "No results found in Chinese region. Try setting language='en' or 'all'.", query: query });
+                }
+                return JSON.stringify({ message: "No results found.", query: query });
+            }
+            
+            return JSON.stringify(results, null, 2);
+
+        } catch (e) {
+            return `Search failed: ${e.message}`;
+        }
+    },
+
+    // Fetch Page Handler
+    fetch_page: async ({ url }) => {
+        try {
+            if (!url || !url.startsWith('http')) {
+                return "Error: Invalid URL. Please provide a full URL starting with http:// or https://";
+            }
+
+            // 1. 更加逼真的浏览器指纹 Headers (模拟 Chrome)
+            const headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                "Cache-Control": "max-age=0",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Referer": "https://www.google.com/"
+            };
+
+            const response = await fetch(url, { headers, redirect: 'follow' });
+            
+            // 处理常见的反爬状态码
+            if (response.status === 403 || response.status === 521) {
+                return `Failed to fetch page (Anti-bot protection ${response.status}). The site requires a real browser environment.`;
+            }
+
+            if (!response.ok) {
+                return `Failed to fetch page. Status: ${response.status} ${response.statusText}`;
+            }
+
+            const contentType = response.headers.get('content-type') || '';
+            const rawText = await response.text();
+
+            // 如果是 JSON，直接返回
+            if (contentType.includes('application/json')) {
+                try { return JSON.stringify(JSON.parse(rawText), null, 2); } catch(e) { return rawText; }
+            }
+            
+            // 1. 提取元数据 (标题、作者、简介)
+            const metadata = extractMetadata(rawText);
+
+            // 2. 转换正文 (清洗 HTML 并转 Markdown)
+            const markdownBody = convertHtmlToMarkdown(rawText);
+
+            // 3. 检查是否抓取失败 (如SPA页面)
+            if (!markdownBody || markdownBody.length < 50) {
+                return `Fetched URL: ${url}\n\nTitle: ${metadata.title}\n\n[System]: Content seems empty. This might be a JavaScript-rendered page (SPA) which cannot be parsed by this tool.`;
+            }
+
+            // 4. 组装最终输出 (结构化格式)
+            let result = `URL: ${url}\n\n`;
+            if (metadata.title) result += `# ${metadata.title}\n\n`;
+            if (metadata.author) result += `**Author:** ${metadata.author}\n`;
+            if (metadata.description) result += `**Summary:** ${metadata.description}\n`;
+            
+            result += `\n---\n\n${markdownBody}`;
+
+            // 5. 长度截断 (防止 AI 上下文溢出)
+            const MAX_LENGTH = 15000;
+            if (result.length > MAX_LENGTH) {
+                return result.substring(0, MAX_LENGTH) + `\n\n...[Content Truncated (${result.length} chars total)]...`;
+            }
+
+            return result;
+
+        } catch (e) {
+            return `Error fetching page: ${e.message}`;
+        }
     }
 };
 

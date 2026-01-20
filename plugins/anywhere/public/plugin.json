@@ -1,10 +1,12 @@
 {
-  "version": "1.10.20",
+  "version": "1.11.2",
   "name": "anywhere",
   "description": "随时随地，丝滑召唤，您的AI快捷助手(支持MCP)",
   "main": "/main/index.html",
   "preload": "preload.js",
   "logo": "favicon.png",
+  "auther": "Komorebi-yaodong",
+  "homepage": "https://github.com/Komorebi-yaodong",
   "platform": [
     "win32",
     "darwin",
