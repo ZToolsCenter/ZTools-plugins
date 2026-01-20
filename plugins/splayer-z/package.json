@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/pre-build.js",
     "build": "vite build && node scripts/post-build.js",
     "package": "pnpm build && node scripts/package.js",
     "preview": "vite preview",
