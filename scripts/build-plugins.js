@@ -55,6 +55,16 @@ function getPluginInfo(pluginName) {
 }
 
 /**
+ * 检测插件使用的包管理器
+ */
+function detectPackageManager(pluginPath) {
+  if (existsSync(join(pluginPath, 'pnpm-lock.yaml'))) {
+    return 'pnpm';
+  }
+  return 'npm';
+}
+
+/**
  * 检查插件是否需要构建
  */
 function needsBuild(pluginPath) {
@@ -126,11 +136,12 @@ function buildPlugin(pluginName) {
   const { install, build } = buildConfig;
 
   if (install) {
-    console.log('检测到package.json，安装依赖...');
+    const pm = detectPackageManager(pluginPath);
+    console.log(`检测到package.json，使用 ${pm} 安装依赖...`);
 
     try {
       // 安装依赖
-      execSync('npm install', {
+      execSync(`${pm} install`, {
         cwd: pluginPath,
         stdio: 'inherit'
       });
@@ -143,7 +154,7 @@ function buildPlugin(pluginName) {
     if (build) {
       console.log('检测到build脚本，执行构建...');
       try {
-        execSync('npm run build', {
+        execSync(`${pm} run build`, {
           cwd: pluginPath,
           stdio: 'inherit'
         });
