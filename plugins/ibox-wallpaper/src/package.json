@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@umami/node": "^0.4.0",
+    "cheerio": "^1.0.0",
+    "licia": "^1.46.0",
+    "node-downloader-helper": "^2.1.1",
+    "wallpaper-setter": "^1.0.1"
+  }
+}

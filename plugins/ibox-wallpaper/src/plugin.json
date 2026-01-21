@@ -1,0 +1,28 @@
+{
+    "main": "ui/index.html",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "platform": [
+        "win32",
+        "darwin",
+        "linux"
+    ],
+    "features": [
+        {
+            "code": "ibox",
+            "explain": "无限壁纸",
+            "cmds": [
+                "IBox 无限壁纸",
+                "ibox",
+                "壁纸",
+                "图片"
+            ]
+        }
+    ],
+    "name": "ibox-wallpaper",
+    "title": "IBox - 无限壁纸",
+    "description": "支持插件扩展的无限可能的图片壁纸应用。",
+    "author": "jaeger",
+    "homepage": "https://github.com/jae-jae",
+    "version": "2.3.1"
+}
