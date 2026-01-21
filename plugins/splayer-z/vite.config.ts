@@ -290,5 +290,5 @@ export default defineConfig({
     },
   },
   
-  publicDir: resolve(__dirname, 'public'), // 使用 ztools-plugin 自己的 public 目录
+  publicDir: electronPublic, // 使用 SPlayer 自己的 public 目录
 });
