@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync, rmSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -152,6 +152,52 @@ if (existsSync(imagesDir)) {
 }
 
 // 不再需要手动复制依赖和清理 package.json
+
+// 清理不需要的 public 资源
+console.log('🧹 清理不需要的资源文件...');
+
+// 删除不需要的目录
+const unnecessaryDirs = ['fonts', 'wasm'];
+unnecessaryDirs.forEach(dir => {
+  const dirPath = join(distDir, dir);
+  if (existsSync(dirPath)) {
+    rmSync(dirPath, { recursive: true, force: true });
+    console.log(`✅ 已删除: ${dir}/`);
+  }
+});
+
+// 删除不需要的文件
+const unnecessaryFiles = ['logo.ico', 'robots.txt'];
+unnecessaryFiles.forEach(file => {
+  const filePath = join(distDir, file);
+  if (existsSync(filePath)) {
+    rmSync(filePath, { force: true });
+    console.log(`✅ 已删除: ${file}`);
+  }
+});
+
+// 清理 icons 目录，只保留 favicon.png 和 logo.svg
+const iconsDir = join(distDir, 'icons');
+if (existsSync(iconsDir)) {
+  const keepFiles = ['favicon.png', 'logo.svg'];
+  const iconFiles = readdirSync(iconsDir);
+  
+  iconFiles.forEach(file => {
+    const filePath = join(iconsDir, file);
+    const stat = statSync(filePath);
+    
+    // 删除子目录（tray、thumbar）
+    if (stat.isDirectory()) {
+      rmSync(filePath, { recursive: true, force: true });
+      console.log(`✅ 已删除: icons/${file}/`);
+    }
+    // 删除不在保留列表中的文件
+    else if (!keepFiles.includes(file)) {
+      rmSync(filePath, { force: true });
+      console.log(`✅ 已删除: icons/${file}`);
+    }
+  });
+}
 
 console.log('🎉 ZTools 插件构建完成!');
 console.log(`📁 输出目录: ${distDir}`);
