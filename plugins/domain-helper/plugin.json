@@ -1,0 +1,25 @@
+{
+    "name": "domain-helper",
+    "version": "3.3.12",
+    "title": "域名助手",
+    "author": "imxiny",
+    "description": "多平台域名解析记录管理工具",
+    "homepage": "https://github.com/imxiny/domain-helper",
+    "main": "index.html",
+    "logo": "logo.png",
+    "preload": "preload.js",
+    "development": {
+        "main": "http://localhost:5173/"
+    },
+    "features": [
+        {
+            "code": "域名助手",
+            "explain": "多平台域名解析记录管理工具",
+            "cmds": [
+                "域名管理",
+                "域名助手",
+                "域名英雄"
+            ]
+        }
+    ]
+}
