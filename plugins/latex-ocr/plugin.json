@@ -1,0 +1,28 @@
+{
+  "name": "latex-ocr",
+  "title": "LaTeX公式编辑&识别",
+  "description": "LaTeX 公式编辑器，支持 SimpleTex api 识别图片转 LaTeX 公式",
+  "author": "paxton",
+  "homepage": "https://github.com/Paxton-PKJ/ztools-LaTeX-OCR",
+  "version": "1.0.0",
+  "main": "html/index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "latex-editor",
+      "explain": "LaTeX 公式编辑器",
+      "cmds": ["latex", "公式", "LaTeX", "OCR", "编辑"]
+    },
+    {
+      "code": "latex-ocr",
+      "explain": "图片识别转 LaTeX",
+      "cmds": [
+        {
+          "type": "img",
+          "label": "识别图片转 LaTeX"
+        }
+      ]
+    }
+  ]
+}
