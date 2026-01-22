@@ -1,0 +1,89 @@
+{
+    "main": "index.html",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "pluginSetting": {
+        "single": false
+    },
+    "features": [
+        {
+            "code": "ocr-",
+            "mainHide": true,
+            "icon": "ocr.png",
+            "explain": "截图 OCR 文字识别",
+            "cmds": [
+                "截图文字识别",
+                "截图 OCR 识别"
+            ]
+        },
+        {
+            "code": "ocr-copy",
+            "mainHide": true,
+            "icon": "ocr-copy.png",
+            "explain": "OCR 文字识别后自动复制识别内容",
+            "cmds": [
+                "截图文字识别+复制",
+                {
+                    "type": "img",
+                    "label": "文字识别+复制"
+                }
+            ]
+        },
+        {
+            "code": "ocr-translate",
+            "mainHide": true,
+            "icon": "ocr-translate.png",
+            "explain": "OCR 文字识别后自动前往翻译识别内容",
+            "cmds": [
+                "截图文字识别+翻译",
+                {
+                    "type": "img",
+                    "label": "文字识别+翻译"
+                }
+            ]
+        },
+        {
+            "code": "ocr",
+            "explain": "快速提取图片中文字",
+            "cmds": [
+                "OCR 文字识别",
+                {
+                    "type": "img",
+                    "label": "OCR 文字识别"
+                }
+            ]
+        },
+        {
+            "code": "ocr-table",
+            "mainHide": true,
+            "icon": "ocr-table.png",
+            "explain": "OCR 表格识别",
+            "cmds": [
+                "截图表格识别",
+                {
+                    "type": "img",
+                    "label": "OCR 表格识别"
+                }
+            ]
+        },
+        {
+            "code": "ocr-formula",
+            "mainHide": true,
+            "icon": "ocr-formula.png",
+            "explain": "OCR 公式识别",
+            "cmds": [
+                "截图公式识别",
+                {
+                    "type": "img",
+                    "label": "OCR 公式识别"
+                }
+            ]
+        }
+    ],
+    "name": "ocr",
+    "title": "OCR 文字识别",
+    "description": "快速提取图片中文字",
+    "author": "uTools 团队",
+    "homepage": "https://u.tools",
+    "version": "3.0.1"
+}
