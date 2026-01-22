@@ -1,26 +1,40 @@
 {
-  "name": "everything",
-  "version": "1.0.1",
-  "description": "基于 Everything 更便捷的文件搜索 + 文件预览",
-  "preload": "preload/preload.js",
-  "main": "index.html",
-  "logo": "logo.png",
-  "platform": [
-    "win32"
-  ],
-  "features": [
-    {
-      "code": "find",
-      "explain": "基于 Everything 更便捷的文件搜索 + 文件预览",
-      "cmds": [
-        "find",
-        "搜索",
+    "preload": "preload/preload.js",
+    "main": "index.html",
+    "logo": "logo.png",
+    "platform": [
+        "win32"
+    ],
+    "unpack": "@(Everything.*|*.exe)",
+    "features": [
         {
-          "type": "over",
-          "label": "文件搜索"
+            "code": "find",
+            "explain": "基于 Everything 更便捷的文件搜索 + 文件预览",
+            "cmds": [
+                "本地搜索",
+                "find",
+                "搜索"
+            ]
+        },
+        {
+            "code": "oversearch",
+            "explain": "本地文件搜索",
+            "mainPush": true,
+            "cmds": [
+                {
+                    "type": "over",
+                    "maxLength": 40,
+                    "exclude": "/[\\\\\\/\\t\\n]/",
+                    "label": "文件搜索"
+                }
+            ]
         }
-      ]
-    }
-  ],
-  "title": "本地搜索"
+    ],
+    "name": "everything",
+    "title": "本地搜索",
+    "description": "基于 Everything 更便捷的本地文件搜索 + 文件预览",
+    "author": "uTools 团队",
+    "homepage": "https://u.tools",
+    "version": "2.7.2",
+    "ai": true
 }

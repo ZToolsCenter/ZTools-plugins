@@ -17,3 +17,6 @@ release/
 # 便签特殊排除
 !/plugins/sticky-note/dist
 !/plugins/sticky-note/dist/vditor/dist
+
+# everything 特殊排除
+!/plugins/everything/preload/node_modules

@@ -7,9 +7,12 @@
     <div id="root"></div>
     <script src="index.js"></script>
     <script src="psd.min.js"></script>
-    <script src="pdf.js"></script>
-    <script type="text/javascript">
-      (() => { window.PSD = require('psd'); pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.js'; })()
+    <script src="xlsx.full.min.js"></script>
+    <script src="pdf.mjs" type="module"></script>
+    <script type="module">
+      window.PSD = require('psd');
+      var { pdfjsLib } = globalThis;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.mjs';
     </script>
   </body>
 </html>
