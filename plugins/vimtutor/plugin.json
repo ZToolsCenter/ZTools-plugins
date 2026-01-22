@@ -1,0 +1,21 @@
+{
+    "main": "index.html",
+    "logo": "logo.png",
+    "preload": "preload.js",
+    "features": [
+        {
+            "code": "vimtutor",
+            "explain": "vimtutor",
+            "cmds": [
+                "vimtutor",
+                "vim教程"
+            ]
+        }
+    ],
+    "name": "vimtutor",
+    "title": "vim教程",
+    "description": "在使用中学习vim",
+    "author": "福州猿力信息科技有限公司",
+    "homepage": "",
+    "version": "1.0.2"
+}
