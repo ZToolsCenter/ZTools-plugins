@@ -10,6 +10,8 @@ const currentOS = process.platform === 'win32' ? 'Windows' : (process.platform =
 // --- Bash Session State ---
 let bashCwd = os.homedir();
 
+const MAX_READ = 512 * 1000; // 512k characters
+
 // 数据提取函数 (提取标题、作者、简介)
 function extractMetadata(html) {
     const meta = {
@@ -43,10 +45,7 @@ function extractMetadata(html) {
 function convertHtmlToMarkdown(html) {
     let text = html;
 
-    // --- 1. 核心内容定位 (尽力而为) ---
-    // 尝试定位常见的文章容器，如果找到，直接丢弃容器外的内容
-    // 注意：正则匹配嵌套标签不可靠，这里只匹配最外层的特定ID容器，如 CSDN 的 content_views
-    // 这种非贪婪匹配在此处仅作为一种尝试，失败则回退到全文清洗
+    // --- 1. 核心内容定位 ---
     const articlePatterns = [
         /<article[^>]*>([\s\S]*?)<\/article>/i,
         /<div[^>]*id=["'](?:article_content|content_views|js_content|post-content)["'][^>]*>([\s\S]*?)<\/div>/i,
@@ -55,42 +54,31 @@ function convertHtmlToMarkdown(html) {
     
     for (const pattern of articlePatterns) {
         const match = text.match(pattern);
-        if (match && match[1].length > 500) { // 确保提取的内容足够长
+        if (match && match[1].length > 500) { 
             text = match[1];
             break;
         }
     }
 
-    // --- 2. 移除无关标签 (结构化清洗) ---
-    // 移除 Head (因为元数据已单独提取)
+    // --- 2. 移除无关标签 ---
     text = text.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
-    
-    // 移除噪音标签：脚本、样式、导航、页脚、侧边栏、表单、弹窗、推荐框
-    // 增加了对 class 包含 comment, recommend, advertisement 等关键词的 div 的粗略清洗
     text = text.replace(/<(script|style|svg|noscript|header|footer|nav|aside|iframe|form|button|textarea)[^>]*>[\s\S]*?<\/\1>/gi, '');
-    
-    // 移除具有特定 ID/Class 的噪音区块 (CSDN/通用)
-    // 注意：这是一个简单的关键词匹配，可能会误伤，但能极大净化内容
     text = text.replace(/<div[^>]*(?:class|id)=["'][^"']*(?:sidebar|comment|recommend|advert|toolbar|operate|login|modal)[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '');
 
     // --- 3. 移除注释 ---
     text = text.replace(/<!--[\s\S]*?-->/g, '');
 
     // --- 4. 元素转换 Markdown ---
-    
-    // 标题
     text = text.replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (match, level, content) => {
         return `\n\n${'#'.repeat(level)} ${content.replace(/<[^>]+>/g, '').trim()}\n`;
     });
 
-    // 列表与段落
     text = text.replace(/<\/li>/gi, '\n');
     text = text.replace(/<li[^>]*>/gi, '- ');
     text = text.replace(/<\/(ul|ol)>/gi, '\n\n');
     text = text.replace(/<\/(p|div|tr|table|article|section|blockquote)>/gi, '\n');
     text = text.replace(/<br\s*\/?>/gi, '\n');
 
-    // 图片 (过滤掉 base64 和小图标)
     text = text.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, (match, src, alt) => {
         if (src.startsWith('data:image')) return ''; 
         return `\n![${alt.trim()}](${src})\n`;
@@ -100,15 +88,12 @@ function convertHtmlToMarkdown(html) {
         return `\n![](${src})\n`;
     });
 
-    // 链接
     text = text.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (match, href, content) => {
         const cleanContent = content.replace(/<[^>]+>/g, '').trim();
-        // 过滤无效链接
         if (!cleanContent || href.startsWith('javascript:') || href.startsWith('#')) return cleanContent;
         return ` [${cleanContent}](${href}) `;
     });
 
-    // 粗体/代码
     text = text.replace(/<(b|strong)[^>]*>([\s\S]*?)<\/\1>/gi, '**$2**');
     text = text.replace(/<(code|pre)[^>]*>([\s\S]*?)<\/\1>/gi, '\n```\n$2\n```\n');
 
@@ -119,11 +104,10 @@ function convertHtmlToMarkdown(html) {
     const entities = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&copy;': '©' };
     text = text.replace(/&[a-z0-9]+;/gi, (match) => entities[match] || '');
 
-    // --- 7. 行级清洗 (去除残留的导航文本) ---
+    // --- 7. 行级清洗 ---
     const lines = text.split('\n').map(line => line.trim());
     const cleanLines = [];
     
-    // 垃圾关键词库
     const noiseKeywords = [
         /^最新推荐/, /^相关推荐/, /^文章标签/, /^版权声明/, /阅读\s*\d/, /点赞/, /收藏/, /分享/, /举报/, 
         /打赏/, /关注/, /登录/, /注册/, /Copyright/, /All rights reserved/, 
@@ -132,7 +116,6 @@ function convertHtmlToMarkdown(html) {
 
     for (let line of lines) {
         if (!line) continue;
-        // 跳过极短的非句子行（可能是残留的按钮文本）
         if (line.length < 2 && !line.match(/[a-zA-Z0-9]/)) continue;
         
         let isNoise = false;
@@ -141,7 +124,6 @@ function convertHtmlToMarkdown(html) {
         }
         if (isNoise) continue;
 
-        // 跳过纯导航链接行
         if (/^\[.{1,15}\]\(http.*\)$/.test(line)) continue;
 
         cleanLines.push(line);
@@ -164,12 +146,12 @@ const BUILTIN_SERVERS = {
     },
     "builtin_filesystem": {
         id: "builtin_filesystem",
-        name: "File Reader",
-        description: "读取本地文件或者远程文件。支持文本、Markdown、代码、Word (.docx)、Excel (.xlsx/.csv) 格式。注意：PDF 和图片等二进制文件不支持解析。",
+        name: "File Operations",
+        description: "全能文件操作工具。支持 Glob 文件匹配、Grep 内容搜索、以及文件的读取、编辑和写入。支持本地文件及远程URL。",
         type: "builtin",
         isActive: false,
         isPersistent: false,
-        tags: ["file", "read"],
+        tags: ["file", "fs", "read", "write", "edit", "search"],
         logoUrl: "https://cdn-icons-png.flaticon.com/512/2965/2965335.png"
     },
     "builtin_bash": {
@@ -191,6 +173,16 @@ const BUILTIN_SERVERS = {
         isPersistent: false,
         tags: ["search", "web", "fetch"],
         logoUrl: "https://upload.wikimedia.org/wikipedia/en/9/90/The_DuckDuckGo_Duck.png"
+    },
+    "builtin_subagent": {
+        id: "builtin_subagent",
+        name: "Sub-Agent",
+        description: "一个能够自主规划的子智能体。主智能体需显式分配工具给它。",
+        type: "builtin",
+        isActive: false,
+        isPersistent: false,
+        tags: ["agent"],
+        logoUrl: "https://s2.loli.net/2026/01/22/tTsJjkpiOYAeGdy.png"
     },
 };
 
@@ -230,14 +222,73 @@ const BUILTIN_TOOLS = {
     ],
     "builtin_filesystem": [
         {
-            name: "read_file",
-            description: "Read content from a local file path or a remote file. Supports .txt, .md, .code, .docx, .xlsx. Returns parsed text for supported formats.",
+            name: "glob_files",
+            description: "Fast file pattern matching to locate file paths. Use this to find files before reading them.",
             inputSchema: {
                 type: "object",
                 properties: {
-                    file_path: { type: "string", description: "Absolute path to the local file OR a valid HTTP/HTTPS URL." }
+                    pattern: { type: "string", description: "Glob pattern (e.g., 'src/**/*.ts' for recursive, '*.json' for current dir)." },
+                    path: { type: "string", description: "Root directory to search. Defaults to current user home." }
+                },
+                required: ["pattern"]
+            }
+        },
+        {
+            name: "grep_search",
+            description: "Search for patterns in file contents using Regex.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    pattern: { type: "string", description: "Regex pattern to search for." },
+                    path: { type: "string", description: "Root directory to search." },
+                    glob: { type: "string", description: "Glob pattern to filter files (e.g., '**/*.js')." },
+                    output_mode: { 
+                        type: "string", 
+                        enum: ["content", "files_with_matches", "count"], 
+                        description: "Output mode: 'content' (lines), 'files_with_matches' (paths only), 'count'." 
+                    },
+                    multiline: { type: "boolean", description: "Enable multiline matching." }
+                },
+                required: ["pattern"]
+            }
+        },
+        {
+            name: "read_file",
+            description: "Read content from a local file path or a remote file. Supports text, code, and document parsing. For large files, use 'offset' and 'length' to read in chunks.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    file_path: { type: "string", description: "Absolute path to the local file OR a valid HTTP/HTTPS URL." },
+                    offset: { type: "integer", description: "Optional. The character position to start reading from. Defaults to 0.", default: 0 },
+                    length: { type: "integer", description: `Optional. Number of characters to read. Defaults to ${MAX_READ}.`, default: MAX_READ }
                 },
                 required: ["file_path"]
+            }
+        },
+        {
+            name: "edit_file",
+            description: "Precise string replacement for modifying code or text files. YOU MUST READ THE FILE FIRST to ensure you have the exact 'old_string'.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    file_path: { type: "string", description: "Absolute path to the local file." },
+                    old_string: { type: "string", description: "The EXACT text to be replaced. Must be unique in the file unless replace_all is true." },
+                    new_string: { type: "string", description: "The new text to replace with." },
+                    replace_all: { type: "boolean", description: "If true, replaces all occurrences. If false, fails if old_string is not unique." }
+                },
+                required: ["file_path", "old_string", "new_string"]
+            }
+        },
+        {
+            name: "write_file",
+            description: "Create a new file or completely overwrite an existing file.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    file_path: { type: "string", description: "Absolute path to the file." },
+                    content: { type: "string", description: "Full content to write to the file." }
+                },
+                required: ["file_path", "content"]
             }
         }
     ],
@@ -257,7 +308,7 @@ const BUILTIN_TOOLS = {
     "builtin_search": [
         {
             name: "web_search",
-            description: "Search the internet for a given query and return the top N results (title, link, snippet).",
+            description: "Search the internet for a given query and return the top N results (title, link, snippet). CRITICAL: The snippets are short and often insufficient. For detailed information you should usually follow this tool with 'web_fetch' to read the full content. Constraint: After replying, 'Sources:' citation links must be included.",
             inputSchema: {
                 type: "object",
                 properties: {
@@ -272,20 +323,118 @@ const BUILTIN_TOOLS = {
             }
         },
         {
-            name: "fetch_page",
-            description: "Fetch the content of a specific URL and convert it to Markdown format. Use this to read articles, documentation, or search results in detail.",
+            name: "web_fetch",
+            description: "Deeply read and parse the text content of a URL (converts HTML to Markdown). Use this to read the actual content of search results. For long pages, use 'offset' and 'length' to read in chunks. Constraint: After replying, 'Sources:' citation links must be included.",
             inputSchema: {
                 type: "object",
                 properties: {
-                    url: { type: "string", description: "The URL of the webpage to fetch." }
+                    url: { type: "string", description: "The URL of the webpage to read." },
+                    offset: { type: "integer", description: "Optional. The character position to start reading from. Defaults to 0.", default: 0 },
+                    length: { type: "integer", description: `Optional. Number of characters to read. Defaults to ${MAX_READ}.`, default: MAX_READ }
                 },
                 required: ["url"]
+            }
+        }
+    ],
+    "builtin_subagent": [
+        {
+            name: "sub_agent",
+            description: "Delegates a complex task to a Sub-Agent. You can assign specific tools, set the planning depth, and provide context. The Sub-Agent will autonomous plan and execute.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    task: { type: "string", description: "The detailed task description." },
+                    context: { type: "string", description: "Background info, previous conversation summary, code snippets, or user constraints. Do NOT leave empty if the task depends on previous messages." },
+                    tools: { 
+                        type: "array", 
+                        items: { type: "string" }, 
+                        description: "List of tool names to grant. You MUST explicitly list the tools required for the task. If omitted or empty, the Sub-Agent will have NO tools." 
+                    },
+                    planning_level: {
+                        type: "string",
+                        enum: ["fast", "medium", "high", "custom"],
+                        description: "Complexity level: 'fast'(10 steps), 'medium'(20 steps, default), 'high'(30 steps), or 'custom'."
+                    },
+                    custom_steps: {
+                        type: "integer",
+                        minimum: 10,
+                        maximum: 100,
+                        description: "Only used if planning_level is 'custom'."
+                    }
+                },
+                required: ["task", "tools"] 
             }
         }
     ],
 };
 
 // --- Helpers ---
+
+// 路径解析器：相对路径默认相对于用户主目录，而不是插件运行目录
+const resolvePath = (inputPath) => {
+    if (!inputPath) return os.homedir();
+    let p = inputPath.replace(/^["']|["']$/g, '');
+    if (p.startsWith('~')) {
+        p = path.join(os.homedir(), p.slice(1));
+    }
+    if (!path.isAbsolute(p)) {
+        p = path.join(os.homedir(), p);
+    }
+    return path.normalize(p);
+};
+
+// 稳健的 Glob 转 Regex 转换器
+const globToRegex = (glob) => {
+    if (!glob) return null;
+    
+    // 1. 将 Glob 特殊符号替换为唯一的临时占位符
+    // 必须先处理 ** (递归)，再处理 * (单层)
+    let regex = glob
+        .replace(/\\/g, '/') // 统一反斜杠为正斜杠，防止转义混乱
+        .replace(/\*\*/g, '___DOUBLE_STAR___')
+        .replace(/\*/g, '___SINGLE_STAR___')
+        .replace(/\?/g, '___QUESTION___');
+    
+    // 2. 转义字符串中剩余的所有正则表达式特殊字符
+    regex = regex.replace(/[\\^$|.+()\[\]{}]/g, '\\$&');
+    
+    // 3. 将占位符替换回对应的正则表达式逻辑
+    // ** -> .* (匹配任意字符)
+    regex = regex.replace(/___DOUBLE_STAR___/g, '.*');
+    // * -> [^/]* (匹配除路径分隔符外的任意字符)
+    regex = regex.replace(/___SINGLE_STAR___/g, '[^/\\\\]*');
+    // ? -> . (匹配任意单个字符)
+    regex = regex.replace(/___QUESTION___/g, '.');
+    
+    try {
+        return new RegExp(`^${regex}$`, 'i'); // 忽略大小写
+    } catch (e) {
+        console.error("Glob regex conversion failed:", e);
+        return /^__INVALID_GLOB__$/;
+    }
+};
+
+// 路径标准化 (统一使用 /)
+const normalizePath = (p) => p.split(path.sep).join('/');
+
+// 递归文件遍历器
+async function* walkDir(dir, maxDepth = 20, currentDepth = 0) {
+    if (currentDepth > maxDepth) return;
+    try {
+        const dirents = await fs.promises.readdir(dir, { withFileTypes: true });
+        for (const dirent of dirents) {
+            const res = path.resolve(dir, dirent.name);
+            if (dirent.isDirectory()) {
+                if (['node_modules', '.git', '.idea', '.vscode', 'dist', 'build', '__pycache__'].includes(dirent.name)) continue;
+                yield* walkDir(res, maxDepth, currentDepth + 1);
+            } else {
+                yield res;
+            }
+        }
+    } catch (e) {
+        // 忽略访问权限错误，防止遍历中断
+    }
+}
 
 // Simple Content-Type to Extension mapper
 const getExtensionFromContentType = (contentType) => {
@@ -409,6 +558,160 @@ const isPathSafe = (targetPath) => {
     return !forbiddenPatterns.some(regex => regex.test(targetPath));
 };
 
+async function runSubAgent(args, globalContext, signal) {
+    const { task, context: userContext, tools: allowedToolNames, planning_level, custom_steps } = args;
+    const { apiKey, baseUrl, model, tools: allToolDefinitions, mcpSystemPrompt, onUpdate } = globalContext;
+
+    // --- 1. 工具权限控制 (最小权限原则) ---
+    // 默认没有任何工具权限
+    let availableTools = [];
+
+    // 只有当 allowedToolNames 被明确提供且为非空数组时，才进行筛选并授予权限
+    if (allowedToolNames && Array.isArray(allowedToolNames) && allowedToolNames.length > 0) {
+        const allowedSet = new Set(allowedToolNames);
+        availableTools = (allToolDefinitions || []).filter(t => 
+            allowedSet.has(t.function.name) && t.function.name !== 'sub_agent' // 排除自身，防止递归
+        );
+    }
+
+    // --- 2. 步骤控制 ---
+    let MAX_STEPS = 20; // Default medium
+    if (planning_level === 'fast') MAX_STEPS = 10;
+    else if (planning_level === 'high') MAX_STEPS = 30;
+    else if (planning_level === 'custom' && custom_steps) MAX_STEPS = Math.min(100, Math.max(10, custom_steps));
+
+    // --- 3. 提示词构建 ---
+
+    // System Prompt: 身份、规则、环境
+    const systemInstruction = `You are a specialized Sub-Agent Worker.
+Your Role: Autonomous task executor.
+Strategy: Plan, execute tools, observe results, and iterate until the task is done.
+Output: When finished, output the final answer directly as text. Do NOT ask the user for clarification unless all tools fail.
+${mcpSystemPrompt ? '\n' + mcpSystemPrompt : ''}`;
+
+    // User Prompt: 具体任务、上下文、限制
+    const userInstruction = `## Current Assignment
+**Task**: ${task}
+
+**Context & Background**:
+${userContext || 'No additional context provided.'}
+
+**Execution Constraints**:
+- Maximum Steps: ${MAX_STEPS}
+- Please start by analyzing the task and available tools.`;
+
+    const messages = [
+        { role: 'system', content: systemInstruction },
+        { role: 'user', content: userInstruction }
+    ];
+
+    let step = 0;
+    
+    // 用于记录完整过程的日志
+    const executionLog = [];
+    const log = (msg) => {
+        executionLog.push(msg);
+        // 实时回调给前端
+        if (onUpdate && typeof onUpdate === 'function') {
+            onUpdate(executionLog.join('\n'));
+        }
+    };
+
+    log(`[Sub-Agent] Started. Max steps: ${MAX_STEPS}. Tools: ${availableTools.map(t=>t.function.name).join(', ') || 'None'}`);
+
+    // 动态导入
+    const { invokeMcpTool } = require('./mcp.js'); 
+
+    while (step < MAX_STEPS) {
+        if (signal && signal.aborted) throw new Error("Sub-Agent execution aborted by user.");
+        step++;
+        
+        log(`\n--- Step ${step}/${MAX_STEPS} ---`);
+
+        try {
+            // 3.1 LLM 思考
+            const response = await fetch(`${baseUrl}/chat/completions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${Array.isArray(apiKey) ? apiKey[0] : apiKey.split(',')[0].trim()}`
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: messages,
+                    tools: availableTools.length > 0 ? availableTools : undefined,
+                    tool_choice: availableTools.length > 0 ? "auto" : undefined,
+                    stream: false
+                }),
+                signal: signal
+            });
+
+            if (!response.ok) {
+                const err = `API Call failed: ${response.status}`;
+                log(`[Error] ${err}`);
+                return `[Sub-Agent Error] ${err}`;
+            }
+
+            const data = await response.json();
+            const message = data.choices[0].message;
+            messages.push(message);
+
+            // 3.2 决策
+            if (message.content) {
+                log(`[Thought] ${message.content}`);
+            }
+
+            if (!message.tool_calls || message.tool_calls.length === 0) {
+                log(`[Result] Task Completed.`);
+                // 返回最终结果
+                return message.content || "[Sub-Agent finished without content]";
+            }
+
+            // 3.3 执行工具
+            for (const toolCall of message.tool_calls) {
+                if (signal && signal.aborted) throw new Error("Sub-Agent execution aborted.");
+
+                const toolName = toolCall.function.name;
+                let toolArgsObj = {};
+                let toolResult = "";
+                
+                try {
+                    toolArgsObj = JSON.parse(toolCall.function.arguments);
+                    log(`[Action] Calling ${toolName}...`);
+                    
+                    // 执行
+                    const result = await invokeMcpTool(toolName, toolArgsObj, signal, null);
+                    
+                    if (typeof result === 'string') toolResult = result;
+                    else if (Array.isArray(result)) toolResult = result.map(i => i.text || JSON.stringify(i)).join('\n');
+                    else toolResult = JSON.stringify(result);
+
+                    log(`[Observation] Tool output length: ${toolResult.length} chars.`);
+
+                } catch (e) {
+                    if (e.name === 'AbortError') throw e;
+                    toolResult = `Error: ${e.message}`;
+                    log(`[Error] Tool execution failed: ${e.message}`);
+                }
+
+                messages.push({
+                    role: "tool",
+                    tool_call_id: toolCall.id,
+                    name: toolName,
+                    content: toolResult
+                });
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') throw e;
+            log(`[Critical Error] ${e.message}`);
+            return `[Sub-Agent Error] ${e.message}`;
+        }
+    }
+
+    log(`[Stop] Reached maximum step limit.`);
+    return `[Sub-Agent] Reached max steps (${MAX_STEPS}). Final state returned.`;
+}
+
 // --- Execution Handlers ---
 const handlers = {
     // Python
@@ -464,13 +767,125 @@ const handlers = {
         });
     },
 
-    // Filesystem (Local + URL)
-    read_file: async ({ file_path }) => {
+    // --- File Operations Handlers ---
+
+    // 1. Glob Files
+    glob_files: async ({ pattern, path: searchPath }) => {
         try {
+            const rootDir = resolvePath(searchPath);
+            if (!fs.existsSync(rootDir)) return `Error: Directory not found: ${rootDir}`;
+            if (!isPathSafe(rootDir)) return `[Security Block] Access restricted.`;
+
+            const results = [];
+            const regex = globToRegex(pattern);
+            if (!regex) return "Error: Invalid glob pattern.";
+
+            const MAX_RESULTS = 200; 
+            const normalizedRoot = normalizePath(rootDir);
+
+            for await (const filePath of walkDir(rootDir)) {
+                const normalizedFilePath = normalizePath(filePath);
+                
+                // 计算相对路径：例如 "src/main.ts"
+                let relativePath = normalizedFilePath.replace(normalizedRoot, '');
+                if (relativePath.startsWith('/')) relativePath = relativePath.slice(1);
+
+                // 匹配相对路径 或 文件名
+                if (regex.test(relativePath) || regex.test(path.basename(filePath))) {
+                    results.push(filePath);
+                }
+                if (results.length >= MAX_RESULTS) break;
+            }
+
+            if (results.length === 0) return "No files matched the pattern.";
+            return results.join('\n') + (results.length >= MAX_RESULTS ? `\n... (Limit reached: ${MAX_RESULTS})` : '');
+        } catch (e) {
+            return `Glob error: ${e.message}`;
+        }
+    },
+
+    // 2. Grep Search
+    grep_search: async ({ pattern, path: searchPath, glob, output_mode = 'content', multiline = false }) => {
+        try {
+            const rootDir = resolvePath(searchPath);
+            if (!fs.existsSync(rootDir)) return `Error: Directory not found: ${rootDir}`;
+            
+            const regexFlags = multiline ? 'gmi' : 'gi';
+            let searchRegex;
+            try {
+                searchRegex = new RegExp(pattern, regexFlags);
+            } catch (e) { return `Invalid Regex: ${e.message}`; }
+
+            const globRegex = glob ? globToRegex(glob) : null;
+            const normalizedRoot = normalizePath(rootDir);
+            
+            const results = [];
+            let matchCount = 0;
+            const MAX_SCANNED = 2000; 
+            let scanned = 0;
+
+            for await (const filePath of walkDir(rootDir)) {
+                if (scanned++ > MAX_SCANNED) break;
+
+                // Glob 过滤
+                if (globRegex) {
+                    const normalizedFilePath = normalizePath(filePath);
+                    let relativePath = normalizedFilePath.replace(normalizedRoot, '');
+                    if (relativePath.startsWith('/')) relativePath = relativePath.slice(1);
+                    
+                    if (!globRegex.test(relativePath) && !globRegex.test(path.basename(filePath))) continue;
+                }
+
+                // 跳过二进制文件
+                const ext = path.extname(filePath).toLowerCase();
+                if (['.png', '.jpg', '.jpeg', '.gif', '.pdf', '.exe', '.bin', '.zip', '.node', '.dll', '.db'].includes(ext)) continue;
+
+                try {
+                    const stats = await fs.promises.stat(filePath);
+                    if (stats.size > 1024 * 1024) continue; 
+
+                    const content = await fs.promises.readFile(filePath, 'utf-8');
+                    
+                    if (output_mode === 'files_with_matches') {
+                        if (searchRegex.test(content)) {
+                            results.push(filePath);
+                            searchRegex.lastIndex = 0;
+                        }
+                    } else {
+                        const matches = [...content.matchAll(searchRegex)];
+                        if (matches.length > 0) {
+                            matchCount += matches.length;
+                            if (output_mode === 'count') continue;
+
+                            const lines = content.split(/\r?\n/);
+                            matches.forEach(m => {
+                                const offset = m.index;
+                                const lineNum = content.substring(0, offset).split(/\r?\n/).length;
+                                const lineContent = lines[lineNum - 1].trim();
+                                results.push(`${filePath}:${lineNum}: ${lineContent.substring(0, 100)}`);
+                            });
+                        }
+                    }
+                } catch (readErr) { /* ignore */ }
+            }
+
+            if (output_mode === 'count') return `Total matches: ${matchCount}`;
+            if (results.length === 0) return "No matches found.";
+            return results.join('\n');
+        } catch (e) {
+            return `Grep error: ${e.message}`;
+        }
+    },
+
+    // 3. Read File
+    read_file: async ({ file_path, offset = 0, length = MAX_READ }) => {
+        try {
+            const MAX_SINGLE_READ = MAX_READ;
+            const readLength = Math.min(length, MAX_SINGLE_READ);
             let fileForHandler;
 
             if (file_path.startsWith('http://') || file_path.startsWith('https://')) {
-                // 处理 URL (保持原逻辑)
+                // 处理 URL
                 try {
                     const response = await fetch(file_path);
                     if (!response.ok) {
@@ -500,23 +915,21 @@ const handlers = {
                 }
             } else {
                 // 处理本地文件
-                file_path = file_path.replace(/^["']|["']$/g, '');
-                
-                // 安全检查
-                if (!isPathSafe(file_path)) {
-                    return `[Security Block] Access to sensitive system file '${path.basename(file_path)}' is restricted.`;
+                const safePath = resolvePath(file_path);
+                if (!isPathSafe(safePath)) {
+                    return `[Security Block] Access to sensitive system file '${path.basename(safePath)}' is restricted.`;
                 }
                 
-                if (!fs.existsSync(file_path)) return `Error: File not found at ${file_path}`;
+                if (!fs.existsSync(safePath)) return `Error: File not found at ${safePath}`;
 
-                // 大文件检查 (限制 50MB)
-                const stats = await fs.promises.stat(file_path);
-                if (stats.size > 50 * 1024 * 1024) {
-                    return `Error: File is too large (${(stats.size / 1024 / 1024).toFixed(2)}MB). Max limit is 50MB.`;
+                const stats = await fs.promises.stat(safePath);
+                // 仅针对非文本的复杂解析文件（如 PDF）限制原始大小（50MB），普通文本读取由下方的字符截断控制
+                if (stats.size > 200 * 1024 * 1024) {
+                    return `Error: File is too large for processing (>50MB).`;
                 }
 
-                const fileObj = await handleFilePath(file_path);
-                if (!fileObj) return `Error: Unable to access or read file at ${file_path}`;
+                const fileObj = await handleFilePath(safePath);
+                if (!fileObj) return `Error: Unable to access or read file at ${safePath}`;
 
                 const arrayBuffer = await fileObj.arrayBuffer();
                 const base64String = Buffer.from(arrayBuffer).toString('base64');
@@ -531,19 +944,95 @@ const handlers = {
             }
 
             const result = await parseFileObject(fileForHandler);
-
             if (!result) return "Error: Unsupported file type or parsing failed.";
 
+            let fullText = "";
             if (result.type === 'text' && result.text) {
-                return result.text;
-            } 
-            else {
+                fullText = result.text;
+            } else {
                 const typeInfo = result.type === 'image_url' ? 'Image' : 'Binary/PDF';
-                return `[System] File '${fileForHandler.name}' detected as ${typeInfo}. \nContent extraction is currently NOT supported for this file type. \n(Binary data suppressed to protect context window).`;
+                return `[System] File '${fileForHandler.name}' detected as ${typeInfo}. \nContent extraction is currently NOT supported via this tool for binary formats in this context.`;
             }
+
+            // --- 分页读取逻辑 ---
+            const totalChars = fullText.length;
+            const startPos = Math.max(0, offset);
+            const contentChunk = fullText.substring(startPos, startPos + readLength);
+            const remainingChars = totalChars - (startPos + contentChunk.length);
+
+            let output = contentChunk;
+
+            if (remainingChars > 0) {
+                const nextOffset = startPos + contentChunk.length;
+                output += `\n\n--- [SYSTEM NOTE: CONTENT TRUNCATED] ---\n`;
+                output += `Total characters in file: ${totalChars}\n`;
+                output += `Current chunk: ${startPos} to ${nextOffset}\n`;
+                output += `Remaining unread characters: ${remainingChars}\n`;
+                output += `To read more, call read_file with offset: ${nextOffset}\n`;
+                output += `---------------------------------------`;
+            } else if (startPos > 0) {
+                output += `\n\n--- [SYSTEM NOTE: END OF FILE REACHED] ---`;
+            }
+
+            return output;
 
         } catch (e) {
             return `Error reading file: ${e.message}`;
+        }
+    },
+
+    // 4. Edit File
+    edit_file: async ({ file_path, old_string, new_string, replace_all = false }) => {
+        try {
+            const safePath = resolvePath(file_path);
+            if (!isPathSafe(safePath)) return `[Security Block] Access denied to ${safePath}.`;
+            if (!fs.existsSync(safePath)) return `Error: File not found: ${safePath}`;
+
+            let content = await fs.promises.readFile(safePath, 'utf-8');
+
+            // 检查 old_string 是否存在
+            if (!content.includes(old_string)) {
+                return `Error: 'old_string' not found in file. Please ensure you read the file first and use the exact string.`;
+            }
+
+            // 检查唯一性
+            if (!replace_all) {
+                // 计算出现次数
+                const count = content.split(old_string).length - 1;
+                if (count > 1) {
+                    return `Error: 'old_string' occurs ${count} times. Please set 'replace_all' to true if you intend to replace all, or provide a more unique context string.`;
+                }
+            }
+
+            if (replace_all) {
+                content = content.split(old_string).join(new_string);
+            } else {
+                content = content.replace(old_string, new_string);
+            }
+
+            await fs.promises.writeFile(safePath, content, 'utf-8');
+            return `Successfully edited ${path.basename(safePath)}.`;
+
+        } catch (e) {
+            return `Edit failed: ${e.message}`;
+        }
+    },
+
+    // 5. Write File
+    write_file: async ({ file_path, content }) => {
+        try {
+            const safePath = resolvePath(file_path);
+            if (!isPathSafe(safePath)) return `[Security Block] Access denied to ${safePath}.`;
+
+            const dir = path.dirname(safePath);
+            if (!fs.existsSync(dir)) {
+                await fs.promises.mkdir(dir, { recursive: true });
+            }
+
+            await fs.promises.writeFile(safePath, content, 'utf-8');
+            return `Successfully wrote to ${safePath}`;
+        } catch (e) {
+            return `Write failed: ${e.message}`;
         }
     },
 
@@ -631,10 +1120,6 @@ const handlers = {
             const limit = Math.min(Math.max(parseInt(count) || 5, 1), 10);
             const url = "https://html.duckduckgo.com/html/";
             
-            // --- 1. 简单的语言/地区映射逻辑 ---
-            // DuckDuckGo 使用 'kl' 参数 (例如: cn-zh, us-en, wt-wt)
-            // 浏览器 Header 使用 'Accept-Language' (例如: zh-CN, en-US)
-            
             let ddgRegion = 'cn-zh'; // 默认: 中国-中文
             let acceptLang = 'zh-CN,zh;q=0.9,en;q=0.8'; // 默认 Header
             
@@ -653,9 +1138,7 @@ const handlers = {
                 ddgRegion = 'wt-wt'; // 全球
                 acceptLang = 'en-US,en;q=0.9';
             }
-            // 默认为 zh-CN (无需 else，初始化已设置)
 
-            // --- 2. 构造请求 ---
             const headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -681,7 +1164,6 @@ const handlers = {
 
             const results = [];
             
-            // --- 3. 解析逻辑 (保持鲁棒性) ---
             const titleLinkRegex = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
             const snippetRegex = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
 
@@ -724,7 +1206,6 @@ const handlers = {
             }
             
             if (results.length === 0) {
-                // 如果是中文搜索无结果，可能是 DDG 的中文索引问题，提示用户尝试英文
                 if (ddgRegion === 'cn-zh') {
                      return JSON.stringify({ message: "No results found in Chinese region. Try setting language='en' or 'all'.", query: query });
                 }
@@ -737,13 +1218,15 @@ const handlers = {
             return `Search failed: ${e.message}`;
         }
     },
-
-    // Fetch Page Handler
-    fetch_page: async ({ url }) => {
+    // Web Fetch Handler
+    web_fetch: async ({ url, offset = 0, length = MAX_READ }) => {
         try {
             if (!url || !url.startsWith('http')) {
                 return "Error: Invalid URL. Please provide a full URL starting with http:// or https://";
             }
+
+            const MAX_SINGLE_READ = MAX_READ;
+            const readLength = Math.min(length, MAX_SINGLE_READ);
 
             // 1. 更加逼真的浏览器指纹 Headers (模拟 Chrome)
             const headers = {
@@ -762,7 +1245,6 @@ const handlers = {
 
             const response = await fetch(url, { headers, redirect: 'follow' });
             
-            // 处理常见的反爬状态码
             if (response.status === 403 || response.status === 521) {
                 return `Failed to fetch page (Anti-bot protection ${response.status}). The site requires a real browser environment.`;
             }
@@ -774,34 +1256,46 @@ const handlers = {
             const contentType = response.headers.get('content-type') || '';
             const rawText = await response.text();
 
-            // 如果是 JSON，直接返回
+            let fullText = "";
             if (contentType.includes('application/json')) {
-                try { return JSON.stringify(JSON.parse(rawText), null, 2); } catch(e) { return rawText; }
+                try { 
+                    fullText = JSON.stringify(JSON.parse(rawText), null, 2); 
+                } catch(e) { 
+                    fullText = rawText; 
+                }
+            } else {
+                const metadata = extractMetadata(rawText);
+                const markdownBody = convertHtmlToMarkdown(rawText);
+
+                if (!markdownBody || markdownBody.length < 50) {
+                    return `Fetched URL: ${url}\n\nTitle: ${metadata.title}\n\n[System]: Content seems empty. This might be a JavaScript-rendered page (SPA) which cannot be parsed by this tool.`;
+                }
+
+                fullText = `URL: ${url}\n\n`;
+                if (metadata.title) fullText += `# ${metadata.title}\n\n`;
+                if (metadata.author) fullText += `**Author:** ${metadata.author}\n`;
+                if (metadata.description) fullText += `**Summary:** ${metadata.description}\n`;
+                fullText += `\n---\n\n${markdownBody}`;
             }
-            
-            // 1. 提取元数据 (标题、作者、简介)
-            const metadata = extractMetadata(rawText);
 
-            // 2. 转换正文 (清洗 HTML 并转 Markdown)
-            const markdownBody = convertHtmlToMarkdown(rawText);
+            // --- 分页逻辑 ---
+            const totalChars = fullText.length;
+            const startPos = Math.max(0, offset);
+            const contentChunk = fullText.substring(startPos, startPos + readLength);
+            const remainingChars = totalChars - (startPos + contentChunk.length);
 
-            // 3. 检查是否抓取失败 (如SPA页面)
-            if (!markdownBody || markdownBody.length < 50) {
-                return `Fetched URL: ${url}\n\nTitle: ${metadata.title}\n\n[System]: Content seems empty. This might be a JavaScript-rendered page (SPA) which cannot be parsed by this tool.`;
-            }
+            let result = contentChunk;
 
-            // 4. 组装最终输出 (结构化格式)
-            let result = `URL: ${url}\n\n`;
-            if (metadata.title) result += `# ${metadata.title}\n\n`;
-            if (metadata.author) result += `**Author:** ${metadata.author}\n`;
-            if (metadata.description) result += `**Summary:** ${metadata.description}\n`;
-            
-            result += `\n---\n\n${markdownBody}`;
-
-            // 5. 长度截断 (防止 AI 上下文溢出)
-            const MAX_LENGTH = 15000;
-            if (result.length > MAX_LENGTH) {
-                return result.substring(0, MAX_LENGTH) + `\n\n...[Content Truncated (${result.length} chars total)]...`;
+            if (remainingChars > 0) {
+                const nextOffset = startPos + contentChunk.length;
+                result += `\n\n--- [SYSTEM NOTE: CONTENT TRUNCATED] ---\n`;
+                result += `Total characters in parsed page: ${totalChars}\n`;
+                result += `Current chunk: ${startPos} to ${nextOffset}\n`;
+                result += `Remaining unread characters: ${remainingChars}\n`;
+                result += `To read more, call web_fetch with offset: ${nextOffset}\n`;
+                result += `---------------------------------------`;
+            } else if (startPos > 0) {
+                result += `\n\n--- [SYSTEM NOTE: END OF PAGE REACHED] ---`;
             }
 
             return result;
@@ -809,6 +1303,14 @@ const handlers = {
         } catch (e) {
             return `Error fetching page: ${e.message}`;
         }
+    },
+
+    // Sub Agent Handler
+    sub_agent: async (args, globalContext, signal) => {
+        if (!globalContext || !globalContext.apiKey) {
+            return "Error: Sub-Agent requires global context(should be in a chat session).";
+        }
+        return await runSubAgent(args, globalContext, signal);
     }
 };
 
@@ -822,9 +1324,14 @@ function getBuiltinTools(serverId) {
     return BUILTIN_TOOLS[serverId] || [];
 }
 
-async function invokeBuiltinTool(toolName, args) {
+async function invokeBuiltinTool(toolName, args, signal = null, context = null) {
     if (handlers[toolName]) {
-        return await handlers[toolName](args);
+        // 如果是 sub_agent，它需要 context 和 signal
+        if (toolName === 'sub_agent') {
+            return await handlers[toolName](args, context, signal);
+        }
+        // 为了兼容性，我们只给 sub_agent 传 context
+        return await handlers[toolName](args); 
     }
     throw new Error(`Built-in tool '${toolName}' not found.`);
 }

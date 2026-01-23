@@ -44,6 +44,7 @@ const {
   invokeMcpTool,
   closeMcpClient,
   connectAndFetchTools,
+  connectAndInvokeTool,
 } = require('./mcp.js');
 
 window.api = {
@@ -83,6 +84,7 @@ window.api = {
   },
   testMcpConnection: async (serverConfig) => {
     try {
+      // 1. 获取新工具列表
       const rawTools = await connectAndFetchTools(serverConfig.id, {
         transport: serverConfig.type,
         command: serverConfig.command,
@@ -98,8 +100,22 @@ window.api = {
         inputSchema: tool.inputSchema || tool.schema || {} 
       }));
 
-      const cleanTools = JSON.parse(JSON.stringify(sanitizedTools));
+      // 2. 读取旧缓存并合并状态
+      const oldCacheMap = await getMcpToolCache();
+      const oldTools = oldCacheMap ? (oldCacheMap[serverConfig.id] || []) : [];
       
+      const mergedTools = sanitizedTools.map(newTool => {
+          const oldTool = oldTools.find(t => t.name === newTool.name);
+          return {
+              ...newTool,
+              // 如果旧缓存存在且明确设置了 enabled，则沿用；否则默认为 true
+              enabled: oldTool ? (oldTool.enabled ?? true) : true
+          };
+      });
+
+      const cleanTools = JSON.parse(JSON.stringify(mergedTools));
+      
+      // 3. 保存合并后的结果
       await saveMcpToolCache(serverConfig.id, cleanTools);
       
       return { success: true, tools: cleanTools };
@@ -107,6 +123,24 @@ window.api = {
       console.error("[Preload] MCP Test Connection Error:", error);
       return { success: false, error: String(error.message || error) };
     }
+  },
+  saveMcpToolCache,
+  // 测试具体工具调用
+  testInvokeMcpTool: async (serverConfig, toolName, args) => {
+      try {
+          const result = await connectAndInvokeTool(serverConfig.id, {
+              transport: serverConfig.type,
+              command: serverConfig.command,
+              args: serverConfig.args,
+              url: serverConfig.baseUrl,
+              env: serverConfig.env,
+              headers: serverConfig.headers,
+              type: serverConfig.type // 确保 type 传递给 builtin 判断
+          }, toolName, args);
+          return { success: true, result };
+      } catch (error) {
+          return { success: false, error: String(error.message || error) };
+      }
   },
   invokeMcpTool,
   closeMcpClient,
