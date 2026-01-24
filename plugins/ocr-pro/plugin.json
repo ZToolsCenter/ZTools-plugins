@@ -1,0 +1,293 @@
+{
+    "version": "1.8.2",
+    "main": "index.html",
+    "logo": "assets/logo.png",
+    "preload": "preload.js",
+    "pluginSetting": {
+        "single": true,
+        "height": 600,
+        "resizable": false
+    },
+    "features": [
+        {
+            "code": "ocr-main",
+            "explain": "✨ 新一代OCR文字识别插件",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "OCR Pro"
+            ]
+        },
+        {
+            "code": "ocr-screenshot",
+            "explain": "屏幕截图OCR文字识别",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "截图文字识别"
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "ocr-screenshot-copy",
+            "explain": "截图识别并复制",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "静默OCR识别"
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "translate",
+            "explain": "翻译功能",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "翻译"
+            ]
+        },
+        {
+            "code": "mini-translate",
+            "explain": "小窗翻译 - 独立悬浮翻译窗口",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "小窗翻译"
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "ocr-and-translate",
+            "explain": "截图识别并翻译",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "截图识别并翻译"
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "image-translate-screenshot",
+            "explain": "截图图片翻译",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "截图图片翻译"
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "translate-clipboard",
+            "explain": "翻译剪贴板中的文本",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "翻译复制的文本"
+            ]
+        },
+        {
+            "code": "translate-clipboard-mini",
+            "explain": "小窗翻译剪贴板中的文本",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "翻译复制的文本-小窗"
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "ocr-clipboard-direct",
+            "explain": "直接读取剪切板图片进行OCR识别",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "剪切板图片识别"
+            ]
+        },
+        {
+            "code": "ocr-handwriting",
+            "explain": "手写公式识别",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "手写公式识别"
+            ]
+        },
+        {
+            "code": "ocr-table",
+            "explain": "表格识别模式",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "表格识别"
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "ocr-formula",
+            "explain": "公式识别模式",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "公式识别"
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "ocr-markdown",
+            "explain": "Markdown识别模式",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "Markdown识别"
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "ocr-config",
+            "explain": "插件配置",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "设置"
+            ]
+        },
+        {
+            "code": "history",
+            "explain": "历史记录",
+            "icon": "assets/logo.png",
+            "cmds": [
+                "历史记录"
+            ]
+        },
+        {
+            "code": "ocr-files",
+            "explain": "图片文件OCR识别",
+            "icon": "assets/logo.png",
+            "cmds": [
+                {
+                    "type": "files",
+                    "label": "图片识别",
+                    "fileType": "file",
+                    "extensions": [
+                        "png",
+                        "jpg",
+                        "jpeg",
+                        "gif",
+                        "bmp",
+                        "webp",
+                        "tiff",
+                        "svg"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            ]
+        },
+        {
+            "code": "ocr-clipboard",
+            "explain": "剪切板图片识别",
+            "icon": "assets/logo.png",
+            "cmds": [
+                {
+                    "type": "img",
+                    "label": "图片识别"
+                }
+            ]
+        },
+        {
+            "code": "text-translate",
+            "explain": "文本翻译",
+            "icon": "assets/logo.png",
+            "cmds": [
+                {
+                    "type": "over",
+                    "label": "文本翻译",
+                    "minLength": 1,
+                    "maxLength": 5000
+                }
+            ]
+        },
+        {
+            "code": "text-translate-mini",
+            "explain": "小窗文本翻译",
+            "icon": "assets/logo.png",
+            "cmds": [
+                {
+                    "type": "over",
+                    "label": "文本翻译-小窗",
+                    "minLength": 1,
+                    "maxLength": 5000
+                }
+            ],
+            "mainHide": true
+        },
+        {
+            "code": "image-translate-files",
+            "explain": "图片文件翻译",
+            "icon": "assets/logo.png",
+            "cmds": [
+                {
+                    "type": "files",
+                    "label": "图片翻译",
+                    "fileType": "file",
+                    "extensions": [
+                        "png",
+                        "jpg",
+                        "jpeg",
+                        "gif",
+                        "bmp",
+                        "webp",
+                        "tiff",
+                        "svg"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            ]
+        },
+        {
+            "code": "image-translate-clipboard",
+            "explain": "剪切板图片翻译",
+            "icon": "assets/logo.png",
+            "cmds": [
+                {
+                    "type": "img",
+                    "label": "图片翻译"
+                }
+            ]
+        },
+        {
+            "code": "image-ocr-and-translate",
+            "explain": "图片识别并翻译",
+            "icon": "assets/logo.png",
+            "cmds": [
+                {
+                    "type": "files",
+                    "label": "图片识别并翻译",
+                    "fileType": "file",
+                    "extensions": [
+                        "png",
+                        "jpg",
+                        "jpeg",
+                        "gif",
+                        "bmp",
+                        "webp",
+                        "tiff",
+                        "svg"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            ]
+        },
+        {
+            "code": "clipboard-ocr-and-translate",
+            "explain": "剪切板图片识别并翻译",
+            "icon": "assets/logo.png",
+            "cmds": [
+                {
+                    "type": "img",
+                    "label": "图片识别并翻译"
+                }
+            ]
+        }
+    ],
+    "platform": [
+        "win32",
+        "darwin",
+        "linux"
+    ],
+    "name": "ocr-pro",
+    "title": "OCR Pro",
+    "description": "新一代OCR识别和翻译工具，开箱即用，更加现代化的界面；OCR、文字、表格、公式、LaTeX、markdown 、二维码识别、翻译、ai、静默识别、历史记录",
+    "author": "JJJ",
+    "homepage": null,
+    "ai": true
+}

@@ -1,0 +1,312 @@
+/* 统一渲染器样式 */
+
+/* Markdown内容容器 */
+.markdown-content {
+    line-height: 1.6;
+    color: #333;
+    font-size: 14px;
+}
+
+/* 标题样式 */
+.markdown-heading {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #2c3e50;
+}
+
+.markdown-heading:first-child {
+    margin-top: 0;
+}
+
+/* 段落样式 */
+.markdown-content p {
+    margin-bottom: 1em;
+}
+
+/* 表格样式 */
+.markdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: 13px;
+    background: #fff;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.markdown-table th,
+.markdown-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #e1e5e9;
+}
+
+.markdown-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 2px solid #e1e5e9;
+}
+
+.markdown-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.markdown-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* 代码样式 */
+.markdown-content code {
+    background: rgba(175, 184, 193, 0.2);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9em;
+    color: #e74c3c;
+}
+
+.markdown-content pre {
+    background: #2d3748;
+    color: #e2e8f0;
+    padding: 1em;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 1em 0;
+}
+
+.markdown-content pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-size: 0.9em;
+}
+
+/* 链接样式 */
+.markdown-content a {
+    color: #3498db;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.markdown-content a:hover {
+    border-bottom-color: #3498db;
+}
+
+/* 图片样式 */
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    margin: 1em 0;
+}
+
+/* 列表样式 */
+.markdown-content ul,
+.markdown-content ol {
+    margin: 1em 0;
+    padding-left: 2em;
+}
+
+.markdown-content li {
+    margin-bottom: 0.5em;
+}
+
+/* 引用样式 */
+.markdown-content blockquote {
+    border-left: 4px solid #3498db;
+    padding-left: 1em;
+    margin: 1em 0;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* 分割线样式 */
+.markdown-content hr {
+    border: none;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #e1e5e9, transparent);
+    margin: 2em 0;
+}
+
+/* 数学公式样式 */
+.math-block {
+    margin: 1em 0;
+    text-align: center;
+    padding: 1em;
+    background: #f8fafc;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+
+.math-inline {
+    display: inline-block;
+    margin: 0 2px;
+}
+
+.math-fallback {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 3px;
+    padding: 0.2em 0.4em;
+    font-family: 'Cambria Math', 'Times New Roman', serif;
+    color: #856404;
+}
+
+.math-error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 3px;
+    padding: 0.2em 0.4em;
+    color: #721c24;
+}
+
+/* 公式容器样式 */
+.formula-container {
+    margin: 1em 0;
+    padding: 1em;
+    background: #f8fafc;
+    border-radius: 6px;
+    border-left: 4px solid #3498db;
+}
+
+.formula-text {
+    font-family: 'Cambria Math', 'Times New Roman', serif;
+    font-size: 1.1em;
+    color: #2c3e50;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 纯文本样式 */
+.text-content {
+    line-height: 1.6;
+    color: #333;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 错误样式 */
+.render-error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+    padding: 1em;
+    margin: 1em 0;
+}
+
+.render-error-title {
+    font-weight: 600;
+    color: #721c24;
+    margin-bottom: 0.5em;
+}
+
+.render-error-message {
+    color: #721c24;
+    font-size: 0.9em;
+    margin-bottom: 1em;
+}
+
+.render-error-details {
+    margin-top: 1em;
+}
+
+.render-error-details summary {
+    cursor: pointer;
+    color: #721c24;
+    font-weight: 500;
+    padding: 0.5em;
+    background: rgba(248, 215, 218, 0.5);
+    border-radius: 3px;
+    margin-bottom: 0.5em;
+}
+
+.render-error-details pre {
+    background: #2d3748;
+    color: #e2e8f0;
+    padding: 1em;
+    border-radius: 3px;
+    overflow-x: auto;
+    font-size: 0.8em;
+    margin: 0;
+}
+
+/* 深色主题支持 */
+@media (prefers-color-scheme: dark) {
+    .markdown-content {
+        color: #e2e8f0;
+    }
+
+    .markdown-heading {
+        color: #f7fafc;
+    }
+
+    .markdown-table {
+        background: #2d3748;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .markdown-table th {
+        background: #4a5568;
+        color: #f7fafc;
+        border-bottom-color: #718096;
+    }
+
+    .markdown-table td {
+        border-bottom-color: #4a5568;
+    }
+
+    .markdown-table tbody tr:hover {
+        background: #4a5568;
+    }
+
+    .markdown-content blockquote {
+        color: #a0aec0;
+        border-left-color: #4299e1;
+    }
+
+    .math-block {
+        background: #2d3748;
+    }
+
+    .formula-container {
+        background: #2d3748;
+        border-left-color: #4299e1;
+    }
+
+    .formula-text {
+        color: #f7fafc;
+    }
+
+    .render-error {
+        background: #742a2a;
+        border-color: #9b2c2c;
+    }
+
+    .render-error-title,
+    .render-error-message {
+        color: #fed7d7;
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .markdown-table {
+        font-size: 12px;
+    }
+
+    .markdown-table th,
+    .markdown-table td {
+        padding: 8px 10px;
+    }
+
+    .markdown-content pre {
+        padding: 0.8em;
+        font-size: 0.8em;
+    }
+}

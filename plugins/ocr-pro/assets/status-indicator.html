@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Status Indicator</title>
+
+    <style>
+        /* ========================================
+           CSS 变量定义
+        ======================================== */
+        :root {
+            /* 状态颜色 */
+            --success-color: #16a34a;
+            --error-color: #dc2626;
+            --warning-color: #d97706;
+        }
+
+        /* 暗色主题适配 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --success-color: #22c55e;
+                --error-color: #ef4444;
+                --warning-color: #fbbf24;
+            }
+
+            .status-container {
+                background: rgba(30, 30, 30, 0.25) !important;
+                border-color: rgba(255, 255, 255, 0.05) !important;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+            }
+
+            .status-container:hover {
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5) !important;
+            }
+        }
+
+        /* ========================================
+           基础样式重置
+        ======================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 48px;
+            height: 48px;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: transparent;
+            border-radius: 12px;
+            clip-path: inset(0 round 12px);
+            -webkit-clip-path: inset(0 round 12px);
+        }
+
+        body {
+            position: relative;
+            user-select: none;
+            -webkit-user-select: none;
+            pointer-events: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* ========================================
+           主容器样式
+        ======================================== */
+        .status-container {
+            /* 布局 */
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            margin: 8px;
+
+            /* 外观 */
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            clip-path: inset(0 round 8px);
+            -webkit-clip-path: inset(0 round 8px);
+
+            /* 动画 */
+            transition: all 0.3s ease;
+        }
+
+        .status-container:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ========================================
+           状态图标样式
+        ======================================== */
+        .status-icon {
+            /* 布局 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+
+            /* 外观 */
+            background: transparent;
+            border: none;
+            border-radius: 0;
+
+            /* 统一硬件加速，避免状态切换抖动 */
+            will-change: transform, opacity;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            /* 移除transition，避免状态切换时的视觉跳动 */
+        }
+
+        /* 加载状态 - 高性能版 */
+        .status-loading {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--loading-color, #007AFF);
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+            /* 性能优化：启用硬件加速 */
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+
+
+        /* 成功状态 - 优化硬件加速兼容性 */
+        .status-success::before {
+            content: '✓';
+            color: var(--success-color);
+            font-size: 14px;
+            font-weight: bold;
+            line-height: 1;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            /* 确保伪元素也使用硬件加速 */
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+        /* 错误状态 - 优化硬件加速兼容性 */
+        .status-error::before {
+            content: '✕';
+            color: var(--error-color);
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 1;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            /* 确保伪元素也使用硬件加速 */
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+        /* 警告状态 - 优化硬件加速兼容性 */
+        .status-warning::before {
+            content: '!';
+            color: var(--warning-color);
+            font-size: 14px;
+            font-weight: bold;
+            line-height: 1;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            /* 确保伪元素也使用硬件加速 */
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+        /* 状态动画类（分离出来，避免冲突） */
+
+
+
+        .animate-warning {
+            animation: warning-bounce 0.5s ease-out;
+        }
+
+        /* ========================================
+           动画定义
+        ======================================== */
+        .hidden {
+            display: none;
+        }
+
+
+
+
+
+
+
+
+
+        @keyframes warning-bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-4px); }
+            60% { transform: translateY(-2px); }
+        }
+
+
+
+
+
+        /* 高性能加载动画 */
+        @keyframes spin {
+            from {
+                transform: rotate(0deg) translateZ(0);
+            }
+            to {
+                transform: rotate(360deg) translateZ(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="status-container hidden">
+        <div id="statusIcon" class="status-icon hidden"></div>
+    </div>
+
+    <script>
+        /**
+         * 状态指示器类
+         * 负责管理状态显示和动画效果
+         */
+        class StatusIndicator {
+            constructor() {
+                this.statusIcon = document.getElementById('statusIcon');
+                this.statusContainer = document.querySelector('.status-container');
+                this.currentStatus = null;
+                this.hideTimeout = null;
+                this.animationTimeout = null; // 动画定时器
+
+                // 监听来自主进程的消息
+                if (typeof window !== 'undefined' && window.electronAPI) {
+                    window.electronAPI.onStatusUpdate(this.updateStatus.bind(this));
+                }
+            }
+
+            /**
+             * 更新状态显示（无抖动版）
+             * @param {string} status - 状态类型: loading, success, error, warning, hidden
+             * @param {boolean} autoHide - 是否自动隐藏
+             * @param {number} hideDelay - 隐藏延迟时间(ms)
+             */
+            updateStatus(status, autoHide = true, hideDelay = 2000) {
+                const startTime = performance.now();
+
+                // 清除之前的隐藏定时器
+                if (this.hideTimeout) {
+                    clearTimeout(this.hideTimeout);
+                    this.hideTimeout = null;
+                }
+
+                if (status === 'hidden') {
+                    this.hide();
+                    return;
+                }
+
+                // 使用requestAnimationFrame确保DOM操作在下一帧执行，避免抖动
+                requestAnimationFrame(() => {
+                    // 批量DOM操作，避免中间状态
+                    this.clearStatusAnimations();
+                    this.statusContainer.classList.remove('hidden');
+
+                    // 原子操作：一次性设置所有类名，避免中间状态
+                    this.statusIcon.className = `status-icon status-${status}`;
+                    this.statusIcon.innerHTML = '';
+                    this.currentStatus = status;
+
+                    // 延迟添加动画，确保状态已稳定
+                    requestAnimationFrame(() => {
+                        this.addStatusAnimation(status);
+                    });
+                });
+
+                // 设置自动隐藏
+                if (autoHide && status !== 'loading') {
+                    this.hideTimeout = setTimeout(() => {
+                        this.hide();
+                    }, hideDelay);
+                }
+
+                // 性能监控
+                const endTime = performance.now();
+                const updateTime = endTime - startTime;
+                console.log(`[状态指示器] 状态更新: ${status} (${updateTime.toFixed(2)}ms)`);
+
+                // 记录性能数据
+                if (window.statusIndicatorPerf) {
+                    window.statusIndicatorPerf.recordUpdate(status);
+                }
+
+                // 性能警告
+                if (updateTime > 10) {
+                    console.warn(`[性能警告] 状态更新耗时过长: ${updateTime.toFixed(2)}ms`);
+                }
+            }
+
+            /**
+             * 直接显示状态（高性能版）
+             * @param {string} status - 状态类型
+             */
+            showStatus(status) {
+                // 性能优化：批量DOM操作，减少重绘次数
+                const startTime = performance.now();
+
+                // 清除所有动画类和定时器
+                this.clearStatusAnimations();
+
+                // 批量更新DOM类，减少重绘
+                this.statusContainer.classList.remove('hidden');
+                this.statusIcon.className = `status-icon status-${status}`;
+
+                // 清空内容（对于loading状态，CSS会自动显示动画）
+                this.statusIcon.innerHTML = '';
+                this.currentStatus = status;
+
+                // 立即添加状态动画（如果需要）
+                this.addStatusAnimation(status);
+
+                // 性能监控
+                const endTime = performance.now();
+                if (endTime - startTime > 5) {
+                    console.warn(`[状态指示器] showStatus耗时: ${(endTime - startTime).toFixed(2)}ms`);
+                }
+            }
+
+
+
+            /**
+             * 添加状态特有的动画效果（简化版）
+             * @param {string} status - 状态类型
+             */
+            addStatusAnimation(status) {
+                // 只有warning状态需要动画，其他状态直接显示
+                switch (status) {
+                    case 'loading':
+                        console.log('[状态指示器] Loading状态显示，CSS旋转动画自动播放');
+                        break;
+                    case 'success':
+                        console.log('[状态指示器] 成功状态直接显示，无动画');
+                        break;
+                    case 'error':
+                        console.log('[状态指示器] 错误状态直接显示，无动画');
+                        break;
+                    case 'warning':
+                        if (!this.statusIcon.classList.contains('animate-warning')) {
+                            this.statusIcon.classList.add('animate-warning');
+                            console.log('[状态指示器] 添加警告动画');
+
+                            setTimeout(() => {
+                                this.statusIcon.classList.remove('animate-warning');
+                            }, 500);
+                        }
+                        break;
+                }
+            }
+
+            /**
+             * 清除所有状态动画
+             */
+            clearStatusAnimations() {
+                // 移除所有动画类
+                this.statusIcon.classList.remove('animate-warning');
+
+                // 清除可能存在的动画定时器
+                if (this.animationTimeout) {
+                    clearTimeout(this.animationTimeout);
+                    this.animationTimeout = null;
+                }
+            }
+
+
+
+            /**
+             * 隐藏状态指示器（简化版）
+             */
+            hide() {
+                if (!this.statusIcon.classList.contains('hidden')) {
+                    // 清除所有动画状态
+                    this.clearStatusAnimations();
+
+                    // 直接隐藏容器和图标
+                    this.statusContainer.classList.add('hidden');
+                    this.statusIcon.classList.add('hidden');
+                    this.currentStatus = null;
+                    this.closeWindow();
+                }
+            }
+
+            /**
+             * 显示状态指示器（简化版）
+             */
+            show() {
+                if (this.currentStatus) {
+                    this.statusContainer.classList.remove('hidden');
+                    this.statusIcon.classList.remove('hidden');
+                }
+            }
+
+            /**
+             * 获取当前状态
+             * @returns {string|null} 当前状态
+             */
+            getCurrentStatus() {
+                return this.currentStatus;
+            }
+
+            /**
+             * 关闭窗口
+             */
+            closeWindow() {
+                try {
+                    console.log('[状态指示器] 尝试关闭窗口');
+
+                    // 发送关闭信号给主进程
+                    if (window.parent && window.parent !== window) {
+                        try {
+                            window.parent.postMessage({ type: 'close-status-indicator' }, '*');
+                        } catch (e) {
+                            console.warn('[状态指示器] 无法发送关闭信号');
+                        }
+                    }
+
+                    // 尝试直接关闭
+                    if (typeof window.close === 'function') {
+                        window.close();
+                    }
+                } catch (error) {
+                    console.error('[状态指示器] 关闭窗口失败:', error);
+                }
+            }
+
+
+
+
+
+
+
+
+        }
+
+        // ========================================
+        // 初始化和事件监听
+        // ========================================
+
+        // 创建状态指示器实例
+        const statusIndicator = new StatusIndicator();
+        window.statusIndicator = statusIndicator;
+
+        // 性能监控对象
+        window.statusIndicatorPerf = {
+            pageLoadStart: performance.now(),
+            firstUpdateTime: null,
+            updateCount: 0,
+
+            recordUpdate: (status) => {
+                window.statusIndicatorPerf.updateCount++;
+                if (!window.statusIndicatorPerf.firstUpdateTime) {
+                    window.statusIndicatorPerf.firstUpdateTime = performance.now();
+                    const loadToFirstUpdate = window.statusIndicatorPerf.firstUpdateTime - window.statusIndicatorPerf.pageLoadStart;
+                    console.log(`[性能监控] 页面加载到首次更新: ${loadToFirstUpdate.toFixed(2)}ms`);
+                }
+                console.log(`[性能监控] 状态更新 #${window.statusIndicatorPerf.updateCount}: ${status}`);
+            }
+        };
+
+        // 页面加载完成后等待外部调用
+        window.addEventListener('load', () => {
+            const loadTime = performance.now() - window.statusIndicatorPerf.pageLoadStart;
+            console.log(`[状态指示器] 页面加载完成 (${loadTime.toFixed(2)}ms)，等待状态更新`);
+        });
+
+        // 监听跨窗口消息（保留作为备用通信方式）
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'status-update') {
+                const { status, autoHide, hideDelay } = event.data;
+                statusIndicator.updateStatus(status, autoHide, hideDelay);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,2177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小窗翻译</title>
+    <style>
+        /* 国旗emoji字体支持 */
+        @font-face {
+            font-family: 'Twemoji Country Flags';
+            unicode-range: U+1F1E6-1F1FF, U+1F3F4, U+E0062-E0063, U+E0065, U+E0067, U+E006C, U+E006E, U+E0073-E0074, U+E0077, U+E007F;
+            src: url('https://cdn.jsdelivr.net/gh/beyondkmp/country-flag-emoji-polyfill@master/font/TwemojiCountryFlags.woff2') format('woff2');
+            font-display: swap;
+        }
+
+        :root {
+            /* Light theme colors */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #f0f1f3;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b7280;
+            --text-tertiary: #9ca3af;
+            --border-color: #e5e7eb;
+            --border-color-light: #f0f1f3;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --content-bg: #ffffff;
+            --frame-bg: #f8f9fa;
+
+            /* Toast通知变量 */
+            --toast-bg: #ffffff;
+            --toast-border: #e5e7eb;
+            --toast-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --toast-success-bg: rgba(34, 197, 94, 0.1);
+            --toast-success-color: #16a34a;
+            --toast-success-border: rgba(34, 197, 94, 0.4);
+            --toast-error-bg: rgba(239, 68, 68, 0.1);
+            --toast-error-color: #dc2626;
+            --toast-error-border: rgba(239, 68, 68, 0.4);
+            --toast-warning-bg: rgba(251, 191, 36, 0.1);
+            --toast-warning-color: #d97706;
+            --toast-warning-border: rgba(251, 191, 36, 0.4);
+            --toast-info-bg: rgba(59, 130, 246, 0.1);
+            --toast-info-color: #2563eb;
+            --toast-info-border: rgba(59, 130, 246, 0.4);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #303133;
+            --bg-secondary: #282a2d;
+            --bg-tertiary: #2d2d2d;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-tertiary: #6b7280;
+            --border-color: #3d3d3d;
+            --border-color-light: #2d2d2d;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            --content-bg: #282a2d;
+            --frame-bg: #303133;
+
+            /* Toast通知变量 - 暗色主题 */
+            --toast-bg: #303133;
+            --toast-border: #4a4c4f;
+            --toast-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--frame-bg, var(--bg-primary));
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.5;
+            overflow-y: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top toolbar */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--frame-bg, var(--bg-primary));
+            gap: 8px;
+            -webkit-app-region: drag;
+        }
+
+        .toolbar-logo {
+            width: 20px;
+            height: 20px;
+            -webkit-app-region: no-drag;
+        }
+
+        .toolbar-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toolbar-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            -webkit-app-region: no-drag;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .toolbar-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .toolbar-btn.pinned {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+        }
+
+        .toolbar-btn.pinned:hover {
+            background: rgba(59, 130, 246, 0.25);
+            color: #2563eb;
+        }
+
+        [data-theme="dark"] .toolbar-btn.pinned {
+            background: rgba(100, 181, 246, 0.2);
+            color: #64b5f6;
+        }
+
+        [data-theme="dark"] .toolbar-btn.pinned:hover {
+            background: rgba(100, 181, 246, 0.3);
+            color: #90caf9;
+        }
+
+        /* Source text section */
+        .source-section {
+            padding: 12px 16px;
+            padding-bottom: 50px;
+            /* Extra padding for translate button */
+            background: var(--content-bg, var(--bg-secondary));
+            margin: 0 10px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            position: relative;
+            /* For translate button positioning */
+        }
+
+        .source-text {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            max-height: 80px;
+            overflow-y: auto;
+            word-break: break-word;
+            min-height: 40px;
+            width: 100%;
+            border: none;
+            background: transparent;
+            resize: none;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .source-text::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .source-actions {
+            position: absolute;
+            bottom: 10px;
+            left: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .source-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            opacity: 0.7;
+        }
+
+        .source-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            opacity: 1;
+        }
+
+        .source-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+
+        /* Controls section */
+        .controls-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 8px;
+            background: var(--content-bg, var(--bg-secondary));
+            margin: 8px 10px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            gap: 8px;
+            min-height: 44px;
+        }
+
+        .lang-selector {
+            display: flex;
+            align-items: center;
+            gap: 0px;
+        }
+
+        .lang-btn {
+            height: 28px;
+            padding: 0 8px;
+            background: #e6f3ff;
+            color: #1e40af;
+            border: 1px solid #60a5fa;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s ease;
+            width: 105px;
+            justify-content: center;
+        }
+
+        .lang-btn:hover {
+            background: #dbeafe;
+            border-color: #3b82f6;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+        }
+
+        [data-theme="dark"] .lang-btn {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        [data-theme="dark"] .lang-btn:hover {
+            background: rgba(59, 130, 246, 0.25);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+
+        .lang-emoji {
+            font-family: 'Twemoji Country Flags', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+            font-size: 14px;
+        }
+
+        .swap-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            opacity: 0.7;
+        }
+
+        .swap-btn:hover {
+            color: var(--text-primary);
+            opacity: 1;
+        }
+
+        .swap-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .service-icons {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        .service-icon {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            padding: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .service-icon:hover {
+            background: var(--bg-tertiary);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        }
+
+        .service-icon.selected {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        [data-theme="dark"] .service-icon.selected {
+            background: rgba(100, 181, 246, 0.15);
+            border-color: rgba(100, 181, 246, 0.3);
+        }
+
+        .service-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .service-icon-svg {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .service-icon-svg svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .result-service-icon-svg {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .result-service-icon-svg svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Results section */
+        .results-section {
+            flex: 0 0 auto;
+            overflow-y: visible;
+            padding: 0 10px 6px 10px;
+            background: var(--frame-bg, var(--bg-primary));
+        }
+
+        .result-card {
+            background: var(--content-bg, var(--bg-secondary));
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: all 0.15s ease;
+        }
+
+        .result-card:hover {
+            border-color: var(--accent-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            cursor: pointer;
+            gap: 8px;
+        }
+
+        .result-service-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .result-service-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .result-service-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .result-status {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .result-action-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .result-action-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .result-action-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .expand-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .result-card.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .result-content {
+            padding: 0 12px 12px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            word-break: break-word;
+            display: none;
+        }
+
+        .result-card.expanded .result-content {
+            display: block;
+        }
+
+        /* 占位符样式 - 与输入区域保持一致 */
+        .result-placeholder {
+            color: var(--text-tertiary);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .result-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-tertiary);
+            text-align: center;
+            padding: 24px;
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* Language menu */
+        .lang-menu {
+            position: fixed;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            max-height: 280px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            min-width: 150px;
+        }
+
+        .lang-menu.show {
+            display: block;
+        }
+
+        .lang-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.15s ease;
+        }
+
+        .lang-option:hover {
+            background: var(--bg-secondary);
+        }
+
+        .lang-option.selected {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-color);
+        }
+
+        .lang-emoji {
+            font-size: 16px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-tertiary);
+        }
+
+        /* Translate button positioned at bottom-right of input area - same style as source-btn */
+        .source-translate-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 12px;
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            opacity: 0.7;
+        }
+
+        .source-translate-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            opacity: 1;
+        }
+
+        .source-translate-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .source-translate-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Toast通知样式 - 与主插件保持一致 */
+        .toast-container {
+            position: fixed;
+            top: 40px;
+            right: 10px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+            max-width: min(300px, calc(100vw - 20px));
+        }
+
+        .toast {
+            position: relative;
+            background: var(--toast-bg);
+            color: #374151;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1.5px solid var(--toast-border);
+            box-shadow: var(--toast-shadow);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            max-width: 100%;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+
+        /* Toast毛玻璃蒙版 */
+        .toast::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            backdrop-filter: blur(50px);
+            -webkit-backdrop-filter: blur(50px);
+            z-index: -1;
+        }
+
+        [data-theme="dark"] .toast {
+            color: #f3f4f6;
+        }
+
+        [data-theme="dark"] .toast::before {
+            background: rgba(48, 49, 51, 0.9);
+        }
+
+        .toast.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            background: var(--toast-success-bg);
+            color: var(--toast-success-color);
+            border-color: var(--toast-success-border);
+        }
+
+        .toast.error {
+            background: var(--toast-error-bg);
+            color: var(--toast-error-color);
+            border-color: var(--toast-error-border);
+        }
+
+        .toast.info {
+            background: var(--toast-info-bg);
+            color: var(--toast-info-color);
+            border-color: var(--toast-info-border);
+        }
+
+        .toast.warning {
+            background: var(--toast-warning-bg);
+            color: var(--toast-warning-color);
+            border-color: var(--toast-warning-border);
+        }
+
+        .toast.hide {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="toolbar-logo">
+            <img src="logo.png" alt="OCR Pro">
+        </div>
+        <div class="toolbar-actions">
+            <button id="pin-btn" class="toolbar-btn" title="置顶窗口">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 17v5" />
+                    <path
+                        d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                </svg>
+            </button>
+            <button id="settings-btn" class="toolbar-btn" title="设置">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+            </button>
+            <button id="close-btn" class="toolbar-btn" title="关闭">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Source text section -->
+    <div class="source-section">
+        <textarea id="source-text" class="source-text" placeholder="请输入要翻译的文本......"></textarea>
+        <div class="source-actions">
+            <button id="source-tts-btn" class="source-btn" title="朗读">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5,6 9,2 9,2 15,6 15,11 19,11 5" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                </svg>
+            </button>
+            <button id="source-copy-btn" class="source-btn" title="复制原文">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect width="14" height="14" x="8" y="8" rx="2" />
+                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                </svg>
+            </button>
+        </div>
+        <!-- Translate button in input area (bottom-right) -->
+        <button id="translate-btn" class="source-translate-btn" title="翻译">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m5 8 6 6" />
+                <path d="m4 14 6-6 2-3" />
+                <path d="M2 5h12" />
+                <path d="M7 2h1" />
+                <path d="m22 22-5-10-5 10" />
+                <path d="M14 18h6" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Controls section -->
+    <div class="controls-section">
+        <div class="lang-selector">
+            <button id="source-lang-btn" class="lang-btn">
+                <span class="lang-emoji">�</span>
+                <span id="source-lang-text">英语</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6" />
+                </svg>
+            </button>
+            <button id="swap-lang-btn" class="swap-btn" title="交换语言">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3L4 7l4 4" />
+                    <path d="M4 7h16" />
+                    <path d="M16 21l4-4-4-4" />
+                    <path d="M20 17H4" />
+                </svg>
+            </button>
+            <button id="target-lang-btn" class="lang-btn">
+                <span class="lang-emoji">🇨🇳</span>
+                <span id="target-lang-text">中文(简)</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6" />
+                </svg>
+            </button>
+        </div>
+        <div id="service-icons" class="service-icons">
+            <!-- 默认占位图标，避免加载时空白 -->
+            <div class="service-icon placeholder-icon" style="opacity: 0.3;">
+                <div class="service-icon-svg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                </div>
+            </div>
+            <div class="service-icon placeholder-icon" style="opacity: 0.3;">
+                <div class="service-icon-svg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                </div>
+            </div>
+            <div class="service-icon placeholder-icon" style="opacity: 0.3;">
+                <div class="service-icon-svg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                </div>
+            </div>
+            <div class="service-icon placeholder-icon" style="opacity: 0.3;">
+                <div class="service-icon-svg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results section -->
+    <div id="results-section" class="results-section">
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m5 8 6 6" />
+                <path d="m4 14 6-6 2-3" />
+                <path d="M2 5h12" />
+                <path d="M7 2h1" />
+                <path d="m22 22-5-10-5 10" />
+                <path d="M14 18h6" />
+            </svg>
+            <span>翻译结果将显示在这里</span>
+        </div>
+    </div>
+
+    <!-- Language menus -->
+    <div id="source-lang-menu" class="lang-menu"></div>
+    <div id="target-lang-menu" class="lang-menu"></div>
+
+    <!-- Toast通知容器 -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        // Mini Translate Window Logic
+        (function () {
+            // State
+            let sourceText = '';
+            let sourceLang = { code: 'en-us', name: '英语', emoji: '🇬🇧' };
+            let targetLang = { code: 'zh-cn', name: '中文(简)', emoji: '🇨🇳' };
+            let selectedModels = [];
+            let allModels = [];  // 所有翻译模型（最多4个）
+            let translateResults = {};
+            window.translateResults = translateResults;  // Expose for parent window access
+            let isTranslating = false;
+            let isPinned = false;
+
+            // 小窗翻译配置
+            let miniTranslateConfig = {
+                autoTranslateOnBlur: false,   // 结束编辑后自动翻译
+                instantAutoTranslate: false,  // 立刻自动翻译
+                instantAutoTranslateDelay: 0.5, // 立刻自动翻译延迟时间（秒）
+                autoCloseOnCopy: false,  // 复制后自动关闭
+                copyFirstModel: false,    // 默认复制模型一结果
+                enableDoubleClickRightCopy: true  // 双击右键复制功能
+            };
+
+            // 立刻自动翻译防抖定时器
+            let instantTranslateTimer = null;
+
+            // Language list (no auto-detect option - real-time detection updates selectors directly)
+            const languages = [
+                { code: 'zh-cn', name: '中文(简)', emoji: '🇨🇳' },
+                { code: 'zh-tw', name: '中文(繁)', emoji: '🇨🇳' },
+                { code: 'en-us', name: '英语', emoji: '🇬🇧' },
+                { code: 'ja', name: '日语', emoji: '🇯🇵' },
+                { code: 'ko', name: '韩语', emoji: '🇰🇷' },
+                { code: 'fr', name: '法语', emoji: '🇫🇷' },
+                { code: 'de', name: '德语', emoji: '🇩🇪' },
+                { code: 'es', name: '西班牙语', emoji: '🇪🇸' },
+                { code: 'ru', name: '俄语', emoji: '🇷🇺' },
+                { code: 'pt', name: '葡萄牙语', emoji: '🇵🇹' },
+                { code: 'it', name: '意大利语', emoji: '🇮🇹' },
+                { code: 'ar', name: '阿拉伯语', emoji: '🇸🇦' },
+                { code: 'th', name: '泰语', emoji: '🇹🇭' },
+                { code: 'vi', name: '越南语', emoji: '🇻🇳' }
+            ];
+
+            // DOM elements
+            const sourceTextEl = document.getElementById('source-text');
+            const sourceLangBtn = document.getElementById('source-lang-btn');
+            const targetLangBtn = document.getElementById('target-lang-btn');
+            const sourceLangText = document.getElementById('source-lang-text');
+            const targetLangText = document.getElementById('target-lang-text');
+            const swapLangBtn = document.getElementById('swap-lang-btn');
+            const sourceLangMenu = document.getElementById('source-lang-menu');
+            const targetLangMenu = document.getElementById('target-lang-menu');
+            const serviceIconsEl = document.getElementById('service-icons');
+            const resultsSection = document.getElementById('results-section');
+            const translateBtn = document.getElementById('translate-btn');
+            const copyFeedback = document.getElementById('copy-feedback');
+            const closeBtn = document.getElementById('close-btn');
+            const pinBtn = document.getElementById('pin-btn');
+            const settingsBtn = document.getElementById('settings-btn');
+            const sourceTtsBtn = document.getElementById('source-tts-btn');
+            const sourceCopyBtn = document.getElementById('source-copy-btn');
+
+            // Initialize
+            function init() {
+                setupTheme();
+                buildLanguageMenus();
+                updateLanguageDisplays(); // 确保初始化时语言显示与状态一致
+                bindEvents();
+
+                // 先加载缓存的模型数据作为占位显示（快速呈现，无延迟）
+                loadCachedModels();
+
+                // 尝试获取初始数据（可能通过多种途径注入）
+                tryGetInitialData();
+
+                // Or receive via postMessage (后续更新用)
+                window.addEventListener('message', handleMessage);
+
+                // 自动聚焦输入框
+                sourceTextEl.focus();
+            }
+
+            // 从 localStorage 加载缓存的模型数据
+            function loadCachedModels() {
+                try {
+                    const cached = localStorage.getItem('miniTranslate_cachedModels');
+                    if (cached) {
+                        const cachedModels = JSON.parse(cached);
+                        if (Array.isArray(cachedModels) && cachedModels.length > 0) {
+                            allModels = cachedModels;
+                            selectedModels = allModels.filter(m => m.isSelected);
+                            renderServiceIcons();
+                            // 立即渲染选中模型的输出区域
+                            renderResults();
+                        }
+                    }
+                } catch (e) {
+                    console.warn('加载缓存模型失败:', e);
+                }
+            }
+
+            // 尝试获取初始数据，支持延迟重试
+            function tryGetInitialData(retryCount = 0) {
+                // 如果已经接收过数据，不再重复处理
+                if (window.__miniTranslateDataReceived) {
+                    return;
+                }
+
+                // 优先检查注入的初始数据（通过 executeJavaScript 注入）
+                if (window.__miniTranslateInitData) {
+                    window.__miniTranslateDataReceived = true;
+                    handleInitialData(window.__miniTranslateInitData);
+                    window.__miniTranslateInitData = null;
+                    return;
+                }
+
+                // 备用方案：从 parent window 获取
+                if (window.opener && window.opener.miniTranslateData) {
+                    window.__miniTranslateDataReceived = true;
+                    handleInitialData(window.opener.miniTranslateData);
+                    return;
+                }
+
+                // 如果数据还没准备好，短暂等待后重试（最多重试30次，共150ms，每5ms一次）
+                if (retryCount < 30) {
+                    setTimeout(() => tryGetInitialData(retryCount + 1), 5);
+                }
+            }
+
+            function setupTheme() {
+                // Get theme from main app
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            }
+
+            function buildLanguageMenus() {
+                const buildMenu = (menu, type) => {
+                    menu.innerHTML = languages.map(lang => `
+                        <div class="lang-option ${lang.code === (type === 'source' ? sourceLang.code : targetLang.code) ? 'selected' : ''}" 
+                             data-code="${lang.code}" data-name="${lang.name}" data-emoji="${lang.emoji}">
+                            <span class="lang-emoji">${lang.emoji}</span>
+                            <span>${lang.name}</span>
+                        </div>
+                    `).join('');
+                };
+                buildMenu(sourceLangMenu, 'source');
+                buildMenu(targetLangMenu, 'target');
+            }
+
+            function bindEvents() {
+                // 保存当前窗口位置的辅助函数 - 直接使用 utools.dbStorage
+                function saveWindowPosition() {
+                    try {
+                        // 使用 screenX/screenY 获取窗口位置
+                        const x = window.screenX || window.screenLeft;
+                        const y = window.screenY || window.screenTop;
+                        if (typeof x === 'number' && typeof y === 'number' && !isNaN(x) && !isNaN(y)) {
+                            // 直接使用 utools.dbStorage 保存（在子窗口中也可用）
+                            if (typeof utools !== 'undefined' && utools.dbStorage) {
+                                utools.dbStorage.setItem('miniTranslatePosition', { x, y });
+                            }
+                        }
+                    } catch (e) {
+                        // 静默处理保存失败
+                    }
+                }
+
+                // 拖动结束后保存位置（通过工具栏 mouseup 事件）
+                const toolbar = document.querySelector('.toolbar');
+                if (toolbar) {
+                    toolbar.addEventListener('mouseup', () => {
+                        // 短暂延迟确保窗口位置已更新
+                        setTimeout(saveWindowPosition, 100);
+                    });
+                }
+
+                // Close button - 关闭前保存位置
+                closeBtn.addEventListener('click', () => {
+                    saveWindowPosition();
+                    window.close();
+                });
+
+                // Pin button - 置顶切换
+                pinBtn.addEventListener('click', () => {
+                    isPinned = !isPinned;
+                    // 更新按钮样式
+                    if (isPinned) {
+                        pinBtn.classList.add('pinned');
+                    } else {
+                        pinBtn.classList.remove('pinned');
+                    }
+                    // 通知父窗口更新置顶状态
+                    sendToParent({ type: 'pin', isPinned: isPinned });
+                });
+
+                // Settings button - 打开翻译默认模型设置
+                settingsBtn.addEventListener('click', () => {
+                    // 保存位置
+                    saveWindowPosition();
+                    // 通知父窗口打开设置页面（父窗口会处理显示主窗口和导航）
+                    sendToParent({ type: 'openSettings', target: 'translate-model' });
+                });
+
+                // 窗口失焦自动关闭 - 非置顶状态下，关闭前保存位置
+                window.addEventListener('blur', () => {
+                    if (!isPinned) {
+                        saveWindowPosition();
+                        window.close();
+                    }
+                });
+
+                // Source TTS
+                sourceTtsBtn.addEventListener('click', () => {
+                    if (sourceText) {
+                        sendToParent({ type: 'tts', text: sourceText, lang: sourceLang.code });
+                    }
+                });
+
+                // Source copy
+                sourceCopyBtn.addEventListener('click', () => {
+                    if (sourceText) {
+                        copyToClipboard(sourceText);
+                    }
+                });
+
+                // Swap languages
+                swapLangBtn.addEventListener('click', () => {
+                    if (sourceLang.code !== 'auto') {
+                        const temp = { ...sourceLang };
+                        sourceLang = { ...targetLang };
+                        targetLang = temp;
+                        updateLanguageDisplays();
+                        // Sync with main app
+                        sendToParent({ type: 'langChange', sourceLang, targetLang });
+                    }
+                });
+
+                // Language selectors
+                sourceLangBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleMenu(sourceLangMenu, sourceLangBtn);
+                });
+
+                targetLangBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleMenu(targetLangMenu, targetLangBtn);
+                });
+
+                // Language menu options
+                sourceLangMenu.addEventListener('click', (e) => {
+                    const option = e.target.closest('.lang-option');
+                    if (option) {
+                        sourceLang = {
+                            code: option.dataset.code,
+                            name: option.dataset.name,
+                            emoji: option.dataset.emoji
+                        };
+                        updateLanguageDisplays();
+                        hideMenus();
+                        sendToParent({ type: 'langChange', sourceLang, targetLang });
+                    }
+                });
+
+                targetLangMenu.addEventListener('click', (e) => {
+                    const option = e.target.closest('.lang-option');
+                    if (option) {
+                        targetLang = {
+                            code: option.dataset.code,
+                            name: option.dataset.name,
+                            emoji: option.dataset.emoji
+                        };
+                        updateLanguageDisplays();
+                        hideMenus();
+                        sendToParent({ type: 'langChange', sourceLang, targetLang });
+                    }
+                });
+
+                // Close menus on click outside
+                document.addEventListener('click', () => {
+                    hideMenus();
+                });
+
+                // Translate button
+                translateBtn.addEventListener('click', () => {
+                    // 如果输入框为空，尝试读取剪贴板
+                    if (!sourceText && !sourceTextEl.value.trim()) {
+                        try {
+                            const { clipboard } = require('electron');
+                            const clipText = clipboard.readText();
+                            if (clipText && clipText.trim()) {
+                                setSourceText(clipText.trim());
+                            }
+                        } catch (e) {
+                            console.warn('读取剪贴板失败:', e);
+                        }
+                    }
+
+                    if (sourceText && !isTranslating) {
+                        performTranslation();
+                    }
+                });
+
+                // Source input event - 同步输入框内容到sourceText变量并实时检测语言
+                let detectDebounceTimer = null;
+                let isComposing = false; // IME输入法组合状态（用于检测拼音输入中）
+
+                // 监听输入法组合事件（处理拼音、日语等输入法）
+                sourceTextEl.addEventListener('compositionstart', () => {
+                    isComposing = true;
+                    // 输入法开始组合时，清除自动翻译定时器
+                    clearTimeout(instantTranslateTimer);
+                });
+
+                sourceTextEl.addEventListener('compositionend', () => {
+                    isComposing = false;
+                    // 输入法组合结束后，如果启用了立刻自动翻译，重新设置定时器
+                    if (miniTranslateConfig.instantAutoTranslate && sourceText && sourceText.trim() && !isTranslating) {
+                        clearTimeout(instantTranslateTimer);
+                        // 使用用户配置的延迟时间（默认0.5秒）
+                        const delayMs = (miniTranslateConfig.instantAutoTranslateDelay ?? 0.5) * 1000;
+                        instantTranslateTimer = setTimeout(() => {
+                            if (sourceText && sourceText.trim() && !isTranslating && !isComposing) {
+                                performTranslation();
+                            }
+                        }, delayMs);
+                    }
+                });
+
+                sourceTextEl.addEventListener('input', () => {
+                    sourceText = sourceTextEl.value;
+
+                    // 使用防抖进行实时语言检测
+                    clearTimeout(detectDebounceTimer);
+                    detectDebounceTimer = setTimeout(() => {
+                        if (sourceText && sourceText.length > 1) {
+                            detectLanguageFromText(sourceText);
+                        }
+                    }, 300);
+
+                    // 立刻自动翻译：停止输入后自动触发翻译
+                    // 仅在非输入法组合状态下触发
+                    if (miniTranslateConfig.instantAutoTranslate && !isComposing) {
+                        clearTimeout(instantTranslateTimer);
+                        // 使用用户配置的延迟时间（默认0.5秒）
+                        const delayMs = (miniTranslateConfig.instantAutoTranslateDelay ?? 0.5) * 1000;
+                        instantTranslateTimer = setTimeout(() => {
+                            if (sourceText && sourceText.trim() && !isTranslating && !isComposing) {
+                                performTranslation();
+                            }
+                        }, delayMs);
+                    }
+                });
+
+                // Enter key in source textarea to translate (无需Ctrl，Shift+Enter用于换行)
+                sourceTextEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (sourceText && !isTranslating) {
+                            performTranslation();
+                        }
+                    }
+                });
+
+                // 输入框失去焦点时触发翻译（仅在配置启用时）
+                sourceTextEl.addEventListener('blur', () => {
+                    if (miniTranslateConfig.autoTranslateOnBlur && sourceText && sourceText.trim() && !isTranslating) {
+                        performTranslation();
+                    }
+                });
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        window.close();
+                    }
+
+                    // Ctrl+C / Cmd+C 快捷键复制翻译结果
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                        // 如果有选中文本，使用系统默认复制行为
+                        const selection = window.getSelection();
+                        if (selection && selection.toString().trim()) {
+                            return; // 让系统处理选中文本的复制
+                        }
+
+                        // 没有选中文本时，复制翻译结果
+                        e.preventDefault();
+                        handleCopyShortcut();
+                    }
+                });
+
+                // 双击右键复制功能 - 支持小窗翻译结果区域
+                setupDoubleClickRightCopy();
+            }
+
+            // 设置双击右键复制功能
+            function setupDoubleClickRightCopy() {
+                let rightClickCount = 0;
+                let lastRightClickTime = 0;
+
+                document.addEventListener('contextmenu', (e) => {
+                    // 检查是否在结果卡片区域内
+                    const resultCard = e.target.closest('.result-card');
+                    const resultContent = e.target.closest('.result-content');
+
+                    if (!resultCard && !resultContent) {
+                        return; // 不在结果区域，使用系统默认右键菜单
+                    }
+
+                    e.preventDefault(); // 阻止默认右键菜单
+
+                    const currentTime = Date.now();
+                    const timeDiff = currentTime - lastRightClickTime;
+
+                    // 如果两次右键点击间隔小于500ms，认为是双击右键
+                    if (timeDiff < 500 && rightClickCount === 1) {
+                        // 重置计数器
+                        rightClickCount = 0;
+                        lastRightClickTime = 0;
+
+                        // 检查配置是否启用了此功能
+                        if (!miniTranslateConfig.enableDoubleClickRightCopy) {
+                            return; // 如果功能被禁用，不执行复制
+                        }
+
+                        // 获取对应的翻译结果并复制
+                        const card = resultContent ? resultContent.closest('.result-card') : resultCard;
+                        if (card) {
+                            const key = card.dataset.key;
+                            const result = translateResults[key];
+                            if (result && result.text) {
+                                copyToClipboard(result.text);
+                                showCopyFeedbackOnElement(card);
+
+                                // 如果配置了复制后自动关闭
+                                if (miniTranslateConfig.autoCloseOnCopy) {
+                                    setTimeout(() => {
+                                        window.close();
+                                    }, 300);
+                                }
+                            }
+                        }
+                    } else {
+                        // 第一次右键点击或超时重置
+                        rightClickCount = 1;
+                        lastRightClickTime = currentTime;
+
+                        // 设置超时，如果500ms内没有第二次右键点击，重置计数器
+                        setTimeout(() => {
+                            if (rightClickCount === 1 && (Date.now() - lastRightClickTime) >= 500) {
+                                rightClickCount = 0;
+                                lastRightClickTime = 0;
+                            }
+                        }, 500);
+                    }
+                });
+            }
+
+            // 显示复制反馈效果（在元素上）
+            function showCopyFeedbackOnElement(element) {
+                // 保存原始背景色
+                const originalBg = element.style.backgroundColor;
+                const originalTransition = element.style.transition;
+
+                // 设置一个短暂的背景色变化作为反馈
+                element.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
+                element.style.transition = 'background-color 0.2s ease';
+
+                // 200ms后恢复原始背景色
+                setTimeout(() => {
+                    element.style.backgroundColor = originalBg;
+                    setTimeout(() => {
+                        element.style.transition = originalTransition;
+                    }, 200);
+                }, 200);
+            }
+
+            // 处理快捷键复制翻译结果
+            function handleCopyShortcut() {
+                let textToCopy = null;
+
+                if (miniTranslateConfig.copyFirstModel && selectedModels.length > 0) {
+                    // 默认复制模型一结果
+                    const firstModel = selectedModels[0];
+                    const firstKey = `${firstModel.service}_${firstModel.model}`;
+                    const firstResult = translateResults[firstKey];
+                    if (firstResult && firstResult.status === 'completed' && firstResult.text) {
+                        textToCopy = firstResult.text;
+                    }
+                } else {
+                    // 复制第一个有结果的模型
+                    for (const model of selectedModels) {
+                        const key = `${model.service}_${model.model}`;
+                        const result = translateResults[key];
+                        if (result && result.status === 'completed' && result.text) {
+                            textToCopy = result.text;
+                            break;
+                        }
+                    }
+                }
+
+                if (textToCopy) {
+                    copyToClipboard(textToCopy);
+
+                    // 如果配置了复制后自动关闭
+                    if (miniTranslateConfig.autoCloseOnCopy) {
+                        setTimeout(() => {
+                            window.close();
+                        }, 300); // 稍微延迟，让用户看到复制成功提示
+                    }
+                }
+            }
+
+            function toggleMenu(menu, btn) {
+                const isOpen = menu.classList.contains('show');
+                hideMenus();
+                if (!isOpen) {
+                    const rect = btn.getBoundingClientRect();
+                    menu.style.top = rect.bottom + 4 + 'px';
+                    menu.style.left = rect.left + 'px';
+                    menu.classList.add('show');
+                }
+            }
+
+            function hideMenus() {
+                sourceLangMenu.classList.remove('show');
+                targetLangMenu.classList.remove('show');
+            }
+
+            function updateLanguageDisplays() {
+                sourceLangBtn.querySelector('.lang-emoji').textContent = sourceLang.emoji;
+                // 兼容 name 和 label 两种属性名
+                sourceLangText.textContent = sourceLang.name || sourceLang.label || '';
+                targetLangBtn.querySelector('.lang-emoji').textContent = targetLang.emoji;
+                targetLangText.textContent = targetLang.name || targetLang.label || '';
+                buildLanguageMenus();
+            }
+
+            function setSourceText(text) {
+                sourceText = text;
+                sourceTextEl.value = text; // 使用.value而不是.textContent因为是textarea
+            }
+
+            function setDetectedLanguage(lang) {
+                if (lang) {
+                    detectedLangEl.textContent = lang;
+                    detectedLangEl.style.display = 'inline-flex';
+                } else {
+                    detectedLangEl.style.display = 'none';
+                }
+            }
+
+            // 实时语言检测函数
+            function detectLanguageFromText(text) {
+                if (!text || text.length < 2) return;
+
+                // Unicode范围检测
+                const counts = { zh: 0, ja: 0, ko: 0, ru: 0, ar: 0, latin: 0 };
+                const sampleText = text.substring(0, 200);
+
+                for (let i = 0; i < sampleText.length; i++) {
+                    const char = sampleText.charCodeAt(i);
+                    if ((char >= 0x4e00 && char <= 0x9fff) || (char >= 0x3400 && char <= 0x4dbf)) {
+                        counts.zh++;
+                    } else if ((char >= 0x3040 && char <= 0x309f) || (char >= 0x30a0 && char <= 0x30ff)) {
+                        counts.ja++;
+                    } else if (char >= 0xac00 && char <= 0xd7af) {
+                        counts.ko++;
+                    } else if (char >= 0x0400 && char <= 0x04ff) {
+                        counts.ru++;
+                    } else if (char >= 0x0600 && char <= 0x06ff) {
+                        counts.ar++;
+                    } else if ((char >= 0x0041 && char <= 0x005a) || (char >= 0x0061 && char <= 0x007a)) {
+                        counts.latin++;
+                    }
+                }
+
+                const maxCount = Math.max(...Object.values(counts));
+                if (maxCount === 0) return;
+
+                const maxType = Object.keys(counts).find(key => counts[key] === maxCount);
+                let newSourceLang = null;
+                let newTargetLang = null;
+                let detectedName = null;
+
+                // 根据检测结果设置语言
+                if (maxType === 'zh') {
+                    newSourceLang = { code: 'zh-cn', name: '中文 (简)', emoji: '🇨🇳' };
+                    newTargetLang = { code: 'en-us', name: '英语', emoji: '🇬🇧' };
+                    detectedName = '中文';
+                } else if (maxType === 'ja') {
+                    newSourceLang = { code: 'ja-jp', name: '日语', emoji: '🇯🇵' };
+                    newTargetLang = { code: 'zh-cn', name: '中文 (简)', emoji: '🇨🇳' };
+                    detectedName = '日语';
+                } else if (maxType === 'ko') {
+                    newSourceLang = { code: 'ko-kr', name: '韩语', emoji: '🇰🇷' };
+                    newTargetLang = { code: 'zh-cn', name: '中文 (简)', emoji: '🇨🇳' };
+                    detectedName = '韩语';
+                } else if (maxType === 'latin') {
+                    newSourceLang = { code: 'en-us', name: '英语', emoji: '🇬🇧' };
+                    newTargetLang = { code: 'zh-cn', name: '中文 (简)', emoji: '🇨🇳' };
+                    detectedName = '英语';
+                } else if (maxType === 'ru') {
+                    newSourceLang = { code: 'ru-ru', name: '俄语', emoji: '🇷🇺' };
+                    newTargetLang = { code: 'zh-cn', name: '中文 (简)', emoji: '🇨🇳' };
+                    detectedName = '俄语';
+                } else if (maxType === 'ar') {
+                    newSourceLang = { code: 'ar-ar', name: '阿拉伯语', emoji: '🇸🇦' };
+                    newTargetLang = { code: 'zh-cn', name: '中文 (简)', emoji: '🇨🇳' };
+                    detectedName = '阿拉伯语';
+                }
+
+                // 更新语言选择器
+                if (newSourceLang && newSourceLang.code !== sourceLang.code) {
+                    sourceLang = newSourceLang;
+                    if (newTargetLang) {
+                        targetLang = newTargetLang;
+                    }
+                    updateLanguageDisplays();
+                }
+            }
+
+            function setModels(models, forceRefreshSelection = false) {
+                // models now contains all 4 models with isSelected property
+                allModels = models || [];
+
+                // 如果需要强制刷新选中状态（例如窗口重新显示时），从utools.dbStorage读取最新状态
+                if (forceRefreshSelection && typeof utools !== 'undefined' && utools.dbStorage) {
+                    try {
+                        const savedMiniSelection = utools.dbStorage.getItem('miniTranslate_selectedModels');
+                        if (savedMiniSelection && Array.isArray(savedMiniSelection) && savedMiniSelection.length > 0) {
+                            // 使用 dbStorage 中的最新选中状态覆盖传入的 isSelected
+                            allModels.forEach((model, index) => {
+                                const modelKey = `${model.service}:${model.model}`;
+                                model.isSelected = savedMiniSelection.includes(modelKey);
+                            });
+                        }
+                        // 无论是否有保存的状态，都确保至少有一个模型被选中
+                        const anySelected = allModels.some(m => m.isSelected);
+                        if (!anySelected && allModels.length > 0) {
+                            allModels[0].isSelected = true;
+                        }
+                    } catch (e) {
+                        console.warn('读取小窗模型选中状态失败:', e);
+                    }
+                }
+
+                // 确保无论如何都至少有一个模型被选中（处理首次打开或异常情况）
+                const anySelected = allModels.some(m => m.isSelected);
+                if (!anySelected && allModels.length > 0) {
+                    allModels[0].isSelected = true;
+                }
+
+                // selectedModels are those with isSelected=true (for translation)
+                selectedModels = allModels.filter(m => m.isSelected);
+
+                // 保存模型数据到 localStorage，供下次打开时作为占位显示
+                try {
+                    localStorage.setItem('miniTranslate_cachedModels', JSON.stringify(allModels));
+                } catch (e) {
+                    console.warn('保存模型缓存失败:', e);
+                }
+
+                renderServiceIcons();
+                // 立即渲染选中模型的空结果卡片
+                renderResults();
+            }
+
+            function renderServiceIcons() {
+                // 渲染所有模型（最多4个），根据isSelected显示选中状态
+                serviceIconsEl.innerHTML = allModels.map((model, index) => {
+                    const iconContent = model.iconHtml
+                        ? `<div class="service-icon-svg">${model.iconHtml}</div>`
+                        : `<img src="${getModelIcon(model.service)}" alt="${model.service}" onerror="this.style.display='none'">`;
+                    const selectedClass = model.isSelected ? 'selected' : '';
+                    return `
+                        <div class="service-icon ${selectedClass}" data-index="${index}" data-service="${model.service}" data-model="${model.model}" title="${model.name || model.model}">
+                            ${iconContent}
+                        </div>
+                    `;
+                }).join('');
+
+                // 绑定点击事件用于切换选中状态
+                document.querySelectorAll('.service-icon').forEach(icon => {
+                    icon.addEventListener('click', (e) => {
+                        const index = parseInt(e.currentTarget.dataset.index);
+                        toggleModelSelection(index);
+                    });
+                });
+            }
+
+            function toggleModelSelection(index) {
+                if (index < 0 || index >= allModels.length) return;
+
+                const model = allModels[index];
+                const currentlySelected = model.isSelected;
+
+                // 计算当前选中的模型数量
+                const selectedCount = allModels.filter(m => m.isSelected).length;
+
+                if (currentlySelected && selectedCount <= 1) {
+                    // 至少保留一个选中的模型
+                    return;
+                }
+
+                // 切换选中状态
+                model.isSelected = !currentlySelected;
+
+                // 更新selectedModels列表
+                selectedModels = allModels.filter(m => m.isSelected);
+
+                // 重新渲染图标
+                renderServiceIcons();
+                // 立即渲染选中模型的空结果卡片
+                renderResults();
+
+                // 保存到小窗翻译独立的存储（不再同步到主窗口）
+                try {
+                    const selectedKeys = allModels
+                        .filter(m => m.isSelected)
+                        .map(m => `${m.service}:${m.model}`);
+                    if (typeof utools !== 'undefined' && utools.dbStorage) {
+                        utools.dbStorage.setItem('miniTranslate_selectedModels', selectedKeys);
+                    }
+                    // 同时更新 localStorage 缓存
+                    localStorage.setItem('miniTranslate_cachedModels', JSON.stringify(allModels));
+                } catch (e) {
+                    console.warn('保存模型选择状态失败:', e);
+                }
+            }
+
+            function getModelIcon(service) {
+                // 图标文件相对于assets目录
+                const iconMap = {
+                    'openai': 'icons/openai-icon.svg',
+                    'anthropic': 'icons/anthropic-icon.svg',
+                    'gemini': 'icons/google-icon.svg',
+                    'google': 'icons/google-icon.svg',
+                    'deepseek': 'icons/openai-icon.svg',
+                    'baidu': 'icons/baidu-icon.svg',
+                    'tencent': 'icons/tencent-icon.svg',
+                    'volcengine': 'icons/bytedance-icon.svg',
+                    'bytedance': 'icons/bytedance-icon.svg',
+                    'baidu_translate': 'icons/baidu-icon.svg',
+                    'youdao': 'icons/baidu-icon.svg',
+                    'alibaba': 'icons/aliyun-icon.svg',
+                    'aliyun': 'icons/aliyun-icon.svg',
+                    'zhipu': 'icons/zhipu-icon.svg',
+                    'utools': 'icons/utools-icon.svg',
+                    'qwen': 'icons/aliyun-icon.svg'
+                };
+                return iconMap[service] || 'logo.png';
+            }
+
+            function performTranslation() {
+                if (!sourceText || isTranslating) return;
+
+                isTranslating = true;
+                translateBtn.disabled = true;
+
+                // 设置翻译超时（30秒），防止永久加载状态
+                if (window.translationTimeoutTimer) {
+                    clearTimeout(window.translationTimeoutTimer);
+                }
+                window.translationTimeoutTimer = setTimeout(() => {
+                    if (isTranslating) {
+                        console.warn('[小窗翻译] 翻译超时，重置状态');
+                        isTranslating = false;
+                        translateBtn.disabled = false;
+                        renderResults(); // 清除加载状态
+                    }
+                }, 30000);
+                // Clear the object properties instead of reassigning to maintain window.translateResults reference
+                Object.keys(translateResults).forEach(key => delete translateResults[key]);
+                window.translateResults = translateResults;  // Ensure window reference is synced
+
+                // Show loading state for each model
+                renderResults(true);
+
+                // Send translation request to parent
+                sendToParent({
+                    type: 'translate',
+                    text: sourceText,
+                    sourceLang: sourceLang,
+                    targetLang: targetLang,
+                    models: selectedModels
+                });
+            }
+
+            function renderResults(loading = false) {
+                if (selectedModels.length === 0) {
+                    resultsSection.innerHTML = `
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m5 8 6 6"/>
+                                <path d="m4 14 6-6 2-3"/>
+                                <path d="M2 5h12"/>
+                                <path d="M7 2h1"/>
+                                <path d="m22 22-5-10-5 10"/>
+                                <path d="M14 18h6"/>
+                            </svg>
+                            <span>请选择翻译模型</span>
+                        </div>
+                    `;
+                    return;
+                }
+
+                resultsSection.innerHTML = selectedModels.map((model, index) => {
+                    const key = `${model.service}_${model.model}`;
+                    const result = translateResults[key];
+                    const isLoading = loading || (result && result.status === 'streaming');
+                    const hasError = result && result.status === 'failed';
+                    const hasResult = result && result.status === 'completed' && result.text;
+
+                    // 使用主窗口传递的图标，如果没有则回退到本地图片
+                    const iconContent = model.iconHtml
+                        ? `<div class="result-service-icon-svg">${model.iconHtml}</div>`
+                        : `<img src="${getModelIcon(model.service)}" alt="${model.service}" onerror="this.style.display='none'">`;
+
+                    // 只有在翻译中或有结果时才展开
+                    const shouldExpand = isLoading || hasResult || hasError;
+
+                    return `
+                        <div class="result-card ${shouldExpand ? 'expanded' : ''}" data-key="${key}">
+                            <div class="result-header">
+                                <div class="result-service-icon">
+                                    ${iconContent}
+                                </div>
+                                <span class="result-service-name">${model.name || model.model}</span>
+                                <div class="result-status">
+                                    ${isLoading ? '<div class="loading-spinner"></div>' : ''}
+                                    <button class="result-action-btn result-tts" data-key="${key}" title="朗读">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polygon points="11 5,6 9,2 9,2 15,6 15,11 19,11 5"/>
+                                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                                        </svg>
+                                    </button>
+                                    <button class="result-action-btn result-copy" data-key="${key}" title="复制">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect width="14" height="14" x="8" y="8" rx="2"/>
+                                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+                                        </svg>
+                                    </button>
+                                    <svg class="expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M6 9l6 6 6-6"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="result-content">
+                                ${hasError ? `<span style="color: var(--error-color)">翻译失败: ${result.error || '未知错误'}</span>` : ''}
+                                ${hasResult ? result.text : ''}
+                                ${isLoading ? '翻译中...' : ''}
+                                ${!hasResult && !hasError && !isLoading ? '<span class="result-placeholder">翻译结果显示在这里......</span>' : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Bind result events
+                bindResultEvents();
+
+                // Auto-adjust window height based on content
+                requestAnimationFrame(() => adjustWindowHeight());
+            }
+
+            function bindResultEvents() {
+                // Toggle expand/collapse
+                document.querySelectorAll('.result-header').forEach(header => {
+                    header.addEventListener('click', (e) => {
+                        if (!e.target.closest('.result-action-btn')) {
+                            header.closest('.result-card').classList.toggle('expanded');
+                            // Adjust window height after expand/collapse
+                            requestAnimationFrame(() => adjustWindowHeight());
+                        }
+                    });
+                });
+
+                // Copy buttons
+                document.querySelectorAll('.result-copy').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const key = btn.dataset.key;
+                        const result = translateResults[key];
+                        if (result && result.text) {
+                            copyToClipboard(result.text);
+                            // 如果配置了复制后自动关闭
+                            if (miniTranslateConfig.autoCloseOnCopy) {
+                                setTimeout(() => {
+                                    window.close();
+                                }, 300); // 稍微延迟，让用户看到复制成功提示
+                            }
+                        }
+                    });
+                });
+
+                // TTS buttons
+                document.querySelectorAll('.result-tts').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const key = btn.dataset.key;
+                        const result = translateResults[key];
+                        if (result && result.text) {
+                            sendToParent({ type: 'tts', text: result.text, lang: targetLang.code });
+                        }
+                    });
+                });
+            }
+
+            function updateResult(modelKey, result) {
+                translateResults[modelKey] = result;
+                window.translateResults = translateResults;  // Keep window reference synced
+
+                // Update individual card
+                const card = document.querySelector(`.result-card[data-key="${modelKey}"]`);
+                if (card) {
+                    const contentEl = card.querySelector('.result-content');
+                    const statusEl = card.querySelector('.result-status');
+
+                    if (result.status === 'streaming') {
+                        contentEl.textContent = result.text || '翻译中...';
+                        if (!statusEl.querySelector('.loading-spinner')) {
+                            statusEl.insertAdjacentHTML('afterbegin', '<div class="loading-spinner"></div>');
+                        }
+                    } else if (result.status === 'completed') {
+                        contentEl.textContent = result.text || '';
+                        const spinner = statusEl.querySelector('.loading-spinner');
+                        if (spinner) spinner.remove();
+                    } else if (result.status === 'failed') {
+                        contentEl.innerHTML = `<span style="color: var(--error-color)">翻译失败: ${result.error || '未知错误'}</span>`;
+                        const spinner = statusEl.querySelector('.loading-spinner');
+                        if (spinner) spinner.remove();
+                    }
+
+                    // Adjust window height after content change
+                    requestAnimationFrame(() => adjustWindowHeight());
+                }
+            }
+
+            function handleTranslationComplete() {
+                // 清除翻译超时定时器
+                if (window.translationTimeoutTimer) {
+                    clearTimeout(window.translationTimeoutTimer);
+                    window.translationTimeoutTimer = null;
+                }
+                isTranslating = false;
+                translateBtn.disabled = false;
+            }
+
+            function copyToClipboard(text) {
+                // 使用require('electron')的clipboard
+                try {
+                    const { clipboard } = require('electron');
+                    clipboard.writeText(text);
+                    showCopyFeedback();
+                } catch (e) {
+                    // 回退到navigator API
+                    navigator.clipboard.writeText(text).then(() => {
+                        showCopyFeedback();
+                    }).catch(console.error);
+                }
+            }
+
+            // Toast通知系统 - 与主插件保持一致
+            function showNotification(message, type = 'success', duration = 2000) {
+                const container = document.getElementById('toast-container');
+                if (!container) return;
+
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+
+                // 插入到容器开头
+                container.insertBefore(toast, container.firstChild);
+
+                // 触发显示动画
+                requestAnimationFrame(() => {
+                    toast.classList.add('show');
+                });
+
+                // 自动隐藏
+                const hideTimeout = setTimeout(() => hideToast(toast), duration);
+
+                // 点击隐藏
+                toast.addEventListener('click', () => {
+                    clearTimeout(hideTimeout);
+                    hideToast(toast);
+                });
+
+                return toast;
+            }
+
+            function hideToast(toast) {
+                if (!toast || !toast.parentNode) return;
+
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }
+
+            // 兼容旧的showCopyFeedback调用
+            function showCopyFeedback() {
+                showNotification('已复制', 'success', 1500);
+            }
+
+            // 请求队列 - 存储待处理的请求供主窗口轮询
+            window.miniTranslateRequestQueue = [];
+
+            function sendToParent(data) {
+                // 将请求加入队列，主窗口会通过executeJavaScript轮询这个队列
+                window.miniTranslateRequestQueue.push(data);
+            }
+
+            // 主窗口轮询用的API
+            window.getMiniTranslateRequests = function () {
+                const requests = window.miniTranslateRequestQueue.slice();
+                window.miniTranslateRequestQueue = [];
+                return requests;
+            };
+
+            function receiveDataFromParent() {
+                // Try to get initial data from parent window
+                if (window.opener && window.opener.miniTranslateData) {
+                    const data = window.opener.miniTranslateData;
+                    handleInitialData(data);
+                }
+            }
+
+            function handleInitialData(data) {
+                // 使用主窗口传递过来的语言列表
+                if (data.languages && data.languages.length > 0) {
+                    languages = data.languages;
+                    buildLanguageMenus();
+                }
+
+                // 辅助函数：标准化语言对象格式
+                const normalizeLangObject = (lang) => {
+                    if (!lang) return null;
+                    return {
+                        code: lang.code || lang.langCode,
+                        name: lang.name || lang.label,
+                        emoji: lang.emoji
+                    };
+                };
+
+                if (data.sourceLang) {
+                    const normalized = normalizeLangObject(data.sourceLang);
+                    if (normalized && normalized.code && normalized.name) {
+                        sourceLang = normalized;
+                    }
+                    updateLanguageDisplays();
+                }
+                if (data.targetLang) {
+                    const normalized = normalizeLangObject(data.targetLang);
+                    if (normalized && normalized.code && normalized.name) {
+                        targetLang = normalized;
+                    }
+                    updateLanguageDisplays();
+                }
+                if (data.models) {
+                    // 传入 forceRefreshSelection=true 以从 utools.dbStorage 读取最新的模型启用状态
+                    // 这确保了即使预创建窗口已经加载了旧的 localStorage 缓存，也会使用最新的状态
+                    setModels(data.models, true);
+                }
+                if (data.theme) {
+                    document.documentElement.setAttribute('data-theme', data.theme);
+                }
+
+                // 接收小窗翻译配置
+                if (data.miniTranslateConfig) {
+                    if (data.miniTranslateConfig.autoTranslateOnBlur !== undefined) {
+                        miniTranslateConfig.autoTranslateOnBlur = data.miniTranslateConfig.autoTranslateOnBlur;
+                    }
+                    if (data.miniTranslateConfig.instantAutoTranslate !== undefined) {
+                        miniTranslateConfig.instantAutoTranslate = data.miniTranslateConfig.instantAutoTranslate;
+                    }
+                    if (data.miniTranslateConfig.instantAutoTranslateDelay !== undefined) {
+                        miniTranslateConfig.instantAutoTranslateDelay = data.miniTranslateConfig.instantAutoTranslateDelay;
+                    }
+                    if (data.miniTranslateConfig.autoCloseOnCopy !== undefined) {
+                        miniTranslateConfig.autoCloseOnCopy = data.miniTranslateConfig.autoCloseOnCopy;
+                    }
+                    if (data.miniTranslateConfig.copyFirstModel !== undefined) {
+                        miniTranslateConfig.copyFirstModel = data.miniTranslateConfig.copyFirstModel;
+                    }
+                    if (data.miniTranslateConfig.enableDoubleClickRightCopy !== undefined) {
+                        miniTranslateConfig.enableDoubleClickRightCopy = data.miniTranslateConfig.enableDoubleClickRightCopy;
+                    }
+                }
+
+                // 处理传入的文本：写入输入框并同步到 sourceText 变量
+                if (data.text && data.text.trim()) {
+                    sourceText = data.text.trim();
+                    sourceTextEl.value = sourceText;
+
+                    // 触发语言检测
+                    if (sourceText.length > 1) {
+                        detectLanguageFromText(sourceText);
+                    }
+
+                    // 如果设置了自动翻译，延迟执行翻译（确保模型已加载）
+                    if (data.autoTranslate) {
+                        setTimeout(() => {
+                            // 检查模型是否已加载
+                            if (sourceText && !isTranslating && selectedModels.length > 0) {
+                                performTranslation();
+                            } else if (sourceText && !isTranslating) {
+                                // 如果模型还没加载，再等待一会
+                                setTimeout(() => {
+                                    if (sourceText && !isTranslating && selectedModels.length > 0) {
+                                        performTranslation();
+                                    }
+                                }, 300);
+                            }
+                        }, 200);
+                    }
+                }
+            }
+
+            function handleMessage(event) {
+                const data = event.data;
+                if (!data || !data.type) return;
+
+                switch (data.type) {
+                    case 'init':
+                        handleInitialData(data);
+                        break;
+                    case 'updateResult':
+                        updateResult(data.modelKey, data.result);
+                        break;
+                    case 'translationComplete':
+                        handleTranslationComplete();
+                        break;
+                    case 'updateModels':
+                        setModels(data.models, true);
+                        break;
+                    case 'updateTheme':
+                        document.documentElement.setAttribute('data-theme', data.theme);
+                        break;
+                    case 'updateLanguage':
+                        if (data.sourceLang) {
+                            // 兼容 langCode/code 和 name/label 两种属性名
+                            sourceLang = {
+                                code: data.sourceLang.code || data.sourceLang.langCode,
+                                name: data.sourceLang.name || data.sourceLang.label,
+                                emoji: data.sourceLang.emoji
+                            };
+                        }
+                        if (data.targetLang) {
+                            targetLang = {
+                                code: data.targetLang.code || data.targetLang.langCode,
+                                name: data.targetLang.name || data.targetLang.label,
+                                emoji: data.targetLang.emoji
+                            };
+                        }
+                        updateLanguageDisplays();
+                        // 显示检测到的语言标签
+                        if (data.detectedLang) {
+                            setDetectedLanguage(data.detectedLang);
+                        }
+                        break;
+                }
+            }
+
+            // Expose API for parent window
+            // Auto-adjust window height based on content
+            const MIN_WINDOW_HEIGHT = 280;
+            const MAX_WINDOW_HEIGHT = 800;
+            let lastHeight = 0;
+            let isAdjusting = false;
+
+            function adjustWindowHeight() {
+                // 直接执行，不使用防抖以获得即时响应
+                if (!isAdjusting) {
+                    isAdjusting = true;
+                    performHeightAdjustment();
+                    // 使用 requestAnimationFrame 确保下一帧可以再次调整
+                    requestAnimationFrame(() => {
+                        isAdjusting = false;
+                    });
+                }
+            }
+
+            function performHeightAdjustment() {
+                try {
+                    // Calculate the total content height
+                    const toolbar = document.querySelector('.toolbar');
+                    const sourceSection = document.querySelector('.source-section');
+                    const controlsSection = document.querySelector('.controls-section');
+                    const resultsSection = document.getElementById('results-section');
+
+                    if (!toolbar || !sourceSection || !controlsSection || !resultsSection) return;
+
+                    // Get heights of each section
+                    const toolbarHeight = toolbar.offsetHeight;
+                    const sourceHeight = sourceSection.offsetHeight;
+                    const controlsHeight = controlsSection.offsetHeight;
+
+                    // 获取结果区域的实际内容高度
+                    let resultsHeight = 0;
+                    const resultCards = resultsSection.querySelectorAll('.result-card');
+                    if (resultCards.length > 0) {
+                        resultCards.forEach(card => {
+                            resultsHeight += card.offsetHeight + 10; // 10px margin-bottom
+                        });
+                        resultsHeight += 6; // bottom padding
+                    } else {
+                        // empty state height
+                        const emptyState = resultsSection.querySelector('.empty-state');
+                        if (emptyState) {
+                            resultsHeight = emptyState.offsetHeight + 24;
+                        } else {
+                            resultsHeight = 80;
+                        }
+                    }
+
+                    // Add margins: 8px between controls and source, 8px between controls and results
+                    const margins = 8 + 8;
+
+                    // Calculate total content height
+                    let totalHeight = toolbarHeight + sourceHeight + controlsHeight + resultsHeight + margins;
+
+                    // Clamp to min/max range
+                    totalHeight = Math.max(MIN_WINDOW_HEIGHT, Math.min(MAX_WINDOW_HEIGHT, totalHeight));
+
+                    // Only resize if height changed (with small threshold to avoid micro-adjustments)
+                    if (Math.abs(totalHeight - lastHeight) > 5) {
+                        lastHeight = totalHeight;
+
+                        // 直接调用 Electron API 调整窗口大小（如果可用）
+                        try {
+                            const { ipcRenderer } = require('electron');
+                            // 尝试通过 utools API 调整
+                            if (window.utools && window.utools.setWindowSize) {
+                                window.utools.setWindowSize(420, Math.round(totalHeight));
+                            } else {
+                                // 回退到通过父窗口消息
+                                sendToParent({
+                                    type: 'resizeWindow',
+                                    height: Math.round(totalHeight)
+                                });
+                            }
+                        } catch (e) {
+                            // 回退到通过父窗口消息
+                            sendToParent({
+                                type: 'resizeWindow',
+                                height: Math.round(totalHeight)
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[小窗翻译] 调整窗口高度失败:', e);
+                }
+            }
+
+            // Expose for external use
+            window.adjustWindowHeight = adjustWindowHeight;
+
+            window.miniTranslate = {
+                setSourceText,
+                setDetectedLanguage,
+                setModels,
+                updateResult,
+                handleTranslationComplete,
+                performTranslation
+            };
+
+            // 从 utools.dbStorage 读取最新的小窗翻译配置
+            function refreshMiniTranslateConfig() {
+                try {
+                    if (typeof utools !== 'undefined' && utools.dbStorage) {
+                        // 读取 uiConfig
+                        const uiConfig = utools.dbStorage.getItem('uiConfig') || {};
+                        miniTranslateConfig.instantAutoTranslate = uiConfig.miniTranslateInstantAutoTranslate !== false;
+                        miniTranslateConfig.instantAutoTranslateDelay = uiConfig.miniTranslateInstantAutoTranslateDelay ?? 0.5;
+                        miniTranslateConfig.autoTranslateOnBlur = uiConfig.miniTranslateAutoTranslateOnBlur === true;
+                        miniTranslateConfig.autoCloseOnCopy = uiConfig.miniTranslateAutoCloseOnCopy !== false;
+                        miniTranslateConfig.copyFirstModel = uiConfig.miniTranslateCopyFirstModel !== false;
+                    }
+                } catch (e) {
+                    console.warn('[小窗翻译] 刷新配置失败:', e);
+                }
+            }
+
+            // 暴露 handleInitialData 到全局作用域，以便父窗口可靠调用
+            window.handleInitialData = handleInitialData;
+            window.refreshMiniTranslateConfig = refreshMiniTranslateConfig;
+
+            // Initialize
+            init();
+
+            // 初始化后主动刷新配置（确保即使注入失败也能读取到最新配置）
+            setTimeout(() => {
+                refreshMiniTranslateConfig();
+            }, 100);
+        })();
+    </script>
+</body>
+
+</html>
