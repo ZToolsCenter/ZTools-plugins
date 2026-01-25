@@ -35,6 +35,7 @@
     "description": "基于 Everything 更便捷的本地文件搜索 + 文件预览",
     "author": "uTools 团队",
     "homepage": "https://u.tools",
-    "version": "2.7.2",
+    "version": "2.7.3",
+    "syncVersion": "2.7.2",
     "ai": true
 }
