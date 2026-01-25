@@ -871,6 +871,15 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script>
+        try {
+            if (!window.utools) {
+                window.utools = {
+                    ...window.ztools
+                }
+            }
+        } catch (e) {
+            console.error(e)
+        }
         // Mini Translate Window Logic
         (function () {
             // State
