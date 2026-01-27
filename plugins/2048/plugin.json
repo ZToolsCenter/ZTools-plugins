@@ -1,0 +1,24 @@
+{
+    "title": "2048",
+    "description": "纯正2048小游戏。",
+    "version": "1.0.1",
+    "author": "Johu",
+    "main": "2048-master/index.html",
+    "logo": "logo.png",
+    "preload": "preload.js",
+    "features": [
+        {
+            "code": "2048",
+            "explain": "2048小游戏",
+            "cmds": [
+                "2048",
+                {
+                    "type": "regex",
+                    "label": "2048"
+                }
+            ]
+        }
+    ],
+    "name": "2048",
+    "homepage": null
+}
