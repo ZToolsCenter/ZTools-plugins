@@ -1,0 +1,27 @@
+{
+    "title": "打飞字",
+    "description": "打飞字小游戏",
+    "version": "1.0.2",
+    "main": "static/index.html",
+    "preload": "static/preload.js",
+    "author": "林中山野",
+    "homepage": null,
+    "logo": "logo.png",
+    "features": [
+        {
+            "code": "flyfont",
+            "explain": "打飞字",
+            "cmds": [
+                "flyfont",
+                "font",
+                "飞字"
+            ]
+        }
+    ],
+    "platform": [
+        "darwin",
+        "win32",
+        "linux"
+    ],
+    "name": "flyfont"
+}
