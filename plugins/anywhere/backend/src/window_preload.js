@@ -2,7 +2,6 @@ window.utools = { ...window.ztools }
 const { ipcRenderer } = require('electron');
 
 const {
-  
     getRandomItem,
 } = require('./input.js');
 
@@ -33,10 +32,23 @@ const {
 } = require('./file.js');
 
 const { 
+  invokeBuiltinTool,
+} = require('./mcp_builtin.js');
+
+const { 
   initializeMcpClient, 
   invokeMcpTool,
   closeMcpClient,
 } = require('./mcp.js');
+
+const {
+    listSkills,
+    getSkillDetails,
+    generateSkillToolDefinition,
+    resolveSkillInvocation,
+    saveSkill,
+    deleteSkill
+} = require('./skill.js');
 
 const channel = "window";
 let senderId = null; // [新增] 用于存储当前窗口的唯一ID
@@ -136,4 +148,105 @@ window.api = {
         // 异步执行，不阻塞 UI
         cacheBackgroundImage(url).catch(e => console.error(e));
     },
+
+    // Skill 相关 API
+    listSkills: async (path) => {
+        try {
+            return listSkills(path);
+        } catch (e) {
+            console.error("listSkills error:", e);
+            return [];
+        }
+    },
+    getSkillDetails: async (rootPath, id) => {
+        return getSkillDetails(rootPath, id);
+    },
+    saveSkill: async (rootPath, id, content) => {
+        return saveSkill(rootPath, id, content);
+    },
+    deleteSkill: async (rootPath, id) => {
+        return deleteSkill(rootPath, id);
+    },
+    toggleSkillForkMode: async (rootPath, skillId, enableFork) => {
+        try {
+            const details = getSkillDetails(rootPath, skillId);
+            const meta = details.metadata;
+            const body = details.content;
+
+            // 更新元数据
+            if (enableFork) {
+                meta['context'] = 'fork';
+            } else {
+                delete meta['context'];
+            }
+
+            // 重建文件内容 (简易 YAML 构建，保持与 Skills.vue 逻辑一致)
+            const lines = ['---'];
+            if (meta.name) lines.push(`name: ${meta.name}`);
+            if (meta.description) lines.push(`description: ${meta.description}`);
+            if (meta['disable-model-invocation'] === true) lines.push('disable-model-invocation: true');
+            if (meta.context === 'fork') lines.push('context: fork');
+
+            if (meta['allowed-tools']) {
+                let tools = meta['allowed-tools'];
+                if (typeof tools === 'string') lines.push(`allowed-tools: [${tools}]`);
+                else if (Array.isArray(tools)) lines.push(`allowed-tools: [${tools.join(', ')}]`);
+            }
+
+            lines.push('---');
+            lines.push('');
+            lines.push(body || '');
+
+            const content = lines.join('\n');
+            return saveSkill(rootPath, skillId, content);
+        } catch (e) {
+            console.error("Toggle Fork Mode Error:", e);
+            throw e;
+        }
+    },
+    // 生成 Skill Tool 定义
+    getSkillToolDefinition: async (rootPath, enabledSkillNames = []) => {
+        try {
+            const allSkills = listSkills(rootPath);
+            const activeSkills = allSkills.filter(s => enabledSkillNames.includes(s.name));
+            if (activeSkills.length === 0) return null;
+            return generateSkillToolDefinition(activeSkills, rootPath);
+        } catch (e) {
+            return null;
+        }
+    },
+    // 执行 Skill
+    resolveSkillInvocation: async (rootPath, skillName, toolArgs, globalContext = null, signal = null) => {
+        // 1. 获取 Skill 解析结果
+        const result = resolveSkillInvocation(rootPath, skillName, toolArgs);
+
+        // 2. 检查是否为 Fork 请求
+        if (result && result.__isForkRequest && result.subAgentArgs) {
+            if (!globalContext) {
+                // 错误信息也统一包装为 JSON 字符串
+                return JSON.stringify([{
+                    type: "text",
+                    text: "Error: Sub-Agent skill requires execution context (API Key, etc)."
+                }], null, 2);
+            }
+            
+            // 3. 自动调用内置的 sub_agent 工具
+            // 注意：invokeBuiltinTool 已经修复为返回序列化的 JSON 字符串，直接透传即可
+            return await invokeBuiltinTool(
+                'sub_agent', 
+                result.subAgentArgs, 
+                signal, 
+                globalContext
+            );
+        }
+
+        // 3.普通模式，将文本结果包装为标准 MCP JSON 格式字符串
+        // 这样前端收到后能统一解析为 content 数组，而不是纯文本
+        return JSON.stringify([{
+            type: "text",
+            text: result
+        }], null, 2);
+    },
+    // 暴露 path.join 
+    pathJoin: (...args) => require('path').join(...args),
 };
