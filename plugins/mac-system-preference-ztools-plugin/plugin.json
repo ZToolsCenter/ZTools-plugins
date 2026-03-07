@@ -1,0 +1,220 @@
+{
+    "name": "mac-system-preference-ztools-plugin",
+	"title": "系统设置",
+	"description": "MacOS 系统设置快捷打开",
+    "version": "26.307.0",
+	"preload": "preload.js",
+    "logo": "logo.png",
+	"features": [
+		{
+            "code": "home",
+            "explain": "主页设置",
+            "cmds": [
+                "系统设置",
+                "主页"
+            ]
+        },
+		{
+            "code": "preference.bluetooth",
+            "explain": "蓝牙设置",
+            "cmds": [
+                "蓝牙"
+            ]
+        },
+		{
+            "code": "preference.network",
+            "explain": "网络设置",
+            "cmds": [
+                "网络"
+            ]
+        },
+		{
+            "code": "preference.battery",
+            "explain": "电池设置",
+            "cmds": [
+                "电池"
+            ]
+        },
+		{
+            "code": "preference.general",
+            "explain": "通用设置",
+            "cmds": [
+                "通用"
+            ]
+        },
+		{
+            "code": "preference.universalaccess",
+            "explain": "辅助功能设置",
+            "cmds": [
+                "辅助功能"
+            ]
+        },
+		{
+            "code": "preference.spotlight",
+            "explain": "聚焦设置",
+            "cmds": [
+                "聚焦"
+            ]
+        },
+		{
+            "code": "preference.desktop",
+            "explain": "墙纸设置",
+            "cmds": [
+                "墙纸"
+            ]
+        },
+		{
+            "code": "preference.appearance",
+            "explain": "外观设置",
+            "cmds": [
+                "外观"
+            ]
+        },
+		{
+            "code": "preference.displays",
+            "explain": "显示器设置",
+            "cmds": [
+                "显示器"
+            ]
+        },
+		{
+            "code": "preference.dock",
+            "explain": "桌面与程序坞设置",
+            "cmds": [
+                "桌面与程序坞"
+            ]
+        },
+		{
+            "code": "preference.siri",
+            "explain": "Siri 设置",
+            "cmds": [
+                "Siri"
+            ]
+        },
+		{
+            "code": "preference.notifications",
+            "explain": "通知设置",
+            "cmds": [
+                "通知"
+            ]
+        },
+		{
+            "code": "preference.sound",
+            "explain": "声音设置",
+            "cmds": [
+                "声音"
+            ]
+        },
+		{
+            "code": "preference.screentime",
+            "explain": "屏幕时间设置",
+            "cmds": [
+                "屏幕时间"
+            ]
+        },
+		{
+            "code": "preference.lock.screen",
+            "explain": "锁定屏幕设置",
+            "cmds": [
+                "锁定屏幕"
+            ]
+        },
+		{
+            "code": "preference.security",
+            "explain": "隐私与安全性设置",
+            "cmds": [
+                "隐私与安全性"
+            ]
+        },
+		{
+            "code": "preference.security.touchid",
+            "explain": "触控 ID 与密码设置",
+            "cmds": [
+                "触控 ID 与密码"
+            ]
+        },
+		{
+            "code": "preference.users",
+            "explain": "用户与群组设置",
+            "cmds": [
+                "用户与群组"
+            ]
+        },
+		{
+            "code": "preference.internetaccounts",
+            "explain": "互联网账户设置",
+            "cmds": [
+                "互联网账户"
+            ]
+        },
+		{
+            "code": "preference.gamecenter",
+            "explain": "Game Center 设置",
+            "cmds": [
+                "Game Center"
+            ]
+        },
+		{
+            "code": "preference.appleid",
+            "explain": "Apple 账户设置",
+            "cmds": [
+                "Apple 账户"
+            ]
+        },
+		{
+            "code": "preference.keyboard",
+            "explain": "键盘设置",
+            "cmds": [
+                "键盘"
+            ]
+        },
+		{
+            "code": "preference.trackpad",
+            "explain": "触控板设置",
+            "cmds": [
+                "触控板"
+            ]
+        },
+		{
+            "code": "preference.printfax",
+            "explain": "打印机与扫描仪设置",
+            "cmds": [
+                "打印机与扫描仪"
+            ]
+        },
+        {
+            "code": "settings.Storage",
+            "explain": "储存空间",
+            "cmds": [
+                "通用/储存空间"
+            ]
+        },
+        {
+            "code": "settings.SoftwareUpdate",
+            "explain": "软件更新",
+            "cmds": [
+                "通用/软件更新"
+            ]
+        },
+        {
+            "code": "settings.LoginItems",
+            "explain": "登录项",
+            "cmds": [
+                "通用/登录项与拓展"
+            ]
+        },
+        {
+            "code": "about",
+            "explain": "关于本机",
+            "cmds": [
+                "通用/关于本机"
+            ]
+        },
+        {
+            "code": "preference.network.wifi",
+            "explain": "Wi-Fi 设置",
+            "cmds": ["Wi-Fi", "Wifi"]
+        }
+	]
+}
+
