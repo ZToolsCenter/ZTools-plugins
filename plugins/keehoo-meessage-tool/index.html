@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="lib/tailwind.min.js"></script>
+    <style>
+        html, body { height: 100%; margin: 0; background: #F5F5F7; overflow: hidden; font-family: -apple-system, sans-serif; }
+        #app { height: 100vh; display: flex; flex-direction: column; }
+        .sidebar { width: 85px; background: #EBEDF0; border-right: 1px solid #D1D1D6; shrink: 0; transition: width 0.2s; }
+        .sidebar:hover { width: 105px; }
+        .group-btn { padding: 14px 4px; font-size: 12px; text-align: center; cursor: pointer; color: #666; border-bottom: 1px solid #D1D1D6; }
+        .group-btn.active { background: #FFFFFF; color: #007AFF; font-weight: bold; }
+        .list-item { transition: all 0.2s; border: 1px solid transparent; }
+        .list-item:hover { background: #FFFFFF; border-color: #007AFF; transform: translateY(-1px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="select-none">
+    <div id="app">
+        <div class="flex flex-1 overflow-hidden">
+            <div class="sidebar no-scrollbar overflow-y-auto">
+                <div @click="activeGroup = '全部'" :class="['group-btn', activeGroup === '全部' ? 'active' : '']">全部</div>
+                <div v-for="g in groups" :key="g" @click="activeGroup = g" :class="['group-btn', activeGroup === g ? 'active' : '']">{{ g }}</div>
+            </div>
+
+            <div class="flex-1 flex flex-col p-3 min-w-0 bg-white">
+                <div class="flex space-x-2 mb-3">
+                    <input v-model="search" placeholder="🔍 搜索标题、拼音..." class="flex-1 px-4 py-2 rounded-xl bg-gray-100 outline-none text-sm focus:ring-2 focus:ring-blue-500">
+                    <button @click="showAddModal = true" class="w-10 h-10 bg-blue-500 text-white rounded-xl font-bold">+</button>
+                </div>
+                <div class="flex-1 overflow-y-auto space-y-2 no-scrollbar">
+                    <div v-for="(item, index) in filteredList" :key="index" @click="handleItemClick(item)" class="list-item bg-gray-50 p-4 rounded-2xl shadow-sm cursor-pointer flex justify-between items-center">
+                        <div class="min-w-0">
+                            <div class="font-bold text-gray-800 text-[14px] truncate">{{ item.title }}</div>
+                            <div class="text-gray-400 text-[12px] truncate mt-1">{{ item.content }}</div>
+                        </div>
+                        <div v-if="item.image" class="ml-2 text-blue-400">🖼️</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="h-10 flex justify-between items-center px-4 text-[11px] text-gray-400 border-t bg-gray-50">
+            <div class="flex space-x-4">
+                <span @click="linkFile" class="hover:text-blue-500 cursor-pointer">🔗 关联CSV</span>
+                <span @click="openExcel" class="hover:text-blue-500 cursor-pointer">📊 编辑</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span>自动发送</span>
+                <input type="checkbox" v-model="autoEnter" class="w-4 h-4 accent-blue-500">
+            </div>
+        </div>
+
+        <div v-if="activeVariable || showAddModal" class="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+            <div class="bg-white w-full max-w-sm p-6 rounded-[2rem] shadow-2xl">
+                <template v-if="activeVariable">
+                    <h3 class="font-bold mb-4">填写变量</h3>
+                    <div v-for="v in activeVariable.inputs" :key="v.key" class="mb-3">
+                        <input v-model="v.value" :placeholder="v.key" class="w-full px-4 py-3 bg-gray-100 rounded-xl outline-none" @keyup.enter="confirmVariable">
+                    </div>
+                    <button @click="confirmVariable" class="w-full py-3 bg-blue-500 text-white rounded-xl font-bold">就绪</button>
+                </template>
+                <template v-else-if="showAddModal">
+                    <h3 class="font-bold mb-4">新增话术</h3>
+                    <div class="space-y-2 text-sm">
+                        <input v-model="newItem.group" placeholder="分类" class="w-full px-3 py-2 bg-gray-100 rounded-lg outline-none">
+                        <input v-model="newItem.title" placeholder="标题" class="w-full px-3 py-2 bg-gray-100 rounded-lg outline-none">
+                        <textarea v-model="newItem.content" placeholder="内容" class="w-full h-20 px-3 py-2 bg-gray-100 rounded-lg outline-none"></textarea>
+                        <div class="flex items-center space-x-2">
+                            <input v-model="newItem.image" placeholder="图片路径" class="flex-1 px-3 py-2 bg-gray-100 rounded-lg outline-none text-xs">
+                            <button @click="pickImg" class="px-2 py-2 bg-gray-200 rounded-lg text-xs">选取</button>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2 mt-4">
+                        <button @click="showAddModal = false" class="flex-1 py-2 text-gray-400">取消</button>
+                        <button @click="addNewItem" class="flex-1 py-2 bg-blue-500 text-white rounded-lg font-bold">保存</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script src="lib/vue.global.js"></script>
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+        createApp({
+            setup() {
+                const search = ref('');
+                const rawList = ref([]);
+                const activeGroup = ref('全部');
+                const autoEnter = ref(true);
+                const activeVariable = ref(null);
+                const showAddModal = ref(false);
+                const newItem = ref({ group: '', title: '', content: '', shortcut: '', image: '' });
+
+                const loadData = () => { rawList.value = window.services.readCsv(); };
+                const groups = computed(() => [...new Set(rawList.value.map(i => i.group))]);
+                const filteredList = computed(() => {
+                    const s = search.value.toLowerCase();
+                    return rawList.value.filter(i => (activeGroup.value === '全部' || i.group === activeGroup.value) && (i.title.includes(s) || i.content.includes(s)));
+                });
+
+                const handleItemClick = (item) => {
+                    const vars = item.content.match(/{{{(.*?)}}}/g);
+                    if (vars) {
+                        activeVariable.value = { item, inputs: [...new Set(vars)].map(v => ({ key: v.replace(/{{{|}}}/g, ''), value: '' })) };
+                    } else {
+                        window.services.preparePaste(item.content, item.image, autoEnter.value);
+                    }
+                };
+
+                const confirmVariable = () => {
+                    let final = activeVariable.value.item.content;
+                    activeVariable.value.inputs.forEach(v => final = final.replace(new RegExp('{{{'+v.key+'}}}', 'g'), v.value || ''));
+                    window.services.preparePaste(final, activeVariable.value.item.image, autoEnter.value);
+                    activeVariable.value = null;
+                };
+
+                const addNewItem = () => {
+                    rawList.value.push({...newItem.value});
+                    window.services.saveCsv(rawList.value);
+                    showAddModal.value = false;
+                    newItem.value = { group: '', title: '', content: '', shortcut: '', image: '' };
+                };
+
+                onMounted(loadData);
+                return { search, groups, activeGroup, filteredList, handleItemClick, activeVariable, confirmVariable, showAddModal, newItem, addNewItem, autoEnter, 
+                         pickImg: () => { window.services.selectImage().then(p => newItem.value.image = p || ''); },
+                         linkFile: () => { if(window.services.selectCsvFile()) loadData(); }, 
+                         openExcel: () => window.services.openInExcel() };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

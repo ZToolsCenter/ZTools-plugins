@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "keehoo-meessage-tool",
+  "title": "KeeHoo客服助手",
+  "description": "专为高频客服与电商设计打造的自动化工具兼话术数据库",
+  "author": "RaiN Wong",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "asa",
+      "explain": "话术助手",
+      "icon": "logo.png",
+      "cmds": ["asa", "话术"]
+    }
+  ]
+}

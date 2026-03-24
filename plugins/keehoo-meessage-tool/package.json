@@ -1,0 +1,8 @@
+{
+  "name": "keehoo",
+  "version": "1.0.0",
+  "description": "A ZTools plugin",
+  "devDependencies": {
+    "@ztools-center/ztools-api-types": "^1.0.1"
+  }
+}
