@@ -1,23 +1,27 @@
 {
-  "name": "ztools-plugins",
-  "version": "1.0.0",
-  "description": "ZTools插件中心仓库",
-  "private": true,
-  "type": "module",
+  "name": "ztools-node-manager",
+  "version": "1.1.0",
+  "main": "preload.js",
   "scripts": {
-    "detect": "node scripts/detect-changes.js",
-    "detect:all": "node scripts/detect-changes.js --all",
-    "build": "node scripts/build-plugins.js",
-    "generate": "node scripts/generate-plugins-json.js"
+    "dev": "vite",
+    "build": "vite build && cd dist && npm install --omit=dev",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
   "dependencies": {
-    "@octokit/rest": "^20.0.2",
-    "archiver": "^6.0.1",
-    "sharp": "^0.33.1",
-    "unzipper": "^0.12.3"
+    "iconv-lite": "^0.7.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
-  "devDependencies": {},
-  "engines": {
-    "node": ">=20.0.0"
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0"
   }
 }
