@@ -4,7 +4,7 @@
   "title": "批量重命名",
   "description": "批量重命名文件插件",
   "author": "xiuyang",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
