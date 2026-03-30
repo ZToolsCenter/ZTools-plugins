@@ -4,7 +4,7 @@
   "title": "待办事项",
   "description": "桌面悬浮待办清单，支持工作和个人分类。",
   "author": "xiuyang",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
