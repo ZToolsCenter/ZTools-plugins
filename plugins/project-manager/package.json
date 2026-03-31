@@ -1,0 +1,47 @@
+{
+  "name": "project-manager",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cuteyuchen/project-manager.git"
+  },
+  "version": "1.0.3",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri-dev": "tauri dev",
+    "tauri-build": "tauri build",
+    "build:utools": "vue-tsc --noEmit && vite build --mode utools && copy utools\\plugin.json dist-utools\\plugin.json && copy utools\\preload.js dist-utools\\preload.js && copy public\\logo.png dist-utools\\logo.png && copy utools\\package.json dist-utools\\package.json",
+    "build:ztools": "vue-tsc --noEmit && vite build --mode ztools && node scripts/post-build-ztools.cjs",
+    "publish:ztools": "node scripts/publish-ztools.cjs",
+    "publish:ztools:dry": "node scripts/publish-ztools.cjs --dry-run",
+    "bump": "node scripts/bump-version.cjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-autostart": "^2",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-fs": "^2.4.5",
+    "@tauri-apps/plugin-opener": "^2",
+    "ansi_up": "^6.0.6",
+    "diff2html": "^3.4.56",
+    "element-plus": "^2.13.2",
+    "marked": "^17.0.5",
+    "pinia": "^3.0.4",
+    "pinyin-pro": "^3.28.0",
+    "vue": "^3.5.13",
+    "vue-i18n": "^9.14.4"
+  },
+  "devDependencies": {
+    "@iconify-json/mdi": "^1.2.3",
+    "@tauri-apps/cli": "^2",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.6.2",
+    "unocss": "^66.6.0",
+    "vite": "^6.0.3",
+    "vue-tsc": "^2.1.10"
+  }
+}
