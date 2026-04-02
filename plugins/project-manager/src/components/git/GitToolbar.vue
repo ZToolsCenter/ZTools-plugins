@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'open-branch-dialog'): void;
+  (e: 'open-settings-dialog'): void;
   (e: 'refresh'): void;
 }>();
 
@@ -100,6 +101,9 @@ async function handlePush() {
     <button @click="emit('refresh')" :disabled="isLoading" class="toolbar-action" :title="t('git.refresh')">
       <div class="i-mdi-refresh action-icon" :class="{ 'animate-spin': isLoading }" />
     </button>
+    <button @click="emit('open-settings-dialog')" class="toolbar-action" :title="t('git.repoSettings')">
+      <div class="i-mdi-cog-outline action-icon" />
+    </button>
   </div>
 </template>
 
@@ -107,39 +111,63 @@ async function handlePush() {
 .git-toolbar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: 8px;
+  padding: 8px 12px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.15);
 }
 .branch-chip {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: rgba(59, 130, 246, 0.06);
-  border: 1px solid rgba(59, 130, 246, 0.1);
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.68), rgba(248,250,252,0.5));
+  border: none;
+  backdrop-filter: blur(14px) saturate(1.16);
+  -webkit-backdrop-filter: blur(14px) saturate(1.16);
+  box-shadow:
+    0 8px 18px rgba(15,23,42,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.42),
+    inset 0 0 0 1px rgba(191,219,254,0.5);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
 }
 .branch-chip:hover {
-  background: rgba(59, 130, 246, 0.12);
+  transform: translateY(-1px);
+  backdrop-filter: blur(18px) saturate(1.28);
+  -webkit-backdrop-filter: blur(18px) saturate(1.28);
+  box-shadow:
+    0 12px 24px rgba(15,23,42,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.46),
+    inset 0 0 0 1px rgba(96,165,250,0.4);
 }
 .toolbar-action {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
   border: none;
-  background: transparent;
+  background: linear-gradient(180deg, rgba(255,255,255,0.66), rgba(248,250,252,0.48));
+  backdrop-filter: blur(14px) saturate(1.16);
+  -webkit-backdrop-filter: blur(14px) saturate(1.16);
+  box-shadow:
+    0 8px 18px rgba(15,23,42,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.42),
+    inset 0 0 0 1px rgba(226,232,240,0.5);
 }
 .toolbar-action:hover:not(:disabled) {
-  background: rgba(148, 163, 184, 0.1);
+  transform: translateY(-1px);
+  backdrop-filter: blur(18px) saturate(1.28);
+  -webkit-backdrop-filter: blur(18px) saturate(1.28);
+  box-shadow:
+    0 12px 24px rgba(15,23,42,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.48),
+    inset 0 0 0 1px rgba(191,219,254,0.64);
 }
 .toolbar-action:disabled {
   opacity: 0.4;
@@ -148,6 +176,44 @@ async function handlePush() {
 .action-icon {
   font-size: 14px;
   color: rgb(100, 116, 139);
+}
+:global(.dark) .branch-chip {
+  background:
+    linear-gradient(180deg, rgba(96,165,250,0.03), rgba(96,165,250,0)),
+    linear-gradient(180deg, rgba(15,23,42,0.84), rgba(2,6,23,0.74));
+  backdrop-filter: blur(20px) saturate(1.18);
+  -webkit-backdrop-filter: blur(20px) saturate(1.18);
+  box-shadow:
+    0 16px 30px rgba(2,6,23,0.32),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 0 0 1px rgba(96,165,250,0.18);
+}
+:global(.dark) .branch-chip:hover {
+  backdrop-filter: blur(24px) saturate(1.26);
+  -webkit-backdrop-filter: blur(24px) saturate(1.26);
+  box-shadow:
+    0 18px 34px rgba(2,6,23,0.36),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 0 0 1px rgba(96,165,250,0.24);
+}
+:global(.dark) .toolbar-action {
+  background:
+    linear-gradient(180deg, rgba(45,212,191,0.02), rgba(45,212,191,0)),
+    linear-gradient(180deg, rgba(15,23,42,0.82), rgba(2,6,23,0.72));
+  backdrop-filter: blur(20px) saturate(1.18);
+  -webkit-backdrop-filter: blur(20px) saturate(1.18);
+  box-shadow:
+    0 16px 28px rgba(2,6,23,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    inset 0 0 0 1px rgba(148,163,184,0.12);
+}
+:global(.dark) .toolbar-action:hover:not(:disabled) {
+  backdrop-filter: blur(24px) saturate(1.26);
+  -webkit-backdrop-filter: blur(24px) saturate(1.26);
+  box-shadow:
+    0 18px 34px rgba(2,6,23,0.36),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 0 0 1px rgba(96,165,250,0.24);
 }
 :global(.dark) .action-icon {
   color: rgb(148, 163, 184);

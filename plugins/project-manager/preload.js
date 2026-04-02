@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn, exec, execFile, execSync, execFileSync } = require('child_process');
+const { TextDecoder } = require('util');
 
 // Validate version string to prevent command injection
 function isValidVersion(version) {
@@ -20,6 +21,30 @@ function runCmd(cmd) {
 const processes = new Map();
 let outputCallback = null;
 let exitCallback = null;
+
+function decodeTextBuffer(buffer) {
+    if (!buffer || buffer.length === 0) return '';
+
+    if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+        return new TextDecoder('utf-8').decode(buffer.subarray(3));
+    }
+
+    if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+        return new TextDecoder('utf-16le').decode(buffer.subarray(2));
+    }
+
+    if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+        return new TextDecoder('utf-16be').decode(buffer.subarray(2));
+    }
+
+    for (const encoding of ['utf-8', 'gb18030', 'gbk', 'utf-16le', 'utf-16be']) {
+        try {
+            return new TextDecoder(encoding, { fatal: true }).decode(buffer);
+        } catch (_) {}
+    }
+
+    return new TextDecoder('utf-8').decode(buffer);
+}
 
 // Platform-adaptive: support both uTools and ZTools
 const platform = typeof ztools !== 'undefined' ? ztools : utools;
@@ -289,9 +314,14 @@ window.services = {
                 };
             }
             
-            const content = fs.readFileSync(pkgPath, 'utf-8');
-            const pkg = JSON.parse(content);
-            
+            let pkg = {};
+            try {
+                const content = fs.readFileSync(pkgPath, 'utf-8');
+                pkg = JSON.parse(content);
+            } catch (e) {
+                console.error('Failed to parse package.json:', e);
+            }
+
             let packageManager = undefined;
             if (fs.existsSync(path.join(projectPath, 'pnpm-lock.yaml'))) {
                 packageManager = 'pnpm';
@@ -516,12 +546,7 @@ window.services = {
     runCustomCommand: async (id, projectPath, command) => {
         if (processes.has(id)) throw new Error('Already running');
 
-        // Parse command into executable and arguments for safer execution
-        const parts = command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [command];
-        const cmd = parts[0].replace(/^"|"$/g, '');
-        const args = parts.slice(1).map(a => a.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
-
-        const child = spawn(cmd, args, {
+        const child = spawn(command, {
             cwd: projectPath,
             shell: true,
             env: { ...process.env }
@@ -577,7 +602,11 @@ window.services = {
     },
 
     readTextFile: async (path) => {
-        return fs.readFileSync(path, 'utf-8');
+        return decodeTextBuffer(fs.readFileSync(path));
+    },
+
+    readBinaryFileBase64: async (path) => {
+        return fs.readFileSync(path).toString('base64');
     },
 
     writeTextFile: async (path, content) => {
@@ -641,7 +670,7 @@ window.services = {
     },
     
     getAppVersion: async () => {
-        return "1.0.3";
+        return "1.0.4";
     },
     
     installUpdate: async (url) => {
@@ -710,12 +739,12 @@ window.services = {
                 
                 if (term === 'powershell') {
                      // PowerShell: start a new window, cd to path
-                     spawn('cmd', ['/C', 'start', '/D', winPath, 'powershell', '-NoExit'], { detached: true, stdio: 'ignore' });
+                     spawn('cmd', ['/C', 'start', '', '/D', winPath, 'powershell', '-NoExit'], { detached: true, stdio: 'ignore' });
                 } else if (term === 'pwsh') {
-                     spawn('cmd', ['/C', 'start', '/D', winPath, 'pwsh', '-NoExit'], { detached: true, stdio: 'ignore' });
+                     spawn('cmd', ['/C', 'start', '', '/D', winPath, 'pwsh', '-NoExit'], { detached: true, stdio: 'ignore' });
                 } else {
                     // CMD (Default)
-                    spawn('cmd', ['/C', 'start', '/D', winPath, 'cmd'], { detached: true, stdio: 'ignore' });
+                    spawn('cmd', ['/C', 'start', '', '/D', winPath, 'cmd'], { detached: true, stdio: 'ignore' });
                 }
             } catch (e) {
                 console.error('Failed to open terminal', e);
@@ -1091,6 +1120,46 @@ window.services = {
         }
 
         return commits;
+    },
+
+    gitCommitDetail: async (projectPath, hash) => {
+        let output;
+        try {
+            output = execFileSync('git', [
+                'show',
+                '-s',
+                '--format=%H%x1f%h%x1f%an%x1f%ae%x1f%cn%x1f%aI%x1f%P%x1f%D%x1e%B',
+                hash
+            ], {
+                cwd: projectPath, windowsHide: true, maxBuffer: 10 * 1024 * 1024
+            }).toString();
+        } catch (e) {
+            output = e.stdout ? e.stdout.toString() : '';
+        }
+
+        const separatorIndex = output.indexOf('\x1e');
+        if (separatorIndex < 0) {
+            throw new Error('Failed to parse commit detail');
+        }
+
+        const meta = output.slice(0, separatorIndex).trimEnd();
+        const message = output.slice(separatorIndex + 1).replace(/\n+$/, '');
+        const parts = meta.split('\x1f');
+        if (parts.length < 8) {
+            throw new Error('Failed to parse commit detail metadata');
+        }
+
+        return {
+            hash: parts[0],
+            short_hash: parts[1],
+            author: parts[2],
+            email: parts[3],
+            committer: parts[4],
+            date: parts[5],
+            message,
+            parents: parts[6] ? parts[6].split(' ') : [],
+            refs: (parts[7] && parts[7].trim()) ? parts[7].split(', ').map(s => s.trim()) : [],
+        };
     },
 
     gitCommitFiles: async (projectPath, hash) => {

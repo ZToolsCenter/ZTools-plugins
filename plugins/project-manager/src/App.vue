@@ -29,10 +29,18 @@ let unlistenDragEnter: UnlistenFn | null = null;
 let unlistenDragLeave: UnlistenFn | null = null;
 let unlistenDragDrop: UnlistenFn | null = null;
 let unlistenSingleInstance: UnlistenFn | null = null;
+let manualUpdateCheckListener: (() => void) | null = null;
 
 const showUpdateProgress = ref(false);
 const downloadProgress = ref(0);
 const processedImportInstallVersions = new Set<string>();
+const closeBehaviorDialogVisible = ref(false);
+const rememberCloseAction = ref(false);
+let trayIcon: { close?: () => Promise<void> } | null = null;
+let pendingCloseResolver: ((action: 'tray' | 'exit' | 'cancel') => void) | null = null;
+let unlistenCloseRequested: UnlistenFn | null = null;
+let allowWindowClose = false;
+let traySetupToken = 0;
 
 
 async function handleImportProject(path: string) {
@@ -122,15 +130,38 @@ function compareVersions(v1: string, v2: string) {
   return 0;
 }
 
-async function checkUpdate() {
+type ManualUpdateResult = {
+  status: 'available' | 'latest' | 'error';
+  version?: string;
+  error?: string;
+};
+
+function dispatchManualUpdateResult(detail: ManualUpdateResult) {
+  window.dispatchEvent(new CustomEvent<ManualUpdateResult>('manual-check-update-result', { detail }));
+}
+
+async function checkUpdate(manual = false) {
   try {
     // Use /releases list instead of /releases/latest to avoid missing pre-release tagged versions
     const response = await fetch('https://api.github.com/repos/cuteyuchen/project-manager/releases?per_page=10');
-    if (!response.ok) return;
+    if (!response.ok) {
+      if (manual) {
+        dispatchManualUpdateResult({
+          status: 'error',
+          error: `HTTP ${response.status}`
+        });
+      }
+      return;
+    }
     const releases = await response.json();
     // Find the highest-version non-draft release (regardless of pre-release flag)
     const validReleases = (releases as any[]).filter((r) => !r.draft && r.tag_name);
-    if (validReleases.length === 0) return;
+    if (validReleases.length === 0) {
+      if (manual) {
+        dispatchManualUpdateResult({ status: 'latest' });
+      }
+      return;
+    }
     const latestRelease = validReleases.reduce((best: any, cur: any) =>
       compareVersions(cur.tag_name.replace(/^v/, ''), best.tag_name.replace(/^v/, '')) > 0 ? cur : best
     );
@@ -139,6 +170,9 @@ async function checkUpdate() {
     const localVersion = await api.getAppVersion();
 
     if (compareVersions(remoteVersion, localVersion) > 0) {
+      if (manual) {
+        dispatchManualUpdateResult({ status: 'available', version: latestTag });
+      }
       ElMessageBox.confirm(
         h('div', null, [
           h('p', null, t('update.message', { version: latestTag })),
@@ -212,9 +246,20 @@ async function checkUpdate() {
           // If successful, the app will close.
         }
       }).catch(() => { });
+      return;
+    }
+
+    if (manual) {
+      dispatchManualUpdateResult({ status: 'latest', version: latestTag });
     }
   } catch (e) {
     console.error('Failed to check for updates:', e);
+    if (manual) {
+      dispatchManualUpdateResult({
+        status: 'error',
+        error: String(e)
+      });
+    }
   }
 }
 
@@ -225,6 +270,149 @@ function handleCancelUpdate() {
 
 function handleBackgroundUpdate() {
   showUpdateProgress.value = false;
+}
+
+function getCloseAction() {
+  if (isPlugin) return 'exit';
+  if (settingsStore.settings.trayEnabled === false) return 'exit';
+  return settingsStore.settings.closeAction || 'ask';
+}
+
+async function showMainWindow() {
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  const currentWindow = getCurrentWindow();
+  await currentWindow.show();
+  await currentWindow.unminimize().catch(() => undefined);
+  await currentWindow.setFocus().catch(() => undefined);
+}
+
+async function hideToTray() {
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  await getCurrentWindow().hide();
+}
+
+async function destroyTray() {
+  if (!trayIcon) return;
+  await trayIcon.close?.().catch(() => undefined);
+  trayIcon = null;
+}
+
+async function exitApp() {
+  allowWindowClose = true;
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  await getCurrentWindow().close();
+}
+
+function promptCloseAction(): Promise<'tray' | 'exit' | 'cancel'> {
+  rememberCloseAction.value = false;
+  closeBehaviorDialogVisible.value = true;
+  return new Promise((resolve) => {
+    pendingCloseResolver = resolve;
+  });
+}
+
+function resolveCloseDialog(action: 'tray' | 'exit' | 'cancel') {
+  closeBehaviorDialogVisible.value = false;
+  if (action !== 'cancel' && rememberCloseAction.value) {
+    settingsStore.settings.closeAction = action;
+  }
+  if (pendingCloseResolver) {
+    pendingCloseResolver(action);
+    pendingCloseResolver = null;
+  }
+}
+
+async function setupTray() {
+  if (isPlugin || !loaded.value) return;
+
+  const currentToken = ++traySetupToken;
+  await destroyTray();
+  if (currentToken !== traySetupToken) return;
+
+  if (settingsStore.settings.trayEnabled === false) {
+    return;
+  }
+
+  const [{ TrayIcon }, { Menu }, { MenuItem }, { defaultWindowIcon }] = await Promise.all([
+    import('@tauri-apps/api/tray'),
+    import('@tauri-apps/api/menu'),
+    import('@tauri-apps/api/menu'),
+    import('@tauri-apps/api/app'),
+  ]);
+
+  const showItem = await MenuItem.new({
+    id: 'tray-show',
+    text: t('settings.trayShowApp'),
+    action: () => { void showMainWindow(); },
+  });
+  const hideItem = await MenuItem.new({
+    id: 'tray-hide',
+    text: t('settings.trayHideApp'),
+    action: () => { void hideToTray(); },
+  });
+  const exitItem = await MenuItem.new({
+    id: 'tray-exit',
+    text: t('settings.trayExitApp'),
+    action: () => { void exitApp(); },
+  });
+  const menu = await Menu.new({
+    items: [showItem, hideItem, { item: 'Separator' }, exitItem],
+  });
+  const icon = await defaultWindowIcon();
+
+  const nextTrayIcon = await TrayIcon.new({
+    id: 'project-manager-tray',
+    tooltip: t('common.title'),
+    menu,
+    showMenuOnLeftClick: false,
+    icon: icon || undefined,
+    action: (event) => {
+      if (
+        (event.type === 'Click' && event.button === 'Left' && event.buttonState === 'Up')
+        || event.type === 'DoubleClick'
+      ) {
+        void showMainWindow();
+      }
+    },
+  });
+
+  if (currentToken !== traySetupToken) {
+    await nextTrayIcon.close?.().catch(() => undefined);
+    return;
+  }
+
+  trayIcon = nextTrayIcon;
+}
+
+async function setupCloseRequestedHandler() {
+  if (isPlugin || !loaded.value) return;
+
+  if (unlistenCloseRequested) {
+    unlistenCloseRequested();
+    unlistenCloseRequested = null;
+  }
+
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  unlistenCloseRequested = await getCurrentWindow().onCloseRequested(async (event) => {
+    if (allowWindowClose) return;
+
+    const closeAction = getCloseAction();
+    if (closeAction === 'exit') {
+      return;
+    }
+
+    event.preventDefault();
+    const resolvedAction = closeAction === 'ask' ? await promptCloseAction() : closeAction;
+
+    if (resolvedAction === 'tray') {
+      await hideToTray();
+      return;
+    }
+
+    if (resolvedAction === 'exit') {
+      await exitApp();
+    }
+  });
 }
 
 onMounted(async () => {
@@ -346,6 +534,11 @@ onMounted(async () => {
   if (!isPlugin && useSettingsStore().settings.autoUpdate !== false) {
     checkUpdate();
   }
+
+  // Listen for manual update check from Settings page
+  const handleManualUpdateCheck = () => checkUpdate(true);
+  manualUpdateCheckListener = () => window.removeEventListener('manual-check-update', handleManualUpdateCheck);
+  window.addEventListener('manual-check-update', handleManualUpdateCheck);
 });
 
 onUnmounted(() => {
@@ -353,6 +546,9 @@ onUnmounted(() => {
   if (unlistenDragLeave) unlistenDragLeave();
   if (unlistenDragDrop) unlistenDragDrop();
   if (unlistenSingleInstance) unlistenSingleInstance();
+  if (manualUpdateCheckListener) manualUpdateCheckListener();
+  if (unlistenCloseRequested) unlistenCloseRequested();
+  void destroyTray();
 });
 
 // Watch stores and save
@@ -371,10 +567,26 @@ const triggerSave = () => {
 watch(() => projectStore.projects, triggerSave, { deep: true });
 watch(() => settingsStore.settings, triggerSave, { deep: true });
 watch(() => nodeStore.versions, triggerSave, { deep: true });
+
+watch(
+  () => [loaded.value, settingsStore.settings.trayEnabled, settingsStore.settings.locale],
+  async ([isLoaded]) => {
+    if (!isLoaded || isPlugin) return;
+    await setupTray();
+  }
+);
+
+watch(
+  () => [loaded.value, settingsStore.settings.trayEnabled, settingsStore.settings.closeAction],
+  async ([isLoaded]) => {
+    if (!isLoaded || isPlugin) return;
+    await setupCloseRequestedHandler();
+  }
+);
 </script>
 
 <template>
-  <div class="h-screen w-screen flex flex-col bg-slate-50 dark:bg-[#0f172a] text-slate-900 dark:text-gray-100 font-sans overflow-hidden select-none transition-colors duration-200 antialiased">
+  <div class="h-screen w-screen flex flex-col bg-slate-50 dark:bg-[#0f172a] text-slate-900 dark:text-gray-100 font-sans overflow-hidden transition-colors duration-200 antialiased">
     <TitleBar v-if="!isPlugin" />
     
     <div class="flex-1 flex overflow-hidden relative">
@@ -419,6 +631,37 @@ watch(() => nodeStore.versions, triggerSave, { deep: true });
       @cancel="handleCancelUpdate"
       @background="handleBackgroundUpdate"
     />
+
+    <el-dialog
+      v-if="!isPlugin"
+      v-model="closeBehaviorDialogVisible"
+      :title="t('settings.closeActionTitle')"
+      width="420px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+      append-to-body
+      align-center
+      class="app-centered-dialog"
+    >
+      <div class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+        <p>{{ t('settings.closeActionPrompt') }}</p>
+        <el-checkbox v-model="rememberCloseAction">
+          {{ t('settings.rememberCloseAction') }}
+        </el-checkbox>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <el-button @click="resolveCloseDialog('cancel')">{{ t('common.cancel') }}</el-button>
+          <el-button type="primary" plain @click="resolveCloseDialog('tray')">
+            {{ t('settings.closeActionOptions.tray') }}
+          </el-button>
+          <el-button type="danger" @click="resolveCloseDialog('exit')">
+            {{ t('settings.closeActionOptions.exit') }}
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -521,6 +764,96 @@ button, [role="button"] {
 
 .el-input__wrapper {
   transition: box-shadow 0.2s ease-out !important;
+}
+
+.app-dialog,
+.project-modal,
+.install-node-dialog,
+.branch-dialog,
+.git-remote-dialog,
+.import-preview-dialog,
+.app-centered-dialog {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-width: calc(100vw - 32px);
+}
+
+.app-dialog {
+  width: min(500px, calc(100vw - 32px)) !important;
+  max-height: 90vh;
+}
+
+.project-modal {
+  width: min(680px, calc(100vw - 32px)) !important;
+  max-height: 90vh;
+}
+
+.install-node-dialog {
+  width: min(600px, calc(100vw - 32px)) !important;
+  max-height: 90vh;
+}
+
+.branch-dialog {
+  width: min(480px, calc(100vw - 32px)) !important;
+  max-height: 90vh;
+}
+
+.git-remote-dialog {
+  width: min(640px, calc(100vw - 32px)) !important;
+  max-height: 90vh;
+}
+
+.import-preview-dialog {
+  width: min(960px, calc(100vw - 32px)) !important;
+  max-height: 92vh;
+}
+
+.app-centered-dialog {
+  width: min(420px, calc(100vw - 32px)) !important;
+  max-height: 92vh;
+}
+
+.app-dialog .el-dialog__body,
+.project-modal .el-dialog__body,
+.install-node-dialog .el-dialog__body,
+.branch-dialog .el-dialog__body,
+.git-remote-dialog .el-dialog__body,
+.app-centered-dialog .el-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.project-modal .el-dialog__body,
+.branch-dialog .el-dialog__body,
+.git-remote-dialog .el-dialog__body,
+.install-node-dialog .el-dialog__body {
+  max-height: calc(90vh - 120px);
+}
+
+.project-modal .el-dialog__footer,
+.import-preview-dialog .el-dialog__footer {
+  padding-top: 12px;
+}
+
+.import-preview-dialog .el-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow: hidden;
+  padding-top: 12px;
+}
+
+.app-dialog .el-dialog__body > *,
+.project-modal .el-dialog__body > *,
+.install-node-dialog .el-dialog__body > *,
+.branch-dialog .el-dialog__body > *,
+.git-remote-dialog .el-dialog__body > *,
+.import-preview-dialog .el-dialog__body > *,
+.app-centered-dialog .el-dialog__body > * {
+  min-width: 0;
 }
 
 /* Smoother tag transitions */

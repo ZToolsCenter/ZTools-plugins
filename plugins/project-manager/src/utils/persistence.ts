@@ -29,7 +29,13 @@ export async function loadData() {
     const content = await api.readConfigFile(FILE_NAME);
     if (!content) return;
 
-    const data = JSON.parse(content);
+    let data: any;
+    try {
+      data = JSON.parse(content);
+    } catch (e) {
+      console.error('Failed to parse config file:', e);
+      return;
+    }
 
     if (data.projects) {
       const projectStore = useProjectStore();

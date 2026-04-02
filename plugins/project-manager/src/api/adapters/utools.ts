@@ -49,6 +49,7 @@ export class UToolsAdapter implements PlatformAPI {
   readConfigFile(filename: string): Promise<string> { return this.service.readConfigFile(filename); }
   writeConfigFile(filename: string, content: string): Promise<void> { return this.service.writeConfigFile(filename, content); }
   readTextFile(path: string): Promise<string> { return this.service.readTextFile(path); }
+  readBinaryFileBase64(path: string): Promise<string> { return this.service.readBinaryFileBase64(path); }
   writeTextFile(path: string, content: string): Promise<void> { return this.service.writeTextFile(path, content); }
   readDir(path: string): Promise<{ name: string; isDirectory: boolean }[]> { return this.service.readDir(path); }
 
@@ -168,7 +169,22 @@ export class UToolsAdapter implements PlatformAPI {
   async gitDeleteBranch(path: string, name: string, force?: boolean): Promise<string> { return this.service.gitDeleteBranch(path, name, force); }
   async gitRenameBranch(path: string, oldName: string, newName: string): Promise<string> { return this.service.gitRenameBranch(path, oldName, newName); }
   async gitHistory(path: string, maxCount?: number): Promise<GitCommit[]> { return this.service.gitHistory(path, maxCount); }
+  async gitCommitDetail(path: string, hash: string): Promise<GitCommit> {
+      if ((this.service as any).gitCommitDetail) {
+          return (this.service as any).gitCommitDetail(path, hash);
+      }
+      const commits = await this.service.gitHistory(path, 200);
+      const found = commits.find(commit => commit.hash === hash);
+      if (!found) {
+          throw new Error('Commit not found');
+      }
+      return found;
+  }
   async gitCommitFiles(path: string, hash: string): Promise<GitCommitFile[]> { return this.service.gitCommitFiles(path, hash); }
   async gitDiffCommitFile(path: string, hash: string, file: string): Promise<string> { return this.service.gitDiffCommitFile(path, hash, file); }
     async gitRevertHunk(path: string, patch: string, staged?: boolean): Promise<string> { return this.service.gitRevertHunk(path, patch, staged); }
+    async gitRemoteList(path: string): Promise<import('../../types').GitRemote[]> { return this.service.gitRemoteList(path); }
+    async gitRemoteAdd(path: string, name: string, url: string): Promise<string> { return this.service.gitRemoteAdd(path, name, url); }
+    async gitRemoteSetUrl(path: string, name: string, url: string): Promise<string> { return this.service.gitRemoteSetUrl(path, name, url); }
+    async gitRemoteRemove(path: string, name: string): Promise<string> { return this.service.gitRemoteRemove(path, name); }
 }

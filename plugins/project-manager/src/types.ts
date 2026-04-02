@@ -37,11 +37,14 @@ export interface Project {
 export interface Settings {
   editorPath: string; // legacy fallback
   editors?: EditorConfig[];
+  defaultEditorId?: string;
   defaultTerminal: string;
   customTerminals?: { id: string; name: string }[];
   locale: 'zh' | 'en';
   themeMode: 'dark' | 'light' | 'auto';
   autoUpdate: boolean;
+  trayEnabled?: boolean;
+  closeAction?: 'ask' | 'tray' | 'exit';
   // AI commit message generation
   gitAiEnabled?: boolean;
   gitAiBaseUrl?: string;

@@ -22,6 +22,20 @@ const visible = computed({
 
 const isEdit = computed(() => !!props.editProject);
 
+const defaultEditor = computed(() => {
+  const editors = settingsStore.settings.editors || [];
+  if (!editors.length) return null;
+  return editors.find(editor => editor.id === settingsStore.settings.defaultEditorId) || editors[0];
+});
+
+const editorPlaceholder = computed(() => defaultEditor.value
+  ? `${t('project.editorDefault')} (${defaultEditor.value.name || defaultEditor.value.path})`
+  : t('project.editorDefault'));
+
+const editorHint = computed(() => defaultEditor.value
+  ? `${t('project.editorHint')}：${defaultEditor.value.name || defaultEditor.value.path}`
+  : t('project.editorHint'));
+
 const form = ref<{
   id: string;
   name: string;
@@ -183,6 +197,15 @@ function removeCustomCommand(index: number) {
     form.value.customCommands.splice(index, 1);
 }
 
+function toggleVisibleScript(script: string) {
+  if (form.value.visibleScripts.includes(script)) {
+    form.value.visibleScripts = form.value.visibleScripts.filter(item => item !== script);
+    return;
+  }
+
+  form.value.visibleScripts = [...form.value.visibleScripts, script];
+}
+
 function submit() {
   if (!form.value.name || !form.value.path) return;
   
@@ -221,11 +244,13 @@ function submit() {
   <el-dialog
     v-model="visible"
     :title="isEdit ? t('project.editProject') : t('dashboard.addProject')"
-    width="500px"
+    width="680px"
     :close-on-click-modal="false"
     destroy-on-close
+    align-center
+    class="project-modal"
   >
-    <el-form label-position="top" :model="form">
+    <el-form label-position="top" :model="form" class="project-form">
         <el-form-item :label="t('project.name')">
             <el-input v-model="form.name" :placeholder="t('project.namePlaceholder')" />
         </el-form-item>
@@ -250,16 +275,16 @@ function submit() {
         </el-form-item>
 
         <template v-if="form.type === 'node'">
-            <el-row :gutter="20">
-                <el-col :span="12">
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="min-w-0">
                     <el-form-item :label="t('project.nodeVersion')">
                         <el-select v-model="form.nodeVersion">
                             <el-option :label="t('nodes.select')" value="" />
                             <el-option v-for="v in nodeVersions" :key="v" :label="v" :value="v" />
                         </el-select>
                     </el-form-item>
-                </el-col>
-                <el-col :span="12">
+                </div>
+                <div class="min-w-0">
                     <el-form-item :label="t('project.packageManager')">
                         <el-select v-model="form.packageManager">
                             <el-option label="npm" value="npm" />
@@ -268,29 +293,32 @@ function submit() {
                             <el-option label="cnpm" value="cnpm" />
                         </el-select>
                     </el-form-item>
-                </el-col>
-            </el-row>
+                </div>
+            </div>
 
             <!-- Scripts visibility selection -->
             <el-form-item v-if="form.scripts.length > 0" :label="t('project.scripts')">
-                <div class="w-full">
-                    <p class="text-xs text-slate-400 mb-2">{{ t('project.scriptsVisibilityHint') }}</p>
-                    <div class="flex flex-wrap gap-2">
-                        <el-checkbox
+                <div class="w-full rounded-xl border border-slate-200/70 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/40 p-3">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">{{ t('project.scriptsVisibilityHint') }}</p>
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <button
                             v-for="script in form.scripts"
                             :key="script"
-                            :model-value="form.visibleScripts.includes(script)"
-                            @change="(val: boolean) => {
-                                if (val) {
-                                    if (!form.visibleScripts.includes(script)) form.visibleScripts.push(script);
-                                } else {
-                                    form.visibleScripts = form.visibleScripts.filter(s => s !== script);
-                                }
-                            }"
-                            :label="script"
-                            border
-                            size="small"
-                        />
+                            type="button"
+                            @click="toggleVisibleScript(script)"
+                            class="script-toggle"
+                            :class="form.visibleScripts.includes(script)
+                                ? 'script-toggle-active'
+                                : 'script-toggle-inactive'"
+                        >
+                            <span class="truncate font-mono text-[12px]">{{ script }}</span>
+                            <div
+                                class="text-sm transition-transform duration-200"
+                                :class="form.visibleScripts.includes(script)
+                                    ? 'i-mdi-checkbox-marked-circle text-blue-500 scale-100'
+                                    : 'i-mdi-checkbox-blank-circle-outline text-slate-300 dark:text-slate-500 scale-90'"
+                            />
+                        </button>
                     </div>
                 </div>
             </el-form-item>
@@ -298,13 +326,21 @@ function submit() {
 
         <!-- Custom Commands (available for all project types) -->
         <el-form-item :label="t('project.customCommands')">
-            <div class="w-full space-y-2">
-                <div v-for="(cmd, index) in form.customCommands" :key="cmd.id" class="flex gap-2 items-center">
-                    <el-input v-model="cmd.name" :placeholder="t('project.commandName')" class="w-1/3" />
-                    <el-input v-model="cmd.command" :placeholder="t('project.commandContent')" class="flex-1" />
-                    <el-button type="danger" text @click="removeCustomCommand(index)">
-                        <el-icon><div class="i-mdi-close" /></el-icon>
-                    </el-button>
+            <div class="w-full space-y-3">
+                <div
+                    v-for="(cmd, index) in form.customCommands"
+                    :key="cmd.id"
+                    class="rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900/30 p-3"
+                >
+                    <div class="flex items-start gap-3 min-w-0">
+                        <div class="grid min-w-0 flex-1 gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
+                            <el-input v-model="cmd.name" :placeholder="t('project.commandName')" />
+                            <el-input v-model="cmd.command" :placeholder="t('project.commandContent')" />
+                        </div>
+                        <el-button type="danger" text @click="removeCustomCommand(index)" class="!mt-1">
+                            <el-icon><div class="i-mdi-close" /></el-icon>
+                        </el-button>
+                    </div>
                 </div>
                 <el-button type="primary" text @click="addCustomCommand">
                     <el-icon class="mr-1"><div class="i-mdi-plus" /></el-icon>
@@ -315,10 +351,10 @@ function submit() {
 
         <!-- Editor Selection -->
         <el-form-item v-if="settingsStore.settings.editors && settingsStore.settings.editors.length > 1" :label="t('project.editor')">
-            <el-select v-model="form.editorId" class="w-full" clearable :placeholder="t('project.editorDefault')">
+            <el-select v-model="form.editorId" class="w-full" clearable :placeholder="editorPlaceholder">
                 <el-option v-for="editor in settingsStore.settings.editors" :key="editor.id" :label="editor.name || editor.path" :value="editor.id" />
             </el-select>
-            <div class="text-xs text-slate-400 mt-1">{{ t('project.editorHint') }}</div>
+            <div class="text-xs text-slate-400 mt-1">{{ editorHint }}</div>
         </el-form-item>
     </el-form>
 
@@ -332,3 +368,65 @@ function submit() {
     </template>
   </el-dialog>
 </template>
+
+<style scoped>
+.project-form {
+  min-height: 0;
+}
+
+.script-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 0.85rem;
+  border-width: 1px;
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.script-toggle-active {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.1);
+  color: rgb(37, 99, 235);
+}
+
+.script-toggle-inactive {
+  border-color: rgba(148, 163, 184, 0.25);
+  background: rgba(255, 255, 255, 0.85);
+  color: rgb(71, 85, 105);
+}
+
+.dark .script-toggle-inactive {
+  background: rgba(15, 23, 42, 0.72);
+  color: rgb(203, 213, 225);
+}
+
+.script-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.project-modal {
+  display: flex;
+  width: min(680px, calc(100vw - 32px));
+  max-height: 90vh;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:deep(.project-modal .el-dialog__body) {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+  padding-top: 12px;
+}
+
+:deep(.project-modal .el-dialog__footer) {
+  flex-shrink: 0;
+  padding-top: 12px;
+}
+</style>

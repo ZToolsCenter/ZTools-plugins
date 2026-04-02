@@ -2,8 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getVersion } from '@tauri-apps/api/app';
 import { open as openDialogFn, save as saveDialogFn } from '@tauri-apps/plugin-dialog';
-import { openUrl as openUrlFn } from '@tauri-apps/plugin-opener';
-import { readTextFile as readTextFileFn, writeTextFile as writeTextFileFn } from '@tauri-apps/plugin-fs';
+import { openPath as openPathFn, openUrl as openUrlFn } from '@tauri-apps/plugin-opener';
 import type { PlatformAPI, ProjectInfo, TerminalInfo } from '../types';
 import type { NodeVersion, GitStatusResult, GitBranch, GitCommit, GitSummary, GitCommitFile } from '../../types';
 
@@ -65,7 +64,11 @@ export class TauriAdapter implements PlatformAPI {
     }
     
     async openFolder(path: string): Promise<void> {
-        return invoke('open_folder', { path });
+        try {
+            await openPathFn(path);
+        } catch {
+            return invoke('open_folder', { path });
+        }
     }
     
     async openUrl(url: string): Promise<void> {
@@ -91,11 +94,15 @@ export class TauriAdapter implements PlatformAPI {
     }
 
     async readTextFile(path: string): Promise<string> {
-        return readTextFileFn(path);
+        return invoke('read_text_file', { path });
+    }
+
+    async readBinaryFileBase64(path: string): Promise<string> {
+        return invoke('read_binary_file_base64', { path });
     }
 
     async writeTextFile(path: string, content: string): Promise<void> {
-        return writeTextFileFn(path, content);
+        return invoke('write_text_file', { path, content });
     }
 
     async readDir(path: string): Promise<{ name: string; isDirectory: boolean }[]> {
@@ -290,6 +297,10 @@ export class TauriAdapter implements PlatformAPI {
         return invoke('git_history', { path, maxCount });
     }
 
+    async gitCommitDetail(path: string, hash: string): Promise<GitCommit> {
+        return invoke('git_commit_detail', { path, hash });
+    }
+
     async gitCommitFiles(path: string, hash: string): Promise<GitCommitFile[]> {
         return invoke('git_commit_files', { path, hash });
     }
@@ -300,5 +311,21 @@ export class TauriAdapter implements PlatformAPI {
 
     async gitRevertHunk(path: string, patch: string, staged?: boolean): Promise<string> {
         return invoke('git_revert_hunk', { path, patch, staged });
+    }
+
+    async gitRemoteList(path: string): Promise<import('../../types').GitRemote[]> {
+        return invoke('git_remote_list', { path });
+    }
+
+    async gitRemoteAdd(path: string, name: string, url: string): Promise<string> {
+        return invoke('git_remote_add', { path, name, url });
+    }
+
+    async gitRemoteSetUrl(path: string, name: string, url: string): Promise<string> {
+        return invoke('git_remote_set_url', { path, name, url });
+    }
+
+    async gitRemoteRemove(path: string, name: string): Promise<string> {
+        return invoke('git_remote_remove', { path, name });
     }
 }

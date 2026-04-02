@@ -41,6 +41,7 @@ export interface PlatformAPI {
     readConfigFile(filename: string): Promise<string>;
     writeConfigFile(filename: string, content: string): Promise<void>;
     readTextFile(path: string): Promise<string>;
+    readBinaryFileBase64(path: string): Promise<string>;
     writeTextFile(path: string, content: string): Promise<void>;
     readDir(path: string): Promise<{ name: string; isDirectory: boolean }[]>;
 
@@ -108,7 +109,12 @@ export interface PlatformAPI {
     gitDeleteBranch(path: string, name: string, force?: boolean): Promise<string>;
     gitRenameBranch(path: string, oldName: string, newName: string): Promise<string>;
     gitHistory(path: string, maxCount?: number): Promise<GitCommit[]>;
+    gitCommitDetail(path: string, hash: string): Promise<GitCommit>;
     gitCommitFiles(path: string, hash: string): Promise<GitCommitFile[]>;
     gitDiffCommitFile(path: string, hash: string, file: string): Promise<string>;
     gitRevertHunk(path: string, patch: string, staged?: boolean): Promise<string>;
+    gitRemoteList(path: string): Promise<import('../types').GitRemote[]>;
+    gitRemoteAdd(path: string, name: string, url: string): Promise<string>;
+    gitRemoteSetUrl(path: string, name: string, url: string): Promise<string>;
+    gitRemoteRemove(path: string, name: string): Promise<string>;
 }

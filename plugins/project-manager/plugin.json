@@ -1,8 +1,8 @@
 {
     "name": "project-manager",
     "title": "项目管理器",
-    "version": "1.0.3",
-    "description": "前端项目管理器 - 管理项目、Node.js 版本和 Git 仓库",
+    "version": "1.0.4",
+    "description": "项目管理器 - 管理项目脚本、Node.js 版本和 Git 仓库，内置 Git 图形界面与 AI 提交信息生成",
     "author": "cuteyuchen",
     "main": "index.html",
     "preload": "preload.js",
@@ -10,17 +10,20 @@
     "features": [
         {
             "code": "main",
-            "explain": "项目管理器",
+            "explain": "打开项目管理器",
             "cmds": [
                 "项目管理器",
                 "Project Manager",
                 "project-manager",
-                "pm"
+                "pm",
+                "前端项目",
+                "git管理",
+                "node管理"
             ]
         },
         {
             "code": "import_project",
-            "explain": "导入前端项目",
+            "explain": "导入项目",
             "cmds": [
                 {
                     "type": "files",

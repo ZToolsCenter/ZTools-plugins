@@ -16,6 +16,7 @@ export const useGitStore = defineStore('git', () => {
   const status = ref<Record<string, GitStatusResult>>({});
   const history = ref<Record<string, GitCommit[]>>({});
   const branches = ref<Record<string, GitBranch[]>>({});
+  const commitDetails = ref<Record<string, Record<string, GitCommit>>>({});
 
   // Current diff (not project-scoped – just the currently viewed diff)
   const selectedDiff = ref('');
@@ -263,8 +264,21 @@ export const useGitStore = defineStore('git', () => {
     }
   }
 
+  async function refreshCommitDetail(projectId: string, path: string, hash: string): Promise<GitCommit> {
+    const detail = await api.gitCommitDetail(path, hash);
+    if (!commitDetails.value[projectId]) {
+      commitDetails.value[projectId] = {};
+    }
+    commitDetails.value[projectId][hash] = detail;
+    return detail;
+  }
+
   function getCommitFiles(projectId: string, hash: string): GitCommitFile[] {
     return commitFiles.value[projectId]?.[hash] || [];
+  }
+
+  function getCommitDetail(projectId: string, hash: string): GitCommit | undefined {
+    return commitDetails.value[projectId]?.[hash];
   }
 
   async function getDiffCommitFile(path: string, hash: string, file: string): Promise<string> {
@@ -358,6 +372,7 @@ export const useGitStore = defineStore('git', () => {
     status,
     history,
     branches,
+    commitDetails,
     selectedDiff,
     selectedDiffFile,
     selectedDiffStaged,
@@ -375,6 +390,7 @@ export const useGitStore = defineStore('git', () => {
     getRemoteBranches,
     getTotalChanges,
     getCommitFiles,
+    getCommitDetail,
 
     // Refresh
     checkGitRepo,
@@ -385,6 +401,7 @@ export const useGitStore = defineStore('git', () => {
     refreshHistory,
     refreshBranches,
     refreshCommitFiles,
+    refreshCommitDetail,
 
     // Operations
     stageFiles,

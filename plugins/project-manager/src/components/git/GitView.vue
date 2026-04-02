@@ -13,6 +13,7 @@ import GitDiffView from './GitDiffView.vue';
 import GitHistory from './GitHistory.vue';
 import GitBranchDialog from './GitBranchDialog.vue';
 import GitCommitFileList from './GitCommitFileList.vue';
+import GitRemoteSettingsDialog from './GitRemoteSettingsDialog.vue';
 
 const { t } = useI18n();
 const projectStore = useProjectStore();
@@ -20,6 +21,7 @@ const gitStore = useGitStore();
 
 const activeTab = ref<'changes' | 'history'>('changes');
 const showBranchDialog = ref(false);
+const showSettingsDialog = ref(false);
 
 const activeProject = computed(() =>
   projectStore.projects.find(p => p.id === projectStore.activeProjectId)
@@ -141,6 +143,8 @@ const selectedHistoryHash = computed(() => {
 
 const selectedHistoryCommit = computed(() => {
   if (!activeProject.value || !selectedHistoryHash.value) return null;
+  const detail = gitStore.getCommitDetail(activeProject.value.id, selectedHistoryHash.value);
+  if (detail) return detail;
   const commits = gitStore.history[activeProject.value.id] || [];
   return commits.find(c => c.hash === selectedHistoryHash.value) || null;
 });
@@ -168,6 +172,15 @@ const selectedHistoryParent = computed(() => {
   if (!selectedHistoryCommit.value) return '-';
   return selectedHistoryCommit.value.parents[0] || '-';
 });
+
+async function copyText(value: string, successMessage: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    ElMessage.success(successMessage);
+  } catch (error) {
+    ElMessage.error(t('git.operationFailed', { error: String(error) }));
+  }
+}
 </script>
 
 <template>
@@ -188,6 +201,7 @@ const selectedHistoryParent = computed(() => {
       <GitToolbar
         :project="activeProject"
         @open-branch-dialog="showBranchDialog = true"
+        @open-settings-dialog="showSettingsDialog = true"
         @refresh="handleRefresh"
       />
 
@@ -282,16 +296,24 @@ const selectedHistoryParent = computed(() => {
             <!-- Commit info header -->
             <div
               v-if="selectedHistoryCommit"
-              class="px-3 py-2 border-b border-slate-200/40 dark:border-slate-700/20 shrink-0 text-[11px] space-y-1 overflow-auto"
+              class="px-3 py-2 border-b border-slate-200/40 dark:border-slate-700/20 shrink-0 text-[11px] space-y-2 overflow-auto select-text"
               :style="{ height: historyDetailPane.size.value + 'px' }"
             >
               <div class="leading-relaxed text-slate-600 dark:text-slate-300">
-                <span class="text-slate-400 dark:text-slate-500">提交：</span>
-                <span class="font-mono break-all">{{ selectedHistoryCommit.hash }} [{{ selectedHistoryCommit.short_hash }}]</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-400 dark:text-slate-500">提交：</span>
+                  <span class="font-mono break-all flex-1">{{ selectedHistoryCommit.hash }} [{{ selectedHistoryCommit.short_hash }}]</span>
+                  <button
+                    class="shrink-0 rounded px-1.5 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 transition-colors"
+                    @click="copyText(selectedHistoryCommit.hash, t('git.copyHashSuccess'))"
+                  >
+                    {{ t('git.copyHash') }}
+                  </button>
+                </div>
               </div>
               <div class="leading-relaxed text-slate-600 dark:text-slate-300">
                 <span class="text-slate-400 dark:text-slate-500">父级：</span>
-                <span class="font-mono break-all">{{ selectedHistoryParent }}</span>
+                <span class="font-mono break-all whitespace-pre-wrap">{{ selectedHistoryParent }}</span>
               </div>
               <div class="leading-relaxed text-slate-600 dark:text-slate-300">
                 <span class="text-slate-400 dark:text-slate-500">作者：</span>
@@ -305,9 +327,17 @@ const selectedHistoryParent = computed(() => {
                 <span class="text-slate-400 dark:text-slate-500">提交者：</span>
                 <span>{{ selectedHistoryCommit.committer || selectedHistoryCommit.author }}</span>
               </div>
-              <div class="leading-relaxed text-slate-600 dark:text-slate-300">
-                <span class="text-slate-400 dark:text-slate-500">提交信息：</span>
-                <span>{{ selectedHistoryCommit.message }}</span>
+              <div class="leading-relaxed text-slate-600 dark:text-slate-300 space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-400 dark:text-slate-500">提交信息：</span>
+                  <button
+                    class="rounded px-1.5 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 transition-colors"
+                    @click="copyText(selectedHistoryCommit.message, t('git.copyCommitMessageSuccess'))"
+                  >
+                    {{ t('git.copyCommitMessage') }}
+                  </button>
+                </div>
+                <pre class="m-0 whitespace-pre-wrap break-words font-sans leading-relaxed text-slate-700 dark:text-slate-200">{{ selectedHistoryCommit.message }}</pre>
               </div>
               <div class="pt-1 flex items-center gap-1.5 overflow-hidden">
                 <span
@@ -355,6 +385,12 @@ const selectedHistoryParent = computed(() => {
       <!-- Branch dialog -->
       <GitBranchDialog
         v-model="showBranchDialog"
+        :project="activeProject"
+      />
+
+      <!-- Remote settings dialog -->
+      <GitRemoteSettingsDialog
+        v-model="showSettingsDialog"
         :project="activeProject"
       />
     </template>

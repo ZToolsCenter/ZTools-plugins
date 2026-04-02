@@ -82,7 +82,10 @@ function onBodyScroll(e: Event) {
 async function selectCommit(commit: GitCommit) {
   gitStore.selectedCommitHash[props.project.id] = commit.hash;
   gitStore.clearDiff();
-  await gitStore.refreshCommitFiles(props.project.id, props.project.path, commit.hash);
+  await Promise.all([
+    gitStore.refreshCommitFiles(props.project.id, props.project.path, commit.hash),
+    gitStore.refreshCommitDetail(props.project.id, props.project.path, commit.hash),
+  ]);
 }
 
 async function loadMore() {
