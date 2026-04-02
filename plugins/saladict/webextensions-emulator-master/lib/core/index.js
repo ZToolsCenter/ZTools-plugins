@@ -15,7 +15,7 @@ let inited, enterEventListener;
 let localStorageData, indexedDBData, versionData;
 let latestVersion = '7.19.0'
 
-utools.onPluginEnter(({ code, type, payload }) => {
+ztools.onPluginEnter(({ code, type, payload }) => {
     console.log('utools.onPluginEnter')
     // let clipboardText = clipboard.readText();
     if (payload == "沙拉查词" || payload == "saladict") {
@@ -31,7 +31,7 @@ utools.onPluginEnter(({ code, type, payload }) => {
                 let textArea = document.querySelectorAll('textarea');
                 textArea = textArea[textArea.length - 1];
                 let text = textArea.value;
-                utools.copyText(text)
+                ztools.copyText(text)
             }else if(cmd == 'paste'){
                 document.getElementById("saladict-paste").value = payload
             }
@@ -44,7 +44,7 @@ utools.onPluginEnter(({ code, type, payload }) => {
 })
 
 async function init() {
-    utools.db.remove("indexedDBData")
+    ztools.db.remove("indexedDBData")
     localStorageData = new utoolsStorage('localStorageData');
     indexedDBData = new utoolsStorage('indexedDBDataV2');
     versionData = new utoolsStorage('versionData');
@@ -69,7 +69,7 @@ async function init() {
 }
 window.init = init;
 console.log('core run ')
-utools.onPluginReady(() => {
+ztools.onPluginReady(() => {
     console.log('utools.onPluginReady')
     init()
 })

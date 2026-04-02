@@ -66,7 +66,7 @@ function loadJs (url, callback) {
 export class utoolsStorage {
   constructor(id) {
       this.id = id;
-      this.data = utools.db.get(id)
+      this.data = ztools.db.get(id)
   }
   getData(){
     let data = null;
@@ -83,7 +83,7 @@ export class utoolsStorage {
       if (this.data && this.data._rev) {
           postData._rev = this.data._rev
       }
-      let result = utools.db.put(postData);
+      let result = ztools.db.put(postData);
       if (result.error) {
           console.error(result.message)
       } else {
