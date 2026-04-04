@@ -134,7 +134,7 @@ async function rollbackHunk(hunk: DiffHunk) {
       </div>
 
       <!-- Diff content -->
-      <div class="flex-1 overflow-auto font-mono text-[11px] leading-[18px] p-2 space-y-2">
+      <div class="flex-1 overflow-auto font-mono text-[11px] leading-[18px] p-2 space-y-2 select-text cursor-text">
         <div
           v-for="(hunk, hunkIndex) in parsedHunks"
           :key="hunkIndex"

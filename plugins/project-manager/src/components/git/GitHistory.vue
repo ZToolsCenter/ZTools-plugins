@@ -80,9 +80,24 @@ function onBodyScroll(e: Event) {
 // ─── Commit actions ──────────────────────────────────────────────────
 
 async function selectCommit(commit: GitCommit) {
+  if (selectedHash.value === commit.hash) {
+    return;
+  }
+
   gitStore.selectedCommitHash[props.project.id] = commit.hash;
   gitStore.clearDiff();
-  await gitStore.refreshCommitFiles(props.project.id, props.project.path, commit.hash);
+
+  const tasks: Promise<unknown>[] = [];
+  if (gitStore.getCommitFiles(props.project.id, commit.hash).length === 0) {
+    tasks.push(gitStore.refreshCommitFiles(props.project.id, props.project.path, commit.hash));
+  }
+  if (!gitStore.getCommitDetail(props.project.id, commit.hash)) {
+    tasks.push(gitStore.refreshCommitDetail(props.project.id, props.project.path, commit.hash));
+  }
+
+  if (tasks.length > 0) {
+    await Promise.all(tasks);
+  }
 }
 
 async function loadMore() {
@@ -346,80 +361,73 @@ watch(commits, (newCommits, oldCommits) => {
             isHeadCommit(commit) ? 'font-bold' : '',
           ]"
         >
-          <!-- Graph column -->
-          <div class="shrink-0 overflow-hidden" :style="{ width: colWidths[0] + 'px', height: ROW_HEIGHT + 'px' }">
-            <svg
-              v-if="graphData.rows[rowIdx]"
-              :width="Math.min(colWidths[0], graphSvgWidth)"
-              :height="ROW_HEIGHT"
-              class="block"
-            >
-              <!-- Vertical lane lines (pass-through) -->
-              <line
-                v-for="activeLane in graphData.rows[rowIdx].activeLanes"
-                :key="'v' + activeLane"
-                :x1="laneX(activeLane)"
-                y1="0"
-                :x2="laneX(activeLane)"
-                :y2="ROW_HEIGHT"
-                :stroke="graphData.rows[rowIdx].laneColors.get(activeLane) || '#94a3b8'"
-                stroke-width="2"
-                stroke-opacity="0.6"
-              />
-              <!-- Merge/branch connection lines -->
-              <line
-                v-for="(conn, ci) in graphData.rows[rowIdx].connections"
-                :key="'c' + ci"
-                :x1="laneX(conn[0])"
-                :y1="ROW_HEIGHT / 2"
-                :x2="laneX(conn[1])"
-                :y2="ROW_HEIGHT"
-                :stroke="graphData.rows[rowIdx].color"
-                stroke-width="2"
-                stroke-opacity="0.7"
-              />
-              <!-- Commit dot -->
-              <circle
-                :cx="laneX(graphData.rows[rowIdx].lane)"
-                :cy="ROW_HEIGHT / 2"
-                :r="DOT_RADIUS"
-                :fill="isHeadCommit(commit) ? 'white' : graphData.rows[rowIdx].color"
-                :stroke="graphData.rows[rowIdx].color"
-                :stroke-width="isHeadCommit(commit) ? 2.5 : 1.5"
-              />
-            </svg>
-          </div>
+            <!-- Graph column -->
+            <div class="shrink-0 overflow-hidden" :style="{ width: colWidths[0] + 'px', height: ROW_HEIGHT + 'px' }">
+              <svg
+                v-if="graphData.rows[rowIdx]"
+                :width="Math.min(colWidths[0], graphSvgWidth)"
+                :height="ROW_HEIGHT"
+                class="block"
+              >
+                <line
+                  v-for="activeLane in graphData.rows[rowIdx].activeLanes"
+                  :key="'v' + activeLane"
+                  :x1="laneX(activeLane)"
+                  y1="0"
+                  :x2="laneX(activeLane)"
+                  :y2="ROW_HEIGHT"
+                  :stroke="graphData.rows[rowIdx].laneColors.get(activeLane) || '#94a3b8'"
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                />
+                <line
+                  v-for="(conn, ci) in graphData.rows[rowIdx].connections"
+                  :key="'c' + ci"
+                  :x1="laneX(conn[0])"
+                  :y1="ROW_HEIGHT / 2"
+                  :x2="laneX(conn[1])"
+                  :y2="ROW_HEIGHT"
+                  :stroke="graphData.rows[rowIdx].color"
+                  stroke-width="2"
+                  stroke-opacity="0.7"
+                />
+                <circle
+                  :cx="laneX(graphData.rows[rowIdx].lane)"
+                  :cy="ROW_HEIGHT / 2"
+                  :r="DOT_RADIUS"
+                  :fill="isHeadCommit(commit) ? 'white' : graphData.rows[rowIdx].color"
+                  :stroke="graphData.rows[rowIdx].color"
+                  :stroke-width="isHeadCommit(commit) ? 2.5 : 1.5"
+                />
+              </svg>
+            </div>
 
-          <!-- Description column -->
-          <div class="shrink-0 flex items-center gap-1.5 overflow-hidden px-2 box-border" :style="{ width: colWidths[1] + 'px' }">
-            <span class="truncate" :class="isHeadCommit(commit) ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'">{{ commit.message }}</span>
-            <span
-              v-if="isMergeCommit(commit)"
-              class="text-[9px] px-1.5 py-0 rounded-full font-medium shrink-0"
-              :style="{ backgroundColor: refColor(rowIdx) + '18', color: refColor(rowIdx) }"
-            >merge</span>
-            <span
-              v-for="ref in shortRefs(commit.refs).slice(0, 2)"
-              :key="ref"
-              class="text-[9px] px-1.5 py-0 rounded-full font-medium shrink-0 truncate max-w-24"
-              :style="{ backgroundColor: refColor(rowIdx) + '18', color: refColor(rowIdx) }"
-            >{{ ref }}</span>
-          </div>
+            <div class="shrink-0 flex items-center gap-1.5 overflow-hidden px-2 box-border" :style="{ width: colWidths[1] + 'px' }">
+              <span class="truncate" :class="isHeadCommit(commit) ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'">{{ commit.message }}</span>
+              <span
+                v-if="isMergeCommit(commit)"
+                class="text-[9px] px-1.5 py-0 rounded-full font-medium shrink-0"
+                :style="{ backgroundColor: refColor(rowIdx) + '18', color: refColor(rowIdx) }"
+              >merge</span>
+              <span
+                v-for="ref in shortRefs(commit.refs).slice(0, 2)"
+                :key="ref"
+                class="text-[9px] px-1.5 py-0 rounded-full font-medium shrink-0 truncate max-w-24"
+                :style="{ backgroundColor: refColor(rowIdx) + '18', color: refColor(rowIdx) }"
+              >{{ ref }}</span>
+            </div>
 
-          <!-- Date column -->
-          <div class="shrink-0 px-2 truncate box-border" :class="isHeadCommit(commit) ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'" :style="{ width: colWidths[2] + 'px' }">
-            {{ formatDate(commit.date) }}
-          </div>
+            <div class="shrink-0 px-2 truncate box-border" :class="isHeadCommit(commit) ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'" :style="{ width: colWidths[2] + 'px' }">
+              {{ formatDate(commit.date) }}
+            </div>
 
-          <!-- Author column -->
-          <div class="shrink-0 px-2 truncate box-border" :class="isHeadCommit(commit) ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'" :style="{ width: colWidths[3] + 'px' }">
-            {{ commit.author }} &lt;{{ commit.email }}&gt;
-          </div>
+            <div class="shrink-0 px-2 truncate box-border" :class="isHeadCommit(commit) ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'" :style="{ width: colWidths[3] + 'px' }">
+              {{ commit.author }} &lt;{{ commit.email }}&gt;
+            </div>
 
-          <!-- Hash column -->
-          <div class="shrink-0 px-2 font-mono truncate box-border" :class="isHeadCommit(commit) ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'" :style="{ width: colWidths[4] + 'px' }">
-            {{ commit.short_hash }}
-          </div>
+            <div class="shrink-0 px-2 font-mono truncate box-border" :class="isHeadCommit(commit) ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'" :style="{ width: colWidths[4] + 'px' }">
+              {{ commit.short_hash }}
+            </div>
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import { useSettingsStore } from '../../stores/settings';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import type { Project } from '../../types';
+import { showPersistentGitError } from './message';
 
 const props = defineProps<{
   project: Project;
@@ -41,7 +42,7 @@ async function handleCommit() {
     commitMessage.value = '';
     ElMessage.success(t('git.commitSuccess'));
   } catch (e: any) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   }
 }
 
@@ -60,7 +61,7 @@ async function handleCommitAndPush() {
     await gitStore.push(props.project.id, props.project.path);
     ElMessage.success(t('git.commitAndPushSuccess'));
   } catch (e: any) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   }
 }
 
@@ -87,7 +88,7 @@ async function handleAiGenerate() {
     if (msg.includes('no_staged')) {
       ElMessage.warning(t('git.aiNoStaged'));
     } else {
-      ElMessage.error(t('git.aiError', { error: msg }));
+      showPersistentGitError(t('git.aiError', { error: msg }));
     }
   } finally {
     aiGenerating.value = false;

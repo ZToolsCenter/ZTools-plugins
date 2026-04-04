@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue';
+import { ref, computed, watch, onActivated, onDeactivated, onUnmounted } from 'vue';
 import { useProjectStore } from '../../stores/project';
 import { useGitStore } from '../../stores/git';
 import { useI18n } from 'vue-i18n';
@@ -13,6 +13,8 @@ import GitDiffView from './GitDiffView.vue';
 import GitHistory from './GitHistory.vue';
 import GitBranchDialog from './GitBranchDialog.vue';
 import GitCommitFileList from './GitCommitFileList.vue';
+import GitRemoteSettingsDialog from './GitRemoteSettingsDialog.vue';
+import { showPersistentGitError } from './message';
 
 const { t } = useI18n();
 const projectStore = useProjectStore();
@@ -20,6 +22,7 @@ const gitStore = useGitStore();
 
 const activeTab = ref<'changes' | 'history'>('changes');
 const showBranchDialog = ref(false);
+const showSettingsDialog = ref(false);
 
 const activeProject = computed(() =>
   projectStore.projects.find(p => p.id === projectStore.activeProjectId)
@@ -42,6 +45,8 @@ let stagedDragStart = 0;
 let stagedRatioStart = 0;
 const isDraggingStagedSplit = ref(false);
 const statusPanelRef = ref<HTMLElement | null>(null);
+const isViewActive = ref(false);
+let refreshTimer: number | null = null;
 
 function onStagedSplitMouseDown(e: MouseEvent) {
   e.preventDefault();
@@ -72,41 +77,87 @@ function onStagedSplitMouseUp() {
   document.body.style.userSelect = '';
 }
 
-// Watch project changes — refresh and clear stale diff
-watch(activeProject, async (newProject, oldProject) => {
+function clearScheduledRefresh() {
+  if (refreshTimer !== null) {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
+}
+
+function scheduleRefresh(options: { force?: boolean; includeHistory?: boolean; delayMs?: number } = {}) {
+  clearScheduledRefresh();
+
+  const delayMs = options.delayMs ?? 120;
+  refreshTimer = window.setTimeout(async () => {
+    refreshTimer = null;
+
+    if (!isViewActive.value || gitStore.coldStorage || !activeProject.value) {
+      return;
+    }
+
+    const project = activeProject.value;
+    const isRepo = await gitStore.checkGitRepo(project.id, project.path, { force: options.force });
+    if (!isRepo) return;
+
+    await gitStore.ensureSummaryAndStatus(project.id, project.path, { force: options.force });
+    if (options.includeHistory) {
+      await gitStore.ensureHistory(project.id, project.path, { force: options.force });
+    }
+  }, delayMs);
+}
+
+function enterActiveMode() {
+  isViewActive.value = true;
+  gitStore.setColdStorage(false);
+  scheduleRefresh({
+    includeHistory: activeTab.value === 'history',
+    delayMs: 60,
+  });
+}
+
+function enterColdStorage() {
+  isViewActive.value = false;
+  clearScheduledRefresh();
+  gitStore.setColdStorage(true);
+}
+
+// Watch project changes — refresh lazily after the selection UI settles
+watch(activeProject, (newProject, oldProject) => {
   if (oldProject?.id !== newProject?.id) {
     gitStore.clearDiff();
   }
-  if (newProject) {
-    const isRepo = await gitStore.checkGitRepo(newProject.id, newProject.path);
-    if (isRepo) {
-      await gitStore.refreshSummaryAndStatus(newProject.id, newProject.path);
-      // Also refresh history so it's ready when user switches to history tab
-      await gitStore.refreshHistory(newProject.id, newProject.path);
-    }
-  }
+  if (!newProject || !isViewActive.value) return;
+  scheduleRefresh({
+    includeHistory: activeTab.value === 'history',
+    delayMs: 140,
+  });
 }, { immediate: true });
 
 // Auto-refresh when window regains focus (e.g. after alt-tab)
 let unlistenFocus: (() => void) | null = null;
 api.onWindowFocus(() => {
-  if (!activeProject.value) return;
-  const p = activeProject.value;
-  gitStore.checkGitRepo(p.id, p.path).then(isRepo => {
-    if (!isRepo) return;
-    gitStore.refreshSummaryAndStatus(p.id, p.path);
-    gitStore.refreshHistory(p.id, p.path);
+  if (!isViewActive.value || !activeProject.value || gitStore.coldStorage) return;
+  scheduleRefresh({
+    includeHistory: activeTab.value === 'history',
+    delayMs: 180,
   });
 }).then(unlisten => { unlistenFocus = unlisten; });
 onUnmounted(() => {
+  clearScheduledRefresh();
   unlistenFocus?.();
 });
 
-// Clear diff when switching tabs; lazy-load history
+onActivated(enterActiveMode);
+onDeactivated(enterColdStorage);
+
+// Clear diff when switching tabs; history is loaded only when the tab is used
 watch(activeTab, (tab) => {
   gitStore.clearDiff();
-  if (tab === 'history' && activeProject.value) {
-    gitStore.refreshHistory(activeProject.value.id, activeProject.value.path);
+  if (tab === 'history' && activeProject.value && isViewActive.value) {
+    scheduleRefresh({
+      includeHistory: true,
+      delayMs: 0,
+    });
   }
 });
 
@@ -116,7 +167,7 @@ async function handleInitRepo() {
     await gitStore.initRepo(activeProject.value.id, activeProject.value.path);
     ElMessage.success(t('git.initSuccess'));
   } catch (e: any) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   }
 }
 
@@ -141,6 +192,8 @@ const selectedHistoryHash = computed(() => {
 
 const selectedHistoryCommit = computed(() => {
   if (!activeProject.value || !selectedHistoryHash.value) return null;
+  const detail = gitStore.getCommitDetail(activeProject.value.id, selectedHistoryHash.value);
+  if (detail) return detail;
   const commits = gitStore.history[activeProject.value.id] || [];
   return commits.find(c => c.hash === selectedHistoryHash.value) || null;
 });
@@ -168,6 +221,21 @@ const selectedHistoryParent = computed(() => {
   if (!selectedHistoryCommit.value) return '-';
   return selectedHistoryCommit.value.parents[0] || '-';
 });
+
+function closeHistoryDetail() {
+  if (!activeProject.value) return;
+  gitStore.selectedCommitHash[activeProject.value.id] = '';
+  gitStore.clearDiff();
+}
+
+async function copyText(value: string, successMessage: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    ElMessage.success(successMessage);
+  } catch (error) {
+    showPersistentGitError(t('git.operationFailed', { error: String(error) }));
+  }
+}
 </script>
 
 <template>
@@ -188,6 +256,7 @@ const selectedHistoryParent = computed(() => {
       <GitToolbar
         :project="activeProject"
         @open-branch-dialog="showBranchDialog = true"
+        @open-settings-dialog="showSettingsDialog = true"
         @refresh="handleRefresh"
       />
 
@@ -282,16 +351,29 @@ const selectedHistoryParent = computed(() => {
             <!-- Commit info header -->
             <div
               v-if="selectedHistoryCommit"
-              class="px-3 py-2 border-b border-slate-200/40 dark:border-slate-700/20 shrink-0 text-[11px] space-y-1 overflow-auto"
+              class="px-3 py-2 border-b border-slate-200/40 dark:border-slate-700/20 shrink-0 text-[11px] space-y-2 overflow-auto select-text"
               :style="{ height: historyDetailPane.size.value + 'px' }"
             >
+              <div class="flex items-center justify-between gap-2 pb-1 border-b border-slate-200/40 dark:border-slate-700/20">
+                <span class="text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  {{ t('git.commitDetail') }}
+                </span>
+                <button
+                  class="shrink-0 rounded px-1.5 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 transition-colors"
+                  @click="closeHistoryDetail"
+                >
+                  {{ t('common.close') }}
+                </button>
+              </div>
               <div class="leading-relaxed text-slate-600 dark:text-slate-300">
-                <span class="text-slate-400 dark:text-slate-500">提交：</span>
-                <span class="font-mono break-all">{{ selectedHistoryCommit.hash }} [{{ selectedHistoryCommit.short_hash }}]</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-400 dark:text-slate-500">提交：</span>
+                  <span class="font-mono break-all flex-1">{{ selectedHistoryCommit.hash }} [{{ selectedHistoryCommit.short_hash }}]</span>
+                </div>
               </div>
               <div class="leading-relaxed text-slate-600 dark:text-slate-300">
                 <span class="text-slate-400 dark:text-slate-500">父级：</span>
-                <span class="font-mono break-all">{{ selectedHistoryParent }}</span>
+                <span class="font-mono break-all whitespace-pre-wrap">{{ selectedHistoryParent }}</span>
               </div>
               <div class="leading-relaxed text-slate-600 dark:text-slate-300">
                 <span class="text-slate-400 dark:text-slate-500">作者：</span>
@@ -305,9 +387,17 @@ const selectedHistoryParent = computed(() => {
                 <span class="text-slate-400 dark:text-slate-500">提交者：</span>
                 <span>{{ selectedHistoryCommit.committer || selectedHistoryCommit.author }}</span>
               </div>
-              <div class="leading-relaxed text-slate-600 dark:text-slate-300">
-                <span class="text-slate-400 dark:text-slate-500">提交信息：</span>
-                <span>{{ selectedHistoryCommit.message }}</span>
+              <div class="leading-relaxed text-slate-600 dark:text-slate-300 space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-400 dark:text-slate-500">提交信息：</span>
+                  <button
+                    class="rounded px-1.5 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 transition-colors"
+                    @click="copyText(selectedHistoryCommit.message, t('git.copyCommitMessageSuccess'))"
+                  >
+                    {{ t('git.copyCommitMessage') }}
+                  </button>
+                </div>
+                <pre class="m-0 whitespace-pre-wrap break-words font-sans leading-relaxed text-slate-700 dark:text-slate-200">{{ selectedHistoryCommit.message }}</pre>
               </div>
               <div class="pt-1 flex items-center gap-1.5 overflow-hidden">
                 <span
@@ -355,6 +445,12 @@ const selectedHistoryParent = computed(() => {
       <!-- Branch dialog -->
       <GitBranchDialog
         v-model="showBranchDialog"
+        :project="activeProject"
+      />
+
+      <!-- Remote settings dialog -->
+      <GitRemoteSettingsDialog
+        v-model="showSettingsDialog"
         :project="activeProject"
       />
     </template>

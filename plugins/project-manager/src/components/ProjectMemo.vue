@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, watch, onBeforeUnmount } from 'vue';
 import type { Project } from '../types';
 import { useProjectStore } from '../stores/project';
 import { useI18n } from 'vue-i18n';
@@ -13,17 +13,47 @@ const projectStore = useProjectStore();
 const editorMode = ref<'preview' | 'edit' | 'split'>('preview');
 const memoContent = ref('');
 const isDirty = ref(false);
+const renderedHtml = ref('');
+let renderTimer: number | null = null;
+
+function renderMarkdown(immediate = false) {
+    if (renderTimer !== null) {
+        window.clearTimeout(renderTimer);
+        renderTimer = null;
+    }
+
+    if (editorMode.value === 'edit') {
+        renderedHtml.value = '';
+        return;
+    }
+
+    const nextContent = memoContent.value;
+    const applyRender = () => {
+        const parsed = nextContent ? marked.parse(nextContent, { async: false }) : '';
+        renderedHtml.value = typeof parsed === 'string' ? parsed : '';
+        renderTimer = null;
+    };
+
+    if (immediate || editorMode.value === 'preview') {
+        applyRender();
+        return;
+    }
+
+    renderTimer = window.setTimeout(applyRender, 120);
+}
 
 // Sync memo content from project
 watch(() => props.project.id, () => {
     memoContent.value = props.project.memo || '';
     isDirty.value = false;
     editorMode.value = 'preview';
+    renderMarkdown(true);
 }, { immediate: true });
 
 watch(() => props.project.memo, (newMemo) => {
     if (!isDirty.value) {
         memoContent.value = newMemo || '';
+        renderMarkdown(true);
     }
 });
 
@@ -53,11 +83,17 @@ function backToPreview() {
         saveMemo();
     }
     editorMode.value = 'preview';
+    renderMarkdown(true);
 }
 
-const renderedHtml = computed(() => {
-    if (!memoContent.value) return '';
-    return marked(memoContent.value);
+watch([memoContent, editorMode], ([, mode], [, prevMode]) => {
+    renderMarkdown(mode === 'preview' || mode !== prevMode);
+});
+
+onBeforeUnmount(() => {
+    if (renderTimer !== null) {
+        window.clearTimeout(renderTimer);
+    }
 });
 </script>
 

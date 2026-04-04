@@ -2,26 +2,119 @@ import { api } from '../api';
 import { useProjectStore } from '../stores/project';
 import { useSettingsStore } from '../stores/settings';
 import { useNodeStore } from '../stores/node';
+import type { NodeVersion, Project, Settings } from '../types';
 
 const FILE_NAME = 'data.json';
+const SAVE_DEBOUNCE_MS = 800;
+const SAVE_IDLE_TIMEOUT_MS = 2000;
 
-export async function saveData() {
+type PersistedData = {
+  projects: Project[];
+  settings: Settings;
+  customNodes: NodeVersion[];
+};
+
+type IdleCallbackHandle = number;
+type IdleCallbackDeadline = { didTimeout: boolean; timeRemaining: () => number };
+
+let saveTimer: number | null = null;
+let saveIdleHandle: IdleCallbackHandle | null = null;
+let saveInFlight = false;
+let saveQueued = false;
+let lastSerializedData = '';
+
+function buildPersistedData(): PersistedData {
+  const projectStore = useProjectStore();
+  const settingsStore = useSettingsStore();
+  const nodeStore = useNodeStore();
+
+  return {
+    projects: projectStore.projects,
+    settings: settingsStore.settings,
+    customNodes: nodeStore.versions.filter(v => v.source === 'custom'),
+  };
+}
+
+function serializePersistedData(): string {
+  return JSON.stringify(buildPersistedData(), null, 2);
+}
+
+function clearScheduledSave() {
+  if (saveTimer !== null) {
+    window.clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: (deadline: IdleCallbackDeadline) => void, options?: { timeout?: number }) => IdleCallbackHandle;
+    cancelIdleCallback?: (handle: IdleCallbackHandle) => void;
+  };
+
+  if (saveIdleHandle !== null) {
+    if (idleWindow.cancelIdleCallback) {
+      idleWindow.cancelIdleCallback(saveIdleHandle);
+    } else {
+      window.clearTimeout(saveIdleHandle);
+    }
+    saveIdleHandle = null;
+  }
+}
+
+export async function saveData(force = false) {
   try {
-    const projectStore = useProjectStore();
-    const settingsStore = useSettingsStore();
-    const nodeStore = useNodeStore();
+    const serialized = serializePersistedData();
+    if (!force && serialized === lastSerializedData) {
+      return;
+    }
 
-    const data = {
-      projects: projectStore.projects,
-      settings: settingsStore.settings,
-      customNodes: nodeStore.versions.filter(v => v.source === 'custom')
-    };
-    
-    await api.writeConfigFile(FILE_NAME, JSON.stringify(data, null, 2));
+    if (saveInFlight) {
+      saveQueued = true;
+      return;
+    }
+
+    saveInFlight = true;
+    await api.writeConfigFile(FILE_NAME, serialized);
+    lastSerializedData = serialized;
     console.log('Data saved to', FILE_NAME);
   } catch (e) {
     console.error('Failed to save data:', e);
+  } finally {
+    saveInFlight = false;
+    if (saveQueued) {
+      saveQueued = false;
+      void saveData();
+    }
   }
+}
+
+export function scheduleSaveData() {
+  clearScheduledSave();
+
+  saveTimer = window.setTimeout(() => {
+    saveTimer = null;
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: (deadline: IdleCallbackDeadline) => void, options?: { timeout?: number }) => IdleCallbackHandle;
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      saveIdleHandle = idleWindow.requestIdleCallback(() => {
+        saveIdleHandle = null;
+        void saveData();
+      }, { timeout: SAVE_IDLE_TIMEOUT_MS });
+      return;
+    }
+
+    saveIdleHandle = window.setTimeout(() => {
+      saveIdleHandle = null;
+      void saveData();
+    }, 200);
+  }, SAVE_DEBOUNCE_MS);
+}
+
+export async function flushPendingSave() {
+  clearScheduledSave();
+  await saveData(true);
 }
 
 export async function loadData() {
@@ -29,7 +122,13 @@ export async function loadData() {
     const content = await api.readConfigFile(FILE_NAME);
     if (!content) return;
 
-    const data = JSON.parse(content);
+    let data: any;
+    try {
+      data = JSON.parse(content);
+    } catch (e) {
+      console.error('Failed to parse config file:', e);
+      return;
+    }
 
     if (data.projects) {
       const projectStore = useProjectStore();
@@ -37,6 +136,9 @@ export async function loadData() {
       projectStore.projects = data.projects.map((p: any) => ({
         ...p,
         type: p.type || 'node',
+        gitRemoteUrl: typeof p.gitRemoteUrl === 'string' ? p.gitRemoteUrl : undefined,
+        gitBranch: typeof p.gitBranch === 'string' ? p.gitBranch : undefined,
+        gitConfigured: p.gitConfigured ?? undefined,
         scripts: p.scripts || [],
         visibleScripts: p.visibleScripts || undefined,
         customCommands: p.customCommands || [],
@@ -61,6 +163,7 @@ export async function loadData() {
       });
     }
     console.log('Data loaded');
+    lastSerializedData = serializePersistedData();
   } catch (e) {
     console.error('Failed to load data:', e);
   }

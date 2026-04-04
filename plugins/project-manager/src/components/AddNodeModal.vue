@@ -57,6 +57,8 @@ function submit() {
     :title="t('nodes.addNode')"
     width="500px"
     destroy-on-close
+    align-center
+    class="app-dialog"
   >
     <el-form label-position="top">
         <el-form-item :label="t('nodes.path')" required>
@@ -86,3 +88,20 @@ function submit() {
     </template>
   </el-dialog>
 </template>
+
+<style scoped>
+:deep(.app-dialog .el-dialog) {
+  width: min(500px, calc(100vw - 32px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:deep(.app-dialog .el-dialog__body) {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+</style>

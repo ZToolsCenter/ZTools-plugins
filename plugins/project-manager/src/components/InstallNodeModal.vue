@@ -122,7 +122,7 @@ async function install(version: string) {
 </script>
 
 <template>
-  <el-dialog v-model="visible" :title="t('nodes.installNode')" width="600px" destroy-on-close class="rounded-xl" align-center>
+  <el-dialog v-model="visible" :title="t('nodes.installNode')" width="600px" destroy-on-close class="rounded-xl install-node-dialog" align-center>
     <div class="mb-4">
       <el-input v-model="searchQuery" :placeholder="t('common.search')" clearable>
         <template #prefix>
@@ -175,6 +175,21 @@ async function install(version: string) {
 </template>
 
 <style scoped>
+:deep(.install-node-dialog .el-dialog) {
+  width: min(600px, calc(100vw - 32px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:deep(.install-node-dialog .el-dialog__body) {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+
 :deep(.el-table) {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;

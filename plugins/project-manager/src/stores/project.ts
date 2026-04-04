@@ -4,17 +4,44 @@ import { api } from '../api';
 import type { Project } from '../types';
 import { useNodeStore } from './node';
 
+type WorkspaceTab = 'console' | 'git' | 'files' | 'memo';
+
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([]);
   const runningStatus = ref<Record<string, boolean>>({});
+  const runningProjectCount = ref<Record<string, number>>({});
   const logs = ref<Record<string, string[]>>({});
   const activeProjectId = ref<string | null>(null);
+  const requestedRightTab = ref<WorkspaceTab | null>(null);
+  const requestedRightTabToken = ref(0);
 
   // Load from local storage removed in favor of persistence.ts
   
   // Log buffering mechanism to optimize rendering performance
   const logBuffer: Record<string, string[]> = {};
   let logFlushTimer: number | null = null;
+
+  function getProjectIdFromRunId(runId: string) {
+    const separatorIndex = runId.indexOf(':');
+    return separatorIndex === -1 ? runId : runId.slice(0, separatorIndex);
+  }
+
+  function setRunningState(runId: string, nextRunning: boolean) {
+    const prevRunning = !!runningStatus.value[runId];
+    if (prevRunning === nextRunning) return;
+
+    runningStatus.value[runId] = nextRunning;
+
+    const projectId = getProjectIdFromRunId(runId);
+    const currentCount = runningProjectCount.value[projectId] || 0;
+    const nextCount = nextRunning ? currentCount + 1 : Math.max(0, currentCount - 1);
+
+    if (nextCount === 0) {
+      delete runningProjectCount.value[projectId];
+    } else {
+      runningProjectCount.value[projectId] = nextCount;
+    }
+  }
 
   function flushLogs() {
     for (const id in logBuffer) {
@@ -47,7 +74,7 @@ export const useProjectStore = defineStore('project', () => {
   });
 
   api.onProjectExit(({ id }) => {
-      runningStatus.value[id] = false;
+      setRunningState(id, false);
       // Ensure any buffered logs are flushed first
       if (logBuffer[id] && logBuffer[id].length > 0) {
          if (!logs.value[id]) logs.value[id] = [];
@@ -72,6 +99,11 @@ export const useProjectStore = defineStore('project', () => {
   function removeProject(id: string) {
     projects.value = projects.value.filter(p => p.id !== id);
     if (activeProjectId.value === id) activeProjectId.value = null;
+  }
+
+  function requestRightTab(tab: WorkspaceTab) {
+    requestedRightTab.value = tab;
+    requestedRightTabToken.value += 1;
   }
 
   async function runProject(project: Project, script: string) {
@@ -107,7 +139,8 @@ export const useProjectStore = defineStore('project', () => {
         logs.value[runId] = []; 
         
         activeProjectId.value = project.id;
-        runningStatus.value[runId] = true;
+        requestRightTab('console');
+        setRunningState(runId, true);
         
         logs.value[runId].push(`[Runner] Starting script: ${script}`);
         logs.value[runId].push(`[Runner] Project: ${project.name}`);
@@ -124,7 +157,7 @@ export const useProjectStore = defineStore('project', () => {
         );
     } catch (e) {
         console.error(e);
-        runningStatus.value[runId] = false;
+        setRunningState(runId, false);
         logs.value[runId].push(`Error starting project: ${e}`);
     }
   }
@@ -140,7 +173,8 @@ export const useProjectStore = defineStore('project', () => {
     try {
         logs.value[runId] = [];
         activeProjectId.value = project.id;
-        runningStatus.value[runId] = true;
+        requestRightTab('console');
+        setRunningState(runId, true);
 
         logs.value[runId].push(`[Runner] Starting custom command: ${cmd.name}`);
         logs.value[runId].push(`[Runner] Command: ${cmd.command}`);
@@ -149,7 +183,7 @@ export const useProjectStore = defineStore('project', () => {
         await api.runCustomCommand(runId, project.path, cmd.command);
     } catch (e) {
         console.error(e);
-        runningStatus.value[runId] = false;
+        setRunningState(runId, false);
         logs.value[runId].push(`Error starting command: ${e}`);
     }
   }
@@ -204,11 +238,15 @@ export const useProjectStore = defineStore('project', () => {
   return {
     projects,
     runningStatus,
+    runningProjectCount,
     logs,
     activeProjectId,
+    requestedRightTab,
+    requestedRightTabToken,
     addProject,
     updateProject,
     removeProject,
+    requestRightTab,
     runProject,
     runCustomCommand,
     stopProject,

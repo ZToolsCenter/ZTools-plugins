@@ -13,6 +13,8 @@ export const useSettingsStore = defineStore('settings', () => {
     locale: 'zh',
     themeMode: 'auto',
     autoUpdate: true,
+    trayEnabled: true,
+    closeAction: 'ask',
     gitAiEnabled: false,
     gitAiBaseUrl: 'https://api.openai.com/v1',
     gitAiApiKey: '',
@@ -60,6 +62,10 @@ export const useSettingsStore = defineStore('settings', () => {
   // Ensure at least one editor exists
   if (!settings.value.editors || settings.value.editors.length === 0) {
     settings.value.editors = [{ id: crypto.randomUUID(), name: 'VS Code', path: settings.value.editorPath || 'code' }];
+  }
+  // Ensure defaultEditorId is valid
+  if (!settings.value.defaultEditorId || !settings.value.editors.find(e => e.id === settings.value.defaultEditorId)) {
+    settings.value.defaultEditorId = settings.value.editors[0].id;
   }
   
   const systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');

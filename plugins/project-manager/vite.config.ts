@@ -16,6 +16,22 @@ export default defineConfig(async ({ mode }) => {
     build: {
       outDir: isZtools ? 'dist-ztools' : isUtools ? 'dist-utools' : 'dist',
       emptyOutDir: true,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined;
+
+            if (id.includes('element-plus')) return 'vendor-element-plus';
+            if (id.includes('@tauri-apps')) return 'vendor-tauri';
+            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-i18n')) return 'vendor-vue';
+            if (id.includes('marked') || id.includes('diff2html') || id.includes('ansi_up') || id.includes('pinyin-pro')) {
+              return 'vendor-utils';
+            }
+
+            return 'vendor-misc';
+          },
+        },
+      },
     },
     define: {
       'import.meta.env.VITE_TARGET': JSON.stringify(isZtools ? 'ztools' : isUtools ? 'utools' : 'tauri')

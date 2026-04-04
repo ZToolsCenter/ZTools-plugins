@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn, exec, execFile, execSync, execFileSync } = require('child_process');
+const { TextDecoder } = require('util');
 
 // Validate version string to prevent command injection
 function isValidVersion(version) {
@@ -21,21 +22,141 @@ const processes = new Map();
 let outputCallback = null;
 let exitCallback = null;
 
+function terminateProcessTree(child, { synchronous = false } = {}) {
+    if (!child || !child.pid) return;
+
+    if (process.platform === 'win32') {
+        const command = `taskkill /pid ${child.pid} /T /F`;
+        try {
+            if (synchronous) {
+                execSync(command, { stdio: 'ignore', windowsHide: true });
+            } else {
+                exec(command, () => {});
+            }
+            return;
+        } catch (_) {}
+    }
+
+    try {
+        process.kill(-child.pid, 'SIGTERM');
+    } catch (_) {
+        try { child.kill('SIGTERM'); } catch (_) {}
+    }
+
+    const escalate = () => {
+        try {
+            process.kill(-child.pid, 'SIGKILL');
+        } catch (_) {
+            try { child.kill('SIGKILL'); } catch (_) {}
+        }
+    };
+
+    if (synchronous) {
+        escalate();
+        return;
+    }
+
+    const timer = setTimeout(escalate, 1500);
+    if (typeof timer.unref === 'function') timer.unref();
+}
+
+function spawnParentDeathWatch(child) {
+    if (!child || !child.pid) return;
+
+    const parentPid = process.pid;
+    try {
+        if (process.platform === 'win32') {
+            const watcher = spawn('powershell', [
+                '-NoProfile',
+                '-WindowStyle', 'Hidden',
+                '-Command',
+                `while (Get-Process -Id ${parentPid} -ErrorAction SilentlyContinue) { Start-Sleep -Milliseconds 1000 }; taskkill /PID ${child.pid} /T /F`
+            ], {
+                detached: true,
+                stdio: 'ignore',
+                windowsHide: true,
+            });
+            watcher.unref();
+            return;
+        }
+
+        const watcher = spawn('sh', [
+            '-c',
+            `parent=${parentPid}; target=${child.pid}; while kill -0 "$parent" 2>/dev/null; do sleep 1; done; kill -TERM -- -$target 2>/dev/null || kill -TERM $target 2>/dev/null; sleep 2; kill -KILL -- -$target 2>/dev/null || kill -KILL $target 2>/dev/null`
+        ], {
+            detached: true,
+            stdio: 'ignore',
+        });
+        watcher.unref();
+    } catch (error) {
+        console.error('[Runner] Failed to start parent death watch:', error);
+    }
+}
+
+function cleanupAllProcesses({ synchronous = false } = {}) {
+    for (const [, child] of processes) {
+        try {
+            terminateProcessTree(child, { synchronous });
+        } catch (_) {}
+    }
+    processes.clear();
+}
+
+function decodeTextBuffer(buffer) {
+    if (!buffer || buffer.length === 0) return '';
+
+    if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+        return new TextDecoder('utf-8').decode(buffer.subarray(3));
+    }
+
+    if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+        return new TextDecoder('utf-16le').decode(buffer.subarray(2));
+    }
+
+    if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+        return new TextDecoder('utf-16be').decode(buffer.subarray(2));
+    }
+
+    for (const encoding of ['utf-8', 'gb18030', 'gbk', 'utf-16le', 'utf-16be']) {
+        try {
+            return new TextDecoder(encoding, { fatal: true }).decode(buffer);
+        } catch (_) {}
+    }
+
+    return new TextDecoder('utf-8').decode(buffer);
+}
+
 // Platform-adaptive: support both uTools and ZTools
 const platform = typeof ztools !== 'undefined' ? ztools : utools;
 
 // Cleanup on exit
 platform.onPluginOut(() => {
-    for (const [id, child] of processes) {
-        try {
-            if (process.platform === 'win32') {
-                exec(`taskkill /pid ${child.pid} /T /F`);
-            } else {
-                child.kill();
-            }
-        } catch (e) {}
-    }
-    processes.clear();
+    cleanupAllProcesses();
+});
+
+process.once('beforeExit', () => cleanupAllProcesses({ synchronous: true }));
+process.once('exit', () => cleanupAllProcesses({ synchronous: true }));
+process.once('SIGINT', () => {
+    cleanupAllProcesses({ synchronous: true });
+    process.exit(130);
+});
+process.once('SIGTERM', () => {
+    cleanupAllProcesses({ synchronous: true });
+    process.exit(143);
+});
+process.once('SIGHUP', () => {
+    cleanupAllProcesses({ synchronous: true });
+    process.exit(129);
+});
+process.once('uncaughtException', (error) => {
+    console.error(error);
+    cleanupAllProcesses({ synchronous: true });
+    process.exit(1);
+});
+process.once('unhandledRejection', (reason) => {
+    console.error(reason);
+    cleanupAllProcesses({ synchronous: true });
+    process.exit(1);
 });
 
 window.services = {
@@ -289,9 +410,14 @@ window.services = {
                 };
             }
             
-            const content = fs.readFileSync(pkgPath, 'utf-8');
-            const pkg = JSON.parse(content);
-            
+            let pkg = {};
+            try {
+                const content = fs.readFileSync(pkgPath, 'utf-8');
+                pkg = JSON.parse(content);
+            } catch (e) {
+                console.error('Failed to parse package.json:', e);
+            }
+
             let packageManager = undefined;
             if (fs.existsSync(path.join(projectPath, 'pnpm-lock.yaml'))) {
                 packageManager = 'pnpm';
@@ -321,6 +447,58 @@ window.services = {
         } catch (e) {
             throw e;
         }
+    },
+
+    gitListRemoteBranches: async (url) => {
+        return new Promise((resolve, reject) => {
+            execFile('git', ['ls-remote', '--heads', url], { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+                if (error) {
+                    reject(new Error(stderr || error.message));
+                    return;
+                }
+
+                const branches = stdout
+                    .split(/\r?\n/)
+                    .map((line) => line.trim().split(/\s+/)[1] || '')
+                    .filter((ref) => ref.startsWith('refs/heads/'))
+                    .map((ref) => ref.replace(/^refs\/heads\//, ''))
+                    .filter(Boolean)
+                    .sort();
+
+                resolve([...new Set(branches)]);
+            });
+        });
+    },
+
+    gitCloneBranch: async (url, branch, destination) => {
+        return new Promise((resolve, reject) => {
+            try {
+                if (fs.existsSync(destination)) {
+                    const entries = fs.readdirSync(destination);
+                    if (entries.length > 0) {
+                        reject(new Error('Destination directory must be empty'));
+                        return;
+                    }
+                }
+            } catch (error) {
+                reject(error);
+                return;
+            }
+
+            execFile(
+                'git',
+                ['clone', '--branch', branch, '--single-branch', url, destination],
+                { windowsHide: true, maxBuffer: 10 * 1024 * 1024 },
+                (error, stdout, stderr) => {
+                    if (error) {
+                        reject(new Error(stderr || error.message));
+                        return;
+                    }
+
+                    resolve(`${stdout}${stderr}`.trim());
+                }
+            );
+        });
     },
 
     runProjectCommand: async (id, projectPath, script, packageManager, nodePath) => {
@@ -452,8 +630,12 @@ window.services = {
             const child = spawn(pm, ['run', script], {
                 cwd: projectPath,
                 shell: true,
-                env: env
+                env: env,
+                detached: process.platform !== 'win32',
+                windowsHide: process.platform === 'win32',
             });
+
+            spawnParentDeathWatch(child);
             
             processes.set(id, child);
             
@@ -498,17 +680,7 @@ window.services = {
     stopProjectCommand: async (id) => {
         const child = processes.get(id);
         if (child) {
-            if (process.platform === 'win32') {
-                try {
-                    // Kill process tree on Windows
-                    exec(`taskkill /pid ${child.pid} /T /F`);
-                } catch (e) {
-                    child.kill(); 
-                }
-            } else {
-                // Unix
-                child.kill(); 
-            }
+            terminateProcessTree(child);
             processes.delete(id);
         }
     },
@@ -516,16 +688,15 @@ window.services = {
     runCustomCommand: async (id, projectPath, command) => {
         if (processes.has(id)) throw new Error('Already running');
 
-        // Parse command into executable and arguments for safer execution
-        const parts = command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [command];
-        const cmd = parts[0].replace(/^"|"$/g, '');
-        const args = parts.slice(1).map(a => a.replace(/^"|"$/g, '').replace(/^'|'$/g, ''));
-
-        const child = spawn(cmd, args, {
+        const child = spawn(command, {
             cwd: projectPath,
             shell: true,
-            env: { ...process.env }
+            env: { ...process.env },
+            detached: process.platform !== 'win32',
+            windowsHide: process.platform === 'win32',
         });
+
+        spawnParentDeathWatch(child);
 
         processes.set(id, child);
 
@@ -577,7 +748,11 @@ window.services = {
     },
 
     readTextFile: async (path) => {
-        return fs.readFileSync(path, 'utf-8');
+        return decodeTextBuffer(fs.readFileSync(path));
+    },
+
+    readBinaryFileBase64: async (path) => {
+        return fs.readFileSync(path).toString('base64');
     },
 
     writeTextFile: async (path, content) => {
@@ -641,7 +816,7 @@ window.services = {
     },
     
     getAppVersion: async () => {
-        return "1.0.3";
+        return "1.0.6";
     },
     
     installUpdate: async (url) => {
@@ -710,12 +885,12 @@ window.services = {
                 
                 if (term === 'powershell') {
                      // PowerShell: start a new window, cd to path
-                     spawn('cmd', ['/C', 'start', '/D', winPath, 'powershell', '-NoExit'], { detached: true, stdio: 'ignore' });
+                     spawn('cmd', ['/C', 'start', '', '/D', winPath, 'powershell', '-NoExit'], { detached: true, stdio: 'ignore' });
                 } else if (term === 'pwsh') {
-                     spawn('cmd', ['/C', 'start', '/D', winPath, 'pwsh', '-NoExit'], { detached: true, stdio: 'ignore' });
+                     spawn('cmd', ['/C', 'start', '', '/D', winPath, 'pwsh', '-NoExit'], { detached: true, stdio: 'ignore' });
                 } else {
                     // CMD (Default)
-                    spawn('cmd', ['/C', 'start', '/D', winPath, 'cmd'], { detached: true, stdio: 'ignore' });
+                    spawn('cmd', ['/C', 'start', '', '/D', winPath, 'cmd'], { detached: true, stdio: 'ignore' });
                 }
             } catch (e) {
                 console.error('Failed to open terminal', e);
@@ -1091,6 +1266,46 @@ window.services = {
         }
 
         return commits;
+    },
+
+    gitCommitDetail: async (projectPath, hash) => {
+        let output;
+        try {
+            output = execFileSync('git', [
+                'show',
+                '-s',
+                '--format=%H%x1f%h%x1f%an%x1f%ae%x1f%cn%x1f%aI%x1f%P%x1f%D%x1e%B',
+                hash
+            ], {
+                cwd: projectPath, windowsHide: true, maxBuffer: 10 * 1024 * 1024
+            }).toString();
+        } catch (e) {
+            output = e.stdout ? e.stdout.toString() : '';
+        }
+
+        const separatorIndex = output.indexOf('\x1e');
+        if (separatorIndex < 0) {
+            throw new Error('Failed to parse commit detail');
+        }
+
+        const meta = output.slice(0, separatorIndex).trimEnd();
+        const message = output.slice(separatorIndex + 1).replace(/\n+$/, '');
+        const parts = meta.split('\x1f');
+        if (parts.length < 8) {
+            throw new Error('Failed to parse commit detail metadata');
+        }
+
+        return {
+            hash: parts[0],
+            short_hash: parts[1],
+            author: parts[2],
+            email: parts[3],
+            committer: parts[4],
+            date: parts[5],
+            message,
+            parents: parts[6] ? parts[6].split(' ') : [],
+            refs: (parts[7] && parts[7].trim()) ? parts[7].split(', ').map(s => s.trim()) : [],
+        };
     },
 
     gitCommitFiles: async (projectPath, hash) => {

@@ -9,6 +9,10 @@ import type {
   GitSummary,
 } from '../types';
 
+const REPO_CHECK_MAX_AGE = 60_000;
+const SUMMARY_STATUS_MAX_AGE = 15_000;
+const HISTORY_MAX_AGE = 45_000;
+
 export const useGitStore = defineStore('git', () => {
   // ─── State ───────────────────────────────────────────────────────────────
   const isGitRepo = ref<Record<string, boolean>>({});
@@ -16,6 +20,7 @@ export const useGitStore = defineStore('git', () => {
   const status = ref<Record<string, GitStatusResult>>({});
   const history = ref<Record<string, GitCommit[]>>({});
   const branches = ref<Record<string, GitBranch[]>>({});
+  const commitDetails = ref<Record<string, Record<string, GitCommit>>>({});
 
   // Current diff (not project-scoped – just the currently viewed diff)
   const selectedDiff = ref('');
@@ -33,6 +38,18 @@ export const useGitStore = defineStore('git', () => {
   // Loading states
   const loading = ref(false);
   const operationLoading = ref(false);
+  const coldStorage = ref(false);
+
+  // Cache timestamps
+  const repoCheckedAt = ref<Record<string, number>>({});
+  const summaryStatusLoadedAt = ref<Record<string, number>>({});
+  const historyLoadedAt = ref<Record<string, number>>({});
+
+  // In-flight request dedupe
+  const repoCheckTasks = new Map<string, Promise<boolean>>();
+  const summaryStatusTasks = new Map<string, Promise<void>>();
+  const historyTasks = new Map<string, Promise<void>>();
+  let loadingCount = 0;
 
   // ─── Getters ─────────────────────────────────────────────────────────────
 
@@ -62,22 +79,76 @@ export const useGitStore = defineStore('git', () => {
     return s.staged.length + s.unstaged.length + s.untracked.length + s.conflicted.length;
   }
 
+  function isFresh(record: Record<string, number>, projectId: string, maxAgeMs: number): boolean {
+    const timestamp = record[projectId];
+    return typeof timestamp === 'number' && (Date.now() - timestamp) < maxAgeMs;
+  }
+
+  function beginLoading() {
+    loadingCount += 1;
+    loading.value = loadingCount > 0;
+  }
+
+  function endLoading() {
+    loadingCount = Math.max(0, loadingCount - 1);
+    loading.value = loadingCount > 0;
+  }
+
+  function setColdStorage(enabled: boolean): void {
+    coldStorage.value = enabled;
+  }
+
   // ─── Refresh Actions (on-demand) ────────────────────────────────────────
 
-  async function checkGitRepo(projectId: string, path: string): Promise<boolean> {
+  async function checkGitRepo(
+    projectId: string,
+    path: string,
+    options: { force?: boolean; maxAgeMs?: number } = {},
+  ): Promise<boolean> {
+    const force = options.force ?? false;
+    const maxAgeMs = options.maxAgeMs ?? REPO_CHECK_MAX_AGE;
+
+    if (!force && coldStorage.value) {
+      return isGitRepo.value[projectId] || false;
+    }
+
+    if (!force && projectId in isGitRepo.value && isFresh(repoCheckedAt.value, projectId, maxAgeMs)) {
+      return isGitRepo.value[projectId];
+    }
+
+    const pendingTask = repoCheckTasks.get(projectId);
+    if (pendingTask) {
+      return pendingTask;
+    }
+
+    const task = (async () => {
+      try {
+        const result = await api.gitCheck(path);
+        isGitRepo.value[projectId] = result;
+        repoCheckedAt.value[projectId] = Date.now();
+        return result;
+      } catch {
+        isGitRepo.value[projectId] = false;
+        repoCheckedAt.value[projectId] = Date.now();
+        return false;
+      }
+    })();
+
+    repoCheckTasks.set(projectId, task);
+
     try {
-      const result = await api.gitCheck(path);
-      isGitRepo.value[projectId] = result;
-      return result;
-    } catch {
-      isGitRepo.value[projectId] = false;
-      return false;
+      return await task;
+    } finally {
+      if (repoCheckTasks.get(projectId) === task) {
+        repoCheckTasks.delete(projectId);
+      }
     }
   }
 
   async function initRepo(projectId: string, path: string): Promise<void> {
     await api.gitInit(path);
     isGitRepo.value[projectId] = true;
+    repoCheckedAt.value[projectId] = Date.now();
     await refreshSummaryAndStatus(projectId, path);
   }
 
@@ -92,28 +163,125 @@ export const useGitStore = defineStore('git', () => {
   async function refreshStatus(projectId: string, path: string): Promise<void> {
     try {
       status.value[projectId] = await api.gitStatus(path);
+      statusLoadedAt(projectId);
     } catch (e) {
       console.error('Failed to get git status:', e);
     }
   }
 
   async function refreshSummaryAndStatus(projectId: string, path: string): Promise<void> {
-    loading.value = true;
+    if (!(await checkGitRepo(projectId, path, { force: true }))) {
+      return;
+    }
+    beginLoading();
     try {
       await Promise.all([
         refreshSummary(projectId, path),
         refreshStatus(projectId, path),
       ]);
+      summaryStatusLoadedAt.value[projectId] = Date.now();
     } finally {
-      loading.value = false;
+      endLoading();
     }
   }
 
   async function refreshHistory(projectId: string, path: string, maxCount?: number): Promise<void> {
     try {
       history.value[projectId] = await api.gitHistory(path, maxCount);
+      historyLoadedAt.value[projectId] = Date.now();
     } catch (e) {
       console.error('Failed to get git history:', e);
+    }
+  }
+
+  function statusLoadedAt(projectId: string): void {
+    summaryStatusLoadedAt.value[projectId] = Date.now();
+  }
+
+  async function ensureSummaryAndStatus(
+    projectId: string,
+    path: string,
+    options: { force?: boolean; maxAgeMs?: number } = {},
+  ): Promise<void> {
+    const force = options.force ?? false;
+    const maxAgeMs = options.maxAgeMs ?? SUMMARY_STATUS_MAX_AGE;
+
+    if (!force && coldStorage.value) {
+      return;
+    }
+
+    if (!(await checkGitRepo(projectId, path, { force }))) {
+      return;
+    }
+
+    if (!force && isFresh(summaryStatusLoadedAt.value, projectId, maxAgeMs)) {
+      return;
+    }
+
+    const pendingTask = summaryStatusTasks.get(projectId);
+    if (pendingTask) {
+      return pendingTask;
+    }
+
+    const task = (async () => {
+      beginLoading();
+      try {
+        await Promise.all([
+          refreshSummary(projectId, path),
+          refreshStatus(projectId, path),
+        ]);
+        summaryStatusLoadedAt.value[projectId] = Date.now();
+      } finally {
+        endLoading();
+      }
+    })();
+
+    summaryStatusTasks.set(projectId, task);
+
+    try {
+      await task;
+    } finally {
+      if (summaryStatusTasks.get(projectId) === task) {
+        summaryStatusTasks.delete(projectId);
+      }
+    }
+  }
+
+  async function ensureHistory(
+    projectId: string,
+    path: string,
+    options: { force?: boolean; maxAgeMs?: number; maxCount?: number } = {},
+  ): Promise<void> {
+    const force = options.force ?? false;
+    const maxAgeMs = options.maxAgeMs ?? HISTORY_MAX_AGE;
+    const maxCount = options.maxCount;
+
+    if (!force && coldStorage.value) {
+      return;
+    }
+
+    if (!(await checkGitRepo(projectId, path, { force }))) {
+      return;
+    }
+
+    if (!force && isFresh(historyLoadedAt.value, projectId, maxAgeMs)) {
+      return;
+    }
+
+    const pendingTask = historyTasks.get(projectId);
+    if (pendingTask) {
+      return pendingTask;
+    }
+
+    const task = refreshHistory(projectId, path, maxCount);
+    historyTasks.set(projectId, task);
+
+    try {
+      await task;
+    } finally {
+      if (historyTasks.get(projectId) === task) {
+        historyTasks.delete(projectId);
+      }
     }
   }
 
@@ -263,8 +431,21 @@ export const useGitStore = defineStore('git', () => {
     }
   }
 
+  async function refreshCommitDetail(projectId: string, path: string, hash: string): Promise<GitCommit> {
+    const detail = await api.gitCommitDetail(path, hash);
+    if (!commitDetails.value[projectId]) {
+      commitDetails.value[projectId] = {};
+    }
+    commitDetails.value[projectId][hash] = detail;
+    return detail;
+  }
+
   function getCommitFiles(projectId: string, hash: string): GitCommitFile[] {
     return commitFiles.value[projectId]?.[hash] || [];
+  }
+
+  function getCommitDetail(projectId: string, hash: string): GitCommit | undefined {
+    return commitDetails.value[projectId]?.[hash];
   }
 
   async function getDiffCommitFile(path: string, hash: string, file: string): Promise<string> {
@@ -358,6 +539,7 @@ export const useGitStore = defineStore('git', () => {
     status,
     history,
     branches,
+    commitDetails,
     selectedDiff,
     selectedDiffFile,
     selectedDiffStaged,
@@ -366,6 +548,7 @@ export const useGitStore = defineStore('git', () => {
     commitMessage,
     loading,
     operationLoading,
+    coldStorage,
 
     // Getters
     getSummary,
@@ -375,6 +558,7 @@ export const useGitStore = defineStore('git', () => {
     getRemoteBranches,
     getTotalChanges,
     getCommitFiles,
+    getCommitDetail,
 
     // Refresh
     checkGitRepo,
@@ -383,8 +567,12 @@ export const useGitStore = defineStore('git', () => {
     refreshStatus,
     refreshSummaryAndStatus,
     refreshHistory,
+    ensureSummaryAndStatus,
+    ensureHistory,
     refreshBranches,
     refreshCommitFiles,
+    refreshCommitDetail,
+    setColdStorage,
 
     // Operations
     stageFiles,

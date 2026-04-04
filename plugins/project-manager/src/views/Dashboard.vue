@@ -21,26 +21,102 @@ const gitStore = useGitStore();
 const showModal = ref(false);
 const editingProject = ref<Project | null>(null);
 const refreshing = ref(false);
+const PROJECT_LIST_ITEM_GAP = 8;
+const PROJECT_LIST_OVERSCAN = 4;
 
 // Right panel tab
 const rightTab = ref<'console' | 'git' | 'files' | 'memo'>('console');
 
 // Project list container ref for scroll-to-project
 const projectListContainer = ref<HTMLElement | null>(null);
+const projectListScrollTop = ref(0);
+const projectListViewportHeight = ref(0);
+const projectItemHeights = ref<Record<string, number>>({});
+const projectItemElements = new Map<string, HTMLElement>();
+
+function resolveElementRef(target: unknown): Element | null {
+    if (target instanceof Element) return target;
+    if (target && typeof target === 'object' && '$el' in target) {
+        const maybeElement = (target as { $el?: unknown }).$el;
+        return maybeElement instanceof Element ? maybeElement : null;
+    }
+    return null;
+}
+
+function estimateProjectItemHeight(project: Project) {
+    const running = (projectStore.runningProjectCount[project.id] || 0) > 0;
+    const expanded = projectStore.activeProjectId === project.id || running;
+    const scriptCount = (project.visibleScripts?.length || project.scripts?.length || 0) + (project.customCommands?.length || 0);
+
+    if (!expanded || scriptCount === 0) {
+        return 88 + PROJECT_LIST_ITEM_GAP;
+    }
+
+    const rows = Math.min(3, Math.max(1, Math.ceil(scriptCount / 2)));
+    return 116 + rows * 24 + PROJECT_LIST_ITEM_GAP;
+}
+
+function handleProjectListScroll() {
+    const container = projectListContainer.value;
+    if (!container) return;
+    projectListScrollTop.value = container.scrollTop;
+}
+
+function updateProjectListViewport() {
+    const container = projectListContainer.value;
+    if (!container) return;
+    projectListViewportHeight.value = container.clientHeight;
+    projectListScrollTop.value = container.scrollTop;
+}
+
+let projectListResizeObserver: ResizeObserver | null = null;
+let projectItemResizeObserver: ResizeObserver | null = null;
+
+function registerProjectItemRef(projectId: string, element: Element | null) {
+    const existing = projectItemElements.get(projectId);
+    if (existing && existing !== element) {
+        projectItemResizeObserver?.unobserve(existing);
+        projectItemElements.delete(projectId);
+    }
+
+    if (!(element instanceof HTMLElement)) return;
+
+    element.dataset.projectId = projectId;
+    projectItemElements.set(projectId, element);
+    projectItemResizeObserver?.observe(element);
+}
+
+function findProjectMetricIndexByOffset(offset: number) {
+    const metrics = projectListMetrics.value;
+    let low = 0;
+    let high = metrics.length - 1;
+
+    while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const metric = metrics[mid];
+
+        if (offset < metric.start) {
+            high = mid - 1;
+        } else if (offset >= metric.end) {
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return Math.max(0, Math.min(metrics.length - 1, low));
+}
 
 function scrollToActiveProject() {
     if (!projectStore.activeProjectId || !projectListContainer.value) return;
-    const el = projectListContainer.value.querySelector(`[data-project-id="${projectStore.activeProjectId}"]`) as HTMLElement;
-    if (el) {
-        const container = projectListContainer.value;
-        const elTop = el.offsetTop;
-        const elHeight = el.offsetHeight;
-        const containerHeight = container.clientHeight;
-        container.scrollTo({
-            top: elTop - containerHeight / 2 + elHeight / 2,
-            behavior: 'smooth'
-        });
-    }
+    const metric = projectListMetrics.value.find(item => item.project.id === projectStore.activeProjectId);
+    if (!metric) return;
+
+    const container = projectListContainer.value;
+    container.scrollTo({
+        top: Math.max(0, metric.start - container.clientHeight / 2 + metric.height / 2),
+        behavior: 'smooth'
+    });
 }
 
 // Tab bar scroll handling
@@ -69,10 +145,40 @@ onMounted(() => {
         tabResizeObserver = new ResizeObserver(checkTabOverflow);
         tabResizeObserver.observe(tabScrollContainer.value);
     }
+
+    if (projectListContainer.value) {
+        projectListResizeObserver = new ResizeObserver(updateProjectListViewport);
+        projectListResizeObserver.observe(projectListContainer.value);
+        updateProjectListViewport();
+    }
+
+    projectItemResizeObserver = new ResizeObserver((entries) => {
+        const nextHeights = { ...projectItemHeights.value };
+        let changed = false;
+
+        for (const entry of entries) {
+            const projectId = (entry.target as HTMLElement).dataset.projectId;
+            if (!projectId) continue;
+
+            const measured = Math.ceil(entry.contentRect.height);
+            if (nextHeights[projectId] !== measured) {
+                nextHeights[projectId] = measured;
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            projectItemHeights.value = nextHeights;
+        }
+    });
 });
 
 onBeforeUnmount(() => {
     tabResizeObserver?.disconnect();
+    projectListResizeObserver?.disconnect();
+    projectItemResizeObserver?.disconnect();
+    projectItemElements.clear();
+    projectPinyinCache.clear();
 });
 
 const activeProject = computed(() =>
@@ -90,11 +196,20 @@ const gitChangesCount = computed(() => {
 });
 
 // Auto-check git repo when project changes
-watch(activeProject, async (newProject) => {
+watch(activeProject, (newProject) => {
   if (newProject) {
-    await gitStore.checkGitRepo(newProject.id, newProject.path);
+    void gitStore.checkGitRepo(newProject.id, newProject.path);
   }
 }, { immediate: true });
+
+watch(
+    () => projectStore.requestedRightTabToken,
+    () => {
+        if (projectStore.requestedRightTab) {
+            rightTab.value = projectStore.requestedRightTab;
+        }
+    }
+);
 
 //************* 搜索功能 *************
 const searchQuery = ref('');
@@ -107,34 +222,91 @@ function buildPinyinSearchText(text: string): string {
     return `${full} ${initials}`.toLowerCase();
 }
 
-const filteredProjects = computed(() => {
-    const query = searchQuery.value.trim().toLowerCase();
-    const compactQuery = query.replace(/\s+/g, '');
+const projectPinyinCache = new Map<string, string>();
 
-    let list = projectStore.projects;
-    if (query) {
-        list = list.filter(project => {
-            const name = project.name.toLowerCase();
-            const projectPath = project.path.toLowerCase();
+function getCachedPinyinSearchText(text: string) {
+    if (!text) return '';
+    const cached = projectPinyinCache.get(text);
+    if (cached) return cached;
 
-            if (name.includes(query) || projectPath.includes(query)) {
-                return true;
-            }
+    const next = buildPinyinSearchText(text);
+    projectPinyinCache.set(text, next);
+    return next;
+}
 
-            const namePinyin = buildPinyinSearchText(project.name);
-            const pathPinyin = buildPinyinSearchText(project.path);
-
-            return namePinyin.includes(compactQuery) || pathPinyin.includes(compactQuery);
-        });
-    }
-
-    // Sort: pinned first (by pinOrder), then unpinned in original order
-    return [...list].sort((a, b) => {
+const sortedProjects = computed(() => {
+    return [...projectStore.projects].sort((a, b) => {
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
         if (a.pinned && b.pinned) return (a.pinOrder ?? 0) - (b.pinOrder ?? 0);
         return 0;
     });
+});
+
+const projectSearchIndex = computed(() => {
+    return sortedProjects.value.map(project => ({
+        project,
+        normalizedName: project.name.toLowerCase(),
+        normalizedPath: project.path.toLowerCase(),
+        compactName: project.name.toLowerCase().replace(/\s+/g, ''),
+        compactPath: project.path.toLowerCase().replace(/\s+/g, ''),
+        namePinyin: getCachedPinyinSearchText(project.name),
+        pathPinyin: getCachedPinyinSearchText(project.path),
+    }));
+});
+
+const filteredProjects = computed(() => {
+    const query = searchQuery.value.trim().toLowerCase();
+    const compactQuery = query.replace(/\s+/g, '');
+
+    if (!query) {
+        return sortedProjects.value;
+    }
+
+    return projectSearchIndex.value
+        .filter(({ normalizedName, normalizedPath, compactName, compactPath, namePinyin, pathPinyin }) => {
+            return normalizedName.includes(query)
+                || normalizedPath.includes(query)
+                || compactName.includes(compactQuery)
+                || compactPath.includes(compactQuery)
+                || namePinyin.includes(compactQuery)
+                || pathPinyin.includes(compactQuery);
+        })
+        .map(item => item.project);
+});
+
+const projectListMetrics = computed(() => {
+    let offset = 0;
+
+    return filteredProjects.value.map((project) => {
+        const height = projectItemHeights.value[project.id] ?? estimateProjectItemHeight(project);
+        const start = offset;
+        offset += height;
+
+        return {
+            project,
+            start,
+            end: offset,
+            height,
+        };
+    });
+});
+
+const totalProjectListHeight = computed(() => {
+    const metrics = projectListMetrics.value;
+    return metrics.length ? metrics[metrics.length - 1].end : 0;
+});
+
+const visibleProjectMetrics = computed(() => {
+    const metrics = projectListMetrics.value;
+    if (metrics.length === 0) return [];
+
+    const viewportStart = Math.max(0, projectListScrollTop.value);
+    const viewportEnd = viewportStart + Math.max(projectListViewportHeight.value, 1);
+    const startIndex = Math.max(0, findProjectMetricIndexByOffset(viewportStart) - PROJECT_LIST_OVERSCAN);
+    const endIndex = Math.min(metrics.length, findProjectMetricIndexByOffset(viewportEnd) + PROJECT_LIST_OVERSCAN + 1);
+
+    return metrics.slice(startIndex, endIndex);
 });
 
 function handleAdd(project: Project) {
@@ -311,14 +483,14 @@ async function batchAddProjects() {
     <div class="w-72 flex flex-col border-r border-slate-200 dark:border-slate-700/20 bg-white dark:bg-[#0f172a] z-20 transition-colors duration-200">
         <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-700/20 flex justify-between items-center">
             <h2 class="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-widest uppercase pl-1">{{ t('dashboard.title') }}</h2>
-            <div class="flex gap-1.5">
-                <button @click="refreshProjects" :disabled="refreshing" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150 disabled:opacity-40" :title="t('common.refresh') || 'Refresh'">
+            <div class="sidebar-header-actions">
+                <button @click="refreshProjects" :disabled="refreshing" class="sidebar-header-btn" :title="t('common.refresh') || 'Refresh'">
                     <div class="i-mdi-refresh text-base transition-transform duration-700" :class="{ 'animate-spin': refreshing }" />
                 </button>
-                <button @click="batchAddProjects" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all duration-150" :title="t('dashboard.batchAddProject')">
+                <button @click="batchAddProjects" class="sidebar-header-btn" :title="t('dashboard.batchAddProject')">
                     <div class="i-mdi-folder-multiple-plus text-base" />
                 </button>
-                <button @click="openAddModal" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 transition-all duration-150" :title="t('dashboard.addProject')">
+                <button @click="openAddModal" class="sidebar-header-btn" :title="t('dashboard.addProject')">
                     <div class="i-mdi-plus text-base" />
                 </button>
             </div>
@@ -339,14 +511,24 @@ async function batchAddProjects() {
             </el-input>
         </div>
         
-        <div class="flex-1 overflow-y-auto p-3 custom-scrollbar space-y-2" ref="projectListContainer">
-             <ProjectListItem 
-                v-for="project in filteredProjects" 
-                :key="project.id" 
-                :project="project"
-                :data-project-id="project.id"
-                @edit="openEditModal(project)"
-             />
+        <div class="flex-1 overflow-y-auto p-3 custom-scrollbar" ref="projectListContainer" @scroll="handleProjectListScroll">
+             <div v-if="filteredProjects.length > 0" class="relative min-h-full" :style="{ height: `${totalProjectListHeight}px` }">
+                <div
+                    v-for="item in visibleProjectMetrics"
+                    :key="item.project.id"
+                    :ref="(el) => registerProjectItemRef(item.project.id, resolveElementRef(el))"
+                    class="absolute left-0 right-0"
+                    :style="{ transform: `translateY(${item.start}px)` }"
+                >
+                    <div :style="{ paddingBottom: `${PROJECT_LIST_ITEM_GAP}px` }">
+                        <ProjectListItem
+                            :project="item.project"
+                            :data-project-id="item.project.id"
+                            @edit="openEditModal(item.project)"
+                        />
+                    </div>
+                </div>
+             </div>
              
              <div v-if="filteredProjects.length === 0 && projectStore.projects.length > 0" class="text-center mt-10 text-slate-400 dark:text-slate-500">
                 <div class="i-mdi-magnify text-4xl mb-3 opacity-20 mx-auto" />
@@ -374,59 +556,51 @@ async function batchAddProjects() {
         <!-- Workspace when project selected -->
         <template v-else>
             <!-- Project Name + Tab Bar -->
-            <div class="flex items-center border-b border-slate-200 dark:border-slate-700/20 bg-white dark:bg-[#0f172a] px-2 shrink-0 min-w-0">
+            <div class="workspace-topbar flex items-center border-b border-slate-200 dark:border-slate-700/20 bg-white dark:bg-[#0f172a] px-3 shrink-0 min-w-0">
                 <!-- Project Name (always visible) -->
-                <div class="flex items-center gap-1.5 pr-3 border-r border-slate-200 dark:border-slate-700/20 mr-1 shrink-0">
-                    <button @click="scrollToActiveProject" class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition-all duration-150" :title="t('dashboard.locateProject')">
+                <div class="project-title-group flex items-center gap-2 pr-3 mr-2 shrink-0 min-w-0">
+                    <button @click="scrollToActiveProject" class="toolbar-icon-btn" :title="t('dashboard.locateProject')">
                         <div class="i-mdi-crosshairs-gps text-sm" />
                     </button>
-                    <h3 class="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate max-w-40 tracking-tight">{{ activeProject.name }}</h3>
+                    <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate max-w-48 tracking-tight">{{ activeProject.name }}</h3>
                 </div>
                 <!-- Tab scroll left arrow -->
                 <button v-show="canScrollLeft" @click="scrollTabs('left')"
-                    class="p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0">
+                    class="toolbar-scroll-btn shrink-0">
                     <div class="i-mdi-chevron-left text-base" />
                 </button>
                 <!-- Scrollable tabs container -->
-                <div ref="tabScrollContainer" @scroll="checkTabOverflow" class="flex items-center overflow-x-auto scrollbar-none min-w-0 flex-1 py-1.5 px-1">
-                <div class="flex items-center gap-0.5 bg-slate-100/80 dark:bg-slate-800/50 rounded-lg p-0.5">
+                <div ref="tabScrollContainer" @scroll="checkTabOverflow" class="flex items-center overflow-x-auto scrollbar-none min-w-0 flex-1 py-2 px-1">
+                <div class="workspace-tab-group">
                 <button
                     @click="rightTab = 'console'"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap shrink-0"
-                    :class="rightTab === 'console'
-                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                    class="workspace-tab-btn"
+                    :class="{ 'workspace-tab-btn-active': rightTab === 'console' }"
                 >
                     <div class="i-mdi-console text-sm" />
                     <span>{{ t('dashboard.console') }}</span>
                 </button>
                 <button
                     @click="rightTab = 'git'"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap shrink-0"
-                    :class="rightTab === 'git'
-                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                    class="workspace-tab-btn"
+                    :class="{ 'workspace-tab-btn-active': rightTab === 'git' }"
                 >
                     <div class="i-mdi-git text-sm" />
                     <span>{{ t('git.title') }}</span>
-                    <span v-if="isGitRepo && gitChangesCount > 0" class="ml-0.5 px-1.5 py-0 text-[10px] rounded-full bg-orange-500/12 text-orange-600 dark:text-orange-400 font-semibold min-w-4 text-center leading-4">{{ gitChangesCount }}</span>
+                    <span v-if="isGitRepo && gitChangesCount > 0" class="workspace-tab-badge">{{ gitChangesCount }}</span>
                 </button>
                 <button
                     @click="rightTab = 'files'"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap shrink-0"
-                    :class="rightTab === 'files'
-                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                    class="workspace-tab-btn"
+                    :class="{ 'workspace-tab-btn-active': rightTab === 'files' }"
                 >
                     <div class="i-mdi-folder-outline text-sm" />
                     <span>{{ t('dashboard.files') }}</span>
                 </button>
                 <button
                     @click="rightTab = 'memo'"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap shrink-0"
-                    :class="rightTab === 'memo'
-                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                    class="workspace-tab-btn"
+                    :class="{ 'workspace-tab-btn-active': rightTab === 'memo' }"
                 >
                     <div class="i-mdi-note-text-outline text-sm" />
                     <span>{{ t('dashboard.memo') }}</span>
@@ -435,7 +609,7 @@ async function batchAddProjects() {
                 </div>
                 <!-- Tab scroll right arrow -->
                 <button v-show="canScrollRight" @click="scrollTabs('right')"
-                    class="p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0">
+                    class="toolbar-scroll-btn shrink-0">
                     <div class="i-mdi-chevron-right text-base" />
                 </button>
             </div>
@@ -444,10 +618,10 @@ async function batchAddProjects() {
             <div class="flex-1 overflow-hidden relative">
                 <Transition name="tab-fade" mode="out-in">
                 <KeepAlive>
-                <ConsoleView v-if="rightTab === 'console'" key="console" />
-                <GitView v-else-if="rightTab === 'git'" key="git" />
-                <FileManager v-else-if="rightTab === 'files'" :project="activeProject" key="files" />
-                <ProjectMemo v-else-if="rightTab === 'memo'" :project="activeProject" key="memo" />
+                <ConsoleView v-if="rightTab === 'console'" />
+                <GitView v-else-if="rightTab === 'git'" />
+                <FileManager v-else-if="rightTab === 'files'" :project="activeProject" />
+                <ProjectMemo v-else-if="rightTab === 'memo'" :project="activeProject" />
                 </KeepAlive>
                 </Transition>
             </div>
@@ -498,5 +672,244 @@ async function batchAddProjects() {
 .tab-fade-enter-from,
 .tab-fade-leave-to {
   opacity: 0;
+}
+
+.workspace-topbar {
+  box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.08);
+}
+
+.project-title-group {
+  padding: 3px 6px 3px 3px;
+  border-radius: 16px;
+}
+
+.sidebar-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(248, 250, 252, 0.42));
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 0 1px rgba(226, 232, 240, 0.46);
+}
+
+.sidebar-header-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: rgb(148 163 184);
+  transition: all 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-header-btn:hover:not(:disabled) {
+  color: rgb(37 99 235);
+  background: rgba(255, 255, 255, 0.44);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 0 0 1px rgba(191, 219, 254, 0.32);
+}
+
+.sidebar-header-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.toolbar-icon-btn,
+.toolbar-scroll-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 32px;
+  border: none;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(248, 250, 252, 0.36));
+  color: rgb(100 116 139);
+  backdrop-filter: blur(16px) saturate(1.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 0 0 1px rgba(226, 232, 240, 0.42);
+  transition: all 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.toolbar-icon-btn:hover,
+.toolbar-scroll-btn:hover {
+  color: rgb(37 99 235);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow:
+    0 10px 20px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48),
+    inset 0 0 0 1px rgba(191, 219, 254, 0.28);
+}
+
+.workspace-tab-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(248, 250, 252, 0.4));
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48),
+    inset 0 0 0 1px rgba(226, 232, 240, 0.44);
+}
+
+.workspace-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: rgb(100 116 139);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.workspace-tab-btn:hover {
+  color: rgb(51 65 85);
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.workspace-tab-btn-active {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(248, 250, 252, 0.44));
+  color: rgb(37 99 235);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 0 0 1px rgba(191, 219, 254, 0.32);
+}
+
+.workspace-tab-badge {
+  margin-left: 2px;
+  min-width: 18px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.14);
+  padding: 0 6px;
+  color: rgb(234 88 12);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+:global(html.dark) .project-title-group {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
+    rgba(15, 23, 42, 0.14);
+}
+
+:global(html.dark) .sidebar-header-actions {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(30, 41, 59, 0.24), rgba(15, 23, 42, 0.18));
+  backdrop-filter: blur(18px) saturate(1.02);
+  -webkit-backdrop-filter: blur(18px) saturate(1.02);
+  box-shadow:
+    0 10px 24px rgba(2, 6, 23, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+}
+
+:global(html.dark) .toolbar-icon-btn,
+:global(html.dark) .toolbar-scroll-btn {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(30, 41, 59, 0.24), rgba(15, 23, 42, 0.18));
+  color: rgb(148 163 184);
+  backdrop-filter: blur(16px) saturate(1.02);
+  -webkit-backdrop-filter: blur(16px) saturate(1.02);
+  box-shadow:
+    0 8px 18px rgba(2, 6, 23, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+}
+
+:global(html.dark) .sidebar-header-btn {
+  background: transparent;
+  color: rgb(148 163 184);
+}
+
+:global(html.dark) .sidebar-header-btn:hover:not(:disabled) {
+  color: rgb(96 165 250);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(96, 165, 250, 0.12);
+}
+
+:global(html.dark) .toolbar-icon-btn:hover,
+:global(html.dark) .toolbar-scroll-btn:hover {
+  color: rgb(96 165 250);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(30, 41, 59, 0.28), rgba(15, 23, 42, 0.2));
+  box-shadow:
+    0 10px 20px rgba(2, 6, 23, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 0 0 1px rgba(96, 165, 250, 0.12);
+}
+
+:global(html.dark) .workspace-tab-group {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(30, 41, 59, 0.24), rgba(15, 23, 42, 0.18));
+  backdrop-filter: blur(18px) saturate(1.02);
+  -webkit-backdrop-filter: blur(18px) saturate(1.02);
+  box-shadow:
+    0 10px 24px rgba(2, 6, 23, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+}
+
+:global(html.dark) .workspace-tab-btn {
+  color: rgb(124 140 164);
+}
+
+:global(html.dark) .workspace-tab-btn:hover {
+  color: rgb(203 213 225);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+:global(html.dark) .workspace-tab-btn-active {
+  background:
+    linear-gradient(180deg, rgba(96, 165, 250, 0.12), rgba(59, 130, 246, 0.04)),
+    linear-gradient(180deg, rgba(51, 65, 85, 0.34), rgba(15, 23, 42, 0.22));
+  color: rgb(165 206 255);
+  backdrop-filter: blur(16px) saturate(1.05);
+  -webkit-backdrop-filter: blur(16px) saturate(1.05);
+  box-shadow:
+    0 8px 18px rgba(2, 6, 23, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 0 0 1px rgba(96, 165, 250, 0.12);
+}
+
+:global(html.dark) .workspace-tab-badge {
+  background: rgba(249, 115, 22, 0.16);
+  color: rgb(251 146 60);
 }
 </style>

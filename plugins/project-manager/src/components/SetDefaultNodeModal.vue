@@ -68,7 +68,8 @@ async function submit() {
     :title="t('nodes.setSystemPath')" 
     width="500px"
     destroy-on-close
-    class="rounded-xl"
+    class="rounded-xl app-dialog"
+    align-center
   >
     <div class="mb-4">
         <p class="text-sm text-slate-500 mb-2">Select a version from NVM to set as system default:</p>
@@ -99,3 +100,20 @@ async function submit() {
     </template>
   </el-dialog>
 </template>
+
+<style scoped>
+:deep(.app-dialog .el-dialog) {
+  width: min(500px, calc(100vw - 32px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:deep(.app-dialog .el-dialog__body) {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+</style>

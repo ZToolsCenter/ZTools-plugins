@@ -4,6 +4,7 @@ import { useGitStore } from '../../stores/git';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { Project } from '../../types';
+import { showPersistentGitError } from './message';
 
 const props = defineProps<{
   project: Project;
@@ -49,7 +50,7 @@ async function switchToBranch(name: string) {
     ElMessage.success(t('git.switchSuccess', { name }));
     await gitStore.refreshBranches(props.project.id, props.project.path);
   } catch (e) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   } finally {
     isLoading.value = false;
   }
@@ -70,7 +71,7 @@ async function createBranch() {
     startPoint.value = '';
     await gitStore.refreshBranches(props.project.id, props.project.path);
   } catch (e) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   } finally {
     isLoading.value = false;
   }
@@ -105,7 +106,7 @@ async function deleteBranch(name: string, force = false) {
         /* user cancelled */
       }
     } else {
-      ElMessage.error(t('git.operationFailed', { error: String(e) }));
+      showPersistentGitError(t('git.operationFailed', { error: String(e) }));
     }
   } finally {
     isLoading.value = false;
@@ -119,6 +120,8 @@ async function deleteBranch(name: string, force = false) {
     :title="t('git.branch')"
     width="480px"
     :close-on-click-modal="false"
+    align-center
+    class="branch-dialog"
   >
     <!-- Search -->
     <div class="mb-3">
@@ -137,25 +140,26 @@ async function deleteBranch(name: string, force = false) {
     <!-- Create branch -->
     <div class="mb-4 p-3 rounded-lg bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/40 dark:border-slate-700/30">
       <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">{{ t('git.newBranch') }}</div>
-      <div class="flex gap-2">
+      <div class="flex flex-col gap-2 sm:flex-row">
         <el-input
           v-model="newBranchName"
           :placeholder="t('git.branchNamePlaceholder')"
           size="small"
-          class="flex-1"
+          class="min-w-0 flex-1"
           @keydown.enter="createBranch"
         />
         <el-input
           v-model="startPoint"
           :placeholder="t('git.startPointPlaceholder')"
           size="small"
-          class="w-[140px]"
+          class="w-full sm:w-[140px]"
         />
         <el-button
           size="small"
           type="primary"
           :loading="isLoading"
           :disabled="!newBranchName.trim()"
+          class="w-full sm:w-auto"
           @click="createBranch"
         >
           {{ t('common.add') }}
@@ -223,3 +227,20 @@ async function deleteBranch(name: string, force = false) {
     </div>
   </el-dialog>
 </template>
+
+<style scoped>
+:deep(.branch-dialog .el-dialog) {
+  width: min(480px, calc(100vw - 32px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:deep(.branch-dialog .el-dialog__body) {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+</style>
