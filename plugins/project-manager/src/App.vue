@@ -105,11 +105,15 @@ async function handleImportProject(path: string) {
       id: crypto.randomUUID(),
       name: info.name || path.split(/[\\/]/).pop() || 'Untitled',
       path: path,
-      type: 'node',
-      nodeVersion,
-      packageManager: info.packageManager || 'npm',
-      scripts: info.scripts
+      type: info.projectType === 'node' ? 'node' : 'other',
     };
+
+    if (info.projectType === 'node') {
+      project.nodeVersion = nodeVersion;
+      project.packageManager = info.packageManager || 'npm';
+      project.scripts = info.scripts;
+    }
+
     store.addProject(project);
     ElMessage.success(t('dashboard.addProject') + ' Success');
   } catch (e) {

@@ -25,6 +25,8 @@ export interface PlatformAPI {
 
     // Project
     scanProject(path: string): Promise<ProjectInfo>;
+    gitListRemoteBranches(url: string): Promise<string[]>;
+    gitCloneBranch(url: string, branch: string, destination: string): Promise<string>;
 
     // Runner
     runProjectCommand(id: string, path: string, script: string, packageManager: string, nodePath: string): Promise<void>;

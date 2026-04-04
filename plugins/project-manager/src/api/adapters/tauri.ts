@@ -41,6 +41,14 @@ export class TauriAdapter implements PlatformAPI {
         return invoke('scan_project', { path });
     }
 
+    async gitListRemoteBranches(url: string): Promise<string[]> {
+        return invoke('git_list_remote_branches', { url });
+    }
+
+    async gitCloneBranch(url: string, branch: string, destination: string): Promise<string> {
+        return invoke('git_clone_branch', { url, branch, destination });
+    }
+
     // Runner
     async runProjectCommand(id: string, path: string, script: string, packageManager: string, nodePath: string): Promise<void> {
         return invoke('run_project_command', { id, path, script, packageManager, nodePath });

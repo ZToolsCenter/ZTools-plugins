@@ -1,23 +1,40 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import { api } from '../api';
 import type { Project, CustomCommand } from '../types';
-import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import type { ProjectInfo } from '../api/types';
 import { normalizeNvmVersion, findInstalledNodeVersion } from '../utils/nvm';
 import { useSettingsStore } from '../stores/settings';
 
+type ProjectForm = {
+  id: string;
+  name: string;
+  path: string;
+  type: 'node' | 'other';
+  gitConfigured: boolean;
+  gitRemoteUrl: string;
+  gitBranch: string;
+  nodeVersion: string;
+  packageManager: 'npm' | 'yarn' | 'pnpm' | 'cnpm';
+  scripts: string[];
+  visibleScripts: string[];
+  customCommands: CustomCommand[];
+  editorId: string;
+};
+
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
-const props = defineProps<{ 
-    modelValue: boolean,
-    editProject?: Project | null
+const props = defineProps<{
+  modelValue: boolean;
+  editProject?: Project | null;
 }>();
 const emit = defineEmits(['update:modelValue', 'add', 'update']);
 
 const visible = computed({
   get: () => props.modelValue,
-  set: (val) => emit('update:modelValue', val)
+  set: (value: boolean) => emit('update:modelValue', value),
 });
 
 const isEdit = computed(() => !!props.editProject);
@@ -25,7 +42,7 @@ const isEdit = computed(() => !!props.editProject);
 const defaultEditor = computed(() => {
   const editors = settingsStore.settings.editors || [];
   if (!editors.length) return null;
-  return editors.find(editor => editor.id === settingsStore.settings.defaultEditorId) || editors[0];
+  return editors.find((editor) => editor.id === settingsStore.settings.defaultEditorId) || editors[0];
 });
 
 const editorPlaceholder = computed(() => defaultEditor.value
@@ -36,78 +53,185 @@ const editorHint = computed(() => defaultEditor.value
   ? `${t('project.editorHint')}：${defaultEditor.value.name || defaultEditor.value.path}`
   : t('project.editorHint'));
 
-const form = ref<{
-  id: string;
-  name: string;
-  path: string;
-  type: 'node' | 'other';
-  nodeVersion: string;
-  packageManager: 'npm' | 'yarn' | 'pnpm' | 'cnpm';
-  scripts: string[];
-  visibleScripts: string[];
-  customCommands: CustomCommand[];
-  editorId: string;
-}>({
+const nodeVersions = ref<string[]>([]);
+const loading = ref(false);
+const pathIsGitRepo = ref(false);
+const pathEntryCount = ref(0);
+const remoteBranches = ref<string[]>([]);
+const loadingRemoteBranches = ref(false);
+
+const form = ref<ProjectForm>({
   id: '',
   name: '',
   path: '',
   type: 'node',
+  gitConfigured: false,
+  gitRemoteUrl: '',
+  gitBranch: '',
   nodeVersion: '',
   packageManager: 'npm',
   scripts: [],
   visibleScripts: [],
   customCommands: [],
-  editorId: ''
+  editorId: '',
 });
 
-const nodeVersions = ref<string[]>([]);
-const loading = ref(false);
+const canConfigureRepo = computed(() => !isEdit.value && !!form.value.path && !pathIsGitRepo.value);
+const repoTargetHasFiles = computed(() => pathEntryCount.value > 0);
 
-function resetForm() {
-    form.value = {
-        id: '',
-        name: '',
-        path: '',
-        type: 'node',
-        nodeVersion: nodeVersions.value[0] || '',
-        packageManager: 'npm',
-        scripts: [],
-        visibleScripts: [],
-        customCommands: [],
-        editorId: ''
-    };
+function buildEmptyForm(): ProjectForm {
+  return {
+    id: '',
+    name: '',
+    path: '',
+    type: 'node',
+    gitConfigured: false,
+    gitRemoteUrl: '',
+    gitBranch: '',
+    nodeVersion: nodeVersions.value[0] || '',
+    packageManager: 'npm',
+    scripts: [],
+    visibleScripts: [],
+    customCommands: [],
+    editorId: '',
+  };
 }
 
-watch(() => props.modelValue, (val) => {
-  if (val) {
-      if (props.editProject) {
-          form.value = {
-              ...props.editProject,
-              nodeVersion: props.editProject.nodeVersion || '',
-              packageManager: props.editProject.packageManager || 'npm',
-              scripts: props.editProject.scripts || [],
-              visibleScripts: props.editProject.visibleScripts || [...(props.editProject.scripts || [])],
-              customCommands: props.editProject.customCommands
-                  ? props.editProject.customCommands.map(c => ({ ...c }))
-                  : [],
-              editorId: props.editProject.editorId || ''
-          };
-      } else {
-          resetForm();
-      }
+function setNodeVersionOptions(list: string[], preserveCurrent = true) {
+  const current = form.value.nodeVersion;
+  const next = [...list];
+
+  if (preserveCurrent && current && !next.includes(current)) {
+    next.unshift(current);
+  }
+
+  nodeVersions.value = next;
+
+  if (!form.value.nodeVersion) {
+    form.value.nodeVersion = next[0] || '';
+  }
+}
+
+async function refreshNodeVersions() {
+  try {
+    const list = await api.getNvmList();
+    setNodeVersionOptions(list.map((item) => item.version));
+  } catch (error) {
+    console.error('Failed to load node versions', error);
+    setNodeVersionOptions([]);
+  }
+}
+
+function resetRepoConfigState() {
+  form.value.gitConfigured = false;
+  form.value.gitRemoteUrl = '';
+  form.value.gitBranch = '';
+  remoteBranches.value = [];
+}
+
+function resetPathScanState() {
+  pathIsGitRepo.value = false;
+  pathEntryCount.value = 0;
+  remoteBranches.value = [];
+}
+
+async function applyDetectedNodeVersion(rawVersion?: string | null) {
+  const normalizedNvmVersion = normalizeNvmVersion(rawVersion);
+  if (!normalizedNvmVersion) {
+    if (rawVersion) {
+      console.warn('Invalid .nvmrc version, skipping auto install', rawVersion);
+      ElMessage.warning(t('project.invalidNvmrc'));
+    }
+    return;
+  }
+
+  let installed = findInstalledNodeVersion(nodeVersions.value, normalizedNvmVersion);
+
+  if (!installed) {
+    try {
+      ElMessage.info(t('project.autoInstallStart', { version: normalizedNvmVersion }));
+      await api.installNode(normalizedNvmVersion);
+      ElMessage.success(t('project.autoInstallSuccess', { version: normalizedNvmVersion }));
+      await refreshNodeVersions();
+      installed = findInstalledNodeVersion(nodeVersions.value, normalizedNvmVersion);
+    } catch (installError) {
+      ElMessage.error(`${t('project.autoInstallFailed', { version: normalizedNvmVersion })}: ${String(installError)}`);
+      console.error('Failed to auto-install node version', installError);
+    }
+  }
+
+  if (installed) {
+    form.value.nodeVersion = installed;
+  }
+}
+
+async function applyScanResult(info: ProjectInfo, options: { preferDetectedName?: boolean } = {}) {
+  const folderName = form.value.path.split(/[/\\]/).pop() || '';
+  const shouldUpdateName = !form.value.name || options.preferDetectedName || form.value.name === folderName;
+
+  if (shouldUpdateName && info.name) {
+    form.value.name = info.name;
+  }
+
+  if (info.projectType === 'node') {
+    form.value.type = 'node';
+    form.value.packageManager = info.packageManager || 'npm';
+    form.value.scripts = info.scripts || [];
+    form.value.visibleScripts = [...(info.scripts || [])];
+    await applyDetectedNodeVersion(info.nvmVersion);
+    return;
+  }
+
+  form.value.type = 'other';
+  form.value.scripts = [];
+  form.value.visibleScripts = [];
+}
+
+function hydrateFormFromProject(project: Project) {
+  form.value = {
+    id: project.id,
+    name: project.name,
+    path: project.path,
+    type: project.type,
+    gitConfigured: !!project.gitConfigured,
+    gitRemoteUrl: project.gitRemoteUrl || '',
+    gitBranch: project.gitBranch || '',
+    nodeVersion: project.nodeVersion || '',
+    packageManager: project.packageManager || 'npm',
+    scripts: project.scripts || [],
+    visibleScripts: project.visibleScripts || [...(project.scripts || [])],
+    customCommands: project.customCommands
+      ? project.customCommands.map((command) => ({ ...command }))
+      : [],
+    editorId: project.editorId || '',
+  };
+}
+
+watch(canConfigureRepo, (enabled) => {
+  if (!enabled) {
+    resetRepoConfigState();
   }
 });
 
-onMounted(async () => {
-  try {
-    const list = await api.getNvmList();
-    nodeVersions.value = list.map(v => v.version);
-    if (nodeVersions.value.length > 0) {
-      form.value.nodeVersion = nodeVersions.value[0];
+watch(() => props.modelValue, async (opened) => {
+  if (!opened) return;
+
+  await refreshNodeVersions();
+  resetPathScanState();
+
+  if (props.editProject) {
+    hydrateFormFromProject(props.editProject);
+    try {
+      pathIsGitRepo.value = await api.gitCheck(props.editProject.path);
+      const entries = await api.readDir(props.editProject.path);
+      pathEntryCount.value = entries.length;
+    } catch (error) {
+      console.error('Failed to inspect existing project path', error);
     }
-  } catch (e) {
-    console.error('Failed to load node versions', e);
+    return;
   }
+
+  form.value = buildEmptyForm();
 });
 
 async function selectFolder() {
@@ -116,110 +240,119 @@ async function selectFolder() {
       directory: true,
       multiple: false,
     });
-    
-    if (selected && typeof selected === 'string') {
-      form.value.path = selected;
-      // Auto scan
-      try {
-        loading.value = true;
-        const info = await api.scanProject(selected);
-        
-        // Auto fill name if empty
-        if (!form.value.name && info.name) {
-            form.value.name = info.name;
-        }
-        
-        // Set type based on scan result
-        if (info.projectType === 'node') {
-            form.value.type = 'node';
-            if (info.packageManager) {
-                form.value.packageManager = info.packageManager;
-            }
-            form.value.scripts = info.scripts;
-            form.value.visibleScripts = [...info.scripts];
 
-            const normalizedNvmVersion = normalizeNvmVersion(info.nvmVersion);
-            if (normalizedNvmVersion) {
-              const installed = findInstalledNodeVersion(nodeVersions.value, normalizedNvmVersion);
+    if (!selected || typeof selected !== 'string') return;
 
-              if (installed) {
-                form.value.nodeVersion = installed;
-              } else {
-                try {
-                  ElMessage.info(t('project.autoInstallStart', { version: normalizedNvmVersion }));
-                  await api.installNode(normalizedNvmVersion);
-                  ElMessage.success(t('project.autoInstallSuccess', { version: normalizedNvmVersion }));
-                  const list = await api.getNvmList();
-                  nodeVersions.value = list.map(v => v.version);
+    form.value.path = selected;
+    resetPathScanState();
+    resetRepoConfigState();
 
-                  const newInstalled = findInstalledNodeVersion(nodeVersions.value, normalizedNvmVersion);
-                  if (newInstalled) {
-                    form.value.nodeVersion = newInstalled;
-                  }
-                } catch (installErr) {
-                  ElMessage.error(`${t('project.autoInstallFailed', { version: normalizedNvmVersion })}: ${String(installErr)}`);
-                  console.error('Failed to auto-install node version', installErr);
-                }
-              }
-            } else if (info.nvmVersion) {
-              console.warn('Invalid .nvmrc version, skipping auto install', info.nvmVersion);
-              ElMessage.warning(t('project.invalidNvmrc'));
-            }
-        } else {
-            form.value.type = 'other';
-            form.value.scripts = [];
-        }
-      } catch (e) {
-        console.error('Failed to scan project', e);
-        // Even if scan fails, still set the name from path
-        if (!form.value.name) {
-            form.value.name = selected.split(/[/\\]/).pop() || '';
-        }
-        form.value.type = 'other';
-      } finally {
-        loading.value = false;
+    loading.value = true;
+    try {
+      const [isGitRepo, entries, info] = await Promise.all([
+        api.gitCheck(selected).catch(() => false),
+        api.readDir(selected).catch(() => []),
+        api.scanProject(selected),
+      ]);
+
+      pathIsGitRepo.value = isGitRepo;
+      pathEntryCount.value = entries.length;
+      await applyScanResult(info, { preferDetectedName: !form.value.name });
+    } catch (error) {
+      console.error('Failed to scan project', error);
+      if (!form.value.name) {
+        form.value.name = selected.split(/[/\\]/).pop() || '';
       }
+      form.value.type = 'other';
+      form.value.scripts = [];
+      form.value.visibleScripts = [];
+    } finally {
+      loading.value = false;
     }
-  } catch (err) {
-    console.error('Failed to open dialog:', err);
+  } catch (error) {
+    console.error('Failed to open dialog:', error);
+  }
+}
+
+async function loadRemoteBranches() {
+  const remoteUrl = form.value.gitRemoteUrl.trim();
+  if (!remoteUrl) {
+    ElMessage.warning(t('project.gitRepoUrlRequired'));
+    return;
+  }
+
+  loadingRemoteBranches.value = true;
+  try {
+    const branches = await api.gitListRemoteBranches(remoteUrl);
+    remoteBranches.value = branches;
+
+    if (branches.length === 0) {
+      form.value.gitBranch = '';
+      ElMessage.warning(t('project.gitNoBranches'));
+      return;
+    }
+
+    if (!branches.includes(form.value.gitBranch)) {
+      form.value.gitBranch = branches[0];
+    }
+  } catch (error) {
+    console.error('Failed to load remote branches', error);
+    remoteBranches.value = [];
+    form.value.gitBranch = '';
+    ElMessage.error(`${t('project.gitLoadBranchesFailed')}: ${String(error)}`);
+  } finally {
+    loadingRemoteBranches.value = false;
   }
 }
 
 function addCustomCommand() {
-    form.value.customCommands.push({
-        id: crypto.randomUUID(),
-        name: '',
-        command: ''
-    });
+  form.value.customCommands.push({
+    id: crypto.randomUUID(),
+    name: '',
+    command: '',
+  });
 }
 
 function removeCustomCommand(index: number) {
-    form.value.customCommands.splice(index, 1);
+  form.value.customCommands.splice(index, 1);
 }
 
-function isScriptVisible(script: string): boolean {
+function isScriptVisible(script: string) {
   return (form.value.visibleScripts || []).includes(script);
 }
 
 function toggleVisibleScript(script: string) {
   const current = form.value.visibleScripts || [];
   if (current.includes(script)) {
-    form.value.visibleScripts = current.filter(item => item !== script);
+    form.value.visibleScripts = current.filter((item) => item !== script);
     return;
   }
 
   form.value.visibleScripts = [...current, script];
 }
 
-function submit() {
-  if (!form.value.name || !form.value.path) return;
-  
+async function ensureCloneTargetIsEmpty() {
+  const entries = await api.readDir(form.value.path);
+  pathEntryCount.value = entries.length;
+
+  if (entries.length > 0) {
+    throw new Error(t('project.gitTargetNotEmpty'));
+  }
+}
+
+function buildProjectPayload(): Project {
   const project: Project = {
     id: isEdit.value ? form.value.id : crypto.randomUUID(),
     name: form.value.name,
     path: form.value.path,
     type: form.value.type,
   };
+
+  if (form.value.gitConfigured) {
+    project.gitConfigured = true;
+    project.gitRemoteUrl = form.value.gitRemoteUrl.trim();
+    project.gitBranch = form.value.gitBranch;
+  }
 
   if (form.value.type === 'node') {
     project.nodeVersion = form.value.nodeVersion;
@@ -229,19 +362,54 @@ function submit() {
   }
 
   if (form.value.customCommands.length > 0) {
-    project.customCommands = form.value.customCommands.filter(c => c.name && c.command);
+    project.customCommands = form.value.customCommands.filter((command) => command.name && command.command);
   }
 
   if (form.value.editorId) {
     project.editorId = form.value.editorId;
   }
-  
-  if (isEdit.value) {
+
+  return project;
+}
+
+async function submit() {
+  if (!form.value.name || !form.value.path) return;
+
+  loading.value = true;
+  try {
+    if (!isEdit.value && form.value.gitConfigured) {
+      if (!form.value.gitRemoteUrl.trim()) {
+        ElMessage.warning(t('project.gitRepoUrlRequired'));
+        return;
+      }
+
+      if (!form.value.gitBranch) {
+        ElMessage.warning(t('project.gitBranchRequired'));
+        return;
+      }
+
+      await ensureCloneTargetIsEmpty();
+      await api.gitCloneBranch(form.value.gitRemoteUrl.trim(), form.value.gitBranch, form.value.path);
+      pathIsGitRepo.value = true;
+
+      const info = await api.scanProject(form.value.path);
+      await applyScanResult(info, { preferDetectedName: true });
+    }
+
+    const project = buildProjectPayload();
+    if (isEdit.value) {
       emit('update', project);
-  } else {
+    } else {
       emit('add', project);
+    }
+
+    visible.value = false;
+  } catch (error) {
+    console.error('Failed to submit project', error);
+    ElMessage.error(String(error));
+  } finally {
+    loading.value = false;
   }
-  visible.value = false;
 }
 </script>
 
@@ -256,117 +424,177 @@ function submit() {
     class="project-modal"
   >
     <el-form label-position="top" :model="form" class="project-form">
-        <el-form-item :label="t('project.name')">
-            <el-input v-model="form.name" :placeholder="t('project.namePlaceholder')" />
+      <el-form-item :label="t('project.name')">
+        <el-input v-model="form.name" :placeholder="t('project.namePlaceholder')" />
+      </el-form-item>
+
+      <el-form-item :label="t('project.path')" required>
+        <div class="flex gap-2 w-full">
+          <el-input v-model="form.path" :placeholder="t('project.selectFolder')" readonly>
+            <template #append>
+              <el-button @click="selectFolder">
+                <el-icon><div class="i-mdi-folder" /></el-icon>
+              </el-button>
+            </template>
+          </el-input>
+        </div>
+        <div v-if="form.path" class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          <span v-if="pathIsGitRepo">{{ t('project.gitLocalRepoDetected') }}</span>
+          <span v-else>{{ t('project.gitLocalRepoMissing') }}</span>
+        </div>
+      </el-form-item>
+
+      <template v-if="canConfigureRepo">
+        <el-form-item :label="t('project.gitConfigureRepo')">
+          <el-switch v-model="form.gitConfigured" />
+          <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            {{ t('project.gitConfigureRepoHint') }}
+          </div>
         </el-form-item>
-        
-        <el-form-item :label="t('project.path')" required>
-            <div class="flex gap-2 w-full">
-                <el-input v-model="form.path" :placeholder="t('project.selectFolder')" readonly>
-                    <template #append>
-                        <el-button @click="selectFolder">
-                             <el-icon><div class="i-mdi-folder" /></el-icon>
-                        </el-button>
-                    </template>
-                </el-input>
-            </div>
-        </el-form-item>
 
-        <el-form-item :label="t('project.type')">
-            <el-select v-model="form.type" class="w-full">
-                <el-option label="Node" value="node" />
-                <el-option :label="t('project.typeOther')" value="other" />
-            </el-select>
-        </el-form-item>
-
-        <template v-if="form.type === 'node'">
-            <div class="grid gap-4 md:grid-cols-2">
-                <div class="min-w-0">
-                    <el-form-item :label="t('project.nodeVersion')">
-                        <el-select v-model="form.nodeVersion">
-                            <el-option :label="t('nodes.select')" value="" />
-                            <el-option v-for="v in nodeVersions" :key="v" :label="v" :value="v" />
-                        </el-select>
-                    </el-form-item>
-                </div>
-                <div class="min-w-0">
-                    <el-form-item :label="t('project.packageManager')">
-                        <el-select v-model="form.packageManager">
-                            <el-option label="npm" value="npm" />
-                            <el-option label="yarn" value="yarn" />
-                            <el-option label="pnpm" value="pnpm" />
-                            <el-option label="cnpm" value="cnpm" />
-                        </el-select>
-                    </el-form-item>
-                </div>
-            </div>
-
-            <!-- Scripts visibility selection -->
-            <el-form-item v-if="form.scripts.length > 0" :label="t('project.scripts')">
-                <div class="w-full rounded-xl border border-slate-200/70 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/40 p-3">
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">{{ t('project.scriptsVisibilityHint') }}</p>
-                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        <button
-                            v-for="script in form.scripts"
-                            :key="script"
-                            type="button"
-                            @click="toggleVisibleScript(script)"
-                            class="script-toggle"
-                            :class="isScriptVisible(script)
-                                ? 'script-toggle-active'
-                                : 'script-toggle-inactive'"
-                        >
-                            <span class="truncate font-mono text-[12px]">{{ script }}</span>
-                            <div
-                                class="text-sm transition-transform duration-200"
-                                :class="isScriptVisible(script)
-                                    ? 'i-mdi-checkbox-marked-circle text-blue-500 scale-100'
-                                    : 'i-mdi-checkbox-blank-circle-outline text-slate-300 dark:text-slate-500 scale-90'"
-                            />
-                        </button>
-                    </div>
-                </div>
-            </el-form-item>
-        </template>
-
-        <!-- Custom Commands (available for all project types) -->
-        <el-form-item :label="t('project.customCommands')">
-            <div class="w-full space-y-3">
-                <div
-                    v-for="(cmd, index) in form.customCommands"
-                    :key="cmd.id"
-                    class="rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900/30 p-3"
-                >
-                    <div class="flex items-start gap-3 min-w-0">
-                        <div class="grid min-w-0 flex-1 gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
-                            <el-input v-model="cmd.name" :placeholder="t('project.commandName')" />
-                            <el-input v-model="cmd.command" :placeholder="t('project.commandContent')" />
-                        </div>
-                        <el-button type="danger" text @click="removeCustomCommand(index)" class="!mt-1">
-                            <el-icon><div class="i-mdi-close" /></el-icon>
-                        </el-button>
-                    </div>
-                </div>
-                <el-button type="primary" text @click="addCustomCommand">
-                    <el-icon class="mr-1"><div class="i-mdi-plus" /></el-icon>
-                    {{ t('project.addCommand') }}
+        <template v-if="form.gitConfigured">
+          <el-form-item :label="t('project.gitRepoUrl')" required>
+            <el-input
+              v-model="form.gitRemoteUrl"
+              :placeholder="t('project.gitRepoUrlPlaceholder')"
+              clearable
+            >
+              <template #append>
+                <el-button @click="loadRemoteBranches" :loading="loadingRemoteBranches">
+                  {{ t('project.gitLoadBranches') }}
                 </el-button>
-            </div>
-        </el-form-item>
+              </template>
+            </el-input>
+          </el-form-item>
 
-        <!-- Editor Selection -->
-        <el-form-item v-if="settingsStore.settings.editors && settingsStore.settings.editors.length > 1" :label="t('project.editor')">
-            <el-select v-model="form.editorId" class="w-full" clearable :placeholder="editorPlaceholder">
-                <el-option v-for="editor in settingsStore.settings.editors" :key="editor.id" :label="editor.name || editor.path" :value="editor.id" />
+          <el-form-item :label="t('project.gitBranch')" required>
+            <el-select
+              v-model="form.gitBranch"
+              class="w-full"
+              :placeholder="t('project.gitBranchPlaceholder')"
+              :disabled="remoteBranches.length === 0"
+            >
+              <el-option
+                v-for="branch in remoteBranches"
+                :key="branch"
+                :label="branch"
+                :value="branch"
+              />
             </el-select>
-            <div class="text-xs text-slate-400 mt-1">{{ editorHint }}</div>
+          </el-form-item>
+
+          <div
+            v-if="repoTargetHasFiles"
+            class="mb-4 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+          >
+            {{ t('project.gitTargetMustBeEmpty') }}
+          </div>
+        </template>
+      </template>
+
+      <el-form-item :label="t('project.type')">
+        <el-select v-model="form.type" class="w-full">
+          <el-option label="Node" value="node" />
+          <el-option :label="t('project.typeOther')" value="other" />
+        </el-select>
+      </el-form-item>
+
+      <template v-if="form.type === 'node'">
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="min-w-0">
+            <el-form-item :label="t('project.nodeVersion')">
+              <el-select v-model="form.nodeVersion">
+                <el-option :label="t('nodes.select')" value="" />
+                <el-option v-for="version in nodeVersions" :key="version" :label="version" :value="version" />
+              </el-select>
+            </el-form-item>
+          </div>
+          <div class="min-w-0">
+            <el-form-item :label="t('project.packageManager')">
+              <el-select v-model="form.packageManager">
+                <el-option label="npm" value="npm" />
+                <el-option label="yarn" value="yarn" />
+                <el-option label="pnpm" value="pnpm" />
+                <el-option label="cnpm" value="cnpm" />
+              </el-select>
+            </el-form-item>
+          </div>
+        </div>
+
+        <el-form-item v-if="form.scripts.length > 0" :label="t('project.scripts')">
+          <div class="w-full rounded-xl border border-slate-200/70 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/40 p-3">
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">{{ t('project.scriptsVisibilityHint') }}</p>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <button
+                v-for="script in form.scripts"
+                :key="script"
+                type="button"
+                @click="toggleVisibleScript(script)"
+                class="script-toggle"
+                :class="isScriptVisible(script) ? 'script-toggle-active' : 'script-toggle-inactive'"
+              >
+                <span class="truncate font-mono text-[12px]">{{ script }}</span>
+                <div
+                  class="text-sm transition-transform duration-200"
+                  :class="isScriptVisible(script)
+                    ? 'i-mdi-checkbox-marked-circle text-blue-500 scale-100'
+                    : 'i-mdi-checkbox-blank-circle-outline text-slate-300 dark:text-slate-500 scale-90'"
+                />
+              </button>
+            </div>
+          </div>
         </el-form-item>
+      </template>
+
+      <el-form-item :label="t('project.customCommands')">
+        <div class="w-full space-y-3">
+          <div
+            v-for="(command, index) in form.customCommands"
+            :key="command.id"
+            class="rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900/30 p-3"
+          >
+            <div class="flex items-start gap-3 min-w-0">
+              <div class="grid min-w-0 flex-1 gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
+                <el-input v-model="command.name" :placeholder="t('project.commandName')" />
+                <el-input v-model="command.command" :placeholder="t('project.commandContent')" />
+              </div>
+              <el-button type="danger" text @click="removeCustomCommand(index)" class="!mt-1">
+                <el-icon><div class="i-mdi-close" /></el-icon>
+              </el-button>
+            </div>
+          </div>
+          <el-button type="primary" text @click="addCustomCommand">
+            <el-icon class="mr-1"><div class="i-mdi-plus" /></el-icon>
+            {{ t('project.addCommand') }}
+          </el-button>
+        </div>
+      </el-form-item>
+
+      <el-form-item
+        v-if="settingsStore.settings.editors && settingsStore.settings.editors.length > 1"
+        :label="t('project.editor')"
+      >
+        <el-select v-model="form.editorId" class="w-full" clearable :placeholder="editorPlaceholder">
+          <el-option
+            v-for="editor in settingsStore.settings.editors"
+            :key="editor.id"
+            :label="editor.name || editor.path"
+            :value="editor.id"
+          />
+        </el-select>
+        <div class="text-xs text-slate-400 mt-1">{{ editorHint }}</div>
+      </el-form-item>
     </el-form>
 
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submit" :disabled="!form.name || !form.path" :loading="loading">
+        <el-button
+          type="primary"
+          @click="submit"
+          :disabled="!form.name || !form.path || (form.gitConfigured && (!form.gitRemoteUrl || !form.gitBranch))"
+          :loading="loading"
+        >
           {{ t('common.confirm') }}
         </el-button>
       </div>

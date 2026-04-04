@@ -27,6 +27,8 @@ export class UToolsAdapter implements PlatformAPI {
   getNodeVersion(path: string): Promise<string> { return this.service.getNodeVersion(path); }
 
   scanProject(path: string): Promise<ProjectInfo> { return this.service.scanProject(path); }
+  gitListRemoteBranches(url: string): Promise<string[]> { return this.service.gitListRemoteBranches(url); }
+  gitCloneBranch(url: string, branch: string, destination: string): Promise<string> { return this.service.gitCloneBranch(url, branch, destination); }
 
   runProjectCommand(id: string, path: string, script: string, packageManager: string, nodePath: string): Promise<void> {
     return this.service.runProjectCommand(id, path, script, packageManager, nodePath);

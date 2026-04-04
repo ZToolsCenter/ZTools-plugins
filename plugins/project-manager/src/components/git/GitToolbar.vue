@@ -4,6 +4,7 @@ import { useGitStore } from '../../stores/git';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import type { Project } from '../../types';
+import { showPersistentGitError } from './message';
 
 const props = defineProps<{
   project: Project;
@@ -22,12 +23,7 @@ const summary = computed(() => gitStore.getSummary(props.project.id));
 const isLoading = computed(() => gitStore.operationLoading);
 
 function showError(error: unknown) {
-  ElMessage({
-    type: 'error',
-    message: t('git.operationFailed', { error: String(error) }),
-    duration: 0,
-    showClose: true,
-  });
+  showPersistentGitError(t('git.operationFailed', { error: String(error) }));
 }
 
 async function handleFetch() {

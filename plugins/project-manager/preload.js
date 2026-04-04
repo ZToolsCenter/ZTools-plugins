@@ -449,6 +449,58 @@ window.services = {
         }
     },
 
+    gitListRemoteBranches: async (url) => {
+        return new Promise((resolve, reject) => {
+            execFile('git', ['ls-remote', '--heads', url], { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+                if (error) {
+                    reject(new Error(stderr || error.message));
+                    return;
+                }
+
+                const branches = stdout
+                    .split(/\r?\n/)
+                    .map((line) => line.trim().split(/\s+/)[1] || '')
+                    .filter((ref) => ref.startsWith('refs/heads/'))
+                    .map((ref) => ref.replace(/^refs\/heads\//, ''))
+                    .filter(Boolean)
+                    .sort();
+
+                resolve([...new Set(branches)]);
+            });
+        });
+    },
+
+    gitCloneBranch: async (url, branch, destination) => {
+        return new Promise((resolve, reject) => {
+            try {
+                if (fs.existsSync(destination)) {
+                    const entries = fs.readdirSync(destination);
+                    if (entries.length > 0) {
+                        reject(new Error('Destination directory must be empty'));
+                        return;
+                    }
+                }
+            } catch (error) {
+                reject(error);
+                return;
+            }
+
+            execFile(
+                'git',
+                ['clone', '--branch', branch, '--single-branch', url, destination],
+                { windowsHide: true, maxBuffer: 10 * 1024 * 1024 },
+                (error, stdout, stderr) => {
+                    if (error) {
+                        reject(new Error(stderr || error.message));
+                        return;
+                    }
+
+                    resolve(`${stdout}${stderr}`.trim());
+                }
+            );
+        });
+    },
+
     runProjectCommand: async (id, projectPath, script, packageManager, nodePath) => {
         if (processes.has(id)) throw new Error('Already running');
 
@@ -764,7 +816,7 @@ window.services = {
     },
     
     getAppVersion: async () => {
-        return "1.0.5";
+        return "1.0.6";
     },
     
     installUpdate: async (url) => {

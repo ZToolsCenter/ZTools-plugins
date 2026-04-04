@@ -1,7 +1,7 @@
 {
     "name": "project-manager",
     "title": "项目管理器",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "description": "项目管理器 - 管理项目脚本、Node.js 版本和 Git 仓库，内置 Git 图形界面与 AI 提交信息生成",
     "author": "cuteyuchen",
     "main": "index.html",

@@ -14,6 +14,7 @@ import GitHistory from './GitHistory.vue';
 import GitBranchDialog from './GitBranchDialog.vue';
 import GitCommitFileList from './GitCommitFileList.vue';
 import GitRemoteSettingsDialog from './GitRemoteSettingsDialog.vue';
+import { showPersistentGitError } from './message';
 
 const { t } = useI18n();
 const projectStore = useProjectStore();
@@ -166,7 +167,7 @@ async function handleInitRepo() {
     await gitStore.initRepo(activeProject.value.id, activeProject.value.path);
     ElMessage.success(t('git.initSuccess'));
   } catch (e: any) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   }
 }
 
@@ -232,7 +233,7 @@ async function copyText(value: string, successMessage: string) {
     await navigator.clipboard.writeText(value);
     ElMessage.success(successMessage);
   } catch (error) {
-    ElMessage.error(t('git.operationFailed', { error: String(error) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(error) }));
   }
 }
 </script>

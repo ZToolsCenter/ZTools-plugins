@@ -22,6 +22,9 @@ export interface Project {
   name: string;
   path: string;
   type: 'node' | 'other';
+  gitRemoteUrl?: string;
+  gitBranch?: string;
+  gitConfigured?: boolean;
   nodeVersion?: string;
   packageManager?: 'npm' | 'yarn' | 'pnpm' | 'cnpm';
   scripts?: string[];

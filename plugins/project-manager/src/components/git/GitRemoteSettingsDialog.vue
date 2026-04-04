@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { api } from '../../api';
 import type { Project, GitRemote } from '../../types';
+import { showPersistentGitError } from './message';
 
 const props = defineProps<{
   project: Project;
@@ -41,7 +42,7 @@ async function loadRemotes() {
       return true;
     });
   } catch (e) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   } finally {
     isLoading.value = false;
   }
@@ -71,7 +72,7 @@ async function handleAdd() {
     formUrl.value = '';
     await loadRemotes();
   } catch (e) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   } finally {
     isLoading.value = false;
   }
@@ -88,7 +89,7 @@ async function handleUpdate() {
     cancelEdit();
     await loadRemotes();
   } catch (e) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   } finally {
     isLoading.value = false;
   }
@@ -111,7 +112,7 @@ async function handleRemove(name: string) {
     if (editingRemote.value === name) cancelEdit();
     await loadRemotes();
   } catch (e) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   } finally {
     isLoading.value = false;
   }

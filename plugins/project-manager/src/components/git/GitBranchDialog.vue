@@ -4,6 +4,7 @@ import { useGitStore } from '../../stores/git';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { Project } from '../../types';
+import { showPersistentGitError } from './message';
 
 const props = defineProps<{
   project: Project;
@@ -49,7 +50,7 @@ async function switchToBranch(name: string) {
     ElMessage.success(t('git.switchSuccess', { name }));
     await gitStore.refreshBranches(props.project.id, props.project.path);
   } catch (e) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   } finally {
     isLoading.value = false;
   }
@@ -70,7 +71,7 @@ async function createBranch() {
     startPoint.value = '';
     await gitStore.refreshBranches(props.project.id, props.project.path);
   } catch (e) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   } finally {
     isLoading.value = false;
   }
@@ -105,7 +106,7 @@ async function deleteBranch(name: string, force = false) {
         /* user cancelled */
       }
     } else {
-      ElMessage.error(t('git.operationFailed', { error: String(e) }));
+      showPersistentGitError(t('git.operationFailed', { error: String(e) }));
     }
   } finally {
     isLoading.value = false;
