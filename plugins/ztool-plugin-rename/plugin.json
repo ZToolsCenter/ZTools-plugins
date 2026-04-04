@@ -1,0 +1,23 @@
+{
+  "name": "ztool-plugin-rename",
+  "title": "文件批量重命名",
+  "description": "系统文件(夹)批量重命名",
+  "version": "1.0.0",
+  "author": "Aqualumen",
+  "main": "src/index.html",
+  "logo": "public/logo.png",
+  "preload": "src/preload.js",
+  "features": [
+    {
+      "code": "rename",
+      "explain": "系统文件(夹)批量重命名",
+      "cmds": [
+        "批量重命名",
+        {
+          "type": "files",
+          "label": "重命名"
+        }
+      ]
+    }
+  ]
+}
