@@ -12,7 +12,11 @@
     {
       "code": "clipboard",
       "explain": "剪贴板",
-      "cmds": ["剪贴板"]
+      "cmds": [
+        "剪贴板",
+        "剪切板",
+        "剪切"
+      ]
     }
   ],
   "tools": {
@@ -28,7 +32,12 @@
           },
           "type": {
             "type": "string",
-            "enum": ["text", "image", "files", "all"],
+            "enum": [
+              "text",
+              "image",
+              "files",
+              "all"
+            ],
             "default": "all",
             "description": "返回的内容类型"
           },
@@ -56,7 +65,11 @@
                 },
                 "type": {
                   "type": "string",
-                  "enum": ["text", "image", "files"],
+                  "enum": [
+                    "text",
+                    "image",
+                    "files"
+                  ],
                   "description": "剪贴板内容类型"
                 },
                 "text": {
@@ -83,7 +96,10 @@
                       },
                       "type": {
                         "type": "string",
-                        "enum": ["file", "folder"],
+                        "enum": [
+                          "file",
+                          "folder"
+                        ],
                         "description": "文件类型"
                       },
                       "exist": {
@@ -106,7 +122,11 @@
                   "description": "内容大小：text 为字符数，image 为图片字节大小，files 为文件或文件夹数量"
                 }
               },
-              "required": ["id", "type", "timestamp"]
+              "required": [
+                "id",
+                "type",
+                "timestamp"
+              ]
             }
           },
           "total": {
@@ -114,7 +134,10 @@
             "description": "匹配到的总数量"
           }
         },
-        "required": ["items", "total"]
+        "required": [
+          "items",
+          "total"
+        ]
       }
     }
   },
