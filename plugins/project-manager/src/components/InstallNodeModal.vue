@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useNodeStore } from '../stores/node';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
+import { DEFAULT_NETWORK_TIMEOUT_MS, fetchWithTimeout, isAbortError } from '../utils/network';
 
 const { t } = useI18n();
 const props = defineProps<{ modelValue: boolean }>();
@@ -44,12 +45,14 @@ onUnmounted(() => {
 async function fetchVersions() {
   try {
     loading.value = true;
-    const res = await fetch('https://nodejs.org/dist/index.json');
+    const res = await fetchWithTimeout('https://nodejs.org/dist/index.json', {}, {
+      timeoutMs: DEFAULT_NETWORK_TIMEOUT_MS,
+    });
     const data = await res.json();
     versions.value = data;
   } catch (e) {
     console.error(e);
-    ElMessage.error('Failed to fetch node versions');
+    ElMessage.error(isAbortError(e) ? t('common.requestTimeout') : 'Failed to fetch node versions');
   } finally {
     loading.value = false;
   }

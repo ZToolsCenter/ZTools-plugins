@@ -25,6 +25,9 @@ export interface PlatformAPI {
 
     // Project
     scanProject(path: string): Promise<ProjectInfo>;
+    gitListRemoteBranches(url: string): Promise<string[]>;
+    gitCloneBranch(url: string, branch: string, destination: string, operationId?: string): Promise<string>;
+    gitCancelOperation(operationId: string): Promise<void>;
 
     // Runner
     runProjectCommand(id: string, path: string, script: string, packageManager: string, nodePath: string): Promise<void>;
@@ -96,9 +99,9 @@ export interface PlatformAPI {
     gitStageAll(path: string): Promise<string>;
     gitUnstageAll(path: string): Promise<string>;
     gitCommit(path: string, message: string): Promise<string>;
-    gitPull(path: string, remote?: string, branch?: string): Promise<string>;
-    gitPush(path: string, remote?: string, branch?: string, force?: boolean, setUpstream?: boolean): Promise<string>;
-    gitFetch(path: string, remote?: string): Promise<string>;
+    gitPull(path: string, remote?: string, branch?: string, operationId?: string): Promise<string>;
+    gitPush(path: string, remote?: string, branch?: string, force?: boolean, setUpstream?: boolean, operationId?: string): Promise<string>;
+    gitFetch(path: string, remote?: string, operationId?: string): Promise<string>;
     gitDiff(path: string, file?: string, staged?: boolean): Promise<string>;
     gitDiffCommit(path: string, hash: string): Promise<string>;
     gitDiscard(path: string, files: string[]): Promise<string>;

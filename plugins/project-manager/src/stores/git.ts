@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { api } from '../api';
+import { requestAiChatCompletion, requestAiText } from '../utils/ai';
 import type {
+  AiServiceConfig,
   GitStatusResult,
   GitBranch,
   GitCommit,
@@ -12,6 +14,22 @@ import type {
 const REPO_CHECK_MAX_AGE = 60_000;
 const SUMMARY_STATUS_MAX_AGE = 15_000;
 const HISTORY_MAX_AGE = 45_000;
+type GitOperationKind =
+  | 'stage'
+  | 'unstage'
+  | 'stageAll'
+  | 'unstageAll'
+  | 'commit'
+  | 'pull'
+  | 'push'
+  | 'fetch'
+  | 'switchBranch'
+  | 'createBranch'
+  | 'deleteBranch'
+  | 'renameBranch'
+  | 'revertHunk'
+  | 'discard'
+  | 'discardUntracked';
 
 export const useGitStore = defineStore('git', () => {
   // ─── State ───────────────────────────────────────────────────────────────
@@ -38,6 +56,10 @@ export const useGitStore = defineStore('git', () => {
   // Loading states
   const loading = ref(false);
   const operationLoading = ref(false);
+  const activeOperationKind = ref<GitOperationKind | null>(null);
+  const activeOperationId = ref<string | null>(null);
+  const operationCancellable = ref(false);
+  const operationCancelling = ref(false);
   const coldStorage = ref(false);
 
   // Cache timestamps
@@ -96,6 +118,51 @@ export const useGitStore = defineStore('git', () => {
 
   function setColdStorage(enabled: boolean): void {
     coldStorage.value = enabled;
+  }
+
+  function waitForUiPaint(): Promise<void> {
+    return new Promise(resolve => {
+      if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+        setTimeout(resolve, 0);
+        return;
+      }
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
+  async function withOperationLoading<T>(
+    kind: GitOperationKind,
+    task: (operationId?: string) => Promise<T>,
+    options: { cancellable?: boolean } = {},
+  ): Promise<T> {
+    operationLoading.value = true;
+    activeOperationKind.value = kind;
+    operationCancellable.value = options.cancellable ?? false;
+    operationCancelling.value = false;
+    activeOperationId.value = operationCancellable.value ? crypto.randomUUID() : null;
+    await waitForUiPaint();
+    try {
+      return await task(activeOperationId.value || undefined);
+    } finally {
+      operationLoading.value = false;
+      activeOperationKind.value = null;
+      activeOperationId.value = null;
+      operationCancellable.value = false;
+      operationCancelling.value = false;
+    }
+  }
+
+  async function cancelActiveOperation(): Promise<void> {
+    if (!activeOperationId.value || !operationCancellable.value || operationCancelling.value) {
+      return;
+    }
+
+    operationCancelling.value = true;
+    try {
+      await api.gitCancelOperation(activeOperationId.value);
+    } finally {
+      operationCancelling.value = false;
+    }
   }
 
   // ─── Refresh Actions (on-demand) ────────────────────────────────────────
@@ -296,112 +363,96 @@ export const useGitStore = defineStore('git', () => {
   // ─── Git Operations ──────────────────────────────────────────────────────
 
   async function stageFiles(projectId: string, path: string, files: string[]): Promise<void> {
-    await api.gitStage(path, files);
-    await refreshStatus(projectId, path);
+    await withOperationLoading('stage', async () => {
+      await api.gitStage(path, files);
+      await refreshStatus(projectId, path);
+    });
   }
 
   async function unstageFiles(projectId: string, path: string, files: string[]): Promise<void> {
-    await api.gitUnstage(path, files);
-    await refreshStatus(projectId, path);
+    await withOperationLoading('unstage', async () => {
+      await api.gitUnstage(path, files);
+      await refreshStatus(projectId, path);
+    });
   }
 
   async function stageAll(projectId: string, path: string): Promise<void> {
-    await api.gitStageAll(path);
-    await refreshStatus(projectId, path);
+    await withOperationLoading('stageAll', async () => {
+      await api.gitStageAll(path);
+      await refreshStatus(projectId, path);
+    });
   }
 
   async function unstageAll(projectId: string, path: string): Promise<void> {
-    await api.gitUnstageAll(path);
-    await refreshStatus(projectId, path);
+    await withOperationLoading('unstageAll', async () => {
+      await api.gitUnstageAll(path);
+      await refreshStatus(projectId, path);
+    });
   }
 
   async function commit(projectId: string, path: string, message: string): Promise<string> {
-    operationLoading.value = true;
-    try {
+    return withOperationLoading('commit', async () => {
       const result = await api.gitCommit(path, message);
       clearDiff();
       await refreshSummaryAndStatus(projectId, path);
       return result;
-    } finally {
-      operationLoading.value = false;
-    }
+    });
   }
 
   async function pull(projectId: string, path: string, remote?: string, branch?: string): Promise<string> {
-    operationLoading.value = true;
-    try {
-      const result = await api.gitPull(path, remote, branch);
+    return withOperationLoading('pull', async (operationId) => {
+      const result = await api.gitPull(path, remote, branch, operationId);
       await refreshSummaryAndStatus(projectId, path);
       return result;
-    } finally {
-      operationLoading.value = false;
-    }
+    }, { cancellable: true });
   }
 
   async function push(projectId: string, path: string, remote?: string, branch?: string, force?: boolean, setUpstream?: boolean): Promise<string> {
-    operationLoading.value = true;
-    try {
-      const result = await api.gitPush(path, remote, branch, force, setUpstream);
+    return withOperationLoading('push', async (operationId) => {
+      const result = await api.gitPush(path, remote, branch, force, setUpstream, operationId);
       await refreshSummary(projectId, path);
       return result;
-    } finally {
-      operationLoading.value = false;
-    }
+    }, { cancellable: true });
   }
 
   async function fetch(projectId: string, path: string, remote?: string): Promise<string> {
-    operationLoading.value = true;
-    try {
-      const result = await api.gitFetch(path, remote);
+    return withOperationLoading('fetch', async (operationId) => {
+      const result = await api.gitFetch(path, remote, operationId);
       await refreshSummary(projectId, path);
       return result;
-    } finally {
-      operationLoading.value = false;
-    }
+    }, { cancellable: true });
   }
 
   async function switchBranch(projectId: string, path: string, branch: string): Promise<string> {
-    operationLoading.value = true;
-    try {
+    return withOperationLoading('switchBranch', async () => {
       const result = await api.gitSwitchBranch(path, branch);
       await refreshSummaryAndStatus(projectId, path);
       return result;
-    } finally {
-      operationLoading.value = false;
-    }
+    });
   }
 
   async function createAndSwitchBranch(projectId: string, path: string, name: string, startPoint?: string): Promise<string> {
-    operationLoading.value = true;
-    try {
+    return withOperationLoading('createBranch', async () => {
       const result = await api.gitCreateAndSwitchBranch(path, name, startPoint);
       await refreshSummaryAndStatus(projectId, path);
       return result;
-    } finally {
-      operationLoading.value = false;
-    }
+    });
   }
 
   async function deleteBranch(projectId: string, path: string, name: string, force?: boolean): Promise<string> {
-    operationLoading.value = true;
-    try {
+    return withOperationLoading('deleteBranch', async () => {
       const result = await api.gitDeleteBranch(path, name, force);
       await refreshBranches(projectId, path);
       return result;
-    } finally {
-      operationLoading.value = false;
-    }
+    });
   }
 
   async function renameBranch(projectId: string, path: string, oldName: string, newName: string): Promise<string> {
-    operationLoading.value = true;
-    try {
+    return withOperationLoading('renameBranch', async () => {
       const result = await api.gitRenameBranch(path, oldName, newName);
       await refreshSummary(projectId, path);
       return result;
-    } finally {
-      operationLoading.value = false;
-    }
+    });
   }
 
   async function getDiff(path: string, file?: string, staged?: boolean): Promise<string> {
@@ -456,12 +507,14 @@ export const useGitStore = defineStore('git', () => {
   }
 
   async function revertHunk(projectId: string, path: string, patch: string, staged?: boolean): Promise<string> {
-    const result = await api.gitRevertHunk(path, patch, staged);
-    await refreshStatus(projectId, path);
-    if (selectedDiffFile.value) {
-      await getDiff(path, selectedDiffFile.value, selectedDiffStaged.value);
-    }
-    return result;
+    return withOperationLoading('revertHunk', async () => {
+      const result = await api.gitRevertHunk(path, patch, staged);
+      await refreshStatus(projectId, path);
+      if (selectedDiffFile.value) {
+        await getDiff(path, selectedDiffFile.value, selectedDiffStaged.value);
+      }
+      return result;
+    });
   }
 
   async function generateAiCommitMessage(
@@ -488,42 +541,124 @@ export const useGitStore = defineStore('git', () => {
 4. 正文每行不超过 72 个字符。
 5. 只输出提交信息本身，不要输出额外解释文字。`;
 
-    const url = settings.baseUrl.replace(/\/$/, '') + '/chat/completions';
-    const response = await globalThis.fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Git diff:\n\`\`\`\n${diff}\n\`\`\`` },
-        ],
-        max_tokens: 200,
-        temperature: 0.3,
-      }),
+    const data = await requestAiChatCompletion({
+      baseUrl: settings.baseUrl,
+      apiKey: settings.apiKey,
+      model: settings.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Git diff:\n\`\`\`\n${diff}\n\`\`\`` },
+      ],
+      maxTokens: 200,
+      temperature: 0.3,
+      stream: true,
     });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || response.statusText);
-    }
-
-    const data = await response.json();
     void projectId; // suppress unused warning
-    return data.choices?.[0]?.message?.content?.trim() || '';
+    return data;
   }
 
+  void generateAiCommitMessage;
+
   async function discardFiles(projectId: string, path: string, files: string[]): Promise<void> {
-    await api.gitDiscard(path, files);
-    await refreshStatus(projectId, path);
+    await withOperationLoading('discard', async () => {
+      await api.gitDiscard(path, files);
+      await refreshStatus(projectId, path);
+    });
+  }
+
+  async function generateAiCommitMessageV2(
+    projectId: string,
+    path: string,
+    settings: {
+      baseUrl: string;
+      apiKey: string;
+      model: string;
+      promptTemplate?: string;
+    }
+  ): Promise<string> {
+    const diff = await api.gitDiff(path, undefined, true);
+    if (!diff.trim()) {
+      throw new Error('no_staged');
+    }
+
+    const systemPrompt = settings.promptTemplate?.trim() ||
+      `Generate a git commit message with these rules:
+1. The first line must use Conventional Commits format: <type>(<scope>): <short summary>.
+2. Use one of these types: feat, fix, refactor, chore, docs, style, test, perf.
+3. Add a blank line after the first line, then write a concise body describing the concrete changes.
+4. Write the body in Chinese. The first line may be in Chinese or English.
+5. Keep each line within 72 characters.
+6. Output only the commit message itself, with no extra explanation.`;
+
+    const content = await requestAiChatCompletion({
+      baseUrl: settings.baseUrl,
+      apiKey: settings.apiKey,
+      model: settings.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Git diff:\n\`\`\`\n${diff}\n\`\`\`` },
+      ],
+      maxTokens: 200,
+      temperature: 0.3,
+    });
+
+    void projectId;
+    return content;
+  }
+
+  void generateAiCommitMessageV2;
+
+  async function generateAiCommitMessageV3(
+    projectId: string,
+    path: string,
+    settings: {
+      service: Partial<AiServiceConfig> | null | undefined;
+      promptTemplate?: string;
+      stream?: boolean;
+    }
+  ): Promise<string> {
+    const diff = await api.gitDiff(path, undefined, true);
+    if (!diff.trim()) {
+      throw new Error('no_staged');
+    }
+
+    const systemPrompt = settings.promptTemplate?.trim() ||
+      `Generate a git commit message with these rules:
+1. The first line must use Conventional Commits format: <type>(<scope>): <short summary>.
+2. Use one of these types: feat, fix, refactor, chore, docs, style, test, perf.
+3. Add a blank line after the first line, then write a concise body describing the concrete changes.
+4. Write the body in Chinese. The first line may be in Chinese or English.
+5. Keep each line within 72 characters.
+6. Output only the commit message itself, with no extra explanation.`;
+
+    const service = settings.service;
+    if (!service?.baseUrl?.trim() || !service?.apiKey?.trim() || !service?.model?.trim()) {
+      throw new Error('No configured AI service is available.');
+    }
+
+    const content = await requestAiText({
+      apiType: service.apiType,
+      baseUrl: service.baseUrl,
+      apiKey: service.apiKey,
+      model: service.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Git diff:\n\`\`\`\n${diff}\n\`\`\`` },
+      ],
+      maxTokens: 200,
+      temperature: 0.3,
+      stream: settings.stream,
+    });
+
+    void projectId;
+    return content;
   }
 
   async function discardUntracked(projectId: string, path: string, files: string[]): Promise<void> {
-    await api.gitDiscardUntracked(path, files);
-    await refreshStatus(projectId, path);
+    await withOperationLoading('discardUntracked', async () => {
+      await api.gitDiscardUntracked(path, files);
+      await refreshStatus(projectId, path);
+    });
   }
 
   function clearDiff(): void {
@@ -548,6 +683,9 @@ export const useGitStore = defineStore('git', () => {
     commitMessage,
     loading,
     operationLoading,
+    activeOperationKind,
+    operationCancellable,
+    operationCancelling,
     coldStorage,
 
     // Getters
@@ -593,7 +731,8 @@ export const useGitStore = defineStore('git', () => {
     revertHunk,
     discardFiles,
     discardUntracked,
+    cancelActiveOperation,
     clearDiff,
-    generateAiCommitMessage,
+    generateAiCommitMessage: generateAiCommitMessageV3,
   };
 });

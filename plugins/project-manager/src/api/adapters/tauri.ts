@@ -41,6 +41,18 @@ export class TauriAdapter implements PlatformAPI {
         return invoke('scan_project', { path });
     }
 
+    async gitListRemoteBranches(url: string): Promise<string[]> {
+        return invoke('git_list_remote_branches', { url });
+    }
+
+    async gitCloneBranch(url: string, branch: string, destination: string, operationId?: string): Promise<string> {
+        return invoke('git_clone_branch', { url, branch, destination, operationId });
+    }
+
+    async gitCancelOperation(operationId: string): Promise<void> {
+        return invoke('git_cancel_operation', { operationId });
+    }
+
     // Runner
     async runProjectCommand(id: string, path: string, script: string, packageManager: string, nodePath: string): Promise<void> {
         return invoke('run_project_command', { id, path, script, packageManager, nodePath });
@@ -245,16 +257,16 @@ export class TauriAdapter implements PlatformAPI {
         return invoke('git_commit', { path, message });
     }
 
-    async gitPull(path: string, remote?: string, branch?: string): Promise<string> {
-        return invoke('git_pull', { path, remote, branch });
+    async gitPull(path: string, remote?: string, branch?: string, operationId?: string): Promise<string> {
+        return invoke('git_pull', { path, remote, branch, operationId });
     }
 
-    async gitPush(path: string, remote?: string, branch?: string, force?: boolean, setUpstream?: boolean): Promise<string> {
-        return invoke('git_push', { path, remote, branch, force, setUpstream });
+    async gitPush(path: string, remote?: string, branch?: string, force?: boolean, setUpstream?: boolean, operationId?: string): Promise<string> {
+        return invoke('git_push', { path, remote, branch, force, setUpstream, operationId });
     }
 
-    async gitFetch(path: string, remote?: string): Promise<string> {
-        return invoke('git_fetch', { path, remote });
+    async gitFetch(path: string, remote?: string, operationId?: string): Promise<string> {
+        return invoke('git_fetch', { path, remote, operationId });
     }
 
     async gitDiff(path: string, file?: string, staged?: boolean): Promise<string> {

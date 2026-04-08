@@ -22,6 +22,9 @@ export interface Project {
   name: string;
   path: string;
   type: 'node' | 'other';
+  gitRemoteUrl?: string;
+  gitBranch?: string;
+  gitConfigured?: boolean;
   nodeVersion?: string;
   packageManager?: 'npm' | 'yarn' | 'pnpm' | 'cnpm';
   scripts?: string[];
@@ -32,6 +35,15 @@ export interface Project {
   pinned?: boolean;
   pinOrder?: number;
   editorId?: string;
+}
+
+export type AiApiType = 'chat_completions' | 'responses';
+
+export interface AiServiceConfig {
+  apiType: AiApiType;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
 }
 
 export interface Settings {
@@ -47,6 +59,9 @@ export interface Settings {
   closeAction?: 'ask' | 'tray' | 'exit';
   // AI commit message generation
   gitAiEnabled?: boolean;
+  gitAiPrimaryService?: AiServiceConfig;
+  gitAiStream?: boolean;
+  // Legacy fields kept for migration/backup compatibility
   gitAiBaseUrl?: string;
   gitAiApiKey?: string;
   gitAiModel?: string;

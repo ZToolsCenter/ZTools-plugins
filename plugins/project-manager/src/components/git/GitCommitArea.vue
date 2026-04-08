@@ -5,6 +5,7 @@ import { useSettingsStore } from '../../stores/settings';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import type { Project } from '../../types';
+import { showPersistentGitError } from './message';
 
 const props = defineProps<{
   project: Project;
@@ -27,6 +28,10 @@ const stagedFiles = computed(() => {
 
 const aiEnabled = computed(() => settingsStore.settings.gitAiEnabled);
 
+function isCancelledError(error: unknown): boolean {
+  return String(error).toLowerCase().includes('cancelled');
+}
+
 async function handleCommit() {
   if (!commitMessage.value.trim()) {
     ElMessage.warning(t('git.commitEmpty'));
@@ -41,7 +46,11 @@ async function handleCommit() {
     commitMessage.value = '';
     ElMessage.success(t('git.commitSuccess'));
   } catch (e: any) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    if (isCancelledError(e)) {
+      ElMessage.info(t('git.operationCancelled'));
+      return;
+    }
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   }
 }
 
@@ -60,23 +69,27 @@ async function handleCommitAndPush() {
     await gitStore.push(props.project.id, props.project.path);
     ElMessage.success(t('git.commitAndPushSuccess'));
   } catch (e: any) {
-    ElMessage.error(t('git.operationFailed', { error: String(e) }));
+    if (isCancelledError(e)) {
+      ElMessage.info(t('git.operationCancelled'));
+      return;
+    }
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
   }
 }
 
 async function handleAiGenerate() {
   const s = settingsStore.settings;
-  if (!s.gitAiApiKey?.trim()) {
+  const service = s.gitAiPrimaryService;
+  if (!service?.apiKey?.trim() || !service?.baseUrl?.trim() || !service?.model?.trim()) {
     ElMessage.warning(t('git.aiConfigMissing'));
     return;
   }
   aiGenerating.value = true;
   try {
     const msg = await gitStore.generateAiCommitMessage(props.project.id, props.project.path, {
-      baseUrl: s.gitAiBaseUrl || 'https://api.openai.com/v1',
-      apiKey: s.gitAiApiKey,
-      model: s.gitAiModel || 'gpt-4o-mini',
+      service,
       promptTemplate: s.gitAiPromptTemplate,
+      stream: s.gitAiStream,
     });
     if (msg) {
       commitMessage.value = msg;
@@ -87,7 +100,7 @@ async function handleAiGenerate() {
     if (msg.includes('no_staged')) {
       ElMessage.warning(t('git.aiNoStaged'));
     } else {
-      ElMessage.error(t('git.aiError', { error: msg }));
+      showPersistentGitError(t('git.aiError', { error: msg }));
     }
   } finally {
     aiGenerating.value = false;

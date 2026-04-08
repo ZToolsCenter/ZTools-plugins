@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, nextTick } from 'vue';
 import { useProjectStore } from '../stores/project';
 import { useI18n } from 'vue-i18n';
 import { AnsiUp } from 'ansi_up';
@@ -71,25 +71,10 @@ const activeProject = computed(() =>
 
 const activeScript = ref<string | null>(null);
 const logContainer = ref<HTMLElement | null>(null);
-const LOG_LINE_ESTIMATE = 22;
-const LOG_OVERSCAN = 16;
 const parsedLogCache = new Map<string, string>();
 const MAX_PARSED_LOG_CACHE_SIZE = 2000;
-const logLineHeights = ref<Record<string, number>>({});
-const logScrollTop = ref(0);
-const logViewportHeight = ref(0);
-const logLineElements = new Map<string, HTMLElement>();
-let logContainerResizeObserver: ResizeObserver | null = null;
-let logLineResizeObserver: ResizeObserver | null = null;
-
-function resolveElementRef(target: unknown): Element | null {
-    if (target instanceof Element) return target;
-    if (target && typeof target === 'object' && '$el' in target) {
-        const maybeElement = (target as { $el?: unknown }).$el;
-        return maybeElement instanceof Element ? maybeElement : null;
-    }
-    return null;
-}
+const LOG_BOTTOM_THRESHOLD = 48;
+const shouldFollowLogs = ref(true);
 
 function getCachedParsedAnsi(text: string) {
     const cached = parsedLogCache.get(text);
@@ -106,52 +91,6 @@ function getCachedParsedAnsi(text: string) {
     }
 
     return parsed;
-}
-
-function updateLogViewport() {
-    if (!logContainer.value) return;
-    logViewportHeight.value = logContainer.value.clientHeight;
-    logScrollTop.value = logContainer.value.scrollTop;
-}
-
-function handleLogScroll() {
-    if (!logContainer.value) return;
-    logScrollTop.value = logContainer.value.scrollTop;
-}
-
-function registerLogLineRef(lineKey: string, element: Element | null) {
-    const existing = logLineElements.get(lineKey);
-    if (existing && existing !== element) {
-        logLineResizeObserver?.unobserve(existing);
-        logLineElements.delete(lineKey);
-    }
-
-    if (!(element instanceof HTMLElement)) return;
-
-    element.dataset.logKey = lineKey;
-    logLineElements.set(lineKey, element);
-    logLineResizeObserver?.observe(element);
-}
-
-function findLogMetricIndexByOffset(offset: number) {
-    const metrics = logMetrics.value;
-    let low = 0;
-    let high = metrics.length - 1;
-
-    while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        const metric = metrics[mid];
-
-        if (offset < metric.start) {
-            high = mid - 1;
-        } else if (offset >= metric.end) {
-            low = mid + 1;
-        } else {
-            return mid;
-        }
-    }
-
-    return Math.max(0, Math.min(metrics.length - 1, low));
 }
 
 // Keep track of active tabs explicitly
@@ -244,44 +183,29 @@ const renderedLogs = computed(() => {
     }));
 });
 
-const logMetrics = computed(() => {
-    let offset = 0;
-
-    return renderedLogs.value.map((item) => {
-        const height = logLineHeights.value[item.key] ?? LOG_LINE_ESTIMATE;
-        const start = offset;
-        offset += height;
-
-        return {
-            ...item,
-            start,
-            end: offset,
-            height,
-        };
-    });
-});
-
-const totalLogHeight = computed(() => {
-    const metrics = logMetrics.value;
-    return metrics.length ? metrics[metrics.length - 1].end : 0;
-});
-
-const visibleLogMetrics = computed(() => {
-    const metrics = logMetrics.value;
-    if (metrics.length === 0) return [];
-
-    const viewportStart = Math.max(0, logScrollTop.value);
-    const viewportEnd = viewportStart + Math.max(logViewportHeight.value, 1);
-    const startIndex = Math.max(0, findLogMetricIndexByOffset(viewportStart) - LOG_OVERSCAN);
-    const endIndex = Math.min(metrics.length, findLogMetricIndexByOffset(viewportEnd) + LOG_OVERSCAN + 1);
-
-    return metrics.slice(startIndex, endIndex);
-});
-
 const isRunning = computed(() => {
     if (!activeProject.value || !activeScript.value) return false;
     return projectStore.runningStatus[`${activeProject.value.id}:${activeScript.value}`] || false;
 });
+
+function isNearLogBottom() {
+    if (!logContainer.value) return true;
+
+    const { scrollTop, clientHeight, scrollHeight } = logContainer.value;
+    return scrollHeight - (scrollTop + clientHeight) <= LOG_BOTTOM_THRESHOLD;
+}
+
+function handleLogScroll() {
+    shouldFollowLogs.value = isNearLogBottom();
+}
+
+function resumeLogFollow() {
+    shouldFollowLogs.value = true;
+    nextTick(() => {
+        scrollToBottom();
+        requestAnimationFrame(scrollToBottom);
+    });
+}
 
 // Auto-scroll logic
 // We want to scroll to bottom when new logs arrive, BUT only if we are already near bottom
@@ -291,15 +215,13 @@ const isRunning = computed(() => {
 
 const scrollToBottom = () => {
     if (logContainer.value) {
-        logContainer.value.scrollTop = totalLogHeight.value;
+        logContainer.value.scrollTop = logContainer.value.scrollHeight;
     }
 };
 
 watch(() => logs.value.length, () => {
-    // Only scroll if we are already near bottom or if explicitly needed?
-    // Actually for "tail -f" behavior we usually want to force scroll unless user scrolled up.
-    // But user reported "cannot see latest output in time" which implies we are NOT scrolling fast enough.
-    // Let's use requestAnimationFrame for smoother but guaranteed updates
+    if (!shouldFollowLogs.value) return;
+
     requestAnimationFrame(() => {
         scrollToBottom();
     });
@@ -307,58 +229,12 @@ watch(() => logs.value.length, () => {
 
 // Force scroll on script switch - INSTANTLY
 watch(activeScript, () => {
-    // We need to wait for Vue to render the new logs first
-    nextTick(() => {
-        // Force scroll multiple times to ensure layout is settled
-        scrollToBottom();
-        requestAnimationFrame(scrollToBottom);
-    });
+    resumeLogFollow();
 });
 
 watch(activeProject, () => {
     parsedLogCache.clear();
-    logLineHeights.value = {};
-    logLineElements.clear();
-    logScrollTop.value = 0;
-});
-
-watch(activeScript, () => {
-    logLineHeights.value = {};
-    logLineElements.clear();
-});
-
-onMounted(() => {
-    logContainerResizeObserver = new ResizeObserver(updateLogViewport);
-    logLineResizeObserver = new ResizeObserver((entries) => {
-        const nextHeights = { ...logLineHeights.value };
-        let changed = false;
-
-        for (const entry of entries) {
-            const key = (entry.target as HTMLElement).dataset.logKey;
-            if (!key) continue;
-
-            const measured = Math.ceil(entry.contentRect.height);
-            if (nextHeights[key] !== measured) {
-                nextHeights[key] = measured;
-                changed = true;
-            }
-        }
-
-        if (changed) {
-            logLineHeights.value = nextHeights;
-        }
-    });
-
-    if (logContainer.value) {
-        logContainerResizeObserver.observe(logContainer.value);
-        updateLogViewport();
-    }
-});
-
-onBeforeUnmount(() => {
-    logContainerResizeObserver?.disconnect();
-    logLineResizeObserver?.disconnect();
-    logLineElements.clear();
+    shouldFollowLogs.value = true;
 });
 
 function handleStop() {
@@ -486,13 +362,11 @@ function handleCloseTab(script: string) {
         <!-- Logs -->
         <div v-if="activeScript" ref="logContainer" @click="handleLogClick" @scroll="handleLogScroll"
             class="flex-1 overflow-y-auto font-mono text-xs leading-relaxed whitespace-pre-wrap select-text relative min-h-0">
-            <div :key="activeScript" class="relative p-3" :style="{ minHeight: `${totalLogHeight}px` }">
+            <div :key="activeScript" class="p-3">
                 <div
-                    v-for="item in visibleLogMetrics"
+                    v-for="item in renderedLogs"
                     :key="item.key"
-                    :ref="(el) => registerLogLineRef(item.key, resolveElementRef(el))"
-                    class="absolute left-3 right-3 break-all border-l-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700 pl-2 -ml-2 hover:bg-slate-100/40 dark:hover:bg-slate-800/20 transition-colors duration-100 py-px"
-                    :style="{ transform: `translateY(${item.start}px)` }"
+                    class="break-all border-l-2 border-transparent hover:border-slate-200 dark:hover:border-slate-700 pl-2 -ml-2 hover:bg-slate-100/40 dark:hover:bg-slate-800/20 transition-colors duration-100 py-px"
                     v-html="item.html">
                 </div>
             </div>
@@ -502,6 +376,14 @@ function handleCloseTab(script: string) {
                 <div class="i-mdi-console-line text-5xl mb-3 opacity-20" />
                 <p class="text-xs">{{ t('dashboard.waitingForOutput') }}</p>
             </div>
+
+            <button
+                v-if="!shouldFollowLogs && logs.length > 0"
+                @click.stop="resumeLogFollow"
+                class="absolute right-4 bottom-4 z-10 px-3 py-1.5 rounded-full shadow-lg border border-blue-200/80 dark:border-blue-400/20 bg-white/95 dark:bg-slate-900/95 text-blue-600 dark:text-blue-300 text-[11px] font-medium flex items-center gap-1.5 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors duration-150">
+                <div class="i-mdi-arrow-down-circle text-sm" />
+                <span>{{ t('dashboard.scrollToBottom') }}</span>
+            </button>
         </div>
 
         <!-- Empty State -->

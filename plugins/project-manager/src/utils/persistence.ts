@@ -136,6 +136,9 @@ export async function loadData() {
       projectStore.projects = data.projects.map((p: any) => ({
         ...p,
         type: p.type || 'node',
+        gitRemoteUrl: typeof p.gitRemoteUrl === 'string' ? p.gitRemoteUrl : undefined,
+        gitBranch: typeof p.gitBranch === 'string' ? p.gitBranch : undefined,
+        gitConfigured: p.gitConfigured ?? undefined,
         scripts: p.scripts || [],
         visibleScripts: p.visibleScripts || undefined,
         customCommands: p.customCommands || [],

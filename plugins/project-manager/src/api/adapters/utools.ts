@@ -27,6 +27,11 @@ export class UToolsAdapter implements PlatformAPI {
   getNodeVersion(path: string): Promise<string> { return this.service.getNodeVersion(path); }
 
   scanProject(path: string): Promise<ProjectInfo> { return this.service.scanProject(path); }
+  gitListRemoteBranches(url: string): Promise<string[]> { return this.service.gitListRemoteBranches(url); }
+  gitCloneBranch(url: string, branch: string, destination: string, operationId?: string): Promise<string> { return this.service.gitCloneBranch(url, branch, destination, operationId); }
+  gitCancelOperation(operationId: string): Promise<void> {
+    return this.service.gitCancelOperation ? this.service.gitCancelOperation(operationId) : Promise.resolve();
+  }
 
   runProjectCommand(id: string, path: string, script: string, packageManager: string, nodePath: string): Promise<void> {
     return this.service.runProjectCommand(id, path, script, packageManager, nodePath);
@@ -163,9 +168,9 @@ export class UToolsAdapter implements PlatformAPI {
   async gitStageAll(path: string): Promise<string> { return this.service.gitStageAll(path); }
   async gitUnstageAll(path: string): Promise<string> { return this.service.gitUnstageAll(path); }
   async gitCommit(path: string, message: string): Promise<string> { return this.service.gitCommit(path, message); }
-  async gitPull(path: string, remote?: string, branch?: string): Promise<string> { return this.service.gitPull(path, remote, branch); }
-  async gitPush(path: string, remote?: string, branch?: string, force?: boolean, setUpstream?: boolean): Promise<string> { return this.service.gitPush(path, remote, branch, force, setUpstream); }
-  async gitFetch(path: string, remote?: string): Promise<string> { return this.service.gitFetch(path, remote); }
+  async gitPull(path: string, remote?: string, branch?: string, operationId?: string): Promise<string> { return this.service.gitPull(path, remote, branch, operationId); }
+  async gitPush(path: string, remote?: string, branch?: string, force?: boolean, setUpstream?: boolean, operationId?: string): Promise<string> { return this.service.gitPush(path, remote, branch, force, setUpstream, operationId); }
+  async gitFetch(path: string, remote?: string, operationId?: string): Promise<string> { return this.service.gitFetch(path, remote, operationId); }
   async gitDiff(path: string, file?: string, staged?: boolean): Promise<string> { return this.service.gitDiff(path, file, staged); }
   async gitDiffCommit(path: string, hash: string): Promise<string> { return this.service.gitDiffCommit(path, hash); }
   async gitDiscard(path: string, files: string[]): Promise<string> { return this.service.gitDiscard(path, files); }

@@ -6,7 +6,9 @@ import { useNodeStore } from '../stores/node';
 import { api } from '../api';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
-import type { NodeVersion, Project, Settings } from '../types';
+import type { AiServiceConfig, NodeVersion, Project, Settings } from '../types';
+import { isAiServiceConfigured, normalizeAiApiType, requestAiText } from '../utils/ai';
+import { isAbortError } from '../utils/network';
 
 type ImportChoice = 'keep' | 'incoming';
 type ImportDiff = { key: string; label: string; current: string; incoming: string };
@@ -20,6 +22,42 @@ type ImportPlan = {
   nodeConflicts: NodeConflict[];
   settingsConflicts: SettingsConflict[];
 };
+
+function createDefaultAiService(overrides: Partial<AiServiceConfig> = {}): AiServiceConfig {
+  return {
+    apiType: 'chat_completions',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: '',
+    model: 'gpt-4o-mini',
+    ...overrides,
+  };
+}
+
+function normalizeAiServiceConfig(value: unknown, fallback: AiServiceConfig): AiServiceConfig {
+  if (!value || typeof value !== 'object') {
+    return createDefaultAiService(fallback);
+  }
+
+  const service = value as Partial<AiServiceConfig>;
+  return createDefaultAiService({
+    apiType: normalizeAiApiType(service.apiType || fallback.apiType),
+    baseUrl: typeof service.baseUrl === 'string' ? service.baseUrl : fallback.baseUrl,
+    apiKey: typeof service.apiKey === 'string' ? service.apiKey : fallback.apiKey,
+    model: typeof service.model === 'string' ? service.model : fallback.model,
+  });
+}
+
+function normalizeAiSettings(settings: Settings): Settings {
+  return {
+    ...settings,
+    gitAiPrimaryService: normalizeAiServiceConfig(settings.gitAiPrimaryService, createDefaultAiService({
+      baseUrl: settings.gitAiBaseUrl || 'https://api.openai.com/v1',
+      apiKey: settings.gitAiApiKey || '',
+      model: settings.gitAiModel || 'gpt-4o-mini',
+    })),
+    gitAiStream: typeof settings.gitAiStream === 'boolean' ? settings.gitAiStream : true,
+  };
+}
 
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
@@ -39,7 +77,7 @@ const importPlan = ref<ImportPlan | null>(null);
 const importSourceName = ref('');
 
 const deepClone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
-const draft = ref<Settings>(deepClone(toRaw(settingsStore.settings)));
+const draft = ref<Settings>(normalizeAiSettings(deepClone(toRaw(settingsStore.settings))));
 const isDirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(settingsStore.settings));
 
 const importSummary = computed(() => {
@@ -54,11 +92,11 @@ const importSummary = computed(() => {
 });
 
 function resetDraft() {
-  draft.value = deepClone(toRaw(settingsStore.settings));
+  draft.value = normalizeAiSettings(deepClone(toRaw(settingsStore.settings)));
 }
 
 function handleSave() {
-  Object.assign(settingsStore.settings, deepClone(toRaw(draft.value)));
+  Object.assign(settingsStore.settings, normalizeAiSettings(deepClone(toRaw(draft.value))));
   ElMessage.success(t('common.success'));
 }
 
@@ -201,6 +239,9 @@ function normalizeProject(project: any): Project | null {
     name: project.name || project.path.split(/[\\/]/).pop() || 'Untitled',
     path: project.path,
     type: project.type === 'other' ? 'other' : 'node',
+    gitRemoteUrl: typeof project.gitRemoteUrl === 'string' && project.gitRemoteUrl ? project.gitRemoteUrl : undefined,
+    gitBranch: typeof project.gitBranch === 'string' && project.gitBranch ? project.gitBranch : undefined,
+    gitConfigured: typeof project.gitConfigured === 'boolean' ? project.gitConfigured : undefined,
     nodeVersion: project.nodeVersion || undefined,
     packageManager: project.packageManager || 'npm',
     scripts: Array.isArray(project.scripts) ? project.scripts : [],
@@ -215,7 +256,7 @@ function normalizeProject(project: any): Project | null {
 }
 
 function normalizeSettingsPayload(settings: any): Settings {
-  return { ...deepClone(toRaw(settingsStore.settings)), ...settings };
+  return normalizeAiSettings({ ...deepClone(toRaw(settingsStore.settings)), ...settings });
 }
 
 function normalizeCustomNode(node: any): NodeVersion | null {
@@ -264,7 +305,12 @@ function normalizeImportValue(
   if (typeof value === 'object') {
     const normalizedEntries = Object.entries(value as Record<string, unknown>)
       .filter(([entryKey]) => entryKey !== 'id')
-      .map(([entryKey, entryValue]) => [entryKey, normalizeImportValue(entryKey, entryValue, side, options)] as const)
+      .map(([entryKey, entryValue]) => {
+        const normalizedEntryValue = entryKey.toLowerCase().includes('apikey') && entryValue
+          ? '******'
+          : normalizeImportValue(entryKey, entryValue, side, options);
+        return [entryKey, normalizedEntryValue] as const;
+      })
       .filter(([, entryValue]) => entryValue !== null)
       .sort(([a], [b]) => a.localeCompare(b));
 
@@ -346,6 +392,9 @@ function buildImportPlan(payload: any): ImportPlan {
   const projectFields = [
     { key: 'name', label: t('project.name') },
     { key: 'type', label: t('project.type') },
+    { key: 'gitRemoteUrl', label: t('project.gitRepoUrl') },
+    { key: 'gitBranch', label: t('project.gitBranch') },
+    { key: 'gitConfigured', label: t('project.gitConfigured') },
     { key: 'nodeVersion', label: t('project.nodeVersion') },
     { key: 'packageManager', label: t('project.packageManager') },
     { key: 'scripts', label: t('project.scripts') },
@@ -366,9 +415,8 @@ function buildImportPlan(payload: any): ImportPlan {
     { key: 'trayEnabled', label: t('settings.trayEnabled') },
     { key: 'closeAction', label: t('settings.closeAction') },
     { key: 'gitAiEnabled', label: t('settings.gitAiEnabled') },
-    { key: 'gitAiBaseUrl', label: t('settings.gitAiBaseUrl') },
-    { key: 'gitAiApiKey', label: t('settings.gitAiApiKey') },
-    { key: 'gitAiModel', label: t('settings.gitAiModel') },
+    { key: 'gitAiPrimaryService', label: t('settings.gitAiPrimaryService') },
+    { key: 'gitAiStream', label: t('settings.gitAiStream') },
     { key: 'gitAiPromptTemplate', label: t('settings.gitAiPromptTemplate') },
   ];
   const normalizedProjects = Array.isArray(payload.projects) ? payload.projects.map(normalizeProject).filter(Boolean) as Project[] : [];
@@ -458,7 +506,7 @@ function applyImportPlan() {
   plan.settingsConflicts.forEach((conflict) => {
     if (conflict.choice === 'incoming') (nextSettings as any)[conflict.key] = deepClone(conflict.incomingValue);
   });
-  settingsStore.settings = normalizeDefaultEditorId(nextSettings);
+  settingsStore.settings = normalizeDefaultEditorId(normalizeAiSettings(nextSettings));
 
   const systemNodes = nodeStore.versions.filter(item => item.source !== 'custom');
   const customNodes = deepClone(toRaw(nodeStore.versions.filter(item => item.source === 'custom')));
@@ -501,32 +549,32 @@ function handleManualUpdateResult(event: Event) {
 }
 
 async function testAiConnection() {
-  const settings = draft.value;
-  if (!settings.gitAiBaseUrl || !settings.gitAiApiKey || !settings.gitAiModel) {
+  const service = draft.value.gitAiPrimaryService;
+  if (!isAiServiceConfigured(service)) {
     aiTestResult.value = { success: false, message: t('settings.gitAiTestMissingConfig') };
     return;
   }
+
   aiTestLoading.value = true;
   aiTestResult.value = null;
-  const url = settings.gitAiBaseUrl.replace(/\/$/, '') + '/chat/completions';
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await globalThis.fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.gitAiApiKey}` },
-      body: JSON.stringify({ model: settings.gitAiModel, messages: [{ role: 'user', content: 'Hi' }], max_tokens: 5 }),
-      signal: controller.signal,
+    await requestAiText({
+      apiType: service.apiType,
+      baseUrl: service.baseUrl,
+      apiKey: service.apiKey,
+      model: service.model,
+      messages: [{ role: 'user', content: 'Reply with OK only.' }],
+      maxTokens: normalizeAiApiType(service.apiType) === 'responses' ? 64 : 32,
+      temperature: 0,
+      stream: draft.value.gitAiStream,
+      timeoutMs: 15000,
     });
-    clearTimeout(timeoutId);
-    if (response.ok) aiTestResult.value = { success: true, message: t('settings.gitAiTestSuccess') };
-    else if (response.status === 401 || response.status === 403) aiTestResult.value = { success: false, message: t('settings.gitAiTestAuthError') };
-    else if (response.status === 404) aiTestResult.value = { success: false, message: t('settings.gitAiTestModelNotFound') };
-    else if (response.status === 429) aiTestResult.value = { success: false, message: t('settings.gitAiTestRateLimit') };
-    else aiTestResult.value = { success: false, message: t('settings.gitAiTestHttpError', { status: response.status, error: (await response.text().catch(() => '')).slice(0, 200) }) };
+    aiTestResult.value = { success: true, message: t('settings.gitAiTestSuccess') };
   } catch (error: any) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') aiTestResult.value = { success: false, message: t('settings.gitAiTestTimeout') };
+    if (isAbortError(error)) aiTestResult.value = { success: false, message: t('settings.gitAiTestTimeout') };
+    else if (String(error?.message || '').includes('(401 ') || String(error?.message || '').includes('(403 ')) aiTestResult.value = { success: false, message: t('settings.gitAiTestAuthError') };
+    else if (String(error?.message || '').includes('(404 ')) aiTestResult.value = { success: false, message: t('settings.gitAiTestModelNotFound') };
+    else if (String(error?.message || '').includes('(429 ')) aiTestResult.value = { success: false, message: t('settings.gitAiTestRateLimit') };
     else if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed')) aiTestResult.value = { success: false, message: t('settings.gitAiTestUnreachable') };
     else aiTestResult.value = { success: false, message: t('settings.gitAiTestError', { error: String(error).slice(0, 200) }) };
   } finally {
@@ -716,30 +764,49 @@ async function testAiConnection() {
               <div class="setting-label">{{ t('settings.gitAiEnabled') }}</div>
               <el-switch v-model="draft.gitAiEnabled" />
             </div>
-            <div v-if="draft.gitAiEnabled" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div class="panel">
-                <div class="setting-label mb-2">{{ t('settings.gitAiBaseUrl') }}</div>
-                <el-input v-model="draft.gitAiBaseUrl" :placeholder="t('settings.gitAiBaseUrlPlaceholder')" clearable />
-              </div>
-              <div class="panel">
-                <div class="setting-label mb-2">{{ t('settings.gitAiModel') }}</div>
-                <el-input v-model="draft.gitAiModel" :placeholder="t('settings.gitAiModelPlaceholder')" clearable />
-              </div>
-              <div class="panel xl:col-span-2">
-                <div class="setting-label mb-2">{{ t('settings.gitAiApiKey') }}</div>
-                <el-input v-model="draft.gitAiApiKey" type="password" show-password :placeholder="t('settings.gitAiApiKeyPlaceholder')" />
+            <div v-if="draft.gitAiEnabled" class="space-y-4">
+              <div class="panel space-y-3">
+                <div class="setting-label">{{ t('settings.gitAiPrimaryService') }}</div>
+                <div>
+                  <div class="setting-label mb-2">{{ t('settings.gitAiApiType') }}</div>
+                  <el-select v-model="draft.gitAiPrimaryService!.apiType" class="w-full">
+                    <el-option :label="t('settings.gitAiApiTypeChat')" value="chat_completions" />
+                    <el-option :label="t('settings.gitAiApiTypeResponses')" value="responses" />
+                  </el-select>
+                </div>
+                <div>
+                  <div class="setting-label mb-2">{{ t('settings.gitAiBaseUrl') }}</div>
+                  <el-input v-model="draft.gitAiPrimaryService!.baseUrl" :placeholder="t('settings.gitAiBaseUrlPlaceholder')" clearable />
+                </div>
+                <div>
+                  <div class="setting-label mb-2">{{ t('settings.gitAiModel') }}</div>
+                  <el-input v-model="draft.gitAiPrimaryService!.model" :placeholder="t('settings.gitAiModelPlaceholder')" clearable />
+                </div>
+                <div>
+                  <div class="setting-label mb-2">{{ t('settings.gitAiApiKey') }}</div>
+                  <el-input v-model="draft.gitAiPrimaryService!.apiKey" type="password" show-password :placeholder="t('settings.gitAiApiKeyPlaceholder')" />
+                </div>
+                <div class="setting-row !py-0">
+                  <div class="setting-label">{{ t('settings.gitAiStream') }}</div>
+                  <el-switch v-model="draft.gitAiStream" />
+                </div>
+                <div class="text-xs text-slate-500 dark:text-slate-400">
+                  {{ draft.gitAiStream ? t('settings.gitAiStreamEnabledHint') : t('settings.gitAiStreamDisabledHint') }}
+                </div>
+                <div class="flex items-center gap-3">
+                  <el-button :loading="aiTestLoading" type="primary" plain @click="testAiConnection()">
+                    <el-icon class="mr-1" v-if="!aiTestLoading"><div class="i-mdi-connection" /></el-icon>{{ t('settings.gitAiTestBtn') }}
+                  </el-button>
+                  <div v-if="aiTestResult" class="text-sm flex items-center gap-1">
+                    <div v-if="aiTestResult.success" class="i-mdi-check-circle text-green-500" />
+                    <div v-else class="i-mdi-close-circle text-red-500" />
+                    <span :class="aiTestResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">{{ aiTestResult.message }}</span>
+                  </div>
+                </div>
               </div>
               <div class="panel xl:col-span-2">
                 <div class="setting-label mb-2">{{ t('settings.gitAiPromptTemplate') }}</div>
                 <el-input v-model="draft.gitAiPromptTemplate" type="textarea" :rows="4" :placeholder="t('settings.gitAiPromptPlaceholder')" />
-              </div>
-              <div class="xl:col-span-2 flex items-center gap-3">
-                <el-button :loading="aiTestLoading" type="primary" plain @click="testAiConnection"><el-icon class="mr-1" v-if="!aiTestLoading"><div class="i-mdi-connection" /></el-icon>{{ t('settings.gitAiTestBtn') }}</el-button>
-                <div v-if="aiTestResult" class="text-sm flex items-center gap-1">
-                  <div v-if="aiTestResult.success" class="i-mdi-check-circle text-green-500" />
-                  <div v-else class="i-mdi-close-circle text-red-500" />
-                  <span :class="aiTestResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">{{ aiTestResult.message }}</span>
-                </div>
               </div>
             </div>
           </div>

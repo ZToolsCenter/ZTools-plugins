@@ -4,6 +4,7 @@ import { useGitStore } from '../../stores/git';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import type { Project } from '../../types';
+import { showPersistentGitError } from './message';
 
 const props = defineProps<{
   project: Project;
@@ -20,14 +21,39 @@ const gitStore = useGitStore();
 
 const summary = computed(() => gitStore.getSummary(props.project.id));
 const isLoading = computed(() => gitStore.operationLoading);
+const isCancellable = computed(() => gitStore.operationCancellable);
+const isCancelling = computed(() => gitStore.operationCancelling);
+const activeOperationLabel = computed(() => {
+  const kind = gitStore.activeOperationKind;
+  if (!kind) return '';
+
+  const labelMap: Record<string, string> = {
+    stage: t('git.staged'),
+    unstage: t('git.unstage'),
+    stageAll: t('git.stageAll'),
+    unstageAll: t('git.unstageAll'),
+    commit: t('git.commit'),
+    pull: t('git.pull'),
+    push: t('git.push'),
+    fetch: t('git.fetch'),
+    switchBranch: t('git.switchBranch'),
+    createBranch: t('git.createBranch'),
+    deleteBranch: t('git.deleteBranch'),
+    renameBranch: t('git.renameBranch'),
+    revertHunk: t('git.discard'),
+    discard: t('git.discard'),
+    discardUntracked: t('git.discard'),
+  };
+
+  return labelMap[kind] || t('git.loading');
+});
 
 function showError(error: unknown) {
-  ElMessage({
-    type: 'error',
-    message: t('git.operationFailed', { error: String(error) }),
-    duration: 0,
-    showClose: true,
-  });
+  showPersistentGitError(t('git.operationFailed', { error: String(error) }));
+}
+
+function isCancelledError(error: unknown): boolean {
+  return String(error).toLowerCase().includes('cancelled');
 }
 
 async function handleFetch() {
@@ -35,6 +61,10 @@ async function handleFetch() {
     await gitStore.fetch(props.project.id, props.project.path);
     ElMessage.success(t('git.fetchSuccess'));
   } catch (e) {
+    if (isCancelledError(e)) {
+      ElMessage.info(t('git.operationCancelled'));
+      return;
+    }
     showError(e);
   }
 }
@@ -44,6 +74,10 @@ async function handlePull() {
     await gitStore.pull(props.project.id, props.project.path);
     ElMessage.success(t('git.pullSuccess'));
   } catch (e) {
+    if (isCancelledError(e)) {
+      ElMessage.info(t('git.operationCancelled'));
+      return;
+    }
     showError(e);
   }
 }
@@ -57,6 +91,19 @@ async function handlePush() {
       await gitStore.push(props.project.id, props.project.path);
     }
     ElMessage.success(t('git.pushSuccess'));
+  } catch (e) {
+    if (isCancelledError(e)) {
+      ElMessage.info(t('git.operationCancelled'));
+      return;
+    }
+    showError(e);
+  }
+}
+
+async function handleCancel() {
+  try {
+    await gitStore.cancelActiveOperation();
+    ElMessage.info(t('git.operationCancelling'));
   } catch (e) {
     showError(e);
   }
@@ -101,8 +148,31 @@ async function handlePush() {
     <button @click="emit('refresh')" :disabled="isLoading" class="toolbar-action" :title="t('git.refresh')">
       <div class="i-mdi-refresh action-icon" :class="{ 'animate-spin': isLoading }" />
     </button>
+    <button
+      v-if="isLoading && isCancellable"
+      @click="handleCancel"
+      :disabled="isCancelling"
+      class="toolbar-action toolbar-cancel"
+      :title="t('git.cancelOperation')"
+    >
+      <div :class="isCancelling ? 'i-mdi-loading animate-spin' : 'i-mdi-close-circle-outline'" class="action-icon" />
+    </button>
     <button @click="emit('open-settings-dialog')" class="toolbar-action" :title="t('git.repoSettings')">
       <div class="i-mdi-cog-outline action-icon" />
+    </button>
+  </div>
+  <div v-if="isLoading" class="git-toolbar-status">
+    <span class="status-pill">
+      <div class="i-mdi-loading animate-spin text-[10px]" />
+      {{ t('git.operationInProgress', { action: activeOperationLabel }) }}
+    </span>
+    <button
+      v-if="isCancellable"
+      @click="handleCancel"
+      :disabled="isCancelling"
+      class="status-cancel"
+    >
+      {{ isCancelling ? t('git.operationCancelling') : t('common.cancel') }}
     </button>
   </div>
 </template>
@@ -114,6 +184,37 @@ async function handlePush() {
   gap: 8px;
   padding: 8px 12px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+.git-toolbar-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  color: rgb(71, 85, 105);
+  background: rgba(59, 130, 246, 0.08);
+}
+.status-cancel {
+  border: none;
+  background: transparent;
+  color: rgb(239, 68, 68);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.status-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .branch-chip {
   display: flex;
@@ -232,5 +333,21 @@ async function handlePush() {
   justify-content: center;
   line-height: 1;
   font-weight: 600;
+}
+.toolbar-cancel {
+  box-shadow:
+    0 8px 18px rgba(239,68,68,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.42),
+    inset 0 0 0 1px rgba(252,165,165,0.5);
+}
+:global(.dark) .git-toolbar-status {
+  border-bottom-color: rgba(148, 163, 184, 0.1);
+}
+:global(.dark) .status-pill {
+  color: rgb(203, 213, 225);
+  background: rgba(59, 130, 246, 0.14);
+}
+:global(.dark) .status-cancel {
+  color: rgb(248, 113, 113);
 }
 </style>
