@@ -1,0 +1,374 @@
+/*==== 自定义滚动条 ======================*/
+/*--滚动条大小--*/
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+/*--滚动条的滑轨背景颜色--*/
+::-webkit-scrollbar-track {
+    background-color: rgb(255, 255, 255, 0.99);
+}
+
+/*--滑块 默认显示样式--*/
+::-webkit-scrollbar-thumb {
+    background-color: #eee;
+    outline-offset: -2px;
+    outline: 2px solid #fff;
+    -webkit-border-radius: 4px;
+    border: 2px solid #fff;
+}
+
+/*--鼠标悬浮 滑块 显示样式--*/
+::-webkit-scrollbar-thumb:hover {
+    background-color: #aaa;
+}
+
+/*--滚动框背景样式--*/
+::-webkit-scrollbar-track-piece {
+    background-color: #fff;
+    -webkit-border-radius: 4px;
+}
+
+/*--滑轨两头的监听按钮颜色--*/
+::-webkit-scrollbar-button {
+    background-color: #eee;
+    -webkit-border-radius: 4px;
+    height: 5px;
+}
+
+/*--鼠标悬浮 滑轨两头的监听按钮颜色--*/
+::-webkit-scrollbar-button:hover {
+    background-color: #aaa;
+}
+
+/*--横向滚动条和纵向滚动条相交处尖角的颜色--*/
+::-webkit-scrollbar-corner {
+    background-color: #eee;
+}
+
+
+/* 【深色模式-滚动条】 */
+
+/*--滚动条的滑轨背景颜色--*/
+.night ::-webkit-scrollbar-track {
+    background-color: #555;
+}
+
+/*--滚动框背景样式--*/
+.night ::-webkit-scrollbar-track-piece {
+    background-color: #555;
+}
+
+/*--滑块 默认显示样式--*/
+.night ::-webkit-scrollbar-thumb {
+    background-color: #888;
+    outline-color: #555;
+    -webkit-border-radius: 0;
+}
+
+/*--鼠标悬浮 滑块 显示样式--*/
+.night ::-webkit-scrollbar-thumb:hover {
+    background-color: #444;
+}
+
+/*--滑轨两头的监听按钮颜色--*/
+.night ::-webkit-scrollbar-button {
+    background-color: #999;
+    -webkit-border-radius: 0;
+    height: 0;
+}
+
+/*--鼠标悬浮 滑轨两头的监听按钮颜色--*/
+.night ::-webkit-scrollbar-button:hover {
+    background-color: #aaa;
+}
+
+/*--横向滚动条和纵向滚动条相交处尖角的颜色--*/
+.night ::-webkit-scrollbar-corner {
+    background-color: #999;
+    -webkit-border-radius: 0;
+}
+
+/*transition*/
+.tran200 {
+    -webkit-transition: all 0.2s linear;
+    -moz-transition: all 0.2s linear;
+    -ms-transition: all 0.2s linear;
+    transition: all 0.2s linear;
+}
+
+.tran300 {
+    -webkit-transition: all 0.3s linear;
+    -moz-transition: all 0.3s linear;
+    -ms-transition: all 0.3s linear;
+    transition: all 0.3s linear;
+}
+
+.tran400 {
+    -webkit-transition: all 0.4s linear;
+    -moz-transition: all 0.4s linear;
+    -ms-transition: all 0.4s linear;
+    transition: all 0.4s linear;
+}
+
+.tran500 {
+    -webkit-transition: all 0.5s linear;
+    -moz-transition: all 0.5s linear;
+    -ms-transition: all 0.5s linear;
+    transition: all 0.5s linear;
+}
+
+.tran1000 {
+    -webkit-transition: all 1s linear;
+    -moz-transition: all 1s linear;
+    -ms-transition: all 1s linear;
+    transition: all 1s linear;
+}
+
+.tran5000 {
+    -webkit-transition: all 5s linear;
+    -moz-transition: all 5s linear;
+    -ms-transition: all 5s linear;
+    transition: all 5s linear;
+}
+
+
+/*==========================*/
+html *, body * {
+    font-family: "Microsoft Yahei", "SimSun", Arial, sans-serif;
+    font-weight: bolder;
+}
+
+img[src=''] {
+    display: none;
+}
+
+img.flag {
+    /*width: 20px;*/
+    height: 25px;
+    box-shadow: 0 0 10px 0px #aaa;
+    margin-right: 10px;
+}
+
+.layui-panel {
+    padding: 10px;
+    border: initial;
+    box-shadow: initial;
+}
+
+.layui-row.list-head,
+.layui-panel .layui-row {
+    height: 80px;
+    line-height: 80px;
+    border-radius: 5px;
+    cursor: pointer;
+    -webkit-transition: 0.3s;
+    -moz-transition: 0.3s;
+    -ms-transition: 0.3s;
+    transition: 0.3s;
+}
+
+.layui-row.list-head {
+    padding-top: 20px;
+    height: 50px;
+    line-height: 50px;
+    font-size: 20px;
+}
+
+
+.layui-panel .layui-row:hover {
+    box-shadow: inset 0 0 10px 0px #aaa;
+}
+
+/* 第一行 */
+.layui-panel .layui-row:first-child {
+    background-color: #013;
+    color: white;
+}
+
+.layui-panel .layui-row:first-child .chart,
+.layui-panel .layui-row:first-child .change {
+    display: none;
+}
+
+/* 奇数行（除第一行） */
+.layui-panel .layui-row:not(:first-child):nth-child(odd) {
+    background-color: #eee;
+}
+
+
+/* 第一列 */
+.layui-panel .layui-row > div:first-child {
+    padding-left: 20px;
+}
+
+/* 汇率涨幅 */
+.layui-panel .layui-row .increase-rate {
+    padding: 10px;
+    border-radius: 0.375rem;
+}
+
+/* 汇率涨幅 - 上涨 */
+.layui-panel .layui-row .increase-rate.up {
+    background-color: #def7e8;
+    color: #054d37;
+}
+
+/* 汇率涨幅 - 下跌*/
+.layui-panel .layui-row .increase-rate.down {
+    background-color: #ffe1de;
+    color: #712137;
+}
+
+
+/* ==== [ Chart box ] ======================*/
+
+.chart-title-box * {
+    font-weight: initial;
+}
+
+.chart-title-box {
+    padding: 20px;
+}
+
+.chart-title-box .chart-title {
+    font-size: 24px;
+}
+
+.chart-title-box .chart-title .text {
+    font-weight: bolder;
+}
+
+.chart-title-box .chart-title .increase-rate {
+
+}
+
+.chart-title-box .chart-title .increase-rate.up {
+    color: green;
+}
+
+
+.chart-title-box .chart-title .increase-rate.down {
+    color: darkred;
+}
+
+
+.chart-title-box .chart-title .year {
+    font-size: 14px;
+}
+
+.chart-title-box .chart-title .chart-title-right {
+    float: right;
+    font-size: 16px;
+    padding-right: 10px;
+}
+
+/* 比率（1 CNY = 0.139689 USD）*/
+.chart-title-box .chart-title .chart-title-right .ratio {
+    font-weight: bolder;
+    margin-right: 10px;
+}
+
+.chart-title-box .chart-title .chart-title-right .ratio::before {
+    content: '';
+    display: inline-block;
+    vertical-align: center;
+    background: rgb(38, 171, 44);
+    height: 8px;
+    width: 8px;
+    margin-right: 8px;
+    border-radius: 10px;
+    animation: 2s ease 0s infinite normal none running lFFqQ;
+}
+
+@keyframes lFFqQ {
+    0% {
+        transform: scale(0.7);
+        box-shadow: rgba(38, 171, 44, 0.7) 0px 0px 0px 0px;
+    }
+    70% {
+        transform: scale(0.8);
+        box-shadow: rgba(38, 171, 44, 0) 0px 0px 0px 10px;
+    }
+    100% {
+        transform: scale(0.7);
+        box-shadow: rgba(38, 171, 44, 0) 0px 0px 0px 0px;
+    }
+}
+
+/* 更新时间 */
+.chart-title-box .chart-title .chart-title-right .update-time {
+}
+
+
+/* 副标题 */
+.chart-title-box .chart-subtitle * {
+
+}
+
+/* 时段 */
+.period-box {
+    display: flex;
+    flex-wrap: wrap;
+    -webkit-box-pack: center;
+    justify-content: center;
+    margin: 10px auto 5px;
+}
+
+.period-box span {
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 5px 15px;
+    margin: 0px 2px;
+    cursor: pointer;
+}
+
+.period-box span:hover {
+    background: #eee;
+}
+
+
+.period-box span.selected {
+    background: #0071eb;
+    color: white;
+}
+
+/* width 小于 */
+@media screen and (max-width: 1000px) {
+    .chart-title-box .chart-title .chart-title-right > span {
+        display: block;
+    }
+}
+
+/*深色模式*/
+.night,
+.night > div {
+    color: #fff;
+    background-color: #333;
+}
+
+.night img.flag {
+    box-shadow: 0 0 10px 0 #000;
+}
+
+.night .layui-panel .layui-row:hover {
+    box-shadow: inset 0 0 10px 0 #000;
+}
+
+/* 奇数行（除第一行） */
+.night .layui-panel .layui-row:not(:first-child):nth-child(odd) {
+    background-color: #222;
+}
+
+
+/* 汇率涨幅 - 上涨 */
+.night .chart-title-box .chart-title .increase-rate.up {
+    color: #0dc98f;
+}
+
+/* 汇率涨幅 - 下跌*/
+.night .chart-title-box .chart-title .increase-rate.down {
+    color: #de416c;
+}
