@@ -1,0 +1,347 @@
+/*==== 自定义滚动条 ======================*/
+/*--滚动条大小--*/
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+/*--滚动条的滑轨背景颜色--*/
+::-webkit-scrollbar-track {
+    background-color: rgb(255, 255, 255, 0.99);
+}
+
+/*--滑块 默认显示样式--*/
+::-webkit-scrollbar-thumb {
+    background-color: #eee;
+    outline-offset: -2px;
+    outline: 2px solid #fff;
+    -webkit-border-radius: 4px;
+    border: 2px solid #fff;
+}
+
+/*--鼠标悬浮 滑块 显示样式--*/
+::-webkit-scrollbar-thumb:hover {
+    background-color: #aaa;
+}
+
+/*--滚动框背景样式--*/
+::-webkit-scrollbar-track-piece {
+    background-color: #fff;
+    -webkit-border-radius: 4px;
+}
+
+/*--滑轨两头的监听按钮颜色--*/
+::-webkit-scrollbar-button {
+    background-color: #eee;
+    -webkit-border-radius: 4px;
+    height: 5px;
+}
+
+/*--鼠标悬浮 滑轨两头的监听按钮颜色--*/
+::-webkit-scrollbar-button:hover {
+    background-color: #aaa;
+}
+
+/*--横向滚动条和纵向滚动条相交处尖角的颜色--*/
+::-webkit-scrollbar-corner {
+    background-color: #eee;
+}
+
+
+/* 【深色模式-滚动条】 */
+
+/*--滚动条的滑轨背景颜色--*/
+.night ::-webkit-scrollbar-track {
+    background-color: #555;
+}
+
+/*--滚动框背景样式--*/
+.night ::-webkit-scrollbar-track-piece {
+    background-color: #555;
+}
+
+/*--滑块 默认显示样式--*/
+.night ::-webkit-scrollbar-thumb {
+    background-color: #888;
+    outline-color: #555;
+    -webkit-border-radius: 0;
+}
+
+/*--鼠标悬浮 滑块 显示样式--*/
+.night ::-webkit-scrollbar-thumb:hover {
+    background-color: #444;
+}
+
+/*--滑轨两头的监听按钮颜色--*/
+.night ::-webkit-scrollbar-button {
+    background-color: #999;
+    -webkit-border-radius: 0;
+    height: 0;
+}
+
+/*--鼠标悬浮 滑轨两头的监听按钮颜色--*/
+.night ::-webkit-scrollbar-button:hover {
+    background-color: #aaa;
+}
+
+/*--横向滚动条和纵向滚动条相交处尖角的颜色--*/
+.night ::-webkit-scrollbar-corner {
+    background-color: #999;
+    -webkit-border-radius: 0;
+}
+
+
+/*==========================*/
+
+
+img[src=''] {
+    display: none;
+}
+
+img.flag {
+    /*width: 30px;*/
+    height: 20px;
+    box-shadow: 0 0 10px 0px #aaa;
+}
+
+.layui-form-label {
+    width: 90px;
+}
+
+.layui-input-block {
+    margin-left: 120px;
+}
+
+.layui-row > div {
+    margin-right: 5px;
+}
+
+.refresh-rate {
+    text-indent: initial;
+    cursor: pointer;
+    text-align: center;
+}
+
+.refresh-rate .layui-icon {
+    font-size: 12px;
+}
+
+p {
+    text-indent: 2em;
+}
+
+.layui-table-view .layui-table td[data-edit]:hover:after {
+    content: none;
+    width: 0;
+    height: 0;
+}
+
+
+.eggs-off {
+    border-color: #aaa;
+    color: #aaa;
+}
+
+.eggs-off:hover {
+    border-color: #eee;
+    color: #eee;
+}
+
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin-element {
+    animation: spin .1s linear infinite;
+}
+
+
+/*深色模式*/
+.night {
+    background-color: #333;
+    -webkit-transition: 0.5s;
+    -moz-transition: 0.5s;
+    -ms-transition: 0.5s;
+    transition: 0.5s;
+}
+
+.night img.flag {
+    box-shadow: 0 0 10px 0 #000;
+}
+
+.night .refresh-rate {
+    color: #eee !important;
+}
+
+.night hr {
+    border-color: #666 !important;
+}
+
+/* 文本框 */
+.night .layui-input,
+.night .layui-textarea,
+.night .layui-select,
+.night .layui-form-label,
+.night xm-select {
+    background-color: #444 !important;
+    border-color: #666 !important;
+    color: #eee !important;
+    -webkit-transition: 0.5s;
+    -moz-transition: 0.5s;
+    -ms-transition: 0.5s;
+    transition: 0.5s;
+}
+
+.night .layui-input::placeholder {
+    color: #eee !important;
+}
+
+.night .layui-input:hover,
+.night .layui-textarea:hover,
+.night .layui-select:hover,
+.night xm-select:hover {
+    border-color: #aaa !important;
+}
+
+/*深色模式-layui下拉*/
+.night .layui-form-select dl {
+    background-color: #444;
+    border-color: #666 !important;
+    color: #eee;
+}
+
+/* 表格 */
+.night .layui-table-view,
+.night .layui-table-header,
+.night .layui-table,
+.night .layui-table thead,
+.night .layui-table tbody,
+.night .layui-table tr,
+.night .layui-table th,
+.night .layui-table td,
+.night .layui-table a {
+    background-color: #444 !important;
+    border-color: #666 !important;
+    color: #eee !important;
+    -webkit-transition: 0.5s;
+    -moz-transition: 0.5s;
+    -ms-transition: 0.5s;
+    transition: 0.5s;
+}
+
+.night .layui-table a[lay-event="del"] {
+    border-color: #ffb800 !important;
+    color: #ffb800 !important;
+}
+
+/* 复选框 */
+.night .layui-form-checkbox > div {
+    color: #eee !important;
+}
+
+.night .layui-form-checkbox > i {
+    background-color: #666;
+}
+
+/* 数字框 */
+.night .layui-input-split,
+.night .layui-input-number .layui-icon {
+    color: #eee;
+    border-color: #aaa;
+}
+
+
+/*按钮*/
+.night .layui-btn {
+    background-color: #1e9fff;
+    color: #fff;
+    opacity: .8;
+    filter: alpha(opacity=80);
+}
+
+.night .layui-btn:hover {
+    opacity: 1;
+    filter: alpha(opacity=100);
+}
+
+.night .layui-table a.btn-trend {
+    border-color: #0f0 !important;
+    color: #0f0 !important;
+}
+
+/*下拉，提示并且未选中*/
+.night .layui-form-select dl dd.layui-select-tips:not(.layui-this):hover {
+    background-color: #444;
+}
+
+/*下拉，除[提示]和[已选中]*/
+.night .layui-form-select dl dd:not(.layui-select-tips,.layui-this):hover {
+    background-color: #555;
+}
+
+/*深色模式-xmSelect下拉*/
+.night xm-select > .xm-body {
+    background-color: #444;
+    border-color: #aaa !important;
+}
+
+.night xm-select > .xm-body .xm-option-content {
+    color: #eee;
+}
+
+/*layer弹窗*/
+.night .layui-layer-page .layui-layer-title,
+.night .layui-layer-page .layui-layer-content:not(#zanShang),
+.night .layui-layer-page .layui-layer-btn {
+    background-color: #444 !important;
+    border-color: #999 !important;
+    color: #eee !important;
+}
+
+
+/*深色模式-占位符*/
+.night textarea::-webkit-input-placeholder,
+.night textarea::-moz-placeholder, /* Mozilla Firefox 19+ */
+.night textarea:-moz-placeholder, /* Mozilla Firefox 4 to 18 */
+.night textarea:-ms-input-placeholder, /* Internet Explorer 10-11 */
+.night input[type='text']::-webkit-input-placeholder,
+.night input[type='text']::-moz-placeholder, /* Mozilla Firefox 19+ */
+.night input[type='text']:-moz-placeholder, /* Mozilla Firefox 4 to 18 */
+.night input[type='text']:-ms-input-placeholder, /* Internet Explorer 10-11 */
+.night xm-select .xm-tips {
+    color: #aaa !important;
+}
+
+
+/* width 小于 */
+@media screen and (max-width: 1150px) {
+    .layui-form-item .layui-form-checkbox[lay-skin=primary] {
+        margin: 0 0 0 10px;
+    }
+}
+
+
+.shang {
+    position: fixed;
+    top: 22px;
+    right: 30px;
+    display: inline-block;
+    width: 25px;
+    height: 25px;
+    text-align: center;
+    line-height: 25px;
+    color: #e18a3b;
+    font-size: 24px;
+    /*border: 1px solid #e18a3b;*/
+    /*border-radius: 30px;*/
+}
+
+.shang:hover {
+    color: #ffb900;
+}

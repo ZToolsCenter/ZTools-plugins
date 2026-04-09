@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>demo</title>
+    <link type="image/x-icon" rel="icon" href="">
+    <script src="./js/jquery/jquery.js"></script>
+    <style type="text/css">
+        body {
+        }
+    </style>
+    <script type="text/javascript">
+        $(function () {
+            let info = [];
+            $.each($("#midmarketFromCurrency-listbox li"), function (idx, li) {
+                // console.log(idx, li);
+                let title = $(li).find("div:last").text().trim();
+                let code = title.split('–')[0]?.trim()
+                let name = title.split('–')[1]?.trim()
+                info.push({
+                    code: code,
+                    name: name
+                })
+            })
+            console.log(JSON.stringify(info));
+        })
+    </script>
+</head>
+<body>
+<iframe src="https://www.xe.com/zh-cn/currencyconverter/" width="99%" height="500px" id="xeIframe"></iframe>
+
+<ul id="midmarketFromCurrency-listbox" role="listbox" class="sc-c9c0b34e-0 lclotE combobox-list">
+    <li id="midmarketFromCurrency-option-0" role="option" aria-selected="true" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="usd" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/usd.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>USD&nbsp;– <span class="description">美元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-1" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="eur" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/eur.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>EUR&nbsp;– <span class="description">欧元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-2" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="gbp" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/gbp.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>GBP&nbsp;– <span class="description">英镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-3" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="cad" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/cad.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>CAD&nbsp;– <span class="description">加拿大元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-4" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="aud" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/aud.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>AUD&nbsp;– <span class="description">澳大利亚元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-5" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="jpy" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/jpy.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>JPY&nbsp;– <span class="description">日元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-6" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="inr" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/inr.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>INR&nbsp;– <span class="description">印度卢比</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-7" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="nzd" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/nzd.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>NZD&nbsp;– <span class="description">新西兰元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-8" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="chf" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/chf.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>CHF&nbsp;– <span class="description">瑞士法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-9" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ZAR&nbsp;– <span class="description">南非兰特</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-10" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>RUB&nbsp;– <span class="description">俄罗斯卢布</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-11" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BGN&nbsp;– <span class="description">保加利亚列弗</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-12" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SGD&nbsp;– <span class="description">新加坡元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-13" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>HKD&nbsp;– <span class="description">港币</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-14" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SEK&nbsp;– <span class="description">瑞典克朗</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-15" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>THB&nbsp;– <span class="description">泰铢</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-16" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>HUF&nbsp;– <span class="description">匈牙利福林</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-17" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CNY&nbsp;– <span class="description">中国人民币</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-18" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>NOK&nbsp;– <span class="description">挪威克朗</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-19" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MXN&nbsp;– <span class="description">墨西哥比索</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-20" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>DKK&nbsp;– <span class="description">丹麦克朗</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-21" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MYR&nbsp;– <span class="description">马来西亚林吉特</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-22" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>PLN&nbsp;– <span class="description">波兰兹罗提</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-23" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BRL&nbsp;– <span class="description">巴西雷亚尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-24" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>PHP&nbsp;– <span class="description">菲律宾比索</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-25" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>IDR&nbsp;– <span class="description">印度尼西亚卢比</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-26" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CZK&nbsp;– <span class="description">捷克克朗</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-27" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>AED&nbsp;– <span class="description">阿联酋迪拉姆</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-28" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TWD&nbsp;– <span class="description">新台币</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-29" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>KRW&nbsp;– <span class="description">韩元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-30" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ILS&nbsp;– <span class="description">以色列谢克尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-31" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ARS&nbsp;– <span class="description">阿根廷比索</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-32" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CLP&nbsp;– <span class="description">智利比索</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-33" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>EGP&nbsp;– <span class="description">埃及镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-34" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TRY&nbsp;– <span class="description">土耳其里拉</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-35" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>RON&nbsp;– <span class="description">罗马尼亚新列伊</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-36" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SAR&nbsp;– <span class="description">沙特里亚尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-37" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>PKR&nbsp;– <span class="description">巴基斯坦卢比</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-38" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>COP&nbsp;– <span class="description">哥伦比亚比索</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-39" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>IQD&nbsp;– <span class="description">伊拉克第纳尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-40" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XAU&nbsp;– <span class="description">金（盎司）</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-41" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>FJD&nbsp;– <span class="description">斐济元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-42" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>KWD&nbsp;– <span class="description">科威特第纳尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-43" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BAM&nbsp;– <span class="description">波斯尼亚可兑换马尔卡</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-44" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ISK&nbsp;– <span class="description">冰岛克朗</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-45" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MAD&nbsp;– <span class="description">摩洛哥迪拉姆</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-46" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>VND&nbsp;– <span class="description">越南盾</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-47" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>JMD&nbsp;– <span class="description">牙买加元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-48" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>JOD&nbsp;– <span class="description">约旦第纳尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-49" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>DOP&nbsp;– <span class="description">多米尼加比索</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-50" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>PEN&nbsp;– <span class="description">秘鲁索尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-51" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CRC&nbsp;– <span class="description">哥斯达黎加科朗</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-52" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BHD&nbsp;– <span class="description">巴林第纳尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-53" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BDT&nbsp;– <span class="description">孟加拉国塔卡</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-54" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>DZD&nbsp;– <span class="description">阿尔及利亚第纳尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-55" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>KES&nbsp;– <span class="description">肯尼亚先令</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-56" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XAG&nbsp;– <span class="description">银（盎司）</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-57" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LKR&nbsp;– <span class="description">斯里兰卡卢比</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-58" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>OMR&nbsp;– <span class="description">阿曼里亚尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-59" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>QAR&nbsp;– <span class="description">卡塔尔里亚尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-60" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XOF&nbsp;– <span class="description">CFA 法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-61" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>IRR&nbsp;– <span class="description">伊朗里亚尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-62" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XCD&nbsp;– <span class="description">东加勒比元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-63" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TND&nbsp;– <span class="description">突尼斯第纳尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-64" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TTD&nbsp;– <span class="description">特立尼达元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-65" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XPF&nbsp;– <span class="description">CFP 法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-66" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>EEK&nbsp;– <span class="description">爱沙尼亚克朗</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-67" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ZMK&nbsp;– <span class="description">赞比亚克瓦查</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-68" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ZMW&nbsp;– <span class="description">赞比亚克瓦查</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-69" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BBD&nbsp;– <span class="description">巴巴多斯元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-70" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>NGN&nbsp;– <span class="description">尼日利亚奈拉</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-71" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LBP&nbsp;– <span class="description">黎巴嫩镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-72" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XAF&nbsp;– <span class="description">中非金融合作法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-73" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MUR&nbsp;– <span class="description">毛里求斯卢比</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-74" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XPT&nbsp;– <span class="description">铂（盎司）</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-75" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BSD&nbsp;– <span class="description">巴哈马元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-76" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ALL&nbsp;– <span class="description">阿尔巴尼列克</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-77" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>UYU&nbsp;– <span class="description">乌拉圭比索</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-78" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BMD&nbsp;– <span class="description">百慕大元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-79" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LVL&nbsp;– <span class="description">拉脱维亚拉特</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-80" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>UAH&nbsp;– <span class="description">乌克兰格里夫纳</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-81" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GTQ&nbsp;– <span class="description">危地马拉格查尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-82" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XDR&nbsp;– <span class="description">国际货币基金组织特别提款权</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-83" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BWP&nbsp;– <span class="description">博茨瓦纳普拉</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-84" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BOB&nbsp;– <span class="description">玻利维亚诺</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-85" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CUP&nbsp;– <span class="description">古巴比索</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-86" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>PYG&nbsp;– <span class="description">巴拉圭瓜拉尼</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-87" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>HNL&nbsp;– <span class="description">洪都拉斯伦皮拉</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-88" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LTL&nbsp;– <span class="description">立陶宛立特</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-89" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>NIO&nbsp;– <span class="description">尼加拉瓜科多巴</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-90" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>RSD&nbsp;– <span class="description">塞尔维亚第纳尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-91" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>NPR&nbsp;– <span class="description">尼泊尔卢比</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-92" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>HTG&nbsp;– <span class="description">海地古德</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-93" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>PAB&nbsp;– <span class="description">巴拿马巴波亚</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-94" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SVC&nbsp;– <span class="description">萨尔瓦多科朗</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-95" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GYD&nbsp;– <span class="description">圭亚那元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-96" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>KYD&nbsp;– <span class="description">开曼元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-97" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TZS&nbsp;– <span class="description">坦桑尼亚先令</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-98" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CNH&nbsp;– <span class="description">Chinese Yuan Renminbi Offshore</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-99" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CVE&nbsp;– <span class="description">佛得角埃斯库多</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-100" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>FKP&nbsp;– <span class="description">福克兰群岛镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-101" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ANG&nbsp;– <span class="description">荷兰盾</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-102" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>UGX&nbsp;– <span class="description">乌干达先令</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-103" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MGA&nbsp;– <span class="description">马尔加什阿里亚</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-104" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GEL&nbsp;– <span class="description">格鲁吉亚拉里</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-105" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ETB&nbsp;– <span class="description">埃塞俄比亚比尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-106" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MDL&nbsp;– <span class="description">摩尔多瓦列伊</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-107" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>VUV&nbsp;– <span class="description">瓦努阿图瓦图</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-108" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SYP&nbsp;– <span class="description">叙利亚镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-109" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BND&nbsp;– <span class="description">文莱元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-110" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>KHR&nbsp;– <span class="description">柬埔寨瑞尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-111" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>NAD&nbsp;– <span class="description">纳米比亚元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-112" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MKD&nbsp;– <span class="description">马其顿第纳尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-113" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>AOA&nbsp;– <span class="description">安哥拉宽扎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-114" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>PGK&nbsp;– <span class="description">巴布亚新几内亚基那</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-115" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MMK&nbsp;– <span class="description">缅元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-116" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>KZT&nbsp;– <span class="description">哈萨克斯坦坚戈</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-117" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MOP&nbsp;– <span class="description">澳门元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-118" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MZN&nbsp;– <span class="description">莫桑比克梅蒂卡尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-119" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LYD&nbsp;– <span class="description">利比亚第纳尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-120" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SLE&nbsp;– <span class="description">塞拉利昂利昂</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-121" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SLL&nbsp;– <span class="description">塞拉利昂利昂</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-122" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GNF&nbsp;– <span class="description">几内亚法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-123" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BYN&nbsp;– <span class="description">白俄罗斯卢布</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-124" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BYR&nbsp;– <span class="description">白俄罗斯卢布</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-125" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GMD&nbsp;– <span class="description">冈比亚达拉西</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-126" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>AWG&nbsp;– <span class="description">阿鲁巴或荷兰盾</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-127" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>AMD&nbsp;– <span class="description">亚美尼亚德拉姆</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-128" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>YER&nbsp;– <span class="description">也门里亚尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-129" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LAK&nbsp;– <span class="description">老挝基普</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-130" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>WST&nbsp;– <span class="description">萨摩亚塔拉</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-131" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MWK&nbsp;– <span class="description">马拉维克瓦查</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-132" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>KPW&nbsp;– <span class="description">朝鲜元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-133" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BIF&nbsp;– <span class="description">布隆迪法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-134" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>DJF&nbsp;– <span class="description">吉布提法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-135" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MNT&nbsp;– <span class="description">蒙古图格里克</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-136" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>UZS&nbsp;– <span class="description">乌兹别克斯坦索姆</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-137" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TOP&nbsp;– <span class="description">汤加潘加</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-138" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SCR&nbsp;– <span class="description">塞舌尔卢比</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-139" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>KGS&nbsp;– <span class="description">吉尔吉斯斯坦索姆</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-140" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BTN&nbsp;– <span class="description">不丹努尔特鲁姆</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-141" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SBD&nbsp;– <span class="description">所罗门群岛元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-142" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GIP&nbsp;– <span class="description">直布罗陀镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-143" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>RWF&nbsp;– <span class="description">卢旺达法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-144" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CDF&nbsp;– <span class="description">刚果法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-145" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MVR&nbsp;– <span class="description">马尔代夫拉菲亚</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-146" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MRU&nbsp;– <span class="description">毛里塔尼亚乌吉亚</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-147" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ERN&nbsp;– <span class="description">厄立特里亚纳克法</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-148" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SOS&nbsp;– <span class="description">索马里先令</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-149" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SZL&nbsp;– <span class="description">斯威士兰里兰吉尼</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-150" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TJS&nbsp;– <span class="description">塔吉克斯坦索莫尼</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-151" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LRD&nbsp;– <span class="description">利比里亚元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-152" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LSL&nbsp;– <span class="description">巴索托洛蒂</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-153" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SHP&nbsp;– <span class="description">圣赫勒拿镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-154" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>STN&nbsp;– <span class="description">圣多美多布拉</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-155" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>KMF&nbsp;– <span class="description">科摩罗法郎</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-156" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SPL&nbsp;– <span class="description">塞波加大公国 Luigino</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-157" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TMT&nbsp;– <span class="description">土库曼斯坦马纳特</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-158" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SRD&nbsp;– <span class="description">苏里南元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-159" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>IMP&nbsp;– <span class="description">曼岛镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-160" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>JEP&nbsp;– <span class="description">泽西岛镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-161" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TVD&nbsp;– <span class="description">图瓦卢元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-162" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GGP&nbsp;– <span class="description">根西岛镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-163" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>AFN&nbsp;– <span class="description">阿富汗尼</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-164" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>AZN&nbsp;– <span class="description">阿塞拜疆马纳特</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-165" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BZD&nbsp;– <span class="description">伯利兹元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-166" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CUC&nbsp;– <span class="description">古巴可兑换比索</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-167" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GHS&nbsp;– <span class="description">加纳塞地</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-168" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SDG&nbsp;– <span class="description">苏丹镑</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-169" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>VES&nbsp;– <span class="description">委内瑞拉玻利瓦尔</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-170" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XPD&nbsp;– <span class="description">钯（盎司）</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-171" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BTC&nbsp;– <span class="description">Bitcoin</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-172" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ADA&nbsp;– <span class="description">Cardano</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-173" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BCH&nbsp;– <span class="description">Bitcoin Cash</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-174" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;">
+            <div class="relative !h-[17px] !w-[23px] rounded-sm border border-solid border-[#00113326]">
+                <img alt="doge" loading="lazy" decoding="async" data-nimg="fill"
+                     src="https://www.xe.com/svgs/flags/doge.static.svg"
+                     style="position: absolute; height: 30px; width: 40px; inset: 0px; color: transparent;">
+            </div>
+        </div>
+        <div>DOGE&nbsp;– <span class="description">Dogecoin</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-175" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>DOT&nbsp;– <span class="description">Polkadot</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-176" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ETH&nbsp;– <span class="description">Ethereum</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-177" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LINK&nbsp;– <span class="description">Chainlink</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-178" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LTC&nbsp;– <span class="description">Litecoin</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-179" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LUNA&nbsp;– <span class="description">Terra</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-180" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>UNI&nbsp;– <span class="description">Uniswap</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-181" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XLM&nbsp;– <span class="description">Stellar Lumen</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-182" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XRP&nbsp;– <span class="description">Ripple</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-183" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ZWL&nbsp;– <span class="description">津巴布韦元</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-184" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>HRK&nbsp;– <span class="description">克罗地亚库纳 (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-185" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ZWD&nbsp;– <span class="description">津巴布韦元 (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-186" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>VEF&nbsp;– <span class="description">委内瑞拉玻利瓦尔 (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-187" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ATS&nbsp;– <span class="description">Austrian Schilling (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-188" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>AZM&nbsp;– <span class="description">Azerbaijani Manat (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-189" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>BEF&nbsp;– <span class="description">Belgian Franc (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-190" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>CYP&nbsp;– <span class="description">Cypriot Pound (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-191" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>DEM&nbsp;– <span class="description">German Deutsche Mark (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-192" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ESP&nbsp;– <span class="description">Spanish Peseta (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-193" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>FIM&nbsp;– <span class="description">Finnish Markka (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-194" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>FRF&nbsp;– <span class="description">French Franc (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-195" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GHC&nbsp;– <span class="description">Ghanaian Cedi (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-196" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>GRD&nbsp;– <span class="description">Greek Drachma (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-197" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>IEP&nbsp;– <span class="description">Irish Pound (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-198" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ITL&nbsp;– <span class="description">Italian Lira (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-199" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>LUF&nbsp;– <span class="description">Luxembourg Franc (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-200" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MGF&nbsp;– <span class="description">Malagasy Franc (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-201" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MRO&nbsp;– <span class="description">毛里塔尼亚乌吉亚 (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-202" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MTL&nbsp;– <span class="description">Maltese Lira (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-203" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>MZM&nbsp;– <span class="description">Mozambican Metical (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-204" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>NLG&nbsp;– <span class="description">Dutch Guilder (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-205" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>PTE&nbsp;– <span class="description">Portuguese Escudo (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-206" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>ROL&nbsp;– <span class="description">Romanian Leu (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-207" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SDD&nbsp;– <span class="description">Sudanese Dinar (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-208" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SIT&nbsp;– <span class="description">Slovenian Tolar (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-209" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SKK&nbsp;– <span class="description">Slovak Koruna (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-210" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>SRG&nbsp;– <span class="description">Surinamese Guilder (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-211" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>STD&nbsp;– <span class="description">圣多美多布拉 (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-212" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TMM&nbsp;– <span class="description">Turkmenistani Manat (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-213" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>TRL&nbsp;– <span class="description">Turkish Lira (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-214" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>VAL&nbsp;– <span class="description">Vatican City Lira (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-215" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>VEB&nbsp;– <span class="description">委内瑞拉玻利瓦尔 (废弃)</span>
+        </div>
+    </li>
+    <li id="midmarketFromCurrency-option-216" role="option" aria-selected="false" class="sc-c9c0b34e-1 cjbNUN">
+        <div style="width: 24px; height: 24px; display: flex; align-items: center; flex-shrink: 0; margin-right: 8px;"></div>
+        <div>XEU&nbsp;– <span class="description">European Currency Unit (废弃)</span>
+        </div>
+    </li>
+</ul>
+</body>
+</html>

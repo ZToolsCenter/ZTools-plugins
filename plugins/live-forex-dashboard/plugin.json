@@ -1,0 +1,30 @@
+{
+  "name": "汇率计算器",
+  "description": "利用最新的实时汇率，本换算器能够精确计算不同货币之间的金额转换。用户可以在插件中自由添加多种货币进行批量转换，同时支持一键排序和对比，让您对货币价值一目了然。此外，您还可以通过本工具深入了解各种货币的相关知识。",
+  "version": "1.2.2",
+  "author": "Zhaeong",
+  "homepage": null,
+  "preload": "preload.js",
+  "main": "index.html",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "huilv",
+      "explain": "汇率计算",
+      "cmds": [
+        "汇率计算",
+        "货币",
+        "钱",
+        "money",
+        {
+          "type": "regex",
+          "label": "汇率计算",
+          "match": "/^([1-9][\\d]{0,10}|0)(\\.[\\d]{1,20})?$/",
+          "minLength": 1,
+          "maxLength": 35
+        }
+      ]
+    }
+  ],
+  "platform": ["win32", "darwin", "linux"]
+}

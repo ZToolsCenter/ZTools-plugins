@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh" class="night">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>汇率走向</title>
+    <link rel="stylesheet" href="./plugin/layui/css/layui.css"/>
+    <link rel="stylesheet" href="./css/native.css"/>
+    <link rel="stylesheet" href="./css/markdown.css"/>
+    <link rel="stylesheet" href="./css/trend.css"/>
+    <script type="text/javascript" src="./js/jquery/jquery.js"></script>
+    <script type="text/javascript" src="./plugin/echarts/echarts.min.js"></script>
+    <script type="text/javascript" src="./plugin/confetti/confetti.browser.js"></script>
+    <script type="text/javascript" src="./plugin/layui/layui.js"></script>
+    <script type="text/javascript" src="./plugin/layuiExt/layui.config.js"></script>
+    <script type="text/javascript" src="./plugin/showdown/showdown.min.js"></script>
+    <script type="text/javascript" src="./js/utils/commonUtils.js"></script>
+    <script type="text/javascript" src="./js/utils/uToolsUtils.js"></script>
+    <script type="text/javascript" src="./js/trend.js"></script>
+    <script type="text/javascript">
+        $(function () {
+
+        });
+    </script>
+</head>
+<body class="night">
+<div class="layui-row list-head">
+    <div class="layui-col-xs3">&nbsp;</div>
+    <div class="layui-col-xs3">金额</div>
+    <div class="layui-col-xs3">变动（24 小时）</div>
+    <div class="layui-col-xs3">图表（24 小时）</div>
+</div>
+<div class="layui-panel" id="trend-list">
+    <div class="layui-row" style="display: none;">
+        <div class="layui-col-xs3">
+            <img src="./img/svgs/flags/cny.svg" alt="CNY" class="flag" onerror="errorImg(this)">
+            <span class="name">中国人民币</span>
+        </div>
+        <div class="layui-col-xs3">
+            7.1488
+        </div>
+        <div class="layui-col-xs3">
+            <span class="change">+0.55%</span>
+        </div>
+        <div class="layui-col-xs3">
+            <div class="chart" id="chartCNY" style="width: 100px;height:50px;"></div>
+        </div>
+    </div>
+    <div class="layui-row" style="display: none;">
+        <div class="layui-col-xs3">
+            <img src="./img/svgs/flags/usd.svg" alt="CNY" class="flag" onerror="errorImg(this)">
+            <span class="name">美元</span>
+        </div>
+        <div class="layui-col-xs3">
+            7.1488
+        </div>
+        <div class="layui-col-xs3">
+            <span class="change">+0.55%</span>
+        </div>
+        <div class="layui-col-xs3">
+            <div class="chart" id="chartUSD" style="width: 100px;height:60px;"></div>
+        </div>
+    </div>
+    <div class="layui-row" style="display: none;">
+        <div class="layui-col-xs3">
+            <img src="./img/svgs/flags/eur.svg" alt="CNY" class="flag" onerror="errorImg(this)">
+            <span class="name">欧元</span>
+        </div>
+        <div class="layui-col-xs3">
+            7.1488
+        </div>
+        <div class="layui-col-xs3">
+            <span class="change">+0.55%</span>
+        </div>
+        <div class="layui-col-xs3">
+            <div class="chart" id="chartEUR" style="width: 100px;height:60px;"></div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
