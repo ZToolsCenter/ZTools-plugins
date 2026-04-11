@@ -1,0 +1,512 @@
+<template>
+  <div class="skills-container" :class="{ 'dark-theme': isDark }">
+    <div class="elegant-background"></div>
+
+    <div class="app-content">
+      <header class="hero-section">
+        <div class="brand">
+          <div class="logo-box">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="logo-icon"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          </div>
+          <div class="titles">
+            <h2>AI Skills Hub</h2>
+            <p>Intelligence Distribution Matrix</p>
+          </div>
+        </div>
+
+        <div class="control-panel">
+          <div class="input-glass search-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="glass-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input v-model="localSearch" placeholder="检索本地装载..." />
+          </div>
+
+          <div class="input-glass install-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="glass-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <input 
+              v-model="installUrl" 
+              placeholder="载入 GitHub 源 (如: tanweai/pua)..." 
+              @keyup.enter="handleInstall"
+              :disabled="loading"
+            />
+            <button class="btn-glow" @click="handleInstall" :disabled="loading || !installUrl">
+               <span v-if="!loading">发起分发</span>
+               <span v-else class="pulse-text">解析中...</span>
+            </button>
+          </div>
+        </div>
+      </header>
+      
+      <!-- 加载与进度层 -->
+      <transition name="fade">
+        <div v-if="loading" class="processing-layer">
+          <div class="processing-card">
+            <div class="loader-ripple"><div></div><div></div></div>
+            <h3 class="gradient-text">核心组件部署中</h3>
+            <div class="terminal-logs-sleek" v-if="progressLogs.length > 0">
+              <div v-for="(log, idx) in progressLogs.slice(-5)" :key="idx" class="sleek-log">
+                <span class="log-cursor">?</span> {{ log }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+      
+      <!-- 列表展示 -->
+      <div class="grid-layout">
+        <div v-for="skill in filteredSkills()" :key="skill.id" class="glass-card">
+          <div class="card-top">
+             <div class="card-icon">
+                {{ skill.name.charAt(0).toUpperCase() }}
+             </div>
+             <div class="card-meta">
+               <h3>{{ skill.name }}</h3>
+               <span class="badge-tag">本地托管</span>
+             </div>
+          </div>
+          
+          <div class="card-body">
+            <div class="info-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              <span>{{ skill.sourceUrl }}</span>
+            </div>
+            <div class="info-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span>{{ new Date(skill.updatedAt).toLocaleDateString() }}</span>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <button class="btn-ghost-primary" @click="handleUpdate(skill.id)" :disabled="loading">
+              同步源端
+            </button>
+            <button class="btn-ghost-danger" @click="handleDelete(skill.id)" :disabled="loading">
+              卸除
+            </button>
+          </div>
+        </div>
+
+        <div v-if="filteredSkills().length === 0" class="empty-state glass-card">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          <p>矩阵中未扫描到此类技能</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 分发模态框 -->
+    <transition name="modal-scale">
+      <div v-if="showInstallPrompt" class="glass-modal-overlay">
+        <div class="glass-modal">
+          <div class="modal-header-sleek">
+            <h3>跨端部署路由</h3>
+            <p>请勾选所需同步的 Agent 框架实例（极速分卷克隆）</p>
+          </div>
+          
+          <div class="path-grid">
+            <label class="glass-checkbox">
+              <input type="checkbox" v-model="selectedPaths" value="antigravity">
+              <span class="custom-check"></span>
+              <div class="check-info">
+                <strong>Antigravity 原生</strong>
+                <span>~/.gemini/antigravity/skills</span>
+              </div>
+            </label>
+
+            <label class="glass-checkbox">
+              <input type="checkbox" v-model="selectedPaths" value="autogpt">
+              <span class="custom-check"></span>
+              <div class="check-info">
+                <strong>Auto-GPT 挂载环境</strong>
+                <span>~/Auto-GPT/plugins</span>
+              </div>
+            </label>
+
+            <label class="glass-checkbox">
+              <input type="checkbox" v-model="selectedPaths" value="metagpt">
+              <span class="custom-check"></span>
+              <div class="check-info">
+                <strong>MetaGPT 组件池</strong>
+                <span>~/.metagpt/plugins</span>
+              </div>
+            </label>
+            
+            <label class="glass-checkbox">
+              <input type="checkbox" v-model="selectedPaths" value="babyagi">
+              <span class="custom-check"></span>
+              <div class="check-info">
+                <strong>BabyAGI 函数库</strong>
+                <span>~/babyagi/tools</span>
+              </div>
+            </label>
+            
+            <label class="glass-checkbox special-custom">
+              <input type="checkbox" v-model="enableCustomPath">
+              <span class="custom-check"></span>
+              <div class="check-info">
+                <strong>自定义物理锚点</strong>
+              </div>
+            </label>
+          </div>
+          
+          <div class="custom-input-wrap" :class="{ 'visible': enableCustomPath }">
+            <input type="text" v-model="customPathVal" placeholder="绝对路径 D:\Workspace\skills" />
+          </div>
+
+          <div class="modal-actions-sleek">
+            <button class="btn-cancel-glass" @click="showInstallPrompt = false">放弃重构</button>
+            <button class="btn-glow" @click="confirmInstall" :disabled="selectedPaths.length === 0 && (!enableCustomPath || !customPathVal)">
+              确立路由
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </div>
+</template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.skills-container {
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: #1a1a2e;
+  position: relative;
+  background-color: #f8fafc;
+  overflow-x: hidden;
+}
+
+.skills-container.dark-theme {
+  color: #f1f5f9;
+  background-color: #0b0f19;
+}
+
+/* Elegant Background Glow */
+.elegant-background {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+.elegant-background::before {
+  content: '';
+  position: absolute;
+  top: -20vh; left: -10vw;
+  width: 60vw; height: 60vw;
+  background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, rgba(0,0,0,0) 70%);
+  border-radius: 50%;
+}
+.elegant-background::after {
+  content: '';
+  position: absolute;
+  bottom: -20vh; right: -10vw;
+  width: 50vw; height: 50vw;
+  background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, rgba(0,0,0,0) 70%);
+  border-radius: 50%;
+}
+
+.skills-container.dark-theme .elegant-background::before {
+  background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(0,0,0,0) 70%);
+}
+.skills-container.dark-theme .elegant-background::after {
+  background: radial-gradient(circle, rgba(14,165,233,0.15) 0%, rgba(0,0,0,0) 70%);
+}
+
+.app-content {
+  position: relative;
+  z-index: 10;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+/* Hero & Header */
+.hero-section {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-bottom: 48px;
+}
+
+@media (min-width: 768px) {
+  .hero-section { flex-direction: row; justify-content: space-between; align-items: flex-end; }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo-box {
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, #6366f1, #0ea5e9);
+  border-radius: 16px;
+  display: flex; justify-content: center; align-items: center;
+  color: white;
+  box-shadow: 0 10px 20px rgba(99,102,241,0.3);
+}
+
+.titles h2 {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #1e293b, #334155);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.skills-container.dark-theme .titles h2 {
+  background: linear-gradient(135deg, #ffffff, #cbd5e1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.titles p { margin: 0; font-size: 14px; color: #64748b; font-weight: 500; }
+.skills-container.dark-theme .titles p { color: #94a3b8; }
+
+/* Control Panel */
+.control-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+@media (min-width: 768px) {
+  .control-panel { flex-direction: row; width: auto; }
+}
+
+.input-glass {
+  display: flex; align-items: center;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  padding: 8px 8px 8px 16px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.input-glass:focus-within {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  transform: translateY(-1px);
+}
+.skills-container.dark-theme .input-glass {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(51, 65, 85, 0.8);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+}
+
+.glass-icon { color: #94a3b8; margin-right: 12px; }
+
+.input-glass input {
+  background: transparent; border: none; outline: none;
+  font-size: 14px; font-family: inherit; color: inherit;
+  width: 220px;
+}
+.install-box input { width: 280px; }
+.input-glass input::placeholder { color: #94a3b8; }
+
+.btn-glow {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white; border: none; border-radius: 8px;
+  padding: 8px 20px; font-weight: 600; font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.btn-glow:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5); transform: translateY(-1px); }
+.btn-glow:disabled { background: #94a3b8; box-shadow: none; cursor: not-allowed; opacity: 0.7; }
+
+/* Grid Layout */
+.grid-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex; flex-direction: column; gap: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.03), 0 4px 6px -4px rgba(0,0,0,0.02);
+}
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.01);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+.skills-container.dark-theme .glass-card {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+}
+.skills-container.dark-theme .glass-card:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.4);
+}
+
+.card-top { display: flex; align-items: center; gap: 16px; }
+.card-icon {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, #1e293b, #334155);
+  color: white; border-radius: 12px;
+  display: flex; justify-content: center; align-items: center;
+  font-size: 20px; font-weight: 800;
+}
+.skills-container.dark-theme .card-icon { background: linear-gradient(135deg, #334155, #475569); }
+
+.card-meta h3 { margin: 0 0 6px 0; font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.badge-tag {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.skills-container.dark-theme .badge-tag { color: #34d399; background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.2); }
+
+.card-body { display: flex; flex-direction: column; gap: 10px; flex-grow: 1; }
+.info-row { display: flex; align-items: center; gap: 10px; color: #64748b; font-size: 13px; font-weight: 500; }
+.skills-container.dark-theme .info-row { color: #94a3b8; }
+.info-row svg { opacity: 0.7; }
+.info-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.card-footer { display: flex; gap: 12px; margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(226, 232, 240, 0.8); }
+.skills-container.dark-theme .card-footer { border-color: rgba(51, 65, 85, 0.8); }
+
+.btn-ghost-primary, .btn-ghost-danger {
+  flex: 1; padding: 10px 0; border-radius: 8px; font-weight: 600; font-size: 13px;
+  cursor: pointer; transition: all 0.2s ease;
+  background: transparent;
+}
+.btn-ghost-primary { border: 1px solid rgba(99, 102, 241, 0.3); color: #4f46e5; }
+.btn-ghost-primary:hover { background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.8); }
+.skills-container.dark-theme .btn-ghost-primary { color: #818cf8; border-color: rgba(99, 102, 241, 0.4); }
+
+.btn-ghost-danger { border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
+.btn-ghost-danger:hover { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.8); }
+.skills-container.dark-theme .btn-ghost-danger { color: #f87171; border-color: rgba(239, 68, 68, 0.4); }
+
+/* Empty state */
+.empty-state { align-items: center; justify-content: center; text-align: center; color: #94a3b8; padding: 60px 20px; grid-column: 1 / -1; }
+.empty-state p { margin-top: 16px; font-weight: 500; }
+
+/* Modal Styles */
+.glass-modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: flex; justify-content: center; align-items: center; z-index: 2000;
+}
+.glass-modal {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border-radius: 24px; padding: 32px; width: 480px; max-width: 90vw;
+}
+.skills-container.dark-theme .glass-modal {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(51, 65, 85, 0.8);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header-sleek h3 { margin: 0 0 8px 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.modal-header-sleek p { margin: 0 0 24px 0; color: #64748b; font-size: 14px; font-weight: 500;}
+.skills-container.dark-theme .modal-header-sleek p { color: #94a3b8; }
+
+.path-grid { display: flex; flex-direction: column; gap: 12px; }
+
+.glass-checkbox {
+  position: relative;
+  display: flex; align-items: center; gap: 16px; cursor: pointer;
+  padding: 16px; border-radius: 16px;
+  background: rgba(248, 250, 252, 0.5); border: 1px solid rgba(226, 232, 240, 0.8);
+  transition: all 0.2s ease;
+}
+.skills-container.dark-theme .glass-checkbox { background: rgba(15, 23, 42, 0.3); border-color: rgba(51, 65, 85, 0.8); }
+
+.glass-checkbox:hover { border-color: rgba(99, 102, 241, 0.5); background: rgba(99, 102, 241, 0.05); }
+.glass-checkbox input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+.custom-check {
+  height: 24px; width: 24px; border-radius: 6px;
+  background-color: transparent; border: 2px solid #cbd5e1;
+  transition: all 0.2s ease; position: relative;
+}
+.skills-container.dark-theme .custom-check { border-color: #475569; }
+.glass-checkbox:hover input ~ .custom-check { border-color: #818cf8; }
+.glass-checkbox input:checked ~ .custom-check { background-color: #6366f1; border-color: #6366f1; }
+.custom-check:after {
+  content: ""; position: absolute; display: none;
+  left: 8px; top: 4px; width: 5px; height: 10px;
+  border: solid white; border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.glass-checkbox input:checked ~ .custom-check:after { display: block; }
+
+.check-info strong { display: block; font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 4px; }
+.skills-container.dark-theme .check-info strong { color: #f1f5f9; }
+.check-info span { display: block; font-size: 12px; color: #64748b; font-family: monospace; }
+.skills-container.dark-theme .check-info span { color: #94a3b8; }
+
+.custom-input-wrap {
+  margin-top: 12px; max-height: 0; overflow: hidden; opacity: 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.custom-input-wrap.visible { max-height: 60px; opacity: 1; }
+.custom-input-wrap input {
+  width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.5);
+  background: rgba(255, 255, 255, 0.5); outline: none; font-size: 14px; box-sizing: border-box;
+}
+.skills-container.dark-theme .custom-input-wrap input { background: rgba(15, 23, 42, 0.5); color: white; border-color: rgba(99, 102, 241, 0.5); }
+
+.modal-actions-sleek { margin-top: 32px; display: flex; justify-content: flex-end; gap: 16px; }
+.btn-cancel-glass {
+  background: transparent; color: #64748b; border: 1px solid transparent; border-radius: 8px;
+  padding: 8px 20px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s;
+}
+.btn-cancel-glass:hover { background: rgba(100, 116, 139, 0.1); color: #334155; }
+.skills-container.dark-theme .btn-cancel-glass { color: #94a3b8; }
+.skills-container.dark-theme .btn-cancel-glass:hover { background: rgba(148, 163, 184, 0.1); color: #cbd5e1; }
+
+/* Processing Layer */
+.processing-layer {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000;
+  display: flex; justify-content: center; align-items: center;
+  background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.processing-card {
+  background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(51, 65, 85, 0.8);
+  padding: 40px; border-radius: 24px; width: 500px; max-width: 90vw;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.4); text-align: center; color: white;
+}
+.loader-ripple {
+  display: inline-block; position: relative; width: 80px; height: 80px; margin-bottom: 24px;
+}
+.loader-ripple div {
+  position: absolute; border: 4px solid #6366f1; opacity: 1; border-radius: 50%;
+  animation: loader-ripple 1s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+.loader-ripple div:nth-child(2) { animation-delay: -0.5s; }
+@keyframes loader-ripple {
+  0% { top: 36px; left: 36px; width: 0; height: 0; opacity: 0; }
+  4.9% { top: 36px; left: 36px; width: 0; height: 0; opacity: 0; }
+  5% { top: 36px; left: 36px; width: 0; height: 0; opacity: 1; }
+  100% { top: 0px; left: 0px; width: 72px; height: 72px; opacity: 0; }
+}
+.gradient-text { font-size: 20px; font-weight: 700; margin: 0 0 24px 0; background: linear-gradient(135deg, #818cf8, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
+.terminal-logs-sleek { background: #0f172a; padding: 20px; border-radius: 16px; text-align: left; border: 1px solid #1e293b; font-family: 'Consolas', monospace; font-size: 12px; color: #38bdf8; overflow: hidden; }
+.sleek-log { margin-bottom: 6px; line-height: 1.4; opacity: 0.8; }
+.sleek-log:last-child { opacity: 1; color: #a5b4fc; }
+.log-cursor { color: #4ade80; margin-right: 8px; }
+
+/* Transitions */
+.modal-scale-enter-active, .modal-scale-leave-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.modal-scale-enter-from, .modal-scale-leave-to { opacity: 0; transform: scale(0.95); }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+</style>

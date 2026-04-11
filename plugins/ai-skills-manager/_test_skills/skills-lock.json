@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "skills": {
+    "mama": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "41c16e7fd13cda31657557a04ee496bb5a1a73bce8306dc214f735722a072490"
+    },
+    "p10": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "926db72348c3ee94fe1e7d732f0933628464b0acc596485ef11b23361db4f9ad"
+    },
+    "p7": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "97360835f772eb07d5daa64e33c6bd25f51bea1fabac5e37c4efa7c1fa0c9d2d"
+    },
+    "p9": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "04521257fac45717ccfbb78167bd03f0254b24bbb00be4f3ebfaf7c0445624b0"
+    },
+    "pro": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "c246b30c25c688ea14dea7707e5f3d4b3b6268e7319b06f4e5111a3c911979d9"
+    },
+    "pua": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "c4f772d2fc9292fce906483f50e9d77777360d81fe43280a8442eb7e51e090cf"
+    },
+    "pua-en": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "f9b6283c85adb2d9bc0cff76e8cebe7ae92077b53610b5932f71362f85fcec47"
+    },
+    "pua-ja": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "9e3f926598184f64362a8ee5f0cb24df51b57f5d25efc3de2c2b9bf548af6da4"
+    },
+    "pua-loop": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "688d3f365e9d1877afd4ad844ac669bddd666903d2381180a32aa5389bcf7561"
+    },
+    "shot": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "0d6fb22ea307bfc1dd8b3a3ffa32c76049001d049e0e8c7a017f25d0d832cf79"
+    },
+    "yes": {
+      "source": "tanweai/pua",
+      "sourceType": "github",
+      "computedHash": "8bc47d05bb613345caafb19d6e92f23a9ab9df088c0d7b870a88a23fd79e554c"
+    }
+  }
+}

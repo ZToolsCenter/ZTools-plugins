@@ -1,0 +1,499 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+interface Skill { id: string; name: string; localPath: string; sourceUrl: string; installedAt: string; updatedAt: string }
+interface PreviewSkillItem { name: string; path: string }
+interface PreviewData { tempDir: string; cloneDir: string; skills: PreviewSkillItem[]; gitUrl: string }
+
+declare global {
+  interface Window {
+    preloadAPI: {
+      getSkillsList: () => Skill[]
+      previewSkills: (url: string, onProgress?: (msg: any) => void) => Promise<PreviewData>
+      installFromPreview: (data: PreviewData, skills: string[], paths: string[], url: string, onProgress?: (msg: any) => void) => boolean
+      cancelPreview: (tempDir: string) => void
+      openLocalPath: (localPath: string) => void
+      openUrl: (url: string) => void
+      uninstallSkill: (id: string) => boolean
+      updateSkill: (id: string, onProgress?: (msg: any) => void) => Promise<boolean>
+    }
+    ztools: any
+  }
+}
+
+const skills = ref<Skill[]>([])
+const loading = ref(false)
+const progressLogs = ref<string[]>([])
+const installUrl = ref('')
+const searchKeyword = ref('')
+const localSearch = ref('')
+const isDark = ref(false)
+const viewMode = ref<'grid' | 'list'>('grid')
+
+const showInstallPrompt = ref(false)
+const selectedPaths = ref<string[]>(['antigravity'])
+const enableCustomPath = ref(false)
+const customPathVal = ref('')
+
+const previewData = ref<PreviewData | null>(null)
+const availableSkills = ref<PreviewSkillItem[]>([])
+const selectedSkillNames = ref<string[]>([])
+const previewLoading = ref(false)
+
+const loadSkills = () => {
+  if (window.preloadAPI) { skills.value = window.preloadAPI.getSkillsList() }
+  else { skills.value = [{ id: 'mock', name: 'Mock Skill', sourceUrl: 'https://github.com/mock/skill', localPath: '', installedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] }
+}
+
+onMounted(() => {
+  loadSkills()
+  if (window.ztools) {
+    isDark.value = window.ztools.isDarkColors()
+    window.ztools.setSubInput((text: string) => { searchKeyword.value = text }, '搜索技能或粘贴 GitHub 地址', true)
+    window.ztools.onPluginEnter((param: any) => { if (param.type === 'regex' && param.code === 'quick-install') { installUrl.value = param.payload; handleInstall() } })
+  } else { isDark.value = false }
+})
+
+const filteredSkills = () => {
+  let list = skills.value
+  if (searchKeyword.value) { list = list.filter(s => s.name.toLowerCase().includes(searchKeyword.value.toLowerCase()) || s.sourceUrl.toLowerCase().includes(searchKeyword.value.toLowerCase())) }
+  if (localSearch.value) { list = list.filter(s => s.name.toLowerCase().includes(localSearch.value.toLowerCase()) || s.sourceUrl.toLowerCase().includes(localSearch.value.toLowerCase())) }
+  return list
+}
+
+const handleInstall = async () => {
+  if (!installUrl.value) return
+  previewLoading.value = true
+  progressLogs.value = []
+  previewData.value = null
+  availableSkills.value = []
+  selectedSkillNames.value = []
+  try {
+    if (window.preloadAPI) {
+      const data = await window.preloadAPI.previewSkills(installUrl.value, (msg: any) => {
+        const clean = msg.text.replace(/[\u001b\x1b]\[[0-9;?]*[A-Za-z]/gi, '').trim()
+        if (clean) progressLogs.value.push(clean)
+      })
+      previewData.value = data
+      availableSkills.value = data.skills
+      selectedSkillNames.value = data.skills.map(s => s.name)
+      showInstallPrompt.value = true
+    }
+  } catch (e: any) { alert("预览失败：" + e.message) }
+  finally { previewLoading.value = false }
+}
+
+const getPathAlias = (pathStr?: string) => {
+  if (!pathStr) return '未知'
+  const lp = pathStr.toLowerCase()
+  if (lp.includes('.gemini\\antigravity') || lp.includes('.gemini/antigravity')) return 'Antigravity'
+  if (lp.includes('.claude\\skills') || lp.includes('.claude/skills')) return 'Claude Code'
+  if (lp.includes('.qoder\\skills') || lp.includes('.qoder/skills')) return 'Qoder'
+  if (lp.includes('.qwen\\skills') || lp.includes('.qwen/skills')) return 'Qwen Code'
+  if (lp.includes('.trae\\skills') || lp.includes('.trae/skills')) return 'Trae'
+  if (lp.endsWith('\\skills') || lp.endsWith('/skills')) return 'OpenClaw'
+  const folders = pathStr.split(/[\\/]/)
+  return folders.length > 1 ? folders[folders.length - 2] : '本地'
+}
+
+const openSourceUrl = (url: string) => {
+  if (!url || url === '本地/未托管') return
+  const finalUrl = url.startsWith('http') ? url : `https://github.com/${url}`
+  if (window.preloadAPI) { window.preloadAPI.openUrl(finalUrl) }
+  else { window.open(finalUrl, '_blank') }
+}
+
+const openLocalPath = (localPath: string) => {
+  if (!localPath || !window.preloadAPI) return
+  window.preloadAPI.openLocalPath(localPath)
+}
+
+const shortUrl = (url: string) => {
+  if (!url || url === '本地/未托管') return url
+  // https://github.com/user/repo/tree/master/path → user/repo
+  const m = url.match(/github\.com\/([^/]+\/[^/]+)/)
+  return m ? m[1] : url.replace(/^https?:\/\//, '').substring(0, 30)
+}
+
+const confirmInstall = async () => {
+  if (!previewData.value || selectedSkillNames.value.length === 0) return
+  showInstallPrompt.value = false
+  loading.value = true
+  progressLogs.value = []
+  const targets = [...selectedPaths.value]
+  if (enableCustomPath.value && customPathVal.value.trim()) targets.push(customPathVal.value.trim())
+  try {
+    if (window.preloadAPI) {
+      window.preloadAPI.installFromPreview(previewData.value, selectedSkillNames.value, targets, installUrl.value, (msg: any) => {
+        const clean = msg.text.replace(/[\u001b\x1b]\[[0-9;?]*[A-Za-z]/gi, '').trim()
+        if (clean) progressLogs.value.push(clean)
+      })
+      if (window.ztools) window.ztools.showNotification('安装成功')
+      loadSkills()
+    }
+  } catch (e: any) { alert("安装失败：" + e.message) }
+  finally { loading.value = false; installUrl.value = ''; previewData.value = null }
+}
+
+const cancelInstall = () => {
+  showInstallPrompt.value = false
+  if (previewData.value && window.preloadAPI) window.preloadAPI.cancelPreview(previewData.value.tempDir)
+  previewData.value = null
+}
+
+const handleUpdate = async (id: string) => {
+  loading.value = true; progressLogs.value = []
+  try {
+    if (window.preloadAPI) {
+      await window.preloadAPI.updateSkill(id, (msg: any) => { const c = msg.text.replace(/[\u001b\x1b]\[[0-9;?]*[A-Za-z]/gi, '').trim(); if (c) progressLogs.value.push(c) })
+      if (window.ztools) window.ztools.showNotification('更新成功')
+      loadSkills()
+    }
+  } catch (e: any) { alert("更新失败: " + e.message) }
+  finally { loading.value = false }
+}
+
+const handleDelete = async (id: string) => {
+  if (confirm("是否确认删除该技能？")) {
+    loading.value = true
+    try { if (window.preloadAPI) { window.preloadAPI.uninstallSkill(id); if (window.ztools) window.ztools.showNotification('删除成功'); loadSkills() } }
+    catch (e: any) { alert("删除失败：" + e.message) }
+    finally { loading.value = false }
+  }
+}
+
+const toggleSelectAll = () => {
+  if (selectedSkillNames.value.length === availableSkills.value.length) selectedSkillNames.value = []
+  else selectedSkillNames.value = availableSkills.value.map(s => s.name)
+}
+</script>
+
+<template>
+  <div class="skills-container" :class="{ 'dark-theme': isDark }">
+    <div class="elegant-background"></div>
+
+    <div class="app-content">
+      <header class="hero-section">
+        <div class="brand-panel">
+          <div class="brand">
+            <div class="logo-box">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="logo-icon"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+            </div>
+            <div class="titles">
+              <h2>AI Skills Hub</h2>
+              <p>Intelligence Distribution Matrix</p>
+            </div>
+          </div>
+          <div class="view-toggle">
+             <button :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="卡片视图">
+               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+             </button>
+             <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="列表视图">
+               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+             </button>
+          </div>
+        </div>
+
+        <div class="control-panel">
+          <div class="input-glass search-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="glass-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input v-model="localSearch" placeholder="检索本地已装载..." />
+          </div>
+
+          <div class="input-glass install-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="glass-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <input v-model="installUrl" placeholder="GitHub 源 (如: obra/superpowers)" @keyup.enter="handleInstall" :disabled="loading || previewLoading" />
+            <button class="btn-glow" @click="handleInstall" :disabled="loading || previewLoading || !installUrl">
+               <span v-if="!previewLoading">分发</span>
+               <span v-else>扫描...</span>
+            </button>
+          </div>
+        </div>
+      </header>
+      
+      <!-- 加载层 -->
+      <transition name="fade">
+        <div v-if="loading || previewLoading" class="processing-layer">
+          <div class="processing-card">
+            <div class="loader-ripple"><div></div><div></div></div>
+            <h3 class="gradient-text">{{ previewLoading ? '正在扫描仓库' : '组件部署中' }}</h3>
+            <div class="terminal-logs-sleek" v-if="progressLogs.length > 0">
+              <div v-for="(log, idx) in progressLogs.slice(-4)" :key="idx" class="sleek-log">
+                <span class="log-cursor">❯</span> {{ log }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+      
+      <!-- 主列表 -->
+      <div :class="viewMode === 'grid' ? 'grid-layout' : 'list-layout'">
+        <div v-for="skill in filteredSkills()" :key="skill.id" class="glass-card" :class="viewMode">
+          <div class="card-top">
+             <div class="card-icon">{{ skill.name.charAt(0).toUpperCase() }}</div>
+             <div class="card-meta">
+               <h3>{{ skill.name }}</h3>
+               <div class="badge-row">
+                 <span class="badge-tag">{{ getPathAlias(skill.localPath) }}</span>
+                 <button class="btn-icon-link" @click.stop="openLocalPath(skill.localPath)" title="打开本地目录">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                 </button>
+               </div>
+             </div>
+          </div>
+          <div class="card-body">
+            <div class="info-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              <span class="source-text" :title="skill.sourceUrl">{{ shortUrl(skill.sourceUrl) }}</span>
+              <button v-if="skill.sourceUrl !== '本地/未托管'" class="btn-icon-link" @click.stop="openSourceUrl(skill.sourceUrl)" title="在浏览器中打开">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+              </button>
+            </div>
+            <div class="info-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span>{{ new Date(skill.updatedAt).toLocaleDateString() }}</span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <button class="btn-ghost-primary" @click="handleUpdate(skill.id)" :disabled="loading" title="同步源端">
+               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+               <span v-if="viewMode === 'grid'">更新</span>
+            </button>
+            <button class="btn-ghost-danger" @click="handleDelete(skill.id)" :disabled="loading" title="卸载">
+               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+               <span v-if="viewMode === 'grid'">卸载</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="filteredSkills().length === 0" class="empty-state glass-card">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          <p>暂无已装载的技能组件</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 安装模态框 -->
+    <transition name="modal-scale">
+      <div v-if="showInstallPrompt" class="glass-modal-overlay">
+        <div class="glass-modal">
+          <div class="modal-header-sleek">
+            <h3>选择安装组件</h3>
+            <p>发现 {{ availableSkills.length }} 个可用技能</p>
+          </div>
+          
+          <div class="modal-body-scroller">
+            <div class="section-title">
+              <span>📦 可用技能</span>
+              <button class="btn-select-all" @click="toggleSelectAll">
+                {{ selectedSkillNames.length === availableSkills.length ? '取消全选' : '全选' }}
+              </button>
+            </div>
+            <div class="path-grid">
+              <label class="glass-checkbox" v-for="sk in availableSkills" :key="sk.name">
+                <input type="checkbox" v-model="selectedSkillNames" :value="sk.name">
+                <span class="custom-check"></span>
+                <div class="check-info">
+                  <strong>{{ sk.name }}</strong>
+                  <span>{{ sk.path }}</span>
+                </div>
+              </label>
+            </div>
+
+            <div class="section-title" style="margin-top: 16px;">
+              <span>🎯 安装目标</span>
+            </div>
+            <div class="path-grid">
+              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="antigravity"><span class="custom-check"></span><div class="check-info"><strong>Antigravity</strong><span>~/.gemini/antigravity/skills</span></div></label>
+              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="claudecode"><span class="custom-check"></span><div class="check-info"><strong>Claude Code</strong><span>~/.claude/skills</span></div></label>
+              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="openclaw"><span class="custom-check"></span><div class="check-info"><strong>OpenClaw</strong><span>~/skills</span></div></label>
+              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="qoder"><span class="custom-check"></span><div class="check-info"><strong>Qoder</strong><span>~/.qoder/skills</span></div></label>
+              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="qwencode"><span class="custom-check"></span><div class="check-info"><strong>Qwen Code</strong><span>~/.qwen/skills</span></div></label>
+              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="trae"><span class="custom-check"></span><div class="check-info"><strong>Trae</strong><span>~/.trae/skills</span></div></label>
+              <label class="glass-checkbox"><input type="checkbox" v-model="enableCustomPath"><span class="custom-check"></span><div class="check-info"><strong>自建路径</strong></div></label>
+            </div>
+            <div class="custom-input-wrap" :class="{ 'visible': enableCustomPath }">
+              <input type="text" v-model="customPathVal" placeholder="D:\Agents\skills" />
+            </div>
+          </div>
+
+          <div class="modal-actions-sleek">
+            <button class="btn-cancel-glass" @click="cancelInstall">取消</button>
+            <button class="btn-glow" @click="confirmInstall" :disabled="selectedSkillNames.length === 0 || (selectedPaths.length === 0 && (!enableCustomPath || !customPathVal))">
+              安装 {{ selectedSkillNames.length }} 项
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </div>
+</template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.skills-container { min-height: 100vh; font-family: 'Inter', -apple-system, sans-serif; color: #1a1a2e; position: relative; background-color: #f8fafc; overflow-x: hidden; margin: -0.5rem; }
+.skills-container.dark-theme { color: #e2e8f0; background-color: #0b0f19; }
+
+.elegant-background { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none; }
+.elegant-background::before { content: ''; position: absolute; top: -20vh; left: -10vw; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 70%); border-radius: 50%; }
+.elegant-background::after { content: ''; position: absolute; bottom: -20vh; right: -10vw; width: 45vw; height: 45vw; background: radial-gradient(circle, rgba(14,165,233,0.05) 0%, transparent 70%); border-radius: 50%; }
+.skills-container.dark-theme .elegant-background::before { background: radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%); }
+.skills-container.dark-theme .elegant-background::after { background: radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 70%); }
+
+.app-content { position: relative; z-index: 10; max-width: 1100px; margin: 0 auto; padding: 20px 20px; }
+
+/* Header - Compact */
+.hero-section { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+.brand-panel { display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo-box { width: 36px; height: 36px; background: linear-gradient(135deg, #6366f1, #0ea5e9); border-radius: 10px; display: flex; justify-content: center; align-items: center; color: white; box-shadow: 0 4px 12px rgba(99,102,241,0.25); flex-shrink: 0; }
+.logo-icon { width: 18px; height: 18px; }
+.titles h2 { font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.3px; background: linear-gradient(135deg, #1e293b, #475569); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.skills-container.dark-theme .titles h2 { background: linear-gradient(135deg, #fff, #cbd5e1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.titles p { margin: 0; font-size: 11px; color: #94a3b8; font-weight: 500; }
+
+.control-panel { display: flex; gap: 10px; }
+.input-glass { display: flex; align-items: center; background: rgba(255,255,255,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(226,232,240,0.8); border-radius: 8px; padding: 5px 6px 5px 10px; transition: all 0.2s; }
+.input-glass:focus-within { border-color: rgba(99,102,241,0.5); box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
+.skills-container.dark-theme .input-glass { background: rgba(30,41,59,0.5); border-color: rgba(51,65,85,0.6); }
+.glass-icon { color: #94a3b8; margin-right: 8px; flex-shrink: 0; }
+.input-glass input { background: transparent; border: none; outline: none; font-size: 12px; font-family: inherit; color: inherit; width: 100%; min-width: 120px; }
+.install-box { flex: 1; }
+.input-glass input::placeholder { color: #b0b8c4; }
+
+.btn-glow { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; border-radius: 6px; padding: 5px 14px; font-weight: 600; font-size: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(79,70,229,0.3); transition: all 0.2s; white-space: nowrap; }
+.btn-glow:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(79,70,229,0.45); transform: translateY(-1px); }
+.btn-glow:disabled { background: #94a3b8; box-shadow: none; cursor: not-allowed; opacity: 0.6; }
+
+.view-toggle { display: flex; gap: 2px; background: rgba(226,232,240,0.5); padding: 3px; border-radius: 6px; }
+.skills-container.dark-theme .view-toggle { background: rgba(51,65,85,0.5); }
+.view-toggle button { background: transparent; border: none; padding: 4px; border-radius: 4px; cursor: pointer; color: #94a3b8; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.view-toggle button.active { background: white; color: #4f46e5; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+.skills-container.dark-theme .view-toggle button.active { background: #1e293b; color: #818cf8; }
+
+/* Grid & Cards - Compact */
+.grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.list-layout { display: flex; flex-direction: column; gap: 6px; }
+
+.glass-card { background: rgba(255,255,255,0.8); backdrop-filter: blur(16px); border: 1px solid rgba(226,232,240,0.7); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+.glass-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.04); border-color: rgba(99,102,241,0.25); }
+.skills-container.dark-theme .glass-card { background: rgba(30,41,59,0.45); border: 1px solid rgba(51,65,85,0.5); }
+.skills-container.dark-theme .glass-card:hover { border-color: rgba(99,102,241,0.4); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+
+.card-top { display: flex; align-items: center; gap: 10px; }
+.card-icon { width: 34px; height: 34px; background: linear-gradient(135deg, #1e293b, #475569); color: white; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: 800; text-transform: uppercase; flex-shrink: 0; }
+.skills-container.dark-theme .card-icon { background: linear-gradient(135deg, #334155, #475569); }
+.card-meta h3 { margin: 0 0 3px; font-size: 13px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.2; word-break: break-all; }
+.badge-tag { display: inline-flex; white-space: nowrap; background: rgba(16,185,129,0.08); color: #059669; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; border: 1px solid rgba(16,185,129,0.15); }
+.skills-container.dark-theme .badge-tag { color: #34d399; background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.15); }
+.badge-row { display: flex; align-items: center; gap: 4px; }
+
+.card-body { display: flex; flex-direction: column; gap: 5px; flex-grow: 1; }
+.info-row { display: flex; align-items: center; gap: 6px; color: #64748b; font-size: 11px; font-weight: 500; min-width: 0; }
+.skills-container.dark-theme .info-row { color: #94a3b8; }
+.info-row svg { opacity: 0.6; flex-shrink: 0; }
+.info-row .source-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.info-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* External link button */
+.btn-icon-link { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 2px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; opacity: 0.6; }
+.btn-icon-link:hover { color: #6366f1; opacity: 1; background: rgba(99,102,241,0.08); }
+.skills-container.dark-theme .btn-icon-link:hover { color: #818cf8; }
+
+.card-footer { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(226,232,240,0.6); }
+.skills-container.dark-theme .card-footer { border-color: rgba(51,65,85,0.5); }
+.btn-ghost-primary, .btn-ghost-danger { flex: 1; padding: 6px 0; border-radius: 6px; font-weight: 600; font-size: 11px; cursor: pointer; transition: all 0.2s; background: transparent; display: flex; justify-content: center; align-items: center; gap: 4px; }
+.btn-ghost-primary { border: 1px solid rgba(99,102,241,0.25); color: #4f46e5; }
+.btn-ghost-primary:hover { background: rgba(99,102,241,0.06); border-color: rgba(99,102,241,0.6); }
+.skills-container.dark-theme .btn-ghost-primary { color: #818cf8; border-color: rgba(99,102,241,0.25); }
+.btn-ghost-danger { border: 1px solid rgba(239,68,68,0.25); color: #ef4444; }
+.btn-ghost-danger:hover { background: rgba(239,68,68,0.06); border-color: rgba(239,68,68,0.6); }
+.skills-container.dark-theme .btn-ghost-danger { color: #f87171; border-color: rgba(239,68,68,0.25); }
+
+/* List Mode */
+.glass-card.list { flex-direction: row; align-items: center; padding: 10px 14px; gap: 16px; }
+.glass-card.list .card-top { flex: 0 0 auto; min-width: 200px; }
+.glass-card.list .card-icon { width: 28px; height: 28px; font-size: 12px; border-radius: 6px; }
+.glass-card.list .card-meta { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.glass-card.list .card-meta h3 { margin: 0; font-size: 12px; }
+.glass-card.list .card-body { flex-direction: row; align-items: center; gap: 20px; flex: 1; }
+.glass-card.list .card-footer { margin-top: 0; padding-top: 0; border-top: none; gap: 6px; flex: 0 0 auto; width: 80px; }
+.glass-card.list .card-footer button { padding: 5px; flex: none; width: 30px; height: 30px; }
+.glass-card.list .card-footer button span { display: none; }
+
+@media (max-width: 640px) {
+  .brand-panel { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .control-panel { flex-direction: column; }
+  .glass-card.list { flex-direction: column; align-items: stretch; }
+  .glass-card.list .card-top { flex: auto; }
+  .glass-card.list .card-body { flex-direction: column; gap: 5px; align-items: flex-start; }
+  .glass-card.list .card-footer { border-top: 1px solid rgba(226,232,240,0.6); padding-top: 10px; width: 100%; }
+  .glass-card.list .card-footer button { flex: 1; width: auto; }
+}
+
+.empty-state { align-items: center; justify-content: center; text-align: center; color: #94a3b8; padding: 40px 16px; grid-column: 1 / -1; }
+.empty-state p { margin-top: 12px; font-weight: 500; font-size: 13px; }
+
+/* Modal - Compact */
+.glass-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.5); backdrop-filter: blur(6px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+.glass-modal { background: rgba(255,255,255,0.96); border: 1px solid rgba(226,232,240,0.8); box-shadow: 0 20px 40px rgba(0,0,0,0.15); border-radius: 16px; padding: 20px 24px; width: 460px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; }
+.skills-container.dark-theme .glass-modal { background: rgba(30,41,59,0.96); border-color: rgba(51,65,85,0.8); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+.modal-header-sleek h3 { margin: 0 0 4px; font-size: 16px; font-weight: 800; letter-spacing: -0.3px; }
+.modal-header-sleek p { margin: 0 0 14px; color: #64748b; font-size: 12px; font-weight: 500; }
+.skills-container.dark-theme .modal-header-sleek p { color: #94a3b8; }
+
+.section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12px; font-weight: 700; color: #475569; }
+.skills-container.dark-theme .section-title { color: #94a3b8; }
+.btn-select-all { background: none; border: 1px solid rgba(99,102,241,0.3); color: #6366f1; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.btn-select-all:hover { background: rgba(99,102,241,0.08); }
+
+.modal-body-scroller { overflow-y: auto; padding-right: 6px; margin-right: -6px; margin-bottom: 16px; max-height: 55vh; }
+.modal-body-scroller::-webkit-scrollbar { width: 4px; }
+.modal-body-scroller::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.4); border-radius: 4px; }
+
+.path-grid { display: flex; flex-direction: column; gap: 5px; }
+.glass-checkbox { position: relative; display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px 10px; border-radius: 8px; background: rgba(248,250,252,0.5); border: 1px solid rgba(226,232,240,0.7); transition: all 0.15s; }
+.skills-container.dark-theme .glass-checkbox { background: rgba(15,23,42,0.3); border-color: rgba(51,65,85,0.5); }
+.glass-checkbox:hover { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.03); }
+.glass-checkbox input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+.custom-check { height: 18px; width: 18px; border-radius: 4px; background: transparent; border: 2px solid #cbd5e1; transition: all 0.15s; position: relative; flex-shrink: 0; }
+.skills-container.dark-theme .custom-check { border-color: #475569; }
+.glass-checkbox:hover input ~ .custom-check { border-color: #818cf8; }
+.glass-checkbox input:checked ~ .custom-check { background: #6366f1; border-color: #6366f1; }
+.custom-check:after { content: ""; position: absolute; display: none; left: 5px; top: 2px; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.glass-checkbox input:checked ~ .custom-check:after { display: block; }
+.check-info strong { display: block; font-size: 12px; font-weight: 600; color: #1e293b; }
+.skills-container.dark-theme .check-info strong { color: #f1f5f9; }
+.check-info span { display: block; font-size: 10px; color: #94a3b8; font-family: 'Consolas', monospace; margin-top: 1px; }
+
+.custom-input-wrap { margin-top: 8px; max-height: 0; overflow: hidden; opacity: 0; transition: all 0.25s; }
+.custom-input-wrap.visible { max-height: 50px; opacity: 1; overflow: visible; }
+.custom-input-wrap input { width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.4); background: rgba(255,255,255,0.5); outline: none; font-size: 12px; box-sizing: border-box; }
+.skills-container.dark-theme .custom-input-wrap input { background: rgba(15,23,42,0.5); color: white; }
+
+.modal-actions-sleek { flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px; }
+.btn-cancel-glass { background: transparent; color: #64748b; border: none; border-radius: 6px; padding: 6px 14px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+.btn-cancel-glass:hover { background: rgba(100,116,139,0.08); color: #334155; }
+.skills-container.dark-theme .btn-cancel-glass { color: #94a3b8; }
+
+/* Processing */
+.processing-layer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; display: flex; justify-content: center; align-items: center; background: rgba(15,23,42,0.5); backdrop-filter: blur(10px); }
+.processing-card { background: rgba(30,41,59,0.95); border: 1px solid rgba(51,65,85,0.8); padding: 30px; border-radius: 16px; width: 400px; max-width: 90vw; box-shadow: 0 20px 40px rgba(0,0,0,0.3); text-align: center; color: white; }
+.loader-ripple { display: inline-block; position: relative; width: 56px; height: 56px; margin-bottom: 16px; }
+.loader-ripple div { position: absolute; border: 3px solid #6366f1; opacity: 1; border-radius: 50%; animation: loader-ripple 1s cubic-bezier(0,0.2,0.8,1) infinite; }
+.loader-ripple div:nth-child(2) { animation-delay: -0.5s; }
+@keyframes loader-ripple { 0% { top: 24px; left: 24px; width: 0; height: 0; opacity: 0; } 5% { opacity: 1; } 100% { top: 0; left: 0; width: 48px; height: 48px; opacity: 0; } }
+.gradient-text { font-size: 15px; font-weight: 700; margin: 0 0 16px; background: linear-gradient(135deg, #818cf8, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.terminal-logs-sleek { background: #0f172a; padding: 12px; border-radius: 10px; text-align: left; border: 1px solid #1e293b; font-family: 'Consolas', monospace; font-size: 11px; color: #38bdf8; max-height: 140px; overflow-y: auto; word-break: break-all; }
+.terminal-logs-sleek::-webkit-scrollbar { width: 4px; }
+.terminal-logs-sleek::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.4); border-radius: 4px; }
+.sleek-log { margin-bottom: 4px; line-height: 1.3; opacity: 0.7; }
+.sleek-log:last-child { opacity: 1; color: #a5b4fc; }
+.log-cursor { color: #4ade80; margin-right: 6px; }
+
+.modal-scale-enter-active, .modal-scale-leave-active { transition: all 0.25s cubic-bezier(0.4,0,0.2,1); }
+.modal-scale-enter-from, .modal-scale-leave-to { opacity: 0; transform: scale(0.96); }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.25s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+</style>
