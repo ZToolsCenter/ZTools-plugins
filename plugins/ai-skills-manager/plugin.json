@@ -1,0 +1,31 @@
+{
+  "name": "ai-skills-manager",
+  "title": "AI技能管理器",
+  "description": "快捷安装、更新、卸载AI Agent的技能",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "manage",
+      "explain": "打开技能管理器",
+      "cmds": [
+        "skills",
+        "技能管理"
+      ]
+    },
+    {
+      "code": "quick-install",
+      "explain": "快捷安装技能",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "安装技能",
+          "match": "/^https?:\\/\\/github\\.com\\/[\\w-]+\\/[\\w-]+/i",
+          "minLength": 10
+        }
+      ]
+    }
+  ]
+}
