@@ -11,6 +11,7 @@ declare global {
       getSkillsList: () => Skill[]
       previewSkills: (url: string, onProgress?: (msg: any) => void) => Promise<PreviewData>
       installFromPreview: (data: PreviewData, skills: string[], paths: string[], url: string, onProgress?: (msg: any) => void) => boolean
+      distributeSkill: (id: string, agents: string[]) => boolean
       cancelPreview: (tempDir: string) => void
       openLocalPath: (localPath: string) => void
       openUrl: (url: string) => void
@@ -111,7 +112,7 @@ const getPathAlias = (pathStr?: string) => {
 }
 
 const openSourceUrl = (url: string) => {
-  if (!url || url === '本地/未托管') return
+  if (!url || url === '未注册') return
   const finalUrl = url.startsWith('http') ? url : `https://github.com/${url}`
   if (window.preloadAPI) { window.preloadAPI.openUrl(finalUrl) }
   else { window.open(finalUrl, '_blank') }
@@ -123,14 +124,14 @@ const openLocalPath = (localPath: string) => {
 }
 
 const shortUrl = (url: string) => {
-  if (!url || url === '本地/未托管') return url
+  if (!url || url === '未注册') return url
   const m = url.match(/github\.com\/([^/]+\/[^/]+)/)
   return m ? m[1] : url.replace(/^https?:\/\//, '').substring(0, 30)
 }
 
 // 提取仓库的分组标识（user/repo）
 const getRepoKey = (url: string) => {
-  if (!url || url === '本地/未托管') return '本地/未托管'
+  if (!url || url === '未注册') return '未注册'
   const m = url.match(/github\.com\/([^/]+\/[^/]+)/)
   return m ? m[1] : url
 }
@@ -145,7 +146,7 @@ const groupedSkills = (): SkillGroup[] => {
     if (!map.has(key)) {
       // 从 sourceUrl 还原仓库地址（去掉 /tree/xxx 子路径）
       let repoUrl = ''
-      if (key !== '本地/未托管') {
+      if (key !== '未注册') {
         const rm = s.sourceUrl.match(/(https:\/\/github\.com\/[^/]+\/[^/]+)/)
         repoUrl = rm ? rm[1] : s.sourceUrl
       }
@@ -153,11 +154,11 @@ const groupedSkills = (): SkillGroup[] => {
     }
     map.get(key)!.skills.push(s)
   }
-  // 有源地址的仓库排前，本地未托管排后
+  // 有源地址的仓库排前，未注册排后
   const arr = Array.from(map.values())
   arr.sort((a, b) => {
-    if (a.repoKey === '本地/未托管') return 1
-    if (b.repoKey === '本地/未托管') return -1
+    if (a.repoKey === '未注册') return 1
+    if (b.repoKey === '未注册') return -1
     return b.skills.length - a.skills.length
   })
   return arr
@@ -170,7 +171,7 @@ const toggleGroupCollapse = (key: string) => {
 }
 
 const batchUpdateGroup = async (group: SkillGroup) => {
-  const updatableIds = group.skills.filter(s => s.sourceUrl !== '本地/未托管').map(s => s.id)
+  const updatableIds = group.skills.filter(s => s.sourceUrl !== '未注册').map(s => s.id)
   if (updatableIds.length === 0) return
   batchProcessing.value = true
   loading.value = true
@@ -203,11 +204,34 @@ const confirmInstall = async () => {
         const clean = msg.text.replace(/[\u001b\x1b]\[[0-9;?]*[A-Za-z]/gi, '').trim()
         if (clean) progressLogs.value.push(clean)
       })
-      if (window.ztools) window.ztools.showNotification('安装成功')
+      if (window.ztools) window.ztools.showNotification('安装与分发成功')
       loadSkills()
     }
   } catch (e: any) { alert("安装失败：" + e.message) }
   finally { loading.value = false; installUrl.value = ''; previewData.value = null }
+}
+
+const showDistributeModal = ref(false)
+const distributionTarget = ref<Skill | null>(null)
+const distributionPaths = ref<string[]>(['antigravity'])
+
+const openDistribute = (skill: Skill) => {
+  distributionTarget.value = skill
+  distributionPaths.value = [getPathAlias(skill.localPath).toLowerCase().replace(' ', '')]
+  showDistributeModal.value = true
+}
+
+const confirmDistribute = async () => {
+  if (!distributionTarget.value || distributionPaths.value.length === 0) return
+  loading.value = true
+  try {
+    if (window.preloadAPI.distributeSkill(distributionTarget.value.id, distributionPaths.value)) {
+       if (window.ztools) window.ztools.showNotification(`技能 [${distributionTarget.value.name}] 已成功分发`)
+       showDistributeModal.value = false
+       loadSkills()
+    }
+  } catch (e: any) { alert('分发失败: ' + e.message) }
+  finally { loading.value = false }
 }
 
 const cancelInstall = () => {
@@ -462,11 +486,11 @@ const confirmImport = async () => {
             </div>
             <div class="info-row" :title="'安装时间: ' + new Date(skill.installedAt).toLocaleString()">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-              <span>{{ new Date(skill.installedAt).toLocaleDateString() }}</span>
+              <span>{{ new Date(skill.installedAt).toLocaleDateString() + ' ' + new Date(skill.installedAt).getHours() + ':' + new Date(skill.installedAt).getMinutes().toString().padStart(2, '0') }}</span>
             </div>
             <div class="info-row" :title="'更新时间: ' + new Date(skill.updatedAt).toLocaleString()">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
-              <span>{{ new Date(skill.updatedAt).toLocaleDateString() }}</span>
+              <span>{{ new Date(skill.updatedAt).toLocaleDateString() + ' ' + new Date(skill.updatedAt).getHours() + ':' + new Date(skill.updatedAt).getMinutes().toString().padStart(2, '0') }}</span>
             </div>
           </div>
           <div class="card-footer">
@@ -476,14 +500,14 @@ const confirmImport = async () => {
             </button>
             <button class="btn-ghost-danger" @click="handleDelete(skill.id)" :disabled="loading" title="卸载">
                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-               <span v-if="viewMode === 'grid'">卸载</span>
+               <span v-if="viewMode === 'grid'">移除</span>
             </button>
           </div>
         </div>
 
         <div v-if="filteredSkills().length === 0" class="empty-state glass-card">
           <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-          <p>暂无已装载的技能组件</p>
+          <p>尚未检测到已安装的技能</p>
         </div>
       </div>
 
@@ -510,7 +534,7 @@ const confirmImport = async () => {
               </button>
               <button v-if="group.repoUrl" class="btn-group-update" @click.stop="batchUpdateGroup(group)" :disabled="loading" title="更新该仓库全部技能">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                整组更新
+                 同步全组
               </button>
             </div>
           </div>
@@ -528,14 +552,17 @@ const confirmImport = async () => {
                     </div>
                   </div>
                   <div class="child-right">
-                    <span class="child-date">{{ new Date(skill.updatedAt).toLocaleDateString() }}</span>
+                    <span class="child-date">{{ new Date(skill.updatedAt).toLocaleDateString() + ' ' + new Date(skill.updatedAt).getHours() + ':' + new Date(skill.updatedAt).getMinutes().toString().padStart(2, '0') }}</span>
                     <button class="btn-icon-sm" @click="openLocalPath(skill.localPath)" title="打开目录">
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                     </button>
-                    <button class="btn-icon-sm primary" @click="handleUpdate(skill.id)" :disabled="loading" title="更新">
+                    <button class="btn-icon-sm primary" @click="handleUpdate(skill.id)" :disabled="loading" title="同步源码更新">
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                     </button>
-                    <button class="btn-icon-sm danger" @click="handleDelete(skill.id)" :disabled="loading" title="卸载">
+                    <button class="btn-icon-sm" @click="openDistribute(skill)" :disabled="loading" title="分发到其他 Agent">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                    </button>
+                    <button class="btn-icon-sm danger" @click="handleDelete(skill.id)" :disabled="loading" title="移除技能">
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
                   </div>
@@ -547,7 +574,7 @@ const confirmImport = async () => {
 
         <div v-if="groupedSkills().length === 0" class="empty-state glass-card">
           <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-          <p>暂无已装载的技能组件</p>
+          <p>尚未检测到已安装的技能</p>
         </div>
       </div>
 
@@ -566,7 +593,7 @@ const confirmImport = async () => {
               </button>
               <button class="batch-btn batch-btn-delete" @click="batchDelete" :disabled="batchProcessing">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                批量卸载
+                 批量移除
               </button>
               <button class="batch-btn batch-btn-cancel" @click="toggleBatchMode">
                 取消
@@ -577,12 +604,44 @@ const confirmImport = async () => {
       </transition>
     </div>
     
+    <!-- 分发模态框 -->
+    <transition name="modal-scale">
+      <div v-if="showDistributeModal" class="glass-modal-overlay">
+        <div class="glass-modal">
+          <div class="modal-header-sleek">
+            <h3>跨平台分发</h3>
+            <p>将技能 [{{ distributionTarget?.name }}] 同步到本地其他 Agent 目录</p>
+          </div>
+          <div class="modal-body-scroller">
+            <div class="section-title">
+              <span>🚀 目标 Agent 平台</span>
+            </div>
+            <div class="path-grid">
+               <label class="glass-checkbox" v-for="agent in ['antigravity', 'claudecode', 'openclaw', 'qoder', 'qwencode', 'trae']" :key="agent">
+                <input type="checkbox" v-model="distributionPaths" :value="agent">
+                <span class="custom-check"></span>
+                <div class="check-info">
+                  <span class="check-label">{{ agent.charAt(0).toUpperCase() + agent.slice(1) }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer-sleek">
+            <button class="btn-cancel" @click="showDistributeModal = false">取消</button>
+            <button class="btn-confirm" @click="confirmDistribute" :disabled="loading">
+              {{ loading ? '正在分发...' : '立即同步' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- 安装模态框 -->
     <transition name="modal-scale">
       <div v-if="showInstallPrompt" class="glass-modal-overlay">
         <div class="glass-modal">
           <div class="modal-header-sleek">
-            <h3>选择安装组件</h3>
+            <h3>选择待安装技能</h3>
             <p>发现 {{ availableSkills.length }} 个可用技能</p>
           </div>
           
