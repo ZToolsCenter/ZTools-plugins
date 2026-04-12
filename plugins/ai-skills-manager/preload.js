@@ -722,11 +722,15 @@ function saveFileDialog(content, defaultName) {
 
   fs.writeFileSync(filePath, content, 'utf-8');
   
-  // 保存后自动打开所在文件夹
+  // 保存后自动打开所在文件夹并选中
   try {
     const { exec } = require('child_process');
-    exec(`explorer /select,"${filePath.replace(/\//g, '\\')}"`);
-  } catch (e) {}
+    const winPath = path.resolve(filePath).replace(/\//g, '\\');
+    // 使用 cmd /c 确保命令在 Windows 环境下更准确执行
+    exec(`cmd /c explorer /select,"${winPath}"`);
+  } catch (e) {
+    console.error('Failed to open explorer:', e);
+  }
 
   return filePath;
 }
