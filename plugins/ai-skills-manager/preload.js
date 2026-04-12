@@ -58,6 +58,88 @@ function parseGitHubUrl(input) {
   };
 }
 
+/**
+ * 动态审计并修复技能元数据
+ * 策略：基于“已知主仓库”进行反向自动关联
+ * 1. 从注册表中提取所有出现过的源地址，建立“主仓库映射库”
+ * 2. 扫描所有 Agent 路径，补全那些名字匹配但地址缺失的技能
+ */
+function auditAndRepair(registry) {
+  let changed = false;
+  
+  // 1. 建立仓库指纹库 { skillName: fullSourceUrl }
+  const repoFingerprints = {};
+  
+  // 从当前的注册表中提取已知有效的映射
+  for (const skill of registry) {
+    if (skill.sourceUrl && skill.sourceUrl !== '本地/未托管') {
+      repoFingerprints[skill.name] = skill.sourceUrl;
+    }
+  }
+
+  // 从全机 metadata.json 中进一步收集知识
+  const agents = ['antigravity', 'claudecode', 'openclaw', 'qoder', 'qwencode', 'trae'];
+  for (const agent of agents) {
+    try {
+      const p = getPathForAgent(agent);
+      if (!fs.existsSync(p)) continue;
+      const dirs = fs.readdirSync(p, { withFileTypes: true });
+      for (const d of dirs) {
+        if (!d.isDirectory()) continue;
+        const metaPath = path.join(p, d.name, 'metadata.json');
+        if (fs.existsSync(metaPath)) {
+          try {
+            const m = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+            if (m.source_url && m.source_url !== '本地/未托管') {
+              if (!repoFingerprints[d.name]) repoFingerprints[d.name] = m.source_url;
+            }
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+  }
+
+  // 2. 根据收集到的指纹自动修复那些“失联”的技能
+  for (const skill of registry) {
+    const metaPath = path.join(skill.localPath, 'metadata.json');
+    let hasMeta = fs.existsSync(metaPath);
+    
+    // 如果没有源地址，看库里有没有存过它的“老家”
+    if (!skill.sourceUrl || skill.sourceUrl === '本地/未托管') {
+       if (repoFingerprints[skill.name]) {
+         skill.sourceUrl = repoFingerprints[skill.name];
+         changed = true;
+       }
+    }
+
+    // 同步到物理 metadata.json
+    if (skill.sourceUrl && skill.sourceUrl !== '本地/未托管') {
+      let needsWrite = !hasMeta;
+      if (hasMeta) {
+        try {
+          const m = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          if (m.source_url !== skill.sourceUrl) needsWrite = true;
+        } catch(e) { needsWrite = true; }
+      }
+      
+      if (needsWrite) {
+        try {
+          fs.writeFileSync(metaPath, JSON.stringify({
+            name: skill.name,
+            source_url: skill.sourceUrl,
+            installed_at: skill.installedAt || new Date().toISOString(),
+            type: "git"
+          }, null, 2));
+        } catch(e) {}
+      }
+    }
+  }
+
+  if (changed) {
+    saveRegistry(registry);
+  }
+}
+
 // ========== 获取已安装列表 ==========
 function getSkillsList() {
   ensureRegistry();
@@ -68,28 +150,41 @@ function getSkillsList() {
     console.error("读取 registry.json 失败:", error);
   }
 
+  // 动态审计
+  auditAndRepair(registry);
+
   const actualSkills = [];
   
+  // 处理已在注册表中的技能
   for (const skill of registry) {
     try {
-      if (fs.existsSync(path.join(skill.localPath, 'SKILL.md'))) {
-        // 如果 registry 中标记为未托管，尝试从 metadata.json 读取真实源
-        if (!skill.sourceUrl || skill.sourceUrl === '本地/未托管') {
+      if (fs.existsSync(skill.localPath)) {
+        const metaPath = path.join(skill.localPath, 'metadata.json');
+        
+        // 如果元数据文件存在，读取并同步到内存对象
+        if (fs.existsSync(metaPath)) {
           try {
-            const metaPath = path.join(skill.localPath, 'metadata.json');
-            if (fs.existsSync(metaPath)) {
-              const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-              if (meta && meta.source_url) {
-                skill.sourceUrl = meta.source_url;
-              }
-            }
-          } catch(e) {}
+            const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+            if (meta.source_url) skill.sourceUrl = meta.source_url;
+            if (meta.installed_at) skill.installedAt = meta.installed_at;
+            if (meta.name) skill.name = meta.name;
+          } catch (e) {}
+        } 
+        
+        // 确保 updatedAt 始终反映文件的最新修改
+        const mdPath = path.join(skill.localPath, 'SKILL.md');
+        if (fs.existsSync(mdPath)) {
+          skill.updatedAt = fs.statSync(mdPath).mtime.toISOString();
+        } else {
+          skill.updatedAt = fs.statSync(skill.localPath).mtime.toISOString();
         }
+        
         actualSkills.push(skill);
       }
     } catch(e) {}
   }
 
+  // 扫描常见 Agent 路径 (Antigravity, Claude Code, etc.)
   const agentsToScan = ['antigravity', 'claudecode', 'openclaw', 'qoder', 'qwencode', 'trae'];
   for (const agent of agentsToScan) {
     try {
@@ -100,21 +195,34 @@ function getSkillsList() {
         if (dirent.isDirectory()) {
           const skillPath = path.join(p, dirent.name);
           const mdPath = path.join(skillPath, 'SKILL.md');
-          if (fs.existsSync(mdPath)) {
+          const metaPath = path.join(skillPath, 'metadata.json');
+          
+          if (fs.existsSync(mdPath) || fs.existsSync(metaPath)) {
             if (!actualSkills.some(s => s.localPath === skillPath)) {
               let sourceUrl = '本地/未托管';
-              try {
-                const meta = JSON.parse(fs.readFileSync(path.join(skillPath, 'metadata.json'), 'utf-8'));
-                if (meta && meta.source_url) sourceUrl = meta.source_url;
-              } catch(e) {}
+              let installedAt = fs.statSync(skillPath).birthtime.toISOString();
+              let name = dirent.name;
               
+              if (fs.existsSync(metaPath)) {
+                try {
+                  const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+                  if (meta.source_url) sourceUrl = meta.source_url;
+                  if (meta.installed_at) installedAt = meta.installed_at;
+                  if (meta.name) name = meta.name;
+                } catch(e) {}
+              }
+              
+              let updatedAt = fs.existsSync(mdPath) 
+                ? fs.statSync(mdPath).mtime.toISOString() 
+                : fs.statSync(skillPath).mtime.toISOString();
+
               actualSkills.push({
                 id: `local_${agent}_${dirent.name}`,
-                name: dirent.name,
+                name: name,
                 localPath: skillPath,
                 sourceUrl: sourceUrl,
-                installedAt: fs.statSync(skillPath).birthtime.toISOString(),
-                updatedAt: fs.statSync(mdPath).mtime.toISOString()
+                installedAt: installedAt,
+                updatedAt: updatedAt
               });
             }
           }
@@ -133,8 +241,7 @@ function saveRegistry(registry) {
 // GitHub 镜像列表（直连失败时自动回退）
 const GITHUB_MIRRORS = [
   '',                          // 直连
-  'https://ghfast.top/',       // 镜像1
-  'https://ghps.cc/',          // 镜像2
+  'https://ghps.cc/',          // 镜像1
 ];
 
 // 核心克隆函数，支持镜像回退
@@ -189,6 +296,20 @@ function gitCloneWithFallback(gitUrl, cloneDir, onProgress) {
   });
 }
 
+/**
+ * 构造更具体的技能网页 URL
+ */
+function constructSpecificUrl(repoUrl, skillPath) {
+  if (!skillPath || skillPath === '.') return repoUrl;
+  let url = repoUrl.replace(/\/+$/, '').replace(/\.git$/, '');
+  // 如果已经是具体路径了，不再叠加
+  if (url.includes('/tree/')) return url;
+  if (url.includes('github.com')) {
+    return `${url}/tree/master/${skillPath.replace(/^\/+/, '')}`;
+  }
+  return url;
+}
+
 // ========== 第一步：预览仓库中的 Skills 列表 ==========
 function previewSkills(repoUrl, onProgress) {
   ensureRegistry();
@@ -199,46 +320,72 @@ function previewSkills(repoUrl, onProgress) {
     fs.mkdirSync(tempDir, { recursive: true });
   }
 
-  if (onProgress) onProgress({ type: 'info', text: `[仓库] ${gitUrl}\n` });
-  if (subPath && onProgress) onProgress({ type: 'info', text: `[子路径] ${subPath}\n` });
+  if (onProgress) onProgress({ type: 'info', text: `[准备] 正在连接仓库: ${gitUrl}\n` });
 
   const cloneDir = path.join(tempDir, 'repo');
   
   return gitCloneWithFallback(gitUrl, cloneDir, onProgress).then(() => {
-    const skills = [];
+    let skills = [];
 
+    // 1. 如果指定了子路径
     if (subPath) {
       const targetDir = path.join(cloneDir, ...subPath.split('/'));
-      if (fs.existsSync(targetDir) && fs.existsSync(path.join(targetDir, 'SKILL.md'))) {
+      if (fs.existsSync(targetDir) && (fs.existsSync(path.join(targetDir, 'SKILL.md')) || fs.existsSync(path.join(targetDir, 'skill.md')))) {
         skills.push({ name: path.basename(targetDir), path: subPath });
       } else if (fs.existsSync(targetDir) && fs.statSync(targetDir).isDirectory()) {
         const subDirs = fs.readdirSync(targetDir, { withFileTypes: true });
         for (const d of subDirs) {
-          if (d.isDirectory() && fs.existsSync(path.join(targetDir, d.name, 'SKILL.md'))) {
+          if (d.isDirectory() && (fs.existsSync(path.join(targetDir, d.name, 'SKILL.md')) || fs.existsSync(path.join(targetDir, d.name, 'skill.md')))) {
             skills.push({ name: d.name, path: `${subPath}/${d.name}` });
           }
         }
       }
-    } else {
+    } 
+
+    // 2. 默认路径
+    if (skills.length === 0) {
       const skillsSubDir = path.join(cloneDir, 'skills');
       if (fs.existsSync(skillsSubDir) && fs.statSync(skillsSubDir).isDirectory()) {
         const subDirs = fs.readdirSync(skillsSubDir, { withFileTypes: true });
         for (const d of subDirs) {
-          if (d.isDirectory() && fs.existsSync(path.join(skillsSubDir, d.name, 'SKILL.md'))) {
+          if (d.isDirectory() && (fs.existsSync(path.join(skillsSubDir, d.name, 'SKILL.md')) || fs.existsSync(path.join(skillsSubDir, d.name, 'skill.md')))) {
             skills.push({ name: d.name, path: `skills/${d.name}` });
           }
         }
       }
-      if (skills.length === 0 && fs.existsSync(path.join(cloneDir, 'SKILL.md'))) {
+      if (skills.length === 0 && (fs.existsSync(path.join(cloneDir, 'SKILL.md')) || fs.existsSync(path.join(cloneDir, 'skill.md')))) {
         skills.push({ name: path.basename(gitUrl, '.git'), path: '.' });
       }
     }
 
+    // 3. 递归深度搜索
     if (skills.length === 0) {
-      if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
-      throw new Error("仓库中未找到任何 SKILL.md");
+      if (onProgress) onProgress({ type: 'info', text: `[搜索] 标准结构未匹配，启动深度检索...\n` });
+      function recursiveSearch(dir, relPath) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            // 跳过无效和巨大的隐藏文件夹，但必须允许 .claude 等 Agent 特定文件夹
+            if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'assets') continue;
+            const full = path.join(dir, entry.name);
+            const currentRel = relPath ? `${relPath}/${entry.name}` : entry.name;
+            if (fs.existsSync(path.join(full, 'SKILL.md')) || fs.existsSync(path.join(full, 'skill.md'))) {
+              skills.push({ name: entry.name, path: currentRel });
+            } else {
+              recursiveSearch(full, currentRel);
+            }
+          }
+        }
+      }
+      recursiveSearch(cloneDir, '');
     }
 
+    if (skills.length === 0) {
+      if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+      throw new Error("同步失败：在该仓库中未发现任何 SKILL.md 文件。请确认地址是否正确。");
+    }
+
+    if (onProgress) onProgress({ type: 'info', text: `[成功] 发现 ${skills.length} 个技能: ${skills.map(s => s.name).join(', ')}\n` });
     return { tempDir, cloneDir, skills, gitUrl };
   }).catch((err) => {
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
@@ -246,7 +393,7 @@ function previewSkills(repoUrl, onProgress) {
   });
 }
 
-// ========== 第二步：从已克隆的临时目录安装选中的 Skills ==========
+// ========== 第二步：安装技能 ==========
 function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUrl, onProgress) {
   const { tempDir, cloneDir, skills } = previewData;
 
@@ -254,56 +401,51 @@ function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUr
     const selectedSkills = skills.filter(s => selectedSkillNames.includes(s.name));
     
     if (selectedSkills.length === 0) {
-      throw new Error("未选择任何技能");
+      throw new Error("未选择任何待安装技能");
     }
 
     for (const skill of selectedSkills) {
       const sourcePath = skill.path === '.' ? cloneDir : path.join(cloneDir, ...skill.path.split('/'));
+      const skillSpecificUrl = constructSpecificUrl(repoUrl, skill.path);
       
       for (const tp of targetPaths) {
         const baseDir = getPathForAgent(tp);
-        if (!fs.existsSync(baseDir)) {
-          fs.mkdirSync(baseDir, { recursive: true });
-        }
+        if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
+        
         const finalDir = path.join(baseDir, skill.name);
-
-        if (fs.existsSync(finalDir)) {
-          fs.rmSync(finalDir, { recursive: true, force: true });
-        }
+        if (fs.existsSync(finalDir)) fs.rmSync(finalDir, { recursive: true, force: true });
 
         fs.cpSync(sourcePath, finalDir, { recursive: true });
 
-        // 写入 metadata.json
+        // 写入元数据
         try {
           fs.writeFileSync(path.join(finalDir, 'metadata.json'), JSON.stringify({
             name: skill.name,
-            source_url: repoUrl,
+            source_url: skillSpecificUrl,
             installed_at: new Date().toISOString(),
             type: "git"
           }, null, 2));
         } catch (e) {}
 
-        // 清理 .git
+        // 清理 git
         const dotGit = path.join(finalDir, '.git');
-        if (fs.existsSync(dotGit)) {
-          fs.rmSync(dotGit, { recursive: true, force: true });
-        }
+        if (fs.existsSync(dotGit)) fs.rmSync(dotGit, { recursive: true, force: true });
 
-        if (onProgress) onProgress({ type: 'info', text: `✓ [${skill.name}] → ${baseDir}\n` });
+        if (onProgress) onProgress({ type: 'info', text: `✓ 已安装 [${skill.name}] 到 ${baseDir}\n` });
 
-        // 更新 registry.json
+        // 更新注册表
         try {
           let currentReg = [];
           try { currentReg = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8')); } catch (e) {}
 
           const targetIndex = currentReg.findIndex(r => r.localPath === finalDir);
-          const uniqueId = targetIndex >= 0 ? currentReg[targetIndex].id : `${skill.name}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+          const uniqueId = targetIndex >= 0 ? currentReg[targetIndex].id : `${skill.name}_${Date.now()}`;
 
           const newEntry = {
             id: uniqueId,
             name: skill.name,
             localPath: finalDir,
-            sourceUrl: repoUrl,
+            sourceUrl: skillSpecificUrl,
             installedAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
@@ -318,10 +460,7 @@ function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUr
       }
     }
 
-    // 清理临时目录
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
     return true;
   } catch (err) {
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
@@ -360,32 +499,44 @@ function updateSkill(skillId, onProgress) {
   const all = getSkillsList();
   const skill = all.find(s => s.id === skillId);
   
-  if (!skill) return Promise.reject(new Error("找不到该技能"));
+  if (!skill) return Promise.reject(new Error("找不到该技能记录"));
   if (skill.sourceUrl === '本地/未托管') {
-    return Promise.reject(new Error("无源地址，无法更新。请先卸载后重新安装"));
+    return Promise.reject(new Error("本地技能无源地址，请先卸载后重新通过 GitHub 安装"));
   }
 
-  // 更新 = 重新克隆 + 只安装这一个技能到原来的位置
   const parentDir = path.dirname(skill.localPath);
   
-  return previewSkills(skill.sourceUrl, onProgress).then(previewData => {
-    // 找到匹配的技能
-    const matched = previewData.skills.find(s => s.name === skill.name);
-    if (!matched) {
-      cancelPreview(previewData.tempDir);
-      throw new Error(`仓库中未找到名为 "${skill.name}" 的技能`);
+  const tryUpdate = (targetUrl) => {
+    return previewSkills(targetUrl, onProgress).then(previewData => {
+      // 允许模糊匹配：如果名字不完全一致（如大小写），尝试寻找最接近的
+      const matched = previewData.skills.find(s => s.name.toLowerCase() === skill.name.toLowerCase());
+      if (!matched) {
+        cancelPreview(previewData.tempDir);
+        const available = previewData.skills.map(s => s.name).join(', ');
+        throw new Error(`更新失败：仓库中未找到名为 "${skill.name}" 的技能 (该仓库包含: ${available || '无'})`);
+      }
+      installFromPreview(previewData, [matched.name], [parentDir], targetUrl, onProgress);
+      return true;
+    });
+  };
+
+  // 1. 尝试原地址
+  return tryUpdate(skill.sourceUrl).catch(err => {
+    // 2. 自动回退主仓库地址 (剥离子路径)
+    const { gitUrl } = parseGitHubUrl(skill.sourceUrl);
+    if (gitUrl && (gitUrl !== skill.sourceUrl && gitUrl + '.git' !== skill.sourceUrl)) {
+      if (onProgress) onProgress({ type: 'info', text: `[回馈] 精确同步失败，正在启动主仓库自动发现策略...\n` });
+      return tryUpdate(gitUrl);
     }
-    installFromPreview(previewData, [skill.name], [parentDir], skill.sourceUrl, onProgress);
-    return true;
+    throw err;
   });
 }
 
-// ========== Shell 操作（必须在 preload 中执行） ==========
+// ========== Shell 辅助 ==========
 function openLocalPath(localPath) {
   if (!localPath) return;
   try {
     const { exec } = require('child_process');
-    // Windows: explorer 打开目录
     exec(`explorer "${localPath.replace(/\//g, '\\')}"`);
   } catch (e) {
     console.error('openLocalPath failed:', e);
@@ -396,14 +547,13 @@ function openUrl(url) {
   if (!url) return;
   try {
     const { exec } = require('child_process');
-    // Windows: start 打开 URL
     exec(`start "" "${url}"`);
   } catch (e) {
     console.error('openUrl failed:', e);
   }
 }
 
-// 将方法挂载到 window
+// 挂载
 window.preloadAPI = {
   getSkillsList,
   previewSkills,
