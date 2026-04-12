@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
 interface Skill { id: string; name: string; localPath: string; sourceUrl: string; installedAt: string; updatedAt: string }
 interface PreviewSkillItem { name: string; path: string }
@@ -9,6 +9,7 @@ declare global {
   interface Window {
     preloadAPI: {
       getSkillsList: () => Skill[]
+      getSupportedAgents: () => Promise<any[]>
       previewSkills: (url: string, onProgress?: (msg: any) => void) => Promise<PreviewData>
       installFromPreview: (data: PreviewData, skills: string[], paths: string[], url: string, onProgress?: (msg: any) => void) => boolean
       distributeSkill: (id: string, agents: string[]) => boolean
@@ -36,7 +37,8 @@ const localSearch = ref('')
 const isDark = ref(false)
 const viewMode = ref<'grid' | 'list' | 'grouped'>('grid')
 const selectedAgent = ref('all')
-const agentOptions = ['all', 'Antigravity', 'Claude Code', 'Trae', 'Qoder', 'Qwen Code', 'OpenClaw']
+const supportedAgents = ref<any[]>([])
+const agentOptions = computed(() => ['all', ...supportedAgents.value.map(a => a.id)])
 
 // 分组的折叠状态
 const collapsedGroups = ref<Set<string>>(new Set())
@@ -62,29 +64,53 @@ const loadSkills = () => {
   else { skills.value = [{ id: 'mock', name: 'Mock Skill', sourceUrl: 'https://github.com/mock/skill', localPath: '', installedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  if (window.preloadAPI) {
+    supportedAgents.value = await window.preloadAPI.getSupportedAgents()
+  }
   loadSkills()
   if (window.ztools) {
     isDark.value = window.ztools.isDarkColors()
-    window.ztools.setSubInput((text: string) => { searchKeyword.value = text }, '搜索技能或粘贴 GitHub 地址', true)
-    window.ztools.onPluginEnter((param: any) => { if (param.type === 'regex' && param.code === 'quick-install') { installUrl.value = param.payload; handleInstall() } })
+    window.ztools.setSubInput((text: string) => { 
+      searchKeyword.value = text 
+    }, '输入 GitHub 仓库地址进行安装...', true)
+    
+    window.ztools.onPluginEnter((param: any) => { 
+      if (param.type === 'regex' && param.code === 'quick-install') { 
+        installUrl.value = param.payload
+        handleInstall() 
+      } 
+    })
   } else { isDark.value = false }
 })
 
 const filteredSkills = () => {
   let list = skills.value
+  
+  // 1. Agent 维度过滤
   if (selectedAgent.value !== 'all') {
-    list = list.filter(s => getPathAlias(s.localPath) === selectedAgent.value)
+    list = list.filter(s => getAgentIdByPath(s.localPath) === selectedAgent.value)
   }
-  const kw = searchKeyword.value.toLowerCase()
-  const lkw = localSearch.value.toLowerCase()
+  
+  // 2. 关键词检索 (组合 ZTools 关键词与 UI 本地关键词)
+  const kw = searchKeyword.value.trim().toLowerCase()
+  const lkw = localSearch.value.trim().toLowerCase()
   
   if (kw) {
-    list = list.filter(s => s.name.toLowerCase().includes(kw) || s.sourceUrl.toLowerCase().includes(kw))
+    list = list.filter(s => 
+      (s.name || '').toLowerCase().includes(kw) || 
+      (s.sourceUrl || '').toLowerCase().includes(kw)
+    )
   }
+  
   if (lkw) {
-    list = list.filter(s => s.name.toLowerCase().includes(lkw) || s.sourceUrl.toLowerCase().includes(lkw))
+    list = list.filter(s => 
+      (s.name || '').toLowerCase().includes(lkw) || 
+      (s.sourceUrl || '').toLowerCase().includes(lkw) ||
+      getPathAlias(s.localPath).toLowerCase().includes(lkw)
+    )
   }
+  
   return list
 }
 
@@ -110,15 +136,20 @@ const handleInstall = async () => {
   finally { previewLoading.value = false }
 }
 
+const getAgentIdByPath = (pathStr?: string) => {
+  if (!pathStr) return ''
+  const lp = pathStr.toLowerCase().replace(/\\/g, '/')
+  for (const agent of supportedAgents.value) {
+    if (lp.includes(agent.path.toLowerCase())) return agent.id
+  }
+  return ''
+}
+
 const getPathAlias = (pathStr?: string) => {
   if (!pathStr) return '未知'
-  const lp = pathStr.toLowerCase()
-  if (lp.includes('.gemini\\antigravity') || lp.includes('.gemini/antigravity')) return 'Antigravity'
-  if (lp.includes('.claude\\skills') || lp.includes('.claude/skills')) return 'Claude Code'
-  if (lp.includes('.qoder\\skills') || lp.includes('.qoder/skills')) return 'Qoder'
-  if (lp.includes('.qwen\\skills') || lp.includes('.qwen/skills')) return 'Qwen Code'
-  if (lp.includes('.trae\\skills') || lp.includes('.trae/skills')) return 'Trae'
-  if (lp.endsWith('\\skills') || lp.endsWith('/skills')) return 'OpenClaw'
+  const id = getAgentIdByPath(pathStr)
+  if (id) return getAgentNameById(id)
+  
   const folders = pathStr.split(/[\\/]/)
   return folders.length > 1 ? folders[folders.length - 2] : '本地'
 }
@@ -244,6 +275,10 @@ const confirmDistribute = async () => {
     }
   } catch (e: any) { alert('分发失败: ' + e.message) }
   finally { loading.value = false }
+}
+
+const getAgentNameById = (id: string) => {
+  return supportedAgents.value.find(a => a.id === id)?.name || id
 }
 
 const cancelInstall = () => {
@@ -446,15 +481,15 @@ const confirmImport = async () => {
         </div>
         <div class="agent-filter-row">
           <button 
-            v-for="agent in agentOptions" 
-            :key="agent"
+            v-for="agentId in agentOptions" 
+            :key="agentId"
             class="filter-chip"
-            :class="{ active: selectedAgent === agent }"
-            @click="selectedAgent = agent"
+            :class="{ active: selectedAgent === agentId }"
+            @click="selectedAgent = agentId"
           >
-            {{ agent === 'all' ? '全部项目' : agent }}
-            <span class="count-badge" v-if="selectedAgent === agent || agent === 'all'">
-              {{ agent === 'all' ? skills.length : skills.filter(s => getPathAlias(s.localPath) === agent).length }}
+            {{ agentId === 'all' ? '全部项目' : getAgentNameById(agentId) }}
+            <span class="count-badge" v-if="selectedAgent === agentId || agentId === 'all'">
+              {{ agentId === 'all' ? skills.length : skills.filter(s => getAgentIdByPath(s.localPath) === agentId).length }}
             </span>
           </button>
         </div>
@@ -642,12 +677,12 @@ const confirmImport = async () => {
             <div class="section-title">
               <span>🚀 目标 Agent 平台</span>
             </div>
-            <div class="path-grid">
-               <label class="glass-checkbox" v-for="agent in ['antigravity', 'claudecode', 'openclaw', 'qoder', 'qwencode', 'trae']" :key="agent">
-                <input type="checkbox" v-model="distributionPaths" :value="agent">
+            <div class="path-grid full-agent-grid">
+               <label class="glass-checkbox" v-for="agent in supportedAgents" :key="agent.id">
+                <input type="checkbox" v-model="distributionPaths" :value="agent.id">
                 <span class="custom-check"></span>
                 <div class="check-info">
-                  <span class="check-label">{{ agent.charAt(0).toUpperCase() + agent.slice(1) }}</span>
+                  <span class="check-label">{{ agent.name }}</span>
                 </div>
               </label>
             </div>
@@ -692,14 +727,23 @@ const confirmImport = async () => {
             <div class="section-title" style="margin-top: 16px;">
               <span>🎯 安装目标</span>
             </div>
-            <div class="path-grid">
-              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="antigravity"><span class="custom-check"></span><div class="check-info"><strong>Antigravity</strong><span>~/.gemini/antigravity/skills</span></div></label>
-              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="claudecode"><span class="custom-check"></span><div class="check-info"><strong>Claude Code</strong><span>~/.claude/skills</span></div></label>
-              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="openclaw"><span class="custom-check"></span><div class="check-info"><strong>OpenClaw</strong><span>~/skills</span></div></label>
-              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="qoder"><span class="custom-check"></span><div class="check-info"><strong>Qoder</strong><span>~/.qoder/skills</span></div></label>
-              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="qwencode"><span class="custom-check"></span><div class="check-info"><strong>Qwen Code</strong><span>~/.qwen/skills</span></div></label>
-              <label class="glass-checkbox"><input type="checkbox" v-model="selectedPaths" value="trae"><span class="custom-check"></span><div class="check-info"><strong>Trae</strong><span>~/.trae/skills</span></div></label>
-              <label class="glass-checkbox"><input type="checkbox" v-model="enableCustomPath"><span class="custom-check"></span><div class="check-info"><strong>自建路径</strong></div></label>
+            <div class="path-grid full-agent-grid">
+              <label class="glass-checkbox" v-for="agent in supportedAgents" :key="agent.id">
+                <input type="checkbox" v-model="selectedPaths" :value="agent.id">
+                <span class="custom-check"></span>
+                <div class="check-info">
+                  <strong>{{ agent.name }}</strong>
+                  <span>~/{{ agent.path }}</span>
+                </div>
+              </label>
+              <label class="glass-checkbox">
+                <input type="checkbox" v-model="enableCustomPath">
+                <span class="custom-check"></span>
+                <div class="check-info">
+                  <strong>自建路径</strong>
+                  <span>手动指定完整目录</span>
+                </div>
+              </label>
             </div>
             <div class="custom-input-wrap" :class="{ 'visible': enableCustomPath }">
               <input type="text" v-model="customPathVal" placeholder="D:\Agents\skills" />
@@ -887,6 +931,8 @@ const confirmImport = async () => {
 .modal-body-scroller::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.4); border-radius: 4px; }
 
 .path-grid { display: flex; flex-direction: column; gap: 5px; }
+.full-agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 400px) { .full-agent-grid { grid-template-columns: 1fr; } }
 .glass-checkbox { position: relative; display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px 10px; border-radius: 8px; background: rgba(248,250,252,0.5); border: 1px solid rgba(226,232,240,0.7); transition: all 0.15s; }
 .skills-container.dark-theme .glass-checkbox { background: rgba(15,23,42,0.3); border-color: rgba(51,65,85,0.5); }
 .glass-checkbox:hover { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.03); }
