@@ -72,7 +72,7 @@ function auditAndRepair(registry) {
   
   // 从当前的注册表中提取已知有效的映射
   for (const skill of registry) {
-    if (skill.sourceUrl && skill.sourceUrl !== '本地/未托管') {
+    if (skill.sourceUrl && skill.sourceUrl !== '未注册') {
       repoFingerprints[skill.name] = skill.sourceUrl;
     }
   }
@@ -90,7 +90,7 @@ function auditAndRepair(registry) {
         if (fs.existsSync(metaPath)) {
           try {
             const m = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-            if (m.source_url && m.source_url !== '本地/未托管') {
+            if (m.source_url && m.source_url !== '未注册') {
               if (!repoFingerprints[d.name]) repoFingerprints[d.name] = m.source_url;
             }
           } catch(e) {}
@@ -105,7 +105,7 @@ function auditAndRepair(registry) {
     let hasMeta = fs.existsSync(metaPath);
     
     // 如果没有源地址，看库里有没有存过它的“老家”
-    if (!skill.sourceUrl || skill.sourceUrl === '本地/未托管') {
+    if (!skill.sourceUrl || skill.sourceUrl === '未注册') {
        if (repoFingerprints[skill.name]) {
          skill.sourceUrl = repoFingerprints[skill.name];
          changed = true;
@@ -113,7 +113,7 @@ function auditAndRepair(registry) {
     }
 
     // 同步到物理 metadata.json
-    if (skill.sourceUrl && skill.sourceUrl !== '本地/未托管') {
+    if (skill.sourceUrl && skill.sourceUrl !== '未注册') {
       let needsWrite = !hasMeta;
       if (hasMeta) {
         try {
@@ -199,7 +199,7 @@ function getSkillsList() {
           
           if (fs.existsSync(mdPath) || fs.existsSync(metaPath)) {
             if (!actualSkills.some(s => s.localPath === skillPath)) {
-              let sourceUrl = '本地/未托管';
+              let sourceUrl = '未注册';
               let installedAt = fs.statSync(skillPath).birthtime.toISOString();
               let name = dirent.name;
               
@@ -735,11 +735,50 @@ function saveFileDialog(content, defaultName) {
   return filePath;
 }
 
+// ========== 分发技能到其他 Agent ==========
+function distributeSkill(skillId, targetAgents) {
+  const all = getSkillsList();
+  const skill = all.find(s => s.id === skillId);
+  if (!skill) throw new Error("找不到该技能记录");
+
+  for (const agent of targetAgents) {
+    const baseDir = getPathForAgent(agent);
+    if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
+    
+    const finalDir = path.join(baseDir, skill.name);
+    // 如果目标路径和当前路径一致，跳过
+    if (finalDir.toLowerCase() === skill.localPath.toLowerCase()) continue;
+
+    if (fs.existsSync(finalDir)) fs.rmSync(finalDir, { recursive: true, force: true });
+    fs.cpSync(skill.localPath, finalDir, { recursive: true });
+
+    // 更新注册表
+    try {
+      let currentReg = [];
+      try { currentReg = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8')); } catch (e) {}
+      
+      if (!currentReg.some(r => r.localPath === finalDir)) {
+        currentReg.push({
+          id: `${skill.name}_${agent}_${Date.now()}`,
+          name: skill.name,
+          localPath: finalDir,
+          sourceUrl: skill.sourceUrl,
+          installedAt: skill.installedAt,
+          updatedAt: new Date().toISOString()
+        });
+        fs.writeFileSync(REGISTRY_FILE, JSON.stringify(currentReg, null, 2));
+      }
+    } catch (e) {}
+  }
+  return true;
+}
+
 // 挂载
 window.preloadAPI = {
   getSkillsList,
   previewSkills,
   installFromPreview,
+  distributeSkill,
   cancelPreview,
   openLocalPath,
   openUrl,
