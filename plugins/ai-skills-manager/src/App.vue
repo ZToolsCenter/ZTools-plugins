@@ -278,25 +278,39 @@ const confirmInstall = async () => {
 }
 
 const showDistributeModal = ref(false)
-const distributionTarget = ref<Skill | null>(null)
-const distributionPaths = ref<string[]>(['antigravity'])
+const distributionTargets = ref<Skill[]>([])
+const distributionPaths = ref<string[]>([])
 
 const openDistribute = (skill: Skill) => {
-  distributionTarget.value = skill
-  distributionPaths.value = [getPathAlias(skill.localPath).toLowerCase().replace(' ', '')]
+  distributionTargets.value = [skill]
+  distributionPaths.value = [getAgentIdByPath(skill.localPath)]
+  showDistributeModal.value = true
+}
+
+const batchDistribute = () => {
+  const selected = skills.value.filter(s => batchSelected.value.includes(s.id))
+  distributionTargets.value = selected
+  distributionPaths.value = []
   showDistributeModal.value = true
 }
 
 const confirmDistribute = async () => {
-  if (!distributionTarget.value || distributionPaths.value.length === 0) return
+  if (distributionTargets.value.length === 0 || distributionPaths.value.length === 0) return
   loading.value = true
+  progressLogs.value = []
   try {
-    if (window.preloadAPI.distributeSkill(distributionTarget.value.id, distributionPaths.value)) {
-       if (window.ztools) window.ztools.showNotification(`技能 [${distributionTarget.value.name}] 已成功分发`)
-       showDistributeModal.value = false
-       loadSkills()
+    if (window.preloadAPI) {
+      for (const target of distributionTargets.value) {
+        progressLogs.value.push(`正在同步 [${target.name}]...`)
+        await window.preloadAPI.distributeSkill(target.id, distributionPaths.value)
+      }
+      if (window.ztools) window.ztools.showNotification(`同步完成：已分发 ${distributionTargets.value.length} 个技能`)
+      showDistributeModal.value = false
+      batchMode.value = false
+      batchSelected.value = []
+      loadSkills()
     }
-  } catch (e: any) { alert('分发失败: ' + e.message) }
+  } catch (e: any) { alert('同步失败: ' + e.message) }
   finally { loading.value = false }
 }
 
@@ -679,6 +693,10 @@ const confirmImport = async () => {
               <span>已选中 <strong>{{ batchSelected.length }}</strong> 项</span>
             </div>
             <div class="batch-bar-actions">
+              <button class="batch-btn batch-btn-sync" @click="batchDistribute" :disabled="batchProcessing">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                批量分发
+              </button>
               <button class="batch-btn batch-btn-update" @click="batchUpdate" :disabled="batchProcessing">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                 批量更新
@@ -702,7 +720,8 @@ const confirmImport = async () => {
         <div class="glass-modal">
           <div class="modal-header-sleek">
             <h3>跨平台分发</h3>
-            <p>将技能 [{{ distributionTarget?.name }}] 同步到本地其他 Agent 目录</p>
+            <p v-if="distributionTargets.length === 1">将技能 [{{ distributionTargets[0].name }}] 同步到本地其他 Agent 目录</p>
+            <p v-else>正在进行批量分发: 共选中 {{ distributionTargets.length }} 项技能</p>
           </div>
           <div class="modal-body-scroller">
             <div class="section-title">
@@ -781,10 +800,10 @@ const confirmImport = async () => {
             </div>
           </div>
 
-          <div class="modal-actions-sleek">
-            <button class="btn-cancel-glass" @click="cancelInstall">取消</button>
-            <button class="btn-glow" @click="confirmInstall" :disabled="selectedSkillNames.length === 0 || (selectedPaths.length === 0 && (!enableCustomPath || !customPathVal))">
-              安装 {{ selectedSkillNames.length }} 项
+          <div class="modal-footer-sleek">
+            <button class="btn-cancel" @click="cancelInstall">取消</button>
+            <button class="btn-confirm" @click="confirmInstall" :disabled="selectedSkillNames.length === 0 || (selectedPaths.length === 0 && (!enableCustomPath || !customPathVal))">
+              确认并安装于 {{ selectedPaths.length + (enableCustomPath ? 1 : 0) }} 个目标
             </button>
           </div>
         </div>
@@ -826,10 +845,10 @@ const confirmImport = async () => {
             </div>
           </div>
 
-          <div class="modal-actions-sleek">
-            <button class="btn-cancel-glass" @click="showImportModal = false">取消</button>
-            <button class="btn-glow" @click="confirmImport" :disabled="!importConfigText.trim()">
-              确认导入并同步
+          <div class="modal-footer-sleek">
+            <button class="btn-cancel" @click="showImportModal = false">取消</button>
+            <button class="btn-confirm" @click="confirmImport" :disabled="!importConfigText.trim()">
+              开始导入同步
             </button>
           </div>
         </div>
@@ -983,10 +1002,17 @@ const confirmImport = async () => {
 .custom-input-wrap input { width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.4); background: rgba(255,255,255,0.5); outline: none; font-size: 12px; box-sizing: border-box; }
 .skills-container.dark-theme .custom-input-wrap input { background: rgba(15,23,42,0.5); color: white; }
 
-.modal-actions-sleek { flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px; }
-.btn-cancel-glass { background: transparent; color: #64748b; border: none; border-radius: 6px; padding: 6px 14px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.15s; }
-.btn-cancel-glass:hover { background: rgba(100,116,139,0.08); color: #334155; }
-.skills-container.dark-theme .btn-cancel-glass { color: #94a3b8; }
+.modal-actions-sleek, .modal-footer-sleek { flex-shrink: 0; display: flex; justify-content: flex-end; gap: 14px; padding-top: 10px; border-top: 1px solid rgba(226, 232, 240, 0.5); }
+.skills-container.dark-theme .modal-actions-sleek, .skills-container.dark-theme .modal-footer-sleek { border-top-color: rgba(51, 65, 85, 0.4); }
+
+.btn-cancel, .btn-cancel-glass { background: rgba(148, 163, 184, 0.1); color: #64748b; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 8px 20px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.btn-cancel:hover, .btn-cancel-glass:hover { background: rgba(148, 163, 184, 0.2); color: #334155; }
+.skills-container.dark-theme .btn-cancel, .skills-container.dark-theme .btn-cancel-glass { color: #94a3b8; background: rgba(148, 163, 184, 0.08); border-color: rgba(148, 163, 184, 0.15); }
+.skills-container.dark-theme .btn-cancel:hover { color: #f1f5f9; background: rgba(148, 163, 184, 0.15); }
+
+.btn-confirm { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; border-radius: 8px; padding: 8px 24px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2); }
+.btn-confirm:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35); }
+.btn-confirm:disabled { opacity: 0.5; transform: none; box-shadow: none; cursor: not-allowed; }
 
 /* Processing */
 .processing-layer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; display: flex; justify-content: center; align-items: center; background: rgba(15,23,42,0.5); backdrop-filter: blur(10px); }
@@ -1063,6 +1089,8 @@ const confirmImport = async () => {
 .batch-btn { display: flex; align-items: center; gap: 6px; border: none; border-radius: 8px; padding: 7px 14px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
 .batch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .batch-btn-update { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 2px 8px rgba(79,70,229,0.3); }
+.batch-btn-sync { background: linear-gradient(135deg, #ec4899, #d946ef); color: white; box-shadow: 0 2px 8px rgba(217,70,239,0.3); }
+.batch-btn-sync:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(217,70,239,0.45); transform: translateY(-1px); }
 .batch-btn-update:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(79,70,229,0.45); transform: translateY(-1px); }
 .batch-btn-delete { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
 .batch-btn-delete:hover:not(:disabled) { background: rgba(239,68,68,0.25); }
