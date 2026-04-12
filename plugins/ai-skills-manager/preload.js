@@ -708,20 +708,26 @@ async function importSkillsConfig(configJson, onProgress) {
 }
 
 // 保存文件对话框辅助
-function saveFileDialog(content, defaultName) {
+function saveFileDialog(content, targetPath) {
   const os = require('os');
   const home = os.homedir();
-  let filePath = path.join(home, 'Desktop', defaultName);
-  
-  // 检查 Desktop 是否存在
-  if (!fs.existsSync(path.dirname(filePath))) {
-    // 尝试直接在家目录保存
-    filePath = path.join(home, defaultName);
+  let filePath = targetPath;
+
+  // 如果不是绝对路径，则当作文件名并拼接到 Desktop
+  if (!path.isAbsolute(targetPath)) {
+    filePath = path.join(home, 'Desktop', targetPath);
+    if (!fs.existsSync(path.dirname(filePath))) {
+      filePath = path.join(home, targetPath);
+    }
+    if (!fs.existsSync(path.dirname(filePath))) {
+      filePath = path.join(SKILLS_DIR, targetPath);
+    }
   }
-  
-  // 如果还是不行（极少见），保存在插件配置目录
-  if (!fs.existsSync(path.dirname(filePath))) {
-    filePath = path.join(SKILLS_DIR, defaultName);
+
+  // 确保父目录存在
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 
   fs.writeFileSync(filePath, content, 'utf-8');
@@ -730,13 +736,25 @@ function saveFileDialog(content, defaultName) {
   try {
     const { exec } = require('child_process');
     const winPath = path.resolve(filePath).replace(/\//g, '\\');
-    // 使用 cmd /c 确保命令在 Windows 环境下更准确执行
     exec(`cmd /c explorer /select,"${winPath}"`);
   } catch (e) {
     console.error('Failed to open explorer:', e);
   }
 
   return filePath;
+}
+
+// 选择保存路径（通过 PowerShell 调用原生对话框）
+function selectSavePath(defaultName = 'skills-hub-backup.json') {
+  const { execSync } = require('child_process');
+  try {
+    const psCommand = `Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.SaveFileDialog; $f.FileName = '${defaultName}'; $f.Filter = 'JSON Files (*.json)|*.json|All Files (*.*)|*.*'; $f.Title = '选择导出位置'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $f.FileName }`;
+    const result = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`, { encoding: 'utf-8' }).trim();
+    return result || null;
+  } catch (e) {
+    console.error('Native dialog failed:', e);
+    return null;
+  }
 }
 
 // ========== 分发技能到其他 Agent ==========
@@ -750,68 +768,29 @@ function distributeSkill(skillId, targetAgents) {
     if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
     
     const finalDir = path.join(baseDir, skill.name);
-    // 如果目标路径和当前路径一致，跳过
     if (finalDir.toLowerCase() === skill.localPath.toLowerCase()) continue;
-
     if (fs.existsSync(finalDir)) fs.rmSync(finalDir, { recursive: true, force: true });
     fs.cpSync(skill.localPath, finalDir, { recursive: true });
 
-    // 更新注册表
     try {
       let currentReg = [];
       try { currentReg = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8')); } catch (e) {}
-      
       if (!currentReg.some(r => r.localPath === finalDir)) {
-        currentReg.push({
-          id: `${skill.name}_${agent}_${Date.now()}`,
-          name: skill.name,
-          localPath: finalDir,
-          agent: agent, // 记录分发到的 agent
-          sourceUrl: skill.sourceUrl,
-          installedAt: skill.installedAt,
-          updatedAt: new Date().toISOString()
-        });
-        fs.writeFileSync(REGISTRY_FILE, JSON.stringify(currentReg, null, 2));
+        currentReg.push({ id: `${skill.name}_${agent}_${Date.now()}`, name: skill.name, localPath: finalDir, agent, sourceUrl: skill.sourceUrl, installedAt: skill.installedAt, updatedAt: new Date().toISOString() });
+        saveRegistry(currentReg);
       }
     } catch (e) {}
   }
   return true;
 }
 
-// 获取 Agent 配置列表
-function getSupportedAgents() {
-  return AGENT_CONFIGS;
-}
+function getSupportedAgents() { return AGENT_CONFIGS; }
 
 // 挂载
 window.preloadAPI = {
-  getSkillsList,
-  getSupportedAgents,
-  previewSkills,
-  installFromPreview,
-  distributeSkill,
-  cancelPreview,
-  openLocalPath,
-  openUrl,
-  installSkill: (url, paths, onProgress) => {
-    return previewSkills(url, onProgress).then(data => {
-      const allNames = data.skills.map(s => s.name);
-      installFromPreview(data, allNames, paths, url, onProgress);
-      return true;
-    });
-  },
-  uninstallSkill,
-  updateSkill,
-  batchUpdateSkills,
-  batchDeleteSkills,
-  exportSkillsConfig,
-  importSkillsConfig,
-  saveFileDialog,
-  refreshRegistry: () => {
-    ensureRegistry();
-    let registry = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8'));
-    auditAndRepair(registry);
-    return getSkillsList();
-  }
+  getSkillsList, getSupportedAgents, previewSkills, installFromPreview, distributeSkill, cancelPreview,
+  openLocalPath, openUrl, selectSavePath, uninstallSkill, updateSkill, batchUpdateSkills, batchDeleteSkills,
+  exportSkillsConfig, importSkillsConfig, saveFileDialog,
+  refreshRegistry: () => { ensureRegistry(); return getSkillsList(); }
 };
 
