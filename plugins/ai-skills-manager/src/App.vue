@@ -35,6 +35,8 @@ const searchKeyword = ref('')
 const localSearch = ref('')
 const isDark = ref(false)
 const viewMode = ref<'grid' | 'list' | 'grouped'>('grid')
+const selectedAgent = ref('all')
+const agentOptions = ['all', 'Antigravity', 'Claude Code', 'Trae', 'Qoder', 'Qwen Code', 'OpenClaw']
 
 // 分组的折叠状态
 const collapsedGroups = ref<Set<string>>(new Set())
@@ -71,8 +73,18 @@ onMounted(() => {
 
 const filteredSkills = () => {
   let list = skills.value
-  if (searchKeyword.value) { list = list.filter(s => s.name.toLowerCase().includes(searchKeyword.value.toLowerCase()) || s.sourceUrl.toLowerCase().includes(searchKeyword.value.toLowerCase())) }
-  if (localSearch.value) { list = list.filter(s => s.name.toLowerCase().includes(localSearch.value.toLowerCase()) || s.sourceUrl.toLowerCase().includes(localSearch.value.toLowerCase())) }
+  if (selectedAgent.value !== 'all') {
+    list = list.filter(s => getPathAlias(s.localPath) === selectedAgent.value)
+  }
+  const kw = searchKeyword.value.toLowerCase()
+  const lkw = localSearch.value.toLowerCase()
+  
+  if (kw) {
+    list = list.filter(s => s.name.toLowerCase().includes(kw) || s.sourceUrl.toLowerCase().includes(kw))
+  }
+  if (lkw) {
+    list = list.filter(s => s.name.toLowerCase().includes(lkw) || s.sourceUrl.toLowerCase().includes(lkw))
+  }
   return list
 }
 
@@ -431,6 +443,20 @@ const confirmImport = async () => {
                <span v-else>扫描...</span>
             </button>
           </div>
+        </div>
+        <div class="agent-filter-row">
+          <button 
+            v-for="agent in agentOptions" 
+            :key="agent"
+            class="filter-chip"
+            :class="{ active: selectedAgent === agent }"
+            @click="selectedAgent = agent"
+          >
+            {{ agent === 'all' ? '全部项目' : agent }}
+            <span class="count-badge" v-if="selectedAgent === agent || agent === 'all'">
+              {{ agent === 'all' ? skills.length : skills.filter(s => getPathAlias(s.localPath) === agent).length }}
+            </span>
+          </button>
         </div>
       </header>
       
@@ -801,8 +827,8 @@ const confirmImport = async () => {
 .info-row { display: flex; align-items: center; gap: 6px; color: #64748b; font-size: 11px; font-weight: 500; min-width: 0; }
 .skills-container.dark-theme .info-row { color: #94a3b8; }
 .info-row svg { opacity: 0.6; flex-shrink: 0; }
-.info-row .source-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
-.info-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info-row .source-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; text-align: left; }
+.info-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 
 /* External link button */
 .btn-icon-link { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 2px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; opacity: 0.6; }
@@ -911,6 +937,15 @@ const confirmImport = async () => {
 .btn-batch-toggle:hover { border-color: rgba(99,102,241,0.4); color: #4f46e5; background: rgba(99,102,241,0.04); }
 .btn-batch-toggle.active { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.5); color: #4f46e5; }
 .skills-container.dark-theme .btn-batch-toggle { border-color: rgba(51,65,85,0.6); color: #94a3b8; }
+
+.agent-filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.filter-chip { background: transparent; border: 1px solid rgba(226,232,240,0.8); color: #64748b; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+.skills-container.dark-theme .filter-chip { border-color: rgba(51,65,85,0.6); color: #94a3b8; }
+.filter-chip:hover { border-color: rgba(99,102,241,0.4); color: #4f46e5; background: rgba(99,102,241,0.04); }
+.filter-chip.active { background: #6366f1; border-color: #6366f1; color: white; box-shadow: 0 4px 10px rgba(99,102,241,0.2); }
+.count-badge { font-size: 9px; background: rgba(148,163,184,0.15); color: #64748b; padding: 1px 6px; border-radius: 10px; min-width: 14px; text-align: center; font-weight: 800; }
+.skills-container.dark-theme .count-badge { background: rgba(255,255,255,0.1); color: #94a3b8; }
+.filter-chip.active .count-badge { background: white; color: #6366f1; }
 .skills-container.dark-theme .btn-batch-toggle:hover, .skills-container.dark-theme .btn-batch-toggle.active { color: #818cf8; border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.08); }
 
 .batch-select-bar { display: flex; align-items: center; margin-bottom: 8px; padding: 6px 12px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; }
