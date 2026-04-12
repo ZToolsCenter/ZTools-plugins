@@ -58,6 +58,7 @@ const previewData = ref<PreviewData | null>(null)
 const availableSkills = ref<PreviewSkillItem[]>([])
 const selectedSkillNames = ref<string[]>([])
 const previewLoading = ref(false)
+const isAgentsExpanded = ref(false)
 
 const loadSkills = () => {
   if (window.preloadAPI) { skills.value = window.preloadAPI.getSkillsList() }
@@ -109,6 +110,28 @@ const filteredSkills = () => {
       (s.sourceUrl || '').toLowerCase().includes(lkw) ||
       getPathAlias(s.localPath).toLowerCase().includes(lkw)
     )
+  }
+
+  // 3. 优先级排序：名字匹配 > 仓库/平台匹配
+  const searchStr = lkw || kw
+  if (searchStr) {
+    list = [...list].sort((a, b) => {
+      const getScore = (s: Skill) => {
+        let score = 0
+        const name = (s.name || '').toLowerCase()
+        const source = (s.sourceUrl || '').toLowerCase()
+        const agent = getPathAlias(s.localPath).toLowerCase()
+        
+        if (name === searchStr) score += 100 // 精确匹配最高
+        else if (name.startsWith(searchStr)) score += 50 // 前缀匹配
+        else if (name.includes(searchStr)) score += 30 // 名字包含次之
+        
+        if (source.includes(searchStr)) score += 10 // 仓库匹配
+        if (agent.includes(searchStr)) score += 5 // 平台匹配
+        return score
+      }
+      return getScore(b) - getScore(a)
+    })
   }
   
   return list
@@ -479,19 +502,27 @@ const confirmImport = async () => {
             </button>
           </div>
         </div>
-        <div class="agent-filter-row">
-          <button 
-            v-for="agentId in agentOptions" 
-            :key="agentId"
-            class="filter-chip"
-            :class="{ active: selectedAgent === agentId }"
-            @click="selectedAgent = agentId"
-          >
-            {{ agentId === 'all' ? '全部项目' : getAgentNameById(agentId) }}
-            <span class="count-badge" v-if="selectedAgent === agentId || agentId === 'all'">
-              {{ agentId === 'all' ? skills.length : skills.filter(s => getAgentIdByPath(s.localPath) === agentId).length }}
-            </span>
-          </button>
+        <div class="filter-container">
+          <div class="agent-filter-wrapper" :class="{ expanded: isAgentsExpanded }">
+            <div class="agent-filter-row">
+              <button 
+                v-for="agentId in agentOptions" 
+                :key="agentId"
+                class="filter-chip"
+                :class="{ active: selectedAgent === agentId }"
+                @click="selectedAgent = agentId"
+              >
+                {{ agentId === 'all' ? '全部项目' : getAgentNameById(agentId) }}
+                <span class="count-badge" v-if="selectedAgent === agentId || agentId === 'all'">
+                  {{ agentId === 'all' ? skills.length : skills.filter(s => getAgentIdByPath(s.localPath) === agentId).length }}
+                </span>
+              </button>
+            </div>
+            <button class="btn-expand-agents" @click="isAgentsExpanded = !isAgentsExpanded">
+              {{ isAgentsExpanded ? '收起' : '更多' }} 
+              <svg :class="{ active: isAgentsExpanded }" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+          </div>
         </div>
       </header>
       
@@ -984,9 +1015,21 @@ const confirmImport = async () => {
 .btn-batch-toggle.active { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.5); color: #4f46e5; }
 .skills-container.dark-theme .btn-batch-toggle { border-color: rgba(51,65,85,0.6); color: #94a3b8; }
 
-.agent-filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-.filter-chip { background: transparent; border: 1px solid rgba(226,232,240,0.8); color: #64748b; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
-.skills-container.dark-theme .filter-chip { border-color: rgba(51,65,85,0.6); color: #94a3b8; }
+.agent-filter-row { display: flex; align-items: center; gap: 8px 6px; flex-wrap: wrap; }
+.filter-container { margin: 8px 0; border-bottom: 1px solid rgba(226, 232, 240, 0.4); padding-bottom: 12px; }
+.skills-container.dark-theme .filter-container { border-bottom-color: rgba(51, 65, 85, 0.3); }
+
+.agent-filter-wrapper { position: relative; max-height: 28px; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); padding-right: 75px; }
+.agent-filter-wrapper.expanded { max-height: 400px; }
+
+.btn-expand-agents { position: absolute; right: 0; top: 0; height: 26px; display: flex; align-items: center; gap: 4px; background: rgba(226, 232, 240, 0.6); border: 1px solid rgba(226, 232, 240, 0.8); border-radius: 6px; color: #64748b; font-size: 11px; font-weight: 700; cursor: pointer; padding: 0 10px; transition: all 0.2s; z-index: 10; }
+.skills-container.dark-theme .btn-expand-agents { background: rgba(30, 41, 59, 0.8); border-color: rgba(51, 65, 85, 0.6); color: #94a3b8; }
+.btn-expand-agents:hover { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.4); color: #4f46e5; }
+.btn-expand-agents svg { transition: transform 0.3s; }
+.btn-expand-agents svg.active { transform: rotate(180deg); }
+
+.filter-chip { background: transparent; border: 1px solid rgba(226, 232, 240, 0.8); color: #64748b; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; white-space: nowrap; height: 26px; box-sizing: border-box; }
+.skills-container.dark-theme .filter-chip { border-color: rgba(51, 65, 85, 0.6); color: #94a3b8; }
 .filter-chip:hover { border-color: rgba(99,102,241,0.4); color: #4f46e5; background: rgba(99,102,241,0.04); }
 .filter-chip.active { background: #6366f1; border-color: #6366f1; color: white; box-shadow: 0 4px 10px rgba(99,102,241,0.2); }
 .count-badge { font-size: 9px; background: rgba(148,163,184,0.15); color: #64748b; padding: 1px 6px; border-radius: 10px; min-width: 14px; text-align: center; font-weight: 800; }
