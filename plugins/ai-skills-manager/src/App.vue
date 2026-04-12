@@ -962,13 +962,15 @@ const confirmImport = async () => {
 .skills-container.dark-theme .btn-ghost-danger { color: #f87171; border-color: rgba(239,68,68,0.25); }
 
 /* List Mode */
-.glass-card.list { flex-direction: row; align-items: center; padding: 10px 14px; gap: 16px; }
-.glass-card.list .card-top { flex: 0 0 auto; min-width: 200px; }
+.glass-card.list { flex-direction: row; align-items: center; justify-content: flex-start; padding: 10px 14px; gap: 12px; }
+.glass-card.list .card-top { flex: 0 0 360px; min-width: 0; display: flex; align-items: center; justify-content: flex-start; }
 .glass-card.list .card-icon { width: 28px; height: 28px; font-size: 12px; border-radius: 6px; }
-.glass-card.list .card-meta { display: flex; flex-direction: row; align-items: center; gap: 8px; }
-.glass-card.list .card-meta h3 { margin: 0; font-size: 12px; }
-.glass-card.list .card-body { flex-direction: row; align-items: center; gap: 20px; flex: 1; }
-.glass-card.list .card-footer { margin-top: 0; padding-top: 0; border-top: none; gap: 6px; flex: 0 0 auto; width: 80px; }
+.glass-card.list .card-meta { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; overflow: hidden; width: 100%; text-align: left; }
+.glass-card.list .card-meta h3 { margin: 0; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; text-align: left; }
+.glass-card.list .card-body { flex-direction: row; align-items: center; gap: 16px; flex: 1; min-width: 0; }
+.glass-card.list .card-body .info-row { flex: 0 0 120px; min-width: 0; }
+.glass-card.list .card-body .info-row:first-child { flex: 1; }
+.glass-card.list .card-footer { margin-top: 0; padding-top: 0; border-top: none; gap: 6px; flex: 0 0 auto; width: 110px; justify-content: flex-end; }
 .glass-card.list .card-footer button { padding: 5px; flex: none; width: 30px; height: 30px; }
 .glass-card.list .card-footer button span { display: none; }
 
