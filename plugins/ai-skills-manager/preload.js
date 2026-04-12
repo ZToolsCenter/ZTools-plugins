@@ -100,26 +100,12 @@ function parseGitHubUrl(input) {
   };
 }
 
-/**
- * 动态审计并修复技能元数据
- * 策略：基于“已知主仓库”进行反向自动关联
- * 1. 从注册表中提取所有出现过的源地址，建立“主仓库映射库”
- * 2. 扫描所有 Agent 路径，补全那些名字匹配但地址缺失的技能
- */
+// ========== 动态审计并恢复元数据 ==========
 function auditAndRepair(registry) {
   let changed = false;
-  
-  // 1. 建立仓库指纹库 { skillName: fullSourceUrl }
   const repoFingerprints = {};
   
-  // 从当前的注册表中提取已知有效的映射
-  for (const skill of registry) {
-    if (skill.sourceUrl && skill.sourceUrl !== '未注册') {
-      repoFingerprints[skill.name] = skill.sourceUrl;
-    }
-  }
-
-  // 从全机 metadata.json 中进一步收集知识
+  // 1. 扫描所有 Agent 目录收集指纹
   const agents = AGENT_CONFIGS.map(a => a.id);
   for (const agent of agents) {
     try {
@@ -133,7 +119,7 @@ function auditAndRepair(registry) {
           try {
             const m = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
             if (m.source_url && m.source_url !== '未注册') {
-              if (!repoFingerprints[d.name]) repoFingerprints[d.name] = m.source_url;
+              repoFingerprints[d.name.toLowerCase()] = m.source_url;
             }
           } catch(e) {}
         }
@@ -141,39 +127,11 @@ function auditAndRepair(registry) {
     } catch(e) {}
   }
 
-  // 2. 根据收集到的指纹自动修复那些“失联”的技能
+  // 2. 尝试修复注册表中的“未注册”链接
   for (const skill of registry) {
-    const metaPath = path.join(skill.localPath, 'metadata.json');
-    let hasMeta = fs.existsSync(metaPath);
-    
-    // 如果没有源地址，看库里有没有存过它的“老家”
-    if (!skill.sourceUrl || skill.sourceUrl === '未注册') {
-       if (repoFingerprints[skill.name]) {
-         skill.sourceUrl = repoFingerprints[skill.name];
-         changed = true;
-       }
-    }
-
-    // 同步到物理 metadata.json
-    if (skill.sourceUrl && skill.sourceUrl !== '未注册') {
-      let needsWrite = !hasMeta;
-      if (hasMeta) {
-        try {
-          const m = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          if (m.source_url !== skill.sourceUrl) needsWrite = true;
-        } catch(e) { needsWrite = true; }
-      }
-      
-      if (needsWrite) {
-        try {
-          fs.writeFileSync(metaPath, JSON.stringify({
-            name: skill.name,
-            source_url: skill.sourceUrl,
-            installed_at: skill.installedAt || new Date().toISOString(),
-            type: "git"
-          }, null, 2));
-        } catch(e) {}
-      }
+    if ((!skill.sourceUrl || skill.sourceUrl === '未注册') && repoFingerprints[skill.name.toLowerCase()]) {
+      skill.sourceUrl = repoFingerprints[skill.name.toLowerCase()];
+      changed = true;
     }
   }
 
@@ -191,9 +149,6 @@ function getSkillsList() {
   } catch (error) {
     console.error("读取 registry.json 失败:", error);
   }
-
-  // 动态审计
-  auditAndRepair(registry);
 
   const actualSkills = [];
   
@@ -226,8 +181,10 @@ function getSkillsList() {
     } catch(e) {}
   }
 
-  // 扫描所有 Agent 路径
+  // 扫描所有 Agent 路径 (宽松补全模式)
   const agentsToScan = AGENT_CONFIGS.map(a => a.id);
+  const normalize = p => p.toLowerCase().replace(/\\/g, '/');
+
   for (const agent of agentsToScan) {
     try {
       const p = getPathForAgent(agent);
@@ -235,39 +192,43 @@ function getSkillsList() {
       const dirents = fs.readdirSync(p, { withFileTypes: true });
       for (const dirent of dirents) {
         if (dirent.isDirectory()) {
-          const skillPath = path.join(p, dirent.name);
-          const mdPath = path.join(skillPath, 'SKILL.md');
-          const metaPath = path.join(skillPath, 'metadata.json');
-          
-          if (fs.existsSync(mdPath) || fs.existsSync(metaPath)) {
-            if (!actualSkills.some(s => s.localPath === skillPath)) {
-              let sourceUrl = '未注册';
-              let installedAt = fs.statSync(skillPath).birthtime.toISOString();
-              let name = dirent.name;
-              
-              if (fs.existsSync(metaPath)) {
-                try {
-                  const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-                  if (meta.source_url) sourceUrl = meta.source_url;
-                  if (meta.installed_at) installedAt = meta.installed_at;
-                  if (meta.name) name = meta.name;
-                } catch(e) {}
-              }
-              
-              let updatedAt = fs.existsSync(mdPath) 
-                ? fs.statSync(mdPath).mtime.toISOString() 
-                : fs.statSync(skillPath).mtime.toISOString();
+          // 排除隐藏文件夹和以等下划线开头的临时文件夹
+          if (dirent.name.startsWith('.') || dirent.name.startsWith('_')) continue;
 
-              actualSkills.push({
-                id: `local_${agent}_${dirent.name}`,
-                name: name,
-                agent: agent, // 显式记录 agent 标识
-                localPath: skillPath,
-                sourceUrl: sourceUrl,
-                installedAt: installedAt,
-                updatedAt: updatedAt
-              });
+          const skillPath = path.join(p, dirent.name);
+          const normSkillPath = normalize(skillPath);
+
+          // 只要是目录，就尝试作为技能被识别
+          if (!actualSkills.some(s => normalize(s.localPath) === normSkillPath)) {
+            let sourceUrl = '未注册';
+            let installedAt = fs.statSync(skillPath).birthtime.toISOString();
+            let name = dirent.name;
+            
+            const metaPath = path.join(skillPath, 'metadata.json');
+            const mdPath = path.join(skillPath, 'SKILL.md');
+            
+            if (fs.existsSync(metaPath)) {
+              try {
+                const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+                if (meta.source_url) sourceUrl = meta.source_url;
+                if (meta.installed_at) installedAt = meta.installed_at;
+                if (meta.name) name = meta.name;
+              } catch(e) {}
             }
+            
+            let updatedAt = fs.existsSync(mdPath) 
+              ? fs.statSync(mdPath).mtime.toISOString() 
+              : fs.statSync(skillPath).mtime.toISOString();
+
+            actualSkills.push({
+              id: `local_${agent}_${dirent.name.toLowerCase()}`,
+              name: name,
+              agent: agent,
+              localPath: skillPath,
+              sourceUrl: sourceUrl,
+              installedAt: installedAt,
+              updatedAt: updatedAt
+            });
           }
         }
       }
@@ -576,21 +537,29 @@ function updateSkill(skillId, onProgress) {
 }
 
 // ========== 批量更新技能 ==========
+// ========== 批量更新技能 (逐个独立拉取) ==========
 async function batchUpdateSkills(skillIds, onProgress) {
   const results = { success: [], failed: [] };
   const total = skillIds.length;
-  for (let i = 0; i < total; i++) {
-    const id = skillIds[i];
-    if (onProgress) onProgress({ type: 'batch', text: `[批量] 正在更新 (${i + 1}/${total}): ${id}\n` });
-    try {
-      await updateSkill(id, onProgress);
-      results.success.push(id);
-      if (onProgress) onProgress({ type: 'batch', text: `[批量] ✓ ${id} 更新成功\n` });
-    } catch (err) {
-      results.failed.push({ id, error: err.message });
-      if (onProgress) onProgress({ type: 'batch', text: `[批量] ✗ ${id} 更新失败: ${err.message}\n` });
-    }
+  
+  if (onProgress) onProgress({ type: 'batch', text: `[批量] 正在并行处理 ${total} 个技能更新任务...\n` });
+
+  // 使用有限并发并行执行，确保稳定性的同时提速
+  const CONCURRENCY = 2;
+  for (let i = 0; i < total; i += CONCURRENCY) {
+    const chunk = skillIds.slice(i, i + CONCURRENCY);
+    await Promise.all(chunk.map(async (id) => {
+      try {
+        await updateSkill(id, onProgress);
+        results.success.push(id);
+        if (onProgress) onProgress({ type: 'batch', text: `[批量] ✓ ${id} 更新成功\n` });
+      } catch (err) {
+        results.failed.push({ id, error: err.message });
+        if (onProgress) onProgress({ type: 'batch', text: `[批量] ✗ ${id} 失败: ${err.message}\n` });
+      }
+    }));
   }
+  
   return results;
 }
 
@@ -701,31 +670,34 @@ async function importSkillsConfig(configJson, onProgress) {
   const results = { success: [], failed: [], skipped: [] };
   const total = config.repositories.length;
 
-  for (let i = 0; i < total; i++) {
-    const repo = config.repositories[i];
-    if (onProgress) onProgress({ type: 'batch', text: `[导入] (${i + 1}/${total}) 处理仓库: ${repo.url}\n` });
+  const CONCURRENCY = 2;
+  for (let i = 0; i < total; i += CONCURRENCY) {
+    const chunk = config.repositories.slice(i, i + CONCURRENCY);
+    await Promise.all(chunk.map(async (repo) => {
+      if (onProgress) onProgress({ type: 'batch', text: `[导入] 正在处理仓库: ${repo.url}\n` });
 
-    try {
-      const previewData = await previewSkills(repo.url, onProgress);
-      const availableNames = previewData.skills.map(s => s.name);
-      // 只安装配置中指定的 AND 仓库中实际存在的
-      const toInstall = repo.skills.filter(name => availableNames.includes(name));
-      const skippedNames = repo.skills.filter(name => !availableNames.includes(name));
+      try {
+        const previewData = await previewSkills(repo.url, onProgress);
+        const availableNames = previewData.skills.map(s => s.name);
+        // 只安装配置中指定的 AND 仓库中实际存在的
+        const toInstall = repo.skills.filter(name => availableNames.includes(name));
+        const skippedNames = repo.skills.filter(name => !availableNames.includes(name));
 
-      if (toInstall.length > 0) {
-        const targets = repo.targets || ['antigravity'];
-        installFromPreview(previewData, toInstall, targets, repo.url, onProgress);
-        results.success.push(...toInstall.map(n => ({ name: n, repo: repo.url })));
+        if (toInstall.length > 0) {
+          const targets = repo.targets || ['antigravity'];
+          installFromPreview(previewData, toInstall, targets, repo.url, onProgress);
+          results.success.push(...toInstall.map(n => ({ name: n, repo: repo.url })));
+        }
+        if (skippedNames.length > 0) {
+          results.skipped.push(...skippedNames.map(n => ({ name: n, repo: repo.url, reason: '仓库中不存在' })));
+        }
+
+        cancelPreview(previewData.tempDir);
+      } catch (err) {
+        results.failed.push({ repo: repo.url, error: err.message });
+        if (onProgress) onProgress({ type: 'batch', text: `[导入] ✗ ${repo.url} 失败: ${err.message}\n` });
       }
-      if (skippedNames.length > 0) {
-        results.skipped.push(...skippedNames.map(n => ({ name: n, repo: repo.url, reason: '仓库中不存在' })));
-      }
-
-      cancelPreview(previewData.tempDir);
-    } catch (err) {
-      results.failed.push({ repo: repo.url, error: err.message });
-      if (onProgress) onProgress({ type: 'batch', text: `[导入] ✗ ${repo.url} 失败: ${err.message}\n` });
-    }
+    }));
   }
 
   if (config.unmanaged && config.unmanaged.length > 0) {
@@ -834,6 +806,12 @@ window.preloadAPI = {
   batchDeleteSkills,
   exportSkillsConfig,
   importSkillsConfig,
-  saveFileDialog
+  saveFileDialog,
+  refreshRegistry: () => {
+    ensureRegistry();
+    let registry = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8'));
+    auditAndRepair(registry);
+    return getSkillsList();
+  }
 };
 
