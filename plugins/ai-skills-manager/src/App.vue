@@ -23,6 +23,7 @@ declare global {
       exportSkillsConfig: () => string
       importSkillsConfig: (configJson: string, onProgress?: (msg: any) => void) => Promise<{ success: any[]; failed: any[]; skipped: any[] }>
       saveFileDialog: (content: string, defaultName: string) => string
+      refreshRegistry: () => Promise<Skill[]>
     }
     ztools: any
   }
@@ -68,8 +69,10 @@ const loadSkills = () => {
 onMounted(async () => {
   if (window.preloadAPI) {
     supportedAgents.value = await window.preloadAPI.getSupportedAgents()
+    skills.value = await window.preloadAPI.refreshRegistry()
+  } else {
+    loadSkills()
   }
-  loadSkills()
   if (window.ztools) {
     isDark.value = window.ztools.isDarkColors()
     window.ztools.setSubInput((text: string) => { 
@@ -77,6 +80,7 @@ onMounted(async () => {
     }, '输入 GitHub 仓库地址进行安装...', true)
     
     window.ztools.onPluginEnter((param: any) => { 
+      refreshAll()
       if (param.type === 'regex' && param.code === 'quick-install') { 
         installUrl.value = param.payload
         handleInstall() 
@@ -161,9 +165,11 @@ const handleInstall = async () => {
 
 const getAgentIdByPath = (pathStr?: string) => {
   if (!pathStr) return ''
+  // 统一转为小写且使用正斜杠进行比对
   const lp = pathStr.toLowerCase().replace(/\\/g, '/')
   for (const agent of supportedAgents.value) {
-    if (lp.includes(agent.path.toLowerCase())) return agent.id
+    const agentPath = agent.path.toLowerCase().replace(/\\/g, '/')
+    if (lp.includes(agentPath)) return agent.id
   }
   return ''
 }
@@ -312,6 +318,19 @@ const confirmDistribute = async () => {
     }
   } catch (e: any) { alert('同步失败: ' + e.message) }
   finally { loading.value = false }
+}
+
+const refreshAll = async () => {
+  if (window.preloadAPI) {
+    loading.value = true
+    try {
+      skills.value = await window.preloadAPI.refreshRegistry()
+    } finally {
+      loading.value = false
+    }
+  } else {
+    loadSkills()
+  }
 }
 
 const getAgentNameById = (id: string) => {
@@ -498,6 +517,9 @@ const confirmImport = async () => {
                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                </button>
             </div>
+            <button class="btn-refresh" @click="refreshAll" :disabled="loading" title="全量审计并同步全机 AI 技能">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spin-anim': loading }"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            </button>
           </div>
         </div>
 
@@ -1181,4 +1203,11 @@ const confirmImport = async () => {
 .import-file-actions { display: flex; justify-content: flex-start; }
 
 .btn-batch-toggle { margin-right: 4px; }
+.btn-refresh { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(226,232,240,0.8); background: white; color: #64748b; cursor: pointer; transition: all 0.2s; }
+.btn-refresh:hover:not(:disabled) { border-color: rgba(99,102,241,0.5); color: #6366f1; background: rgba(99,102,241,0.03); }
+.skills-container.dark-theme .btn-refresh { background: rgba(30,41,59,0.5); border-color: rgba(51,65,85,0.6); color: #94a3b8; }
+.skills-container.dark-theme .btn-refresh:hover:not(:disabled) { border-color: rgba(99,102,241,0.5); color: #818cf8; background: rgba(99,102,241,0.1); }
+
+@keyframes spin-cw { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.spin-anim { animation: spin-cw 0.8s linear infinite; }
 </style>
