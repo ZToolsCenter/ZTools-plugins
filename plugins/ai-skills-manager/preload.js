@@ -532,6 +532,39 @@ function updateSkill(skillId, onProgress) {
   });
 }
 
+// ========== 批量更新技能 ==========
+async function batchUpdateSkills(skillIds, onProgress) {
+  const results = { success: [], failed: [] };
+  const total = skillIds.length;
+  for (let i = 0; i < total; i++) {
+    const id = skillIds[i];
+    if (onProgress) onProgress({ type: 'batch', text: `[批量] 正在更新 (${i + 1}/${total}): ${id}\n` });
+    try {
+      await updateSkill(id, onProgress);
+      results.success.push(id);
+      if (onProgress) onProgress({ type: 'batch', text: `[批量] ✓ ${id} 更新成功\n` });
+    } catch (err) {
+      results.failed.push({ id, error: err.message });
+      if (onProgress) onProgress({ type: 'batch', text: `[批量] ✗ ${id} 更新失败: ${err.message}\n` });
+    }
+  }
+  return results;
+}
+
+// ========== 批量删除技能 ==========
+function batchDeleteSkills(skillIds) {
+  const results = { success: [], failed: [] };
+  for (const id of skillIds) {
+    try {
+      uninstallSkill(id);
+      results.success.push(id);
+    } catch (err) {
+      results.failed.push({ id, error: err.message });
+    }
+  }
+  return results;
+}
+
 // ========== Shell 辅助 ==========
 function openLocalPath(localPath) {
   if (!localPath) return;
@@ -569,6 +602,8 @@ window.preloadAPI = {
     });
   },
   uninstallSkill,
-  updateSkill
+  updateSkill,
+  batchUpdateSkills,
+  batchDeleteSkills
 };
 
