@@ -23,6 +23,7 @@ declare global {
       exportSkillsConfig: () => string
       importSkillsConfig: (configJson: string, onProgress?: (msg: any) => void) => Promise<{ success: any[]; failed: any[]; skipped: any[] }>
       saveFileDialog: (content: string, defaultName: string) => string
+      selectSavePath: (defaultName?: string) => string | null
       refreshRegistry: () => Promise<Skill[]>
     }
     ztools: any
@@ -428,19 +429,19 @@ const batchDelete = async () => {
   finally { loading.value = false }
 }
 
-// === 导出/导入配置 ===
 const showImportModal = ref(false)
 const importConfigText = ref('')
 const importFileRef = ref<HTMLInputElement | null>(null)
-
-const handleExport = () => {
+const handleExport = async () => {
   if (!window.preloadAPI) return
-  try {
-    const configJson = window.preloadAPI.exportSkillsConfig()
-    const savedPath = window.preloadAPI.saveFileDialog(configJson, 'skills-config.json')
-    if (window.ztools) window.ztools.showNotification('配置已导出到: ' + savedPath)
-    else alert('配置已导出到: ' + savedPath)
-  } catch (e: any) { alert('导出失败: ' + e.message) }
+  const path = await window.preloadAPI.selectSavePath('skills-hub-backup.json')
+  if (path) {
+    try {
+      const configJson = window.preloadAPI.exportSkillsConfig()
+      const savedPath = window.preloadAPI.saveFileDialog(configJson, path)
+      if (window.ztools) window.ztools.showNotification('配置已导出到: ' + savedPath)
+    } catch (e: any) { alert('导出失败: ' + e.message) }
+  }
 }
 
 const triggerImportFile = () => {
@@ -1025,6 +1026,7 @@ const confirmImport = async () => {
 .custom-input-wrap.visible { max-height: 50px; opacity: 1; overflow: visible; }
 .custom-input-wrap input { width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.4); background: rgba(255,255,255,0.5); outline: none; font-size: 12px; box-sizing: border-box; }
 .skills-container.dark-theme .custom-input-wrap input { background: rgba(15,23,42,0.5); color: white; }
+.path-hint { font-size: 10px; color: #94a3b8; margin-top: 6px; line-height: 1.4; }
 
 .modal-actions-sleek, .modal-footer-sleek { flex-shrink: 0; display: flex; justify-content: flex-end; gap: 14px; padding-top: 10px; border-top: 1px solid rgba(226, 232, 240, 0.5); }
 .skills-container.dark-theme .modal-actions-sleek, .skills-container.dark-theme .modal-footer-sleek { border-top-color: rgba(51, 65, 85, 0.4); }
@@ -1143,7 +1145,7 @@ const confirmImport = async () => {
 
 .repo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #6366f1, #0ea5e9); border-radius: 8px; display: flex; justify-content: center; align-items: center; color: white; flex-shrink: 0; }
 
-.repo-header-info { display: flex; flex-direction: column; gap: 2px; }
+.repo-header-info { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; }
 .repo-header-info strong { font-size: 13px; font-weight: 700; color: #1e293b; letter-spacing: -0.2px; }
 .skills-container.dark-theme .repo-header-info strong { color: #f1f5f9; }
 .repo-count { font-size: 11px; color: #94a3b8; font-weight: 500; }
