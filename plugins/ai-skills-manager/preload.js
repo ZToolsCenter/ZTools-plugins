@@ -12,18 +12,60 @@ const SKILLS_DIR = process.env.USERPROFILE
 
 const REGISTRY_FILE = path.join(SKILLS_DIR, 'registry.json');
 
+const AGENT_CONFIGS = [
+  { id: 'antigravity', name: 'Antigravity', path: '.gemini/antigravity/skills' },
+  { id: 'claudecode', name: 'Claude Code', path: '.claude/skills' },
+  { id: 'trae', name: 'Trae', path: '.trae/skills' },
+  { id: 'traecn', name: 'Trae CN', path: '.trae/skills' },
+  { id: 'openclaw', name: 'OpenClaw', path: 'skills' },
+  { id: 'mcpjam', name: 'MCPJam', path: '.mcpjam/skills' },
+  { id: 'mistralvibe', name: 'Mistral Vibe', path: '.vibe/skills' },
+  { id: 'mux', name: 'Mux', path: '.mux/skills' },
+  { id: 'openhands', name: 'OpenHands', path: '.openhands/skills' },
+  { id: 'pi', name: 'Pi', path: '.pi/skills' },
+  { id: 'qoder', name: 'Qoder', path: '.qoder/skills' },
+  { id: 'qwencode', name: 'Qwen Code', path: '.qwen/skills' },
+  { id: 'roocode', name: 'Roo Code', path: '.roo/skills' },
+  { id: 'windsurf', name: 'Windsurf', path: '.windsurf/skills' },
+  { id: 'zencoder', name: 'Zencoder', path: '.zencoder/skills' },
+  { id: 'neovate', name: 'Neovate', path: '.neovate/skills' },
+  { id: 'pochi', name: 'Pochi', path: '.pochi/skills' },
+  { id: 'adal', name: 'AdaL', path: '.adal/skills' },
+  { id: 'crush', name: 'Crush', path: '.crush/skills' },
+  { id: 'droid', name: 'Droid', path: '.factory/skills' },
+  { id: 'goose', name: 'Goose', path: '.goose/skills' },
+  { id: 'junie', name: 'Junie', path: '.junie/skills' },
+  { id: 'iflow', name: 'iFlow CLI', path: '.iflow/skills' },
+  { id: 'kilocode', name: 'Kilo Code', path: '.kilocode/skills' },
+  { id: 'kiro', name: 'Kiro CLI', path: '.kiro/skills' },
+  { id: 'kode', name: 'Kode', path: '.kode/skills' },
+  { id: 'augment', name: 'Augment', path: '.augment/skills' },
+  { id: 'ibm_bob', name: 'IBM Bob', path: '.bob/skills' },
+  { id: 'codebuddy', name: 'CodeBuddy', path: '.codebuddy/skills' },
+  { id: 'commandcode', name: 'Command Code', path: '.commandcode/skills' },
+  { id: 'continue', name: 'Continue', path: '.continue/skills' },
+  { id: 'cortexcode', name: 'Cortex Code', path: '.cortex/skills' },
+  { id: 'amp', name: 'Amp', path: '.config/agents/skills' },
+  { id: 'cline', name: 'Cline', path: '.config/agents/skills' },
+  { id: 'codex', name: 'Codex', path: '.codex/skills' },
+  { id: 'cursor', name: 'Cursor', path: '.cursor/skills' },
+  { id: 'deepagents', name: 'Deep Agents', path: '.deep-agents/skills' },
+  { id: 'firebender', name: 'Firebender', path: '.firebender/skills' },
+  { id: 'geminicli', name: 'Gemini CLI', path: '.gemini/skills' },
+  { id: 'copilot', name: 'GitHub Copilot', path: '.copilot/skills' },
+  { id: 'kimicode', name: 'Kimi Code CLI', path: '.kimi/skills' },
+  { id: 'opencode', name: 'OpenCode', path: '.config/opencode/skills' },
+  { id: 'warp', name: 'Warp', path: '.warp/skills' }
+];
+
 // 解析多 Agent 框架路径
-function getPathForAgent(agent) {
+function getPathForAgent(agentId) {
   const home = process.env.USERPROFILE || process.env.HOME || '/';
-  switch (agent) {
-    case 'antigravity': return path.join(home, '.gemini', 'antigravity', 'skills');
-    case 'claudecode': return path.join(home, '.claude', 'skills');
-    case 'openclaw': return path.join(home, 'skills');
-    case 'qoder': return path.join(home, '.qoder', 'skills');
-    case 'qwencode': return path.join(home, '.qwen', 'skills');
-    case 'trae': return path.join(home, '.trae', 'skills');
-    default: return agent;
+  const conf = AGENT_CONFIGS.find(a => a.id === agentId);
+  if (conf) {
+    return path.join(home, ...conf.path.split('/'));
   }
+  return agentId;
 }
 
 // 确保目录和文件存在
@@ -78,7 +120,7 @@ function auditAndRepair(registry) {
   }
 
   // 从全机 metadata.json 中进一步收集知识
-  const agents = ['antigravity', 'claudecode', 'openclaw', 'qoder', 'qwencode', 'trae'];
+  const agents = AGENT_CONFIGS.map(a => a.id);
   for (const agent of agents) {
     try {
       const p = getPathForAgent(agent);
@@ -184,8 +226,8 @@ function getSkillsList() {
     } catch(e) {}
   }
 
-  // 扫描常见 Agent 路径 (Antigravity, Claude Code, etc.)
-  const agentsToScan = ['antigravity', 'claudecode', 'openclaw', 'qoder', 'qwencode', 'trae'];
+  // 扫描所有 Agent 路径
+  const agentsToScan = AGENT_CONFIGS.map(a => a.id);
   for (const agent of agentsToScan) {
     try {
       const p = getPathForAgent(agent);
@@ -219,6 +261,7 @@ function getSkillsList() {
               actualSkills.push({
                 id: `local_${agent}_${dirent.name}`,
                 name: name,
+                agent: agent, // 显式记录 agent 标识
                 localPath: skillPath,
                 sourceUrl: sourceUrl,
                 installedAt: installedAt,
@@ -589,30 +632,19 @@ function openUrl(url) {
 // ========== 导出技能配置（不含源文件） ==========
 function exportSkillsConfig() {
   const allSkills = getSkillsList();
-  const agentMap = {
-    '.gemini/antigravity/skills': 'antigravity',
-    '.gemini\\\\antigravity\\\\skills': 'antigravity',
-    '.claude/skills': 'claudecode',
-    '.claude\\\\skills': 'claudecode',
-    '.qoder/skills': 'qoder',
-    '.qoder\\\\skills': 'qoder',
-    '.qwen/skills': 'qwencode',
-    '.qwen\\\\skills': 'qwencode',
-    '.trae/skills': 'trae',
-    '.trae\\\\skills': 'trae',
-    '/skills': 'openclaw',
-    '\\\\skills': 'openclaw'
-  };
 
   function detectAgent(localPath) {
     if (!localPath) return 'antigravity';
-    const lp = localPath.toLowerCase().replace(/\\\\/g, '/');
-    if (lp.includes('.gemini/antigravity/skills')) return 'antigravity';
-    if (lp.includes('.claude/skills')) return 'claudecode';
-    if (lp.includes('.qoder/skills')) return 'qoder';
-    if (lp.includes('.qwen/skills')) return 'qwencode';
-    if (lp.includes('.trae/skills')) return 'trae';
-    if (lp.endsWith('/skills/' + path.basename(localPath))) return 'openclaw';
+    const lp = localPath.toLowerCase().replace(/\\/g, '/');
+    
+    // 优先匹配具体配置的路径
+    for (const agent of AGENT_CONFIGS) {
+      if (lp.includes(agent.path.toLowerCase())) return agent.id;
+    }
+    
+    // 兜底逻辑：如果包含 /skills 且没有具体 ID 匹配，视作 OpenClaw
+    if (lp.endsWith('/skills') || lp.includes('/skills/')) return 'openclaw';
+    
     return 'antigravity';
   }
 
@@ -762,6 +794,7 @@ function distributeSkill(skillId, targetAgents) {
           id: `${skill.name}_${agent}_${Date.now()}`,
           name: skill.name,
           localPath: finalDir,
+          agent: agent, // 记录分发到的 agent
           sourceUrl: skill.sourceUrl,
           installedAt: skill.installedAt,
           updatedAt: new Date().toISOString()
@@ -773,9 +806,15 @@ function distributeSkill(skillId, targetAgents) {
   return true;
 }
 
+// 获取 Agent 配置列表
+function getSupportedAgents() {
+  return AGENT_CONFIGS;
+}
+
 // 挂载
 window.preloadAPI = {
   getSkillsList,
+  getSupportedAgents,
   previewSkills,
   installFromPreview,
   distributeSkill,
