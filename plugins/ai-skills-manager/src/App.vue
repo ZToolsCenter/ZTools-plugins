@@ -18,6 +18,9 @@ declare global {
       updateSkill: (id: string, onProgress?: (msg: any) => void) => Promise<boolean>
       batchUpdateSkills: (ids: string[], onProgress?: (msg: any) => void) => Promise<{ success: string[]; failed: { id: string; error: string }[] }>
       batchDeleteSkills: (ids: string[]) => { success: string[]; failed: { id: string; error: string }[] }
+      exportSkillsConfig: () => string
+      importSkillsConfig: (configJson: string, onProgress?: (msg: any) => void) => Promise<{ success: any[]; failed: any[]; skipped: any[] }>
+      saveFileDialog: (content: string, defaultName: string) => string
     }
     ztools: any
   }
@@ -30,7 +33,10 @@ const installUrl = ref('')
 const searchKeyword = ref('')
 const localSearch = ref('')
 const isDark = ref(false)
-const viewMode = ref<'grid' | 'list'>('grid')
+const viewMode = ref<'grid' | 'list' | 'grouped'>('grid')
+
+// 分组的折叠状态
+const collapsedGroups = ref<Set<string>>(new Set())
 
 // 批量操作状态
 const batchMode = ref(false)
@@ -118,9 +124,70 @@ const openLocalPath = (localPath: string) => {
 
 const shortUrl = (url: string) => {
   if (!url || url === '本地/未托管') return url
-  // https://github.com/user/repo/tree/master/path → user/repo
   const m = url.match(/github\.com\/([^/]+\/[^/]+)/)
   return m ? m[1] : url.replace(/^https?:\/\//, '').substring(0, 30)
+}
+
+// 提取仓库的分组标识（user/repo）
+const getRepoKey = (url: string) => {
+  if (!url || url === '本地/未托管') return '本地/未托管'
+  const m = url.match(/github\.com\/([^/]+\/[^/]+)/)
+  return m ? m[1] : url
+}
+
+interface SkillGroup { repoKey: string; repoUrl: string; skills: Skill[] }
+
+const groupedSkills = (): SkillGroup[] => {
+  const list = filteredSkills()
+  const map = new Map<string, SkillGroup>()
+  for (const s of list) {
+    const key = getRepoKey(s.sourceUrl)
+    if (!map.has(key)) {
+      // 从 sourceUrl 还原仓库地址（去掉 /tree/xxx 子路径）
+      let repoUrl = ''
+      if (key !== '本地/未托管') {
+        const rm = s.sourceUrl.match(/(https:\/\/github\.com\/[^/]+\/[^/]+)/)
+        repoUrl = rm ? rm[1] : s.sourceUrl
+      }
+      map.set(key, { repoKey: key, repoUrl, skills: [] })
+    }
+    map.get(key)!.skills.push(s)
+  }
+  // 有源地址的仓库排前，本地未托管排后
+  const arr = Array.from(map.values())
+  arr.sort((a, b) => {
+    if (a.repoKey === '本地/未托管') return 1
+    if (b.repoKey === '本地/未托管') return -1
+    return b.skills.length - a.skills.length
+  })
+  return arr
+}
+
+const toggleGroupCollapse = (key: string) => {
+  const s = new Set(collapsedGroups.value)
+  if (s.has(key)) s.delete(key); else s.add(key)
+  collapsedGroups.value = s
+}
+
+const batchUpdateGroup = async (group: SkillGroup) => {
+  const updatableIds = group.skills.filter(s => s.sourceUrl !== '本地/未托管').map(s => s.id)
+  if (updatableIds.length === 0) return
+  batchProcessing.value = true
+  loading.value = true
+  progressLogs.value = []
+  try {
+    if (window.preloadAPI) {
+      const results = await window.preloadAPI.batchUpdateSkills(updatableIds, (msg: any) => {
+        const c = msg.text.replace(/[\u001b\x1b]\[[0-9;?]*[A-Za-z]/gi, '').trim()
+        if (c) progressLogs.value.push(c)
+      })
+      const summary = `仓库 ${group.repoKey} 更新: ${results.success.length} 成功, ${results.failed.length} 失败`
+      if (window.ztools) window.ztools.showNotification(summary)
+      else alert(summary)
+      loadSkills()
+    }
+  } catch (e: any) { alert('更新异常: ' + e.message) }
+  finally { loading.value = false; batchProcessing.value = false }
 }
 
 const confirmInstall = async () => {
@@ -233,6 +300,54 @@ const batchDelete = async () => {
   } catch (e: any) { alert('批量卸载异常: ' + e.message) }
   finally { loading.value = false }
 }
+
+// === 导出/导入配置 ===
+const showImportModal = ref(false)
+const importConfigText = ref('')
+const importFileRef = ref<HTMLInputElement | null>(null)
+
+const handleExport = () => {
+  if (!window.preloadAPI) return
+  try {
+    const configJson = window.preloadAPI.exportSkillsConfig()
+    const savedPath = window.preloadAPI.saveFileDialog(configJson, 'skills-config.json')
+    if (window.ztools) window.ztools.showNotification('配置已导出到: ' + savedPath)
+    else alert('配置已导出到: ' + savedPath)
+  } catch (e: any) { alert('导出失败: ' + e.message) }
+}
+
+const triggerImportFile = () => {
+  importConfigText.value = ''
+  showImportModal.value = true
+}
+
+const onImportFileChange = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+  const reader = new FileReader()
+  reader.onload = () => { importConfigText.value = reader.result as string }
+  reader.readAsText(input.files[0])
+}
+
+const confirmImport = async () => {
+  if (!importConfigText.value.trim()) return
+  showImportModal.value = false
+  loading.value = true
+  progressLogs.value = []
+  try {
+    if (window.preloadAPI) {
+      const results = await window.preloadAPI.importSkillsConfig(importConfigText.value, (msg: any) => {
+        const c = msg.text.replace(/[\u001b\x1b]\[[0-9;?]*[A-Za-z]/gi, '').trim()
+        if (c) progressLogs.value.push(c)
+      })
+      const summary = `导入完成: ${results.success.length} 成功, ${results.failed.length} 失败, ${results.skipped.length} 跳过`
+      if (window.ztools) window.ztools.showNotification(summary)
+      else alert(summary)
+      loadSkills()
+    }
+  } catch (e: any) { alert('导入失败: ' + e.message) }
+  finally { loading.value = false; importConfigText.value = '' }
+}
 </script>
 
 <template>
@@ -256,12 +371,23 @@ const batchDelete = async () => {
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
               <span>批量</span>
             </button>
+            <button class="btn-batch-toggle" @click="handleExport" title="导出配置">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>导出</span>
+            </button>
+            <button class="btn-batch-toggle" @click="triggerImportFile" title="导入配置">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>导入</span>
+            </button>
             <div class="view-toggle">
                <button :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="卡片视图">
                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                </button>
                <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="列表视图">
                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+               </button>
+               <button :class="{ active: viewMode === 'grouped' }" @click="viewMode = 'grouped'" title="按仓库分组">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                </button>
             </div>
           </div>
@@ -311,7 +437,7 @@ const batchDelete = async () => {
         </div>
       </transition>
 
-      <div :class="viewMode === 'grid' ? 'grid-layout' : 'list-layout'">
+      <div v-if="viewMode !== 'grouped'" :class="viewMode === 'grid' ? 'grid-layout' : 'list-layout'">
         <div v-for="skill in filteredSkills()" :key="skill.id" class="glass-card" :class="[viewMode, { 'batch-selected': batchMode && batchSelected.includes(skill.id) }]" @click="batchMode ? toggleBatchItem(skill.id) : undefined">
           <div class="card-top">
             <span v-if="batchMode" class="batch-checkbox" :class="{ checked: batchSelected.includes(skill.id) }" @click.stop="toggleBatchItem(skill.id)"></span>
@@ -356,6 +482,70 @@ const batchDelete = async () => {
         </div>
 
         <div v-if="filteredSkills().length === 0" class="empty-state glass-card">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          <p>暂无已装载的技能组件</p>
+        </div>
+      </div>
+
+      <!-- 分组视图 -->
+      <div v-if="viewMode === 'grouped'" class="grouped-layout">
+        <div v-for="group in groupedSkills()" :key="group.repoKey" class="repo-group">
+          <div class="repo-group-header" @click="toggleGroupCollapse(group.repoKey)">
+            <div class="repo-header-left">
+              <span class="collapse-arrow" :class="{ collapsed: collapsedGroups.has(group.repoKey) }">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </span>
+              <div class="repo-icon">
+                <svg v-if="group.repoKey !== '本地/未托管'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              </div>
+              <div class="repo-header-info">
+                <strong>{{ group.repoKey }}</strong>
+                <span class="repo-count">{{ group.skills.length }} 个技能</span>
+              </div>
+            </div>
+            <div class="repo-header-right">
+              <button v-if="group.repoUrl" class="btn-icon-link repo-link-btn" @click.stop="openSourceUrl(group.repoUrl)" title="打开仓库">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+              </button>
+              <button v-if="group.repoUrl" class="btn-group-update" @click.stop="batchUpdateGroup(group)" :disabled="loading" title="更新该仓库全部技能">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                整组更新
+              </button>
+            </div>
+          </div>
+          <transition name="group-collapse">
+            <div v-show="!collapsedGroups.has(group.repoKey)" class="repo-group-body">
+              <div class="group-children-list">
+                <div v-for="skill in group.skills" :key="skill.id" class="group-child-card">
+                  <div class="child-left">
+                    <div class="child-icon">{{ skill.name.charAt(0).toUpperCase() }}</div>
+                    <div class="child-info">
+                      <strong>{{ skill.name }}</strong>
+                      <span class="child-badges">
+                        <span class="badge-tag small">{{ getPathAlias(skill.localPath) }}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div class="child-right">
+                    <span class="child-date">{{ new Date(skill.updatedAt).toLocaleDateString() }}</span>
+                    <button class="btn-icon-sm" @click="openLocalPath(skill.localPath)" title="打开目录">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    </button>
+                    <button class="btn-icon-sm primary" @click="handleUpdate(skill.id)" :disabled="loading" title="更新">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    </button>
+                    <button class="btn-icon-sm danger" @click="handleDelete(skill.id)" :disabled="loading" title="卸载">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <div v-if="groupedSkills().length === 0" class="empty-state glass-card">
           <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
           <p>暂无已装载的技能组件</p>
         </div>
@@ -435,6 +625,51 @@ const batchDelete = async () => {
             <button class="btn-cancel-glass" @click="cancelInstall">取消</button>
             <button class="btn-glow" @click="confirmInstall" :disabled="selectedSkillNames.length === 0 || (selectedPaths.length === 0 && (!enableCustomPath || !customPathVal))">
               安装 {{ selectedSkillNames.length }} 项
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+    <!-- 导入配置模态框 -->
+    <transition name="modal-scale">
+      <div v-if="showImportModal" class="glass-modal-overlay">
+        <div class="glass-modal large">
+          <div class="modal-header-sleek">
+            <h3>导入技能配置</h3>
+            <p>粘贴 JSON 配置内容或选择文件以批量同步技能</p>
+          </div>
+          
+          <div class="modal-body-scroller">
+            <div class="import-area">
+              <textarea 
+                v-model="importConfigText" 
+                class="import-textarea" 
+                placeholder='在此粘贴 {"version": 1, "repositories": [...] } 格式的配置'
+              ></textarea>
+              <div class="import-file-actions">
+                <input 
+                  type="file" 
+                  ref="importFileRef" 
+                  style="display: none" 
+                  accept=".json" 
+                  @change="onImportFileChange"
+                />
+                <button class="btn-ghost-primary" @click="importFileRef?.click()">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                   选择 JSON 文件
+                </button>
+              </div>
+            </div>
+            
+            <div v-if="importConfigText" class="import-preview-info">
+               <p>⚠️ 注意：导入将根据配置中的仓库地址重新从 GitHub 克隆并安装。此过程可能因网络状况需要一些时间。</p>
+            </div>
+          </div>
+
+          <div class="modal-actions-sleek">
+            <button class="btn-cancel-glass" @click="showImportModal = false">取消</button>
+            <button class="btn-glow" @click="confirmImport" :disabled="!importConfigText.trim()">
+              确认导入并同步
             </button>
           </div>
         </div>
@@ -653,4 +888,86 @@ const batchDelete = async () => {
 
 .batch-bar-enter-active, .batch-bar-leave-active { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
 .batch-bar-enter-from, .batch-bar-leave-to { opacity: 0; transform: translateX(-50%) translateY(20px); }
+
+/* Grouped View */
+.grouped-layout { display: flex; flex-direction: column; gap: 12px; }
+
+.repo-group { background: rgba(255,255,255,0.6); backdrop-filter: blur(16px); border: 1px solid rgba(226,232,240,0.7); border-radius: 12px; overflow: hidden; transition: all 0.25s; }
+.repo-group:hover { border-color: rgba(99,102,241,0.2); }
+.skills-container.dark-theme .repo-group { background: rgba(30,41,59,0.4); border-color: rgba(51,65,85,0.5); }
+.skills-container.dark-theme .repo-group:hover { border-color: rgba(99,102,241,0.3); }
+
+.repo-group-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; transition: background 0.15s; }
+.repo-group-header:hover { background: rgba(99,102,241,0.03); }
+.skills-container.dark-theme .repo-group-header:hover { background: rgba(99,102,241,0.05); }
+
+.repo-header-left { display: flex; align-items: center; gap: 10px; }
+
+.collapse-arrow { display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); }
+.collapse-arrow.collapsed { transform: rotate(-90deg); }
+
+.repo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #6366f1, #0ea5e9); border-radius: 8px; display: flex; justify-content: center; align-items: center; color: white; flex-shrink: 0; }
+
+.repo-header-info { display: flex; flex-direction: column; gap: 2px; }
+.repo-header-info strong { font-size: 13px; font-weight: 700; color: #1e293b; letter-spacing: -0.2px; }
+.skills-container.dark-theme .repo-header-info strong { color: #f1f5f9; }
+.repo-count { font-size: 11px; color: #94a3b8; font-weight: 500; }
+
+.repo-header-right { display: flex; align-items: center; gap: 8px; }
+.repo-link-btn { opacity: 0.7; }
+.repo-link-btn:hover { opacity: 1; }
+
+.btn-group-update { display: flex; align-items: center; gap: 5px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); color: #4f46e5; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
+.btn-group-update:hover:not(:disabled) { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.5); }
+.btn-group-update:disabled { opacity: 0.5; cursor: not-allowed; }
+.skills-container.dark-theme .btn-group-update { color: #818cf8; background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.3); }
+
+.repo-group-body { border-top: 1px solid rgba(226,232,240,0.5); }
+.skills-container.dark-theme .repo-group-body { border-color: rgba(51,65,85,0.4); }
+
+.group-children-list { padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+
+.group-child-card { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 8px; transition: background 0.15s; }
+.group-child-card:hover { background: rgba(99,102,241,0.03); }
+.skills-container.dark-theme .group-child-card:hover { background: rgba(99,102,241,0.05); }
+
+.child-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.child-icon { width: 26px; height: 26px; background: linear-gradient(135deg, #334155, #475569); color: white; border-radius: 6px; display: flex; justify-content: center; align-items: center; font-size: 11px; font-weight: 800; text-transform: uppercase; flex-shrink: 0; }
+.skills-container.dark-theme .child-icon { background: linear-gradient(135deg, #475569, #64748b); }
+.child-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.child-info strong { font-size: 12px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skills-container.dark-theme .child-info strong { color: #e2e8f0; }
+.child-badges { display: flex; gap: 4px; }
+.badge-tag.small { font-size: 9px; padding: 1px 5px; }
+
+.child-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.child-date { font-size: 10px; color: #94a3b8; font-weight: 500; white-space: nowrap; }
+
+.btn-icon-sm { width: 26px; height: 26px; border-radius: 5px; border: 1px solid rgba(226,232,240,0.6); background: transparent; color: #94a3b8; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+.btn-icon-sm:hover { color: #64748b; border-color: rgba(148,163,184,0.5); background: rgba(148,163,184,0.06); }
+.btn-icon-sm.primary { border-color: rgba(99,102,241,0.25); color: #818cf8; }
+.btn-icon-sm.primary:hover { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.06); color: #6366f1; }
+.btn-icon-sm.danger { border-color: rgba(239,68,68,0.25); color: #f87171; }
+.btn-icon-sm.danger:hover { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.06); color: #ef4444; }
+.btn-icon-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+.skills-container.dark-theme .btn-icon-sm { border-color: rgba(51,65,85,0.5); }
+
+.group-collapse-enter-active, .group-collapse-leave-active { transition: all 0.25s cubic-bezier(0.4,0,0.2,1); overflow: hidden; }
+.group-collapse-enter-from, .group-collapse-leave-to { opacity: 0; max-height: 0; }
+.group-collapse-enter-to, .group-collapse-leave-from { opacity: 1; max-height: 2000px; }
+
+/* Import Modal Specific */
+.glass-modal.large { width: 600px; }
+.import-area { display: flex; flex-direction: column; gap: 12px; }
+.import-textarea { width: 100%; height: 200px; padding: 12px; border-radius: 10px; background: rgba(248,250,252,0.5); border: 1px solid rgba(226,232,240,0.8); font-family: 'Consolas', monospace; font-size: 11px; resize: vertical; outline: none; transition: all 0.2s; }
+.skills-container.dark-theme .import-textarea { background: rgba(15,23,42,0.4); border-color: rgba(51,65,85,0.6); color: #cbd5e1; }
+.import-textarea:focus { border-color: rgba(99,102,241,0.5); background: rgba(255,255,255,0.7); shadow: 0 0 0 3px rgba(99,102,241,0.08); }
+.skills-container.dark-theme .import-textarea:focus { background: rgba(30,41,59,0.5); }
+
+.import-preview-info { margin-top: 14px; padding: 10px; background: rgba(245,158,11,0.08); border-radius: 8px; border: 1px solid rgba(245,158,11,0.2); }
+.import-preview-info p { color: #d97706; font-size: 11px; font-weight: 600; text-align: left; }
+
+.import-file-actions { display: flex; justify-content: flex-start; }
+
+.btn-batch-toggle { margin-right: 4px; }
 </style>

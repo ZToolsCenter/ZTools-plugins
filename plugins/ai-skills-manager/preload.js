@@ -586,6 +586,151 @@ function openUrl(url) {
   }
 }
 
+// ========== 导出技能配置（不含源文件） ==========
+function exportSkillsConfig() {
+  const allSkills = getSkillsList();
+  const agentMap = {
+    '.gemini/antigravity/skills': 'antigravity',
+    '.gemini\\\\antigravity\\\\skills': 'antigravity',
+    '.claude/skills': 'claudecode',
+    '.claude\\\\skills': 'claudecode',
+    '.qoder/skills': 'qoder',
+    '.qoder\\\\skills': 'qoder',
+    '.qwen/skills': 'qwencode',
+    '.qwen\\\\skills': 'qwencode',
+    '.trae/skills': 'trae',
+    '.trae\\\\skills': 'trae',
+    '/skills': 'openclaw',
+    '\\\\skills': 'openclaw'
+  };
+
+  function detectAgent(localPath) {
+    if (!localPath) return 'antigravity';
+    const lp = localPath.toLowerCase().replace(/\\\\/g, '/');
+    if (lp.includes('.gemini/antigravity/skills')) return 'antigravity';
+    if (lp.includes('.claude/skills')) return 'claudecode';
+    if (lp.includes('.qoder/skills')) return 'qoder';
+    if (lp.includes('.qwen/skills')) return 'qwencode';
+    if (lp.includes('.trae/skills')) return 'trae';
+    if (lp.endsWith('/skills/' + path.basename(localPath))) return 'openclaw';
+    return 'antigravity';
+  }
+
+  // 按仓库分组
+  const repoGroups = new Map();
+  const unmanaged = [];
+
+  for (const skill of allSkills) {
+    const agent = detectAgent(skill.localPath);
+    if (!skill.sourceUrl || skill.sourceUrl === '本地/未托管') {
+      unmanaged.push({ name: skill.name, agent });
+      continue;
+    }
+    // 提取仓库主地址
+    const m = skill.sourceUrl.match(/(https:\/\/github\.com\/[^/]+\/[^/]+)/);
+    const repoUrl = m ? m[1] : skill.sourceUrl;
+    const key = repoUrl;
+
+    if (!repoGroups.has(key)) {
+      repoGroups.set(key, { url: repoUrl, skills: [], targets: new Set() });
+    }
+    const g = repoGroups.get(key);
+    if (!g.skills.includes(skill.name)) g.skills.push(skill.name);
+    g.targets.add(agent);
+  }
+
+  const config = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    description: "AI Skills Hub 配置清单 — 仅包含安装信息，不含源文件",
+    repositories: Array.from(repoGroups.values()).map(g => ({
+      url: g.url,
+      skills: g.skills,
+      targets: Array.from(g.targets)
+    })),
+    unmanaged: unmanaged
+  };
+
+  return JSON.stringify(config, null, 2);
+}
+
+// ========== 导入技能配置 ==========
+async function importSkillsConfig(configJson, onProgress) {
+  let config;
+  try {
+    config = JSON.parse(configJson);
+  } catch (e) {
+    throw new Error("配置文件格式无效：不是合法的 JSON");
+  }
+  if (!config.version || !config.repositories) {
+    throw new Error("配置文件格式无效：缺少 version 或 repositories 字段");
+  }
+
+  const results = { success: [], failed: [], skipped: [] };
+  const total = config.repositories.length;
+
+  for (let i = 0; i < total; i++) {
+    const repo = config.repositories[i];
+    if (onProgress) onProgress({ type: 'batch', text: `[导入] (${i + 1}/${total}) 处理仓库: ${repo.url}\n` });
+
+    try {
+      const previewData = await previewSkills(repo.url, onProgress);
+      const availableNames = previewData.skills.map(s => s.name);
+      // 只安装配置中指定的 AND 仓库中实际存在的
+      const toInstall = repo.skills.filter(name => availableNames.includes(name));
+      const skippedNames = repo.skills.filter(name => !availableNames.includes(name));
+
+      if (toInstall.length > 0) {
+        const targets = repo.targets || ['antigravity'];
+        installFromPreview(previewData, toInstall, targets, repo.url, onProgress);
+        results.success.push(...toInstall.map(n => ({ name: n, repo: repo.url })));
+      }
+      if (skippedNames.length > 0) {
+        results.skipped.push(...skippedNames.map(n => ({ name: n, repo: repo.url, reason: '仓库中不存在' })));
+      }
+
+      cancelPreview(previewData.tempDir);
+    } catch (err) {
+      results.failed.push({ repo: repo.url, error: err.message });
+      if (onProgress) onProgress({ type: 'batch', text: `[导入] ✗ ${repo.url} 失败: ${err.message}\n` });
+    }
+  }
+
+  if (config.unmanaged && config.unmanaged.length > 0) {
+    results.skipped.push(...config.unmanaged.map(s => ({ name: s.name, reason: '本地/未托管，需手动处理' })));
+  }
+
+  return results;
+}
+
+// 保存文件对话框辅助
+function saveFileDialog(content, defaultName) {
+  const os = require('os');
+  const home = os.homedir();
+  let filePath = path.join(home, 'Desktop', defaultName);
+  
+  // 检查 Desktop 是否存在
+  if (!fs.existsSync(path.dirname(filePath))) {
+    // 尝试直接在家目录保存
+    filePath = path.join(home, defaultName);
+  }
+  
+  // 如果还是不行（极少见），保存在插件配置目录
+  if (!fs.existsSync(path.dirname(filePath))) {
+    filePath = path.join(SKILLS_DIR, defaultName);
+  }
+
+  fs.writeFileSync(filePath, content, 'utf-8');
+  
+  // 保存后自动打开所在文件夹
+  try {
+    const { exec } = require('child_process');
+    exec(`explorer /select,"${filePath.replace(/\//g, '\\')}"`);
+  } catch (e) {}
+
+  return filePath;
+}
+
 // 挂载
 window.preloadAPI = {
   getSkillsList,
@@ -604,6 +749,9 @@ window.preloadAPI = {
   uninstallSkill,
   updateSkill,
   batchUpdateSkills,
-  batchDeleteSkills
+  batchDeleteSkills,
+  exportSkillsConfig,
+  importSkillsConfig,
+  saveFileDialog
 };
 
