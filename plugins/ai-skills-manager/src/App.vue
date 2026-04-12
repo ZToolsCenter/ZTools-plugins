@@ -16,6 +16,8 @@ declare global {
       openUrl: (url: string) => void
       uninstallSkill: (id: string) => boolean
       updateSkill: (id: string, onProgress?: (msg: any) => void) => Promise<boolean>
+      batchUpdateSkills: (ids: string[], onProgress?: (msg: any) => void) => Promise<{ success: string[]; failed: { id: string; error: string }[] }>
+      batchDeleteSkills: (ids: string[]) => { success: string[]; failed: { id: string; error: string }[] }
     }
     ztools: any
   }
@@ -29,6 +31,12 @@ const searchKeyword = ref('')
 const localSearch = ref('')
 const isDark = ref(false)
 const viewMode = ref<'grid' | 'list'>('grid')
+
+// 批量操作状态
+const batchMode = ref(false)
+const batchSelected = ref<string[]>([])
+const batchProcessing = ref(false)
+const batchResults = ref<{ success: string[]; failed: { id: string; error: string }[] } | null>(null)
 
 const showInstallPrompt = ref(false)
 const selectedPaths = ref<string[]>(['antigravity'])
@@ -166,6 +174,65 @@ const toggleSelectAll = () => {
   if (selectedSkillNames.value.length === availableSkills.value.length) selectedSkillNames.value = []
   else selectedSkillNames.value = availableSkills.value.map(s => s.name)
 }
+
+// === 批量操作 ===
+const toggleBatchMode = () => {
+  batchMode.value = !batchMode.value
+  batchSelected.value = []
+  batchResults.value = null
+}
+
+const toggleBatchItem = (id: string) => {
+  const idx = batchSelected.value.indexOf(id)
+  if (idx >= 0) batchSelected.value.splice(idx, 1)
+  else batchSelected.value.push(id)
+}
+
+const toggleBatchAll = () => {
+  const visible = filteredSkills()
+  if (batchSelected.value.length === visible.length) batchSelected.value = []
+  else batchSelected.value = visible.map(s => s.id)
+}
+
+const batchUpdate = async () => {
+  if (batchSelected.value.length === 0) return
+  batchProcessing.value = true
+  loading.value = true
+  progressLogs.value = []
+  batchResults.value = null
+  try {
+    if (window.preloadAPI) {
+      const results = await window.preloadAPI.batchUpdateSkills(batchSelected.value, (msg: any) => {
+        const c = msg.text.replace(/[\u001b\x1b]\[[0-9;?]*[A-Za-z]/gi, '').trim()
+        if (c) progressLogs.value.push(c)
+      })
+      batchResults.value = results
+      const summary = `更新完成: ${results.success.length} 成功, ${results.failed.length} 失败`
+      if (window.ztools) window.ztools.showNotification(summary)
+      else alert(summary)
+      loadSkills()
+    }
+  } catch (e: any) { alert('批量更新异常: ' + e.message) }
+  finally { loading.value = false; batchProcessing.value = false }
+}
+
+const batchDelete = async () => {
+  if (batchSelected.value.length === 0) return
+  if (!confirm(`确认批量卸载 ${batchSelected.value.length} 个技能？此操作不可撤销。`)) return
+  loading.value = true
+  try {
+    if (window.preloadAPI) {
+      const results = window.preloadAPI.batchDeleteSkills(batchSelected.value)
+      batchResults.value = results
+      const summary = `卸载完成: ${results.success.length} 成功, ${results.failed.length} 失败`
+      if (window.ztools) window.ztools.showNotification(summary)
+      else alert(summary)
+      loadSkills()
+      batchSelected.value = []
+    }
+  } catch (e: any) { alert('批量卸载异常: ' + e.message) }
+  finally { loading.value = false }
+}
 </script>
 
 <template>
@@ -184,13 +251,19 @@ const toggleSelectAll = () => {
               <p>Intelligence Distribution Matrix</p>
             </div>
           </div>
-          <div class="view-toggle">
-             <button :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="卡片视图">
-               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-             </button>
-             <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="列表视图">
-               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-             </button>
+          <div class="header-actions">
+            <button class="btn-batch-toggle" :class="{ active: batchMode }" @click="toggleBatchMode" title="批量操作">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+              <span>批量</span>
+            </button>
+            <div class="view-toggle">
+               <button :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="卡片视图">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+               </button>
+               <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="列表视图">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+               </button>
+            </div>
           </div>
         </div>
 
@@ -227,9 +300,21 @@ const toggleSelectAll = () => {
       </transition>
       
       <!-- 主列表 -->
+      <!-- 批量操作：全选栏 -->
+      <transition name="fade">
+        <div v-if="batchMode" class="batch-select-bar">
+          <label class="batch-check-all" @click.prevent="toggleBatchAll">
+            <span class="batch-checkbox" :class="{ checked: batchSelected.length > 0 && batchSelected.length === filteredSkills().length, partial: batchSelected.length > 0 && batchSelected.length < filteredSkills().length }"></span>
+            <span v-if="batchSelected.length === 0">全选</span>
+            <span v-else>已选 {{ batchSelected.length }} / {{ filteredSkills().length }}</span>
+          </label>
+        </div>
+      </transition>
+
       <div :class="viewMode === 'grid' ? 'grid-layout' : 'list-layout'">
-        <div v-for="skill in filteredSkills()" :key="skill.id" class="glass-card" :class="viewMode">
+        <div v-for="skill in filteredSkills()" :key="skill.id" class="glass-card" :class="[viewMode, { 'batch-selected': batchMode && batchSelected.includes(skill.id) }]" @click="batchMode ? toggleBatchItem(skill.id) : undefined">
           <div class="card-top">
+            <span v-if="batchMode" class="batch-checkbox" :class="{ checked: batchSelected.includes(skill.id) }" @click.stop="toggleBatchItem(skill.id)"></span>
              <div class="card-icon">{{ skill.name.charAt(0).toUpperCase() }}</div>
              <div class="card-meta">
                <h3>{{ skill.name }}</h3>
@@ -275,6 +360,31 @@ const toggleSelectAll = () => {
           <p>暂无已装载的技能组件</p>
         </div>
       </div>
+
+      <!-- 批量操作悬浮栏 -->
+      <transition name="batch-bar">
+        <div v-if="batchMode && batchSelected.length > 0" class="batch-action-bar">
+          <div class="batch-bar-inner">
+            <div class="batch-bar-info">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+              <span>已选中 <strong>{{ batchSelected.length }}</strong> 项</span>
+            </div>
+            <div class="batch-bar-actions">
+              <button class="batch-btn batch-btn-update" @click="batchUpdate" :disabled="batchProcessing">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                批量更新
+              </button>
+              <button class="batch-btn batch-btn-delete" @click="batchDelete" :disabled="batchProcessing">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                批量卸载
+              </button>
+              <button class="batch-btn batch-btn-cancel" @click="toggleBatchMode">
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
     </div>
     
     <!-- 安装模态框 -->
@@ -500,4 +610,47 @@ const toggleSelectAll = () => {
 .modal-scale-enter-from, .modal-scale-leave-to { opacity: 0; transform: scale(0.96); }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* Batch Mode */
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.btn-batch-toggle { display: flex; align-items: center; gap: 5px; background: transparent; border: 1px solid rgba(226,232,240,0.8); color: #64748b; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.btn-batch-toggle:hover { border-color: rgba(99,102,241,0.4); color: #4f46e5; background: rgba(99,102,241,0.04); }
+.btn-batch-toggle.active { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.5); color: #4f46e5; }
+.skills-container.dark-theme .btn-batch-toggle { border-color: rgba(51,65,85,0.6); color: #94a3b8; }
+.skills-container.dark-theme .btn-batch-toggle:hover, .skills-container.dark-theme .btn-batch-toggle.active { color: #818cf8; border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.08); }
+
+.batch-select-bar { display: flex; align-items: center; margin-bottom: 8px; padding: 6px 12px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; }
+.skills-container.dark-theme .batch-select-bar { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.2); }
+.batch-check-all { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 600; color: #4f46e5; user-select: none; }
+.skills-container.dark-theme .batch-check-all { color: #818cf8; }
+
+.batch-checkbox { width: 18px; height: 18px; border-radius: 4px; border: 2px solid #cbd5e1; position: relative; flex-shrink: 0; transition: all 0.15s; cursor: pointer; display: inline-block; box-sizing: border-box; }
+.skills-container.dark-theme .batch-checkbox { border-color: #475569; }
+.batch-checkbox:hover { border-color: #818cf8; }
+.batch-checkbox.checked { background: #6366f1; border-color: #6366f1; }
+.batch-checkbox.checked::after { content: ''; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.batch-checkbox.partial { background: #6366f1; border-color: #6366f1; }
+.batch-checkbox.partial::after { content: ''; position: absolute; left: 3px; top: 6px; width: 8px; height: 2px; background: white; border-radius: 1px; }
+
+.glass-card.batch-selected { border-color: rgba(99,102,241,0.5) !important; background: rgba(99,102,241,0.04); }
+.skills-container.dark-theme .glass-card.batch-selected { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.4) !important; }
+
+.batch-action-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1500; width: auto; max-width: 90vw; }
+.batch-bar-inner { display: flex; align-items: center; gap: 16px; background: rgba(30,41,59,0.95); backdrop-filter: blur(16px); border: 1px solid rgba(99,102,241,0.3); padding: 10px 20px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(99,102,241,0.1); color: white; }
+.batch-bar-info { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; white-space: nowrap; color: #cbd5e1; }
+.batch-bar-info strong { color: #a5b4fc; }
+.batch-bar-info svg { color: #818cf8; }
+.batch-bar-actions { display: flex; gap: 8px; }
+
+.batch-btn { display: flex; align-items: center; gap: 6px; border: none; border-radius: 8px; padding: 7px 14px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
+.batch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.batch-btn-update { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 2px 8px rgba(79,70,229,0.3); }
+.batch-btn-update:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(79,70,229,0.45); transform: translateY(-1px); }
+.batch-btn-delete { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.batch-btn-delete:hover:not(:disabled) { background: rgba(239,68,68,0.25); }
+.batch-btn-cancel { background: rgba(148,163,184,0.15); color: #94a3b8; }
+.batch-btn-cancel:hover { background: rgba(148,163,184,0.25); color: #cbd5e1; }
+
+.batch-bar-enter-active, .batch-bar-leave-active { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
+.batch-bar-enter-from, .batch-bar-leave-to { opacity: 0; transform: translateX(-50%) translateY(20px); }
 </style>
