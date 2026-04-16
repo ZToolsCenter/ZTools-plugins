@@ -205,7 +205,9 @@ function saveRegistry(registry) {
 // GitHub 镜像列表（直连失败时自动回退）
 const GITHUB_MIRRORS = [
   '',                          // 直连
-  'https://ghps.cc/',          // 镜像1
+  'https://ghproxy.net/',      // 稳定镜像1（优先）
+  'https://ghps.cc/',          // 稳定镜像2
+  'https://gh-proxy.com/',     // 镜像3
 ];
 
 // 核心克隆函数，支持镜像回退
@@ -221,7 +223,7 @@ function gitCloneWithFallback(gitUrl, cloneDir, onProgress) {
       const prefix = mirrors[mirrorIndex];
       const url = prefix ? `${prefix}${gitUrl}` : gitUrl;
 
-      if (onProgress) onProgress({ type: 'info', text: `[${prefix ? '镜像' + mirrorIndex : '直连'}] ${url}\n` });
+      if (onProgress) onProgress({ type: 'info', text: `[${prefix ? `镜像 ${mirrorIndex + 1}` : '直连'}] ${url}\n` });
 
       // 清理上次失败的残留
       if (fs.existsSync(cloneDir)) fs.rmSync(cloneDir, { recursive: true, force: true });
@@ -233,15 +235,32 @@ function gitCloneWithFallback(gitUrl, cloneDir, onProgress) {
       });
 
       let errData = '';
+      const TIMEOUT_MS = 5000;
+      let timeoutTimer = setTimeout(() => {
+        if (onProgress) onProgress({ type: 'info', text: `[超时] 5秒无响应，正在切换线路...\n` });
+        child.kill('SIGKILL');
+      }, TIMEOUT_MS);
+
+      const resetTimer = () => {
+        clearTimeout(timeoutTimer);
+        timeoutTimer = setTimeout(() => {
+          if (onProgress) onProgress({ type: 'info', text: `[超时] 5秒无响应，正在切换线路...\n` });
+          child.kill('SIGKILL');
+        }, TIMEOUT_MS);
+      };
+
       child.stderr.on('data', (data) => {
+        resetTimer();
         errData += data.toString();
       });
 
       child.stdout.on('data', (data) => {
+        resetTimer();
         if (onProgress) onProgress({ type: 'info', text: data.toString() });
       });
 
       child.on('close', (code) => {
+        clearTimeout(timeoutTimer);
         if (code === 0) {
           resolve();
         } else {
@@ -257,6 +276,7 @@ function gitCloneWithFallback(gitUrl, cloneDir, onProgress) {
       });
 
       child.on('error', (err) => {
+        clearTimeout(timeoutTimer);
         mirrorIndex++;
         if (mirrorIndex < mirrors.length) {
           tryClone();
