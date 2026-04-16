@@ -41,6 +41,7 @@ const viewMode = ref<'grid' | 'list' | 'grouped'>('grid')
 const selectedAgent = ref('all')
 const supportedAgents = ref<any[]>([])
 const agentOptions = computed(() => ['all', ...supportedAgents.value.map(a => a.id)])
+const sortBy = ref<'updated' | 'installed' | 'name'>('updated')
 
 // 分组的折叠状态
 const collapsedGroups = ref<Set<string>>(new Set())
@@ -90,7 +91,7 @@ onMounted(async () => {
   } else { isDark.value = false }
 })
 
-const filteredSkills = () => {
+const displaySkills = computed(() => {
   let list = skills.value
   
   // 1. Agent 维度过滤
@@ -98,7 +99,7 @@ const filteredSkills = () => {
     list = list.filter(s => getAgentIdByPath(s.localPath) === selectedAgent.value)
   }
   
-  // 2. 关键词检索 (组合 ZTools 关键词与 UI 本地关键词)
+  // 2. 关键词检索
   const kw = searchKeyword.value.trim().toLowerCase()
   const lkw = localSearch.value.trim().toLowerCase()
   
@@ -117,30 +118,93 @@ const filteredSkills = () => {
     )
   }
 
-  // 3. 优先级排序：名字匹配 > 仓库/平台匹配
-  const searchStr = lkw || kw
-  if (searchStr) {
-    list = [...list].sort((a, b) => {
+  // 3. 排序逻辑
+  list = [...list].sort((a, b) => {
+    // 3.1 权重排序 (如果存在搜索关键词)
+    const searchStr = lkw || kw
+    if (searchStr) {
       const getScore = (s: Skill) => {
         let score = 0
         const name = (s.name || '').toLowerCase()
         const source = (s.sourceUrl || '').toLowerCase()
         const agent = getPathAlias(s.localPath).toLowerCase()
         
-        if (name === searchStr) score += 100 // 精确匹配最高
-        else if (name.startsWith(searchStr)) score += 50 // 前缀匹配
-        else if (name.includes(searchStr)) score += 30 // 名字包含次之
+        if (name === searchStr) score += 100
+        else if (name.startsWith(searchStr)) score += 50
+        else if (name.includes(searchStr)) score += 30
         
-        if (source.includes(searchStr)) score += 10 // 仓库匹配
-        if (agent.includes(searchStr)) score += 5 // 平台匹配
+        if (source.includes(searchStr)) score += 10
+        if (agent.includes(searchStr)) score += 5
         return score
       }
-      return getScore(b) - getScore(a)
-    })
-  }
+      const scoreA = getScore(a)
+      const scoreB = getScore(b)
+      if (scoreA !== scoreB) return scoreB - scoreA
+    }
+
+    // 3.2 基础排序 (作为 tie-breaker 或 默认排序)
+    const getTime = (s: Skill) => {
+      const field = sortBy.value === 'updated' ? s.updatedAt : s.installedAt
+      if (!field) return 0
+      const t = new Date(field).getTime()
+      return isNaN(t) ? 0 : t
+    }
+
+    if (sortBy.value === 'updated' || sortBy.value === 'installed') {
+      const diff = getTime(b) - getTime(a)
+      if (diff !== 0) return diff
+    }
+
+    // 最后的兜底：名称排序
+    return (a.name || '').localeCompare(b.name || '')
+  })
   
   return list
-}
+})
+
+interface SkillGroup { repoKey: string; repoUrl: string; skills: Skill[] }
+
+const displayGroupedSkills = computed(() => {
+  const list = displaySkills.value
+  const map = new Map<string, SkillGroup>()
+  for (const s of list) {
+    const key = getRepoKey(s.sourceUrl)
+    if (!map.has(key)) {
+      // 从 sourceUrl 还原仓库地址（去掉 /tree/xxx 子路径）
+      let repoUrl = ''
+      if (key !== '未注册') {
+        const rm = s.sourceUrl.match(/(https:\/\/github\.com\/[^/]+\/[^/]+)/)
+        repoUrl = rm ? rm[1] : s.sourceUrl
+      }
+      map.set(key, { repoKey: key, repoUrl, skills: [] })
+    }
+    map.get(key)!.skills.push(s)
+  }
+  // 排序组：有源地址的仓库排前，未注册排后；然后再根据 sortBy 规则排序
+  const arr = Array.from(map.values())
+  arr.sort((a, b) => {
+    if (a.repoKey === '未注册' && b.repoKey !== '未注册') return 1
+    if (b.repoKey === '未注册' && a.repoKey !== '未注册') return -1
+    
+    // 如果启用时间排序，则按照组内最新的时间排
+    const getGroupTime = (g: SkillGroup) => {
+      return Math.max(...g.skills.map(s => {
+        const field = sortBy.value === 'updated' ? s.updatedAt : s.installedAt
+        if (!field) return 0
+        const t = new Date(field).getTime()
+        return isNaN(t) ? 0 : t
+      }))
+    }
+
+    if (sortBy.value === 'updated' || sortBy.value === 'installed') {
+      const diff = getGroupTime(b) - getGroupTime(a)
+      if (diff !== 0) return diff
+    }
+
+    return b.skills.length - a.skills.length
+  })
+  return arr
+})
 
 const handleInstall = async () => {
   if (!installUrl.value) return
@@ -209,33 +273,6 @@ const getRepoKey = (url: string) => {
   return m ? m[1] : url
 }
 
-interface SkillGroup { repoKey: string; repoUrl: string; skills: Skill[] }
-
-const groupedSkills = (): SkillGroup[] => {
-  const list = filteredSkills()
-  const map = new Map<string, SkillGroup>()
-  for (const s of list) {
-    const key = getRepoKey(s.sourceUrl)
-    if (!map.has(key)) {
-      // 从 sourceUrl 还原仓库地址（去掉 /tree/xxx 子路径）
-      let repoUrl = ''
-      if (key !== '未注册') {
-        const rm = s.sourceUrl.match(/(https:\/\/github\.com\/[^/]+\/[^/]+)/)
-        repoUrl = rm ? rm[1] : s.sourceUrl
-      }
-      map.set(key, { repoKey: key, repoUrl, skills: [] })
-    }
-    map.get(key)!.skills.push(s)
-  }
-  // 有源地址的仓库排前，未注册排后
-  const arr = Array.from(map.values())
-  arr.sort((a, b) => {
-    if (a.repoKey === '未注册') return 1
-    if (b.repoKey === '未注册') return -1
-    return b.skills.length - a.skills.length
-  })
-  return arr
-}
 
 const toggleGroupCollapse = (key: string) => {
   const s = new Set(collapsedGroups.value)
@@ -322,15 +359,19 @@ const confirmDistribute = async () => {
 }
 
 const refreshAll = async () => {
-  if (window.preloadAPI) {
-    loading.value = true
-    try {
+  loading.value = true
+  try {
+    if (window.preloadAPI) {
       skills.value = await window.preloadAPI.refreshRegistry()
-    } finally {
-      loading.value = false
+      if (window.ztools) window.ztools.showNotification('审计完成：已同步全机技能状态')
+    } else {
+      loadSkills()
     }
-  } else {
-    loadSkills()
+  } catch (e: any) {
+    if (window.ztools) window.ztools.showNotification('刷新失败: ' + e.message)
+    else alert('刷新失败: ' + e.message)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -384,7 +425,7 @@ const toggleBatchItem = (id: string) => {
 }
 
 const toggleBatchAll = () => {
-  const visible = filteredSkills()
+  const visible = displaySkills.value
   if (batchSelected.value.length === visible.length) batchSelected.value = []
   else batchSelected.value = visible.map(s => s.id)
 }
@@ -491,7 +532,6 @@ const confirmImport = async () => {
             </div>
             <div class="titles">
               <h2>AI-Skills管理器</h2>
-              <p>Intelligence Distribution Matrix</p>
             </div>
           </div>
           <div class="header-actions">
@@ -516,6 +556,14 @@ const confirmImport = async () => {
                </button>
                <button :class="{ active: viewMode === 'grouped' }" @click="viewMode = 'grouped'" title="按仓库分组">
                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+               </button>
+            </div>
+            <div class="view-toggle sort-toggle">
+               <button :class="{ active: sortBy === 'updated' }" @click="sortBy = 'updated'" title="按更新时间排序">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+               </button>
+               <button :class="{ active: sortBy === 'installed' }" @click="sortBy = 'installed'" title="按创建(安装)时间排序">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                </button>
             </div>
             <button class="btn-refresh" @click="refreshAll" :disabled="loading" title="全量审计并同步全机 AI 技能">
@@ -583,15 +631,15 @@ const confirmImport = async () => {
       <transition name="fade">
         <div v-if="batchMode" class="batch-select-bar">
           <label class="batch-check-all" @click.prevent="toggleBatchAll">
-            <span class="batch-checkbox" :class="{ checked: batchSelected.length > 0 && batchSelected.length === filteredSkills().length, partial: batchSelected.length > 0 && batchSelected.length < filteredSkills().length }"></span>
+            <span class="batch-checkbox" :class="{ checked: batchSelected.length > 0 && batchSelected.length === displaySkills.length, partial: batchSelected.length > 0 && batchSelected.length < displaySkills.length }"></span>
             <span v-if="batchSelected.length === 0">全选</span>
-            <span v-else>已选 {{ batchSelected.length }} / {{ filteredSkills().length }}</span>
+            <span v-else>已选 {{ batchSelected.length }} / {{ displaySkills.length }}</span>
           </label>
         </div>
       </transition>
 
       <div v-if="viewMode !== 'grouped'" :class="viewMode === 'grid' ? 'grid-layout' : 'list-layout'">
-        <div v-for="skill in filteredSkills()" :key="skill.id" class="glass-card" :class="[viewMode, { 'batch-selected': batchMode && batchSelected.includes(skill.id) }]" @click="batchMode ? toggleBatchItem(skill.id) : undefined">
+        <div v-for="skill in displaySkills" :key="skill.id" class="glass-card" :class="[viewMode, { 'batch-selected': batchMode && batchSelected.includes(skill.id) }]" @click="batchMode ? toggleBatchItem(skill.id) : undefined">
           <div class="card-top">
             <span v-if="batchMode" class="batch-checkbox" :class="{ checked: batchSelected.includes(skill.id) }" @click.stop="toggleBatchItem(skill.id)"></span>
              <div class="card-icon">{{ skill.name.charAt(0).toUpperCase() }}</div>
@@ -634,7 +682,7 @@ const confirmImport = async () => {
           </div>
         </div>
 
-        <div v-if="filteredSkills().length === 0" class="empty-state glass-card">
+        <div v-if="displaySkills.length === 0" class="empty-state glass-card">
           <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
           <p>尚未检测到已安装的技能</p>
         </div>
@@ -642,7 +690,7 @@ const confirmImport = async () => {
 
       <!-- 分组视图 -->
       <div v-if="viewMode === 'grouped'" class="grouped-layout">
-        <div v-for="group in groupedSkills()" :key="group.repoKey" class="repo-group">
+        <div v-for="group in displayGroupedSkills" :key="group.repoKey" class="repo-group">
           <div class="repo-group-header" @click="toggleGroupCollapse(group.repoKey)">
             <div class="repo-header-left">
               <span class="collapse-arrow" :class="{ collapsed: collapsedGroups.has(group.repoKey) }">
@@ -701,7 +749,7 @@ const confirmImport = async () => {
           </transition>
         </div>
 
-        <div v-if="groupedSkills().length === 0" class="empty-state glass-card">
+        <div v-if="displayGroupedSkills.length === 0" class="empty-state glass-card">
           <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
           <p>尚未检测到已安装的技能</p>
         </div>
@@ -922,6 +970,7 @@ const confirmImport = async () => {
 .view-toggle button { background: transparent; border: none; padding: 4px; border-radius: 4px; cursor: pointer; color: #94a3b8; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .view-toggle button.active { background: white; color: #4f46e5; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
 .skills-container.dark-theme .view-toggle button.active { background: #1e293b; color: #818cf8; }
+.sort-toggle { margin-left: 4px; }
 
 /* Grid & Cards - Compact */
 .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
