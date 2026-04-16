@@ -9,7 +9,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="logo-icon"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
           </div>
           <div class="titles">
-            <h2>AI Skills Hub</h2>
+            <h2>AI-Skillsç®¡ç†å™¨</h2>
             <p>Intelligence Distribution Matrix</p>
           </div>
         </div>
@@ -17,31 +17,31 @@
         <div class="control-panel">
           <div class="input-glass search-box">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="glass-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input v-model="localSearch" placeholder="¼ìË÷±¾µØ×°ÔØ..." />
+            <input v-model="localSearch" placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×°ï¿½ï¿½..." />
           </div>
 
           <div class="input-glass install-box">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="glass-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             <input 
               v-model="installUrl" 
-              placeholder="ÔØÈë GitHub Ô´ (Èç: tanweai/pua)..." 
+              placeholder="ï¿½ï¿½ï¿½ï¿½ GitHub Ô´ (ï¿½ï¿½: tanweai/pua)..." 
               @keyup.enter="handleInstall"
               :disabled="loading"
             />
             <button class="btn-glow" @click="handleInstall" :disabled="loading || !installUrl">
-               <span v-if="!loading">·¢Æð·Ö·¢</span>
-               <span v-else class="pulse-text">½âÎöÖÐ...</span>
+               <span v-if="!loading">ï¿½ï¿½ï¿½ï¿½Ö·ï¿½</span>
+               <span v-else class="pulse-text">ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...</span>
             </button>
           </div>
         </div>
       </header>
       
-      <!-- ¼ÓÔØÓë½ø¶È²ã -->
+      <!-- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È²ï¿½ -->
       <transition name="fade">
         <div v-if="loading" class="processing-layer">
           <div class="processing-card">
             <div class="loader-ripple"><div></div><div></div></div>
-            <h3 class="gradient-text">ºËÐÄ×é¼þ²¿ÊðÖÐ</h3>
+            <h3 class="gradient-text">ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½</h3>
             <div class="terminal-logs-sleek" v-if="progressLogs.length > 0">
               <div v-for="(log, idx) in progressLogs.slice(-5)" :key="idx" class="sleek-log">
                 <span class="log-cursor">?</span> {{ log }}
@@ -51,7 +51,7 @@
         </div>
       </transition>
       
-      <!-- ÁÐ±íÕ¹Ê¾ -->
+      <!-- ï¿½Ð±ï¿½Õ¹Ê¾ -->
       <div class="grid-layout">
         <div v-for="skill in filteredSkills()" :key="skill.id" class="glass-card">
           <div class="card-top">
@@ -60,7 +60,7 @@
              </div>
              <div class="card-meta">
                <h3>{{ skill.name }}</h3>
-               <span class="badge-tag">±¾µØÍÐ¹Ü</span>
+               <span class="badge-tag">ï¿½ï¿½ï¿½ï¿½ï¿½Ð¹ï¿½</span>
              </div>
           </div>
           
@@ -77,28 +77,28 @@
 
           <div class="card-footer">
             <button class="btn-ghost-primary" @click="handleUpdate(skill.id)" :disabled="loading">
-              Í¬²½Ô´¶Ë
+              Í¬ï¿½ï¿½Ô´ï¿½ï¿½
             </button>
             <button class="btn-ghost-danger" @click="handleDelete(skill.id)" :disabled="loading">
-              Ð¶³ý
+              Ð¶ï¿½ï¿½
             </button>
           </div>
         </div>
 
         <div v-if="filteredSkills().length === 0" class="empty-state glass-card">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-          <p>¾ØÕóÖÐÎ´É¨Ãèµ½´ËÀà¼¼ÄÜ</p>
+          <p>ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î´É¨ï¿½èµ½ï¿½ï¿½ï¿½à¼¼ï¿½ï¿½</p>
         </div>
       </div>
     </div>
     
-    <!-- ·Ö·¢Ä£Ì¬¿ò -->
+    <!-- ï¿½Ö·ï¿½Ä£Ì¬ï¿½ï¿½ -->
     <transition name="modal-scale">
       <div v-if="showInstallPrompt" class="glass-modal-overlay">
         <div class="glass-modal">
           <div class="modal-header-sleek">
-            <h3>¿ç¶Ë²¿ÊðÂ·ÓÉ</h3>
-            <p>Çë¹´Ñ¡ËùÐèÍ¬²½µÄ Agent ¿ò¼ÜÊµÀý£¨¼«ËÙ·Ö¾í¿ËÂ¡£©</p>
+            <h3>ï¿½ï¿½Ë²ï¿½ï¿½ï¿½Â·ï¿½ï¿½</h3>
+            <p>ï¿½ë¹´Ñ¡ï¿½ï¿½ï¿½ï¿½Í¬ï¿½ï¿½ï¿½ï¿½ Agent ï¿½ï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù·Ö¾ï¿½ï¿½ï¿½Â¡ï¿½ï¿½</p>
           </div>
           
           <div class="path-grid">
@@ -106,7 +106,7 @@
               <input type="checkbox" v-model="selectedPaths" value="antigravity">
               <span class="custom-check"></span>
               <div class="check-info">
-                <strong>Antigravity Ô­Éú</strong>
+                <strong>Antigravity Ô­ï¿½ï¿½</strong>
                 <span>~/.gemini/antigravity/skills</span>
               </div>
             </label>
@@ -115,7 +115,7 @@
               <input type="checkbox" v-model="selectedPaths" value="autogpt">
               <span class="custom-check"></span>
               <div class="check-info">
-                <strong>Auto-GPT ¹ÒÔØ»·¾³</strong>
+                <strong>Auto-GPT ï¿½ï¿½ï¿½Ø»ï¿½ï¿½ï¿½</strong>
                 <span>~/Auto-GPT/plugins</span>
               </div>
             </label>
@@ -124,7 +124,7 @@
               <input type="checkbox" v-model="selectedPaths" value="metagpt">
               <span class="custom-check"></span>
               <div class="check-info">
-                <strong>MetaGPT ×é¼þ³Ø</strong>
+                <strong>MetaGPT ï¿½ï¿½ï¿½ï¿½ï¿½</strong>
                 <span>~/.metagpt/plugins</span>
               </div>
             </label>
@@ -133,7 +133,7 @@
               <input type="checkbox" v-model="selectedPaths" value="babyagi">
               <span class="custom-check"></span>
               <div class="check-info">
-                <strong>BabyAGI º¯Êý¿â</strong>
+                <strong>BabyAGI ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½</strong>
                 <span>~/babyagi/tools</span>
               </div>
             </label>
@@ -142,19 +142,19 @@
               <input type="checkbox" v-model="enableCustomPath">
               <span class="custom-check"></span>
               <div class="check-info">
-                <strong>×Ô¶¨ÒåÎïÀíÃªµã</strong>
+                <strong>ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ãªï¿½ï¿½</strong>
               </div>
             </label>
           </div>
           
           <div class="custom-input-wrap" :class="{ 'visible': enableCustomPath }">
-            <input type="text" v-model="customPathVal" placeholder="¾ø¶ÔÂ·¾¶ D:\Workspace\skills" />
+            <input type="text" v-model="customPathVal" placeholder="ï¿½ï¿½ï¿½ï¿½Â·ï¿½ï¿½ D:\Workspace\skills" />
           </div>
 
           <div class="modal-actions-sleek">
-            <button class="btn-cancel-glass" @click="showInstallPrompt = false">·ÅÆúÖØ¹¹</button>
+            <button class="btn-cancel-glass" @click="showInstallPrompt = false">ï¿½ï¿½ï¿½ï¿½ï¿½Ø¹ï¿½</button>
             <button class="btn-glow" @click="confirmInstall" :disabled="selectedPaths.length === 0 && (!enableCustomPath || !customPathVal)">
-              È·Á¢Â·ÓÉ
+              È·ï¿½ï¿½Â·ï¿½ï¿½
             </button>
           </div>
         </div>
