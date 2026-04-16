@@ -387,7 +387,7 @@ function previewSkills(repoUrl, onProgress) {
 }
 
 // ========== 第二步：安装技能 ==========
-function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUrl, onProgress) {
+function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUrl, onProgress, keepTemp = false) {
   const { tempDir, cloneDir, skills } = previewData;
 
   try {
@@ -453,10 +453,10 @@ function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUr
       }
     }
 
-    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+    if (!keepTemp && fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
     return true;
   } catch (err) {
-    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+    if (!keepTemp && fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
     throw err;
   }
 }
@@ -528,25 +528,70 @@ function updateSkill(skillId, onProgress) {
 // ========== 批量更新技能 ==========
 // ========== 批量更新技能 (逐个独立拉取) ==========
 async function batchUpdateSkills(skillIds, onProgress) {
+  const all = getSkillsList();
   const results = { success: [], failed: [] };
-  const total = skillIds.length;
+  
+  // 1. 提取所有待更新的有效技能，按仓库分组
+  const groups = new Map();
+  for (const id of skillIds) {
+    const skill = all.find(s => s.id === id);
+    if (!skill) {
+      results.failed.push({ id, error: "找不到该技能记录" });
+      continue;
+    }
+    if (skill.sourceUrl === '本地/未托管' || !skill.sourceUrl) {
+      results.failed.push({ id, error: "本地技能无源地址" });
+      continue;
+    }
 
-  if (onProgress) onProgress({ type: 'batch', text: `[批量] 正在并行处理 ${total} 个技能更新任务...\n` });
+    const { gitUrl } = parseGitHubUrl(skill.sourceUrl);
+    if (!groups.has(gitUrl)) groups.set(gitUrl, []);
+    groups.get(gitUrl).push(skill);
+  }
 
-  // 使用有限并发并行执行，确保稳定性的同时提速
-  const CONCURRENCY = 2;
-  for (let i = 0; i < total; i += CONCURRENCY) {
-    const chunk = skillIds.slice(i, i + CONCURRENCY);
-    await Promise.all(chunk.map(async (id) => {
-      try {
-        await updateSkill(id, onProgress);
-        results.success.push(id);
-        if (onProgress) onProgress({ type: 'batch', text: `[批量] ✓ ${id} 更新成功\n` });
-      } catch (err) {
-        results.failed.push({ id, error: err.message });
-        if (onProgress) onProgress({ type: 'batch', text: `[批量] ✗ ${id} 失败: ${err.message}\n` });
+  const totalGroups = groups.size;
+  if (onProgress) onProgress({ type: 'batch', text: `[批量] 准备更新 ${skillIds.length} 个技能 (涉及 ${totalGroups} 个仓库)...\n` });
+
+  // 2. 按仓库进行批量更新（仓库内部串行，确保进度日志清晰）
+  for (const [gitUrl, skills] of groups.entries()) {
+    if (onProgress) onProgress({ type: 'batch', text: `[仓库] 正在同步: ${gitUrl}\n` });
+    
+    let previewData = null;
+    try {
+      // 克隆一次仓库
+      previewData = await previewSkills(gitUrl, onProgress);
+      
+      for (const skill of skills) {
+        try {
+          // 在克隆结果中寻找对应的技能（模糊匹配名字）
+          const matched = previewData.skills.find(s => s.name.toLowerCase() === skill.name.toLowerCase());
+          if (!matched) {
+            throw new Error(`仓库中未找到名为 "${skill.name}" 的技能`);
+          }
+          
+          const parentDir = path.dirname(skill.localPath);
+          // 执行安装（保留临时目录供该组后续技能使用）
+          installFromPreview(previewData, [matched.name], [parentDir], gitUrl, onProgress, true);
+          
+          results.success.push(skill.id);
+          if (onProgress) onProgress({ type: 'batch', text: `[批量] ✓ ${skill.name} 更新成功\n` });
+        } catch (innerErr) {
+          results.failed.push({ id: skill.id, error: innerErr.message });
+          if (onProgress) onProgress({ type: 'batch', text: `[批量] ✗ ${skill.name} 失败: ${innerErr.message}\n` });
+        }
       }
-    }));
+    } catch (repoErr) {
+      // 整个仓库克隆/预览失败
+      for (const skill of skills) {
+        results.failed.push({ id: skill.id, error: `仓库同步失败: ${repoErr.message}` });
+      }
+      if (onProgress) onProgress({ type: 'batch', text: `[批量] ✗ 仓库 ${gitUrl} 同步失败: ${repoErr.message}\n` });
+    } finally {
+      // 最后统一清理临时目录
+      if (previewData && previewData.tempDir) {
+        cancelPreview(previewData.tempDir);
+      }
+    }
   }
 
   return results;
