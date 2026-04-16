@@ -100,46 +100,6 @@ function parseGitHubUrl(input) {
   };
 }
 
-// ========== 动态审计并恢复元数据 ==========
-function auditAndRepair(registry) {
-  let changed = false;
-  const repoFingerprints = {};
-
-  // 1. 扫描所有 Agent 目录收集指纹
-  const agents = AGENT_CONFIGS.map(a => a.id);
-  for (const agent of agents) {
-    try {
-      const p = getPathForAgent(agent);
-      if (!fs.existsSync(p)) continue;
-      const dirs = fs.readdirSync(p, { withFileTypes: true });
-      for (const d of dirs) {
-        if (!d.isDirectory()) continue;
-        const metaPath = path.join(p, d.name, 'metadata.json');
-        if (fs.existsSync(metaPath)) {
-          try {
-            const m = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-            if (m.source_url && m.source_url !== '未注册') {
-              repoFingerprints[d.name.toLowerCase()] = m.source_url;
-            }
-          } catch (e) { }
-        }
-      }
-    } catch (e) { }
-  }
-
-  // 2. 尝试修复注册表中的“未注册”链接
-  for (const skill of registry) {
-    if ((!skill.sourceUrl || skill.sourceUrl === '未注册') && repoFingerprints[skill.name.toLowerCase()]) {
-      skill.sourceUrl = repoFingerprints[skill.name.toLowerCase()];
-      changed = true;
-    }
-  }
-
-  if (changed) {
-    saveRegistry(registry);
-  }
-}
-
 // ========== 获取已安装列表 ==========
 function getSkillsList() {
   ensureRegistry();
@@ -250,7 +210,7 @@ const GITHUB_MIRRORS = [
 
 // 核心克隆函数，支持镜像回退
 function gitCloneWithFallback(gitUrl, cloneDir, onProgress) {
-  const { exec } = require('child_process');
+  const { spawn } = require('child_process');
   const isGitHub = gitUrl.includes('github.com');
   const mirrors = isGitHub ? GITHUB_MIRRORS : [''];
 
@@ -266,14 +226,20 @@ function gitCloneWithFallback(gitUrl, cloneDir, onProgress) {
       // 清理上次失败的残留
       if (fs.existsSync(cloneDir)) fs.rmSync(cloneDir, { recursive: true, force: true });
 
-      let errData = '';
-      const child = exec(`git clone --depth 1 "${url}" "${cloneDir}"`, {
-        encoding: 'utf-8', shell: true, maxBuffer: 1024 * 1024 * 50,
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: 'echo' }
+      const args = ['clone', '--depth', '1', url, cloneDir];
+      const child = spawn('git', args, {
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: 'echo' },
+        shell: true // 使用 shell: true 兼容 Windows 上的 git 命令路径
       });
 
-      child.stderr.on('data', (chunk) => { errData += chunk; });
-      child.stdout.on('data', (chunk) => { if (onProgress) onProgress({ type: 'info', text: chunk.toString() }); });
+      let errData = '';
+      child.stderr.on('data', (data) => {
+        errData += data.toString();
+      });
+
+      child.stdout.on('data', (data) => {
+        if (onProgress) onProgress({ type: 'info', text: data.toString() });
+      });
 
       child.on('close', (code) => {
         if (code === 0) {
@@ -292,8 +258,11 @@ function gitCloneWithFallback(gitUrl, cloneDir, onProgress) {
 
       child.on('error', (err) => {
         mirrorIndex++;
-        if (mirrorIndex < mirrors.length) { tryClone(); }
-        else { reject(err); }
+        if (mirrorIndex < mirrors.length) {
+          tryClone();
+        } else {
+          reject(err);
+        }
       });
     }
     tryClone();
@@ -580,9 +549,20 @@ function batchDeleteSkills(skillIds) {
 // ========== Shell 辅助 ==========
 function openLocalPath(localPath) {
   if (!localPath) return;
+  const { exec } = require('child_process');
+  const platform = process.platform;
+  let command = '';
+
+  if (platform === 'win32') {
+    command = `explorer "${localPath.replace(/\//g, '\\')}"`;
+  } else if (platform === 'darwin') {
+    command = `open "${localPath}"`;
+  } else {
+    command = `xdg-open "${localPath}"`;
+  }
+
   try {
-    const { exec } = require('child_process');
-    exec(`explorer "${localPath.replace(/\//g, '\\')}"`);
+    exec(command);
   } catch (e) {
     console.error('openLocalPath failed:', e);
   }
@@ -590,9 +570,20 @@ function openLocalPath(localPath) {
 
 function openUrl(url) {
   if (!url) return;
+  const { exec } = require('child_process');
+  const platform = process.platform;
+  let command = '';
+
+  if (platform === 'win32') {
+    command = `start "" "${url}"`;
+  } else if (platform === 'darwin') {
+    command = `open "${url}"`;
+  } else {
+    command = `xdg-open "${url}"`;
+  }
+
   try {
-    const { exec } = require('child_process');
-    exec(`start "" "${url}"`);
+    exec(command);
   } catch (e) {
     console.error('openUrl failed:', e);
   }
@@ -746,9 +737,15 @@ function saveFileDialog(content, targetPath) {
 
 // 选择保存路径（通过 PowerShell 调用原生对话框）
 function selectSavePath(defaultName = 'skills-hub-backup.json') {
+  if (process.platform !== 'win32') {
+    // 非 Windows 平台暂不支持原生对话框，返回 null 让前端处理
+    return null;
+  }
   const { execSync } = require('child_process');
   try {
-    const psCommand = `Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.SaveFileDialog; $f.FileName = '${defaultName}'; $f.Filter = 'JSON Files (*.json)|*.json|All Files (*.*)|*.*'; $f.Title = '选择导出位置'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $f.FileName }`;
+    // 转义文件名中的单引号，防止注入
+    const escapedName = defaultName.replace(/'/g, "''");
+    const psCommand = `Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.SaveFileDialog; $f.FileName = '${escapedName}'; $f.Filter = 'JSON Files (*.json)|*.json|All Files (*.*)|*.*'; $f.Title = '选择导出位置'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $f.FileName }`;
     const result = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`, { encoding: 'utf-8' }).trim();
     return result || null;
   } catch (e) {
