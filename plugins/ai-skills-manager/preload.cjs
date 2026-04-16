@@ -791,32 +791,51 @@ function saveFileDialog(content, targetPath) {
   // 保存后自动打开所在文件夹并选中
   try {
     const { exec } = require('child_process');
-    const winPath = path.resolve(filePath).replace(/\//g, '\\');
-    exec(`cmd /c explorer /select,"${winPath}"`);
+    const platform = process.platform;
+    const absPath = path.resolve(filePath);
+    
+    if (platform === 'win32') {
+      const winPath = absPath.replace(/\//g, '\\');
+      exec(`cmd /c explorer /select,"${winPath}"`);
+    } else if (platform === 'darwin') {
+      exec(`open -R "${absPath}"`);
+    } else {
+      // Linux 下通常只能打开目录
+      exec(`xdg-open "${path.dirname(absPath)}"`);
+    }
   } catch (e) {
-    console.error('Failed to open explorer:', e);
+    console.error('Failed to open file manager:', e);
   }
 
   return filePath;
 }
 
-// 选择保存路径（通过 PowerShell 调用原生对话框）
+// 选择保存路径
 function selectSavePath(defaultName = 'skills-hub-backup.json') {
-  if (process.platform !== 'win32') {
-    // 非 Windows 平台暂不支持原生对话框，返回 null 让前端处理
-    return null;
-  }
   const { execSync } = require('child_process');
-  try {
-    // 转义文件名中的单引号，防止注入
-    const escapedName = defaultName.replace(/'/g, "''");
-    const psCommand = `Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.SaveFileDialog; $f.FileName = '${escapedName}'; $f.Filter = 'JSON Files (*.json)|*.json|All Files (*.*)|*.*'; $f.Title = '选择导出位置'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $f.FileName }`;
-    const result = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`, { encoding: 'utf-8' }).trim();
-    return result || null;
-  } catch (e) {
-    console.error('Native dialog failed:', e);
-    return null;
+  const platform = process.platform;
+  const os = require('os');
+  const home = os.homedir();
+
+  if (platform === 'win32') {
+    try {
+      const escapedName = defaultName.replace(/'/g, "''");
+      const psCommand = `Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.SaveFileDialog; $f.FileName = '${escapedName}'; $f.Filter = 'JSON Files (*.json)|*.json|All Files (*.*)|*.*'; $f.Title = '选择导出位置'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $f.FileName }`;
+      const result = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`, { encoding: 'utf-8' }).trim();
+      return result || null;
+    } catch (e) { return null; }
+  } else if (platform === 'darwin') {
+    try {
+      const appleScript = `osascript -e 'POSIX path of (choose file name with prompt "选择导出位置" default name "${defaultName}")'`;
+      const result = execSync(appleScript, { encoding: 'utf-8' }).trim();
+      return result || null;
+    } catch (e) { return null; }
   }
+
+  // Linux 或其他平台回退：默认保存到桌面
+  const desktop = path.join(home, 'Desktop');
+  if (fs.existsSync(desktop)) return path.join(desktop, defaultName);
+  return path.join(home, defaultName);
 }
 
 // ========== 分发技能到其他 Agent ==========
