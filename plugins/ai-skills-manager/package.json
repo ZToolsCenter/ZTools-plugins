@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build && copy plugin.json dist\\plugin.json /Y && copy logo.png dist\\logo.png /Y && copy preload.js dist\\preload.js /Y",
+    "build": "vue-tsc -b && vite build && copy plugin.json dist\\plugin.json /Y && copy logo.png dist\\logo.png /Y && copy preload.js dist\\preload.js /Y && powershell -Command \"Compress-Archive -Path dist\\* -DestinationPath ai-skills-manager.zip -Force\"",
     "preview": "vite preview"
    },
   "dependencies": {
