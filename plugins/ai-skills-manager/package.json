@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build && copy plugin.json dist\\plugin.json /Y && copy logo.png dist\\logo.png /Y && copy preload.js dist\\preload.js /Y",
     "preview": "vite preview"
-  },
+   },
   "dependencies": {
     "vue": "^3.5.32"
   },
