@@ -339,15 +339,27 @@ window.services = {
 
 // ==================== SQL.js 初始化 ====================
 
+const initSqlJs = require('sql.js')
 let _sqlInstance = null
 const _sqlInitPromise = (async () => {
   try {
-    const initSqlJs = require('sql.js')
+    console.log('[sql.js] __dirname:', __dirname)
+    console.log('[sql.js] initSqlJs type:', typeof initSqlJs)
+    console.log('[sql.js] sql.js module:', typeof initSqlJs === 'function' ? 'OK' : 'MISSING')
+
     const fs = require('node:fs')
 
     // wasm 文件位于 dist/preload/vendor/sqljs/dist/
     const wasmDir = path.join(__dirname, 'vendor', 'sqljs', 'dist')
     const wasmPath = path.join(wasmDir, 'sql-wasm.wasm')
+    console.log('[sql.js] wasmDir:', wasmDir)
+    console.log('[sql.js] wasm exists:', fs.existsSync(wasmPath))
+
+    if (!fs.existsSync(wasmPath)) {
+      // fallback: 尝试从 node_modules 加载
+      console.log('[sql.js] trying fallback from node_modules/sql.js')
+    }
+
     const wasmBytes = fs.readFileSync(wasmPath)
 
     const SQL = await initSqlJs({
@@ -356,7 +368,8 @@ const _sqlInitPromise = (async () => {
     _sqlInstance = SQL
     return SQL
   } catch (err) {
-    console.error('SQL.js 初始化失败:', err)
+    console.error('[sql.js] 初始化失败:', err.message)
+    console.error('[sql.js] stack:', err.stack)
     throw err
   }
 })()

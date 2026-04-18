@@ -9,7 +9,7 @@ const preloadDir = path.join(root, 'dist/preload')
 const fs = require('fs')
 fs.mkdirSync(preloadDir, { recursive: true })
 
-// 用 esbuild 打包 services.js，sql.js 作为外部依赖（Vite closeBundle 会拷贝 vendor 到 dist/preload/vendor/）
+// 用 esbuild 打包 services.js，sql.js 直接内联打包（不再需要外部依赖）
 esbuild.build({
   entryPoints: [src],
   bundle: true,
@@ -17,7 +17,6 @@ esbuild.build({
   target: 'node18',
   outfile: path.join(preloadDir, 'services.js'),
   format: 'cjs',
-  external: ['sql.js'],
   sourcemap: false,
   minify: false,
 }).then(() => {
