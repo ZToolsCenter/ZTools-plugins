@@ -86,7 +86,8 @@ async function loadHistory(keyword = ''): Promise<SearchItem[]> {
       )
     }
 
-    return filtered.map((p) => createSearchItem(p))
+    const results = filtered.map((p) => createSearchItem(p, services))
+    return results
   } catch {
     return []
   }
@@ -115,10 +116,12 @@ async function doSearch() {
   }
 }
 
-function createSearchItem(path: string): SearchItem {
+function createSearchItem(path: string, services: any): SearchItem {
   const basename = path.split(/[\\/]/).pop() || path
   const isWorkspace = path.includes('.code-workspace')
-  return { path, title: basename, isWorkspace, isRemote: path.includes('remote'), ext: '' }
+  // 检查目录是否存在
+  const dirExists = services ? services._dirExists(path) : false
+  return { path, title: basename, isWorkspace, isRemote: path.includes('remote'), ext: '', dirExists }
 }
 
 // 打开项目
@@ -265,9 +268,9 @@ onUnmounted(() => {
           <div
             v-for="item in searchResults"
             :key="item.path"
-            class="result-card"
+            :class="['result-card', { 'card-not-found': !item.dirExists }]"
           >
-            <div class="result-main" @click="openItem(item)">
+            <div class="result-main" @click="item.dirExists && openItem(item)">
               <div class="result-icon">
                 <span v-if="item.isWorkspace">📦</span>
                 <span v-else>📁</span>
@@ -280,14 +283,17 @@ onUnmounted(() => {
             <div class="result-actions">
               <button
                 class="btn btn-primary btn-sm"
-                @click.stop="openItem(item)"
+                :disabled="!item.dirExists"
+                @click.stop="item.dirExists && openItem(item)"
               >
                 打开
               </button>
               <button
                 class="btn btn-sm"
                 style="background:#8b5cf6;color:#fff"
-                @click.stop="copyPath(item)"
+                :disabled="!item.dirExists"
+                @click.stop="item.dirExists && copyPath(item)"
+                :title="item.dirExists ? '' : '目录不存在'"
               >
                 复制
               </button>
@@ -506,6 +512,21 @@ onUnmounted(() => {
 
 .result-card:hover {
   background: var(--hover-bg, #f5f7fa);
+}
+
+.result-card.card-not-found {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.result-card.card-not-found .result-main {
+  cursor: default;
+}
+
+.result-card.card-not-found .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .result-main {

@@ -386,6 +386,18 @@ window.services = {
   },
 
   /**
+   * 检查目录是否存在
+   */
+  _dirExists(uri) {
+    const fsPath = this._uriToFileSystemPath(uri)
+    try {
+      return fs.existsSync(fsPath) && fs.statSync(fsPath).isDirectory()
+    } catch {
+      return false
+    }
+  },
+
+  /**
    * 获取应用目录
    */
   getPath(dir) {

@@ -26,6 +26,7 @@ interface Services {
   getConnectPath: () => string
   _uriToFileSystemPath: (uri: string) => string
   _uriToOSPath: (uri: string) => string
+  _dirExists: (uri: string) => boolean
 }
 
 interface IDEConfigWithKey extends IDEConfig {
