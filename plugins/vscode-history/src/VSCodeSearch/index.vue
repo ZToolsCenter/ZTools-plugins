@@ -74,8 +74,8 @@ async function loadHistory(keyword = ''): Promise<SearchItem[]> {
   try {
     const paths: string[] = await services.getVSCodeHistory(config.database)
 
-    // 按数据库原始顺序（已按时间排序），取最新 20 条
-    const sorted = paths.slice().reverse()
+    // 按路径排序（越长的路径通常越新），取最新 20 条
+    const sorted = [...paths].sort((a, b) => b.localeCompare(a))
     const limited = keyword ? sorted : sorted.slice(0, 20)
 
     // 过滤搜索
@@ -136,8 +136,8 @@ async function openItem(item: SearchItem) {
   let shell = config.terminal.trim()
   if (shell) {
     const shellCmd = shell.includes(' ') ? `"${shell}"` : shell
-    const finalCmd = `${shellCmd} ${fullCmd}`
-    execCmd(finalCmd, config)
+    const finalCmd = `env; ${fullCmd}`
+    execCmd(`${shellCmd} "${finalCmd}"`, config)
   } else {
     execCmd(fullCmd, config)
   }
@@ -158,28 +158,14 @@ function execCmd(cmd: string, _config: IDEConfig) {
     })
 }
 
-// 删除项目
-async function removeItem(item: SearchItem) {
-  const config = configs.value[selectedConfigIndex.value]
-  if (!config || !config.database) return
-
-  const confirmed = window.confirm(`确定要删除历史记录吗？\n\n${item.title}`)
-  if (!confirmed) return
-
-  if (!window.services) {
-    window.ztools.showNotification('preload services 未初始化')
-    return
-  }
-  try {
-    const success = await window.services.deleteVSCodeHistory(config.database, item.path)
-    if (success) {
-      window.ztools.showNotification(`已删除: ${item.title}`)
-      await doSearch()
-    } else {
-      window.ztools.showNotification('未找到匹配的记录')
-    }
-  } catch (e: any) {
-    window.ztools.showNotification('删除失败: ' + String(e.message ?? e ?? ''))
+// 复制路径到剪贴板
+function copyPath(item: SearchItem) {
+  const osPath = window.services._uriToOSPath(item.path)
+  const success = window.ztools.copyText(osPath)
+  if (success) {
+    window.ztools.showNotification(`已复制路径: ${item.title}`)
+  } else {
+    window.ztools.showNotification('复制失败')
   }
 }
 
@@ -300,10 +286,11 @@ onUnmounted(() => {
                 打开
               </button>
               <button
-                class="btn btn-danger btn-sm"
-                @click.stop="removeItem(item)"
+                class="btn btn-sm"
+                style="background:#8b5cf6;color:#fff"
+                @click.stop="copyPath(item)"
               >
-                删除
+                复制路径
               </button>
             </div>
           </div>

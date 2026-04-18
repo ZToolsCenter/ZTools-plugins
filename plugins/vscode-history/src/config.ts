@@ -71,13 +71,20 @@ export function deleteIDEConfig(code: string): void {
   console.log('[config] delete verified (should be null):', verified)
 }
 
+function joinPaths(...parts: string[]): string {
+  return parts.filter(Boolean).join('/')
+}
+
 function createDefaultConfig(code: string): IDEConfig {
   const appName = code === 'vscode' ? 'Code' : code === 'cursor' ? 'Cursor' : code
   const config = newConfig(code, code)
-  // 使用 '/' 拼接（跨平台兼容，Windows 也支持 '/' 作为路径分隔符）
-  const appData = window.ztools.getPath('appData')
-  const sep = appData.includes('\\') ? '\\' : '/'
-  const databasePath = appData + sep + appName + sep + 'User' + sep + 'globalStorage' + sep + 'state.vscdb'
+  const databasePath = joinPaths(
+    window.ztools.getPath('appData'),
+    appName,
+    'User',
+    'globalStorage',
+    'state.vscdb'
+  )
   console.log('[config] createDefaultConfig path:', databasePath)
   config.database = databasePath
   saveIDEConfig(config)

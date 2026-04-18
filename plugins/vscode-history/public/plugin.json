@@ -4,7 +4,7 @@
   "title": "VSCode",
   "description": "快速搜索 VSCode 历史项目并且在 VSCode 中打开",
   "author": "海拉鲁的三角",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

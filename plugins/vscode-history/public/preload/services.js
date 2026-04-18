@@ -11,42 +11,66 @@ window.services = {
   },
 
   /**
-   * 将 file:// URI 转换为本地文件系统路径
-   * 公共方法，供其他方法复用
+   * 将 file:// URI 转换为本地文件系统路径（内部用，Windows 反斜杠格式）
    */
   _uriToFileSystemPath(uri) {
     if (!uri || typeof uri !== 'string') return uri
 
-    // 处理 file:// URI（VSCode 存储的格式）
     const match = uri.match(/^file:\/\/\/(.+)$/i)
     if (match) {
       let rest = match[1]
-
-      // 移除开头的 /（如果有的话）
       if (rest.startsWith('/')) rest = rest.slice(1)
 
-      // 处理盘符 C: 或 C%3A（VSCode 可能编码冒号为 %3A）
       const driveMatch = rest.match(/^([A-Za-z])(%3[Aa]|:)/i)
       if (driveMatch) {
         let drive = driveMatch[1].toUpperCase()
         let pathPart = rest.slice(driveMatch[0].length)
-        // 移除 pathPart 开头的 /
         if (pathPart.startsWith('/')) pathPart = pathPart.slice(1)
         try { pathPart = decodeURIComponent(pathPart.replace(/\//g, '\\')) } catch {}
         return drive + ':' + pathPart
       }
 
-      // 没有盘符
       try { return decodeURIComponent(rest.replace(/\//g, '\\')) } catch {}
       return rest.replace(/\//g, '\\')
     }
 
-    // 非 file:// URI
     if (uri.includes('/')) {
       try { return decodeURIComponent(uri).replace(/\//g, '\\') } catch {}
     }
     return uri
   },
+
+  /**
+   * 将 file:// URI 转换为当前操作系统的标准路径格式
+   * 用于复制到剪贴板，路径分隔符符合当前 OS 规范
+   */
+  _uriToOSPath(uri) {
+    if (!uri || typeof uri !== 'string') return uri
+
+    const match = uri.match(/^file:\/\/\/(.+)$/i)
+    if (match) {
+      let rest = match[1]
+      if (rest.startsWith('/')) rest = rest.slice(1)
+
+      const driveMatch = rest.match(/^([A-Za-z])(%3[Aa]|:)/i)
+      if (driveMatch) {
+        let drive = driveMatch[1].toUpperCase()
+        let pathPart = rest.slice(driveMatch[0].length)
+        if (pathPart.startsWith('/')) pathPart = pathPart.slice(1)
+        try { pathPart = decodeURIComponent(pathPart) } catch {}
+        return drive + ':' + pathPart.split('/').join(path.sep)
+      }
+
+      try { return decodeURIComponent(rest) } catch {}
+      return rest
+    }
+
+    if (uri.includes('/')) {
+      try { return decodeURIComponent(uri).split('/').join(path.sep) } catch {}
+    }
+    return uri
+  },
+
   // 文本写入到下载目录
   writeTextFile(text) {
     const filePath = path.join(window.ztools.getPath('downloads'), Date.now().toString() + '.txt')
@@ -156,26 +180,8 @@ window.services = {
       "UPDATE ItemTable SET value = ? WHERE key = 'history.recentlyOpenedPathsList'",
       [updatedJson]
     )
-
-    // 原子写入：先备份，再写临时文件，最后重命名
-    const backupPath = dbPath + '.bak'
-    try {
-      fs.copyFileSync(dbPath, backupPath)
-      const tmpPath = dbPath + '.tmp'
-      fs.writeFileSync(tmpPath, db.export())
-      fs.renameSync(tmpPath, dbPath)
-    } catch (err) {
-      // 写入失败时恢复备份
-      if (fs.existsSync(backupPath)) {
-        fs.copyFileSync(backupPath, dbPath)
-        fs.unlinkSync(backupPath)
-      }
-      throw err
-    } finally {
-      db.close()
-      // 清理备份文件
-      try { fs.unlinkSync(backupPath) } catch {}
-    }
+    fs.writeFileSync(dbPath, db.export())
+    db.close()
     return true
   },
 
@@ -201,7 +207,7 @@ window.services = {
     }
 
     const data = JSON.parse(results[0].values[0].toString())
-    const normalizedTargets = targetPaths.map(p => this._uriToFileSystemPath(p))
+    const normalizedTargets = targetPaths.map((p) => this._uriToFileSystemPath(p))
     const originalLength = data.entries.length
     data.entries = data.entries.filter((entry) => {
       if (typeof entry === 'string') return !normalizedTargets.includes(entry)
@@ -216,29 +222,9 @@ window.services = {
         "UPDATE ItemTable SET value = ? WHERE key = 'history.recentlyOpenedPathsList'",
         [updatedJson]
       )
-
-      // 原子写入：先备份，再写临时文件，最后重命名
-      const backupPath = dbPath + '.bak'
-      try {
-        fs.copyFileSync(dbPath, backupPath)
-        const tmpPath = dbPath + '.tmp'
-        fs.writeFileSync(tmpPath, db.export())
-        fs.renameSync(tmpPath, dbPath)
-      } catch (err) {
-        // 写入失败时恢复备份
-        if (fs.existsSync(backupPath)) {
-          fs.copyFileSync(backupPath, dbPath)
-          fs.unlinkSync(backupPath)
-        }
-        throw err
-      } finally {
-        db.close()
-        // 清理备份文件
-        try { fs.unlinkSync(backupPath) } catch {}
-      }
-    } else {
-      db.close()
+      fs.writeFileSync(dbPath, db.export())
     }
+    db.close()
     return deletedCount
   },
 

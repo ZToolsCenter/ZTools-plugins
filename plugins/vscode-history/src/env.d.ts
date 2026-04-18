@@ -24,6 +24,8 @@ interface Services {
   getAllDbStorageKeys: (prefix?: string) => string[]
   getPath: (dir: string) => string
   getConnectPath: () => string
+  _uriToFileSystemPath: (uri: string) => string
+  _uriToOSPath: (uri: string) => string
 }
 
 interface IDEConfigWithKey extends IDEConfig {
