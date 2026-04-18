@@ -11,29 +11,37 @@ window.services = {
   },
 
   /**
-   * 将 file:// URI 转换为本地文件系统路径（内部用，Windows 反斜杠格式）
+   * 将 file:// URI 转换为本地文件系统路径（Windows 反斜杠格式）
+   * 公共方法，供其他方法复用
    */
   _uriToFileSystemPath(uri) {
     if (!uri || typeof uri !== 'string') return uri
 
+    // 处理 file:// URI（VSCode 存储的格式）
     const match = uri.match(/^file:\/\/\/(.+)$/i)
     if (match) {
       let rest = match[1]
+
+      // 移除开头的 /（如果有的话）
       if (rest.startsWith('/')) rest = rest.slice(1)
 
+      // 处理盘符 C: 或 C%3A（VSCode 可能编码冒号为 %3A）
       const driveMatch = rest.match(/^([A-Za-z])(%3[Aa]|:)/i)
       if (driveMatch) {
         let drive = driveMatch[1].toUpperCase()
         let pathPart = rest.slice(driveMatch[0].length)
+        // 移除 pathPart 开头的 /
         if (pathPart.startsWith('/')) pathPart = pathPart.slice(1)
         try { pathPart = decodeURIComponent(pathPart.replace(/\//g, '\\')) } catch {}
         return drive + ':' + pathPart
       }
 
+      // 没有盘符
       try { return decodeURIComponent(rest.replace(/\//g, '\\')) } catch {}
       return rest.replace(/\//g, '\\')
     }
 
+    // 非 file:// URI
     if (uri.includes('/')) {
       try { return decodeURIComponent(uri).replace(/\//g, '\\') } catch {}
     }
@@ -180,8 +188,26 @@ window.services = {
       "UPDATE ItemTable SET value = ? WHERE key = 'history.recentlyOpenedPathsList'",
       [updatedJson]
     )
-    fs.writeFileSync(dbPath, db.export())
-    db.close()
+
+    // 原子写入：先备份，再写临时文件，最后重命名
+    const backupPath = dbPath + '.bak'
+    try {
+      fs.copyFileSync(dbPath, backupPath)
+      const tmpPath = dbPath + '.tmp'
+      fs.writeFileSync(tmpPath, db.export())
+      fs.renameSync(tmpPath, dbPath)
+    } catch (err) {
+      // 写入失败时恢复备份
+      if (fs.existsSync(backupPath)) {
+        fs.copyFileSync(backupPath, dbPath)
+        fs.unlinkSync(backupPath)
+      }
+      throw err
+    } finally {
+      db.close()
+      // 清理备份文件
+      try { fs.unlinkSync(backupPath) } catch {}
+    }
     return true
   },
 
@@ -222,9 +248,29 @@ window.services = {
         "UPDATE ItemTable SET value = ? WHERE key = 'history.recentlyOpenedPathsList'",
         [updatedJson]
       )
-      fs.writeFileSync(dbPath, db.export())
+
+      // 原子写入：先备份，再写临时文件，最后重命名
+      const backupPath = dbPath + '.bak'
+      try {
+        fs.copyFileSync(dbPath, backupPath)
+        const tmpPath = dbPath + '.tmp'
+        fs.writeFileSync(tmpPath, db.export())
+        fs.renameSync(tmpPath, dbPath)
+      } catch (err) {
+        // 写入失败时恢复备份
+        if (fs.existsSync(backupPath)) {
+          fs.copyFileSync(backupPath, dbPath)
+          fs.unlinkSync(backupPath)
+        }
+        throw err
+      } finally {
+        db.close()
+        // 清理备份文件
+        try { fs.unlinkSync(backupPath) } catch {}
+      }
+    } else {
+      db.close()
     }
-    db.close()
     return deletedCount
   },
 
