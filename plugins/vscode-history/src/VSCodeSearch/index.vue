@@ -74,8 +74,8 @@ async function loadHistory(keyword = ''): Promise<SearchItem[]> {
   try {
     const paths: string[] = await services.getVSCodeHistory(config.database)
 
-    // 按路径排序（越长的路径通常越新），取最新 20 条
-    const sorted = [...paths].sort((a, b) => b.localeCompare(a))
+    // 按数据库原始顺序（已按时间排序），取最新 20 条
+    const sorted = paths.slice().reverse()
     const limited = keyword ? sorted : sorted.slice(0, 20)
 
     // 过滤搜索
@@ -136,8 +136,8 @@ async function openItem(item: SearchItem) {
   let shell = config.terminal.trim()
   if (shell) {
     const shellCmd = shell.includes(' ') ? `"${shell}"` : shell
-    const finalCmd = `env; ${fullCmd}`
-    execCmd(`${shellCmd} "${finalCmd}"`, config)
+    const finalCmd = `${shellCmd} ${fullCmd}`
+    execCmd(finalCmd, config)
   } else {
     execCmd(fullCmd, config)
   }
