@@ -1,0 +1,1874 @@
+- generic [ref=e2]:
+  - region
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=e6]:
+      - heading "Navigation Menu" [level=2] [ref=e7]
+      - generic [ref=e8]:
+        - link "Homepage" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - img [ref=e11]
+        - generic [ref=e13]:
+          - navigation "Global" [ref=e16]:
+            - list [ref=e17]:
+              - listitem [ref=e18]:
+                - button "Platform" [ref=e20] [cursor=pointer]:
+                  - text: Platform
+                  - img [ref=e21]
+              - listitem [ref=e23]:
+                - button "Solutions" [ref=e25] [cursor=pointer]:
+                  - text: Solutions
+                  - img [ref=e26]
+              - listitem [ref=e28]:
+                - button "Resources" [ref=e30] [cursor=pointer]:
+                  - text: Resources
+                  - img [ref=e31]
+              - listitem [ref=e33]:
+                - button "Open Source" [ref=e35] [cursor=pointer]:
+                  - text: Open Source
+                  - img [ref=e36]
+              - listitem [ref=e38]:
+                - button "Enterprise" [ref=e40] [cursor=pointer]:
+                  - text: Enterprise
+                  - img [ref=e41]
+              - listitem [ref=e43]:
+                - link "Pricing" [ref=e44] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+                  - generic [ref=e45]: Pricing
+          - generic [ref=e46]:
+            - button "Search or jump to…" [ref=e49] [cursor=pointer]:
+              - img [ref=e51]
+            - link "Sign in" [ref=e54] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2FZToolsCenter%2FZTools-plugins%2Fpull%2F104%2Ffiles
+            - link "Sign up" [ref=e55] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Fpull_requests%2Fshow%2Ffiles&source=header-repo&source_repo=ZToolsCenter%2FZTools-plugins
+            - button "Appearance settings" [disabled] [ref=e58]:
+              - img
+  - main [ref=e62]:
+    - generic [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e66]:
+          - img [ref=e67]
+          - link "ZToolsCenter" [ref=e70] [cursor=pointer]:
+            - /url: /ZToolsCenter
+          - generic [ref=e71]: /
+          - strong [ref=e72]:
+            - link "ZTools-plugins" [ref=e73] [cursor=pointer]:
+              - /url: /ZToolsCenter/ZTools-plugins
+          - generic [ref=e74]: Public
+        - generic [ref=e75]:
+          - list:
+            - listitem [ref=e76]:
+              - link "You must be signed in to change notification settings" [ref=e77] [cursor=pointer]:
+                - /url: /login?return_to=%2FZToolsCenter%2FZTools-plugins
+                - img [ref=e78]
+                - text: Notifications
+            - listitem [ref=e80]:
+              - link "Fork 48" [ref=e81] [cursor=pointer]:
+                - /url: /login?return_to=%2FZToolsCenter%2FZTools-plugins
+                - img [ref=e82]
+                - text: Fork
+                - generic "48" [ref=e84]
+            - listitem [ref=e85]:
+              - link "You must be signed in to star a repository" [ref=e87] [cursor=pointer]:
+                - /url: /login?return_to=%2FZToolsCenter%2FZTools-plugins
+                - img [ref=e88]
+                - text: Star
+                - generic "16 users starred this repository" [ref=e90]: "16"
+      - navigation "Repository" [ref=e91]:
+        - list [ref=e92]:
+          - listitem [ref=e93]:
+            - link "Code" [ref=e94] [cursor=pointer]:
+              - /url: /ZToolsCenter/ZTools-plugins
+              - img [ref=e95]
+              - generic [ref=e97]: Code
+          - listitem [ref=e98]:
+            - link "Issues 2" [ref=e99] [cursor=pointer]:
+              - /url: /ZToolsCenter/ZTools-plugins/issues
+              - img [ref=e100]
+              - generic [ref=e103]: Issues
+              - generic "2" [ref=e104]
+          - listitem [ref=e105]:
+            - link "Pull requests 5" [ref=e106] [cursor=pointer]:
+              - /url: /ZToolsCenter/ZTools-plugins/pulls
+              - img [ref=e107]
+              - generic [ref=e109]: Pull requests
+              - generic "5" [ref=e110]
+          - listitem [ref=e111]:
+            - link "Actions" [ref=e112] [cursor=pointer]:
+              - /url: /ZToolsCenter/ZTools-plugins/actions
+              - img [ref=e113]
+              - generic [ref=e115]: Actions
+          - listitem [ref=e116]:
+            - link "Projects" [ref=e117] [cursor=pointer]:
+              - /url: /ZToolsCenter/ZTools-plugins/projects
+              - img [ref=e118]
+              - generic [ref=e120]: Projects
+          - listitem [ref=e121]:
+            - link "Security and quality" [ref=e122] [cursor=pointer]:
+              - /url: /ZToolsCenter/ZTools-plugins/security
+              - img [ref=e123]
+              - generic [ref=e125]: Security and quality
+          - listitem [ref=e126]:
+            - link "Insights" [ref=e127] [cursor=pointer]:
+              - /url: /ZToolsCenter/ZTools-plugins/pulse
+              - img [ref=e128]
+              - generic [ref=e130]: Insights
+    - generic [ref=e136]:
+      - generic [ref=e138]:
+        - generic [ref=e140]:
+          - 'heading "Add/Update plugin: VSCode #104" [level=1] [ref=e141]'
+          - group [ref=e143]:
+            - button "New issue" [ref=e144] [cursor=pointer]
+        - generic [ref=e145]:
+          - 'generic "Status: Open" [ref=e147]':
+            - img [ref=e148]
+            - text: Open
+          - generic [ref=e150]:
+            - link "spite-triangle" [ref=e151] [cursor=pointer]:
+              - /url: /spite-triangle
+            - text: wants to merge 2 commits into
+            - generic "ZToolsCenter/ZTools-plugins:main" [ref=e152]:
+              - 'link "ZToolsCenter : main" [ref=e153] [cursor=pointer]':
+                - /url: /ZToolsCenter/ZTools-plugins/tree/main
+                - generic [ref=e154]: ZToolsCenter
+                - text: ":"
+                - generic [ref=e155]: main
+            - text: from
+            - generic "spite-triangle/ZTools-plugins:plugin/vscode-history" [ref=e156]:
+              - 'link "spite-triangle : plugin/vscode-history" [ref=e157] [cursor=pointer]':
+                - /url: /spite-triangle/ZTools-plugins/tree/plugin/vscode-history
+                - generic [ref=e158]: spite-triangle
+                - text: ":"
+                - generic [ref=e159]: plugin/vscode-history
+            - button "Copy" [ref=e162]:
+              - img [ref=e163]
+      - navigation "Pull request tabs" [ref=e169]:
+        - link "Conversation 8" [ref=e170] [cursor=pointer]:
+          - /url: /ZToolsCenter/ZTools-plugins/pull/104
+          - img [ref=e171]
+          - text: Conversation
+          - generic "8" [ref=e173]
+        - link "Commits 2" [ref=e174] [cursor=pointer]:
+          - /url: /ZToolsCenter/ZTools-plugins/pull/104/commits
+          - img [ref=e175]
+          - text: Commits
+          - generic "2" [ref=e177]
+        - link "Checks 0" [ref=e178] [cursor=pointer]:
+          - /url: /ZToolsCenter/ZTools-plugins/pull/104/checks
+          - img [ref=e179]
+          - text: Checks
+          - generic "0" [ref=e181]
+        - link "Files changed" [ref=e182] [cursor=pointer]:
+          - /url: /ZToolsCenter/ZTools-plugins/pull/104/files
+          - img [ref=e183]
+          - text: Files changed
+      - generic [ref=e185]:
+        - generic [ref=e189]:
+          - button "Hide file tree" [ref=e192] [cursor=pointer]:
+            - img [ref=e193]
+          - group [ref=e196]:
+            - button "Changes from all commits" [ref=e197] [cursor=pointer]:
+              - text: Changes from
+              - strong [ref=e198]: all commits
+          - group [ref=e200]:
+            - button "File filter" [ref=e201] [cursor=pointer]:
+              - strong [ref=e202]: File filter
+          - group [ref=e204]:
+            - button "Conversations" [ref=e205] [cursor=pointer]:
+              - strong [ref=e206]: Conversations
+          - group [ref=e208]:
+            - button "Diff settings" [ref=e209] [cursor=pointer]:
+              - img "Diff settings" [ref=e210]
+        - generic [ref=e213]:
+          - generic [ref=e215]:
+            - generic [ref=e216]:
+              - textbox "Filter changed files" [ref=e217]
+              - img
+            - navigation "File Tree Navigation" [ref=e220]:
+              - tree "File Tree" [ref=e221]:
+                - treeitem "plugins/vscode-history" [level=1] [ref=e222]:
+                  - button "plugins/vscode-history" [expanded] [ref=e223] [cursor=pointer]:
+                    - generic:
+                      - img
+                    - generic:
+                      - img
+                    - generic [ref=e224]: plugins/vscode-history
+                  - group [ref=e225]:
+                    - treeitem ".gitignore" [level=2] [ref=e226]:
+                      - link ".gitignore" [ref=e227] [cursor=pointer]:
+                        - /url: "#diff-a38d49971d06686242ea70a502681500b9e732f1cb8eac00837367de9b6eeb70"
+                        - generic:
+                          - img
+                        - generic: .gitignore
+                        - generic:
+                          - img
+                    - treeitem "CLAUDE.md" [level=2] [ref=e228]:
+                      - link "CLAUDE.md" [ref=e229] [cursor=pointer]:
+                        - /url: "#diff-3ab2b301579e9eb6c1665660d48959b0f5ed450f03d4664eefdff50adf3a0ccc"
+                        - generic:
+                          - img
+                        - generic: CLAUDE.md
+                        - generic:
+                          - img
+                    - treeitem "README.md" [level=2] [ref=e230]:
+                      - link "README.md" [ref=e231] [cursor=pointer]:
+                        - /url: "#diff-b56f3b16eea19a086696d4ee8eeed6bc957d8a2bc560bad7c6f4437fdbc50a08"
+                        - generic:
+                          - img
+                        - generic: README.md
+                        - generic:
+                          - img
+                    - treeitem "index.html" [level=2] [ref=e232]:
+                      - link "index.html" [ref=e233] [cursor=pointer]:
+                        - /url: "#diff-d1d3e5977a48359b76e4282841e6708ebab17459ff56d8cfd1819d192981c235"
+                        - generic:
+                          - img
+                        - generic: index.html
+                        - generic:
+                          - img
+                    - treeitem "package-lock.json" [level=2] [ref=e234]:
+                      - link "package-lock.json" [ref=e235] [cursor=pointer]:
+                        - /url: "#diff-e116d769b374ec5f9a4ce71489975e53b94eb29e0661bb45e376c190abc672ee"
+                        - generic:
+                          - img
+                        - generic: package-lock.json
+                        - generic:
+                          - img
+                    - treeitem "package.json" [level=2] [ref=e236]:
+                      - link "package.json" [ref=e237] [cursor=pointer]:
+                        - /url: "#diff-a017acb8b1766ec3c0b749629fda4e479740ff1da9dbe6223d6ce0def3cb1b5b"
+                        - generic:
+                          - img
+                        - generic: package.json
+                        - generic:
+                          - img
+                    - treeitem "public" [level=2] [ref=e238]:
+                      - button "public" [expanded] [ref=e239] [cursor=pointer]:
+                        - generic:
+                          - img
+                        - generic:
+                          - img
+                        - generic [ref=e240]: public
+                      - group [ref=e241]:
+                        - treeitem "logo.png" [level=3] [ref=e242]:
+                          - link "logo.png" [ref=e243] [cursor=pointer]:
+                            - /url: "#diff-790ee380c2876aa02a9a7f173ea60577dc2a538b6199338fd48db258f86b3046"
+                            - generic:
+                              - img
+                            - generic: logo.png
+                            - generic:
+                              - img
+                        - treeitem "plugin.json" [level=3] [ref=e244]:
+                          - link "plugin.json" [ref=e245] [cursor=pointer]:
+                            - /url: "#diff-2da9b785afa6d0404efc7ff3cd29f3f430f8ae567174648f16323a12aa9701d1"
+                            - generic:
+                              - img
+                            - generic: plugin.json
+                            - generic:
+                              - img
+                        - treeitem "preload" [level=3] [ref=e246]:
+                          - button "preload" [expanded] [ref=e247] [cursor=pointer]:
+                            - generic:
+                              - img
+                            - generic:
+                              - img
+                            - generic [ref=e248]: preload
+                          - group [ref=e249]:
+                            - treeitem "package.json" [level=4] [ref=e250]:
+                              - link "package.json" [ref=e251] [cursor=pointer]:
+                                - /url: "#diff-397fc51a6a12bd56e96e79205c454eee95c795ba6f8b5176d22ce4250357eef4"
+                                - generic:
+                                  - img
+                                - generic: package.json
+                                - generic:
+                                  - img
+                            - treeitem "services.js" [level=4] [ref=e252]:
+                              - link "services.js" [ref=e253] [cursor=pointer]:
+                                - /url: "#diff-77be8f5a45134e0134caa2745322f799d21cfcef39d0aca29282fa15d26fe00c"
+                                - generic:
+                                  - img
+                                - generic: services.js
+                                - generic:
+                                  - img
+                    - treeitem "scripts" [level=2] [ref=e254]:
+                      - button "scripts" [expanded] [ref=e255] [cursor=pointer]:
+                        - generic:
+                          - img
+                        - generic:
+                          - img
+                        - generic [ref=e256]: scripts
+                      - group [ref=e257]:
+                        - treeitem "build-preload.cjs" [level=3] [ref=e258]:
+                          - link "build-preload.cjs" [ref=e259] [cursor=pointer]:
+                            - /url: "#diff-ea51347afce3009072f0c93ea00cd49ac1203721af0804b4860f444615c94e06"
+                            - generic:
+                              - img
+                            - generic: build-preload.cjs
+                            - generic:
+                              - img
+                    - treeitem "src" [level=2] [ref=e260]:
+                      - button "src" [expanded] [ref=e261] [cursor=pointer]:
+                        - generic:
+                          - img
+                        - generic:
+                          - img
+                        - generic [ref=e262]: src
+                      - group [ref=e263]:
+                        - treeitem "App.vue" [level=3] [ref=e264]:
+                          - link "App.vue" [ref=e265] [cursor=pointer]:
+                            - /url: "#diff-5799132ebcbd8acc85881282ca06a2666bd34da48641b938c050ed8c724c0dc2"
+                            - generic:
+                              - img
+                            - generic: App.vue
+                            - generic:
+                              - img
+                        - treeitem "VSCodeIDE" [level=3] [ref=e266]:
+                          - button "VSCodeIDE" [expanded] [ref=e267] [cursor=pointer]:
+                            - generic:
+                              - img
+                            - generic:
+                              - img
+                            - generic [ref=e268]: VSCodeIDE
+                          - group [ref=e269]:
+                            - treeitem "index.vue" [level=4] [ref=e270]:
+                              - link "index.vue" [ref=e271] [cursor=pointer]:
+                                - /url: "#diff-3f21fb918e0368d4bbfba48f256713624cdd57ceca34a182daa8d6e4e6605b30"
+                                - generic:
+                                  - img
+                                - generic: index.vue
+                                - generic:
+                                  - img
+                        - treeitem "VSCodeMain" [level=3] [ref=e272]:
+                          - button "VSCodeMain" [expanded] [ref=e273] [cursor=pointer]:
+                            - generic:
+                              - img
+                            - generic:
+                              - img
+                            - generic [ref=e274]: VSCodeMain
+                          - group [ref=e275]:
+                            - treeitem "index.vue" [level=4] [ref=e276]:
+                              - link "index.vue" [ref=e277] [cursor=pointer]:
+                                - /url: "#diff-edc742202161d1adf3849247f3110bb1a00b7f8a5fe92913587109d3fcb0c7ec"
+                                - generic:
+                                  - img
+                                - generic: index.vue
+                                - generic:
+                                  - img
+                        - treeitem "VSCodeSearch" [level=3] [ref=e278]:
+                          - button "VSCodeSearch" [expanded] [ref=e279] [cursor=pointer]:
+                            - generic:
+                              - img
+                            - generic:
+                              - img
+                            - generic [ref=e280]: VSCodeSearch
+                          - group [ref=e281]:
+                            - treeitem "index.vue" [level=4] [ref=e282]:
+                              - link "index.vue" [ref=e283] [cursor=pointer]:
+                                - /url: "#diff-642a440fc918911dabfcd013cfa7f6addf5c79830f371142fd43c4f96bc331b1"
+                                - generic:
+                                  - img
+                                - generic: index.vue
+                                - generic:
+                                  - img
+                        - treeitem "config.ts" [level=3] [ref=e284]:
+                          - link "config.ts" [ref=e285] [cursor=pointer]:
+                            - /url: "#diff-f2648f5d8cb3da6c6fe6c87dae6f8aa275582c342ce0c0d1caa57a23a6c51aaa"
+                            - generic:
+                              - img
+                            - generic: config.ts
+                            - generic:
+                              - img
+                        - treeitem "env.d.ts" [level=3] [ref=e286]:
+                          - link "env.d.ts" [ref=e287] [cursor=pointer]:
+                            - /url: "#diff-04ebc56151d33bc7e887412ac402ef9cadc8d5f84f4ac704ba6fe8377ade9a3a"
+                            - generic:
+                              - img
+                            - generic: env.d.ts
+                            - generic:
+                              - img
+                        - treeitem "main.css" [level=3] [ref=e288]:
+                          - link "main.css" [ref=e289] [cursor=pointer]:
+                            - /url: "#diff-6abc23b262f0f35d7905fe5542cf7fb5b9866008e9d279aa5190d9865a379637"
+                            - generic:
+                              - img
+                            - generic: main.css
+                            - generic:
+                              - img
+                        - treeitem "main.ts" [level=3] [ref=e290]:
+                          - link "main.ts" [ref=e291] [cursor=pointer]:
+                            - /url: "#diff-ee9661a1716f86248f456b5cca446727755908bcf6bc5214894e54a45525d76e"
+                            - generic:
+                              - img
+                            - generic: main.ts
+                            - generic:
+                              - img
+                        - treeitem "types.ts" [level=3] [ref=e292]:
+                          - link "types.ts" [ref=e293] [cursor=pointer]:
+                            - /url: "#diff-31a40e8ffa8e9c7a5fd066e64bfc36c13d3e95332869b5a8bda8e137b064bfcd"
+                            - generic:
+                              - img
+                            - generic: types.ts
+                            - generic:
+                              - img
+                    - treeitem "tsconfig.json" [level=2] [ref=e294]:
+                      - link "tsconfig.json" [ref=e295] [cursor=pointer]:
+                        - /url: "#diff-90f8caf3db116aa4713b7c3047436dcde35e447f25b4b7bab95984dcaf75404a"
+                        - generic:
+                          - img
+                        - generic: tsconfig.json
+                        - generic:
+                          - img
+                    - treeitem "vite.config.js" [level=2] [ref=e296]:
+                      - link "vite.config.js" [ref=e297] [cursor=pointer]:
+                        - /url: "#diff-517fd177f3edf2565c98c316caee208c3db49020c513aa49a8e108881c404678"
+                        - generic:
+                          - img
+                        - generic: vite.config.js
+                        - generic:
+                          - img
+          - generic [ref=e298]:
+            - generic [ref=e299]:
+              - generic [ref=e300]:
+                - generic [ref=e302]:
+                  - generic [ref=e303]:
+                    - generic [ref=e304]:
+                      - button "Toggle diff contents" [expanded] [ref=e305] [cursor=pointer]:
+                        - img [ref=e306]
+                      - generic [ref=e308]: "3 changes: 3 additions & 0 deletions"
+                      - generic [ref=e309]: "3"
+                      - generic [ref=e315]:
+                        - link "plugins/vscode-history/.gitignore" [ref=e316] [cursor=pointer]:
+                          - /url: "#diff-a38d49971d06686242ea70a502681500b9e732f1cb8eac00837367de9b6eeb70"
+                        - button "Copy" [ref=e318]:
+                          - img [ref=e319]
+                    - group [ref=e325]:
+                      - button "Show options" [ref=e326] [cursor=pointer]:
+                        - img "Show options" [ref=e328]
+                  - table [ref=e333]:
+                    - rowgroup [ref=e334]:
+                      - row "Original file line number Diff line number Diff line change" [ref=e335]:
+                        - columnheader "Original file line number" [ref=e336]
+                        - columnheader "Diff line number" [ref=e337]
+                        - columnheader "Diff line change" [ref=e338]
+                    - rowgroup [ref=e339]:
+                      - row "... ... @@ -0,0 +1,3 @@" [ref=e340]:
+                        - cell "..." [ref=e341]
+                        - cell "..." [ref=e342]
+                        - cell "@@ -0,0 +1,3 @@" [ref=e343]
+                      - row "1 + example" [ref=e344]:
+                        - cell [ref=e345] [cursor=pointer]
+                        - cell "1" [ref=e346] [cursor=pointer]
+                        - cell "+ example" [ref=e347]:
+                          - generic [ref=e348]: + example
+                      - row "2 + dist" [ref=e349]:
+                        - cell [ref=e350] [cursor=pointer]
+                        - cell "2" [ref=e351] [cursor=pointer]
+                        - cell "+ dist" [ref=e352]:
+                          - generic [ref=e353]: + dist
+                      - row "3 + node_modules" [ref=e354]:
+                        - cell [ref=e355] [cursor=pointer]
+                        - cell "3" [ref=e356] [cursor=pointer]
+                        - cell "+ node_modules" [ref=e357]:
+                          - generic [ref=e358]: + node_modules
+                - generic [ref=e360]:
+                  - generic [ref=e361]:
+                    - generic [ref=e362]:
+                      - button "Toggle diff contents" [expanded] [ref=e363] [cursor=pointer]:
+                        - img [ref=e364]
+                      - generic [ref=e366]: "107 changes: 107 additions & 0 deletions"
+                      - generic [ref=e367]: "107"
+                      - generic [ref=e373]:
+                        - link "plugins/vscode-history/CLAUDE.md" [ref=e374] [cursor=pointer]:
+                          - /url: "#diff-3ab2b301579e9eb6c1665660d48959b0f5ed450f03d4664eefdff50adf3a0ccc"
+                        - button "Copy" [ref=e376]:
+                          - img [ref=e377]
+                    - generic [ref=e382]:
+                      - generic [ref=e383]:
+                        - button "Display the source diff" [ref=e385] [cursor=pointer]:
+                          - img [ref=e386]
+                        - button "Display the rich diff" [ref=e389] [cursor=pointer]:
+                          - img [ref=e390]
+                      - group [ref=e392]:
+                        - button "Show options" [ref=e393] [cursor=pointer]:
+                          - img "Show options" [ref=e395]
+                  - table [ref=e400]:
+                    - rowgroup [ref=e401]:
+                      - row "Original file line number Diff line number Diff line change" [ref=e402]:
+                        - columnheader "Original file line number" [ref=e403]
+                        - columnheader "Diff line number" [ref=e404]
+                        - columnheader "Diff line change" [ref=e405]
+                    - rowgroup [ref=e410]:
+                      - row "... ... @@ -0,0 +1,107 @@" [ref=e411]:
+                        - cell "..." [ref=e412]
+                        - cell "..." [ref=e413]
+                        - cell "@@ -0,0 +1,107 @@" [ref=e414]
+                      - 'row "1 + # CLAUDE.md" [ref=e415]':
+                        - cell [ref=e416] [cursor=pointer]
+                        - cell "1" [ref=e417] [cursor=pointer]
+                        - 'cell "+ # CLAUDE.md" [ref=e418]':
+                          - generic [ref=e419]: "+ # CLAUDE.md"
+                      - row "2 +" [ref=e420]:
+                        - cell [ref=e421] [cursor=pointer]
+                        - cell "2" [ref=e422] [cursor=pointer]
+                        - cell "+" [ref=e423]:
+                          - generic: +
+                      - row "3 + This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository." [ref=e424]:
+                        - cell [ref=e425] [cursor=pointer]
+                        - cell "3" [ref=e426] [cursor=pointer]
+                        - cell "+ This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository." [ref=e427]:
+                          - generic [ref=e428]: + This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+                      - row "4 +" [ref=e429]:
+                        - cell [ref=e430] [cursor=pointer]
+                        - cell "4" [ref=e431] [cursor=pointer]
+                        - cell "+" [ref=e432]:
+                          - generic: +
+                      - 'row "5 + ## Project Overview" [ref=e433]':
+                        - cell [ref=e434] [cursor=pointer]
+                        - cell "5" [ref=e435] [cursor=pointer]
+                        - 'cell "+ ## Project Overview" [ref=e436]':
+                          - generic [ref=e437]: "+ ## Project Overview"
+                      - row "6 +" [ref=e438]:
+                        - cell [ref=e439] [cursor=pointer]
+                        - cell "6" [ref=e440] [cursor=pointer]
+                        - cell "+" [ref=e441]:
+                          - generic: +
+                      - row "7 + This repository contains two ZTools plugins (not VS Code extensions):" [ref=e442]:
+                        - cell [ref=e443] [cursor=pointer]
+                        - cell "7" [ref=e444] [cursor=pointer]
+                        - cell "+ This repository contains two ZTools plugins (not VS Code extensions):" [ref=e445]:
+                          - generic [ref=e446]: "+ This repository contains two ZTools plugins (not VS Code extensions):"
+                      - row "8 +" [ref=e447]:
+                        - cell [ref=e448] [cursor=pointer]
+                        - cell "8" [ref=e449] [cursor=pointer]
+                        - cell "+" [ref=e450]:
+                          - generic: +
+                      - 'row "9 + 1. **Root project** (`.`) — A Vue 3 + Vite + TypeScript ZTools plugin for searching and opening VSCode/Cursor history projects" [ref=e451]':
+                        - cell [ref=e452] [cursor=pointer]
+                        - cell "9" [ref=e453] [cursor=pointer]
+                        - 'cell "+ 1. **Root project** (`.`) — A Vue 3 + Vite + TypeScript ZTools plugin for searching and opening VSCode/Cursor history projects" [ref=e454]':
+                          - generic [ref=e455]: "+ 1. **Root project** (`.`) — A Vue 3 + Vite + TypeScript ZTools plugin for searching and opening VSCode/Cursor history projects"
+                      - 'row "10 + 2. **Example project** (`example/vscode/`) — Original \"vscode next\" ZTools plugin (vanilla JS, utools-based, source for migration)" [ref=e456]':
+                        - cell [ref=e457] [cursor=pointer]
+                        - cell "10" [ref=e458] [cursor=pointer]
+                        - 'cell "+ 2. **Example project** (`example/vscode/`) — Original \"vscode next\" ZTools plugin (vanilla JS, utools-based, source for migration)" [ref=e459]':
+                          - generic [ref=e460]: "+ 2. **Example project** (`example/vscode/`) — Original \"vscode next\" ZTools plugin (vanilla JS, utools-based, source for migration)"
+                      - row "11 +" [ref=e461]:
+                        - cell [ref=e462] [cursor=pointer]
+                        - cell "11" [ref=e463] [cursor=pointer]
+                        - cell "+" [ref=e464]:
+                          - generic: +
+                      - row "12 + The root project is the migrated version. It uses Vue 3 + Vite + TypeScript and runs as a ZTools plugin." [ref=e465]:
+                        - cell [ref=e466] [cursor=pointer]
+                        - cell "12" [ref=e467] [cursor=pointer]
+                        - cell "+ The root project is the migrated version. It uses Vue 3 + Vite + TypeScript and runs as a ZTools plugin." [ref=e468]:
+                          - generic [ref=e469]: + The root project is the migrated version. It uses Vue 3 + Vite + TypeScript and runs as a ZTools plugin.
+                      - row "13 +" [ref=e470]:
+                        - cell [ref=e471] [cursor=pointer]
+                        - cell "13" [ref=e472] [cursor=pointer]
+                        - cell "+" [ref=e473]:
+                          - generic: +
+                      - 'row "14 + ## ZTools API References" [ref=e474]':
+                        - cell [ref=e475] [cursor=pointer]
+                        - cell "14" [ref=e476] [cursor=pointer]
+                        - 'cell "+ ## ZTools API References" [ref=e477]':
+                          - generic [ref=e478]: "+ ## ZTools API References"
+                      - row "15 +" [ref=e479]:
+                        - cell [ref=e480] [cursor=pointer]
+                        - cell "15" [ref=e481] [cursor=pointer]
+                        - cell "+" [ref=e482]:
+                          - generic: +
+                      - 'row "16 + - [`plugin.json` 配置](https://ztoolscenter.github.io/ZTools-doc/plugin-json.html)" [ref=e483]':
+                        - cell [ref=e484] [cursor=pointer]
+                        - cell "16" [ref=e485] [cursor=pointer]
+                        - 'cell "+ - [`plugin.json` 配置](https://ztoolscenter.github.io/ZTools-doc/plugin-json.html)" [ref=e486]':
+                          - generic [ref=e487]: "+ - [`plugin.json` 配置](https://ztoolscenter.github.io/ZTools-doc/plugin-json.html)"
+                      - 'row "17 + - [`preload.js` 配置](https://ztoolscenter.github.io/ZTools-doc/preload-js.html)" [ref=e488]':
+                        - cell [ref=e489] [cursor=pointer]
+                        - cell "17" [ref=e490] [cursor=pointer]
+                        - 'cell "+ - [`preload.js` 配置](https://ztoolscenter.github.io/ZTools-doc/preload-js.html)" [ref=e491]':
+                          - generic [ref=e492]: "+ - [`preload.js` 配置](https://ztoolscenter.github.io/ZTools-doc/preload-js.html)"
+                      - row "18 + - [Node.js 能力](https://ztoolscenter.github.io/ZTools-doc/node-js.html)" [ref=e493]:
+                        - cell [ref=e494] [cursor=pointer]
+                        - cell "18" [ref=e495] [cursor=pointer]
+                        - cell "+ - [Node.js 能力](https://ztoolscenter.github.io/ZTools-doc/node-js.html)" [ref=e496]:
+                          - generic [ref=e497]: + - [Node.js 能力](https://ztoolscenter.github.io/ZTools-doc/node-js.html)
+                      - row "19 + - [插件可用 API](https://ztoolscenter.github.io/ZTools-doc/plugin-api.html)" [ref=e498]:
+                        - cell [ref=e499] [cursor=pointer]
+                        - cell "19" [ref=e500] [cursor=pointer]
+                        - cell "+ - [插件可用 API](https://ztoolscenter.github.io/ZTools-doc/plugin-api.html)" [ref=e501]:
+                          - generic [ref=e502]: + - [插件可用 API](https://ztoolscenter.github.io/ZTools-doc/plugin-api.html)
+                      - row "20 + - [ZTools 官方文档](https://github.com/ztool-center/ztools)" [ref=e503]:
+                        - cell [ref=e504] [cursor=pointer]
+                        - cell "20" [ref=e505] [cursor=pointer]
+                        - cell "+ - [ZTools 官方文档](https://github.com/ztool-center/ztools)" [ref=e506]:
+                          - generic [ref=e507]: + - [ZTools 官方文档](https://github.com/ztool-center/ztools)
+                      - row "21 +" [ref=e508]:
+                        - cell [ref=e509] [cursor=pointer]
+                        - cell "21" [ref=e510] [cursor=pointer]
+                        - cell "+" [ref=e511]:
+                          - generic: +
+                      - 'row "22 + ## Key Commands" [ref=e512]':
+                        - cell [ref=e513] [cursor=pointer]
+                        - cell "22" [ref=e514] [cursor=pointer]
+                        - 'cell "+ ## Key Commands" [ref=e515]':
+                          - generic [ref=e516]: "+ ## Key Commands"
+                      - row "23 +" [ref=e517]:
+                        - cell [ref=e518] [cursor=pointer]
+                        - cell "23" [ref=e519] [cursor=pointer]
+                        - cell "+" [ref=e520]:
+                          - generic: +
+                      - 'row "24 + ### Root project" [ref=e521]':
+                        - cell [ref=e522] [cursor=pointer]
+                        - cell "24" [ref=e523] [cursor=pointer]
+                        - 'cell "+ ### Root project" [ref=e524]':
+                          - generic [ref=e525]: "+ ### Root project"
+                      - row "25 +" [ref=e526]:
+                        - cell [ref=e527] [cursor=pointer]
+                        - cell "25" [ref=e528] [cursor=pointer]
+                        - cell "+" [ref=e529]:
+                          - generic: +
+                      - 'row "26 + ```bash" [ref=e530]':
+                        - cell [ref=e531] [cursor=pointer]
+                        - cell "26" [ref=e532] [cursor=pointer]
+                        - 'cell "+ ```bash" [ref=e533]':
+                          - generic [ref=e534]: "+ ```bash"
+                      - 'row "27 + npm install # Install dependencies" [ref=e535]':
+                        - cell [ref=e536] [cursor=pointer]
+                        - cell "27" [ref=e537] [cursor=pointer]
+                        - 'cell "+ npm install # Install dependencies" [ref=e538]':
+                          - generic [ref=e539]: "+ npm install # Install dependencies"
+                      - 'row "28 + npm run dev # Start Vite dev server at localhost:5173" [ref=e540]':
+                        - cell [ref=e541] [cursor=pointer]
+                        - cell "28" [ref=e542] [cursor=pointer]
+                        - 'cell "+ npm run dev # Start Vite dev server at localhost:5173" [ref=e543]':
+                          - generic [ref=e544]: "+ npm run dev # Start Vite dev server at localhost:5173"
+                      - 'row "29 + npm run build # Build production to dist/ (runs vue-tsc then vite build)" [ref=e545]':
+                        - cell [ref=e546] [cursor=pointer]
+                        - cell "29" [ref=e547] [cursor=pointer]
+                        - 'cell "+ npm run build # Build production to dist/ (runs vue-tsc then vite build)" [ref=e548]':
+                          - generic [ref=e549]: "+ npm run build # Build production to dist/ (runs vue-tsc then vite build)"
+                      - 'row "30 + ```" [ref=e550]':
+                        - cell [ref=e551] [cursor=pointer]
+                        - cell "30" [ref=e552] [cursor=pointer]
+                        - 'cell "+ ```" [ref=e553]':
+                          - generic [ref=e554]: "+ ```"
+                      - row "31 +" [ref=e555]:
+                        - cell [ref=e556] [cursor=pointer]
+                        - cell "31" [ref=e557] [cursor=pointer]
+                        - cell "+" [ref=e558]:
+                          - generic: +
+                      - 'row "32 + ### example/vscode/" [ref=e559]':
+                        - cell [ref=e560] [cursor=pointer]
+                        - cell "32" [ref=e561] [cursor=pointer]
+                        - 'cell "+ ### example/vscode/" [ref=e562]':
+                          - generic [ref=e563]: "+ ### example/vscode/"
+                      - row "33 +" [ref=e564]:
+                        - cell [ref=e565] [cursor=pointer]
+                        - cell "33" [ref=e566] [cursor=pointer]
+                        - cell "+" [ref=e567]:
+                          - generic: +
+                      - 'row "34 + ```bash" [ref=e568]':
+                        - cell [ref=e569] [cursor=pointer]
+                        - cell "34" [ref=e570] [cursor=pointer]
+                        - 'cell "+ ```bash" [ref=e571]':
+                          - generic [ref=e572]: "+ ```bash"
+                      - 'row "35 + npm install # Install dependencies" [ref=e573]':
+                        - cell [ref=e574] [cursor=pointer]
+                        - cell "35" [ref=e575] [cursor=pointer]
+                        - 'cell "+ npm install # Install dependencies" [ref=e576]':
+                          - generic [ref=e577]: "+ npm install # Install dependencies"
+                      - 'row "36 + npm run dev # Start Vite dev server" [ref=e578]':
+                        - cell [ref=e579] [cursor=pointer]
+                        - cell "36" [ref=e580] [cursor=pointer]
+                        - 'cell "+ npm run dev # Start Vite dev server" [ref=e581]':
+                          - generic [ref=e582]: "+ npm run dev # Start Vite dev server"
+                      - 'row "37 + npm run build # Build: esbuild backend + Vite frontend + copy assets to dist/" [ref=e583]':
+                        - cell [ref=e584] [cursor=pointer]
+                        - cell "37" [ref=e585] [cursor=pointer]
+                        - 'cell "+ npm run build # Build: esbuild backend + Vite frontend + copy assets to dist/" [ref=e586]':
+                          - generic [ref=e587]: "+ npm run build # Build: esbuild backend + Vite frontend + copy assets to dist/"
+                      - 'row "38 + ```" [ref=e588]':
+                        - cell [ref=e589] [cursor=pointer]
+                        - cell "38" [ref=e590] [cursor=pointer]
+                        - 'cell "+ ```" [ref=e591]':
+                          - generic [ref=e592]: "+ ```"
+                      - row "39 +" [ref=e593]:
+                        - cell [ref=e594] [cursor=pointer]
+                        - cell "39" [ref=e595] [cursor=pointer]
+                        - cell "+" [ref=e596]:
+                          - generic: +
+                      - 'row "40 + ## Architecture" [ref=e597]':
+                        - cell [ref=e598] [cursor=pointer]
+                        - cell "40" [ref=e599] [cursor=pointer]
+                        - 'cell "+ ## Architecture" [ref=e600]':
+                          - generic [ref=e601]: "+ ## Architecture"
+                      - row "41 +" [ref=e602]:
+                        - cell [ref=e603] [cursor=pointer]
+                        - cell "41" [ref=e604] [cursor=pointer]
+                        - cell "+" [ref=e605]:
+                          - generic: +
+                      - 'row "42 + ### Root Project (Vue 3 + Vite + TypeScript)" [ref=e606]':
+                        - cell [ref=e607] [cursor=pointer]
+                        - cell "42" [ref=e608] [cursor=pointer]
+                        - 'cell "+ ### Root Project (Vue 3 + Vite + TypeScript)" [ref=e609]':
+                          - generic [ref=e610]: "+ ### Root Project (Vue 3 + Vite + TypeScript)"
+                      - row "43 +" [ref=e611]:
+                        - cell [ref=e612] [cursor=pointer]
+                        - cell "43" [ref=e613] [cursor=pointer]
+                        - cell "+" [ref=e614]:
+                          - generic: +
+                      - 'row "44 + - **Entry**: `src/main.ts` → `App.vue` → route-based components" [ref=e615]':
+                        - cell [ref=e616] [cursor=pointer]
+                        - cell "44" [ref=e617] [cursor=pointer]
+                        - 'cell "+ - **Entry**: `src/main.ts` → `App.vue` → route-based components" [ref=e618]':
+                          - generic [ref=e619]: "+ - **Entry**: `src/main.ts` → `App.vue` → route-based components"
+                      - 'row "45 + - **Routing**: `App.vue` routes to components based on `action.code` from `window.ztools.onPluginEnter()`" [ref=e620]':
+                        - cell [ref=e621] [cursor=pointer]
+                        - cell "45" [ref=e622] [cursor=pointer]
+                        - 'cell "+ - **Routing**: `App.vue` routes to components based on `action.code` from `window.ztools.onPluginEnter()`" [ref=e623]':
+                          - generic [ref=e624]: "+ - **Routing**: `App.vue` routes to components based on `action.code` from `window.ztools.onPluginEnter()`"
+                      - 'row "46 + - **ZTools manifest**: `public/plugin.json` — features defined with `code`, `cmds`, `explain`, `icon`" [ref=e625]':
+                        - cell [ref=e626] [cursor=pointer]
+                        - cell "46" [ref=e627] [cursor=pointer]
+                        - 'cell "+ - **ZTools manifest**: `public/plugin.json` — features defined with `code`, `cmds`, `explain`, `icon`" [ref=e628]':
+                          - generic [ref=e629]: "+ - **ZTools manifest**: `public/plugin.json` — features defined with `code`, `cmds`, `explain`, `icon`"
+                      - 'row "47 + - **Node.js bridge**: `public/preload/services.js` — preload script that exposes Node.js APIs via `window.services`" [ref=e630]':
+                        - cell [ref=e631] [cursor=pointer]
+                        - cell "47" [ref=e632] [cursor=pointer]
+                        - 'cell "+ - **Node.js bridge**: `public/preload/services.js` — preload script that exposes Node.js APIs via `window.services`" [ref=e633]':
+                          - generic [ref=e634]: "+ - **Node.js bridge**: `public/preload/services.js` — preload script that exposes Node.js APIs via `window.services`"
+                      - 'row "48 + - **SQL.js**: npm package for SQLite operations in preload (WASM-based)" [ref=e635]':
+                        - cell [ref=e636] [cursor=pointer]
+                        - cell "48" [ref=e637] [cursor=pointer]
+                        - 'cell "+ - **SQL.js**: npm package for SQLite operations in preload (WASM-based)" [ref=e638]':
+                          - generic [ref=e639]: "+ - **SQL.js**: npm package for SQLite operations in preload (WASM-based)"
+                      - 'row "49 + - **TypeScript**: `src/env.d.ts` declares `window.services` and ZTools types" [ref=e640]':
+                        - cell [ref=e641] [cursor=pointer]
+                        - cell "49" [ref=e642] [cursor=pointer]
+                        - 'cell "+ - **TypeScript**: `src/env.d.ts` declares `window.services` and ZTools types" [ref=e643]':
+                          - generic [ref=e644]: "+ - **TypeScript**: `src/env.d.ts` declares `window.services` and ZTools types"
+                      - row "50 +" [ref=e645]:
+                        - cell [ref=e646] [cursor=pointer]
+                        - cell "50" [ref=e647] [cursor=pointer]
+                        - cell "+" [ref=e648]:
+                          - generic: +
+                      - 'row "51 + ### Component Structure" [ref=e649]':
+                        - cell [ref=e650] [cursor=pointer]
+                        - cell "51" [ref=e651] [cursor=pointer]
+                        - 'cell "+ ### Component Structure" [ref=e652]':
+                          - generic [ref=e653]: "+ ### Component Structure"
+                      - row "52 +" [ref=e654]:
+                        - cell [ref=e655] [cursor=pointer]
+                        - cell "52" [ref=e656] [cursor=pointer]
+                        - cell "+" [ref=e657]:
+                          - generic: +
+                      - row "53 + | Component | Path | Purpose |" [ref=e658]:
+                        - cell [ref=e659] [cursor=pointer]
+                        - cell "53" [ref=e660] [cursor=pointer]
+                        - cell "+ | Component | Path | Purpose |" [ref=e661]:
+                          - generic [ref=e662]: + | Component | Path | Purpose |
+                      - row "54 + |-----------|------|---------|" [ref=e663]:
+                        - cell [ref=e664] [cursor=pointer]
+                        - cell "54" [ref=e665] [cursor=pointer]
+                        - cell "+ |-----------|------|---------|" [ref=e666]:
+                          - generic [ref=e667]: + |-----------|------|---------|
+                      - 'row "55 + | VSCodeSearch | `src/VSCodeSearch/index.vue` | Search and open VSCode history projects |" [ref=e668]':
+                        - cell [ref=e669] [cursor=pointer]
+                        - cell "55" [ref=e670] [cursor=pointer]
+                        - 'cell "+ | VSCodeSearch | `src/VSCodeSearch/index.vue` | Search and open VSCode history projects |" [ref=e671]':
+                          - generic [ref=e672]: "+ | VSCodeSearch | `src/VSCodeSearch/index.vue` | Search and open VSCode history projects |"
+                      - 'row "56 + | VSCodeIDE | `src/VSCodeIDE/index.vue` | Manage IDE configurations (add/remove/edit) |" [ref=e673]':
+                        - cell [ref=e674] [cursor=pointer]
+                        - cell "56" [ref=e675] [cursor=pointer]
+                        - 'cell "+ | VSCodeIDE | `src/VSCodeIDE/index.vue` | Manage IDE configurations (add/remove/edit) |" [ref=e676]':
+                          - generic [ref=e677]: "+ | VSCodeIDE | `src/VSCodeIDE/index.vue` | Manage IDE configurations (add/remove/edit) |"
+                      - row "57 +" [ref=e678]:
+                        - cell [ref=e679] [cursor=pointer]
+                        - cell "57" [ref=e680] [cursor=pointer]
+                        - cell "+" [ref=e681]:
+                          - generic: +
+                      - 'row "58 + ### Core Modules" [ref=e682]':
+                        - cell [ref=e683] [cursor=pointer]
+                        - cell "58" [ref=e684] [cursor=pointer]
+                        - 'cell "+ ### Core Modules" [ref=e685]':
+                          - generic [ref=e686]: "+ ### Core Modules"
+                      - row "59 +" [ref=e687]:
+                        - cell [ref=e688] [cursor=pointer]
+                        - cell "59" [ref=e689] [cursor=pointer]
+                        - cell "+" [ref=e690]:
+                          - generic: +
+                      - row "60 + | Module | Path | Purpose |" [ref=e691]:
+                        - cell [ref=e692] [cursor=pointer]
+                        - cell "60" [ref=e693] [cursor=pointer]
+                        - cell "+ | Module | Path | Purpose |" [ref=e694]:
+                          - generic [ref=e695]: + | Module | Path | Purpose |
+                      - row "61 + |--------|------|---------|" [ref=e696]:
+                        - cell [ref=e697] [cursor=pointer]
+                        - cell "61" [ref=e698] [cursor=pointer]
+                        - cell "+ |--------|------|---------|" [ref=e699]:
+                          - generic [ref=e700]: + |--------|------|---------|
+                      - 'row "62 + | Types | `src/types.ts` | Type definitions (IDEConfig, SearchItem, etc.) |" [ref=e701]':
+                        - cell [ref=e702] [cursor=pointer]
+                        - cell "62" [ref=e703] [cursor=pointer]
+                        - 'cell "+ | Types | `src/types.ts` | Type definitions (IDEConfig, SearchItem, etc.) |" [ref=e704]':
+                          - generic [ref=e705]: "+ | Types | `src/types.ts` | Type definitions (IDEConfig, SearchItem, etc.) |"
+                      - 'row "63 + | Config | `src/config.ts` | IDE config management (get/save/delete) |" [ref=e706]':
+                        - cell [ref=e707] [cursor=pointer]
+                        - cell "63" [ref=e708] [cursor=pointer]
+                        - 'cell "+ | Config | `src/config.ts` | IDE config management (get/save/delete) |" [ref=e709]':
+                          - generic [ref=e710]: "+ | Config | `src/config.ts` | IDE config management (get/save/delete) |"
+                      - row "64 +" [ref=e711]:
+                        - cell [ref=e712] [cursor=pointer]
+                        - cell "64" [ref=e713] [cursor=pointer]
+                        - cell "+" [ref=e714]:
+                          - generic: +
+                      - 'row "65 + ### Preload Services (`public/preload/services.js`)" [ref=e715]':
+                        - cell [ref=e716] [cursor=pointer]
+                        - cell "65" [ref=e717] [cursor=pointer]
+                        - 'cell "+ ### Preload Services (`public/preload/services.js`)" [ref=e718]':
+                          - generic [ref=e719]: "+ ### Preload Services (`public/preload/services.js`)"
+                      - row "66 +" [ref=e720]:
+                        - cell [ref=e721] [cursor=pointer]
+                        - cell "66" [ref=e722] [cursor=pointer]
+                        - cell "+" [ref=e723]:
+                          - generic: +
+                      - row "67 + | Method | Purpose |" [ref=e724]:
+                        - cell [ref=e725] [cursor=pointer]
+                        - cell "67" [ref=e726] [cursor=pointer]
+                        - cell "+ | Method | Purpose |" [ref=e727]:
+                          - generic [ref=e728]: + | Method | Purpose |
+                      - row "68 + |--------|---------|" [ref=e729]:
+                        - cell [ref=e730] [cursor=pointer]
+                        - cell "68" [ref=e731] [cursor=pointer]
+                        - cell "+ |--------|---------|" [ref=e732]:
+                          - generic [ref=e733]: + |--------|---------|
+                      - 'row "69 + | `getVSCodeHistory(dbPath)` | Read VSCode history from state.vscdb |" [ref=e734]':
+                        - cell [ref=e735] [cursor=pointer]
+                        - cell "69" [ref=e736] [cursor=pointer]
+                        - 'cell "+ | `getVSCodeHistory(dbPath)` | Read VSCode history from state.vscdb |" [ref=e737]':
+                          - generic [ref=e738]: "+ | `getVSCodeHistory(dbPath)` | Read VSCode history from state.vscdb |"
+                      - 'row "70 + | `deleteVSCodeHistory(dbPath, path)` | Delete single history entry |" [ref=e739]':
+                        - cell [ref=e740] [cursor=pointer]
+                        - cell "70" [ref=e741] [cursor=pointer]
+                        - 'cell "+ | `deleteVSCodeHistory(dbPath, path)` | Delete single history entry |" [ref=e742]':
+                          - generic [ref=e743]: "+ | `deleteVSCodeHistory(dbPath, path)` | Delete single history entry |"
+                      - 'row "71 + | `deleteMultipleVSCodeHistory(dbPath, paths)` | Batch delete history entries |" [ref=e744]':
+                        - cell [ref=e745] [cursor=pointer]
+                        - cell "71" [ref=e746] [cursor=pointer]
+                        - 'cell "+ | `deleteMultipleVSCodeHistory(dbPath, paths)` | Batch delete history entries |" [ref=e747]':
+                          - generic [ref=e748]: "+ | `deleteMultipleVSCodeHistory(dbPath, paths)` | Batch delete history entries |"
+                      - 'row "72 + | `shellExec(cmd, options)` | Execute shell command |" [ref=e749]':
+                        - cell [ref=e750] [cursor=pointer]
+                        - cell "72" [ref=e751] [cursor=pointer]
+                        - 'cell "+ | `shellExec(cmd, options)` | Execute shell command |" [ref=e752]':
+                          - generic [ref=e753]: "+ | `shellExec(cmd, options)` | Execute shell command |"
+                      - 'row "73 + | `getAllDbStorageKeys()` | Get all dbStorage keys |" [ref=e754]':
+                        - cell [ref=e755] [cursor=pointer]
+                        - cell "73" [ref=e756] [cursor=pointer]
+                        - 'cell "+ | `getAllDbStorageKeys()` | Get all dbStorage keys |" [ref=e757]':
+                          - generic [ref=e758]: "+ | `getAllDbStorageKeys()` | Get all dbStorage keys |"
+                      - 'row "74 + | `getAllIDEConfigs()` | Get all IDE configurations |" [ref=e759]':
+                        - cell [ref=e760] [cursor=pointer]
+                        - cell "74" [ref=e761] [cursor=pointer]
+                        - 'cell "+ | `getAllIDEConfigs()` | Get all IDE configurations |" [ref=e762]':
+                          - generic [ref=e763]: "+ | `getAllIDEConfigs()` | Get all IDE configurations |"
+                      - 'row "75 + | `saveIDEConfig(config)` | Save IDE configuration |" [ref=e764]':
+                        - cell [ref=e765] [cursor=pointer]
+                        - cell "75" [ref=e766] [cursor=pointer]
+                        - 'cell "+ | `saveIDEConfig(config)` | Save IDE configuration |" [ref=e767]':
+                          - generic [ref=e768]: "+ | `saveIDEConfig(config)` | Save IDE configuration |"
+                      - 'row "76 + | `deleteIDEConfig(code)` | Delete IDE configuration |" [ref=e769]':
+                        - cell [ref=e770] [cursor=pointer]
+                        - cell "76" [ref=e771] [cursor=pointer]
+                        - 'cell "+ | `deleteIDEConfig(code)` | Delete IDE configuration |" [ref=e772]':
+                          - generic [ref=e773]: "+ | `deleteIDEConfig(code)` | Delete IDE configuration |"
+                      - row "77 +" [ref=e774]:
+                        - cell [ref=e775] [cursor=pointer]
+                        - cell "77" [ref=e776] [cursor=pointer]
+                        - cell "+" [ref=e777]:
+                          - generic: +
+                      - 'row "78 + ## Key Files Reference" [ref=e778]':
+                        - cell [ref=e779] [cursor=pointer]
+                        - cell "78" [ref=e780] [cursor=pointer]
+                        - 'cell "+ ## Key Files Reference" [ref=e781]':
+                          - generic [ref=e782]: "+ ## Key Files Reference"
+                      - row "79 +" [ref=e783]:
+                        - cell [ref=e784] [cursor=pointer]
+                        - cell "79" [ref=e785] [cursor=pointer]
+                        - cell "+" [ref=e786]:
+                          - generic: +
+                      - row "80 + | File | Purpose |" [ref=e787]:
+                        - cell [ref=e788] [cursor=pointer]
+                        - cell "80" [ref=e789] [cursor=pointer]
+                        - cell "+ | File | Purpose |" [ref=e790]:
+                          - generic [ref=e791]: + | File | Purpose |
+                      - row "81 + |------|---------|" [ref=e792]:
+                        - cell [ref=e793] [cursor=pointer]
+                        - cell "81" [ref=e794] [cursor=pointer]
+                        - cell "+ |------|---------|" [ref=e795]:
+                          - generic [ref=e796]: + |------|---------|
+                      - 'row "82 + | `public/plugin.json` | ZTools plugin manifest (features, preload, logo) |" [ref=e797]':
+                        - cell [ref=e798] [cursor=pointer]
+                        - cell "82" [ref=e799] [cursor=pointer]
+                        - 'cell "+ | `public/plugin.json` | ZTools plugin manifest (features, preload, logo) |" [ref=e800]':
+                          - generic [ref=e801]: "+ | `public/plugin.json` | ZTools plugin manifest (features, preload, logo) |"
+                      - 'row "83 + | `public/preload/services.js` | Node.js bridge — SQL.js, shell exec, DB ops |" [ref=e802]':
+                        - cell [ref=e803] [cursor=pointer]
+                        - cell "83" [ref=e804] [cursor=pointer]
+                        - 'cell "+ | `public/preload/services.js` | Node.js bridge — SQL.js, shell exec, DB ops |" [ref=e805]':
+                          - generic [ref=e806]: "+ | `public/preload/services.js` | Node.js bridge — SQL.js, shell exec, DB ops |"
+                      - 'row "84 + | `src/main.ts` | Vue app entry |" [ref=e807]':
+                        - cell [ref=e808] [cursor=pointer]
+                        - cell "84" [ref=e809] [cursor=pointer]
+                        - 'cell "+ | `src/main.ts` | Vue app entry |" [ref=e810]':
+                          - generic [ref=e811]: "+ | `src/main.ts` | Vue app entry |"
+                      - 'row "85 + | `src/App.vue` | Root component with route logic |" [ref=e812]':
+                        - cell [ref=e813] [cursor=pointer]
+                        - cell "85" [ref=e814] [cursor=pointer]
+                        - 'cell "+ | `src/App.vue` | Root component with route logic |" [ref=e815]':
+                          - generic [ref=e816]: "+ | `src/App.vue` | Root component with route logic |"
+                      - 'row "86 + | `src/types.ts` | TypeScript type definitions |" [ref=e817]':
+                        - cell [ref=e818] [cursor=pointer]
+                        - cell "86" [ref=e819] [cursor=pointer]
+                        - 'cell "+ | `src/types.ts` | TypeScript type definitions |" [ref=e820]':
+                          - generic [ref=e821]: "+ | `src/types.ts` | TypeScript type definitions |"
+                      - 'row "87 + | `src/config.ts` | IDE config management |" [ref=e822]':
+                        - cell [ref=e823] [cursor=pointer]
+                        - cell "87" [ref=e824] [cursor=pointer]
+                        - 'cell "+ | `src/config.ts` | IDE config management |" [ref=e825]':
+                          - generic [ref=e826]: "+ | `src/config.ts` | IDE config management |"
+                      - 'row "88 + | `src/env.d.ts` | TypeScript declarations for window/services |" [ref=e827]':
+                        - cell [ref=e828] [cursor=pointer]
+                        - cell "88" [ref=e829] [cursor=pointer]
+                        - 'cell "+ | `src/env.d.ts` | TypeScript declarations for window/services |" [ref=e830]':
+                          - generic [ref=e831]: "+ | `src/env.d.ts` | TypeScript declarations for window/services |"
+                      - 'row "89 + | `vite.config.js` | Vite config with Vue plugin |" [ref=e832]':
+                        - cell [ref=e833] [cursor=pointer]
+                        - cell "89" [ref=e834] [cursor=pointer]
+                        - 'cell "+ | `vite.config.js` | Vite config with Vue plugin |" [ref=e835]':
+                          - generic [ref=e836]: "+ | `vite.config.js` | Vite config with Vue plugin |"
+                      - 'row "90 + | `tsconfig.json` | TypeScript config with node + ztools types |" [ref=e837]':
+                        - cell [ref=e838] [cursor=pointer]
+                        - cell "90" [ref=e839] [cursor=pointer]
+                        - 'cell "+ | `tsconfig.json` | TypeScript config with node + ztools types |" [ref=e840]':
+                          - generic [ref=e841]: "+ | `tsconfig.json` | TypeScript config with node + ztools types |"
+                      - row "91 +" [ref=e842]:
+                        - cell [ref=e843] [cursor=pointer]
+                        - cell "91" [ref=e844] [cursor=pointer]
+                        - cell "+" [ref=e845]:
+                          - generic: +
+                      - 'row "92 + ## Adding a New Feature" [ref=e846]':
+                        - cell [ref=e847] [cursor=pointer]
+                        - cell "92" [ref=e848] [cursor=pointer]
+                        - 'cell "+ ## Adding a New Feature" [ref=e849]':
+                          - generic [ref=e850]: "+ ## Adding a New Feature"
+                      - row "93 +" [ref=e851]:
+                        - cell [ref=e852] [cursor=pointer]
+                        - cell "93" [ref=e853] [cursor=pointer]
+                        - cell "+" [ref=e854]:
+                          - generic: +
+                      - 'row "94 + 1. Create component in `src/<FeatureName>/index.vue`" [ref=e855]':
+                        - cell [ref=e856] [cursor=pointer]
+                        - cell "94" [ref=e857] [cursor=pointer]
+                        - 'cell "+ 1. Create component in `src/<FeatureName>/index.vue`" [ref=e858]':
+                          - generic [ref=e859]: "+ 1. Create component in `src/<FeatureName>/index.vue`"
+                      - 'row "95 + 2. Add route in `src/App.vue` template and script" [ref=e860]':
+                        - cell [ref=e861] [cursor=pointer]
+                        - cell "95" [ref=e862] [cursor=pointer]
+                        - 'cell "+ 2. Add route in `src/App.vue` template and script" [ref=e863]':
+                          - generic [ref=e864]: "+ 2. Add route in `src/App.vue` template and script"
+                      - 'row "96 + 3. Add feature entry to `public/plugin.json` `features` array with `code`, `cmds`, `explain`, `icon`" [ref=e865]':
+                        - cell [ref=e866] [cursor=pointer]
+                        - cell "96" [ref=e867] [cursor=pointer]
+                        - 'cell "+ 3. Add feature entry to `public/plugin.json` `features` array with `code`, `cmds`, `explain`, `icon`" [ref=e868]':
+                          - generic [ref=e869]: "+ 3. Add feature entry to `public/plugin.json` `features` array with `code`, `cmds`, `explain`, `icon`"
+                      - row "97 +" [ref=e870]:
+                        - cell [ref=e871] [cursor=pointer]
+                        - cell "97" [ref=e872] [cursor=pointer]
+                        - cell "+" [ref=e873]:
+                          - generic: +
+                      - 'row "98 + ## Adding Node.js Capability to Preload" [ref=e874]':
+                        - cell [ref=e875] [cursor=pointer]
+                        - cell "98" [ref=e876] [cursor=pointer]
+                        - 'cell "+ ## Adding Node.js Capability to Preload" [ref=e877]':
+                          - generic [ref=e878]: "+ ## Adding Node.js Capability to Preload"
+                      - row "99 +" [ref=e879]:
+                        - cell [ref=e880] [cursor=pointer]
+                        - cell "99" [ref=e881] [cursor=pointer]
+                        - cell "+" [ref=e882]:
+                          - generic: +
+                      - 'row "100 + Edit `public/preload/services.js` to add new functions, then update `src/env.d.ts` with type declarations." [ref=e883]':
+                        - cell [ref=e884] [cursor=pointer]
+                        - cell "100" [ref=e885] [cursor=pointer]
+                        - 'cell "+ Edit `public/preload/services.js` to add new functions, then update `src/env.d.ts` with type declarations." [ref=e886]':
+                          - generic [ref=e887]: "+ Edit `public/preload/services.js` to add new functions, then update `src/env.d.ts` with type declarations."
+                      - row "101 +" [ref=e888]:
+                        - cell [ref=e889] [cursor=pointer]
+                        - cell "101" [ref=e890] [cursor=pointer]
+                        - cell "+" [ref=e891]:
+                          - generic: +
+                      - 'row "102 + ## Current Features (plugin.json)" [ref=e892]':
+                        - cell [ref=e893] [cursor=pointer]
+                        - cell "102" [ref=e894] [cursor=pointer]
+                        - 'cell "+ ## Current Features (plugin.json)" [ref=e895]':
+                          - generic [ref=e896]: "+ ## Current Features (plugin.json)"
+                      - row "103 +" [ref=e897]:
+                        - cell [ref=e898] [cursor=pointer]
+                        - cell "103" [ref=e899] [cursor=pointer]
+                        - cell "+" [ref=e900]:
+                          - generic: +
+                      - row "104 + | Code | Commands | Description |" [ref=e901]:
+                        - cell [ref=e902] [cursor=pointer]
+                        - cell "104" [ref=e903] [cursor=pointer]
+                        - cell "+ | Code | Commands | Description |" [ref=e904]:
+                          - generic [ref=e905]: + | Code | Commands | Description |
+                      - row "105 + |------|----------|-------------|" [ref=e906]:
+                        - cell [ref=e907] [cursor=pointer]
+                        - cell "105" [ref=e908] [cursor=pointer]
+                        - cell "+ |------|----------|-------------|" [ref=e909]:
+                          - generic [ref=e910]: + |------|----------|-------------|
+                      - 'row "106 + | `vscode` | vscode, 搜索历史项目, vscode-history | Search VSCode history projects |" [ref=e911]':
+                        - cell [ref=e912] [cursor=pointer]
+                        - cell "106" [ref=e913] [cursor=pointer]
+                        - 'cell "+ | `vscode` | vscode, 搜索历史项目, vscode-history | Search VSCode history projects |" [ref=e914]':
+                          - generic [ref=e915]: "+ | `vscode` | vscode, 搜索历史项目, vscode-history | Search VSCode history projects |"
+                      - 'row "107 + | `vscode-ide` | vscode-ide, 管理 IDE, 添加 IDE | Manage IDE configurations |" [ref=e916]':
+                        - cell [ref=e917] [cursor=pointer]
+                        - cell "107" [ref=e918] [cursor=pointer]
+                        - 'cell "+ | `vscode-ide` | vscode-ide, 管理 IDE, 添加 IDE | Manage IDE configurations |" [ref=e919]':
+                          - generic [ref=e920]: "+ | `vscode-ide` | vscode-ide, 管理 IDE, 添加 IDE | Manage IDE configurations |"
+                - generic [ref=e922]:
+                  - generic [ref=e923]:
+                    - generic [ref=e924]:
+                      - button "Toggle diff contents" [expanded] [ref=e925] [cursor=pointer]:
+                        - img [ref=e926]
+                      - generic [ref=e928]: "136 changes: 136 additions & 0 deletions"
+                      - generic [ref=e929]: "136"
+                      - generic [ref=e935]:
+                        - link "plugins/vscode-history/README.md" [ref=e936] [cursor=pointer]:
+                          - /url: "#diff-b56f3b16eea19a086696d4ee8eeed6bc957d8a2bc560bad7c6f4437fdbc50a08"
+                        - button "Copy" [ref=e938]:
+                          - img [ref=e939]
+                    - generic [ref=e944]:
+                      - generic [ref=e945]:
+                        - button "Display the source diff" [ref=e947] [cursor=pointer]:
+                          - img [ref=e948]
+                        - button "Display the rich diff" [ref=e951] [cursor=pointer]:
+                          - img [ref=e952]
+                      - group [ref=e954]:
+                        - button "Show options" [ref=e955] [cursor=pointer]:
+                          - img "Show options" [ref=e957]
+                  - table [ref=e962]:
+                    - rowgroup [ref=e963]:
+                      - row "Original file line number Diff line number Diff line change" [ref=e964]:
+                        - columnheader "Original file line number" [ref=e965]
+                        - columnheader "Diff line number" [ref=e966]
+                        - columnheader "Diff line change" [ref=e967]
+                    - rowgroup [ref=e972]:
+                      - row "... ... @@ -0,0 +1,136 @@" [ref=e973]:
+                        - cell "..." [ref=e974]
+                        - cell "..." [ref=e975]
+                        - cell "@@ -0,0 +1,136 @@" [ref=e976]
+                      - 'row "1 + # vscode-history" [ref=e977]':
+                        - cell [ref=e978] [cursor=pointer]
+                        - cell "1" [ref=e979] [cursor=pointer]
+                        - 'cell "+ # vscode-history" [ref=e980]':
+                          - generic [ref=e981]: "+ # vscode-history"
+                      - row "2 +" [ref=e982]:
+                        - cell [ref=e983] [cursor=pointer]
+                        - cell "2" [ref=e984] [cursor=pointer]
+                        - cell "+" [ref=e985]:
+                          - generic: +
+                      - row "3 + > 快速搜索 VSCode / Cursor 历史项目并打开" [ref=e986]:
+                        - cell [ref=e987] [cursor=pointer]
+                        - cell "3" [ref=e988] [cursor=pointer]
+                        - cell "+ > 快速搜索 VSCode / Cursor 历史项目并打开" [ref=e989]:
+                          - generic [ref=e990]: + > 快速搜索 VSCode / Cursor 历史项目并打开
+                      - row "4 +" [ref=e991]:
+                        - cell [ref=e992] [cursor=pointer]
+                        - cell "4" [ref=e993] [cursor=pointer]
+                        - cell "+" [ref=e994]:
+                          - generic: +
+                      - row "5 + 这是一个使用 **Vue 3 + Vite + TypeScript** 构建的 ZTools 插件，用于搜索和打开本地 VSCode / Cursor 的最近打开项目历史记录。" [ref=e995]:
+                        - cell [ref=e996] [cursor=pointer]
+                        - cell "5" [ref=e997] [cursor=pointer]
+                        - cell "+ 这是一个使用 **Vue 3 + Vite + TypeScript** 构建的 ZTools 插件，用于搜索和打开本地 VSCode / Cursor 的最近打开项目历史记录。" [ref=e998]:
+                          - generic [ref=e999]: + 这是一个使用 **Vue 3 + Vite + TypeScript** 构建的 ZTools 插件，用于搜索和打开本地 VSCode / Cursor 的最近打开项目历史记录。
+                      - row "6 +" [ref=e1000]:
+                        - cell [ref=e1001] [cursor=pointer]
+                        - cell "6" [ref=e1002] [cursor=pointer]
+                        - cell "+" [ref=e1003]:
+                          - generic: +
+                      - row "7 + 参考项目" [ref=e1004]:
+                        - cell [ref=e1005] [cursor=pointer]
+                        - cell "7" [ref=e1006] [cursor=pointer]
+                        - cell "+ 参考项目" [ref=e1007]:
+                          - generic [ref=e1008]: + 参考项目
+                      - row "8 + - [vscode next](https://github.com/mohuishou/utools)" [ref=e1009]:
+                        - cell [ref=e1010] [cursor=pointer]
+                        - cell "8" [ref=e1011] [cursor=pointer]
+                        - cell "+ - [vscode next](https://github.com/mohuishou/utools)" [ref=e1012]:
+                          - generic [ref=e1013]: + - [vscode next](https://github.com/mohuishou/utools)
+                      - row "9 +" [ref=e1014]:
+                        - cell [ref=e1015] [cursor=pointer]
+                        - cell "9" [ref=e1016] [cursor=pointer]
+                        - cell "+" [ref=e1017]:
+                          - generic: +
+                      - 'row "10 + ## ✨ 功能特性" [ref=e1018]':
+                        - cell [ref=e1019] [cursor=pointer]
+                        - cell "10" [ref=e1020] [cursor=pointer]
+                        - 'cell "+ ## ✨ 功能特性" [ref=e1021]':
+                          - generic [ref=e1022]: "+ ## ✨ 功能特性"
+                      - row "11 +" [ref=e1023]:
+                        - cell [ref=e1024] [cursor=pointer]
+                        - cell "11" [ref=e1025] [cursor=pointer]
+                        - cell "+" [ref=e1026]:
+                          - generic: +
+                      - 'row "12 + ### 🔍 搜索历史项目" [ref=e1027]':
+                        - cell [ref=e1028] [cursor=pointer]
+                        - cell "12" [ref=e1029] [cursor=pointer]
+                        - 'cell "+ ### 🔍 搜索历史项目" [ref=e1030]':
+                          - generic [ref=e1031]: "+ ### 🔍 搜索历史项目"
+                      - row "13 +" [ref=e1032]:
+                        - cell [ref=e1033] [cursor=pointer]
+                        - cell "13" [ref=e1034] [cursor=pointer]
+                        - cell "+" [ref=e1035]:
+                          - generic: +
+                      - row "14 + - 输入关键词搜索本地 VSCode / Cursor 历史项目" [ref=e1036]:
+                        - cell [ref=e1037] [cursor=pointer]
+                        - cell "14" [ref=e1038] [cursor=pointer]
+                        - cell "+ - 输入关键词搜索本地 VSCode / Cursor 历史项目" [ref=e1039]:
+                          - generic [ref=e1040]: + - 输入关键词搜索本地 VSCode / Cursor 历史项目
+                      - row "15 + - 支持多关键词模糊匹配" [ref=e1041]:
+                        - cell [ref=e1042] [cursor=pointer]
+                        - cell "15" [ref=e1043] [cursor=pointer]
+                        - cell "+ - 支持多关键词模糊匹配" [ref=e1044]:
+                          - generic [ref=e1045]: + - 支持多关键词模糊匹配
+                      - row "16 + - 无搜索词时默认展示最近 20 条项目记录" [ref=e1046]:
+                        - cell [ref=e1047] [cursor=pointer]
+                        - cell "16" [ref=e1048] [cursor=pointer]
+                        - cell "+ - 无搜索词时默认展示最近 20 条项目记录" [ref=e1049]:
+                          - generic [ref=e1050]: + - 无搜索词时默认展示最近 20 条项目记录
+                      - row "17 + - 一键打开项目（支持普通文件夹和工作区文件）" [ref=e1051]:
+                        - cell [ref=e1052] [cursor=pointer]
+                        - cell "17" [ref=e1053] [cursor=pointer]
+                        - cell "+ - 一键打开项目（支持普通文件夹和工作区文件）" [ref=e1054]:
+                          - generic [ref=e1055]: + - 一键打开项目（支持普通文件夹和工作区文件）
+                      - row "18 + - 每条记录提供「打开」和「删除」操作按钮" [ref=e1056]:
+                        - cell [ref=e1057] [cursor=pointer]
+                        - cell "18" [ref=e1058] [cursor=pointer]
+                        - cell "+ - 每条记录提供「打开」和「删除」操作按钮" [ref=e1059]:
+                          - generic [ref=e1060]: + - 每条记录提供「打开」和「删除」操作按钮
+                      - row "19 + - 删除单条历史记录或批量删除" [ref=e1061]:
+                        - cell [ref=e1062] [cursor=pointer]
+                        - cell "19" [ref=e1063] [cursor=pointer]
+                        - cell "+ - 删除单条历史记录或批量删除" [ref=e1064]:
+                          - generic [ref=e1065]: + - 删除单条历史记录或批量删除
+                      - row "20 +" [ref=e1066]:
+                        - cell [ref=e1067] [cursor=pointer]
+                        - cell "20" [ref=e1068] [cursor=pointer]
+                        - cell "+" [ref=e1069]:
+                          - generic: +
+                      - 'row "21 + ### ⚙️ 管理 IDE 配置" [ref=e1070]':
+                        - cell [ref=e1071] [cursor=pointer]
+                        - cell "21" [ref=e1072] [cursor=pointer]
+                        - 'cell "+ ### ⚙️ 管理 IDE 配置" [ref=e1073]':
+                          - generic [ref=e1074]: "+ ### ⚙️ 管理 IDE 配置"
+                      - row "22 +" [ref=e1075]:
+                        - cell [ref=e1076] [cursor=pointer]
+                        - cell "22" [ref=e1077] [cursor=pointer]
+                        - cell "+" [ref=e1078]:
+                          - generic: +
+                      - row "23 + - 添加、编辑、删除自定义 IDE 配置" [ref=e1079]:
+                        - cell [ref=e1080] [cursor=pointer]
+                        - cell "23" [ref=e1081] [cursor=pointer]
+                        - cell "+ - 添加、编辑、删除自定义 IDE 配置" [ref=e1082]:
+                          - generic [ref=e1083]: + - 添加、编辑、删除自定义 IDE 配置
+                      - row "24 + - 支持的 IDE：VSCode、VSCode Insider、Cursor" [ref=e1084]:
+                        - cell [ref=e1085] [cursor=pointer]
+                        - cell "24" [ref=e1086] [cursor=pointer]
+                        - cell "+ - 支持的 IDE：VSCode、VSCode Insider、Cursor" [ref=e1087]:
+                          - generic [ref=e1088]: + - 支持的 IDE：VSCode、VSCode Insider、Cursor
+                      - row "25 + - 快速创建常用 IDE 配置（一键初始化）" [ref=e1089]:
+                        - cell [ref=e1090] [cursor=pointer]
+                        - cell "25" [ref=e1091] [cursor=pointer]
+                        - cell "+ - 快速创建常用 IDE 配置（一键初始化）" [ref=e1092]:
+                          - generic [ref=e1093]: + - 快速创建常用 IDE 配置（一键初始化）
+                      - row "26 + - 配置项包括：启动命令、终端命令、数据库路径、超时时间" [ref=e1094]:
+                        - cell [ref=e1095] [cursor=pointer]
+                        - cell "26" [ref=e1096] [cursor=pointer]
+                        - cell "+ - 配置项包括：启动命令、终端命令、数据库路径、超时时间" [ref=e1097]:
+                          - generic [ref=e1098]: + - 配置项包括：启动命令、终端命令、数据库路径、超时时间
+                      - row "27 + - 自动检测并填充数据库路径（基于 IDE 类型）" [ref=e1099]:
+                        - cell [ref=e1100] [cursor=pointer]
+                        - cell "27" [ref=e1101] [cursor=pointer]
+                        - cell "+ - 自动检测并填充数据库路径（基于 IDE 类型）" [ref=e1102]:
+                          - generic [ref=e1103]: + - 自动检测并填充数据库路径（基于 IDE 类型）
+                      - row "28 + - 对话框式编辑，操作清晰安全" [ref=e1104]:
+                        - cell [ref=e1105] [cursor=pointer]
+                        - cell "28" [ref=e1106] [cursor=pointer]
+                        - cell "+ - 对话框式编辑，操作清晰安全" [ref=e1107]:
+                          - generic [ref=e1108]: + - 对话框式编辑，操作清晰安全
+                      - row "29 +" [ref=e1109]:
+                        - cell [ref=e1110] [cursor=pointer]
+                        - cell "29" [ref=e1111] [cursor=pointer]
+                        - cell "+" [ref=e1112]:
+                          - generic: +
+                      - 'row "30 + ### 🛠 技术特性" [ref=e1113]':
+                        - cell [ref=e1114] [cursor=pointer]
+                        - cell "30" [ref=e1115] [cursor=pointer]
+                        - 'cell "+ ### 🛠 技术特性" [ref=e1116]':
+                          - generic [ref=e1117]: "+ ### 🛠 技术特性"
+                      - row "31 +" [ref=e1118]:
+                        - cell [ref=e1119] [cursor=pointer]
+                        - cell "31" [ref=e1120] [cursor=pointer]
+                        - cell "+" [ref=e1121]:
+                          - generic: +
+                      - row "32 + - SQLite 数据库读写（通过 SQL.js WASM）" [ref=e1122]:
+                        - cell [ref=e1123] [cursor=pointer]
+                        - cell "32" [ref=e1124] [cursor=pointer]
+                        - cell "+ - SQLite 数据库读写（通过 SQL.js WASM）" [ref=e1125]:
+                          - generic [ref=e1126]: + - SQLite 数据库读写（通过 SQL.js WASM）
+                      - row "33 + - 自动验证项目路径有效性（存在且为目录）" [ref=e1127]:
+                        - cell [ref=e1128] [cursor=pointer]
+                        - cell "33" [ref=e1129] [cursor=pointer]
+                        - cell "+ - 自动验证项目路径有效性（存在且为目录）" [ref=e1130]:
+                          - generic [ref=e1131]: + - 自动验证项目路径有效性（存在且为目录）
+                      - row "34 + - Shell 命令执行（支持指定终端）" [ref=e1132]:
+                        - cell [ref=e1133] [cursor=pointer]
+                        - cell "34" [ref=e1134] [cursor=pointer]
+                        - cell "+ - Shell 命令执行（支持指定终端）" [ref=e1135]:
+                          - generic [ref=e1136]: + - Shell 命令执行（支持指定终端）
+                      - row "35 + - 防抖搜索，提升输入体验" [ref=e1137]:
+                        - cell [ref=e1138] [cursor=pointer]
+                        - cell "35" [ref=e1139] [cursor=pointer]
+                        - cell "+ - 防抖搜索，提升输入体验" [ref=e1140]:
+                          - generic [ref=e1141]: + - 防抖搜索，提升输入体验
+                      - row "36 + - Vue 3 响应式错误处理" [ref=e1142]:
+                        - cell [ref=e1143] [cursor=pointer]
+                        - cell "36" [ref=e1144] [cursor=pointer]
+                        - cell "+ - Vue 3 响应式错误处理" [ref=e1145]:
+                          - generic [ref=e1146]: + - Vue 3 响应式错误处理
+                      - row "37 +" [ref=e1147]:
+                        - cell [ref=e1148] [cursor=pointer]
+                        - cell "37" [ref=e1149] [cursor=pointer]
+                        - cell "+" [ref=e1150]:
+                          - generic: +
+                      - 'row "38 + ## 📁 项目结构" [ref=e1151]':
+                        - cell [ref=e1152] [cursor=pointer]
+                        - cell "38" [ref=e1153] [cursor=pointer]
+                        - 'cell "+ ## 📁 项目结构" [ref=e1154]':
+                          - generic [ref=e1155]: "+ ## 📁 项目结构"
+                      - row "39 +" [ref=e1156]:
+                        - cell [ref=e1157] [cursor=pointer]
+                        - cell "39" [ref=e1158] [cursor=pointer]
+                        - cell "+" [ref=e1159]:
+                          - generic: +
+                      - 'row "40 + ```" [ref=e1160]':
+                        - cell [ref=e1161] [cursor=pointer]
+                        - cell "40" [ref=e1162] [cursor=pointer]
+                        - 'cell "+ ```" [ref=e1163]':
+                          - generic [ref=e1164]: "+ ```"
+                      - row "41 + ." [ref=e1165]:
+                        - cell [ref=e1166] [cursor=pointer]
+                        - cell "41" [ref=e1167] [cursor=pointer]
+                        - cell "+ ." [ref=e1168]:
+                          - generic [ref=e1169]: + .
+                      - row "42 + ├── public/" [ref=e1170]:
+                        - cell [ref=e1171] [cursor=pointer]
+                        - cell "42" [ref=e1172] [cursor=pointer]
+                        - cell "+ ├── public/" [ref=e1173]:
+                          - generic [ref=e1174]: + ├── public/
+                      - 'row "43 + │ ├── logo.png # 插件图标" [ref=e1175]':
+                        - cell [ref=e1176] [cursor=pointer]
+                        - cell "43" [ref=e1177] [cursor=pointer]
+                        - 'cell "+ │ ├── logo.png # 插件图标" [ref=e1178]':
+                          - generic [ref=e1179]: "+ │ ├── logo.png # 插件图标"
+                      - 'row "44 + │ ├── plugin.json # ZTools 插件清单（功能入口、preload 配置）" [ref=e1180]':
+                        - cell [ref=e1181] [cursor=pointer]
+                        - cell "44" [ref=e1182] [cursor=pointer]
+                        - 'cell "+ │ ├── plugin.json # ZTools 插件清单（功能入口、preload 配置）" [ref=e1183]':
+                          - generic [ref=e1184]: "+ │ ├── plugin.json # ZTools 插件清单（功能入口、preload 配置）"
+                      - row "45 + │ └── preload/" [ref=e1185]:
+                        - cell [ref=e1186] [cursor=pointer]
+                        - cell "45" [ref=e1187] [cursor=pointer]
+                        - cell "+ │ └── preload/" [ref=e1188]:
+                          - generic [ref=e1189]: + │ └── preload/
+                      - 'row "46 + │ ├── services.js # Node.js 能力扩展（SQL.js、Shell 执行、DB 操作）" [ref=e1190]':
+                        - cell [ref=e1191] [cursor=pointer]
+                        - cell "46" [ref=e1192] [cursor=pointer]
+                        - 'cell "+ │ ├── services.js # Node.js 能力扩展（SQL.js、Shell 执行、DB 操作）" [ref=e1193]':
+                          - generic [ref=e1194]: "+ │ ├── services.js # Node.js 能力扩展（SQL.js、Shell 执行、DB 操作）"
+                      - row "47 + ├── src/" [ref=e1195]:
+                        - cell [ref=e1196] [cursor=pointer]
+                        - cell "47" [ref=e1197] [cursor=pointer]
+                        - cell "+ ├── src/" [ref=e1198]:
+                          - generic [ref=e1199]: + ├── src/
+                      - 'row "48 + │ ├── main.ts # Vue 应用入口" [ref=e1200]':
+                        - cell [ref=e1201] [cursor=pointer]
+                        - cell "48" [ref=e1202] [cursor=pointer]
+                        - 'cell "+ │ ├── main.ts # Vue 应用入口" [ref=e1203]':
+                          - generic [ref=e1204]: "+ │ ├── main.ts # Vue 应用入口"
+                      - 'row "49 + │ ├── App.vue # 根组件（Tab 切换、路由分发）" [ref=e1205]':
+                        - cell [ref=e1206] [cursor=pointer]
+                        - cell "49" [ref=e1207] [cursor=pointer]
+                        - 'cell "+ │ ├── App.vue # 根组件（Tab 切换、路由分发）" [ref=e1208]':
+                          - generic [ref=e1209]: "+ │ ├── App.vue # 根组件（Tab 切换、路由分发）"
+                      - 'row "50 + │ ├── main.css # 全局 CSS 变量与基础样式" [ref=e1210]':
+                        - cell [ref=e1211] [cursor=pointer]
+                        - cell "50" [ref=e1212] [cursor=pointer]
+                        - 'cell "+ │ ├── main.css # 全局 CSS 变量与基础样式" [ref=e1213]':
+                          - generic [ref=e1214]: "+ │ ├── main.css # 全局 CSS 变量与基础样式"
+                      - 'row "51 + │ ├── env.d.ts # TypeScript 类型声明（window.services、ZTools）" [ref=e1215]':
+                        - cell [ref=e1216] [cursor=pointer]
+                        - cell "51" [ref=e1217] [cursor=pointer]
+                        - 'cell "+ │ ├── env.d.ts # TypeScript 类型声明（window.services、ZTools）" [ref=e1218]':
+                          - generic [ref=e1219]: "+ │ ├── env.d.ts # TypeScript 类型声明（window.services、ZTools）"
+                      - 'row "52 + │ ├── types.ts # 类型定义（IDEConfig、SearchItem 等）" [ref=e1220]':
+                        - cell [ref=e1221] [cursor=pointer]
+                        - cell "52" [ref=e1222] [cursor=pointer]
+                        - 'cell "+ │ ├── types.ts # 类型定义（IDEConfig、SearchItem 等）" [ref=e1223]':
+                          - generic [ref=e1224]: "+ │ ├── types.ts # 类型定义（IDEConfig、SearchItem 等）"
+                      - 'row "53 + │ ├── config.ts # IDE 配置管理（get/save/delete）" [ref=e1225]':
+                        - cell [ref=e1226] [cursor=pointer]
+                        - cell "53" [ref=e1227] [cursor=pointer]
+                        - 'cell "+ │ ├── config.ts # IDE 配置管理（get/save/delete）" [ref=e1228]':
+                          - generic [ref=e1229]: "+ │ ├── config.ts # IDE 配置管理（get/save/delete）"
+                      - 'row "54 + │ ├── VSCodeMain/ # 主框架（Tab 栏）" [ref=e1230]':
+                        - cell [ref=e1231] [cursor=pointer]
+                        - cell "54" [ref=e1232] [cursor=pointer]
+                        - 'cell "+ │ ├── VSCodeMain/ # 主框架（Tab 栏）" [ref=e1233]':
+                          - generic [ref=e1234]: "+ │ ├── VSCodeMain/ # 主框架（Tab 栏）"
+                      - row "55 + │ │ └── index.vue" [ref=e1235]:
+                        - cell [ref=e1236] [cursor=pointer]
+                        - cell "55" [ref=e1237] [cursor=pointer]
+                        - cell "+ │ │ └── index.vue" [ref=e1238]:
+                          - generic [ref=e1239]: + │ │ └── index.vue
+                      - 'row "56 + │ ├── VSCodeSearch/ # 搜索历史项目组件" [ref=e1240]':
+                        - cell [ref=e1241] [cursor=pointer]
+                        - cell "56" [ref=e1242] [cursor=pointer]
+                        - 'cell "+ │ ├── VSCodeSearch/ # 搜索历史项目组件" [ref=e1243]':
+                          - generic [ref=e1244]: "+ │ ├── VSCodeSearch/ # 搜索历史项目组件"
+                      - row "57 + │ │ └── index.vue" [ref=e1245]:
+                        - cell [ref=e1246] [cursor=pointer]
+                        - cell "57" [ref=e1247] [cursor=pointer]
+                        - cell "+ │ │ └── index.vue" [ref=e1248]:
+                          - generic [ref=e1249]: + │ │ └── index.vue
+                      - 'row "58 + │ └── VSCodeIDE/ # IDE 配置管理组件" [ref=e1250]':
+                        - cell [ref=e1251] [cursor=pointer]
+                        - cell "58" [ref=e1252] [cursor=pointer]
+                        - 'cell "+ │ └── VSCodeIDE/ # IDE 配置管理组件" [ref=e1253]':
+                          - generic [ref=e1254]: "+ │ └── VSCodeIDE/ # IDE 配置管理组件"
+                      - row "59 + │ └── index.vue" [ref=e1255]:
+                        - cell [ref=e1256] [cursor=pointer]
+                        - cell "59" [ref=e1257] [cursor=pointer]
+                        - cell "+ │ └── index.vue" [ref=e1258]:
+                          - generic [ref=e1259]: + │ └── index.vue
+                      - 'row "60 + ├── index.html # HTML 模板" [ref=e1260]':
+                        - cell [ref=e1261] [cursor=pointer]
+                        - cell "60" [ref=e1262] [cursor=pointer]
+                        - 'cell "+ ├── index.html # HTML 模板" [ref=e1263]':
+                          - generic [ref=e1264]: "+ ├── index.html # HTML 模板"
+                      - 'row "61 + ├── vite.config.js # Vite 配置" [ref=e1265]':
+                        - cell [ref=e1266] [cursor=pointer]
+                        - cell "61" [ref=e1267] [cursor=pointer]
+                        - 'cell "+ ├── vite.config.js # Vite 配置" [ref=e1268]':
+                          - generic [ref=e1269]: "+ ├── vite.config.js # Vite 配置"
+                      - 'row "62 + ├── tsconfig.json # TypeScript 配置" [ref=e1270]':
+                        - cell [ref=e1271] [cursor=pointer]
+                        - cell "62" [ref=e1272] [cursor=pointer]
+                        - 'cell "+ ├── tsconfig.json # TypeScript 配置" [ref=e1273]':
+                          - generic [ref=e1274]: "+ ├── tsconfig.json # TypeScript 配置"
+                      - 'row "63 + ├── package.json # 项目依赖" [ref=e1275]':
+                        - cell [ref=e1276] [cursor=pointer]
+                        - cell "63" [ref=e1277] [cursor=pointer]
+                        - 'cell "+ ├── package.json # 项目依赖" [ref=e1278]':
+                          - generic [ref=e1279]: "+ ├── package.json # 项目依赖"
+                      - 'row "64 + └── README.md # 项目文档" [ref=e1280]':
+                        - cell [ref=e1281] [cursor=pointer]
+                        - cell "64" [ref=e1282] [cursor=pointer]
+                        - 'cell "+ └── README.md # 项目文档" [ref=e1283]':
+                          - generic [ref=e1284]: "+ └── README.md # 项目文档"
+                      - 'row "65 + ```" [ref=e1285]':
+                        - cell [ref=e1286] [cursor=pointer]
+                        - cell "65" [ref=e1287] [cursor=pointer]
+                        - 'cell "+ ```" [ref=e1288]':
+                          - generic [ref=e1289]: "+ ```"
+                      - row "66 +" [ref=e1290]:
+                        - cell [ref=e1291] [cursor=pointer]
+                        - cell "66" [ref=e1292] [cursor=pointer]
+                        - cell "+" [ref=e1293]:
+                          - generic: +
+                      - 'row "67 + ## 🚀 快速开始" [ref=e1294]':
+                        - cell [ref=e1295] [cursor=pointer]
+                        - cell "67" [ref=e1296] [cursor=pointer]
+                        - 'cell "+ ## 🚀 快速开始" [ref=e1297]':
+                          - generic [ref=e1298]: "+ ## 🚀 快速开始"
+                      - row "68 +" [ref=e1299]:
+                        - cell [ref=e1300] [cursor=pointer]
+                        - cell "68" [ref=e1301] [cursor=pointer]
+                        - cell "+" [ref=e1302]:
+                          - generic: +
+                      - 'row "69 + ### 安装依赖" [ref=e1303]':
+                        - cell [ref=e1304] [cursor=pointer]
+                        - cell "69" [ref=e1305] [cursor=pointer]
+                        - 'cell "+ ### 安装依赖" [ref=e1306]':
+                          - generic [ref=e1307]: "+ ### 安装依赖"
+                      - row "70 +" [ref=e1308]:
+                        - cell [ref=e1309] [cursor=pointer]
+                        - cell "70" [ref=e1310] [cursor=pointer]
+                        - cell "+" [ref=e1311]:
+                          - generic: +
+                      - 'row "71 + ```bash" [ref=e1312]':
+                        - cell [ref=e1313] [cursor=pointer]
+                        - cell "71" [ref=e1314] [cursor=pointer]
+                        - 'cell "+ ```bash" [ref=e1315]':
+                          - generic [ref=e1316]: "+ ```bash"
+                      - row "72 + npm install" [ref=e1317]:
+                        - cell [ref=e1318] [cursor=pointer]
+                        - cell "72" [ref=e1319] [cursor=pointer]
+                        - cell "+ npm install" [ref=e1320]:
+                          - generic [ref=e1321]: + npm install
+                      - 'row "73 + ```" [ref=e1322]':
+                        - cell [ref=e1323] [cursor=pointer]
+                        - cell "73" [ref=e1324] [cursor=pointer]
+                        - 'cell "+ ```" [ref=e1325]':
+                          - generic [ref=e1326]: "+ ```"
+                      - row "74 +" [ref=e1327]:
+                        - cell [ref=e1328] [cursor=pointer]
+                        - cell "74" [ref=e1329] [cursor=pointer]
+                        - cell "+" [ref=e1330]:
+                          - generic: +
+                      - 'row "75 + ### 开发模式" [ref=e1331]':
+                        - cell [ref=e1332] [cursor=pointer]
+                        - cell "75" [ref=e1333] [cursor=pointer]
+                        - 'cell "+ ### 开发模式" [ref=e1334]':
+                          - generic [ref=e1335]: "+ ### 开发模式"
+                      - row "76 +" [ref=e1336]:
+                        - cell [ref=e1337] [cursor=pointer]
+                        - cell "76" [ref=e1338] [cursor=pointer]
+                        - cell "+" [ref=e1339]:
+                          - generic: +
+                      - 'row "77 + ```bash" [ref=e1340]':
+                        - cell [ref=e1341] [cursor=pointer]
+                        - cell "77" [ref=e1342] [cursor=pointer]
+                        - 'cell "+ ```bash" [ref=e1343]':
+                          - generic [ref=e1344]: "+ ```bash"
+                      - row "78 + npm run dev" [ref=e1345]:
+                        - cell [ref=e1346] [cursor=pointer]
+                        - cell "78" [ref=e1347] [cursor=pointer]
+                        - cell "+ npm run dev" [ref=e1348]:
+                          - generic [ref=e1349]: + npm run dev
+                      - 'row "79 + ```" [ref=e1350]':
+                        - cell [ref=e1351] [cursor=pointer]
+                        - cell "79" [ref=e1352] [cursor=pointer]
+                        - 'cell "+ ```" [ref=e1353]':
+                          - generic [ref=e1354]: "+ ```"
+                      - row "80 +" [ref=e1355]:
+                        - cell [ref=e1356] [cursor=pointer]
+                        - cell "80" [ref=e1357] [cursor=pointer]
+                        - cell "+" [ref=e1358]:
+                          - generic: +
+                      - 'row "81 + 开发服务器将在 `http://localhost:5173` 启动，ZTools 会自动加载开发版本。" [ref=e1359]':
+                        - cell [ref=e1360] [cursor=pointer]
+                        - cell "81" [ref=e1361] [cursor=pointer]
+                        - 'cell "+ 开发服务器将在 `http://localhost:5173` 启动，ZTools 会自动加载开发版本。" [ref=e1362]':
+                          - generic [ref=e1363]: "+ 开发服务器将在 `http://localhost:5173` 启动，ZTools 会自动加载开发版本。"
+                      - row "82 +" [ref=e1364]:
+                        - cell [ref=e1365] [cursor=pointer]
+                        - cell "82" [ref=e1366] [cursor=pointer]
+                        - cell "+" [ref=e1367]:
+                          - generic: +
+                      - 'row "83 + ### 构建生产版本" [ref=e1368]':
+                        - cell [ref=e1369] [cursor=pointer]
+                        - cell "83" [ref=e1370] [cursor=pointer]
+                        - 'cell "+ ### 构建生产版本" [ref=e1371]':
+                          - generic [ref=e1372]: "+ ### 构建生产版本"
+                      - row "84 +" [ref=e1373]:
+                        - cell [ref=e1374] [cursor=pointer]
+                        - cell "84" [ref=e1375] [cursor=pointer]
+                        - cell "+" [ref=e1376]:
+                          - generic: +
+                      - 'row "85 + ```bash" [ref=e1377]':
+                        - cell [ref=e1378] [cursor=pointer]
+                        - cell "85" [ref=e1379] [cursor=pointer]
+                        - 'cell "+ ```bash" [ref=e1380]':
+                          - generic [ref=e1381]: "+ ```bash"
+                      - row "86 + npm run build" [ref=e1382]:
+                        - cell [ref=e1383] [cursor=pointer]
+                        - cell "86" [ref=e1384] [cursor=pointer]
+                        - cell "+ npm run build" [ref=e1385]:
+                          - generic [ref=e1386]: + npm run build
+                      - 'row "87 + ```" [ref=e1387]':
+                        - cell [ref=e1388] [cursor=pointer]
+                        - cell "87" [ref=e1389] [cursor=pointer]
+                        - 'cell "+ ```" [ref=e1390]':
+                          - generic [ref=e1391]: "+ ```"
+                      - row "88 +" [ref=e1392]:
+                        - cell [ref=e1393] [cursor=pointer]
+                        - cell "88" [ref=e1394] [cursor=pointer]
+                        - cell "+" [ref=e1395]:
+                          - generic: +
+                      - 'row "89 + 构建产物将输出到 `dist/` 目录，将 `dist/` 中的文件复制到 ZTools 插件目录即可使用。" [ref=e1396]':
+                        - cell [ref=e1397] [cursor=pointer]
+                        - cell "89" [ref=e1398] [cursor=pointer]
+                        - 'cell "+ 构建产物将输出到 `dist/` 目录，将 `dist/` 中的文件复制到 ZTools 插件目录即可使用。" [ref=e1399]':
+                          - generic [ref=e1400]: "+ 构建产物将输出到 `dist/` 目录，将 `dist/` 中的文件复制到 ZTools 插件目录即可使用。"
+                      - row "90 +" [ref=e1401]:
+                        - cell [ref=e1402] [cursor=pointer]
+                        - cell "90" [ref=e1403] [cursor=pointer]
+                        - cell "+" [ref=e1404]:
+                          - generic: +
+                      - 'row "91 + ## 🚀 使用方式" [ref=e1405]':
+                        - cell [ref=e1406] [cursor=pointer]
+                        - cell "91" [ref=e1407] [cursor=pointer]
+                        - 'cell "+ ## 🚀 使用方式" [ref=e1408]':
+                          - generic [ref=e1409]: "+ ## 🚀 使用方式"
+                      - row "92 +" [ref=e1410]:
+                        - cell [ref=e1411] [cursor=pointer]
+                        - cell "92" [ref=e1412] [cursor=pointer]
+                        - cell "+" [ref=e1413]:
+                          - generic: +
+                      - 'row "93 + ### 搜索历史项目" [ref=e1414]':
+                        - cell [ref=e1415] [cursor=pointer]
+                        - cell "93" [ref=e1416] [cursor=pointer]
+                        - 'cell "+ ### 搜索历史项目" [ref=e1417]':
+                          - generic [ref=e1418]: "+ ### 搜索历史项目"
+                      - row "94 +" [ref=e1419]:
+                        - cell [ref=e1420] [cursor=pointer]
+                        - cell "94" [ref=e1421] [cursor=pointer]
+                        - cell "+" [ref=e1422]:
+                          - generic: +
+                      - 'row "95 + 1. 在 ZTools 中输入指令 `搜索历史项目` / `vscode` 触发插件" [ref=e1423]':
+                        - cell [ref=e1424] [cursor=pointer]
+                        - cell "95" [ref=e1425] [cursor=pointer]
+                        - 'cell "+ 1. 在 ZTools 中输入指令 `搜索历史项目` / `vscode` 触发插件" [ref=e1426]':
+                          - generic [ref=e1427]: "+ 1. 在 ZTools 中输入指令 `搜索历史项目` / `vscode` 触发插件"
+                      - row "96 + 2. 选择 IDE 配置（支持多 IDE 切换）" [ref=e1428]:
+                        - cell [ref=e1429] [cursor=pointer]
+                        - cell "96" [ref=e1430] [cursor=pointer]
+                        - cell "+ 2. 选择 IDE 配置（支持多 IDE 切换）" [ref=e1431]:
+                          - generic [ref=e1432]: + 2. 选择 IDE 配置（支持多 IDE 切换）
+                      - row "97 + 3. 输入关键词搜索项目，或直接查看最近 20 条记录" [ref=e1433]:
+                        - cell [ref=e1434] [cursor=pointer]
+                        - cell "97" [ref=e1435] [cursor=pointer]
+                        - cell "+ 3. 输入关键词搜索项目，或直接查看最近 20 条记录" [ref=e1436]:
+                          - generic [ref=e1437]: + 3. 输入关键词搜索项目，或直接查看最近 20 条记录
+                      - row "98 + 4. 点击「打开」在 VSCode / Cursor 中打开项目，或点击「删除」移除历史记录" [ref=e1438]:
+                        - cell [ref=e1439] [cursor=pointer]
+                        - cell "98" [ref=e1440] [cursor=pointer]
+                        - cell "+ 4. 点击「打开」在 VSCode / Cursor 中打开项目，或点击「删除」移除历史记录" [ref=e1441]:
+                          - generic [ref=e1442]: + 4. 点击「打开」在 VSCode / Cursor 中打开项目，或点击「删除」移除历史记录
+                      - row "99 +" [ref=e1443]:
+                        - cell [ref=e1444] [cursor=pointer]
+                        - cell "99" [ref=e1445] [cursor=pointer]
+                        - cell "+" [ref=e1446]:
+                          - generic: +
+                      - 'row "100 + ### 管理 IDE 配置" [ref=e1447]':
+                        - cell [ref=e1448] [cursor=pointer]
+                        - cell "100" [ref=e1449] [cursor=pointer]
+                        - 'cell "+ ### 管理 IDE 配置" [ref=e1450]':
+                          - generic [ref=e1451]: "+ ### 管理 IDE 配置"
+                      - row "101 +" [ref=e1452]:
+                        - cell [ref=e1453] [cursor=pointer]
+                        - cell "101" [ref=e1454] [cursor=pointer]
+                        - cell "+" [ref=e1455]:
+                          - generic: +
+                      - 'row "102 + 1. 在 ZTools 中输入指令 `管理 IDE` 进入 IDE 管理页面" [ref=e1456]':
+                        - cell [ref=e1457] [cursor=pointer]
+                        - cell "102" [ref=e1458] [cursor=pointer]
+                        - 'cell "+ 1. 在 ZTools 中输入指令 `管理 IDE` 进入 IDE 管理页面" [ref=e1459]':
+                          - generic [ref=e1460]: "+ 1. 在 ZTools 中输入指令 `管理 IDE` 进入 IDE 管理页面"
+                      - row "103 + 2. 使用快速创建按钮一键添加 VSCode / VSCode Insider / Cursor" [ref=e1461]:
+                        - cell [ref=e1462] [cursor=pointer]
+                        - cell "103" [ref=e1463] [cursor=pointer]
+                        - cell "+ 2. 使用快速创建按钮一键添加 VSCode / VSCode Insider / Cursor" [ref=e1464]:
+                          - generic [ref=e1465]: + 2. 使用快速创建按钮一键添加 VSCode / VSCode Insider / Cursor
+                      - row "104 + 3. 点击「自定义添加」支持任意自定义 IDE" [ref=e1466]:
+                        - cell [ref=e1467] [cursor=pointer]
+                        - cell "104" [ref=e1468] [cursor=pointer]
+                        - cell "+ 3. 点击「自定义添加」支持任意自定义 IDE" [ref=e1469]:
+                          - generic [ref=e1470]: + 3. 点击「自定义添加」支持任意自定义 IDE
+                      - row "105 + 4. 点击「编辑」修改终端命令、数据库路径等配置" [ref=e1471]:
+                        - cell [ref=e1472] [cursor=pointer]
+                        - cell "105" [ref=e1473] [cursor=pointer]
+                        - cell "+ 4. 点击「编辑」修改终端命令、数据库路径等配置" [ref=e1474]:
+                          - generic [ref=e1475]: + 4. 点击「编辑」修改终端命令、数据库路径等配置
+                      - row "106 +" [ref=e1476]:
+                        - cell [ref=e1477] [cursor=pointer]
+                        - cell "106" [ref=e1478] [cursor=pointer]
+                        - cell "+" [ref=e1479]:
+                          - generic: +
+                      - 'row "107 + ## 📚 相关资源" [ref=e1480]':
+                        - cell [ref=e1481] [cursor=pointer]
+                        - cell "107" [ref=e1482] [cursor=pointer]
+                        - 'cell "+ ## 📚 相关资源" [ref=e1483]':
+                          - generic [ref=e1484]: "+ ## 📚 相关资源"
+                      - row "108 +" [ref=e1485]:
+                        - cell [ref=e1486] [cursor=pointer]
+                        - cell "108" [ref=e1487] [cursor=pointer]
+                        - cell "+" [ref=e1488]:
+                          - generic: +
+                      - row "109 + - [ZTools 官方文档](https://github.com/ztool-center/ztools)" [ref=e1489]:
+                        - cell [ref=e1490] [cursor=pointer]
+                        - cell "109" [ref=e1491] [cursor=pointer]
+                        - cell "+ - [ZTools 官方文档](https://github.com/ztool-center/ztools)" [ref=e1492]:
+                          - generic [ref=e1493]: + - [ZTools 官方文档](https://github.com/ztool-center/ztools)
+                      - row "110 + - [ZTools API 文档](https://github.com/ztool-center/ztools-api-types)" [ref=e1494]:
+                        - cell [ref=e1495] [cursor=pointer]
+                        - cell "110" [ref=e1496] [cursor=pointer]
+                        - cell "+ - [ZTools API 文档](https://github.com/ztool-center/ztools-api-types)" [ref=e1497]:
+                          - generic [ref=e1498]: + - [ZTools API 文档](https://github.com/ztool-center/ztools-api-types)
+                      - row "111 +" [ref=e1499]:
+                        - cell [ref=e1500] [cursor=pointer]
+                        - cell "111" [ref=e1501] [cursor=pointer]
+                        - cell "+" [ref=e1502]:
+                          - generic: +
+                      - 'row "112 + ## ❓ 常见问题" [ref=e1503]':
+                        - cell [ref=e1504] [cursor=pointer]
+                        - cell "112" [ref=e1505] [cursor=pointer]
+                        - 'cell "+ ## ❓ 常见问题" [ref=e1506]':
+                          - generic [ref=e1507]: "+ ## ❓ 常见问题"
+                      - row "113 +" [ref=e1508]:
+                        - cell [ref=e1509] [cursor=pointer]
+                        - cell "113" [ref=e1510] [cursor=pointer]
+                        - cell "+" [ref=e1511]:
+                          - generic: +
+                      - 'row "114 + ### Q: 搜索不到项目记录？" [ref=e1512]':
+                        - cell [ref=e1513] [cursor=pointer]
+                        - cell "114" [ref=e1514] [cursor=pointer]
+                        - 'cell "+ ### Q: 搜索不到项目记录？" [ref=e1515]':
+                          - generic [ref=e1516]: "+ ### Q: 搜索不到项目记录？"
+                      - row "115 +" [ref=e1517]:
+                        - cell [ref=e1518] [cursor=pointer]
+                        - cell "115" [ref=e1519] [cursor=pointer]
+                        - cell "+" [ref=e1520]:
+                          - generic: +
+                      - 'row "116 + A: 确认 VSCode / Cursor 已配置对应的数据库路径（state.vscdb）。在\"IDE 管理\"中添加或编辑 IDE 配置，数据库路径会自动填充。" [ref=e1521]':
+                        - cell [ref=e1522] [cursor=pointer]
+                        - cell "116" [ref=e1523] [cursor=pointer]
+                        - 'cell "+ A: 确认 VSCode / Cursor 已配置对应的数据库路径（state.vscdb）。在\"IDE 管理\"中添加或编辑 IDE 配置，数据库路径会自动填充。" [ref=e1524]':
+                          - generic [ref=e1525]: "+ A: 确认 VSCode / Cursor 已配置对应的数据库路径（state.vscdb）。在\"IDE 管理\"中添加或编辑 IDE 配置，数据库路径会自动填充。"
+                      - row "117 +" [ref=e1526]:
+                        - cell [ref=e1527] [cursor=pointer]
+                        - cell "117" [ref=e1528] [cursor=pointer]
+                        - cell "+" [ref=e1529]:
+                          - generic: +
+                      - 'row "118 + ### Q: 如何添加新的 IDE（如 Cursor、WebStorm）？" [ref=e1530]':
+                        - cell [ref=e1531] [cursor=pointer]
+                        - cell "118" [ref=e1532] [cursor=pointer]
+                        - 'cell "+ ### Q: 如何添加新的 IDE（如 Cursor、WebStorm）？" [ref=e1533]':
+                          - generic [ref=e1534]: "+ ### Q: 如何添加新的 IDE（如 Cursor、WebStorm）？"
+                      - row "119 +" [ref=e1535]:
+                        - cell [ref=e1536] [cursor=pointer]
+                        - cell "119" [ref=e1537] [cursor=pointer]
+                        - cell "+" [ref=e1538]:
+                          - generic: +
+                      - 'row "120 + A: 进入\"IDE 管理\"页面，点击\"自定义添加\"，填写 IDE 标识和启动命令即可。数据库路径会自动检测。" [ref=e1539]':
+                        - cell [ref=e1540] [cursor=pointer]
+                        - cell "120" [ref=e1541] [cursor=pointer]
+                        - 'cell "+ A: 进入\"IDE 管理\"页面，点击\"自定义添加\"，填写 IDE 标识和启动命令即可。数据库路径会自动检测。" [ref=e1542]':
+                          - generic [ref=e1543]: "+ A: 进入\"IDE 管理\"页面，点击\"自定义添加\"，填写 IDE 标识和启动命令即可。数据库路径会自动检测。"
+                      - row "121 +" [ref=e1544]:
+                        - cell [ref=e1545] [cursor=pointer]
+                        - cell "121" [ref=e1546] [cursor=pointer]
+                        - cell "+" [ref=e1547]:
+                          - generic: +
+                      - 'row "122 + ### Q: 删除历史记录后如何恢复？" [ref=e1548]':
+                        - cell [ref=e1549] [cursor=pointer]
+                        - cell "122" [ref=e1550] [cursor=pointer]
+                        - 'cell "+ ### Q: 删除历史记录后如何恢复？" [ref=e1551]':
+                          - generic [ref=e1552]: "+ ### Q: 删除历史记录后如何恢复？"
+                      - row "123 +" [ref=e1553]:
+                        - cell [ref=e1554] [cursor=pointer]
+                        - cell "123" [ref=e1555] [cursor=pointer]
+                        - cell "+" [ref=e1556]:
+                          - generic: +
+                      - 'row "124 + A: 当前版本不支持恢复已删除的记录，重新在 VSCode / Cursor 中打开一次项目会自动重新录入。" [ref=e1557]':
+                        - cell [ref=e1558] [cursor=pointer]
+                        - cell "124" [ref=e1559] [cursor=pointer]
+                        - 'cell "+ A: 当前版本不支持恢复已删除的记录，重新在 VSCode / Cursor 中打开一次项目会自动重新录入。" [ref=e1560]':
+                          - generic [ref=e1561]: "+ A: 当前版本不支持恢复已删除的记录，重新在 VSCode / Cursor 中打开一次项目会自动重新录入。"
+                      - row "125 +" [ref=e1562]:
+                        - cell [ref=e1563] [cursor=pointer]
+                        - cell "125" [ref=e1564] [cursor=pointer]
+                        - cell "+" [ref=e1565]:
+                          - generic: +
+                      - 'row "126 + ### Q: 如何调试插件？" [ref=e1566]':
+                        - cell [ref=e1567] [cursor=pointer]
+                        - cell "126" [ref=e1568] [cursor=pointer]
+                        - 'cell "+ ### Q: 如何调试插件？" [ref=e1569]':
+                          - generic [ref=e1570]: "+ ### Q: 如何调试插件？"
+                      - row "127 +" [ref=e1571]:
+                        - cell [ref=e1572] [cursor=pointer]
+                        - cell "127" [ref=e1573] [cursor=pointer]
+                        - cell "+" [ref=e1574]:
+                          - generic: +
+                      - 'row "128 + A: 使用 `npm run dev` 启动开发服务器，在 ZTools 插件界面中打开开发者工具进行调试。" [ref=e1575]':
+                        - cell [ref=e1576] [cursor=pointer]
+                        - cell "128" [ref=e1577] [cursor=pointer]
+                        - 'cell "+ A: 使用 `npm run dev` 启动开发服务器，在 ZTools 插件界面中打开开发者工具进行调试。" [ref=e1578]':
+                          - generic [ref=e1579]: "+ A: 使用 `npm run dev` 启动开发服务器，在 ZTools 插件界面中打开开发者工具进行调试。"
+                      - row "129 +" [ref=e1580]:
+                        - cell [ref=e1581] [cursor=pointer]
+                        - cell "129" [ref=e1582] [cursor=pointer]
+                        - cell "+" [ref=e1583]:
+                          - generic: +
+                      - 'row "130 + ## 📄 开源协议" [ref=e1584]':
+                        - cell [ref=e1585] [cursor=pointer]
+                        - cell "130" [ref=e1586] [cursor=pointer]
+                        - 'cell "+ ## 📄 开源协议" [ref=e1587]':
+                          - generic [ref=e1588]: "+ ## 📄 开源协议"
+                      - row "131 +" [ref=e1589]:
+                        - cell [ref=e1590] [cursor=pointer]
+                        - cell "131" [ref=e1591] [cursor=pointer]
+                        - cell "+" [ref=e1592]:
+                          - generic: +
+                      - row "132 + MIT License" [ref=e1593]:
+                        - cell [ref=e1594] [cursor=pointer]
+                        - cell "132" [ref=e1595] [cursor=pointer]
+                        - cell "+ MIT License" [ref=e1596]:
+                          - generic [ref=e1597]: + MIT License
+                      - row "133 +" [ref=e1598]:
+                        - cell [ref=e1599] [cursor=pointer]
+                        - cell "133" [ref=e1600] [cursor=pointer]
+                        - cell "+" [ref=e1601]:
+                          - generic: +
+                      - row "134 + ---" [ref=e1602]:
+                        - cell [ref=e1603] [cursor=pointer]
+                        - cell "134" [ref=e1604] [cursor=pointer]
+                        - cell "+ ---" [ref=e1605]:
+                          - generic [ref=e1606]: + ---
+                      - row "135 +" [ref=e1607]:
+                        - cell [ref=e1608] [cursor=pointer]
+                        - cell "135" [ref=e1609] [cursor=pointer]
+                        - cell "+" [ref=e1610]:
+                          - generic: +
+                      - row "136 + **祝你开发愉快！** 🎉" [ref=e1611]:
+                        - cell [ref=e1612] [cursor=pointer]
+                        - cell "136" [ref=e1613] [cursor=pointer]
+                        - cell "+ **祝你开发愉快！** 🎉" [ref=e1614]:
+                          - generic [ref=e1615]: + **祝你开发愉快！** 🎉
+                - generic [ref=e1617]:
+                  - generic [ref=e1618]:
+                    - generic [ref=e1619]:
+                      - button "Toggle diff contents" [expanded] [ref=e1620] [cursor=pointer]:
+                        - img [ref=e1621]
+                      - generic [ref=e1623]: "11 changes: 11 additions & 0 deletions"
+                      - generic [ref=e1624]: "11"
+                      - generic [ref=e1630]:
+                        - link "plugins/vscode-history/index.html" [ref=e1631] [cursor=pointer]:
+                          - /url: "#diff-d1d3e5977a48359b76e4282841e6708ebab17459ff56d8cfd1819d192981c235"
+                        - button "Copy" [ref=e1633]:
+                          - img [ref=e1634]
+                    - group [ref=e1640]:
+                      - button "Show options" [ref=e1641] [cursor=pointer]:
+                        - img "Show options" [ref=e1643]
+                  - table [ref=e1648]:
+                    - rowgroup [ref=e1649]:
+                      - row "Original file line number Diff line number Diff line change" [ref=e1650]:
+                        - columnheader "Original file line number" [ref=e1651]
+                        - columnheader "Diff line number" [ref=e1652]
+                        - columnheader "Diff line change" [ref=e1653]
+                    - rowgroup [ref=e1654]:
+                      - row "... ... @@ -0,0 +1,11 @@" [ref=e1655]:
+                        - cell "..." [ref=e1656]
+                        - cell "..." [ref=e1657]
+                        - cell "@@ -0,0 +1,11 @@" [ref=e1658]
+                      - row "1 + <!doctype html>" [ref=e1659]:
+                        - cell [ref=e1660] [cursor=pointer]
+                        - cell "1" [ref=e1661] [cursor=pointer]
+                        - cell "+ <!doctype html>" [ref=e1662]:
+                          - generic [ref=e1663]: + <!doctype html>
+                      - row "2 + <html lang=\"en\">" [ref=e1664]:
+                        - cell [ref=e1665] [cursor=pointer]
+                        - cell "2" [ref=e1666] [cursor=pointer]
+                        - cell "+ <html lang=\"en\">" [ref=e1667]:
+                          - generic [ref=e1668]: + <html lang="en">
+                      - row "3 + <head>" [ref=e1669]:
+                        - cell [ref=e1670] [cursor=pointer]
+                        - cell "3" [ref=e1671] [cursor=pointer]
+                        - cell "+ <head>" [ref=e1672]:
+                          - generic [ref=e1673]: + <head>
+                      - row "4 + <meta charset=\"UTF-8\" />" [ref=e1674]:
+                        - cell [ref=e1675] [cursor=pointer]
+                        - cell "4" [ref=e1676] [cursor=pointer]
+                        - cell "+ <meta charset=\"UTF-8\" />" [ref=e1677]:
+                          - generic [ref=e1678]: + <meta charset="UTF-8" />
+                      - row "5 + <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />" [ref=e1679]:
+                        - cell [ref=e1680] [cursor=pointer]
+                        - cell "5" [ref=e1681] [cursor=pointer]
+                        - cell "+ <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />" [ref=e1682]:
+                          - generic [ref=e1683]: + <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                      - row "6 + </head>" [ref=e1684]:
+                        - cell [ref=e1685] [cursor=pointer]
+                        - cell "6" [ref=e1686] [cursor=pointer]
+                        - cell "+ </head>" [ref=e1687]:
+                          - generic [ref=e1688]: + </head>
+                      - row "7 + <body>" [ref=e1689]:
+                        - cell [ref=e1690] [cursor=pointer]
+                        - cell "7" [ref=e1691] [cursor=pointer]
+                        - cell "+ <body>" [ref=e1692]:
+                          - generic [ref=e1693]: + <body>
+                      - row "8 + <div id=\"app\"></div>" [ref=e1694]:
+                        - cell [ref=e1695] [cursor=pointer]
+                        - cell "8" [ref=e1696] [cursor=pointer]
+                        - cell "+ <div id=\"app\"></div>" [ref=e1697]:
+                          - generic [ref=e1698]: + <div id="app"></div>
+                      - row "9 + <script type=\"module\" src=\"/src/main.ts\"></script>" [ref=e1699]:
+                        - cell [ref=e1700] [cursor=pointer]
+                        - cell "9" [ref=e1701] [cursor=pointer]
+                        - cell "+ <script type=\"module\" src=\"/src/main.ts\"></script>" [ref=e1702]:
+                          - generic [ref=e1703]: + <script type="module" src="/src/main.ts"></script>
+                      - row "10 + </body>" [ref=e1704]:
+                        - cell [ref=e1705] [cursor=pointer]
+                        - cell "10" [ref=e1706] [cursor=pointer]
+                        - cell "+ </body>" [ref=e1707]:
+                          - generic [ref=e1708]: + </body>
+                      - row "11 + </html>" [ref=e1709]:
+                        - cell [ref=e1710] [cursor=pointer]
+                        - cell "11" [ref=e1711] [cursor=pointer]
+                        - cell "+ </html>" [ref=e1712]:
+                          - generic [ref=e1713]: + </html>
+              - generic [ref=e1716]:
+                - img [ref=e1717]
+                - generic [ref=e1720]: Loading
+            - img [ref=e1721]
+  - contentinfo [ref=e1722]:
+    - heading "Footer" [level=2] [ref=e1723]
+    - generic [ref=e1724]:
+      - generic [ref=e1725]:
+        - link "GitHub Homepage" [ref=e1726] [cursor=pointer]:
+          - /url: https://github.com
+          - img [ref=e1727]
+        - generic [ref=e1729]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=e1730]:
+        - heading "Footer navigation" [level=3] [ref=e1731]
+        - list "Footer navigation" [ref=e1732]:
+          - listitem [ref=e1733]:
+            - link "Terms" [ref=e1734] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=e1735]:
+            - link "Privacy" [ref=e1736] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=e1737]:
+            - link "Security" [ref=e1738] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=e1739]:
+            - link "Status" [ref=e1740] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=e1741]:
+            - link "Community" [ref=e1742] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=e1743]:
+            - link "Docs" [ref=e1744] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=e1745]:
+            - link "Contact" [ref=e1746] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=e1747]:
+            - button "Manage cookies" [ref=e1749] [cursor=pointer]
+          - listitem [ref=e1750]:
+            - button "Do not share my personal information" [ref=e1752] [cursor=pointer]
