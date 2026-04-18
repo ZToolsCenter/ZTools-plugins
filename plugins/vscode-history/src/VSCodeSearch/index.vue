@@ -74,9 +74,8 @@ async function loadHistory(keyword = ''): Promise<SearchItem[]> {
   try {
     const paths: string[] = await services.getVSCodeHistory(config.database)
 
-    // 按数据库原始顺序（已按时间排序），取最新 20 条
-    const sorted = paths.slice().reverse()
-    const limited = keyword ? sorted : sorted.slice(0, 20)
+    // paths 已经是按时间从新到旧排序，直接取最新 20 条
+    const limited = keyword ? paths : paths.slice(0, 20)
 
     // 过滤搜索
     let filtered = limited
@@ -290,7 +289,7 @@ onUnmounted(() => {
                 style="background:#8b5cf6;color:#fff"
                 @click.stop="copyPath(item)"
               >
-                复制路径
+                复制
               </button>
             </div>
           </div>
