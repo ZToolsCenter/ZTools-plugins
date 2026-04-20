@@ -1,0 +1,37 @@
+{
+  "name": "colors",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vp preview",
+    "build-only": "vp build",
+    "type-check": "vue-tsc --build",
+    "prepare": "vp config"
+  },
+  "dependencies": {
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "tailwindcss": "^4.2.2",
+    "vue": "3.6.0-beta.10"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vitejs/plugin-vue-jsx": "^5.1.5",
+    "@vue/tsconfig": "^0.9.1",
+    "npm-run-all2": "^8.0.4",
+    "typescript": "~6.0.0",
+    "vite": "catalog:",
+    "vite-plugin-vue-devtools": "^8.1.1",
+    "vite-plus": "catalog:",
+    "vue-tsc": "^3.2.6"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "packageManager": "pnpm@10.33.0"
+}
