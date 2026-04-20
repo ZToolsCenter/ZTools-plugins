@@ -79,6 +79,110 @@ window.services = {
     return uri
   },
 
+  /**
+   * 将 UTF-16 编码的 URI 组件解码为 Unicode 字符串
+   * VS Code state.vscdb 使用 UTF-16 编码存储路径（如 %6D%4B 表示 U+6D4B）
+   * 需要将 %XX%XX 对转换为对应的 Unicode 字符
+   */
+  _decodeUTF16Component(str) {
+    if (!str) return str
+    // 检查是否包含 UTF-16 编码模式（两个连续的 %XX%XX）
+    const utf16Pattern = /%([0-9A-Fa-f]{2})%([0-9A-Fa-f]{2})/g
+    try {
+      return str.replace(utf16Pattern, (_, highByte, lowByte) => {
+        const codePoint = (parseInt(highByte, 16) << 8) | parseInt(lowByte, 16)
+        return String.fromCharCode(codePoint)
+      })
+    } catch {
+      return str
+    }
+  },
+
+  /**
+   * 将 file:// URI 解码为本地文件系统路径（跨平台兼容）
+   * 处理 %3A 等 URL 编码，以及 VS Code 的 UTF-16 编码
+   */
+  _decodeURIPath(uri) {
+    if (!uri || typeof uri !== 'string') return uri
+
+    // 处理 file:// URI
+    const match = uri.match(/^file:\/\/\/(.+)$/i)
+    if (match) {
+      let rest = match[1]
+      if (rest.startsWith('/')) rest = rest.slice(1)
+
+      const driveMatch = rest.match(/^([A-Za-z])(%3[Aa]|:)/i)
+      if (driveMatch) {
+        let drive = driveMatch[1].toUpperCase()
+        let pathPart = rest.slice(driveMatch[0].length)
+        if (pathPart.startsWith('/')) pathPart = pathPart.slice(1)
+        // 先尝试标准 decodeURIComponent（UTF-8 编码）
+        let decoded
+        try { decoded = decodeURIComponent(pathPart) } catch { decoded = pathPart }
+        // 如果解码结果仍包含编码，尝试 UTF-16 解码
+        if (decoded !== pathPart && /%[0-9A-Fa-f]{2}/.test(decoded)) {
+          decoded = this._decodeUTF16Component(decoded)
+        }
+        return drive + ':' + decoded.replace(/\//g, '\\')
+      }
+
+      // 先尝试标准 decodeURIComponent（UTF-8 编码）
+      let decoded
+      try { decoded = decodeURIComponent(rest) } catch { decoded = rest }
+      // 如果解码结果仍包含编码，尝试 UTF-16 解码
+      if (decoded !== rest && /%[0-9A-Fa-f]{2}/.test(decoded)) {
+        decoded = this._decodeUTF16Component(decoded)
+      }
+      return decoded.replace(/\//g, '\\')
+    }
+
+    if (uri.includes('/')) {
+      // 先尝试标准 decodeURIComponent（UTF-8 编码）
+      let decoded
+      try { decoded = decodeURIComponent(uri) } catch { decoded = uri }
+      // 如果解码结果仍包含编码，尝试 UTF-16 解码
+      if (decoded !== uri && /%[0-9A-Fa-f]{2}/.test(decoded)) {
+        decoded = this._decodeUTF16Component(decoded)
+      }
+      return decoded.replace(/\//g, '\\')
+    }
+    return uri
+  },
+
+  /**
+   * 将本地路径转换为 file:// URI（跨平台兼容）
+   * 处理路径编码，支持 UTF-8 多字节字符（如中文）
+   * 始终使用 file:/// 前缀避免 URI 解析为 host
+   */
+  _osPathToURI(osPath) {
+    if (!osPath || typeof osPath !== 'string') return osPath
+
+    // 检测 Windows 路径（如 E:\xxx 或 E:/xxx）
+    const isWindowsPath = /^[A-Za-z]:[\\/]/.test(osPath)
+
+    if (isWindowsPath) {
+      // Windows 路径需要特殊处理：
+      // 1. 驱动器字母需要编码为 %XX（避免被解析为 host）
+      // 2. 路径中的 \ 需要转换为 /
+      // 3. 使用 file:/// 前缀（三个斜杠）
+      const drive = osPath[0].toUpperCase()
+      const encodedDrive = '%' + drive.charCodeAt(0).toString(16).toUpperCase()
+      const rest = osPath.slice(2) // 移除 "E:"
+      // 对路径部分进行 URI 编码
+      const encoded = rest.replace(/\\/g, '/')
+      const encodedPath = encodeURIComponent(encoded).replace(/%2[fF]/g, '/')
+      return 'file:///'+ encodedDrive + '/' + encodedPath
+    }
+
+    // 非 Windows 路径
+    const withSlashes = osPath.replace(/\\/g, '/')
+    // 对路径进行 URI 编码以支持 UTF-8 多字节字符（如中文）
+    const encodedPath = encodeURIComponent(withSlashes).replace(/%2[fF]/g, '/')
+
+    // 始终使用 file:///（三个斜杠）作为前缀
+    return 'file://' + encodedPath
+  },
+
   // 文本写入到下载目录
   writeTextFile(text) {
     const filePath = path.join(window.ztools.getPath('downloads'), Date.now().toString() + '.txt')

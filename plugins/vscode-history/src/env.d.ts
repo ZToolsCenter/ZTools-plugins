@@ -27,6 +27,8 @@ interface Services {
   _uriToFileSystemPath: (uri: string) => string
   _uriToOSPath: (uri: string) => string
   _dirExists: (uri: string) => boolean
+  _decodeURIPath: (uri: string) => string
+  _osPathToURI: (osPath: string) => string
 }
 
 interface IDEConfigWithKey extends IDEConfig {

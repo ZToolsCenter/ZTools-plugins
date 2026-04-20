@@ -77,13 +77,14 @@ async function loadHistory(keyword = ''): Promise<SearchItem[]> {
     // paths 已经是按时间从新到旧排序，直接取最新 20 条
     const limited = keyword ? paths : paths.slice(0, 20)
 
-    // 过滤搜索
+    // 过滤搜索 — 使用解码后的路径进行匹配
     let filtered = limited
     if (keyword) {
       const keywords = keyword.split(/\s+/).filter(Boolean)
-      filtered = limited.filter((p) =>
-        keywords.every((kw) => p.toLowerCase().includes(kw.toLowerCase()))
-      )
+      filtered = limited.filter((p) => {
+        const decoded = services._decodeURIPath(p)
+        return keywords.every((kw) => decoded.toLowerCase().includes(kw.toLowerCase()))
+      })
     }
 
     const results = filtered.map((p) => createSearchItem(p, services))
@@ -117,11 +118,12 @@ async function doSearch() {
 }
 
 function createSearchItem(path: string, services: any): SearchItem {
-  const basename = path.split(/[\\/]/).pop() || path
+  const decodedPath = services ? services._decodeURIPath(path) : path
+  const basename = decodedPath.split(/[\\/]/).pop() || decodedPath
   const isWorkspace = path.includes('.code-workspace')
   // 检查目录是否存在
   const dirExists = services ? services._dirExists(path) : false
-  return { path, title: basename, isWorkspace, isRemote: path.includes('remote'), ext: '', dirExists }
+  return { path, decodedPath, title: basename, isWorkspace, isRemote: path.includes('remote'), ext: '', dirExists }
 }
 
 // 打开项目
@@ -133,7 +135,11 @@ async function openItem(item: SearchItem) {
   const safeCmd = cmd.includes(' ') ? `"${cmd}"` : cmd
 
   const args = item.isWorkspace ? '--file-uri' : '--folder-uri'
-  const fullCmd = `${safeCmd} ${args} "${item.path}"`
+
+  // 直接使用原始 file:// URI（来自 VS Code 数据库）
+  const uriArg = item.path
+
+  const fullCmd = `${safeCmd} ${args} "${uriArg}"`
 
   let shell = config.terminal.trim()
   if (shell) {
@@ -162,7 +168,7 @@ function execCmd(cmd: string, _config: IDEConfig) {
 
 // 复制路径到剪贴板
 function copyPath(item: SearchItem) {
-  const osPath = window.services._uriToOSPath(item.path)
+  const osPath = item.decodedPath || (window.services ? window.services._uriToOSPath(item.path) : item.path)
   const success = window.ztools.copyText(osPath)
   if (success) {
     window.ztools.showNotification(`已复制路径: ${item.title}`)
@@ -277,7 +283,7 @@ onUnmounted(() => {
               </div>
               <div class="result-details">
                 <span class="result-title">{{ item.title }}</span>
-                <span class="result-path" :title="item.path">{{ item.path }}</span>
+                <span class="result-path" :title="item.decodedPath">{{ item.decodedPath }}</span>
               </div>
             </div>
             <div class="result-actions">

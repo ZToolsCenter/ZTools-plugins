@@ -22,6 +22,7 @@ export interface IDEConfig {
 
 export interface SearchItem {
   path: string
+  decodedPath: string
   title: string
   isWorkspace: boolean
   isRemote: boolean
