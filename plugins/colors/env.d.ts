@@ -1,1 +1,1 @@
-/// <reference types="@ztools-center/ztools-api-types" />
+/// <reference types="vite-plus/client" />
