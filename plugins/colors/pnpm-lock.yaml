@@ -34,6 +34,9 @@ importers:
       '@ztools-center/ztools-api-types':
         specifier: ^1.0.1
         version: 1.0.3
+      colord:
+        specifier: ^2.9.3
+        version: 2.9.3
       tailwindcss:
         specifier: ^4.2.2
         version: 4.2.2
@@ -932,6 +935,9 @@ packages:
 
   caniuse-lite@1.0.30001788:
     resolution: {integrity: sha512-6q8HFp+lOQtcf7wBK+uEenxymVWkGKkjFpCvw5W25cmMwEDU45p1xQFBQv8JDlMMry7eNxyBaR+qxgmTUZkIRQ==}
+
+  colord@2.9.3:
+    resolution: {integrity: sha512-jeC1axXpnb0/2nn/Y1LPuLdgXBLH7aDcHu4KEKfqw3CUhX7ZpfBSlPKyqXE6btIgEzfWtrX3/tyBCaCvXvMkOw==}
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
@@ -2125,6 +2131,8 @@ snapshots:
       run-applescript: 7.1.0
 
   caniuse-lite@1.0.30001788: {}
+
+  colord@2.9.3: {}
 
   convert-source-map@2.0.0: {}
 
