@@ -156,7 +156,7 @@ function execCmd(cmd: string, _config: IDEConfig) {
     errorMsg.value = 'preload services 未初始化'
     return
   }
-  const timeout = parseInt(_config.timeout) || 3000
+  const timeout = parseInt(_config.timeout) || 10000
   window.services.shellExec(cmd, { timeout })
     .then(() => {
       window.ztools.outPlugin()

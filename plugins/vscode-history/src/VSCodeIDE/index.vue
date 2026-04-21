@@ -12,7 +12,7 @@ const newCode = ref('')
 const newCommand = ref('')
 const newTerminal = ref('')
 const newDatabase = ref('')
-const newTimeout = ref('3000')
+const newTimeout = ref('10000')
 const errorMsg = ref('')
 
 // 加载 IDE 列表
@@ -46,7 +46,7 @@ function addIDE() {
       terminal: newTerminal.value.trim(),
       command,
       database: newDatabase.value.trim(),
-      timeout: newTimeout.value.trim() || '3000',
+      timeout: newTimeout.value.trim() || '10000',
     }
 
     // 自动检测数据库路径
@@ -72,7 +72,7 @@ function resetAddForm() {
   newCommand.value = ''
   newTerminal.value = ''
   newDatabase.value = ''
-  newTimeout.value = '3000'
+  newTimeout.value = '10000'
   showAddForm.value = false
 }
 
@@ -97,14 +97,14 @@ function executeDelete() {
 
 // 编辑 IDE（打开对话框）
 const editingEditDialog = ref(false)
-const editForm = ref({ code: '', terminal: '', database: '', timeout: '3000' })
+const editForm = ref({ code: '', terminal: '', database: '', timeout: '10000' })
 
 function editConfig(config: IDEConfig) {
   editForm.value = {
     code: config.code,
     terminal: config.terminal || '',
     database: config.database || '',
-    timeout: config.timeout || '3000',
+    timeout: config.timeout || '10000',
   }
   editingEditDialog.value = true
 }
@@ -137,7 +137,7 @@ function createDefault(code: string, command: string) {
       terminal: '',
       command,
       database: '',
-      timeout: '3000',
+      timeout: '10000',
     }
 
     const appName = code === 'vscode' ? 'Code' : code === 'cursor' ? 'Cursor' : code === 'vscode-insiders' ? "Code - Insiders": ""

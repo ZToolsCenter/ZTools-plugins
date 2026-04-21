@@ -432,7 +432,7 @@ window.services = {
       terminal: '',
       command: command || code.toLowerCase(),
       database: dbPath,
-      timeout: '3000',
+      timeout: '10000',
     }
     this.saveIDEConfig(config)
     return config
@@ -454,7 +454,7 @@ window.services = {
   shellExec(cmd, options = {}) {
     return new Promise((resolve, reject) => {
       const { exec } = require('node:child_process')
-      const timeout = options.timeout || 30000
+      const timeout = options.timeout || 10000
       const proc = exec(cmd, { timeout }, (err, stdout, stderr) => {
         if (err) return reject(new Error(stderr || err.message))
         resolve(stdout)
