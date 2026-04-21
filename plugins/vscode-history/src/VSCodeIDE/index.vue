@@ -53,7 +53,7 @@ function addIDE() {
     if (!config.database) {
       const appName = code === 'vscode' ? 'Code' : code === 'cursor' ? 'Cursor' : code === "vscode-insiders" ? "Code - Insiders" : ""
       if (appName) {
-        config.database = window.ztools.getPath('appData') + '/' + appName + '/User/globalStorage/state.vscdb'
+        config.database = window.services.createDBPath(appName)
       }
     }
 
@@ -142,7 +142,7 @@ function createDefault(code: string, command: string) {
 
     const appName = code === 'vscode' ? 'Code' : code === 'cursor' ? 'Cursor' : code === 'vscode-insiders' ? "Code - Insiders": ""
     if (appName) {
-      config.database = window.ztools.getPath('appData') + '/' + appName + '/User/globalStorage/state.vscdb'
+      config.database = window.services.createDBPath(appName)
     }
 
     saveIDEConfig(config)

@@ -20,6 +20,7 @@ interface Services {
   deleteIDEConfig: (code: string) => void
   createDefaultIDE: (code: string, command: string) => IDEConfig
   parsePathEntry: (entry: any) => string
+  createDBPath: (appName: string) => string
   shellExec: (cmd: string, options?: { timeout?: number }) => Promise<string>
   getAllDbStorageKeys: (prefix?: string) => string[]
   getPath: (dir: string) => string
