@@ -266,8 +266,7 @@ function gitCloneWithFallback(gitUrl, cloneDir, onProgress) {
 
       const args = ['clone', '--depth', '1', url, cloneDir];
       const child = spawn('git', args, {
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: 'echo' },
-        shell: true // 使用 shell: true 兼容 Windows 上的 git 命令路径
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: 'echo' }
       });
 
       let errData = '';
@@ -658,20 +657,17 @@ function batchDeleteSkills(skillIds) {
 // ========== Shell 辅助 ==========
 function openLocalPath(localPath) {
   if (!localPath) return;
-  const { exec } = require('child_process');
+  const { spawn } = require('child_process');
   const platform = process.platform;
-  let command = '';
-
-  if (platform === 'win32') {
-    command = `explorer "${localPath.replace(/\//g, '\\')}"`;
-  } else if (platform === 'darwin') {
-    command = `open "${localPath}"`;
-  } else {
-    command = `xdg-open "${localPath}"`;
-  }
 
   try {
-    exec(command);
+    if (platform === 'win32') {
+      spawn('explorer', [localPath.replace(/\//g, '\\')], { detached: true, stdio: 'ignore' }).unref();
+    } else if (platform === 'darwin') {
+      spawn('open', [localPath], { detached: true, stdio: 'ignore' }).unref();
+    } else {
+      spawn('xdg-open', [localPath], { detached: true, stdio: 'ignore' }).unref();
+    }
   } catch (e) {
     console.error('openLocalPath failed:', e);
   }
@@ -679,20 +675,17 @@ function openLocalPath(localPath) {
 
 function openUrl(url) {
   if (!url) return;
-  const { exec } = require('child_process');
+  const { spawn } = require('child_process');
   const platform = process.platform;
-  let command = '';
-
-  if (platform === 'win32') {
-    command = `start "" "${url}"`;
-  } else if (platform === 'darwin') {
-    command = `open "${url}"`;
-  } else {
-    command = `xdg-open "${url}"`;
-  }
 
   try {
-    exec(command);
+    if (platform === 'win32') {
+      spawn('cmd', ['/c', 'start', '""', url], { detached: true, stdio: 'ignore' }).unref();
+    } else if (platform === 'darwin') {
+      spawn('open', [url], { detached: true, stdio: 'ignore' }).unref();
+    } else {
+      spawn('xdg-open', [url], { detached: true, stdio: 'ignore' }).unref();
+    }
   } catch (e) {
     console.error('openUrl failed:', e);
   }
@@ -834,18 +827,18 @@ function saveFileDialog(content, targetPath) {
 
   // 保存后自动打开所在文件夹并选中
   try {
-    const { exec } = require('child_process');
+    const { spawn } = require('child_process');
     const platform = process.platform;
     const absPath = path.resolve(filePath);
 
     if (platform === 'win32') {
       const winPath = absPath.replace(/\//g, '\\');
-      exec(`cmd /c explorer /select,"${winPath}"`);
+      spawn('explorer', ['/select,', winPath], { detached: true, stdio: 'ignore' }).unref();
     } else if (platform === 'darwin') {
-      exec(`open -R "${absPath}"`);
+      spawn('open', ['-R', absPath], { detached: true, stdio: 'ignore' }).unref();
     } else {
       // Linux 下通常只能打开目录
-      exec(`xdg-open "${path.dirname(absPath)}"`);
+      spawn('xdg-open', [path.dirname(absPath)], { detached: true, stdio: 'ignore' }).unref();
     }
   } catch (e) {
     console.error('Failed to open file manager:', e);
