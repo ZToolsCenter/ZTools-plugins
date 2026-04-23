@@ -890,8 +890,8 @@ function selectSavePath(defaultName = 'skills-hub-backup.json') {
 }
 
 // ========== 分发技能到其他 Agent ==========
-function distributeSkill(skillId, targetAgents) {
-  const all = getSkillsList();
+async function distributeSkill(skillId, targetAgents) {
+  const all = await getSkillsList();
   const skill = all.find(s => s.id === skillId);
   if (!skill) throw new Error("找不到该技能记录");
 
