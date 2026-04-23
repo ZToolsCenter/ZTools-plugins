@@ -2,7 +2,7 @@
   "name": "ai-skills-manager",
   "title": "AI-Skills管理器",
   "description": "快捷安装、更新、卸载AI Agent的技能",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "logo": "logo.png",
   "preload": "preload.js",

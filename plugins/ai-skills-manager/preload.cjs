@@ -16,7 +16,7 @@ const AGENT_CONFIGS = [
   { id: 'antigravity', name: 'Antigravity', path: '.gemini/antigravity/skills' },
   { id: 'claudecode', name: 'Claude Code', path: '.claude/skills' },
   { id: 'trae', name: 'Trae', path: '.trae/skills' },
-  { id: 'traecn', name: 'Trae CN', path: '.trae/skills' },
+  { id: 'traecn', name: 'Trae CN', path: '.trae-cn/skills' },
   { id: 'openclaw', name: 'OpenClaw', path: 'skills' },
   { id: 'mcpjam', name: 'MCPJam', path: '.mcpjam/skills' },
   { id: 'mistralvibe', name: 'Mistral Vibe', path: '.vibe/skills' },
@@ -100,6 +100,29 @@ function parseGitHubUrl(input) {
   };
 }
 
+// 辅助函数：从 SKILL.md 提取描述
+function extractDescription(skillPath) {
+  const mdPath = fs.existsSync(path.join(skillPath, 'SKILL.md'))
+    ? path.join(skillPath, 'SKILL.md')
+    : fs.existsSync(path.join(skillPath, 'skill.md'))
+      ? path.join(skillPath, 'skill.md')
+      : null;
+  if (mdPath) {
+    try {
+      const content = fs.readFileSync(mdPath, 'utf-8');
+      const match = content.match(/description:\s*(.*)/i);
+      if (match && match[1]) {
+        let desc = match[1].trim();
+        if ((desc.startsWith('"') && desc.endsWith('"')) || (desc.startsWith("'") && desc.endsWith("'"))) {
+          desc = desc.substring(1, desc.length - 1);
+        }
+        return desc;
+      }
+    } catch (e) { }
+  }
+  return '';
+}
+
 // ========== 获取已安装列表 ==========
 function getSkillsList() {
   ensureRegistry();
@@ -125,7 +148,13 @@ function getSkillsList() {
             if (meta.source_url) skill.sourceUrl = meta.source_url;
             if (meta.installed_at) skill.installedAt = meta.installed_at;
             if (meta.name) skill.name = meta.name;
+            if (meta.description) skill.description = meta.description;
           } catch (e) { }
+        }
+
+        // 补全缺失的描述
+        if (!skill.description) {
+          skill.description = extractDescription(skill.localPath);
         }
 
         // 确保 updatedAt 始终反映文件的最新修改
@@ -163,6 +192,7 @@ function getSkillsList() {
             let sourceUrl = '未注册';
             let installedAt = fs.statSync(skillPath).birthtime.toISOString();
             let name = dirent.name;
+            let description = '';
 
             const metaPath = path.join(skillPath, 'metadata.json');
             const mdPath = path.join(skillPath, 'SKILL.md');
@@ -173,7 +203,12 @@ function getSkillsList() {
                 if (meta.source_url) sourceUrl = meta.source_url;
                 if (meta.installed_at) installedAt = meta.installed_at;
                 if (meta.name) name = meta.name;
+                if (meta.description) description = meta.description;
               } catch (e) { }
+            }
+
+            if (!description) {
+              description = extractDescription(skillPath);
             }
 
             let updatedAt = fs.existsSync(mdPath)
@@ -183,6 +218,7 @@ function getSkillsList() {
             actualSkills.push({
               id: `local_${agent}_${dirent.name.toLowerCase()}`,
               name: name,
+              description: description,
               agent: agent,
               localPath: skillPath,
               sourceUrl: sourceUrl,
@@ -378,6 +414,12 @@ function previewSkills(repoUrl, onProgress) {
       throw new Error("同步失败：在该仓库中未发现任何 SKILL.md 文件。请确认地址是否正确。");
     }
 
+    // 4. 为发现的每个技能补充描述
+    skills = skills.map(s => {
+      const sp = s.path === '.' ? cloneDir : path.join(cloneDir, ...s.path.split('/'));
+      return { ...s, description: extractDescription(sp) };
+    });
+
     if (onProgress) onProgress({ type: 'info', text: `[成功] 发现 ${skills.length} 个技能: ${skills.map(s => s.name).join(', ')}\n` });
     return { tempDir, cloneDir, skills, gitUrl };
   }).catch((err) => {
@@ -414,6 +456,7 @@ function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUr
         try {
           fs.writeFileSync(path.join(finalDir, 'metadata.json'), JSON.stringify({
             name: skill.name,
+            description: skill.description || '',
             source_url: skillSpecificUrl,
             installed_at: new Date().toISOString(),
             type: "git"
@@ -437,6 +480,7 @@ function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUr
           const newEntry = {
             id: uniqueId,
             name: skill.name,
+            description: skill.description || '',
             localPath: finalDir,
             sourceUrl: skillSpecificUrl,
             installedAt: new Date().toISOString(),
@@ -530,7 +574,7 @@ function updateSkill(skillId, onProgress) {
 async function batchUpdateSkills(skillIds, onProgress) {
   const all = getSkillsList();
   const results = { success: [], failed: [] };
-  
+
   // 1. 提取所有待更新的有效技能，按仓库分组
   const groups = new Map();
   for (const id of skillIds) {
@@ -555,12 +599,12 @@ async function batchUpdateSkills(skillIds, onProgress) {
   // 2. 按仓库进行批量更新（仓库内部串行，确保进度日志清晰）
   for (const [gitUrl, skills] of groups.entries()) {
     if (onProgress) onProgress({ type: 'batch', text: `[仓库] 正在同步: ${gitUrl}\n` });
-    
+
     let previewData = null;
     try {
       // 克隆一次仓库
       previewData = await previewSkills(gitUrl, onProgress);
-      
+
       for (const skill of skills) {
         try {
           // 在克隆结果中寻找对应的技能（模糊匹配名字）
@@ -568,11 +612,11 @@ async function batchUpdateSkills(skillIds, onProgress) {
           if (!matched) {
             throw new Error(`仓库中未找到名为 "${skill.name}" 的技能`);
           }
-          
+
           const parentDir = path.dirname(skill.localPath);
           // 执行安装（保留临时目录供该组后续技能使用）
           installFromPreview(previewData, [matched.name], [parentDir], gitUrl, onProgress, true);
-          
+
           results.success.push(skill.id);
           if (onProgress) onProgress({ type: 'batch', text: `[批量] ✓ ${skill.name} 更新成功\n` });
         } catch (innerErr) {
@@ -793,7 +837,7 @@ function saveFileDialog(content, targetPath) {
     const { exec } = require('child_process');
     const platform = process.platform;
     const absPath = path.resolve(filePath);
-    
+
     if (platform === 'win32') {
       const winPath = absPath.replace(/\//g, '\\');
       exec(`cmd /c explorer /select,"${winPath}"`);
@@ -857,7 +901,16 @@ function distributeSkill(skillId, targetAgents) {
       let currentReg = [];
       try { currentReg = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8')); } catch (e) { }
       if (!currentReg.some(r => r.localPath === finalDir)) {
-        currentReg.push({ id: `${skill.name}_${agent}_${Date.now()}`, name: skill.name, localPath: finalDir, agent, sourceUrl: skill.sourceUrl, installedAt: skill.installedAt, updatedAt: new Date().toISOString() });
+        currentReg.push({
+          id: `${skill.name}_${agent}_${Date.now()}`,
+          name: skill.name,
+          description: skill.description || '',
+          localPath: finalDir,
+          agent,
+          sourceUrl: skill.sourceUrl,
+          installedAt: skill.installedAt,
+          updatedAt: new Date().toISOString()
+        });
         saveRegistry(currentReg);
       }
     } catch (e) { }
