@@ -11,8 +11,26 @@ const SKILLS_DIR = process.env.USERPROFILE
   : path.join(process.env.HOME || '/', '.gemini', 'antigravity', 'skills');
 
 const REGISTRY_FILE = path.join(SKILLS_DIR, 'registry.json');
+let MEM_REGISTRY = null; // 内存缓存
 
-const AGENT_CONFIGS = [
+// 单例模式获取注册表内容 (带写缓冲/内存同步)
+async function getRawRegistry() {
+  if (MEM_REGISTRY) return MEM_REGISTRY;
+  ensureRegistry();
+  try {
+    const data = await fs.promises.readFile(REGISTRY_FILE, 'utf-8');
+    MEM_REGISTRY = JSON.parse(data);
+    return MEM_REGISTRY;
+  } catch (error) {
+    console.error("读取 registry.json 失败:", error);
+    return [];
+  }
+}
+
+function saveRegistry(registry) {
+  MEM_REGISTRY = registry;
+  fs.writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2));
+}
   { id: 'antigravity', name: 'Antigravity', path: '.gemini/antigravity/skills' },
   { id: 'claudecode', name: 'Claude Code', path: '.claude/skills' },
   { id: 'trae', name: 'Trae', path: '.trae/skills' },
@@ -130,18 +148,9 @@ async function extractDescription(skillPath) {
   return '';
 }
 
-// ========== 获取已安装列表 ==========
-// ========== 获取已安装列表 (异步优化版) ==========
+// ========== 获取已安装列表 (异步优化与内存加速版) ==========
 async function getSkillsList() {
-  ensureRegistry();
-  let registry = [];
-  try {
-    const data = await fs.promises.readFile(REGISTRY_FILE, 'utf-8');
-    registry = JSON.parse(data);
-  } catch (error) {
-    console.error("读取 registry.json 失败:", error);
-  }
-
+  const registry = await getRawRegistry();
   const actualSkills = [];
 
   // 1. 并发处理已在注册表中的技能
@@ -257,10 +266,7 @@ async function getSkillsList() {
   return actualSkills;
 }
 
-function saveRegistry(registry) {
-  ensureRegistry();
-  fs.writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2));
-}
+
 
 // GitHub 镜像列表（直连失败时自动回退）
 const GITHUB_MIRRORS = [
