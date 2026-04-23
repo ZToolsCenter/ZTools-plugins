@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "saladict-ztools",
+  "title": "沙拉查词",
+  "description": "沙拉查词-聚合词典专业查词翻译（ZTools 版）",
+  "author": "EvanW",
+  "version": "1.0.1",
+  "main": "index.html",
+  "logo": "ext-saladic/assets/icon-128.png",
+  "preload": "preload.cjs",
+  "features": [
+    {
+      "code": "沙拉查词",
+      "explain": "沙拉查词",
+      "cmds": [
+        "沙拉查词",
+        "saladict",
+        {
+          "type": "over",
+          "label": "沙拉查词"
+        }
+      ]
+    }
+  ]
+}

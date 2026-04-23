@@ -421,13 +421,11 @@ export function renderEnvironmentBlock(environments: Environment[]): string {
   const blocks: string[] = []
 
   for (const env of environments) {
-    const lines = env.lines
-      .filter((l) => l.type === 'host' && l.enabled && l.domain && l.ip)
-      .map((l) => (l.comment ? `${l.ip}\t${l.domain} # ${l.comment}` : `${l.ip}\t${l.domain}`))
+    const renderedSource = renderLinesToSource(env.lines)
 
     blocks.push(env.header || buildGroupHeader(env.name))
-    if (lines.length > 0) {
-      blocks.push(...lines)
+    if (renderedSource) {
+      blocks.push(...renderedSource.split('\n'))
     }
     blocks.push(env.endMarker || buildGroupEndMarker(env.name))
   }

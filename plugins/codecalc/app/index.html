@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Code Calc</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+    <div id="snapshot-panel" class="snapshot-panel">
+        <div class="snapshot-list">
+            <!-- 快照项将动态插入到这里 -->
+        </div>
+        <div class="snapshot-footer">
+            <button class="add-snapshot-btn" title="保存当前快照">
+                <svg class="add-icon" viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/>
+                </svg>
+                保存快照
+            </button>
+        </div>
+    </div>
+    
+    <button class="snapshot-toggle-btn">
+        <svg class="snapshot-icon" viewBox="0 0 24 24" width="21" height="21" fill="currentColor">
+            <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+        </svg>
+    </button>
+    <div class="container" onclick="handleContainerClick(event)">
+        <div id="expression-container">
+            <div class="expression-line">
+                <div class="tag-container">
+                    <button class="tag-button">
+                        <span class="tag-icon">$1</span>
+                    </button>
+                </div>
+                <div class="expression-input">
+                    <div class="input-highlight"></div>
+                    <textarea class="input" 
+                              placeholder="输入表达式，例如: a = 1 + 2 * 3" 
+                              rows="1"
+                              oninput="handleInput(event); autoResize(this)"
+                              onfocus="handleFocus(event)" onblur="handleBlur(event)"
+                              onkeydown="handleKeyDown(event, this)"></textarea>
+                </div>
+                <div class="result-container">
+                    <div class="result">
+                        <span class="result-value"></span>
+                    </div>
+                    <div class="message-icon" style="display: none;">
+                        <div class="message-text"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置面板 -->
+    <div id="settings-panel" class="settings-panel">
+        <div class="settings-header">
+            <h3>设置</h3>
+        </div>
+        <div class="settings-content">
+            <div class="settings-section">
+                <div class="setting-item">
+                    <span class="setting-label">函数提示和补全</span>
+                    <label class="switch">
+                        <input type="checkbox" id="completionToggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-section">
+                <div class="setting-item">
+                    <span class="setting-label">退出保留页面记录</span>
+                    <label class="switch">
+                        <input type="checkbox" id="historyToggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-section">
+                <div class="setting-item">
+                    <span class="setting-label">只复制计算结果</span>
+                    <label class="switch">
+                        <input type="checkbox" id="onlyCopyRsltToggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-section">
+                <div class="setting-item">
+                    <span class="setting-label">将数字转换为大写中文</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toCNToggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-section">
+                <div class="setting-item">
+                    <span class="setting-label">自动添加下一行</span>
+                    <label class="switch">
+                        <input type="checkbox" id="AutoNextLine">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快捷键面板 -->
+    <div id="shortcuts-panel" class="shortcuts-panel">
+        <div class="shortcuts-header">
+            <h3>快捷键</h3>
+        </div>
+        <div class="shortcuts-content">
+            <div class="shortcuts-section">
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Ctrl + /</span>
+                    <span class="shortcut-desc">显示快捷键面板</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Shift + Enter</span>
+                    <span class="shortcut-desc">下方插入行</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Ctrl + Enter</span>
+                    <span class="shortcut-desc">复制结果到下一行</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Shift + Delete</span>
+                    <span class="shortcut-desc">删除当前行</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Ctrl + H</span>
+                    <span class="shortcut-desc">历史快照</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Ctrl + P</span>
+                    <span class="shortcut-desc">进入设置</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Ctrl + I</span>
+                    <span class="shortcut-desc">自定义函数/常数管理</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-key">Ctrl + K</span>
+                    <span class="shortcut-desc">清空页面</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自定义函数面板 -->
+    <div id="custom-functions-panel" class="custom-functions-panel">
+        <div class="custom-functions-header">
+            <div class="header-left">
+                <div class="app-logo">
+                    <div class="logo-icon">⚡</div>
+                    <span class="app-title">自定义函数</span>
+                </div>
+                <div class="tab-container">
+                    <div class="tab active">
+                        <span>函数管理</span>
+                        <button class="tab-close">×</button>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="action-btn">⋯</button>
+                </div>
+            </div>
+        </div>
+        <div class="custom-functions-content">
+            <div id="custom-functions-list">
+                <!-- 函数列表将动态插入到这里 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部栏-->
+    <div class="footer">
+        <div class="left-section">
+            <div class="tooltip">
+                <div class="tooltip-icon">
+                    <span class="help-icon">?</span>
+                    <svg class="settings-icon" viewBox="0 0 24 24" width="16" height="16" style="pointer-events: none;">
+                        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <div class="tooltip-text">
+                    基本运算：<br>
+                    • 算术运算：+, -, *, /, //, %, **, =, +=, ...<br>
+                    • 位运算：&, |, ^, ~, <<, >>, >>><br>
+                    <br>
+                    函数：<br>
+                    • 常量：PI: 3.14159... e: 2.71828...<br>
+                    • 常用：ln, lg, log, exp, pow, sqrt, abs, max, min<br>
+                    • 三角函数：sin, cos, tan, atan, tanh, ...<br>
+                    • 字符串：str, length, upper, lower, base64, unbase64<br>
+                    • 进制转换：0b123, 0o567, 0xffd, bin, oct, hex<br>
+                    • 时间戳：@now, @today, @2000-06-01 11:30:01<br>
+                    • 时间计算:  @now + #1w2d3h,   #1y2m3d5h7s<br>
+                    • 自定义常数: mypi := 3.14159 <br>
+                    • 自定义函数: f(x, y) = x + y <br>
+                    <br>
+                    矩阵：<br>
+                    • 矩阵创建：[1,2,3], {1,2,3;4,5,6}, eye, zeros, ones, random, diag<br>
+                    • 矩阵运算：+, -, *, /, **, @(矩阵乘), det, inv<br>
+                    • 矩阵函数：sum, mean, max, min, sort, reshape, repeat<br>
+                    • 矩阵属性：A.T(转置), A.det(行列式), A.inv(求逆)<br>
+                    • 矩阵分析：solve(A,b), eigenvalues(A)<br>
+                    <br>
+                    <span style="font-weight: bold;" class="shortcut-text">Ctrl + / : 显示全部快捷键</span> <br>
+                    <br>
+                    <div style="display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                        <div class="github-link">
+                            <svg height="16" viewBox="0 0 16 16" width="16" style="vertical-align: text-bottom; margin-right: 4px;"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                            <a href="https://github.com/epleone/CodeCalc" target="_blank"
+                               onclick="return window.openExternalLink('https://github.com/epleone/CodeCalc');"
+                               style="color: inherit; text-decoration: none; font-size: 14px; font-weight: 600; letter-spacing: 0.2px;">CodeCalc</a>
+                        </div>
+                        <div class="docs-link">
+                            <img src="./logo.png" width="16" height="16" style="vertical-align: text-bottom; margin-right: 4px;">
+                            <a href="https://epleone.github.io/codecalc-doc/" target="_blank" 
+                               onclick="return window.openExternalLink('https://epleone.github.io/codecalc-doc/');" 
+                               style="color: #BA55D3; text-decoration: none; font-size: 14px; transition: color 0.2s;">详细文档</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="right-section">
+            <button class="manage-functions-button" onclick="return window.openCustomFunctionsPanel()">函数管理</button>
+            <button class="clear-button" onclick="clearAll()">清空</button>
+        </div>
+    </div>
+
+    <script src="./src/calculator.min.js"></script>
+    <script src="./src/app.bundle.js"></script>
+
+</body>
+</html> 

@@ -62,7 +62,7 @@ describe('hosts helpers', () => {
     ].join('\n'))
   })
 
-  it('extracts public content and merges enabled environments in order', () => {
+  it('extracts public content and merges active environments while preserving comments', () => {
     const original = [
       '127.0.0.1 localhost',
       '# TailscaleHostsSectionStart',
@@ -80,7 +80,7 @@ describe('hosts helpers', () => {
         header: '#-------- 开发配置 --------',
         endMarker: '#-------- 开发配置 结束 --------',
         updatedAt: '2026-04-15T00:00:00.000Z',
-        lines: parseSourceToLines('127.0.0.1 dev.local\n# 127.0.0.1 dev-disabled.local'),
+        lines: parseSourceToLines('127.0.0.1 dev.local\n# 单行注释\n# 127.0.0.1 dev-disabled.local'),
       },
       {
         id: 'env-test',
@@ -109,6 +109,8 @@ describe('hosts helpers', () => {
       '',
       '#-------- 开发配置 --------',
       '127.0.0.1\tdev.local',
+      '# 单行注释',
+      '# 127.0.0.1\tdev-disabled.local',
       '#-------- 开发配置 结束 --------',
       '#-------- 测试配置 --------',
       '127.0.0.1\ttest.local',

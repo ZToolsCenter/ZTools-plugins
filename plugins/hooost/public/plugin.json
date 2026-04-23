@@ -4,7 +4,7 @@
   "title": "hooost",
   "description": "本地 hosts 配置管理，支持预设切换、备份与回滚",
   "author": "皮皮虾我们走",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

@@ -1,0 +1,56 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "text-copy",
+  "title": "复制纯文本",
+  "description": "纯文本复制，提取文本中的链接",
+  "author": "皮皮虾我们走",
+  "version": "1.0.0",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "single": true
+  },
+  "features": [
+    {
+      "code": "copyText",
+      "explain": "复制纯文本",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "复制纯文本",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "removeTrim",
+      "explain": "复制文本并去除空格",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "复制文本并去除空格",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "copyTextSetting",
+      "explain": "复制纯文本设置",
+      "cmds": [
+        "复制纯文本设置"
+      ]
+    },
+    {
+      "code": "copyUrl",
+      "explain": "提取文本内链接",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "提取文本内链接",
+          "minLength": 1,
+          "match": "/((ht|f)tps?):///"
+        }
+      ]
+    }
+  ]
+}

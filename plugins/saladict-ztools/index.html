@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>沙拉查词 - ZTools</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    .iframe-wrap {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 999;
+    }
+    .iframe-wrap iframe {
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+    .close-iframe-btn {
+      position: absolute;
+      top: 5px;
+      right: 10px;
+      cursor: pointer;
+      z-index: 1000;
+      color: #666;
+      font-size: 14px;
+    }
+    .close-iframe-btn:hover {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <textarea id="saladict-paste" style="position:absolute;left:-9999px;"></textarea>
+  <script>
+    console.log('[saladict] index.html loaded, ztools available:', typeof window.ztools !== 'undefined');
+    window.addEventListener('error', function(e) {
+      console.error('[saladict] Global error:', e.message, e.filename, e.lineno);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('[saladict] Unhandled rejection:', e.reason);
+    });
+  </script>
+  <script src="webextensions-emulator-master/dist/core.js"></script>
+  <script>
+    console.log('[saladict] core.js loaded, browser available:', typeof window.browser !== 'undefined');
+  </script>
+</body>
+</html>

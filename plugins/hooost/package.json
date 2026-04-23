@@ -1,6 +1,6 @@
 {
   "name": "hooost",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "本地 hosts 配置管理工具，支持预设配置切换、备份与回滚，兼容 Windows / macOS",
   "type": "module",
   "scripts": {

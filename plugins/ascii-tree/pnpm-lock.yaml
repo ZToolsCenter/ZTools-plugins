@@ -1,0 +1,16 @@
+lockfileVersion: '6.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+devDependencies:
+  '@ztools-center/ztools-api-types':
+    specifier: ^1.0.1
+    version: 1.0.3
+
+packages:
+
+  /@ztools-center/ztools-api-types@1.0.3:
+    resolution: {integrity: sha512-dv1eOAIasAupqKaQL/gESk1i2+RebdM/1gvZhrvH2D/bo3enCUsAGJ8nrHnlCLBSOGB81eC/SU0IH8BNsUlmvA==}
+    dev: true
