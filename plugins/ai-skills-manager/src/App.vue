@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 
-interface Skill { id: string; name: string; localPath: string; sourceUrl: string; installedAt: string; updatedAt: string }
-interface PreviewSkillItem { name: string; path: string }
+interface Skill { id: string; name: string; description?: string; localPath: string; sourceUrl: string; installedAt: string; updatedAt: string }
+interface PreviewSkillItem { name: string; description?: string; path: string }
 interface PreviewData { tempDir: string; cloneDir: string; skills: PreviewSkillItem[]; gitUrl: string }
 
 declare global {
@@ -36,6 +36,19 @@ const progressLogs = ref<string[]>([])
 const installUrl = ref('')
 const searchKeyword = ref('')
 const localSearch = ref('')
+const showSuggestions = ref(false)
+const searchSuggestions = computed(() => {
+  const kw = localSearch.value.trim().toLowerCase()
+  if (!kw) return skills.value.slice(0, 50)
+  return skills.value.filter(s => !!s && (s.name || '').toLowerCase().includes(kw)).slice(0, 50)
+})
+const selectSuggestion = (name: string) => {
+  localSearch.value = name
+  showSuggestions.value = false
+}
+const onSearchFocus = () => { showSuggestions.value = true }
+const onSearchBlur = () => { setTimeout(() => showSuggestions.value = false, 200) }
+
 const isDark = ref(false)
 const viewMode = ref<'grid' | 'list' | 'grouped'>('grid')
 const selectedAgent = ref('all')
@@ -77,9 +90,9 @@ onMounted(async () => {
   }
   if (window.ztools) {
     isDark.value = window.ztools.isDarkColors()
-    window.ztools.setSubInput((text: string) => { 
-      searchKeyword.value = text 
-    }, '输入 GitHub 仓库地址进行安装...', true)
+    // window.ztools.setSubInput((text: string) => { 
+    //   searchKeyword.value = text 
+    // }, '输入 GitHub 仓库地址进行安装...', true)
     
     window.ztools.onPluginEnter((param: any) => { 
       refreshAll()
@@ -106,6 +119,7 @@ const displaySkills = computed(() => {
   if (kw) {
     list = list.filter(s => 
       (s.name || '').toLowerCase().includes(kw) || 
+      (s.description || '').toLowerCase().includes(kw) ||
       (s.sourceUrl || '').toLowerCase().includes(kw)
     )
   }
@@ -113,6 +127,7 @@ const displaySkills = computed(() => {
   if (lkw) {
     list = list.filter(s => 
       (s.name || '').toLowerCase().includes(lkw) || 
+      (s.description || '').toLowerCase().includes(lkw) ||
       (s.sourceUrl || '').toLowerCase().includes(lkw) ||
       getPathAlias(s.localPath).toLowerCase().includes(lkw)
     )
@@ -126,6 +141,7 @@ const displaySkills = computed(() => {
       const getScore = (s: Skill) => {
         let score = 0
         const name = (s.name || '').toLowerCase()
+        const desc = (s.description || '').toLowerCase()
         const source = (s.sourceUrl || '').toLowerCase()
         const agent = getPathAlias(s.localPath).toLowerCase()
         
@@ -133,6 +149,7 @@ const displaySkills = computed(() => {
         else if (name.startsWith(searchStr)) score += 50
         else if (name.includes(searchStr)) score += 30
         
+        if (desc.includes(searchStr)) score += 15
         if (source.includes(searchStr)) score += 10
         if (agent.includes(searchStr)) score += 5
         return score
@@ -299,6 +316,23 @@ const batchUpdateGroup = async (group: SkillGroup) => {
     }
   } catch (e: any) { alert('更新异常: ' + e.message) }
   finally { loading.value = false; batchProcessing.value = false }
+}
+
+const batchDeleteGroup = async (group: SkillGroup) => {
+  if (!confirm(`确认要卸载组 [${group.repoKey}] 下的全部 ${group.skills.length} 个技能吗？此操作不可撤销。`)) return
+  loading.value = true
+  progressLogs.value = []
+  try {
+    if (window.preloadAPI) {
+      const ids = group.skills.map(s => s.id)
+      const results = window.preloadAPI.batchDeleteSkills(ids)
+      const summary = `仓库 ${group.repoKey} 卸载: ${results.success.length} 成功, ${results.failed.length} 失败`
+      if (window.ztools) window.ztools.showNotification(summary)
+      else alert(summary)
+      loadSkills()
+    }
+  } catch (e: any) { alert('卸载异常: ' + e.message) }
+  finally { loading.value = false }
 }
 
 const confirmInstall = async () => {
@@ -573,9 +607,12 @@ const confirmImport = async () => {
         </div>
 
         <div class="control-panel">
-          <div class="input-glass search-box">
+          <div class="input-glass search-box" style="position: relative; overflow: visible;">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="glass-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input v-model="localSearch" placeholder="检索本地已装载..." />
+            <input v-model="localSearch" placeholder="检索本地已装载..." @focus="onSearchFocus" @blur="onSearchBlur" />
+            <ul v-if="showSuggestions && searchSuggestions.length > 0" class="custom-suggestions">
+              <li v-for="s in searchSuggestions" :key="s.id" @mousedown.prevent="selectSuggestion(s.name)">{{ s.name }}</li>
+            </ul>
           </div>
 
           <div class="input-glass install-box">
@@ -643,14 +680,17 @@ const confirmImport = async () => {
           <div class="card-top">
             <span v-if="batchMode" class="batch-checkbox" :class="{ checked: batchSelected.includes(skill.id) }" @click.stop="toggleBatchItem(skill.id)"></span>
              <div class="card-icon">{{ skill.name.charAt(0).toUpperCase() }}</div>
-             <div class="card-meta">
-               <h3>{{ skill.name }}</h3>
-               <div class="badge-row">
-                 <span class="badge-tag">{{ getPathAlias(skill.localPath) }}</span>
-                 <button class="btn-icon-link" @click.stop="openLocalPath(skill.localPath)" title="打开本地目录">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                 </button>
+              <div class="card-meta">
+               <div class="card-title-row">
+                 <h3 :title="skill.name">{{ skill.name }}</h3>
+                 <div class="badge-row">
+                   <span class="badge-tag">{{ getPathAlias(skill.localPath) }}</span>
+                   <button class="btn-icon-link" @click.stop="openLocalPath(skill.localPath)" title="打开本地目录">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                   </button>
+                 </div>
                </div>
+               <p v-if="skill.description" class="skill-desc" :title="skill.description">{{ skill.description }}</p>
              </div>
           </div>
           <div class="card-body">
@@ -713,6 +753,10 @@ const confirmImport = async () => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                  同步全组
               </button>
+              <button class="btn-group-delete" @click.stop="batchDeleteGroup(group)" :disabled="loading" title="卸载该组全部技能">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                 删除全组
+              </button>
             </div>
           </div>
           <transition name="group-collapse">
@@ -723,6 +767,7 @@ const confirmImport = async () => {
                     <div class="child-icon">{{ skill.name.charAt(0).toUpperCase() }}</div>
                     <div class="child-info">
                       <strong>{{ skill.name }}</strong>
+                      <p v-if="skill.description" class="skill-desc-sm" :title="skill.description">{{ skill.description }}</p>
                       <span class="child-badges">
                         <span class="badge-tag small">{{ getPathAlias(skill.localPath) }}</span>
                       </span>
@@ -835,12 +880,13 @@ const confirmImport = async () => {
               </button>
             </div>
             <div class="path-grid">
-              <label class="glass-checkbox" v-for="sk in availableSkills" :key="sk.name">
-                <input type="checkbox" v-model="selectedSkillNames" :value="sk.name">
+              <label class="glass-checkbox" v-for="s in availableSkills" :key="s.name">
+                <input type="checkbox" v-model="selectedSkillNames" :value="s.name">
                 <span class="custom-check"></span>
-                <div class="check-info">
-                  <strong>{{ sk.name }}</strong>
-                  <span>{{ sk.path }}</span>
+                <div class="skill-info">
+                  <strong>{{ s.name }}</strong>
+                  <p v-if="s.description" class="skill-desc-preview">{{ s.description }}</p>
+                  <span>{{ s.path === '.' ? '根目录' : s.path }}</span>
                 </div>
               </label>
             </div>
@@ -951,10 +997,23 @@ const confirmImport = async () => {
 .titles h2 { font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.3px; background: linear-gradient(135deg, #1e293b, #475569); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .skills-container.dark-theme .titles h2 { background: linear-gradient(135deg, #fff, #cbd5e1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .titles p { margin: 0; font-size: 11px; color: #94a3b8; font-weight: 500; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: #94a3b8; font-weight: 500; font-size: 14px; text-align: center; }
+.empty-state svg { color: #cbd5e1; margin-bottom: 16px; width: 48px; height: 48px; }
+.skills-container.dark-theme .empty-state svg { color: #475569; }
 
-.control-panel { display: flex; gap: 10px; }
-.input-glass { display: flex; align-items: center; background: rgba(255,255,255,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(226,232,240,0.8); border-radius: 8px; padding: 5px 6px 5px 10px; transition: all 0.2s; }
-.input-glass:focus-within { border-color: rgba(99,102,241,0.5); box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
+.custom-suggestions { position: absolute; top: calc(100% + 4px); left: 0; width: 100%; max-height: 250px; overflow-y: auto; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(226, 232, 240, 0.8); border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); padding: 6px; margin: 0; list-style: none; z-index: 100; text-align: left; }
+.skills-container.dark-theme .custom-suggestions { background: rgba(30, 41, 59, 0.95); border-color: rgba(71, 85, 105, 0.4); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+.custom-suggestions li { padding: 8px 12px; font-size: 13px; color: #1e293b; border-radius: 5px; cursor: pointer; transition: background 0.15s; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 1.4; margin-bottom: 2px; }
+.custom-suggestions li:last-child { margin-bottom: 0; }
+.skills-container.dark-theme .custom-suggestions li { color: #f1f5f9; }
+.custom-suggestions li:hover { background: rgba(99, 102, 241, 0.1); color: #4f46e5; }
+.skills-container.dark-theme .custom-suggestions li:hover { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+.custom-suggestions::-webkit-scrollbar { width: 6px; }
+.custom-suggestions::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 4px; }
+
+.control-panel { display: flex; gap: 10px; position: relative; z-index: 50; }
+.input-glass { display: flex; align-items: center; background: rgba(255,255,255,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(226,232,240,0.8); border-radius: 8px; padding: 5px 6px 5px 10px; transition: all 0.2s; position: relative; z-index: 10; }
+.input-glass:focus-within { border-color: rgba(99,102,241,0.5); box-shadow: 0 0 0 3px rgba(99,102,241,0.08); z-index: 20; }
 .skills-container.dark-theme .input-glass { background: rgba(30,41,59,0.5); border-color: rgba(51,65,85,0.6); }
 .glass-icon { color: #94a3b8; margin-right: 8px; flex-shrink: 0; }
 .input-glass input { background: transparent; border: none; outline: none; font-size: 12px; font-family: inherit; color: inherit; width: 100%; min-width: 120px; }
@@ -984,8 +1043,8 @@ const confirmImport = async () => {
 .card-top { display: flex; align-items: center; gap: 10px; }
 .card-icon { width: 34px; height: 34px; background: linear-gradient(135deg, #1e293b, #475569); color: white; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: 800; text-transform: uppercase; flex-shrink: 0; }
 .skills-container.dark-theme .card-icon { background: linear-gradient(135deg, #334155, #475569); }
-.card-meta h3 { margin: 0 0 3px; font-size: 13px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.2; word-break: break-all; }
-.badge-tag { display: inline-flex; white-space: nowrap; background: rgba(16,185,129,0.08); color: #059669; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; border: 1px solid rgba(16,185,129,0.15); }
+.card-meta h3 { margin: 0 0 3px; font-size: 13px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.2; word-break: break-all; text-align: left; }
+.badge-tag { display: inline-flex; white-space: nowrap; background: rgba(16,185,129,0.08); color: #059669; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; border: 1px solid rgba(16,185,129,0.15); flex-shrink: 0; }
 .skills-container.dark-theme .badge-tag { color: #34d399; background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.15); }
 .badge-row { display: flex; align-items: center; gap: 4px; }
 
@@ -997,9 +1056,21 @@ const confirmImport = async () => {
 .info-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 
 /* External link button */
-.btn-icon-link { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 2px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; opacity: 0.6; }
-.btn-icon-link:hover { color: #6366f1; opacity: 1; background: rgba(99,102,241,0.08); }
+.btn-icon-link { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; opacity: 0.6; }
+.btn-icon-link:hover { color: #6366f1; opacity: 1; background: rgba(99,102,241,0.1); }
 .skills-container.dark-theme .btn-icon-link:hover { color: #818cf8; }
+
+.card-title-row { display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; min-width: 0; }
+.card-title-row h3 { margin: 0; font-size: 14px; font-weight: 750; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; letter-spacing: -0.3px; text-align: left; }
+.skills-container.dark-theme .card-title-row h3 { color: #f1f5f9; }
+
+.skill-desc { font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; height: 36px; min-height: 36px; }
+.skills-container.dark-theme .skill-desc { color: #94a3b8; }
+
+.skill-desc-sm { font-size: 12px; color: #64748b; margin: 0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; opacity: 0.6; }
+.skills-container.dark-theme .skill-desc-sm { color: #94a3b8; }
+.skill-desc-preview { font-size: 11px; color: #64748b; line-height: 1.4; margin-top: 2px; opacity: 0.8; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+.skills-container.dark-theme .skill-desc-preview { color: #94a3b8; }
 
 .card-footer { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(226,232,240,0.6); }
 .skills-container.dark-theme .card-footer { border-color: rgba(51,65,85,0.5); }
@@ -1012,16 +1083,20 @@ const confirmImport = async () => {
 .skills-container.dark-theme .btn-ghost-danger { color: #f87171; border-color: rgba(239,68,68,0.25); }
 
 /* List Mode */
-.glass-card.list { flex-direction: row; align-items: center; justify-content: flex-start; padding: 10px 14px; gap: 12px; }
-.glass-card.list .card-top { flex: 0 0 360px; min-width: 0; display: flex; align-items: center; justify-content: flex-start; }
-.glass-card.list .card-icon { width: 28px; height: 28px; font-size: 12px; border-radius: 6px; }
-.glass-card.list .card-meta { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; overflow: hidden; width: 100%; text-align: left; }
-.glass-card.list .card-meta h3 { margin: 0; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; text-align: left; }
-.glass-card.list .card-body { flex-direction: row; align-items: center; gap: 16px; flex: 1; min-width: 0; }
-.glass-card.list .card-body .info-row { flex: 0 0 120px; min-width: 0; }
-.glass-card.list .card-body .info-row:first-child { flex: 1; }
-.glass-card.list .card-footer { margin-top: 0; padding-top: 0; border-top: none; gap: 6px; flex: 0 0 auto; width: 110px; justify-content: flex-end; }
-.glass-card.list .card-footer button { padding: 5px; flex: none; width: 30px; height: 30px; }
+.glass-card.list { flex-direction: row; align-items: center; justify-content: flex-start; padding: 10px 14px; gap: 12px; height: 56px; box-sizing: border-box; }
+.glass-card.list .card-top { flex: 1 1 0%; min-width: 0; display: flex; align-items: center; justify-content: flex-start; }
+.glass-card.list .card-icon { width: 28px; height: 28px; font-size: 12px; border-radius: 6px; flex-shrink: 0; }
+.glass-card.list .card-meta { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; overflow: hidden; flex: 1 1 0%; min-width: 0; text-align: left; }
+.glass-card.list .card-title-row { width: auto; flex: 0 0 auto; gap: 12px; min-width: 22%; max-width: 40%; display: flex; }
+.glass-card.list .card-title-row h3 { flex: 1 1 auto; font-size: 14px; max-width: none; min-width: 0; padding-bottom: 0; text-align: left; display: block; }
+.glass-card.list .badge-row { display: none; }
+.glass-card.list .skill-desc { margin: 0; height: auto; min-height: 0; -webkit-line-clamp: 1; flex: 1 1 0%; min-width: 0; opacity: 0.6; font-size: 12px; }
+.glass-card.list .card-body { flex-direction: row; align-items: center; gap: 16px; flex: 0 0 auto; min-width: 0; padding-left: 8px; }
+.glass-card.list .card-body .info-row { flex: 0 0 auto; min-width: 0; max-width: 140px; }
+.glass-card.list .card-body .info-row:nth-child(2),
+.glass-card.list .card-body .info-row:nth-child(3) { display: none; }
+.glass-card.list .card-footer { margin-top: 0; padding-top: 0; border-top: none; gap: 6px; flex: 0 0 auto; justify-content: flex-end; }
+.glass-card.list .card-footer button { padding: 4px; flex: none; width: 28px; height: 28px; }
 .glass-card.list .card-footer button span { display: none; }
 
 @media (max-width: 640px) {
@@ -1208,26 +1283,31 @@ const confirmImport = async () => {
 .btn-group-update:disabled { opacity: 0.5; cursor: not-allowed; }
 .skills-container.dark-theme .btn-group-update { color: #818cf8; background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.3); }
 
+.btn-group-delete { display: flex; align-items: center; gap: 5px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #ef4444; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
+.btn-group-delete:hover:not(:disabled) { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.5); }
+.btn-group-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+.skills-container.dark-theme .btn-group-delete { color: #f87171; background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
+
 .repo-group-body { border-top: 1px solid rgba(226,232,240,0.5); }
 .skills-container.dark-theme .repo-group-body { border-color: rgba(51,65,85,0.4); }
 
 .group-children-list { padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
 
-.group-child-card { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 8px; transition: background 0.15s; }
+.group-child-card { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 8px; transition: background 0.15s; gap: 16px; }
 .group-child-card:hover { background: rgba(99,102,241,0.03); }
 .skills-container.dark-theme .group-child-card:hover { background: rgba(99,102,241,0.05); }
 
-.child-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.child-icon { width: 26px; height: 26px; background: linear-gradient(135deg, #334155, #475569); color: white; border-radius: 6px; display: flex; justify-content: center; align-items: center; font-size: 11px; font-weight: 800; text-transform: uppercase; flex-shrink: 0; }
+.child-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 0%; }
+.child-icon { width: 28px; height: 28px; background: linear-gradient(135deg, #334155, #475569); color: white; border-radius: 6px; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: 800; text-transform: uppercase; flex-shrink: 0; }
 .skills-container.dark-theme .child-icon { background: linear-gradient(135deg, #475569, #64748b); }
-.child-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.child-info strong { font-size: 12px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.skills-container.dark-theme .child-info strong { color: #e2e8f0; }
-.child-badges { display: flex; gap: 4px; }
-.badge-tag.small { font-size: 9px; padding: 1px 5px; }
+.child-info { display: flex; flex-direction: row; align-items: center; gap: 16px; min-width: 0; flex: 1 1 0%; text-align: left; }
+.child-info strong { font-size: 14px; font-weight: 750; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px; flex: 0 1 auto; min-width: 0; text-align: left; }
+.skills-container.dark-theme .child-info strong { color: #f1f5f9; }
+.child-badges { display: flex; gap: 4px; flex-shrink: 0; }
+.badge-tag.small { font-size: 10px; padding: 2px 6px; font-weight: 700; }
 
-.child-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.child-date { font-size: 10px; color: #94a3b8; font-weight: 500; white-space: nowrap; }
+.child-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; padding-left: 8px; }
+.child-date { font-size: 10px; color: #94a3b8; font-weight: 500; white-space: nowrap; margin-right: 4px; }
 
 .btn-icon-sm { width: 26px; height: 26px; border-radius: 5px; border: 1px solid rgba(226,232,240,0.6); background: transparent; color: #94a3b8; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
 .btn-icon-sm:hover { color: #64748b; border-color: rgba(148,163,184,0.5); background: rgba(148,163,184,0.06); }
