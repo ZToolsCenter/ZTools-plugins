@@ -1,0 +1,45 @@
+:root {
+  --blue: rgb(88, 164, 246);
+  --light: #fff;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+textarea {
+  display: block;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-color: #f4f4f4;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #303133;
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #303133;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #666;
+    border-color: #303133;
+  }
+}

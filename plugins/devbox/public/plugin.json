@@ -1,0 +1,64 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "devbox",
+  "title": "开发百宝箱",
+  "description": "开发百宝箱，包含随机密码、UUID、数字、颜色、加密签名、中文转拼音等实用工具",
+  "author": "CafeBabe",
+  "version": "2.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "identity",
+      "explain": "随机生成虚拟身份信息（姓名、身份证号、手机号、地址等），支持批量和导出",
+      "icon": "logo.png",
+      "cmds": ["identity", "身份证", "身份", "随机身份", "虚拟身份", "生成身份", "假身份"]
+    },
+    {
+      "code": "password",
+      "explain": "随机生成安全密码，可配置长度、字符集，实时显示密码强度",
+      "icon": "logo.png",
+      "cmds": ["密码", "随机密码", "password", "生成密码", "口令", "pass"]
+    },
+    {
+      "code": "number",
+      "explain": "在指定范围内随机生成整数或小数，支持批量和自定义小数位数",
+      "icon": "logo.png",
+      "cmds": ["随机数字", "随机数", "number", "生成数字", "范围数字", "随机整数"]
+    },
+    {
+      "code": "uuid",
+      "explain": "随机生成符合 v4 规范的 UUID，支持批量生成和一键复制",
+      "icon": "logo.png",
+      "cmds": ["uuid", "UUID", "唯一标识", "生成uuid", "guid"]
+    },
+    {
+      "code": "color",
+      "explain": "通过 HSL 滑块调色或随机生成颜色，支持 HEX/RGB/HSL 多格式复制",
+      "icon": "logo.png",
+      "cmds": ["随机颜色", "颜色", "color", "生成颜色", "调色", "配色", "色值"]
+    },
+    {
+      "code": "signature",
+      "explain": "将参数按规则拼接后生成加密签名，支持 SHA/MD5/HMAC 等多种算法",
+      "icon": "logo.png",
+      "cmds": ["加密", "签名", "token", "signature", "hash", "加密签名", "哈希", "签名生成", "md5", "sha", "hmac"]
+    },
+    {
+      "code": "pinyin",
+      "explain": "将中文转换为拼音命名格式，支持全拼、驼峰、下划线、常量、首字母等多种格式",
+      "icon": "logo.png",
+      "cmds": ["拼音", "pinyin", "中文转拼音", "命名", "驼峰", "下划线命名", "首字母"]
+    },
+    {
+      "code": "qrcode",
+      "explain": "生成二维码或将二维码图片解码为文字，支持文件上传、截图和粘贴",
+      "icon": "logo.png",
+      "cmds": ["二维码", "qrcode", "qr", "生成二维码", "解码二维码", "扫码", "QR码"]
+    }
+  ]
+}

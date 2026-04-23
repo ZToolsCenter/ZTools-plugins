@@ -2,7 +2,7 @@ const { ipcRenderer, nativeImage, shell } = require('electron')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const { execFileSync } = require('child_process')
+const { execFileSync, fork } = require('child_process')
 const { getManualCropDisplaySize: computeManualCropDisplaySize, getManualCropStageMetrics: computeManualCropStageMetrics } = require('./lib/manual-crop-stage.cjs')
 
 const IMAGE_EXTENSIONS = new Set([

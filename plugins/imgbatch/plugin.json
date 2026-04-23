@@ -1,46 +1,48 @@
 {
-    "$schema":  "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
-    "name":  "imgbatch",
-    "title":  "Imgbatch",
-    "description":  "图片批量处理插件，支持压缩、格式转换、加水印、圆角、补边、裁剪、旋转、翻转，以及合并为 PDF、图片和 GIF。",
-    "author":  "readerc",
-    "homepage":  "https://github.com/ReaderC",
-    "version":  "0.1.4",
-    "license":  "MIT",
-    "main":  "index.html",
-    "logo":  "logo.png",
-    "preload":  "preload.js",
-    "features":  [
-                     {
-                         "code":  "image-batch",
-                         "explain":  "批量处理图片并输出处理结果",
-                         "icon":  "logo.png",
-                         "cmds":  [
-                                      "图片批处理",
-                                      {
-                                          "type":  "img",
-                                          "label":  "图片批量处理"
-                                      },
-                                      {
-                                          "type":  "files",
-                                          "label":  "图片批量处理",
-                                          "fileType":  "file",
-                                          "extensions":  [
-                                                             "jpg",
-                                                             "jpeg",
-                                                             "png",
-                                                             "webp",
-                                                             "gif",
-                                                             "bmp",
-                                                             "tif",
-                                                             "tiff",
-                                                             "avif",
-                                                             "heic",
-                                                             "heif"
-                                                         ],
-                                          "minLength":  1
-                                      }
-                                  ]
-                     }
-                 ]
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "imgbatch",
+  "title": "Imgbatch",
+  "description": "图片批量处理插件，支持压缩、格式转换、加水印、圆角、补边、裁剪、旋转、翻转，以及合并为 PDF、图片和 GIF。",
+  "author": "readerc",
+  "homepage": "https://github.com/ReaderC",
+  "version": "0.1.4",
+  "license": "MIT",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "platform": ["win32"],
+  "unpack": "@(node_modules/**/*.node|node_modules/**/*.dll)",
+  "features": [
+    {
+      "code": "image-batch",
+      "explain": "批量处理图片并输出处理结果",
+      "icon": "logo.png",
+      "cmds": [
+        "图片批处理",
+        {
+          "type": "img",
+          "label": "图片批量处理"
+        },
+        {
+          "type": "files",
+          "label": "图片批量处理",
+          "fileType": "file",
+          "extensions": [
+            "jpg",
+            "jpeg",
+            "png",
+            "webp",
+            "gif",
+            "bmp",
+            "tif",
+            "tiff",
+            "avif",
+            "heic",
+            "heif"
+          ],
+          "minLength": 1
+        }
+      ]
+    }
+  ]
 }

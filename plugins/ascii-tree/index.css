@@ -1,0 +1,267 @@
+:root {
+  color-scheme: light;
+  --bg: #f4efe5;
+  --panel: rgba(255, 252, 247, 0.88);
+  --panel-border: rgba(93, 57, 19, 0.14);
+  --text: #2c2016;
+  --muted: #6d5a47;
+  --accent: #bf5f2f;
+  --accent-strong: #8f3f16;
+  --shadow: 0 18px 48px rgba(76, 45, 18, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  min-height: 0;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "PingFang SC", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(191, 95, 47, 0.18), transparent 30%),
+    radial-gradient(circle at right center, rgba(80, 145, 126, 0.14), transparent 28%),
+    linear-gradient(160deg, #f7f2e8 0%, #f0e4d6 100%);
+  overflow: hidden;
+}
+
+code {
+  font-family: "Cascadia Code", "Consolas", monospace;
+}
+
+.app-shell {
+  width: min(1120px, calc(100vw - 32px));
+  margin: 0 auto;
+  height: 100%;
+  max-height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 0;
+  overflow: hidden;
+}
+
+.hero,
+.workspace {
+  animation: fade-up 240ms ease-out both;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 0;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+  padding: 14px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.panel-header h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.panel-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.editor {
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  overflow: auto;
+  resize: none;
+  border: 1px solid rgba(93, 57, 19, 0.12);
+  border-radius: 14px;
+  padding: 14px;
+  font: 14px/1.6 "Cascadia Code", "Consolas", monospace;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.74);
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.editor:focus {
+  border-color: rgba(191, 95, 47, 0.6);
+  box-shadow: 0 0 0 4px rgba(191, 95, 47, 0.12);
+}
+
+.output {
+  white-space: pre;
+}
+
+.primary-button,
+.ghost-button,
+.text-button {
+  border: 0;
+  cursor: pointer;
+  transition: transform 140ms ease, opacity 140ms ease, background 140ms ease;
+}
+
+.primary-button,
+.ghost-button {
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.primary-button {
+  color: #fff9f4;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+}
+
+.ghost-button {
+  color: var(--accent-strong);
+  background: rgba(255, 244, 236, 0.85);
+}
+
+.text-button {
+  color: var(--accent-strong);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 0;
+}
+
+.primary-button:hover,
+.ghost-button:hover,
+.text-button:hover {
+  transform: translateY(-1px);
+  opacity: 0.92;
+}
+
+.tips {
+  display: none;
+}
+
+.tip-card {
+  border: 1px solid rgba(93, 57, 19, 0.12);
+  border-radius: 20px;
+  padding: 14px 16px;
+  background: rgba(255, 248, 241, 0.72);
+  box-shadow: 0 8px 24px rgba(76, 45, 18, 0.06);
+}
+
+.tip-card strong,
+.tip-card span {
+  display: block;
+}
+
+.tip-card strong {
+  margin-bottom: 8px;
+}
+
+.tip-card span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  color: #fffdf9;
+  background: rgba(44, 32, 22, 0.92);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 680px) {
+  .hero {
+    display: grid;
+  }
+
+  .editor {
+    min-height: 180px;
+  }
+}

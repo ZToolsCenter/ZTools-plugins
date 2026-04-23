@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyBatis SQL 日志格式化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #1e1e2e;
+      --surface: #2a2a3e;
+      --surface-hover: #353550;
+      --border: #3e3e5e;
+      --text: #e0e0e0;
+      --text-muted: #8888aa;
+      --primary: #6c8cef;
+      --primary-hover: #8aa4f7;
+      --success: #66bb6a;
+      --error: #ef5350;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 5px 14px;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #fff;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .btn-ghost:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+
+    .btn-success {
+      background: var(--success);
+    }
+
+    .btn-success:hover {
+      background: #7bc87f;
+    }
+
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 12px 16px;
+      gap: 10px;
+    }
+
+    .input-section, .output-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    textarea {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 10px 12px;
+      resize: none;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      border-color: var(--primary);
+    }
+
+    textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-shrink: 0;
+      padding: 2px 0;
+    }
+
+    .error-msg {
+      color: var(--error);
+      font-size: 12px;
+      text-align: center;
+      padding: 4px 0;
+    }
+
+    .info-bar {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: right;
+      padding: 2px 0;
+    }
+
+    .toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--success);
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 12px;
+      opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      margin-bottom: 4px;
+    }
+
+    .tab {
+      padding: 4px 12px;
+      font-size: 11px;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab:first-child {
+      border-radius: 4px 0 0 4px;
+    }
+
+    .tab:last-child {
+      border-radius: 0 4px 4px 0;
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>MyBatis SQL 日志格式化</h1>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="clearAll()">清空</button>
+      <button class="btn btn-primary" onclick="doFormat()">格式化</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="input-section">
+      <div class="section-label">输入 MyBatis SQL 日志</div>
+      <textarea id="input" placeholder="粘贴 MyBatis 日志，包含 Preparing: 和 Parameters: 行&#10;&#10;示例：&#10;[DEBUG] - ==>  Preparing: SELECT * FROM user WHERE id = ? AND name = ?&#10;[DEBUG] - ==> Parameters: 1(Integer), Tom(String)"></textarea>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="doFormat()" style="padding: 5px 28px;">格式化</button>
+    </div>
+
+    <div id="errorMsg" class="error-msg" style="display:none;"></div>
+
+    <div class="output-section">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <div class="tab-bar">
+          <button class="tab active" data-tab="formatted" onclick="switchTab('formatted')">格式化 SQL</button>
+          <button class="tab" data-tab="replaced" onclick="switchTab('replaced')">替换后 SQL</button>
+        </div>
+        <button class="btn btn-success" onclick="copyResult()" style="font-size:11px; padding:3px 12px;">复制</button>
+      </div>
+      <textarea id="output" readonly placeholder="格式化结果将显示在这里..."></textarea>
+      <div id="infoBar" class="info-bar"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    var currentTab = "formatted";
+    var lastResult = null;
+
+    function doFormat() {
+      var input = document.getElementById("input").value.trim();
+      var errorEl = document.getElementById("errorMsg");
+      var outputEl = document.getElementById("output");
+      var infoEl = document.getElementById("infoBar");
+
+      errorEl.style.display = "none";
+
+      if (!input) {
+        showError("请输入 MyBatis SQL 日志");
+        return;
+      }
+
+      var result = window.services.formatMybatisLog(input);
+
+      if (result.error) {
+        showError(result.error);
+        return;
+      }
+
+      lastResult = result;
+      showCurrentTab();
+      infoEl.textContent = "参数数量: " + result.paramCount;
+    }
+
+    function showCurrentTab() {
+      if (!lastResult) return;
+      var outputEl = document.getElementById("output");
+      if (currentTab === "formatted") {
+        outputEl.value = lastResult.formatted;
+      } else {
+        outputEl.value = lastResult.replaced;
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      var tabs = document.querySelectorAll(".tab");
+      for (var i = 0; i < tabs.length; i++) {
+        if (tabs[i].getAttribute("data-tab") === tab) {
+          tabs[i].classList.add("active");
+        } else {
+          tabs[i].classList.remove("active");
+        }
+      }
+      showCurrentTab();
+    }
+
+    function copyResult() {
+      var outputEl = document.getElementById("output");
+      var text = outputEl.value;
+      if (!text) {
+        showToast("没有内容可复制");
+        return;
+      }
+
+      if (window.ztools && window.ztools.copyText) {
+        window.ztools.copyText(text);
+        showToast("已复制到剪贴板");
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function () {
+          showToast("已复制到剪贴板");
+        });
+      } else {
+        outputEl.select();
+        document.execCommand("copy");
+        showToast("已复制到剪贴板");
+      }
+    }
+
+    function clearAll() {
+      document.getElementById("input").value = "";
+      document.getElementById("output").value = "";
+      document.getElementById("errorMsg").style.display = "none";
+      document.getElementById("infoBar").textContent = "";
+      lastResult = null;
+    }
+
+    function showError(msg) {
+      var el = document.getElementById("errorMsg");
+      el.textContent = msg;
+      el.style.display = "block";
+    }
+
+    function showToast(msg) {
+      var toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(function () {
+        toast.classList.remove("show");
+      }, 1500);
+    }
+
+    function init() {
+      if (window.ztools && window.ztools.onPluginEnter) {
+        window.ztools.onPluginEnter(function (param) {
+          if (param && param.payload && typeof param.payload === "string" && param.payload.trim()) {
+            document.getElementById("input").value = param.payload;
+            doFormat();
+          }
+        });
+      }
+
+      if (window.ztools && window.ztools.setExpendHeight) {
+        window.ztools.setExpendHeight(500);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

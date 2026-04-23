@@ -1,0 +1,38 @@
+{
+  "name": "kuke-ai-agent",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build && npm install --prefix dist",
+    "test": "node --test tests/*.test.cjs",
+    "preview": "vite preview",
+    "pack": "node scripts/pack.js"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^0.0.0",
+    "@tavily/core": "^0.5.14",
+    "adm-zip": "^0.5.17",
+    "highlight.js": "^11.11.1",
+    "lucide-vue-next": "^1.0.0",
+    "markdown-it": "^14.1.1",
+    "openai": "^6.34.0",
+    "vue": "^3.5.32",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.19",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/tsconfig": "^0.9.1",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.10",
+    "tailwindcss": "^4.2.2",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4",
+    "vue-tsc": "^3.2.6"
+  }
+}
