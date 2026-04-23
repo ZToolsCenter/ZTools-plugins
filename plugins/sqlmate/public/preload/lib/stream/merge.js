@@ -6,8 +6,7 @@ const fs = require('node:fs')
 const readline = require('node:readline')
 const path = require('node:path')
 
-const INSERT_RE =
-  /INSERT\s+INTO\s+(`?\w+`?)\s*(\([^)]*\))?\s*VALUES\s*(\((?:[^)(']|'(?:[^'\\]|\\.)*'|\((?:[^)(']|'(?:[^'\\]|\\.)*')*\))*\))/i
+const { extractValuesToken } = require('../merge')
 
 /**
  * 流式合并大文件
@@ -49,18 +48,17 @@ async function mergeFileStream(inputPath, outputPath, options = {}) {
     if (onProgress && pct > lastPct) { onProgress(pct); lastPct = pct }
 
     const trimmed = line.trimEnd()
-    const m = INSERT_RE.exec(trimmed)
+    const m = extractValuesToken(trimmed)
     if (!m) continue
 
-    const tableName = m[1]
-    const columns = m[2] ?? ''
+    const { tableName, columns } = m
     const tableKey = `${tableName}|${columns}`
 
     if (!groups.has(tableKey)) {
       groups.set(tableKey, { tableName, columns, values: [] })
     }
     const group = groups.get(tableKey)
-    group.values.push(m[3])
+    group.values.push(m.values)
 
     // 攒满 batchSize 立即写出，控制内存
     if (group.values.length >= batchSize) {

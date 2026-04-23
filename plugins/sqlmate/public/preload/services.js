@@ -62,6 +62,11 @@ window.services = {
   statsToMarkdown,
   statsToCsv,
 
+  /** 获取文件字节大小（不读内容） */
+  getFileSize(filePath) {
+    return fs.statSync(filePath).size
+  },
+
   /** 读取小文件内容（≤10MB） */
   readFile(filePath) {
     return fs.readFileSync(filePath, { encoding: 'utf-8' })
