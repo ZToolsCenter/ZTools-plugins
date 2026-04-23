@@ -1,7 +1,7 @@
 // mask.js — 数据脱敏
 'use strict'
 
-const { parseInsertLine, splitMultiRowInsert } = require('./dedupe')
+const { parseInsertLine, splitMultiRowInsert, quoteTableName } = require('./dedupe')
 
 const CHINESE_SURNAMES = ['王','李','张','刘','陈','杨','黄','赵','吴','周',
   '徐','孙','马','朱','胡','郭','何','高','林','郑']
@@ -113,7 +113,7 @@ function maskSqlWithCache(sql, rules, cache) {
     if (!lineModified) return trimmed
     maskedCount++
     const colPart = `(${columns.map((c) => `\`${c}\``).join(', ')})`
-    return `INSERT INTO \`${tableName}\` ${colPart} VALUES (${newValues.join(', ')});`
+    return `INSERT INTO ${quoteTableName(tableName)} ${colPart} VALUES (${newValues.join(', ')});`
   })
 
   while (outputLines.length > 0 && outputLines[outputLines.length - 1].trim() === '') {

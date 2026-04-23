@@ -9,14 +9,17 @@ function extractValueGroups(valuesBlock) {
   let depth = 0, start = -1, inString = false, stringChar = ''
   for (let i = 0; i < valuesBlock.length; i++) {
     const ch = valuesBlock[i]
-    if (!inString && (ch === "'" || ch === '"')) { inString = true; stringChar = ch }
-    else if (inString && ch === stringChar && valuesBlock[i - 1] !== '\\') { inString = false }
-    else if (!inString) {
-      if (ch === '(') { if (depth === 0) start = i; depth++ }
-      else if (ch === ')') {
-        depth--
-        if (depth === 0 && start !== -1) { groups.push(valuesBlock.slice(start, i + 1)) }
-      }
+    if (inString) {
+      if (ch === '\\') { i++; continue }                                          // 反斜杠转义（MySQL）
+      if (ch === stringChar && valuesBlock[i + 1] === stringChar) { i++; continue } // '' 转义（标准 SQL）
+      if (ch === stringChar) { inString = false }                                 // 字符串结束
+    } else if (ch === "'" || ch === '"') {
+      inString = true; stringChar = ch
+    } else if (ch === '(') {
+      if (depth === 0) start = i; depth++
+    } else if (ch === ')') {
+      depth--
+      if (depth === 0 && start !== -1) { groups.push(valuesBlock.slice(start, i + 1)) }
     }
   }
   return groups

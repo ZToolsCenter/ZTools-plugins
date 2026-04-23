@@ -7,6 +7,9 @@ const path     = require('node:path')
 const os       = require('node:os')
 const readline = require('node:readline')
 
+// ── SQL ↔ CSV/Excel 转换库 ────────────────────────────────────────────────────
+const { sqlToCsv, sqlToXlsx, csvToSql, xlsxToSql } = require('./lib/convert')
+
 // ── 小文件纯函数库 ────────────────────────────────────────────────────────────
 const { mergeSQL }          = require('./lib/merge')
 const { splitSQL }          = require('./lib/split')
@@ -399,5 +402,59 @@ window.services = {
       ? generateAlterSql(diff, dialect, dstDef.rawTableName)
       : ''
     return { diff, alterSql }
+  },
+
+  // ── SQL → CSV / xlsx ──────────────────────────────────────────────────────────
+
+  /**
+   * SQL INSERT → CSV 文件
+   * 单表写到 outputPath（.csv），多表写到 outputPath 目录（每表一个 .csv）
+   *
+   * @param {string} inputSql      SQL 字符串 或 文件路径
+   * @param {string} outputPath    输出文件或目录路径
+   * @returns {{ tableCount, rowCount, files: string[] }}
+   */
+  sqlToCsv(inputSql, outputPath) {
+    const sql = fs.existsSync(inputSql) ? fs.readFileSync(inputSql, 'utf-8') : inputSql
+    return sqlToCsv(sql, outputPath)
+  },
+
+  /**
+   * SQL INSERT → xlsx 文件（多表 → 多 Sheet）
+   *
+   * @param {string} inputSql      SQL 字符串 或 文件路径
+   * @param {string} outputPath    输出 .xlsx 文件路径
+   * @returns {{ tableCount, rowCount }}
+   */
+  sqlToXlsx(inputSql, outputPath) {
+    const sql = fs.existsSync(inputSql) ? fs.readFileSync(inputSql, 'utf-8') : inputSql
+    return sqlToXlsx(sql, outputPath)
+  },
+
+  // ── CSV / xlsx → SQL ──────────────────────────────────────────────────────────
+
+  /**
+   * CSV 文件 → SQL INSERT 语句
+   *
+   * @param {string} csvPath       CSV 文件路径
+   * @param {{ tableName: string, noHeader?: boolean, batchSize?: number, detectNumeric?: boolean }} options
+   * @returns {{ sql: string, rowCount: number }}
+   */
+  csvToSql(csvPath, options) {
+    const csvText = fs.readFileSync(csvPath, 'utf-8')
+    const sql = csvToSql(csvText, options)
+    const rowCount = sql ? sql.split('\n').filter((l) => l.startsWith('INSERT')).length : 0
+    return { sql, rowCount }
+  },
+
+  /**
+   * xlsx 文件 → SQL INSERT 语句（多 Sheet → 多表）
+   *
+   * @param {string} xlsxPath      xlsx 文件路径
+   * @param {{ noHeader?: boolean, batchSize?: number, detectNumeric?: boolean, tableNameOverride?: string }} options
+   * @returns {{ sql: string, tableCount: number, rowCount: number }}
+   */
+  xlsxToSql(xlsxPath, options = {}) {
+    return xlsxToSql(xlsxPath, options)
   },
 }

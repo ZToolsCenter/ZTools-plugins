@@ -1,7 +1,7 @@
 // offset.js — 主键 ID 偏移
 'use strict'
 
-const { parseInsertLine, splitMultiRowInsert } = require('./dedupe')
+const { parseInsertLine, splitMultiRowInsert, quoteTableName } = require('./dedupe')
 
 function offsetSql(sql, rules) {
   if (!rules || rules.length === 0) return { sql, modifiedCount: 0, skippedCount: 0, warnings: [] }
@@ -51,7 +51,7 @@ function offsetSql(sql, rules) {
     const colPart = columns !== null
       ? ` (${columns.map((c) => `\`${c}\``).join(', ')})`
       : ''
-    return `INSERT INTO \`${tableName}\`${colPart} VALUES (${newValues.join(', ')});`
+    return `INSERT INTO ${quoteTableName(tableName)}${colPart} VALUES (${newValues.join(', ')});`
   })
 
   while (outputLines.length > 0 && outputLines[outputLines.length - 1].trim() === '') {
