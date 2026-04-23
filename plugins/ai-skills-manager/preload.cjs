@@ -528,8 +528,8 @@ function cancelPreview(tempDir) {
 }
 
 // ========== 删除技能 ==========
-function uninstallSkill(skillId) {
-  const allSkills = getSkillsList();
+async function uninstallSkill(skillId) {
+  const allSkills = await getSkillsList();
   const skill = allSkills.find(s => s.id === skillId);
 
   if (skill && fs.existsSync(skill.localPath)) {
@@ -545,8 +545,8 @@ function uninstallSkill(skillId) {
 }
 
 // ========== 更新技能 ==========
-function updateSkill(skillId, onProgress) {
-  const all = getSkillsList();
+async function updateSkill(skillId, onProgress) {
+  const all = await getSkillsList();
   const skill = all.find(s => s.id === skillId);
 
   if (!skill) return Promise.reject(new Error("找不到该技能记录"));
@@ -585,7 +585,7 @@ function updateSkill(skillId, onProgress) {
 // ========== 批量更新技能 ==========
 // ========== 批量更新技能 (逐个独立拉取) ==========
 async function batchUpdateSkills(skillIds, onProgress) {
-  const all = getSkillsList();
+  const all = await getSkillsList();
   const results = { success: [], failed: [] };
 
   // 1. 提取所有待更新的有效技能，按仓库分组
@@ -655,11 +655,11 @@ async function batchUpdateSkills(skillIds, onProgress) {
 }
 
 // ========== 批量删除技能 ==========
-function batchDeleteSkills(skillIds) {
+async function batchDeleteSkills(skillIds) {
   const results = { success: [], failed: [] };
   for (const id of skillIds) {
     try {
-      uninstallSkill(id);
+      await uninstallSkill(id);
       results.success.push(id);
     } catch (err) {
       results.failed.push({ id, error: err.message });
@@ -706,8 +706,8 @@ function openUrl(url) {
 }
 
 // ========== 导出技能配置（不含源文件） ==========
-function exportSkillsConfig() {
-  const allSkills = getSkillsList();
+async function exportSkillsConfig() {
+  const allSkills = await getSkillsList();
 
   function detectAgent(localPath) {
     if (!localPath) return 'antigravity';
