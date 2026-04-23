@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 
-interface Skill { id: string; name: string; description?: string; localPath: string; sourceUrl: string; installedAt: string; updatedAt: string }
+interface Skill { id: string; name: string; description?: string; localPath: string; sourceUrl: string; installedAt: string; updatedAt: string; _agentId?: string; _agentAlias?: string; _repoKey?: string }
 interface PreviewSkillItem { name: string; description?: string; path: string }
 interface PreviewData { tempDir: string; cloneDir: string; skills: PreviewSkillItem[]; gitUrl: string }
 
@@ -36,6 +36,16 @@ const progressLogs = ref<string[]>([])
 const installUrl = ref('')
 const searchKeyword = ref('')
 const localSearch = ref('')
+const internalSearch = ref('') // 内部搜索词，用于防抖
+let searchTimer: any = null
+
+watch(internalSearch, (val) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    localSearch.value = val
+  }, 150) // 150ms 防抖
+})
+
 const showSuggestions = ref(false)
 const searchSuggestions = computed(() => {
   const kw = localSearch.value.trim().toLowerCase()
@@ -43,7 +53,7 @@ const searchSuggestions = computed(() => {
   return skills.value.filter(s => !!s && (s.name || '').toLowerCase().includes(kw)).slice(0, 50)
 })
 const selectSuggestion = (name: string) => {
-  localSearch.value = name
+  internalSearch.value = name
   showSuggestions.value = false
 }
 const onSearchFocus = () => { showSuggestions.value = true }
@@ -77,8 +87,20 @@ const previewLoading = ref(false)
 const isAgentsExpanded = ref(false)
 
 const loadSkills = async () => {
-  if (window.preloadAPI) { skills.value = await window.preloadAPI.getSkillsList() }
-  else { skills.value = [{ id: 'mock', name: 'Mock Skill', sourceUrl: 'https://github.com/mock/skill', localPath: '', installedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] }
+  let list: Skill[] = []
+  if (window.preloadAPI) { 
+    list = await window.preloadAPI.getSkillsList() 
+  } else { 
+    list = [{ id: 'mock', name: 'Mock Skill', sourceUrl: 'https://github.com/mock/skill', localPath: '', installedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] 
+  }
+  
+  // 数据预处理：提前计算好过滤和分组所需的字段，避免在 computed 中重复执行正则
+  skills.value = list.map(s => ({
+    ...s,
+    _agentId: getAgentIdByPath(s.localPath),
+    _agentAlias: getPathAlias(s.localPath),
+    _repoKey: getRepoKey(s.sourceUrl)
+  }))
 }
 
 onMounted(async () => {
@@ -109,7 +131,7 @@ const displaySkills = computed(() => {
   
   // 1. Agent 维度过滤
   if (selectedAgent.value !== 'all') {
-    list = list.filter(s => getAgentIdByPath(s.localPath) === selectedAgent.value)
+    list = list.filter(s => s._agentId === selectedAgent.value)
   }
   
   // 2. 关键词检索
@@ -129,7 +151,7 @@ const displaySkills = computed(() => {
       (s.name || '').toLowerCase().includes(lkw) || 
       (s.description || '').toLowerCase().includes(lkw) ||
       (s.sourceUrl || '').toLowerCase().includes(lkw) ||
-      getPathAlias(s.localPath).toLowerCase().includes(lkw)
+      (s._agentAlias || '').toLowerCase().includes(lkw)
     )
   }
 
@@ -151,7 +173,7 @@ const displaySkills = computed(() => {
         
         if (desc.includes(searchStr)) score += 15
         if (source.includes(searchStr)) score += 10
-        if (agent.includes(searchStr)) score += 5
+        if (s._agentAlias?.toLowerCase().includes(searchStr)) score += 5
         return score
       }
       const scoreA = getScore(a)
@@ -185,7 +207,7 @@ const displayGroupedSkills = computed(() => {
   const list = displaySkills.value
   const map = new Map<string, SkillGroup>()
   for (const s of list) {
-    const key = getRepoKey(s.sourceUrl)
+    const key = s._repoKey || '未注册'
     if (!map.has(key)) {
       // 从 sourceUrl 还原仓库地址（去掉 /tree/xxx 子路径）
       let repoUrl = ''
@@ -609,7 +631,7 @@ const confirmImport = async () => {
         <div class="control-panel">
           <div class="input-glass search-box" style="position: relative; overflow: visible;">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="glass-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input v-model="localSearch" placeholder="检索本地已装载..." @focus="onSearchFocus" @blur="onSearchBlur" />
+            <input v-model="internalSearch" placeholder="检索本地已装载..." @focus="onSearchFocus" @blur="onSearchBlur" />
             <ul v-if="showSuggestions && searchSuggestions.length > 0" class="custom-suggestions">
               <li v-for="s in searchSuggestions" :key="s.id" @mousedown.prevent="selectSuggestion(s.name)">{{ s.name }}</li>
             </ul>
