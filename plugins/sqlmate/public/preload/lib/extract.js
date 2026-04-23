@@ -1,6 +1,8 @@
 // extract.js — 扫描表名 / 按表名抽取 INSERT
 'use strict'
 
+const { splitStatements } = require('./segment')
+
 const INSERT_RE =
   /INSERT\s+(?:LOW_PRIORITY\s+|DELAYED\s+|HIGH_PRIORITY\s+|IGNORE\s+)?INTO\s+((?:`[^`]+`|\w+)(?:\.(?:`[^`]+`|\w+))?)/i
 
@@ -27,27 +29,15 @@ function scanTables(sql) {
 
 function extractTables(sql, tables) {
   const targetSet = new Set(tables.map((t) => t.toLowerCase().trim()))
-  const lines = sql.split('\n')
   const results = []
-  let buf = ''
 
-  const tryAppend = (stmt) => {
+  // 用状态机正确切割语句，避免字符串/注释内的分号误切
+  for (const stmt of splitStatements(sql)) {
     const m = INSERT_RE.exec(stmt)
     if (m && targetSet.has(normalizeTableName(m[1]))) {
       results.push(stmt)
     }
   }
-
-  for (const line of lines) {
-    buf += line.replace(/\r$/, '') + '\n'
-    if (line.trimEnd().endsWith(';')) {
-      const stmt = buf.trim()
-      buf = ''
-      if (stmt) tryAppend(stmt)
-    }
-  }
-  const remaining = buf.trim()
-  if (remaining) tryAppend(remaining)
 
   return { sql: results.join('\n'), count: results.length }
 }

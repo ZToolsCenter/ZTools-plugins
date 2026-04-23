@@ -68,6 +68,51 @@ function splitMultiRowInsert(line) {
   return tuples.map((t) => `${prefix} ${t};`)
 }
 
+/**
+ * 流式拆分多行 INSERT：每找到一个 tuple 立即调用 cb，不积攒数组。
+ * 用于大文件流式处理路径，保持 O(1) 内存。
+ *
+ * @param {string} line
+ * @param {(singleInsert: string) => void} cb
+ */
+function forEachTupleInInsert(line, cb) {
+  const trimmed = line.trimEnd()
+  const m = /\bVALUES\b/i.exec(trimmed)
+  if (!m) { cb(trimmed); return }
+
+  const prefixEnd = m.index + m[0].length
+  const prefix = trimmed.slice(0, prefixEnd)
+  const rest = trimmed.slice(prefixEnd).trimStart()
+
+  let depth = 0
+  let inStr = false
+  let start = -1
+  let tupleCount = 0
+
+  for (let i = 0; i < rest.length; i++) {
+    const ch = rest[i]
+    if (inStr) {
+      if (ch === '\\') { i++; continue }
+      if (ch === "'" && rest[i + 1] === "'") { i++; continue }
+      if (ch === "'") inStr = false
+      continue
+    }
+    if (ch === "'") { inStr = true; continue }
+    if (ch === '(') { if (depth === 0) start = i; depth++ }
+    else if (ch === ')') {
+      depth--
+      if (depth === 0 && start !== -1) {
+        tupleCount++
+        cb(`${prefix} ${rest.slice(start, i + 1)};`)
+        start = -1
+      }
+    }
+  }
+
+  // 如果没有找到任何 tuple（不是标准多行 INSERT），原样回调
+  if (tupleCount === 0) cb(trimmed)
+}
+
 function parseInsertLine(line) {
   const re =
     /^INSERT\s+INTO\s+`?([^`\s(]+)`?\s*(?:\(([^)]*)\)\s*)?VALUES\s*\(([^)]*(?:\)[^;]*\()*[^)]*)\)/i
@@ -158,4 +203,18 @@ function dedupeSql(sql, options) {
   }
 }
 
-module.exports = { parseSqlValues, splitMultiRowInsert, parseInsertLine, dedupeSql }
+/**
+ * 将表名各部分用反引号安全包裹，正确处理 schema 限定名（如 mydb.mytable）。
+ * 输入如 'mydb.mytable' → '`mydb`.`mytable`'
+ * 输入如 '`table`'     → '`table`'
+ * @param {string} raw  parseInsertLine 返回的 tableName
+ * @returns {string}
+ */
+function quoteTableName(raw) {
+  return raw
+    .split('.')
+    .map((part) => '`' + part.replace(/`/g, '') + '`')
+    .join('.')
+}
+
+module.exports = { parseSqlValues, splitMultiRowInsert, forEachTupleInInsert, parseInsertLine, dedupeSql, quoteTableName }

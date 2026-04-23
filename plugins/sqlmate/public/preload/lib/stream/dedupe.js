@@ -32,7 +32,11 @@ async function dedupeFileStream(inputPath, outputPath, options = {}) {
   const tmpPath = path.join(os.tmpdir(), `sqlmate_dedupe_${Date.now()}.tmp`)
   const tmpWriter = fs.createWriteStream(tmpPath, { encoding: 'utf8' })
 
-  const keyToIndex = new Map() // key string → line number（仅存两个标量，内存恒定）
+  // keyToIndex: key string → line number
+  // 内存占用 = O(唯一键数)，每条约 ~100 bytes（key 字符串 + number）。
+  // 1 亿条唯一行约消耗 ~10 GB，极端场景需注意。
+  // 若需支持亿级去重，可替换为磁盘 KV 方案（如 SQLite），但会引入外部依赖。
+  const keyToIndex = new Map()
   let bytesRead = 0, lastPct = 0
   let lineNo = 0        // 临时文件中的行号（0-indexed）
   let originalCount = 0

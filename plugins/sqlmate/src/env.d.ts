@@ -102,8 +102,9 @@ declare global {
   type DdlDialect  = 'mysql' | 'postgresql' | 'oracle'
 
   interface Services {
-    // 工具
-    formatBytes(bytes: number): string
+  // 工具
+  formatBytes(bytes: number): string
+  getFileSize(filePath: string): number
     statsToMarkdown(stats: SqlStats): string
     statsToCsv(stats: SqlStats): string
     readFile(filePath: string): string
@@ -195,6 +196,24 @@ declare global {
       dialect?: DdlDialect,
       includeIndexes?: boolean
     ): { diff: DdlDiffResult; alterSql: string }
+
+    // SQL → CSV
+    sqlToCsv(inputSql: string, outputPath: string): { tableCount: number; rowCount: number; files: string[] }
+
+    // SQL → xlsx
+    sqlToXlsx(inputSql: string, outputPath: string): { tableCount: number; rowCount: number }
+
+    // CSV → SQL
+    csvToSql(
+      csvPath: string,
+      options: { tableName: string; noHeader?: boolean; batchSize?: number; detectNumeric?: boolean }
+    ): { sql: string; rowCount: number }
+
+    // xlsx → SQL
+    xlsxToSql(
+      xlsxPath: string,
+      options?: { noHeader?: boolean; batchSize?: number; detectNumeric?: boolean; tableNameOverride?: string }
+    ): { sql: string; tableCount: number; rowCount: number }
   }
 
   interface Window {

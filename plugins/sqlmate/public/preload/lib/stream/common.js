@@ -4,7 +4,7 @@
 
 const fs = require('node:fs')
 const readline = require('node:readline')
-const { splitMultiRowInsert } = require('../dedupe')
+const { forEachTupleInInsert } = require('../dedupe')
 
 /**
  * 通用流式处理：逐行读取 → 展开多行 INSERT → 每行调用 processLine → 写出
@@ -31,10 +31,13 @@ async function processFileStream(inputPath, outputPath, processLine, ctx, option
     const pct = Math.min(99, Math.floor((bytesRead / inputSize) * 100))
     if (onProgress && pct > lastPct) { onProgress(pct); lastPct = pct }
 
-    const lines = expandMultiRow ? splitMultiRowInsert(line.trimEnd()) : [line.trimEnd()]
-    for (const l of lines) {
-      const out = processLine(l, ctx)
-      writer.write(out + '\n')
+    if (expandMultiRow) {
+      // 流式拆分：每个 tuple 产出即处理即写出，不积攒数组，O(1) 内存
+      forEachTupleInInsert(line.trimEnd(), (l) => {
+        writer.write(processLine(l, ctx) + '\n')
+      })
+    } else {
+      writer.write(processLine(line.trimEnd(), ctx) + '\n')
     }
   }
 

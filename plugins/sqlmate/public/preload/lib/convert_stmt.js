@@ -1,7 +1,7 @@
 // convert_stmt.js — INSERT 改写为 UPDATE / UPSERT / INSERT IGNORE
 'use strict'
 
-const { parseInsertLine, splitMultiRowInsert } = require('./dedupe')
+const { parseInsertLine, splitMultiRowInsert, quoteTableName } = require('./dedupe')
 
 function buildSetClause(columns, values, pkIdx, excludeSet) {
   return columns
@@ -36,7 +36,7 @@ function convertLine(line, options) {
     const setClause = buildSetClause(columns, values, pkIdx, excludeSet)
     if (!setClause) return null
     const pkColName = columns[pkIdx]
-    return `UPDATE \`${tableName}\` SET ${setClause} WHERE \`${pkColName}\` = ${pkVal};`
+    return `UPDATE ${quoteTableName(tableName)} SET ${setClause} WHERE \`${pkColName}\` = ${pkVal};`
   }
 
   if (mode === 'mysql_upsert') {
@@ -49,7 +49,7 @@ function convertLine(line, options) {
           return `\`${col}\` = VALUES(\`${col}\`)`
         }).filter(Boolean).join(', ')
       : '/* specify columns */'
-    return `INSERT INTO \`${tableName}\` ${colList}VALUES (${valList}) ON DUPLICATE KEY UPDATE ${updatePart};`
+    return `INSERT INTO ${quoteTableName(tableName)} ${colList}VALUES (${valList}) ON DUPLICATE KEY UPDATE ${updatePart};`
   }
 
   if (mode === 'pg_upsert') {
@@ -63,7 +63,8 @@ function convertLine(line, options) {
           return `"${col}" = EXCLUDED."${col}"`
         }).filter(Boolean).join(', ')
       : '/* specify columns */'
-    return `INSERT INTO "${tableName}" ${colList}VALUES (${valList}) ON CONFLICT (${pkColName}) DO UPDATE SET ${updatePart};`
+    const pgTableName = tableName.split('.').map((p) => `"${p.replace(/"/g, '')}"`).join('.')
+    return `INSERT INTO ${pgTableName} ${colList}VALUES (${valList}) ON CONFLICT (${pkColName}) DO UPDATE SET ${updatePart};`
   }
 
   return null
