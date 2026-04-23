@@ -1,6 +1,6 @@
 {
   "name": "colors",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
     "prepare": "vp config"
   },
   "dependencies": {
+    "@vueuse/core": "^14.2.1",
     "@ztools-center/ztools-api-types": "^1.0.1",
     "colord": "^2.9.3",
     "tailwindcss": "^4.2.2",

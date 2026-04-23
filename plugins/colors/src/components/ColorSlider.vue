@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { colord } from "colord";
+import { useEventListener } from "@vueuse/core";
 
 interface Props {
   modelValue: string;
@@ -38,6 +39,7 @@ const handleMouseMove = (e: MouseEvent) => {
   const rect = sliderRef.value.getBoundingClientRect();
   const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
   const value = x / rect.width;
+  console.log(value);
 
   const hsv = currentColor.value.toHsv();
   let newColor = currentColor.value;
@@ -59,20 +61,18 @@ const handleMouseUp = () => {
 const gradient = computed(() => {
   const hsv = currentColor.value.toHsv();
   if (props.type === "saturation") {
-    return `linear-gradient(to right, hsl(${hsv.h}, 0%, ${hsv.v}%), hsl(${hsv.h}, 100%, ${hsv.v}%))`;
+    return `linear-gradient(to right, hsl(${hsv.h}, 0%, ${hsv.v / 2}%), hsl(${hsv.h}, 100%, ${hsv.v / 2}%))`;
   } else {
     return `linear-gradient(to right, hsl(${hsv.h}, ${hsv.s}%, 0%), hsl(${hsv.h}, ${hsv.s}%, 100%))`;
   }
 });
 
-onMounted(() => {
+useEventListener(document, ["mouseup", "mouseleave", "visibilitychange"], () => {
   updateThumbPosition();
-  window.addEventListener("mouseup", handleMouseUp);
+  handleMouseUp();
 });
 
-onUnmounted(() => {
-  window.removeEventListener("mouseup", handleMouseUp);
-});
+useEventListener(document, "mousemove", handleMouseMove, { passive: true });
 </script>
 
 <template>
@@ -80,12 +80,11 @@ onUnmounted(() => {
     ref="sliderRef"
     class="relative h-6 rounded-full cursor-pointer"
     :style="{ background: gradient }"
-    @mousedown="handleMouseDown"
-    @mousemove="handleMouseMove"
+    @mousedown.prevent="handleMouseDown"
   >
     <div
       ref="thumbRef"
-      class="absolute top-1/2 w-4 h-4 bg-white rounded-full shadow-md border border-gray-300 pointer-events-none"
+      class="absolute top-1/2 w-6 h-6 bg-white rounded-full shadow-md border border-gray-300 pointer-events-none"
       style="transform: translate(-50%, -50%)"
     />
   </div>

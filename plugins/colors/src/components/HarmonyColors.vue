@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { colord } from "colord";
+import { showSuccess } from "@/utils/notification";
 
 interface Props {
   color: string;
@@ -40,6 +41,7 @@ const harmonyColors = computed<HarmonyColor[]>(() => {
 const copyToClipboard = async (text: string) => {
   try {
     await navigator.clipboard.writeText(text);
+    showSuccess(`已复制颜色: ${text}`);
   } catch (err) {
     console.error("复制失败:", err);
   }

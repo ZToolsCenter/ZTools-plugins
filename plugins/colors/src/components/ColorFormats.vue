@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { colord } from "colord";
+import { showError, showSuccess } from "@/utils/notification";
 
 interface Props {
   color: string;
@@ -29,12 +30,13 @@ const colorFormats = computed(() => {
   };
 });
 
-const copyToClipboard = async (text: string) => {
+const copyToClipboard = async (text: string, label: string) => {
   try {
     await navigator.clipboard.writeText(text);
-    // 这里可以添加一个通知提示
+    showSuccess(`已复制 ${label}: ${text}`);
   } catch (err) {
     console.error("复制失败:", err);
+    showError("复制失败");
   }
 };
 </script>
@@ -50,7 +52,7 @@ const copyToClipboard = async (text: string) => {
         readonly
       />
       <button
-        @click="copyToClipboard(`#${colorFormats.hex}`)"
+        @click="copyToClipboard(`#${colorFormats.hex}`, 'HEX')"
         class="grow-0 p-1 text-gray-500 hover:text-gray-700"
       >
         <svg
@@ -80,7 +82,10 @@ const copyToClipboard = async (text: string) => {
       />
       <button
         @click="
-          copyToClipboard(`${colorFormats.rgb.r}, ${colorFormats.rgb.g}, ${colorFormats.rgb.b}`)
+          copyToClipboard(
+            `${colorFormats.rgb.r}, ${colorFormats.rgb.g}, ${colorFormats.rgb.b}`,
+            'RGB',
+          )
         "
         class="grow-0 p-1 text-gray-500 hover:text-gray-700"
       >
@@ -111,7 +116,10 @@ const copyToClipboard = async (text: string) => {
       />
       <button
         @click="
-          copyToClipboard(`${colorFormats.hsv.h}, ${colorFormats.hsv.s}, ${colorFormats.hsv.v}`)
+          copyToClipboard(
+            `${colorFormats.hsv.h}, ${colorFormats.hsv.s}, ${colorFormats.hsv.v}`,
+            'HSV',
+          )
         "
         class="p-1 text-gray-500 hover:text-gray-700"
       >
@@ -142,7 +150,10 @@ const copyToClipboard = async (text: string) => {
       />
       <button
         @click="
-          copyToClipboard(`${colorFormats.hsl.h}, ${colorFormats.hsl.s}, ${colorFormats.hsl.l}`)
+          copyToClipboard(
+            `${colorFormats.hsl.h}, ${colorFormats.hsl.s}, ${colorFormats.hsl.l}`,
+            'HSL',
+          )
         "
         class="p-1 text-gray-500 hover:text-gray-700"
       >

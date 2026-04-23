@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onPluginEnter, onPluginOut } from "@ztools-center/ztools-api-types";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import ColorWheel from "./components/ColorWheel.vue";
 import ColorSlider from "./components/ColorSlider.vue";
 import ColorFormats from "./components/ColorFormats.vue";
 import HarmonyColors from "./components/HarmonyColors.vue";
+import { showSuccess } from "./utils/notification";
 
 let enterAction = ref<{
   code: string;
@@ -26,12 +27,24 @@ onMounted(() => {
     route.value = "";
   });
 });
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    showSuccess(`已复制颜色: ${text}`);
+  } catch (err) {
+    console.error("复制失败:", err);
+    showSuccess("复制失败");
+  }
+};
+let currentColorNotHash = computed(() =>
+  currentColor.value.startsWith("#") ? currentColor.value.substring(1) : currentColor.value,
+);
 </script>
 
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200">
     <!-- 顶部工具栏 -->
-    <div
+    <!--<div
       class="bg-white shadow-sm border-b border-gray-200 px-6 py-3 flex items-center justify-between"
     >
       <div class="flex items-center space-x-4">
@@ -39,25 +52,14 @@ onMounted(() => {
       </div>
       <div class="flex items-center space-x-3">
         <button class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-          AI 配色
+          颜色助手
         </button>
-        <button class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-          UI 色卡
-        </button>
-        <button class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-          图片色卡
-        </button>
-        <button class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-          传统色
-        </button>
-        <button class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-          渐变色
-        </button>
+
         <button class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors">
           收藏颜色
         </button>
       </div>
-    </div>
+    </div>-->
 
     <!-- 主要内容区域 -->
     <div class="p-6 grid grid-cols-12 gap-6 max-w-7xl mx-auto">
@@ -102,8 +104,13 @@ onMounted(() => {
       <div class="flex items-center space-x-3">
         <button
           class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          @click="
+            () => {
+              copyToClipboard(currentColorNotHash);
+            }
+          "
         >
-          确认选择
+          复制颜色
         </button>
       </div>
     </div>
