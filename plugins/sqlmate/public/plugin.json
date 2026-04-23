@@ -1,0 +1,98 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "sqlmate",
+  "title": "SQLMate",
+  "description": "SQL 数据处理工具集 — 合并、拆分、去重、脱敏、DDL对比等，数据不离本地",
+  "author": "rhymed.liu",
+  "version": "0.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "merge",
+      "explain": "合并 INSERT 语句为批量插入",
+      "icon": "logo.png",
+      "cmds": ["SQL合并", "合并INSERT", "sqlmate merge",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "SQL合并" }]
+    },
+    {
+      "code": "split",
+      "explain": "拆分批量 INSERT 为单行语句",
+      "icon": "logo.png",
+      "cmds": ["SQL拆分", "拆分INSERT", "sqlmate split",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "SQL拆分" }]
+    },
+    {
+      "code": "segment",
+      "explain": "按行数或大小分割 SQL 文件",
+      "icon": "logo.png",
+      "cmds": ["SQL分割", "切割SQL", "sqlmate segment",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "SQL分割" }]
+    },
+    {
+      "code": "extract",
+      "explain": "从 dump 中按表名抽取 INSERT 语句",
+      "icon": "logo.png",
+      "cmds": ["SQL抽取", "按表抽取", "sqlmate extract",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "按表抽取" }]
+    },
+    {
+      "code": "dedupe",
+      "explain": "按主键对 INSERT 语句去重",
+      "icon": "logo.png",
+      "cmds": ["SQL去重", "INSERT去重", "sqlmate dedupe",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "SQL去重" }]
+    },
+    {
+      "code": "mask",
+      "explain": "对 INSERT 数据脱敏（手机号/邮箱/姓名等）",
+      "icon": "logo.png",
+      "cmds": ["SQL脱敏", "数据脱敏", "sqlmate mask",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "数据脱敏" }]
+    },
+    {
+      "code": "rename",
+      "explain": "批量替换表名或列名",
+      "icon": "logo.png",
+      "cmds": ["表名替换", "列名替换", "sqlmate rename",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "表名替换" }]
+    },
+    {
+      "code": "offset",
+      "explain": "主键 ID 批量偏移，避免合库冲突",
+      "icon": "logo.png",
+      "cmds": ["ID偏移", "主键偏移", "sqlmate offset",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "ID偏移" }]
+    },
+    {
+      "code": "stats",
+      "explain": "统计 SQL 文件中各表行数和大小",
+      "icon": "logo.png",
+      "cmds": ["SQL统计", "表统计", "sqlmate stats",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "SQL统计" }]
+    },
+    {
+      "code": "convert",
+      "explain": "INSERT 改写为 UPDATE / UPSERT / INSERT IGNORE",
+      "icon": "logo.png",
+      "cmds": ["语句改写", "INSERT转UPDATE", "sqlmate convert",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "语句改写" }]
+    },
+    {
+      "code": "diff",
+      "explain": "按主键对比两份 SQL 数据差异",
+      "icon": "logo.png",
+      "cmds": ["SQL对比", "数据Diff", "sqlmate diff"]
+    },
+    {
+      "code": "ddldiff",
+      "explain": "对比两张表 DDL 差异并生成 ALTER SQL",
+      "icon": "logo.png",
+      "cmds": ["DDL对比", "表结构对比", "sqlmate ddl"]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress__track {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress__fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.2s;
+}
+
+.progress__label {
+  font-size: 11px;
+  color: var(--fg-muted);
+  min-width: 32px;
+  text-align: right;
+}

@@ -1,0 +1,139 @@
+/* ── CSS 变量（亮色） ──────────────────────────────────────────────────── */
+:root {
+  --accent:       #4f7ef8;
+  --accent-muted: rgba(79, 126, 248, 0.08);
+  --danger:       #e54d4d;
+  --danger-muted: rgba(229, 77, 77, 0.08);
+  --success:      #26a65b;
+
+  --fg:           #1a1a1a;
+  --fg-muted:     #888;
+  --bg:           #f5f5f7;
+  --bg-subtle:    #efefef;
+  --border:       #ddd;
+}
+
+/* ── CSS 变量（暗色） ──────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent:       #5b8af9;
+    --accent-muted: rgba(91, 138, 249, 0.1);
+    --danger:       #e06060;
+    --danger-muted: rgba(224, 96, 96, 0.1);
+    --success:      #3ab871;
+
+    --fg:           #e8e8e8;
+    --fg-muted:     #888;
+    --bg:           #1e1e1e;
+    --bg-subtle:    #2a2a2a;
+    --border:       #3a3a3a;
+  }
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* ── 全局按钮 ─────────────────────────────────────────────────────────── */
+button {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: opacity 0.15s;
+  line-height: 1.8;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button:not(:disabled):hover {
+  opacity: 0.88;
+}
+
+button:not(:disabled):active {
+  opacity: 0.7;
+}
+
+/* ── 全局输入 ─────────────────────────────────────────────────────────── */
+input[type='text'],
+input[type='number'],
+textarea,
+select {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 13px;
+  padding: 5px 9px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input[type='text']:focus,
+input[type='number']:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+/* ── 滚动条 ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-muted);
+}
+
+/* ── 通用工具类 ───────────────────────────────────────────────────────── */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  margin-bottom: 4px;
+}
+
+.error {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.success {
+  font-size: 12px;
+  color: var(--success);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
