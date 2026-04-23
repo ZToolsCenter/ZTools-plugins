@@ -100,16 +100,20 @@ function parseGitHubUrl(input) {
   };
 }
 
-// 辅助函数：从 SKILL.md 提取描述
-function extractDescription(skillPath) {
-  const mdPath = fs.existsSync(path.join(skillPath, 'SKILL.md'))
-    ? path.join(skillPath, 'SKILL.md')
-    : fs.existsSync(path.join(skillPath, 'skill.md'))
-      ? path.join(skillPath, 'skill.md')
-      : null;
+// 辅助函数：从 SKILL.md 提取描述 (异步版本)
+async function extractDescription(skillPath) {
+  const mdPath_standard = path.join(skillPath, 'SKILL.md');
+  const mdPath_lower = path.join(skillPath, 'skill.md');
+  
+  let mdPath = null;
+  try {
+    if (fs.existsSync(mdPath_standard)) mdPath = mdPath_standard;
+    else if (fs.existsSync(mdPath_lower)) mdPath = mdPath_lower;
+  } catch (e) {}
+
   if (mdPath) {
     try {
-      const content = fs.readFileSync(mdPath, 'utf-8');
+      const content = await fs.promises.readFile(mdPath, 'utf-8');
       const match = content.match(/description:\s*(.*)/i);
       if (match && match[1]) {
         let desc = match[1].trim();
@@ -124,27 +128,29 @@ function extractDescription(skillPath) {
 }
 
 // ========== 获取已安装列表 ==========
-function getSkillsList() {
+// ========== 获取已安装列表 (异步优化版) ==========
+async function getSkillsList() {
   ensureRegistry();
   let registry = [];
   try {
-    registry = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8'));
+    const data = await fs.promises.readFile(REGISTRY_FILE, 'utf-8');
+    registry = JSON.parse(data);
   } catch (error) {
     console.error("读取 registry.json 失败:", error);
   }
 
   const actualSkills = [];
 
-  // 处理已在注册表中的技能
-  for (const skill of registry) {
+  // 1. 并发处理已在注册表中的技能
+  const registryPromises = registry.map(async (skill) => {
     try {
       if (fs.existsSync(skill.localPath)) {
         const metaPath = path.join(skill.localPath, 'metadata.json');
 
-        // 如果元数据文件存在，读取并同步到内存对象
         if (fs.existsSync(metaPath)) {
           try {
-            const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+            const metaJson = await fs.promises.readFile(metaPath, 'utf-8');
+            const meta = JSON.parse(metaJson);
             if (meta.source_url) skill.sourceUrl = meta.source_url;
             if (meta.installed_at) skill.installedAt = meta.installed_at;
             if (meta.name) skill.name = meta.name;
@@ -152,45 +158,47 @@ function getSkillsList() {
           } catch (e) { }
         }
 
-        // 补全缺失的描述
         if (!skill.description) {
-          skill.description = extractDescription(skill.localPath);
+          skill.description = await extractDescription(skill.localPath);
         }
 
-        // 确保 updatedAt 始终反映文件的最新修改
         const mdPath = path.join(skill.localPath, 'SKILL.md');
-        if (fs.existsSync(mdPath)) {
-          skill.updatedAt = fs.statSync(mdPath).mtime.toISOString();
-        } else {
-          skill.updatedAt = fs.statSync(skill.localPath).mtime.toISOString();
-        }
+        const statPath = fs.existsSync(mdPath) ? mdPath : skill.localPath;
+        const stats = await fs.promises.stat(statPath);
+        skill.updatedAt = stats.mtime.toISOString();
 
-        actualSkills.push(skill);
+        return skill;
       }
     } catch (e) { }
-  }
+    return null;
+  });
 
-  // 扫描所有 Agent 路径 (宽松补全模式)
+  const processedRegistry = await Promise.all(registryPromises);
+  actualSkills.push(...processedRegistry.filter(s => s !== null));
+
+  // 2. 扫描所有 Agent 路径 (并发扫描)
   const agentsToScan = AGENT_CONFIGS.map(a => a.id);
   const normalize = p => p.toLowerCase().replace(/\\/g, '/');
 
-  for (const agent of agentsToScan) {
+  const scanPromises = AGENT_CONFIGS.map(async (agentConf) => {
+    const p = getPathForAgent(agentConf.id);
     try {
-      const p = getPathForAgent(agent);
-      if (!fs.existsSync(p)) continue;
-      const dirents = fs.readdirSync(p, { withFileTypes: true });
+      if (!fs.existsSync(p)) return [];
+      const dirents = await fs.promises.readdir(p, { withFileTypes: true });
+      
+      const agentSkills = [];
       for (const dirent of dirents) {
         if (dirent.isDirectory()) {
-          // 排除隐藏文件夹和以等下划线开头的临时文件夹
           if (dirent.name.startsWith('.') || dirent.name.startsWith('_')) continue;
 
           const skillPath = path.join(p, dirent.name);
           const normSkillPath = normalize(skillPath);
 
-          // 只要是目录，就尝试作为技能被识别
+          // 检查是否已经在 registry 中处理过
           if (!actualSkills.some(s => normalize(s.localPath) === normSkillPath)) {
             let sourceUrl = '未注册';
-            let installedAt = fs.statSync(skillPath).birthtime.toISOString();
+            const stats = await fs.promises.stat(skillPath);
+            let installedAt = stats.birthtime.toISOString();
             let name = dirent.name;
             let description = '';
 
@@ -199,7 +207,8 @@ function getSkillsList() {
 
             if (fs.existsSync(metaPath)) {
               try {
-                const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+                const metaJson = await fs.promises.readFile(metaPath, 'utf-8');
+                const meta = JSON.parse(metaJson);
                 if (meta.source_url) sourceUrl = meta.source_url;
                 if (meta.installed_at) installedAt = meta.installed_at;
                 if (meta.name) name = meta.name;
@@ -208,18 +217,18 @@ function getSkillsList() {
             }
 
             if (!description) {
-              description = extractDescription(skillPath);
+              description = await extractDescription(skillPath);
             }
 
-            let updatedAt = fs.existsSync(mdPath)
-              ? fs.statSync(mdPath).mtime.toISOString()
-              : fs.statSync(skillPath).mtime.toISOString();
+            const updateStatPath = fs.existsSync(mdPath) ? mdPath : skillPath;
+            const updateStats = await fs.promises.stat(updateStatPath);
+            const updatedAt = updateStats.mtime.toISOString();
 
-            actualSkills.push({
-              id: `local_${agent}_${dirent.name.toLowerCase()}`,
+            agentSkills.push({
+              id: `local_${agentConf.id}_${dirent.name.toLowerCase()}`,
               name: name,
               description: description,
-              agent: agent,
+              agent: agentConf.id,
               localPath: skillPath,
               sourceUrl: sourceUrl,
               installedAt: installedAt,
@@ -228,8 +237,13 @@ function getSkillsList() {
           }
         }
       }
-    } catch (e) { }
-  }
+      return agentSkills;
+    } catch (e) { return []; }
+  });
+
+  const scannedResults = await Promise.all(scanPromises);
+  scannedResults.forEach(res => actualSkills.push(...res));
+
   return actualSkills;
 }
 
@@ -918,6 +932,6 @@ window.preloadAPI = {
   getSkillsList, getSupportedAgents, previewSkills, installFromPreview, distributeSkill, cancelPreview,
   openLocalPath, openUrl, selectSavePath, uninstallSkill, updateSkill, batchUpdateSkills, batchDeleteSkills,
   exportSkillsConfig, importSkillsConfig, saveFileDialog,
-  refreshRegistry: () => { ensureRegistry(); return getSkillsList(); }
+  refreshRegistry: async () => { ensureRegistry(); return await getSkillsList(); }
 };
 

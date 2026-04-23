@@ -76,8 +76,8 @@ const selectedSkillNames = ref<string[]>([])
 const previewLoading = ref(false)
 const isAgentsExpanded = ref(false)
 
-const loadSkills = () => {
-  if (window.preloadAPI) { skills.value = window.preloadAPI.getSkillsList() }
+const loadSkills = async () => {
+  if (window.preloadAPI) { skills.value = await window.preloadAPI.getSkillsList() }
   else { skills.value = [{ id: 'mock', name: 'Mock Skill', sourceUrl: 'https://github.com/mock/skill', localPath: '', installedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] }
 }
 
@@ -312,7 +312,7 @@ const batchUpdateGroup = async (group: SkillGroup) => {
       const summary = `仓库 ${group.repoKey} 更新: ${results.success.length} 成功, ${results.failed.length} 失败`
       if (window.ztools) window.ztools.showNotification(summary)
       else alert(summary)
-      loadSkills()
+      await loadSkills()
     }
   } catch (e: any) { alert('更新异常: ' + e.message) }
   finally { loading.value = false; batchProcessing.value = false }
@@ -329,7 +329,7 @@ const batchDeleteGroup = async (group: SkillGroup) => {
       const summary = `仓库 ${group.repoKey} 卸载: ${results.success.length} 成功, ${results.failed.length} 失败`
       if (window.ztools) window.ztools.showNotification(summary)
       else alert(summary)
-      loadSkills()
+      await loadSkills()
     }
   } catch (e: any) { alert('卸载异常: ' + e.message) }
   finally { loading.value = false }
@@ -349,7 +349,7 @@ const confirmInstall = async () => {
         if (clean) progressLogs.value.push(clean)
       })
       if (window.ztools) window.ztools.showNotification('安装与分发成功')
-      loadSkills()
+      await loadSkills()
     }
   } catch (e: any) { alert("安装失败：" + e.message) }
   finally { loading.value = false; installUrl.value = ''; previewData.value = null }
@@ -386,7 +386,7 @@ const confirmDistribute = async () => {
       showDistributeModal.value = false
       batchMode.value = false
       batchSelected.value = []
-      loadSkills()
+      await loadSkills()
     }
   } catch (e: any) { alert('同步失败: ' + e.message) }
   finally { loading.value = false }
@@ -399,7 +399,7 @@ const refreshAll = async () => {
       skills.value = await window.preloadAPI.refreshRegistry()
       if (window.ztools) window.ztools.showNotification('审计完成：已同步全机技能状态')
     } else {
-      loadSkills()
+      await loadSkills()
     }
   } catch (e: any) {
     if (window.ztools) window.ztools.showNotification('刷新失败: ' + e.message)
@@ -425,7 +425,7 @@ const handleUpdate = async (id: string) => {
     if (window.preloadAPI) {
       await window.preloadAPI.updateSkill(id, (msg: any) => { const c = msg.text.replace(/[\u001b\x1b]\[[0-9;?]*[A-Za-z]/gi, '').trim(); if (c) progressLogs.value.push(c) })
       if (window.ztools) window.ztools.showNotification('更新成功')
-      loadSkills()
+      await loadSkills()
     }
   } catch (e: any) { alert("更新失败: " + e.message) }
   finally { loading.value = false }
@@ -434,7 +434,7 @@ const handleUpdate = async (id: string) => {
 const handleDelete = async (id: string) => {
   if (confirm("是否确认删除该技能？")) {
     loading.value = true
-    try { if (window.preloadAPI) { window.preloadAPI.uninstallSkill(id); if (window.ztools) window.ztools.showNotification('删除成功'); loadSkills() } }
+    try { if (window.preloadAPI) { window.preloadAPI.uninstallSkill(id); if (window.ztools) window.ztools.showNotification('删除成功'); await loadSkills() } }
     catch (e: any) { alert("删除失败：" + e.message) }
     finally { loading.value = false }
   }
@@ -480,7 +480,7 @@ const batchUpdate = async () => {
       const summary = `更新完成: ${results.success.length} 成功, ${results.failed.length} 失败`
       if (window.ztools) window.ztools.showNotification(summary)
       else alert(summary)
-      loadSkills()
+      await loadSkills()
     }
   } catch (e: any) { alert('批量更新异常: ' + e.message) }
   finally { loading.value = false; batchProcessing.value = false }
@@ -497,7 +497,7 @@ const batchDelete = async () => {
       const summary = `卸载完成: ${results.success.length} 成功, ${results.failed.length} 失败`
       if (window.ztools) window.ztools.showNotification(summary)
       else alert(summary)
-      loadSkills()
+      await loadSkills()
       batchSelected.value = []
     }
   } catch (e: any) { alert('批量卸载异常: ' + e.message) }
@@ -546,7 +546,7 @@ const confirmImport = async () => {
       const summary = `导入完成: ${results.success.length} 成功, ${results.failed.length} 失败, ${results.skipped.length} 跳过`
       if (window.ztools) window.ztools.showNotification(summary)
       else alert(summary)
-      loadSkills()
+      await loadSkills()
     }
   } catch (e: any) { alert('导入失败: ' + e.message) }
   finally { loading.value = false; importConfigText.value = '' }
