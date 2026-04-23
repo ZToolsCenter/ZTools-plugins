@@ -4,7 +4,7 @@
   "title": "SQLMate",
   "description": "SQL 数据处理工具集 — 合并、拆分、去重、脱敏、DDL对比等，数据不离本地",
   "author": "rhymed.liu",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
