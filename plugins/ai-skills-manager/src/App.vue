@@ -165,7 +165,7 @@ const displaySkills = computed(() => {
         const name = (s.name || '').toLowerCase()
         const desc = (s.description || '').toLowerCase()
         const source = (s.sourceUrl || '').toLowerCase()
-        const agent = getPathAlias(s.localPath).toLowerCase()
+
         
         if (name === searchStr) score += 100
         else if (name.startsWith(searchStr)) score += 50
