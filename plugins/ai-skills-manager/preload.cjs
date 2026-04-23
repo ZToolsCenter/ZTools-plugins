@@ -301,16 +301,16 @@ function gitCloneWithFallback(gitUrl, cloneDir, onProgress) {
       });
 
       let errData = '';
-      const TIMEOUT_MS = 5000;
+      const TIMEOUT_MS = 10000;
       let timeoutTimer = setTimeout(() => {
-        if (onProgress) onProgress({ type: 'info', text: `[超时] 5秒无响应，正在切换线路...\n` });
+        if (onProgress) onProgress({ type: 'info', text: `[超时] 10秒无响应，正在切换线路...\n` });
         child.kill('SIGKILL');
       }, TIMEOUT_MS);
 
       const resetTimer = () => {
         clearTimeout(timeoutTimer);
         timeoutTimer = setTimeout(() => {
-          if (onProgress) onProgress({ type: 'info', text: `[超时] 5秒无响应，正在切换线路...\n` });
+          if (onProgress) onProgress({ type: 'info', text: `[超时] 10秒无响应，正在切换线路...\n` });
           child.kill('SIGKILL');
         }, TIMEOUT_MS);
       };
@@ -477,7 +477,10 @@ function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUr
         const baseDir = getPathForAgent(tp);
         if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
 
-        const finalDir = path.join(baseDir, skill.name);
+        // 安全过滤：防止路径穿越
+        const safeName = path.basename(skill.name);
+        if (!safeName || safeName === "." || safeName === "..") continue;
+        const finalDir = path.join(baseDir, safeName);
         if (fs.existsSync(finalDir)) fs.rmSync(finalDir, { recursive: true, force: true });
 
         fs.cpSync(sourcePath, finalDir, { recursive: true });
@@ -711,7 +714,10 @@ function openUrl(url) {
 
   try {
     if (platform === 'win32') {
-      spawn('cmd', ['/c', 'start', '""', url], { detached: true, stdio: 'ignore' }).unref();
+      // 安全过滤：防止 Windows 下的命令注入，仅允许合规的 http/https URL
+      if (/^https?:\/\/[^\s"&|^<>]+$/.test(url)) {
+        spawn('cmd', ['/c', 'start', '""', url], { detached: true, stdio: 'ignore' }).unref();
+      }
     } else if (platform === 'darwin') {
       spawn('open', [url], { detached: true, stdio: 'ignore' }).unref();
     } else {
@@ -916,7 +922,10 @@ async function distributeSkill(skillId, targetAgents) {
     const baseDir = getPathForAgent(agent);
     if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
 
-    const finalDir = path.join(baseDir, skill.name);
+    // 安全过滤：防止路径穿越
+    const safeName = path.basename(skill.name);
+    if (!safeName || safeName === "." || safeName === "..") continue;
+    const finalDir = path.join(baseDir, safeName);
     if (finalDir.toLowerCase() === skill.localPath.toLowerCase()) continue;
     if (fs.existsSync(finalDir)) fs.rmSync(finalDir, { recursive: true, force: true });
     fs.cpSync(skill.localPath, finalDir, { recursive: true });
