@@ -31,6 +31,7 @@ function saveRegistry(registry) {
   MEM_REGISTRY = registry;
   fs.writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2));
 }
+const AGENT_CONFIGS = [
   { id: 'antigravity', name: 'Antigravity', path: '.gemini/antigravity/skills' },
   { id: 'claudecode', name: 'Claude Code', path: '.claude/skills' },
   { id: 'trae', name: 'Trae', path: '.trae/skills' },
@@ -122,12 +123,12 @@ function parseGitHubUrl(input) {
 async function extractDescription(skillPath) {
   const mdPath_standard = path.join(skillPath, 'SKILL.md');
   const mdPath_lower = path.join(skillPath, 'skill.md');
-  
+
   let mdPath = null;
   try {
     if (fs.existsSync(mdPath_standard)) mdPath = mdPath_standard;
     else if (fs.existsSync(mdPath_lower)) mdPath = mdPath_lower;
-  } catch (e) {}
+  } catch (e) { }
 
   if (mdPath) {
     try {
@@ -168,9 +169,9 @@ async function getSkillsList() {
             if (meta.name) skill.name = meta.name;
             // 确保描述是字符串类型
             if (meta.description && typeof meta.description === 'string') {
-               skill.description = meta.description;
+              skill.description = meta.description;
             } else if (meta.description && typeof meta.description === 'object') {
-               skill.description = ''; // 忽略错误的对象类型
+              skill.description = ''; // 忽略错误的对象类型
             }
           } catch (e) { }
         }
@@ -202,7 +203,7 @@ async function getSkillsList() {
     try {
       if (!fs.existsSync(p)) return [];
       const dirents = await fs.promises.readdir(p, { withFileTypes: true });
-      
+
       const agentSkills = [];
       for (const dirent of dirents) {
         if (dirent.isDirectory()) {
