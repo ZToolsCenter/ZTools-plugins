@@ -83,6 +83,20 @@
         { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "语句改写" }]
     },
     {
+      "code": "sqltoCsv",
+      "explain": "SQL INSERT 数据导出为 CSV 或 Excel",
+      "icon": "logo.png",
+      "cmds": ["SQL导出", "导出CSV", "导出Excel", "sqlmate export",
+        { "type": "files", "fileType": "file", "extensions": ["sql"], "label": "导出为CSV/Excel" }]
+    },
+    {
+      "code": "csvToSql",
+      "explain": "CSV / Excel 转换为 SQL INSERT 语句",
+      "icon": "logo.png",
+      "cmds": ["CSV转SQL", "Excel转SQL", "导入CSV", "sqlmate import",
+        { "type": "files", "fileType": "file", "extensions": ["csv", "xlsx", "xls"], "label": "转换为SQL" }]
+    },
+    {
       "code": "diff",
       "explain": "按主键对比两份 SQL 数据差异",
       "icon": "logo.png",
