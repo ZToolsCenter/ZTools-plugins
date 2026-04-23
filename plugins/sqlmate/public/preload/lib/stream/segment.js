@@ -34,7 +34,12 @@ async function segmentFileStream(inputPath, outputDir, options = {}) {
   let currentCount = 0
   let currentBytes = 0
   const fileNames = []
-  let buf = ''
+
+  // 跨行累积当前语句
+  let stmtBuf = ''
+  // 状态机状态（跨行持久化）
+  // 状态：'normal' | 'string' | 'line_comment' | 'block_comment'
+  let state = 'normal'
 
   function openNextFile() {
     if (currentWriter) currentWriter.end()
@@ -45,17 +50,98 @@ async function segmentFileStream(inputPath, outputDir, options = {}) {
     currentBytes = 0
   }
 
-  function writeStmt(stmt) {
-    const stmtBytes = Buffer.byteLength(stmt, 'utf8') + 1
+  function flushStmt(stmt) {
+    const trimmed = stmt.trim()
+    if (!trimmed) return
+    const stmtBytes = Buffer.byteLength(trimmed, 'utf8') + 1
     const needNewFile = mode === 'count'
       ? currentCount >= count
       : currentBytes + stmtBytes > maxBytes && currentCount > 0
 
     if (!currentWriter || needNewFile) openNextFile()
 
-    currentWriter.write(stmt + '\n')
+    currentWriter.write(trimmed + '\n')
     currentCount++
     currentBytes += stmtBytes
+  }
+
+  /**
+   * 用状态机扫描一行文本，正确识别语句边界。
+   * 状态跨行持久化（单引号字符串、块注释均可跨行）。
+   * 行注释在行尾自动归零（readline 已去除换行符）。
+   *
+   * @param {string} line  readline 给出的单行（不含换行符）
+   */
+  function processLine(line) {
+    let i = 0
+
+    while (i < line.length) {
+      const ch = line[i]
+
+      switch (state) {
+        case 'normal':
+          if (ch === "'") {
+            state = 'string'
+            stmtBuf += ch
+            i++
+          } else if (ch === '-' && line[i + 1] === '-') {
+            state = 'line_comment'
+            stmtBuf += ch + (line[i + 1] ?? '')
+            i += 2
+          } else if (ch === '/' && line[i + 1] === '*') {
+            state = 'block_comment'
+            stmtBuf += ch + (line[i + 1] ?? '')
+            i += 2
+          } else if (ch === ';') {
+            stmtBuf += ch
+            flushStmt(stmtBuf)
+            stmtBuf = ''
+            i++
+          } else {
+            stmtBuf += ch
+            i++
+          }
+          break
+
+        case 'string':
+          if (ch === "'" && line[i + 1] === "'") {
+            // '' 转义
+            stmtBuf += "''"
+            i += 2
+          } else if (ch === "'") {
+            state = 'normal'
+            stmtBuf += ch
+            i++
+          } else {
+            stmtBuf += ch
+            i++
+          }
+          break
+
+        case 'line_comment':
+          // 行注释内容不影响语句，直接追加到 buf 保持原文
+          stmtBuf += ch
+          i++
+          break
+
+        case 'block_comment':
+          if (ch === '*' && line[i + 1] === '/') {
+            state = 'normal'
+            stmtBuf += '*/'
+            i += 2
+          } else {
+            stmtBuf += ch
+            i++
+          }
+          break
+      }
+    }
+
+    // 行注释在行尾结束（readline 已去掉换行符）
+    if (state === 'line_comment') state = 'normal'
+
+    // 保留换行符以维持多行语句的可读性
+    stmtBuf += '\n'
   }
 
   for await (const line of rl) {
@@ -63,13 +149,11 @@ async function segmentFileStream(inputPath, outputDir, options = {}) {
     const pct = Math.min(99, Math.floor((bytesRead / inputSize) * 100))
     if (onProgress && pct > lastPct) { onProgress(pct); lastPct = pct }
 
-    buf += line.replace(/\r$/, '') + '\n'
-    if (line.trimEnd().endsWith(';')) {
-      writeStmt(buf.trim())
-      buf = ''
-    }
+    processLine(line)
   }
-  if (buf.trim()) writeStmt(buf.trim())
+
+  // 末尾无分号的残余语句
+  if (stmtBuf.trim()) flushStmt(stmtBuf)
 
   if (currentWriter) {
     await new Promise((resolve, reject) => currentWriter.end((err) => (err ? reject(err) : resolve())))

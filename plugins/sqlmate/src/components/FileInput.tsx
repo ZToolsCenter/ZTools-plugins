@@ -65,16 +65,14 @@ export function FileInput({
     })
     if (!paths || paths.length === 0) return
     const p = paths[0]
-    // 通过 fs 读取大小判断
-    const fakeLarge = false // services.isLargeFile 只在 preload 里，前端通过文件大小无法直接判断
-    // 直接让 services 读，超大文件只存路径
-    try {
-      const content = window.services.readFile(p)
-      const large = new TextEncoder().encode(content).length > LARGE
-      onChange(large ? '' : content, p, large)
-    } catch {
-      // readFile 可能 OOM，退化为只存路径
+    // 先获取文件大小，不读内容，避免大文件 OOM
+    const size = window.services.getFileSize(p)
+    const large = size > LARGE
+    if (large) {
       onChange('', p, true)
+    } else {
+      const content = window.services.readFile(p)
+      onChange(content, p, false)
     }
   }
 

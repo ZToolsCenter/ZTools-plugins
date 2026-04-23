@@ -11,9 +11,10 @@ function parseSqlValues(valStr) {
     if (valStr[i] === "'") {
       let j = i + 1
       while (j < valStr.length) {
-        if (valStr[j] === "'" && valStr[j + 1] === "'") { j += 2 }
-        else if (valStr[j] === "'") { j++; break }
-        else { j++ }
+        if (valStr[j] === '\\') { j += 2; continue }                      // 反斜杠转义（MySQL）
+        if (valStr[j] === "'" && valStr[j + 1] === "'") { j += 2; continue } // '' 转义（标准 SQL）
+        if (valStr[j] === "'") { j++; break }                             // 字符串结束
+        j++
       }
       tokens.push(valStr.slice(i, j))
       i = j
@@ -47,7 +48,8 @@ function splitMultiRowInsert(line) {
   for (let i = 0; i < rest.length; i++) {
     const ch = rest[i]
     if (inStr) {
-      if (ch === "'" && rest[i + 1] === "'") { i++; continue }
+      if (ch === '\\') { i++; continue }                        // 反斜杠转义（MySQL）
+      if (ch === "'" && rest[i + 1] === "'") { i++; continue }  // '' 转义（标准 SQL）
       if (ch === "'") inStr = false
       continue
     }
