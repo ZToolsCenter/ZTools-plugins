@@ -114,12 +114,15 @@ async function extractDescription(skillPath) {
   if (mdPath) {
     try {
       const content = await fs.promises.readFile(mdPath, 'utf-8');
-      const match = content.match(/description:\s*(.*)/i);
+      // 增强正则：支持换行外的所有字符，且处理可选的引号
+      const match = content.match(/^description:\s*(.*)/mi);
       if (match && match[1]) {
         let desc = match[1].trim();
         if ((desc.startsWith('"') && desc.endsWith('"')) || (desc.startsWith("'") && desc.endsWith("'"))) {
           desc = desc.substring(1, desc.length - 1);
         }
+        // 如果提取出来的是类似 YAML 的空对象或空数组字符串，忽略它
+        if (desc === '{}' || desc === '[]') return '';
         return desc;
       }
     } catch (e) { }
@@ -154,7 +157,12 @@ async function getSkillsList() {
             if (meta.source_url) skill.sourceUrl = meta.source_url;
             if (meta.installed_at) skill.installedAt = meta.installed_at;
             if (meta.name) skill.name = meta.name;
-            if (meta.description) skill.description = meta.description;
+            // 确保描述是字符串类型
+            if (meta.description && typeof meta.description === 'string') {
+               skill.description = meta.description;
+            } else if (meta.description && typeof meta.description === 'object') {
+               skill.description = ''; // 忽略错误的对象类型
+            }
           } catch (e) { }
         }
 
@@ -212,7 +220,9 @@ async function getSkillsList() {
                 if (meta.source_url) sourceUrl = meta.source_url;
                 if (meta.installed_at) installedAt = meta.installed_at;
                 if (meta.name) name = meta.name;
-                if (meta.description) description = meta.description;
+                if (meta.description && typeof meta.description === 'string') {
+                  description = meta.description;
+                }
               } catch (e) { }
             }
 
@@ -469,7 +479,7 @@ function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUr
         try {
           fs.writeFileSync(path.join(finalDir, 'metadata.json'), JSON.stringify({
             name: skill.name,
-            description: skill.description || '',
+            description: (typeof skill.description === 'string' ? skill.description : '') || '',
             source_url: skillSpecificUrl,
             installed_at: new Date().toISOString(),
             type: "git"
@@ -493,7 +503,7 @@ function installFromPreview(previewData, selectedSkillNames, targetPaths, repoUr
           const newEntry = {
             id: uniqueId,
             name: skill.name,
-            description: skill.description || '',
+            description: (typeof skill.description === 'string' ? skill.description : '') || '',
             localPath: finalDir,
             sourceUrl: skillSpecificUrl,
             installedAt: new Date().toISOString(),
@@ -911,7 +921,7 @@ async function distributeSkill(skillId, targetAgents) {
         currentReg.push({
           id: `${skill.name}_${agent}_${Date.now()}`,
           name: skill.name,
-          description: skill.description || '',
+          description: (typeof skill.description === 'string' ? skill.description : '') || '',
           localPath: finalDir,
           agent,
           sourceUrl: skill.sourceUrl,
