@@ -325,7 +325,7 @@ const batchDeleteGroup = async (group: SkillGroup) => {
   try {
     if (window.preloadAPI) {
       const ids = group.skills.map(s => s.id)
-      const results = window.preloadAPI.batchDeleteSkills(ids)
+      const results = await window.preloadAPI.batchDeleteSkills(ids)
       const summary = `仓库 ${group.repoKey} 卸载: ${results.success.length} 成功, ${results.failed.length} 失败`
       if (window.ztools) window.ztools.showNotification(summary)
       else alert(summary)
@@ -434,7 +434,7 @@ const handleUpdate = async (id: string) => {
 const handleDelete = async (id: string) => {
   if (confirm("是否确认删除该技能？")) {
     loading.value = true
-    try { if (window.preloadAPI) { window.preloadAPI.uninstallSkill(id); if (window.ztools) window.ztools.showNotification('删除成功'); await loadSkills() } }
+    try { if (window.preloadAPI) { await window.preloadAPI.uninstallSkill(id); if (window.ztools) window.ztools.showNotification('删除成功'); await loadSkills() } }
     catch (e: any) { alert("删除失败：" + e.message) }
     finally { loading.value = false }
   }
@@ -492,7 +492,7 @@ const batchDelete = async () => {
   loading.value = true
   try {
     if (window.preloadAPI) {
-      const results = window.preloadAPI.batchDeleteSkills(batchSelected.value)
+      const results = await window.preloadAPI.batchDeleteSkills(batchSelected.value)
       batchResults.value = results
       const summary = `卸载完成: ${results.success.length} 成功, ${results.failed.length} 失败`
       if (window.ztools) window.ztools.showNotification(summary)
@@ -512,7 +512,7 @@ const handleExport = async () => {
   const path = await window.preloadAPI.selectSavePath('skills-hub-backup.json')
   if (path) {
     try {
-      const configJson = window.preloadAPI.exportSkillsConfig()
+      const configJson = await window.preloadAPI.exportSkillsConfig()
       const savedPath = window.preloadAPI.saveFileDialog(configJson, path)
       if (window.ztools) window.ztools.showNotification('配置已导出到: ' + savedPath)
     } catch (e: any) { alert('导出失败: ' + e.message) }
