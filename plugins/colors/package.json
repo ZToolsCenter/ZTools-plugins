@@ -1,18 +1,18 @@
 {
   "name": "colors",
-  "version": "0.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vp preview",
-    "build-only": "vp build",
-    "type-check": "vue-tsc --build",
-    "prepare": "vp config"
+    "dev": "vite dev",
+    "preview": "vite preview",
+    "build": "vite build",
+    "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@vueuse/core": "^14.2.1",
     "@ztools-center/ztools-api-types": "^1.0.1",
+    "colord": "^2.9.3",
     "tailwindcss": "^4.2.2",
     "vue": "3.6.0-beta.10"
   },
@@ -25,9 +25,8 @@
     "@vue/tsconfig": "^0.9.1",
     "npm-run-all2": "^8.0.4",
     "typescript": "~6.0.0",
-    "vite": "catalog:",
+    "vite": "^8.0.10",
     "vite-plugin-vue-devtools": "^8.1.1",
-    "vite-plus": "catalog:",
     "vue-tsc": "^3.2.6"
   },
   "engines": {
