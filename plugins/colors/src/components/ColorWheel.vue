@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { colord, extend } from "colord";
 import namesPlugin from "colord/plugins/names";
+import { useEventListener } from "@vueuse/core";
 
 extend([namesPlugin]);
 
@@ -105,11 +106,13 @@ const updatePickerPosition = () => {
   // 使用 transform: translate(-50%, -50%) 居中，所以直接设置坐标即可
   picker.style.left = `${x}px`;
   picker.style.top = `${y}px`;
-  picker.style.opacity = (hsv.v / 100).toString();
+  // 保持取色器始终可见，不根据亮度调整透明度
+  picker.style.opacity = '1';
 
-  // 计算互补色（色相旋转180度）作为边框颜色，保持最大对比度
-  const complementaryColor = colord({ h: (hsv.h + 180) % 360, s: hsv.s, v: hsv.v }).toHex();
-  picker.style.borderColor = complementaryColor;
+  // 智能选择边框颜色：根据亮度动态选择白色或黑色，确保最大对比度
+  // 当亮度低于 50% 时使用白色，高于 50% 时使用黑色
+  const borderColor = hsv.v < 50 ? '#ffffff' : '#000000';
+  picker.style.borderColor = borderColor;
 };
 
 const handleMouseDown = (e: MouseEvent) => {
@@ -148,9 +151,9 @@ const handleMouseMove = (e: MouseEvent) => {
   const hue = angle < 0 ? angle + 360 : angle;
   // 根据距离计算饱和度（距离越远，饱和度越高）
   const saturation = (distance / (canvas.width / 2 - 10)) * 100;
-
+  let oldColor = colord(currentColor.value).toHsv();
   // 使用 HSV 颜色模型生成新颜色（色相和饱和度来自鼠标位置，明度固定为100%）
-  const newColor = colord({ h: hue, s: saturation, v: 100 }).toHex();
+  const newColor = colord({ h: hue, s: saturation, v: oldColor.v }).toHex();
   currentColor.value = newColor;
   // 触发更新事件，通知父组件颜色变化
   emit("update:modelValue", newColor);
@@ -170,6 +173,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("mouseup", handleMouseUp);
 });
+useEventListener(window, "mousemove", handleMouseMove, { passive: true });
 </script>
 
 <template>
@@ -180,7 +184,6 @@ onUnmounted(() => {
       height="200"
       class="cursor-crosshair rounded-full"
       @mousedown="handleMouseDown"
-      @mousemove="handleMouseMove"
     />
     <div
       ref="pickerRef"

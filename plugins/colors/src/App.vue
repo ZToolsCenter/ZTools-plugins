@@ -1,39 +1,39 @@
 <script setup lang="ts">
-import { onPluginEnter, onPluginOut } from "@ztools-center/ztools-api-types";
+// import { onPluginEnter, onPluginOut } from "@ztools-center/ztools-api-types";
 import { computed, onMounted, ref } from "vue";
 import ColorWheel from "./components/ColorWheel.vue";
 import ColorSlider from "./components/ColorSlider.vue";
 import ColorFormats from "./components/ColorFormats.vue";
 import HarmonyColors from "./components/HarmonyColors.vue";
-import { showSuccess } from "./utils/notification";
+// import { showSuccess } from "./utils/notification";
 import { copyColor } from "./utils/copy";
 
-let enterAction = ref<{
-  code: string;
-  type: string;
-  payload: any;
-  option: any;
-  from?: PluginEnterFrom;
-} | null>();
-let route = ref("");
+// let enterAction = ref<{
+//   code: string;
+//   type: string;
+//   payload: any;
+//   option: any;
+//   from?: PluginEnterFrom;
+// } | null>();
+// let route = ref("");
 
 const currentColor = ref("#312588");
 
-onMounted(() => {
-  onPluginEnter((action) => {
-    route.value = action.code;
-    enterAction.value = action;
-  });
-  onPluginOut(() => {
-    route.value = "";
-  });
-});
+// onMounted(() => {
+//   onPluginEnter((action) => {
+//     route.value = action.code;
+//     // enterAction.value = action;
+//   });
+//   onPluginOut(() => {
+//     route.value = "";
+//   });
+// });
 
 let currentColorNotHash = computed(() =>
   currentColor.value.startsWith("#") ? currentColor.value.substring(1) : currentColor.value,
 );
 let isColorRemovalHash = ref(false);
-let copyColor1 = () => {
+let clickCopyColor = () => {
   if (isColorRemovalHash.value) {
     copyColor(currentColorNotHash.value);
   } else {
@@ -105,7 +105,7 @@ let copyColor1 = () => {
       <div class="flex items-center space-x-3">
         <button
           class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          @click="copyColor1()"
+          @click="clickCopyColor()"
         >
           复制颜色
         </button>
