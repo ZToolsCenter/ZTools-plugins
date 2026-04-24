@@ -17,7 +17,7 @@ import { copyColor } from "./utils/copy";
 // } | null>();
 // let route = ref("");
 
-const currentColor = ref("#312588");
+const currentColor = ref("#FFFFFF");
 
 // onMounted(() => {
 //   onPluginEnter((action) => {

@@ -27,94 +27,43 @@
 - **预加载脚本**：`preload/services.js`（提供Node.js能力）
 - **功能路由**：通过`onPluginEnter`和`onPluginOut`管理功能切换
 
-<!--VITE PLUS START-->
+<!--VITE START-->
 
-# Using Vite+, the Unified Toolchain for the Web
+# Using Vite, the Frontend Build Tool
 
-This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, but it invokes Vite through `vp dev` and `vp build`.
+This project is using Vite, a modern frontend build tool that provides an extremely fast development experience.
 
-## Vite+ Workflow
-
-`vp` is a global binary that handles the full development lifecycle. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
-
-### Start
-
-- create - Create a new project from a template
-- migrate - Migrate an existing project to Vite+
-- config - Configure hooks and agent integration
-- staged - Run linters on staged files
-- install (`i`) - Install dependencies
-- env - Manage Node.js versions
+## Vite Workflow
 
 ### Develop
 
-- dev - Run the development server
-- check - Run format, lint, and TypeScript type checks
-- lint - Lint code
-- fmt - Format code
-- test - Run tests
-
-### Execute
-
-- run - Run monorepo tasks
-- exec - Execute a command from local `node_modules/.bin`
-- dlx - Execute a package binary without installing it as a dependency
-- cache - Manage the task cache
+```bash
+pnpm dev    # Start development server with hot reload
+```
 
 ### Build
 
-- build - Build for production
-- pack - Build libraries
-- preview - Preview production build
+```bash
+pnpm build  # Build for production
+pnpm preview # Preview production build locally
+```
+
+### Type Check
+
+```bash
+pnpm type-check  # Run TypeScript type checking
+```
 
 ### Manage Dependencies
 
-Vite+ automatically detects and wraps the underlying package manager such as pnpm, npm, or Yarn through the `packageManager` field in `package.json` or package manager-specific lockfiles.
-
-- add - Add packages to dependencies
-- remove (`rm`, `un`, `uninstall`) - Remove packages from dependencies
-- update (`up`) - Update packages to latest versions
-- dedupe - Deduplicate dependencies
-- outdated - Check for outdated packages
-- list (`ls`) - List installed packages
-- why (`explain`) - Show why a package is installed
-- info (`view`, `show`) - View package information from the registry
-- link (`ln`) / unlink - Manage local package links
-- pm - Forward a command to the package manager
-
-### Maintain
-
-- upgrade - Update `vp` itself to the latest version
-
-These commands map to their corresponding tools. For example, `vp dev --port 3000` runs Vite's dev server and works the same as Vite. `vp test` runs JavaScript tests through the bundled Vitest. The version of all tools can be checked using `vp --version`. This is useful when researching documentation, features, and bugs.
-
-## Common Pitfalls
-
-- **Using the package manager directly:** Do not use pnpm, npm, or Yarn directly. Vite+ can handle all package manager operations.
-- **Always use Vite commands to run tools:** Don't attempt to run `vp vitest` or `vp oxlint`. They do not exist. Use `vp test` and `vp lint` instead.
-- **Running scripts:** Vite+ built-in commands (`vp dev`, `vp build`, `vp test`, etc.) always run the Vite+ built-in tool, not any `package.json` script of the same name. To run a custom script that shares a name with a built-in command, use `vp run <script>`. For example, if you have a custom `dev` script that runs multiple services concurrently, run it with `vp run dev`, not `vp dev` (which always starts Vite's dev server).
-- **Do not install Vitest, Oxlint, Oxfmt, or tsdown directly:** Vite+ wraps these tools. They must not be installed directly. You cannot upgrade these tools by installing their latest versions. Always use Vite+ commands.
-- **Use Vite+ wrappers for one-off binaries:** Use `vp dlx` instead of package-manager-specific `dlx`/`npx` commands.
-- **Import JavaScript modules from `vite-plus`:** Instead of importing from `vite` or `vitest`, all modules should be imported from the project's `vite-plus` dependency. For example, `import { defineConfig } from 'vite-plus';` or `import { expect, test, vi } from 'vite-plus/test';`. You must not install `vitest` to import test utilities.
-- **Type-Aware Linting:** There is no need to install `oxlint-tsgolint`, `vp lint --type-aware` works out of the box.
-
-## CI Integration
-
-For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/voidzero-dev/setup-vp) to replace separate `actions/setup-node`, package-manager setup, cache, and install steps with a single action.
-
-```yaml
-- uses: voidzero-dev/setup-vp@v1
-  with:
-    cache: true
-- run: vp check
-- run: vp test
+```bash
+pnpm install          # Install dependencies
+pnpm add <package>    # Add a dependency
+pnpm remove <package> # Remove a dependency
+pnpm update           # Update dependencies
 ```
 
-## Review Checklist for Agents
-
-- [ ] Run `vp install` after pulling remote changes and before getting started.
-- [ ] Run `vp check` and `vp test` to validate changes.
-<!--VITE PLUS END-->
+<!--VITE END-->
 
 ---
 
@@ -126,7 +75,7 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 | ------------------------------- | ------------- | --------------------- |
 | Vue                             | 3.6.0-beta.10 | 前端框架              |
 | Tailwind CSS                    | 4.2.2         | 样式框架              |
-| Vite+                           | catalog:      | 统一工具链            |
+| Vite                            | ^8.0.10       | 构建工具              |
 | TypeScript                      | ~6.0.0        | 类型系统              |
 | @ztools-center/ztools-api-types | ^1.0.1        | ZTools插件API类型定义 |
 | pnpm                            | 10.33.0       | 包管理器              |
@@ -225,7 +174,7 @@ colors/
 #### 启动开发服务器
 
 ```bash
-vp dev
+pnpm dev
 ```
 
 开发模式下，插件会连接到`http://localhost:5173`
@@ -233,17 +182,15 @@ vp dev
 #### 构建生产版本
 
 ```bash
-vp build
+pnpm build
 ```
 
 构建结果输出到`dist/`目录
 
-#### 代码检查
+#### 类型检查
 
 ```bash
-vp check        # 格式化 + 代码检查 + 类型检查
-vp lint         # 仅代码检查
-vp fmt          # 仅代码格式化
+pnpm type-check   # TypeScript 类型检查
 ```
 
 ### 重要文件说明
@@ -270,20 +217,19 @@ vp fmt          # 仅代码格式化
 
 ### 常用命令速查
 
-| 命令                   | 说明             |
-| ---------------------- | ---------------- |
-| `vp install` 或 `vp i` | 安装依赖         |
-| `vp dev`               | 启动开发服务器   |
-| `vp build`             | 生产构建         |
-| `vp check`             | 完整代码检查     |
-| `vp lint --fix`        | 自动修复代码问题 |
-| `vp fmt`               | 格式化代码       |
-| `vp add <package>`     | 添加依赖包       |
-| `vp dlx <command>`     | 执行一次性命令   |
+| 命令                       | 说明             |
+| -------------------------- | ---------------- |
+| `pnpm install` 或 `pnpm i` | 安装依赖         |
+| `pnpm dev`                 | 启动开发服务器   |
+| `pnpm build`               | 生产构建         |
+| `pnpm preview`             | 预览生产构建     |
+| `pnpm type-check`          | TypeScript类型检查 |
+| `pnpm add <package>`       | 添加依赖包       |
+| `pnpm remove <package>`    | 移除依赖包       |
 
 ### 开发注意事项
 
-1. **始终使用`vp`命令**：不要直接使用pnpm/npm/yarn
+1. **始终使用`pnpm`命令**：不要直接使用npm/yarn
 2. **导入路径**：使用`@/`别名引用src目录
 3. **类型安全**：所有Vue组件使用`<script setup lang="ts">`
 4. **ZTools API**：从`@ztools-center/ztools-api-types`导入插件API
@@ -291,19 +237,94 @@ vp fmt          # 仅代码格式化
 6. **组件命名**：使用PascalCase命名Vue组件
 7. **样式作用域**：使用`<style scoped>`避免样式污染
 
+### 开发经验与最佳实践
+
+#### Canvas 绘图优化
+
+- 色轮绘制时使用扇形重叠（2度）保证平滑过渡
+- 根据亮度动态调整渐变色，实现色轮亮度联动
+- 使用 `requestAnimationFrame` 优化动画性能（如需要）
+
+#### 颜色处理技巧
+
+- 使用 `colord` 库进行颜色格式转换和计算
+- HSV 模型适合交互式取色（H=色相, S=饱和度, V=明度）
+- 互补色计算：`(hue + 180) % 360`
+- 和谐色生成：旋转色相角（30°、90°、150°、180°）
+
+#### UI 交互优化
+
+- **高对比度设计**：当背景色较暗时使用白色边框，较亮时使用黑色边框
+- **避免透明度陷阱**：不要让关键UI元素的 opacity 随亮度归零
+- **精确位置计算**：使用 `transform: translate(-50%, -50%)` 居中时，JS坐标无需额外偏移
+- **事件监听优化**：使用 `useEventListener` (VueUse) 自动管理生命周期
+
+#### ZTools 集成要点
+
+- 通知功能封装：提供降级处理（开发环境使用 console/Notification API）
+- 剪贴板操作：封装统一的复制工具，集成通知反馈
+- 全局 API 访问：`(window as any).ztools` 或导入类型后使用
+- Preload 脚本：使用 CommonJS 规范，代码不能打包/压缩
+
+#### 常见问题与解决
+
+**问题1：取色器在全黑时不可见**
+- 原因：opacity 设置为 0
+- 解决：固定 opacity 为 '1'，通过边框颜色区分
+
+**问题2：取色器位置偏移**
+- 原因：CSS transform 居中时 JS 又减去了半径
+- 解决：直接使用计算坐标，让 transform 处理居中
+
+**问题3：色轮亮度不随滑块变化**
+- 原因：未监听颜色变化重绘
+- 解决：在 watch 中调用 `drawColorWheel()`
+
+**问题4：ztools 类型导入错误**
+- 原因：模块使用 `export =` 方式导出
+- 解决：使用 side-effect import `import "@ztools-center/ztools-api-types"`
+
 ### 未来开发计划
 
 根据设计图，需要实现以下功能模块：
 
+#### ✅ 已完成
+
 1. **色轮取色器** - 核心取色功能
-2. **颜色格式转换** - HEX/RGB/HSV/HSL/CMYK/HSI/CIE-LAB
-3. **和谐色生成** - 互补色、对比色、类似色等
-4. **AI配色** - 智能配色建议
-5. **UI色卡库** - 主流设计系统色卡
-6. **图片取色** - 从图片提取颜色
-7. **传统色系** - 中国传统色、日本传统色等
-8. **渐变色** - 渐变生成和管理
-9. **收藏功能** - 颜色收藏和管理
+   - Canvas 2D 绘制 HSV 色轮
+   - 鼠标拖动取色
+   - 色轮亮度随 V 值动态调整
+   - 智能边框颜色（黑/白）确保最大对比度
+   - 取色器圆圈中心精确跟随鼠标位置
+
+2. **饱和度/明度滑块** - ColorSlider 组件
+   - 独立的饱和度和明度调节滑块
+   - 实时更新颜色
+
+3. **颜色格式显示** - ColorFormats 组件
+   - HEX、RGB、HSV、HSL 四种格式实时显示
+   - 一键复制功能
+   - ZTools 系统通知反馈
+
+4. **和谐色生成** - HarmonyColors 组件
+   - 互补色（180°）、对比色（150°）、类似色（30°）、中差色（90°）
+   - 悬停显示颜色值
+   - 点击复制
+
+5. **工具函数封装**
+   - `notification.ts` - ZTools 通知 API 封装
+   - `copy.ts` - 剪贴板复制工具
+   - 开发环境降级处理
+
+#### 🚧 待实现
+
+6. **AI配色** - 智能配色建议
+7. **UI色卡库** - 主流设计系统色卡（Flat UI, Material Design, Ant Design等）
+8. **图片取色** - 从图片提取颜色
+9. **传统色系** - 中国传统色、日本传统色等
+10. **渐变色** - 渐变生成和管理
+11. **收藏功能** - 颜色收藏和管理
+12. **更多颜色格式** - CMYK, HSI, CIE-LAB
 
 ### 参考资源
 
@@ -315,7 +336,8 @@ vp fmt          # 仅代码格式化
 - [plugin.json 配置](https://ztoolscenter.github.io/ZTools-doc/plugin-json.html) - 插件配置详解
 - [Vue 3 文档](https://vuejs.org/)
 - [Tailwind CSS 4 文档](https://tailwindcss.com/docs)
-- [Vite+ 文档](https://vite-plus.dev/)
+- [Vite 文档](https://vite.dev/)
+- [pnpm 文档](https://pnpm.io/)
 - [颜色科学](https://en.wikipedia.org/wiki/Color_space)
 
 ---
