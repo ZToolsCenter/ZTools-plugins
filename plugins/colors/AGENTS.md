@@ -114,8 +114,6 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check` and `vp test` to validate changes.
-- [ ] 确保所有代码符合Tailwind CSS 4规范
-- [ ] 确保所有import使用`vite-plus`而非`vite`或`vitest`
 <!--VITE PLUS END-->
 
 ---

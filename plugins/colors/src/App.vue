@@ -6,6 +6,7 @@ import ColorSlider from "./components/ColorSlider.vue";
 import ColorFormats from "./components/ColorFormats.vue";
 import HarmonyColors from "./components/HarmonyColors.vue";
 import { showSuccess } from "./utils/notification";
+import { copyColor } from "./utils/copy";
 
 let enterAction = ref<{
   code: string;
@@ -27,18 +28,18 @@ onMounted(() => {
     route.value = "";
   });
 });
-const copyToClipboard = async (text: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    showSuccess(`已复制颜色: ${text}`);
-  } catch (err) {
-    console.error("复制失败:", err);
-    showSuccess("复制失败");
-  }
-};
+
 let currentColorNotHash = computed(() =>
   currentColor.value.startsWith("#") ? currentColor.value.substring(1) : currentColor.value,
 );
+let isColorRemovalHash = ref(false);
+let copyColor1 = () => {
+  if (isColorRemovalHash.value) {
+    copyColor(currentColorNotHash.value);
+  } else {
+    copyColor(currentColor.value);
+  }
+};
 </script>
 
 <template>
@@ -97,18 +98,14 @@ let currentColorNotHash = computed(() =>
     >
       <div class="flex items-center space-x-4">
         <label class="flex items-center space-x-2 cursor-pointer">
-          <input type="checkbox" class="rounded text-blue-600" />
+          <input v-model="isColorRemovalHash" type="checkbox" class="rounded text-blue-600" />
           <span class="text-sm text-gray-700">色值去 "#"</span>
         </label>
       </div>
       <div class="flex items-center space-x-3">
         <button
           class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          @click="
-            () => {
-              copyToClipboard(currentColorNotHash);
-            }
-          "
+          @click="copyColor1()"
         >
           复制颜色
         </button>

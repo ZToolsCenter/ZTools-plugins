@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { colord } from "colord";
 import { showSuccess } from "@/utils/notification";
+import { copyColor } from "@/utils/copy";
 
 interface Props {
   color: string;
@@ -37,15 +38,6 @@ const harmonyColors = computed<HarmonyColor[]>(() => {
     },
   ];
 });
-
-const copyToClipboard = async (text: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    showSuccess(`已复制颜色: ${text}`);
-  } catch (err) {
-    console.error("复制失败:", err);
-  }
-};
 </script>
 
 <template>
@@ -61,7 +53,7 @@ const copyToClipboard = async (text: string) => {
           <div
             class="w-10 h-10 rounded-lg shadow-md border border-gray-200 transition-transform hover:scale-105"
             :style="{ backgroundColor: c }"
-            @click="copyToClipboard(c)"
+            @click="copyColor(c)"
           />
           <div
             class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"

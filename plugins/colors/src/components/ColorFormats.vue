@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { colord } from "colord";
 import { showError, showSuccess } from "@/utils/notification";
+import { copyColor } from "@/utils/copy";
 
 interface Props {
   color: string;
@@ -29,16 +30,6 @@ const colorFormats = computed(() => {
     },
   };
 });
-
-const copyToClipboard = async (text: string, label: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    showSuccess(`已复制 ${label}: ${text}`);
-  } catch (err) {
-    console.error("复制失败:", err);
-    showError("复制失败");
-  }
-};
 </script>
 
 <template>
@@ -52,7 +43,7 @@ const copyToClipboard = async (text: string, label: string) => {
         readonly
       />
       <button
-        @click="copyToClipboard(`#${colorFormats.hex}`, 'HEX')"
+        @click="copyColor(`#${colorFormats.hex}`)"
         class="grow-0 p-1 text-gray-500 hover:text-gray-700"
       >
         <svg
@@ -81,12 +72,7 @@ const copyToClipboard = async (text: string, label: string) => {
         readonly
       />
       <button
-        @click="
-          copyToClipboard(
-            `${colorFormats.rgb.r}, ${colorFormats.rgb.g}, ${colorFormats.rgb.b}`,
-            'RGB',
-          )
-        "
+        @click="copyColor(`${colorFormats.rgb.r}, ${colorFormats.rgb.g}, ${colorFormats.rgb.b}`)"
         class="grow-0 p-1 text-gray-500 hover:text-gray-700"
       >
         <svg
@@ -115,12 +101,7 @@ const copyToClipboard = async (text: string, label: string) => {
         readonly
       />
       <button
-        @click="
-          copyToClipboard(
-            `${colorFormats.hsv.h}, ${colorFormats.hsv.s}, ${colorFormats.hsv.v}`,
-            'HSV',
-          )
-        "
+        @click="copyColor(`${colorFormats.hsv.h}, ${colorFormats.hsv.s}, ${colorFormats.hsv.v}`)"
         class="p-1 text-gray-500 hover:text-gray-700"
       >
         <svg
@@ -149,12 +130,7 @@ const copyToClipboard = async (text: string, label: string) => {
         readonly
       />
       <button
-        @click="
-          copyToClipboard(
-            `${colorFormats.hsl.h}, ${colorFormats.hsl.s}, ${colorFormats.hsl.l}`,
-            'HSL',
-          )
-        "
+        @click="copyColor(`${colorFormats.hsl.h}, ${colorFormats.hsl.s}, ${colorFormats.hsl.l}`)"
         class="p-1 text-gray-500 hover:text-gray-700"
       >
         <svg

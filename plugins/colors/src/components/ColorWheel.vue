@@ -106,7 +106,7 @@ const updatePickerPosition = () => {
   picker.style.left = `${x}px`;
   picker.style.top = `${y}px`;
   picker.style.opacity = (hsv.v / 100).toString();
-  
+
   // 计算互补色（色相旋转180度）作为边框颜色，保持最大对比度
   const complementaryColor = colord({ h: (hsv.h + 180) % 360, s: hsv.s, v: hsv.v }).toHex();
   picker.style.borderColor = complementaryColor;
