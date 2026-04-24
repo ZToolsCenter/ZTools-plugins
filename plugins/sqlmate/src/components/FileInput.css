@@ -1,0 +1,118 @@
+.file-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.file-input--drag {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.file-input__textarea {
+  flex: 1;
+  min-height: 180px;
+  padding: 10px 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+}
+
+.file-input__large {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px;
+  min-height: 80px;
+}
+
+.file-input__large-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.file-input__large-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-input__large-name {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-input__large-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.file-input__clear {
+  background: none;
+  color: var(--fg-muted);
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.file-input__clear:hover {
+  color: var(--danger);
+  background: var(--danger-muted);
+}
+
+.file-input__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.file-input__btn {
+  padding: 3px 10px;
+  font-size: 12px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  line-height: 1.8;
+  flex-shrink: 0;
+}
+
+.file-input__btn--ghost {
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+}
+
+.file-input__btn--ghost:hover {
+  color: var(--fg);
+}
+
+.file-input__path {
+  font-size: 11px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}

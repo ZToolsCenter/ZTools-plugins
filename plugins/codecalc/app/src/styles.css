@@ -1,0 +1,1051 @@
+@import 'copy-styles.css';
+@import 'completion.css';
+@import 'tag.css';
+@import 'snapshot.css';
+@import 'settings.css';
+@import 'matrix.css';
+@import 'shortcuts.css';
+@import 'notification.css';
+@import 'custom-functions.css';
+
+
+:root {
+    --bg-primary: #f0f0f0;
+    --bg-container: #ffffff;
+    --bg-expression-odd: #f8f9fa;
+    --bg-expression-even: #e9ecef;
+    --text-primary: #212529;
+    --border-color: #dee2e6;
+    --shadow-color: rgba(0,0,0,0.1);
+    --text-secondary: #6c757d;
+    --warning-color: #f0ad4e;
+    --error-color: #dc3545;
+    --tooltip-bg: #8E8E93;
+    --tooltip-hover-bg: #34C759;
+    --tooltip-text-bg: rgba(238, 238, 238, 0.95);
+    --tooltip-text-color: rgb(0, 0, 0);
+    --button-text: white;
+    --error-hover-color: #c82333;
+    --switch-bg: #ccc;
+    --switch-handle: white;
+    --switch-active: #28a745;
+    --link-color: #BA55D3;
+    --link-hover-color: #9932CC;
+    --github-link-color: #24292f;
+    --github-link-hover-color: #57606a;
+}
+
+:root[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-container: #1f1f1f;
+    --bg-expression-odd: #333333;
+    --bg-expression-even: #404040;
+    --text-primary: #e0e0e0;
+    --border-color: #4a4a4a;
+    --shadow-color: #0000004d;
+    --text-secondary: #9ca3af;
+    --warning-color: #ffc107;
+    --error-color: #b70303;
+    --tooltip-bg: #666666;
+    --tooltip-hover-bg: #34C759;
+    --tooltip-text-bg: #2d2d2d;
+    --tooltip-text-color: #ffffff;
+    --button-text: #e0e0e0;
+    --switch-bg: #666666;
+    --switch-handle: #e0e0e0;
+    --switch-active: #00bf63;
+    --link-color: #DA70D6;
+    --link-hover-color: #DDA0DD;
+    --github-link-color: #f0f6fc;
+    --github-link-hover-color: #c9d1d9;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background-color: var(--bg-primary);
+    font-size: 16px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow-x: hidden;
+    color: var(--text-primary);
+}
+
+.container {
+    width: 100%;
+    max-width: 100vw;
+    padding: 10px;
+    padding-bottom: calc(2.5rem + 10px);
+    box-sizing: border-box;
+    margin: 0 auto;
+    border-radius: 0.5rem;
+    background-color: var(--bg-container);
+    box-shadow: 0 0.125rem 0.625rem var(--shadow-color);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.expression-line {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 0.5rem;
+    margin-bottom: 0.0625rem;
+    border-radius: 0.375rem;
+    background-color: var(--bg-expression-odd);
+    gap: 0.625rem;
+    min-height: 3.5rem;
+    position: relative;
+    overflow: visible;
+    margin-top: 0.35rem;
+}
+
+.expression-line:first-child {
+    margin-top: 0;
+}
+
+.expression-line:nth-child(even) {
+    background-color: var(--bg-expression-even);
+}
+
+.input {
+    flex: 1;
+    font-size: 1.5rem;
+    font-family: "Consolas", "Menlo", "Andale Mono", "Monaco", monospace;
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 0.5rem 8px 0.5rem 2rem;
+    min-width: 0;
+    color: transparent; /* 文字颜色由下层高亮层负责，保留光标颜色 */
+    caret-color: var(--text-primary);
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    resize: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 23px;
+    line-height: 23px;
+    width: 100%;
+}
+
+.input.multiline {
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: break-word;
+    text-overflow: clip;
+    overflow: visible;
+    font-size: 1.2rem;
+    line-height: 1.4;
+    height: auto;
+}
+
+.expression-input {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.input-highlight {
+    position: absolute;
+    inset: 0;
+    padding: 0.5rem 8px 0.5rem 2rem;
+    font-size: 1.5rem;
+    font-family: "Consolas", "Menlo", "Andale Mono", "Monaco", monospace;
+    white-space: pre;
+    overflow: hidden;
+    color: var(--text-primary);
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+.input-highlight.multiline {
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: break-word;
+    font-size: 1.2rem;
+    line-height: 1.4;
+}
+
+.cc-syntax-func {
+    /* 与补全样式一致 */
+    color: var(--completion-function-selected);
+}
+
+.cc-syntax-const {
+    /* 与补全样式一致 */
+    color: var(--completion-constant-selected);
+}
+
+.cc-syntax-sci {
+    /* 科学计数法 e：用 property 色系更贴近“运算符/语法” */
+    color: var(--completion-property-selected);
+}
+
+
+.result {
+    font-size: 1.5rem;
+    font-family: "Consolas", "Menlo", "Andale Mono", "Monaco", monospace;
+    padding-left: 0.625rem;
+    border-left: 0.0625rem solid var(--border-color);
+    min-width: 18rem;
+    width: auto;
+    text-align: right;
+    flex-shrink: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    padding-right: 0.5rem;
+    position: relative;
+    transition: all 0.2s ease;
+    /* cursor: pointer; */
+}
+
+.result::before {
+    content: "=";
+    position: absolute;
+    left: 0.625rem;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s, font-weight 0.2s;
+}
+
+.result.has-input::before {
+    opacity: 1;
+    color: var(--text-secondary, #6c757d);
+}
+
+.result.has-value::before {
+    color: inherit;
+}
+
+.result.warning::before {
+    color: var(--warning-color, #f0ad4e);
+    font-weight: bold;
+}
+
+.result.error::before {
+    color: var(--error-color, #dc3545);
+    font-weight: bold;
+}
+
+.result-value {
+    margin-left: 1.5rem;
+    display: inline-block;
+}
+
+#expression-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 1rem;
+}
+
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2.5rem;
+    background-color: var(--bg-container);
+    box-shadow: 0 -0.125rem 0.625rem var(--shadow-color);
+    display: flex;
+    align-items: center;
+    padding: 0 1.25rem;
+    z-index: 100;
+    justify-content: space-between;
+    box-sizing: border-box;
+}
+
+.tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: default;
+}
+
+.tooltip-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--tooltip-bg, #8E8E93);
+    color: white;
+    font-size: 14px;
+    cursor: help;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+    z-index: 2;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tooltip:hover .tooltip-icon {
+    cursor: pointer;
+    background: var(--tooltip-hover-bg, #40B883);
+    animation: circle-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes circle-pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.4);
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 6px rgba(52, 199, 89, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(52, 199, 89, 0);
+    }
+}
+
+.help-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.settings-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    opacity: 0;
+    width: 16px;
+    height: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 鼠标悬浮时的动画 */
+.tooltip:hover .help-icon {
+    transform: translate(-50%, -50%) rotate(90deg) translateY(-100%);
+}
+
+.tooltip:hover .settings-icon {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: translate(-50%, -50%) rotate(0) scale(1);
+    }
+    50% {
+        transform: translate(-50%, -50%) rotate(0) scale(1.2);
+    }
+    100% {
+        transform: translate(-50%, -50%) rotate(0) scale(1);
+    }
+}
+
+/* 点击设置图标时的动画 */
+.tooltip-icon.clicked .settings-icon {
+    animation: none;
+    transform: translate(-50%, -50%) rotate(0) scale(1);
+}
+
+/* 设置面板打开时保持绿色 */
+.tooltip-icon.clicked {
+    background: var(--tooltip-hover-bg);
+    animation: none;
+    transform: scale(1);
+}
+
+.tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: 2.8125rem;
+    left: 0;
+    transform: translateX(0);
+    margin-bottom: 0.625rem;
+    padding: 0.625rem;
+    background-color: var(--tooltip-text-bg);
+    color: var(--tooltip-text-color);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    box-shadow: 0 0.125rem 0.3125rem rgba(0, 0, 0, 0.08);
+    transition: visibility 0.1s 0.1s, opacity 0.1s 0.1s;
+    z-index: 101;
+}
+
+.tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 0.75rem;
+    margin-left: 0;
+    border-width: 0.3125rem;
+    border-style: solid;
+    border-color: var(--tooltip-text-bg) transparent transparent transparent;
+}
+
+.tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transition-delay: 0.1s;
+}
+
+.tooltip:not(:hover) .tooltip-text {
+    transition-delay: 0.2s;
+}
+
+.clear-button {
+    background-color: var(--error-color);
+    color: var(--button-text);
+    border: none;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    transition: background-color 0.15s ease;
+    opacity: 1;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    -webkit-font-smoothing: antialiased;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06),
+                0 2px 5px -1px rgba(0, 0, 0, 0.06);
+}
+
+.clear-button:hover {
+    background-color: var(--error-hover-color);
+    transform: scale(0.98);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1),
+                0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.clear-button:active {
+    transform: scale(0.96);
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.manage-functions-button {
+    background-color: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    opacity: 1;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    -webkit-font-smoothing: antialiased;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04),
+                0 2px 5px -1px rgba(0, 0, 0, 0.05);
+}
+
+.manage-functions-button:hover {
+    background-color: rgba(52, 199, 89, 0.10);
+    border-color: rgba(52, 199, 89, 0.45);
+    transform: scale(0.98);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08),
+                0 2px 4px -1px rgba(0, 0, 0, 0.05);
+}
+
+.manage-functions-button:active {
+    transform: scale(0.96);
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.result-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 43%;
+    flex-shrink: 0;
+    position: relative;
+    padding-right: 1.5rem;
+    box-sizing: border-box;
+    z-index: 2;
+}
+
+/* 消息图标基础样式 */
+.message-icon {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: inherit;
+}
+
+/* 图标背景色 */
+.expression-line:nth-child(even) .message-icon {
+    background-color: var(--bg-expression-even);
+}
+
+.expression-line:nth-child(odd) .message-icon {
+    background-color: var(--bg-expression-odd);
+}
+
+/* 图标颜色 */
+.message-icon.error {
+    color: var(--error-color);
+}
+
+.message-icon.error::before {
+    content: "❌";
+    font-size: 1rem;
+}
+
+.message-icon.warning {
+    color: var(--warning-color);
+}
+
+.message-icon.warning::before {
+    content: "";
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f0ad4e'%3E%3Cpath d='M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'/%3E%3C/svg%3E");
+    background-size: 1.2rem 1.2rem;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.message-icon.info {
+    color: var(--switch-active);
+}
+
+.message-icon.info::before {
+    content: "";
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2328a745'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'/%3E%3C/svg%3E");
+    background-size: 1.2rem 1.2rem;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+/* 自定义函数/常数：与 value.customFunc / value.customConstant 绑定，仅在此状态写入 storage */
+.message-icon.customFunc {
+    color: var(--completion-function-selected);
+}
+
+.message-icon.customFunc::before {
+    content: "𝒇";  /* 粗斜体 f \boldsymbol{f} */
+    font-size: 1.1rem;
+    background: none;
+    background-image: none;
+    width: auto;
+    height: auto;
+    position: static;
+}
+
+.message-icon.customCst {
+    color: var(--completion-constant-selected);
+}
+
+.message-icon.customCst::before {
+    content: "𝓒";  /* 粗斜体 c \boldsymbol{c} */
+    font-size: 1.1rem;
+    background: none;
+    background-image: none;
+    width: auto;
+    height: auto;
+    position: static;
+}
+
+/* 消息文本容器基础样式 */
+.message-text {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0;  /* 移除间距，使用margin来控制层叠 */
+}
+
+/* 错误消息样式 */
+.message-icon.error .message-text {
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    background-color: var(--error-color);
+    color: var(--tooltip-text-color);
+}
+
+/* Material Design 风格的消息样式 */
+.message-content {
+    padding: 6px 12px;
+    border-radius: 3px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    position: relative;
+    transform: translateY(0);
+    margin-top: 0;
+    z-index: 3;
+    background-color: var(--bg-container);
+}
+
+/* 层叠效果 */
+.message-content + .message-content {
+    margin-top: -30px;  /* 调整重叠程度，露出一点上一条消息 */
+    transform: translateY(6px);  /* 微调偏移量 */
+    opacity: 0.97;  /* 稍微提高透明度 */
+    z-index: 2;
+}
+
+.message-content + .message-content + .message-content {
+    transform: translateY(12px);  /* 再次微调偏移量 */
+    opacity: 0.94;
+    z-index: 1;
+}
+
+/* 消息类型样式 */
+.message-content.warning {
+    background-color: rgba(240, 173, 78, 0.95);
+}
+
+.message-content.info {
+    background-color: rgba(40, 167, 69, 0.95);
+}
+
+.message-content.customFunc {
+    background-color: rgba(77, 150, 218, 0.95);
+    color: var(--tooltip-text-color);
+}
+
+.message-content.customCst {
+    background-color: rgba(5, 148, 164, 0.95);
+    color: var(--tooltip-text-color);
+}
+
+/* 悬停展开效果 */
+.message-text:hover .message-content {
+    transform: translateY(0) !important;
+    margin-top: 4px !important;
+    opacity: 1;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);  /* 悬停时增加阴影 */
+}
+
+/* 悬停显示效果 */
+.message-icon:hover .message-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.toggle-label {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+/* 基础开关样式 */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 2.5rem;
+    height: 1.25rem;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* 默认样式（用于函数补全开关） */
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--switch-bg, #ccc);
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 0.875rem;
+    width: 0.875rem;
+    left: 0.188rem;
+    bottom: 0.188rem;
+    background-color: var(--switch-handle, white);
+    transition: .4s;
+}
+
+.slider.round {
+    border-radius: 1.25rem;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+/* 默认选中状态（用于函数补全开关） */
+input:checked + .slider {
+    background-color: var(--switch-active, #28a745);
+}
+
+input:checked + .slider:before {
+    transform: translateX(1.25rem);
+}
+
+/* 历史开关的特殊样式 */
+.history-toggle .slider {
+    background-color: #ccc;
+}
+
+.history-toggle .slider:before {
+    left: auto;
+    right: 0.188rem;
+}
+
+.history-toggle input:checked + .slider {
+    background-color: #28a745;
+}
+
+.history-toggle input:checked + .slider:before {
+    transform: translateX(-1.25rem);
+}
+
+.history-toggle {
+    flex-direction: row-reverse;
+}
+
+.toggle-label {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+@media screen and (max-width: 768px) {
+    body {
+        font-size: 14px;
+    }
+    
+    .container {
+        width: calc(100% - 2rem);
+        padding: 0.75rem;
+    }
+    
+    .input, .result {
+        font-size: 1.2rem;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    body {
+        font-size: 12px;
+        padding: 1vh;
+    }
+    
+    .container {
+        width: calc(100% - 1.5rem);
+        padding: 0.5rem;
+    }
+    
+    .input, .result {
+        font-size: 1rem;
+    }
+}
+
+.tooltip-icon,
+.message-icon {
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out;
+    transform-origin: center center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.message-icon {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    transform-origin: right center;
+}
+
+.message-icon:hover {
+    transform: translateY(-50%) scale(1.1);
+}
+
+.tooltip-icon:hover {
+    transform: scale(1.1);
+}
+
+.right-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.history-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-direction: row-reverse;
+}
+
+.history-toggle .toggle-label {
+    margin-right: 5px;
+}
+
+/* 删除历史开关的特殊样式，使用默认样式 */
+
+/* 修改消息提示的显示逻辑 */
+.message-icon .message-text {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 100%;
+    color: var(--text-primary);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-right: 8px;
+    transition: visibility 0.2s, opacity 0.2s;
+}
+
+/* 添加持续显示的样式 */
+.message-icon:hover .message-text {
+    visibility: visible;
+    opacity: 1;
+    transition-delay: 0s;
+}
+
+.message-icon:not(:hover) .message-text {
+    transition-delay: 0.1s;
+}
+
+.message-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transform: translateY(-50%);
+}
+
+.message-item {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--tooltip-text-color);
+}
+
+.message-item.warning {
+    background-color: var(--warning-color);
+}
+
+.message-item.info {
+    background-color: var(--switch-active);
+}
+
+.message-icon:hover .message-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* 开关容器样式 */
+.completion-toggle, .history-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.left-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* 确保历史面板不会导致页面溢出 */
+.history-panel {
+    box-sizing: border-box;
+    max-width: 100vw;
+}
+
+/* 当设置面板打开时，不显示 tooltip */
+.tooltip-icon.clicked + .tooltip-text {
+    display: none;
+}
+
+/* 修改链接颜色 */
+.tooltip-text .docs-link a {
+    color: var(--link-color);
+    opacity: 0.9;
+}
+
+.tooltip-text .docs-link a:hover {
+    color: var(--link-color);
+    opacity: 1;
+}
+
+.tooltip-text .github-link {
+    color: var(--github-link-color);
+}
+
+.tooltip-text .github-link a {
+    color: inherit;
+    opacity: 0.9;
+}
+
+.tooltip-text .github-link a:hover {
+    color: var(--github-link-hover-color);
+    opacity: 1;
+}
+
+/* 修改矩阵图标样式 */
+.message-icon.matrix {
+    color: #9A66CC;
+}
+
+.message-icon.matrix::before {
+    content: "";
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2 M18 4c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2' fill='none' stroke='%239c27b0' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='9' cy='8' r='1.2' fill='%239c27b0'/%3E%3Ccircle cx='15' cy='8' r='1.2' fill='%239c27b0'/%3E%3Ccircle cx='9' cy='12' r='1.2' fill='%239c27b0'/%3E%3Ccircle cx='15' cy='12' r='1.2' fill='%239c27b0'/%3E%3Ccircle cx='9' cy='16' r='1.2' fill='%239c27b0'/%3E%3Ccircle cx='15' cy='16' r='1.2' fill='%239c27b0'/%3E%3C/svg%3E");
+    background-size: 1.2rem 1.2rem;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+/* 为矩阵消息添加特定的背景色 */
+.message-content.matrix {
+    background-color: rgba(148, 81, 159, 0.985);
+}
+
+/* 全局滚动条（半透明毛玻璃） */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(152, 164, 182, 0.34) rgba(255, 255, 255, 0.04);
+}
+
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-track-piece,
+::-webkit-scrollbar-corner {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 999px;
+    backdrop-filter: blur(20px) saturate(125%);
+    -webkit-backdrop-filter: blur(20px) saturate(125%);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        rgba(212, 221, 234, 0.4) 0%,
+        rgba(176, 190, 211, 0.3) 100%
+    );
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.24),
+        0 2px 10px rgba(32, 44, 65, 0.12);
+    backdrop-filter: blur(16px) saturate(125%);
+    -webkit-backdrop-filter: blur(16px) saturate(125%);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        180deg,
+        rgba(222, 231, 243, 0.5) 0%,
+        rgba(189, 203, 223, 0.4) 100%
+    );
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(
+        180deg,
+        rgba(196, 208, 227, 0.58) 0%,
+        rgba(166, 180, 203, 0.48) 100%
+    );
+}
+
+/* 暗色主题毛玻璃滚动条 */
+:root[data-theme="dark"] * {
+    scrollbar-color: rgba(129, 143, 166, 0.4) rgba(22, 27, 34, 0.16);
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-track,
+:root[data-theme="dark"] ::-webkit-scrollbar-track-piece,
+:root[data-theme="dark"] ::-webkit-scrollbar-corner {
+    background: rgba(24, 30, 40, 0.14) !important;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px) saturate(130%);
+    -webkit-backdrop-filter: blur(12px) saturate(130%);
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        rgba(117, 132, 155, 0.44) 0%,
+        rgba(90, 104, 126, 0.34) 100%
+    ) !important;
+    border: 1px solid rgba(184, 196, 215, 0.12) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 3px 12px rgba(0, 0, 0, 0.22) !important;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        180deg,
+        rgba(132, 147, 171, 0.54) 0%,
+        rgba(102, 118, 142, 0.46) 100%
+    ) !important;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(
+        180deg,
+        rgba(144, 160, 186, 0.62) 0%,
+        rgba(110, 126, 152, 0.54) 100%
+    ) !important;
+}
