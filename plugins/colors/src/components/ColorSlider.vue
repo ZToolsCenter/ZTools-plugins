@@ -39,7 +39,6 @@ const handleMouseMove = (e: MouseEvent) => {
   const rect = sliderRef.value.getBoundingClientRect();
   const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
   const value = x / rect.width;
-  console.log(value);
 
   const hsv = currentColor.value.toHsv();
   let newColor = currentColor.value;
