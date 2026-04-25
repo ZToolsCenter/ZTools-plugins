@@ -1,6 +1,6 @@
 {
   "name": "colors",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,7 @@
     "@ztools-center/ztools-api-types": "^1.0.1",
     "colord": "^2.9.3",
     "tailwindcss": "^4.2.2",
-    "vue": "3.6.0-beta.10"
+    "vue": "3.5.33"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",
@@ -31,6 +31,5 @@
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
-  },
-  "packageManager": "pnpm@10.33.0"
+  }
 }

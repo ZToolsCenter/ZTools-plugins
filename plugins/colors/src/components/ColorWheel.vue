@@ -22,7 +22,7 @@ const currentColor = ref(props.modelValue);
 onMounted(() => {
   drawColorWheel();
 });
-let v = computed(() => colord(props.modelValue).toHsv().v);
+const v = computed(() => colord(props.modelValue).toHsv().v);
 watch(v, () => {
       // 重新绘制色轮以更新亮度
       drawColorWheel();

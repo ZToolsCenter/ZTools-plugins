@@ -20,18 +20,16 @@
 ### 环境要求
 
 - Node.js >= 20.0.0
-- pnpm >= 10.0.0
-
 ### 安装依赖
 
 ```bash
-pnpm install
+npm install
 ```
 
 ### 开发模式
 
 ```bash
-pnpm dev
+npm dev
 ```
 
 开发服务器将在 `http://localhost:5173` 启动，支持热重载。
@@ -39,7 +37,7 @@ pnpm dev
 ### 生产构建
 
 ```bash
-pnpm build
+npm build
 ```
 
 构建产物将输出到 `dist/` 目录，可直接作为 ZTools 插件使用。
@@ -47,7 +45,7 @@ pnpm build
 ### 类型检查
 
 ```bash
-pnpm type-check
+npm type-check
 ```
 
 ## 📦 项目结构
@@ -84,11 +82,11 @@ colors/
 
 - **框架**: Vue 3.6.0 (Composition API + `<script setup>`)
 - **样式**: Tailwind CSS 4.2.2
-- **构建**: Vite 8.0.10
-- **语言**: TypeScript ~6.0.0
+- **构建**: Vite 8.0.10 采用最近发布的vite8作为代码打包器
+- **语言**: TypeScript ~6.0.0 采用最近发布的ts6引擎
 - **颜色处理**: colord 2.9.3
 - **工具库**: @vueuse/core
-- **包管理**: pnpm 10.33.0
+- **包管理**: npm
 
 ## 📖 核心功能说明
 
@@ -111,88 +109,6 @@ colors/
 - 基于色相旋转算法生成和谐色
 - 支持互补色（180°）、对比色（150°）、类似色（30°）、中差色（90°）
 - 悬停显示颜色值，点击即可复制
-
-### 通知系统
-
-- 封装 ZTools `showNotification` API
-- 开发环境降级处理（console + Notification API）
-- 统一的 success/error 接口
-
-## 🔌 ZTools 集成
-
-### 插件配置
-
-在 `plugin.json` 中定义插件功能和触发命令：
-
-```json
-{
-  "name": "colors",
-  "title": "Colors 颜色助手",
-  "main": "index.html",
-  "logo": "logo.png",
-  "preload": "preload/services.js",
-  "features": [
-    {
-      "code": "color-picker",
-      "explain": "颜色选择器",
-      "icon": "logo.png",
-      "cmds": ["取色", "颜色", "color"]
-    }
-  ]
-}
-```
-
-### 插件生命周期
-
-在 `App.vue` 中管理插件生命周期：
-
-```typescript
-import { onPluginEnter, onPluginOut } from '@ztools-center/ztools-api-types';
-
-onPluginEnter((action) => {
-  console.log('插件进入:', action.code);
-});
-
-onPluginOut((isKill) => {
-  console.log('插件退出');
-});
-```
-
-### 使用 ZTools API
-
-```typescript
-// 系统通知
-import { showNotification } from '@/utils/notification';
-showNotification('颜色已复制');
-
-// 访问全局 ztools 对象
-(window as any).ztools.showNotification('Hello');
-```
-
-## 🎯 开发注意事项
-
-### Tailwind CSS 4 差异
-
-```css
-/* ✅ Tailwind 4 */
-@import "tailwindcss";
-
-/* ❌ Tailwind 3 (已废弃) */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-```
-
-### pnpm 命令规范
-
-- ✅ 使用 `pnpm install`、`pnpm dev`、`pnpm build`、`pnpm add <package>`
-- ❌ 不要直接使用 `npm`、`yarn`
-
-### 类型安全
-
-- 所有组件使用 `<script setup lang="ts">`
-- 从 `@ztools-center/ztools-api-types` 导入类型定义
-- 使用 `/// <reference types="@ztools-center/ztools-api-types" />` 引入全局类型
 
 ## 📝 待办事项
 
@@ -225,4 +141,3 @@ MIT License
 - [Vue 3 文档](https://vuejs.org/)
 - [Tailwind CSS 文档](https://tailwindcss.com/docs)
 - [Vite 文档](https://vite.dev/)
-- [pnpm 文档](https://pnpm.io/)
