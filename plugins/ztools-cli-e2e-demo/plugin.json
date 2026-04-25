@@ -1,0 +1,7 @@
+{
+  "name": "ztools-cli-e2e-demo",
+  "title": "ZTools CLI E2E Demo",
+  "description": "End-to-end demo to validate ztools-plugin-cli publish flow. Safe to close.",
+  "author": "lzx8589561 <lzx8589561@gmail.com>",
+  "version": "0.1.0"
+}
