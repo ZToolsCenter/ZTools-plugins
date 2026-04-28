@@ -1,153 +1,59 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { colord } from "colord";
-import { showError, showSuccess } from "@/utils/notification";
+import { computed } from "vue";
 import { copyColor } from "@/utils/copy";
+import { useMessage } from "@/utils/message";
+import { useFavorites } from "../utils/favorites";
+import ColorFormat from "./ColorFormat.vue";
 
-interface Props {
-  color: string;
-}
-
-const props = defineProps<Props>();
-
-const colorFormats = computed(() => {
-  const color = colord(props.color);
-  const hsv = color.toHsv();
-  const hsl = color.toHsl();
-
-  return {
-    hex: color.toHex().toUpperCase().replace("#", ""),
-    rgb: color.toRgb(),
-    hsv: {
-      h: hsv.h.toFixed(2),
-      s: `${hsv.s.toFixed(2)}%`,
-      v: `${hsv.v.toFixed(2)}%`,
-    },
-    hsl: {
-      h: hsl.h.toFixed(2),
-      s: `${hsl.s.toFixed(2)}%`,
-      l: `${hsl.l.toFixed(2)}%`,
-    },
-  };
+const message = useMessage();
+const { addFavorite } = useFavorites();
+let color = defineModel<string>();
+let col = computed({
+  get: () => colord(color.value ?? "#000000"),
+  set: (v) => {
+    color.value = v.toHex();
+  },
 });
+
+const formats = ["hex", "rgb", "hsv/hsb", "hsl"] as const;
+
+// 添加到收藏
+const addToFavorites = () => {
+  try {
+    addFavorite(color.value || "#000000");
+    message.success("已添加到收藏");
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : "添加失败");
+  }
+};
 </script>
 
 <template>
   <div class="space-y-3">
+    <!-- 收藏按钮 -->
+    <button
+      @click="addToFavorites"
+      class="flex w-full items-center justify-center space-x-2 rounded-lg bg-gradient-to-r from-pink-500 to-red-500 px-4 py-2 text-white shadow-md transition-all hover:from-pink-600 hover:to-red-600 hover:shadow-lg"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-5 w-5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+        />
+      </svg>
+      <span class="font-medium">添加到收藏</span>
+    </button>
+
     <!-- HEX -->
-    <div class="flex items-center space-x-2">
-      <label class="w-16 text-sm font-medium text-gray-700">HEX</label>
-      <input
-        :value="colorFormats.hex"
-        class="min-w-[0px] flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        readonly
-      />
-      <button
-        @click="copyColor(`#${colorFormats.hex}`)"
-        class="grow-0 p-1 text-gray-500 hover:text-gray-700"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-          />
-        </svg>
-      </button>
-    </div>
-
-    <!-- RGB -->
-    <div class="flex items-center space-x-2">
-      <label class="w-16 text-sm font-medium text-gray-700">RGB</label>
-      <input
-        :value="`${colorFormats.rgb.r}, ${colorFormats.rgb.g}, ${colorFormats.rgb.b}`"
-        class="min-w-[0px] flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        readonly
-      />
-      <button
-        @click="copyColor(`${colorFormats.rgb.r}, ${colorFormats.rgb.g}, ${colorFormats.rgb.b}`)"
-        class="grow-0 p-1 text-gray-500 hover:text-gray-700"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-          />
-        </svg>
-      </button>
-    </div>
-
-    <!-- HSV/HSB -->
-    <div class="flex items-center space-x-2">
-      <label class="w-16 text-sm font-medium text-gray-700">HSV/HSB</label>
-      <input
-        :value="`${colorFormats.hsv.h}, ${colorFormats.hsv.s}, ${colorFormats.hsv.v}`"
-        class="grow min-w-[0px] shrink px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        readonly
-      />
-      <button
-        @click="copyColor(`${colorFormats.hsv.h}, ${colorFormats.hsv.s}, ${colorFormats.hsv.v}`)"
-        class="p-1 text-gray-500 hover:text-gray-700"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-          />
-        </svg>
-      </button>
-    </div>
-
-    <!-- HSL -->
-    <div class="flex items-center space-x-2">
-      <label class="w-16 text-sm font-medium text-gray-700">HSL</label>
-      <input
-        :value="`${colorFormats.hsl.h}, ${colorFormats.hsl.s}, ${colorFormats.hsl.l}`"
-        class="min-w-[0px] flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        readonly
-      />
-      <button
-        @click="copyColor(`${colorFormats.hsl.h}, ${colorFormats.hsl.s}, ${colorFormats.hsl.l}`)"
-        class="p-1 text-gray-500 hover:text-gray-700"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-          />
-        </svg>
-      </button>
-    </div>
+    <ColorFormat v-for="format in formats" :key="format" :flag="format" v-model="col"></ColorFormat>
   </div>
 </template>

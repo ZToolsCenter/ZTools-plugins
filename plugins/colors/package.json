@@ -1,18 +1,25 @@
 {
   "name": "colors",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "preview": "vite preview",
     "build": "vite build",
-    "type-check": "vue-tsc --build"
+    "check-all": "npm run fmt:check && npm run lint  && npm run type-check && npm run build",
+    "dev": "vite dev",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "preview": "vite preview",
+    "release": "npm run check-all && ztools release",
+    "type-check": "vue-tsc --build --noEmit"
   },
   "dependencies": {
     "@vueuse/core": "^14.2.1",
     "@ztools-center/ztools-api-types": "^1.0.1",
     "colord": "^2.9.3",
+    "pinia": "^3.0.4",
     "tailwindcss": "^4.2.2",
     "vue": "3.5.33"
   },
@@ -24,6 +31,8 @@
     "@vitejs/plugin-vue-jsx": "^5.1.5",
     "@vue/tsconfig": "^0.9.1",
     "npm-run-all2": "^8.0.4",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0",
     "typescript": "~6.0.0",
     "vite": "^8.0.10",
     "vite-plugin-vue-devtools": "^8.1.1",

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { colord } from "colord";
-import { showSuccess } from "@/utils/notification";
+import { computed } from "vue";
+import { useCounterStore } from "@/utils/config";
 import { copyColor } from "@/utils/copy";
+import { useMessage } from "@/utils/message";
 
 interface Props {
   color: string;
@@ -14,6 +15,8 @@ interface HarmonyColor {
   label: string;
   colors: string[];
 }
+const config = useCounterStore();
+const message = useMessage();
 
 const harmonyColors = computed<HarmonyColor[]>(() => {
   const color = colord(props.color);
@@ -38,6 +41,10 @@ const harmonyColors = computed<HarmonyColor[]>(() => {
     },
   ];
 });
+function copyColorWithConfig(hex: string) {
+  if (config.removeHash) hex = hex.substring(1);
+  copyColor(hex);
+}
 </script>
 
 <template>
@@ -48,15 +55,15 @@ const harmonyColors = computed<HarmonyColor[]>(() => {
         <div
           v-for="(c, index) in harmony.colors"
           :key="index"
-          class="relative group cursor-pointer"
+          class="group relative cursor-pointer"
         >
           <div
-            class="w-10 h-10 rounded-lg shadow-md border border-gray-200 transition-transform hover:scale-105"
+            class="h-10 w-10 rounded-lg border border-gray-200 shadow-md transition-transform hover:scale-105"
             :style="{ backgroundColor: c }"
-            @click="copyColor(c)"
+            @click="copyColorWithConfig(c)"
           />
           <div
-            class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+            class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap text-gray-500 opacity-0 transition-opacity group-hover:opacity-100"
           >
             {{ c }}
           </div>

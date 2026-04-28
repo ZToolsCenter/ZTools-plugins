@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { colord } from "colord";
 import { useEventListener } from "@vueuse/core";
+import { colord } from "colord";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 
 interface Props {
   modelValue: string;
@@ -79,10 +79,16 @@ useEventListener(document, "mousemove", handleMouseMove, { passive: true });
 </script>
 
 <template>
-  <div ref="sliderRef" class="relative h-6 rounded-full cursor-pointer" :style="{ background: gradient }"
-    @mousedown.prevent="handleMouseDown">
-    <div ref="thumbRef"
-      class="absolute top-1/2 w-6 h-6 bg-white rounded-full shadow-md border border-gray-300 pointer-events-none"
-      style="transform: translate(-50%, -50%)" />
+  <div
+    ref="sliderRef"
+    class="relative h-6 cursor-pointer rounded-full"
+    :style="{ background: gradient }"
+    @mousedown.prevent="handleMouseDown"
+  >
+    <div
+      ref="thumbRef"
+      class="pointer-events-none absolute top-1/2 h-6 w-6 rounded-full border border-gray-300 bg-white shadow-md"
+      style="transform: translate(-50%, -50%)"
+    />
   </div>
 </template>

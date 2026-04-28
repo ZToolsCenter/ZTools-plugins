@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from "vue";
+import { useEventListener } from "@vueuse/core";
 import { colord, extend } from "colord";
 import namesPlugin from "colord/plugins/names";
-import { useEventListener } from "@vueuse/core";
+import { ref, onMounted, onUnmounted, watch, computed } from "vue";
 
 extend([namesPlugin]);
 
@@ -22,17 +22,16 @@ const currentColor = ref(props.modelValue);
 onMounted(() => {
   drawColorWheel();
 });
-const v = computed(() => colord(props.modelValue).toHsv().v);
-watch(v, () => {
-      // 重新绘制色轮以更新亮度
-      drawColorWheel();
-});
+
 watch(
   () => props.modelValue,
   (newVal) => {
     if (newVal !== currentColor.value) {
       currentColor.value = newVal;
       updatePickerPosition();
+
+      // 重新绘制色轮以更新亮度
+      drawColorWheel();
     }
   },
 );
@@ -109,11 +108,11 @@ const updatePickerPosition = () => {
   picker.style.left = `${x}px`;
   picker.style.top = `${y}px`;
   // 保持取色器始终可见，不根据亮度调整透明度
-  picker.style.opacity = '1';
+  picker.style.opacity = "1";
 
   // 智能选择边框颜色：根据亮度动态选择白色或黑色，确保最大对比度
   // 当亮度低于 50% 时使用白色，高于 50% 时使用黑色
-  const borderColor = hsv.v < 50 ? '#ffffff' : '#000000';
+  const borderColor = hsv.v < 50 ? "#ffffff" : "#000000";
   picker.style.borderColor = borderColor;
 };
 
@@ -189,7 +188,7 @@ useEventListener(window, "mousemove", handleMouseMove, { passive: true });
     />
     <div
       ref="pickerRef"
-      class="absolute w-5 h-5 border-2 rounded-full shadow-md pointer-events-none"
+      class="pointer-events-none absolute h-5 w-5 rounded-full border-2 shadow-md"
       style="transform: translate(-50%, -50%)"
     />
   </div>

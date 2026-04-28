@@ -4,7 +4,7 @@
   "title": "颜色助手",
   "description": "这是一个快速选择生成颜色的插件，提供了常用的颜色选择和生成工具，帮助用户轻松获取所需的颜色值。",
   "author": "mekefly",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
