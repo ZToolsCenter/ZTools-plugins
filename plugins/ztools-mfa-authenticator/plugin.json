@@ -1,0 +1,34 @@
+{
+  "name": "ztools-mfa-authenticator",
+  "title": "MFA Authenticator",
+  "logo": "logo.svg",
+  "main": "index.html",
+  "preload": "preload.js",
+  "version": "1.3.0",
+  "description": "TOTP/HOTP/Steam 验证码生成器，支持智能填充、自动解锁、密钥查看保护、主密码管理、实时倒计时（环形/条形切换）、下一周期预览、拼音搜索（含双拼方案）、置顶排序、拖拽排序、一键复制。支持手动添加、otpauth:// URI 导入、二维码图片识别导入、批量导入，以及 TXT/CSV/JSON/Excel 文件导入导出与加密同步。",
+  "author": "alexliang",
+  "pluginSetting": {
+    "single": true,
+    "height": 500
+  },
+  "features": [
+    {
+      "code": "mfa-auth",
+      "explain": "TOTP/HOTP/Steam 验证码 | 智能填充 | 自动解锁 | 密钥保护 | 拼音/双拼搜索 | 二维码识别 | 环形/条形指示器 | 文件导入导出",
+      "icon": "icon.svg",
+      "cmds": [
+        "MFA",
+        "TOTP",
+        "HOTP",
+        "Steam",
+        "二次验证",
+        "MFA Authenticator",
+        {
+          "type": "regex",
+          "label": "导入 otpauth",
+          "match": "^otpauth://(totp|hotp)/"
+        }
+      ]
+    }
+  ]
+}
