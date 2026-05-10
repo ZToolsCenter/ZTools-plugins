@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head lang="en">
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="regex.css">
+</head>
+
+<body>
+	<div id="regex" class="container">
+		<div class="app">
+			<div class="doc">
+				<div class="blocker"></div>
+				<div class="expression">
+					<div class="button-flavor">
+						<span id="flavor-js">JS</span>
+						<span id="flavor-pcre">PHP</span>
+					</div>
+					<div class="editor"></div>
+					<div class="button-flags">
+						<span>
+							<svg viewBox="0 0 1024 1024" width="14" height="14">
+								<defs>
+									<style type="text/css"></style>
+								</defs>
+								<path d="M0 0l128 0 0 1024-128 0 0-1024z" p-id="6153" fill="#2c2c2c"></path>
+								<path
+									d="M832 643.008c82.624 0 154.56-20 192-49.504l0-512c-37.44 29.504-109.376 49.504-192 49.504s-154.56-20-192-49.504l0 512c37.44 29.504 109.376 49.504 192 49.504z"
+									p-id="6154" fill="#2c2c2c"></path>
+								<path
+									d="M608 32.512c-46.912-19.936-115.52-32.512-192-32.512-96.384 0-180.32 20-224 49.504l0 512c43.68-29.504 127.616-49.504 224-49.504 76.48 0 145.088 12.576 192 32.512l0-512z"
+									p-id="6155" fill="#2c3050"></path>
+							</svg>
+							<span>标志</span>
+						</span>
+					</div>
+				</div>
+				<section class="text">
+					<article class="editor multiline">
+						<div class="pad"></div>
+					</article>
+					<span class="result"></span>
+				</section>
+			</div>
+		</div>
+	</div>
+	<div id="library" style="display:none;">
+		<div id="tooltip" class="tooltip">
+			<svg class="tip">
+				<use xlink:href="#dropdown"></use>
+			</svg>
+			<div class="content"></div>
+		</div>
+		<div id="tooltip-flavor">
+			<ul class="list"></ul>
+		</div>
+		<div id="tooltip-flags">
+			<ul class="list"></ul>
+		</div>
+	</div>
+	<script src="regex.js"></script>
+	<script>
+		window.ztools.onPluginEnter(({ type, payload }) => {
+			this.settingDoc = window.ztools.db.get('setting') || { _id: 'setting', flavor: 'js' }
+			window.regex.init(this.settingDoc.flavor)
+			if (type === 'regex') {
+				window.regex.expression.value = payload
+			}
+			window.regex.expression.editor.focus()
+		})
+	</script>
+</body>
+
+</html>
