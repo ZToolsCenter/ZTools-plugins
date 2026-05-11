@@ -1,0 +1,7 @@
+{
+  "name": "ztools-node-manager",
+  "type": "commonjs",
+  "dependencies": {
+    "iconv-lite": "^0.7.2"
+  }
+}

@@ -1,0 +1,107 @@
+.switch-container {
+    width: 26px;
+    height: 4px;
+    background-color: var(--text-color-4);
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.3s;
+
+    /* box-shadow: inset #00000033 0px 1px 3px; */
+}
+
+.switch-container.on {
+    background-color: rgba(226, 136, 62, 0.6);
+}
+
+.switch-button {
+
+    transform: translate(-50%,-50%);
+    top: 50%;
+
+    width: 14px;
+    height: 20px;
+    background-color: #fff;
+    border-radius: 4px;
+    position: absolute;
+
+    left: 7px;
+    transition: all 0.1s ease-in;
+
+    outline: var(--text-color-4) 1px solid;
+    box-shadow: var(--switch-shadow);
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.switch-button::after {
+    /* content: '|'; */
+    font-size: 10px;
+    font-weight: 100;
+    margin-bottom: 1px;
+    color: var(--text-color-2);
+}
+
+.switch-container.on .switch-button {
+    left:calc(100% - 7px);
+    outline: #ff874b44 1px solid;
+}
+
+.switch-container.on .switch-button::after {
+    /* content: '✓'; */
+    color: var(--kv-orange-color);
+}
+
+.switchGroup{
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 32px;
+    row-gap: 16px;
+}
+
+.switchBox{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: max-content;
+    height: 36px;
+}
+
+
+.radioTomatoAni{
+    display: flex;
+    align-items: center;
+    width: max-content;
+    height: 36px;
+    gap: 8px;
+    cursor: pointer;
+}
+
+
+
+.radioTomatoAni input{
+    display: none;
+}
+
+.radioTomatoAni label{
+    font-size: 14px;
+    font-weight: 100;
+    color: var(--text-color-2);
+    padding: 0 8px;
+    border-radius: 8px;
+    border: var(--border-color) 1px solid;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.radioTomatoAni input[type="radio"]:checked + label {
+    background-color: var(--kv-orange-color);
+    color: var(--text-color-6);
+    border: var(--kv-orange-color) 1px solid;
+
+}

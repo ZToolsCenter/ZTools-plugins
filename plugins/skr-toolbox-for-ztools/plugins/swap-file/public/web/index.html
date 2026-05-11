@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>内网文件分享</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 20px;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+
+    .breadcrumb-item {
+      color: #0071e3;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+      .breadcrumb-item:hover {
+        text-decoration: underline;
+      }
+
+    .breadcrumb-separator {
+      color: #6e6e73;
+    }
+
+    .breadcrumb-current {
+      color: #1d1d1f;
+    }
+
+    .file-list {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #e8e8ed;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+
+      .file-item:hover {
+        background: #f5f5f7;
+      }
+
+      .file-item:last-child {
+        border-bottom: none;
+      }
+
+    .file-icon {
+      font-size: 32px;
+      margin-right: 16px;
+      width: 40px;
+      text-align: center;
+    }
+
+    .file-info {
+      flex: 1;
+    }
+
+    .file-name {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .file-meta {
+      font-size: 12px;
+      color: #6e6e73;
+    }
+
+    .file-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #0071e3;
+      color: white;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+      .btn:hover {
+        background: #0077ed;
+      }
+
+      .btn-secondary {
+        background: #e8e8ed;
+        color: #1d1d1f;
+      }
+
+        .btn-secondary:hover {
+          background: #d1d1d6;
+        }
+
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: #6e6e73;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #6e6e73;
+    }
+
+    .qrcode-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+      .qrcode-modal.show {
+        display: flex;
+      }
+
+    .qrcode-content {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 90%;
+    }
+
+    .qrcode-content img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .qrcode-url {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #6e6e73;
+      word-break: break-all;
+    }
+
+    .close-btn {
+      margin-top: 16px;
+      padding: 8px 24px;
+      background: #e8e8ed;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 12px;
+      }
+
+      .file-item {
+        flex-wrap: wrap;
+        padding: 12px 16px;
+      }
+
+      .file-icon {
+        font-size: 24px;
+        width: 28px;
+        margin-right: 10px;
+      }
+
+      .file-info {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-width: 0;
+      }
+
+      .file-name {
+        margin-bottom: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .file-meta {
+        white-space: nowrap;
+        margin-left: 12px;
+        flex-shrink: 0;
+      }
+
+      .file-actions {
+        display: none;
+      }
+
+      .file-checkbox {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        margin-right: 10px;
+        border: 2px solid #c7c7cc;
+        border-radius: 50%;
+        flex-shrink: 0;
+        transition: all 0.2s;
+      }
+
+      .file-checkbox.checked {
+        background: #0071e3;
+        border-color: #0071e3;
+      }
+
+      .file-checkbox.checked::after {
+        content: '✓';
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+      }
+    }
+
+    .download-bar {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: white;
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
+      padding: 12px 16px;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      z-index: 100;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .download-bar.show {
+      display: flex;
+    }
+
+    .download-bar-info {
+      font-size: 14px;
+      color: #6e6e73;
+    }
+
+    .download-bar-info span {
+      color: #0071e3;
+      font-weight: 600;
+    }
+
+    .download-bar-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .download-bar-actions .btn {
+      padding: 8px 20px;
+      font-size: 14px;
+    }
+
+    /* 上传 FAB 按钮 */
+    .upload-fab {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #0071e3;
+      color: white;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 113, 227, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .upload-fab:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 16px rgba(0, 113, 227, 0.5);
+    }
+
+    .upload-fab:active {
+      transform: scale(0.95);
+    }
+
+    /* Action Sheet 遮罩 */
+    .action-sheet-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      transition: opacity 0.3s;
+    }
+
+    .action-sheet-overlay.show {
+      display: block;
+    }
+
+    /* Action Sheet */
+    .action-sheet {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #f5f5f7;
+      border-radius: 16px 16px 0 0;
+      z-index: 201;
+      transform: translateY(100%);
+      transition: transform 0.3s ease-out;
+      padding-bottom: env(safe-area-inset-bottom, 16px);
+    }
+
+    .action-sheet.show {
+      transform: translateY(0);
+    }
+
+    .action-sheet-group {
+      background: white;
+      margin: 8px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .action-sheet-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border: none;
+      background: none;
+      width: 100%;
+      font-size: 16px;
+      color: #0071e3;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-align: left;
+    }
+
+    .action-sheet-item:not(:last-child) {
+      border-bottom: 1px solid #e8e8ed;
+    }
+
+    .action-sheet-item:hover {
+      background: #f5f5f7;
+    }
+
+    .action-sheet-item .icon {
+      font-size: 22px;
+    }
+
+    .action-sheet-cancel {
+      color: #1d1d1f;
+      font-weight: 600;
+    }
+
+    /* 上传 Toast */
+    .upload-toast {
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      padding: 14px 20px;
+      z-index: 300;
+      min-width: 280px;
+      max-width: 90%;
+      transition: top 0.3s ease-out;
+    }
+
+    .upload-toast.show {
+      top: 16px;
+    }
+
+    .upload-toast-text {
+      font-size: 14px;
+      color: #1d1d1f;
+      margin-bottom: 8px;
+    }
+
+    .upload-toast-progress {
+      height: 4px;
+      background: #e8e8ed;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .upload-toast-progress-bar {
+      height: 100%;
+      background: #0071e3;
+      border-radius: 2px;
+      transition: width 0.2s;
+      width: 0%;
+    }
+
+    .upload-toast-result {
+      font-size: 14px;
+    }
+
+    .upload-toast-result.success {
+      color: #34c759;
+    }
+
+    .upload-toast-result.error {
+      color: #ff3b30;
+    }
+
+    /* 拖拽上传区域（仅 PC 端显示） */
+    .dropzone {
+      display: none;
+      margin-bottom: 16px;
+      padding: 40px 20px;
+      border: 2px dashed #c7c7cc;
+      border-radius: 12px;
+      text-align: center;
+      color: #8e8e93;
+      background: white;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+      cursor: pointer;
+    }
+
+    .dropzone.visible {
+      display: block;
+    }
+
+    .dropzone:hover {
+      border-color: #0071e3;
+      color: #0071e3;
+      background: #f0f7ff;
+    }
+
+    .dropzone.drag-over {
+      border-color: #0071e3;
+      background: #e8f2ff;
+      color: #0071e3;
+    }
+
+    .dropzone-icon {
+      font-size: 36px;
+      margin-bottom: 8px;
+    }
+
+    .dropzone-text {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .dropzone-hint {
+      font-size: 12px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 拖拽上传区域（仅 PC 端显示） -->
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-icon">📤</div>
+      <div class="dropzone-text">将文件拖到此处上传</div>
+      <div class="dropzone-hint">或点击此区域选择文件</div>
+    </div>
+
+    <div class="breadcrumb" id="breadcrumb">
+      <!-- 面包屑导航 -->
+    </div>
+
+    <div class="file-list" id="fileList">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+
+  <!-- 二维码弹窗 -->
+  <div class="qrcode-modal" id="qrcodeModal">
+    <div class="qrcode-content">
+      <h3>扫码下载文件</h3>
+      <div id="qrcodeContainer"></div>
+      <div class="qrcode-url" id="qrcodeUrl"></div>
+      <button class="close-btn" onclick="closeQRCode()">关闭</button>
+    </div>
+  </div>
+
+  <!-- 移动端底部下载栏 -->
+  <div class="download-bar" id="downloadBar">
+    <div class="download-bar-info">已选 <span id="selectedCount">0</span> 个文件</div>
+    <div class="download-bar-actions">
+      <button class="btn btn-secondary" onclick="clearSelection()">取消</button>
+      <button class="btn" onclick="downloadSelected()">下载</button>
+    </div>
+  </div>
+
+  <!-- 上传 FAB -->
+  <button class="upload-fab" id="uploadFab" title="上传文件">+</button>
+
+  <!-- Action Sheet 遮罩 -->
+  <div class="action-sheet-overlay" id="actionSheetOverlay" onclick="closeActionSheet()"></div>
+
+  <!-- Action Sheet -->
+  <div class="action-sheet" id="actionSheet">
+    <div class="action-sheet-group">
+      <button class="action-sheet-item" onclick="triggerUpload('album')">
+        <span class="icon">🖼️</span>从相册选择
+      </button>
+      <button class="action-sheet-item" onclick="triggerUpload('file')">
+        <span class="icon">📎</span>选择文件
+      </button>
+    </div>
+    <div class="action-sheet-group">
+      <button class="action-sheet-item action-sheet-cancel" onclick="closeActionSheet()">取消</button>
+    </div>
+  </div>
+
+  <!-- 上传 Toast -->
+  <div class="upload-toast" id="uploadToast"></div>
+
+  <!-- 隐藏的文件输入 -->
+  <input type="file" id="inputAlbum" accept="image/*,video/*" multiple style="display:none">
+  <input type="file" id="inputFile" multiple style="display:none">
+
+  <script>
+    let currentPath = '';
+    let serverStatus = null;
+    const selectedFiles = new Set();
+
+    // 获取服务器状态
+    async function getServerStatus() {
+      try {
+        const response = await fetch('/api/status');
+        serverStatus = await response.json();
+        console.log('Server status:', serverStatus);
+      } catch (error) {
+        console.error('Failed to get server status:', error);
+      }
+    }
+
+    // 获取文件列表
+    async function loadFiles(path = '') {
+      try {
+        currentPath = path;
+        const url = path ? `/api/files?path=${encodeURIComponent(path)}` : '/api/files';
+        const response = await fetch(url);
+        const data = await response.json();
+
+        renderFiles(data.files || []);
+        updateBreadcrumb(path);
+      } catch (error) {
+        console.error('Failed to load files:', error);
+        document.getElementById('fileList').innerHTML = '<div class="empty-state">加载失败</div>';
+      }
+    }
+
+    // 渲染文件列表
+    function renderFiles(files) {
+      const container = document.getElementById('fileList');
+      selectedFiles.clear();
+      updateDownloadBar();
+
+      files.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      if (files.length === 0) {
+        container.innerHTML = '<div class="empty-state">此文件夹为空</div>';
+        return;
+      }
+
+      container.innerHTML = files.map(file => {
+        const icon = file.type === 'folder' ? '📁' : getFileIcon(file.name);
+        const size = file.type === 'file' ? formatSize(file.size) : '';
+        const date = file.mtime ? new Date(file.mtime).toLocaleString('zh-CN') : '';
+        const checkbox = _isMobile && file.type === 'file'
+          ? `<div class="file-checkbox" data-path="${escapeHtml(file.path)}" onclick="event.stopPropagation(); toggleSelect(this, '${escapeHtml(file.path)}')"></div>`
+          : '';
+
+        const onclick = file.type === 'folder'
+          ? `navigateTo('${file.path}')`
+          : _isMobile
+            ? `toggleSelectByItem(this, '${escapeHtml(file.path)}')`
+            : `downloadFile('${file.path}')`;
+
+        return `
+          <div class="file-item" onclick="${onclick}">
+            ${checkbox}
+            <div class="file-icon">${icon}</div>
+            <div class="file-info">
+              <div class="file-name">${escapeHtml(file.name)}</div>
+              <div class="file-meta">${size}${size ? ' · ' : ''}${date}</div>
+            </div>
+            <div class="file-actions">
+              ${file.type === 'file' ? `
+                <button class="btn btn-secondary" onclick="event.stopPropagation(); showQRCode('${file.path}')">二维码</button>
+                <button class="btn" onclick="event.stopPropagation(); downloadFile('${file.path}')">下载</button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 勾选/取消勾选文件（点击 checkbox）
+    function toggleSelect(el, path) {
+      if (selectedFiles.has(path)) {
+        selectedFiles.delete(path);
+        el.classList.remove('checked');
+      } else {
+        selectedFiles.add(path);
+        el.classList.add('checked');
+      }
+      updateDownloadBar();
+    }
+
+    // 点击文件行勾选（移动端）
+    function toggleSelectByItem(el, path) {
+      const cb = el.querySelector('.file-checkbox');
+      if (cb) toggleSelect(cb, path);
+    }
+
+    // 更新底部下载栏
+    function updateDownloadBar() {
+      const bar = document.getElementById('downloadBar');
+      const count = document.getElementById('selectedCount');
+      const fab = document.getElementById('uploadFab');
+      if (selectedFiles.size > 0) {
+        bar.classList.add('show');
+        count.textContent = selectedFiles.size;
+        fab.style.bottom = '76px';
+      } else {
+        bar.classList.remove('show');
+        fab.style.bottom = '24px';
+      }
+    }
+
+    // 清除选择
+    function clearSelection() {
+      selectedFiles.clear();
+      document.querySelectorAll('.file-checkbox.checked').forEach(el => el.classList.remove('checked'));
+      updateDownloadBar();
+    }
+
+    // 批量下载选中文件
+    function downloadSelected() {
+      if (selectedFiles.size === 0) return;
+      selectedFiles.forEach(path => {
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = `/download/${encodeURIComponent(path)}`;
+        document.body.appendChild(iframe);
+        setTimeout(() => iframe.remove(), 30000);
+      });
+      clearSelection();
+    }
+
+    // 获取文件图标
+    function getFileIcon(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const icons = {
+        // 图片
+        'png': '🖼️', 'jpg': '🖼️', 'jpeg': '🖼️', 'gif': '🖼️', 'svg': '🖼️', 'webp': '🖼️',
+        // 文档
+        'pdf': '📕', 'doc': '📘', 'docx': '📘', 'txt': '📄', 'md': '📝',
+        // 表格
+        'xls': '📗', 'xlsx': '📗', 'csv': '📗',
+        // 演示
+        'ppt': '📙', 'pptx': '📙',
+        // 压缩
+        'zip': '📦', 'rar': '📦', '7z': '📦', 'tar': '📦', 'gz': '📦',
+        // 音频
+        'mp3': '🎵', 'wav': '🎵', 'flac': '🎵', 'aac': '🎵',
+        // 视频
+        'mp4': '🎬', 'avi': '🎬', 'mkv': '🎬', 'mov': '🎬', 'wmv': '🎬',
+        // 代码
+        'js': '💻', 'ts': '💻', 'html': '💻', 'css': '💻', 'json': '💻',
+        'py': '💻', 'java': '💻', 'cpp': '💻', 'c': '💻'
+      };
+      return icons[ext] || '📄';
+    }
+
+    // 格式化文件大小
+    function formatSize(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    // HTML 转义
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // 导航到路径
+    function navigateTo(path) {
+      loadFiles(path);
+    }
+
+    // 下载文件
+    function downloadFile(path) {
+      window.location.href = `/download/${encodeURIComponent(path)}`;
+    }
+
+    // 更新面包屑
+    function updateBreadcrumb(path) {
+      const breadcrumb = document.getElementById('breadcrumb');
+      if (!path) {
+        breadcrumb.innerHTML = '<span class="breadcrumb-current">根目录</span>';
+        return;
+      }
+
+      const parts = path.split('/');
+      let html = '<span class="breadcrumb-item" onclick="navigateTo(\'\')">根目录</span>';
+
+      parts.forEach((part, index) => {
+        html += '<span class="breadcrumb-separator">/</span>';
+        if (index === parts.length - 1) {
+          html += `<span class="breadcrumb-current">${escapeHtml(part)}</span>`;
+        } else {
+          const subPath = parts.slice(0, index + 1).join('/');
+          html += `<span class="breadcrumb-item" onclick="navigateTo('${escapeHtml(subPath)}')">${escapeHtml(part)}</span>`;
+        }
+      });
+
+      breadcrumb.innerHTML = html;
+    }
+
+    // 显示二维码
+    function showQRCode(path) {
+      const url = `${window.location.origin}/download/${encodeURIComponent(path)}`;
+      const modal = document.getElementById('qrcodeModal');
+      const container = document.getElementById('qrcodeContainer');
+      const urlElement = document.getElementById('qrcodeUrl');
+
+      // 使用 QRCode.js 或 API 生成二维码
+      // 这里使用简单的 API
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+      container.innerHTML = `<img src="${qrUrl}" alt="QR Code" />`;
+      urlElement.textContent = url;
+
+      modal.classList.add('show');
+    }
+
+    // 关闭二维码
+    function closeQRCode() {
+      document.getElementById('qrcodeModal').classList.remove('show');
+    }
+
+    // 点击弹窗外部关闭
+    document.getElementById('qrcodeModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeQRCode();
+      }
+    });
+
+    // 初始化
+    getServerStatus();
+    loadFiles();
+
+    // ========== 上传功能 ==========
+
+    // 设备检测
+    function isMobile() {
+      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+        || (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
+    }
+
+    const _isMobile = isMobile();
+
+    function openActionSheet() {
+      document.getElementById('actionSheetOverlay').classList.add('show');
+      requestAnimationFrame(() => {
+        document.getElementById('actionSheet').classList.add('show');
+      });
+    }
+
+    function closeActionSheet() {
+      document.getElementById('actionSheet').classList.remove('show');
+      setTimeout(() => {
+        document.getElementById('actionSheetOverlay').classList.remove('show');
+      }, 300);
+    }
+
+    function triggerUpload(type) {
+      closeActionSheet();
+      const inputMap = { album: 'inputAlbum', file: 'inputFile' };
+      const input = document.getElementById(inputMap[type]);
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    }
+
+    // FAB 按钮：PC 端隐藏，移动端弹出 Action Sheet
+    const uploadFab = document.getElementById('uploadFab');
+    if (_isMobile) {
+      uploadFab.addEventListener('click', function() {
+        openActionSheet();
+      });
+    } else {
+      uploadFab.style.display = 'none';
+    }
+
+    // 监听文件选择
+    document.getElementById('inputAlbum').addEventListener('change', handleFileSelect);
+    document.getElementById('inputFile').addEventListener('change', handleFileSelect);
+
+    // PC 端：显示拖拽区域并绑定事件
+    if (!_isMobile) {
+      const dropzone = document.getElementById('dropzone');
+      dropzone.classList.add('visible');
+
+      // 点击 dropzone 也可以选择文件
+      dropzone.addEventListener('click', function() {
+        const input = document.getElementById('inputFile');
+        input.value = '';
+        input.click();
+      });
+
+      // 拖拽计数器，解决子元素触发 dragleave 的问题
+      let dragCounter = 0;
+
+      dropzone.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        dragCounter++;
+        dropzone.classList.add('drag-over');
+      });
+
+      dropzone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+      });
+
+      dropzone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter === 0) {
+          dropzone.classList.remove('drag-over');
+        }
+      });
+
+      dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dragCounter = 0;
+        dropzone.classList.remove('drag-over');
+
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+          for (let i = 0; i < files.length; i++) {
+            uploadFile(files[i]);
+          }
+        }
+      });
+
+      // 全页面拖拽支持：拖拽进入页面时高亮 dropzone
+      let pageDragCounter = 0;
+
+      document.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        pageDragCounter++;
+        if (pageDragCounter === 1) {
+          dropzone.classList.add('drag-over');
+        }
+      });
+
+      document.addEventListener('dragover', function(e) {
+        e.preventDefault();
+      });
+
+      document.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        pageDragCounter--;
+        if (pageDragCounter === 0) {
+          dropzone.classList.remove('drag-over');
+        }
+      });
+
+      document.addEventListener('drop', function(e) {
+        e.preventDefault();
+        pageDragCounter = 0;
+        dropzone.classList.remove('drag-over');
+
+        // 如果 drop 不在 dropzone 上，也处理上传
+        if (!dropzone.contains(e.target)) {
+          const files = e.dataTransfer.files;
+          if (files && files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+              uploadFile(files[i]);
+            }
+          }
+        }
+      });
+    }
+
+    function handleFileSelect(e) {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+      for (let i = 0; i < files.length; i++) {
+        uploadFile(files[i]);
+      }
+    }
+
+    function uploadFile(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const xhr = new XMLHttpRequest();
+      const toast = document.getElementById('uploadToast');
+
+      // 显示进度 toast
+      toast.innerHTML = `
+        <div class="upload-toast-text">上传中: ${escapeHtml(file.name)}</div>
+        <div class="upload-toast-progress">
+          <div class="upload-toast-progress-bar" id="progressBar"></div>
+        </div>
+      `;
+      toast.classList.add('show');
+
+      xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded / e.total * 100);
+          const bar = document.getElementById('progressBar');
+          if (bar) bar.style.width = pct + '%';
+        }
+      });
+
+      xhr.addEventListener('load', function() {
+        if (xhr.status === 200) {
+          try {
+            const res = JSON.parse(xhr.responseText);
+            toast.innerHTML = `<div class="upload-toast-result success">✓ ${escapeHtml(res.name)} 上传成功 (${formatSize(res.size)})</div>`;
+          } catch {
+            toast.innerHTML = '<div class="upload-toast-result success">✓ 上传成功</div>';
+          }
+        } else {
+          toast.innerHTML = '<div class="upload-toast-result error">✕ 上传失败</div>';
+        }
+        autoHideToast();
+      });
+
+      xhr.addEventListener('error', function() {
+        toast.innerHTML = '<div class="upload-toast-result error">✕ 网络错误</div>';
+        autoHideToast();
+      });
+
+      xhr.open('POST', '/api/upload');
+      xhr.send(formData);
+    }
+
+    function autoHideToast() {
+      setTimeout(() => {
+        document.getElementById('uploadToast').classList.remove('show');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

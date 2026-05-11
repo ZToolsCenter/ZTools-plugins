@@ -1,0 +1,7 @@
+services:
+  json-tools:
+    image: fevrax/json-tools
+    container_name: json-tools
+    restart: always
+    ports:
+      - "3300:80"

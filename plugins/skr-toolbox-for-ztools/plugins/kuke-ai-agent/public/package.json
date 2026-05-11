@@ -1,0 +1,9 @@
+{
+  "type": "commonjs",
+  "dependencies": {
+    "@ai-sdk/anthropic": "^0.0.0",
+    "@tavily/core": "^0.5.14",
+    "openai": "^6.34.0",
+    "zod": "^3.23.8"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "my-calculator",
+  "title": "计算器",
+  "description": "计算器",
+  "author": "scc",
+  "version": "1.0.1",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "calculator",
+      "explain": "计算器 - 支持加减乘除、括号、百分比，累计计算",
+      "icon": "logo.png",
+      "cmds": ["计算器", "calc", "calculator"]
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <title>Pixel Plumber Clock</title>
+    <script src="js/tailwindcss.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Prevent scrolling */
+        font-family: 'Press Start 2P', cursive;
+        user-select: none;
+      }
+      /* Custom utilities for pixel art rendering */
+      .pixel-border {
+        box-shadow: 
+          -4px 0 0 0 black,
+          4px 0 0 0 black,
+          0 -4px 0 0 black,
+          0 4px 0 0 black;
+        margin: 4px;
+      }
+      .pixel-text-shadow {
+        text-shadow: 2px 2px 0 #000;
+      }
+      .animate-float {
+        animation: float 3s ease-in-out infinite;
+      }
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+      .bg-pattern-brick {
+        background-image: 
+          linear-gradient(335deg, rgba(0,0,0,0.1) 23px, transparent 23px),
+          linear-gradient(155deg, rgba(0,0,0,0.1) 23px, transparent 23px),
+          linear-gradient(335deg, rgba(0,0,0,0.1) 23px, transparent 23px),
+          linear-gradient(155deg, rgba(0,0,0,0.1) 23px, transparent 23px);
+        background-size: 58px 58px;
+        background-color: #b84818;
+      }
+    </style>
+  
+
+  <link rel="stylesheet" href="css/fonts.css">
+  <script type="module" crossorigin src="./assets/index-CWDoqujS.js"></script>
+</head>
+  <body>
+    <div id="root"></div>
+</body>
+</html>

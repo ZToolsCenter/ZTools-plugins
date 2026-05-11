@@ -1,0 +1,30 @@
+{
+  "title": "目录树生成器",
+  "description": "生成文件夹的树形结构图，支持编辑注释，复制和导出成图片",
+  "version": "1.0.5",
+  "author": "aiyakuaile",
+  "homepage": "https://github.com/aiyakuaile/file-tree",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "file-tree",
+      "explain": "生成目录树",
+      "cmds": [
+        "tree",
+        "目录树",
+        "树形图",
+        "file tree",
+        {
+          "type": "files",
+          "label": "生成目录树",
+          "fileType": "directory",
+          "maxLength": 1,
+          "minLength": 1
+        }
+      ]
+    }
+  ],
+  "name": "file-tree"
+}

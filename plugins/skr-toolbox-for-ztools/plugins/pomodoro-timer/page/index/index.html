@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>CFJ</title>
+  <link rel="stylesheet" href="../../base/css/color.css" />
+  <link rel="stylesheet" href="style/frame.css" />
+  <link rel="stylesheet" href="style/todoList.css" />
+  <link rel="stylesheet" href="style/user.css" />
+  <link rel="stylesheet" href="style/settingPage.css" />
+  <link rel="stylesheet" href="style/shop.css" />
+  <link rel="stylesheet" href="style/slider.css" />
+  <link rel="stylesheet" href="style/switch.css" />
+  <link rel="stylesheet" href="style/calendar.css" />
+  <link rel="stylesheet" href="style/select.css" />
+  <link rel="stylesheet" href="style/audio.css" />
+</head>
+
+<body>
+  <div class="floatBtnGroup">
+    <div id="indicator"></div>
+    <div class="btnBox homePage" data-title="首页" id="clockPageBtn">
+      <div class="avatar">
+        <img class="svg" src="../../pic/clock.svg" />
+      </div>
+    </div>
+
+    <div class="btnBox" data-title="统计" id="statisticPageBtn">
+      <div class="avatar">
+        <img class="svg" src="../../pic/statistics.svg" />
+      </div>
+    </div>
+
+    <div class="btnBox" data-title="白噪音" id="musicPageBtn">
+      <div class="avatar">
+        <img class="svg" src="../../pic/moon.svg" />
+      </div>
+    </div>
+    <div class="btnBox" data-title="设置" id="settingPageBtn">
+      <div class="avatar" id="settingBox">
+        <img class="svg" src="../../pic/setting.svg" />
+      </div>
+    </div>
+
+    <div id="darkModeSwitch"></div>
+
+    <div class="btnBox" data-title="退出" id="exitBtn">
+      <div class="avatar" style="color: #b5b5b5">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="svg">
+          <path d="M15 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H15M8 8L4 12M4 12L8 16M4 12L16 12"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="mainBody" id="mainBody">
+    <!-- 首页 -->
+    <div class="page" id="clockPage">
+      <div class="clock" id="clockBox">
+        <div class="state" id="state">
+          <img src="../../pic/fish.png" />
+          休息中
+        </div>
+        <div class="text" id="timeText">
+          <div id="minutes">--</div>
+          <span id="colon">:</span>
+          <div id="seconds">--</div>
+        </div>
+
+        <div class="controlBox" id="controlBox">
+          <div class="button" id="beginBtn" onclick="clockBegin()">开始专注</div>
+
+          <div class="button" id="pauseBtn" onclick="clockPause()" data-title="暂停">
+            <svg width="16" height="16" viewBox="0 0 16 16" class="pauseBtnSvg" xmlns="http://www.w3.org/2000/svg">
+              <rect width="6" height="16" rx="2" />
+              <rect x="10" width="6" height="16" rx="2" />
+            </svg>
+          </div>
+
+          <div class="button" id="continueBtn" onclick="clockContinue()" data-title="继续">
+            <svg width="16" height="18" viewBox="0 0 16 18" class="continueBtnSvg" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M13.23 6.24604C14.7785 7.14007 15.5528 7.58709 15.8185 8.16744C16.0605 8.69609 16.0605 9.30391 15.8185 9.83256C15.5528 10.4129 14.7785 10.8599 13.23 11.754L4.77 16.6383C3.22149 17.5324 2.44723 17.9794 1.81178 17.9193C1.23294 17.8646 0.706553 17.5607 0.369743 17.0868C-8.55278e-07 16.5665 -8.16199e-07 15.6724 -7.3804e-07 13.8844L-3.11034e-07 4.11562C-2.32875e-07 2.32755 -1.93795e-07 1.43351 0.369744 0.913234C0.706554 0.439296 1.23294 0.13539 1.81178 0.0806725C2.44723 0.0206049 3.22149 0.467622 4.77 1.36166L13.23 6.24604Z" />
+            </svg>
+          </div>
+          <div class="button" id="stopBtn" onclick="clockStop()" data-title="停止">
+            <svg width="15" height="16" viewBox="0 0 15 16" class="stopBtnSvg" xmlns="http://www.w3.org/2000/svg">
+              <rect y="0.5" width="15" height="15" rx="4" />
+            </svg>
+          </div>
+        </div>
+
+        <div class="todayTomatos" id="todayTomatos">
+          <span class="today">今天：</span>
+          <div class="sta red">
+            <img src="../../pic/tomato.png" />
+            <span>×</span>
+            <span id="todayTomatosRedNum">0</span>
+          </div>
+          |
+          <div class="sta yellow">
+            <img src="../../pic/tomato_yellow.png" />
+            <span>×</span>
+            <span id="todayTomatosYellowNum">0</span>
+          </div>
+          |
+          <div id="focusHours"></div>
+        </div>
+      </div>
+
+      <div class="listBox" id="listBox">
+        <div class="whiteBox" id="whiteBoxTop">
+          <div class="whiteBoxScale">
+            <div class="scale">
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+              <div class="s mid op"></div>
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+            </div>
+            <div class="scale">
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+              <div class="s mid op"></div>
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+            </div>
+            <div class="scale">
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+              <div class="s mid op"></div>
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+            </div>
+          </div>
+          <div class="anchor hidden" id="anchorTop">至今为止的小目标都在这里了~</div>
+        </div>
+        <div class="todoList_card" id="todoList_card">
+          <!-- <div class="scale" id="scale"></div> -->
+
+          <div class="taskList">
+            <div class="todoList doneList" id="archivedList"></div>
+
+            <div class="todoList doneList" id="doneList"></div>
+
+            <!-- <div class="activeTip" id="activeTip">
+              拖动至此
+              <br />
+              设为在做
+            </div> -->
+
+            <div class="todoList currentList" id="todoList"></div>
+          </div>
+        </div>
+        <div class="whiteBox" id="whiteBoxBottom">
+          <div class="whiteBoxScale">
+            <div class="scale">
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+              <div class="s mid op"></div>
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+            </div>
+            <div class="scale">
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+              <div class="s mid op"></div>
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+            </div>
+            <div class="scale">
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+              <div class="s mid op"></div>
+              <div class="s short op"></div>
+              <div class="s short op"></div>
+            </div>
+          </div>
+          <div class="anchor hidden" id="anchorBottom"></div>
+        </div>
+      </div>
+      <div class="taskAddBox" id="taskAddBox">
+        <div class="hashSelect" id="hashSelect"></div>
+        <div class="inputBox">
+          <div class="editingIcon" id="editingIcon" onclick="exitEditModel()">
+            编辑
+            <br />
+            模式
+          </div>
+          <span class="tag" id="inputTag" onclick="toggleHashSelect(event)"></span>
+          <div contenteditable="true" class="editable empty" id="editor" data-placeholder="输入眼下聚焦的小目标，按 # 键关联长目标"></div>
+
+
+          <div class="submitBtn" id="submitBtn" onclick="submitTask(event)">↩︎</div>
+        </div>
+      </div>
+    </div>
+    <!-- 统计 -->
+    <div class="page statistic_page" id="statisticPage">
+      <div class="setting_group">
+        <h1 id="set_hello">积土成山，风雨兴焉</h1>
+
+        <div class="setting_group_item calendarBox">
+          <div class="calendarKey">
+            <div class="calendarKey_item" id="calendarKey_item0">
+              <div class="num" id="calendarKey_totalDay">38</div>
+              <div class="label">天</div>
+            </div>
+            <div class="calendarKey_item" id="calendarKey_item1">
+              <div class="num" id="calendarKey_totalHour">22238.5</div>
+              <div class="label">小时</div>
+            </div>
+            <div class="calendarKey_item" id="calendarKey_item2">
+              <div class="num" id="calendarKey_totalTomato">64</div>
+              <div class="label">番茄</div>
+            </div>
+            <div class="calendarKey_item" id="calendarKey_item3">
+              <div class="num" id="calendarKey_totalShortTar">23</div>
+              <div class="label">小目标</div>
+            </div>
+          </div>
+
+          <div id="calendar"></div>
+        </div>
+
+        <div class="setting_group_item" id="longTarsGroupBox">
+          <div class="setting_group_title">
+            进行中的长目标：
+            <span class="addLongTar" onclick="addLongTar() ">添加</span>
+          </div>
+
+          <div class="longTars" id="longTars_active">
+            <div class="longTagBox" style="background-color: #ffbe73">
+              <span class="longTar">考上研</span>
+              <div class="rightBox">
+                <div>
+                  <span>13.5</span>
+                  <span>小时</span>
+                </div>
+                <div>
+                  <span>50</span>
+                  <span>番茄</span>
+                </div>
+                <div>
+                  <span>23</span>
+                  <span>小目标</span>
+                </div>
+              </div>
+            </div>
+            <div class="longTagBox" style="background-color: #bcd986">
+              <span class="longTar">瘦二十斤</span>
+              <div class="rightBox">
+                <div>
+                  <span>13.5</span>
+                  <span>小时</span>
+                </div>
+                <div>
+                  <span>50</span>
+                  <span>番茄</span>
+                </div>
+                <div>
+                  <span>23</span>
+                  <span>小目标</span>
+                </div>
+              </div>
+            </div>
+            <div class="longTagBox" style="background-color: #e2bcbc">
+              <span class="longTar">开发AI输入法</span>
+              <div class="rightBox">
+                <div>
+                  <span>13.5</span>
+                  <span>小时</span>
+                </div>
+                <div>
+                  <span>50</span>
+                  <span>番茄</span>
+                </div>
+                <div>
+                  <span>23</span>
+                  <span>小目标</span>
+                </div>
+              </div>
+            </div>
+            <div class="longTagBox" style="background-color: #b7afea">
+              <span class="longTar">其它</span>
+              <div class="rightBox">
+                <div>
+                  <span>13.5</span>
+                  <span>小时</span>
+                </div>
+                <div>
+                  <span>50</span>
+                  <span>番茄</span>
+                </div>
+                <div>
+                  <span>23</span>
+                  <span>小目标</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="setting_group_title">已完成的长目标：</div>
+
+          <div class="longTars" id="longTars_done">
+            <div class="longTagBox" style="background-color: #ffbe73">
+              <span class="longTar">考上研</span>
+              <div class="rightBox">
+                <div>
+                  <span>13.5</span>
+                  <span>小时</span>
+                </div>
+                <div>
+                  <span>50</span>
+                  <span>番茄</span>
+                </div>
+                <div>
+                  <span>23</span>
+                  <span>小目标</span>
+                </div>
+              </div>
+            </div>
+            <div class="longTagBox" style="background-color: #bcd986">
+              <span class="longTar">瘦二十斤</span>
+              <div class="rightBox">
+                <div>
+                  <span>13.5</span>
+                  <span>小时</span>
+                </div>
+                <div>
+                  <span>50</span>
+                  <span>番茄</span>
+                </div>
+                <div>
+                  <span>23</span>
+                  <span>小目标</span>
+                </div>
+              </div>
+            </div>
+            <div class="longTagBox" style="background-color: #e2bcbc">
+              <span class="longTar">开发AI输入法</span>
+              <div class="rightBox">
+                <div>
+                  <span>13.5</span>
+                  <span>小时</span>
+                </div>
+                <div>
+                  <span>50</span>
+                  <span>番茄</span>
+                </div>
+                <div>
+                  <span>23</span>
+                  <span>小目标</span>
+                </div>
+              </div>
+            </div>
+            <div class="longTagBox" style="background-color: #b7afea">
+              <span class="longTar">其它</span>
+              <div class="rightBox">
+                <div>
+                  <span>13.5</span>
+                  <span>小时</span>
+                </div>
+                <div>
+                  <span>50</span>
+                  <span>番茄</span>
+                </div>
+                <div>
+                  <span>23</span>
+                  <span>小目标</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- <span class="longTar" style="background-color:#BCD986;">瘦二十斤</span>
+                            <span class="longTar" style="background-color:#E2BCBC;">开发AI输入法</span>
+                            <span class="longTar" style="background-color:#b7afea;">其它</span> -->
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 白噪音 -->
+    <div class="page music_page" id="musicPage">
+      <div class="musicCtrlBar">
+        <div class="musicBox" id="musicBox" data-active="false">
+          <svg class="musicIcon" width="24" height="24" viewBox="0 0 18 18" stroke="#FFC225"
+            xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 1L1 17" stroke-width="2" stroke-linecap="round" />
+            <path d="M5 1L5 17" stroke-width="2" stroke-linecap="round" />
+            <path d="M9 1L9 17" stroke-width="2" stroke-linecap="round" />
+            <path d="M13 1L13 17" stroke-width="2" stroke-linecap="round" />
+            <path d="M17 1V17" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          <img class="musicIcon_unactive" src="../../pic/moon.svg" />
+        </div>
+      </div>
+
+      <div class="setting_group">
+        <div class="setting_group_item">
+          <div class="setting_list" id="audioList"></div>
+        </div>
+      </div>
+    </div>
+    <!-- 设置 -->
+    <div class="page" id="settingPage">
+      <div class="setting_group">
+        <div class="setting_group_item">
+          <div class="setting_group_title">时钟设置：</div>
+          <div class="timeSet">
+            <div class="liner">
+              <div class="settingLabel">专注时长：</div>
+              <div id="slider-container-workDuration" class="slider-container">
+                <div></div>
+                <div id="slider-thumb-workDuration" class="slider-thumb"></div>
+              </div>
+            </div>
+            <div class="liner">
+              <div class="settingLabel">短休息时长：</div>
+              <div id="slider-container-shortBreakDuration" class="slider-container">
+                <div></div>
+                <div id="slider-thumb-shortBreakDuration" class="slider-thumb"></div>
+              </div>
+            </div>
+            <div class="liner">
+              <div class="settingLabel">长休息时长：</div>
+              <div id="slider-container-longBreakDuration" class="slider-container">
+                <div></div>
+                <div id="slider-thumb-longBreakDuration" class="slider-thumb"></div>
+              </div>
+            </div>
+            <div class="liner">
+              <div class="settingLabel">长休息周期：</div>
+              <div id="slider-container-longBreakInterval" class="slider-container">
+                <div></div>
+                <div id="slider-thumb-longBreakInterval" class="slider-thumb"></div>
+              </div>
+            </div>
+
+            <div class="switchGroup">
+              <div class="switchBox">
+                <div id="autoWork" class="switch"></div>
+                <div class="settingLabel">自动工作</div>
+              </div>
+              <div class="switchBox">
+                <div id="autoBreak" class="switch"></div>
+                <div class="settingLabel">自动休息</div>
+              </div>
+              <div class="switchBox">
+                <div id="showSuccessPopup" class="switch"></div>
+                <div class="settingLabel">专注结束弹窗</div>
+              </div>
+              <div class="switchBox">
+                <div id="soundEffect" class="switch"></div>
+                <div class="settingLabel">提示音效</div>
+              </div>
+            </div>
+          </div>
+          <div class="setting_group_title">屏幕胶囊设置：</div>
+          <div class="timeSet">
+            <div class="switchBox">
+              <div id="showFloatingWindow" class="switch"></div>
+              <div class="settingLabel">屏幕胶囊</div>
+            </div>
+
+            <div class="liner">
+              <div class="settingLabel">透明度：</div>
+              <div id="slider-container-opacity" class="slider-container">
+                <div></div>
+                <div id="slider-thumb-opacity" class="slider-thumb"></div>
+              </div>
+            </div>
+          </div>
+          <div class="setting_group_title">番茄堆设置（需启用屏幕胶囊）：</div>
+          <div class="timeSet pileSet">
+            <!-- 分割线 -->
+            <line>
+              <div class="switchBox">
+                <div id="showTomatoAnimation" class="switch"></div>
+                <div class="settingLabel">番茄堆</div>
+              </div>
+            </line>
+            <div class="switchBox">
+              <div id="autoHideAni" class="switch"></div>
+              <div class="settingLabel">专注时隐藏</div>
+            </div>
+
+            <form class="radioTomatoAni" id="tomatoBoxRange">
+              <div class="settingLabel">时间范围</div>
+              <input type="radio" id="_1" name="tomatoBoxRange" value="1" checked />
+              <label for="_1">今天</label>
+              <input type="radio" id="_2" name="tomatoBoxRange" value="7" />
+              <label for="_2">本周</label>
+              <input type="radio" id="_3" name="tomatoBoxRange" value="30" />
+              <label for="_3">本月</label>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 用户 -->
+    <div class="page user_page" id="userPage">
+      <div class="setting_group">
+        <div class="setting_group_item">
+          <div class="setting_group_title">会员：</div>
+          <div class="vip_card" id="vip_card_set">
+            <div class="vip_btn" id="vip_btn_set"></div>
+            <svg width="125" height="52" viewBox="0 0 125 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M12.685 21.5C14.745 21.5 16.825 21.46 18.885 21.38L18.685 22.06C16.745 22.16 14.665 22.2 12.445 22.2C11.725 22.2 10.625 22.18 9.165 22.16C5.265 22.02 3.925 21.3 3.105 18.12C2.965 18.92 2.765 19.68 2.505 20.38C2.245 21.08 1.885 21.9 1.405 22.84L0.845 22.58C1.345 21.6 1.725 20.74 1.985 20.02C2.525 18.58 2.745 16.96 2.745 14.34L3.345 14.38C3.345 14.86 3.325 15.48 3.305 16.26C3.605 18.8 4.225 20.1 5.525 20.8V12.8H1.325V12.14H5.205V8.62H2.005V7.98H5.205V5.12L5.885 5.16V7.98H8.845V8.62H5.885V12.14H8.885V12.8H6.165V16.42H9.025V17.06H6.165V21.08C6.885 21.3 7.905 21.44 9.205 21.46C10.745 21.48 11.905 21.5 12.685 21.5ZM9.185 13.6L8.725 13.12C9.765 12.18 10.505 11.26 10.925 10.34C11.365 9.42 11.605 8.3 11.665 6.98H8.865V6.3H17.085C17.065 6.66 17.045 7.2 16.985 7.94L16.865 9.82C16.705 11.44 16.245 11.78 14.525 11.9L13.205 12L13.005 11.34L14.305 11.26C15.825 11.14 16.085 10.96 16.205 9.64C16.285 8.9 16.365 7.72 16.385 6.98H12.265C12.205 8.4 11.945 9.6 11.505 10.56C11.085 11.52 10.305 12.54 9.185 13.6ZM16.885 13.82V19.1H10.025V13.82H16.885ZM16.245 18.46V14.44H10.665V18.46H16.245ZM20.9525 11.64L20.8325 11C21.1725 10.86 21.2925 10.82 21.3925 10.64C21.8525 10.1 22.4125 9.28 23.0725 8.18C23.7325 7.08 24.2925 6.02 24.7325 5.02L25.2925 5.26C24.8525 6.24 24.3125 7.28 23.6725 8.36C23.0525 9.42 22.4925 10.26 22.0125 10.86L25.4525 10.7C26.0125 9.8 26.4725 9 26.8325 8.32L27.3725 8.62C26.8125 9.68 26.0525 10.92 25.1125 12.34C24.1725 13.76 23.3325 14.9 22.6325 15.76L27.1125 15.14L27.1525 15.78C27.0325 15.78 25.6525 15.98 23.0325 16.36L22.2725 16.48C22.0925 16.5 21.7925 16.56 21.4125 16.66L21.2525 16C21.7925 15.82 21.9125 15.74 22.2125 15.36C23.1925 14.1 24.1325 12.76 25.0325 11.34L23.4325 11.42L21.6725 11.52C21.4725 11.54 21.2325 11.58 20.9525 11.64ZM38.6925 22.14L38.3725 22.76C36.3325 21.52 34.6725 20.18 33.4125 18.76C31.9925 20.34 30.2125 21.7 27.7925 23L27.4125 22.42C29.8325 21.14 31.6125 19.84 32.9925 18.26C31.4525 16.4 30.3725 14.14 29.7325 11.46C29.6325 13.16 29.4525 14.62 29.1925 15.82C28.7125 18.2 27.6725 20.3 25.6525 22.56L25.1125 22.16C26.1325 21 26.9325 19.88 27.4725 18.78C28.0325 17.68 28.4325 16.54 28.6725 15.32C28.9125 14.1 29.0725 12.6 29.1525 10.8L29.2925 7.06H27.3925V6.38H35.8725V7.06L34.2125 11.42H36.9325V12.1C36.1725 14.56 35.1325 16.62 33.8325 18.26C35.0925 19.68 36.7125 20.96 38.6925 22.14ZM33.4125 17.76C34.6125 16.26 35.5725 14.36 36.2925 12.08H33.5325V11.46L35.1925 7.06H29.9125L29.8525 9.16C30.4725 12.74 31.5925 15.5 33.4125 17.76ZM26.7925 18.52L26.8525 18.84L26.8725 19.18C26.1725 19.44 25.2325 19.72 24.0325 20.06C22.8525 20.4 21.7925 20.66 20.8925 20.88L20.7525 20.22C21.6125 20.02 22.6325 19.76 23.8525 19.42C25.0725 19.08 26.0525 18.78 26.7925 18.52ZM57.8 10.72H50.58C52.36 12.38 54.92 13.7 58.24 14.7L58.02 15.42C54.44 14.28 51.48 12.64 49.66 10.72H49.64V14.36H48.98V10.72H48.94C47.1 12.64 44.12 14.3 40.58 15.42L40.4 14.72C43.62 13.74 46.24 12.38 48.02 10.72H40.82V10.08H48.98V6.58C46.48 6.8 44.14 6.94 41.94 7.04L41.88 6.38C43.86 6.3 46.28 6.14 49.12 5.92C51.98 5.7 54.26 5.48 56 5.26L56.12 5.9C54.62 6.08 52.46 6.3 49.64 6.54V10.08H57.8V10.72ZM52.6 9.96L52.1 9.6C52.46 9.3 52.88 8.88 53.36 8.36C53.84 7.84 54.22 7.38 54.52 6.98L55.02 7.32C54.74 7.7 54.36 8.16 53.88 8.68C53.4 9.2 52.98 9.62 52.6 9.96ZM46.44 9.42L45.96 9.84C45.66 9.46 45.26 9.04 44.76 8.56C44.28 8.06 43.9 7.72 43.62 7.5L44.1 7.1C44.36 7.3 44.72 7.64 45.22 8.14C45.72 8.64 46.12 9.06 46.44 9.42ZM43.98 21.64V22.84H43.26V14.98H55.36V22.84H54.66V21.64H43.98ZM43.98 18.04H49V15.58H43.98V18.04ZM49.68 15.58V18.04H54.66V15.58H49.68ZM49 18.6H43.98V21.02H49V18.6ZM54.66 18.6H49.68V21.02H54.66V18.6ZM71.6675 4.96L72.3275 5V7.1H77.5675V7.76H72.3275V9.86H71.6675V7.76H66.4075V9.86H65.7475V7.76H60.4075V7.1H65.7475V4.96L66.4075 5V7.1H71.6675V4.96ZM63.4075 9.5L64.0675 9.54L64.0075 12.16H68.0275L67.9475 15.78L67.8475 19.86C67.7675 21.52 67.2275 21.9 65.2675 22.06L63.8475 22.18L63.6075 21.46L65.1275 21.34C66.7875 21.22 67.1075 20.98 67.1875 19.68C67.2075 18.8 67.2475 17.66 67.2675 16.28L67.3475 12.88H63.9875V12.94C63.7875 18.02 63.2275 19.62 60.3875 22.9L59.8675 22.4C62.6475 19.2 63.1475 17.84 63.3275 12.96V12.88H60.5875V12.16H63.3475L63.4075 9.5ZM71.2075 20.96V22.5H70.5275V11.96H75.9475V22.5H75.2675V20.96H71.2075ZM71.2075 20.28H75.2675V12.62H71.2075V20.28Z"
+                fill="url(#paint0_linear_2387_150)" style="" />
+              <path
+                d="M12.685 21.5C14.745 21.5 16.825 21.46 18.885 21.38L18.685 22.06C16.745 22.16 14.665 22.2 12.445 22.2C11.725 22.2 10.625 22.18 9.165 22.16C5.265 22.02 3.925 21.3 3.105 18.12C2.965 18.92 2.765 19.68 2.505 20.38C2.245 21.08 1.885 21.9 1.405 22.84L0.845 22.58C1.345 21.6 1.725 20.74 1.985 20.02C2.525 18.58 2.745 16.96 2.745 14.34L3.345 14.38C3.345 14.86 3.325 15.48 3.305 16.26C3.605 18.8 4.225 20.1 5.525 20.8V12.8H1.325V12.14H5.205V8.62H2.005V7.98H5.205V5.12L5.885 5.16V7.98H8.845V8.62H5.885V12.14H8.885V12.8H6.165V16.42H9.025V17.06H6.165V21.08C6.885 21.3 7.905 21.44 9.205 21.46C10.745 21.48 11.905 21.5 12.685 21.5ZM9.185 13.6L8.725 13.12C9.765 12.18 10.505 11.26 10.925 10.34C11.365 9.42 11.605 8.3 11.665 6.98H8.865V6.3H17.085C17.065 6.66 17.045 7.2 16.985 7.94L16.865 9.82C16.705 11.44 16.245 11.78 14.525 11.9L13.205 12L13.005 11.34L14.305 11.26C15.825 11.14 16.085 10.96 16.205 9.64C16.285 8.9 16.365 7.72 16.385 6.98H12.265C12.205 8.4 11.945 9.6 11.505 10.56C11.085 11.52 10.305 12.54 9.185 13.6ZM16.885 13.82V19.1H10.025V13.82H16.885ZM16.245 18.46V14.44H10.665V18.46H16.245ZM20.9525 11.64L20.8325 11C21.1725 10.86 21.2925 10.82 21.3925 10.64C21.8525 10.1 22.4125 9.28 23.0725 8.18C23.7325 7.08 24.2925 6.02 24.7325 5.02L25.2925 5.26C24.8525 6.24 24.3125 7.28 23.6725 8.36C23.0525 9.42 22.4925 10.26 22.0125 10.86L25.4525 10.7C26.0125 9.8 26.4725 9 26.8325 8.32L27.3725 8.62C26.8125 9.68 26.0525 10.92 25.1125 12.34C24.1725 13.76 23.3325 14.9 22.6325 15.76L27.1125 15.14L27.1525 15.78C27.0325 15.78 25.6525 15.98 23.0325 16.36L22.2725 16.48C22.0925 16.5 21.7925 16.56 21.4125 16.66L21.2525 16C21.7925 15.82 21.9125 15.74 22.2125 15.36C23.1925 14.1 24.1325 12.76 25.0325 11.34L23.4325 11.42L21.6725 11.52C21.4725 11.54 21.2325 11.58 20.9525 11.64ZM38.6925 22.14L38.3725 22.76C36.3325 21.52 34.6725 20.18 33.4125 18.76C31.9925 20.34 30.2125 21.7 27.7925 23L27.4125 22.42C29.8325 21.14 31.6125 19.84 32.9925 18.26C31.4525 16.4 30.3725 14.14 29.7325 11.46C29.6325 13.16 29.4525 14.62 29.1925 15.82C28.7125 18.2 27.6725 20.3 25.6525 22.56L25.1125 22.16C26.1325 21 26.9325 19.88 27.4725 18.78C28.0325 17.68 28.4325 16.54 28.6725 15.32C28.9125 14.1 29.0725 12.6 29.1525 10.8L29.2925 7.06H27.3925V6.38H35.8725V7.06L34.2125 11.42H36.9325V12.1C36.1725 14.56 35.1325 16.62 33.8325 18.26C35.0925 19.68 36.7125 20.96 38.6925 22.14ZM33.4125 17.76C34.6125 16.26 35.5725 14.36 36.2925 12.08H33.5325V11.46L35.1925 7.06H29.9125L29.8525 9.16C30.4725 12.74 31.5925 15.5 33.4125 17.76ZM26.7925 18.52L26.8525 18.84L26.8725 19.18C26.1725 19.44 25.2325 19.72 24.0325 20.06C22.8525 20.4 21.7925 20.66 20.8925 20.88L20.7525 20.22C21.6125 20.02 22.6325 19.76 23.8525 19.42C25.0725 19.08 26.0525 18.78 26.7925 18.52ZM57.8 10.72H50.58C52.36 12.38 54.92 13.7 58.24 14.7L58.02 15.42C54.44 14.28 51.48 12.64 49.66 10.72H49.64V14.36H48.98V10.72H48.94C47.1 12.64 44.12 14.3 40.58 15.42L40.4 14.72C43.62 13.74 46.24 12.38 48.02 10.72H40.82V10.08H48.98V6.58C46.48 6.8 44.14 6.94 41.94 7.04L41.88 6.38C43.86 6.3 46.28 6.14 49.12 5.92C51.98 5.7 54.26 5.48 56 5.26L56.12 5.9C54.62 6.08 52.46 6.3 49.64 6.54V10.08H57.8V10.72ZM52.6 9.96L52.1 9.6C52.46 9.3 52.88 8.88 53.36 8.36C53.84 7.84 54.22 7.38 54.52 6.98L55.02 7.32C54.74 7.7 54.36 8.16 53.88 8.68C53.4 9.2 52.98 9.62 52.6 9.96ZM46.44 9.42L45.96 9.84C45.66 9.46 45.26 9.04 44.76 8.56C44.28 8.06 43.9 7.72 43.62 7.5L44.1 7.1C44.36 7.3 44.72 7.64 45.22 8.14C45.72 8.64 46.12 9.06 46.44 9.42ZM43.98 21.64V22.84H43.26V14.98H55.36V22.84H54.66V21.64H43.98ZM43.98 18.04H49V15.58H43.98V18.04ZM49.68 15.58V18.04H54.66V15.58H49.68ZM49 18.6H43.98V21.02H49V18.6ZM54.66 18.6H49.68V21.02H54.66V18.6ZM71.6675 4.96L72.3275 5V7.1H77.5675V7.76H72.3275V9.86H71.6675V7.76H66.4075V9.86H65.7475V7.76H60.4075V7.1H65.7475V4.96L66.4075 5V7.1H71.6675V4.96ZM63.4075 9.5L64.0675 9.54L64.0075 12.16H68.0275L67.9475 15.78L67.8475 19.86C67.7675 21.52 67.2275 21.9 65.2675 22.06L63.8475 22.18L63.6075 21.46L65.1275 21.34C66.7875 21.22 67.1075 20.98 67.1875 19.68C67.2075 18.8 67.2475 17.66 67.2675 16.28L67.3475 12.88H63.9875V12.94C63.7875 18.02 63.2275 19.62 60.3875 22.9L59.8675 22.4C62.6475 19.2 63.1475 17.84 63.3275 12.96V12.88H60.5875V12.16H63.3475L63.4075 9.5ZM71.2075 20.96V22.5H70.5275V11.96H75.9475V22.5H75.2675V20.96H71.2075ZM71.2075 20.28H75.2675V12.62H71.2075V20.28Z"
+                fill="black" style="fill: black; fill-opacity: 1" />
+              <path
+                d="M83 14.7765C83 12.4045 83 11.2185 83.4616 10.3125C83.8677 9.51559 84.5156 8.86767 85.3125 8.46162C86.2185 8 87.4045 8 89.7765 8H108.765V13.2235C108.765 15.5955 108.765 16.7815 108.303 17.6875C107.897 18.4844 107.249 19.1323 106.452 19.5384C105.546 20 104.36 20 101.988 20H83V14.7765Z"
+                fill="url(#paint1_linear_2387_150)" style="" />
+              <path fill-rule="evenodd" clip-rule="evenodd"
+                d="M101.456 16.8715C99.7108 16.8715 98.6859 16.2701 98.6859 13.8475C98.6859 11.4334 99.7108 10.8235 101.456 10.8235C103.209 10.8235 104.226 11.4334 104.226 13.8475C104.226 16.2701 103.209 16.8715 101.456 16.8715ZM101.456 15.4824C102.26 15.4824 102.455 15.1096 102.455 13.8475C102.455 12.5685 102.26 12.1873 101.456 12.1873C100.651 12.1873 100.465 12.5685 100.465 13.8475C100.465 15.1096 100.651 15.4824 101.456 15.4824ZM98.4063 16.7869H96.4157L95.2044 14.8133H94.8741V16.7869H93.1884V10.9083H95.5771C97.0764 10.9083 97.8557 11.4758 97.8557 12.8735C97.8557 13.8222 97.5423 14.3728 96.8308 14.6354L98.4063 16.7869ZM94.8741 12.1958V13.6104H95.2807C95.9668 13.6104 96.1955 13.4241 96.1955 12.8735C96.1955 12.3314 95.9668 12.1958 95.2807 12.1958H94.8741ZM87.5882 10.9083V16.7869H89.2739V15.186H89.8753C91.6372 15.186 92.3064 14.6523 92.3064 13.0006C92.3064 11.4843 91.7304 10.9083 89.8753 10.9083H87.5882ZM89.6296 13.8476H89.2739V12.2043H89.6296C90.3158 12.2043 90.5868 12.3907 90.5868 13.0429C90.5868 13.6613 90.3327 13.8476 89.6296 13.8476Z"
+                fill="white" style="fill: white; fill-opacity: 1" />
+              <path opacity="0.5"
+                d="M13.5184 41.988H1.17038V41.148H13.5184V41.988ZM25.7876 43.598H27.2156V44.214H25.7876V45.992H21.4336V46.664C21.4336 47.728 21.0696 48.008 19.8236 48.092L18.8296 48.162L18.5776 47.448L19.7676 47.392C20.5796 47.336 20.7056 47.266 20.7056 46.51V45.992H15.8056V45.39H20.7056V44.214H14.8116V43.598H20.7056V42.492H15.8056V41.89H20.7056V40.854H16.5896V38.544H20.7056V37.494H15.0496V36.85H20.7056V35.702L21.4336 35.744V36.85H26.9916V37.494H21.4336V38.544H25.4936V40.854H21.4336V41.89H25.7876V43.598ZM20.7056 39.118H17.3316V40.28H20.7056V39.118ZM21.4336 40.28H24.7656V39.118H21.4336V40.28ZM25.0736 43.598V42.492H21.4336V43.598H25.0736ZM21.4336 44.214V45.39H25.0736V44.214H21.4336ZM30.6789 41.134V36.458H38.7709V41.134H30.6789ZM31.4629 38.474H38.0009V37.102H31.4629V38.474ZM38.0009 39.104H31.4629V40.49H38.0009V39.104ZM38.0289 47.35C39.0229 47.35 40.0169 47.322 40.9829 47.266L40.8289 47.966C39.8349 48.008 38.9109 48.036 38.0569 48.036C37.1749 48.036 36.3769 48.022 35.6769 47.98C34.5709 47.924 33.6749 47.756 32.9889 47.476C32.3169 47.21 31.7289 46.72 31.2389 46.006C30.8049 46.888 30.1749 47.714 29.3209 48.484L28.7329 47.966C29.4329 47.35 29.9789 46.72 30.3569 46.062C30.7349 45.404 31.0289 44.592 31.2389 43.654L31.9809 43.78C31.8269 44.41 31.6869 44.9 31.5609 45.25C32.2749 46.426 33.1709 46.958 34.5009 47.182V43.052H28.9149V42.394H40.6189V43.052H35.2709V44.676H39.6389V45.32H35.2709V47.266C35.4389 47.28 35.5649 47.294 35.6489 47.294C36.3489 47.336 37.1469 47.35 38.0289 47.35ZM49.0521 38.796H52.6641V45.138H54.9461V45.754H42.4161V45.138H44.7121V38.796H48.2961V37.718H42.9761V37.074H48.2961V35.758L49.0521 35.8V37.074H54.3721V37.718H49.0521V38.796ZM45.4681 40.434H51.9081V39.398H45.4681V40.434ZM45.4681 41.008V41.974H51.9081V41.008H45.4681ZM45.4681 43.556H51.9081V42.562H45.4681V43.556ZM51.9081 45.138V44.13H45.4681V45.138H51.9081ZM43.0181 48.484L42.7521 47.784C43.5361 47.56 44.3201 47.28 45.1041 46.958C45.9021 46.636 46.5601 46.314 47.1061 46.006L47.4281 46.636C46.8261 46.944 46.1261 47.266 45.3281 47.602C44.5301 47.952 43.7601 48.246 43.0181 48.484ZM49.8361 46.762L50.0741 46.118C50.6761 46.3 51.4321 46.566 52.3421 46.888C53.2661 47.21 53.9661 47.476 54.4561 47.686L54.2181 48.372C53.6721 48.12 52.9441 47.826 52.0621 47.504C51.1801 47.182 50.4381 46.944 49.8361 46.762ZM58.6614 45.39H59.5294C59.5294 45.95 59.3894 46.552 59.0954 47.182C58.8014 47.812 58.4654 48.386 58.0734 48.904H57.3454C58.1434 47.686 58.6614 46.384 58.6614 45.39ZM81.5426 44.228L82.2706 44.508C82.1866 45.39 82.1026 46.062 82.0326 46.496C81.8646 47.49 81.4866 47.798 80.2266 47.854C80.1286 47.868 79.9466 47.868 79.6946 47.868C79.4426 47.868 79.2606 47.868 79.1486 47.854C77.9026 47.798 77.4546 47.406 77.4546 46.076V35.772L78.2246 35.814V40.966C78.7426 40.644 79.3026 40.224 79.9186 39.734C80.5346 39.244 81.0806 38.768 81.5426 38.306L82.0466 38.922C81.5846 39.412 80.9826 39.916 80.2686 40.462C79.5546 40.994 78.8826 41.456 78.2246 41.862V45.936C78.2246 46.776 78.4906 47.042 79.3166 47.084C79.4146 47.098 79.5546 47.098 79.7646 47.098C79.9746 47.098 80.1146 47.098 80.1986 47.084C80.6046 47.07 80.8846 46.986 81.0246 46.86C81.1786 46.72 81.2906 46.454 81.3606 46.048C81.4166 45.67 81.4726 45.068 81.5426 44.228ZM76.7826 45.278L76.8246 45.712L76.8666 46.034C76.0966 46.244 75.0186 46.524 73.6326 46.846C72.2466 47.168 71.1266 47.406 70.2446 47.588L70.0626 46.832C70.6506 46.72 71.0986 46.636 71.4066 46.566V38.264L72.1486 38.292V46.412L74.0806 45.964V36.01L74.8366 36.038V39.916H76.7966V40.672H74.8366V45.782L76.7826 45.278ZM90.7179 43.262V46.832H96.1639V47.602H84.2639V46.832H89.9059V43.262H85.5659V42.506H89.9059V39.412H86.3779C85.9439 40.336 85.3979 41.26 84.7399 42.198L84.0679 41.736C85.3419 39.986 86.1539 38.376 86.7139 36.36L87.4419 36.556C87.2179 37.326 86.9799 38.012 86.7139 38.642H89.9059V35.786L90.7179 35.814V38.642H95.5199V39.412H90.7179V42.506H95.0579V43.262H90.7179ZM109.021 44.788L109.735 45.25C109.567 45.992 109.413 46.566 109.259 46.958C108.993 47.728 108.573 48.05 107.845 48.05C107.075 48.05 106.375 47.686 105.773 46.958C105.171 46.272 104.737 45.376 104.471 44.284C104.219 43.192 104.093 41.722 104.093 39.874V37.578H98.0871V36.794H104.877V39.874V40.14C105.479 39.706 106.123 39.202 106.795 38.628C107.481 38.054 107.999 37.578 108.377 37.172L108.937 37.788C108.559 38.166 108.055 38.614 107.439 39.132C106.837 39.636 106.249 40.084 105.703 40.49C106.235 40.784 106.837 41.134 107.509 41.554C108.195 41.96 108.727 42.31 109.133 42.59L108.713 43.36C108.307 43.038 107.733 42.632 106.991 42.156C106.249 41.666 105.591 41.274 105.031 40.952L104.891 41.036C104.933 42.408 105.073 43.5 105.297 44.326C105.535 45.138 105.885 45.824 106.375 46.398C106.823 46.902 107.341 47.168 107.789 47.168C108.251 47.168 108.475 46.944 108.657 46.342C108.769 45.992 108.895 45.474 109.021 44.788ZM114.668 42.842L114.528 42.114C115.284 41.862 115.886 41.652 116.334 41.484V39.076H114.794V38.362H116.334V35.968L117.034 35.996V38.362H118.518V39.076H117.034V41.218C117.65 40.994 118.112 40.812 118.434 40.658L118.504 40.994L118.56 41.372C118.028 41.596 117.524 41.792 117.034 41.974V44.844C117.034 45.796 116.74 46.062 115.774 46.16L115.214 46.216L114.976 45.502L115.606 45.446C116.264 45.362 116.334 45.306 116.334 44.62V42.24C116.012 42.366 115.466 42.562 114.668 42.842ZM114.388 38.53L113.772 39.034C113.604 38.712 113.352 38.306 113.03 37.83C112.708 37.34 112.428 36.962 112.19 36.696L112.792 36.262C113.016 36.528 113.296 36.892 113.632 37.368C113.968 37.844 114.22 38.236 114.388 38.53ZM118.266 46.496L117.664 46.104C118.07 45.53 118.378 44.998 118.56 44.522C118.742 44.046 118.868 43.528 118.938 42.954C119.008 42.38 119.036 41.582 119.036 40.588V37.2C120.478 37.046 121.976 36.696 123.054 36.262L123.236 36.948C122.27 37.34 120.926 37.676 119.694 37.844V40.098H123.838V40.826H122.074V46.272H121.388V40.826H119.694C119.666 43.71 119.47 44.564 118.266 46.496ZM119.89 47.21C121.304 47.21 122.662 47.182 123.964 47.126L123.796 47.854C122.578 47.91 121.318 47.938 119.988 47.938C119.162 47.938 118.364 47.924 117.58 47.896C115.55 47.84 114.346 47.364 113.52 46.23L111.644 48.036L111.182 47.35L113.142 45.558V41.54H111.434V40.784H113.884V45.53C114.556 46.692 115.69 47.126 117.664 47.182C118.616 47.196 119.358 47.21 119.89 47.21Z"
+                fill="black" fill-opacity="0.78" style="fill: black; fill-opacity: 0.78" />
+              <defs>
+                <linearGradient id="paint0_linear_2387_150" x1="-1.81609" y1="13.0968" x2="78.2975" y2="8.56927"
+                  gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#ECAB03"
+                    style="stop-color: #ecab03; stop-color: color(display-p3 0.9272 0.6708 0.0117); stop-opacity: 1" />
+                  <stop offset="0.58" stop-color="#FF8947"
+                    style="stop-color: #ff8947; stop-color: color(display-p3 1 0.5378 0.2778); stop-opacity: 1" />
+                </linearGradient>
+                <linearGradient id="paint1_linear_2387_150" x1="82.6194" y1="15.2507" x2="107.918" y2="8.0135"
+                  gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#FFC989"
+                    style="stop-color: #ffc989; stop-color: color(display-p3 1 0.7895 0.5389); stop-opacity: 1" />
+                  <stop offset="0.985" stop-color="#BDF8F1"
+                    style="stop-color: #bdf8f1; stop-color: color(display-p3 0.7426 0.974 0.9463); stop-opacity: 1" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="vip_btn" id="vip_btn_set">限时体验中</div>
+          </div>
+        </div>
+
+        <div class="setting_group_item">
+          <div class="setting_group_title">关于超级番茄：</div>
+          <div class="setting_list about">
+            <h2>来点魔法，对现实上瘾</h2>
+            <img src="../../pic/meme.png" />
+          </div>
+        </div>
+
+        <div class="setting_group_item">
+          <div class="setting_group_title">联系我：</div>
+          <div class="setting_list contact">
+            <h3>你好，我是李不烦</h3>
+            <span onclick="utools.shellOpenExternal('https://lbfnote.com')">个人网站</span>
+            <span onclick="utools.shellOpenExternal('mailto:originstree@qq.com')">作者邮箱</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="../../base/js/settingsConfig.js"></script>
+  <script src="../../base/js/audioList.js"></script>
+  <script src="js/env.js"></script>
+  <script src="js/floatingWindow.js"></script>
+  <script src="js/tomatoPileWindow.js"></script>
+  <script src="js/contextMenuWindow.js"></script>
+  <script src="js/tipsWindow.js"></script>
+  <script src="js/confetti.min.js"></script>
+  <script src="js/slider.js"></script>
+  <script src="js/switch.js"></script>
+  <script src="js/select.js"></script>
+  <script src="js/drag.js"></script>
+  <script src="js/user.js"></script>
+  <script src="js/todoList.js"></script>
+  <script src="js/calendar.js"></script>
+
+  <script src="js/index.js"></script>
+</body>
+
+</html>

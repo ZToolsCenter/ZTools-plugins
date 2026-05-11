@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="logo.png">
+    <title>目录树生成器</title>
+    <link rel="stylesheet" href="codemirror.min.css">
+    <link rel="stylesheet" href="monokai.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="icons.css">
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <button id="selectFolder" class="primary"><i class="icon icon-folder"></i> 选择文件夹</button>
+                <button id="formatComments"><i class="icon icon-align"></i> 格式化注释</button>
+                <button id="exportImage"><i class="icon icon-image"></i> 导出图片</button>
+            </div>
+            <div class="control-group">
+                <button class="button-select">
+                    <i class="icon icon-list-settings"></i>
+                    <span>显示层级: <span class="selected-value">3 级</span></span>
+                    <i class="icon icon-arrow-down"></i>
+                    <select id="levelSelect">
+                        <option value="1">1 级</option>
+                        <option value="2">2 级</option>
+                        <option value="3" selected>3 级</option>
+                        <option value="4">4 级</option>
+                        <option value="5">5 级</option>
+                        <option value="-1">显示全部</option>
+                    </select>
+                </button>
+                <button class="button-select">
+                    <i class="icon icon-menu"></i>
+                    <span>注释分隔符: <span class="selected-value">#</span></span>
+                    <i class="icon icon-arrow-down"></i>
+                    <select id="commentSeparator">
+                        <option value="#">#</option>
+                        <option value="//"> //</option>
+                    </select>
+                </button>
+                <button class="button-select">
+                    <i class="icon icon-palette"></i>
+                    <span>主题: <span class="selected-value">跟随系统</span></span>
+                    <i class="icon icon-arrow-down"></i>
+                    <select id="themeSelect">
+                        <option value="system">跟随系统</option>
+                        <option value="light">浅色</option>
+                        <option value="dark">深色</option>
+                    </select>
+                </button>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="showHidden">
+                    <span>显示隐藏文件</span>
+                </label>
+                <div class="ignore-input-wrapper">
+                    <input 
+                        type="text" 
+                        id="ignorePatterns" 
+                        placeholder="输入要忽略的文件/文件夹，用逗号分隔"
+                        title="例如: node_modules,build,dist,*.log"
+                    >
+                    <button id="updateIgnore" class="input-button" title="更新忽略规则">
+                        <i class="icon icon-refresh"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <textarea id="treeContainer"></textarea>
+        <!-- 导出设置弹窗 -->
+        <div id="exportModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>导出设置</h3>
+                    <button class="close-btn">关闭</button>
+                </div>
+                <div class="modal-body">
+                    <div class="export-preview">
+                        <div id="exportPreview" class="preview-container"></div>
+                    </div>
+                    <div class="export-settings">
+                        <div class="settings-scroll-area">
+                            <!-- 主题选择部分 -->
+                            <div class="setting-group">
+                                <label>预设主题</label>
+                                <div class="theme-list">
+                                    <button class="theme-item" data-theme="github-light">
+                                        <span class="theme-preview" style="background: #ffffff; color: #1F2328">
+                                            <span class="comment" style="color: #22863a">Aa</span>
+                                        </span>
+                                    </button>
+                                    <button class="theme-item" data-theme="github-dark">
+                                        <span class="theme-preview" style="background: #0d1117; color: #c9d1d9">
+                                            <span class="comment" style="color: #7ee787">Aa</span>
+                                        </span>
+                                    </button>
+                                    <button class="theme-item" data-theme="monokai">
+                                        <span class="theme-preview" style="background: #272822; color: #f8f8f2">
+                                            <span class="comment" style="color: #a6e22e">Aa</span>
+                                        </span>
+                                    </button>
+                                    <button class="theme-item" data-theme="dracula">
+                                        <span class="theme-preview" style="background: #282a36; color: #f8f8f2">
+                                            <span class="comment" style="color: #50fa7b">Aa</span>
+                                        </span>
+                                    </button>
+                                    <button class="theme-item" data-theme="nord">
+                                        <span class="theme-preview" style="background: #2e3440; color: #d8dee9">
+                                            <span class="comment" style="color: #a3be8c">Aa</span>
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- 自定义颜色部分 -->
+                            <div class="setting-group">
+                                <label>自定义颜色</label>
+                                <div class="setting-group">
+                                    <label>背景颜色</label>
+                                    <input type="color" id="bgColor" value="#ffffff">
+                                </div>
+                                <div class="setting-group">
+                                    <label>文字颜色</label>
+                                    <input type="color" id="textColor" value="#1F2328">
+                                </div>
+                                <div class="setting-group">
+                                    <label>注释颜色</label>
+                                    <input type="color" id="commentColor" value="#22863a">
+                                </div>
+                            </div>
+                            <!-- 缩放比例部分 -->
+                            <div class="setting-group">
+                                <label>缩放比例</label>
+                                <select id="exportScale">
+                                    <option value="1">1x</option>
+                                    <option value="2">2x</option>
+                                    <option value="3">3x</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button id="confirmExport" class="primary">
+                            <span class="button-text">立即导出</span>
+                            <span class="loading-spinner"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="html2canvas.min.js"></script>
+    <script src="codemirror.min.js"></script>
+    <script src="main.js"></script>
+</body>
+</html> 

@@ -1,0 +1,80 @@
+{
+  "name": "codecalc",
+  "title": "Code Calculator",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "codecalc",
+      "explain": "代码计算器",
+      "cmds": ["Code Calc", "Calculator", "Code计算器"]
+    },
+    {
+      "code": "quickcalc",
+      "explain": "计算算式",
+      "icon": "logo.png",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "快速计算",
+          "match": "/^\\s*(?:\\(*[+-]?(?:(?:\\d+(\\.\\d+)?[%‰]?)|π|pi|e)\\)* ?[+\\-*x/÷%^] ?)+\\(*[+-]?(?:(?:\\d+(\\.\\d+)?[%‰]?)|π|pi|e)\\)*$/"
+        },
+        {
+          "type": "regex",
+          "label": "进制转换",
+          "match": "/^\\s*[+-]?(?:0[bB][01]+|0[oO][0-7]+|0[xX][0-9A-Fa-f]+)\\s*$/"
+        },
+        {
+          "type": "regex",
+          "label": "Base64解码",
+          "match": "/^(?=(?:.*[A-Za-z]){3,})(?:[A-Za-z0-9+\/]{4}){3,}(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/"
+        },
+        {
+          "type": "regex",
+          "label": "通用计算",
+          "match": "/^(?!.*[0-9\\uFF10-\\uFF19](?![xXbBoO])[a-zA-Z\\uFF21-\\uFF3A\\uFF41-\\uFF5A])[ -~π°‰\\uFF01-\\uFF5E]{1,}\\s*=$/"
+        }
+      ]
+    },
+    {
+      "code": "timestamp",
+      "explain": "计算时间戳",
+      "icon": "logo.png",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "时间戳@YYYY-MM-DD HH:mm:ss",
+          "match": "/^\\s*(@)?\\d{4}[-|/]\\d{1,2}[-|/]\\d{1,2}\\s+\\d{1,2}:\\d{1,2}(?::\\d{1,2})?$/"
+        },
+        {
+          "type": "regex",
+          "label": "时间戳@YYYY-MM-DD",
+          "match": "/^\\s*(@)\\d{4}(?:[-|/]\\d{1,2}(?:[-|/]\\d{1,2})?)?$/"
+        },
+        {
+          "type": "regex",
+          "label": "时间戳",
+          "match": "/^\\s*(@)(now|today)$/"
+        }
+      ]
+    },
+    {
+      "code": "ts2date",
+      "explain": "时间戳转日期",
+      "icon": "logo.png",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "时间戳转日期",
+          "match": "/^\\s*(#)(\\d{10,15})$/"
+        }
+      ]
+    }
+  ],
+  "version": "3.2.3",
+  "description": "一个优雅好用的科学计算器，支持变量赋值、函数运算、矩阵计算、时间戳转换、进制转换等。"
+} 

@@ -1,0 +1,13 @@
+{
+  "name": "ztools-mac-file-search",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ZTools macOS 本地文件搜索插件",
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist && cp plugin.json preload.js index.html app.js styles.css logo.png dist/",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@ztools-center/ztools-api-types": "^1.0.3"
+  }
+}

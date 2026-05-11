@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--transition-slow), transform var(--transition-slow);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+}
+
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity var(--transition-slow), transform var(--transition-bounce);
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+@keyframes pulse-border {
+  0% {
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: scale(0.98);
+  }
+
+  50% {
+    border-color: var(--color-accent-blue);
+    transform: scale(1.02);
+  }
+
+  100% {
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: scale(0.98);
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ai-helper",
+  "title": "AI助手",
+  "description": "轻量级 AI 聊天助手",
+  "author": "Zing",
+  "version": "1.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 600
+  },
+  "features": [
+    {
+      "code": "chat",
+      "explain": "AI 智能对话助手",
+      "icon": "logo.png",
+      "cmds": [
+        "AI助手",
+        "AI",
+        "chat",
+        {
+          "type": "over",
+          "label": "AI对话"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "type": "commonjs",
+  "dependencies": {
+    "systeminformation": "^5.31.5"
+  }
+}

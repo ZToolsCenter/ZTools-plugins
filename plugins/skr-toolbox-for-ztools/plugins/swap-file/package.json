@@ -1,0 +1,37 @@
+{
+  "name": "swap-file",
+  "version": "0.0.1",
+  "description": "局域网文件分享 ZTools 插件。在本机启动 HTTP 服务器，同一局域网内的设备通过浏览器即可浏览、下载和上传文件。",
+  "author": "皮皮虾我们走",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Particaly/ztools-plugin-swap-file"
+  },
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.5.0",
+    "@fastify/multipart": "^8.1.0",
+    "@fastify/static": "^6.12.0",
+    "chokidar": "^3.5.3",
+    "fast-glob": "^3.3.2",
+    "fastify": "^4.25.0",
+    "lucide-vue-next": "^0.577.0",
+    "pinia": "^2.1.7",
+    "qrcode": "^1.5.3",
+    "vue": "^3.5.13",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "sass-embedded": "^1.82.0",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vue-tsc": "^2.0.0"
+  }
+}

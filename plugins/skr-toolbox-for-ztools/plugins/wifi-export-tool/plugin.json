@@ -1,0 +1,22 @@
+{
+    "name": "wifi-export-tool",
+    "version": "1.0.3",
+    "title": "WiFi历史密码查看器",
+    "description": "查看 Windows 设备上保存的所有 WiFi 网络及其密码。",
+    "author": "wangtao",
+    "main": "index.html",
+    "logo": "logo.svg",
+    "preload": "preload.js",
+    "features": [
+        {
+            "code": "wifi-export-tool",
+            "explain": "查看已保存的WiFi密码",
+            "cmds": [
+                "wifi",
+                "wifipassword",
+                "无线网络",
+                "密码"
+            ]
+        }
+    ]
+}

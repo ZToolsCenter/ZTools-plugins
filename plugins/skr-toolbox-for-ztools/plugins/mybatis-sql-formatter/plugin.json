@@ -1,0 +1,28 @@
+{
+  "name": "mybatis-sql-formatter",
+  "title": "MyBatis SQL 日志格式化",
+  "description": "将 MyBatis SQL 日志中的 Preparing 和 Parameters 合并并格式化为可执行的 SQL 语句",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "format-sql-log",
+      "explain": "格式化 MyBatis SQL 日志，将占位符替换为实际参数值",
+      "cmds": [
+        "sql",
+        "mybatis",
+        "sql格式化",
+        "sql日志",
+        "SQL日志格式化",
+        {
+          "type": "over",
+          "label": "MyBatis SQL 日志格式化",
+          "minLength": 10,
+          "maxLength": 50000
+        }
+      ]
+    }
+  ]
+}

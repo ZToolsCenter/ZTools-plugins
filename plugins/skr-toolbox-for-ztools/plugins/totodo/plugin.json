@@ -1,0 +1,39 @@
+{
+    "title": "totodo",
+    "version": "1.0.1",
+    "description": "结合日历的待办列表清单。",
+    "author": "Totti",
+    "homepage": null,
+    "main": "index.html",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "features": [
+        {
+            "code": "totodo",
+            "explain": "日历待办",
+            "cmds": [
+                "日历",
+                "待办",
+                "Calendar",
+                "Todo"
+            ]
+        },
+        {
+            "code": "add_from_selection",
+            "explain": "将选中文字添加到今日待办",
+            "cmds": [
+                {
+                    "type": "over",
+                    "label": "添加到 ToTodo"
+                }
+            ]
+        }
+    ],
+    "platform": [
+        "win32",
+        "darwin",
+        "linux"
+    ],
+    "name": "totodo",
+    "ai": true
+}

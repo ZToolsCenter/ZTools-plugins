@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>今日金价</title>
+  <style>
+    /* ==================== 基础重置 ==================== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0d0d1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ==================== 主容器 ==================== */
+    .app-container {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* ==================== 价格卡片 ==================== */
+    .price-card {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255, 193, 7, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .price-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 50% 50%, rgba(255, 193, 7, 0.03) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    /* 标题 */
+    .price-label {
+      text-align: center;
+      font-size: 13px;
+      color: #8a8a9a;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+
+    /* 主价格 */
+    .price-main {
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .price-value {
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1.1;
+      transition: color 0.3s ease;
+    }
+
+    .price-value.up {
+      color: #ff5252;
+    }
+
+    .price-value.down {
+      color: #00e676;
+    }
+
+    .price-unit {
+      font-size: 16px;
+      color: #8a8a9a;
+      margin-left: 4px;
+      font-weight: 400;
+    }
+
+    /* 涨跌幅 */
+    .price-change {
+      text-align: center;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      transition: color 0.3s ease;
+    }
+
+    .price-change.up {
+      color: #ff5252;
+    }
+
+    .price-change.down {
+      color: #00e676;
+    }
+
+    .price-change .arrow {
+      font-size: 12px;
+      margin-right: 2px;
+    }
+
+    /* 分隔线 */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 193, 7, 0.2), transparent);
+      margin-bottom: 16px;
+    }
+
+    /* 详情网格 */
+    .price-details {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .detail-item {
+      text-align: center;
+    }
+
+    .detail-label {
+      font-size: 11px;
+      color: #6a6a7a;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .detail-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e0e0e0;
+    }
+
+    .detail-value.high {
+      color: #ff5252;
+    }
+
+    .detail-value.low {
+      color: #00e676;
+    }
+
+    /* 刷新提示 */
+    .refresh-hint {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 11px;
+      color: #5a5a6a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .refresh-icon {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+      opacity: 0.6;
+      transition: transform 0.3s ease;
+    }
+
+    .refresh-icon.rotating {
+      animation: spin 0.8s linear infinite;
+    }
+
+    .refresh-hint {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 11px;
+      color: #5a5a6a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s ease;
+    }
+
+    .refresh-hint:hover {
+      color: #8a8a9a;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ==================== Tab 切换 ==================== */
+    .tab-container {
+      display: flex;
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      background: transparent;
+      color: #8a8a9a;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      letter-spacing: 1px;
+    }
+
+    .tab-btn:hover {
+      color: #c0c0c0;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+      color: #1a1a2e;
+      font-weight: 700;
+      box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+    }
+
+    /* ==================== 图表区域 ==================== */
+    .chart-container {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid rgba(255, 193, 7, 0.1);
+      position: relative;
+    }
+
+    .chart-canvas {
+      width: 100%;
+      height: 240px;
+      display: block;
+    }
+
+    /* ==================== 加载动画 ==================== */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0d0d1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.5s ease;
+    }
+
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 193, 7, 0.2);
+      border-top: 3px solid #ffc107;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    .loading-text {
+      color: #8a8a9a;
+      font-size: 13px;
+      letter-spacing: 1px;
+    }
+
+    /* ==================== 错误提示 ==================== */
+    .error-toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(255, 82, 82, 0.9);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      transition: transform 0.3s ease;
+      z-index: 200;
+      backdrop-filter: blur(10px);
+    }
+
+    .error-toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ==================== 滚动条美化 ==================== */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 193, 7, 0.3);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 加载动画 -->
+  <div class="loading-overlay" id="loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">正在获取金价数据...</div>
+  </div>
+
+  <!-- 错误提示 -->
+  <div class="error-toast" id="errorToast"></div>
+
+  <!-- 主内容 -->
+  <div class="app-container">
+    <!-- 价格卡片 -->
+    <div class="price-card">
+      <div class="price-label">黄金当前价格</div>
+      <div class="price-main">
+        <span class="price-value up" id="currentPrice">--</span>
+        <span class="price-unit">元/克</span>
+      </div>
+      <div class="price-change up" id="priceChange">
+        <span class="arrow">↑</span> --%
+      </div>
+      <div class="divider"></div>
+      <div class="price-details">
+        <div class="detail-item">
+          <div class="detail-label">开盘</div>
+          <div class="detail-value" id="openPrice">--</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">最高</div>
+          <div class="detail-value high" id="highPrice">--</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">最低</div>
+          <div class="detail-value low" id="lowPrice">--</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">昨收</div>
+          <div class="detail-value" id="preClosePrice">--</div>
+        </div>
+      </div>
+      <div class="refresh-hint" onclick="manualRefresh()">
+        数据每分钟自动刷新
+        <svg class="refresh-icon" id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="M23 4v6h-6M1 20v-6h6" />
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- 时间段切换 -->
+    <div class="tab-container">
+      <button class="tab-btn active" data-range="realtime" onclick="switchTab(this)">实时</button>
+      <button class="tab-btn" data-range="month" onclick="switchTab(this)">近一月</button>
+      <button class="tab-btn" data-range="quarter" onclick="switchTab(this)">近三月</button>
+    </div>
+
+    <!-- 走势图表 -->
+    <div class="chart-container">
+      <canvas class="chart-canvas" id="chartCanvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // ==================== 全局状态 ====================
+    const state = {
+      currentTab: 'realtime',
+      refreshTimer: null,
+      chartData: {
+        realtime: [],
+        month: [],
+        quarter: []
+      },
+      priceInfo: {
+        current: 0,
+        open: 0,
+        high: 0,
+        low: 0,
+        preClose: 0,
+        changePercent: 0
+      }
+    };
+
+    // ==================== DOM 引用 ====================
+    const els = {
+      currentPrice: document.getElementById('currentPrice'),
+      priceChange: document.getElementById('priceChange'),
+      openPrice: document.getElementById('openPrice'),
+      highPrice: document.getElementById('highPrice'),
+      lowPrice: document.getElementById('lowPrice'),
+      preClosePrice: document.getElementById('preClosePrice'),
+      chartCanvas: document.getElementById('chartCanvas'),
+      loading: document.getElementById('loading'),
+      errorToast: document.getElementById('errorToast'),
+      refreshIcon: document.getElementById('refreshIcon')
+    };
+
+    // ==================== 常量 ====================
+    // 国内金价数据接口（guojijinjia.com）
+    // 返回格式与新浪接口相同: var hq_str_gds_AUTD="最新价,涨跌,涨跌幅,卖出价,最高价,最低价,时间,昨收,开盘,..."
+    // 数据来源：上海黄金交易所 Au(T+D)，单位：人民币/克
+    const GOLD_API_URL = 'https://www.guojijinjia.com/d/gold.js';
+    const GOLD_CODE = 'gds_AUTD'; // 上海金 Au(T+D)
+
+    // ==================== 走势数据生成 ====================
+    /**
+     * 基于真实当前价生成走势数据
+     * （因免费 API 不提供历史分时数据，走势为模拟生成）
+     * @param {number} currentPrice - 真实的当前价格（元/克）
+     * @param {number} openPrice - 真实开盘价
+     */
+    function generateChartData(currentPrice, openPrice) {
+      const now = new Date();
+
+      // 生成实时数据（24小时，每30分钟一个点）
+      const realtimeData = [];
+      let price = openPrice;
+      const totalPoints = 48;
+      for (let i = totalPoints - 1; i >= 0; i--) {
+        const t = new Date(now.getTime() - i * 30 * 60 * 1000);
+        if (i === 0) {
+          // 最后一个点 = 真实当前价
+          price = currentPrice;
+        } else {
+          // 在开盘价和当前价之间做插值 + 随机波动
+          const progress = 1 - (i / totalPoints);
+          const target = openPrice + (currentPrice - openPrice) * progress;
+          const volatility = (Math.random() - 0.5) * 3;
+          price = target + volatility;
+        }
+        realtimeData.push({
+          time: `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`,
+          price: Math.round(price * 100) / 100
+        });
+      }
+
+      // 生成近一月数据（30天，每天一个点）
+      const monthData = [];
+      price = currentPrice - 15 + Math.random() * 10;
+      for (let i = 29; i >= 0; i--) {
+        const t = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const volatility = (Math.random() - 0.48) * 8;
+        const trend = (currentPrice - price) * 0.03;
+        price = price + volatility + trend;
+        monthData.push({
+          time: `${t.getMonth() + 1}/${t.getDate()}`,
+          price: Math.round(price * 100) / 100
+        });
+      }
+      monthData[monthData.length - 1].price = currentPrice;
+
+      // 生成近三月数据（90天，每天一个点）
+      const quarterData = [];
+      price = currentPrice - 40 + Math.random() * 20;
+      for (let i = 89; i >= 0; i--) {
+        const t = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const volatility = (Math.random() - 0.47) * 10;
+        const trend = (currentPrice - price) * 0.015;
+        price = price + volatility + trend;
+        quarterData.push({
+          time: `${t.getMonth() + 1}/${t.getDate()}`,
+          price: Math.round(price * 100) / 100
+        });
+      }
+      quarterData[quarterData.length - 1].price = currentPrice;
+
+      return { realtime: realtimeData, month: monthData, quarter: quarterData };
+    }
+
+    // ==================== 国内金价数据获取 ====================
+    /**
+     * 通过动态 script 标签加载国内金价数据
+     * 原理：接口返回 JS 变量赋值语句 var hq_str_gds_AUTD="..."
+     * script 标签加载后自动执行，写入全局变量
+     */
+    function loadGoldData() {
+      return new Promise((resolve, reject) => {
+        // 清除之前的全局变量
+        if (window.hq_str_gds_AUTD !== undefined) {
+          delete window.hq_str_gds_AUTD;
+        }
+
+        const script = document.createElement('script');
+        // 拼接请求 URL，添加随机参数防止缓存
+        script.src = `${GOLD_API_URL}?codes=${GOLD_CODE}&_=${Date.now()}`;
+        script.charset = 'utf-8';
+
+        const timer = setTimeout(() => {
+          script.remove();
+          reject(new Error('请求超时'));
+        }, 10000);
+
+        script.onload = () => {
+          clearTimeout(timer);
+          script.remove();
+
+          // 接口执行后会创建全局变量 hq_str_gds_AUTD
+          const rawData = window.hq_str_gds_AUTD;
+          if (!rawData || rawData === '') {
+            reject(new Error('数据为空（可能非交易时间，将使用上次数据）'));
+            return;
+          }
+
+          try {
+            // 解析数据字段（逗号分隔）
+            // 格式: "最新价,涨跌,成交量,卖出价,最高价,最低价,时间,昨收价,开盘价,..."
+            const fields = rawData.split(',');
+            const current = parseFloat(fields[0]);
+            const preClose = parseFloat(fields[7]);
+
+            // 手动计算涨跌幅（API 字段索引不匹配，改为自行计算更可靠）
+            const changePercent = preClose > 0 ? ((current - preClose) / preClose * 100) : 0;
+
+            const result = {
+              current: current,                    // 最新价
+              change: parseFloat(fields[1]),        // 涨跌额
+              changePercent: changePercent,         // 计算出的涨跌幅%
+              high: parseFloat(fields[4]),          // 最高价
+              low: parseFloat(fields[5]),           // 最低价
+              preClose: preClose,                   // 昨收价
+              open: parseFloat(fields[8]),          // 开盘价
+              time: fields[6],                      // 更新时间
+            };
+
+            // 数据有效性校验
+            if (isNaN(result.current) || result.current <= 0) {
+              reject(new Error('解析的价格数据无效'));
+              return;
+            }
+
+            console.info(
+              `✅ 上海黄金交易所 Au(T+D) 实时数据:`,
+              `最新 ${result.current}`,
+              `开盘 ${result.open}`,
+              `最高 ${result.high}`,
+              `最低 ${result.low}`,
+              `昨收 ${result.preClose}`,
+              `涨跌 ${result.changePercent}%`,
+              `时间 ${result.time}`
+            );
+            resolve(result);
+          } catch (e) {
+            reject(new Error('数据解析失败: ' + e.message));
+          }
+        };
+
+        script.onerror = () => {
+          clearTimeout(timer);
+          script.remove();
+          reject(new Error('网络请求失败'));
+        };
+
+        document.head.appendChild(script);
+      });
+    }
+
+    /**
+     * 获取金价数据（上海黄金交易所 Au(T+D)）
+     * 数据源：guojijinjia.com，直接获取国内金价
+     */
+    async function fetchGoldPrice() {
+      try {
+        const sgeData = await loadGoldData();
+
+        // 使用 SGE 真实的开盘、最高、最低、昨收数据
+        const priceInfo = {
+          current: sgeData.current,
+          open: sgeData.open,
+          high: sgeData.high,
+          low: sgeData.low,
+          preClose: sgeData.preClose,
+          changePercent: sgeData.changePercent
+        };
+
+        // 生成走势图表数据（基于真实当前价和开盘价）
+        const chartData = generateChartData(sgeData.current, sgeData.open);
+
+        return { priceInfo, chartData };
+
+      } catch (error) {
+        console.warn('⚠️ 国内金价接口获取失败:', error.message);
+        showError('数据获取失败: ' + error.message);
+
+        // 接口失败时显示提示，不使用虚假数据
+        return null;
+      }
+    }
+
+    // ==================== UI 更新 ====================
+    /**
+     * 更新价格卡片显示
+     */
+    function updatePriceCard(info) {
+      const isUp = info.changePercent >= 0;
+      const direction = isUp ? 'up' : 'down';
+      const arrow = isUp ? '↑' : '↓';
+
+      // 当前价格
+      els.currentPrice.textContent = info.current.toFixed(2);
+      els.currentPrice.className = `price-value ${direction}`;
+
+      // 涨跌幅
+      els.priceChange.innerHTML = `<span class="arrow">${arrow}</span> ${info.changePercent >= 0 ? '+' : ''}${info.changePercent.toFixed(2)}%`;
+      els.priceChange.className = `price-change ${direction}`;
+
+      // 详情数据
+      els.openPrice.textContent = info.open.toFixed(2);
+      els.highPrice.textContent = info.high.toFixed(2);
+      els.lowPrice.textContent = info.low.toFixed(2);
+      els.preClosePrice.textContent = info.preClose.toFixed(2);
+    }
+
+    // ==================== Canvas 图表绘制 ====================
+    /**
+     * 绘制折线走势图
+     * 使用原生 Canvas API，不依赖第三方库
+     */
+    function drawChart(data) {
+      const canvas = els.chartCanvas;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      const width = rect.width;
+      const height = rect.height;
+
+      // 留白
+      const padding = { top: 15, right: 15, bottom: 35, left: 50 };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+
+      // 清除画布
+      ctx.clearRect(0, 0, width, height);
+
+      if (!data || data.length === 0) return;
+
+      // 计算价格范围
+      const prices = data.map(d => d.price);
+      const minPrice = Math.min(...prices);
+      const maxPrice = Math.max(...prices);
+      const priceRange = maxPrice - minPrice || 1;
+      const pricePadding = priceRange * 0.1;
+      const yMin = minPrice - pricePadding;
+      const yMax = maxPrice + pricePadding;
+      const yRange = yMax - yMin;
+
+      // 坐标转换函数
+      const toX = (i) => padding.left + (i / (data.length - 1)) * chartWidth;
+      const toY = (price) => padding.top + (1 - (price - yMin) / yRange) * chartHeight;
+
+      // ---- 绘制网格线 ----
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.lineWidth = 1;
+      const gridLines = 5;
+      for (let i = 0; i <= gridLines; i++) {
+        const y = padding.top + (i / gridLines) * chartHeight;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+      }
+
+      // ---- 绘制 Y 轴标签 ----
+      ctx.fillStyle = '#6a6a7a';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i <= gridLines; i++) {
+        const y = padding.top + (i / gridLines) * chartHeight;
+        const priceLabel = yMax - (i / gridLines) * yRange;
+        ctx.fillText(Math.round(priceLabel).toLocaleString(), padding.left - 8, y);
+      }
+
+      // ---- 绘制 X 轴标签 ----
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      // 根据数据量选取显示的标签数
+      const labelCount = Math.min(data.length, 8);
+      const labelStep = Math.max(1, Math.floor(data.length / labelCount));
+      for (let i = 0; i < data.length; i += labelStep) {
+        const x = toX(i);
+        ctx.fillText(data[i].time, x, height - padding.bottom + 8);
+      }
+      // 始终显示最后一个标签
+      if (data.length > 1) {
+        const lastX = toX(data.length - 1);
+        ctx.fillText(data[data.length - 1].time, lastX, height - padding.bottom + 8);
+      }
+
+      // ---- 绘制渐变填充区域 ----
+      const gradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);
+      gradient.addColorStop(0, 'rgba(255, 193, 7, 0.15)');
+      gradient.addColorStop(1, 'rgba(255, 193, 7, 0.0)');
+
+      ctx.beginPath();
+      ctx.moveTo(toX(0), height - padding.bottom);
+      for (let i = 0; i < data.length; i++) {
+        ctx.lineTo(toX(i), toY(data[i].price));
+      }
+      ctx.lineTo(toX(data.length - 1), height - padding.bottom);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // ---- 绘制折线 ----
+      ctx.beginPath();
+      ctx.strokeStyle = '#ffc107';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      for (let i = 0; i < data.length; i++) {
+        const x = toX(i);
+        const y = toY(data[i].price);
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      // ---- 绘制关键数据点 ----
+      // 仅在数据点较少时绘制（避免密集数据时过于拥挤）
+      if (data.length <= 48) {
+        const pointStep = data.length <= 15 ? 1 : Math.floor(data.length / 12);
+        for (let i = 0; i < data.length; i += pointStep) {
+          const x = toX(i);
+          const y = toY(data[i].price);
+
+          // 外圈光晕
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 193, 7, 0.3)';
+          ctx.fill();
+
+          // 内圈实心
+          ctx.beginPath();
+          ctx.arc(x, y, 2, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffc107';
+          ctx.fill();
+        }
+      }
+
+      // 绘制最后一个数据点（始终显示）
+      const lastIdx = data.length - 1;
+      const lastX = toX(lastIdx);
+      const lastY = toY(data[lastIdx].price);
+
+      // 脉冲动画圈
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffc107';
+      ctx.fill();
+    }
+
+    // ==================== Tab 切换 ====================
+    function switchTab(btn) {
+      // 更新 Tab 样式
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      // 切换数据
+      state.currentTab = btn.dataset.range;
+      drawChart(state.chartData[state.currentTab]);
+    }
+
+    // ==================== 数据加载与刷新 ====================
+    async function loadData() {
+      try {
+        const data = await fetchGoldPrice();
+
+        if (!data) {
+          // 接口返回 null，显示错误提示
+          els.loading.classList.add('hidden');
+          return;
+        }
+
+        // 更新状态
+        state.priceInfo = data.priceInfo;
+        state.chartData = data.chartData;
+
+        // 更新 UI
+        updatePriceCard(state.priceInfo);
+        drawChart(state.chartData[state.currentTab]);
+
+        // 隐藏加载
+        els.loading.classList.add('hidden');
+
+      } catch (error) {
+        console.error('加载数据失败:', error);
+        showError('数据加载失败，请稍后重试');
+        els.loading.classList.add('hidden');
+      }
+    }
+
+    /**
+     * 模拟实时价格微更新
+     * 在已有数据基础上进行小幅波动，模拟真实行情
+     */
+    function simulateRealtimeUpdate() {
+      if (state.priceInfo.current === 0) return;
+
+      // 当前价格微调（±0.5 元）
+      const fluctuation = (Math.random() - 0.5) * 1;
+      state.priceInfo.current = Math.round((state.priceInfo.current + fluctuation) * 10) / 10;
+
+      // 更新最高/最低
+      if (state.priceInfo.current > state.priceInfo.high) {
+        state.priceInfo.high = state.priceInfo.current;
+      }
+      if (state.priceInfo.current < state.priceInfo.low) {
+        state.priceInfo.low = state.priceInfo.current;
+      }
+
+      // 重新计算涨跌幅
+      state.priceInfo.changePercent = Math.round(
+        ((state.priceInfo.current - state.priceInfo.preClose) / state.priceInfo.preClose * 100) * 100
+      ) / 100;
+
+      // 更新实时图表数据（追加最新点）
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const realtimeData = state.chartData.realtime;
+      if (realtimeData.length > 0 && realtimeData[realtimeData.length - 1].time !== timeStr) {
+        realtimeData.push({ time: timeStr, price: state.priceInfo.current });
+        // 保持最多 60 个数据点
+        if (realtimeData.length > 60) {
+          realtimeData.shift();
+        }
+      }
+
+      // 更新 UI
+      updatePriceCard(state.priceInfo);
+      if (state.currentTab === 'realtime') {
+        drawChart(state.chartData.realtime);
+      }
+    }
+
+    /**
+     * 手动触发刷新
+     */
+    async function manualRefresh() {
+      if (els.refreshIcon.classList.contains('rotating')) return;
+
+      els.refreshIcon.classList.add('rotating');
+      try {
+        await loadData();
+      } finally {
+        // 动画至少持续 800ms 以保证视觉反馈
+        setTimeout(() => {
+          els.refreshIcon.classList.remove('rotating');
+        }, 800);
+      }
+    }
+
+    // ==================== 工具函数 ====================
+    function showError(msg) {
+      els.errorToast.textContent = msg;
+      els.errorToast.classList.add('show');
+      setTimeout(() => els.errorToast.classList.remove('show'), 3000);
+    }
+
+    // ==================== 初始化 ====================
+    async function init() {
+      // 加载数据
+      await loadData();
+
+      // 设置定时刷新（每 30 秒重新请求 API 获取真实数据）
+      state.refreshTimer = setInterval(loadData, 30000);
+
+      // 监听窗口大小变化，重绘图表
+      window.addEventListener('resize', () => {
+        if (state.chartData[state.currentTab]) {
+          drawChart(state.chartData[state.currentTab]);
+        }
+      });
+    }
+
+    // ==================== Ruck 集成 ====================
+    if (window.ruck) {
+      // 插件进入时初始化
+      window.ruck.onPluginEnter((action) => {
+        console.log('今日金价插件已启动:', action);
+        // 设置插件窗口高度
+        window.ruck.setExpendHeight(560);
+        init();
+      });
+
+      // 插件退出时清理资源
+      window.ruck.onPluginOut(() => {
+        if (state.refreshTimer) {
+          clearInterval(state.refreshTimer);
+          state.refreshTimer = null;
+        }
+        console.log('今日金价插件已退出');
+      });
+    } else {
+      // 非 Ruck 环境（浏览器直接打开）
+      document.addEventListener('DOMContentLoaded', init);
+    }
+  </script>
+</body>
+
+</html>

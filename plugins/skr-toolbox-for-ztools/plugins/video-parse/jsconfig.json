@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "types": [
+      "utools-api-types"
+    ]
+  },
+  "include": [
+    "src/**/*.vue",
+    "src/**/*.js"
+  ]
+}

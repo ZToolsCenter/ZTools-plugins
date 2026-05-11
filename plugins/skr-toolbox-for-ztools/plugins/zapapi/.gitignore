@@ -1,0 +1,69 @@
+# Dependency directories
+node_modules/
+
+# Package manager files
+.pnpm-store/
+.npm/
+.yarn/
+
+# Build output and reports
+dist/
+build/
+out/
+coverage/
+*.lcov
+
+# Caches
+.cache/
+.parcel-cache/
+.vite/
+.turbo/
+.eslintcache
+*.tsbuildinfo
+
+# Logs and runtime files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.pid
+*.pid.lock
+
+# Environment and local overrides
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.suo
+*.user
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Local agent/tooling metadata
+.opencode/
+.ruff_cache/
+
+# pnpm lock file
+pnpm-lock.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class

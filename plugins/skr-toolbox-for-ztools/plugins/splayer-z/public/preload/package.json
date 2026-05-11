@@ -1,0 +1,9 @@
+{
+  "type": "commonjs",
+  "dependencies": {
+    "@neteasecloudmusicapienhanced/api": "^4.29.18",
+    "fastify": "^5.6.2",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/multipart": "^9.3.0"
+  }
+}

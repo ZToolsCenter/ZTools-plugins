@@ -1,0 +1,30 @@
+{
+    "name": "ctool",
+    "version": "2.4.0",
+    "type": "module",
+    "description": "程序开发常用工具 chrome / edge / firefox / utools / windows / linux / mac",
+    "homepage": "https://ctool.dev",
+    "repository": "https://github.com/baiy/Ctool",
+    "author": "baiy",
+    "license": "MIT",
+    "scripts": {
+        "initialize": "pnpm --filter ctool-config run build && pnpm --filter ctool-adapter-base run build && pnpm -r run adapter-build",
+        "check": "pnpm run initialize && pnpm --filter ctool-core run check",
+        "dev": "pnpm run initialize && pnpm --filter ctool-core run dev",
+        "build": "pnpm run initialize && pnpm --filter ctool-core run build",
+        "release": "node release.cjs && pnpm run build && pnpm -r run platform-release",
+        "only-release": "node release.cjs && pnpm -r run platform-release",
+        "vercel-build": "pnpm run build && pnpm --filter ctool-site run build",
+        "clear": "node clear.cjs"
+    },
+    "devDependencies": {
+        "@types/http-proxy": "^1.17.10",
+        "@types/node": "catalog:",
+        "@vercel/node": "^2.9.12",
+        "typescript": "catalog:"
+    },
+    "dependencies": {
+        "ctool-config": "workspace:*",
+        "http-proxy": "^1.18.1"
+    }
+}

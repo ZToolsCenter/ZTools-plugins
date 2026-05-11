@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desktop Capture and Screenshot</title>
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="../styles/shop.css">
+</head>
+
+<body>
+  <div class="vip_card" id="vip_card_set">
+    <div class="vip_btn" id="vip_btn_set"> </div>
+    <img src="../assets/vip-badge.svg" alt="VIP 徽章" width="180" height="52">
+    <div class="vip_btn" id="vip_card_detil_set">立即解锁</div>
+  </div>
+
+  <div class="card other">
+    <div class="liner">
+      <h3>你好，我是李不烦</h3>
+      <span onclick="ztools.shellOpenExternal('https://lbfnote.com')">个人网站</span>
+      <span onclick="ztools.shellOpenExternal('mailto:originstree@qq.com')">作者邮箱</span>
+    </div>
+
+    <img src="../assets/others.png" alt="作者其他 ztools 插件"
+      onclick="ztools.shellOpenExternal('https://u.tools/plugins/search/?n=%E6%9D%8E%E4%B8%8D%E7%83%A6&a=zb1fzyab')" />
+  </div>
+
+  <script src="../components/shop.js" type="module"></script>
+  <script src="index.js" type="module"></script>
+</body>
+
+</html>

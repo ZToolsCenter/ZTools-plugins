@@ -1,0 +1,47 @@
+{
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "platform": ["win32", "darwin"],
+  "features": [
+    {
+      "code": "bookmarks",
+      "explain": "Chrome、Edge 收藏书签",
+      "cmds": ["书签"]
+    },
+    {
+      "code": "search",
+      "explain": "Chrome、Edge 收藏书签查找",
+      "mainPush": true,
+      "cmds": [{ "type": "over", "maxLength": 40, "label": "浏览器书签搜索" }]
+    }
+  ],
+  "tools": {
+    "bookmarks_query": {
+      "title": "书签搜索",
+      "description": "在 Chrome、Edge 浏览器的书签中进行搜索",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "keyword": { "type": "string", "description": "搜索关键词" }
+        },
+        "required": ["keyword"]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string", "description": "书签标题" },
+            "url": { "type": "string", "description": "书签 URL" }
+          },
+          "required": ["title", "url"]
+        }
+      }
+    }
+  },
+  "name": "bookmarks",
+  "title": "浏览器书签搜索",
+  "description": "Chrome、Edge 浏览器书签搜索",
+  "version": "2.1.2"
+}

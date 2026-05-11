@@ -1,0 +1,22 @@
+{
+  "name": "ip-switcher",
+  "title": "IP 地址切换",
+  "version": "0.0.5",
+  "description": "快捷修改本机 IP 地址，保存多套 IP 方案，一键切换。",
+  "author": "皮皮虾我们走",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "platform": ["win32"],
+  "features": [
+    {
+      "code": "default",
+      "explain": "启动 IP 地址切换工具",
+      "cmds": ["IP", "地址", "切换"]
+    }
+  ],
+  "development": {
+    "main": "http://localhost:8000/",
+    "preload": "../public/preload.js"
+  }
+}

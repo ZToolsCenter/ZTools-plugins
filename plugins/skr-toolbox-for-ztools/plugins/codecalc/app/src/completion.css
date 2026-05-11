@@ -1,0 +1,187 @@
+/* 定义主题变量 */
+:root {
+    --completion-bg: rgba(255, 255, 255, 0.98);
+    --completion-border: rgba(0, 0, 0, 0.08);
+    --completion-item-color: #555;
+    --completion-item-hover: rgba(0, 0, 0, 0.04);
+    --completion-item-selected: rgba(0, 0, 0, 0.05);
+    --completion-border-color: #4CAF50;
+    --completion-selected-color: #000;
+    --completion-scrollbar: rgba(0, 0, 0, 0.1);
+    --completion-scrollbar-hover: rgba(0, 0, 0, 0.15);
+    --completion-function-color: #000;
+    --completion-function-selected: #1565C0;
+    --completion-property-color: #607d8b;
+    --completion-property-selected: #455a64;
+    --completion-constant-color: #795548;
+    --completion-constant-selected: #2f7a5b;
+    --completion-description: #999;
+    --completion-description-selected: #666;
+}
+
+:root[data-theme="dark"] {
+    --completion-bg: rgba(40, 40, 40, 0.98);
+    --completion-border: rgba(255, 255, 255, 0.1);
+    --completion-item-color: #ddd;
+    --completion-item-hover: rgba(255, 255, 255, 0.1);
+    --completion-item-selected: rgba(255, 255, 255, 0.15);
+    --completion-border-color: #00e676;
+    --completion-selected-color: #fff;
+    --completion-scrollbar: rgba(255, 255, 255, 0.1);
+    --completion-scrollbar-hover: rgba(255, 255, 255, 0.15);
+    --completion-function-color: #e0e0e0;
+    --completion-function-selected: #A5B4FC;
+    --completion-property-color: #90a4ae;
+    --completion-property-selected: #b0bec5;
+    --completion-constant-color: #bcaaa4;
+    --completion-constant-selected: #7fbfa4;
+    --completion-description: #888;
+    --completion-description-selected: #aaa;
+}
+
+/* 补全提示框基础样式 */
+.completion-hint {
+    position: fixed;
+    background: var(--completion-bg);
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--completion-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+                0 1px 3px rgba(0, 0, 0, 0.02);
+    min-width: 120px;
+    max-width: 240px;
+    max-height: 160px;
+    overflow-y: auto;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(-2px);
+    animation: fadeIn 0.15s ease forwards;
+    padding: 4px 0;
+    scroll-behavior: smooth;
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 补全列表样式 */
+.completion-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* 补全项样式 */
+.completion-item {
+    padding: 6px 16px;
+    cursor: pointer;
+    color: var(--completion-item-color);
+    font-family: "Consolas", "Monaco", "Menlo", monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.completion-item:hover {
+    background: var(--completion-item-hover);
+}
+
+.completion-item.selected {
+    background: var(--completion-item-selected);
+    border-left: 3px solid var(--completion-border-color);
+    color: var(--completion-selected-color);
+    padding-left: 13px;
+    font-weight: 500;
+}
+
+/* 滚动条样式 */
+.completion-hint::-webkit-scrollbar {
+    width: 6px;
+}
+
+.completion-hint::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px 0;
+}
+
+.completion-hint::-webkit-scrollbar-thumb {
+    background: var(--completion-scrollbar);
+    border-radius: 3px;
+}
+
+.completion-hint::-webkit-scrollbar-thumb:hover {
+    background: var(--completion-scrollbar-hover);
+}
+
+/* 不同类型补全项的样式 */
+.completion-item[data-type="function"] {
+    color: var(--completion-function-color);
+}
+
+.completion-item[data-type="function"].selected {
+    color: var(--completion-function-selected);
+}
+
+.completion-item[data-type="property"] {
+    color: var(--completion-property-color);
+}
+
+.completion-item[data-type="property"].selected {
+    color: var(--completion-property-selected);
+}
+
+.completion-item[data-type="constant"] {
+    color: var(--completion-constant-color);
+}
+
+.completion-item[data-type="constant"].selected {
+    color: var(--completion-constant-selected);
+}
+
+/* 补全项文本和描述样式 */
+.completion-item .text {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.completion-item .description {
+    font-size: 12px;
+    color: var(--completion-description);
+    margin-left: 12px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+}
+
+.completion-item:hover .description,
+.completion-item.selected .description {
+    opacity: 1;
+}
+
+.completion-item.selected .description {
+    color: var(--completion-description-selected);
+}
+
+/* 确保补全框在其他内容之上的层级控制 */
+.expression-line {
+    position: relative;
+}
+
+.expression-line:hover {
+    z-index: 10;
+}
+
+/* 补全开关样式 */
+.completion-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+} 

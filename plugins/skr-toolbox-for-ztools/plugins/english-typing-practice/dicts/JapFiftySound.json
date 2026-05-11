@@ -1,0 +1,1262 @@
+[
+    {
+        "name": "a",
+        "trans": [
+            "あ"
+        ],
+        "notation": "あ"
+    },
+    {
+        "name": "a",
+        "trans": [
+            "ア"
+        ],
+        "notation": "ア"
+    },
+    {
+        "name": "i",
+        "trans": [
+            "い"
+        ],
+        "notation": "い"
+    },
+    {
+        "name": "i",
+        "trans": [
+            "イ"
+        ],
+        "notation": "イ"
+    },
+    {
+        "name": "u",
+        "trans": [
+            "う"
+        ],
+        "notation": "う"
+    },
+    {
+        "name": "u",
+        "trans": [
+            "ウ"
+        ],
+        "notation": "ウ"
+    },
+    {
+        "name": "e",
+        "trans": [
+            "え"
+        ],
+        "notation": "え"
+    },
+    {
+        "name": "e",
+        "trans": [
+            "エ"
+        ],
+        "notation": "エ"
+    },
+    {
+        "name": "o",
+        "trans": [
+            "お"
+        ],
+        "notation": "お"
+    },
+    {
+        "name": "o",
+        "trans": [
+            "オ"
+        ],
+        "notation": "オ"
+    },
+    {
+        "name": "ka",
+        "trans": [
+            "か"
+        ],
+        "notation": "か"
+    },
+    {
+        "name": "ka",
+        "trans": [
+            "カ"
+        ],
+        "notation": "カ"
+    },
+    {
+        "name": "ki",
+        "trans": [
+            "き"
+        ],
+        "notation": "き"
+    },
+    {
+        "name": "ki",
+        "trans": [
+            "キ"
+        ],
+        "notation": "キ"
+    },
+    {
+        "name": "ku",
+        "trans": [
+            "く"
+        ],
+        "notation": "く"
+    },
+    {
+        "name": "ku",
+        "trans": [
+            "ク"
+        ],
+        "notation": "ク"
+    },
+    {
+        "name": "ke",
+        "trans": [
+            "け"
+        ],
+        "notation": "け"
+    },
+    {
+        "name": "ke",
+        "trans": [
+            "ケ"
+        ],
+        "notation": "ケ"
+    },
+    {
+        "name": "ko",
+        "trans": [
+            "こ"
+        ],
+        "notation": "こ"
+    },
+    {
+        "name": "ko",
+        "trans": [
+            "コ"
+        ],
+        "notation": "コ"
+    },
+    {
+        "name": "sa",
+        "trans": [
+            "さ"
+        ],
+        "notation": "さ"
+    },
+    {
+        "name": "sa",
+        "trans": [
+            "サ"
+        ],
+        "notation": "サ"
+    },
+    {
+        "name": "shi",
+        "trans": [
+            "し"
+        ],
+        "notation": "し"
+    },
+    {
+        "name": "shi",
+        "trans": [
+            "シ"
+        ],
+        "notation": "シ"
+    },
+    {
+        "name": "su",
+        "trans": [
+            "す"
+        ],
+        "notation": "す"
+    },
+    {
+        "name": "su",
+        "trans": [
+            "ス"
+        ],
+        "notation": "ス"
+    },
+    {
+        "name": "se",
+        "trans": [
+            "せ"
+        ],
+        "notation": "せ"
+    },
+    {
+        "name": "se",
+        "trans": [
+            "セ"
+        ],
+        "notation": "セ"
+    },
+    {
+        "name": "so",
+        "trans": [
+            "そ"
+        ],
+        "notation": "そ"
+    },
+    {
+        "name": "so",
+        "trans": [
+            "ソ"
+        ],
+        "notation": "ソ"
+    },
+    {
+        "name": "ta",
+        "trans": [
+            "た"
+        ],
+        "notation": "た"
+    },
+    {
+        "name": "ta",
+        "trans": [
+            "タ"
+        ],
+        "notation": "タ"
+    },
+    {
+        "name": "chi",
+        "trans": [
+            "ち"
+        ],
+        "notation": "ち"
+    },
+    {
+        "name": "chi",
+        "trans": [
+            "チ"
+        ],
+        "notation": "チ"
+    },
+    {
+        "name": "tsu",
+        "trans": [
+            "つ"
+        ],
+        "notation": "つ"
+    },
+    {
+        "name": "tsu",
+        "trans": [
+            "ツ"
+        ],
+        "notation": "ツ"
+    },
+    {
+        "name": "te",
+        "trans": [
+            "て"
+        ],
+        "notation": "て"
+    },
+    {
+        "name": "te",
+        "trans": [
+            "テ"
+        ],
+        "notation": "テ"
+    },
+    {
+        "name": "to",
+        "trans": [
+            "ち"
+        ],
+        "notation": "ち"
+    },
+    {
+        "name": "to",
+        "trans": [
+            "ト"
+        ],
+        "notation": "ト"
+    },
+    {
+        "name": "na",
+        "trans": [
+            "な"
+        ],
+        "notation": "な"
+    },
+    {
+        "name": "na",
+        "trans": [
+            "ナ"
+        ],
+        "notation": "ナ"
+    },
+    {
+        "name": "ni",
+        "trans": [
+            "に"
+        ],
+        "notation": "に"
+    },
+    {
+        "name": "ni",
+        "trans": [
+            "ニ"
+        ],
+        "notation": "ニ"
+    },
+    {
+        "name": "nu",
+        "trans": [
+            "ぬ"
+        ],
+        "notation": "ぬ"
+    },
+    {
+        "name": "nu",
+        "trans": [
+            "ヌ"
+        ],
+        "notation": "ヌ"
+    },
+    {
+        "name": "ne",
+        "trans": [
+            "ね"
+        ],
+        "notation": "ね"
+    },
+    {
+        "name": "ne",
+        "trans": [
+            "ネ"
+        ],
+        "notation": "ネ"
+    },
+    {
+        "name": "no",
+        "trans": [
+            "の"
+        ],
+        "notation": "の"
+    },
+    {
+        "name": "no",
+        "trans": [
+            "の"
+        ],
+        "notation": "の"
+    },
+    {
+        "name": "ha",
+        "trans": [
+            "は"
+        ],
+        "notation": "は"
+    },
+    {
+        "name": "ha",
+        "trans": [
+            "ハ"
+        ],
+        "notation": "ハ"
+    },
+    {
+        "name": "hi",
+        "trans": [
+            "ひ"
+        ],
+        "notation": "ひ"
+    },
+    {
+        "name": "hi",
+        "trans": [
+            "ヒ"
+        ],
+        "notation": "ヒ"
+    },
+    {
+        "name": "fu",
+        "trans": [
+            "ふ"
+        ],
+        "notation": "ふ"
+    },
+    {
+        "name": "fu",
+        "trans": [
+            "フ"
+        ],
+        "notation": "フ"
+    },
+    {
+        "name": "he",
+        "trans": [
+            "へ"
+        ],
+        "notation": "へ"
+    },
+    {
+        "name": "he",
+        "trans": [
+            "へ"
+        ],
+        "notation": "へ"
+    },
+    {
+        "name": "ho",
+        "trans": [
+            "ほ"
+        ],
+        "notation": "ほ"
+    },
+    {
+        "name": "ho",
+        "trans": [
+            "ホ"
+        ],
+        "notation": "ホ"
+    },
+    {
+        "name": "ma",
+        "trans": [
+            "ま"
+        ],
+        "notation": "ま"
+    },
+    {
+        "name": "ma",
+        "trans": [
+            "マ"
+        ],
+        "notation": "マ"
+    },
+    {
+        "name": "mi",
+        "trans": [
+            "み"
+        ],
+        "notation": "み"
+    },
+    {
+        "name": "mi",
+        "trans": [
+            "ミ"
+        ],
+        "notation": "ミ"
+    },
+    {
+        "name": "mu",
+        "trans": [
+            "む"
+        ],
+        "notation": "む"
+    },
+    {
+        "name": "mu",
+        "trans": [
+            "ム"
+        ],
+        "notation": "ム"
+    },
+    {
+        "name": "me",
+        "trans": [
+            "め"
+        ],
+        "notation": "め"
+    },
+    {
+        "name": "me",
+        "trans": [
+            "メ"
+        ],
+        "notation": "メ"
+    },
+    {
+        "name": "mo",
+        "trans": [
+            "も"
+        ],
+        "notation": "も"
+    },
+    {
+        "name": "mo",
+        "trans": [
+            "モ"
+        ],
+        "notation": "モ"
+    },
+    {
+        "name": "ya",
+        "trans": [
+            "や"
+        ],
+        "notation": "や"
+    },
+    {
+        "name": "ya",
+        "trans": [
+            "ヤ"
+        ],
+        "notation": "ヤ"
+    },
+    {
+        "name": "yu",
+        "trans": [
+            "ゆ"
+        ],
+        "notation": "ゆ"
+    },
+    {
+        "name": "yu",
+        "trans": [
+            "ユ"
+        ],
+        "notation": "ユ"
+    },
+    {
+        "name": "yo",
+        "trans": [
+            "よ"
+        ],
+        "notation": "よ"
+    },
+    {
+        "name": "yo",
+        "trans": [
+            "ヨ"
+        ],
+        "notation": "ヨ"
+    },
+    {
+        "name": "ra",
+        "trans": [
+            "ら"
+        ],
+        "notation": "ら"
+    },
+    {
+        "name": "ra",
+        "trans": [
+            "ラ"
+        ],
+        "notation": "ラ"
+    },
+    {
+        "name": "ri",
+        "trans": [
+            "り"
+        ],
+        "notation": "り"
+    },
+    {
+        "name": "ri",
+        "trans": [
+            "リ"
+        ],
+        "notation": "リ"
+    },
+    {
+        "name": "ru",
+        "trans": [
+            "る"
+        ],
+        "notation": "る"
+    },
+    {
+        "name": "ru",
+        "trans": [
+            "ル"
+        ],
+        "notation": "ル"
+    },
+    {
+        "name": "re",
+        "trans": [
+            "れ"
+        ],
+        "notation": "れ"
+    },
+    {
+        "name": "re",
+        "trans": [
+            "レ"
+        ],
+        "notation": "レ"
+    },
+    {
+        "name": "ro",
+        "trans": [
+            "ろ"
+        ],
+        "notation": "ろ"
+    },
+    {
+        "name": "ro",
+        "trans": [
+            "ロ"
+        ],
+        "notation": "ロ"
+    },
+    {
+        "name": "wa",
+        "trans": [
+            "わ"
+        ],
+        "notation": "わ"
+    },
+    {
+        "name": "wa",
+        "trans": [
+            "ワ"
+        ],
+        "notation": "ワ"
+    },
+    {
+        "name": "wo",
+        "trans": [
+            "を"
+        ],
+        "notation": "を"
+    },
+    {
+        "name": "wo",
+        "trans": [
+            "ヲ"
+        ],
+        "notation": "ヲ"
+    },
+    {
+        "name": "n",
+        "trans": [
+            "ん"
+        ],
+        "notation": "ん"
+    },
+    {
+        "name": "n",
+        "trans": [
+            "ン"
+        ],
+        "notation": "ン"
+    },
+    {
+        "name": "kya",
+        "trans": [
+            "きゃ"
+        ],
+        "notation": "きゃ"
+    },
+    {
+        "name": "kya",
+        "trans": [
+            "キャ"
+        ],
+        "notation": "キャ"
+    },
+    {
+        "name": "kyu",
+        "trans": [
+            "きゅ"
+        ],
+        "notation": "きゅ"
+    },
+    {
+        "name": "kyu",
+        "trans": [
+            "キュ"
+        ],
+        "notation": "キュ"
+    },
+    {
+        "name": "kyo",
+        "trans": [
+            "きょ"
+        ],
+        "notation": "きょ"
+    },
+    {
+        "name": "kyo",
+        "trans": [
+            "キョ"
+        ],
+        "notation": "キョ"
+    },
+    {
+        "name": "gya",
+        "trans": [
+            "ぎゃ"
+        ],
+        "notation": "ぎゃ"
+    },
+    {
+        "name": "gya",
+        "trans": [
+            "ギャ"
+        ],
+        "notation": "ギャ"
+    },
+    {
+        "name": "gyu",
+        "trans": [
+            "ぎゅ"
+        ],
+        "notation": "ぎゅ"
+    },
+    {
+        "name": "gyu",
+        "trans": [
+            "ギュ"
+        ],
+        "notation": "ギュ"
+    },
+    {
+        "name": "sya",
+        "trans": [
+            "しゃ"
+        ],
+        "notation": "しゃ"
+    },
+    {
+        "name": "sya",
+        "trans": [
+            "シャ"
+        ],
+        "notation": "シャ"
+    },
+    {
+        "name": "syu",
+        "trans": [
+            "しゅ"
+        ],
+        "notation": "しゅ"
+    },
+    {
+        "name": "syu",
+        "trans": [
+            "シュ"
+        ],
+        "notation": "シュ"
+    },
+    {
+        "name": "syo",
+        "trans": [
+            "しょ"
+        ],
+        "notation": "しょ"
+    },
+    {
+        "name": "syo",
+        "trans": [
+            "ショ"
+        ],
+        "notation": "ショ"
+    },
+    {
+        "name": "zya/ja",
+        "trans": [
+            "じゃ"
+        ],
+        "notation": "じゃ"
+    },
+    {
+        "name": "zya/ja",
+        "trans": [
+            "ジャ"
+        ],
+        "notation": "ジャ"
+    },
+    {
+        "name": "yu/ju",
+        "trans": [
+            "じゅ"
+        ],
+        "notation": "じゅ"
+    },
+    {
+        "name": "yu/ju",
+        "trans": [
+            "ジュ"
+        ],
+        "notation": "ジュ"
+    },
+    {
+        "name": "zyo/jo",
+        "trans": [
+            "じょ"
+        ],
+        "notation": "じょ"
+    },
+    {
+        "name": "zyo/jo",
+        "trans": [
+            "ジョ"
+        ],
+        "notation": "ジョ"
+    },
+    {
+        "name": "cya",
+        "trans": [
+            "ちゃ"
+        ],
+        "notation": "ちゃ"
+    },
+    {
+        "name": "cya",
+        "trans": [
+            "チャ"
+        ],
+        "notation": "チャ"
+    },
+    {
+        "name": "cyu",
+        "trans": [
+            "ちゅ"
+        ],
+        "notation": "ちゅ"
+    },
+    {
+        "name": "cyu",
+        "trans": [
+            "チュ"
+        ],
+        "notation": "チュ"
+    },
+    {
+        "name": "cyo",
+        "trans": [
+            "ちょ"
+        ],
+        "notation": "ちょ"
+    },
+    {
+        "name": "cyo",
+        "trans": [
+            "チョ"
+        ],
+        "notation": "チョ"
+    },
+    {
+        "name": "nya",
+        "trans": [
+            "にゃ"
+        ],
+        "notation": "にゃ"
+    },
+    {
+        "name": "nya",
+        "trans": [
+            "ニャ"
+        ],
+        "notation": "ニャ"
+    },
+    {
+        "name": "nyu",
+        "trans": [
+            "にゅ"
+        ],
+        "notation": "にゅ"
+    },
+    {
+        "name": "nyu",
+        "trans": [
+            "ニュ"
+        ],
+        "notation": "ニュ"
+    },
+    {
+        "name": "nyo",
+        "trans": [
+            "にょ"
+        ],
+        "notation": "にょ"
+    },
+    {
+        "name": "nyo",
+        "trans": [
+            "ニョ"
+        ],
+        "notation": "ニョ"
+    },
+    {
+        "name": "hya",
+        "trans": [
+            "ひゃ"
+        ],
+        "notation": "ひゃ"
+    },
+    {
+        "name": "hya",
+        "trans": [
+            "ヒャ"
+        ],
+        "notation": "ヒャ"
+    },
+    {
+        "name": "hyu",
+        "trans": [
+            "ひゅ"
+        ],
+        "notation": "ひゅ"
+    },
+    {
+        "name": "hyu",
+        "trans": [
+            "ヒュ"
+        ],
+        "notation": "ヒュ"
+    },
+    {
+        "name": "hyo",
+        "trans": [
+            "ひょ"
+        ],
+        "notation": "ひょ"
+    },
+    {
+        "name": "hyo",
+        "trans": [
+            "ヒョ"
+        ],
+        "notation": "ヒョ"
+    },
+    {
+        "name": "bya",
+        "trans": [
+            "びゃ"
+        ],
+        "notation": "びゃ"
+    },
+    {
+        "name": "bya",
+        "trans": [
+            "ビャ"
+        ],
+        "notation": "ビャ"
+    },
+    {
+        "name": "byu",
+        "trans": [
+            "びゅ"
+        ],
+        "notation": "びゅ"
+    },
+    {
+        "name": "byu",
+        "trans": [
+            "ビュ"
+        ],
+        "notation": "ビュ"
+    },
+    {
+        "name": "byo",
+        "trans": [
+            "びょ"
+        ],
+        "notation": "びょ"
+    },
+    {
+        "name": "byo",
+        "trans": [
+            "ビョ"
+        ],
+        "notation": "ビョ"
+    },
+    {
+        "name": "pya",
+        "trans": [
+            "ぴゃ"
+        ],
+        "notation": "ぴゃ"
+    },
+    {
+        "name": "pya",
+        "trans": [
+            "ピャ"
+        ],
+        "notation": "ピャ"
+    },
+    {
+        "name": "pyu",
+        "trans": [
+            "ぴゅ"
+        ],
+        "notation": "ぴゅ"
+    },
+    {
+        "name": "pyu",
+        "trans": [
+            "ピュ"
+        ],
+        "notation": "ピュ"
+    },
+    {
+        "name": "pyo",
+        "trans": [
+            "ぴょ"
+        ],
+        "notation": "ぴょ"
+    },
+    {
+        "name": "pyo",
+        "trans": [
+            "ピョ"
+        ],
+        "notation": "ピョ"
+    },
+    {
+        "name": "mya",
+        "trans": [
+            "みゃ"
+        ],
+        "notation": "みゃ"
+    },
+    {
+        "name": "mya",
+        "trans": [
+            "ミャ"
+        ],
+        "notation": "ミャ"
+    },
+    {
+        "name": "myu",
+        "trans": [
+            "みゅ"
+        ],
+        "notation": "みゅ"
+    },
+    {
+        "name": "myu",
+        "trans": [
+            "ミュ"
+        ],
+        "notation": "ミュ"
+    },
+    {
+        "name": "myo",
+        "trans": [
+            "みょ"
+        ],
+        "notation": "みょ"
+    },
+    {
+        "name": "myo",
+        "trans": [
+            "ミョ"
+        ],
+        "notation": "ミョ"
+    },
+    {
+        "name": "rya",
+        "trans": [
+            "りゃ"
+        ],
+        "notation": "りゃ"
+    },
+    {
+        "name": "rya",
+        "trans": [
+            "リャ"
+        ],
+        "notation": "リャ"
+    },
+    {
+        "name": "ryu",
+        "trans": [
+            "りゅ"
+        ],
+        "notation": "りゅ"
+    },
+    {
+        "name": "ryu",
+        "trans": [
+            "リュ"
+        ],
+        "notation": "リュ"
+    },
+    {
+        "name": "ryo",
+        "trans": [
+            "りょ"
+        ],
+        "notation": "りょ"
+    },
+    {
+        "name": "ryo",
+        "trans": [
+            "リョ"
+        ],
+        "notation": "リョ"
+    },
+    {
+        "name": "ye",
+        "trans": [
+            "イェ"
+        ],
+        "notation": "イェ"
+    },
+    {
+        "name": "wi",
+        "trans": [
+            "ウィ"
+        ],
+        "notation": "ウィ"
+    },
+    {
+        "name": "we",
+        "trans": [
+            "ウェ"
+        ],
+        "notation": "ウェ"
+    },
+    {
+        "name": "qwa",
+        "trans": [
+            "ウオ/クァ"
+        ],
+        "notation": "ウオ/クァ"
+    },
+    {
+        "name": "gwa",
+        "trans": [
+            "グァ"
+        ],
+        "notation": "グァ"
+    },
+    {
+        "name": "qwi",
+        "trans": [
+            "クィ"
+        ],
+        "notation": "クィ"
+    },
+    {
+        "name": "qwe",
+        "trans": [
+            "クェ"
+        ],
+        "notation": "クェ"
+    },
+    {
+        "name": "qwo",
+        "trans": [
+            "クォ"
+        ],
+        "notation": "クォ"
+    },
+    {
+        "name": "she",
+        "trans": [
+            "シェ"
+        ],
+        "notation": "シェ"
+    },
+    {
+        "name": "je",
+        "trans": [
+            "ジェ"
+        ],
+        "notation": "ジェ"
+    },
+    {
+        "name": "che",
+        "trans": [
+            "チェ"
+        ],
+        "notation": "チェ"
+    },
+    {
+        "name": "tsa",
+        "trans": [
+            "ツァ"
+        ],
+        "notation": "ツァ"
+    },
+    {
+        "name": "tsi",
+        "trans": [
+            "ツィ"
+        ],
+        "notation": "ツィ"
+    },
+    {
+        "name": "tse",
+        "trans": [
+            "ツェ"
+        ],
+        "notation": "ツェ"
+    },
+    {
+        "name": "tso",
+        "trans": [
+            "ツォ"
+        ],
+        "notation": "ツォ"
+    },
+    {
+        "name": "twu",
+        "trans": [
+            "テイ/デイ/テユ/デユ/トゥ"
+        ],
+        "notation": "テイ/デイ/テユ/デユ/トゥ"
+    },
+    {
+        "name": "dwu",
+        "trans": [
+            "ドゥ"
+        ],
+        "notation": "ドゥ"
+    },
+    {
+        "name": "fa",
+        "trans": [
+            "ファ"
+        ],
+        "notation": "ファ"
+    },
+    {
+        "name": "fi",
+        "trans": [
+            "フィ"
+        ],
+        "notation": "フィ"
+    },
+    {
+        "name": "fe",
+        "trans": [
+            "フェ"
+        ],
+        "notation": "フェ"
+    },
+    {
+        "name": "fo",
+        "trans": [
+            "フォ"
+        ],
+        "notation": "フォ"
+    },
+    {
+        "name": "fyu",
+        "trans": [
+            "フュ"
+        ],
+        "notation": "フュ"
+    },
+    {
+        "name": "tyi",
+        "trans": [
+            "チィ"
+        ],
+        "notation": "チィ"
+    },
+    {
+        "name": "dyi",
+        "trans": [
+            "ヂィ"
+        ],
+        "notation": "ヂィ"
+    }
+]

@@ -1,0 +1,19 @@
+{
+  "name": "ztools-preload",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc && npm run move-files",
+    "move-files": "cpy package.json ../public/ztools-preload --flat",
+    "install": "pnpm install --ignore-workspace"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.11",
+    "cpy-cli": "^6.0.0",
+    "nodemon": "^3.1.10",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2",
+    "ztools-api-types": "^7.2.0"
+  }
+}

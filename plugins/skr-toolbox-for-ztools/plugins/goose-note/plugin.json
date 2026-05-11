@@ -1,0 +1,51 @@
+{
+    "title": "鹅的笔记",
+    "description": "Notion 编写体验，多笔记本 + 无限文件层级 +  支持图片等",
+    "author": "Eachann",
+    "homepage": null,
+    "version": "2.0.1",
+    "logo": "logo.png",
+    "features": [
+        {
+            "code": "gn",
+            "explain": "打开鹅的笔记",
+            "cmds": [
+                "Goose Note",
+                "Notion",
+                "Note",
+                "笔记",
+                "gn"
+            ]
+        },
+        {
+            "code": "new_page",
+            "explain": "新建笔记",
+            "cmds": [
+                {
+                    "type": "over",
+                    "label": "新建笔记"
+                }
+            ]
+        },
+        {
+            "code": "open_folder",
+            "explain": "打开 Markdown 文件夹",
+            "cmds": [
+                {
+                    "type": "files",
+                    "fileType": "directory",
+                    "label": "用鹅的笔记打开",
+                    "maxLength": 1
+                }
+            ]
+        }
+    ],
+    "main": "index.html",
+    "preload": "preload.js",
+    "platform": [
+        "win32",
+        "darwin",
+        "linux"
+    ],
+    "name": "goose-note"
+}

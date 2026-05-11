@@ -1,0 +1,1 @@
+function t(o,r,n){return`【${o}】【${r}】${n}`}function e(o,r,n){console.info(t(o,r,n))}function a(o,r,n){console.warn(t(o,r,n))}function f(o,r,n){console.error(t(o,r,n))}const l=(o,r)=>{const n=o.__vccOpts||o;for(const[s,c]of r)n[s]=c;return n};export{l as _,f as a,a as b,e as l};

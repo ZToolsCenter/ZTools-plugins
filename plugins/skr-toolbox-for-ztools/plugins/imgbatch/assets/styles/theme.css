@@ -1,0 +1,59 @@
+:root {
+  --primary: #4956b4;
+  --primary-container: #8c99fc;
+  --primary-fixed: #8c99fc;
+  --primary-dim: #3d4aa7;
+  --secondary: #5b5e72;
+  --tertiary: #71557c;
+  --surface: #f7f9fc;
+  --surface-container: #e9eef3;
+  --surface-container-low: #f0f4f8;
+  --surface-container-high: #e3e9ee;
+  --surface-container-lowest: #ffffff;
+  --surface-container-highest: #dce3e9;
+  --surface-variant: #dce3e9;
+  --outline: #747c81;
+  --outline-variant: #abb3b9;
+  --on-surface: #2c3338;
+  --on-surface-variant: #596065;
+  --on-primary: #fbf8ff;
+  --on-primary-container: #001075;
+  --on-tertiary-container: #5d4368;
+  --error: #a8364b;
+  --error-container: #f97386;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --shadow-float: 0 16px 48px rgba(44, 51, 56, 0.08);
+  --gradient-primary: linear-gradient(135deg, #4956b4 0%, #8c99fc 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: 'Inter', sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  background: none;
+  color: inherit;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}

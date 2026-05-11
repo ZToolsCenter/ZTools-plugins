@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>WiFi历史密码查看器</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="title-bar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 21.01l.01-.011M2.686 9.686a13.172 13.172 0 0118.628 0m-14.385 4.243a7.172 7.172 0 0110.142 0M12 16.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h1>WiFi历史密码查看器</h1>
+      </div>
+      <div class="search-bar">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="searchInput" placeholder="搜索WiFi名称或密码...">
+        </div>
+        <div class="status-text">查询完成 <span id="countDisplay">0 / 0个</span></div>
+        <button id="refreshBtn" class="btn btn-outline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          刷新
+        </button>
+      </div>
+    </header>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">全部</button>
+      <button class="filter-btn" data-filter="hasPassword">有密码</button>
+      <button class="filter-btn" data-filter="noPassword">无密码</button>
+      <button class="filter-btn" data-filter="open">开放网络</button>
+    </div>
+
+    <main class="wifi-grid" id="wifiGrid">
+      <!-- Cards will be injected here -->
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="wifiModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span id="modalSsid">WIFI Name</span>
+        </div>
+        <button class="close-btn" id="closeModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>WiFi名称</label>
+          <input type="text" id="modalInputSsid" readonly>
+        </div>
+        <div class="form-group">
+          <label>安全类型</label>
+          <input type="text" id="modalInputSecurity" readonly>
+        </div>
+        <div class="form-group">
+          <label>WiFi密码</label>
+          <div class="password-wrapper">
+            <input type="password" id="modalInputPassword" readonly>
+            <button class="toggle-pwd-btn" id="togglePasswordBtn">显示密码</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="closeModalFooterBtn">关闭</button>
+        <button class="btn btn-primary" id="copyPasswordBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          复制密码
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

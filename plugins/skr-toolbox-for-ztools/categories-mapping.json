@@ -1,0 +1,114 @@
+[
+  {
+    "key": "productivity",
+    "title": "效率工具",
+    "description": "提升工作学习效率",
+    "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/productivity.png",
+    "list": [
+      "ai-helper",
+      "anywhere",
+      "bookmarks",
+      "calculation-paper",
+      "chrome-history",
+      "clipboard",
+      "easy-translate",
+      "english-typing-practice",
+      "he-calendar",
+      "memo-quick-paste",
+      "ocr",
+      "ocr-pro",
+      "pomodoro-timer",
+      "sticky-note",
+      "totodo",
+      "whiteboard",
+      "project-manager"
+    ]
+  },
+  {
+    "key": "development",
+    "title": "开发工具",
+    "description": "面向开发者的专业工具",
+    "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/development.png",
+    "list": [
+      "code-screenshot",
+      "cron",
+      "ctool",
+      "diff-compare",
+      "json-editor",
+      "json-tools",
+      "latex-ocr",
+      "port-use",
+      "redis-client",
+      "tiny-rdm",
+      "vimtutor",
+      "jet-plugin",
+      "variable-name"
+    ]
+  },
+  {
+    "key": "system",
+    "title": "系统工具",
+    "description": "系统级实用工具",
+    "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/system.png",
+    "list": ["everything", "mac-system-preference-ztools-plugin", "killprocess"]
+  },
+  {
+    "key": "media",
+    "title": "图像媒体",
+    "description": "图片与音视频处理",
+    "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/media.png",
+    "list": [
+      "ibox-wallpaper",
+      "long-screenshot",
+      "musicsquare",
+      "screen-recorder",
+      "splayer-z",
+      "tinypng",
+      "video-parse"
+    ]
+  },
+  {
+    "key": "text",
+    "title": "文本处理",
+    "description": "文本编辑与格式化工具",
+    "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/text.png",
+    "list": ["ascll-art-font", "goose-note", "markdown"]
+  },
+  {
+    "key": "game",
+    "title": "游戏娱乐",
+    "description": "休闲娱乐小游戏",
+    "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/game.png",
+    "list": ["2048", "fidget", "flyfont", "rogue-shooter", "super-mario"]
+  },
+  {
+    "key": "network",
+    "title": "网络工具",
+    "description": "网络相关实用工具",
+    "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/network.png",
+    "list": [
+      "domain-helper",
+      "local-ip",
+      "swap-file",
+      "url-wizard",
+      "wifi-export-tool"
+    ]
+  },
+  {
+    "key": "other",
+    "title": "其他工具",
+    "description": "各类实用小工具集合",
+    "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/other.png",
+    "list": [
+      "floating",
+      "lihua",
+      "qrcode-helper",
+      "quickcommand",
+      "random-password",
+      "tiny-clock",
+      "today-gold-price",
+      "utools-upassword",
+      "yanhua"
+    ]
+  }
+]

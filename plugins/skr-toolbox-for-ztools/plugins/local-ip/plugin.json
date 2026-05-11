@@ -1,0 +1,20 @@
+{
+  "name": "local-ip",
+  "description": "一键复制本机内网 IPv4 地址到剪贴板",
+  "version": "0.1.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "ip",
+      "explain": "复制本机内网 IPv4 地址",
+      "cmds": [
+        "ip",
+        "IP",
+        "Ip"
+      ]
+    }
+  ],
+  "title": "内网 IP"
+}

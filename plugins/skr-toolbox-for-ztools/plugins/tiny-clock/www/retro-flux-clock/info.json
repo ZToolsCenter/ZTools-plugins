@@ -1,0 +1,13 @@
+{
+    "id": "retro-flux-clock",
+    "name": "数码管时钟",
+    "previewImage": "preview/retro.png",
+    "introduction": "数码管时钟",
+    "category": "normal",
+    "creatDate": "2025-11-28",
+    "updateDate": "2025-11-28",
+    "version": "0.0.1",
+    "price": "0",
+    "multilingual": true,
+    "isVip": false
+}

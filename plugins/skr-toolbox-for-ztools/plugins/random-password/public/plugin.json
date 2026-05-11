@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "random-password",
+  "title": "随机密码",
+  "description": "轻量随机密码插件，快速生成安全密码。",
+  "author": "zhy",
+  "version": "1.0.1",
+  "main": "index.html",
+  "logo": "logo-v2.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "password",
+      "explain": "生成并自动复制随机密码",
+      "icon": "logo-v2.png",
+      "cmds": [
+        "随机密码",
+        "password",
+        "pwd"
+      ]
+    }
+  ]
+}

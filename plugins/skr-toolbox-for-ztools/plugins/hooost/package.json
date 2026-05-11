@@ -1,0 +1,47 @@
+{
+  "name": "hooost",
+  "version": "1.0.1",
+  "description": "本地 hosts 配置管理工具，支持预设配置切换、备份与回滚，兼容 Windows / macOS",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "vue-tsc --noEmit",
+    "build": "npm run typecheck && vite build",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@vueuse/core": "^14.2.1",
+    "ace-builds": "^1.43.6",
+    "marked": "^18.0.0",
+    "vue": "^3.5.13",
+    "vue-draggable-plus": "^0.6.1",
+    "vue-router": "^5.0.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@iconify/utils": "^3.1.0",
+    "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "@unocss/preset-icons": "^66.6.6",
+    "@unocss/transformer-directives": "^66.6.6",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.8.0",
+    "globals": "^17.5.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.8.3",
+    "typescript": "^5.3.0",
+    "unocss": "^66.6.6",
+    "vite": "^6.0.11",
+    "vitest": "^4.1.4",
+    "vue-eslint-parser": "^10.4.0",
+    "vue-tsc": "^2.0.0"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "developer-codec-tools",
+  "title": "开发加解密编码工具",
+  "description": "常用开发加密、解密、哈希、HMAC、JWT、编码和文本转换工具",
+  "author": "Pamali",
+  "version": "0.1.0",
+  "main": "index.html",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5178"
+  },
+  "pluginSetting": {
+    "single": true,
+    "backgroundRunning": false
+  },
+  "features": [
+    {
+      "code": "codec-tools",
+      "explain": "加密解密与编码转换",
+      "icon": "logo.svg",
+      "cmds": [
+        "加密解密",
+        "编码转换",
+        "哈希计算",
+        "JWT 解析",
+        "Base64",
+        "URL 编码",
+        "开发工具",
+        "Codec Tools",
+        "Crypto Tools"
+      ]
+    }
+  ]
+}

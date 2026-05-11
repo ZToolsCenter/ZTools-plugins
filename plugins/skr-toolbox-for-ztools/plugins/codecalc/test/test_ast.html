@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>表达式分析器</title>
+    <link rel="icon" href="data:,">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            gap: 30px;
+        }
+
+        .left-panel, .right-panel {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .right-panel {
+            position: sticky;
+            top: 20px;
+            align-self: flex-start;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #calculator {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #expression {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        #calculate {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #calculate:hover {
+            background-color: #45a049;
+        }
+
+        #result {
+            margin-left: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #ast {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+
+        #examples {
+            margin: 0;
+        }
+        #examples button {
+            margin: 5px;
+            padding: 5px 10px;
+        }
+        .example-group {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-left: 3px solid #4CAF50;
+            background-color: #f9f9f9;
+        }
+
+        h3 {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        h4 {
+            margin: 10px 0 5px 0;
+            color: #333;
+            font-size: 1em;
+        }
+
+        .example-group button {
+            margin: 2px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background-color: white;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .example-group button:hover {
+            background-color: #e9e9e9;
+        }
+
+        #result-panel, #ast-panel {
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+
+        #result-panel {
+            min-height: 50px;
+        }
+
+        .panel-title {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        #tokens-panel {
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+            margin-bottom: 15px;
+        }
+
+        .token {
+            display: inline-block;
+            padding: 2px 6px;
+            margin: 2px;
+            border-radius: 3px;
+            font-family: monospace;
+            cursor: help;
+            position: relative;
+            border: 1px solid transparent;
+        }
+
+        .token::after {
+            content: attr(data-type);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 2px 6px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 3px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s;
+            pointer-events: none;
+        }
+
+        .token:hover {
+            border-color: rgba(0,0,0,0.1);
+        }
+
+        .token:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .token-operator { background-color: #ffebee; }
+        .token-function { background-color: #e3f2fd; }
+        .token-constant { background-color: #e8f5e9; }
+        .token-string { background-color: #fff3e0; }
+        .token-delimiter { background-color: #f3e5f5; }
+        .token-separator { background-color: #ede7f6; }
+
+        .test-success {
+            background-color: #e8f5e9 !important;
+            border-color: #4caf50 !important;
+            color: #2e7d32;
+        }
+
+        .test-fail {
+            background-color: #ffebee !important;
+            border-color: #ef5350 !important;
+            color: #c62828;
+            box-shadow: 0 0 5px rgba(239, 83, 80, 0.3);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .test-fail {
+            animation: shake 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <h1>语法树分析器</h1>
+    <div class="container">
+        <div class="left-panel">
+            <div id="calculator">
+                <input type="text" id="expression" placeholder="输入表达式">
+                <button id="calculate">计算</button>
+            </div>
+            <div id="examples">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">示例表达式：</h3>
+                    <button id="runAllTests" style="
+                        padding: 5px 15px;
+                        background-color: #4CAF50;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 0.9em;">
+                        运行所有测试
+                    </button>
+                </div>
+                <!-- 示例组会在这里渲染 -->
+            </div>
+        </div>
+        <div class="right-panel">
+            <div id="result-panel">
+                <h3 class="panel-title">计算结果：</h3>
+                <div id="result"></div>
+            </div>
+            <div id="tokens-panel">
+                <h3 class="panel-title">词法分析结果：</h3>
+                <div id="tokens"></div>
+            </div>
+            <div id="ast-panel">
+                <h3 class="panel-title">语法树可视化：</h3>
+                <div id="ast"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 先加载基础依赖 -->
+    <script src="calculator.min.js"></script>
+    <script src="ast-visualizer.js"></script>
+    <script>
+        window.Calculator = window.CodeCalcCore.Calculator;
+    </script>
+    
+    <!-- 主要逻辑 -->
+    <script>
+        window.onload = function() {
+            const input = document.getElementById('expression');
+            const resultDiv = document.getElementById('result');
+            const tokensDiv = document.getElementById('tokens');
+            const astDiv = document.getElementById('ast');
+            const calculateBtn = document.getElementById('calculate');
+            
+            // 创建可视化器实例
+            let visualizer = new ASTVisualizer(astDiv);
+
+            calculateBtn.onclick = function() {
+                const expr = input.value;
+                let ast = null;
+                let tokens = null;
+                
+                // 清空之前的结果
+                resultDiv.textContent = '';
+                tokensDiv.innerHTML = '';
+                astDiv.innerHTML = '';
+                visualizer = new ASTVisualizer(astDiv);
+
+                // 获取词法分析结果
+                try {
+                    const { operators, functions, constants } = Calculator.getCfg();
+                    const { expr: processedExpr, operators: sortedOperators } = 
+                        Calculator.preprocess(expr, operators, functions, constants);
+                    tokens = Calculator.tokenize(processedExpr, sortedOperators, functions, constants);
+                    
+                    // 显示tokens
+                    tokens.forEach(([type, value]) => {
+                        const span = document.createElement('span');
+                        span.className = `token token-${type}`;
+                        span.textContent = value;
+                        span.setAttribute('data-type', `类型: ${type}`);
+                        tokensDiv.appendChild(span);
+                    });
+                } catch (e) {
+                    resultDiv.textContent = `词法分析错误: ${e.message}`;
+                    return;
+                }
+
+                // 尝试生成 AST
+                try {
+                    ast = Calculator.getASTNode(expr);
+                    visualizer.draw(ast);
+                } catch (e) {
+                    resultDiv.textContent = `语法错误: ${e.message}`;
+                    return;
+                }
+
+                // 尝试计算结果
+                try {
+                    const result = Calculator.calculate(expr);
+                    resultDiv.textContent = `结果: ${result.value}`;
+                    
+                    // 添加警告和提示信息显示
+                    if (result.warning) {
+                        resultDiv.textContent += `\n警告: ${result.warning.join(', ')}`;
+                    }
+                    if (result.info) {
+                        resultDiv.textContent += `\n提示: ${result.info.join(', ')}`;
+                    }
+                } catch (e) {
+                    resultDiv.textContent = `计算错误: ${e.message}`;
+                }
+            };
+
+            // 示例部分保持不变
+            const exampleGroups = {
+                '基础运算': [
+                    { expr: "-1/1 - 2 * (-3 - 4)", expect: "13" }, 
+                    { expr: "2 ** 3 ** 4 // 5 * 0.86569", expect: "709.00011" }, 
+                    { expr: "5 & 3 | ~4", expect: "-5" }, 
+                    { expr: "(-1-1).abs", expect: "2" },
+                    { expr: "30°.deg", expect: "30" },  // 角度转弧度再转角度
+                    { expr: "max(-1,-1-1,1, min(10, -1-1, 2))", expect: "1" },
+                    { expr: "max(1.deg, (1+2.rad).deg, min(1.deg, 2.deg))", expect: "59.2957795130823209" },
+                    { expr: "-1*3 + 6/2", expect: "0" },  // -3 + 3 = 0
+                    { expr: "~-1", expect: "0" },  
+                    { expr: "--1", expect: "1" },  // 1 + (-2)
+                    { expr: "1++2", expect: "3" },  // 1 + (-2)
+                    { expr: "+1-+2", expect: "-1" },  // 1 + (-2)
+                    { expr: "1+-2", expect: "-1" },  // 1 + (-2)
+                    { expr: "1-+2", expect: "-1" },  // 1 - (+2)
+                    { expr: "1--2", expect: "3" },  // 1 - (-2)
+                    { expr: "-1+2", expect: "1" },  // (-1) + 2
+                    { expr: "+1+2", expect: "3" },  // (+1) + 2
+                    { expr: "-1+-2", expect: "-3" },  // 1 + (-2)
+                    { expr: "-2 ** 6", expect: "-64" },
+                    { expr: "0.1 + 0.2", expect: "0.3" },
+                ],
+                '赋值运算': [
+                    { expr: "a = 1", expect: "1" },
+                    { expr: "a = 1 + 2 * 3 / 4 + 5", expect: "7.5" },
+                    { expr: "a += 1", expect: "8.5" },
+                    { expr: "a -= 1", expect: "7.5" },
+                    { expr: "a *= 2", expect: "15" },
+                    { expr: "a /= 2", expect: "7.5" },
+                ],
+                '异常测试': [
+                    { expr: "1 = 2", error: "变量名" },
+                    { expr: "2 +* (3 + 4)", error: "意外的token" },
+                    { expr: "(1 + 2)) * (-3 - 4)", error: "多余的右括号" },
+                    { expr: "-1+", error: "意外的表达式结束" },
+                    { expr: "abs(-1 -1", error: "缺少右括号" },
+                    { expr: "c + 1", error: "Invalid argument" },
+                    { expr: "c += 1", error: "未定义" }
+                ],
+                '进制转换': [
+                    { expr: "0xAB + 0b101000", expect: "211" },  // 171 + 40 = 211
+                    { expr: "0o1731", expect: "985" },
+                    { expr: "-0xFF.abs", expect: "-255" },
+                    { expr: "750.bin.oct.hex", expect: "0x2ee" },
+                    { expr: "0x13e48326954132e2", expect: "1433414783146734306" },
+                ],
+                '日期': [
+                    { expr: "@2025-01-01 12:34:56", expect: "1735706096000" },
+                    { expr: "@2025-01-01 12:34", expect: "1735706040000" },
+                    { expr: "@2025-01-01", expect: "1735660800000" },
+                    { expr: "@2025", expect: "1735660800000" },
+                    { expr: "@2025-01", expect: "1735660800000" },
+                    { expr: "@01-01", expect: "1735660800000" },
+                    { expr: "#10:34:56", expect: "38096000ms" },
+                    { expr: "#10:34", expect: "38040000ms" }
+                ],
+            };
+
+            // 示例渲染部分保持不变
+            const examplesDiv = document.getElementById('examples');
+
+            for (const [groupName, examples] of Object.entries(exampleGroups)) {
+                // 创建分组标题
+                const groupTitle = document.createElement('h4');
+                groupTitle.textContent = groupName;
+                examplesDiv.appendChild(groupTitle);
+
+                // 创建分组容器
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'example-group';
+                
+                // 添加示例按钮
+                examples.forEach(example => {
+                    const button = document.createElement('button');
+                    // 如果是对象格式，取expr属性，否则直接使用示例
+                    const expr = typeof example === 'object' ? example.expr : example;
+                    button.textContent = expr;
+                    button.onclick = function() {
+                        input.value = expr;
+                        calculateBtn.click();
+                        
+                        // 添加结果验证
+                        if (typeof example === 'object') {
+                            const result = resultDiv.textContent.split('\n')[0].replace('结果: ', '');
+                            if (example.error) {
+                                // 检查是否包含预期的错误信息
+                                if (!resultDiv.textContent.includes(example.error)) {
+                                    button.className = 'test-fail';
+                                    console.error(`测试失败: ${expr}\n预期错误: ${example.error}\n实际结果: ${resultDiv.textContent}`);
+                                } else {
+                                    button.className = 'test-success';
+                                }
+                            } else if (example.expect) {
+                                // 检查结果是否匹配预期
+                                // 对于浮点数，允许小的误差
+                                const expected = parseFloat(example.expect);
+                                const actual = parseFloat(result);
+                                const isMatch = result === example.expect;  // 精确匹配
+                                    
+                                if (!isMatch) {
+                                    button.className = 'test-fail';
+                                    console.error(`测试失败: ${expr}\n预期结果: ${example.expect}\n实际结果: ${result}`);
+                                } else {
+                                    button.className = 'test-success';
+                                }
+                            }
+                        }
+                    };
+                    groupDiv.appendChild(button);
+                    groupDiv.appendChild(document.createTextNode(' '));
+                });
+
+                examplesDiv.appendChild(groupDiv);
+            }
+
+            // 获取运行所有测试的按钮
+            const runAllTestsBtn = document.getElementById('runAllTests');
+
+            // 添加点击事件处理
+            runAllTestsBtn.onclick = function() {
+                // 重置所有按钮的样式
+                document.querySelectorAll('.example-group button').forEach(button => {
+                    button.className = '';
+                });
+
+                // 获取所有示例按钮
+                const buttons = document.querySelectorAll('.example-group button');
+                let successCount = 0;
+                let failCount = 0;
+
+                // 运行所有测试
+                buttons.forEach(button => {
+                    button.click();
+                    if (button.className === 'test-success') {
+                        successCount++;
+                    } else if (button.className === 'test-fail') {
+                        failCount++;
+                    }
+                });
+
+                // 更新按钮文本显示测试结果
+                runAllTestsBtn.textContent = `测试完成 (${successCount}成功/${failCount}失败)`;
+                
+                // 根据测试结果更改按钮颜色
+                if (failCount > 0) {
+                    runAllTestsBtn.style.backgroundColor = '#f44336';
+                } else {
+                    runAllTestsBtn.style.backgroundColor = '#4CAF50';
+                }
+
+                // 3秒后恢复按钮原始文本
+                setTimeout(() => {
+                    runAllTestsBtn.textContent = '运行所有测试';
+                    runAllTestsBtn.style.backgroundColor = '#4CAF50';
+                }, 3000);
+            };
+        };
+    </script>
+</body>
+</html> 

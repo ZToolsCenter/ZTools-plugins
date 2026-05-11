@@ -1,0 +1,29 @@
+{
+    "main": "index.html",
+    "logo": "icon.png",
+    "preload": "preload.js",
+    "name": "rogue-shooter",
+    "version": "1.0.0",
+    "description": "射击小游戏",
+    "author": "西瓜",
+    "homepage": null,
+    "features": [
+        {
+            "code": "rogue_shooter",
+            "explain": "肉鸽射击游戏",
+            "cmds": [
+                "肉鸽射击",
+                "rogue shooter",
+                "射击游戏",
+                "肉鸽",
+                "射击"
+            ]
+        }
+    ],
+    "platform": [
+        "win32",
+        "darwin",
+        "linux"
+    ],
+    "title": "无限重载"
+}

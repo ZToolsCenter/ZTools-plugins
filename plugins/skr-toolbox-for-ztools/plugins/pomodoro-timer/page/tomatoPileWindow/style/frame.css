@@ -1,0 +1,14 @@
+
+html,body{
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: none;
+    box-sizing: border-box;
+    /* transform: translate3d(0, 0, 0); */
+    /* color: #ff0000; */
+    overflow: hidden;
+    /* border: #ff0000 1px solid; */
+} 
+

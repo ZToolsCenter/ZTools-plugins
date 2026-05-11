@@ -1,0 +1,13 @@
+{
+  "name": "ascii-tree",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ZTools plugin that converts leveled text into an ASCII tree.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "clean": "node scripts/clean.mjs"
+  },
+  "devDependencies": {
+    "@ztools-center/ztools-api-types": "^1.0.1"
+  }
+}

@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+.vite/
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE / Editor
+.idea/
+.vscode/
+*.iml
+*.suo
+*.user
+*.userossc
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temp files
+*.tmp
+*.temp

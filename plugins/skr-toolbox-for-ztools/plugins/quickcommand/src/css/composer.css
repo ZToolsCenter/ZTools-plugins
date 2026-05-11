@@ -1,0 +1,26 @@
+/* 滚动美化 */
+.command-composer .q-scrollarea__thumb {
+  width: 2px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.command-composer .q-scrollarea__thumb:hover {
+  opacity: 0.8;
+}
+
+/* checkbox/toggle大小及字体 */
+.command-composer .q-checkbox__label,
+.command-composer .q-toggle__label {
+  font-size: 12px;
+}
+
+.command-composer .q-checkbox__inner,
+.command-composer .q-toggle__inner {
+  font-size: 28px;
+  margin: 4px 0px;
+}
+
+.body--dark .command-composer .q-tab--inactive {
+  opacity: 2;
+}

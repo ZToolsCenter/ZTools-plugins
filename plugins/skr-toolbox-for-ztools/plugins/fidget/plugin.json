@@ -1,0 +1,30 @@
+{
+    "logo": "logo.png",
+    "preload": "preload.js",
+    "description": "指针蜗牛",
+    "features": [
+        {
+            "code": "fidget",
+            "explain": "指针蜗牛",
+            "cmds": [
+                "指针蜗牛",
+                "蜗牛",
+                "snail",
+                "edc",
+                "宠物",
+                "电子宠物",
+                "休闲"
+            ]
+        }
+    ],
+    "platform": [
+        "win32",
+        "darwin",
+        "linux"
+    ],
+    "name": "fidget",
+    "title": "指针蜗牛",
+    "author": "浮小云",
+    "homepage": null,
+    "version": "1.0.2"
+}

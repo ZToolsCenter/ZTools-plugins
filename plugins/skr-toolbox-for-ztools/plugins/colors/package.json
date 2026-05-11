@@ -1,0 +1,45 @@
+{
+  "name": "colors",
+  "version": "1.2.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check-all": "npm run fmt:check && npm run lint  && npm run type-check && npm run build",
+    "dev": "vite dev",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "preview": "vite preview",
+    "publish": "npm run check-all && ztools publish",
+    "type-check": "vue-tsc --build --noEmit"
+  },
+  "dependencies": {
+    "@vueuse/core": "^14.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "colord": "^2.9.3",
+    "pinia": "^3.0.4",
+    "tailwindcss": "^4.2.2",
+    "vue": "3.5.33",
+    "vue-router": "^5.0.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vitejs/plugin-vue-jsx": "^5.1.5",
+    "@vue/tsconfig": "^0.9.1",
+    "npm-run-all2": "^8.0.4",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0",
+    "typescript": "~6.0.0",
+    "vite": "^8.0.10",
+    "vite-plugin-vue-devtools": "^8.1.1",
+    "vue-tsc": "^3.2.6"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}

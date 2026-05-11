@@ -1,0 +1,45 @@
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* 网页版背景 - 大屏幕时显示简约优雅的背景 */
+@media (min-width: 1024px) {
+  body:not(.is-utools) {
+    background-color: #f8fafc;
+    background-image: 
+      radial-gradient(at 0% 0%, var(--bg-color, #f8fafc) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(0, 0, 0, 0.02) 0px, transparent 50%);
+    background-attachment: fixed;
+    transition: background-color 0.5s ease;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Scrollbar Style */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, rgba(0, 0, 0, 0.1));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, rgba(0, 0, 0, 0.2));
+}
+

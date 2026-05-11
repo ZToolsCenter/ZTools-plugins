@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Bright solid background: Project Accent Primary -->
+  <rect width="512" height="512" rx="128" fill="#ff6c37" />
+  
+  <!-- Developer / Code brackets: < > -->
+  <g fill="none" stroke="#ffe2d6" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 160 176 L 80 256 L 160 336" />
+    <path d="M 352 176 L 432 256 L 352 336" />
+  </g>
+  
+  <!-- Central Zap (Lightning Bolt) -->
+  <path d="M 286 110 L 176 280 H 256 L 226 410 L 336 240 H 256 Z" fill="#ffffff" />
+</svg>

@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "swap-file",
+  "title": "SwapFile文件分享",
+  "description": "快速通过局域网分享文件。同一局域网内的设备通过浏览器即可浏览、下载和上传文件。",
+  "author": "皮皮虾我们走",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "single": true
+  },
+  "features": [
+    {
+      "code": "SwapFile",
+      "explain": "内网文件分享",
+      "icon": "logo.png",
+      "cmds": ["SwapFile"]
+    },
+    {
+      "code": "swap-file",
+      "explain": "内网文件分享",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "分享到局域网"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>指针蜗牛</title>
+  <style>
+    html,
+    body {
+      background: transparent !important;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    /* 蜗牛元素样式 */
+    #snail-img {
+      position: absolute;
+      background-repeat: no-repeat;
+      transform-origin: center center;
+      /* z-index to ensure it's above the ghost if they overlap perfectly */
+      z-index: 10;
+    }
+
+    /* 虚影蜗牛样式 */
+    #ghost-snail-img {
+      position: absolute;
+      background-repeat: no-repeat;
+      transform-origin: center center;
+      display: none;
+      /* 初始隐藏 */
+      opacity: 0.5;
+      /* 半透明效果 */
+      z-index: 9;
+      /* 在主蜗牛下方，在线条画布上方 (如果线条画布z-index更低) */
+      /* 其他如 width, height, background-size 会由JS设置 */
+    }
+
+    /* Canvas for drawing the line */
+    #lineCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 8;
+      /* 在虚影蜗牛下方 */
+    }
+
+    /* 新增：倒计时样式 */
+    #countdown-timer {
+      position: absolute;
+      user-select: none;
+      display: none;
+      /* 初始隐藏 */
+      color: black;
+      background-color: rgba(255, 255, 255, 0.75);
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: bold;
+      transform: translateX(-50%);
+      /* 水平居中 */
+      z-index: 11;
+      /* 在蜗牛上方 */
+      pointer-events: none;
+      /* 避免鼠标事件干扰 */
+      white-space: nowrap;
+      /* 防止文字换行 */
+    }
+
+    /* 事件护盾，用于在拖动时捕获所有鼠标事件 */
+    #event-shield {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      /* 命中测试 透明度低于0.002将不起作用 */
+      background-color: rgba(0, 0, 0, 0.002);
+      z-index: 999;
+      /* 确保在最顶层 */
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="lineCanvas"></canvas>
+
+  <div id="snail-img"></div>
+
+  <div id="countdown-timer"></div>
+
+  <div id="ghost-snail-img"></div>
+
+  <!-- 核心改动：添加事件护盾元素 -->
+  <div id="event-shield"></div>
+
+  <script src="renderer.js"></script>
+  <script>
+    console.log('插件页面渲染完毕')
+    utools?.onPluginEnter(action => {
+      console.log('🚀 action', action);
+      if (window.exports && window.exports[action.code] && window.exports[action.code].args && window.exports[action.code].args.enter) {
+        window.exports[action.code].args.enter(action);
+      } else {
+        console.warn('utools.onPluginEnter: action code or method not found', action.code);
+      }
+    });
+  </script>
+</body>
+
+</html>

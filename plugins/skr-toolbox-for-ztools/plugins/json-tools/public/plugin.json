@@ -1,0 +1,28 @@
+{
+  "main": "index.html",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "json",
+      "explain": "json 工具箱",
+      "cmds": [
+        "json",
+        "json-tools",
+        "格式化",
+        {
+          "type": "regex",
+          "label": "Json 格式化",
+          "match": "/^\\s*(\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\])\\s*$/i",
+          "minLength": 2
+        }
+      ]
+    }
+  ],
+  "preload": "preload.js",
+  "name": "json-tools",
+  "title": "JSON Tools",
+  "version": "1.18.0",
+  "pluginSetting": {
+    "single": false
+  }
+}

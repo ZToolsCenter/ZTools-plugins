@@ -1,0 +1,11 @@
+@import 'modern-normalize/modern-normalize.css';
+
+html,
+body,
+#root {
+	height: 100%;
+}
+
+.tl-watermark_SEE-LICENSE {
+	display: none !important;
+}

@@ -1,0 +1,20 @@
+{
+    "name": "today-gold-price",
+    "title": "今日金价",
+    "description": "实时查看黄金价格走势，包含当前价格、涨跌幅及走势图表",
+    "version": "1.0.1",
+    "main": "index.html",
+    "logo": "logo.png",
+    "preload": "preload.js",
+    "features": [
+        {
+            "code": "gold-price",
+            "explain": "查看今日黄金实时价格",
+            "cmds": [
+                "gold",
+                "price",
+                "金价"
+            ]
+        }
+    ]
+}

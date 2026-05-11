@@ -1,0 +1,26 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="24" fill="url(#gradient)"/>
+  
+  <g transform="translate(24, 28)">
+    <rect x="0" y="0" width="80" height="72" rx="8" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+    
+    <rect x="8" y="8" width="20" height="4" rx="2" fill="#ec4899"/>
+    <rect x="8" y="16" width="12" height="4" rx="2" fill="#6b7280"/>
+    <rect x="8" y="24" width="16" height="4" rx="2" fill="#9ca3af"/>
+    <rect x="8" y="32" width="10" height="4" rx="2" fill="#374151"/>
+    
+    <rect x="8" y="44" width="24" height="4" rx="2" fill="#3b82f6"/>
+    <rect x="8" y="52" width="14" height="4" rx="2" fill="#6b7280"/>
+    <rect x="8" y="60" width="18" height="4" rx="2" fill="#9ca3af"/>
+  </g>
+  
+  <path d="M46 92L38 100L46 108" stroke="#9ca3af" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M82 92L90 100L82 108" stroke="#9ca3af" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+  </defs>
+</svg>

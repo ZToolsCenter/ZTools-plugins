@@ -1,0 +1,13 @@
+{
+    "id": "ios-standby-clock",
+    "name": "iOS待机时钟",
+    "previewImage": "preview/ios_clock.png",
+    "introduction": "iOS待机时钟",
+    "category": "normal",
+    "creatDate": "2025-11-28",
+    "updateDate": "2025-11-28",
+    "version": "0.0.1",
+    "price": "0",
+    "multilingual": true,
+    "isVip": false
+}

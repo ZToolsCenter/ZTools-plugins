@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>ASCII Tree</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <div>
+          <p class="subtitle">
+            输入以 <code>=</code> 表示层级的文本，实时生成可复制的ASCII树形结构。
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="fill-sample" class="ghost-button" type="button">填充示例</button>
+          <button id="copy-output" class="primary-button" type="button">复制结果</button>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>分级文本</h2>
+              <p>每一行前导 <code>=</code> 的数量代表层级。</p>
+            </div>
+            <button id="clear-input" class="text-button" type="button">清空</button>
+          </div>
+          <textarea
+            id="text"
+            class="editor"
+            spellcheck="false"
+            placeholder="示例：&#10;项目&#10;=src&#10;==index.js&#10;=docs"
+          ></textarea>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>ASCII Tree</h2>
+              <p>可直接复制或另存为文本文件。</p>
+            </div>
+            <button id="save-output" class="text-button" type="button">导出 .txt</button>
+          </div>
+          <textarea
+            id="tree"
+            class="editor output"
+            spellcheck="false"
+            placeholder="转换结果会显示在这里"
+          ></textarea>
+        </article>
+      </section>
+
+      <section class="tips">
+        <div class="tip-card">
+          <strong>输入格式</strong>
+          <span>根节点不加等号，一级子节点写成 <code>=节点</code>。</span>
+        </div>
+        <div class="tip-card">
+          <strong>反向编辑</strong>
+          <span>在右侧直接改树结构，也会同步回左侧分级文本。</span>
+        </div>
+        <div class="tip-card">
+          <strong>持久化</strong>
+          <span>内容默认保存在插件本地存储，下次打开会自动恢复。</span>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="index.js"></script>
+  </body>
+</html>

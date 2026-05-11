@@ -1,0 +1,8 @@
+{
+  "name": "today-gold-price",
+  "version": "1.0.0",
+  "description": "今日金价 - 实时查看黄金价格走势",
+  "main": "index.html",
+  "author": "tao",
+  "license": "MIT"
+}

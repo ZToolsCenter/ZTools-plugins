@@ -1,0 +1,46 @@
+{
+  "name": "shortcut-capture",
+  "title": "截图",
+  "description": "截图、标注和保存截图",
+  "version": "1.0.0",
+  "author": "zing",
+  "platform": ["darwin", "win32"],
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "development": {
+    "main": "http://localhost:5180/"
+  },
+  "features": [
+    {
+      "code": "shortcut-capture",
+      "explain": "截图",
+      "cmds": ["shortcutCapture", "sc", "截屏", "截图"]
+    },
+    {
+      "code": "shortcut-capture-copy",
+      "explain": "截图并复制",
+      "cmds": ["截图并复制", "scc"]
+    },
+    {
+      "code": "shortcut-capture-save",
+      "explain": "截图并保存",
+      "cmds": ["截图并保存", "scs"]
+    },
+    {
+      "code": "shortcut-capture-image",
+      "explain": "打开图片到截图",
+      "cmds": [
+        {
+          "type": "img",
+          "label": "截图"
+        },
+        {
+          "type": "regex",
+          "label": "base64 图片",
+          "match": "/^data:image\\/(bmp|gif|heic|jpeg|jpg|png|svg\\+xml|webp|x-icon);base64,/"
+        }
+      ]
+    }
+  ]
+}

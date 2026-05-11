@@ -1,0 +1,27 @@
+{
+  "main": "index.html",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173/index.html"
+  },
+  "features": [
+    {
+      "code": "json",
+      "explain": "json 工具箱",
+      "cmds": [
+        "json",
+        "json-tools",
+        "格式化",
+        {
+          "type": "regex",
+          "label": "Json 格式化",
+          "match": "/^\\s*(\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\])\\s*$/i",
+          "minLength": 2
+        }
+      ]
+    }
+  ],
+  "pluginSetting": {
+    "single": false
+  }
+}

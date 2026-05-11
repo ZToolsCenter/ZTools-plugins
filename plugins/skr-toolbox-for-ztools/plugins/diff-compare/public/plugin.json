@@ -1,0 +1,98 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "diff-compare",
+  "title": "对比助手",
+  "description": "多模态差异对比工具。支持文本代码、图片、Excel 表格、Word 文档及 PDF 文档的实时对比与差异高亮。",
+  "author": "nichijoux",
+  "version": "1.0.1",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:8080"
+  },
+  "features": [
+    {
+      "code": "diff-main",
+      "explain": "代码对比工具，支持文本、图片、Excel、Word、PDF",
+      "icon": "logo.png",
+      "cmds": ["diff", "diff-compare"]
+    },
+    {
+      "code": "diff-text",
+      "explain": "文本差异对比",
+      "icon": "logo.png",
+      "cmds": [
+        "diff-text",
+        {
+          "type": "over",
+          "label": "文本对比"
+        }
+      ]
+    },
+    {
+      "code": "diff-image",
+      "explain": "图片差异对比",
+      "icon": "logo.png",
+      "cmds": [
+        "diff-image",
+        {
+          "type": "img",
+          "label": "图片对比"
+        },
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 2,
+          "label": "图片对比",
+          "extensions": ["png", "jpg", "jpeg", "bmp", "gif", "webp"]
+        }
+      ]
+    },
+    {
+      "code": "diff-excel",
+      "explain": "Excel 表格对比",
+      "icon": "logo.png",
+      "cmds": [
+        "diff-excel",
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 2,
+          "label": "Excel对比",
+          "extensions": ["xlsx", "xls", "csv"]
+        }
+      ]
+    },
+    {
+      "code": "diff-word",
+      "explain": "Word 文档对比",
+      "icon": "logo.png",
+      "cmds": [
+        "diff-word",
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 2,
+          "label": "Word对比",
+          "extensions": ["docx"]
+        }
+      ]
+    },
+    {
+      "code": "diff-pdf",
+      "explain": "PDF 文档对比",
+      "icon": "logo.png",
+      "cmds": [
+        "diff-pdf",
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 2,
+          "label": "PDF对比",
+          "extensions": ["pdf"]
+        }
+      ]
+    }
+  ]
+}

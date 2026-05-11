@@ -1,0 +1,122 @@
+{
+  "name": "clipboard",
+  "description": "剪贴板",
+  "version": "1.2.6",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5178/"
+  },
+  "features": [
+    {
+      "code": "clipboard",
+      "explain": "剪贴板",
+      "cmds": ["剪贴板"]
+    }
+  ],
+  "tools": {
+    "search_history": {
+      "description": "搜索剪贴板历史记录，可返回文本、图片或文件。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "搜索关键词，可匹配文本内容或文件名；不提供或为空时返回最近的历史记录"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["text", "image", "files", "all"],
+            "default": "all",
+            "description": "返回的内容类型"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "返回最大数量",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "匹配到的剪贴板历史记录",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "记录的唯一标识"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["text", "image", "files"],
+                  "description": "剪贴板内容类型"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "文本内容（仅 text 类型存在）"
+                },
+                "image": {
+                  "type": "string",
+                  "description": "复制图片或截图保存后的本地图片文件绝对路径（仅 image 类型存在）"
+                },
+                "files": {
+                  "type": "array",
+                  "description": "复制的文件或文件夹（仅 files 类型存在）",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "文件或文件夹名称"
+                      },
+                      "path": {
+                        "type": "string",
+                        "description": "本地文件或文件夹路径"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": ["file", "folder"],
+                        "description": "文件类型"
+                      },
+                      "exist": {
+                        "type": "boolean",
+                        "description": "文件或文件夹当前是否仍存在"
+                      }
+                    }
+                  }
+                },
+                "timestamp": {
+                  "type": "number",
+                  "description": "复制时间（Unix 毫秒时间戳）"
+                },
+                "truncated": {
+                  "type": "boolean",
+                  "description": "text 内容或 files 列表是否因长度限制被截断"
+                },
+                "size": {
+                  "type": "number",
+                  "description": "内容大小：text 为字符数，image 为图片字节大小，files 为文件或文件夹数量"
+                }
+              },
+              "required": ["id", "type", "timestamp"]
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "匹配到的总数量"
+          }
+        },
+        "required": ["items", "total"]
+      }
+    }
+  },
+  "title": "剪贴板"
+}

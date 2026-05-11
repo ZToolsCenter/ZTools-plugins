@@ -1,0 +1,994 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zhi</title>
+    <style>
+      :root {
+        --bg-primary: #1e1e2e;
+        --bg-secondary: #313244;
+        --bg-tertiary: #45475a;
+        --bg-hover: #585b70;
+        --text-primary: #cdd6f4;
+        --text-secondary: #a6adc8;
+        --text-muted: #6c7086;
+        --accent: #89b4fa;
+        --accent-hover: #74c7ec;
+        --success: #a6e3a1;
+        --success-hover: #94e2d5;
+        --border: #45475a;
+        --radius: 8px;
+      }
+
+      /* 亮色主题（Catppuccin Latte） */
+      :root.light {
+        --bg-primary: #eff1f5;
+        --bg-secondary: #e6e9ef;
+        --bg-tertiary: #ccd0da;
+        --bg-hover: #bcc0cc;
+        --text-primary: #4c4f69;
+        --text-secondary: #5c5f77;
+        --text-muted: #8087a2;
+        --accent: #1e66f5;
+        --accent-hover: #04a5e5;
+        --success: #40a02b;
+        --success-hover: #179299;
+        --border: #bcc0cc;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, 'SF Pro Text', system-ui, 'PingFang SC', 'Helvetica Neue', sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      /* ── 消息区 ── */
+      .message-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        min-height: 0;
+      }
+
+      .message-content {
+        line-height: 1.7;
+        font-size: 14px;
+        color: var(--text-primary);
+        user-select: text;
+      }
+
+      /* 基础 Markdown 样式 */
+      .message-content h1,
+      .message-content h2,
+      .message-content h3 {
+        margin: 16px 0 8px;
+        font-weight: 600;
+      }
+      .message-content h1 {
+        font-size: 20px;
+      }
+      .message-content h2 {
+        font-size: 17px;
+      }
+      .message-content h3 {
+        font-size: 15px;
+      }
+      .message-content p {
+        margin: 6px 0;
+      }
+      .message-content ul,
+      .message-content ol {
+        padding-left: 24px;
+        margin: 6px 0;
+      }
+      .message-content li {
+        margin: 3px 0;
+      }
+      .message-content code {
+        background: var(--bg-tertiary);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+        font-size: 13px;
+      }
+      .message-content pre {
+        background: var(--bg-secondary);
+        padding: 12px;
+        border-radius: var(--radius);
+        overflow-x: auto;
+        margin: 8px 0;
+      }
+      .message-content pre code {
+        background: transparent;
+        padding: 0;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .message-content strong {
+        font-weight: 600;
+        color: #f5c2e7;
+      }
+      .message-content em {
+        font-style: italic;
+        color: var(--text-secondary);
+      }
+      .message-content blockquote {
+        border-left: 3px solid var(--accent);
+        padding-left: 12px;
+        margin: 8px 0;
+        color: var(--text-secondary);
+      }
+      .message-content a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      /* ── 选项区 ── */
+      .options-area {
+        padding: 0 16px 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .option-chip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.15s;
+      }
+
+      .option-chip:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--accent);
+      }
+
+      .option-chip.selected {
+        background: rgba(137, 180, 250, 0.15);
+        border-color: var(--accent);
+        color: var(--accent);
+        font-weight: 500;
+      }
+
+      .option-chip .check {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+
+      .option-chip.selected .check {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .option-chip.selected .check::after {
+        content: '✓';
+        color: var(--bg-primary);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      /* ── 输入区 ── */
+      .input-area {
+        padding: 0 16px 12px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 72px;
+        max-height: 200px;
+        padding: 10px 12px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        resize: vertical;
+        font-size: 14px;
+        font-family: inherit;
+        line-height: 1.5;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+
+      textarea:focus {
+        border-color: var(--accent);
+      }
+
+      textarea::placeholder {
+        color: var(--text-muted);
+      }
+
+      /* ── 操作栏 ── */
+      .actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: var(--bg-secondary);
+        border-top: 1px solid var(--border);
+      }
+
+      .actions-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .actions-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .shortcut-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      button {
+        padding: 7px 18px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: inherit;
+        transition: all 0.15s;
+        outline: none;
+      }
+
+      .btn-cancel {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+      .btn-cancel:hover {
+        background: var(--bg-hover);
+      }
+
+      .btn-continue {
+        background: var(--success);
+        color: var(--bg-primary);
+      }
+      .btn-continue:hover {
+        background: var(--success-hover);
+      }
+
+      .btn-submit {
+        background: var(--accent);
+        color: var(--bg-primary);
+      }
+      .btn-submit:hover {
+        background: var(--accent-hover);
+      }
+      .btn-submit:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-end {
+        background: transparent;
+        color: #f38ba8;
+        border: 1px solid rgba(243, 139, 168, 0.4);
+      }
+      .btn-end:hover {
+        background: rgba(243, 139, 168, 0.15);
+        border-color: #f38ba8;
+      }
+
+      /* ── 加载状态 ── */
+      .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--text-muted);
+        font-size: 14px;
+      }
+
+      .loading .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 10px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── 图片预览区 ── */
+      .images-area {
+        padding: 0 16px 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .image-thumb {
+        position: relative;
+        width: 48px;
+        height: 48px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .image-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .image-thumb .remove-btn {
+        position: absolute;
+        top: -1px;
+        right: -1px;
+        width: 16px;
+        height: 16px;
+        background: #f38ba8;
+        color: #1e1e2e;
+        border: none;
+        border-radius: 50%;
+        font-size: 10px;
+        line-height: 16px;
+        text-align: center;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s;
+        padding: 0;
+      }
+
+      .image-thumb:hover .remove-btn {
+        opacity: 1;
+      }
+
+      .image-count {
+        font-size: 11px;
+        color: var(--text-muted);
+        align-self: center;
+        margin-left: 4px;
+      }
+
+      /* ── 拖拽覆盖层 ── */
+      .drag-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(137, 180, 250, 0.1);
+        border: 2px dashed var(--accent);
+        border-radius: 12px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        pointer-events: none;
+      }
+
+      .drag-overlay.active {
+        display: flex;
+      }
+
+      .drag-overlay span {
+        font-size: 16px;
+        color: var(--accent);
+        font-weight: 500;
+      }
+
+      /* 自定义标题栈 */
+      .titlebar {
+        display: flex;
+        align-items: center;
+        height: 36px;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        -webkit-app-region: drag;
+        user-select: none;
+      }
+
+      .titlebar-title {
+        flex: 1;
+        padding-left: 14px;
+        font-size: 12px;
+        color: var(--text-muted);
+        letter-spacing: 0.02em;
+      }
+
+      .titlebar-controls {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 0 6px;
+        -webkit-app-region: no-drag;
+      }
+
+      .titlebar-btn {
+        width: 30px;
+        height: 28px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        color: var(--text-muted);
+        transition:
+          background 0.12s,
+          color 0.12s;
+        padding: 0;
+        flex-shrink: 0;
+      }
+
+      .titlebar-btn:hover {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+      .titlebar-btn.btn-pin.pinned {
+        color: var(--accent);
+      }
+      .titlebar-btn.btn-pin.pinned:hover {
+        background: rgba(137, 180, 250, 0.15);
+      }
+      .titlebar-btn.btn-min:hover {
+        background: rgba(250, 179, 135, 0.2);
+        color: #fab387;
+      }
+      .titlebar-btn.btn-close:hover {
+        background: rgba(243, 139, 168, 0.2);
+        color: #f38ba8;
+      }
+      .titlebar-btn.btn-theme:hover {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+
+      /* 标题栏占位 36px，主内容占剩余空间 */
+      #loading {
+        flex: 1;
+      }
+      #main {
+        flex: 1;
+        min-height: 0;
+      }
+
+      /* 自定义滚动条 */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--bg-hover);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 自定义无边框标题栈 -->
+    <div class="titlebar">
+      <span class="titlebar-title">Zhi 智能交互</span>
+      <div class="titlebar-controls">
+        <button
+          class="titlebar-btn btn-theme"
+          id="themeBtn"
+          title="切换主题"
+          onclick="handleTheme()"
+        >
+          <!-- 默认暗色：显示月亮；亮色时显示太阳 -->
+          <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"
+            />
+          </svg>
+          <svg
+            id="themeIconSun"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            style="display: none"
+          >
+            <path
+              d="M12 7a5 5 0 1 0 0 10A5 5 0 0 0 12 7zm0-5a1 1 0 0 1 1 1v1a1 1 0 0 1-2 0V3a1 1 0 0 1 1-1zm0 17a1 1 0 0 1 1 1v1a1 1 0 0 1-2 0v-1a1 1 0 0 1 1-1zM4.22 4.22a1 1 0 0 1 1.41 0l.71.71a1 1 0 1 1-1.41 1.41l-.71-.71a1 1 0 0 1 0-1.41zm13.44 13.44a1 1 0 0 1 1.41 0l.71.71a1 1 0 1 1-1.41 1.41l-.71-.71a1 1 0 0 1 0-1.41zM3 11h1a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2zm17 0h1a1 1 0 0 1 0 2h-1a1 1 0 0 1 0-2zM4.22 19.78a1 1 0 0 1 0-1.41l.71-.71a1 1 0 1 1 1.41 1.41l-.71.71a1 1 0 0 1-1.41 0zM17.66 6.34a1 1 0 0 1 0-1.41l.71-.71a1 1 0 1 1 1.41 1.41l-.71.71a1 1 0 0 1-1.41 0z"
+            />
+          </svg>
+        </button>
+        <button
+          class="titlebar-btn btn-pin pinned"
+          id="pinBtn"
+          title="取消置顶"
+          onclick="handlePin()"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+          </svg>
+        </button>
+        <button class="titlebar-btn btn-min" title="最小化" onclick="handleMinimize()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 13H4v-2h16v2z" />
+          </svg>
+        </button>
+        <button class="titlebar-btn btn-close" title="关闭" onclick="handleCancel()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <span>等待数据...</span>
+    </div>
+
+    <!-- 主内容（初始隐藏） -->
+    <div id="main" style="display: none; flex-direction: column">
+      <div class="message-area">
+        <div id="messageContent" class="message-content"></div>
+      </div>
+
+      <div id="optionsArea" class="options-area" style="display: none"></div>
+
+      <div id="imagesArea" class="images-area" style="display: none"></div>
+
+      <div class="input-area">
+        <textarea id="userInput" placeholder="输入你的回复..." rows="3"></textarea>
+      </div>
+
+      <div class="actions">
+        <div class="actions-left">
+          <span class="shortcut-hint" id="shortcutHint"></span>
+        </div>
+        <div class="actions-right">
+          <button class="btn-end" onclick="handleEndSession()">结束会话</button>
+          <button class="btn-cancel" onclick="handleCancel()">取消</button>
+          <button class="btn-continue" onclick="handleContinue()">继续</button>
+          <button class="btn-submit" id="submitBtn" onclick="handleSubmit()">发送</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 拖拽覆盖层 -->
+    <div id="dragOverlay" class="drag-overlay">
+      <span>释放以添加图片</span>
+    </div>
+
+    <script>
+      // ── 主题初始化 ──
+      ;(function initTheme() {
+        const saved = window.ztools.dbStorage.getItem('zhi-popup-theme') || 'dark'
+        if (saved === 'light') {
+          document.documentElement.classList.add('light')
+          document.getElementById('themeIconMoon').style.display = 'none'
+          document.getElementById('themeIconSun').style.display = ''
+          document.getElementById('themeBtn').title = '切换到暗色'
+        }
+      })()
+
+      // ── 置顶初始化 ──
+      ;(function initPin() {
+        const saved = window.ztools.dbStorage.getItem('zhi-popup-pin')
+        if (saved === '0') {
+          // 延迟到下一 tick，确保 DOM 已就绪
+          setTimeout(() => {
+            isPinned = false
+            const btn = document.getElementById('pinBtn')
+            btn.classList.remove('pinned')
+            btn.title = '置顶'
+            window.__zhiResult = { _action: 'togglePin', value: false }
+          }, 0)
+        }
+      })()
+
+      // ── 状态 ──
+      let selectedOptions = []
+      let requestData = null
+      let images = [] // { dataUrl, name, mediaType }
+      let isPinned = window.ztools.dbStorage.getItem('zhi-popup-pin') !== '0' // 默认置顶
+
+      // ── 初始化入口 ──
+      // 由父窗口通过 executeJavaScript 调用
+      window.__zhiInit = function () {
+        requestData = window.__zhiRequest
+        if (!requestData) return
+
+        document.getElementById('loading').style.display = 'none'
+        const main = document.getElementById('main')
+        main.style.display = 'flex'
+
+        // 渲染消息
+        const messageEl = document.getElementById('messageContent')
+        messageEl.innerHTML = renderMarkdown(requestData.message || '')
+
+        // 渲染选项
+        const options = requestData.options || []
+        if (options.length > 0) {
+          const optionsArea = document.getElementById('optionsArea')
+          optionsArea.style.display = 'flex'
+          optionsArea.innerHTML = options
+            .map(
+              (opt, i) =>
+                `<div class="option-chip" data-index="${i}" data-value="${escapeAttr(opt)}" onclick="toggleOption(this)">
+            <div class="check"></div>
+            <span>${escapeHtml(opt)}</span>
+          </div>`
+            )
+            .join('')
+        }
+
+        // 快捷键提示
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+        const mod = isMac ? '⌘' : 'Ctrl'
+        document.getElementById('shortcutHint').textContent = `${mod}+Enter 发送 · Esc 取消`
+
+        // 聚焦输入框
+        setTimeout(() => {
+          document.getElementById('userInput').focus()
+        }, 100)
+      }
+
+      // 如果 __zhiRequest 已经设置（竞态情况），直接初始化
+      if (window.__zhiRequest) {
+        window.__zhiInit()
+      }
+
+      // ── 选项切换 ──
+      function toggleOption(el) {
+        const value = el.dataset.value
+        const idx = selectedOptions.indexOf(value)
+
+        if (idx > -1) {
+          selectedOptions.splice(idx, 1)
+          el.classList.remove('selected')
+        } else {
+          selectedOptions.push(value)
+          el.classList.add('selected')
+        }
+      }
+
+      // ── 主题切换 ──
+      function handleTheme() {
+        const isLight = document.documentElement.classList.toggle('light')
+        window.ztools.dbStorage.setItem('zhi-popup-theme', isLight ? 'light' : 'dark')
+        document.getElementById('themeIconMoon').style.display = isLight ? 'none' : ''
+        document.getElementById('themeIconSun').style.display = isLight ? '' : 'none'
+        document.getElementById('themeBtn').title = isLight ? '切换到暗色' : '切换主题'
+      }
+
+      // ── 标题栏按钮 ──
+      function handleMinimize() {
+        window.__zhiResult = { _action: 'minimize' }
+      }
+
+      function handlePin() {
+        isPinned = !isPinned
+        window.ztools.dbStorage.setItem('zhi-popup-pin', isPinned ? '1' : '0')
+        window.__zhiResult = { _action: 'togglePin', value: isPinned }
+        const btn = document.getElementById('pinBtn')
+        if (isPinned) {
+          btn.classList.add('pinned')
+          btn.title = '取消置顶'
+        } else {
+          btn.classList.remove('pinned')
+          btn.title = '置顶'
+        }
+      }
+
+      // ── 提交 ──
+      function handleSubmit() {
+        const userInput = document.getElementById('userInput').value.trim()
+        if (!userInput && selectedOptions.length === 0 && images.length === 0) return
+
+        window.__zhiResult = {
+          cancelled: false,
+          userInput: userInput,
+          selectedOptions: selectedOptions.slice(),
+          images: images.map((img) => ({
+            data: img.dataUrl.split(',')[1] || '',
+            media_type: img.mediaType,
+            filename: img.name
+          }))
+        }
+      }
+
+      // ── 继续 ──
+      function handleContinue() {
+        window.__zhiResult = {
+          cancelled: false,
+          userInput: '请继续',
+          selectedOptions: []
+        }
+      }
+
+      // ── 取消 ──
+      function handleCancel() {
+        window.__zhiResult = { cancelled: true }
+      }
+
+      // ── 结束会话 ──
+      function handleEndSession() {
+        window.__zhiResult = { cancelled: true, endSession: true }
+      }
+
+      // ── 图片粘贴 ──
+      document.getElementById('userInput').addEventListener('paste', (e) => {
+        const items = Array.from(e.clipboardData?.items || [])
+        let hasImage = false
+        for (const item of items) {
+          if (item.type.startsWith('image/')) {
+            hasImage = true
+            const file = item.getAsFile()
+            if (file) addImageFile(file)
+          }
+        }
+        if (hasImage) e.preventDefault()
+      })
+
+      // ── 图片拖放 ──
+      let dragCounter = 0
+
+      document.addEventListener('dragenter', (e) => {
+        e.preventDefault()
+        dragCounter++
+        if (dragCounter === 1) {
+          document.getElementById('dragOverlay').classList.add('active')
+        }
+      })
+
+      document.addEventListener('dragleave', (e) => {
+        e.preventDefault()
+        dragCounter--
+        if (dragCounter <= 0) {
+          dragCounter = 0
+          document.getElementById('dragOverlay').classList.remove('active')
+        }
+      })
+
+      document.addEventListener('dragover', (e) => {
+        e.preventDefault()
+      })
+
+      document.addEventListener('drop', (e) => {
+        e.preventDefault()
+        dragCounter = 0
+        document.getElementById('dragOverlay').classList.remove('active')
+
+        const files = Array.from(e.dataTransfer?.files || [])
+        for (const file of files) {
+          if (file.type.startsWith('image/')) {
+            addImageFile(file)
+          }
+        }
+      })
+
+      // ── 图片处理 ──
+      function addImageFile(file) {
+        const reader = new FileReader()
+        reader.onload = async () => {
+          const rawDataUrl = reader.result
+          const compressed = await compressImage(rawDataUrl)
+          images.push({
+            dataUrl: compressed,
+            name: file.name || 'image.png',
+            mediaType: compressed.startsWith('data:image/png') ? 'image/png' : 'image/jpeg'
+          })
+          renderImagePreviews()
+        }
+        reader.readAsDataURL(file)
+      }
+
+      function compressImage(dataUrl) {
+        return new Promise((resolve) => {
+          const img = new Image()
+          img.onload = () => {
+            const MAX_DIM = 1920
+            let w = img.width,
+              h = img.height
+            const maxSide = Math.max(w, h)
+            if (maxSide > MAX_DIM) {
+              const ratio = MAX_DIM / maxSide
+              w = Math.round(w * ratio)
+              h = Math.round(h * ratio)
+            }
+
+            const canvas = document.createElement('canvas')
+            canvas.width = w
+            canvas.height = h
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(img, 0, 0, w, h)
+
+            // 检测透明度
+            let hasAlpha = false
+            try {
+              const data = ctx.getImageData(0, 0, Math.min(w, 100), Math.min(h, 100)).data
+              for (let i = 3; i < data.length; i += 4) {
+                if (data[i] < 250) {
+                  hasAlpha = true
+                  break
+                }
+              }
+            } catch (e) {
+              /* ignore */
+            }
+
+            let result
+            if (hasAlpha) {
+              result = canvas.toDataURL('image/png')
+            } else {
+              const quality = maxSide > 2000 ? 0.85 : 0.92
+              result = canvas.toDataURL('image/jpeg', quality)
+            }
+
+            // 只在压缩后更小时使用
+            if (result.length < dataUrl.length) {
+              resolve(result)
+            } else {
+              resolve(dataUrl)
+            }
+          }
+          img.onerror = () => resolve(dataUrl)
+          img.src = dataUrl
+        })
+      }
+
+      function renderImagePreviews() {
+        const area = document.getElementById('imagesArea')
+        if (images.length === 0) {
+          area.style.display = 'none'
+          area.innerHTML = ''
+          return
+        }
+
+        area.style.display = 'flex'
+        area.innerHTML =
+          images
+            .map(
+              (img, i) =>
+                `<div class="image-thumb" title="${escapeAttr(img.name)}">
+          <img src="${img.dataUrl}" alt="">
+          <button class="remove-btn" onclick="removeImage(${i})">✕</button>
+        </div>`
+            )
+            .join('') + `<span class="image-count">${images.length} 张图片</span>`
+      }
+
+      function removeImage(index) {
+        images.splice(index, 1)
+        renderImagePreviews()
+      }
+
+      // ── 快捷键 ──
+      document.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd + Enter = 提交
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault()
+          handleSubmit()
+          return
+        }
+        // Escape = 取消
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          handleCancel()
+          return
+        }
+      })
+
+      // ── 简易 Markdown 渲染器 ──
+      function renderMarkdown(text) {
+        if (!text) return ''
+
+        // 先转义 HTML
+        let html = escapeHtml(text)
+
+        // 代码块 (```...```)
+        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+          return `<pre><code>${code.trim()}</code></pre>`
+        })
+
+        // 行内代码
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
+
+        // 标题
+        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>')
+
+        // 粗体
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+
+        // 斜体
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+
+        // 引用块
+        html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>')
+
+        // 无序列表
+        html = html.replace(/^- (.+)$/gm, '<li>$1</li>')
+        html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => `<ul>${match}</ul>`)
+
+        // 有序列表
+        html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+
+        // 链接
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+
+        // 段落（双换行）
+        html = html.replace(/\n\n/g, '</p><p>')
+        html = '<p>' + html + '</p>'
+
+        // 单换行
+        html = html.replace(/\n/g, '<br>')
+
+        // 清理空段落
+        html = html.replace(/<p><\/p>/g, '')
+        html = html.replace(/<p>(<h[1-3]>)/g, '$1')
+        html = html.replace(/(<\/h[1-3]>)<\/p>/g, '$1')
+        html = html.replace(/<p>(<pre>)/g, '$1')
+        html = html.replace(/(<\/pre>)<\/p>/g, '$1')
+        html = html.replace(/<p>(<ul>)/g, '$1')
+        html = html.replace(/(<\/ul>)<\/p>/g, '$1')
+        html = html.replace(/<p>(<blockquote>)/g, '$1')
+        html = html.replace(/(<\/blockquote>)<\/p>/g, '$1')
+
+        return html
+      }
+
+      // ── 工具函数 ──
+      function escapeHtml(str) {
+        const div = document.createElement('div')
+        div.textContent = String(str)
+        return div.innerHTML
+      }
+
+      function escapeAttr(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+      }
+    </script>
+  </body>
+</html>

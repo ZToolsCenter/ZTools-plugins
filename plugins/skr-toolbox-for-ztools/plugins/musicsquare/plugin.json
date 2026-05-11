@@ -1,0 +1,29 @@
+{
+  "name": "musicsquare",
+  "title": "皮卡丘的音乐站",
+  "description": "基于 Migu/Netease/QQ/Kuwo 的高颜值极简音乐搜索与播放工具",
+  "version": "1.0.2",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "author": "wangtao",
+  "homepage": "https://github.com/CharlesPikachu/musicsquare",
+  "features": [
+    {
+      "code": "music_search",
+      "explain": "皮卡丘音乐站：搜索并播放歌曲",
+      "cmds": [
+        "music",
+        "音乐",
+        "听歌",
+        "pika",
+        {
+          "type": "regex",
+          "label": "音乐搜索",
+          "match": "/^(?:music|音乐|听歌)\\s+(.+)$/i",
+          "minLength": 1
+        }
+      ]
+    }
+  ]
+}

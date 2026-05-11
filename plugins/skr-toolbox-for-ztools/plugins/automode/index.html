@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>AutoMode</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --card: #f5f5f5;
+      --text: #1a1a1a;
+      --text2: #666;
+      --border: #e0e0e0;
+      --accent: #4a90d9;
+      --success: #27ae60;
+      --danger: #e74c3c;
+      --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      --r: 10px;
+    }
+
+    .dark {
+      --bg: #1a1a2e;
+      --card: #1f2b47;
+      --text: #e0e0e0;
+      --text2: #a0a0a0;
+      --border: #2a3a5c;
+      --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    body {
+      font-family: "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      position: relative;
+    }
+
+    .wrap {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .sub {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+
+    .row + .row {
+      border-top: 1px solid var(--border);
+    }
+
+    .lbl {
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .val {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .val.on {
+      color: var(--success);
+    }
+
+    .tinput {
+      width: 50px;
+      height: 30px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      text-align: center;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+    }
+
+    .tinput:focus {
+      border-color: var(--accent);
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .btn {
+      flex: 1;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      font-size: 14px;
+      cursor: pointer;
+      background: var(--card);
+      color: var(--text);
+      transition: .2s;
+    }
+
+    .btn:hover {
+      opacity: 0.8;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .toast {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-80px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 8px 18px;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 999;
+      transition: .3s;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toast.ok {
+      border-left: 3px solid var(--success);
+    }
+
+    .toast.err {
+      border-left: 3px solid var(--danger);
+    }
+
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #ccc;
+      border-radius: 24px;
+      transition: .3s;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 2px;
+      bottom: 2px;
+      background: #fff;
+      border-radius: 50%;
+      transition: .3s;
+    }
+
+    .toggle input:checked + .slider {
+      background: var(--accent);
+    }
+
+    .toggle input:checked + .slider::before {
+      transform: translateX(20px);
+    }
+
+    .icon {
+      font-size: 20px;
+      margin-right: 8px;
+    }
+
+    .flex {
+      display: flex;
+      align-items: center;
+    }
+
+    .gap8 {
+      gap: 8px;
+    }
+
+    .loading-sm {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      border-top-color: var(--accent);
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>AutoMode</h1>
+    <p class="sub">Windows 主题自动切换</p>
+
+    <div class="card">
+      <div class="row">
+        <div class="flex gap8">
+          <span class="icon" id="themeIcon">&#127769;</span>
+          <div>
+            <div class="lbl">当前主题</div>
+            <div class="val" id="themeValue">浅色模式</div>
+          </div>
+        </div>
+        <div>
+          <div class="lbl">调度状态</div>
+          <div class="val" id="schedStat">未启用</div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="lbl">切换时通知</span>
+        <label class="toggle"><input type="checkbox" id="notifyToggle" checked><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex" style="justify-content:space-between;margin-bottom:12px;">
+        <strong style="font-size:15px;">定时模式</strong>
+        <label class="toggle"><input type="checkbox" id="enableToggle"><span class="slider"></span></label>
+      </div>
+      <div class="row">
+        <div class="flex gap8"><span>&#127769;</span><span>深色模式</span></div>
+        <div class="flex gap8">
+          <input type="number" class="tinput" id="darkH" min="0" max="23" value="19">
+          <span>:</span>
+          <input type="number" class="tinput" id="darkM" min="0" max="59" value="00">
+        </div>
+      </div>
+      <div class="row">
+        <div class="flex gap8"><span>&#9728;&#65039;</span><span>浅色模式</span></div>
+        <div class="flex gap8">
+          <input type="number" class="tinput" id="lightH" min="0" max="23" value="07">
+          <span>:</span>
+          <input type="number" class="tinput" id="lightM" min="0" max="59" value="00">
+        </div>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="btn" id="btnDark" onclick="manualSwitch('dark')">&#127769; 深色模式</button>
+      <button class="btn" id="btnLight" onclick="manualSwitch('light')">&#9728;&#65039; 浅色模式</button>
+    </div>
+
+    <div class="card">
+      <strong style="font-size:14px;display:block;margin-bottom:8px;">计划任务状态</strong>
+      <div class="row">
+        <span class="lbl">深色任务</span>
+        <span class="val" id="darkStat">查询中...</span>
+      </div>
+      <div class="row">
+        <span class="lbl">浅色任务</span>
+        <span class="val" id="lightStat">查询中...</span>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="lib/ui-state.js"></script>
+  <script>
+    var tog = document.getElementById('enableToggle');
+    var darkH = document.getElementById('darkH');
+    var darkM = document.getElementById('darkM');
+    var lightH = document.getElementById('lightH');
+    var lightM = document.getElementById('lightM');
+    var themeIcon = document.getElementById('themeIcon');
+    var themeValue = document.getElementById('themeValue');
+    var schedStat = document.getElementById('schedStat');
+    var darkStat = document.getElementById('darkStat');
+    var lightStat = document.getElementById('lightStat');
+    var toastEl = document.getElementById('toast');
+    var uiState = window.autoModeUiState || {
+      shouldDisableScheduleInputs: function(state) {
+        return !!state && !!state.scheduleEnabled;
+      },
+      hasThemeStateChanged: function(state) {
+        if (!state) return false;
+        return state.previousIsDark !== !!state.detectedIsDark;
+      }
+    };
+    var themeMedia = null;
+    var themeMediaListener = null;
+    var themePollTimer = null;
+    var lastThemeIsDark = null;
+    var toastTimer = null;
+
+    try { ztools.setExpendHeight(460); } catch(e) { console.error(e); }
+
+    function toast(msg, type) {
+      toastEl.textContent = msg;
+      toastEl.className = 'toast ' + (type || '');
+      clearTimeout(toastTimer);
+      requestAnimationFrame(function() { toastEl.classList.add('show'); });
+      toastTimer = setTimeout(function() { toastEl.classList.remove('show'); }, 2500);
+    }
+
+    var notifyTog = document.getElementById('notifyToggle');
+    try {
+      var savedNotify = ztools.dbStorage.getItem('automode-notify');
+      if (savedNotify === 'false') notifyTog.checked = false;
+    } catch(e) { console.error(e); }
+
+    notifyTog.addEventListener('change', function() {
+      try {
+        ztools.dbStorage.setItem('automode-notify', notifyTog.checked ? 'true' : 'false');
+      } catch(e) { console.error(e); }
+    });
+
+    function notify(msg) {
+      if (!notifyTog.checked) return;
+      try { ztools.showNotification(msg); } catch(e) { console.error(e); }
+    }
+
+    function applyTheme(isDark) {
+      if (isDark) {
+        themeIcon.innerHTML = '&#127769;';
+        themeValue.textContent = '深色模式';
+        document.body.classList.add('dark');
+      } else {
+        themeIcon.innerHTML = '&#9728;&#65039;';
+        themeValue.textContent = '浅色模式';
+        document.body.classList.remove('dark');
+      }
+    }
+
+    function getDetectedTheme() {
+      try {
+        var t = window.themeAPI.getCurrentTheme();
+        return !!t.dark;
+      } catch(e) {
+        try { return !!ztools.isDarkColors(); } catch(e2) { console.error(e2); }
+      }
+      return false;
+    }
+
+    function refreshTheme(force) {
+      var isDark = getDetectedTheme();
+      if (force || uiState.hasThemeStateChanged({ previousIsDark: lastThemeIsDark, detectedIsDark: isDark })) {
+        lastThemeIsDark = isDark;
+        applyTheme(isDark);
+      }
+    }
+
+    function stopThemeSync() {
+      if (themeMedia && themeMediaListener) {
+        if (typeof themeMedia.removeEventListener === 'function') {
+          themeMedia.removeEventListener('change', themeMediaListener);
+        } else if (typeof themeMedia.removeListener === 'function') {
+          themeMedia.removeListener(themeMediaListener);
+        }
+      }
+      themeMedia = null;
+      themeMediaListener = null;
+      if (themePollTimer) {
+        clearInterval(themePollTimer);
+        themePollTimer = null;
+      }
+    }
+
+    function startThemeSync() {
+      stopThemeSync();
+      if (window.matchMedia) {
+        themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+        themeMediaListener = function() {
+          setTimeout(function() { refreshTheme(false); }, 50);
+        };
+        if (typeof themeMedia.addEventListener === 'function') {
+          themeMedia.addEventListener('change', themeMediaListener);
+        } else if (typeof themeMedia.addListener === 'function') {
+          themeMedia.addListener(themeMediaListener);
+        }
+      }
+      themePollTimer = setInterval(function() {
+        refreshTheme(false);
+      }, 1500);
+    }
+
+    function updateScheduleInputState() {
+      var disabled = uiState.shouldDisableScheduleInputs({
+        scheduleEnabled: !!tog.checked
+      });
+      [darkH, darkM, lightH, lightM].forEach(function(input) {
+        input.disabled = disabled;
+      });
+    }
+
+    function refreshTasks() {
+      try {
+        var s = window.themeAPI.getTaskStatus();
+        darkStat.textContent = s.dark.exists ? s.dark.nextRun : '未创建';
+        darkStat.className = 'val' + (s.dark.exists ? ' on' : '');
+        lightStat.textContent = s.light.exists ? s.light.nextRun : '未创建';
+        lightStat.className = 'val' + (s.light.exists ? ' on' : '');
+
+        if (s.enabled) {
+          schedStat.textContent = '已启用';
+          schedStat.className = 'val on';
+        } else {
+          schedStat.textContent = '未启用';
+          schedStat.className = 'val';
+        }
+
+        tog.checked = !!s.enabled;
+        updateScheduleInputState();
+      } catch(e) {
+        darkStat.textContent = '查询失败';
+        lightStat.textContent = '查询失败';
+        updateScheduleInputState();
+      }
+    }
+
+    function restoreSavedState() {
+      try {
+        var saved = window.themeAPI.getSavedConfig();
+        if (!saved || !saved.config) {
+          updateScheduleInputState();
+          return;
+        }
+
+        if (saved.config.darkTime && saved.config.lightTime) {
+          var dp = saved.config.darkTime.split(':');
+          var lp = saved.config.lightTime.split(':');
+          darkH.value = dp[0];
+          darkM.value = dp[1];
+          lightH.value = lp[0];
+          lightM.value = lp[1];
+        }
+
+        tog.checked = !!saved.enabled;
+      } catch(e) { console.error(e); }
+
+      updateScheduleInputState();
+    }
+
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function getTS(h, m) {
+      return pad2(h.value) + ':' + pad2(m.value);
+    }
+
+    function validTime(h, m) {
+      var hv = parseInt(h.value, 10);
+      var mv = parseInt(m.value, 10);
+      return !isNaN(hv) && hv >= 0 && hv <= 23 && !isNaN(mv) && mv >= 0 && mv <= 59;
+    }
+
+    tog.addEventListener('change', function() {
+      if (tog.checked) {
+        if (!validTime(darkH, darkM)) {
+          toast('深色模式时间无效', 'err');
+          tog.checked = false;
+          updateScheduleInputState();
+          return;
+        }
+        if (!validTime(lightH, lightM)) {
+          toast('浅色模式时间无效', 'err');
+          tog.checked = false;
+          updateScheduleInputState();
+          return;
+        }
+        try {
+          window.themeAPI.disableScheduler();
+          var r = window.themeAPI.enableScheduler({
+            darkTime: getTS(darkH, darkM),
+            lightTime: getTS(lightH, lightM)
+          });
+          if (r.success) {
+            toast('定时切换已启用', 'ok');
+            notify('主题定时切换已启用');
+          } else {
+            toast('启用失败: ' + r.error, 'err');
+            tog.checked = false;
+          }
+        } catch(e) {
+          toast('操作失败: ' + e.message, 'err');
+          tog.checked = false;
+        }
+      } else {
+        try {
+          window.themeAPI.disableScheduler();
+          toast('定时切换已禁用', 'ok');
+          notify('主题定时切换已禁用');
+        } catch(e) {
+          toast('操作失败: ' + e.message, 'err');
+          tog.checked = true;
+        }
+      }
+      updateScheduleInputState();
+      refreshTasks();
+    });
+
+    function manualSwitch(mode) {
+      var btn = document.getElementById(mode === 'dark' ? 'btnDark' : 'btnLight');
+      var label = mode === 'dark' ? '&#127769; 深色模式' : '&#9728;&#65039; 浅色模式';
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-sm"></span> 切换中...';
+      try {
+        var r = window.themeAPI.switchImmediate(mode);
+        if (r.success) {
+          var t = mode === 'dark' ? '深色' : '浅色';
+          refreshTheme(true);
+          toast('正在切换到' + t + '模式...', 'ok');
+          notify('正在切换到' + t + '模式');
+          btn.disabled = false;
+          btn.innerHTML = label;
+        } else {
+          toast('切换失败: ' + r.error, 'err');
+          btn.disabled = false;
+          btn.innerHTML = label;
+        }
+      } catch(e) {
+        toast('操作失败: ' + e.message, 'err');
+        btn.disabled = false;
+        btn.innerHTML = label;
+      }
+    }
+
+    refreshTheme(true);
+    startThemeSync();
+    window.addEventListener('beforeunload', stopThemeSync);
+    restoreSavedState();
+    refreshTasks();
+  </script>
+</body>
+</html>

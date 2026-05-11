@@ -1,0 +1,374 @@
+{
+  "app": {
+    "title": "FR Renamer",
+    "workflow": "Workflow",
+    "nodes": "{count} Nodes",
+    "no_files": "No Files Selected",
+    "no_files_desc": "Please import files to start batch renaming",
+    "drag_import_title": "Drop To Import",
+    "drag_import_desc": "Supports files and folders",
+    "start_rename": "Run Process",
+    "import_files": "Import Files",
+    "import_folders": "Import Folders",
+    "clear_all": "Clear List",
+    "beginner_guide": "Beginner Guide",
+    "settings": "Settings",
+    "metadata": "File Info",
+    "no_rules": "Add a rule to start building your flow",
+    "select_rule_desc": "Choose a renaming rule to add it to your workflow",
+    "rename_conflict_toast": "Detected {count} rename conflicts. Check failed rows in the table.",
+    "rename_failed_toast": "{count} files failed to rename. Check failed rows in the table.",
+    "toast_close": "Close notification"
+  },
+  "workflow": {
+    "add_rule": "Add Renaming Rule",
+    "collapse": "Collapse Workflow",
+    "expand": "Expand Workflow",
+    "remove_rule": "Remove This Rule",
+    "rename_targets": "Expected Output",
+    "quick_guide_title": "Quick Start",
+    "quick_guide_desc": "Pick a rule first, tune its parameters in the rule card, then verify the result in preview.",
+    "quick_guide_tip_pick": "Pick a rule",
+    "quick_guide_tip_adjust": "Adjust settings",
+    "quick_guide_tip_preview": "Check preview",
+    "rule_help_title": "Rule Help",
+    "rule_help_no_tokens": "This rule does not use template tokens. Configure the fields above to control the naming behavior.",
+    "template_tokens_title": "Template Tokens",
+    "template_example_label": "Example:",
+    "template_example_value": "[NAME]_[YYYY][MM][DD]_[INDEX]",
+    "template_token_name": "Original file name without extension",
+    "template_token_ext": "File extension without dot",
+    "template_token_index": "Current index (starts from 1)",
+    "template_token_year": "Four-digit year",
+    "template_token_month": "Two-digit month",
+    "template_token_day": "Two-digit day"
+  },
+  "onboarding": {
+    "entry_title": "Guide Is Always Available",
+    "entry_description": "Use this button anytime to replay the onboarding walkthrough.",
+    "import_title": "Step 1: Import Files",
+    "import_description": "Import files first. You can use the button or drag files into the preview area.",
+    "workflow_title": "Step 2: Build Workflow",
+    "workflow_description": "The left panel is your workflow. Rules run from top to bottom in order.",
+    "rule_title": "Step 3: Add Rules",
+    "rule_description": "Click Add Rule and configure plugins like replace, sequence, or template.",
+    "reorder_title": "Step 4: Drag To Reorder",
+    "reorder_description": "You can drag rule cards up or down to change execution order.",
+    "preview_title": "Step 5: Verify Preview",
+    "preview_description": "The table shows real-time output names. Check results before running batch rename.",
+    "run_title": "Final Step: Run Batch",
+    "run_description": "Click here to execute rename. Processed files can be reverted in the table.",
+    "next": "Next",
+    "prev": "Previous",
+    "done": "Done"
+  },
+  "plugins": {
+    "replace": {
+      "name": "Find & Replace",
+      "description": "Find text in file names and replace it (regex supported).",
+      "fields": {
+        "find": {
+          "label": "Find",
+          "description": "Text to match."
+        },
+        "replace": {
+          "label": "Replace With",
+          "description": "Replacement text."
+        },
+        "isRegex": {
+          "label": "Use Regex",
+          "description": "Enable regular expression matching."
+        },
+        "caseSensitive": {
+          "label": "Case Sensitive",
+          "description": "Ignore case when disabled."
+        }
+      }
+    },
+    "add-prefix-suffix": {
+      "name": "Add Prefix/Suffix",
+      "description": "Add text to the beginning or end of file names.",
+      "fields": {
+        "prefix": {
+          "label": "Prefix",
+          "description": "Added before the file name."
+        },
+        "suffix": {
+          "label": "Suffix",
+          "description": "Added after the file name."
+        }
+      }
+    },
+    "sequence": {
+      "name": "Smart Sequence",
+      "description": "Append increasing numbers to file names.",
+      "fields": {
+        "start": {
+          "label": "Start",
+          "description": "Starting number for the first file."
+        },
+        "step": {
+          "label": "Step",
+          "description": "Increment value between files."
+        },
+        "padding": {
+          "label": "Padding",
+          "description": "Left-pad with zeros to this length."
+        },
+        "position": {
+          "label": "Position",
+          "description": "Number position or full replace.",
+          "options": {
+            "prefix": "Prefix",
+            "suffix": "Suffix",
+            "replace": "Replace File Name"
+          }
+        }
+      }
+    },
+    "timestamp": {
+      "name": "Timestamp",
+      "description": "Apply time values to file names.",
+      "fields": {
+        "format": {
+          "label": "Date Format",
+          "description": "Supports YYYY/MM/DD/HH/mm/ss."
+        },
+        "useCurrentTime": {
+          "label": "Use Current Time",
+          "description": "Use file modified time when disabled."
+        }
+      }
+    },
+    "case-transform": {
+      "name": "Case Transform",
+      "description": "Convert names to different case styles.",
+      "fields": {
+        "mode": {
+          "label": "Mode",
+          "description": "Choose the target naming style.",
+          "options": {
+            "lower": "lower case",
+            "upper": "UPPER CASE",
+            "title": "Title Case",
+            "camel": "camelCase",
+            "snake": "snake_case"
+          }
+        }
+      }
+    },
+    "template": {
+      "name": "Template",
+      "description": "Build names quickly with placeholders.",
+      "fields": {
+        "template": {
+          "label": "Template",
+          "description": "Supports [NAME] [EXT] [INDEX] [YYYY] [MM] [DD]."
+        }
+      }
+    },
+    "clean-name": {
+      "name": "Name Cleanup",
+      "description": "Clean whitespace, illegal characters, and redundant dots.",
+      "fallback_name": "untitled",
+      "fields": {
+        "trim": {
+          "label": "Trim Edges",
+          "description": "Remove leading and trailing whitespace."
+        },
+        "collapseWhitespace": {
+          "label": "Collapse Spaces",
+          "description": "Convert consecutive whitespace into a single space."
+        },
+        "replaceIllegal": {
+          "label": "Replace Illegal Chars",
+          "description": "Replace forbidden Windows characters like < > : \" / \\ | ? *."
+        },
+        "illegalReplacement": {
+          "label": "Illegal Char Replacement",
+          "description": "Leave empty to remove illegal characters directly."
+        },
+        "normalizeDots": {
+          "label": "Normalize Dots",
+          "description": "Merge repeated dots and trim dots at both ends."
+        }
+      }
+    },
+    "extension-transform": {
+      "name": "Extension Transform",
+      "description": "Normalize extension case or set a custom extension.",
+      "fields": {
+        "mode": {
+          "label": "Mode",
+          "description": "Choose how to handle file extensions.",
+          "options": {
+            "lower": "Lowercase",
+            "upper": "Uppercase",
+            "set": "Set Custom Extension",
+            "keep": "Keep Original"
+          }
+        },
+        "customExtension": {
+          "label": "Custom Extension",
+          "description": "Only used in \"Set Custom Extension\" mode, such as jpg or md."
+        }
+      }
+    },
+    "uniqueify": {
+      "name": "Smart Unique",
+      "description": "Automatically append sequence numbers when names collide.",
+      "fields": {
+        "style": {
+          "label": "Suffix Style",
+          "description": "How duplicate indexes should be displayed.",
+          "options": {
+            "paren": "(1) style",
+            "dash": "-1 style",
+            "underscore": "_1 style"
+          }
+        },
+        "start": {
+          "label": "Start Number",
+          "description": "First index used when a collision occurs."
+        },
+        "padding": {
+          "label": "Zero Padding",
+          "description": "Set 2 to generate values like 01 and 02."
+        },
+        "caseSensitive": {
+          "label": "Case Sensitive",
+          "description": "When disabled, File and file are treated as duplicates."
+        }
+      }
+    },
+    "delete-char": {
+      "name": "Delete Character",
+      "description": "Delete specific characters from file names.",
+      "fields": {
+        "mode": {
+          "label": "Mode",
+          "description": "Choose deletion mode.",
+          "options": {
+            "chars": "Delete Specific Characters",
+            "type": "Delete by Type",
+            "position": "Delete by Position",
+            "dedupe": "Remove Duplicates"
+          }
+        },
+        "chars": {
+          "label": "Characters",
+          "description": "Characters to delete."
+        },
+        "caseSensitive": {
+          "label": "Case Sensitive",
+          "description": "Match case when disabled."
+        },
+        "type": {
+          "label": "Type",
+          "description": "Character type to delete.",
+          "options": {
+            "space": "Space",
+            "alpha": "Letter",
+            "digit": "Digit",
+            "upper": "Uppercase",
+            "lower": "Lowercase",
+            "punct": "Punctuation",
+            "chinese": "Chinese",
+            "non-ascii": "Non-ASCII"
+          }
+        },
+        "position": {
+          "label": "Position",
+          "description": "Position to delete from.",
+          "options": {
+            "first": "First",
+            "last": "Last",
+            "firstN": "First N",
+            "lastN": "Last N",
+            "nth": "Nth Character"
+          }
+        },
+        "count": {
+          "label": "Count",
+          "description": "Number of characters to delete.",
+          "options": {
+            "nth": "Position (1-indexed)"
+          }
+        },
+        "style": {
+          "label": "Style",
+          "description": "Deduplication style.",
+          "options": {
+            "adjacent": "Adjacent",
+            "all": "All"
+          }
+        },
+        "targetChar": {
+          "label": "Target Character",
+          "description": "Leave empty to apply to all."
+        },
+        "protectExtension": {
+          "label": "Protect Extension",
+          "description": "Do not delete characters in file extension."
+        }
+      }
+    }
+  },
+  "common": {
+    "close": "Close"
+  },
+  "settings": {
+    "title": "Settings",
+    "about": "About Project",
+    "intro": "FR Renamer is a file renaming tool built on a plugin architecture, designed by Antigravity.",
+    "theme": "Appearance",
+    "theme_system": "System",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "brand_style": "Brand Preset",
+    "brand_professional": "Professional (Balanced)",
+    "brand_soft": "Soft (Calm)",
+    "brand_high_contrast": "High Contrast (Bold)",
+    "brand_desc": "Keep colors and corner density consistent across the app",
+    "stack_stable": "Stable",
+    "stack_role_core_runtime": "Core Runtime",
+    "stack_role_type_safety": "Type Safety",
+    "stack_role_build_tool": "Build Tool",
+    "stack_role_design_system": "Design System",
+    "stack_role_a11y": "A11y Primitives",
+    "stack_role_localization": "Localization",
+    "stack_role_iconography": "Iconography",
+    "stack_role_composables": "Composables",
+    "stack_desc_vue": "Composition API and SFC foundation",
+    "stack_desc_typescript": "Static typing for plugins and workflow state",
+    "stack_desc_vite": "Fast dev server and lean production bundles",
+    "stack_desc_tailwind": "Token-driven utility styling and theming",
+    "stack_desc_radix": "Accessible dialogs, selects, and interaction primitives",
+    "stack_desc_i18n": "Bilingual UI copy and runtime locale switch",
+    "stack_desc_lucide": "Consistent line icons across all controls",
+    "stack_desc_vueuse": "Utility composables for reactive app behavior",
+    "language": "Language",
+    "tech_stack": "Tech Stack"
+  },
+  "table": {
+    "status": "Status",
+    "original_name": "Original Name",
+    "new_name": "New Name",
+    "type": "Type",
+    "size": "Size",
+    "modified": "Modified",
+    "actions": "Actions",
+    "delete": "Delete",
+    "delete_selected": "Delete Selected",
+    "select_all": "Select All",
+    "select_item": "Select Item",
+    "batch_tip": "Select files to enable batch actions",
+    "selected_count": "{count} selected",
+    "status_modified": "Pending",
+    "status_success": "Completed",
+    "status_error": "Failed",
+    "status_idle": "Unchanged",
+    "revert": "Revert",
+    "revert_selected": "Revert Selected"
+  }
+}

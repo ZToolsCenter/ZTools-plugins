@@ -1,0 +1,43 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "code-screenshot",
+  "title": "代码截图",
+  "description": "代码截图是一款专业的代码展示工具，能够将源代码转换成精美的图片，让代码分享更加优雅直观",
+  "author": "nichijoux",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "code-screenshot",
+      "explain": "将代码转换成精美的图片，支持多种主题和样式",
+      "icon": "logo.svg",
+      "cmds": [
+        "code-screenshot",
+        {
+          "type": "over",
+          "label": "代码截图"
+        }
+      ]
+    },
+    {
+      "code": "code-screenshot-file",
+      "explain": "读取代码文件并生成截图",
+      "icon": "logo.svg",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "代码文件截图",
+          "fileType": "file",
+          "extensions": ["js", "ts", "jsx", "tsx", "vue", "py", "java", "go", "rs", "c", "cpp", "h", "hpp", "cs", "php", "rb", "swift", "kt", "scala", "html", "css", "scss", "less", "json", "yaml", "yml", "xml", "md", "sql", "sh", "bash", "zsh", "ps1", "dockerfile"],
+          "minLength": 1,
+          "maxLength": 50
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+/* root */
+:root {
+  /* 定义亮色模式（默认）的颜色变量 */
+  --bg-color: hsl(236, 18%, 100%);
+  --text-color-0: #000;
+  --text-color-1: #333;
+  --text-color-2: #666;
+  --text-color-3: #999;
+  --text-color-4: #ccc;
+  --text-color-5: #eee;
+  --text-color-6: #fff;
+
+
+  --border-color: #e5e5e5;
+
+  --setting-bg-color: hsl(36, 14%, 98%);
+
+  --mask-color-light: hsla(227deg 24% 0% / 0.04);
+
+  --taskBox-bg-color: hsla(227deg 24% 100% / 1);
+  --taskBox-border-color: hsla(227deg 5% 94% / 1);
+
+  --kv-red-color: hsl(4, 100%, 50%);
+  --kv-orange-color: hsl(24, 90%, 68%);
+
+  --kv-shadow-color: hsl(24, 90%, 68%, 0.3);
+
+  --day-cell-color: hsl(216, 14%, 95%);
+
+  --activeTask-bg-linear:linear-gradient(95deg,#ffffff8f 10%, #ffd8cf45 40%, #ffead242 60%,#ffffffaa 80% ,#ffffff00 85%);
+  --activeTask-bg-linear-hover: linear-gradient(90.39deg, #FFD8CF35 0%, #ffffff00 91.3%);
+
+  --mix-blend-mode: multiply;
+
+  --slider-fill-opacity: 0.2;
+
+  --switch-shadow: none;
+
+  --break-btn-bg-color: rgba(226, 239, 234, 0.5);
+  --break-btn-bg-color-hover: rgba(226, 239, 234, 0.9);
+
+  --scale-opacity: 0.2;
+
+}
+
+/* 暗色模式的颜色变量 */
+[data-theme="dark"] {
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --border-color: hsl(0, 0%, 25%);
+
+  --text-color-0: #fff;
+  --text-color-1: #eee;
+  --text-color-2: #ccc;
+  --text-color-3: #999;
+  --text-color-4: #666;
+  --text-color-5: #333;
+  --text-color-6: #000;
+
+  --mask-color-light: hsla(227deg 24% 100% / 0.08);
+
+  --setting-bg-color: hsl(36, 14%, 98% , 0.08);
+
+  --taskBox-bg-color: hsla(227deg 24% 100% / 1);
+  --taskBox-border-color: hsla(227deg 5% 15% / 1);
+
+  --kv-shadow-color: hsl(24, 90%, 68%, 0.8);
+
+  --day-cell-color: hsl(216, 14%, 25%);
+
+  --activeTask-bg-linear: linear-gradient(95deg, #ffffff05 24%, #ffd8cf15 40%, #ffead210 60%, #ffffff07 80%, #ffffff00 85%);
+  --activeTask-bg-linear-hover: linear-gradient(90.39deg, #FFD8CF0f 0%, #ffffff00 91.3%);
+
+  --mix-blend-mode: screen;
+
+  --slider-fill-opacity: 0.65;
+
+  --switch-shadow:  #ffffff99 0px 0px 4px 0px;
+
+  --break-btn-bg-color: rgba(226, 239, 234, 0.1);
+  --break-btn-bg-color-hover: rgba(226, 239, 234, 0.3 );
+
+  --scale-opacity: 0.6;
+
+
+}

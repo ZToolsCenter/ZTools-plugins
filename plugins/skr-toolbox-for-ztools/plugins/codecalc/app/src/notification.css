@@ -1,0 +1,108 @@
+/* 定义主题变量 */
+:root {
+    --notification-info-bg: rgba(40, 167, 69, 0.9);
+    --notification-info-color: #ffffff;
+    --notification-warning-bg: #9e9e9e;
+    --notification-warning-color: #ffffff;
+    --notification-error-bg: rgba(220, 53, 69, 0.9);
+    --notification-error-color: #ffffff;
+    --notification-shadow: rgba(0, 0, 0, 0.2);
+    /* tooltip 颜色（浅色主题，与原 tag-tooltip 一致） */
+    --tag-tooltip-bg: rgba(0, 0, 0, 0.8);
+    --tag-tooltip-color: #ffffff;
+}
+
+:root[data-theme="dark"] {
+    --notification-info-bg: rgba(0, 230, 118, 0.9);
+    --notification-info-color: #1a1a1a;
+    --notification-warning-bg: #757575;
+    --notification-warning-color: rgba(255, 255, 255, 0.66);
+    --notification-error-bg: rgba(220, 53, 69, 0.9);
+    --notification-error-color: #ffffff;
+    --notification-shadow: rgba(0, 0, 0, 0.3);
+    /* tooltip 颜色（深色主题，反相且保持透明） */
+    --tag-tooltip-bg: rgba(255, 255, 255, 0.9);
+    --tag-tooltip-color: #0f172a;
+}
+
+/* 通知组件基础样式 */
+.notification {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    z-index: 1010;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px var(--notification-shadow);
+    pointer-events: none;
+    animation: notification-fade-in 0.3s ease;
+}
+
+/* 通知类型样式 */
+.notification.info {
+    background: var(--notification-info-bg);
+    color: var(--notification-info-color);
+}
+
+.notification.warning {
+    background: var(--notification-warning-bg);
+    color: var(--notification-warning-color);
+}
+
+.notification.error {
+    background: var(--notification-error-bg);
+    color: var(--notification-error-color);
+}
+
+.notification.fade-out {
+    animation: notification-fade-out 0.3s ease forwards;
+}
+
+/* 通用 notification tooltip（原 tag-tooltip，重命名为 notification-tips） */
+.notification-tips {
+    position: fixed;
+    background: var(--tag-tooltip-bg);
+    color: var(--tag-tooltip-color);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    pointer-events: none;
+    z-index: 1100;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.2s ease;
+    max-width: 200px;
+    white-space: nowrap;
+    /* 防止出现滚动条 */
+    overflow: hidden;
+}
+
+.notification-tips.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@keyframes notification-fade-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes notification-fade-out {
+    from {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+} 

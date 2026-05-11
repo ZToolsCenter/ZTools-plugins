@@ -1,0 +1,63 @@
+:root {
+    --copy-hover-color: #1a1a1a;
+    --copy-icon-color: #16580c;
+}
+
+:root[data-theme="dark"] {
+    --copy-hover-color: #e0e0e0;
+    --copy-icon-color: #00c853;
+}
+
+/* 修改悬停样式 */
+.result.has-value:not(.error):hover:not(.copied) {
+    font-weight: 600;
+    background-color: transparent;
+    transform: scale(1.03);
+    transition: all 0.2s ease;
+    color: var(--copy-hover-color);
+    position: relative;
+}
+
+/* 确保等号在hover时完全隐藏 */
+.result.has-value:not(.error):hover:not(.copied)::before {
+    opacity: 0 !important;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+/* 修改悬停时的复制提示 */
+.result.has-value:not(.error):hover:not(.copied)::after {
+    content: " ⎘ ";
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--copy-icon-color);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 18px;
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+    display: block;
+    width: 1em;
+    height: 1em;
+    line-height: 1;
+    text-align: center;
+}
+
+/* 添加复制后的样式 */
+.result.copied {
+    transition: all 0.3s ease;
+    font-weight: normal;
+    transform: scale(1);
+    cursor: default;
+}
+
+/* 移除动画相关的样式 */
+.result.has-value:not(.error):not(:hover):not(.copied)::after {
+    opacity: 0;
+    transition: opacity 0.3s ease 0.1s;
+    pointer-events: none;
+} 

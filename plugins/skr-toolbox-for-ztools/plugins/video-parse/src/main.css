@@ -1,0 +1,84 @@
+:root {
+  --blue: rgb(88, 164, 246);
+  --light: #fff;
+  /* 深空黑夜#0F172A 超级猛男#FF69B4 紫颜悦色#743EE4 青翠森林#43946C */
+  --primary-color: #0F172A;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  /* 字体 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+textarea {
+  display: block;
+  margin: 0;
+  outline: none;
+}
+
+.loading {
+  /* 旋转 */
+  animation: spin 0.5s linear infinite;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-color: #f4f4f4;
+  }
+
+  :root {
+    --color: #000000;
+    --bg: #F5F7FA;
+    --main-card-bg: #fff;
+    --other-bg: #F5F7FA;
+    --input-bg: #F9FAFB;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  &::-webkit-scrollbar-track-piece {
+    background-color: #303133;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #666;
+    border-color: #303133;
+  }
+
+  body {
+    background-color: #303133;
+    /* color: #fff; */
+  }
+
+  :root {
+    --color: #ffffff;
+    --bg: #303133;
+    --main-card-bg: #181818;
+    --other-bg: #282828;
+    --input-bg: #282828;
+  }
+}

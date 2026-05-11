@@ -1,0 +1,28 @@
+{
+  "name": "subnet-calculator",
+  "title": "子网掩码计算器",
+  "description": "输入 IP 地址和子网掩码/CIDR，快速计算网络地址、广播地址、可用主机范围等",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "subnet",
+      "explain": "子网掩码计算",
+      "cmds": ["子网", "subnet", "掩码", "cidr"]
+    },
+    {
+      "code": "subnet-regex",
+      "explain": "CIDR 子网计算",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "CIDR 子网计算",
+          "match": "/^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\/\\d{1,2}$/",
+          "minLength": 9
+        }
+      ]
+    }
+  ]
+}

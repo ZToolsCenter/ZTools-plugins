@@ -1,0 +1,8 @@
+{
+  "type": "commonjs",
+  "dependencies": {
+    "font-list": "^1.4.5",
+    "ioredis": "^5.3.2",
+    "tunnel-ssh": "^5.1.2"
+  }
+}

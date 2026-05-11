@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToTodo</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Vue 3 Local -->
+    <script src="vue.global.js"></script>
+</head>
+<body>
+    <div id="app" v-cloak>
+        <div class="main-container">
+            <div class="calendar-container">
+                <!-- Calendar Header -->
+                <div class="calendar-header">
+                    <div class="header-left">
+                        <template v-if="!isSelectionMode">
+                            <button class="icon-btn menu-btn" @click="toggleLeftDrawer" title="所有待办">
+                                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                            </button>
+                            <button class="nav-btn" @click="toggleSelectionMode" style="margin-left: 10px;">AI报告</button>
+                        </template>
+                        <template v-else>
+                            <button class="nav-btn" @click="toggleSelectionMode">取消</button>
+                            <button class="nav-btn primary" @click="generateReport" style="margin-left: 10px;">生成</button>
+                        </template>
+                    </div>
+                    
+                    <div class="header-center">
+                        <button class="nav-btn" @click="prevMonth">&lt;</button>
+                        <h2>{{ currentYear }}年 {{ currentMonth + 1 }}月</h2>
+                        <button class="nav-btn" @click="nextMonth">&gt;</button>
+                    </div>
+
+                    <div class="header-right">
+                        <button class="nav-btn" @click="toggleWorkdayMode" style="margin-right: 10px;">{{ isWorkdayMode ? '工作日' : '自然日' }}</button>
+                        <button class="today-btn" @click="goToToday">今天</button>
+                    </div>
+                </div>
+                
+                <!-- Weekdays -->
+                <div class="weekdays" :style="{ 'grid-template-columns': isWorkdayMode ? 'repeat(5, 1fr)' : 'repeat(7, 1fr)' }">
+                    <div v-for="day in weekdays" :key="day">{{ day }}</div>
+                </div>
+
+                <!-- Days Grid -->
+                <div class="days-grid" :style="{ 'grid-template-columns': isWorkdayMode ? 'repeat(5, 1fr)' : 'repeat(7, 1fr)' }">
+                    <div 
+                        v-for="day in calendarDays" 
+                        :key="day.date.getTime()"
+                        class="day-cell"
+                        :class="{ 
+                            'other-month': !day.isCurrentMonth,
+                            'today': isToday(day.date),
+                            'selected': isSelected(day.date),
+                            'in-selection': isSelectionMode,
+                            'selected-for-report': isDateSelectedForReport(day.date)
+                        }"
+                        @click="handleDayClick(day.date)"
+                    >
+                        <div class="selection-overlay" v-if="isSelectionMode">
+                            <div class="selection-checkbox" :class="{ 'checked': isDateSelectedForReport(day.date) }"></div>
+                        </div>
+                        <div class="day-header">
+                            <span class="day-number">{{ day.day }}</span>
+                            <span class="lunar-date">{{ day.lunar }}</span>
+                        </div>
+                        
+                        <!-- Inline Todo List -->
+                        <div class="mini-todo-list">
+                            <div 
+                                v-for="(todo, i) in getTodosForDate(day.date)" 
+                                :key="i" 
+                                class="mini-todo-item"
+                                :class="{ 'done': todo.done }"
+                                @click.stop="toggleTodoAndSave(todo, day.date)"
+                            >
+                                <input 
+                                    type="checkbox" 
+                                    v-model="todo.done" 
+                                    @change="saveTodoStatus(day.date)"
+                                    @click.stop
+                                    class="mini-checkbox"
+                                >
+                                <span class="mini-todo-text">{{ todo.text }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Requirement Modal -->
+            <div class="drawer-overlay" v-if="showReportModal" style="z-index: 200;"></div>
+            <div class="modal-dialog" v-if="showReportModal">
+                <div class="modal-header">
+                    <h3>生成 AI 报告</h3>
+                    <button class="close-btn" @click="closeReportModal">×</button>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-label">请输入报告生成要求：</p>
+                    <textarea 
+                        v-model="reportPrompt" 
+                        class="modal-textarea" 
+                        placeholder="例如：请侧重分析未完成的任务，并给出时间管理建议..."
+                    ></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button class="nav-btn" @click="closeReportModal">取消</button>
+                    <button class="nav-btn primary" @click="confirmGenerateReport">确认生成</button>
+                </div>
+            </div>
+
+            <!-- Todo Drawer Panel (Right) -->
+            <div class="drawer-overlay" v-if="isDrawerOpen" @click="closeDrawer"></div>
+            <div class="todo-panel drawer" :class="{ 'open': isDrawerOpen }">
+                <button class="close-drawer-btn" @click="closeDrawer">×</button>
+                <div class="todo-header">
+                    <h3>{{ formatDate(selectedDate) }}</h3>
+                    <span class="todo-count">{{ uncompletedCount }} 待办</span>
+                </div>
+                
+                <div class="todo-input-wrapper">
+                    <input 
+                        ref="todoInput"
+                        v-model="newTodoText" 
+                        @keyup.enter="addTodo"
+                        placeholder="输入待办事项，回车添加" 
+                    >
+                    <button @click="addTodo" class="add-btn">+</button>
+                </div>
+
+                <div class="todo-list-container">
+                    <ul class="todo-list">
+                        <li v-for="(todo, index) in currentTodos" :key="index" class="todo-item">
+                            <label class="checkbox-wrapper">
+                                <input 
+                                    type="checkbox" 
+                                    v-model="todo.done"
+                                    @change="saveTodos"
+                                >
+                                <span class="checkmark"></span>
+                            </label>
+                            <span class="todo-text" :class="{ 'done': todo.done }">{{ todo.text }}</span>
+                            <button class="delete-btn" @click="deleteTodo(index)" title="删除">×</button>
+                        </li>
+                    </ul>
+                    <div v-if="currentTodos.length === 0" class="empty-state">
+                        今天没有待办事项
+                    </div>
+                </div>
+            </div>
+
+            <!-- Left Drawer (All Todos Tree) -->
+            <div class="drawer-overlay" v-if="isLeftDrawerOpen" @click="closeLeftDrawer" style="z-index: 95;"></div>
+            <div class="left-drawer" :class="{ 'open': isLeftDrawerOpen }">
+                <div class="left-drawer-header">
+                    <h3>所有待办</h3>
+                    <button class="close-drawer-btn" @click="closeLeftDrawer" style="position: static;">×</button>
+                </div>
+                <div class="tree-container">
+                    <div v-for="group in allTodosTree" :key="group.dateKey" class="tree-group">
+                        <div class="tree-date" @click="jumpToDate(group.dateKey)">
+                            {{ group.title }}
+                        </div>
+                        <ul class="tree-list">
+                            <li v-for="(todo, i) in group.todos" :key="i" class="tree-item">
+                                <label class="checkbox-wrapper mini">
+                                    <input 
+                                        type="checkbox" 
+                                        v-model="todo.done"
+                                        @change="saveTodoStatusByDateKey(group.dateKey)"
+                                    >
+                                    <span class="tree-text" :class="{ 'done': todo.done }">{{ todo.text }}</span>
+                                </label>
+                            </li>
+                        </ul>
+                    </div>
+                    <div v-if="allTodosTree.length === 0" class="empty-state">
+                        暂无任何待办
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

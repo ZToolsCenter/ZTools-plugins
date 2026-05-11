@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style type="text/css" >
+    html {
+      font-size: 14px;
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      user-select: none;
+    }
+    .left-mouse-down, .left-mouse-up, .right-mouse-down, .right-mouse-up {
+      position: fixed;
+      z-index: 1;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      border-radius: 50%;
+      box-sizing: border-box;
+      transition: transform 250ms ease-out, opacity 250ms ease-out;
+      transform-origin: center;
+    }
+    .left-mouse-down,.right-mouse-down {
+      opacity: 0.8;
+    }
+    .left-mouse-up,.right-mouse-up {
+      transform: scale(1.68);
+      opacity: 0;
+    }
+
+
+    #keyboard-down {
+      position: fixed;
+      opacity: 0;
+      user-select: none;
+    }
+
+    .repeat-keydown span {
+      opacity: 0.5;
+    }
+
+    .keyboard-default {
+      font-size: 20px;
+      background-color: rgba(255, 255, 255, 0.7);
+      border-radius: 4px;
+      font-family: arial, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+    .keyboard-default > div {
+      padding: 0 20px;
+      box-sizing: border-box;
+      min-width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      background-color: #212121;
+    }
+
+    .keyboard-apple-wireless {
+      font-size: 20px;
+      background-color: rgba(213, 217, 220, 0.7);
+      font-family: arial, sans-serif;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #ccc;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+    .keyboard-apple-wireless > div {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      text-decoration: none;
+      min-width: 56px;
+      height: 56px;
+      padding: 0 20px;
+      box-sizing: border-box;
+      background: #222;
+      border-radius: 4px;
+      border-top: 1px solid #222;
+      box-shadow:  inset 0 0 25px #333, 0 1px 0 #000, 0 2px 0 #222, 0 2px 3px #333;
+      text-shadow: 0px -1px 0px #000;
+    }
+
+    .keyboard-claymorphism {
+      font-size: 20px;
+      background-color: rgba(255, 255, 255, 0.7);
+      border-radius: 4px;
+      font-family: arial, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+    .keyboard-claymorphism > div {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 56px;
+      height: 56px;
+      padding: 0 20px;
+      box-sizing: border-box;
+      background-color: #ebebeb;
+      border-radius: 15px;
+      font-weight: bold;
+      color: #000;
+      box-shadow: 8px 8px 16px 0 rgba(0, 0, 0, .25), inset -8px -8px 16px 0 rgba(0, 0, 0, .25), inset 8px 8px 16px 0 hsla(0, 0%, 100%, .2);
+    }
+
+    .keyboard-mechanical {
+      font-size: 20px;
+      font-family: arial, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .keyboard-mechanical > div {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 28px;
+      box-sizing: border-box;
+      position: relative;
+      min-width: 72px;
+      height: 72px;
+      border-radius: 10px;
+      background: #282828 linear-gradient(180deg, #282828, #202020);
+      box-shadow: inset -8px 0 8px rgba(0,0,0,0.15), inset 0 -8px 8px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(0,0,0,0.75), 10px 20px 25px rgba(0,0,0,0.4);
+    }
+    .keyboard-mechanical > div::before {
+      content: ''; 
+      position: absolute;
+      top: 3px;
+      left: 4px;
+      bottom: 12px;
+      right: 10px;
+      background: linear-gradient(90deg,#232323,#4a4a4a);
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.25), 10px 5px 10px rgba(0,0,0,0.15);
+      border-left: 1px solid #0004;
+      border-bottom: 1px solid #0004;
+      border-top: 1px solid #0009;
+    }
+    .keyboard-mechanical > div > span {
+      position: relative;
+      z-index: 1;
+      color: #ccc;
+      font-weight: bold;
+      transform: translate(-3px, -4px);
+    }
+
+    @keyframes spin {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    @keyframes color {
+      0% { color: rgb(255, 100, 100); }
+      33% { color: rgb(100, 100, 255); }
+      66% { color: rgb(100, 200, 100); }
+      100% { color: rgb(255, 100, 100); }
+    }
+    .keyboard-rgb {
+      font-size: 20px;
+      font-family: arial, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .keyboard-rgb > div  {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 62px;
+      min-width: 62px;
+      padding: 0 22px;
+      box-sizing: border-box;
+      position: relative;
+      overflow: hidden;
+      border-radius: 7px;
+    }
+    .keyboard-rgb > div::before {
+      content: '';
+      width: 1000px;
+      height: 1000px;
+      position: absolute;
+      z-index: 1;
+      top: 150%;
+      left: 150%;
+      transform: translate(-50%, -50%);
+      background: conic-gradient(rgb(255, 100, 100), rgb(100, 200, 100), rgb(100, 100, 255), rgb(255, 100, 100));
+      animation: spin 3.5s linear infinite;
+    }
+    .keyboard-rgb > div::after {
+      content: '';
+      position: absolute;
+      z-index: 2;
+      left: 3px;
+      right: 3px;
+      top: 2px;
+      bottom: 7px;
+      background-color: #111;
+      border-radius: 5px;
+      box-shadow: 0 3px rgba(0, 0, 0, 0.6);
+    }
+    .keyboard-rgb > div > span {
+      position: relative;
+      z-index: 3;
+      padding-bottom: 3px;
+      animation: color 3.5s linear infinite;
+    }
+  </style>
+</head>
+<body>
+  <div id="keyboard-down"></div>
+  <script>
+    const IS_MACOS = window.ztools.isMacOS()
+    const WIN_MOUSE_CLASS = { 0x0201: 'left-mouse-down', 0x0202: 'left-mouse-up', 0x0204: 'right-mouse-down', 0x0205: 'right-mouse-up' }
+    const DARWIN_MOUSE_CLASS = { 1: 'left-mouse-down', 2: 'left-mouse-up', 3: 'right-mouse-down', 4: 'right-mouse-up' }
+    const KEYDOWN_DEFAULT_MARGIN = 28
+    const KEYBOARD_TYPES = ['default', 'apple-wireless', 'claymorphism', 'mechanical', 'rgb']
+    const LEFT_CLICK_COLOR = '#ff6464'
+    const RIGHT_CLICK_COLOR = '#6464ff'
+    const LEFT_CLICK_EMOJI = '😎'
+    const RIGHT_CLICK_EMOJI = '🤣'
+    const allDisplays = window.ztools.getAllDisplays()
+    const display = allDisplays.find(x => x.id === window.PARENT_PAYLOAD.displayId)
+    if (display) {
+      const effectSettingDoc = window.ztools.db.get('effectSetting') || {}
+      if (!effectSettingDoc.keydownPosition) effectSettingDoc.keydownPosition = 'bottom'
+      const region = window.PARENT_PAYLOAD.region
+      let mouseDOM
+      let mouseUpTimeout
+      window.triggerMouseEvent = (event, x, y) => {
+        let className
+        if (typeof x === 'undefined') {
+          const point = window.ztools.getCursorScreenPoint()
+          x = point.x
+          y = point.y
+          className = WIN_MOUSE_CLASS[event]
+        } else {
+          className = DARWIN_MOUSE_CLASS[event]
+        }
+        if (!className) return
+        const left = (x - display.bounds.x - 13) + 'px'
+        const top = (y - display.bounds.y - 13) + 'px'
+        if (mouseDOM) {
+          if (className.endsWith('mouse-up')) {
+            mouseDOM.className = className
+            mouseDOM.style.top = top
+            mouseDOM.style.left = left
+            mouseUpTimeout = setTimeout(() => {
+              mouseDOM.remove()
+              mouseDOM = null
+            }, 250)
+            return
+          }
+          clearTimeout(mouseUpTimeout)
+          mouseDOM.remove()
+        }
+        mouseDOM = document.createElement('div')
+        if (className.startsWith('left')) {
+          if (effectSettingDoc.clickEffectType === 'emoji') {
+            mouseDOM.innerText = effectSettingDoc.leftClickEmoji || LEFT_CLICK_EMOJI
+          } else {
+            mouseDOM.style.backgroundColor = effectSettingDoc.leftClickColor || LEFT_CLICK_COLOR
+          }
+        } else {
+          if (effectSettingDoc.clickEffectType === 'emoji') {
+            mouseDOM.innerText = effectSettingDoc.rightClickEmoji || RIGHT_CLICK_EMOJI
+          } else {
+            mouseDOM.style.backgroundColor = effectSettingDoc.rightClickColor || RIGHT_CLICK_COLOR
+          }
+        }
+        mouseDOM.className = className
+        mouseDOM.style.top = top
+        mouseDOM.style.left = left
+        document.body.appendChild(mouseDOM)
+      }
+
+      const keyboardDOM = document.getElementById('keyboard-down')
+      const keyboardTypeClass =  'keyboard-'+ (effectSettingDoc.keyboardType && KEYBOARD_TYPES.includes(effectSettingDoc.keyboardType) && window.getUser()?.type === 'member' ? effectSettingDoc.keyboardType : KEYBOARD_TYPES[0])
+      keyboardDOM.className = keyboardTypeClass
+      if (region) {
+        if (effectSettingDoc.keydownPosition === 'center') {
+          keyboardDOM.style.left = (region.left + region.width / 2) + 'px'
+          keyboardDOM.style.top = (region.top + region.height / 2) + 'px'
+          keyboardDOM.style.transform = 'translate(-50%, -50%)'
+        } else if (effectSettingDoc.keydownPosition === 'bottom') {
+          keyboardDOM.style.left = (region.left + region.width / 2) + 'px'
+          keyboardDOM.style.bottom = (window.innerHeight - region.top - region.height + KEYDOWN_DEFAULT_MARGIN) + 'px'
+          keyboardDOM.style.transform = 'translateX(-50%)'
+        } else if (effectSettingDoc.keydownPosition === 'top') {
+          keyboardDOM.style.left = (region.left + region.width / 2) + 'px'
+          keyboardDOM.style.top = (region.top + KEYDOWN_DEFAULT_MARGIN) + 'px'
+          keyboardDOM.style.transform = 'translateX(-50%)'
+        } else if (effectSettingDoc.keydownPosition === 'left') {
+          keyboardDOM.style.left = (region.left + KEYDOWN_DEFAULT_MARGIN) + 'px'
+          keyboardDOM.style.top = (region.top + region.height / 2) + 'px'
+          keyboardDOM.style.transform = 'translateY(-50%)'
+        } else if (effectSettingDoc.keydownPosition === 'right') {
+          keyboardDOM.style.right = (window.innerWidth - region.left - region.width + KEYDOWN_DEFAULT_MARGIN) + 'px'
+          keyboardDOM.style.top = (region.top + region.height / 2) + 'px'
+          keyboardDOM.style.transform = 'translateY(-50%)'
+        } else if (effectSettingDoc.keydownPosition === 'left-top') {
+          keyboardDOM.style.left = (region.left + KEYDOWN_DEFAULT_MARGIN) + 'px'
+          keyboardDOM.style.top = (region.top + KEYDOWN_DEFAULT_MARGIN) + 'px'
+        } else if (effectSettingDoc.keydownPosition === 'left-bottom') {
+          keyboardDOM.style.left = (region.left + KEYDOWN_DEFAULT_MARGIN) + 'px'
+          keyboardDOM.style.bottom = (window.innerHeight - region.top - region.height + KEYDOWN_DEFAULT_MARGIN) + 'px'
+        } else if (effectSettingDoc.keydownPosition === 'right-top') {
+          keyboardDOM.style.right = (window.innerWidth - region.left - region.width + KEYDOWN_DEFAULT_MARGIN) + 'px'
+          keyboardDOM.style.top = (region.top + KEYDOWN_DEFAULT_MARGIN) + 'px'
+        } else if (effectSettingDoc.keydownPosition === 'right-bottom') {
+          keyboardDOM.style.right = (window.innerWidth - region.left - region.width + KEYDOWN_DEFAULT_MARGIN) + 'px'
+          keyboardDOM.style.bottom = (window.innerHeight - region.top - region.height + KEYDOWN_DEFAULT_MARGIN) + 'px'
+        }
+      } else {
+        if (effectSettingDoc.keydownPosition === 'center') {
+          keyboardDOM.style.left = '50%'
+          keyboardDOM.style.top = '50%'
+          keyboardDOM.style.transform = 'translate(-50%, -50%)'
+        } else if (effectSettingDoc.keydownPosition === 'bottom') {
+          keyboardDOM.style.left = '50%'
+          keyboardDOM.style.bottom = KEYDOWN_DEFAULT_MARGIN + 'px'
+          keyboardDOM.style.transform = 'translateX(-50%)'
+        } else if (effectSettingDoc.keydownPosition === 'top') {
+          keyboardDOM.style.left = '50%'
+          keyboardDOM.style.top = KEYDOWN_DEFAULT_MARGIN + 'px'
+          keyboardDOM.style.transform = 'translateX(-50%)'
+        } else if (effectSettingDoc.keydownPosition === 'left') {
+          keyboardDOM.style.left = KEYDOWN_DEFAULT_MARGIN + 'px'
+          keyboardDOM.style.top = '50%'
+          keyboardDOM.style.transform = 'translateY(-50%)'
+        } else if (effectSettingDoc.keydownPosition === 'right') {
+          keyboardDOM.style.right =  KEYDOWN_DEFAULT_MARGIN + 'px'
+          keyboardDOM.style.top = '50%'
+          keyboardDOM.style.transform = 'translateY(-50%)'
+        } else if (effectSettingDoc.keydownPosition === 'left-top') {
+          keyboardDOM.style.left = KEYDOWN_DEFAULT_MARGIN + 'px'
+          keyboardDOM.style.top = KEYDOWN_DEFAULT_MARGIN + 'px'
+        } else if (effectSettingDoc.keydownPosition === 'left-bottom') {
+          keyboardDOM.style.left = KEYDOWN_DEFAULT_MARGIN + 'px'
+          keyboardDOM.style.bottom = KEYDOWN_DEFAULT_MARGIN + 'px'
+        } else if (effectSettingDoc.keydownPosition === 'right-top') {
+          keyboardDOM.style.right = KEYDOWN_DEFAULT_MARGIN + 'px'
+          keyboardDOM.style.top = KEYDOWN_DEFAULT_MARGIN + 'px'
+        } else if (effectSettingDoc.keydownPosition === 'right-bottom') {
+          keyboardDOM.style.right = KEYDOWN_DEFAULT_MARGIN + 'px'
+          keyboardDOM.style.bottom = KEYDOWN_DEFAULT_MARGIN + 'px'
+        }
+      }
+      let keyboardOutTimeout
+      const contorlKeys = ['Shift', 'Right Shift', 'Ctrl', 'Right Ctrl', 'Alt', 'Right Alt', 'Option', 'Right Option', 'Control', 'Right Control', 'Command', 'Right Command']
+      const contorlKeyTimestampDic = { Shift: 0, Ctrl: 0, Alt: 0, Option: 0, Control: 0, Command: 0 }
+      window.triggerKeyboardEvent = (keyName, shiftKey, ctrlKey, altKey, metaKey, flagsChange) => {
+        if (IS_MACOS && keyboardOutTimeout && flagsChange && keyboardDOM.childElementCount > 1) return
+        keyboardDOM.style.opacity = 1
+        if (keyboardOutTimeout) {
+          clearTimeout(keyboardOutTimeout)
+        }
+        keyboardOutTimeout = setTimeout(()=>{
+          keyboardOutTimeout = null
+          keyboardDOM.style.opacity = 0
+        }, 2500)
+        let html = ''
+        if (shiftKey || ctrlKey || altKey || metaKey) {
+          let prevs = []
+          if (shiftKey) prevs.push('Shift')
+          if (ctrlKey) prevs.push(IS_MACOS ? 'Control' : 'Ctrl')
+          if (altKey) prevs.push(IS_MACOS ? 'Option' : 'Alt')
+          if (metaKey) prevs.push('Command')
+          if (contorlKeys.includes(keyName)) {
+            const cKey = keyName.replace('Right ', '')
+            prevs.push(cKey)
+            keyName = ''
+            contorlKeyTimestampDic[cKey] = Date.now()
+          }
+          if (prevs.length > 1) {
+            prevs = prevs.sort((a, b) => contorlKeyTimestampDic[a] - contorlKeyTimestampDic[b])
+          }
+          prevs.forEach(x => { html += `<div><span>${x}</span></div>` })
+          if (keyName) html += `<div><span>${keyName}</span></div>`
+        } else {
+          if (keyName.lenght > 2 && contorlKeys.includes(keyName)) {
+            contorlKeyTimestampDic[keyName.replace('Right ', '')] = Date.now()
+          }
+          html = `<div><span>${keyName}</span></div>`
+        }
+        if (keyboardDOM.innerHTML === html) {
+          keyboardDOM.className = keyboardTypeClass + ' repeat-keydown'
+          setTimeout(() => { keyboardDOM.className = keyboardTypeClass }, 50)
+          return
+        }
+        keyboardDOM.innerHTML = html
+      }
+      window.showRegionBorder = () => {
+        if (region) {
+          const regionDOM = document.createElement('div')
+          regionDOM.style.position = 'fixed'
+          regionDOM.style.left = (region.left - 1) + 'px'
+          regionDOM.style.top = (region.top - 1) + 'px'
+          regionDOM.style.width = (region.width + 2) + 'px'
+          regionDOM.style.height = (region.height + 2) + 'px'
+          regionDOM.style.border = '1px solid red'
+          document.body.appendChild(regionDOM)
+        }
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "wifi-export-tool",
+  "version": "1.0.0",
+  "description": "ZTools 插件 - 查看 Windows/Mac/Linux 设备上保存的所有 WiFi 网络名称及密码",
+  "scripts": {
+    "build-zip": "node build-zip.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ztools",
+    "ztools-plugin",
+    "wifi",
+    "wifi-password",
+    "wifi-viewer",
+    "network"
+  ],
+  "author": "wangtao",
+  "license": "MIT",
+  "devDependencies": {
+    "adm-zip": "^0.5.16"
+  }
+}

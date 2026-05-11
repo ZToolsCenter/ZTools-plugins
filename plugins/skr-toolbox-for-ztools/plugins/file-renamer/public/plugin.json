@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "file-renamer",
+  "title": "文件批量重命名",
+  "description": "批量文件重命名工具，支持多种重命名规则，包括替换、前缀/后缀、大小写转换、序列号、模板、时间戳等",
+  "author": "nichijoux",
+  "version": "1.0.2",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "rename",
+      "explain": "批量重命名文件，支持多种重命名规则",
+      "icon": "logo.svg",
+      "cmds": [
+        "重命名文件",
+        "批量重命名",
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 100,
+          "label": "批量重命名"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}

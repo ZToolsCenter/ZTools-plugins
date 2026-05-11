@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 禁用页面滚动 */
+html, body {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 确保根容器也不滚动 */
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.Toastify__toast-container {
+    width: 300px !important;
+}
+
+.Toastify__toast-icon {
+    width: 22px !important;
+}
+
+ /*关闭按钮居中*/
+.Toastify__close-button {
+    /*margin: auto 0;*/
+}
+
+.Toastify__toast {
+    /*padding: 4px 8px !important;*/
+}
+
+.Toastify__toast-body {
+    align-items: start !important;
+}
+
+

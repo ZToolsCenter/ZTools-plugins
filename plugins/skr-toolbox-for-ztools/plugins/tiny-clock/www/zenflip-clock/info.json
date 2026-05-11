@@ -1,0 +1,13 @@
+{
+    "id": "zenflip-clock",
+    "name": "翻页时钟",
+    "previewImage": "preview/zen_flip.png",
+    "introduction": "翻页时钟",
+    "category": "normal",
+    "creatDate": "2025-11-28",
+    "updateDate": "2025-11-28",
+    "version": "0.0.1",
+    "price": "0",
+    "multilingual": true,
+    "isVip": false
+}

@@ -1,0 +1,12 @@
+{
+  "name": "imgbatch",
+  "version": "0.1.4",
+  "author": "readerc",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "gifenc": "^1.0.3",
+    "pdf-lib": "^1.17.1",
+    "sharp": "^0.34.4"
+  }
+}

@@ -1,0 +1,105 @@
+
+.vanilla-json-editor {
+    /* define a custom theme color */
+    --jse-theme-color: #615FFF;
+    --jse-theme-color-highlight: #7C86FF;
+
+    //  var(--jse-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif)
+    --jse-font-family: "JetBrains Mono", sans-serif ;
+    --jse-font-family-mono: "JetBrains Mono",  sans-serif ;
+    //--jse-theme-color: #383e42;
+    //--jse-theme-color-highlight: #687177;
+
+    /*.jse-menu {*/
+    /*    @apply bg-default-200 text-default-600 !important;*/
+    /*}*/
+
+    /*.jse-button {*/
+    /*    @apply text-default-600 !important;*/
+    /*}*/
+    /*.jse-group-button:hover {*/
+    /*    @apply bg-default-200 !important;*/
+    /*}*/
+    /*.jse-selected {*/
+    /*    @apply bg-default-100 !important;*/
+    /*    color: var(--jse-theme-color) !important;*/
+    /*}*/
+
+    .jse-contents {
+        @apply border-0 !important;
+    }
+
+    // 菜单栏
+    .jse-menu {
+        @apply bg-default-100 !important;
+        padding: 2px 16px 2px 16px !important;
+        @apply text-default-800 !important;
+        border-bottom: 1px solid #e8e8e8;
+        @apply dark:border-zinc-800;
+
+        .jse-separator {
+            @apply bg-gray-600 !important;
+        }
+
+        .jse-button:disabled {
+            @apply text-gray-400 !important;
+        }
+
+        .jse-selected {
+            @apply text-indigo-500 font-bold !important;
+        }
+
+        .jse-group-button {
+            margin: 2px 2px 0 2px !important;
+        }
+
+        // 所有操作按钮包含模式切换按钮
+        .jse-button {
+            @apply rounded-lg duration-300 border-none bg-default-100 !important;
+            padding: 14px 6px !important;
+            background-color: transparent !important;
+        }
+        .jse-button:hover,
+        .jse-button:active {
+            @apply bg-default-200 text-indigo-500 !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .jse-button:focus {
+            transition:
+                    background-color 1s,
+                    color 2s !important;
+        }
+
+        // 模式切换按钮
+        .jse-group-button {
+            height: 32px !important;
+            margin-top: 0 !important;
+            padding: 14px 2px !important;
+            @apply rounded-lg duration-300 border-none bg-default-100 !important;
+            @apply hover:bg-default-200/50 hover:text-indigo-500 dark:hover:text-indigo-600 !important;
+        }
+
+        // 自定义文本按钮
+        .jse-group-text-button {
+            @apply mt-0 !important;
+            width: auto !important;
+            height: calc(var(--jse-menu-button-size, 32px) - var(--jse-padding, 10px));
+        }
+    }
+
+    .jse-table-mode-welcome {
+        @apply border-0 !important;
+    }
+
+
+}
+
+.jse-contents {
+    @apply border-0 !important;
+}
+
+.jse-action {
+    @apply rounded-small text-sm !important;
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "jet-plugin",
+  "title": "jet plugin",
+  "description": "A ZTools plugin",
+  "author": "zl",
+  "version": "1.0.3",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "all",
+      "explain": "快速打开 jetbrains IDE 全家桶项目",
+      "cmds": [
+        "IDE",
+        "JetBrains",
+        "History",
+        "KK",
+        "JetHistory",
+        "JJ",
+        "JH"
+      ]
+    }
+  ]
+}

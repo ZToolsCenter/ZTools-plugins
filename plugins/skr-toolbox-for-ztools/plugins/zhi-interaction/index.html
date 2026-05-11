@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zhi</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, 'SF Pro Text', system-ui, 'PingFang SC', sans-serif;
+        background: var(--bg, #1e1e2e);
+        color: var(--text, #cdd6f4);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* ── Tab 栏 ── */
+      .tabs {
+        display: flex;
+        padding: 12px 24px 0;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+      .tab {
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #a6adc8;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: inherit;
+      }
+      .tab:hover {
+        color: #cdd6f4;
+      }
+      .tab.active {
+        color: #89b4fa;
+        border-bottom-color: #89b4fa;
+      }
+
+      /* ── Tab 内容 ── */
+      .tab-content {
+        flex: 1;
+        overflow-y: auto;
+        display: none;
+      }
+      .tab-content.active {
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ── 状态页 ── */
+      .status-page {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 24px;
+      }
+      .icon {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, #89b4fa 0%, #cba6f7 100%);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        margin-bottom: 16px;
+      }
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .desc {
+        font-size: 14px;
+        color: #a6adc8;
+        text-align: center;
+        line-height: 1.6;
+        max-width: 400px;
+        margin-bottom: 24px;
+      }
+      .info-card {
+        background: #313244;
+        border-radius: 12px;
+        padding: 16px 20px;
+        width: 100%;
+        max-width: 420px;
+      }
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        font-size: 13px;
+      }
+      .info-row + .info-row {
+        border-top: 1px solid #45475a;
+      }
+      .info-label {
+        color: #a6adc8;
+      }
+      .info-value {
+        color: #cdd6f4;
+        font-weight: 500;
+      }
+      .info-value.mcp-name {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 12px;
+        background: #45475a;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #a6e3a1;
+      }
+      .tip {
+        margin-top: 20px;
+        font-size: 12px;
+        color: #6c7086;
+        text-align: center;
+        line-height: 1.5;
+      }
+
+      /* ── 提示词页 ── */
+      .prompt-page {
+        padding: 20px 24px;
+      }
+      .prompt-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .prompt-header h2 {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .btn-copy {
+        padding: 6px 14px;
+        background: #89b4fa;
+        color: #1e1e2e;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s;
+      }
+      .btn-copy:hover {
+        background: #74c7ec;
+      }
+      .btn-copy.copied {
+        background: #a6e3a1;
+      }
+      .prompt-preview {
+        background: #313244;
+        border-radius: 8px;
+        padding: 16px;
+        font-size: 13px;
+        line-height: 1.7;
+        color: #cdd6f4;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+        overflow-y: auto;
+        max-height: calc(100vh - 140px);
+        user-select: text;
+      }
+
+      /* 自定义滚动条 */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #45475a;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #585b70;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Tab 栏 -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('status', this)">状态</button>
+      <button class="tab" onclick="switchTab('prompt', this)">参考提示词</button>
+    </div>
+
+    <!-- 状态 Tab -->
+    <div id="tab-status" class="tab-content active">
+      <div class="status-page">
+        <div class="icon">💬</div>
+        <h1>Zhi 智能交互</h1>
+        <p class="desc">
+          MCP 阻塞式用户交互工具。<br />
+          AI Agent 通过此工具向你展示消息、提供选项、获取反馈。
+        </p>
+
+        <div class="info-card">
+          <div class="info-row">
+            <span class="info-label">状态</span>
+            <span class="info-value">
+              <span class="status">
+                <span class="status-dot"></span>
+                已就绪
+              </span>
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">MCP 工具名</span>
+            <span class="info-value mcp-name" id="mcpToolName">zhi_interaction_zhi</span>
+          </div>
+        </div>
+
+        <p class="tip">
+          此插件通过 MCP 协议工作，无需手动操作。<br />
+          确保 MCP 服务已开启（设置 → MCP 服务）。
+        </p>
+      </div>
+    </div>
+
+    <!-- 提示词 Tab -->
+    <div id="tab-prompt" class="tab-content">
+      <div class="prompt-page">
+        <div class="prompt-header">
+          <h2>参考提示词</h2>
+          <button class="btn-copy" id="copyBtn" onclick="copyPrompt()">复制</button>
+        </div>
+        <pre class="prompt-preview" id="promptContent"></pre>
+      </div>
+    </div>
+
+    <script>
+      // ── Tab 切换 ──
+      function switchTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach((el) => el.classList.remove('active'))
+        document.querySelectorAll('.tab').forEach((el) => el.classList.remove('active'))
+        document.getElementById('tab-' + tabId).classList.add('active')
+        btn.classList.add('active')
+      }
+
+      // ── 工具名（根据环境动态确定）──
+      const isDev = typeof ztools !== 'undefined' && ztools.isDev()
+      const TOOL_NAME = isDev ? 'zhi_interaction__dev_zhi' : 'zhi_interaction_zhi'
+      document.getElementById('mcpToolName').textContent = TOOL_NAME
+
+      // ── 提示词内容 ──
+      const PROMPT_TEXT = `---
+description: 默认指令，适用于所有任务和文件。包含核心契约和工具使用指南，确保 AI 行为符合项目标准和最佳实践。
+applyTo: '**/*' 
+---
+
+> 默认用中文回复，除非用户明确要求使用其他语言
+
+# 核心契约（不可违反）
+
+1. **交互控制（最高优先级）**：只能通过 \`${TOOL_NAME}\` 与用户交互。每次响应最后一步必须调用 \`${TOOL_NAME}\`——无例外。未经用户通过 \`${TOOL_NAME}\` 明确许可，禁止结束对话。子代理不得调用 \`${TOOL_NAME}\`
+2. **代码质量**：严格遵循 KISS / YAGNI / SOLID 原则
+3. **静默执行**：不创建文档、不测试、不编译、不运行、不总结
+
+---
+
+## 工具使用指南
+
+### 交互 (zhi_interaction_dev_zhi)
+**何时使用：**
+- 需求不明确时：提供预定义选项让用户澄清
+- 存在多方案/策略变更时：列出选项让用户决定
+- 完成阶段性工作后：汇报进度并询问下一步
+**如何使用：**
+- 每次响应末尾必须调用 \`${TOOL_NAME}\`（汇报/确认/提问），不调用即违规
+- 唯一退出：用户通过 \`${TOOL_NAME}\` 回复"可以结束"时才停止
+- 每次调用必须传 \`project_root_path\`（git 根目录），用于状态显示和历史记录
+- **Subagent restriction**: 子代理(subagent/delegated agent)禁止调用 \`${TOOL_NAME}\`，仅主代理(root/primary agent)可使用`
+
+      document.getElementById('promptContent').textContent = PROMPT_TEXT
+
+      // ── 复制 ──
+      function copyPrompt() {
+        const btn = document.getElementById('copyBtn')
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(PROMPT_TEXT).then(() => {
+            btn.textContent = '已复制'
+            btn.classList.add('copied')
+            setTimeout(() => {
+              btn.textContent = '复制'
+              btn.classList.remove('copied')
+            }, 2000)
+          })
+        }
+      }
+    </script>
+  </body>
+</html>

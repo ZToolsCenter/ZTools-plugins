@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>开发加解密编码工具</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="tool-shell">
+      <section class="workspace">
+        <div class="toolbar" aria-label="工具栏">
+          <nav class="category-list" aria-label="分类">
+            <button class="category-item active" type="button" data-category="encoding">编码</button>
+            <button class="category-item" type="button" data-category="hash">哈希</button>
+            <button class="category-item" type="button" data-category="crypto">加密</button>
+            <button class="category-item" type="button" data-category="jwt">JWT</button>
+            <button class="category-item" type="button" data-category="text">文本</button>
+          </nav>
+
+          <div class="top-actions">
+            <button id="copyOutput" class="ghost-button" type="button">复制结果</button>
+            <button id="clearAll" class="ghost-button" type="button">清空</button>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="control-grid">
+            <label class="field">
+              <span>操作</span>
+              <select id="operation"></select>
+            </label>
+            <label class="field key-field hidden" id="keyField">
+              <span id="keyLabel">密钥</span>
+              <input id="secretKey" type="text" autocomplete="off" spellcheck="false" />
+            </label>
+          </div>
+
+          <div class="editor-grid">
+            <label class="editor-block">
+              <span>输入</span>
+              <textarea id="inputText" spellcheck="false"></textarea>
+            </label>
+            <label class="editor-block">
+              <span>输出</span>
+              <textarea id="outputText" spellcheck="false" readonly></textarea>
+            </label>
+          </div>
+
+          <div class="action-row">
+            <button id="runOperation" class="primary-button" type="button">执行</button>
+            <button id="swapText" class="secondary-button" type="button">交换</button>
+            <button id="pasteInput" class="secondary-button" type="button">粘贴</button>
+          </div>
+
+          <div id="statusLine" class="status-line" role="status"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

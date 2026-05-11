@@ -1,0 +1,39 @@
+{
+  "name": "ssh-screenshot",
+  "title": "SSH 截图",
+  "description": "把本地剪贴板里的截图通过 SSH 上传到远端，然后把远端路径自动粘贴到当前光标位置",
+  "version": "0.2.0",
+  "author": "Zing",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5179/"
+  },
+  "features": [
+    {
+      "code": "paste-screenshot-path",
+      "explain": "上传截图到远端，并把远端路径自动粘贴到上一个焦点窗口",
+      "cmds": [
+        "粘贴截图路径",
+        "scp 截图",
+        "ssh 截图",
+        { "type": "img", "label": "上传并粘贴" }
+      ]
+    },
+    {
+      "code": "copy-screenshot-path",
+      "explain": "上传截图到远端，把远端路径写入剪贴板（不自动粘贴）",
+      "cmds": [
+        "复制截图路径",
+        "scp 复制路径",
+        { "type": "img", "label": "上传并复制路径" }
+      ]
+    },
+    {
+      "code": "ssh-screenshot-config",
+      "explain": "配置 SSH 主机、账号与远端截图存放路径",
+      "cmds": ["SSH 截图配置"]
+    }
+  ]
+}

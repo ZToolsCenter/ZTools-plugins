@@ -1,0 +1,24 @@
+{
+  "version": "3.2.0",
+  "logo": "logo.png",
+  "preload": "preload-app.js",
+  "description": "为键盘工作者设计的单词记忆与英语肌肉记忆锻炼工具",
+  "development": {
+    "main": "http://localhost:8081"
+  },
+  "features": [
+    {
+      "code": "typing",
+      "explain": "⌨正常英语记忆模式",
+      "cmds": ["tp", "typing", "English", "英语单词"]
+    },
+    {
+      "code": "setWinInfo",
+      "explain": "将当前窗口的宽高和位置，设置为默认打开时的宽高和位置",
+      "cmds": ["set-typing-wininfo"]
+    }
+  ],
+  "pluginSetting": {
+    "single": true
+  }
+}

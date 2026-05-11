@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# ai skills
+.agent/
+.opencode/
+.claude/
+.vscode/
+.github
+.shared
+.agents
+.cursor
+.gemini
+.trae

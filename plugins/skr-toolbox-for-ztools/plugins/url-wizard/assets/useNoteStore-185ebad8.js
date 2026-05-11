@@ -1,0 +1,1 @@
+import{ac as c,r as s}from"./vue-5f6c84d3.js";const l=c("NoteStore",()=>{const t=s({_id:"",title:"",content:""}),o=s({});return{currNote:t,currWeb:o,setCurrNote:e=>{o.value=e;const r="note_"+e._id.split("_")[1],n=utools.db.get(r);n?t.value=n:t.value={_id:r,title:e.title,content:""}}}});export{l as u};

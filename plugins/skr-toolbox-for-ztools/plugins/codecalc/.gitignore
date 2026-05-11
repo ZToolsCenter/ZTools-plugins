@@ -1,0 +1,12 @@
+.vscode/
+__pycache__/
+release/
+dist/
+node_modules/
+math/
+package-lock.json
+.DS_Store
+app/src/calculator.min.js
+app/src/app.bundle.js
+test/calculator.min.mjs
+test/calculator.min.js

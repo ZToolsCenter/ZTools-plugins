@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Anywhere</title>
+</head>
+
+<body>
+  <div id="app"></div>
+  <style>
+    :root {
+      /* === 浅色模式 (Light Mode) - 钢琴白风格 === */
+      /* 背景：极浅的灰白作为底色，纯白作为卡片，营造层次感 */
+      --bg-primary: #FAFAFA; 
+      --bg-secondary: #FFFFFF;
+      --bg-tertiary: #F4F4F5; /* 极浅的锌灰，用于悬浮和输入框 */
+      
+      /* 强调色：像钢琴黑键一样的高级黑 */
+      --bg-accent: #18181B; 
+      --bg-accent-light: #27272A; /* 悬浮时的黑色 */
+      
+      /* 文本：纯黑到不同深度的灰，去除蓝色倾向 */
+      --text-primary: #18181B;
+      --text-secondary: #52525B;
+      --text-tertiary: #A1A1AA;
+      
+      /* 特殊文本：在强调色背景上的文字颜色 (黑底白字) */
+      --text-accent: #18181B; 
+      --text-on-accent: #FFFFFF;
+      
+      /* 边框：更加柔和纤细 */
+      --border-primary: #E4E4E7;
+      --border-secondary: #F4F4F5;
+      --border-accent: #27272A;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      
+      /* ELEMENT PLUS 覆盖 - 浅色模式 */
+      color-scheme: light;
+      /* 将主色调由蓝色改为高级黑 */
+      --el-color-primary: var(--bg-accent);
+      --el-color-primary-light-3: #3F3F46;
+      --el-color-primary-light-5: #71717A;
+      --el-color-primary-light-7: #D4D4D8;
+      --el-color-primary-light-9: #F4F4F5;
+
+      /* 开关颜色 */
+      --el-switch-on-color: var(--bg-accent);
+      --el-switch-off-color: #E4E4E7;
+    }
+
+    /* 修复链接按钮颜色，保持原有逻辑但微调色调 */
+    .el-button--primary.is-link {
+      color: #18181B; 
+    }
+    .el-button--primary.is-link:hover,
+    .el-button--primary.is-link:focus {
+      color: #52525B;
+      text-decoration: underline;
+    }
+
+    html.dark {
+      /* === 深色模式 (Dark Mode) - 钢琴黑风格 === */
+      /* 背景：极深的黑作为底色，深灰作为卡片 */
+      --bg-primary: #09090B; 
+      --bg-secondary: #18181B; /* 锌灰-950 */
+      --bg-tertiary: #27272A;  /* 锌灰-900 */
+      
+      /* 强调色：纯白，像黑夜中的琴键 */
+      --bg-accent: #FAFAFA;
+      --bg-accent-light: #E4E4E7;
+      
+      /* 文本：纯白到灰，高对比度 */
+      --text-primary: #FAFAFA;
+      --text-secondary: #A1A1AA;
+      --text-tertiary: #52525B;
+      
+      /* 特殊文本：在强调色背景上的文字颜色 (白底黑字) */
+      --text-accent: #FAFAFA;
+      --text-on-accent: #09090B; /* 重要：白按钮上的黑字 */
+      
+      /* 边框：极细微的深灰 */
+      --border-primary: #27272A;
+      --border-secondary: #18181B;
+      --border-accent: #52525B;
+
+      color-scheme: dark;
+      /* 将主色调改为亮白 */
+      --el-color-primary: var(--bg-accent);
+      --el-color-primary-light-3: #D4D4D8;
+      --el-color-primary-light-5: #A1A1AA;
+      --el-color-primary-light-6: #71717A;
+      --el-color-primary-light-7: #52525B;
+      --el-color-primary-light-9: #27272A;
+      --el-color-primary-dark-2: #E4E4E7;
+
+      --el-switch-on-color: var(--bg-accent);
+      --el-switch-off-color: #3F3F46;
+
+      /* Element Plus 深色变量覆盖 */
+      --el-bg-color: #18181B;
+      --el-bg-color-page: #09090B;
+      --el-bg-color-overlay: #18181B;
+      
+      --el-fill-color: #27272A;
+      --el-fill-color-light: #27272A;
+      --el-fill-color-lighter: #18181B;
+      --el-fill-color-lightest: #18181B;
+      --el-fill-color-dark: #27272A;
+      --el-fill-color-darker: #09090B;
+      --el-fill-color-blank: #09090B;
+      
+      --el-border-color: #27272A;
+      --el-border-color-light: #27272A;
+      --el-border-color-lighter: #27272A;
+      --el-border-color-dark: #3F3F46;
+      --el-border-color-darker: #52525B;
+      
+      --el-text-color-primary: #FAFAFA;
+      --el-text-color-regular: #D4D4D8;
+      --el-text-color-secondary: #A1A1AA;
+      --el-text-color-placeholder: #52525B;
+      --el-text-color-disabled: #3F3F46;
+      
+      --el-box-shadow-light: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+      --el-table-border-color: var(--border-primary);
+      --el-collapse-border-color: var(--border-primary);
+    }
+
+    html,
+    body,
+    #app {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* 背景纹理：减淡纹理以适应干净风格 */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80"><g fill="%239C92AC" fill-opacity="0.03"><circle fill-rule="evenodd" cx="40" cy="40" r="40"/><circle fill-rule="evenodd" cx="40" cy="40" r="30"/><circle fill-rule="evenodd" cx="40" cy="40" r="20"/><circle fill-rule="evenodd" cx="40" cy="40" r="10"/></g></svg>');
+      opacity: 0.5;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    html.dark body::before {
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80"><g fill="%23FFFFFF" fill-opacity="0.02"><circle fill-rule="evenodd" cx="40" cy="40" r="40"/><circle fill-rule="evenodd" cx="40" cy="40" r="30"/><circle fill-rule="evenodd" cx="40" cy="40" r="20"/><circle fill-rule="evenodd" cx="40" cy="40" r="10"/></g></svg>');
+    }
+
+    .el-dialog {
+      background-color: var(--bg-secondary) !important;
+      border-radius: var(--radius-lg) !important;
+      box-shadow: var(--shadow-md) !important;
+      border: 1px solid var(--border-primary); /* 增加微弱边框增加质感 */
+    }
+
+    .el-dialog__header {
+      padding: 10px 12px !important;
+      margin-right: 0 !important;
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .el-dialog__title {
+      color: var(--text-primary) !important;
+      font-weight: 600;
+      font-size: 18px;
+    }
+
+    .el-dialog__body {
+      padding: 0 0 0 0;
+      color: var(--text-primary);
+    }
+
+    .el-message-box {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    .el-message-box__title,
+    .el-message-box__message {
+      color: var(--text-primary);
+    }
+
+    /* === 深色模式组件微调 === */
+    html.dark .el-button.is-plain,
+    html.dark .el-button--default {
+      --el-button-bg-color: transparent;
+      --el-button-border-color: var(--border-primary);
+      --el-button-text-color: var(--text-secondary);
+    }
+
+    html.dark .el-button.is-plain:hover,
+    html.dark .el-button.is-plain:focus,
+    html.dark .el-button--default:hover,
+    html.dark .el-button--default:focus {
+      --el-button-hover-text-color: var(--text-primary); /* Hover 变白 */
+      --el-button-hover-bg-color: var(--bg-tertiary);
+      --el-button-hover-border-color: var(--text-secondary);
+    }
+
+    html.dark .el-button--danger.is-plain {
+      --el-button-text-color: #F87171; /* 柔和红 */
+      --el-button-border-color: #450a0a;
+      --el-button-bg-color: rgba(220, 38, 38, 0.1);
+    }
+
+    html.dark .el-button--danger.is-plain:hover,
+    html.dark .el-button--danger.is-plain:focus {
+      --el-button-hover-text-color: #fff;
+      --el-button-hover-bg-color: #dc2626;
+      --el-button-hover-border-color: #dc2626;
+    }
+
+    html.dark .el-input__wrapper,
+    html.dark .el-textarea__inner,
+    html.dark .el-select__wrapper {
+      background-color: var(--bg-tertiary) !important;
+      box-shadow: 0 0 0 1px var(--border-primary) inset !important;
+      color: var(--text-primary);
+    }
+
+    html.dark .el-input__wrapper.is-focus,
+    html.dark .el-textarea__inner:focus,
+    html.dark .el-select__wrapper.is-focused {
+      /* 聚焦时使用白色边框 */
+      box-shadow: 0 0 0 1px var(--text-primary) inset !important;
+    }
+
+    html.dark .el-input-number {
+      --el-input-number-bg-color: var(--bg-tertiary);
+    }
+
+    html.dark .el-input-number .el-input__wrapper {
+      box-shadow: none !important;
+    }
+
+    html.dark .el-input-number__decrease,
+    html.dark .el-input-number__increase {
+      background-color: var(--bg-primary);
+      border-color: var(--border-primary);
+      color: var(--text-secondary);
+    }
+
+    html.dark .el-input-number__decrease:hover,
+    html.dark .el-input-number__increase:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-tertiary);
+    }
+
+    html.dark .el-input__inner,
+    html.dark .el-select-v2__inner{
+      color: var(--text-primary) !important;
+    }
+    
+    html.dark .el-radio-button.is-active .el-radio-button__inner {
+      color: var(--text-on-accent) !important; /* 黑色字 */
+      background-color: var(--bg-accent) !important; /* 白色底 */
+      border-color: var(--bg-accent) !important;
+      box-shadow: none !important;
+    }
+
+    html.dark .el-select-dropdown {
+      background-color: var(--bg-secondary) !important;
+      border-color: var(--border-primary) !important;
+      box-shadow: var(--shadow-md) !important;
+    }
+
+    html.dark .el-select-dropdown__item {
+      color: var(--text-secondary);
+    }
+
+    html.dark .el-select-dropdown__item.is-hovering,
+    html.dark .el-select-dropdown__item:hover {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    html.dark .el-select-dropdown__item.is-selected {
+      color: var(--text-primary);
+      font-weight: 600;
+      background-color: var(--bg-tertiary); /* 深色模式选中不高亮白，而是稍亮的灰 */
+    }
+
+    html.dark .el-loading-mask {
+      background-color: rgba(9, 9, 11, 0.8);
+    }
+
+    html.dark .el-table--border::before,
+    html.dark .el-table--border::after,
+    html.dark .el-table__inner-wrapper::before,
+    html.dark .el-table__inner-wrapper::after,
+    html.dark .el-table--group::after,
+    html.dark .el-table__border-left-patch {
+      background-color: var(--border-primary);
+    }
+
+    /* === 全局滚动条样式优化 === */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-accent); /* 浅色下是深灰，深色下是浅灰 */
+      border-radius: var(--radius-lg);
+      /* 增加一点透明度让它不那么抢眼 */
+      opacity: 0.4;
+    }
+    
+    /* 浅色模式滚动条颜色微调 */
+    ::-webkit-scrollbar-thumb {
+        background: #D4D4D8;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #A1A1AA;
+    }
+
+    html.dark .el-main::-webkit-scrollbar-track,
+    html.dark .el-scrollbar__view::-webkit-scrollbar-track,
+    html.dark .settings-scrollbar-wrapper::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    html.dark .el-main::-webkit-scrollbar-thumb,
+    html.dark .el-scrollbar__view::-webkit-scrollbar-thumb,
+    html.dark .settings-scrollbar-wrapper::-webkit-scrollbar-thumb {
+      background: #3F3F46; /* 锌灰-700 */
+    }
+
+    html.dark .el-main::-webkit-scrollbar-thumb:hover,
+    html.dark .el-scrollbar__view::-webkit-scrollbar-thumb:hover,
+    html.dark .settings-scrollbar-wrapper::-webkit-scrollbar-thumb:hover {
+      background: #52525B; /* 锌灰-600 */
+    }
+
+    /* === Primary Button 修复 === */
+    /* 深色模式：白底黑字 */
+    html.dark .el-button--primary {
+      --el-button-text-color: var(--text-on-accent); /* 黑色 */
+      --el-button-bg-color: var(--bg-accent); /* 白色 */
+      --el-button-border-color: var(--bg-accent);
+    }
+    html.dark .el-button--primary:hover,
+    html.dark .el-button--primary:focus {
+      --el-button-hover-text-color: var(--text-on-accent);
+      --el-button-hover-bg-color: #E4E4E7; /* 稍暗的白 */
+      --el-button-hover-border-color: #E4E4E7;
+    }
+
+    html.dark .el-button--primary.is-disabled,
+    html.dark .el-button--primary.is-disabled:hover,
+    html.dark .el-button--primary.is-disabled:focus,
+    html.dark .el-button--primary.is-disabled:active {
+      background-color: var(--el-fill-color-dark) !important;
+      border-color: var(--el-border-color-dark) !important;
+      color: var(--el-text-color-disabled) !important;
+      cursor: not-allowed;
+    }
+
+    .el-switch .el-switch__core .el-switch__inner .is-text {
+      color: var(--text-primary) !important;
+    }
+    .el-switch.is-checked .el-switch__core .el-switch__inner .is-text {
+      color: #FFFFFF !important; /* 无论深浅，选中时文字为白（背景为黑/黑背景为白） */
+    }
+    
+    /* 深色模式下 switch 选中时，背景是白色，文字应该是黑色 */
+    html.dark .el-switch.is-checked .el-switch__core .el-switch__inner .is-text {
+        color: #000000 !important;
+    }
+
+    /* FIX: Force switch 'on' state to use theme colors */
+    .el-switch.is-checked .el-switch__core {
+      background-color: var(--el-switch-on-color) !important;
+      border-color: var(--el-switch-on-color) !important;
+    }
+
+    /* Danger Button: Keep Red but harmonize */
+    .el-button--danger {
+      --el-button-text-color: #FFFFFF;
+      --el-button-bg-color: #DC2626; /* 红色-600 */
+      --el-button-border-color: #DC2626;
+    }
+    .el-button--danger:hover, .el-button--danger:focus {
+      --el-button-hover-text-color: #FFFFFF;
+      --el-button-hover-bg-color: #B91C1C; /* 红色-700 */
+      --el-button-hover-border-color: #B91C1C;
+    }
+    html.dark .el-button--danger {
+        --el-button-text-color: #FFFFFF;
+        --el-button-bg-color: #7F1D1D; /* 红色-900 */
+        --el-button-border-color: #7F1D1D;
+    }
+    html.dark .el-button--danger:hover, html.dark .el-button--danger:focus {
+        --el-button-hover-text-color: #FFFFFF;
+        --el-button-hover-bg-color: #991B1B; /* 红色-800 */
+        --el-button-hover-border-color: #991B1B;
+    }
+
+    .el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+      background-color: var(--bg-accent);
+      color: var(--text-on-accent);
+    }
+
+    .el-loading-spinner .path {
+        stroke: var(--text-secondary);
+    }
+
+    /* 深色模式链接按钮：使用白色或浅灰 */
+    html.dark .el-button--primary.is-link {
+      color: #FAFAFA; 
+    }
+    html.dark .el-button--primary.is-link:hover,
+    html.dark .el-button--primary.is-link:focus {
+      color: #A1A1AA;
+      text-decoration: underline;
+    }
+    html.dark .el-button--warning.is-link {
+      color: #FCD34D; /* 琥珀色 */
+    }
+    html.dark .el-button--danger.is-link {
+      color: #FCA5A5; /* 浅红 */
+    }
+    html.dark .el-switch.is-checked .el-switch__core {
+      background-color: var(--bg-accent) !important;
+      border-color: var(--bg-accent) !important;
+    }
+    html.dark .el-switch.is-checked .el-switch__core .el-switch__action {
+      background-color: var(--bg-primary) !important;
+    }
+
+    html.dark .el-switch:not(.is-checked) .el-switch__core {
+      background-color: #09090B !important;
+      border-color: #09090B !important;
+    }
+    html.dark .el-switch:not(.is-checked) .el-switch__core .el-switch__action {
+      background-color: #A1A1AA !important;
+    }
+
+    html.dark .el-checkbox__input.is-checked .el-checkbox__inner {
+      background-color: var(--bg-accent) !important;
+      border-color: var(--bg-accent) !important;
+    }
+    html.dark .el-checkbox__input.is-checked .el-checkbox__inner::after {
+      border-color: var(--bg-primary) !important;
+    }
+  </style>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

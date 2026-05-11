@@ -1,0 +1,319 @@
+/* app global css */
+:root {
+  --utools-bg-color: #f4f4f4;
+  --utools-font-color: #333;
+  --transparent-bg-color: rgba(0, 0, 0, 0.02);
+  --q-dark: #464646;
+  --q-dark-page: #303133;
+}
+
+:root:has(.body--dark) {
+  --utools-bg-color: #303133;
+  --utools-font-color: #fff;
+  --transparent-bg-color: rgba(255, 255, 255, 0.05);
+}
+
+.q-card--dark {
+  background: var(--q-dark-page);
+}
+
+body {
+  background: var(--utools-bg-color);
+  color: var(--utools-font-color);
+}
+
+/* 标签样式 */
+.q-chip {
+  background: #e3e3e39a;
+}
+
+.q-chip--dark {
+  background: #676666;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+  background: rgba(194, 194, 194, 0.4);
+  border: rgba(194, 194, 194, 0.4);
+}
+
+::-webkit-scrollbar-track-piece {
+  background: rgba(194, 194, 194, 0.1);
+}
+
+.fade-enter-from {
+  opacity: 0;
+}
+
+.fade-enter-to {
+  opacity: 1;
+}
+
+.fade-enter-active {
+  transition: opacity 0.3s ease;
+}
+
+/* 优化 Tooltip 样式 */
+.q-tooltip {
+  font-size: 11px;
+}
+
+.q-tooltip {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-radius: 6px;
+  backdrop-filter: blur(8px);
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  color: rgba(35, 35, 35, 0.98) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform-origin: center;
+  animation: tooltip-appear 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 暗色模式适配 */
+.body--dark .q-tooltip {
+  background: rgba(35, 35, 35, 0.18) !important;
+  color: rgba(255, 255, 255, 0.98) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Tooltip 动画 */
+@keyframes tooltip-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 多行文本的 Tooltip */
+.q-tooltip.multiline {
+  max-width: 280px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Tooltip 位置微调 */
+.q-tooltip[data-v-anchor="top middle"] {
+  transform-origin: bottom center;
+}
+
+.q-tooltip[data-v-anchor="bottom middle"] {
+  transform-origin: top center;
+}
+
+.q-tooltip[data-v-anchor="center left"] {
+  transform-origin: center right;
+}
+
+.q-tooltip[data-v-anchor="center right"] {
+  transform-origin: center left;
+}
+
+
+.full-height {
+  height: 100vh;
+}
+
+/* 毛玻璃效果叠加 */
+body.glass-effect-menu .q-card.command {
+  background: rgba(255, 255, 255, calc(0.3 + var(--glass-effect-strength) * 0.01)) !important;
+}
+
+body.body--dark.glass-effect-menu .q-card.command {
+  background: rgba(30, 30, 30, calc(0.3 + var(--glass-effect-strength) * 0.02)) !important;
+}
+
+/* 标签栏毛玻璃效果 */
+body.glass-effect-menu .tag-bar .q-tabs {
+  background: rgba(255, 255, 255, calc(0.15 + var(--glass-effect-strength) * 0.01)) !important;
+  backdrop-filter: blur(calc(var(--glass-effect-strength) * 1px)) !important;
+  -webkit-backdrop-filter: blur(calc(var(--glass-effect-strength) * 1px)) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body.body--dark.glass-effect-menu .tag-bar .q-tabs {
+  background: rgba(0, 0, 0, calc(0.2 + var(--glass-effect-strength) * 0.02)) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* 基础菜单样式 - 始终保持最小毛玻璃效果 */
+.q-menu {
+  background: rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(5px) !important;
+  -webkit-backdrop-filter: blur(5px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.07);
+}
+
+.body--dark .q-menu {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* 毛玻璃菜单效果 - 叠加用户设置的效果 */
+body.glass-effect-menu .q-menu {
+  background: rgba(255,
+      255,
+      255,
+      calc(0.15 + var(--glass-effect-strength) * 0.01)) !important;
+  backdrop-filter: blur(calc(5px + var(--glass-effect-strength) * 1px)) !important;
+  -webkit-backdrop-filter: blur(calc(5px + var(--glass-effect-strength) * 1px)) !important;
+}
+
+/* 暗色模式菜单 */
+body.body--dark.glass-effect-menu .q-menu {
+  background: rgba(0,
+      0,
+      0,
+      calc(0.2 + var(--glass-effect-strength) * 0.02)) !important;
+}
+
+/* 菜单列表透明背景 */
+.q-menu .q-list {
+  background: transparent !important;
+}
+
+/* 菜单项浮效果 */
+.q-menu .q-item:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.body--dark .q-menu .q-item:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 输入框样式 */
+.q-menu .q-field__control {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 4px;
+}
+
+.body--dark .q-menu .q-field__control {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 添加图标光晕效果 */
+.featureIco {
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+  position: relative;
+  z-index: 1;
+}
+
+.featureIcoHover {
+  transform: scale(1.08) translateY(-2px);
+}
+
+.featureIco::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0;
+  background-image: var(--icon-url);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(8px) brightness(1.1);
+  transform: scale(1.05);
+  pointer-events: none;
+}
+
+.featureIcoHover::after {
+  opacity: 0.8;
+  transform: scale(1.1);
+}
+
+.feature-disabled,
+.platform-icons-disabled {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.platform-icons {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 12px;
+}
+
+.q-tab-panels,
+.body--dark .q-tab-panels {
+  background-color: transparent;
+}
+
+/* 左右移动 */
+@keyframes leftRight {
+  0% {
+    transform: translateX(-2px);
+    opacity: 0.7;
+  }
+
+  50% {
+    transform: translateX(2px);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(-2px);
+    opacity: 0.7;
+  }
+}
+
+/* 上下移动 */
+@keyframes upDown {
+  0% {
+    transform: translateY(-1px);
+    opacity: 1;
+  }
+
+  50% {
+    transform: translateY(1px);
+    opacity: 0.6;
+  }
+
+  75% {
+    transform: translateY(0.5px);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(-1px);
+    opacity: 1;
+  }
+}
+
+/* 左右抖动 */
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-10deg);
+  }
+
+  75% {
+    transform: rotate(10deg);
+  }
+}

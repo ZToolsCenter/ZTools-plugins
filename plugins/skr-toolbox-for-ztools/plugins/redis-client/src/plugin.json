@@ -1,0 +1,30 @@
+{
+    "name": "redis-client",
+    "description": "redis数据库的可视化操作",
+    "version": "1.0.1",
+    "author": "菜鸟东子",
+    "main": "index.html",
+    "preload": "preload/services.js",
+    "logo": "logo.png",
+    "features": [
+        {
+            "code": "redis",
+            "explain": "Redis 可视化管理工具，可以快速连接 Redis 并进行数据操作。",
+            "cmds": [
+                "redis",
+                "redisui",
+                "rdb",
+                "rvis",
+                "redisx",
+                "redisClient"
+            ]
+        }
+    ],
+    "platform": [
+        "win32",
+        "darwin",
+        "linux"
+    ],
+    "title": "redis操作工具",
+    "homepage": null
+}

@@ -1,0 +1,14 @@
+{
+  "name": "saladict-ztools",
+  "version": "1.0.0",
+  "description": "沙拉查词-聚合词典专业查词翻译（ZTools 版）",
+  "author": "EvanW <evanwen97-ops>",
+  "dependencies": {
+    "axios": "^0.21.0",
+    "axios-cookiejar-support": "^1.0.1",
+    "tough-cookie": "^4.0.0"
+  },
+  "devDependencies": {
+    "@ztools-center/ztools-api-types": "^1.0.1"
+  }
+}

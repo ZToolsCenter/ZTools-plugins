@@ -1,0 +1,174 @@
+:root {
+    --matrix-color: #660985;
+    --matrix-background: rgba(238, 238, 238, 0.95);
+}
+
+:root[data-theme="dark"] {
+    --matrix-color: #999999;
+    --matrix-background: #2d2d2d;
+}
+
+/* LaTeX矩阵样式 */
+.latex-matrix {
+    display: inline-block;
+    position: relative;
+    font-family: "Times New Roman", serif;
+    font-size: 1.2em;
+    margin: 20px 0;
+    padding: 0 12px;  /* 增加左右内边距，为长数值提供更多空间 */
+    min-width: max-content;  /* 确保容器至少和内容一样宽 */
+    /* 添加表格样式 */
+    border-collapse: separate;
+    border-spacing: 8px 2px; /* 水平和垂直间距 */
+}
+
+/* 将矩阵改为表格布局 */
+.latex-matrix {
+    display: table;
+    table-layout: auto; /* 根据内容自动调整列宽 */
+}
+
+.matrix-row {
+    display: table-row;
+}
+
+.matrix-element {
+    display: table-cell;
+    padding: 0 4px;
+    text-align: center;
+    color: var(--matrix-color);
+    font-weight: 500;
+    font-size: 1.2em;
+    white-space: nowrap; /* 防止文本换行 */
+    vertical-align: middle;
+}
+
+/* 使用伪元素添加圆括号 */
+.latex-matrix::before,
+.latex-matrix::after {
+    content: '';
+    position: absolute;
+    top: 4px;     /* 进一步缩短上边距 */
+    bottom: 4px;  /* 进一步缩短下边距 */
+    width: 6px;
+    border-style: solid;
+    border-color: var(--matrix-color);
+    border-radius: 8px;
+}
+
+.latex-matrix::before {
+    left: 0;
+    border-width: 1px 0 1px 1px;
+    border-radius: 8px 0 0 8px;
+}
+
+.latex-matrix::after {
+    right: 0;
+    border-width: 1px 1px 1px 0;
+    border-radius: 0 8px 8px 0;
+}
+
+/* 调整内容区域的间距 */
+.latex-matrix .matrix-content {
+    padding: 0.02em 0.3em;  /* 稍微减小上下padding */
+}
+
+.matrix-element-container {
+    padding: 2px;
+    text-align: center;  /* 改为居中对齐 */
+    min-width: unset;
+    margin: 0 2px;
+    width: 24px;  /* 保持固定宽度确保列对齐 */
+}
+
+/* 添加省略号样式 */
+.matrix-element.dots {
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.matrix-display {
+    font-family: monospace;
+    white-space: pre;
+} 
+
+
+
+/* 确保结果容器可以正确显示预览框 */
+.result-container {
+    position: relative;  /* 为预览框提供定位参考 */
+}
+
+/* 在消息图标中显示的矩阵样式调整 */
+.message-icon.matrix {
+    background: transparent;
+    padding: 8px 4px;
+}
+
+.message-icon .latex-matrix {
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0 -20px;
+    font-size: 1em;
+    background: var(--matrix-background);
+    padding: 12px 16px;
+    border-radius: 4px;
+    z-index: 9999;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 调整消息图标中的圆括号位置 */
+.message-icon .latex-matrix::before {
+    left: 10px;  /* 稍微调整左括号位置 */
+}
+
+.message-icon .latex-matrix::after {
+    right: 8px;  /* 相应调整右括号位置 */
+}
+
+/* 调整第一个和最后一个元素的边距 */
+.matrix-row > :first-child {
+    margin-left: 1px;  /* 减小左边距 */
+}
+
+.matrix-row > :last-child {
+    margin-right: 1px;  /* 减小右边距 */
+}
+
+/* 第一行的提示框样式 */
+.message-icon.first-row .latex-matrix {
+    top: -10px;  /* 将提示框移到图标下方 */
+    transform: none;  /* 移除垂直居中transform */
+}
+
+.matrix-input {
+  /* 添加以下样式 */
+  white-space: pre-wrap;       /* 保留空格和换行 */
+  word-wrap: break-word;       /* 允许长单词换行 */
+  overflow-wrap: break-word;   /* 现代浏览器的单词换行属性 */
+  max-width: 100%;            /* 限制最大宽度 */
+  overflow-x: auto;           /* 添加水平滚动条 */
+  font-family: monospace;     /* 等宽字体，保持对齐 */
+  line-height: 1.5;          /* 适当的行高 */
+  padding: 8px;              /* 添加内边距 */
+}
+
+/* 高亮复数i */
+.highlight-i {
+    color: rgb(1, 88, 150);
+    font-weight: bold;
+    font-style: italic; /* 使用斜体 */
+    font-family: "Times New Roman", Times, serif; /* 使用数学字体 */
+}
+
+/* 矩阵行布局优化 */
+.matrix-row {
+    display: flex;
+    justify-content: space-between;  /* 元素间均匀分布 */
+    margin: 0;
+    line-height: 1.1;
+    flex-wrap: nowrap;  /* 防止元素换行 */
+    gap: 8px;  /* 添加固定间距 */
+}

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>皮卡丘的音乐站 - Pikachu Music</title>
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 圆润可爱字体 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600&family=Nunito:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <div class="bg-gradient"></div>
+  <div class="app">
+    <header>
+      <div class="logo-area">
+        <div class="pikachu-box">
+          <!-- 请放一张你喜欢的 pikachu.gif 到同目录 -->
+          <img src="pikachu.gif" alt="Pikachu" class="pikachu-img">
+        </div>
+        <div class="title-text">
+          <h1 data-i18n="appTitle">音乐站</h1>
+        </div>
+      </div>
+      <div class="header-controls">
+        <button id="theme-toggle-btn" class="theme-toggle-btn">☀️</button>
+        <button id="shortcut-toggle-btn" class="shortcut-toggle-btn">⌨️</button>
+      </div>
+    </header>
+
+    <nav class="app-tabs">
+      <div class="tab-item active" data-tab="search">🔍 搜索</div>
+      <div class="tab-item" data-tab="player">🎧 播放</div>
+      <div class="tab-item" data-tab="playlist">📜 列表</div>
+    </nav>
+
+    <main class="layout tabs-content">
+      <!-- 左：搜索 -->
+      <section id="panel-search" class="panel search-panel active">
+        <div class="search-panel-content">
+          <div class="search-row">
+            <span class="search-prefix">🔍</span>
+            <input id="search-input" class="input" type="text" placeholder="输入歌名 / 歌手，回车搜索…" />
+            <button id="search-btn" class="btn" data-i18n="searchButton">搜索</button>
+          </div>
+          <div class="source-row">
+            <label class="source-chip">
+              <span class="source-dot migu"></span>
+              <input type="checkbox" data-source="migu" checked />
+              <span>咪咕</span>
+            </label>
+            <label class="source-chip">
+              <span class="source-dot netease"></span>
+              <input type="checkbox" data-source="netease" checked />
+              <span>网易云</span>
+            </label>
+            <label class="source-chip">
+              <span class="source-dot qq"></span>
+              <input type="checkbox" data-source="qq" checked />
+              <span>QQ</span>
+            </label>
+            <label class="source-chip">
+              <span class="source-dot kuwo"></span>
+              <input type="checkbox" data-source="kuwo" checked />
+              <span>酷我</span>
+            </label>
+          </div>
+          <div class="limit-row">
+            <span data-i18n="perSourceCount">每个源加载</span>
+            <select id="limit-select">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+            </select>
+            <span data-i18n="perSourceCountTail">首结果</span>
+            <button id="load-more-btn" class="btn btn-secondary" data-i18n="loadMore">
+              加载更多
+            </button>
+          </div>
+          <div class="search-stats">
+            <span id="search-status" data-i18n="searchStatusIdle">尚未搜索，试试输入“林俊杰”？</span>
+            <span id="search-count">0</span>
+          </div>
+          <div id="search-mini-list" class="search-results-mini"></div>
+        </div>
+      </section>
+      <!-- 中：播放器 -->
+      <section id="panel-player" class="panel player-panel">
+        <div class="player-top">
+          <div class="cover-wrapper">
+            <img id="cover-img" src="" alt="cover" />
+            <div class="cover-placeholder">
+              <div class="cover-disc"></div>
+              <div data-i18n="coverHint">搜索并播放一首歌吧！</div>
+            </div>
+          </div>
+          <div class="player-main">
+            <div class="track-info-header">
+              <div id="track-title" class="track-title">暂未选择歌曲</div>
+              <div class="track-meta-row">
+                <div id="track-artist" class="track-artist">暂无艺术家</div>
+                <div class="track-tags">
+                  <span id="track-source-pill" class="source-pill" style="display:none;"></span>
+                  <span id="track-quality-pill" class="source-pill" style="display:none; background: #6366f1;">SQ</span>
+                </div>
+                <div id="player-status" class="status-pill">空闲</div>
+              </div>
+            </div>
+            <div class="player-controls">
+              <div class="progress-row">
+                <span id="current-time">00:00</span>
+                <div id="progress-bar-wrapper" class="progress-bar-wrapper">
+                  <div id="progress-bar" class="progress-bar"></div>
+                </div>
+                <span id="total-time">00:00</span>
+              </div>
+              <div class="control-row-wrapper">
+                <div class="control-left-section">
+                  <div class="volume-row-mini">
+                    <span>🔊</span>
+                    <input id="volume-slider" class="volume-slider" type="range" min="0" max="1" step="0.01"
+                      value="0.8" />
+                  </div>
+                </div>
+
+                <div class="control-center-section">
+                  <div class="control-row">
+                    <button id="prev-btn" class="btn-icon-sub" title="上一首 (P)">⏮</button>
+                    <button id="play-btn" class="play-btn" title="播放/暂停 (Space)">▶</button>
+                    <button id="next-btn" class="btn-icon-sub" title="下一首 (N)">⏭</button>
+                  </div>
+                </div>
+
+                <div class="control-right-section">
+                  <div class="player-extra-controls">
+                    <button id="toggle-lyrics-btn" class="btn-icon-sub mini" title="显示/隐藏歌词">💬</button>
+                    <button id="fav-btn" class="btn-icon-sub mini" title="收藏 (F)">❤</button>
+                    <button id="download-btn" class="btn-icon-sub mini" title="下载">⬇</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <audio id="audio" preload="metadata"></audio>
+      </section>
+      <!-- 右：播放列表 -->
+      <section id="panel-playlist" class="panel playlist-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">📜</span>
+            <span data-i18n="playlistTitle">播放列表</span>
+          </div>
+          <div class="playlist-tabs">
+            <div class="playlist-tab active" data-tab="results" data-i18n="tabResults">搜索结果</div>
+            <div class="playlist-tab" data-tab="favorites" data-i18n="tabFavorites">我的收藏</div>
+            <div class="playlist-tab" data-tab="playlists" data-i18n="tabCustomLists">自建歌单</div>
+          </div>
+        </div>
+        <div class="playlist-main">
+          <div class="playlist-bar">
+            <div class="playlist-bar-top">
+              <span id="playlist-info" class="playlist-info"></span>
+              <div class="playlist-right-controls">
+                <div id="playlist-select-row" class="playlist-select-row" style="display:none;">
+                  <select id="playlist-select"></select>
+                  <button id="add-current-btn" class="btn btn-secondary btn-icon" title="把当前歌曲加入歌单">＋</button>
+                  <button id="new-playlist-btn" class="btn btn-ghost" data-i18n="newPlaylist">新建歌单</button>
+                </div>
+              </div>
+            </div>
+            <div class="playmode-row">
+              <button class="playmode-btn active" data-mode="list" title="列表循环">
+                <span>🔁</span>
+                <span class="btn-label" data-i18n="playmodeList">列表循环</span>
+              </button>
+              <button class="playmode-btn" data-mode="single" title="单曲循环">
+                <span>🔂</span>
+                <span class="btn-label" data-i18n="playmodeSingle">单曲循环</span>
+              </button>
+              <button class="playmode-btn" data-mode="shuffle" title="随机播放">
+                <span>🔀</span>
+                <span class="btn-label" data-i18n="playmodeShuffle">随机播放</span>
+              </button>
+            </div>
+          </div>
+          <div id="playlist-list" class="playlist-list"></div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <span data-i18n="footerText">本站仅作为学习演示，音乐版权归各平台与原作者所有。</span>
+    </footer>
+  </div>
+  <!-- 歌单弹窗 -->
+  <div id="playlist-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-title-icon">🎵</div>
+          <span data-i18n="modalNewPlaylistTitle">新建歌单</span>
+        </div>
+        <button id="playlist-close" class="modal-close-btn">×</button>
+      </div>
+      <p class="modal-desc" data-i18n="modalNewPlaylistDesc">给你的歌单取一个可爱的名字吧～</p>
+      <input id="playlist-name-input" type="text" placeholder="例如：通勤歌单 / 宝可梦歌单" />
+      <div class="modal-actions">
+        <button id="playlist-cancel-btn" class="btn btn-ghost" data-i18n="modalCancel">取消</button>
+        <button id="playlist-confirm-btn" class="btn btn-secondary" data-i18n="modalConfirm">确定</button>
+      </div>
+    </div>
+  </div>
+  <!-- 快捷键说明弹窗 -->
+  <div id="shortcut-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-title-icon">⌨️</div>
+          <span data-i18n="shortcutPanelTitle">快捷键说明</span>
+        </div>
+        <button id="shortcut-close" class="modal-close-btn">×</button>
+      </div>
+      <p class="modal-desc" data-i18n="shortcutPanelDesc">
+        使用键盘可以更加方便地控制皮卡丘的音乐站：
+      </p>
+      <div class="shortcut-grid">
+        <div class="shortcut-card">
+          <div class="shortcut-label" data-i18n="shortcutPlayPause">播放 / 暂停</div>
+          <div class="shortcut-key"><kbd>Space</kbd></div>
+        </div>
+        <div class="shortcut-card">
+          <div class="shortcut-label" data-i18n="shortcutSeek">快退 / 快进 5 秒</div>
+          <div class="shortcut-key"><kbd>←</kbd><kbd>→</kbd></div>
+        </div>
+        <div class="shortcut-card">
+          <div class="shortcut-label" data-i18n="shortcutVolume">音量加 / 减</div>
+          <div class="shortcut-key"><kbd>↑</kbd><kbd>↓</kbd></div>
+        </div>
+        <div class="shortcut-card">
+          <div class="shortcut-label" data-i18n="shortcutPrevNext">上一首 / 下一首</div>
+          <div class="shortcut-key"><kbd>P</kbd><kbd>N</kbd></div>
+        </div>
+        <div class="shortcut-card">
+          <div class="shortcut-label" data-i18n="shortcutFav">收藏 / 取消收藏</div>
+          <div class="shortcut-key"><kbd>F</kbd></div>
+        </div>
+        <div class="shortcut-card">
+          <div class="shortcut-label" data-i18n="shortcutMute">静音 / 取消静音</div>
+          <div class="shortcut-key"><kbd>M</kbd></div>
+        </div>
+        <div class="shortcut-card">
+          <div class="shortcut-label" data-i18n="shortcutFocusSearch">聚焦搜索框</div>
+          <div class="shortcut-key"><kbd>/</kbd></div>
+        </div>
+      </div>
+      <p class="modal-desc" style="margin-top:10px;" data-i18n="shortcutCloseModal">
+        提示：按 Esc 可以关闭弹窗。
+      </p>
+    </div>
+  </div>
+  <button id="back-to-top-btn" class="back-to-top-btn" title="回到顶部">↑</button>
+  <div id="toast"></div>
+
+  <!-- 下载进度提示 -->
+  <div id="download-progress-container" class="download-progress-container">
+    <div class="download-info">
+      <span class="download-icon">📥</span>
+      <span id="download-text">正在下载歌曲...</span>
+      <span id="download-percent">0%</span>
+    </div>
+    <div class="download-bar-wrapper">
+      <div id="download-bar" class="download-bar"></div>
+    </div>
+  </div>
+  <script src="js/main.js"></script>
+  <!-- 全屏沉浸式歌词浮层 -->
+  <div id="lyrics-overlay" class="lyrics-overlay">
+    <div id="lyrics-overlay-bg" class="lyrics-overlay-bg"></div>
+    <div class="lyrics-overlay-mask"></div>
+    <div class="lyrics-overlay-content">
+      <div class="lyrics-overlay-header">
+        <div class="overlay-track-info">
+          <div id="overlay-title" class="overlay-title"></div>
+          <div id="overlay-artist" class="overlay-artist"></div>
+        </div>
+        <button id="close-lyrics-btn" class="lyrics-close-btn" title="关闭歌词 (Esc)">×</button>
+      </div>
+      <div id="lyrics-overlay-scroll" class="lyrics-overlay-scroll">
+        <div id="lyrics-overlay-inner" class="lyrics-overlay-inner">
+          <!-- 歌词内容将通过 JS 渲染 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>

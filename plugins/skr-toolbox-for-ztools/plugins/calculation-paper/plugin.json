@@ -1,0 +1,64 @@
+{
+  "main": "index.html",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "single": false
+  },
+  "features": [
+    {
+      "code": "calc",
+      "explain": "像打草稿一样计算",
+      "cmds": [
+        "计算稿纸",
+        {
+          "type": "regex",
+          "match": "/^[+-]?(?:\\d{1,15}|\\d{1,3}(?:,\\d\\d\\d){1,4})(?:\\.\\d{1,15})?$/",
+          "label": "计算稿纸"
+        }
+      ]
+    },
+    {
+      "code": "expression",
+      "explain": "表达式计算",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "regex",
+          "match": "/^\\(*[+-]?(?:\\d{1,15}|\\d{1,3}(?:,\\d\\d\\d){1,4})(?:\\.\\d{1,15})?%?\\)*(?:\\s*[+*/^%-]\\s*\\(*[+-]?(?:\\d{1,15}|\\d{1,3}(?:,\\d\\d\\d){1,4})(?:\\.\\d{1,15})?%?\\)*)+$/",
+          "label": "计算"
+        }
+      ]
+    },
+    {
+      "code": "sum",
+      "explain": "一串数字求和",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "regex",
+          "match": "/^\\s*(?:(?:\\d{1,15}|\\d{1,3}(?:,\\d\\d\\d){1,4})(?:\\.\\d{1,15})?\\s+)+(?:\\d{1,15}|\\d{1,3}(?:,\\d\\d\\d){1,4})(?:\\.\\d{1,15})?\\s*$/",
+          "label": "求和"
+        }
+      ]
+    },
+    {
+      "code": "average",
+      "explain": "一串数字求平均值",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "regex",
+          "match": "/^\\s*(?:(?:\\d{1,15}|\\d{1,3}(?:,\\d\\d\\d){1,4})(?:\\.\\d{1,15})?\\s+)+(?:\\d{1,15}|\\d{1,3}(?:,\\d\\d\\d){1,4})(?:\\.\\d{1,15})?\\s*$/",
+          "label": "求平均值"
+        }
+      ]
+    }
+  ],
+  "name": "calculation-paper",
+  "pluginName": "计算稿纸",
+  "description": "像打草稿一样计算",
+  "author": "福州猿力信息科技有限公司",
+  "homepage": "https://u.tools",
+  "version": "1.4.1",
+  "title": "计算稿纸"
+}

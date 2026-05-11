@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ztools-developer-plugin",
+  "title": "ZTools 开发者工具",
+  "description": "ZTools 开发者插件",
+  "author": "xiaou",
+  "version": "1.0.1",
+  "main": "dist/index.html",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:8686/"
+  },
+  "features": [
+    {
+      "code": "ui.router",
+      "explain": "ZTools 开发者工具",
+      "cmds": ["开发者工具"]
+    },
+    {
+      "code": "function.reload-all-plugin",
+      "explain": "重载所有开发中插件",
+      "icon": "logo.png",
+      "cmds": ["重载开发中插件"]
+    },
+    {
+      "code": "function.add-dev-plugin",
+      "explain": "添加开发中插件",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "添加开发中插件",
+          "fileType": "file",
+          "match": "/plugin\\.json$/i",
+          "maxLength": 1
+        }
+      ]
+    }
+  ]
+}

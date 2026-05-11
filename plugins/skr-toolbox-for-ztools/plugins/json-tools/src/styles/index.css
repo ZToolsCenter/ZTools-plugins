@@ -1,0 +1,43 @@
+
+.editor-transition {
+    transition: opacity 0.2s ease-out;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+
+.editor-wrapper.visible {
+    opacity: 1;
+    visibility: visible;
+    z-index: 1;
+}
+
+
+.editor-transition.loaded {
+    opacity: 1;
+    background-color: inherit;
+}
+
+.editor-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-color: inherit;
+}
+
+.editor-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: opacity, visibility;
+    transition: all 0.2s ease-out;
+    background-color: inherit;
+}
+

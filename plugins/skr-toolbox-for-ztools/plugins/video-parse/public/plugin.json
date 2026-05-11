@@ -1,0 +1,22 @@
+{
+  "name": "video-parse",
+  "title": "轻溪去水印",
+  "version": "1.0.3",
+  "description": "一个简单小巧的视频去水印应用。",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "parse",
+      "explain": "视频去水印",
+      "cmds": [
+        "去水印",
+        "轻溪"
+      ]
+    }
+  ]
+}

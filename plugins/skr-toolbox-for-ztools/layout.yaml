@@ -1,0 +1,28 @@
+layout:
+  - type: banner
+    height: 180
+    children:
+      - image: "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/ztools-banner.png"
+        url: "https://github.com/ZToolsCenter/ZTools"
+  - type: fixed
+    title: 最新发布
+    plugins:
+      - clipboard
+      - bookmarks
+      - chrome-history
+      - screen-recorder
+  - type: navigation
+    title: 开始探索
+    categories:
+      - productivity
+      - development
+      - media
+      - text
+      - game
+      - network
+      - system
+      - other
+    showDescription: true
+  - type: random
+    title: 随机推荐
+    count: 6

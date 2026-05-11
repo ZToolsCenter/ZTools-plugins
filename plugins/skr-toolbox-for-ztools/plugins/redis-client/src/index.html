@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" id="theme-link">
+  <title>Another Redis Desktop Manager</title>
+</head>
+
+<body>
+  <!-- this script must be placed here after body -->
+  <script type="text/javascript">
+    function changeCSS(theme = 'light') {
+      const themeHref = `static/theme/${theme}/index.css`;
+      document.getElementById('theme-link').href = themeHref;
+      theme == 'dark' ? document.body.classList.add('dark-mode') :
+        document.body.classList.remove('dark-mode');
+    }
+
+
+    function globalChangeTheme(theme) {
+      if (!['system', 'light', 'dark'].includes(theme)) {
+        theme = 'system';
+      }
+      if (theme == 'system') {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+          theme = e.matches ? 'dark' : 'light'
+          changeCSS(theme);
+        })
+      } else {
+        window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', () => { });
+        changeCSS(theme);
+      }
+    }
+
+    // theme init at startup
+    (() => {
+
+      let theme = utools.db.get("theme")?.value;
+
+      console.log('change theme to', theme);
+
+      if (!['system', 'light', 'dark'].includes(theme)) {
+        theme = 'system';
+      }
+
+      // follow system OS
+      if (theme == 'system') {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+          theme = e.matches ? 'dark' : 'light'
+          changeCSS(theme);
+        })
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        changeCSS(isDark ? 'dark' : 'light');
+      }
+      // setted light or dark
+      else {
+        changeCSS(theme);
+      }
+    })();
+  </script>
+
+  <div id="app"></div>
+  <!-- built files will be auto injected -->
+<script src="bundle.js"></script></body>
+
+</html>

@@ -1,0 +1,201 @@
+/* 添加根变量 */
+:root {
+    --tag-bg: rgba(147, 112, 219, 0.08);
+    --tag-color: #9370DB;
+    --tag-hover-bg: rgba(147, 112, 219, 0.15);
+    --tag-hover-color: #8A2BE2;
+    --tag-prefix-color: #FF1493;
+    --tag-delete-bg: #f8f9fa;
+    --tag-delete-even-bg: #e9ecef;
+    --tag-delete-color: #ff3b30;
+    --tag-delete-hover-bg: rgba(255, 59, 48, 0.1);
+}
+
+:root[data-theme="dark"] {
+    --tag-bg: rgba(147, 112, 219, 0.15);
+    --tag-color: #B19CD9;
+    --tag-hover-bg: rgba(147, 112, 219, 0.2);
+    --tag-hover-color: #C8A2C8;
+    --tag-prefix-color: #d0096c;
+    --tag-delete-bg: #1c1c1e;
+    --tag-delete-even-bg: #2c2c2e;
+    --tag-delete-color: #ff453a;
+    --tag-delete-hover-bg: rgba(255, 69, 58, 0.15);
+}
+
+/* 标签样式 */
+.tag-container {
+    position: absolute;
+    left: 3px;
+    top: -1px;
+    z-index: 2;
+    overflow: visible;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.tag-button {
+    width: 20px;
+    height: 20px;
+    border: none;
+    background-color: var(--tag-bg);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tag-color);
+    font-size: 12px;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.tag-button:hover {
+    background-color: var(--tag-hover-bg);
+    color: var(--tag-hover-color);
+}
+
+.tag {
+    display: inline;
+    font-size: 10px;
+    color: var(--tag-color);
+    cursor: pointer;
+    transition: color 0.2s ease;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 500;
+    opacity: 0.8;
+    transform: translateY(-0.05em);
+    line-height: 1;
+}
+
+/* 为tag添加#符号前缀 */
+.tag::before {
+    content: '#';
+    margin-right: 1px;
+    font-weight: bold;
+    color: var(--tag-prefix-color);
+    opacity: 1;
+    font-size: 13.5px;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.tag:hover {
+    color: var(--tag-hover-color);
+    opacity: 1;
+    transform: translateY(-0.05em) scale(1.1);
+}
+
+.tag:hover::before {
+    transform: scale(1.3) rotate(7deg);
+    opacity: 1;
+}
+
+/* 标签输入框样式 */
+.tag-input-container {
+    position: absolute;
+    left: -4px;
+    top: calc(100% + 4px);
+    background: white;
+    border-radius: 8px;
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.08),
+        0 4px 12px rgba(0, 0, 0, 0.05);
+    z-index: 1000;
+    min-width: 120px;
+    display: none;
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+.tag-input-container.active {
+    display: block;
+}
+
+.tag-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    color: #1d1d1f;
+    background: transparent;
+    transition: background-color 0.2s ease;
+}
+
+.tag-input:focus {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* 标签图标样式 */
+.tag-icon {
+    transition: all 0.2s ease;
+    display: inline-block;
+    font-weight: normal;
+    transform: scale(1);
+    color: #9370DB;
+    font-weight: bold;
+    font-size: 12px;
+    text-shadow: 0 1px 3px rgba(147, 112, 219, 0.5);
+    letter-spacing: -0.5px;
+}
+
+/* 悬停时的简约艺术效果 */
+.tag-button:hover .tag-icon {
+    color: #8A2BE2;
+    text-shadow: 0 2px 6px rgba(138, 43, 226, 0.6);
+    transform: scale(1.1) rotate(5deg);
+}
+
+/* 删除按钮 */
+.tag-delete-btn {
+    width: 16px;
+    height: 16px;
+    border: none;
+    background-color: var(--tag-delete-bg);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tag-delete-color);
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.15s ease;
+    opacity: 0;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    user-select: none;
+    padding: 0;
+    line-height: 1;
+    pointer-events: none;
+}
+
+/* 当鼠标悬停在tag上时显示删除按钮 */
+.tag:hover + .tag-delete-btn,
+.tag-delete-btn:hover {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.tag-delete-btn:hover {
+    background-color: var(--tag-delete-hover-bg);
+    transform: scale(1.1);
+}
+
+/* 偶数行删除按钮背景色 */
+.expression-line:nth-child(even) .tag-delete-btn {
+    background-color: var(--tag-delete-even-bg);
+}
+
+/* 移除原来的 .tag::after 相关规则 */
+
+
+/* 添加提示框样式，当文本被截断时显示完整内容 */
+.tag[title] {
+    cursor: help;
+}
+

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "allowSyntheticDefaultImports": true,
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*", "typings.d.ts", "vite.config.ts"],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "es",
+    "dist",
+    "typings",
+    "**/__test__",
+    "test",
+    "docs",
+    "tests"
+  ]
+}
