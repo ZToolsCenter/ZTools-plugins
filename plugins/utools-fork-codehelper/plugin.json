@@ -1,0 +1,151 @@
+{
+    "main": "index.html",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "pluginSetting": {
+        "single": false
+    },
+    "features": [
+        {
+            "code": "timestamp",
+            "explain": "日期/时间格式转换",
+            "cmds": [
+                "date",
+                "timestamp",
+                "unixtime",
+                {
+                    "type": "regex",
+                    "minLength": 9,
+                    "match": "/^\\d{4}[\\/.-]\\d{1,2}[\\/.-]\\d{1,2}(?:(?: |T)\\d{1,2}:\\d{1,2}:\\d{1,2}(?:\\.\\d{1,6}Z?)?)?$|^[1-9](?:\\d{8,9}|\\d{11,12})$/",
+                    "label": "时间格式"
+                }
+            ]
+        },
+        {
+            "code": "uuid",
+            "explain": "随机唯一值",
+            "cmds": [
+                "UUID",
+                "GUID"
+            ]
+        },
+        {
+            "code": "hash",
+            "explain": "哈希加密",
+            "cmds": [
+                "MD5",
+                "SHA1",
+                "SHA224",
+                "SHA256",
+                "SHA384",
+                "SHA512",
+                {
+                    "maxNum": 1,
+                    "type": "files",
+                    "fileType": "file",
+                    "label": "文件 Hash"
+                }
+            ]
+        },
+        {
+            "code": "base64encode",
+            "explain": "base64 编码",
+            "cmds": [
+                "base64 encode(编码)",
+                {
+                    "maxNum": 1,
+                    "type": "files",
+                    "fileType": "file",
+                    "match": "/\\.(?:jpg|jpeg|gif|png)$/i",
+                    "label": "图片 base64 编码"
+                },
+                {
+                    "type": "img",
+                    "label": "图片 base64 编码"
+                }
+            ]
+        },
+        {
+            "code": "base64decode",
+            "explain": "base64 解码",
+            "cmds": [
+                "base64 decode(解码)",
+                {
+                    "type": "regex",
+                    "minLength": 20,
+                    "match": "/^(?:[A-Za-z0-9+/][A-Za-z0-9+/][A-Za-z0-9+/][A-Za-z0-9+/])+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/",
+                    "label": "base64 解码"
+                },
+                {
+                    "type": "regex",
+                    "minLength": 100,
+                    "match": "/^data:image\\/(jpg|jpeg|gif|png);base64,/",
+                    "label": "base64 图片"
+                }
+            ]
+        },
+        {
+            "code": "urlencode",
+            "explain": "URL 编码",
+            "cmds": [
+                "URL encode(编码)"
+            ]
+        },
+        {
+            "code": "urldecode",
+            "explain": "URL 解码",
+            "cmds": [
+                "URL decode(解码)",
+                {
+                    "type": "regex",
+                    "match": "/%[A-Fa-f0-9][A-Fa-f0-9]/",
+                    "label": "URL 解码"
+                }
+            ]
+        },
+        {
+            "code": "unicode",
+            "explain": "Unicode 编码转换",
+            "cmds": [
+                "Unicode",
+                "万国码",
+                {
+                    "type": "regex",
+                    "match": "/^(?:\\\\u[a-f0-9]{4})+$|^(?:\\\\x[a-f0-9]{2})+$|^(?:\\\\u\\{[a-f0-9]{2,5}\\})+$|^(U\\+[a-f0-9]{2,5})+$|^(?:&#\\d{2,7};)+$|^(?:&#x[a-f0-9]{2,5};)+$/i",
+                    "label": "Unicode 编码转换"
+                }
+            ]
+        },
+        {
+            "code": "hex",
+            "explain": "进制转换",
+            "cmds": [
+                "进制转换",
+                {
+                    "type": "regex",
+                    "match": "/^0x[0-9a-fA-F]+$/",
+                    "label": "进制转换"
+                }
+            ]
+        },
+        {
+            "code": "htmlescape",
+            "explain": "HTML 转义字符",
+            "cmds": [
+                "HTML 转义字符",
+                {
+                    "type": "regex",
+                    "match": "/^&(quot|amp|lt|gt|nbsp);$/i",
+                    "label": "HTML 转义字符"
+                }
+            ]
+        }
+    ],
+    "name": "utools-fork-codehelper",
+    "title": "编码小助手",
+    "pluginName": "编码小助手",
+    "description": "时间转换、base64编解码、URL编解码、哈希加密、Unicode、UUID、进制转换、HTML转义",
+    "author": "福州猿力信息科技有限公司",
+    "homepage": "https://u.tools",
+    "version": "2.1.1"
+}
