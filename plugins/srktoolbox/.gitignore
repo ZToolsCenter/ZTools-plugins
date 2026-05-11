@@ -1,0 +1,25 @@
+node_modules
+dist
+out
+.DS_Store
+.eslintcache
+*.log*
+.vscode/extensions.json
+.vscode/launch.json
+.vscode/settings.json
+/.history
+.idea
+
+# 构建产物
+release/
+!release/.gitkeep
+
+# 便签特殊排除
+!/plugins/sticky-note/dist
+!/plugins/sticky-note/dist/vditor/dist
+
+# ztools-developer-plugin 特殊排除
+!/plugins/ztools-developer-plugin/dist
+
+# everything 特殊排除
+!/plugins/everything/preload/node_modules
