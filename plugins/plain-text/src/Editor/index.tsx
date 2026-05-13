@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import {
   loadNotes,
   getActiveNote,
@@ -41,6 +42,7 @@ export default function Editor() {
     setNotes(loadNotes())
     // 聚焦编辑区
     setTimeout(() => textareaRef.current?.focus(), 50)
+    return () => clearTimeout(saveTimerRef.current)
   }, [])
 
   // 自动保存 debounce
@@ -157,7 +159,7 @@ export default function Editor() {
 
   if (!note) return null
 
-  const mdHtml = note.mode === 'markdown' ? marked(note.content || '') : ''
+  const mdHtml = note.mode === 'markdown' ? DOMPurify.sanitize(marked(note.content || '') as string) : ''
   const editorStyle = { fontSize: `${fontSize}px`, lineHeight: 1.8 } as const
   const lnStyle = { fontSize: `${fontSize - 1}px`, lineHeight: 1.8 } as const
 

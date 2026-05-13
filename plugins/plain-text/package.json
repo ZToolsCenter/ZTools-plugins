@@ -1,6 +1,6 @@
 {
   "name": "plain-text",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "即开即写的轻量文本编辑器，支持纯文本和 Markdown 双模式。自动保存、多文稿管理、一键导出 .txt/.md 文件。",
   "type": "module",
   "scripts": {
@@ -8,11 +8,13 @@
     "build": "tsc && vite build"
   },
   "dependencies": {
+    "dompurify": "^3.4.2",
     "marked": "^18.0.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.1",

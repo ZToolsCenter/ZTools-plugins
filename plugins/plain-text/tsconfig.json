@@ -11,8 +11,8 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": false,
-    "noImplicitAny": false,
+    "strict": true,
+    "noImplicitAny": true,
     "types": ["@ztools-center/ztools-api-types"]
   },
   "include": ["src"]
