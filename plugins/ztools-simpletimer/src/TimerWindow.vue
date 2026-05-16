@@ -777,6 +777,8 @@ input {
 .timer-tick {
   opacity: 0.72;
   font-size: calc(22px * var(--timer-scale));
+  line-height: 1;
+  vertical-align: baseline;
 }
 
 .countdown-track {
