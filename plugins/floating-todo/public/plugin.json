@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "floating-todo",
+  "title": "待办事项",
+  "description": "桌面悬浮待办清单，支持工作和个人分类。",
+  "author": "xiuyang",
+  "version": "1.0.1",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "todo",
+      "explain": "打开待办事项管理",
+      "icon": "logo.png",
+      "cmds": ["待办", "todo", "待办事项"]
+    }
+  ]
+}
