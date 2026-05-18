@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ylinx-calculated-length",
+  "title": "计算字符串长度",
+  "description": "计算字符串长度",
+  "author": "Ylinx",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "calcu",
+      "explain": "计算字符串长度",
+      "icon": "logo.png",
+      "cmds": [
+        "长度"
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}
