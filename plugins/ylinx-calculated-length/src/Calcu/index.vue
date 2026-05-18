@@ -1,9 +1,17 @@
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue'
+import type { PropType } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+
+interface PluginEnterAction {
+  code: string
+  inputState?: {
+    pastedText?: string
+  }
+}
 
 const props = defineProps({
   enterAction: {
-    type: Object,
+    type: Object as PropType<PluginEnterAction>,
     required: true
   }
 })
@@ -11,15 +19,43 @@ const props = defineProps({
 const inputValue = ref('')
 const encoding = ref<'utf-8' | 'gbk'>('utf-8')
 const isDark = ref(false)
+const textareaRef = ref<HTMLTextAreaElement>()
+const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
 
-// 初始化当前主题
-isDark.value = window.ztools.isDarkColors()
+// 聚焦输入框并将光标移动到文本末尾
+const focusTextarea = async () => {
+  await nextTick()
+  textareaRef.value?.focus()
+
+  if (textareaRef.value) {
+    const textLength = textareaRef.value.value.length
+    textareaRef.value.setSelectionRange(textLength, textLength)
+  }
+}
+
+// 同步系统主题到页面状态
+const handleThemeChange = (event: MediaQueryListEvent) => {
+  isDark.value = event.matches
+}
+
+// 组件挂载时初始化并监听主题变化
+onMounted(() => {
+  isDark.value = themeMediaQuery.matches
+  themeMediaQuery.addEventListener('change', handleThemeChange)
+  void focusTextarea()
+})
+
+// 组件卸载时移除主题监听
+onUnmounted(() => {
+  themeMediaQuery.removeEventListener('change', handleThemeChange)
+})
 
 // 同步进入参数中的粘贴文本到输入框
 watch(
-  () => props.enterAction?.inputState?.pastedText,
-  (pastedText) => {
+  () => props.enterAction.inputState?.pastedText,
+  async (pastedText) => {
     inputValue.value = typeof pastedText === 'string' ? pastedText : ''
+    await focusTextarea()
   },
   {
     immediate: true
@@ -51,6 +87,7 @@ const byteLength = computed(() => {
   <div class="calcu-page" :class="{ dark: isDark }">
     <div class="calcu-panel">
       <textarea
+        ref="textareaRef"
         v-model="inputValue"
         class="calcu-input"
         placeholder="请输入内容"
