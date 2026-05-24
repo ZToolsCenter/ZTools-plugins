@@ -52,10 +52,18 @@ const copyToClipboard = async (id, shouldPaste = true) => {
   }
 }
 
+const showDeleteConfirm = ref(false)
+const deleteTargetItem = ref(null)
+
+const handleDeleteSelected = (item) => {
+  deleteTargetItem.value = item
+  showDeleteConfirm.value = true
+}
+
 const {
   selectedIndex, clipboardListRef, resetSelection,
   handleKeydown, copySelected, pasteSelected
-} = useSelection(filteredData, tabs, activeTab, copyToClipboard)
+} = useSelection(filteredData, tabs, activeTab, copyToClipboard, handleDeleteSelected)
 
 const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu()
 const { favoriteDialog, openFavoriteDialog, confirmFavorite, cancelFavoriteDialog } = useFavoriteDialog()
@@ -68,9 +76,6 @@ const handleContextMenu = (event, item) => {
 const handleFavoriteConfirm = async (remark) => {
   await confirmFavorite(addFavorite, remark)
 }
-
-const showDeleteConfirm = ref(false)
-const deleteTargetItem = ref(null)
 
 const handleDeleteItem = () => {
   deleteTargetItem.value = contextMenu.value.item
@@ -167,8 +172,16 @@ const resetSearchAndFocus = async () => {
 // ---- 监听 & 生命周期 ----
 watch(activeTab, doReload)
 
+// 当对话框打开时，阻止全局键盘快捷键（如 Enter 粘贴）
+const handleGlobalKeydown = (event) => {
+  if (showDeleteConfirm.value || showClearConfirm.value) {
+    return
+  }
+  handleKeydown(event)
+}
+
 onMounted(async () => {
-  window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keydown', handleGlobalKeydown)
   window.addEventListener('click', hideContextMenu)
 
   await loadFavorites()
@@ -187,7 +200,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('keydown', handleGlobalKeydown)
   window.removeEventListener('click', hideContextMenu)
 })
 </script>
