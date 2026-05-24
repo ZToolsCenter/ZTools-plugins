@@ -5,8 +5,9 @@ import { ref } from 'vue'
  * @param {import('vue').ComputedRef<Array>} tabs
  * @param {import('vue').Ref<string>} activeTab
  * @param {Function} copyToClipboard - (id, shouldPaste) => Promise
+ * @param {Function} [onDeleteItem] - (item) => void, called when Delete key is pressed on a selected item
  */
-export function useSelection(filteredData, tabs, activeTab, copyToClipboard) {
+export function useSelection(filteredData, tabs, activeTab, copyToClipboard, onDeleteItem) {
   const selectedIndex = ref(0)
   const clipboardListRef = ref(null)
 
@@ -88,6 +89,15 @@ export function useSelection(filteredData, tabs, activeTab, copyToClipboard) {
       const selectedItem = filteredData.value[selectedIndex.value]
       if (selectedItem) {
         copyToClipboard(selectedItem.id)
+      }
+    }
+
+    // Delete 键删除选中项
+    if (event.key === 'Delete') {
+      event.preventDefault()
+      const selectedItem = filteredData.value[selectedIndex.value]
+      if (selectedItem && onDeleteItem) {
+        onDeleteItem(selectedItem)
       }
     }
   }
