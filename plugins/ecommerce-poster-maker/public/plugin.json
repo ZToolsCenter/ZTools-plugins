@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ecommerce-poster-maker",
+  "title": "电商营销图生成器",
+  "description": "用模板生成主图卖点贴、促销角标、优惠券图、横幅和商品卡片。",
+  "author": "KeyDock",
+  "version": "0.1.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "categories": ["ecommerce-design", "media"],
+  "development": {
+    "main": "http://localhost:5176"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 720
+  },
+  "features": [
+    {
+      "code": "ecommerce-poster-maker",
+      "explain": "生成电商营销图和商品卖点图",
+      "icon": "logo.png",
+      "cmds": [
+        "电商营销图",
+        "活动图生成",
+        "主图卖点贴",
+        {
+          "type": "img",
+          "label": "基于商品图生成营销图"
+        },
+        {
+          "type": "files",
+          "fileType": "file",
+          "label": "基于商品图生成营销图",
+          "extensions": ["jpg", "jpeg", "png", "webp"]
+        }
+      ]
+    }
+  ]
+}

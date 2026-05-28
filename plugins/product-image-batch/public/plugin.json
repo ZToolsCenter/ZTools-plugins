@@ -1,0 +1,41 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "product-image-batch",
+  "title": "商品图批量处理",
+  "description": "批量压缩、改尺寸、转格式、加水印，并导出多平台商品图尺寸包。",
+  "author": "KeyDock",
+  "version": "0.1.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "categories": ["ecommerce-design", "media"],
+  "development": {
+    "main": "http://localhost:5174"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 700
+  },
+  "features": [
+    {
+      "code": "product-image-batch",
+      "explain": "批量处理电商商品图并导出平台尺寸包",
+      "icon": "logo.png",
+      "cmds": [
+        "商品图批处理",
+        "电商批量改图",
+        "商品图尺寸包",
+        {
+          "type": "files",
+          "fileType": "file",
+          "label": "批量处理商品图",
+          "extensions": ["jpg", "jpeg", "png", "webp", "gif", "bmp"]
+        },
+        {
+          "type": "files",
+          "fileType": "directory",
+          "label": "批量处理商品图文件夹"
+        }
+      ]
+    }
+  ]
+}

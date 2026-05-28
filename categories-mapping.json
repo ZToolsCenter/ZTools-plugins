@@ -105,6 +105,18 @@
     ]
   },
   {
+    "key": "ecommerce-design",
+    "title": "电商设计",
+    "description": "商品图、详情页、主图规范与营销素材工具",
+    "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/ecommerce-design.png",
+    "list": [
+      "ecommerce-image-spec",
+      "product-image-batch",
+      "sku-asset-organizer",
+      "ecommerce-poster-maker"
+    ]
+  },
+  {
     "key": "text",
     "title": "文本处理",
     "description": "文本编辑与格式化工具",

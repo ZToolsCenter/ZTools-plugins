@@ -1,0 +1,45 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ecommerce-image-spec",
+  "title": "商品主图规范检查",
+  "description": "检查并处理商品主图尺寸、格式、主体留白、文件大小和平台规范。",
+  "author": "KeyDock",
+  "version": "0.1.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "categories": ["ecommerce-design", "media"],
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 680
+  },
+  "features": [
+    {
+      "code": "ecommerce-image-spec",
+      "explain": "检查商品主图是否符合电商平台规范",
+      "icon": "logo.png",
+      "cmds": [
+        "商品主图检查",
+        "主图规范",
+        "电商图片检查",
+        {
+          "type": "img",
+          "label": "检查商品主图"
+        },
+        {
+          "type": "files",
+          "fileType": "file",
+          "label": "检查商品主图",
+          "extensions": ["jpg", "jpeg", "png", "webp"]
+        },
+        {
+          "type": "files",
+          "fileType": "directory",
+          "label": "检查文件夹中的商品图"
+        }
+      ]
+    }
+  ]
+}

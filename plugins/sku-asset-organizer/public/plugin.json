@@ -1,0 +1,41 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "sku-asset-organizer",
+  "title": "SKU 素材整理",
+  "description": "按 SKU、颜色和尺码整理商品素材，检查缺图、重复图和命名冲突。",
+  "author": "KeyDock",
+  "version": "0.1.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "categories": ["ecommerce-design", "productivity"],
+  "development": {
+    "main": "http://localhost:5175"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 680
+  },
+  "features": [
+    {
+      "code": "sku-asset-organizer",
+      "explain": "整理 SKU 商品素材并生成交付包",
+      "icon": "logo.png",
+      "cmds": [
+        "SKU素材整理",
+        "商品素材整理",
+        "商品图片命名",
+        {
+          "type": "files",
+          "fileType": "directory",
+          "label": "整理商品素材文件夹"
+        },
+        {
+          "type": "files",
+          "fileType": "file",
+          "label": "导入 SKU 表",
+          "extensions": ["csv", "tsv"]
+        }
+      ]
+    }
+  ]
+}

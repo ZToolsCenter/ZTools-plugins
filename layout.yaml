@@ -17,6 +17,7 @@ layout:
       - productivity
       - development
       - media
+      - ecommerce-design
       - text
       - game
       - network
@@ -26,3 +27,14 @@ layout:
   - type: random
     title: 随机推荐
     count: 6
+
+ecommerce-design:
+  - type: fixed
+    title: 电商设计精选
+    plugins:
+      - ecommerce-image-spec
+      - product-image-batch
+      - sku-asset-organizer
+      - ecommerce-poster-maker
+  - type: list
+    title: 全部电商设计工具
