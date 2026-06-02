@@ -156,16 +156,35 @@ function applyOutputFormat(image: Sharp, format: ImageFormat, settings: ImageJob
   }
 }
 
+async function materializeRgba(image: Sharp): Promise<{ image: Sharp; width: number; height: number }> {
+  // Sharp metadata reports input dimensions for pending resize/crop pipelines, so use raw output dimensions without PNG encode/decode.
+  const { data, info } = await image
+    .toColorspace("srgb")
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return {
+    image: sharp(data, {
+      raw: {
+        width: info.width,
+        height: info.height,
+        channels: info.channels as 4
+      }
+    }),
+    width: info.width,
+    height: info.height
+  };
+}
+
 async function applyRounded(image: Sharp, radius: number, background?: string): Promise<Sharp> {
-  const { data: inputBuffer, info: metadata } = await image.png().toBuffer({ resolveWithObject: true });
-  const width = metadata.width;
-  const height = metadata.height;
+  const base = await materializeRgba(image);
+  const { width, height } = base;
   const safeRadius = clampInteger(radius, 0, Math.min(width, height) / 2);
   const mask = Buffer.from(
     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect x="0" y="0" width="${width}" height="${height}" rx="${safeRadius}" ry="${safeRadius}" fill="#fff"/></svg>`
   );
 
-  let rounded = sharp(inputBuffer).ensureAlpha().composite([{ input: mask, blend: "dest-in" }]);
+  let rounded = base.image.composite([{ input: mask, blend: "dest-in" }]);
   if (background) {
     rounded = rounded.flatten({ background });
   }
@@ -176,10 +195,8 @@ async function applyWatermark(image: Sharp, settings: ImageJobSettings): Promise
   const watermark = settings.watermark;
   if (!watermark?.enabled) return image;
 
-  const inputBuffer = await image.png().toBuffer();
-  const metadata = await sharp(inputBuffer).metadata();
-  const width = metadata.width ?? 1;
-  const height = metadata.height ?? 1;
+  const base = await materializeRgba(image);
+  const { width, height } = base;
   const opacity = Math.max(0, Math.min(1, watermark.opacity));
   const margin = Math.max(0, watermark.margin);
 
@@ -187,6 +204,7 @@ async function applyWatermark(image: Sharp, settings: ImageJobSettings): Promise
     const maxOverlayWidth = Math.max(24, Math.round(width * 0.35));
     const overlayBase = await sharp(watermark.imagePath)
       .resize({ width: maxOverlayWidth, withoutEnlargement: true })
+      .toColorspace("srgb")
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
@@ -204,12 +222,16 @@ async function applyWatermark(image: Sharp, settings: ImageJobSettings): Promise
     if (watermark.rotation) {
       overlay = overlay.rotate(watermark.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } });
     }
-    const overlayBuffer = await overlay.png().toBuffer();
-    const overlayMeta = await sharp(overlayBuffer).metadata();
-    const placement = overlayPlacement(watermark.position, width, height, overlayMeta.width ?? 1, overlayMeta.height ?? 1, margin);
-    return sharp(inputBuffer).composite([
+    const overlayOutput = await overlay.toColorspace("srgb").ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const placement = overlayPlacement(watermark.position, width, height, overlayOutput.info.width, overlayOutput.info.height, margin);
+    return base.image.composite([
       {
-        input: overlayBuffer,
+        input: overlayOutput.data,
+        raw: {
+          width: overlayOutput.info.width,
+          height: overlayOutput.info.height,
+          channels: overlayOutput.info.channels as 4
+        },
         left: placement.left,
         top: placement.top
       }
@@ -228,7 +250,7 @@ async function applyWatermark(image: Sharp, settings: ImageJobSettings): Promise
       </g>
     </svg>
   `);
-  return sharp(inputBuffer).composite([{ input: overlay, blend: "over" }]);
+  return base.image.composite([{ input: overlay, blend: "over" }]);
 }
 
 function textAnchor(position: WatermarkPosition): "start" | "middle" | "end" {
@@ -316,6 +338,9 @@ async function processOne(
     }
 
     if (settings.border?.enabled && settings.border.width > 0) {
+      if (settings.crop) {
+        image = (await materializeRgba(image)).image;
+      }
       const borderWidth = Math.round(settings.border.width);
       image = image.extend({
         top: borderWidth,

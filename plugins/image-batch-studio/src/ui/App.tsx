@@ -50,6 +50,7 @@ import {
   type Rect
 } from "./crop-geometry";
 import { basename, shortPath } from "./path-display";
+import { mergeImageJobSettings } from "./settings";
 
 const modules: Array<{ id: ModuleId; label: string; icon: typeof FileImage }> = [
   { id: "compress", label: "压缩", icon: ImageDown },
@@ -157,7 +158,7 @@ export function App() {
   const [selectedPath, setSelectedPath] = useState<string>("");
   const [settings, setSettings] = useState<ImageJobSettings>(() => {
     const saved = window.ztools?.dbStorage?.getItem?.("image-batch-settings");
-    return saved && typeof saved === "object" ? { ...defaultSettings(), ...(saved as ImageJobSettings) } : defaultSettings();
+    return mergeImageJobSettings(defaultSettings(), saved);
   });
   const [mergeOptions, setMergeOptions] = useState<MergeImagesOptions>(defaultMerge);
   const [gifOptions, setGifOptions] = useState<GifOptions>(defaultGif);
@@ -932,9 +933,11 @@ function ManualCropEditor({
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [natural, setNatural] = useState({ width: file.width ?? 1, height: file.height ?? 1 });
   const [stageGeometry, setStageGeometry] = useState<{ stageRect: Rect; imageRect: Rect } | null>(null);
+  const stageGeometryRef = useRef<{ stageRect: Rect; imageRect: Rect } | null>(null);
 
   useEffect(() => {
     setNatural({ width: file.width ?? 1, height: file.height ?? 1 });
+    stageGeometryRef.current = null;
     setStageGeometry(null);
     setDragStart(null);
   }, [file.path, file.width, file.height]);
@@ -951,7 +954,9 @@ function ManualCropEditor({
         width: rect.width,
         height: rect.height
       };
-      setStageGeometry({ stageRect, imageRect: containedImageRect(stageRect, natural) });
+      const geometry = { stageRect, imageRect: containedImageRect(stageRect, natural) };
+      stageGeometryRef.current = geometry;
+      setStageGeometry(geometry);
     };
 
     updateGeometry();
@@ -964,9 +969,9 @@ function ManualCropEditor({
     };
   }, [file.path, natural.width, natural.height]);
 
-  function currentGeometry() {
+  function measureGeometry() {
     const stage = stageRef.current;
-    if (!stage) return stageGeometry;
+    if (!stage) return null;
     const rect = stage.getBoundingClientRect();
     const stageRect = {
       left: rect.left,
@@ -977,22 +982,25 @@ function ManualCropEditor({
     return { stageRect, imageRect: containedImageRect(stageRect, natural) };
   }
 
-  function point(event: React.PointerEvent<HTMLDivElement>) {
-    const geometry = currentGeometry();
-    if (!geometry) return { x: 0, y: 0 };
-    setStageGeometry(geometry);
+  function point(event: React.PointerEvent<HTMLDivElement>, geometry: { stageRect: Rect; imageRect: Rect }) {
     return pointToImageCoordinates({ x: event.clientX, y: event.clientY }, geometry.imageRect, natural);
   }
 
   function start(event: React.PointerEvent<HTMLDivElement>) {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDragStart(point(event));
+    const geometry = stageGeometryRef.current ?? measureGeometry();
+    if (!geometry) return;
+    stageGeometryRef.current = geometry;
+    setStageGeometry(geometry);
+    setDragStart(point(event, geometry));
   }
 
   function move(event: React.PointerEvent<HTMLDivElement>) {
     if (!dragStart) return;
-    const current = point(event);
+    const geometry = stageGeometryRef.current;
+    if (!geometry) return;
+    const current = point(event, geometry);
     onChange(cropFromDragPoints(dragStart, current, natural));
   }
 

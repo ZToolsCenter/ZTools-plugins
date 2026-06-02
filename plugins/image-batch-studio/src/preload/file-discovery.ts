@@ -35,8 +35,11 @@ export async function discoverFiles(paths: string[]): Promise<SourceFile[]> {
 }
 
 async function walk(targetPath: string, visitedDirectories: Set<string>): Promise<SourceFile[]> {
+  const linkStat = await fs.lstat(targetPath).catch(() => null);
+  if (!linkStat) return [];
+
   const realPath = await fs.realpath(targetPath).catch(() => targetPath);
-  const stat = await fs.stat(realPath).catch(() => null);
+  const stat = linkStat.isSymbolicLink() ? await fs.stat(realPath).catch(() => null) : linkStat;
   if (!stat) return [];
 
   if (stat.isDirectory()) {
@@ -44,11 +47,8 @@ async function walk(targetPath: string, visitedDirectories: Set<string>): Promis
     if (excludedDirectories.has(path.basename(targetPath))) return [];
     visitedDirectories.add(realPath);
     const children = await fs.readdir(targetPath).catch(() => [] as string[]);
-    const all: SourceFile[] = [];
-    for (const child of children) {
-      all.push(...(await walk(path.join(targetPath, child), visitedDirectories)));
-    }
-    return all;
+    const results = await Promise.all(children.map((child) => walk(path.join(targetPath, child), visitedDirectories)));
+    return results.flat();
   }
 
   if (!stat.isFile()) return [];

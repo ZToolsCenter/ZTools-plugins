@@ -95,6 +95,25 @@ describe("offline processing engine", () => {
     expect(metadata.height).toBe(58);
   });
 
+  it("keeps the extended border dimensions when applying rounded corners", async () => {
+    const dir = await makeTempDir();
+    const input = path.join(dir, "border.png");
+    const outputDir = path.join(dir, "out");
+    await makeImage(input, 64, 48, "#236b8e");
+
+    const [result] = await processImages([input], {
+      output: { directory: outputDir, namingPattern: "{name}-rounded.{ext}", overwrite: false },
+      format: { type: "png" },
+      border: { enabled: true, width: 6, color: "#ffffff" },
+      rounded: { enabled: true, radius: 12 }
+    });
+
+    expect(result.ok).toBe(true);
+    const metadata = await sharp(result.outputPath).metadata();
+    expect(metadata.width).toBe(76);
+    expect(metadata.height).toBe(60);
+  });
+
   it("adds text watermarks to HEIC inputs and keeps output readable by sharp", async () => {
     const dir = await makeTempDir();
     const input = path.join(dir, "watermark.heic");
