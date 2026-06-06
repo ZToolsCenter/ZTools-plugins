@@ -9,7 +9,7 @@ interface ImageZipOptions {
   outputPath?: string;
   overwriteOriginal?: boolean;
   suffix: string;
-  losslessPng?: boolean;
+  pngPalette?: boolean;
 }
 
 interface ImageZipResult {

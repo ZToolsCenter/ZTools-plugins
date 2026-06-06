@@ -473,6 +473,7 @@ function App() {
                       title="关闭"
                       className="close-action"
                       onClick={() => removeInput(item.id)}
+                      disabled={isRunning}
                     >
                       <X size={16} />
                     </button>

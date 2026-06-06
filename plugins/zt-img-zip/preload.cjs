@@ -35,18 +35,17 @@ function normalizeFormat(format) {
   return normalized;
 }
 
-function getInputFormat(filePath) {
-  const extension = path.extname(filePath).slice(1).toLowerCase();
-  if (extension === "jpg") {
+function normalizeInputFormat(format) {
+  if (format === "jpg") {
     return "jpeg";
   }
-  if (extension === "tif") {
+  if (format === "tif") {
     return "tiff";
   }
-  if (!supportedFormats.has(extension)) {
-    throw new Error(`不支持的图片格式: ${extension || "未知"}`);
+  if (!format || !supportedFormats.has(format)) {
+    throw new Error(`不支持的图片格式: ${format || "未知"}`);
   }
-  return extension;
+  return format;
 }
 
 function ensureParentDir(filePath) {
@@ -81,7 +80,7 @@ function getOutputPathForName(inputName, outputDir, format, suffix, explicitOutp
   return path.join(targetDir, `${safeName}${suffix}.${format}`);
 }
 
-function applyFormatPipeline(pipeline, format, quality, losslessPng) {
+function applyFormatPipeline(pipeline, format, quality, pngPalette) {
   if (format === "jpeg") {
     return pipeline.jpeg({ quality, mozjpeg: true });
   }
@@ -89,7 +88,7 @@ function applyFormatPipeline(pipeline, format, quality, losslessPng) {
     return pipeline.png({
       quality,
       compressionLevel: 9,
-      palette: !losslessPng,
+      palette: pngPalette,
     });
   }
   if (format === "webp") {
@@ -109,7 +108,8 @@ async function compressImage(filePath, options = {}) {
     throw new Error("缺少图片路径");
   }
 
-  const inputFormat = getInputFormat(filePath);
+  const metadata = await getSharp()(filePath, { animated: true, failOn: "none" }).metadata();
+  const inputFormat = normalizeInputFormat(metadata.format);
   const targetFormat = normalizeFormat(options.format);
   const outputFormat = targetFormat === "original" ? inputFormat : targetFormat;
   const quality = Math.min(100, Math.max(1, Number(options.quality || 78)));
@@ -137,12 +137,23 @@ async function compressImage(filePath, options = {}) {
     });
   }
 
-  await applyFormatPipeline(pipeline, outputFormat, quality, Boolean(options.losslessPng)).toFile(tempOutputPath);
-  if (overwriteOriginal) {
-    fs.renameSync(tempOutputPath, outputPath);
-    if (path.resolve(outputPath) !== path.resolve(filePath) && fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+  try {
+    await applyFormatPipeline(pipeline, outputFormat, quality, Boolean(options.pngPalette)).toFile(tempOutputPath);
+    if (overwriteOriginal) {
+      fs.renameSync(tempOutputPath, outputPath);
+      if (path.resolve(outputPath) !== path.resolve(filePath) && fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
+  } catch (error) {
+    if (overwriteOriginal && fs.existsSync(tempOutputPath)) {
+      try {
+        fs.unlinkSync(tempOutputPath);
+      } catch (_) {
+        // Ignore cleanup failures and surface the original compression error.
+      }
+    }
+    throw error;
   }
   const outputSize = fs.statSync(outputPath).size;
 
@@ -166,10 +177,7 @@ async function compressImageBuffer(inputName, data, options = {}) {
 
   const inputBuffer = Buffer.from(data);
   const metadata = await getSharp()(inputBuffer, { animated: true, failOn: "none" }).metadata();
-  const inputFormat = metadata.format === "jpg" ? "jpeg" : metadata.format;
-  if (!inputFormat || !supportedFormats.has(inputFormat)) {
-    throw new Error(`不支持的图片格式: ${inputFormat || "未知"}`);
-  }
+  const inputFormat = normalizeInputFormat(metadata.format);
 
   const targetFormat = normalizeFormat(options.format);
   const outputFormat = targetFormat === "original" ? inputFormat : targetFormat;
@@ -193,7 +201,7 @@ async function compressImageBuffer(inputName, data, options = {}) {
     });
   }
 
-  await applyFormatPipeline(pipeline, outputFormat, quality, Boolean(options.losslessPng)).toFile(outputPath);
+  await applyFormatPipeline(pipeline, outputFormat, quality, Boolean(options.pngPalette)).toFile(outputPath);
   const outputSize = fs.statSync(outputPath).size;
 
   return {
@@ -302,9 +310,22 @@ function overwriteOutputFile(sourcePath, inputPath, outputFormat) {
   }
   const targetPath = replaceExtension(inputPath, normalizeFormat(outputFormat));
   ensureParentDir(targetPath);
-  fs.copyFileSync(sourcePath, targetPath);
-  if (path.resolve(targetPath) !== path.resolve(inputPath) && fs.existsSync(inputPath)) {
-    fs.unlinkSync(inputPath);
+  const tempTargetPath = `${targetPath}.zt-img-zip-tmp-${Date.now()}`;
+  try {
+    fs.copyFileSync(sourcePath, tempTargetPath);
+    fs.renameSync(tempTargetPath, targetPath);
+    if (path.resolve(targetPath) !== path.resolve(inputPath) && fs.existsSync(inputPath)) {
+      fs.unlinkSync(inputPath);
+    }
+  } catch (error) {
+    if (fs.existsSync(tempTargetPath)) {
+      try {
+        fs.unlinkSync(tempTargetPath);
+      } catch (_) {
+        // Ignore cleanup failures and surface the original overwrite error.
+      }
+    }
+    throw error;
   }
   return {
     outputPath: targetPath,

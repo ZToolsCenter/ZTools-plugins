@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const dist = resolve(root, "dist");
 
-for (const file of ["preload.cjs", "preload.js", "logo.png"]) {
+for (const file of ["preload.cjs", "logo.png"]) {
   copyFileSync(resolve(root, file), resolve(dist, file));
 }
 
