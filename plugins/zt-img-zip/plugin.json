@@ -1,0 +1,35 @@
+{
+  "name": "zt-img-zip",
+  "title": "图片压缩",
+  "description": "使用 sharp 压缩图片并转换格式，支持 JPEG、PNG、WebP、AVIF、TIFF。",
+  "version": "0.1.2",
+  "main": "dist/index.html",
+  "logo": "logo.png",
+  "preload": "preload/services.js",
+  "pluginSetting": {
+    "single": true,
+    "height": 560
+  },
+  "features": [
+    {
+      "code": "image-compress-convert",
+      "explain": "压缩图片 / 转换图片格式",
+      "cmds": [
+        "图片压缩",
+        "图片格式转换",
+        {
+          "type": "files",
+          "label": "压缩图片",
+          "fileType": "file",
+          "extensions": ["jpg", "jpeg", "png", "webp", "avif", "tif", "tiff"],
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "img",
+          "label": "压缩图片"
+        }
+      ]
+    }
+  ]
+}
