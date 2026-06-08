@@ -71,6 +71,7 @@
         position: relative;
         display: grid;
         grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
         width: 100%;
         height: 100%;
         min-height: 18px;
@@ -80,10 +81,6 @@
         transition:
           opacity 120ms ease,
           filter 120ms ease;
-      }
-
-      .fish-reader:hover {
-        opacity: 1;
       }
 
       .fish-resize-zone {
@@ -202,6 +199,7 @@
       }
 
       .fish-content {
+        grid-row: 1;
         display: grid;
         grid-template-rows: minmax(0, 1fr);
         min-width: 0;
@@ -257,11 +255,11 @@
 
       .fish-meta {
         position: absolute;
-        top: 50%;
-        right: 24px;
-        transform: translateY(-50%);
-        max-width: min(56vw, 360px);
-        padding: 1px 5px;
+        top: 4px;
+        right: 32px;
+        z-index: 4;
+        max-width: min(calc(100% - 52px), 360px);
+        padding: 1px 6px;
         overflow: hidden;
         border-radius: 3px;
         font-size: 10px;
@@ -273,8 +271,38 @@
         transition: opacity 120ms ease;
       }
 
+      .show-meta .fish-reader {
+        grid-template-rows: 18px minmax(0, 1fr);
+      }
+
+      .show-meta .fish-content {
+        grid-row: 2;
+      }
+
       .show-meta .fish-meta {
+        position: relative;
+        top: auto;
+        right: auto;
+        grid-row: 1;
+        grid-column: 1;
+        align-self: start;
+        justify-self: end;
+        margin: 2px 32px 0 10px;
         opacity: 0.66;
+      }
+
+      @media (max-height: 42px) {
+        .show-meta .fish-reader {
+          grid-template-rows: minmax(0, 1fr);
+        }
+
+        .show-meta .fish-content {
+          grid-row: 1;
+        }
+
+        .show-meta .fish-meta {
+          display: none;
+        }
       }
 
       .skin-statusbar .fish-reader {
@@ -409,7 +437,7 @@
       }
 
       function setAutoHidden(flag) {
-        isAutoHidden = Boolean(flag && latestSettings.hideOnMouseLeave && latestSettings.stealth !== false)
+        isAutoHidden = Boolean(flag && latestSettings.hideOnMouseLeave)
         root.classList.toggle("is-auto-hidden", isAutoHidden)
       }
 
@@ -680,7 +708,7 @@
         latestBounds = payload?.bounds || latestBounds
         const skin = settings.fishSkin || "code"
         const visible = Boolean(payload?.visible)
-        if (!visible || !settings.hideOnMouseLeave || settings.stealth === false) isAutoHidden = false
+        if (!visible || !settings.hideOnMouseLeave) isAutoHidden = false
 
         root.className = [
           "fish-shell",
@@ -865,7 +893,7 @@
         isKeyboardActive = false
         window.blur?.()
         sendCommand("blur")
-        if (!resizeState && !moveState && latestSettings.hideOnMouseLeave && latestSettings.stealth !== false) {
+        if (!resizeState && !moveState && latestSettings.hideOnMouseLeave) {
           setAutoHidden(true)
         }
       })

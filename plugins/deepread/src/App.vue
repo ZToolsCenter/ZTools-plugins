@@ -2,10 +2,11 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   BookOpen,
+  ClipboardPaste,
   Eye,
-  EyeOff,
   FileText,
   FolderOpen,
+  Info,
   Library,
   List,
   MoreVertical,
@@ -19,11 +20,30 @@ import {
   Upload,
   X
 } from '@lucide/vue'
+import {
+  loadOnlineChapter,
+  loadOnlineBook,
+  loadOnlineBookDetail,
+  isSourceVerificationError,
+  SourceVerificationError,
+  normalizeBookSources,
+  parseBookSources,
+  searchSourceBooks
+} from './bookSource'
+import type {
+  BookSourceConfig,
+  SourceChapter,
+  SourceRequest,
+  SourceSearchResult,
+  SourceVerificationHandler,
+  SourceVerificationOptions
+} from './bookSource'
 import { decodeTextBytes } from './textDecoder'
 
 type Chapter = {
   title: string
   index: number
+  sourceChapter?: SourceChapter
 }
 
 type PageSlice = {
@@ -32,10 +52,25 @@ type PageSlice = {
   endIndex: number
 }
 
+type BookKind = 'local' | 'online'
+
+type OnlineBookInfo = {
+  sourceId: string
+  sourceName: string
+  bookUrl: string
+  author: string
+  coverUrl: string
+  latestChapter: string
+  currentChapterIndex: number
+  chapters: SourceChapter[]
+}
+
 type Book = {
   id: string
+  kind: BookKind
   title: string
   sourceName: string
+  sourceKey?: string
   path?: string
   content: string
   createdAt: number
@@ -43,6 +78,50 @@ type Book = {
   progressIndex: number
   size: number
   mtime?: number
+  online?: OnlineBookInfo
+}
+
+type OnlineBookDetailDialog = {
+  open: boolean
+  loading: boolean
+  error: string
+  result: SourceSearchResult | null
+  book: SourceSearchResult | null
+  chapters: SourceChapter[]
+}
+
+type OnlineVerificationState = {
+  sourceId: string
+  sourceName: string
+  url: string
+  mode: SourceVerificationOptions['mode']
+  opened: boolean
+  waiting: boolean
+  message: string
+}
+
+type OnlineVerificationItem = {
+  sourceId: string
+  sourceName: string
+  url: string
+  mode: SourceVerificationOptions['mode']
+  request?: SourceRequest
+}
+
+type OnlineSearchFailureItem = {
+  sourceId: string
+  sourceName: string
+  message: string
+}
+
+type OnlineCaptchaDialog = {
+  open: boolean
+  loading: boolean
+  error: string
+  sourceName: string
+  imageUrl: string
+  code: string
+  request: SourceRequest | null
 }
 
 type FishSkin = 'statusbar' | 'code' | 'terminal'
@@ -70,21 +149,44 @@ type ReaderSettings = {
   wheelTurnPage: boolean
 }
 
-type Panel = 'library' | 'chapters' | 'search' | 'settings'
+type Panel = 'library' | 'online' | 'sources' | 'settings'
 type PageKeyAction = 'prev' | 'next'
 
 type FishCommand = string | { type?: string; width?: number; height?: number; x?: number; y?: number }
 type FishBounds = { x: number; y: number; width: number; height: number }
+type AppBrowserWindow = {
+  id: number
+  show?: () => void
+  hide?: () => void
+  close?: () => void
+  focus?: () => void
+  blur?: () => void
+  isDestroyed?: () => boolean
+  setFocusable?: (flag: boolean) => void
+  setSkipTaskbar?: (flag: boolean) => void
+  setSize?: (width: number, height: number) => void
+  setContentSize?: (width: number, height: number) => void
+  setContentBounds?: (bounds: FishBounds) => void
+  setPosition?: (x: number, y: number) => void
+  setAlwaysOnTop?: (flag: boolean) => void
+  moveTop?: () => void
+  webContents?: {
+    executeJavaScript?: <T = unknown>(code: string, userGesture?: boolean) => Promise<T>
+  }
+}
 
 const LIBRARY_KEY = 'deepread.library.v1'
+const BOOK_SOURCES_KEY = 'deepread.bookSources.v1'
 const SETTINGS_KEY = 'deepread.settings.v1'
 const LAST_BOOK_KEY = 'deepread.lastBookId.v1'
+const DISCLAIMER_ACCEPTED_KEY = 'deepread.disclaimerAccepted.v1'
 const AUTO_HIDE_MIGRATION_KEY = 'deepread.autoHideDefaulted.v1'
 const STEALTH_DEFAULT_MIGRATION_KEY = 'deepread.stealthDefaulted.v1'
 const FISH_MIN_WIDTH = 280
 const FISH_MAX_WIDTH = 1180
 const FISH_MIN_HEIGHT = 22
 const FISH_MAX_HEIGHT = 160
+const FISH_META_ROW_HEIGHT = 18
 const THEMES: ReaderSettings['theme'][] = ['work', 'paper', 'night', 'transparent']
 const FISH_SKINS: FishSkin[] = ['code', 'statusbar', 'terminal']
 const DEFAULT_FISH_BACKGROUNDS: FishSkinBackgrounds = {
@@ -120,12 +222,58 @@ const activeBookId = ref('')
 const activePanel = ref<Panel>('library')
 const searchText = ref('')
 const searchCursor = ref(0)
+const isBookSearchDialogOpen = ref(false)
+const isChapterDialogOpen = ref(false)
 const isReaderHidden = ref(false)
 const isAutoPaging = ref(false)
 const isDragging = ref(false)
 const isFishKeyboardActive = ref(false)
 const keyBindingCapture = ref<PageKeyAction | null>(null)
 const importError = ref('')
+const bookSources = ref<BookSourceConfig[]>([])
+const sourceEditorText = ref('')
+const sourceUrlText = ref('')
+const sourceMessage = ref('')
+const isSourceJsonDialogOpen = ref(false)
+const isDisclaimerDialogOpen = ref(false)
+const onlineKeyword = ref('')
+const onlineSearchResults = ref<SourceSearchResult[]>([])
+const onlineVerificationItems = ref<OnlineVerificationItem[]>([])
+const onlineSearchFailures = ref<OnlineSearchFailureItem[]>([])
+const onlineSearchError = ref('')
+const isClipboardImporting = ref(false)
+const isSourceUrlImporting = ref(false)
+const isOnlineSearching = ref(false)
+const onlineImportingKey = ref('')
+const onlineImportStatus = ref('')
+const loadingChapterKey = ref('')
+const chapterLoadMessage = ref('')
+const onlineVerification = reactive<OnlineVerificationState>({
+  sourceId: '',
+  sourceName: '',
+  url: '',
+  mode: 'browser',
+  opened: false,
+  waiting: false,
+  message: ''
+})
+const onlineCaptchaDialog = reactive<OnlineCaptchaDialog>({
+  open: false,
+  loading: false,
+  error: '',
+  sourceName: '',
+  imageUrl: '',
+  code: '',
+  request: null
+})
+const onlineDetailDialog = reactive<OnlineBookDetailDialog>({
+  open: false,
+  loading: false,
+  error: '',
+  result: null,
+  book: null,
+  chapters: []
+})
 const contextMenu = reactive({
   show: false,
   bookId: '',
@@ -137,33 +285,30 @@ const settings = reactive<ReaderSettings>({
   fishBackgrounds: { ...defaultSettings.fishBackgrounds }
 })
 const fileInputRef = ref<HTMLInputElement | null>(null)
+const searchInputRef = ref<HTMLInputElement | null>(null)
+const captchaInputRef = ref<HTMLInputElement | null>(null)
+const sourceJsonTextareaRef = ref<HTMLTextAreaElement | null>(null)
+const disclaimerAcceptButtonRef = ref<HTMLButtonElement | null>(null)
+
+const activeOnlineVerificationItem = computed(() =>
+  onlineVerificationItems.value.find((item) => item.sourceId === onlineVerification.sourceId) || null
+)
 
 let autoTimer = 0
+let isAutoPageTickRunning = false
+let onlineDetailRequestId = 0
+let captchaResolve: ((code: string) => void) | null = null
+let captchaReject: ((error: Error) => void) | null = null
+let captchaPromptQueue: Promise<unknown> = Promise.resolve()
+let verificationResolve: ((body: string) => void) | null = null
+let verificationReject: ((error: Error) => void) | null = null
+let verificationRequest: SourceRequest | null = null
+let verificationOptions: SourceVerificationOptions | null = null
 let wheelLock = false
 let dragDepth = 0
 let fishWindowAnchor: { x: number; y: number } | null = null
-let fishWindow:
-  | {
-      id: number
-      show?: () => void
-      hide?: () => void
-      close?: () => void
-      focus?: () => void
-      blur?: () => void
-      isDestroyed?: () => boolean
-      setFocusable?: (flag: boolean) => void
-      setSkipTaskbar?: (flag: boolean) => void
-      setSize?: (width: number, height: number) => void
-      setContentSize?: (width: number, height: number) => void
-      setContentBounds?: (bounds: FishBounds) => void
-      setPosition?: (x: number, y: number) => void
-      setAlwaysOnTop?: (flag: boolean) => void
-      moveTop?: () => void
-      webContents?: {
-        executeJavaScript?: <T = unknown>(code: string, userGesture?: boolean) => Promise<T>
-      }
-    }
-  | null = null
+let fishWindow: AppBrowserWindow | null = null
+let onlineVerificationWindow: AppBrowserWindow | null = null
 let offFishCommand: (() => void) | undefined
 
 const storage = {
@@ -215,7 +360,10 @@ const fishLineLength = computed(() => {
 
 const fishLineCount = computed(() => {
   const linePx = settings.fontSize * settings.lineHeight
-  return Math.max(1, Math.floor(Math.max(18, settings.fishHeight - 6) / Math.max(12, linePx)))
+  const reservedHeight = settings.showFishMeta ? FISH_META_ROW_HEIGHT : 0
+  const readableHeight = Math.max(18, settings.fishHeight - 6 - reservedHeight)
+
+  return Math.max(1, Math.floor(readableHeight / Math.max(12, linePx)))
 })
 
 const activeBook = computed(() => books.value.find((book) => book.id === activeBookId.value) ?? null)
@@ -372,6 +520,14 @@ const chapters = computed<Chapter[]>(() => {
   const book = activeBook.value
   if (!book) return []
 
+  if (book.kind === 'online' && book.online?.chapters.length) {
+    return book.online.chapters.map((chapter) => ({
+      title: chapter.title,
+      index: chapter.index,
+      sourceChapter: chapter
+    }))
+  }
+
   const found: Chapter[] = []
   const chapterPattern =
     /(^|\n)\s*((第[零一二三四五六七八九十百千万\d]{1,8}[章章节回卷集部篇幕][^\n]{0,36})|(楔子|序章|引子|前言|尾声|番外[^\n]{0,28}))\s*(?=\n|$)/g
@@ -388,12 +544,16 @@ const chapters = computed<Chapter[]>(() => {
     return [{ title: book.title, index: 0 }]
   }
 
-  return found.slice(0, 1000)
+  return found
 })
 
 const currentChapter = computed(() => {
   const book = activeBook.value
   if (!book) return null
+  if (book.kind === 'online' && book.online) {
+    return chapters.value.find((chapter) => chapter.index === book.online?.currentChapterIndex) ?? chapters.value[0]
+  }
+
   const index = currentIndex.value
   return [...chapters.value].reverse().find((chapter) => chapter.index <= index) ?? chapters.value[0]
 })
@@ -428,13 +588,34 @@ function getBookProgressPercent(book: Book) {
   return getProgressPercent(book.progressIndex, book.content.length, maxPageStart)
 }
 
-const sortedBooks = computed(() =>
-  [...books.value].sort((a, b) => {
+function sortBooks(items: Book[]) {
+  return [...items].sort((a, b) => {
     if (a.id === activeBookId.value) return -1
     if (b.id === activeBookId.value) return 1
     return b.updatedAt - a.updatedAt
   })
+}
+
+const sortedBooks = computed(() =>
+  sortBooks(books.value)
 )
+
+const sortedLocalBooks = computed(() => sortBooks(books.value.filter((book) => book.kind === 'local')))
+
+const sortedOnlineBooks = computed(() => sortBooks(books.value.filter((book) => book.kind === 'online')))
+
+const bookSections = computed(() =>
+  [
+    { key: 'local', title: '本地书籍', books: sortedLocalBooks.value },
+    { key: 'online', title: '在线书籍', books: sortedOnlineBooks.value }
+  ].filter((section) => section.books.length)
+)
+
+const enabledBookSources = computed(() => bookSources.value.filter((source) => source.enabled))
+
+const onlineDetailBook = computed(() => onlineDetailDialog.book ?? onlineDetailDialog.result)
+
+const onlineDetailChapterPreview = computed(() => onlineDetailDialog.chapters.slice(0, 40))
 
 const shellTitle = computed(() => (settings.stealth ? '项目资料审阅' : 'DeepRead 深读'))
 
@@ -466,6 +647,10 @@ function persistLibrary() {
   storage.set(LIBRARY_KEY, books.value)
 }
 
+function persistBookSources() {
+  storage.set(BOOK_SOURCES_KEY, bookSources.value)
+}
+
 function persistSettings() {
   storage.set(SETTINGS_KEY, settings)
 }
@@ -473,7 +658,12 @@ function persistSettings() {
 function loadState() {
   Object.assign(settings, normalizeSettings(storage.get<Partial<ReaderSettings>>(SETTINGS_KEY, {})))
   books.value = normalizeBooks(storage.get<unknown>(LIBRARY_KEY, []))
+  bookSources.value = normalizeBookSources(storage.get<unknown>(BOOK_SOURCES_KEY, []))
+  isDisclaimerDialogOpen.value = !storage.get<boolean>(DISCLAIMER_ACCEPTED_KEY, false)
+  if (isDisclaimerDialogOpen.value) nextTick(() => disclaimerAcceptButtonRef.value?.focus())
+  syncSourceEditorText()
   persistLibrary()
+  persistBookSources()
   if (!storage.get<boolean>(AUTO_HIDE_MIGRATION_KEY, false)) {
     settings.hideOnMouseLeave = true
     storage.set(AUTO_HIDE_MIGRATION_KEY, true)
@@ -486,6 +676,11 @@ function loadState() {
   }
   const lastBookId = storage.get<string>(LAST_BOOK_KEY, '')
   activeBookId.value = books.value.some((book) => book.id === lastBookId) ? lastBookId : books.value[0]?.id || ''
+}
+
+function acceptDisclaimer() {
+  storage.set(DISCLAIMER_ACCEPTED_KEY, true)
+  isDisclaimerDialogOpen.value = false
 }
 
 function notify(message: string) {
@@ -718,17 +913,21 @@ function normalizeBook(input: unknown): Book | null {
     return null
   }
 
+  const kind: BookKind = input.kind === 'online' ? 'online' : 'local'
   const sourceName = typeof input.sourceName === 'string' && input.sourceName.trim() ? input.sourceName.trim() : '未命名书籍'
   const title = typeof input.title === 'string' && input.title.trim() ? input.title.trim() : normalizeTitle(sourceName)
   const createdAt = toFiniteNumber(input.createdAt, Date.now())
   const updatedAt = toFiniteNumber(input.updatedAt, createdAt)
   const size = Math.max(0, toFiniteNumber(input.size, input.content.length))
   const mtime = toFiniteNumber(input.mtime, Number.NaN)
+  const online = normalizeOnlineBookInfo(input.online)
 
   return {
     id: input.id.trim(),
+    kind,
     title,
     sourceName,
+    sourceKey: typeof input.sourceKey === 'string' && input.sourceKey.trim() ? input.sourceKey : undefined,
     path: typeof input.path === 'string' && input.path.trim() ? input.path : undefined,
     content: input.content,
     createdAt,
@@ -739,7 +938,51 @@ function normalizeBook(input: unknown): Book | null {
       getApproxMaxPageStart(input.content.length)
     ),
     size,
-    mtime: Number.isFinite(mtime) ? mtime : undefined
+    mtime: Number.isFinite(mtime) ? mtime : undefined,
+    online: kind === 'online' ? online : undefined
+  }
+}
+
+function normalizeOnlineBookInfo(input: unknown): OnlineBookInfo | undefined {
+  if (!isRecord(input)) return undefined
+
+  const sourceId = typeof input.sourceId === 'string' ? input.sourceId : ''
+  const sourceName = typeof input.sourceName === 'string' ? input.sourceName : ''
+  const bookUrl = typeof input.bookUrl === 'string' ? input.bookUrl : ''
+  const chapters = Array.isArray(input.chapters)
+    ? input.chapters
+        .map((chapter, index) => {
+          if (!isRecord(chapter)) return null
+          const title = typeof chapter.title === 'string' && chapter.title.trim() ? chapter.title.trim() : `第 ${index + 1} 章`
+          const url = typeof chapter.url === 'string' ? chapter.url : ''
+          return {
+            title,
+            url,
+            index
+          }
+        })
+        .filter((chapter): chapter is SourceChapter => Boolean(chapter))
+    : []
+  const requestedChapterIndex = clampNumber(
+    toFiniteNumber(input.currentChapterIndex, chapters[0]?.index ?? 0),
+    0,
+    Math.max(0, chapters.length - 1)
+  )
+  const currentChapterIndex = chapters.some((chapter) => chapter.index === requestedChapterIndex)
+    ? requestedChapterIndex
+    : chapters[0]?.index ?? 0
+
+  if (!bookUrl && !chapters.length) return undefined
+
+  return {
+    sourceId,
+    sourceName,
+    bookUrl,
+    author: typeof input.author === 'string' ? input.author : '',
+    coverUrl: typeof input.coverUrl === 'string' ? input.coverUrl : '',
+    latestChapter: typeof input.latestChapter === 'string' ? input.latestChapter : '',
+    currentChapterIndex,
+    chapters
   }
 }
 
@@ -749,6 +992,7 @@ function createBook(input: { name: string; content: string; path?: string; size?
 
   return {
     id: `book:${btoa(unescape(encodeURIComponent(stable))).slice(0, 28)}:${now.toString(36)}`,
+    kind: 'local',
     title: normalizeTitle(input.name),
     sourceName: input.name,
     path: input.path,
@@ -761,6 +1005,34 @@ function createBook(input: { name: string; content: string; path?: string; size?
   }
 }
 
+function createOnlineBook(result: SourceSearchResult, content: string, chapters: SourceChapter[]): Book {
+  const now = Date.now()
+  const stable = `${result.sourceId}:${result.bookUrl}`
+
+  return {
+    id: `online:${btoa(unescape(encodeURIComponent(stable))).slice(0, 34)}`,
+    kind: 'online',
+    title: normalizeTitle(result.title),
+    sourceName: result.sourceName,
+    sourceKey: stable,
+    content: tidyContent(content),
+    createdAt: now,
+    updatedAt: now,
+    progressIndex: 0,
+    size: content.length,
+    online: {
+      sourceId: result.sourceId,
+      sourceName: result.sourceName,
+      bookUrl: result.bookUrl,
+      author: result.author,
+      coverUrl: result.coverUrl,
+      latestChapter: result.latestChapter,
+      currentChapterIndex: chapters[0]?.index ?? 0,
+      chapters
+    }
+  }
+}
+
 function tidyContent(content: string) {
   return content
     .replace(/\r\n/g, '\n')
@@ -770,15 +1042,19 @@ function tidyContent(content: string) {
     .trim()
 }
 
-function upsertBook(book: Book) {
-  const existingIndex = books.value.findIndex((item) => item.path && book.path && item.path === book.path)
+function upsertBook(book: Book, options: { resetProgress?: boolean } = {}) {
+  const existingIndex = books.value.findIndex(
+    (item) =>
+      (item.path && book.path && item.path === book.path) ||
+      (item.sourceKey && book.sourceKey && item.sourceKey === book.sourceKey)
+  )
   if (existingIndex >= 0) {
     const existing = books.value[existingIndex]
     books.value[existingIndex] = {
       ...book,
       id: existing.id,
       createdAt: existing.createdAt,
-      progressIndex: Math.min(existing.progressIndex, getApproxMaxPageStart(book.content.length))
+      progressIndex: options.resetProgress ? 0 : Math.min(existing.progressIndex, getApproxMaxPageStart(book.content.length))
     }
   } else {
     books.value.unshift(book)
@@ -857,6 +1133,945 @@ function handleBrowserFile(event: Event) {
   input.value = ''
 }
 
+function syncSourceEditorText() {
+  sourceEditorText.value = bookSources.value.length
+    ? JSON.stringify(bookSources.value.map((source) => source.raw || source), null, 2)
+    : ''
+}
+
+function mergeBookSources(existing: BookSourceConfig[], incoming: BookSourceConfig[]) {
+  const merged = [...existing]
+  const indexById = new Map(merged.map((source, index) => [source.id, index]))
+  let added = 0
+  let updated = 0
+
+  for (const source of incoming) {
+    const currentIndex = indexById.get(source.id)
+    if (currentIndex === undefined) {
+      indexById.set(source.id, merged.length)
+      merged.push(source)
+      added += 1
+      continue
+    }
+
+    merged[currentIndex] = {
+      ...source,
+      enabled: merged[currentIndex].enabled
+    }
+    updated += 1
+  }
+
+  return { sources: merged, added, updated }
+}
+
+function applyBookSources(incoming: BookSourceConfig[]) {
+  const merged = mergeBookSources(bookSources.value, incoming)
+  bookSources.value = merged.sources
+  persistBookSources()
+  syncSourceEditorText()
+  return merged
+}
+
+function importBookSourcesFromText(text: string, actionLabel: string) {
+  const parsed = parseBookSources(text)
+  const merged = applyBookSources(parsed)
+  sourceMessage.value = `${actionLabel} ${bookSources.value.length} 个书源（新增 ${merged.added}，更新 ${merged.updated}）`
+  return merged
+}
+
+function openSourceJsonImportDialog() {
+  sourceMessage.value = ''
+  syncSourceEditorText()
+  isSourceJsonDialogOpen.value = true
+  nextTick(() => sourceJsonTextareaRef.value?.focus())
+}
+
+function closeSourceJsonImportDialog() {
+  isSourceJsonDialogOpen.value = false
+}
+
+function saveSourceEditor() {
+  sourceMessage.value = ''
+  onlineSearchError.value = ''
+
+  try {
+    importBookSourcesFromText(sourceEditorText.value, '已通过 JSON 导入')
+    isSourceJsonDialogOpen.value = false
+  } catch (error) {
+    sourceMessage.value = error instanceof Error ? error.message : '书源 JSON 导入失败'
+  }
+}
+
+function getHttpSourceUrl(text: string) {
+  const trimmed = text.trim()
+  if (!trimmed) return ''
+
+  try {
+    const parsedUrl = new URL(trimmed)
+    return ['http:', 'https:'].includes(parsedUrl.protocol) ? parsedUrl.href : ''
+  } catch {
+    return ''
+  }
+}
+
+async function readClipboardText() {
+  try {
+    const serviceText = await window.services?.readClipboardText?.()
+    if (typeof serviceText === 'string') return serviceText
+  } catch {
+    // Fall back to the browser clipboard API below.
+  }
+  if (!navigator.clipboard?.readText) {
+    throw new Error('当前环境无法读取剪切板，请使用 JSON 导入手动粘贴')
+  }
+  return (await navigator.clipboard.readText()) || ''
+}
+
+async function importSourceFromClipboard() {
+  if (isClipboardImporting.value) return
+  sourceMessage.value = ''
+  onlineSearchError.value = ''
+
+  isClipboardImporting.value = true
+  try {
+    const text = (await readClipboardText()).trim()
+    if (!text) {
+      sourceMessage.value = '剪切板为空'
+      return
+    }
+
+    const sourceUrl = getHttpSourceUrl(text)
+    if (sourceUrl) {
+      sourceUrlText.value = sourceUrl
+      await importSourceUrl()
+      return
+    }
+
+    importBookSourcesFromText(text, '已通过剪切板导入')
+  } catch (error) {
+    sourceMessage.value = error instanceof Error ? error.message : '剪切板导入失败'
+  } finally {
+    isClipboardImporting.value = false
+  }
+}
+
+async function importSourceUrl() {
+  const url = sourceUrlText.value.trim()
+  sourceMessage.value = ''
+  onlineSearchError.value = ''
+
+  if (!url) {
+    sourceMessage.value = '请输入书源 URL'
+    return
+  }
+
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(url)
+  } catch (error) {
+    sourceMessage.value = '书源 URL 格式不正确'
+    return
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    sourceMessage.value = '书源 URL 仅支持 http 或 https'
+    return
+  }
+
+  isSourceUrlImporting.value = true
+  try {
+    const text = await fetchSourceText({ url: parsedUrl.href })
+    importBookSourcesFromText(text, '已通过链接导入')
+    sourceUrlText.value = ''
+  } catch (error) {
+    sourceMessage.value = error instanceof Error ? error.message : '书源链接导入失败'
+  } finally {
+    isSourceUrlImporting.value = false
+  }
+}
+
+function toggleBookSource(sourceId: string) {
+  const source = bookSources.value.find((item) => item.id === sourceId)
+  if (!source) return
+  source.enabled = !source.enabled
+  persistBookSources()
+}
+
+function removeBookSource(sourceId: string) {
+  bookSources.value = bookSources.value.filter((source) => source.id !== sourceId)
+  persistBookSources()
+  syncSourceEditorText()
+}
+
+async function fetchSourceText(request: SourceRequest) {
+  if (window.services?.fetchText) {
+    try {
+      return await window.services.fetchText(request)
+    } catch (serviceError) {
+      try {
+        return await fetchSourceTextInRenderer(request)
+      } catch (browserError) {
+        throw serviceError
+      }
+    }
+  }
+
+  return fetchSourceTextInRenderer(request)
+}
+
+async function fetchSourceTextInRenderer(request: SourceRequest) {
+  const response = await fetch(request.url, {
+    method: request.method || 'GET',
+    headers: request.headers,
+    body: request.body
+  })
+  if (!response.ok) throw new Error(`请求失败：HTTP ${response.status}`)
+  request.responseUrl = response.url || request.url
+  return response.text()
+}
+
+async function fetchSourceDataUrl(request: SourceRequest) {
+  if (window.services?.fetchDataUrl) {
+    try {
+      return await window.services.fetchDataUrl(request)
+    } catch (serviceError) {
+      try {
+        return await fetchSourceDataUrlInRenderer(request)
+      } catch (browserError) {
+        throw serviceError
+      }
+    }
+  }
+
+  return fetchSourceDataUrlInRenderer(request)
+}
+
+async function fetchSourceDataUrlInRenderer(request: SourceRequest) {
+  const response = await fetch(request.url, {
+    method: request.method || 'GET',
+    headers: request.headers,
+    body: request.body
+  })
+  if (!response.ok) throw new Error(`请求失败：HTTP ${response.status}`)
+  request.responseUrl = response.url || request.url
+  const blob = await response.blob()
+
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+    reader.onerror = () => reject(new Error('验证码图片读取失败'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+const requestOnlineVerificationCode: SourceVerificationHandler = async (request, source, options = { mode: 'image' }) => {
+  const prompt = captchaPromptQueue
+    .catch(() => undefined)
+    .then(() =>
+      options.mode === 'browser'
+        ? openOnlineBrowserVerification(request, source, options)
+        : openOnlineCaptchaPrompt(request, source)
+    )
+  captchaPromptQueue = prompt.catch(() => undefined)
+  return await prompt
+}
+
+const deferOnlineSearchVerification: SourceVerificationHandler = async (request, source, options = { mode: 'image' }) => {
+  const verificationRequest = getVerificationRequest(request, source)
+  const staticLoginUrl = getStaticSourceLoginUrl(source)
+  const verificationUrl =
+    options.mode === 'image'
+      ? getRequestHeaderValue(verificationRequest.headers, 'referer') ||
+        staticLoginUrl ||
+        verificationRequest.sourceUrl ||
+        source.url ||
+        source.searchUrl ||
+        verificationRequest.url
+      : verificationRequest.url || staticLoginUrl || verificationRequest.sourceUrl || source.url || source.searchUrl
+  throw new SourceVerificationError(
+    source,
+    verificationUrl,
+    verificationRequest,
+    options
+  )
+}
+
+function getRequestHeaderValue(headers: Record<string, string> | undefined, name: string) {
+  if (!headers) return ''
+  const target = name.toLowerCase()
+  const matched = Object.entries(headers).find(([key]) => key.toLowerCase() === target)
+  return matched?.[1] || ''
+}
+
+function getStaticSourceLoginUrl(source: BookSourceConfig) {
+  const loginUrl = source.loginUrl.trim()
+  return loginUrl && !loginUrl.startsWith('@js:') && !loginUrl.startsWith('<js>') ? loginUrl : ''
+}
+
+async function openOnlineBrowserVerification(
+  request: SourceRequest,
+  source: BookSourceConfig,
+  options: SourceVerificationOptions
+) {
+  const browserRequest = getVerificationRequest(request, source)
+  verificationRequest = browserRequest
+  verificationOptions = options
+  verificationResolve = null
+  verificationReject = null
+
+  onlineVerification.sourceId = source.id
+  onlineVerification.sourceName = source.name
+  onlineVerification.url = browserRequest.url
+  onlineVerification.mode = options.mode || 'browser'
+  onlineVerification.opened = false
+  onlineVerification.waiting = Boolean(options.waitForResult)
+  onlineVerification.message = options.waitForResult
+    ? `书源「${source.name}」需要在浏览器完成验证，完成后点击继续。`
+    : `已为书源「${source.name}」打开验证页。`
+  activePanel.value = 'online'
+
+  await openOnlineVerificationPage()
+  if (!options.waitForResult) return ''
+
+  return await new Promise<string>((resolve, reject) => {
+    verificationResolve = resolve
+    verificationReject = reject
+  })
+}
+
+async function openOnlineCaptchaPrompt(request: SourceRequest, source: BookSourceConfig) {
+  const captchaRequest = getVerificationRequest(request, source)
+
+  resetOnlineCaptchaDialog()
+  onlineCaptchaDialog.open = true
+  onlineCaptchaDialog.loading = true
+  onlineCaptchaDialog.sourceName = source.name
+  onlineCaptchaDialog.request = captchaRequest
+
+  try {
+    onlineCaptchaDialog.imageUrl = await fetchSourceDataUrl(captchaRequest)
+  } catch (error) {
+    onlineCaptchaDialog.error = error instanceof Error ? error.message : '验证码图片加载失败'
+  } finally {
+    onlineCaptchaDialog.loading = false
+    await nextTick()
+    captchaInputRef.value?.focus()
+  }
+
+  return await new Promise<string>((resolve, reject) => {
+    captchaResolve = resolve
+    captchaReject = reject
+  })
+}
+
+function getVerificationRequest(request: SourceRequest, source: BookSourceConfig): SourceRequest {
+  return {
+    ...request,
+    headers: request.headers ? { ...request.headers } : undefined,
+    sourceId: request.sourceId || source.id,
+    sourceName: request.sourceName || source.name,
+    sourceUrl: request.sourceUrl || source.url || request.url,
+    enabledCookieJar: request.enabledCookieJar ?? source.enabledCookieJar !== false
+  }
+}
+
+function resetOnlineCaptchaDialog() {
+  onlineCaptchaDialog.open = false
+  onlineCaptchaDialog.loading = false
+  onlineCaptchaDialog.error = ''
+  onlineCaptchaDialog.sourceName = ''
+  onlineCaptchaDialog.imageUrl = ''
+  onlineCaptchaDialog.code = ''
+  onlineCaptchaDialog.request = null
+}
+
+function submitOnlineCaptcha() {
+  const code = onlineCaptchaDialog.code.trim()
+  if (!code) {
+    onlineCaptchaDialog.error = '请输入验证码'
+    return
+  }
+
+  captchaResolve?.(code)
+  captchaResolve = null
+  captchaReject = null
+  resetOnlineCaptchaDialog()
+}
+
+function cancelOnlineCaptcha() {
+  const source = bookSources.value.find((item) => item.name === onlineCaptchaDialog.sourceName)
+  const request = onlineCaptchaDialog.request
+  const error = source
+    ? new SourceVerificationError(source, request?.url || source.url || source.searchUrl, request || undefined, { mode: 'image' })
+    : new Error('已取消验证码输入')
+  captchaReject?.(error)
+  captchaResolve = null
+  captchaReject = null
+  resetOnlineCaptchaDialog()
+}
+
+async function reloadOnlineCaptcha() {
+  const request = onlineCaptchaDialog.request
+  if (!request) return
+
+  onlineCaptchaDialog.loading = true
+  onlineCaptchaDialog.error = ''
+  onlineCaptchaDialog.imageUrl = ''
+  try {
+    onlineCaptchaDialog.imageUrl = await fetchSourceDataUrl({ ...request, headers: request.headers ? { ...request.headers } : undefined })
+  } catch (error) {
+    onlineCaptchaDialog.error = error instanceof Error ? error.message : '验证码图片加载失败'
+  } finally {
+    onlineCaptchaDialog.loading = false
+    await nextTick()
+    captchaInputRef.value?.focus()
+  }
+}
+
+function clearOnlineVerification() {
+  onlineVerification.sourceId = ''
+  onlineVerification.sourceName = ''
+  onlineVerification.url = ''
+  onlineVerification.mode = 'browser'
+  onlineVerification.opened = false
+  onlineVerification.waiting = false
+  onlineVerification.message = ''
+}
+
+function setOnlineVerificationFromItem(item: OnlineVerificationItem) {
+  onlineVerification.sourceId = item.sourceId
+  onlineVerification.sourceName = item.sourceName
+  onlineVerification.url = item.url
+  onlineVerification.mode = item.mode || 'browser'
+  onlineVerification.opened = false
+  onlineVerification.waiting = false
+  onlineVerification.message =
+    item.mode === 'image'
+      ? `书源「${item.sourceName}」需要输入验证码，完成后会继续搜索该书源。`
+      : `书源「${item.sourceName}」返回了验证码或人机验证页，完成验证后可重试搜索。`
+}
+
+function setOnlineVerification(error: unknown) {
+  if (!isSourceVerificationError(error)) return false
+
+  setOnlineVerificationFromItem(createOnlineVerificationItem(error))
+  return true
+}
+
+function createOnlineVerificationItem(error: SourceVerificationError): OnlineVerificationItem {
+  return {
+    sourceId: error.sourceId,
+    sourceName: error.sourceName,
+    url: error.url,
+    mode: error.options?.mode || 'browser',
+    request: error.request
+  }
+}
+
+function setOnlineVerificationItems(errors: SourceVerificationError[]) {
+  const seen = new Set<string>()
+  onlineVerificationItems.value = errors
+    .map(createOnlineVerificationItem)
+    .filter((item) => {
+      if (seen.has(item.sourceId)) return false
+      seen.add(item.sourceId)
+      return true
+    })
+  if (onlineVerificationItems.value.length) setOnlineVerificationFromItem(onlineVerificationItems.value[0])
+}
+
+function getOnlineFailureMessage(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : ''
+  const trimmed = message.trim()
+  return trimmed ? `书源搜索规则执行失败：${trimmed}` : '书源搜索规则执行失败'
+}
+
+function createOnlineSearchFailureItem(source: BookSourceConfig, error: unknown): OnlineSearchFailureItem {
+  return {
+    sourceId: source.id,
+    sourceName: source.name,
+    message: getOnlineFailureMessage(error)
+  }
+}
+
+function setOnlineSearchFailures(items: OnlineSearchFailureItem[]) {
+  const seen = new Set<string>()
+  onlineSearchFailures.value = items.filter((item) => {
+    if (seen.has(item.sourceId)) return false
+    seen.add(item.sourceId)
+    return true
+  })
+}
+
+function removeOnlineSearchFailureItem(sourceId: string) {
+  onlineSearchFailures.value = onlineSearchFailures.value.filter((item) => item.sourceId !== sourceId)
+}
+
+function updateOnlineSearchFailureItem(item: OnlineSearchFailureItem) {
+  onlineSearchFailures.value = [
+    item,
+    ...onlineSearchFailures.value.filter((candidate) => candidate.sourceId !== item.sourceId)
+  ]
+}
+
+function removeOnlineVerificationItem(sourceId: string) {
+  onlineVerificationItems.value = onlineVerificationItems.value.filter((item) => item.sourceId !== sourceId)
+  if (onlineVerification.sourceId !== sourceId) return
+  clearOnlineVerification()
+  const next = onlineVerificationItems.value[0]
+  if (next) setOnlineVerificationFromItem(next)
+}
+
+function mergeOnlineSearchResults(results: SourceSearchResult[]) {
+  if (!results.length) return
+  const seen = new Set(onlineSearchResults.value.map((result) => result.key))
+  const next = results.filter((result) => {
+    if (seen.has(result.key)) return false
+    seen.add(result.key)
+    return true
+  })
+  if (next.length) onlineSearchResults.value = [...onlineSearchResults.value, ...next]
+}
+
+function getOnlineVerificationSource() {
+  return bookSources.value.find((source) => source.id === onlineVerification.sourceId)
+}
+
+function resolveOnlineVerificationUrl(source: BookSourceConfig) {
+  const loginUrl = getStaticSourceLoginUrl(source)
+  const fallback = source.url || source.searchUrl
+  const target =
+    onlineVerification.url ||
+    loginUrl ||
+    fallback
+
+  try {
+    return new URL(target, source.url || fallback || window.location.href).toString()
+  } catch (error) {
+    return target
+  }
+}
+
+function getSourceCookieRequest(source: BookSourceConfig, url: string): SourceRequest {
+  return {
+    url,
+    sourceId: source.id,
+    sourceName: source.name,
+    sourceUrl: source.url || url,
+    enabledCookieJar: source.enabledCookieJar !== false
+  }
+}
+
+async function searchOnlineBooks() {
+  const keyword = onlineKeyword.value.trim()
+  const sources = enabledBookSources.value
+  onlineSearchError.value = ''
+  onlineSearchResults.value = []
+  onlineVerificationItems.value = []
+  onlineSearchFailures.value = []
+  clearOnlineVerification()
+
+  if (!keyword) {
+    onlineSearchError.value = '请输入书名或作者'
+    return
+  }
+  if (!sources.length) {
+    onlineSearchError.value = '请先添加并启用书源'
+    return
+  }
+
+  isOnlineSearching.value = true
+  try {
+    const batches = await Promise.allSettled(
+      sources.map((source) => searchSourceBooks(source, keyword, fetchSourceText, deferOnlineSearchVerification))
+    )
+    const results = batches.flatMap((batch) => (batch.status === 'fulfilled' ? batch.value : []))
+    const verificationErrors: SourceVerificationError[] = []
+    const failures: OnlineSearchFailureItem[] = []
+
+    batches.forEach((batch, index) => {
+      if (batch.status !== 'rejected') return
+      if (isSourceVerificationError(batch.reason)) {
+        verificationErrors.push(batch.reason)
+        return
+      }
+      failures.push(createOnlineSearchFailureItem(sources[index], batch.reason))
+    })
+
+    const failedCount = failures.length
+    onlineSearchResults.value = results
+    setOnlineSearchFailures(failures)
+    if (verificationErrors.length) {
+      setOnlineVerificationItems(verificationErrors)
+      if (results.length) {
+        onlineSearchError.value = `${verificationErrors.length} 个书源需要先完成验证码或访问验证，已显示其他书源结果${failedCount ? `，另有 ${failedCount} 个书源失败` : ''}`
+      } else if (verificationErrors.length === batches.length) {
+        onlineSearchError.value = '搜索被验证码或访问验证拦截，请先打开验证页'
+      } else if (failedCount) {
+        onlineSearchError.value = `没有搜到书籍，${verificationErrors.length} 个书源需要先完成验证码或访问验证，部分书源请求失败`
+      } else {
+        onlineSearchError.value = `没有搜到相关书籍，${verificationErrors.length} 个书源需要先完成验证码或访问验证`
+      }
+      return
+    }
+    if (!results.length) {
+      onlineSearchError.value = failedCount ? '没有搜到书籍，部分书源请求失败' : '没有搜到相关书籍'
+    } else if (failedCount) {
+      onlineSearchError.value = `已显示可用书源结果，另有 ${failedCount} 个书源搜索失败`
+    }
+  } catch (error) {
+    onlineSearchError.value = error instanceof Error ? error.message : '搜书失败'
+  } finally {
+    isOnlineSearching.value = false
+  }
+}
+
+async function retryOnlineVerificationItem(item: OnlineVerificationItem) {
+  const source = bookSources.value.find((candidate) => candidate.id === item.sourceId)
+  const keyword = onlineKeyword.value.trim()
+  if (!source) {
+    onlineSearchError.value = '需要验证的书源不存在，请重新搜索'
+    return
+  }
+  if (!keyword) {
+    onlineSearchError.value = '请输入书名或作者'
+    return
+  }
+
+  setOnlineVerificationFromItem(item)
+  onlineSearchError.value = ''
+  let verificationCode = ''
+  try {
+    if (item.mode === 'image' && item.request) {
+      verificationCode = await openOnlineCaptchaPrompt(item.request, source)
+    }
+
+    let hasUsedVerificationCode = false
+    const verificationHandler: SourceVerificationHandler = async (request, requestSource, options = { mode: 'image' }) => {
+      if (verificationCode && options.mode === 'image' && !hasUsedVerificationCode) {
+        hasUsedVerificationCode = true
+        return verificationCode
+      }
+      return await requestOnlineVerificationCode(request, requestSource, options)
+    }
+
+    isOnlineSearching.value = true
+    const results = await searchSourceBooks(source, keyword, fetchSourceText, verificationHandler)
+    mergeOnlineSearchResults(results)
+    removeOnlineVerificationItem(item.sourceId)
+    onlineSearchError.value = results.length ? '' : `书源「${source.name}」没有搜到相关书籍`
+  } catch (error) {
+    if (isSourceVerificationError(error)) {
+      const nextItem = createOnlineVerificationItem(error)
+      onlineVerificationItems.value = [
+        nextItem,
+        ...onlineVerificationItems.value.filter((candidate) => candidate.sourceId !== nextItem.sourceId)
+      ]
+      setOnlineVerificationFromItem(nextItem)
+      onlineSearchError.value =
+        nextItem.mode === 'image'
+          ? `书源「${nextItem.sourceName}」仍需要输入验证码`
+          : `书源「${nextItem.sourceName}」仍需要先完成验证码或访问验证`
+      return
+    }
+    onlineSearchError.value = error instanceof Error ? error.message : `书源「${source.name}」重试失败`
+  } finally {
+    isOnlineSearching.value = false
+  }
+}
+
+async function retryOnlineSearchFailureItem(item: OnlineSearchFailureItem) {
+  const source = bookSources.value.find((candidate) => candidate.id === item.sourceId)
+  const keyword = onlineKeyword.value.trim()
+  if (!source) {
+    onlineSearchError.value = '搜索失败的书源不存在，请重新搜索'
+    return
+  }
+  if (!keyword) {
+    onlineSearchError.value = '请输入书名或作者'
+    return
+  }
+
+  isOnlineSearching.value = true
+  onlineSearchError.value = ''
+  try {
+    const results = await searchSourceBooks(source, keyword, fetchSourceText, requestOnlineVerificationCode)
+    mergeOnlineSearchResults(results)
+    removeOnlineSearchFailureItem(item.sourceId)
+    onlineSearchError.value = results.length ? '' : `书源「${source.name}」没有搜到相关书籍`
+  } catch (error) {
+    if (isSourceVerificationError(error)) {
+      const nextItem = createOnlineVerificationItem(error)
+      onlineVerificationItems.value = [
+        nextItem,
+        ...onlineVerificationItems.value.filter((candidate) => candidate.sourceId !== nextItem.sourceId)
+      ]
+      removeOnlineSearchFailureItem(item.sourceId)
+      setOnlineVerificationFromItem(nextItem)
+      onlineSearchError.value =
+        nextItem.mode === 'image'
+          ? `书源「${nextItem.sourceName}」需要输入验证码`
+          : `书源「${nextItem.sourceName}」需要先完成验证码或访问验证`
+      return
+    }
+
+    const failure = createOnlineSearchFailureItem(source, error)
+    updateOnlineSearchFailureItem(failure)
+    onlineSearchError.value = failure.message
+  } finally {
+    isOnlineSearching.value = false
+  }
+}
+
+function openOnlineVerificationItem(item: OnlineVerificationItem) {
+  setOnlineVerificationFromItem(item)
+  void openOnlineVerificationPage()
+}
+
+async function openOnlineVerificationPage() {
+  const source = getOnlineVerificationSource()
+  if (!source) {
+    onlineSearchError.value = '需要验证的书源不存在，请重新搜索'
+    return
+  }
+
+  const url = resolveOnlineVerificationUrl(source)
+  if (!url) {
+    onlineSearchError.value = '没有可打开的验证地址'
+    return
+  }
+
+  onlineVerification.url = url
+  onlineSearchError.value = ''
+
+  if (onlineVerificationWindow && !onlineVerificationWindow.isDestroyed?.()) {
+    onlineVerificationWindow.close?.()
+  }
+
+  try {
+    const openedInChildWindow = openOnlineVerificationChildWindow(url, source)
+    if (!openedInChildWindow) openOnlineVerificationExternal(url)
+    markOnlineVerificationOpened(source)
+  } catch (error) {
+    onlineVerification.opened = false
+    onlineVerification.message = `书源「${source.name}」验证页打开失败。`
+    onlineSearchError.value = error instanceof Error ? error.message : '验证页打开失败'
+  }
+}
+
+function openOnlineVerificationChildWindow(url: string, source: BookSourceConfig) {
+  if (!window.ztools?.createBrowserWindow) return false
+
+  const bridgeUrl = `verify.html?url=${encodeURIComponent(url)}`
+  onlineVerificationWindow = window.ztools.createBrowserWindow(bridgeUrl, {
+    width: 900,
+    height: 700,
+    show: true,
+    title: `书源验证 - ${source.name}`,
+    frame: true,
+    resizable: true,
+    movable: true,
+    minimizable: true,
+    maximizable: true,
+    fullscreenable: true,
+    skipTaskbar: false,
+    skipTaskBar: false,
+    showInTaskbar: true,
+    focusable: true,
+    acceptFirstMouse: true
+  })
+
+  if (!onlineVerificationWindow) return false
+  onlineVerificationWindow.show?.()
+  onlineVerificationWindow.focus?.()
+  onlineVerificationWindow.moveTop?.()
+  return true
+}
+
+function openOnlineVerificationExternal(url: string) {
+  if (!openExternalUrl(url)) throw new Error('验证页打开失败，请检查系统是否拦截了新窗口')
+}
+
+function openExternalUrl(url: string) {
+  if (window.ztools?.shellOpenExternal) {
+    window.ztools.shellOpenExternal(url)
+    return true
+  }
+
+  const externalWindow = window.open(url, '_blank', 'noopener,noreferrer')
+  return Boolean(externalWindow)
+}
+
+function markOnlineVerificationOpened(source: BookSourceConfig) {
+  onlineVerification.opened = true
+  onlineVerification.message = onlineVerification.waiting
+    ? `已打开「${source.name}」验证页，完成后点击继续。`
+    : `已打开「${source.name}」验证页，完成验证码后回到这里重试。`
+}
+
+async function rememberOnlineVerificationCookie() {
+  const source = getOnlineVerificationSource()
+  if (!source || !onlineVerification.url) return false
+
+  const webContents = onlineVerificationWindow?.webContents
+  const cookie = webContents?.executeJavaScript
+    ? await webContents.executeJavaScript<string>('document.cookie || ""', true).catch(() => '')
+    : ''
+
+  if (!cookie?.trim()) return false
+
+  window.services?.rememberSourceCookie?.(getSourceCookieRequest(source, onlineVerification.url), cookie)
+  return true
+}
+
+async function retryOnlineSearchAfterVerification() {
+  if (verificationResolve && verificationRequest) {
+    await continueOnlineVerification()
+    return
+  }
+
+  const remembered = await rememberOnlineVerificationCookie()
+  if (remembered) onlineVerification.message = '已保存验证 Cookie，正在重试搜索。'
+  else onlineVerification.message = '正在重试搜索；如果仍被拦截，请确认验证页已完成。'
+  await searchOnlineBooks()
+}
+
+async function handleOnlineVerificationPrimaryAction() {
+  if (onlineVerification.mode === 'image') {
+    const item = activeOnlineVerificationItem.value
+    if (item) {
+      await retryOnlineVerificationItem(item)
+      return
+    }
+  }
+
+  await retryOnlineSearchAfterVerification()
+}
+
+async function continueOnlineVerification() {
+  const request = verificationRequest
+  const resolve = verificationResolve
+  if (!request || !resolve) return
+
+  onlineVerification.message = '正在读取验证后的页面。'
+  const remembered = await rememberOnlineVerificationCookie()
+  const windowHtml = await readOnlineVerificationWindowHtml()
+
+  try {
+    const body =
+      verificationOptions?.refetchAfterSuccess === false
+        ? windowHtml
+        : await fetchSourceText({ ...request, headers: request.headers ? { ...request.headers } : undefined }).catch((error) => {
+            if (windowHtml) return windowHtml
+            throw error
+          })
+
+    verificationResolve = null
+    verificationReject = null
+    verificationRequest = null
+    verificationOptions = null
+    clearOnlineVerification()
+    resolve(body || windowHtml || '')
+    if (remembered) onlineImportStatus.value = '已保存验证 Cookie，继续解析书源。'
+  } catch (error) {
+    onlineVerification.message = error instanceof Error ? error.message : '验证后的页面读取失败'
+  }
+}
+
+async function readOnlineVerificationWindowHtml() {
+  const webContents = onlineVerificationWindow?.webContents
+  if (!webContents?.executeJavaScript) return ''
+
+  return await webContents
+    .executeJavaScript<string>('document.documentElement?.outerHTML || document.body?.innerText || ""', true)
+    .catch(() => '')
+}
+
+async function importOnlineSearchResult(result: SourceSearchResult) {
+  const source = bookSources.value.find((item) => item.id === result.sourceId)
+  if (!source) {
+    onlineSearchError.value = '书源不存在，请重新搜索'
+    return
+  }
+
+  onlineImportingKey.value = result.key
+  onlineImportStatus.value = '正在读取目录'
+  onlineSearchError.value = ''
+
+  try {
+    const loaded = await loadOnlineBook(source, result, fetchSourceText, (finished, total, title) => {
+      onlineImportStatus.value = title ? `正在读取首章：${title}` : '正在读取首章'
+    }, requestOnlineVerificationCode)
+    upsertBook(createOnlineBook(loaded.book, loaded.content, loaded.chapters), { resetProgress: true })
+    onlineImportStatus.value = `已加入书架《${loaded.book.title}》，从第一章开始`
+  } catch (error) {
+    onlineSearchError.value = error instanceof Error ? error.message : '在线书籍导入失败'
+  } finally {
+    onlineImportingKey.value = ''
+  }
+}
+
+async function openOnlineBookDetail(result: SourceSearchResult) {
+  const requestId = onlineDetailRequestId + 1
+  const source = bookSources.value.find((item) => item.id === result.sourceId)
+  onlineDetailRequestId = requestId
+  onlineDetailDialog.open = true
+  onlineDetailDialog.loading = true
+  onlineDetailDialog.error = ''
+  onlineDetailDialog.result = result
+  onlineDetailDialog.book = result
+  onlineDetailDialog.chapters = []
+
+  if (!source) {
+    onlineDetailDialog.loading = false
+    onlineDetailDialog.error = '书源不存在，请重新搜索'
+    return
+  }
+
+  try {
+    const detail = await loadOnlineBookDetail(source, result, fetchSourceText, requestOnlineVerificationCode)
+    if (onlineDetailRequestId !== requestId) return
+    onlineDetailDialog.book = detail.book
+    onlineDetailDialog.chapters = detail.chapters
+  } catch (error) {
+    if (onlineDetailRequestId !== requestId) return
+    onlineDetailDialog.error = error instanceof Error ? error.message : '书籍详情读取失败'
+  } finally {
+    if (onlineDetailRequestId === requestId) onlineDetailDialog.loading = false
+  }
+}
+
+function closeOnlineBookDetail() {
+  onlineDetailRequestId += 1
+  onlineDetailDialog.open = false
+  onlineDetailDialog.loading = false
+  onlineDetailDialog.error = ''
+}
+
+function importOnlineDetailBook() {
+  const book = onlineDetailBook.value
+  if (!book) return
+  closeOnlineBookDetail()
+  void importOnlineSearchResult(book)
+}
+
+function getBookInfoText(book: Book) {
+  const words = `${Math.ceil(book.content.length / 10000)} 万字`
+  if (book.kind === 'online') {
+    const author = book.online?.author ? `${book.online.author} · ` : ''
+    const chapter = book.online?.chapters.find((item) => item.index === book.online?.currentChapterIndex)
+    const chapterText = chapter && book.online?.chapters.length ? ` · ${chapter.index + 1}/${book.online.chapters.length}` : ''
+    return `${getBookProgressPercent(book)}% · ${author}${book.sourceName}${chapterText} · 当前章 ${words}`
+  }
+
+  return `${getBookProgressPercent(book)}% · 本地 · ${words}`
+}
+
 function isFileDrag(event: DragEvent) {
   return Array.from(event.dataTransfer?.types ?? []).includes('Files')
 }
@@ -921,16 +2136,119 @@ function updateProgressIndex(index: number) {
   persistLibrary()
 }
 
-function nextPage() {
+async function nextPage() {
   const book = activeBook.value
-  if (!book) return
-  if (currentPageSlice.value.endIndex >= book.content.length) return
-  updateProgressIndex(currentPageSlice.value.endIndex)
+  if (!book) return false
+  if (currentPageSlice.value.endIndex < book.content.length) {
+    updateProgressIndex(currentPageSlice.value.endIndex)
+    return true
+  }
+
+  if (book.kind === 'online') return loadNextOnlineChapter(book)
+  return false
 }
 
-function prevPage() {
-  if (!activeBook.value) return
-  updateProgressIndex(getPreviousPageStart(currentIndex.value, activePageStarts.value))
+function getNextOnlineChapter(book: Book) {
+  if (!book.online?.chapters.length) return null
+
+  const currentPosition = book.online.chapters.findIndex((chapter) => chapter.index === book.online?.currentChapterIndex)
+  const nextPosition = currentPosition >= 0 ? currentPosition + 1 : 0
+  return book.online.chapters[nextPosition] ?? null
+}
+
+async function loadNextOnlineChapter(book: Book) {
+  const chapter = getNextOnlineChapter(book)
+  if (!chapter) {
+    chapterLoadMessage.value = '已经是最后一章'
+    return false
+  }
+
+  return loadOnlineChapterIntoBook(book, chapter, `正在读取下一章：${chapter.title}`)
+}
+
+function getPreviousOnlineChapter(book: Book) {
+  if (!book.online?.chapters.length) return null
+
+  const currentPosition = book.online.chapters.findIndex((chapter) => chapter.index === book.online?.currentChapterIndex)
+  if (currentPosition <= 0) return null
+  return book.online.chapters[currentPosition - 1] ?? null
+}
+
+async function loadPreviousOnlineChapter(book: Book) {
+  const chapter = getPreviousOnlineChapter(book)
+  if (!chapter) {
+    chapterLoadMessage.value = '已经是第一章'
+    return false
+  }
+
+  return loadOnlineChapterIntoBook(book, chapter, `正在读取上一章：${chapter.title}`, { progress: 'end' })
+}
+
+async function loadOnlineChapterIntoBook(
+  book: Book,
+  chapter: SourceChapter,
+  message: string,
+  options: { progress?: 'start' | 'end' } = {}
+) {
+  if (!book.online) return false
+
+  const source = bookSources.value.find((item) => item.id === book.online?.sourceId)
+  if (!source) {
+    chapterLoadMessage.value = '书源不存在，请重新添加书源'
+    return false
+  }
+
+  const loadingKey = getChapterLoadingKey(book, chapter)
+  if (loadingChapterKey.value) return false
+
+  loadingChapterKey.value = loadingKey
+  chapterLoadMessage.value = message
+
+  try {
+    const content = await loadOnlineChapter(source, chapter, fetchSourceText, requestOnlineVerificationCode)
+    const target = books.value.find((item) => item.id === book.id)
+    if (!target?.online) return false
+
+    target.content = tidyContent(content)
+    target.size = target.content.length
+    target.progressIndex =
+      options.progress === 'end' ? getMaxVisualPageStart(target.content, fishLineLength.value, fishLineCount.value) : 0
+    target.updatedAt = Date.now()
+    target.online.currentChapterIndex = chapter.index
+    activeBookId.value = target.id
+    activePanel.value = 'library'
+    isReaderHidden.value = false
+    chapterLoadMessage.value = ''
+    persistLibrary()
+    return true
+  } catch (error) {
+    chapterLoadMessage.value = error instanceof Error ? error.message : '章节读取失败'
+    return false
+  } finally {
+    if (loadingChapterKey.value === loadingKey) loadingChapterKey.value = ''
+  }
+}
+
+function getChapterLoadingKey(book: Book, chapter: SourceChapter) {
+  return `${book.id}:${chapter.index}:${chapter.url || ''}`
+}
+
+function isChapterLoading(chapter: Chapter) {
+  const book = activeBook.value
+  if (!book || !chapter.sourceChapter) return false
+  return loadingChapterKey.value === getChapterLoadingKey(book, chapter.sourceChapter)
+}
+
+async function prevPage() {
+  const book = activeBook.value
+  if (!book) return false
+  if (currentIndex.value > 0) {
+    updateProgressIndex(getPreviousPageStart(currentIndex.value, activePageStarts.value))
+    return true
+  }
+
+  if (book.kind === 'online') return loadPreviousOnlineChapter(book)
+  return false
 }
 
 function jumpToIndex(index: number) {
@@ -939,17 +2257,71 @@ function jumpToIndex(index: number) {
   isReaderHidden.value = false
 }
 
+function getChapterMetaText(chapter: Chapter) {
+  const book = activeBook.value
+  if (!book) return ''
+
+  if (isChapterLoading(chapter)) return '读取中'
+  if (book.kind === 'online' && book.online) {
+    if (book.online.currentChapterIndex === chapter.index) return '当前'
+    return `${chapter.index + 1}/${book.online.chapters.length}`
+  }
+
+  return `${Math.floor(chapter.index / Math.max(1, book.content.length) * 100)}%`
+}
+
+async function jumpToChapter(chapter: Chapter) {
+  const book = activeBook.value
+  if (!book) return
+
+  if (book.kind !== 'online' || !book.online || !chapter.sourceChapter) {
+    jumpToIndex(chapter.index)
+    closeChapterDialog()
+    return
+  }
+
+  if (book.online.currentChapterIndex === chapter.index) {
+    activePanel.value = 'library'
+    isReaderHidden.value = false
+    closeChapterDialog()
+    return
+  }
+
+  const loaded = await loadOnlineChapterIntoBook(book, chapter.sourceChapter, `正在读取：${chapter.title}`)
+  if (loaded) closeChapterDialog()
+}
+
 function jumpToSearchMatch(index: number) {
   const match = searchMatches.value[index]
   if (typeof match !== 'number') return
   searchCursor.value = index
   jumpToIndex(match)
+  closeBookSearchDialog()
 }
 
 function jumpToNextSearchMatch() {
   if (!searchMatches.value.length) return
   const next = (searchCursor.value + 1) % searchMatches.value.length
   jumpToSearchMatch(next)
+}
+
+function openBookSearchDialog() {
+  if (!activeBook.value) return
+  isBookSearchDialogOpen.value = true
+  nextTick(() => searchInputRef.value?.focus())
+}
+
+function closeBookSearchDialog() {
+  isBookSearchDialogOpen.value = false
+}
+
+function openChapterDialog() {
+  if (!activeBook.value) return
+  isChapterDialogOpen.value = true
+}
+
+function closeChapterDialog() {
+  isChapterDialogOpen.value = false
 }
 
 function toggleAutoPaging() {
@@ -1317,8 +2689,8 @@ function handleWheel(event: WheelEvent) {
 
   wheelLock = true
   event.preventDefault()
-  if (event.deltaY > 0) nextPage()
-  else prevPage()
+  if (event.deltaY > 0) void nextPage()
+  else void prevPage()
 
   window.setTimeout(() => {
     wheelLock = false
@@ -1327,6 +2699,43 @@ function handleWheel(event: WheelEvent) {
 
 function handleKeydown(event: KeyboardEvent) {
   if (keyBindingCapture.value) return
+
+  if (isDisclaimerDialogOpen.value) {
+    const key = normalizeKeyboardKey(event.key)
+    if (!['Tab', 'Enter', 'Space'].includes(key)) event.preventDefault()
+    return
+  }
+
+  if (isSourceJsonDialogOpen.value && normalizeKeyboardKey(event.key) === 'Escape') {
+    event.preventDefault()
+    closeSourceJsonImportDialog()
+    return
+  }
+
+  if (isChapterDialogOpen.value && normalizeKeyboardKey(event.key) === 'Escape') {
+    event.preventDefault()
+    closeChapterDialog()
+    return
+  }
+
+  if (isBookSearchDialogOpen.value && normalizeKeyboardKey(event.key) === 'Escape') {
+    event.preventDefault()
+    closeBookSearchDialog()
+    return
+  }
+
+  if (onlineCaptchaDialog.open && normalizeKeyboardKey(event.key) === 'Escape') {
+    event.preventDefault()
+    cancelOnlineCaptcha()
+    return
+  }
+
+  if (onlineDetailDialog.open && normalizeKeyboardKey(event.key) === 'Escape') {
+    event.preventDefault()
+    closeOnlineBookDetail()
+    return
+  }
+
   if (isKeyboardShortcutTarget(event.target)) return
 
   const binding = getKeyboardEventBinding(event)
@@ -1335,13 +2744,13 @@ function handleKeydown(event: KeyboardEvent) {
 
   if (canUsePageKeyboard() && binding && binding === nextPageKey) {
     event.preventDefault()
-    nextPage()
+    void nextPage()
     return
   }
 
   if (canUsePageKeyboard() && binding && binding === prevPageKey) {
     event.preventDefault()
-    prevPage()
+    void prevPage()
     return
   }
 
@@ -1381,8 +2790,8 @@ function handleContextAction(action: 'read' | 'chapters' | 'search' | 'remove') 
   }
 
   selectBook(bookId)
-  if (action === 'chapters') activePanel.value = 'chapters'
-  if (action === 'search') activePanel.value = 'search'
+  if (action === 'chapters') openChapterDialog()
+  if (action === 'search') openBookSearchDialog()
 }
 
 function handlePluginCommand(action: ZToolsFeatureEnterAction) {
@@ -1392,8 +2801,9 @@ function handlePluginCommand(action: ZToolsFeatureEnterAction) {
     return
   }
 
-  if (action.code === 'deepread-prev-page') prevPage()
-  else if (action.code === 'deepread-next-page') nextPage()
+  if (action.code === 'deepread-search-books') activePanel.value = 'online'
+  else if (action.code === 'deepread-prev-page') void prevPage()
+  else if (action.code === 'deepread-next-page') void nextPage()
   else if (action.code === 'deepread-toggle-show') toggleHidden()
   else if (action.code === 'deepread-close') closePlugin()
   else if (action.code === 'deepread-toggle-auto') toggleAutoPaging()
@@ -1422,8 +2832,8 @@ function handleFishCommand(command: FishCommand) {
     return
   }
 
-  if (command === 'prev') prevPage()
-  else if (command === 'next') nextPage()
+  if (command === 'prev') void prevPage()
+  else if (command === 'next') void nextPage()
   else if (command === 'focus') focusFishKeyboard()
   else if (command === 'blur') blurFishKeyboard()
   else if (command === 'hide') hideFishWindow()
@@ -1444,11 +2854,17 @@ watch(
     if (!isAutoPaging.value || !activeBook.value || isReaderHidden.value) return
 
     autoTimer = window.setInterval(() => {
-      if (currentPage.value >= pageCount.value - 1) {
-        isAutoPaging.value = false
-      } else {
-        nextPage()
-      }
+      void (async () => {
+        if (isAutoPageTickRunning) return
+        isAutoPageTickRunning = true
+        try {
+          const wasAtEnd = currentPage.value >= pageCount.value - 1
+          const advanced = await nextPage()
+          if (wasAtEnd && !advanced) isAutoPaging.value = false
+        } finally {
+          isAutoPageTickRunning = false
+        }
+      })()
     }, Math.max(3, settings.autoSeconds) * 1000)
   },
   { immediate: true }
@@ -1526,6 +2942,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('click', closeContextMenu)
   offFishCommand?.()
   fishWindow?.close?.()
+  onlineVerificationWindow?.close?.()
 })
 </script>
 
@@ -1559,11 +2976,11 @@ onBeforeUnmount(() => {
         <button class="icon-button" title="书架" :class="{ active: activePanel === 'library' }" @click="revealPanel('library')">
           <Library :size="18" />
         </button>
-        <button class="icon-button" title="目录" :class="{ active: activePanel === 'chapters' }" :disabled="!activeBook" @click="revealPanel('chapters')">
-          <List :size="18" />
-        </button>
-        <button class="icon-button" title="搜索" :class="{ active: activePanel === 'search' }" :disabled="!activeBook" @click="revealPanel('search')">
+        <button class="icon-button" title="找书" :class="{ active: activePanel === 'online' }" @click="revealPanel('online')">
           <Search :size="18" />
+        </button>
+        <button class="icon-button" title="书源设置" :class="{ active: activePanel === 'sources' }" @click="revealPanel('sources')">
+          <FileText :size="18" />
         </button>
         <button class="icon-button" title="设置" :class="{ active: activePanel === 'settings' }" @click="revealPanel('settings')">
           <Settings :size="18" />
@@ -1575,10 +2992,6 @@ onBeforeUnmount(() => {
           <Pause v-if="isAutoPaging" :size="18" />
           <Play v-else :size="18" />
         </button>
-        <button class="icon-button" :title="isReaderHidden ? '显示' : '隐藏'" @click="toggleHidden">
-          <Eye v-if="isReaderHidden" :size="18" />
-          <EyeOff v-else :size="18" />
-        </button>
       </div>
     </section>
 
@@ -1587,7 +3000,10 @@ onBeforeUnmount(() => {
         <template v-if="activePanel === 'library'">
           <div class="panel-head">
             <span><Library :size="16" /> 书架</span>
-            <button class="text-button" @click="openImportDialog"><FolderOpen :size="15" /> 导入</button>
+            <div class="panel-actions">
+              <button class="text-button" @click="activePanel = 'online'"><Search :size="15" /> 找书</button>
+              <button class="text-button" @click="openImportDialog"><FolderOpen :size="15" /> 导入</button>
+            </div>
           </div>
 
           <p v-if="importError" class="error-line">{{ importError }}</p>
@@ -1599,75 +3015,277 @@ onBeforeUnmount(() => {
             </div>
             <strong>书架空空如也</strong>
             <p>“书籍是人类进步的阶梯，也是绝佳的摸鱼道具。”</p>
-            <button class="primary-button import-glow" @click="openImportDialog"><Upload :size="16" /> 导入精品小说</button>
+            <div class="empty-actions">
+              <button class="primary-button import-glow" @click="activePanel = 'online'"><Search :size="16" /> 在线找书</button>
+              <button class="text-button" @click="openImportDialog"><Upload :size="16" /> 导入本地</button>
+            </div>
           </div>
 
-          <div v-else class="book-list">
-            <article
-              v-for="book in sortedBooks"
-              :key="book.id"
-              class="book-card"
-              :class="[{ active: book.id === activeBookId }, getBookColorClass(book.title)]"
-              @click="selectBook(book.id)"
-              @contextmenu.prevent="openContextMenu(book, $event)"
-            >
-              <div class="book-cover-container">
-                <div class="book-pages-stack"></div>
-                <div class="book-cover">
-                  <div class="book-spine"></div>
-                  <div class="book-cover-glare"></div>
-                  <div class="book-cover-title">
-                    <span class="book-cover-text-vertical">{{ book.title.slice(0, 4) }}</span>
+          <div v-else class="book-sections">
+            <section v-for="section in bookSections" :key="section.key" class="book-section">
+              <div class="book-section-head">
+                <strong>{{ section.title }}</strong>
+                <small>{{ section.books.length }} 本</small>
+              </div>
+              <div class="book-list">
+                <article
+                  v-for="book in section.books"
+                  :key="book.id"
+                  class="book-card"
+                  :class="[{ active: book.id === activeBookId, online: book.kind === 'online' }, getBookColorClass(book.title)]"
+                  @click="selectBook(book.id)"
+                  @contextmenu.prevent="openContextMenu(book, $event)"
+                >
+                  <div class="book-cover-container">
+                    <div class="book-pages-stack"></div>
+                    <div class="book-cover">
+                      <div class="book-spine"></div>
+                      <div class="book-cover-glare"></div>
+                      <div class="book-cover-title">
+                        <span class="book-cover-text-vertical">{{ book.title.slice(0, 4) }}</span>
+                      </div>
+                      <div class="book-ribbon" :style="{ height: `${Math.max(15, Math.min(45, getBookProgressPercent(book)))}px` }"></div>
+                    </div>
                   </div>
-                  <div class="book-ribbon" :style="{ height: `${Math.max(15, Math.min(45, getBookProgressPercent(book)))}px` }"></div>
-                </div>
+                  <div class="book-meta">
+                    <div class="book-title-row">
+                      <strong class="book-title-text">{{ book.title }}</strong>
+                      <span class="book-kind-badge">{{ book.kind === 'online' ? '在线' : '本地' }}</span>
+                    </div>
+                    <small class="book-info-text">{{ getBookInfoText(book) }}</small>
+                    <small v-if="book.online?.latestChapter" class="book-extra-text">{{ book.online.latestChapter }}</small>
+                    <div class="progress-track">
+                      <span :style="{ width: `${getBookProgressPercent(book)}%` }"></span>
+                    </div>
+                  </div>
+                  <button class="mini-icon card-more-btn" title="更多" @click.stop="openContextMenu(book, $event)">
+                    <MoreVertical :size="16" />
+                  </button>
+                </article>
               </div>
-              <div class="book-meta">
-                <strong class="book-title-text">{{ book.title }}</strong>
-                <small class="book-info-text">{{ getBookProgressPercent(book) }}% · {{ Math.ceil(book.content.length / 10000) }} 万字</small>
-                <div class="progress-track">
-                  <span :style="{ width: `${getBookProgressPercent(book)}%` }"></span>
-                </div>
-              </div>
-              <button class="mini-icon card-more-btn" title="更多" @click.stop="openContextMenu(book, $event)">
-  <MoreVertical :size="16" />
-              </button>
-            </article>
+            </section>
           </div>
         </template>
 
-        <template v-if="activePanel === 'chapters'">
+        <template v-if="activePanel === 'online'">
           <div class="panel-head">
-            <span><List :size="16" /> 目录</span>
-            <button class="icon-button small" @click="activePanel = 'library'"><X :size="16" /></button>
+            <span><Search :size="16" /> 找书</span>
+            <div class="panel-actions">
+              <button class="text-button" @click="activePanel = 'sources'"><FileText :size="15" /> 书源设置</button>
+              <button class="icon-button small" @click="activePanel = 'library'"><X :size="16" /></button>
+            </div>
           </div>
-          <div class="chapter-list">
-            <button
-              v-for="chapter in chapters"
-              :key="`${chapter.index}-${chapter.title}`"
-              :class="{ active: currentChapter?.index === chapter.index }"
-              @click="jumpToIndex(chapter.index)"
-            >
-              <span>{{ chapter.title }}</span>
-              <small>{{ Math.floor(chapter.index / Math.max(1, activeBook?.content.length ?? 1) * 100) }}%</small>
-            </button>
+
+          <div class="online-panel">
+            <section class="online-search-pane">
+              <div class="settings-section-head">
+                <strong>在线搜索</strong>
+                <small>{{ enabledBookSources.length }} 个书源 · {{ onlineSearchResults.length }} 条结果</small>
+              </div>
+              <div v-if="!enabledBookSources.length" class="online-search-empty">
+                <strong>还没有可用书源</strong>
+                <button class="primary-button" @click="activePanel = 'sources'"><FileText :size="15" /> 添加书源</button>
+              </div>
+              <div class="search-box online-search-box">
+                <input v-model.trim="onlineKeyword" placeholder="书名或作者" @keydown.enter="searchOnlineBooks" />
+                <button class="primary-button" :disabled="isOnlineSearching" @click="searchOnlineBooks">
+                  {{ isOnlineSearching ? '搜索中' : '搜书' }}
+                </button>
+              </div>
+              <p v-if="onlineSearchError" class="error-line">{{ onlineSearchError }}</p>
+              <p v-if="onlineImportStatus" class="status-line">{{ onlineImportStatus }}</p>
+              <div v-if="onlineVerification.sourceId && !onlineVerificationItems.length" class="verification-box">
+                <div class="verification-copy">
+                  <strong><Info :size="15" /> {{ onlineVerification.sourceName }}</strong>
+                  <p>{{ onlineVerification.message }}</p>
+                </div>
+                <div class="verification-actions">
+                  <button v-if="onlineVerification.mode !== 'image'" class="text-button" @click="openOnlineVerificationPage">
+                    <Eye :size="15" />
+                    打开验证页
+                  </button>
+                  <button
+                    class="primary-button"
+                    :disabled="isOnlineSearching && !onlineVerification.waiting"
+                    @click="handleOnlineVerificationPrimaryAction"
+                  >
+                    <RotateCcw :size="15" />
+                    {{
+                      onlineVerification.mode === 'image'
+                        ? isOnlineSearching
+                          ? '重试中'
+                          : '输入验证码'
+                        : onlineVerification.waiting
+                          ? '验证完成，继续'
+                          : isOnlineSearching
+                            ? '重试中'
+                            : '验证完成，重试搜索'
+                    }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="online-result-list">
+                <article
+                  v-for="item in onlineVerificationItems"
+                  :key="`verify:${item.sourceId}`"
+                  class="online-result online-result-verification"
+                >
+                  <div class="online-result-content">
+                    <strong>{{ item.sourceName }}</strong>
+                    <small>{{ item.mode === 'image' ? '需要输入验证码' : '需要访问验证' }}</small>
+                    <p>
+                      {{
+                        item.mode === 'image'
+                          ? '该书源需要验证码，输入后只重试这个书源。'
+                          : '该书源需要完成站点验证，其他书源结果不受影响。'
+                      }}
+                    </p>
+                  </div>
+                  <div class="online-result-actions">
+                    <button
+                      v-if="item.mode === 'image'"
+                      class="primary-button"
+                      :disabled="isOnlineSearching"
+                      @click="retryOnlineVerificationItem(item)"
+                    >
+                      <Info :size="15" />
+                      输入验证码
+                    </button>
+                    <button
+                      v-else
+                      class="text-button"
+                      :disabled="isOnlineSearching"
+                      @click="openOnlineVerificationItem(item)"
+                    >
+                      <Eye :size="15" />
+                      打开验证页
+                    </button>
+                    <button
+                      v-if="item.mode !== 'image'"
+                      class="text-button"
+                      :disabled="isOnlineSearching"
+                      @click="retryOnlineVerificationItem(item)"
+                    >
+                      <RotateCcw :size="15" />
+                      重试此源
+                    </button>
+                  </div>
+                </article>
+                <article
+                  v-for="item in onlineSearchFailures"
+                  :key="`failure:${item.sourceId}`"
+                  class="online-result online-result-failure"
+                >
+                  <div class="online-result-content">
+                    <strong>{{ item.sourceName }}</strong>
+                    <small>搜索失败</small>
+                    <p>{{ item.message }}</p>
+                  </div>
+                  <div class="online-result-actions">
+                    <button
+                      class="text-button"
+                      :disabled="isOnlineSearching"
+                      @click="retryOnlineSearchFailureItem(item)"
+                    >
+                      <RotateCcw :size="15" />
+                      重试此源
+                    </button>
+                  </div>
+                </article>
+                <article v-for="result in onlineSearchResults" :key="result.key" class="online-result">
+                  <div class="online-result-content">
+                    <strong>{{ result.title }}</strong>
+                    <small>{{ result.author || '佚名' }} · {{ result.sourceName }}</small>
+                    <p v-if="result.intro">{{ result.intro }}</p>
+                    <em v-if="result.latestChapter">{{ result.latestChapter }}</em>
+                  </div>
+                  <div class="online-result-actions">
+                    <button
+                      class="primary-button"
+                      :disabled="Boolean(onlineImportingKey)"
+                      @click="importOnlineSearchResult(result)"
+                    >
+                      <Library :size="15" />
+                      {{ onlineImportingKey === result.key ? '加入中' : '加入书架' }}
+                    </button>
+                    <button
+                      class="text-button"
+                      :disabled="onlineDetailDialog.loading && onlineDetailDialog.result?.key === result.key"
+                      @click="openOnlineBookDetail(result)"
+                    >
+                      <Info :size="15" />
+                      {{ onlineDetailDialog.loading && onlineDetailDialog.result?.key === result.key ? '读取中' : '详情' }}
+                    </button>
+                  </div>
+                </article>
+                <p v-if="!onlineSearchResults.length && !onlineSearchError && !isOnlineSearching" class="online-result-empty">
+                  {{ onlineKeyword ? '暂无搜索结果' : '输入书名或作者开始搜索' }}
+                </p>
+              </div>
+            </section>
           </div>
         </template>
 
-        <template v-if="activePanel === 'search'">
+        <template v-if="activePanel === 'sources'">
           <div class="panel-head">
-            <span><Search :size="16" /> 搜索</span>
-            <button class="icon-button small" @click="activePanel = 'library'"><X :size="16" /></button>
+            <span><FileText :size="16" /> 书源设置</span>
+            <div class="panel-actions">
+              <button class="text-button" @click="activePanel = 'online'"><Search :size="15" /> 找书</button>
+              <button class="icon-button small" @click="activePanel = 'library'"><X :size="16" /></button>
+            </div>
           </div>
-          <div class="search-box">
-            <input v-model.trim="searchText" placeholder="关键字" @keydown.enter="jumpToNextSearchMatch" />
-            <button class="primary-button" :disabled="!searchMatches.length" @click="jumpToNextSearchMatch">跳转</button>
-          </div>
-          <div class="search-list">
-            <button v-for="(match, index) in searchMatches" :key="match" @click="jumpToSearchMatch(index)">
-              <strong>{{ index + 1 }}</strong>
-              <span>{{ activeBook?.content.slice(Math.max(0, match - 16), match + searchText.length + 38) }}</span>
-            </button>
+
+          <div class="source-settings-panel">
+            <section class="source-editor">
+              <div class="settings-section-head">
+                <strong>书源</strong>
+                <small>{{ enabledBookSources.length }}/{{ bookSources.length }} 启用</small>
+              </div>
+              <div class="source-url-box">
+                <button
+                  class="text-button"
+                  :disabled="isClipboardImporting || isSourceUrlImporting"
+                  @click="importSourceFromClipboard"
+                >
+                  <ClipboardPaste :size="15" />
+                  {{ isClipboardImporting ? '读取中' : '剪切板导入' }}
+                </button>
+                <input
+                  v-model.trim="sourceUrlText"
+                  type="url"
+                  placeholder="输入书源 URL"
+                  @keydown.enter="importSourceUrl"
+                />
+                <button class="primary-button" :disabled="isSourceUrlImporting" @click="importSourceUrl">
+                  <Upload :size="15" />
+                  {{ isSourceUrlImporting ? '导入中' : '导入链接' }}
+                </button>
+                <button class="text-button" @click="openSourceJsonImportDialog">
+                  <FileText :size="15" />
+                  JSON 导入
+                </button>
+              </div>
+              <div v-if="sourceMessage && !isSourceJsonDialogOpen" class="source-toolbar">
+                <span class="source-message">{{ sourceMessage }}</span>
+              </div>
+              <div v-if="bookSources.length" class="source-list">
+                <div v-for="source in bookSources" :key="source.id" class="source-row">
+                  <button
+                    class="source-toggle"
+                    :class="{ active: source.enabled }"
+                    type="button"
+                    @click="toggleBookSource(source.id)"
+                  >
+                    {{ source.enabled ? '启用' : '停用' }}
+                  </button>
+                  <span>{{ source.name }}</span>
+                  <button class="mini-icon" title="删除书源" @click="removeBookSource(source.id)">
+                    <Trash2 :size="14" />
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
         </template>
 
@@ -1754,7 +3372,7 @@ onBeforeUnmount(() => {
                 <output>{{ settings.letterSpacing.toFixed(1) }}</output>
               </label>
               <label class="range-row">
-                <span>透明度</span>
+                <span>窗口透明度</span>
                 <input v-model.number="settings.opacity" type="range" min="0" max="100" />
                 <output>{{ settings.opacity }}%</output>
               </label>
@@ -1826,6 +3444,235 @@ onBeforeUnmount(() => {
       <button @click="handleContextAction('chapters')"><List :size="15" /> 章节跳转</button>
       <button @click="handleContextAction('search')"><Search :size="15" /> 搜索跳转</button>
       <button class="danger" @click="handleContextAction('remove')"><Trash2 :size="15" /> 移除</button>
+    </div>
+
+    <div v-if="isSourceJsonDialogOpen" class="detail-backdrop source-json-backdrop" @click.self="closeSourceJsonImportDialog">
+      <section class="source-json-dialog" role="dialog" aria-modal="true" aria-labelledby="source-json-title">
+        <header class="book-detail-head">
+          <span id="source-json-title"><FileText :size="16" /> JSON 导入</span>
+          <button class="icon-button small" title="关闭" @click="closeSourceJsonImportDialog"><X :size="16" /></button>
+        </header>
+
+        <div class="source-json-body">
+          <textarea
+            ref="sourceJsonTextareaRef"
+            v-model="sourceEditorText"
+            spellcheck="false"
+            placeholder="粘贴阅读 APP 书源 JSON，可为单个书源对象或书源数组"
+          ></textarea>
+          <p v-if="sourceMessage" class="source-message">{{ sourceMessage }}</p>
+        </div>
+
+        <footer class="book-detail-actions">
+          <button class="text-button" @click="closeSourceJsonImportDialog">取消</button>
+          <button class="primary-button" @click="saveSourceEditor">
+            <Upload :size="15" />
+            导入 JSON
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="isChapterDialogOpen" class="detail-backdrop chapter-backdrop" @click.self="closeChapterDialog">
+      <section class="book-search-dialog chapter-dialog" role="dialog" aria-modal="true" aria-labelledby="chapter-dialog-title">
+        <header class="book-detail-head">
+          <span id="chapter-dialog-title"><List :size="16" /> 目录</span>
+          <button class="icon-button small" title="关闭" @click="closeChapterDialog"><X :size="16" /></button>
+        </header>
+
+        <div class="book-search-body chapter-dialog-body">
+          <div class="book-search-meta">
+            <small>{{ activeBookLabel }}</small>
+            <small>{{ chapters.length }} 章</small>
+          </div>
+          <p class="status-line chapter-status" :class="{ empty: !chapterLoadMessage }">
+            {{ chapterLoadMessage || ' ' }}
+          </p>
+          <div class="chapter-list chapter-dialog-list">
+            <button
+              v-for="chapter in chapters"
+              :key="`${chapter.index}-${chapter.title}`"
+              :class="{ active: currentChapter?.index === chapter.index }"
+              :disabled="Boolean(loadingChapterKey)"
+              @click="jumpToChapter(chapter)"
+            >
+              <span>{{ chapter.title }}</span>
+              <small>{{ getChapterMetaText(chapter) }}</small>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="isBookSearchDialogOpen" class="detail-backdrop book-search-backdrop" @click.self="closeBookSearchDialog">
+      <section class="book-search-dialog" role="dialog" aria-modal="true" aria-labelledby="book-search-title">
+        <header class="book-detail-head">
+          <span id="book-search-title"><Search :size="16" /> 书内搜索</span>
+          <button class="icon-button small" title="关闭" @click="closeBookSearchDialog"><X :size="16" /></button>
+        </header>
+
+        <div class="book-search-body">
+          <div class="search-box book-search-box">
+            <input
+              ref="searchInputRef"
+              v-model.trim="searchText"
+              placeholder="关键字"
+              @keydown.enter="jumpToNextSearchMatch"
+            />
+            <button class="primary-button" :disabled="!searchMatches.length" @click="jumpToNextSearchMatch">跳转</button>
+          </div>
+
+          <div class="book-search-meta">
+            <small>{{ activeBookLabel }}</small>
+            <small>{{ searchMatches.length }} 处</small>
+          </div>
+
+          <div class="search-list book-search-list">
+            <button v-for="(match, index) in searchMatches" :key="match" @click="jumpToSearchMatch(index)">
+              <strong>{{ index + 1 }}</strong>
+              <span>{{ activeBook?.content.slice(Math.max(0, match - 16), match + searchText.length + 38) }}</span>
+            </button>
+            <p v-if="searchText && !searchMatches.length" class="book-detail-empty">没有匹配</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="onlineCaptchaDialog.open" class="detail-backdrop captcha-backdrop" @click.self="cancelOnlineCaptcha">
+      <section class="captcha-dialog" role="dialog" aria-modal="true" aria-labelledby="online-captcha-title">
+        <header class="book-detail-head">
+          <span id="online-captcha-title"><Info :size="16" /> 验证码</span>
+          <button class="icon-button small" title="关闭" @click="cancelOnlineCaptcha"><X :size="16" /></button>
+        </header>
+
+        <div class="captcha-body">
+          <div class="captcha-meta">
+            <strong>{{ onlineCaptchaDialog.sourceName }}</strong>
+            <small>{{ onlineCaptchaDialog.loading ? '正在加载' : '请输入图片内容' }}</small>
+          </div>
+
+          <div class="captcha-image-box">
+            <img v-if="onlineCaptchaDialog.imageUrl" :src="onlineCaptchaDialog.imageUrl" alt="验证码" />
+            <span v-else>{{ onlineCaptchaDialog.loading ? '加载中' : '无法显示' }}</span>
+          </div>
+
+          <input
+            ref="captchaInputRef"
+            v-model.trim="onlineCaptchaDialog.code"
+            class="captcha-input"
+            type="text"
+            autocomplete="off"
+            inputmode="text"
+            placeholder="验证码"
+            @keydown.enter="submitOnlineCaptcha"
+          />
+          <p v-if="onlineCaptchaDialog.error" class="error-line captcha-error">{{ onlineCaptchaDialog.error }}</p>
+        </div>
+
+        <footer class="book-detail-actions">
+          <button class="text-button" :disabled="onlineCaptchaDialog.loading" @click="reloadOnlineCaptcha">
+            <RotateCcw :size="15" />
+            换一张
+          </button>
+          <button class="primary-button" :disabled="onlineCaptchaDialog.loading" @click="submitOnlineCaptcha">提交</button>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="onlineDetailDialog.open" class="detail-backdrop" @click.self="closeOnlineBookDetail">
+      <section class="book-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="online-book-detail-title">
+        <header class="book-detail-head">
+          <span><Info :size="16" /> 书籍详情</span>
+          <button class="icon-button small" title="关闭" @click="closeOnlineBookDetail"><X :size="16" /></button>
+        </header>
+
+        <div v-if="onlineDetailBook" class="book-detail-body">
+          <div class="book-detail-summary">
+            <div class="book-detail-cover">
+              <img v-if="onlineDetailBook.coverUrl" :src="onlineDetailBook.coverUrl" :alt="onlineDetailBook.title" />
+              <BookOpen v-else :size="34" />
+            </div>
+            <div class="book-detail-main">
+              <h2 id="online-book-detail-title">{{ onlineDetailBook.title }}</h2>
+              <p>{{ onlineDetailBook.author || '佚名' }} · {{ onlineDetailBook.sourceName }}</p>
+              <span v-if="onlineDetailBook.latestChapter">{{ onlineDetailBook.latestChapter }}</span>
+            </div>
+          </div>
+
+          <p v-if="onlineDetailDialog.loading" class="status-line detail-status">正在读取详情和目录</p>
+          <p v-if="onlineDetailDialog.error" class="error-line detail-error">{{ onlineDetailDialog.error }}</p>
+
+          <section v-if="onlineDetailBook.intro" class="book-detail-section">
+            <strong>简介</strong>
+            <p>{{ onlineDetailBook.intro }}</p>
+          </section>
+
+          <section class="book-detail-section">
+            <div class="book-detail-section-head">
+              <strong>目录</strong>
+              <small>{{ onlineDetailDialog.chapters.length ? `${onlineDetailDialog.chapters.length} 章` : '暂无目录' }}</small>
+            </div>
+            <ol v-if="onlineDetailChapterPreview.length" class="book-detail-chapters" aria-label="章节目录">
+              <li v-for="chapter in onlineDetailChapterPreview" :key="`${chapter.index}-${chapter.url}-${chapter.title}`">
+                <span class="book-detail-chapter-index">{{ chapter.index + 1 }}</span>
+                <span class="book-detail-chapter-title">{{ chapter.title }}</span>
+              </li>
+            </ol>
+            <p v-else class="book-detail-empty">暂无章节目录</p>
+          </section>
+        </div>
+
+        <footer class="book-detail-actions">
+          <button class="text-button" @click="closeOnlineBookDetail">关闭</button>
+          <button class="primary-button" :disabled="!onlineDetailBook || Boolean(onlineImportingKey)" @click="importOnlineDetailBook">
+            <Library :size="15" />
+            {{ onlineImportingKey === onlineDetailBook?.key ? '加入中' : '加入书架' }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="isDisclaimerDialogOpen" class="detail-backdrop disclaimer-backdrop">
+      <section class="disclaimer-dialog" role="alertdialog" aria-modal="true" aria-labelledby="disclaimer-title">
+        <header class="book-detail-head">
+          <span id="disclaimer-title"><Info :size="16" /> 使用免责声明</span>
+        </header>
+
+        <div class="disclaimer-body">
+          <p class="disclaimer-lead">
+            DeepRead 深读只提供本地阅读和用户自定义书源解析能力。插件本身不提供、不托管、不上传、不分发任何第三方作品、书籍内容或书源。
+          </p>
+
+          <section class="disclaimer-section">
+            <strong>你需要确认</strong>
+            <ul>
+              <li>只导入你拥有合法权利、已获授权，或法律允许使用的本地文件、书源和作品内容。</li>
+              <li>自行判断书源、搜索结果、章节内容的来源和版权状态。</li>
+              <li>自行承担因导入、搜索、保存、阅读或传播相关内容产生的责任。</li>
+            </ul>
+          </section>
+
+          <section class="disclaimer-section">
+            <strong>请不要这样使用</strong>
+            <ul>
+              <li>获取、保存、分享或传播未授权的作品内容。</li>
+              <li>绕过付费、登录、验证码、访问控制或其他技术保护措施。</li>
+              <li>在发现书源或内容可能侵权后继续使用或传播。</li>
+            </ul>
+          </section>
+
+          <p class="disclaimer-confirm">
+            点击“同意并继续使用”即表示你已理解以上内容，并承诺合法、合规使用本插件。
+          </p>
+        </div>
+
+        <footer class="book-detail-actions">
+          <button ref="disclaimerAcceptButtonRef" class="primary-button disclaimer-accept-button" @click="acceptDisclaimer">
+            <Info :size="15" />
+            同意并继续使用
+          </button>
+        </footer>
+      </section>
     </div>
   </main>
 </template>

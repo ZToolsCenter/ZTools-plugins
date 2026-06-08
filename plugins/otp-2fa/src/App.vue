@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, defineAsyncComponent } from 'vue'
 import { getOTP, base32tohex } from './utils/otp'
 import { useAuth } from './composables/useAuth'
 import { useAccounts } from './composables/useAccounts'
 import { useTicker } from './composables/useTicker'
 import { useDataManagement } from './composables/useDataManagement'
 
-// Components
+// Components (AccountCard is always needed; Modals are async, loaded on first use)
 import AccountCard from './components/AccountCard.vue'
-import VerifyAuthModal from './components/Modals/VerifyAuthModal.vue'
-import SetPasswordModal from './components/Modals/SetPasswordModal.vue'
-import SettingsModal from './components/Modals/SettingsModal.vue'
-import EditModal from './components/Modals/EditModal.vue'
-import ConfirmModal from './components/Modals/ConfirmModal.vue'
-import ImportDataModal from './components/Modals/ImportDataModal.vue'
-import ChangePasswordModal from './components/Modals/ChangePasswordModal.vue'
+const VerifyAuthModal = defineAsyncComponent(() => import('./components/Modals/VerifyAuthModal.vue'))
+const SetPasswordModal = defineAsyncComponent(() => import('./components/Modals/SetPasswordModal.vue'))
+const SettingsModal = defineAsyncComponent(() => import('./components/Modals/SettingsModal.vue'))
+const EditModal = defineAsyncComponent(() => import('./components/Modals/EditModal.vue'))
+const ConfirmModal = defineAsyncComponent(() => import('./components/Modals/ConfirmModal.vue'))
+const ImportDataModal = defineAsyncComponent(() => import('./components/Modals/ImportDataModal.vue'))
+const ChangePasswordModal = defineAsyncComponent(() => import('./components/Modals/ChangePasswordModal.vue'))
 import { STORAGE_KEY, CONFIG_KEY, DEFAULT_PINYIN_SCHEME } from './constants'
-import { matchesPinyinCached, buildPinyinCache, type PinyinScheme, type PinyinCache } from './utils/pinyin'
+import { matchesPinyinCached, type PinyinScheme, type PinyinCache } from './utils/pinyin-schemes'
 
 // --- Composables Initialization ---
 const {
@@ -52,14 +52,18 @@ const searchQuery = ref('')
 const pinyinCacheMap = ref<Map<string, PinyinCache>>(new Map())
 watch(
   () => accounts.value.map(a => a.id + '|' + a.name),
-  () => {
+  async (newVal, oldVal, onCleanup) => {
+    let active = true
+    onCleanup(() => { active = false })
+    const snapshot = [...accounts.value]
+    const { buildPinyinCache } = await import('./utils/pinyin')
+    if (!active) return
     const newMap = new Map<string, PinyinCache>()
-    for (const acc of accounts.value) {
+    for (const acc of snapshot) {
       newMap.set(acc.id, buildPinyinCache(acc.name))
     }
     pinyinCacheMap.value = newMap
-  },
-  { immediate: true }
+  }
 )
 
 // filteredAccounts 携带真实索引，避免模板中 indexOf 的 O(N²) 开销
@@ -120,6 +124,19 @@ const showExportConfirmModal = ref(false)
 const exportCountdown = ref(0)
 const exportCountdownTimer = ref<any>(null)
 
+// Idle detection (前台空闲自动关闭)
+const IDLE_TIMEOUT = 3 * 60 * 1000
+const IDLE_COUNTDOWN_SEC = 15
+const IDLE_CHECK_INTERVAL = 5000
+const IDLE_EXTEND_FACTOR = 2
+const lastInteractionTime = ref(Date.now())
+const idleThreshold = ref(IDLE_TIMEOUT)
+const isInBackground = ref(false)
+const showIdleModal = ref(false)
+const idleCountdown = ref(0)
+let idleCountdownTimer: any = null
+let idleCheckTimer: any = null
+
 const showChangePasswordModal = ref(false)
 const changePwdCurrentError = ref('')
 const changePwdNewError = ref('')
@@ -132,6 +149,57 @@ const dragIndex = ref<number | null>(null)
 const isDragging = ref(false)
 const deleteCountdown = ref(0)
 let deleteTimer: any = null
+
+// --- Idle Detection ---
+const resetIdleTimer = () => {
+  lastInteractionTime.value = Date.now()
+  if (showIdleModal.value) {
+    showIdleModal.value = false
+    if (idleCountdownTimer) { clearInterval(idleCountdownTimer); idleCountdownTimer = null }
+  }
+}
+
+const startIdleCheck = () => {
+  stopIdleCheck()
+  idleCheckTimer = setInterval(() => {
+    if (showIdleModal.value) return
+    if (Date.now() - lastInteractionTime.value > idleThreshold.value) {
+      if (isInBackground.value) {
+        // 后台无操作直接关闭，不弹窗
+        stopIdleCheck()
+        ;(window as any).ztools?.outPlugin?.(true)
+      } else {
+        // 前台弹倒计时警告
+        showIdleModal.value = true
+        idleCountdown.value = IDLE_COUNTDOWN_SEC
+        idleCountdownTimer = setInterval(() => {
+          idleCountdown.value--
+          if (idleCountdown.value <= 0) {
+            clearInterval(idleCountdownTimer); idleCountdownTimer = null
+            stopIdleCheck()
+            ;(window as any).ztools?.outPlugin?.(true)
+          }
+        }, 1000)
+      }
+    }
+  }, IDLE_CHECK_INTERVAL)
+}
+
+const stopIdleCheck = () => {
+  if (idleCheckTimer) { clearInterval(idleCheckTimer); idleCheckTimer = null }
+  if (idleCountdownTimer) { clearInterval(idleCountdownTimer); idleCountdownTimer = null }
+}
+
+const handleIdleContinue = () => {
+  showIdleModal.value = false
+  if (idleCountdownTimer) { clearInterval(idleCountdownTimer); idleCountdownTimer = null }
+  idleThreshold.value *= IDLE_EXTEND_FACTOR
+  lastInteractionTime.value = Date.now()
+}
+
+const handleIdleClose = () => {
+  ;(window as any).ztools?.outPlugin?.(true)
+}
 
 // --- Core Logic Integration ---
 const initialize = async () => {
@@ -157,15 +225,14 @@ const initialize = async () => {
   })
   startTicker(accounts)
   window.addEventListener('click', hideContextMenu)
+  window.addEventListener('click', resetIdleTimer)
+  window.addEventListener('keydown', resetIdleTimer)
   setupSubInput()
-
-  let killTimer: any = null
+  startIdleCheck()
 
   if (z?.onPluginEnter) {
     z.onPluginEnter(async () => {
-      // 中途打开，取消待执行的 kill
-      if (killTimer) { clearTimeout(killTimer); killTimer = null }
-
+      isInBackground.value = false
       searchQuery.value = ''
       z?.setSubInputValue?.('')
 
@@ -175,13 +242,23 @@ const initialize = async () => {
         onShowVerify: () => {}, // 自动模式不弹窗
         onTokensUpdate: () => updateTokens(accounts.value)
       })
+
+      // 回到前台，重置空闲检测
+      resetIdleTimer()
+      idleThreshold.value = IDLE_TIMEOUT
+      startIdleCheck()
     })
   }
 
   if (z?.onPluginOut) {
     z.onPluginOut(() => {
-      // 退出后 3 分钟内未打开则结束进程释放内存
-      killTimer = setTimeout(() => { z.outPlugin(true) }, 3 * 60 * 1000)
+      isInBackground.value = true
+      showIdleModal.value = false
+      if (idleCountdownTimer) {
+        clearInterval(idleCountdownTimer)
+        idleCountdownTimer = null
+      }
+      // 空闲检测继续运行：后台超时直接关闭，不弹窗
     })
   }
 }
@@ -530,7 +607,14 @@ watch(() => modalForm.value.secret, (newVal) => {
 })
 
 onMounted(initialize)
-onUnmounted(() => { stopTicker(); window.removeEventListener('click', hideContextMenu); clearAuthData() })
+onUnmounted(() => {
+  stopTicker()
+  window.removeEventListener('click', hideContextMenu)
+  window.removeEventListener('click', resetIdleTimer)
+  window.removeEventListener('keydown', resetIdleTimer)
+  stopIdleCheck()
+  clearAuthData()
+})
 </script>
 
 <template>
@@ -684,6 +768,24 @@ onUnmounted(() => { stopTicker(); window.removeEventListener('click', hideContex
       @confirm="confirmExport"
       @cancel="showExportConfirmModal = false"
     />
+
+    <!-- Idle Warning Modal -->
+    <transition name="modal-fade">
+      <div class="modal-overlay" v-if="showIdleModal">
+        <div class="modal-content modal-delete">
+          <h3 class="modal-title">即将关闭插件</h3>
+          <p class="modal-tip dark bold">检测到长时间未操作，将在 {{ idleCountdown }} 秒后自动关闭</p>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" @click="handleIdleClose">
+              <span class="btn-text">关闭插件</span>
+            </button>
+            <button class="btn btn-primary" @click="handleIdleContinue">
+              <span class="btn-text">继续使用</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
 
     <!-- About Modal -->
     <transition name="modal-fade">

@@ -18,9 +18,26 @@ declare global {
 
   type DeepReadFishCommand = string | { type?: string; width?: number; height?: number; x?: number; y?: number }
 
+  type DeepReadSourceRequest = {
+    url: string
+    method?: string
+    headers?: Record<string, string>
+    body?: string
+    sourceId?: string
+    sourceName?: string
+    sourceUrl?: string
+    enabledCookieJar?: boolean
+    responseUrl?: string
+  }
+
   type DeepReadServices = {
     readFile(filePath: string): string
+    readClipboardText?(): string
     onFishCommand?(handler: (command: DeepReadFishCommand) => void): () => void
+    fetchText?(request: DeepReadSourceRequest): Promise<string>
+    fetchDataUrl?(request: DeepReadSourceRequest): Promise<string>
+    rememberSourceCookie?(request: DeepReadSourceRequest, cookie: string): void
+    clearSourceCookie?(request: DeepReadSourceRequest): void
     readTextFile(filePath: string): {
       name: string
       path: string
@@ -44,6 +61,7 @@ declare global {
       showNotification?: (message: string, featureName?: string) => void
       hideMainWindow?: () => void
       outPlugin?: (isKill?: boolean) => boolean
+      shellOpenExternal?: (url: string) => void
       setExpendHeight?: (height: number) => boolean
       resizeWindow?: (width: number, height: number) => boolean
       createBrowserWindow?: (url: string, options: Record<string, unknown>, callback?: () => void) => {

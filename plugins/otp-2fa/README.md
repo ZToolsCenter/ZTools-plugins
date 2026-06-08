@@ -48,6 +48,11 @@
 - **安全导入**：支持的数据一键导入，成功后自动覆盖本地数据并设定新主密码。
 - **修改主密码**：支持修改主密码，修改后所有账户密钥同步重新加密。
 
+### 7. 资源管理
+
+- **按需加载**：弹窗组件和拼音库在首次使用时异步加载，不占用启动时间。
+- **空闲关闭**：前台或后台无操作 3 分钟后自动关闭进程，释放系统资源。
+
 ## 使用说明
 
 ### 基本操作
@@ -65,32 +70,40 @@
 ```text
 .
 ├── public/
-│   ├── logo.png                         # 插件图标
-│   ├── plugin.json                      # 插件配置文件
-│   └── services.js                      # Preload 脚本
+│   ├── logo.png                          # 插件图标
+│   ├── plugin.json                       # 插件配置文件
+│   └── services.js                       # Preload 脚本
 ├── src/
-│   ├── components/                      # UI 组件库
-│   │   ├── Modals/                      # 模态框组件
-│   │   │   ├── ChangePasswordModal.vue  # 修改主密码弹窗
-│   │   │   ├── ImportDataModal.vue      # 导入数据弹窗
-│   │   │   └── ...                      # 其他模态框组件
-│   │   └── AccountCard.vue              # 账号条目核心组件
-│   ├── composables/                     # 逻辑层
-│   │   ├── useAccounts.ts               # 账户增删改查与解密
-│   │   ├── useAuth.ts                   # 身份验证、密钥派生及主密码修改
-│   │   ├── useDataManagement.ts         # 数据导出与导入
-│   │   └── useTicker.ts                 # 高精度计时器与令牌更新
-│   ├── utils/                           # 工具函数
-│   │   ├── crypto.ts                    # 加密与安全存储集成
-│   │   ├── otp.ts                       # OTP 核心算法实现
-│   │   └── pinyin.ts                    # 拼音搜索与双拼转换
-│   ├── App.vue                          # 插件主入口
-│   ├── constants.ts                     # 全局常量定义
-│   ├── main.css                         # 全局样式系统
-│   └── main.ts                          # 项目启动引导
-├── README.md                            # 项目说明文档
-├── vite.config.js                       # Vite 构建配置
-└── tsconfig.json                        # TypeScript 类型配置
+│   ├── components/                       # UI 组件库
+│   │   ├── Modals/                       # 模态框组件
+│   │   │   ├── ChangePasswordModal.vue   # 修改主密码
+│   │   │   ├── ConfirmModal.vue          # 通用确认（含倒计时）
+│   │   │   ├── EditModal.vue             # 添加/编辑账号
+│   │   │   ├── ImportDataModal.vue       # 导入数据
+│   │   │   ├── SetPasswordModal.vue      # 设置主密码
+│   │   │   ├── SettingsModal.vue         # 插件设置
+│   │   │   └── VerifyAuthModal.vue       # 身份验证
+│   │   └── AccountCard.vue               # 账号条目核心组件
+│   ├── composables/                      # 逻辑层
+│   │   ├── useAccounts.ts                # 账户增删改查与解密
+│   │   ├── useAuth.ts                    # 身份验证、密钥派生及主密码修改
+│   │   ├── useDataManagement.ts          # 数据导出与导入
+│   │   └── useTicker.ts                  # 高精度计时器与令牌更新
+│   ├── utils/                            # 工具函数
+│   │   ├── crypto.ts                     # 加密与安全存储集成
+│   │   ├── otp.ts                        # OTP 核心算法实现
+│   │   ├── pinyin-schemes.ts             # 拼音方案常量与轻量匹配函数
+│   │   └── pinyin.ts                     # 拼音搜索与双拼转换（由 App.vue 按需加载）
+│   ├── App.vue                           # 插件主入口
+│   ├── constants.ts                      # 全局常量定义
+│   ├── main.css                          # 全局样式系统
+│   └── main.ts                           # 项目启动引导
+├── index.html                            # 应用入口
+├── package.json                          # 项目配置
+├── README.md                             # 项目说明文档
+├── vite.config.js                        # Vite 构建配置
+├── tsconfig.json                         # TypeScript 类型配置
+└── .gitignore                            # 版本忽略规则
 ```
 
 ## 快速开发
@@ -114,6 +127,14 @@ npm run build
 ```
 
 ## 更新日志
+
+### v1.3.0
+
+- **启动加速**：首屏 JS 体积从 412 KB 降至 110 KB，启动时间缩短约 60%。
+- **按需加载**：所有弹窗组件和拼音库改为异步加载，首次打开时按需下载。
+- **空闲关闭**：前台或后台无操作 3 分钟后自动关闭插件，释放系统资源。
+- **分包优化**：`pinyin-pro` 独立拆分为异步 chunk，不混入首屏 vendor 包。
+- **删除占位文字**：移除启动加载提示文字。
 
 ### v1.2.1
 

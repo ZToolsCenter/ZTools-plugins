@@ -1,1 +1,87 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Saladict</title><script src="../webextensions-emulator-master/dist/background.js"></script><meta name="viewport" content="width=device-width,initial-scale=1"><link href="./assets/audio-control.8c2ee2d3.css" rel="stylesheet"></head><body><div id="root"></div><script src="./assets/runtime.4097fa5f.js"></script><script src="./assets/view-vendor.13bec606.js"></script><script src="./assets/24.3213c019.js"></script><script src="./assets/audio-control.272bd884.js"></script></body></html>
+<html lang="en"><head><script>
+(function(){
+  var _pAxios=null;
+  try{_pAxios=window.parent&&window.parent.axios}catch(e){}
+  if(_pAxios){window.axios=_pAxios;console.log('[iframe-proxy] axios from parent OK')}
+  else{console.log('[iframe-proxy] WARNING: no parent axios')}
+
+  // === XMLHttpRequest prototype patch ===
+  if(_pAxios){
+    var _oOpen=XMLHttpRequest.prototype.open;
+    var _oSend=XMLHttpRequest.prototype.send;
+    var _oSetH=XMLHttpRequest.prototype.setRequestHeader;
+    XMLHttpRequest.prototype.open=function(m,u,a){this.__m=m;this.__u=u;this.__h={};return _oOpen.apply(this,arguments)};
+    XMLHttpRequest.prototype.setRequestHeader=function(n,v){if(this.__h)this.__h[n]=v;return _oSetH.apply(this,arguments)};
+    XMLHttpRequest.prototype.send=function(b){
+      var u=this.__u;
+      if(!u||(!u.startsWith('http://')&&!u.startsWith('https://'))){return _oSend.apply(this,arguments)}
+      var s=this,m=(s.__m||'GET').toUpperCase(),h=Object.assign({},s.__h||{});
+      console.log('[iframe-xhr]',m,u);
+      var c={url:u,method:m,headers:h,responseType:'text',withCredentials:s.withCredentials};
+      if(b&&!['GET','HEAD'].includes(m)){c.data=typeof b==='object'?(b.toString?b.toString():JSON.stringify(b)):b}
+      _pAxios(c).then(function(r){
+        var t=typeof r.data==='object'?JSON.stringify(r.data):String(r.data);
+        try{Object.defineProperty(s,'status',{writable:true,value:r.status})}catch(e){}
+        try{Object.defineProperty(s,'statusText',{writable:true,value:r.statusText})}catch(e){}
+        try{Object.defineProperty(s,'readyState',{writable:true,value:4})}catch(e){}
+        try{Object.defineProperty(s,'responseText',{writable:true,value:t})}catch(e){}
+        try{Object.defineProperty(s,'response',{writable:true,value:t})}catch(e){}
+        s.__rh=r.headers||{};s.__rhs=Object.keys(s.__rh).map(function(k){return k+': '+s.__rh[k]}).join('\r\n');
+        console.log('[iframe-xhr] OK',r.status,u);
+        var e1=new Event('readystatechange'),e2=new Event('load');
+        if(s.onreadystatechange)s.onreadystatechange(e1);if(s.onload)s.onload(e2);
+        s.dispatchEvent(e1);s.dispatchEvent(e2);
+      }).catch(function(e){
+        try{Object.defineProperty(s,'readyState',{writable:true,value:4})}catch(x){}
+        if(e.response){try{Object.defineProperty(s,'status',{writable:true,value:e.response.status})}catch(x){}try{Object.defineProperty(s,'statusText',{writable:true,value:e.response.statusText})}catch(x){}var t=typeof e.response.data==='object'?JSON.stringify(e.response.data):String(e.response.data);try{Object.defineProperty(s,'responseText',{writable:true,value:t})}catch(x){}try{Object.defineProperty(s,'response',{writable:true,value:t})}catch(x){}}
+        else{try{Object.defineProperty(s,'status',{writable:true,value:0})}catch(x){}try{Object.defineProperty(s,'statusText',{writable:true,value:e.message||'Error'})}catch(x){}}
+        console.log('[iframe-xhr] ERR',s.status,u);
+        var er=new ProgressEvent('error');if(s.onerror)s.onerror(er);s.dispatchEvent(er);
+      });
+    };
+    var _oGRH=XMLHttpRequest.prototype.getResponseHeader;
+    XMLHttpRequest.prototype.getResponseHeader=function(n){if(this.__rh){return this.__rh[n]||this.__rh[n.toLowerCase()]||null}return _oGRH.apply(this,arguments)};
+    var _oGARH=XMLHttpRequest.prototype.getAllResponseHeaders;
+    XMLHttpRequest.prototype.getAllResponseHeaders=function(){if(this.__rhs!==undefined)return this.__rhs;return _oGARH.apply(this,arguments)};
+    console.log('[iframe-proxy] XHR prototype patched');
+  }
+
+  // === fetch proxy ===
+  var _oFetch=window.fetch;
+  window.fetch=function(input,init){
+    var url=typeof input==='string'?input:input.url;
+    if(!url||(!url.startsWith('http://')&&!url.startsWith('https://'))){return _oFetch.call(this,input,init)}
+    var p=_pAxios;if(!p)return _oFetch.call(this,input,init);
+    var m=((init&&init.method)||'GET').toUpperCase(),h={};
+    if(init&&init.headers){if(init.headers instanceof Headers)init.headers.forEach(function(v,k){h[k]=v});else if(typeof init.headers==='object')Object.assign(h,init.headers)}
+    var c={url:url,method:m,headers:h,responseType:'text',withCredentials:init&&(init.credentials==='include'||init.credentials==='same-origin')};
+    if(init&&init.body&&!['GET','HEAD'].includes(m)){if(typeof init.body==='string')c.data=init.body;else if(init.body instanceof URLSearchParams){c.data=init.body.toString();c.headers['Content-Type']=c.headers['Content-Type']||'application/x-www-form-urlencoded'}else c.data=init.body}
+    return p(c).then(function(r){var b=typeof r.data==='object'?JSON.stringify(r.data):String(r.data);return new Response(b,{status:r.status,statusText:r.statusText,headers:new Headers(r.headers)})}).catch(function(e){if(e.response){var b=typeof e.response.data==='object'?JSON.stringify(e.response.data):String(e.response.data);return new Response(b,{status:e.response.status,statusText:e.response.statusText,headers:new Headers(e.response.headers)})}return Promise.reject(e)});
+  };
+  console.log('[iframe-proxy] fetch patched');
+
+  // === postMessage 搜索词监听 ===
+  // 接收父窗口发来的搜索词，设置搜索框并触发搜索
+  window.addEventListener('message', function(evt) {
+    if (!evt.data || evt.data.type !== 'saladict-search') return;
+    var text = evt.data.text;
+    if (!text) return;
+    console.log('[iframe-proxy] received search:', text);
+    // 等待搜索框出现（React 渲染需要时间）
+    function trySetSearch(attempt) {
+      var searchBox = document.querySelector('.menuBar-SearchBox');
+      if (searchBox) {
+        var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        nativeSetter.call(searchBox, text);
+        searchBox.dispatchEvent(new Event('input', { bubbles: true }));
+        searchBox.dispatchEvent(new Event('change', { bubbles: true }));
+        searchBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+        console.log('[iframe-proxy] search box set:', text);
+      } else if (attempt < 20) {
+        setTimeout(function() { trySetSearch(attempt + 1); }, 100);
+      }
+    }
+    trySetSearch(0);
+  });
+})();
+</script><meta charset="utf-8"><title>Saladict</title><script src="../webextensions-emulator-master/dist/background.js"></script><meta name="viewport" content="width=device-width,initial-scale=1"><link href="./assets/audio-control.917f4576.css" rel="stylesheet"><script src="./assets/100.853b5fbf.js"></script><script src="./assets/101.fed14e06.js"></script><script src="./assets/102.26f6911b.js"></script><script src="./assets/103.fedf68ea.js"></script><script src="./assets/104.5d5bfc82.js"></script><script src="./assets/105.757b1b8a.js"></script><script src="./assets/106.3827b5e4.js"></script><script src="./assets/107.b5cd70fd.js"></script><script src="./assets/108.895d59a6.js"></script><script src="./assets/109.affb7432.js"></script><script src="./assets/110.c2cd6bf3.js"></script><script src="./assets/111.81921728.js"></script><script src="./assets/112.a17600ab.js"></script><script src="./assets/113.dffb2dda.js"></script><script src="./assets/114.e245b2b5.js"></script><script src="./assets/115.49b36566.js"></script><script src="./assets/116.252b0515.js"></script><script src="./assets/117.88a00360.js"></script><script src="./assets/118.3da51d76.js"></script><script src="./assets/119.5a66ec96.js"></script><script src="./assets/120.42b7a63d.js"></script><script src="./assets/121.e4996da1.js"></script><script src="./assets/24.a422a39c.js"></script><script src="./assets/25.a8c83970.js"></script><script src="./assets/26.59deaa63.js"></script><script src="./assets/27.5af28182.js"></script><script src="./assets/28.62a8aeee.js"></script><script src="./assets/29.8db1ad61.js"></script><script src="./assets/30.47228a8d.js"></script><script src="./assets/31.3a18975c.js"></script><script src="./assets/32.449cf52a.js"></script><script src="./assets/33.c5396e7f.js"></script><script src="./assets/34.8fa3a051.js"></script><script src="./assets/35.0fda0bbf.js"></script><script src="./assets/36.f8aea283.js"></script><script src="./assets/37.e3d5bbda.js"></script><script src="./assets/38.2609f2de.js"></script><script src="./assets/39.3109a593.js"></script><script src="./assets/40.8fa73e3e.js"></script><script src="./assets/41.86acb9ec.js"></script><script src="./assets/42.52eea75e.js"></script><script src="./assets/43.a53c8a7a.js"></script><script src="./assets/44.acd80835.js"></script><script src="./assets/45.6be3eb26.js"></script><script src="./assets/46.6f868c12.js"></script><script src="./assets/47.10c376dd.js"></script><script src="./assets/48.d0f97d77.js"></script><script src="./assets/49.62499274.js"></script><script src="./assets/50.70d5a499.js"></script><script src="./assets/51.95a0815e.js"></script><script src="./assets/52.2f401b35.js"></script><script src="./assets/53.8c72c393.js"></script><script src="./assets/54.3b65a080.js"></script><script src="./assets/55.131fe516.js"></script><script src="./assets/56.28b02f1a.js"></script><script src="./assets/57.c4911697.js"></script><script src="./assets/58.676be8df.js"></script><script src="./assets/59.c1e7915e.js"></script><script src="./assets/60.00eab917.js"></script><script src="./assets/61.f5d51745.js"></script><script src="./assets/62.4e97d030.js"></script><script src="./assets/63.a1c9d928.js"></script><script src="./assets/64.e449702c.js"></script><script src="./assets/65.429dd05a.js"></script><script src="./assets/66.14366e41.js"></script><script src="./assets/67.892127bb.js"></script><script src="./assets/68.7af03c0b.js"></script><script src="./assets/69.64d974c8.js"></script><script src="./assets/70.7c495b28.js"></script><script src="./assets/71.4947e076.js"></script><script src="./assets/72.1bdaebf6.js"></script><script src="./assets/73.3b240d59.js"></script><script src="./assets/74.cfb8ad17.js"></script><script src="./assets/75.104b4abf.js"></script><script src="./assets/76.938fcf99.js"></script><script src="./assets/77.b8bc812c.js"></script><script src="./assets/78.871ca4c9.js"></script><script src="./assets/79.0e0906f2.js"></script><script src="./assets/80.d415c673.js"></script><script src="./assets/81.bfbb06f2.js"></script><script src="./assets/82.10f86278.js"></script><script src="./assets/83.7059cda4.js"></script><script src="./assets/84.6a6c0803.js"></script><script src="./assets/85.447974b9.js"></script><script src="./assets/86.1b2e5d83.js"></script><script src="./assets/87.5418b798.js"></script><script src="./assets/88.46460202.js"></script><script src="./assets/89.b3a872e7.js"></script><script src="./assets/90.ec8b66ab.js"></script><script src="./assets/91.4392148d.js"></script><script src="./assets/92.8b315a95.js"></script><script src="./assets/93.4e7c8d39.js"></script><script src="./assets/94.8145a6f6.js"></script><script src="./assets/95.a811d8f0.js"></script><script src="./assets/96.34b2002e.js"></script><script src="./assets/97.0ea8a103.js"></script><script src="./assets/98.4748d3cf.js"></script><script src="./assets/99.938527be.js"></script><script src="./assets/franc.36a29920.js"></script></head><body><div id="root"></div><script src="./assets/runtime.b7b0095b.js"></script><script src="./assets/view-vendor.a4d88efd.js"></script><script src="./assets/22.aba35291.js"></script><script src="./assets/audio-control.c2446ee5.js"></script></body></html>

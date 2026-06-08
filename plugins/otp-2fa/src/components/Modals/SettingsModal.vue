@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PINYIN_SCHEMES } from '../../utils/pinyin'
+import { PINYIN_SCHEMES } from '../../utils/pinyin-schemes'
 
 const props = defineProps<{
   show: boolean,

@@ -27,5 +27,14 @@ export default defineConfig({
       polyfill: false
     },
     assetsInlineLimit: 4096,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('pinyin-pro')) {
+            return 'pinyin-pro'
+          }
+        }
+      }
+    },
   }
 })

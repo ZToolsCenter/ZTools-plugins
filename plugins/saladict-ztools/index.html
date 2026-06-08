@@ -49,6 +49,47 @@
       console.error('[saladict] Unhandled rejection:', e.reason);
     });
   </script>
+  <script>
+    // fetch 代理：将 HTTP 请求转发到 window.axios（Node.js 网络，绕过 CORS）
+    // 必须在 core.js 之前执行，确保 background 脚本加载时 fetch 已被代理
+    (function() {
+      var _origFetch = window.fetch;
+      window.fetch = function(input, init) {
+        var url = typeof input === 'string' ? input : (input && input.url);
+        if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+          return _origFetch.call(this, input, init);
+        }
+        var pAxios = window.axios;
+        if (!pAxios) { return _origFetch.call(this, input, init); }
+        var method = ((init && init.method) || 'GET').toUpperCase();
+        var headers = {};
+        if (init && init.headers) {
+          if (init.headers instanceof Headers) { init.headers.forEach(function(v, k) { headers[k] = v; }); }
+          else if (typeof init.headers === 'object') { Object.assign(headers, init.headers); }
+        }
+        var cfg = { url: url, method: method, headers: headers, responseType: 'text',
+          withCredentials: init && (init.credentials === 'include' || init.credentials === 'same-origin') };
+        if (init && init.body && !['GET','HEAD'].includes(method)) {
+          if (typeof init.body === 'string') { cfg.data = init.body; }
+          else if (init.body instanceof URLSearchParams) { cfg.data = init.body.toString(); cfg.headers['Content-Type'] = cfg.headers['Content-Type'] || 'application/x-www-form-urlencoded'; }
+          else if (typeof init.body === 'object') { cfg.data = init.body; }
+        }
+        console.log('[fetch-proxy]', method, url);
+        return pAxios(cfg).then(function(r) {
+          var body = typeof r.data === 'object' ? JSON.stringify(r.data) : String(r.data);
+          console.log('[fetch-proxy] OK', r.status, url);
+          return new Response(body, { status: r.status, statusText: r.statusText, headers: new Headers(r.headers) });
+        }).catch(function(e) {
+          console.log('[fetch-proxy] ERR', e.message, url);
+          if (e.response) {
+            var body = typeof e.response.data === 'object' ? JSON.stringify(e.response.data) : String(e.response.data);
+            return new Response(body, { status: e.response.status, statusText: e.response.statusText, headers: new Headers(e.response.headers) });
+          }
+          return Promise.reject(e);
+        });
+      };
+    })();
+  </script>
   <script src="webextensions-emulator-master/dist/core.js"></script>
   <script>
     console.log('[saladict] core.js loaded, browser available:', typeof window.browser !== 'undefined');

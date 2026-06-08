@@ -5,7 +5,7 @@
   "description": "图片批量处理插件，支持压缩、格式转换、加水印、圆角、补边、裁剪、旋转、翻转，以及合并为 PDF、图片和 GIF。",
   "author": "readerc",
   "homepage": "https://github.com/ReaderC",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "license": "MIT",
   "main": "index.html",
   "logo": "logo.png",
@@ -18,6 +18,7 @@
       "explain": "批量处理图片并输出处理结果",
       "icon": "logo.png",
       "cmds": [
+        "图片批处理",
         {
           "type": "img",
           "label": "图片批量处理"

@@ -64,4 +64,68 @@ axios.interceptors.response.use(
 
 window.axios = axios;
 window.tough = tough;
+
+// 拦截 window.fetch，让请求走 Node.js 网络（绕过 CORS 限制）
+// v7.21 大量词典引擎直接使用 fetch 而非 axios，在 Electron 渲染进程中受 CORS 限制
+const _originalFetch = window.fetch;
+window.fetch = function(input, init = {}) {
+  const requestUrl = typeof input === 'string' ? input : input.url;
+  const requestInit = typeof input === 'string' ? init : input;
+
+  // 只拦截 http/https 请求，其他（如 chrome-extension://、blob: 等）走原始 fetch
+  if (!requestUrl || (!requestUrl.startsWith('http://') && !requestUrl.startsWith('https://'))) {
+    return _originalFetch.call(this, input, init);
+  }
+
+  // 将 fetch 请求转为 axios 请求（走 Node.js http adapter，不受 CORS 限制）
+  const method = (requestInit.method || 'GET').toUpperCase();
+  const headers = {};
+  if (requestInit.headers) {
+    if (requestInit.headers instanceof Headers) {
+      requestInit.headers.forEach((v, k) => { headers[k] = v; });
+    } else if (typeof requestInit.headers === 'object') {
+      Object.assign(headers, requestInit.headers);
+    }
+  }
+
+  const axiosConfig = {
+    url: requestUrl,
+    method: method,
+    headers: headers,
+    responseType: 'text',
+    withCredentials: requestInit.credentials === 'include' || requestInit.credentials === 'same-origin',
+  };
+
+  if (requestInit.body && !['GET', 'HEAD'].includes(method)) {
+    if (typeof requestInit.body === 'string') {
+      axiosConfig.data = requestInit.body;
+    } else if (requestInit.body instanceof URLSearchParams) {
+      axiosConfig.data = requestInit.body.toString();
+      axiosConfig.headers['Content-Type'] = axiosConfig.headers['Content-Type'] || 'application/x-www-form-urlencoded';
+    } else if (typeof requestInit.body === 'object') {
+      axiosConfig.data = requestInit.body;
+    }
+  }
+
+  return axios(axiosConfig).then(response => {
+    // 返回 Response 对象，兼容 fetch API
+    const responseBody = typeof response.data === 'object' ? JSON.stringify(response.data) : String(response.data);
+    return new Response(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: new Headers(response.headers),
+    });
+  }).catch(error => {
+    if (error.response) {
+      const responseBody = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : String(error.response.data);
+      return new Response(responseBody, {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        headers: new Headers(error.response.headers),
+      });
+    }
+    return Promise.reject(error);
+  });
+};
+
 window.navigator.product === "NativeScript";
