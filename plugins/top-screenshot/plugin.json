@@ -3,6 +3,7 @@
   "title": "截图置顶",
   "description": "框选屏幕区域并原地置顶显示截图",
   "version": "0.1.0",
+  "author": "Timi",
   "main": "dist/index.html",
   "logo": "assets/logo.png",
   "preload": "dist/preload.cjs",
