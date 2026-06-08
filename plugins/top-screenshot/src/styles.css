@@ -1,0 +1,132 @@
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+}
+
+body {
+  background: transparent;
+}
+
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  color: #e5e7eb;
+  background: #111827;
+}
+
+.capture-view {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  cursor: crosshair;
+  -webkit-user-select: none;
+  user-select: none;
+  background: transparent;
+}
+
+.capture-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+}
+
+.capture-view::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.24), rgba(2, 6, 23, 0.46)),
+    rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+
+.selection-box {
+  position: absolute;
+  z-index: 1;
+  border: 1px solid rgba(14, 165, 233, 0.95);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.85) inset,
+    0 0 18px rgba(14, 165, 233, 0.7);
+}
+
+.selection-box::before,
+.selection-box::after {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-color: #e0f2fe;
+  content: "";
+}
+
+.selection-box::before {
+  top: -3px;
+  left: -3px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.selection-box::after {
+  right: -3px;
+  bottom: -3px;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+}
+
+.capture-error {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: #f9fafb;
+  background: #020617;
+}
+
+.pin-window {
+  display: inline-flex;
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  padding: 3px;
+  align-items: center;
+  justify-content: center;
+  -webkit-user-select: none;
+  user-select: none;
+  background: transparent;
+}
+
+.pin-frame {
+  border: 1px solid rgba(14, 165, 233, 0.85);
+  border-radius: 4px;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.pin-image {
+  display: block;
+  border: 0;
+  cursor: inherit;
+  object-fit: fill;
+}
+
+.pin-window:active .pin-frame {
+  cursor: grabbing;
+}
+
+.pin-window-empty {
+  display: grid;
+  place-items: center;
+  color: #f9fafb;
+  background: rgba(17, 24, 39, 0.92);
+}
