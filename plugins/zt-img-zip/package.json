@@ -1,7 +1,7 @@
 {
   "name": "zt-img-zip",
-  "version": "0.1.2",
-  "description": "ZTools image compression and format conversion plugin powered by sharp.",
+  "version": "0.1.3",
+  "description": "ZTools image compression and format conversion plugin powered by browser canvas.",
   "type": "module",
   "engines": {
     "node": ">=18.17.0"
@@ -16,7 +16,6 @@
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "sharp": "^0.34.5",
     "vite": "6.4.2"
   },
   "devDependencies": {

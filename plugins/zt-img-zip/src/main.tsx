@@ -26,9 +26,9 @@ const formatOptions: Array<{ value: OutputFormat; label: string; hint: string }>
   { value: "jpeg", label: "JPEG", hint: "照片优先" },
   { value: "png", label: "PNG", hint: "透明图" },
   { value: "webp", label: "WebP", hint: "小体积" },
-  { value: "avif", label: "AVIF", hint: "高压缩" },
-  { value: "tiff", label: "TIFF", hint: "归档" },
 ];
+const supportedInputPattern = /\.(jpe?g|png|webp|avif)$/i;
+const supportedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes)) {
@@ -128,7 +128,7 @@ function App() {
   }
 
   async function appendFiles(files: FileList | File[]) {
-    const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/") || /\.(jpe?g|png|webp|avif|tiff?)$/i.test(file.name));
+    const imageFiles = Array.from(files).filter((file) => supportedMimeTypes.has(file.type) || supportedInputPattern.test(file.name));
     if (imageFiles.length === 0) {
       return;
     }
@@ -141,7 +141,7 @@ function App() {
       filters: [
         {
           name: "Images",
-          extensions: ["jpg", "jpeg", "png", "webp", "avif", "tif", "tiff"],
+          extensions: ["jpg", "jpeg", "png", "webp", "avif"],
         },
       ],
     });
@@ -264,7 +264,7 @@ function App() {
       filters: [
         {
           name: "Image",
-          extensions: ["jpg", "jpeg", "png", "webp", "avif", "tif", "tiff"],
+          extensions: ["jpg", "jpeg", "png", "webp"],
         },
       ],
     });

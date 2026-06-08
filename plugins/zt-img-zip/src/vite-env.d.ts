@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImageZipOptions {
-  format: "original" | "jpeg" | "png" | "webp" | "avif" | "tiff";
+  format: "original" | "jpeg" | "png" | "webp";
   quality: number;
   maxWidth: number;
   maxHeight: number;

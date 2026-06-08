@@ -1,4 +1,4 @@
-const IMAGE_ZIP_PRELOAD_VERSION = "0.1.2";
+const IMAGE_ZIP_PRELOAD_VERSION = "0.1.3";
 
 if (typeof window !== "undefined") {
   window.imageZipPreloadLoaded = true;
@@ -9,43 +9,65 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 const { ipcRenderer } = require("electron");
-let sharpInstance = null;
 
-function getSharp() {
-  if (!sharpInstance) {
-    sharpInstance = require("sharp");
-  }
-  return sharpInstance;
-}
-
-const supportedFormats = new Set(["jpeg", "jpg", "png", "webp", "avif", "tiff", "tif"]);
-const outputFormats = new Set(["jpeg", "png", "webp", "avif", "tiff"]);
+const supportedFormats = new Set(["jpeg", "jpg", "png", "webp", "avif"]);
+const outputFormats = new Set(["jpeg", "png", "webp"]);
+const mimeByFormat = {
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  avif: "image/avif",
+};
 
 function normalizeFormat(format) {
   if (!format || format === "original") {
     return "original";
   }
-  const normalized = String(format).toLowerCase();
-  if (normalized === "jpg") {
-    return "jpeg";
-  }
+  const normalized = normalizeInputFormat(format);
   if (!outputFormats.has(normalized)) {
-    throw new Error(`不支持的输出格式: ${format}`);
+    throw new Error(`当前版本不支持输出 ${format}，请改用 JPEG、PNG 或 WebP`);
   }
   return normalized;
 }
 
 function normalizeInputFormat(format) {
-  if (format === "jpg") {
+  if (!format) {
+    throw new Error("不支持的图片格式: 未知");
+  }
+  const normalized = String(format).toLowerCase();
+  if (normalized === "jpg") {
     return "jpeg";
   }
-  if (format === "tif") {
-    return "tiff";
+  if (!supportedFormats.has(normalized)) {
+    throw new Error(`不支持的图片格式: ${format}`);
   }
-  if (!format || !supportedFormats.has(format)) {
-    throw new Error(`不支持的图片格式: ${format || "未知"}`);
+  return normalized;
+}
+
+function detectInputFormat(buffer, fileName) {
+  if (buffer.length >= 12) {
+    if (buffer[0] === 0xff && buffer[1] === 0xd8) {
+      return "jpeg";
+    }
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+      return "png";
+    }
+    if (buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") {
+      return "webp";
+    }
+    if (buffer.toString("ascii", 4, 8) === "ftyp") {
+      const brand = buffer.toString("ascii", 8, 16);
+      if (/avif|avis|mif1|heic/.test(brand)) {
+        return "avif";
+      }
+    }
   }
-  return format;
+
+  const extension = path.extname(fileName || "").slice(1).toLowerCase();
+  if (extension === "tif" || extension === "tiff") {
+    throw new Error("当前版本不支持 TIFF，请先转换为 JPEG、PNG 或 WebP");
+  }
+  return normalizeInputFormat(extension);
 }
 
 function ensureParentDir(filePath) {
@@ -55,6 +77,10 @@ function ensureParentDir(filePath) {
 function replaceExtension(filePath, format) {
   const parsed = path.parse(filePath);
   return path.join(parsed.dir, `${parsed.name}.${format}`);
+}
+
+function getDefaultOutputDir() {
+  return path.join(os.tmpdir(), "zt-img-zip");
 }
 
 function getOutputPath(inputPath, outputDir, format, suffix, explicitOutputPath) {
@@ -80,27 +106,132 @@ function getOutputPathForName(inputName, outputDir, format, suffix, explicitOutp
   return path.join(targetDir, `${safeName}${suffix}.${format}`);
 }
 
-function applyFormatPipeline(pipeline, format, quality, pngPalette) {
-  if (format === "jpeg") {
-    return pipeline.jpeg({ quality, mozjpeg: true });
+function resolveOutputFormat(targetFormat, inputFormat) {
+  const outputFormat = targetFormat === "original" ? inputFormat : targetFormat;
+  if (!outputFormats.has(outputFormat)) {
+    throw new Error(`当前运行环境不支持输出 ${outputFormat}，请改用 JPEG、PNG 或 WebP`);
   }
-  if (format === "png") {
-    return pipeline.png({
-      quality,
-      compressionLevel: 9,
-      palette: pngPalette,
+  return outputFormat;
+}
+
+function getCanvasSize(width, height, maxWidth, maxHeight) {
+  const widthLimit = Number(maxWidth || 0);
+  const heightLimit = Number(maxHeight || 0);
+  if (widthLimit <= 0 && heightLimit <= 0) {
+    return { width, height };
+  }
+
+  const widthScale = widthLimit > 0 ? widthLimit / width : 1;
+  const heightScale = heightLimit > 0 ? heightLimit / height : 1;
+  const scale = Math.min(1, widthScale, heightScale);
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+function createCanvas(width, height) {
+  if (typeof document === "undefined") {
+    throw new Error("当前 ZTools 运行环境缺少 Canvas，无法处理图片");
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+
+async function decodeImage(buffer, format) {
+  const mimeType = mimeByFormat[format] || "application/octet-stream";
+  const blob = new Blob([buffer], { type: mimeType });
+
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(blob);
+    return {
+      image: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      close: () => bitmap.close(),
+    };
+  }
+
+  if (typeof Image === "undefined" || typeof URL === "undefined") {
+    throw new Error("当前 ZTools 运行环境缺少图片解码能力");
+  }
+
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("图片解码失败"));
+      element.src = objectUrl;
     });
+    return {
+      image,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      close: () => {},
+    };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
   }
-  if (format === "webp") {
-    return pipeline.webp({ quality, effort: 5 });
+}
+
+async function canvasToBuffer(canvas, format, quality) {
+  const mimeType = mimeByFormat[format];
+  if (!mimeType) {
+    throw new Error(`不支持的输出格式: ${format}`);
   }
-  if (format === "avif") {
-    return pipeline.avif({ quality, effort: 5 });
+
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (result) => {
+        if (result) {
+          resolve(result);
+        } else {
+          reject(new Error(`当前运行环境不支持输出 ${format}`));
+        }
+      },
+      mimeType,
+      format === "png" ? undefined : quality / 100,
+    );
+  });
+
+  return Buffer.from(await blob.arrayBuffer());
+}
+
+async function renderImage(buffer, inputFormat, outputFormat, options) {
+  const decoded = await decodeImage(buffer, inputFormat);
+  try {
+    const size = getCanvasSize(decoded.width, decoded.height, options.maxWidth, options.maxHeight);
+    const canvas = createCanvas(size.width, size.height);
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("Canvas 初始化失败");
+    }
+    if (outputFormat === "jpeg") {
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, size.width, size.height);
+    }
+    context.drawImage(decoded.image, 0, 0, size.width, size.height);
+    return canvasToBuffer(canvas, outputFormat, options.quality);
+  } finally {
+    decoded.close();
   }
-  if (format === "tiff") {
-    return pipeline.tiff({ quality, compression: "jpeg" });
-  }
-  return pipeline;
+}
+
+async function writeConvertedImage(inputName, buffer, options = {}) {
+  const inputFormat = detectInputFormat(buffer, inputName);
+  const targetFormat = normalizeFormat(options.format);
+  const outputFormat = resolveOutputFormat(targetFormat, inputFormat);
+  const quality = Math.min(100, Math.max(1, Number(options.quality || 78)));
+  const outputBuffer = await renderImage(buffer, inputFormat, outputFormat, {
+    quality,
+    maxWidth: Number(options.maxWidth || 0),
+    maxHeight: Number(options.maxHeight || 0),
+  });
+
+  return { inputFormat, outputFormat, outputBuffer };
 }
 
 async function compressImage(filePath, options = {}) {
@@ -108,13 +239,8 @@ async function compressImage(filePath, options = {}) {
     throw new Error("缺少图片路径");
   }
 
-  const metadata = await getSharp()(filePath, { animated: true, failOn: "none" }).metadata();
-  const inputFormat = normalizeInputFormat(metadata.format);
-  const targetFormat = normalizeFormat(options.format);
-  const outputFormat = targetFormat === "original" ? inputFormat : targetFormat;
-  const quality = Math.min(100, Math.max(1, Number(options.quality || 78)));
-  const maxWidth = Number(options.maxWidth || 0);
-  const maxHeight = Number(options.maxHeight || 0);
+  const inputBuffer = fs.readFileSync(filePath);
+  const { inputFormat, outputFormat, outputBuffer } = await writeConvertedImage(filePath, inputBuffer, options);
   const suffix = options.suffix || "-compressed";
   const overwriteOriginal = Boolean(options.overwriteOriginal);
   const outputPath = overwriteOriginal
@@ -123,22 +249,9 @@ async function compressImage(filePath, options = {}) {
   const tempOutputPath = overwriteOriginal ? `${outputPath}.zt-img-zip-tmp-${Date.now()}` : outputPath;
   const originalSize = fs.statSync(filePath).size;
 
-  let pipeline = getSharp()(filePath, {
-    animated: true,
-    failOn: "none",
-  }).rotate();
-
-  if (maxWidth > 0 || maxHeight > 0) {
-    pipeline = pipeline.resize({
-      width: maxWidth > 0 ? maxWidth : undefined,
-      height: maxHeight > 0 ? maxHeight : undefined,
-      fit: "inside",
-      withoutEnlargement: true,
-    });
-  }
-
   try {
-    await applyFormatPipeline(pipeline, outputFormat, quality, Boolean(options.pngPalette)).toFile(tempOutputPath);
+    ensureParentDir(tempOutputPath);
+    fs.writeFileSync(tempOutputPath, outputBuffer);
     if (overwriteOriginal) {
       fs.renameSync(tempOutputPath, outputPath);
       if (path.resolve(outputPath) !== path.resolve(filePath) && fs.existsSync(filePath)) {
@@ -155,8 +268,8 @@ async function compressImage(filePath, options = {}) {
     }
     throw error;
   }
-  const outputSize = fs.statSync(outputPath).size;
 
+  const outputSize = fs.statSync(outputPath).size;
   return {
     inputPath: filePath,
     outputPath,
@@ -176,32 +289,11 @@ async function compressImageBuffer(inputName, data, options = {}) {
   }
 
   const inputBuffer = Buffer.from(data);
-  const metadata = await getSharp()(inputBuffer, { animated: true, failOn: "none" }).metadata();
-  const inputFormat = normalizeInputFormat(metadata.format);
-
-  const targetFormat = normalizeFormat(options.format);
-  const outputFormat = targetFormat === "original" ? inputFormat : targetFormat;
-  const quality = Math.min(100, Math.max(1, Number(options.quality || 78)));
-  const maxWidth = Number(options.maxWidth || 0);
-  const maxHeight = Number(options.maxHeight || 0);
+  const { inputFormat, outputFormat, outputBuffer } = await writeConvertedImage(inputName, inputBuffer, options);
   const suffix = options.suffix || "-compressed";
   const outputPath = getOutputPathForName(inputName, options.outputDir, outputFormat, suffix, options.outputPath);
-
-  let pipeline = getSharp()(inputBuffer, {
-    animated: true,
-    failOn: "none",
-  }).rotate();
-
-  if (maxWidth > 0 || maxHeight > 0) {
-    pipeline = pipeline.resize({
-      width: maxWidth > 0 ? maxWidth : undefined,
-      height: maxHeight > 0 ? maxHeight : undefined,
-      fit: "inside",
-      withoutEnlargement: true,
-    });
-  }
-
-  await applyFormatPipeline(pipeline, outputFormat, quality, Boolean(options.pngPalette)).toFile(outputPath);
+  ensureParentDir(outputPath);
+  fs.writeFileSync(outputPath, outputBuffer);
   const outputSize = fs.statSync(outputPath).size;
 
   return {
@@ -344,10 +436,6 @@ function getDefaultSaveDir() {
     console.warn("[zt-img-zip] failed to resolve downloads directory", error);
   }
   return path.join(os.homedir(), "Downloads");
-}
-
-function getDefaultOutputDir() {
-  return path.join(os.tmpdir(), "zt-img-zip");
 }
 
 console.log(`[zt-img-zip] preload loaded ${IMAGE_ZIP_PRELOAD_VERSION}`);

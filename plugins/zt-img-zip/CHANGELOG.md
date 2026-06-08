@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.3 - 2026-06-08
+
+- 移除运行时 `sharp` 依赖，改用 Chromium 内置图片解码和 Canvas 编码，避免 ZTools 安装市场插件后找不到 native module。
+- 输出格式调整为 JPEG、PNG、WebP，确保插件包解压后无需额外安装依赖即可运行。
+
 ## v0.1.2 - 2026-06-07
 
 - 首次发布图片压缩插件。
