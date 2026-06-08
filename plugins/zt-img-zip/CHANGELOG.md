@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.4 - 2026-06-08
+
+- 恢复 `sharp` 图片处理管线，重新支持 JPEG、PNG、WebP、AVIF、TIFF 输出。
+- 构建时将 `sharp` 生产依赖安装到 `dist/preload/node_modules`，确保 ZTools 安装插件包后可直接加载 native module。
+- preload 优先从插件包内置依赖加载 `sharp`，本地开发时回退到项目根依赖。
+
 ## v0.1.3 - 2026-06-08
 
 - 移除运行时 `sharp` 依赖，改用 Chromium 内置图片解码和 Canvas 编码，避免 ZTools 安装市场插件后找不到 native module。
