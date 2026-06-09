@@ -13,7 +13,7 @@ export type Rect = {
 const MIN_SELECTION_SIZE = 8;
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 3;
-const SCALE_STEP = 0.1;
+const SCALE_PER_WHEEL_DELTA = 0.001;
 
 const round = (value: number) => Math.round(value * 100) / 100;
 
@@ -57,12 +57,11 @@ export function imageBoundsForScale(currentImageBounds: Rect, nextScale: number)
 }
 
 export function clampScale(scale: number): number {
-  return round(Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale)));
+  return Math.round(Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale)) * 1000) / 1000;
 }
 
 export function scaleFromWheelDelta(currentScale: number, deltaY: number): number {
-  const direction = deltaY < 0 ? 1 : -1;
-  return clampScale(currentScale + direction * SCALE_STEP);
+  return clampScale(currentScale - deltaY * SCALE_PER_WHEEL_DELTA);
 }
 
 export function rectCenter(rect: Rect): Point {

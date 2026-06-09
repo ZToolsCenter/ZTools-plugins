@@ -118,6 +118,8 @@ body {
   border: 0;
   cursor: inherit;
   object-fit: fill;
+  transform-origin: top left;
+  will-change: transform;
 }
 
 .pin-window:active .pin-frame {

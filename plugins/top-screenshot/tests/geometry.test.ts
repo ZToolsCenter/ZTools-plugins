@@ -50,6 +50,12 @@ describe('geometry', () => {
     expect(scaleFromWheelDelta(1, 100)).toBe(0.9);
   });
 
+  it('scales proportionally to wheel delta for smooth trackpad input', () => {
+    expect(scaleFromWheelDelta(1, -1)).toBe(1.001);
+    expect(scaleFromWheelDelta(1, -16)).toBe(1.016);
+    expect(scaleFromWheelDelta(1, 16)).toBe(0.984);
+  });
+
   it('translates a rectangle by a delta', () => {
     expect(translateRect({ x: 10, y: 20, width: 30, height: 40 }, 5, -8)).toEqual({
       x: 15,

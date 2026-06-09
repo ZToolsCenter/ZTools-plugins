@@ -136,42 +136,11 @@ describe('LauncherView', () => {
   });
 
   it('moves an opened pin window through its BrowserWindow proxy', async () => {
-    let storageHandler: ((event: StorageEvent) => void) | null = null;
-    let parentMessageHandler: ((message: unknown) => void) | null = null;
-    const addEventListenerSpy = vi.spyOn(window, 'addEventListener').mockImplementation((type, listener) => {
-      if (type === 'storage') {
-        storageHandler = listener as (event: StorageEvent) => void;
-      }
+    const win = createWindowProxy();
+    const { storageHandler, parentHandlers } = mountLauncherWithParentHandlers({
+      createBrowserWindow: () => win,
     });
-    const setBounds = vi.fn();
-    window.ztools = {
-      onPluginEnter: () => {},
-      onPluginReady: () => {},
-      onParentMessage: (_channel, callback) => {
-        parentMessageHandler = callback as (message: unknown) => void;
-        return () => undefined;
-      },
-      getAllDisplays: () => [],
-      desktopCaptureSources: () => [],
-      createBrowserWindow: () => ({
-        close: () => {},
-        focus: () => {},
-        setAlwaysOnTop: () => {},
-        setBounds,
-      }),
-    } satisfies ZToolsApi;
-    const state: PinWindowState = {
-      id: 'pin-1',
-      imageDataUrl: 'data:image/png;base64,cropped',
-      originalBounds: { x: 120, y: 90, width: 320, height: 180 },
-      currentBounds: { x: 120, y: 90, width: 320, height: 180 },
-      scale: 1,
-      createdAt: 1780898400000,
-      lastActiveAt: 1780898400000,
-    };
-    window.localStorage.setItem('pin-window:pin-1', JSON.stringify(state));
-    mount(LauncherView);
-    addEventListenerSpy.mockRestore();
+    window.localStorage.setItem('pin-window:pin-1', JSON.stringify(createPinState('pin-1')));
 
     storageHandler!(
       new StorageEvent('storage', {
@@ -179,11 +148,122 @@ describe('LauncherView', () => {
         newValue: JSON.stringify({ pinWindowId: 'pin-1' }),
       }),
     );
-    parentMessageHandler!({
+    parentHandlers['top-screenshot-pin-bounds']!({
       id: 'pin-1',
       bounds: { x: 127, y: 92, width: 326, height: 186 },
     });
 
-    expect(setBounds).toHaveBeenCalledWith({ x: 127, y: 92, width: 326, height: 186 });
+    expect(win.setBounds).toHaveBeenCalledWith({ x: 127, y: 92, width: 326, height: 186 });
+  });
+
+  it('exits the plugin after the last pin window closes', async () => {
+    const outPluginCalls: boolean[] = [];
+    const windows = [createWindowProxy(), createWindowProxy()];
+    let index = 0;
+    const { storageHandler, parentHandlers } = mountLauncherWithParentHandlers({
+      outPlugin: (isKill?: boolean) => outPluginCalls.push(Boolean(isKill)),
+      createBrowserWindow: () => windows[index++],
+    });
+    window.localStorage.setItem('pin-window:pin-1', JSON.stringify(createPinState('pin-1')));
+    window.localStorage.setItem('pin-window:pin-2', JSON.stringify(createPinState('pin-2')));
+
+    storageHandler!(
+      new StorageEvent('storage', {
+        key: 'pin-window-request:pin-1',
+        newValue: JSON.stringify({ pinWindowId: 'pin-1' }),
+      }),
+    );
+    storageHandler!(
+      new StorageEvent('storage', {
+        key: 'pin-window-request:pin-2',
+        newValue: JSON.stringify({ pinWindowId: 'pin-2' }),
+      }),
+    );
+
+    parentHandlers['top-screenshot-pin-closed']!({ id: 'pin-1' });
+    expect(outPluginCalls).toEqual([]);
+
+    parentHandlers['top-screenshot-pin-closed']!({ id: 'pin-2' });
+    expect(outPluginCalls).toEqual([true]);
+  });
+
+  it('ignores close messages for untracked pin windows', async () => {
+    const outPluginCalls: boolean[] = [];
+    const { parentHandlers } = mountLauncherWithParentHandlers({
+      outPlugin: (isKill?: boolean) => outPluginCalls.push(Boolean(isKill)),
+    });
+
+    parentHandlers['top-screenshot-pin-closed']!({ id: 'missing-pin' });
+
+    expect(outPluginCalls).toEqual([]);
+  });
+
+  it('does not exit twice for duplicate close messages', async () => {
+    const outPluginCalls: boolean[] = [];
+    const { storageHandler, parentHandlers } = mountLauncherWithParentHandlers({
+      outPlugin: (isKill?: boolean) => outPluginCalls.push(Boolean(isKill)),
+      createBrowserWindow: () => createWindowProxy(),
+    });
+    window.localStorage.setItem('pin-window:pin-1', JSON.stringify(createPinState('pin-1')));
+
+    storageHandler!(
+      new StorageEvent('storage', {
+        key: 'pin-window-request:pin-1',
+        newValue: JSON.stringify({ pinWindowId: 'pin-1' }),
+      }),
+    );
+    parentHandlers['top-screenshot-pin-closed']!({ id: 'pin-1' });
+    parentHandlers['top-screenshot-pin-closed']!({ id: 'pin-1' });
+
+    expect(outPluginCalls).toEqual([true]);
   });
 });
+
+function createPinState(id: string): PinWindowState {
+  return {
+    id,
+    imageDataUrl: 'data:image/png;base64,cropped',
+    originalBounds: { x: 120, y: 90, width: 320, height: 180 },
+    currentBounds: { x: 120, y: 90, width: 320, height: 180 },
+    scale: 1,
+    createdAt: 1780898400000,
+    lastActiveAt: 1780898400000,
+  };
+}
+
+function createWindowProxy() {
+  return {
+    close: vi.fn(),
+    focus: vi.fn(),
+    setAlwaysOnTop: vi.fn(),
+    setBounds: vi.fn(),
+  };
+}
+
+function mountLauncherWithParentHandlers(overrides: Partial<ZToolsApi>) {
+  let storageHandler: ((event: StorageEvent) => void) | null = null;
+  const parentHandlers: Record<string, ((message: unknown) => void) | undefined> = {};
+  const addEventListenerSpy = vi.spyOn(window, 'addEventListener').mockImplementation((type, listener) => {
+    if (type === 'storage') {
+      storageHandler = listener as (event: StorageEvent) => void;
+    }
+  });
+
+  window.ztools = {
+    onPluginEnter: () => {},
+    onPluginReady: () => {},
+    onParentMessage: (channel, callback) => {
+      parentHandlers[channel] = callback as (message: unknown) => void;
+      return () => undefined;
+    },
+    getAllDisplays: () => [],
+    desktopCaptureSources: () => [],
+    createBrowserWindow: () => null,
+    ...overrides,
+  } satisfies ZToolsApi;
+
+  mount(LauncherView);
+  addEventListenerSpy.mockRestore();
+
+  return { storageHandler, parentHandlers };
+}

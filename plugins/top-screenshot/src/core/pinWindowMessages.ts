@@ -1,10 +1,15 @@
 import type { Rect } from './geometry';
 
 export const PIN_WINDOW_BOUNDS_CHANNEL = 'top-screenshot-pin-bounds';
+export const PIN_WINDOW_CLOSED_CHANNEL = 'top-screenshot-pin-closed';
 
 export type PinWindowBoundsMessage = {
   id: string;
   bounds: Rect;
+};
+
+export type PinWindowClosedMessage = {
+  id: string;
 };
 
 export function isPinWindowBoundsMessage(value: unknown): value is PinWindowBoundsMessage {
@@ -14,6 +19,15 @@ export function isPinWindowBoundsMessage(value: unknown): value is PinWindowBoun
 
   const message = value as Partial<PinWindowBoundsMessage>;
   return typeof message.id === 'string' && isRect(message.bounds);
+}
+
+export function isPinWindowClosedMessage(value: unknown): value is PinWindowClosedMessage {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const message = value as Partial<PinWindowClosedMessage>;
+  return typeof message.id === 'string';
 }
 
 function isRect(value: unknown): value is Rect {

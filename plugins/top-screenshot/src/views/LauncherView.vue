@@ -2,7 +2,12 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { canStartCapture, pinWindowOptions, statusMessageForStartFailure } from '../core/launcher';
 import type { Rect } from '../core/geometry';
-import { isPinWindowBoundsMessage, PIN_WINDOW_BOUNDS_CHANNEL } from '../core/pinWindowMessages';
+import {
+  isPinWindowBoundsMessage,
+  isPinWindowClosedMessage,
+  PIN_WINDOW_BOUNDS_CHANNEL,
+  PIN_WINDOW_CLOSED_CHANNEL,
+} from '../core/pinWindowMessages';
 import { buildPluginUrl } from '../core/routes';
 import { isPinWindowRequestEvent, loadPinWindow, savePinWindow, type PinWindowState } from '../core/storage';
 import type { BrowserWindowProxy } from '../types/ztools';
@@ -10,7 +15,8 @@ import { createPluginWindow, requireZTools } from '../core/ztoolsBridge';
 
 const isStarting = ref(false);
 const pinWindows = new Map<string, BrowserWindowProxy>();
-let removeParentMessageListener: (() => void) | null = null;
+let removeBoundsMessageListener: (() => void) | null = null;
+let removeClosedMessageListener: (() => void) | null = null;
 
 function createPinState(imageDataUrl: string, bounds: Rect): PinWindowState {
   const id = crypto.randomUUID();
@@ -75,7 +81,7 @@ function onStorage(event: StorageEvent): void {
   }
 }
 
-function onParentMessage(...args: unknown[]): void {
+function onBoundsMessage(...args: unknown[]): void {
   const message = args.at(-1);
 
   if (!isPinWindowBoundsMessage(message)) {
@@ -95,6 +101,24 @@ function onParentMessage(...args: unknown[]): void {
 
   win.setPosition?.(message.bounds.x, message.bounds.y);
   win.setSize?.(message.bounds.width, message.bounds.height);
+}
+
+function onClosedMessage(...args: unknown[]): void {
+  const message = args.at(-1);
+
+  if (!isPinWindowClosedMessage(message)) {
+    return;
+  }
+
+  const wasTracked = pinWindows.delete(message.id);
+
+  if (!wasTracked) {
+    return;
+  }
+
+  if (!pinWindows.size) {
+    window.ztools?.outPlugin?.(true);
+  }
 }
 
 async function startCapture(): Promise<void> {
@@ -127,7 +151,8 @@ async function startCapture(): Promise<void> {
 
 onMounted(() => {
   window.addEventListener('storage', onStorage);
-  removeParentMessageListener = window.ztools?.onParentMessage?.(PIN_WINDOW_BOUNDS_CHANNEL, onParentMessage) ?? null;
+  removeBoundsMessageListener = window.ztools?.onParentMessage?.(PIN_WINDOW_BOUNDS_CHANNEL, onBoundsMessage) ?? null;
+  removeClosedMessageListener = window.ztools?.onParentMessage?.(PIN_WINDOW_CLOSED_CHANNEL, onClosedMessage) ?? null;
 
   const api = window.ztools;
   api?.onPluginEnter?.(() => {
@@ -141,7 +166,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('storage', onStorage);
-  removeParentMessageListener?.();
+  removeBoundsMessageListener?.();
+  removeClosedMessageListener?.();
 });
 </script>
 

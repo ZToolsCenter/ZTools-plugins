@@ -9,7 +9,7 @@ import {
   type Point,
   type Rect,
 } from '../core/geometry';
-import { PIN_WINDOW_BOUNDS_CHANNEL } from '../core/pinWindowMessages';
+import { PIN_WINDOW_BOUNDS_CHANNEL, PIN_WINDOW_CLOSED_CHANNEL } from '../core/pinWindowMessages';
 import { loadPinWindow, removePinWindow, savePinWindow, type PinWindowState } from '../core/storage';
 
 const FRAME_SIZE = 3;
@@ -20,8 +20,12 @@ const loaded = loadPinWindow(window.localStorage, pinId);
 const pinState = ref<PinWindowState | null>(loaded);
 const dragStart = ref<Point | null>(null);
 const dragStartBounds = ref<Rect | null>(null);
+let pendingPinState: PinWindowState | null = null;
+let pendingWindowBounds: Rect | null = null;
+let pendingWindowFrame = 0;
+let hasNotifiedClosed = false;
 
-const imageStyle = computed(() => {
+const frameStyle = computed(() => {
   if (!pinState.value) {
     return {};
   }
@@ -32,14 +36,70 @@ const imageStyle = computed(() => {
   };
 });
 
+const imageStyle = computed(() => {
+  if (!pinState.value) {
+    return {};
+  }
+
+  return {
+    width: `${pinState.value.originalBounds.width}px`,
+    height: `${pinState.value.originalBounds.height}px`,
+    transform: `scale(${pinState.value.scale})`,
+  };
+});
+
+function currentPinState(): PinWindowState | null {
+  return pendingPinState ?? pinState.value;
+}
+
 function persist(nextState: PinWindowState): void {
   pinState.value = nextState;
   savePinWindow(window.localStorage, nextState);
 }
 
 function applyWindowBounds(imageBounds: Rect): void {
-  const outerBounds = outerBoundsForImage(imageBounds, FRAME_SIZE);
+  clearScheduledWindowBounds();
+  applyOuterWindowBounds(outerBoundsForImage(imageBounds, FRAME_SIZE));
+}
 
+function scheduleWheelUpdate(nextState: PinWindowState): void {
+  pendingPinState = nextState;
+  pendingWindowBounds = outerBoundsForImage(nextState.currentBounds, FRAME_SIZE);
+
+  if (pendingWindowFrame) {
+    return;
+  }
+
+  pendingWindowFrame = requestAnimationFrame(flushWheelUpdate);
+}
+
+function clearScheduledWindowBounds(): void {
+  if (pendingWindowFrame) {
+    cancelAnimationFrame(pendingWindowFrame);
+    pendingWindowFrame = 0;
+  }
+
+  pendingPinState = null;
+  pendingWindowBounds = null;
+}
+
+function flushWheelUpdate(): void {
+  pendingWindowFrame = 0;
+
+  if (!pendingPinState || !pendingWindowBounds) {
+    return;
+  }
+
+  const nextState = pendingPinState;
+  const outerBounds = pendingWindowBounds;
+  pendingPinState = null;
+  pendingWindowBounds = null;
+
+  persist(nextState);
+  applyOuterWindowBounds(outerBounds);
+}
+
+function applyOuterWindowBounds(outerBounds: Rect): void {
   if (pinState.value && window.ztools?.sendToParent) {
     window.ztools.sendToParent(PIN_WINDOW_BOUNDS_CHANNEL, {
       id: pinState.value.id,
@@ -61,41 +121,46 @@ function activate(): void {
 }
 
 function onWheel(event: WheelEvent): void {
-  if (!pinState.value) {
+  const currentState = currentPinState();
+
+  if (!currentState) {
     return;
   }
 
   event.preventDefault();
-  const nextScale = scaleFromWheelDelta(pinState.value.scale, event.deltaY);
-  if (nextScale === pinState.value.scale) {
+  const nextScale = scaleFromWheelDelta(currentState.scale, event.deltaY);
+  if (nextScale === currentState.scale) {
     return;
   }
 
-  const center = rectCenter(pinState.value.currentBounds);
-  const nextImageBounds = imageBoundsForOriginalSize(center, pinState.value.originalBounds, nextScale);
+  const center = rectCenter(currentState.currentBounds);
+  const nextImageBounds = imageBoundsForOriginalSize(center, currentState.originalBounds, nextScale);
   const nextState = {
-    ...pinState.value,
+    ...currentState,
     currentBounds: nextImageBounds,
     scale: nextScale,
     lastActiveAt: Date.now(),
   };
 
-  persist(nextState);
-  applyWindowBounds(nextImageBounds);
+  scheduleWheelUpdate(nextState);
 }
 
 function onMouseDown(event: MouseEvent): void {
-  if (!pinState.value || event.button !== 0) {
+  const currentState = currentPinState();
+
+  if (!currentState || event.button !== 0) {
     return;
   }
 
   dragStart.value = { x: event.screenX, y: event.screenY };
-  dragStartBounds.value = pinState.value.currentBounds;
+  dragStartBounds.value = currentState.currentBounds;
   activate();
 }
 
 function onMouseMove(event: MouseEvent): void {
-  if (!pinState.value || !dragStart.value || !dragStartBounds.value) {
+  const currentState = currentPinState();
+
+  if (!currentState || !dragStart.value || !dragStartBounds.value) {
     return;
   }
 
@@ -103,7 +168,7 @@ function onMouseMove(event: MouseEvent): void {
   const deltaY = event.screenY - dragStart.value.y;
   const nextImageBounds = translateRect(dragStartBounds.value, deltaX, deltaY);
   const nextState = {
-    ...pinState.value,
+    ...currentState,
     currentBounds: nextImageBounds,
     lastActiveAt: Date.now(),
   };
@@ -119,7 +184,22 @@ function onMouseUp(): void {
 
 function closePinWindow(): void {
   removePinWindow(window.localStorage, pinId);
+  notifyPinClosed();
   window.close();
+}
+
+function notifyPinClosed(): void {
+  if (!pinId || hasNotifiedClosed) {
+    return;
+  }
+
+  hasNotifiedClosed = true;
+  window.ztools?.sendToParent?.(PIN_WINDOW_CLOSED_CHANNEL, { id: pinId });
+}
+
+function onBeforeUnload(): void {
+  removePinWindow(window.localStorage, pinId);
+  notifyPinClosed();
 }
 
 function onKeyDown(event: KeyboardEvent): void {
@@ -129,11 +209,18 @@ function onKeyDown(event: KeyboardEvent): void {
 }
 
 window.addEventListener('keydown', onKeyDown);
+window.addEventListener('mousemove', onMouseMove);
+window.addEventListener('mouseup', onMouseUp);
 window.addEventListener('blur', onMouseUp);
-window.addEventListener('beforeunload', () => removePinWindow(window.localStorage, pinId));
+window.addEventListener('beforeunload', onBeforeUnload);
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown);
+  window.removeEventListener('mousemove', onMouseMove);
+  window.removeEventListener('mouseup', onMouseUp);
   window.removeEventListener('blur', onMouseUp);
+  window.removeEventListener('beforeunload', onBeforeUnload);
+
+  clearScheduledWindowBounds();
 });
 </script>
 
@@ -143,11 +230,9 @@ onBeforeUnmount(() => {
     class="pin-window"
     tabindex="0"
     @mousedown="onMouseDown"
-    @mousemove="onMouseMove"
-    @mouseup="onMouseUp"
     @wheel="onWheel"
   >
-    <div class="pin-frame">
+    <div class="pin-frame" :style="frameStyle">
       <img class="pin-image" :src="pinState.imageDataUrl" :style="imageStyle" alt="置顶截图" draggable="false" />
     </div>
   </main>
