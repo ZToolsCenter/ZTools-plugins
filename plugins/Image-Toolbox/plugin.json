@@ -1,0 +1,33 @@
+{
+  "name": "image-toolbox-ztools",
+  "title": "图片工具箱",
+  "description": "马赛克、剪切、加字等图片编辑功能",
+  "version": "2.2.0",
+  "main": "src/index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "image-edit",
+      "explain": "图片工具箱 - 马赛克、剪切、加字等图片编辑功能",
+      "cmds": [
+        "图片工具箱",
+        "图片编辑",
+        "编辑图片",
+        "P图",
+        {
+          "type": "img",
+          "label": "图片编辑"
+        },
+        {
+          "type": "files",
+          "label": "编辑图片",
+          "fileType": "file",
+          "extensions": ["png", "jpg", "jpeg", "webp", "bmp", "gif", "svg"],
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    }
+  ]
+}
