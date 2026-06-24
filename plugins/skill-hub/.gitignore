@@ -1,0 +1,7 @@
+node_modules
+dist
+.skill-archive
+docs/ztools-doc
+test-builtin-skills.html
+.mimocode
+api-tests
