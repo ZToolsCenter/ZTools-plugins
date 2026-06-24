@@ -264,7 +264,7 @@ async function handleImport() {
   importing.value = true
   try {
     const gh = props.skill.repo.split('/')
-    const buffer = await window.services.downloadFile(`https://api.github.com/repos/${gh[0]}/${gh[1]}/zipball/main`)
+    const buffer = await window.services.downloadFile(`https://api.github.com/repos/${gh[0]}/${gh[1]}/zipball/${props.skill.branch || 'main'}`)
     const tempDir = window.services.pathJoin(window.services.homeDir(), '.cache/skill-hub/')
     window.services.mkdir(tempDir)
     const extractDir = window.services.pathJoin(tempDir, `extract-${props.skill.id.replace(/\//g, '-')}`)
@@ -368,11 +368,6 @@ async function handleImport() {
               <div class="panel-card desc-panel">
                 <p class="desc-text">{{ descTranslationDone && showDescTranslation ? translatedDesc : (skillDesc || skill.description || '暂无描述') }}</p>
                 <div class="desc-footer">
-                  <div class="desc-badges">
-                    <span class="variant-badge source" :style="{ background: sourceInfo.bg, color: sourceInfo.color }">{{ sourceInfo.label }}</span>
-                    <span v-if="skill.author" class="variant-badge author">{{ skill.author }}</span>
-                    <span v-for="tag in (skill.tags || []).slice(0, 5)" :key="tag" class="variant-badge tag">{{ tag }}</span>
-                  </div>
                   <div class="desc-actions">
                     <button v-if="descTranslationDone" class="heading-btn" @click="handleReTranslateDesc" :disabled="isTranslatingDesc">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><path d="M21 3v9h-9"/></svg>
@@ -483,7 +478,7 @@ async function handleImport() {
 .panel-card { border-radius: 16px; border: 1px solid hsl(var(--border)); padding: 20px; }
 .desc-panel { background: hsl(var(--card)); }
 .desc-text { font-size: 14px; line-height: 1.7; color: hsl(var(--foreground) / 0.9); white-space: pre-line; margin-bottom: 14px; }
-.desc-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.desc-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .desc-badges { display: flex; flex-wrap: wrap; gap: 6px; }
 .desc-actions { display: flex; gap: 6px; }
 

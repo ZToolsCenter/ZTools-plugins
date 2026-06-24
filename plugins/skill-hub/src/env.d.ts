@@ -76,8 +76,8 @@ interface Services {
   scanForSkillFiles: (dirs: string[]) => SkillScanResult[]
   parseSkillFile: (filePath: string) => { content: string; manifest: SkillScanResult['manifest'] } | null
 
-  checkSkillUpdate: (repo: string, skillPath: string, token?: string) => Promise<string>
-  updateSkillFromGitHub: (repo: string, skillPath: string, targetDir: string, token?: string) => Promise<boolean>
+  checkSkillUpdate: (repo: string, skillPath: string, token?: string, branch?: string) => Promise<string>
+  updateSkillFromGitHub: (repo: string, skillPath: string, targetDir: string, token?: string, branch?: string) => Promise<boolean>
 
   getStateDir: () => string
 }

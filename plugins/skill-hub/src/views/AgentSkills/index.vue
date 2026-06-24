@@ -228,6 +228,7 @@ function batchDelete() {
   }
   refreshCurrent()
   selectedIds.value.clear()
+  batchMode.value = false
 }
 
 const showImportModal = ref(false)
@@ -347,7 +348,7 @@ function confirmImportFromMy() {
           </svg>
           导入
         </button>
-        <button class="toolbar-btn" :class="{ 'batch-active': batchMode }" @click="toggleBatchMode">
+        <button class="toolbar-btn" :class="{ 'batch-active': batchMode }" :disabled="!filteredSkills.length" @click="toggleBatchMode">
           <svg v-if="!batchMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
           </svg>
@@ -645,6 +646,12 @@ function confirmImportFromMy() {
 
 .toolbar-btn.batch-active:hover {
   background: hsl(var(--destructive) / 0.15);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
 }
 
 .toolbar-btn.import-btn {

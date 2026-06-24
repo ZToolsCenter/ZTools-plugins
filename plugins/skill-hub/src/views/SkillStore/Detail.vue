@@ -88,7 +88,7 @@ async function checkForUpdate() {
   updateMessage.value = ''
   try {
     const token = storage.getSettings().githubToken || undefined
-    const remoteContent = await window.services.checkSkillUpdate(props.skill.repo, props.skill.path || '', token)
+    const remoteContent = await window.services.checkSkillUpdate(props.skill.repo, props.skill.path || '', token, props.skill.branch)
     const localDir = window.services.pathJoin(window.ztools.getPath('userData'), 'skills-repo', props.skill!.id)
     const files = window.services.readDir(localDir)
     const skillMd = files.find((f: any) => f.name === 'SKILL.md' || f.name === 'skill.md')
@@ -122,7 +122,7 @@ async function updateSkill() {
   try {
     const token = storage.getSettings().githubToken || undefined
     const targetDir = window.services.pathJoin(window.ztools.getPath('userData'), 'skills-repo', props.skill!.id)
-    const ok = await window.services.updateSkillFromGitHub(props.skill.repo, props.skill.path || '', targetDir, token)
+    const ok = await window.services.updateSkillFromGitHub(props.skill.repo, props.skill.path || '', targetDir, token, props.skill.branch)
     if (ok) {
       updateAvailable.value = false
       updateStatus.value = 'done'

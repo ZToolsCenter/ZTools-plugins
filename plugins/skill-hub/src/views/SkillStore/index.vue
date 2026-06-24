@@ -12,7 +12,9 @@ import { lookupBuiltinIcon, lookupBuiltinCategory } from '../../data/skill-icons
 import { STORE_ICONS, getStoreIconFromSource } from '../../data/store-icons'
 import SkillDetailModal from '../../components/SkillDetailModal.vue'
 import SkillPickModal from '../../components/SkillPickModal.vue'
+import ConfirmModal from '../../components/ConfirmModal.vue'
 import QuickSwitcher from '../../components/QuickSwitcher.vue'
+import StoreConfigModal from '../../components/StoreConfigModal.vue'
 import { getAvatarColor } from '../../utils/color'
 
 import { defaultPlatforms } from '../../data/platforms'
@@ -60,6 +62,7 @@ const storeSources = computed(() => {
       id: s.id,
       label: s.name,
       icon: getStoreIconFromSource(s),
+      deletable: true,
     }))
   return [...builtin, ...custom]
 })
@@ -92,6 +95,10 @@ const selectedSkill = ref<Skill | null>(null)
 
 const showConfirmDelete = ref(false)
 const skillToDelete = ref<Skill | null>(null)
+const showDeleteStoreConfirm = ref(false)
+const storeToDelete = ref<{ id: string; name: string } | null>(null)
+const showStoreConfigModal = ref(false)
+const editingStoreSource = ref<StoreSource | null>(null)
 const loadingDots = ref('.')
 let loadingDotsTimer: ReturnType<typeof setInterval> | null = null
 function startLoadingDots() {
@@ -114,6 +121,15 @@ watch(() => props.storeId, (id) => {
   loadingMore.value = false
   fetchCurrentSkills()
 })
+
+watch(storeSources, (list) => {
+  if (list.length && !list.some(s => s.id === activePresetId.value)) {
+    const fallback = list[0].id
+    activePresetId.value = fallback
+    storage.savePageState('skill-store', { presetId: fallback })
+    fetchCurrentSkills()
+  }
+}, { immediate: true })
 
 let scrollObserver: IntersectionObserver | null = null
 function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape' && (searchActive.value || isLocalSearchActive.value)) { searchQuery.value = ''; exitSearch() } }
@@ -149,10 +165,18 @@ function fetchCurrentSkills(force = false) {
     return
   }
   const custom = storage.getStoreSources().find(s => s.id === id)
-  if (!custom) return
+  if (!custom) {
+    const first = storeSources.value[0]
+    if (first && first.id !== id) {
+      emit('navigate', 'store', { sub: first.id })
+    } else {
+      allEntries.value = []; totalCount.value = 0; sourceSkills.value = []
+    }
+    return
+  }
   allEntries.value = []; totalCount.value = 0
   startLoadingDots()
-  if (custom.type === 'git-repo') fetchGitHubSkills(custom.url!, custom.directory)
+  if (custom.type === 'git-repo') fetchGitHubSkills(custom.url!, custom.directory, custom.branch)
   else if (custom.type === 'marketplace-json') fetchMarketplaceSkills(custom)
   else if (custom.type === 'local-dir') fetchLocalDirSkills(custom)
 }
@@ -240,14 +264,15 @@ async function enrichSkillDetails(skills: Skill[]) {
 }
 
 
-async function fetchGitHubSkills(url: string, directory?: string) {
+async function fetchGitHubSkills(url: string, directory?: string, branch?: string) {
   const presetId = activePresetId.value
   loading.value = true; loadingMore.value = false; error.value = ''; allEntries.value = []; totalCount.value = 0; sourceSkills.value = []
   try {
     const info = parseGitHubUrl(url)
     if (!info) { error.value = 'Invalid GitHub URL'; loading.value = false; stopLoadingDots(); loadingMore.value = false; return }
+    const effectiveBranch = branch || info.defaultBranch
     const token = storage.getSettings().githubToken || undefined
-    const tree = await fetchGitHubRepoTree(info.owner, info.repo, info.defaultBranch, token)
+    const tree = await fetchGitHubRepoTree(info.owner, info.repo, effectiveBranch, token)
     if (activePresetId.value !== presetId) return
     const dirPrefix = directory ? `${directory}/` : ''
     const skillDirs = detectSkillDirectories(tree).filter(
@@ -261,14 +286,14 @@ async function fetchGitHubSkills(url: string, directory?: string) {
       if (activePresetId.value !== presetId) { loadingMore.value = false; return }
       const batch = skillDirs.slice(i, i + BATCH_SIZE)
       const results = await Promise.allSettled(batch.map(async (sd) => {
-        const content = await fetchWithTimeout(fetchGitHubFile(info.owner, info.repo, sd.manifestFile, info.defaultBranch), 10000)
+        const content = await fetchWithTimeout(fetchGitHubFile(info.owner, info.repo, sd.manifestFile, effectiveBranch), 10000)
         const fm = parseFrontmatter(content)
         const dirName = sd.dir === '.' ? info.repo : sd.dir.split('/').pop() || sd.dir
         const tags = fm.tags ? fm.tags.split(',').map((t) => t.trim()).filter(Boolean) : []
         const builtinCategory = lookupBuiltinCategory(`${info.owner}/${info.repo}`, dirName)
         const category = builtinCategory || inferCategory(dirName, fm.description || '')
         const iconUrl = lookupBuiltinIcon(`${info.owner}/${info.repo}`, dirName)
-        const skill: Skill = { id: `${info.owner}/${info.repo}/${sd.dir}`, name: fm.name || dirName, description: fm.description || '', author: fm.author || '', tags, format: 'generic', source: 'github', repo: `${info.owner}/${info.repo}`, path: sd.dir, category, iconUrl, readme: content, storeSourceId: presetId }
+        const skill: Skill = { id: `${info.owner}/${info.repo}/${sd.dir}`, name: fm.name || dirName, description: fm.description || '', author: fm.author || '', tags, format: 'generic', source: 'github', repo: `${info.owner}/${info.repo}`, path: sd.dir, category, iconUrl, readme: content, storeSourceId: presetId, branch: effectiveBranch }
         return skill
       }))
       if (activePresetId.value !== presetId) { loadingMore.value = false; return }
@@ -538,7 +563,7 @@ async function downloadSkill(skill: Skill) {
     }
     const { owner, repo } = gh
     const skillPath = skill.path || skill.id
-    const buffer = await window.services.downloadFile(`https://api.github.com/repos/${owner}/${repo}/zipball/main`)
+    const buffer = await window.services.downloadFile(`https://api.github.com/repos/${owner}/${repo}/zipball/${skill.branch || 'main'}`)
     const tempDir = window.services.pathJoin(window.services.homeDir(), '.cache/skill-hub/')
     window.services.mkdir(tempDir)
     const extractDir = window.services.pathJoin(tempDir, `extract-${skill.id.replace(/\//g, '-')}`)
@@ -642,6 +667,7 @@ const sourceItems = computed(() =>
   storeSources.value.map((s) => ({
     id: s.id,
     label: s.label,
+    deletable: (s as any).deletable,
   })),
 )
 
@@ -651,6 +677,42 @@ function isSvgIcon(icon: string): boolean {
 
 function getSourceIcon(id: string): string | undefined {
   return storeSources.value.find(s => s.id === id)?.icon
+}
+
+function onDeleteStore(id: string) {
+  const source = storage.getStoreSources().find(s => s.id === id)
+  if (source) {
+    storeToDelete.value = { id, name: source.name }
+    showDeleteStoreConfirm.value = true
+  }
+}
+
+function openAddStoreModal() {
+  editingStoreSource.value = null
+  showStoreConfigModal.value = true
+}
+
+function openEditStoreModal(id: string) {
+  const source = storage.getStoreSources().find(s => s.id === id)
+  if (source) {
+    editingStoreSource.value = source
+    showStoreConfigModal.value = true
+  }
+}
+
+function onStoreConfigSaved() {
+  storage.savePageState('skill-store', { presetId: activePresetId.value })
+}
+
+const isCurrentStoreCustom = computed(() => {
+  return storage.getStoreSources().some(s => s.id === activePresetId.value)
+})
+
+function confirmDeleteStore() {
+  if (!storeToDelete.value) return
+  storage.removeStoreSource(storeToDelete.value.id)
+  showDeleteStoreConfirm.value = false
+  storeToDelete.value = null
 }
 </script>
 
@@ -665,42 +727,50 @@ function getSourceIcon(id: string): string | undefined {
         </div>
         <p class="page-subtitle">{{ sourceSubtitle }}</p>
       </div>
-      <div class="header-toolbar">
-        <button class="add-store-btn" @click="emit('navigate', 'sources')" title="添加商店">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          添加商店
-        </button>
-        <div class="view-toggle">
-          <button :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="网格视图">
+      <div class="header-toolbar-wrapper">
+        <div class="header-toolbar">
+          <button v-if="isCurrentStoreCustom" class="toolbar-btn add-store-edit-btn" @click="openEditStoreModal(activePresetId)" title="编辑商店配置">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            编辑商店
+          </button>
+          <button class="add-store-btn" @click="openAddStoreModal" title="添加商店">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            添加商店
+          </button>
+          <div class="view-toggle">
+            <button :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="网格视图">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+              </svg>
+            </button>
+            <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="列表视图">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <button class="toolbar-icon-btn" :disabled="loading" @click="fetchCurrentSkills(true)" title="刷新">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
             </svg>
           </button>
-          <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="列表视图">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-              <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+          <button class="toolbar-icon-btn" @click="toggleTheme" :title="isDarkMode ? '切换亮色模式' : '切换暗色模式'">
+            <svg v-if="isDarkMode" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
             </svg>
           </button>
         </div>
-        <button class="toolbar-icon-btn" :disabled="loading" @click="fetchCurrentSkills(true)" title="刷新">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-        </button>
-        <button class="toolbar-icon-btn" @click="toggleTheme" :title="isDarkMode ? '切换亮色模式' : '切换暗色模式'">
-          <svg v-if="isDarkMode" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-          </svg>
-          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-          </svg>
-        </button>
       </div>
     </div>
-
 
     <div class="ss-filter-row">
       <QuickSwitcher
@@ -710,7 +780,8 @@ function getSourceIcon(id: string): string | undefined {
         add-label="添加商店"
         :show-add="true"
         @select="(id) => { activePresetId = id; searchQuery = ''; filterTab = 'all'; leaderboardFilter = 'all'; sourceSkills = []; error = ''; storage.savePageState('skill-store', { presetId: id }); fetchCurrentSkills() }"
-        @add="emit('navigate', 'sources')"
+        @add="openAddStoreModal"
+        @delete="onDeleteStore"
       >
         <template #trigger-prefix="{ item }">
           <span class="qs-trigger-icon" v-if="item">
@@ -914,6 +985,19 @@ function getSourceIcon(id: string): string | undefined {
   </div>
   <SkillDetailModal v-if="selectedSkill" :skill="selectedSkill" @close="selectedSkill = null" @imported="onModalImported" />
   <SkillPickModal v-if="showPickModal" :skills="pickSkills" @select="handlePickSelect" @close="handlePickCancel" />
+  <ConfirmModal
+    v-if="showDeleteStoreConfirm"
+    title="删除商店"
+    :message="`确定要删除商店 <strong>${storeToDelete?.name}</strong> 吗？`"
+    @confirm="confirmDeleteStore"
+    @cancel="showDeleteStoreConfirm = false; storeToDelete = null"
+  />
+  <StoreConfigModal
+    v-if="showStoreConfigModal"
+    :edit-source="editingStoreSource"
+    @close="showStoreConfigModal = false; editingStoreSource = null"
+    @saved="onStoreConfigSaved"
+  />
   <div v-if="showConfirmDelete" class="modal-overlay" @click.self="showConfirmDelete = false">
     <div class="modal confirm-modal">
       <div class="modal-header">
@@ -975,6 +1059,12 @@ function getSourceIcon(id: string): string | undefined {
   background: hsl(var(--accent));
   padding: 2px 8px;
   border-radius: 10px;
+}
+
+.header-toolbar-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
 }
 
 .header-toolbar {
@@ -1063,6 +1153,39 @@ function getSourceIcon(id: string): string | undefined {
   color: hsl(var(--primary));
 }
 
+
+
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-standard);
+  white-space: nowrap;
+}
+
+.toolbar-btn:hover {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.toolbar-btn.add-store-edit-btn {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: transparent;
+}
+
+.toolbar-btn.add-store-edit-btn:hover {
+  background: hsl(var(--primary) / 0.9);
+}
+
 .ss-filter-row {
   display: flex;
   align-items: center;
@@ -1077,15 +1200,12 @@ function getSourceIcon(id: string): string | undefined {
 }
 
 .qs-item-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: hsl(var(--primary) / 0.1);
   flex-shrink: 0;
-  overflow: hidden;
 }
 
 .qs-item-icon img,
@@ -1093,25 +1213,24 @@ function getSourceIcon(id: string): string | undefined {
   width: 18px;
   height: 18px;
   object-fit: contain;
+  border-radius: 4px;
 }
 
 .qs-trigger-icon {
   width: 22px;
   height: 22px;
-  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: hsl(var(--primary) / 0.1);
   flex-shrink: 0;
-  overflow: hidden;
 }
 
 .qs-trigger-icon img,
 .qs-trigger-icon :deep(svg) {
-  width: 14px;
-  height: 14px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
+  border-radius: 4px;
 }
 
 .ss-search-wrapper {

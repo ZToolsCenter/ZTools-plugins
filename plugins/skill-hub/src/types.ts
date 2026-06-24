@@ -22,6 +22,7 @@ export interface Skill {
   userTags?: string[]
   storeSourceId?: string
   canonicalId?: string
+  branch?: string
 }
 
 export interface SkillSourceLocation {
@@ -79,7 +80,6 @@ export interface StoreSource {
   url?: string
   branch?: string
   directory?: string
-  token?: string
   enabled: boolean
   icon?: string
 }

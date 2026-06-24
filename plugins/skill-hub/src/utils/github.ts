@@ -64,8 +64,11 @@ export async function fetchGitHubFile(
   path: string,
   branch = 'main'
 ): Promise<string> {
-  const branches = [branch, 'master']
+  const branches = [branch, 'main', 'master']
+  const tried = new Set<string>()
   for (const b of branches) {
+    if (tried.has(b)) continue
+    tried.add(b)
     const url = `https://raw.githubusercontent.com/${owner}/${repo}/${b}/${path.split('/').map(encodeURIComponent).join('/')}`
     try {
       const resp = await fetch(url, { headers: { 'User-Agent': 'skill-hub' } })
@@ -81,21 +84,28 @@ export async function fetchGitHubRepoTree(
   branch = 'main',
   token?: string
 ): Promise<{ path: string; type: 'blob' | 'tree' }[]> {
-  const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`
-  const headers: Record<string, string> = {
-    Accept: 'application/vnd.github.v3+json',
-    'User-Agent': 'skill-hub',
-  }
-  if (token) headers.Authorization = `Bearer ${token}`
+  const branches = [branch, 'main', 'master']
+  const tried = new Set<string>()
+  for (const b of branches) {
+    if (tried.has(b)) continue
+    tried.add(b)
+    const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${b}?recursive=1`
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'skill-hub',
+    }
+    if (token) headers.Authorization = `Bearer ${token}`
 
-  const resp = await fetch(url, { headers })
-  if (!resp.ok) {
+    const resp = await fetch(url, { headers })
+    if (resp.ok) {
+      const data = await resp.json()
+      return data.tree || []
+    }
     if (resp.status === 403) throw new Error('GitHub API 速率限制，请在设置中添加 Token 提升额度')
-    if (resp.status === 404) throw new Error(`仓库或分支未找到: ${owner}/${repo}/${branch}`)
+    if (resp.status === 404) continue
     throw new Error(`获取仓库树失败: ${resp.status}`)
   }
-  const data = await resp.json()
-  return data.tree || []
+  throw new Error(`仓库或分支未找到: ${owner}/${repo}`)
 }
 
 export const SKILL_MANIFEST_FILES = ['SKILL.md', 'skill.json', 'skill.yaml', 'skill.yml']

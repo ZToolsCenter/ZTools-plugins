@@ -292,6 +292,7 @@ function batchToggleFavorite() {
   }
   favoriteIds.value = storage.getFavoriteIds()
   refreshMySkills()
+  batchMode.value = false
 }
 
 function batchDelete() {
@@ -303,6 +304,7 @@ function onBatchDeleted() {
   downloadedIds.value = storage.getDownloadedIds()
   allSkills.value = storage.getCachedSkills()
   selectedIds.value.clear()
+  batchMode.value = false
   refreshMySkills()
 }
 
@@ -327,7 +329,7 @@ function batchSyncToPlatform() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
           新建
         </button>
-        <button class="toolbar-btn" :class="{ 'batch-active': batchMode }" @click="toggleBatchMode">
+        <button class="toolbar-btn" :class="{ 'batch-active': batchMode }" :disabled="!filteredSkills.length" @click="toggleBatchMode">
           <svg v-if="!batchMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
           </svg>
@@ -594,7 +596,7 @@ function batchSyncToPlatform() {
       v-if="showBatchSyncModal"
       :skills="batchSyncSkills"
       @close="showBatchSyncModal = false; batchSyncSkills = []"
-      @deployed="showBatchSyncModal = false; batchSyncSkills = []; refreshData()"
+      @deployed="showBatchSyncModal = false; batchSyncSkills = []; refreshData(); batchMode = false"
     />
 
     <ConfirmDeleteModal
@@ -698,6 +700,12 @@ function batchSyncToPlatform() {
 
 .toolbar-btn.batch-active:hover {
   background: hsl(var(--destructive) / 0.15);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
 }
 
 .toolbar-btn.add-skill-btn {

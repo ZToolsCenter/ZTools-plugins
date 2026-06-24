@@ -283,6 +283,7 @@ async function batchImportToMySkills() {
   }
   refreshDownloaded()
   selectedIds.value.clear()
+  batchMode.value = false
   if (failCount > 0) {
     showToast(`导入完成：${successCount} 成功，${failCount} 失败`, 'warning')
   } else if (successCount > 0) {
@@ -323,6 +324,7 @@ function batchRemoveFromLibrary() {
   }
   refreshDownloaded()
   selectedIds.value.clear()
+  batchMode.value = false
 }
 
 const allProjectSkills = computed(() => selectedProject.value?.skills || [])
@@ -472,11 +474,15 @@ async function confirmImportFromMy() {
       </div>
       <div class="header-toolbar-wrapper">
         <div class="header-toolbar">
-          <button class="toolbar-btn import-btn" @click="showImportModal = true">
+          <button class="toolbar-btn add-project-btn" @click="openAddProjectModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            添加项目
+          </button>
+          <button class="toolbar-btn import-btn" :disabled="!allProjectSkills.length" @click="showImportModal = true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             导入
           </button>
-          <button class="toolbar-btn" :class="{ 'batch-active': batchMode }" @click="toggleBatchMode">
+          <button class="toolbar-btn" :class="{ 'batch-active': batchMode }" :disabled="!allProjectSkills.length" @click="toggleBatchMode">
             <svg v-if="!batchMode" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
             </svg>
@@ -510,12 +516,6 @@ async function confirmImportFromMy() {
             <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
             </svg>
-          </button>
-        </div>
-        <div class="add-project-bar">
-          <button class="toolbar-btn add-project-btn" @click="openAddProjectModal()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            添加项目
           </button>
         </div>
       </div>
@@ -897,10 +897,10 @@ async function confirmImportFromMy() {
   background: hsl(var(--destructive) / 0.15);
 }
 
-.add-project-bar {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
+.toolbar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
 }
 
 .toolbar-btn.add-project-btn {
@@ -921,6 +921,11 @@ async function confirmImportFromMy() {
 
 .toolbar-btn.import-btn:hover {
   background: hsl(var(--primary) / 0.9);
+}
+
+.toolbar-btn.import-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .toolbar-icon-btn {

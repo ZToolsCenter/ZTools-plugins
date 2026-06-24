@@ -5,3 +5,18 @@ docs/ztools-doc
 test-builtin-skills.html
 .mimocode
 api-tests
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store

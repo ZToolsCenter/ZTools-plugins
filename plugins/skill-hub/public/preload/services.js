@@ -106,7 +106,7 @@ window.services = {
       fs.lstatSync(fullDest)
       fs.rmSync(fullDest, { recursive: true })
     } catch {}
-    fs.cpSync(fullSrc, fullDest, { recursive: true })
+    fs.cpSync(fullSrc, fullDest, { recursive: true, dereference: true })
   },
   stat(p) {
     try {
@@ -315,16 +315,20 @@ window.services = {
   },
 
   // === Skill Update Check ===
-  async checkSkillUpdate(repo, skillPath, token) {
+  async checkSkillUpdate(repo, skillPath, token, branch) {
     const pathCandidates = [
       skillPath ? `${skillPath}/SKILL.md` : null,
       skillPath ? `skills/${skillPath}/SKILL.md` : null,
       skillPath ? `agent-skills/${skillPath}/SKILL.md` : null,
       'SKILL.md',
     ].filter(Boolean)
-    for (const branch of ['main', 'master']) {
+    const branches = branch ? [branch, 'main', 'master'] : ['main', 'master']
+    const tried = new Set()
+    for (const b of branches) {
+      if (tried.has(b)) continue
+      tried.add(b)
       for (const p of pathCandidates) {
-        const url = `https://raw.githubusercontent.com/${repo}/${branch}/${p}`
+        const url = `https://raw.githubusercontent.com/${repo}/${b}/${p}`
         try {
           const text = await this.fetchGitHubText(url, token)
           return text
@@ -336,14 +340,18 @@ window.services = {
     }
     return null
   },
-  async updateSkillFromGitHub(repo, skillPath, targetDir, token) {
+  async updateSkillFromGitHub(repo, skillPath, targetDir, token, branch) {
     let buffer
-    for (const branch of ['main', 'master']) {
+    const branches = branch ? [branch, 'main', 'master'] : ['main', 'master']
+    const tried = new Set()
+    for (const b of branches) {
+      if (tried.has(b)) continue
+      tried.add(b)
       try {
-        buffer = await this.downloadFile(`https://api.github.com/repos/${repo}/zipball/${branch}`)
+        buffer = await this.downloadFile(`https://api.github.com/repos/${repo}/zipball/${b}`)
         break
       } catch (err) {
-        if (branch === 'master') throw err
+        if (b === branches[branches.length - 1]) throw err
       }
     }
     const tempDir = path.join(homeDir(), '.cache/skill-hub/')

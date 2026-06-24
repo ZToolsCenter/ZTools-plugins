@@ -2,6 +2,7 @@
   "name": "skill-hub",
   "version": "1.0.0",
   "description": "A ZTools plugin",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
