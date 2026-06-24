@@ -384,7 +384,7 @@ window.services = {
 
 function parseSkillFrontmatter(content) {
   const manifest = { name: '', description: '', author: '', tags: [], format: 'opencode', language: 'en' }
-  const normalized = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const normalized = content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   const match = normalized.match(/^---\n([\s\S]*?)\n---/)
   if (!match) {
     manifest.name = path.basename(process.cwd())

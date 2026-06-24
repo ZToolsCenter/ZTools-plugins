@@ -10,6 +10,7 @@ import DeployModal from '../../components/DeployModal.vue'
 import QuickSwitcher from '../../components/QuickSwitcher.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
 import { loadRegistry, registerSkillFromProject, removeFromRegistry } from '../../utils/skill-registry'
+import { getAvatarColor } from '../../utils/color'
 
 const emit = defineEmits(['navigate', 'edit-project', 'delete-project'])
 
@@ -224,12 +225,7 @@ function openProjectFolder() {
   }
 }
 
-const avatarColors = ['#7c3aed', '#f59e0b', '#e11d48', '#059669', '#0891b2', '#f97316', '#8b5cf6', '#db2777']
-function getAvatarColor(name: string) {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  return avatarColors[Math.abs(hash) % avatarColors.length]
-}
+
 
 function openImportModal() {
   showImportModal.value = true
@@ -392,11 +388,11 @@ const filteredMySkills = computed(() => {
 
 const projectSkillNames = computed(() => {
   if (!selectedProject.value?.skills) return new Set<string>()
-  return new Set(selectedProject.value.skills.map((s: SkillScanResult) => s.manifest?.name || s.name))
+  return new Set(selectedProject.value.skills.map((s: SkillScanResult) => (s.manifest?.name || s.name).toLowerCase()))
 })
 
 function isAlreadyInProject(skill: Skill): boolean {
-  return projectSkillNames.value.has(skill.name) || projectSkillNames.value.has(skill.id)
+  return projectSkillNames.value.has(skill.name.toLowerCase())
 }
 
 function toggleImportSelect(skill: Skill) {
@@ -438,7 +434,7 @@ async function confirmImportFromMy() {
             window.services.copyFile(sourceDir, targetDir)
           }
           storage.saveInstallRecord({
-            skillId: skill.name,
+            skillId: skill.id,
             platformId: selectedProject.value.id,
             mode: importMode.value,
             scope: 'project',

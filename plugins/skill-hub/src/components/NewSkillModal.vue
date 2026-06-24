@@ -4,6 +4,7 @@ import { storage } from '../utils/storage'
 import { parseGitHubUrl, fetchGitHubRepoTree, fetchGitHubFile, detectSkillDirectories } from '../utils/github'
 import { parseFrontmatter } from '../utils/frontmatter'
 import type { Skill } from '../types'
+import { getAvatarColor } from '../utils/color'
 
 const emit = defineEmits(['close', 'imported', 'navigate'])
 const refreshCounts = inject<() => void>('refreshCounts')
@@ -143,8 +144,7 @@ async function importSelected() {
   importing.value = false; emit('imported'); emit('close')
 }
 
-const avatarColors = ['#7c3aed', '#f59e0b', '#e11d48', '#059669', '#0891b2', '#f97316', '#8b5cf6', '#db2777']
-function getAvatarColor(name: string) { let hash = 0; for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash); return avatarColors[Math.abs(hash) % avatarColors.length] }
+
 </script>
 
 <template>

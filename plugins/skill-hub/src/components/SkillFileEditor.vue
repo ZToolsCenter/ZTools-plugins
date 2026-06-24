@@ -88,6 +88,7 @@ const newFileDialogOpen = ref(false)
 const newFolderDialogOpen = ref(false)
 const deleteDialogFile = ref<string | null>(null)
 const dialogInput = ref('')
+const pendingSwitchFile = ref<string | null>(null)
 
 async function loadFiles() {
   if (!props.skillDir) return
@@ -151,9 +152,23 @@ function findFirstFile(tree: FileTreeEntry[]): string | null {
 
 function selectFile(relativePath: string) {
   if (relativePath === selectedFile.value) return
-  if (isModified.value && !confirm('有未保存的更改，确定要切换文件吗？')) return
+  if (isModified.value) {
+    pendingSwitchFile.value = relativePath
+    return
+  }
   selectedFile.value = relativePath
   loadFileContent(relativePath)
+}
+
+function confirmSwitch() {
+  if (!pendingSwitchFile.value) return
+  selectedFile.value = pendingSwitchFile.value
+  pendingSwitchFile.value = null
+  loadFileContent(selectedFile.value)
+}
+
+function cancelSwitch() {
+  pendingSwitchFile.value = null
 }
 
 async function loadFileContent(relativePath: string) {
@@ -485,6 +500,18 @@ function getFileIcon(name: string, isDir: boolean, expanded?: boolean): string {
         <div class="dialog-actions">
           <button class="dialog-btn cancel" @click="newFolderDialogOpen = false">取消</button>
           <button class="dialog-btn primary" @click="handleNewFolder" :disabled="!dialogInput.trim()">创建</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Switch File Confirm Dialog -->
+    <div v-if="pendingSwitchFile" class="dialog-overlay" @click.self="cancelSwitch">
+      <div class="dialog">
+        <h3>未保存的更改</h3>
+        <p class="dialog-desc">有未保存的更改，确定要切换文件吗？</p>
+        <div class="dialog-actions">
+          <button class="dialog-btn cancel" @click="cancelSwitch">取消</button>
+          <button class="dialog-btn primary" @click="confirmSwitch">确定切换</button>
         </div>
       </div>
     </div>

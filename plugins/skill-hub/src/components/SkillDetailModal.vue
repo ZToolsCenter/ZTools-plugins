@@ -8,6 +8,7 @@ import SkillPickModal from './SkillPickModal.vue'
 import { useSettings } from '../composables/useSettings'
 import { translateContent, translateDescription } from '../utils/translate'
 import type { TranslationMode } from '../utils/translate'
+import { getAvatarColor } from '../utils/color'
 import { SKILL_CATEGORIES, inferCategory, CATEGORY_ICONS } from '../data/skill-categories'
 import { getSourceInfo } from '../utils/source-info'
 
@@ -60,8 +61,7 @@ function handleCopy(text: string, key: string) {
 
 onUnmounted(() => { Object.values(copyTimers).forEach(clearTimeout) })
 
-const avatarColors = ['#7c3aed', '#f59e0b', '#e11d48', '#059669', '#0891b2', '#f97316', '#8b5cf6', '#db2777']
-function getAvatarColor(name: string) { let hash = 0; for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash); return avatarColors[Math.abs(hash) % avatarColors.length] }
+
 
 const sourceInfo = computed(() => getSourceInfo(props.skill))
 

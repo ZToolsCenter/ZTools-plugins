@@ -5,6 +5,7 @@ import { storage } from '../utils/storage'
 import { normalizePath } from '../utils/path'
 import type { Skill, InstallMode } from '../types'
 import PlatformIcon from './PlatformIcon.vue'
+import { getAvatarColor } from '../utils/color'
 
 const props = defineProps<{
   skill: Skill
@@ -36,7 +37,7 @@ const physicallyInstalledPlatforms = computed(() => {
     const expandedBase = base.replace(/^~/, window.services.homeDir())
     if (!window.services.pathExists(expandedBase)) continue
     const existingSkills = window.services.scanForSkillFiles([expandedBase])
-    const skillDir = props.skill.path ? props.skill.path.split('/').pop() || props.skill.name : props.skill.name
+    const skillDir = (props.skill.path && props.skill.path !== '.') ? props.skill.path.split('/').pop() || props.skill.name : props.skill.name
     const exists = existingSkills.some(
       (s) => s.dir.includes(skillDir) || (s.manifest?.name || s.name).toLowerCase() === props.skill.name.toLowerCase()
     )
@@ -115,7 +116,7 @@ async function deploy() {
       continue
     }
 
-    const skillDir = props.skill.path ? props.skill.path.split('/').pop() || props.skill.name : props.skill.name
+    const skillDir = (props.skill.path && props.skill.path !== '.') ? props.skill.path.split('/').pop() || props.skill.name : props.skill.name
     const targetDir = window.services.pathJoin(base.replace(/^~/, window.services.homeDir()), skillDir)
 
     try {
@@ -273,14 +274,7 @@ async function deploy() {
   </div>
 </template>
 
-<script lang="ts">
-const avatarColors = ['#7c3aed', '#f59e0b', '#e11d48', '#059669', '#0891b2', '#f97316', '#8b5cf6', '#db2777']
-function getAvatarColor(name: string) {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  return avatarColors[Math.abs(hash) % avatarColors.length]
-}
-</script>
+
 
 <style scoped>
 .deploy-overlay { position: fixed; inset: 0; background: hsl(0 0% 0% / 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }

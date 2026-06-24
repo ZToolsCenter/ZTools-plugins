@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { PLATFORM_ICONS } from '../data/platform-icons'
 
 const props = defineProps<{
   platformId: string
@@ -9,26 +10,26 @@ const props = defineProps<{
 const imgError = ref(false)
 
 const platformIcons: Record<string, string> = {
-  'claude': '/src/assets/platforms/claude.png',
-  'codex': '/src/assets/platforms/codex.png',
-  'gemini': '/src/assets/platforms/gemini.png',
-  'opencode': '/src/assets/platforms/opencode.png',
-  'cursor': '/src/assets/platforms/cursor.png',
-  'windsurf': '/src/assets/platforms/windsurf.png',
-  'trae': '/src/assets/platforms/trae.png',
-  'trae-cn': '/src/assets/platforms/trae.png',
-  'copilot': '/src/assets/platforms/copilot.svg',
-  'kiro': '/src/assets/platforms/kiro.png',
-  'cline': '/src/assets/platforms/cline.svg',
-  'amp': '/src/assets/platforms/opencode.png',
-  'openclaw': '/src/assets/platforms/openclaw.png',
-  'kilo': '/src/assets/platforms/kilo-dark.svg',
-  'hermes': '/src/assets/platforms/hermes.svg',
-  'codebuddy': '/src/assets/platforms/codebuddy-dark.svg',
-  'qoder': '/src/assets/platforms/qoder.png',
-  'qoderwork': '/src/assets/platforms/qoderwork.png',
-  'antigravity': '/src/assets/platforms/antigravity.svg',
-  'cherry-studio': '/src/assets/platforms/cherry-studio.png',
+  'claude': PLATFORM_ICONS.claude,
+  'codex': PLATFORM_ICONS.codex,
+  'gemini': PLATFORM_ICONS.gemini,
+  'opencode': PLATFORM_ICONS.opencode,
+  'cursor': PLATFORM_ICONS.cursor,
+  'windsurf': PLATFORM_ICONS.windsurf,
+  'trae': PLATFORM_ICONS.trae,
+  'trae-cn': PLATFORM_ICONS.trae,
+  'copilot': PLATFORM_ICONS.copilot,
+  'kiro': PLATFORM_ICONS.kiro,
+  'cline': PLATFORM_ICONS.cline,
+  'amp': PLATFORM_ICONS.opencode,
+  'openclaw': PLATFORM_ICONS.openclaw,
+  'kilo': PLATFORM_ICONS.kilo,
+  'hermes': PLATFORM_ICONS.hermes,
+  'codebuddy': PLATFORM_ICONS.codebuddy,
+  'qoder': PLATFORM_ICONS.qoder,
+  'qoderwork': PLATFORM_ICONS.qoderwork,
+  'antigravity': PLATFORM_ICONS.antigravity,
+  'cherry-studio': PLATFORM_ICONS.cherryStudio,
 }
 
 const fallbackIcons: Record<string, string> = {

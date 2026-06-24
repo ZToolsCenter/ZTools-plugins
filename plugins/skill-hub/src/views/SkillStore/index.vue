@@ -13,6 +13,7 @@ import { STORE_ICONS, getStoreIconFromSource } from '../../data/store-icons'
 import SkillDetailModal from '../../components/SkillDetailModal.vue'
 import SkillPickModal from '../../components/SkillPickModal.vue'
 import QuickSwitcher from '../../components/QuickSwitcher.vue'
+import { getAvatarColor } from '../../utils/color'
 
 import { defaultPlatforms } from '../../data/platforms'
 import { useSettings } from '../../composables/useSettings'
@@ -442,8 +443,7 @@ function isDownloaded(id: string) {
   return downloadedIds.value.includes(id)
 }
 
-const avatarColors = ['#7c3aed', '#f59e0b', '#e11d48', '#059669', '#0891b2', '#f97316', '#8b5cf6', '#db2777']
-function getAvatarColor(name: string) { let hash = 0; for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash); return avatarColors[Math.abs(hash) % avatarColors.length] }
+
 
 const platformNameMap = computed(() => {
   const map: Record<string, string> = {}

@@ -13,6 +13,7 @@ import ConfirmDeleteModal from '../../components/ConfirmDeleteModal.vue'
 import ConfirmBatchDeleteModal from '../../components/ConfirmBatchDeleteModal.vue'
 import { loadRegistry, getSourceLabel as getRegistrySourceLabel } from '../../utils/skill-registry'
 import { getSourceInfo as getSourceInfoUtil } from '../../utils/source-info'
+import { getAvatarColor } from '../../utils/color'
 
 const emit = defineEmits(['navigate'])
 
@@ -190,12 +191,7 @@ function getCategoryInfo(skill: Skill): { label: string; icon: string } {
   return { label: SKILL_CATEGORIES[cat].label, icon: CATEGORY_ICONS[cat] }
 }
 
-const avatarColors = ['#7c3aed', '#f59e0b', '#e11d48', '#059669', '#0891b2', '#f97316', '#8b5cf6', '#db2777']
-function getAvatarColor(name: string) {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  return avatarColors[Math.abs(hash) % avatarColors.length]
-}
+
 
 const showDeployModal = ref(false)
 const deploySkill = ref<Skill | null>(null)

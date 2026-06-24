@@ -6,6 +6,7 @@ import SkillFileEditor from './SkillFileEditor.vue'
 import { translateContent, translateDescription, stripFrontmatter, renderImmersiveSegments } from '../utils/translate'
 import type { TranslationMode } from '../utils/translate'
 import { storage } from '../utils/storage'
+import { getAvatarColor } from '../utils/color'
 import { SKILL_CATEGORIES, ALL_CATEGORIES, inferCategory, CATEGORY_ICONS, type SkillCategory } from '../data/skill-categories'
 import { getSourceInfo } from '../utils/source-info'
 
@@ -80,8 +81,7 @@ function renderMarkdown(md: string): string {
     .split('\n').filter(l => l.trim()).join('\n')
 }
 
-const avatarColors = ['#7c3aed', '#f59e0b', '#e11d48', '#059669', '#0891b2', '#f97316', '#8b5cf6', '#db2777']
-function getAvatarColor(name: string) { let hash = 0; for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash); return avatarColors[Math.abs(hash) % avatarColors.length] }
+
 
 const confirmUninstall = ref<{ platformId: string; platformName: string } | null>(null)
 function cancelUninstall() { confirmUninstall.value = null }

@@ -151,7 +151,7 @@ export function registerSkillFromAgent(
     return existing
   }
 
-  const canonicalId = `agent:${platformId}/${scanResult.manifest.name || scanResult.name}`
+  const canonicalId = `agent:${platformId}/${scanResult.manifest?.name || scanResult.name}`
   const source: SkillSourceLocation = {
     type: 'local',
     location: scanResult.dir,
@@ -187,7 +187,7 @@ export function registerSkillFromProject(
     return existing
   }
 
-  const canonicalId = `project:${projectId}/${scanResult.manifest.name || scanResult.name}`
+  const canonicalId = `project:${projectId}/${scanResult.manifest?.name || scanResult.name}`
   const source: SkillSourceLocation = {
     type: 'local-dir',
     location: scanResult.dir,
