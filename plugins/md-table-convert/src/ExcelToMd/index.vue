@@ -15,14 +15,19 @@ const tableData = ref<TableData | null>(null)
 const errorMsg = ref('')
 const copySuccess = ref(false)
 
+/** 把单元格内的换行替换为空格，避免 Markdown 表格断行 */
+function cleanCell(cell: string): string {
+  return cell.replace(/\r?\n/g, ' ')
+}
+
 const markdownText = computed(() => {
   if (!tableData.value) return ''
   const { headers, rows } = tableData.value
   const lines: string[] = []
-  lines.push('| ' + headers.join(' | ') + ' |')
+  lines.push('| ' + headers.map(cleanCell).join(' | ') + ' |')
   lines.push('| ' + headers.map(() => '---').join(' | ') + ' |')
   for (const row of rows) {
-    const cells = headers.map((_, i) => (i < row.length ? row[i] : ''))
+    const cells = headers.map((_, i) => (i < row.length ? cleanCell(row[i]) : ''))
     lines.push('| ' + cells.join(' | ') + ' |')
   }
   return lines.join('\n')
