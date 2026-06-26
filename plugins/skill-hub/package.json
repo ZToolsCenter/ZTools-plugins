@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build"
+    "build": "vue-tsc && vite build",
+    "build-zip": "pnpm build && node scripts/build-zip.cjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

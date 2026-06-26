@@ -5,7 +5,7 @@ import { storage } from '../../utils/storage'
 import { useSettings } from '../../composables/useSettings'
 import { getSourceInfo } from '../../utils/source-info'
 import { normalizePath } from '../../utils/path'
-import type { PlatformInfo, Skill } from '../../types'
+import type { PlatformInfo, Skill, SkillScanResult } from '../../types'
 import PlatformIcon from '../../components/PlatformIcon.vue'
 import QuickSwitcher from '../../components/QuickSwitcher.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
@@ -18,14 +18,14 @@ const platformSkillCounts = inject<Record<string, number>>('platformSkillCounts'
 
 const detectedPlatforms = ref<PlatformInfo[]>([])
 const selectedId = ref(props.initialPlatformId || '')
-const platformSkills = ref<Record<string, any[]>>({})
+const platformSkills = ref<Record<string, SkillScanResult[]>>({})
 const loading = ref(false)
 const skillFilter = ref<string>('')
 const viewMode = ref<'grid' | 'list'>('grid')
 const downloadedIds = ref<string[]>(storage.getDownloadedIds())
 function refreshDownloaded() { downloadedIds.value = storage.getDownloadedIds() }
 
-function getSkillId(skill: any): string {
+function getSkillId(skill: SkillScanResult): string {
   return skill.manifest?.name || skill.name
 }
 
@@ -85,7 +85,7 @@ function toggleTheme() {
   updateSettings({ themeMode: next })
 }
 
-const agentColors: Record<string, string> = { 'claude': '#f97316', 'codex': '#3b82f6', 'gemini': '#8b5cf6', 'opencode': '#1a1a2e', 'cherry-studio': '#ec4899', 'cursor': '#64748b', 'windsurf': '#06b6d4', 'trae': '#3b82f6', 'trae-cn': '#3b82f6', 'copilot': '#238636', 'kiro': '#f59e0b', 'cline': '#10b981', 'amp': '#f59e0b', 'openclaw': '#8b5cf6', 'kilo': '#6366f1', 'hermes': '#ec4899', 'codebuddy': '#14b8a6', 'qoder': '#ef4444', 'antigravity': '#8b5cf6', 'mimo': '#ff6d00' }
+const agentColors: Record<string, string> = { 'claude': '#f97316', 'codex': '#3b82f6', 'gemini': '#8b5cf6', 'opencode': '#1a1a2e', 'cherry-studio': '#ec4899', 'cursor': '#64748b', 'windsurf': '#06b6d4', 'trae': '#3b82f6', 'trae-cn': '#3b82f6', 'copilot': '#238636', 'kiro': '#f59e0b', 'cline': '#10b981', 'openclaw': '#8b5cf6', 'kilo': '#6366f1', 'hermes': '#ec4899', 'codebuddy': '#14b8a6', 'qoder': '#ef4444', 'antigravity': '#8b5cf6', 'mimo': '#ff6d00' }
 
 const platformItems = computed(() =>
   unref(allPlatforms).map((p: any) => ({
@@ -174,20 +174,65 @@ function getAvatarColor(name: string): string {
   return `hsl(${h} 45% 50%)`
 }
 
+function findDuplicateSkills(skill: any): any[] {
+  const name = skill.manifest?.name || skill.name || ''
+  if (!name) return [skill]
+  const all = selectedSkills.value
+  return all.filter((s: any) => (s.manifest?.name || s.name || '') === name)
+}
+
 function openSkillDetail(skill: any) {
-  emit('navigate', 'agent-skill-detail', { skill, platformId: selectedId.value })
+  const duplicates = findDuplicateSkills(skill)
+  emit('navigate', 'agent-skill-detail', { skill, platformId: selectedId.value, duplicateSkills: duplicates.length > 1 ? duplicates : null, context: 'agent' })
 }
 
 function openFolder(skill: any) {
   try { window.services.openFolder(skill.dir) } catch {}
 }
 
-function uninstallSkill(skill: any) {
-  try { window.services.removeFile(skill.dir); refreshCurrent() } catch {}
-  if (selectedPlatform.value) {
-    const records = storage.getInstalledForPlatform(selectedPlatform.value.id).filter((r) => r.targetPath.replace(/\\/g, '/') === skill.dir.replace(/\\/g, '/'))
-    for (const r of records) storage.removeInstallRecord(r.skillId, r.platformId)
+function executeUninstallByScope() {
+  const dir = uninstallScopeDir.value
+  if (!dir) return
+  const selected = uninstallScopeOptions.value.filter((o) => o.checked).map((o) => o.scope)
+  if (!selected.length) { showToast('请选择至少一个范围', 'warning'); return }
+
+  const records = storage.getInstallRecords().filter(
+    (r) => r.targetPath.replace(/\\/g, '/') === dir.replace(/\\/g, '/')
+  )
+  for (const r of records) {
+    const scope = r.scope || 'global'
+    if (!selected.includes(scope)) continue
+    storage.removeInstallRecord(r.skillId, r.platformId, r.scope)
   }
+
+  if (selected.includes('global')) {
+    try { window.services.removeFile(dir); refreshCurrent() } catch {}
+  }
+  if (selected.includes('project')) {
+    try { window.services.removeFile(dir) } catch {}
+    refreshCurrent()
+  }
+  showToast('已卸载', 'success')
+  uninstallScopeDir.value = null
+  confirmDeleteDir.value = null
+}
+
+function uninstallSkill(skill: any) {
+  const dir = skill.dir
+  const allRecords = storage.getInstallRecords().filter(
+    (r) => r.targetPath.replace(/\\/g, '/') === dir.replace(/\\/g, '/')
+  )
+  const hasGlobal = allRecords.some((r) => r.scope !== 'project')
+  const hasProject = allRecords.some((r) => r.scope === 'project')
+
+  if (hasGlobal && hasProject) {
+    showUninstallScopePicker(dir, skill.manifest?.name || skill.name)
+    confirmDeleteDir.value = null
+    return
+  }
+
+  try { window.services.removeFile(dir); refreshCurrent() } catch {}
+  for (const r of allRecords) storage.removeInstallRecord(r.skillId, r.platformId, r.scope)
   confirmDeleteDir.value = null
 }
 
@@ -195,6 +240,22 @@ const batchMode = ref(false)
 const selectedIds = ref<Set<string>>(new Set())
 const confirmDeleteDir = ref<string | null>(null)
 const confirmDeleteSkillName = ref('')
+
+const uninstallScopeDir = ref<string | null>(null)
+const uninstallScopeSkillName = ref('')
+const uninstallScopeOptions = ref<{ scope: string; label: string; checked: boolean }[]>([])
+function showUninstallScopePicker(dir: string, name: string) {
+  const records = storage.getInstallRecords().filter(
+    (r) => r.targetPath.replace(/\\/g, '/') === dir.replace(/\\/g, '/')
+  )
+  const hasGlobal = records.some((r) => r.scope !== 'project')
+  const hasProject = records.some((r) => r.scope === 'project')
+  uninstallScopeOptions.value = []
+  if (hasGlobal) uninstallScopeOptions.value.push({ scope: 'global', label: 'Agent 平台目录', checked: true })
+  if (hasProject) uninstallScopeOptions.value.push({ scope: 'project', label: '项目目录', checked: true })
+  uninstallScopeDir.value = dir
+  uninstallScopeSkillName.value = name
+}
 
 function toggleBatchMode() {
   batchMode.value = !batchMode.value
@@ -221,10 +282,10 @@ const isAllSelected = computed(() => filteredSkills.value.length > 0 && selected
 function batchDelete() {
   for (const dir of selectedIds.value) {
     try { window.services.removeFile(dir) } catch {}
-    if (selectedPlatform.value) {
-      const records = storage.getInstalledForPlatform(selectedPlatform.value.id).filter((r) => r.targetPath.replace(/\\/g, '/') === dir.replace(/\\/g, '/'))
-      for (const r of records) storage.removeInstallRecord(r.skillId, r.platformId)
-    }
+    const records = storage.getInstallRecords().filter(
+      (r) => r.targetPath.replace(/\\/g, '/') === dir.replace(/\\/g, '/')
+    )
+    for (const r of records) storage.removeInstallRecord(r.skillId, r.platformId, r.scope)
   }
   refreshCurrent()
   selectedIds.value.clear()
@@ -548,6 +609,36 @@ function confirmImportFromMy() {
     </div>
 
     <ConfirmModal v-if="confirmDeleteDir" title="删除 Skill" :message="`确定要删除 <strong>${confirmDeleteSkillName}</strong> 吗？此操作不可撤销。`" @confirm="uninstallSkill({ dir: confirmDeleteDir, manifest: { name: confirmDeleteSkillName } })" @cancel="confirmDeleteDir = null" />
+
+    <div v-if="uninstallScopeDir" class="confirm-overlay" @click.self="uninstallScopeDir = null">
+      <div class="confirm-modal">
+        <div class="confirm-header">
+          <div class="confirm-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </div>
+          <h3 class="confirm-title">卸载 Skill</h3>
+          <button class="confirm-close" @click="uninstallScopeDir = null">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="confirm-body">
+          <p class="confirm-desc"><strong>{{ uninstallScopeSkillName }}</strong> 同时存在于以下位置，请选择要卸载的范围：</p>
+          <div class="scope-list">
+            <label v-for="opt in uninstallScopeOptions" :key="opt.scope" class="scope-item" :class="{ checked: opt.checked }">
+              <input type="checkbox" v-model="opt.checked" class="scope-checkbox" />
+              <span class="scope-label">{{ opt.label }}</span>
+            </label>
+          </div>
+        </div>
+        <div class="confirm-footer">
+          <button class="confirm-btn cancel" @click="uninstallScopeDir = null">取消</button>
+          <button class="confirm-btn delete" @click="executeUninstallByScope">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            确认卸载
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1015,4 +1106,26 @@ function confirmImportFromMy() {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.7s linear infinite; }
+
+.confirm-overlay { position: fixed; inset: 0; background: hsl(0 0% 0% / 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
+.confirm-modal { width: 420px; max-width: 90vw; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 16px; overflow: hidden; box-shadow: 0 24px 64px hsl(0 0% 0% / 0.2); }
+.confirm-header { display: flex; align-items: center; gap: 10px; padding: 18px 20px; border-bottom: 1px solid hsl(var(--border)); }
+.confirm-icon { width: 32px; height: 32px; border-radius: 8px; background: hsl(var(--destructive) / 0.1); color: hsl(var(--destructive)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.confirm-title { font-size: 15px; font-weight: 600; color: hsl(var(--foreground)); margin: 0; flex: 1; }
+.confirm-close { width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent; color: hsl(var(--muted-foreground)); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.confirm-close:hover { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+.confirm-body { padding: 18px 20px; }
+.confirm-desc { font-size: 13px; line-height: 1.6; color: hsl(var(--muted-foreground)); margin: 0 0 14px; }
+.confirm-desc strong { color: hsl(var(--foreground)); font-weight: 600; }
+.scope-list { display: flex; flex-direction: column; gap: 6px; }
+.scope-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--accent) / 0.15); cursor: pointer; }
+.scope-item.checked { border-color: hsl(var(--primary) / 0.45); background: hsl(var(--primary) / 0.06); }
+.scope-checkbox { accent-color: hsl(var(--primary)); }
+.scope-label { font-size: 13px; font-weight: 500; color: hsl(var(--foreground)); }
+.confirm-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid hsl(var(--border)); }
+.confirm-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; }
+.confirm-btn.cancel { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+.confirm-btn.cancel:hover { background: hsl(var(--muted) / 0.8); }
+.confirm-btn.delete { background: hsl(var(--destructive)); color: #fff; }
+.confirm-btn.delete:hover { opacity: 0.9; }
 </style>

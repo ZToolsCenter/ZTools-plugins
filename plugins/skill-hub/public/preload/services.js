@@ -3,11 +3,8 @@ const path = require('node:path')
 const https = require('node:https')
 const http = require('node:http')
 const os = require('node:os')
-const { exec } = require('node:child_process')
+const { execFile } = require('node:child_process')
 const AdmZip = require('adm-zip')
-const tar = require('tar')
-const { extract } = require('extract-zip')
-
 function homeDir() {
   return os.homedir()
 }
@@ -25,27 +22,62 @@ function isMacOS() {
   return process.platform === 'darwin'
 }
 
+function _downloadFileInternal(url, redirectCount) {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 5) {
+      return reject(new Error('Too many redirects'))
+    }
+    const client = url.startsWith('https') ? https : http
+    const chunks = []
+    client.get(url, { headers: { 'User-Agent': 'skill-hub' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return resolve(_downloadFileInternal(res.headers.location, redirectCount + 1))
+      }
+      if (res.statusCode !== 200) {
+        return reject(new Error(`Download failed: ${res.statusCode}`))
+      }
+      res.on('data', (c) => chunks.push(c))
+      res.on('end', () => resolve(Buffer.concat(chunks)))
+      res.on('error', reject)
+    }).on('error', reject)
+  })
+}
+
+function _fetchGitHubTextInternal(url, token, redirectCount) {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 5) {
+      return reject(new Error('Too many redirects'))
+    }
+    const headers = {
+      Accept: 'application/vnd.github.v3.raw',
+      'User-Agent': 'skill-hub',
+    }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const client = url.startsWith('https') ? https : http
+    client.get(url, { headers }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return resolve(_fetchGitHubTextInternal(res.headers.location, token, redirectCount + 1))
+      }
+      let data = ''
+      res.on('data', (c) => (data += c))
+      res.on('end', () => {
+        if (res.statusCode !== 200) reject(new Error(`GitHub raw: ${res.statusCode}`))
+        else resolve(data)
+      })
+      res.on('error', reject)
+    }).on('error', reject)
+  })
+}
+
 window.services = {
   // === 原始保留服务 ===
   readFile(file) {
-    return fs.readFileSync(file, { encoding: 'utf-8' })
+    try {
+      return fs.readFileSync(expandPath(file), { encoding: 'utf-8' })
+    } catch {
+      return null
+    }
   },
-  writeTextFile(text) {
-    const filePath = path.join(window.ztools.getPath('downloads'), Date.now().toString() + '.txt')
-    fs.writeFileSync(filePath, text, { encoding: 'utf-8' })
-    return filePath
-  },
-  writeImageFile(base64Url) {
-    const matchs = /^data:image\/([a-z]{1,20});base64,/i.exec(base64Url)
-    if (!matchs) return
-    const filePath = path.join(
-      window.ztools.getPath('downloads'),
-      Date.now().toString() + '.' + matchs[1]
-    )
-    fs.writeFileSync(filePath, base64Url.substring(matchs[0].length), { encoding: 'base64' })
-    return filePath
-  },
-
   // === 路径工具 ===
   expandPath,
   homeDir,
@@ -67,8 +99,13 @@ window.services = {
   openFolder(dir) {
     const fullPath = expandPath(dir)
     if (!fs.existsSync(fullPath)) return
-    const cmd = isWindows() ? `explorer "${fullPath}"` : process.platform === 'darwin' ? `open "${fullPath}"` : `xdg-open "${fullPath}"`
-    exec(cmd)
+    if (isWindows()) {
+      execFile('explorer', [fullPath])
+    } else if (process.platform === 'darwin') {
+      execFile('open', [fullPath])
+    } else {
+      execFile('xdg-open', [fullPath])
+    }
   },
   readDir(dir) {
     try {
@@ -84,7 +121,11 @@ window.services = {
     }
   },
   readFileText(filePath) {
-    return fs.readFileSync(expandPath(filePath), { encoding: 'utf-8' })
+    try {
+      return fs.readFileSync(expandPath(filePath), { encoding: 'utf-8' })
+    } catch {
+      return null
+    }
   },
   writeFile(filePath, content) {
     const full = expandPath(filePath)
@@ -102,11 +143,18 @@ window.services = {
     const fullSrc = expandPath(src)
     const fullDest = expandPath(dest)
     this.mkdir(path.dirname(fullDest))
+    const tempDest = fullDest + `.tmp.${Date.now()}`
     try {
-      fs.lstatSync(fullDest)
-      fs.rmSync(fullDest, { recursive: true })
-    } catch {}
-    fs.cpSync(fullSrc, fullDest, { recursive: true, dereference: true })
+      fs.cpSync(fullSrc, tempDest, { recursive: true, dereference: true })
+      try {
+        fs.lstatSync(fullDest)
+        fs.rmSync(fullDest, { recursive: true })
+      } catch {}
+      fs.renameSync(tempDest, fullDest)
+    } catch (err) {
+      try { fs.rmSync(tempDest, { recursive: true, force: true }) } catch {}
+      throw err
+    }
   },
   stat(p) {
     try {
@@ -142,119 +190,30 @@ window.services = {
     }
     return fullLink
   },
-  readSymlink(linkPath) {
-    try {
-      return fs.readlinkSync(expandPath(linkPath))
-    } catch {
-      return null
-    }
-  },
-
   // === 下载 ===
-  downloadFile(url, _redirectCount) {
-    const redirectCount = (_redirectCount || 0)
-    return new Promise((resolve, reject) => {
-      if (redirectCount > 5) {
-        return reject(new Error('Too many redirects'))
-      }
-      const client = url.startsWith('https') ? https : http
-      const chunks = []
-      client.get(url, { headers: { 'User-Agent': 'skill-hub' } }, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return resolve(this.downloadFile(res.headers.location, redirectCount + 1))
-        }
-        if (res.statusCode !== 200) {
-          return reject(new Error(`Download failed: ${res.statusCode}`))
-        }
-      res.on('data', (c) => chunks.push(c))
-      res.on('end', () => resolve(Buffer.concat(chunks)))
-      res.on('error', reject)
-      }).on('error', reject)
-    })
-  },
-  downloadFileTo(url, destPath) {
-    return this.downloadFile(url).then((content) => {
-      const full = expandPath(destPath)
-      this.mkdir(path.dirname(full))
-      fs.writeFileSync(full, content)
-      return full
-    })
-  },
-
-  // === GitHub API ===
-  fetchGitHubAPI(url, token) {
-    return new Promise((resolve, reject) => {
-      const headers = {
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'skill-hub',
-      }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-      https.get(url, { headers }, (res) => {
-        let data = ''
-        res.on('data', (c) => (data += c))
-        res.on('end', () => {
-          if (res.statusCode !== 200) {
-            try {
-              const err = JSON.parse(data)
-              reject(new Error(err.message || `GitHub API: ${res.statusCode}`))
-            } catch {
-              reject(new Error(`GitHub API: ${res.statusCode}`))
-            }
-            return
-          }
-          try {
-            resolve(JSON.parse(data))
-          } catch {
-            reject(new Error('Invalid JSON from GitHub API'))
-          }
-        })
-        res.on('error', reject)
-      }).on('error', reject)
-    })
+  downloadFile(url) {
+    return _downloadFileInternal(url, 0)
   },
   fetchGitHubText(url, token) {
-    return new Promise((resolve, reject) => {
-      const headers = {
-        Accept: 'application/vnd.github.v3.raw',
-        'User-Agent': 'skill-hub',
-      }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-      https.get(url, { headers }, (res) => {
-        let data = ''
-        res.on('data', (c) => (data += c))
-        res.on('end', () => {
-          if (res.statusCode !== 200) reject(new Error(`GitHub raw: ${res.statusCode}`))
-          else resolve(data)
-        })
-        res.on('error', reject)
-      }).on('error', reject)
-    })
+    return _fetchGitHubTextInternal(url, token, 0)
   },
 
   // === 压缩包解压 ===
-  extractZip(zipPath, dest) {
-    const fullZip = expandPath(zipPath)
-    const fullDest = expandPath(dest)
-    this.mkdir(fullDest)
-    const zip = new AdmZip(fullZip)
-    zip.extractAllTo(fullDest, true)
-    return fullDest
-  },
   extractBufferZip(buffer, dest) {
     const fullDest = expandPath(dest)
     this.mkdir(fullDest)
     const zip = new AdmZip(Buffer.from(buffer))
+    const entries = zip.getEntries()
+    for (const entry of entries) {
+      const entryPath = entry.entryName
+      const resolved = path.resolve(fullDest, entryPath)
+      if (!resolved.startsWith(fullDest + path.sep) && resolved !== fullDest) {
+        throw new Error(`Zip Slip detected: "${entryPath}" escapes destination`)
+      }
+    }
     zip.extractAllTo(fullDest, true)
     return fullDest
   },
-  async extractTarGz(tarPath, dest) {
-    const fullTar = expandPath(tarPath)
-    const fullDest = expandPath(dest)
-    this.mkdir(fullDest)
-    await tar.x({ file: fullTar, C: fullDest })
-    return fullDest
-  },
-
   // === SKILL.md 扫描 ===
   scanForSkills(rootDir) {
     const fullRoot = expandPath(rootDir)

@@ -165,15 +165,6 @@ export const defaultPlatforms: PlatformInfo[] = [
     enabled: true, detected: false,
   },
   {
-    id: 'amp',
-    name: 'Amp',
-    rootDir: { darwin: '~/.config/amp', win32: '~/.config/amp', linux: '~/.config/amp' },
-    skillsRelativePath: 'skills',
-    defaultPath: '~/.config/amp/skills/',
-    projectPath: '.amp/skills/',
-    enabled: true, detected: false,
-  },
-  {
     id: 'openclaw',
     name: 'OpenClaw',
     rootDir: { darwin: '~/.openclaw', win32: '~/.openclaw', linux: '~/.openclaw' },

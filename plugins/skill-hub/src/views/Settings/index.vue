@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, inject, watch, nextTick } from 'vue'
 import { defaultPlatforms } from '../../data/platforms'
-import { BUILTIN_PROVIDERS, getProviderInfo } from '../../data/ai-providers'
+import { BUILTIN_PROVIDERS, getProviderInfo, AVAILABLE_ICONS } from '../../data/ai-providers'
 import { storage } from '../../utils/storage'
 import { getMandiThemes, hexToHsl } from '../../utils/theme'
 import type { AppSettings, PlatformInfo, ThemeMode, FontSize, MotionPreference, ModelConfig } from '../../types'
@@ -9,6 +9,7 @@ import { MORANDI_THEMES } from '../../types'
 import { useSettings } from '../../composables/useSettings'
 import { fetchAvailableModels, chatCompletion } from '../../utils/ai'
 import PlatformIcon from '../../components/PlatformIcon.vue'
+import ProviderIcon from '../../components/ProviderIcon.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
 import CleanupSelectModal from '../../components/CleanupSelectModal.vue'
 import { loadRegistry } from '../../utils/skill-registry'
@@ -442,7 +443,28 @@ const newModelCustomName = ref('')
 const showModelModal = ref(false)
 const editingModelIndex = ref<number | null>(null)
 const modelForm = ref<ModelConfig>({
-  id: '', name: '', provider: 'openai', baseUrl: '', apiPath: '', apiKeys: [], model: '', isDefault: false, isBuiltin: false, enabled: true, models: [],
+  id: '', name: '', provider: 'openai', baseUrl: '', apiPath: '', apiKeys: [], model: '', isDefault: false, isBuiltin: false, enabled: true, models: [], icon: '',
+})
+const showIconPicker = ref(false)
+const iconSearchQuery = ref('')
+const iconSearchRef = ref<HTMLInputElement>()
+const editingIconProviderId = ref<string | null>(null)
+watch(showIconPicker, (v) => {
+  if (v) {
+    iconSearchQuery.value = ''
+    nextTick(() => iconSearchRef.value?.focus())
+  }
+})
+const filteredIcons = computed(() => {
+  const q = iconSearchQuery.value.toLowerCase()
+  const list = q ? AVAILABLE_ICONS.filter(name => name.includes(q)) : AVAILABLE_ICONS
+  return list.filter(name => name !== 'openai')
+})
+const defaultProviderIcon = computed(() => {
+  const providerId = editingIconProviderId.value
+    ? (settings.aiModels.find(m => m.id === editingIconProviderId.value)?.provider || '')
+    : modelForm.value.provider
+  return getProviderInfo(providerId)?.icon || 'openai'
 })
 const showFetchModal = ref(false)
 const fetchModelsResult = ref<{ id: string; name: string; owned_by?: string }[]>([])
@@ -648,6 +670,7 @@ function openAddModel() {
     isBuiltin: false,
     enabled: true,
     models: [],
+    icon: '',
   }
   applyProviderPreset()
   showModelModal.value = true
@@ -665,6 +688,7 @@ function applyProviderPreset() {
   if (info) {
     modelForm.value.baseUrl = info.defaultBaseUrl
     modelForm.value.apiPath = info.defaultApiPath
+    modelForm.value.icon = info.icon
   }
 }
 
@@ -772,18 +796,20 @@ function doDeleteApiKey() {
   const key = confirmDeleteApiKey.value
   confirmDeleteApiKey.value = null
   if (!key) return
-  const [providerId, ki] = key.split('-')
+  const lastDash = key.lastIndexOf('-')
+  const providerId = key.substring(0, lastDash)
+  const ki = parseInt(key.substring(lastDash + 1))
   const idx = settings.aiModels.findIndex(m => m.id === providerId)
-  if (idx >= 0) deleteApiKey(idx, parseInt(ki))
+  if (idx >= 0) deleteApiKey(idx, ki)
 }
 
 function doDeleteGroup() {
   const key = confirmDeleteGroup.value
   confirmDeleteGroup.value = null
   if (!key) return
-  const dashIdx = key.indexOf('-')
-  const providerId = key.substring(0, dashIdx)
-  const groupName = key.substring(dashIdx + 1)
+  const lastDash = key.lastIndexOf('-')
+  const providerId = key.substring(0, lastDash)
+  const groupName = key.substring(lastDash + 1)
   const idx = settings.aiModels.findIndex(m => m.id === providerId)
   if (idx >= 0) deleteGroupModels(idx, groupName)
 }
@@ -852,9 +878,11 @@ async function openFetchModels(index: number) {
       showFetchModal.value = true
     } else {
       fetchError.value = result.error || '获取失败'
+      showToast(fetchError.value, 'error')
     }
   } catch (err: unknown) {
     fetchError.value = (err as any)?.message || '获取失败'
+    showToast(fetchError.value, 'error')
   }
   fetchLoading.value = false
 }
@@ -1035,6 +1063,27 @@ function toggleProviderEnabled(provider: ModelConfig) {
     models[idx] = { ...models[idx], enabled: !models[idx].enabled }
     updateSettings({ aiModels: models })
   }
+}
+
+function openIconPickerForProvider(providerId: string) {
+  editingIconProviderId.value = providerId
+  editingModelIndex.value = null
+  showIconPicker.value = true
+}
+
+function onIconPickerSelect(iconName: string) {
+  if (editingIconProviderId.value) {
+    const models = [...settings.aiModels]
+    const idx = models.findIndex(m => m.id === editingIconProviderId.value)
+    if (idx >= 0) {
+      models[idx] = { ...models[idx], icon: iconName }
+      updateSettings({ aiModels: models })
+    }
+    editingIconProviderId.value = null
+  } else if (editingModelIndex.value !== null) {
+    modelForm.value.icon = iconName
+  }
+  showIconPicker.value = false
 }
 
 function openAddModelModal(providerIndex: number) {
@@ -1468,7 +1517,7 @@ function groupModels(models: Array<{ id: string; name: string; enabled: boolean;
               <div v-for="m in enabledProviders" :key="m.id" class="ai-model-provider-card">
                 <div class="provider-card-header" @click="toggleExpandedSection(m.id, 'apiInfo')">
                   <div class="provider-card-left">
-                    <span class="provider-card-icon">{{ getProviderInfo(m.provider)?.icon || '⚙️' }}</span>
+                    <span class="provider-card-icon clickable" @click.stop="openIconPickerForProvider(m.id)"><ProviderIcon :icon="m.icon || getProviderInfo(m.provider)?.icon" :size="20" /></span>
                     <span class="provider-card-name">{{ m.name || getProviderInfo(m.provider)?.name }}</span>
                   </div>
                   <div class="provider-card-right">
@@ -1605,7 +1654,7 @@ function groupModels(models: Array<{ id: string; name: string; enabled: boolean;
               <div v-for="m in pendingProviders" :key="m.id" class="ai-model-provider-card pending">
                 <div class="provider-card-header" @click="toggleExpandedSection(m.id, 'apiInfo')">
                   <div class="provider-card-left">
-                    <span class="provider-card-icon">{{ getProviderInfo(m.provider)?.icon || '⚙️' }}</span>
+                    <span class="provider-card-icon clickable" @click.stop="openIconPickerForProvider(m.id)"><ProviderIcon :icon="m.icon || getProviderInfo(m.provider)?.icon" :size="20" /></span>
                     <span class="provider-card-name">{{ m.name || getProviderInfo(m.provider)?.name }}</span>
                     <span class="provider-pending-badge">需要配置</span>
                   </div>
@@ -1740,7 +1789,7 @@ function groupModels(models: Array<{ id: string; name: string; enabled: boolean;
               <div v-for="m in disabledProviders" :key="m.id" class="ai-model-provider-card disabled">
                 <div class="provider-card-header" @click="toggleExpandedSection(m.id, 'apiInfo')">
                   <div class="provider-card-left">
-                    <span class="provider-card-icon">{{ getProviderInfo(m.provider)?.icon || '⚙️' }}</span>
+                    <span class="provider-card-icon clickable" @click.stop="openIconPickerForProvider(m.id)"><ProviderIcon :icon="m.icon || getProviderInfo(m.provider)?.icon" :size="20" /></span>
                     <span class="provider-card-name">{{ m.name || getProviderInfo(m.provider)?.name }}</span>
                   </div>
                   <div class="provider-card-right">
@@ -1888,7 +1937,7 @@ function groupModels(models: Array<{ id: string; name: string; enabled: boolean;
               <div class="form-group">
                 <label class="form-label">供应商类型 <span class="form-required">*</span></label>
                 <select v-model="modelForm.provider" class="form-select" @change="applyProviderPreset">
-                  <option v-for="p in BUILTIN_PROVIDERS" :key="p.id" :value="p.id">{{ p.icon }} {{ p.name }}</option>
+                  <option v-for="p in BUILTIN_PROVIDERS" :key="p.id" :value="p.id">{{ p.name }}</option>
                 </select>
               </div>
               <div class="form-group">
@@ -1899,10 +1948,55 @@ function groupModels(models: Array<{ id: string; name: string; enabled: boolean;
                 <label class="form-label">API 路径</label>
                 <input v-model="modelForm.apiPath" type="text" class="form-input" placeholder="/v1/chat/completions" />
               </div>
+              <div class="form-group">
+                <label class="form-label">图标</label>
+                <div class="icon-picker-trigger" @click="editingIconProviderId = null; showIconPicker = true">
+                  <span class="icon-picker-preview"><ProviderIcon :icon="modelForm.icon || getProviderInfo(modelForm.provider)?.icon || 'openai'" :size="28" /></span>
+                  <span class="icon-picker-label">{{ modelForm.icon || getProviderInfo(modelForm.provider)?.icon || 'openai' }}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+              </div>
             </div>
             <div class="modal-footer">
               <button class="modal-btn cancel" @click="showModelModal = false">取消</button>
               <button class="modal-btn confirm" :disabled="!modelForm.name.trim() || !modelForm.provider" @click="saveModel">创建</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Icon Picker Modal -->
+        <div v-if="showIconPicker" class="modal-overlay" style="z-index: 1100;" @click.self="showIconPicker = false">
+          <div class="modal modal-sm" style="width: 420px;">
+            <div class="modal-header">
+              <h3 class="modal-title">选择图标 <span class="modal-title-count">{{ filteredIcons.length }}/{{ AVAILABLE_ICONS.length }}</span></h3>
+              <button class="modal-close" @click="showIconPicker = false">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="modal-body" style="padding: 12px;">
+              <div class="icon-picker-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input v-model="iconSearchQuery" type="text" class="icon-picker-input" placeholder="搜索图标..." @keydown.escape="showIconPicker = false" ref="iconSearchRef" />
+              </div>
+              <div class="icon-picker-grid">
+                <div class="icon-picker-item" :class="{ active: editingIconProviderId ? !(settings.aiModels.find(m => m.id === editingIconProviderId)?.icon) : !modelForm.icon }" @click="onIconPickerSelect('')">
+                  <span class="icon-picker-item-icon"><ProviderIcon :icon="defaultProviderIcon" :size="28" /></span>
+                  <span class="icon-picker-item-label">默认</span>
+                </div>
+                <div class="icon-picker-item" :class="{ active: editingIconProviderId ? settings.aiModels.find(m => m.id === editingIconProviderId)?.icon === 'openai' : modelForm.icon === 'openai' }" @click="onIconPickerSelect('openai')">
+                  <span class="icon-picker-item-icon"><ProviderIcon icon="openai" :size="28" /></span>
+                  <span class="icon-picker-item-label">openai</span>
+                </div>
+                <div
+                  v-for="name in filteredIcons" :key="name"
+                  class="icon-picker-item"
+                  :class="{ active: editingIconProviderId ? settings.aiModels.find(m => m.id === editingIconProviderId)?.icon === name : modelForm.icon === name }"
+                  @click="onIconPickerSelect(name)"
+                >
+                  <span class="icon-picker-item-icon"><ProviderIcon :icon="name" :size="28" /></span>
+                  <span class="icon-picker-item-label">{{ name }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -3285,9 +3379,18 @@ function groupModels(models: Array<{ id: string; name: string; enabled: boolean;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: hsl(var(--muted));
-  border-radius: 8px;
   flex-shrink: 0;
+}
+
+.provider-card-icon.clickable {
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.2s, transform 0.15s;
+}
+
+.provider-card-icon.clickable:hover {
+  background-color: hsl(var(--muted));
+  transform: scale(1.1);
 }
 
 .provider-card-name {
@@ -4616,5 +4719,106 @@ function groupModels(models: Array<{ id: string; name: string; enabled: boolean;
   font-size: 12px;
   color: hsl(var(--muted-foreground));
   line-height: 1.5;
+}
+
+.icon-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  background: hsl(var(--card));
+}
+.icon-picker-trigger:hover {
+  border-color: hsl(var(--ring));
+}
+
+.icon-picker-label {
+  flex: 1;
+  font-size: 13px;
+  color: hsl(var(--foreground));
+}
+
+.icon-picker-preview {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--muted));
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.icon-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  margin-bottom: 8px;
+  color: hsl(var(--muted-foreground));
+}
+
+.icon-picker-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: hsl(var(--foreground));
+}
+.icon-picker-input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+  padding: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.icon-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.icon-picker-item:hover {
+  background: hsl(var(--accent));
+}
+.icon-picker-item.active {
+  background: hsl(var(--primary) / 0.12);
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: -2px;
+}
+
+.icon-picker-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.icon-picker-item-label {
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 52px;
+  white-space: nowrap;
 }
 </style>

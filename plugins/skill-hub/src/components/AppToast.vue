@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 
 export interface ToastItem {
   id: string
@@ -9,6 +9,7 @@ export interface ToastItem {
 }
 
 const toasts = ref<ToastItem[]>([])
+const expandedMessageId = ref<string | null>(null)
 const exitTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
 let idCounter = 0
@@ -41,6 +42,16 @@ function closeToast(id: string) {
 onUnmounted(() => { exitTimers.forEach(clearTimeout) })
 
 defineExpose({ showToast })
+
+watch(expandedMessageId, (id) => {
+  if (!id) return
+  const autoTimerKey = id + ':auto'
+  const autoTimer = exitTimers.get(autoTimerKey)
+  if (autoTimer) {
+    clearTimeout(autoTimer)
+    exitTimers.delete(autoTimerKey)
+  }
+})
 </script>
 
 <template>
@@ -59,7 +70,7 @@ defineExpose({ showToast })
             <svg v-else-if="t.type === 'warning'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           </div>
-          <span class="toast-message">{{ t.message }}</span>
+          <span class="toast-message" :class="{ expanded: expandedMessageId === t.id }" :title="expandedMessageId === t.id ? '' : t.message" @click="expandedMessageId = expandedMessageId === t.id ? null : t.id">{{ t.message }}</span>
           <button class="toast-close" @click="closeToast(t.id)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -96,7 +107,6 @@ defineExpose({ showToast })
   pointer-events: auto;
   min-width: 200px;
   max-width: 520px;
-  white-space: nowrap;
 }
 
 .toast-icon { flex-shrink: 0; display: flex; align-items: center; }
@@ -105,7 +115,22 @@ defineExpose({ showToast })
 .toast-warning .toast-icon { color: hsl(var(--warning)); }
 .toast-info .toast-icon { color: hsl(var(--primary)); }
 
-.toast-message { font-size: 13px; font-weight: 500; color: hsl(var(--foreground)); flex: 1; }
+.toast-message {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--duration-quick) var(--ease-standard);
+}
+.toast-message.expanded {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
 
 .toast-close {
   flex-shrink: 0;

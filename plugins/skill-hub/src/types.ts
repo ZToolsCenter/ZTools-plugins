@@ -241,6 +241,7 @@ export interface ModelConfig {
   isBuiltin: boolean
   enabled: boolean
   translationModelId?: string
+  icon?: string
   models?: Array<{ id: string; name: string; enabled: boolean; owned_by?: string; capabilities?: string[] }>
 }
 

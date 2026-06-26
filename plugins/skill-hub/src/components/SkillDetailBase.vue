@@ -33,6 +33,7 @@ const emit = defineEmits<{
 }>()
 
 const activeTab = defineModel<'preview' | 'source' | 'files'>('activeTab', { default: 'preview' })
+const sidePanelCollapsed = ref(false)
 
 const sourceInfo = computed(() => getSourceInfo(props.skill))
 
@@ -328,7 +329,7 @@ async function handleReTranslateDesc() {
                   <line x1="2" y1="12" x2="22" y2="12"/>
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
-                <img v-else-if="sourceInfo.icon.startsWith('http') || sourceInfo.icon.startsWith('/src')" :src="sourceInfo.icon" width="12" height="12" alt="" style="border-radius: 2px;" />
+                <img v-else-if="sourceInfo.icon.startsWith('http') || sourceInfo.icon.includes('/')" :src="sourceInfo.icon" width="12" height="12" alt="" style="border-radius: 2px;" />
                 <span v-else-if="sourceInfo.icon.startsWith('<')" v-html="sourceInfo.icon" class="tag-icon-svg"></span>
                 <svg v-else-if="sourceInfo.icon === 'git'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="18" cy="18" r="3"/>
@@ -385,13 +386,31 @@ async function handleReTranslateDesc() {
         文件
         <div v-if="activeTab === 'files'" class="tab-indicator"></div>
       </button>
+      <div class="tabs-spacer"></div>
+      <slot name="tab-bar-actions" />
+      <button
+        v-if="$slots['context-panel']"
+        class="side-collapse-btn"
+        :class="{ collapsed: sidePanelCollapsed }"
+        :title="sidePanelCollapsed ? '展开侧面板' : '收起侧面板'"
+        @click="sidePanelCollapsed = !sidePanelCollapsed"
+      >
+        <svg v-if="sidePanelCollapsed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="15" y1="3" x2="15" y2="21"/>
+        </svg>
+        <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="9" y1="3" x2="9" y2="21"/>
+        </svg>
+      </button>
     </div>
 
     <!-- Scrollable content -->
     <div class="detail-scroll">
       <!-- ═══════════ Preview Tab ═══════════ -->
       <template v-if="activeTab === 'preview'">
-        <div class="preview-layout">
+        <div class="preview-layout" :class="{ collapsed: sidePanelCollapsed }">
           <!-- Left column: shared -->
           <div class="preview-main space-y-8">
             <!-- Description -->
@@ -502,7 +521,7 @@ async function handleReTranslateDesc() {
           </div>
 
           <!-- Right column: context-specific (slot) -->
-          <div v-if="$slots['context-panel']" class="preview-side space-y-6">
+          <div v-if="$slots['context-panel']" v-show="!sidePanelCollapsed" class="preview-side space-y-6">
             <slot name="context-panel" />
           </div>
         </div>
@@ -738,11 +757,13 @@ async function handleReTranslateDesc() {
 .toolbar-icon-btn.close-btn:hover { color: hsl(var(--destructive)); border-color: hsl(var(--destructive) / 0.3); background: hsl(var(--destructive) / 0.06); }
 
 /* ═══ Tab bar ═══ */
-.detail-tabs-row { display: flex; gap: 8px; padding: 0 28px; border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--accent) / 0.2); flex-shrink: 0; }
+.detail-tabs-row { display: flex; align-items: center; gap: 8px; padding: 0 28px; border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--accent) / 0.2); flex-shrink: 0; }
 .detail-tabs-row button { display: flex; align-items: center; gap: 6px; padding: 12px 8px; font-size: 13px; font-weight: 600; border: none; background: none; color: hsl(var(--muted-foreground)); cursor: pointer; position: relative; transition: color var(--duration-base) var(--ease-standard); }
 .detail-tabs-row button:hover { color: hsl(var(--foreground)); }
 .detail-tabs-row button.active { color: hsl(var(--primary)); }
 .tab-indicator { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: hsl(var(--primary)); border-radius: 1px 1px 0 0; }
+.tabs-spacer { flex: 1; }
+.detail-tabs-row:has(.tabs-spacer) { gap: 0; }
 
 /* ═══ Scroll ═══ */
 .detail-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 20px 28px 48px; }
@@ -758,9 +779,36 @@ async function handleReTranslateDesc() {
 .section-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 /* ═══ Preview two-column ═══ */
-.preview-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
+.preview-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; transition: grid-template-columns var(--duration-smooth) var(--ease-standard); }
+.preview-layout.collapsed { grid-template-columns: 1fr; }
 .preview-main { min-width: 0; }
-.preview-side { min-width: 0; }
+.preview-side { min-width: 0; animation: slideInRight var(--duration-smooth) var(--ease-standard); }
+@keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+.side-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-standard);
+  flex-shrink: 0;
+}
+.side-collapse-btn:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--primary) / 0.3);
+}
+.side-collapse-btn.collapsed {
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.3);
+  color: hsl(var(--primary));
+}
 @media (max-width: 640px) {
   .preview-layout { grid-template-columns: 1fr; }
 }

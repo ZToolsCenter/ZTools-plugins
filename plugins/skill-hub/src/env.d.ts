@@ -80,6 +80,8 @@ interface Services {
   updateSkillFromGitHub: (repo: string, skillPath: string, targetDir: string, token?: string, branch?: string) => Promise<boolean>
 
   getStateDir: () => string
+
+  createPluginZip: (sourceDir: string) => { outputPath: string; fileName: string }
 }
 
 declare global {

@@ -1,7 +1,8 @@
 import { PLATFORM_ICONS } from './platform-icons'
+import skillsShIcon from '../assets/platforms/skills-sh-favicon.ico'
 
 export const STORE_ICONS: Record<string, string> = {
-  'skills-sh': 'https://skills.sh/favicon.ico',
+  'skills-sh': skillsShIcon,
   'claude': PLATFORM_ICONS.claude,
   'codex': PLATFORM_ICONS.codex,
 }

@@ -19,6 +19,7 @@ import { getAvatarColor } from '../../utils/color'
 
 import { defaultPlatforms } from '../../data/platforms'
 import { useSettings } from '../../composables/useSettings'
+import { useTheme } from '../../composables/useTheme'
 import { useDownloadQueue } from '../../composables/useDownloadQueue'
 import { loadRegistry, registerSkillFromStore, removeFromRegistry } from '../../utils/skill-registry'
 
@@ -29,19 +30,8 @@ const showToast = inject<(msg: string, type?: 'success' | 'error' | 'info' | 'wa
 
 const { addDownload, updateItem } = useDownloadQueue()
 const { settings, updateSettings } = useSettings()
+const { isDarkMode, toggleTheme } = useTheme()
 const viewMode = ref<'grid' | 'list'>('grid')
-
-const isDarkMode = computed(() => {
-  if (settings.themeMode === 'auto') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  }
-  return settings.themeMode === 'dark'
-})
-
-function toggleTheme() {
-  const next = isDarkMode.value ? 'light' : 'dark'
-  updateSettings({ themeMode: next })
-}
 
 interface PresetSource { id: string; name: string; url: string; desc: string; icon: string; directory?: string }
 const presets: PresetSource[] = [

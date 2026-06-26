@@ -326,7 +326,7 @@ async function handleImport() {
                     <line x1="2" y1="12" x2="22" y2="12"/>
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                   </svg>
-                  <img v-else-if="sourceInfo.icon.startsWith('http') || sourceInfo.icon.startsWith('/src')" :src="sourceInfo.icon" width="12" height="12" alt="" style="border-radius: 2px;" />
+                  <img v-else-if="sourceInfo.icon.startsWith('http') || sourceInfo.icon.includes('/')" :src="sourceInfo.icon" width="12" height="12" alt="" style="border-radius: 2px;" />
                   <span v-else-if="sourceInfo.icon.startsWith('<')" v-html="sourceInfo.icon" class="tag-icon-svg"></span>
                   <svg v-else-if="sourceInfo.icon === 'git'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="18" cy="18" r="3"/>

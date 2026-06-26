@@ -4,6 +4,7 @@ import { storage } from '../../utils/storage'
 import type { Skill, SkillIdentity } from '../../types'
 import { defaultPlatforms } from '../../data/platforms'
 import { useSettings } from '../../composables/useSettings'
+import { useTheme } from '../../composables/useTheme'
 import { SKILL_CATEGORIES, ALL_CATEGORIES, inferCategory, CATEGORY_ICONS, type SkillCategory } from '../../data/skill-categories'
 import { STORE_ICONS } from '../../data/store-icons'
 import PlatformIcon from '../../components/PlatformIcon.vue'
@@ -19,17 +20,7 @@ const emit = defineEmits(['navigate'])
 
 const { settings, updateSettings } = useSettings()
 
-const isDarkMode = computed(() => {
-  if (settings.themeMode === 'auto') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  }
-  return settings.themeMode === 'dark'
-})
-
-function toggleTheme() {
-  const next = isDarkMode.value ? 'light' : 'dark'
-  updateSettings({ themeMode: next })
-}
+const { isDarkMode, toggleTheme } = useTheme()
 
 const filterCategory = inject('filterCategory', ref('all'))
 const filterSource = inject('filterSource', ref(''))
@@ -149,7 +140,7 @@ const platformNameMap = computed(() => {
 })
 
 function getInstalledPlatforms(skillId: string) {
-  return installRecords.value.filter((r) => r.skillId === skillId).map((r) => ({
+  return installRecords.value.filter((r) => r.skillId === skillId && r.scope !== 'project').map((r) => ({
     id: r.platformId,
     name: platformNameMap.value[r.platformId] || r.platformId,
   }))
@@ -535,52 +526,54 @@ function batchSyncToPlatform() {
             <polyline v-if="selectedIds.has(skill.id)" points="9 11 12 14 22 4"/>
           </svg>
         </div>
-        <div v-if="getInstalledPlatforms(skill.id).length" class="card-agents">
-          <PlatformIcon
-            v-for="p in getInstalledPlatforms(skill.id)"
-            :key="p.id"
-            :platform-id="p.id"
-            :size="22"
-            :title="p.name"
-          />
+        <div class="card-top-row">
+          <div class="card-avatar" :style="{ background: getAvatarColor(skill.name) }">{{ skill.name.charAt(0).toUpperCase() }}</div>
+          <div class="card-top-right">
+            <div class="card-badges-row">
+              <PlatformIcon
+                v-for="p in getInstalledPlatforms(skill.id)"
+                :key="p.id"
+                :platform-id="p.id"
+                :size="16"
+                :title="p.name"
+              />
+              <span class="card-tag source-tag" :style="{ background: getSourceInfo(skill).bg, color: getSourceInfo(skill).color }">
+                <svg v-if="getSourceInfo(skill).icon === 'multi'" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                <img v-else-if="getSourceInfo(skill).icon.startsWith('http') || getSourceInfo(skill).icon.includes('/')" :src="getSourceInfo(skill).icon" width="10" height="10" alt="" style="border-radius: 2px;" />
+                <span v-else-if="getSourceInfo(skill).icon.startsWith('<')" v-html="getSourceInfo(skill).icon" class="tag-icon-svg"></span>
+                <svg v-else-if="getSourceInfo(skill).icon === 'git'" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="18" cy="18" r="3"/>
+                  <circle cx="6" cy="6" r="3"/>
+                  <path d="M13 6h3a2 2 0 0 1 2 2v7"/>
+                  <line x1="6" y1="9" x2="6" y2="21"/>
+                </svg>
+                <svg v-else width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                {{ getSourceInfo(skill).label }}
+              </span>
+              <span class="card-tag category-tag">{{ getCategoryInfo(skill).icon }} {{ getCategoryInfo(skill).label }}</span>
+            </div>
+            <div v-if="!batchMode" class="card-actions">
+              <button class="card-action-btn" title="分发" @click.stop="openDeploy(skill)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+              <button class="card-action-btn" :class="{ filled: isFavorited(skill.id) }" :title="isFavorited(skill.id) ? '取消收藏' : '收藏'" @click.stop="toggleFavorite(skill.id)">
+                <svg v-if="isFavorited(skill.id)" width="14" height="14" viewBox="0 0 24 24" fill="hsl(45 90% 55%)" stroke="hsl(45 90% 55%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </button>
+              <button class="card-action-btn danger" title="删除" @click.stop="deleteSkill(skill)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
-        <div v-if="!batchMode" class="card-actions">
-          <button class="card-action-btn" title="分发" @click.stop="openDeploy(skill)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-          <button class="card-action-btn" :class="{ filled: isFavorited(skill.id) }" :title="isFavorited(skill.id) ? '取消收藏' : '收藏'" @click.stop="toggleFavorite(skill.id)">
-            <svg v-if="isFavorited(skill.id)" width="14" height="14" viewBox="0 0 24 24" fill="hsl(45 90% 55%)" stroke="hsl(45 90% 55%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          </button>
-          <button class="card-action-btn danger" title="删除" @click.stop="deleteSkill(skill)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-          </button>
-        </div>
-        <div class="card-avatar" :style="{ background: getAvatarColor(skill.name) }">{{ skill.name.charAt(0).toUpperCase() }}</div>
         <h3 class="card-name">{{ skill.name }}</h3>
         <p class="card-desc">{{ skill.description || '暂无描述' }}</p>
-        <div class="card-tags">
-          <span class="card-tag source-tag" :style="{ background: getSourceInfo(skill).bg, color: getSourceInfo(skill).color }">
-            <svg v-if="getSourceInfo(skill).icon === 'multi'" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="2" y1="12" x2="22" y2="12"/>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-            </svg>
-            <img v-else-if="getSourceInfo(skill).icon.startsWith('http') || getSourceInfo(skill).icon.startsWith('/src')" :src="getSourceInfo(skill).icon" width="10" height="10" alt="" style="border-radius: 2px;" />
-            <span v-else-if="getSourceInfo(skill).icon.startsWith('<')" v-html="getSourceInfo(skill).icon" class="tag-icon-svg"></span>
-            <svg v-else-if="getSourceInfo(skill).icon === 'git'" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="18" cy="18" r="3"/>
-              <circle cx="6" cy="6" r="3"/>
-              <path d="M13 6h3a2 2 0 0 1 2 2v7"/>
-              <line x1="6" y1="9" x2="6" y2="21"/>
-            </svg>
-            <svg v-else width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-            {{ getSourceInfo(skill).label }}
-          </span>
-          <span class="card-tag category-tag">{{ getCategoryInfo(skill).icon }} {{ getCategoryInfo(skill).label }}</span>
-        </div>
       </div>
     </div>
     </div>
@@ -1088,12 +1081,12 @@ function batchSyncToPlatform() {
 /* Grid */
 .skill-grid {
   display: grid;
-  gap: 16px;
+  gap: 10px;
   padding: 20px 28px 28px;
 }
 
 .skill-grid.grid {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
 .skill-grid.list {
@@ -1104,7 +1097,7 @@ function batchSyncToPlatform() {
 .skill-card {
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 16px;
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 12px;
@@ -1148,25 +1141,48 @@ function batchSyncToPlatform() {
   border-color: hsl(var(--primary));
 }
 
+.card-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
 .card-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
-  margin-bottom: 12px;
+}
+
+.card-top-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.card-badges-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
 }
 
 .card-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: hsl(var(--foreground));
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1178,23 +1194,17 @@ function batchSyncToPlatform() {
 }
 
 .card-desc {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
   color: hsl(var(--muted-foreground));
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-style: italic;
 }
 
-.card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-}
+
 
 .card-tag {
   display: inline-flex;
@@ -1225,34 +1235,18 @@ function batchSyncToPlatform() {
   color: hsl(var(--primary));
 }
 
-.card-agents {
-  position: absolute;
-  top: 16px;
-  right: 20px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  z-index: 3;
-}
-
-.card-agents .platform-icon {
-  border-radius: 5px;
-  background: hsl(var(--muted) / 0.6);
-  padding: 2px;
-}
-
 .card-actions {
-  position: absolute;
-  top: 50px;
-  right: 16px;
   display: flex;
   gap: 4px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity var(--duration-base) var(--ease-standard);
-  z-index: 1;
 }
 
-.skill-card:hover .card-actions { opacity: 1; }
+.skill-card:hover .card-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
 
 .card-action-btn {
   width: 26px;

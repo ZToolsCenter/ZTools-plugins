@@ -128,6 +128,7 @@ export const storage = {
       isBuiltin: true,
       enabled: false,
       models: [],
+      icon: p.icon,
     }))
   },
 
@@ -151,7 +152,14 @@ export const storage = {
     let saved: Partial<AppSettings> | null = null
     try {
       saved = dbGet<Partial<AppSettings>>(KEYS.SETTINGS)
-    } catch { /* ignore */ }
+    } catch {
+      console.warn('[storage] failed to read settings, using defaults')
+    }
+    // Clean up removed built-in providers from saved data
+    if (saved?.aiModels) {
+      const activeIds = new Set(BUILTIN_PROVIDERS.map(p => p.id))
+      saved.aiModels = saved.aiModels.filter(m => !m.isBuiltin || activeIds.has(m.provider))
+    }
     const merged = { ...defaults, ...(saved || {}) }
     if (merged.backgroundImage && saved && (saved as any).backgroundImageEnabled === undefined) {
       merged.backgroundImageEnabled = true
@@ -337,7 +345,9 @@ export const storage = {
   // === Translation Cache ===
   _readTranslationCache(): Record<string, { sourceContent: string; translatedContent: string; mode: string }> {
     let cache: Record<string, any> = {}
-    try { cache = dbGet<Record<string, any>>(KEYS.TRANSLATIONS) || {} } catch { /* ignore */ }
+    try { cache = dbGet<Record<string, any>>(KEYS.TRANSLATIONS) || {} } catch {
+      console.warn('[storage] failed to read translation cache')
+    }
     return cache
   },
   _writeTranslationCache(cache: Record<string, any>): void {

@@ -1,10 +1,10 @@
 import { ref } from 'vue'
 import { storage } from '../utils/storage'
-import type { RegisteredProject } from '../types'
+import type { RegisteredProject, SkillScanResult } from '../types'
 
 const registeredProjects = ref<RegisteredProject[]>(storage.getRegisteredProjects())
 const selectedProject = ref<RegisteredProject | null>(null)
-const selectedProjectSkill = ref<any>(null)
+const selectedProjectSkill = ref<SkillScanResult | null>(null)
 
 const savedState = storage.getPageState('project-skills')
 if (savedState?.projectId) {

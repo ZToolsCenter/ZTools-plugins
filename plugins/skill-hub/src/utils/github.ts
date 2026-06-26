@@ -1,12 +1,3 @@
-export interface GitHubContent {
-  name: string
-  path: string
-  type: 'file' | 'dir'
-  download_url: string | null
-  sha: string
-  size: number
-}
-
 export interface GitHubRepoInfo {
   owner: string
   repo: string
@@ -36,27 +27,6 @@ export function parseGitHubUrl(url: string): GitHubRepoInfo | null {
   return null
 }
 
-export async function fetchGitHubContents(
-  owner: string,
-  repo: string,
-  path = '',
-  token?: string
-): Promise<GitHubContent[]> {
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`
-  const headers: Record<string, string> = {
-    Accept: 'application/vnd.github.v3+json',
-    'User-Agent': 'skill-hub',
-  }
-  if (token) headers.Authorization = `Bearer ${token}`
-
-  const resp = await fetch(url, { headers })
-  if (!resp.ok) {
-    if (resp.status === 403) throw new Error('GitHub API 速率限制，请在设置中添加 Token 提升额度')
-    if (resp.status === 404) throw new Error(`路径未找到: ${path}`)
-    throw new Error(`GitHub API 错误: ${resp.status}`)
-  }
-  return resp.json()
-}
 
 export async function fetchGitHubFile(
   owner: string,

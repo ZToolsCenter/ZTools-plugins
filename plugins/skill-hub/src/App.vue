@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, provide } from 'vue'
+import { onMounted, onUnmounted, ref, computed, provide } from 'vue'
 import { useProjectState } from './composables/useProjectState'
 
 import SkillStore from './views/SkillStore/index.vue'
@@ -17,8 +17,9 @@ import DownloadIndicator from './components/DownloadIndicator.vue'
 import { storage } from './utils/storage'
 import { applyTheme } from './utils/theme'
 import { useSettings } from './composables/useSettings'
+import { useTheme } from './composables/useTheme'
 import { detectPlatforms, getPlatformPath, defaultPlatforms } from './data/platforms'
-import type { Skill, AppSettings, PlatformInfo, RegisteredProject } from './types'
+import type { Skill, AppSettings, PlatformInfo, RegisteredProject, SkillScanResult } from './types'
 
 const { settings, updateSettings } = useSettings()
 
@@ -26,8 +27,9 @@ const route = ref('my')
 const subRoute = ref('')
 const selectedSkill = ref<Skill | null>(null)
 const detailContext = ref<'my' | 'store' | 'project' | 'agent'>('my')
-const selectedAgentSkill = ref<any>(null)
+const selectedAgentSkill = ref<SkillScanResult | null>(null)
 const selectedAgentPlatformId = ref('')
+const selectedDuplicateSkills = ref<SkillScanResult[] | null>(null)
 const settingsAnchor = ref('')
 const appToast = ref<InstanceType<typeof AppToast> | null>(null)
 function showToast(message: string, type?: 'success' | 'error' | 'info' | 'warning') { appToast.value?.showToast(message, type) }
@@ -95,8 +97,8 @@ function addProject(project: { name: string; rootDir: string; scanPaths: string[
     showAddProjectModal.value = false
     addProjectError.value = ''
     scanProject(newProject)
-  } catch (err: any) {
-    addProjectError.value = err.message || '添加项目时发生未知错误'
+  } catch (err) {
+    addProjectError.value = err instanceof Error ? err.message : '添加项目时发生未知错误'
   }
 }
 
@@ -133,7 +135,7 @@ function updateProject(id: string, data: { name: string; rootDir: string; scanPa
     if (selectedProject.value) {
       scanProject(selectedProject.value)
     }
-  } catch (err: any) {
+  } catch (err) {
     console.error('[App] editProject failed:', err)
   }
 }
@@ -179,7 +181,10 @@ async function scanProject(project: RegisteredProject) {
           selectedProjectSkill.value = skills?.[0] || null
         }
       }
-    } catch (err: any) { }
+    } catch (err) {
+      console.error('[App] scanProject failed:', err)
+      showToast(err instanceof Error ? err.message : '扫描项目失败', 'error')
+    }
     projectScanning.value = false
   }, 300)
 }
@@ -198,7 +203,9 @@ provide('selectedProject', selectedProject)
 provide('selectedProjectSkill', selectedProjectSkill)
 provide('selectProjectSkill', selectProjectSkill)
 provide('selectProject', selectProject)
+provide('registeredProjects', registeredProjects)
 provide('openAddProjectModal', () => { showAddProjectModal.value = true })
+provide('navigateToProjectSkills', () => { route.value = 'project-skills'; showAddProjectModal.value = true })
 provide('detectedPlatforms', detectedPlatforms)
 provide('platformSkillCounts', platformSkillCounts)
 provide('scanProject', scanProject)
@@ -249,7 +256,10 @@ const activeRoute = computed(() => {
     if (detailContext.value === 'agent') return 'agent-skills'
     return 'my'
   }
-  if (route.value === 'agent-skill-detail') return 'agent-skills'
+  if (route.value === 'agent-skill-detail') {
+    if (detailContext.value === 'project') return 'project-skills'
+    return 'agent-skills'
+  }
   return route.value
 })
 
@@ -275,11 +285,18 @@ function navigate(code: string, params?: any) {
     if (code === 'agent-skill-detail' && params.skill) {
       selectedAgentSkill.value = params.skill
     }
+    if (params.duplicateSkills) {
+      selectedDuplicateSkills.value = params.duplicateSkills
+    } else {
+      selectedDuplicateSkills.value = null
+    }
   }
   if (code === 'project-skills' && !selectedProject.value && registeredProjects.value.length) {
     selectProject(registeredProjects.value[0])
   }
 }
+
+let mqCleanup: (() => void) | null = null
 
 onMounted(() => {
   storage.cleanStaleCachedSkills()
@@ -287,15 +304,21 @@ onMounted(() => {
   refreshMySkills()
   applyTheme(settings)
   const mq = window.matchMedia('(prefers-color-scheme: dark)')
-  mq.addEventListener('change', () => {
+  const onColorSchemeChange = () => {
     if (settings.themeMode === 'auto') applyTheme(settings)
-  })
+  }
+  mq.addEventListener('change', onColorSchemeChange)
+  mqCleanup = () => mq.removeEventListener('change', onColorSchemeChange)
   window.ztools.onPluginEnter((action) => {
     if (!route.value) {
       route.value = 'my'
     }
   })
   window.ztools.onPluginOut(() => { /* 不清理 route，保持当前页面 */ })
+})
+
+onUnmounted(() => {
+  mqCleanup?.()
 })
 
 const storePresets = [
@@ -355,17 +378,7 @@ const isSettings = computed(() => route.value === 'settings')
 const isFullHeight = computed(() => ['settings', 'detail', 'agent-skill-detail'].includes(route.value))
 const isMySkills = computed(() => route.value === 'my')
 
-const isDarkMode = computed(() => {
-  if (settings.themeMode === 'auto') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  }
-  return settings.themeMode === 'dark'
-})
-
-function toggleTheme() {
-  const next = isDarkMode.value ? 'light' : 'dark'
-  updateSettings({ themeMode: next })
-}
+const { isDarkMode, toggleTheme } = useTheme()
 
 
 </script>
@@ -422,7 +435,7 @@ function toggleTheme() {
         <main class="main-content" :class="{ 'full-height': isFullHeight, 'no-padding': isMySkills || ['store', 'project-skills', 'agent-skills', 'sources'].includes(route) }">
           <MySkills v-if="route === 'my'" @navigate="navigate" />
           <SkillDetail v-else-if="route === 'detail'" :skill="selectedSkill" :context="detailContext" @navigate="navigate" />
-          <AgentSkillDetail v-else-if="route === 'agent-skill-detail'" :skill="selectedAgentSkill" :platform-id="selectedAgentPlatformId" @navigate="navigate" />
+          <AgentSkillDetail v-else-if="route === 'agent-skill-detail'" :skill="selectedAgentSkill" :platform-id="selectedAgentPlatformId" :duplicate-skills="selectedDuplicateSkills" @navigate="navigate" />
           <Sources v-else-if="route === 'sources'" @navigate="navigate" />
           <Settings v-else-if="route === 'settings'" :anchor="settingsAnchor" />
           <SkillStore v-else-if="route === 'store'" :store-id="storeSubId" @navigate="navigate" />

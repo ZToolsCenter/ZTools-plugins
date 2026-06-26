@@ -1,15 +1,21 @@
+# 依赖
 node_modules
-dist
-.skill-archive
-docs/ztools-doc
-test-builtin-skills.html
-.mimocode
-api-tests
+
+# 构建产物
+dist/
+*.tsbuildinfo
 
 # 环境变量
 .env
 .env.local
 .env.*.local
+
+# 工具
+.claude/
+.mimocode/
+.agents/
+.skill-archive/
+api-tests/
 
 # IDE
 .vscode/
@@ -17,6 +23,16 @@ api-tests
 *.swp
 *.swo
 
+# 测试
+coverage/
+test-builtin-skills.html
+
+# 日志
+*.log
+
 # OS
 Thumbs.db
 .DS_Store
+
+# 文档（本地副本，不提交）
+docs/ztools-doc/

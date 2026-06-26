@@ -2,10 +2,12 @@
 import { inject, ref, computed, unref } from 'vue'
 import { storage } from '../../utils/storage'
 import { useSettings } from '../../composables/useSettings'
+import { useTheme } from '../../composables/useTheme'
 import { useProjectState } from '../../composables/useProjectState'
 import { normalizePath } from '../../utils/path'
 import type { Skill, SkillScanResult, PlatformInfo } from '../../types'
-import { getPlatformPath } from '../../data/platforms'
+import { defaultPlatforms, getPlatformPath } from '../../data/platforms'
+import PlatformIcon from '../../components/PlatformIcon.vue'
 import DeployModal from '../../components/DeployModal.vue'
 import QuickSwitcher from '../../components/QuickSwitcher.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
@@ -24,32 +26,47 @@ const openAddProjectModal = inject<() => void>('openAddProjectModal', () => {})
 const detectedPlatforms = inject<PlatformInfo[]>('detectedPlatforms', [])
 
 const importing = ref<Record<string, boolean>>({})
-const removing = ref<Record<string, boolean>>({})
-const confirmDeleteSkillDir = ref<string | null>(null)
-const confirmDeleteSkillName = ref('')
 const confirmDeleteProjectId = ref<string | null>(null)
 const confirmDeleteProjectName = ref('')
+
+const confirmUninstallSkillDir = ref<string | null>(null)
+const confirmUninstallSkillName = ref('')
+const uninstalling = ref(false)
 
 const downloadedIds = ref<string[]>(storage.getDownloadedIds())
 
 function refreshDownloaded() { downloadedIds.value = storage.getDownloadedIds() }
 
 const { settings, updateSettings } = useSettings()
-
-const isDarkMode = computed(() => {
-  if (settings.themeMode === 'auto') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  }
-  return settings.themeMode === 'dark'
-})
-
-function toggleTheme() {
-  const next = isDarkMode.value ? 'light' : 'dark'
-  updateSettings({ themeMode: next })
-}
+const { isDarkMode, toggleTheme } = useTheme()
 
 const skillFilter = ref<string>('')
+const agentFilter = ref<string>('')
 const viewMode = ref<'grid' | 'list'>('grid')
+const showAgentDropdown = ref(false)
+const agentBtnRef = ref<HTMLElement>()
+const agentDropdownStyle = ref<Record<string, string>>({})
+
+function toggleAgentDropdown() {
+  if (showAgentDropdown.value) {
+    showAgentDropdown.value = false
+  } else {
+    const btn = agentBtnRef.value
+    if (btn) {
+      const rect = btn.getBoundingClientRect()
+      const dropdownWidth = 180
+      let left = rect.left
+      if (left + dropdownWidth > window.innerWidth - 12) {
+        left = window.innerWidth - dropdownWidth - 12
+      }
+      agentDropdownStyle.value = {
+        top: `${rect.bottom + 6}px`,
+        left: `${left}px`,
+      }
+    }
+    showAgentDropdown.value = true
+  }
+}
 
 function findCachedSkill(skill: any): Skill | null {
   const id = getSkillId(skill)
@@ -106,6 +123,59 @@ function getSkillId(skill: any): string {
   return skill.manifest?.name || skill.name
 }
 
+interface MergedSkill extends SkillScanResult {
+  isDuplicate: boolean
+  duplicateCount: number
+  allDirs: string[]
+  allSkills: SkillScanResult[]
+}
+
+function mergeDuplicateSkills(skills: SkillScanResult[]): MergedSkill[] {
+  const groups = new Map<string, SkillScanResult[]>()
+  for (const s of skills) {
+    const key = (s.manifest?.name || s.name || '').toLowerCase()
+    if (!key) {
+      const fallback = `__unamed__${s.dir}`
+      groups.set(fallback, [s])
+      continue
+    }
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(s)
+  }
+  const result: MergedSkill[] = []
+  for (const [, items] of groups) {
+    const primary = items[0]
+    const allDirs = items.map((s) => s.dir)
+    const isDuplicate = items.length > 1
+    const merged: MergedSkill = {
+      ...primary,
+      isDuplicate,
+      duplicateCount: items.length,
+      allDirs,
+      allSkills: items,
+    }
+    result.push(merged)
+  }
+  return result
+}
+
+function getSkillPlatformIds(skill: MergedSkill): string[] {
+  const dirs = skill.isDuplicate ? skill.allDirs : [skill.dir]
+  const ids = new Set<string>()
+  for (const dir of dirs) {
+    const normalized = dir.replace(/\\/g, '/').toLowerCase()
+    for (const p of defaultPlatforms) {
+      if (p.projectPath && normalized.includes(p.projectPath.replace(/\\/g, '/').toLowerCase())) {
+        ids.add(p.id)
+      }
+    }
+    if (normalized.includes('.agents/skills')) {
+      ids.add('_generic')
+    }
+  }
+  return [...ids]
+}
+
 function getMatchedLibrarySkill(skill: any): any | null {
   const dirName = (skill.dir || '').split(/[\\/]/).pop() || ''
   if (!dirName) return null
@@ -142,7 +212,8 @@ function skillToSkill(skill: SkillScanResult): any {
 }
 
 function viewDetail(skill: SkillScanResult) {
-  emit('navigate', 'agent-skill-detail', { skill, platformId: '' })
+  const merged = skill as MergedSkill
+  emit('navigate', 'agent-skill-detail', { skill, platformId: '', duplicateSkills: merged.allSkills || null, context: 'project' })
 }
 
 async function importSkill(skill: SkillScanResult) {
@@ -176,37 +247,46 @@ async function importSkill(skill: SkillScanResult) {
   importing.value[id] = false
 }
 
-async function removeSkill(skill: SkillScanResult) {
+async function uninstallSkillFromProject(skill: SkillScanResult) {
   const id = getSkillId(skill)
-  removing.value[id] = true
+  uninstalling.value = true
   try {
+    const dir = skill.dir
+    try { window.services.removeFile(dir) } catch {}
+
+    const projectInstalls = storage.getInstallRecords().filter(
+      (r) => r.targetPath.replace(/\\/g, '/') === dir.replace(/\\/g, '/') && r.scope === 'project'
+    )
+    for (const r of projectInstalls) {
+      storage.removeInstallRecord(r.skillId, r.platformId, r.scope)
+    }
+
+    if (selectedProject.value) {
+      selectedProject.value.skills = selectedProject.value.skills.filter(
+        (s: SkillScanResult) => s.dir !== dir
+      )
+      storage.updateRegisteredProject(selectedProject.value.id, {
+        skills: selectedProject.value.skills,
+      })
+    }
+
     if (storage.getDownloadedIds().includes(id)) {
       storage.removeDownloadedId(id)
       storage.removeAllForSkill(id)
       storage.removeSkillFromCache(id)
       const registry = loadRegistry()
       removeFromRegistry(registry, skill.manifest.name || skill.name)
-      const dir = window.services.pathJoin(window.ztools.getPath('userData'), 'skills-repo', id)
-      try { window.services.removeFile(dir) } catch {}
+      const libDir = window.services.pathJoin(window.ztools.getPath('userData'), 'skills-repo', id)
+      try { window.services.removeFile(libDir) } catch {}
     }
-    if (selectedProject.value) {
-      selectedProject.value.skills = selectedProject.value.skills.filter(
-        (s: SkillScanResult) => s.dir !== skill.dir
-      )
-      storage.updateRegisteredProject(selectedProject.value.id, {
-        skills: selectedProject.value.skills,
-      })
-    }
-    const projectInstalls = storage.getInstallRecords().filter(
-      (r) => r.targetPath.replace(/\\/g, '/') === skill.dir.replace(/\\/g, '/') && r.scope === 'project'
-    )
-    for (const r of projectInstalls) {
-      storage.removeInstallRecord(r.skillId, r.platformId, r.scope)
-    }
+
     refreshDownloaded()
-    confirmDeleteSkillDir.value = null
-  } catch (err: any) { }
-  removing.value[id] = false
+    showToast(`已卸载「${skill.manifest?.name || skill.name}」`, 'success')
+    confirmUninstallSkillDir.value = null
+  } catch (err: any) {
+    showToast('卸载失败: ' + (err.message || '未知错误'), 'error')
+  }
+  uninstalling.value = false
 }
 
 function openFolder(skill: any) {
@@ -333,10 +413,44 @@ const localCount = computed(() => allProjectSkills.value.filter((s: any) => getB
 const managedCount = computed(() => allProjectSkills.value.filter((s: any) => getBadgeType(s) === 'managed').length)
 const sourceCount = computed(() => allProjectSkills.value.filter((s: any) => getBadgeType(s) === 'source').length)
 
+const agentCounts = computed(() => {
+  const map = new Map<string, number>()
+  for (const s of allProjectSkills.value) {
+    const pids = getSkillPlatformIds(s as MergedSkill)
+    for (const pid of pids) {
+      map.set(pid, (map.get(pid) || 0) + 1)
+    }
+  }
+  return Array.from(map.entries())
+})
+
+const totalAgents = computed(() => agentCounts.value.reduce((sum, [, c]) => sum + c, 0))
+
+const agentFilterCount = computed(() => {
+  if (!agentFilter.value) return allProjectSkills.value.length
+  const entry = agentCounts.value.find(([id]) => id === agentFilter.value)
+  return entry ? entry[1] : 0
+})
+
+const agentLabel = computed(() => {
+  if (!agentFilter.value) return ''
+  if (agentFilter.value === '_generic') return '通用'
+  const p = defaultPlatforms.find((p) => p.id === agentFilter.value)
+  return p?.name || agentFilter.value
+})
+
 const filteredProjectSkills = computed(() => {
-  const skills = allProjectSkills.value
-  if (!skillFilter.value) return skills
-  return skills.filter((s: any) => getBadgeType(s) === skillFilter.value)
+  let skills = allProjectSkills.value
+  if (skillFilter.value) {
+    skills = skills.filter((s: any) => getBadgeType(s) === skillFilter.value)
+  }
+  if (agentFilter.value) {
+    skills = skills.filter((s: any) => {
+      const pids = getSkillPlatformIds(s as MergedSkill)
+      return pids.includes(agentFilter.value)
+    })
+  }
+  return mergeDuplicateSkills(skills)
 })
 
 // === Deploy modal ===
@@ -577,7 +691,54 @@ async function confirmImportFromMy() {
         源文件
         <span class="tab-count">{{ sourceCount }}</span>
       </button>
+      <div class="agent-dropdown-wrap">
+        <button
+          ref="agentBtnRef"
+          class="tab-btn agent-tab"
+          :class="{ active: agentFilter }"
+          @click="toggleAgentDropdown"
+        >
+          {{ agentLabel || '全部位置' }}
+          <span class="tab-count">{{ agentFilterCount }}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+      </div>
     </div>
+
+    <Teleport to="body">
+      <div v-if="showAgentDropdown" class="agent-dropdown-overlay" @click="showAgentDropdown = false"></div>
+      <div v-if="showAgentDropdown" class="agent-dropdown" :style="agentDropdownStyle">
+        <button
+          class="dropdown-item"
+          :class="{ active: !agentFilter }"
+          @click="agentFilter = ''; showAgentDropdown = false"
+        >
+          全部位置
+          <span class="dropdown-count">{{ totalAgents }}</span>
+        </button>
+        <button
+          v-if="agentCounts.some(([id]) => id === '_generic')"
+          class="dropdown-item"
+          :class="{ active: agentFilter === '_generic' }"
+          @click="agentFilter = agentFilter === '_generic' ? '' : '_generic'; showAgentDropdown = false"
+        >
+          通用
+          <span class="dropdown-count">{{ agentCounts.find(([id]) => id === '_generic')?.[1] || 0 }}</span>
+        </button>
+        <button
+          v-for="[pid, cnt] in agentCounts.filter(([id]) => id !== '_generic')"
+          :key="pid"
+          class="dropdown-item"
+          :class="{ active: agentFilter === pid }"
+          @click="agentFilter = agentFilter === pid ? '' : pid; showAgentDropdown = false"
+        >
+          {{ defaultPlatforms.find(p => p.id === pid)?.name || pid }}
+          <span class="dropdown-count">{{ cnt }}</span>
+        </button>
+      </div>
+    </Teleport>
 
     <div v-if="batchMode" class="batch-bar">
       <div class="batch-left">
@@ -632,6 +793,13 @@ async function confirmImportFromMy() {
               <div class="card-avatar" :style="{ background: getAvatarColor(skill.name) }">{{ skill.name.charAt(0).toUpperCase() }}</div>
               <div class="card-top-right">
                 <div class="card-badges-row">
+                  <PlatformIcon
+                    v-for="pid in getSkillPlatformIds(skill)"
+                    :key="'platform-' + pid"
+                    :platform-id="pid"
+                    :size="16"
+                  />
+                  <span v-if="skill.isDuplicate" class="badge duplicate">x{{ skill.duplicateCount }}</span>
                   <span v-if="skill.isSymlink" class="badge symlink">软链接</span>
                   <span class="badge" :class="getBadge(skill).type">{{ getBadge(skill).text }}</span>
                 </div>
@@ -656,8 +824,8 @@ async function confirmImportFromMy() {
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   </button>
-                  <button class="card-action-btn danger" :disabled="removing[getSkillId(skill)]" @click.stop="confirmDeleteSkillDir = skill.dir; confirmDeleteSkillName = skill.manifest?.name || skill.name" title="移除">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  <button class="card-action-btn danger" :disabled="uninstalling" @click.stop="confirmUninstallSkillDir = skill.dir; confirmUninstallSkillName = skill.manifest?.name || skill.name" title="卸载">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </div>
               </div>
@@ -782,7 +950,7 @@ async function confirmImportFromMy() {
       @deployed="onDeployed"
     />
 
-    <ConfirmModal v-if="confirmDeleteSkillDir" title="移除 Skill" :message="`确定要从项目中移除 <strong>${confirmDeleteSkillName}</strong> 吗？`" @confirm="removeSkill({ dir: confirmDeleteSkillDir!, manifest: { name: confirmDeleteSkillName } } as any)" @cancel="confirmDeleteSkillDir = null" />
+    <ConfirmModal v-if="confirmUninstallSkillDir" title="卸载 Skill" :message="`确定要卸载 <strong>${confirmUninstallSkillName}</strong> 吗？将删除项目目录中的文件及安装记录。`" confirm-text="卸载" @confirm="uninstallSkillFromProject({ dir: confirmUninstallSkillDir!, manifest: { name: confirmUninstallSkillName } } as any)" @cancel="confirmUninstallSkillDir = null" />
     <ConfirmModal v-if="confirmDeleteProjectId" title="删除项目" :message="`确定要删除项目 <strong>${confirmDeleteProjectName}</strong> 吗？此操作不可撤销。`" confirm-text="删除项目" @confirm="doDeleteProject" @cancel="confirmDeleteProjectId = null" />
   </div>
 </template>
@@ -1041,6 +1209,74 @@ async function confirmImportFromMy() {
   color: hsl(var(--primary));
 }
 
+.agent-tab {
+  flex-shrink: 0;
+}
+
+.agent-dropdown-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.agent-dropdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
+.agent-dropdown {
+  position: fixed;
+  min-width: 160px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  padding: 4px;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-standard);
+  white-space: nowrap;
+}
+
+.dropdown-item:hover {
+  background: hsl(var(--accent));
+}
+
+.dropdown-item.active {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.dropdown-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.dropdown-item.active .dropdown-count {
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
 .batch-bar {
   display: flex;
   align-items: center;
@@ -1192,6 +1428,7 @@ async function confirmImportFromMy() {
 .badge.symlink { background: hsl(200 60% 90%); color: hsl(200 70% 30%); }
 
 .card-badges-row { display: flex; flex-direction: row; align-items: center; gap: 4px; }
+.card-badges-row :deep(.platform-icon) { flex-shrink: 0; }
 
 .card-actions {
   display: flex;
@@ -1250,6 +1487,9 @@ async function confirmImportFromMy() {
 
 .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .tag { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+.badge.duplicate { background: hsl(38 80% 92%); color: hsl(38 80% 35%); }
+
+
 
 .empty-state {
   display: flex;

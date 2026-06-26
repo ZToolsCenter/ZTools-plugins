@@ -2,26 +2,6 @@ import type { SkillIdentity, SkillSourceLocation, SkillScanResult } from '../typ
 
 const STORAGE_KEY = 'sh_skill_registry'
 
-export function generateCanonicalId(
-  sourceType: string,
-  owner: string,
-  repo: string,
-  path: string
-): string {
-  return `${sourceType}:${owner}/${repo}/${path}`
-}
-
-export function generateLocalCanonicalId(manifestName: string, contentHash: string): string {
-  return `local:${manifestName}:${contentHash.slice(0, 8)}`
-}
-
-export async function computeContentHash(content: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(content)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
 
 export function loadRegistry(): Map<string, SkillIdentity> {
   try {
@@ -127,41 +107,6 @@ export function registerSkillFromStore(
   return identity
 }
 
-export function registerSkillFromAgent(
-  registry: Map<string, SkillIdentity>,
-  scanResult: SkillScanResult,
-  platformId: string
-): SkillIdentity {
-  const existing = findIdentityByScanResult(registry, scanResult)
-  if (existing) {
-    const source: SkillSourceLocation = {
-      type: 'local',
-      location: scanResult.dir,
-      platformId,
-      installedAt: new Date().toISOString(),
-    }
-    const alreadyHasSource = existing.sources.some(
-      s => s.type === 'local' && s.platformId === platformId && s.location === scanResult.dir
-    )
-    if (!alreadyHasSource) {
-      existing.sources.push(source)
-    }
-    existing.updatedAt = new Date().toISOString()
-    saveRegistry(registry)
-    return existing
-  }
-
-  const canonicalId = `agent:${platformId}/${scanResult.manifest?.name || scanResult.name}`
-  const source: SkillSourceLocation = {
-    type: 'local',
-    location: scanResult.dir,
-    platformId,
-    installedAt: new Date().toISOString(),
-  }
-  const identity = getOrCreateIdentity(registry, canonicalId, scanResult, source)
-  saveRegistry(registry)
-  return identity
-}
 
 export function registerSkillFromProject(
   registry: Map<string, SkillIdentity>,

@@ -7,6 +7,7 @@ ZTools 插件 — Vue 3 + Vite + TypeScript 技能商店与一键分发工具。
 ```bash
 pnpm dev       # Vite 开发服务器 → http://localhost:5173
 pnpm build     # vue-tsc 类型检查 → vite 构建 → dist/
+pnpm build-zip # 构建 + 打包 zip 到系统下载文件夹
 ```
 
 未配置测试/lint/格式化工具。`build` 是唯一的验证步骤。
@@ -50,6 +51,7 @@ public/
 - Preload 服务通过 `window.services` 全局访问
 - ZTools API 通过 `window.ztools` 全局访问
 - 构建产物在 `dist/` 目录，需复制到 ZTools 插件目录测试
+- **打包 zip 文件时，保存到系统下载文件夹**：是系统下载路径，而非应用默认路径
 
 ## API 测试
 
