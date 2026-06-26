@@ -7,12 +7,14 @@ import eventBus from '../EventBus.js';
 class ShapeModule extends BaseModule {
   static SHAPE_OPTIONS = [
     { type: 'rect', preset: 'shape-type-rect', label: '矩形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="8" width="20" height="16" rx="2" /></svg>' },
+    { type: 'triangle', preset: 'shape-type-triangle', label: '三角形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16 5 28 27 4 27" /></svg>' },
     { type: 'circle', preset: 'shape-type-circle', label: '椭圆', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="16" rx="11" ry="9" /></svg>' },
     { type: 'star', preset: 'shape-type-star', label: '星星', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16 4 19.4 12 28 12.6 21.4 18 23.4 26.4 16 21.8 8.6 26.4 10.6 18 4 12.6 12.6 12" /></svg>' },
     { type: 'heart', preset: 'shape-type-heart', label: '心形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27C8.3 20.6 4 16.6 4 11.3C4 7.3 6.9 4.5 10.7 4.5C13 4.5 15 5.8 16 7.8C17 5.8 19 4.5 21.3 4.5C25.1 4.5 28 7.3 28 11.3C28 16.6 23.7 20.6 16 27Z" /></svg>' },
     { type: 'trapezoid', preset: 'shape-type-trapezoid', label: '梯形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="10 8 22 8 28 24 4 24" /></svg>' },
     { type: 'line', preset: 'shape-type-line', label: '直线', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><line x1="5" y1="24" x2="27" y2="8" /></svg>' },
     { type: 'arrow', preset: 'shape-type-arrow', label: '箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L25 8" /><path d="M16 7H26V17" /></svg>' },
+    { type: 'double-arrow', preset: 'shape-type-double-arrow', label: '双箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L27 8" /><path d="M18 7H28V17" /><path d="M14 25H4V15" /></svg>' },
   ];
 
   static SHAPE_STYLE_PRESETS = [
@@ -82,7 +84,7 @@ class ShapeModule extends BaseModule {
   }
 
   setShapeType(type) {
-    if (['rect', 'circle', 'star', 'heart', 'trapezoid', 'line', 'arrow'].includes(type)) {
+    if (['rect', 'triangle', 'circle', 'star', 'heart', 'trapezoid', 'line', 'arrow', 'double-arrow'].includes(type)) {
       this.options.shapeType = type;
     }
   }
@@ -124,12 +126,14 @@ class ShapeModule extends BaseModule {
 
     const presets = {
       'shape-type-rect': { shapeType: 'rect' },
+      'shape-type-triangle': { shapeType: 'triangle' },
       'shape-type-circle': { shapeType: 'circle' },
       'shape-type-star': { shapeType: 'star' },
       'shape-type-heart': { shapeType: 'heart' },
       'shape-type-trapezoid': { shapeType: 'trapezoid' },
       'shape-type-line': { shapeType: 'line' },
       'shape-type-arrow': { shapeType: 'arrow' },
+      'shape-type-double-arrow': { shapeType: 'double-arrow' },
       'shape-width-thin': { strokeWidth: 1 },
       'shape-width-medium': { strokeWidth: 2 },
       'shape-width-thick': { strokeWidth: 4 },
@@ -249,7 +253,7 @@ class ShapeModule extends BaseModule {
         <input type="range" class="property-range" data-module-prop="strokeWidth" min="1" max="20" value="${this.options.strokeWidth}" />
         <span class="property-value">${this.options.strokeWidth}px</span>
       </div>
-      <div class="property-empty">拖拽鼠标绘制图形，支持矩形、椭圆、星星、心形等。</div>
+      <div class="property-empty">拖拽鼠标绘制图形，支持矩形、三角形、椭圆、星星、心形等。</div>
     `;
   }
 
@@ -356,7 +360,7 @@ class ShapeModule extends BaseModule {
     const width = Math.abs(endPoint.x - startPoint.x);
     const height = Math.abs(endPoint.y - startPoint.y);
 
-    if (['line', 'arrow'].includes(this.options.shapeType)) {
+    if (['line', 'arrow', 'double-arrow'].includes(this.options.shapeType)) {
       return Math.sqrt(width * width + height * height) > 5;
     }
 
@@ -388,6 +392,9 @@ class ShapeModule extends BaseModule {
           ...commonProps,
         });
 
+      case 'triangle':
+        return this._createTriangle(left, top, width, height, commonProps);
+
       case 'circle':
         return new fabric.Ellipse({
           left: left + width / 2,
@@ -413,6 +420,9 @@ class ShapeModule extends BaseModule {
 
       case 'arrow':
         return this._createArrow(startPoint, endPoint, commonProps);
+
+      case 'double-arrow':
+        return this._createDoubleArrow(startPoint, endPoint, commonProps);
 
       default:
         return null;
@@ -488,6 +498,24 @@ class ShapeModule extends BaseModule {
     });
   }
 
+  _createTriangle(left, top, width, height, props) {
+    const centerX = left + width / 2;
+    const centerY = top + height / 2;
+    const points = [
+      { x: 0, y: -height / 2 },
+      { x: width / 2, y: height / 2 },
+      { x: -width / 2, y: height / 2 },
+    ];
+
+    return new fabric.Polygon(points, {
+      ...props,
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+    });
+  }
+
   _createLine(startPoint, endPoint, props) {
     return new fabric.Line([startPoint.x, startPoint.y, endPoint.x, endPoint.y], {
       ...props,
@@ -518,6 +546,49 @@ class ShapeModule extends BaseModule {
     };
     const pathData = `M ${startPoint.x} ${startPoint.y} L ${endPoint.x} ${endPoint.y}
       M ${headPointA.x} ${headPointA.y} L ${endPoint.x} ${endPoint.y} L ${headPointB.x} ${headPointB.y}`;
+
+    return new fabric.Path(pathData, {
+      ...props,
+      fill: null,
+      stroke: props.stroke,
+      strokeWidth: props.strokeWidth,
+      strokeLineCap: 'round',
+      strokeLineJoin: 'round',
+    });
+  }
+
+  _createDoubleArrow(startPoint, endPoint, props) {
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < 10) return null;
+
+    const angle = Math.atan2(dy, dx);
+    const headLength = Math.min(Math.max(distance * 0.25, 10), 28);
+    const headAngle = Math.PI / 7;
+
+    const headPointA1 = {
+      x: endPoint.x - headLength * Math.cos(angle - headAngle),
+      y: endPoint.y - headLength * Math.sin(angle - headAngle),
+    };
+    const headPointA2 = {
+      x: endPoint.x - headLength * Math.cos(angle + headAngle),
+      y: endPoint.y - headLength * Math.sin(angle + headAngle),
+    };
+    const reverseAngle = angle + Math.PI;
+    const headPointB1 = {
+      x: startPoint.x - headLength * Math.cos(reverseAngle - headAngle),
+      y: startPoint.y - headLength * Math.sin(reverseAngle - headAngle),
+    };
+    const headPointB2 = {
+      x: startPoint.x - headLength * Math.cos(reverseAngle + headAngle),
+      y: startPoint.y - headLength * Math.sin(reverseAngle + headAngle),
+    };
+
+    const pathData = `M ${startPoint.x} ${startPoint.y} L ${endPoint.x} ${endPoint.y}
+      M ${headPointA1.x} ${headPointA1.y} L ${endPoint.x} ${endPoint.y} L ${headPointA2.x} ${headPointA2.y}
+      M ${headPointB1.x} ${headPointB1.y} L ${startPoint.x} ${startPoint.y} L ${headPointB2.x} ${headPointB2.y}`;
 
     return new fabric.Path(pathData, {
       ...props,

@@ -1,6 +1,6 @@
 ﻿import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
-import { getFontOptionsHTML, recordFontUsage } from '../utils/fonts.js';
+import { getFontOptionsHTML, recordFontUsage, isSystemFontsLoaded, onSystemFontsLoaded } from '../utils/fonts.js';
 
 /**
  * 加字模块 — 在图片上添加文字标注
@@ -14,6 +14,7 @@ class TextModule extends BaseModule {
       fill: '#d83b31',
       stroke: null,
       strokeWidth: 0,
+      strokePosition: 'outside',
       fontWeight: 'normal',
       fontStyle: 'normal',
       underline: false,
@@ -80,6 +81,8 @@ class TextModule extends BaseModule {
       fill: opts.fill,
       stroke: opts.stroke,
       strokeWidth: opts.strokeWidth,
+      paintFirst: opts.strokePosition === 'inside' ? 'fill' : 'stroke',
+      _strokePosition: opts.strokePosition || 'outside',
       fontWeight: opts.fontWeight,
       fontStyle: opts.fontStyle,
       underline: opts.underline,
@@ -136,6 +139,11 @@ class TextModule extends BaseModule {
     this.options.strokeWidth = width;
     this._updateActiveTextStyle('stroke', color);
     this._updateActiveTextStyle('strokeWidth', width);
+  }
+
+  setStrokePosition(position) {
+    this.options.strokePosition = position;
+    this._updateActiveTextStyle('paintFirst', position === 'inside' ? 'fill' : 'stroke');
   }
 
   setUnderline(underline) {
@@ -299,6 +307,13 @@ class TextModule extends BaseModule {
           <input type="number" class="property-input" data-module-prop="strokeWidth" value="${opts.strokeWidth || 0}" min="0" max="20" />
         </div>
         <div class="property-item">
+          <label>描边位</label>
+          <select class="property-select property-select--short" data-module-prop="strokePosition">
+            ${this._getSelectOption('outside', '外部', opts.strokePosition)}
+            ${this._getSelectOption('inside', '内部', opts.strokePosition)}
+          </select>
+        </div>
+        <div class="property-item">
           <label>粗体</label>
           <input type="checkbox" class="property-checkbox" data-module-prop="fontWeight" ${opts.fontWeight === 'bold' ? 'checked' : ''} />
         </div>
@@ -357,6 +372,10 @@ class TextModule extends BaseModule {
       case 'stroke':
         active.set('stroke', value);
         break;
+      case 'strokePosition':
+        active.set('paintFirst', value === 'inside' ? 'fill' : 'stroke');
+        active.set('_strokePosition', value);
+        break;
       case 'opacity':
         // value 已被 _handleInput 转换为 0-1 区间，直接使用
         active.set('opacity', value);
@@ -384,6 +403,9 @@ class TextModule extends BaseModule {
       case 'strokeWidth':
         this.options.strokeWidth = Math.max(0, parseInt(value, 10) || 0);
         break;
+      case 'strokePosition':
+        this.options.strokePosition = value;
+        break;
       case 'fontWeight':
         this.options.fontWeight = value ? 'bold' : 'normal';
         break;
@@ -404,7 +426,16 @@ class TextModule extends BaseModule {
   }
 
   _getFontOptionsHTML(current) {
-    return getFontOptionsHTML(current);
+    if (isSystemFontsLoaded()) {
+      return getFontOptionsHTML(current);
+    }
+
+    // 异步加载字体，完成后触发属性面板更新
+    onSystemFontsLoaded(() => {
+      eventBus.emit('tool:propertiesChanged');
+    });
+
+    return '<option value="" disabled selected>加载字体中...</option>';
   }
 
   _getSelectOption(value, label, current) {

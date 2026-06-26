@@ -1,5 +1,5 @@
 ﻿import { eventBus } from '../../core/src/index.js';
-import { getFontOptionsHTML, recordFontUsage } from '../../core/src/utils/fonts.js';
+import { getFontOptionsHTML, recordFontUsage, isSystemFontsLoaded, onSystemFontsLoaded } from '../../core/src/utils/fonts.js';
 
 /**
  * Property panel UI component.
@@ -528,7 +528,16 @@ class PropertyPanel {
   }
 
   _getFontOptionsHTML(current) {
-    return getFontOptionsHTML(current);
+    if (isSystemFontsLoaded()) {
+      return getFontOptionsHTML(current);
+    }
+
+    // 异步加载字体，完成后更新属性面板
+    onSystemFontsLoaded(() => {
+      this._updateProperties();
+    });
+
+    return '<option value="" disabled selected>加载字体中...</option>';
   }
 
   _getSelectOption(value, label, current) {

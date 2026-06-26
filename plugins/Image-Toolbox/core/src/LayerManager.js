@@ -396,10 +396,14 @@ class LayerManager {
    */
   selectLayer(layerId) {
     const meta = this._layers.find(l => l.id === layerId);
-    if (!meta || meta.locked) return;
+    if (!meta) return;
 
-    this._cm.canvas.setActiveObject(meta.fabricObj);
-    this._cm.canvas.renderAll();
+    // 即使图层被锁定也触发事件（让橡皮擦等工具能响应图层切换），
+    // 但不调用 setActiveObject（避免误操作锁定图层）。
+    if (!meta.locked) {
+      this._cm.canvas.setActiveObject(meta.fabricObj);
+      this._cm.canvas.renderAll();
+    }
     eventBus.emit('layer:selected', meta);
   }
 

@@ -43,6 +43,12 @@ export default class HostAdapter {
   async getSystemFonts() { return []; }
 
   /**
+   * 异步获取系统字体列表（不阻塞UI线程）。
+   * @returns {Promise<string[]>}
+   */
+  async getSystemFontsAsync() { return []; }
+
+  /**
    * 获取存储值。
    * @param {string} key
    * @returns {Promise<string|null>}

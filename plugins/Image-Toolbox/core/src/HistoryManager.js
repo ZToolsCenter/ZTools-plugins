@@ -40,8 +40,9 @@ class HistoryManager {
   /**
    * 撤销
    */
-  undo() {
+  async undo() {
     if (!this.canUndo()) return;
+    if (this._isRestoring) return; // 防止恢复期间重复触发
 
     this._isRestoring = true;
 
@@ -53,17 +54,22 @@ class HistoryManager {
 
     // 恢复上一个状态
     const prevJson = this.undoStack.pop();
-    this._restoreState(prevJson);
-
-    this._isRestoring = false;
-    this._notify();
+    try {
+      await this._restoreState(prevJson);
+    } catch (err) {
+      console.error('[HistoryManager] undo 失败:', err);
+    } finally {
+      this._isRestoring = false;
+      this._notify();
+    }
   }
 
   /**
    * 重做
    */
-  redo() {
+  async redo() {
     if (!this.canRedo()) return;
+    if (this._isRestoring) return; // 防止恢复期间重复触发
 
     this._isRestoring = true;
 
@@ -75,10 +81,14 @@ class HistoryManager {
 
     // 恢复下一个状态
     const nextJson = this.redoStack.pop();
-    this._restoreState(nextJson);
-
-    this._isRestoring = false;
-    this._notify();
+    try {
+      await this._restoreState(nextJson);
+    } catch (err) {
+      console.error('[HistoryManager] redo 失败:', err);
+    } finally {
+      this._isRestoring = false;
+      this._notify();
+    }
   }
 
   /**
@@ -116,10 +126,8 @@ class HistoryManager {
 
   // ── 内部方法 ──
 
-  _restoreState(json) {
-    this._cm.fromJSON(json).catch(err => {
-      console.error('[HistoryManager] 恢复状态失败:', err);
-    });
+  async _restoreState(json) {
+    return this._cm.fromJSON(json);
   }
 
   _notify() {

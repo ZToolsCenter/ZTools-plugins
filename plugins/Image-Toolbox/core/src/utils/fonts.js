@@ -20,6 +20,8 @@ const FONT_ALIAS_KEYS = new Map([
 ]);
 
 let systemFontOptionsCache = null;
+let systemFontLoading = false;
+let systemFontLoadCallbacks = [];
 
 export function getFontOptionsHTML(current) {
   const currentKey = _getFontKey(current);
@@ -28,6 +30,68 @@ export function getFontOptionsHTML(current) {
     const selected = currentKey && _getFontKey(option.value) === currentKey ? ' selected' : '';
     return `<option value="${_escapeHTML(option.value)}"${selected}>${_escapeHTML(option.label)}</option>`;
   }).join('');
+}
+
+export function getFontOptionsHTMLAsync(current) {
+  if (systemFontOptionsCache) {
+    return Promise.resolve(getFontOptionsHTML(current));
+  }
+
+  return _ensureSystemFontsLoaded().then(() => getFontOptionsHTML(current));
+}
+
+export function isSystemFontsLoaded() {
+  return systemFontOptionsCache !== null;
+}
+
+export function isSystemFontsLoading() {
+  return systemFontLoading;
+}
+
+export function onSystemFontsLoaded(callback) {
+  if (systemFontOptionsCache) {
+    callback();
+  } else {
+    systemFontLoadCallbacks.push(callback);
+    if (!systemFontLoading) {
+      _loadSystemFontsAsync();
+    }
+  }
+}
+
+function _loadSystemFontsAsync() {
+  if (systemFontLoading) return;
+  systemFontLoading = true;
+
+  const asyncLoader = typeof window !== 'undefined' && typeof window.getSystemFontsAsync === 'function'
+    ? window.getSystemFontsAsync()
+    : Promise.resolve().then(() => {
+        return typeof window !== 'undefined' && typeof window.getSystemFonts === 'function'
+          ? window.getSystemFonts()
+          : [];
+      });
+
+  asyncLoader.then((fonts) => {
+    systemFontOptionsCache = Array.isArray(fonts)
+      ? fonts.map((font) => String(font || '').trim()).filter(Boolean).map((font) => ({ value: font, label: font }))
+      : [];
+    systemFontLoading = false;
+    systemFontLoadCallbacks.forEach((cb) => cb());
+    systemFontLoadCallbacks = [];
+  }).catch((e) => {
+    console.error('[fonts] 异步加载系统字体失败:', e);
+    systemFontOptionsCache = [];
+    systemFontLoading = false;
+    systemFontLoadCallbacks.forEach((cb) => cb());
+    systemFontLoadCallbacks = [];
+  });
+}
+
+function _ensureSystemFontsLoaded() {
+  if (systemFontOptionsCache) return Promise.resolve();
+  return new Promise((resolve) => {
+    onSystemFontsLoaded(resolve);
+  });
 }
 
 export function recordFontUsage(fontFamily) {

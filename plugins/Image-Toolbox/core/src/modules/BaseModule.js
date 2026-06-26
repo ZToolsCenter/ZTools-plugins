@@ -12,6 +12,7 @@ class BaseModule {
     this.history = historyManager;
     this.active = false;
     this.options = { ...defaultOptions };
+    this._savedInteractivity = new Map();
   }
 
   /**
@@ -30,9 +31,8 @@ class BaseModule {
     const canvas = this.canvasManager.canvas;
     if (!canvas) return;
 
-    // 禁用框选 + 禁用所有对象的单独选中/拖拽
     canvas.selection = false;
-    this._setObjectsInteractivity(false);
+    this._disableObjectsInteractivity();
   }
 
   /**
@@ -48,18 +48,38 @@ class BaseModule {
 
     canvas.selection = true;
     canvas.defaultCursor = 'default';
-    this._setObjectsInteractivity(true);
+    this._restoreObjectsInteractivity();
   }
 
   /**
-   * 批量设置画布上所有对象的交互性
-   * @param {boolean} interactive - 是否可交互
+   * 禁用所有对象交互性，同时保存原始状态以便恢复
    */
-  _setObjectsInteractivity(interactive) {
+  _disableObjectsInteractivity() {
+    const objects = this.canvasManager.canvas.getObjects();
+    this._savedInteractivity.clear();
+    objects.forEach(obj => {
+      this._savedInteractivity.set(obj, {
+        selectable: obj.selectable,
+        evented: obj.evented,
+      });
+      obj.set({ selectable: false, evented: false });
+    });
+  }
+
+  /**
+   * 恢复所有对象到激活前的交互状态（保留锁定/背景图层的原始状态）
+   */
+  _restoreObjectsInteractivity() {
     const objects = this.canvasManager.canvas.getObjects();
     objects.forEach(obj => {
-      obj.set({ selectable: interactive, evented: interactive });
+      const saved = this._savedInteractivity.get(obj);
+      if (saved) {
+        obj.set({ selectable: saved.selectable, evented: saved.evented });
+      } else {
+        obj.set({ selectable: true, evented: true });
+      }
     });
+    this._savedInteractivity.clear();
   }
 
   /**

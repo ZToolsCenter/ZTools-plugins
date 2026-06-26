@@ -78,6 +78,7 @@ const MIME_MAP = {
 
 const FONT_EXTENSIONS = new Set(['.ttf', '.otf', '.ttc', '.otc']);
 let _systemFontsCache = null;
+let _systemFontsPromise = null;
 
 // ── 文件操作 ──
 window.readImageFile = (filePath) => {
@@ -87,7 +88,7 @@ window.readImageFile = (filePath) => {
   return 'data:' + mime + ';base64,' + buffer.toString('base64');
 };
 
-// ── 系统字体 ──
+// ── 系统字体（同步版本，向后兼容）──
 window.getSystemFonts = () => {
   if (_systemFontsCache) return _systemFontsCache.slice();
 
@@ -99,6 +100,26 @@ window.getSystemFonts = () => {
   }
 
   return _systemFontsCache.slice();
+};
+
+// ── 系统字体（异步版本，不阻塞UI）──
+window.getSystemFontsAsync = () => {
+  if (_systemFontsCache) return Promise.resolve(_systemFontsCache.slice());
+  if (_systemFontsPromise) return _systemFontsPromise;
+
+  _systemFontsPromise = new Promise((resolve) => {
+    setTimeout(() => {
+      try {
+        _systemFontsCache = _loadSystemFonts();
+      } catch (e) {
+        console.error('[preload] 异步获取系统字体失败:', e);
+        _systemFontsCache = [];
+      }
+      resolve(_systemFontsCache.slice());
+    }, 0);
+  });
+
+  return _systemFontsPromise;
 };
 
 const _loadSystemFonts = () => {
