@@ -1,5 +1,6 @@
 ﻿import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
+import { clamp, escapeAttr, normalizeColor, requestRender as _requestRender } from '../utils/helpers.js';
 
 /**
  * 画笔模块 - 使用 Fabric 自由绘制生成可编辑的 path 图层。
@@ -61,7 +62,7 @@ class BrushModule extends BaseModule {
   }
 
   setColor(color) {
-    this.options.color = this._normalizeColor(color, this.options.color);
+    this.options.color = normalizeColor(color, this.options.color);
     this._applyBrushOptions();
     this._updateCursorPreviewStyle();
   }
@@ -95,7 +96,7 @@ class BrushModule extends BaseModule {
   }
 
   getOptionsBarHTML() {
-    const color = this._normalizeColor(this.options.color);
+    const color = normalizeColor(this.options.color);
     const width = this.options.width;
 
     return `
@@ -121,7 +122,7 @@ class BrushModule extends BaseModule {
       <div class="property-section-title">画笔工具</div>
       <div class="property-item">
         <label>颜色</label>
-        <input type="color" class="property-color" data-module-prop="color" value="${this._escapeAttr(this._normalizeColor(this.options.color))}" />
+        <input type="color" class="property-color" data-module-prop="color" value="${escapeAttr(normalizeColor(this.options.color))}" />
       </div>
       <div class="property-item property-item--wide">
         <label>粗细</label>
@@ -257,13 +258,7 @@ class BrushModule extends BaseModule {
   }
 
   _requestRender() {
-    const canvas = this.canvasManager.canvas;
-    if (!canvas) return;
-    if (typeof canvas.requestRenderAll === 'function') {
-      canvas.requestRenderAll();
-    } else {
-      canvas.renderAll();
-    }
+    _requestRender(this.canvasManager.canvas);
   }
 
   _ensureBrush() {
@@ -284,7 +279,7 @@ class BrushModule extends BaseModule {
   }
 
   _getColorPresetButton(preset, label, color, currentColor) {
-    const normalized = this._normalizeColor(color);
+    const normalized = normalizeColor(color);
     const active = currentColor === normalized ? ' active' : '';
     return `
       <button class="options-btn options-btn-sm brush-color-btn${active}" data-preset="${preset}" style="--brush-color:${normalized}">
@@ -294,15 +289,7 @@ class BrushModule extends BaseModule {
   }
 
   _normalizeColor(color, fallback = '#000000') {
-    if (typeof color !== 'string') return fallback;
-
-    const value = color.trim().toLowerCase();
-    if (/^#[0-9a-f]{6}$/i.test(value)) return value;
-    if (/^#[0-9a-f]{3}$/i.test(value)) {
-      return '#' + value.slice(1).split('').map(ch => ch + ch).join('');
-    }
-
-    return fallback;
+    return normalizeColor(color, fallback);
   }
 
   _getColorPresetName(color) {
@@ -315,7 +302,7 @@ class BrushModule extends BaseModule {
       '#111111': '黑',
     };
 
-    return colorMap[this._normalizeColor(color, '')] || '';
+    return colorMap[normalizeColor(color, '')] || '';
   }
 
   _getWidthPresetName(width) {
@@ -330,16 +317,11 @@ class BrushModule extends BaseModule {
   }
 
   _clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+    return clamp(value, min, max);
   }
 
   _escapeAttr(value) {
-    return String(value ?? '').replace(/[&<>"]/g, ch => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-    }[ch]));
+    return escapeAttr(value);
   }
 }
 

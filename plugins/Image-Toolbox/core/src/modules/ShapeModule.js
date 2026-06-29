@@ -1,5 +1,6 @@
 import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
+import { clamp, escapeAttr, normalizeColor } from '../utils/helpers.js';
 
 /**
  * 图形绘制模块 - 支持矩形、椭圆、星星、心形、梯形、直线、箭头等多种图形
@@ -12,6 +13,7 @@ class ShapeModule extends BaseModule {
     { type: 'star', preset: 'shape-type-star', label: '星星', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16 4 19.4 12 28 12.6 21.4 18 23.4 26.4 16 21.8 8.6 26.4 10.6 18 4 12.6 12.6 12" /></svg>' },
     { type: 'heart', preset: 'shape-type-heart', label: '心形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27C8.3 20.6 4 16.6 4 11.3C4 7.3 6.9 4.5 10.7 4.5C13 4.5 15 5.8 16 7.8C17 5.8 19 4.5 21.3 4.5C25.1 4.5 28 7.3 28 11.3C28 16.6 23.7 20.6 16 27Z" /></svg>' },
     { type: 'trapezoid', preset: 'shape-type-trapezoid', label: '梯形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="10 8 22 8 28 24 4 24" /></svg>' },
+    { type: 'parallelogram', preset: 'shape-type-parallelogram', label: '平行四边形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="9 8 26 8 23 24 6 24" /></svg>' },
     { type: 'line', preset: 'shape-type-line', label: '直线', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><line x1="5" y1="24" x2="27" y2="8" /></svg>' },
     { type: 'arrow', preset: 'shape-type-arrow', label: '箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L25 8" /><path d="M16 7H26V17" /></svg>' },
     { type: 'double-arrow', preset: 'shape-type-double-arrow', label: '双箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L27 8" /><path d="M18 7H28V17" /><path d="M14 25H4V15" /></svg>' },
@@ -84,20 +86,20 @@ class ShapeModule extends BaseModule {
   }
 
   setShapeType(type) {
-    if (['rect', 'triangle', 'circle', 'star', 'heart', 'trapezoid', 'line', 'arrow', 'double-arrow'].includes(type)) {
+    if (['rect', 'triangle', 'circle', 'star', 'heart', 'trapezoid', 'parallelogram', 'line', 'arrow', 'double-arrow'].includes(type)) {
       this.options.shapeType = type;
     }
   }
 
   setFill(fill) {
-    const normalized = this._normalizeColor(fill, this.options.fill, true);
+    const normalized = normalizeColor(fill, this.options.fill, true);
     this.options.fill = this._hasExplicitOpacity(normalized)
       ? normalized
       : this._withColorOpacity(normalized, this._getColorOpacity(this.options.fill));
   }
 
   setStroke(stroke) {
-    const normalized = this._normalizeColor(stroke, this.options.stroke, false);
+    const normalized = normalizeColor(stroke, this.options.stroke, false);
     this.options.stroke = this._hasExplicitOpacity(normalized)
       ? normalized
       : this._withColorOpacity(normalized, this._getColorOpacity(this.options.stroke));
@@ -131,6 +133,7 @@ class ShapeModule extends BaseModule {
       'shape-type-star': { shapeType: 'star' },
       'shape-type-heart': { shapeType: 'heart' },
       'shape-type-trapezoid': { shapeType: 'trapezoid' },
+      'shape-type-parallelogram': { shapeType: 'parallelogram' },
       'shape-type-line': { shapeType: 'line' },
       'shape-type-arrow': { shapeType: 'arrow' },
       'shape-type-double-arrow': { shapeType: 'double-arrow' },
@@ -415,6 +418,9 @@ class ShapeModule extends BaseModule {
       case 'trapezoid':
         return this._createTrapezoid(left, top, width, height, commonProps);
 
+      case 'parallelogram':
+        return this._createParallelogram(left, top, width, height, commonProps);
+
       case 'line':
         return this._createLine(startPoint, endPoint, commonProps);
 
@@ -487,6 +493,26 @@ class ShapeModule extends BaseModule {
       { x: width / 2 - topInset, y: -height / 2 },
       { x: width / 2, y: height / 2 },
       { x: -width / 2, y: height / 2 },
+    ];
+
+    return new fabric.Polygon(points, {
+      ...props,
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+    });
+  }
+
+  _createParallelogram(left, top, width, height, props) {
+    const centerX = left + width / 2;
+    const centerY = top + height / 2;
+    const skewX = width * 0.22;
+    const points = [
+      { x: -width / 2 + skewX, y: -height / 2 },
+      { x: width / 2 + skewX, y: -height / 2 },
+      { x: width / 2 - skewX, y: height / 2 },
+      { x: -width / 2 - skewX, y: height / 2 },
     ];
 
     return new fabric.Polygon(points, {
@@ -611,22 +637,7 @@ class ShapeModule extends BaseModule {
   }
 
   _normalizeColor(color, fallback = '#000000', allowTransparent = false) {
-    if (allowTransparent && color === 'transparent') return 'transparent';
-
-    if (typeof color !== 'string') return fallback;
-
-    const value = color.trim().toLowerCase();
-
-    // 处理 rgba 格式
-    if (value.startsWith('rgba')) return value;
-
-    // 处理 hex 格式
-    if (/^#[0-9a-f]{6}$/i.test(value)) return value;
-    if (/^#[0-9a-f]{3}$/i.test(value)) {
-      return '#' + value.slice(1).split('').map(ch => ch + ch).join('');
-    }
-
-    return fallback;
+    return normalizeColor(color, fallback, allowTransparent);
   }
 
   _normalizeComparableColor(color) {
@@ -730,16 +741,11 @@ class ShapeModule extends BaseModule {
   }
 
   _clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+    return clamp(value, min, max);
   }
 
   _escapeAttr(value) {
-    return String(value ?? '').replace(/[&<>"]/g, ch => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-    }[ch]));
+    return escapeAttr(value);
   }
 }
 

@@ -11,7 +11,7 @@ class ExportModule extends BaseModule {
    * @param {import('../CanvasManager.js').default} canvasManager
    * @param {import('../HistoryManager.js').default} historyManager
    * @param {object} [defaultOptions]
-   * @param {import('../interfaces/HostAdapter.js').default} [host]
+   * @param {object} [host]
    */
   constructor(canvasManager, historyManager, defaultOptions = {}, host = null) {
     super(canvasManager, historyManager, {
@@ -25,7 +25,7 @@ class ExportModule extends BaseModule {
 
   /**
    * 注入 host adapter（可在运行时设置）。
-   * @param {import('../interfaces/HostAdapter.js').default} host
+   * @param {object} host
    */
   setHost(host) {
     this._host = host;
@@ -35,10 +35,23 @@ class ExportModule extends BaseModule {
    * 导出为文件 — 先弹保存对话框，用户选择格式后自动匹配导出
    */
   async exportToFile() {
+    // 优先使用 host adapter
+    if (this._host?.showSaveImageDialog && this._host?.writeImageFile) {
+      const filePath = this._host.showSaveImageDialog('edited.png');
+      if (!filePath) return;
+
+      const format = this._getFormatFromFilePath(filePath);
+      const dataURL = this.exportToDataURL(format);
+      if (!dataURL) return;
+
+      const saved = this._host.writeImageFile(filePath, dataURL);
+      this._notifyToast(saved ? '图片已保存' : '保存失败', saved ? 'success' : 'error');
+      return;
+    }
+
     const dataURL = this.exportToDataURL('png');
     if (!dataURL) return;
 
-    // 优先使用 host adapter
     if (this._host?.saveImage) {
       const saved = await this._host.saveImage(dataURL, 'edited.png');
       if (saved) {
@@ -121,6 +134,13 @@ class ExportModule extends BaseModule {
       ...options,
     };
     return this.exportToDataURL(opts.format, opts.quality);
+  }
+
+  _getFormatFromFilePath(filePath) {
+    const ext = String(filePath || '').split('.').pop()?.toLowerCase();
+    if (ext === 'jpg' || ext === 'jpeg') return 'jpeg';
+    if (ext === 'webp') return 'webp';
+    return 'png';
   }
 
   _toDataURL(dataURLOptions, options = {}) {

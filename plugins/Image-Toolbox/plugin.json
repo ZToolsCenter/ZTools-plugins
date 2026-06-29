@@ -2,7 +2,7 @@
   "name": "image-toolbox-ztools",
   "title": "图片工具箱",
   "description": "马赛克、剪切、加字等图片编辑功能",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "main": "src/index.html",
   "logo": "logo.png",
   "preload": "preload.js",
@@ -23,7 +23,15 @@
           "type": "files",
           "label": "编辑图片",
           "fileType": "file",
-          "extensions": ["png", "jpg", "jpeg", "webp", "bmp", "gif", "svg"],
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg",
+            "webp",
+            "bmp",
+            "gif",
+            "svg"
+          ],
           "minLength": 1,
           "maxLength": 1
         }

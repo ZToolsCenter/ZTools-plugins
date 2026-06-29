@@ -24,6 +24,9 @@ class HistoryManager {
     const json = this._cm.toJSON();
     if (!json) return;
 
+    const last = this.undoStack[this.undoStack.length - 1];
+    if (last && this._isSameSnapshot(last, json)) return;
+
     this.undoStack.push(json);
 
     // 限制栈大小
@@ -46,14 +49,23 @@ class HistoryManager {
 
     this._isRestoring = true;
 
-    // 保存当前状态到重做栈
     const currentJson = this._cm.toJSON();
+    let prevJson = this.undoStack.pop();
+
+    while (prevJson && currentJson && this._isSameSnapshot(prevJson, currentJson) && this.undoStack.length > 0) {
+      prevJson = this.undoStack.pop();
+    }
+
+    if (!prevJson || (currentJson && this._isSameSnapshot(prevJson, currentJson))) {
+      this._isRestoring = false;
+      this._notify();
+      return;
+    }
+
     if (currentJson) {
       this.redoStack.push(currentJson);
     }
 
-    // 恢复上一个状态
-    const prevJson = this.undoStack.pop();
     try {
       await this._restoreState(prevJson);
     } catch (err) {
@@ -136,6 +148,17 @@ class HistoryManager {
       canRedo: this.canRedo(),
       undoCount: this.undoStack.length,
     });
+  }
+
+  _isSameSnapshot(a, b) {
+    if (a === b) return true;
+    if (!a || !b) return false;
+
+    try {
+      return JSON.stringify(a) === JSON.stringify(b);
+    } catch (err) {
+      return false;
+    }
   }
 }
 

@@ -14,6 +14,7 @@ class OptionsBar {
     this._boundDocumentClick = this._handleDocumentClick.bind(this);
     this._boundKeyDown = this._handleKeyDown.bind(this);
     this._boundRepositionShapePicker = this._positionShapePicker.bind(this);
+    this._eventBusUnsubscribers = [];
 
     this._render();
     this._bindEvents();
@@ -27,11 +28,13 @@ class OptionsBar {
 
   _bindEvents() {
     // Update options when the active tool changes.
-    eventBus.on('tool:changed', (toolName) => {
-      this._currentTool = toolName;
-      this._closeShapePicker();
-      this._updateControls();
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('tool:changed', (toolName) => {
+        this._currentTool = toolName;
+        this._closeShapePicker();
+        this._updateControls();
+      })
+    );
 
     [
       'canvas:selectionCreated',
@@ -42,9 +45,11 @@ class OptionsBar {
       'image:loaded',
       'tool:propertiesChanged',
     ].forEach(eventName => {
-      eventBus.on(eventName, () => {
-        if (this._currentTool) this._updateControls();
-      });
+      this._eventBusUnsubscribers.push(
+        eventBus.on(eventName, () => {
+          if (this._currentTool) this._updateControls();
+        })
+      );
     });
 
     // Only handle one-click presets here; detailed controls live in the property panel.
@@ -169,7 +174,8 @@ class OptionsBar {
    */
   destroy() {
     this._closeShapePicker();
-    // EventBus subscriptions are currently app-lifetime listeners.
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 

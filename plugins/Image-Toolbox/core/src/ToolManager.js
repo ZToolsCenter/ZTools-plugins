@@ -21,7 +21,7 @@ class ToolManager {
    * @param {import('./HistoryManager.js').default} historyManager
    * @param {object} [options]
    * @param {Array} [options.tools] - 外部注入的工具定义列表
-   * @param {import('./interfaces/HostAdapter.js').default} [options.host]
+   * @param {object} [options.host]
    */
   constructor(canvasManager, historyManager, options = {}) {
     this._cm = canvasManager;
@@ -45,7 +45,7 @@ class ToolManager {
 
   /**
    * 注入 host adapter。
-   * @param {import('./interfaces/HostAdapter.js').default} host
+   * @param {object} host
    */
   setHost(host) {
     this._host = host;
@@ -221,6 +221,7 @@ class ToolManager {
   destroy() {
     Object.values(this._modules).forEach(m => {
       if (m.deactivate) m.deactivate();
+      if (m.destroy) m.destroy();
     });
     this._modules = {};
     this._currentTool = null;

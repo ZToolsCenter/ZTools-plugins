@@ -1,5 +1,26 @@
 export const updateRecords = [
   {
+    version: '2.2.2',
+    date: '2026-06-29',
+    changes: {
+      added: [
+        { text: '图形工具新增平行四边形图形', platforms: null },
+        { text: '文字属性新增删除线复选框', platforms: null }
+      ],
+      fixed: [
+        { text: '修复部分编辑操作第一次撤销无反应的问题', platforms: null },
+        { text: '修复打开新图片后撤销可能恢复上一张图片的问题', platforms: null },
+        { text: '修复选择 JPEG/WebP 保存时实际仍写入 PNG 数据的问题', platforms: null },
+        { text: '修复 ZTools 端选中文字后缺少描边位置设置的问题', platforms: ['ztools'] },
+        { text: '修复裁剪撤销/重做时裁剪范围恢复不正确的问题', platforms: null },
+        { text: '修复清除所有马赛克后无法撤销恢复的问题', platforms: null }
+      ],
+      improved: [],
+      adjusted: [],
+      removed: []
+    }
+  },
+  {
     version: '2.2.1',
     date: '2026-06-26',
     changes: {

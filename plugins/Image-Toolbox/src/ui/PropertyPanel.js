@@ -1,5 +1,6 @@
 ﻿import { eventBus } from '../../core/src/index.js';
 import { getFontOptionsHTML, recordFontUsage, isSystemFontsLoaded, onSystemFontsLoaded } from '../../core/src/utils/fonts.js';
+import { clamp, escapeHTML, escapeAttr } from '../../core/src/utils/helpers.js';
 
 /**
  * Property panel UI component.
@@ -11,6 +12,7 @@ class PropertyPanel {
     this._tm = toolManager;
     this._cm = canvasManager || toolManager?._cm || null;
     this._lm = layerManager;
+    this._eventBusUnsubscribers = [];
 
     this._bindEvents();
     this._render();
@@ -31,23 +33,21 @@ class PropertyPanel {
 
   _bindEvents() {
     // Update the property panel when selection changes.
-    eventBus.on('canvas:selectionCreated', () => this._updateProperties());
-    eventBus.on('canvas:selectionUpdated', () => this._updateProperties());
-    eventBus.on('canvas:selectionCleared', () => this._updateProperties());
-    eventBus.on('layer:selected', () => this._updateProperties());
-    eventBus.on('layers:updated', () => this._updateProperties());
-    eventBus.on('canvas:objectAdded', () => this._updateProperties());
-    eventBus.on('canvas:objectRemoved', () => this._updateProperties());
-    eventBus.on('canvas:restored', () => this._updateProperties());
-    eventBus.on('image:loaded', () => this._clearProperties());
-    eventBus.on('tool:changed', () => this._updateProperties());
-    eventBus.on('crop:updated', () => this._updateProperties());
-    eventBus.on('tool:propertiesChanged', () => this._updateProperties());
-
-    // Refresh properties after object changes.
-    eventBus.on('canvas:objectModified', () => {
-      this._updateProperties();
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('canvas:selectionCreated', () => this._updateProperties()),
+      eventBus.on('canvas:selectionUpdated', () => this._updateProperties()),
+      eventBus.on('canvas:selectionCleared', () => this._updateProperties()),
+      eventBus.on('layer:selected', () => this._updateProperties()),
+      eventBus.on('layers:updated', () => this._updateProperties()),
+      eventBus.on('canvas:objectAdded', () => this._updateProperties()),
+      eventBus.on('canvas:objectRemoved', () => this._updateProperties()),
+      eventBus.on('canvas:restored', () => this._updateProperties()),
+      eventBus.on('image:loaded', () => this._clearProperties()),
+      eventBus.on('tool:changed', () => this._updateProperties()),
+      eventBus.on('crop:updated', () => this._updateProperties()),
+      eventBus.on('tool:propertiesChanged', () => this._updateProperties()),
+      eventBus.on('canvas:objectModified', () => this._updateProperties())
+    );
 
     // Delegate property input handling.
     this._el.addEventListener('input', (e) => {
@@ -206,6 +206,13 @@ class PropertyPanel {
           <input type="number" class="property-input" data-prop="strokeWidth" value="${active.strokeWidth || 0}" min="0" max="20"${editDisabled} />
         </div>
         <div class="property-item">
+          <label>描边位</label>
+          <select class="property-select property-select--short" data-prop="strokePosition"${editDisabled}>
+            ${this._getSelectOption('outside', '外部', active._strokePosition || 'outside')}
+            ${this._getSelectOption('inside', '内部', active._strokePosition || 'outside')}
+          </select>
+        </div>
+        <div class="property-item">
           <label>粗体</label>
           <input type="checkbox" class="property-checkbox" data-prop="fontWeight" ${active.fontWeight === 'bold' ? 'checked' : ''}${editDisabled} />
         </div>
@@ -216,6 +223,10 @@ class PropertyPanel {
         <div class="property-item">
           <label>下划线</label>
           <input type="checkbox" class="property-checkbox" data-prop="underline" ${active.underline ? 'checked' : ''}${editDisabled} />
+        </div>
+        <div class="property-item">
+          <label>删除线</label>
+          <input type="checkbox" class="property-checkbox" data-prop="linethrough" ${active.linethrough ? 'checked' : ''}${editDisabled} />
         </div>
         <div class="property-item">
           <label>对齐</label>
@@ -369,8 +380,15 @@ class PropertyPanel {
       case 'underline':
         active.set('underline', value);
         break;
+      case 'linethrough':
+        active.set('linethrough', value);
+        break;
       case 'textAlign':
         active.set('textAlign', value);
+        break;
+      case 'strokePosition':
+        active.set('paintFirst', value === 'inside' ? 'fill' : 'stroke');
+        active.set('_strokePosition', value);
         break;
       default:
         return;
@@ -642,21 +660,20 @@ class PropertyPanel {
 
   _clamp(value, min, max) {
     if (!Number.isFinite(value)) return min;
-    return Math.max(min, Math.min(max, value));
+    return clamp(value, min, max);
   }
 
   _escapeHTML(value) {
-    return String(value ?? '').replace(/[&<>"']/g, ch => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }[ch]));
+    return escapeHTML(value);
   }
 
   _escapeAttr(value) {
-    return this._escapeHTML(value);
+    return escapeAttr(value);
+  }
+
+  destroy() {
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 

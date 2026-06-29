@@ -43,6 +43,8 @@ class App {
     this.layerPanel = null;
     this.statusBar = null;
     this.accountPage = null;
+    this.hostAdapter = null;
+    this._destroyed = false;
 
     this._init();
   }
@@ -297,8 +299,8 @@ class App {
         const active = this.canvasManager?.getActiveObject();
         if (active && active.isEditing) return; // 文字编辑中不删除
         if (active && active.excludeFromHistory) return; // 不删除裁剪框等临时工具对象
-        this.canvasManager?.removeActiveObject();
         this.historyManager?.saveState();
+        this.canvasManager?.removeActiveObject();
         return;
       }
 
@@ -363,6 +365,29 @@ class App {
     });
   }
 
+  destroy() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
+
+    [
+      this.accountPage,
+      this.toolbar,
+      this.optionsBar,
+      this.sidePanelTabs,
+      this.propertyPanel,
+      this.layerPanel,
+      this.statusBar,
+    ].forEach(component => component?.destroy?.());
+
+    this.toolManager?.destroy?.();
+    this.canvasManager?.destroy?.();
+  }
+
   /**
    * 显示 Toast 提示
    */
@@ -377,7 +402,10 @@ class App {
 
     const toast = document.createElement('div');
     toast.className = `toast toast--${type}`;
-    toast.innerHTML = `${icons[type] || ''}<span>${message}</span>`;
+    toast.innerHTML = icons[type] || '';
+    const textEl = document.createElement('span');
+    textEl.textContent = message;
+    toast.appendChild(textEl);
     document.body.appendChild(toast);
 
     toast.addEventListener('animationend', () => {
@@ -402,6 +430,7 @@ class App {
       this.layerManager.syncLayers();
 
       // 保存初始状态
+      this.historyManager.clear();
       this.historyManager.saveState();
 
       // 调整宿主窗口高度
@@ -512,5 +541,7 @@ class App {
 
 // ═══ 启动应用 ═══
 window.addEventListener('DOMContentLoaded', () => {
-  new App();
+  const app = new App();
+  window.__imageToolboxApp = app;
+  window.addEventListener('beforeunload', () => app.destroy(), { once: true });
 });

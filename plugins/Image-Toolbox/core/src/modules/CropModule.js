@@ -1,5 +1,6 @@
 ﻿import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
+import { clamp, requestRender as _requestRender, createClipPathFromSource } from '../utils/helpers.js';
 
 /**
  * 剪切模块 — 图片裁剪
@@ -540,8 +541,7 @@ class CropModule extends BaseModule {
   }
 
   _clamp(value, min, max) {
-    if (max < min) return min;
-    return Math.max(min, Math.min(max, value));
+    return clamp(value, min, max);
   }
 
   _getCropShape() {
@@ -557,48 +557,7 @@ class CropModule extends BaseModule {
   }
 
   _createClipPathFromSource(source) {
-    const width = Math.max(1, source.width || (source.rx || 0) * 2 || 0);
-    const height = Math.max(1, source.height || (source.ry || 0) * 2 || 0);
-    const commonOptions = {
-      left: source.left || 0,
-      top: source.top || 0,
-      scaleX: source.scaleX == null ? 1 : source.scaleX,
-      scaleY: source.scaleY == null ? 1 : source.scaleY,
-      angle: source.angle || 0,
-      skewX: source.skewX || 0,
-      skewY: source.skewY || 0,
-      flipX: !!source.flipX,
-      flipY: !!source.flipY,
-      originX: source.originX || 'left',
-      originY: source.originY || 'top',
-      fill: '#000',
-      stroke: null,
-      strokeWidth: 0,
-      absolutePositioned: true,
-      objectCaching: false,
-    };
-
-    const clipPath = this._isEllipseObject(source)
-      ? new fabric.Ellipse({
-        ...commonOptions,
-        width,
-        height,
-        rx: width / 2,
-        ry: height / 2,
-      })
-      : new fabric.Rect({
-        ...commonOptions,
-        width,
-        height,
-        rx: source.rx || 0,
-        ry: source.ry || 0,
-      });
-
-    if (source.clipPath) {
-      clipPath.clipPath = this._createClipPathFromSource(source.clipPath);
-    }
-    clipPath.setCoords();
-    return clipPath;
+    return createClipPathFromSource(source);
   }
 
   _detachCanvasClipPath() {
@@ -676,13 +635,7 @@ class CropModule extends BaseModule {
   }
 
   _requestRender() {
-    const canvas = this.canvasManager.canvas;
-    if (!canvas) return;
-    if (typeof canvas.requestRenderAll === 'function') {
-      canvas.requestRenderAll();
-    } else {
-      canvas.renderAll();
-    }
+    _requestRender(this.canvasManager.canvas);
   }
 
   _removeCropOverlay() {

@@ -9,6 +9,7 @@ class StatusBar {
     this._el = containerEl;
     this._cm = canvasManager;
     this._lm = layerManager;
+    this._eventBusUnsubscribers = [];
 
     this._bindEvents();
     this._render();
@@ -32,24 +33,30 @@ class StatusBar {
 
   _bindEvents() {
     // Update size after image load.
-    eventBus.on('image:loaded', (img) => {
-      this._updateSize(img);
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('image:loaded', (img) => {
+        this._updateSize(img);
+      })
+    );
 
     // Update size after canvas changes.
-    eventBus.on('canvas:objectModified', () => {
-      if (this._cm.originalImage) {
-        this._updateSize(this._cm.originalImage);
-      }
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('canvas:objectModified', () => {
+        if (this._cm.originalImage) {
+          this._updateSize(this._cm.originalImage);
+        }
+      })
+    );
 
     // Update layer count when layers change.
-    eventBus.on('layers:updated', (layers) => {
-      const countEl = this._el.querySelector('#status-layers');
-      if (countEl) {
-        countEl.textContent = `图层: ${layers ? layers.length : this._lm.getCount()}`;
-      }
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('layers:updated', (layers) => {
+        const countEl = this._el.querySelector('#status-layers');
+        if (countEl) {
+          countEl.textContent = `图层: ${layers ? layers.length : this._lm.getCount()}`;
+        }
+      })
+    );
 
     // 导出按钮
     this._el.addEventListener('click', (e) => {
@@ -68,6 +75,11 @@ class StatusBar {
       const h = Math.round(img.height * img.scaleY);
       sizeEl.textContent = `${w} × ${h} px`;
     }
+  }
+
+  destroy() {
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 

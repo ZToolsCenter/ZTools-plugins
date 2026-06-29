@@ -1,5 +1,6 @@
-﻿import BaseModule from './BaseModule.js';
+import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
+import { clamp, requestRender as _requestRender, createClipPathFromSource, normalizeBounds, intersectBounds, getPointsBounds } from '../utils/helpers.js';
 
 const SELECTION_FILL = 'rgba(47,127,134,0.16)';
 const SELECTION_STROKE = '#2f7f86';
@@ -41,6 +42,7 @@ class MosaicModule extends BaseModule {
     this._boundMouseOut = this._onMouseOut.bind(this);
     this._boundObjectMoving = this._onObjectMoving.bind(this);
     this._refreshingDynamicMosaic = false;
+    this._eventBusUnsubscribers = [];
 
     this._bindDynamicMosaicEvents();
   }
@@ -53,29 +55,30 @@ class MosaicModule extends BaseModule {
       canvas.on('object:rotating', this._boundObjectMoving);
     }
 
-    eventBus.on('canvas:objectModified', (target) => {
-      if (this._refreshingDynamicMosaic) return;
+    this._eventBusUnsubscribers.push(
+      eventBus.on('canvas:objectModified', (target) => {
+        if (this._refreshingDynamicMosaic) return;
 
-      const targets = this._getDynamicMosaicTargets(target);
-      if (targets.length > 0) {
-        targets.forEach(obj => this._refreshDynamicMosaicOverlay(obj, { render: false }));
-        this._requestRender();
-        return;
-      }
+        const targets = this._getDynamicMosaicTargets(target);
+        if (targets.length > 0) {
+          targets.forEach(obj => this._refreshDynamicMosaicOverlay(obj, { render: false }));
+          this._requestRender();
+          return;
+        }
 
-      this.refreshDynamicMosaics();
-    });
-
-    eventBus.on('canvas:restored', () => this.refreshDynamicMosaics());
-    eventBus.on('canvas:objectAdded', (target) => {
-      if (target === this._selectionRect || target === this._brushPreview || target === this._lassoPreview) return;
-      if (target && this._isDynamicMosaic(target)) return;
-      this.refreshDynamicMosaics();
-    });
-    eventBus.on('canvas:objectRemoved', () => this.refreshDynamicMosaics());
-    eventBus.on('layer:visibilityChanged', () => this.refreshDynamicMosaics());
-    eventBus.on('layer:reordered', () => this.refreshDynamicMosaics());
-    eventBus.on('mosaic:refreshDynamic', () => this.refreshDynamicMosaics({ render: true }));
+        this.refreshDynamicMosaics();
+      }),
+      eventBus.on('canvas:restored', () => this.refreshDynamicMosaics()),
+      eventBus.on('canvas:objectAdded', (target) => {
+        if (target === this._selectionRect || target === this._brushPreview || target === this._lassoPreview) return;
+        if (target && this._isDynamicMosaic(target)) return;
+        this.refreshDynamicMosaics();
+      }),
+      eventBus.on('canvas:objectRemoved', () => this.refreshDynamicMosaics()),
+      eventBus.on('layer:visibilityChanged', () => this.refreshDynamicMosaics()),
+      eventBus.on('layer:reordered', () => this.refreshDynamicMosaics()),
+      eventBus.on('mosaic:refreshDynamic', () => this.refreshDynamicMosaics({ render: true }))
+    );
 
     this.canvasManager.refreshDynamicMosaics = (options = {}) => this.refreshDynamicMosaics(options);
   }
@@ -104,7 +107,6 @@ class MosaicModule extends BaseModule {
     canvas.off('mouse:move', this._boundMouseMove);
     canvas.off('mouse:up', this._boundMouseUp);
     canvas.off('mouse:out', this._boundMouseOut);
-
     this._cleanupRect();
     this._cleanupLasso();
     this._cleanupLiveBrushOverlay();
@@ -113,6 +115,20 @@ class MosaicModule extends BaseModule {
     canvas.renderAll();
 
     super.deactivate();
+  }
+
+  destroy() {
+    const canvas = this.canvasManager.canvas;
+    if (canvas) {
+      canvas.off('object:moving', this._boundObjectMoving);
+      canvas.off('object:scaling', this._boundObjectMoving);
+      canvas.off('object:rotating', this._boundObjectMoving);
+    }
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
+    if (this.canvasManager.refreshDynamicMosaics) {
+      delete this.canvasManager.refreshDynamicMosaics;
+    }
   }
 
   // ── 参数设置 ──
@@ -327,6 +343,7 @@ class MosaicModule extends BaseModule {
 
     if (!rect || rect.width < 5 || rect.height < 5) return;
 
+    this._saveStateWithCanvasClipPath();
     this._createDynamicMosaicOverlay({
       rect,
       maskType: 'lasso',
@@ -335,7 +352,6 @@ class MosaicModule extends BaseModule {
         y: Math.round(p.y - rect.top),
       })),
     });
-    this._saveStateWithCanvasClipPath();
   }
 
   _appendLassoPoint(pointer) {
@@ -384,20 +400,7 @@ class MosaicModule extends BaseModule {
   }
 
   _getPointsBounds(points) {
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const p of points) {
-      if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
-      if (p.x < minX) minX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y > maxY) maxY = p.y;
-    }
-
-    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
-      return null;
-    }
-
-    return { left: minX, top: minY, right: maxX, bottom: maxY };
+    return getPointsBounds(points);
   }
 
   _getPolygonArea(points) {
@@ -419,6 +422,7 @@ class MosaicModule extends BaseModule {
     this._isDrawing = true;
     this._brushPoints = [{ x: pointer.x, y: pointer.y }];
 
+    this._saveStateWithCanvasClipPath();
     this._updateLiveBrushOverlay();
     this._updateBrushPreview(pointer);
   }
@@ -504,7 +508,6 @@ class MosaicModule extends BaseModule {
     if (!this._liveBrushOverlay) return;
 
     this._liveBrushOverlay = null;
-    this._saveStateWithCanvasClipPath();
   }
 
   _updateLiveBrushOverlay() {
@@ -687,8 +690,8 @@ class MosaicModule extends BaseModule {
     rect = this._clipRectToEditableImage(rect);
     if (!rect || rect.width < 1 || rect.height < 1) return;
 
-    this._createDynamicMosaicOverlay({ rect, maskType: 'rect' });
     this._saveStateWithCanvasClipPath();
+    this._createDynamicMosaicOverlay({ rect, maskType: 'rect' });
   }
 
   _createDynamicMosaicOverlay({ rect, maskType, brushPoints = null, brushSize = null, lassoPoints = null }) {
@@ -1153,32 +1156,15 @@ class MosaicModule extends BaseModule {
   }
 
   _normalizeBounds(bounds) {
-    const left = bounds.left;
-    const top = bounds.top;
-    const width = Math.max(0, bounds.width || 0);
-    const height = Math.max(0, bounds.height || 0);
-    return {
-      left,
-      top,
-      right: left + width,
-      bottom: top + height,
-      width,
-      height,
-    };
+    return normalizeBounds(bounds);
   }
 
   _intersectBounds(a, b) {
-    const left = Math.max(a.left, b.left);
-    const top = Math.max(a.top, b.top);
-    const right = Math.min(a.right, b.right);
-    const bottom = Math.min(a.bottom, b.bottom);
-    if (right <= left || bottom <= top) return null;
-    return { left, top, right, bottom, width: right - left, height: bottom - top };
+    return intersectBounds(a, b);
   }
 
   _clamp(value, min, max) {
-    if (max < min) return min;
-    return Math.max(min, Math.min(max, value));
+    return clamp(value, min, max);
   }
 
   _getActiveCropClipPath() {
@@ -1273,13 +1259,7 @@ class MosaicModule extends BaseModule {
   }
 
   _requestRender() {
-    const canvas = this.canvasManager.canvas;
-    if (!canvas) return;
-    if (typeof canvas.requestRenderAll === 'function') {
-      canvas.requestRenderAll();
-    } else {
-      canvas.renderAll();
-    }
+    _requestRender(this.canvasManager.canvas);
   }
 
   _attachCurrentCropClipPath(obj) {
@@ -1291,48 +1271,7 @@ class MosaicModule extends BaseModule {
   }
 
   _createClipPathFromSource(source) {
-    const width = Math.max(1, source.width || (source.rx || 0) * 2 || 0);
-    const height = Math.max(1, source.height || (source.ry || 0) * 2 || 0);
-    const commonOptions = {
-      left: source.left || 0,
-      top: source.top || 0,
-      scaleX: source.scaleX == null ? 1 : source.scaleX,
-      scaleY: source.scaleY == null ? 1 : source.scaleY,
-      angle: source.angle || 0,
-      skewX: source.skewX || 0,
-      skewY: source.skewY || 0,
-      flipX: !!source.flipX,
-      flipY: !!source.flipY,
-      originX: source.originX || 'left',
-      originY: source.originY || 'top',
-      fill: '#000',
-      stroke: null,
-      strokeWidth: 0,
-      absolutePositioned: true,
-      objectCaching: false,
-    };
-
-    const clipPath = source.type === 'ellipse'
-      ? new fabric.Ellipse({
-        ...commonOptions,
-        width,
-        height,
-        rx: width / 2,
-        ry: height / 2,
-      })
-      : new fabric.Rect({
-        ...commonOptions,
-        width,
-        height,
-        rx: source.rx || 0,
-        ry: source.ry || 0,
-      });
-
-    if (source.clipPath) {
-      clipPath.clipPath = this._createClipPathFromSource(source.clipPath);
-    }
-    clipPath.setCoords();
-    return clipPath;
+    return createClipPathFromSource(source);
   }
 
   /**
@@ -1343,9 +1282,12 @@ class MosaicModule extends BaseModule {
     const overlays = canvas.getObjects().filter(
       o => o.id && o.id.startsWith('mosaic_')
     );
+    if (overlays.length === 0) return;
+
+    // 先保存当前状态（含马赛克覆盖层），以便用户撤销清除操作
+    this._saveStateWithCanvasClipPath();
     overlays.forEach(o => canvas.remove(o));
     canvas.renderAll();
-    this._saveStateWithCanvasClipPath();
   }
 
   applyPreset(presetName) {

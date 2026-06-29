@@ -220,6 +220,20 @@ class ZtoolsHostAdapter {
     return !!window.writeImageFile(filePath, data);
   }
 
+  showSaveImageDialog(suggestedName = 'edited.png') {
+    if (typeof window !== 'undefined' && typeof window.showSaveImageDialog === 'function') {
+      return window.showSaveImageDialog(suggestedName);
+    }
+    return null;
+  }
+
+  writeImageFile(filePath, data) {
+    if (typeof window !== 'undefined' && typeof window.writeImageFile === 'function') {
+      return !!window.writeImageFile(filePath, data);
+    }
+    return false;
+  }
+
   copyImage(data) {
     if (typeof window !== 'undefined' && typeof window.copyImageToClipboard === 'function') {
       window.copyImageToClipboard(data);

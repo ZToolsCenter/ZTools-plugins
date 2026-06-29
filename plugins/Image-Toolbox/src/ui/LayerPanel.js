@@ -1,4 +1,5 @@
 ﻿import { eventBus } from '../../core/src/index.js';
+import { escapeHTML, escapeAttr } from '../../core/src/utils/helpers.js';
 
 /**
  * 图层面板 UI 组件
@@ -12,6 +13,7 @@ class LayerPanel {
     this._dropPanelIndex = null;
     this._selectedLayerId = null;
     this._activeLayerIds = [];
+    this._eventBusUnsubscribers = [];
 
     this._bindEvents();
     this._render();
@@ -39,47 +41,45 @@ class LayerPanel {
 
   _bindEvents() {
     // Refresh the list when layers change.
-    eventBus.on('layers:updated', () => {
-      this._refreshLayerList();
-    });
-
-    // Sync layers after canvas operations.
-    eventBus.on('canvas:objectAdded', (obj) => {
-      this._lm.syncLayers();
-      this._selectLayerByObject(obj);
-    });
-    eventBus.on('canvas:objectRemoved', () => {
-      this._lm.syncLayers();
-    });
-    eventBus.on('canvas:objectModified', () => {
-      this._lm.syncLayers();
-    });
-    eventBus.on('canvas:objectMetadataChanged', () => {
-      this._lm.syncLayers();
-    });
-
-    // Highlight layers matching the current selection.
-    eventBus.on('canvas:selectionCreated', () => this._selectLayerFromActiveObject());
-    eventBus.on('canvas:selectionUpdated', () => this._selectLayerFromActiveObject());
-    eventBus.on('canvas:selectionCleared', () => {
-      this._activeLayerIds = [];
-      this._refreshLayerList();
-    });
-    eventBus.on('layer:selected', (meta) => {
-      this._selectedLayerId = meta?.id ?? null;
-      this._activeLayerIds = meta ? [meta.id] : [];
-      this._refreshLayerList();
-    });
-    eventBus.on('image:loaded', () => {
-      this._selectedLayerId = null;
-      this._activeLayerIds = [];
-      this._refreshLayerList();
-    });
-    eventBus.on('canvas:restored', () => {
-      this._selectedLayerId = null;
-      this._activeLayerIds = [];
-      this._refreshLayerList();
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('layers:updated', () => {
+        this._refreshLayerList();
+      }),
+      eventBus.on('canvas:objectAdded', (obj) => {
+        this._lm.syncLayers();
+        this._selectLayerByObject(obj);
+      }),
+      eventBus.on('canvas:objectRemoved', () => {
+        this._lm.syncLayers();
+      }),
+      eventBus.on('canvas:objectModified', () => {
+        this._lm.syncLayers();
+      }),
+      eventBus.on('canvas:objectMetadataChanged', () => {
+        this._lm.syncLayers();
+      }),
+      eventBus.on('canvas:selectionCreated', () => this._selectLayerFromActiveObject()),
+      eventBus.on('canvas:selectionUpdated', () => this._selectLayerFromActiveObject()),
+      eventBus.on('canvas:selectionCleared', () => {
+        this._activeLayerIds = [];
+        this._refreshLayerList();
+      }),
+      eventBus.on('layer:selected', (meta) => {
+        this._selectedLayerId = meta?.id ?? null;
+        this._activeLayerIds = meta ? [meta.id] : [];
+        this._refreshLayerList();
+      }),
+      eventBus.on('image:loaded', () => {
+        this._selectedLayerId = null;
+        this._activeLayerIds = [];
+        this._refreshLayerList();
+      }),
+      eventBus.on('canvas:restored', () => {
+        this._selectedLayerId = null;
+        this._activeLayerIds = [];
+        this._refreshLayerList();
+      })
+    );
 
     // 事件委托
     this._el.addEventListener('click', (e) => {
@@ -376,16 +376,16 @@ class LayerPanel {
   }
 
   _escapeHTML(value) {
-    return String(value ?? '').replace(/[&<>"]/g, ch => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-    }[ch]));
+    return escapeHTML(value);
   }
 
   _escapeAttr(value) {
-    return this._escapeHTML(value).replace(/'/g, '&#39;');
+    return escapeAttr(value);
+  }
+
+  destroy() {
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 

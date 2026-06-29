@@ -1,4 +1,5 @@
 ﻿import { eventBus } from '../../core/src/index.js';
+import { escapeHTML, escapeAttr } from '../../core/src/utils/helpers.js';
 
 /**
  * Toolbar UI component.
@@ -11,6 +12,7 @@ class Toolbar {
     this._host = host;
     this._currentTool = 'select';
     this._user = this._getHostUser();
+    this._eventBusUnsubscribers = [];
 
     // SVG 图标模板
     this._icons = {
@@ -120,15 +122,15 @@ class Toolbar {
     }, true);
 
     // 监听工具切换事件（外部触发）
-    eventBus.on('tool:changed', (toolName) => {
-      this._currentTool = toolName;
-      this._updateActive();
-    });
-
-    // 监听历史状态变化，更新撤销/重做按钮
-    eventBus.on('history:changed', ({ canUndo, canRedo }) => {
-      this._updateHistoryButtons(canUndo, canRedo);
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('tool:changed', (toolName) => {
+        this._currentTool = toolName;
+        this._updateActive();
+      }),
+      eventBus.on('history:changed', ({ canUndo, canRedo }) => {
+        this._updateHistoryButtons(canUndo, canRedo);
+      })
+    );
   }
 
   _updateHistoryButtons(canUndo, canRedo) {
@@ -205,18 +207,16 @@ class Toolbar {
   }
 
   _escapeAttr(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/"/g, '&quot;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    return escapeAttr(value);
   }
 
   _escapeHTML(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    return escapeHTML(value);
+  }
+
+  destroy() {
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 

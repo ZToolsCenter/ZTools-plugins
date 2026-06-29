@@ -1,4 +1,5 @@
 ﻿import BaseModule from './BaseModule.js';
+import { requestRender as _requestRender } from '../utils/helpers.js';
 
 /**
  * 移动/框选模块 - 保持 Fabric 默认选择行为，并提供常用变换预设。
@@ -13,6 +14,9 @@ class SelectModule extends BaseModule {
 
     canvas.selection = true;
     canvas.defaultCursor = 'default';
+
+    // 恢复所有对象的交互性，确保属性面板可以编辑（而非只读）
+    this._restoreObjectsInteractivity();
   }
 
   deactivate() {
@@ -138,13 +142,7 @@ class SelectModule extends BaseModule {
   }
 
   _requestRender() {
-    const canvas = this.canvasManager.canvas;
-    if (!canvas) return;
-    if (typeof canvas.requestRenderAll === 'function') {
-      canvas.requestRenderAll();
-    } else {
-      canvas.renderAll();
-    }
+    _requestRender(this.canvasManager.canvas);
   }
 }
 

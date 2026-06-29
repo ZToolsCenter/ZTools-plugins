@@ -1,4 +1,4 @@
-﻿import BaseModule from './BaseModule.js';
+import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
 import { getFontOptionsHTML, recordFontUsage, isSystemFontsLoaded, onSystemFontsLoaded } from '../utils/fonts.js';
 
@@ -18,6 +18,7 @@ class TextModule extends BaseModule {
       fontWeight: 'normal',
       fontStyle: 'normal',
       underline: false,
+      linethrough: false,
       textAlign: 'left',
       ...defaultOptions,
     });
@@ -86,10 +87,13 @@ class TextModule extends BaseModule {
       fontWeight: opts.fontWeight,
       fontStyle: opts.fontStyle,
       underline: opts.underline,
+      linethrough: opts.linethrough,
       textAlign: opts.textAlign,
       editable: true,
       id: 'text_' + Date.now(),
     });
+
+    this.history.saveState();
 
     canvas.add(textObj);
     canvas.setActiveObject(textObj);
@@ -101,8 +105,6 @@ class TextModule extends BaseModule {
       textObj.enterEditing();
       textObj.selectAll();
     }, 50);
-
-    this.history.saveState();
     return textObj;
   }
 
@@ -149,6 +151,11 @@ class TextModule extends BaseModule {
   setUnderline(underline) {
     this.options.underline = underline;
     this._updateActiveTextStyle('underline', underline);
+  }
+
+  setLinethrough(linethrough) {
+    this.options.linethrough = linethrough;
+    this._updateActiveTextStyle('linethrough', linethrough);
   }
 
   setBackgroundColor(color) {
@@ -326,6 +333,10 @@ class TextModule extends BaseModule {
           <input type="checkbox" class="property-checkbox" data-module-prop="underline" ${opts.underline ? 'checked' : ''} />
         </div>
         <div class="property-item">
+          <label>删除线</label>
+          <input type="checkbox" class="property-checkbox" data-module-prop="linethrough" ${opts.linethrough ? 'checked' : ''} />
+        </div>
+        <div class="property-item">
           <label>对齐</label>
           <select class="property-select property-select--short" data-module-prop="textAlign">
             ${this._getSelectOption('left', '左', opts.textAlign)}
@@ -414,6 +425,9 @@ class TextModule extends BaseModule {
         break;
       case 'underline':
         this.options.underline = !!value;
+        break;
+      case 'linethrough':
+        this.options.linethrough = !!value;
         break;
       case 'textAlign':
         this.options.textAlign = value;
