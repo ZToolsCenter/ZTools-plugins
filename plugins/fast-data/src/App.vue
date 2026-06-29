@@ -23,5 +23,5 @@ onMounted(() => {
 </script>
 
 <template>
-  <Fast v-if="route === 'fast'" :key="enterKey" :enter-action="enterAction" />
+  <Fast v-if="route === 'fast-data'" :key="enterKey" :enter-action="enterAction" />
 </template>

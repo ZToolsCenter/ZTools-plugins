@@ -16,7 +16,7 @@
       "explain": "快速处理数据",
       "icon": "logo-fast.png",
       "cmds": [
-        "fast",
+        "fast-data",
         "快速处理数据"
       ]
     }
