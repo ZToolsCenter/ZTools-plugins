@@ -363,20 +363,16 @@ function saveIDEs(ides) {
 
 const defaultShell = process.platform === 'darwin' ? 'zsh -l -i -c' : process.platform === 'linux' ? 'bash -l -i -c' : ''
 
-function escapeShellArg(arg) {
-  if (process.platform === 'win32') {
-    return `"${arg.replace(/"/g, '""')}"`
-  }
-  return `'${arg.replace(/'/g, "'\\\\''")}'`
-}
-
 function openProject(command, uri, shell) {
   const effectiveShell = shell || defaultShell
   const isRemote = /^[a-z]+-remote:\/\//.test(uri)
   const localPath = isRemote ? '' : uriToPath(uri)
 
+  // Escape single quotes in command for the shell -c '...' wrapper
+  const safeCmd = (cmd) => cmd.replace(/'/g, "'\\\\''")
+
   const run = (cmd, timeout = 10000) => new Promise((resolve, reject) => {
-    const fullCmd = effectiveShell ? `${effectiveShell} ${escapeShellArg(cmd)}` : cmd
+    const fullCmd = effectiveShell ? `${effectiveShell} '${safeCmd(cmd)}'` : cmd
     debugLog(`执行: ${fullCmd}`)
     exec(fullCmd, { env: process.env, windowsHide: true, timeout }, (err) => {
       if (err) {
@@ -388,14 +384,14 @@ function openProject(command, uri, shell) {
 
   return new Promise((resolve, reject) => {
     if (localPath) {
-      run(`${command} ${escapeShellArg(localPath)}`)
+      run(`${command} "${localPath}"`)
         .then(() => resolve())
         .catch(err => reject(new Error(`启动失败: ${err.message}`)))
       return
     }
     const isWorkspace = uri.endsWith('.code-workspace')
     const flag = isWorkspace ? '--file-uri' : '--folder-uri'
-    run(`${command} ${flag} ${escapeShellArg(uri)}`)
+    run(`${command} ${flag} "${uri}"`)
       .then(() => resolve())
       .catch(err => reject(new Error(`启动失败: ${err.message}`)))
   })
