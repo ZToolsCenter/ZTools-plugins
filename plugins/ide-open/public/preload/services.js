@@ -1,6 +1,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { exec } = require('node:child_process')
+const { fileURLToPath } = require('node:url')
 
 // ─── 文件日志（开发调试） ──
 
@@ -67,7 +68,7 @@ function resolveGlobPath(pattern) {
   if (!fs.existsSync(dir)) return pattern
 
   try {
-    const entries = fs.readdirSync(dir)
+    const entries = fs.readdirSync(dir).sort().reverse()
     for (const entry of entries) {
       if (entry.startsWith(prefix)) {
         const resolved = path.join(dir, entry) + after
@@ -191,7 +192,7 @@ function parseEntries(entries) {
         const isWorkspace = e.endsWith('.code-workspace')
         const localPath = isRemote ? '' : uriToPath(e)
         return {
-          name: path.basename(decodeURIComponent(e).replace(/^file:\/\//, '').replace(/^[a-z]+-remote:\/\//, '')) || '未命名',
+          name: path.basename(safeDecodeURIComponent(e).replace(/^file:\/\//, '').replace(/^[a-z]+-remote:\/\//, '')) || '未命名',
           path: localPath,
           uri: e,
           type: isRemote ? 'remote' : isWorkspace ? 'workspace' : 'folder',
@@ -200,7 +201,7 @@ function parseEntries(entries) {
       }
       const uri = e.folderUri || e.fileUri || e.workspace?.configPath || ''
       if (!uri) return null
-      const decoded = decodeURIComponent(uri)
+      const decoded = safeDecodeURIComponent(uri)
       const name = path.basename(
         decoded.replace(/^file:\/\//, '').replace(/^[a-z]+-remote:\/\//, '')
       )
@@ -221,8 +222,19 @@ function parseEntries(entries) {
   return result
 }
 
+function safeDecodeURIComponent(str) {
+  try {
+    return decodeURIComponent(str)
+  } catch {
+    return str
+  }
+}
+
 function uriToPath(uri) {
   try {
+    if (uri.startsWith('file://')) {
+      return fileURLToPath(uri)
+    }
     const url = new URL(uri)
     return decodeURIComponent(url.pathname)
   } catch {
@@ -351,13 +363,20 @@ function saveIDEs(ides) {
 
 const defaultShell = process.platform === 'darwin' ? 'zsh -l -i -c' : process.platform === 'linux' ? 'bash -l -i -c' : ''
 
+function escapeShellArg(arg) {
+  if (process.platform === 'win32') {
+    return `"${arg.replace(/"/g, '""')}"`
+  }
+  return `'${arg.replace(/'/g, "'\\\\''")}'`
+}
+
 function openProject(command, uri, shell) {
   const effectiveShell = shell || defaultShell
   const isRemote = /^[a-z]+-remote:\/\//.test(uri)
   const localPath = isRemote ? '' : uriToPath(uri)
 
   const run = (cmd, timeout = 10000) => new Promise((resolve, reject) => {
-    const fullCmd = effectiveShell ? `${effectiveShell} '${cmd}'` : cmd
+    const fullCmd = effectiveShell ? `${effectiveShell} ${escapeShellArg(cmd)}` : cmd
     debugLog(`执行: ${fullCmd}`)
     exec(fullCmd, { env: process.env, windowsHide: true, timeout }, (err) => {
       if (err) {
@@ -369,14 +388,14 @@ function openProject(command, uri, shell) {
 
   return new Promise((resolve, reject) => {
     if (localPath) {
-      run(`${command} "${localPath}"`)
+      run(`${command} ${escapeShellArg(localPath)}`)
         .then(() => resolve())
         .catch(err => reject(new Error(`启动失败: ${err.message}`)))
       return
     }
     const isWorkspace = uri.endsWith('.code-workspace')
     const flag = isWorkspace ? '--file-uri' : '--folder-uri'
-    run(`${command} ${flag} "${uri}"`)
+    run(`${command} ${flag} ${escapeShellArg(uri)}`)
       .then(() => resolve())
       .catch(err => reject(new Error(`启动失败: ${err.message}`)))
   })

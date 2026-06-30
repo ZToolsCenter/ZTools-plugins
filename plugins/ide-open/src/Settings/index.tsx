@@ -26,14 +26,6 @@ export default function Settings({ onBack, editIDE }: { onBack?: () => void; edi
     }
   }, [editIDE])
 
-  const doRegister = (list: IDEItem[]) => {
-    list.forEach(ide => {
-      if (!ide.code) return
-      try { window.ztools.setFeature({ code: ide.code, explain: `打开 ${ide.name || ide.code} 最近项目`, cmds: [ide.code], icon: 'logo.png' }) }
-      catch {}
-    })
-  }
-
   const save = () => {
     if (!form.code.trim()) { alert('请输入别名'); return }
     if (!form.command.trim()) { alert('请输入启动命令'); return }
@@ -47,19 +39,15 @@ export default function Settings({ onBack, editIDE }: { onBack?: () => void; edi
     }
     setIDEs(list)
     saveIDEs(list)
-    doRegister(list)
     setForm(emptyForm())
     setEditingIdx(-1)
     setShowForm(false)
   }
 
   const del = (idx: number) => {
-    const removed = ides[idx]
     const list = ides.filter((_, i) => i !== idx)
     setIDEs(list)
     saveIDEs(list)
-    try { if (removed?.code) window.ztools.removeFeature(removed.code) } catch {}
-    doRegister(list)
   }
 
   const startEdit = (idx: number) => {
