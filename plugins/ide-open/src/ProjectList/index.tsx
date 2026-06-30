@@ -69,7 +69,7 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
   // 设置子输入框 + 加载数据
   useEffect(() => {
     setSearch('')
-    window.ztools.setSubInput((input: { text: string }) => setSearch(input.text), '搜索项目，Enter 打开，Ctrl+D 删除...', true)
+    window.ztools.setSubInput((input: { text: string }) => setSearch(input.text), '搜索项目，Enter 打开...', true)
     window.ztools.setSubInputValue('')
     window.ztools.setExpendHeight(500)
     load()
@@ -129,8 +129,6 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
         e.preventDefault(); setSelected(i => i <= 0 ? f.length - 1 : i - 1)
       } else if (e.key === 'Enter' && s >= 0) {
         e.preventDefault(); handleOpen(f[s])
-      } else if ((e.key === 'd' && (e.ctrlKey || e.metaKey)) && s >= 0) {
-        e.preventDefault(); handleDelete(f[s])
       }
     }
     document.addEventListener('keydown', onKeyDown)
