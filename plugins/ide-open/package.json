@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build"
+    "build": "tsc && vite build",
+    "changelog": "node scripts/gen-changelog.mjs",
+    "release": "npm run changelog && git add CHANGELOG.md && git commit -m \"chore: update CHANGELOG\" && ztools publish"
   },
   "dependencies": {
     "react": "^19.0.0",
