@@ -232,11 +232,15 @@ function safeDecodeURIComponent(str) {
 
 function uriToPath(uri) {
   try {
+    let p
     if (uri.startsWith('file://')) {
-      return fileURLToPath(uri)
+      p = fileURLToPath(uri)
+    } else {
+      const url = new URL(uri)
+      p = decodeURIComponent(url.pathname)
     }
-    const url = new URL(uri)
-    return decodeURIComponent(url.pathname)
+    // 清理路径末尾的反斜杠（防止 Windows 风格路径残留 \）
+    return p.replace(/\\+$/, '')
   } catch {
     return uri
   }
@@ -368,11 +372,8 @@ function openProject(command, uri, shell) {
   const isRemote = /^[a-z]+-remote:\/\//.test(uri)
   const localPath = isRemote ? '' : uriToPath(uri)
 
-  // Escape single quotes in command for the shell -c '...' wrapper
-  const safeCmd = (cmd) => cmd.replace(/'/g, "'\\\\''")
-
   const run = (cmd, timeout = 10000) => new Promise((resolve, reject) => {
-    const fullCmd = effectiveShell ? `${effectiveShell} '${safeCmd(cmd)}'` : cmd
+    const fullCmd = effectiveShell ? `${effectiveShell} '${cmd}'` : cmd
     debugLog(`执行: ${fullCmd}`)
     exec(fullCmd, { env: process.env, windowsHide: true, timeout }, (err) => {
       if (err) {
