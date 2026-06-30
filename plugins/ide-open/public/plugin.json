@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ide-open",
+  "title": "ide-open",
+  "description": "统一管理 VSCode 系及 JetBrains 系编辑器的最近项目",
+  "author": "svenzhao",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "ideopen",
+      "explain": "打开 ideOpen 设置，配置编辑器并注册快捷指令",
+      "icon": "logo.png",
+      "cmds": [
+        "ideopen"
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}
