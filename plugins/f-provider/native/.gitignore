@@ -1,0 +1,13 @@
+# node-gyp build output
+build/
+
+# Compiled native addon (product of build)
+*.node
+
+# node modules
+node_modules/
+
+# Proprietary Tencent files — never committed. These must be obtained locally
+# (see README) and dropped into wco_data/ before running/rebuilding.
+wco_data/
+!wco_data/.gitkeep

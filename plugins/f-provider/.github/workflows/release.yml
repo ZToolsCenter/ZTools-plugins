@@ -1,0 +1,69 @@
+# Build the native OCR runtime (wechat_ocr.node + wco_data) on Windows, bundle
+# it into native.zip, and publish native.zip as a GitHub Release asset.
+#
+# Scope: this workflow ONLY builds & ships the native bits. The frontend plugin
+# is released independently (npm run build) — its plugin.json carries the
+# native.downloadUrl / sha256 / version, maintained by hand there.
+#
+# Triggered by pushing a `v*` tag (e.g. v1.0.1). The tag becomes the Release
+# name; the Release carries a single asset: dist/native.zip.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # required to create the Release and upload the asset
+
+jobs:
+  release:
+    # Pin to windows-2022 (VS 2022). windows-latest now ships VS 2026, which
+    # node-gyp 10.x (bundled in Node 20) cannot detect — see node-gyp #3282.
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python (for node-gyp)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      # copy:native writes into dist/, so produce it first (vite empties dist
+      # on build — run frontend BEFORE the native copy step, never after).
+      - name: Build frontend (produces dist/)
+        run: npm run build
+
+      - name: Build native (fetch wco_data + compile wechat_ocr.node)
+        run: npm run build:native
+        shell: bash
+
+      - name: Copy native assets into dist/ and bundle native.zip
+        run: npm run copy:native
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          # v1.0.1 -> 1.0.1
+          ver="${GITHUB_REF_NAME#v}"
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Upload native.zip to a GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.ver.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          files: |
+            dist/native.zip

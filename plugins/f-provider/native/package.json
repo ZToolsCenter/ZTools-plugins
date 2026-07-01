@@ -1,0 +1,16 @@
+{
+  "name": "wechat-ocr-native",
+  "version": "1.0.0",
+  "description": "Native addon binding WeChat's built-in OCR (mmmojo + WeChatOCR.exe) for JS.",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "fetch:wco": "node scripts/fetch-wco-data.cjs",
+    "build": "node scripts/fetch-wco-data.cjs && node-gyp rebuild",
+    "rebuild": "node-gyp rebuild",
+    "clean": "node-gyp clean"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.0.0"
+  }
+}

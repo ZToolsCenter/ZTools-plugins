@@ -1,0 +1,98 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "f-provider",
+  "title": "ZTools 提供商",
+  "description": "OCR + 翻译提供商集合（百度/谷歌/有道/微软翻译、微信 OCR）",
+  "author": "kaineooo",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "providers": {
+    "ocr": {
+      "type": "ocr",
+      "label": "微信 OCR",
+      "description": "调用本机微信内置 OCR 引擎，离线识别图片文字"
+    },
+    "baidu": {
+      "type": "translation",
+      "label": "百度翻译",
+      "description": "百度翻译 API（需 AppID/AppKey）"
+    },
+    "google": {
+      "type": "translation",
+      "label": "谷歌翻译",
+      "description": "谷歌翻译（免费反代端点，无需凭据）"
+    },
+    "youdao": {
+      "type": "translation",
+      "label": "有道翻译",
+      "description": "有道翻译 API（需 AppKey/AppSecret）"
+    },
+    "microsoft": {
+      "type": "translation",
+      "label": "微软翻译",
+      "description": "微软 Edge 翻译（免密钥，两种鉴权方案）"
+    }
+  },
+  "features": [
+    {
+      "code": "manage",
+      "explain": "OCR 识别与翻译（关键词进入管理；图片/选中文本进入识别或翻译）",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "label": "ZTools 提供商"
+        },
+        {
+          "type": "img",
+          "label": "识别图片文字"
+        },
+        {
+          "type": "files",
+          "extensions": ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
+          "maxLength": 1,
+          "label": "识别图片文字"
+        },
+        {
+          "type": "regex",
+          "label": "翻译",
+          "match": "^[\\s\\S]*$",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "code-translate",
+      "explain": "把选中文本翻译为代码命名（多种风格，↑↓ 切换、回车粘贴）",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "代码翻译",
+          "match": "^[\\s\\S]*$",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "screen-ocr",
+      "explain": "截屏并识别图中文字（自动截屏→OCR）",
+      "icon": "logo.png",
+      "platform": ["win32"],
+      "cmds": [
+        {
+          "label": "截图识别文字"
+        }
+      ]
+    }
+  ],
+  "native": {
+    "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.0.0/native.zip",
+    "sha256": "",
+    "version": "1.0.0"
+  }
+}

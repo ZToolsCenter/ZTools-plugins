@@ -1,0 +1,20 @@
+node_modules/
+dist/
+
+# Native OCR build output & dependencies
+native/build/
+native/node_modules/
+
+# Compiled native addon (product of build; do not commit)
+native/**/*.node
+*.node
+
+# Tencent proprietary runtime files — never committed. Obtain locally
+# (see native/wco_data/README.md) and drop here before building/running.
+native/wco_data/*.dll
+native/wco_data/*.exe
+native/wco_data/*.nas
+native/wco_data/*.xnet
+native/wco_data/RecDict
+native/wco_data/sohu_simp.txt
+native/wco_data/x64.config
