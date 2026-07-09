@@ -114,7 +114,7 @@ async function readProjectsFromSQLite(dbPath) {
     const db = new SQL.Database(buffer)
     try {
       for (const key of RECENT_KEYS) {
-        const results = db.exec(`SELECT value FROM ItemTable WHERE key = '${key}'`)
+        const results = db.exec(`SELECT value FROM ItemTable WHERE key = ?`, [key])
         if (results.length > 0 && results[0].values.length > 0) {
           const value = results[0].values[0][0]
           const data = JSON.parse(value)
@@ -305,7 +305,7 @@ async function deleteProject(dbPath, uri) {
 
     try {
       for (const key of RECENT_KEYS) {
-        const results = db.exec(`SELECT value FROM ItemTable WHERE key = '${key}'`)
+        const results = db.exec(`SELECT value FROM ItemTable WHERE key = ?`, [key])
         if (results.length === 0 || results[0].values.length === 0) continue
 
         const value = results[0].values[0][0]
@@ -320,7 +320,7 @@ async function deleteProject(dbPath, uri) {
         if (data.entries.length === before) continue
 
         const updated = JSON.stringify(data)
-        db.run(`UPDATE ItemTable SET value = ? WHERE key = '${key}'`, [updated])
+        db.run(`UPDATE ItemTable SET value = ? WHERE key = ?`, [updated, key])
         const out = db.export()
         fs.writeFileSync(filePath, Buffer.from(out))
         return
@@ -367,13 +367,18 @@ function saveIDEs(ides) {
 
 const defaultShell = process.platform === 'darwin' ? 'zsh -l -i -c' : process.platform === 'linux' ? 'bash -l -i -c' : ''
 
+// 转义 shell 特殊字符，防止命令注入
+function escapeShellArg(arg) {
+  return "'" + arg.replace(/'/g, "'\\''") + "'"
+}
+
 function openProject(command, uri, shell) {
   const effectiveShell = shell || defaultShell
   const isRemote = /^[a-z]+-remote:\/\//.test(uri)
   const localPath = isRemote ? '' : uriToPath(uri)
 
   const run = (cmd, timeout = 10000) => new Promise((resolve, reject) => {
-    const fullCmd = effectiveShell ? `${effectiveShell} '${cmd}'` : cmd
+    const fullCmd = effectiveShell ? `${effectiveShell} ${escapeShellArg(cmd)}` : cmd
     debugLog(`执行: ${fullCmd}`)
     exec(fullCmd, { env: process.env, windowsHide: true, timeout }, (err) => {
       if (err) {
@@ -385,14 +390,14 @@ function openProject(command, uri, shell) {
 
   return new Promise((resolve, reject) => {
     if (localPath) {
-      run(`${command} "${localPath}"`)
+      run(`${command} ${escapeShellArg(localPath)}`)
         .then(() => resolve())
         .catch(err => reject(new Error(`启动失败: ${err.message}`)))
       return
     }
     const isWorkspace = uri.endsWith('.code-workspace')
     const flag = isWorkspace ? '--file-uri' : '--folder-uri'
-    run(`${command} ${flag} "${uri}"`)
+    run(`${command} ${flag} ${escapeShellArg(uri)}`)
       .then(() => resolve())
       .catch(err => reject(new Error(`启动失败: ${err.message}`)))
   })

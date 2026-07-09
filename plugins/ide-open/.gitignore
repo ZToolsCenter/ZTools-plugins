@@ -28,3 +28,4 @@ test/
 
 # CI builds on multiple platforms; let npm generate platform-specific lockfile
 package-lock.json
+.codegraph

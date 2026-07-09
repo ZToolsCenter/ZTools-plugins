@@ -69,7 +69,7 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
   // 设置子输入框 + 加载数据
   useEffect(() => {
     setSearch('')
-    window.ztools.setSubInput((input: { text: string }) => setSearch(input.text), '搜索项目，Enter 打开...', true)
+    window.ztools.setSubInput((input: { text: string }) => setSearch(input.text), '搜索项目 Enter回车', true)
     window.ztools.setSubInputValue('')
     window.ztools.setExpendHeight(500)
     load()
@@ -118,6 +118,13 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
     }
   }
 
+  const handleCopyPath = (project: ProjectItem) => {
+    const pathToCopy = project.path || project.uri
+    if (!pathToCopy) return
+    window.ztools.copyText(pathToCopy)
+    window.services?.debugLog('复制路径', pathToCopy)
+  }
+
   // 键盘导航（document 级，因为焦点在 ZTools 主搜索框上）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -150,6 +157,8 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
         <div className='pl-empty'>{search ? '没有匹配的项目' : '暂无最近项目'}</div>
       )}
 
+      <div className='pl-shortcuts-hint'>📋 复制路径 · ✕ 删除</div>
+
       <div className='pl-items' ref={listRef}>
         {filtered.map((p, i) => (
           <div key={p.uri || i}
@@ -164,6 +173,8 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
               <div className='pl-item-name'>{p.name}</div>
               <div className='pl-item-path' title={p.path || p.uri}>{p.path || p.uri}</div>
             </div>
+            <button className='pl-item-copy' onClick={e => { e.stopPropagation(); handleCopyPath(p) }}
+              title='复制路径'>📋</button>
             <button className='pl-item-del' onClick={e => { e.stopPropagation(); handleDelete(p) }}
               title='删除此记录'>✕</button>
             {p.type === 'remote' && <span className='pl-item-badge'>远程</span>}

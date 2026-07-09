@@ -45,6 +45,8 @@ export default function Settings({ onBack, editIDE }: { onBack?: () => void; edi
   }
 
   const del = (idx: number) => {
+    const removed = ides[idx]
+    if (!confirm(`确定删除「${removed.name || removed.code}」的配置？`)) return
     const list = ides.filter((_, i) => i !== idx)
     setIDEs(list)
     saveIDEs(list)

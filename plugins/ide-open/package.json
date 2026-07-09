@@ -1,6 +1,6 @@
 {
   "name": "ide-open",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "插件 — 统一管理 VSCode 系及 JetBrains 系编辑器的最近项目。",
   "type": "module",
   "scripts": {

@@ -25,6 +25,14 @@
   font-size: 12px;
 }
 
+.pl-shortcuts-hint {
+  text-align: center;
+  font-size: 11px;
+  color: #ff4d4f;
+  padding: 4px 12px 6px;
+  opacity: .75;
+}
+
 .pl-items {
   flex: 1;
   overflow-y: auto;
@@ -59,9 +67,19 @@
   border-radius: 3px;
   transition: opacity .15s;
 }
+.pl-item-copy {
+  font-size: 12px;
+  opacity: 0;
+  padding: 0 4px;
+  border-radius: 3px;
+  transition: opacity .15s;
+}
 .pl-item:hover .pl-item-del,
-.pl-item-selected .pl-item-del { opacity: .5; }
+.pl-item:hover .pl-item-copy,
+.pl-item-selected .pl-item-del,
+.pl-item-selected .pl-item-copy { opacity: .5; }
 .pl-item .pl-item-del:hover { opacity: 1; background: rgba(255,77,79,.08); }
+.pl-item .pl-item-copy:hover { opacity: 1; background: rgba(22,119,255,.08); }
 
 .pl-item-badge {
   font-size: 10px;

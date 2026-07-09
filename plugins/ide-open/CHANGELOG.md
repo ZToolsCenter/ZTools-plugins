@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+### Fixed
+- 对齐 utools-ide-open 功能（shell转义、SQL参数化、复制路径、删除确认、UI调整）
+
 ## 1.0.0
 
 ### Added
