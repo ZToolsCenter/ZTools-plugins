@@ -1,0 +1,27 @@
+{
+  "name": "webdav-client",
+  "title": "WebDAV客户端",
+  "description": "WebDAV客户端；支持视频播放、音乐播放、图片查看；支持静默上传",
+  "version": "1.2.0",
+
+  "main": "dist/index.html",
+  "preload": "preload.js",
+  "logo": "public/logo.png",
+  "platform": ["win32", "darwin", "linux"],
+  "development": {
+    "main": "http://localhost:5173/"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 0
+  },
+  "features": [
+    {
+      "code": "launch",
+      "explain": "WebDAV客户端",
+      "icon": "public/logo.png",
+      "platform": ["win32", "darwin", "linux"],
+      "cmds": ["webdav"]
+    }
+  ]
+}

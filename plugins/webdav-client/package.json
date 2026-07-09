@@ -1,0 +1,11 @@
+{
+  "name": "webdav-client",
+  "version": "1.1.0",
+  "description": "",
+  "main": "preload.js",
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {},
+  "devDependencies": {}
+}
