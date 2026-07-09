@@ -1,0 +1,51 @@
+{
+  "name": "text-plus",
+  "title": "超级文本编辑器",
+  "description": "功能强大的文本编辑器，支持使用js脚本对文字进行处理",
+  "version": "2.0.1",
+  "main": "dist/index.html",
+  "preload": "preload.js",
+  "logo": "public/logo.png",
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "development": {
+    "main": "http://localhost:5173/"
+  },
+  "pluginSetting": {
+    "single": false,
+    "height": 0
+  },
+  "features": [
+    {
+      "code": "launch",
+      "explain": "文本编辑器",
+      "icon": "public/vite.svg",
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "cmds": [
+        "超级文本编辑器",
+        "文本编辑器",
+        "text",
+        {
+          "type": "over",
+          "label": "文本编辑器",
+          "minLength": 0
+        },
+        {
+          "type": "files",
+          "label": "以文本形式打开",
+          "fileType": "file",
+          "exclude": "/.*(jpg|jpeg|png|gif|webp|ico|bmp|jfif|mp3|flac|mp4|flv|m3u8|docx|xlsx|pdf|epub|psd|zip)$/",
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    }
+  ]
+}

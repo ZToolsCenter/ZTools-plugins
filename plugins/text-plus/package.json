@@ -1,0 +1,13 @@
+{
+  "name": "text-plus",
+  "version": "1.3.0",
+  "description": "",
+  "main": "preload.js",
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+  },
+  "devDependencies": {
+  }
+}
