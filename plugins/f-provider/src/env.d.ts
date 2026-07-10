@@ -94,6 +94,12 @@ declare global {
     readFileAsDataURL: (file: string) => string
     writeTextFile: (text: string) => string
     writeImageFile: (base64Url: string) => string | undefined
+    /** 插件 logo 绝对路径（用于 createBrowserWindow 的 icon）。 */
+    pluginLogoPath: () => string
+    /** 插件 logo 的 data URI（用于子窗口 <img> 展示图标）。 */
+    pluginLogoDataUrl: () => string
+    /** 插件 logo 的 NativeImage（用于 createBrowserWindow 的 icon，Windows 任务栏更可靠）。 */
+    pluginLogoNativeImage: () => BrowserWindow.NativeImage | null
     /**
      * OCR Provider 核心能力：image 为 本地路径 / data URI / http(s) URL。
      * 返回 provider 契约结构；失败抛错。

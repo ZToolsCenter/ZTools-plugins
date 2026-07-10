@@ -4,7 +4,7 @@
   "title": "ZTools 提供商",
   "description": "OCR + 翻译提供商集合（百度/谷歌/有道/微软翻译、微信 OCR）",
   "author": "kaineooo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
@@ -44,9 +44,7 @@
       "explain": "OCR 识别与翻译（关键词进入管理；图片/选中文本进入识别或翻译）",
       "icon": "logo.png",
       "cmds": [
-        {
-          "label": "ZTools 提供商"
-        },
+        "ZTools 提供商",
         {
           "type": "img",
           "label": "识别图片文字"
@@ -84,9 +82,7 @@
       "icon": "logo.png",
       "platform": ["win32", "darwin"],
       "cmds": [
-        {
-          "label": "截图识别文字"
-        }
+        "截图识别文字"
       ]
     }
   ],

@@ -71,6 +71,36 @@ window.services = {
     return filePath
   },
 
+  // 插件 logo 绝对路径（用于 createBrowserWindow 的 icon，让子窗口任务栏/标题栏用插件图标）。
+  // logo.png 位于插件根目录（plugin.json 的 logo 字段）。
+  pluginLogoPath() {
+    return path.join(__dirname, '..', 'logo.png')
+  },
+
+  // 插件 logo 的 data URI（用于子窗口 <img> 展示图标，注入到渲染层）。
+  pluginLogoDataUrl() {
+    try {
+      const p = path.join(__dirname, '..', 'logo.png')
+      const buf = fs.readFileSync(p)
+      return 'data:image/png;base64,' + buf.toString('base64')
+    } catch (_) {
+      return ''
+    }
+  },
+
+  // 插件 logo 的 NativeImage 对象（用于 createBrowserWindow 的 icon）。
+  // Windows 下传字符串路径时任务栏按钮仍按 AppID 取宿主 exe 图标，
+  // 传 NativeImage 才能让任务栏真正显示插件图标。
+  pluginLogoNativeImage() {
+    try {
+      // ZTools 在 preload 提供 require('electron').nativeImage
+      const { nativeImage } = require('electron')
+      return nativeImage.createFromPath(path.join(__dirname, '..', 'logo.png'))
+    } catch (_) {
+      return null
+    }
+  },
+
   // ─── 微信 OCR（基于 wechat_ocr.node 原生模块）─────────────────────────
   // 原生模块懒加载：首次调用时才 require + init，避免插件加载即拉起
   // WeChatOCR.exe 子进程（Windows）。
