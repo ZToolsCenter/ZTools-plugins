@@ -2,7 +2,7 @@
   "name": "ztools-node-manager",
   "title": "Node Dashboard",
   "description": "📦 极简、高效的 Node.js 生产力工具。支持版本一键切换 (基于 nvm)、npm 多源管理、快速指令极速换源，专为开发者打造。",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.html",
   "author": "wangtao",
   "logo": "logo.png",
@@ -10,7 +10,7 @@
   "features": [
     {
       "code": "node-manager",
-      "explain": "可视化管理 Node 版本与 npm 镜像源。注：版本管理需本地安装 nvm-windows 并具备管理员权限。",
+      "explain": "可视化管理 Node 版本与 npm 镜像源。注：版本管理需本地安装 nvm (推荐 Win 用 nvm-windows, 类 Unix 用 nvm/n/fnm)。",
       "cmds": [
         "node",
         "npm",
@@ -43,6 +43,7 @@
     }
   ],
   "platform": [
-    "win32"
+    "win32",
+    "darwin"
   ]
 }

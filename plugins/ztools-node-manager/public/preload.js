@@ -3,6 +3,9 @@ const iconv = require("iconv-lite");
 const fs = require("fs");
 const path = require("path");
 
+const isWin = process.platform === "win32";
+const isMac = process.platform === "darwin";
+
 const REGISTRIES = {
   npm: "https://registry.npmjs.org/",
   yarn: "https://registry.yarnpkg.com/",
@@ -37,6 +40,14 @@ let customRegs = loadCustomRegistries();
 const runningProcesses = {};
 const outputBuffers = {};
 
+// 辅助函数：解码输出
+function decodeOutput(buffer) {
+  if (isWin) {
+    return iconv.decode(buffer, 'gbk');
+  }
+  return buffer.toString('utf-8');
+}
+
 // 辅助函数：异步执行命令并解码
 function runCommand(cmd) {
   return new Promise((resolve) => {
@@ -46,17 +57,21 @@ function runCommand(cmd) {
         resolve("");
         return;
       }
-      const output = iconv.decode(Buffer.from(stdout, 'binary'), 'gbk').trim();
+      const output = decodeOutput(Buffer.from(stdout, 'binary')).trim();
       resolve(output);
     });
   });
 }
 
-// Windows 下彻底杀死进程树的辅助函数
+// 辅助函数：杀死进程树
 function killProcessTree(pid) {
   try {
-    // Windows 下使用 taskkill /F /T /PID 命令可以杀掉整个进程树
-    execSync(`taskkill /F /T /PID ${pid}`, { stdio: 'ignore' });
+    if (isWin) {
+      execSync(`taskkill /F /T /PID ${pid}`, { stdio: 'ignore' });
+    } else {
+      // Unix 下使用负 PID 杀死整个进程组
+      process.kill(-pid, 'SIGKILL');
+    }
   } catch (e) {
     console.error(`Failed to kill process tree for PID ${pid}`, e);
   }
@@ -71,15 +86,16 @@ window.nodeManager = {
           resolve([]);
           return;
         }
-        const output = iconv.decode(Buffer.from(stdout, 'binary'), 'gbk');
+        const output = decodeOutput(Buffer.from(stdout, 'binary'));
         const lines = output.split("\n");
         const versions = [];
         lines.forEach((line) => {
+          // 匹配版本号 (支持 Windows 的 v1.2.3 和 Unix 的 1.2.3)
           const match = line.match(/(\d+\.\d+\.\d+)/);
           if (match) {
             versions.push({
               version: match[1],
-              isCurrent: line.includes("*"),
+              isCurrent: line.includes("*") || line.includes("(Currently using"),
             });
           }
         });
@@ -90,39 +106,36 @@ window.nodeManager = {
 
   getAvailableVersions: () => {
     return new Promise((resolve) => {
-      exec("nvm list available", { shell: true }, (error, stdout) => {
+      const cmd = isWin ? "nvm list available" : "nvm ls-remote --lts";
+      exec(cmd, { shell: true }, (error, stdout) => {
         if (error) {
           resolve([]);
           return;
         }
-        const output = iconv.decode(Buffer.from(stdout, 'binary'), 'gbk');
+        const output = decodeOutput(Buffer.from(stdout, 'binary'));
         const lines = output.split("\n");
         const versions = [];
         
-        // nvm list available 的表格结构：
-        // | CURRENT | LTS | OLD STABLE | OLD UNSTABLE |
-        // 我们需要提取 LTS 这一列的数据
-        let startParsing = false;
-        lines.forEach(line => {
-          if (line.includes("---")) {
-            startParsing = true;
-            return;
-          }
-          if (startParsing) {
-            // 使用管道符或空格分割列
-            const columns = line.split(/[|]\s*/).map(c => c.trim()).filter(c => c);
-            // 正常的行通常有 4 列版本号
-            // 如果是类似 "| 25.8.1 | 24.14.0 | ..." 这种格式，LTS 在第 2 个位置
-            if (columns.length >= 2) {
-              const ltsVersion = columns[1];
-              if (ltsVersion && /^\d+\.\d+\.\d+$/.test(ltsVersion)) {
-                versions.push(ltsVersion);
+        if (isWin) {
+          let startParsing = false;
+          lines.forEach(line => {
+            if (line.includes("---")) { startParsing = true; return; }
+            if (startParsing) {
+              const columns = line.split(/[|]\s*/).map(c => c.trim()).filter(c => c);
+              if (columns.length >= 2 && /^\d+\.\d+\.\d+$/.test(columns[1])) {
+                versions.push(columns[1]);
               }
             }
-          }
-        });
+          });
+        } else {
+          // nvm ls-remote 输出格式: "v14.17.0 (LTS: Erbium)"
+          lines.forEach(line => {
+            const match = line.match(/v(\d+\.\d+\.\d+)/);
+            if (match) versions.push(match[1]);
+          });
+        }
 
-        resolve(Array.from(new Set(versions)).slice(0, 20));
+        resolve(Array.from(new Set(versions)).reverse().slice(0, 20));
       });
     });
   },
@@ -148,10 +161,10 @@ window.nodeManager = {
     return new Promise((resolve, reject) => {
       exec(`nvm use ${version}`, { shell: true }, (error, stdout, stderr) => {
         if (error) {
-          const errMsg = iconv.decode(Buffer.from(stderr, 'binary'), 'gbk');
+          const errMsg = decodeOutput(Buffer.from(stderr, 'binary'));
           reject(errMsg || error.message);
         } else {
-          resolve(iconv.decode(Buffer.from(stdout, 'binary'), 'gbk'));
+          resolve(decodeOutput(Buffer.from(stdout, 'binary')));
         }
       });
     });
@@ -159,7 +172,6 @@ window.nodeManager = {
 
   installVersion: (version, onProgress) => {
     return new Promise((resolve, reject) => {
-      // 强制设置环境变量以确保输出不被本地化干扰
       const child = spawn("nvm", ["install", version], { 
         shell: true,
         env: { ...process.env, LANG: 'en_US.UTF-8' } 
@@ -167,43 +179,33 @@ window.nodeManager = {
       
       let lastStdoutText = "";
       child.stdout.on("data", (data) => {
-        // Windows 下 nvm 输出通常是 GBK 编码
-        const text = iconv.decode(data, 'gbk');
+        const text = decodeOutput(data);
         lastStdoutText += text;
         
-        // 调试打印：在开发环境下查看原始输出
-        console.log(`[nvm raw]: ${text}`);
-
-        // 更加激进的匹配：只要包含数字和百分号
         const matches = text.match(/(\d+(?:\.\d+)?)\s*%/g);
         if (matches && onProgress) {
           matches.forEach(m => {
             const percent = parseFloat(m.replace('%', '').trim());
-            if (!isNaN(percent)) {
-              onProgress(Math.floor(percent));
-            }
+            if (!isNaN(percent)) onProgress(Math.floor(percent));
           });
         }
       });
 
       let stderrText = "";
       child.stderr.on("data", (data) => {
-        const err = iconv.decode(data, 'gbk');
+        const err = decodeOutput(data);
         stderrText += err;
-        console.error(`nvm install stderr: ${err}`);
       });
 
       child.on("close", (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          // 优先使用 stderr，如果为空则从 stdout 中找错误关键词
+        if (code === 0) resolve();
+        else {
           let finalError = stderrText.trim();
           if (!finalError) {
             const errorMatch = lastStdoutText.match(/error.*/i) || [lastStdoutText.split('\n').pop()];
             finalError = errorMatch[0].trim();
           }
-          reject(new Error(finalError || `安装异常退出 (Code: ${code})`));
+          reject(new Error(finalError || `安装失败 (Code: ${code})`));
         }
       });
     });
@@ -212,29 +214,37 @@ window.nodeManager = {
   uninstallVersion: (version) => {
     return new Promise((resolve, reject) => {
       exec(`nvm uninstall ${version}`, { shell: true }, (error, stdout, stderr) => {
-        if (error) reject(stderr);
-        else resolve(stdout);
+        if (error) reject(decodeOutput(Buffer.from(stderr, 'binary')));
+        else resolve(decodeOutput(Buffer.from(stdout, 'binary')));
       });
     });
   },
 
   openVersionDir: (version) => {
     return new Promise((resolve, reject) => {
-      // 1. 获取 nvm root 路径
-      exec('nvm root', { shell: true }, (error, stdout) => {
-        if (error) return reject("无法获取 nvm 根目录");
-        const rootPath = stdout.trim().replace('Current Root: ', '');
-        if (!rootPath) return reject("未找到 nvm 路径配置");
-        
-        // 2. 拼接版本目录 (Windows nvm 通常是 vX.X.X 文件夹)
-        const versionPath = `${rootPath}\\v${version}`;
-        
-        // 3. 调用系统资源管理器打开
-        exec(`start "" "${versionPath}"`, { shell: true }, (err) => {
-          if (err) reject("文件夹不存在或无法打开: " + versionPath);
-          else resolve();
+      if (isWin) {
+        exec('nvm root', { shell: true }, (error, stdout) => {
+          if (error) return reject("无法获取 nvm 根目录");
+          const rootPath = stdout.trim().replace('Current Root: ', '');
+          const versionPath = path.join(rootPath, `v${version}`);
+          exec(`start "" "${versionPath}"`, { shell: true }, (err) => {
+            if (err) reject("文件夹不可用: " + versionPath);
+            else resolve();
+          });
         });
-      });
+      } else {
+        // Unix 下查找版本路径的简单尝试
+        exec(`nvm which ${version}`, { shell: true }, (error, stdout) => {
+          if (error) return reject("无法定位该版本路径");
+          const binPath = stdout.trim();
+          const versionDir = path.dirname(path.dirname(binPath));
+          const openCmd = isMac ? 'open' : 'xdg-open';
+          exec(`${openCmd} "${versionDir}"`, (err) => {
+            if (err) reject("执行失败: " + err.message);
+            else resolve();
+          });
+        });
+      }
     });
   },
 
@@ -283,13 +293,14 @@ window.nodeManager = {
 
         const env = { ...process.env, NODE_OPTIONS: '', LANG: 'zh_CN.UTF-8' };
         
-        // 使用 spawn 配合 /c 开启 cmd 内容执行，以便更好地捕获输出流
+        // 跨平台执行方案：使用 shell: true 让系统自动选择 shell (cmd 或 sh)
         const cmdPrefix = nodeVersion ? `nvm use ${nodeVersion} && ` : "";
         const fullCmd = `${cmdPrefix}npm run ${script}`;
         
-        const child = spawn("cmd.exe", ["/c", fullCmd], { 
+        const child = spawn(fullCmd, [], { 
           cwd: projectPath, 
-          shell: false, // 明确使用 cmd.exe
+          shell: true,
+          detached: !isWin, // Unix 下开启 detached 以便杀掉整个进程组
           env 
         });
         
@@ -311,7 +322,7 @@ window.nodeManager = {
             const linesBuffer = outputBuffers[key].slice(0, lastNewLineIndex + 1);
             outputBuffers[key] = outputBuffers[key].slice(lastNewLineIndex + 1);
             
-            const decodedText = iconv.decode(linesBuffer, 'gbk');
+            const decodedText = decodeOutput(linesBuffer);
             if (onData) onData(decodedText);
           }
         };
@@ -321,13 +332,13 @@ window.nodeManager = {
 
         child.on("close", (code) => {
           if (outputBuffers[key] && outputBuffers[key].length > 0) {
-            const final = iconv.decode(outputBuffers[key], 'gbk');
+            const final = decodeOutput(outputBuffers[key]);
             if (onData) onData(final);
           }
           delete runningProcesses[key];
           delete outputBuffers[key];
           if (code === 0 || code === null) resolve();
-          else reject(new Error(`Exit ${code}`));
+          else reject(new Error(`退出代码: ${code}`));
         });
 
         child.on("error", (err) => {
@@ -350,7 +361,7 @@ window.nodeManager = {
 
     startStaticServer: (projectPath, port = 8080) => {
       return new Promise((resolve, reject) => {
-        const child = spawn("cmd.exe", ["/c", `npx http-server -p ${port}`], { cwd: projectPath, shell: false });
+        const child = spawn(`npx http-server -p ${port}`, [], { cwd: projectPath, shell: true });
         child.stdout.on("data", (data) => {
           if (data.toString().includes("Available on")) resolve(port);
         });
@@ -371,7 +382,7 @@ window.nodeManager = {
         const paths = (res instanceof Promise) ? await res : res;
         return paths && paths.length > 0 ? paths[0] : null;
       }
-      return prompt("请输入前端项目所在的绝对路径 (e.g. C:\\my-app):");
+      return prompt("请输入项目所在的绝对路径:");
     }
   },
 
@@ -393,6 +404,7 @@ window.nodeManager = {
 
   getNvmConfig: () => {
     return new Promise((resolve) => {
+      if (!isWin) return resolve({ root: 'System Managed', nodeMirror: 'Default', npmMirror: 'Default' });
       Promise.all([
         runCommand("nvm root"),
         runCommand("nvm node_mirror"),
@@ -408,7 +420,7 @@ window.nodeManager = {
   },
 
   setNvmMirror: (type) => {
-    // type: 'official' | 'mirror'
+    if (!isWin) return Promise.reject("类 Unix 系统通常通过环境变量或配置 .nvmrc 管理镜像。");
     const commands = type === 'official' 
       ? `nvm node_mirror https://nodejs.org/dist/ && nvm npm_mirror https://github.com/coreybutler/nvm-windows/releases/download/`
       : `nvm node_mirror https://npmmirror.com/mirrors/node/ && nvm npm_mirror https://npmmirror.com/mirrors/npm/`;
