@@ -1,0 +1,22 @@
+{
+  "$schema": "../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "skill-hub",
+  "title": "Skill Hub",
+  "description": "Skill 管理技能中心 — Skill 商店浏览下载、项目/Agent 扫描、一键分发",
+  "author": "zibo",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "skills",
+      "explain": "Skill Hub — 技能商店浏览下载、项目/Agent 扫描、一键分发",
+      "icon": "logo.png",
+      "cmds": ["skills"]
+    }
+  ]
+}

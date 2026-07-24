@@ -1,0 +1,35 @@
+{
+  "name": "ztools-image-batch-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ZTools image batch processing plugin.",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5177",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.preload.json --noEmit",
+    "build": "vite build && tsc -p tsconfig.preload.json && node scripts/prepare-dist.mjs",
+    "install:local": "node scripts/install-local.mjs",
+    "verify:runtime": "node scripts/verify-darwin-sharp-runtimes.mjs",
+    "smoke:installed": "node scripts/smoke-installed.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "6.0.2",
+    "gifenc": "1.0.3",
+    "lucide-react": "1.17.0",
+    "pdf-lib": "1.17.1",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "sharp": "0.34.5"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
+    "lmdb": "3.4.2",
+    "typescript": "6.0.3",
+    "vite": "8.0.15",
+    "vitest": "4.1.7"
+  }
+}

@@ -6,19 +6,34 @@
     "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/productivity.png",
     "list": [
       "ai-helper",
+      "ai-skills-manager",
       "anywhere",
+      "batch-rename",
+      "bookmarks",
       "calculation-paper",
+      "chrome-history",
       "clipboard",
       "easy-translate",
       "english-typing-practice",
       "he-calendar",
       "memo-quick-paste",
+      "my-calculator",
+      "mt-ocr",
       "ocr",
+      "ocr-new",
       "ocr-pro",
       "pomodoro-timer",
+      "floating-todo",
+      "kuke-ai-agent",
+      "saladict-ztools",
+      "shorthand-box",
+      "stickercan",
       "sticky-note",
       "totodo",
-      "whiteboard"
+      "wechat-ocr",
+      "whiteboard",
+      "project-manager",
+      "ztools-simpletimer"
     ]
   },
   {
@@ -27,17 +42,42 @@
     "description": "面向开发者的专业工具",
     "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/development.png",
     "list": [
+      "code-snippets",
       "code-screenshot",
+      "codecalc",
+      "com-ztools-timestamp",
       "cron",
+      "curl-tool",
       "ctool",
+      "devbox",
+      "developer-codec-tools",
       "diff-compare",
       "json-editor",
       "json-tools",
       "latex-ocr",
+      "linuxcmddoc",
+      "mybatis-sql-formatter",
+      "myplugins",
+      "my-hash-tool",
       "port-use",
+      "random-data",
       "redis-client",
+      "showcode",
+      "sql-utils",
+      "sqlmate",
+      "srktoolbox",
+      "timestamp",
       "tiny-rdm",
-      "vimtutor"
+      "virtual-data",
+      "vimtutor",
+      "vscode-history",
+      "ztool-vsc-recent",
+      "zapapi",
+      "jet-plugin",
+      "variable-name",
+      "zhi-interaction",
+      "ztools-developer-plugin",
+      "ztools-node-manager"
     ]
   },
   {
@@ -46,8 +86,13 @@
     "description": "系统级实用工具",
     "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/system.png",
     "list": [
+      "automode",
       "everything",
-      "mac-system-preference-ztools-plugin"
+      "file-renamer",
+      "mac-file-search",
+      "mac-system-preference-ztools-plugin",
+      "killprocess",
+      "topwindow"
     ]
   },
   {
@@ -56,10 +101,16 @@
     "description": "图片与音视频处理",
     "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/media.png",
     "list": [
+      "clipboard-image-paintbrush",
+      "colors",
+      "doutu",
       "ibox-wallpaper",
+      "imgbatch",
       "long-screenshot",
       "musicsquare",
+      "piclist-plugin",
       "screen-recorder",
+      "shortcut-capture",
       "splayer-z",
       "tinypng",
       "video-parse"
@@ -72,8 +123,13 @@
     "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/text.png",
     "list": [
       "ascll-art-font",
+      "ascii-tree",
+      "file-tree",
       "goose-note",
-      "markdown"
+      "markdown",
+      "plain-text",
+      "text-copy",
+      "traditional-simplified-cn"
     ]
   },
   {
@@ -81,13 +137,7 @@
     "title": "游戏娱乐",
     "description": "休闲娱乐小游戏",
     "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/game.png",
-    "list": [
-      "2048",
-      "fidget",
-      "flyfont",
-      "rogue-shooter",
-      "super-mario"
-    ]
+    "list": ["2048", "fidget", "flyfont", "rogue-shooter", "super-mario"]
   },
   {
     "key": "network",
@@ -96,7 +146,13 @@
     "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/network.png",
     "list": [
       "domain-helper",
+      "githubproxy",
+      "hooost",
+      "ip-switcher",
       "local-ip",
+      "remote-manager",
+      "ssh-screenshot",
+      "subnet-calculator",
       "swap-file",
       "url-wizard",
       "wifi-export-tool"
@@ -110,10 +166,12 @@
     "list": [
       "floating",
       "lihua",
+      "otp-2fa",
       "qrcode-helper",
       "quickcommand",
       "random-password",
       "tiny-clock",
+      "todo-neo",
       "today-gold-price",
       "utools-upassword",
       "yanhua"

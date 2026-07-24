@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "random-data",
+  "title": "随机数据",
+  "description": "输入指令生成常用随机测试数据，并自动填充到当前输入框。",
+  "author": "gaoyubo",
+  "version": "1.2.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.svg",
+  "pluginSetting": {
+    "single": true
+  },
+  "features": [
+    {
+      "code": "randomDataSettings",
+      "explain": "打开随机数据设置",
+      "icon": "logo.svg",
+      "cmds": [
+        "随机数据设置",
+        "数据指令设置",
+        "rdsetting"
+      ]
+    }
+  ]
+}

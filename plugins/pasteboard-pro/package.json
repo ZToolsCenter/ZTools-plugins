@@ -1,0 +1,29 @@
+{
+  "name": "pasteboard-pro-workspace",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "pnpm --filter @pasteboard-pro/atools build && pnpm --filter @pasteboard-pro/ztools build",
+    "benchmark:search": "node scripts/benchmark-pasteboardpro.mjs",
+    "test": "vitest run",
+    "test:release-archive": "node scripts/test-release-archive.mjs",
+    "test:visual-artifact": "node scripts/test-visual-artifact.mjs",
+    "test:visual": "playwright test --config playwright.config.ts",
+    "test:visual-contract": "node scripts/test-visual-contract.mjs",
+    "typecheck": "tsc -b --pretty false",
+    "typecheck:visual": "tsc --noEmit -p tsconfig.visual.json --pretty false",
+    "verify:visual-artifact": "node scripts/verify-visual-artifact.mjs",
+    "test:contract": "node scripts/test-workspace-contract.mjs"
+  },
+  "devDependencies": {
+    "@pasteboard-pro/contract-fixtures": "workspace:*",
+    "@types/node": "^24.0.0",
+    "@tsconfig/svelte": "^5.0.5",
+    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "svelte": "^5.39.6",
+    "playwright": "^1.61.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9",
+    "zod": "^3.24.2"
+  }
+}

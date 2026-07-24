@@ -1,0 +1,149 @@
+/* ═══════════════════════════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════════════════════════ */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-4);
+  height: 40px;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.header-search {
+  width: 160px;
+}
+
+.header-search input {
+  height: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOGO
+   ═══════════════════════════════════════════════════════════ */
+.logo {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WORKSPACE TABS — Signature Element
+   ═══════════════════════════════════════════════════════════ */
+.workspace-tabs {
+  display: flex;
+  gap: 0;
+}
+
+.ws-tab {
+  position: relative;
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--graphite);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.ws-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: var(--sp-3);
+  right: var(--sp-3);
+  height: 2px;
+  background: transparent;
+  border-radius: 1px;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.ws-tab:hover {
+  color: var(--ink);
+}
+
+.ws-tab.active {
+  color: var(--ink);
+}
+
+.ws-tab.active::after {
+  background: var(--teal);
+  left: calc(var(--sp-3) - 4px);
+  right: calc(var(--sp-3) - 4px);
+}
+
+.ws-square {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: var(--sp-1);
+  vertical-align: middle;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS BUTTON
+   ═══════════════════════════════════════════════════════════ */
+.settings-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.settings-btn:hover {
+  background: var(--color-background-light);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VIEW TOGGLE
+   ═══════════════════════════════════════════════════════════ */
+.view-toggle {
+  display: flex;
+  background: transparent;
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+
+.view-btn {
+  padding: 2px var(--sp-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--graphite);
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.view-btn:hover {
+  color: var(--ink);
+}
+
+.view-btn.active {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+}

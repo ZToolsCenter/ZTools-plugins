@@ -19,6 +19,10 @@ export default defineConfig({
         {
           src: 'screenshot.png',
           dest: ''
+        },
+        {
+          src: 'node_modules/vditor/dist',
+          dest: 'vditor'
         }
       ]
     })

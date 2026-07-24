@@ -1,0 +1,11 @@
+{
+  "name": "serious-reading-preload-deps",
+  "version": "1.0.0",
+  "private": true,
+  "description": "阅读窗/主窗 preload 所需原生依赖（不编译，不压缩，随插件源码提交）",
+  "dependencies": {
+    "adm-zip": "^0.5.17",
+    "iconv-lite": "^0.7.2",
+    "jschardet": "^3.1.4"
+  }
+}

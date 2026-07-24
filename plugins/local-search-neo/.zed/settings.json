@@ -1,0 +1,8 @@
+{
+  "formatter": {
+    "external": {
+      "command": "node",
+      "arguments": ["node_modules/oxfmt/bin/oxfmt", "--stdin-filepath", "{buffer_path}"]
+    }
+  }
+}

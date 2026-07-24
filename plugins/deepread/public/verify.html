@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>书源验证</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        background: #f6f8f7;
+        color: #202426;
+        font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+      }
+
+      main {
+        display: grid;
+        gap: 10px;
+        width: min(420px, calc(100vw - 40px));
+      }
+
+      strong {
+        font-size: 16px;
+      }
+
+      p {
+        margin: 0;
+        color: #687273;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <strong>正在打开验证页</strong>
+      <p>如果页面没有自动跳转，请关闭窗口后重试。</p>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search)
+      const target = params.get('url') || ''
+
+      try {
+        const url = new URL(target)
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          location.replace(url.toString())
+        }
+      } catch (error) {
+        document.querySelector('p').textContent = '验证页地址无效，请重新搜索后再试。'
+      }
+    </script>
+  </body>
+</html>

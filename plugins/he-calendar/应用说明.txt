@@ -79,7 +79,7 @@
 • Vue 3：现代化的渐进式 JavaScript 框架
 • Vite：下一代前端构建工具
 • Day.js：轻量级日期处理库
-• lunar-javascript：强大的农历、节气、黄历计算库
+• lunar-javascript：强大的农历、节气、黄历计算库（6tail）
 • Lucide Vue Next：精美的图标库
 
 ----------------------------------------

@@ -1,0 +1,46 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "githubproxy",
+  "title": "GitHubProxy",
+  "description": "GitHub 文件代理加速工具",
+  "author": "thinkw",
+  "version": "1.0.4",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "download",
+      "explain": "GitHub文件代理加速，下载文件",
+      "icon": "logo.png",
+      "cmds": [ "GitHub文件代理加速，下载文件",{
+          "type": "regex",
+          "match": "/https:\\/\\/github\\.com/i",
+          "label": "GitHub文件代理加速，下载文件"
+        }]
+    },
+    {
+      "code": "copygitclone",
+      "explain": "GitHub文件代理加速，复制Git Clone地址",
+      "icon": "logo.png",
+      "cmds": [ "GitHub文件代理加速，复制Git Clone地址",{
+          "type": "regex",
+          "match": "/https:\\/\\/github\\.com/i",
+          "label": "GitHub文件代理加速，复制Git Clone地址"
+        }]
+    },
+    {
+      "code": "copygiturl",
+      "explain": "GitHub文件代理加速，复制Git代理后地址",
+      "icon": "logo.png",
+      "cmds": [ "GitHub文件代理加速，复制Git代理后地址",{
+          "type": "regex",
+          "match": "/https:\\/\\/github\\.com/i",
+          "label": "GitHub文件代理加速，复制Git代理后地址"
+        }]
+    }
+  ]
+}

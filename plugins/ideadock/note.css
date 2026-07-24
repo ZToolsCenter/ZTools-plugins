@@ -1,0 +1,207 @@
+:root {
+  --note-default: #fdf5b8;
+  --ink: #2b2b2b;
+  --ink-dim: rgba(0, 0, 0, 0.45);
+  --line: rgba(0, 0, 0, 0.1);
+  --accent: #2f6bd6;
+  --red: #c0392b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  background: var(--note-default);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+#note {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  border: 1px solid var(--line);
+}
+
+.note-bar {
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  gap: 4px;
+}
+
+/* 窗口失焦时隐藏顶部功能条，呈现为一张纯色卡片 */
+body.unfocused .note-bar {
+  display: none;
+}
+
+.note-colors {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.color-swatch {
+  -webkit-app-region: no-drag;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  padding: 0;
+}
+.color-swatch:hover { border-color: var(--ink); }
+
+.note-opacity {
+  -webkit-app-region: no-drag;
+  flex: 1;
+  min-width: 40px;
+  max-width: 70px;
+  height: 3px;
+  margin: 0 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.note-opacity::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+}
+
+.note-actions {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+}
+
+#btn-top, #btn-unpin {
+  -webkit-app-region: no-drag;
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 6px;
+  opacity: 0.6;
+}
+#btn-top:hover, #btn-unpin:hover { opacity: 1; }
+#btn-top.active { opacity: 1; color: var(--accent); }
+#btn-unpin { font-size: 14px; }
+#btn-unpin:hover { color: var(--red); }
+
+#note-text {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+body.todo-reminder #note-text {
+  padding-bottom: 42px;
+}
+
+.todo-note-actions {
+  -webkit-app-region: no-drag;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.todo-note-actions[hidden] {
+  display: none;
+}
+
+.todo-note-btn {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: rgba(255, 255, 255, 0.46);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.todo-note-btn:hover {
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.todo-note-btn.primary {
+  background: rgba(47, 107, 214, 0.9);
+  color: #fff;
+  border-color: rgba(47, 107, 214, 0.95);
+}
+
+.todo-snooze-wrap {
+  position: relative;
+}
+
+.todo-snooze-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  width: 104px;
+  padding: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+
+.todo-snooze-menu[hidden] {
+  display: none;
+}
+
+.todo-snooze-menu button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.todo-snooze-menu button:hover {
+  background: rgba(47, 107, 214, 0.1);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.32); }

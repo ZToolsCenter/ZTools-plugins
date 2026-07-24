@@ -1,7 +1,7 @@
 {
     "title": "2048",
     "description": "纯正2048小游戏。",
-    "version": "1.0.2",
+    "version": "1.0.5",
     "author": "Johu",
     "main": "2048-master/index.html",
     "logo": "logo.png",

@@ -21,7 +21,7 @@
   "preload": "preload.js",
   "name": "json-tools",
   "title": "JSON Tools",
-  "version": "1.18.0",
+  "version": "1.22.0",
   "pluginSetting": {
     "single": false
   }

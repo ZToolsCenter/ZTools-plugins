@@ -3,6 +3,8 @@ import { onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
 
+const VDITOR_LOCAL_CDN = './vditor'
+
 const props = defineProps({
   initialValue: {
     type: String,
@@ -19,6 +21,10 @@ const props = defineProps({
   isDark: {
     type: Boolean,
     default: false
+  },
+  uploadImage: {
+    type: Function,
+    default: null
   }
 })
 
@@ -118,9 +124,15 @@ const initVditor = () => {
       handler: async (files) => {
         try {
           for (const file of files) {
-            const buffer = await file.arrayBuffer()
-            const fileUrl = await window.ztools.saveMarkdownImage(file.name, buffer)
-            vditor.value.insertValue(`![${file.name}](${fileUrl})`)
+            if (props.uploadImage) {
+              const imageUrl = await props.uploadImage(file)
+              if (imageUrl) {
+                vditor.value.insertValue(`![${file.name}](${imageUrl})`)
+              }
+              continue
+            }
+
+            throw new Error('缺少图片上传处理器')
           }
         } catch (error) {
           console.error('Upload failed:', error)
@@ -145,9 +157,10 @@ const initVditor = () => {
     preview: {
       theme: {
         current: props.isDark ? 'dark' : 'light',
-        path: 'https://cdn.jsdelivr.net/npm/vditor/dist/css/content-theme',
+        path: `${VDITOR_LOCAL_CDN}/dist/css/content-theme`,
       }
     },
+    cdn: VDITOR_LOCAL_CDN,
     theme: props.isDark ? 'dark' : 'classic',
   })
 }

@@ -1,0 +1,60 @@
+import { createApp } from 'vue'
+import './main.css'
+import App from './App.vue'
+import {
+    create,
+    NBackTop,
+    NButton,
+    NButtonGroup,
+    NConfigProvider,
+    NDrawer,
+    NDrawerContent,
+    NEmpty,
+    NTag,
+    NDivider,
+    NResult,
+    NCarousel,
+    NCarouselItem,
+    NList,
+    NListItem,
+    NLayout,
+    NLayoutHeader,
+    NMessageProvider,
+    NSpace,
+    NSpin,
+    NText,
+    NCheckbox,
+    NForm,
+    NFormItem,
+    NPopover,
+} from 'naive-ui'
+
+const naive = create({
+    components: [
+        NBackTop,
+        NButton,
+        NButtonGroup,
+        NConfigProvider,
+        NDrawer,
+        NDrawerContent,
+        NEmpty,
+        NTag,
+        NDivider,
+        NResult,
+        NCarousel,
+        NCarouselItem,
+        NList,
+        NListItem,
+        NLayout,
+        NLayoutHeader,
+        NMessageProvider,
+        NText,
+        NSpace,
+        NSpin,
+        NCheckbox,
+        NForm,
+        NFormItem,
+        NPopover,
+    ]
+})
+createApp(App).use(naive).mount('#app')

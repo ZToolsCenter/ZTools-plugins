@@ -1,0 +1,102 @@
+# Build the native OCR runtime on each platform and publish per-platform zips
+# as GitHub Release assets:
+#   - native-win.zip : wechat_ocr.node + wco_data/ (fetched from NuGet)
+#   - native-mac.zip : wechat_ocr.node + wechat-ocr-mac/ (fetched from the npm
+#                       package @ztools-center/wechat-ocr-native)
+#
+# Scope: this workflow ONLY builds & ships the native bits. The frontend plugin
+# is released independently (npm run build) — its plugin.json carries the
+# native.{win,mac}.downloadUrl / sha256 / version, maintained by hand there.
+#
+# Triggered by pushing a `v*` tag (e.g. v1.0.1). The tag becomes the Release
+# name; the Release carries two assets: native-win.zip and native-mac.zip.
+#
+# NOTE: the macOS addon is compiled natively on the runner (currently arm64),
+# so native-mac.zip targets Apple Silicon. The bundled WeChat dylibs are
+# universal (x86_64+arm64), but the .node is arm64-only.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # required to create the Release and upload the asset
+
+jobs:
+  release-win:
+    # Pin to windows-2022 (VS 2022). windows-latest now ships VS 2026, which
+    # node-gyp 10.x (bundled in Node 20) cannot detect — see node-gyp #3282.
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python (for node-gyp)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      # copy:native writes into dist/, so produce it first (vite empties dist
+      # on build — run frontend BEFORE the native copy step, never after).
+      - name: Build frontend (produces dist/)
+        run: npm run build
+
+      - name: Build native (fetch wco_data + compile wechat_ocr.node)
+        run: npm run build:native
+        shell: bash
+
+      - name: Copy native assets into dist/ and bundle native-win.zip
+        run: npm run copy:native
+
+      - name: Upload native-win.zip to a GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: |
+            dist/native-win.zip
+
+  release-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build frontend (produces dist/)
+        run: npm run build
+
+      # build:mac fetches the WeChat OCR runtime (dylibs + models) from the npm
+      # package @ztools-center/wechat-ocr-native, then compiles wechat_ocr.node.
+      - name: Build native (fetch mac vendor + compile wechat_ocr.node)
+        run: cd native && npm install && npm run build:mac
+
+      - name: Copy native assets into dist/ and bundle native-mac.zip
+        run: npm run copy:native
+
+      - name: Upload native-mac.zip to a GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: |
+            dist/native-mac.zip

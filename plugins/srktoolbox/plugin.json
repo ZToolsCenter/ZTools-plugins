@@ -1,0 +1,31 @@
+{
+  "name": "srktoolbox",
+  "title": "SRK Toolbox for Ztools",
+  "description": "基于 CyberChef 的中文安全工具箱，支持编码、加密、压缩和数据分析。",
+  "author": "Raka-loah&&LAOBILAXI233",
+  "version": "10.22.1",
+  "main": "index.html",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "height": 900
+  },
+  "development": {
+    "main": "http://localhost:54333"
+  },
+  "features": [
+    {
+      "code": "srk-toolbox",
+      "explain": "打开 SRK Toolbox 工具箱",
+      "icon": "logo.png",
+      "cmds": [
+        "SRK Toolbox",
+        "srk",
+        "toolbox",
+        "工具箱",
+        "密码工具",
+        "编码转换",
+        "CyberChef"
+      ]
+    }
+  ]
+}

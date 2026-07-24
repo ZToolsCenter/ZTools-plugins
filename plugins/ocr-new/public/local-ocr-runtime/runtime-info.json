@@ -1,0 +1,6 @@
+﻿{
+    "platform":  "win32",
+    "kind":  "pyinstaller-onedir",
+    "entry":  "win32/rapidocr-server/rapidocr-server.exe",
+    "builtAt":  "2026-05-16T04:21:02"
+}

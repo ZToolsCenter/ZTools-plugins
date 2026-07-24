@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "zosenlink-tunnel",
+  "title": "内网穿透",
+  "description": "免公网Ip，快速对外发布应用服务，内网建站、远程桌面、NAS云盘、游戏联机等",
+  "author": "Zing",
+  "version": "1.0.5",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "platform": ["darwin", "win32"],
+  "development": {
+    "main": "http://localhost:5173/"
+  },
+  "features": [
+    {
+      "code": "zosenlink-tunnel-open",
+      "explain": "打开内网穿透客户端",
+      "icon": "logo.png",
+      "cmds": [
+        "内网穿透",
+        "zosenlink",
+        "frp",
+        "frpc"
+      ]
+    }
+  ]
+}

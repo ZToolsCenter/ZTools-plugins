@@ -1,0 +1,1227 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>隐阅盒</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --hushreader-font-size: 13px;
+      --hushreader-line-height: 1.35;
+      --hushreader-row-height: 17.55px;
+      --hushreader-letter-spacing: 0px;
+      --hushreader-opacity: 0.82;
+      --hushreader-width: 700px;
+      --hushreader-height: 100px;
+      --hushreader-left: 0px;
+      --hushreader-top: 0px;
+      --hushreader-bg-color: #1e1f22;
+      --hushreader-text-color: #cccccc;
+      --hushreader-font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+      font-family: var(--hushreader-font-family);
+      user-select: none;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .hushreader-shell {
+      position: fixed;
+      top: var(--hushreader-top);
+      left: var(--hushreader-left);
+      display: grid;
+      align-items: end;
+      width: var(--hushreader-width);
+      height: var(--hushreader-height);
+      padding: 0;
+      overflow: hidden;
+      background: transparent;
+      opacity: 1;
+      transition: opacity 120ms ease;
+    }
+
+    .hushreader-shell.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hushreader-shell.is-auto-hidden {
+      opacity: 0;
+    }
+
+    .hushreader-shell.is-auto-hidden-show-progress {
+      opacity: 1;
+    }
+
+    .hushreader-shell.is-auto-hidden-show-progress .hushreader-content {
+      opacity: 0;
+    }
+
+    .hushreader-shell.is-auto-hidden-show-progress .hushreader-resize-zone,
+    .hushreader-shell.is-auto-hidden-show-progress .hushreader-hit {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hushreader-reader {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+      width: 100%;
+      height: 100%;
+      min-height: 18px;
+      overflow: hidden;
+      border-radius: 0;
+      opacity: var(--hushreader-opacity);
+      transition:
+        opacity 120ms ease,
+        filter 120ms ease;
+    }
+
+    .hushreader-resize-zone {
+      position: absolute;
+      z-index: 6;
+      opacity: 0;
+      touch-action: none;
+      transition: opacity 120ms ease;
+    }
+
+    .hushreader-resize-zone.height {
+      right: 30px;
+      bottom: 0;
+      left: 30px;
+      height: 8px;
+      cursor: ns-resize;
+    }
+
+    .hushreader-resize-zone.height::before {
+      content: none;
+    }
+
+    .hushreader-resize-zone.width {
+      top: 0;
+      right: 0;
+      bottom: 8px;
+      width: 8px;
+      cursor: ew-resize;
+    }
+
+    .hushreader-resize-zone.width::before {
+      content: none;
+    }
+
+    .hushreader-resize-zone.corner {
+      right: 0;
+      bottom: 0;
+      width: 26px;
+      height: 20px;
+      cursor: nwse-resize;
+    }
+
+    .hushreader-resize-zone.corner::before {
+      content: none;
+    }
+
+    .hushreader-reader:hover .hushreader-resize-zone,
+    body.is-resizing .hushreader-resize-zone {
+      opacity: 0;
+    }
+
+    .hushreader-resize-zone:hover,
+    body.is-resizing .hushreader-resize-zone {
+      opacity: 0;
+    }
+
+    .hushreader-size-hint {
+      position: absolute;
+      top: 4px;
+      right: 34px;
+      z-index: 7;
+      max-width: 160px;
+      padding: 1px 6px;
+      overflow: hidden;
+      border-radius: 4px;
+      background: rgba(20, 27, 28, 0.72);
+      color: #ffffff;
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.4;
+      opacity: 0;
+      pointer-events: none;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: opacity 120ms ease;
+    }
+
+    body.is-resizing .hushreader-size-hint {
+      opacity: 0.78;
+    }
+
+    .hushreader-hit {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      z-index: 5;
+      display: block;
+      width: 22px;
+      height: 100%;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      opacity: 0;
+    }
+
+    .hushreader-hit::before {
+      content: none;
+    }
+
+    .hushreader-hit.prev {
+      left: 0;
+    }
+
+    .hushreader-hit.next {
+      right: 0;
+    }
+
+    .hushreader-reader:hover .hushreader-hit {
+      opacity: 0;
+    }
+
+    .hushreader-hit:hover {
+      opacity: 0 !important;
+    }
+
+    .hushreader-content {
+      grid-row: 1;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+      min-width: 0;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    body.is-moving .hushreader-content {
+      cursor: grabbing;
+    }
+
+    body.no-move .hushreader-content {
+      cursor: default;
+    }
+
+    body.no-move.is-moving .hushreader-content {
+      cursor: default;
+    }
+
+    body.no-resize .hushreader-resize-zone {
+      cursor: default;
+    }
+
+    .hushreader-lines {
+      display: grid;
+      align-content: center;
+      grid-auto-rows: var(--hushreader-row-height);
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .hushreader-line {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      height: var(--hushreader-row-height);
+      min-height: var(--hushreader-row-height);
+      margin: 0;
+      overflow: hidden;
+      font-size: var(--hushreader-font-size);
+      line-height: var(--hushreader-line-height);
+      letter-spacing: var(--hushreader-letter-spacing);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .hushreader-text {
+      min-width: 0;
+      overflow: hidden;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .hushreader-meta {
+      position: absolute;
+      top: 4px;
+      right: 32px;
+      z-index: 4;
+      max-width: min(calc(100% - 52px), 360px);
+      padding: 1px 6px;
+      overflow: hidden;
+      border-radius: 3px;
+      font-size: 10px;
+      line-height: 1.3;
+      opacity: 0;
+      pointer-events: none;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: opacity 120ms ease;
+    }
+
+    .show-meta .hushreader-reader {
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .show-meta .hushreader-content {
+      grid-row: 1;
+    }
+
+    .show-meta .hushreader-meta {
+      position: absolute;
+      bottom: 1px;
+      right: 32px;
+      top: auto;
+      left: auto;
+      z-index: 4;
+      margin: 0;
+      opacity: 0.66;
+      pointer-events: auto;
+      cursor: default;
+    }
+
+    .show-meta .hushreader-meta.percent-mode {
+      cursor: text;
+    }
+
+    .show-meta .hushreader-meta.percent-mode:hover {
+      opacity: 1;
+    }
+
+    .hushreader-meta-edit {
+      background: transparent;
+      border: none;
+      color: inherit;
+      font: inherit;
+      font-size: 10px;
+      line-height: 1.3;
+      width: 36px;
+      text-align: right;
+      outline: none;
+      padding: 0;
+      margin: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hushreader-meta-edit:focus {
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 2px;
+    }
+
+    .hushreader-context-menu {
+      position: fixed;
+      z-index: 100;
+      min-width: 140px;
+      padding: 4px 0;
+      border-radius: 6px;
+      background: rgba(30, 31, 34, 0.95);
+      color: #cccccc;
+      font-size: 12px;
+      line-height: 1.4;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+    }
+
+    .hushreader-context-menu-item {
+      display: block;
+      width: 100%;
+      padding: 6px 14px;
+      border: none;
+      background: none;
+      color: inherit;
+      font: inherit;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .hushreader-context-menu-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .hushreader-context-menu-item:active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .hushreader-reader {
+      border: 0;
+      background: var(--hushreader-bg-color);
+      color: var(--hushreader-text-color);
+      box-shadow: none;
+    }
+
+    .hushreader-lines {
+      padding: 0 10px;
+    }
+
+    .hushreader-meta {
+      background: transparent;
+      color: var(--hushreader-text-color);
+    }
+
+    .hushreader-timer {
+      position: absolute;
+      top: 4px;
+      left: 10px;
+      z-index: 4;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      line-height: 1.3;
+      opacity: 0;
+      pointer-events: none;
+      color: var(--hushreader-text-color);
+      font-variant-numeric: tabular-nums;
+      transition: opacity 120ms ease;
+    }
+
+    .show-timer .hushreader-timer {
+      opacity: 0.66;
+    }
+
+    .hushreader-notification {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease;
+    }
+
+    .hushreader-notification.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .hushreader-notification-box {
+      max-width: 80%;
+      padding: 10px 18px;
+      border-radius: 8px;
+      background: rgba(30, 31, 34, 0.92);
+      color: var(--hushreader-text-color);
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .hushreader-notification-box .notif-action {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--hushreader-text-color);
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 120ms ease;
+    }
+
+    .hushreader-notification-box .notif-action:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+
+<body>
+  <main id="hushreader" class="hushreader-shell is-hidden" aria-live="polite">
+    <section class="hushreader-reader">
+      <button class="hushreader-hit prev" type="button" aria-label="上一页" data-command="prev"></button>
+      <div class="hushreader-content" data-move="window">
+        <div id="hushreaderLines" class="hushreader-lines"></div>
+      </div>
+      <button class="hushreader-hit next" type="button" aria-label="下一页" data-command="next"></button>
+      <div id="hushreaderMeta" class="hushreader-meta"></div>
+      <div id="hushreaderTimer" class="hushreader-timer"></div>
+      <div class="hushreader-resize-zone height" data-resize="height" aria-hidden="true"></div>
+      <div class="hushreader-resize-zone width" data-resize="width" aria-hidden="true"></div>
+      <div class="hushreader-resize-zone corner" data-resize="both" aria-hidden="true"></div>
+      <div id="hushreaderSizeHint" class="hushreader-size-hint"></div>
+    </section>
+    <div id="hushreaderContextMenu" class="hushreader-context-menu" style="display:none"></div>
+    <div id="hushreaderNotification" class="hushreader-notification">
+      <div class="hushreader-notification-box">
+        <div id="notifMessage"></div>
+        <button id="notifAction" class="notif-action" style="display:none">确定</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const root = document.getElementById("hushreader")
+    const linesNode = document.getElementById("hushreaderLines")
+    const metaNode = document.getElementById("hushreaderMeta")
+    const timerNode = document.getElementById("hushreaderTimer")
+    const sizeHintNode = document.getElementById("hushreaderSizeHint")
+    const contextMenuNode = document.getElementById("hushreaderContextMenu")
+
+    let wheelLocked = false
+    let latestSettings = {}
+    let latestResizeLimits = {}
+    let latestBounds = null
+    let resizeState = null
+    let moveState = null
+    let pendingResize = null
+    let pendingMove = null
+    let currentResizeSize = null
+    let currentMovePosition = null
+    let resizeFrame = 0
+    let moveFrame = 0
+    let isAutoHidden = false
+    let isKeyboardActive = false
+    let isProgressEditing = false
+    let isAutoPaging = false
+    let timerRemaining = null
+    let timerTickInterval = 0
+    let notifAutoCloseTimer = 0
+
+    function formatTimer(ms) {
+      if (ms == null || ms <= 0) return ''
+      const totalSec = Math.ceil(ms / 1000)
+      const min = Math.floor(totalSec / 60)
+      const sec = totalSec % 60
+      return `${min}:${String(sec).padStart(2, '0')}`
+    }
+
+    function startTimerTick() {
+      clearInterval(timerTickInterval)
+      if (timerRemaining == null || timerRemaining <= 0) {
+        timerNode.textContent = ''
+        root.classList.remove('show-timer')
+        return
+      }
+      root.classList.add('show-timer')
+      timerNode.textContent = formatTimer(timerRemaining)
+      timerTickInterval = setInterval(() => {
+        timerRemaining = Math.max(0, timerRemaining - 1000)
+        if (timerRemaining <= 0) {
+          clearInterval(timerTickInterval)
+          timerNode.textContent = ''
+          root.classList.remove('show-timer')
+        } else {
+          timerNode.textContent = formatTimer(timerRemaining)
+        }
+      }, 1000)
+    }
+
+    function sendCommand(command) {
+      if (window.ztools?.sendToParent) {
+        window.ztools.sendToParent("hushreader-command", command)
+      }
+    }
+
+    const notifNode = document.getElementById("hushreaderNotification")
+    const notifMessageNode = document.getElementById("notifMessage")
+    const notifActionNode = document.getElementById("notifAction")
+
+    window.hushreaderShowNotification = function hushreaderShowNotification(message) {
+      clearTimeout(notifAutoCloseTimer)
+      notifMessageNode.textContent = message
+      notifActionNode.style.display = "inline-block"
+      notifNode.classList.add("visible")
+    }
+
+    function closeNotification() {
+      clearTimeout(notifAutoCloseTimer)
+      notifNode.classList.remove("visible")
+      notifMessageNode.textContent = ""
+      notifActionNode.style.display = "none"
+      sendCommand("notification-close")
+    }
+
+    notifActionNode.addEventListener("click", (e) => {
+      e.stopPropagation()
+      closeNotification()
+    })
+
+    function setAutoHidden(flag) {
+      const mode = latestSettings.hideOnMouseLeave
+      const shouldHide = Boolean(flag && mode && mode !== 'off')
+      isAutoHidden = shouldHide
+      root.classList.toggle("is-auto-hidden", shouldHide && mode === 'hide-all')
+      root.classList.toggle("is-auto-hidden-show-progress", shouldHide && mode === 'show-progress')
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value))
+    }
+
+    function normalizeHexColor(value, fallback) {
+      const color = typeof value === "string" ? value.trim() : ""
+      if (/^#[0-9a-f]{6}$/i.test(color)) return color.toLowerCase()
+
+      if (/^#[0-9a-f]{3}$/i.test(color)) {
+        const [, r, g, b] = color.toLowerCase()
+        return `#${r}${r}${g}${g}${b}${b}`
+      }
+
+      return fallback
+    }
+
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+      return result
+        ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
+        : { r: 30, g: 31, b: 34 }
+    }
+
+    function setHushreaderColors(bgColor, textColor, bgOpacity) {
+      const hex = normalizeHexColor(bgColor, "#1e1f22")
+      const rgb = hexToRgb(hex)
+      const alpha = Number.isFinite(bgOpacity) ? Math.max(0, Math.min(100, bgOpacity)) / 100 : 1
+      setCssVar("--hushreader-bg-color", `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`)
+      setCssVar("--hushreader-text-color", normalizeHexColor(textColor, "#cccccc"))
+    }
+
+    function snap(value, step) {
+      return Math.round(value / step) * step
+    }
+
+    function getResizeLimit(name, fallback) {
+      const value = Number(latestResizeLimits?.[name])
+      return Number.isFinite(value) ? value : fallback
+    }
+
+    function normalizeResizeSize(width, height) {
+      return {
+        width: clamp(snap(width, 10), getResizeLimit("minWidth", 280), getResizeLimit("maxWidth", 1180)),
+        height: clamp(snap(height, 2), getResizeLimit("minHeight", 22), getResizeLimit("maxHeight", 500))
+      }
+    }
+
+    function normalizeMovePosition(x, y) {
+      return {
+        x: Math.round(Number.isFinite(Number(x)) ? Number(x) : 0),
+        y: Math.round(Number.isFinite(Number(y)) ? Number(y) : 0)
+      }
+    }
+
+    function normalizeKeyboardKey(key) {
+      if (key === " ") return "Space"
+
+      const trimmed = String(key || "").trim()
+      const lower = trimmed.toLowerCase()
+      const aliases = {
+        esc: "Escape",
+        return: "Enter",
+        space: "Space",
+        spacebar: "Space",
+        up: "ArrowUp",
+        right: "ArrowRight",
+        down: "ArrowDown",
+        left: "ArrowLeft",
+        arrowup: "ArrowUp",
+        arrowright: "ArrowRight",
+        arrowdown: "ArrowDown",
+        arrowleft: "ArrowLeft",
+        pageup: "PageUp",
+        pagedown: "PageDown"
+      }
+
+      if (!trimmed) return ""
+      if (trimmed === "+") return "Plus"
+      if (trimmed === "-") return "Minus"
+      if (trimmed === "=") return "Equal"
+      if (/^f\d{1,2}$/i.test(trimmed)) return trimmed.toUpperCase()
+      if (trimmed.length === 1) return trimmed.toUpperCase()
+      return aliases[lower] || trimmed
+    }
+
+    function normalizeKeyBinding(value, fallback) {
+      const raw = typeof value === "string" && value.trim() ? value.trim() : fallback
+      const parts = raw.split("+").map((part) => part.trim()).filter(Boolean)
+      const key = normalizeKeyboardKey(parts[parts.length - 1] || "")
+      const modifiers = []
+
+      parts.slice(0, -1).forEach((part) => {
+        const lower = part.toLowerCase()
+        if ((lower === "control" || lower === "ctrl") && !modifiers.includes("Ctrl")) modifiers.push("Ctrl")
+        else if ((lower === "option" || lower === "alt") && !modifiers.includes("Alt")) modifiers.push("Alt")
+        else if (lower === "shift" && !modifiers.includes("Shift")) modifiers.push("Shift")
+        else if ((lower === "command" || lower === "cmd" || lower === "meta") && !modifiers.includes("Meta")) modifiers.push("Meta")
+      })
+
+      if (!key || ["Control", "Shift", "Alt", "Meta", "Dead", "Process"].includes(key)) return fallback
+      return [...modifiers, key].join("+")
+    }
+
+    function getKeyboardEventBinding(event) {
+      if (event.isComposing) return ""
+
+      const key = normalizeKeyboardKey(event.key)
+      if (!key || ["Control", "Shift", "Alt", "Meta", "Dead", "Process"].includes(key)) return ""
+
+      return [
+        event.ctrlKey ? "Ctrl" : "",
+        event.altKey ? "Alt" : "",
+        event.shiftKey ? "Shift" : "",
+        event.metaKey ? "Meta" : "",
+        key
+      ]
+        .filter(Boolean)
+        .join("+")
+    }
+
+    function getCurrentWindowPosition() {
+      const boundX = Number(latestBounds?.x)
+      const boundY = Number(latestBounds?.y)
+      const screenX = Number(window.screenX ?? window.screenLeft ?? 0)
+      const screenY = Number(window.screenY ?? window.screenTop ?? 0)
+
+      return normalizeMovePosition(
+        Number.isFinite(boundX) ? boundX : screenX,
+        Number.isFinite(boundY) ? boundY : screenY
+      )
+    }
+
+    function setSizeHint(width, height) {
+      sizeHintNode.textContent = `${Math.round(width)} x ${Math.round(height)}`
+    }
+
+    function setHushreaderBox(width, height) {
+      setCssVar("--hushreader-width", `${width}px`)
+      setCssVar("--hushreader-height", `${height}px`)
+      setSizeHint(width, height)
+    }
+
+    function getWindowScreenOffset(bounds) {
+      const screenX = Number(window.screenX ?? window.screenLeft ?? 0)
+      const screenY = Number(window.screenY ?? window.screenTop ?? 0)
+      const x = Number(bounds?.x)
+      const y = Number(bounds?.y)
+      const left = Number.isFinite(x) && Number.isFinite(screenX) ? Math.max(0, Math.round(x - screenX)) : 0
+      const top = Number.isFinite(y) && Number.isFinite(screenY) ? Math.max(0, Math.round(y - screenY)) : 0
+
+      return {
+        left: left <= window.innerWidth ? left : 0,
+        top: top <= window.innerHeight ? top : 0
+      }
+    }
+
+    function setHushreaderPosition(bounds) {
+      const offset = getWindowScreenOffset(bounds)
+      setCssVar("--hushreader-left", `${offset.left}px`)
+      setCssVar("--hushreader-top", `${offset.top}px`)
+    }
+
+    function sendResizePreview(width, height) {
+      currentResizeSize = normalizeResizeSize(width, height)
+      pendingResize = currentResizeSize
+      setHushreaderBox(currentResizeSize.width, currentResizeSize.height)
+
+      if (resizeFrame) return
+      resizeFrame = requestAnimationFrame(flushResizePreview)
+    }
+
+    function flushResizePreview() {
+      if (resizeFrame) {
+        cancelAnimationFrame(resizeFrame)
+        resizeFrame = 0
+      }
+      if (!pendingResize) return
+
+      const nextSize = pendingResize
+      pendingResize = null
+      sendCommand({
+        type: "resize-preview",
+        width: nextSize.width,
+        height: nextSize.height
+      })
+    }
+
+    function commitResize() {
+      if (resizeFrame) {
+        cancelAnimationFrame(resizeFrame)
+        resizeFrame = 0
+      }
+
+      const nextSize =
+        currentResizeSize ||
+        normalizeResizeSize(resizeState?.startWidth || window.innerWidth, resizeState?.startHeight || window.innerHeight)
+      pendingResize = null
+      currentResizeSize = null
+      sendCommand({
+        type: "resize",
+        width: nextSize.width,
+        height: nextSize.height
+      })
+    }
+
+    function sendMovePreview(x, y) {
+      currentMovePosition = normalizeMovePosition(x, y)
+      pendingMove = currentMovePosition
+
+      if (moveFrame) return
+      moveFrame = requestAnimationFrame(flushMovePreview)
+    }
+
+    function flushMovePreview() {
+      if (moveFrame) {
+        cancelAnimationFrame(moveFrame)
+        moveFrame = 0
+      }
+      if (!pendingMove) return
+
+      const nextPosition = pendingMove
+      pendingMove = null
+      sendCommand({
+        type: "move-preview",
+        x: nextPosition.x,
+        y: nextPosition.y
+      })
+    }
+
+    function commitMove() {
+      if (moveFrame) {
+        cancelAnimationFrame(moveFrame)
+        moveFrame = 0
+      }
+
+      const nextPosition = currentMovePosition || normalizeMovePosition(moveState?.startWindowX || 0, moveState?.startWindowY || 0)
+      pendingMove = null
+      currentMovePosition = null
+      sendCommand({
+        type: "move",
+        x: nextPosition.x,
+        y: nextPosition.y
+      })
+    }
+
+    function setCssVar(name, value) {
+      document.documentElement.style.setProperty(name, value)
+    }
+
+    function renderLines(lines) {
+      linesNode.textContent = ""
+      const cleanLines = Array.isArray(lines) && lines.length ? lines : [""]
+
+      cleanLines.forEach((line) => {
+        const row = document.createElement("p")
+        const text = document.createElement("span")
+
+        row.className = "hushreader-line"
+        text.className = "hushreader-text"
+        text.textContent = String(line || "")
+
+        row.append(text)
+        linesNode.append(row)
+      })
+    }
+
+    window.hushreaderSetState = function hushreaderSetState(payload) {
+      const settings = payload?.settings || {}
+      latestSettings = settings
+      latestResizeLimits = payload?.resizeLimits || {}
+      latestBounds = payload?.bounds || latestBounds
+      const visible = Boolean(payload?.visible)
+      const hideMode = settings.hideOnMouseLeave
+      if (!visible || !hideMode || hideMode === 'off') isAutoHidden = false
+
+      isAutoPaging = Boolean(settings.autoFlipEnabled)
+
+      const newTimerRemaining = settings.timerEnabled ? settings.timerRemaining : null
+      if (newTimerRemaining !== timerRemaining) {
+        const needsReset = timerRemaining == null || newTimerRemaining == null || Math.abs(newTimerRemaining - timerRemaining) > 2000
+        timerRemaining = newTimerRemaining
+        if (needsReset) {
+          startTimerTick()
+        }
+      }
+
+      root.className = [
+        "hushreader-shell",
+        settings.showHushreaderMeta ? "show-meta" : "",
+        isAutoHidden && visible && hideMode === 'hide-all' ? "is-auto-hidden" : "",
+        isAutoHidden && visible && hideMode === 'show-progress' ? "is-auto-hidden-show-progress" : "",
+        !settings.windowMovable ? "no-move" : "",
+        settings.windowSizeLocked ? "no-resize" : "",
+        visible ? "" : "is-hidden"
+      ]
+        .filter(Boolean)
+        .join(" ")
+
+      const fontSize = Number(settings.fontSize) || 13
+      const lineHeight = Number(settings.lineHeight) || 1.35
+
+      setCssVar("--hushreader-font-size", `${fontSize}px`)
+      setCssVar("--hushreader-line-height", String(lineHeight))
+      setCssVar("--hushreader-row-height", `${fontSize * lineHeight}px`)
+      const opacity = Number(settings.opacity)
+
+      setCssVar("--hushreader-letter-spacing", `${settings.letterSpacing || 0}px`)
+      setCssVar("--hushreader-font-family", settings.fontFamily || 'system-ui, -apple-system, sans-serif')
+      setCssVar("--hushreader-opacity", String((Number.isFinite(opacity) ? opacity : 82) / 100))
+      setHushreaderColors(settings.bgColor, settings.textColor, settings.bgOpacity)
+      setHushreaderBox(settings.hushreaderWidth || 700, settings.hushreaderHeight || 100)
+      setHushreaderPosition(payload?.bounds)
+
+      const isPercentMode = settings.progressMode === 'percent'
+      metaNode.classList.toggle('percent-mode', isPercentMode && settings.showHushreaderMeta)
+
+      if (isProgressEditing) return
+
+      const progressText = isPercentMode && Number.isFinite(payload?.readingPercent)
+        ? `${payload.readingPercent}%`
+        : payload?.progress || ''
+      const metaParts = []
+      if (!isPercentMode) {
+        metaParts.push(payload?.chapter)
+      }
+      metaParts.push(progressText)
+      metaNode.textContent = metaParts.filter(Boolean).join(" · ")
+      document.title = payload?.title ? `HushReader Hushreader - ${payload.title}` : "HushReader Hushreader"
+      renderLines(payload?.lines)
+    }
+
+    document.addEventListener("click", (event) => {
+      if (contextMenuNode.style.display !== "none" && !contextMenuNode.contains(event.target)) {
+        hideContextMenu()
+      }
+
+      if (isProgressEditing) {
+        if (!metaNode.contains(event.target)) {
+          commitProgressEdit()
+        }
+        return
+      }
+
+      const hit = event.target.closest("[data-command]")
+      if (hit) sendCommand(hit.dataset.command)
+    })
+
+    metaNode.addEventListener("click", (event) => {
+      if (latestSettings.progressMode !== 'percent' || !latestSettings.showHushreaderMeta) return
+      if (isProgressEditing) return
+      event.stopPropagation()
+      startProgressEdit()
+    })
+
+    function startProgressEdit() {
+      isProgressEditing = true
+      const currentPercent = parseInt(metaNode.textContent, 10) || 0
+      metaNode.textContent = ""
+
+      const input = document.createElement("input")
+      input.type = "text"
+      input.className = "hushreader-meta-edit"
+      input.value = String(currentPercent)
+      input.setAttribute("data-progress-edit", "true")
+
+      const suffix = document.createElement("span")
+      suffix.textContent = "%"
+
+      metaNode.append(input, suffix)
+
+      requestAnimationFrame(() => {
+        input.focus()
+        input.select()
+      })
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault()
+          commitProgressEdit()
+        } else if (e.key === "Escape") {
+          e.preventDefault()
+          cancelProgressEdit()
+        } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault()
+          const step = e.shiftKey ? 10 : 1
+          let val = parseInt(input.value, 10)
+          if (Number.isFinite(val)) {
+            val = e.key === "ArrowUp" ? Math.min(100, val + step) : Math.max(0, val - step)
+            input.value = String(val)
+          }
+        }
+      })
+
+      input.addEventListener("blur", () => {
+        setTimeout(() => {
+          if (isProgressEditing) commitProgressEdit()
+        }, 100)
+      })
+    }
+
+    function commitProgressEdit() {
+      if (!isProgressEditing) return
+      const input = metaNode.querySelector("[data-progress-edit]")
+      const rawValue = input ? String(input.value).trim() : ""
+      const percent = parseInt(rawValue, 10)
+      isProgressEditing = false
+
+      if (Number.isFinite(percent) && percent >= 0 && percent <= 100) {
+        sendCommand({ type: "jump-percent", percent })
+      }
+    }
+
+    function cancelProgressEdit() {
+      isProgressEditing = false
+    }
+
+    document.addEventListener(
+      "wheel",
+      (event) => {
+        if (latestSettings.wheelTurnPage === false) return
+        if (wheelLocked) return
+        wheelLocked = true
+        event.preventDefault()
+        sendCommand(event.deltaY > 0 ? "next" : "prev")
+        window.setTimeout(() => {
+          wheelLocked = false
+        }, 100)
+      },
+      { passive: false }
+    )
+
+    document.addEventListener("keydown", (event) => {
+      if (isProgressEditing) return
+      if (root.classList.contains("is-hidden") || root.classList.contains("is-auto-hidden") || root.classList.contains("is-auto-hidden-show-progress")) return
+
+      const binding = getKeyboardEventBinding(event)
+      const prevPageKey = normalizeKeyBinding(latestSettings.prevPageKey, "ArrowLeft")
+      const nextPageKey = normalizeKeyBinding(latestSettings.nextPageKey, "ArrowRight")
+      const addBookmarkKey = normalizeKeyBinding(latestSettings.addBookmarkKey, "Shift+F")
+      const destroyKey = normalizeKeyBinding(latestSettings.destroyKey, "Shift+D")
+
+      if (binding && binding === nextPageKey) {
+        event.preventDefault()
+        sendCommand("next")
+      } else if (binding && binding === prevPageKey) {
+        event.preventDefault()
+        sendCommand("prev")
+      } else if (binding && binding === addBookmarkKey) {
+        event.preventDefault()
+        sendCommand("add-bookmark")
+      } else if (binding && binding === destroyKey) {
+        event.preventDefault()
+        sendCommand("destroy")
+      }
+    })
+
+    document.addEventListener("pointerdown", (event) => {
+      const handle = event.target.closest("[data-resize]")
+      if (handle) {
+        const isSizeLocked = Boolean(latestSettings.windowSizeLocked)
+
+        if (isSizeLocked) return
+
+        event.preventDefault()
+        event.stopPropagation()
+
+        resizeState = {
+          mode: handle.dataset.resize,
+          pointerId: event.pointerId,
+          startX: event.screenX,
+          startY: event.screenY,
+          startWidth: Number(latestSettings.hushreaderWidth) || window.innerWidth,
+          startHeight: Number(latestSettings.hushreaderHeight) || window.innerHeight,
+          handle
+        }
+        currentResizeSize = normalizeResizeSize(resizeState.startWidth, resizeState.startHeight)
+
+        handle.setPointerCapture?.(event.pointerId)
+        document.body.classList.add("is-resizing")
+        setSizeHint(resizeState.startWidth, resizeState.startHeight)
+        return
+      }
+
+      const moveHandle = event.target.closest("[data-move]")
+      if (!moveHandle || resizeState || event.button !== 0) return
+      if (!latestSettings.windowMovable) return
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const startPosition = getCurrentWindowPosition()
+      moveState = {
+        pointerId: event.pointerId,
+        startX: event.screenX,
+        startY: event.screenY,
+        startWindowX: startPosition.x,
+        startWindowY: startPosition.y,
+        handle: moveHandle
+      }
+      currentMovePosition = startPosition
+
+      moveHandle.setPointerCapture?.(event.pointerId)
+      document.body.classList.add("is-moving")
+      setAutoHidden(false)
+    })
+
+    document.addEventListener("pointermove", (event) => {
+      if (resizeState) {
+        event.preventDefault()
+
+        const deltaX = event.screenX - resizeState.startX
+        const deltaY = event.screenY - resizeState.startY
+        const adjustWidth = resizeState.mode === "width" || resizeState.mode === "both"
+        const adjustHeight = resizeState.mode === "height" || resizeState.mode === "both"
+        const width = adjustWidth ? resizeState.startWidth + deltaX : resizeState.startWidth
+        const height = adjustHeight ? resizeState.startHeight + deltaY : resizeState.startHeight
+
+        sendResizePreview(width, height)
+        return
+      }
+
+      if (moveState) {
+        event.preventDefault()
+
+        const deltaX = event.screenX - moveState.startX
+        const deltaY = event.screenY - moveState.startY
+
+        sendMovePreview(moveState.startWindowX + deltaX, moveState.startWindowY + deltaY)
+      }
+    })
+
+    function finishResize(event) {
+      if (!resizeState) return
+
+      commitResize()
+      resizeState.handle?.releasePointerCapture?.(resizeState.pointerId)
+      resizeState = null
+      document.body.classList.remove("is-resizing")
+      event?.preventDefault()
+    }
+
+    document.addEventListener("pointerup", finishResize)
+    document.addEventListener("pointercancel", finishResize)
+
+    function finishMove(event) {
+      if (!moveState) return
+
+      commitMove()
+      moveState.handle?.releasePointerCapture?.(moveState.pointerId)
+      moveState = null
+      document.body.classList.remove("is-moving")
+      event?.preventDefault()
+    }
+
+    document.addEventListener("pointerup", finishMove)
+    document.addEventListener("pointercancel", finishMove)
+
+    let enterDelayTimer = null
+
+    function clearEnterDelayTimer() {
+      if (enterDelayTimer != null) {
+        clearTimeout(enterDelayTimer)
+        enterDelayTimer = null
+      }
+    }
+
+    root.addEventListener("mouseenter", () => {
+      isKeyboardActive = true
+      const delay = Number(latestSettings.mouseEnterDelay) || 0
+      if (delay > 0 && isAutoHidden) {
+        clearEnterDelayTimer()
+        enterDelayTimer = setTimeout(() => {
+          enterDelayTimer = null
+          setAutoHidden(false)
+          sendCommand("focus")
+        }, delay * 1000)
+      } else {
+        setAutoHidden(false)
+        sendCommand("focus")
+      }
+    })
+
+    root.addEventListener("mouseleave", () => {
+      clearEnterDelayTimer()
+    })
+
+    document.addEventListener("pointermove", () => {
+      if (isAutoHidden && enterDelayTimer == null) setAutoHidden(false)
+    })
+
+    document.addEventListener("contextmenu", (event) => {
+      event.preventDefault()
+
+      const items = []
+      if (latestSettings.showHushreaderMeta) {
+        const metaRect = metaNode.getBoundingClientRect()
+        const inMetaArea = event.clientX >= metaRect.left - 4 && event.clientX <= metaRect.right + 4
+          && event.clientY >= metaRect.top - 4 && event.clientY <= metaRect.bottom + 4
+        if (inMetaArea) {
+          items.push({ label: "关闭隐阅窗口", command: "close-reader" })
+          items.push({ label: "添加书签", command: "add-bookmark" })
+          items.push({ label: "显示主窗口", command: "show-main" })
+          if (isAutoPaging) {
+            items.push({ label: "停止自动翻页", command: "stop-auto" })
+          } else {
+            items.push({ label: "开启自动翻页", command: "start-auto" })
+          }
+        }
+      }
+
+      if (items.length === 0) return
+
+      contextMenuNode.innerHTML = ""
+      items.forEach((item) => {
+        const btn = document.createElement("button")
+        btn.className = "hushreader-context-menu-item"
+        btn.textContent = item.label
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation()
+          hideContextMenu()
+          sendCommand(item.command)
+        })
+        contextMenuNode.append(btn)
+      })
+
+      const menuX = Math.min(event.clientX, window.innerWidth - 160)
+      const menuY = Math.min(event.clientY, window.innerHeight - items.length * 30 - 8)
+      contextMenuNode.style.left = `${menuX}px`
+      contextMenuNode.style.top = `${menuY}px`
+      contextMenuNode.style.display = "block"
+    })
+
+    function hideContextMenu() {
+      contextMenuNode.style.display = "none"
+    }
+
+    document.addEventListener("mouseleave", () => {
+      isKeyboardActive = false
+      clearEnterDelayTimer()
+      sendCommand("blur")
+      if (!resizeState && !moveState && !isProgressEditing && latestSettings.hideOnMouseLeave && latestSettings.hideOnMouseLeave !== 'off') {
+        setAutoHidden(true)
+      }
+    })
+  </script>
+</body>
+
+</html>

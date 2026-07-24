@@ -14,7 +14,7 @@ const emit = defineEmits(['delete-favorite'])
     </div>
     <div class="item-meta">
       <span class="meta-time">{{ item.time }}</span>
-      <span v-if="item.remark" class="meta-remark">{{ item.remark }}</span>
+      <span v-if="item.remark" class="meta-remark" :title="item.remark">{{ item.remark }}</span>
       <span v-if="item.appName" class="meta-app">{{ item.appName }}</span>
       <button
         v-if="isFavoriteTab"
@@ -74,12 +74,17 @@ const emit = defineEmits(['delete-favorite'])
 .meta-remark {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+  max-width: 240px;
   padding: 2px 8px;
   background: var(--bg-warning-light);
   color: var(--text-warning);
   border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .delete-btn {

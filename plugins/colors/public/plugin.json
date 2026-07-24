@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "colors",
+  "title": "调色板",
+  "description": "这是一个快速选择生成颜色的插件，提供了常用的颜色选择和生成工具，帮助用户轻松获取所需的颜色值。之前叫颜色助手，由于与utools移植的颜色助手冲突打算更名为调色板。搜索匹配词：颜色助手、color helper、color palette、调色板,颜色生成器，色彩助手，色彩生成器，Ai配色，配色，颜色收藏器，颜色空间，颜色选择器",
+  "author": "mekefly",
+  "version": "1.5.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "颜色助手",
+      "explain": "使用调色版快速生成你需要的颜色。",
+      "icon": "logo.png",
+      "cmds": ["颜色助手", "colors"]
+    },
+    {
+      "code": "选择颜色",
+      "explain": "打开插件选择一个颜色",
+      "icon": "logo.png",
+      "cmds": ["选择颜色"]
+    },
+    {
+      "code": "AI配色",
+      "explain": "AI智能生成配色方案",
+      "icon": "logo.png",
+      "cmds": ["AI配色", "配色生成", "智能配色"]
+    },
+    {
+      "code": "预览颜色",
+      "explain": "查看颜色",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "颜色预览",
+          "match": "/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/i",
+          "minLength": 4
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "mac-file-search",
+  "title": "Mac 文件搜索",
+  "description": "在 macOS 上快速搜索本地文件与文件夹",
+  "author": "Quentin",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "height": 620,
+    "single": true
+  },
+  "features": [
+    {
+      "code": "find",
+      "explain": "搜索 Mac 本地文件",
+      "icon": "logo.png",
+      "platform": ["darwin"],
+      "cmds": [
+        "find",
+        "文件搜索",
+        "搜索文件",
+        {
+          "type": "window",
+          "label": "在当前 Finder 目录搜索",
+          "match": {
+            "app": ["Finder.app"]
+          }
+        },
+        {
+          "type": "files",
+          "label": "在此目录搜索",
+          "fileType": "directory",
+          "minLength": 1,
+          "maxLength": 1
+        },
+        {
+          "type": "regex",
+          "label": "路径作为搜索目录",
+          "match": "/^(\\/[^/\\n\\r\\f\\v]+)+\\/?$/",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        {
+          "type": "over",
+          "label": "搜索文件",
+          "exclude": "/[\\t\\n]/",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      ]
+    },
+    {
+      "code": "find-push",
+      "mainPush": true,
+      "explain": "主搜索快速搜索文件",
+      "icon": "logo.png",
+      "platform": ["darwin"],
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "文件搜索",
+          "match": "/^[ '\\u2018\\u2019](.*)$/",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      ]
+    }
+  ]
+}

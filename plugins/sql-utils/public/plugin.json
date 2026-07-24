@@ -1,0 +1,37 @@
+{
+  "name": "sql-utils",
+  "title": "SQL工具箱",
+  "description": "一款集成了多种 SQL 相关的实用工具🧰，帮助开发者提高工作效率🚀。多字段测试数据生成 | Excel转SQL | 文本拼接 | DDL代码生成",
+  "author": "honvin",
+  "version": "1.0.30",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:1688"
+  },
+  "features": [
+    {
+      "code": "default",
+      "explain": "SQL工具箱",
+      "cmds": [
+        "sql"
+      ]
+    },
+    {
+      "code": "textJoint-regex",
+      "explain": "文本拼接",
+      "mainPush": "ture",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "文本拼接",
+          "match": "/\\n/",
+          "option": {
+            "label": "加引号"
+          }
+        }
+      ]
+    }
+  ]
+}

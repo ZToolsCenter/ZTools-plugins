@@ -1,0 +1,7 @@
+{
+  "name": "uuid-kit",
+  "version": "1.0.0",
+  "description": "UUID 百宝箱：粘贴即解析互转（uuid62/base57/base58/base64url/hex），生成 v1/v3/v4/v5/v6/v7，时间戳/版本体检",
+  "author": "Junxin Gao",
+  "private": true
+}

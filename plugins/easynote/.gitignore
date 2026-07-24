@@ -1,0 +1,43 @@
+# 依赖
+node_modules
+.pnp
+.pnp.js
+
+# 构建产物
+dist
+dist-ssr
+*.local
+
+# 日志
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 编辑器 / IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 自动生成的类型声明（unplugin-auto-import / unplugin-vue-components）
+auto-imports.d.ts
+components.d.ts
+
+# Vite 缓存
+.vite
+
+# 本地环境
+.env
+.env.local
+.env.*.local

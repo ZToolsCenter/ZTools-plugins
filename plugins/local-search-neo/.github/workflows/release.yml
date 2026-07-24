@@ -1,0 +1,61 @@
+name: Build release
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/release.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Windows dist
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build dist
+        run: npm run build
+
+      - name: Read plugin version
+        id: version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+          "zip=local-search-neo-v$version.zip" >> $env:GITHUB_OUTPUT
+
+      - name: Package dist
+        shell: pwsh
+        run: |
+          $zip = "${{ steps.version.outputs.zip }}"
+          if (Test-Path $zip) {
+            Remove-Item $zip -Force
+          }
+          Compress-Archive -Path dist/* -DestinationPath $zip -CompressionLevel Optimal
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: local-search-neo ${{ steps.version.outputs.version }}
+          files: ${{ steps.version.outputs.zip }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true

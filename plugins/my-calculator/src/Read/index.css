@@ -1,0 +1,31 @@
+.read {
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.read > pre {
+  background-color: #fff;
+  width: 100%;
+  overflow: hidden;
+  padding: 20px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  margin-top: 20px;
+  white-space: break-spaces;
+}
+
+.read-file {
+  width: 100%;
+  margin-top: 20px;
+  font-weight: bold;
+}
+
+.read-error {
+  color: red;
+}
+
+@media (prefers-color-scheme: dark) {
+  .read > pre {
+    background-color: #424242;
+  }
+}

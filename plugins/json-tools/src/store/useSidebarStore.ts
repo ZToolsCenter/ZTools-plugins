@@ -3,7 +3,6 @@
 import { create } from "zustand";
 import { devtools, subscribeWithSelector } from "zustand/middleware";
 
-import { useSettingsStore } from "@/store/useSettingsStore";
 import { storage } from "@/lib/indexedDBStore";
 import { SidebarKeys } from "@/components/sidebar/Items.tsx";
 
@@ -51,8 +50,9 @@ export const useSidebarStore = create<SidebarStore>()(
 useSidebarStore.subscribe(
   (state) => state.activeKey,
   (activeKey) => {
-    if (useSettingsStore.getState().editDataSaveLocal) {
-      storage.setItem(BD_SIDEBAR_ACTIVE_KEY, activeKey);
-    }
+    // 本地存储始终启用
+    storage.setItem(BD_SIDEBAR_ACTIVE_KEY, activeKey).catch((error) => {
+      console.error("保存侧边栏状态失败:", error);
+    });
   },
 );

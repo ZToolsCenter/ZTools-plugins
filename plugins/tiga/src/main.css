@@ -1,0 +1,27 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+}
+
+/* 深色模式滚动条样式 */
+.dark ::-webkit-scrollbar-track-piece {
+  background-color: var(--el-bg-color-page);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: var(--el-border-color-darker);
+  border-color: var(--el-bg-color-page);
+}
+
+/* 浅色模式滚动条样式 */
+::-webkit-scrollbar-track-piece {
+  background-color: var(--el-fill-color-blank);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--el-border-color-light);
+  border-color: var(--el-fill-color-blank);
+}

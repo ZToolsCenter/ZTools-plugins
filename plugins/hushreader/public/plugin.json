@@ -1,0 +1,60 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "hushreader",
+  "title": "隐阅盒",
+  "description": "ZTools自己的摸鱼阅读，支持TXT/EPUB/MOBI格式，沉浸式阅读",
+  "author": "meidlinger",
+  "version": "1.4.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "bookshelf",
+      "explain": "打开书架",
+      "icon": "logo.png",
+      "cmds": [
+        "隐阅盒",
+        "书架",
+        "摸鱼阅读",
+        "hushreader",
+        "yyh"
+      ]
+    },
+    {
+      "code": "reader",
+      "explain": "打开阅读器",
+      "icon": "logo.png",
+      "cmds": [
+        "开始阅读"
+      ]
+    },
+    {
+      "code": "hushreader-import",
+      "explain": "导入本地书籍",
+      "icon": "logo.png",
+      "cmds": [
+        "导入书籍",
+        {
+          "type": "files",
+          "fileType": "file",
+          "extensions": [
+            "txt",
+            "epub",
+            "mobi"
+          ],
+          "maxLength": 1,
+          "label": "导入到 隐阅盒"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}

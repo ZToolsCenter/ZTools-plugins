@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "sub2api-usage",
+  "title": "Sub2API 用量",
+  "description": "查看 Sub2API API Key token 使用量，并支持置顶悬浮小窗",
+  "author": "Zing",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5182"
+  },
+  "features": [
+    {
+      "code": "manage",
+      "explain": "查看 Sub2API token 使用量",
+      "icon": "logo.png",
+      "cmds": ["sub2api", "Sub2API 用量", "flymux 用量"]
+    }
+  ]
+}

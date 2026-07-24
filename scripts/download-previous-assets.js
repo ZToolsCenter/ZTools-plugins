@@ -7,6 +7,24 @@ import { execSync } from 'child_process';
 
 const RELEASE_DIR = 'release';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const DOWNLOAD_MAX_ATTEMPTS = 5;
+const DOWNLOAD_RETRY_DELAY_MS = 2000;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function removeFileIfExists(filePath) {
+  if (!existsSync(filePath)) {
+    return;
+  }
+
+  try {
+    unlinkSync(filePath);
+  } catch (error) {
+    console.warn(`删除未完成文件失败: ${filePath} - ${error.message}`);
+  }
+}
 
 /**
  * 比较两个版本号
@@ -80,6 +98,34 @@ async function downloadFile(url, destPath) {
       fileStream.on('error', reject);
     }).on('error', reject);
   });
+}
+
+/**
+ * 带重试的下载，避免 GitHub 临时 502 导致历史插件丢失
+ */
+async function downloadFileWithRetry(url, destPath, fileName) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= DOWNLOAD_MAX_ATTEMPTS; attempt++) {
+    try {
+      if (attempt > 1) {
+        console.log(`  重试 ${attempt}/${DOWNLOAD_MAX_ATTEMPTS}: ${fileName}`);
+      }
+
+      await downloadFile(url, destPath);
+      return;
+    } catch (error) {
+      lastError = error;
+      removeFileIfExists(destPath);
+
+      if (attempt < DOWNLOAD_MAX_ATTEMPTS) {
+        console.warn(`  第 ${attempt}/${DOWNLOAD_MAX_ATTEMPTS} 次下载失败: ${fileName} - ${error.message}，${DOWNLOAD_RETRY_DELAY_MS / 1000} 秒后重试...`);
+        await sleep(DOWNLOAD_RETRY_DELAY_MS);
+      }
+    }
+  }
+
+  throw new Error(`已重试 ${DOWNLOAD_MAX_ATTEMPTS} 次仍失败: ${lastError.message}`);
 }
 
 /**
@@ -192,6 +238,8 @@ async function main() {
       return;
     }
 
+    const failedAssets = [];
+
     // 下载所有资产
     for (const asset of latestRelease.assets) {
       const destPath = join(RELEASE_DIR, asset.name);
@@ -205,11 +253,22 @@ async function main() {
       console.log(`下载: ${asset.name} (${(asset.size / 1024).toFixed(2)} KB)`);
 
       try {
-        await downloadFile(asset.browser_download_url, destPath);
+        await downloadFileWithRetry(asset.browser_download_url, destPath, asset.name);
         console.log(`✓ 下载完成: ${asset.name}`);
       } catch (error) {
         console.error(`✗ 下载失败: ${asset.name} - ${error.message}`);
+        failedAssets.push({
+          name: asset.name,
+          error: error.message
+        });
       }
+    }
+
+    if (failedAssets.length > 0) {
+      const failedList = failedAssets
+        .map(asset => `${asset.name} (${asset.error})`)
+        .join(', ');
+      throw new Error(`历史资产下载失败 ${failedAssets.length} 个: ${failedList}`);
     }
 
     console.log('\n✓ 所有历史资产下载完成');

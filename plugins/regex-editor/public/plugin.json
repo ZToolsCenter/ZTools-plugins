@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "regex-editor",
+  "title": "正则可视编辑器",
+  "description": "正则可视化编辑器：铁路图可视化、实时匹配测试、AI 大白话说明、常用范例、按需求 AI 生成正则",
+  "author": "adoin",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "editor",
+      "explain": "正则可视化编辑器，铁路图展示、实时匹配、AI 中文说明与范例库",
+      "icon": "logo.png",
+      "cmds": [
+        "正则",
+        "正则编辑器",
+        "regex",
+        {
+          "type": "over",
+          "label": "正则测试"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}

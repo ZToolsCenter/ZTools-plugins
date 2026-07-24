@@ -1,0 +1,100 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "timestamp",
+  "title": "timestamp",
+  "description": "时间戳转换",
+  "author": "loocao",
+  "version": "1.1.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "timestamp",
+      "explain": "时间戳转换",
+      "cmds": [
+        "timestamp",
+        "时间戳转换",
+        {
+          "type": "regex",
+          "label": "时间戳（秒级）",
+          "match": "/^\\d{10}$/",
+          "minLength": 10,
+          "maxLength": 10
+        },
+        {
+          "type": "regex",
+          "label": "时间戳（毫秒级）",
+          "match": "/^\\d{13}$/",
+          "minLength": 13,
+          "maxLength": 13
+        },
+        {
+          "type": "regex",
+          "label": "标准日期时间",
+          "match": "/^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01]) (?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{3})?$/",
+          "minLength": 19,
+          "maxLength": 23
+        },
+        {
+          "type": "regex",
+          "label": "ISO 8601格式",
+          "match": "/^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|[+-](?:[01]\\d|2[0-3]):?[0-5]\\d)?$/i",
+          "minLength": 19,
+          "maxLength": 35
+        },
+        {
+          "type": "regex",
+          "label": "斜杠分隔日期时间",
+          "match": "/^\\d{4}\\/(?:0[1-9]|1[0-2])\\/(?:0[1-9]|[12]\\d|3[01]) (?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{3})?$/",
+          "minLength": 19,
+          "maxLength": 23
+        },
+        {
+          "type": "regex",
+          "label": "中文日期格式",
+          "match": "/^\\d{4}年(?:0?[1-9]|1[0-2])月(?:0?[1-9]|[12]\\d|3[01])日\\s*(?:[01]?\\d|2[0-3])(?::[0-5]\\d){1,2}$/",
+          "minLength": 14,
+          "maxLength": 24
+        },
+        {
+          "type": "regex",
+          "label": "仅日期格式",
+          "match": "/^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])$/",
+          "minLength": 10,
+          "maxLength": 10
+        },
+        {
+          "type": "regex",
+          "label": "简写日期时间",
+          "match": "/^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01]) (?:[01]\\d|2[0-3]):[0-5]\\d$/",
+          "minLength": 16,
+          "maxLength": 16
+        },
+        {
+          "type": "regex",
+          "label": "RFC 2822格式",
+          "match": "/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\\s*(?:0?[1-9]|[12]\\d|3[01])\\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{4}\\s+(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\s+[+-]\\d{4}$/i",
+          "minLength": 29,
+          "maxLength": 31
+        },
+        {
+          "type": "regex",
+          "label": "自然语言日期（英文月份）",
+          "match": "/^(?:0?[1-9]|[12]\\d|3[01])\\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\s+\\d{4}(?:\\s+(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?)?$/i",
+          "minLength": 11,
+          "maxLength": 31
+        },
+        {
+          "type": "regex",
+          "label": "带时区缩写",
+          "match": "/^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01]) (?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\s+(?:UTC|GMT(?:[+-](?:[01]\\d|2[0-3]):?[0-5]\\d)?|CST|EST|PST)$/i",
+          "minLength": 23,
+          "maxLength": 32
+        }
+      ]
+    }
+  ]
+}

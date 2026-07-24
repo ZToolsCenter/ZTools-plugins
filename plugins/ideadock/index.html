@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文本暂存处理</title>
+  <link rel="stylesheet" href="jsxgraph.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div class="resource-rail">
+      <button class="resource-rail-btn" id="btn-resource-drawer" title="工作区" aria-label="打开工作区">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10h18"/></svg>
+        <span>工作区</span>
+      </button>
+      <button class="resource-rail-btn" id="btn-todo-drawer" title="Todo" aria-label="打开 Todo">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="m3 6 1.2 1.2L6.5 4.8"/><path d="m3 12 1.2 1.2 2.3-2.4"/><path d="m3 18 1.2 1.2 2.3-2.4"/></svg>
+        <span>Todo</span>
+      </button>
+      <button class="resource-rail-btn" id="btn-archive-drawer" title="归档" aria-label="打开归档">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18"/><path d="M10 12h4"/></svg>
+        <span>归档</span>
+      </button>
+    </div>
+    <!-- 顶部：暂存槽位 -->
+    <header class="toolbar">
+      <div class="slots-wrap">
+        <button type="button" class="slots-arrow slots-arrow-left" id="slots-arrow-left" title="向左滚动" aria-label="向左滚动标签">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="slots" id="slots"></div>
+        <button type="button" class="slots-arrow slots-arrow-right" id="slots-arrow-right" title="向右滚动" aria-label="向右滚动标签">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <button class="btn-icon btn-add-slot-styled" id="btn-add-slot" title="新增暂存槽">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="btn-icon" id="btn-compare" title="文本对比">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="16" rx="1"/><line x1="6" y1="9" x2="7" y2="9"/><line x1="17" y1="9" x2="18" y2="9"/></svg>
+      </button>
+      <button class="btn-icon" id="btn-ai" title="AI">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4.6L18 9.3l-4.3 1.7L12 16l-1.7-5L6 9.3l4.3-1.7L12 3Z"/><path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z"/><path d="M5 14l.7 1.8L7.5 16.5l-1.8.7L5 19l-.7-1.8-1.8-.7 1.8-.7L5 14Z"/></svg>
+      </button>
+      <button class="btn-icon" id="btn-backup" title="整体备份">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5-5 5 5"/><path d="M12 5v12"/></svg>
+      </button>
+      <button class="btn-icon" id="btn-theme" title="设置" aria-label="设置"></button>
+    </header>
+
+    <aside class="resource-drawer" id="resource-drawer" aria-label="工作区">
+      <button type="button" class="resource-collapse-handle" id="btn-resource-collapse" title="收起工作区" aria-label="收起工作区">‹</button>
+      <div class="resource-pane" id="resource-archive">
+        <div id="archive-items" class="archive-list"></div>
+        <div class="archive-footer">
+          <button type="button" class="archive-footer-btn" id="btn-archive-backup">备份</button>
+          <button type="button" class="archive-footer-btn" id="btn-restore-backup">恢复</button>
+        </div>
+      </div>
+      <div class="resource-pane" id="resource-todo" style="display:none">
+        <div class="todo-quick-row">
+          <input type="text" id="todo-quick-input" class="todo-quick-input" placeholder="添加任务..." spellcheck="false">
+          <button type="button" class="btn-mini btn-run" id="todo-quick-add">+</button>
+        </div>
+        <div class="todo-filter-row">
+          <button type="button" class="todo-filter active" data-todo-view="all">全部</button>
+          <button type="button" class="todo-filter" data-todo-view="active">未完成</button>
+          <button type="button" class="todo-filter" data-todo-view="done">已完成</button>
+          <button type="button" class="todo-filter" data-todo-view="quadrant">四象限</button>
+        </div>
+        <div id="todo-items" class="todo-list"></div>
+      </div>
+      <div class="resource-pane" id="resource-workspace" style="display:none">
+        <div class="workspace-path-row">
+          <input type="text" id="workspace-path" class="workspace-path-input" placeholder="选择工作区文件夹" spellcheck="false" readonly>
+          <button type="button" class="btn-mini" id="btn-workspace-pick">选择</button>
+        </div>
+        <div id="workspace-tree" class="workspace-tree">
+          <div class="archive-empty">选择工作区后显示文件树</div>
+        </div>
+      </div>
+    </aside>
+    <div class="side-rail">
+      <button class="side-rail-btn" id="btn-clip-board" title="剪贴板历史" aria-label="打开剪贴板历史">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+        <span>剪贴板</span>
+      </button>
+      <button class="side-rail-btn" id="btn-sketch-board" title="临时画板" aria-label="打开临时画板">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        <span>画板</span>
+      </button>
+      <button class="side-rail-btn" id="btn-calc-board" title="计算器与函数绘图" aria-label="打开计算器">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><path d="M16 14v4"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>
+        <span>计算器</span>
+      </button>
+    </div>
+    <aside class="clip-panel" id="clip-panel" aria-label="剪贴板历史">
+      <button type="button" class="sketch-collapse-handle" id="btn-clip-collapse" title="收起剪贴板" aria-label="收起剪贴板">›</button>
+      <div class="clip-panel-head">剪贴板历史</div>
+      <div id="clipboard-items" class="clipboard-items"></div>
+    </aside>
+    <aside class="sketch-panel" id="sketch-panel" aria-label="临时画板">
+      <button type="button" class="sketch-collapse-handle" id="btn-sketch-collapse" title="收起画板" aria-label="收起画板">›</button>
+      <div class="sketch-resize-handle" id="sketch-resize" title="拖动调整宽度" aria-label="拖动调整画板宽度"></div>
+      <div class="sketch-toolbar">
+        <span class="sketch-title">画板</span>
+        <div class="sketch-modes" role="group" aria-label="工具">
+          <button type="button" class="sketch-mode-btn" id="sketch-mode-hand" title="拖动画布（手型）" aria-pressed="false" aria-label="拖动画布">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+          </button>
+          <button type="button" class="sketch-mode-btn active" id="sketch-mode-pen" title="画笔" aria-pressed="true" aria-label="画笔">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+          <button type="button" class="sketch-mode-btn" id="sketch-mode-eraser" title="橡皮擦" aria-pressed="false" aria-label="橡皮擦">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l9.6-9.6a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+          </button>
+        </div>
+        <div class="sketch-shapes-wrap">
+          <button type="button" class="btn-mini sketch-shapes-btn" id="sketch-shapes-btn" title="插入图形" aria-expanded="false" aria-label="插入图形">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="11" height="11" rx="1"/><circle cx="16.5" cy="16.5" r="4.5"/></svg>
+          </button>
+          <div class="sketch-shapes-popup" id="sketch-shapes-popup" hidden>
+            <button type="button" class="sketch-shape-item" data-shape="rect" title="矩形（流程）">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12"/></svg>
+            </button>
+            <button type="button" class="sketch-shape-item" data-shape="roundRect" title="圆角矩形（开始/结束）">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="6"/></svg>
+            </button>
+            <button type="button" class="sketch-shape-item" data-shape="diamond" title="菱形（判断）">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3 21 12 12 21 3 12Z"/></svg>
+            </button>
+            <button type="button" class="sketch-shape-item" data-shape="parallelogram" title="平行四边形（数据）">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M7 5H21L17 19H3Z"/></svg>
+            </button>
+            <button type="button" class="sketch-shape-item" data-shape="ellipse" title="椭圆（连接）">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>
+            </button>
+            <button type="button" class="sketch-shape-item" data-shape="line" title="直线">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20 20 4"/></svg>
+            </button>
+            <button type="button" class="sketch-shape-item" data-shape="arrow" title="箭头（流向）">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18 20 6"/><path d="M11 6h9v9"/></svg>
+            </button>
+            <button type="button" class="sketch-shape-item" data-shape="doubleArrow" title="双箭头">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 19 5"/><path d="M19 11V5h-6"/><path d="M5 13v6h6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="sketch-settings-wrap">
+          <button type="button" class="btn-mini sketch-settings-btn" id="sketch-settings-btn" title="画笔与文字设置" aria-expanded="false" aria-label="设置">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+          <div class="sketch-settings-popup" id="sketch-settings-popup" hidden>
+            <div class="sketch-set-group">
+              <div class="sketch-set-title">画笔</div>
+              <div class="sketch-set-row">
+                <span class="sketch-set-label">颜色</span>
+                <div class="sketch-swatches" id="sketch-pen-swatches"></div>
+                <input type="color" id="sketch-color" value="#1a1b20" title="自定义颜色">
+              </div>
+              <div class="sketch-set-row">
+                <span class="sketch-set-label">粗细</span>
+                <input type="range" id="sketch-size" min="1" max="24" value="4">
+                <span class="sketch-set-val" id="sketch-size-val">4</span>
+              </div>
+            </div>
+            <div class="sketch-set-group">
+              <div class="sketch-set-title">文字</div>
+              <div class="sketch-set-row">
+                <span class="sketch-set-label">颜色</span>
+                <div class="sketch-swatches" id="sketch-text-swatches"></div>
+                <input type="color" id="sketch-text-color" value="#1a1b20" title="自定义颜色">
+              </div>
+              <div class="sketch-set-row">
+                <span class="sketch-set-label">大小</span>
+                <input type="range" id="sketch-text-size" min="12" max="72" value="24">
+                <span class="sketch-set-val" id="sketch-text-size-val">24</span>
+              </div>
+            </div>
+            <div class="sketch-set-group">
+              <div class="sketch-set-title">橡皮</div>
+              <div class="sketch-set-row">
+                <span class="sketch-set-label">大小</span>
+                <input type="range" id="sketch-eraser-size" min="4" max="80" value="16">
+                <span class="sketch-set-val" id="sketch-eraser-size-val">16</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-mini sketch-icon-btn" id="sketch-grid-toggle" title="辅助网格" aria-pressed="false" aria-label="辅助网格">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+        </button>
+        <button type="button" class="btn-mini sketch-icon-btn" id="sketch-undo" title="撤销 (Ctrl+Z)" aria-label="撤销" disabled>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
+        </button>
+        <button type="button" class="btn-mini sketch-icon-btn" id="sketch-redo" title="重做 (Ctrl+Shift+Z)" aria-label="重做" disabled>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h1"/></svg>
+        </button>
+        <button type="button" class="btn-mini" id="sketch-clear">清空</button>
+        <button type="button" class="btn-mini" id="sketch-capture" title="导出画板内容为图片，录入当前文本框">录入</button>
+      </div>
+      <div class="sketch-canvas-wrap">
+        <canvas id="sketch-canvas"></canvas>
+      </div>
+    </aside>
+    <aside class="calc-panel" id="calc-panel" aria-label="计算器与函数绘图">
+      <button type="button" class="sketch-collapse-handle" id="btn-calc-collapse" title="收起计算器" aria-label="收起计算器">›</button>
+      <div class="calc-header"><span class="sketch-title">计算器</span></div>
+      <!-- 上半：求值区（始终可见） -->
+      <div class="calc-eval">
+        <div class="calc-io">
+          <textarea id="calc-input" class="calc-input" spellcheck="false" placeholder="普通计算：  1 + 2*3    sqrt(16)    sin(pi/2)&#10;&#10;解方程：  polynomialRoot(-4, 0, 1)      // x^2-4=0 → [2, -2]，系数升幂、最高三次&#10;          lusolve([[1,1],[1,-1]], [3,1])   // 线性方程组 → [[2],[1]]&#10;&#10;普通 list 画图动画：&#10;a = [1, 2, 3, 4, 5]&#10;f(x) = a*x^2 - 4&#10;&#10;切片画图动画（[start:stop:step]，step 在最后，stop 不包含）：&#10;a = [1:100:2]&#10;f(x) = a*x^2 - 4&#10;&#10;（切到「画图」点绘制：数组变量逐帧遍历即动画）"></textarea>
+          <div id="calc-results" class="calc-results"></div>
+        </div>
+      </div>
+
+      <!-- 下半：键盘 / 画图 二选一 -->
+      <div class="calc-bottom">
+        <div class="calc-tabs" role="tablist">
+          <button type="button" class="calc-tab active" data-calc-tab="keypad">键盘</button>
+          <button type="button" class="calc-tab" data-calc-tab="plot">画图</button>
+        </div>
+
+        <div class="calc-tab-pane active" id="calc-pane-keypad">
+          <div class="calc-keypad-head">
+            <div class="calc-seg" id="calc-num-mode" role="group" title="结果按 小数 / 分数 显示">
+              <button type="button" class="calc-seg-btn active" data-val="dec">小数</button>
+              <button type="button" class="calc-seg-btn" data-val="frac">分数</button>
+            </div>
+            <div class="calc-seg" id="calc-angle-mode" role="group" title="三角函数按 弧度 / 角度 计算">
+              <button type="button" class="calc-seg-btn active" data-val="rad">弧度</button>
+              <button type="button" class="calc-seg-btn" data-val="deg">角度</button>
+            </div>
+          </div>
+          <div class="calc-keypad" id="calc-keypad">
+          <button type="button" class="calc-key fn" data-ins="sin()" data-caret="1" title="正弦">sin</button>
+          <button type="button" class="calc-key fn" data-ins="cos()" data-caret="1" title="余弦">cos</button>
+          <button type="button" class="calc-key fn" data-ins="tan()" data-caret="1" title="正切">tan</button>
+          <button type="button" class="calc-key fn" data-ins="log()" data-caret="1" title="自然对数 ln = log(x)">ln</button>
+          <button type="button" class="calc-key fn" data-ins="log10()" data-caret="1" title="常用对数 log₁₀(x)">log</button>
+
+          <button type="button" class="calc-key fn" data-ins="asin()" data-caret="1" title="反正弦">asin</button>
+          <button type="button" class="calc-key fn" data-ins="acos()" data-caret="1" title="反余弦">acos</button>
+          <button type="button" class="calc-key fn" data-ins="atan()" data-caret="1" title="反正切">atan</button>
+          <button type="button" class="calc-key fn" data-ins="exp()" data-caret="1" title="指数 e^x">exp</button>
+          <button type="button" class="calc-key fn" data-ins="abs()" data-caret="1" title="绝对值">abs</button>
+
+          <button type="button" class="calc-key fn" data-ins="floor()" data-caret="1" title="向下取整">floor</button>
+          <button type="button" class="calc-key fn" data-ins="ceil()" data-caret="1" title="向上取整">ceil</button>
+          <button type="button" class="calc-key fn" data-ins="round()" data-caret="1" title="四舍五入">round</button>
+          <button type="button" class="calc-key fn" data-ins="min()" data-caret="1" title="最小值">min</button>
+          <button type="button" class="calc-key fn" data-ins="max()" data-caret="1" title="最大值">max</button>
+
+          <button type="button" class="calc-key fn" data-ins="sqrt()" data-caret="1" title="平方根">√</button>
+          <button type="button" class="calc-key op" data-ins="^" title="幂">^</button>
+          <button type="button" class="calc-key fn" data-ins="pi" title="圆周率 π">π</button>
+          <button type="button" class="calc-key fn" data-ins="e" title="自然常数 e">e</button>
+          <button type="button" class="calc-key fn" data-ins="f()" data-caret="1" title="调用已定义的函数 f">f()</button>
+
+          <button type="button" class="calc-key fn" data-ins="sum()" data-caret="1" title="求和">sum</button>
+          <button type="button" class="calc-key fn" data-ins="mean()" data-caret="1" title="平均值">mean</button>
+          <button type="button" class="calc-key fn" data-ins="median()" data-caret="1" title="中位数">median</button>
+          <button type="button" class="calc-key fn" data-ins="std()" data-caret="1" title="标准差">std</button>
+          <button type="button" class="calc-key fn" data-ins="nthRoot(,)" data-caret="2" title="n 次方根">root</button>
+
+          <button type="button" class="calc-key fn" data-ins="sinh()" data-caret="1" title="双曲正弦">sinh</button>
+          <button type="button" class="calc-key fn" data-ins="cosh()" data-caret="1" title="双曲余弦">cosh</button>
+          <button type="button" class="calc-key fn" data-ins="tanh()" data-caret="1" title="双曲正切">tanh</button>
+          <button type="button" class="calc-key fn" data-ins="sign()" data-caret="1" title="符号函数">sign</button>
+          <button type="button" class="calc-key fn" data-ins="factorial()" data-caret="1" title="阶乘">n!</button>
+
+          <button type="button" class="calc-key fn" data-ins="gcd(,)" data-caret="2" title="最大公约数">gcd</button>
+          <button type="button" class="calc-key fn" data-ins="lcm(,)" data-caret="2" title="最小公倍数">lcm</button>
+          <button type="button" class="calc-key fn" data-ins="mod(,)" data-caret="2" title="取模">mod</button>
+          <button type="button" class="calc-key fn" data-ins="random()" data-caret="1" title="随机数">rand</button>
+          <button type="button" class="calc-key fn" data-ins="matrix([])" data-caret="2" title="矩阵">mat</button>
+
+          <button type="button" class="calc-key var" data-ins="x">x</button>
+          <button type="button" class="calc-key var" data-ins="y">y</button>
+          <button type="button" class="calc-key op" data-ins="(">(</button>
+          <button type="button" class="calc-key op" data-ins=")">)</button>
+          <button type="button" class="calc-key op" data-ins=",">,</button>
+
+          <button type="button" class="calc-key num" data-ins="7">7</button>
+          <button type="button" class="calc-key num" data-ins="8">8</button>
+          <button type="button" class="calc-key num" data-ins="9">9</button>
+          <button type="button" class="calc-key op" data-ins="/">/</button>
+          <button type="button" class="calc-key op" data-ins="*">*</button>
+
+          <button type="button" class="calc-key num" data-ins="4">4</button>
+          <button type="button" class="calc-key num" data-ins="5">5</button>
+          <button type="button" class="calc-key num" data-ins="6">6</button>
+          <button type="button" class="calc-key op" data-ins="+">+</button>
+          <button type="button" class="calc-key op" data-ins="-">-</button>
+
+          <button type="button" class="calc-key num" data-ins="1">1</button>
+          <button type="button" class="calc-key num" data-ins="2">2</button>
+          <button type="button" class="calc-key num" data-ins="3">3</button>
+          <button type="button" class="calc-key op" data-ins="=">=</button>
+          <button type="button" class="calc-key ctrl" data-act="clear" title="清空全部">C</button>
+
+          <button type="button" class="calc-key num k-wide" data-ins="0">0</button>
+          <button type="button" class="calc-key num" data-ins=".">.</button>
+          <button type="button" class="calc-key ctrl k-wide" data-act="back" title="退格">⌫</button>
+          </div>
+        </div>
+
+        <div class="calc-tab-pane" id="calc-pane-plot">
+          <div class="calc-plot-head">
+            <span id="calc-anim-label" class="calc-anim-label"></span>
+            <button type="button" class="btn-mini" id="calc-draw">绘制</button>
+            <label class="calc-anim-set">间隔 <input type="number" id="calc-anim-ms" min="60" step="50" value="500"> ms</label>
+            <button type="button" class="btn-mini" id="calc-plot-clear">清图</button>
+          </div>
+          <div id="calc-legend" class="calc-legend"></div>
+          <div id="calc-board" class="jxgbox calc-board"></div>
+        </div>
+      </div>
+    </aside>
+    <!-- 编辑区（Python 模式下左右分栏） -->
+    <div class="edit-area" id="edit-area">
+      <div id="editor-grid" class="editor-grid" data-cols="1">
+        <div class="editor-pane active" data-pane="0">
+          <div class="editor-wrap">
+            <div id="line-numbers" class="line-numbers">1</div>
+            <div class="editor-main">
+              <div id="editor-highlight" class="editor-highlight" aria-hidden="true"><div class="eh-content"></div></div>
+              <textarea id="editor" placeholder="在此输入或粘贴文本..."></textarea>
+              <div id="fr-nav" class="fr-nav" style="display:none">
+                <button type="button" id="fr-prev" class="fr-nav-btn" title="上一个 (Shift+Enter)">‹</button>
+                <span id="fr-counter" class="fr-nav-counter">0 / 0</span>
+                <button type="button" id="fr-next" class="fr-nav-btn" title="下一个 (Enter)">›</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="col-resize-handle" class="col-resize-handle" style="display:none" title="拖拽调整左右宽度"></div>
+      <div id="python-output-panel" class="python-output-panel" style="display:none">
+        <pre id="python-output" class="python-output"></pre>
+      </div>
+      <div id="js-output-panel" class="python-output-panel" style="display:none">
+        <pre id="js-output" class="python-output"></pre>
+      </div>
+      <div id="md-preview-panel" class="md-preview-panel" style="display:none">
+        <div id="md-preview" class="md-preview"></div>
+      </div>
+      <div id="csv-preview-panel" class="csv-preview-panel" style="display:none">
+        <div class="csv-panel-head">
+          <label class="csv-delimiter-control">
+            <span>分隔符</span>
+            <input type="text" id="csv-delimiter" value="," spellcheck="false" aria-label="CSV 分隔符">
+          </label>
+          <label class="csv-size-control">
+            <span>行</span>
+            <input type="number" id="csv-template-rows" min="1" max="500" step="1" inputmode="numeric" aria-label="CSV 行数">
+          </label>
+          <label class="csv-size-control">
+            <span>列</span>
+            <input type="number" id="csv-template-cols" min="1" max="200" step="1" inputmode="numeric" aria-label="CSV 列数">
+          </label>
+          <label class="csv-header-toggle">
+            <input type="checkbox" id="csv-first-row-header" checked>
+            <span>首行作为表头</span>
+          </label>
+          <label class="csv-header-toggle">
+            <input type="checkbox" id="csv-wrap-cells">
+            <span>自动换行</span>
+          </label>
+        </div>
+        <div class="csv-toolbar">
+          <button type="button" class="btn-mini" id="csv-stats">统计</button>
+          <button type="button" class="btn-mini" id="csv-chart">画图</button>
+          <button type="button" class="btn-mini" id="csv-insert-row-above">加上行</button>
+          <button type="button" class="btn-mini" id="csv-insert-row-below">加下行</button>
+          <button type="button" class="btn-mini" id="csv-insert-col-left">加左列</button>
+          <button type="button" class="btn-mini" id="csv-insert-col-right">加右列</button>
+          <button type="button" class="btn-mini" id="csv-delete-row">删除行</button>
+          <button type="button" class="btn-mini" id="csv-delete-col">删除列</button>
+          <button type="button" class="btn-mini" id="csv-hide-col">隐藏列</button>
+          <button type="button" class="btn-mini" id="csv-show-cols">显示全部列</button>
+        </div>
+        <div id="csv-stats-output" class="csv-stats-output"></div>
+        <div id="csv-preview" class="csv-preview"></div>
+      </div>
+      <div id="html-preview-panel" class="md-preview-panel" style="display:none">
+        <iframe id="html-preview" class="html-preview" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals" referrerpolicy="no-referrer"></iframe>
+      </div>
+      <div id="ai-panel" class="ai-panel" style="display:none"></div>
+      <div id="compare-panel" class="compare-panel" style="display:none">
+        <div class="compare-cols">
+          <div class="compare-col" id="compare-left"></div>
+          <div class="compare-mid" id="compare-mid"></div>
+          <div class="compare-edit-box" id="compare-edit-left" style="display:none">
+            <div class="line-numbers" id="compare-ln-left">1</div>
+            <textarea id="compare-input-left" class="compare-ta" placeholder="编辑左侧（源）…" spellcheck="false"></textarea>
+          </div>
+          <div class="col-resize-handle" id="compare-resize" title="拖拽调整左右宽度"></div>
+          <div class="compare-col compare-col-right" id="compare-right"></div>
+          <div class="compare-edit-box compare-edit-right" id="compare-edit-right" style="display:none">
+            <div class="line-numbers" id="compare-ln-right">1</div>
+            <textarea id="compare-input" class="compare-ta" placeholder="点此输入/粘贴对比文本…" spellcheck="false"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="resize-handle" id="resize-handle"></div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+      <div class="status-left">
+        <div class="lang-picker" id="lang-picker" title="语言类型">
+          <button type="button" class="lang-picker-current" id="lang-picker-current">纯文本</button>
+          <div class="lang-picker-menu" id="lang-picker-menu"></div>
+        </div>
+        <select id="lang-select" class="lang-select" title="语言类型" aria-hidden="true" tabindex="-1">
+          <option value="">纯文本</option>
+          <option value="json">JSON</option>
+          <option value="python">Python</option>
+          <option value="js">JavaScript</option>
+          <option value="html">HTML</option>
+          <option value="markdown">Markdown</option>
+          <option value="csv">CSV</option>
+          <option value="yaml">YAML</option>
+        </select>
+        <div class="split-buttons" id="split-buttons" title="分列显示文本槽">
+          <button type="button" class="split-btn active" data-cols="1">1</button>
+          <button type="button" class="split-btn" data-cols="2">2</button>
+          <button type="button" class="split-btn" data-cols="3">3</button>
+          <button type="button" class="split-btn" data-cols="4">4</button>
+        </div>
+        <span id="char-count">0 字符 / 0 行</span>
+      </div>
+      <div class="status-actions">
+        <!-- 代码模式按钮（按语言显示） -->
+        <button class="btn-mini btn-run" id="btn-run-python" style="display:none">▶</button>
+        <button class="btn-mini" id="btn-kill-python" style="display:none">■ 中断</button>
+        <button class="btn-mini btn-run" id="btn-run-js" style="display:none">▶</button>
+        <button class="btn-mini" id="btn-kill-js" style="display:none">■ 中断</button>
+        <button class="btn-mini btn-run" id="btn-run-md" style="display:none">▶</button>
+        <button class="btn-mini btn-run" id="btn-run-html" style="display:none">▶</button>
+        <button class="btn-mini" id="btn-format-lang" style="display:none">格式化</button>
+        <button class="btn-mini" id="btn-json-minify" style="display:none">压缩</button>
+        <button class="btn-mini" id="btn-clear-output" style="display:none">清空</button>
+        <button class="btn-mini" id="btn-copy-html" style="display:none">复制HTML</button>
+
+        <input id="python-timeout" type="hidden" value="30">
+        <span class="status-sep" id="python-sep" style="display:none">|</span>
+        <!-- 通用按钮 -->
+        <button class="btn-mini" id="btn-reset-layout" title="恢复排版">↺</button>
+        <button class="btn-mini" id="btn-wrap-toggle" title="切换自动换行">自动换行：开</button>
+        <button class="btn-mini" id="btn-undo-status" title="撤销 (Ctrl+Z)">撤销</button>
+        <button class="btn-mini" id="btn-redo-status" title="重做 (Ctrl+Y)">重做</button>
+        <button class="btn-mini" id="btn-archive">归档</button>
+        <button class="btn-mini" id="btn-create-todo" title="将当前内容创建为提醒，可选提醒时间">提醒</button>
+        <button class="btn-mini" id="btn-pin-slot" title="将当前文本槽钉住到桌面">钉住</button>
+        <button class="btn-mini" id="btn-export">导出</button>
+      </div>
+    </div>
+
+    <!-- 操作面板 -->
+    <div class="tools" id="tools-panel">
+      <!-- Tab: 基础工具 -->
+      <div class="tool-tab-pane" id="tab-basic">
+        <div id="md-tools" style="display:none">
+          <div class="codec-grid">
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#6c8ef0"></span>
+                <span class="codec-card-title">标题</span>
+              </div>
+              <div class="codec-card-desc">插入 Markdown 标题。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-md-op="h1" title="行首加 #">一级</button>
+                <button class="btn-basic-run ghost" data-md-op="h2" title="行首加 ##">二级</button>
+                <button class="btn-basic-run ghost" data-md-op="h3" title="行首加 ###">三级</button>
+              </div>
+            </div>
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#5bb8c4"></span>
+                <span class="codec-card-title">列表</span>
+              </div>
+              <div class="codec-card-desc">转换列表或任务选择。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-md-op="bullet" title="行首加 -">无序</button>
+                <button class="btn-basic-run ghost" data-md-op="ordered" title="行首加 1.">有序</button>
+                <button class="btn-basic-run ghost" data-md-op="task" title="行首加 - [ ]">选择</button>
+              </div>
+            </div>
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#9c7af5"></span>
+                <span class="codec-card-title">强调</span>
+              </div>
+              <div class="codec-card-desc">包裹强调标记。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-md-op="bold" title="**文本**">加粗</button>
+                <button class="btn-basic-run ghost" data-md-op="italic" title="*文本*">斜体</button>
+                <button class="btn-basic-run ghost" data-md-op="strikethrough" title="~~文本~~">删除线</button>
+                <button class="btn-basic-run ghost" data-md-op="inlinecode" title="`文本`">行内码</button>
+              </div>
+            </div>
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#6fbf8b"></span>
+                <span class="codec-card-title">块</span>
+              </div>
+              <div class="codec-card-desc">插入代码块、引用或分割线。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-md-op="codeblock" title="``` 包裹">代码块</button>
+                <button class="btn-basic-run ghost" data-md-op="mermaid" title="```mermaid 包裹">流程图</button>
+                <button class="btn-basic-run ghost" data-md-op="blockquote" title="行首加 &gt;">引用</button>
+                <button class="btn-basic-run ghost" data-md-op="hr" title="插入 ---">分割线</button>
+              </div>
+            </div>
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#58a6a6"></span>
+                <span class="codec-card-title">扩展</span>
+              </div>
+              <div class="codec-card-desc">包裹扩展 Markdown 标记。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-md-op="sup" title="<sup>文本</sup>">上标</button>
+                <button class="btn-basic-run ghost" data-md-op="sub" title="<sub>文本</sub>">下标</button>
+                <button class="btn-basic-run ghost" data-md-op="comment" title="<small>注：文本</small>">注释</button>
+              </div>
+            </div>
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#d89b4a"></span>
+                <span class="codec-card-title">表格</span>
+              </div>
+              <div class="codec-card-desc">逗号分割内容转 Markdown 表格。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-md-op="csvtable" title="首行作为表头">CSV 转表格</button>
+              </div>
+            </div>
+          </div>
+          <div class="basic-divider"></div>
+        </div>
+
+        <div id="lang-tools-code" style="display:none">
+          <div class="codec-grid">
+            <div class="codec-card" id="code-tools-format">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#6c8ef0"></span>
+                <span class="codec-card-title">格式化</span>
+              </div>
+              <div class="codec-card-desc">美化代码排版。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-code-op="format">格式化</button>
+              </div>
+            </div>
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#5bb8c4"></span>
+                <span class="codec-card-title">命名</span>
+              </div>
+              <div class="codec-card-desc">转换命名风格。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-code-op="camel" title="camelCase">驼峰</button>
+                <button class="btn-basic-run ghost" data-code-op="snake" title="snake_case">下划线</button>
+                <button class="btn-basic-run ghost" data-code-op="kebab" title="kebab-case">中横线</button>
+              </div>
+            </div>
+          </div>
+          <div class="basic-divider"></div>
+        </div>
+
+        <div id="lang-tools-json" style="display:none">
+          <div class="codec-grid">
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#6c8ef0"></span>
+                <span class="codec-card-title">格式化</span>
+              </div>
+              <div class="codec-card-desc">格式化或压缩 JSON。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-json-op="format">格式化</button>
+                <button class="btn-basic-run ghost" data-json-op="minify">压缩</button>
+              </div>
+            </div>
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#5bb8c4"></span>
+                <span class="codec-card-title">转换</span>
+              </div>
+              <div class="codec-card-desc">JSON 转 YAML。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-json-op="toYaml">转为 YAML</button>
+              </div>
+            </div>
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#9c7af5"></span>
+                <span class="codec-card-title">包裹</span>
+              </div>
+              <div class="codec-card-desc">调整外层结构。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-json-op="toArray" title="包成 []">转数组</button>
+                <button class="btn-basic-run ghost" data-json-op="wrapObject" title="包成对象">加 {}</button>
+                <button class="btn-basic-run ghost" data-json-op="unwrap" title="拆掉外层">去外层</button>
+              </div>
+            </div>
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#6fbf8b"></span>
+                <span class="codec-card-title">命名</span>
+              </div>
+              <div class="codec-card-desc">转换键名风格。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-json-op="camel" title="camelCase">驼峰</button>
+                <button class="btn-basic-run ghost" data-json-op="snake" title="snake_case">下划线</button>
+                <button class="btn-basic-run ghost" data-json-op="kebab" title="kebab-case">中横线</button>
+              </div>
+            </div>
+          </div>
+          <div class="basic-divider"></div>
+        </div>
+
+        <div id="lang-tools-yaml" style="display:none">
+          <div class="codec-grid">
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#5bb8c4"></span>
+                <span class="codec-card-title">转换</span>
+              </div>
+              <div class="codec-card-desc">YAML 转 JSON。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-yaml-op="toJson">转为 JSON</button>
+              </div>
+            </div>
+          </div>
+          <div class="basic-divider"></div>
+        </div>
+
+        <div id="lang-tools-html" style="display:none">
+          <div class="codec-grid">
+            <div class="codec-card">
+              <div class="codec-card-top">
+                <span class="codec-card-badge" style="background:#6c8ef0"></span>
+                <span class="codec-card-title">格式化</span>
+              </div>
+              <div class="codec-card-desc">美化 HTML 排版。</div>
+              <div class="codec-card-foot">
+                <button class="btn-basic-run" data-op="htmlFormat" data-label="HTML格式化">格式化</button>
+              </div>
+            </div>
+          </div>
+          <div class="basic-divider"></div>
+        </div>
+
+        <div class="codec-grid">
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#6c8ef0"></span>
+              <span class="codec-card-title">空白行</span>
+            </div>
+            <div class="codec-card-desc">删除或插入空白行。</div>
+            <div class="codec-card-foot">
+              <button class="btn-basic-run" data-op="removeEmptyLines" data-label="删除空行">删除空行</button>
+              <button class="btn-basic-run ghost" data-op="addLineSpacing" data-label="插入空行">插入空行</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#5bb8c4"></span>
+              <span class="codec-card-title">行排序</span>
+            </div>
+            <div class="codec-card-desc">按行升序或降序。</div>
+            <div class="codec-card-foot">
+              <button class="btn-basic-run" data-op="sortLinesAsc" data-label="按首字排序(升)">升序</button>
+              <button class="btn-basic-run ghost" data-op="sortLinesDesc" data-label="按首字排序(降)">降序</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#9c7af5"></span>
+              <span class="codec-card-title">行编号</span>
+            </div>
+            <div class="codec-card-desc">处理行首编号。</div>
+            <div class="codec-card-foot">
+              <button class="btn-basic-run" data-op="addLineNumbers" data-label="有序行编号">有序</button>
+              <button class="btn-basic-run ghost" data-op="addBulletPoints" data-label="无序行编号">无序</button>
+              <button class="btn-basic-run ghost" data-op="removeLineNumbers" data-label="删除行编号">删除</button>
+              <button class="btn-basic-run ghost" data-op="prependRandomEmoji" data-label="随机行首 Emoji">Emoji</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#6fbf8b"></span>
+              <span class="codec-card-title">行整合</span>
+            </div>
+            <div class="codec-card-desc">合并或去重行。</div>
+            <div class="codec-card-foot">
+              <button class="btn-basic-run" data-op="removeLineBreaks" data-label="合并为一行">合并</button>
+              <button class="btn-basic-run ghost" data-op="dedupeLines" data-label="行去重">去重</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#d9b25c"></span>
+              <span class="codec-card-title">空格</span>
+            </div>
+            <div class="codec-card-desc">清理空格与 Tab。</div>
+            <div class="codec-card-foot">
+              <button class="btn-basic-run" data-op="trimLines" data-label="去除首尾空格" title="去每行首尾空格">首尾</button>
+              <button class="btn-basic-run ghost" data-op="removeAllSpaces" data-label="去除所有空格" title="删除全部空格">全删</button>
+              <button class="btn-basic-run ghost" data-op="normalizeSpaces" data-label="多余空格→单空格" title="连续空格合一">压缩</button>
+              <button class="btn-basic-run ghost" data-op="tabToSpace" data-label="Tab转空格" title="Tab 换成空格">Tab</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#d9788a"></span>
+              <span class="codec-card-title">字母</span>
+            </div>
+            <div class="codec-card-desc">转换英文大小写。</div>
+            <div class="codec-card-foot">
+              <button class="btn-basic-run" data-op="toUpperCase" data-label="英文转大写">大写</button>
+              <button class="btn-basic-run ghost" data-op="toLowerCase" data-label="英文转小写">小写</button>
+              <button class="btn-basic-run ghost" data-op="capitalizeWords" data-label="首字母大写" title="单词首字母大写">首字母</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#c58ef0"></span>
+              <span class="codec-card-title">标点</span>
+            </div>
+            <div class="codec-card-desc">中英文标点互转。</div>
+            <div class="codec-card-foot">
+              <button class="btn-basic-run" data-op="enPunctToZh" data-label="英文符号→中文">中文</button>
+              <button class="btn-basic-run ghost" data-op="zhPunctToEn" data-label="中文符号→英文">英文</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#62b6a8"></span>
+              <span class="codec-card-title">缩进</span>
+            </div>
+            <div class="codec-card-desc">调整行缩进。</div>
+            <div class="codec-card-foot">
+              <button class="btn-basic-run" data-op="outdentSpace" data-label="空格左缩进" title="减少空格缩进">空格&larr;</button>
+              <button class="btn-basic-run ghost" data-op="indentSpace" data-label="空格右缩进" title="增加空格缩进">空格&rarr;</button>
+              <button class="btn-basic-run ghost" data-op="outdentTab" data-label="Tab左缩进" title="减少 Tab 缩进">Tab&larr;</button>
+              <button class="btn-basic-run ghost" data-op="indentTab" data-label="Tab右缩进" title="增加 Tab 缩进">Tab&rarr;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 表情符号 -->
+      <div class="tool-tab-pane" id="tab-emoji" style="display:none">
+        <div class="tool-group">
+          <div class="tool-header">
+            <div class="tool-color-bar" style="background:#e88fa0"></div>
+            <div class="tool-title">Emoji</div>
+          </div>
+          <div class="tool-buttons emoji-panel">
+            <button class="btn-emoji" data-v="✨" title="闪光 ✨">✨</button>
+            <button class="btn-emoji" data-v="🔥" title="火 🔥">🔥</button>
+            <button class="btn-emoji" data-v="💯" title="满分 💯">💯</button>
+            <button class="btn-emoji" data-v="🎉" title="庆祝 🎉">🎉</button>
+            <button class="btn-emoji" data-v="🎊" title="撒花 🎊">🎊</button>
+            <button class="btn-emoji" data-v="💕" title="两颗心 💕">💕</button>
+            <button class="btn-emoji" data-v="❤️" title="红心 ❤️">❤️</button>
+            <button class="btn-emoji" data-v="🌟" title="发光星 🌟">🌟</button>
+            <button class="btn-emoji" data-v="💫" title="闪星 💫">💫</button>
+            <button class="btn-emoji" data-v="⭐" title="星星 ⭐">⭐</button>
+            <button class="btn-emoji" data-v="🫶" title="爱心手 🫶">🫶</button>
+            <button class="btn-emoji" data-v="💖" title="闪耀心 💖">💖</button>
+            <button class="btn-emoji" data-v="🎀" title="蝴蝶结 🎀">🎀</button>
+            <button class="btn-emoji" data-v="📍" title="定位 📍">📍</button>
+            <button class="btn-emoji" data-v="💌" title="情书 💌">💌</button>
+            <button class="btn-emoji" data-v="🌈" title="彩虹 🌈">🌈</button>
+            <button class="btn-emoji" data-v="😊" title="开心 😊">😊</button>
+            <button class="btn-emoji" data-v="😍" title="爱心眼 😍">😍</button>
+            <button class="btn-emoji" data-v="🥰" title="爱意满满 🥰">🥰</button>
+            <button class="btn-emoji" data-v="😘" title="飞吻 😘">😘</button>
+            <button class="btn-emoji" data-v="🤩" title="星星眼 🤩">🤩</button>
+            <button class="btn-emoji" data-v="🥺" title="委屈 🥺">🥺</button>
+            <button class="btn-emoji" data-v="😭" title="大哭 😭">😭</button>
+            <button class="btn-emoji" data-v="😆" title="开怀大笑 😆">😆</button>
+            <button class="btn-emoji" data-v="🤗" title="拥抱 🤗">🤗</button>
+            <button class="btn-emoji" data-v="🫠" title="融化 🫠">🫠</button>
+            <button class="btn-emoji" data-v="💀" title="笑死了 💀">💀</button>
+            <button class="btn-emoji" data-v="😎" title="酷 😎">😎</button>
+            <button class="btn-emoji" data-v="🌸" title="樱花 🌸">🌸</button>
+            <button class="btn-emoji" data-v="🌺" title="芙蓉 🌺">🌺</button>
+            <button class="btn-emoji" data-v="🌻" title="向日葵 🌻">🌻</button>
+            <button class="btn-emoji" data-v="🌹" title="玫瑰 🌹">🌹</button>
+            <button class="btn-emoji" data-v="🌷" title="郁金香 🌷">🌷</button>
+            <button class="btn-emoji" data-v="🍀" title="四叶草 🍀">🍀</button>
+            <button class="btn-emoji" data-v="🌿" title="绿植 🌿">🌿</button>
+            <button class="btn-emoji" data-v="🍃" title="树叶 🍃">🍃</button>
+            <button class="btn-emoji" data-v="🌙" title="月亮 🌙">🌙</button>
+            <button class="btn-emoji" data-v="☀️" title="太阳 ☀️">☀️</button>
+            <button class="btn-emoji" data-v="🌊" title="海浪 🌊">🌊</button>
+            <button class="btn-emoji" data-v="🍁" title="枫叶 🍁">🍁</button>
+            <button class="btn-emoji" data-v="🍓" title="草莓 🍓">🍓</button>
+            <button class="btn-emoji" data-v="🍒" title="樱桃 🍒">🍒</button>
+            <button class="btn-emoji" data-v="🍑" title="桃子 🍑">🍑</button>
+            <button class="btn-emoji" data-v="🧋" title="奶茶 🧋">🧋</button>
+            <button class="btn-emoji" data-v="☕" title="咖啡 ☕">☕</button>
+            <button class="btn-emoji" data-v="🍰" title="蛋糕 🍰">🍰</button>
+            <button class="btn-emoji" data-v="🎂" title="生日蛋糕 🎂">🎂</button>
+            <button class="btn-emoji" data-v="🍵" title="抹茶 🍵">🍵</button>
+            <button class="btn-emoji" data-v="🥤" title="饮料 🥤">🥤</button>
+            <button class="btn-emoji" data-v="🍭" title="棒棒糖 🍭">🍭</button>
+            <button class="btn-emoji" data-v="💄" title="口红 💄">💄</button>
+            <button class="btn-emoji" data-v="💅" title="美甲 💅">💅</button>
+            <button class="btn-emoji" data-v="💎" title="钻石 💎">💎</button>
+            <button class="btn-emoji" data-v="💍" title="戒指 💍">💍</button>
+            <button class="btn-emoji" data-v="🛍️" title="购物袋 🛍️">🛍️</button>
+            <button class="btn-emoji" data-v="📸" title="拍照 📸">📸</button>
+            <button class="btn-emoji" data-v="👗" title="裙子 👗">👗</button>
+            <button class="btn-emoji" data-v="👠" title="高跟鞋 👠">👠</button>
+            <button class="btn-emoji" data-v="🧴" title="护肤品 🧴">🧴</button>
+            <button class="btn-emoji" data-v="🪞" title="镜子 🪞">🪞</button>
+            <button class="btn-emoji" data-v="👏" title="鼓掌 👏">👏</button>
+            <button class="btn-emoji" data-v="🙌" title="双手举 🙌">🙌</button>
+            <button class="btn-emoji" data-v="👍" title="点赞 👍">👍</button>
+            <button class="btn-emoji" data-v="💪" title="加油 💪">💪</button>
+            <button class="btn-emoji" data-v="🙏" title="感谢 🙏">🙏</button>
+            <button class="btn-emoji" data-v="✌️" title="剪刀手 ✌️">✌️</button>
+            <button class="btn-emoji" data-v="🤞" title="祈愿 🤞">🤞</button>
+            <button class="btn-emoji" data-v="👆" title="向上指 👆">👆</button>
+          </div>
+        </div>
+
+        <div class="tool-group">
+          <div class="tool-header">
+            <div class="tool-color-bar" style="background:#6fbf8b"></div>
+            <div class="tool-title">表情</div>
+          </div>
+          <div class="tool-buttons emoticon-panel">
+            <button class="btn-emoticon" data-v="^_^" title="开心">^_^</button>
+            <button class="btn-emoticon" data-v="^o^" title="欢呼">^o^</button>
+            <button class="btn-emoticon" data-v="^w^" title="可爱开心">^w^</button>
+            <button class="btn-emoticon" data-v=">_<" title="捂脸/委屈">&gt;_&lt;</button>
+            <button class="btn-emoticon" data-v="T_T" title="哭泣">T_T</button>
+            <button class="btn-emoticon" data-v=";_;" title="哭泣">;_;</button>
+            <button class="btn-emoticon" data-v="-_-" title="无语">-_-</button>
+            <button class="btn-emoticon" data-v="=_=" title="困了">=_=</button>
+            <button class="btn-emoticon" data-v="o_o" title="惊讶">o_o</button>
+            <button class="btn-emoticon" data-v="O_O" title="震惊">O_O</button>
+            <button class="btn-emoticon" data-v="@_@" title="晕了">@_@</button>
+            <button class="btn-emoticon" data-v=">_>" title="斜眼">&gt;_&gt;</button>
+            <button class="btn-emoticon" data-v="UwU" title="撒娇">UwU</button>
+            <button class="btn-emoticon" data-v="OwO" title="惊喜">OwO</button>
+            <button class="btn-emoticon" data-v="QwQ" title="委屈哭">QwQ</button>
+            <button class="btn-emoticon" data-v=":3" title="猫脸微笑">:3</button>
+            <button class="btn-emoticon" data-v="XD" title="笑死">XD</button>
+            <button class="btn-emoticon" data-v=":-)" title="微笑">:-)</button>
+            <button class="btn-emoticon" data-v=";-)" title="眨眼">;-)</button>
+            <button class="btn-emoticon" data-v=":-P" title="吐舌">:-P</button>
+            <button class="btn-emoticon" data-v=":-D" title="大笑">:-D</button>
+            <button class="btn-emoticon" data-v=":-(" title="难过">:-(</button>
+            <button class="btn-emoticon" data-v="(^_^;)" title="尴尬">(^_^;)</button>
+            <button class="btn-emoticon" data-v="(*^▽^*)" title="超开心">(*^▽^*)</button>
+            <button class="btn-emoticon" data-v="(≧▽≦)" title="非常开心">(≧▽≦)</button>
+            <button class="btn-emoticon" data-v="(╥﹏╥)" title="哭哭">(╥﹏╥)</button>
+            <button class="btn-emoticon" data-v="(´∀`)" title="开心">(´∀`)</button>
+            <button class="btn-emoticon" data-v="(´・ω・`)" title="沮丧">(´・ω・`)</button>
+            <button class="btn-emoticon" data-v="(￣▽￣)" title="得意">(￣▽￣)</button>
+            <button class="btn-emoticon" data-v="(ノ°益°)ノ" title="暴怒">(ノ°益°)ノ</button>
+            <button class="btn-emoticon" data-v="¯\_(ツ)_/¯" title="无所谓">¯\_(ツ)_/¯</button>
+            <button class="btn-emoticon" data-v="( ͡° ͜ʖ ͡°)" title="Lenny">( ͡° ͜ʖ ͡°)</button>
+            <button class="btn-emoticon" data-v="(╯°□°）╯︵ ┻━┻" title="掀桌">(╯°□°）╯︵ ┻━┻</button>
+            <button class="btn-emoticon" data-v="┬─┬ノ(ಠ_ಠノ)" title="放回桌子">┬─┬ノ(ಠ_ಠノ)</button>
+          </div>
+        </div>
+
+        <div class="tool-group">
+          <div class="tool-header">
+            <div class="tool-color-bar" style="background:#d9b25c"></div>
+            <div class="tool-title">符号</div>
+          </div>
+          <div class="tool-buttons emoji-panel">
+            <button class="btn-emoji" data-v="×" title="乘号">×</button>
+            <button class="btn-emoji" data-v="÷" title="除号">÷</button>
+            <button class="btn-emoji" data-v="±" title="正负号">±</button>
+            <button class="btn-emoji" data-v="≈" title="约等于">≈</button>
+            <button class="btn-emoji" data-v="≠" title="不等于">≠</button>
+            <button class="btn-emoji" data-v="≤" title="小于等于">≤</button>
+            <button class="btn-emoji" data-v="≥" title="大于等于">≥</button>
+            <button class="btn-emoji" data-v="∞" title="无穷大">∞</button>
+            <button class="btn-emoji" data-v="√" title="根号">√</button>
+            <button class="btn-emoji" data-v="∑" title="求和">∑</button>
+            <button class="btn-emoji" data-v="∏" title="求积">∏</button>
+            <button class="btn-emoji" data-v="∫" title="积分">∫</button>
+            <button class="btn-emoji" data-v="∂" title="偏导">∂</button>
+            <button class="btn-emoji" data-v="Δ" title="Delta/变化量">Δ</button>
+            <button class="btn-emoji" data-v="∇" title="梯度算子">∇</button>
+            <button class="btn-emoji" data-v="°" title="度">°</button>
+            <button class="btn-emoji" data-v="‰" title="千分号">‰</button>
+            <button class="btn-emoji" data-v="→" title="右箭头">→</button>
+            <button class="btn-emoji" data-v="←" title="左箭头">←</button>
+            <button class="btn-emoji" data-v="↑" title="上箭头">↑</button>
+            <button class="btn-emoji" data-v="↓" title="下箭头">↓</button>
+            <button class="btn-emoji" data-v="↔" title="左右箭头">↔</button>
+            <button class="btn-emoji" data-v="↕" title="上下箭头">↕</button>
+            <button class="btn-emoji" data-v="⇒" title="双线右箭头">⇒</button>
+            <button class="btn-emoji" data-v="⇐" title="双线左箭头">⇐</button>
+            <button class="btn-emoji" data-v="⇔" title="双线左右箭头">⇔</button>
+            <button class="btn-emoji" data-v="↩" title="回车箭头">↩</button>
+            <button class="btn-emoji" data-v="↪" title="弯曲右箭头">↪</button>
+            <button class="btn-emoji" data-v="…" title="省略号">…</button>
+            <button class="btn-emoji" data-v="—" title="破折号">—</button>
+            <button class="btn-emoji" data-v="–" title="短横线">–</button>
+            <button class="btn-emoji" data-v="·" title="居中点">·</button>
+            <button class="btn-emoji" data-v="•" title="实心圆点">•</button>
+            <button class="btn-emoji" data-v="§" title="章节号">§</button>
+            <button class="btn-emoji" data-v="¶" title="段落标记">¶</button>
+            <button class="btn-emoji" data-v="※" title="注意符">※</button>
+            <button class="btn-emoji" data-v="©" title="版权">©</button>
+            <button class="btn-emoji" data-v="®" title="注册商标">®</button>
+            <button class="btn-emoji" data-v="™" title="商标">™</button>
+            <button class="btn-emoji" data-v="℃" title="摄氏度">℃</button>
+            <button class="btn-emoji" data-v="℉" title="华氏度">℉</button>
+            <button class="btn-emoji" data-v="€" title="欧元">€</button>
+            <button class="btn-emoji" data-v="£" title="英镑">£</button>
+            <button class="btn-emoji" data-v="¥" title="日元/人民币">¥</button>
+            <button class="btn-emoji" data-v="₹" title="卢比">₹</button>
+            <button class="btn-emoji" data-v="₿" title="比特币">₿</button>
+            <button class="btn-emoji" data-v="★" title="实心星">★</button>
+            <button class="btn-emoji" data-v="☆" title="空心星">☆</button>
+            <button class="btn-emoji" data-v="♥" title="实心心">♥</button>
+            <button class="btn-emoji" data-v="♦" title="实心菱形">♦</button>
+            <button class="btn-emoji" data-v="♣" title="梅花">♣</button>
+            <button class="btn-emoji" data-v="♠" title="黑桃">♠</button>
+            <button class="btn-emoji" data-v="✓" title="对勾">✓</button>
+            <button class="btn-emoji" data-v="✗" title="叉号">✗</button>
+            <button class="btn-emoji" data-v="№" title="编号">№</button>
+          </div>
+        </div>
+
+        <div class="tool-group">
+          <div class="tool-header">
+            <div class="tool-color-bar" style="background:#9c7af5"></div>
+            <div class="tool-title">希腊字母</div>
+          </div>
+          <div class="tool-buttons emoji-panel">
+            <button class="btn-emoji btn-greek" data-v="Α" title="Alpha 大写">Α</button>
+            <button class="btn-emoji btn-greek" data-v="α" title="alpha 小写">α</button>
+            <button class="btn-emoji btn-greek" data-v="Β" title="Beta 大写">Β</button>
+            <button class="btn-emoji btn-greek" data-v="β" title="beta 小写">β</button>
+            <button class="btn-emoji btn-greek" data-v="Γ" title="Gamma 大写">Γ</button>
+            <button class="btn-emoji btn-greek" data-v="γ" title="gamma 小写">γ</button>
+            <button class="btn-emoji btn-greek" data-v="Δ" title="Delta 大写">Δ</button>
+            <button class="btn-emoji btn-greek" data-v="δ" title="delta 小写">δ</button>
+            <button class="btn-emoji btn-greek" data-v="Ε" title="Epsilon 大写">Ε</button>
+            <button class="btn-emoji btn-greek" data-v="ε" title="epsilon 小写">ε</button>
+            <button class="btn-emoji btn-greek" data-v="Ζ" title="Zeta 大写">Ζ</button>
+            <button class="btn-emoji btn-greek" data-v="ζ" title="zeta 小写">ζ</button>
+            <button class="btn-emoji btn-greek" data-v="Η" title="Eta 大写">Η</button>
+            <button class="btn-emoji btn-greek" data-v="η" title="eta 小写">η</button>
+            <button class="btn-emoji btn-greek" data-v="Θ" title="Theta 大写">Θ</button>
+            <button class="btn-emoji btn-greek" data-v="θ" title="theta 小写">θ</button>
+            <button class="btn-emoji btn-greek" data-v="Ι" title="Iota 大写">Ι</button>
+            <button class="btn-emoji btn-greek" data-v="ι" title="iota 小写">ι</button>
+            <button class="btn-emoji btn-greek" data-v="Κ" title="Kappa 大写">Κ</button>
+            <button class="btn-emoji btn-greek" data-v="κ" title="kappa 小写">κ</button>
+            <button class="btn-emoji btn-greek" data-v="Λ" title="Lambda 大写">Λ</button>
+            <button class="btn-emoji btn-greek" data-v="λ" title="lambda 小写">λ</button>
+            <button class="btn-emoji btn-greek" data-v="Μ" title="Mu 大写">Μ</button>
+            <button class="btn-emoji btn-greek" data-v="μ" title="mu 小写">μ</button>
+            <button class="btn-emoji btn-greek" data-v="Ν" title="Nu 大写">Ν</button>
+            <button class="btn-emoji btn-greek" data-v="ν" title="nu 小写">ν</button>
+            <button class="btn-emoji btn-greek" data-v="Ξ" title="Xi 大写">Ξ</button>
+            <button class="btn-emoji btn-greek" data-v="ξ" title="xi 小写">ξ</button>
+            <button class="btn-emoji btn-greek" data-v="Ο" title="Omicron 大写">Ο</button>
+            <button class="btn-emoji btn-greek" data-v="ο" title="omicron 小写">ο</button>
+            <button class="btn-emoji btn-greek" data-v="Π" title="Pi 大写">Π</button>
+            <button class="btn-emoji btn-greek" data-v="π" title="pi 小写">π</button>
+            <button class="btn-emoji btn-greek" data-v="Ρ" title="Rho 大写">Ρ</button>
+            <button class="btn-emoji btn-greek" data-v="ρ" title="rho 小写">ρ</button>
+            <button class="btn-emoji btn-greek" data-v="Σ" title="Sigma 大写">Σ</button>
+            <button class="btn-emoji btn-greek" data-v="σ" title="sigma 小写">σ</button>
+            <button class="btn-emoji btn-greek" data-v="Τ" title="Tau 大写">Τ</button>
+            <button class="btn-emoji btn-greek" data-v="τ" title="tau 小写">τ</button>
+            <button class="btn-emoji btn-greek" data-v="Υ" title="Upsilon 大写">Υ</button>
+            <button class="btn-emoji btn-greek" data-v="υ" title="upsilon 小写">υ</button>
+            <button class="btn-emoji btn-greek" data-v="Φ" title="Phi 大写">Φ</button>
+            <button class="btn-emoji btn-greek" data-v="φ" title="phi 小写">φ</button>
+            <button class="btn-emoji btn-greek" data-v="Χ" title="Chi 大写">Χ</button>
+            <button class="btn-emoji btn-greek" data-v="χ" title="chi 小写">χ</button>
+            <button class="btn-emoji btn-greek" data-v="Ψ" title="Psi 大写">Ψ</button>
+            <button class="btn-emoji btn-greek" data-v="ψ" title="psi 小写">ψ</button>
+            <button class="btn-emoji btn-greek" data-v="Ω" title="Omega 大写">Ω</button>
+            <button class="btn-emoji btn-greek" data-v="ω" title="omega 小写">ω</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 查找替换 -->
+      <div class="tool-tab-pane" id="tab-find-replace" style="display:none">
+        <div class="fr-area">
+          <div class="fr-toggles">
+            <div class="seg-toggle" id="fr-mode-toggle">
+              <button type="button" class="seg-btn" data-mode="find">查找</button>
+              <button type="button" class="seg-btn active" data-mode="replace">替换</button>
+            </div>
+            <div class="seg-toggle" id="fr-regex-toggle">
+              <button type="button" class="seg-btn active" data-regex="on">正则</button>
+              <button type="button" class="seg-btn" data-regex="off">纯文本</button>
+            </div>
+          </div>
+          <div class="replace-field">
+            <input id="find-input" class="input-text" type="text" placeholder="查找内容">
+            <div class="tag-row" id="find-tags"></div>
+          </div>
+          <div class="replace-field" id="replace-field">
+            <input id="replace-input" class="input-text" type="text" placeholder="替换为">
+            <div class="tag-row" id="replace-tags"></div>
+          </div>
+          <button class="btn-tool" id="btn-replace">替换全部</button>
+        </div>
+      </div>
+
+      <!-- Tab: 编解码 -->
+      <div class="tool-tab-pane" id="tab-codec" style="display:none">
+        <div class="codec-grid">
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#5bb8c4"></span>
+              <span class="codec-card-title">文本压缩</span>
+            </div>
+            <div class="codec-card-desc">LZMA 压成可粘贴的纯文本，体积更小。<br><span class="codec-card-note">⚠ 短文本反而更长，宜用于长文本</span></div>
+            <div class="codec-card-foot">
+              <button class="btn-codec" data-codec-tool="compress">压缩</button>
+              <button class="btn-codec ghost" data-codec-tool="decompress">解压</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#9c7af5"></span>
+              <span class="codec-card-title">内容转二维码</span>
+            </div>
+            <div class="codec-card-desc">把内容生成二维码弹窗，可扫码读取。</div>
+            <div class="codec-card-foot">
+              <button class="btn-codec" data-codec-tool="qrcode">执行</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#6c8ef0"></span>
+              <span class="codec-card-title">AES / Base64</span>
+            </div>
+            <div class="codec-card-desc">填密钥则 AES-256 加密，留空则普通 Base64 互转。</div>
+            <input type="text" id="aes-key" class="codec-key-input" placeholder="密钥（留空 = Base64）" spellcheck="false" autocomplete="off">
+            <div class="codec-card-foot">
+              <button class="btn-codec" data-codec-tool="aesEncode">加密</button>
+              <button class="btn-codec ghost" data-codec-tool="aesDecode">解密</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#6fbf8b"></span>
+              <span class="codec-card-title">URL</span>
+            </div>
+            <div class="codec-card-desc">文本与 URL 编码互转。</div>
+            <div class="codec-card-foot">
+              <button class="btn-codec" data-op="urlEncode">编码</button>
+              <button class="btn-codec ghost" data-op="urlDecode">解码</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#d9b25c"></span>
+              <span class="codec-card-title">Unicode</span>
+            </div>
+            <div class="codec-card-desc">文本与 \uXXXX 转义互转。</div>
+            <div class="codec-card-foot">
+              <button class="btn-codec" data-op="unicodeEscape">转义</button>
+              <button class="btn-codec ghost" data-op="unicodeUnescape">反转义</button>
+            </div>
+          </div>
+          <div class="codec-card">
+            <div class="codec-card-top">
+              <span class="codec-card-badge" style="background:#d9788a"></span>
+              <span class="codec-card-title">莫斯密码</span>
+            </div>
+            <div class="codec-card-desc">文本与莫斯密码（·−）互转，仅支持英文/数字/标点。</div>
+            <div class="codec-card-foot">
+              <button class="btn-codec" data-op="morseEncode">编码</button>
+              <button class="btn-codec ghost" data-op="morseDecode">解码</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 自定义脚本 -->
+      <div class="tool-tab-pane" id="tab-scripts" style="display:none">
+        <div class="scripts-panel">
+          <div class="scripts-list-wrap">
+            <div class="scripts-list" id="scripts-list"></div>
+            <button class="btn-tool" id="btn-add-script" style="margin-top:4px;width:100%">＋ 新建脚本</button>
+          </div>
+          <div class="scripts-editor-wrap">
+            <div class="script-code-wrap">
+              <div class="scripts-lang-bar">
+                <span class="script-io-hint">text 为上方编辑器现有文本，成功执行后替换为 return 返回的新文本</span>
+                <div class="scripts-lang-btns">
+                  <button class="script-lang-btn active" data-sl="js">JS</button>
+                  <button class="script-lang-btn" data-sl="python">Python</button>
+                </div>
+              </div>
+              <textarea id="script-code" class="script-code-area" placeholder="return text.toUpperCase()" spellcheck="false"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 工作流 -->
+      <div class="tool-tab-pane" id="tab-workflow" style="display:none">
+        <div class="workflow-ops-pool" id="workflow-ops-pool"></div>
+        <div class="basic-divider" style="margin:8px 0"></div>
+        <div class="workflow-rows" id="workflow-rows"></div>
+        <div class="wf-bottom">
+          <button class="btn-tool" id="btn-add-workflow">＋ 新建工作流</button>
+          <span class="wf-hint" title="选中的工作流将在 uTools run-workflow 入口自动执行">左侧单选框：设为插件入口默认执行目标</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部工具入口 -->
+    <div class="tool-tab-nav">
+      <button class="tool-tab-btn" data-tab="basic" title="基础工具" aria-label="打开基础工具">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><path d="M8 5v4"/><path d="M16 10v4"/><path d="M11 15v4"/></svg>
+        <span>基础工具</span>
+      </button>
+      <button class="tool-tab-btn" data-tab="emoji" title="表情符号" aria-label="打开表情符号">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01"/><path d="M16 10h.01"/><path d="M8 15c1.1 1.2 2.4 1.8 4 1.8s2.9-.6 4-1.8"/></svg>
+        <span>表情符号</span>
+      </button>
+      <button class="tool-tab-btn" data-tab="find-replace" title="查找替换" aria-label="打开查找替换">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="5"/><path d="m14 14 5 5"/><path d="M4 20h8"/><path d="M8 16v8"/></svg>
+        <span>查找替换</span>
+      </button>
+      <button class="tool-tab-btn" data-tab="codec" title="编解码" aria-label="打开编解码">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7-4 4 4 4"/><path d="M3 11h14"/><path d="m17 17 4-4-4-4"/><path d="M21 13H7"/></svg>
+        <span>编解码</span>
+      </button>
+      <button class="tool-tab-btn" data-tab="scripts" title="自定义脚本" aria-label="打开自定义脚本">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4c-2 0-3 1-3 3v2c0 1-.5 2-2 2 1.5 0 2 1 2 2v2c0 2 1 3 3 3"/><path d="M16 4c2 0 3 1 3 3v2c0 1 .5 2 2 2-1.5 0-2 1-2 2v2c0 2-1 3-3 3"/></svg>
+        <span>脚本</span>
+      </button>
+      <button class="tool-tab-btn" data-tab="workflow" title="工作流" aria-label="打开工作流">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><path d="M8.5 7.5 11 15"/><path d="m15.5 7.5-2.5 7.5"/></svg>
+        <span>工作流</span>
+      </button>
+    </div>
+
+    <!-- 撤销条 -->
+    <div class="undo-bar hidden" id="undo-bar">
+      <span id="undo-msg"></span>
+      <button class="btn-mini" id="btn-undo">撤销</button>
+    </div>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div id="runtime-config-modal" style="display:none">
+    <div class="modal-overlay" id="runtime-config-overlay"></div>
+    <div class="modal-box settings-box">
+      <div class="modal-title">设置</div>
+      <div class="settings-section">
+        <div class="settings-section-title">主题</div>
+        <div class="modal-row">
+          <label>外观模式</label>
+          <select id="cfg-theme">
+            <option value="dark">深色</option>
+            <option value="light">浅色</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">运行环境</div>
+        <div class="modal-row">
+          <label>Python 解释器</label>
+          <input type="text" id="cfg-python-bin" placeholder="留空则自动检测" spellcheck="false" />
+          <button class="btn-mini" id="cfg-python-detect">选择文件</button>
+        </div>
+        <div class="modal-row">
+          <label>Node 可执行文件</label>
+          <input type="text" id="cfg-node-bin" placeholder="留空则自动检测" spellcheck="false" />
+          <button class="btn-mini" id="cfg-node-detect">选择文件</button>
+        </div>
+        <div class="modal-hint">留空时按系统 PATH 自动查找；也可填写完整路径，如 <code>C:\Python312\python.exe</code></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">AI</div>
+        <div class="modal-row">
+          <label>Codex 可执行文件</label>
+          <input type="text" id="cfg-ai-codex-bin" placeholder="codex" spellcheck="false" />
+          <button class="btn-mini" id="cfg-ai-codex-detect">选择文件</button>
+        </div>
+        <div class="modal-row">
+          <label>Claude 可执行文件</label>
+          <input type="text" id="cfg-ai-claude-bin" placeholder="claude" spellcheck="false" />
+          <button class="btn-mini" id="cfg-ai-claude-detect">选择文件</button>
+        </div>
+        <div class="modal-row">
+          <label>推理 URL</label>
+          <input type="text" id="cfg-ai-url" placeholder="http://127.0.0.1:1234/v1/chat/completions" spellcheck="false" />
+        </div>
+        <div class="modal-row">
+          <label>模型</label>
+          <input type="text" id="cfg-ai-model" placeholder="可选" spellcheck="false" />
+        </div>
+        <div class="modal-row">
+          <label>API Key</label>
+          <input type="password" id="cfg-ai-key" placeholder="可选" spellcheck="false" autocomplete="off" />
+        </div>
+        <div class="modal-hint">Codex 默认使用 <code>codex exec -</code>，Claude 默认使用 <code>claude -p</code>；这里只填写可执行文件或命令名。</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-mini btn-run" id="cfg-save">确定</button>
+        <button class="btn-mini" id="cfg-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 创建提醒弹窗 -->
+  <div id="todo-modal" style="display:none">
+    <div class="modal-overlay" id="todo-overlay"></div>
+    <div class="modal-box todo-modal-box">
+      <div class="modal-title">创建提醒</div>
+      <div class="todo-field">
+        <label>标题</label>
+        <input type="text" id="todo-title" spellcheck="false">
+      </div>
+      <div class="todo-field todo-note-row">
+        <label>描述</label>
+        <textarea id="todo-note" spellcheck="false"></textarea>
+      </div>
+      <div class="todo-field">
+        <label>提醒</label>
+        <div class="todo-pill-grid" id="todo-remind-pills">
+          <button type="button" class="todo-pill active" data-remind="none">无</button>
+          <button type="button" class="todo-pill" data-remind="10m">10 分钟</button>
+          <button type="button" class="todo-pill" data-remind="1h">1 小时</button>
+          <button type="button" class="todo-pill" data-remind="today">今天 18:00</button>
+          <button type="button" class="todo-pill" data-remind="tomorrow">明天 09:00</button>
+          <button type="button" class="todo-pill" data-remind="custom">自定义</button>
+        </div>
+        <select id="todo-remind-preset" hidden>
+          <option value="none">无</option>
+          <option value="10m">10 分钟后</option>
+          <option value="1h">1 小时后</option>
+          <option value="today">今天晚点</option>
+          <option value="tomorrow">明天上午</option>
+          <option value="custom">自定义</option>
+        </select>
+      </div>
+      <div class="todo-field" id="todo-custom-row" style="display:none">
+        <label>时间</label>
+        <input type="datetime-local" id="todo-remind-custom">
+      </div>
+      <div class="todo-field">
+        <label>分类</label>
+        <div class="todo-quadrant-picker" id="todo-quadrant-picker">
+          <button type="button" class="todo-q-btn q-important-urgent" data-quadrant="important-urgent">重要且紧急</button>
+          <button type="button" class="todo-q-btn q-important-not-urgent" data-quadrant="important-not-urgent">重要不紧急</button>
+          <button type="button" class="todo-q-btn q-urgent-not-important" data-quadrant="urgent-not-important">不重要但紧急</button>
+          <button type="button" class="todo-q-btn q-not-important-not-urgent" data-quadrant="not-important-not-urgent">不重要不紧急</button>
+        </div>
+        <select id="todo-quadrant" hidden>
+          <option value="none">无</option>
+          <option value="important-urgent">重要且紧急</option>
+          <option value="important-not-urgent">重要不紧急</option>
+          <option value="urgent-not-important">不重要但紧急</option>
+          <option value="not-important-not-urgent">不重要不紧急</option>
+        </select>
+      </div>
+      <div class="modal-hint">创建后当前文本槽会删除，完整内容会保存在提醒详情中。</div>
+      <div class="modal-footer">
+        <button class="btn-mini btn-run" id="todo-confirm">创建</button>
+        <button class="btn-mini" id="todo-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导出弹窗 -->
+  <div id="export-modal" style="display:none">
+    <div class="modal-overlay" id="export-overlay"></div>
+    <div class="modal-box">
+      <div class="modal-title">导出文件</div>
+      <div class="modal-row">
+        <label>路径</label>
+        <input type="text" id="export-dir" spellcheck="false" placeholder="导出目录" />
+        <button class="btn-mini" id="export-browse">浏览</button>
+      </div>
+      <div class="modal-row">
+        <label>编码</label>
+        <select id="export-encoding">
+          <option value="utf8">UTF-8（无 BOM）</option>
+          <option value="utf8bom">UTF-8 BOM（Excel 友好）</option>
+          <option value="utf16le">UTF-16 LE</option>
+        </select>
+      </div>
+      <div class="modal-row">
+        <label>换行</label>
+        <select id="export-eol">
+          <option value="keep">保持原样</option>
+          <option value="crlf">Windows (CRLF)</option>
+          <option value="lf">Unix (LF)</option>
+        </select>
+      </div>
+      <div class="modal-hint">CSV 用 Excel 打开若中文乱码，选 <code>UTF-8 BOM</code> 即可。</div>
+      <div class="modal-footer">
+        <button class="btn-mini btn-run" id="export-confirm">导出</button>
+        <button class="btn-mini" id="export-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 粘贴类型选择弹窗（剪贴板同时有图片和文字时） -->
+  <div id="paste-kind-modal" style="display:none">
+    <div class="modal-overlay" id="paste-kind-overlay"></div>
+    <div class="modal-box paste-kind-box">
+      <div class="modal-title">粘贴为图片还是文字？</div>
+      <div class="modal-hint">剪贴板里同时含图片和文字（常见于从 PPT、Excel、Word 复制），请选择粘贴方式。</div>
+      <div class="modal-footer">
+        <button class="btn-mini btn-run" id="paste-as-text">作为文字</button>
+        <button class="btn-mini" id="paste-as-image">作为图片</button>
+        <button class="btn-mini" id="paste-kind-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 二维码弹窗 -->
+  <div id="qr-modal" style="display:none">
+    <div class="modal-overlay" id="qr-overlay"></div>
+    <div class="modal-box qr-box">
+      <div class="modal-title">二维码</div>
+      <div id="qr-canvas-wrap" class="qr-canvas-wrap"></div>
+      <div class="modal-footer">
+        <button class="btn-mini" id="qr-close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV 图表弹窗 -->
+  <div id="csv-chart-modal" style="display:none">
+    <div class="modal-overlay" id="csv-chart-overlay"></div>
+    <div class="modal-box csv-chart-box">
+      <div class="modal-title">CSV 图表</div>
+      <div class="modal-row csv-chart-main-row">
+        <div class="csv-chart-field">
+          <label>类型</label>
+          <select id="csv-chart-type">
+          <option value="line">折线图</option>
+          <option value="bar">柱状图</option>
+          <option value="scatter">散点图</option>
+          <option value="histogram">直方图</option>
+          </select>
+        </div>
+        <div class="csv-chart-field">
+          <label id="csv-chart-x-label">X 轴</label>
+          <select id="csv-chart-x"></select>
+        </div>
+        <div class="csv-chart-field" id="csv-chart-y-field">
+          <label>Y 轴</label>
+          <select id="csv-chart-y"></select>
+        </div>
+        <div class="csv-chart-field" id="csv-chart-bin-field">
+          <label>分箱数</label>
+          <input type="number" id="csv-chart-bins" min="1" max="100" step="1" value="10">
+        </div>
+      </div>
+      <div class="modal-row csv-chart-scale-row">
+        <div class="csv-chart-field" id="csv-chart-x-scale-field">
+          <label>X 最小</label>
+          <input type="number" id="csv-chart-x-min" placeholder="自动">
+        </div>
+        <div class="csv-chart-field">
+          <label>X 最大</label>
+          <input type="number" id="csv-chart-x-max" placeholder="自动">
+        </div>
+        <div class="csv-chart-field">
+          <label>Y 最小</label>
+          <input type="number" id="csv-chart-y-min" placeholder="自动">
+        </div>
+        <div class="csv-chart-field">
+          <label>Y 最大</label>
+          <input type="number" id="csv-chart-y-max" placeholder="自动">
+        </div>
+      </div>
+      <div id="csv-chart-view" class="csv-chart-view"></div>
+      <div id="csv-chart-error" class="modal-hint csv-chart-error"></div>
+      <div class="modal-footer">
+        <button class="btn-mini" id="csv-chart-close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快捷输入选择器 -->
+  <div id="quick-input-modal" style="display:none">
+    <div class="modal-overlay" id="quick-input-overlay"></div>
+    <div class="quick-add-card">
+      <input type="text" id="quick-add-title" class="quick-add-title" placeholder="标题" spellcheck="false" autocomplete="off">
+      <input type="text" id="quick-add-content" class="quick-add-content" placeholder="内容，保存到归档" spellcheck="false" autocomplete="off">
+      <button type="button" id="quick-add-save" class="quick-add-save">新增</button>
+    </div>
+    <div class="modal-box quick-input-box">
+      <input type="text" id="quick-input-search" class="quick-input-search" placeholder="搜索文本槽标题…" spellcheck="false" autocomplete="off">
+      <div class="quick-input-list" id="quick-input-list"></div>
+      <div class="quick-input-hint">↑ ↓ 选择 · Enter 粘贴 · Esc 关闭</div>
+    </div>
+  </div>
+
+  <div id="md-image-viewer" class="md-image-viewer" style="display:none">
+    <div class="md-image-viewer-backdrop" id="md-image-viewer-backdrop"></div>
+    <div class="md-image-viewer-shell" role="dialog" aria-modal="true">
+      <div class="md-image-viewer-toolbar">
+        <button type="button" class="md-image-viewer-btn" id="md-img-prev" title="Previous image">&lt;</button>
+        <button type="button" class="md-image-viewer-btn" id="md-img-next" title="Next image">&gt;</button>
+        <span class="md-image-viewer-counter" id="md-img-counter"></span>
+        <span class="md-image-viewer-title" id="md-img-title"></span>
+        <button type="button" class="md-image-viewer-btn" id="md-img-zoom-out" title="Zoom out">-</button>
+        <button type="button" class="md-image-viewer-btn" id="md-img-zoom-in" title="Zoom in">+</button>
+        <button type="button" class="md-image-viewer-btn" id="md-img-fit" title="Fit to window">Fit</button>
+        <button type="button" class="md-image-viewer-btn" id="md-img-actual" title="Actual size">1:1</button>
+        <button type="button" class="md-image-viewer-btn" id="md-img-rotate" title="Rotate">R</button>
+        <button type="button" class="md-image-viewer-btn" id="md-img-copy" title="Copy image">Copy</button>
+        <button type="button" class="md-image-viewer-btn" id="md-img-save" title="Save image">Save</button>
+        <button type="button" class="md-image-viewer-btn" id="md-img-close" title="Close">X</button>
+      </div>
+      <div class="md-image-viewer-stage" id="md-image-viewer-stage">
+        <img id="md-image-viewer-img" class="md-image-viewer-img" alt="">
+      </div>
+    </div>
+  </div>
+
+  <div id="ctx-menu">
+    <div class="ctx-item" data-action="cut">剪切</div>
+    <div class="ctx-item" data-action="copy">复制</div>
+    <div class="ctx-item" data-action="paste">粘贴</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" data-action="selectAll">全选</div>
+  </div>
+  <script src="diff.min.js"></script>
+  <script src="js-yaml.min.js"></script>
+  <script src="marked.min.js"></script>
+  <script src="highlight.min.js"></script>
+  <script src="purify.min.js"></script>
+  <script src="mermaid.min.js"></script>
+  <script src="qrcode.min.js"></script>
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+      svg: { fontCache: 'local' },
+      startup: {
+        typeset: false,
+        pageReady: () => {
+          const sel = document.getElementById('lang-select')
+          if (sel && sel.value === 'markdown' && window.renderMarkdown) window.renderMarkdown()
+        }
+      }
+    };
+  </script>
+  <script src="mathjax-tex-svg.js" async></script>
+  <script src="host.js"></script>
+  <script src="text-ops.js"></script>
+  <script src="app.js"></script>
+  <script src="clipboard.js"></script>
+  <script src="ai.js"></script>
+  <script src="csv.js"></script>
+  <script src="sketch.js"></script>
+  <script src="compare.js"></script>
+  <script src="workflow.js"></script>
+  <script src="archive.js"></script>
+  <script src="todo.js"></script>
+  <script src="run-panels.js"></script>
+  <script src="markdown.js"></script>
+  <script src="codec.js"></script>
+  <script src="find-replace.js"></script>
+  <script src="text-tools.js"></script>
+  <script src="export.js"></script>
+  <script src="utools-bridge.js"></script>
+  <script src="mathjs.min.js"></script>
+  <script src="jsxgraphcore.js"></script>
+  <script src="calc.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+npm run format:check || exit 1
+npm run lint || exit 1

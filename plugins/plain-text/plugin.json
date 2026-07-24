@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "plain-text",
+  "title": "纯文本编辑",
+  "description": "即开即写的轻量文本编辑器，支持纯文本和 Markdown 双模式。自动保存、多文稿管理、一键导出 .txt/.md 文件。",
+  "author": "Muerzy",
+  "version": "1.0.2",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "editor",
+      "explain": "纯文本编辑",
+      "icon": "logo.png",
+      "cmds": ["wb", "bj", "js", "edit", "编辑", "记事", "笔记", "文本", {
+        "type": "files",
+        "label": "打开文本文件",
+        "extensions": ["txt", "md", "markdown", "json", "yaml", "yml", "xml", "html", "css", "js", "ts", "py", "java", "go", "rs", "c", "cpp", "h", "sh", "bash", "sql", "log", "ini", "toml", "env", "gitignore"]
+      }]
+    }
+  ]
+}

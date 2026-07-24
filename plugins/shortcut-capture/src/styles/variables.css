@@ -1,0 +1,61 @@
+:root {
+  --bg-app: transparent;
+  --bg-surface: transparent;
+  --bg-panel: rgba(255, 255, 255, 0.28);
+  --bg-panel-muted: rgba(239, 244, 251, 0.58);
+  --toolbar-glass-bg: rgba(248, 250, 253, 0.72);
+  --toolbar-glass-border: rgba(255, 255, 255, 0.55);
+  --toolbar-glass-shadow: rgba(20, 28, 42, 0.2);
+  --tool-active-bg: rgba(26, 115, 232, 0.13);
+  --tool-active-border: rgba(26, 115, 232, 0.45);
+  --tool-active-shadow: rgba(26, 115, 232, 0.18);
+  --tooltip-bg: rgba(30, 34, 42, 0.94);
+  --tooltip-text: #ffffff;
+  --tooltip-border: rgba(255, 255, 255, 0.12);
+  --bg-hover: rgba(245, 245, 245, 0.7);
+  --bg-hover-light: rgba(248, 248, 248, 0.5);
+  --bg-overlay: rgba(244, 246, 251, 0.78);
+  --primary-color: #1a73e8;
+  --primary-hover: #1557b0;
+  --primary-shadow: rgba(26, 115, 232, 0.32);
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --text-white: white;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --spinner-bg: rgba(0, 0, 0, 0.06);
+  --toast-bg: rgba(36, 36, 36, 0.92);
+  --toast-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-app: transparent;
+    --bg-surface: transparent;
+    --bg-panel: rgba(24, 28, 38, 0.22);
+    --bg-panel-muted: rgba(38, 44, 58, 0.42);
+    --toolbar-glass-bg: rgba(25, 29, 38, 0.76);
+    --toolbar-glass-border: rgba(255, 255, 255, 0.12);
+    --toolbar-glass-shadow: rgba(0, 0, 0, 0.34);
+    --tool-active-bg: rgba(77, 171, 247, 0.18);
+    --tool-active-border: rgba(77, 171, 247, 0.5);
+    --tool-active-shadow: rgba(77, 171, 247, 0.18);
+    --tooltip-bg: rgba(242, 245, 250, 0.96);
+    --tooltip-text: #15171c;
+    --tooltip-border: rgba(0, 0, 0, 0.1);
+    --bg-hover: rgba(50, 50, 70, 0.7);
+    --bg-hover-light: rgba(40, 40, 60, 0.5);
+    --bg-overlay: rgba(18, 22, 30, 0.74);
+    --primary-color: #4dabf7;
+    --primary-hover: #4299e1;
+    --primary-shadow: rgba(77, 171, 247, 0.28);
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --text-tertiary: #757575;
+    --text-white: white;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --spinner-bg: rgba(255, 255, 255, 0.1);
+    --toast-bg: rgba(245, 245, 245, 0.94);
+    --toast-text: #1f1f1f;
+  }
+}

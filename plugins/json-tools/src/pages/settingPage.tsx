@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import SearchableSelect from "@/components/SearchableSelect/SearchableSelect.tsx";
 import toast from "@/utils/toast";
 import { useSettingsStore, ChatStyle } from "@/store/useSettingsStore.ts";
+import { useTabStore } from "@/store/useTabStore.ts";
 import { FontSizeSettings } from "@/components/setting/FontSizeSettings.tsx";
 import { storage } from "@/lib/indexedDBStore.ts";
 import {
@@ -40,11 +41,9 @@ const isUtoolsAvailable = typeof window !== "undefined" && "utools" in window;
 
 export default function SettingsPage() {
   const {
-    editDataSaveLocal,
     expandSidebar,
     chatStyle,
     // monacoEditorCDN,
-    setEditDataSaveLocal,
     setExpandSidebar,
     setChatStyle,
     setMonacoEditorCDN,
@@ -65,6 +64,9 @@ export default function SettingsPage() {
     closeTabShortcut,
     setNewTabShortcut,
     setCloseTabShortcut,
+    // 本地数据持久化开关
+    persistentDataEnabled,
+    setPersistentDataEnabled,
   } = useSettingsStore();
 
   const {
@@ -101,6 +103,9 @@ export default function SettingsPage() {
   const [newModelName, setNewModelName] = useState("");
   const [newModelLabel, setNewModelLabel] = useState("");
   const { isOpen, onOpen, onClose } = useDisclosure();
+  // 确认对话框状态管理
+  const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
+  const [pendingValue, setPendingValue] = useState<boolean | null>(null);
 
   // 添加模型模式，用于区分是在SSOOAI线路还是自定义线路添加模型
   const [addModelMode, setAddModelMode] = useState<"ssooai" | "custom">(
@@ -173,14 +178,18 @@ export default function SettingsPage() {
 
   const handleSettingChange = (key: string, value: any) => {
     switch (key) {
-      case "editDataSaveLocal":
-        setEditDataSaveLocal(value);
-        if (!value) {
-          removeStore();
-        }
-        break;
       case "expandSidebar":
         setExpandSidebar(value);
+        break;
+      case "persistentDataEnabled":
+        if (!value) {
+          // 关闭时需要确认
+          setPendingValue(value);
+          onConfirmOpen();
+        } else {
+          setPersistentDataEnabled(value);
+          toast.success("已开启本地存储，您的数据将被自动保存");
+        }
         break;
       case "chatStyle":
         setChatStyle(value);
@@ -225,6 +234,17 @@ export default function SettingsPage() {
         setDefaultIndentSize(value);
         toast.success(`默认缩进大小已设置为 ${value} 个空格`);
         break;
+    }
+  };
+
+  // 确认关闭持久化的处理函数
+  const handleConfirmDisablePersistence = () => {
+    if (pendingValue !== null) {
+      setPersistentDataEnabled(pendingValue);
+      useTabStore.getState().clearUserData();
+      toast.success("已关闭本地存储，所有用户数据已清除");
+      setPendingValue(null);
+      onConfirmClose();
     }
   };
 
@@ -341,7 +361,6 @@ export default function SettingsPage() {
 
     // 重置 Zustand stores 到默认状态
     useSettingsStore.setState({
-      editDataSaveLocal: false,
       expandSidebar: false,
       monacoEditorCDN: "local",
       chatStyle: "bubble",
@@ -559,15 +578,6 @@ export default function SettingsPage() {
       onChange: (value: boolean) => setTheme(value ? "dark" : "light"),
     },
     {
-      id: "localStorage",
-      title: "本地存储",
-      description: "将编辑器数据存储在本地，关闭后刷新页面数据将丢失",
-      icon: "solar:database-bold",
-      isSelected: editDataSaveLocal,
-      onChange: (value: boolean) =>
-        handleSettingChange("editDataSaveLocal", value),
-    },
-    {
       id: "expandTab",
       title: "展开Tab栏",
       description: "设置Tab栏是否默认展开",
@@ -671,6 +681,43 @@ export default function SettingsPage() {
               />
             </div>
           ))}
+
+          {/* 本地数据持久化 - 融合设计 */}
+          <div className={`p-5 transition-all duration-200 ${!persistentDataEnabled ? 'bg-warning/5 hover:bg-warning/10' : 'hover:bg-default-100/40'}`}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4 flex-1">
+                <div className={`p-3 rounded-xl shadow-sm transition-colors ${!persistentDataEnabled ? 'bg-warning/20 text-warning' : 'bg-primary/15 text-primary'}`}>
+                  <Icon icon="lucide:database" width={22} />
+                </div>
+                <div className="flex-1">
+                  <p className={`font-medium ${!persistentDataEnabled ? 'text-warning-900 dark:text-warning-100' : 'text-default-900'}`}>
+                    本地数据持久化
+                  </p>
+                  <p className={`text-sm mt-1 ${!persistentDataEnabled ? 'text-warning-700 dark:text-warning-300' : 'text-default-500'}`}>
+                    {!persistentDataEnabled
+                      ? '当前已关闭，刷新页面后数据将丢失'
+                      : '已开启，您的数据将自动保存到本地'
+                    }
+                  </p>
+                  {!persistentDataEnabled && (
+                    <div className="flex items-center gap-2 mt-3 p-3 rounded-xl bg-warning/10 border border-warning/20">
+                      <Icon icon="solar:info-circle-bold" className="text-warning flex-shrink-0" width={16} />
+                      <p className="text-xs text-warning-800 dark:text-warning-200 leading-relaxed">
+                        如需保留数据，请重新开启此功能
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Switch
+                className="ml-4 flex-shrink-0"
+                color="primary"
+                isSelected={persistentDataEnabled}
+                size="lg"
+                onValueChange={(value) => handleSettingChange("persistentDataEnabled", value)}
+              />
+            </div>
+          </div>
 
           {/* 默认缩进大小设置 */}
           <div className="flex items-center justify-between p-5 hover:bg-default-100/40 transition-colors">
@@ -2139,6 +2186,25 @@ export default function SettingsPage() {
               onPress={handleAddCustomModel}
             >
               添加模型
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* 确认关闭本地存储对话框 */}
+      <Modal isOpen={isConfirmOpen} onClose={onConfirmClose}>
+        <ModalContent>
+          <ModalHeader>确认关闭本地存储？</ModalHeader>
+          <ModalBody>
+            <p>关闭后，您的所有用户数据（标签页、输入内容等）将不再保存。</p>
+            <p className="mt-2 text-warning">⚠️ 此操作将立即清除已有数据，且无法恢复。</p>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="flat" onPress={onConfirmClose}>
+              取消
+            </Button>
+            <Button color="danger" onPress={handleConfirmDisablePersistence}>
+              确认关闭
             </Button>
           </ModalFooter>
         </ModalContent>

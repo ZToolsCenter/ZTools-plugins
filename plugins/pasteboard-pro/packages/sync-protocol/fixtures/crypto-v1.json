@@ -1,0 +1,18 @@
+{
+  "password": "correct horse battery staple",
+  "saltHex": "000102030405060708090a0b0c0d0e0f",
+  "nonceHex": "101112131415161718191a1b",
+  "derivedKeyHex": "7a8e34241db898d59175c696538c417467a975ffe569068425f16188d3159c58",
+  "ciphertextAndTagHex": "eec798cee6a28ce61410c4c2452dbecda64aca2dbf851b3686f6fc3986563680ad56b005155f021bbe298811c244b9b122a758f472d98c0d6acb8b9c439097a6038c5dd41c02534a0e85d01ee26a86ba4b999f6fb3a6",
+  "descriptor": {
+    "version": 1,
+    "objectType": "item",
+    "objectId": "item-1",
+    "revision": "rev-1"
+  },
+  "object": {
+    "id": "item-1",
+    "kind": "text",
+    "text": "PasteboardPro encrypted fixture"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "prompt-forge",
+  "version": "1.1.0",
+  "description": "词匠 (PromptForge) 是一款专为AI创作者与开发者打造的提示词资产管理插件，集模板化编排、变量注入、版本控制与一键调用为一体，助你像工匠打磨作品一样，系统化地沉淀、优化并复用高质量提示词。",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build"
+  },
+  "dependencies": {
+    "fuse.js": "^7.5.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "sharp": "^0.35.3",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vue-tsc": "^2.0.0"
+  }
+}

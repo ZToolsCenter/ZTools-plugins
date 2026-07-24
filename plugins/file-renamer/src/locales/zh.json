@@ -1,0 +1,374 @@
+{
+  "app": {
+    "title": "FR 重命名工具",
+    "workflow": "工作流",
+    "nodes": "{count} 个节点",
+    "no_files": "未选择文件",
+    "no_files_desc": "请导入需要批量命名的文件",
+    "drag_import_title": "松开即可导入",
+    "drag_import_desc": "支持拖入文件或文件夹",
+    "start_rename": "批量处理",
+    "import_files": "导入文件",
+    "import_folders": "导入文件夹",
+    "clear_all": "清空列表",
+    "beginner_guide": "新手引导",
+    "settings": "设置",
+    "metadata": "属性信息",
+    "no_rules": "请点击下方按钮添加处理规则",
+    "select_rule_desc": "选择一个处理规则并将其添加到当前工作流中",
+    "rename_conflict_toast": "检测到 {count} 个重命名冲突，请查看表格中的失败项。",
+    "rename_failed_toast": "有 {count} 个文件重命名失败，请查看表格中的失败项。",
+    "toast_close": "关闭提示"
+  },
+  "workflow": {
+    "add_rule": "添加重命名规则",
+    "collapse": "收起工作流",
+    "expand": "展开工作流",
+    "remove_rule": "移除该规则",
+    "rename_targets": "预计导出文件名",
+    "quick_guide_title": "新手指引",
+    "quick_guide_desc": "先选择一个规则加入工作流，再在规则卡片中调整参数，最后查看右侧预览确认效果。",
+    "quick_guide_tip_pick": "先选规则",
+    "quick_guide_tip_adjust": "再调参数",
+    "quick_guide_tip_preview": "看预览",
+    "rule_help_title": "规则说明",
+    "rule_help_no_tokens": "该规则不使用模板占位符，主要通过上方参数来控制命名行为。",
+    "template_tokens_title": "模板占位符",
+    "template_example_label": "示例：",
+    "template_example_value": "[NAME]_[YYYY][MM][DD]_[INDEX]",
+    "template_token_name": "原文件名（不含扩展名）",
+    "template_token_ext": "文件扩展名（不含点）",
+    "template_token_index": "当前序号（从 1 开始）",
+    "template_token_year": "四位年份",
+    "template_token_month": "两位月份",
+    "template_token_day": "两位日期"
+  },
+  "onboarding": {
+    "entry_title": "随时可重看引导",
+    "entry_description": "点击这里可再次打开新手引导，快速回顾核心操作。",
+    "import_title": "第一步：导入文件",
+    "import_description": "先导入需要处理的文件，可用按钮选择，也支持拖拽到右侧区域。",
+    "workflow_title": "第二步：配置工作流",
+    "workflow_description": "左侧是规则工作流，规则会按从上到下的顺序依次执行。",
+    "rule_title": "第三步：添加规则",
+    "rule_description": "点击添加规则，选择替换、序列号、模板等插件并调整参数。",
+    "reorder_title": "第四步：拖拽调整顺序",
+    "reorder_description": "规则卡片支持直接拖拽，上下移动即可改变执行顺序。",
+    "preview_title": "第五步：确认预览结果",
+    "preview_description": "右侧表格会实时展示新文件名，先检查无误再执行，避免批量误改。",
+    "run_title": "最后一步：批量处理",
+    "run_description": "确认后点击这里执行重命名；已处理文件可在表格中撤回。",
+    "next": "下一步",
+    "prev": "上一步",
+    "done": "完成"
+  },
+  "plugins": {
+    "replace": {
+      "name": "搜索与替换",
+      "description": "搜索文件名中的文本并替换（支持正则）。",
+      "fields": {
+        "find": {
+          "label": "查找内容",
+          "description": "输入要匹配的文本。"
+        },
+        "replace": {
+          "label": "替换为",
+          "description": "将匹配内容替换为这里的文本。"
+        },
+        "isRegex": {
+          "label": "使用正则表达式",
+          "description": "开启后可使用正则语法。"
+        },
+        "caseSensitive": {
+          "label": "区分大小写",
+          "description": "关闭时忽略大小写差异。"
+        }
+      }
+    },
+    "add-prefix-suffix": {
+      "name": "添加前后缀",
+      "description": "在文件名开头或结尾添加文本。",
+      "fields": {
+        "prefix": {
+          "label": "前缀",
+          "description": "添加在文件名最前面。"
+        },
+        "suffix": {
+          "label": "后缀",
+          "description": "添加在文件名末尾。"
+        }
+      }
+    },
+    "sequence": {
+      "name": "智能序列号",
+      "description": "为文件名添加递增序号。",
+      "fields": {
+        "start": {
+          "label": "起始数字",
+          "description": "第一个文件使用的序号。"
+        },
+        "step": {
+          "label": "步长",
+          "description": "每个文件递增的数值。"
+        },
+        "padding": {
+          "label": "位数补齐",
+          "description": "不足位数时左侧补零。"
+        },
+        "position": {
+          "label": "插入位置",
+          "description": "序号位置或直接替换。",
+          "options": {
+            "prefix": "前缀",
+            "suffix": "后缀",
+            "replace": "直接替换文件名"
+          }
+        }
+      }
+    },
+    "timestamp": {
+      "name": "按时间命名",
+      "description": "将时间应用到文件名。",
+      "fields": {
+        "format": {
+          "label": "日期格式",
+          "description": "支持 YYYY/MM/DD/HH/mm/ss。"
+        },
+        "useCurrentTime": {
+          "label": "使用当前时间",
+          "description": "关闭时使用文件修改时间。"
+        }
+      }
+    },
+    "case-transform": {
+      "name": "大小写转换",
+      "description": "快速转换命名大小写风格。",
+      "fields": {
+        "mode": {
+          "label": "转换模式",
+          "description": "选择目标命名风格。",
+          "options": {
+            "lower": "全部小写",
+            "upper": "全部大写",
+            "title": "首字母大写",
+            "camel": "驼峰命名",
+            "snake": "蛇形命名"
+          }
+        }
+      }
+    },
+    "template": {
+      "name": "模板替换",
+      "description": "用占位符快速生成文件名。",
+      "fields": {
+        "template": {
+          "label": "模板内容",
+          "description": "支持 [NAME] [EXT] [INDEX] [YYYY] [MM] [DD]。"
+        }
+      }
+    },
+    "clean-name": {
+      "name": "文件名清洗",
+      "description": "清理空白、非法字符和多余点号。",
+      "fallback_name": "未命名",
+      "fields": {
+        "trim": {
+          "label": "去除首尾空白",
+          "description": "移除文件名前后的空格和制表符。"
+        },
+        "collapseWhitespace": {
+          "label": "合并连续空白",
+          "description": "将多个连续空格折叠为一个空格。"
+        },
+        "replaceIllegal": {
+          "label": "替换非法字符",
+          "description": "替换 Windows 不允许的字符。"
+        },
+        "illegalReplacement": {
+          "label": "非法字符替换为",
+          "description": "留空时会直接删除非法字符。"
+        },
+        "normalizeDots": {
+          "label": "规范连续点号",
+          "description": "合并重复点号并清理首尾点号。"
+        }
+      }
+    },
+    "extension-transform": {
+      "name": "扩展名处理",
+      "description": "统一扩展名大小写或改为指定扩展名。",
+      "fields": {
+        "mode": {
+          "label": "处理模式",
+          "description": "选择扩展名处理方式。",
+          "options": {
+            "lower": "转为小写",
+            "upper": "转为大写",
+            "set": "改为指定扩展名",
+            "keep": "保持不变"
+          }
+        },
+        "customExtension": {
+          "label": "指定扩展名",
+          "description": "仅在“改为指定扩展名”模式生效，如 jpg 或 md。"
+        }
+      }
+    },
+    "uniqueify": {
+      "name": "智能去重",
+      "description": "目标文件名冲突时自动追加序号。",
+      "fields": {
+        "style": {
+          "label": "追加样式",
+          "description": "重复时序号展示样式。",
+          "options": {
+            "paren": "(1) 样式",
+            "dash": "-1 样式",
+            "underscore": "_1 样式"
+          }
+        },
+        "start": {
+          "label": "起始序号",
+          "description": "首次冲突时使用的序号。"
+        },
+        "padding": {
+          "label": "补零位数",
+          "description": "设置为 2 时会显示 01、02。"
+        },
+        "caseSensitive": {
+          "label": "区分大小写",
+          "description": "关闭后会把 File 和 file 视为同名。"
+        }
+      }
+    },
+    "delete-char": {
+      "name": "删除字符",
+      "description": "从文件名中删除指定字符。",
+      "fields": {
+        "mode": {
+          "label": "模式",
+          "description": "选择删除模式。",
+          "options": {
+            "chars": "删除指定字符",
+            "type": "按类型删除",
+            "position": "按位置删除",
+            "dedupe": "去除重复"
+          }
+        },
+        "chars": {
+          "label": "字符",
+          "description": "要删除的字符。"
+        },
+        "caseSensitive": {
+          "label": "区分大小写",
+          "description": "关闭时忽略大小写差异。"
+        },
+        "type": {
+          "label": "类型",
+          "description": "要删除的字符类型。",
+          "options": {
+            "space": "空格",
+            "alpha": "字母",
+            "digit": "数字",
+            "upper": "大写字母",
+            "lower": "小写字母",
+            "punct": "标点符号",
+            "chinese": "中文",
+            "non-ascii": "非ASCII字符"
+          }
+        },
+        "position": {
+          "label": "位置",
+          "description": "从指定位置开始删除。",
+          "options": {
+            "first": "首字符",
+            "last": "尾字符",
+            "firstN": "前N个",
+            "lastN": "后N个",
+            "nth": "第N个"
+          }
+        },
+        "count": {
+          "label": "数量",
+          "description": "要删除的字符数量。",
+          "options": {
+            "nth": "位置（从1开始）"
+          }
+        },
+        "style": {
+          "label": "去重方式",
+          "description": "重复字符的处理方式。",
+          "options": {
+            "adjacent": "连续重复",
+            "all": "全部重复"
+          }
+        },
+        "targetChar": {
+          "label": "目标字符",
+          "description": "留空则对所有字符生效。"
+        },
+        "protectExtension": {
+          "label": "保护扩展名",
+          "description": "启用后不会删除文件扩展名中的字符。"
+        }
+      }
+    }
+  },
+  "common": {
+    "close": "关闭"
+  },
+  "settings": {
+    "title": "系统设置",
+    "about": "关于项目",
+    "intro": "FR Renamer 是一个基于插件化架构的文件批量重命名工具，由 Antigravity 设计开发。",
+    "theme": "外观设置",
+    "theme_system": "跟随系统",
+    "theme_light": "浅色模式",
+    "theme_dark": "深色模式",
+    "brand_style": "品牌风格",
+    "brand_professional": "Professional（平衡）",
+    "brand_soft": "Soft（柔和）",
+    "brand_high_contrast": "High Contrast（高对比）",
+    "brand_desc": "统一全站色彩力度与圆角密度",
+    "stack_stable": "稳定",
+    "stack_role_core_runtime": "核心运行时",
+    "stack_role_type_safety": "类型安全",
+    "stack_role_build_tool": "构建工具",
+    "stack_role_design_system": "设计系统",
+    "stack_role_a11y": "无障碍组件",
+    "stack_role_localization": "多语言",
+    "stack_role_iconography": "图标系统",
+    "stack_role_composables": "组合式工具",
+    "stack_desc_vue": "组合式 API 与 SFC 基础框架",
+    "stack_desc_typescript": "为插件与工作流状态提供静态类型",
+    "stack_desc_vite": "快速开发服务器与轻量生产打包",
+    "stack_desc_tailwind": "基于 Token 的工具类样式与主题系统",
+    "stack_desc_radix": "提供可访问的弹窗、选择器与交互原语",
+    "stack_desc_i18n": "支持中英文界面与运行时语言切换",
+    "stack_desc_lucide": "统一的线性图标风格，覆盖全局控件",
+    "stack_desc_vueuse": "提供常用响应式组合函数与工具",
+    "language": "语言设置",
+    "tech_stack": "技术栈"
+  },
+  "table": {
+    "status": "状态",
+    "original_name": "原始名称",
+    "new_name": "新名称预览",
+    "type": "类型",
+    "size": "大小",
+    "modified": "修改日期",
+    "actions": "操作",
+    "delete": "删除",
+    "delete_selected": "删除所选",
+    "select_all": "全选",
+    "select_item": "选择该项",
+    "batch_tip": "选择文件后可进行批量操作",
+    "selected_count": "已选择 {count} 项",
+    "status_modified": "待处理",
+    "status_success": "已完成",
+    "status_error": "失败",
+    "status_idle": "未变更",
+    "revert": "撤回",
+    "revert_selected": "批量撤回"
+  }
+}

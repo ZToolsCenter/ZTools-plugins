@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "linuxcmddoc",
+  "title": "linux命令文档",
+  "description": "linux命令文档快速查询",
+  "author": "zundaren",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "linuxcmddoc",
+      "explain": "linux命令文档快速查询",
+      "icon": "logo.png",
+      "cmds": [
+        "linux",
+        "linux命令",
+        "linuxcmd"
+      ]
+    }
+  ]
+}

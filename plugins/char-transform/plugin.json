@@ -1,0 +1,30 @@
+{
+  "name": "char-transform",
+  "title": "字符转换",
+  "description": "快速转换字符格式：驼峰、蛇形、常量、短横线、Base64、MD5 等，点击或快捷键复制",
+  "version": "2.0.0",
+  "author": "ZTools Developer",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "char-transform",
+      "explain": "字符格式转换工具",
+      "cmds": [
+        "字符转换",
+        "驼峰",
+        "编码转换",
+        "camelCase",
+        "base64",
+        "md5",
+        {
+          "type": "over",
+          "label": "字符转换",
+          "minLength": 1,
+          "maxLength": 10000
+        }
+      ]
+    }
+  ]
+}

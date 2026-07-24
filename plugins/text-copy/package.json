@@ -1,0 +1,15 @@
+{
+  "name": "text-copy",
+  "version": "1.0.0",
+  "description": "复制纯文本，不带任何格式，一键提取文本链接。",
+  "scripts": {
+    "build": "node build.js",
+    "build:preload": "vite build --config vite.config.mjs"
+  },
+  "author": "皮皮虾我们走",
+  "license": "MIT",
+  "devDependencies": {
+    "@ztools-center/ztools-api-types": "^1.0.3",
+    "vite": "^8.0.9"
+  }
+}

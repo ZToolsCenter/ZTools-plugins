@@ -1,0 +1,71 @@
+{
+  "name": "clipboard-image-paintbrush",
+  "title": "剪贴板图片涂改",
+  "description": "把剪贴板图片用悬浮窗显示，画笔涂改 / 加箭头 / 加文字 / 马赛克，并可一键保存或回写剪贴板",
+  "version": "1.1.0",
+  "author": "leco",
+  "homepage": "",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "annotate-clipboard",
+      "explain": "悬浮显示剪贴板图片并涂改",
+      "cmds": ["图片涂改", "悬浮涂改", "图片标注", "image-paint", "screenshot-paint"]
+    },
+    {
+      "code": "save-clipboard",
+      "explain": "把剪贴板里的图片保存到本地",
+      "cmds": ["保存剪贴板图片", "保存图片", "另存图片", "save-image", "save-clipboard-image"]
+    },
+    {
+      "code": "annotate-img",
+      "explain": "悬浮显示并涂改这张图片",
+      "cmds": [
+        { "type": "img", "label": "涂改图片" }
+      ]
+    },
+    {
+      "code": "save-img",
+      "explain": "把这张图片保存到本地",
+      "cmds": [
+        { "type": "img", "label": "保存图片" }
+      ]
+    },
+    {
+      "code": "annotate-files",
+      "explain": "悬浮涂改图片文件",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "涂改图片",
+          "fileType": "file",
+          "extensions": ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "save-files",
+      "explain": "另存图片文件到指定位置",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "💾 另存为...",
+          "fileType": "file",
+          "extensions": ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "clipboard-detect",
+      "explain": "检测剪贴板里的图片并推送操作",
+      "cmds": [
+        { "type": "over", "label": "剪贴板图片", "minLength": 0, "maxLength": 30 }
+      ]
+    }
+  ]
+}

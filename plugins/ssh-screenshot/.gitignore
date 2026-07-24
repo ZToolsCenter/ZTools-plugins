@@ -1,0 +1,6 @@
+node_modules
+dist
+src/release_npm/node_modules
+src/release_npm/package-lock.json
+.DS_Store
+.vscode

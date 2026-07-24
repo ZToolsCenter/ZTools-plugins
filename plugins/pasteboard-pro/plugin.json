@@ -1,0 +1,76 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "pasteboard-pro",
+  "title": "Paste剪切板",
+  "description": "Paste 风格的本地剪贴板历史、分组、预览与连续粘贴队列",
+  "author": "harris",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "unpack": "@(pasteboard-vision|paste-stack-key-monitor.py)",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "backgroundRunning": true
+  },
+  "platform": ["darwin"],
+  "categories": ["productivity"],
+  "features": [
+    {
+      "code": "pasteboard-pro",
+      "explain": "打开 Paste剪切板历史",
+      "icon": "logo.png",
+      "cmds": [
+        "Paste剪切板",
+        {
+          "type": "regex",
+          "label": "Paste剪切板",
+          "match": "^(?:剪贴板|Pasteboard\\s*Pro|pasteboardpro|paste|clipboard)$"
+        }
+      ]
+    }
+  ],
+  "tools": {
+    "search_history": {
+      "description": "搜索 Paste剪切板本地历史",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "文本或 type/app/device/date/pinboard 过滤表达式"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          }
+        },
+        "required": []
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "id": { "type": "string" },
+                "kind": { "type": "string" },
+                "title": { "type": "string" },
+                "copiedAt": { "type": "string" }
+              },
+              "required": ["id", "kind", "copiedAt"]
+            }
+          },
+          "total": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["items", "total"]
+      }
+    }
+  }
+}

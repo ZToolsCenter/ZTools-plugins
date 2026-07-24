@@ -1,5 +1,5 @@
-// 匹配 ": "{unicode内容}" 格式的正则表达式
-export const UNICODE_STRING_REGEX = /: "([^"]*?(?:\\u[0-9a-fA-F]{4})[^"]*?)"/g;
+// 支持 :, 和 [ 前缀的上下文
+export const UNICODE_STRING_REGEX = /(?:[:,]\s*|\[)\s*"([^"]*?(?:\\u[0-9a-fA-F]{4})[^"]*?)"/g;
 // 匹配单个
 export const UNICODE_REGEX = /\\u([0-9a-fA-F]{4})/g;
 /**
@@ -8,6 +8,9 @@ export const UNICODE_REGEX = /\\u([0-9a-fA-F]{4})/g;
  * @returns 解码后的字符串，如果无法解码则返回null
  */
 export const decodeUnicode = (text: string): string | null => {
+  // 重置全局正则的lastIndex，避免调用顺序依赖
+  UNICODE_REGEX.lastIndex = 0;
+
   // 替换所有Unicode转义序列
   const decoded = text.replace(UNICODE_REGEX, (_, codePoint) => {
     return String.fromCodePoint(parseInt(codePoint, 16));

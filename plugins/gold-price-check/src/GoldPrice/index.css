@@ -1,0 +1,757 @@
+/* ===== 全局变量 ===== */
+:root {
+  --gold-bg: #f8f9fb;
+  --gold-card-bg: #ffffff;
+  --gold-text: #1a1d28;
+  --gold-text-secondary: #6b7280;
+  --gold-text-muted: #9ca3af;
+  --gold-accent: #b8860b;       /* 暗金色/琥珀 */
+  --gold-accent-light: #fef3c7;
+  --gold-up: #dc2626;
+  --gold-down: #16a34a;
+  --gold-border: #e5e7eb;
+  --gold-border-light: #f3f4f6;
+  --gold-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --gold-radius: 10px;
+  --gold-radius-sm: 6px;
+  --gold-primary: #3b82f6;
+  --gold-primary-light: #eff6ff;
+  --gold-separator: #e5e7eb;
+}
+
+/* ===== 容器 ===== */
+.gold-price-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--gold-text);
+  background: var(--gold-bg);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ===== 头部 ===== */
+.gold-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: #fff;
+  border-bottom: 1px solid var(--gold-border);
+}
+
+.gold-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gold-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gold-text);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.gold-update-time {
+  font-size: 12px;
+  color: var(--gold-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gold-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.gold-refresh-btn {
+  background: var(--gold-primary-light);
+  border: 1px solid #bfdbfe;
+  color: var(--gold-primary);
+  padding: 5px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gold-refresh-btn:hover:not(:disabled) {
+  background: var(--gold-primary);
+  color: #fff;
+  border-color: var(--gold-primary);
+}
+
+.gold-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== 错误/警告提示 ===== */
+.gold-error {
+  margin: 10px 16px;
+  padding: 8px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--gold-radius-sm);
+  color: #dc2626;
+  font-size: 12px;
+}
+
+.gold-warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+
+/* ===== Tab 导航 ===== */
+.gold-tabs {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid var(--gold-border);
+  padding: 0 4px;
+}
+
+.gold-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--gold-text-muted);
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+  position: relative;
+}
+
+.gold-tab:hover {
+  color: var(--gold-text-secondary);
+  background: #f9fafb;
+}
+
+.gold-tab.active {
+  color: var(--gold-accent);
+  border-bottom-color: var(--gold-accent);
+}
+
+.gold-tab-icon {
+  font-size: 16px;
+}
+
+.gold-tab-label {
+  font-weight: 500;
+}
+
+/* ===== 内容区 ===== */
+.gold-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+/* ===== 加载状态 ===== */
+.gold-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--gold-text-muted);
+  font-size: 13px;
+}
+
+.gold-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: var(--gold-accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== 价格卡片 (今日) ===== */
+.gold-price-card {
+  background: #fff;
+  border: 1px solid var(--gold-border);
+  border-radius: var(--gold-radius);
+  padding: 18px;
+  box-shadow: var(--gold-shadow);
+  margin-bottom: 14px;
+}
+
+.gold-price-main {
+  text-align: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--gold-border-light);
+}
+
+.gold-price-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.gold-price-name {
+  font-size: 13px;
+  color: var(--gold-text-secondary);
+  font-weight: 600;
+}
+
+.gold-price-trend {
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.gold-price-trend.up {
+  color: var(--gold-up);
+  background: #fef2f2;
+}
+
+.gold-price-trend.down {
+  color: var(--gold-down);
+  background: #f0fdf4;
+}
+
+.gold-price-current {
+  margin: 6px 0;
+}
+
+.gold-price-symbol {
+  font-size: 18px;
+  color: var(--gold-text);
+  font-weight: 700;
+  vertical-align: super;
+  margin-right: 2px;
+}
+
+.gold-price-value {
+  font-size: 44px;
+  font-weight: 800;
+  color: var(--gold-text);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.gold-price-unit {
+  font-size: 13px;
+  color: var(--gold-text-secondary);
+  margin-left: 4px;
+}
+
+.gold-usd-row {
+  font-size: 12px;
+  color: var(--gold-text-muted);
+  text-align: center;
+  margin: 2px 0 4px;
+}
+
+.gold-price-change {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gold-price-change.up {
+  color: var(--gold-up);
+}
+
+.gold-price-change.down {
+  color: var(--gold-down);
+}
+
+.gold-price-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-top: 14px;
+}
+
+.gold-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+}
+
+.gold-detail-label {
+  font-size: 12px;
+  color: var(--gold-text-muted);
+}
+
+.gold-detail-value {
+  font-size: 13px;
+  color: var(--gold-text);
+  font-weight: 600;
+}
+
+.highlight-high {
+  color: var(--gold-up) !important;
+}
+
+.highlight-low {
+  color: var(--gold-down) !important;
+}
+
+.highlight-current {
+  color: var(--gold-accent) !important;
+}
+
+/* ===== 区块通用 ===== */
+.gold-section {
+  margin-bottom: 14px;
+}
+
+.gold-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold-text);
+  margin: 0 0 10px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--gold-accent);
+  display: flex;
+  align-items: center;
+}
+
+.gold-chart-subtitle {
+  font-size: 11px;
+  color: var(--gold-text-muted);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+/* ===== 月份/年份选择器 ===== */
+.gold-period-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.gold-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 4px 24px 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gold-text);
+  background: #f9fafb;
+  border: 1px solid var(--gold-border);
+  border-radius: var(--gold-radius-sm);
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  background-size: 16px;
+  transition: border-color 0.2s;
+}
+
+.gold-select:hover {
+  border-color: var(--gold-accent);
+}
+
+.gold-select:focus {
+  outline: none;
+  border-color: var(--gold-accent);
+  box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.15);
+}
+
+/* ===== 表格 ===== */
+.gold-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--gold-radius);
+  border: 1px solid var(--gold-border);
+  background: #fff;
+  box-shadow: var(--gold-shadow);
+}
+
+.gold-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.gold-table th {
+  background: #f9fafb;
+  color: var(--gold-text-secondary);
+  font-weight: 600;
+  padding: 9px 12px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--gold-border);
+  font-size: 12px;
+}
+
+.gold-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gold-border-light);
+  color: var(--gold-text);
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.gold-table tr:last-child td {
+  border-bottom: none;
+}
+
+.gold-table tr:hover td {
+  background: #fafbfc;
+}
+
+/* ===== 图表区 ===== */
+.gold-chart-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gold-chart-section {
+  background: #fff;
+  border-radius: var(--gold-radius);
+  border: 1px solid var(--gold-border);
+  padding: 16px;
+  box-shadow: var(--gold-shadow);
+}
+
+.gold-chart-container {
+  margin-top: 10px;
+}
+
+.gold-chart-tooltip {
+  background: #fff;
+  border: 1px solid var(--gold-border);
+  border-radius: var(--gold-radius-sm);
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  font-size: 12px;
+}
+
+.gold-tooltip-label {
+  margin: 0 0 4px 0;
+  font-size: 11px;
+  color: var(--gold-text-muted);
+}
+
+.gold-tooltip-value {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold-text);
+}
+
+/* ===== OHLC 面板 (日内波动) ===== */
+.gold-ohlc {
+  background: #fff;
+  border-radius: var(--gold-radius);
+  border: 1px solid var(--gold-border);
+  padding: 16px;
+  box-shadow: var(--gold-shadow);
+}
+
+.gold-ohlc-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold-text);
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gold-ohlc-unit {
+  font-size: 11px;
+  color: var(--gold-text-muted);
+  font-weight: 400;
+}
+
+.gold-ohlc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.gold-ohlc-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  background: #f9fafb;
+  border-radius: var(--gold-radius-sm);
+  border: 1px solid var(--gold-border-light);
+}
+
+.gold-ohlc-label {
+  font-size: 11px;
+  color: var(--gold-text-muted);
+}
+
+.gold-ohlc-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold-text);
+}
+
+.gold-ohlc-value.up {
+  color: var(--gold-up);
+}
+
+.gold-ohlc-value.down {
+  color: var(--gold-down);
+}
+
+.gold-range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.gold-range-bound {
+  font-size: 11px;
+  color: var(--gold-text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 56px;
+}
+
+.gold-range-track {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.gold-range-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a 0%, #facc15 50%, #dc2626 100%);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  min-width: 4px;
+}
+
+.gold-ohlc-meta {
+  display: flex;
+  justify-content: space-around;
+  font-size: 12px;
+  color: var(--gold-text-secondary);
+  padding-top: 10px;
+  border-top: 1px solid var(--gold-border-light);
+}
+
+.gold-ohlc-meta b {
+  color: var(--gold-text);
+}
+
+/* ===== 提示条 ===== */
+.gold-hint {
+  font-size: 11px;
+  color: var(--gold-text-muted);
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--gold-radius-sm);
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.gold-hint-box {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: var(--gold-radius-sm);
+  padding: 12px 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--gold-text-secondary);
+}
+
+.gold-hint-box p {
+  margin: 0 0 6px 0;
+  font-weight: 600;
+  color: var(--gold-text);
+}
+
+.gold-hint-box ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.gold-hint-box li {
+  margin-bottom: 2px;
+}
+
+/* ===== 统计面板 (月度/年度) ===== */
+.gold-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.gold-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  background: #fff;
+  border-radius: var(--gold-radius);
+  border: 1px solid var(--gold-border);
+  box-shadow: var(--gold-shadow);
+}
+
+.gold-stat-label {
+  font-size: 11px;
+  color: var(--gold-text-muted);
+  font-weight: 500;
+}
+
+.gold-stat-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--gold-text);
+  letter-spacing: -0.3px;
+}
+
+.gold-stat-value.up {
+  color: var(--gold-up);
+}
+
+.gold-stat-value.down {
+  color: var(--gold-down);
+}
+
+/* ===== 无数据 ===== */
+.gold-no-data {
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--gold-text-muted);
+  font-size: 13px;
+}
+
+/* ===== 历年均价对比 ===== */
+.gold-yearly-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.gold-yearly-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gold-yearly-year {
+  width: 40px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold-text);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.gold-yearly-bar-wrap {
+  flex: 1;
+  height: 18px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.gold-yearly-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #d4a84b, #c9a84c, #b8860b);
+  border-radius: 3px;
+  min-width: 2px;
+  transition: width 0.5s ease;
+}
+
+.gold-yearly-value {
+  width: 56px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold-text);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ===== 底部 ===== */
+.gold-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  background: #fff;
+  border-top: 1px solid var(--gold-border);
+  font-size: 11px;
+  color: var(--gold-text-muted);
+  flex-shrink: 0;
+}
+
+.gold-footer-dot {
+  color: #d1d5db;
+}
+
+/* ===== 滚动条 ===== */
+.gold-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.gold-content::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+.gold-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 420px) {
+  .gold-ohlc-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gold-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gold-price-value {
+    font-size: 36px;
+  }
+}

@@ -1,0 +1,156 @@
+/* ========================================
+   PromptForge — Fresh Design System
+   Light/Dark Theme Support
+   ======================================== */
+
+:root {
+  --pf-accent: #6C5CE7;
+  --pf-accent-deep: #5A4BD1;
+  --pf-accent-soft: rgba(108, 92, 231, 0.08);
+  --pf-accent-hover: rgba(108, 92, 231, 0.12);
+  --pf-gradient: linear-gradient(135deg, #6C5CE7 0%, #A29BFE 100%);
+
+  --pf-success: #00B894;
+  --pf-success-soft: rgba(0, 184, 148, 0.08);
+  --pf-danger: #E17055;
+  --pf-danger-soft: rgba(225, 112, 85, 0.08);
+  --pf-warning: #FDCB6E;
+  --pf-warning-soft: rgba(253, 203, 110, 0.1);
+
+  --pf-radius: 12px;
+  --pf-radius-md: 8px;
+  --pf-radius-sm: 6px;
+  --pf-radius-xs: 4px;
+  --pf-radius-pill: 100px;
+
+  --pf-shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
+  --pf-shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --pf-shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --pf-shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+
+  --pf-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --pf-font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ====== Light Theme (Default) ====== */
+:root, [data-theme="light"] {
+  --pf-bg: #F8F9FA;
+  --pf-bg-elevated: #FFFFFF;
+  --pf-surface: #FFFFFF;
+  --pf-surface-raised: #F1F3F5;
+  --pf-surface-hover: #E9ECEF;
+  --pf-border: #DEE2E6;
+  --pf-border-hover: #ADB5BD;
+  --pf-border-accent: rgba(108, 92, 231, 0.3);
+
+  --pf-text: #212529;
+  --pf-text-secondary: #495057;
+  --pf-text-muted: #868E96;
+  --pf-text-faint: #CED4DA;
+
+  --pf-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --pf-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --pf-shadow-lg: 0 8px 30px rgba(0,0,0,0.1);
+}
+
+/* ====== Dark Theme ====== */
+[data-theme="dark"] {
+  --pf-bg: #1A1B1E;
+  --pf-bg-elevated: #25262B;
+  --pf-surface: #2C2D31;
+  --pf-surface-raised: #373A40;
+  --pf-surface-hover: #43464D;
+  --pf-border: rgba(255, 255, 255, 0.08);
+  --pf-border-hover: rgba(255, 255, 255, 0.15);
+  --pf-border-accent: rgba(108, 92, 231, 0.4);
+
+  --pf-text: #E9ECEF;
+  --pf-text-secondary: #ADB5BD;
+  --pf-text-muted: #868E96;
+  --pf-text-faint: #495057;
+
+  --pf-success-soft: rgba(0, 184, 148, 0.15);
+  --pf-danger-soft: rgba(225, 112, 85, 0.15);
+  --pf-warning-soft: rgba(253, 203, 110, 0.15);
+
+  --pf-shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+  --pf-shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --pf-shadow-lg: 0 8px 30px rgba(0,0,0,0.4);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--pf-font);
+  background: var(--pf-bg);
+  color: var(--pf-text);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s, color 0.3s;
+}
+
+#app { width: 100%; height: 100%; overflow: hidden; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--pf-text-faint); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--pf-text-muted); }
+
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea, select { font: inherit; color: inherit; background: none; border: none; outline: none; }
+
+/* ========= 按钮 ========= */
+.btn {
+  font-size: 13px;
+  font-weight: 500;
+  height: 34px;
+  border: 1px solid var(--pf-border);
+  background: var(--pf-surface);
+  color: var(--pf-text-secondary);
+  border-radius: var(--pf-radius-sm);
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--pf-surface-hover);
+  border-color: var(--pf-border-hover);
+  color: var(--pf-text);
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.primary {
+  background: var(--pf-accent);
+  color: #fff;
+  border-color: var(--pf-accent);
+}
+.btn.primary:hover {
+  background: var(--pf-accent-deep);
+  border-color: var(--pf-accent-deep);
+}
+.btn.danger {
+  color: var(--pf-danger);
+  border-color: var(--pf-danger-soft);
+  background: var(--pf-danger-soft);
+}
+.btn.danger:hover { background: var(--pf-danger); color: #fff; }
+
+kbd {
+  font: 10px/1 var(--pf-font-mono);
+  background: var(--pf-surface-raised);
+  border: 1px solid var(--pf-border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--pf-text-muted);
+  min-width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

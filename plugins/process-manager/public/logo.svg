@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="c2i-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f6ef7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Circle background -->
+  <circle cx="64" cy="64" r="60" fill="url(#c2i-grad)" />
+
+  <!-- Network nodes -->
+  <circle cx="40" cy="36" r="6" fill="#FFFFFF" opacity="0.9" />
+  <circle cx="80" cy="28" r="5" fill="#FFFFFF" opacity="0.7" />
+  <circle cx="34" cy="68" r="5" fill="#FFFFFF" opacity="0.7" />
+  <circle cx="88" cy="64" r="6" fill="#FFFFFF" opacity="0.9" />
+  <circle cx="56" cy="92" r="5" fill="#FFFFFF" opacity="0.6" />
+  <circle cx="64" cy="48" r="4" fill="#FFFFFF" opacity="0.5" />
+
+  <!-- Connection lines -->
+  <line x1="40" y1="36" x2="80" y2="28" stroke="#FFFFFF" stroke-width="2" opacity="0.4" />
+  <line x1="40" y1="36" x2="34" y2="68" stroke="#FFFFFF" stroke-width="2" opacity="0.4" />
+  <line x1="40" y1="36" x2="64" y2="48" stroke="#FFFFFF" stroke-width="2" opacity="0.4" />
+  <line x1="80" y1="28" x2="88" y2="64" stroke="#FFFFFF" stroke-width="2" opacity="0.4" />
+  <line x1="80" y1="28" x2="64" y2="48" stroke="#FFFFFF" stroke-width="2" opacity="0.4" />
+  <line x1="34" y1="68" x2="56" y2="92" stroke="#FFFFFF" stroke-width="2" opacity="0.4" />
+  <line x1="88" y1="64" x2="56" y2="92" stroke="#FFFFFF" stroke-width="2" opacity="0.4" />
+  <line x1="64" y1="48" x2="56" y2="92" stroke="#FFFFFF" stroke-width="2" opacity="0.4" />
+
+  <!-- Search magnifier -->
+  <circle cx="74" cy="74" r="14" fill="none" stroke="#FFFFFF" stroke-width="3" />
+  <line x1="84" y1="84" x2="100" y2="100" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />
+</svg>

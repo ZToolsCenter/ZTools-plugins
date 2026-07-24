@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Icon } from "@iconify/react";
 import { isLosslessNumber } from "lossless-json";
 
 import JsonPathBar from "@/components/jsonTable/JsonPathBar.tsx";
+import ColumnFilterPopover from "@/components/jsonTable/ColumnFilterPopover.tsx";
 
 // 添加动画相关的CSS样式
 const animationStyles = {
@@ -30,6 +31,30 @@ interface JsonTableProps {
   onCollapseAll: () => void;
   hideEmpty?: boolean;
   hideNull?: boolean;
+  /** 列筛选条件：key -> 允许的值列表 */
+  columnFilters?: Record<string, string[]>;
+  /** 全局搜索词（用于 renderObjectTable / renderArrayTable） */
+  globalFilter?: string;
+  /** 列筛选变化回调 */
+  onColumnFilterChange?: (
+    columnKey: string,
+    selectedValues: Set<string>,
+  ) => void;
+}
+
+/** 将任意 JSON 值转为显示文本（用于筛选匹配） */
+function toDisplayString(value: any): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (isLosslessNumber(value)) return value.toString();
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
 }
 
 const JsonTable: React.FC<JsonTableProps> = ({
@@ -41,6 +66,9 @@ const JsonTable: React.FC<JsonTableProps> = ({
   onCollapseAll,
   hideEmpty = false,
   hideNull = false,
+  columnFilters,
+  globalFilter,
+  onColumnFilterChange,
 }) => {
   const [currentPath, setCurrentPath] = useState<string>("root");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -50,6 +78,37 @@ const JsonTable: React.FC<JsonTableProps> = ({
   const [visibleContents, setVisibleContents] = useState<Map<string, boolean>>(
     new Map(),
   );
+
+  // 预计算对象数组表格的去重值（用于列筛选 Popover）
+  const { allKeys, columnUniqueValues } = useMemo(() => {
+    if (!Array.isArray(data) || !isObjectArray(data)) {
+      return { allKeys: [], columnUniqueValues: {} };
+    }
+    const keys = getAllObjectKeys(data);
+    const uniqueValues: Record<string, string[]> = {};
+
+    keys.forEach((key) => {
+      const values = new Set<string>();
+      data.forEach((item: any) => values.add(toDisplayString(item[key])));
+      uniqueValues[key] = Array.from(values).sort();
+    });
+
+    return { allKeys: keys, columnUniqueValues: uniqueValues };
+  }, [data]);
+
+  // 根据列筛选条件过滤后的数据
+  const filteredData = useMemo(() => {
+    if (!Array.isArray(data) || !isObjectArray(data)) return data;
+    if (!columnFilters || Object.keys(columnFilters).length === 0) return data;
+
+    return data.filter((item: any) => {
+      return Object.entries(columnFilters).every(([key, allowedValues]) => {
+        if (!allowedValues || allowedValues.length === 0) return true;
+        const cellValue = toDisplayString(item[key]);
+        return allowedValues.includes(cellValue);
+      });
+    });
+  }, [data, columnFilters]);
 
   // 添加自动展开单个子元素的函数
   const collectSingleChildPaths = (
@@ -350,7 +409,18 @@ const JsonTable: React.FC<JsonTableProps> = ({
 
   // 渲染对象表格
   const renderObjectTable = (data: object, path: string = "root") => {
-    const entries = Object.entries(data);
+    let entries = Object.entries(data);
+
+    // 全局搜索过滤
+    if (globalFilter) {
+      const searchLower = globalFilter.toLowerCase();
+      entries = entries.filter(([key, value]) => {
+        return (
+          key.toLowerCase().includes(searchLower) ||
+          toDisplayString(value).toLowerCase().includes(searchLower)
+        );
+      });
+    }
 
     return (
       <div className="mb-1 overflow-x-auto inline-block">
@@ -410,18 +480,34 @@ const JsonTable: React.FC<JsonTableProps> = ({
     path: string = "root",
     isNested: boolean = false,
   ) => {
+    // 全局搜索过滤
+    let filteredItems = data;
+    if (globalFilter) {
+      const searchLower = globalFilter.toLowerCase();
+      filteredItems = data.filter((item, index) => {
+        return (
+          String(index).includes(searchLower) ||
+          toDisplayString(item).toLowerCase().includes(searchLower)
+        );
+      });
+    }
+
     return (
       <div
         className={`${isNested ? "border-0" : "border border-default-300 rounded"} mb-1 overflow-x-auto inline-block`}
       >
         <table className="border-collapse w-auto">
           <tbody>
-            {data.map((item, index) => {
+            {filteredItems.map((item, filteredIndex) => {
+              // 使用原始 index 作为路径
+              const originalIndex = globalFilter
+                ? data.indexOf(item)
+                : filteredIndex;
               if ((hideEmpty && item === "") || (hideNull && item === null)) {
                 return null;
               }
 
-              const itemPath = `${path}[${index}]`;
+              const itemPath = `${path}[${originalIndex}]`;
               const isSelected = isPathSelected(itemPath);
               const isExpanded =
                 isExpandable(item) && expandedPaths.has(itemPath);
@@ -429,14 +515,14 @@ const JsonTable: React.FC<JsonTableProps> = ({
 
               return (
                 <tr
-                  key={index}
+                  key={originalIndex}
                   className={`${isSelected ? "!bg-default-200/60" : ""} hover:bg-default-50`}
                 >
                   <td
                     className="px-2 text-sm border border-default-300 cursor-pointer"
                     onClick={(e) => handleElementClick(itemPath, e)}
                   >
-                    {index}
+                    {originalIndex}
                   </td>
                   <td
                     className="px-2 text-sm border border-default-300 cursor-pointer"
@@ -471,9 +557,22 @@ const JsonTable: React.FC<JsonTableProps> = ({
     path: string = "root",
     isNested: boolean = false,
   ) => {
-    const allKeys = getAllObjectKeys(data);
+    const keys = isNested ? getAllObjectKeys(data) : allKeys;
+    const renderData = isNested ? data : (filteredData as any[]);
+    // 嵌套表格也计算去重值
+    const uniqueValues = isNested
+      ? (() => {
+          const uv: Record<string, string[]> = {};
+          keys.forEach((key) => {
+            const values = new Set<string>();
+            data.forEach((item: any) => values.add(toDisplayString(item[key])));
+            uv[key] = Array.from(values).sort();
+          });
+          return uv;
+        })()
+      : columnUniqueValues;
 
-    if (allKeys.length === 0) {
+    if (keys.length === 0) {
       return renderArrayTable(data, path, isNested);
     }
 
@@ -490,10 +589,15 @@ const JsonTable: React.FC<JsonTableProps> = ({
               >
                 #
               </th>
-              {allKeys.map((key) => {
+              {keys.map((key) => {
                 // 检查此表头对应的路径是否应该高亮
                 const headerPath = `${path}.${key}`;
                 const isHeaderSelected = isPathSelected(headerPath);
+                // 检查该列是否有活跃筛选
+                const hasFilter =
+                  columnFilters &&
+                  columnFilters[key] &&
+                  columnFilters[key].length < (uniqueValues[key]?.length || 0);
 
                 return (
                   <th
@@ -501,33 +605,50 @@ const JsonTable: React.FC<JsonTableProps> = ({
                     className={`${isHeaderSelected ? "!bg-default-200/60" : ""} px-2 text-left text-sm font-medium text-default-600 border border-default-300 cursor-pointer`}
                     onClick={(e) => handleElementClick(headerPath, e)}
                   >
-                    {key}
+                    <div className="flex items-center gap-1">
+                      <span>{key}</span>
+                      {!isNested && onColumnFilterChange && uniqueValues[key] && (
+                        <ColumnFilterPopover
+                          columnKey={key}
+                          allValues={uniqueValues[key]}
+                          selectedValues={
+                            columnFilters?.[key]
+                              ? new Set(columnFilters[key])
+                              : new Set(uniqueValues[key])
+                          }
+                          isActive={!!hasFilter}
+                          onFilterChange={onColumnFilterChange}
+                        />
+                      )}
+                    </div>
                   </th>
                 );
               })}
             </tr>
           </thead>
           <tbody>
-            {data.map((item, index) => {
+            {renderData.map((item: any, index: number) => {
               if ((hideEmpty && item === "") || (hideNull && item === null)) {
                 return null;
               }
 
-              const itemPath = `${path}[${index}]`;
+              // 筛选后映射回原索引
+              const originalIndex = Array.isArray(data) ? data.indexOf(item) : index;
+              const itemPath = `${path}[${originalIndex}]`;
               const isSelected = isPathSelected(itemPath);
 
               return (
                 <tr
-                  key={index}
+                  key={originalIndex}
                   className={`${isSelected ? "!bg-default-200/60" : ""} hover:bg-default-50`}
                 >
                   <td
                     className="px-2 text-sm border border-default-300 cursor-pointer"
                     onClick={(e) => handleElementClick(itemPath, e)}
                   >
-                    {index}
+                    {originalIndex}
                   </td>
-                  {allKeys.map((key) => {
+                  {keys.map((key) => {
                     const value = item[key];
                     const cellPath = `${itemPath}.${key}`;
                     const isCellSelected = isPathSelected(cellPath);

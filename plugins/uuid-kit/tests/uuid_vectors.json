@@ -1,0 +1,60 @@
+{
+ "codecs": [
+  {
+   "uuid": "28d463fe-1b43-45fa-8346-a08ff924c724",
+   "hex32": "28d463fe1b4345fa8346a08ff924c724",
+   "base62": "1F2krUyRcqDfa3cNxwq76q",
+   "base57": "9H6Eec99g7BsAVi8QeCwyN",
+   "base58": "63RgTRe1WGZapkFHAUJPmV",
+   "base64url": "KNRj_htDRfqDRqCP-STHJA"
+  },
+  {
+   "uuid": "00000000-0000-0000-0000-00000000003d",
+   "hex32": "0000000000000000000000000000003d",
+   "base62": "000000000000000000000z",
+   "base57": "2222222222222222222236",
+   "base58": "11111111111111124",
+   "base64url": "AAAAAAAAAAAAAAAAAAAAPQ"
+  },
+  {
+   "uuid": "00000000-0000-0000-0000-000000000000",
+   "hex32": "00000000000000000000000000000000",
+   "base62": "0000000000000000000000",
+   "base57": "2222222222222222222222",
+   "base58": "1111111111111111",
+   "base64url": "AAAAAAAAAAAAAAAAAAAAAA"
+  },
+  {
+   "uuid": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+   "hex32": "ffffffffffffffffffffffffffffffff",
+   "base62": "7n42DGM5Tflk9n8mt7Fhc7",
+   "base57": "oZEq7ovRbLq6UnGMPwc8B5",
+   "base58": "YcVfxkQb6JRzqk5kF2tNLv",
+   "base64url": "_____________________w"
+  },
+  {
+   "uuid": "01000000-0000-0000-0000-000000000000",
+   "hex32": "01000000000000000000000000000000",
+   "base62": "01szWVIyZES2MJoAMUmjwW",
+   "base57": "2CA5kZN3DiPMBU25CzmZRs",
+   "base58": "8AQGAut7N92awznwCnjuR",
+   "base64url": "AQAAAAAAAAAAAAAAAAAAAA"
+  }
+ ],
+ "v3_dns_example": "9073926b-929f-31c2-abc9-fad77ae3e8eb",
+ "v5_dns_example": "cfbff0d1-9375-5685-968c-48ce8b15ae17",
+ "v3_url_hello": "66051fa1-34b2-3e02-a672-cd0d8dc3fc6f",
+ "v5_url_hello": "946cd71d-b140-5fce-9075-af524ef71c31",
+ "md5_empty": "d41d8cd98f00b204e9800998ecf8427e",
+ "md5_abc": "900150983cd24fb0d6963f7d28e17f72",
+ "md5_long": "398533d48111e9f664b1f64cb10c4b63",
+ "sha1_empty": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+ "sha1_abc": "a9993e364706816aba3e25717850c26c9cd0d89d",
+ "sha1_long": "f07064d93f0524051cea1ae2a2a748f44a6945a6",
+ "namespaces": {
+  "dns": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+  "url": "6ba7b811-9dad-11d1-80b4-00c04fd430c8",
+  "oid": "6ba7b812-9dad-11d1-80b4-00c04fd430c8",
+  "x500": "6ba7b814-9dad-11d1-80b4-00c04fd430c8"
+ }
+}

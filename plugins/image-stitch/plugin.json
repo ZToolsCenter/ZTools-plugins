@@ -1,0 +1,43 @@
+{
+  "name": "image-stitch",
+  "title": "图片拼接",
+  "description": "将多张图片拼接为一张长图，支持横向/纵向拼接、间距和背景色设置",
+  "author": "Ethan0x0000",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.svg",
+  "features": [
+    {
+      "code": "image-stitch",
+      "explain": "图片拼接",
+      "icon": "logo.svg",
+      "cmds": ["图片拼接", "拼图", "image stitch"]
+    },
+    {
+      "code": "image-stitch-files",
+      "explain": "拼接图片文件",
+      "icon": "logo.svg",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "拼接图片",
+          "fileType": "file",
+          "match": "/\\.(png|jpe?g|gif|bmp|webp|svg)$/i",
+          "minLength": 1,
+          "maxLength": 99
+        }
+      ]
+    },
+    {
+      "code": "image-stitch-img",
+      "explain": "拼接剪贴板图片",
+      "icon": "logo.svg",
+      "cmds": [
+        {
+          "type": "img",
+          "label": "拼接图片"
+        }
+      ]
+    }
+  ]
+}

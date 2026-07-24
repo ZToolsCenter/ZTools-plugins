@@ -28,7 +28,7 @@ export default defineConfig({
     }),
     tsconfigPaths(),
     monacoEditorPlugin({
-      languageWorkers: ["editorWorkerService", "json", "typescript"],
+      languageWorkers: ["editorWorkerService", "json"],
     }),
     nodePolyfills(),
     VitePWA({
@@ -78,7 +78,7 @@ export default defineConfig({
         ],
       },
       devOptions: {
-        enabled: true, // 在开发环境中启用 PWA
+        enabled: false, // 在开发环境中禁用 PWA
         type: "module",
       },
       manifest: {
@@ -143,6 +143,6 @@ export default defineConfig({
     }),
   ],
   optimizeDeps: {
-    include: ["vanilla-jsoneditor-cn"],
+    include: ["vanilla-jsoneditor"],
   },
 });

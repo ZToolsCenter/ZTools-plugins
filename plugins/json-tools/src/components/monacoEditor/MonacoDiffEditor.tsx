@@ -57,6 +57,8 @@ import {
   toggleImageDecorators,
 } from "@/components/monacoEditor/decorations/imageDecoration.ts";
 import { DecorationManager } from "@/components/monacoEditor/decorations/decorationManager.ts";
+import { DisposableStore } from "@/components/monacoEditor/monacoDisposables.ts";
+import { ensureProvidersRegistered } from "@/components/monacoEditor/decorations/decorationInit.ts";
 
 import "@/styles/monaco.css";
 import { Json5LanguageDef } from "@/components/monacoEditor/MonacoLanguageDef.tsx";
@@ -129,6 +131,9 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
   const editorRef = useRef<editor.IStandaloneDiffEditor | null>(null);
   const originalEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const modifiedEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+
+  // Monaco 资源生命周期管理器，统一管理所有事件监听器
+  const disposableStore = useRef(new DisposableStore());
 
   // 从 store 获取当前 tab 的设置
   const currentTab = getTabByKey(tabKey);
@@ -867,6 +872,9 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
     loader.config({ monaco });
 
     loader.init().then((monacoInstance) => {
+      // 确保全局悬停提供者已注册
+      ensureProvidersRegistered();
+
       // 注册 JSON5 语言支持
       if (
         !monacoInstance.languages
@@ -937,7 +945,8 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
         modifiedEditorRef.current = editorRef.current.getModifiedEditor();
 
         // 监听原始编辑器内容变化
-        originalEditorRef.current.onDidChangeModelContent((e) => {
+        disposableStore.current.add(
+          originalEditorRef.current.onDidChangeModelContent((e) => {
           const originalText = originalEditorRef.current!.getValue();
 
           onUpdateOriginalValue(originalText);
@@ -983,10 +992,12 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
               handleImageContentChange(e, originalImageDecoratorState);
             }
           }
-        });
+        }),
+        );
 
         // 监听修改编辑器内容变化
-        modifiedEditorRef.current.onDidChangeModelContent((e) => {
+        disposableStore.current.add(
+          modifiedEditorRef.current.onDidChangeModelContent((e) => {
           const modifiedText = modifiedEditorRef.current!.getValue();
 
           onUpdateModifiedValue && onUpdateModifiedValue(modifiedText);
@@ -1032,10 +1043,12 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
               handleImageContentChange(e, modifiedImageDecoratorState);
             }
           }
-        });
+        }),
+        );
 
         // 监听滚动事件
-        originalEditorRef.current.onDidScrollChange(() => {
+        disposableStore.current.add(
+          originalEditorRef.current.onDidScrollChange(() => {
           if (originalTimestampUpdateTimeoutRef.current) {
             clearTimeout(originalTimestampUpdateTimeoutRef.current);
           }
@@ -1100,9 +1113,11 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
               );
             }
           }, 300);
-        });
+        }),
+        );
 
-        modifiedEditorRef.current.onDidScrollChange(() => {
+        disposableStore.current.add(
+          modifiedEditorRef.current.onDidScrollChange(() => {
           if (modifiedTimestampUpdateTimeoutRef.current) {
             clearTimeout(modifiedTimestampUpdateTimeoutRef.current);
           }
@@ -1167,7 +1182,8 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
               );
             }
           }, 300);
-        });
+        }),
+        );
 
         // 初始化完成后更新时间戳装饰器
         setTimeout(() => {
@@ -1354,10 +1370,18 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
 
     return () => {
       clearTimeout(timeoutId);
-      // 如果编辑器已经创建，则销毁
+
+      // 统一释放所有 Monaco 事件监听器
+      disposableStore.current.dispose();
+
+      // 销毁差异编辑器实例（会同时清理内部模型和子编辑器）
       if (editorRef.current) {
-        // editorRef.current?.dispose();
+        editorRef.current.dispose();
+        editorRef.current = null;
       }
+
+      originalEditorRef.current = null;
+      modifiedEditorRef.current = null;
     };
   }, []); // 空依赖数组确保只在挂载时执行
 

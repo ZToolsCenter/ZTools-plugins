@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+    <linearGradient id="btn" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#5a6bd8"/>
+      <stop offset="100%" style="stop-color:#4a5ac4"/>
+    </linearGradient>
+    <linearGradient id="btn-orange" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff9a44"/>
+      <stop offset="100%" style="stop-color:#ff6b35"/>
+    </linearGradient>
+    <linearGradient id="display" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Card -->
+  <rect x="28" y="20" width="200" height="216" rx="24" fill="url(#bg)"/>
+
+  <!-- Display -->
+  <rect x="48" y="40" width="160" height="44" rx="8" fill="url(#display)"/>
+  <text x="196" y="72" font-family="SF Mono, Menlo, monospace" font-size="28" font-weight="bold" fill="#00ff88" text-anchor="end">123</text>
+
+  <!-- Button Row 1: C ± % ÷ -->
+  <circle cx="68" cy="104" r="16" fill="url(#btn)"/>
+  <text x="68" y="109" font-family="SF Pro, sans-serif" font-size="14" font-weight="600" fill="white" text-anchor="middle">C</text>
+
+  <circle cx="108" cy="104" r="16" fill="url(#btn)"/>
+  <text x="108" y="109" font-family="SF Pro, sans-serif" font-size="14" font-weight="600" fill="white" text-anchor="middle">±</text>
+
+  <circle cx="148" cy="104" r="16" fill="url(#btn)"/>
+  <text x="148" y="109" font-family="SF Pro, sans-serif" font-size="14" font-weight="600" fill="white" text-anchor="middle">%</text>
+
+  <circle cx="188" cy="104" r="16" fill="url(#btn-orange)"/>
+  <text x="188" y="109" font-family="SF Pro, sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle">÷</text>
+
+  <!-- Button Row 2: 7 8 9 × -->
+  <circle cx="68" cy="140" r="16" fill="#ffffff" fill-opacity="0.95"/>
+  <text x="68" y="145" font-family="SF Pro, sans-serif" font-size="14" font-weight="500" fill="#333" text-anchor="middle">7</text>
+
+  <circle cx="108" cy="140" r="16" fill="#ffffff" fill-opacity="0.95"/>
+  <text x="108" y="145" font-family="SF Pro, sans-serif" font-size="14" font-weight="500" fill="#333" text-anchor="middle">8</text>
+
+  <circle cx="148" cy="140" r="16" fill="#ffffff" fill-opacity="0.95"/>
+  <text x="148" y="145" font-family="SF Pro, sans-serif" font-size="14" font-weight="500" fill="#333" text-anchor="middle">9</text>
+
+  <circle cx="188" cy="140" r="16" fill="url(#btn-orange)"/>
+  <text x="188" y="145" font-family="SF Pro, sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle">×</text>
+
+  <!-- Button Row 3: 4 5 6 - -->
+  <circle cx="68" cy="176" r="16" fill="#ffffff" fill-opacity="0.95"/>
+  <text x="68" y="181" font-family="SF Pro, sans-serif" font-size="14" font-weight="500" fill="#333" text-anchor="middle">4</text>
+
+  <circle cx="108" cy="176" r="16" fill="#ffffff" fill-opacity="0.95"/>
+  <text x="108" y="181" font-family="SF Pro, sans-serif" font-size="14" font-weight="500" fill="#333" text-anchor="middle">5</text>
+
+  <circle cx="148" cy="176" r="16" fill="#ffffff" fill-opacity="0.95"/>
+  <text x="148" y="181" font-family="SF Pro, sans-serif" font-size="14" font-weight="500" fill="#333" text-anchor="middle">6</text>
+
+  <circle cx="188" cy="176" r="16" fill="url(#btn-orange)"/>
+  <text x="188" y="181" font-family="SF Pro, sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle">−</text>
+
+  <!-- Button Row 4: 1 2 3 + -->
+  <circle cx="68" cy="212" r="16" fill="#ffffff" fill-opacity="0.95"/>
+  <text x="68" y="217" font-family="SF Pro, sans-serif" font-size="14" font-weight="500" fill="#333" text-anchor="middle">1</text>
+
+  <circle cx="108" cy="212" r="16" fill="#ffffff" fill-opacity="0.95"/>
+  <text x="108" y="217" font-family="SF Pro, sans-serif" font-size="14" font-weight="500" fill="#333" text-anchor="middle">2</text>
+
+  <circle cx="148" cy="212" r="16" fill="#ffffff" fill-opacity="0.95"/>
+  <text x="148" y="217" font-family="SF Pro, sans-serif" font-size="14" font-weight="500" fill="#333" text-anchor="middle">3</text>
+
+  <circle cx="188" cy="212" r="16" fill="url(#btn-orange)"/>
+  <text x="188" y="217" font-family="SF Pro, sans-serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle">+</text>
+</svg>

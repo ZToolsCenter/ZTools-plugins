@@ -1,0 +1,1081 @@
+.command-center {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg-card);
+}
+
+.command-manager-sidebar-head strong,
+.command-runner-head strong {
+  display: block;
+  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-runner > p,
+.command-manager-item code,
+.command-template-card p,
+.command-preview span,
+.command-runner-meta,
+.command-folder-tabs small {
+  color: var(--text-muted);
+}
+
+.command-runner-head,
+.command-manager-sidebar-head,
+.command-manager-submit,
+.command-param-hints {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.command-runner-head button,
+.command-manager-sidebar-head button,
+.command-manager-submit button,
+.command-param-hints button {
+  border: 1px solid var(--border-light);
+  background: var(--bg-hover);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  height: 28px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.command-center-actions button:hover,
+.command-runner-head button:hover,
+.command-manager-sidebar-head button:hover,
+.command-manager-submit button:hover,
+.command-param-hints button:hover {
+  background: var(--bg-main);
+  border-color: var(--primary);
+}
+
+.command-center-body,
+.command-manager-body {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+}
+
+.command-center-body {
+  grid-template-columns: var(--list-pane-width, 214px) 6px minmax(320px, 1fr);
+  gap: 0;
+  padding: 0;
+}
+
+.command-pane,
+.command-template-list,
+.command-runner,
+.command-manager-sidebar,
+.command-manager-list,
+.command-manager-editor {
+  min-height: 0;
+  min-width: 0;
+}
+
+.command-pane,
+.command-runner {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.command-manager-sidebar,
+.command-manager-list {
+  border-right: 1px solid var(--border-light);
+}
+
+.command-pane,
+.command-folder-tabs,
+.command-template-list,
+.command-manager-sidebar,
+.command-manager-list,
+.command-manager-list-shell,
+.command-manager-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.command-folder-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-light);
+  height: 24px;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+/* Tab Styles - matching .fs-tabs / .file-tabs */
+.command-folder-tabs {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  min-width: 0;
+  width: 100%;
+  flex: 1 1 auto;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+  height: 100%;
+}
+
+.command-folder-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.command-folder-tabs:active {
+  cursor: grabbing;
+}
+
+.command-folder-tabs button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 80px;
+  max-width: 160px;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  font-size: 11px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+}
+
+.command-folder-tabs button:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+}
+
+.command-folder-tabs button.active {
+  border: 1px solid var(--border-light);
+  background: var(--bg-card);
+  color: var(--text-main);
+  position: relative;
+  z-index: 2;
+}
+
+.command-folder-tabs button small {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.command-folder-add {
+  flex: 0 0 auto;
+  margin-left: auto;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.command-folder-add:hover {
+  color: var(--text-main);
+  border-color: var(--primary);
+  background: var(--bg-main);
+}
+
+.command-pane-head,
+.command-manager-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 24px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 11px;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.command-pane-head strong,
+.command-manager-sidebar-head strong {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.command-pane-head span {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.command-template-list,
+.command-manager-list-shell {
+  overflow: auto;
+  padding-right: 0;
+  gap: 0;
+}
+
+.command-list-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.command-manager-table .manager-head,
+.command-manager-table .manager-row {
+  grid-template-columns: minmax(120px, 1.2fr) minmax(200px, 4fr) 120px;
+}
+
+.command-manager-table .manager-head span:nth-child(2),
+.command-manager-table .manager-row span:nth-child(2) {
+  text-align: left;
+}
+
+/* Table Style for Command List - matching .fs-file-table */
+.command-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.command-table .col-template {
+  width: auto;
+}
+
+.command-manager-list .command-table .col-name {
+  width: 200px;
+}
+
+.command-manager-list .command-table thead tr,
+.command-manager-list .command-table tbody tr {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 160px;
+}
+
+.command-manager-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.command-table .command-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  color: var(--primary);
+  opacity: 0.7;
+}
+
+.command-empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-dark);
+  border-radius: var(--radius-md);
+  margin: 12px;
+  font-size: 11px;
+}
+
+.command-runner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.command-runner-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 32px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.command-runner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.command-runner-head button {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.command-runner-head button.primary-button {
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-border);
+  color: #fff;
+}
+.command-runner-head button.primary-button:hover:not(:disabled) {
+  background: var(--button-primary-hover);
+  border-color: var(--button-primary-border);
+}
+
+.command-detail-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.command-detail-block > span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.command-detail-block > p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-main);
+}
+
+.command-detail-block code,
+.command-manager-item code,
+.command-preview code {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.command-runner-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.command-toggle,
+.command-target-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.command-target-select {
+  justify-content: flex-end;
+}
+
+.command-target-select-inline {
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+.command-target-select select {
+  min-width: 140px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-size: 11px;
+}
+
+.command-target-select-inline span,
+.command-toggle span,
+.command-editor-checkbox-row span {
+  white-space: nowrap;
+}
+
+.command-toggle input,
+.command-editor-checkbox-row input,
+.command-toggle input[type='checkbox'],
+.command-editor-checkbox-row input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  margin: 0 !important;
+  border: 1px solid var(--border-light);
+  border-radius: 999px !important;
+  background: var(--bg-main);
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-block;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.command-toggle input::after,
+.command-editor-checkbox-row input::after,
+.command-toggle input[type='checkbox']::after,
+.command-editor-checkbox-row input[type='checkbox']::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 999px !important;
+  background: var(--copy-link);
+  transform: scale(0);
+  transition: transform 0.16s ease;
+}
+
+.command-toggle input:checked,
+.command-editor-checkbox-row input:checked,
+.command-toggle input[type='checkbox']:checked,
+.command-editor-checkbox-row input[type='checkbox']:checked {
+  border-color: var(--copy-link);
+}
+
+.command-toggle input:checked::after,
+.command-editor-checkbox-row input:checked::after,
+.command-toggle input[type='checkbox']:checked::after,
+.command-editor-checkbox-row input[type='checkbox']:checked::after {
+  transform: scale(1);
+}
+
+.command-toggle input:focus-visible,
+.command-editor-checkbox-row input:focus-visible,
+.command-toggle input[type='checkbox']:focus-visible,
+.command-editor-checkbox-row input[type='checkbox']:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.command-param-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.command-param-grid label,
+.command-manager-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.command-param-grid input,
+.command-manager-sidebar input,
+.command-manager-editor input,
+.command-manager-editor select,
+.command-manager-editor textarea {
+  border: 1px solid var(--border-light);
+  background: var(--bg-main);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 11px;
+  width: 100%;
+}
+
+.command-folder-tabs button.active {
+  background: var(--bg-hover);
+  color: var(--copy-link);
+  border-bottom-color: var(--bg-hover);
+}
+
+.command-manager-sidebar {
+  padding: 0;
+  gap: 0;
+}
+
+.command-manager-sidebar input {
+  margin: 8px 12px;
+  width: calc(100% - 24px);
+}
+
+.command-folder-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.command-folder-stack button,
+.command-folder-row button:first-child {
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  padding: 0 8px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.command-folder-stack button:hover,
+.command-folder-row button:first-child:hover {
+  background: var(--bg-hover);
+}
+
+.command-folder-stack button.active,
+.command-folder-row button.active:first-child {
+  background: var(--selection-bg);
+  color: var(--copy-link);
+  font-weight: 600;
+}
+
+.command-folder-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.command-folder-row .danger {
+  color: var(--danger);
+  opacity: 0.6;
+  font-size: 10px;
+  padding: 0 4px;
+}
+
+.command-folder-row .danger:hover {
+  opacity: 1;
+  background: transparent;
+}
+
+.command-manager-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border-light);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fs-file-table.command-table tbody tr.is-selected td {
+  background: var(--bg-active);
+}
+.fs-file-table.command-table tbody tr.is-selected td .command-icon {
+  color: var(--copy-link);
+}
+
+.command-manager-item:hover {
+  background: var(--bg-hover);
+}
+
+.command-manager-item.active {
+  background: var(--selection-bg);
+  border-left: 2px solid var(--copy-link);
+}
+
+.command-manager-item strong {
+  font-size: 11px;
+  color: var(--text-main);
+}
+
+.command-manager-editor {
+  padding: 12px;
+  gap: 12px;
+  overflow: auto;
+}
+
+.command-manager-editor label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.command-editor-textarea textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.command-editor-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  cursor: pointer;
+}
+
+.command-editor-checkbox input {
+  width: auto;
+}
+
+.command-dialog-backdrop {
+  z-index: 120;
+}
+
+.command-dialog {
+  width: min(700px, calc(100vw - 64px));
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.command-editor-page {
+  width: min(920px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+}
+
+.command-form-standalone {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 46px 20px 20px;
+  border: 0;
+  border-radius: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.command-form-standalone .modal-header {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  width: 100%;
+  padding: 0 max(76px, env(safe-area-inset-left, 0px) + 76px) 0 max(76px, env(safe-area-inset-right, 0px) + 76px);
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  -webkit-app-region: drag;
+}
+
+.command-form-standalone .modal-header span {
+  pointer-events: auto;
+}
+
+.command-form-standalone-body,
+.command-form-standalone-page,
+.command-form-standalone input,
+.command-form-standalone select,
+.command-form-standalone textarea,
+.command-form-standalone button {
+  -webkit-app-region: no-drag;
+}
+
+.command-form-standalone-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.command-form-standalone-page {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.command-form-standalone-page label:not(.command-editor-checkbox-row) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.command-form-standalone-page label.command-editor-checkbox-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.command-form-standalone-page input:not([type='checkbox']),
+.command-form-standalone-page select,
+.command-form-standalone-page textarea {
+  width: 100%;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.command-form-standalone-page input:not([type='checkbox']),
+.command-form-standalone-page select {
+  height: 36px;
+  padding: 0 12px;
+}
+
+.command-form-standalone-page textarea {
+  min-height: 200px;
+  padding: 12px;
+  resize: vertical;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.55;
+}
+
+.command-form-standalone-page select {
+  padding-right: 24px;
+}
+
+.command-editor-window,
+.standalone-shell {
+  min-height: 100vh;
+  background: var(--bg-main);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  isolation: isolate;
+}
+
+.command-editor-page.standalone,
+.command-manager-modal.standalone {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 46px 20px 20px !important;
+  background: var(--bg-main) !important;
+  flex: 1;
+  position: relative;
+}
+
+.command-editor-page.standalone .modal-header,
+.command-manager-modal.standalone .modal-header {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  width: 100%;
+  height: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  margin-bottom: 0;
+  -webkit-app-region: drag;
+}
+
+.command-editor-page.standalone .modal-header span,
+.command-manager-modal.standalone .modal-header span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: auto;
+}
+
+.command-editor-page.standalone button,
+.command-editor-page.standalone input,
+.command-editor-page.standalone select,
+.command-editor-page.standalone textarea,
+.command-editor-page.standalone .command-dialog-body,
+.command-manager-modal.standalone button,
+.command-manager-modal.standalone input,
+.command-manager-modal.standalone select,
+.command-manager-modal.standalone textarea,
+.command-manager-modal.standalone .manager-toolbar,
+.command-manager-modal.standalone .manager-table {
+  -webkit-app-region: no-drag;
+}
+
+.command-dialog-body {
+  padding: 0 18px 18px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.command-editor-dialog-form,
+.command-folder-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.command-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.command-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.command-editor-field.full {
+  grid-column: 1 / -1;
+}
+
+.command-editor-dialog-form label,
+.command-folder-dialog-form label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.command-editor-dialog-form input:not([type='checkbox']),
+.command-editor-dialog-form select,
+.command-editor-dialog-form textarea,
+.command-folder-dialog-form input {
+  width: 100%;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-size: 12px;
+}
+
+.command-editor-dialog-form input:not([type='checkbox']),
+.command-editor-dialog-form select,
+.command-folder-dialog-form input {
+  height: 34px;
+  padding: 0 10px;
+}
+
+.command-editor-dialog-textarea textarea {
+  min-height: 240px;
+  padding: 10px;
+  resize: vertical;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.55;
+}
+
+.command-editor-dialog-params {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.command-editor-dialog-params > span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.command-editor-dialog-params > small {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.command-editor-dialog-params .command-param-hints button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.command-editor-checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.command-editor-checkbox-row input {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  padding: 0 !important;
+  flex: 0 0 auto;
+}
+
+.command-editor-checkbox-row span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.command-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.command-preview span {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.command-manager-submit {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.command-runner-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+}
+
+.command-manager-modal {
+  width: min(980px, calc(100vw - 88px));
+  min-height: 640px;
+  max-width: 980px;
+}
+
+.command-manager-body {
+  display: block;
+  overflow: visible;
+}
+
+.command-manager-modal .modal-header {
+  margin-bottom: 16px;
+}
+
+.command-manager-modal.standalone .modal-header {
+  -webkit-app-region: drag;
+}
+
+.command-manager-modal.standalone .modal-header button,
+.command-manager-modal.standalone .manager-toolbar,
+.command-manager-modal.standalone .command-manager-panel-grid,
+.command-manager-modal.standalone input,
+.command-manager-modal.standalone select,
+.command-manager-modal.standalone textarea,
+.command-manager-modal.standalone button,
+.command-manager-modal.standalone table {
+  -webkit-app-region: no-drag;
+}
+
+.command-manager-modal .modal-header h2,
+.command-manager-modal .modal-header span {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.command-manager-modal .manager-toolbar {
+  gap: 8px;
+}
+
+.manager-toolbar-spacious {
+  gap: 10px !important;
+}
+
+.command-manager-modal .manager-toolbar .flat-button,
+.command-manager-modal .command-manager-sidebar-head button,
+.command-manager-modal .command-manager-submit button {
+  min-width: 0;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text-main);
+  box-shadow: none;
+}
+
+.command-manager-modal .manager-toolbar .flat-button:hover:not(:disabled),
+.command-manager-modal .command-manager-sidebar-head button:hover,
+.command-manager-modal .command-manager-submit button:hover {
+  background: var(--bg-main);
+  border-color: var(--primary);
+  box-shadow: none;
+}
+
+.command-manager-launch {
+  height: 22px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+}
+
+@media (max-width: 1180px) {
+  .command-manager-body {
+    grid-template-columns: 1fr;
+  }
+
+  .command-manager-panel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .command-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .command-runner,
+  .command-manager-list,
+  .command-manager-editor {
+    border-left: 0;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .command-param-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .command-runner-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .command-target-select {
+    justify-content: flex-start;
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@pasteboard-pro/sync-protocol",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node-crypto": "./src/node-crypto.ts"
+  },
+  "dependencies": {
+    "@pasteboard-pro/core": "workspace:*"
+  }
+}

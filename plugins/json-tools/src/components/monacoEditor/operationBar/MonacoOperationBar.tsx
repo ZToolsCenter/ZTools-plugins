@@ -28,6 +28,7 @@ interface MonacoOperationBarProps {
   onMore: (key: "unescape" | "del_comment") => boolean;
   onSaveFile: () => boolean;
   onAiClick?: () => void;
+  onShowHistory?: () => void;
   ref?: React.RefObject<MonacoOperationBarRef> | null;
 }
 
@@ -43,6 +44,7 @@ const MonacoOperationBar: React.FC<MonacoOperationBarProps> = ({
   onSaveFile,
   onMore,
   onAiClick,
+  onShowHistory,
 }) => {
   const [isSortDropdownOpen, setSortDropdownOpen] = useState(false);
   const [isMoreDropdownOpen, setMoreDropdownOpen] = useState(false);
@@ -256,6 +258,14 @@ const MonacoOperationBar: React.FC<MonacoOperationBarProps> = ({
           tooltip: "将当前内容保存为文件",
           onClick: () => handleAction("save_file"),
           priority: 80,
+        },
+        {
+          key: "history",
+          icon: "solar:history-linear",
+          text: "历史",
+          tooltip: "查看当前tab历史",
+          onClick: onShowHistory || (() => {}),
+          priority: 85,
         },
       ],
     },

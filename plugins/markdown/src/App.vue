@@ -1,15 +1,17 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import FileTree from './components/FileTree.vue'
 import Vditor from 'vditor'
 import MarkdownEditor from './components/MarkdownEditor.vue'
+import vditorStyle from 'vditor/dist/index.css?raw'
 
 const handleExportMarkdown = async (item) => {
   const content = await loadFileContent(item.id)
+  const exportData = await prepareMarkdownForExport(content)
   if (window.ztools && window.ztools.exportMarkdown) {
-    await window.ztools.exportMarkdown(item.name, content)
+    await window.ztools.exportMarkdown(item.name, exportData.content, exportData.attachments)
   } else {
-    const blob = new Blob([content], { type: 'text/markdown' })
+    const blob = new Blob([exportData.content], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -21,13 +23,14 @@ const handleExportMarkdown = async (item) => {
 
 const handleExportHTML = async (item) => {
   const content = await loadFileContent(item.id)
-  const html = await Vditor.md2html(content, {})
+  const htmlContent = await resolveAttachmentUrlsAsDataUrls(content)
+  const html = await Vditor.md2html(htmlContent, {})
   const fullHtml = `
     <html>
       <head>
         <title>${item.name}</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vditor/dist/index.css" />
         <style>
+          ${vditorStyle}
           body { padding: 20px; font-family: sans-serif; }
           .vditor-reset { max-width: 800px; margin: 0 auto; }
         </style>
@@ -73,15 +76,14 @@ const handleDuplicateFile = async (item) => {
   saveTree()
 }
 
-onMounted(async () => {
-  await loadTree()
-  await loadLastOpened()
-})
-
 // 持久化常量
 const TREE_STORAGE_KEY = 'markdown_file_tree'
 const CONTENT_PREFIX = 'markdown_content_'
 const LAST_OPENED_KEY = 'markdown_last_opened'
+const ATTACHMENT_URL_PREFIX = 'ztools-attachment://'
+const ASSET_PREFIX = 'markdown_asset_'
+const FILE_IMAGE_REGEX = /!\[([^\]]*)\]\((file:\/\/[^\)]+)\)/g
+const ATTACHMENT_URL_REGEX = /ztools-attachment:\/\/[^\s)]+/g
 
 // 状态
 const files = reactive([])
@@ -91,11 +93,252 @@ const activeContent = ref('')
 const showSidebar = ref(true)
 const activeFileTitle = ref('')
 const isDark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches)
+const attachmentUrlToBlobUrl = new Map()
+const blobUrlToAttachmentUrl = new Map()
 
 // Listen for theme changes
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
   isDark.value = event.matches
 })
+
+const bufferToUint8Array = (buffer) => {
+  if (buffer instanceof Uint8Array) return buffer
+  if (buffer instanceof ArrayBuffer) return new Uint8Array(buffer)
+  if (ArrayBuffer.isView(buffer)) {
+    return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+  }
+  return new Uint8Array(buffer)
+}
+
+const sha256 = async (buffer) => {
+  const bytes = bufferToUint8Array(buffer)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+const attachmentUrl = (assetId) => `${ATTACHMENT_URL_PREFIX}${assetId}`
+
+const getAssetIdFromAttachmentUrl = (url) => {
+  if (!url || !url.startsWith(ATTACHMENT_URL_PREFIX)) return ''
+  return url.slice(ATTACHMENT_URL_PREFIX.length).split(/[?#]/)[0]
+}
+
+const replaceAllText = (content, search, replacement) =>
+  content.split(search).join(replacement)
+
+const contentTypeFromMeta = (meta) => {
+  if (!meta) return 'application/octet-stream'
+  if (typeof meta === 'string') return meta
+  return meta.type || meta.contentType || 'application/octet-stream'
+}
+
+const extensionFromContentType = (contentType) => {
+  const map = {
+    'image/apng': '.apng',
+    'image/avif': '.avif',
+    'image/gif': '.gif',
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/svg+xml': '.svg',
+    'image/webp': '.webp',
+    'image/bmp': '.bmp',
+    'image/x-icon': '.ico'
+  }
+  return map[contentType] || '.bin'
+}
+
+const uint8ArrayToBase64 = (bytes) => {
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  }
+  return btoa(binary)
+}
+
+const revokeAttachmentObjectUrls = () => {
+  for (const blobUrl of attachmentUrlToBlobUrl.values()) {
+    URL.revokeObjectURL(blobUrl)
+  }
+  attachmentUrlToBlobUrl.clear()
+  blobUrlToAttachmentUrl.clear()
+}
+
+onBeforeUnmount(() => {
+  revokeAttachmentObjectUrls()
+})
+
+const createAttachmentBlobUrl = (assetId, buffer, contentType) => {
+  const stableUrl = attachmentUrl(assetId)
+  const bytes = bufferToUint8Array(buffer)
+  const blobUrl = URL.createObjectURL(new Blob([bytes], { type: contentType }))
+  attachmentUrlToBlobUrl.set(stableUrl, blobUrl)
+  blobUrlToAttachmentUrl.set(blobUrl, stableUrl)
+  return blobUrl
+}
+
+const normalizeEditorContent = (content) => {
+  let nextContent = content || ''
+  for (const [blobUrl, stableUrl] of blobUrlToAttachmentUrl.entries()) {
+    nextContent = replaceAllText(nextContent, blobUrl, stableUrl)
+  }
+  return nextContent
+}
+
+const saveImageAttachment = async (buffer, contentType = 'application/octet-stream') => {
+  const bytes = bufferToUint8Array(buffer)
+  const hash = await sha256(bytes)
+  const assetId = `${ASSET_PREFIX}${hash}`
+  const result = await window.ztools.db.promises.postAttachment(assetId, bytes, contentType)
+  if (result && result.ok === false) {
+    throw new Error(result.message || '图片附件保存失败')
+  }
+  return { assetId, contentType, bytes }
+}
+
+const handleUploadImage = async (file) => {
+  const buffer = await file.arrayBuffer()
+  const asset = await saveImageAttachment(buffer, file.type || 'application/octet-stream')
+  return createAttachmentBlobUrl(asset.assetId, asset.bytes, asset.contentType)
+}
+
+const migrateLegacyFileImages = async (content) => {
+  if (!content || !content.includes('file://')) {
+    return { content: content || '', changed: false }
+  }
+
+  let nextContent = content
+  let changed = false
+  const matches = [...content.matchAll(FILE_IMAGE_REGEX)]
+  const migratedUrls = new Map()
+
+  for (const match of matches) {
+    const fileUrl = match[2]
+    if (migratedUrls.has(fileUrl)) {
+      nextContent = replaceAllText(nextContent, fileUrl, migratedUrls.get(fileUrl))
+      changed = true
+      continue
+    }
+
+    try {
+      const result = await window.ztools.readMarkdownLocalImage?.(fileUrl)
+      if (!result?.success || !result.buffer) {
+        console.warn('[Markdown] 历史图片迁移跳过:', fileUrl, result?.error)
+        continue
+      }
+
+      const asset = await saveImageAttachment(
+        result.buffer,
+        result.contentType || 'application/octet-stream'
+      )
+      const stableUrl = attachmentUrl(asset.assetId)
+      migratedUrls.set(fileUrl, stableUrl)
+      nextContent = replaceAllText(nextContent, fileUrl, stableUrl)
+      changed = true
+    } catch (error) {
+      console.error('[Markdown] 历史图片迁移失败:', fileUrl, error)
+    }
+  }
+
+  return { content: nextContent, changed }
+}
+
+const collectAttachmentUrls = (content) => {
+  return Array.from(new Set((content.match(ATTACHMENT_URL_REGEX) || [])))
+}
+
+const resolveAttachmentUrlsForEditor = async (content) => {
+  let nextContent = content || ''
+  for (const stableUrl of collectAttachmentUrls(nextContent)) {
+    const assetId = getAssetIdFromAttachmentUrl(stableUrl)
+    if (!assetId) continue
+
+    try {
+      const buffer = await window.ztools.db.promises.getAttachment(assetId)
+      if (!buffer) continue
+      const meta = await window.ztools.db.promises.getAttachmentType(assetId)
+      const blobUrl = createAttachmentBlobUrl(assetId, buffer, contentTypeFromMeta(meta))
+      nextContent = replaceAllText(nextContent, stableUrl, blobUrl)
+    } catch (error) {
+      console.error('[Markdown] 附件图片加载失败:', stableUrl, error)
+    }
+  }
+  return nextContent
+}
+
+const prepareContentForEditor = async (content) => {
+  revokeAttachmentObjectUrls()
+  const migrated = await migrateLegacyFileImages(content)
+  return {
+    storedContent: migrated.content,
+    editorContent: await resolveAttachmentUrlsForEditor(migrated.content),
+    changed: migrated.changed
+  }
+}
+
+const prepareMarkdownForExport = async (content) => {
+  let exportContent = content || ''
+  const attachments = []
+
+  for (const stableUrl of collectAttachmentUrls(exportContent)) {
+    const assetId = getAssetIdFromAttachmentUrl(stableUrl)
+    if (!assetId) continue
+
+    try {
+      const buffer = await window.ztools.db.promises.getAttachment(assetId)
+      if (!buffer) continue
+      const meta = await window.ztools.db.promises.getAttachmentType(assetId)
+      const contentType = contentTypeFromMeta(meta)
+      const fileName = `${assetId}${extensionFromContentType(contentType)}`
+      attachments.push({ fileName, buffer, contentType })
+      exportContent = replaceAllText(exportContent, stableUrl, fileName)
+    } catch (error) {
+      console.error('[Markdown] 导出附件图片失败:', stableUrl, error)
+    }
+  }
+
+  return { content: exportContent, attachments }
+}
+
+const resolveAttachmentUrlsAsDataUrls = async (content) => {
+  let nextContent = content || ''
+  for (const stableUrl of collectAttachmentUrls(nextContent)) {
+    const assetId = getAssetIdFromAttachmentUrl(stableUrl)
+    if (!assetId) continue
+
+    try {
+      const buffer = await window.ztools.db.promises.getAttachment(assetId)
+      if (!buffer) continue
+      const bytes = bufferToUint8Array(buffer)
+      const meta = await window.ztools.db.promises.getAttachmentType(assetId)
+      const contentType = contentTypeFromMeta(meta)
+      const dataUrl = `data:${contentType};base64,${uint8ArrayToBase64(bytes)}`
+      nextContent = replaceAllText(nextContent, stableUrl, dataUrl)
+    } catch (error) {
+      console.error('[Markdown] HTML 导出附件图片失败:', stableUrl, error)
+    }
+  }
+  return nextContent
+}
+
+const migrateAllLegacyFileImages = async () => {
+  try {
+    const docs = await window.ztools.db.promises.allDocs(CONTENT_PREFIX)
+    for (const doc of docs) {
+      if (!doc?.content || !doc.content.includes('file://')) continue
+      const migrated = await migrateLegacyFileImages(doc.content)
+      if (!migrated.changed) continue
+      await window.ztools.db.promises.put({
+        ...doc,
+        content: migrated.content
+      })
+    }
+  } catch (error) {
+    console.error('[Markdown] 历史图片批量迁移失败:', error)
+  }
+}
 
 // 持久化方法
 const loadTree = async () => {
@@ -135,7 +378,14 @@ const saveTree = async () => {
 const loadFileContent = async (id) => {
   try {
     const doc = await window.ztools.db.promises.get(CONTENT_PREFIX + id)
-    return doc.content || ''
+    const migrated = await migrateLegacyFileImages(doc.content || '')
+    if (migrated.changed) {
+      await window.ztools.db.promises.put({
+        ...doc,
+        content: migrated.content
+      })
+    }
+    return migrated.content
   } catch (error) {
     if (error.status !== 404) {
       console.error(`Failed to load content for ${id}:`, error)
@@ -146,6 +396,7 @@ const loadFileContent = async (id) => {
 
 const saveFileContent = async (id, content) => {
   try {
+    const storedContent = normalizeEditorContent(content)
     // 查询旧数据以获取 _rev
     let record
     try {
@@ -157,7 +408,7 @@ const saveFileContent = async (id, content) => {
     await window.ztools.db.promises.put({
       _id: CONTENT_PREFIX + id,
       _rev: record?._rev,
-      content
+      content: storedContent
     })
   } catch (error) {
     console.error(`Failed to save content for ${id}:`, error)
@@ -249,8 +500,12 @@ const handleSelectFile = async (file) => {
   if (!file.children) {
     activeDocumentId.value = file.id
     activeFileTitle.value = file.name
-    // 加载内容
-    activeContent.value = await loadFileContent(file.id)
+    const storedContent = await loadFileContent(file.id)
+    const prepared = await prepareContentForEditor(storedContent)
+    if (prepared.changed) {
+      await saveFileContent(file.id, prepared.storedContent)
+    }
+    activeContent.value = prepared.editorContent
     saveLastOpened(file.id)
     
     // 展开父文件夹
@@ -279,15 +534,7 @@ const toggleSidebar = () => {
 const handleContentChange = (value) => {
   const file = findFile(files, activeDocumentId.value)
   if (file && !file.children) {
-    file.content = value // 在内存中更新（可选，也许从树结构中删除内容以节省内存？）
-    // 实际上，如果我们单独保存内容，就不应该再在树结构中存储内容了。
-    // 但现在为了简单起见，先保留在内存中，或者删除它。
-    // 如果我们从 `files` 中删除它，`saveTree` 就不会保存它，这很好。
-    // 这里不要更新 `file.content` 如果我们想保持树的轻量。
-    // 但是 `handleSelectFile` 设置了 `activeContent`。
-    // 我们只更新 `activeContent` 并保存到数据库。
-    // 我们可以从 `files` 项中删除 `content` 属性。
-    debouncedSaveContent(activeDocumentId.value, value)
+    debouncedSaveContent(activeDocumentId.value, normalizeEditorContent(value))
   }
 }
 
@@ -328,6 +575,7 @@ const handleDeleteFile = async (item) => {
     activeDocumentId.value = null
     activeContent.value = ''
     activeFileTitle.value = ''
+    revokeAttachmentObjectUrls()
   }
   
   // 如果删除的文件被选中，重置选中状态
@@ -549,6 +797,7 @@ const handleRenameItem = ({ id, name }) => {
 
 onMounted(async () => {
   await loadTree()
+  await migrateAllLegacyFileImages()
   await loadLastOpened()
 })
 
@@ -608,6 +857,7 @@ onMounted(async () => {
         <MarkdownEditor 
           :initial-value="activeContent"
           :is-dark="isDark"
+          :upload-image="handleUploadImage"
           @change="handleContentChange"
         />
       </div>

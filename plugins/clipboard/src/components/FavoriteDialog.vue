@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick, onUnmounted } from 'vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -9,12 +9,69 @@ const props = defineProps({
 const emit = defineEmits(['confirm', 'cancel'])
 
 const remark = ref('')
+const dialogContentRef = ref(null)
+const remarkInputRef = ref(null)
+let focusableEls = []
+
+const updateFocusableEls = () => {
+  const el = dialogContentRef.value
+  if (!el) return
+  focusableEls = Array.from(el.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  ))
+}
+
+const trapFocus = (e) => {
+  if (focusableEls.length === 0) return
+  const first = focusableEls[0]
+  const last = focusableEls[focusableEls.length - 1]
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault()
+    first.focus()
+  }
+}
+
+const handleKeydown = (e) => {
+  if (e.key === 'Tab') {
+    trapFocus(e)
+    return
+  }
+  if (e.key === 'Enter') {
+    // 如果用户通过 Tab 聚焦到了某个按钮，让按钮原生 Enter 行为触发点击
+    if (document.activeElement?.tagName === 'BUTTON') {
+      return
+    }
+    // 如果聚焦在输入框且已有 @keyup.enter，这里 let it pass through
+    // 否则直接提交
+    if (document.activeElement?.tagName !== 'INPUT') {
+      e.preventDefault()
+      emit('confirm', remark.value)
+    }
+  } else if (e.key === 'Escape') {
+    emit('cancel')
+  }
+}
 
 // 弹窗打开时重置备注
 watch(() => props.show, (val) => {
   if (val) {
     remark.value = ''
+    window.addEventListener('keydown', handleKeydown)
+    nextTick(() => {
+      updateFocusableEls()
+      remarkInputRef.value?.focus()
+    })
+  } else {
+    window.removeEventListener('keydown', handleKeydown)
+    focusableEls = []
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
 })
 
 const handleConfirm = () => {
@@ -24,7 +81,7 @@ const handleConfirm = () => {
 
 <template>
   <div v-if="show" class="dialog-overlay" @click="emit('cancel')">
-    <div class="dialog-content" @click.stop>
+    <div ref="dialogContentRef" class="dialog-content" @click.stop>
       <div class="dialog-header">
         <h3>添加收藏</h3>
         <button class="dialog-close" @click="emit('cancel')">✕</button>
@@ -41,6 +98,7 @@ const handleConfirm = () => {
         <div class="dialog-field">
           <label>备注</label>
           <input
+            ref="remarkInputRef"
             v-model="remark"
             type="text"
             placeholder="请输入备注(可选)"

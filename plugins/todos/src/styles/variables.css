@@ -1,0 +1,136 @@
+:root {
+  /* ═══════════════════════════════════════════════════════════
+     PALETTE — "Quiet Paper"
+     ═══════════════════════════════════════════════════════════ */
+  --paper: #F7F5F0;
+  --ink: #1C1917;
+  --graphite: #57534E;
+  --clay: #A8A29E;
+  --teal: #0F766E;
+  --teal-soft: #14B8A6;
+  --sage: #6EE7B7;
+  --rose: #E11D48;
+  --amber: #D97706;
+  --indigo: #4F46E5;
+
+  /* Workspace accent colors */
+  --ws-work: #0F766E;
+  --ws-life: #D97706;
+  --ws-study: #4F46E5;
+
+  /* Legacy aliases for backward compatibility */
+  --primary-color: var(--teal);
+  --color-work: var(--ws-work);
+  --color-life: var(--ws-life);
+  --color-study: var(--ws-study);
+  --color-text: var(--ink);
+  --color-text-secondary: var(--graphite);
+  --color-text-light: var(--clay);
+  --color-background: var(--paper);
+  --color-background-light: rgba(168, 162, 158, 0.08);
+  --color-border: rgba(168, 162, 158, 0.3);
+  --color-border-hover: rgba(168, 162, 158, 0.4);
+  --color-border-light: rgba(168, 162, 158, 0.2);
+  --color-divider: rgba(168, 162, 158, 0.2);
+  --color-hover-bg: rgba(168, 162, 158, 0.15);
+
+  /* Teal variants */
+  --teal-muted: rgba(15, 118, 110, 0.15);
+  --teal-border: rgba(15, 118, 110, 0.3);
+
+  /* Status colors */
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+  --color-info: #2563EB;
+
+  /* Priority colors */
+  --priority-high: #DC2626;
+  --priority-medium: #D97706;
+  --priority-low: #16A34A;
+
+  /* ═══════════════════════════════════════════════════════════
+     TYPOGRAPHY
+     ═══════════════════════════════════════════════════════════ */
+  --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-body: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+
+  /* Type scale */
+  --font-size-xs: 0.6875rem;   /* 11px */
+  --font-size-sm: 0.75rem;     /* 12px */
+  --font-size-base: 0.875rem;  /* 14px */
+  --font-size-md: 1rem;        /* 16px */
+  --font-size-lg: 1.125rem;    /* 18px */
+  --font-size-xl: 1.5rem;      /* 24px */
+  --font-size-2xl: 2rem;       /* 32px */
+
+  /* ═══════════════════════════════════════════════════════════
+     SPACING
+     ═══════════════════════════════════════════════════════════ */
+  --sp-1: 0.25rem;   /* 4px */
+  --sp-2: 0.5rem;    /* 8px */
+  --sp-3: 0.75rem;   /* 12px */
+  --sp-4: 1rem;      /* 16px */
+  --sp-5: 1.25rem;   /* 20px */
+  --sp-6: 1.5rem;    /* 24px */
+  --sp-8: 2rem;      /* 32px */
+
+  /* Legacy spacing aliases */
+  --spacing-xs: var(--sp-1);
+  --spacing-sm: var(--sp-2);
+  --spacing-md: var(--sp-4);
+  --spacing-lg: var(--sp-6);
+  --spacing-xl: var(--sp-8);
+
+  /* ═══════════════════════════════════════════════════════════
+     RADII
+     ═══════════════════════════════════════════════════════════ */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+
+  /* ═══════════════════════════════════════════════════════════
+     SHADOWS
+     ═══════════════════════════════════════════════════════════ */
+  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.06);
+  --shadow-md: 0 2px 8px rgba(28, 25, 23, 0.08);
+  --shadow-lg: 0 4px 16px rgba(28, 25, 23, 0.1);
+  --shadow-light: 0 2px 8px rgba(28, 25, 23, 0.15);
+
+  /* ═══════════════════════════════════════════════════════════
+     TRANSITIONS
+     ═══════════════════════════════════════════════════════════ */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 350ms;
+
+  /* Legacy transition aliases */
+  --transition-fast: var(--duration-fast) var(--ease-out);
+  --transition-normal: var(--duration-normal) var(--ease-out);
+  --transition-slow: var(--duration-slow) var(--ease-out);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DARK THEME
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  --paper: #1C1917;
+  --ink: #F7F5F0;
+  --graphite: #A8A29E;
+  --clay: #57534E;
+  --color-background: var(--paper);
+  --color-text: var(--ink);
+  --color-text-secondary: var(--graphite);
+  --color-border: rgba(168, 162, 158, 0.2);
+  --color-border-hover: rgba(168, 162, 158, 0.3);
+  --color-border-light: rgba(168, 162, 158, 0.15);
+  --color-divider: rgba(168, 162, 158, 0.15);
+  --color-hover-bg: rgba(168, 162, 158, 0.08);
+  --teal-muted: rgba(20, 184, 166, 0.2);
+  --teal-border: rgba(20, 184, 166, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.25);
+}

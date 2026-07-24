@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "web-quick-open",
+  "title": "网页快开",
+  "description": "管理网页快开和搜索引擎快捷入口",
+  "author": "Zing",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5178"
+  },
+  "features": [
+    {
+      "code": "manage",
+      "explain": "管理网页快开",
+      "icon": "logo.png",
+      "cmds": ["网页快开", "Web Quick Open"]
+    }
+  ]
+}

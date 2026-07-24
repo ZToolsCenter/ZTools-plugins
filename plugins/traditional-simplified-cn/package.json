@@ -1,0 +1,10 @@
+{
+  "name": "ztools-traditional-simplified",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "ZTools 插件：繁体字与简体字互转（基于 opencc-js）",
+  "dependencies": {
+    "opencc-js": "^1.0.5"
+  }
+}

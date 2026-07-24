@@ -1,0 +1,260 @@
+.workspace-settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.workspace-settings {
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 24px;
+  width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-light);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--graphite);
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: var(--ink);
+}
+
+.workspace-list {
+  margin-bottom: 16px;
+}
+
+.workspace-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.workspace-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  margin-right: 12px;
+}
+
+.workspace-name {
+  flex: 1;
+  font-size: 14px;
+}
+
+.edit-btn,
+.delete-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.edit-btn {
+  background: var(--teal);
+  color: white;
+  border: none;
+}
+
+.delete-btn {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--graphite);
+}
+
+.delete-btn:hover {
+  border-color: var(--rose);
+  color: var(--rose);
+}
+
+.add-btn {
+  width: 100%;
+  padding: 12px;
+  background: none;
+  border: 2px dashed var(--color-border);
+  border-radius: 8px;
+  color: var(--graphite);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.add-btn:hover:not(:disabled) {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.edit-form h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--graphite);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.color-scheme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.scheme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+
+.scheme-option:hover {
+  border-color: var(--teal);
+}
+
+.scheme-option.selected {
+  border-color: var(--teal);
+  background: var(--color-background-light);
+}
+
+.scheme-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  margin-bottom: 4px;
+}
+
+.scheme-name {
+  font-size: 12px;
+  color: var(--graphite);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancel-btn,
+.save-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.cancel-btn {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--graphite);
+}
+
+.save-btn {
+  background: var(--teal);
+  border: none;
+  color: white;
+}
+
+.settings-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 20px 0;
+}
+
+.layout-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.layout-options {
+  display: flex;
+  gap: 8px;
+}
+
+.layout-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.layout-option:hover {
+  border-color: var(--teal-border);
+}
+
+.layout-option.active {
+  border-color: var(--teal);
+  background: var(--teal-muted);
+}
+
+.layout-icon {
+  color: var(--graphite);
+}
+
+.layout-option.active .layout-icon {
+  color: var(--teal);
+}
+
+.layout-label {
+  font-size: 12px;
+  color: var(--graphite);
+}

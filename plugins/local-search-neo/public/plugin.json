@@ -1,0 +1,39 @@
+{
+  "$schema": "../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "local-search-neo",
+  "author": "the_tree",
+  "title": "本地搜索Neo",
+  "description": "借助 Everything 来进行文件搜索",
+  "version": "1.0.2",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "unpack": "Everything.*",
+  "logo": "logo.png",
+  "platform": ["win32"],
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "finder",
+      "explain": "使用 Everything 查找本地文件",
+      "platform": ["win32"],
+      "icon": "logo.png",
+      "cmds": ["打开搜索"]
+    },
+    {
+      "code": "oversearch",
+      "explain": "本地文件搜索",
+      "platform": ["win32"],
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "over",
+          "maxLength": 40,
+          "exclude": "/[\\\\\\/\\t\\n]/",
+          "label": "文件搜索"
+        }
+      ]
+    }
+  ]
+}

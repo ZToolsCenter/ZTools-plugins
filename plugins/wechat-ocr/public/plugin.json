@@ -1,0 +1,36 @@
+{
+  "name": "wechat-ocr",
+  "title": "微信 OCR",
+  "description": "使用本地封装的微信 OCR 识别图片文字",
+  "version": "0.1.0",
+  "author": "zing",
+  "platform": ["darwin"],
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "development": {
+    "main": "http://localhost:5179/"
+  },
+  "features": [
+    {
+      "code": "wechat-ocr",
+      "explain": "微信 OCR 图片识别",
+      "cmds": ["ocr", "微信ocr", "文字识别"]
+    },
+    {
+      "code": "wechat-ocr-capture",
+      "explain": "截图并 OCR 识别",
+      "cmds": ["截图并OCR识别"]
+    },
+    {
+      "code": "wechat-ocr-image",
+      "explain": "识别图片文字",
+      "cmds": [
+        {
+          "type": "img",
+          "label": "微信 OCR 识别图片"
+        }
+      ]
+    }
+  ]
+}

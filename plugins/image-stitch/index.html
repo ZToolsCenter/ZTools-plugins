@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片拼接</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button id="btn-add" class="btn btn-primary" title="添加图片 (Ctrl+A)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          添加图片
+        </button>
+        <button id="btn-paste" class="btn" title="从剪贴板粘贴">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M5 2H3a1 1 0 00-1 1v11a1 1 0 001 1h10a1 1 0 001-1V3a1 1 0 00-1-1h-2M5 2a2 2 0 014 0M5 2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          粘贴
+        </button>
+        <button id="btn-clear" class="btn btn-danger" title="清空 (Ctrl+D)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 10a1 1 0 001 1h6a1 1 0 001-1l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          清空
+        </button>
+        <button id="btn-reverse" class="btn" title="翻转顺序">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 2v12M12 2v12M4 8l3-3M4 8l3 3M12 8l-3-3M12 8l-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          翻转
+        </button>
+      </div>
+      <div class="toolbar-right">
+        <button id="btn-copy" class="btn" title="复制到剪贴板">复制</button>
+        <button id="btn-stash" class="btn btn-stash" title="暂存当前拼接结果">暂存</button>
+        <button id="btn-save" class="btn btn-primary" title="保存 (Ctrl+S)">保存</button>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <div class="sidebar">
+        <div class="image-list" id="image-list">
+          <div class="empty-hint" id="empty-hint">
+            拖拽图片到此处<br>或点击上方"添加图片"
+          </div>
+        </div>
+
+        <div class="settings-panel">
+          <div class="setting-row">
+            <label>方向</label>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="direction" value="vertical" checked>纵向</label>
+              <label class="radio-label"><input type="radio" name="direction" value="horizontal">横向</label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label>尺寸</label>
+            <select id="resize-mode">
+              <option value="enlarge" selected>扩小图</option>
+              <option value="shrink">缩大图</option>
+              <option value="none">不统一</option>
+            </select>
+          </div>
+          <div class="setting-row" id="align-group" style="display:none">
+            <label>对齐</label>
+            <select id="align">
+              <option value="start">顶部对齐</option>
+              <option value="center" selected>居中</option>
+              <option value="end">底部对齐</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label>间距</label>
+            <input type="range" id="spacing" min="0" max="100" value="0">
+            <span id="spacing-value" class="range-value">0px</span>
+          </div>
+          <div class="setting-row">
+            <label>边距</label>
+            <input type="range" id="padding" min="0" max="100" value="0">
+            <span id="padding-value" class="range-value">0px</span>
+          </div>
+          <div class="setting-row">
+            <label>背景</label>
+            <div class="color-options">
+              <button class="color-btn active" data-color="transparent" title="透明">
+                <span class="transparent-pattern"></span>
+              </button>
+              <button class="color-btn" data-color="#ffffff" title="白色">
+                <span style="background:#fff"></span>
+              </button>
+              <button class="color-btn" data-color="#000000" title="黑色">
+                <span style="background:#000"></span>
+              </button>
+              <input type="color" id="custom-color" value="#ffffff" title="自定义颜色">
+            </div>
+          </div>
+          <div class="setting-row">
+            <label>格式</label>
+            <select id="format">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+              <option value="webp">WebP</option>
+            </select>
+          </div>
+          <div class="setting-row" id="quality-group" style="display:none">
+            <label>质量</label>
+            <input type="range" id="quality" min="10" max="100" value="92">
+            <span id="quality-value" class="range-value">92%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-container">
+        <div class="stash-shelf" id="stash-shelf" style="display:none">
+          <div class="stash-items" id="stash-items"></div>
+        </div>
+        <div class="preview-area" id="preview-area">
+          <div class="preview-placeholder" id="preview-placeholder">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none"><rect x="4" y="12" width="24" height="40" rx="2" stroke="currentColor" stroke-width="2"/><rect x="36" y="12" width="24" height="40" rx="2" stroke="currentColor" stroke-width="2"/><path d="M28 32h8M32 28v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <p>添加图片开始拼接</p>
+          </div>
+          <canvas id="canvas" style="display:none"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "color-helper",
+  "version": "1.0.0",
+  "description": "颜色助手",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@jaames/iro": "^5.5.2",
+    "@mui/icons-material": "^5.14.0",
+    "@mui/material": "^5.14.0",
+    "chroma-js": "^2.4.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/chroma-js": "^2.4.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.0.4",
+    "typescript": "^5.1.6",
+    "vite": "^4.4.9"
+  }
+}

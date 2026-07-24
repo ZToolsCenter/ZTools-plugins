@@ -2,15 +2,17 @@ layout:
   - type: banner
     height: 180
     children:
-      - image: 'https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/ztools-banner.png'
-        url: 'https://github.com/ZToolsCenter/ZTools'
+      - image: "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/ztools-banner.png"
+        url: "https://github.com/ZToolsCenter/ZTools"
   - type: fixed
     title: 最新发布
     plugins:
+      - ztools-developer-plugin
+      - zosenlink-tunnel
+      - termdock
       - clipboard
-      - markdown
-      - whiteboard
-      - screen-recorder
+      - ai-helper
+      - shortcut-capture
   - type: navigation
     title: 开始探索
     categories:
@@ -26,4 +28,3 @@ layout:
   - type: random
     title: 随机推荐
     count: 6
-

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#89b4fa"/>
+      <stop offset="100%" style="stop-color:#cba6f7"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <!-- 对话气泡 -->
+  <path d="M72 68h112c11 0 20 9 20 20v72c0 11-9 20-20 20h-16l-24 28-24-28H72c-11 0-20-9-20-20V88c0-11 9-20 20-20z" fill="white" fill-opacity="0.95"/>
+  <!-- 三个点 -->
+  <circle cx="100" cy="124" r="10" fill="#89b4fa"/>
+  <circle cx="128" cy="124" r="10" fill="#a78bfa"/>
+  <circle cx="156" cy="124" r="10" fill="#cba6f7"/>
+</svg>

@@ -13,6 +13,7 @@ import {
   DropdownItem,
   DropdownMenu,
   DropdownTrigger,
+  Input,
   Tooltip,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
@@ -27,6 +28,12 @@ interface JsonTableOperationBarProps {
   onCollapse: () => void;
   onCustomView: (key: "hideEmpty" | "hideNull" | "showAll") => void;
   onClear?: () => boolean;
+  onFilterToggle?: () => void;
+  isFilterActive?: boolean;
+  globalFilterValue?: string;
+  onGlobalFilterChange?: (value: string) => void;
+  /** 表格类型，决定全局搜索框是否显示 */
+  tableMode?: "objectsArray" | "object" | "array" | "primitive";
   ref?: React.Ref<JsonTableOperationBarRef>;
 }
 
@@ -77,6 +84,11 @@ const JsonTableOperationBar: React.FC<JsonTableOperationBarProps> = ({
   onCollapse,
   onCustomView,
   onClear,
+  onFilterToggle,
+  isFilterActive = false,
+  globalFilterValue = "",
+  onGlobalFilterChange,
+  tableMode = "object",
 }) => {
   const [isViewDropdownOpen, setViewDropdownOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState<IconStatus>(IconStatus.Default);
@@ -210,30 +222,31 @@ const JsonTableOperationBar: React.FC<JsonTableOperationBarProps> = ({
           },
         ],
       },
-      {
-        key: "expand",
-        buttons: [
-          {
-            key: "expand",
-            icon: "tabler:fold-down",
-            text: "展开",
-            tooltip: "展开所有节点",
-            priority: 30,
-            width: 90,
-            onClick: onExpand,
-          },
-          {
-            key: "collapse",
-            icon: "tabler:fold-up",
-            text: "折叠",
-            tooltip: "折叠所有节点",
-            priority: 40,
-            width: 90,
-            onClick: onCollapse,
-          },
-        ],
-      },
     ];
+
+    groups.push({
+      key: "expand",
+      buttons: [
+        {
+          key: "expand",
+          icon: "tabler:fold-down",
+          text: "展开",
+          tooltip: "展开所有节点",
+          priority: 20,
+          width: 90,
+          onClick: onExpand,
+        },
+        {
+          key: "collapse",
+          icon: "tabler:fold-up",
+          text: "折叠",
+          tooltip: "折叠所有节点",
+          priority: 30,
+          width: 90,
+          onClick: onCollapse,
+        },
+      ],
+    });
 
     // 添加清空按钮（如果提供了）
     if (onClear) {
@@ -248,7 +261,7 @@ const JsonTableOperationBar: React.FC<JsonTableOperationBarProps> = ({
             tooltip: "清空内容",
             status: clearStatus,
             successText: "已清空",
-            priority: 50,
+            priority: 40,
             width: 90,
             onClick: () => {
               setTimeout(() => {
@@ -256,6 +269,25 @@ const JsonTableOperationBar: React.FC<JsonTableOperationBarProps> = ({
               }, 1000);
               setClearStatus(onClear() ? IconStatus.Success : IconStatus.Error);
             },
+          },
+        ],
+      });
+    }
+
+    // 筛选按钮（放在清空按钮之后）
+    if (onFilterToggle) {
+      groups.push({
+        key: "filter",
+        buttons: [
+          {
+            key: "filter",
+            icon: isFilterActive ? "mdi:filter" : "mdi:filter-outline",
+            text: "搜索",
+            tooltip: isFilterActive ? "关闭搜索" : "开启搜索",
+            iconColor: isFilterActive ? "text-primary" : undefined,
+            priority: 50,
+            width: 90,
+            onClick: onFilterToggle,
           },
         ],
       });
@@ -270,6 +302,8 @@ const JsonTableOperationBar: React.FC<JsonTableOperationBarProps> = ({
     onCollapse,
     onCustomView,
     onClear,
+    onFilterToggle,
+    isFilterActive,
     showViewDropdown,
   ]);
 
@@ -537,54 +571,55 @@ const JsonTableOperationBar: React.FC<JsonTableOperationBarProps> = ({
     );
   };
 
+  // 动态渲染按钮组
+  const renderActionGroups = () => {
+    return actionGroups.map((group, groupIndex) => {
+      const hasVisibleButtons = group.buttons.some((button) =>
+        visibleButtons.includes(button.key),
+      );
+
+      return (
+        <React.Fragment key={group.key}>
+          {/* 分隔线 */}
+          {groupIndex > 0 && hasVisibleButtons && (
+            <div className="h-6 w-px bg-default-200 mx-1" />
+          )}
+          <div className="flex items-center gap-2">
+            {group.buttons.map(renderButton)}
+          </div>
+        </React.Fragment>
+      );
+    });
+  };
+
   return (
     <div
       ref={containerRef}
       className="h-10 flex items-center gap-1 px-1 bg-default-100 shadow-sm"
     >
-      {/* 复制按钮组 */}
-      <div className="flex items-center gap-2">
-        {actionGroups[0].buttons.map(renderButton)}
-      </div>
+      {renderActionGroups()}
 
-      {/* 分隔线 */}
-      {actionGroups[0].buttons.some((button) =>
-        visibleButtons.includes(button.key),
-      ) && <div className="h-6 w-px bg-default-200 mx-1" />}
-
-      {/* 视图按钮组 */}
-      <div className="flex items-center gap-2">
-        {actionGroups[1].buttons.map(renderButton)}
-      </div>
-
-      {/* 分隔线 */}
-      {actionGroups[1].buttons.some((button) =>
-        visibleButtons.includes(button.key),
-      ) &&
-        actionGroups[2].buttons.some((button) =>
-          visibleButtons.includes(button.key),
-        ) && <div className="h-6 w-px bg-default-200 mx-1" />}
-
-      {/* 展开/折叠按钮组 */}
-      <div className="flex items-center gap-2">
-        {actionGroups[2].buttons.map(renderButton)}
-      </div>
-
-      {/* 分隔线 - 只在有清空按钮时显示 */}
-      {actionGroups[2].buttons.some((button) =>
-        visibleButtons.includes(button.key),
-      ) &&
-        onClear &&
-        actionGroups[3]?.buttons.some((button) =>
-          visibleButtons.includes(button.key),
-        ) && <div className="h-6 w-px bg-default-200 mx-1" />}
-
-      {/* 清空按钮组 */}
-      {onClear && (
-        <div className="flex items-center gap-2">
-          {actionGroups[3].buttons.map(renderButton)}
-        </div>
-      )}
+      {/* 筛选激活时的全局搜索输入框（仅用于非对象数组表格） */}
+      {isFilterActive &&
+        tableMode !== "objectsArray" &&
+        tableMode !== "primitive" &&
+        onGlobalFilterChange && (
+          <Input
+            size="sm"
+            placeholder="搜索表格内容..."
+            value={globalFilterValue}
+            onValueChange={onGlobalFilterChange}
+            className="w-40 ml-1"
+            startContent={
+              <Icon
+                icon="mdi:magnify"
+                width={16}
+                className="text-default-400"
+              />
+            }
+            isClearable
+          />
+        )}
 
       {/* 更多菜单 */}
       {renderMoreMenu()}

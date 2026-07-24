@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "tetris",
+  "title": "俄罗斯方块",
+  "description": "俄罗斯方块",
+  "author": "zzx221",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.jpg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "tetris",
+      "explain": "俄罗斯方块游戏，支持三种主题和自定义按键",
+      "cmds": ["俄罗斯方块", "tetris"]
+    }
+  ]
+}

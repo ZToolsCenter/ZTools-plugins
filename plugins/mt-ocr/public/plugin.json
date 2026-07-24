@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "mt-ocr",
+  "title": "馒头OCR",
+  "description": "支持腾讯云/百度云/阿里云的多引擎 OCR 文字识别工具",
+  "author": "menghaohao",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "ocr",
+      "explain": "OCR 文字识别，支持截图/本地图片/剪贴板/拖放",
+      "icon": "logo.svg",
+      "cmds": [
+        "OCR",
+        "ocr",
+        "文字识别",
+        "图片转文字",
+        "截图识别",
+        {
+          "type": "img",
+          "label": "OCR 文字识别"
+        },
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 1,
+          "label": "OCR 文字识别"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "ssh-screenshot",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:plugin": "bash build-plugin.sh"
+  },
+  "dependencies": {
+    "vue": "^3.5.22"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "rollup-plugin-copy": "^3.5.0",
+    "vite": "^7.1.11"
+  }
+}

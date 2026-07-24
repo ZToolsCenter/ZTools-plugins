@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "showcode",
+  "title": "Showcode",
+  "description": "生成优雅的代码展示图片 / Create beautiful images of code",
+  "author": "Evan Cui",
+  "version": "1.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "showcode",
+      "explain": "生成优雅的代码展示图片 / Create beautiful images of code",
+      "icon": "logo.png",
+      "cmds": [
+        "showcode",
+        "Showcode",
+        "代码截图",
+        "生成代码图片",
+        "code screenshot",
+        "code image"
+      ]
+    }
+  ]
+}

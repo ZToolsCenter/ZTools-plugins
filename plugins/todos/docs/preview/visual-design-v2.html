@@ -1,0 +1,2122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todos - 视觉设计预览 v2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .app {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            border-bottom: 1px solid #eee;
+            background: #fff;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+            letter-spacing: -0.5px;
+        }
+
+        .view-toggle {
+            display: flex;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .view-btn {
+            padding: 6px 14px;
+            border: none;
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .view-btn:not(:last-child) {
+            border-right: 1px solid #ddd;
+        }
+
+        .view-btn.active {
+            background: var(--workspace-color, #333);
+            color: #fff;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .workspace-switcher {
+            position: relative;
+        }
+
+        .workspace-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            background: var(--workspace-color, #333);
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .workspace-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .workspace-btn .arrow {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .workspace-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 100px;
+            z-index: 100;
+            display: none;
+            overflow: hidden;
+        }
+
+        .workspace-dropdown.show {
+            display: block;
+        }
+
+        .workspace-option {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #333;
+        }
+
+        .workspace-option:hover {
+            background: #f5f5f5;
+        }
+
+        .workspace-option.active {
+            background: var(--option-color, #333);
+            color: #fff;
+        }
+
+        .workspace-option.work {
+            --option-color: #3b82f6;
+        }
+
+        .workspace-option.life {
+            --option-color: #10b981;
+        }
+
+        .workspace-option.study {
+            --option-color: #8b5cf6;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            height: calc(100vh - 53px);
+        }
+
+        /* Calendar View */
+        .calendar-view {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            border-right: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .calendar-nav-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .calendar-nav-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .calendar-nav-btn:hover {
+            border-color: #999;
+            color: #333;
+        }
+
+        .calendar-nav-date {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .calendar-nav-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .calendar-today-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--workspace-color, #333);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--workspace-color, #333);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .calendar-today-btn:hover {
+            background: var(--workspace-color, #333);
+            color: #fff;
+        }
+
+        .calendar-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* Highlight Effect */
+        .day-row.highlight {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 90%);
+            border-left-color: var(--workspace-color, #3b82f6);
+            transform: scale(1.01);
+        }
+
+        .day-row.highlight .task-item.highlight {
+            background: #fff;
+            border-color: var(--workspace-color, #3b82f6);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+        }
+
+        .month-cell.highlight {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 80%);
+            border: 2px solid var(--workspace-color, #3b82f6);
+            transform: scale(1.02);
+            z-index: 10;
+            position: relative;
+        }
+
+        .month-cell.highlight .month-task.highlight {
+            background: #fff;
+            border-color: var(--workspace-color, #3b82f6);
+            border-left-width: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-weight: 500;
+        }
+
+        .month-cell.drag-over {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 70%);
+            border: 2px dashed var(--workspace-color, #3b82f6);
+            transform: scale(1.03);
+        }
+
+        .day-row {
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #fafafa;
+            border-radius: 8px;
+            border-left: 4px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .day-row:hover {
+            background: #f0f0f0;
+        }
+
+        .day-row.has-tasks {
+            border-left-color: var(--workspace-color, #3b82f6);
+        }
+
+        .day-row.overdue {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .day-row.today {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 95%);
+            border-left-width: 5px;
+        }
+
+        .day-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .day-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .day-date {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .day-today-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: var(--workspace-color, #333);
+            color: #fff;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .day-tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #fff;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .task-item:hover {
+            border-color: #ddd;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .task-item.dragging {
+            opacity: 0.6;
+            cursor: grabbing;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transform: rotate(2deg) scale(1.02);
+            z-index: 1000;
+        }
+
+        .task-item.completed {
+            opacity: 0.6;
+            background: #f5f5f5;
+        }
+
+        .task-item.completed .task-title {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .task-item.overdue {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        .task-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .task-checkbox:hover {
+            border-color: #999;
+        }
+
+        .task-checkbox.checked {
+            background: #10b981;
+            border-color: #10b981;
+        }
+
+        .task-checkbox.checked::after {
+            content: '✓';
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .priority-indicator {
+            width: 4px;
+            height: 28px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .priority-high {
+            background: #ef4444;
+        }
+
+        .priority-medium {
+            background: #f59e0b;
+        }
+
+        .priority-low {
+            background: #10b981;
+        }
+
+        .task-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-title {
+            font-size: 14px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .task-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .task-tag {
+            font-size: 11px;
+            padding: 2px 6px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            color: #6b7280;
+        }
+
+        .task-dates {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .task-item:hover .task-actions {
+            opacity: 1;
+        }
+
+        .task-action-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #999;
+            transition: all 0.2s;
+        }
+
+        .task-action-btn:hover {
+            background: #f3f4f6;
+            color: #333;
+        }
+
+        .task-action-btn.delete:hover {
+            background: #fef2f2;
+            color: #ef4444;
+        }
+
+        /* Task Pool */
+        .task-pool {
+            width: 320px;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .task-pool-header {
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .task-pool-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .task-pool-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .task-pool-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .task-pool-count {
+            font-size: 12px;
+            color: #999;
+            background: #e5e7eb;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .task-pool-search {
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .task-pool-search input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .task-pool-search input:focus {
+            border-color: var(--workspace-color, #3b82f6);
+        }
+
+        .task-pool-search input::placeholder {
+            color: #999;
+        }
+
+        .task-pool-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            padding-bottom: 140px; /* Space for fixed input */
+        }
+
+        .task-pool-fixed-input {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 16px;
+            background: #fff;
+            border-top: 1px solid #eee;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+        }
+
+        .task-pool-fixed-input textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            line-height: 1.4;
+            overflow-y: auto;
+        }
+
+        .task-pool-fixed-input textarea:focus {
+            border-color: var(--workspace-color, #3b82f6);
+        }
+
+        .task-pool-fixed-input textarea::placeholder {
+            color: #999;
+        }
+
+        .task-pool-fixed-input-hint {
+            font-size: 11px;
+            color: #999;
+            margin-top: 6px;
+            text-align: right;
+        }
+
+        .task-pool-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .task-group {
+            margin-bottom: 16px;
+        }
+
+        .task-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .task-group-header:hover {
+            background: #e5e7eb;
+        }
+
+        .task-group-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .task-group-count {
+            font-size: 10px;
+            color: #999;
+            background: #e5e7eb;
+            padding: 1px 6px;
+            border-radius: 8px;
+        }
+
+        .task-group.collapsed .task-group-list {
+            display: none;
+        }
+
+        .task-group-title .arrow {
+            font-size: 10px;
+            margin-right: 4px;
+            transition: transform 0.2s;
+        }
+
+        .task-group.collapsed .task-group-title .arrow {
+            transform: rotate(-90deg);
+        }
+
+        .task-group-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .pool-task {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #fff;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pool-task:hover {
+            border-color: #ddd;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .pool-task.dragging,
+        .task-item.dragging {
+            opacity: 0.6;
+            cursor: grabbing;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transform: rotate(2deg) scale(1.02);
+            z-index: 1000;
+        }
+
+        .pool-task.overdue {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        .pool-task.today {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 95%);
+            border-color: var(--workspace-color, #3b82f6);
+        }
+
+        .pool-task.completed {
+            opacity: 0.7;
+            background: #f9fafb;
+        }
+
+        .pool-task.completed .task-title {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .pool-task .priority-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .pool-task .task-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .pool-task .task-title {
+            font-size: 13px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pool-task .task-description {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pool-task .task-date {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .pool-task .date-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+
+        .pool-task.today .date-tag {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 80%);
+            color: var(--workspace-color, #3b82f6);
+        }
+
+        .pool-task.overdue .date-tag {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .pool-task .drag-handle {
+            color: #ccc;
+            cursor: grab;
+            font-size: 12px;
+        }
+
+        .empty-group {
+            font-size: 12px;
+            color: #999;
+            padding: 8px;
+            text-align: center;
+        }
+
+        /* Week View */
+        .week-view {
+            display: none;
+        }
+
+        .week-view.active {
+            display: block;
+        }
+
+        /* Month View */
+        .month-view {
+            display: none;
+        }
+
+        .month-view.active {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #eee;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .month-header {
+            padding: 8px;
+            background: #f5f5f5;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .month-cell {
+            min-height: 100px;
+            padding: 8px;
+            background: #fff;
+            vertical-align: top;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .month-cell:hover {
+            background: #fafafa;
+            border-color: #e5e7eb;
+        }
+
+        .month-cell.other-month {
+            background: #fafafa;
+            opacity: 0.7;
+        }
+
+        .month-cell.today {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 90%);
+            border-color: var(--workspace-color, #3b82f6);
+        }
+
+        .month-cell-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .month-cell-date {
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .month-cell.today .month-cell-date {
+            background: var(--workspace-color, #3b82f6);
+            color: #fff;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .month-cell-tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .month-task {
+            padding: 4px 6px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .month-task:hover {
+            background: #e5e7eb;
+        }
+
+        .month-task.high {
+            border-left: 3px solid #ef4444;
+        }
+
+        .month-task.medium {
+            border-left: 3px solid #f59e0b;
+        }
+
+        .month-task.low {
+            border-left: 3px solid #10b981;
+        }
+
+        .month-task.overdue {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .month-more {
+            font-size: 11px;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+
+        .month-more:hover {
+            color: #333;
+            background: #f3f4f6;
+            border-radius: 4px;
+        }
+
+        /* Workspace Themes */
+        .app.workspace-work {
+            --workspace-color: #3b82f6;
+            --option-color: #3b82f6;
+        }
+
+        .app.workspace-life {
+            --workspace-color: #10b981;
+            --option-color: #10b981;
+        }
+
+        .app.workspace-study {
+            --workspace-color: #8b5cf6;
+            --option-color: #8b5cf6;
+        }
+
+        /* Drag and Drop States */
+        .day-row.drop-target,
+        .month-cell.drop-target {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 90%) !important;
+            border: 2px dashed var(--workspace-color, #3b82f6);
+            position: relative;
+            transition: background 0.2s, border 0.2s;
+        }
+
+        .day-row.drop-target::after,
+        .month-cell.drop-target::after {
+            content: '释放以添加任务';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            color: var(--workspace-color, #3b82f6);
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        .day-row.drag-over {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 85%);
+            border-left-width: 6px;
+        }
+
+        .month-cell.drag-over {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #fff 85%);
+            transform: scale(1.02);
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: #999;
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+        }
+
+        /* Keyboard Shortcut Hints */
+        .shortcuts-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 14px;
+            background: rgba(51, 51, 51, 0.9);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 11px;
+            backdrop-filter: blur(10px);
+        }
+
+        .shortcuts-hint kbd {
+            padding: 2px 5px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+            font-family: monospace;
+            margin: 0 2px;
+            font-size: 10px;
+        }
+
+        /* Demo Controls */
+        .demo-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .demo-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(51, 51, 51, 0.9);
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .demo-btn:hover {
+            background: rgba(51, 51, 51, 1);
+        }
+
+        .demo-btn.active {
+            background: var(--workspace-color, #3b82f6);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .task-pool {
+                width: 100%;
+                height: 300px;
+                border-right: none;
+                border-top: 1px solid #eee;
+            }
+
+            .calendar-view {
+                border-right: none;
+            }
+
+            .header-left,
+            .header-right {
+                gap: 8px;
+            }
+
+            .logo {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app workspace-work" id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">Todos</div>
+                <div class="view-toggle">
+                    <button class="view-btn active" onclick="switchView('week')">周</button>
+                    <button class="view-btn" onclick="switchView('month')">月</button>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="workspace-switcher">
+                    <button class="workspace-btn" onclick="toggleWorkspaceDropdown()">
+                        <span id="workspaceName">工作</span>
+                        <span class="arrow">▼</span>
+                    </button>
+                    <div class="workspace-dropdown" id="workspaceDropdown">
+                        <div class="workspace-option work active" data-workspace="work" onclick="switchWorkspace('work')">
+                            <span>工作</span>
+                        </div>
+                        <div class="workspace-option life" data-workspace="life" onclick="switchWorkspace('life')">
+                            <span>生活</span>
+                        </div>
+                        <div class="workspace-option study" data-workspace="study" onclick="switchWorkspace('study')">
+                            <span>学习</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Calendar View -->
+            <div class="calendar-view">
+                <div class="calendar-nav">
+                    <div class="calendar-nav-left">
+                        <button class="calendar-nav-btn" onclick="navigateCalendar('prev')">◀</button>
+                        <span class="calendar-nav-date" id="calendarDate">2024年1月</span>
+                        <button class="calendar-nav-btn" onclick="navigateCalendar('next')">▶</button>
+                    </div>
+                    <div class="calendar-nav-right">
+                        <button class="calendar-today-btn" onclick="goToToday()">今天</button>
+                    </div>
+                </div>
+                <div class="calendar-content">
+                <!-- Week View -->
+                <div class="week-view active" id="weekView">
+                    <div class="day-row has-tasks today">
+                        <div class="day-header">
+                            <span class="day-name">周一</span>
+                            <span class="day-date">1月15日</span>
+                            <span class="day-today-badge">今天</span>
+                        </div>
+                        <div class="day-tasks">
+                            <div class="task-item" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-high"></div>
+                                <div class="task-content">
+                                    <div class="task-title">完成产品设计文档</div>
+                                    <div class="task-meta">
+                                        <span class="task-dates">1/15, 1/16</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="编辑">✏️</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                            <div class="task-item" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-medium"></div>
+                                <div class="task-content">
+                                    <div class="task-title">准备周会汇报材料</div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="编辑">✏️</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="day-row has-tasks">
+                        <div class="day-header">
+                            <span class="day-name">周二</span>
+                            <span class="day-date">1月16日</span>
+                        </div>
+                        <div class="day-tasks">
+                            <div class="task-item" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-high"></div>
+                                <div class="task-content">
+                                    <div class="task-title">完成产品设计文档</div>
+                                    <div class="task-meta">
+                                        <span class="task-dates">1/15, 1/16</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="编辑">✏️</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                            <div class="task-item" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-low"></div>
+                                <div class="task-content">
+                                    <div class="task-title">回复客户邮件</div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="编辑">✏️</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="day-row">
+                        <div class="day-header">
+                            <span class="day-name">周三</span>
+                            <span class="day-date">1月17日</span>
+                        </div>
+                        <div class="day-tasks"></div>
+                    </div>
+                    <div class="day-row overdue">
+                        <div class="day-header">
+                            <span class="day-name">周四</span>
+                            <span class="day-date">1月18日</span>
+                        </div>
+                        <div class="day-tasks">
+                            <div class="task-item overdue" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-high"></div>
+                                <div class="task-content">
+                                    <div class="task-title">提交项目报告</div>
+                                    <div class="task-meta">
+                                        <span class="task-tag">逾期</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="复活">🔄</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="day-row">
+                        <div class="day-header">
+                            <span class="day-name">周五</span>
+                            <span class="day-date">1月19日</span>
+                        </div>
+                        <div class="day-tasks"></div>
+                    </div>
+                    <div class="day-row">
+                        <div class="day-header">
+                            <span class="day-name">周六</span>
+                            <span class="day-date">1月20日</span>
+                        </div>
+                        <div class="day-tasks"></div>
+                    </div>
+                    <div class="day-row">
+                        <div class="day-header">
+                            <span class="day-name">周日</span>
+                            <span class="day-date">1月21日</span>
+                        </div>
+                        <div class="day-tasks"></div>
+                    </div>
+                </div>
+
+                <!-- Month View -->
+                <div class="month-view" id="monthView">
+                    <div class="month-header">周一</div>
+                    <div class="month-header">周二</div>
+                    <div class="month-header">周三</div>
+                    <div class="month-header">周四</div>
+                    <div class="month-header">周五</div>
+                    <div class="month-header">周六</div>
+                    <div class="month-header">周日</div>
+
+                    <div class="month-cell other-month">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">30</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell other-month">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">31</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">1</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">2</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">3</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">4</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">5</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">6</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">7</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">8</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">9</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">10</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">11</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">12</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">13</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">14</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">15</span>
+                        </div>
+                        <div class="month-cell-tasks">
+                            <div class="month-task high">完成产品设计文档</div>
+                            <div class="month-task medium">准备周会汇报材料</div>
+                        </div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">16</span>
+                        </div>
+                        <div class="month-cell-tasks">
+                            <div class="month-task high">完成产品设计文档</div>
+                            <div class="month-task low">回复客户邮件</div>
+                        </div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">17</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">18</span>
+                        </div>
+                        <div class="month-cell-tasks">
+                            <div class="month-task high overdue">提交项目报告</div>
+                        </div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">19</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">20</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">21</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">22</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">23</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">24</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">25</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">26</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">27</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">28</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">29</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">30</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">31</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell other-month">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">1</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell other-month">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">2</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            <!-- Task Pool -->
+            <div class="task-pool" style="position: relative;">
+                <div class="task-pool-header">
+                    <span class="task-pool-title">待办池</span>
+                    <span class="task-pool-count">3 项任务</span>
+                </div>
+                <div class="task-pool-search">
+                    <input type="text" id="searchInput" placeholder="🔍 搜索任务..." oninput="searchTasks(this.value)">
+                </div>
+                <div class="task-pool-list" id="taskPoolList">
+                    <!-- 逾期任务 -->
+                    <div class="task-group" id="overdueGroup">
+                        <div class="task-group-header" onclick="toggleGroup('overdueGroup')">
+                            <span class="task-group-title"><span class="arrow">▼</span> 逾期任务</span>
+                            <span class="task-group-count">1</span>
+                        </div>
+                        <div class="task-group-list">
+                            <div class="pool-task overdue" draggable="true">
+                                <div class="priority-dot priority-high"></div>
+                                <div class="task-content">
+                                    <span class="task-title">提交项目报告</span>
+                                    <div class="task-date">
+                                        <span class="date-tag">1/18</span>
+                                    </div>
+                                </div>
+                                <span class="drag-handle">⋮⋮</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 今天的任务 -->
+                    <div class="task-group" id="todayGroup">
+                        <div class="task-group-header" onclick="toggleGroup('todayGroup')">
+                            <span class="task-group-title"><span class="arrow">▼</span> 今天的任务</span>
+                            <span class="task-group-count">2</span>
+                        </div>
+                        <div class="task-group-list">
+                            <div class="pool-task today" draggable="true" data-dates="1/15,1/16">
+                                <div class="priority-dot priority-high"></div>
+                                <div class="task-content">
+                                    <span class="task-title">完成产品设计文档</span>
+                                    <div class="task-date">
+                                        <span class="date-tag">1/15-16</span>
+                                    </div>
+                                </div>
+                                <span class="drag-handle">⋮⋮</span>
+                            </div>
+                            <div class="pool-task today" draggable="true" data-dates="1/15">
+                                <div class="priority-dot priority-medium"></div>
+                                <div class="task-content">
+                                    <span class="task-title">准备周会汇报材料</span>
+                                    <div class="task-date">
+                                        <span class="date-tag">1/15</span>
+                                    </div>
+                                </div>
+                                <span class="drag-handle">⋮⋮</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 本周任务 -->
+                    <div class="task-group" id="weekGroup">
+                        <div class="task-group-header" onclick="toggleGroup('weekGroup')">
+                            <span class="task-group-title"><span class="arrow">▼</span> 本周任务</span>
+                            <span class="task-group-count">1</span>
+                        </div>
+                        <div class="task-group-list">
+                            <div class="pool-task" draggable="true" data-dates="1/16">
+                                <div class="priority-dot priority-low"></div>
+                                <div class="task-content">
+                                    <span class="task-title">回复客户邮件</span>
+                                    <div class="task-date">
+                                        <span class="date-tag">1/16</span>
+                                    </div>
+                                </div>
+                                <span class="drag-handle">⋮⋮</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 未安排任务 -->
+                    <div class="task-group" id="unscheduledGroup">
+                        <div class="task-group-header" onclick="toggleGroup('unscheduledGroup')">
+                            <span class="task-group-title"><span class="arrow">▼</span> 未安排任务</span>
+                            <span class="task-group-count">3</span>
+                        </div>
+                        <div class="task-group-list">
+                            <div class="pool-task" draggable="true">
+                                <div class="priority-dot priority-high"></div>
+                                <div class="task-content">
+                                    <span class="task-title">学习 React Hooks</span>
+                                    <div class="task-description">useState, useEffect, useContext</div>
+                                </div>
+                                <span class="drag-handle">⋮⋮</span>
+                            </div>
+                            <div class="pool-task" draggable="true">
+                                <div class="priority-dot priority-medium"></div>
+                                <div class="task-content">
+                                    <span class="task-title">整理项目文档</span>
+                                </div>
+                                <span class="drag-handle">⋮⋮</span>
+                            </div>
+                            <div class="pool-task" draggable="true">
+                                <div class="priority-dot priority-low"></div>
+                                <div class="task-content">
+                                    <span class="task-title">更新 README</span>
+                                    <div class="task-description">添加安装说明和使用示例</div>
+                                </div>
+                                <span class="drag-handle">⋮⋮</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 已完成任务 -->
+                    <div class="task-group collapsed" id="completedGroup">
+                        <div class="task-group-header" onclick="toggleGroup('completedGroup')">
+                            <span class="task-group-title"><span class="arrow">▼</span> 已完成任务</span>
+                            <span class="task-group-count">2</span>
+                        </div>
+                        <div class="task-group-list">
+                            <div class="pool-task completed" draggable="true">
+                                <div class="priority-dot priority-medium"></div>
+                                <div class="task-content">
+                                    <span class="task-title">编写单元测试</span>
+                                    <div class="task-date">完成于 1月14日</div>
+                                </div>
+                                <span class="drag-handle">⋮⋮</span>
+                            </div>
+                            <div class="pool-task completed" draggable="true">
+                                <div class="priority-dot priority-low"></div>
+                                <div class="task-content">
+                                    <span class="task-title">更新依赖版本</span>
+                                    <div class="task-date">完成于 1月13日</div>
+                                </div>
+                                <span class="drag-handle">⋮⋮</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="task-pool-fixed-input">
+                    <textarea id="taskInput" placeholder="输入任务名称...&#10;可选：添加备注（换行）" onkeypress="handleInputKeypress(event)" oninput="autoResize(this)"></textarea>
+                    <div class="task-pool-fixed-input-hint">Ctrl+Enter 提交</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Hint -->
+    <div class="shortcuts-hint">
+        <kbd>W</kbd> 周 <kbd>M</kbd> 月 <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 工作/生活/学习
+    </div>
+
+    <!-- Demo Controls -->
+    <div class="demo-controls">
+        <button class="demo-btn" onclick="toggleView()">切换视图</button>
+        <button class="demo-btn" onclick="cycleWorkspace()">切换工作空间</button>
+    </div>
+
+    <script>
+        let currentView = 'week';
+        let currentWorkspace = 'work';
+        const workspaces = ['work', 'life', 'study'];
+        let workspaceIndex = 0;
+
+        // Auto-resize textarea
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        // Highlight task in calendar when hovering in pool
+        function highlightCalendarTask(taskTitle, isHovering) {
+            // Find matching task items in week view
+            const weekView = document.getElementById('weekView');
+            const dayRows = weekView.querySelectorAll('.day-row');
+            
+            dayRows.forEach(row => {
+                const taskItems = row.querySelectorAll('.task-item');
+                let hasMatch = false;
+                
+                taskItems.forEach(item => {
+                    const titleEl = item.querySelector('.task-title');
+                    if (titleEl && titleEl.textContent === taskTitle) {
+                        hasMatch = true;
+                        if (isHovering) {
+                            item.classList.add('highlight');
+                        } else {
+                            item.classList.remove('highlight');
+                        }
+                    }
+                });
+                
+                if (isHovering && hasMatch) {
+                    row.classList.add('highlight');
+                } else if (!isHovering) {
+                    row.classList.remove('highlight');
+                }
+            });
+
+            // Find matching tasks in month view
+            const monthView = document.getElementById('monthView');
+            const monthCells = monthView.querySelectorAll('.month-cell');
+            
+            monthCells.forEach(cell => {
+                const monthTasks = cell.querySelectorAll('.month-task');
+                let hasMatch = false;
+                
+                monthTasks.forEach(task => {
+                    if (task.textContent === taskTitle) {
+                        hasMatch = true;
+                        if (isHovering) {
+                            task.classList.add('highlight');
+                        } else {
+                            task.classList.remove('highlight');
+                        }
+                    }
+                });
+                
+                if (isHovering && hasMatch) {
+                    cell.classList.add('highlight');
+                } else if (!isHovering) {
+                    cell.classList.remove('highlight');
+                }
+            });
+        }
+
+        // Initialize drag and drop
+        function initDragAndDrop() {
+            // Make pool tasks draggable
+            document.querySelectorAll('.pool-task').forEach(task => {
+                task.addEventListener('dragstart', handleDragStart);
+                task.addEventListener('dragend', handleDragEnd);
+            });
+
+            // Make day rows and month cells drop targets
+            document.querySelectorAll('.day-row').forEach(row => {
+                row.addEventListener('dragover', handleDragOver);
+                row.addEventListener('dragleave', handleDragLeave);
+                row.addEventListener('drop', handleDrop);
+            });
+
+            document.querySelectorAll('.month-cell').forEach(cell => {
+                cell.addEventListener('dragover', handleDragOver);
+                cell.addEventListener('dragleave', handleDragLeave);
+                cell.addEventListener('drop', handleDrop);
+            });
+        }
+
+        let draggedElement = null;
+        let draggedTitle = '';
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            draggedTitle = this.querySelector('.task-title').textContent;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedTitle);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.drop-target, .drag-over').forEach(el => {
+                el.classList.remove('drop-target', 'drag-over');
+            });
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            // Here you would add the task to this date
+            const date = this.querySelector('.day-date, .month-cell-date');
+            if (date) {
+                console.log(`Task "${draggedTitle}" dropped on ${date.textContent}`);
+                // Visual feedback
+                const successMsg = document.createElement('div');
+                successMsg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#10b981;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;z-index:1000;';
+                successMsg.textContent = '✓ 已添加';
+                this.style.position = 'relative';
+                this.appendChild(successMsg);
+                setTimeout(() => successMsg.remove(), 1000);
+            }
+        }
+
+        // Smart date formatting
+        function formatTaskDates(dates) {
+            if (!dates || dates.length === 0) return '';
+            
+            // Sort dates
+            const sortedDates = dates.sort((a, b) => new Date(a) - new Date(b));
+            
+            if (sortedDates.length === 1) {
+                return sortedDates[0];
+            }
+            
+            // Group consecutive dates
+            const groups = [];
+            let currentGroup = [sortedDates[0]];
+            
+            for (let i = 1; i < sortedDates.length; i++) {
+                const prevDate = new Date(sortedDates[i - 1]);
+                const currentDate = new Date(sortedDates[i]);
+                const diffDays = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
+                
+                if (diffDays === 1) {
+                    currentGroup.push(sortedDates[i]);
+                } else {
+                    groups.push(currentGroup);
+                    currentGroup = [sortedDates[i]];
+                }
+            }
+            groups.push(currentGroup);
+            
+            // Format groups
+            const formatted = groups.map(group => {
+                if (group.length === 1) {
+                    return group[0];
+                } else if (group.length === 2) {
+                    return `${group[0]}, ${group[1]}`;
+                } else {
+                    // Check if same month
+                    const first = new Date(group[0]);
+                    const last = new Date(group[group.length - 1]);
+                    
+                    if (first.getMonth() === last.getMonth()) {
+                        return `${first.getMonth() + 1}/${first.getDate()}-${last.getDate()}`;
+                    } else {
+                        return `${first.getMonth() + 1}/${first.getDate()}-${last.getMonth() + 1}/${last.getDate()}`;
+                    }
+                }
+            });
+            
+            return formatted.join(', ');
+        }
+
+        // Example usage:
+        // formatTaskDates(['1/15', '1/16', '1/17']) => "1/15-17"
+        // formatTaskDates(['1/15', '1/17', '1/20']) => "1/15, 1/17, 1/20"
+        // formatTaskDates(['1/15', '1/16', '1/20', '1/21', '1/22']) => "1/15-16, 1/20-22"
+
+        // Add hover events to pool tasks
+        function initPoolTaskHover() {
+            document.querySelectorAll('.pool-task').forEach(task => {
+                const titleEl = task.querySelector('.task-title');
+                if (titleEl) {
+                    task.addEventListener('mouseenter', () => {
+                        highlightCalendarTask(titleEl.textContent, true);
+                    });
+                    task.addEventListener('mouseleave', () => {
+                        highlightCalendarTask(titleEl.textContent, false);
+                    });
+                }
+            });
+        }
+
+        function toggleWorkspaceDropdown() {
+            const dropdown = document.getElementById('workspaceDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function switchWorkspace(workspace) {
+            currentWorkspace = workspace;
+            const app = document.getElementById('app');
+            app.className = 'app workspace-' + workspace;
+
+            const names = { work: '工作', life: '生活', study: '学习' };
+
+            document.getElementById('workspaceName').textContent = names[workspace];
+
+            document.querySelectorAll('.workspace-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.workspace === workspace);
+            });
+
+            document.getElementById('workspaceDropdown').classList.remove('show');
+            workspaceIndex = workspaces.indexOf(workspace);
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === (view === 'week' ? '周' : '月'));
+            });
+            document.getElementById('weekView').classList.toggle('active', view === 'week');
+            document.getElementById('monthView').classList.toggle('active', view === 'month');
+        }
+
+        function toggleTask(checkbox) {
+            checkbox.classList.toggle('checked');
+            const taskItem = checkbox.closest('.task-item');
+            taskItem.classList.toggle('completed');
+        }
+
+        function toggleGroup(groupId) {
+            const group = document.getElementById(groupId);
+            group.classList.toggle('collapsed');
+        }
+
+        function focusInput() {
+            document.getElementById('taskInput').focus();
+        }
+
+        function handleInputKeypress(event) {
+            // Ctrl+Enter 或 Cmd+Enter 提交任务
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                const textarea = event.target;
+                if (textarea.value.trim()) {
+                    const lines = textarea.value.trim().split('\n');
+                    const title = lines[0];
+                    const description = lines.length > 1 ? lines.slice(1).join('\n') : '';
+                    addTaskToPool(title, description);
+                    textarea.value = '';
+                    textarea.style.height = 'auto'; // Reset height
+                }
+            }
+        }
+
+        function addTaskToPool(title, description = '') {
+            const pool = document.getElementById('unscheduledGroup .task-group-list');
+            const priorities = ['priority-high', 'priority-medium', 'priority-low'];
+            const priority = priorities[Math.floor(Math.random() * priorities.length)];
+            
+            const task = document.createElement('div');
+            task.className = 'pool-task';
+            task.draggable = true;
+            task.innerHTML = `
+                <div class="priority-dot ${priority}"></div>
+                <div class="task-content">
+                    <span class="task-title">${title}</span>
+                    ${description ? `<div class="task-description">${description}</div>` : ''}
+                </div>
+                <span class="drag-handle">⋮⋮</span>
+            `;
+            
+            // Add hover events
+            task.addEventListener('mouseenter', () => {
+                highlightCalendarTask(title, true);
+            });
+            task.addEventListener('mouseleave', () => {
+                highlightCalendarTask(title, false);
+            });
+            
+            pool.appendChild(task);
+            updateTaskCount();
+        }
+
+        function updateTaskCount() {
+            // Update individual group counts
+            const overdueCount = document.querySelectorAll('#overdueGroup .pool-task').length;
+            const todayCount = document.querySelectorAll('#todayGroup .pool-task').length;
+            const weekCount = document.querySelectorAll('#weekGroup .pool-task').length;
+            const unscheduledCount = document.querySelectorAll('#unscheduledGroup .pool-task').length;
+            const completedCount = document.querySelectorAll('#completedGroup .pool-task').length;
+            
+            document.querySelector('#overdueGroup .task-group-count').textContent = overdueCount;
+            document.querySelector('#todayGroup .task-group-count').textContent = todayCount;
+            document.querySelector('#weekGroup .task-group-count').textContent = weekCount;
+            document.querySelector('#unscheduledGroup .task-group-count').textContent = unscheduledCount;
+            document.querySelector('#completedGroup .task-group-count').textContent = completedCount;
+            
+            // Update total count
+            const total = overdueCount + todayCount + weekCount + unscheduledCount;
+            document.querySelector('.task-pool-count').textContent = total + ' 项任务';
+        }
+
+        function toggleView() {
+            switchView(currentView === 'week' ? 'month' : 'week');
+        }
+
+        function cycleWorkspace() {
+            workspaceIndex = (workspaceIndex + 1) % workspaces.length;
+            switchWorkspace(workspaces[workspaceIndex]);
+        }
+
+        function addDemoTask() {
+            const tasks = [
+                { title: '完成设计稿', desc: '需要包含所有页面' },
+                { title: '代码审查', desc: '' },
+                { title: '写单元测试', desc: '覆盖率要求80%' },
+                { title: '优化性能', desc: '首屏加载时间优化' },
+                { title: '修复 bug', desc: '' }
+            ];
+            const task = tasks[Math.floor(Math.random() * tasks.length)];
+            addTaskToPool(task.title, task.desc);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+
+            switch(e.key.toLowerCase()) {
+                case 'n':
+                    focusInput();
+                    break;
+                case 'w':
+                    switchView('week');
+                    break;
+                case 'm':
+                    switchView('month');
+                    break;
+                case '1':
+                    switchWorkspace('work');
+                    break;
+                case '2':
+                    switchWorkspace('life');
+                    break;
+                case '3':
+                    switchWorkspace('study');
+                    break;
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.workspace-switcher')) {
+                document.getElementById('workspaceDropdown').classList.remove('show');
+            }
+        });
+
+        // Search tasks
+        function searchTasks(query) {
+            const normalizedQuery = query.toLowerCase().trim();
+            const allTasks = document.querySelectorAll('.pool-task');
+            
+            allTasks.forEach(task => {
+                const title = task.querySelector('.task-title').textContent.toLowerCase();
+                const description = task.querySelector('.task-description')?.textContent.toLowerCase() || '';
+                const dateText = task.querySelector('.date-text')?.textContent.toLowerCase() || '';
+                
+                const matches = normalizedQuery === '' || 
+                               title.includes(normalizedQuery) || 
+                               description.includes(normalizedQuery) ||
+                               dateText.includes(normalizedQuery);
+                
+                task.style.display = matches ? 'flex' : 'none';
+            });
+
+            // Update group counts
+            updateTaskCount();
+        }
+
+        // Calendar navigation
+        let currentDate = new Date();
+        let currentWeekStart = getWeekStart(currentDate);
+
+        function getWeekStart(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(d.setDate(diff));
+        }
+
+        function formatDate(date) {
+            return `${date.getMonth() + 1}月${date.getDate()}日`;
+        }
+
+        function formatWeekRange(startDate) {
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 6);
+            
+            if (startDate.getMonth() === endDate.getMonth()) {
+                return `${startDate.getFullYear()}年${startDate.getMonth() + 1}月${startDate.getDate()}-${endDate.getDate()}日`;
+            } else {
+                return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+            }
+        }
+
+        function formatMonth(date) {
+            return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+        }
+
+        function updateCalendarDate() {
+            const dateEl = document.getElementById('calendarDate');
+            if (currentView === 'week') {
+                dateEl.textContent = formatWeekRange(currentWeekStart);
+            } else {
+                dateEl.textContent = formatMonth(currentDate);
+            }
+        }
+
+        function navigateCalendar(direction) {
+            if (currentView === 'week') {
+                const days = direction === 'prev' ? -7 : 7;
+                currentWeekStart.setDate(currentWeekStart.getDate() + days);
+            } else {
+                const months = direction === 'prev' ? -1 : 1;
+                currentDate.setMonth(currentDate.getMonth() + months);
+            }
+            updateCalendarDate();
+            // Here you would also update the calendar display
+        }
+
+        function goToToday() {
+            currentDate = new Date();
+            currentWeekStart = getWeekStart(currentDate);
+            updateCalendarDate();
+            // Here you would also update the calendar display
+        }
+
+        // Initialize smart date formatting
+        function initSmartDates() {
+            document.querySelectorAll('.pool-task[data-dates]').forEach(task => {
+                const datesStr = task.getAttribute('data-dates');
+                if (datesStr) {
+                    const dates = datesStr.split(',');
+                    const dateContainer = task.querySelector('.task-date');
+                    if (dateContainer) {
+                        // Clear existing date tags
+                        dateContainer.innerHTML = '';
+                        // Create new date tags
+                        const dateGroups = dates.map(d => [d]); // Simple grouping for demo
+                        dateGroups.forEach(group => {
+                            const tag = document.createElement('span');
+                            tag.className = 'date-tag';
+                            tag.textContent = formatTaskDates(group);
+                            dateContainer.appendChild(tag);
+                        });
+                    }
+                }
+            });
+        }
+
+        // Initialize events on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initPoolTaskHover();
+            initDragAndDrop();
+            initSmartDates();
+            updateCalendarDate();
+        });
+    </script>
+</body>
+</html>

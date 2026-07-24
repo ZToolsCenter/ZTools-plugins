@@ -1,0 +1,10 @@
+* text=auto eol=lf
+public/everything/Everything.ini text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.node binary

@@ -1,0 +1,17 @@
+package {{fullPackage}};
+
+import org.apache.ibatis.annotations.Mapper;
+
+{{#genComment}}
+/**
+ * Description：{{tableInfo.tableComment}} Mapper接口
+ *
+ * @author {{author}}
+ * @date {{currentDate}}
+ */
+{{/genComment}}
+@Mapper
+public interface {{upperCamelTableName}}Mapper {
+
+
+}

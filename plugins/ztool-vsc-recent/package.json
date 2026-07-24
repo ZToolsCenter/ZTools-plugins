@@ -1,0 +1,22 @@
+{
+  "name": "ztool-vsc-recent",
+  "version": "0.1.2",
+  "description": "ZTools 插件：VSCode 最近项目快速启动",
+  "type": "commonjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "tsc -w",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "fuse.js": "^7.0.0",
+    "sql.js": "^1.10.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/sql.js": "^1.4.9",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}

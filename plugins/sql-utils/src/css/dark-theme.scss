@@ -1,0 +1,41 @@
+body.dark {
+  color-scheme: dark;
+  --vxe-ui-font-color: #a0a3a7;
+  --vxe-ui-font-tinge-color: #33353b;
+  --vxe-ui-font-lighten-color: #797b80;
+  --vxe-ui-font-darken-color: #47494c;
+  --vxe-ui-font-disabled-color: #464646;
+  --vxe-ui-font-primary-color: #409eff;
+  --vxe-ui-base-popup-border-color: #424242;
+  --vxe-ui-base-popup-box-shadow: 0px 12px 30px 8px rgba(0, 0, 0, 0.5);
+  --vxe-ui-layout-background-color: #121212;
+  --vxe-ui-input-border-color: #424242;
+  --vxe-ui-input-placeholder-color: #8D9095;
+  --vxe-ui-input-disabled-background-color: #262727;
+  --vxe-ui-loading-background-color: rgba(255, 255, 255, 0.1);
+  --vxe-ui-table-header-background-color: #28282a;
+  --vxe-ui-table-column-to-row-background-color: #28282a;
+  --vxe-ui-table-border-color: #37373a;
+  --vxe-ui-table-row-hover-background-color: #262727;
+  --vxe-ui-table-row-striped-background-color: #1D1D1D;
+  --vxe-ui-table-row-hover-striped-background-color: #262727;
+  --vxe-ui-table-row-radio-checked-background-color: #604820;
+  --vxe-ui-table-row-hover-radio-checked-background-color: #6e5326;
+  --vxe-ui-table-row-checkbox-checked-background-color: #604820;
+  --vxe-ui-table-row-hover-checkbox-checked-background-color: #6e5326;
+  --vxe-ui-table-row-current-background-color: #18222c;
+  --vxe-ui-table-row-hover-current-background-color: #262727;
+  --vxe-ui-table-fixed-scrolling-box-shadow-color: rgba(0, 0, 0, 0.8);
+  --vxe-ui-table-drag-over-background-color: rgba(48, 48, 0, 0.3);
+  --vxe-ui-table-header-font-color: #C0C4CC;
+
+  .code-editor .cm-scroller::-webkit-scrollbar-thumb {
+      background-color: #5a5a5a;
+    }
+  .code-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+      background-color: #7a7a7a;
+    }
+  .code-editor .cm-scroller::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+}

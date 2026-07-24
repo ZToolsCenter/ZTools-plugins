@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片工具箱</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Fabric.js 5.x 本地引用（插件环境不依赖网络资源） -->
+  <script src="../core/src/lib/fabric.min.js"></script>
+</head>
+<body>
+  <!-- ═══ 主布局：五区编辑结构 ═══ -->
+  <div class="app" id="app">
+    <!-- 工具栏（左侧） -->
+    <div class="toolbar" id="toolbar"></div>
+
+    <!-- 选项栏（顶部） -->
+    <div class="optionsbar" id="optionsbar"></div>
+
+    <!-- 画布区（中央） -->
+    <div class="canvas-area" id="canvas-area">
+      <!-- 欢迎/导入界面 -->
+      <div class="welcome" id="welcome">
+        <div class="welcome__icon" id="welcome-drop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="welcome__text">拖入图片 / 粘贴截图 / 点击图标导入</div>
+        <div class="welcome__hint">支持 PNG · JPG · WebP · BMP · GIF · SVG</div>
+        <button class="welcome__btn" id="welcome-btn">选择图片</button>
+      </div>
+
+      <!-- Fabric.js 画布容器 -->
+      <div class="canvas-area__container hidden" id="canvas-container">
+        <canvas id="fabric-canvas"></canvas>
+      </div>
+
+      <!-- 缩放控制 -->
+      <div class="zoom-control hidden" id="zoom-control">
+        <button class="zoom-control__btn" id="zoom-out" title="缩小">−</button>
+        <span class="zoom-control__value" id="zoom-value">100%</span>
+        <button class="zoom-control__btn" id="zoom-in" title="放大">+</button>
+      </div>
+    </div>
+
+    <!-- 右侧面板（属性 / 图层 Tab） -->
+    <div class="panel-area" id="panel-area"></div>
+
+    <!-- 状态栏（底部） -->
+    <div class="statusbar" id="statusbar"></div>
+  </div>
+
+  <!-- 账户页 -->
+  <div class="account-page hidden" id="account-page"></div>
+
+  <!-- 主入口脚本（ES Module） -->
+  <script type="module" src="index.js"></script>
+</body>
+</html>

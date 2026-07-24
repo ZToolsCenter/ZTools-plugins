@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F0F4FF"/>
+      <stop offset="100%" stop-color="#E8F0FE"/>
+    </linearGradient>
+    <linearGradient id="bunGrad" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#FFFDF7"/>
+      <stop offset="40%" stop-color="#FFF8EC"/>
+      <stop offset="100%" stop-color="#F5E6CC"/>
+    </linearGradient>
+    <linearGradient id="steamGrad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#E8A850" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#E8A850" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="bunShadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#C8A87C" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- 圆角背景 -->
+  <rect width="512" height="512" rx="120" ry="120" fill="url(#bgGrad)"/>
+
+  <!-- 蒸汽 -->
+  <g opacity="0.6">
+    <path d="M230 110 Q235 80 226 60" fill="none" stroke="url(#steamGrad)" stroke-width="8" stroke-linecap="round">
+      <animate attributeName="d" dur="3s" repeatCount="indefinite"
+        values="M230 110 Q235 80 226 60;M230 110 Q240 75 228 55;M230 110 Q235 80 226 60"/>
+    </path>
+    <path d="M260 100 Q268 65 256 40" fill="none" stroke="url(#steamGrad)" stroke-width="6" stroke-linecap="round">
+      <animate attributeName="d" dur="2.5s" repeatCount="indefinite"
+        values="M260 100 Q268 65 256 40;M260 100 Q272 60 258 35;M260 100 Q268 65 256 40"/>
+    </path>
+    <path d="M280 115 Q290 85 278 65" fill="none" stroke="url(#steamGrad)" stroke-width="5" stroke-linecap="round">
+      <animate attributeName="d" dur="3.5s" repeatCount="indefinite"
+        values="M280 115 Q290 85 278 65;M280 115 Q295 80 280 55;M280 115 Q290 85 278 65"/>
+    </path>
+  </g>
+
+  <!-- 馒头主体 -->
+  <g filter="url(#bunShadow)">
+    <ellipse cx="256" cy="280" rx="140" ry="115" fill="url(#bunGrad)"/>
+
+    <!-- 馒头顶部高光 -->
+    <ellipse cx="256" cy="230" rx="90" ry="35" fill="#FFF" opacity="0.5"/>
+
+    <!-- 馒头褶皱线条 -->
+    <path d="M170 220 Q175 280 180 335" fill="none" stroke="#E0C898" stroke-width="2" opacity="0.4"/>
+    <path d="M200 195 Q208 265 212 340" fill="none" stroke="#E0C898" stroke-width="2" opacity="0.4"/>
+    <path d="M240 182 Q244 260 246 342" fill="none" stroke="#E0C898" stroke-width="1.5" opacity="0.3"/>
+    <path d="M272 182 Q268 260 266 342" fill="none" stroke="#E0C898" stroke-width="1.5" opacity="0.3"/>
+    <path d="M312 195 Q304 265 300 340" fill="none" stroke="#E0C898" stroke-width="2" opacity="0.4"/>
+    <path d="M342 220 Q337 280 332 335" fill="none" stroke="#E0C898" stroke-width="2" opacity="0.4"/>
+
+    <!-- 馒头可爱眼睛 -->
+    <ellipse cx="226" cy="275" rx="12" ry="14" fill="#5D4030"/>
+    <ellipse cx="286" cy="275" rx="12" ry="14" fill="#5D4030"/>
+    <!-- 眼睛高光 -->
+    <circle cx="230" cy="270" r="4" fill="#FFF"/>
+    <circle cx="290" cy="270" r="4" fill="#FFF"/>
+
+    <!-- 微笑 -->
+    <path d="M240 300 Q256 315 272 300" fill="none" stroke="#C49060" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- OCR 文字/扫描线 -->
+  <g transform="translate(256, 430)">
+    <!-- 扫描线 -->
+    <line x1="-80" y1="0" x2="80" y2="0" stroke="#E8A850" stroke-width="3" opacity="0.5"/>
+    <!-- 文字缩略图 -->
+    <rect x="-70" y="-30" width="140" height="16" rx="2" fill="#D0C0A8" opacity="0.3"/>
+    <rect x="-70" y="-8" width="120" height="10" rx="2" fill="#D0C0A8" opacity="0.25"/>
+    <rect x="-70" y="8" width="100" height="10" rx="2" fill="#D0C0A8" opacity="0.2"/>
+    <!-- OCR 标记 -->
+    <text x="0" y="50" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="24" fill="#C49060" opacity="0.7">OCR</text>
+  </g>
+</svg>

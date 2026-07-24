@@ -1,0 +1,320 @@
+name: Build PR Plugin Package
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'plugins/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: '要构建的 PR 编号'
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-plugin-build-${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+      changed_plugins: ${{ steps.detect.outputs.changed_plugins }}
+      has_linux: ${{ steps.split.outputs.has_linux }}
+      has_windows: ${{ steps.split.outputs.has_windows }}
+      has_macos: ${{ steps.split.outputs.has_macos }}
+      linux_plugins: ${{ steps.split.outputs.linux_plugins }}
+      windows_plugins: ${{ steps.split.outputs.windows_plugins }}
+      macos_plugins: ${{ steps.split.outputs.macos_plugins }}
+      pr_number: ${{ steps.pr.outputs.number }}
+
+    steps:
+      - name: Resolve PR metadata
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs'
+
+          const eventName = process.env.EVENT_NAME
+          const outputPath = process.env.GITHUB_OUTPUT
+          const headers = {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          }
+
+          if (process.env.GH_TOKEN) {
+            headers.Authorization = `Bearer ${process.env.GH_TOKEN}`
+          }
+
+          let pullRequest
+
+          if (eventName === 'pull_request') {
+            const eventPath = process.env.GITHUB_EVENT_PATH
+            if (!eventPath) {
+              throw new Error('GITHUB_EVENT_PATH is required for pull_request events')
+            }
+            const event = JSON.parse(readFileSync(eventPath, 'utf8'))
+            pullRequest = event.pull_request
+          } else {
+            const prNumber = process.env.INPUT_PR_NUMBER
+            if (!prNumber) {
+              throw new Error('workflow_dispatch requires pr_number')
+            }
+            const response = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}/pulls/${prNumber}`, { headers })
+            if (!response.ok) {
+              throw new Error(`Failed to fetch PR metadata: ${response.status} ${response.statusText} ${await response.text()}`)
+            }
+            pullRequest = await response.json()
+          }
+
+          const outputs = {
+            number: String(pullRequest.number),
+            head_sha: pullRequest.head.sha,
+          }
+
+          appendFileSync(
+            outputPath,
+            Object.entries(outputs)
+              .map(([key, value]) => `${key}=${value}`)
+              .join('\n') + '\n',
+          )
+
+          console.log(`Resolved PR #${outputs.number}`)
+          console.log(`Head SHA: ${outputs.head_sha}`)
+          NODE
+
+      - name: Checkout PR code
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          git init .
+          git remote add origin "https://github.com/${REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "pull/${PR_NUMBER}/head"
+          git checkout --force FETCH_HEAD
+          git clean -ffdx
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Detect changed plugins
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p release
+
+          node --input-type=module <<'NODE'
+          import { appendFileSync, writeFileSync } from 'node:fs'
+
+          const token = process.env.GH_TOKEN
+          const repository = process.env.REPOSITORY
+          const prNumber = process.env.PR_NUMBER
+          const outputPath = process.env.GITHUB_OUTPUT
+          const headers = {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          }
+
+          if (token) {
+            headers.Authorization = `Bearer ${token}`
+          }
+
+          const files = []
+          for (let page = 1; ; page += 1) {
+            const url = `https://api.github.com/repos/${repository}/pulls/${prNumber}/files?per_page=100&page=${page}`
+            const response = await fetch(url, { headers })
+            if (!response.ok) {
+              throw new Error(`Failed to fetch PR files: ${response.status} ${response.statusText} ${await response.text()}`)
+            }
+
+            const pageFiles = await response.json()
+            files.push(...pageFiles.map(file => file.filename))
+            if (pageFiles.length < 100) {
+              break
+            }
+          }
+
+          const changedPlugins = [...new Set(
+            files
+              .map(file => file.match(/^plugins\/([^/]+)\//)?.[1])
+              .filter(Boolean),
+          )].sort()
+
+          const hasChanges = changedPlugins.length > 0
+          const buildInfo = {
+            hasChanges,
+            releaseVersion: `pr-${prNumber}`,
+            changedPlugins,
+            buildAll: false,
+          }
+
+          writeFileSync('release/build-info.json', JSON.stringify(buildInfo, null, 2))
+          appendFileSync(outputPath, `has_changes=${hasChanges ? 'true' : 'false'}\n`)
+          appendFileSync(outputPath, `changed_plugins=${changedPlugins.join(',')}\n`)
+
+          if (hasChanges) {
+            console.log(`Changed plugins: ${changedPlugins.join(', ')}`)
+          } else {
+            console.log('No plugin changes detected.')
+          }
+          NODE
+
+          cat release/build-info.json
+
+      - name: Split changed plugins by platform
+        id: split
+        if: steps.detect.outputs.has_changes == 'true'
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+          import { join } from 'node:path'
+
+          const RELEASE_DIR = 'release'
+          const BUILD_INFO_FILE = join(RELEASE_DIR, 'build-info.json')
+          const GROUPS = {
+            linux: {
+              output: join(RELEASE_DIR, 'build-info.linux.json'),
+              plugins: [],
+            },
+            windows: {
+              output: join(RELEASE_DIR, 'build-info.windows.json'),
+              plugins: [],
+            },
+            macos: {
+              output: join(RELEASE_DIR, 'build-info.macos.json'),
+              plugins: [],
+            },
+          }
+
+          if (!existsSync(BUILD_INFO_FILE)) {
+            console.error('找不到 release/build-info.json，请先运行变更检测脚本')
+            process.exit(1)
+          }
+
+          if (!existsSync(RELEASE_DIR)) {
+            mkdirSync(RELEASE_DIR, { recursive: true })
+          }
+
+          const buildInfo = JSON.parse(readFileSync(BUILD_INFO_FILE, 'utf-8'))
+          const changedPlugins = Array.isArray(buildInfo.changedPlugins) ? buildInfo.changedPlugins : []
+
+          for (const pluginName of changedPlugins) {
+            const pluginInfo = getPluginInfo(pluginName)
+            const group = getBuildGroup(pluginInfo.platform)
+            GROUPS[group].plugins.push(pluginName)
+          }
+
+          for (const [groupName, group] of Object.entries(GROUPS)) {
+            const groupBuildInfo = {
+              ...buildInfo,
+              hasChanges: group.plugins.length > 0,
+              changedPlugins: group.plugins,
+            }
+
+            writeFileSync(group.output, JSON.stringify(groupBuildInfo, null, 2))
+            console.log(`${groupName}: ${group.plugins.length > 0 ? group.plugins.join(', ') : '(none)'}`)
+          }
+
+          if (process.env.GITHUB_OUTPUT) {
+            const lines = [
+              `has_linux=${GROUPS.linux.plugins.length > 0 ? 'true' : 'false'}`,
+              `has_windows=${GROUPS.windows.plugins.length > 0 ? 'true' : 'false'}`,
+              `has_macos=${GROUPS.macos.plugins.length > 0 ? 'true' : 'false'}`,
+              `linux_plugins=${GROUPS.linux.plugins.join(',')}`,
+              `windows_plugins=${GROUPS.windows.plugins.join(',')}`,
+              `macos_plugins=${GROUPS.macos.plugins.join(',')}`,
+            ]
+
+            appendFileSync(process.env.GITHUB_OUTPUT, lines.join('\n') + '\n')
+          }
+
+          function getPluginInfo(pluginName) {
+            const pluginJsonPaths = [
+              join('plugins', pluginName, 'plugin.json'),
+              join('plugins', pluginName, 'public', 'plugin.json'),
+              join('plugins', pluginName, 'dist', 'plugin.json'),
+            ]
+
+            for (const pluginJsonPath of pluginJsonPaths) {
+              if (existsSync(pluginJsonPath)) {
+                return JSON.parse(readFileSync(pluginJsonPath, 'utf-8'))
+              }
+            }
+
+            console.warn(`找不到插件 ${pluginName} 的 plugin.json，默认使用 linux 构建`)
+            return {}
+          }
+
+          function getBuildGroup(platform) {
+            if (Array.isArray(platform) && platform.length === 1) {
+              if (platform[0] === 'win32') return 'windows'
+              if (platform[0] === 'darwin') return 'macos'
+            }
+
+            return 'linux'
+          }
+          NODE
+
+      - name: Upload build info
+        if: steps.detect.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-${{ steps.pr.outputs.number }}-build-info
+          path: |
+            release/build-info.json
+            release/build-info.linux.json
+            release/build-info.windows.json
+            release/build-info.macos.json
+          if-no-files-found: error
+          retention-days: 14
+
+  build-linux:
+    needs: detect
+    if: needs.detect.outputs.has_linux == 'true'
+    uses: ./.github/workflows/build-pr-plugin-platform.yml
+    with:
+      pr_number: ${{ needs.detect.outputs.pr_number }}
+      platform_name: linux
+      runner: ubuntu-latest
+
+  build-windows:
+    needs: detect
+    if: needs.detect.outputs.has_windows == 'true'
+    uses: ./.github/workflows/build-pr-plugin-platform.yml
+    with:
+      pr_number: ${{ needs.detect.outputs.pr_number }}
+      platform_name: windows
+      runner: windows-latest
+
+  build-macos:
+    needs: detect
+    if: needs.detect.outputs.has_macos == 'true'
+    uses: ./.github/workflows/build-pr-plugin-platform.yml
+    with:
+      pr_number: ${{ needs.detect.outputs.pr_number }}
+      platform_name: macos
+      runner: macos-latest

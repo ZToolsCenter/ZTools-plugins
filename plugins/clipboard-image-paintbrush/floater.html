@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>剪贴板图片涂改</title>
+  <link rel="stylesheet" href="floater.css" />
+</head>
+<body>
+  <div class="frame">
+    <!-- 标题栏 / 工具栏 -->
+    <div class="toolbar" id="toolbar">
+      <div class="drag-region" id="dragRegion" title="拖拽移动窗口">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+
+      <div class="group">
+        <button class="tool-btn active" data-tool="pen" title="画笔 (B)">
+          <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </button>
+        <button class="tool-btn" data-tool="highlighter" title="荧光笔 (H)">
+          <svg viewBox="0 0 24 24"><path d="M6 14l3 3v3H6v-3l-1 1H3v-2l1-1v-3l5-5 7 7-5 5-2-1zM18.5 2.5l3 3-7 7-3-3 7-7z"/></svg>
+        </button>
+        <button class="tool-btn" data-tool="rect" title="矩形 (R)">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button class="tool-btn" data-tool="ellipse" title="椭圆 (O)">
+          <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button class="tool-btn" data-tool="arrow" title="箭头 (A)">
+          <svg viewBox="0 0 24 24"><path d="M4 12h12.17l-5.59-5.59L12 5l8 8-8 8-1.42-1.41L16.17 14H4z"/></svg>
+        </button>
+        <button class="tool-btn" data-tool="text" title="文字 (T)">
+          <svg viewBox="0 0 24 24"><path d="M5 5v3h5.5v12h3V8H19V5z"/></svg>
+        </button>
+        <button class="tool-btn" data-tool="mosaic" title="马赛克 (M)">
+          <svg viewBox="0 0 24 24"><path d="M3 3h6v6H3zm0 12h6v6H3zm12-12h6v6h-6zm0 12h6v6h-6zM9 9h6v6H9z"/></svg>
+        </button>
+        <button class="tool-btn" data-tool="eraser" title="橡皮擦 (E)">
+          <svg viewBox="0 0 24 24"><path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17a4.008 4.008 0 0 1 0-5.66L11.41 3a2.001 2.001 0 0 1 2.83 0l1.99-.01z"/></svg>
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="group" id="swatches"></div>
+
+      <div class="divider"></div>
+
+      <div class="group" id="sizes"></div>
+
+      <div class="divider"></div>
+
+      <div class="group">
+        <button class="tool-btn" id="undo" title="撤销 (Ctrl/⌘+Z)">
+          <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78A9.99 9.99 0 0 0 12.5 8z"/></svg>
+        </button>
+        <button class="tool-btn" id="redo" title="重做 (Ctrl/⌘+Y)">
+          <svg viewBox="0 0 24 24"><path d="M18.4 10.6A8.018 8.018 0 0 0 11.5 8a10 10 0 0 0-9.95 8.74L3.92 17a7.502 7.502 0 0 1 7.58-6c1.96 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+        </button>
+        <button class="tool-btn" id="clear" title="清除所有标注">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="group">
+        <button class="tool-btn action-copy" id="copyBtn" title="复制到剪贴板 (Ctrl/⌘+C)">
+          <svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+        </button>
+        <button class="tool-btn action-save" id="saveBtn" title="另存为... (Ctrl/⌘+S)">
+          <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z"/></svg>
+        </button>
+        <button class="tool-btn action-close" id="closeBtn" title="关闭 (Esc)">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 图像 + 涂改画布 -->
+    <div class="canvas-wrap" id="canvasWrap">
+      <div class="stage" id="stage">
+        <canvas id="imgCanvas"></canvas>
+        <canvas id="drawCanvas"></canvas>
+      </div>
+      <div class="hint" id="hint">Esc 关闭 · Ctrl/⌘+Z 撤销 · Ctrl/⌘+S 保存 · Ctrl/⌘+C 复制</div>
+    </div>
+
+    <!-- 文字输入浮层 -->
+    <input type="text" id="textInput" class="text-input" placeholder="输入文字后回车确认，Esc 取消" />
+
+    <!-- 右下角调节大小手柄（透明窗口下原生 resize 边缘体验欠佳，提供自定义手柄） -->
+    <div class="resize-grip" id="resizeGrip" title="拖拽调整窗口大小"></div>
+  </div>
+
+  <script src="floater.js"></script>
+</body>
+</html>

@@ -1,5 +1,17 @@
 import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
+import { RefObject } from "react";
+
+/**
+ * 通用装饰器状态接口
+ */
+export interface DecoratorState {
+  editorRef: RefObject<editor.IStandaloneCodeEditor | null>;
+  hoverProviderId: RefObject<monaco.IDisposable | null>;
+  updateTimeoutRef: RefObject<NodeJS.Timeout | null>;
+  decorationManagerRef: RefObject<DecorationManager | null>;
+  enabled: boolean;
+}
 
 /**
  * 装饰器缓存项
@@ -20,6 +32,10 @@ interface CacheItem {
  * 3. 按行号和类型组织装饰器
  * 4. 自动检测内容变化并失效缓存
  */
+// 装饰器处理的最大行内容长度
+// 需要大于常见 base64 编码后的行长度（base64 解码上限 12000 字符）
+export const DEFAULT_MAX_LINE_LENGTH = 4000;
+
 export class DecorationManager {
   private decorations = new Map<string, Set<string>>();
   private contentCache = new Map<number, CacheItem>();
@@ -79,7 +95,7 @@ export class DecorationManager {
   }
 
   /**
-   * 清理指定行的所有装饰器
+   * 清理指定行的所有装饰器（保留内容缓存）
    * @param editor 编辑器实例
    * @param lineNumber 行号
    */
@@ -94,8 +110,18 @@ export class DecorationManager {
       editor.removeDecorations(Array.from(decorationIds));
       this.decorations.delete(key);
     }
+  }
 
-    // 清理内容缓存
+  /**
+   * 清理指定行的装饰器和内容缓存（用于内容变更场景）
+   * @param editor 编辑器实例
+   * @param lineNumber 行号
+   */
+  clearLineDecorationsAndCache(
+    editor: editor.IStandaloneCodeEditor,
+    lineNumber: number,
+  ): void {
+    this.clearLineDecorations(editor, lineNumber);
     this.contentCache.delete(lineNumber);
   }
 
@@ -111,7 +137,7 @@ export class DecorationManager {
     endLine: number,
   ): void {
     for (let line = startLine; line <= endLine; line++) {
-      this.clearLineDecorations(editor, line);
+      this.clearLineDecorationsAndCache(editor, line);
     }
   }
 
@@ -195,7 +221,7 @@ export class DecorationManager {
   shouldProcessLine(
     lineNumber: number,
     content: string,
-    maxLength: number = 1000,
+    maxLength: number = 4000,
   ): boolean {
     // 超过长度限制的行跳过
     if (content.length > maxLength) {

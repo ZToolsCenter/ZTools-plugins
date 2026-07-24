@@ -10,7 +10,6 @@ export enum SidebarKeys {
   diffView = "diffView",
   tableView = "tableView",
   toolbox = "toolbox",
-  history = "history",
 }
 
 export const items: SidebarItem[] = [
@@ -39,11 +38,5 @@ export const items: SidebarItem[] = [
     icon: "solar:box-outline",
     route: "./toolbox",
     title: "工具箱",
-  },
-  {
-    key: SidebarKeys.history,
-    icon: "solar:history-linear",
-    route: "./history",
-    title: "查看历史",
   },
 ];

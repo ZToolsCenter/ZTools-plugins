@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>表情罐头 - 表情包管理插件</title>
+    <link href="lib/materialdesignicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="user-info">
+                    <img id="userAvatar" src="logo.png" alt="头像" class="user-avatar">
+                    <span id="userNickname" class="user-nickname">表情罐头</span>
+                </div>
+                <button class="collapse-btn" id="sidebarCollapseBtn">
+                    <i class="mdi mdi-menu-left" id="collapseIcon"></i>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-view="home">
+                    <span class="nav-icon mdi mdi-home"></span>
+                    <span class="nav-text">首页</span>
+                </button>
+                <button class="nav-item" data-view="local">
+                    <span class="nav-icon mdi mdi-folder"></span>
+                    <span class="nav-text">本地表情</span>
+                </button>
+                <button class="nav-item" data-view="cloud">
+                    <span class="nav-icon mdi mdi-cloud"></span>
+                    <span class="nav-text">云端表情</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-stats">
+                <div class="stat-item">
+                    <span class="stat-number" id="totalCount">0</span>
+                    <span class="stat-label">总表情</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="cloudCount">0</span>
+                    <span class="stat-label">云端</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="localCount">0</span>
+                    <span class="stat-label">本地</span>
+                </div>
+            </div>
+
+            <button class="nav-item settings-btn" data-view="settings">
+                <span class="nav-icon mdi mdi-cog"></span>
+                <span class="nav-text">设置</span>
+            </button>
+        </aside>
+
+        <!-- 右侧主内容区 -->
+        <main class="main-content">
+            <!-- 首页视图 -->
+            <div id="homeView" class="view active">
+                <header class="content-header">
+                    <div class="search-box">
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="搜索表情包..."
+                            autocomplete="off"
+                        >
+                    </div>
+                    <div class="header-actions">
+                        <button id="searchBtn" class="btn btn-secondary">
+                            <i class="mdi mdi-magnify"></i> 搜索
+                        </button>
+                        <button id="addBtn" class="btn btn-primary">
+                            <i class="mdi mdi-plus"></i> 添加表情
+                        </button>
+                    </div>
+                </header>
+
+                <!-- 搜索选项卡 -->
+                <div class="search-tabs">
+                    <button class="tab-btn active" data-tab="mine">
+                        我的
+                    </button>
+                    <button class="tab-btn" data-tab="yujian">
+                        遇见
+                    </button>
+                    <button class="tab-btn" data-tab="tangdouzi">
+                        糖豆子
+                    </button>
+                    <button class="tab-btn" data-tab="baidu">
+                        百度
+                    </button>
+                    <button class="tab-btn" data-tab="sogou">
+                        搜狗
+                    </button>
+                    <button class="tab-btn" data-tab="apihz">
+                        接口盒子
+                    </button>
+                </div>
+
+                <!-- 统一内容区 -->
+                <div class="content-area">
+                    <div class="emotion-grid" id="emotionGrid"></div>
+                    <div class="external-search-results" id="externalResults"></div>
+                    <div class="empty-state" id="emptyState">
+                        <div class="empty-icon mdi mdi-package-variant"></div>
+                        <h3>暂无表情包</h3>
+                        <p>点击右上角按钮添加你的第一个表情包</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 搜索视图 -->
+            <div id="searchView" class="view">
+                <header class="content-header">
+                    <h2><i class="mdi mdi-magnify"></i> 聚合搜索</h2>
+                </header>
+                <div class="search-tools">
+                    <button class="tool-btn" data-tool="fabiaoqing">
+                        发表情
+                    </button>
+                    <button class="tool-btn" data-tool="doutula">
+                        斗图啦
+                    </button>
+                    <button class="tool-btn" data-tool="qqtouxiang">
+                        表情包搜搜
+                    </button>
+                </div>
+                <div class="search-results" id="searchResults">
+                    <p class="hint-text">选择一个搜索工具开始搜索</p>
+                </div>
+            </div>
+
+            <!-- 本地表情视图 -->
+            <div id="localView" class="view">
+                <header class="content-header">
+                    <h2><i class="mdi mdi-folder"></i> 本地表情</h2>
+                    <p class="view-description">仅本机使用，不会同步到其他设备</p>
+                </header>
+                <div class="emotion-grid" id="localEmotionGrid"></div>
+                <div class="empty-state" id="localEmptyState" style="display: none;">
+                    <div class="empty-icon mdi mdi-folder-outline"></div>
+                    <h3>暂无本地表情包</h3>
+                    <p>添加表情时选择"本地存储"即可保存到本地</p>
+                </div>
+            </div>
+
+            <!-- 云端表情视图 -->
+            <div id="cloudView" class="view">
+                <header class="content-header">
+                    <h2><i class="mdi mdi-cloud"></i> 云端表情</h2>
+                    <p class="view-description">已同步到云端，可在其他设备访问</p>
+                </header>
+                <div class="emotion-grid" id="cloudEmotionGrid"></div>
+                <div class="empty-state" id="cloudEmptyState" style="display: none;">
+                    <div class="empty-icon mdi mdi-cloud-outline"></div>
+                    <h3>暂无云端表情包</h3>
+                    <p>添加表情时选择"云端存储"即可同步到云端</p>
+                </div>
+            </div>
+
+            <!-- 设置视图 -->
+            <div id="settingsView" class="view">
+                <div class="settings-container">
+                    <!-- 顶部设置导航 -->
+                    <nav class="settings-nav">
+                        <div class="settings-nav-items">
+                            <button class="settings-nav-item active" data-settings="appearance">
+                                <i class="mdi mdi-palette"></i>
+                                <span>外观设置</span>
+                            </button>
+                            <button class="settings-nav-item" data-settings="local">
+                                <i class="mdi mdi-folder"></i>
+                                <span>本地存储</span>
+                            </button>
+                            <button class="settings-nav-item" data-settings="cloud">
+                                <i class="mdi mdi-cloud-upload"></i>
+                                <span>云端存储</span>
+                            </button>
+                            <!-- <button class="settings-nav-item" data-settings="sync">
+                                <i class="mdi mdi-sync"></i>
+                                <span>同步设置</span>
+                            </button-->
+                            <button class="settings-nav-item" data-settings="about">
+                                <i class="mdi mdi-information"></i>
+                                <span>关于</span>
+                            </button>
+                            <button class="settings-nav-item" data-settings="changelog">
+                                <i class="mdi mdi-history"></i>
+                                <span>更新记录</span>
+                            </button>
+                        </div>
+                    </nav>
+
+                    <!-- 下方设置内容 -->
+                    <div class="settings-content">
+                        <!-- 外观设置 -->
+                        <div id="settingsAppearance" class="settings-panel active">
+                            <div class="settings-panel-header">
+                                <h3><i class="mdi mdi-palette"></i> 外观设置</h3>
+                                <p class="settings-panel-desc">自定义插件的外观和主题</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <div class="form-group">
+                                    <label>主题模式</label>
+                                    <div class="theme-options">
+                                        <label class="theme-option">
+                                            <input type="radio" name="theme" value="system" checked>
+                                            <div class="theme-option-card">
+                                                <i class="mdi mdi-desktop-tower-monitor"></i>
+                                                <span>跟随系统</span>
+                                                <small>自动检测系统主题</small>
+                                            </div>
+                                        </label>
+                                        <label class="theme-option">
+                                            <input type="radio" name="theme" value="dark">
+                                            <div class="theme-option-card">
+                                                <i class="mdi mdi-weather-night"></i>
+                                                <span>深色主题</span>
+                                                <small>护眼暗色模式</small>
+                                            </div>
+                                        </label>
+                                        <label class="theme-option">
+                                            <input type="radio" name="theme" value="light">
+                                            <div class="theme-option-card">
+                                                <i class="mdi mdi-white-balance-sunny"></i>
+                                                <span>浅色主题</span>
+                                                <small>明亮清爽模式</small>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 云端存储设置 -->
+                        <div id="settingsCloud" class="settings-panel">
+                            <div class="settings-panel-header">
+                                <h3><i class="mdi mdi-cloud-upload"></i> 云端存储</h3>
+                                <p class="settings-panel-desc">配置图床服务，用于上传和存储表情包</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <div class="form-group">
+                                <label>图床选择</label>
+                                <select id="cloudProvider" class="form-select">
+                                    <option value="imgbb">ImgBB（免费）</option>
+                                    <option value="tucang">图仓（免费）</option>
+                                    <!--option value="s3">S3 兼容存储</option>-->
+                                </select>
+                            </div>
+
+                                <div id="imgbbConfig" class="provider-config">
+                                    <div class="config-card">
+                                        <div class="config-card-header">
+                                            <i class="mdi mdi-image"></i>
+                                            <span>ImgBB 配置</span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>API Key</label>
+                                            <input type="text" id="imgbbApiKey" placeholder="输入 ImgBB API Key">
+                                            <p class="form-hint">
+                                                <i class="mdi mdi-information"></i>
+                                                不会配置？ <a href="https://sticker.moruteaven.com/guide/storage/imgbb" data-external-link="true">查看文档</a>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="tucangConfig" class="provider-config" style="display: none;">
+                                    <div class="config-card">
+                                        <div class="config-card-header">
+                                            <i class="mdi mdi-image-multiple"></i>
+                                            <span>图仓配置</span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Token</label>
+                                            <input type="text" id="tucangToken" placeholder="输入图仓 Token">
+                                            <p class="form-hint">
+                                                <i class="mdi mdi-information"></i>
+                                                不会配置？ <a href="https://sticker.moruteaven.com/guide/storage/tucang" data-external-link="true">查看文档</a>
+                                            </p>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>文件夹 ID（可选）</label>
+                                            <input type="number" id="tucangFolderId" placeholder="不填则上传到根目录">
+                                            <p class="form-hint">
+                                                <i class="mdi mdi-information"></i>
+                                                在【图片管理】中可查看文件夹 ID，不填则上传到根目录
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="s3Config" class="provider-config" style="display: none;">
+                                    <div class="config-card">
+                                        <div class="config-card-header">
+                                            <i class="mdi mdi-database"></i>
+                                            <span>S3 兼容存储配置</span>
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>Endpoint</label>
+                                                <input type="text" id="s3Endpoint" placeholder="https://s3.amazonaws.com">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>区域</label>
+                                                <input type="text" id="s3Region" placeholder="us-east-1">
+                                            </div>
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>Access Key</label>
+                                                <input type="text" id="s3AccessKey" placeholder="输入 Access Key">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Secret Key</label>
+                                                <input type="password" id="s3SecretKey" placeholder="输入 Secret Key">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Bucket 名称</label>
+                                            <input type="text" id="s3Bucket" placeholder="输入存储桶名称">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="settings-actions">
+                                    <button id="testConnectionBtn" class="btn btn-secondary">
+                                        <i class="mdi mdi-link-variant"></i> 测试连接
+                                    </button>
+                                    <button id="saveSettingsBtn" class="btn btn-primary">
+                                        <i class="mdi mdi-content-save"></i> 保存路径
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 同步设置 -->
+                        <div id="settingsSync" class="settings-panel">
+                            <div class="settings-panel-header">
+                                <h3><i class="mdi mdi-sync"></i> 同步设置</h3>
+                                <p class="settings-panel-desc">配置多设备数据同步功能</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <div class="form-group">
+                                    <label>同步方式</label>
+                                    <select id="syncProvider" class="form-select">
+                                        <option value="none">不使用同步</option>
+                                        <option value="webdav">WebDAV（坚果云/NextCloud）</option>
+                                        <option value="git">Git（GitHub/GitLab）</option>
+                                    </select>
+                                </div>
+
+                                <div id="webdavConfig" class="provider-config" style="display: none;">
+                                    <div class="config-card">
+                                        <div class="config-card-header">
+                                            <i class="mdi mdi-cloud-sync"></i>
+                                            <span>WebDAV 配置</span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>WebDAV 地址</label>
+                                            <input type="text" id="webdavUrl" placeholder="https://dav.jianguoyun.com/dav/">
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>用户名</label>
+                                                <input type="text" id="webdavUsername" placeholder="输入用户名">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>密码</label>
+                                                <input type="password" id="webdavPassword" placeholder="输入密码">
+                                            </div>
+                                        </div>
+                                        <p class="form-hint">
+                                            <i class="mdi mdi-lightbulb"></i>
+                                            推荐使用坚果云，免费且稳定
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div id="gitConfig" class="provider-config" style="display: none;">
+                                    <div class="config-card">
+                                        <div class="config-card-header">
+                                            <i class="mdi mdi-git"></i>
+                                            <span>Git 配置</span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>仓库地址</label>
+                                            <input type="text" id="gitRemote" placeholder="https://github.com/user/repo.git">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Token</label>
+                                            <input type="password" id="gitToken" placeholder="Personal Access Token">
+                                            <p class="form-hint">
+                                                <i class="mdi mdi-information"></i>
+                                                需要 Personal Access Token 权限
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="syncActions" class="settings-actions" style="display: none;">
+                                    <button id="syncBtn" class="btn btn-secondary">
+                                        <i class="mdi mdi-sync"></i> 立即同步
+                                    </button>
+                                    <button class="btn btn-primary" onclick="document.getElementById('saveSettingsBtn').click()">
+                                        <i class="mdi mdi-content-save"></i> 保存路径
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 本地存储设置 -->
+                        <div id="settingsLocal" class="settings-panel">
+                            <div class="settings-panel-header">
+                                <h3><i class="mdi mdi-folder"></i> 本地存储</h3>
+                                <p class="settings-panel-desc">配置本地表情包存储位置</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <div class="config-card">
+                                    <div class="config-card-header">
+                                        <i class="mdi mdi-folder-outline"></i>
+                                        <span>存储路径</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>本地存储路径</label>
+                                        <div class="input-with-btn">
+                                            <input type="text" id="localPath" placeholder="选择或输入本地存储文件夹">
+                                            <button id="selectFolderBtn" class="btn btn-secondary">
+                                                <i class="mdi mdi-folder-open"></i> 选择
+                                            </button>
+                                            <button class="btn btn-primary" onclick="document.getElementById('saveSettingsBtn').click()">
+                                                <i class="mdi mdi-content-save"></i> 保存
+                                            </button>
+                                        </div>
+                                        <p class="form-hint">
+                                            <i class="mdi mdi-information"></i>
+                                            本地存储的表情包不会同步到其他设备，适合隐私敏感内容
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="config-card">
+                                    <div class="config-card-header">
+                                        <i class="mdi mdi-delete"></i>
+                                        <span>删除设置</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>删除表情包时</label>
+                                        <div class="toggle-group">
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="deleteLocalFile">
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                            <span class="toggle-label">同时删除本地文件</span>
+                                        </div>
+                                        <p class="form-hint">
+                                            <i class="mdi mdi-lightbulb"></i>
+                                            关闭后，删除表情包仅移除记录，保留本地文件
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="storage-info-card">
+                                    <div class="storage-info-icon">
+                                        <i class="mdi mdi-information-outline"></i>
+                                    </div>
+                                    <div class="storage-info-content">
+                                        <h4>本地存储说明</h4>
+                                        <ul>
+                                            <li>本地存储的表情包仅在本机可用</li>
+                                            <li>不会上传到云端，保护隐私</li>
+                                            <li>更换设备后需要重新添加</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 关于 -->
+                        <div id="settingsAbout" class="settings-panel">
+                            <div class="settings-panel-header">
+                                <h3><i class="mdi mdi-information"></i> 关于</h3>
+                                <p class="settings-panel-desc">表情罐头 - 表情包管理插件</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <div class="about-card">
+                                    <div class="about-logo">
+                                        <img src="logo.png" alt="表情罐头" class="about-logo-img">
+                                    </div>
+                                    <h2>表情罐头</h2>
+                                    <p class="about-version">版本 1.0.0</p>
+                                    <p class="about-desc">一款简洁高效的表情包管理工具，支持本地和云端混合存储</p>
+                                </div>
+
+                                <div class="about-features">
+                                    <div class="feature-item">
+                                        <i class="mdi mdi-check-circle"></i>
+                                        <span>本地/云端混合存储</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="mdi mdi-check-circle"></i>
+                                        <span>多种图床支持</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="mdi mdi-check-circle"></i>
+                                        <span>多标签搜索</span>
+                                    </div>
+                                    <!-- <div class="feature-item">
+                                        <i class="mdi mdi-check-circle"></i>
+                                        <span>多设备同步</span>
+                                    </div> -->
+                                    <div class="feature-item">
+                                        <i class="mdi mdi-check-circle"></i>
+                                        <span>聚合搜索</span>
+                                    </div>
+                                </div>
+
+                                <div class="about-links">
+                                    <a href="https://sticker.moruteaven.com/" class="about-link" data-external-link="true">
+                                        <i class="mdi mdi-home"></i>
+                                        <span>项目主页</span>
+                                    </a>
+                                    <a href="https://sticker.moruteaven.com/guide/" class="about-link" data-external-link="true">
+                                        <i class="mdi mdi-book-open-variant"></i>
+                                        <span>使用文档</span>
+                                    </a>
+                                    <a href="https://qm.qq.com/q/C47gAUqrok" class="about-link" data-external-link="true">
+                                        <i class="mdi mdi-account-group"></i>
+                                        <span>官方QQ群</span>
+                                    </a>
+                                    <a href="https://chenyande.feishu.cn/share/base/form/shrcn34BCPyAMwKHvr28tISBlbd" class="about-link" data-external-link="true">
+                                        <i class="mdi mdi-message-text"></i>
+                                        <span>反馈建议</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 更新记录 -->
+                        <div id="settingsChangelog" class="settings-panel">
+                            <div class="settings-panel-header">
+                                <h3><i class="mdi mdi-history"></i> 更新记录</h3>
+                                <p class="settings-panel-desc">版本更新历史与变更说明</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <div class="changelog-timeline" id="changelogTimeline">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 表情包详情模态框 -->
+    <div id="emotionModal" class="modal">
+        <div class="modal-content modal-detail">
+            <div class="modal-header">
+                <h2 class="modal-title">表情包详情</h2>
+                <span class="close mdi mdi-close"></span>
+            </div>
+            <div class="modal-body">
+                <div class="emotion-detail">
+                    <div class="emotion-images-container">
+                        <div class="emotion-image-wrapper local-wrapper" id="localImageWrapper" style="display: none;">
+                            <div class="image-label">
+                                <i class="mdi mdi-folder"></i>
+                                <span>本地</span>
+                            </div>
+                            <img id="modalLocalImage" src="" alt="本地图片">
+                        </div>
+                        <div class="emotion-image-wrapper cloud-wrapper" id="cloudImageWrapper" style="display: none;">
+                            <div class="image-label">
+                                <i class="mdi mdi-cloud"></i>
+                                <span>云端</span>
+                            </div>
+                            <img id="modalCloudImage" src="" alt="云端图片">
+                        </div>
+                    </div>
+                    <div class="emotion-info">
+                        <div class="info-section">
+                            <div class="section-title">存储位置</div>
+                            <div class="storage-badge" id="storageBadge">
+                                <i class="badge-icon mdi"></i>
+                                <span class="badge-text"></span>
+                            </div>
+                        </div>
+                        <div class="info-section">
+                            <div class="section-title">标签管理</div>
+                            <div id="tagList" class="tag-list"></div>
+                            <div id="tagEditor" class="tag-editor" style="display: none;">
+                                <div id="tagInputContainer" class="tag-input-container"></div>
+                                <input type="text" id="tagInputNew" placeholder="输入新标签，按回车添加" class="tag-input-new">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="copyBtn" class="btn btn-success">
+                    <i class="mdi mdi-content-copy"></i>
+                    <span>复制到剪贴板</span>
+                </button>
+                <button id="convertBtn" class="btn btn-info">
+                    <i class="mdi mdi-swap-horizontal"></i>
+                    <span>保存到本地</span>
+                </button>
+                <button id="editTagsBtn" class="btn btn-warning">
+                    <i class="mdi mdi-tag"></i>
+                    <span>编辑标签</span>
+                </button>
+                <button id="deleteBtn" class="btn btn-danger">
+                    <i class="mdi mdi-delete"></i>
+                    <span>删除</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加表情包模态框 -->
+    <div id="addModal" class="modal">
+        <div class="modal-content modal-add">
+            <div class="modal-header">
+                <h2 class="modal-title">添加表情包</h2>
+                <span class="close mdi mdi-close"></span>
+            </div>
+            <div class="modal-body">
+                <div class="add-form">
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="mdi mdi-database"></i>
+                            <span>存储位置</span>
+                        </div>
+                        <div class="storage-toggle">
+                            <button class="toggle-btn active" data-storage="local">
+                                <i class="mdi mdi-folder"></i>
+                                <span>本地</span>
+                            </button>
+                            <button class="toggle-btn" data-storage="cloud">
+                                <i class="mdi mdi-cloud"></i>
+                                <span>云端</span>
+                            </button>
+                        </div>
+                        <p class="storage-hint" id="storageHint">
+                            <i class="mdi mdi-information"></i> 本地存储不会同步到其他设备
+                        </p>
+                    </div>
+
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="mdi mdi-image"></i>
+                            <span>图片来源</span>
+                        </div>
+                        <div class="source-tabs">
+                            <div class="source-tab active" data-source="url">
+                                <i class="mdi mdi-link"></i>
+                                <span>网络 URL</span>
+                            </div>
+                            <div class="source-tab" data-source="file">
+                                <i class="mdi mdi-file-image"></i>
+                                <span>本地文件</span>
+                            </div>
+                        </div>
+                        <div class="source-content url-source">
+                            <div class="form-group">
+                                <input type="text" id="imageUrl" placeholder="输入图片 URL 地址">
+                            </div>
+                        </div>
+                        <div class="source-content file-source" style="display: none;">
+                            <input type="file" id="localImage" accept="image/*" class="file-input">
+                            <label for="localImage" class="file-label">
+                                <i class="mdi mdi-folder-open"></i>
+                                <span>点击选择图片文件</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <div class="section-header">
+                            <i class="mdi mdi-tag"></i>
+                            <span>标签管理</span>
+                        </div>
+                        <div id="tagsInputsContainer" class="tags-inputs-container">
+                        </div>
+                        <button id="addTagBtn" class="add-tag-btn" type="button">
+                            <i class="mdi mdi-plus"></i>
+                            <span>添加标签</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="addEmotionBtn" class="btn btn-primary">
+                    <i class="mdi mdi-plus"></i>
+                    <span id="addEmotionBtnText">添加表情</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="theme-manager.js"></script>
+    <script src="data-manager.js"></script>
+    <script src="search-manager.js"></script>
+    <script src="ui-manager.js"></script>
+    <script src="storage-manager.js"></script>
+    <script src="emotion-manager.js"></script>
+    <script src="changelog-manager.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

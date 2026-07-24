@@ -1,0 +1,1272 @@
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* ============ App 布局 ============ */
+.app-body {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+.app-body .app-nav {
+  width: 136px;
+}
+
+.app-body .app-nav .app-nav-icon {
+  min-width: 32px;
+}
+
+.app-body .app-nav > ul {
+  padding-top: 0;
+}
+
+.app-body .app-content {
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.app-body .app-setting {
+  position: fixed;
+  left: 22px;
+  bottom: 6px;
+  color: #717171;
+}
+
+.app-body .app-setting .MuiCheckbox-root {
+  padding: 6px;
+}
+
+.app-body .app-setting .MuiSvgIcon-root {
+  font-size: 16px;
+}
+
+.app-body .app-setting .MuiFormControlLabel-label {
+  font-size: 12px;
+}
+
+/* ============ ColorPage 颜色页 ============ */
+.color-content {
+  padding: 8px 8px 8px 16px;
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.color-content .color-info {
+  display: flex;
+  position: relative;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.color-content .color-screen-picker {
+  box-shadow: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.color-content .color-screen-picker:hover,
+.color-content .color-screen-picker:active {
+  box-shadow: none;
+}
+
+.color-content .color-value {
+  padding: 5px 16px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+}
+
+.color-content .color-value .color-title {
+  padding-top: 0;
+  font-weight: 700;
+  color: #212121;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.color-content .color-value .color-hub {
+  display: flex;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-top: auto;
+}
+
+.color-content .color-value .color-hub .color-hub-wrapper {
+  flex: 1;
+  display: flex;
+}
+
+.color-content .color-value .color-hub .color-hub-wrapper .color-hub-value {
+  display: flex;
+  margin-right: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.color-content .color-value .color-hub .color-hub-wrapper .color-hub-value .color-hub-check {
+  opacity: 0;
+}
+
+.color-content .color-value .color-hub .color-hub-wrapper .color-hub-value.color-checked .color-hub-check {
+  opacity: 1;
+}
+
+.color-content .color-value > div {
+  padding: 6px 0;
+  display: flex;
+  align-items: center;
+}
+
+.color-content .color-value > div > div:first-child {
+  -webkit-user-select: none;
+  user-select: none;
+  width: 76px;
+}
+
+.color-content .color-value input {
+  outline: none;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 14px;
+  width: 168px;
+}
+
+.color-content .color-value input:focus {
+  border-color: #2a6acd;
+  box-shadow: 0 0 2px #2a6acd;
+}
+
+.color-content .color-value .css-code-copy {
+  padding-left: 10px;
+}
+
+.color-content .IroColorPicker .IroHandle--isActive {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.color-content .IroColorPicker .IroWheel {
+  margin: 65px 0;
+}
+
+.color-content .IroColorPicker .IroSlider:after {
+  content: "饱和度";
+  position: absolute;
+  top: -20px;
+  right: 0;
+  background-color: #0000004d;
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 10px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  display: none;
+}
+
+.color-content .IroColorPicker .IroSlider:last-child:after {
+  top: 29px;
+  content: "明亮度";
+}
+
+.color-content .IroColorPicker .IroSlider:hover:after {
+  display: block;
+}
+
+/* 配色方案 */
+.color-extend {
+  display: grid !important;
+  grid-template-rows: repeat(2, 1fr);
+  grid-template-columns: repeat(2, 1fr);
+  row-gap: 20px;
+}
+
+.color-extend .color-extend-label {
+  font-size: 14px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.color-extend .color-extend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-extend .color-extend-value {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* ============ UIPalettesPage UI色卡 ============ */
+.ui-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ui-content > div:first-child {
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.ui-content > div:last-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.ui-content .ui-tab {
+  text-transform: none;
+}
+
+.ui-color-body {
+  width: 100%;
+  height: 100%;
+  padding: 0 20px 20px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Flat UI / Fluent */
+.flat-ui-box {
+  display: flex;
+  margin: 12px 0;
+}
+
+.flat-ui-box .flat-ui-title {
+  color: #666;
+  width: 100px;
+  display: flex;
+  align-items: center;
+  white-space: pre-wrap;
+  line-height: 20px;
+}
+
+.flat-ui-box .flat-ui-colors,
+.flat-ui-box .fluent-ui-colors {
+  flex: 1;
+  display: flex;
+  font-size: 1.5vw;
+}
+
+.flat-ui-box .flat-ui-colors > div,
+.flat-ui-box .fluent-ui-colors > div {
+  box-sizing: border-box;
+  padding: .5px;
+}
+
+.flat-ui-box .flat-ui-colors > div > div,
+.flat-ui-box .fluent-ui-colors > div > div {
+  padding-top: 100%;
+  transition: all .3s cubic-bezier(.25, .8, .25, 1);
+  cursor: pointer;
+  position: relative;
+}
+
+.flat-ui-box .flat-ui-colors > div > div > span,
+.flat-ui-box .fluent-ui-colors > div > div > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  display: none;
+}
+
+.flat-ui-box .flat-ui-colors > div > div:hover,
+.flat-ui-box .fluent-ui-colors > div > div:hover {
+  border-radius: 50%;
+}
+
+.flat-ui-box .flat-ui-colors > div > div:hover > span,
+.flat-ui-box .fluent-ui-colors > div > div:hover > span {
+  display: block;
+}
+
+.flat-ui-box .flat-ui-colors > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.flat-ui-box .fluent-ui-colors {
+  flex-wrap: wrap;
+}
+
+.flat-ui-box .fluent-ui-colors > div {
+  width: 10%;
+}
+
+/* Open Color / Ant Design / Material Design 通用 */
+.ui-colors {
+  width: 100%;
+  display: flex;
+  padding-bottom: 10px;
+}
+
+.ui-colors > div {
+  flex: 1;
+  height: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-colors > div span {
+  color: #fff;
+  display: none;
+  font-size: 12px;
+}
+
+.ui-colors > div:hover span {
+  display: block;
+}
+
+.ui-color-row,
+.ui-color-header {
+  display: flex;
+}
+
+.ui-color-row > div:first-child,
+.ui-color-header > div:first-child {
+  width: 100px;
+  display: flex;
+  align-items: center;
+  color: #666;
+}
+
+.ui-color-row > div:last-child,
+.ui-color-header > div:last-child {
+  flex: 1;
+  display: flex;
+}
+
+.ui-color-row > div:last-child > div,
+.ui-color-header > div:last-child > div {
+  flex: 1;
+  padding: .5px;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.ui-color-row > div:last-child > div:before,
+.ui-color-header > div:last-child > div:before {
+  content: "";
+  padding-top: 100%;
+  float: left;
+}
+
+.ui-color-row > div:last-child > div > div,
+.ui-color-header > div:last-child > div > div {
+  width: 100%;
+  height: 100%;
+  transition: all .3s cubic-bezier(.25, .8, .25, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-color-row > div:last-child > div > div > span,
+.ui-color-header > div:last-child > div > div > span {
+  display: none;
+}
+
+.ui-color-row > div:last-child > div:hover > div,
+.ui-color-header > div:last-child > div:hover > div {
+  border-radius: 50%;
+}
+
+.ui-color-row > div:last-child > div:hover > div > span,
+.ui-color-header > div:last-child > div:hover > div > span {
+  display: block;
+}
+
+.ui-color-header {
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  font-size: 13px;
+  color: #666;
+  background-color: #fff;
+  text-align: center;
+  line-height: 28px;
+}
+
+.ui-color-header > div:last-child > div {
+  height: 28px;
+  cursor: default;
+}
+
+/* ============ TraditionalColorsPage 传统色 ============ */
+.traditional-body {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+}
+
+.traditional-nav {
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.traditional-header {
+  display: flex;
+  padding: 12px 20px;
+  box-sizing: border-box;
+  align-items: center;
+}
+
+.traditional-header > div:first-child {
+  width: 20%;
+}
+
+.traditional-header > div:last-child {
+  display: flex;
+  flex: 1;
+  justify-content: space-around;
+}
+
+.traditional-header > div:last-child > div {
+  height: 24px;
+  width: 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+}
+
+.traditional-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* 日本传统色 */
+.traditional-japan {
+  display: flex;
+  flex-wrap: wrap;
+  color: #fff;
+  padding: 0 20px 20px;
+}
+
+.traditional-japan > div {
+  width: 20%;
+  cursor: pointer;
+}
+
+.traditional-japan > div > div {
+  padding: 0 5px 2px;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.traditional-japan > div > div:first-child {
+  padding-top: 5px;
+  font-size: 14px;
+}
+
+.traditional-japan > div:before {
+  content: "";
+  padding-top: 50%;
+  float: left;
+}
+
+/* 中国传统色(故宫) */
+.traditional-gugong {
+  padding: 0 20px;
+}
+
+.traditional-gugong .traditional-gugong-box {
+  display: flex;
+  margin-bottom: 20px;
+}
+
+.traditional-gugong .traditional-gugong-title {
+  width: 20%;
+  margin: 0;
+}
+
+.traditional-gugong .traditional-gugong-colors {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  color: #fff;
+}
+
+.traditional-gugong .traditional-gugong-colors > div {
+  width: 25%;
+  cursor: pointer;
+}
+
+.traditional-gugong .traditional-gugong-colors > div:before {
+  content: "";
+  padding-top: 50%;
+  float: left;
+}
+
+.traditional-gugong .traditional-gugong-colors > div > div {
+  font-size: 10px;
+  padding: 0 8px 2px;
+}
+
+.traditional-gugong .traditional-gugong-colors > div > div:first-child {
+  padding-top: 8px;
+  font-size: 14px;
+}
+
+/* ============ CollectColorsPage 收藏颜色 ============ */
+.collect-body {
+  padding: 20px;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.collect-body .collect-btn-add {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+}
+
+.collect-body .collect-empty {
+  width: 100%;
+  color: #717171;
+  font-size: 13px;
+  text-align: center;
+}
+
+.collect-body .collect-grid {
+  -webkit-user-select: none;
+  user-select: none;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.collect-form-content {
+  display: flex;
+  align-items: center;
+}
+
+.collect-item {
+  cursor: pointer;
+  width: 25%;
+}
+
+.collect-item:before {
+  content: "";
+  padding-top: 50%;
+  float: left;
+}
+
+.collect-item > div {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+.collect-item .collect-item-info {
+  flex: 1;
+  padding: 8px 8px 0;
+  box-sizing: border-box;
+}
+
+.collect-item .collect-item-info > div {
+  font-size: 10px;
+  padding-bottom: 2px;
+}
+
+.collect-item .collect-item-info > div:first-child {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collect-item .collect-item-handle {
+  padding: 0 2px 2px 0;
+  box-sizing: border-box;
+  text-align: right;
+  display: none;
+}
+
+.collect-item .collect-item-handle > button:last-child {
+  margin-left: 2px;
+}
+
+.collect-item:hover .collect-item-handle {
+  display: block;
+}
+
+/* ============ GradientsPage 渐变色 ============ */
+.gradient-body {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.gradient-filter {
+  padding: 10px 0;
+  display: flex;
+  justify-content: space-around;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.gradient-filter > div {
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  border: 2px solid #fff;
+}
+
+.gradient-content {
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.gradient-item {
+  width: 22.5%;
+  margin: 10px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gradient-item > div:first-child {
+  flex: 1;
+  cursor: pointer;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+.gradient-item > div:first-child:before {
+  content: "";
+  padding-top: 100%;
+  float: left;
+}
+
+.gradient-item > div:last-child {
+  display: flex;
+  padding: 5px;
+  box-sizing: border-box;
+  justify-content: space-between;
+}
+
+.gradient-item > div:last-child > div {
+  width: 16px;
+  height: 10px;
+  cursor: pointer;
+}
+
+/* 渐变对话框 */
+.gradient-dialog .MuiPaper-root {
+  max-width: 540px;
+}
+
+.gradient-dialog-viewer {
+  width: 540px;
+  height: 270px;
+}
+
+.gradient-dialog-content {
+  display: flex;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.gradient-dialog-content > div:first-child {
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.gradient-dialog-content .gradient-dialog-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.gradient-dialog-content .gradient-dialog-form > div {
+  display: flex;
+  width: 100%;
+  padding: 10px 0;
+}
+
+.gradient-dialog-content .gradient-dialog-form > div > div:first-child {
+  flex: 1;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.gradient-dialog-content .gradient-dialog-form > div > div:last-child {
+  display: flex;
+  align-items: center;
+}
+
+.gradient-dialog-content .gradient-dialog-image-output {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.gradient-dialog-content .gradient-dialog-image-output > div {
+  width: 48%;
+}
+
+/* 方向编辑器 */
+.direction-editor {
+  width: 172px;
+  height: 172px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.direction-editor > svg {
+  overflow: visible;
+}
+
+.direction-editor .direction-editor-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.direction-editor .direction-editor-polyline {
+  fill: #666;
+  stroke: #666;
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.direction-editor .direction-editor-circle {
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  stroke: #1976d2;
+  fill: none;
+}
+
+.direction-editor .direction-editor-knob {
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  background-color: #fff;
+  box-shadow: 0 2px 16px #00000014, 0 .25px 2px #00000029, inset 0 2px 16px transparent, inset 0 .25px 2px transparent;
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+/* ============ ImagePalettePage 图片色卡 ============ */
+.image-body {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.image-empty {
+  color: #888;
+  text-align: center;
+  padding-top: 100px;
+}
+
+.image-content {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.image-content > div:first-child {
+  flex: 1;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-content > div:first-child > img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.image-content .image-colors {
+  box-sizing: border-box;
+  display: flex;
+  padding: 5px;
+}
+
+.image-content .image-colors .image-colors-card {
+  border-radius: 10px;
+}
+
+.image-content .image-colors .image-colors-card > div {
+  overflow-y: auto;
+  height: 100%;
+}
+
+.image-content .image-colors .image-colors-label {
+  padding: 8px 8px 0;
+}
+
+.image-content .image-main-color {
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.image-content .image-main-color > div {
+  height: 56px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 112px;
+}
+
+.image-content .image-palette {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  padding: 8px;
+}
+
+.image-content .image-palette > div {
+  height: 54px;
+  width: 54px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.image-from-btns {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 10px 0;
+}
+
+.image-from-btns.image-selected .MuiButtonBase-root {
+  background-color: #e0e0e0;
+  color: #000;
+}
+
+.image-from-btns > button {
+  margin-left: 20px;
+}
+
+/* ============ 侧边栏列表 ============ */
+.app-side-list .MuiListItem-root {
+  padding: 0 9px;
+  white-space: nowrap;
+  margin: 3px 0;
+}
+
+.app-side-list .MuiListItem-root .MuiListItemButton-root {
+  padding: 8px 13px;
+  border-radius: 6px;
+}
+
+.app-side-list .MuiListItem-root .MuiListItemButton-root.Mui-selected {
+  background-color: #e5e5e5;
+}
+
+.app-side-list .MuiListItem-root .MuiListItemIcon-root {
+  min-width: 0px;
+  margin-right: 9px;
+}
+
+/* ============ TraditionalColorsPage 新布局 ============ */
+.traditional-body {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+}
+
+.traditional-header {
+  display: flex;
+  padding: 12px 20px;
+  box-sizing: border-box;
+  align-items: center;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.traditional-tabs {
+  display: flex;
+  gap: 16px;
+}
+
+.traditional-tab {
+  cursor: pointer;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #666;
+  transition: all .2s;
+}
+
+.traditional-tab:hover {
+  background-color: #f0f0f0;
+}
+
+.traditional-tab.traditional-tab-active {
+  background-color: #e0e0e0;
+  color: #333;
+  font-weight: 500;
+}
+
+.traditional-search {
+  margin-left: auto !important;
+  width: 200px;
+}
+
+.traditional-colors {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  color: #fff;
+  padding: 0 20px 20px;
+}
+
+.traditional-china .traditional-color-item,
+.traditional-japan .traditional-color-item {
+  cursor: pointer;
+  position: relative;
+}
+
+.traditional-china .traditional-color-item {
+  width: 25%;
+}
+
+.traditional-japan .traditional-color-item {
+  width: 20%;
+}
+
+.traditional-color-item:before {
+  content: "";
+  padding-top: 50%;
+  float: left;
+}
+
+.traditional-color-item > div {
+  font-size: 10px;
+  padding: 0 5px 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.traditional-color-item > div:first-child {
+  padding-top: 5px;
+  font-size: 14px;
+}
+
+/* ============ UIPalettesPage 新布局 ============ */
+.ui-palette-body {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ui-palette-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.ui-palette-tab {
+  cursor: pointer;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #666;
+  transition: all .2s;
+}
+
+.ui-palette-tab:hover {
+  background-color: #f0f0f0;
+}
+
+.ui-palette-tab.ui-palette-tab-active {
+  background-color: #e0e0e0;
+  color: #333;
+  font-weight: 500;
+}
+
+.ui-palette-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 20px 20px;
+  box-sizing: border-box;
+}
+
+.ui-palette-flat {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ui-palette-flat-item {
+  width: 20%;
+  cursor: pointer;
+  position: relative;
+}
+
+.ui-palette-flat-item:before {
+  content: "";
+  padding-top: 75%;
+  float: left;
+}
+
+.ui-palette-flat-item > div {
+  font-size: 10px;
+  padding: 0 8px 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-palette-flat-item > div:first-child {
+  padding-top: 8px;
+  font-size: 14px;
+}
+
+.ui-palette-grouped {
+  display: flex;
+  flex-direction: column;
+}
+
+.ui-palette-group {
+  display: flex;
+  margin: 8px 0;
+}
+
+.ui-palette-group-name {
+  color: #666;
+  width: 100px;
+  display: flex;
+  align-items: center;
+  white-space: pre-wrap;
+  line-height: 20px;
+  font-size: 13px;
+}
+
+.ui-palette-group-colors {
+  flex: 1;
+  display: flex;
+}
+
+.ui-palette-group-item {
+  flex: 1;
+  cursor: pointer;
+  position: relative;
+  box-sizing: border-box;
+  padding: .5px;
+}
+
+.ui-palette-group-item:before {
+  content: "";
+  padding-top: 100%;
+  float: left;
+}
+
+.ui-palette-group-item > span {
+  display: none;
+  font-size: 12px;
+}
+
+.ui-palette-group-item:hover {
+  border-radius: 50%;
+}
+
+/* ============ ImagePalettePage 新布局 ============ */
+.image-palette-body {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.image-palette-upload {
+  width: 100%;
+  height: 300px;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  transition: border-color .2s;
+}
+
+.image-palette-upload:hover {
+  border-color: #999;
+}
+
+.image-palette-upload-hint {
+  text-align: center;
+  color: #999;
+}
+
+.image-palette-upload-hint > div {
+  padding: 4px 0;
+}
+
+.image-palette-loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.image-palette-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.image-palette-color-item {
+  width: 80px;
+  height: 80px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.image-palette-color-item > div {
+  padding: 1px 0;
+}
+
+/* ============ AIPalettePage 新布局 ============ */
+.ai-palette-body {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.ai-palette-controls {
+  display: flex;
+  align-items: center;
+  padding-bottom: 16px;
+}
+
+.ai-palette-error {
+  color: #d32f2f;
+  padding: 8px 0;
+}
+
+.ai-palette-result {
+  margin-top: 16px;
+}
+
+.ai-palette-preview {
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.ai-palette-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-palette-color-item {
+  width: 100px;
+  height: 80px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.ai-palette-color-item > div {
+  padding: 1px 0;
+}
+
+/* ============ CollectColorsPage 新布局补充 ============ */
+.collect-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.collect-empty {
+  width: 100%;
+  color: #717171;
+  font-size: 13px;
+  text-align: center;
+  padding-top: 40px;
+}

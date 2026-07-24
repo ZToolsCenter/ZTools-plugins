@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { TAB_DEFINITIONS } from '@/constants'
 import { useFavorites } from '@/composables/useFavorites'
 import { useClipboardData } from '@/composables/useClipboardData'
@@ -52,10 +52,18 @@ const copyToClipboard = async (id, shouldPaste = true) => {
   }
 }
 
+const showDeleteConfirm = ref(false)
+const deleteTargetItem = ref(null)
+
+const handleDeleteSelected = (item) => {
+  deleteTargetItem.value = item
+  showDeleteConfirm.value = true
+}
+
 const {
   selectedIndex, clipboardListRef, resetSelection,
   handleKeydown, copySelected, pasteSelected
-} = useSelection(filteredData, tabs, activeTab, copyToClipboard)
+} = useSelection(filteredData, tabs, activeTab, copyToClipboard, handleDeleteSelected)
 
 const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu()
 const { favoriteDialog, openFavoriteDialog, confirmFavorite, cancelFavoriteDialog } = useFavoriteDialog()
@@ -66,11 +74,8 @@ const handleContextMenu = (event, item) => {
 }
 
 const handleFavoriteConfirm = async (remark) => {
-  await confirmFavorite(addFavorite)
+  await confirmFavorite(addFavorite, remark)
 }
-
-const showDeleteConfirm = ref(false)
-const deleteTargetItem = ref(null)
 
 const handleDeleteItem = () => {
   deleteTargetItem.value = contextMenu.value.item
@@ -143,29 +148,61 @@ const doReload = () => {
   reload(clipboardListRef)
 }
 
+const focusSearchInput = () => {
+  nextTick(() => {
+    try {
+      window.ztools.subInputFocus()
+    } catch (error) {
+      console.error('聚焦搜索框失败:', error)
+    }
+  })
+}
+
+const resetSearchAndFocus = async () => {
+  searchText.value = ''
+  try {
+    await window.ztools.setSubInputValue('')
+  } catch (error) {
+    console.error('清空搜索框失败:', error)
+  }
+  doReload()
+  focusSearchInput()
+}
+
 // ---- 监听 & 生命周期 ----
 watch(activeTab, doReload)
 
+// 当对话框打开时，阻止全局键盘快捷键（如 Enter 粘贴）
+const isAnyModalOpen = computed(() =>
+  showDeleteConfirm.value || showClearConfirm.value || favoriteDialog.value.show
+)
+
+const handleGlobalKeydown = (event) => {
+  if (isAnyModalOpen.value) return
+  handleKeydown(event)
+}
+
 onMounted(async () => {
-  window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keydown', handleGlobalKeydown)
   window.addEventListener('click', hideContextMenu)
 
   await loadFavorites()
   fetchClipboardHistory()
 
-  window.ztools.clipboard.onChange(() => doReload())
-  window.ztools.onPluginEnter(() => {
-    searchText.value = ''
-    doReload()
-  })
-  window.ztools.setSubInput((text) => {
+  await window.ztools.setSubInput((text) => {
     searchText.value = text.text
     doReload()
   }, '搜索剪贴板内容...', true)
+
+  window.ztools.clipboard.onChange(() => doReload())
+  window.ztools.onPluginEnter(() => {
+    resetSearchAndFocus()
+  })
+  focusSearchInput()
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('keydown', handleGlobalKeydown)
   window.removeEventListener('click', hideContextMenu)
 })
 </script>

@@ -1,0 +1,20 @@
+{
+  "name": "stickercan",
+  "title": "表情罐头",
+  "description": "一个功能强大的表情包管理插件，支持本地、云端混合存储和多源聚合搜索",
+  "author": "抹露茶柒",
+  "homepage": "https://sticker.moruteaven.com/",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "main",
+      "explain": "表情包管理工具，支持本地和云端存储",
+      "platform": ["win32", "darwin", "linux"],
+      "icon": "logo.png",
+      "cmds": ["表情包", "表情", "表情罐头", "stickercan"]
+    }
+  ]
+}

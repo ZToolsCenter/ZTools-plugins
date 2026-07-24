@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState, useImperativeHandle } from "react";
-import { Tabs, Tab, Tooltip, cn } from "@heroui/react";
+import { Tabs, Tab, Tooltip, cn, Textarea } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
 import {
@@ -22,7 +22,8 @@ import { JsonSample } from "@/utils/jsonSample.ts";
 import { useSettingsStore } from "@/store/useSettingsStore.ts";
 import { globalShortcutListener } from "@/utils/shortcut.ts";
 import { getFontSizeConfig } from "@/styles/fontSize.ts";
-import { parseJson } from "@/utils/json";
+import { parseJson, stringifyJson } from "@/utils/json";
+import { validateAndDecodeBase64 } from "@/utils/base64";
 
 export interface DynamicTabsRef {
   getPositionTop: () => number;
@@ -473,6 +474,8 @@ const DynamicTabs: React.FC<DynamicTabsProps> = ({
 
   // 添加菜单相关状态
   const [jsonUrl, setJsonUrl] = useState<string>("");
+  const [base64Input, setBase64Input] = useState<string>("");
+  const [base64Error, setBase64Error] = useState<string>("");
 
   // 处理添加菜单选项
   const handleAddMenuAction = (action: string) => {
@@ -606,6 +609,36 @@ const DynamicTabs: React.FC<DynamicTabsProps> = ({
         );
       }
     }
+  };
+
+  // 处理 Base64 解码导入
+  const handleBase64Submit = () => {
+    setBase64Error("");
+
+    if (!base64Input.trim()) return;
+
+    const result = validateAndDecodeBase64(base64Input);
+
+    if (!result.success) {
+      setBase64Error(result.error || "解码失败");
+      return;
+    }
+
+    let content = result.decoded;
+    let title = "Base64 Text";
+
+    try {
+      const parsed = parseJson(content);
+      content = stringifyJson(parsed, 2);
+      title = "Base64 JSON";
+    } catch {
+      // 非 JSON，保留原始文本
+    }
+
+    addTab(title, content);
+    setShowAddMenu(false);
+    setBase64Input("");
+    toast.success(title === "Base64 JSON" ? "Base64 JSON 解码成功" : "Base64 文本解码成功");
   };
 
   // 刷新URL数据
@@ -1138,7 +1171,7 @@ const DynamicTabs: React.FC<DynamicTabsProps> = ({
                         <span className="px-1">获取</span>
                       </Button>
                     }
-                    placeholder="输入 JSON 链接地址"
+                    placeholder="输入 JSON 链接地址 (Enter)"
                     startContent={
                       <Icon
                         className="text-default-400"
@@ -1155,9 +1188,55 @@ const DynamicTabs: React.FC<DynamicTabsProps> = ({
                       }
                     }}
                   />
-                  <p className="text-xs text-default-400 px-1">
-                    支持任何公开的 JSON 资源 URL，系统将自动解析并加载
-                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-default-700">
+                <Icon
+                  className="text-indigo-500"
+                  icon="solar:code-square-linear"
+                />
+                Base64 导入
+              </h3>
+              <div className="border-b border-divider pb-5">
+                <div className="w-full flex flex-col gap-2">
+                  <div className="relative">
+                    <Textarea
+                      classNames={{
+                        inputWrapper: "shadow-sm bg-default-100 border-divider pb-8",
+                        input: "focus:ring-0 text-xs",
+                      }}
+                      minRows={2}
+                      maxRows={6}
+                      placeholder="粘贴 Base64 编码字符串 (Ctrl+Enter)"
+                      value={base64Input}
+                      variant="flat"
+                      onChange={(e) => {
+                        setBase64Input(e.target.value);
+                        if (base64Error) setBase64Error("");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                          handleBase64Submit();
+                        }
+                      }}
+                    />
+                    <Button
+                      className="absolute bottom-2 right-2 z-10 bg-indigo-500 border-0"
+                      color="primary"
+                      isDisabled={!base64Input.trim()}
+                      radius="sm"
+                      size="sm"
+                      onPress={handleBase64Submit}
+                    >
+                      <span className="px-1">解码</span>
+                    </Button>
+                  </div>
+                  {base64Error && (
+                    <p className="text-xs text-danger px-1">{base64Error}</p>
+                  )}
                 </div>
               </div>
             </div>

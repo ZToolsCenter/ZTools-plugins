@@ -1,0 +1,49 @@
+[changelog]
+header = "# Changelog\n\n所有对本项目的重要变动都会记录在此文件中。\n"
+
+body = """
+{% if version %}\
+## {{ version | trim_start_matches(pat="v") }} - {{ timestamp | date(format="%Y-%m-%d") }}\
+{% if previous.version %} ([{{ previous.version }}...{{ version }}](https://github.com/mekefly/colors/compare/{{ previous.version }}...{{ version }}))\
+{% endif %}\
+{% else %}\
+## Unreleased\
+{% endif %}
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+
+{% for commit in commits %}- {{ commit.message | trim }}
+{% endfor %}{% endfor %}
+"""
+
+footer = """
+---
+此文件由 [git-cliff](https://github.com/orhun/git-cliff) 自动生成。
+"""
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+topo_order = false
+sort_commits = "newest"
+
+commit_parsers = [
+  { message = "^feat[:(]", group = "✨ Features" },
+  { message = "^fix[:(]", group = "🐛 Bug Fixes" },
+  { message = "^docs[:(]", group = "📝 Documentation" },
+  { message = "^style[:(]", group = "💎 Style" },
+  { message = "^refactor[:(]", group = "♻️ Refactoring" },
+  { message = "^perf[:(]", group = "⚡ Performance" },
+  { message = "^test[:(]", group = "✅ Tests" },
+  { message = "^chore[:(]", group = "🔧 Chores" },
+  { message = "^ci[:(]", group = "📦 CI/CD" },
+  { message = "^build[:(]", group = "🔨 Build" },
+  { message = "^revert[:(]", group = "⏪ Reverts" },
+]
+
+[remote.github]
+owner = "mekefly"
+repo = "colors"

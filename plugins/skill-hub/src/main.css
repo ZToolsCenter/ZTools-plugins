@@ -1,0 +1,19 @@
+/* Global reset — design tokens live in App.vue */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.25);
+}

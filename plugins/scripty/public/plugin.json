@@ -1,0 +1,464 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "scripty",
+  "title": "Scripty 任务库",
+  "description": "本地管理、运行和定时调度脚本，支持环境变量、运行日志与备份迁移",
+  "author": "皮皮虾我们走",
+  "version": "1.0.1",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5177"
+  },
+  "features": [
+    {
+      "code": "scripty",
+      "explain": "打开 Scripty 脚本任务库",
+      "icon": "logo.png",
+      "cmds": ["任务库", "Scripty", "脚本任务"]
+    },
+    {
+      "code": "scripty-run-task",
+      "explain": "选择并运行 Scripty 中可运行的任务",
+      "icon": "logo.png",
+      "mainPush": true,
+      "cmds": ["运行任务", "运行指定任务"]
+    },
+    {
+      "code": "scripty-running",
+      "explain": "查看 Scripty 当前运行中的任务",
+      "icon": "logo.png",
+      "cmds": ["运行中任务", "查看运行中任务"]
+    }
+  ],
+  "tools": {
+    "list_scripts": {
+      "description": "列出 Scripty 中的托管脚本（返回不含源码的摘要）。可按关键字和语言筛选。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "search": { "type": "string", "description": "按名称、备注或路径模糊匹配的关键字" },
+          "language": {
+            "type": "string",
+            "enum": ["javascript", "python", "powershell", "shell"],
+            "description": "按脚本语言筛选"
+          }
+        }
+      }
+    },
+    "get_script": {
+      "description": "按 ID 获取单个脚本的完整详情，包含源码内容。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "脚本的 UUID" }
+        },
+        "required": ["id"]
+      }
+    },
+    "create_script": {
+      "description": "创建一个新的托管脚本。名称 1-100 字符，内容会写入 Scripty 托管目录。若脚本需要输出图片（截图、图表等），用图片标记包裹 base64 数据，前端会跨日志块重组渲染：先输出开始标记 @@SCRIPTY_IMAGE_START:<mime>@@（如 @@SCRIPTY_IMAGE_START:image/png@@），再输出 base64 数据（允许换行），最后输出结束标记 @@SCRIPTY_IMAGE_END@@。不要把大图直接 print 成单行 data URL，那会被流式分块切断而无法还原。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "脚本名称，1-100 字符" },
+          "language": {
+            "type": "string",
+            "enum": ["javascript", "python", "powershell", "shell"],
+            "description": "脚本语言"
+          },
+          "content": { "type": "string", "description": "脚本源码内容" },
+          "relativePath": {
+            "type": "string",
+            "description": "可选。托管目录下的相对路径（含文件名），省略则自动生成"
+          },
+          "note": { "type": "string", "description": "可选备注，最长 500 字符" }
+        },
+        "required": ["name", "language", "content"]
+      }
+    },
+    "update_script": {
+      "description": "更新已有脚本的名称、内容、路径或备注（合并式，未提供的字段保持不变）。已有脚本不能更改语言。输出图片时同样用图片标记包裹 base64：开始 @@SCRIPTY_IMAGE_START:<mime>@@（如 image/png）、结束 @@SCRIPTY_IMAGE_END@@，中间 base64 可换行。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "脚本的 UUID" },
+          "name": { "type": "string", "description": "新名称，省略则保持不变" },
+          "content": { "type": "string", "description": "新源码内容，省略则保持不变" },
+          "relativePath": { "type": "string", "description": "新相对路径，省略则保持不变" },
+          "note": { "type": "string", "description": "新备注，省略则保持不变" }
+        },
+        "required": ["id"]
+      }
+    },
+    "delete_script": {
+      "description": "删除一个托管脚本。若脚本仍被任务引用会失败。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "脚本的 UUID" }
+        },
+        "required": ["id"]
+      }
+    },
+    "list_tasks": {
+      "description": "列出 Scripty 任务及其就绪状态、下次运行时间和活动运行数。可按关键字、启用状态和就绪状态筛选。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "search": { "type": "string", "description": "按任务名、脚本名或备注模糊匹配" },
+          "enabled": { "type": "boolean", "description": "按是否启用筛选" },
+          "readiness": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "script_missing",
+              "interpreter_unavailable",
+              "invalid_cron",
+              "invalid_working_directory"
+            ],
+            "description": "按就绪状态筛选"
+          }
+        }
+      }
+    },
+    "get_task": {
+      "description": "按 ID 获取单个任务的完整详情，含关联脚本摘要。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "任务的 UUID" }
+        },
+        "required": ["id"]
+      }
+    },
+    "create_task": {
+      "description": "为已有脚本创建一个任务。若不提供 interpreter.executable，将按脚本语言自动查找对应解释器。可选配置 Cron、超时、工作目录、参数和并发策略。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "任务名称，1-100 字符" },
+          "scriptId": { "type": "string", "description": "要运行的脚本 UUID" },
+          "note": { "type": "string", "description": "可选备注" },
+          "interpreter": {
+            "type": "object",
+            "description": "解释器配置。省略 executable 时按脚本语言自动查找",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["javascript", "python", "powershell", "shell"]
+              },
+              "executable": {
+                "type": "string",
+                "description": "解释器命令或绝对路径，省略则用默认"
+              }
+            },
+            "required": ["kind"]
+          },
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "传给脚本的参数数组，最多 100 项"
+          },
+          "workingDirectory": {
+            "type": "string",
+            "description": "工作目录绝对路径，省略或留空则用脚本目录"
+          },
+          "cron": {
+            "type": "string",
+            "description": "五段式 Cron 表达式，省略则为手动任务"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "description": "超时毫秒数，1000-86400000，省略则用默认超时"
+          },
+          "enabled": { "type": "boolean", "description": "是否启用调度，默认 true" },
+          "concurrency": {
+            "type": "object",
+            "properties": {
+              "policy": { "type": "string", "enum": ["forbid", "limited"] },
+              "limit": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "required": ["name", "scriptId", "interpreter"]
+      }
+    },
+    "update_task": {
+      "description": "更新已有任务的配置（合并式，仅覆盖显式提供的字段）。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "任务的 UUID" },
+          "name": { "type": "string" },
+          "note": { "type": "string" },
+          "scriptId": { "type": "string" },
+          "interpreter": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["javascript", "python", "powershell", "shell"]
+              },
+              "executable": { "type": "string" }
+            },
+            "required": ["kind"]
+          },
+          "args": { "type": "array", "items": { "type": "string" } },
+          "workingDirectory": { "type": "string" },
+          "cron": { "type": "string" },
+          "timeoutMs": { "type": "integer" },
+          "enabled": { "type": "boolean" },
+          "concurrency": {
+            "type": "object",
+            "properties": {
+              "policy": { "type": "string", "enum": ["forbid", "limited"] },
+              "limit": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "required": ["id"]
+      }
+    },
+    "set_task_enabled": {
+      "description": "启用或禁用一个任务的调度。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "任务的 UUID" },
+          "enabled": { "type": "boolean", "description": "true 启用，false 禁用" }
+        },
+        "required": ["id", "enabled"]
+      }
+    },
+    "duplicate_task": {
+      "description": "复制一个已有任务，生成配置相同的新任务。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "要复制的任务 UUID" }
+        },
+        "required": ["id"]
+      }
+    },
+    "delete_task": {
+      "description": "删除一个任务。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "任务的 UUID" }
+        },
+        "required": ["id"]
+      }
+    },
+    "validate_task": {
+      "description": "在不创建任务的情况下校验一份任务配置草稿，返回是否有效、就绪状态与字段级错误。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "scriptId": { "type": "string", "description": "要运行的脚本 UUID" },
+          "note": { "type": "string" },
+          "interpreter": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["javascript", "python", "powershell", "shell"]
+              },
+              "executable": { "type": "string" }
+            },
+            "required": ["kind"]
+          },
+          "args": { "type": "array", "items": { "type": "string" } },
+          "workingDirectory": { "type": "string" },
+          "cron": { "type": "string" },
+          "timeoutMs": { "type": "integer" },
+          "enabled": { "type": "boolean" },
+          "concurrency": {
+            "type": "object",
+            "properties": {
+              "policy": { "type": "string", "enum": ["forbid", "limited"] },
+              "limit": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "required": ["scriptId", "interpreter"]
+      }
+    },
+    "preview_schedule": {
+      "description": "预览一个五段式 Cron 表达式接下来的运行时间点。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "cron": { "type": "string", "description": "五段式 Cron 表达式" }
+        },
+        "required": ["cron"]
+      }
+    },
+    "list_environment_variables": {
+      "description": "列出 Scripty 中的环境变量名称。可按关键字、作用域、任务和启用状态筛选；只返回名称，绝不返回变量值、遮罩值或其他元数据。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "search": { "type": "string", "description": "按变量名称或备注模糊匹配" },
+          "scope": { "type": "string", "enum": ["global", "task"], "description": "按全局或任务作用域筛选" },
+          "taskId": { "type": "string", "description": "按任务 UUID 筛选" },
+          "enabled": { "type": "boolean", "description": "按是否启用筛选" }
+        }
+      }
+    },
+    "update_environment_variable": {
+      "description": "按名称定位并合并更新一个环境变量。selector 无法唯一定位时会拒绝操作；changes.value 仅用于写入且不会回显，省略时保留原值。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "object",
+            "description": "用于定位现有变量的名称和可选作用域",
+            "properties": {
+              "name": { "type": "string", "description": "现有环境变量名称" },
+              "scope": { "type": "string", "enum": ["global", "task"], "description": "现有变量作用域" },
+              "taskId": { "type": "string", "description": "现有任务级变量所属任务 UUID" }
+            },
+            "required": ["name"]
+          },
+          "changes": {
+            "type": "object",
+            "description": "要覆盖的字段；至少提供一个字段",
+            "properties": {
+              "name": { "type": "string", "description": "新变量名称" },
+              "value": { "type": "string", "description": "要写入的新值；省略则保留原值，响应不会回显" },
+              "note": { "type": "string", "description": "新备注" },
+              "scope": { "type": "string", "enum": ["global", "task"], "description": "新作用域" },
+              "taskId": { "type": "string", "description": "新任务 UUID；全局作用域会自动清空，省略则保留当前任务" },
+              "enabled": { "type": "boolean", "description": "是否启用" },
+              "sensitive": { "type": "boolean", "description": "是否按敏感值处理" }
+            }
+          }
+        },
+        "required": ["selector", "changes"]
+      }
+    },
+    "delete_environment_variable": {
+      "description": "按名称删除一个环境变量。可用作用域和任务 UUID 消歧；无法唯一定位时拒绝删除。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "description": "要删除的环境变量名称" },
+              "scope": { "type": "string", "enum": ["global", "task"], "description": "变量作用域" },
+              "taskId": { "type": "string", "description": "任务级变量所属任务 UUID" }
+            },
+            "required": ["name"]
+          }
+        },
+        "required": ["selector"]
+      }
+    },
+    "run_task": {
+      "description": "立即手动运行一个任务，返回运行记录。任务需处于 ready 状态。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": { "type": "string", "description": "要运行的任务 UUID" }
+        },
+        "required": ["taskId"]
+      }
+    },
+    "stop_run": {
+      "description": "停止一个正在运行的任务实例。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": { "type": "string", "description": "活动运行的 UUID" }
+        },
+        "required": ["runId"]
+      }
+    },
+    "list_active_runs": {
+      "description": "列出当前所有正在运行的任务实例。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    "list_run_history": {
+      "description": "分页查询运行历史记录，倒序返回。可按任务、状态、触发来源和关键字筛选。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "minimum": 1, "description": "页码，从 1 开始，默认 1" },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "每页数量，最大 100，默认 20"
+          },
+          "search": { "type": "string" },
+          "taskId": { "type": "string", "description": "按任务 UUID 筛选" },
+          "status": {
+            "type": "string",
+            "enum": [
+              "starting",
+              "running",
+              "success",
+              "failed",
+              "timed_out",
+              "stopped",
+              "interrupted"
+            ]
+          },
+          "trigger": {
+            "type": "string",
+            "enum": ["manual", "cron", "retry"]
+          }
+        }
+      }
+    },
+    "get_run": {
+      "description": "按运行 ID 获取单条运行历史记录详情。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": { "type": "string", "description": "运行记录的 UUID" }
+        },
+        "required": ["runId"]
+      }
+    },
+    "read_run_log": {
+      "description": "分块读取某次运行的日志内容，返回一段文本及下一次读取的 offset。日志按 stdout/stderr 流式分块记录，每块带 `[yyyy-mm-dd hh:mm:ss] [stdout|stderr] ` 前缀。图片用标记成对出现：开始 @@SCRIPTY_IMAGE_START:<mime>@@、结束 @@SCRIPTY_IMAGE_END@@，两标记之间是允许换行的 base64 数据；跨多块读取时需自行按标记配对拼接，mime 例如 image/png、image/jpeg、image/webp、image/svg+xml。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": { "type": "string", "description": "运行记录的 UUID" },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "起始字节偏移，默认 0"
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 262144,
+            "description": "读取字节数，最大 262144，默认 65536"
+          }
+        },
+        "required": ["runId"]
+      }
+    },
+    "retry_run": {
+      "description": "使用任务当前配置重新运行一条历史记录对应的任务。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": { "type": "string", "description": "要重试的运行记录 UUID" }
+        },
+        "required": ["runId"]
+      }
+    }
+  }
+}

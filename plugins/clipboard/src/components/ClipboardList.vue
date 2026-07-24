@@ -130,6 +130,12 @@ const emit = defineEmits([
   background: var(--bg-hover);
 }
 
+@media (prefers-color-scheme: dark) {
+  .clipboard-item:hover {
+    background: rgba(72, 72, 72, 0.72);
+  }
+}
+
 .clipboard-item.selected {
   border: 2px solid var(--primary-color);
   border-radius: 5px;

@@ -1,0 +1,460 @@
+/* ═══════════════════════════════════════════════════════════
+   TASK POOL HEADER
+   ═══════════════════════════════════════════════════════════ */
+.task-pool-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-4);
+  height: 40px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.task-pool-header h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.task-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--clay);
+  background: transparent;
+  padding: 1px var(--sp-1);
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+}
+
+.task-status-distribution {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.status-item:hover {
+  background: var(--color-hover-bg);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status-text {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--graphite);
+}
+
+.status-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--graphite);
+}
+
+.status-item.overdue .status-dot {
+  background: var(--rose);
+}
+
+.status-item.overdue .status-text,
+.status-item.overdue .status-count {
+  color: var(--rose);
+}
+
+.status-item.today .status-dot {
+  background: var(--teal);
+}
+
+.status-item.today .status-text,
+.status-item.today .status-count {
+  color: var(--teal);
+}
+
+.status-item.week .status-dot {
+  background: var(--indigo);
+}
+
+.status-item.week .status-text,
+.status-item.week .status-count {
+  color: var(--indigo);
+}
+
+.status-item.unscheduled .status-dot {
+  background: var(--clay);
+}
+
+.status-item.pending .status-dot {
+  background: var(--teal);
+}
+
+.status-item.pending .status-text,
+.status-item.pending .status-count {
+  color: var(--teal);
+}
+
+.status-item.done .status-dot {
+  background: var(--emerald);
+}
+
+.status-item.done .status-text,
+.status-item.done .status-count {
+  color: var(--emerald);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK POOL CONTENT
+   ═══════════════════════════════════════════════════════════ */
+.task-pool-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-3) var(--sp-4);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK GROUP
+   ═══════════════════════════════════════════════════════════ */
+.task-group {
+  margin-bottom: var(--sp-4);
+}
+
+.task-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.task-group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--graphite);
+  letter-spacing: 0.02em;
+}
+
+.task-group-title .arrow {
+  font-size: 10px;
+  color: var(--clay);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.task-group.collapsed .task-group-title .arrow {
+  transform: rotate(-90deg);
+}
+
+.task-group-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--clay);
+  background: transparent;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-sm);
+  line-height: 1.6;
+}
+
+.task-group-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-divider);
+  margin-left: var(--sp-2);
+}
+
+/* Overdue accent */
+.task-group.overdue-group .task-group-title {
+  color: var(--rose);
+}
+
+.task-group.overdue-group .task-group-count {
+  color: var(--rose);
+  background: transparent;
+}
+
+/* Today accent */
+.task-group.today-group .task-group-title {
+  color: var(--teal);
+}
+
+.task-group.today-group .task-group-count {
+  color: var(--teal);
+  background: transparent;
+}
+
+/* This week accent */
+.task-group.week-group .task-group-title {
+  color: var(--indigo);
+}
+
+.task-group.week-group .task-group-count {
+  color: var(--indigo);
+  background: transparent;
+}
+
+/* Unscheduled accent */
+.task-group.unscheduled-group .task-group-title {
+  color: var(--graphite);
+}
+
+.task-group.unscheduled-group .task-group-count {
+  color: var(--graphite);
+  background: transparent;
+}
+
+/* Completed accent */
+.task-group.completed-group .task-group-title {
+  color: var(--color-success);
+}
+
+.task-group.completed-group .task-group-count {
+  color: var(--color-success);
+  background: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK LIST
+   ═══════════════════════════════════════════════════════════ */
+.task-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK ITEM
+   ═══════════════════════════════════════════════════════════ */
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--paper);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  position: relative;
+}
+
+.task-item:hover,
+.task-item.highlighted {
+  border-color: var(--color-border-hover);
+}
+
+.task-item.selected {
+  border-color: var(--task-color);
+  box-shadow: 0 0 0 1px var(--task-color);
+}
+
+.task-item.dragging {
+  opacity: 0.4;
+  transform: rotate(1deg);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK CHECKBOX
+   ═══════════════════════════════════════════════════════════ */
+.task-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--clay);
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+.task-checkbox:hover {
+  border-color: var(--teal);
+}
+
+.task-checkbox:checked {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+.task-checkbox:checked::after {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 3px;
+  border-left: 1.5px solid white;
+  border-bottom: 1.5px solid white;
+  transform: rotate(-45deg) translateY(-1px);
+  margin: 2px auto 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRIORITY INDICATOR
+   ═══════════════════════════════════════════════════════════ */
+.priority-indicator {
+  width: 4px;
+  height: 100%;
+  min-height: 24px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 0 2px 2px 0;
+  transition: filter var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.task-item.highlighted .priority-indicator {
+  filter: brightness(1.02);
+  box-shadow: 0 0 3px 1px var(--task-color);
+  transform: scaleX(1.25);
+  transform-origin: left;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK CONTENT
+   ═══════════════════════════════════════════════════════════ */
+.task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.4;
+  margin-bottom: 1px;
+}
+
+.task-item.completed .task-title {
+  text-decoration: line-through;
+  color: var(--clay);
+}
+
+.task-description {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--graphite);
+  margin-bottom: 2px;
+}
+
+.task-description.empty {
+  color: var(--clay);
+  font-style: italic;
+  cursor: default;
+}
+
+.task-desc-input {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  line-height: 1.4;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--teal);
+  outline: none;
+  padding: 0;
+  width: 100%;
+  font-family: inherit;
+  resize: none;
+  margin-bottom: 2px;
+}
+
+.task-title-input {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.4;
+  margin-bottom: 1px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--teal);
+  outline: none;
+  padding: 0;
+  width: 100%;
+  font-family: inherit;
+}
+
+.task-dates {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--clay);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK DELETE BUTTON
+   ═══════════════════════════════════════════════════════════ */
+.task-delete-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--clay);
+  opacity: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.task-item:hover .task-delete-btn {
+  opacity: 1;
+}
+
+.task-delete-btn:hover {
+  background: transparent;
+  color: var(--rose);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TASK POOL INPUT
+   ═══════════════════════════════════════════════════════════ */
+.task-pool-input {
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.task-pool-input textarea {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  background: transparent;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  resize: none;
+  min-height: 44px;
+  transition: all var(--duration-fast) var(--ease-out);
+  line-height: 1.5;
+}
+
+.task-pool-input textarea::placeholder {
+  color: var(--clay);
+}
+
+.task-pool-input textarea:focus {
+  background: transparent;
+  border-color: var(--teal-border);
+  box-shadow: 0 0 0 1px var(--teal-muted);
+}

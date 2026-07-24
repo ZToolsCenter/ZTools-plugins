@@ -5,10 +5,8 @@ import { HashRouter } from "react-router-dom";
 import App from "./App.tsx";
 import { Provider } from "./provider.tsx";
 
-import {
-  initMonacoGlobally,
-  registerGlobalBase64Provider,
-} from "@/components/monacoEditor/decorations/decorationInit.ts";
+import { WALManager } from "@/lib/storage/WALManager";
+import { getLockManager } from "@/lib/storage/DistributedLockManager";
 
 import "@/styles/globals.css";
 import DefaultLayout from "@/layouts/default";
@@ -18,11 +16,26 @@ import { PWAUpdateManager } from "@/components/pwa/PWAUpdateManager";
 import registerServiceWorker from "@/utils/registerSW";
 import { isPWA } from "@/utils/pwa";
 
-// 全局初始化Monaco编辑器
-initMonacoGlobally().then(() => {
-  // 注册全局提供者
-  registerGlobalBase64Provider();
-});
+// 初始化存储系统
+const initializeStorage = async () => {
+  try {
+    console.log("初始化存储系统...");
+
+    // 1. 恢复 WAL（写前日志）
+    const walManager = new WALManager();
+
+    await walManager.recover();
+
+    // 2. 清理过期的分布式锁
+    const lockManager = getLockManager();
+
+    await lockManager.cleanupExpiredLocks();
+
+    console.log("存储系统初始化完成");
+  } catch (error) {
+    console.error("存储系统初始化失败:", error);
+  }
+};
 
 // 初始化 Utools 监听器
 const initializeUtoolsListener = () => {
@@ -41,14 +54,28 @@ const initializePWA = async () => {
 
 // 监听应用加载完成事件
 if (typeof window !== "undefined") {
-  window.addEventListener("load", () => {
+  window.addEventListener("load", async () => {
+    // 首先初始化存储系统
+    await initializeStorage();
+
+    // 然后初始化其他系统
     initializeUtoolsListener();
     initializePWA();
   });
+
+  // 页面关闭前保存数据
+  window.addEventListener("beforeunload", async () => {
+    // 这里会被各个 store 的 beforeunload 处理器覆盖
+    // 但作为一个额外的保险措施
+    console.log("应用即将关闭，确保数据已保存");
+  });
 } else {
   // 在开发环境中直接初始化
-  initializeUtoolsListener();
-  initializePWA();
+  (async () => {
+    await initializeStorage();
+    initializeUtoolsListener();
+    initializePWA();
+  })();
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

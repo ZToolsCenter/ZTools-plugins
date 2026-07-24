@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "zapapi",
+  "title": "ZapApi",
+  "description": "API 测试工具，支持 HTTP/WebSocket 请求构建、响应查看、集合管理、历史记录、代码生成、环境变量和多种认证方式",
+  "author": "nichijoux",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "zapapi",
+      "explain": "API 测试工具，支持 HTTP/WebSocket 请求构建、响应查看、集合管理、历史记录、代码生成、环境变量和多种认证方式",
+      "icon": "logo.svg",
+      "cmds": ["zapapi"]
+    }
+  ]
+}

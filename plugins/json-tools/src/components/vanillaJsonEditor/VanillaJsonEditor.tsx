@@ -6,7 +6,7 @@ import {
   JsonEditor,
   JSONEditorPropsOptional,
   Mode,
-} from "vanilla-jsoneditor-cn";
+} from "vanilla-jsoneditor";
 
 import "@/styles/vanilla.scss";
 

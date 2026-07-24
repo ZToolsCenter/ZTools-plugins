@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "webapp",
+  "title": "网页应用",
+  "description": "你可以添加web应用到插件中，一键直接加载应用",
+  "author": "Apcan",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "webapp",
+      "explain": "WebApp应用管理器，添加和管理您的Web应用",
+      "icon": "logo.png",
+      "cmds": ["webapp", "网页应用", "web应用","ai"]
+    }
+  ]
+}

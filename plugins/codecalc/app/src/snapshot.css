@@ -1,0 +1,676 @@
+/* 定义主题变量 */
+:root {
+    --snapshot-bg: #f5f7fa;
+    --snapshot-item-bg: #ffffff;
+    --snapshot-text: #666666;
+    --snapshot-title: #333333;
+    --snapshot-border: #e0e0e0;
+    --snapshot-shadow: rgba(0, 0, 0, 0.15);
+    --snapshot-hover-shadow: rgba(0, 0, 0, 0.2);
+    --snapshot-button-color: #4CAF50;
+    --snapshot-button-hover: rgba(76, 175, 80, 0.1);
+    --snapshot-delete-color: #f44336;
+    --snapshot-tab-active: rgba(0, 0, 0, 0.87);
+    --snapshot-tab-inactive: rgba(0, 0, 0, 0.6);
+    --snapshot-tab-hover: rgba(0, 0, 0, 0.04);
+    --snapshot-tab-line: rgba(0, 0, 0, 0.41);
+    --snapshot-tag-text: rgb(231, 231, 231);
+    --snapshot-tag-bg: rgb(146, 146, 222);
+}
+
+:root[data-theme="dark"] {
+    --snapshot-bg: #1f1f1f;
+    --snapshot-item-bg: #2d2d2d;
+    --snapshot-text: #a0a0a0;
+    --snapshot-title: #e0e0e0;
+    --snapshot-border: #404040;
+    --snapshot-shadow: rgba(0, 0, 0, 0.3);
+    --snapshot-hover-shadow: rgba(0, 0, 0, 0.4);
+    --snapshot-button-color: #03a958;
+    --snapshot-button-hover: rgba(0, 230, 118, 0.1);
+    --snapshot-delete-color: #ff5252;
+    --snapshot-tab-active: rgba(255, 255, 255, 0.87);
+    --snapshot-tab-inactive: rgba(255, 255, 255, 0.6);
+    --snapshot-tab-hover: rgba(255, 255, 255, 0.04);
+    --snapshot-tab-line: rgba(255, 255, 255, 0.41);
+    --snapshot-tag-text: rgb(200, 200, 200);
+    --snapshot-tag-bg: rgb(125, 125, 207, 0.8);
+}
+
+/* 蒙版样式 */
+.snapshot-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 999;  /* 确保在其他内容之上，但在快照面板之下 */
+}
+
+.snapshot-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 面板基础样式 */
+.snapshot-panel {
+    position: fixed;
+    right: -300px;
+    top: 0;
+    width: 300px;
+    height: 100vh;
+    background: var(--snapshot-bg);
+    box-shadow: -2px 0 8px var(--snapshot-shadow);
+    transition: right 0.3s ease;
+    z-index: 1001;  /* 确保在蒙版之上 */
+    display: flex;
+    flex-direction: column;
+}
+
+.snapshot-panel.show {
+    right: 0;
+}
+
+/* 列表容器样式 */
+.snapshot-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    background: var(--snapshot-bg);
+}
+
+/* 快照组样式 */
+.snapshot-group {
+    margin-bottom: 6px;
+    transform-origin: top;
+    will-change: transform, opacity;
+    transition: transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
+                opacity 200ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.snapshot-group .snapshot-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 8px 8px 10px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--snapshot-item-bg);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    margin: 1px 0;
+    box-shadow: 0 1px 3px var(--snapshot-shadow);
+}
+
+.snapshot-group .snapshot-header:hover {
+    box-shadow: 0 2px 4px var(--snapshot-hover-shadow);
+    transform: translateY(-1px);
+}
+
+/* 折叠/展开相关样式 */
+.toggle-icon {
+    display: flex;
+    align-items: center;
+    margin: 0 4px;
+    transition: transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.snapshot-group.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.snapshot-content {
+    overflow: hidden;
+    transform-origin: top;
+    will-change: transform, opacity;
+}
+
+.snapshot-group.collapsed .snapshot-content {
+    display: none;
+}
+
+.snapshot-content.animating {
+    display: block !important;
+    animation: md-expand 250ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+.snapshot-content.collapsing {
+    display: block !important;
+    animation: md-collapse-content 200ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes md-expand {
+    0% {
+        transform: scaleY(0);
+        opacity: 0;
+    }
+    100% {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+}
+
+@keyframes md-collapse-content {
+    0% {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scaleY(0);
+        opacity: 0;
+    }
+}
+
+/* 时间标题 */
+.snapshot-time {
+    flex: 1;
+    font-size: 13px;
+    color: var(--snapshot-text);
+    position: relative;
+    margin-right: 8px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.snapshot-title {
+    cursor: text;
+    padding: 2px 4px;
+    border-radius: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.snapshot-title:hover {
+    background: var(--snapshot-tab-hover);
+}
+
+.snapshot-title-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    padding: 2px 4px;
+    font-size: inherit;
+    color: var(--snapshot-text);
+    background: var(--snapshot-item-bg);
+    border: 1px solid var(--snapshot-button-color);
+    border-radius: 3px;
+    display: none;
+    outline: none;
+}
+
+.snapshot-time.editing .snapshot-title {
+    visibility: hidden;
+}
+
+.snapshot-time.editing .snapshot-title-input {
+    display: block;
+}
+
+/* 快照项样式 */
+.snapshot-item {
+    margin: 1px 0;
+    padding: 8px 12px;
+    border-radius: 4px;
+    background: var(--snapshot-item-bg);
+    box-shadow: 0 1px 2px var(--snapshot-shadow);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    transition: all 0.3s ease;
+    max-height: 500px;  /* 设置一个足够大的最大高度 */
+    opacity: 1;
+}
+
+.snapshot-item:hover {
+    box-shadow: 0 2px 4px var(--snapshot-hover-shadow);
+    transform: translateY(-1px);
+}
+
+.snapshot-expression {
+    color: var(--snapshot-title);
+    font-size: 13px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.snapshot-result {
+    color: var(--snapshot-text);
+    font-family: monospace;
+    font-size: 13px;
+    opacity: 0.85;
+    flex-shrink: 0;
+    text-align: right;
+}
+
+/* 底部按钮样式 */
+.snapshot-footer {
+    padding: 0 16px;
+    background: var(--snapshot-item-bg);
+    border-top: 1px solid var(--snapshot-border);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 2.5rem;
+    box-shadow: 0 -1px 3px var(--snapshot-shadow);
+    position: relative;
+}
+
+/* 添加快照按钮 */
+.add-snapshot-btn {
+    background: transparent;
+    border: none;
+    color: var(--snapshot-button-color);
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 2rem;
+    margin: 0;
+}
+
+.add-snapshot-btn:hover {
+    background: var(--snapshot-button-hover);
+}
+
+.add-snapshot-btn:disabled {
+    cursor: not-allowed;
+    color: #666;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+/* 应用按钮 */
+.apply-snapshot-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 3px;
+    color: var(--snapshot-button-color);
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    margin-right: 2px;
+    margin-left: 2px;
+    flex-shrink: 0;
+}
+
+.apply-snapshot-btn:hover {
+    opacity: 1;
+    transform: rotate(-180deg) scale(1.15);
+    color: var(--snapshot-button-color);
+}
+
+.apply-snapshot-btn svg {
+    width: 16px;
+    height: 16px;
+    transition: inherit;
+}
+
+/* 切换按钮样式 */
+.snapshot-toggle-btn {
+    position: fixed;
+    right: 0.3rem;
+    top: 0.3rem;
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    z-index: 1001;
+    width: 25px;
+    height: 25px;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 图标样式 */
+.snapshot-icon {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 21px;
+    height: 21px;
+    transform-origin: center;
+    color: #aaa;
+}
+
+/* 修改悬停效果，确保颜色变化优先级更高 */
+.snapshot-toggle-btn:hover .snapshot-icon {
+    color: var(--snapshot-button-color) !important; /* 添加 !important 来确保颜色变化优先级 */
+    transform: rotate(-360deg) scale(1.15);
+}
+
+/* 面板打开时的图标样式 */
+body #snapshot-panel.show ~ .snapshot-toggle-btn .snapshot-icon {
+    color: var(--snapshot-button-color);
+    transform: rotate(-360deg);
+}
+
+/* 面板打开时的悬停效果 */
+body #snapshot-panel.show ~ .snapshot-toggle-btn:hover .snapshot-icon {
+    color: var(--snapshot-delete-color) !important; /* 添加 !important 来确保颜色变化优先级 */
+    transform: rotate(-720deg) scale(1.15);
+}
+
+.add-icon, .delete-icon {
+    opacity: 0.9;
+    transition: opacity 0.2s;
+}
+
+.add-snapshot-btn:hover .add-icon,
+.clear-snapshot-btn:hover .delete-icon {
+    opacity: 1;
+}
+
+.snapshot-tag {
+    color: var(--snapshot-tag-text);
+    font-size: 12px;
+    padding: 2px 6px;
+    background: var(--snapshot-tag-bg);
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.delete-record-btn {
+    display: none;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #666;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+.delete-record-btn:hover {
+    opacity: 1;
+    color: #ff4444;
+}
+
+.snapshot-item:hover .delete-record-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 添加删除按钮图标样式 */
+.delete-record-btn svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
+/* 添加快照删除按钮样式 */
+.delete-snapshot-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 3px;
+    color: #757575;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    margin-right: 2px;
+    flex-shrink: 0;
+}
+
+.delete-snapshot-btn:hover {
+    opacity: 1;
+    transform: scale(1.15);
+    color: var(--snapshot-delete-color);
+}
+
+.delete-snapshot-btn svg {
+    width: 16px;
+    height: 16px;
+    transition: inherit;
+}
+
+/* 删除旧的记录删除按钮样式 */
+.delete-record-btn {
+    display: none;
+}
+
+/* 添加图标样式 */
+.snapshot-type-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 4px;
+    color: var(--snapshot-tab-line);
+}
+
+.snapshot-type-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* 删除之前的颜色区分 */
+.snapshot-time .snapshot-type-icon {
+    color: var(--snapshot-tab-line);
+}
+
+/* 删除快照的绿色样式 */
+.snapshot-group[data-type="snapshot"] .snapshot-type-icon,
+.snapshot-time:has(+ .apply-snapshot-btn) .snapshot-type-icon {
+    color: var(--snapshot-tab-line);
+}
+
+/* Tab 样式 - Material Design */
+.snapshot-tabs {
+    display: flex;
+    background: var(--snapshot-item-bg);
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    box-shadow: 0 2px 4px var(--snapshot-shadow);
+}
+
+.snapshot-tabs .tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px 16px;
+    color: var(--snapshot-tab-inactive);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 400;
+    position: relative;
+    background: transparent;
+    border: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.snapshot-tabs .tab::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--snapshot-tab-line);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(-50%);
+}
+
+.snapshot-tabs .tab:hover {
+    color: var(--snapshot-tab-active);
+    background: var(--snapshot-tab-hover);
+}
+
+.snapshot-tabs .tab.active {
+    color: var(--snapshot-tab-active);
+    font-weight: 500;
+}
+
+.snapshot-tabs .tab.active::after {
+    width: 100%;
+}
+
+/* 添加涟漪效果 */
+.snapshot-tabs .tab .ripple {
+    position: absolute;
+    background: rgba(76, 175, 80, 0.2);
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple 0.6s linear;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* 调整内容区域样式 */
+.tab-content {
+    display: none;
+    padding: 16px 8px;
+    animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 调整列表容器样式 */
+.snapshot-list {
+    background: var(--snapshot-bg);
+    padding: 0;
+}
+
+/* 内容容器样式 */
+.snapshot-content-container {
+    flex: 1;
+    overflow: hidden;
+    background: var(--snapshot-bg);
+    position: relative;
+}
+
+.snapshot-content-container .snapshot-group {
+    position: relative;
+    z-index: 0;
+}
+
+.snapshot-content-container .snapshot-group:not(.deleting) {
+    transform-origin: top;
+    transition: transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
+                margin 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
+                opacity 200ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* 在快照组标题被悬停时显示按钮 */
+.snapshot-group .snapshot-header:hover .apply-snapshot-btn,
+.snapshot-group .snapshot-header:hover .delete-snapshot-btn {
+    opacity: 0.6;  /* 显示时使用半透明 */
+    visibility: visible;
+}
+
+/* 按钮自身的悬停效果 */
+.apply-snapshot-btn:hover {
+    opacity: 1;
+    transform: rotate(-180deg) scale(1.15);
+    color: var(--snapshot-button-color);
+}
+
+.delete-snapshot-btn:hover {
+    opacity: 1;
+    transform: scale(1.15);
+    color: var(--snapshot-delete-color);
+}
+
+/* 优化过渡动画 */
+.apply-snapshot-btn,
+.delete-snapshot-btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 删除时的动画类 */
+.snapshot-item.removing {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    pointer-events: none;
+}
+
+/* 添加删除时的动画类 */
+.snapshot-group.deleting {
+    animation: md-collapse 200ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+    position: relative;
+    z-index: 1;
+}
+
+/* Material Design 的删除动画 */
+@keyframes md-collapse {
+    0% {
+        transform: scaleY(1) translateY(0);
+        opacity: 1;
+    }
+    30% {
+        opacity: 0;
+    }
+    100% {
+        transform: scaleY(0) translateY(-8px);
+        opacity: 0;
+    }
+}

@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Image Batch Studio icon">
+  <defs>
+    <linearGradient id="shellBase" x1="9" y1="4" x2="119" y2="124" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f9ffff"/>
+      <stop offset="0.26" stop-color="#cfffff"/>
+      <stop offset="0.56" stop-color="#dfe7ff"/>
+      <stop offset="1" stop-color="#f3dfff"/>
+    </linearGradient>
+    <radialGradient id="cyanBloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(25 29) rotate(42) scale(58 43)">
+      <stop stop-color="#4df4ff" stop-opacity="1"/>
+      <stop offset="0.56" stop-color="#7affff" stop-opacity="0.48"/>
+      <stop offset="1" stop-color="#7affff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="violetBloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(100 34) rotate(120) scale(57 45)">
+      <stop stop-color="#bd9aff" stop-opacity="0.98"/>
+      <stop offset="0.58" stop-color="#adc7ff" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#adc7ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintBloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(60 105) rotate(20) scale(66 36)">
+      <stop stop-color="#66ffd0" stop-opacity="0.9"/>
+      <stop offset="0.6" stop-color="#8ceeff" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#8ceeff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glassPane" x1="13" y1="5" x2="112" y2="121" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.86"/>
+      <stop offset="0.24" stop-color="#ffffff" stop-opacity="0.38"/>
+      <stop offset="0.54" stop-color="#d8fbff" stop-opacity="0.34"/>
+      <stop offset="0.78" stop-color="#f0e4ff" stop-opacity="0.43"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.78"/>
+    </linearGradient>
+    <linearGradient id="rimLight" x1="7" y1="5" x2="121" y2="121" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff"/>
+      <stop offset="0.34" stop-color="#ffffff" stop-opacity="0.48"/>
+      <stop offset="0.67" stop-color="#92ecff" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#b69aff" stop-opacity="0.68"/>
+    </linearGradient>
+    <linearGradient id="mainGlass" x1="23" y1="18" x2="104" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.92"/>
+      <stop offset="0.35" stop-color="#f1ffff" stop-opacity="0.56"/>
+      <stop offset="0.66" stop-color="#e9f0ff" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.82"/>
+    </linearGradient>
+    <linearGradient id="imageTone" x1="33" y1="34" x2="91" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#35eaff"/>
+      <stop offset="0.48" stop-color="#5d93ff"/>
+      <stop offset="1" stop-color="#bd86ff"/>
+    </linearGradient>
+    <linearGradient id="actionFlow" x1="30" y1="91" x2="94" y2="91" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12d7ef"/>
+      <stop offset="0.5" stop-color="#667eff"/>
+      <stop offset="1" stop-color="#de8cff"/>
+    </linearGradient>
+    <filter id="outerLift" x="-8" y="-8" width="144" height="146" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#75b8ff" flood-opacity="0.3"/>
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#ffffff" flood-opacity="0.82"/>
+    </filter>
+    <filter id="softCaustics" x="-2" y="-2" width="132" height="132" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="mainLift" x="8" y="10" width="112" height="111" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="5.5" flood-color="#73acee" flood-opacity="0.3"/>
+      <feDropShadow dx="0" dy="-1.2" stdDeviation="1.4" flood-color="#ffffff" flood-opacity="0.9"/>
+    </filter>
+    <clipPath id="shellClip">
+      <rect x="3" y="3" width="122" height="122" rx="30"/>
+    </clipPath>
+    <clipPath id="mainClip">
+      <rect x="19" y="19" width="90" height="90" rx="25"/>
+    </clipPath>
+  </defs>
+
+  <rect x="2" y="2" width="124" height="124" rx="31" fill="url(#shellBase)" filter="url(#outerLift)"/>
+  <g clip-path="url(#shellClip)">
+    <rect width="128" height="128" fill="url(#shellBase)"/>
+    <g filter="url(#softCaustics)">
+      <ellipse cx="25" cy="29" rx="48" ry="38" fill="url(#cyanBloom)"/>
+      <ellipse cx="101" cy="34" rx="47" ry="39" fill="url(#violetBloom)"/>
+      <ellipse cx="61" cy="105" rx="54" ry="33" fill="url(#mintBloom)"/>
+    </g>
+    <path d="M4 39c22.5-17.7 56.4-20.5 90-7.3 15.2 6 25.2 13.6 30 22.8v20.4C94.9 55.6 63.7 52.3 30.3 64.9 18.8 69.2 10 73.8 4 78.7V39Z" fill="#ffffff" opacity="0.34"/>
+    <path d="M4 91c22.1 10.2 46.6 12.7 73.4 7.6 17.7-3.4 33.2-9.7 46.6-19v24.4c0 11-8.9 20-20 20H24c-11 0-20-8.9-20-20V91Z" fill="#ffffff" opacity="0.24"/>
+  </g>
+
+  <rect x="3" y="3" width="122" height="122" rx="30" fill="url(#glassPane)"/>
+  <rect x="4.6" y="4.6" width="118.8" height="118.8" rx="28.4" fill="none" stroke="url(#rimLight)" stroke-width="3.2"/>
+  <path d="M14.5 17.8h61.2c22 0 38.6 15.9 39.5 37.5C86.2 33.8 51.8 27.3 12.4 36c.3-7.2 1-13.3 2.1-18.2Z" fill="#ffffff" opacity="0.5"/>
+  <path d="M16 111.5c15.6 6.2 31.6 9.1 48 8.8 18-.4 33.8-4.8 47.5-13.4" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.54"/>
+
+  <g opacity="0.88">
+    <rect x="8" y="47" width="34" height="22" rx="8" fill="#ffffff" opacity="0.34"/>
+    <rect x="13" y="52" width="23" height="12" rx="4.5" fill="#62eeff" opacity="0.7"/>
+    <rect x="86" y="47" width="34" height="22" rx="8" fill="#ffffff" opacity="0.32"/>
+    <rect x="91" y="52" width="23" height="12" rx="4.5" fill="#caa8ff" opacity="0.72"/>
+    <rect x="8" y="77" width="34" height="22" rx="8" fill="#ffffff" opacity="0.3"/>
+    <rect x="13" y="82" width="23" height="12" rx="4.5" fill="#8cadff" opacity="0.76"/>
+    <rect x="86" y="77" width="34" height="22" rx="8" fill="#ffffff" opacity="0.28"/>
+    <rect x="91" y="82" width="23" height="12" rx="4.5" fill="#70f6d1" opacity="0.72"/>
+  </g>
+
+  <g filter="url(#mainLift)">
+    <rect x="19" y="19" width="90" height="90" rx="25" fill="url(#mainGlass)"/>
+  </g>
+  <g clip-path="url(#mainClip)">
+    <path d="M14 72.5c17.7-15.8 37.7-22.4 60-19.7 13.4 1.6 26.7 6.1 40 13.6V111H14Z" fill="#ffffff" opacity="0.26"/>
+    <path d="M22 71.6c15-9 29.2-10.8 42.7-5.4 13.2 5.3 25 4.7 35.3-1.8" fill="none" stroke="#ffffff" stroke-width="13" stroke-linecap="round" opacity="0.32"/>
+    <rect x="34" y="34" width="60" height="52" rx="15" fill="url(#imageTone)" opacity="0.98"/>
+    <rect x="38" y="38" width="52" height="44" rx="11.5" fill="#ffffff" opacity="0.15"/>
+    <circle cx="49.5" cy="49.5" r="7" fill="#fbffff" opacity="0.96"/>
+    <path d="M34 80.5 50.8 61.7l13 13.8 9.8-11.4L94 86H34Z" fill="#fbffff" opacity="0.56"/>
+    <path d="M42 29.5v16H29.5M98.5 45.5H86v-16M86 98.5h12.5V86M29.5 86H42v12.5" fill="none" stroke="#ffffff" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.96"/>
+    <path d="M34 94c10.4 7.7 27.8 9.2 40.8 3.6" fill="none" stroke="url(#actionFlow)" stroke-width="7.2" stroke-linecap="round"/>
+    <path d="M75.4 88.8v11.6H63.8" fill="none" stroke="url(#actionFlow)" stroke-width="7.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M91 63h12M97 57v12" stroke="#ffffff" stroke-width="5.4" stroke-linecap="round" opacity="0.88"/>
+  </g>
+  <rect x="20" y="20" width="88" height="88" rx="24" fill="none" stroke="#ffffff" stroke-width="4.4" opacity="0.86"/>
+  <rect x="22.8" y="22.8" width="82.4" height="82.4" rx="21.2" fill="none" stroke="#7ceaff" stroke-width="1.7" opacity="0.46"/>
+
+  <path d="M16.2 22.5c4.3-7.1 11.2-10.7 20.7-10.7H76" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" opacity="0.82"/>
+  <path d="M100.3 18.2c5.7 4.8 9.7 10.9 12 18.5" fill="none" stroke="#ffffff" stroke-width="3.7" stroke-linecap="round" opacity="0.68"/>
+</svg>

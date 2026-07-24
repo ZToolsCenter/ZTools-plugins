@@ -1,0 +1,20 @@
+{
+  "name": "topwindow",
+  "title": "窗口置顶",
+  "description": "一个简单的窗口置顶插件，支持切换当前窗口的置顶状态。",
+  "author": "evanwen97-ops",
+  "version": "1.0.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "platform": ["win32"],
+  "features": [
+    {
+      "code": "topwindow",
+      "explain": "将当前窗口置顶或取消置顶",
+      "icon": "logo.png",
+      "cmds": ["TopWindow", "窗口置顶", "置顶"],
+      "platform": ["win32"]
+    }
+  ]
+}

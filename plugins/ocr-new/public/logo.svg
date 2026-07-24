@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="scan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#A5B4FC"/>
+      <stop offset="100%" stop-color="#C4B5FD"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#bg)"/>
+
+  <!-- Document page outline -->
+  <rect x="28" y="22" width="60" height="72" rx="5" fill="white" opacity="0.15"/>
+  <rect x="28" y="22" width="60" height="72" rx="5" fill="none" stroke="white" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Text lines on document -->
+  <rect x="38" y="34" width="32" height="4" rx="2" fill="white" opacity="0.7"/>
+  <rect x="38" y="44" width="26" height="4" rx="2" fill="white" opacity="0.5"/>
+  <rect x="38" y="54" width="36" height="4" rx="2" fill="white" opacity="0.7"/>
+  <rect x="38" y="64" width="22" height="4" rx="2" fill="white" opacity="0.5"/>
+  <rect x="38" y="74" width="30" height="4" rx="2" fill="white" opacity="0.6"/>
+
+  <!-- Recognized text floating out (right side) -->
+  <text x="96" y="42" font-family="monospace" font-size="14" font-weight="bold" fill="#F5F3FF" opacity="0.9">A</text>
+  <text x="96" y="62" font-family="monospace" font-size="14" font-weight="bold" fill="#DDD6FE" opacity="0.7">B</text>
+  <text x="96" y="82" font-family="monospace" font-size="14" font-weight="bold" fill="#C4B5FD" opacity="0.5">C</text>
+
+  <!-- Scan beam / recognition glow -->
+  <line x1="28" y1="58" x2="88" y2="58" stroke="url(#scan)" stroke-width="2" opacity="0.8">
+    <animate attributeName="y1" values="34;78;34" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="y2" values="34;78;34" dur="3s" repeatCount="indefinite"/>
+  </line>
+
+  <!-- Eye / recognition icon (bottom-right corner overlay) -->
+  <circle cx="100" cy="98" r="16" fill="white" opacity="0.12"/>
+  <circle cx="100" cy="98" r="8" fill="none" stroke="white" stroke-width="2" opacity="0.8"/>
+  <circle cx="100" cy="98" r="3" fill="white" opacity="0.9"/>
+</svg>

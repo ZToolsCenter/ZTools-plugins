@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>日期和时间间隔测试</title>
+    <link rel="icon" href="data:,">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            gap: 30px;
+        }
+
+        .left-panel, .right-panel {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .right-panel {
+            position: sticky;
+            top: 20px;
+            align-self: flex-start;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #calculator {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #expression {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        #calculate {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #calculate:hover {
+            background-color: #45a049;
+        }
+
+        #result {
+            margin-left: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #ast {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+
+        #examples {
+            margin: 0;
+        }
+        #examples button {
+            margin: 5px;
+            padding: 5px 10px;
+        }
+        .example-group {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-left: 3px solid #4CAF50;
+            background-color: #f9f9f9;
+        }
+
+        h3 {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        h4 {
+            margin: 10px 0 5px 0;
+            color: #333;
+            font-size: 1em;
+        }
+
+        .example-group button {
+            margin: 2px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background-color: white;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .example-group button:hover {
+            background-color: #e9e9e9;
+        }
+
+        #result-panel, #ast-panel {
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+
+        #result-panel {
+            min-height: 50px;
+        }
+
+        .panel-title {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        #tokens-panel {
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+            margin-bottom: 15px;
+        }
+
+        .token {
+            display: inline-block;
+            padding: 2px 6px;
+            margin: 2px;
+            border-radius: 3px;
+            font-family: monospace;
+            cursor: help;
+            position: relative;
+            border: 1px solid transparent;
+        }
+
+        .token::after {
+            content: attr(data-type);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 2px 6px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 3px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s;
+            pointer-events: none;
+        }
+
+        .token:hover {
+            border-color: rgba(0,0,0,0.1);
+        }
+
+        .token:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .token-operator { background-color: #ffebee; }
+        .token-function { background-color: #e3f2fd; }
+        .token-constant { background-color: #e8f5e9; }
+        .token-string { background-color: #fff3e0; }
+        .token-delimiter { background-color: #f3e5f5; }
+        .token-separator { background-color: #ede7f6; }
+
+        .test-success {
+            background-color: #e8f5e9 !important;
+            border-color: #4caf50 !important;
+            color: #2e7d32;
+        }
+
+        .test-fail {
+            background-color: #ffebee !important;
+            border-color: #ef5350 !important;
+            color: #c62828;
+            box-shadow: 0 0 5px rgba(239, 83, 80, 0.3);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .test-fail {
+            animation: shake 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <h1>日期和时间间隔测试</h1>
+    <div class="container">
+        <div class="left-panel">
+            <div id="calculator">
+                <input type="text" id="expression" placeholder="输入表达式">
+                <button id="calculate">计算</button>
+            </div>
+            <div id="examples">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">示例表达式：</h3>
+                    <button id="runAllTests" style="
+                        padding: 5px 15px;
+                        background-color: #4CAF50;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 0.9em;">
+                        运行所有测试
+                    </button>
+                </div>
+                <!-- 示例组会在这里渲染 -->
+            </div>
+        </div>
+        <div class="right-panel">
+            <div id="result-panel">
+                <h3 class="panel-title">计算结果：</h3>
+                <div id="result"></div>
+            </div>
+            <div id="tokens-panel">
+                <h3 class="panel-title">词法分析结果：</h3>
+                <div id="tokens"></div>
+            </div>
+            <div id="ast-panel">
+                <h3 class="panel-title">语法树可视化：</h3>
+                <div id="ast"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 先加载基础依赖 -->
+    <script src="calculator.min.js"></script>
+    <script src="ast-visualizer.js"></script>
+    <script>
+        window.Calculator = window.CodeCalcCore.Calculator;
+    </script>
+    
+    <!-- 主要逻辑 -->
+    <script>
+        window.onload = function() {
+            const input = document.getElementById('expression');
+            const resultDiv = document.getElementById('result');
+            const tokensDiv = document.getElementById('tokens');
+            const astDiv = document.getElementById('ast');
+            const calculateBtn = document.getElementById('calculate');
+            
+            // 创建可视化器实例
+            let visualizer = new ASTVisualizer(astDiv);
+
+            calculateBtn.onclick = function() {
+                const expr = input.value;
+                let ast = null;
+                let tokens = null;
+                
+                // 清空之前的结果
+                resultDiv.textContent = '';
+                tokensDiv.innerHTML = '';
+                astDiv.innerHTML = '';
+                visualizer = new ASTVisualizer(astDiv);
+
+                // 获取词法分析结果
+                try {
+                    const { operators, functions, constants } = Calculator.getCfg();
+                    const { expr: processedExpr, operators: sortedOperators } = 
+                        Calculator.preprocess(expr, operators, functions, constants);
+                    tokens = Calculator.tokenize(processedExpr, sortedOperators, functions, constants);
+                    
+                    // 显示tokens
+                    tokens.forEach(([type, value]) => {
+                        const span = document.createElement('span');
+                        span.className = `token token-${type}`;
+                        span.textContent = value;
+                        span.setAttribute('data-type', `类型: ${type}`);
+                        tokensDiv.appendChild(span);
+                    });
+                } catch (e) {
+                    resultDiv.textContent = `词法分析错误: ${e.message}`;
+                    return;
+                }
+
+                // 尝试生成 AST
+                try {
+                    ast = Calculator.getASTNode(expr);
+                    visualizer.draw(ast);
+                } catch (e) {
+                    resultDiv.textContent = `语法错误: ${e.message}`;
+                    return;
+                }
+
+                // 尝试计算结果
+                try {
+                    const result = Calculator.calculate(expr);
+                    resultDiv.textContent = `结果: ${result.value}`;
+                    
+                    // 添加警告和提示信息显示
+                    if (result.warning) {
+                        resultDiv.textContent += `\n警告: ${result.warning.join(', ')}`;
+                    }
+                    if (result.info) {
+                        resultDiv.textContent += `\n提示: ${result.info.join(', ')}`;
+                    }
+                } catch (e) {
+                    resultDiv.textContent = `计算错误: ${e.message}`;
+                }
+            };
+
+            // 示例部分保持不变
+            const exampleGroups = {
+                '日期格式': [
+                    { expr: "@now", desc: "当前时间" },
+                    { expr: "@today", desc: "今天" },
+                    { expr: "@now - #7d > @", desc: "当前时间减去7天(无括号)" },
+                    { expr: "@now + #1y > @", desc: "当前时间加一年" },
+                    { expr: "@now - #1y > @", desc: "当前时间减一年" },
+                    { expr: "@today + #1m > @", desc: "今天加一个月" },
+                    { expr: "@today - #1m > @", desc: "今天减一个月" }
+                ],
+                
+                '日期计算': [
+                    { expr: "@2020-03-15 14:30:00", desc: "完整日期时间", expect: "1584253800000" },
+                    { expr: "@2020-03-15 14:30", desc: "日期时分", expect: "1584253800000" },
+                    { expr: "@2020-03-15", desc: "仅日期", expect: "1584201600000" },
+                    { expr: "@03-15 14:30:00", desc: "月日时分秒", expect: "1742020200000" },
+                    { expr: "@03-15 14:30", desc: "月日时分", expect: "1742020200000" },
+                    { expr: "@2020-03", desc: "年月", expect: "1582992000000 " },
+                    { expr: "@03-15", desc: "月日", expect: "1741968000000" },
+                    { expr: "@2020", desc: "年份", expect: "1577808000000" },
+                    { expr: "#17:30:00", desc: "时分秒", expect: "63000000ms" },
+                    { expr: "#11:30", desc: "时分", expect: "41400000ms" },
+                    { expr: "@2077-03-15 - @1990-03-14 > #", desc: "日期相减得到毫秒数", expect: "31778天 0小时 0分钟 0秒" },
+                    { expr: "@2077-03-15 + #1y2m3d > @", desc: "日期加上年月日", expect: "2078/05/18" },
+                    { expr: "@2077-03-15 - #1y2m3d > @", desc: "日期减去年月日", expect: "2076-01-12" },
+                    { expr: "@2077-03-15 14:30:00 + #12h30mm > @", desc: "日期加上时分", expect: "2077-03-15 14:30:00" },
+                    { expr: "@2077-03-15 14:30:00 - #12h30mm > @", desc: "日期减去时分", expect: "2077-03-15 14:30:00" },
+                    { expr: "@2077-03-15 + @2077-1-1", desc: "日期减去时分", error: true },
+                    { expr: "#3w4d5h6mm7s8ms > # ", desc: "完整时间组合", expect: "25天 5小时 6分钟 7秒" },
+                    { expr: "#3w4d5h6mm7s8ms > # w ", desc: "完整时间组合", expect: "3.60周" },
+                    { expr: "#3w4d5h6mm7s8ms > # d ", desc: "完整时间组合", expect: "25.21天" },
+                    { expr: "#3w4d5h6mm7s8ms > # h ", desc: "完整时间组合", expect: "605.10小时" },
+                    { expr: "#3w4d5h6mm7s8ms > # m ", desc: "完整时间组合", expect: "36306.12分钟" },
+                    { expr: "#3w4d5h6mm7s8ms > # s ", desc: "完整时间组合", expect: "2178367.01秒" },
+
+                ],
+                
+                '时间间隔语法糖': [
+                    { expr: "#(7)w", desc: "周语法糖(带括号)", expect: "4233600000" },
+                    { expr: "#(24)h", desc: "小时语法糖(带括号)", expect: "86400000" },
+                    { expr: "#(60)mm", desc: "分钟语法糖(带括号)", expect: "3600000" },
+                    { expr: "#(1)d", desc: "天语法糖(带括号)", expect: "86400000" },
+                    { expr: "#(30)s", desc: "秒语法糖(带括号)", expect: "30000" },
+                    { expr: "#(500)ms", desc: "毫秒语法糖(带括号)", expect: "500" },
+                    
+                    { expr: "#7w", desc: "周语法糖(无括号)", expect: "4233600000" },
+                    { expr: "#1.5d", desc: "周语法糖(无括号)", expect: "129600000" },
+                    { expr: "#24h", desc: "小时语法糖(无括号)", expect: "86400000" },
+                    { expr: "#60mm", desc: "分钟语法糖(无括号)", expect: "3600000" },
+                    { expr: "#1d", desc: "天语法糖(无括号)", expect: "86400000" },
+                    { expr: "#1D", desc: "天语法糖(无括号)", expect: "86400000" },
+                    { expr: "#30s", desc: "秒语法糖(无括号)", expect: "30000" },
+                    { expr: "#500ms", desc: "毫秒语法糖(无括号)", expect: "500" }
+                ],
+                
+                '复合时间间隔': [
+                    { expr: "#1d + #24h", desc: "无括号格式相加", expect: "172800000" },
+                    { expr: "#(1)d + #24h", desc: "混合格式相加", expect: "172800000" },
+                    { expr: "#7w + #7d + #24h", desc: "多个无括号格式相加", expect: "4924800000" },
+                    { expr: "#(7)w + #7d + #(24)h", desc: "多种格式混合", expect: "4924800000" },
+                    { expr: "@2091-03-15 + #7d + #12h > @", desc: "日期加上多个时间间隔(无括号)", expect: "2091/03/22 12:00:00" }
+                ],
+                
+                '时间间隔异常测试': [
+                    { expr: "#d", error: true },
+                    { expr: "#abc d", error: true },
+                    { expr: "#1dd", error: true },
+                    { expr: "#1dh", error: true },
+                    { expr: "#d1", error: true },
+                    { expr: "#1", error: true },
+                    { expr: "#1x", error: true }
+                ],
+                
+                '时间间隔处理顺序': [
+                    // 基本格式转换测试
+                    { expr: "#1d", desc: "无括号 → #d(1)", expect: "86400000" },
+                    { expr: "#(1)d", desc: "带括号 → #d(1)", expect: "86400000" },
+                    { expr: "#((1))d", desc: "带多重括号 → #d(1)", expect: "86400000" },
+                    { expr: "#1.5d", desc: "小数无括号 → #d(1.5)", expect: "129600000" },
+                    { expr: "#(1.5)d", desc: "小数带括号 → #d(1.5)", expect: "129600000" },
+                    
+                    // 混合格式测试
+                    { expr: "#1d + #(2)d", desc: "混合格式相加", expect: "259200000" },
+                    { expr: "#1.5d + #(1.5)d", desc: "混合小数格式", expect: "259200000" },
+                    { expr: "#1.5d +#(1.5)d", desc: "混合小数格式，不带空格", expect: "259200000" },
+
+                    
+                    // 复杂表达式测试
+                    { expr: "#(1+2)d", desc: "括号内计算", expect: "259200000" },
+                    { expr: "#(24*2)h", desc: "括号内乘法", expect: "172800000" },
+                    { expr: "#(60/2)mm", desc: "括号内除法", expect: "1800000" },
+                    
+                    // 多单位混合测试
+                    { expr: "#1.5d + #36h + #(90)mm", desc: "多单位小数混合", expect: "264600000" },
+                    { expr: "#(7*0.5)d + #(12*2)h", desc: "括号内计算混合", expect: "388800000" },
+                    
+                    // 添加新的单位转换测试
+                    { expr: "#1d", desc: "d → days", expect: "86400000" },
+                    { expr: "#1day", desc: "day → days", expect: "86400000" },
+                    { expr: "#1days", desc: "days → days", expect: "86400000" },
+                    
+                    { expr: "#1h", desc: "h → hours", expect: "3600000" },
+                    { expr: "#1hour", desc: "hour → hours", expect: "3600000" },
+                    { expr: "#1hours", desc: "hours → hours", expect: "3600000" },
+                    
+                    { expr: "#1mm", desc: "mm → minutes", expect: "60000" },
+                    { expr: "#1minute", desc: "minute → minutes", expect: "60000" },
+                    { expr: "#1minutes", desc: "minutes → minutes", expect: "60000" },
+                    
+                    { expr: "#1s", desc: "s → seconds", expect: "1000" },
+                    { expr: "#1second", desc: "second → seconds", expect: "1000" },
+                    { expr: "#1seconds", desc: "seconds → seconds", expect: "1000" },
+                    
+                    { expr: "#1w", desc: "w → weeks", expect: "604800000" },
+                    { expr: "#1week", desc: "week → weeks", expect: "604800000" },
+                    { expr: "#1weeks", desc: "weeks → weeks", expect: "604800000" },
+                    
+                    { expr: "#1ms", desc: "ms → milliseconds", expect: "1" },
+                    { expr: "#1millisecond", desc: "millisecond → milliseconds", expect: "1" },
+                    { expr: "#1milliseconds", desc: "milliseconds → milliseconds", expect: "1" },
+                    
+                    // 带括号格式的单位转换测试
+                    { expr: "#(1)d", desc: "d() → days()", expect: "86400000" },
+                    { expr: "#(1)day", desc: "day() → days()", expect: "86400000" },
+                    { expr: "#(1)days", desc: "days() → days()", expect: "86400000" },
+                    
+                    // 复合表达式中的单位转换测试
+                    { expr: "#1d + #1day + #1days", desc: "混合日单位", expect: "259200000" },
+                    { expr: "#1h + #1hour + #1hours", desc: "混合小时单位", expect: "10800000" },
+                    { expr: "#(1)d + #(2)day + #(3)days", desc: "带括号的混合单位", expect: "518400000" },
+                    
+                    // 添加复杂括号表达式测试
+                    { expr: "#(7*0.5)d + #(12*2)h", desc: "复杂括号表达式", expect: "388800000" },
+                    { expr: "#(3+2)d + #(60*2)mm", desc: "混合运算括号表达式", expect: "439200000" },
+                    { expr: "#(6/2)h + #(30*10)mm", desc: "除法和乘法混合", expect: "28800000" },
+                    
+                    
+                    // 多个单位混合测试
+                    { expr: "#(7)d + #(12)h + #(60)mm", desc: "三个单位混合", expect: "651600000" },
+                    { expr: "#(0.5)d + #(6)h + #(15)mm + #(30)s", desc: "四个单位混合", expect: "65730000" },
+                    
+                    // 边界情况测试
+                    { expr: "#(1+2*3)d", desc: "复杂运算优先级", expect: "604800000" },
+                    { expr: "#(1.5*2)d + #(3.5*2)h", desc: "小数乘法混合", expect: "284400000" },
+                    { expr: "#(10/2)h + #(120/2)mm", desc: "除法混合", expect: "21600000" },
+                    
+                    // 添加函数调用测试
+                    { expr: "#(max(1,2))d", desc: "简单函数调用", expect: "172800000" },
+                    { expr: "#(min(24,12))h", desc: "函数返回较小值", expect: "43200000" },
+                    { expr: "#(abs(-1.5))d", desc: "绝对值函数", expect: "129600000" },
+
+                    
+                    // 复杂函数调用测试
+                    { expr: "#(max(1,min(3,4)))d", desc: "嵌套函数调用", expect: "259200000" },
+                    
+                    // 函数与运算符混合测试
+                    { expr: "#(max(1,2)*3)d", desc: "函数结果参与计算", expect: "518400000" },
+                    { expr: "#(min(2+3,4)*2)h", desc: "运算符在函数内", expect: "28800000" },
+                    { expr: "#(abs(-2))d + #(max(1, 1.6))h", desc: "多函数混合计算", expect: "178560000" }
+                ],
+                
+                '时间间隔边界测试': [
+                    // 非法格式测试
+                    { expr: "#1d()", error: true },
+                    { expr: "#()d", error: true },
+                    { expr: "#1d + d", error: true },
+                    
+                    // 非法数值测试
+                    { expr: "#0xFFd", error: true },      // 十六进制
+                    { expr: "#1_000d", error: true },     // 数字分隔符
+                    { expr: "#1e3d", error: true },       // 科学计数法
+                    { expr: "#.5d", error: true },        // 省略整数部分
+                    
+                    // 单位组合测试
+                    { expr: "#1dh", error: true },        // 多个单位
+                    { expr: "#1hd", error: true },        // 单位顺序错误
+                    { expr: "#1dd", error: true },        // 重复单位
+                    // 嵌套表达式测试
+                    { expr: "#(1+1)d + #(#(2)h + #(30)m)",  error: true  },
+                    { expr: "#(2*#(1)h)d", error: true  },
+
+                    { expr: "#(max(#(1)h, #(30)m))m", error: true },
+                    
+                ],
+                
+                '年月日语法糖测试': [                    
+                    // 错误情况测试
+                    { expr: "#y", error: true, desc: "缺少数值" },
+                    { expr: "#1y2y", error: true, desc: "重复单位" },
+                    { expr: "#1x2y", error: true, desc: "非法单位" },
+                    { expr: "#0-1d0-1m", error: true, desc: "负数年份" },
+                    { expr: "#0-1m0-1y", error: true, desc: "负数月份" },
+                ],
+                
+                '复合时间间隔1': [
+                    { expr: "@2025-03-15 + #7w + #7d > @", desc: "年月日和天数混合", expect: "2025-05-10 00:00:00" },
+                    { expr: "@2025-03-15 - #7w - #7d > @", desc: "年月日和天数混合减法", expect: "2025-01-18 00:00:00" }
+                ],
+
+                '时间间隔语法糖组合测试': [
+                    { expr: "#1y2m3w4d5h6mm7s8ms", desc: "完整时间组合", expect: "1年2月 + 2178367008ms" },
+                    { expr: "#1year2month3week4day5hour6minute7second8millisecond", desc: "完整单词组合", expect: "1年2月 + 2178367008ms" },
+                    { expr: "#5y", desc: "仅年份", expect: "5年 + 0ms" },
+                    { expr: "#10m", desc: "仅月份", expect: "10月 + 0ms" },
+                    { expr: "#2w", desc: "仅周数", expect: "1209600000" },
+                    { expr: "#3d", desc: "仅天数", expect: "259200000" },
+                ],
+
+                '小数时间间隔测试': [
+                    { expr: "#1.5y", desc: "1.5年", error: true },
+                    { expr: "#2.5m", desc: "2.5月", error: true },
+                    { expr: "#0.5w", desc: "半周", expect: "302400000" },
+                    { expr: "#1.5d", desc: "1.5天", expect: "129600000" }
+                ],
+
+                '空格处理测试': [
+                    { expr: "# 1y 2m 3w", desc: "带空格的组合", expect: "1年2月 + 1814400000ms" },
+                    { expr: "# 1year 2month 3week", desc: "带空格的组合", expect: "1年2月 + 1814400000ms" },
+                    { expr: "# 1years 2months 3weeks", desc: "带空格的组合", expect: "1年2月 + 1814400000ms" },
+                    { expr: "#1y 2m", desc: "部分带空格", expect: "1年2月 + 0ms" },
+                    { expr: "#1year 2month", desc: "部分带空格", expect: "1年2月 + 0ms" },
+                    { expr: "#1years 2months", desc: "部分带空格", expect: "1年2月 + 0ms" },
+                    { expr: "# 1d", desc: "开头带空格", expect: "86400000" },
+                    { expr: "# 1day", desc: "开头带空格", expect: "86400000" },
+                    { expr: "# 1days", desc: "开头带空格", expect: "86400000" }
+                ],
+
+                '组合时间间隔测试': [
+                    { expr: "#1y3d", desc: "年天组合", expect: "1年 + 259200000ms" },
+                    { expr: "#1y3days", desc: "年天组合", expect: "1年 + 259200000ms" },
+                    { expr: "#1y3day", desc: "年天组合", expect: "1年 + 259200000ms" },
+                    { expr: "#1year3days", desc: "年天组合", expect: "1年 + 259200000ms" },
+                    { expr: "#1year3d", desc: "年天组合", expect: "1年 + 259200000ms" },
+                    { expr: "#1years3days", desc: "年天组合", expect: "1年 + 259200000ms" },
+                    { expr: "#2m12h", desc: "月时组合", expect: "2月 + 43200000ms" },
+                    { expr: "#2months12hours", desc: "月时组合", expect: "2月 + 43200000ms" },
+                    { expr: "#2months12hour", desc: "月时组合", expect: "2月 + 43200000ms" },
+                    { expr: "#2months12h", desc: "月时组合", expect: "2月 + 43200000ms" },
+                    { expr: "#2month12h", desc: "月时组合", expect: "2月 + 43200000ms" },
+                    { expr: "#2m12hours", desc: "月时组合", expect: "2月 + 43200000ms" },
+                    { expr: "#1w30mm", desc: "周分组合", expect: "606600000" },
+                    { expr: "#5d100ms", desc: "天毫秒组合", expect: "432000100" }
+                ],
+
+                '复合表达式测试': [
+                    { expr: "#1y0m3w4d5h6mm7s8ms + #0y2m3w", desc: "长组合相加", expect: "1年2月 + 3992767008ms" },
+                    { expr: "#2m12h + #1y2m3w", desc: "混合组合相加", expect: "1年4月 + 1857600000ms" },
+                    { expr: "#2m + #1d", desc: "简单相加", expect: "2月 + 86400000ms" },
+                    { expr: "#2m - #1d", desc: "简单相减", expect: "2月 + -86400000ms" }
+                ],
+
+                '括号表达式测试': [
+                    { expr: "#(1+2)y(3*4)m(5-2)w", desc: "多括号组合", expect: "3年12月 + 1814400000ms" },
+                    { expr: "#(+1)y(-2)m", desc: "变量表达式", expect: "1年-2月 + 0ms" },
+                    { expr: "#(1.5*2)y(6/2)m", desc: "小数运算", expect: "3年3月 + 0ms" },
+                    { expr: "#(foo())y(bar())m", desc: "未知函数", error: true }
+                ],
+
+                '混合括号测试': [
+                    { expr: "#(1+2)y3m(4-1)w", desc: "部分带括号", expect: "3年3月 + 1814400000ms" },
+                    { expr: "#1y(2*3)m4d", desc: "中间带括号", expect: "1年6月 + 345600000ms" },
+                    { expr: "#((1+2)*3)y", desc: "嵌套括号", expect: "9年 + 0ms" }
+                ],
+
+                '错误处理测试': [
+                    { expr: "#y", desc: "缺少数值", error: true },
+                    { expr: "#1ym", desc: "单位连写", error: true },
+                    { expr: "#1y2mw", desc: "非法单位组合", error: true },
+                    { expr: "#((1+2)y", desc: "括号不匹配", error: true },
+                    { expr: "#(1 ,2)y", desc: "表达式错误", error: true }
+                ],
+
+                '负数时间间隔测试': [
+                    { expr: "#-1.5d", desc: "负数天数", expect: "-129600000" },
+                    { expr: "#(0-3)d", desc: "减法形式", expect: "-259200000" },
+                    { expr: "#(-1)y(-2)m", desc: "多个负数", expect: "-1年-2月 + 0ms" }
+                ]
+            };
+
+            // 示例渲染部分保持不变
+            const examplesDiv = document.getElementById('examples');
+
+            for (const [groupName, examples] of Object.entries(exampleGroups)) {
+                // 创建分组标题
+                const groupTitle = document.createElement('h4');
+                groupTitle.textContent = groupName;
+                examplesDiv.appendChild(groupTitle);
+
+                // 创建分组容器
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'example-group';
+                
+                // 添加示例按钮
+                examples.forEach(example => {
+                    const button = document.createElement('button');
+                    // 如果是对象格式，取expr属性，否则直接使用示例
+                    const expr = typeof example === 'object' ? example.expr : example;
+                    button.textContent = expr;
+                    button.onclick = function() {
+                        input.value = expr;
+                        calculateBtn.click();
+                        
+                        // 添加结果验证
+                        if (typeof example === 'object') {
+                            const result = resultDiv.textContent.split('\n')[0].replace('结果: ', '');
+                            if (example.error) {
+                                // 检查是否有错误发生（结果中包含"错误"字样）
+                                if (!resultDiv.textContent.includes('错误')) {
+                                    button.className = 'test-fail';
+                                    console.error(`测试失败: ${expr}\n预期: 发生错误\n实际结果: ${resultDiv.textContent}`);
+                                } else {
+                                    button.className = 'test-success';
+                                }
+                            } else if (example.expect) {
+                                // 检查结果是否匹配预期
+                                // 对于浮点数，允许小的误差
+                                const expected = parseFloat(example.expect);
+                                const actual = parseFloat(result);
+                                const isMatch = isNaN(expected) ? 
+                                    result === example.expect :  // 精确匹配
+                                    Math.abs(actual - expected) < 0.001;  // 浮点数比较
+                                    
+                                if (!isMatch) {
+                                    button.className = 'test-fail';
+                                    console.error(`测试失败: ${expr}\n预期结果: ${example.expect}\n实际结果: ${result}`);
+                                } else {
+                                    button.className = 'test-success';
+                                }
+                            }
+                        }
+                    };
+                    groupDiv.appendChild(button);
+                    groupDiv.appendChild(document.createTextNode(' '));
+                });
+
+                examplesDiv.appendChild(groupDiv);
+            }
+
+            // 获取运行所有测试的按钮
+            const runAllTestsBtn = document.getElementById('runAllTests');
+
+            // 添加点击事件处理
+            runAllTestsBtn.onclick = function() {
+                // 重置所有按钮的样式
+                document.querySelectorAll('.example-group button').forEach(button => {
+                    button.className = '';
+                });
+
+                // 获取所有示例按钮
+                const buttons = document.querySelectorAll('.example-group button');
+                let successCount = 0;
+                let failCount = 0;
+
+                // 运行所有测试
+                buttons.forEach(button => {
+                    button.click();
+                    if (button.className === 'test-success') {
+                        successCount++;
+                    } else if (button.className === 'test-fail') {
+                        failCount++;
+                    }
+                });
+
+                // 更新按钮文本显示测试结果
+                runAllTestsBtn.textContent = `测试完成 (${successCount}成功/${failCount}失败)`;
+                
+                // 根据测试结果更改按钮颜色
+                if (failCount > 0) {
+                    runAllTestsBtn.style.backgroundColor = '#f44336';
+                } else {
+                    runAllTestsBtn.style.backgroundColor = '#4CAF50';
+                }
+
+                // 3秒后恢复按钮原始文本
+                setTimeout(() => {
+                    runAllTestsBtn.textContent = '运行所有测试';
+                    runAllTestsBtn.style.backgroundColor = '#4CAF50';
+                }, 3000);
+            };
+        };
+    </script>
+</body>
+</html> 

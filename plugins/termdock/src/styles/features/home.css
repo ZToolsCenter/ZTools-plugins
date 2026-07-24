@@ -1,0 +1,63 @@
+.home-workspace {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+}
+
+.quick-panel {
+  width: min(580px, 62vw);
+  margin: 56px 0 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+}
+
+.quick-header {
+  height: 48px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.quick-header strong {
+  font-size: 15px;
+}
+
+.quick-header>div {
+  display: flex;
+  gap: 12px;
+}
+
+.flat-button {
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.quick-list {
+  padding: 10px;
+}
+
+.quick-row {
+  display: grid;
+  grid-template-columns: 28px 1.3fr 0.8fr 0.8fr 72px;
+  align-items: center;
+  height: 40px;
+  gap: 12px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.quick-row strong {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.host-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

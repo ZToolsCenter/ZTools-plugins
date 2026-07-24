@@ -1,0 +1,70 @@
+name: Build PR Plugin Package Platform
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+      platform_name:
+        required: true
+        type: string
+      runner:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+
+    steps:
+      - name: Checkout PR code
+        shell: bash
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          git init .
+          git remote add origin "https://github.com/${REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "pull/${PR_NUMBER}/head"
+          git checkout --force FETCH_HEAD
+          git clean -ffdx
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Download build info
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-${{ inputs.pr_number }}-build-info
+          path: release
+
+      - name: Select platform build info
+        run: |
+          node -e "const fs = require('fs'); fs.copyFileSync('release/build-info.${{ inputs.platform_name }}.json', 'release/build-info.json')"
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Build changed plugins
+        run: node scripts/build-plugins.js
+
+      - name: Upload plugin packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-${{ inputs.pr_number }}-${{ inputs.platform_name }}-plugin-packages
+          path: |
+            release/*.zip
+            release/build-info.json
+            release/latest
+          if-no-files-found: error
+          retention-days: 14

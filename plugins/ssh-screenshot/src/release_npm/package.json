@@ -1,0 +1,9 @@
+{
+  "name": "ssh-screenshot-runtime",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Runtime npm deps required by preload.js (bundled into dist/node_modules at build time)",
+  "dependencies": {
+    "node-ssh": "^13.2.0"
+  }
+}

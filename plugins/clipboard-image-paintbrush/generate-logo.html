@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>生成插件 logo</title>
+<style>
+  body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background:#111; color:#eee; display:flex; flex-direction:column; align-items:center; padding:24px; gap:16px; }
+  canvas { background:#222; border-radius:24px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  button { font-size:14px; padding:10px 24px; border:none; border-radius:8px; background:#5856d6; color:#fff; cursor:pointer; }
+  button:hover { background:#6c6ad6; }
+  .hint { color:#aaa; max-width:520px; line-height:1.6; text-align:center; }
+</style>
+</head>
+<body>
+  <h2>剪贴板图片涂改 - 插件 Logo 生成器</h2>
+  <canvas id="cv" width="512" height="512"></canvas>
+  <button id="dl">下载 logo.png 到本机</button>
+  <p class="hint">下载后，把这张 <code>logo.png</code> 放到插件目录根（与 <code>plugin.json</code> 同级）即可。</p>
+
+<script>
+const cv = document.getElementById('cv')
+const ctx = cv.getContext('2d')
+const W = 512, H = 512, r = 96
+
+// 圆角背景渐变
+const grd = ctx.createLinearGradient(0,0,W,H)
+grd.addColorStop(0,'#5856d6')
+grd.addColorStop(1,'#007aff')
+ctx.fillStyle = grd
+roundRect(ctx, 0,0,W,H,r, true)
+
+// 剪贴板主体
+ctx.fillStyle = '#ffffff'
+roundRect(ctx, 110, 110, 292, 360, 22, true)
+
+// 剪贴板顶部夹子
+ctx.fillStyle = '#e2e6f0'
+roundRect(ctx, 200, 70, 112, 60, 14, true)
+ctx.fillStyle = '#ffffff'
+ctx.beginPath(); ctx.arc(256, 96, 11, 0, Math.PI*2); ctx.fill()
+
+// 内嵌图片框
+ctx.fillStyle = '#d6e3ff'
+roundRect(ctx, 150, 170, 212, 152, 10, true)
+
+// 小山
+ctx.fillStyle = '#5856d6'
+ctx.beginPath()
+ctx.moveTo(170, 310)
+ctx.lineTo(230, 230)
+ctx.lineTo(270, 270)
+ctx.lineTo(310, 220)
+ctx.lineTo(360, 310)
+ctx.closePath()
+ctx.fill()
+// 太阳
+ctx.fillStyle = '#ffcc00'
+ctx.beginPath(); ctx.arc(200, 210, 14, 0, Math.PI*2); ctx.fill()
+
+// 红色涂改弧线
+ctx.strokeStyle = '#ff3b30'
+ctx.lineWidth = 22
+ctx.lineCap = 'round'
+ctx.beginPath()
+ctx.moveTo(150, 440)
+ctx.bezierCurveTo(220, 470, 340, 380, 410, 420)
+ctx.stroke()
+
+// 画笔
+drawBrush(ctx, 380, 200, -30)
+
+cv.style.maxWidth = '320px'
+
+document.getElementById('dl').addEventListener('click', () => {
+  const a = document.createElement('a')
+  a.download = 'logo.png'
+  a.href = cv.toDataURL('image/png')
+  a.click()
+})
+
+function roundRect(ctx,x,y,w,h,r,fill){
+  ctx.beginPath()
+  ctx.moveTo(x+r,y)
+  ctx.arcTo(x+w,y,x+w,y+h,r)
+  ctx.arcTo(x+w,y+h,x,y+h,r)
+  ctx.arcTo(x,y+h,x,y,r)
+  ctx.arcTo(x,y,x+w,y,r)
+  ctx.closePath()
+  if (fill) ctx.fill()
+}
+
+function drawBrush(ctx, cx, cy, angleDeg){
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(angleDeg * Math.PI / 180)
+  // 木柄
+  ctx.fillStyle = '#c08850'
+  roundRect(ctx, -16, -120, 32, 110, 12, true)
+  // 金属环
+  ctx.fillStyle = '#cdd0d6'
+  ctx.fillRect(-22, -16, 44, 22)
+  // 笔头
+  ctx.fillStyle = '#ff3b30'
+  ctx.beginPath()
+  ctx.moveTo(-28, 6)
+  ctx.quadraticCurveTo(0, 70, 28, 6)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+</script>
+</body>
+</html>

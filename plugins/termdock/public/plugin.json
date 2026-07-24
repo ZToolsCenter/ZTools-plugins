@@ -1,0 +1,20 @@
+{
+  "name": "termdock",
+  "title": "TermDock",
+  "description": "SSH、SFTP、FTP 远程工作台",
+  "version": "0.1.0",
+  "author": "Zing",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "open",
+      "explain": "打开 TermDock 远程工作台",
+      "cmds": ["termdock", "ssh", "sftp", "ftp", "远程终端"]
+    }
+  ]
+}

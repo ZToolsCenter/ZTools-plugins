@@ -1,0 +1,97 @@
+:root {
+  --bg-page: #eef3f8;
+  --bg-panel: rgba(255, 255, 255, 0.9);
+  --bg-panel-strong: #ffffff;
+  --text-main: #1a2433;
+  --text-subtle: #607086;
+  --border-color: rgba(122, 141, 163, 0.22);
+  --accent: #1777ff;
+  --accent-soft: rgba(23, 119, 255, 0.12);
+  --danger-soft: rgba(216, 62, 62, 0.12);
+  --danger-text: #b42318;
+  --shadow-panel: 0 18px 50px rgba(30, 55, 90, 0.12);
+  --mono-font: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --ui-font: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  color: var(--text-main);
+  font-family: var(--ui-font);
+  background:
+    radial-gradient(circle at top left, rgba(23, 119, 255, 0.18), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, var(--bg-page) 100%);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(96, 112, 134, 0.35);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-page: #0f1723;
+    --bg-panel: rgba(15, 23, 35, 0.88);
+    --bg-panel-strong: #162131;
+    --text-main: #edf3ff;
+    --text-subtle: #97a8be;
+    --border-color: rgba(151, 168, 190, 0.18);
+    --accent-soft: rgba(23, 119, 255, 0.2);
+    --danger-soft: rgba(216, 62, 62, 0.18);
+    --danger-text: #ffb4ac;
+    --shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.35);
+  }
+
+  body {
+    background:
+      radial-gradient(circle at top left, rgba(23, 119, 255, 0.22), transparent 30%),
+      linear-gradient(180deg, #101926 0%, var(--bg-page) 100%);
+  }
+}

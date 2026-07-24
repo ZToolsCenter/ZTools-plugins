@@ -1,0 +1,29 @@
+{
+  "name": "traditional-simplified-cn",
+  "title": "繁简转换",
+  "description": "剪贴板有文本时在启动器中推送入口；亦可手动打开（OpenCC）",
+  "version": "1.0.0",
+  "author": "lecoix",
+  "preload": "preload.js",
+  "main": "index.html",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "convert-clipboard",
+      "explain": "剪贴板有文本时推送",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "繁简转换（剪贴板）",
+          "minLength": 0,
+          "maxLength": 50000
+        }
+      ]
+    },
+    {
+      "code": "convert-ui",
+      "explain": "手动打开（剪贴板为空时）",
+      "cmds": ["繁简转换", "繁简"]
+    }
+  ]
+}

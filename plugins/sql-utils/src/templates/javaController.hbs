@@ -1,0 +1,23 @@
+package {{fullPackage}};
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.web.bind.annotation.*;
+
+{{#if genComment}}
+/**
+ * Description：{{tableInfo.tableComment}} Controller
+ *
+ * @author {{author}}
+ * @date {{currentDate}}
+ */
+{{/if}}
+{{#if genSwagger}}
+@Api(tags = "{{tableInfo.tableComment}}")
+{{/if}}
+@RestController
+@RequestMapping("/{{lowerCamelTableName}}")
+public class {{upperCamelTableName}}Controller {
+
+
+}

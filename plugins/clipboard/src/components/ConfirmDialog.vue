@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick, onUnmounted } from 'vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -8,11 +8,68 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
+const dialogContentRef = ref(null)
+let focusableEls = []
+
+const updateFocusableEls = () => {
+  const el = dialogContentRef.value
+  if (!el) return
+  focusableEls = Array.from(el.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  ))
+}
+
+const trapFocus = (e) => {
+  if (focusableEls.length === 0) return
+  const first = focusableEls[0]
+  const last = focusableEls[focusableEls.length - 1]
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault()
+    first.focus()
+  }
+}
+
+const handleKeydown = (e) => {
+  if (e.key === 'Tab') {
+    trapFocus(e)
+    return
+  }
+  if (e.key === 'Enter') {
+    // 如果用户通过 Tab 聚焦到了某个按钮，让按钮原生 Enter 行为触发点击
+    if (document.activeElement?.tagName === 'BUTTON') {
+      return
+    }
+    e.preventDefault()
+    emit('confirm')
+  } else if (e.key === 'Escape') {
+    emit('cancel')
+  }
+}
+
+watch(() => props.show, (visible) => {
+  if (visible) {
+    window.addEventListener('keydown', handleKeydown)
+    nextTick(() => {
+      updateFocusableEls()
+      dialogContentRef.value?.querySelector('.btn-confirm')?.focus()
+    })
+  } else {
+    window.removeEventListener('keydown', handleKeydown)
+    focusableEls = []
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
   <div v-if="show" class="dialog-overlay" @click="emit('cancel')">
-    <div class="dialog-content" @click.stop>
+    <div ref="dialogContentRef" class="dialog-content" @click.stop>
       <div class="dialog-header">
         <h3>{{ title }}</h3>
         <button class="dialog-close" @click="emit('cancel')">✕</button>

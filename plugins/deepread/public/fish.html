@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DeepRead Fish</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      :root {
+        --fish-font-size: 13px;
+        --fish-line-height: 1.35;
+        --fish-row-height: 17.55px;
+        --fish-letter-spacing: 0px;
+        --fish-opacity: 0.82;
+        --fish-width: 700px;
+        --fish-height: 100px;
+        --fish-left: 0px;
+        --fish-top: 0px;
+        --fish-background-statusbar: #f4f5f5;
+        --fish-background-code: #1e1f22;
+        --fish-background-terminal: #0c1011;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+        font-family:
+          "Segoe UI",
+          "Microsoft YaHei",
+          "PingFang SC",
+          sans-serif;
+        user-select: none;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .fish-shell {
+        position: fixed;
+        top: var(--fish-top);
+        left: var(--fish-left);
+        display: grid;
+        align-items: end;
+        width: var(--fish-width);
+        height: var(--fish-height);
+        padding: 0;
+        overflow: hidden;
+        background: transparent;
+        opacity: 1;
+        transition: opacity 120ms ease;
+      }
+
+      .fish-shell.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .fish-shell.is-auto-hidden {
+        opacity: 0;
+      }
+
+      .fish-reader {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+        width: 100%;
+        height: 100%;
+        min-height: 18px;
+        overflow: hidden;
+        border-radius: 0;
+        opacity: var(--fish-opacity);
+        transition:
+          opacity 120ms ease,
+          filter 120ms ease;
+      }
+
+      .fish-resize-zone {
+        position: absolute;
+        z-index: 6;
+        opacity: 0;
+        touch-action: none;
+        transition: opacity 120ms ease;
+      }
+
+      .fish-resize-zone.height {
+        right: 30px;
+        bottom: 0;
+        left: 30px;
+        height: 8px;
+        cursor: ns-resize;
+      }
+
+      .fish-resize-zone.height::before {
+        content: none;
+      }
+
+      .fish-resize-zone.width {
+        top: 0;
+        right: 0;
+        bottom: 8px;
+        width: 8px;
+        cursor: ew-resize;
+      }
+
+      .fish-resize-zone.width::before {
+        content: none;
+      }
+
+      .fish-resize-zone.corner {
+        right: 0;
+        bottom: 0;
+        width: 26px;
+        height: 20px;
+        cursor: nwse-resize;
+      }
+
+      .fish-resize-zone.corner::before {
+        content: none;
+      }
+
+      .fish-reader:hover .fish-resize-zone,
+      body.is-resizing .fish-resize-zone {
+        opacity: 0;
+      }
+
+      .fish-resize-zone:hover,
+      body.is-resizing .fish-resize-zone {
+        opacity: 0;
+      }
+
+      .fish-size-hint {
+        position: absolute;
+        top: 4px;
+        right: 34px;
+        z-index: 7;
+        max-width: 160px;
+        padding: 1px 6px;
+        overflow: hidden;
+        border-radius: 4px;
+        background: rgba(20, 27, 28, 0.72);
+        color: #ffffff;
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.4;
+        opacity: 0;
+        pointer-events: none;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition: opacity 120ms ease;
+      }
+
+      body.is-resizing .fish-size-hint {
+        opacity: 0.78;
+      }
+
+      .fish-hit {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        z-index: 5;
+        display: block;
+        width: 22px;
+        height: 100%;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        opacity: 0;
+      }
+
+      .fish-hit::before {
+        content: none;
+      }
+
+      .fish-hit.prev {
+        left: 0;
+      }
+
+      .fish-hit.next {
+        right: 0;
+      }
+
+      .fish-reader:hover .fish-hit {
+        opacity: 0;
+      }
+
+      .fish-hit:hover {
+        opacity: 0 !important;
+      }
+
+      .fish-content {
+        grid-row: 1;
+        display: grid;
+        grid-template-rows: minmax(0, 1fr);
+        min-width: 0;
+        overflow: hidden;
+        cursor: grab;
+        touch-action: none;
+      }
+
+      body.is-moving .fish-content {
+        cursor: grabbing;
+      }
+
+      .fish-lines {
+        display: grid;
+        align-content: center;
+        grid-auto-rows: var(--fish-row-height);
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .fish-line {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        height: var(--fish-row-height);
+        min-height: var(--fish-row-height);
+        margin: 0;
+        overflow: hidden;
+        font-size: var(--fish-font-size);
+        line-height: var(--fish-line-height);
+        letter-spacing: var(--fish-letter-spacing);
+        white-space: nowrap;
+      }
+
+      .fish-prefix {
+        display: none;
+        flex: 0 0 auto;
+        margin-right: 8px;
+        opacity: 0.62;
+      }
+
+      .show-prefix .fish-prefix {
+        display: inline;
+      }
+
+      .fish-text {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      .fish-meta {
+        position: absolute;
+        top: 4px;
+        right: 32px;
+        z-index: 4;
+        max-width: min(calc(100% - 52px), 360px);
+        padding: 1px 6px;
+        overflow: hidden;
+        border-radius: 3px;
+        font-size: 10px;
+        line-height: 1.3;
+        opacity: 0;
+        pointer-events: none;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition: opacity 120ms ease;
+      }
+
+      .show-meta .fish-reader {
+        grid-template-rows: 18px minmax(0, 1fr);
+      }
+
+      .show-meta .fish-content {
+        grid-row: 2;
+      }
+
+      .show-meta .fish-meta {
+        position: relative;
+        top: auto;
+        right: auto;
+        grid-row: 1;
+        grid-column: 1;
+        align-self: start;
+        justify-self: end;
+        margin: 2px 32px 0 10px;
+        opacity: 0.66;
+      }
+
+      @media (max-height: 42px) {
+        .show-meta .fish-reader {
+          grid-template-rows: minmax(0, 1fr);
+        }
+
+        .show-meta .fish-content {
+          grid-row: 1;
+        }
+
+        .show-meta .fish-meta {
+          display: none;
+        }
+      }
+
+      .skin-statusbar .fish-reader {
+        border: 0;
+        background: var(--fish-background-statusbar);
+        color: #596064;
+        box-shadow: none;
+      }
+
+      .skin-statusbar .fish-content {
+        grid-template-rows: minmax(0, 1fr);
+      }
+
+      .skin-statusbar .fish-lines {
+        padding: 0 8px;
+      }
+
+      .skin-statusbar .fish-prefix {
+        color: #1f7a5f;
+        font-size: 11px;
+      }
+
+      .skin-statusbar .fish-text {
+        color: #4f5659;
+      }
+
+      .skin-statusbar .fish-meta {
+        background: #e1e5e5;
+      }
+
+      .skin-code .fish-reader {
+        border: 0;
+        background: var(--fish-background-code);
+        color: #b7c0c8;
+        box-shadow: none;
+      }
+
+      .skin-code .fish-content,
+      .skin-terminal .fish-content {
+        font-family: Consolas, "Cascadia Code", "Microsoft YaHei", monospace;
+      }
+
+      .skin-code .fish-lines {
+        padding: 0 10px;
+      }
+
+      .skin-code .fish-prefix {
+        color: #6a9955;
+      }
+
+      .skin-code .fish-text {
+        color: #8eaadb;
+      }
+
+      .skin-code .fish-meta {
+        background: rgba(37, 39, 45, 0.88);
+        color: #8e98a4;
+      }
+
+      .skin-terminal .fish-reader {
+        border: 0;
+        background: var(--fish-background-terminal);
+        color: #b5d6ca;
+        box-shadow: none;
+      }
+
+      .skin-terminal .fish-lines {
+        padding: 0 10px;
+      }
+
+      .skin-terminal .fish-prefix {
+        color: #5eead4;
+      }
+
+      .skin-terminal .fish-text {
+        color: #a6d7c7;
+      }
+
+      .skin-terminal .fish-meta {
+        background: rgba(27, 34, 35, 0.88);
+        color: #73978c;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="fish" class="fish-shell skin-code is-hidden" aria-live="polite">
+      <section class="fish-reader">
+        <button class="fish-hit prev" type="button" aria-label="上一页" data-command="prev"></button>
+        <div class="fish-content" data-move="window">
+          <div id="fishLines" class="fish-lines"></div>
+        </div>
+        <button class="fish-hit next" type="button" aria-label="下一页" data-command="next"></button>
+        <div id="fishMeta" class="fish-meta"></div>
+        <div class="fish-resize-zone height" data-resize="height" aria-hidden="true"></div>
+        <div class="fish-resize-zone width" data-resize="width" aria-hidden="true"></div>
+        <div class="fish-resize-zone corner" data-resize="both" aria-hidden="true"></div>
+        <div id="fishSizeHint" class="fish-size-hint"></div>
+      </section>
+    </main>
+
+    <script>
+      const root = document.getElementById("fish")
+      const linesNode = document.getElementById("fishLines")
+      const metaNode = document.getElementById("fishMeta")
+      const sizeHintNode = document.getElementById("fishSizeHint")
+
+      let wheelLocked = false
+      let latestSettings = {}
+      let latestResizeLimits = {}
+      let latestBounds = null
+      let resizeState = null
+      let moveState = null
+      let pendingResize = null
+      let pendingMove = null
+      let currentResizeSize = null
+      let currentMovePosition = null
+      let resizeFrame = 0
+      let moveFrame = 0
+      let isAutoHidden = false
+      let isKeyboardActive = false
+
+      const prefixes = {
+        statusbar: "Ready",
+        code: "//",
+        terminal: "$"
+      }
+
+      function sendCommand(command) {
+        if (window.ztools?.sendToParent) {
+          window.ztools.sendToParent("deepread-fish-command", command)
+        }
+      }
+
+      function setAutoHidden(flag) {
+        isAutoHidden = Boolean(flag && latestSettings.hideOnMouseLeave)
+        root.classList.toggle("is-auto-hidden", isAutoHidden)
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value))
+      }
+
+      function normalizeHexColor(value, fallback) {
+        const color = typeof value === "string" ? value.trim() : ""
+        if (/^#[0-9a-f]{6}$/i.test(color)) return color.toLowerCase()
+
+        if (/^#[0-9a-f]{3}$/i.test(color)) {
+          const [, r, g, b] = color.toLowerCase()
+          return `#${r}${r}${g}${g}${b}${b}`
+        }
+
+        return fallback
+      }
+
+      function setFishBackgrounds(backgrounds) {
+        setCssVar("--fish-background-statusbar", normalizeHexColor(backgrounds?.statusbar, "#f4f5f5"))
+        setCssVar("--fish-background-code", normalizeHexColor(backgrounds?.code, "#1e1f22"))
+        setCssVar("--fish-background-terminal", normalizeHexColor(backgrounds?.terminal, "#0c1011"))
+      }
+
+      function snap(value, step) {
+        return Math.round(value / step) * step
+      }
+
+      function getResizeLimit(name, fallback) {
+        const value = Number(latestResizeLimits?.[name])
+        return Number.isFinite(value) ? value : fallback
+      }
+
+      function normalizeResizeSize(width, height) {
+        return {
+          width: clamp(snap(width, 10), getResizeLimit("minWidth", 280), getResizeLimit("maxWidth", 1180)),
+          height: clamp(snap(height, 2), getResizeLimit("minHeight", 22), getResizeLimit("maxHeight", 160))
+        }
+      }
+
+      function normalizeMovePosition(x, y) {
+        return {
+          x: Math.round(Number.isFinite(Number(x)) ? Number(x) : 0),
+          y: Math.round(Number.isFinite(Number(y)) ? Number(y) : 0)
+        }
+      }
+
+      function normalizeKeyboardKey(key) {
+        if (key === " ") return "Space"
+
+        const trimmed = String(key || "").trim()
+        const lower = trimmed.toLowerCase()
+        const aliases = {
+          esc: "Escape",
+          return: "Enter",
+          space: "Space",
+          spacebar: "Space",
+          up: "ArrowUp",
+          right: "ArrowRight",
+          down: "ArrowDown",
+          left: "ArrowLeft",
+          arrowup: "ArrowUp",
+          arrowright: "ArrowRight",
+          arrowdown: "ArrowDown",
+          arrowleft: "ArrowLeft",
+          pageup: "PageUp",
+          pagedown: "PageDown"
+        }
+
+        if (!trimmed) return ""
+        if (trimmed === "+") return "Plus"
+        if (trimmed === "-") return "Minus"
+        if (trimmed === "=") return "Equal"
+        if (/^f\d{1,2}$/i.test(trimmed)) return trimmed.toUpperCase()
+        if (trimmed.length === 1) return trimmed.toUpperCase()
+        return aliases[lower] || trimmed
+      }
+
+      function normalizeKeyBinding(value, fallback) {
+        const raw = typeof value === "string" && value.trim() ? value.trim() : fallback
+        const parts = raw.split("+").map((part) => part.trim()).filter(Boolean)
+        const key = normalizeKeyboardKey(parts[parts.length - 1] || "")
+        const modifiers = []
+
+        parts.slice(0, -1).forEach((part) => {
+          const lower = part.toLowerCase()
+          if ((lower === "control" || lower === "ctrl") && !modifiers.includes("Ctrl")) modifiers.push("Ctrl")
+          else if ((lower === "option" || lower === "alt") && !modifiers.includes("Alt")) modifiers.push("Alt")
+          else if (lower === "shift" && !modifiers.includes("Shift")) modifiers.push("Shift")
+          else if ((lower === "command" || lower === "cmd" || lower === "meta") && !modifiers.includes("Meta")) modifiers.push("Meta")
+        })
+
+        if (!key || ["Control", "Shift", "Alt", "Meta", "Dead", "Process"].includes(key)) return fallback
+        return [...modifiers, key].join("+")
+      }
+
+      function getKeyboardEventBinding(event) {
+        if (event.isComposing) return ""
+
+        const key = normalizeKeyboardKey(event.key)
+        if (!key || ["Control", "Shift", "Alt", "Meta", "Dead", "Process"].includes(key)) return ""
+
+        return [
+          event.ctrlKey ? "Ctrl" : "",
+          event.altKey ? "Alt" : "",
+          event.shiftKey ? "Shift" : "",
+          event.metaKey ? "Meta" : "",
+          key
+        ]
+          .filter(Boolean)
+          .join("+")
+      }
+
+      function getCurrentWindowPosition() {
+        const boundX = Number(latestBounds?.x)
+        const boundY = Number(latestBounds?.y)
+        const screenX = Number(window.screenX ?? window.screenLeft ?? 0)
+        const screenY = Number(window.screenY ?? window.screenTop ?? 0)
+
+        return normalizeMovePosition(
+          Number.isFinite(boundX) ? boundX : screenX,
+          Number.isFinite(boundY) ? boundY : screenY
+        )
+      }
+
+      function setSizeHint(width, height) {
+        sizeHintNode.textContent = `${Math.round(width)} x ${Math.round(height)}`
+      }
+
+      function setFishBox(width, height) {
+        setCssVar("--fish-width", `${width}px`)
+        setCssVar("--fish-height", `${height}px`)
+        setSizeHint(width, height)
+      }
+
+      function getWindowScreenOffset(bounds) {
+        const screenX = Number(window.screenX ?? window.screenLeft ?? 0)
+        const screenY = Number(window.screenY ?? window.screenTop ?? 0)
+        const x = Number(bounds?.x)
+        const y = Number(bounds?.y)
+        const left = Number.isFinite(x) && Number.isFinite(screenX) ? Math.max(0, Math.round(x - screenX)) : 0
+        const top = Number.isFinite(y) && Number.isFinite(screenY) ? Math.max(0, Math.round(y - screenY)) : 0
+
+        return {
+          left: left <= window.innerWidth ? left : 0,
+          top: top <= window.innerHeight ? top : 0
+        }
+      }
+
+      function setFishPosition(bounds) {
+        const offset = getWindowScreenOffset(bounds)
+        setCssVar("--fish-left", `${offset.left}px`)
+        setCssVar("--fish-top", `${offset.top}px`)
+      }
+
+      function sendResizePreview(width, height) {
+        currentResizeSize = normalizeResizeSize(width, height)
+        pendingResize = currentResizeSize
+        setFishBox(currentResizeSize.width, currentResizeSize.height)
+
+        if (resizeFrame) return
+        resizeFrame = requestAnimationFrame(flushResizePreview)
+      }
+
+      function flushResizePreview() {
+        if (resizeFrame) {
+          cancelAnimationFrame(resizeFrame)
+          resizeFrame = 0
+        }
+        if (!pendingResize) return
+
+        const nextSize = pendingResize
+        pendingResize = null
+        sendCommand({
+          type: "resize-preview",
+          width: nextSize.width,
+          height: nextSize.height
+        })
+      }
+
+      function commitResize() {
+        if (resizeFrame) {
+          cancelAnimationFrame(resizeFrame)
+          resizeFrame = 0
+        }
+
+        const nextSize =
+          currentResizeSize ||
+          normalizeResizeSize(resizeState?.startWidth || window.innerWidth, resizeState?.startHeight || window.innerHeight)
+        pendingResize = null
+        currentResizeSize = null
+        sendCommand({
+          type: "resize",
+          width: nextSize.width,
+          height: nextSize.height
+        })
+      }
+
+      function sendMovePreview(x, y) {
+        currentMovePosition = normalizeMovePosition(x, y)
+        pendingMove = currentMovePosition
+
+        if (moveFrame) return
+        moveFrame = requestAnimationFrame(flushMovePreview)
+      }
+
+      function flushMovePreview() {
+        if (moveFrame) {
+          cancelAnimationFrame(moveFrame)
+          moveFrame = 0
+        }
+        if (!pendingMove) return
+
+        const nextPosition = pendingMove
+        pendingMove = null
+        sendCommand({
+          type: "move-preview",
+          x: nextPosition.x,
+          y: nextPosition.y
+        })
+      }
+
+      function commitMove() {
+        if (moveFrame) {
+          cancelAnimationFrame(moveFrame)
+          moveFrame = 0
+        }
+
+        const nextPosition = currentMovePosition || normalizeMovePosition(moveState?.startWindowX || 0, moveState?.startWindowY || 0)
+        pendingMove = null
+        currentMovePosition = null
+        sendCommand({
+          type: "move",
+          x: nextPosition.x,
+          y: nextPosition.y
+        })
+      }
+
+      function setCssVar(name, value) {
+        document.documentElement.style.setProperty(name, value)
+      }
+
+      function renderLines(lines, skin) {
+        linesNode.textContent = ""
+        const cleanLines = Array.isArray(lines) && lines.length ? lines : [""]
+
+        cleanLines.forEach((line) => {
+          const row = document.createElement("p")
+          const prefix = document.createElement("span")
+          const text = document.createElement("span")
+
+          row.className = "fish-line"
+          prefix.className = "fish-prefix"
+          text.className = "fish-text"
+          prefix.textContent = prefixes[skin] || prefixes.code
+          text.textContent = String(line || "")
+
+          row.append(prefix, text)
+          linesNode.append(row)
+        })
+      }
+
+      window.deepreadFishSetState = function deepreadFishSetState(payload) {
+        const settings = payload?.settings || {}
+        latestSettings = settings
+        latestResizeLimits = payload?.resizeLimits || {}
+        latestBounds = payload?.bounds || latestBounds
+        const skin = settings.fishSkin || "code"
+        const visible = Boolean(payload?.visible)
+        if (!visible || !settings.hideOnMouseLeave) isAutoHidden = false
+
+        root.className = [
+          "fish-shell",
+          `skin-${skin}`,
+          settings.showFishPrefix ? "show-prefix" : "",
+          settings.showFishMeta ? "show-meta" : "",
+          isAutoHidden && visible ? "is-auto-hidden" : "",
+          visible ? "" : "is-hidden"
+        ]
+          .filter(Boolean)
+          .join(" ")
+
+        const fontSize = Number(settings.fontSize) || 13
+        const lineHeight = Number(settings.lineHeight) || 1.35
+
+        setCssVar("--fish-font-size", `${fontSize}px`)
+        setCssVar("--fish-line-height", String(lineHeight))
+        setCssVar("--fish-row-height", `${fontSize * lineHeight}px`)
+        const opacity = Number(settings.opacity)
+
+        setCssVar("--fish-letter-spacing", `${settings.letterSpacing || 0}px`)
+        setCssVar("--fish-opacity", String((Number.isFinite(opacity) ? opacity : 82) / 100))
+        setFishBackgrounds(settings.fishBackgrounds)
+        setFishBox(settings.fishWidth || 700, settings.fishHeight || 100)
+        setFishPosition(payload?.bounds)
+
+        metaNode.textContent = [payload?.chapter, payload?.progress].filter(Boolean).join(" · ")
+        document.title = payload?.title ? `DeepRead Fish - ${payload.title}` : "DeepRead Fish"
+
+        renderLines(payload?.lines, skin)
+      }
+
+      document.addEventListener("click", (event) => {
+        const hit = event.target.closest("[data-command]")
+        if (hit) sendCommand(hit.dataset.command)
+      })
+
+      document.addEventListener(
+        "wheel",
+        (event) => {
+          if (latestSettings.wheelTurnPage === false) return
+          if (wheelLocked || Math.abs(event.deltaY) < 18) return
+          wheelLocked = true
+          event.preventDefault()
+          sendCommand(event.deltaY > 0 ? "next" : "prev")
+          window.setTimeout(() => {
+            wheelLocked = false
+          }, 260)
+        },
+        { passive: false }
+      )
+
+      document.addEventListener("keydown", (event) => {
+        if (!isKeyboardActive || root.classList.contains("is-hidden") || root.classList.contains("is-auto-hidden")) return
+
+        const binding = getKeyboardEventBinding(event)
+        const prevPageKey = normalizeKeyBinding(latestSettings.prevPageKey, "ArrowLeft")
+        const nextPageKey = normalizeKeyBinding(latestSettings.nextPageKey, "ArrowRight")
+
+        if (binding && binding === nextPageKey) {
+          event.preventDefault()
+          sendCommand("next")
+        } else if (binding && binding === prevPageKey) {
+          event.preventDefault()
+          sendCommand("prev")
+        }
+      })
+
+      document.addEventListener("pointerdown", (event) => {
+        const handle = event.target.closest("[data-resize]")
+        if (handle) {
+          event.preventDefault()
+          event.stopPropagation()
+
+          resizeState = {
+            mode: handle.dataset.resize,
+            pointerId: event.pointerId,
+            startX: event.screenX,
+            startY: event.screenY,
+            startWidth: Number(latestSettings.fishWidth) || window.innerWidth,
+            startHeight: Number(latestSettings.fishHeight) || window.innerHeight,
+            handle
+          }
+          currentResizeSize = normalizeResizeSize(resizeState.startWidth, resizeState.startHeight)
+
+          handle.setPointerCapture?.(event.pointerId)
+          document.body.classList.add("is-resizing")
+          setSizeHint(resizeState.startWidth, resizeState.startHeight)
+          return
+        }
+
+        const moveHandle = event.target.closest("[data-move]")
+        if (!moveHandle || resizeState || event.button !== 0) return
+
+        event.preventDefault()
+        event.stopPropagation()
+
+        const startPosition = getCurrentWindowPosition()
+        moveState = {
+          pointerId: event.pointerId,
+          startX: event.screenX,
+          startY: event.screenY,
+          startWindowX: startPosition.x,
+          startWindowY: startPosition.y,
+          handle: moveHandle
+        }
+        currentMovePosition = startPosition
+
+        moveHandle.setPointerCapture?.(event.pointerId)
+        document.body.classList.add("is-moving")
+        setAutoHidden(false)
+      })
+
+      document.addEventListener("pointermove", (event) => {
+        if (resizeState) {
+          event.preventDefault()
+
+          const deltaX = event.screenX - resizeState.startX
+          const deltaY = event.screenY - resizeState.startY
+          const adjustWidth = resizeState.mode === "width" || resizeState.mode === "both"
+          const adjustHeight = resizeState.mode === "height" || resizeState.mode === "both"
+          const width = adjustWidth ? resizeState.startWidth + deltaX : resizeState.startWidth
+          const height = adjustHeight ? resizeState.startHeight + deltaY : resizeState.startHeight
+
+          sendResizePreview(width, height)
+          return
+        }
+
+        if (moveState) {
+          event.preventDefault()
+
+          const deltaX = event.screenX - moveState.startX
+          const deltaY = event.screenY - moveState.startY
+
+          sendMovePreview(moveState.startWindowX + deltaX, moveState.startWindowY + deltaY)
+        }
+      })
+
+      function finishResize(event) {
+        if (!resizeState) return
+
+        commitResize()
+        resizeState.handle?.releasePointerCapture?.(resizeState.pointerId)
+        resizeState = null
+        document.body.classList.remove("is-resizing")
+        event?.preventDefault()
+      }
+
+      document.addEventListener("pointerup", finishResize)
+      document.addEventListener("pointercancel", finishResize)
+
+      function finishMove(event) {
+        if (!moveState) return
+
+        commitMove()
+        moveState.handle?.releasePointerCapture?.(moveState.pointerId)
+        moveState = null
+        document.body.classList.remove("is-moving")
+        event?.preventDefault()
+      }
+
+      document.addEventListener("pointerup", finishMove)
+      document.addEventListener("pointercancel", finishMove)
+
+      root.addEventListener("mouseenter", () => {
+        isKeyboardActive = true
+        setAutoHidden(false)
+        window.focus?.()
+        sendCommand("focus")
+      })
+
+      document.addEventListener("pointermove", () => {
+        if (isAutoHidden) setAutoHidden(false)
+      })
+
+      document.addEventListener("contextmenu", (event) => {
+        event.preventDefault()
+        sendCommand("hide")
+      })
+
+      document.addEventListener("mouseleave", () => {
+        isKeyboardActive = false
+        window.blur?.()
+        sendCommand("blur")
+        if (!resizeState && !moveState && latestSettings.hideOnMouseLeave) {
+          setAutoHidden(true)
+        }
+      })
+    </script>
+  </body>
+</html>

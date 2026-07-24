@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect width="500" height="500" rx="60" fill="url(#bg)"/>
+
+  <!-- Decorative hash grid -->
+  <g opacity="0.04" stroke="#60a5fa" stroke-width="2">
+    <line x1="125" y1="0" x2="125" y2="500"/>
+    <line x1="250" y1="0" x2="250" y2="500"/>
+    <line x1="375" y1="0" x2="375" y2="500"/>
+    <line x1="0" y1="125" x2="500" y2="125"/>
+    <line x1="0" y1="250" x2="500" y2="250"/>
+    <line x1="0" y1="375" x2="500" y2="375"/>
+  </g>
+
+  <!-- Hash icon -->
+  <g transform="translate(188, 125)" filter="url(#glow)">
+    <rect x="25" y="0" width="18" height="80" rx="5" fill="url(#textGrad)"/>
+    <rect x="73" y="0" width="18" height="80" rx="5" fill="url(#textGrad)"/>
+    <rect x="0" y="18" width="115" height="12" rx="5" fill="url(#textGrad)" opacity="0.7"/>
+    <rect x="0" y="50" width="115" height="12" rx="5" fill="url(#textGrad)" opacity="0.7"/>
+  </g>
+
+  <!-- "Hash" text -->
+  <text x="250" y="325" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="95" font-weight="800" letter-spacing="12" fill="url(#textGrad)" filter="url(#glow)">Hash</text>
+
+  <!-- Subtle underline -->
+  <rect x="150" y="355" width="200" height="6" rx="4" fill="url(#textGrad)" opacity="0.35"/>
+</svg>

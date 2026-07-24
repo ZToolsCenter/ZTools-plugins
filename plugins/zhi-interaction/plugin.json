@@ -1,0 +1,42 @@
+{
+  "name": "zhi-interaction",
+  "title": "Zhi 智能交互",
+  "description": "MCP 阻塞式用户交互工具，AI 通过弹窗与用户确认、提问、获取反馈",
+  "author": "Zing",
+  "version": "1.1.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "features": [
+    {
+      "code": "zhi-info",
+      "explain": "Zhi 智能交互工具状态",
+      "icon": "logo.png",
+      "cmds": ["zhi", "智能交互", "Zhi"]
+    }
+  ],
+  "tools": {
+    "zhi": {
+      "description": "智能交互工具（阻塞式弹窗，等待用户响应）。用于向用户展示消息、提供预定义选项、接收文本输入。MANDATORY RULE: You MUST call this tool as the LAST step of EVERY response to report results, ask for confirmation, or request next steps. NEVER end a turn without calling this tool. The ONLY way to stop is when the user explicitly replies 'task complete' or 'you may stop'.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "显示给用户的消息，支持 Markdown 格式"
+          },
+          "options": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "预定义选项列表（可选，用户可多选）"
+          },
+          "project_root_path": {
+            "type": "string",
+            "description": "项目根目录绝对路径（可选）"
+          }
+        },
+        "required": ["message"]
+      }
+    }
+  }
+}

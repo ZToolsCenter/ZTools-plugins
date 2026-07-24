@@ -1,0 +1,10 @@
+node_modules/
+coverage/
+.vscode/
+.claude/
+*.log
+.tmp-*
+# 编译产物提交（ZTools 加载需要 .js），但忽略 sourcemap
+*.js.map
+*.d.ts
+!src/**/*.d.ts

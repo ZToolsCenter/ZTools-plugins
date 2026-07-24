@@ -1,19 +1,13 @@
 import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
-import { RefObject } from "react";
 
-import { DecorationManager } from "./decorationManager.ts";
+import { DecorationManager, DEFAULT_MAX_LINE_LENGTH, type DecoratorState } from "./decorationManager.ts";
+import { buildHoverContents } from "./decorationInit.ts";
 
 import { decodeUnicode, UNICODE_STRING_REGEX } from "@/utils/unicode.ts";
 
 // 定义Unicode下划线装饰器接口
-export interface UnicodeDecoratorState {
-  editorRef: RefObject<editor.IStandaloneCodeEditor | null>;
-  hoverProviderId: RefObject<monaco.IDisposable | null>;
-  updateTimeoutRef: RefObject<NodeJS.Timeout | null>;
-  decorationManagerRef: RefObject<DecorationManager | null>;
-  enabled: boolean;
-}
+export type UnicodeDecoratorState = DecoratorState;
 
 // 全局启用状态控制
 let isUnicodeDecorationEnabled = true; // 下划线装饰器全局启用状态
@@ -74,7 +68,7 @@ export const registerUnicodeHoverProvider = () => {
 
       // 如果解码成功，返回悬停信息
       return {
-        contents: [{ value: "**Unicode 解码器**" }, { value: decoded }],
+        contents: buildHoverContents("**Unicode 解码器**", decoded),
         range: new monaco.Range(
           position.lineNumber,
           currentWordRange.startColumn,
@@ -130,6 +124,10 @@ export const updateUnicodeDecorations = (
   // 定期清理过期缓存
   decorationManager.cleanupExpiredCache();
 
+  // 收集所有装饰器，批量应用
+  const allDecorations: monaco.editor.IModelDeltaDecoration[] = [];
+  const linesToClear: number[] = [];
+
   // 遍历可见范围内的每一行
   for (const range of visibleRanges) {
     for (
@@ -139,25 +137,23 @@ export const updateUnicodeDecorations = (
     ) {
       const lineContent = model.getLineContent(lineNumber);
 
+      // 快速排除不包含unicode转义的行
+      if (!lineContent.includes('\\u')) continue;
+
       // 使用装饰器管理器检查是否需要处理此行
-      if (!decorationManager.shouldProcessLine(lineNumber, lineContent, 1000)) {
+      if (!decorationManager.shouldProcessLine(lineNumber, lineContent, DEFAULT_MAX_LINE_LENGTH)) {
         continue;
       }
 
       // 更新内容缓存
       decorationManager.updateContentCache(lineNumber, lineContent);
+      linesToClear.push(lineNumber);
 
       // 复位正则表达式的lastIndex
       UNICODE_STRING_REGEX.lastIndex = 0;
 
-      // 使用正则表达式查找Unicode转义序列
       let match;
       let matchCount = 0;
-      const decorations: monaco.editor.IModelDeltaDecoration[] = [];
-
-      // 处理 ": "{unicode内容}" 格式的内容
-      UNICODE_STRING_REGEX.lastIndex = 0;
-      matchCount = 0;
 
       while (
         (match = UNICODE_STRING_REGEX.exec(lineContent)) !== null &&
@@ -172,7 +168,8 @@ export const updateUnicodeDecorations = (
           continue;
         }
 
-        const startColumn = match.index + 3; // ": " 后面的位置
+        const quoteOffset = match[0].indexOf('"');
+        const startColumn = match.index + quoteOffset + 2;
         const endColumn = startColumn + unicodeStr.length;
 
         const decoration: monaco.editor.IModelDeltaDecoration = {
@@ -203,16 +200,19 @@ export const updateUnicodeDecorations = (
           );
         }
 
-        decorations.push(decoration);
-      }
-
-      // 清理旧行装饰器并应用新装饰器
-      decorationManager.clearLineDecorations(editor, lineNumber);
-
-      if (decorations.length > 0) {
-        decorationManager.applyDecorations(editor, decorations);
+        allDecorations.push(decoration);
       }
     }
+  }
+
+  // 批量清除旧行装饰器
+  for (const line of linesToClear) {
+    decorationManager.clearLineDecorations(editor, line);
+  }
+
+  // 批量应用新装饰器
+  if (allDecorations.length > 0) {
+    decorationManager.applyDecorations(editor, allDecorations);
   }
 };
 

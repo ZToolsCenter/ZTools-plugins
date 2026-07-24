@@ -1,0 +1,120 @@
+{
+  "name": "ocr-new",
+  "title": "OCR 翻译",
+  "description": "识别图片文字并跳转到翻译插件",
+  "author": "FAR",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "single": false
+  },
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "ocr",
+      "explain": "图片文字识别",
+      "icon": "logo.png",
+      "cmds": [
+        "OCR",
+        "OCR 文字识别",
+        "文字识别",
+        "图片翻译",
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 1,
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg",
+            "webp",
+            "bmp",
+            "gif",
+            "tif",
+            "tiff",
+            "avif"
+          ],
+          "label": "识别图片文字"
+        },
+        {
+          "type": "img",
+          "label": "OCR 文字识别"
+        }
+      ]
+    },
+    {
+      "code": "ocr-settings",
+      "explain": "OCR 插件设置",
+      "icon": "logo.png",
+      "cmds": [
+        "OCR 设置",
+        "OCR 插件设置"
+      ]
+    },
+    {
+      "code": "ocr-copy",
+      "mainHide": true,
+      "explain": "OCR 文字识别后自动复制识别内容",
+      "icon": "logo.png",
+      "cmds": [
+        "OCR 文字识别+复制",
+        {
+          "type": "img",
+          "label": "文字识别+复制"
+        }
+      ]
+    },
+    {
+      "code": "ocr-translate",
+      "mainHide": true,
+      "explain": "OCR 文字识别后自动前往翻译识别内容",
+      "icon": "logo.png",
+      "cmds": [
+        "OCR 文字识别+翻译",
+        {
+          "type": "img",
+          "label": "文字识别+翻译"
+        }
+      ]
+    },
+    {
+      "code": "ocr-screenshot",
+      "mainHide": true,
+      "explain": "截图 OCR 文字识别",
+      "icon": "logo.png",
+      "cmds": [
+        "截图文字识别",
+        "截图 OCR 识别"
+      ]
+    },
+    {
+      "code": "ocr-screenshot-copy",
+      "mainHide": true,
+      "explain": "截图 OCR 文字识别后自动复制识别内容",
+      "icon": "logo.png",
+      "cmds": [
+        "截图文字识别+复制",
+        "截图 OCR 复制"
+      ]
+    },
+    {
+      "code": "ocr-screenshot-translate",
+      "mainHide": true,
+      "explain": "截图 OCR 文字识别后自动前往翻译识别内容",
+      "icon": "logo.png",
+      "cmds": [
+        "截图文字识别+翻译",
+        "截图 OCR 翻译"
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}

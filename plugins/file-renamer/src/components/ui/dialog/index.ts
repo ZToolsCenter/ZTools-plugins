@@ -1,0 +1,5 @@
+export { default as FRDialog } from './FRDialog.vue'
+export { default as FRDialogTrigger } from './FRDialogTrigger.vue'
+export { default as FRDialogContent } from './FRDialogContent.vue'
+export { default as FRDialogHeader } from './FRDialogHeader.vue'
+export { default as FRDialogTitle } from './FRDialogTitle.vue'

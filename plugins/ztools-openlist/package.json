@@ -1,0 +1,26 @@
+{
+  "name": "my-first-plugin",
+  "version": "1.0.0",
+  "description": "一个适用于ZTools的Openlist插件，可以更加方便在ZTools中使用搭建的Openlist",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build && npm run build:preload",
+    "build:preload": "esbuild public/preload/services.js --bundle --platform=node --format=cjs --outfile=dist/preload/services.js"
+  },
+  "dependencies": {
+    "axios": "^1.17.0",
+    "element-plus": "^2.14.1",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.3.0",
+    "unplugin-auto-import": "^21.0.0",
+    "unplugin-vue-components": "^32.1.0",
+    "vite": "^6.0.11",
+    "vue-tsc": "^2.0.0"
+  }
+}

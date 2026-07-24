@@ -1,0 +1,441 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 100;
+}
+
+.modal-card {
+  width: min(540px, 100%);
+  padding: 16px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.modal-card.ssh-modal {
+  width: min(900px, 88vw);
+  min-height: min(560px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.connection-form-window {
+  height: 100vh;
+  max-height: 100vh;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  -webkit-app-region: drag;
+}
+
+@supports (height: 100dvh) {
+  .connection-form-window {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+}
+
+.connection-form-window,
+.manager-window {
+  background: transparent;
+}
+
+.modal-card.ssh-modal.standalone {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  padding: 46px 20px 20px;
+  border: 0;
+  border-radius: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 16px;
+}
+
+.modal-card.manager-modal.standalone .modal-header,
+.modal-card.ssh-modal.standalone .modal-header {
+  -webkit-app-region: drag;
+}
+
+.modal-card.ssh-modal.standalone .modal-header {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  width: 100%;
+  padding: 0 max(76px, env(safe-area-inset-left, 0px) + 76px) 0 max(76px, env(safe-area-inset-right, 0px) + 76px);
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.modal-card.ssh-modal.standalone .modal-header span {
+  pointer-events: auto;
+}
+
+.modal-card.manager-modal.standalone .modal-header button,
+.modal-card.ssh-modal.standalone .modal-header button,
+.modal-card.manager-modal.standalone .manager-toolbar,
+.modal-card.manager-modal.standalone .manager-table,
+.modal-card.manager-modal.standalone .manager-body,
+.modal-card.manager-modal.standalone .manager-row,
+.modal-card.manager-modal.standalone .manager-actions,
+.modal-card.ssh-modal.standalone .ssh-modal-body,
+.modal-card.ssh-modal.standalone .ssh-form-shell,
+.modal-card.ssh-modal.standalone .ssh-form-page,
+.modal-card.ssh-modal.standalone .ssh-modal-nav,
+.modal-card.ssh-modal.standalone input,
+.modal-card.ssh-modal.standalone select,
+.modal-card.ssh-modal.standalone textarea,
+.modal-card.ssh-modal.standalone button,
+.modal-card.manager-modal.standalone input,
+.modal-card.manager-modal.standalone select,
+.modal-card.manager-modal.standalone textarea,
+.modal-card.manager-modal.standalone button {
+  -webkit-app-region: no-drag;
+}
+
+.ssh-modal-body {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ssh-modal-nav {
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+}
+
+.ssh-modal-nav button {
+  display: block;
+  width: 100%;
+  height: 38px;
+  border: 0;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.ssh-modal-nav button.active {
+  font-weight: 600;
+}
+
+.ssh-form-shell {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ssh-form-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.modal-card.ssh-modal.standalone .ssh-modal-body {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-card.ssh-modal.standalone .ssh-form-shell {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-card.ssh-modal.standalone .ssh-form-page {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.ssh-fieldset {
+  border: 1px solid var(--border-dark);
+  padding: 10px 10px 12px;
+}
+
+.ssh-fieldset legend {
+  padding: 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ssh-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+}
+
+.ssh-grid.single {
+  grid-template-columns: 1fr;
+}
+
+.ssh-grid-general {
+  grid-template-columns: minmax(0, 1fr) 160px;
+}
+
+.ssh-grid label {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.ssh-grid label.span-2,
+.ssh-grid label.full {
+  grid-column: 1 / -1;
+}
+
+.ssh-grid label.narrow {
+  max-width: 240px;
+}
+
+.ssh-grid label.full {
+  align-items: start;
+}
+
+.ssh-grid input,
+.ssh-grid select,
+.ssh-grid textarea {
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-dark);
+  border-radius: 4px;
+}
+
+.ssh-grid textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.terminal-key-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-dark);
+}
+
+.terminal-key-box strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.terminal-key-box label {
+  grid-template-columns: 132px 1fr;
+  font-size: 13px;
+}
+
+.ssh-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.ssh-inline-action {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.ssh-field-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.ssh-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  border: 1px solid var(--border-dark);
+}
+
+.modal-error {
+  margin-top: 8px;
+  padding: 9px 10px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.ssh-auth-hint {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border-light) 86%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.ssh-actions {
+  margin-top: 14px;
+}
+
+.connection-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 16px;
+}
+
+.connection-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.connection-form input,
+.connection-form select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  transition: all 0.2s;
+}
+
+.connection-form input:focus,
+.connection-form select:focus {
+  outline: none;
+}
+
+.checkbox-row {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px !important;
+  align-self: end;
+  height: 40px;
+}
+
+.checkbox-row input {
+  width: auto;
+  height: auto;
+}
+
+.ssh-checkbox input,
+.checkbox-row input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  border: 1px solid var(--border-dark);
+  border-radius: 999px;
+  background: var(--bg-main);
+  position: relative;
+  flex: 0 0 auto;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+}
+
+.checkbox-row input {
+  margin-top: 0;
+}
+
+.ssh-checkbox input::after,
+.checkbox-row input::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 999px;
+  background: var(--primary);
+  transform: scale(0);
+  transition: transform 0.16s ease;
+}
+
+.ssh-checkbox input:checked,
+.checkbox-row input:checked {
+  border-color: var(--primary);
+}
+
+.ssh-checkbox input:checked::after,
+.checkbox-row input:checked::after {
+  transform: scale(1);
+}
+
+.ssh-checkbox input:disabled,
+.checkbox-row input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ssh-checkbox input:focus-visible,
+.checkbox-row input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.flat-button,
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--button-gap-md);
+  height: var(--button-height-md);
+  padding: 0 var(--button-padding-x-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  grid-column: 1 / -1;
+  margin-top: 16px;
+}
+
+.file-action-submit-button {
+  min-width: 92px;
+}
+
+.button-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: button-spinner-rotate 0.75s linear infinite;
+}
+
+@keyframes button-spinner-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

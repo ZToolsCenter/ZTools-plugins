@@ -1,35 +1,29 @@
 import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
-import { RefObject } from "react";
 
-import { DecorationManager } from "./decorationManager.ts";
+import { DecorationManager, DEFAULT_MAX_LINE_LENGTH, type DecoratorState } from "./decorationManager.ts";
+import { buildHoverContents } from "./decorationInit.ts";
 
 // URL编码正则表达式 - 匹配%xx形式的编码
 export const URL_REGEX = /%(?:[0-9a-fA-F]{2})+/g;
-// 匹配 ": "{urlencode内容}" 格式的正则表达式
-export const URL_STRING_REGEX = /: "([^"]*?(?:%(?:[0-9a-fA-F]{2})+)[^"]*?)"/g;
+// 支持 :, 和 [ 前缀的上下文
+export const URL_STRING_REGEX = /(?:[:,]\s*|\[)\s*"([^"]*?(?:%(?:[0-9a-fA-F]{2})+)[^"]*?)"/g;
 
 // URL解码函数
 export const decodeUrl = (text: string): string | null => {
+  if (!text || !text.includes('%')) return null;
   try {
-    if (!text || !text.match(URL_REGEX)) {
-      return null;
-    }
-
-    return decodeURIComponent(text);
-  } catch (e) {
+    const decoded = decodeURIComponent(text);
+    // 未发生实际解码则视为非URL编码内容
+    if (decoded === text) return null;
+    return decoded;
+  } catch {
     return null;
   }
 };
 
 // 定义URL下划线装饰器接口
-export interface UrlDecoratorState {
-  editorRef: RefObject<editor.IStandaloneCodeEditor | null>;
-  hoverProviderId: RefObject<monaco.IDisposable | null>;
-  updateTimeoutRef: RefObject<NodeJS.Timeout | null>;
-  decorationManagerRef: RefObject<DecorationManager | null>;
-  enabled: boolean;
-}
+export type UrlDecoratorState = DecoratorState;
 
 // 全局启用状态控制
 let isUrlDecorationEnabled = true; // 下划线装饰器全局启用状态
@@ -88,7 +82,7 @@ export const registerUrlHoverProvider = () => {
 
       // 如果解码成功，返回悬停信息
       return {
-        contents: [{ value: "**URL 解码器**" }, { value: decoded }],
+        contents: buildHoverContents("**URL 解码器**", decoded),
         range: new monaco.Range(
           position.lineNumber,
           currentWordRange.startColumn,
@@ -146,6 +140,10 @@ export const updateUrlDecorations = (
   // 定期清理过期缓存
   decorationManager.cleanupExpiredCache();
 
+  // 收集所有装饰器，批量应用
+  const allDecorations: monaco.editor.IModelDeltaDecoration[] = [];
+  const linesToClear: number[] = [];
+
   // 遍历可见范围内的每一行
   for (const range of visibleRanges) {
     for (
@@ -155,48 +153,23 @@ export const updateUrlDecorations = (
     ) {
       const lineContent = model.getLineContent(lineNumber);
 
+      // 快速排除不包含百分号的行
+      if (!lineContent.includes('%')) continue;
+
       // 使用装饰器管理器检查是否需要处理此行
-      if (!decorationManager.shouldProcessLine(lineNumber, lineContent, 1000)) {
+      if (!decorationManager.shouldProcessLine(lineNumber, lineContent, DEFAULT_MAX_LINE_LENGTH)) {
         continue;
       }
 
       // 更新内容缓存
       decorationManager.updateContentCache(lineNumber, lineContent);
+      linesToClear.push(lineNumber);
 
       // 复位正则表达式的lastIndex
-      URL_REGEX.lastIndex = 0;
       URL_STRING_REGEX.lastIndex = 0;
 
       let match;
       let matchCount = 0;
-      const decorations: monaco.editor.IModelDeltaDecoration[] = [];
-
-      while (
-        (match = URL_REGEX.exec(lineContent)) !== null &&
-        matchCount < 100
-      ) {
-        matchCount++;
-
-        const startColumn = match.index + 1;
-        const endColumn = startColumn + match[0].length;
-
-        decorations.push({
-          range: new monaco.Range(
-            lineNumber,
-            startColumn,
-            lineNumber,
-            endColumn,
-          ),
-          options: {
-            inlineClassName: "url-decoration",
-            zIndex: 3000,
-          },
-        });
-      }
-
-      // 处理 ": "{urlencode内容}" 格式的内容
-      URL_STRING_REGEX.lastIndex = 0;
-      matchCount = 0;
 
       while (
         (match = URL_STRING_REGEX.exec(lineContent)) !== null &&
@@ -216,7 +189,8 @@ export const updateUrlDecorations = (
           continue;
         }
 
-        const startColumn = match.index + 3; // ": " 后面的位置
+        const quoteOffset = match[0].indexOf('"');
+        const startColumn = match.index + quoteOffset + 2;
         const endColumn = startColumn + urlStr.length;
 
         const decoration: monaco.editor.IModelDeltaDecoration = {
@@ -247,16 +221,19 @@ export const updateUrlDecorations = (
           );
         }
 
-        decorations.push(decoration);
-      }
-
-      // 清理旧行装饰器并应用新装饰器
-      decorationManager.clearLineDecorations(editor, lineNumber);
-
-      if (decorations.length > 0) {
-        decorationManager.applyDecorations(editor, decorations);
+        allDecorations.push(decoration);
       }
     }
+  }
+
+  // 批量清除旧行装饰器
+  for (const line of linesToClear) {
+    decorationManager.clearLineDecorations(editor, line);
+  }
+
+  // 批量应用新装饰器
+  if (allDecorations.length > 0) {
+    decorationManager.applyDecorations(editor, allDecorations);
   }
 };
 

@@ -1,0 +1,45 @@
+.visual-regex-canvas canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* visual-regex DOM 模式备用样式 */
+:global(.vr_root) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+:global(.vr_literal),
+:global(.vr_specialSet),
+:global(.vr_dot),
+:global(.vr_set),
+:global(.vr_backRef),
+:global(.vr_boundary) {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #dae9e5;
+}
+
+:global(.vr_closure),
+:global(.vr_nonGreedyClosure) {
+  color: #ea580c;
+  font-weight: 600;
+}
+
+:global(.vr_normalGroup),
+:global(.vr_namedGroup),
+:global(.vr_nonCaptureGroup) {
+  color: #7c3aed;
+}
+
+:global(.vr_either) {
+  color: #ca8a04;
+  font-weight: 600;
+  margin: 0 4px;
+}

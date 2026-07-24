@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "remote-manager",
+  "title": "远程桌面管理",
+  "description": "管理Windows远程桌面，快捷开启远程连接",
+  "author": "WorldmeQC",
+  "version": "1.0.5",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "remote-manager",
+      "explain": "管理Windows远程桌面，快捷开启远程连接",
+      "icon": "logo.png",
+      "cmds": [
+        "远程桌面",
+        "rdp",
+        "远程连接"
+      ]
+    }
+  ],
+  "platform": [
+    "win32"
+  ]
+}

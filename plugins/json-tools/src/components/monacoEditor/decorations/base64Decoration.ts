@@ -1,19 +1,13 @@
 import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
-import { RefObject } from "react";
 
-import { DecorationManager } from "./decorationManager.ts";
+import { DecorationManager, DEFAULT_MAX_LINE_LENGTH, type DecoratorState } from "./decorationManager.ts";
+import { buildHoverContents } from "./decorationInit.ts";
 
 import { BASE64_REGEX, decodeBase64Strict } from "@/utils/base64.ts";
 
 // 定义Base64下划线装饰器接口
-export interface Base64DecoratorState {
-  editorRef: RefObject<editor.IStandaloneCodeEditor | null>;
-  hoverProviderId: RefObject<monaco.IDisposable | null>;
-  updateTimeoutRef: RefObject<NodeJS.Timeout | null>;
-  decorationManagerRef: RefObject<DecorationManager | null>;
-  enabled: boolean;
-}
+export type Base64DecoratorState = DecoratorState;
 
 // 全局启用状态控制
 let isBase64DecorationEnabled = true; // 下划线装饰器状态
@@ -28,34 +22,39 @@ export const registerBase64HoverProvider = () => {
       // 如果提供者被禁用，直接返回null
       if (!isBase64ProviderEnabled) return null;
       const lineContent = model.getLineContent(position.lineNumber);
-      const wordInfo = model?.getWordAtPosition(position);
 
-      if (!wordInfo) return null;
+      // 使用正则扫描整行，检查光标是否落在某个 base64 匹配内
+      BASE64_REGEX.lastIndex = 0;
+      let match;
 
-      // 获取当前词的范围
-      const start = wordInfo.startColumn;
-      const end = wordInfo.endColumn;
-      const word = lineContent.substring(start - 1, end - 1);
+      while ((match = BASE64_REGEX.exec(lineContent)) !== null) {
+        const base64Str = match[1] || match[2];
 
-      const decoded = decodeBase64Strict(word);
+        if (base64Str.length < 8 || base64Str.length > 12000) continue;
 
-      if (!decoded) {
-        return null;
+        const quoteOffset = match[0].indexOf('"');
+        const valueStart = match.index + quoteOffset + 1; // 0-based
+        const valueEnd = valueStart + base64Str.length;
+        const cursorCol = position.column - 1; // 0-based
+
+        if (cursorCol >= valueStart && cursorCol <= valueEnd) {
+          const decoded = decodeBase64Strict(base64Str);
+
+          if (decoded) {
+            return {
+              contents: buildHoverContents("**Base64 解码器**", decoded),
+              range: new monaco.Range(
+                position.lineNumber,
+                valueStart + 1,
+                position.lineNumber,
+                valueEnd + 1,
+              ),
+            };
+          }
+        }
       }
 
-      // 如果解码成功，返回悬停信息
-      return {
-        contents: [
-          { value: "**Base64 解码器**" },
-          { value: "```\n" + decoded + "\n```" },
-        ],
-        range: new monaco.Range(
-          position.lineNumber,
-          start,
-          position.lineNumber,
-          end,
-        ),
-      };
+      return null;
     },
   });
 };
@@ -106,6 +105,10 @@ export const updateBase64Decorations = (
   // 定期清理过期缓存
   decorationManager.cleanupExpiredCache();
 
+  // 收集所有装饰器，批量应用
+  const allDecorations: monaco.editor.IModelDeltaDecoration[] = [];
+  const linesToClear: number[] = [];
+
   // 遍历可见范围内的每一行
   for (const range of visibleRanges) {
     for (
@@ -115,13 +118,17 @@ export const updateBase64Decorations = (
     ) {
       const lineContent = model.getLineContent(lineNumber);
 
+      // 快速排除不包含引号的行
+      if (!lineContent.includes('"')) continue;
+
       // 使用装饰器管理器检查是否需要处理此行
-      if (!decorationManager.shouldProcessLine(lineNumber, lineContent, 1000)) {
+      if (!decorationManager.shouldProcessLine(lineNumber, lineContent, DEFAULT_MAX_LINE_LENGTH)) {
         continue;
       }
 
       // 更新内容缓存
       decorationManager.updateContentCache(lineNumber, lineContent);
+      linesToClear.push(lineNumber);
 
       // 复位正则表达式的lastIndex
       BASE64_REGEX.lastIndex = 0;
@@ -129,7 +136,6 @@ export const updateBase64Decorations = (
       // 使用正则表达式查找可能的Base64字符串
       let match;
       let matchCount = 0;
-      const decorations: monaco.editor.IModelDeltaDecoration[] = [];
 
       while (
         (match = BASE64_REGEX.exec(lineContent)) !== null &&
@@ -138,8 +144,8 @@ export const updateBase64Decorations = (
         matchCount++;
         const base64Str = match[1] || match[2];
 
-        // 超过3k不进行解码
-        if (base64Str.length < 8 || base64Str.length > 3000) {
+        // 超过12k不进行解码
+        if (base64Str.length < 8 || base64Str.length > 12000) {
           continue;
         }
 
@@ -149,7 +155,8 @@ export const updateBase64Decorations = (
           continue;
         }
 
-        const startColumn = match.index + (match[0].startsWith(": ") ? 4 : 1);
+        const quoteOffset = match[0].indexOf('"');
+        const startColumn = match.index + quoteOffset + 2;
         let endColumn = startColumn + base64Str.length;
 
         const decoration: monaco.editor.IModelDeltaDecoration = {
@@ -179,16 +186,19 @@ export const updateBase64Decorations = (
           );
         }
 
-        decorations.push(decoration);
-      }
-
-      // 清理旧行装饰器并应用新装饰器
-      decorationManager.clearLineDecorations(editor, lineNumber);
-
-      if (decorations.length > 0) {
-        decorationManager.applyDecorations(editor, decorations);
+        allDecorations.push(decoration);
       }
     }
+  }
+
+  // 批量清除旧行装饰器
+  for (const line of linesToClear) {
+    decorationManager.clearLineDecorations(editor, line);
+  }
+
+  // 批量应用新装饰器
+  if (allDecorations.length > 0) {
+    decorationManager.applyDecorations(editor, allDecorations);
   }
 };
 

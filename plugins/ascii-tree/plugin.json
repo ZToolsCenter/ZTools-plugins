@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ascii-tree",
+  "title": "ASCII Tree",
+  "description": "将分级文本转换为 ASCII Tree，并支持复制与导出。",
+  "author": "fetasty",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.jpg",
+  "features": [
+    {
+      "code": "ascii-tree-open",
+      "explain": "打开 ASCII Tree 转换器",
+      "icon": "logo.jpg",
+      "cmds": [
+        "ascii-tree",
+        "ascii tree",
+        "树形图",
+        "ascii树"
+      ]
+    }
+  ]
+}

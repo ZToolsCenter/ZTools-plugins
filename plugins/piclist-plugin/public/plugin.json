@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "piclist-plugin",
+  "title": "piclist 的插件",
+  "description": "piclist 的插件",
+  "author": "thinkw",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "piclistImg",
+      "explain": "图片上传",
+      "icon": "logo.png",
+      "cmds": [ "图片上传", {
+        "type": "img",
+        "label": "图片上传"
+      }, 
+      {
+        "type": "files",
+        "label": "文件上传",
+        "extensions": ["txt", "md", "json","png","jpg","jpeg","gif","webp","bmp","heif","heic","avif","tiff","tif","pdf","docx","xlsx","xls","csv","zip","rar"]
+      }, 
+      {
+        "type": "regex",
+        "label": "网络地址文件上传",
+        "match": "/(https?:\/\/\\S+).(jpg|jpeg|png|gif|bmp|webp|svg)/g"        
+      }]
+    }
+  ]
+}

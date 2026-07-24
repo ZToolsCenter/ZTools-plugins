@@ -1,0 +1,52 @@
+{
+  "name": "serious-reading",
+  "title": "严肃阅读",
+  "description": "一款对待摸鱼阅读很严肃的阅读插件",
+  "version": "1.1.0",
+  "main": "index.html",
+  "logo": "logo.svg",
+  "preload": "preload/main.js",
+  "development": {
+    "main": "http://localhost:5173/"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 660
+  },
+  "features": [
+    {
+      "code": "reader",
+      "explain": "打开阅读器书架",
+      "cmds": ["阅读", "书架", "serious"]
+    },
+    {
+      "code": "reader_continue",
+      "explain": "继续上次阅读",
+      "cmds": ["继续阅读", "阅读 继续"]
+    },
+    {
+      "code": "show_reader",
+      "explain": "显示阅读窗",
+      "cmds": ["显示阅读器", "show"]
+    },
+    {
+      "code": "toggle_reader",
+      "explain": "切换阅读窗显隐",
+      "cmds": ["切换阅读器", "toggle"]
+    },
+    {
+      "code": "reader_open",
+      "explain": "打开书籍文件",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "用严肃阅读打开",
+          "fileType": "file",
+          "extensions": ["txt", "epub", "pdf"],
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    }
+  ]
+}

@@ -56,6 +56,9 @@ class ImagePreviewManager {
   private currentPreview: HTMLElement | null = null;
   private themeObserver: MutationObserver | null = null;
   private copyTimeout: NodeJS.Timeout | null = null; // 跟踪复制超时
+  // 跟踪 document 级事件监听器，确保能完整清理
+  private activeEscHandler: ((e: KeyboardEvent) => void) | null = null;
+  private activeClickHandler: ((e: MouseEvent) => void) | null = null;
 
   static getInstance(): ImagePreviewManager {
     if (!ImagePreviewManager.instance) {
@@ -430,21 +433,24 @@ class ImagePreviewManager {
 
     // 移除预览盒子的悬停动画效果，保持静态显示
 
+    // 先清理之前可能残留的事件监听器
+    this.cleanupEventListeners();
+
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         hidePreview();
-        document.removeEventListener("keydown", handleEsc);
-        document.removeEventListener("click", handleOutsideClick);
       }
     };
 
     const handleOutsideClick = (e: MouseEvent) => {
       if (preview && !preview.contains(e.target as Node)) {
         hidePreview();
-        document.removeEventListener("keydown", handleEsc);
-        document.removeEventListener("click", handleOutsideClick);
       }
     };
+
+    // 保存引用以便后续清理
+    this.activeEscHandler = handleEsc;
+    this.activeClickHandler = handleOutsideClick;
 
     document.addEventListener("keydown", handleEsc);
     setTimeout(
@@ -457,6 +463,9 @@ class ImagePreviewManager {
   }
 
   hideImagePreview() {
+    // 清理 document 级事件监听器
+    this.cleanupEventListeners();
+
     if (this.currentPreview) {
       document.body.removeChild(this.currentPreview);
       this.currentPreview = null;
@@ -465,6 +474,18 @@ class ImagePreviewManager {
     if (this.copyTimeout) {
       clearTimeout(this.copyTimeout);
       this.copyTimeout = null;
+    }
+  }
+
+  /** 清理 document 级事件监听器，防止泄漏 */
+  private cleanupEventListeners() {
+    if (this.activeEscHandler) {
+      document.removeEventListener("keydown", this.activeEscHandler);
+      this.activeEscHandler = null;
+    }
+    if (this.activeClickHandler) {
+      document.removeEventListener("click", this.activeClickHandler);
+      this.activeClickHandler = null;
     }
   }
 }

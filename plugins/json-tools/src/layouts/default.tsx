@@ -17,7 +17,6 @@ import { items, SidebarKeys } from "@/components/sidebar/Items.tsx";
 import { ThemeSwitch } from "@/components/button/ThemeSwitch.tsx";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
-import { useTabStore } from "@/store/useTabStore";
 import { getFontSizeConfig } from "@/styles/fontSize";
 
 function RootLayout({
@@ -26,7 +25,6 @@ function RootLayout({
   children: React.ReactNode;
 }) {
   const sidebarStore = useSidebarStore();
-  const { initTab } = useTabStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -66,17 +64,11 @@ function RootLayout({
       await useSettingsStore.getState().syncSettingsStore();
 
       // 获取同步后的设置状态
-      const editDataSaveLocal = useSettingsStore.getState().editDataSaveLocal;
       const expandSidebar = useSettingsStore.getState().expandSidebar;
 
-      if (editDataSaveLocal) {
-        // 如果启用了本地存储，同步侧边栏状态
-        setIsCollapsed(!expandSidebar);
-        await sidebarStore.syncSidebarStore();
-      } else {
-        // 如果未启用本地存储，初始化默认标签页
-        initTab();
-      }
+      // 本地存储始终启用，同步侧边栏状态
+      setIsCollapsed(!expandSidebar);
+      await sidebarStore.syncSidebarStore();
     };
 
     init();
@@ -87,7 +79,7 @@ function RootLayout({
       {/* Sidebar */}
       <SidebarDrawer
         className={cn("shrink-0", {
-          "w-[56px]": isCollapsed,
+          "w-[40px]": isCollapsed,
           "w-[170px]": !isCollapsed,
         })}
         hideCloseButton={true}
@@ -98,10 +90,10 @@ function RootLayout({
           className={cn(
             "will-change relative flex h-full flex-col bg-default-100 py-4 px-2 transition-width",
             {
-              "items-center px-[6px] py-4": isCollapsed,
+              "items-center px-[2px] py-4": isCollapsed,
             },
           )}
-          style={{ width: isCollapsed ? 56 : 170 }}
+          style={{ width: isCollapsed ? 40 : 170 }}
         >
           <div
             className={cn(
@@ -134,7 +126,13 @@ function RootLayout({
             iconClassName="group-data-[selected=true]:text-default-50"
             isCompact={isCollapsed}
             itemClasses={{
-              base: "px-3 rounded-large data-[selected=true]:!bg-default-700",
+              base: cn(
+                "rounded-large data-[selected=true]:!bg-default-700",
+                {
+                  "px-3": !isCollapsed,
+                  "px-0 py-0": isCollapsed,
+                }
+              ),
               title: "group-data-[selected=true]:text-default-50",
             }}
             items={items}
@@ -157,7 +155,7 @@ function RootLayout({
                 <Button
                   isIconOnly
                   aria-label="展开菜单"
-                  className="flex h-10 w-10 text-default-600"
+                  className="flex h-8 w-8 text-default-600"
                   size="sm"
                   variant="light"
                 >

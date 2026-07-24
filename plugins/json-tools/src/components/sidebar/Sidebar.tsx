@@ -58,7 +58,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const sectionClasses = {
       ...sectionClassesProp,
       base: cn(sectionClassesProp?.base, "w-full", {
-        "p-0 max-w-10": isCompact,
+        "p-0 max-w-8": isCompact,
       }),
       group: cn(sectionClassesProp?.group, {
         "flex flex-col gap-1": isCompact,
@@ -71,8 +71,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const itemClasses = {
       ...itemClassesProp,
       base: cn(itemClassesProp?.base, {
-        /* 还需要调整 min-h-9 */
-        "w-10 h-10 gap-0 p-0": isCompact,
+        /* 紧凑模式下移除内边距，调整尺寸 */
+        "w-8 h-8 gap-0 px-0 py-0 min-w-8 min-h-8": isCompact,
       }),
     };
 
@@ -98,7 +98,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   "h-auto p-0": !isCompact && isNestType,
                 },
                 {
-                  "inline-block w-10": isCompact && isNestType,
+                  "inline-block w-8": isCompact && isNestType,
                 },
               ),
             }}
@@ -133,7 +133,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                         iconClassName,
                       )}
                       icon={item.icon}
-                      width={24}
+                      width={20}
                     />
                   ) : (
                     (item.startContent ?? null)
@@ -273,7 +273,10 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         itemClasses={{
           ...itemClasses,
           base: cn(
-            "px-3 min-h-10 h-10 rounded-large data-[selected=true]:bg-default-100 mb-2",
+            {
+              "px-3 min-h-10 h-10 rounded-large data-[selected=true]:bg-default-100 mb-2": !isCompact,
+              "min-h-8 h-8 rounded-large data-[selected=true]:bg-default-100 mb-2": isCompact,
+            },
             itemClasses?.base,
           ),
           title: cn(

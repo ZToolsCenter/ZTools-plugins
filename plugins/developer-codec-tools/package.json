@@ -1,0 +1,14 @@
+{
+  "name": "developer-codec-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build --base ./ && node scripts/copy-dist-assets.mjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "vite": "^7.3.0"
+  }
+}

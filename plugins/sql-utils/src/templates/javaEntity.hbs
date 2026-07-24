@@ -1,0 +1,37 @@
+package {{fullPackage}};
+{{#if tableInfo.imports}}
+
+{{tableInfo.imports}}
+{{/if}}
+{{#if genSwagger}}
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+{{/if}}
+
+{{#if genComment}}
+/**
+ * Description：{{tableInfo.tableComment}}
+ *
+ * @author {{author}}
+ * @date {{currentDate}}
+ */
+{{/if}}
+{{#if genSwagger}}
+@ApiModel(value = "{{upperCamelTableName}}", description = "{{tableInfo.tableComment}}")
+{{/if}}
+{{#if genLombok}}
+@Data
+{{/if}}
+public class {{upperCamelTableName}} {
+
+  {{#each tableInfo.fields as |field|}}
+    {{#if ../genComment}}
+    /** {{field.comment}} */
+    {{/if}}
+    {{#if ../genSwagger}}
+    @ApiModelProperty(value = "{{field.comment}}")
+    {{/if}}
+    private {{field.javaType}} {{field.camelFieldName}};
+
+  {{/each}}
+}

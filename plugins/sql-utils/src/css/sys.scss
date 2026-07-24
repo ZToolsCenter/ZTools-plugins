@@ -1,0 +1,132 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+:root {
+  --vxe-ui-font-size-default: 13px;
+  --vxe-ui-font-size-medium: 13px;
+  --vxe-ui-font-size-small: 12px;
+  --vxe-ui-font-size-mini: 12px;
+  --vxe-ui-border-radius: 5px;
+  --vxe-ui-input-height-default: 30px;
+  --vxe-ui-input-height-medium: 28px;
+  --vxe-ui-input-height-small: 26px;
+  --vxe-ui-input-height-mini: 24px;
+  --vxe-ui-table-header-font-weight: 600;
+  --vxe-ui-table-row-height-default: 38px;
+  --vxe-ui-table-row-height-medium: 36px;
+  --vxe-ui-table-row-height-small: 34px;
+  --vxe-ui-table-row-height-mini: 30px;
+  --vxe-ui-table-row-line-height: 18px;
+  --vxe-ui-table-cell-padding-default: 6px;
+  --vxe-ui-table-cell-padding-medium: 5px;
+  --vxe-ui-table-cell-padding-small: 5px;
+  --vxe-ui-table-cell-padding-mini: 4px;
+  --vxe-ui-table-border-color: #e1e6ee;
+  --vxe-ui-table-header-background-color: #f3f5f8;
+  --vxe-ui-table-row-hover-background-color: #f7f9fc;
+}
+
+[class^="ali-icon-"],
+[class*=" ali-icon-"] {
+  font-family: "ali-icon-font" !important;
+  font-style: normal;
+  font-size: inherit !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.vxe-table--body-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.vxe-table--body-wrapper::-webkit-scrollbar-track {
+  border-radius: 4px;
+}
+
+.vxe-table--body-wrapper::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 4px;
+}
+
+.vxe-table--body-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
+}
+
+.code-editor {
+  flex: 1;
+  width: 100%;
+}
+
+.code-editor .cm-editor {
+  height: 100%;
+  font-size: 13px;
+}
+
+.code-editor .cm-scroller {
+  overflow: auto;
+}
+
+.code-editor .cm-scroller::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.code-editor .cm-scroller::-webkit-scrollbar-track {
+  border-radius: 4px;
+}
+
+.code-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background-color: #c1c1c1;
+  border-radius: 4px;
+}
+
+.code-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: #a8a8a8;
+}
+
+.code-editor .cm-scroller::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.n-tabs .n-tabs-pane-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.n-tabs .n-tab-pane {
+  height: 100%;
+  overflow: auto;
+}
+
+.n-tabs .n-tabs-tab {
+  letter-spacing: 0;
+}
+
+.n-button,
+.n-input,
+.n-select,
+.n-radio-button,
+.n-checkbox,
+.n-pagination,
+.n-data-table {
+  font-variant-numeric: tabular-nums;
+}

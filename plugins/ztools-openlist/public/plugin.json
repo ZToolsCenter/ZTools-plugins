@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ztools-openlist",
+  "title": "OpenListUI",
+  "description": "在 ZTools 中浏览、下载和上传 OpenList 文件。",
+  "author": "gcnanmu",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://127.0.0.1:5173"
+  },
+  "features": [
+    {
+      "code": "OpenListUI",
+      "explain": "打开 OpenListUI 文件管理器",
+      "icon": "logo.png",
+      "cmds": ["openlist", "OpenList", "OpenListUI"]
+    }
+  ]
+}

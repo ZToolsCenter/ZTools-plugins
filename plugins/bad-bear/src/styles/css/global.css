@@ -1,0 +1,814 @@
+/*
+ * 全局共享样式入口。
+ * 主题 token、基础按钮、卡片与图标按钮统一维护在这里，避免与 src/main.css 重复定义同名全局类。
+ */
+html,
+body {
+  overflow: hidden !important;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  scrollbar-width: none; /* 火狐浏览器 */
+  -ms-overflow-style: none; /* IE 和 Edge 浏览器 */
+}
+
+/* 隐藏 body 的滚动条 */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+:root {
+  color-scheme: light dark;
+  --bg-color: #f4f4f4;
+  --surface-color: #ffffff;
+  --surface-elevated: #eef3fb;
+  --text-color: #333333;
+  --text-secondary: #616161;
+  --border-color: #e5e7eb;
+  --divider-color: rgba(0, 0, 0, 0.1);
+  --card-bg: rgba(0, 0, 0, 0.015);
+  --control-bg: rgba(0, 0, 0, 0.035);
+  --control-border: rgba(0, 0, 0, 0.1);
+  --hover-bg: #f9fafb;
+  --active-bg: #f0f9ff;
+  --primary-color: #0284c7;
+  --input-bg: #f4f4f4;
+  --input-border: #e5e7eb;
+  --input-focus-bg: #f0f9ff;
+  --placeholder-color: #616161;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --text-on-primary: #ffffff;
+  --highlight-color: #ea580c;
+  --danger-color: #ef4444;
+  --warning-color: #f59e0b;
+  --success-color: #10b981;
+  --purple-color: #8b5cf6;
+  --purple-light-bg: #f3e8ff;
+  --purple-border: #d8b4fe;
+  --success-light-bg: #ecfdf5;
+  --success-border: #a7f3d0;
+  --warning-light-bg: #fef3c7;
+  --warning-border: #fcd34d;
+  --danger-light-bg: #fee2e2;
+  --danger-border: #fca5a5;
+  --error-color: #ef4444;
+  --dialog-bg: #f4f4f4;
+}
+
+/* macOS 下使用透明背景 */
+.os-mac:root {
+  --bg-color: #f4f4f44f;
+}
+
+/* Windows 下默认使用普通背景色 */
+.os-windows:root {
+  --bg-color: #f4f4f4;
+}
+
+/* Windows 下根据 data-material 属性应用不同材质样式 */
+.os-windows[data-material='mica'] {
+  --bg-color: transparent;
+  --card-bg: rgba(255, 255, 255, 0.5); /* 增加白度，更实一点 */
+  --control-bg: rgba(255, 255, 255, 0.6); /* 输入框背景更明显 */
+  --hover-bg: rgba(0, 0, 0, 0.04);
+  --active-bg: rgba(0, 0, 0, 0.06);
+  --divider-color: rgba(0, 0, 0, 0.06);
+  --highlight-color: rgba(234, 88, 12, 0.9);
+}
+
+.os-windows[data-material='acrylic'] {
+  --bg-color: transparent;
+  --card-bg: rgba(255, 255, 255, 0.3);
+  --control-bg: rgba(255, 255, 255, 0.25);
+  --hover-bg: rgba(0, 0, 0, 0.05);
+  --active-bg: rgba(0, 0, 0, 0.08);
+  --divider-color: rgba(0, 0, 0, 0.06);
+  --control-border: rgba(0, 0, 0, 0.15);
+  --highlight-color: rgba(234, 88, 12, 0.9);
+}
+
+.os-windows[data-material='none'] {
+  --bg-color: #f4f4f4;
+  --card-bg: white;
+  --control-bg: white;
+}
+
+/* 主题色定义 - 亮色模式 */
+:root,
+.theme-blue {
+  --primary-color: #0284c7;
+}
+
+.theme-purple {
+  --primary-color: #7c3aed;
+}
+
+.theme-green {
+  --primary-color: #059669;
+}
+
+.theme-orange {
+  --primary-color: #ea580c;
+}
+
+.theme-red {
+  --primary-color: #dc2626;
+}
+
+.theme-pink {
+  --primary-color: #db2777;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #303133;
+    --surface-color: #282d36;
+    --surface-elevated: #323844;
+    --text-color: #f3f4f6;
+    --text-secondary: #bfc0c3;
+    --border-color: #374151;
+    --divider-color: rgba(255, 255, 255, 0.1);
+    --card-bg: rgba(255, 255, 255, 0.04);
+    --control-bg: rgba(255, 255, 255, 0.04);
+    --control-border: rgba(255, 255, 255, 0.1);
+    --hover-bg: #374151;
+    --input-bg: #374151;
+    --input-border: #374151;
+    --input-focus-bg: #4b5563;
+    --placeholder-color: #b8b8b8;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --text-on-primary: #ffffff;
+    --highlight-color: #fb923c;
+    --danger-color: #f87171;
+    --warning-color: #fbbf24;
+    --success-color: #34d399;
+    --purple-color: #a78bfa;
+    --purple-light-bg: rgba(139, 92, 246, 0.2);
+    --purple-border: rgba(139, 92, 246, 0.4);
+    --success-light-bg: rgba(52, 211, 153, 0.2);
+    --success-border: rgba(52, 211, 153, 0.4);
+    --warning-light-bg: rgba(251, 191, 36, 0.2);
+    --warning-border: rgba(251, 191, 36, 0.4);
+    --danger-light-bg: rgba(248, 113, 113, 0.2);
+    --danger-border: rgba(248, 113, 113, 0.4);
+    --error-color: #f87171;
+    --dialog-bg: #303133;
+  }
+
+  /* macOS 暗色模式下使用透明背景 */
+  .os-mac:root {
+    --bg-color: transparent;
+  }
+
+  /* Windows 暗色模式下默认使用普通背景色 */
+  .os-windows:root {
+    --bg-color: #303133;
+  }
+
+  /* Windows 暗色模式下根据 data-material 属性应用不同材质样式 */
+  .os-windows[data-material='mica'] {
+    --bg-color: transparent;
+    --card-bg: rgba(255, 255, 255, 0.04);
+    --control-bg: rgba(255, 255, 255, 0.06);
+    --hover-bg: rgba(255, 255, 255, 0.05);
+    --active-bg: rgba(255, 255, 255, 0.08);
+    --divider-color: rgba(255, 255, 255, 0.08);
+    --highlight-color: rgba(251, 146, 60, 0.85);
+  }
+
+  .os-windows[data-material='acrylic'] {
+    --bg-color: transparent;
+    --card-bg: rgba(255, 255, 255, 0.02);
+    --control-bg: rgba(255, 255, 255, 0.04);
+    --hover-bg: rgba(255, 255, 255, 0.05);
+    --active-bg: rgba(255, 255, 255, 0.08);
+    --divider-color: rgba(255, 255, 255, 0.06);
+    --control-border: rgba(255, 255, 255, 0.15);
+    --highlight-color: rgba(251, 146, 60, 0.85);
+  }
+
+  .os-windows[data-material='none'] {
+    --bg-color: #303133;
+    --card-bg: #3a3a3c;
+    --control-bg: #48484a;
+  }
+
+  /* 主题色定义 - 暗色模式 */
+  /* 主题色定义 - 暗色模式 */
+  :root,
+  .theme-blue {
+    --primary-color: #38bdf8;
+  }
+
+  .theme-purple {
+    --primary-color: #a78bfa;
+  }
+
+  .theme-green {
+    --primary-color: #34d399;
+  }
+
+  .theme-orange {
+    --primary-color: #fb923c;
+  }
+
+  .theme-red {
+    --primary-color: #f87171;
+  }
+
+  .theme-pink {
+    --primary-color: #f472b6;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+textarea {
+  display: block;
+  margin: 0;
+  resize: vertical;
+}
+
+a {
+  color: var(--primary-color);
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg-color);
+  color: var(--text-color);
+
+  /* 使用 color-mix 计算 hover 和 light-bg */
+  /* 必须定义在 body 上，以便在 theme-xxx 类改变 --primary-color 时重新计算 */
+  --primary-hover: color-mix(in srgb, var(--primary-color), black 10%);
+  --primary-light-bg: color-mix(in srgb, var(--primary-color), white 80%);
+}
+
+/* 默认的 active-bg 和 hover-bg（非 Windows 材质模式） */
+html:not(.os-windows[data-material='mica']):not(.os-windows[data-material='acrylic']) body {
+  --active-bg: color-mix(in srgb, var(--primary-color) 20%, white);
+  --hover-bg: color-mix(in srgb, var(--primary-color) 12%, white);
+}
+
+/* 文本选择样式 - 使用主题色 */
+::selection {
+  background: color-mix(in srgb, var(--primary-color) 35%, white);
+  color: var(--text-color);
+}
+
+::-moz-selection {
+  background: color-mix(in srgb, var(--primary-color) 35%, white);
+  color: var(--text-color);
+}
+
+#app {
+  overflow: hidden !important; /* 完全隐藏滚动条 */
+  max-width: 100%; /* 限制最大宽度 */
+  height: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    /* 暗色模式下的计算逻辑 */
+    --primary-hover: color-mix(in srgb, var(--primary-color), white 10%);
+    --primary-light-bg: color-mix(in srgb, var(--primary-color), transparent 92%);
+  }
+
+  /* 暗色模式下默认的 active-bg 和 hover-bg（非 Windows 材质模式） */
+  html:not(.os-windows[data-material='mica']):not(.os-windows[data-material='acrylic']) body {
+    --active-bg: color-mix(in srgb, var(--primary-color) 12%, #303133);
+    --hover-bg: color-mix(in srgb, var(--primary-color) 5%, #303133);
+  }
+
+  /* 暗色模式下的文本选择样式 */
+  ::selection {
+    background: color-mix(in srgb, var(--primary-color) 40%, #303133);
+    color: var(--text-color);
+  }
+
+  ::-moz-selection {
+    background: color-mix(in srgb, var(--primary-color) 40%, #303133);
+    color: var(--text-color);
+  }
+}
+
+/* ==================== 通用控件样式规范 ==================== */
+
+/* 按钮基础类 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 16px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--text-color);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    opacity 0.2s ease;
+  outline: none;
+  user-select: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 按钮尺寸变体 */
+.btn-sm {
+  min-height: 24px;
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.btn-md {
+  min-height: 28px;
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+.btn-lg {
+  min-height: 36px;
+  padding: 10px 20px;
+  font-size: 15px;
+}
+
+.btn-icon {
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--text-on-primary);
+}
+
+.btn-icon svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* 小图标按钮（无边框，透明背景）- 用于已安装插件页面和插件市场 */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 按钮类型变体 - 默认悬浮时显示主题色 */
+.btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: color-mix(in srgb, var(--primary-color), black 15%);
+  color: var(--primary-color);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--active-bg);
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--text-on-primary);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary-color), black 8%);
+  border-color: color-mix(in srgb, var(--primary-color), black 12%);
+  color: var(--text-on-primary);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--primary-color), black 14%);
+  border-color: color-mix(in srgb, var(--primary-color), black 18%);
+}
+
+.btn-ghost,
+.btn-secondary {
+  background: var(--surface-color, var(--card-bg));
+  border-color: var(--divider-color);
+  color: var(--text-color);
+}
+
+.btn-ghost:hover:not(:disabled),
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-elevated);
+  border-color: color-mix(in srgb, var(--primary-color) 20%, var(--divider-color));
+  color: var(--text-color);
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+  color: var(--text-on-primary);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger-color), black 8%);
+  border-color: color-mix(in srgb, var(--danger-color), black 12%);
+  color: var(--text-on-primary);
+}
+
+.btn-warning {
+  background: var(--warning-color);
+  border-color: var(--warning-color);
+  color: var(--text-on-primary);
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--warning-color), black 8%);
+  border-color: color-mix(in srgb, var(--warning-color), black 12%);
+  color: var(--text-on-primary);
+}
+
+.btn-success {
+  background: var(--success-color);
+  border-color: var(--success-color);
+  color: var(--text-on-primary);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--success-color), black 8%);
+  border-color: color-mix(in srgb, var(--success-color), black 12%);
+  color: var(--text-on-primary);
+}
+
+.btn-purple {
+  background: var(--purple-color);
+  border-color: var(--purple-color);
+  color: var(--text-on-primary);
+}
+
+.btn-purple:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--purple-color), black 8%);
+  border-color: color-mix(in srgb, var(--purple-color), black 12%);
+  color: var(--text-on-primary);
+}
+
+/* 实心按钮变体 - 默认使用实心主题色，符合控件设计规范 */
+.btn-solid {
+  background: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 6px 16px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.btn-solid:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary-color), black 10%);
+  border-color: color-mix(in srgb, var(--primary-color), black 10%);
+  color: #ffffff;
+}
+
+.btn-solid:active:not(:disabled) {
+  background: color-mix(in srgb, var(--primary-color), black 20%);
+  border-color: color-mix(in srgb, var(--primary-color), black 20%);
+}
+
+/* Acrylic 材质模式下使用透明风格 */
+.os-windows[data-material='acrylic'] .btn-solid {
+  background: var(--control-bg);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.os-windows[data-material='acrylic'] .btn-solid:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: color-mix(in srgb, var(--primary-color), black 15%);
+  color: var(--primary-color);
+}
+
+.os-windows[data-material='acrylic'] .btn-solid:active:not(:disabled) {
+  background: var(--active-bg);
+}
+
+/* 输入框基础类 */
+.input {
+  width: 100%;
+  padding: 6px 16px;
+  border: 2px solid var(--control-border);
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+  outline: none;
+  background: var(--control-bg);
+  color: var(--text-color);
+}
+
+.input::placeholder {
+  color: var(--placeholder-color);
+}
+
+.input:hover {
+  background: var(--hover-bg);
+  border-color: color-mix(in srgb, var(--primary-color), black 15%);
+}
+
+.input:focus {
+  background: var(--active-bg);
+  border-color: color-mix(in srgb, var(--primary-color), black 15%);
+  box-shadow: 0 0 0 3px var(--primary-light-bg);
+}
+
+/* 下拉框 */
+.select {
+  width: 100%;
+  padding: 6px 16px;
+  border: 2px solid var(--control-border);
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+  outline: none;
+  background: var(--control-bg);
+  color: var(--text-color);
+  cursor: pointer;
+  color-scheme: light dark;
+}
+
+.select:hover {
+  background: var(--hover-bg);
+  border-color: color-mix(in srgb, var(--primary-color), black 15%);
+}
+
+.select:focus {
+  background: var(--active-bg);
+  border-color: color-mix(in srgb, var(--primary-color), black 15%);
+  box-shadow: 0 0 0 3px var(--primary-light-bg);
+}
+
+.select option {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* 开关基础类 */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--control-bg);
+  border: 2px solid var(--control-border);
+  transition: all 0.3s;
+  border-radius: 24px;
+  box-sizing: border-box;
+}
+
+.toggle-slider:hover {
+  background-color: var(--hover-bg);
+}
+
+.toggle-slider:hover::before {
+  transform: scale(1.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: '';
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--text-color);
+  transition: all 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle input:checked + .toggle-slider {
+  background-color: color-mix(in srgb, var(--primary-color), black 15%);
+  border-color: color-mix(in srgb, var(--primary-color), black 15%);
+}
+
+.toggle input:checked + .toggle-slider:hover {
+  background-color: color-mix(in srgb, var(--primary-color), black 25%);
+  border-color: color-mix(in srgb, var(--primary-color), black 25%);
+}
+
+.toggle input:checked + .toggle-slider:hover::before {
+  transform: translateX(20px) scale(1.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle input:focus + .toggle-slider {
+  box-shadow: 0 0 0 3px var(--primary-light-bg);
+}
+
+/* 卡片基础类 */
+.card {
+  background: var(--surface-color, var(--card-bg));
+  border-radius: 10px;
+  border: 1px solid var(--divider-color);
+}
+
+.card.clickable {
+  cursor: pointer;
+}
+
+/* macOS 风格毛玻璃效果 - 仅 Acrylic 模式 */
+.os-windows[data-material='acrylic'] .card,
+.os-windows[data-material='acrylic'] .btn,
+.os-windows[data-material='acrylic'] .input,
+.os-windows[data-material='acrylic'] .select {
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+}
+
+/* 全局自适应图标样式 - 主题色渐变 */
+/* 使用 mask + linear-gradient 实现真正的颜色渐变 */
+
+.adaptive-icon {
+  /* 使用图标作为蒙版 */
+  -webkit-mask-image: var(--icon-url);
+  mask-image: var(--icon-url);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+/* 亮色模式：从主题色到极浅主题色的渐变 */
+@media (prefers-color-scheme: light) {
+  .adaptive-icon {
+    background: linear-gradient(
+      135deg,
+      var(--primary-color) 0%,
+      color-mix(in srgb, var(--primary-color) 10%, white) 100%
+    );
+    opacity: 0.88;
+  }
+}
+
+/* 暗色模式：从主题色到极浅主题色的渐变 */
+@media (prefers-color-scheme: dark) {
+  .adaptive-icon {
+    background: linear-gradient(
+      135deg,
+      var(--primary-color) 0%,
+      color-mix(in srgb, var(--primary-color) 15%, white) 100%
+    );
+    opacity: 0.92;
+  }
+}
+
+/* 不同主题的色相旋转值 */
+.theme-blue {
+  --adaptive-icon-hue: 180deg;
+}
+
+.theme-purple {
+  --adaptive-icon-hue: 260deg;
+}
+
+.theme-green {
+  --adaptive-icon-hue: 100deg;
+}
+
+.theme-orange {
+  --adaptive-icon-hue: 20deg;
+}
+
+.theme-red {
+  --adaptive-icon-hue: 350deg;
+}
+
+.theme-pink {
+  --adaptive-icon-hue: 310deg;
+}
+
+/* 默认蓝色主题 */
+:root {
+  --adaptive-icon-hue: 180deg;
+}
+
+/*
+ * 全局滚动条样式优化
+ * 注意：插件 WebContentsView 的滚动条样式在 src/main/core/globalStyles.ts 中定义
+ * 两者应保持一致
+ */
+::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 3px !important;
+}
+
+/* 全局滚动条样式优化 - 亮色模式 */
+@media (prefers-color-scheme: light) {
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15) !important;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25) !important;
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: rgba(0, 0, 0, 0.35) !important;
+  }
+}
+
+/* 全局滚动条样式优化 - 暗色模式 */
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35) !important;
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: rgba(255, 255, 255, 0.5) !important;
+  }
+}

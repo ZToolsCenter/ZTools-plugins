@@ -1,0 +1,5 @@
+export { default as FRSelect } from './FRSelect.vue'
+export { default as FRSelectTrigger } from './FRSelectTrigger.vue'
+export { default as FRSelectContent } from './FRSelectContent.vue'
+export { default as FRSelectItem } from './FRSelectItem.vue'
+export { default as FRSelectValue } from './FRSelectValue.vue'

@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "killprocess",
+  "title": "killprocess",
+  "description": "killprocess",
+  "author": "zundaren",
+  "version": "1.0.1",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "killprocess",
+      "explain": "结束指定进程",
+      "icon": "logo.png",
+      "cmds": [
+        "结束进程",
+        "kill process"
+      ]
+    }
+  ]
+}

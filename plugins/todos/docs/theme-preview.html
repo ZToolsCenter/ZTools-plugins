@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>配色方案选择 - Todos</title>
+  <style>
+    /* 浅色主题 - 默认 */
+    :root {
+      --paper: #F7F5F0;
+      --ink: #1C1917;
+      --graphite: #57534E;
+      --clay: #A8A29E;
+      --teal: #0F766E;
+      --teal-soft: #14B8A6;
+      --sage: #6EE7B7;
+      --rose: #E11D48;
+      --amber: #D97706;
+      --indigo: #4F46E5;
+      --ws-work: #0F766E;
+      --ws-life: #D97706;
+      --ws-study: #4F46E5;
+      --color-background: var(--paper);
+      --color-text: var(--ink);
+      --color-text-secondary: var(--graphite);
+      --color-border: rgba(168, 162, 158, 0.3);
+      --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.06);
+      --shadow-md: 0 2px 8px rgba(28, 25, 23, 0.08);
+    }
+
+    /* 深色主题 */
+    [data-theme="dark"] {
+      --paper: #1C1917;
+      --ink: #F7F5F0;
+      --graphite: #A8A29E;
+      --clay: #57534E;
+      --teal: #14B8A6;
+      --teal-soft: #0F766E;
+      --sage: #6EE7B7;
+      --rose: #FB7185;
+      --amber: #FBBF24;
+      --indigo: #818CF8;
+      --ws-work: #14B8A6;
+      --ws-life: #FBBF24;
+      --ws-study: #818CF8;
+      --color-background: var(--paper);
+      --color-text: var(--ink);
+      --color-text-secondary: var(--graphite);
+      --color-border: rgba(168, 162, 158, 0.2);
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    /* 配色方案1: 原始方案 */
+    [data-scheme="original"] {
+      --teal: #0F766E;
+      --teal-soft: #14B8A6;
+      --ws-work: #0F766E;
+      --ws-life: #D97706;
+      --ws-study: #4F46E5;
+    }
+
+    [data-scheme="original"][data-theme="dark"] {
+      --teal: #14B8A6;
+      --teal-soft: #0F766E;
+      --ws-work: #14B8A6;
+      --ws-life: #FBBF24;
+      --ws-study: #818CF8;
+    }
+
+    /* 配色方案2: 蓝色主题 */
+    [data-scheme="ocean"] {
+      --teal: #0284C7;
+      --teal-soft: #38BDF8;
+      --ws-work: #0284C7;
+      --ws-life: #F59E0B;
+      --ws-study: #8B5CF6;
+    }
+
+    [data-scheme="ocean"][data-theme="dark"] {
+      --teal: #38BDF8;
+      --teal-soft: #0284C7;
+      --ws-work: #38BDF8;
+      --ws-life: #FCD34D;
+      --ws-study: #A78BFA;
+    }
+
+    /* 配色方案3: 紫色主题 */
+    [data-scheme="lavender"] {
+      --teal: #7C3AED;
+      --teal-soft: #A78BFA;
+      --ws-work: #7C3AED;
+      --ws-life: #EC4899;
+      --ws-study: #06B6D4;
+    }
+
+    [data-scheme="lavender"][data-theme="dark"] {
+      --teal: #A78BFA;
+      --teal-soft: #7C3AED;
+      --ws-work: #A78BFA;
+      --ws-life: #F472B6;
+      --ws-study: #22D3EE;
+    }
+
+    /* 配色方案4: 绿色主题 */
+    [data-scheme="forest"] {
+      --teal: #16A34A;
+      --teal-soft: #4ADE80;
+      --ws-work: #16A34A;
+      --ws-life: #EA580C;
+      --ws-study: #6366F1;
+    }
+
+    [data-scheme="forest"][data-theme="dark"] {
+      --teal: #4ADE80;
+      --teal-soft: #16A34A;
+      --ws-work: #4ADE80;
+      --ws-life: #FB923C;
+      --ws-study: #818CF8;
+    }
+
+    /* 配色方案5: 暖色主题 */
+    [data-scheme="warm"] {
+      --teal: #DC2626;
+      --teal-soft: #F87171;
+      --ws-work: #DC2626;
+      --ws-life: #D97706;
+      --ws-study: #7C3AED;
+    }
+
+    [data-scheme="warm"][data-theme="dark"] {
+      --teal: #F87171;
+      --teal-soft: #DC2626;
+      --ws-work: #F87171;
+      --ws-life: #FBBF24;
+      --ws-study: #A78BFA;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-color: var(--color-background);
+      color: var(--color-text);
+      padding: 20px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: var(--color-text);
+    }
+
+    .controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 10px;
+      z-index: 100;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      background: var(--teal);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn.active {
+      box-shadow: 0 0 0 3px var(--teal-soft);
+    }
+
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: var(--color-text);
+    }
+
+    .scheme-selector {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .scheme-btn {
+      padding: 12px 24px;
+      border: 2px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-background);
+      color: var(--color-text);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .scheme-btn:hover {
+      border-color: var(--teal);
+    }
+
+    .scheme-btn.active {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: white;
+    }
+
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .color-item {
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .color-item .name {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .color-item .value {
+      opacity: 0.8;
+    }
+
+    .workspace-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .ws-tab {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .ws-tab.work {
+      background: var(--ws-work);
+      color: white;
+    }
+
+    .ws-tab.life {
+      background: var(--ws-life);
+      color: white;
+    }
+
+    .ws-tab.study {
+      background: var(--ws-study);
+      color: white;
+    }
+
+    .task-item {
+      padding: 12px 16px;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .task-checkbox {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--clay);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .task-checkbox.checked {
+      background: var(--teal);
+      border-color: var(--teal);
+    }
+
+    .task-title {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .task-title.done {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+
+    .priority-bar {
+      width: 4px;
+      height: 20px;
+      border-radius: 2px;
+    }
+
+    .priority-bar.high {
+      background: var(--rose);
+    }
+
+    .priority-bar.medium {
+      background: var(--amber);
+    }
+
+    .priority-bar.low {
+      background: var(--sage);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .day-cell {
+      padding: 8px;
+      text-align: center;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .day-cell.today {
+      background: var(--teal);
+      color: white;
+    }
+
+    .day-cell.has-tasks {
+      border: 1px solid var(--teal-soft);
+    }
+
+    .info-text {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+    }
+
+    .current-theme {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      font-size: 14px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .scheme-preview {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .scheme-preview .dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 配色方案选择</h1>
+    
+    <div class="section">
+      <h2>选择配色方案</h2>
+      <div class="scheme-selector">
+        <button class="scheme-btn active" onclick="setScheme('original')">原始方案</button>
+        <button class="scheme-btn" onclick="setScheme('ocean')">海洋蓝</button>
+        <button class="scheme-btn" onclick="setScheme('lavender')">薰衣草紫</button>
+        <button class="scheme-btn" onclick="setScheme('forest')">森林绿</button>
+        <button class="scheme-btn" onclick="setScheme('warm')">暖色调</button>
+      </div>
+      <div class="scheme-preview" id="schemePreview">
+        <div class="dot" style="background: var(--teal);"></div>
+        <div class="dot" style="background: var(--ws-work);"></div>
+        <div class="dot" style="background: var(--ws-life);"></div>
+        <div class="dot" style="background: var(--ws-study);"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>颜色方案</h2>
+      <div class="color-grid">
+        <div class="color-item" style="background: var(--paper);">
+          <div class="name">Paper</div>
+          <div class="value">背景色</div>
+        </div>
+        <div class="color-item" style="background: var(--ink); color: white;">
+          <div class="name">Ink</div>
+          <div class="value">主文字</div>
+        </div>
+        <div class="color-item" style="background: var(--graphite); color: white;">
+          <div class="name">Graphite</div>
+          <div class="value">次要文字</div>
+        </div>
+        <div class="color-item" style="background: var(--clay);">
+          <div class="name">Clay</div>
+          <div class="value">浅色文字</div>
+        </div>
+        <div class="color-item" style="background: var(--teal); color: white;">
+          <div class="name">Teal</div>
+          <div class="value">主色调</div>
+        </div>
+        <div class="color-item" style="background: var(--teal-soft); color: white;">
+          <div class="name">Teal Soft</div>
+          <div class="value">柔和主色</div>
+        </div>
+        <div class="color-item" style="background: var(--sage); color: var(--ink);">
+          <div class="name">Sage</div>
+          <div class="value">绿色</div>
+        </div>
+        <div class="color-item" style="background: var(--rose); color: white;">
+          <div class="name">Rose</div>
+          <div class="value">红色</div>
+        </div>
+        <div class="color-item" style="background: var(--amber); color: white;">
+          <div class="name">Amber</div>
+          <div class="value">橙色</div>
+        </div>
+        <div class="color-item" style="background: var(--indigo); color: white;">
+          <div class="name">Indigo</div>
+          <div class="value">紫色</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>工作空间标签</h2>
+      <div class="workspace-tabs">
+        <button class="ws-tab work">工作</button>
+        <button class="ws-tab life">生活</button>
+        <button class="ws-tab study">学习</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>任务列表</h2>
+      <div class="task-item">
+        <div class="priority-bar high"></div>
+        <div class="task-checkbox"></div>
+        <div class="task-title">完成项目设计文档</div>
+      </div>
+      <div class="task-item">
+        <div class="priority-bar medium"></div>
+        <div class="task-checkbox checked"></div>
+        <div class="task-title done">代码审查</div>
+      </div>
+      <div class="task-item">
+        <div class="priority-bar low"></div>
+        <div class="task-checkbox"></div>
+        <div class="task-title">更新依赖版本</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>日历视图</h2>
+      <div class="calendar-grid">
+        <div class="day-cell">一</div>
+        <div class="day-cell">二</div>
+        <div class="day-cell">三</div>
+        <div class="day-cell">四</div>
+        <div class="day-cell">五</div>
+        <div class="day-cell">六</div>
+        <div class="day-cell">日</div>
+        <div class="day-cell">1</div>
+        <div class="day-cell">2</div>
+        <div class="day-cell has-tasks">3</div>
+        <div class="day-cell today">4</div>
+        <div class="day-cell">5</div>
+        <div class="day-cell has-tasks">6</div>
+        <div class="day-cell">7</div>
+        <div class="day-cell">8</div>
+        <div class="day-cell">9</div>
+        <div class="day-cell">10</div>
+        <div class="day-cell">11</div>
+        <div class="day-cell">12</div>
+        <div class="day-cell">13</div>
+        <div class="day-cell">14</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>说明</h2>
+      <p class="info-text">
+        点击右上角按钮切换深色/浅色主题。<br>
+        主题会自动跟随 ztools 的深色/浅色设置。
+      </p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" onclick="toggleTheme()">切换主题</button>
+  </div>
+  <div class="current-theme">当前主题: <span id="theme-label">浅色</span></div>
+
+  <script>
+    let currentScheme = 'original';
+
+    function setScheme(scheme) {
+      currentScheme = scheme;
+      document.documentElement.dataset.scheme = scheme;
+      
+      // 更新按钮状态
+      document.querySelectorAll('.scheme-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const currentTheme = html.dataset.theme;
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      html.dataset.theme = newTheme;
+      document.getElementById('theme-label').textContent = newTheme === 'dark' ? '深色' : '浅色';
+    }
+
+    // 模拟 ztools.isDarkColors()
+    function isDarkColors() {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    // 初始化主题
+    function initTheme() {
+      const isDark = isDarkColors();
+      document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+      document.getElementById('theme-label').textContent = isDark ? '深色' : '浅色';
+    }
+
+    initTheme();
+  </script>
+</body>
+</html>

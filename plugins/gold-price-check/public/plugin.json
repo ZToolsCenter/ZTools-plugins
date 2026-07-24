@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "gold-price-check",
+  "title": "金价动态",
+  "description": "实时查看每日金价、品牌金店价格、银行金条价格、黄金回收价格，以及日内/月度/年度价格波动走势",
+  "author": "fantasyke",
+  "version": "1.0.1",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "gold",
+      "explain": "查看每日金价、品牌金店价格、银行金条价格、黄金回收价格，以及日内/月度/年度价格波动走势",
+      "icon": "logo.png",
+      "cmds": [
+        "金价",
+        "每日金价",
+        "黄金价格",
+        "gold",
+        "实时金价",
+        "今日金价",
+        "金条价格",
+        "回收金价",
+        "金价走势"
+      ]
+    }
+  ],
+  "platform": [
+    "linux",
+    "win32",
+    "darwin"
+  ]
+}

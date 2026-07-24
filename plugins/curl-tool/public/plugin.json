@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "curl-tool",
+  "title": "Curl Tool",
+  "categories": ["development", "network"],
+  "description": "在 ZTools 中解析 curl 指令并发送 HTTP 请求的接口调试工具",
+  "author": "qin54",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "curl",
+      "explain": "读取剪贴板 curl 指令，解析为可编辑请求并发送 HTTP 请求",
+      "icon": "logo.png",
+      "mainPush": true,
+      "cmds": [
+        "curl-tool",
+        "curl",
+        "HTTP 请求",
+        "接口调试",
+        "请求调试",
+        {
+          "type": "regex",
+          "label": "导入 curl 请求",
+          "match": "^\\s*curl(?:\\.exe)?\\s+[\\s\\S]+",
+          "minLength": 5
+        },
+        {
+          "type": "over",
+          "label": "用 Curl Tool 打开",
+          "minLength": 5
+        }
+      ]
+    }
+  ],
+  "platform": ["darwin", "win32", "linux"]
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ztools-simpletimer",
+  "title": "计时器",
+  "description": "简单的正计时和倒计时工具",
+  "author": "zzzbug",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "stopwatch",
+      "explain": "打开正计时器",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": ["正计时", "stopwatch"]
+    },
+    {
+      "code": "countdown",
+      "explain": "打开倒计时器",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": ["倒计时", "countdown"]
+    }
+  ]
+}

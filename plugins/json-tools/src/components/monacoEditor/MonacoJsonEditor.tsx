@@ -73,6 +73,8 @@ import {
   toggleImageDecorators,
 } from "@/components/monacoEditor/decorations/imageDecoration.ts";
 import { DecorationManager } from "@/components/monacoEditor/decorations/decorationManager.ts";
+import { DisposableStore } from "@/components/monacoEditor/monacoDisposables.ts";
+import { ensureProvidersRegistered } from "@/components/monacoEditor/decorations/decorationInit.ts";
 
 import "@/styles/monaco.css";
 import ErrorModal from "@/components/monacoEditor/ErrorModal.tsx";
@@ -158,6 +160,10 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
     useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
   const foldingDecorationsRef =
     useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+  const cursorSelectionDisposableRef = useRef<monaco.IDisposable | null>(null);
+
+  // Monaco 资源生命周期管理器，统一管理所有事件监听器和 timeout
+  const disposableStore = useRef(new DisposableStore());
 
   // 从 store 获取当前 tab 的设置
   const currentTab = getTabByKey(tabKey);
@@ -223,7 +229,9 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
   const [imageDecoratorsEnabled, setImageDecoratorsEnabled] = useState(true); // 默认开启图片装饰器
 
   // 跟踪是否为首次粘贴状态（用于首次粘贴时自动格式化）
-  const [isFirstPaste, setIsFirstPaste] = useState(true);
+  // 使用 ref 避免闭包陷阱：useEffect([]) 中注册的 onDidPaste 回调
+  // 无法通过 setState 获取最新值，ref.current 始终可读
+  const isFirstPasteRef = useRef(true);
 
   // 时间戳装饰器状态
   const timestampDecoratorState: TimestampDecoratorState = {
@@ -320,6 +328,12 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
   const [currentEditorValue, setCurrentEditorValue] = useState<string>("");
   // 编辑器是否准备就绪
   const [isEditorReady, setIsEditorReady] = useState<boolean>(false);
+  // 编辑器统计信息（字符数、行数、选区字符数）
+  const [editorStats, setEditorStats] = useState<{
+    chars: number;
+    lines: number;
+    selectedChars: number;
+  }>({ chars: 0, lines: 0, selectedChars: 0 });
 
   // 使用自定义快捷指令或默认快捷指令
   const finalQuickPrompts = customQuickPrompts || jsonQuickPrompts;
@@ -692,7 +706,7 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
 
     // 如果清空了编辑器，重置首次粘贴状态
     if (jsonText === "") {
-      setIsFirstPaste(true);
+      isFirstPasteRef.current = true;
     }
   };
 
@@ -704,6 +718,20 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
 
     return editorRef.current.getModel()?.getLineCount() || 0;
   };
+
+  // 更新编辑器统计信息（字符数、行数、选区字符数）
+  const updateEditorStats = useCallback(() => {
+    if (!editorRef.current) return;
+    const model = editorRef.current.getModel();
+    const selection = editorRef.current.getSelection();
+    const chars = model?.getValueLength() ?? 0;
+    const lines = model?.getLineCount() ?? 0;
+    let selectedChars = 0;
+    if (selection && !selection.isEmpty()) {
+      selectedChars = model?.getValueLengthInRange(selection) ?? 0;
+    }
+    setEditorStats({ chars, lines, selectedChars });
+  }, []);
 
   // 清空所有装饰器
   const clearAllDecorators = () => {
@@ -1489,6 +1517,9 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
       // 注意: 这里使用全局初始化的Monaco实例，不再重复加载配置
       const monacoInstance: Monaco = await loader.init();
 
+      // 确保全局悬停提供者已注册
+      ensureProvidersRegistered();
+
       if (containerRef.current) {
         const editor = monacoInstance.editor.create(containerRef.current, {
           value: value || "",
@@ -1528,77 +1559,82 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
         editor.focus();
 
         // 监听折叠状态变化
-        editor.onDidChangeHiddenAreas(() => {
-          if (editorRef.current) {
-            updateFoldingDecorations(
-              editorRef.current,
-              currentLanguage,
-              foldingDecorationsRef,
-            );
-          }
-        });
+        disposableStore.current.add(
+          editor.onDidChangeHiddenAreas(() => {
+            if (editorRef.current) {
+              updateFoldingDecorations(
+                editorRef.current,
+                currentLanguage,
+                foldingDecorationsRef,
+              );
+            }
+          }),
+        );
 
         // 监听滚动事件
-        editor.onDidScrollChange(() => {
-          if (timestampUpdateTimeoutRef.current) {
-            clearTimeout(timestampUpdateTimeoutRef.current);
-          }
-
-          timestampUpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateTimestampDecorations(
-                editorRef.current,
-                timestampDecoratorState,
-              );
+        disposableStore.current.add(
+          editor.onDidScrollChange(() => {
+            if (timestampUpdateTimeoutRef.current) {
+              clearTimeout(timestampUpdateTimeoutRef.current);
             }
-          }, 200); // 添加防抖
 
-          if (base64UpdateTimeoutRef.current) {
-            clearTimeout(base64UpdateTimeoutRef.current);
-          }
+            timestampUpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateTimestampDecorations(
+                  editorRef.current,
+                  timestampDecoratorState,
+                );
+              }
+            }, 200); // 添加防抖
 
-          base64UpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateBase64Decorations(editorRef.current, base64DecoratorState);
+            if (base64UpdateTimeoutRef.current) {
+              clearTimeout(base64UpdateTimeoutRef.current);
             }
-          }, 200);
 
-          if (unicodeUpdateTimeoutRef.current) {
-            clearTimeout(unicodeUpdateTimeoutRef.current);
-          }
+            base64UpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateBase64Decorations(editorRef.current, base64DecoratorState);
+              }
+            }, 200);
 
-          unicodeUpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateUnicodeDecorations(
-                editorRef.current,
-                unicodeDecoratorState,
-              );
+            if (unicodeUpdateTimeoutRef.current) {
+              clearTimeout(unicodeUpdateTimeoutRef.current);
             }
-          }, 200);
 
-          if (urlUpdateTimeoutRef.current) {
-            clearTimeout(urlUpdateTimeoutRef.current);
-          }
+            unicodeUpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateUnicodeDecorations(
+                  editorRef.current,
+                  unicodeDecoratorState,
+                );
+              }
+            }, 200);
 
-          urlUpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateUrlDecorations(editorRef.current, urlDecoratorState);
+            if (urlUpdateTimeoutRef.current) {
+              clearTimeout(urlUpdateTimeoutRef.current);
             }
-          }, 200);
 
-          if (imageUpdateTimeoutRef.current) {
-            clearTimeout(imageUpdateTimeoutRef.current);
-          }
+            urlUpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateUrlDecorations(editorRef.current, urlDecoratorState);
+              }
+            }, 200);
 
-          imageUpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateImageDecorations(editorRef.current, imageDecoratorState);
+            if (imageUpdateTimeoutRef.current) {
+              clearTimeout(imageUpdateTimeoutRef.current);
             }
-          }, 300);
-        });
+
+            imageUpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateImageDecorations(editorRef.current, imageDecoratorState);
+              }
+            }, 300);
+          }),
+        );
 
         // 监听内容变化
-        editor.onDidChangeModelContent((e) => {
+        disposableStore.current.add(
+          editor.onDidChangeModelContent((e) => {
           const val = editor.getValue();
           const languageId = editorRef.current?.getModel()?.getLanguageId();
 
@@ -1646,18 +1682,28 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
           }
           onUpdateValue(val);
           setCurrentEditorValue(val);
-        });
+          updateEditorStats();
+        }),
+        );
+
+        // 监听选区变化，更新选中字符数
+        cursorSelectionDisposableRef.current = disposableStore.current.add(
+          editor.onDidChangeCursorSelection(() => {
+            updateEditorStats();
+          }),
+        );
 
         // 添加粘贴事件监听：首次粘贴时自动格式化
-        editor.onDidPaste(() => {
-          if (isFirstPaste && editorRef.current) {
+        disposableStore.current.add(
+          editor.onDidPaste(() => {
+          if (isFirstPasteRef.current && editorRef.current) {
             const currentValue = editorRef.current.getValue();
 
             // 检查是否为首次粘贴（编辑器为空或只有空白字符）
             if (currentValue && currentValue.trim() !== "") {
               // 延迟执行，等待内容完全粘贴并格式化
-              setTimeout(() => {
-                if (editorRef.current && isFirstPaste) {
+              const timeoutId = setTimeout(() => {
+                if (editorRef.current && isFirstPasteRef.current) {
                   // 尝试验证并格式化
                   const val = editorRef.current.getValue();
                   const isValid = editorValueValidate(val);
@@ -1666,16 +1712,20 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
                     // 验证成功后进行格式化
                     editorFormat();
                     // 设置为非首次粘贴状态，避免重复格式化
-                    setIsFirstPaste(false);
+                    isFirstPasteRef.current = false;
                   }
                 }
               }, 100);
+              // 注册 timeout 到 store，确保清理时不会遗漏
+              disposableStore.current.addTimeout(timeoutId);
             }
           }
-        });
+        }),
+        );
 
         editorRef.current = editor;
         setIsEditorReady(true);
+        updateEditorStats();
 
         // 统一初始化所有装饰器
         // 使用 onDidLayoutChange 确保编辑器布局完成后再初始化装饰器
@@ -1751,14 +1801,25 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
 
     return () => {
       clearTimeout(timeoutId);
+
+      // 统一释放所有 Monaco 事件监听器
+      disposableStore.current.dispose();
+
       // 清理过滤编辑器
       if (filterEditorRef.current) {
         filterEditorRef.current.dispose();
         filterEditorRef.current = null;
       }
+
       // 清理防抖计时器
       if (filterUpdateTimeoutRef.current) {
         clearTimeout(filterUpdateTimeoutRef.current);
+      }
+
+      // 清理主编辑器实例
+      if (editorRef.current) {
+        editorRef.current.dispose();
+        editorRef.current = null;
       }
     };
   }, []); // 空依赖数组表示这个效果只在组件挂载和卸载时运行
@@ -1779,6 +1840,38 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
     tabKey,
     updateEditorSettings,
   ]);
+
+  // 监听外部 value prop 变化并更新编辑器内容
+  // 用于支持多窗口同步等场景
+  useEffect(() => {
+    if (!editorRef.current || !isEditorReady) {
+      return;
+    }
+
+    const currentValue = editorRef.current.getValue();
+
+    // 只有当外部 value 与编辑器当前值不同时才更新
+    // 避免循环更新和不必要的渲染
+    if (value !== undefined && value !== currentValue) {
+      console.log('[MonacoJsonEditor] 外部 value 变化，更新编辑器内容', {
+        tabKey,
+        oldValueLength: currentValue?.length,
+        newValueLength: value?.length,
+      });
+
+      // 使用 executeEdits 保留撤销历史
+      const model = editorRef.current.getModel();
+      if (model) {
+        editorRef.current.executeEdits("external-update", [
+          {
+            range: model.getFullModelRange(),
+            text: value,
+            forceMoveMarkers: true,
+          },
+        ]);
+      }
+    }
+  }, [value, isEditorReady, tabKey]);
 
   // 添加对全局状态变化的监听，并更新相关函数调用
 
@@ -1874,7 +1967,14 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
               className="h-full overflow-hidden border-r border-default-200 dark:border-default-100/20 monaco-editor-container"
               style={{ width: `calc(60% - ${aiPanelWidth}px)` }}
             >
-              <div ref={containerRef} className="h-full w-full" />
+              <div className="relative h-full w-full">
+                <div ref={containerRef} className="h-full w-full" />
+                <div className="absolute bottom-0 right-2 pointer-events-none select-none z-10 text-[11px] leading-tight font-mono text-gray-400/70 dark:text-gray-500/70 bg-white/60 dark:bg-neutral-900/60 backdrop-blur-sm rounded-t px-1.5 py-0.5">
+                  {editorStats.chars} 字符 · {editorStats.lines} 行
+                  {editorStats.selectedChars > 0 &&
+                    ` · ${editorStats.selectedChars} 选中`}
+                </div>
+              </div>
             </div>
 
             {/* 拖动条 */}
@@ -1917,7 +2017,14 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
               className="h-full overflow-hidden border-r border-default-200 dark:border-default-100/20 monaco-editor-container"
               style={{ width: `${filterLeftWidth}%` }}
             >
-              <div ref={containerRef} className="h-full w-full" />
+              <div className="relative h-full w-full">
+                <div ref={containerRef} className="h-full w-full" />
+                <div className="absolute bottom-0 right-2 pointer-events-none select-none z-10 text-[11px] leading-tight font-mono text-gray-400/70 dark:text-gray-500/70 bg-white/60 dark:bg-neutral-900/60 backdrop-blur-sm rounded-t px-1.5 py-0.5">
+                  {editorStats.chars} 字符 · {editorStats.lines} 行
+                  {editorStats.selectedChars > 0 &&
+                    ` · ${editorStats.selectedChars} 选中`}
+                </div>
+              </div>
             </div>
 
             {/* jsonQuery 过滤器拖动条 */}
@@ -1996,7 +2103,14 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
           </>
         ) : (
           // 普通模式：只显示一个编辑器
-          <div ref={containerRef} className="w-full h-full" />
+          <div className="relative w-full h-full">
+            <div ref={containerRef} className="w-full h-full" />
+            <div className="absolute bottom-0 right-2 pointer-events-none select-none z-10 text-[11px] leading-tight font-mono text-gray-400/70 dark:text-gray-500/70 bg-white/60 dark:bg-neutral-900/60 backdrop-blur-sm rounded-t px-1.5 py-0.5">
+              {editorStats.chars} 字符 · {editorStats.lines} 行
+              {editorStats.selectedChars > 0 &&
+                ` · ${editorStats.selectedChars} 选中`}
+            </div>
+          </div>
         )}
       </div>
 

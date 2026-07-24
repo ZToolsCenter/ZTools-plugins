@@ -1,3 +1,55 @@
+# [1.22.0](https://github.com/fevrax/json-tools/compare/v1.21.0...v1.22.0) (2026-05-03)
+
+
+### Bug Fixes
+
+* resolve TS2322 type error in PromptContainer classNames ([a49e192](https://github.com/fevrax/json-tools/commit/a49e1922b99d844b7d54ed69e48fe50188c3c7a9))
+
+
+### Features
+
+* add Base64 import for new tab creation ([9d14a60](https://github.com/fevrax/json-tools/commit/9d14a6059a9b09931d0dc93cd8100d2178ed0f2a))
+* add copy button to hover decoded content for base64/url/unicode ([5ddd05b](https://github.com/fevrax/json-tools/commit/5ddd05b85075eb013c4f3c828e0095d4cb35be48))
+* add open-in-new-tab button to hover decoded content ([4765876](https://github.com/fevrax/json-tools/commit/4765876bdd583fe918bfe4c261579758ac4119ac))
+* add table view search and column filter functionality ([780dad0](https://github.com/fevrax/json-tools/commit/780dad0cc052fb8f747785f6199fb74940e6628f))
+* increase decorator recognition size limits for base64/url/unicode/image ([6cc6034](https://github.com/fevrax/json-tools/commit/6cc603416499ceda85c2ad9550d6aac5eb6b1817))
+* Increase word count statistics ([1ca5d76](https://github.com/fevrax/json-tools/commit/1ca5d7648678c7f6e75f3c89dc6c999df92200f6))
+
+# [1.21.0](https://github.com/fevrax/json-tools/compare/v1.20.0...v1.21.0) (2026-03-15)
+
+
+### Bug Fixes
+
+* local storage fix ([bf0bce8](https://github.com/fevrax/json-tools/commit/bf0bce84d00e75d85aadf9d32295317a703a1e9d))
+* optimize Sidebar Style ([53973d6](https://github.com/fevrax/json-tools/commit/53973d631885f7cc2ac8222ee4f18709c6af8758))
+* package.json ([fddfd5e](https://github.com/fevrax/json-tools/commit/fddfd5e909d8ae542581f7872ac151903f4ef734))
+
+
+### Features
+
+* add linux/arm64 docker build ([f5a20a1](https://github.com/fevrax/json-tools/commit/f5a20a11a6c973085c873b013ba804b292ce138c))
+
+# [1.20.0](https://github.com/fevrax/json-tools/compare/v1.19.0...v1.20.0) (2026-03-15)
+
+
+### Bug Fixes
+
+* dev disable pwa ([9ba444c](https://github.com/fevrax/json-tools/commit/9ba444cb27221501dbdbcbf0295228b5615c1ab6))
+* history list title change ([69c428f](https://github.com/fevrax/json-tools/commit/69c428f453bfa2f5467834e56d447244ad5f92a0))
+* multiple window synchronization issue ([f094c90](https://github.com/fevrax/json-tools/commit/f094c902aa55ef7d7a8db274c2174e1bd9b70102))
+
+
+### Features
+
+* tab history ([47b881d](https://github.com/fevrax/json-tools/commit/47b881db282c848643777e6f5d48fb5f7063a379))
+
+# [1.19.0](https://github.com/fevrax/json-tools/compare/v1.18.1...v1.19.0) (2026-03-10)
+
+
+### Features
+
+* refactor local storage ([eebdbe4](https://github.com/fevrax/json-tools/commit/eebdbe49390427ff0e7877bda5b358e810c7a764))
+
 ## [1.18.1](https://github.com/fevrax/json-tools/compare/v1.18.0...v1.18.1) (2025-12-30)
 
 

@@ -1,0 +1,51 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "image-batch-studio",
+  "title": "图片批处理",
+  "description": "图片批处理：压缩、水印、格式转换、尺寸、裁剪、旋转、翻转、边框、圆角、PDF 合并、图片合并和 GIF 合成。",
+  "author": "harris",
+  "version": "0.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "unpack": "*.dylib",
+  "logo": "logo.svg",
+  "platform": ["darwin"],
+  "categories": ["media"],
+  "development": {
+    "main": "http://127.0.0.1:5177"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 760
+  },
+  "features": [
+    {
+      "code": "image-batch",
+      "explain": "图片批处理",
+      "icon": "logo.svg",
+      "cmds": [
+        "图片批处理",
+        "图片压缩",
+        "图片转换",
+        "图片水印",
+        {
+          "type": "img",
+          "label": "图片批处理"
+        },
+        {
+          "type": "files",
+          "fileType": "file",
+          "label": "批量处理图片",
+          "extensions": ["jpg", "jpeg", "png", "webp", "avif", "heif", "heic", "tiff", "gif", "pdf"],
+          "maxLength": 300
+        },
+        {
+          "type": "files",
+          "fileType": "directory",
+          "label": "批量处理文件夹图片",
+          "maxLength": 20
+        }
+      ]
+    }
+  ]
+}

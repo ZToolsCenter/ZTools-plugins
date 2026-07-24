@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": ".",
+    "outDir": "dist-types",
+    "types": ["vite/client"]
+  },
+  "include": [
+    "preload/**/*.ts",
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "tests/**/*.ts",
+    "vite*.config.ts"
+  ],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/design-tokens" },
+    { "path": "../../packages/sync-protocol" },
+    { "path": "../../packages/contract-fixtures" }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@pasteboard-pro/ztools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm run build:renderer && pnpm run build:preload && pnpm run assemble",
+    "build:renderer": "vite build",
+    "build:preload": "vite build --config vite.preload.config.ts",
+    "assemble": "node scripts/assemble-dist.mjs",
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.vue.json",
+    "verify": "node scripts/verify-package.mjs"
+  },
+  "dependencies": {
+    "@pasteboard-pro/contract-fixtures": "workspace:*",
+    "@pasteboard-pro/core": "workspace:*",
+    "@pasteboard-pro/design-tokens": "workspace:*",
+    "@pasteboard-pro/sync-protocol": "workspace:*",
+    "vue": "^3.5.22"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.4",
+    "vite": "^5.4.20",
+    "vue-tsc": "^2.2.12"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "addon",
+  "version": "0.1.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.node",
+  "types": "index.d.ts",
+  "scripts": {
+    "build-release": "cargo-cp-artifact -nc index.node -- cargo build --message-format=json-render-diagnostics --release",
+    "install": "npm run build-release",
+    "test": "cargo test",
+    "test:everything": "node ../scripts/test-everything-addon.cjs"
+  },
+  "devDependencies": {
+    "cargo-cp-artifact": "^0.1"
+  }
+}

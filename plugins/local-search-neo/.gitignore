@@ -1,0 +1,8 @@
+node_modules
+dist
+.tmp
+
+*.node
+public/addon-manifest.json
+public/pdfjs/
+public/everything/*.db*

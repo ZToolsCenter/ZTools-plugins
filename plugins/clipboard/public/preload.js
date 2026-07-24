@@ -85,6 +85,13 @@ async function mapHistoryItem(item) {
 
 window.ztools.onPluginEnter((param) => {
     console.log("clipboard plugin enter", param);
+    setTimeout(() => {
+        try {
+            window.ztools.subInputFocus();
+        } catch (error) {
+            console.error('聚焦搜索框失败:', error);
+        }
+    }, 0);
 })
 
 window.ztools.setSubInput((details) => {

@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "todos",
+  "title": "Todos待办",
+  "description": "高颜值、快捷高效的待办事项管理工具，支持日历视图与拖拽操作",
+  "author": "Agitator",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "Todos",
+      "explain": "Todos待办",
+      "icon": "logo.svg",
+      "cmds": ["todo", "待办"]
+    }
+  
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "deepread",
+  "title": "DeepRead 深读",
+  "description": "一个面向 ZTools 的低调本地小说阅读插件，支持书架、分页、进度保存、章节/搜索跳转和快速隐藏。",
+  "author": "DeepRead",
+  "version": "1.1.2",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "deepread",
+      "explain": "打开 DeepRead 深读",
+      "icon": "logo.png",
+      "cmds": ["深读", "DeepRead", "小说阅读", "摸鱼阅读"]
+    },
+    {
+      "code": "deepread-import",
+      "explain": "导入本地小说",
+      "icon": "logo.png",
+      "cmds": [
+        "导入小说",
+        {
+          "type": "files",
+          "fileType": "file",
+          "extensions": ["txt", "md"],
+          "maxLength": 1,
+          "label": "导入到 DeepRead"
+        }
+      ]
+    },
+    {
+      "code": "deepread-search-books",
+      "explain": "搜索在线书籍",
+      "icon": "logo.png",
+      "cmds": ["搜书", "找书", "在线小说", "深读搜书"]
+    },
+    {
+      "code": "deepread-prev-page",
+      "explain": "DeepRead 上一页",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": ["deepread-prev-page", "深读上一页"]
+    },
+    {
+      "code": "deepread-next-page",
+      "explain": "DeepRead 下一页",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": ["deepread-next-page", "深读下一页"]
+    },
+    {
+      "code": "deepread-toggle-show",
+      "explain": "DeepRead 隐藏或显示阅读器",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": ["deepread-toggle-show", "深读老板键"]
+    },
+    {
+      "code": "deepread-close",
+      "explain": "关闭 DeepRead 阅读器",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": ["deepread-close", "关闭深读"]
+    },
+    {
+      "code": "deepread-toggle-auto",
+      "explain": "DeepRead 自动翻页开关",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": ["deepread-toggle-auto", "深读自动翻页"]
+    },
+    {
+      "code": "deepread-toggle-stealth",
+      "explain": "DeepRead 低调外观开关",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": ["deepread-toggle-stealth", "深读低调模式"]
+    }
+  ]
+}

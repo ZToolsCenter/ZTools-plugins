@@ -1,0 +1,46 @@
+// Global base: resets and element defaults.
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+// Keyboard focus ring for buttons and tabbable widgets. The ring extends ~6px
+// beyond the element box (3px outline + 3px offset), and outline IS clipped by
+// ancestor `overflow: hidden/auto`. Every scroll/clip container therefore keeps
+// >=6px of inner padding so the ring stays fully visible while tabbing. Form
+// controls (input/select/textarea) below intentionally drop outline and rely on
+// their border highlight instead.
+:where(button, [tabindex]):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent) !important;
+  outline-offset: 0px !important;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary-color) 28%, transparent);
+}

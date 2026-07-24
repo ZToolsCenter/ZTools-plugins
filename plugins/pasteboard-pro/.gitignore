@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-types/
+coverage/
+artifacts/
+*.tsbuildinfo

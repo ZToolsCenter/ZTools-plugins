@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>繁简转换</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px 18px 24px;
+      font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+      background: #f5f5f7;
+      color: #1d1d1f;
+    }
+    body.dark {
+      background: #1c1c1e;
+      color: #f5f5f7;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .toolbar label { font-size: 13px; opacity: 0.85; }
+    select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #c7c7cc;
+      background: #fff;
+      color: inherit;
+      font-size: 13px;
+    }
+    body.dark select {
+      background: #2c2c2e;
+      border-color: #48484a;
+    }
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+    @media (max-width: 520px) {
+      .panels { grid-template-columns: 1fr; }
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    .panel label {
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0.88;
+    }
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #c7c7cc;
+      background: #fff;
+      color: inherit;
+      font-size: 14px;
+      resize: vertical;
+      font-family: inherit;
+    }
+    body.dark textarea {
+      background: #2c2c2e;
+      border-color: #48484a;
+    }
+    textarea.result {
+      background: #fafafa;
+    }
+    body.dark textarea.result {
+      background: #252528;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      background: #007aff;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button:hover { background: #0066d6; }
+    button.secondary {
+      background: #e5e5ea;
+      color: #1d1d1f;
+    }
+    body.dark button.secondary {
+      background: #3a3a3c;
+      color: #f5f5f7;
+    }
+    button.secondary:hover { opacity: 0.92; }
+  </style>
+</head>
+<body>
+  <h1>繁简转换</h1>
+  <div class="toolbar">
+    <label for="variant">繁体标准</label>
+    <select id="variant" aria-label="繁体标准">
+      <option value="tw" selected>台湾（OpenCC tw）</option>
+      <option value="hk">香港（OpenCC hk）</option>
+    </select>
+  </div>
+  <div class="panels">
+    <div class="panel">
+      <label for="inputOriginal">原文</label>
+      <textarea id="inputOriginal" placeholder="在此粘贴或输入中文…" spellcheck="false"></textarea>
+    </div>
+    <div class="panel">
+      <label for="inputResult">转换结果</label>
+      <textarea id="inputResult" class="result" placeholder="点击上方按钮，从原文生成…" spellcheck="false"></textarea>
+    </div>
+  </div>
+  <div class="actions">
+    <button type="button" id="btnToSimp">繁 → 简</button>
+    <button type="button" id="btnToTrad">简 → 繁</button>
+    <button type="button" class="secondary" id="btnCopy">复制转换结果</button>
+  </div>
+  <script src="index.js"></script>
+</body>
+</html>

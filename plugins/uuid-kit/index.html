@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>UUID 百宝箱</title>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --text: #1f2329;
+    --muted: #8a919f;
+    --border: #e5e6eb;
+    --accent: #4f5bd5;
+    --accent-weak: rgba(79, 91, 213, 0.08);
+    --ok: #18a058;
+    --err: #d03050;
+  }
+  body.dark {
+    --bg: #1b1d21;
+    --card: #26282e;
+    --text: #e8eaed;
+    --muted: #8f959e;
+    --border: #3a3d44;
+    --accent: #7c88ff;
+    --accent-weak: rgba(124, 136, 255, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    body:not(.light) {
+      --bg: #1b1d21;
+      --card: #26282e;
+      --text: #e8eaed;
+      --muted: #8f959e;
+      --border: #3a3d44;
+      --accent: #7c88ff;
+      --accent-weak: rgba(124, 136, 255, 0.12);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    padding: 14px 16px;
+  }
+  .mono { font-family: "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace; }
+  .head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .head .title { font-weight: 600; font-size: 15px; }
+  .badge {
+    font-size: 12px; padding: 1px 8px; border-radius: 10px;
+    background: var(--accent-weak); color: var(--accent);
+  }
+  .meta { color: var(--muted); font-size: 12px; margin-bottom: 8px; min-height: 16px; }
+  #input {
+    width: 100%; padding: 9px 12px; margin-bottom: 12px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--card); color: var(--text); font-size: 13px;
+    outline: none;
+  }
+  #input:focus { border-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 12px; padding: 10px 4px; line-height: 2; }
+  .hint code { color: var(--accent); }
+  .error { color: var(--err); font-size: 13px; padding: 10px 4px; }
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 14px; cursor: pointer;
+    transition: border-color .12s;
+  }
+  .row:hover { border-color: var(--accent); }
+  .row.primary { border-color: var(--accent); background: var(--accent-weak); }
+  .row.action { border-style: dashed; color: var(--muted); justify-content: center; }
+  .row .label { width: 128px; flex: none; color: var(--muted); font-size: 12px; }
+  .row .value { flex: 1; font-size: 13px; word-break: break-all; }
+  .row .act { flex: none; color: var(--muted); font-size: 12px; }
+  .row.primary .act { color: var(--accent); }
+  .note { color: var(--muted); font-size: 12px; padding: 6px 4px; }
+  #toast {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%) translateY(60px);
+    background: var(--text); color: var(--bg); font-size: 12px;
+    padding: 6px 14px; border-radius: 14px; opacity: 0; transition: all .18s;
+    pointer-events: none; max-width: 90%; white-space: nowrap; overflow: hidden;
+  }
+  #toast.show { opacity: .92; transform: translateX(-50%) translateY(0); }
+  #selftest-fail {
+    display: none; color: #fff; background: var(--err);
+    padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 12px;
+    word-break: break-all;
+  }
+</style>
+</head>
+<body>
+  <div class="head">
+    <span class="title">UUID 百宝箱</span>
+    <span class="badge" id="badge">解析 / 生成</span>
+  </div>
+  <div class="meta" id="meta"></div>
+  <div id="selftest-fail"></div>
+  <input id="input" class="mono" spellcheck="false"
+         placeholder="粘贴 id 解析 · uuid7 · uuid4 x10 · uuid5 dns 名称" />
+  <div id="out"></div>
+  <div id="toast"></div>
+
+<script src="./uuid-core.js"></script>
+<script>
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+// Host launcher API: ZTools / uTools / rubick all expose the same surface.
+const api = window.ztools || window.utools || window.rubick || null;
+
+let current = null;     // { primary } for the Enter shortcut
+let lastCommand = '';   // rerun source for the regenerate action
+
+function copy(text) {
+  try { if (api && api.copyText) { api.copyText(text); return true; } } catch (e) {}
+  try { if (window.__nativeCopy) return window.__nativeCopy(text); } catch (e) {}
+  try {
+    const { clipboard } = require('electron');
+    clipboard.writeText(String(text));
+    return true;
+  } catch (e) {}
+  try { navigator.clipboard.writeText(text); return true; } catch (e) {}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    return true;
+  } catch (e) {}
+  return false;
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1400);
+}
+
+function copyValue(value) {
+  const shown = value.includes('\n') ? value.split('\n').length + ' 个 id' : value;
+  toast(copy(value) ? '已复制  ' + shown : '复制失败');
+}
+
+function row(label, value, opts) {
+  opts = opts || {};
+  const div = document.createElement('div');
+  div.className = 'row' + (opts.primary ? ' primary' : '');
+  div.innerHTML =
+    '<span class="label"></span>' +
+    '<span class="value mono"></span>' +
+    '<span class="act">' + (opts.primary ? 'Enter 复制' : '点击复制') + '</span>';
+  div.querySelector('.label').textContent = label;
+  div.querySelector('.value').textContent = value;
+  div.addEventListener('click', () => copyValue(opts.copyText || value));
+  return div;
+}
+
+function actionRow(label, onClick) {
+  const div = document.createElement('div');
+  div.className = 'row action';
+  div.textContent = label;
+  div.addEventListener('click', onClick);
+  return div;
+}
+
+function note(text) {
+  const div = document.createElement('div');
+  div.className = 'note';
+  div.textContent = text;
+  return div;
+}
+
+function fmtTime(ms) {
+  const d = new Date(ms);
+  const p = (n, w) => String(n).padStart(w || 2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+    ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) +
+    '.' + p(d.getMilliseconds(), 3); // not ms % 1000: negative for pre-1970 v1/v6 timestamps
+}
+
+function metaText(info) {
+  let s = 'UUIDv' + info.version + ' · ' + info.variant;
+  if (info.timeMs !== undefined) s += ' · ' + fmtTime(info.timeMs);
+  if (info.node) s += ' · node ' + info.node + (info.nodeIsRandom ? '（随机）' : '（MAC）');
+  return s;
+}
+
+function setView(badge, meta) {
+  $('badge').textContent = badge;
+  $('meta').textContent = meta || '';
+  const out = $('out');
+  out.innerHTML = '';
+  current = null;
+  return out;
+}
+
+function encodingRows(out, enc, opts) {
+  opts = opts || {};
+  out.appendChild(row('标准 UUID', enc.uuid, { primary: opts.primaryKey === 'uuid' }));
+  out.appendChild(row('hex32', enc.hex32, {}));
+  for (const c of CODECS) {
+    const isPrimary = opts.primaryKey === c.id;
+    const value = isPrimary && opts.prefix ? opts.prefix + '-' + enc[c.id] : enc[c.id];
+    out.appendChild(row(c.label + (isPrimary && opts.prefix ? '（带前缀）' : ''), value, { primary: isPrimary }));
+  }
+}
+
+function showHint() {
+  const out = setView('解析 / 生成');
+  out.innerHTML =
+    '<div class="hint">' +
+    '粘贴任意 id 自动解析（uuid62 / base57 / base58 / base64url / UUID / hex32，可带 <code>order-</code> 等前缀）<br>' +
+    '<code>uuid</code> 或 <code>uuid7</code>　生成（v1/v4/v6/v7）；<code>uuid4 x10</code>　批量<br>' +
+    '<code>uuid5 dns example.com</code>　确定性生成（v3/v5，命名空间 dns/url/oid/x500 或任意 UUID）</div>';
+}
+
+function showError(msg) {
+  const out = setView('无法识别');
+  const div = document.createElement('div');
+  div.className = 'error';
+  div.textContent = msg;
+  out.appendChild(div);
+}
+
+function showParse(value, autoCopy) {
+  let r;
+  try {
+    r = convert(value);
+  } catch (e) {
+    showError(e.message);
+    return;
+  }
+  const out = setView(
+    r.direction === 'decode' ? '短 id → UUID' : 'UUID → 短 id',
+    metaText(r.inspect)
+  );
+  current = { primary: r.primary };
+
+  if (r.direction === 'decode') {
+    encodingRows(out, r.encodings, { primaryKey: 'uuid' });
+    if (r.candidates.length > 1) {
+      out.appendChild(note('⚠ 该字符串在多个字母表下都合法，默认按 ' + r.candidates[0].label + ' 解；其他解法：'));
+      for (const c of r.candidates.slice(1)) {
+        out.appendChild(row('按 ' + c.label + ' 解', formatUuid(c.hex32), {}));
+      }
+    }
+  } else {
+    encodingRows(out, r.encodings, { primaryKey: 'base62', prefix: r.prefix });
+  }
+  if (autoCopy) copyValue(r.primary);
+}
+
+function showGen(cmd) {
+  const deterministic = cmd.version === 3 || cmd.version === 5;
+  const hexes = [];
+  for (let i = 0; i < (deterministic ? 1 : cmd.count); i++) {
+    hexes.push(generate(cmd.version, { namespace: cmd.namespace, name: cmd.name }));
+  }
+
+  if (hexes.length === 1) {
+    const enc = encodeAll(hexes[0]);
+    const out = setView(
+      '生成 UUIDv' + cmd.version + (deterministic ? '（确定性）' : ''),
+      deterministic
+        ? '命名空间 ' + cmd.nsLabel + ' + "' + cmd.name + '"，同输入恒同输出'
+        : metaText(inspect(hexes[0]))
+    );
+    current = { primary: enc.uuid };
+    encodingRows(out, enc, { primaryKey: 'uuid' });
+    if (!deterministic) out.appendChild(actionRow('↻ 再来一个', () => run(lastCommand, false)));
+  } else {
+    const uuids = hexes.map((h) => formatUuid(h));
+    const out = setView('生成 UUIDv' + cmd.version + ' × ' + uuids.length, 'Enter 复制全部（换行分隔），单击某行只复制那一个');
+    current = { primary: uuids.join('\n') };
+    uuids.forEach((u, i) => out.appendChild(row('#' + (i + 1), u, {})));
+    out.appendChild(actionRow('↻ 换一批', () => run(lastCommand, false)));
+  }
+}
+
+function run(text, autoCopy) {
+  lastCommand = text;
+  const cmd = parseCommand(text);
+  switch (cmd.mode) {
+    case 'empty': showHint(); break;
+    case 'gen': showGen(cmd); break;
+    case 'gen-needs-args':
+      showHint();
+      $('badge').textContent = 'uuid' + cmd.version + ' 需要参数：uuid' + cmd.version + ' dns 名称';
+      break;
+    case 'error': showError(cmd.message); break;
+    default: showParse(cmd.value, autoCopy);
+  }
+}
+
+function handle(text, autoCopy) {
+  if ($('input').value !== text) $('input').value = text || '';
+  run(text, autoCopy);
+}
+
+$('input').addEventListener('input', (e) => run(e.target.value, false));
+
+document.addEventListener('keydown', (e) => {
+  if (e.isComposing) return; // IME confirm must not trigger the copy shortcut
+  if (e.key === 'Enter' && current) copyValue(current.primary);
+});
+
+// ---- launcher wiring (ZTools / uTools / rubick) ----
+if (api && api.onPluginEnter) {
+  api.onPluginEnter((ext) => {
+    // rubick keyword entry passes undefined; ztools/utools always pass
+    // {code, type, payload}: 'regex' carries the matched input, 'text'
+    // carries the typed keyword (uuid7 etc.), which is itself a command.
+    try {
+      if (api.isDarkColors) document.body.classList.toggle('dark', !!api.isDarkColors());
+    } catch (e) {}
+    try {
+      api.setSubInput(
+        ({ text }) => handle(text, false),
+        '粘贴 id 解析 · uuid7 · uuid4 x10 · uuid5 dns 名称',
+        true
+      );
+    } catch (e) {}
+    // rubick misspells this API as setExpendHeight; ztools/utools use setExpandHeight.
+    try { (api.setExpandHeight || api.setExpendHeight).call(api, 520); } catch (e) {}
+    if (ext && ext.type === 'regex' && ext.payload) {
+      handle(ext.payload, true);
+      try { api.setSubInputValue(ext.payload); } catch (e) {}
+    } else if (ext && ext.payload && parseCommand(ext.payload).mode === 'gen') {
+      handle(ext.payload, false);
+      try { api.setSubInputValue(ext.payload); } catch (e) {}
+    } else {
+      handle('', false);
+    }
+  });
+}
+
+// Surface any port bug immediately instead of producing wrong ids silently.
+try {
+  selftest();
+} catch (e) {
+  const el = $('selftest-fail');
+  el.style.display = 'block';
+  el.textContent = '自检失败，结果不可信：' + e.message;
+}
+
+run('');
+</script>
+</body>
+</html>

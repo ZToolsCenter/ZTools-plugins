@@ -1,0 +1,53 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "prompt-forge",
+  "title": "词匠",
+  "description": "词匠 (PromptForge) 是一款专为AI创作者与开发者打造的提示词资产管理插件，集模板化编排、变量注入、版本控制与一键调用为一体，助你像工匠打磨作品一样，系统化地沉淀、优化并复用高质量提示词。",
+  "author": "lunan",
+  "version": "1.1.0",
+  "main": "dist/index.html",
+  "preload": "dist/preload/services.js",
+  "logo": "dist/logo.png",
+  "development": {
+    "main": "http://localhost:5174"
+  },
+  "features": [
+    {
+      "code": "promptforge_call",
+      "explain": "打开 PromptForge 空间",
+      "icon": "dist/logo.png",
+      "cmds": [
+        "pf",
+        "promptforge",
+        "提示词",
+        "prompt"
+      ]
+    },
+    {
+      "code": "promptforge_quick_save",
+      "explain": "快速保存当前剪贴板为提示词",
+      "icon": "dist/logo.png",
+      "cmds": [
+        "pfs",
+        "保存提示词",
+        {
+          "type": "regex",
+          "label": "保存到 PromptForge",
+          "match": "/[\\s\\S]{20,5000}/",
+          "minLength": 20
+        },
+        {
+          "type": "over",
+          "label": "保存为提示词",
+          "minLength": 20,
+          "maxLength": 5000
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}

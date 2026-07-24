@@ -1,0 +1,92 @@
+/**
+ * Banner area styles
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2017
+ * @license Apache-2.0
+ */
+
+#banner {
+    position: absolute;
+    height: 30px;
+    width: 100%;
+    line-height: 30px;
+    border-bottom: 1px solid var(--primary-border-colour);
+    color: var(--banner-font-colour);
+    background-color: var(--banner-bg-colour);
+    margin: 0;
+    overflow: hidden;
+    flex-wrap: nowrap;
+}
+
+#banner i {
+    vertical-align: middle;
+    padding-right: 10px;
+}
+
+#banner a {
+    color: var(--banner-url-colour);
+}
+
+#notice-wrapper {
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+    #banner > .col:first-child {
+        display: none;
+    }
+
+    #banner > .col,
+    #banner > .col-md-6 {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: none;
+        min-width: 0;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+
+    #notice-wrapper {
+        flex: 1 1 auto !important;
+        text-align: left;
+    }
+
+    #banner > .col:last-child {
+        margin-left: auto;
+        white-space: nowrap;
+    }
+
+    #banner a {
+        display: inline-flex;
+        align-items: center;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: top;
+    }
+
+    #banner i {
+        padding-right: 0;
+        padding-left: 2px;
+    }
+}
+
+@media (max-width: 720px) {
+    #notice-wrapper {
+        display: none;
+    }
+
+    #banner > .col:last-child {
+        width: 100%;
+        text-align: right !important;
+    }
+
+    #banner a {
+        max-width: 88px;
+    }
+}

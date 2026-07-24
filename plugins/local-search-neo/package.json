@@ -1,0 +1,42 @@
+{
+  "name": "local-search-neo",
+  "version": "1.0.2",
+  "description": "借助 Everything 来进行文件搜索",
+  "type": "module",
+  "scripts": {
+    "prepare:addon": "npm --prefix addon install --ignore-scripts",
+    "prepare:pdfjs": "node scripts/copy-pdfjs-assets.cjs",
+    "build:addon": "npm run prepare:addon && npm --prefix addon run build-release && node scripts/copy-addon.cjs",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "check": "npm run lint && npm run format:check && npm test",
+    "test": "node scripts/run-ts-tests.cjs src/Finder/core/finderLogic.test.ts",
+    "test:everything-addon": "node scripts/test-everything-addon.cjs",
+    "bench:everything": "node scripts/benchmark-everything-addon.cjs",
+    "predev": "npm run prepare:pdfjs && npm run build:addon",
+    "dev": "vite",
+    "prebuild": "npm run prepare:pdfjs && npm run build:addon",
+    "build": "vue-tsc && vite build",
+    "postbuild": "node scripts/prepare-dist.cjs"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.17.0",
+    "markdown-it": "^14.2.0",
+    "pdfjs-dist": "^6.0.227",
+    "shiki": "^4.2.0",
+    "vue": "^3.5.35"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^25.9.1",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@ztools-center/ztools-api-types": "^1.0.3",
+    "oxfmt": "^0.53.0",
+    "oxlint": "^1.68.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vue-tsc": "^3.3.3"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "process-manager",
+  "title": "进程端口管理",
+  "description": "快速搜索进程、端口、PID、路径，支持一键 Kill 进程，支持深色模式",
+  "author": "Agitator",
+  "version": "1.0.1",
+  "homepage": "https://github.com/Code-Agitator/process-manager",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "process",
+      "explain": "快速搜索进程、端口、PID，支持一键 Kill",
+      "icon": "logo.svg",
+      "cmds": [
+        "pid",
+        "port",
+        "process",
+        "端口",
+        "进程",
+        "进程管理"
+      ]
+    }
+  ],
+  "platform": [
+    "win32"
+  ]
+}

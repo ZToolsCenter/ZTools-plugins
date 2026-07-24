@@ -1,0 +1,41 @@
+@font-face {
+  font-family: "ali-icon-font"; /* Project id 4830161 */
+  /* Color fonts */
+  src: 
+       url('iconfont.woff2?t=1764054834289') format('woff2'),
+       url('iconfont.woff?t=1764054834289') format('woff'),
+       url('iconfont.ttf?t=1764054834289') format('truetype');
+}
+
+.ali-icon-font {
+  font-family: "ali-icon-font" !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ali-icon-yingshe:before {
+  content: "\e601";
+}
+
+.ali-icon-txt:before {
+  content: "\e6ef";
+}
+
+.ali-icon-shujuxiang:before {
+  content: "\e690";
+}
+
+.ali-icon-daima:before {
+  content: "\e61d";
+}
+
+.ali-icon-excel:before {
+  content: "\e600";
+}
+
+.ali-icon-internet:before {
+  content: "\e638";
+}
+

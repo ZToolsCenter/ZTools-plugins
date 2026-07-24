@@ -1,0 +1,83 @@
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── 侧边导航 ─────────────────────────────────────────────────────── */
+.app-nav {
+  width: 72px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 12px;
+  gap: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-subtle);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.app-nav::-webkit-scrollbar {
+  display: none;
+}
+
+
+.app-nav__group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0 2px;
+}
+
+.app-nav__group-label {
+  font-size: 9px;
+  color: var(--fg-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+  text-align: center;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+
+.app-nav__item {
+  width: 60px;
+  min-height: 38px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.3;
+  padding: 4px 2px;
+  margin: 1px 0;
+  border: none;
+  word-break: keep-all;
+}
+
+.app-nav__item:hover {
+  background: var(--accent-muted);
+  color: var(--fg);
+  opacity: 1;
+}
+
+.app-nav__item--active {
+  background: var(--accent-muted);
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* ── 内容区 ───────────────────────────────────────────────────────── */
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}

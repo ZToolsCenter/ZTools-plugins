@@ -1,0 +1,12 @@
+{
+  "name": "recent-typora",
+  "version": "1.0.0",
+  "private": true,
+  "description": "按时间顺序列出 Typora 最近打开的文件和文件夹。",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "devDependencies": {
+    "@ztools-center/ztools-api-types": "^1.0.1"
+  }
+}

@@ -1,0 +1,244 @@
+{
+  "$schema": "../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "todo-neo",
+  "title": "Todo",
+  "pluginName": "Todo",
+  "description": "Vim-like 的 todo 工具",
+  "author": "thetree",
+  "version": "0.0.1",
+  "ai": true,
+  "main": "../index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "todo",
+      "explain": "创建/查看/调整所有待办事项",
+      "icon": "logo.png",
+      "cmds": [
+        "ToDo 待办"
+      ]
+    },
+    {
+      "code": "add",
+      "explain": "添加到待办",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "添加到待办"
+        }
+      ]
+    }
+  ],
+  "tools": {
+    "todo_group_list": {
+      "title": "列出分组",
+      "description": "列出所有待办分组",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "分组名称"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "todo_search": {
+      "title": "搜索待办",
+      "description": "搜索待办事项，支持关键词、分组、状态、结束日期筛选",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "关键词搜索（可选）"
+          },
+          "group": {
+            "type": "string",
+            "description": "分组名称筛选（可选）"
+          },
+          "status": {
+            "type": "string",
+            "description": "按状态筛选：done=已完成，pending=未完成（可选）"
+          },
+          "dueAt": {
+            "type": "string",
+            "description": "结束日期筛选，格式：2025-12-31（可选）"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "tasks": {
+            "type": "array",
+            "description": "搜索到的待办事项列表",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                },
+                "completed": {
+                  "type": "boolean"
+                },
+                "dueAt": {
+                  "type": "string"
+                },
+                "completed_at": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "todo_create": {
+      "title": "创建待办",
+      "description": "创建一个新的待办事项",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "待办事项的内容（必填）"
+          },
+          "group": {
+            "type": "string",
+            "description": "分组名称，不存在则自动创建（可选）"
+          },
+          "dueAt": {
+            "type": "string",
+            "description": "结束日期，格式：2025-12-31（可选）"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "创建的待办事项ID"
+          },
+          "text": {
+            "type": "string",
+            "description": "待办事项的内容"
+          },
+          "group": {
+            "type": "string",
+            "description": "分组名称"
+          },
+          "dueAt": {
+            "type": "string",
+            "description": "结束日期"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "创建时间"
+          }
+        }
+      }
+    },
+    "todo_update": {
+      "title": "更新待办",
+      "description": "根据 patch 字段更新待办事项",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "待办事项的ID（必填）"
+          },
+          "patch": {
+            "type": "object",
+            "description": "要更新的字段",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "更新待办内容"
+              },
+              "status": {
+                "type": "string",
+                "description": "更新状态：done=已完成，pending=未完成"
+              },
+              "dueAt": {
+                "type": "string",
+                "description": "更新结束日期，格式：2024-12-31"
+              },
+              "group": {
+                "type": "string",
+                "description": "更新分组名称，不存在则自动创建"
+              }
+            }
+          }
+        },
+        "required": [
+          "id",
+          "patch"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "dueAt": {
+            "type": "string"
+          },
+          "updated": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}

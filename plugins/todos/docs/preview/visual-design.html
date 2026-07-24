@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todos - 视觉设计预览</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .app {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            border-bottom: 1px solid #eee;
+            background: #fff;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .workspace-switcher {
+            position: relative;
+        }
+
+        .workspace-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .workspace-btn:hover {
+            border-color: #999;
+        }
+
+        .workspace-btn .icon {
+            font-size: 16px;
+        }
+
+        .workspace-btn .arrow {
+            font-size: 10px;
+            color: #999;
+        }
+
+        .workspace-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 140px;
+            z-index: 100;
+            display: none;
+        }
+
+        .workspace-dropdown.show {
+            display: block;
+        }
+
+        .workspace-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .workspace-option:hover {
+            background: #f5f5f5;
+        }
+
+        .workspace-option.active {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .view-toggle {
+            display: flex;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .view-btn {
+            padding: 8px 16px;
+            border: none;
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .view-btn:not(:last-child) {
+            border-right: 1px solid #ddd;
+        }
+
+        .view-btn.active {
+            background: #333;
+            color: #fff;
+        }
+
+        .add-task-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #333;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .add-task-btn:hover {
+            background: #555;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            height: calc(100vh - 57px);
+        }
+
+        /* Calendar View */
+        .calendar-view {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            border-right: 1px solid #eee;
+        }
+
+        .day-row {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #fafafa;
+            border-radius: 8px;
+            border-left: 4px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .day-row:hover {
+            background: #f0f0f0;
+        }
+
+        .day-row.has-tasks {
+            border-left-color: #3b82f6;
+        }
+
+        .day-row.overdue {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .day-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .day-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .day-date {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .day-tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #fff;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            cursor: grab;
+            transition: all 0.2s;
+        }
+
+        .task-item:hover {
+            border-color: #ddd;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .task-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .task-item.completed {
+            opacity: 0.6;
+            background: #f5f5f5;
+        }
+
+        .task-item.completed .task-title {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .task-item.overdue {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        .task-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .task-checkbox:hover {
+            border-color: #999;
+        }
+
+        .task-checkbox.checked {
+            background: #10b981;
+            border-color: #10b981;
+        }
+
+        .task-checkbox.checked::after {
+            content: '✓';
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .priority-indicator {
+            width: 4px;
+            height: 24px;
+            border-radius: 2px;
+        }
+
+        .priority-high {
+            background: #ef4444;
+        }
+
+        .priority-medium {
+            background: #f59e0b;
+        }
+
+        .priority-low {
+            background: #10b981;
+        }
+
+        .task-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-title {
+            font-size: 14px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .task-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .task-tag {
+            font-size: 11px;
+            padding: 2px 6px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            color: #6b7280;
+        }
+
+        .task-dates {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .task-item:hover .task-actions {
+            opacity: 1;
+        }
+
+        .task-action-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #999;
+            transition: all 0.2s;
+        }
+
+        .task-action-btn:hover {
+            background: #f3f4f6;
+            color: #333;
+        }
+
+        .task-action-btn.delete:hover {
+            background: #fef2f2;
+            color: #ef4444;
+        }
+
+        /* Task Pool */
+        .task-pool {
+            width: 280px;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .task-pool-header {
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .task-pool-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .task-count {
+            font-size: 12px;
+            color: #999;
+            background: #e5e7eb;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .task-pool-input {
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .task-pool-input input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .task-pool-input input:focus {
+            border-color: #3b82f6;
+        }
+
+        .task-pool-input input::placeholder {
+            color: #999;
+        }
+
+        .task-pool-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .pool-task {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #fff;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            margin-bottom: 8px;
+            cursor: grab;
+            transition: all 0.2s;
+        }
+
+        .pool-task:hover {
+            border-color: #ddd;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .pool-task.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .pool-task .priority-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .pool-task .task-title {
+            flex: 1;
+            font-size: 13px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pool-task .drag-handle {
+            color: #ccc;
+            cursor: grab;
+        }
+
+        /* Week View */
+        .week-view {
+            display: none;
+        }
+
+        .week-view.active {
+            display: block;
+        }
+
+        /* Month View */
+        .month-view {
+            display: none;
+        }
+
+        .month-view.active {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #eee;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .month-header {
+            padding: 8px;
+            background: #f5f5f5;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .month-cell {
+            min-height: 100px;
+            padding: 8px;
+            background: #fff;
+            vertical-align: top;
+        }
+
+        .month-cell.other-month {
+            background: #fafafa;
+        }
+
+        .month-cell.today {
+            background: #e3f2fd;
+        }
+
+        .month-cell-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .month-cell-date {
+            font-size: 12px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .month-cell.today .month-cell-date {
+            background: #3b82f6;
+            color: #fff;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .month-cell-tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .month-task {
+            padding: 4px 6px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+        }
+
+        .month-task.high {
+            border-left: 3px solid #ef4444;
+        }
+
+        .month-task.medium {
+            border-left: 3px solid #f59e0b;
+        }
+
+        .month-task.low {
+            border-left: 3px solid #10b981;
+        }
+
+        .month-task.overdue {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .month-more {
+            font-size: 11px;
+            color: #6b7280;
+            cursor: pointer;
+        }
+
+        .month-more:hover {
+            color: #333;
+        }
+
+        /* Workspace Themes */
+        .app.workspace-work {
+            --workspace-color: #3b82f6;
+        }
+
+        .app.workspace-life {
+            --workspace-color: #10b981;
+        }
+
+        .app.workspace-study {
+            --workspace-color: #8b5cf6;
+        }
+
+        .workspace-btn {
+            border-color: var(--workspace-color, #3b82f6);
+        }
+
+        .view-btn.active {
+            background: var(--workspace-color, #3b82f6);
+        }
+
+        .add-task-btn {
+            background: var(--workspace-color, #3b82f6);
+        }
+
+        .add-task-btn:hover {
+            background: color-mix(in srgb, var(--workspace-color, #3b82f6), #000 20%);
+        }
+
+        /* Drag and Drop States */
+        .drop-target {
+            background: #e3f2fd !important;
+            border: 2px dashed #3b82f6;
+        }
+
+        .drop-target::after {
+            content: '释放以添加任务';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            color: #3b82f6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .task-pool {
+                width: 100%;
+                height: 300px;
+                border-right: none;
+                border-top: 1px solid #eee;
+            }
+
+            .calendar-view {
+                border-right: none;
+            }
+        }
+
+        /* Keyboard Shortcut Hints */
+        .shortcuts-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            background: #333;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .shortcuts-hint kbd {
+            padding: 2px 6px;
+            background: #555;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 0 2px;
+        }
+
+        /* Demo Controls */
+        .demo-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .demo-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #333;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .demo-btn:hover {
+            background: #555;
+        }
+
+        .demo-btn.active {
+            background: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="app workspace-work" id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">Todos</div>
+                <div class="workspace-switcher">
+                    <button class="workspace-btn" onclick="toggleWorkspaceDropdown()">
+                        <span class="icon" id="workspaceIcon">💼</span>
+                        <span id="workspaceName">工作</span>
+                        <span class="arrow">▼</span>
+                    </button>
+                    <div class="workspace-dropdown" id="workspaceDropdown">
+                        <div class="workspace-option active" data-workspace="work" onclick="switchWorkspace('work')">
+                            <span>💼</span>
+                            <span>工作</span>
+                        </div>
+                        <div class="workspace-option" data-workspace="life" onclick="switchWorkspace('life')">
+                            <span>🏠</span>
+                            <span>生活</span>
+                        </div>
+                        <div class="workspace-option" data-workspace="study" onclick="switchWorkspace('study')">
+                            <span>📚</span>
+                            <span>学习</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="view-toggle">
+                    <button class="view-btn active" onclick="switchView('week')">周</button>
+                    <button class="view-btn" onclick="switchView('month')">月</button>
+                </div>
+                <button class="add-task-btn" onclick="focusInput()">+ 新增</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Calendar View -->
+            <div class="calendar-view">
+                <!-- Week View -->
+                <div class="week-view active" id="weekView">
+                    <div class="day-row has-tasks">
+                        <div class="day-header">
+                            <span class="day-name">周一</span>
+                            <span class="day-date">1月15日</span>
+                        </div>
+                        <div class="day-tasks">
+                            <div class="task-item" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-high"></div>
+                                <div class="task-content">
+                                    <div class="task-title">完成产品设计文档</div>
+                                    <div class="task-meta">
+                                        <span class="task-tag">工作</span>
+                                        <span class="task-dates">1/15, 1/16</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="编辑">✏️</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                            <div class="task-item" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-medium"></div>
+                                <div class="task-content">
+                                    <div class="task-title">准备周会汇报材料</div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="编辑">✏️</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="day-row has-tasks">
+                        <div class="day-header">
+                            <span class="day-name">周二</span>
+                            <span class="day-date">1月16日</span>
+                        </div>
+                        <div class="day-tasks">
+                            <div class="task-item" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-high"></div>
+                                <div class="task-content">
+                                    <div class="task-title">完成产品设计文档</div>
+                                    <div class="task-meta">
+                                        <span class="task-tag">工作</span>
+                                        <span class="task-dates">1/15, 1/16</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="编辑">✏️</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                            <div class="task-item" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-low"></div>
+                                <div class="task-content">
+                                    <div class="task-title">回复客户邮件</div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="编辑">✏️</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="day-row">
+                        <div class="day-header">
+                            <span class="day-name">周三</span>
+                            <span class="day-date">1月17日</span>
+                        </div>
+                        <div class="day-tasks"></div>
+                    </div>
+                    <div class="day-row overdue">
+                        <div class="day-header">
+                            <span class="day-name">周四</span>
+                            <span class="day-date">1月18日</span>
+                        </div>
+                        <div class="day-tasks">
+                            <div class="task-item overdue" draggable="true">
+                                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                                <div class="priority-indicator priority-high"></div>
+                                <div class="task-content">
+                                    <div class="task-title">提交项目报告</div>
+                                    <div class="task-meta">
+                                        <span class="task-tag">逾期</span>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="task-action-btn" title="复活">🔄</button>
+                                    <button class="task-action-btn delete" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="day-row">
+                        <div class="day-header">
+                            <span class="day-name">周五</span>
+                            <span class="day-date">1月19日</span>
+                        </div>
+                        <div class="day-tasks"></div>
+                    </div>
+                    <div class="day-row">
+                        <div class="day-header">
+                            <span class="day-name">周六</span>
+                            <span class="day-date">1月20日</span>
+                        </div>
+                        <div class="day-tasks"></div>
+                    </div>
+                    <div class="day-row">
+                        <div class="day-header">
+                            <span class="day-name">周日</span>
+                            <span class="day-date">1月21日</span>
+                        </div>
+                        <div class="day-tasks"></div>
+                    </div>
+                </div>
+
+                <!-- Month View -->
+                <div class="month-view" id="monthView">
+                    <div class="month-header">周一</div>
+                    <div class="month-header">周二</div>
+                    <div class="month-header">周三</div>
+                    <div class="month-header">周四</div>
+                    <div class="month-header">周五</div>
+                    <div class="month-header">周六</div>
+                    <div class="month-header">周日</div>
+
+                    <div class="month-cell other-month">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">30</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell other-month">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">31</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">1</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">2</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">3</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">4</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">5</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">6</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">7</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">8</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">9</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">10</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">11</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">12</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">13</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">14</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">15</span>
+                        </div>
+                        <div class="month-cell-tasks">
+                            <div class="month-task high">完成产品设计文档</div>
+                            <div class="month-task medium">准备周会汇报材料</div>
+                        </div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">16</span>
+                        </div>
+                        <div class="month-cell-tasks">
+                            <div class="month-task high">完成产品设计文档</div>
+                            <div class="month-task low">回复客户邮件</div>
+                        </div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">17</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">18</span>
+                        </div>
+                        <div class="month-cell-tasks">
+                            <div class="month-task high overdue">提交项目报告</div>
+                        </div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">19</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">20</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">21</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">22</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">23</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">24</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">25</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">26</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">27</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">28</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">29</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">30</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">31</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell other-month">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">1</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                    <div class="month-cell other-month">
+                        <div class="month-cell-header">
+                            <span class="month-cell-date">2</span>
+                        </div>
+                        <div class="month-cell-tasks"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Pool -->
+            <div class="task-pool">
+                <div class="task-pool-header">
+                    <span class="task-pool-title">待办池</span>
+                    <span class="task-count">3 项任务</span>
+                </div>
+                <div class="task-pool-input">
+                    <input type="text" id="taskInput" placeholder="输入任务名称，回车添加..." onkeypress="handleInputKeypress(event)">
+                </div>
+                <div class="task-pool-list" id="taskPoolList">
+                    <div class="pool-task" draggable="true">
+                        <div class="priority-dot priority-high"></div>
+                        <span class="task-title">学习 React Hooks</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="pool-task" draggable="true">
+                        <div class="priority-dot priority-medium"></div>
+                        <span class="task-title">整理项目文档</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="pool-task" draggable="true">
+                        <div class="priority-dot priority-low"></div>
+                        <span class="task-title">更新 README</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Hint -->
+    <div class="shortcuts-hint">
+        <kbd>N</kbd> 新增 <kbd>W</kbd> 周 <kbd>M</kbd> 月 <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 工作/生活/学习
+    </div>
+
+    <!-- Demo Controls -->
+    <div class="demo-controls">
+        <button class="demo-btn" onclick="toggleView()">切换视图</button>
+        <button class="demo-btn" onclick="cycleWorkspace()">切换工作空间</button>
+        <button class="demo-btn" onclick="addDemoTask()">添加任务</button>
+    </div>
+
+    <script>
+        let currentView = 'week';
+        let currentWorkspace = 'work';
+        const workspaces = ['work', 'life', 'study'];
+        let workspaceIndex = 0;
+
+        function toggleWorkspaceDropdown() {
+            const dropdown = document.getElementById('workspaceDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function switchWorkspace(workspace) {
+            currentWorkspace = workspace;
+            const app = document.getElementById('app');
+            app.className = 'app workspace-' + workspace;
+
+            const icons = { work: '💼', life: '🏠', study: '📚' };
+            const names = { work: '工作', life: '生活', study: '学习' };
+
+            document.getElementById('workspaceIcon').textContent = icons[workspace];
+            document.getElementById('workspaceName').textContent = names[workspace];
+
+            document.querySelectorAll('.workspace-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.workspace === workspace);
+            });
+
+            document.getElementById('workspaceDropdown').classList.remove('show');
+            workspaceIndex = workspaces.indexOf(workspace);
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === (view === 'week' ? '周' : '月'));
+            });
+            document.getElementById('weekView').classList.toggle('active', view === 'week');
+            document.getElementById('monthView').classList.toggle('active', view === 'month');
+        }
+
+        function toggleTask(checkbox) {
+            checkbox.classList.toggle('checked');
+            const taskItem = checkbox.closest('.task-item');
+            taskItem.classList.toggle('completed');
+        }
+
+        function focusInput() {
+            document.getElementById('taskInput').focus();
+        }
+
+        function handleInputKeypress(event) {
+            if (event.key === 'Enter') {
+                const input = event.target;
+                if (input.value.trim()) {
+                    addTaskToPool(input.value.trim());
+                    input.value = '';
+                }
+            }
+        }
+
+        function addTaskToPool(title) {
+            const pool = document.getElementById('taskPoolList');
+            const task = document.createElement('div');
+            task.className = 'pool-task';
+            task.draggable = true;
+            task.innerHTML = `
+                <div class="priority-dot priority-medium"></div>
+                <span class="task-title">${title}</span>
+                <span class="drag-handle">⋮⋮</span>
+            `;
+            pool.appendChild(task);
+            updateTaskCount();
+        }
+
+        function updateTaskCount() {
+            const count = document.querySelectorAll('.pool-task').length;
+            document.querySelector('.task-count').textContent = count + ' 项任务';
+        }
+
+        function toggleView() {
+            switchView(currentView === 'week' ? 'month' : 'week');
+        }
+
+        function cycleWorkspace() {
+            workspaceIndex = (workspaceIndex + 1) % workspaces.length;
+            switchWorkspace(workspaces[workspaceIndex]);
+        }
+
+        function addDemoTask() {
+            const tasks = ['完成设计稿', '代码审查', '写单元测试', '优化性能', '修复 bug'];
+            const task = tasks[Math.floor(Math.random() * tasks.length)];
+            addTaskToPool(task);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+
+            switch(e.key.toLowerCase()) {
+                case 'n':
+                    focusInput();
+                    break;
+                case 'w':
+                    switchView('week');
+                    break;
+                case 'm':
+                    switchView('month');
+                    break;
+                case '1':
+                    switchWorkspace('work');
+                    break;
+                case '2':
+                    switchWorkspace('life');
+                    break;
+                case '3':
+                    switchWorkspace('study');
+                    break;
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.workspace-switcher')) {
+                document.getElementById('workspaceDropdown').classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>

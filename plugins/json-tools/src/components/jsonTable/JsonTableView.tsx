@@ -4,8 +4,10 @@ import React, {
   useState,
   useEffect,
   useImperativeHandle,
+  useMemo,
 } from "react";
 import { Icon } from "@iconify/react";
+import { isLosslessNumber } from "lossless-json";
 
 import JsonTableOperationBar, {
   JsonTableOperationBarRef,
@@ -57,6 +59,27 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
   const [shouldShowEmpty, setShouldShowEmpty] = useState(false);
   const emptyStateTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+
+  // 筛选相关状态
+  const [isFilterActive, setIsFilterActive] = useState(false);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [globalFilter, setGlobalFilter] = useState("");
+
+  // 计算表格模式
+  const tableMode = useMemo<"objectsArray" | "object" | "array" | "primitive">(() => {
+    if (!jsonData || typeof jsonData !== "object" || isLosslessNumber(jsonData)) return "primitive";
+    if (Array.isArray(jsonData)) {
+      if (jsonData.length > 0 && jsonData.every((item: any) => typeof item === "object" && item !== null && !isLosslessNumber(item))) return "objectsArray";
+      return "array";
+    }
+    return "object";
+  }, [jsonData]);
+
+  // JSON 数据变化时重置筛选状态
+  useEffect(() => {
+    setColumnFilters({});
+    setGlobalFilter("");
+  }, [jsonData]);
 
   useEffect(() => {
     const handlePasteAction = async () => {
@@ -118,6 +141,16 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        // 当焦点在输入框内时，不拦截粘贴事件，避免与筛选搜索框等输入组件冲突
+        const activeEl = document.activeElement;
+        if (
+          activeEl &&
+          (activeEl.tagName === "INPUT" ||
+            activeEl.tagName === "TEXTAREA" ||
+            (activeEl as HTMLElement).isContentEditable)
+        ) {
+          return;
+        }
         if (!clipboard.isSupported()) {
           e.preventDefault();
         }
@@ -485,6 +518,36 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
     setSelectedPath(path);
   }, []);
 
+  // 筛选回调
+  const handleFilterToggle = useCallback(() => {
+    setIsFilterActive((prev) => {
+      if (prev) {
+        setColumnFilters({});
+        setGlobalFilter("");
+      }
+      return !prev;
+    });
+  }, []);
+
+  const handleColumnFilterChange = useCallback(
+    (columnKey: string, selectedValues: Set<string>) => {
+      setColumnFilters((prev) => {
+        const next = { ...prev };
+        if (!selectedValues || selectedValues.size === 0) {
+          delete next[columnKey];
+        } else {
+          next[columnKey] = Array.from(selectedValues);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleGlobalFilterChange = useCallback((value: string) => {
+    setGlobalFilter(value);
+  }, []);
+
   const currentContent = React.useMemo(() => {
     if (isSwitchingEditor) {
       if (previousRenderedView) {
@@ -535,6 +598,9 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
         onExpandAll={handleExpandAll}
         onPathChange={handlePathSelection}
         onToggleExpand={handleToggleExpand}
+        columnFilters={isFilterActive ? columnFilters : undefined}
+        globalFilter={isFilterActive ? globalFilter : undefined}
+        onColumnFilterChange={handleColumnFilterChange}
       />
     );
   }, [
@@ -551,6 +617,10 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
     handleExpandAll,
     handleToggleExpand,
     handlePathSelection,
+    isFilterActive,
+    columnFilters,
+    globalFilter,
+    handleColumnFilterChange,
   ]);
 
   // 获取选中路径的节点数据
@@ -791,6 +861,11 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
         onCopy={onCopy}
         onCustomView={handleCustomView}
         onExpand={handleExpandAll}
+        onFilterToggle={handleFilterToggle}
+        isFilterActive={isFilterActive}
+        globalFilterValue={globalFilter}
+        onGlobalFilterChange={handleGlobalFilterChange}
+        tableMode={tableMode}
       />
       <div className="flex-grow overflow-hidden border border-default-200 bg-white dark:bg-vscode-dark">
         {currentContent}

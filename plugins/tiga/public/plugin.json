@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "tiga",
+  "title": "提肛助手",
+  "description": "定时提醒提肛运动，关爱久坐族盆底健康",
+  "author": "咖啡八杯",
+  "version": "1.1.0",
+  "categories": ["productivity"],
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "settings",
+      "explain": "提肛助手设置",
+      "icon": "logo.png",
+      "cmds": ["提肛", "提肛助手", "提肛设置"]
+    },
+    {
+      "code": "stats",
+      "explain": "查看提肛统计",
+      "icon": "logo.png",
+      "cmds": ["提肛统计"]
+    },
+    {
+      "code": "tutorial",
+      "explain": "提肛运动教程",
+      "icon": "logo.png",
+      "cmds": ["提肛教程"]
+    }
+  ]
+}

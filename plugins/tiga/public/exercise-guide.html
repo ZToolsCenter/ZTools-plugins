@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>提肛运动</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-app-region: drag;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 可拖动区域 */
+    .draggable {
+      -webkit-app-region: drag;
+    }
+
+    /* 不可拖动区域（按钮等交互元素） */
+    .non-draggable {
+      -webkit-app-region: no-drag;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+      background: transparent;
+      color: #606266;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s ease;
+      font-size: 10px;
+      line-height: 1;
+      z-index: 10;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+
+    .container {
+      text-align: center;
+      padding: 6px;
+      -webkit-app-region: drag;
+    }
+
+    .title {
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .countdown {
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: 2px;
+      margin-bottom: 4px;
+    }
+
+    .seconds {
+      font-size: 22px;
+      font-weight: bold;
+      color: #409eff;
+      transition: color 0.3s ease;
+      display: inline-block;
+    }
+
+    .unit {
+      font-size: 10px;
+      color: #909399;
+    }
+
+    .progress-bar {
+      width: 80px;
+      height: 2px;
+      background: #2a2a2a;
+      border-radius: 1px;
+      margin: 0 auto 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #409eff, #67c23a);
+      border-radius: 1px;
+      transition: width 0.15s linear;
+    }
+
+    .round-info {
+      font-size: 10px;
+      color: #909399;
+      margin-bottom: 4px;
+    }
+
+    .hint {
+      font-size: 9px;
+      color: #606266;
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-top: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .btn {
+      padding: 3px 8px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: #409eff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #66b1ff;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #2a2a2a;
+      color: #909399;
+    }
+
+    .btn-secondary:hover {
+      background: #3a3a3a;
+    }
+
+    .phase-transition {
+      animation: phaseChange 0.5s ease;
+    }
+
+    @keyframes phaseChange {
+      0% {
+        opacity: 0.7;
+        transform: scale(0.95);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .done {
+      animation: doneAppear 0.6s ease;
+    }
+
+    @keyframes doneAppear {
+      0% {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .start-page {
+      animation: startAppear 0.6s ease;
+    }
+
+    @keyframes startAppear {
+      0% {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .exercise-info {
+      margin: 6px 0;
+      font-size: 11px;
+      color: #909399;
+      line-height: 1.6;
+    }
+
+    .btn-start {
+      /* 与普通按钮样式一致 */
+    }
+  </style>
+</head>
+<body>
+  <button class="close-btn non-draggable" onclick="window.close()">✕</button>
+  <div class="container draggable">
+    <div id="app">
+      <!-- 内容由 JS 动态渲染 -->
+    </div>
+  </div>
+
+  <script>
+    // 将 Date 格式化为本地时区的 YYYY-MM-DD 字符串
+    // （避免 toISOString 在 UTC+8 凌晨 0-8 点把日期算成昨天）
+    function formatLocalDate(d) {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+
+    // 获取配置 - 使用 ZTools dbStorage API
+    let config = null
+
+    if (window.ztools && window.ztools.dbStorage) {
+      config = window.ztools.dbStorage.getItem('tiga_config')
+    }
+
+    // 如果没有配置，使用默认值
+    if (!config) {
+      config = {
+        exercise: {
+          contractSeconds: 5,
+          relaxSeconds: 10,
+          repeatCount: 2
+        }
+      }
+    }
+
+    const exercise = config.exercise || { contractSeconds: 5, relaxSeconds: 5, repeatCount: 5 }
+
+    // 状态
+    let phase = 'start'  // start -> contract -> relax -> done
+    let currentRound = 1
+    let secondsLeft = exercise.contractSeconds
+    let isRunning = false
+    let rafId = null
+    let phaseStartTime = 0
+    let phaseDuration = 0
+
+    // 渲染
+    function render(animate = true) {
+      const app = document.getElementById('app')
+
+      if (phase === 'start') {
+        app.innerHTML = `
+          <div class="start-page ${animate ? 'start-page' : ''}">
+            <div class="title">提肛时间到了！</div>
+            <div class="exercise-info">
+              <p>收缩 ${exercise.contractSeconds} 秒 + 放松 ${exercise.relaxSeconds} 秒</p>
+              <p>重复 ${exercise.repeatCount} 次</p>
+            </div>
+            <div class="buttons">
+              <button class="btn btn-primary btn-start non-draggable" onclick="startExercise()">开始</button>
+              <button class="btn btn-secondary non-draggable" onclick="window.close()">取消</button>
+            </div>
+          </div>
+        `
+        return
+      }
+
+      if (phase === 'done') {
+        app.innerHTML = `
+          <div class="done ${animate ? 'done' : ''}">
+            <div class="title">运动已完成！</div>
+            <div class="buttons">
+              <button class="btn btn-primary non-draggable" onclick="complete()">已完成</button>
+              <button class="btn btn-secondary non-draggable" onclick="skip()">跳过</button>
+            </div>
+          </div>
+        `
+        return
+      }
+
+      const totalSeconds = phase === 'contract'
+        ? exercise.contractSeconds
+        : exercise.relaxSeconds
+      const progress = ((totalSeconds - secondsLeft) / totalSeconds) * 100
+
+      const phaseText = phase === 'contract' ? '收缩中...' : '放松中...'
+      const phaseClass = animate ? 'phase-transition' : ''
+
+      app.innerHTML = `
+        <div class="title ${phaseClass}">${phaseText}</div>
+        <div class="countdown">
+          <span class="seconds ${phaseClass}">${secondsLeft}</span>
+          <span class="unit">秒</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${progress}%"></div>
+        </div>
+        <div class="round-info">第 ${currentRound} / ${exercise.repeatCount} 次</div>
+        <div class="hint">请按照节奏收缩和放松盆底肌</div>
+      `
+    }
+
+    // 更新倒计时显示（不重建 DOM）
+    function updateDisplay() {
+      const totalSeconds = phase === 'contract'
+        ? exercise.contractSeconds
+        : exercise.relaxSeconds
+      const progress = ((totalSeconds - secondsLeft) / totalSeconds) * 100
+
+      const secondsEl = document.querySelector('.seconds')
+      const progressFill = document.querySelector('.progress-fill')
+      const roundInfo = document.querySelector('.round-info')
+
+      if (secondsEl) secondsEl.textContent = secondsLeft
+      if (progressFill) progressFill.style.width = progress + '%'
+      if (roundInfo) roundInfo.textContent = `第 ${currentRound} / ${exercise.repeatCount} 次`
+    }
+
+    // 平滑计时循环
+    function tick() {
+      if (!isRunning) return
+
+      const elapsed = Date.now() - phaseStartTime
+      const totalMs = phaseDuration * 1000
+      const remaining = Math.max(0, totalMs - elapsed)
+      const newSecondsLeft = Math.ceil(remaining / 1000)
+
+      // 数字变化时才更新 DOM
+      if (newSecondsLeft !== secondsLeft) {
+        secondsLeft = newSecondsLeft
+        updateDisplay()
+      } else {
+        // 即使数字没变，也更新进度条（平滑）
+        const progress = ((phaseDuration - remaining / 1000) / phaseDuration) * 100
+        const progressFill = document.querySelector('.progress-fill')
+        if (progressFill) progressFill.style.width = progress + '%'
+      }
+
+      if (remaining <= 0) {
+        // 当前阶段结束
+        if (phase === 'contract') {
+          phase = 'relax'
+          phaseDuration = exercise.relaxSeconds
+          secondsLeft = exercise.relaxSeconds
+          phaseStartTime = Date.now()
+          render(true)
+          rafId = requestAnimationFrame(tick)
+        } else if (phase === 'relax') {
+          if (currentRound < exercise.repeatCount) {
+            currentRound++
+            phase = 'contract'
+            phaseDuration = exercise.contractSeconds
+            secondsLeft = exercise.contractSeconds
+            phaseStartTime = Date.now()
+            render(true)
+            rafId = requestAnimationFrame(tick)
+          } else {
+            phase = 'done'
+            isRunning = false
+            render(true)
+          }
+        }
+        return
+      }
+
+      rafId = requestAnimationFrame(tick)
+    }
+
+    // 开始运动
+    function startExercise() {
+      phase = 'contract'
+      phaseDuration = exercise.contractSeconds
+      secondsLeft = exercise.contractSeconds
+      phaseStartTime = Date.now()
+      isRunning = true
+      render(false)
+      rafId = requestAnimationFrame(tick)
+    }
+
+    // 完成
+    function complete() {
+      isRunning = false
+      if (rafId) cancelAnimationFrame(rafId)
+
+      // 增加计数
+      const now = new Date()
+      const today = formatLocalDate(now)
+      const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+
+      if (window.ztools && window.ztools.dbStorage) {
+        const stats = window.ztools.dbStorage.getItem('tiga_stats') || { records: [] }
+        // 防御性检查：兼容存储损坏或旧版本数据格式
+        if (!Array.isArray(stats.records)) {
+          stats.records = []
+        }
+        const todayRecord = stats.records.find(r => r.date === today)
+        if (todayRecord) {
+          todayRecord.count++
+          if (!todayRecord.times) todayRecord.times = []
+          todayRecord.times.push(time)
+        } else {
+          stats.records.push({ date: today, count: 1, times: [time] })
+        }
+        window.ztools.dbStorage.setItem('tiga_stats', stats)
+      } else {
+        console.error('tiga: dbStorage 不可用，打卡记录未保存')
+      }
+
+      // 通知父窗口清空弹窗实例引用（如果可用）
+      if (window.ztools && window.ztools.sendToParent) {
+        window.ztools.sendToParent('tiga-exercise-window-closed')
+      }
+
+      // 关闭窗口
+      window.close()
+    }
+
+    // 跳过
+    function skip() {
+      // 通知父窗口清空弹窗实例引用（如果可用）
+      if (window.ztools && window.ztools.sendToParent) {
+        window.ztools.sendToParent('tiga-exercise-window-closed')
+      }
+
+      // 直接关闭窗口
+      window.close()
+    }
+
+    // 窗口关闭前自动通知父窗口
+    window.onbeforeunload = function() {
+      if (window.ztools && window.ztools.sendToParent) {
+        window.ztools.sendToParent('tiga-exercise-window-closed')
+      }
+    }
+
+    // 启动
+    render(false)
+  </script>
+</body>
+</html>
