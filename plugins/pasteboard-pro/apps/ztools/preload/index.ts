@@ -126,7 +126,7 @@ type PasteboardProBridge = Readonly<{
   pasteContent(content: ClipboardWriteContent): Promise<DirectPasteResult>;
   pasteItem(itemId: string, plainText?: boolean): Promise<DirectPasteResult>;
   copyItem(itemId: string, plainText?: boolean): Promise<void>;
-  createTextItem(text: string, title?: string): Promise<unknown>;
+  createTextItem(text: string, title?: string, pinboardId?: string): Promise<unknown>;
   updateTextItem(itemId: string, text: string, title?: string): Promise<unknown>;
   updateItemTitle(itemId: string, title: string): Promise<unknown>;
   listPinboards(): Promise<unknown[]>;
@@ -535,8 +535,14 @@ const bridge: PasteboardProBridge = {
     }
     await copyCanonicalRecord(record, ztools.clipboard, plainText);
   },
-  async createTextItem(text, title) {
-    const record = await store.createTextItem(text, title);
+  async createTextItem(text, title, pinboardId) {
+    if (
+      pinboardId !== undefined &&
+      !(await pinboardStore.list()).some((pinboard) => pinboard.id === pinboardId)
+    ) {
+      throw new RangeError("Pinboard does not exist");
+    }
+    const record = await store.createTextItem(text, title, pinboardId);
     void scheduleVaultSync().catch(reportSynchronizationError);
     broadcastHistoryChanged();
     return record.item;

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Office 全家桶">
+  <rect width="128" height="128" rx="26" fill="#101719"/>
+  <path d="M28 29h44c8 0 14 6 14 14v57H42c-8 0-14-6-14-14V29Z" fill="#1768d4"/>
+  <path d="M43 20h43c8 0 14 6 14 14v66H57c-8 0-14-6-14-14V20Z" fill="#18864b" opacity=".94"/>
+  <path d="M58 29h28c8 0 14 6 14 14v57H72c-8 0-14-6-14-14V29Z" fill="#ee5b2b"/>
+  <path d="M43 46h42M43 62h31M43 78h21" stroke="#fff8e8" stroke-width="7" stroke-linecap="round"/>
+  <path d="M86 95h18" stroke="#f6d44a" stroke-width="7" stroke-linecap="round"/>
+</svg>

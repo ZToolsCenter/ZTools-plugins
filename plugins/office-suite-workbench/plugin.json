@@ -1,0 +1,97 @@
+{
+  "name": "office-suite-workbench",
+  "title": "Office 全家桶",
+  "description": "基于 OfficeCLI 的 Word、Excel、PowerPoint 文档工作台，支持检查、编辑、批处理与 MCP 调用。",
+  "author": "harris",
+  "version": "0.1.0",
+  "main": "index.html",
+  "preload": "preload/services.cjs",
+  "logo": "logo.svg",
+  "categories": ["productivity", "text"],
+  "development": {
+    "main": "http://127.0.0.1:5188"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 780,
+    "backgroundRunning": true
+  },
+  "features": [
+    {
+      "code": "office-suite-workbench",
+      "explain": "打开 Office 全家桶工作台",
+      "icon": "logo.svg",
+      "cmds": [
+        "Office 全家桶",
+        "OfficeCLI",
+        "Word 工具",
+        "Excel 工具",
+        "PPT 工具",
+        "Office MCP",
+        "文档体检",
+        {
+          "type": "files",
+          "fileType": "file",
+          "label": "用 Office 全家桶处理",
+          "extensions": ["docx", "xlsx", "pptx"],
+          "maxLength": 100
+        }
+      ]
+    }
+  ],
+  "tools": {
+    "office_document": {
+      "title": "Office 文档操作",
+      "description": "通过 OfficeCLI 创建、读取、检查和修改 Word (.docx)、Excel (.xlsx) 与 PowerPoint (.pptx) 文档。command 使用 OfficeCLI 命令行语法或 argv 数组；不确定语法时先调用 help，修改文档前先调用 load_skill word|excel|pptx。管理类命令和任意 shell 执行被禁用。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536
+              },
+              {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 256,
+                "items": {
+                  "type": "string",
+                  "maxLength": 65536
+                }
+              }
+            ],
+            "description": "OfficeCLI 命令，例如 `help pptx shape`、`view report.docx issues --json`，或预拆分 argv 数组。"
+          }
+        },
+        "required": ["command"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "command": { "type": "string" },
+          "args": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "exitCode": { "type": "integer" },
+          "stdout": { "type": "string" },
+          "stderr": { "type": "string" },
+          "json": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        },
+        "required": ["ok"]
+      }
+    }
+  }
+}

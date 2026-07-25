@@ -218,8 +218,12 @@ export class ZToolsPinboardStore {
   }
 
   async delete(id: string): Promise<Tombstone> {
-    await this.required(id);
-    const timestamp = this.timestamp();
+    const pinboard = await this.required(id);
+    const maximumClock = Math.max(
+      ...Object.values(pinboard.fieldClocks).map((clock) => clock.wallMs),
+      0,
+    );
+    const timestamp = Math.max(this.timestamp(), maximumClock + 1);
     const tombstone: Tombstone = {
       id,
       entityType: "pinboard",

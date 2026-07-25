@@ -1,0 +1,31 @@
+{
+  "name": "ztools-cc-switch",
+  "version": "1.52.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "在 ZTools 中统一管理 AI CLI Provider、Skills、本地路由、用量与日志",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "npm run install:preload && npm run build:sidecar && vite build && node scripts/verify-dist.mjs",
+    "build:sidecar": "node scripts/build-sidecar.mjs",
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.cjs",
+    "test:sidecar": "npm run build:sidecar && node --test tests/sidecar.integration.test.cjs",
+    "install:preload": "npm ci --omit=dev --prefix preload"
+  },
+  "dependencies": {
+    "vue": "^3.5.22"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vite": "^7.1.11",
+    "vite-plugin-static-copy": "^3.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

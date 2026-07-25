@@ -205,15 +205,27 @@ export class PasteboardState {
     });
   }
 
-  extendSelectionTo(itemId: string): void {
-    const orderedIds = this.visibleItems.map((item) => item.id);
-    const targetIndex = orderedIds.indexOf(itemId);
+  restoreSelection(orderedIds: readonly string[]): void {
+    const scopedIds = this.scopedOrderedIds(orderedIds);
+    this.selection = reduceSelection(this.selection, {
+      type: "restore",
+      orderedIds: scopedIds,
+      ...(scopedIds[0] === undefined ? {} : { fallbackId: scopedIds[0] }),
+    });
+  }
+
+  extendSelectionTo(
+    itemId: string,
+    orderedIds: readonly string[] = this.visibleItems.map((item) => item.id),
+  ): void {
+    const scopedIds = this.scopedOrderedIds(orderedIds);
+    const targetIndex = scopedIds.indexOf(itemId);
     if (targetIndex < 0) {
       throw new RangeError("Cannot extend to an item outside the visible timeline");
     }
     const currentFocus = this.selection.focus ?? this.selection.anchor;
     const currentIndex =
-      currentFocus === undefined ? targetIndex : orderedIds.indexOf(currentFocus);
+      currentFocus === undefined ? targetIndex : scopedIds.indexOf(currentFocus);
     if (currentIndex < 0) {
       this.replaceSelection(itemId);
       return;
@@ -223,7 +235,7 @@ export class PasteboardState {
     for (let index = currentIndex; index !== targetIndex; index += direction) {
       next = reduceSelection(next, {
         type: "extend",
-        orderedIds,
+        orderedIds: scopedIds,
         direction,
       });
     }
@@ -263,16 +275,17 @@ export class PasteboardState {
 
   handleKeyboard(
     event: PasteboardKeyboardEvent,
+    orderedIds: readonly string[] = this.visibleItems.map((item) => item.id),
   ): PasteboardKeyboardEffect | null {
-    const orderedIds = this.visibleItems.map((item) => item.id);
-    const selectionAction = keyboardAction(event, orderedIds);
+    const scopedIds = this.scopedOrderedIds(orderedIds);
+    const selectionAction = keyboardAction(event, scopedIds);
     if (selectionAction !== null) {
       this.selection = reduceSelection(this.selection, selectionAction);
       return null;
     }
 
     if (event.metaKey && !event.altKey && /^[1-9]$/u.test(event.key)) {
-      const itemId = orderedIds[Number(event.key) - 1];
+      const itemId = scopedIds[Number(event.key) - 1];
       return itemId === undefined
         ? null
         : { type: "quick-paste", itemId, plainText: event.shiftKey };
@@ -287,13 +300,13 @@ export class PasteboardState {
       ) {
         this.moveSelection(
           event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1,
-          orderedIds,
+          scopedIds,
         );
         return null;
       }
 
       if (event.key === "Enter") {
-        const available = new Set(orderedIds);
+        const available = new Set(scopedIds);
         const selected = this.selection.selected.filter((id) => available.has(id));
         return selected.length === 0
           ? null
@@ -303,13 +316,13 @@ export class PasteboardState {
       if (event.key === " ") {
         const itemId =
           this.selection.focus ??
-          orderedIds.find((id) => this.selection.selected.includes(id));
+          scopedIds.find((id) => this.selection.selected.includes(id));
         return itemId === undefined ? null : { type: "preview", itemId };
       }
     }
 
     if (!event.metaKey && event.shiftKey && !event.altKey && event.key === "Enter") {
-      const available = new Set(orderedIds);
+      const available = new Set(scopedIds);
       const selected = this.selection.selected.filter((id) => available.has(id));
       return selected.length === 0
         ? null
@@ -317,6 +330,11 @@ export class PasteboardState {
     }
 
     return null;
+  }
+
+  private scopedOrderedIds(orderedIds: readonly string[]): string[] {
+    const available = new Set(this.visibleItems.map((item) => item.id));
+    return [...new Set(orderedIds)].filter((id) => available.has(id));
   }
 
   private moveSelection(direction: -1 | 1, orderedIds: readonly string[]): void {

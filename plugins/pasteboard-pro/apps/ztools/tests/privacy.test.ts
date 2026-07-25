@@ -67,6 +67,31 @@ describe("clipboard privacy", () => {
         },
       ),
     ).toThrow(/256/);
+    for (const value of ["(a|aa)+$", "(a?)+$", String.raw`^(a+)\1+$`]) {
+      expect(() =>
+        shouldPersistClipboard(
+          { text: `${"a".repeat(2_000)}!` },
+          {
+            ignoredBundleIds: [],
+            blockLikelySecrets: false,
+            contentRules: [{ type: "regex", value }],
+          },
+        ),
+      ).toThrow(/unsafe/i);
+    }
+  });
+
+  it("collapses repeated wildcard stars before matching", () => {
+    expect(
+      shouldPersistClipboard(
+        { text: "card-payroll-secret" },
+        {
+          ignoredBundleIds: [],
+          blockLikelySecrets: false,
+          contentRules: [{ type: "wildcard", value: "card-***-secret" }],
+        },
+      ),
+    ).toBe(false);
   });
 
   it("supports indefinite and timed capture pauses", () => {

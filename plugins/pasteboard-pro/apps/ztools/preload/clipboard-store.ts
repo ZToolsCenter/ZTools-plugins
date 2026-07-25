@@ -391,6 +391,7 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   async createTextItem(
     text: string,
     title?: string,
+    pinboardId?: string,
   ): Promise<CanonicalClipboardRecord> {
     const normalizedText = text.trim();
     if (normalizedText.length === 0) {
@@ -404,6 +405,24 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
     const normalizedTitle = title?.trim() || textTitle(normalizedText);
     const payloadRevision = fingerprint({ type: "created-text-payload", text: normalizedText });
     const contentFingerprint = fingerprint({ type: "created-text-item", id });
+    const existingBoardItems =
+      pinboardId === undefined
+        ? []
+        : (await this.listRecords())
+            .filter(
+              (record) =>
+                record.item.pinboardId === pinboardId &&
+                record.item.pinboardOrderKey !== undefined,
+            )
+            .map((record) => ({
+              id: record.item.id,
+              orderKey: record.item.pinboardOrderKey!,
+            }))
+            .sort(compareStableOrder);
+    const pinboardOrderKey =
+      pinboardId === undefined
+        ? undefined
+        : orderKeyBetween(existingBoardItems.at(-1)?.orderKey, undefined);
     const clock = (counter: number): HybridClock => ({
       wallMs: timestamp,
       counter,
@@ -419,11 +438,19 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
       updatedAt: new Date(timestamp).toISOString(),
       contentFingerprint,
       payload: { revision: payloadRevision, text: normalizedText },
+      ...(pinboardId === undefined ? {} : { pinboardId }),
+      ...(pinboardOrderKey === undefined ? {} : { pinboardOrderKey }),
       pinned: false,
       fieldClocks: {
         payload: clock(0),
         ...(normalizedTitle === undefined ? {} : { title: clock(1) }),
         pinned: clock(2),
+        ...(pinboardId === undefined
+          ? {}
+          : {
+              pinboardId: clock(3),
+              pinboardOrderKey: clock(4),
+            }),
       },
     });
     const record: CanonicalClipboardRecord = {

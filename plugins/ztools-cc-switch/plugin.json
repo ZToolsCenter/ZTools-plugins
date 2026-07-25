@@ -1,0 +1,103 @@
+{
+  "name": "ztools-cc-switch",
+  "title": "AI Provider Switch",
+  "version": "1.52.0",
+  "description": "统一管理 AI 编程客户端 Provider、Skills、本地路由、用量与日志",
+  "author": "ZTools Community",
+  "main": "index.html",
+  "preload": "preload/index.js",
+  "logo": "logo.svg",
+  "platform": ["darwin"],
+  "development": {
+    "main": "http://127.0.0.1:5179/"
+  },
+  "features": [
+    {
+      "code": "provider-switch",
+      "explain": "切换 AI 编程客户端 Provider",
+      "cmds": [
+        "AI Provider",
+        "Provider Switch",
+        "切换 Provider",
+        "切换 Claude",
+        "切换 Claude Desktop",
+        "切换 Codex",
+        "切换 Gemini",
+        "切换 OpenCode",
+        "切换 OpenClaw",
+        "切换 Hermes",
+        "切换 GrokBuild"
+      ]
+    },
+    {
+      "code": "provider-settings",
+      "explain": "管理 Provider 与插件设置",
+      "cmds": [
+        "Provider 设置",
+        "AI 账号管理"
+      ]
+    },
+    {
+      "code": "provider-deeplink",
+      "explain": "安全预览并导入 cc-switch Deep Link",
+      "cmds": [
+        "导入 CC Switch 链接",
+        {
+          "type": "regex",
+          "label": "导入 CC Switch 配置",
+          "match": "/^ccswitch:\\/\\/v1\\/import\\?.+$/i"
+        }
+      ]
+    },
+    {
+      "code": "provider-skills",
+      "explain": "管理并同步 AI Skills",
+      "cmds": ["AI Skills", "Skills 管理", "同步 Skills"]
+    },
+    {
+      "code": "provider-agent-config",
+      "explain": "管理 OpenClaw 与 Hermes Agent 配置",
+      "cmds": ["Agent 配置", "OpenClaw 配置", "OpenClaw 模型目录", "Hermes Memory", "Hermes Dashboard"]
+    },
+    {
+      "code": "provider-extensions",
+      "explain": "管理并同步 MCP 与 Prompts",
+      "cmds": ["AI MCP", "MCP 管理", "Prompts 管理", "AI 扩展"]
+    },
+    {
+      "code": "provider-auth",
+      "explain": "管理 Codex、xAI 与 GitHub Copilot 登录账号",
+      "cmds": ["AI 认证中心", "Codex 登录", "Copilot 登录", "xAI 登录"]
+    },
+    {
+      "code": "provider-sessions",
+      "explain": "检索、预览、恢复和管理 AI CLI Sessions",
+      "cmds": ["AI Sessions", "会话管理", "恢复 Codex 会话", "恢复 Claude 会话"]
+    },
+    {
+      "code": "provider-workspace",
+      "explain": "管理 OpenClaw Workspace 与 Daily Memory",
+      "cmds": ["OpenClaw Workspace", "Daily Memory", "每日记忆", "OpenClaw 记忆"]
+    },
+    {
+      "code": "provider-env",
+      "explain": "扫描并安全修复 AI 客户端环境变量冲突",
+      "cmds": ["AI 环境诊断", "Provider 环境冲突", "环境变量冲突"]
+    },
+    {
+      "code": "provider-router",
+      "explain": "启动本地 AI API 路由与整流器",
+      "cmds": ["AI 本地路由", "Thinking 整流器", "API 路由"]
+    },
+    {
+      "code": "provider-usage",
+      "explain": "查看本地用量、官方订阅额度、端点测速与请求日志",
+      "cmds": ["AI 用量", "订阅额度", "Provider 测速", "API 日志", "Token 统计"]
+    },
+    {
+      "code": "provider-webdav",
+      "explain": "配置 WebDAV 与 S3 云同步、快照和冲突处理",
+      "cmds": ["AI WebDAV", "AI S3", "Provider 云同步", "WebDAV 同步", "S3 快照同步"]
+    }
+  ]
+}

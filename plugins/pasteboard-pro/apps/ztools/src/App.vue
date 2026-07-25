@@ -25,6 +25,7 @@ import Preview from "./components/Preview.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
 import TextEditor from "./components/TextEditor.vue";
 import { combinedTextPasteContent } from "./batch-paste";
+import { assignmentItemIds } from "./pinboard-assignment";
 import {
   createPasteboardState,
   pasteStackSnapshot,
@@ -71,11 +72,13 @@ const settingsInitialTab = ref<"general" | "privacy" | "sync">("general");
 const editor = ref<{
   mode: "create" | "edit" | "rename";
   itemId?: string;
+  pinboardId?: string;
   title: string;
   text: string;
 }>();
 const editorSaving = ref(false);
 let shelfHasFocused = false;
+let nativeDialogOpen = false;
 let pasteStackPersistence = Promise.resolve();
 
 async function loadDevelopmentFixtures(): Promise<void> {
@@ -104,11 +107,15 @@ const focusedItem = computed<PasteItem | undefined>(() => {
 function updateQuery(value: string): void {
   query.value = value;
   state.setQuery(value);
+  state.restoreSelection(visibleItems.value.map((item) => item.id));
 }
 
 function selectItem(itemId: string, extend: boolean, toggle: boolean): void {
   if (extend) {
-    state.extendSelectionTo(itemId);
+    state.extendSelectionTo(
+      itemId,
+      visibleItems.value.map((item) => item.id),
+    );
   } else if (toggle) {
     state.toggleSelection(itemId);
   } else {
@@ -185,7 +192,12 @@ async function copySelection(plainText = false): Promise<void> {
 }
 
 function createTextItem(): void {
-  window.pasteboardPro?.openPanel("editor", { mode: "create" });
+  window.pasteboardPro?.openPanel("editor", {
+    mode: "create",
+    ...(activePinboardId.value === undefined
+      ? {}
+      : { pinboardId: activePinboardId.value }),
+  });
 }
 
 function editItem(itemId: string): void {
@@ -206,7 +218,11 @@ async function saveEditor(value: { title: string; text: string }): Promise<void>
   editorSaving.value = true;
   try {
     if (current.mode === "create") {
-      await window.pasteboardPro?.createTextItem(value.text, value.title || undefined);
+      await window.pasteboardPro?.createTextItem(
+        value.text,
+        value.title || undefined,
+        current.pinboardId,
+      );
     } else if (current.mode === "edit" && current.itemId !== undefined) {
       await window.pasteboardPro?.updateTextItem(
         current.itemId,
@@ -333,12 +349,15 @@ function onKeydown(event: KeyboardEvent): void {
     return;
   }
   const previousSelection = state.selection.selected.join("\0");
-  const effect = state.handleKeyboard({
-    key: event.key,
-    metaKey: event.metaKey,
-    shiftKey: event.shiftKey,
-    altKey: event.altKey,
-  });
+  const effect = state.handleKeyboard(
+    {
+      key: event.key,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey,
+      altKey: event.altKey,
+    },
+    visibleItems.value.map((item) => item.id),
+  );
   const selectionChanged = state.selection.selected.join("\0") !== previousSelection;
   if (
     effect !== null ||
@@ -369,33 +388,57 @@ async function loadHistory(): Promise<void> {
   const history = await window.pasteboardPro?.searchHistory("", 10_000);
   if (history !== undefined) {
     state.replaceItems(history.items);
+    state.restoreSelection(visibleItems.value.map((item) => item.id));
     status.value = `已载入 ${history.total} 条记录`;
   }
+}
+
+function selectPinboard(pinboardId: string | undefined): void {
+  activePinboardId.value = pinboardId;
+  state.restoreSelection(visibleItems.value.map((item) => item.id));
 }
 
 async function loadPinboards(): Promise<void> {
   const values = await window.pasteboardPro?.listPinboards();
   if (values !== undefined) {
     pinboards.value = values.map((value) => PinboardSchema.parse(value));
+    if (
+      activePinboardId.value !== undefined &&
+      !pinboards.value.some((pinboard) => pinboard.id === activePinboardId.value)
+    ) {
+      selectPinboard(undefined);
+    }
   }
 }
 
 async function createPinboard(name: string): Promise<void> {
-  await window.pasteboardPro?.createPinboard(name, "#6F61EA");
-  await loadPinboards();
-  status.value = `已创建分组：${name}`;
+  try {
+    await window.pasteboardPro?.createPinboard(name, "#6F61EA");
+    await loadPinboards();
+    status.value = `已创建分组：${name}`;
+  } catch (error) {
+    status.value = error instanceof Error ? error.message : "创建分组失败";
+  }
 }
 
 async function renamePinboard(id: string, name: string): Promise<void> {
-  await window.pasteboardPro?.renamePinboard(id, name);
-  await loadPinboards();
-  status.value = `已重命名分组：${name}`;
+  try {
+    await window.pasteboardPro?.renamePinboard(id, name);
+    await loadPinboards();
+    status.value = `已重命名分组：${name}`;
+  } catch (error) {
+    status.value = error instanceof Error ? error.message : "重命名分组失败";
+  }
 }
 
 async function updatePinboardColor(id: string, color: string): Promise<void> {
-  await window.pasteboardPro?.updatePinboardColor(id, color);
-  await loadPinboards();
-  status.value = "已更新分组颜色";
+  try {
+    await window.pasteboardPro?.updatePinboardColor(id, color);
+    await loadPinboards();
+    status.value = "已更新分组颜色";
+  } catch (error) {
+    status.value = error instanceof Error ? error.message : "更新分组颜色失败";
+  }
 }
 
 async function movePinboard(id: string, direction: -1 | 1): Promise<void> {
@@ -405,36 +448,55 @@ async function movePinboard(id: string, direction: -1 | 1): Promise<void> {
   const remaining = pinboards.value.filter((pinboard) => pinboard.id !== id);
   const beforeId = remaining[target - 1]?.id;
   const afterId = remaining[target]?.id;
-  await window.pasteboardPro?.movePinboard(id, beforeId, afterId);
-  await loadPinboards();
-  status.value = "已调整分组顺序";
+  try {
+    await window.pasteboardPro?.movePinboard(id, beforeId, afterId);
+    await loadPinboards();
+    status.value = "已调整分组顺序";
+  } catch (error) {
+    status.value = error instanceof Error ? error.message : "调整分组顺序失败";
+  }
 }
 
 async function deletePinboard(id: string): Promise<void> {
   const pinboard = pinboards.value.find((candidate) => candidate.id === id);
-  if (
-    pinboard === undefined ||
-    !window.confirm(`删除分组“${pinboard.name}”？其中内容会保留在全部历史。`)
-  ) return;
-  const result = await window.pasteboardPro?.deletePinboard(id);
-  if (activePinboardId.value === id) activePinboardId.value = undefined;
-  await Promise.all([loadPinboards(), loadHistory()]);
-  status.value = `已删除分组，保留 ${result?.unassignedItems ?? 0} 项历史`;
+  if (pinboard === undefined) return;
+  nativeDialogOpen = true;
+  let confirmed = false;
+  try {
+    confirmed = window.confirm(
+      `删除分组“${pinboard.name}”？其中内容会保留在全部历史。`,
+    );
+  } finally {
+    window.setTimeout(() => {
+      nativeDialogOpen = false;
+    }, 250);
+  }
+  if (!confirmed) return;
+  try {
+    const result = await window.pasteboardPro?.deletePinboard(id);
+    if (activePinboardId.value === id) activePinboardId.value = undefined;
+    await Promise.all([loadPinboards(), loadHistory()]);
+    status.value = `已删除分组，保留 ${result?.unassignedItems ?? 0} 项历史`;
+  } catch (error) {
+    status.value = error instanceof Error ? error.message : "删除分组失败";
+  }
 }
 
 async function assignPinboard(
   pinboardId: string | undefined,
   draggedItemId: string,
 ): Promise<void> {
-  const itemIds = state.selection.selected.includes(draggedItemId)
-    ? state.selection.selected
-    : [draggedItemId];
-  await window.pasteboardPro?.assignItemsToPinboard(itemIds, pinboardId);
-  await loadHistory();
-  status.value =
-    pinboardId === undefined
-      ? `已将 ${itemIds.length} 项移出分组`
-      : `已将 ${itemIds.length} 项加入分组`;
+  const itemIds = assignmentItemIds(state.selection.selected, draggedItemId);
+  try {
+    await window.pasteboardPro?.assignItemsToPinboard(itemIds, pinboardId);
+    await loadHistory();
+    status.value =
+      pinboardId === undefined
+        ? `已将 ${itemIds.length} 项移出分组`
+        : `已将 ${itemIds.length} 项加入分组`;
+  } catch (error) {
+    status.value = error instanceof Error ? error.message : "分组移动失败";
+  }
 }
 
 async function recognizeItem(itemId: string): Promise<void> {
@@ -557,11 +619,14 @@ function closeWindow(): void {
 }
 
 function onWindowFocus(): void {
-  if (isShelfMode) shelfHasFocused = true;
+  if (isShelfMode) {
+    shelfHasFocused = true;
+    nativeDialogOpen = false;
+  }
 }
 
 function onWindowBlur(): void {
-  if (isShelfMode && shelfHasFocused) window.close();
+  if (isShelfMode && shelfHasFocused && !nativeDialogOpen) window.close();
 }
 
 onMounted(async () => {
@@ -593,7 +658,14 @@ onMounted(async () => {
     const mode = params.get("mode");
     const itemId = params.get("itemId") ?? undefined;
     if (mode === "create") {
-      editor.value = { mode, title: "", text: "" };
+      editor.value = {
+        mode,
+        title: "",
+        text: "",
+        ...(params.get("pinboardId") === null
+          ? {}
+          : { pinboardId: params.get("pinboardId")! }),
+      };
       return;
     }
     if ((mode === "edit" || mode === "rename") && itemId !== undefined) {
@@ -657,7 +729,7 @@ onBeforeUnmount(() => {
       @paste="pasteItem"
       @preview="openPreview"
       @latest-visible="focusLatestItem"
-      @select-pinboard="activePinboardId = $event"
+      @select-pinboard="selectPinboard"
       @create-pinboard="createPinboard"
       @rename-pinboard="renamePinboard"
       @update-pinboard-color="updatePinboardColor"

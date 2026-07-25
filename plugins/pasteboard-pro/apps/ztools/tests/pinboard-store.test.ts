@@ -126,4 +126,34 @@ describe("ZTools Pinboard store", () => {
       db.get(`pasteboard-pro:tombstone:pinboard:${board.id}`),
     ).resolves.toMatchObject({ tombstone });
   });
+
+  it("creates a deletion clock newer than every synchronized Pinboard field", async () => {
+    const db = database();
+    const store = new ZToolsPinboardStore(db, {
+      deviceId: "device-local",
+      now: () => 1_000,
+    });
+    await store.putSynced({
+      id: "board-future",
+      name: "Future",
+      color: "#123456",
+      orderKey: "a0",
+      createdAt: "2026-07-17T00:00:00.000Z",
+      updatedAt: "2026-07-17T00:00:02.000Z",
+      fieldClocks: {
+        name: { wallMs: 2_000, counter: 0, deviceId: "device-remote" },
+        color: { wallMs: 2_100, counter: 0, deviceId: "device-remote" },
+        orderKey: { wallMs: 2_200, counter: 0, deviceId: "device-remote" },
+      },
+    });
+
+    const tombstone = await store.delete("board-future");
+
+    expect(tombstone.clock).toEqual({
+      wallMs: 2_201,
+      counter: 0,
+      deviceId: "device-local",
+    });
+    expect(await store.list()).toEqual([]);
+  });
 });

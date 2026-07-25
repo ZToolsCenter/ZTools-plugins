@@ -127,7 +127,9 @@ function assertRuleLength(value: string): void {
 function assertSafeRegex(pattern: string): void {
   assertRuleLength(pattern);
   if (
-    /\([^)]*(?:\+|\*|\{\d+,?\d*\})[^)]*\)(?:\+|\*|\{)/u.test(pattern) ||
+    /\([^)]*(?:\+|\*|\?|\{\d+,?\d*\})[^)]*\)(?:\+|\*|\{)/u.test(pattern) ||
+    /\([^)]*\|[^)]*\)(?:\+|\*|\{\d+,?\d*\})/u.test(pattern) ||
+    /\\[1-9]/u.test(pattern) ||
     /\.\*.*\.\*/u.test(pattern)
   ) {
     throw new RangeError("Potentially unsafe regular expression");
@@ -142,7 +144,7 @@ function compileRule(rule: ClipboardContentRule): RegExp {
   }
 
   if (rule.type === "wildcard") {
-    const pattern = escapedRegex(rule.value)
+    const pattern = escapedRegex(rule.value.replace(/\*+/gu, "*"))
       .replaceAll("\\*", ".*")
       .replaceAll("\\?", ".");
     return new RegExp(`^${pattern}$`, "iu");

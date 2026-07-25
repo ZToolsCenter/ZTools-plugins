@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import type { PasteItem } from "@pasteboard-pro/core";
+import type { PasteItem, Pinboard } from "@pasteboard-pro/core";
 
 import {
   loadItemThumbnail,
@@ -10,6 +10,7 @@ import {
 
 const props = defineProps<{
   item: PasteItem;
+  pinboards: readonly Pinboard[];
   selected: boolean;
   index: number;
   vertical?: boolean;
@@ -20,11 +21,38 @@ const emit = defineEmits<{
   select: [itemId: string, extend: boolean, toggle: boolean];
   paste: [itemId: string];
   preview: [itemId: string];
+  assignPinboard: [value: { pinboardId: string | undefined; itemId: string }];
 }>();
 const card = ref<HTMLElement>();
 const thumbnailUrl = ref<string>();
 const thumbnailRequested = ref(false);
+const contextMenu = ref<{ x: number; y: number }>();
 let stopObservingThumbnail: (() => void) | undefined;
+
+function closeContextMenu(): void {
+  document.removeEventListener("pointerdown", closeContextMenu);
+  window.removeEventListener("keydown", closeContextMenuOnEscape);
+  contextMenu.value = undefined;
+}
+
+function openContextMenu(event: MouseEvent): void {
+  if (!props.selected) emit("select", props.item.id, false, false);
+  contextMenu.value = {
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - 208)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 280)),
+  };
+  document.addEventListener("pointerdown", closeContextMenu);
+  window.addEventListener("keydown", closeContextMenuOnEscape);
+}
+
+function assignToPinboard(pinboardId: string | undefined): void {
+  emit("assignPinboard", { pinboardId, itemId: props.item.id });
+  closeContextMenu();
+}
+
+function closeContextMenuOnEscape(event: KeyboardEvent): void {
+  if (event.key === "Escape") closeContextMenu();
+}
 
 function beginDrag(event: DragEvent): void {
   event.dataTransfer?.setData("application/x-pasteboard-pro-item", props.item.id);
@@ -85,7 +113,10 @@ watch(
   },
 );
 
-onBeforeUnmount(() => stopObservingThumbnail?.());
+onBeforeUnmount(() => {
+  stopObservingThumbnail?.();
+  closeContextMenu();
+});
 </script>
 
 <template>
@@ -101,6 +132,7 @@ onBeforeUnmount(() => stopObservingThumbnail?.());
     @dragstart="beginDrag"
     @click="emit('select', item.id, $event.shiftKey, $event.metaKey)"
     @dblclick="emit('paste', item.id)"
+    @contextmenu.prevent.stop="openContextMenu"
     @keydown.enter="emit('paste', item.id)"
     @keydown.space.prevent="emit('preview', item.id)"
   >
@@ -133,6 +165,41 @@ onBeforeUnmount(() => stopObservingThumbnail?.());
       <span>{{ item.sourceApp?.name ?? "Unknown app" }}</span>
     </footer>
   </article>
+  <Teleport to="body">
+    <div
+      v-if="contextMenu"
+      class="pinboard-context-menu glass-surface"
+      role="menu"
+      aria-label="添加到分组"
+      :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+      @pointerdown.stop
+      @contextmenu.prevent
+    >
+      <strong>添加到分组</strong>
+      <span v-if="pinboards.length === 0" class="pinboard-context-menu__empty">暂无分组</span>
+      <button
+        v-for="pinboard in pinboards"
+        :key="pinboard.id"
+        type="button"
+        role="menuitem"
+        :class="{ 'pinboard-context-menu__current': item.pinboardId === pinboard.id }"
+        @click="assignToPinboard(pinboard.id)"
+      >
+        <i :style="{ background: pinboard.color }" aria-hidden="true"></i>
+        <span>{{ pinboard.name }}</span>
+        <small v-if="item.pinboardId === pinboard.id">当前</small>
+      </button>
+      <button
+        v-if="item.pinboardId !== undefined"
+        type="button"
+        role="menuitem"
+        class="pinboard-context-menu__remove"
+        @click="assignToPinboard(undefined)"
+      >
+        <span>移出分组</span>
+      </button>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -158,6 +225,74 @@ onBeforeUnmount(() => stopObservingThumbnail?.());
 
 .paste-card:hover {
   transform: translateY(-2px);
+}
+
+.pinboard-context-menu {
+  position: fixed;
+  z-index: 100;
+  display: grid;
+  width: 200px;
+  max-height: min(272px, calc(100vh - 16px));
+  padding: 7px;
+  overflow-y: auto;
+  border: 1px solid var(--pb-line);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--pb-glass-strong) 96%, transparent);
+  box-shadow: 0 18px 48px var(--pb-shadow);
+}
+
+.pinboard-context-menu > strong,
+.pinboard-context-menu__empty {
+  padding: 7px 9px;
+  color: var(--pb-muted);
+  font-size: 10px;
+}
+
+.pinboard-context-menu > button {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--pb-ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.pinboard-context-menu > button:hover,
+.pinboard-context-menu > button:focus-visible,
+.pinboard-context-menu__current {
+  background: color-mix(in srgb, var(--pb-violet) 12%, transparent) !important;
+  outline: 0;
+}
+
+.pinboard-context-menu > button i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.pinboard-context-menu > button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinboard-context-menu > button small {
+  color: var(--pb-violet);
+  font-size: 9px;
+}
+
+.pinboard-context-menu__remove {
+  grid-template-columns: 1fr !important;
+  margin-top: 4px;
+  border-top: 1px solid var(--pb-line) !important;
+  border-radius: 0 0 9px 9px !important;
+  color: var(--pb-muted) !important;
 }
 
 .paste-card--vertical {

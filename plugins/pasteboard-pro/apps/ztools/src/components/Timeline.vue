@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 
-import type { PasteItem } from "@pasteboard-pro/core";
+import type { PasteItem, Pinboard } from "@pasteboard-pro/core";
 
 import PasteCard from "./PasteCard.vue";
 
 const props = withDefaults(
   defineProps<{
     items: readonly PasteItem[];
+    pinboards: readonly Pinboard[];
     selectedIds: readonly string[];
     focusedId: string | undefined;
     vertical?: boolean;
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   paste: [itemId: string];
   preview: [itemId: string];
   latestVisible: [itemId: string];
+  assignPinboard: [pinboardId: string | undefined, itemId: string];
 }>();
 const track = ref<HTMLElement>();
 const followLatest = ref(true);
@@ -199,6 +201,7 @@ onMounted(() => {
         v-for="(item, index) in props.items"
         :key="item.id"
         :item="item"
+        :pinboards="props.pinboards"
         :index="index"
         :selected="props.selectedIds.includes(item.id)"
         :vertical="props.vertical"
@@ -206,6 +209,7 @@ onMounted(() => {
         @select="forwardSelect"
         @paste="emit('paste', $event)"
         @preview="emit('preview', $event)"
+        @assign-pinboard="emit('assignPinboard', $event.pinboardId, $event.itemId)"
       />
     </div>
   </section>

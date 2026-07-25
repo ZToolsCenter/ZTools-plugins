@@ -1,0 +1,4 @@
+node_modules/
+dist/
+rust-sidecar/target/
+preload/bin/cc-switch-sidecar-*

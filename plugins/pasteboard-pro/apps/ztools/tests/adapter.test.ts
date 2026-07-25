@@ -310,12 +310,18 @@ describe("ZTools clipboard adapter", () => {
       "item.ocrText",
     );
 
-    const created = await store.createTextItem("Draft body", "Draft title");
+    const created = await store.createTextItem(
+      "Draft body",
+      "Draft title",
+      "board-work",
+    );
     expect(created.item).toMatchObject({
       kind: "text",
       title: "Draft title",
       payload: { text: "Draft body" },
       sourceApp: { name: "Paste剪切板" },
+      pinboardId: "board-work",
+      pinboardOrderKey: expect.any(String),
     });
     const captureFingerprint = created.item.contentFingerprint;
     const edited = await store.updateTextItem(

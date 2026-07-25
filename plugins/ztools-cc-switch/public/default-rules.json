@@ -1,0 +1,72 @@
+{
+  "version": "1.1.0",
+  "providers": [
+    {
+      "id": "deepseek-codex",
+      "name": "DeepSeek",
+      "baseUrl": "https://api.deepseek.com",
+      "model": "deepseek-chat",
+      "wireApi": "chat_completions",
+      "apiType": "openai_compat",
+      "clients": ["codex", "opencode", "openclaw", "hermes", "grokbuild"],
+      "color": "#4F8CFF"
+    },
+    {
+      "id": "openrouter-codex",
+      "name": "OpenRouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "model": "openai/gpt-5",
+      "wireApi": "chat_completions",
+      "apiType": "openai_compat",
+      "clients": ["codex", "opencode", "openclaw", "hermes", "grokbuild"],
+      "color": "#9B8AFB"
+    },
+    {
+      "id": "kimi-claude",
+      "name": "Kimi for Claude",
+      "baseUrl": "https://api.moonshot.cn/anthropic",
+      "model": "kimi-k2.5",
+      "apiType": "anthropic",
+      "clients": ["claude", "opencode", "openclaw", "hermes"],
+      "color": "#F4B55F"
+    },
+    {
+      "id": "siliconflow-codex",
+      "name": "SiliconFlow",
+      "baseUrl": "https://api.siliconflow.cn/v1",
+      "model": "deepseek-ai/DeepSeek-V3.2",
+      "wireApi": "chat_completions",
+      "apiType": "openai_compat",
+      "clients": ["codex", "opencode", "openclaw", "hermes", "grokbuild"],
+      "color": "#36C7A5"
+    },
+    {
+      "id": "xai-grokbuild",
+      "name": "xAI API",
+      "baseUrl": "https://api.x.ai/v1",
+      "model": "grok-4.5",
+      "wireApi": "responses",
+      "apiType": "responses",
+      "clients": ["grokbuild"],
+      "color": "#93C5FD"
+    },
+    {
+      "id": "gemini-official",
+      "name": "Google AI Studio",
+      "baseUrl": "https://generativelanguage.googleapis.com",
+      "model": "gemini-2.5-pro",
+      "apiType": "gemini",
+      "clients": ["gemini"],
+      "color": "#69A1FF"
+    },
+    {
+      "id": "anthropic-official",
+      "name": "Anthropic API",
+      "baseUrl": "https://api.anthropic.com",
+      "model": "claude-sonnet-4-5",
+      "apiType": "anthropic",
+      "clients": ["claude"],
+      "color": "#E69B62"
+    }
+  ]
+}

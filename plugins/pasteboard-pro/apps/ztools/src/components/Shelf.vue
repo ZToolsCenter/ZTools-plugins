@@ -95,6 +95,7 @@ function forwardAssignPinboard(
     />
     <Timeline
       :items="items"
+      :pinboards="pinboards"
       :selected-ids="selectedIds"
       :focused-id="focusedItemId"
       :vertical="edge === 'left' || edge === 'right'"
@@ -102,6 +103,7 @@ function forwardAssignPinboard(
       @select="forwardSelect"
       @paste="emit('paste', $event)"
       @preview="emit('preview', $event)"
+      @assign-pinboard="forwardAssignPinboard"
       @latest-visible="emit('latestVisible', $event)"
     />
     <PasteStack

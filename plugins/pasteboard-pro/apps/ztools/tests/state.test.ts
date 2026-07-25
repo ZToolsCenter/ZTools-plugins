@@ -189,6 +189,59 @@ describe("Vue canonical state", () => {
     });
   });
 
+  it("keeps range selection and keyboard actions inside a filtered scope", () => {
+    const state = createPasteboardState({ items: historyFixture });
+    const [firstId, hiddenId, thirdId] = state.visibleItems.map((item) => item.id);
+    if (firstId === undefined || hiddenId === undefined || thirdId === undefined) {
+      throw new Error("Expected at least three history fixtures");
+    }
+    const scopedIds = [firstId, thirdId];
+
+    state.replaceSelection(firstId);
+    state.extendSelectionTo(thirdId, scopedIds);
+    expect(state.selection.selected).toEqual(scopedIds);
+    expect(state.selection.selected).not.toContain(hiddenId);
+
+    state.handleKeyboard(
+      {
+        key: "ArrowLeft",
+        metaKey: false,
+        shiftKey: false,
+        altKey: false,
+      },
+      scopedIds,
+    );
+    expect(state.selection.selected).toEqual([firstId]);
+
+    state.handleKeyboard(
+      {
+        key: "a",
+        metaKey: true,
+        shiftKey: false,
+        altKey: false,
+      },
+      scopedIds,
+    );
+    expect(state.selection.selected).toEqual(scopedIds);
+  });
+
+  it("restores selection when a filtered scope hides the current item", () => {
+    const state = createPasteboardState({ items: historyFixture });
+    const [firstId, secondId] = state.visibleItems.map((item) => item.id);
+    if (firstId === undefined || secondId === undefined) {
+      throw new Error("Expected at least two history fixtures");
+    }
+
+    state.replaceSelection(firstId);
+    state.restoreSelection([secondId]);
+
+    expect(state.selection).toEqual({
+      selected: [secondId],
+      anchor: secondId,
+      focus: secondId,
+    });
+  });
+
   it("clears selection when the active paste queue is consumed", () => {
     const state = createPasteboardState({
       items: historyFixture,

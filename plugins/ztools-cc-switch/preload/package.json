@@ -1,0 +1,15 @@
+{
+  "name": "ztools-cc-switch-preload",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "adm-zip": "0.6.0",
+    "json5": "^2.2.3",
+    "node-fetch": "^2.7.0",
+    "proxy-agent": "^6.5.0",
+    "proxy-from-env": "^1.1.0",
+    "tar": "^7.4.3",
+    "yaml": "^2.8.1"
+  }
+}
