@@ -1,0 +1,33 @@
+{
+  "name": "password-manager",
+  "title": "服务器密码管理器",
+  "description": "本地加密密码库，支持按 IP / 名称搜索与一键复制密码。",
+  "author": "Hengjiu",
+  "version": "0.1.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "platform": ["win32"],
+  "features": [
+    {
+      "code": "password-manager",
+      "explain": "搜索服务器密码并一键复制",
+      "icon": "logo.png",
+      "cmds": ["密码", "password", "密码管理器"]
+    },
+    {
+      "code": "pm-ip",
+      "explain": "按 IP 打开密码库",
+      "cmds": [
+        { "type": "regex", "label": "打开密码库", "match": "/^\\d{1,3}(\\.\\d{1,3}){3}$/", "minLength": 7 }
+      ]
+    },
+    {
+      "code": "pm-csv",
+      "explain": "导入密码库表格（CSV / Excel）",
+      "cmds": [
+        { "type": "files", "label": "导入密码库表格", "fileType": "file", "extensions": ["csv", "xlsx", "xls"], "minLength": 1, "maxLength": 1 }
+      ]
+    }
+  ]
+}
