@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>加载中…</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        color: #71717a;
+        background: #f4f4f5;
+      }
+    </style>
+  </head>
+  <body>
+  <script>
+    (function () {
+      const raw = new URLSearchParams(location.search).get("url");
+      if (!raw) {
+        document.body.textContent = "缺少链接地址";
+        return;
+      }
+      let target;
+      try {
+        target = new URL(raw);
+      } catch {
+        document.body.textContent = "链接无效";
+        return;
+      }
+      if (target.protocol !== "http:" && target.protocol !== "https:") {
+        document.body.textContent = "不支持的链接类型";
+        return;
+      }
+      location.replace(target.toString());
+    })();
+  </script>
+  </body>
+</html>

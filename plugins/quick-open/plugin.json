@@ -1,0 +1,31 @@
+{
+  "name": "quick-open",
+  "title": "快捷打开",
+  "description": "网址、应用、书签、搜索与文件快捷打开",
+  "version": "1.0.1",
+  "author": "crisy",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "pluginSetting": {
+    "height": 640
+  },
+  "features": [
+    {
+      "code": "quick-open",
+      "explain": "管理与打开快捷配置",
+      "cmds": [
+        "快捷打开",
+        "quick open",
+        "quick-open"
+      ]
+    },
+    {
+      "code": "quick-open-app",
+      "explain": "应用快开：选择项目目录",
+      "cmds": [
+        "应用快开"
+      ]
+    }
+  ]
+}
