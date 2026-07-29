@@ -161,11 +161,37 @@ function parseCsv(text) {
 }
 
 // ---- Excel 解析（.xlsx / .xls，取第一个工作表）----
+// 注：两个修复叠加，必不可少：
+//   ① `cellFormula: false` — SheetJS 默认会把 `=` 开头的单元格当公式求值，
+//      失败后该格值变空；密码场景不需要任何公式，必须关掉。
+//   ② v-缺失 / f-存在回退 — 某些工具（脚本生成 xlsx / 某些另存路径）会把
+//      `=xxx` 字符串存成公式文本（`f`），却不存 cached value（`v` 缺失），
+//      此时 cellFormula:false 也救不了——`sheet_to_json` 拿不到值。
+//      遍历每个 cell：若 v 缺失且 f 还在，把 `'=' + f` 写入 v/w 当字符串用，
+//      同时清掉 f（避免后续误判）。
 function parseExcel(buffer) {
-  const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true, cellFormula: false });
   const firstSheetName = wb.SheetNames[0];
   if (!firstSheetName) return [];
   const sheet = wb.Sheets[firstSheetName];
+  if (sheet && sheet['!ref']) {
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    for (let r = range.s.r; r <= range.e.r; r++) {
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const addr = XLSX.utils.encode_cell({ c, r });
+        const cell = sheet[addr];
+        if (!cell) continue;
+        const noValue = (cell.v === undefined || cell.v === null || cell.v === '');
+        if (noValue && cell.f != null && cell.f !== '') {
+          const txt = '=' + String(cell.f);
+          cell.v = txt;
+          cell.w = txt;
+          cell.t = 's';
+          delete cell.f;
+        }
+      }
+    }
+  }
   const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false, blankrows: false });
   return rowsFromMatrix(matrix);
 }
