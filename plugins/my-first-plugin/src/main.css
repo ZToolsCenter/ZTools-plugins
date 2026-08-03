@@ -1,0 +1,23 @@
+:root {
+  --blue: rgb(88, 164, 246);
+  --light: #fff;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #e8e0d0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#app {
+  height: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #303133;
+  }
+}

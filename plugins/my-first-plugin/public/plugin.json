@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "my-first-plugin",
+  "title": "计算草稿",
+  "description": "一款可以逐行草稿计算的工具，支持四则运算、编辑修改、保存为txt文件",
+  "author": "SYC",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "calc",
+      "explain": "打开计算草稿，逐行输入算式并得出结果",
+      "icon": "logo.png",
+      "cmds": ["计算草稿", "计算", "calc"]
+    }
+  ]
+}

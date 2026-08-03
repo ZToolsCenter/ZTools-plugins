@@ -1,0 +1,4 @@
+node_modules
+dist
+*.zpx
+.DS_Store
