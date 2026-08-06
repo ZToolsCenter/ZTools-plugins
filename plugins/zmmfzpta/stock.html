@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<style type="text/css">
+  body {
+    -webkit-app-region: drag;
+    -webkit-user-select: none;
+    margin: 0px;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    opacity: 0.8;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .body-hover {
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  }
+
+  .body-hover:hover {
+    opacity: 0.9;
+  }
+
+  img {
+    width: 100px;
+    height: auto;
+    border-radius: 3%;
+    overflow: hidden !important;
+  }
+
+  .uncopy {
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+</style>
+
+<body id="body" scroll="no" class="body-hover" draggable="false">
+
+</body>
+
+<script type="application/javascript">
+  let lock = false;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const id = urlParams.get('id'); // 获取id参数的值
+  const name = urlParams.get('name'); // 获取name参数的值
+
+  console.log(id); // 输出：123
+  console.log(name); // 输出：example
+
+  let ids = id.split('|')
+  let imgsArray = []
+
+  console.log('ids len', ids)
+
+  const parentElement = document.getElementById('body');
+
+  // 动态创建3个img元素
+  for (let i = 0; i < ids.length; i++) {
+    const img = document.createElement('img')
+    img.src = getImage(ids[i])
+    img.className = 'uncopy'
+    imgsArray.push(img)
+    parentElement.appendChild(img)
+  }
+
+  let timerId = 0
+  timerId = setInterval(() => {
+    console.log('timer....', imgsArray[0].src)
+    for (let i = 0; i < ids.length; i++) {
+      const img = imgsArray[i]
+      img.src = getImage(ids[i])
+    }
+  }, 5000)
+
+  function getImage(sid) {
+    let date = new Date()
+    let sec = Math.floor(date.getSeconds()/10)
+    let time = `${date.getFullYear()}${date.getMonth() + 1}${date.getDate()}${date.getHours()}${date.getMinutes()}-${sec}`
+    //let sid = `${item.f13}.${item.f12}`
+    let url = `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=WAPINDEX2&nid=${sid}&rnd=${time}`
+    return url
+  }
+
+  function rotate(degree) {
+    if (lock) {
+      return;
+    }
+    lock = true;
+    //获得图片大小
+    let { width, height } = img;
+    //计算改变后窗口位置和大小
+    let R = Math.sqrt(width * width + height * height);
+    let xOffset = (R - width) / 2;
+    let yOffset = (R - height) / 2;
+    img.src = rotateImage(degree);
+    img.onload = () => {
+      window.moveBounds(yOffset - xOffset, xOffset - yOffset, height, width);
+      lock = false;
+    }
+  }
+
+  let keyCounter = {
+    lastKey: undefined,
+    key: undefined,
+    count: 3,
+    time: 0
+  }
+  let dowingKey = {};
+  document.addEventListener("keyup", event => {
+    delete dowingKey[event.key]
+  })
+  document.addEventListener("keydown", event => {
+    console.log(event.key);
+    //长按操作将加速
+    if (keyCounter.key === event.key && new Date().getTime() - keyCounter.time < 200) {
+      keyCounter.count++
+    } else {
+      keyCounter.key = event.key
+      keyCounter.count = 3;
+      keyCounter.time = 0;
+    }
+    keyCounter.time = new Date().getTime();
+    switch (event.key) {
+      case "Escape":
+        clearInterval(timerId)
+        window.close();
+        break;
+    }
+    dowingKey[event.key] = true
+  });
+</script>
+
+</html>

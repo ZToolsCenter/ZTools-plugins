@@ -1,0 +1,15 @@
+{
+  "main": "index.html",
+  "logo": "icon.png",
+  "preload": "preload/preload.js",
+  "features": [{ "code": "ZKit", "explain": "ZKit", "cmds": ["ZKit"] }],
+  "pluginSetting": { "height": 610 },
+  "platform": ["darwin", "win32", "linux"],
+  "name": "zmmfzpta",
+  "pluginName": "ZKit",
+  "title": "ZKit",
+  "description": "聚合阅读/文件共享/adb/斗地主/象棋/围棋/新闻/财经快讯/热搜/虎扑/v2ex/日常打卡/微博/贴吧/B站/水木/小红书/nga/豆瓣/创业邦/知乎/雪球/头条/抖音/下厨房/it之家/36氪/集思录/少数派/值得买/股票/CSDN/掘金/简书/github/gitee/过早客/电鸭/虎嗅/开源中国/AcFun/宽带山/股吧/懂车帝/汽车之家/芒果tv/爱奇艺/腾讯视频/猫眼/果壳/taptap/小众软件/威锋/起点/微信读书/网易/小游戏/摸鱼等几十个模块",
+  "author": "最近不在",
+  "homepage": null,
+  "version": "1.6.2"
+}
