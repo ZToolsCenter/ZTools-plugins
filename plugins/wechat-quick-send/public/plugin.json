@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "wechat-quick-send",
+  "title": "微信速发",
+  "description": "快速将选中的文本、文件发送到微信输入框",
+  "author": "meidlinger",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "wechat-send",
+      "explain": "将文本或文件快速发送到微信",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": [
+        {
+          "type": "over",
+          "label": "发送到微信"
+        },
+        {
+          "type": "files",
+          "label": "发送文件到微信",
+          "fileType": "file"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}
