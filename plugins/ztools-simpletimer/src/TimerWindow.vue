@@ -56,6 +56,7 @@ const currentDisplayMs = computed(() => {
 })
 
 const displayTime = computed(() => formatTime(currentDisplayMs.value))
+const displayTick = computed(() => Math.floor((currentDisplayMs.value % 1000) / 100))
 const isCountdownLocked = computed(() => mode.value === 'countdown' && isRunning.value)
 const isCountdownStartDisabled = computed(() => {
   return mode.value === 'countdown' && !isRunning.value && countdownMs.value - elapsedMs.value <= 0
@@ -569,7 +570,7 @@ function handleBlur() {
     </header>
 
     <section class="timer-face" :class="{ 'timer-face-spacious': mode === 'stopwatch' }" aria-label="计时显示">
-      <output class="timer-display">{{ displayTime }}</output>
+      <output class="timer-display">{{ displayTime }}<span class="timer-tick">.{{ displayTick }}</span></output>
       <div v-if="mode === 'countdown'" class="countdown-track" aria-hidden="true">
         <span :style="{ width: `${Math.min(100, Math.max(0, (elapsedMs / Math.max(countdownMs, 1)) * 100))}%` }"></span>
       </div>
@@ -772,6 +773,12 @@ input {
   line-height: 0.95;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
+}
+.timer-tick {
+  opacity: 0.72;
+  font-size: calc(22px * var(--timer-scale));
+  line-height: 1;
+  vertical-align: baseline;
 }
 
 .countdown-track {
