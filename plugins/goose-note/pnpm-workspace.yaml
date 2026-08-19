@@ -1,0 +1,5 @@
+# pnpm >= 11 不再读取 package.json 的 pnpm.overrides，统一迁移到这里
+overrides:
+  zod: ^4.4.3
+  "@tiptap/core": ^3.15.3
+  "@tiptap/pm": ^3.15.3

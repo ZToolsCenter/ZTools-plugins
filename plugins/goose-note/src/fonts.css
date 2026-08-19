@@ -1,0 +1,47 @@
+/* Inter Font Family */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/fonts/Inter-Variable.woff2") format("woff2");
+}
+
+/* DM Mono Font Family
+ * 使用 swap 而非 optional，避免「首次进入页面 DM Mono 永久失效」与
+ * 「二次进入因缓存命中、加上 unicode-range 不含 CJK 导致字符回退到非等宽字体」
+ * 的行为差异。unicode-range 已移除，让浏览器对所有字符尝试 DM Mono，
+ * CJK 字符在 DM Mono 中无字形时会自然走到 monospace generic 的系统兜底。 */
+@font-face {
+  font-family: "DM Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("DM Mono"),
+    url("https://cdn.jsdelivr.net/npm/@fontsource/dm-mono@5.1.0/files/dm-mono-latin-400-normal.woff2")
+      format("woff2");
+}
+
+@font-face {
+  font-family: "HarmonyOS Sans SC";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("HarmonyOS Sans SC"),
+    local("HarmonyOS Sans"),
+    url("https://cdn.jsdelivr.net/gh/eachann1024/Resources@d6dc229cd882dc0983dc5ce7cf28fb85047a4a76/%E9%B8%BF%E8%92%99%E9%BB%91%E4%BD%93-HarmonyOS%20Sans%20SC.woff2")
+      format("woff2");
+}
+
+/* 仓耳今楷 Font Family */
+@font-face {
+  font-family: "仓耳今楷";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  /* 远程字节由 fontLoader 写入 Cache Storage 并动态安装，
+   * 这里仅保留系统本地字体兜底，避免每次启动又触发 CDN 请求。 */
+  src: local("仓耳今楷");
+}

@@ -1,0 +1,311 @@
+/**
+ * 空状态 AI 入口 · V5 星云 tilt
+ * 去掉取景框四角；高饱和光晕；图标轻微 3D tilt（陀螺仪/磁力跟随感）。
+ * 注意：uTools 旧内核勿用 hsl(var(--x)/alpha)，一律用 rgba/hex 实色。
+ */
+
+.page-empty-ai-card {
+  --ai-tilt-x: 0deg;
+  --ai-tilt-y: 0deg;
+  --ai-glare-x: 50%;
+  --ai-glare-y: 50%;
+  perspective: 720px;
+  transform-style: preserve-3d;
+}
+
+.page-empty-ai-chip {
+  --empty-ai-crystal-1: #d946ef;
+  --empty-ai-crystal-2: #22d3ee;
+  --empty-ai-crystal-3: #fbbf24;
+  --empty-ai-crystal-4: #34d399;
+  --empty-ai-crystal-bloom: rgba(56, 189, 248, 0.42);
+  --empty-ai-crystal-bloom-hot: rgba(236, 72, 153, 0.38);
+  --empty-ai-crystal-icon: #6d28d9;
+  --empty-ai-crystal-icon-glow: rgba(217, 70, 239, 0.55);
+
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  border: none;
+  background:
+    radial-gradient(
+      circle at 28% 24%,
+      rgba(255, 255, 255, 0.92),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 72% 78%,
+      rgba(251, 191, 36, 0.28),
+      transparent 48%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(217, 70, 239, 0.22),
+      rgba(34, 211, 238, 0.24) 48%,
+      rgba(251, 191, 36, 0.2)
+    );
+  box-shadow:
+    0 10px 24px rgba(56, 189, 248, 0.18),
+    0 0 28px rgba(217, 70, 239, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  transform:
+    translateZ(18px)
+    rotateX(var(--ai-tilt-x))
+    rotateY(var(--ai-tilt-y))
+    scale(1.02);
+  transform-style: preserve-3d;
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms ease;
+  will-change: transform;
+}
+
+.page-empty-ai-card:hover .page-empty-ai-chip,
+.page-empty-ai-card:focus-visible .page-empty-ai-chip {
+  box-shadow:
+    0 14px 30px rgba(56, 189, 248, 0.24),
+    0 0 36px rgba(236, 72, 153, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.dark .page-empty-ai-chip {
+  --empty-ai-crystal-1: #f0abfc;
+  --empty-ai-crystal-2: #67e8f9;
+  --empty-ai-crystal-3: #fde68a;
+  --empty-ai-crystal-4: #6ee7b7;
+  --empty-ai-crystal-bloom: rgba(103, 232, 249, 0.45);
+  --empty-ai-crystal-bloom-hot: rgba(244, 114, 182, 0.42);
+  --empty-ai-crystal-icon: #faf5ff;
+  --empty-ai-crystal-icon-glow: rgba(244, 114, 182, 0.7);
+
+  background:
+    radial-gradient(
+      circle at 30% 22%,
+      rgba(255, 255, 255, 0.2),
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 74% 78%,
+      rgba(253, 230, 138, 0.22),
+      transparent 50%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(217, 70, 239, 0.34),
+      rgba(34, 211, 238, 0.3) 48%,
+      rgba(251, 191, 36, 0.24)
+    );
+  box-shadow:
+    0 12px 28px rgba(2, 6, 23, 0.45),
+    0 0 30px rgba(103, 232, 249, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.page-empty-ai-chip .page-empty-ai-icon {
+  position: relative;
+  z-index: 3;
+  color: var(--empty-ai-crystal-icon);
+  filter:
+    saturate(1.55)
+    drop-shadow(0 0 8px var(--empty-ai-crystal-icon-glow));
+  transform:
+    translateZ(28px)
+    translate3d(
+      calc((var(--ai-glare-x) - 50%) * 0.08px),
+      calc((var(--ai-glare-y) - 50%) * 0.08px),
+      0
+    );
+  transition:
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 200ms ease;
+  animation: page-empty-ai-icon-breathe 3.6s ease-in-out infinite;
+}
+
+.page-empty-ai-fx {
+  position: absolute;
+  inset: -14px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 18px;
+  overflow: visible;
+  transform: translateZ(0);
+}
+
+.page-empty-ai-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(10px);
+  opacity: 0.88;
+  mix-blend-mode: screen;
+  animation: page-empty-ai-orb-drift 5.8s ease-in-out infinite;
+}
+
+.page-empty-ai-orb--a {
+  width: 34px;
+  height: 34px;
+  top: 2px;
+  left: 0;
+  background: radial-gradient(
+    circle,
+    var(--empty-ai-crystal-1) 0%,
+    transparent 70%
+  );
+}
+
+.page-empty-ai-orb--b {
+  width: 30px;
+  height: 30px;
+  right: -2px;
+  top: 10px;
+  background: radial-gradient(
+    circle,
+    var(--empty-ai-crystal-2) 0%,
+    transparent 72%
+  );
+  animation-duration: 6.8s;
+  animation-direction: reverse;
+}
+
+.page-empty-ai-orb--c {
+  width: 28px;
+  height: 28px;
+  left: 14px;
+  bottom: -2px;
+  background: radial-gradient(
+    circle,
+    var(--empty-ai-crystal-3) 0%,
+    transparent 70%
+  );
+  animation-duration: 7.4s;
+}
+
+.page-empty-ai-sheen {
+  position: absolute;
+  inset: 6px;
+  border-radius: 12px;
+  background:
+    radial-gradient(
+      circle at var(--ai-glare-x) var(--ai-glare-y),
+      rgba(255, 255, 255, 0.78),
+      rgba(255, 255, 255, 0.12) 28%,
+      transparent 58%
+    ),
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.38),
+      transparent 42%,
+      rgba(255, 255, 255, 0.08)
+    );
+  opacity: 0.85;
+  mix-blend-mode: soft-light;
+  transform: translateZ(8px);
+}
+
+.dark .page-empty-ai-sheen {
+  background:
+    radial-gradient(
+      circle at var(--ai-glare-x) var(--ai-glare-y),
+      rgba(255, 255, 255, 0.42),
+      rgba(255, 255, 255, 0.08) 30%,
+      transparent 60%
+    ),
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.18),
+      transparent 42%,
+      rgba(255, 255, 255, 0.05)
+    );
+}
+
+.page-empty-ai-spark {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow:
+    0 0 8px var(--empty-ai-crystal-bloom-hot),
+    0 0 14px var(--empty-ai-crystal-bloom);
+  animation: page-empty-ai-spark 3.2s ease-in-out infinite;
+}
+
+.page-empty-ai-spark--1 {
+  top: 8px;
+  right: 10px;
+}
+
+.page-empty-ai-spark--2 {
+  left: 8px;
+  bottom: 12px;
+  width: 3px;
+  height: 3px;
+  background: var(--empty-ai-crystal-2);
+  animation-delay: 0.7s;
+  animation-duration: 3.8s;
+}
+
+.page-empty-ai-spark--3 {
+  right: 14px;
+  bottom: 8px;
+  width: 2px;
+  height: 2px;
+  background: var(--empty-ai-crystal-3);
+  animation-delay: 1.3s;
+  animation-duration: 4.4s;
+}
+
+@keyframes page-empty-ai-orb-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.72;
+  }
+  35% {
+    transform: translate3d(4px, -3px, 0) scale(1.12);
+    opacity: 1;
+  }
+  70% {
+    transform: translate3d(-3px, 4px, 0) scale(0.94);
+    opacity: 0.8;
+  }
+}
+
+@keyframes page-empty-ai-icon-breathe {
+  0%,
+  100% {
+    filter:
+      saturate(1.55)
+      drop-shadow(0 0 6px var(--empty-ai-crystal-icon-glow));
+  }
+  50% {
+    filter:
+      saturate(1.8)
+      drop-shadow(0 0 12px var(--empty-ai-crystal-bloom-hot));
+  }
+}
+
+@keyframes page-empty-ai-spark {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-empty-ai-chip {
+    transform: none;
+    transition: none;
+  }
+
+  .page-empty-ai-chip .page-empty-ai-icon,
+  .page-empty-ai-orb,
+  .page-empty-ai-spark {
+    animation: none !important;
+    transform: none;
+  }
+}

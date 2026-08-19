@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI 局部 search_replace 对比验证</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #1a1a18;
+      color: #e8e6e3;
+      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      padding: 28px 32px 40px;
+    }
+    .page-header {
+      margin-bottom: 22px;
+      max-width: 1180px;
+    }
+    .page-header h1 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      color: #f5f3ef;
+    }
+    .page-header p {
+      margin: 0;
+      color: #9a968e;
+      font-size: 13px;
+      max-width: 720px;
+    }
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #3a3935;
+      background: #252422;
+      color: #c4bfb6;
+    }
+    .badge .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #f59e0b;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      max-width: 1180px;
+    }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: #2a2926;
+      border: 1px solid #3d3b36;
+      border-radius: 14px;
+      overflow: hidden;
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+    }
+    .card-head {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid #3d3b36;
+      background: #242320;
+    }
+    .card-head .label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .card-head h2 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      font-weight: 650;
+      color: #f0ebe3;
+    }
+    .card-head .desc {
+      margin: 0;
+      font-size: 12px;
+      color: #9a968e;
+      line-height: 1.45;
+    }
+    .card.before .label { color: #94a3b8; }
+    .card.bad .label { color: #f87171; }
+    .card.good .label { color: #4ade80; }
+    .card.bad {
+      border-color: #5c3535;
+    }
+    .card.bad .card-head {
+      background: #2c2222;
+      border-bottom-color: #5c3535;
+    }
+    .card.good {
+      border-color: #2f4a38;
+    }
+    .card.good .card-head {
+      background: #1f2a23;
+      border-bottom-color: #2f4a38;
+    }
+    .card-body {
+      padding: 16px 18px 18px;
+      flex: 1;
+    }
+    /* Simulated notebook document surface */
+    .doc {
+      background: #2f2f2d;
+      border: 1px solid #44423c;
+      border-radius: 10px;
+      padding: 18px 18px 16px;
+      min-height: 280px;
+    }
+    .doc h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      font-weight: 650;
+      color: #f5f3ef;
+    }
+    .doc h3 + h3 {
+      margin-top: 18px;
+    }
+    .doc ol {
+      margin: 0 0 4px 0;
+      padding-left: 1.35em;
+      color: #d6d2cb;
+    }
+    .doc ol li {
+      margin: 4px 0;
+    }
+    .doc p {
+      margin: 0 0 8px;
+      color: #c8c3ba;
+    }
+    .doc .flat-line {
+      margin: 3px 0;
+      color: #c8c3ba;
+    }
+    .doc .flat-line.muted {
+      color: #8a857c;
+    }
+    .hl {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fcd34d;
+      border-radius: 3px;
+      padding: 0 3px;
+    }
+    .hl-bad {
+      background: rgba(248, 113, 113, 0.16);
+      color: #fca5a5;
+      border-radius: 3px;
+      padding: 0 3px;
+    }
+    .hl-good {
+      background: rgba(74, 222, 128, 0.14);
+      color: #86efac;
+      border-radius: 3px;
+      padding: 0 3px;
+    }
+    .meta {
+      margin-top: 12px;
+      font-size: 11px;
+      color: #7a766e;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      line-height: 1.5;
+    }
+    .meta strong {
+      color: #a8a29a;
+      font-weight: 600;
+    }
+    .tag {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .tag.warn {
+      background: rgba(248, 113, 113, 0.12);
+      color: #fca5a5;
+      border: 1px solid rgba(248, 113, 113, 0.28);
+    }
+    .tag.ok {
+      background: rgba(74, 222, 128, 0.12);
+      color: #86efac;
+      border: 1px solid rgba(74, 222, 128, 0.28);
+    }
+    .tag.neutral {
+      background: rgba(148, 163, 184, 0.12);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .footer-note {
+      margin-top: 20px;
+      max-width: 1180px;
+      font-size: 12px;
+      color: #7a766e;
+      line-height: 1.55;
+    }
+    .footer-note code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      background: #252422;
+      border: 1px solid #3a3935;
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: #d6d2cb;
+    }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <h1>AI 局部编辑：全量替换 vs search_replace</h1>
+    <p>
+      演示「第二周」正文更新时，旧全量 rewrite 如何压扁周记结构，以及 Aider 风格
+      <code style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#fbbf24">search_replace(oldString, newString)</code>
+      如何只改目标段落并保留第三周/第四周标题与列表结构。
+    </p>
+    <div class="badge-row">
+      <span class="badge"><span class="dot"></span> dark theme · 鹅记风格</span>
+      <span class="badge">surgicalApply · preserve block ids</span>
+      <span class="badge">verify artifact · no build</span>
+    </div>
+  </header>
+
+  <div class="grid" id="compare-grid">
+    <!-- BEFORE -->
+    <section class="card before" aria-label="原始笔记">
+      <div class="card-head">
+        <div class="label">BEFORE</div>
+        <h2>原始周记结构</h2>
+        <p class="desc">标题 + 有序列表；第二/三/四周层级完整</p>
+      </div>
+      <div class="card-body">
+        <div class="doc" id="doc-before">
+          <h3>## 第二周</h3>
+          <ol>
+            <li>完成需求评审</li>
+            <li>联调接口</li>
+            <li>写周报草稿</li>
+          </ol>
+          <h3>## 第三周</h3>
+          <ol>
+            <li>性能优化</li>
+            <li>补测试用例</li>
+          </ol>
+          <h3>## 第四周</h3>
+          <ol>
+            <li>发布准备</li>
+            <li>回顾复盘</li>
+          </ol>
+        </div>
+        <span class="tag neutral">未改动 · 结构完整</span>
+        <div class="meta">
+          blocks: h-week2, list-w2, h-week3, list-w3, h-week4, list-w4<br />
+          <strong>ids 全部保留</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- BAD: full rewrite -->
+    <section class="card bad" aria-label="全量替换问题">
+      <div class="card-head">
+        <div class="label">BAD · 全量替换</div>
+        <h2>full page rewrite</h2>
+        <p class="desc">模型重写整页 → 列表变平文本，后续周标题被冲掉/结构丢失</p>
+      </div>
+      <div class="card-body">
+        <div class="doc" id="doc-bad">
+          <p class="flat-line"><span class="hl-bad">第二周</span></p>
+          <p class="flat-line">1. 完成需求评审</p>
+          <p class="flat-line">2. 联调接口</p>
+          <p class="flat-line"><span class="hl-bad">3. 写周报草稿（已提交）</span></p>
+          <p class="flat-line muted">第三周 性能优化 补测试用例</p>
+          <p class="flat-line muted">第四周 发布准备 回顾复盘</p>
+        </div>
+        <span class="tag warn">格式丢失 · heading/list 退化</span>
+        <div class="meta">
+          整页 markdown 重写 → 块 id 全部重建<br />
+          <strong>第三周/第四周 结构被压扁</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- GOOD: search_replace -->
+    <section class="card good" aria-label="局部 search_replace">
+      <div class="card-head">
+        <div class="label">GOOD · 局部 search_replace</div>
+        <h2>oldString → newString</h2>
+        <p class="desc">只替换第二周列表中的目标项；第三周/第四周标题与列表原样保留</p>
+      </div>
+      <div class="card-body">
+        <div class="doc" id="doc-good">
+          <h3>## 第二周</h3>
+          <ol>
+            <li>完成需求评审</li>
+            <li>联调接口</li>
+            <li><span class="hl-good">写周报草稿（已提交）</span></li>
+          </ol>
+          <h3>## 第三周</h3>
+          <ol>
+            <li>性能优化</li>
+            <li>补测试用例</li>
+          </ol>
+          <h3>## 第四周</h3>
+          <ol>
+            <li>发布准备</li>
+            <li>回顾复盘</li>
+          </ol>
+        </div>
+        <span class="tag ok">结构保留 · 未改块 id 不变</span>
+        <div class="meta">
+          old: 写周报草稿<br />
+          new: 写周报草稿（已提交）<br />
+          <strong>h-week3 / h-week4 / lists 保留</strong>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p class="footer-note">
+    对应实现：<code>src/lib/notebook-ai/batch-plan/surgicalApply.ts</code>
+    · <code>applySearchReplacePreservingBlocks</code>
+    · 批量计划操作类型 <code>search_replace</code>。
+    本页为纯静态视觉验证，不依赖构建。
+  </p>
+</body>
+</html>

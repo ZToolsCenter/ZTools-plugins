@@ -1,0 +1,743 @@
+/* 速记小窗专属样式（仅 quicknote.html 入口加载）。 */
+
+/* 无边框窗口：根容器填满。窗口圆角交给系统（createBrowserWindow roundedCorners）。 */
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  /* 背景兜底：setSize 放大窗口的瞬间，web 内容若尚未重绘到新尺寸，
+     会露出窗口底层（表现为右侧/底部一条灰边）。让 html/body 与编辑器同色，
+     任何未绘制区域都是同一底色，消除灰色残影。 */
+  background: hsl(var(--goose-editor-bg));
+}
+
+.quicknote-root {
+  box-sizing: border-box;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100%;
+  width: 100vw;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.dark .quicknote-root {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* 固定标题栏：占布局高度，常驻可见；空白区拖窗，正文不再被把手/覆层误拖。 */
+.quicknote-titlebar-reveal-zone {
+  position: relative;
+  z-index: 20;
+  flex: 0 0 auto;
+  width: 100%;
+  height: 30px;
+}
+
+/* 当前便签名常驻左侧，同时作为改名入口。 */
+.quicknote-slot-name-display {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  max-width: min(88px, calc(50vw - 72px));
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quicknote-slot-name-display:hover {
+  color: hsl(var(--foreground));
+}
+
+.quicknote-slot-name-text {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quicknote-slot-name-input {
+  position: absolute;
+  z-index: 22;
+  box-sizing: border-box;
+  top: 3px;
+  left: 6px;
+  width: calc(100% - 12px);
+  height: 24px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  outline: none;
+  background: hsl(var(--goose-selected-bg));
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 24px;
+  box-shadow: none;
+  pointer-events: auto;
+}
+
+.quicknote-titlebar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 8px 0 10px;
+  -webkit-user-select: none;
+  user-select: none;
+  background: hsl(var(--goose-editor-bg));
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.dark .quicknote-titlebar {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 改名时顶部只保留全宽输入框：隐藏标题栏控件。 */
+.quicknote-titlebar-reveal-zone[data-renaming="true"] .quicknote-titlebar {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.quicknote-titlebar-btn {
+  cursor: default;
+}
+
+.quicknote-titlebar-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.quicknote-help-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.quicknote-help-trigger:hover {
+  background: hsl(var(--goose-selected-bg));
+  color: hsl(var(--foreground));
+}
+
+.quicknote-slot-switcher-positioner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 104px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.quicknote-slot-switcher-interactive {
+  pointer-events: auto;
+}
+
+.quicknote-titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+}
+
+.quicknote-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.quicknote-close-btn:hover {
+  background: hsl(var(--goose-selected-bg));
+  color: hsl(var(--foreground));
+}
+
+/* 标题栏已占布局高度；正文从剩余区域顶部开始。 */
+.quicknote-editor-surface {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 100%;
+  padding-inline: 4px;
+  padding-top: 0;
+  padding-bottom: 16px;
+}
+
+/* BlockNote 的 contenteditable 默认只按内容撑高。小窗让编辑面填满
+   滚动容器（标题栏已从视口扣掉）剩余高度。 */
+.quicknote-editor-surface .bn-editor {
+  box-sizing: border-box;
+  min-height: calc(100% - 8px);
+}
+
+/* 首块去掉 BlockNote 给 heading 的 18px 内置上间距：该间距是用来跟「上文」拉开
+   距离的，但首块前面没有内容，叠加 surface padding 后顶部会显出一大段死空白。
+   仅作用于首块，不影响文中其它 heading 的上间距。 */
+.quicknote-editor-surface
+  .bn-block-group
+  > .bn-block-outer:first-child
+  .bn-block-content[data-content-type="heading"] {
+  padding-top: 0;
+}
+/* 无侧边菜单（无把手/加号），收窄左右留白让正文贴近窗口。
+   需压过 editor-base.css 的 `.workspace-editor-surface.max-w-none .bn-editor`
+   (该 56px 是主窗为 side menu 预留的 gutter)——小窗内层仍带 workspace-editor-surface
+   全宽容器，故选择器要叠到同级或更高特异度才生效。 */
+.quicknote-editor-surface .workspace-editor-surface.max-w-none .bn-editor {
+  padding-inline: 8px;
+}
+
+.quicknote-toaster[data-sonner-toaster] {
+  left: 0 !important;
+  right: 0 !important;
+  width: 100vw !important;
+  transform: none !important;
+}
+
+/* toast 在窗口正中弹出（不贴底）：定位到视口垂直 / 水平居中，宽度按内容自适应
+   成一颗小胶囊，而非横贯整窗。 */
+.quicknote-toaster[data-sonner-toaster] [data-sonner-toast] {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  top: 50% !important;
+  bottom: auto !important;
+  width: max-content !important;
+  max-width: calc(100vw - 48px) !important;
+  margin-inline: 0 !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* ── 双 Shift「采集」预览 ───────────────────────────────────────
+ * 仅 collectVariant 查询参数存在时渲染。原型只在会话内计数，不写真实笔记。
+ * 新样式使用静态 rgba / hex，兼容 uTools 的旧 Chromium 内核。
+ */
+.quicknote-collect-chip {
+  position: absolute;
+  z-index: 24;
+  top: 5px;
+  right: 40px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  height: 27px;
+  max-width: calc(100% - 168px);
+  padding: 3px 4px 3px 8px;
+  border: 1px solid rgba(16, 185, 129, 0.26);
+  border-radius: 999px;
+  background: rgba(236, 253, 245, 0.98);
+  color: #065f46;
+  box-shadow: 0 2px 8px rgba(6, 95, 70, 0.1);
+  font-size: 11px;
+  line-height: 1;
+  animation: quicknote-collect-enter 180ms ease-out;
+}
+
+.quicknote-root[data-collect-variant="chip"] .quicknote-slot-name-display {
+  max-width: calc(100% - 202px);
+}
+
+.quicknote-collect-pulse {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.quicknote-collect-chip-label,
+.quicknote-collect-shelf-state {
+  flex: 0 0 auto;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.quicknote-collect-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.13);
+  color: #047857;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.quicknote-collect-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #047857;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.quicknote-collect-icon-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.quicknote-collect-icon-btn:hover {
+  background: rgba(16, 185, 129, 0.14);
+}
+
+.quicknote-collect-stop-btn:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+
+.quicknote-collect-icon-btn:focus-visible,
+.quicknote-collect-simulate-btn:focus-visible,
+.quicknote-collect-stop-text-btn:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 1px;
+}
+
+.quicknote-collect-shelf {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  box-sizing: border-box;
+  flex: 0 0 42px;
+  min-width: 0;
+  height: 42px;
+  padding: 6px 8px 6px 10px;
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(248, 250, 252, 0.98);
+  color: #334155;
+  box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.05);
+  font-size: 11px;
+  line-height: 1;
+  animation: quicknote-collect-shelf-enter 200ms ease-out;
+}
+
+.quicknote-collect-shelf-recent {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: #64748b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quicknote-collect-simulate-btn,
+.quicknote-collect-stop-text-btn {
+  flex: 0 0 auto;
+  height: 26px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #334155;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 24px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.quicknote-collect-simulate-btn:hover,
+.quicknote-collect-stop-text-btn:hover {
+  border-color: rgba(5, 150, 105, 0.35);
+  background: #ffffff;
+}
+
+.quicknote-collect-stop-text-btn {
+  color: #b91c1c;
+}
+
+.dark .quicknote-collect-chip {
+  border-color: rgba(52, 211, 153, 0.28);
+  background: rgba(6, 78, 59, 0.96);
+  color: #d1fae5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+}
+
+.dark .quicknote-collect-count {
+  background: rgba(52, 211, 153, 0.16);
+  color: #a7f3d0;
+}
+
+.dark .quicknote-collect-icon-btn {
+  color: #a7f3d0;
+}
+
+.dark .quicknote-collect-shelf {
+  border-top-color: rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.98);
+  color: #e2e8f0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.dark .quicknote-collect-shelf-recent {
+  color: #94a3b8;
+}
+
+.dark .quicknote-collect-simulate-btn,
+.dark .quicknote-collect-stop-text-btn {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(30, 41, 59, 0.96);
+  color: #e2e8f0;
+}
+
+.dark .quicknote-collect-stop-text-btn {
+  color: #fca5a5;
+}
+
+@keyframes quicknote-collect-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes quicknote-collect-shelf-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 速记滚动区：只保留纵向滚动；横向始终裁切，避免 Cmd+/- 缩放残留底栏滚动条。 */
+.quicknote-root .page-scroll-container {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+  overflow-x: hidden;
+}
+.quicknote-root .page-scroll-container::-webkit-scrollbar {
+  width: 6px;
+  height: 0;
+}
+.quicknote-root .page-scroll-container::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.quicknote-root .page-scroll-container:hover,
+.quicknote-root .page-scroll-container:focus-within {
+  scrollbar-color: rgba(115, 115, 115, 0.28) transparent;
+}
+.quicknote-root .page-scroll-container:hover::-webkit-scrollbar-thumb,
+.quicknote-root .page-scroll-container:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(115, 115, 115, 0.28);
+}
+.quicknote-root .page-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(82, 82, 82, 0.45);
+}
+
+/* 说明层受 Radix 计算出的可用高度约束。标题和改名入口固定，正文在矮窗中滚动。 */
+.quicknote-help-popover {
+  display: flex;
+  max-height: var(--radix-popover-content-available-height);
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  line-height: 1.6;
+}
+
+.quicknote-help-heading {
+  flex: 0 0 auto;
+}
+
+.quicknote-help-heading p {
+  margin: 4px 0 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.quicknote-help-rename {
+  flex: 0 0 auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--goose-interactive-hover);
+}
+
+.quicknote-help-rename:hover {
+  background: var(--goose-interactive-selected);
+}
+
+.quicknote-help-list {
+  min-height: 0;
+  margin: 0;
+  padding: 0 4px 0 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  list-style: none;
+}
+
+.quicknote-help-list li + li {
+  margin-top: 8px;
+}
+
+.quicknote-help-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.quicknote-help-list::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: hsl(var(--muted-foreground) / 0.25);
+}
+
+.quicknote-help-list::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+
+/* 选中文字后的格式栏属于速记小窗：横向铺满并吸附窗口底边，不做悬浮胶囊。 */
+.goose-formatting-toolbar-dock [data-formatting-toolbar] {
+  width: 100%;
+  max-width: none;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0;
+  box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.goose-formatting-toolbar-dock [data-formatting-toolbar] > div {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.goose-formatting-toolbar-dock [data-formatting-toolbar] > div > * {
+  flex: 0 0 auto;
+}
+
+.goose-formatting-toolbar-dock
+  [data-formatting-toolbar]
+  > div::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goose-formatting-toolbar-dock {
+    transition: none;
+  }
+}
+
+/* 速记斜杠菜单：更紧凑行高；列表底部留白，避免滚到底最后一项贴边被裁切感 */
+.quicknote-root
+  [data-goose-slash-lite="true"]
+  [data-notion-slash-surface="true"] {
+  overflow: hidden;
+  /* uTools 旧内核会把大圆角外投影绘成直角灰块；小窗只留很轻的边界感。 */
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+}
+
+.quicknote-root [data-goose-slash-lite="true"] [data-goose-slash-item] {
+  background: transparent !important;
+  border-left: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.quicknote-root [data-goose-slash-lite="true"] [data-goose-slash-item]:active,
+.quicknote-root [data-goose-slash-lite="true"] [data-goose-slash-item]:focus,
+.quicknote-root
+  [data-goose-slash-lite="true"]
+  [data-goose-slash-item]:focus-visible,
+.quicknote-root
+  [data-goose-slash-lite="true"]
+  [data-goose-slash-selected="true"] {
+  background: transparent !important;
+  border-left: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.quicknote-root
+  [data-goose-slash-lite="true"]
+  [data-goose-slash-selected="true"] {
+  background: transparent !important;
+}
+
+.quicknote-root [data-goose-slash-lite="true"] [data-notion-slash-scroll] {
+  scroll-padding-bottom: 12px;
+}
+
+/* ── 1–5 便签切换器 ─────────────────────────────────────────────
+ * 顶栏显示时绝对居中；浅灰分段器内，当前槽位使用白底高亮。
+ * 使用静态 rgba / hex，避免 uTools 旧内核解析 alpha 变量异常。
+ */
+.quicknote-slot-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 104px;
+  height: 22px;
+  padding: 1px;
+  border: 1px solid #dedede;
+  border-radius: 7px;
+  background: #f1f1ef;
+  box-shadow: none;
+}
+
+.quicknote-slot-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #85827e;
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1;
+  cursor: pointer;
+  overflow: hidden;
+  opacity: 1;
+  box-shadow: none;
+  transition:
+    opacity 0.14s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.14s ease,
+    background 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.quicknote-slot-switcher[data-scrubbing="true"],
+.quicknote-slot-switcher[data-scrubbing="true"] .quicknote-slot-btn {
+  cursor: ew-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+.quicknote-slot-btn-label {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.quicknote-slot-name-text,
+.quicknote-slot-btn[data-active="true"] .quicknote-slot-btn-label {
+  animation: quicknote-slot-content-in 180ms ease-out;
+}
+
+@keyframes quicknote-slot-content-in {
+  from {
+    opacity: 0.55;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 当前项：白底高亮，与确认稿一致。 */
+.quicknote-slot-btn[data-active="true"] {
+  color: #1e1e1e;
+  background: #ffffff;
+  font-weight: 600;
+  box-shadow:
+    0 1px 4px rgba(15, 23, 42, 0.14),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+}
+
+.quicknote-slot-btn:not([data-active="true"]):hover {
+  color: #343434;
+  background: #e8e8e6;
+}
+
+.quicknote-slot-btn:focus-visible {
+  outline: none;
+  color: var(--goose-interactive-selected-fg);
+  box-shadow:
+    0 0 0 2px hsl(var(--goose-editor-bg)),
+    0 0 0 3.5px var(--goose-accent-focus);
+}
+
+.dark .quicknote-slot-btn[data-active="true"] {
+  color: #f5f5f4;
+  background: #454542;
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.dark .quicknote-slot-btn:focus-visible {
+  color: var(--goose-interactive-selected-fg);
+}
+
+.dark .quicknote-slot-switcher {
+  border-color: #4a4a47;
+  background: #373735;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quicknote-titlebar,
+  .quicknote-slot-switcher,
+  .quicknote-slot-btn,
+  .quicknote-slot-name-text,
+  .quicknote-slot-btn-label,
+  .quicknote-collect-chip,
+  .quicknote-collect-shelf,
+  .quicknote-collect-icon-btn,
+  .quicknote-collect-simulate-btn,
+  .quicknote-collect-stop-text-btn {
+    animation: none;
+    transition: none;
+  }
+}

@@ -1,0 +1,58 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Package manager: this project uses bun — bun.lock IS committed.
+# Global ~/.gitignore_global has `*.lock`, so force bun.lock back in.
+!bun.lock
+# Ignore lockfiles from other managers to prevent accidental drift.
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+dist-quicknote/
+dist-native-editor/
+default.profraw
+# src/lib/build/ contains source (lite-empty.ts is the quicknote alias target),
+# NOT build output. Global ~/.gitignore_global has `build/` which would hide it.
+!src/lib/build/
+!src/lib/build/*
+*.local
+
+# Editor directories and files
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local docs / changelog
+docs
+CHANGELOG.md
+
+skills-lock.json
+!src/agent/AGENTS.md
+!src/agent/**/SKILL.md
+
+# ---- Local-only scratch ----
+tasks/
+scripts/*
+# stray verification screenshots in repo root
+/*.png
+
+app/
+未命名/

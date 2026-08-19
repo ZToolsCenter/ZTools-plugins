@@ -1,0 +1,2708 @@
+.goose-blocknote-editor,
+.bn-editor {
+  min-height: 320px;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  overflow-anchor: none;
+  font-size: var(--editor-font-size);
+  line-height: 1.7;
+}
+
+/*
+ * 编辑器上下文 UI 的统一 opt-in。
+ *
+ * 该类只放在定位外壳的内层 surface 上：CSS zoom 会同时缩放排版盒、
+ * 绘制和命中区，外层 fixed/absolute 坐标仍保持在 viewport 坐标系中。
+ * 这比 transform: scale 更适合 Floating UI，也避免覆盖 translate/rotate。
+ */
+.goose-editor-context-ui {
+  zoom: var(--editor-ui-scale, 1);
+}
+
+/* 防御性约束：独立浮层误嵌套时只允许最外层应用一次缩放。 */
+.goose-editor-context-ui .goose-editor-context-ui {
+  zoom: 1;
+}
+
+/* 可交互触发器不使用 CSS zoom。uTools 旧内核会把 zoom 祖先的
+   getBoundingClientRect 再次放大，导致 Portal 面板与 tooltip 飘到右下方。
+   改用真实布局尺寸，使定位与绘制共用 viewport 坐标系。 */
+.goose-editor-tooltip-surface {
+  border-radius: calc(14px * var(--editor-ui-scale, 1));
+  padding: calc(6px * var(--editor-ui-scale, 1))
+    calc(10px * var(--editor-ui-scale, 1));
+  font-size: calc(12px * var(--editor-ui-scale, 1));
+}
+
+.goose-toolbar-tooltip-content {
+  gap: calc(8px * var(--editor-ui-scale, 1));
+}
+
+.goose-editor-tooltip-surface kbd {
+  height: calc(20px * var(--editor-ui-scale, 1));
+  border-radius: calc(6px * var(--editor-ui-scale, 1));
+  padding-inline: calc(6px * var(--editor-ui-scale, 1));
+  font-size: calc(10px * var(--editor-ui-scale, 1));
+}
+
+.goose-color-picker-panel {
+  gap: calc(4px * var(--editor-ui-scale, 1));
+  border-radius: calc(10px * var(--editor-ui-scale, 1));
+  padding: calc(4px * var(--editor-ui-scale, 1));
+}
+
+.goose-color-picker-title {
+  padding-inline: calc(4px * var(--editor-ui-scale, 1));
+  padding-top: calc(2px * var(--editor-ui-scale, 1));
+  font-size: calc(12px * var(--editor-ui-scale, 1));
+}
+
+.goose-color-picker-grid {
+  grid-template-columns: repeat(5, calc(28px * var(--editor-ui-scale, 1)));
+  gap: calc(4px * var(--editor-ui-scale, 1));
+  padding-inline: calc(4px * var(--editor-ui-scale, 1));
+}
+
+.goose-color-picker-grid-last {
+  padding-bottom: calc(2px * var(--editor-ui-scale, 1));
+}
+
+.goose-color-picker-swatch {
+  width: calc(28px * var(--editor-ui-scale, 1));
+  height: calc(28px * var(--editor-ui-scale, 1));
+  border-radius: calc(6px * var(--editor-ui-scale, 1));
+}
+
+.goose-color-picker-letter {
+  font-size: calc(34px * var(--editor-ui-scale, 1));
+  transform: scale(0.56);
+}
+
+.goose-color-picker-divider {
+  margin-block: calc(4px * var(--editor-ui-scale, 1));
+}
+
+.goose-color-picker-background-swatch {
+  width: calc(20px * var(--editor-ui-scale, 1));
+  height: calc(20px * var(--editor-ui-scale, 1));
+  border-radius: calc(4px * var(--editor-ui-scale, 1));
+}
+
+/* 位于编辑器 DOM/portalElement 内的控件已经继承速记小窗的局部 zoom，
+   因此这里只补常规编辑字号带来的基准比例，避免 quicknote 双重缩放。 */
+.goose-editor-inline-context-ui {
+  zoom: var(--editor-scale, 1);
+}
+
+/* 块把手挂在 fixed 外壳上，用 translate(-50%) 对齐行中线。
+   CSS zoom 在 uTools 旧内核里往往只缩小绘制、不缩小定位盒，
+   缩小后视觉中心会偏上。这里关掉 zoom，改用真实布局尺寸。 */
+.bn-side-menu > .goose-editor-inline-context-ui {
+  zoom: 1;
+  align-items: center;
+  gap: calc(2px * var(--editor-scale, 1));
+  padding-block: calc(3px * var(--editor-scale, 1));
+  padding-inline: calc(4px * var(--editor-scale, 1));
+  border-radius: calc(10px * var(--editor-scale, 1));
+}
+
+.bn-side-menu button {
+  display: inline-flex;
+  width: calc(22px * var(--editor-scale, 1));
+  height: calc(24px * var(--editor-scale, 1));
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: calc(7px * var(--editor-scale, 1));
+  line-height: 0;
+}
+
+.bn-side-menu button svg {
+  display: block;
+  width: calc(14px * var(--editor-scale, 1));
+  height: calc(14px * var(--editor-scale, 1));
+  flex-shrink: 0;
+}
+
+.bn-side-menu button[draggable]::before {
+  top: calc(4px * var(--editor-scale, 1));
+  bottom: calc(4px * var(--editor-scale, 1));
+  left: calc(-2px * var(--editor-scale, 1));
+}
+
+/* 编辑器选区：跟强调色，禁止系统 highlight（macOS 浅蓝底叠浅字会糊掉）。
+   颜色由 goose-accent-colors.css 按 data-goose-accent 写实色；
+   这里只做无 accent 时的兜底，以及盖掉 BlockNote 的 highlight。
+   不用写死 iris 紫——否则琥珀等强调色下选区会「串色」。 */
+.goose-blocknote-editor ::selection,
+.bn-editor ::selection,
+.goose-blocknote-editor .goose-fake-selection,
+.bn-editor .goose-fake-selection {
+  background-color: var(--goose-editor-selection-bg, var(--goose-interactive-selected));
+  color: inherit;
+}
+
+.goose-blocknote-editor [data-show-selection],
+.bn-editor [data-show-selection] {
+  background-color: var(
+    --goose-editor-selection-bg,
+    var(--goose-interactive-selected)
+  ) !important;
+  color: inherit;
+}
+
+/* 共享格式工具栏
+   浮动外壳、固定底栏和按钮状态各自只在这里定义一次。浮动外壳不使用外投影：
+   uTools 旧内核会把「圆角元素 + 外投影 + 浮动层裁切」栅格化成直角灰块。
+   以清晰边框建立层级，避免用遮片修补渲染伪影。 */
+[data-formatting-toolbar] {
+  min-width: 0;
+  max-width: 100%;
+  color: hsl(var(--popover-foreground));
+}
+
+[data-formatting-toolbar][data-goose-floating-toolbar="true"] {
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(10px * var(--editor-ui-scale, 1));
+  background: hsl(var(--popover));
+  box-shadow: none;
+}
+
+.goose-formatting-toolbar-dock [data-formatting-toolbar] {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--popover));
+}
+
+.goose-formatting-toolbar-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.goose-formatting-toolbar-row::-webkit-scrollbar {
+  display: none;
+}
+
+[data-formatting-toolbar] .goose-formatting-toolbar-control {
+  display: inline-flex;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 0;
+  color: hsl(var(--foreground));
+  box-shadow: none;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+[data-formatting-toolbar] .goose-formatting-toolbar-control:hover {
+  background: var(--goose-icon-chip-on-selected);
+  color: hsl(var(--foreground));
+}
+
+[data-formatting-toolbar] .goose-formatting-toolbar-control:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+[data-formatting-toolbar] .goose-formatting-toolbar-control[data-state="on"],
+[data-formatting-toolbar]
+  .goose-formatting-toolbar-control[aria-pressed="true"],
+[data-formatting-toolbar]
+  .goose-formatting-toolbar-control[data-state="on"]:hover,
+[data-formatting-toolbar]
+  .goose-formatting-toolbar-control[aria-pressed="true"]:hover {
+  background: var(--goose-interactive-selected) !important;
+  color: var(--goose-interactive-selected-fg) !important;
+  box-shadow: none !important;
+}
+
+/* 块工具栏统一用语义化 pressed 状态接入产品强调色。
+   图片、视频以及后续新增块控件无需再各自维护激活色。 */
+.goose-block-toolbar-control[aria-pressed="true"],
+.goose-block-toolbar-control[aria-pressed="true"]:hover,
+.goose-block-toolbar-control[aria-pressed="true"]:focus-visible {
+  background: var(--goose-interactive-selected);
+  color: var(--goose-interactive-selected-fg);
+}
+
+/* 颜色按钮内部自行呈现文本色，激活时只改变按钮底色。 */
+[data-formatting-toolbar]
+  .goose-formatting-toolbar-control[data-goose-preserve-icon-color="true"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[data-formatting-toolbar] .goose-formatting-toolbar-control-ai,
+[data-formatting-toolbar] .goose-formatting-toolbar-control-ai:hover {
+  color: var(--goose-interactive-selected-fg);
+}
+
+.goose-formatting-toolbar-separator {
+  width: 1px;
+  height: 18px;
+  flex: 0 0 1px;
+  margin: 0 2px;
+  background: hsl(var(--border));
+  opacity: 0.8;
+}
+
+/* 选区模式由 [data-selection-mode] / .goose-formatting-toolbar--cell|--multi 挂载，供后续轻量样式区分 */
+
+/* 常规笔记本的选区浮层默认更轻巧；Cmd+- 仍在这个基准上继续缩放。
+   速记小窗使用底部停靠栏，命中区保持原尺寸。 */
+[data-formatting-toolbar][data-goose-floating-toolbar="true"]
+  .goose-formatting-toolbar-row {
+  gap: calc(1px * var(--editor-ui-scale, 1));
+  padding: calc(3px * var(--editor-ui-scale, 1));
+}
+
+[data-formatting-toolbar][data-goose-floating-toolbar="true"]
+  .goose-formatting-toolbar-control {
+  width: calc(26px * var(--editor-ui-scale, 1));
+  min-width: calc(26px * var(--editor-ui-scale, 1));
+  height: calc(26px * var(--editor-ui-scale, 1));
+  flex-basis: calc(26px * var(--editor-ui-scale, 1));
+  border-radius: calc(6px * var(--editor-ui-scale, 1));
+}
+
+[data-formatting-toolbar][data-goose-floating-toolbar="true"]
+  .goose-formatting-toolbar-control
+  svg {
+  width: calc(14px * var(--editor-ui-scale, 1));
+  height: calc(14px * var(--editor-ui-scale, 1));
+}
+
+[data-formatting-toolbar][data-goose-floating-toolbar="true"]
+  .goose-formatting-toolbar-separator {
+  height: calc(16px * var(--editor-ui-scale, 1));
+  margin: 0 calc(1px * var(--editor-ui-scale, 1));
+}
+
+.goose-formatting-toolbar-dock .goose-formatting-toolbar-row {
+  gap: 2px;
+  padding: 4px;
+}
+
+.goose-formatting-toolbar-dock .goose-formatting-toolbar-control {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+  border-radius: 7px;
+}
+
+.goose-formatting-toolbar-dock .goose-formatting-toolbar-control svg {
+  width: 15px;
+  height: 15px;
+}
+
+.goose-formatting-toolbar-dock .goose-formatting-toolbar-separator {
+  height: 18px;
+  margin: 0 2px;
+}
+
+/* 图片、视频等块级浮层共用同一密度；外层 goose-editor-context-ui 负责等比缩放。 */
+.goose-block-toolbar-surface {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  background: hsl(var(--popover));
+  box-shadow: none;
+}
+
+.goose-block-toolbar-control {
+  display: inline-flex;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  color: hsl(var(--foreground));
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.goose-block-toolbar-control:hover,
+.goose-block-toolbar-control:focus-visible {
+  background: var(--goose-icon-chip-on-selected);
+}
+
+.goose-block-toolbar-control:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+.goose-block-toolbar-control svg {
+  width: 14px;
+  height: 14px;
+}
+
+.goose-block-toolbar-separator {
+  width: 1px;
+  height: 16px;
+  flex: 0 0 1px;
+  margin: 0 1px;
+  background: hsl(var(--border));
+  opacity: 0.8;
+}
+
+/* 图片按钮原组件只画 focus 背景；补静态轮廓保证键盘焦点清晰，不引入图标动效。 */
+[data-goose-image-toolbar]
+  button:not(:disabled):not([aria-disabled="true"]):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+/* 节点选中仍保留编辑器行为与工具栏，但不绘制 BlockNote / ProseMirror
+   默认的蓝色外框。该共享样式同时覆盖主窗与速记小窗。 */
+.bn-editor .ProseMirror-selectednode,
+.bn-editor .bn-block-content.ProseMirror-selectednode > *,
+.bn-editor .ProseMirror-selectednode > .bn-block-content > * {
+  outline: none !important;
+}
+
+/* 极简工作区把内部笔记的首个 H1 提到顶栏编辑，正文从标题下方直接开始。
+   本地文件正文没有标题块，不能隐藏它的首段。
+   注意：EditorContextMenu 内还有一层 workspace-editor-surface，没有 data-local-file-page；
+   若按内层 surface 判断，会把本地空页唯一段落也 display:none，主区看起来全黑。
+   因此以 main 上的 data-local-file-page 为准。 */
+.workspace-main-sheet[data-single-tab-mode="true"]:not(
+    [data-local-file-page="true"]
+  )
+  .bn-editor
+  > .bn-block-group
+  > .bn-block-outer:first-child {
+  display: none;
+}
+
+/* 隐藏空折叠块展开后的「点击添加区块」提示按钮；
+   空标题按 Enter 会退出折叠块（原生行为），无需此按钮。 */
+/* 空折叠块展开后的「点击添加」提示行：保留（否则空块展开毫无反馈、像没展开），
+   文案在 Editor.tsx dictionary 覆盖，这里只调淡样式不喧宾夺主 */
+.bn-editor .bn-toggle-add-block-button {
+  opacity: 0.45;
+  font-size: 14px;
+  /* 与 children 缩进对齐（见下方 .bn-block-group 规则），读作「子内容占位行」，
+     而不是顶格另起一行盖在标题正下方 */
+  margin-left: 22px;
+}
+
+/* 折叠箭头换成与侧栏一致的 Lucide ChevronRight（描边 1.75）：
+   BlockNote 内置的是 Material 实心箭头，与整体图标风格不符。
+   用 mask + currentColor 适配深浅模式；展开旋转沿用 BlockNote 原有
+   .bn-toggle-wrapper[data-show-children=true] 的 rotate(90deg)。 */
+.bn-editor .bn-toggle-button svg {
+  display: none;
+}
+.bn-editor .bn-toggle-button {
+  /* 固定正方形芯片：展开态 rotate(90deg) 后形状不变，避免不对称 padding 拧歪 hover 底 */
+  box-sizing: border-box;
+  width: 1.25em;
+  height: 1.25em;
+  min-width: 20px;
+  min-height: 20px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: hsl(var(--muted-foreground));
+  transition:
+    transform 0.2s ease-out,
+    opacity 0.15s ease-out,
+    background-color 0.15s ease-out,
+    color 0.15s ease-out;
+}
+.bn-editor .bn-toggle-button::before {
+  content: "";
+  /* 随块字号缩放：折叠标题(H1~H3)箭头跟着标题变大，普通折叠列表(16px)约等于原 16px */
+  width: 0.85em;
+  height: 0.85em;
+  min-width: 14px;
+  min-height: 14px;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+/* 覆盖 BlockNote 默认 --bn-colors-hovered-background，跟 side menu / 图标 chip 统一 */
+.bn-editor .bn-toggle-button:hover,
+.bn-editor .bn-toggle-add-block-button:hover {
+  background: var(--goose-icon-chip-on-selected);
+  color: hsl(var(--foreground));
+}
+
+/* 折叠标题的箭头悬挂到左侧 gutter（Notion 手感）：
+   chevron 按钮默认是行内 flex item，会把标题文字/placeholder 往右推一个按钮宽，
+   视觉上像「标题前面多了空格」。改为绝对定位挂在 wrapper 左外侧，
+   标题文字与普通标题左对齐；editor 自带 54px padding-inline，gutter 放得下。
+   普通折叠列表(toggleListItem)的箭头充当列表 marker，保持行内不动。 */
+.bn-block-content[data-content-type="heading"][data-is-toggleable="true"]
+  > div
+  > .bn-toggle-wrapper {
+  position: relative;
+}
+/* 不旋转的热区桥：补上按钮与标题文字之间的 4px 缝。
+   热区挂在 wrapper 上，不跟着按钮 rotate，展开/收起形状一致。 */
+.bn-block-content[data-content-type="heading"][data-is-toggleable="true"]
+  > div
+  > .bn-toggle-wrapper::before {
+  content: "";
+  position: absolute;
+  left: calc(-1.25em - 4px);
+  top: 50%;
+  width: calc(1.25em + 8px);
+  height: 1.25em;
+  min-width: 28px;
+  min-height: 20px;
+  transform: translateY(-50%);
+}
+.bn-block-content[data-content-type="heading"][data-is-toggleable="true"]
+  > div
+  > .bn-toggle-wrapper
+  > .bn-toggle-button {
+  position: absolute;
+  left: calc(-1.25em - 4px);
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
+  /* 展开态只做视觉隐藏，保留 pointer-events：
+     1) 鼠标移向左侧 gutter 时仍算 .bn-block-content:hover，箭头不会中途消失；
+     2) 不可见时也能直接点到箭头收起。 */
+}
+/* 折叠标题展开态（Notion）：gutter 箭头默认隐藏，hover / focus-within 再显示；
+   收起态始终可见。直接命中 .bn-toggle-wrapper[data-show-children]，
+   避免 .bn-block-outer:has() 在 uTools 旧 Chromium 上不生效导致展开时箭头常显。 */
+.bn-block-content[data-content-type="heading"][data-is-toggleable="true"]
+  > div
+  > .bn-toggle-wrapper[data-show-children="true"]
+  > .bn-toggle-button {
+  opacity: 0;
+}
+.bn-block-content[data-content-type="heading"][data-is-toggleable="true"]:hover
+  > div
+  > .bn-toggle-wrapper[data-show-children="true"]
+  > .bn-toggle-button,
+.bn-block-content[data-content-type="heading"][data-is-toggleable="true"]:focus-within
+  > div
+  > .bn-toggle-wrapper[data-show-children="true"]
+  > .bn-toggle-button,
+.bn-block-content[data-content-type="heading"][data-is-toggleable="true"]
+  > div
+  > .bn-toggle-wrapper[data-show-children="true"]:hover
+  > .bn-toggle-button {
+  opacity: 1;
+}
+
+/* 折叠标题模块（把手 + children）与上下正文拉开间距，避免误触、强化视觉分隔：
+   上方 = 标题行 margin-top（两态通用，撑大本块顶部空白）；
+   下方 = 展开态 children group margin-bottom（收起态仅一行标题，下方间距交由
+   .bn-block-outer 默认 margin-bottom，无需额外）。em 随标题字号缩放；
+   .bn-block 是 flex column，其内 margin 不发生合并，与相邻块 margin 叠加生效。
+   仅主编辑区生效，速记小窗保持紧凑。 */
+.workspace-editor-surface
+  .bn-block-content[data-content-type="heading"][data-is-toggleable="true"] {
+  margin-top: 0.4em;
+}
+.workspace-editor-surface
+  .bn-block-content[data-content-type="heading"][data-is-toggleable="true"]
+  ~ .bn-block-group {
+  margin-bottom: 0.4em;
+}
+
+/* 普通折叠列表(toggleListItem)的箭头统一手感：
+   箭头不再参与 flex 流（默认它是行内 flex item，多行/空块时会整块垂直居中、
+   把空块的占位行挤到下一行），改为绝对定位钉在首行左侧 marker 位；
+   wrapper 用 padding-left 保留 22px marker 空间，文字 x 在收起/展开/换行
+   三态下恒定不动。 */
+.bn-block-content[data-content-type="toggleListItem"]
+  > div
+  > .bn-toggle-wrapper {
+  position: relative;
+  padding-left: 22px;
+}
+.bn-block-content[data-content-type="toggleListItem"]
+  > div
+  > .bn-toggle-wrapper
+  > .bn-toggle-button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  /* 钉在首行：高度=正文行高(1.5em)，图标在其内垂直居中；
+     不用 transform——展开态旋转 rotate(90deg) 还要用它 */
+  height: 1.5em;
+  display: flex;
+  align-items: center;
+}
+
+/* 折叠块 children 缩进与标题文字精确对齐（marker 22px），
+   默认 .bn-block-group 的 24px 会比标题文字多出 2px */
+.bn-block-content[data-content-type="toggleListItem"] ~ .bn-block-group {
+  margin-left: 22px;
+}
+
+/* 折叠块 children 缩进引用线：连续空行没有任何文字时，没这条线
+   完全看不出这些行还在折叠块里（像内容跑到了折叠块外面）。
+   线挂在箭头列正下方，两种折叠块（toggleListItem / 折叠标题）都画。 */
+.bn-block-content[data-content-type="toggleListItem"] ~ .bn-block-group,
+.bn-block-content[data-content-type="heading"][data-is-toggleable="true"]
+  ~ .bn-block-group {
+  position: relative;
+}
+.bn-block-content[data-content-type="toggleListItem"] ~ .bn-block-group::before,
+.bn-block-content[data-content-type="heading"][data-is-toggleable="true"]
+  ~ .bn-block-group::before {
+  content: "";
+  position: absolute;
+  /* children group 相对标题文字缩进 22px，箭头列中心 ≈ 文字左缘往左 14px */
+  left: -14px;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  border-radius: 1px;
+  background: hsl(var(--border));
+}
+
+.goose-find-match {
+  background-color: rgba(250, 204, 21, 0.45);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(202, 138, 4, 0.35);
+  transition:
+    background-color 0.6s ease,
+    box-shadow 0.6s ease;
+}
+
+/* 搜索定位高亮淡出：到点后加此 class，背景与描边过渡到透明 */
+.goose-find-match--fading,
+.goose-find-match--fading.goose-find-match--current {
+  background-color: transparent;
+  box-shadow: 0 0 0 1px transparent;
+}
+
+.goose-find-match--current {
+  background-color: rgba(249, 115, 22, 0.7);
+  box-shadow: 0 0 0 1px rgba(194, 65, 12, 0.85);
+  color: inherit;
+  transition:
+    background-color 0.6s ease,
+    box-shadow 0.6s ease;
+}
+
+.dark .goose-find-match {
+  background-color: rgba(250, 204, 21, 0.32);
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.45);
+}
+
+.dark .goose-find-match--current {
+  background-color: rgba(249, 115, 22, 0.6);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.85);
+}
+
+.workspace-editor-surface .bn-container,
+.workspace-editor-surface .bn-root {
+  flex: 1 1 100% !important;
+  flex-shrink: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  background: transparent;
+}
+
+.workspace-editor-surface .tiptap {
+  width: 100% !important;
+}
+
+.workspace-editor-surface .bn-editor {
+  min-height: 100%;
+  background: transparent;
+  padding-inline: 0;
+  width: 100%;
+}
+
+/* uTools 主窗固定全宽布局的左右留白：
+   全宽态内容铺满窗口、左缘贴边，side menu(+/把手)锚在内容左缘再 translateX(-100%) 向左展开，
+   需 ~56px gutter 让把手落进留白区不溢出窗口；右侧对称留白。
+   注：折叠标题箭头与 side menu 同锚内容左缘、向同侧展开，留白只整体右移、消不掉两者
+   重叠——那由折叠标题专门处理（见下方 toggle 列覆盖规则）。 */
+/* 全宽 gutter 由 page-scroll-container 的 px-14 统一承担，避免与页面图标列双重缩进 */
+.workspace-editor-surface.max-w-none .bn-editor {
+  padding-inline: 0;
+}
+
+.workspace-editor-surface
+  .bn-block-content[data-content-type="heading"]
+  h1:first-child {
+  margin-top: 0;
+}
+
+/* BlockNote 块间距全局优化 */
+.workspace-editor-surface .bn-block-outer {
+  margin-bottom: 0.5em;
+}
+
+.workspace-editor-surface .bn-block-outer:last-child {
+  margin-bottom: 0;
+}
+
+/* 三类列表 marker 共用正文首行的光学中心轴。
+   原生 checkbox / 列表字形的墨迹中心会比中文正文低约 0.04em；用 em
+   轻微上移后，在 Cmd +/- 的所有字号下都保持一致，且不改变 marker 槽布局。 */
+.workspace-editor-surface {
+  --goose-list-marker-optical-offset-y: -0.04em;
+  /* 无序列表各级几何 marker 半径（随字号 em 缩放） */
+  --goose-bullet-marker-radius: 0.2109375em; /* 一级实心圆 */
+  --goose-bullet-marker-radius-nested: 0.196875em; /* 二级空心圆外半径 */
+  --goose-bullet-marker-ring: 0.084375em; /* 二级空心圆环厚 */
+  --goose-bullet-marker-square: 0.3375em; /* 三级方点边长 */
+  --goose-bullet-marker-center-x: 10.3px;
+}
+
+.workspace-editor-surface
+  .bn-block-content:is(
+    [data-content-type="bulletListItem"],
+    [data-content-type="numberedListItem"]
+  )::before,
+.workspace-editor-surface
+  .bn-block-content[data-content-type="checkListItem"]
+  > div
+  > input {
+  transform: translateY(var(--goose-list-marker-optical-offset-y));
+}
+
+/*
+ * 嵌套列表连接线：BlockNote 默认把线拆到每个 child outer 上，线段高度不包含
+ * 上面的 block margin，因此列表项之间会出现断口；默认 x 也比 24px marker 槽
+ * 的中心偏左 8px。改为由「拥有 children 的列表父块」绘制一根完整主干：
+ *
+ * - 默认 x=10.5px，对齐圆点 / checkbox 的真实视觉中心轴；
+ * - 有序列表单独使用 x=9px，对齐数字字形的视觉中心；
+ * - y 从父项 marker 下边缘开始；接到下一同级项时，在线上方边缘收口；
+ * - 后面仍有同级列表项时，继续穿过父块 margin 并收在下一 marker 上边缘；
+ * - 线不接收指针事件，不影响光标、选择、checkbox 和拖拽。
+ *
+ * 只替换普通列表的原生 child 分段线；折叠列表 / 折叠标题仍使用上方独立的
+ * 引用线规则，避免展开态出现双线。
+ */
+.workspace-editor-surface
+  .bn-block:has(
+    > .bn-block-content:is(
+        [data-content-type="bulletListItem"],
+        [data-content-type="numberedListItem"],
+        [data-content-type="checkListItem"]
+      )
+      + .bn-block-group
+  ) {
+  --goose-list-marker-axis-x: 10.5px;
+  --goose-list-marker-axis-y: calc(
+    0.75em + 3px + var(--goose-list-marker-optical-offset-y)
+  );
+  --goose-list-marker-clearance-y: 0.25em;
+  --goose-list-next-marker-clearance-y: 0.25em;
+  position: relative;
+}
+
+/* 不同 marker 的纵向轮廓不同：圆点按半径避让，数字按字形半高避让，
+   checkbox 按 1em 方框半高避让。连接线与 marker 同轴，但不能穿透。 */
+.workspace-editor-surface
+  .bn-block:has(
+    > .bn-block-content[data-content-type="numberedListItem"] + .bn-block-group
+  ) {
+  --goose-list-marker-axis-x: 9px;
+  --goose-list-marker-clearance-y: 0.625em;
+}
+
+.workspace-editor-surface
+  .bn-block:has(
+    > .bn-block-content[data-content-type="checkListItem"] + .bn-block-group
+  ) {
+  --goose-list-marker-clearance-y: 0.5em;
+}
+
+/* 仅常规笔记本无序列表：连接线从圆点外缘再退让 0.3125em；随字号缩放。 */
+.workspace-shell
+  .workspace-editor-surface
+  .bn-block:has(
+    > .bn-block-content[data-content-type="bulletListItem"] + .bn-block-group
+  ) {
+  --goose-list-marker-axis-x: var(--goose-bullet-marker-center-x);
+  --goose-list-marker-axis-y: calc(0.75em + 3px);
+  --goose-bullet-line-gap: 0.3125em;
+  --goose-list-marker-clearance-y: calc(
+    var(--goose-bullet-marker-radius) + var(--goose-bullet-line-gap)
+  );
+  --goose-list-next-marker-clearance-y: var(--goose-list-marker-clearance-y);
+}
+
+.workspace-editor-surface
+  .bn-block:has(
+    > .bn-block-content:is(
+        [data-content-type="bulletListItem"],
+        [data-content-type="numberedListItem"],
+        [data-content-type="checkListItem"]
+      )
+      + .bn-block-group
+  )::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: var(--goose-list-marker-axis-x);
+  top: calc(
+    var(--goose-list-marker-axis-y) + var(--goose-list-marker-clearance-y)
+  );
+  bottom: var(--goose-list-marker-axis-y);
+  width: 1px;
+  border-radius: 1px;
+  background: var(--bn-colors-side-menu);
+  pointer-events: none;
+}
+
+/* 默认 bottom 只收在末级圆点中心；无序列表需对称退到圆点外缘 5px。 */
+.workspace-shell
+  .workspace-editor-surface
+  .bn-block:has(
+    > .bn-block-content[data-content-type="bulletListItem"] + .bn-block-group
+  )::after {
+  bottom: calc(
+    var(--goose-list-marker-axis-y) + var(--goose-list-marker-clearance-y)
+  );
+}
+
+/* 有序列表数字的字形墨迹中心会比 24px marker 槽的几何中心偏左约 1px。
+   保持 4px 总内边距和正文起点不变，仅在槽内做光学右移。
+   无序列表改用几何圆/方点，不走这段内边距（见下方 bullet 规则）。 */
+.workspace-editor-surface
+  .bn-block-content[data-content-type="numberedListItem"]::before {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  min-width: 1.5em;
+  padding-left: 0.0625em;
+  padding-right: 0.1875em;
+}
+
+/* 飞书式列表圆点：不用字体字形 / radial-gradient（硬切边在旧 Chromium
+   锯齿明显），改用 border-radius 几何圆。圆心仍固定在 center-x、首行
+   垂直中心 0.75em；默认 16px 正文下一级圆点直径 6.75px，随字号缩放。
+   marker 槽总占位仍为 1.5em（左右 margin 补齐），避免正文起点偏移。 */
+.workspace-shell
+  .workspace-editor-surface
+  .bn-block-content[data-content-type="bulletListItem"]::before {
+  content: "" !important;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  width: calc(2 * var(--goose-bullet-marker-radius));
+  min-width: 0;
+  height: calc(2 * var(--goose-bullet-marker-radius));
+  margin-top: calc(0.75em - var(--goose-bullet-marker-radius));
+  margin-left: calc(
+    var(--goose-bullet-marker-center-x) - var(--goose-bullet-marker-radius)
+  );
+  margin-right: calc(
+    1.5em - var(--goose-bullet-marker-center-x) -
+      var(--goose-bullet-marker-radius)
+  );
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: currentColor;
+  background-image: none;
+  line-height: 0;
+  transform: translateY(var(--goose-list-marker-optical-offset-y));
+}
+
+/* 光标所在列表行的 marker 使用产品现有强调前景色。强调色令牌为实色，
+   避免 uTools 旧 Chromium 对 hsl(var(...)/alpha) 的错误回退。 */
+.workspace-shell
+  .workspace-editor-surface
+  .bn-editor:focus-within
+  .bn-block-outer.goose-active-list-marker
+  > .bn-block
+  > .bn-block-content:is(
+    [data-content-type="bulletListItem"],
+    [data-content-type="numberedListItem"]
+  )::before {
+  color: var(--goose-interactive-selected-fg);
+}
+
+.workspace-shell
+  .workspace-editor-surface
+  .bn-editor:focus-within
+  .bn-block-outer.goose-active-list-marker
+  > .bn-block
+  > .bn-block-content[data-content-type="checkListItem"]
+  > div
+  > input:not(:checked) {
+  outline: 1px solid var(--goose-interactive-selected-fg);
+  outline-offset: -1px;
+}
+
+/* 下一同级 marker 的上边缘决定主干终点。 */
+.workspace-editor-surface
+  .bn-block-outer:has(
+    > .bn-block
+      > .bn-block-content:is(
+        [data-content-type="bulletListItem"],
+        [data-content-type="numberedListItem"],
+        [data-content-type="checkListItem"]
+      )
+      + .bn-block-group
+  ):has(
+    + .bn-block-outer
+      > .bn-block
+      > .bn-block-content[data-content-type="numberedListItem"]
+  )
+  > .bn-block {
+  --goose-list-next-marker-clearance-y: 0.625em;
+}
+
+.workspace-editor-surface
+  .bn-block-outer:has(
+    > .bn-block
+      > .bn-block-content:is(
+        [data-content-type="bulletListItem"],
+        [data-content-type="numberedListItem"],
+        [data-content-type="checkListItem"]
+      )
+      + .bn-block-group
+  ):has(
+    + .bn-block-outer
+      > .bn-block
+      > .bn-block-content[data-content-type="checkListItem"]
+  )
+  > .bn-block {
+  --goose-list-next-marker-clearance-y: 0.5em;
+}
+
+/* 下一同级仍是列表时，把主干延长到它的 marker 上边缘。 */
+.workspace-editor-surface
+  .bn-block-outer:has(
+    > .bn-block
+      > .bn-block-content:is(
+        [data-content-type="bulletListItem"],
+        [data-content-type="numberedListItem"],
+        [data-content-type="checkListItem"]
+      )
+      + .bn-block-group
+  ):has(
+    + .bn-block-outer
+      > .bn-block
+      > .bn-block-content:is(
+        [data-content-type="bulletListItem"],
+        [data-content-type="numberedListItem"],
+        [data-content-type="checkListItem"]
+      )
+  )
+  > .bn-block::after {
+  bottom: calc(
+    -0.5em - var(--goose-list-marker-axis-y) +
+      var(--goose-list-next-marker-clearance-y)
+  );
+}
+
+/* 关闭被单根主干替代的 BlockNote 原生逐项分段线。 */
+.workspace-editor-surface
+  .bn-block:has(
+    > .bn-block-content:is(
+        [data-content-type="bulletListItem"],
+        [data-content-type="numberedListItem"],
+        [data-content-type="checkListItem"]
+      )
+      + .bn-block-group
+  )
+  > .bn-block-group
+  > .bn-block-outer::before {
+  border-left: 0;
+}
+
+/* 一级子无序列表始终使用空心圆，不依赖父项是否也是无序列表。
+   外径略小于父级实心圆；用 border 画环，避免 radial-gradient 硬切边锯齿。 */
+.workspace-editor-surface
+  .bn-editor
+  > .bn-block-group
+  > .bn-block-outer
+  > .bn-block
+  > .bn-block-group
+  > .bn-block-outer
+  > .bn-block
+  > .bn-block-content[data-content-type="bulletListItem"]::before {
+  content: "" !important;
+  width: calc(2 * var(--goose-bullet-marker-radius-nested));
+  height: calc(2 * var(--goose-bullet-marker-radius-nested));
+  margin-top: calc(0.75em - var(--goose-bullet-marker-radius-nested));
+  margin-left: calc(
+    var(--goose-bullet-marker-center-x) - var(--goose-bullet-marker-radius-nested)
+  );
+  margin-right: calc(
+    1.5em - var(--goose-bullet-marker-center-x) -
+      var(--goose-bullet-marker-radius-nested)
+  );
+  border: var(--goose-bullet-marker-ring) solid currentColor;
+  border-radius: 50%;
+  background-color: transparent;
+  background-image: none;
+}
+
+/* 第二级子无序列表继续使用方点，保持层级可辨识。 */
+.workspace-editor-surface
+  .bn-editor
+  > .bn-block-group
+  > .bn-block-outer
+  > .bn-block
+  > .bn-block-group
+  > .bn-block-outer
+  > .bn-block
+  > .bn-block-group
+  > .bn-block-outer
+  > .bn-block
+  > .bn-block-content[data-content-type="bulletListItem"]::before {
+  content: "" !important;
+  width: var(--goose-bullet-marker-square);
+  height: var(--goose-bullet-marker-square);
+  margin-top: calc(0.75em - var(--goose-bullet-marker-square) / 2);
+  margin-left: calc(
+    var(--goose-bullet-marker-center-x) - var(--goose-bullet-marker-square) / 2
+  );
+  margin-right: calc(
+    1.5em - var(--goose-bullet-marker-center-x) -
+      var(--goose-bullet-marker-square) / 2
+  );
+  border: none;
+  border-radius: 0;
+  background-color: currentColor;
+  background-image: none;
+}
+
+/*
+ * 有序列表编号：直接采用 BlockNote 算好的 data-index（1-based，已正确处理
+ * start 属性 + 被 divider/标题等非列表块打断后的重新计数），不要再用自增
+ * CSS counter——counter 会无视 data-index、整篇文档连续累加，导致用户输入
+ * 「1.」却延续上文显示「3.」、无法新起列表。
+ */
+.workspace-editor-surface
+  .bn-block-outer:has(.bn-block-content[data-content-type="numberedListItem"])
+  > .bn-block
+  > .bn-block-content[data-content-type="numberedListItem"]::before {
+  content: attr(data-index) "." !important;
+}
+
+.workspace-editor-surface
+  .bn-block-outer:has(.bn-block-content[data-content-type="codeBlock"]) {
+  margin-bottom: 0.6em;
+}
+
+.workspace-editor-surface
+  .bn-block-outer:has(.bn-block-content[data-content-type="table"]) {
+  margin-bottom: 0.6em;
+}
+
+/* BlockNote 自身已让 block/content/tableWrapper 占满父级；这里只覆盖 table 的 auto 宽度。
+   避免 tableEvenColumnWidth 的核心行为依赖旧 Chromium 不支持的 :has()。 */
+.workspace-editor-surface.goose-table-even-column-width
+  .bn-editor
+  [data-content-type="table"]
+  table {
+  width: 100% !important;
+  table-layout: fixed;
+}
+
+.workspace-editor-surface.goose-table-even-column-width
+  .bn-editor
+  [data-content-type="table"]
+  th,
+.workspace-editor-surface.goose-table-even-column-width
+  .bn-editor
+  [data-content-type="table"]
+  td {
+  width: auto;
+  overflow-wrap: anywhere;
+}
+
+/* 注意：BlockNote 在编辑器内部把 --foreground/--muted 覆盖成 oklch(...) 整色值，
+   不再是 HSL 三元组，所以这里不能用 hsl(var(--foreground) / a)，会解析失败导致透明。
+   标题行底色改用字面 rgba。 */
+.workspace-editor-surface .bn-editor [data-content-type="table"] th {
+  background-color: rgba(0, 0, 0, 0.045);
+  font-weight: 600;
+}
+
+.dark .workspace-editor-surface .bn-editor [data-content-type="table"] th {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+.dark .workspace-editor-surface .bn-editor [data-content-type="table"] th,
+.dark .workspace-editor-surface .bn-editor [data-content-type="table"] td {
+  border-color: hsl(var(--border) / 0.55);
+}
+
+.workspace-editor-surface [data-content-type="divider"] hr {
+  border-top-color: hsl(var(--border) / 0.55);
+}
+
+.dark .workspace-editor-surface [data-content-type="divider"] hr {
+  border-top-color: hsl(var(--border) / 0.4);
+}
+
+/* ===== 链接样式：跟随产品强调色（含表格单元格内） ===== */
+.workspace-editor-surface a[data-inline-content-type="link"] {
+  color: var(--goose-accent-link);
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: text;
+  transition: color 0.15s ease;
+}
+
+.workspace-editor-surface a[data-inline-content-type="link"]:hover {
+  color: var(--goose-accent-link-hover);
+}
+
+.workspace-editor-surface .bn-block-content[data-content-type="codeBlock"] {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  overflow: visible;
+}
+
+.workspace-editor-surface .bn-block-outer:has([data-callout="true"]),
+.workspace-editor-surface .bn-block:has([data-callout="true"]),
+.workspace-editor-surface .bn-block-content[data-content-type="callout"],
+.workspace-editor-surface .bn-block-content:has([data-callout="true"]),
+.workspace-editor-surface .react-renderer.node-callout {
+  width: 100%;
+}
+
+/* ===== 标注（callout）图标与首行文字垂直居中 =====
+   与 checklist 同原理：图标槽高度 = 1.5em（一行行高），槽内 flex 居中；
+   多行时槽仍只占首行高度，图标对齐第一行。 */
+.workspace-editor-surface [data-callout="true"],
+.quicknote-editor-surface [data-callout="true"] {
+  align-items: flex-start;
+}
+
+.workspace-editor-surface [data-callout="true"] .callout-icon-slot,
+.workspace-editor-surface
+  [data-callout="true"]
+  button[data-callout-icon-trigger],
+.quicknote-editor-surface [data-callout="true"] .callout-icon-slot,
+.quicknote-editor-surface
+  [data-callout="true"]
+  button[data-callout-icon-trigger] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  min-width: 1.5em;
+  min-height: 1.5em;
+  padding: 0;
+  line-height: 0;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.workspace-editor-surface [data-callout="true"] [data-callout-icon-trigger] > *,
+.workspace-editor-surface [data-callout="true"] .callout-icon-slot > *,
+.quicknote-editor-surface [data-callout="true"] [data-callout-icon-trigger] > *,
+.quicknote-editor-surface [data-callout="true"] .callout-icon-slot > * {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.workspace-editor-surface
+  [data-callout="true"]
+  .callout-content.bn-inline-content,
+.quicknote-editor-surface
+  [data-callout="true"]
+  .callout-content.bn-inline-content {
+  line-height: 1.5;
+}
+
+.workspace-editor-surface [data-callout="true"] .callout-icon-slot svg,
+.workspace-editor-surface
+  [data-callout="true"]
+  button[data-callout-icon-trigger]
+  svg,
+.quicknote-editor-surface [data-callout="true"] .callout-icon-slot svg,
+.quicknote-editor-surface
+  [data-callout="true"]
+  button[data-callout-icon-trigger]
+  svg {
+  display: block;
+}
+
+.workspace-editor-surface
+  [data-callout="true"]
+  .callout-content
+  .bn-block-outer:first-child,
+.workspace-editor-surface
+  [data-callout="true"]
+  .callout-content
+  > .bn-block-group
+  > .bn-block-outer:first-child,
+.quicknote-editor-surface
+  [data-callout="true"]
+  .callout-content
+  .bn-block-outer:first-child,
+.quicknote-editor-surface
+  [data-callout="true"]
+  .callout-content
+  > .bn-block-group
+  > .bn-block-outer:first-child {
+  margin-top: 0 !important;
+}
+
+.workspace-editor-surface
+  [data-callout="true"]
+  .callout-content
+  .bn-block-content[data-content-type="paragraph"],
+.quicknote-editor-surface
+  [data-callout="true"]
+  .callout-content
+  .bn-block-content[data-content-type="paragraph"] {
+  line-height: 1.5;
+}
+
+/* ===== 表格扩展按钮（+） ===== */
+.goose-table-extend-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: hsl(var(--muted-foreground) / 0.72);
+  box-shadow: none;
+  cursor: pointer;
+  opacity: 1;
+  transition:
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.goose-table-extend-button > svg {
+  inline-size: 16px;
+  block-size: 16px;
+  padding: 2px;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow:
+    0 0 0 1px hsl(var(--border) / 0.76),
+    0 2px 6px hsl(var(--foreground) / 0.06);
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.goose-table-extend-button:hover,
+.goose-table-extend-button.is-editing {
+  color: hsl(var(--foreground));
+}
+
+.goose-table-extend-button:hover > svg,
+.goose-table-extend-button.is-editing > svg {
+  background: transparent;
+  box-shadow:
+    0 0 0 1px hsl(var(--primary) / 0.34),
+    0 3px 8px hsl(var(--foreground) / 0.08);
+}
+
+.goose-table-extend-button:active {
+  transform: scale(0.96);
+}
+
+.goose-table-extend-button-columns {
+  inline-size: 18px;
+  block-size: 100%;
+  min-block-size: 100%;
+  cursor: col-resize;
+}
+
+/* 行扩展按钮：占满 popover 宽度，+ 居中 */
+.goose-table-extend-button-rows {
+  inline-size: 100%;
+  block-size: 18px;
+  cursor: row-resize;
+}
+
+.workspace-editor-surface .bn-table-drop-cursor {
+  background-color: hsl(var(--primary) / 0.72);
+  border-radius: 999px;
+}
+
+/* ===== 表格拖拽手柄按钮 ===== */
+.goose-table-handle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--muted-foreground) / 0.6);
+  cursor: grab;
+  padding: 2px;
+  opacity: 0.72;
+  transition:
+    opacity 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.goose-table-handle-btn:hover {
+  background: hsl(var(--accent) / 0.5);
+  color: hsl(var(--foreground));
+  opacity: 1;
+}
+
+/* ===== 表格拖拽手柄美化 ===== */
+.workspace-editor-surface .bn-table-handle {
+  border-radius: 4px;
+  opacity: 0.5;
+  transition:
+    opacity 120ms ease,
+    background-color 120ms ease;
+}
+.workspace-editor-surface .bn-table-handle:hover {
+  opacity: 1;
+  background: hsl(var(--accent) / 0.5);
+}
+
+.workspace-editor-surface
+  .bn-block-outer:has(.bn-block-content[data-content-type="image"]),
+.workspace-editor-surface
+  .bn-block-outer:has(.bn-block-content[data-content-type="video"]) {
+  margin-bottom: 0.5em;
+}
+
+/* ===== 自定义视频播放器（替代原生 controls） ===== */
+.goose-video-block-shell {
+  position: relative;
+  max-width: 100%;
+}
+
+.goose-video-block-shell[data-alignment="center"] {
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.goose-video-block-shell[data-alignment="right"] {
+  margin-left: auto;
+}
+
+.goose-video-player {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #141414;
+  outline: none;
+  isolation: isolate;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.06),
+    0 8px 22px rgba(15, 23, 42, 0.08);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.goose-video-player:focus-visible {
+  box-shadow:
+    0 0 0 2px hsl(var(--background)),
+    0 0 0 4px hsl(var(--ring) / 0.4),
+    0 8px 22px rgba(15, 23, 42, 0.08);
+}
+
+.goose-video-player__video {
+  display: block;
+  width: 100%;
+  max-height: min(70vh, 720px);
+  margin: 0;
+  background: #0a0a0a;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
+.goose-video-player__error {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  color: rgba(255, 255, 255, 0.82);
+  background: #141414;
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.goose-video-player__error svg {
+  width: 24px;
+  height: 24px;
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.goose-video-player__center-play {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.goose-video-player[data-playing="true"][data-controls="hidden"]
+  .goose-video-player__center-play {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.goose-video-player[data-playing="true"][data-controls="visible"]
+  .goose-video-player__center-play {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.goose-video-player__center-icon {
+  width: 56px;
+  height: 56px;
+  padding: 14px;
+  border-radius: 999px;
+  color: #f7f7f7;
+  background: rgba(20, 20, 20, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 10px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition:
+    transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 160ms ease;
+}
+
+.goose-video-player__center-icon--play {
+  padding-left: 16px;
+}
+
+.goose-video-player__center-play:hover .goose-video-player__center-icon {
+  transform: scale(1.05);
+  background: rgba(30, 30, 30, 0.72);
+}
+
+.goose-video-player__chrome {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  padding: 0 10px 10px;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.goose-video-player[data-playing="true"][data-controls="hidden"]
+  .goose-video-player__chrome {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.goose-video-player__chrome > * {
+  pointer-events: auto;
+}
+
+.goose-video-player__gradient {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 96px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.28) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  pointer-events: none;
+}
+
+.goose-video-player__progress {
+  position: relative;
+  z-index: 1;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.goose-video-player__progress-track {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  transition: height 120ms ease;
+}
+
+.goose-video-player__progress:hover .goose-video-player__progress-track,
+.goose-video-player__progress:focus-visible
+  .goose-video-player__progress-track {
+  height: 5px;
+}
+
+.goose-video-player__progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: #f3f3f3;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.goose-video-player__progress-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%) scale(0.6);
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.goose-video-player__progress:hover .goose-video-player__progress-thumb,
+.goose-video-player__progress:focus-visible
+  .goose-video-player__progress-thumb {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.goose-video-player__bar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  margin-top: 2px;
+}
+
+.goose-video-player__bar-left,
+.goose-video-player__bar-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.goose-video-player__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.92);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.goose-video-player__btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.goose-video-player__btn:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.28);
+}
+
+.goose-video-player__icon-play {
+  margin-left: 1px;
+}
+
+.goose-video-player__time {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  margin-left: 6px;
+  padding: 0 4px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.goose-video-player__time-sep {
+  margin: 0 4px;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 400;
+}
+
+.goose-video-player:fullscreen,
+.goose-video-player:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: #000;
+}
+
+.goose-video-player:fullscreen .goose-video-player__video,
+.goose-video-player:-webkit-full-screen .goose-video-player__video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goose-video-player__center-play,
+  .goose-video-player__center-icon,
+  .goose-video-player__chrome,
+  .goose-video-player__progress-track,
+  .goose-video-player__progress-thumb,
+  .goose-video-player__btn {
+    transition: none;
+  }
+}
+
+/* ===== 全屏图片预览（yet-another-react-lightbox） ===== */
+.goose-image-lightbox.yarl__root {
+  --yarl__color_backdrop: rgba(12, 12, 12, 0.9);
+  --yarl__color_button: rgba(255, 255, 255, 0.92);
+  --yarl__color_button_active: #ffffff;
+  --yarl__slide_title_color: rgba(255, 255, 255, 0.88);
+}
+
+.goose-image-lightbox .yarl__container {
+  background:
+    radial-gradient(
+      120% 80% at 50% 0%,
+      rgba(255, 255, 255, 0.04),
+      transparent 55%
+    ),
+    rgba(12, 12, 12, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.goose-image-lightbox .yarl__toolbar {
+  top: 16px;
+  right: 16px;
+  left: auto;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(28, 28, 28, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 12px 32px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.goose-image-lightbox .yarl__button {
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border-radius: 9px;
+  color: rgba(255, 255, 255, 0.9);
+  filter: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.goose-image-lightbox .yarl__button svg,
+.goose-image-lightbox .yarl__icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex: none;
+}
+
+.goose-image-lightbox .yarl__button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.goose-image-lightbox .yarl__button:disabled {
+  color: rgba(255, 255, 255, 0.34);
+  background: transparent;
+  cursor: default;
+}
+
+.goose-image-lightbox .yarl__button:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.28);
+}
+
+.goose-image-lightbox .yarl__navigation_prev,
+.goose-image-lightbox .yarl__navigation_next {
+  width: 44px;
+  height: 44px;
+  margin: 0 12px;
+  border-radius: 12px;
+  background: rgba(28, 28, 28, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  filter: none;
+}
+
+.goose-image-lightbox .yarl__navigation_prev:hover,
+.goose-image-lightbox .yarl__navigation_next:hover {
+  background: rgba(40, 40, 40, 0.75);
+}
+
+.goose-image-lightbox .yarl__slide_image {
+  border-radius: 8px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.goose-image-lightbox .yarl__slide_title {
+  bottom: 20px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(20, 20, 20, 0.65);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goose-image-lightbox .yarl__button,
+  .goose-image-lightbox .yarl__navigation_prev,
+  .goose-image-lightbox .yarl__navigation_next {
+    transition: none;
+  }
+}
+
+/* ===== 行内代码（跟随当前强调色；变量见 index.css / goose-accent-colors.css） ===== */
+.workspace-editor-surface .bn-inline-content code,
+.quicknote-editor-surface .bn-inline-content code {
+  background-color: var(--goose-inline-code-bg);
+  color: var(--goose-inline-code-fg);
+  padding: var(--editor-inline-code-padding-y, 1px)
+    var(--editor-inline-code-padding-x, 4px);
+  border-radius: var(--editor-inline-code-radius, 4px);
+  border: 1px solid transparent;
+  /* 下划线只留给链接；行内代码自身及继承自 <u> 等的装饰一律去掉 */
+  text-decoration: none;
+  font-family: var(
+    --font-mono,
+    "DM Mono",
+    "SF Mono",
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace
+  ) !important;
+  font-size: 0.85em;
+  line-height: 1;
+  /* 按正文基线对齐后轻微上移：列表 marker / checkbox 锚在首行，
+     `middle` 会把高对比背景盒的视觉中心压低。em 偏移可随编辑器缩放。 */
+  vertical-align: var(--editor-inline-code-baseline-offset, 0.04em);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* 内容 span 也强制强调色，避免继承链接色/表格色/正文色 */
+.workspace-editor-surface
+  .bn-inline-content
+  code
+  [data-goose-inline-code-content],
+.quicknote-editor-surface
+  .bn-inline-content
+  code
+  [data-goose-inline-code-content] {
+  background-color: transparent;
+  color: var(--goose-inline-code-fg);
+}
+
+.workspace-editor-surface
+  .bn-inline-content
+  code
+  > [data-goose-inline-code-boundary],
+.quicknote-editor-surface
+  .bn-inline-content
+  code
+  > [data-goose-inline-code-boundary] {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.workspace-editor-surface
+  .bn-inline-content
+  code[data-goose-inline-code-caret-active],
+.quicknote-editor-surface
+  .bn-inline-content
+  code[data-goose-inline-code-caret-active] {
+  caret-color: transparent !important;
+}
+
+.workspace-editor-surface [data-goose-inline-code-caret-active].ProseMirror,
+.quicknote-editor-surface [data-goose-inline-code-caret-active].ProseMirror {
+  caret-color: transparent !important;
+}
+
+.goose-inline-code-visual-caret {
+  position: fixed;
+  z-index: 100;
+  width: 1px;
+  margin: 0;
+  padding: 0;
+  opacity: 1;
+  pointer-events: none;
+}
+
+/* 链接内的行内代码：去掉文字下划线，并保持强调色（不继承链接色） */
+.workspace-editor-surface a[data-inline-content-type="link"] code,
+.quicknote-editor-surface a[data-inline-content-type="link"] code,
+.workspace-editor-surface
+  a[data-inline-content-type="link"]
+  code
+  [data-goose-inline-code-content],
+.quicknote-editor-surface
+  a[data-inline-content-type="link"]
+  code
+  [data-goose-inline-code-content] {
+  color: var(--goose-inline-code-fg);
+  text-decoration: none;
+}
+
+.workspace-editor-surface .bn-inline-content code:hover,
+.quicknote-editor-surface .bn-inline-content code:hover {
+  border-color: var(--goose-inline-code-border-hover);
+}
+
+.workspace-editor-surface
+  .bn-editor
+  [data-content-type="table"]
+  th
+  .bn-inline-content
+  code,
+.workspace-editor-surface
+  .bn-editor
+  [data-content-type="table"]
+  td
+  .bn-inline-content
+  code,
+.quicknote-editor-surface
+  .bn-editor
+  [data-content-type="table"]
+  th
+  .bn-inline-content
+  code,
+.quicknote-editor-surface
+  .bn-editor
+  [data-content-type="table"]
+  td
+  .bn-inline-content
+  code,
+.workspace-editor-surface
+  .bn-editor
+  [data-content-type="table"]
+  th
+  .bn-inline-content
+  code
+  [data-goose-inline-code-content],
+.workspace-editor-surface
+  .bn-editor
+  [data-content-type="table"]
+  td
+  .bn-inline-content
+  code
+  [data-goose-inline-code-content],
+.quicknote-editor-surface
+  .bn-editor
+  [data-content-type="table"]
+  th
+  .bn-inline-content
+  code
+  [data-goose-inline-code-content],
+.quicknote-editor-surface
+  .bn-editor
+  [data-content-type="table"]
+  td
+  .bn-inline-content
+  code
+  [data-goose-inline-code-content] {
+  color: var(--goose-inline-code-fg);
+}
+
+/* ===== CheckListItem：勾选后用灰色文字代替中划线 ===== */
+.workspace-editor-surface
+  .bn-block-content[data-content-type="checkListItem"][data-checked="true"]
+  .bn-inline-content {
+  text-decoration: none;
+  color: hsl(var(--muted-foreground));
+}
+
+/* ===== CheckListItem 对齐：单行时复选框与文字垂直居中，多行时对齐第一行 =====
+   原理：复选框包裹盒高度 = 一行行高（line-height 1.5em），盒内 input 垂直居中。
+   单行 → 盒高等于唯一一行 → 视觉居中；
+   多行 → 盒高仍只占第一行高度 → 复选框对齐第一行（顶部对齐效果）。
+   覆盖 BlockNote 内置的固定 height:24px，避免换字体后行高变化导致错位。 */
+.workspace-editor-surface
+  .bn-block-content[data-content-type="checkListItem"]
+  > div:has(> input) {
+  height: 1.5em;
+  display: flex;
+  align-items: center;
+}
+
+/* 方框随字号同步缩放：1em ≈ 一个汉字高（与文字一样大），cmd+= 放大字体时同步放大。
+   左右 margin 也用 em，使「间距+框+间距」总槽宽恒为 1.5em（默认 16px 字号时 24px，
+   与无序/有序列表 marker 槽一致），框中心落在 0.65em ≈ 10.4px，贴近连接线轴 10.5px。 */
+.workspace-editor-surface
+  .bn-block-content[data-content-type="checkListItem"]
+  > div
+  > input {
+  width: 1em;
+  height: 1em;
+  margin-left: 0.15em;
+  margin-right: 0.35em;
+  margin-block: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  border: 0.09em solid hsl(var(--muted-foreground));
+  border-radius: 0.2em;
+  background: transparent;
+}
+
+.workspace-editor-surface
+  .bn-block-content[data-content-type="checkListItem"]
+  > div
+  > input:checked {
+  background: var(--goose-interactive-selected-fg);
+  border-color: var(--goose-interactive-selected-fg);
+}
+
+.workspace-editor-surface
+  .bn-block-content[data-content-type="checkListItem"]
+  > div
+  > input:checked::after {
+  content: "";
+  position: absolute;
+  top: 0.08em;
+  left: 0.28em;
+  width: 0.28em;
+  height: 0.52em;
+  border: solid hsl(var(--background));
+  border-width: 0 0.09em 0.09em 0;
+  transform: rotate(45deg);
+}
+
+/* ===== BlockNote children 缩进优化 ===== */
+/* 减少 heading 下 children 的默认缩进，避免内容看起来像是被强制嵌套了一层 */
+.workspace-editor-surface
+  .bn-block:has(> .bn-block-content[data-content-type="heading"])
+  > .bn-block-children {
+  padding-left: 0.5em;
+}
+
+/* 页面级字体切换：覆盖 BlockNote 默认的 .bn-default-styles */
+.workspace-editor-surface[data-font-family="default"] .bn-default-styles {
+  font-family: var(--font-default);
+}
+
+.workspace-editor-surface[data-font-family="serif"] .bn-default-styles {
+  font-family: var(--font-serif);
+}
+
+.workspace-editor-surface[data-font-family="mono"] .bn-default-styles {
+  font-family: var(--font-mono);
+}
+
+/* ===== 自定义代码块增强（DOM 注入方案） ===== */
+
+/* 内置 codeBlock 容器：中性化 BlockNote 默认 chrome（#161616 黑底/白字/圆角），
+   视觉统一交给内层 .goose-code-block-node */
+.workspace-editor-surface .bn-block-content[data-content-type="codeBlock"] {
+  background-color: transparent;
+  color: inherit;
+  border: 0;
+  border-radius: 0;
+}
+
+/* 隐藏内置 language select（工具栏替代） */
+.workspace-editor-surface
+  .bn-block-content[data-content-type="codeBlock"]
+  > div
+  > select {
+  display: none !important;
+}
+
+/* 内置 pre 样式覆盖 */
+.workspace-editor-surface
+  .bn-block-content[data-content-type="codeBlock"]
+  > pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  padding: 12px 16px;
+  font-family: var(
+    --font-mono,
+    "DM Mono",
+    "SF Mono",
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace
+  );
+  font-size: 0.85em;
+  line-height: 1.7;
+  position: relative;
+}
+
+/* 注入的工具栏宿主 */
+.goose-code-toolbar-host {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--code-border, hsl(var(--border) / 0.3));
+  background: var(--code-bg, hsl(var(--muted) / 0.3));
+  color: var(--code-fg, hsl(var(--foreground)));
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.workspace-editor-surface
+  .bn-block-content[data-content-type="codeBlock"]:hover
+  .goose-code-toolbar-host,
+.workspace-editor-surface
+  .bn-block-content[data-content-type="codeBlock"]:focus-within
+  .goose-code-toolbar-host {
+  opacity: 1;
+}
+
+.goose-code-floating-toolbar {
+  display: flex;
+  align-items: center;
+  border: 1px solid hsl(var(--border) / 0.55);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.92);
+  padding: 2px;
+  box-shadow: 0 6px 18px hsl(var(--foreground) / 0.08);
+  backdrop-filter: blur(10px);
+}
+
+/* 自定义 codeBlockSpec 容器 */
+.goose-code-block-node {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 96px;
+  background-color: var(--code-bg, hsl(var(--muted) / 0.55));
+  color: var(--code-fg, hsl(var(--foreground)));
+  /* 外壳边框与文件块统一，不随代码主题走（--code-border 仅供内部分隔线使用） */
+  border: 1px solid hsl(var(--border) / 0.4);
+  border-radius: var(--editor-code-block-radius, 8px);
+  overflow: hidden;
+}
+
+.goose-code-block-node[data-collapsed="true"] {
+  min-height: 42px;
+}
+
+.goose-code-block-node[data-visual-preview="true"] {
+  min-height: 178px;
+  background-color: hsl(var(--background));
+}
+
+.goose-code-toolbar-row {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+  color: var(--code-fg, hsl(var(--foreground)));
+}
+
+.goose-code-block-node[data-visual-preview="true"] .goose-code-toolbar-row {
+  position: relative;
+  inset: auto;
+  min-height: 46px;
+  align-items: center;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--code-border, var(--goose-block-subtle-border));
+  background: var(--goose-block-subtle-bg);
+  pointer-events: auto;
+}
+
+.goose-code-toolbar-left,
+.goose-code-toolbar-actions {
+  pointer-events: auto;
+}
+
+.goose-code-toolbar-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.goose-code-visual-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: hsl(var(--foreground));
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.goose-code-toolbar-actions {
+  --goose-popup-trigger-origin: top right;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  flex-shrink: 0;
+}
+
+.goose-code-toolbar-actions button,
+.goose-code-toolbar-actions .goose-code-lang-trigger {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: hsl(var(--muted-foreground) / 0.7) !important;
+  box-shadow: none !important;
+}
+
+.goose-code-toolbar-actions button:hover,
+.goose-code-toolbar-actions .goose-code-lang-trigger:hover {
+  background: hsl(var(--muted) / 0.5) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.goose-code-toolbar-actions-visual {
+  gap: 6px;
+}
+
+.goose-code-toolbar-actions-visual button {
+  min-width: 28px;
+  border-radius: 8px !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.goose-code-toolbar-actions-visual button:hover {
+  background: var(--goose-interactive-hover) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.goose-code-toolbar-actions-visual .goose-code-display-toggle {
+  margin-left: 6px;
+  border: 1px solid var(--goose-block-subtle-border);
+  background: var(--goose-block-subtle-hover);
+}
+
+.goose-code-toolbar-actions-visual .goose-code-display-toggle-button {
+  min-width: 42px;
+  border-radius: 10px !important;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.goose-code-toolbar-actions-visual button.goose-code-action-active {
+  background: var(--goose-interactive-selected) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.goose-code-toolbar-actions button:disabled {
+  opacity: 0.4;
+}
+
+.goose-code-toolbar-left input {
+  background: transparent !important;
+  color: var(--code-fg, hsl(var(--foreground))) !important;
+  width: 100%;
+}
+
+.goose-code-toolbar-left input::placeholder {
+  color: hsl(var(--muted-foreground) / 0.45) !important;
+}
+
+.goose-code-toolbar-left input:focus {
+  background: hsl(var(--muted) / 0.28) !important;
+}
+
+.goose-code-content-wrapper {
+  position: relative;
+  padding-top: 36px;
+}
+
+.goose-code-block-node[data-visual-preview="true"] .goose-code-content-wrapper {
+  padding-top: 0;
+}
+
+.goose-code-pre {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  padding: 12px 16px;
+  font-family: var(
+    --font-mono,
+    "DM Mono",
+    "SF Mono",
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace
+  );
+  font-size: 0.85em;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.goose-code-pre-hidden {
+  display: none;
+}
+
+.goose-code-content-wrapper:has(.goose-code-line-numbers) .goose-code-pre {
+  padding-left: 16px;
+}
+
+.goose-code-content {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* 行号 */
+.goose-code-line-numbers {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  padding: 12px 8px 12px 0;
+  text-align: right;
+  font-family: var(
+    --font-mono,
+    "DM Mono",
+    "SF Mono",
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace
+  );
+  font-size: 11px;
+  line-height: 1.7;
+  display: none;
+  color: var(--code-line-number, hsl(var(--muted-foreground) / 0.4));
+  user-select: none;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.goose-code-line-numbers > div {
+  height: calc(1em * 1.7);
+}
+
+/* math/mermaid 预览 */
+.goose-code-block-node .goose-code-preview {
+  padding: 8px 16px;
+  background: transparent;
+  min-height: 132px;
+  overflow: auto;
+}
+
+.goose-code-block-node .goose-code-preview .mermaid-preview {
+  min-width: max-content;
+}
+
+.goose-code-preview-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 22000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.goose-code-preview-lightbox-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(1180px, 100%);
+  height: min(760px, 100%);
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--goose-block-subtle-border);
+  border-radius: 14px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+}
+
+.goose-code-preview-lightbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 12px 10px 18px;
+  border-bottom: 1px solid var(--goose-block-subtle-border);
+  background: var(--goose-block-subtle-bg);
+}
+
+.goose-code-preview-lightbox-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.goose-code-preview-lightbox-close {
+  flex: 0 0 auto;
+  color: hsl(var(--muted-foreground));
+}
+
+.goose-code-preview-lightbox-close:hover {
+  background: var(--goose-interactive-hover);
+  color: hsl(var(--foreground));
+}
+
+.goose-code-preview-lightbox-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+}
+
+.goose-code-preview-lightbox-body .mermaid-preview {
+  min-width: max-content;
+  padding: 0;
+}
+
+.goose-code-preview-lightbox-body .katex-display {
+  margin: 0;
+}
+
+/* ===== 自定义文件块（带下载/删除按钮） ===== */
+.goose-file-block-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background-color: hsl(var(--muted) / 0.4);
+  border: 1px solid hsl(var(--border) / 0.4);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.goose-file-block-content:hover {
+  background-color: hsl(var(--muted) / 0.55);
+  border-color: hsl(var(--border) / 0.6);
+}
+
+/* 确保 BlockNote wrapper 不收缩 */
+.workspace-editor-surface
+  .bn-block-content[data-content-type="file"]
+  .bn-file-block-content-wrapper {
+  width: 100%;
+}
+
+.goose-file-block-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  color: hsl(var(--foreground));
+}
+
+.goose-file-block-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground) / 0.8);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.goose-file-block-icon-btn:hover {
+  color: hsl(var(--foreground));
+}
+
+.goose-file-block-name {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+}
+
+.goose-file-block-name:hover {
+  text-decoration: underline;
+}
+
+.goose-file-block-name-input {
+  font-size: 14px;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+  background: hsl(var(--muted) / 0.28);
+  color: hsl(var(--foreground));
+  border: none;
+  outline: none;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.goose-file-block-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.goose-file-block-content:hover .goose-file-block-actions,
+.goose-file-block-content:focus-within .goose-file-block-actions {
+  opacity: 1;
+}
+
+.goose-file-block-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground) / 0.7);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.goose-file-block-action-btn:hover {
+  background-color: var(--goose-interactive-hover);
+  color: hsl(var(--foreground));
+}
+
+/* ===== 媒体/文件空状态（替代 BlockNote bn-add-file-button） ===== */
+.goose-media-placeholder {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  border: 1px dashed var(--goose-block-subtle-border);
+  background: var(--goose-block-subtle-bg);
+  color: hsl(var(--muted-foreground));
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.goose-media-placeholder:hover:not(:disabled) {
+  background: var(--goose-block-subtle-hover);
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.goose-media-placeholder:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px hsl(var(--background)),
+    0 0 0 4px hsl(var(--ring) / 0.45);
+}
+
+.goose-media-placeholder:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.goose-media-placeholder--image {
+  flex-direction: column;
+  justify-content: center;
+  min-height: 120px;
+  padding: 28px 20px;
+  gap: 14px;
+  text-align: center;
+}
+
+.goose-media-placeholder--file {
+  flex-direction: row;
+  min-height: 52px;
+  padding: 12px 16px;
+}
+
+.goose-media-placeholder__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--goose-block-subtle-inset);
+  color: hsl(var(--muted-foreground));
+  box-shadow: inset 0 0 0 1px var(--goose-block-subtle-border);
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.goose-media-placeholder--file .goose-media-placeholder__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.goose-media-placeholder:hover:not(:disabled) .goose-media-placeholder__icon {
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+}
+
+.goose-media-placeholder__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.goose-media-placeholder--image .goose-media-placeholder__copy {
+  align-items: center;
+}
+
+.goose-media-placeholder__title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: hsl(var(--foreground));
+}
+
+.goose-media-placeholder__hint {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
+}
+
+.goose-media-loading {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--goose-block-subtle-border);
+  background: var(--goose-block-subtle-bg);
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+
+.goose-media-loading__spinner {
+  flex-shrink: 0;
+  animation: goose-media-spin 0.8s linear infinite;
+}
+
+.goose-media-loading__label {
+  line-height: 1.4;
+}
+
+@keyframes goose-media-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goose-media-placeholder {
+    transition: none;
+  }
+  .goose-media-loading__spinner {
+    animation: none;
+  }
+}
+
+.workspace-editor-surface
+  .bn-block-content[data-content-type="image"]
+  .goose-media-placeholder,
+.workspace-editor-surface
+  .bn-block-content[data-content-type="file"]
+  .goose-media-placeholder,
+.quicknote-editor-surface
+  .bn-block-content[data-content-type="image"]
+  .goose-media-placeholder,
+.quicknote-editor-surface
+  .bn-block-content[data-content-type="file"]
+  .goose-media-placeholder {
+  width: 100%;
+}
+
+/* 格式工具栏：固定底部居中，不跟随选区浮动 */
+.goose-formatting-toolbar-dock {
+  pointer-events: none;
+}
+
+/* 设置 / AI 全屏是独立任务面。打开后统一收起编辑器上下文浮层，避免这些高层级
+   portal 穿透到覆盖面（聊天气泡、设置）之上；保留自身菜单、提示与 toast。 */
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) [data-formatting-toolbar],
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) [data-goose-formatting-toolbar-dock],
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) [data-goose-image-toolbar],
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) [data-goose-video-toolbar],
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) [data-goose-find-in-page],
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .goose-code-floating-toolbar,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .goose-ai-menu-floating,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .bn-side-menu,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .bn-link-toolbar,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .bn-panel,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .bn-suggestion-menu,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .bn-grid-suggestion-menu,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .bn-table-handle,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .bn-table-cell-handle,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) .bn-table-handle-menu,
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) [data-streamdown="table-fullscreen"],
+body:is([data-goose-settings-open], [data-goose-ai-fullscreen]) [data-streamdown="link-safety-modal"] {
+  display: none !important;
+}
+
+/* AI 面板已卸载：收起仍挂在 body 的 Streamdown / 选区浮层，避免残留到别的界面 */
+body:not([data-goose-ai-panel-active]) [data-streamdown="code-block-actions"],
+body:not([data-goose-ai-panel-active]) [data-streamdown="mermaid-block-actions"],
+body:not([data-goose-ai-panel-active]) [data-streamdown="table-fullscreen"],
+body:not([data-goose-ai-panel-active]) [data-streamdown="link-safety-modal"] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goose-formatting-toolbar-dock {
+    transition: none;
+  }
+}

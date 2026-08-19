@@ -1,0 +1,109 @@
+/*
+ * 常规笔记本的语义颜色令牌。
+ *
+ * BlockNote 默认深色方案把同色文字与同色背景放在相近明度，叠加后对比不足。
+ * 这里保留 gray / blue / red 等文档语义，只在常规笔记本与原生编辑器的
+ * 深色渲染层拆成「高明度文字 + 低明度表面」。速记小窗不在覆盖范围内。
+ * 使用 hex 实色，兼容 uTools 旧内核，也方便颜色面板复用同一套预览。
+ */
+:root {
+  --goose-editor-highlight-gray-text: #9b9a97;
+  --goose-editor-highlight-gray-bg: #ebeced;
+  --goose-editor-highlight-brown-text: #64473a;
+  --goose-editor-highlight-brown-bg: #e9e5e3;
+  --goose-editor-highlight-red-text: #e03e3e;
+  --goose-editor-highlight-red-bg: #fbe4e4;
+  --goose-editor-highlight-orange-text: #d9730d;
+  --goose-editor-highlight-orange-bg: #f6e9d9;
+  --goose-editor-highlight-yellow-text: #dfab01;
+  --goose-editor-highlight-yellow-bg: #fbf3db;
+  --goose-editor-highlight-green-text: #4d6461;
+  --goose-editor-highlight-green-bg: #ddedea;
+  --goose-editor-highlight-blue-text: #0b6e99;
+  --goose-editor-highlight-blue-bg: #ddebf1;
+  --goose-editor-highlight-purple-text: #6940a5;
+  --goose-editor-highlight-purple-bg: #eae4f2;
+  --goose-editor-highlight-pink-text: #ad1a72;
+  --goose-editor-highlight-pink-bg: #f4dfeb;
+}
+
+.dark {
+  --goose-editor-highlight-gray-text: #d6d4cf;
+  --goose-editor-highlight-gray-bg: #3d3d3a;
+  --goose-editor-highlight-brown-text: #e7c1ad;
+  --goose-editor-highlight-brown-bg: #49352c;
+  --goose-editor-highlight-red-text: #ffb4b8;
+  --goose-editor-highlight-red-bg: #512b31;
+  --goose-editor-highlight-orange-text: #ffc38f;
+  --goose-editor-highlight-orange-bg: #50351f;
+  --goose-editor-highlight-yellow-text: #f0d77d;
+  --goose-editor-highlight-yellow-bg: #453a1e;
+  --goose-editor-highlight-green-text: #9ddfba;
+  --goose-editor-highlight-green-bg: #253f34;
+  --goose-editor-highlight-blue-text: #9bd5f3;
+  --goose-editor-highlight-blue-bg: #223f52;
+  --goose-editor-highlight-purple-text: #d0baf8;
+  --goose-editor-highlight-purple-bg: #3b3055;
+  --goose-editor-highlight-pink-text: #f1b6d7;
+  --goose-editor-highlight-pink-bg: #4b2c42;
+}
+
+/* 提高到 BlockNote 深色主题规则之上；只映射颜色，不改变已保存的文档数据。 */
+.dark .workspace-shell .bn-root[data-color-scheme="dark"],
+.dark .native-editor-root .bn-root[data-color-scheme="dark"] {
+  --bn-colors-highlights-gray-text: var(--goose-editor-highlight-gray-text);
+  --bn-colors-highlights-gray-background: var(--goose-editor-highlight-gray-bg);
+  --bn-colors-highlights-brown-text: var(--goose-editor-highlight-brown-text);
+  --bn-colors-highlights-brown-background: var(
+    --goose-editor-highlight-brown-bg
+  );
+  --bn-colors-highlights-red-text: var(--goose-editor-highlight-red-text);
+  --bn-colors-highlights-red-background: var(--goose-editor-highlight-red-bg);
+  --bn-colors-highlights-orange-text: var(--goose-editor-highlight-orange-text);
+  --bn-colors-highlights-orange-background: var(
+    --goose-editor-highlight-orange-bg
+  );
+  --bn-colors-highlights-yellow-text: var(--goose-editor-highlight-yellow-text);
+  --bn-colors-highlights-yellow-background: var(
+    --goose-editor-highlight-yellow-bg
+  );
+  --bn-colors-highlights-green-text: var(--goose-editor-highlight-green-text);
+  --bn-colors-highlights-green-background: var(
+    --goose-editor-highlight-green-bg
+  );
+  --bn-colors-highlights-blue-text: var(--goose-editor-highlight-blue-text);
+  --bn-colors-highlights-blue-background: var(--goose-editor-highlight-blue-bg);
+  --bn-colors-highlights-purple-text: var(--goose-editor-highlight-purple-text);
+  --bn-colors-highlights-purple-background: var(
+    --goose-editor-highlight-purple-bg
+  );
+  --bn-colors-highlights-pink-text: var(--goose-editor-highlight-pink-text);
+  --bn-colors-highlights-pink-background: var(--goose-editor-highlight-pink-bg);
+}
+
+/* BlockNote 会把显式背景同步到父 .bn-block；这里统一收回父层底色，
+   避免背景覆盖标题间距、嵌套子块或其它不属于当前行的区域。 */
+.bn-block:has(> .bn-block-content[data-background-color]) {
+  background-color: transparent;
+}
+
+/* 左右各向编辑器现有留白借 6px，再用等量 padding 把内容放回原基线：
+   - 背景比原内容区宽 12px；
+   - 文字起点和实际可输入宽度不变；
+   - 显式使用物理方向属性，兼容 uTools 旧内核。 */
+.bn-block-content[data-background-color] {
+  box-sizing: border-box;
+  width: calc(100% + 12px);
+  margin-left: -6px;
+  margin-right: -6px;
+  padding-left: 6px;
+  padding-right: 6px;
+  border-radius: 4px;
+}
+
+/* BlockNote 标题默认用 18px padding-top 制造块间距。
+   有背景时把其中 15px 移到透明 margin，保留原总高度但不形成厚重色带。 */
+.bn-block-content[data-content-type="heading"][data-background-color] {
+  margin-top: 15px;
+  padding-top: 3px;
+}

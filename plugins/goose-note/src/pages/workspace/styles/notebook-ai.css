@@ -1,0 +1,697 @@
+@import "./beautiful-ui.css";
+
+/**
+ * notebook-ai.css — 笔记本 AI 聊天面板的 markdown 预览样式
+ *
+ * Streamdown 输出带 data-streamdown="..." 属性，借此精准覆盖默认样式，
+ * 让预览与应用排版契合：8px 圆角、紧凑行距、currentColor 链接、
+ * 自绘任务勾选框（与编辑器 checkListItem 同风格）。
+ */
+
+/* ── AI 行内 chip：与 caret 同一行盒 ──────────────────────
+ * contenteditable 光标高度 ≈ 行高，不是 chip 内容高。
+ * 先前 chip 比行高矮 → 光标比 tag 高一截、看起来没垂直对齐。
+ * 规则：
+ * - chip 外框高度 = 编辑器行高（含 border，box-sizing:border-box）
+ * - vertical-align:bottom 与文本行盒底边对齐（等高则顶边也齐）
+ * - 文字在 chip 内 flex 居中
+ * - 左右 margin 给 caret 留缝；ZWSP 仅零宽锚点
+ */
+[data-ai-composer-editor="true"] {
+  /* 与 AiComposerInput default：text-[12px] leading-[20px] 锁死 */
+  font-size: 12px;
+  line-height: 20px;
+}
+
+[data-ai-composer-editor="true"][data-ai-composer-variant="panel"] {
+  /* 与 panel：text-[13px] leading-6 */
+  font-size: 13px;
+  line-height: 24px;
+}
+
+[data-ai-composer-editor="true"] .ai-composer-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  /* = 编辑器行高，与 caret 同高 */
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  line-height: 20px;
+  font-size: 11px;
+  max-width: 100%;
+  margin-left: 4px;
+  margin-right: 4px;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 6px;
+  padding-right: 6px;
+  border-radius: 6px;
+  position: static;
+  top: auto;
+  /* 与 ZWSP 文本行盒底对齐；高度一致时顶/底/中线都齐 */
+  vertical-align: bottom;
+}
+
+[data-ai-composer-editor="true"][data-ai-composer-variant="panel"] .ai-composer-chip {
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  line-height: 24px;
+}
+
+/* ── 聊天时间分隔条（微信风格，居中） ── */
+.notebook-ai-message-time {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 8px 0 4px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--muted-foreground, #8b8b8b);
+  user-select: none;
+}
+
+/* ── 用户气泡：正文可换行，chip 行内对齐 ──
+ * 不用 flex + inline-flex 文本段：flex 子项 min-width:auto 会按整段
+ * min-content 撑开，窄面板时被 overflow-x 从左侧裁切（右对齐气泡更明显）。
+ * 改为普通行内流：pre-wrap + break-word，chip 用 vertical-align 与行盒居中。
+ */
+.notebook-ai-message-inline {
+  display: block;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  /* 正文与 chip 共用精确行盒，避免 CJK 字形和按钮默认行高产生半像素错位。 */
+  min-height: 20px;
+  line-height: 20px;
+  /* anywhere：表格管道/长 token 也能在窄宽里断开 */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.notebook-ai-message-inline-text {
+  /* 保持 inline，才能与 chip 同一行混排；勿用 inline-flex（不换行） */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 20px;
+}
+
+/* 气泡内 chip：保留可见边框/背景，禁止 border:0 抹成纯文字 */
+.notebook-ai-message-inline .ai-composer-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 20px;
+  max-width: 100%;
+  /* mx-1：chip 与左右文字、多个 tag 之间留缝 */
+  margin: 0 4px;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 6px;
+  padding-right: 6px;
+  border-radius: 6px;
+  border-style: solid;
+  border-width: 1px;
+  line-height: 20px;
+  position: static;
+  top: auto;
+  /* 与 pre-wrap 文本行盒垂直居中 */
+  vertical-align: middle;
+  appearance: none;
+  -webkit-appearance: none;
+  /* 字面量 rgba/hex：uTools 旧内核对 hsl(var(--x)/a) 支持差 */
+}
+
+/* skill：青绿，叠在 bg-[#58d7b8]/12 气泡上仍有边框与底色差 */
+.notebook-ai-message-inline .ai-composer-chip[data-ai-skill-chip] {
+  background: rgba(88, 215, 184, 0.22);
+  color: #58d7b8;
+  border-color: rgba(88, 215, 184, 0.5);
+}
+
+/* @ 引用：indigo，与 skill 区分；可点击打开对应笔记 */
+.notebook-ai-message-inline .ai-composer-chip[data-ai-mention-chip] {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.45);
+  cursor: pointer;
+}
+
+.notebook-ai-message-inline button.ai-composer-chip[data-ai-mention-chip] {
+  font: inherit;
+  /* button UA/reset 常把 margin 清零，这里再锁一次左右缝与行内垂直居中 */
+  margin-left: 4px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.notebook-ai-message-inline .ai-composer-chip[data-ai-mention-chip]:hover {
+  background: rgba(99, 102, 241, 0.3);
+}
+
+.dark .notebook-ai-message-inline .ai-composer-chip[data-ai-mention-chip] {
+  background: rgba(99, 102, 241, 0.22);
+  color: #a5b4fc;
+  border-color: rgba(129, 140, 248, 0.5);
+}
+
+.dark .notebook-ai-message-inline .ai-composer-chip[data-ai-mention-chip]:hover {
+  background: rgba(99, 102, 241, 0.34);
+}
+
+[data-ai-composer-editor="true"] .ai-composer-chip-thumb {
+  display: block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  object-fit: cover;
+}
+
+[data-ai-composer-editor="true"] .ai-composer-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+[data-ai-composer-editor="true"] .ai-composer-chip-remove svg {
+  display: block;
+}
+
+/* ── Composer 图片 chip hover 预览浮层（body portal） ──
+ * 不用 hsl(var(--x)/alpha)；阴影用 rgba，兼容 uTools 旧内核。
+ */
+.ai-composer-image-preview {
+  position: fixed;
+  z-index: 21000;
+  box-sizing: border-box;
+  max-width: 340px;
+  max-height: 300px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--popover));
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.16);
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.dark .ai-composer-image-preview {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 32px rgba(2, 6, 23, 0.45);
+}
+
+.ai-composer-image-preview img {
+  display: block;
+  max-width: 328px;
+  max-height: 288px;
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
+/* 消息列 / 气泡 / md：旧 Chromium flex 子项默认 min-width:auto，宽表会撑破链 */
+.notebook-ai-messages,
+.notebook-ai-messages .ai-md,
+.notebook-ai-message,
+.notebook-ai-message-text,
+.ai-md {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ai-md {
+  line-height: 1.65;
+  word-break: break-word;
+  /* 限制宽度并把溢出收进表内滚动层 */
+  overflow-x: hidden;
+  /* 旧 Chromium flex：形成 BFC，子项百分比宽度更稳 */
+  position: relative;
+}
+
+/* 消息气泡：给子 scroll 确定宽度，防止宽表把 flex 链撑破。
+ * 用户气泡用更高优先级规则覆盖 overflow，避免右对齐长文被左侧裁切。
+ */
+.notebook-ai-message {
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ── 用户气泡布局（必须写在 .notebook-ai-message 之后，才能覆盖 overflow） ──
+ * 右对齐靠 flex + justify-end，不用 w-fit + max-w%（旧 Chromium 上
+ * fit-content 仍按 max-content 算宽，再被祖先 overflow-x 从左侧裁切）。
+ */
+.notebook-ai-message.notebook-ai-message-user {
+  box-sizing: border-box;
+  overflow-x: visible;
+}
+
+.notebook-ai-message-user > * {
+  /* flex 子项：可在剩余宽度内收缩并换行 */
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+/* 用户气泡正文：长串/无空格/表格管道必须在可用宽度内换行 */
+.notebook-ai-message-text {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/*
+ * AI 消息内宽表格：旧 Chromium（uTools）上更稳的写法
+ * - 单层滚动：wrapper 直接 overflow-x:auto（避免「外 hidden + 内 auto」在旧内核失效）
+ * - 不用 grid/minmax/max-content（旧内核组合易把滚动容器撑破后被祖先裁切）
+ * - table 用 width:auto + 单元格 nowrap 按内容撑开，触发横向滚动
+ * - 不依赖 Tailwind 是否扫到 streamdown 源码里的 utility class
+ */
+.notebook-ai-messages .ai-md [data-streamdown="table-wrapper"],
+.notebook-ai-messages .ai-md-table-scroll {
+  display: block;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  /* 实色，避免 var(...)/alpha 在 uTools 旧内核退化 */
+  margin: 10px 0;
+  padding: 0;
+  border: 1px solid var(--goose-block-subtle-border, hsl(var(--border)));
+  border-radius: 8px;
+  background: hsl(var(--goose-editor-bg));
+  /* 单层横向滚动 */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* 单层结构下不再给 > div 设 width:max-content（会把 scroll 容器撑开导致裁切） */
+
+.notebook-ai-messages .ai-md [data-streamdown="table"],
+.notebook-ai-messages .ai-md-table,
+.notebook-ai-messages .ai-md table {
+  /* auto + nowrap 比 max-content 更兼容；min-width:100% 保证窄表仍铺满 */
+  width: auto !important;
+  min-width: 100% !important;
+  max-width: none !important;
+  table-layout: auto !important;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 12px;
+  color: hsl(var(--foreground));
+}
+
+.notebook-ai-messages .ai-md [data-streamdown="table-header"],
+.notebook-ai-messages .ai-md thead {
+  background: var(--goose-interactive-hover);
+}
+
+.notebook-ai-messages .ai-md [data-streamdown="table-header-cell"],
+.notebook-ai-messages .ai-md [data-streamdown="table-cell"],
+.notebook-ai-messages .ai-md th,
+.notebook-ai-messages .ai-md td {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--goose-block-subtle-border, hsl(var(--border)));
+  color: hsl(var(--foreground));
+}
+
+.notebook-ai-messages .ai-md [data-streamdown="table-header-cell"],
+.notebook-ai-messages .ai-md th {
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.notebook-ai-messages .ai-md tr:last-child th,
+.notebook-ai-messages .ai-md tr:last-child td {
+  border-bottom: 0;
+}
+
+/* 代码块同样允许横向滚动 */
+.notebook-ai-messages .ai-md [data-streamdown="code-block"],
+.notebook-ai-messages .ai-md [data-streamdown="code-block-body"] {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.notebook-ai-messages .ai-md [data-streamdown="code-block-body"] {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.notebook-ai-message-actions {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.notebook-ai-message:hover > .notebook-ai-message-actions,
+.notebook-ai-message:focus-within > .notebook-ai-message-actions {
+  opacity: 1;
+}
+
+.notebook-ai-messages,
+.notebook-ai-message-text,
+.notebook-ai-message-text * {
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.notebook-ai-messages .notebook-ai-artifact-svg,
+.notebook-ai-messages .notebook-ai-artifact-svg * {
+  cursor: inherit;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 工具栏 / 可点控件：覆盖消息区默认 text 光标 */
+.notebook-ai-messages button,
+.notebook-ai-messages [role="button"],
+.notebook-ai-messages .notebook-ai-artifact-actions,
+.notebook-ai-messages .notebook-ai-artifact-actions *,
+.notebook-ai-messages .notebook-ai-artifact-panzoom-controls,
+.notebook-ai-messages .notebook-ai-artifact-panzoom-controls * {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.notebook-ai-messages button:disabled,
+.notebook-ai-messages [role="button"][aria-disabled="true"],
+.notebook-ai-messages .notebook-ai-artifact-actions button:disabled,
+.notebook-ai-messages .notebook-ai-artifact-panzoom-controls button:disabled {
+  cursor: default;
+}
+
+/* 图形视口：默认不拦截页面滚动；仅放大后才进入拖拽/平移 */
+.notebook-ai-messages .notebook-ai-artifact-panzoom {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.notebook-ai-messages .notebook-ai-artifact-panzoom.is-zoomed {
+  cursor: grab;
+  touch-action: none;
+}
+
+.notebook-ai-messages .notebook-ai-artifact-panzoom.is-dragging,
+.notebook-ai-messages .notebook-ai-artifact-panzoom.is-dragging * {
+  cursor: grabbing;
+}
+
+/* 放大拖拽时控件仍保持 pointer */
+.notebook-ai-messages .notebook-ai-artifact-panzoom.is-dragging button,
+.notebook-ai-messages .notebook-ai-artifact-panzoom.is-dragging [role="button"],
+.notebook-ai-messages .notebook-ai-artifact-panzoom.is-zoomed button,
+.notebook-ai-messages .notebook-ai-artifact-panzoom.is-zoomed [role="button"] {
+  cursor: pointer;
+}
+
+.notebook-ai-messages .notebook-ai-progress-toggle {
+  cursor: pointer;
+}
+
+/* 审批卡跟 AI 面板同一套 goose token，避免 --bui-surface 回退纯白 */
+.notebook-ai-approval-plan.bui-approval {
+  background: hsl(var(--goose-editor-bg));
+  border-color: var(--goose-block-subtle-border);
+  color: hsl(var(--foreground));
+}
+
+.notebook-ai-messages .notebook-ai-approval-plan button,
+.notebook-ai-messages .notebook-ai-approval-plan label,
+.notebook-ai-messages .notebook-ai-approval-plan input {
+  cursor: pointer;
+}
+
+.notebook-ai-messages .notebook-ai-approval-plan button:disabled,
+.notebook-ai-messages .notebook-ai-approval-plan fieldset:disabled label,
+.notebook-ai-messages .notebook-ai-approval-plan fieldset:disabled input {
+  cursor: default;
+}
+
+.notebook-ai-plan-checkbox {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  appearance: none;
+  border: 1.5px solid var(--goose-block-subtle-border);
+  border-radius: 5px;
+  background: var(--goose-block-subtle-inset);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.notebook-ai-plan-checkbox:checked {
+  border-color: var(--goose-ai-approval-check-bg);
+  background: var(--goose-ai-approval-check-bg);
+}
+
+.notebook-ai-plan-checkbox:checked::after {
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--goose-ai-approval-check-fg);
+  border-width: 0 1.5px 1.5px 0;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.notebook-ai-plan-checkbox:focus-visible {
+  outline: 2px solid var(--goose-ai-approval-check-bg);
+  outline-offset: 2px;
+}
+
+.notebook-ai-plan-checkbox:disabled {
+  opacity: 0.6;
+}
+
+.notebook-ai-messages ::selection {
+  background-color: rgba(35, 131, 226, 0.28);
+  color: inherit;
+}
+
+.dark .notebook-ai-messages ::selection {
+  background-color: rgba(35, 131, 226, 0.4);
+  color: inherit;
+}
+
+/* 标题在聊天窄栏里收敛字号（默认 text-3xl/2xl/xl 过大） */
+.ai-md [data-streamdown="heading-1"] {
+  font-size: 1.25em;
+  margin-top: 1rem;
+  margin-bottom: 0.375rem;
+}
+
+.ai-md [data-streamdown="heading-2"] {
+  font-size: 1.15em;
+  margin-top: 1rem;
+  margin-bottom: 0.375rem;
+}
+
+.ai-md [data-streamdown="heading-3"],
+.ai-md [data-streamdown="heading-4"],
+.ai-md [data-streamdown="heading-5"],
+.ai-md [data-streamdown="heading-6"] {
+  font-size: 1.05em;
+  margin-top: 0.875rem;
+  margin-bottom: 0.375rem;
+}
+
+/* 列表行距收紧（默认 py-1 在 text-sm 下过松） */
+.ai-md [data-streamdown="list-item"] {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
+}
+
+/* ── 任务列表 ─────────────────────────────────────────── */
+
+/* 自绘勾选框已携带状态，去掉 bullet 双标记 */
+.ai-md [data-streamdown="list-item"]:has(.ai-md-checkbox) {
+  list-style: none;
+}
+
+.ai-md-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-right: 0.5rem;
+  vertical-align: -2px;
+  border-radius: 4px;
+  border: 1.5px solid hsl(var(--muted-foreground) / 0.45);
+  color: transparent;
+}
+
+.ai-md-checkbox[data-checked="true"] {
+  background: hsl(var(--muted-foreground));
+  border-color: hsl(var(--muted-foreground));
+  color: hsl(var(--background));
+}
+
+.ai-md-checkbox svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* 已完成项文字置灰（与编辑器一致：灰字、无删除线） */
+.ai-md [data-streamdown="list-item"]:has(.ai-md-checkbox[data-checked="true"]) {
+  color: hsl(var(--muted-foreground));
+}
+
+/* ── 代码 ────────────────────────────────────────────── */
+
+.ai-md [data-streamdown="code-block"] {
+  border-radius: 8px;
+}
+
+.ai-md [data-streamdown="code-block"] pre {
+  background: var(--goose-interactive-hover);
+}
+
+.ai-md [data-streamdown="inline-code"] {
+  background: var(--goose-inline-code-bg);
+  color: var(--goose-inline-code-fg);
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+/* ── 链接：跟随产品强调色 ───────────────────── */
+
+.ai-md [data-streamdown="link"] {
+  color: var(--goose-accent-link);
+  font-weight: inherit;
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 2px;
+}
+
+.ai-md [data-streamdown="link"]:hover {
+  color: var(--goose-accent-link-hover);
+}
+
+/* ── AI 图表卡片（showChart）─────────────────────────────────────── */
+
+.notebook-ai-chart-card {
+  border: 1px solid rgba(31, 30, 29, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  /* 避免 uTools 旧内核 hsl(var)/alpha 退化 */
+}
+
+.notebook-ai-chart-card:hover {
+  border-color: rgba(79, 70, 229, 0.18);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.dark .notebook-ai-chart-card,
+:root.dark .notebook-ai-chart-card,
+[data-theme="dark"] .notebook-ai-chart-card {
+  border-color: rgba(222, 220, 209, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dark .notebook-ai-chart-card:hover,
+:root.dark .notebook-ai-chart-card:hover,
+[data-theme="dark"] .notebook-ai-chart-card:hover {
+  border-color: rgba(129, 140, 248, 0.28);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+.notebook-ai-chart-card-title {
+  padding: 12px 14px 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--foreground, #141413);
+  line-height: 1.3;
+}
+
+.dark .notebook-ai-chart-card-title,
+:root.dark .notebook-ai-chart-card-title,
+[data-theme="dark"] .notebook-ai-chart-card-title {
+  color: #faf9f5;
+}
+
+.notebook-ai-chart-card-canvas {
+  min-height: 200px;
+  padding-bottom: 4px;
+}
+
+/* ── 可视化 artifact：pan/zoom 视口内按原始尺寸渲染，由容器缩放适配 ── */
+
+.notebook-ai-artifact-panzoom {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: min(52vh, 420px);
+  min-height: 220px;
+  background: transparent;
+  /* 必须裁切；适配比例由 JS 用 SVG 固有尺寸计算，避免 scale=1 居中裁边 */
+  overflow: hidden;
+}
+
+.notebook-ai-artifact-panzoom-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* 固有宽高由 JS 写成 px，避免 flex 把 SVG 压窄导致测量错误 */
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.notebook-ai-artifact-svg {
+  display: block;
+  line-height: 0;
+}
+
+/*
+ * 不要用 max-content / min-width 强行改 SVG 盒模型。
+ * 宽高交给 SVG 自身 width/height 或 viewBox；PanZoom 按固有尺寸缩放。
+ */
+.notebook-ai-artifact-svg > svg {
+  display: block;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.notebook-ai-artifact-panzoom-controls {
+  pointer-events: none;
+}
+
+.notebook-ai-artifact-panzoom-controls button {
+  pointer-events: auto;
+}

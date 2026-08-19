@@ -1,0 +1,202 @@
+/* 设置「隐藏展开箭头」后，有子项的页面以图标承载展开操作。
+   箭头仅在行 hover 或键盘聚焦时替换图标。
+   有子项已用 FolderOpen 等不同图标样式区分，不再画图标下横线。 */
+.goose-hidden-expand-icon::after {
+  content: none;
+  display: none;
+}
+
+/* 文件树拖放使用独立语义色，不改变产品现有的中性选中色。
+   直接使用 hex/rgba，兼容 uTools 旧内核，避免 hsl(var(...)/alpha) 解析退化。 */
+:root {
+  --sidebar-dnd-accent: #3f6fec;
+  --sidebar-dnd-accent-soft: rgba(63, 111, 236, 0.14);
+  --sidebar-dnd-accent-medium: rgba(63, 111, 236, 0.24);
+  --sidebar-dnd-accent-ring: rgba(63, 111, 236, 0.62);
+  --sidebar-dnd-overlay-bg: rgba(255, 255, 255, 0.96);
+  --sidebar-dnd-overlay-border: rgba(63, 111, 236, 0.38);
+  --sidebar-dnd-overlay-shadow:
+    0 10px 26px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.1);
+}
+
+.dark {
+  --sidebar-dnd-accent: #7394ff;
+  --sidebar-dnd-accent-soft: rgba(115, 148, 255, 0.16);
+  --sidebar-dnd-accent-medium: rgba(115, 148, 255, 0.24);
+  --sidebar-dnd-accent-ring: rgba(115, 148, 255, 0.72);
+  --sidebar-dnd-overlay-bg: rgba(39, 39, 42, 0.97);
+  --sidebar-dnd-overlay-border: rgba(115, 148, 255, 0.46);
+  --sidebar-dnd-overlay-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.38), 0 2px 7px rgba(0, 0, 0, 0.24);
+}
+
+.goose-sidebar-tree-row--dragging {
+  z-index: 21;
+}
+
+.sidebar-tree-row--selected {
+  color: var(--goose-interactive-selected-fg) !important;
+  background: var(--goose-interactive-selected) !important;
+}
+
+/* 选中行内图标统一吃强调文字色（lucide 为 currentColor）；语义色图标不动。 */
+.sidebar-tree-row--selected svg:not([class*="text-destructive"]) {
+  color: var(--goose-interactive-selected-fg);
+}
+
+.sidebar-tree-source-placeholder {
+  color: var(--sidebar-dnd-accent) !important;
+  background: var(--sidebar-dnd-accent-soft) !important;
+  box-shadow: 0 0 0 1px var(--sidebar-dnd-accent-ring) inset;
+  opacity: 0.66;
+}
+
+.sidebar-tree-nest-target {
+  background: var(--sidebar-dnd-accent-soft);
+  box-shadow: 0 0 0 1px var(--sidebar-dnd-accent-ring) inset;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.sidebar-tree-drop-line {
+  background: var(--sidebar-dnd-accent);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.64),
+    0 0 7px var(--sidebar-dnd-accent-medium);
+  transition:
+    transform 120ms ease,
+    opacity 120ms ease;
+}
+
+.sidebar-tree-drop-line::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sidebar-dnd-accent);
+  box-shadow: 0 0 0 2px var(--sidebar-dnd-overlay-bg);
+  transform: translate(-50%, -50%);
+}
+
+.sidebar-tree-nest-label {
+  color: var(--sidebar-dnd-accent);
+  background: var(--sidebar-dnd-accent-soft);
+}
+
+.sidebar-tree-drag-overlay {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 3px 8px 3px 5px;
+  color: hsl(var(--foreground));
+  background: var(--sidebar-dnd-overlay-bg);
+  border: 1px solid var(--sidebar-dnd-overlay-border);
+  border-radius: 9px;
+  box-shadow: var(--sidebar-dnd-overlay-shadow);
+  cursor: grabbing;
+  pointer-events: none;
+  transform: translate3d(6px, 2px, 0) rotate(0.35deg);
+  animation: sidebar-tree-overlay-enter 140ms cubic-bezier(0.2, 0.8, 0.2, 1)
+    both;
+}
+
+.sidebar-tree-drag-overlay-leading,
+.sidebar-tree-drag-overlay-icon {
+  display: inline-flex;
+  width: 22px;
+  height: 24px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  color: var(--sidebar-dnd-accent);
+}
+
+.sidebar-tree-drag-overlay-icon {
+  margin-right: 2px;
+}
+
+.sidebar-tree-drag-overlay-grip {
+  margin-left: 8px;
+  color: hsl(var(--muted-foreground));
+  opacity: 0.62;
+}
+
+@keyframes sidebar-tree-overlay-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(2px, 2px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(6px, 2px, 0) rotate(0.35deg) scale(1);
+  }
+}
+
+.sidebar-drop-target {
+  background: var(--sidebar-dnd-accent-soft);
+  border: 1px dashed var(--sidebar-dnd-accent);
+  border-radius: 6px;
+  animation: none;
+}
+
+.sidebar-drop-parent-target {
+  border: 1px solid var(--sidebar-dnd-accent-ring);
+  background: var(--sidebar-dnd-accent-soft);
+  box-shadow: 0 0 0 1px var(--sidebar-dnd-overlay-bg) inset;
+  transition:
+    background-color 100ms ease,
+    border-color 100ms ease,
+    box-shadow 100ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-tree-nest-target,
+  .sidebar-tree-drop-line,
+  .sidebar-drop-parent-target {
+    transition: none;
+  }
+
+  .sidebar-tree-drag-overlay {
+    animation: none;
+    transform: translate3d(6px, 2px, 0);
+  }
+}
+
+.sidebar-drop-cursor {
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-drop-line {
+  flex: 1;
+  height: 2px;
+  background: var(--workspace-drag-line-color, hsl(var(--primary)));
+  border-radius: 9999px;
+  box-shadow: var(
+    --workspace-drag-line-glow,
+    0 0 8px hsl(var(--primary) / 0.4)
+  );
+  position: relative;
+}
+
+/* Circle head for the line */
+.sidebar-drop-line::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: var(--workspace-drag-line-color, hsl(var(--primary)));
+  border: 2px solid hsl(var(--background));
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--workspace-drag-line-color, hsl(var(--primary)));
+}

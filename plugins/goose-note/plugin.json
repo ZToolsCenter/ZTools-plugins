@@ -1,0 +1,661 @@
+{
+  "pluginName": "鹅的笔记",
+  "description": "本地化的Notion风格笔记",
+  "author": "Antigravity",
+  "version": "0.0.1",
+  "logo": "public/logo.png",
+  "pluginSetting": {
+    "single": true,
+    "height": 600
+  },
+  "features": [
+    {
+      "code": "gn",
+      "explain": "打开鹅的笔记",
+      "cmds": [
+        "Goose Note",
+        "鹅的笔记",
+        "笔记",
+        "gn"
+      ]
+    },
+    {
+      "code": "new_page",
+      "explain": "新建笔记",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "新建笔记"
+        }
+      ]
+    },
+    {
+      "code": "open_folder",
+      "explain": "打开 Markdown 文件夹",
+      "cmds": [
+        {
+          "type": "files",
+          "fileType": "directory",
+          "label": "用鹅的笔记打开",
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "quicknote_save",
+      "explain": "接收速记入库",
+      "mainHide": true,
+      "cmds": [
+        "速记入库"
+      ]
+    }
+  ],
+  "tools": {
+    "list_notebooks": {
+      "description": "列出鹅的笔记中可访问的记事本，包括应用内记事本与已挂载的本地文件夹记事本。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "include_local_paths": {
+            "type": "boolean",
+            "description": "是否返回本地记事本的绝对路径，默认 false。"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "default",
+                    "local-folder"
+                  ]
+                },
+                "availability": {
+                  "type": "string",
+                  "enum": [
+                    "ready",
+                    "path_missing",
+                    "unreadable"
+                  ]
+                },
+                "localPath": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "source",
+                "availability"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      }
+    },
+    "list_notes": {
+      "description": "分页列出鹅的笔记中的笔记内容，支持按记事本、来源、排序和回收站状态过滤。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "notebook_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "仅返回指定记事本 ID 下的笔记。"
+          },
+          "source_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "app-page",
+                "local-file"
+              ]
+            },
+            "description": "仅返回指定来源类型的笔记。"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "description": "单次返回的最大数量，默认 100。"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "分页偏移量，默认 0。"
+          },
+          "include_trashed": {
+            "type": "boolean",
+            "description": "是否包含回收站中的应用内笔记，默认 false。"
+          },
+          "include_folders": {
+            "type": "boolean",
+            "description": "是否包含本地目录节点，默认 false。"
+          },
+          "sort_by": {
+            "type": "string",
+            "enum": [
+              "updated_at_desc",
+              "updated_at_asc",
+              "title_asc"
+            ],
+            "description": "排序方式，默认 updated_at_desc。"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "nextOffset": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "下一页的 offset；为 null 时没有更多结果。"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "notebookId": {
+                  "type": "string"
+                },
+                "notebookName": {
+                  "type": "string"
+                },
+                "sourceType": {
+                  "type": "string",
+                  "enum": [
+                    "app-page",
+                    "local-file"
+                  ]
+                },
+                "parentId": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "number"
+                },
+                "updatedAt": {
+                  "type": "number"
+                },
+                "isFolder": {
+                  "type": "boolean"
+                },
+                "localFilePath": {
+                  "type": "string"
+                },
+                "snippet": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "notebookId",
+                "notebookName",
+                "sourceType",
+                "createdAt",
+                "updatedAt",
+                "isFolder",
+                "snippet"
+              ]
+            }
+          }
+        },
+        "required": [
+          "total",
+          "items",
+          "nextOffset"
+        ]
+      }
+    },
+    "search_notes": {
+      "description": "按关键词搜索鹅的笔记标题和正文，默认不包含文件夹节点。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "要搜索的关键词，不能为空。"
+          },
+          "notebook_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "app-page",
+                "local-file"
+              ]
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "description": "单次返回的最大数量，默认 50。"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "分页偏移量，默认 0。"
+          },
+          "include_trashed": {
+            "type": "boolean",
+            "description": "是否包含回收站中的应用内笔记，默认 false。"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "nextOffset": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "下一页的 offset；为 null 时没有更多结果。"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "notebookId": {
+                  "type": "string"
+                },
+                "notebookName": {
+                  "type": "string"
+                },
+                "sourceType": {
+                  "type": "string",
+                  "enum": [
+                    "app-page",
+                    "local-file"
+                  ]
+                },
+                "parentId": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "number"
+                },
+                "updatedAt": {
+                  "type": "number"
+                },
+                "isFolder": {
+                  "type": "boolean"
+                },
+                "localFilePath": {
+                  "type": "string"
+                },
+                "snippet": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "matchedFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "title",
+                      "content"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "notebookId",
+                "notebookName",
+                "sourceType",
+                "createdAt",
+                "updatedAt",
+                "isFolder",
+                "snippet",
+                "score",
+                "matchedFields"
+              ]
+            }
+          }
+        },
+        "required": [
+          "total",
+          "items",
+          "nextOffset"
+        ]
+      }
+    },
+    "get_note": {
+      "description": "按笔记 ID 读取单条笔记详情，返回纯文本正文和原始内容结构。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "note_id": {
+            "type": "string",
+            "description": "笔记 ID。"
+          }
+        },
+        "required": [
+          "note_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "notebookId": {
+            "type": "string"
+          },
+          "notebookName": {
+            "type": "string"
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "app-page",
+              "local-file"
+            ]
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "type": "number"
+          },
+          "trashedAt": {
+            "type": "number"
+          },
+          "localFilePath": {
+            "type": "string"
+          },
+          "contentText": {
+            "type": "string"
+          },
+          "rawContentFormat": {
+            "type": "string",
+            "enum": [
+              "blocknote_json",
+              "markdown"
+            ]
+          },
+          "rawContent": {}
+        },
+        "required": [
+          "id",
+          "title",
+          "notebookId",
+          "notebookName",
+          "sourceType",
+          "createdAt",
+          "updatedAt",
+          "contentText",
+          "rawContentFormat",
+          "rawContent"
+        ]
+      }
+    },
+    "get_mcp_capabilities": {
+      "description": "获取鹅的笔记 MCP 能力、版本与写入约束，用于客户端发现可用工具。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      }
+    },
+    "create_note": {
+      "description": "在指定记事本新建一篇笔记。notebook_id 必填；title 与 markdown 至少提供一个。可选 parent_id 指定父笔记。免确认。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "notebook_id": {
+            "type": "string",
+            "description": "目标记事本 ID。"
+          },
+          "title": {
+            "type": "string",
+            "description": "笔记标题。与 markdown 至少提供一个。"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "笔记正文，标准 Markdown。与 title 至少提供一个。"
+          },
+          "parent_id": {
+            "type": "string",
+            "description": "可选，父笔记或文件夹 ID。"
+          }
+        },
+        "required": [
+          "notebook_id"
+        ]
+      }
+    },
+    "append_note": {
+      "description": "在指定笔记末尾追加 Markdown 正文，不改动已有内容和标题。免确认。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "note_id": {
+            "type": "string",
+            "description": "笔记 ID。"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "要追加的 Markdown 正文。"
+          }
+        },
+        "required": [
+          "note_id",
+          "markdown"
+        ]
+      }
+    },
+    "update_note": {
+      "description": "用 Markdown 改正文。不传 heading 时整篇替换正文并尽量保留标题/H1；传入 heading 时只改该标题下一段。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "note_id": {
+            "type": "string",
+            "description": "笔记 ID。"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "新的 Markdown 正文。"
+          },
+          "heading": {
+            "type": "string",
+            "description": "可选。只替换该标题下一段；省略则整篇替换正文。"
+          }
+        },
+        "required": [
+          "note_id",
+          "markdown"
+        ]
+      }
+    },
+    "rename_note": {
+      "description": "重命名笔记。内部笔记改 H1 标题；本地 Markdown 文件改文件名。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "note_id": {
+            "type": "string",
+            "description": "笔记 ID。"
+          },
+          "title": {
+            "type": "string",
+            "description": "新标题，不含 # 前缀。"
+          }
+        },
+        "required": [
+          "note_id",
+          "title"
+        ]
+      }
+    },
+    "delete_note": {
+      "description": "删除笔记：应用内笔记进入垃圾箱，本地文件进入系统回收站。不是永久删除。锁定页、回收站页、文件夹节点不可删。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "note_id": {
+            "type": "string",
+            "description": "要删除的笔记 ID。"
+          }
+        },
+        "required": [
+          "note_id"
+        ]
+      }
+    },
+    "restore_note": {
+      "description": "从应用内回收站恢复笔记。本地文件若已进系统回收站，需在系统回收站中还原。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "note_id": {
+            "type": "string",
+            "description": "要恢复的笔记 ID。"
+          }
+        },
+        "required": [
+          "note_id"
+        ]
+      }
+    },
+    "create_notebook": {
+      "description": "新建一本应用内记事本。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "记事本名称。"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    "update_notebook": {
+      "description": "重命名记事本。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "notebook_id": {
+            "type": "string",
+            "description": "记事本 ID。"
+          },
+          "name": {
+            "type": "string",
+            "description": "新名称。"
+          }
+        },
+        "required": [
+          "notebook_id",
+          "name"
+        ]
+      }
+    },
+    "delete_notebook": {
+      "description": "删除记事本。至少保留 1 本。本地文件夹记事本只卸挂载，不删除磁盘上的文件。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "notebook_id": {
+            "type": "string",
+            "description": "要删除的记事本 ID。"
+          }
+        },
+        "required": [
+          "notebook_id"
+        ]
+      }
+    }
+  },
+  "main": "app/index.html",
+  "preload": "preload/preload.cjs",
+  "name": "goose-note",
+  "title": "鹅的笔记"
+}

@@ -1,0 +1,9 @@
+/* uTools 旧内核会把 CSS zoom 触发器的 DOMRect 再缩放一次，导致 Portal 菜单
+   远离锚点。对需要作为浮层锚点的控件改用 transform：视觉尺寸保持一致，
+   getBoundingClientRect 与 Radix/Floating UI 仍共享 viewport 坐标。 */
+.goose-editor-position-safe-trigger {
+  zoom: 1;
+  transform: scale(var(--editor-scale, 1))
+    rotate(var(--goose-popup-trigger-rotate, 0turn));
+  transform-origin: var(--goose-popup-trigger-origin, center);
+}

@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-08-08T08:47:24.254Z",
+  "steps": {
+    "1_task_space": "PASS",
+    "2_open_app": "PASS",
+    "3_onboarding": "PASS (none / not blocking)",
+    "4_configureProviderAI": "PASS — deepseek-v4-flash, openai-responses, https://api.deepseek.com",
+    "5_seed_notes": "PASS — seedAcceptanceNotes + openPermanentTab",
+    "6_open_note_editor": "PASS — closed AI panel to reveal editor",
+    "7_inline_ai": "PASS — Space on empty paragraph → menu (继续写作/总结/添加行动项/写任何内容…) → 总结 → stream (stop btn) → document updated with 概述 section",
+    "7b_tool_choice_error": "PASS — not observed",
+    "8_abort": "PARTIAL — stop button seen during 总结 stream; dedicated abort retry menu open flaky after first run",
+    "9_screenshots": "PARTIAL — CDP Page.captureScreenshot times out in this ego-browser session; canvas proof + JSON evidence saved"
+  },
+  "evidence": {
+    "title": "验收笔记A-产品规划",
+    "editor": "产品目标是做本地优先的 AI 笔记本，支持搜索、编辑与引用。关键能力包含批注、合并与润色。\n\n概述\n\n本地优先的 AI 笔记本，含搜索、编辑、引用能力，支持批注、合并与润色。 ",
+    "url": "http://127.0.0.1:6001/",
+    "bodyHasToolChoice": false
+  },
+  "uiPath": "Close AI panel → click empty paragraph in BlockNote → Space → AI suggestion menu → 总结",
+  "abort_attempt": "see cli logs in session"
+}

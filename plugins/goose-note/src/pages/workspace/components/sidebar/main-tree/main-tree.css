@@ -1,0 +1,155 @@
+/* ──────────────────────────────────────────────────────────────────────────
+ * main-tree.css
+ * react-complex-tree 主树视觉覆盖：抹掉默认 outline / focus 边框，
+ * 让拖拽快照贴合行轮廓，避免出现"白边"。
+ * 该文件被 SidebarMainTree.tsx 直接 import。
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/* 1) 容器：只抹掉鼠标焦点的默认边框，保留键盘焦点反馈。 */
+.rct-main-tree:focus:not(:focus-visible),
+.rct-main-tree *:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.rct-main-tree [data-rct-item-interactive]:focus-visible,
+.rct-main-tree [data-rct-item-focus="true"]:focus-visible {
+  outline: 2px solid hsl(var(--ring)) !important;
+  outline-offset: -2px !important;
+  box-shadow: none !important;
+}
+
+/* 2) <li> / 行容器：rct 自带类可能带 border/bg，全部去掉，由内部 row 自己管理 */
+.rct-main-tree .rct-tree-item-li,
+.rct-main-tree .rct-tree-item-title-container {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+}
+
+/* 3) 拖拽快照：dragstart 时由 MainTreeItem 动态创建本胶囊并 setDragImage。
+ *    默认快照是整行大块，跟随鼠标会盖住目标行的拖入高亮；改用紧凑的
+ *    "图标+标题"胶囊，落点反馈不再被遮挡。
+ *    注意：颜色只用实色变量与 rgba 老语法（uTools 旧内核禁 /alpha）。 */
+.main-tree-drag-ghost {
+  position: fixed;
+  top: -1000px;
+  left: -1000px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 150px;
+  max-width: 240px;
+  min-height: 34px;
+  padding: 4px 8px 4px 9px;
+  border-radius: 9px;
+  background-color: var(--sidebar-dnd-overlay-bg);
+  border: 1px solid var(--sidebar-dnd-overlay-border);
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  /* 不加 box-shadow：drag image 截图把阴影算进矩形 bounding box，
+     uTools 旧内核不做透明混合，圆角外会糊出四个灰色直角 */
+  pointer-events: none;
+}
+.main-tree-drag-ghost svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--sidebar-dnd-accent);
+}
+.main-tree-drag-ghost span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.main-tree-drag-ghost-grip {
+  flex: 0 0 auto;
+  margin-left: 3px;
+  color: hsl(var(--muted-foreground));
+  font-style: normal;
+  font-size: 17px;
+  line-height: 1;
+  opacity: 0.64;
+}
+
+.main-tree-row--selected {
+  color: var(--goose-interactive-selected-fg) !important;
+  background: var(--goose-interactive-selected) !important;
+}
+
+/* 选中行内图标：lucide 均为 currentColor，但默认文件/文件夹图标自带
+   text-muted-foreground 工具类，需显式覆盖；语义色图标（如读取失败红）不动。 */
+.main-tree-row--selected svg:not([class*="text-destructive"]) {
+  color: var(--goose-interactive-selected-fg);
+}
+
+/* 原行不随拖影消失：以半透明蓝色占位，持续展示来源层级和原位置。 */
+.main-tree-row--dragging {
+  color: var(--sidebar-dnd-accent) !important;
+  background: var(--sidebar-dnd-accent-soft) !important;
+  box-shadow: 0 0 0 1px var(--sidebar-dnd-accent-ring) inset !important;
+  opacity: 0.66;
+}
+
+.main-tree-row--drop-target {
+  color: hsl(var(--foreground)) !important;
+  background: var(--sidebar-dnd-accent-soft) !important;
+  box-shadow: 0 0 0 1px var(--sidebar-dnd-accent-ring) inset !important;
+}
+
+.main-tree-drop-between-line {
+  position: relative;
+  background: var(--sidebar-dnd-accent);
+  box-shadow: 0 0 7px var(--sidebar-dnd-accent-medium);
+}
+
+.main-tree-drop-between-line::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sidebar-dnd-accent);
+  box-shadow: 0 0 0 2px var(--sidebar-dnd-overlay-bg);
+  transform: translate(-50%, -50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-tree-row,
+  .main-tree-drop-between-line {
+    transition: none !important;
+  }
+}
+
+/* 4) drop 高亮态由 React 内联类控制；这里只兜底清掉 rct 默认的 dragging-over 颜色 */
+.rct-main-tree .rct-tree-item-li-dragging-over,
+.rct-main-tree .rct-tree-item-title-container-dragging-over,
+.rct-main-tree .rct-tree-item-button-dragging-over {
+  background: transparent !important;
+}
+
+/* 上面的库样式重置使用了更靠后的 !important。拖动源与行内落点必须在它
+ * 之后重新声明 background-color，否则部分 hover / dragging-over 组合只剩
+ * 蓝色描边，浅蓝填充会退回透明或中性灰。 */
+.rct-main-tree .main-tree-row.main-tree-row--dragging,
+.rct-main-tree .main-tree-row.main-tree-row--drop-target {
+  background-color: var(--sidebar-dnd-accent-soft) !important;
+  /* 原生 dragover 会持续触发树重渲染；保留 transition-colors 会让每次重渲染
+     都从透明色重新起步，实际观感就只剩描边。拖拽反馈应即时出现。 */
+  transition: none !important;
+}
+
+/* 5) rct 的非键盘聚焦态仍不显示额外边框，避免与选中背景叠加。 */
+.rct-main-tree [data-rct-item-interactive]:focus:not(:focus-visible),
+.rct-main-tree [data-rct-item-focus="true"]:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}

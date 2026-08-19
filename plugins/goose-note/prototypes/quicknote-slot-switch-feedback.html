@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>速记小窗 · 顶部便签编号确认稿</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          "DM Sans",
+          "HarmonyOS Sans SC",
+          "PingFang SC",
+          "Microsoft YaHei",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        color: #1e1e1e;
+        background: #f2f1ee;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 320px;
+        margin: 0;
+        background: #f2f1ee;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .page {
+        width: 100%;
+        max-width: 472px;
+        margin: 0 auto;
+        padding: 28px 16px 40px;
+      }
+
+      .page-header {
+        margin-bottom: 18px;
+      }
+
+      .eyebrow {
+        margin: 0 0 7px;
+        color: #6d6d6d;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 600;
+        line-height: 1.3;
+        letter-spacing: -0.02em;
+      }
+
+      .intro {
+        margin: 8px 0 0;
+        color: #6d6d6d;
+        font-size: 12px;
+        line-height: 1.65;
+      }
+
+      .window-shell {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 480px;
+        overflow: hidden;
+        border: 1px solid rgba(15, 23, 42, 0.22);
+        border-radius: 18px;
+        background: #ffffff;
+        box-shadow:
+          0 16px 34px rgba(15, 23, 42, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      }
+
+      /* 与确认过的 version-1 顶栏保持同一尺寸：46px 高，左 16px、右 12px。 */
+      .window-top,
+      .topbar {
+        height: 46px;
+      }
+
+      .window-top {
+        position: relative;
+        z-index: 3;
+        flex: 0 0 46px;
+        background: #ffffff;
+      }
+
+      .topbar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        padding: 0 12px 0 16px;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      .note-name {
+        flex: none;
+        max-width: 96px;
+        overflow: hidden;
+        color: #1e1e1e;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* 132 × 28px 的分段器绝对居中，不受左右内容宽度影响。 */
+      .slot-switcher-space {
+        position: absolute;
+        top: 9px;
+        left: 50%;
+        width: 132px;
+        height: 28px;
+        transform: translateX(-50%);
+      }
+
+      .slot-switcher {
+        display: flex;
+        width: 132px;
+        height: 28px;
+        padding: 2px;
+        border: 1px solid #dedede;
+        border-radius: 9px;
+        background: #f1f1ef;
+      }
+
+      .slot-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 25px;
+        width: 25px;
+        height: 22px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: #85827e;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+      }
+
+      .slot-button:hover {
+        background: #e8e8e6;
+        color: #343434;
+      }
+
+      .slot-button[aria-checked="true"] {
+        background: #ffffff;
+        color: #1e1e1e;
+        font-weight: 600;
+        box-shadow:
+          0 1px 4px rgba(15, 23, 42, 0.14),
+          inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+      }
+
+      /* 保留现有“收起小窗”语义：26px 控件，距右边 12px，图标 14px。 */
+      .close-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        margin-left: auto;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #8d8a86;
+        cursor: pointer;
+      }
+
+      .close-button:hover {
+        background: #f1f1ef;
+        color: #343434;
+      }
+
+      .close-button svg {
+        width: 14px;
+        height: 14px;
+        pointer-events: none;
+      }
+
+      .editor {
+        position: relative;
+        z-index: 1;
+        flex: 1;
+        min-height: 0;
+        padding: 16px 22px 24px;
+        overflow: auto;
+        outline: none;
+        color: #343434;
+        caret-color: #1e1e1e;
+        font-size: 15px;
+        line-height: 1.75;
+      }
+
+      .editor:empty:before {
+        color: #c7c5c1;
+        content: "输入 / 或、来展开菜单…";
+        pointer-events: none;
+      }
+
+      .closed-state {
+        position: absolute;
+        z-index: 2;
+        top: 46px;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: #fbfbfa;
+      }
+
+      .window-shell.is-closed .closed-state {
+        display: flex;
+      }
+
+      .window-shell.is-closed .editor {
+        visibility: hidden;
+      }
+
+      .closed-content {
+        text-align: center;
+      }
+
+      .closed-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        background: #f1f1ef;
+        color: #6d6d6d;
+        font-size: 17px;
+      }
+
+      .closed-title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .closed-note {
+        margin: 5px 0 13px;
+        color: #85817c;
+        font-size: 11px;
+      }
+
+      .reopen-button {
+        min-height: 34px;
+        padding: 7px 13px;
+        border: 1px solid #d8d7d3;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #323232;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      }
+
+      .reopen-button:hover {
+        background: #f1f1ef;
+      }
+
+      .demo-note {
+        margin: 12px 2px 0;
+        color: #85817c;
+        font-size: 11px;
+        line-height: 1.55;
+        text-align: center;
+      }
+
+      kbd {
+        min-width: 20px;
+        margin: 0 1px;
+        padding: 1px 4px;
+        border: 1px solid #d7d5d1;
+        border-bottom-color: #c5c2bd;
+        border-radius: 4px;
+        background: #ffffff;
+        color: #4d4a46;
+        font-family: inherit;
+        font-size: 10px;
+        line-height: 1.25;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
+      }
+
+      button:focus,
+      .editor:focus {
+        outline: 2px solid #6366f1;
+        outline-offset: 2px;
+      }
+
+      .editor:focus {
+        box-shadow: inset 0 0 0 2px rgba(99, 102, 241, 0.1);
+      }
+
+      @media (max-width: 440px) {
+        .page {
+          padding-top: 22px;
+        }
+
+        .window-shell {
+          height: 476px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *:before,
+        *:after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <p class="eyebrow">QUICKNOTE · FINAL DIRECTION</p>
+        <h1>顶部便签编号 · 确认稿</h1>
+        <p class="intro">编号 1–5 始终显示，当前便签使用白底高亮。</p>
+      </header>
+
+      <div class="window-shell" data-active-slot="1">
+        <div class="window-top">
+          <div class="topbar">
+            <span class="note-name">日常</span>
+            <div class="slot-switcher-space">
+              <div
+                class="slot-switcher"
+                role="radiogroup"
+                aria-label="切换便签"
+              ></div>
+            </div>
+            <button
+              class="close-button"
+              type="button"
+              aria-label="关闭速记小窗"
+              title="关闭"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="editor"
+          contenteditable="true"
+          role="textbox"
+          aria-multiline="true"
+          aria-label="便签正文"
+        ></div>
+
+        <div class="closed-state" aria-hidden="true">
+          <div class="closed-content">
+            <span class="closed-icon" aria-hidden="true">✓</span>
+            <p class="closed-title">小窗已收起</p>
+            <p class="closed-note">原型不会真的关闭页面，便于继续确认。</p>
+            <button class="reopen-button" type="button">重新打开</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="demo-note">
+        点击顶部编号，或按 <kbd>Alt</kbd> + <kbd>1–5</kbd> 切换；右上角
+        <kbd>×</kbd> 演示收起。
+      </p>
+    </main>
+
+    <script>
+      (function () {
+        var shell = document.querySelector(".window-shell");
+        var switcher = shell.querySelector(".slot-switcher");
+        var closeButton = shell.querySelector(".close-button");
+        var reopenButton = shell.querySelector(".reopen-button");
+
+        function switchSlot(slot, focusButton) {
+          var buttons = shell.querySelectorAll(".slot-button");
+          var i;
+          if (shell.classList.contains("is-closed")) return;
+
+          shell.setAttribute("data-active-slot", String(slot));
+          for (i = 0; i < buttons.length; i += 1) {
+            var isActive =
+              Number(buttons[i].getAttribute("data-slot")) === slot;
+            buttons[i].setAttribute(
+              "aria-checked",
+              isActive ? "true" : "false",
+            );
+            buttons[i].tabIndex = isActive ? 0 : -1;
+            if (isActive && focusButton) buttons[i].focus();
+          }
+        }
+
+        for (var slot = 1; slot <= 5; slot += 1) {
+          (function (currentSlot) {
+            var button = document.createElement("button");
+            button.className = "slot-button";
+            button.type = "button";
+            button.textContent = String(currentSlot);
+            button.setAttribute("role", "radio");
+            button.setAttribute("data-slot", String(currentSlot));
+            button.setAttribute("aria-label", "切换到便签 " + currentSlot);
+            button.setAttribute(
+              "aria-checked",
+              currentSlot === 1 ? "true" : "false",
+            );
+            button.tabIndex = currentSlot === 1 ? 0 : -1;
+            button.addEventListener("click", function () {
+              switchSlot(currentSlot, false);
+            });
+            switcher.appendChild(button);
+          })(slot);
+        }
+
+        closeButton.addEventListener("click", function () {
+          shell.classList.add("is-closed");
+          shell
+            .querySelector(".closed-state")
+            .setAttribute("aria-hidden", "false");
+          reopenButton.focus();
+        });
+
+        reopenButton.addEventListener("click", function () {
+          shell.classList.remove("is-closed");
+          shell
+            .querySelector(".closed-state")
+            .setAttribute("aria-hidden", "true");
+          closeButton.focus();
+        });
+
+        window.addEventListener("keydown", function (event) {
+          if (!event.altKey || event.ctrlKey || event.metaKey) return;
+          if (!/^[1-5]$/.test(event.key)) return;
+          event.preventDefault();
+          switchSlot(Number(event.key), false);
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,445 @@
+/* BlockNote xl-ai AI 菜单样式覆盖：把 Mantine 默认外观对齐项目设计系统。
+   目标：选中文字 → 点 AI 图标后弹出的 input + 命令列表。
+   覆盖原 CSS：@blocknote/xl-ai/style.css 与 @blocknote/mantine/style.css。 */
+
+/* ---------- Popover 卡片（input + items 共用容器） ---------- */
+.bn-combobox {
+  /* xl-ai 默认 width:100% 会跟着块锚点被撑满整行。
+     浮层外壳由 Floating UI 定宽；内部 combobox 吃满外壳，
+     避免「块宽 100% + 菜单居中」把输入框甩到标题正下方。 */
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 240px;
+  max-width: 100% !important;
+  padding: 6px;
+  gap: 2px;
+  border-radius: 14px;
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border: 1px solid hsl(var(--border) / 0.7);
+  box-shadow:
+    0 8px 22px rgba(15, 23, 42, 0.08),
+    0 1px 2px rgba(15, 23, 42, 0.04);
+  font-family: var(--font-default, inherit);
+}
+
+/* Floating UI 外层：没有可用宽度信息时的兜底宽度 */
+.goose-ai-menu-floating {
+  box-sizing: border-box;
+  width: 320px;
+  max-width: min(360px, calc(100vw - 16px));
+}
+
+.dark .bn-combobox,
+.bn-root.dark .bn-combobox {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 16px 36px rgba(0, 0, 0, 0.42),
+    0 2px 8px rgba(0, 0, 0, 0.32);
+}
+
+/* 移除 xl-ai/mantine 给 input 和 items 各自加的卡片背景，让它们融入外层卡片 */
+.bn-mantine .bn-combobox-input,
+.bn-mantine .bn-combobox-items:not(:empty) {
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* 仅清 Mantine TextInput 的默认 padding；
+ * 不要波及 .goose-ai-prompt-field__textarea，否则会抹掉首行垂直 padding，
+ * 导致图标按 36px 居中、文字贴顶 → 视觉上「没对齐第一行」。 */
+.bn-mantine .bn-combobox .bn-combobox-input.mantine-Input-input,
+.bn-mantine .bn-combobox .bn-combobox-input.mantine-TextInput-input {
+  padding-inline-start: 34px !important;
+  padding-inline-end: 12px !important;
+}
+
+/* ---------- Input 行（多行 textarea + 自动增高） ----------
+ * 布局契约：
+ * - 永远 row：图标与「第一行文字」并排
+ * - 图标中心 = 首行文字中心（同一套 pad-y + line-height）
+ * - JS 量高时包含 padding，避免高度只算内容把图标顶歪
+ */
+.goose-ai-prompt-field {
+  --goose-ai-line: 20px;
+  --goose-ai-pad-y: 8px;
+  --goose-ai-icon-slot: 36px;
+  --goose-ai-icon: 22px;
+  --goose-ai-row: calc(var(--goose-ai-pad-y) * 2 + var(--goose-ai-line));
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0;
+  min-height: var(--goose-ai-row);
+  border-radius: 10px;
+  background: hsl(var(--muted) / 0.55);
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.6);
+  transition: box-shadow 120ms ease-out, background-color 120ms ease-out;
+}
+
+.goose-ai-prompt-field:hover {
+  background: hsl(var(--muted) / 0.75);
+}
+
+.goose-ai-prompt-field:focus-within {
+  background: hsl(var(--muted) / 0.75);
+  box-shadow: inset 0 0 0 1px hsl(var(--border));
+}
+
+.goose-ai-prompt-field--disabled {
+  opacity: 0.92;
+}
+
+.goose-ai-prompt-field__icon {
+  flex: 0 0 var(--goose-ai-icon-slot);
+  width: var(--goose-ai-icon-slot);
+  /* 与 textarea 首行行盒同高，内部垂直居中图标 → 对齐首行中线 */
+  height: var(--goose-ai-row);
+  min-height: var(--goose-ai-row);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  pointer-events: none;
+  align-self: flex-start;
+  line-height: 0;
+}
+
+.goose-ai-prompt-field__icon .bn-combobox-icon {
+  width: var(--goose-ai-icon);
+  height: var(--goose-ai-icon);
+  flex: 0 0 var(--goose-ai-icon);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  line-height: 0;
+}
+
+.goose-ai-prompt-field__textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box !important;
+  /* border-box：height 含 padding，与图标槽 --goose-ai-row 同一套度量 */
+  min-height: var(--goose-ai-row) !important;
+  max-height: 148px; /* 6 行内容 + 上下 padding */
+  height: var(--goose-ai-row);
+  margin: 0 !important;
+  /* 必须 !important：否则会被 .bn-mantine .bn-combobox-input 的 padding 清零 */
+  padding: var(--goose-ai-pad-y) 12px var(--goose-ai-pad-y) 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  resize: none;
+  outline: none;
+  color: hsl(var(--popover-foreground));
+  font-size: 13px !important;
+  line-height: var(--goose-ai-line) !important;
+  font-family: inherit;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  vertical-align: top;
+  field-sizing: content;
+}
+
+.goose-ai-prompt-field__textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+  /* placeholder 单行省略，避免撑开高度错觉 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: var(--goose-ai-line);
+}
+
+.goose-ai-prompt-field__textarea:disabled {
+  cursor: default;
+  opacity: 1;
+  color: hsl(var(--muted-foreground));
+}
+
+.goose-ai-prompt-field--with-right .goose-ai-prompt-field__textarea {
+  padding-inline-end: 4px !important;
+}
+
+.goose-ai-prompt-field__right {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: flex-start;
+  height: var(--goose-ai-row);
+  min-height: var(--goose-ai-row);
+  min-width: 36px;
+  padding: 0 6px 0 0;
+  pointer-events: auto;
+  z-index: 2;
+  border-radius: 0 10px 10px 0;
+  box-sizing: border-box;
+}
+
+/* 兼容仍走 Mantine TextInput 的路径（若有） */
+.bn-combobox .bn-combobox-input {
+  margin: 0;
+}
+
+.bn-combobox .bn-combobox-input .mantine-Input-wrapper {
+  --input-height: 36px;
+  height: 36px;
+  background: transparent;
+}
+
+.bn-mantine .bn-combobox .bn-combobox-input .mantine-TextInput-input,
+.bn-mantine .bn-combobox .bn-combobox-input .mantine-Input-input {
+  height: 34px !important;
+  min-height: 34px !important;
+  padding-inline-start: 34px;
+  padding-inline-end: 12px;
+  border-radius: 10px;
+  border: 0;
+  background: hsl(var(--muted) / 0.55);
+  color: hsl(var(--popover-foreground));
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.6);
+  transition: box-shadow 120ms ease-out, background-color 120ms ease-out;
+}
+
+.bn-mantine .bn-combobox .bn-combobox-input .mantine-Input-input::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+
+.bn-combobox .mantine-Input-section[data-position="left"] {
+  width: 36px;
+  pointer-events: none;
+}
+
+.bn-combobox .mantine-Input-section[data-position="right"] {
+  width: auto;
+  min-width: 36px;
+  padding-inline-end: 6px;
+  pointer-events: auto;
+  z-index: 2;
+  background: hsl(var(--muted));
+  border-radius: 0 10px 10px 0;
+}
+
+.bn-combobox .bn-combobox-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  color: hsl(var(--primary)); /* 与 AiButton 共用项目主题强调色 */
+}
+
+.bn-combobox .bn-combobox-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.goose-ai-menu-busy-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.goose-ai-menu-stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--goose-interactive-selected);
+  color: var(--goose-interactive-selected-fg);
+  cursor: pointer;
+  transition: filter 120ms ease-out;
+}
+
+.goose-ai-menu-stop:hover {
+  filter: brightness(1.05);
+}
+
+.goose-ai-menu-stop:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+/* ---------- Items 列表 ---------- */
+.bn-mantine .bn-combobox-items:not(:empty) {
+  /* xl-ai 默认 max-width: 50% 会让列表挤到一边，去掉 */
+  max-width: none !important;
+  width: 100% !important;
+  margin-top: 4px !important;
+  padding: 4px 0 0 !important;
+  gap: 1px !important;
+  border-top: 1px solid hsl(var(--border) / 0.5) !important;
+}
+
+/* 当列表为空（仅输入态），藏掉分隔线 */
+.bn-combobox-items:empty {
+  border-top: 0;
+  margin-top: 0;
+  padding: 0;
+}
+
+/*
+ * 特异性至少 .bn-mantine .bn-suggestion-menu-item（0,2,0），
+ * 才能盖过 Mantine：.bn-mantine .bn-suggestion-menu-item {
+ *   color: var(--menu-item-color, var(--mantine-color-text));
+ * }
+ * 以及标题上的 var(--bn-colors-menu-text) 浅色默认值。
+ */
+.bn-mantine .bn-suggestion-menu-item {
+  --group-gap: 10px !important;
+  --menu-item-color: hsl(var(--popover-foreground));
+  --bn-colors-menu-text: hsl(var(--popover-foreground));
+  /* 与 22px 图标槽对齐：上下对称，单行时图标/文字视觉居中 */
+  padding: 6px 8px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: hsl(var(--popover-foreground));
+  cursor: pointer;
+  transition: background-color 100ms ease-out;
+  flex-wrap: nowrap !important;
+  /* 单行项：图标与标题垂直居中（用户标注的问题） */
+  align-items: center !important;
+  height: auto !important;
+  min-height: 34px;
+}
+
+.bn-mantine .bn-suggestion-menu-item:hover {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground));
+  --menu-item-color: hsl(var(--accent-foreground));
+  --bn-colors-menu-text: hsl(var(--accent-foreground));
+}
+
+/* 键盘选中项与全局列表选中态同级：鸢尾靛蓝浅底 + 强调文字 */
+.bn-mantine .bn-suggestion-menu-item[aria-selected="true"] {
+  background: var(--goose-interactive-selected) !important;
+  color: var(--goose-interactive-selected-fg);
+  --menu-item-color: var(--goose-interactive-selected-fg);
+  --bn-colors-menu-text: var(--goose-interactive-selected-fg);
+}
+
+/* 左侧图标：与标题同高 22px 槽，内部居中 glyph */
+.bn-mantine .bn-suggestion-menu-item .bn-mt-suggestion-menu-item-section[data-position="left"] {
+  width: 22px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  flex: 0 0 22px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  align-self: center !important;
+  margin: 0 !important;
+  margin-inline-end: 10px !important;
+  padding: 0 !important;
+  line-height: 0 !important;
+  color: hsl(var(--muted-foreground));
+}
+
+.bn-mantine .bn-suggestion-menu-item:hover .bn-mt-suggestion-menu-item-section[data-position="left"] {
+  color: hsl(var(--accent-foreground));
+}
+
+.bn-mantine .bn-suggestion-menu-item[aria-selected="true"] .bn-mt-suggestion-menu-item-section[data-position="left"] {
+  color: var(--goose-interactive-selected-fg);
+}
+
+.bn-mantine .bn-suggestion-menu-item .bn-mt-suggestion-menu-item-section svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block;
+  flex-shrink: 0;
+}
+
+/* 标题列：与图标垂直居中；line-height 固定等于图标槽，避免字盒偏高 */
+.bn-mantine .bn-suggestion-menu-item .bn-mt-suggestion-menu-item-body {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center !important;
+  align-self: center !important;
+  padding: 0 8px 0 0 !important;
+  gap: 0 !important;
+  min-height: 22px;
+}
+
+.bn-mantine .bn-suggestion-menu-item .bn-mt-suggestion-menu-item-title {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  /* 与图标槽同高，glyph 在行盒内光学居中 */
+  line-height: 22px !important;
+  height: 22px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: hsl(var(--popover-foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+/* small 项不展示副标题；若将来有副标题，整行改为顶对齐以免挤扁 */
+.bn-mantine .bn-suggestion-menu-item-small .bn-mt-suggestion-menu-item-subtitle:not(:empty) {
+  display: none;
+}
+
+.bn-mantine .bn-suggestion-menu-item:hover .bn-mt-suggestion-menu-item-title {
+  color: hsl(var(--accent-foreground));
+}
+
+.bn-mantine .bn-suggestion-menu-item[aria-selected="true"] .bn-mt-suggestion-menu-item-title {
+  color: var(--goose-interactive-selected-fg);
+}
+
+.bn-mantine .bn-suggestion-menu-item .bn-mt-suggestion-menu-item-subtitle {
+  font-size: 11px !important;
+  line-height: 1.3 !important;
+  color: hsl(var(--muted-foreground));
+}
+
+.bn-mantine .bn-suggestion-menu-item .bn-mt-suggestion-menu-item-subtitle:empty {
+  display: none;
+}
+
+/* ---------- AI 结果回显区（thinking / error / 流式文本） ---------- */
+.bn-ai-menu,
+.bn-ai-prompt-suggestion {
+  border-radius: 14px;
+}
+
+/* xl-ai 的 modification highlight：与项目 selection 高亮风格保持一致（弱化默认色） */
+ins,
+[data-type="modification"] {
+  color: inherit;
+  background: hsl(var(--accent) / 0.65);
+  border-bottom: 1px solid hsl(var(--border));
+  text-decoration: none;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+.dark ins,
+.dark [data-type="modification"] {
+  background: hsl(var(--accent) / 0.45);
+  border-bottom-color: hsl(var(--border) / 0.8);
+}

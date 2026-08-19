@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI 菜单布局验收 · 位置 + 多行首行并排</title>
+  <style>
+    :root {
+      --bg: #1a1a18;
+      --card: #2a2a28;
+      --muted: #3a3a36;
+      --fg: #e8e6e1;
+      --muted-fg: #9a9890;
+      --border: rgba(255,255,255,0.1);
+      --accent: rgba(99,102,241,0.35);
+      --primary: #818cf8;
+      --line: 20px;
+      --pad-y: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      padding: 28px;
+      line-height: 1.5;
+    }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    .sub { color: var(--muted-fg); font-size: 13px; margin-bottom: 24px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: #222220;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .label {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    .label.bad { background: rgba(239,68,68,0.2); color: #fca5a5; }
+    .label.good { background: rgba(34,197,94,0.2); color: #86efac; }
+    .doc {
+      background: #1e1e1c;
+      border-radius: 10px;
+      padding: 16px 18px;
+      min-height: 220px;
+      position: relative;
+      border: 1px solid var(--border);
+    }
+    .doc h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .doc .summary {
+      background: rgba(200,180,120,0.18);
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      color: #d4d0c4;
+    }
+    .doc .heading {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 12px 0 8px;
+      color: #c8c4ba;
+    }
+    .doc p {
+      font-size: 13px;
+      color: var(--muted-fg);
+      margin: 0;
+    }
+
+    /* BAD: 旧布局 — 菜单被撑满块宽 + 居中，多行时图标像单独一行 */
+    .menu-bad {
+      margin: 12px auto 12px;
+      width: 100%;
+      max-width: 100%;
+      padding: 6px;
+      border-radius: 14px;
+      background: #2c2c2a;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+    }
+    .field-bad {
+      display: flex;
+      flex-direction: column; /* 故意错误：图标在上 */
+      align-items: stretch;
+      gap: 4px;
+      min-height: 36px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      padding: 8px 10px;
+    }
+    .field-bad .icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      background: rgba(129,140,248,0.25);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .field-bad .text {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--fg);
+      white-space: pre-wrap;
+    }
+
+    /* GOOD: 新布局 — 固定宽、start 对齐、首行与图标并排 */
+    .menu-good {
+      margin: 12px 0;
+      width: 320px;
+      max-width: 100%;
+      padding: 6px;
+      border-radius: 14px;
+      background: #2c2c2a;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+    }
+    .field-good {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: flex-start;
+      min-height: calc(var(--pad-y) * 2 + var(--line));
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+    }
+    .field-good .icon-col {
+      flex: 0 0 36px;
+      width: 36px;
+      height: calc(var(--pad-y) * 2 + var(--line));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .field-good .icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      background: rgba(129,140,248,0.25);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .field-good .text {
+      flex: 1 1 auto;
+      min-width: 0;
+      margin: 0;
+      padding: var(--pad-y) 12px var(--pad-y) 0;
+      font-size: 13px;
+      line-height: var(--line);
+      color: var(--fg);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted-fg);
+    }
+    .checks {
+      margin-top: 28px;
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #222220;
+    }
+    .checks h3 { margin: 0 0 10px; font-size: 14px; }
+    .checks li { font-size: 13px; margin: 6px 0; color: #c8c4ba; }
+    .ok { color: #86efac; }
+  </style>
+</head>
+<body>
+  <h1>行内 AI 菜单 · 布局验收</h1>
+  <p class="sub">对照图中问题：① 位置不对（满宽 + 居中挂在标题下）② 多行时第一行未与图标并排</p>
+
+  <div class="grid">
+    <div class="panel">
+      <span class="label bad">BEFORE · 有问题</span>
+      <div class="doc">
+        <h2>一句话总结</h2>
+        <div class="summary">pi-mono 与 Pi SDK 没有任何关系，同名纯属巧合…</div>
+        <div class="heading">pi-mono 是什么</div>
+        <div class="menu-bad">
+          <div class="field-bad">
+            <div class="icon">✦</div>
+            <div class="text">使用
+把「第二周」改成更口语的汇报口吻，保留列表结构</div>
+          </div>
+        </div>
+        <p>定位：构建 AI Agent 的 TypeScript monorepo 工具包…</p>
+      </div>
+      <p class="note">问题：菜单被撑满整块宽度且视觉居中；图标独占一行，正文掉到下方。</p>
+    </div>
+
+    <div class="panel">
+      <span class="label good">AFTER · 已修</span>
+      <div class="doc">
+        <h2>一句话总结</h2>
+        <div class="summary">pi-mono 与 Pi SDK 没有任何关系，同名纯属巧合…</div>
+        <div class="heading">pi-mono 是什么</div>
+        <div class="menu-good">
+          <div class="field-good">
+            <div class="icon-col"><div class="icon">✦</div></div>
+            <div class="text">使用
+把「第二周」改成更口语的汇报口吻，保留列表结构</div>
+          </div>
+        </div>
+        <p>定位：构建 AI Agent 的 TypeScript monorepo 工具包…</p>
+      </div>
+      <p class="note">修复：固定 320px、bottom-start 锚点；flex row + nowrap，首行与图标并排，多行在图标右侧展开。</p>
+    </div>
+  </div>
+
+  <div class="checks">
+    <h3>验收清单</h3>
+    <ul>
+      <li class="ok">✓ 菜单不再被块宽撑满整行</li>
+      <li class="ok">✓ 锚点 start 对齐，不落在标题正中下方</li>
+      <li class="ok">✓ 单行 / 多行：第一行文字与 ✦ 图标水平并排</li>
+      <li class="ok">✓ 多行时文字在图标右侧向下扩展，图标不换行到独立行</li>
+    </ul>
+  </div>
+</body>
+</html>

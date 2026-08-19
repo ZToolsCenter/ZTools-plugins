@@ -1,0 +1,22 @@
+/*
+ * 保存失败属于需要用户立即处理的状态，但不能挡在正在输入的正文中央。
+ * Toaster 容器固定在窗口底部安全区，编辑器末端预留同等空间；静态 px 写法兼容
+ * uTools 的旧 Chromium 内核。
+ */
+.quicknote-toaster[data-sonner-toaster] {
+  --width: min(356px, calc(100vw - 48px));
+}
+
+.quicknote-root .page-scroll-container {
+  scroll-padding-bottom: 108px;
+}
+
+.quicknote-editor-surface
+  .workspace-editor-surface.max-w-none
+  .bn-editor {
+  padding-bottom: 108px;
+}
+
+.quicknote-editor-surface .bn-block-outer {
+  scroll-margin-bottom: 108px;
+}

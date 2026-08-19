@@ -1,0 +1,516 @@
+/* ===== Code Theme CSS Variables ===== */
+/* Shiki handles syntax highlighting via inline styles (ProseMirror decorations).
+   These CSS variables control background/border/line-number colors for the code block shell. */
+
+:root {
+  --code-bg: hsl(var(--background));
+  --code-fg: hsl(var(--foreground) / 0.95);
+  --code-border: hsl(var(--border) / 0.4);
+  --code-line-number: hsl(var(--muted-foreground) / 0.72);
+  --code-toolbar-chip-bg: hsl(var(--muted) / 0.92);
+  --code-toolbar-chip-hover-bg: hsl(var(--accent) / 0.95);
+  --code-toolbar-chip-active-bg: hsl(var(--accent) / 0.86);
+  --code-toolbar-chip-fg: hsl(var(--foreground) / 0.9);
+  --code-toolbar-chip-active-fg: hsl(var(--foreground));
+  --code-token-comment: #6a737d;
+  --code-token-keyword: #d73a49;
+  --code-token-string: #032f62;
+  --code-token-number: #005cc5;
+  --code-token-function: #6f42c1;
+  --code-token-type: #e36209;
+  --code-token-operator: #d73a49;
+  --code-token-variable: #24292f;
+}
+
+.dark {
+  --code-bg: hsl(var(--background) / 0.94);
+  --code-border: hsl(var(--border) / 0.4);
+  --code-line-number: hsl(var(--muted-foreground) / 0.78);
+  --code-toolbar-chip-bg: hsl(var(--muted) / 0.72);
+  --code-toolbar-chip-hover-bg: hsl(var(--accent) / 0.92);
+  --code-toolbar-chip-active-bg: hsl(var(--accent) / 0.85);
+  --code-toolbar-chip-fg: hsl(var(--foreground) / 0.92);
+  --code-toolbar-chip-active-fg: hsl(var(--foreground));
+  --code-token-comment: #8b949e;
+  --code-token-keyword: #ff7b72;
+  --code-token-string: #a5d6ff;
+  --code-token-number: #79c0ff;
+  --code-token-function: #d2a8ff;
+  --code-token-type: #ffa657;
+  --code-token-operator: #ff7b72;
+  --code-token-variable: #c9d1d9;
+}
+
+/* ===== Theme-specific variable overrides ===== */
+
+:root[data-code-theme="github-light"] {
+  --code-bg: #ffffff;
+  --code-fg: #24292f;
+  --code-border: #d0d7de;
+  --code-line-number: #6e7781;
+  --code-toolbar-chip-bg: rgba(246, 248, 250, 0.92);
+  --code-toolbar-chip-hover-bg: rgba(208, 215, 222, 0.58);
+  --code-toolbar-chip-active-bg: rgba(208, 215, 222, 0.72);
+  --code-toolbar-chip-fg: #57606a;
+  --code-toolbar-chip-active-fg: #24292f;
+  --code-token-comment: #6a737d;
+  --code-token-keyword: #d73a49;
+  --code-token-string: #032f62;
+  --code-token-number: #005cc5;
+  --code-token-function: #6f42c1;
+  --code-token-type: #e36209;
+  --code-token-operator: #d73a49;
+  --code-token-variable: #24292f;
+}
+
+:root[data-code-theme="github-dark"] {
+  --code-bg: #0d1117;
+  --code-fg: #c9d1d9;
+  --code-border: #30363d;
+  --code-line-number: #484f58;
+  --code-toolbar-chip-bg: rgba(22, 27, 34, 0.92);
+  --code-toolbar-chip-hover-bg: rgba(48, 54, 61, 0.82);
+  --code-toolbar-chip-active-bg: rgba(56, 139, 253, 0.18);
+  --code-toolbar-chip-fg: #8b949e;
+  --code-toolbar-chip-active-fg: #c9d1d9;
+  --code-token-comment: #8b949e;
+  --code-token-keyword: #ff7b72;
+  --code-token-string: #a5d6ff;
+  --code-token-number: #79c0ff;
+  --code-token-function: #d2a8ff;
+  --code-token-type: #ffa657;
+  --code-token-operator: #ff7b72;
+  --code-token-variable: #c9d1d9;
+}
+
+/* Catppuccin 官方 Highlight.js 配色：亮色使用 Latte，暗色使用 Mocha。 */
+:root[data-code-theme="catppuccin-latte"] {
+  --code-bg: #eff1f5;
+  --code-fg: #4c4f69;
+  --code-border: #bcc0cc;
+  --code-line-number: #9ca0b0;
+  --code-toolbar-chip-bg: rgba(204, 208, 218, 0.9);
+  --code-toolbar-chip-hover-bg: rgba(188, 192, 204, 0.82);
+  --code-toolbar-chip-active-bg: rgba(114, 135, 253, 0.2);
+  --code-toolbar-chip-fg: #6c6f85;
+  --code-toolbar-chip-active-fg: #4c4f69;
+  --code-token-comment: #7c7f93;
+  --code-token-keyword: #8839ef;
+  --code-token-string: #40a02b;
+  --code-token-number: #fe640b;
+  --code-token-function: #1e66f5;
+  --code-token-type: #df8e1d;
+  --code-token-operator: #04a5e5;
+  --code-token-variable: #8839ef;
+}
+
+:root[data-code-theme="catppuccin-mocha"] {
+  --code-bg: #1e1e2e;
+  --code-fg: #cdd6f4;
+  --code-border: #45475a;
+  --code-line-number: #6c7086;
+  --code-toolbar-chip-bg: rgba(49, 50, 68, 0.92);
+  --code-toolbar-chip-hover-bg: rgba(69, 71, 90, 0.86);
+  --code-toolbar-chip-active-bg: rgba(180, 190, 254, 0.2);
+  --code-toolbar-chip-fg: #a6adc8;
+  --code-toolbar-chip-active-fg: #cdd6f4;
+  --code-token-comment: #9399b2;
+  --code-token-keyword: #cba6f7;
+  --code-token-string: #a6e3a1;
+  --code-token-number: #fab387;
+  --code-token-function: #89b4fa;
+  --code-token-type: #f9e2af;
+  --code-token-operator: #89dceb;
+  --code-token-variable: #cba6f7;
+}
+
+:root[data-code-theme="one-light"] {
+  --code-bg: #fafafa;
+  --code-fg: #383a42;
+  --code-border: #e6e6e6;
+  --code-line-number: #a0a1a7;
+  --code-toolbar-chip-bg: rgba(240, 240, 240, 0.92);
+  --code-toolbar-chip-hover-bg: rgba(220, 220, 220, 0.78);
+  --code-toolbar-chip-active-bg: rgba(209, 210, 214, 0.82);
+  --code-toolbar-chip-fg: #696c77;
+  --code-toolbar-chip-active-fg: #383a42;
+  --code-token-comment: #a0a1a7;
+  --code-token-keyword: #a626a4;
+  --code-token-string: #50a14f;
+  --code-token-number: #986801;
+  --code-token-function: #4078f2;
+  --code-token-type: #c18401;
+  --code-token-operator: #0184bc;
+  --code-token-variable: #383a42;
+}
+
+:root[data-code-theme="one-dark"] {
+  --code-bg: #282c34;
+  --code-fg: #abb2bf;
+  --code-border: #21252b;
+  --code-line-number: #495162;
+  --code-toolbar-chip-bg: rgba(33, 37, 43, 0.9);
+  --code-toolbar-chip-hover-bg: rgba(73, 81, 98, 0.52);
+  --code-toolbar-chip-active-bg: rgba(97, 175, 239, 0.18);
+  --code-toolbar-chip-fg: #9da5b4;
+  --code-toolbar-chip-active-fg: #d7dae0;
+  --code-token-comment: #5c6370;
+  --code-token-keyword: #c678dd;
+  --code-token-string: #98c379;
+  --code-token-number: #d19a66;
+  --code-token-function: #61afef;
+  --code-token-type: #e5c07b;
+  --code-token-operator: #56b6c2;
+  --code-token-variable: #abb2bf;
+}
+
+:root[data-code-theme="atom-light"] {
+  --code-bg: #ffffff;
+  --code-fg: #333;
+  --code-border: #dbdbdb;
+  --code-line-number: #999;
+  --code-toolbar-chip-bg: rgba(244, 244, 244, 0.92);
+  --code-toolbar-chip-hover-bg: rgba(219, 219, 219, 0.72);
+  --code-toolbar-chip-active-bg: rgba(219, 219, 219, 0.9);
+  --code-toolbar-chip-fg: #666;
+  --code-toolbar-chip-active-fg: #333;
+  --code-token-comment: #999;
+  --code-token-keyword: #a626a4;
+  --code-token-string: #50a14f;
+  --code-token-number: #986801;
+  --code-token-function: #4078f2;
+  --code-token-type: #c18401;
+  --code-token-operator: #0184bc;
+  --code-token-variable: #333;
+}
+
+:root[data-code-theme="dracula"] {
+  --code-bg: #282a36;
+  --code-fg: #f8f8f2;
+  --code-border: #44475a;
+  --code-line-number: #6272a4;
+  --code-toolbar-chip-bg: rgba(68, 71, 90, 0.62);
+  --code-toolbar-chip-hover-bg: rgba(98, 114, 164, 0.42);
+  --code-toolbar-chip-active-bg: rgba(189, 147, 249, 0.24);
+  --code-toolbar-chip-fg: #cfcfe8;
+  --code-toolbar-chip-active-fg: #f8f8f2;
+  --code-token-comment: #6272a4;
+  --code-token-keyword: #ff79c6;
+  --code-token-string: #f1fa8c;
+  --code-token-number: #bd93f9;
+  --code-token-function: #50fa7b;
+  --code-token-type: #8be9fd;
+  --code-token-operator: #ff79c6;
+  --code-token-variable: #f8f8f2;
+}
+
+:root[data-code-theme="tokyo-night"] {
+  --code-bg: #1a1b26;
+  --code-fg: #c0caf5;
+  --code-border: #292e42;
+  --code-line-number: #565f89;
+  --code-toolbar-chip-bg: rgba(41, 46, 66, 0.72);
+  --code-toolbar-chip-hover-bg: rgba(86, 95, 137, 0.42);
+  --code-toolbar-chip-active-bg: rgba(122, 162, 247, 0.22);
+  --code-toolbar-chip-fg: #a9b1d6;
+  --code-toolbar-chip-active-fg: #c0caf5;
+  --code-token-comment: #565f89;
+  --code-token-keyword: #bb9af7;
+  --code-token-string: #9ece6a;
+  --code-token-number: #ff9e64;
+  --code-token-function: #7aa2f7;
+  --code-token-type: #2ac3de;
+  --code-token-operator: #89ddff;
+  --code-token-variable: #c0caf5;
+}
+
+:root[data-code-theme="nord"] {
+  --code-bg: #2e3440;
+  --code-fg: #d8dee9;
+  --code-border: #3b4252;
+  --code-line-number: #616e88;
+  --code-toolbar-chip-bg: rgba(59, 66, 82, 0.72);
+  --code-toolbar-chip-hover-bg: rgba(76, 86, 106, 0.62);
+  --code-toolbar-chip-active-bg: rgba(136, 192, 208, 0.2);
+  --code-toolbar-chip-fg: #c3ccdc;
+  --code-toolbar-chip-active-fg: #eceff4;
+  --code-token-comment: #616e88;
+  --code-token-keyword: #81a1c1;
+  --code-token-string: #a3be8c;
+  --code-token-number: #b48ead;
+  --code-token-function: #88c0d0;
+  --code-token-type: #8fbcbb;
+  --code-token-operator: #81a1c1;
+  --code-token-variable: #d8dee9;
+}
+
+:root[data-code-theme="nord-light"] {
+  --code-bg: #eceff4;
+  --code-fg: #2e3440;
+  --code-border: #d8dee9;
+  --code-line-number: #8f98aa;
+  --code-toolbar-chip-bg: rgba(229, 233, 240, 0.92);
+  --code-toolbar-chip-hover-bg: rgba(216, 222, 233, 0.86);
+  --code-toolbar-chip-active-bg: rgba(191, 204, 219, 0.86);
+  --code-toolbar-chip-fg: #4c566a;
+  --code-toolbar-chip-active-fg: #2e3440;
+  --code-token-comment: #8f98aa;
+  --code-token-keyword: #5e81ac;
+  --code-token-string: #4f894c;
+  --code-token-number: #8f5f9f;
+  --code-token-function: #3b6ea8;
+  --code-token-type: #087d8f;
+  --code-token-operator: #5e81ac;
+  --code-token-variable: #2e3440;
+}
+
+:root[data-code-theme="github-light-mod"] {
+  --code-bg: #d5d6db;
+  --code-fg: #343b58;
+  --code-border: #c0c2cc;
+  --code-line-number: #9699a3;
+  --code-toolbar-chip-bg: rgba(237, 238, 244, 0.86);
+  --code-toolbar-chip-hover-bg: rgba(192, 194, 204, 0.76);
+  --code-toolbar-chip-active-bg: rgba(86, 95, 137, 0.18);
+  --code-toolbar-chip-fg: #5f6380;
+  --code-toolbar-chip-active-fg: #343b58;
+  --code-token-comment: #9699a3;
+  --code-token-keyword: #8f5f9f;
+  --code-token-string: #485e30;
+  --code-token-number: #965027;
+  --code-token-function: #34548a;
+  --code-token-type: #166775;
+  --code-token-operator: #5a4a78;
+  --code-token-variable: #343b58;
+}
+
+.goose-code-block-node .hljs-comment,
+.goose-code-block-node .hljs-quote {
+  color: var(--code-token-comment);
+  font-style: italic;
+}
+
+.goose-code-block-node .hljs-keyword,
+.goose-code-block-node .hljs-selector-tag,
+.goose-code-block-node .hljs-built_in,
+.goose-code-block-node .hljs-name {
+  color: var(--code-token-keyword);
+}
+
+.goose-code-block-node .hljs-string,
+.goose-code-block-node .hljs-attr,
+.goose-code-block-node .hljs-selector-attr,
+.goose-code-block-node .hljs-selector-pseudo,
+.goose-code-block-node .hljs-regexp {
+  color: var(--code-token-string);
+}
+
+.goose-code-block-node .hljs-number,
+.goose-code-block-node .hljs-literal,
+.goose-code-block-node .hljs-symbol,
+.goose-code-block-node .hljs-bullet {
+  color: var(--code-token-number);
+}
+
+.goose-code-block-node .hljs-title,
+.goose-code-block-node .hljs-title.function_,
+.goose-code-block-node .hljs-function,
+.goose-code-block-node .hljs-function .hljs-title {
+  color: var(--code-token-function);
+}
+
+.goose-code-block-node .hljs-class .hljs-title,
+.goose-code-block-node .hljs-title.class_,
+.goose-code-block-node .hljs-type,
+.goose-code-block-node .hljs-section {
+  color: var(--code-token-type);
+}
+
+.goose-code-block-node .hljs-operator,
+.goose-code-block-node .hljs-punctuation,
+.goose-code-block-node .hljs-subst {
+  color: var(--code-token-operator);
+}
+
+.goose-code-block-node .hljs-variable,
+.goose-code-block-node .hljs-template-variable,
+.goose-code-block-node .hljs-params {
+  color: var(--code-token-variable);
+}
+
+.goose-code-block-node .hljs-emphasis {
+  font-style: italic;
+}
+
+.goose-code-block-node .hljs-strong {
+  font-weight: 600;
+}
+
+.goose-code-block-node .hljs-code {
+  color: var(--code-token-string);
+}
+
+.goose-code-block-node .hljs-link {
+  color: var(--code-token-function);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Catppuccin Highlight.js 的完整语义映射。基础分组保留给其他主题，
+   这里用更高特异度还原 Latte / Mocha 官方 token 角色。 */
+:root[data-code-theme="catppuccin-latte"] .goose-code-block-node {
+  --ctp-red: #d20f39;
+  --ctp-peach: #fe640b;
+  --ctp-yellow: #df8e1d;
+  --ctp-green: #40a02b;
+  --ctp-teal: #179299;
+  --ctp-sky: #04a5e5;
+  --ctp-sapphire: #209fb5;
+  --ctp-blue: #1e66f5;
+  --ctp-mauve: #8839ef;
+  --ctp-pink: #ea76cb;
+  --ctp-flamingo: #dd7878;
+  --ctp-text: #4c4f69;
+  --ctp-subtext0: #6c6f85;
+  --ctp-overlay2: #7c7f93;
+  --ctp-subtext1: #5c5f77;
+  --ctp-addition-bg: rgba(64, 160, 43, 0.15);
+  --ctp-deletion-bg: rgba(210, 15, 57, 0.15);
+}
+
+:root[data-code-theme="catppuccin-mocha"] .goose-code-block-node {
+  --ctp-red: #f38ba8;
+  --ctp-peach: #fab387;
+  --ctp-yellow: #f9e2af;
+  --ctp-green: #a6e3a1;
+  --ctp-teal: #94e2d5;
+  --ctp-sky: #89dceb;
+  --ctp-sapphire: #74c7ec;
+  --ctp-blue: #89b4fa;
+  --ctp-mauve: #cba6f7;
+  --ctp-pink: #f5c2e7;
+  --ctp-flamingo: #f2cdcd;
+  --ctp-text: #cdd6f4;
+  --ctp-subtext0: #a6adc8;
+  --ctp-overlay2: #9399b2;
+  --ctp-subtext1: #bac2de;
+  --ctp-addition-bg: rgba(166, 227, 161, 0.15);
+  --ctp-deletion-bg: rgba(243, 139, 168, 0.15);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(
+    .hljs-keyword,
+    .hljs-name,
+    .hljs-variable,
+    .hljs-variable.language_,
+    .hljs-selector-attr
+  ) {
+  color: var(--ctp-mauve);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(.hljs-built_in, .hljs-doctag, .hljs-emphasis, .hljs-strong) {
+  color: var(--ctp-red);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(.hljs-type, .hljs-title.class_, .hljs-selector-tag) {
+  color: var(--ctp-yellow);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(.hljs-literal, .hljs-number, .hljs-variable.constant_, .hljs-meta) {
+  color: var(--ctp-peach);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(.hljs-operator) {
+  color: var(--ctp-sky);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(.hljs-punctuation) {
+  color: var(--ctp-subtext1);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(
+    .hljs-property,
+    .hljs-tag,
+    .hljs-bullet,
+    .hljs-formula,
+    .hljs-selector-class,
+    .hljs-selector-pseudo
+  ) {
+  color: var(--ctp-teal);
+}
+
+:root[data-code-theme^="catppuccin-"] .goose-code-block-node :is(.hljs-regexp) {
+  color: var(--ctp-pink);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(.hljs-string, .hljs-char.escape_, .hljs-attribute, .hljs-code) {
+  color: var(--ctp-green);
+}
+
+:root[data-code-theme^="catppuccin-"] .goose-code-block-node :is(.hljs-subst) {
+  color: var(--ctp-subtext0);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(.hljs-symbol, .hljs-template-tag, .hljs-template-variable) {
+  color: var(--ctp-flamingo);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(
+    .hljs-title,
+    .hljs-title.function_,
+    .hljs-section,
+    .hljs-attr,
+    .hljs-selector-id
+  ) {
+  color: var(--ctp-blue);
+}
+
+:root[data-code-theme^="catppuccin-"] .goose-code-block-node :is(.hljs-params) {
+  color: var(--ctp-text);
+}
+
+:root[data-code-theme^="catppuccin-"]
+  .goose-code-block-node
+  :is(.hljs-comment) {
+  color: var(--ctp-overlay2);
+}
+
+:root[data-code-theme^="catppuccin-"] .goose-code-block-node :is(.hljs-link) {
+  color: var(--ctp-sapphire);
+  font-style: italic;
+}
+
+:root[data-code-theme^="catppuccin-"] .goose-code-block-node :is(.hljs-quote) {
+  color: var(--ctp-green);
+  font-style: italic;
+}
+
+:root[data-code-theme^="catppuccin-"] .goose-code-block-node .hljs-addition {
+  color: var(--ctp-green);
+  background: var(--ctp-addition-bg);
+}
+
+:root[data-code-theme^="catppuccin-"] .goose-code-block-node .hljs-deletion {
+  color: var(--ctp-red);
+  background: var(--ctp-deletion-bg);
+}
