@@ -36,7 +36,6 @@ import {
   useEditorPageContext,
   useEditorSettings,
 } from "@/components/editor/platform/hostContext";
-import { useEditorPlatform } from "@/components/editor/platform/context";
 import type { AISettingsLike } from "@/lib/ai-provider/types";
 import {
   formatAiMenuError,
@@ -106,7 +105,6 @@ export function GooseAIMenu(props: AIMenuProps) {
   const ai = useExtension(AIExtension);
   const { page } = useEditorPageContext();
   const { ai: aiSettings } = useEditorSettings();
-  const platform = useEditorPlatform();
   const dict = useAIDictionary();
   const [prompt, setPrompt] = useState("");
   /** 本地 markdown 改写忙态（不依赖 xl-ai status）。 */
@@ -345,7 +343,6 @@ export function GooseAIMenu(props: AIMenuProps) {
         const newMarkdown = await runInlineMarkdownRewrite({
           settings: aiSettings as AISettingsLike,
           modelId,
-          getCustomFetch: () => platform.ai.customFetch,
           userPrompt,
           oldMarkdown: target.oldMarkdown,
           abortSignal: abortController.signal,
@@ -419,7 +416,6 @@ export function GooseAIMenu(props: AIMenuProps) {
       aiSettings,
       editor,
       page,
-      platform,
       rememberPrompt,
       reopenMenuWithPrompt,
     ],

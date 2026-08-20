@@ -28,8 +28,6 @@ const FIXED_APP_SHORTCUTS = getFixedAppShortcuts()
 
 /** 单标签模式下 UI 与热键均禁用的自定义动作，不参与冲突占用。 */
 const TAB_ONLY_APP_SHORTCUT_IDS = new Set([
-  "navBack",
-  "navForward",
   "newTab",
 ])
 
@@ -349,27 +347,27 @@ export function SettingsShortcuts({
             resetValue={DEFAULT_APP_SHORTCUTS.toggleTheme}
           />
         </div>
-        {!singleTabMode && <>
-          <div className="mt-2">
+        <div className="mt-2">
           <ShortcutField
             id="shortcut-nav-back"
             title="后退"
-            description="返回上一个浏览的标签页历史。"
+            description="返回上一个选中的文件或浏览位置，鼠标后退键同样生效。"
             value={appShortcuts.navBack ?? DEFAULT_APP_SHORTCUTS.navBack}
             onChange={safeSetAppShortcut("navBack")}
             resetValue={DEFAULT_APP_SHORTCUTS.navBack}
           />
-          </div>
-          <div className="mt-2">
+        </div>
+        <div className="mt-2">
           <ShortcutField
             id="shortcut-nav-forward"
             title="前进"
-            description="前往下一个标签页历史。"
+            description="前往下一个选中的文件或浏览位置，鼠标前进键同样生效。"
             value={appShortcuts.navForward ?? DEFAULT_APP_SHORTCUTS.navForward}
             onChange={safeSetAppShortcut("navForward")}
             resetValue={DEFAULT_APP_SHORTCUTS.navForward}
           />
-          </div>
+        </div>
+        {!singleTabMode && <>
           <div className="mt-2">
           <ShortcutField
             id="shortcut-new-tab"

@@ -190,6 +190,8 @@ const RUNTIME_STYLE_ID = "goose-accent-runtime-vars";
 
 function ensureRuntimeStyleEl(): HTMLStyleElement | null {
   if (typeof document === "undefined") return null;
+  if (typeof document.getElementById !== "function") return null;
+  if (typeof document.createElement !== "function") return null;
   let el = document.getElementById(RUNTIME_STYLE_ID) as HTMLStyleElement | null;
   if (!el) {
     el = document.createElement("style");
@@ -204,6 +206,7 @@ function writeAccentRuntimeTokens(
   root: HTMLElement,
   accentColor: AccentColor,
 ): void {
+  if (!root?.style?.setProperty) return;
   const tokens = resolveAccentRuntimeTokens(
     accentColor,
     isDarkDocument(root),
@@ -262,6 +265,7 @@ export function applyAccentColor(accentColor: AccentColor): void {
 export function syncAccentColorCssVars(): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
+  if (!root || typeof root.getAttribute !== "function") return;
   const accentAttr = root.getAttribute("data-goose-accent");
   const accentColor = (accentAttr ?? "mono") as AccentColor;
   writeAccentRuntimeTokens(root, accentColor);

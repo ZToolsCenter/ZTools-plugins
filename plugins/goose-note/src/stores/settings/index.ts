@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { uToolsStorage } from "@/lib/storage";
 import { applyAccentColor, syncAccentColorCssVars } from "@/lib/accentColor";
-import { normalizeCardThemeId } from "@/lib/imageExport";
+import { normalizeCardThemeId } from "@/lib/imageExport/themes";
 
 import type {
   Theme,

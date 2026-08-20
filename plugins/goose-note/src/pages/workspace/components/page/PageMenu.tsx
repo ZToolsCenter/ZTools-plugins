@@ -83,12 +83,20 @@ export function PageMenu() {
   };
 
   const runExport = (label: string, task: () => Promise<unknown>) => {
+    if (page?.isFolder) {
+      toast.error("文件夹不能直接导出，请打开其中的笔记再导出");
+      return;
+    }
     const toastId = toast.loading(`正在导出 ${label}…`);
     void task()
       .then(() => toast.success(`${label} 已导出`, { id: toastId }))
       .catch((error) => {
         console.error(`[export] ${label} 失败:`, error);
-        toast.error(`${label} 导出失败`, { id: toastId });
+        const message = error instanceof Error ? error.message : "";
+        toast.error(
+          message ? `${label} 导出失败：${message}` : `${label} 导出失败`,
+          { id: toastId },
+        );
       });
   };
 

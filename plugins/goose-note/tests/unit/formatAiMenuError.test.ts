@@ -28,4 +28,7 @@ test("block not found 映射成可操作中文，不暴露 Tool execution failed
 test("其它错误仍走原映射", () => {
   expect(formatAiMenuError(new Error("Failed to fetch"))).toContain("网络");
   expect(formatAiMenuError(new Error("invalid api key"))).toContain("密钥");
+  expect(formatAiMenuError(new Error("Invalid JSON response"))).toContain(
+    "返回格式异常",
+  );
 });

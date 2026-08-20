@@ -126,9 +126,10 @@ test("single-tab mode ignores inactive tab-only shortcuts for conflict detection
     isMac,
     true,
   );
-  // 单标签下后退/前进/新建标签/关标签与标签切换热键均不生效，不应占用。
-  expect(singleTab).not.toContain(normalizeShortcutForConflict("Mod+[", isMac));
-  expect(singleTab).not.toContain(normalizeShortcutForConflict("Mod+]", isMac));
+  // 单标签下新建标签/关标签与标签切换热键均不生效，不应占用。
+  // 后退/前进仍用于文件浏览历史，继续占用。
+  expect(singleTab).toContain(normalizeShortcutForConflict("Mod+[", isMac));
+  expect(singleTab).toContain(normalizeShortcutForConflict("Mod+]", isMac));
   expect(singleTab).not.toContain(normalizeShortcutForConflict("Mod+T", isMac));
   expect(singleTab).not.toContain(normalizeShortcutForConflict("Mod+W", isMac));
   expect(singleTab).not.toContain(normalizeShortcutForConflict("Mod+1", isMac));

@@ -9,7 +9,7 @@
      避免「块宽 100% + 菜单居中」把输入框甩到标题正下方。 */
   box-sizing: border-box;
   width: 100% !important;
-  min-width: 240px;
+  min-width: 360px;
   max-width: 100% !important;
   padding: 6px;
   gap: 2px;
@@ -26,8 +26,8 @@
 /* Floating UI 外层：没有可用宽度信息时的兜底宽度 */
 .goose-ai-menu-floating {
   box-sizing: border-box;
-  width: 320px;
-  max-width: min(360px, calc(100vw - 16px));
+  width: 520px;
+  max-width: min(560px, calc(100vw - 16px));
 }
 
 .dark .bn-combobox,

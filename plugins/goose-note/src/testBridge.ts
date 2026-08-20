@@ -1,4 +1,5 @@
 import { useTabs } from "@/stores/useTabs";
+import { useFileNavHistory } from "@/stores/useFileNavHistory";
 import { usePages } from "@/stores/usePages";
 import { useNotebooks } from "@/stores/useNotebooks";
 import { useSettings } from "@/stores/useSettings";
@@ -169,14 +170,16 @@ export function installTestBridge() {
       setActiveTab: (tabId: string) => useTabs.getState().setActiveTab(tabId),
       createPage: (parentId?: string, workspaceId?: string) =>
         usePages.getState().createPage(parentId, workspaceId),
-      resetTabs: () =>
+      resetTabs: () => {
+        useFileNavHistory.getState().reset();
         useTabs.setState({
           openTabs: [],
           activeTabId: null,
           tabHistory: [],
           tabHistoryIndex: -1,
           recentlyClosedPageIds: [],
-        }),
+        });
+      },
 
       getAiRuntime: () => resolveNotebookAiRuntime(),
 

@@ -118,7 +118,8 @@ import {
   clipboardHasPasteableMedia,
 } from "@/components/editor/utils/pasteClipboardImage";
 import { uploadEditorFile } from "@/components/editor/utils/uploadEditorFile";
-import { fileStorage, getFileUploadAvailability } from "@/lib/fileStorage";
+import { fileStorage } from "@/lib/fileStorage";
+import { getFileUploadAvailability } from "@/lib/fileUploadAvailability";
 import { copyImageSrcToClipboard } from "@/components/editor/image/imageUtils";
 
 export interface EditorRef {

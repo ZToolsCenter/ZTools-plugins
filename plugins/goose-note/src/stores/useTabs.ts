@@ -5,6 +5,14 @@ import { useNotebooks } from "./useNotebooks";
 import { useSettings } from "./useSettings";
 import { normalizeAutoCloseInactiveTabsHours } from "./settings/types";
 import { getPageTitle } from "@/components/editor/utils/page-title";
+import { useSidebarView } from "./useSidebarView";
+import {
+  FILE_NAV_WELCOME,
+  fileNavKeyForTab,
+  pageFileNavKey,
+  parseFileNavKey,
+  useFileNavHistory,
+} from "./useFileNavHistory";
 
 export const WELCOME_TAB_PAGE_ID = "welcome";
 export const NOTEBOOK_AI_TAB_PAGE_ID_PREFIX = "notebook-ai:";
@@ -248,22 +256,71 @@ export const useTabs = create<TabsState>()((set, get) => {
   };
 
   const pushTabHistory = (tabId: string) => {
-    const { tabHistory, tabHistoryIndex, isHistoryNavigating } = get();
+    const { tabHistory, tabHistoryIndex, isHistoryNavigating, openTabs } =
+      get();
     if (isHistoryNavigating) return;
 
     const currentTabId =
       tabHistoryIndex >= 0 && tabHistoryIndex < tabHistory.length
         ? tabHistory[tabHistoryIndex]
         : null;
-    if (currentTabId === tabId) return;
+    if (currentTabId !== tabId) {
+      const nextHistory = tabHistory.slice(0, tabHistoryIndex + 1);
+      nextHistory.push(tabId);
+      set({
+        tabHistory: nextHistory,
+        tabHistoryIndex: nextHistory.length - 1,
+      });
+    }
 
-    const nextHistory = tabHistory.slice(0, tabHistoryIndex + 1);
-    nextHistory.push(tabId);
+    const tab = openTabs.find((item) => item.id === tabId);
+    if (tab) useFileNavHistory.getState().push(fileNavKeyForTab(tab));
+  };
 
-    set({
-      tabHistory: nextHistory,
-      tabHistoryIndex: nextHistory.length - 1,
-    });
+  const restoreFileNavLocation = (key: string): boolean => {
+    const location = parseFileNavKey(key);
+    if (location.type === "ai-panel") {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("goose-note:open-ai-panel"));
+      }
+      return true;
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("goose-note:close-ai-panel-if-fullscreen"),
+      );
+    }
+    if (location.type === "welcome") {
+      get().openWelcomeTab();
+      return true;
+    }
+    const page = usePages.getState().getPage(location.pageId);
+    if (!page || page.trashedAt) return false;
+    get().openPreviewTab(page.id);
+    if (page.workspaceId) {
+      const sidebar = useSidebarView.getState();
+      sidebar.setSelected(page.workspaceId, page.id);
+      sidebar.setFocused(page.workspaceId, page.id);
+    }
+    return true;
+  };
+
+  const stepFileNavHistory = (direction: "back" | "forward") => {
+    const nav = useFileNavHistory.getState();
+    const canMove =
+      direction === "back" ? nav.canBack() : nav.canForward();
+    if (!canMove) return;
+
+    nav.markNavigating(true);
+    try {
+      while (direction === "back" ? nav.canBack() : nav.canForward()) {
+        const key =
+          direction === "back" ? nav.moveBack() : nav.moveForward();
+        if (key && restoreFileNavLocation(key)) return;
+      }
+    } finally {
+      nav.markNavigating(false);
+    }
   };
 
   const resolveTabIdInHistory = (
@@ -290,6 +347,7 @@ export const useTabs = create<TabsState>()((set, get) => {
           isHistoryNavigating: false,
         });
       }
+      useFileNavHistory.getState().push(pageFileNavKey(pageId));
       get().syncNotebookForPage(pageId);
       void scheduleSetActivePage(pageId);
       return;
@@ -330,6 +388,7 @@ export const useTabs = create<TabsState>()((set, get) => {
       tabHistoryIndex: 0,
       isHistoryNavigating: false,
     });
+    useFileNavHistory.getState().push(pageFileNavKey(pageId));
     get().syncNotebookForPage(pageId);
     await scheduleSetActivePage(pageId);
   };
@@ -367,6 +426,7 @@ export const useTabs = create<TabsState>()((set, get) => {
       tabHistoryIndex: 0,
       isHistoryNavigating: false,
     });
+    useFileNavHistory.getState().push(FILE_NAV_WELCOME);
     await scheduleSetActivePage(null);
   };
 
@@ -818,82 +878,26 @@ export const useTabs = create<TabsState>()((set, get) => {
     },
 
     goBackTabHistory: () => {
-      if (useSettings.getState().singleTabMode) return;
-      const { tabHistory, tabHistoryIndex, openTabs } = get();
-      if (tabHistoryIndex <= 0) return;
-
-      const validTabIds = new Set(openTabs.map((tab) => tab.id));
-      const sanitizedHistory = tabHistory.filter((tabId) =>
-        validTabIds.has(tabId),
-      );
-      const sanitizedIndex = clampHistoryIndex(
-        sanitizedHistory.length,
-        tabHistoryIndex,
-      );
-      if (sanitizedIndex <= 0) {
-        set({ tabHistory: sanitizedHistory, tabHistoryIndex: sanitizedIndex });
-        return;
-      }
-
-      const targetIndex = sanitizedIndex - 1;
-      const targetTabId = sanitizedHistory[targetIndex];
-      set({
-        tabHistory: sanitizedHistory,
-        tabHistoryIndex: sanitizedIndex,
-        isHistoryNavigating: true,
-      });
+      set({ isHistoryNavigating: true });
       try {
-        get().setActiveTab(targetTabId);
-        set({ tabHistoryIndex: targetIndex });
+        stepFileNavHistory("back");
       } finally {
         set({ isHistoryNavigating: false });
       }
     },
 
     goForwardTabHistory: () => {
-      if (useSettings.getState().singleTabMode) return;
-      const { tabHistory, tabHistoryIndex, openTabs } = get();
-      if (tabHistoryIndex >= tabHistory.length - 1) return;
-
-      const validTabIds = new Set(openTabs.map((tab) => tab.id));
-      const sanitizedHistory = tabHistory.filter((tabId) =>
-        validTabIds.has(tabId),
-      );
-      const sanitizedIndex = clampHistoryIndex(
-        sanitizedHistory.length,
-        tabHistoryIndex,
-      );
-      if (sanitizedIndex >= sanitizedHistory.length - 1) {
-        set({ tabHistory: sanitizedHistory, tabHistoryIndex: sanitizedIndex });
-        return;
-      }
-
-      const targetIndex = sanitizedIndex + 1;
-      const targetTabId = sanitizedHistory[targetIndex];
-      set({
-        tabHistory: sanitizedHistory,
-        tabHistoryIndex: sanitizedIndex,
-        isHistoryNavigating: true,
-      });
+      set({ isHistoryNavigating: true });
       try {
-        get().setActiveTab(targetTabId);
-        set({ tabHistoryIndex: targetIndex });
+        stepFileNavHistory("forward");
       } finally {
         set({ isHistoryNavigating: false });
       }
     },
 
-    canGoBackTabHistory: () => {
-      if (useSettings.getState().singleTabMode) return false;
-      const { tabHistoryIndex } = get();
-      return tabHistoryIndex > 0;
-    },
+    canGoBackTabHistory: () => useFileNavHistory.getState().canBack(),
 
-    canGoForwardTabHistory: () => {
-      if (useSettings.getState().singleTabMode) return false;
-      const { tabHistory, tabHistoryIndex } = get();
-      return tabHistoryIndex >= 0 && tabHistoryIndex < tabHistory.length - 1;
-    },
+    canGoForwardTabHistory: () => useFileNavHistory.getState().canForward(),
 
     reorderTabs: (from: number, to: number) => {
       if (useSettings.getState().singleTabMode) return;
@@ -1001,6 +1005,7 @@ export const useTabs = create<TabsState>()((set, get) => {
     },
 
     clearAllTabs: () => {
+      useFileNavHistory.getState().reset();
       set({
         openTabs: [],
         activeTabId: null,

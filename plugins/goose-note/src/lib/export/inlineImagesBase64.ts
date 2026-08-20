@@ -3,7 +3,18 @@ import { blobToBase64 } from "@/lib/imageStorage/utils";
 import {
   isLocalFilePath,
   readLocalFileAsBase64,
+  resolveToAbsolute,
 } from "@/lib/imageStorage/strategies/file-system";
+
+function resolveLocalMediaPath(
+  src: string,
+  pageLocalFilePath?: string | null,
+): string | null {
+  if (src.startsWith("/") || /^[A-Za-z]:[\\/]/.test(src)) return src;
+  if (!pageLocalFilePath) return null;
+  const dir = pageLocalFilePath.replace(/[\\/][^\\/]+$/, "");
+  return dir ? resolveToAbsolute(dir, src) : null;
+}
 
 let imageStoragePromise: Promise<{
   imageStorage: { load: (ref: string) => Promise<Blob | null> };
@@ -52,17 +63,17 @@ export async function inlineExportMediaAsBase64(
         } catch (e) {
           console.warn("[export] 内联图片失败 (uuid/att):", src, e);
         }
-      } else if (
-        isLocalFilePath(src) &&
-        (src.startsWith("/") || /^[A-Za-z]:[\\/]/.test(src))
-      ) {
-        try {
-          const base64 = readLocalFileAsBase64(src);
-          if (base64) {
-            mutableProps.url = `data:${guessMimeFromPath(src)};base64,${base64}`;
+      } else if (isLocalFilePath(src)) {
+        const abs = resolveLocalMediaPath(src, pageLocalFilePath);
+        if (abs) {
+          try {
+            const base64 = readLocalFileAsBase64(abs);
+            if (base64) {
+              mutableProps.url = `data:${guessMimeFromPath(abs)};base64,${base64}`;
+            }
+          } catch (e) {
+            console.warn("[export] 内联图片失败 (local file):", abs, e);
           }
-        } catch (e) {
-          console.warn("[export] 内联图片失败 (local file):", src, e);
         }
       }
     }

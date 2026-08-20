@@ -53,7 +53,7 @@ export async function createPdfBlockMappings() {
         }}
       >
         <Text style={{ marginRight: 4 }}>{icon}</Text>
-        <Text style={{ flex: 1 }}>{exporter.transformInlineContent(block.content)}</Text>
+        <Text style={{ flex: 1 }}>{exporter.transformInlineContent(Array.isArray(block.content) ? block.content : [])}</Text>
       </View>
     ) as unknown as ReactElement<typeof Text>;
   };

@@ -17,6 +17,31 @@ const fileRef = "att-file:goose-file/report.pdf";
 const audioRef = "att-file:goose-file/chime.mp3";
 const videoRef = "att-video:goose-file/clip.mp4";
 
+
+function installDomStub(documentElement: any) {
+  if (!documentElement.style) {
+    documentElement.style = { setProperty() {}, removeProperty() {} };
+  }
+  if (typeof documentElement.getAttribute !== "function") {
+    documentElement.getAttribute = () => null;
+    documentElement.setAttribute = () => undefined;
+    documentElement.removeAttribute = () => undefined;
+  }
+
+  const styleEl = { type: "", textContent: "", appendChild() {}, setAttribute() {}, style: {} };
+  (globalThis as any).document = {
+    documentElement,
+    head: { appendChild() {} },
+    body: { appendChild() {} },
+    getElementsByTagName: (tag: string) => (tag === "head" ? [(globalThis as any).document.head] : []),
+    getElementById: () => null,
+    createElement: () => ({ ...styleEl, id: "" }),
+    createTextNode: (text: string) => ({ textContent: text, nodeType: 3 }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+}
+
 class TestFileReader {
   result: string | ArrayBuffer | null = null;
   error: unknown = null;
@@ -95,7 +120,7 @@ function installAttachmentRuntime(onGetAttachment?: (id: string) => void) {
     removeAttribute: () => undefined,
   };
 
-  (globalThis as any).document = { documentElement };
+  installDomStub(documentElement);
   (globalThis as any).window = {
     matchMedia: () => ({
       matches: false,
@@ -131,17 +156,15 @@ function installDbRuntime() {
   const dbStorage = new Map<string, string>();
   const classes = new Set<string>();
 
-  (globalThis as any).document = {
-    documentElement: {
-      classList: {
-        add: (className: string) => classes.add(className),
-        remove: (className: string) => classes.delete(className),
-        contains: (className: string) => classes.has(className),
-      },
-      setAttribute: () => undefined,
-      removeAttribute: () => undefined,
+  installDomStub({
+    classList: {
+      add: (className: string) => classes.add(className),
+      remove: (className: string) => classes.delete(className),
+      contains: (className: string) => classes.has(className),
     },
-  };
+    setAttribute: () => undefined,
+    removeAttribute: () => undefined,
+  });
 
   (globalThis as any).window = {
     matchMedia: () => ({
@@ -600,17 +623,15 @@ test("generateExportZip reuses bundled attachment refs before repeated loads", a
 test("generateExportZip keeps same relative image names separate across local folders", async () => {
   const reads: string[] = [];
   const classes = new Set<string>();
-  (globalThis as any).document = {
-    documentElement: {
-      classList: {
-        add: (className: string) => classes.add(className),
-        remove: (className: string) => classes.delete(className),
-        contains: (className: string) => classes.has(className),
-      },
-      setAttribute: () => undefined,
-      removeAttribute: () => undefined,
+  installDomStub({
+    classList: {
+      add: (className: string) => classes.add(className),
+      remove: (className: string) => classes.delete(className),
+      contains: (className: string) => classes.has(className),
     },
-  };
+    setAttribute: () => undefined,
+    removeAttribute: () => undefined,
+  });
   (globalThis as any).window = {
     matchMedia: () => ({
       matches: false,

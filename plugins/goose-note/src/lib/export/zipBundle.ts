@@ -1,15 +1,13 @@
 import type { Page } from "@/types";
 import type { BlockNoteContent } from "@/components/editor/utils/blocknote-content";
+import { cloneExportBlocks } from "./prepareExportBlocks";
 import type JSZipNs from "jszip";
 import { useNotebooks } from "@/stores/useNotebooks";
 import { getPageTitle } from "@/components/editor/utils/page-title";
 import { blobToBase64 } from "@/lib/imageStorage/utils";
-import {
-  normalizePageContent,
-  createEmptyBlockNoteContent,
-} from "@/components/editor/utils/blocknote-content";
+import { createEmptyBlockNoteContent } from "@/components/editor/utils/blocknote-content";
 import { buildExportMarkdown, buildExportHtmlBody } from "./pageMarkdown";
-import { renderExportHtml } from "./index";
+import { renderExportHtml } from "./exportHtmlDocument";
 import { importFromMarkdown } from "./markdown/parse";
 import type { ImportResult } from "./markdown/parse";
 import { saveBlobAndReveal } from "./fileSave";
@@ -290,9 +288,12 @@ function sanitizeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "_") || "untitled";
 }
 
-function normalizeExportContent(content: Page["content"]): BlockNoteContent {
+function normalizeExportContent(
+  content: Page["content"],
+  isLocalFolderPage = false,
+): BlockNoteContent {
   try {
-    return normalizePageContent(content);
+    return cloneExportBlocks(content, { ensureFirstTitle: !isLocalFolderPage });
   } catch (error) {
     console.warn("[export] normalize page content failed:", error);
     return createEmptyBlockNoteContent();
@@ -462,7 +463,7 @@ export async function generateExportZip(
 
     for (const page of notebookMetadataPages) {
       const pageClone = structuredClone(page) as Page;
-      pageClone.content = normalizeExportContent(pageClone.content);
+      pageClone.content = normalizeExportContent(pageClone.content, Boolean(page.localFilePath));
       await extractImagesFromContent(
         pageClone.content,
         assetsFolder,

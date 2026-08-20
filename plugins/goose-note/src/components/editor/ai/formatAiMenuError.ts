@@ -39,6 +39,9 @@ export function formatAiMenuError(error: unknown): string {
   if (/abort|cancel|停止/i.test(message)) {
     return "已停止";
   }
+  if (/invalid json response/i.test(message)) {
+    return "模型返回格式异常，请换模型或稍后再试";
+  }
   return message;
 }
 
