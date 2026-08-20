@@ -12,11 +12,12 @@ import {
   EDITOR_FONT_SIZE_DEFAULT,
   DEFAULT_UI_FONT_SIZE,
 } from "../types";
-import type { WatermarkConfig, CardThemeId } from "@/lib/imageExport";
+import type { CardThemeId } from "@/lib/imageExport/themes";
+import type { WatermarkConfig } from "@/lib/imageExport/watermark";
 import {
   DEFAULT_WATERMARK_CONFIG,
   normalizeWatermarkConfig,
-} from "@/lib/imageExport";
+} from "@/lib/imageExport/watermark";
 
 export interface AppearanceSliceState {
   theme: Theme;

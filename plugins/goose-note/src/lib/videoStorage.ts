@@ -1,5 +1,3 @@
-import { useNotebooks } from "@/stores/useNotebooks";
-import { usePages } from "@/stores/usePages";
 import { UToolsAdapter } from "@/lib/utools";
 import { fs } from "@/lib/utools/fs";
 import { blobToBase64 } from "@/lib/imageStorage/utils";
@@ -14,7 +12,11 @@ export const MAX_VIDEO_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 const VIDEO_ATTACHMENT_PREFIX = "att-video:";
 const VIDEO_ID_PREFIX = "goose-video/";
 
-function currentLocalPagePath(): string | null {
+async function currentLocalPagePath(): Promise<string | null> {
+  const [{ usePages }, { useNotebooks }] = await Promise.all([
+    import("@/stores/usePages"),
+    import("@/stores/useNotebooks"),
+  ]);
   const { activePageId, pages } = usePages.getState();
   if (!activePageId) return null;
   const page = pages[activePageId];
@@ -37,7 +39,7 @@ export const videoStorage = {
     onProgress?: (progress: VideoTranscodeProgress) => void,
   ): Promise<string> {
     const video = await transcodeVideo(file, onProgress);
-    const localPagePath = currentLocalPagePath();
+    const localPagePath = await currentLocalPagePath();
 
     if (localPagePath) {
       if (!fs.isAvailable())

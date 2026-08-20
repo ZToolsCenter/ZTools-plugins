@@ -83,6 +83,8 @@ declare global {
   const EDITOR_FONT_SIZE_MAX: typeof import('./stores/settings/index').EDITOR_FONT_SIZE_MAX
   const EDITOR_FONT_SIZE_MIN: typeof import('./stores/settings/index').EDITOR_FONT_SIZE_MIN
   const EDITOR_UI_SCALE_CHANGE_EVENT: typeof import('./lib/appearance').EDITOR_UI_SCALE_CHANGE_EVENT
+  const FILE_NAV_AI_PANEL: typeof import('./stores/useFileNavHistory').FILE_NAV_AI_PANEL
+  const FILE_NAV_WELCOME: typeof import('./stores/useFileNavHistory').FILE_NAV_WELCOME
   const FIXED_APP_SHORTCUT_IDS: typeof import('./lib/fixed-app-shortcuts').FIXED_APP_SHORTCUT_IDS
   const FeatureToastCard: typeof import('./components/ui/feature-toast-card').FeatureToastCard
   const FileTrigger: typeof import('./components/ui/file-trigger').FileTrigger
@@ -266,6 +268,7 @@ declare global {
   const extractTextFromContent: typeof import('./components/editor/utils/content-text-extractor').extractTextFromContent
   const extractTitleFromContent: typeof import('./components/editor/utils/content-text-extractor').extractTitleFromContent
   const fetchCustomAIModels: typeof import('./lib/ai-provider/index').fetchCustomAIModels
+  const fileNavKeyForTab: typeof import('./stores/useFileNavHistory').fileNavKeyForTab
   const fileStorage: typeof import('./lib/fileStorage').fileStorage
   const findNonOverlappingToolbarPosition: typeof import('./components/editor/utils/formattingToolbarPosition').findNonOverlappingToolbarPosition
   const findPseudoStructureMarkers: typeof import('./lib/ai-write/index').findPseudoStructureMarkers
@@ -294,7 +297,7 @@ declare global {
   const getEditorFontFamilies: typeof import('./lib/fontLoader').getEditorFontFamilies
   const getEditorUiScale: typeof import('./components/editor/utils/editorContextUi').getEditorUiScale
   const getElementFromNode: typeof import('./components/editor/utils/selection').getElementFromNode
-  const getFileUploadAvailability: typeof import('./lib/fileStorage').getFileUploadAvailability
+  const getFileUploadAvailability: typeof import('./lib/fileUploadAvailability').getFileUploadAvailability
   const getFixedAppShortcuts: typeof import('./lib/fixed-app-shortcuts').getFixedAppShortcuts
   const getFormattingToolbarReferenceRect: typeof import('./components/editor/utils/formattingToolbarReference').getFormattingToolbarReferenceRect
   const getGlobalScrollActivitySnapshot: typeof import('./hooks/useGlobalScrollActivity').getGlobalScrollActivitySnapshot
@@ -403,8 +406,10 @@ declare global {
   const openExternalUrl: typeof import('./lib/openExternalUrl').openExternalUrl
   const openPageFromSidebar: typeof import('./lib/sidebarPageNavigation').openPageFromSidebar
   const openResourceExternally: typeof import('./components/editor/utils/openResourceExternally').openResourceExternally
+  const pageFileNavKey: typeof import('./stores/useFileNavHistory').pageFileNavKey
   const pageSettingsFromMarkdown: typeof import('./lib/local-frontmatter').pageSettingsFromMarkdown
   const parseBase64Image: typeof import('./lib/docxExport/docxImages').parseBase64Image
+  const parseFileNavKey: typeof import('./stores/useFileNavHistory').parseFileNavKey
   const parseLocalFrontmatterBlob: typeof import('./lib/local-frontmatter').parseLocalFrontmatterBlob
   const parseLocalMarkdownContent: typeof import('./lib/local-folder-scanner').parseLocalMarkdownContent
   const parseMarkdownLink: typeof import('./components/editor/utils/clipboard').parseMarkdownLink
@@ -517,6 +522,7 @@ declare global {
   const useEditorUiScale: typeof import('./components/editor/hooks/useEditorUiScale').useEditorUiScale
   const useEffect: typeof import('react').useEffect
   const useEffectEvent: typeof import('react').useEffectEvent
+  const useFileNavHistory: typeof import('./stores/useFileNavHistory').useFileNavHistory
   const useFormatCode: typeof import('./components/editor/hooks/useFormatCode').useFormatCode
   const useFormattingToolbarAi: typeof import('./components/editor/state/formattingToolbarAi').useFormattingToolbarAi
   const useGlobalScrollActivity: typeof import('./components/editor/hooks/useGlobalScrollActivity').useGlobalScrollActivity
@@ -565,6 +571,9 @@ declare global {
   // @ts-ignore
   export type { AiActivityPhase } from './stores/useAiStatus'
   import('./stores/useAiStatus')
+  // @ts-ignore
+  export type { FileNavLocation } from './stores/useFileNavHistory'
+  import('./stores/useFileNavHistory')
   // @ts-ignore
   export type { NotebookAiConversation, NotebookAiNotebookChatState, NotebookAiChatsState } from './stores/useNotebookAiChats'
   import('./stores/useNotebookAiChats')

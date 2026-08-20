@@ -7,6 +7,7 @@
  */
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useTabs, isNotebookAiTab } from "@/stores/useTabs";
+import { FILE_NAV_AI_PANEL, useFileNavHistory } from "@/stores/useFileNavHistory";
 
 const OPEN_STORAGE_KEY = "goose-note-ai-panel-open";
 const LAYOUT_STORAGE_KEY = "goose-note-ai-layout-mode";
@@ -125,6 +126,7 @@ export function useNotebookAiPanel() {
       setCapturedSelection(capture ?? null);
       setIsOpen(true);
       persistOpen(true);
+      useFileNavHistory.getState().push(FILE_NAV_AI_PANEL);
     },
     [],
   );
@@ -140,6 +142,7 @@ export function useNotebookAiPanel() {
     setIsOpen((prev) => {
       const next = !prev;
       persistOpen(next);
+      if (next) useFileNavHistory.getState().push(FILE_NAV_AI_PANEL);
       return next;
     });
   }, []);
@@ -160,10 +163,23 @@ export function useNotebookAiPanel() {
   // 暴露关闭句柄给侧栏导航等外部路径
   useEffect(() => {
     closeAiPanelHandler = close;
+    const onCloseIfFullscreen = () => {
+      if (readStoredOpen() && isFullscreenAiLayout(layoutModeRef.current)) {
+        close();
+      }
+    };
+    window.addEventListener(
+      "goose-note:close-ai-panel-if-fullscreen",
+      onCloseIfFullscreen,
+    );
     return () => {
       if (closeAiPanelHandler === close) {
         closeAiPanelHandler = null;
       }
+      window.removeEventListener(
+        "goose-note:close-ai-panel-if-fullscreen",
+        onCloseIfFullscreen,
+      );
     };
   }, [close]);
 

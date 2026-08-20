@@ -1,3 +1,7 @@
+if (window.ztools) {
+  window.utools = window.ztools
+}
+
 // B 插件（鹅的速记）preload：纯速记小窗 toggle 逻辑，无主窗联动。
 // CJS 运行在 uTools preload 上下文（Electron renderer），避免与 ESM 主项目冲突。
 //

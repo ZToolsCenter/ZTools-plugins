@@ -299,7 +299,6 @@ export function useAppHotkeys() {
           return !!s && matchesConfiguredShortcut(event, s);
         },
         when: () => {
-          if (useSettings.getState().singleTabMode) return false;
           const hasOpenModal = () =>
             !!document.querySelector(
               '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',
@@ -319,7 +318,6 @@ export function useAppHotkeys() {
           return !!s && matchesConfiguredShortcut(event, s);
         },
         when: () => {
-          if (useSettings.getState().singleTabMode) return false;
           const hasOpenModal = () =>
             !!document.querySelector(
               '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',

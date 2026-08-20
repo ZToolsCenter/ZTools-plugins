@@ -1,18 +1,13 @@
 /**
  * 行内 AI：对选区/光标块做 agent 对齐的 markdown 改写（非 xl-ai tool stream）。
- * 模型只返回 markdown 正文，由 applyMarkdownToInlineTarget 写回编辑器。
+ * 走与面板相同的 runAIText（SSE），避免 generateText 按整段 JSON 解析失败。
  */
-import { generateText } from "ai";
 import type { AISettingsLike } from "@/lib/ai-provider/types";
-import {
-  buildGooseAIModel,
-  wrapFetchToDisableThinking,
-} from "./blocknoteAITransport";
+import { runAIText } from "@/lib/ai-provider";
 
 export interface RunInlineMarkdownRewriteOptions {
   settings: AISettingsLike;
   modelId: string;
-  getCustomFetch?: () => typeof fetch | undefined;
   userPrompt: string;
   oldMarkdown: string;
   abortSignal?: AbortSignal;
@@ -39,18 +34,7 @@ function stripOuterFence(text: string): string {
 export async function runInlineMarkdownRewrite(
   options: RunInlineMarkdownRewriteOptions,
 ): Promise<string> {
-  const {
-    settings,
-    modelId,
-    getCustomFetch,
-    userPrompt,
-    oldMarkdown,
-    abortSignal,
-  } = options;
-
-  const baseFetch = getCustomFetch?.() ?? globalThis.fetch;
-  const fetchImpl = wrapFetchToDisableThinking(baseFetch);
-  const model = buildGooseAIModel(settings, modelId, fetchImpl);
+  const { settings, modelId, userPrompt, oldMarkdown, abortSignal } = options;
 
   const prompt = [
     "【当前片段 Markdown】",
@@ -62,17 +46,21 @@ export async function runInlineMarkdownRewrite(
     "请直接输出改写后的 Markdown：",
   ].join("\n");
 
-  const result = await generateText({
-    model,
-    system: SYSTEM_PROMPT,
-    prompt,
-    abortSignal,
-    maxRetries: 1,
-  });
+  const text = await runAIText(
+    settings,
+    [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: prompt },
+    ],
+    {
+      abortSignal,
+      requestOverrides: { selectedModelId: modelId },
+    },
+  );
 
-  const text = stripOuterFence(result.text ?? "");
-  if (!text) {
+  const stripped = stripOuterFence(text ?? "");
+  if (!stripped) {
     throw new Error("AI 未返回可写入的内容。");
   }
-  return text;
+  return stripped;
 }

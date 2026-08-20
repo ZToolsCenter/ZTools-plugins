@@ -4,6 +4,7 @@ import {
   type BlockNoteContent,
 } from "@/components/editor/utils/blocknote-content";
 import { extractTitleFromContent } from "@/components/editor/utils/content-text-extractor";
+import { getPageTitle } from "@/components/editor/utils/page-title";
 import { toCanvas } from "html-to-image";
 import type { CardThemeId } from "./themes";
 import { getCardTheme } from "./themes";
@@ -14,6 +15,7 @@ import { resolveImageUrls } from "./remoteImageResolver";
 import { renderMermaidBlocksAsImages } from "./mermaid";
 import { renderMathBlocksAsImages } from "./math";
 import { toast } from "@/components/ui/sonner";
+import { cloneExportBlocks } from "@/lib/export/prepareExportBlocks";
 
 const MAX_CAPTURE_PIXEL_RATIO = 3;
 const MIN_CAPTURE_PIXEL_RATIO = 0.1;
@@ -418,8 +420,10 @@ export async function exportPageToImage(
 ) {
   const theme = getCardTheme(themeId);
   const wm = normalizeWatermarkConfig(watermarkConfig);
-  const title = extractTitleFromContent(page.content);
-  const content = structuredClone(page.content) as BlockNoteContent;
+  const title = getPageTitle(page) || extractTitleFromContent(page.content);
+  const content = cloneExportBlocks(page.content, {
+    ensureFirstTitle: !page.localFilePath,
+  });
   await resolveImageUrls(content);
   await renderMermaidBlocksAsImages(content, theme);
   await renderMathBlocksAsImages(content, theme);
