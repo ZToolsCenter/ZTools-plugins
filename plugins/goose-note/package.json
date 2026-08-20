@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "bun@1.3.14",
+  "packageManager": "npm",
   "description": "A local-first, Notion-style note-taking app — a uTools plugin (also browser-runnable) built on the BlockNote block editor with built-in AI.",
   "license": "UNLICENSED",
   "engines": {
@@ -93,11 +93,11 @@
     "pinyin-pro": "^3.28.1",
     "prettier": "3.8.3",
     "prosemirror-highlight": "^0.15.1",
-    "prosemirror-model": "^1.25.4",
+    "prosemirror-model": "1.25.9",
     "prosemirror-state": "^1.4.4",
     "prosemirror-tables": "^1.8.5",
     "prosemirror-transform": "^1.12.0",
-    "prosemirror-view": "^1.41.4",
+    "prosemirror-view": "1.41.9",
     "react": "19.2.7",
     "react-complex-tree": "^2.6.1",
     "react-dom": "19.2.7",
@@ -132,11 +132,7 @@
   "overrides": {
     "zod": "4.4.3",
     "ai": "6.0.195",
-    "@ai-sdk/provider-utils": "4.0.40",
-    "prosemirror-model": "1.25.9",
-    "prosemirror-view": "1.41.9",
-    "prosemirror-state": "1.4.4",
-    "prosemirror-transform": "1.12.0"
+    "@ai-sdk/provider-utils": "4.0.40"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
