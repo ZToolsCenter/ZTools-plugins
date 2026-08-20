@@ -110,6 +110,10 @@ async function resolveSingleUrl(url: string): Promise<string | null> {
   return null;
 }
 
+export async function resolveRemoteImageToDataUrl(url: string): Promise<string | null> {
+  return resolveSingleUrl(url);
+}
+
 export async function resolveImageUrls(blocks: BlockNoteContent): Promise<void> {
   const tasks: Promise<void>[] = [];
 

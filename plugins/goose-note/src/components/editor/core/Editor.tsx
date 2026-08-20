@@ -90,7 +90,7 @@ import { gooseMarkdownInputRulesExtension } from "@/components/editor/inputrules
 import { gooseDividerInputRuleExtension } from "@/components/editor/inputrules/dividerInputRule";
 import { gooseSuppressMarkdownInSpecialBlocksExtension } from "@/components/editor/inputrules/suppressMarkdownInSpecialBlocks";
 import { gooseHeadingMarkSuppressExtension } from "@/components/editor/extensions/headingMarkSuppressExtension";
-import { gooseInlineCodeBoundaryNavigationExtension } from "@/components/editor/extensions/inlineCodeBoundaryNavigationExtension";
+import { gooseInlineCodeCaretExtension } from "@/components/editor/extensions/inlineCodeCaretExtension";
 import { gooseInlineCodeBacktickWrapExtension } from "@/components/editor/extensions/inlineCodeBacktickWrapExtension";
 import { gooseActiveListMarkerExtension } from "@/components/editor/extensions/activeListMarkerExtension";
 import { gooseFakeSelectionExtension } from "@/components/editor/extensions/fakeSelectionExtension";
@@ -118,7 +118,8 @@ import {
   clipboardHasPasteableMedia,
 } from "@/components/editor/utils/pasteClipboardImage";
 import { uploadEditorFile } from "@/components/editor/utils/uploadEditorFile";
-import { fileStorage, getFileUploadAvailability } from "@/lib/fileStorage";
+import { fileStorage } from "@/lib/fileStorage";
+import { getFileUploadAvailability } from "@/lib/fileUploadAvailability";
 import { copyImageSrcToClipboard } from "@/components/editor/image/imageUtils";
 
 export interface EditorRef {
@@ -280,7 +281,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(function Editor(
         createGooseBodyParagraphGuardExtension(usesRawEditorContentRef),
         gooseSuppressMarkdownInSpecialBlocksExtension,
         gooseHeadingMarkSuppressExtension,
-        gooseInlineCodeBoundaryNavigationExtension,
+        gooseInlineCodeCaretExtension,
         gooseInlineCodeBacktickWrapExtension,
         gooseActiveListMarkerExtension,
         gooseTabBehaviorExtension,

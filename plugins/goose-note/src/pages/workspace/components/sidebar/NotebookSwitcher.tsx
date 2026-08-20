@@ -72,15 +72,12 @@ function SortableNotebookItem({
           ? "bg-[var(--goose-interactive-selected)] text-[var(--goose-interactive-selected-fg)] hover:bg-[var(--goose-interactive-selected)]"
           : "hover:bg-[var(--goose-interactive-hover)]",
         isDragging && "opacity-60 cursor-grabbing z-10",
-        !isDragging && "cursor-grab",
+        !isDragging && "cursor-pointer",
       )}
-      {...attributes}
-      {...listeners}
       role="menuitem"
       tabIndex={-1}
-      onPointerDown={(e) => {
+      onPointerDown={() => {
         dragMoved.current = false;
-        listeners?.onPointerDown?.(e as React.PointerEvent<HTMLElement>);
       }}
       onClick={() => {
         if (dragMoved.current) {
@@ -95,6 +92,9 @@ function SortableNotebookItem({
         <span
           className={cn(
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
+            // 图标是唯一拖动手柄：hover 才 grab，行本身是 pointer 点选
+            !isDragging && "cursor-grab",
+            isDragging && "cursor-grabbing",
             // 图标底始终要比当前行底更抬一点：
             // - 未选中 hover：亮色用 chip token；暗色勿用 interactive-hover（与行 hover 同色会“消失”）
             // - 选中：亮色 chip token；暗色 white/20，hover 再抬一点
@@ -102,6 +102,9 @@ function SortableNotebookItem({
               ? "bg-[var(--goose-icon-chip-on-selected)] dark:bg-white/20 dark:group-hover:bg-white/28"
               : "group-hover:bg-[var(--goose-icon-chip-on-selected)] dark:group-hover:bg-white/14",
           )}
+          {...attributes}
+          {...listeners}
+          aria-label={`拖拽调整 ${notebook.name} 排序`}
         >
           {renderNotebookIcon(notebook.icon || "BookOpen", "h-4 w-4")}
         </span>

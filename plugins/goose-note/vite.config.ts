@@ -1,5 +1,5 @@
 import path from "path";
-import { rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { defineConfig, createLogger } from "vite";
 import react from "@vitejs/plugin-react";
 import AutoImport from "unplugin-auto-import/vite";
@@ -7,6 +7,42 @@ import { codeInspectorPlugin } from "code-inspector-plugin";
 import { debugMinify, debugSourcemap, isDebugBuild } from "./vite.debug";
 
 const hostTarget = "utools";
+
+const PDF_CJK_FONT_FILES = [
+  "NotoSansSC-Regular.ttf",
+  "NotoSansSC-Regular.otf",
+] as const;
+const PDF_CJK_FONT_URLS = [
+  "https://cdn.jsdelivr.net/gh/notofonts/noto-cjk@Sans2.004/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf",
+  "https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf",
+];
+
+async function ensurePdfCjkFont() {
+  const fontDir = path.resolve(__dirname, "public/fonts");
+  if (PDF_CJK_FONT_FILES.some((name) => existsSync(path.join(fontDir, name)))) {
+    return;
+  }
+  mkdirSync(fontDir, { recursive: true });
+  for (const url of PDF_CJK_FONT_URLS) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.byteLength < 100_000) continue;
+      writeFileSync(path.join(fontDir, "NotoSansSC-Regular.otf"), buf);
+      console.log(
+        `[pdf-font] downloaded NotoSansSC-Regular.otf (${(buf.byteLength / 1024 / 1024).toFixed(1)}MB)`,
+      );
+      return;
+    } catch (error) {
+      console.warn("[pdf-font] download failed:", url, error);
+    }
+  }
+  console.warn(
+    "[pdf-font] 未能下载 NotoSansSC，PDF 中文可能无法渲染。请手动放到 public/fonts/",
+  );
+}
+
 
 // 构建目标区分：
 // - 默认（app）：input=index.html → dist/，完整功能（plugin A 鹅的笔记）。行为与改动前一致。
@@ -200,10 +236,20 @@ export default defineConfig({
   },
   plugins: [
     {
+      name: "ensure-pdf-cjk-font",
+      async buildStart() {
+        if (!isQuicknoteBuild) await ensurePdfCjkFont();
+      },
+    },
+    {
       name: "exclude-guide-assets-from-utools",
       closeBundle() {
         const outDir = isQuicknoteBuild ? "dist-quicknote" : "dist";
         rmSync(path.resolve(__dirname, outDir, "guide"), { recursive: true, force: true });
+        // 小窗不导出 PDF，不要把 8MB CJK 字体拷进 dist-quicknote
+        if (isQuicknoteBuild) {
+          rmSync(path.resolve(__dirname, outDir, "fonts"), { recursive: true, force: true });
+        }
       },
     },
     codeInspectorPlugin({

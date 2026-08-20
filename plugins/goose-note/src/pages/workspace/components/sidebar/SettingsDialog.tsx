@@ -48,6 +48,7 @@ import { clearAllLocalMdSnapshots } from "@/lib/local-md-snapshot";
 import { removeLocalPageIdMap } from "@/lib/local-page-idmap";
 import { usePersistentDismissState } from "@/hooks/usePersistentDismissState";
 import { UToolsAdapter } from "@/lib/utools";
+import { wnd } from "@/lib/utools/window";
 import type { ExportOptions } from "@/lib/export";
 import { uToolsStorage as dataStorage } from "@/lib/storage";
 import * as LucideIcons from "lucide-react";
@@ -68,17 +69,35 @@ const SETTINGS_TABS: SettingsTabConfig[] = [
   { id: "data", label: "数据管理", icon: LucideIcons.Database },
 ];
 
-// 推荐应用数据
-const RECOMMENDED_APPS = [
+// 设置侧栏鹅应用：图标分别取自各项目 plugin.json 指向的 logo.png
+const GOOSE_APPS = [
   {
-    id: "goose-bookmark",
+    id: "goose-quicknote",
+    name: "鹅的小窗",
+    icon: "./apps/goose-quicknote.png",
+    storeQuery: "鹅的小窗",
+    url: "https://www.u-tools.cn/plugins/detail/%E9%B9%85%E7%9A%84%E5%B0%8F%E7%AA%97/",
+  },
+  {
+    id: "goose-marks",
     name: "鹅的书签",
+    icon: "./apps/goose-marks.png",
+    storeQuery: "鹅的书签",
     url: "https://www.u-tools.cn/plugins/detail/%E9%B9%85%E7%9A%84%E4%B9%A6%E7%AD%BE/",
   },
   {
-    id: "goose-billiard",
-    name: "鹅的桌球",
-    url: "https://www.u-tools.cn/plugins/detail/%E9%B9%85%E7%9A%84%E6%A1%8C%E7%90%83/",
+    id: "goose-monitor",
+    name: "鹅的监控",
+    icon: "./apps/goose-monitor.png",
+    storeQuery: "鹅的监控",
+    url: "https://www.u-tools.cn/plugins/detail/%E9%B9%85%E7%9A%84%E7%9B%91%E6%8E%A7/",
+  },
+  {
+    id: "goose-2fa",
+    name: "鹅的二次验证",
+    icon: "./apps/goose-2fa.png",
+    storeQuery: "鹅的二次验证（2FA）",
+    url: "https://www.u-tools.cn/plugins/detail/%E9%B9%85%E7%9A%84%E4%BA%8C%E6%AC%A1%E9%AA%8C%E8%AF%81%EF%BC%882FA%EF%BC%89/",
   },
 ];
 
@@ -689,8 +708,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     dismissAppsBanner();
   };
 
-  const handleOpenAppUrl = (url: string) => {
-    UToolsAdapter.openUrl(url, false);
+  const handleOpenApp = (app: (typeof GOOSE_APPS)[number]) => {
+    // 官方：redirect 未找到指令时会跳转插件应用市场并搜索该名称
+    // https://www.u-tools.cn/docs/developer/api-reference/utools/window.html
+    if (wnd.redirect(["插件应用市场", "插件应用市场搜一搜"], app.storeQuery)) return;
+    if (wnd.redirect("插件应用市场搜一搜", app.storeQuery)) return;
+    if (wnd.redirect(app.storeQuery)) return;
+    UToolsAdapter.openUrl(app.url, false);
   };
 
   return (
@@ -715,23 +739,28 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   type="button"
                   onClick={handleCloseAppsBanner}
                   className="absolute right-1.5 top-1.5 inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-[var(--goose-icon-chip-on-selected)] hover:text-foreground dark:hover:bg-[var(--goose-interactive-hover)]"
-                  aria-label="关闭推荐应用"
+                  aria-label="关闭鹅的全家桶"
                 >
                   <LucideIcons.X className="h-3 w-3" />
                 </button>
                 <p className="mb-2 pr-4 text-xs font-medium text-muted-foreground">
-                  探索更多应用
+                  鹅的全家桶
                 </p>
                 <div className="space-y-1">
-                  {RECOMMENDED_APPS.map((app) => (
+                  {GOOSE_APPS.map((app) => (
                     <Button
                       key={app.id}
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleOpenAppUrl(app.url)}
+                      onClick={() => handleOpenApp(app)}
                       className="h-auto w-full justify-start gap-2 rounded-[10px] px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-[var(--goose-interactive-hover)] hover:text-foreground"
                     >
+                      <img
+                        src={app.icon}
+                        alt=""
+                        className="h-4 w-4 shrink-0 rounded-[4px] object-cover"
+                      />
                       <span className="flex-1 truncate">{app.name}</span>
                       <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
                     </Button>

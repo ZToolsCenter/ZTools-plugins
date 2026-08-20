@@ -1,3 +1,7 @@
+if (window.ztools) {
+  window.utools = window.ztools
+}
+
 // preload 运行在 CJS，避免与主项目 ESM 冲突
 const fs = require("fs");
 const os = require("os");

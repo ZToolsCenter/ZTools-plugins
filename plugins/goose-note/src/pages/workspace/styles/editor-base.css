@@ -1756,6 +1756,10 @@
     var(--editor-inline-code-padding-x, 4px);
   border-radius: var(--editor-inline-code-radius, 4px);
   border: 1px solid transparent;
+  /* 与两侧正文的固定留白，用户不必自己在反引号外敲空格；em 单位随字号缩放，
+     且不会被 box-decoration-break: clone 在换行处重复出来 */
+  margin-left: 0.2em;
+  margin-right: 0.2em;
   /* 下划线只留给链接；行内代码自身及继承自 <u> 等的装饰一律去掉 */
   text-decoration: none;
   font-family: var(
@@ -1791,6 +1795,8 @@
   color: var(--goose-inline-code-fg);
 }
 
+/* 零宽原子行内盒：让「盒内首字符前 / 盒外」在布局上成为两个不同的光标位置，
+   inlineCodeCaretExtension 靠它把光标钉进或钉出圆角盒 */
 .workspace-editor-surface
   .bn-inline-content
   code
@@ -1805,30 +1811,6 @@
   overflow: hidden;
   pointer-events: none;
   user-select: none;
-}
-
-.workspace-editor-surface
-  .bn-inline-content
-  code[data-goose-inline-code-caret-active],
-.quicknote-editor-surface
-  .bn-inline-content
-  code[data-goose-inline-code-caret-active] {
-  caret-color: transparent !important;
-}
-
-.workspace-editor-surface [data-goose-inline-code-caret-active].ProseMirror,
-.quicknote-editor-surface [data-goose-inline-code-caret-active].ProseMirror {
-  caret-color: transparent !important;
-}
-
-.goose-inline-code-visual-caret {
-  position: fixed;
-  z-index: 100;
-  width: 1px;
-  margin: 0;
-  padding: 0;
-  opacity: 1;
-  pointer-events: none;
 }
 
 /* 链接内的行内代码：去掉文字下划线，并保持强调色（不继承链接色） */
