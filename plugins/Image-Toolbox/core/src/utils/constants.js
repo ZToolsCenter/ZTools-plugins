@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 常量定义
  */
 
@@ -56,6 +56,18 @@ export const CROP_DEFAULTS = {
   ASPECT_RATIO: null,
   SHAPE: 'rect',
 };
+
+// 裁剪比例预设
+export const CROP_RATIOS = [
+  { id: 'crop-ratio-free', w: null, h: null, label: '自由比例' },
+  { id: 'crop-ratio-1-1', w: 1, h: 1, label: '1:1' },
+  { id: 'crop-ratio-3-2', w: 3, h: 2, label: '3:2' },
+  { id: 'crop-ratio-2-3', w: 2, h: 3, label: '2:3' },
+  { id: 'crop-ratio-3-4', w: 3, h: 4, label: '3:4' },
+  { id: 'crop-ratio-4-3', w: 4, h: 3, label: '4:3' },
+  { id: 'crop-ratio-16-9', w: 16, h: 9, label: '16:9' },
+  { id: 'crop-ratio-9-16', w: 9, h: 16, label: '9:16' },
+];
 
 // 文字预设样式
 export const TEXT_PRESETS = {

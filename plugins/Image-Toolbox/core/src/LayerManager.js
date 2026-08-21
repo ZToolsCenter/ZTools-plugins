@@ -1,4 +1,4 @@
-﻿import eventBus from './EventBus.js';
+import eventBus from './EventBus.js';
 
 /**
  * 图层管理器 — 管理 Fabric.js 物件的 z-order、显隐、锁定
@@ -7,6 +7,7 @@
 class LayerManager {
   constructor(canvasManager) {
     this._cm = canvasManager;
+    this._cm.layerManager = this;
     this._layers = [];           // 图层元数据 [{ id, name, visible, locked, fabricObj }]
     this._idCounter = 0;
   }
@@ -43,12 +44,14 @@ class LayerManager {
         meta.fabricObj = obj;
         this._refreshMetaName(meta, obj, false, newLayers, currentObjects);
       }
+      this._refreshMetaState(meta, obj, false);
       meta.zIndex = objects.length - 1 - i;
       newLayers.push(meta);
     }
 
     // 背景图层始终在列表末尾（面板最底部）
     if (this._cm.originalImage) {
+      this._ensureBackgroundSelectable(this._cm.originalImage);
       let bgMeta = oldLayers.find(l => l.fabricObj === this._cm.originalImage) || null;
       if (!bgMeta) {
         bgMeta = this._createMeta(this._cm.originalImage, true, newLayers, currentObjects);
@@ -56,6 +59,7 @@ class LayerManager {
         bgMeta.fabricObj = this._cm.originalImage;
         this._refreshMetaName(bgMeta, this._cm.originalImage, true, newLayers, currentObjects);
       }
+      this._refreshMetaState(bgMeta, this._cm.originalImage, true);
       bgMeta.zIndex = 0;
       newLayers.push(bgMeta);
     }
@@ -91,11 +95,16 @@ class LayerManager {
   }
 
   /**
-   * 根据 Fabric 对象获取图层元数据
+   * 根据 Fabric 对象获取图层元数据（公开接口）
+   *
+   * 仅在已同步的 _layers 列表中查找。对于尚未被 syncLayers() 收录的对象
+   * （如工具激活期间新增的临时对象），返回 null，由调用方决定回退策略。
+   *
    * @param {fabric.Object} obj
    * @returns {object|null}
    */
   getLayerByObject(obj) {
+    if (!obj) return null;
     return this._findMeta(obj);
   }
 
@@ -106,18 +115,53 @@ class LayerManager {
     const meta = {
       id,
       name: nameInfo.name,
-      visible: obj.visible !== false,
-      locked: isBackground ? true : (!obj.selectable && !obj.evented),
+      visible: true,
+      locked: false,
       fabricObj: obj,
       zIndex: 0,
       isBackground,
     };
+
+    this._refreshMetaState(meta, obj, isBackground);
 
     if (!isBackground) {
       this._setObjectLayerName(obj, meta.name, nameInfo.auto, nameInfo.baseName);
     }
 
     return meta;
+  }
+
+  _refreshMetaState(meta, obj, isBackground = false) {
+    meta.visible = obj.visible !== false;
+    meta.locked = this._resolveLockedState(obj, isBackground);
+    meta.isBackground = !!isBackground;
+  }
+
+  _resolveLockedState(obj, isBackground = false) {
+    if (isBackground) return true;
+    if (typeof obj?._layerLocked === 'boolean') return obj._layerLocked;
+
+    // 旧版本把工具激活期间创建的图层也标成 selectable/evented=false。
+    // 没有明确锁定标记时按未锁定处理，避免移动/框选工具无法选中这些图层。
+    return false;
+  }
+
+  _ensureBackgroundSelectable(obj) {
+    if (!obj) return;
+
+    obj._originalImage = true;
+    obj.set({
+      selectable: true,
+      evented: true,
+      hasControls: true,
+      hasBorders: true,
+      lockMovementX: false,
+      lockMovementY: false,
+      lockRotation: false,
+      lockScalingX: false,
+      lockScalingY: false,
+    });
+    obj.setCoords();
   }
 
   _refreshMetaName(meta, obj, isBackground = false, newLayers = null, currentObjects = null) {
@@ -378,6 +422,7 @@ class LayerManager {
     if (!meta || meta.isBackground) return;
 
     meta.locked = !!locked;
+    meta.fabricObj._layerLocked = meta.locked;
     meta.fabricObj.set({
       selectable: !meta.locked,
       evented: !meta.locked,
@@ -398,9 +443,13 @@ class LayerManager {
     const meta = this._layers.find(l => l.id === layerId);
     if (!meta) return;
 
-    // 即使图层被锁定也触发事件（让橡皮擦等工具能响应图层切换），
-    // 但不调用 setActiveObject（避免误操作锁定图层）。
-    if (!meta.locked) {
+    // 即使图层被锁定也触发事件（让橡皮擦等工具能响应图层切换）。
+    // 普通锁定图层不调用 setActiveObject（避免误操作）；
+    // 但背景图层允许选中和变换；图层锁定只限制删除、改名和排序。
+    if (!meta.locked || meta.isBackground) {
+      if (meta.isBackground) {
+        this._ensureBackgroundSelectable(meta.fabricObj);
+      }
       this._cm.canvas.setActiveObject(meta.fabricObj);
       this._cm.canvas.renderAll();
     }

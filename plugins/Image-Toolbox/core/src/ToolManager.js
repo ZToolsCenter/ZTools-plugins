@@ -1,7 +1,8 @@
-﻿import eventBus from './EventBus.js';
+import eventBus from './EventBus.js';
 import SelectModule from './modules/SelectModule.js';
 import MosaicModule from './modules/MosaicModule.js';
 import CropModule from './modules/CropModule.js';
+import ColorModule from './modules/ColorModule.js';
 import BrushModule from './modules/BrushModule.js';
 import EraserModule from './modules/EraserModule.js';
 import TextModule from './modules/TextModule.js';
@@ -21,7 +22,7 @@ class ToolManager {
    * @param {import('./HistoryManager.js').default} historyManager
    * @param {object} [options]
    * @param {Array} [options.tools] - 外部注入的工具定义列表
-   * @param {import('./interfaces/HostAdapter.js').default} [options.host]
+   * @param {object} [options.host]
    */
   constructor(canvasManager, historyManager, options = {}) {
     this._cm = canvasManager;
@@ -45,7 +46,7 @@ class ToolManager {
 
   /**
    * 注入 host adapter。
-   * @param {import('./interfaces/HostAdapter.js').default} host
+   * @param {object} host
    */
   setHost(host) {
     this._host = host;
@@ -69,7 +70,7 @@ class ToolManager {
       name: 'mosaic',
       label: '马赛克',
       icon: 'mosaic',
-      group: 'edit',
+      group: 'redact',
       shortcut: 'M',
       module: MosaicModule,
       defaultOptions: { mode: 'mosaic', drawMode: 'rect', mosaicSize: 12, blurRadius: 8, brushSize: 20 },
@@ -82,6 +83,16 @@ class ToolManager {
       group: 'edit',
       shortcut: 'C',
       module: CropModule,
+    });
+
+    this.registerTool({
+      name: 'color',
+      label: '调色',
+      icon: 'color',
+      group: 'adjust',
+      shortcut: 'A',
+      module: ColorModule,
+      defaultOptions: { filterScope: 'all' },
     });
 
     this.registerTool({
@@ -221,6 +232,7 @@ class ToolManager {
   destroy() {
     Object.values(this._modules).forEach(m => {
       if (m.deactivate) m.deactivate();
+      if (m.destroy) m.destroy();
     });
     this._modules = {};
     this._currentTool = null;

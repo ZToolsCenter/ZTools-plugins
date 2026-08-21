@@ -1,4 +1,4 @@
-﻿import BaseModule from './BaseModule.js';
+import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
 import { getFontOptionsHTML, recordFontUsage, isSystemFontsLoaded, onSystemFontsLoaded } from '../utils/fonts.js';
 
@@ -18,6 +18,7 @@ class TextModule extends BaseModule {
       fontWeight: 'normal',
       fontStyle: 'normal',
       underline: false,
+      linethrough: false,
       textAlign: 'left',
       ...defaultOptions,
     });
@@ -86,10 +87,13 @@ class TextModule extends BaseModule {
       fontWeight: opts.fontWeight,
       fontStyle: opts.fontStyle,
       underline: opts.underline,
+      linethrough: opts.linethrough,
       textAlign: opts.textAlign,
       editable: true,
       id: 'text_' + Date.now(),
     });
+
+    this.history.saveState();
 
     canvas.add(textObj);
     canvas.setActiveObject(textObj);
@@ -101,8 +105,6 @@ class TextModule extends BaseModule {
       textObj.enterEditing();
       textObj.selectAll();
     }, 50);
-
-    this.history.saveState();
     return textObj;
   }
 
@@ -149,6 +151,11 @@ class TextModule extends BaseModule {
   setUnderline(underline) {
     this.options.underline = underline;
     this._updateActiveTextStyle('underline', underline);
+  }
+
+  setLinethrough(linethrough) {
+    this.options.linethrough = linethrough;
+    this._updateActiveTextStyle('linethrough', linethrough);
   }
 
   setBackgroundColor(color) {
@@ -264,9 +271,9 @@ class TextModule extends BaseModule {
     return `
       <div class="options-group">
         <button class="options-btn options-btn-sm text-preset-btn" data-preset="red" style="--text-preset-fill:#d83b31; --text-preset-stroke:#FFFFFF">标注红</button>
-        <button class="options-btn options-btn-sm text-preset-btn" data-preset="blue" style="--text-preset-fill:#1677FF; --text-preset-stroke:#FFFFFF">标注蓝</button>
-        <button class="options-btn options-btn-sm text-preset-btn" data-preset="pink" style="--text-preset-fill:#FF4FA3; --text-preset-stroke:#FFFFFF">标注粉</button>
-        <button class="options-btn options-btn-sm text-preset-btn" data-preset="purple" style="--text-preset-fill:#8B5CF6; --text-preset-stroke:#FFFFFF">标注紫</button>
+        <button class="options-btn options-btn-sm text-preset-btn" data-preset="blue" style="--text-preset-fill:#1677FF; --text-preset-stroke:#FFFFFF">宝石蓝</button>
+        <button class="options-btn options-btn-sm text-preset-btn" data-preset="pink" style="--text-preset-fill:#FF4FA3; --text-preset-stroke:#FFFFFF">玫瑰粉</button>
+        <button class="options-btn options-btn-sm text-preset-btn" data-preset="purple" style="--text-preset-fill:#8B5CF6; --text-preset-stroke:#FFFFFF">罗兰紫</button>
         <button class="options-btn options-btn-sm text-preset-btn" data-preset="yellow" style="--text-preset-fill:#FFD700; --text-preset-stroke:#000000">标题黄</button>
         <button class="options-btn options-btn-sm text-preset-btn" data-preset="black" style="--text-preset-fill:#111111; --text-preset-stroke:#FFFFFF">黑白字</button>
         <button class="options-btn options-btn-sm text-preset-btn" data-preset="outline" style="--text-preset-fill:#FFFFFF; --text-preset-stroke:#000000">描边白</button>
@@ -324,6 +331,10 @@ class TextModule extends BaseModule {
         <div class="property-item">
           <label>下划线</label>
           <input type="checkbox" class="property-checkbox" data-module-prop="underline" ${opts.underline ? 'checked' : ''} />
+        </div>
+        <div class="property-item">
+          <label>删除线</label>
+          <input type="checkbox" class="property-checkbox" data-module-prop="linethrough" ${opts.linethrough ? 'checked' : ''} />
         </div>
         <div class="property-item">
           <label>对齐</label>
@@ -414,6 +425,9 @@ class TextModule extends BaseModule {
         break;
       case 'underline':
         this.options.underline = !!value;
+        break;
+      case 'linethrough':
+        this.options.linethrough = !!value;
         break;
       case 'textAlign':
         this.options.textAlign = value;

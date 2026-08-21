@@ -1,5 +1,114 @@
 export const updateRecords = [
   {
+    version: '2.4.1',
+    date: '2026-08-21',
+    changes: {
+      added: [],
+      fixed: [
+        { text: '修复通过功能指令进入插件时图片无法加载的问题', platforms: ['utools', 'ztools'] },
+        { text: '修复部分字体名称显示不正确的问题', platforms: null },
+        { text: '修复部分 Windows 平台无法获取系统字体列表的问题', platforms: ['utools', 'ztools'] },
+        { text: '修复大图片加载时可能超时失败的问题', platforms: ['utools', 'ztools'] },
+        { text: '修复重复进入插件时图片可能无法加载的问题', platforms: ['utools', 'ztools'] }
+      ],
+      improved: [
+        { text: '滚轮缩放改为以鼠标位置为中心进行缩放', platforms: null },
+        { text: '图片加载超时反馈更快', platforms: null }
+      ],
+      adjusted: [],
+      removed: []
+    }
+  },
+  {
+    version: '2.4',
+    date: '2026-08-04',
+    changes: {
+      added: [
+        { text: '左侧工具栏支持展开/收起', platforms: null },
+        { text: '图形工具新增菱形图形', platforms: null },
+        { text: '新增「接入统一账号系统」功能', platforms: null }
+      ],
+      fixed: [
+        { text: '修复窗口大小缩放时，已添加的文字、图形、画笔、马赛克等编辑内容与原图错位的问题', platforms: null },
+        { text: '修复使用调色工具调整滤镜滑块后无法撤销的问题', platforms: null },
+        { text: '修复调色面板销毁时未清理 DOM 事件监听器导致的内存泄漏问题', platforms: null },
+        { text: '修复马赛克工具辅助图形（选区框、套索预览、画笔预览）出现在导出结果和图层列表中的问题', platforms: null }
+      ],
+      improved: [
+        { text: '图形工具配色预设栏支持左右滑动查看更多配色，粗细按钮固定在右侧不被压缩', platforms: null },
+        { text: '优化应用滤镜预设时的性能，批量设置时只重算一次滤镜，响应更迅速', platforms: null },
+        { text: '优化窗口缩放时编辑内容的布局保持逻辑，按比例同步调整所有覆盖层和裁剪路径的相对位置', platforms: null }
+      ],
+      adjusted: [],
+      removed: []
+    }
+  },
+  {
+    version: '2.3.1',
+    date: '2026-07-17',
+    changes: {
+      added: [
+        { text: '设置页新增「侧栏图标文字」选项，可控制侧栏工具图标下方文字标签的展示', platforms: null }
+      ],
+      fixed: [
+        { text: '修复调色面板长时间使用后内存占用持续上升的问题', platforms: null },
+        { text: '修复平行四边形绘制时实际宽度超出拖拽框选范围的问题', platforms: null },
+        { text: '修复调色面板滑块调整后无法撤销的问题', platforms: null },
+        { text: '修复 ZTools 平台错误使用 uTools 宿主适配器导致的功能异常', platforms: ['ztools'] }
+      ],
+      improved: [
+        { text: '优化了展示效果', platforms: null }
+      ],
+      adjusted: [
+        { text: '修改了部分文字工具预设按钮名称并调大字体', platforms: null }
+      ],
+      removed: []
+    }
+  },
+  {
+    version: '2.3',
+    date: '2026-07-09',
+    changes: {
+      added: [
+        { text: '新增「调色」工具，支持滤镜预设以及亮度、对比度、饱和度、色相、模糊等参数调整', platforms: null }
+      ],
+      fixed: [
+        { text: '修复图形工具拖选绘制时部分情况下意外移动图层的问题', platforms: null },
+        { text: '修复添加文字后第一次撤销无反应的问题', platforms: null },
+        { text: '修复撤销/重做时偶尔出现画布状态异常的问题', platforms: null },
+        { text: '修复切换或停用工具后，已锁定图层可能被意外解锁的问题', platforms: null },
+        { text: '修复使用画笔、图形、马赛克等工具新建图层后，切回移动/框选工具无法直接选中图层的问题', platforms: null },
+        { text: '修复移动/框选工具选中背景图片后，无法调整宽高、位置、旋转或拖拽变换的问题', platforms: null },
+        { text: '修复使用文字工具编辑文字时，按快捷键会意外切换工具的问题', platforms: null }
+      ],
+      improved: [],
+      adjusted: [
+      ],
+      removed: []
+    }
+  },
+  {
+    version: '2.2.2',
+    date: '2026-06-29',
+    changes: {
+      added: [
+        { text: '图形工具新增平行四边形图形', platforms: null },
+        { text: '文字属性新增删除线复选框', platforms: null }
+      ],
+      fixed: [
+        { text: '修复部分编辑操作第一次撤销无反应的问题', platforms: null },
+        { text: '修复打开新图片后撤销可能恢复上一张图片的问题', platforms: null },
+        { text: '修复选择 JPEG/WebP 保存时实际仍写入 PNG 数据的问题', platforms: null },
+        { text: '修复 ZTools 端选中文字后缺少描边位置设置的问题', platforms: ['ztools'] },
+        { text: '修复裁剪撤销/重做时裁剪范围恢复不正确的问题', platforms: null },
+        { text: '修复清除所有马赛克后无法撤销恢复的问题', platforms: null }
+      ],
+      improved: [],
+      adjusted: [],
+      removed: []
+    }
+  },
+  {
     version: '2.2.1',
     date: '2026-06-26',
     changes: {

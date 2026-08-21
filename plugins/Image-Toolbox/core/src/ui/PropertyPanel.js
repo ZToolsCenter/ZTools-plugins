@@ -1,5 +1,6 @@
-﻿import { eventBus } from '../../core/src/index.js';
-import { getFontOptionsHTML, recordFontUsage, isSystemFontsLoaded, onSystemFontsLoaded } from '../../core/src/utils/fonts.js';
+import { eventBus } from '../index.js';
+import { getFontOptionsHTML, recordFontUsage, isSystemFontsLoaded, onSystemFontsLoaded } from '../utils/fonts.js';
+import { clamp, escapeHTML, escapeAttr } from '../utils/helpers.js';
 
 /**
  * Property panel UI component.
@@ -11,6 +12,7 @@ class PropertyPanel {
     this._tm = toolManager;
     this._cm = canvasManager || toolManager?._cm || null;
     this._lm = layerManager;
+    this._eventBusUnsubscribers = [];
 
     this._bindEvents();
     this._render();
@@ -31,23 +33,21 @@ class PropertyPanel {
 
   _bindEvents() {
     // Update the property panel when selection changes.
-    eventBus.on('canvas:selectionCreated', () => this._updateProperties());
-    eventBus.on('canvas:selectionUpdated', () => this._updateProperties());
-    eventBus.on('canvas:selectionCleared', () => this._updateProperties());
-    eventBus.on('layer:selected', () => this._updateProperties());
-    eventBus.on('layers:updated', () => this._updateProperties());
-    eventBus.on('canvas:objectAdded', () => this._updateProperties());
-    eventBus.on('canvas:objectRemoved', () => this._updateProperties());
-    eventBus.on('canvas:restored', () => this._updateProperties());
-    eventBus.on('image:loaded', () => this._clearProperties());
-    eventBus.on('tool:changed', () => this._updateProperties());
-    eventBus.on('crop:updated', () => this._updateProperties());
-    eventBus.on('tool:propertiesChanged', () => this._updateProperties());
-
-    // Refresh properties after object changes.
-    eventBus.on('canvas:objectModified', () => {
-      this._updateProperties();
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('canvas:selectionCreated', () => this._updateProperties()),
+      eventBus.on('canvas:selectionUpdated', () => this._updateProperties()),
+      eventBus.on('canvas:selectionCleared', () => this._updateProperties()),
+      eventBus.on('layer:selected', () => this._updateProperties()),
+      eventBus.on('layers:updated', () => this._updateProperties()),
+      eventBus.on('canvas:objectAdded', () => this._updateProperties()),
+      eventBus.on('canvas:objectRemoved', () => this._updateProperties()),
+      eventBus.on('canvas:restored', () => this._updateProperties()),
+      eventBus.on('image:loaded', () => this._clearProperties()),
+      eventBus.on('tool:changed', () => this._updateProperties()),
+      eventBus.on('crop:updated', () => this._updateProperties()),
+      eventBus.on('tool:propertiesChanged', () => this._updateProperties()),
+      eventBus.on('canvas:objectModified', () => this._updateProperties())
+    );
 
     // Delegate property input handling.
     this._el.addEventListener('input', (e) => {
@@ -67,6 +67,15 @@ class PropertyPanel {
 
     const module = this._tm.getCurrentModule();
     const active = this._getActiveObject();
+
+    // 模块可声明 overridePropertyPanel 接管属性面板（即使有选中对象）
+    if (module?.overridePropertyPanel && typeof module.getPropertyPanelHTML === 'function') {
+      const html = module.getPropertyPanelHTML();
+      if (html) {
+        bodyEl.innerHTML = html;
+        return;
+      }
+    }
 
     if (active?.excludeFromProperty && module && typeof module.getPropertyPanelHTML === 'function') {
       const html = module.getPropertyPanelHTML();
@@ -103,7 +112,8 @@ class PropertyPanel {
     const isText = this._isTextObject(active);
     const isBackground = !!meta?.isBackground;
     const locked = meta ? meta.locked : (active.selectable === false && active.evented === false);
-    const editDisabled = (isBackground || locked) ? ' disabled' : '';
+    // 背景图层的锁定只限制删除、改名和排序，仍允许显式编辑几何参数。
+    const editDisabled = (locked && !isBackground) ? ' disabled' : '';
     const renameDisabled = (!meta || isBackground) ? ' disabled' : '';
     const lockDisabled = isBackground ? ' disabled' : '';
     const opacity = active.opacity == null ? 1 : active.opacity;
@@ -171,7 +181,7 @@ class PropertyPanel {
     html += `
       <div class="property-item">
         <label>不透明</label>
-        <input type="range" class="property-range" data-prop="opacity" 
+        <input type="range" class="property-range" data-prop="opacity"
                min="0" max="100" value="${Math.round(opacity * 100)}"${editDisabled} />
         <span class="property-value">${Math.round(opacity * 100)}%</span>
       </div>
@@ -206,6 +216,13 @@ class PropertyPanel {
           <input type="number" class="property-input" data-prop="strokeWidth" value="${active.strokeWidth || 0}" min="0" max="20"${editDisabled} />
         </div>
         <div class="property-item">
+          <label>描边位</label>
+          <select class="property-select property-select--short" data-prop="strokePosition"${editDisabled}>
+            ${this._getSelectOption('outside', '外部', active._strokePosition || 'outside')}
+            ${this._getSelectOption('inside', '内部', active._strokePosition || 'outside')}
+          </select>
+        </div>
+        <div class="property-item">
           <label>粗体</label>
           <input type="checkbox" class="property-checkbox" data-prop="fontWeight" ${active.fontWeight === 'bold' ? 'checked' : ''}${editDisabled} />
         </div>
@@ -216,6 +233,10 @@ class PropertyPanel {
         <div class="property-item">
           <label>下划线</label>
           <input type="checkbox" class="property-checkbox" data-prop="underline" ${active.underline ? 'checked' : ''}${editDisabled} />
+        </div>
+        <div class="property-item">
+          <label>删除线</label>
+          <input type="checkbox" class="property-checkbox" data-prop="linethrough" ${active.linethrough ? 'checked' : ''}${editDisabled} />
         </div>
         <div class="property-item">
           <label>对齐</label>
@@ -272,6 +293,7 @@ class PropertyPanel {
     const moduleAction = target.dataset.moduleAction;
     const modulePreset = target.dataset.modulePreset;
     if (!prop && !moduleProp && !moduleAction && !modulePreset) return;
+    // 普通属性控件只在 input/change 事件中处理；click 事件仅放行模块动作/预设
     if (e.type === 'click' && !moduleAction && !modulePreset) return;
 
     const module = this._tm.getCurrentModule();
@@ -369,8 +391,15 @@ class PropertyPanel {
       case 'underline':
         active.set('underline', value);
         break;
+      case 'linethrough':
+        active.set('linethrough', value);
+        break;
       case 'textAlign':
         active.set('textAlign', value);
+        break;
+      case 'strokePosition':
+        active.set('paintFirst', value === 'inside' ? 'fill' : 'stroke');
+        active.set('_strokePosition', value);
         break;
       default:
         return;
@@ -415,7 +444,8 @@ class PropertyPanel {
     const handled = module.onToolPropertyChange(prop, value, { eventType: e.type });
 
     if (target.type === 'range' && target.nextElementSibling) {
-      target.nextElementSibling.textContent = `${value}${target.dataset.valueSuffix || 'px'}`;
+      const suffix = target.dataset.valueSuffix != null ? target.dataset.valueSuffix : 'px';
+      target.nextElementSibling.textContent = `${value}${suffix}`;
     }
 
     if (handled !== false && target.dataset.refreshProperty === 'true') {
@@ -642,21 +672,20 @@ class PropertyPanel {
 
   _clamp(value, min, max) {
     if (!Number.isFinite(value)) return min;
-    return Math.max(min, Math.min(max, value));
+    return clamp(value, min, max);
   }
 
   _escapeHTML(value) {
-    return String(value ?? '').replace(/[&<>"']/g, ch => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }[ch]));
+    return escapeHTML(value);
   }
 
   _escapeAttr(value) {
-    return this._escapeHTML(value);
+    return escapeAttr(value);
+  }
+
+  destroy() {
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 

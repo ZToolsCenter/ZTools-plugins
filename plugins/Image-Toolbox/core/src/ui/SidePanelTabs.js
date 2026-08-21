@@ -1,4 +1,4 @@
-﻿import { eventBus } from '../../core/src/index.js';
+import { eventBus } from '../index.js';
 
 const SIDE_PANEL_TAB_KEY = 'image-toolbox-side-panel-tab';
 export const SIDE_PANEL_LAYOUT_KEY = 'image-toolbox-side-panel-layout';
@@ -20,6 +20,7 @@ class SidePanelTabs {
     this._lm = layerManager;
     this._activeTab = this._getInitialTab();
     this._layout = this._getInitialLayout();
+    this._eventBusUnsubscribers = [];
 
     this._render();
     this._bindEvents();
@@ -59,9 +60,11 @@ class SidePanelTabs {
       this._activateTab(tabBtn.dataset.panelTab, true);
     });
 
-    eventBus.on('layers:updated', () => this._updateLayerCount());
-    eventBus.on('image:loaded', () => this._updateLayerCount());
-    eventBus.on('canvas:restored', () => this._updateLayerCount());
+    this._eventBusUnsubscribers.push(
+      eventBus.on('layers:updated', () => this._updateLayerCount()),
+      eventBus.on('image:loaded', () => this._updateLayerCount()),
+      eventBus.on('canvas:restored', () => this._updateLayerCount())
+    );
   }
 
   applyLayout(layout, persist = true) {
@@ -134,6 +137,11 @@ class SidePanelTabs {
   _getInitialLayout() {
     const saved = localStorage.getItem(SIDE_PANEL_LAYOUT_KEY);
     return VALID_LAYOUTS.has(saved) ? saved : SIDE_PANEL_LAYOUTS.TABS;
+  }
+
+  destroy() {
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 

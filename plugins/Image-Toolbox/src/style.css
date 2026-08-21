@@ -123,6 +123,11 @@ html, body {
     "toolbar optionsbar optionsbar";
 }
 
+/* ── 工具栏展开状态 ── */
+.app.app--toolbar-expanded {
+  --toolbar-width: 160px;
+}
+
 /* ── 工具栏（左侧） ── */
 .toolbar {
   grid-area: toolbar;
@@ -198,6 +203,19 @@ html, body {
   white-space: nowrap;
 }
 
+.toolbar--labels-hidden .toolbar__btn {
+  width: 36px;
+  height: 36px;
+}
+
+.toolbar--labels-hidden .toolbar__btn span {
+  display: none;
+}
+
+.toolbar--labels-hidden .toolbar__separator {
+  width: 28px;
+}
+
 .toolbar__separator {
   width: 36px;
   height: 1px;
@@ -248,6 +266,104 @@ html, body {
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
+}
+
+/* 昵称（仅展开时显示） */
+.toolbar__account-name {
+  display: none;
+}
+
+/* 工具栏收起/展开按钮 */
+.toolbar__toggle {
+  width: 36px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
+.toolbar__toggle:hover {
+  background: var(--bg-hover);
+  color: var(--color-text);
+}
+
+.toolbar__toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* 隐藏展开/收起按钮 */
+.toolbar--toggle-hidden .toolbar__toggle {
+  display: none;
+}
+
+/* ── 展开状态：水平布局 ── */
+.toolbar--expanded {
+  align-items: stretch;
+  padding: 6px 4px;
+}
+
+.toolbar--expanded .toolbar__toggle {
+  align-self: flex-end;
+  margin-bottom: 4px;
+}
+
+.toolbar--expanded .toolbar__tools,
+.toolbar--expanded .toolbar__footer {
+  align-items: stretch;
+}
+
+.toolbar--expanded .toolbar__btn {
+  flex-direction: row;
+  justify-content: flex-start;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  gap: 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.toolbar--expanded .toolbar__btn span {
+  font-size: 12px;
+}
+
+.toolbar--expanded .toolbar__btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.toolbar--expanded .toolbar__separator {
+  width: auto;
+  margin: 4px 8px;
+}
+
+.toolbar--expanded .toolbar__account {
+  flex-direction: row;
+  justify-content: flex-start;
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  gap: 8px;
+  border-radius: 6px;
+}
+
+.toolbar--expanded .toolbar__account-name {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 /* ── 账户页 ── */
@@ -437,6 +553,11 @@ html, body {
   color: var(--color-text-secondary);
   font-size: 12px;
   line-height: 1.7;
+}
+
+.account-page__hint {
+  margin-top: 4px;
+  opacity: 0.7;
 }
 
 .account-card__value {
@@ -874,7 +995,9 @@ html, body {
   flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* 选项栏控件 */
@@ -885,6 +1008,30 @@ html, body {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+}
+
+/* 可横向滑动的选项组：左右两侧的控件保持固定，中间此组自动压缩并内部滑动 */
+.options-group--scrollable {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.shape-style-scroll {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.shape-style-scroll::-webkit-scrollbar {
+  height: 6px;
 }
 
 .options-label {
@@ -1013,6 +1160,13 @@ html, body {
   padding: 4px 10px;
   font-size: 12px;
   line-height: 1.2;
+}
+
+.options-hint {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .shape-picker-trigger {
@@ -1172,7 +1326,7 @@ html, body {
   background: #a8b0b5;
   color: var(--text-preset-fill, var(--color-text));
   border-color: #8a949a;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.15;
   -webkit-text-stroke: 0.45px var(--text-preset-stroke, transparent);
@@ -1186,6 +1340,16 @@ html, body {
 .text-preset-btn:hover {
   background: #9ca5aa;
   border-color: #7c878d;
+}
+
+/* 滤镜预设按钮（选项栏） */
+.filter-preset-btn {
+  min-width: 44px;
+}
+
+.filter-preset-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .brush-color-btn {
@@ -1379,6 +1543,7 @@ html, body {
 }
 
 .side-tabs__pane #property-panel,
+.side-tabs__pane #color-panel,
 .side-tabs__pane #layer-panel {
   height: 100%;
   min-height: 0;
@@ -1409,6 +1574,7 @@ html, body {
 .side-tabs--split .side-tabs__pane[data-panel-pane="layer"] {
   flex: 3;
   height: auto;
+  border-top: 1px solid var(--color-border);
 }
 
 .panel {
@@ -1584,6 +1750,17 @@ html, body {
 
 .property-btn--primary:hover {
   opacity: 0.88;
+}
+
+/* 调色重置按钮行 */
+.property-item--actions {
+  justify-content: flex-end;
+  padding: 4px 6px;
+}
+
+.property-item--actions .property-btn {
+  flex: 0 0 auto;
+  padding: 4px 12px;
 }
 
 .property-item label {
@@ -2126,4 +2303,298 @@ html, body {
   15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
   75%  { opacity: 1; transform: translateX(-50%) translateY(0); }
   100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+/* ═══ 账户区域 — 按钮 / 昵称编辑 / 头像上传 ═══ */
+
+.account-page__btn {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--color-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.account-page__btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--color-text-secondary);
+}
+
+.account-page__btn--primary {
+  background: var(--bg-active);
+  border-color: var(--bg-active);
+  color: #ffffff;
+}
+
+.account-page__btn--primary:hover {
+  opacity: 0.88;
+}
+
+.account-page__btn--small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.account-page__loading {
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.account-page__nickname-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.account-page__nickname-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.account-page__nickname-input:focus {
+  outline: none;
+  border-color: var(--bg-active);
+}
+
+.account-page__nickname-display {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-page__avatar-edit-hint {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-active);
+  color: #fff;
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.account-card__avatar-wrap {
+  position: relative;
+  cursor: pointer;
+}
+
+.account-card__avatar-wrap:hover .account-page__avatar-edit-hint {
+  opacity: 1;
+}
+
+/* ═══ 登录弹窗 ═══ */
+
+.login-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.login-modal--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.login-modal__backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.login-modal__card {
+  position: relative;
+  width: 340px;
+  max-width: 90vw;
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+}
+
+.login-modal--active .login-modal__card {
+  transform: scale(1);
+}
+
+.login-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.login-modal__header h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.login-modal__close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.login-modal__close:hover {
+  background: var(--bg-hover);
+  color: var(--color-text);
+}
+
+.login-modal__body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-modal__btn {
+  padding: 10px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.login-modal__btn:hover {
+  background: var(--bg-hover);
+}
+
+.login-modal__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-modal__btn--primary {
+  background: var(--bg-active);
+  border-color: var(--bg-active);
+  color: #ffffff;
+}
+
+.login-modal__btn--primary:hover {
+  opacity: 0.88;
+  background: var(--bg-active);
+}
+
+.login-modal__btn--small {
+  padding: 8px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.login-modal__btn--utools {
+  background: var(--bg-active);
+  border-color: var(--bg-active);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.login-modal__btn--utools:hover {
+  opacity: 0.88;
+}
+
+.login-modal__divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.login-modal__divider::before,
+.login-modal__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.login-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-modal__field label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.login-modal__field input {
+  padding: 9px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.login-modal__field input:focus {
+  outline: none;
+  border-color: var(--bg-active);
+}
+
+.login-modal__code-row {
+  display: flex;
+  gap: 8px;
+}
+
+.login-modal__code-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.login-modal__hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0;
 }

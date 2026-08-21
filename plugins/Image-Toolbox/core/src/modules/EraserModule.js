@@ -1,5 +1,6 @@
 ﻿import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
+import { clamp } from '../utils/helpers.js';
 
 /**
  * 橡皮擦模块 - 默认擦除当前图层，并把擦除结果固化为位图。
@@ -227,6 +228,10 @@ class EraserModule extends BaseModule {
       objectCaching: false,
     });
 
+    if (typeof target._layerLocked === 'boolean') {
+      image._layerLocked = target._layerLocked;
+    }
+
     if (layerName) {
       image._layerName = layerName;
       image._layerNameAuto = false;
@@ -417,7 +422,7 @@ class EraserModule extends BaseModule {
   }
 
   _clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+    return clamp(value, min, max);
   }
 }
 

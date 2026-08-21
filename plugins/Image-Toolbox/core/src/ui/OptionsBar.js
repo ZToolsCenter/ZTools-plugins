@@ -1,4 +1,4 @@
-﻿import { eventBus } from '../../core/src/index.js';
+import { eventBus } from '../index.js';
 
 /**
  * Top options bar UI component.
@@ -14,6 +14,7 @@ class OptionsBar {
     this._boundDocumentClick = this._handleDocumentClick.bind(this);
     this._boundKeyDown = this._handleKeyDown.bind(this);
     this._boundRepositionShapePicker = this._positionShapePicker.bind(this);
+    this._eventBusUnsubscribers = [];
 
     this._render();
     this._bindEvents();
@@ -27,11 +28,13 @@ class OptionsBar {
 
   _bindEvents() {
     // Update options when the active tool changes.
-    eventBus.on('tool:changed', (toolName) => {
-      this._currentTool = toolName;
-      this._closeShapePicker();
-      this._updateControls();
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('tool:changed', (toolName) => {
+        this._currentTool = toolName;
+        this._closeShapePicker();
+        this._updateControls();
+      })
+    );
 
     [
       'canvas:selectionCreated',
@@ -42,15 +45,27 @@ class OptionsBar {
       'image:loaded',
       'tool:propertiesChanged',
     ].forEach(eventName => {
-      eventBus.on(eventName, () => {
-        if (this._currentTool) this._updateControls();
-      });
+      this._eventBusUnsubscribers.push(
+        eventBus.on(eventName, () => {
+          if (this._currentTool) this._updateControls();
+        })
+      );
     });
 
     // Only handle one-click presets here; detailed controls live in the property panel.
     this._el.addEventListener('click', (e) => {
       this._handleControlEvent(e);
     });
+
+    // 鼠标悬停在配色预设滑动区时，滚轮转为横向滚动
+    this._el.addEventListener('wheel', (e) => {
+      const scrollEl = e.target.closest('.shape-style-scroll');
+      if (!scrollEl) return;
+      // 仅在纵向滚轮占主导时接管（触控板原生横向滚动不拦截）
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      scrollEl.scrollLeft += e.deltaY;
+    }, { passive: false });
   }
 
   _updateControls() {
@@ -62,8 +77,30 @@ class OptionsBar {
     const module = this._tm.getCurrentModule();
     if (module && typeof module.getOptionsBarHTML === 'function') {
       controlsEl.innerHTML = module.getOptionsBarHTML();
+      this._scrollActiveShapePresetIntoView(controlsEl);
     } else {
       controlsEl.innerHTML = '';
+    }
+  }
+
+  /**
+   * 图形工具配色预设可横向滑动，重渲染后把当前选中的预设滚到可视区，
+   * 避免点击后滚动位置被重置导致激活项不可见。
+   */
+  _scrollActiveShapePresetIntoView(container) {
+    const scrollEl = container.querySelector('.shape-style-scroll');
+    if (!scrollEl) return;
+    const activeBtn = scrollEl.querySelector('.shape-style-btn.active');
+    if (!activeBtn) return;
+
+    const scrollRect = scrollEl.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    const margin = 8;
+
+    if (btnRect.left < scrollRect.left + margin) {
+      scrollEl.scrollLeft -= (scrollRect.left + margin - btnRect.left);
+    } else if (btnRect.right > scrollRect.right - margin) {
+      scrollEl.scrollLeft += (btnRect.right - (scrollRect.right - margin));
     }
   }
 
@@ -169,7 +206,8 @@ class OptionsBar {
    */
   destroy() {
     this._closeShapePicker();
-    // EventBus subscriptions are currently app-lifetime listeners.
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 
