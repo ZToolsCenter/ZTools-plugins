@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "datatimeutc",
+  "title": "UTC 标准时间",
+  "description": "实时显示 UTC 时间，支持多时区切换、自定义日期时间格式，并可开启置顶悬浮小窗",
+  "author": "datatimeutc",
+  "version": "1.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "utc",
+      "explain": "实时 UTC 时间 / 多时区 / 自定义格式",
+      "icon": "logo.png",
+      "cmds": [
+        "utc",
+        "时间",
+        "时区",
+        "utc时间"
+      ]
+    },
+    {
+      "code": "utc-float",
+      "explain": "直接开启 UTC 悬浮时间窗",
+      "icon": "logo.png",
+      "cmds": [
+        "悬浮时间",
+        "utc悬浮",
+        "时间悬浮"
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}
