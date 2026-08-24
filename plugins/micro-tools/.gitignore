@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Build / dependency artifacts (CLI ignores these on publish too)
+node_modules/
+dist/
+.env
+.env.*
+
+# Logs
+*.log
