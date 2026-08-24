@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>科研小盒</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <main class="app">
+    <!-- 顶部栏 -->
+    <header class="topbar">
+      <button class="topbar__back" id="backBtn" hidden>‹ 返回</button>
+      <div class="topbar__title">
+        <img class="topbar__logo" src="logo.png" alt="logo" />
+        <span id="viewTitle">科研小盒</span>
+      </div>
+    </header>
+
+    <!-- ① 首页启动器 -->
+    <section class="view" id="view-home">
+      <p class="home__sub">科研常用小工具集合 · 选择一个开始</p>
+      <div class="grid">
+        <button class="tool" data-open="journal">
+          <span class="tool__icon tool__icon--blue">📊</span>
+          <span class="tool__name">期刊查询</span>
+          <span class="tool__desc">影响因子 / 分区 / 被引</span>
+          <span class="tool__badge tool__badge--on">可用</span>
+        </button>
+        <button class="tool" data-open="database">
+          <span class="tool__icon tool__icon--teal">🧬</span>
+          <span class="tool__name">数据库查询</span>
+          <span class="tool__desc">NCBI / PubMed / UniProt</span>
+          <span class="tool__badge tool__badge--beta">体验版</span>
+        </button>
+        <button class="tool tool--soon" disabled>
+          <span class="tool__icon tool__icon--gray">🔬</span>
+          <span class="tool__name">单位换算</span>
+          <span class="tool__desc">科研常用单位</span>
+          <span class="tool__badge">即将推出</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ② 期刊查询 -->
+    <section class="view" id="view-journal" hidden>
+      <input
+        id="jSearch"
+        class="io__input"
+        type="text"
+        autocomplete="off"
+        placeholder="输入期刊名 / 缩写 / ISSN，如 Nature、NAT REV MOL CELL BIO、1471-0072"
+      />
+      <div class="io__hint" id="jHint">正在加载期刊数据…</div>
+      <div class="results" id="jResults"></div>
+    </section>
+
+    <!-- ③ 数据库查询（占位·可用体验版） -->
+    <section class="view" id="view-database" hidden>
+      <input
+        id="dSearch"
+        class="io__input"
+        type="text"
+        autocomplete="off"
+        placeholder="输入检索词，如 BRCA1、TP53、SARS-CoV-2，选择数据库一键打开"
+      />
+      <div class="io__hint">选择数据库后在系统浏览器中打开检索结果（后续将接入直接查询接口）。</div>
+      <div class="db-grid" id="dbGrid"></div>
+    </section>
+
+    <footer class="app__footer" id="footer">
+      提示：ZTools 搜索框输入 <code>期刊 Nature</code>、<code>影响因子 JACS</code> 或 <code>数据库 BRCA1</code> 可直接触发。
+    </footer>
+  </main>
+
+  <script src="index.js"></script>
+</body>
+</html>
