@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vue-tsc *)",
+      "Bash(where node *)",
+      "Bash(where npx *)",
+      "Bash(winget install *)",
+      "Bash(mkdir -p \"E:/nodejs/node_cache\" 2>&1)",
+      "Bash(cmd //c dir \"E:\\\\\" 2>&1)",
+      "Bash(git rm *)"
+    ],
+    "additionalDirectories": [
+      "E:\\nodejs"
+    ]
+  }
+}
