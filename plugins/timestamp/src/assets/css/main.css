@@ -1,7 +1,0 @@
-@import 'tailwindcss';
-
-@layer base {
-  * {
-    border-color: var(--color-gray-200);
-  }
-}
