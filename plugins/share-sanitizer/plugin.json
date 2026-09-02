@@ -1,0 +1,72 @@
+{
+  "name": "share-sanitizer",
+  "title": "分享前脱敏",
+  "version": "0.1.0",
+  "description": "在分享前检查并脱敏敏感文本和图片。",
+  "author": "harris",
+  "main": "src/ui/index.html",
+  "logo": "logo.svg",
+  "preload": "preload/index.cjs",
+  "platform": ["darwin", "win32", "linux"],
+  "categories": ["productivity", "text", "media"],
+  "features": [{"code": "sanitize-share", "explain": "在分享前脱敏选中的文本、文件或图片。", "icon": "logo.svg", "cmds": ["分享脱敏", "敏感信息清理", {"type":"files","fileType":"file","label":"脱敏文件","extensions":["txt","md","json","log","png","jpg","jpeg","webp"],"maxLength":1}, {"type":"img","label":"脱敏图片"}, {"type":"over","label":"脱敏选中文字","minLength":1,"maxLength":200000}]}],
+  "tools": {
+    "detect_text": {
+      "title": "检测分享文本中的敏感信息",
+      "description": "离线检测文本并仅返回不含原值的类型、位置、置信度和统计。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {"type": "string", "maxLength": 524288},
+          "whitelist": {"type": "array", "maxItems": 200, "items": {"type": "string", "maxLength": 4096}},
+          "enabled": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "email": {"type": "boolean"},
+              "phone_cn": {"type": "boolean"},
+              "ipv4": {"type": "boolean"},
+              "win_path": {"type": "boolean"},
+              "posix_path": {"type": "boolean"},
+              "bearer": {"type": "boolean"},
+              "api_key": {"type": "boolean"},
+              "jwt": {"type": "boolean"},
+              "id_cn": {"type": "boolean"}
+            }
+          }
+        },
+        "required": ["text"]
+      }
+    },
+    "redact_text": {
+      "title": "脱敏分享文本",
+      "description": "离线替换敏感片段，并返回清理后的文本及不含原值的发现统计；replacement 与最终拼接输出均不得包含任何启用规则可识别的非白名单敏感值。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {"type": "string", "maxLength": 458752},
+          "replacement": {"type": "string", "maxLength": 64, "description": "可选安全替换文本；若自身或与上下文拼接后的输出命中任一启用规则且不在白名单中，则拒绝整个请求。"},
+          "whitelist": {"type": "array", "maxItems": 200, "items": {"type": "string", "maxLength": 4096}},
+          "enabled": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "email": {"type": "boolean"},
+              "phone_cn": {"type": "boolean"},
+              "ipv4": {"type": "boolean"},
+              "win_path": {"type": "boolean"},
+              "posix_path": {"type": "boolean"},
+              "bearer": {"type": "boolean"},
+              "api_key": {"type": "boolean"},
+              "jwt": {"type": "boolean"},
+              "id_cn": {"type": "boolean"}
+            }
+          }
+        },
+        "required": ["text"]
+      }
+    }
+  }
+}
