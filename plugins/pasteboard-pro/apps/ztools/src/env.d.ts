@@ -16,13 +16,31 @@ import type { PasteStackState } from "@pasteboard-pro/core";
 declare global {
   interface Window {
     pasteboardPro?: Readonly<{
+      getHostCompatibility(): {
+        currentVersion?: string;
+        minimumVersion: string;
+        supported: boolean;
+        supportsPluginData: boolean;
+        supportsNativeFileDrag: boolean;
+        supportsScreenCapture: boolean;
+      };
       getPlatformCapabilities(): {
         platform: NodeJS.Platform;
         supportsGlobalPasteQueue: boolean;
         supportsQuickLook: boolean;
         supportsSystemOcr: boolean;
         supportsImageRotation: boolean;
+        supportsNativeFileDrag: boolean;
+        supportsScreenCapture: boolean;
       };
+      captureScreenshot(): Promise<{
+        bounds?: {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        };
+      }>;
       searchHistory(
         query?: string,
         limit?: number,

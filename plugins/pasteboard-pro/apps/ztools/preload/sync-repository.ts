@@ -1,5 +1,17 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { constants as fileSystemConstants } from "node:fs";
+import {
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -23,6 +35,8 @@ import {
 
 const TOMBSTONE_PREFIX = "pasteboard-pro:tombstone:";
 const MAX_BLOB_BYTES = 100 * 1_024 * 1_024;
+const MANAGED_BLOB_FILE_PATTERN =
+  /^([0-9a-f]{64})\.(png|jpg|webp|tiff|pdf|rtf|rtfd|bin)$/u;
 
 function blobExtension(mediaType: string): string {
   return (
@@ -53,6 +67,118 @@ async function existingFile(filePath: string): Promise<boolean> {
 
 function databaseStatus(error: unknown, status: number): boolean {
   return isRecord(error) && (error.status === status || error.statusCode === status);
+}
+
+function missingFile(error: unknown): boolean {
+  return isRecord(error) && error.code === "ENOENT";
+}
+
+function insideRoot(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate);
+  return (
+    relative.length > 0 &&
+    !relative.startsWith(`..${path.sep}`) &&
+    relative !== ".." &&
+    !path.isAbsolute(relative)
+  );
+}
+
+type PathIdentity = Readonly<{
+  path: string;
+  device: number;
+  inode: number;
+}>;
+
+async function checkedPathChain(
+  root: string,
+  target: string,
+): Promise<readonly PathIdentity[] | undefined> {
+  const relative = path.relative(root, target);
+  if (!insideRoot(root, target)) {
+    throw new TypeError("Refusing to inspect a blob outside its managed root");
+  }
+  const entries = [root];
+  let cursor = root;
+  for (const segment of relative.split(path.sep)) {
+    cursor = path.join(cursor, segment);
+    entries.push(cursor);
+  }
+
+  const identities: PathIdentity[] = [];
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]!;
+    let status;
+    try {
+      status = await lstat(entry);
+    } catch (error) {
+      if (missingFile(error)) return undefined;
+      throw error;
+    }
+    if (status.isSymbolicLink()) {
+      throw new TypeError(
+        index === 0
+          ? "Refusing to delete through a symbolic-link blob root"
+          : "Refusing to delete through a symbolic link",
+      );
+    }
+    const isTarget = index === entries.length - 1;
+    if (!isTarget && !status.isDirectory()) {
+      throw new TypeError("Blob parent path must contain only directories");
+    }
+    if (isTarget && !status.isFile()) {
+      throw new TypeError("Managed blob target must be a regular file");
+    }
+    identities.push({
+      path: entry,
+      device: status.dev,
+      inode: status.ino,
+    });
+  }
+  return identities;
+}
+
+function samePathChain(
+  before: readonly PathIdentity[],
+  after: readonly PathIdentity[],
+): boolean {
+  return (
+    before.length === after.length &&
+    before.every((entry, index) => {
+      const candidate = after[index];
+      return (
+        candidate !== undefined &&
+        entry.path === candidate.path &&
+        entry.device === candidate.device &&
+        entry.inode === candidate.inode
+      );
+    })
+  );
+}
+
+function managedBlobDigest(root: string, filePath: string): string | undefined {
+  const relative = path.relative(root, filePath);
+  const segments = relative.split(path.sep);
+  if (segments.length !== 2) return undefined;
+  const match = MANAGED_BLOB_FILE_PATTERN.exec(segments[1]!);
+  if (match === null || segments[0] !== match[1]!.slice(0, 2)) return undefined;
+  return match[1];
+}
+
+function assertBlobIdentifier(blobId: string): void {
+  if (blobId.length === 0) {
+    throw new TypeError("Blob id must be non-empty");
+  }
+  if (blobId.includes("\0")) {
+    throw new TypeError("Blob id cannot contain a NUL byte");
+  }
+  if (
+    blobId === "." ||
+    blobId === ".." ||
+    blobId.includes("/") ||
+    blobId.includes("\\")
+  ) {
+    throw new TypeError("Blob id must be a safe object identifier");
+  }
 }
 
 function revision(value: unknown): string | undefined {
@@ -106,6 +232,8 @@ export class ZToolsSyncEntityRepository implements SyncEntityRepository {
       "ztools",
       "blobs",
     ),
+    private readonly legacyBlobRoots: readonly string[] = [],
+    private readonly ready: Promise<void> = Promise.resolve(),
   ) {
     this.clipboard = new ZToolsCanonicalClipboardStore(database, { deviceId });
     this.pinboards = new ZToolsPinboardStore(database, { deviceId });
@@ -130,6 +258,7 @@ export class ZToolsSyncEntityRepository implements SyncEntityRepository {
   }
 
   async listEntities(): Promise<SyncEntity[]> {
+    await this.ready;
     const preferences = await this.preferences.getSyncEntity();
     const entities: SyncEntity[] = [
       ...(await this.clipboard.listRecords()).map((record) => record.item),
@@ -196,6 +325,7 @@ export class ZToolsSyncEntityRepository implements SyncEntityRepository {
   }
 
   async applyEntities(entities: readonly SyncEntity[]): Promise<void> {
+    await this.ready;
     for (const entity of entities) {
       if ("deleted" in entity) {
         if (entity.entityType === "paste_item") {
@@ -217,6 +347,7 @@ export class ZToolsSyncEntityRepository implements SyncEntityRepository {
   }
 
   async readBlob(blobId: string): Promise<SyncBlob | undefined> {
+    await this.ready;
     const record = (await this.clipboard.listRecords()).find(
       (candidate) => candidate.item.payload.blobId === blobId,
     );
@@ -246,6 +377,7 @@ export class ZToolsSyncEntityRepository implements SyncEntityRepository {
     bytes: Uint8Array,
     mediaType: string,
   ): Promise<Readonly<{ id: string; imagePath: string; blobBytes: number }>> {
+    await this.ready;
     if (bytes.byteLength > MAX_BLOB_BYTES) {
       throw new RangeError("Blob exceeds 100 MiB");
     }
@@ -259,19 +391,117 @@ export class ZToolsSyncEntityRepository implements SyncEntityRepository {
   }
 
   async deleteLocalBlob(input: Readonly<{ blobId: string; filePath: string }>): Promise<void> {
-    if (input.blobId.length === 0) {
-      throw new TypeError("Blob id must be non-empty");
-    }
-    const root = path.resolve(this.blobRoot);
+    await this.ready;
+    assertBlobIdentifier(input.blobId);
     const filePath = path.resolve(input.filePath);
-    const relative = path.relative(root, filePath);
-    if (relative.length === 0 || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    const managedRoots = [this.blobRoot, ...this.legacyBlobRoots].map((root) => path.resolve(root));
+    const lexicalRoot = managedRoots.find((root) => insideRoot(root, filePath));
+    if (lexicalRoot === undefined) {
       throw new TypeError("Refusing to delete a blob outside the plugin blob directory");
     }
-    await rm(filePath, { force: true });
+
+    const initialChain = await checkedPathChain(lexicalRoot, filePath);
+    if (initialChain === undefined) return;
+    const expectedDigest = managedBlobDigest(lexicalRoot, filePath);
+    if (expectedDigest === undefined) {
+      throw new TypeError("Refusing to delete a blob outside the content-addressed layout");
+    }
+
+    const [canonicalRoot, canonicalFile] = await Promise.all([
+      realpath(lexicalRoot),
+      realpath(filePath),
+    ]);
+    if (!insideRoot(canonicalRoot, canonicalFile)) {
+      throw new TypeError("Refusing to delete a blob outside the canonical plugin blob directory");
+    }
+    if (managedBlobDigest(canonicalRoot, canonicalFile) !== expectedDigest) {
+      throw new TypeError("Canonical blob path does not match its content-addressed layout");
+    }
+
+    const noFollow = process.platform === "win32"
+      ? 0
+      : fileSystemConstants.O_NOFOLLOW;
+    const handle = await open(
+      canonicalFile,
+      fileSystemConstants.O_RDONLY | noFollow,
+    );
+    let handleOpen = true;
+    try {
+      const openedStatus = await handle.stat();
+      if (!openedStatus.isFile()) {
+        throw new TypeError("Managed blob target must remain a regular file");
+      }
+      if (openedStatus.size > MAX_BLOB_BYTES) {
+        throw new RangeError("Managed blob exceeds 100 MiB");
+      }
+      const actualDigest = createHash("sha256")
+        .update(await handle.readFile())
+        .digest("hex");
+      if (actualDigest !== expectedDigest) {
+        throw new TypeError("Managed blob content does not match its path digest");
+      }
+
+      const remainingRecords = await this.clipboard.listRecords();
+      for (const record of remainingRecords) {
+        const recordPath = record.origin.imagePath;
+        if (recordPath === undefined) continue;
+        let canonicalRecordPath: string;
+        try {
+          canonicalRecordPath = await realpath(recordPath);
+        } catch (error) {
+          if (missingFile(error)) continue;
+          throw error;
+        }
+        if (
+          canonicalRecordPath === canonicalFile ||
+          record.origin.pluginBlobId === input.blobId
+        ) {
+          return;
+        }
+      }
+
+      const finalChain = await checkedPathChain(lexicalRoot, filePath);
+      if (finalChain === undefined || !samePathChain(initialChain, finalChain)) {
+        throw new TypeError("Managed blob path changed during deletion validation");
+      }
+      const [finalCanonicalRoot, finalCanonicalFile] = await Promise.all([
+        realpath(lexicalRoot),
+        realpath(filePath),
+      ]);
+      if (
+        finalCanonicalRoot !== canonicalRoot ||
+        finalCanonicalFile !== canonicalFile
+      ) {
+        throw new TypeError("Managed blob canonical path changed during deletion validation");
+      }
+      const finalStatus = await lstat(finalCanonicalFile);
+      if (
+        finalStatus.isSymbolicLink() ||
+        !finalStatus.isFile() ||
+        finalStatus.dev !== openedStatus.dev ||
+        finalStatus.ino !== openedStatus.ino
+      ) {
+        throw new TypeError("Managed blob file changed during deletion validation");
+      }
+
+      if (process.platform === "win32") {
+        await handle.close();
+        handleOpen = false;
+      }
+      // Node does not expose unlinkat(2), so the final pathname unlink cannot
+      // be made atomic with the verified file descriptor. The content-addressed
+      // whitelist plus repeated parent/canonical/inode checks fail closed for
+      // untrusted metadata and ordinary path replacement; a malicious process
+      // racing this exact final syscall under the same OS account is outside
+      // this API's enforceable boundary.
+      await unlink(finalCanonicalFile);
+    } finally {
+      if (handleOpen) await handle.close();
+    }
   }
 
   async writeBlob(blob: SyncBlob): Promise<void> {
+    await this.ready;
     if (blob.bytes.byteLength > MAX_BLOB_BYTES) {
       throw new RangeError(`Blob ${blob.id} exceeds 100 MiB`);
     }

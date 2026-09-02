@@ -8,10 +8,25 @@ import {
   type HostClipboardApi,
   type ZToolsDocumentDatabase,
 } from "./clipboard-store";
+import {
+  clipboardWindowRole,
+  ownsClipboardHistoryMirror,
+} from "./clipboard-window-role";
 import { ensureZToolsAutoStart } from "./auto-start";
 import type { PasteStackState } from "@pasteboard-pro/core";
 import { createOcrClient, createTesseractOcrClient } from "./ocr";
 import { NativeFileDragService } from "./native-file-drag";
+import {
+  inspectHostCompatibility,
+  type ZToolsHostCompatibility,
+} from "./host-compatibility";
+import { migratePasteboardProPluginData } from "./plugin-data-migration";
+import { resolvePasteboardProDataPaths } from "./plugin-data";
+import {
+  importScreenCapture,
+  type ScreenCaptureImportResult,
+  type ScreenshotNativeImageApi,
+} from "./screenshot-import";
 import { localizeMirroredImage } from "./mirrored-image";
 import { openQuickLook } from "./quick-look";
 import { rotateImageFile } from "./image-rotation";
@@ -104,13 +119,19 @@ type ZToolsDisplay = Readonly<{
 }>;
 
 type ZToolsHost = Readonly<{
+  getAppVersion?(): unknown;
+  getPath?(name: string): unknown;
   onPluginEnter(callback: (parameter: unknown) => void): void;
   registerTool(
     name: string,
     handler: (input?: unknown) => Promise<unknown>,
   ): void;
   getNativeId(): string;
-  startDrag(file: string | string[]): void;
+  startDrag?(file: string | string[]): void;
+  screenCapture?(
+    callback: (image: unknown, bounds?: unknown) => void,
+    autoConfirm?: boolean,
+  ): void | Promise<unknown>;
   clipboard: HostClipboardApi &
     ClipboardPasteHost &
     Readonly<{
@@ -138,13 +159,17 @@ type ZToolsHost = Readonly<{
 }>;
 
 type PasteboardProBridge = Readonly<{
+  getHostCompatibility(): ZToolsHostCompatibility;
   getPlatformCapabilities(): Readonly<{
     platform: NodeJS.Platform;
     supportsGlobalPasteQueue: boolean;
     supportsQuickLook: boolean;
     supportsSystemOcr: boolean;
     supportsImageRotation: boolean;
+    supportsNativeFileDrag: boolean;
+    supportsScreenCapture: boolean;
   }>;
+  captureScreenshot(): Promise<ScreenCaptureImportResult>;
   searchHistory(query?: string, limit?: number): Promise<Readonly<{ items: unknown[]; total: number }>>;
   getPrivacySettings(): Promise<PrivacySettings>;
   savePrivacySettings(settings: PrivacySettings): Promise<PrivacySettings>;
@@ -200,12 +225,44 @@ if (host === undefined) {
 }
 
 const ztools: ZToolsHost = host;
+const hostCompatibility = inspectHostCompatibility(ztools);
+const platformCapabilities = {
+  platform: process.platform,
+  supportsGlobalPasteQueue: process.platform === "darwin",
+  supportsQuickLook:
+    process.platform === "darwin" ||
+    process.platform === "win32" ||
+    process.platform === "linux",
+  supportsSystemOcr: true,
+  supportsImageRotation:
+    process.platform === "darwin" ||
+    process.platform === "win32" ||
+    process.platform === "linux",
+  supportsNativeFileDrag: hostCompatibility.supportsNativeFileDrag,
+  supportsScreenCapture: hostCompatibility.supportsScreenCapture,
+} as const;
+
+if (!hostCompatibility.supported) {
+  const compatibilityBridge = {
+    getHostCompatibility: () => hostCompatibility,
+    getPlatformCapabilities: () => platformCapabilities,
+  } as PasteboardProBridge;
+  (window as Window & { pasteboardPro?: PasteboardProBridge }).pasteboardPro =
+    compatibilityBridge;
+} else {
 const windowParams = new URLSearchParams(window.location.search);
-const isShelfWindow = windowParams.get("shelf") === "1";
-const isPanelWindow = windowParams.has("panel");
-const isPrimaryWindow = !isShelfWindow && !isPanelWindow;
+const windowRole = clipboardWindowRole(windowParams);
+const isShelfWindow = windowRole === "shelf";
+const isPanelWindow = windowRole === "panel";
+const isPrimaryWindow = windowRole === "primary";
+const dataPaths = resolvePasteboardProDataPaths(ztools);
+const dataMigration = isPrimaryWindow
+  ? migratePasteboardProPluginData(ztools.db.promises, dataPaths)
+  : Promise.resolve();
+dataMigration.catch((error) => console.error("[pasteboard-pro] pluginData migration failed", error));
 const store = new ZToolsCanonicalClipboardStore(ztools.db.promises, {
   deviceId: ztools.getNativeId(),
+  ready: dataMigration,
 });
 const privacyStore = new ZToolsPrivacySettingsStore(ztools.db.promises);
 const windowPreferencesStore = new ZToolsWindowPreferencesStore(ztools.db.promises, {
@@ -237,6 +294,9 @@ const keychain =
 const syncRepository = new ZToolsSyncEntityRepository(
   ztools.db.promises,
   ztools.getNativeId(),
+  dataPaths.blobRoot,
+  dataPaths.legacyBlobRoots,
+  dataMigration,
 );
 const shelfWindows = new ShelfWindowManager(ztools);
 const panelWindows = new PanelWindowManager(ztools);
@@ -454,8 +514,8 @@ async function runRetentionIfDue(): Promise<void> {
   }
 }
 
-function scheduleHistoryMirror(): void {
-  synchronization = synchronization
+function scheduleHistoryMirror(): Promise<void> {
+  const nextSynchronization = synchronization
     .then(async () => {
       const privacy = await privacyStore.get();
       const result = await mirrorHostHistory(ztools.clipboard, store, {
@@ -485,11 +545,12 @@ function scheduleHistoryMirror(): void {
       await runRetentionIfDue();
       broadcastHistoryChanged();
       void scheduleVaultSync().catch(reportSynchronizationError);
-    })
-    .catch(reportSynchronizationError);
+    });
+  synchronization = nextSynchronization.catch(reportSynchronizationError);
+  return nextSynchronization;
 }
 
-if (isPrimaryWindow) {
+if (ownsClipboardHistoryMirror(windowRole)) {
   void ensureZToolsAutoStart(ipcRenderer).catch((error: unknown) => {
     console.warn("Paste剪切板自动启动登记失败", error);
   });
@@ -574,13 +635,20 @@ if (isPrimaryWindow) {
 }
 
 const bridge: PasteboardProBridge = {
-  getPlatformCapabilities: () => ({
-    platform: process.platform,
-    supportsGlobalPasteQueue: process.platform === "darwin",
-    supportsQuickLook: process.platform === "darwin" || process.platform === "win32" || process.platform === "linux",
-    supportsSystemOcr: true,
-    supportsImageRotation: process.platform === "darwin" || process.platform === "win32" || process.platform === "linux",
-  }),
+  getHostCompatibility: () => hostCompatibility,
+  getPlatformCapabilities: () => platformCapabilities,
+  captureScreenshot: () =>
+    importScreenCapture(
+      ztools,
+      nativeImage as NativeImageApi & ScreenshotNativeImageApi,
+      clipboard,
+      {
+        canImport: async () => {
+          const privacy = await privacyStore.get();
+          return !isCapturePaused(privacy.pause);
+        },
+      },
+    ),
   async searchHistory(query = "", limit = 1_000) {
     const normalizedLimit = Math.max(1, Math.min(10_000, Math.floor(limit)));
     const [result, records] = await Promise.all([
@@ -857,3 +925,4 @@ const bridge: PasteboardProBridge = {
 };
 
 (window as Window & { pasteboardPro?: PasteboardProBridge }).pasteboardPro = bridge;
+}

@@ -16,6 +16,24 @@ describe("search to list keyboard handoff", () => {
     expect(shouldResumeListControl({ key: "Enter", metaKey: false, altKey: true })).toBe(false);
   });
 
+  it("keeps Ctrl navigation and activation in a Windows/Linux search field", () => {
+    expect(
+      shouldResumeListControl(
+        { key: "ArrowDown", metaKey: false, ctrlKey: true, altKey: false },
+      ),
+    ).toBe(false);
+    expect(
+      shouldResumeListControl(
+        { key: "Enter", metaKey: false, ctrlKey: true, altKey: false },
+      ),
+    ).toBe(false);
+    expect(
+      shouldResumeListControl(
+        { key: "Enter", metaKey: false, ctrlKey: false, altKey: false },
+      ),
+    ).toBe(true);
+  });
+
   it("distinguishes focus-only navigation from list activation", () => {
     expect(isListNavigationKey("ArrowDown")).toBe(true);
     expect(isListNavigationKey("Enter")).toBe(false);

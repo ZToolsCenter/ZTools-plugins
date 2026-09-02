@@ -4,7 +4,7 @@
   "title": "Paste剪切板",
   "description": "Paste 风格的本地剪贴板历史、分组、预览与连续粘贴队列",
   "author": "harris",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "main": "index.html",
   "preload": "preload.js",
   "unpack": "@(pasteboard-vision|paste-stack-key-monitor.py)",

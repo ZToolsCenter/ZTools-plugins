@@ -57,6 +57,7 @@ export type DeleteRecordsResult = Readonly<{
 export type CanonicalStoreOptions = Readonly<{
   deviceId?: string;
   now?: () => number;
+  ready?: Promise<void>;
 }>;
 
 export interface HostClipboardApi {
@@ -246,6 +247,7 @@ async function putWithConflictRetry(
 export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   private readonly deviceId: string;
   private readonly now: () => number;
+  private readonly ready: Promise<void>;
 
   constructor(
     private readonly database: ZToolsDocumentDatabase,
@@ -253,9 +255,11 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   ) {
     this.deviceId = options.deviceId?.trim() || "ztools-local";
     this.now = options.now ?? Date.now;
+    this.ready = options.ready ?? Promise.resolve();
   }
 
   async findByFingerprint(fingerprint: string): Promise<PasteItem | undefined> {
+    await this.ready;
     const document = await getOptionalDocument(
       this.database,
       this.recordDocumentId(fingerprint),
@@ -264,6 +268,7 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   }
 
   async put(record: CanonicalClipboardRecord): Promise<void> {
+    await this.ready;
     const id = this.recordDocumentId(record.item.contentFingerprint);
     await putWithConflictRetry(this.database, id, (revision) => ({
       _id: id,
@@ -330,12 +335,14 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   }
 
   async getCursor(): Promise<HostCursor | undefined> {
+    await this.ready;
     return storedCursor(
       await getOptionalDocument(this.database, CURSOR_DOCUMENT_ID),
     );
   }
 
   async setCursor(cursor: HostCursor): Promise<void> {
+    await this.ready;
     await putWithConflictRetry(
       this.database,
       CURSOR_DOCUMENT_ID,
@@ -349,6 +356,7 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   }
 
   async listRecords(): Promise<CanonicalClipboardRecord[]> {
+    await this.ready;
     if (this.database.allDocs === undefined) {
       throw new TypeError("ZTools database does not expose allDocs");
     }

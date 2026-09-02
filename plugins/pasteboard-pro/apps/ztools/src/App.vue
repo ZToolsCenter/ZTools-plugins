@@ -34,6 +34,12 @@ import {
 } from "./state";
 import { queryAfterTypeToSearch } from "./type-to-search";
 import { isListNavigationKey, shouldResumeListControl } from "./list-control-key";
+import { shelfKeyboardRoute } from "./keyboard-routing";
+import {
+  hasAnyCommandModifier,
+  matchesPrimaryShortcut,
+  resolveShortcutPlatform,
+} from "./platform-shortcuts";
 import { themeCssVariables } from "./theme";
 import {
   applyListOrder,
@@ -57,6 +63,14 @@ const panelMode =
     ? panel
     : undefined;
 const isShelfMode = params.get("shelf") === "1";
+const hostCompatibility = window.pasteboardPro?.getHostCompatibility();
+const requiresHostUpgrade = hostCompatibility?.supported === false;
+const platformCapabilities = window.pasteboardPro?.getPlatformCapabilities();
+const shortcutPlatform = resolveShortcutPlatform(
+  platformCapabilities?.platform,
+);
+const supportsScreenCapture =
+  platformCapabilities?.supportsScreenCapture === true;
 const dockValue = params.get("dock");
 const edge: DockEdge =
   dockValue === "top" ||
@@ -70,11 +84,15 @@ const state = reactive(
   createPasteboardState({
     items: [],
     dockEdge: edge,
+    shortcutPlatform,
   }),
 );
 const pinboards = ref<Pinboard[]>([]);
 const query = ref("");
 const paused = ref(false);
+const canCaptureScreen = computed(
+  () => supportsScreenCapture && !paused.value,
+);
 const activePinboardId = ref<string>();
 const listOrders = ref<ListOrders>({});
 const listOrderSaving = ref(false);
@@ -378,12 +396,12 @@ function onKeydown(event: KeyboardEvent): void {
   }
   if (!isShelfMode) return;
   if (settingsOpen.value) return;
-  if (event.metaKey && event.key.toLowerCase() === "f") {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "f")) {
     event.preventDefault();
     document.querySelector<HTMLInputElement>("[data-pb-search]")?.focus();
     return;
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "n") {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "n")) {
     event.preventDefault();
     createTextItem();
     return;
@@ -420,33 +438,50 @@ function onKeydown(event: KeyboardEvent): void {
       return;
     }
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "c") {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "c")) {
     event.preventDefault();
     void copySelection();
     return;
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "t") {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "t")) {
     event.preventDefault();
     void togglePause();
     return;
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "e" && focusedItem.value !== undefined) {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "e") && focusedItem.value !== undefined) {
     event.preventDefault();
     editItem(focusedItem.value.id);
     return;
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "r" && focusedItem.value !== undefined) {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "r") && focusedItem.value !== undefined) {
     event.preventDefault();
     renameItem(focusedItem.value.id);
     return;
   }
-  const isSpaceActivation =
-    event.key === " " &&
-    event.target instanceof Element &&
-    event.target.closest(
-      "button, a[href], summary, [role='button'], [role='menuitem']",
-    ) !== null;
-  const nextQuery = isSpaceActivation
+  const previousSelection = state.selection.selected.join("\0");
+  const keyboardTarget = event.target instanceof Element ? event.target : undefined;
+  const listCardTarget = keyboardTarget?.closest<HTMLElement>("[data-pb-item-id]");
+  const keyboardRoute = shelfKeyboardRoute(event.key, {
+    nativeControl:
+      keyboardTarget !== undefined &&
+      keyboardTarget.closest(
+        "button, a[href], summary, [role='button'], [role='menuitem']",
+      ) !== null,
+    listCard: listCardTarget !== undefined && listCardTarget !== null,
+  });
+  if (keyboardRoute === "native-control") return;
+  if (
+    keyboardRoute === "list-card" &&
+    !hasAnyCommandModifier(event) &&
+    listCardTarget !== undefined &&
+    listCardTarget !== null
+  ) {
+    const itemId = listCardTarget.dataset.pbItemId;
+    if (itemId !== undefined && !state.selection.selected.includes(itemId)) {
+      state.replaceSelection(itemId);
+    }
+  }
+  const nextQuery = keyboardRoute === "list-card"
     ? undefined
     : queryAfterTypeToSearch(query.value, event);
   if (nextQuery !== undefined) {
@@ -459,11 +494,11 @@ function onKeydown(event: KeyboardEvent): void {
     );
     return;
   }
-  const previousSelection = state.selection.selected.join("\0");
   const effect = state.handleKeyboard(
     {
       key: event.key,
       metaKey: event.metaKey,
+      ctrlKey: event.ctrlKey,
       shiftKey: event.shiftKey,
       altKey: event.altKey,
     },
@@ -491,6 +526,20 @@ async function togglePause(): Promise<void> {
   const settings = await window.pasteboardPro?.setCapturePause({ paused: next });
   paused.value = settings?.pause.paused ?? next;
   status.value = paused.value ? "剪贴板捕获已暂停" : "剪贴板捕获已继续";
+}
+
+async function captureScreen(): Promise<void> {
+  status.value = "正在截取屏幕…";
+  try {
+    const result = await window.pasteboardPro?.captureScreenshot();
+    if (result === undefined) throw new Error("当前 ZTools 版本不支持截图导入");
+    const bounds = result.bounds;
+    status.value = bounds === undefined
+      ? "截图已写入剪贴板，正在同步历史"
+      : `截图已写入剪贴板（${Math.round(bounds.width)} × ${Math.round(bounds.height)}），正在同步历史`;
+  } catch (error) {
+    status.value = error instanceof Error ? error.message : "截图导入失败";
+  }
 }
 
 function onMirrored(event: Event): void {
@@ -804,6 +853,7 @@ async function onWindowPreferencesChanged(): Promise<void> {
 }
 
 onMounted(async () => {
+  if (requiresHostUpgrade) return;
   window.addEventListener("keydown", onKeydown);
   window.addEventListener("pasteboard-pro:paste-stack-changed", onPasteStackChanged);
   window.addEventListener(
@@ -911,10 +961,21 @@ onBeforeUnmount(() => {
     :style="themeStyle"
     :class="{
       'stage--panel': panelMode !== undefined,
-      'stage--primary': !isShelfMode && panelMode === undefined,
+      'stage--primary': !requiresHostUpgrade && !isShelfMode && panelMode === undefined,
       'stage--image-background': hasImageBackground,
     }"
   >
+    <section v-if="requiresHostUpgrade" class="upgrade-required" role="alert">
+      <img src="/logo.png" alt="" />
+      <h1>请升级 ZTools</h1>
+      <p>
+        Paste剪切板需要 ZTools {{ hostCompatibility?.minimumVersion ?? "2.4.0" }} 或更高版本。
+      </p>
+      <small v-if="hostCompatibility?.currentVersion">
+        当前版本：{{ hostCompatibility.currentVersion }}
+      </small>
+    </section>
+    <template v-else>
     <Shelf
       v-if="isShelfMode"
       :items="visibleItems"
@@ -930,6 +991,7 @@ onBeforeUnmount(() => {
       :paste-stack-count="state.pasteStack.itemIds.length"
       :paste-stack-direction="state.pasteStack.direction"
       :reorder-enabled="reorderEnabled"
+      :can-capture-screen="canCaptureScreen"
       @update:query="updateQuery"
       @select="selectItem"
       @paste="pasteItem"
@@ -948,6 +1010,7 @@ onBeforeUnmount(() => {
       @clear-stack="updatePasteStack({ type: 'clear' })"
       @open-privacy-settings="openPrivacySettings"
       @create-text="createTextItem"
+      @capture-screen="captureScreen"
       @edit-item="editItem"
       @rename-item="renameItem"
       @reorder="reorderVisibleItems"
@@ -988,6 +1051,7 @@ onBeforeUnmount(() => {
       @rename="renameItem"
     />
     <p v-if="isShelfMode" class="status" aria-live="polite">{{ status }}</p>
+    </template>
   </main>
 </template>
 
@@ -1016,6 +1080,24 @@ onBeforeUnmount(() => {
   padding: 0;
   place-items: center;
 }
+
+.upgrade-required {
+  align-self: center;
+  justify-self: center;
+  width: min(420px, calc(100% - 32px));
+  padding: 28px;
+  border: 1px solid var(--pb-line);
+  border-radius: 20px;
+  background: var(--pb-glass-strong);
+  box-shadow: 0 24px 80px var(--pb-shadow);
+  color: var(--pb-ink);
+  text-align: center;
+}
+
+.upgrade-required img { width: 52px; height: 52px; border-radius: 14px; }
+.upgrade-required h1 { margin: 14px 0 8px; font-size: 22px; }
+.upgrade-required p { margin: 0; color: var(--pb-muted); line-height: 1.6; }
+.upgrade-required small { display: block; margin-top: 10px; color: var(--pb-muted); }
 
 .stage--image-background .shelf.glass-surface {
   background-color: var(--pb-theme-background-color, var(--pb-window-bg));

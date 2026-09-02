@@ -26,6 +26,7 @@ const props = defineProps<{
   pasteStackCount: number;
   pasteStackDirection: PasteStackDirection;
   reorderEnabled: boolean;
+  canCaptureScreen: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -47,6 +48,7 @@ const emit = defineEmits<{
   clearStack: [];
   openPrivacySettings: [];
   createText: [];
+  captureScreen: [];
   reorder: [value: ListReorderRequest];
 }>();
 
@@ -86,12 +88,14 @@ function requestCreatePinboard(): void {
       :paused="paused"
       :compact="density === 'compact'"
       :reorder-enabled="reorderEnabled"
+      :can-capture-screen="canCaptureScreen"
       :edge="edge"
       @update:query="emit('update:query', $event)"
       @toggle-pause="emit('togglePause')"
       @toggle-compact="emit('toggleCompact')"
       @open-privacy-settings="emit('openPrivacySettings')"
       @create-text="emit('createText')"
+      @capture-screen="emit('captureScreen')"
     />
     <PinboardStrip
       ref="pinboardStrip"
