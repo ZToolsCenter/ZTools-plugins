@@ -19,6 +19,9 @@ import DeepLinkImportModal from './components/DeepLinkImportModal.vue'
 import { moveProviderToTarget } from './providerOrder.js'
 
 const bridge = window.ccSwitch
+const compatibility = ref(bridge?.getHostCompatibility?.() || (window.ztools
+  ? { supported: false, detected: true, version: null }
+  : { supported: true, detected: false, version: null }))
 const themePreference = ref(bridge?.getThemePreference?.() || 'light')
 const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
 const clients = ref([
@@ -316,6 +319,7 @@ async function openDesktopLibrary() {
 }
 
 function handlePluginEntry(event) {
+  if (!compatibility.value.supported) return
   if (event.detail?.code === 'provider-settings') openSettings('appearance')
   if (event.detail?.code === 'provider-skills') currentView.value = 'skills'
   if (event.detail?.code === 'provider-router') {
@@ -332,6 +336,15 @@ function handlePluginEntry(event) {
   if (event.detail?.code === 'provider-workspace') currentView.value = 'workspace'
   if (event.detail?.code === 'provider-env') currentView.value = 'env'
   if (event.detail?.code === 'provider-agent-config') currentView.value = 'agent-config'
+}
+
+function handlePluginOut() {
+  // ZTools 3.2 may hide without unmounting Vue. Close only transient UI; keep
+  // live routing and preload singleton state for a safe re-entry.
+  modalOpen.value = false
+  deepLinkRequest.value = null
+  draggedProviderId.value = ''
+  dragTargetProviderId.value = ''
 }
 
 function handleDeepLink(event) {
@@ -351,15 +364,21 @@ async function handleDeepLinkImported(result) {
 }
 
 onMounted(async () => {
+  if (!compatibility.value.supported) {
+    loading.value = false
+    return
+  }
   window.addEventListener('cc-switch:enter', handlePluginEntry)
+  window.addEventListener('cc-switch:out', handlePluginOut)
   window.addEventListener('cc-switch:deeplink', handleDeepLink)
   window.addEventListener('cc-switch:deeplink-error', handleDeepLinkError)
   systemThemeQuery?.addEventListener?.('change', handleSystemThemeChange)
-  await loadData()
+  if (compatibility.value.supported) await loadData()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('cc-switch:enter', handlePluginEntry)
+  window.removeEventListener('cc-switch:out', handlePluginOut)
   window.removeEventListener('cc-switch:deeplink', handleDeepLink)
   window.removeEventListener('cc-switch:deeplink-error', handleDeepLinkError)
   systemThemeQuery?.removeEventListener?.('change', handleSystemThemeChange)
@@ -367,7 +386,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell antialiased">
+  <section v-if="!compatibility.supported" class="compatibility-gate" role="alert">
+    <span class="compatibility-mark" aria-hidden="true">!</span>
+    <div><p>需要更新 ZTools</p><h1>当前版本 {{ compatibility.version || '无法识别' }} 暂不支持此插件</h1><p>为了获得更完整、稳定的体验，请升级至 ZTools 2.4.0 或更高版本。</p></div>
+  </section>
+  <div v-else class="app-shell antialiased">
     <DeepLinkImportModal v-if="deepLinkRequest" :request="deepLinkRequest" @close="deepLinkRequest = null" @imported="handleDeepLinkImported" @toast="toast" />
     <aside class="side-rail select-none" aria-label="客户端与页面导航">
       <div class="rail-brand" title="AI Provider Switch">
