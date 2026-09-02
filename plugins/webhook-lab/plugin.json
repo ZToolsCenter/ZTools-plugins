@@ -1,0 +1,82 @@
+{
+  "name": "webhook-lab",
+  "title": "Webhook 实验室",
+  "version": "0.1.0",
+  "description": "仅在本机运行的有界 Webhook 收件箱与签名工作台。",
+  "author": "harris",
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ],
+  "categories": [
+    "development",
+    "network"
+  ],
+  "main": "src/main/index.html",
+  "preload": "src/preload/index.cjs",
+  "logo": "logo.svg",
+  "features": [
+    {
+      "code": "webhook-lab",
+      "icon": "logo.svg",
+      "explain": "接收并检查本地 Webhook 请求",
+      "cmds": [
+        "Webhook 实验室",
+        "Webhook 调试"
+      ]
+    }
+  ],
+  "tools": {
+    "hmac": {
+      "title": "计算 Webhook HMAC",
+      "description": "纯本地计算 SHA-256 或 SHA-512 HMAC；不会启动监听器，也不会返回正文或密钥。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 262144
+          },
+          "secret": {
+            "type": "string",
+            "maxLength": 8192
+          },
+          "algorithm": {
+            "type": "string",
+            "enum": [
+              "sha256",
+              "sha512"
+            ]
+          }
+        },
+        "required": [
+          "body",
+          "secret"
+        ]
+      }
+    },
+    "preview_payload": {
+      "title": "安全预览 Webhook 负载",
+      "description": "复用本地负载预览与凭据脱敏逻辑，返回不超过 64 KiB 的只读结果。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 262144
+          },
+          "contentType": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "body"
+        ]
+      }
+    }
+  }
+}
