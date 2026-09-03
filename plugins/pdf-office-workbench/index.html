@@ -123,7 +123,16 @@
       import { extractInvoiceFields } from './src/core/index.mjs';
 
       const services = window.services;
-      const state = { files: [], lastPath: '' };
+      const compatibility = !window.ztools
+        ? { supported: true }
+        : (() => {
+            try { return services?.hostCompatibility?.() || { supported: false }; }
+            catch (_) { return { supported: false }; }
+          })();
+      if (!compatibility.supported) {
+        document.querySelector('main').innerHTML = '<section class="card"><h2>需要升级 ZTools</h2><p class="muted">当前 ZTools 版本过低或无法识别（最低支持 2.4.0）。为了获得更完整、稳定的体验，请升级后再使用 PDF 办公工坊。</p></section>';
+      } else {
+      const state = { files: [], lastPath: '', outputPaths: [] };
       const $ = (selector) => document.querySelector(selector);
       const output = $('#output');
       const status = $('#status');
@@ -144,6 +153,11 @@
       function setStatus(message, isError = false) {
         status.textContent = message || '';
         status.className = `status${isError ? ' error' : ''}`;
+      }
+
+      function outputPaths(value) {
+        const entries = Array.isArray(value) ? value : [value];
+        return entries.map((entry) => entry?.path).filter((entry) => typeof entry === 'string' && entry.length > 0);
       }
 
       function render() {
@@ -184,6 +198,7 @@
         try {
           const result = await task();
           state.lastPath = Array.isArray(result) ? result.at(-1)?.path || '' : result?.path || '';
+          state.outputPaths = outputPaths(result);
           if (state.lastPath) $('#open-result').disabled = false;
           show(result);
           setStatus('完成');
@@ -214,9 +229,15 @@
       });
       $('#invoice').addEventListener('click', () => { show(extractInvoiceFields($('#invoice-input').value)); setStatus('字段提取完成'); });
       $('#open-result').addEventListener('click', () => state.lastPath && services.reveal(state.lastPath));
+      $('#open-result').draggable = services.canStartDrag?.() || false;
+      $('#open-result').addEventListener('dragstart', (event) => {
+        event.preventDefault();
+        if (state.outputPaths.length) services.startDrag(state.outputPaths).catch((error) => setStatus(error?.message || String(error), true));
+      });
 
       window.addEventListener('pdf-office-enter', event => addFiles(event.detail.files));
       render();
+      }
     </script>
   </body>
 </html>
