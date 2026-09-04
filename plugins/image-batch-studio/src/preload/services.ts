@@ -11,6 +11,9 @@ import type {
 import { imageDataUrlToBuffer } from "./data-url";
 import { createGif, mergeImages, mergePdfs, processImages } from "./processor";
 import { discoverFiles } from "./file-discovery";
+import { hostCompatibility } from "../shared/host-compatibility";
+import { requestZToolsScreenCapture } from "../shared/ztools-screen-capture";
+import { createFileDragGrantStore } from "./file-drag-grants";
 import {
   installSharpRuntime,
   sharpRuntimeStatus
@@ -26,7 +29,11 @@ declare global {
 const electron = require("electron");
 const { shell, webUtils } = electron;
 
-const tempRoot = path.join(getZToolsPath("temp"), "image-batch-studio");
+const initialHostCompatibility = hostCompatibility(window.ztools);
+const tempRoot = initialHostCompatibility.supported
+  ? path.join(getZToolsPath("temp"), "image-batch-studio")
+  : "";
+const dragGrants = createFileDragGrantStore();
 
 function getZToolsPath(name: string): string {
   if (typeof window !== "undefined" && window.ztools?.getPath) {
@@ -52,6 +59,11 @@ async function imagePayloadToFile(payload: unknown): Promise<string[]> {
   const filePath = path.join(tempRoot, `pasted-${Date.now()}.${image.ext}`);
   await fs.writeFile(filePath, image.buffer);
   return [filePath];
+}
+
+async function captureScreenToFile(): Promise<{ paths: string[]; bounds?: unknown }> {
+  const capture = await requestZToolsScreenCapture(window.ztools);
+  return { paths: await imagePayloadToFile(capture.image), bounds: capture.bounds };
 }
 
 async function resolveLaunchFiles(action: any): Promise<SourceFile[]> {
@@ -88,6 +100,7 @@ async function notifyEnter(action: any) {
 
 const services = {
   async handlePluginEnter(action: any) {
+    if (!initialHostCompatibility.supported) return;
     await notifyEnter(action);
   },
 
@@ -108,27 +121,35 @@ const services = {
 
   async processImages(paths: string[], settings: ImageJobSettings) {
     await ensureSharpRuntime();
-    return processImages(paths, settings, (completed, total, result) => {
+    const results = await processImages(paths, settings, (completed, total, result) => {
       window.dispatchEvent(
         new CustomEvent("image-batch-progress", {
           detail: { completed, total, result }
         })
       );
     });
+    await dragGrants.grantMany(results.filter(result => result.ok && result.outputPath).map(result => result.outputPath));
+    return results;
   },
 
   async mergePdfs(paths: string[], outputPath: string) {
-    return mergePdfs(paths, outputPath);
+    const output = await mergePdfs(paths, outputPath);
+    await dragGrants.grant(output);
+    return output;
   },
 
   async mergeImages(paths: string[], outputPath: string, options: MergeImagesOptions) {
     await ensureSharpRuntime();
-    return mergeImages(paths, outputPath, options);
+    const output = await mergeImages(paths, outputPath, options);
+    await dragGrants.grant(output);
+    return output;
   },
 
   async createGif(paths: string[], outputPath: string, options: GifOptions) {
     await ensureSharpRuntime();
-    return createGif(paths, outputPath, options);
+    const output = await createGif(paths, outputPath, options);
+    await dragGrants.grant(output);
+    return output;
   },
 
   async chooseFiles() {
@@ -141,6 +162,19 @@ const services = {
     if (!paths?.length) return [];
     await ensureSharpRuntime();
     return discoverFiles(paths);
+  },
+
+  async captureScreen() {
+    const capture = await captureScreenToFile();
+    if (!capture.paths.length) return [];
+    await ensureSharpRuntime();
+    const files = await discoverFiles(capture.paths);
+    window.dispatchEvent(new CustomEvent("image-batch-screen-capture", { detail: { bounds: capture.bounds, files } }));
+    return files;
+  },
+
+  canCaptureScreen() {
+    return typeof window.ztools?.screenCapture === "function";
   },
 
   async chooseDirectory() {
@@ -180,12 +214,26 @@ const services = {
 
   reveal(filePath: string) {
     shell.showItemInFolder(filePath);
+  },
+
+  hostCompatibility() {
+    return initialHostCompatibility;
+  },
+
+  canStartDrag() {
+    return typeof window.ztools?.startDrag === "function";
+  },
+
+  async startDrag(paths: string[] | string) {
+    if (typeof window.ztools?.startDrag !== "function") throw new Error("请升级到 ZTools 3.2.0 以拖出文件。");
+    const values = await dragGrants.consume(paths);
+    await Promise.resolve(window.ztools.startDrag(values.length === 1 ? values[0] : values));
   }
 };
 
 window.services = services;
 
-if (window.ztools?.onPluginEnter) {
+if (initialHostCompatibility.supported && window.ztools?.onPluginEnter) {
   window.ztools.onPluginEnter((action: any) => {
     services.handlePluginEnter(action).catch((error: unknown) => {
       window.ztools.showNotification?.(error instanceof Error ? error.message : String(error));
@@ -193,9 +241,10 @@ if (window.ztools?.onPluginEnter) {
   });
 }
 
-if (window.ztools?.onPluginOut) {
+if (initialHostCompatibility.supported && window.ztools?.onPluginOut) {
   window.ztools.onPluginOut(async (isKill: boolean) => {
     if (!isKill) return;
+    dragGrants.clear();
     await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => undefined);
   });
 }

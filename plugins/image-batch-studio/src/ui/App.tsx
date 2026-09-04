@@ -21,6 +21,7 @@ import {
   Loader2,
   PanelRight,
   RotateCcw,
+  ScanLine,
   Scissors,
   Settings2,
   SquareRoundCorner,
@@ -155,7 +156,23 @@ const defaultGif: GifOptions = {
   background: "#ffffff"
 };
 
+function rendererHostIsSupported() {
+  if (!window.ztools) return true;
+  try {
+    return window.services?.hostCompatibility?.().supported === true;
+  } catch {
+    return false;
+  }
+}
+
 export function App() {
+  if (!rendererHostIsSupported()) {
+    return <main className="app-shell"><section className="workspace"><p className="dropdown-empty">当前 ZTools 版本过低或无法识别（最低支持 2.4.0）。为了获得更完整、稳定的体验，请升级后再使用图片批处理。</p></section></main>;
+  }
+  return <ImageBatchWorkbench />;
+}
+
+function ImageBatchWorkbench() {
   const [files, setFiles] = useState<SourceFile[]>([]);
   const [active, setActive] = useState<ModuleId>("compress");
   const [selectedPath, setSelectedPath] = useState<string>("");
@@ -254,6 +271,17 @@ export function App() {
     } catch (error) {
       notify(errorMessage(error));
     }
+  }
+
+  async function captureScreen() {
+    try { addFiles(await window.services.captureScreen()); }
+    catch (error) { notify(errorMessage(error)); }
+  }
+
+  async function dragResult(event: React.DragEvent, outputPath: string) {
+    event.preventDefault();
+    try { await window.services.startDrag(outputPath); }
+    catch (error) { notify(errorMessage(error)); }
   }
 
   async function installRuntime() {
@@ -540,6 +568,7 @@ export function App() {
               <FilePlus2 size={16} />
               导入
             </button>
+            {window.services.canCaptureScreen() && <button onClick={captureScreen} title="截图导入（ZTools 3.2.0）"><ScanLine size={16} />截图</button>}
             <button onClick={clearFiles} title="清空列表">
               <Trash2 size={16} />
             </button>
@@ -607,7 +636,7 @@ export function App() {
                   <div className="dropdown-empty">{busy ? "等待输出..." : "暂无结果"}</div>
                 ) : (
                   results.map((result) => (
-                    <button key={`${result.inputPath}-${result.outputPath}`} className="result-row" onClick={() => result.outputPath && window.services.reveal(result.outputPath)}>
+                    <button key={`${result.inputPath}-${result.outputPath}`} className="result-row" draggable={Boolean(result.outputPath && window.services.canStartDrag())} onDragStart={(event) => result.outputPath && void dragResult(event, result.outputPath)} onClick={() => result.outputPath && window.services.reveal(result.outputPath)}>
                       {result.ok ? <Check size={14} /> : <PanelRight size={14} />}
                       <span>{result.ok ? basename(result.outputPath) : result.error}</span>
                     </button>

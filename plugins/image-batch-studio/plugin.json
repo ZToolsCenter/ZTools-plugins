@@ -4,7 +4,7 @@
   "title": "图片批处理",
   "description": "图片批处理：压缩、水印、格式转换、尺寸、裁剪、旋转、翻转、边框、圆角、PDF 合并、图片合并和 GIF 合成。",
   "author": "harris",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.svg",
