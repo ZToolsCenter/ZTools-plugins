@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>字幕工坊</title>
+  <style>
+    :root{color-scheme:dark;--ink:#141519;--panel:#202126;--line:#3b3d45;--paper:#f4f1ea;--amber:#efb64c;--muted:#a9a9a2}
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(circle at 75% 0,#3d3321,transparent 28rem),var(--ink);color:var(--paper);font:14px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .app{max-width:1300px;margin:auto;padding:28px}
+    .head{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line)}
+    h1{margin:4px 0 18px;font-size:36px}
+    .eyebrow{color:var(--amber);font:11px ui-monospace,monospace;letter-spacing:.14em}
+    .status,.legend{color:var(--muted);font:12px/1.6 ui-monospace,monospace}
+    .status,.legend,h1,h2{overflow-wrap:break-word;text-wrap:pretty}
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:18px}
+    .card{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+    .tools{padding:12px;display:flex;flex-wrap:wrap;gap:7px}
+    .tools+textarea{border-top:1px solid var(--line)}
+    button,input{min-width:0;max-width:100%;background:#292a2f;border:1px solid #66532e;color:var(--paper);border-radius:7px;padding:8px;font:12px ui-monospace,monospace}
+    button{white-space:normal;overflow-wrap:break-word}
+    button:disabled{opacity:.45}
+    textarea{width:100%;min-width:0;min-height:340px;resize:vertical;background:#18191d;color:var(--paper);border:0;padding:15px;font:13px/1.55 ui-monospace,monospace}
+    .side{padding:16px}
+    .finding{margin:6px 0;padding:8px;border-left:2px solid var(--amber);background:#18191d;font:12px ui-monospace,monospace;overflow-wrap:anywhere}
+    label{font:11px ui-monospace,monospace;color:var(--muted);overflow-wrap:break-word}
+    label input{display:block;width:82px;margin-top:4px}
+    button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+    @media(max-width:720px){.app{padding:16px}.head{display:block}.grid{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="head">
+      <div><div class="eyebrow">本地剪辑室 / V0.1</div><h1>字幕工坊</h1></div>
+      <p class="status" id="status">本地授权打开字幕或媒体；不会上传内容。</p>
+    </header>
+    <section class="grid">
+      <article class="card">
+        <div class="tools">
+          <button id="open">打开文件</button><button id="qc" disabled>字幕质检</button>
+          <button id="srt" disabled title="VTT 转 SRT 会规范化并丢弃专属文档块">保存 SRT</button><button id="vtt" disabled>保存 VTT</button>
+          <button id="extract" disabled>提取音轨</button><button id="cancel" disabled>取消音轨</button><button id="retryCleanup" disabled>重试清理临时音轨</button><button id="transcribe">查看转写能力</button>
+        </div>
+        <div class="tools">
+          <label>查找<input id="find"></label><label>替换<input id="replace"></label><button id="replaceAll" disabled>全部替换</button>
+          <label>平移（毫秒）<input id="shift" value="500" type="number"></label><button id="shiftGo" disabled>应用平移</button>
+          <label>速度倍率<input id="speed" value="1" type="number" step=".01"></label><button id="speedGo" disabled>应用速度</button>
+          <label>源 FPS<input id="fromFps" value="24" type="number"></label><label>目标 FPS<input id="toFps" value="25" type="number"></label><button id="fpsGo" disabled>转换帧率</button>
+        </div>
+        <textarea id="text" disabled placeholder="打开 SRT/VTT 字幕后即可编辑。"></textarea>
+      </article>
+      <aside class="card side">
+        <h2>字幕质检</h2>
+        <div class="tools"><label>最短时长（毫秒）<input id="min" min="0" value="500" type="number"></label><label>最长时长（毫秒）<input id="max" min="1" value="8000" type="number"></label><label>最大 CPS<input id="cps" min="0.1" value="22" type="number"></label></div>
+        <div id="findings" class="legend">尚未加载字幕。</div>
+        <h2>外部能力</h2><div id="capabilities" class="legend"></div>
+      </aside>
+    </section>
+  </main>
+  <script>
+    const api=window.subtitleWorkbench;
+    const text=document.querySelector('#text');
+    const status=document.querySelector('#status');
+    const findings=document.querySelector('#findings');
+    const subIds=['qc','srt','vtt','replaceAll','shiftGo','speedGo','fpsGo'];
+    const MAX_RENDERED_FINDINGS=500;
+    const findingLabels={EMPTY_TEXT:'字幕文本为空',REVERSED:'结束时间早于开始时间',TOO_SHORT:'显示时长过短',TOO_LONG:'显示时长过长',FAST_READING:'阅读速度过快',OVERLAP:'与上一条字幕重叠'};
+    const resultLabels={DIALOG_UNAVAILABLE:'文件选择对话框不可用。',CANCELED:'已取消操作。',SESSION_EXPIRED:'当前插件会话已结束，请重新打开文件。',ENTRY_REJECTED:'无法打开入口文件。',FFMPEG_UNAVAILABLE:'当前宿主未提供 FFmpeg 能力。',CANCEL_UNAVAILABLE:'当前音轨任务无法取消。',TRANSCRIPTION_UNSUPPORTED:'当前版本不支持转写。',AUDIO_OUTPUT_SYMLINK:'不能覆盖符号链接。',AUDIO_OUTPUT_NOT_FILE:'音轨输出位置不能是目录或特殊文件。',AUDIO_OUTPUT_CHECK_FAILED:'无法安全检查音轨输出位置。',AUDIO_TEMPORARY_CHECK_FAILED:'无法安全准备音轨临时文件。',AUDIO_EXTRACT_START_FAILED:'无法启动音轨提取。',AUDIO_TEMP_CLEANUP_FAILED:'音轨临时文件未能清理，请重试。',AUDIO_CLEANUP_NOT_PENDING:'当前没有待清理的临时音轨。'};
+    let grant=null,media=null,format='srt',name='字幕',jobId=null,cleanupJobId=null,timer=null;
+    const value=id=>document.querySelector('#'+id).value;
+    const enable=value=>{text.disabled=!value;subIds.forEach(id=>document.querySelector('#'+id).disabled=!value)};
+    const quality=()=>({minDuration:Number(value('min')),maxDuration:Number(value('max')),maxCharsPerSecond:Number(value('cps'))});
+    const visibleError=(error,fallback='操作失败，请重试。')=>{const message=String(error?.message||'');return /[㐀-鿿]/.test(message)?message:fallback};
+    const resultMessage=result=>result?.message?visibleError({message:result.message},resultLabels[result?.code]||'操作未完成。'):resultLabels[result?.code]||'操作未完成。';
+    const visibleFileName=value=>String(value||'备份文件').split(/[\\/]/).pop().replace(/[\u0000-\u001f]/g,'_').slice(0,180);
+    const audioTerminalMessage=job=>{
+      let message='音轨任务已结束。';
+      if(job.state==='completed'&&job.warning?.code==='AUDIO_BACKUP_CLEANUP_FAILED')message='音轨提取完成，但旧备份“'+visibleFileName(job.warning.fileName)+'”未能清理，请手动检查。';
+      else if(job.state==='completed')message='音轨提取完成。';
+      else if(job.state==='canceled')message='音轨提取已取消。';
+      else if(job.state==='failed'&&job.code==='AUDIO_BACKUP_RESTORE_FAILED')message='音轨替换失败，旧文件未能自动恢复；备份“'+visibleFileName(job.fileName)+'”可能仍保留，请手动检查。';
+      else if(job.state==='failed'&&job.code==='AUDIO_PROMOTE_FAILED')message='音轨替换失败，原文件已恢复。';
+      else if(job.state==='failed')message='音轨提取失败：'+visibleError({message:job.message},'外部处理失败。');
+      if(job.warning?.code==='AUDIO_TEMP_CLEANUP_FAILED')message+=' 临时音轨“'+visibleFileName(job.warning.fileName)+'”未能清理，请重试。';
+      return message;
+    };
+    function render(items){
+      findings.replaceChildren();
+      if(!items.length){const n=document.createElement('div');n.className='finding';n.textContent='字幕质检通过。';findings.append(n)}
+      for(const item of items.slice(0,MAX_RENDERED_FINDINGS)){const n=document.createElement('div');n.className='finding';n.textContent='#'+(item.index+1)+' · '+(findingLabels[item.code]||'未知质检问题');findings.append(n)}
+      if(items.length>MAX_RENDERED_FINDINGS){const n=document.createElement('div');n.className='finding';n.textContent='共 '+items.length+' 项问题；为保证界面流畅，仅显示前 '+MAX_RENDERED_FINDINGS+' 项。';findings.append(n)}
+    }
+    function qc(){try{const result=api.analyze(text.value,format,quality());render(result.findings);status.textContent='已检查 '+result.cues.length+' 条字幕。'}catch(error){status.textContent='质检失败：'+visibleError(error,'请检查字幕格式。')}}
+    async function consume(result){
+      if(!result)return;
+      if(!result.ok){if(result.code!=='NO_ENTRY')status.textContent=resultMessage(result);return}
+      grant=result.file.grantId;name=result.file.name;
+      if(result.file.type==='media'){media=grant;enable(false);document.querySelector('#extract').disabled=false;status.textContent='媒体已授权，尚未读取。';return}
+      media=null;document.querySelector('#extract').disabled=true;
+      const loaded=await api.readGrantedSubtitle(grant);format=loaded.format;text.value=loaded.content;enable(true);qc();
+    }
+    document.querySelector('#open').onclick=async()=>{try{await consume(await api.chooseInput())}catch(error){status.textContent=visibleError(error,'无法打开所选文件。')}};
+    document.querySelector('#qc').onclick=qc;
+    document.querySelector('#replaceAll').onclick=()=>{const from=value('find');if(from){text.value=text.value.split(from).join(value('replace'));qc()}};
+    for(const [id,operation] of [['shiftGo',()=>({type:'shift',milliseconds:Number(value('shift'))})],['speedGo',()=>({type:'speed',speed:Number(value('speed'))})],['fpsGo',()=>({type:'fps',sourceFps:Number(value('fromFps')),targetFps:Number(value('toFps'))})]])document.querySelector('#'+id).onclick=()=>{try{text.value=api.transform(text.value,format,operation());qc()}catch(error){status.textContent=visibleError(error,'字幕转换失败，请检查参数。')}};
+    for(const [id,output] of [['srt','srt'],['vtt','vtt']])document.querySelector('#'+id).onclick=async()=>{try{const content=api.transform(text.value,format,{type:'shift',milliseconds:0,format:output});const result=await api.saveSubtitle(content,output,name);status.textContent=result.canceled?'已取消保存。':'已保存 '+result.fileName}catch(error){status.textContent=visibleError(error,'保存字幕失败，请检查目标位置。')}};
+    document.querySelector('#extract').onclick=async()=>{try{const result=await api.startAudioExtract(media);if(!result.ok){status.textContent=resultMessage(result);return}jobId=result.jobId;document.querySelector('#cancel').disabled=!result.cancelSupported;status.textContent='正在提取音轨。';timer=setInterval(()=>{const job=api.audioJobStatus(jobId);if(['completed','failed','canceled','unknown'].includes(job.state)){clearInterval(timer);timer=null;document.querySelector('#cancel').disabled=true;if(job.warning?.code==='AUDIO_TEMP_CLEANUP_FAILED'){cleanupJobId=jobId;document.querySelector('#retryCleanup').disabled=false}status.textContent=audioTerminalMessage(job)}},500)}catch(error){status.textContent=visibleError(error,'音轨提取失败。')}};
+    document.querySelector('#cancel').onclick=async()=>{try{const result=await api.cancelAudio(jobId);status.textContent=result.ok?'已请求取消音轨提取。':resultMessage(result)}catch(error){status.textContent=visibleError(error,'无法取消音轨任务。')}};
+    document.querySelector('#retryCleanup').onclick=async()=>{try{const result=await api.retryAudioCleanup(cleanupJobId);if(result.ok){cleanupJobId=null;document.querySelector('#retryCleanup').disabled=true;status.textContent='临时音轨已清理。'}else status.textContent=resultMessage(result)}catch(error){status.textContent=visibleError(error,'临时音轨清理失败，请重试。')}};
+    document.querySelector('#transcribe').onclick=async()=>{const result=await api.startTranscription();status.textContent=resultMessage(result)};
+    const capabilities=api.getCapabilities();document.querySelector('#capabilities').textContent='FFmpeg：'+(capabilities.ffmpeg?'宿主可用':'宿主未提供')+'；Whisper：不会探测 PATH。';
+    const pendingCleanups=api.pendingAudioCleanups?.()||[];if(pendingCleanups.length){cleanupJobId=pendingCleanups[0].jobId;document.querySelector('#retryCleanup').disabled=false;status.textContent='发现未清理的临时音轨“'+visibleFileName(pendingCleanups[0].fileName)+'”，请重试清理。'}
+    void consume(api.consumeEntry()).catch(error=>{status.textContent=visibleError(error,'无法打开入口文件。')});
+    const watch=setInterval(async()=>{const entry=api.consumeEntry();if(entry.code==='NO_ENTRY')return;clearInterval(watch);try{await consume(entry)}catch(error){status.textContent=visibleError(error,'无法打开入口文件。')}},500);
+  </script>
+</body>
+</html>

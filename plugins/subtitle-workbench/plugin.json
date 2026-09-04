@@ -1,0 +1,206 @@
+{
+  "name": "subtitle-workbench",
+  "title": "字幕工坊",
+  "description": "本地解析、校对、调整与导出 SRT/VTT 字幕；外部转写能力按需接入。",
+  "version": "0.1.0",
+  "author": "harris",
+  "main": "index.html",
+  "preload": "preload/services.cjs",
+  "logo": "logo.svg",
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ],
+  "categories": [
+    "media",
+    "text"
+  ],
+  "features": [
+    {
+      "code": "subtitle-workbench-open",
+      "explain": "编辑、校对或转换一个字幕文件",
+      "icon": "logo.svg",
+      "cmds": [
+        "字幕编辑",
+        "SRT 转 VTT",
+        "字幕校对",
+        {
+          "type": "files",
+          "fileType": "file",
+          "extensions": [
+            "srt",
+            "vtt",
+            "mp4",
+            "mov",
+            "mkv",
+            "mp3",
+            "wav"
+          ],
+          "minLength": 1,
+          "maxLength": 1,
+          "label": "打开一个字幕或媒体文件"
+        }
+      ]
+    }
+  ],
+  "tools": {
+    "analyze": {
+      "title": "分析内联字幕",
+      "description": "对不超过 512 KiB 的内联 SRT/VTT 做确定性质检，仅返回最多 200 条的可续分页问题与统计，序列化响应不超过 512 KiB。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 524288
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "srt",
+              "vtt"
+            ]
+          },
+          "thresholds": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "minDuration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 60000
+              },
+              "maxDuration": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600000
+              },
+              "maxCharsPerSecond": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000
+              }
+            }
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [
+          "content",
+          "format"
+        ]
+      }
+    },
+    "transform": {
+      "title": "转换内联字幕",
+      "description": "对不超过 512 KiB 的内联字幕执行平移、速度、帧率或格式转换，不读写文件；序列化响应超过 512 KiB 时拒绝。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 524288
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "srt",
+              "vtt"
+            ]
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "shift",
+              "speed",
+              "fps",
+              "convert"
+            ]
+          },
+          "milliseconds": {
+            "type": "integer",
+            "minimum": -86400000,
+            "maximum": 86400000
+          },
+          "speed": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 10
+          },
+          "sourceFps": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 240
+          },
+          "targetFps": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 240
+          },
+          "outputFormat": {
+            "type": "string",
+            "enum": [
+              "srt",
+              "vtt"
+            ]
+          }
+        },
+        "required": [
+          "content",
+          "format",
+          "operation"
+        ]
+      }
+    },
+    "analyze_approved_file": {
+      "title": "分析已授权字幕文件",
+      "description": "分析用户最近在插件界面选择且身份与摘要未变化的字幕文件；不接受路径或授权令牌，只返回最多 200 条的可续分页问题与统计。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "thresholds": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "minDuration": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 60000
+              },
+              "maxDuration": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600000
+              },
+              "maxCharsPerSecond": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000
+              }
+            }
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      }
+    }
+  }
+}
