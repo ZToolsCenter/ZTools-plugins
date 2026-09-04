@@ -14,6 +14,7 @@ import {
   collectReferencedZipAssets,
   normalizePluginForServer,
   packDirectoryAsZpx,
+  resolvePlannedAssetPath,
   validateDistAssets,
 } from './download-latest-assets.js';
 
@@ -140,6 +141,14 @@ test('validateDistAssets checks the complete ZIP, ZPX, and logo output', async (
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('resolvePlannedAssetPath keeps GitHub Release prefixes out of dist', () => {
+  const githubUrl = 'https://github.com/ZToolsCenter/ZTools-plugins/releases/download/v1/demo-1.0.0.zip';
+  const edgeLogoUrl = 'https://ztools.zosen.link/images/logo/demo-1.0.0.png';
+
+  assert.equal(resolvePlannedAssetPath(githubUrl, 'demo-1.0.0.zip', false), 'demo-1.0.0.zip');
+  assert.equal(resolvePlannedAssetPath(edgeLogoUrl, 'demo-1.0.0.png'), 'images/logo/demo-1.0.0.png');
 });
 
 test('addZpxDownloadUrls preserves ZIP fields and adds the ZPX URL', () => {

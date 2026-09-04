@@ -736,8 +736,14 @@ async function downloadReleaseMetadata(latestRelease) {
   }
 }
 
-async function downloadPlannedAsset(url, fallbackFileName) {
-  const relativePath = getAssetPathFromUrl(url) || fallbackFileName;
+export function resolvePlannedAssetPath(url, fallbackFileName, preserveUrlPath = true) {
+  return preserveUrlPath
+    ? (getAssetPathFromUrl(url) || fallbackFileName)
+    : fallbackFileName;
+}
+
+async function downloadPlannedAsset(url, fallbackFileName, preserveUrlPath = true) {
+  const relativePath = resolvePlannedAssetPath(url, fallbackFileName, preserveUrlPath);
   const destination = join(DIST_DIR, relativePath);
   await mkdir(dirname(destination), { recursive: true });
   await downloadFileWithRetry(url, destination, relativePath);
@@ -766,7 +772,8 @@ async function downloadIncrementalAssets(plan) {
 
   for (const item of changedPlugins) {
     console.log(`下载变更插件: ${item.zipFileName}`);
-    await downloadPlannedAsset(item.entry.sourceDownloadUrl, item.zipFileName);
+    // GitHub Release URL 包含 releases/download/<tag>/ 前缀，本地 ZIP 必须落在 dist 根目录。
+    await downloadPlannedAsset(item.entry.sourceDownloadUrl, item.zipFileName, false);
   }
 
   return { changedPlugins, reusedPlugins };
