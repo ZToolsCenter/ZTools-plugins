@@ -1,0 +1,14 @@
+{
+  "name": "har-doctor",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "build": "npm test && node scripts/build.mjs && node scripts/verify-dist.mjs",
+    "verify-dist": "node scripts/verify-dist.mjs"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
