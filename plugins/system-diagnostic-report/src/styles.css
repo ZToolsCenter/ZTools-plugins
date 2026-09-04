@@ -24,6 +24,21 @@
   --utility: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
+.compatibility-gate {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  grid-template-columns: auto minmax(0, 520px);
+  gap: 20px;
+  padding: 36px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.compatibility-gate p { margin: 0 0 8px; color: var(--ink-soft); }
+.compatibility-gate h1 { margin: 0 0 12px; font-size: clamp(22px, 4vw, 34px); line-height: 1.25; }
+.compatibility-mark { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 50%; color: white; background: #c2410c; font-size: 28px; font-weight: 700; }
+
 :root[data-theme="dark"] {
   color: #dde4e5;
   background: #151b1e;

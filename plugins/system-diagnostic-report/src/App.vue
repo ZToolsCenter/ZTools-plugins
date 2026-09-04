@@ -18,12 +18,16 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import StatusMark from './components/StatusMark.vue'
 import { formatReportDate, reportToJson, reportToMarkdown } from './composables/formatReport'
 import { useSystemReport } from './composables/useSystemReport'
+import { hostCompatibility } from './composables/ztoolsCompatibility'
 import type { DiagnosticStatus } from './types/report'
 
 type Theme = 'light' | 'dark'
 type ExportFormat = 'markdown' | 'json'
 
+const compatibility = ref(hostCompatibility())
 const { report, loading, error, stale, usedMock, collect } = useSystemReport()
+const lastExportPath = ref('')
+const canStartDrag = computed(() => typeof window.ztools?.startDrag === 'function')
 const activeGroup = ref('overview')
 const theme = ref<Theme>('light')
 const announcement = ref('')
@@ -119,6 +123,7 @@ async function exportAs(format: ExportFormat) {
     if (window.systemReport?.saveReport) {
       const result = await window.systemReport.saveReport({ content, defaultName, format })
       if (result.canceled) return
+      lastExportPath.value = result.filePath || ''
     } else {
       const blob = new Blob([content], { type: format === 'markdown' ? 'text/markdown;charset=utf-8' : 'application/json;charset=utf-8' })
       const url = URL.createObjectURL(blob)
@@ -132,6 +137,17 @@ async function exportAs(format: ExportFormat) {
     announce(`${format === 'markdown' ? 'Markdown' : 'JSON'} 已导出`)
   } catch {
     announce('导出失败，请重试')
+  }
+}
+
+async function dragLastExport(event: DragEvent) {
+  event.preventDefault()
+  if (!lastExportPath.value || !window.systemReport?.startDrag) return
+  try {
+    const started = await window.systemReport.startDrag(lastExportPath.value)
+    announce(started ? '已开始拖出导出文件' : '当前 ZTools 版本不支持拖出文件')
+  } catch {
+    announce('拖出文件失败，请在文件夹中打开')
   }
 }
 
@@ -167,7 +183,20 @@ onMounted(async () => {
     // Use the operating-system preference.
   }
   applyTheme(initialTheme)
-  await refresh()
+  if (!compatibility.value.supported) return
+  window.ztools?.onPluginOut?.(() => {
+    // Collection is deliberately allowed to finish in preload. Closing only
+    // transient UI avoids duplicate collectors when 3.2 hides this renderer.
+    exportDialog.value?.close()
+    observer.value?.disconnect()
+    announcement.value = ''
+  })
+  window.ztools?.onPluginEnter?.(() => {
+    if (!compatibility.value.supported) return
+    if (report.value) void nextTick(observeSections)
+    else if (!loading.value) void refresh()
+  })
+  if (compatibility.value.supported) await refresh()
 })
 
 onBeforeUnmount(() => {
@@ -177,6 +206,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <section v-if="!compatibility.supported" class="compatibility-gate" role="alert">
+    <span class="compatibility-mark" aria-hidden="true">!</span>
+    <div>
+      <p>需要更新 ZTools</p>
+      <h1>当前版本 {{ compatibility.version || '无法识别' }} 暂不支持此插件</h1>
+      <p>为了获得更完整、稳定的体验，请升级至 ZTools 2.4.0 或更高版本。</p>
+    </div>
+  </section>
+  <template v-else>
   <a class="skip-link" href="#report-content">跳到诊断内容</a>
   <div class="app-frame">
     <header class="topbar">
@@ -205,6 +243,10 @@ onBeforeUnmount(() => {
         <button class="primary-button" type="button" :disabled="!report || loading" @click="openExport">
           <Download :size="15" aria-hidden="true" />
           <span>导出</span>
+        </button>
+        <button v-if="lastExportPath && canStartDrag" class="text-button" type="button" draggable="true" title="按住并拖到外部应用" @dragstart="dragLastExport">
+          <Download :size="15" aria-hidden="true" />
+          <span>拖出上次导出</span>
         </button>
       </div>
     </header>
@@ -372,4 +414,5 @@ onBeforeUnmount(() => {
     </div>
     <div class="dialog-safe"><ShieldCheck :size="14" aria-hidden="true" /> 敏感标识仍保持隐藏</div>
   </dialog>
+  </template>
 </template>

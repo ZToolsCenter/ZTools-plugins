@@ -12,6 +12,7 @@ declare global {
         defaultName: string
         format: 'markdown' | 'json'
       }): Promise<{ canceled: boolean; filePath?: string }>
+      startDrag?(filePath: string): Promise<boolean>
     }
     ztools?: {
       copyText?(text: string): void
@@ -19,6 +20,8 @@ declare global {
       getAppVersion?(): string
       getAllDisplays?(): unknown[]
       onPluginEnter?(callback: (action: unknown) => void): void
+      onPluginOut?(callback: () => void): void
+      startDrag?(files: string | string[]): unknown
     }
   }
 }
