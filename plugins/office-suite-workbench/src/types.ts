@@ -49,6 +49,11 @@ export interface OfficeCliPreviewImage {
   dataUrl: string;
 }
 
+export interface AiCancelResult {
+  cancelled: number;
+  settled: boolean;
+}
+
 export interface McpProbe {
   serverInfo?: { name?: string; version?: string };
   protocolVersion?: string;
@@ -73,6 +78,7 @@ export interface OfficeSuiteApi {
     command: string | string[],
     options: { allowWrite: boolean }
   ): Promise<ApiResult<OfficeCliRunOutput>>;
+  cancelAiRuns(): Promise<AiCancelResult>;
   getMcpStatus(): Promise<ApiResult<unknown>>;
   registerMcp(
     target: "lms" | "claude" | "cursor" | "vscode"
@@ -85,11 +91,27 @@ export interface OfficeSuiteApi {
 }
 
 export interface ZToolsAiModel {
-  id: string;
-  label: string;
+  /** `value` is returned by official ZTools models; older hosts use `id`. */
+  id?: string;
+  value?: string;
+  label?: string;
+  modelId?: string;
   description?: string;
   icon?: string;
   cost?: number;
+  providerId?: string;
+  providerLabel?: string;
+  /** Compatibility with early 3.2 development payloads. */
+  provider?: string;
+  contextWindow?: number;
+  inputModalities?: string[];
+  reasoning?: {
+    efforts?: Array<{ id?: string; label?: string }>;
+    defaultEffort?: string;
+  };
+  /** Compatibility with early 3.2 development payloads. */
+  reasoningEfforts?: string[];
+  defaultEffort?: string;
 }
 
 export interface ZToolsAiMessage {
@@ -108,6 +130,8 @@ export interface ZToolsAiRequest extends PromiseLike<void> {
 
 export interface ZToolsAiOptions {
   model?: string;
+  /** Optional in 3.2.0; ignored by earlier ZTools hosts. */
+  reasoningEffort?: string;
   messages: ZToolsAiMessage[];
   tools?: Array<{
     type: "function";
@@ -122,6 +146,8 @@ export interface ZToolsAiOptions {
 
 export interface ZToolsApi {
   onPluginEnter?(callback: (payload: unknown) => void): void;
+  onPluginOut?(callback: () => void): void;
+  getAppVersion?(): string;
   showOpenDialog?(options: Record<string, unknown>): Promise<unknown> | unknown;
   showSaveDialog?(options: Record<string, unknown>): Promise<unknown> | unknown;
   copyText?(text: string): void;
