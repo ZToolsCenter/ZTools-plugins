@@ -28,6 +28,7 @@ const DOWNLOAD_MAX_ATTEMPTS = 5;
 const DOWNLOAD_RETRY_DELAY_MS = 2000;
 const GITHUB_RELEASE_ASSET_URL_PATTERN = /^https:\/\/github\.com\/ZToolsCenter\/ZTools-plugins\/releases\/download\/[^/]+\/([^/?#]+)([?#].*)?$/;
 const BASE64_IMAGE_DATA_URL_PATTERN = /^data:(image\/[a-z0-9.+-]+(?:;[^,]*)*);base64,([\s\S]+)$/i;
+const RELEASE_METADATA_FILES = ['plugins.json', 'categories.json', 'layout.yaml', 'latest'];
 
 function printUsage() {
   console.log(`
@@ -36,8 +37,8 @@ function printUsage() {
   node scripts/download-latest-assets.js
 
 说明:
-  匿名获取当前 GitHub 仓库的最新 release，并将所有 assets 下载到 dist 目录。
-  会保留插件 ZIP、生成同名 ZPX，并在 plugins.json 中写入 zpxDownloadUrl。
+  获取当前 GitHub 仓库最新 release 的元数据，并按 plugins.json 增量整理 dist 目录。
+  未变更插件复用上一版 EdgeOne 的 ZIP、ZPX 和 logo；变更插件下载并生成新的 ZPX。
   会将 JSON 中的 base64 图片转换为图片文件放入 dist/images/logo，
   并替换为 EdgeOne 静态访问地址。
   如果存在 ZTOOLS_SERVER_TOKEN，会在最后把 dist/plugins.json 同步到 ZTools 平台。
@@ -201,6 +202,90 @@ export function collectReferencedZipAssets(pluginsJson) {
   }
 
   return referencedAssets;
+}
+
+function normalizePluginName(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function getAssetPathFromUrl(url) {
+  try {
+    const pathname = new URL(url).pathname.replace(/^\/+/, '');
+    if (!pathname || pathname.includes('..')) {
+      return null;
+    }
+    return pathname;
+  } catch {
+    return null;
+  }
+}
+
+function getPreviousAssetUrl(plugin, key) {
+  return typeof plugin?.[key] === 'string' && plugin[key].trim()
+    ? plugin[key].trim()
+    : null;
+}
+
+/**
+ * 根据 main manifest 和上一版 EdgeOne manifest 规划资产来源。
+ * 缺少 sourceDownloadUrl 的旧 manifest 会进入迁移模式，确保不会误复用旧资产。
+ */
+export function buildAssetPlan(currentPluginsJson, previousPluginsJson) {
+  const currentPlugins = extractPluginsList(currentPluginsJson);
+  const previousPlugins = previousPluginsJson ? extractPluginsList(previousPluginsJson) : [];
+  const previousByName = new Map(previousPlugins.map(plugin => [normalizePluginName(plugin.name), plugin]));
+  const changedPlugins = [];
+  const reusedPlugins = [];
+  const entries = [];
+
+  for (const plugin of currentPlugins) {
+    const downloadUrlKey = getDownloadUrlKey(plugin);
+    if (!downloadUrlKey) {
+      throw new Error(`插件 ${normalizeString(plugin.name) || '<unknown>'} 缺少下载地址`);
+    }
+
+    const sourceDownloadUrl = plugin[downloadUrlKey].trim();
+    const zipFileName = getZipFileName(sourceDownloadUrl);
+    const zpxFileName = zipFileName.replace(/\.zip$/i, '.zpx');
+    const previous = previousByName.get(normalizePluginName(plugin.name));
+    const previousSource = getPreviousAssetUrl(previous, 'sourceDownloadUrl');
+    const previousZipUrl = getPreviousAssetUrl(previous, 'downloadUrl');
+    const previousZpxUrl = getPreviousAssetUrl(previous, 'zpxDownloadUrl');
+    const previousLogoUrl = getPreviousAssetUrl(previous, 'logo');
+    let previousZipFileName = null;
+    try {
+      previousZipFileName = previousSource ? getZipFileName(previousSource) : null;
+    } catch {
+      previousZipFileName = null;
+    }
+    const sameSource = Boolean(
+      previous
+      && previousSource
+      && previousSource === sourceDownloadUrl
+      && normalizeString(previous.version) === normalizeString(plugin.version)
+      && previousZipFileName === zipFileName,
+    );
+
+    const entry = {
+      ...plugin,
+      sourceDownloadUrl,
+      downloadUrl: `${PUBLIC_ASSET_BASE_URL}/${zipFileName}`,
+      zpxDownloadUrl: `${PUBLIC_ASSET_BASE_URL}/${zpxFileName}`,
+    };
+
+    if (sameSource && previousZipUrl && previousZpxUrl && previousLogoUrl && !BASE64_IMAGE_DATA_URL_PATTERN.test(previousLogoUrl)) {
+      entry.downloadUrl = previousZipUrl;
+      entry.zpxDownloadUrl = previousZpxUrl;
+      entry.logo = previousLogoUrl;
+      reusedPlugins.push({ current: plugin, previous, entry, zipFileName, zpxFileName });
+    } else {
+      changedPlugins.push({ current: plugin, previous, entry, zipFileName, zpxFileName });
+    }
+
+    entries.push(entry);
+  }
+
+  return { entries, changedPlugins, reusedPlugins };
 }
 
 /**
@@ -607,6 +692,111 @@ async function readPluginsJson(distDir = DIST_DIR) {
   return JSON.parse(await readFile(pluginsJsonPath, 'utf-8'));
 }
 
+async function fetchPreviousEdgeManifest() {
+  const manifestUrl = `${PUBLIC_ASSET_BASE_URL}/${PLUGINS_JSON_FILE_NAME}?cacheBust=${Date.now()}`;
+  const response = await fetch(manifestUrl, {
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/json',
+      'Cache-Control': 'no-cache',
+      'User-Agent': 'ztools-plugins-assets-downloader',
+    },
+  });
+
+  if (response.status === 404) {
+    console.warn('EdgeOne 尚无历史 plugins.json，将执行首次全量迁移');
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`读取 EdgeOne 历史 plugins.json 失败: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+async function downloadReleaseMetadata(latestRelease) {
+  const assetsByName = new Map(latestRelease.assets.map(asset => [asset.name, asset]));
+  const missing = [];
+
+  for (const fileName of RELEASE_METADATA_FILES) {
+    const asset = assetsByName.get(fileName);
+    if (!asset) {
+      missing.push(fileName);
+      continue;
+    }
+
+    const destPath = join(DIST_DIR, fileName);
+    console.log(`下载元数据: ${fileName}`);
+    await downloadFileWithRetry(asset.browser_download_url, destPath, fileName);
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`最新 release 缺少必要元数据: ${missing.join(', ')}`);
+  }
+}
+
+async function downloadPlannedAsset(url, fallbackFileName) {
+  const relativePath = getAssetPathFromUrl(url) || fallbackFileName;
+  const destination = join(DIST_DIR, relativePath);
+  await mkdir(dirname(destination), { recursive: true });
+  await downloadFileWithRetry(url, destination, relativePath);
+  return relativePath;
+}
+
+async function downloadIncrementalAssets(plan) {
+  const changedPlugins = [...plan.changedPlugins];
+  const reusedPlugins = [];
+
+  for (const item of plan.reusedPlugins) {
+    try {
+      await downloadPlannedAsset(item.previous.downloadUrl, item.zipFileName);
+      await downloadPlannedAsset(item.previous.zpxDownloadUrl, item.zpxFileName);
+      await downloadPlannedAsset(item.previous.logo, `images/logo/${item.zipFileName.replace(/\.zip$/i, '.png')}`);
+      reusedPlugins.push(item);
+      console.log(`✓ 复用 EdgeOne 资产: ${item.zipFileName}`);
+    } catch (error) {
+      console.warn(`复用 ${item.zipFileName} 失败，将从 main Release 重建: ${error.message}`);
+      item.entry.downloadUrl = `${PUBLIC_ASSET_BASE_URL}/${item.zipFileName}`;
+      item.entry.zpxDownloadUrl = `${PUBLIC_ASSET_BASE_URL}/${item.zpxFileName}`;
+      item.entry.logo = item.current.logo;
+      changedPlugins.push(item);
+    }
+  }
+
+  for (const item of changedPlugins) {
+    console.log(`下载变更插件: ${item.zipFileName}`);
+    await downloadPlannedAsset(item.entry.sourceDownloadUrl, item.zipFileName);
+  }
+
+  return { changedPlugins, reusedPlugins };
+}
+
+export function validateDistAssets(pluginsJson, distDir = DIST_DIR) {
+  for (const plugin of extractPluginsList(pluginsJson)) {
+    const downloadUrlKey = getDownloadUrlKey(plugin);
+    if (!downloadUrlKey) {
+      throw new Error(`插件 ${normalizeString(plugin.name) || '<unknown>'} 缺少 ZIP 下载地址`);
+    }
+
+    const zipPath = join(distDir, getAssetPathFromUrl(plugin[downloadUrlKey]) || getZipFileName(plugin[downloadUrlKey]));
+    const zpxPath = join(distDir, getAssetPathFromUrl(plugin.zpxDownloadUrl) || getZipFileName(plugin[downloadUrlKey]).replace(/\.zip$/i, '.zpx'));
+    if (!existsSync(zipPath)) {
+      throw new Error(`最终 dist 缺少插件 ZIP: ${basename(zipPath)}`);
+    }
+    if (!existsSync(zpxPath)) {
+      throw new Error(`最终 dist 缺少插件 ZPX: ${basename(zpxPath)}`);
+    }
+
+    if (typeof plugin.logo === 'string' && plugin.logo.startsWith(PUBLIC_ASSET_BASE_URL)) {
+      const logoPath = getAssetPathFromUrl(plugin.logo);
+      if (!logoPath || !existsSync(join(distDir, logoPath))) {
+        throw new Error(`最终 dist 缺少插件 logo: ${plugin.name || '<unknown>'}`);
+      }
+    }
+  }
+}
+
 /**
  * 将原清单中的 GitHub Release 地址改为 EdgeOne ZIP 地址。
  * @returns {Promise<void>} 更新完成后结束的 Promise
@@ -828,48 +1018,36 @@ async function main() {
   console.log(`找到最新 release: ${latestRelease.tag_name}`);
   console.log(`资产数量: ${latestRelease.assets.length}`);
 
+  // 先读取上一版清单，再清空 dist，避免删除插件或旧版本文件残留到静态部署。
+  const previousPluginsJson = await fetchPreviousEdgeManifest();
+  await rm(DIST_DIR, { recursive: true, force: true });
   await mkdir(DIST_DIR, { recursive: true });
+  await downloadReleaseMetadata(latestRelease);
 
-  if (latestRelease.assets.length === 0) {
-    console.log('最新 release 没有 assets，跳过下载');
-    return;
-  }
+  const mainPluginsJson = await readPluginsJson();
+  const plan = buildAssetPlan(mainPluginsJson, previousPluginsJson);
+  console.log(`资产计划: ${plan.changedPlugins.length} 个变更/新增，${plan.reusedPlugins.length} 个复用`);
 
-  const failedAssets = [];
+  const { changedPlugins } = await downloadIncrementalAssets(plan);
+  const changedPluginsJson = changedPlugins.map(item => item.entry);
+  const convertedAssets = await convertReferencedZipAssets(changedPluginsJson);
 
-  for (const asset of latestRelease.assets) {
-    const fileName = basename(asset.name);
-    const destPath = join(DIST_DIR, fileName);
-
-    console.log(`下载: ${asset.name} (${(asset.size / 1024).toFixed(2)} KB)`);
-
-    try {
-      await downloadFileWithRetry(asset.browser_download_url, destPath, asset.name);
-      console.log(`✓ 下载完成: ${fileName}`);
-    } catch (error) {
-      console.error(`✗ 下载失败: ${asset.name} - ${error.message}`);
-      failedAssets.push({
-        name: asset.name,
-        error: error.message,
-      });
+  for (const item of changedPlugins) {
+    const convertedAsset = convertedAssets.get(item.zipFileName);
+    if (!convertedAsset) {
+      throw new Error(`插件 ${item.current.name || '<unknown>'} 缺少 ZPX 转换产物`);
     }
+    item.entry.zpxDownloadUrl = `${PUBLIC_ASSET_BASE_URL}/${convertedAsset.fileName}`;
   }
 
-  if (failedAssets.length > 0) {
-    const failedList = failedAssets
-      .map(asset => `${asset.name} (${asset.error})`)
-      .join(', ');
-    throw new Error(`assets 下载失败 ${failedAssets.length} 个: ${failedList}`);
-  }
-
-  const pluginsJson = await readPluginsJson();
-  const convertedAssets = await convertReferencedZipAssets(pluginsJson);
-  await updatePluginsJsonDownloadUrls();
-  await addZpxDownloadUrlsToPluginsJson(convertedAssets);
+  const pluginsJsonPath = join(DIST_DIR, PLUGINS_JSON_FILE_NAME);
+  await writeFile(pluginsJsonPath, `${JSON.stringify(plan.entries, null, 2)}\n`, 'utf-8');
   await updateBase64ImagesInJsonFiles();
+  const finalPluginsJson = await readPluginsJson();
+  validateDistAssets(finalPluginsJson);
   await syncPluginsToZToolsServer();
 
-  console.log(`\n✓ 所有 assets 已下载到 ${DIST_DIR} 目录`);
+  console.log(`\n✓ 增量资产已整理到 ${DIST_DIR}，共 ${extractPluginsList(finalPluginsJson).length} 个插件`);
 }
 
 const isMainModule = process.argv[1]

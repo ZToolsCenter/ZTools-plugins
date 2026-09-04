@@ -10,9 +10,11 @@ import test from 'node:test';
 import {
   addZpxDownloadUrls,
   addZpxDownloadUrlsToPluginsJson,
+  buildAssetPlan,
   collectReferencedZipAssets,
   normalizePluginForServer,
   packDirectoryAsZpx,
+  validateDistAssets,
 } from './download-latest-assets.js';
 
 test('collectReferencedZipAssets groups entries by their ZIP asset', () => {
@@ -34,6 +36,110 @@ test('collectReferencedZipAssets groups entries by their ZIP asset', () => {
 
   assert.equal(assets.size, 1);
   assert.equal(assets.get('demo-1.0.0.zip').length, 2);
+});
+
+test('buildAssetPlan reuses unchanged EdgeOne assets by source URL', () => {
+  const sourceUrl = 'https://github.com/ZToolsCenter/ZTools-plugins/releases/download/v2026.09.04/demo-1.0.0.zip';
+  const current = [{
+    name: 'demo',
+    version: '1.0.0',
+    downloadUrl: sourceUrl,
+    logo: 'data:image/png;base64,ZmFrZQ==',
+  }];
+  const previous = [{
+    name: 'demo',
+    version: '1.0.0',
+    sourceDownloadUrl: sourceUrl,
+    downloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zip',
+    zpxDownloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zpx',
+    logo: 'https://ztools.zosen.link/images/logo/demo-1.0.0.png',
+  }];
+
+  const plan = buildAssetPlan(current, previous);
+
+  assert.equal(plan.changedPlugins.length, 0);
+  assert.equal(plan.reusedPlugins.length, 1);
+  assert.equal(plan.entries[0].downloadUrl, previous[0].downloadUrl);
+  assert.equal(plan.entries[0].zpxDownloadUrl, previous[0].zpxDownloadUrl);
+  assert.equal(plan.entries[0].logo, previous[0].logo);
+  assert.equal(plan.entries[0].sourceDownloadUrl, sourceUrl);
+});
+
+test('buildAssetPlan rebuilds changed, new, and legacy entries', () => {
+  const oldSource = 'https://github.com/ZToolsCenter/ZTools-plugins/releases/download/v1/demo-1.0.0.zip';
+  const newSource = 'https://github.com/ZToolsCenter/ZTools-plugins/releases/download/v2/demo-1.0.1.zip';
+  const plan = buildAssetPlan([
+    { name: 'demo', version: '1.0.1', downloadUrl: newSource, logo: 'data:image/png;base64,ZmFrZQ==' },
+    { name: 'new-plugin', version: '1.0.0', downloadUrl: 'https://github.com/ZToolsCenter/ZTools-plugins/releases/download/v2/new-plugin-1.0.0.zip' },
+  ], [
+    {
+      name: 'demo',
+      version: '1.0.0',
+      sourceDownloadUrl: oldSource,
+      downloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zip',
+      zpxDownloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zpx',
+      logo: 'https://ztools.zosen.link/images/logo/demo-1.0.0.png',
+    },
+    {
+      name: 'legacy',
+      version: '1.0.0',
+      downloadUrl: 'https://ztools.zosen.link/legacy-1.0.0.zip',
+      zpxDownloadUrl: 'https://ztools.zosen.link/legacy-1.0.0.zpx',
+      logo: 'https://ztools.zosen.link/images/logo/legacy-1.0.0.png',
+    },
+  ]);
+
+  assert.equal(plan.changedPlugins.length, 2);
+  assert.equal(plan.reusedPlugins.length, 0);
+  assert.deepEqual(plan.changedPlugins.map(item => item.zipFileName), ['demo-1.0.1.zip', 'new-plugin-1.0.0.zip']);
+  assert.equal(plan.entries[0].downloadUrl, 'https://ztools.zosen.link/demo-1.0.1.zip');
+  assert.equal(plan.entries[1].downloadUrl, 'https://ztools.zosen.link/new-plugin-1.0.0.zip');
+});
+
+test('buildAssetPlan treats a legacy entry without sourceDownloadUrl as changed', () => {
+  const sourceUrl = 'https://github.com/ZToolsCenter/ZTools-plugins/releases/download/v1/demo-1.0.0.zip';
+  const plan = buildAssetPlan(
+    [{ name: 'demo', version: '1.0.0', downloadUrl: sourceUrl }],
+    [{
+      name: 'demo',
+      version: '1.0.0',
+      downloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zip',
+      zpxDownloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zpx',
+      logo: 'https://ztools.zosen.link/images/logo/demo-1.0.0.png',
+    }],
+  );
+
+  assert.equal(plan.changedPlugins.length, 1);
+  assert.equal(plan.reusedPlugins.length, 0);
+});
+
+test('validateDistAssets checks the complete ZIP, ZPX, and logo output', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'ztools-dist-assets-test-'));
+  try {
+    await mkdir(join(root, 'images', 'logo'), { recursive: true });
+    await writeFile(join(root, 'demo-1.0.0.zip'), 'zip');
+    await writeFile(join(root, 'demo-1.0.0.zpx'), 'zpx');
+    await writeFile(join(root, 'images', 'logo', 'demo-1.0.0.png'), 'png');
+
+    validateDistAssets([{
+      name: 'demo',
+      downloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zip',
+      zpxDownloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zpx',
+      logo: 'https://ztools.zosen.link/images/logo/demo-1.0.0.png',
+    }], root);
+
+    await rm(join(root, 'demo-1.0.0.zpx'));
+    assert.throws(
+      () => validateDistAssets([{
+        name: 'demo',
+        downloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zip',
+        zpxDownloadUrl: 'https://ztools.zosen.link/demo-1.0.0.zpx',
+      }], root),
+      /缺少插件 ZPX/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('addZpxDownloadUrls preserves ZIP fields and adds the ZPX URL', () => {
