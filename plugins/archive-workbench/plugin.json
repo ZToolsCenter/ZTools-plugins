@@ -1,0 +1,40 @@
+{
+  "name": "archive-workbench",
+  "title": "压缩包管家",
+  "version": "0.1.0",
+  "description": "检查 ZIP 安全性，预先规划并在受限边界内创建或解压文件。",
+  "author": "harris",
+  "main": "src/ui/index.html",
+  "logo": "logo.svg",
+  "preload": "preload/index.cjs",
+  "platform": ["darwin", "win32", "linux"],
+  "categories": ["productivity", "system"],
+  "features": [{"code": "archive-safety", "explain": "预览所选 ZIP 并准备安全的解压预案。", "icon": "logo.svg", "cmds": ["压缩包预览", "安全解压"]}],
+  "tools": {
+    "inspect_approved_zip": {
+      "title": "检查已授权 ZIP",
+      "description": "只读检查用户最近在插件界面选择且尚未过期的 ZIP，并分页返回安全条目。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "offset": {"type": "integer", "minimum": 0, "maximum": 1200},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 200}
+        }
+      }
+    },
+    "plan_approved_zip": {
+      "title": "规划已授权 ZIP",
+      "description": "只读规划用户最近在插件界面选择且尚未过期的 ZIP；不会创建目录或写入文件。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "offset": {"type": "integer", "minimum": 0, "maximum": 1200},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+          "conflict": {"type": "string", "enum": ["rename", "skip", "error"]}
+        }
+      }
+    }
+  }
+}
