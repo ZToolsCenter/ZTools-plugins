@@ -41,6 +41,15 @@ function bootstrap(hostWindow, options = {}) {
     registeredToolNames: Object.freeze([]),
     agentAccessInstalled: false,
   })
+
+  if (installed.page && installed.page.kind === 'dashboard') {
+    try {
+      const advanced = require('./advanced-services.cjs')
+      hostWindow.systemManagerAdvanced = advanced
+    } catch (e) {
+      console.warn('Advanced services failed to load:', e)
+    }
+  }
   const runtimeRequire = options.runtimeRequire || require
   const access = installAgentAccess(hostWindow, installed.page, { now: options.now })
   const runtime = createSuiteRuntime({
@@ -65,6 +74,14 @@ function bootstrap(hostWindow, options = {}) {
   if (hostApi && typeof hostApi.onPluginOut === 'function') {
     hostApi.onPluginOut(() => { void runtime.shutdown() })
     lifecycleInstalled = true
+  }
+  if (installed.page.kind === 'dashboard') {
+    try {
+      const advanced = require('./advanced-services.cjs')
+      hostWindow.systemManagerAdvanced = advanced
+    } catch (e) {
+      console.warn('Advanced services failed to load:', e)
+    }
   }
   return Object.freeze({
     page: installed.page,

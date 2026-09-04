@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data: file:; base-uri 'none'; form-action 'none'; object-src 'none'"
     />
     <title>系统管家</title>
     <link rel="icon" href="./logo.svg" />
@@ -41,6 +41,302 @@
           <li>变更前预览</li>
           <li>危险操作需确认</li>
         </ul>
+      </section>
+
+      <!-- 现代快捷工具面板 (一键加速 / 壁纸管理 / 网络修复 / 测速 / 电池) -->
+      <section class="quick-toolkit-panel" aria-labelledby="quick-toolkit-title">
+        <div class="toolkit-header">
+          <div>
+            <div class="toolkit-brand-row">
+              <span class="badge-pill">Pro 增强控制台</span>
+              <span class="status-live-indicator"><span class="pulse-dot"></span> 实时状态机就绪</span>
+            </div>
+            <h2 id="quick-toolkit-title">系统极速调优与设备控制台</h2>
+          </div>
+          <p class="toolkit-subtitle">集成内存加速、壁纸画廊、网络急救、极速双向测速与电池工况</p>
+        </div>
+
+        <!-- 顶部实时态势仪表区 -->
+        <div class="hud-glance-bar">
+          <div class="hud-item" id="hud-mem-tile">
+            <div class="hud-info">
+              <span class="hud-label">运行内存</span>
+              <strong class="hud-value" id="hud-mem-val">-- / --</strong>
+            </div>
+            <div class="hud-progress"><div class="hud-progress-bar" id="hud-mem-bar" style="width: 0%"></div></div>
+          </div>
+          <div class="hud-item" id="hud-net-tile">
+            <div class="hud-info">
+              <span class="hud-label">网络往返 (RTT)</span>
+              <strong class="hud-value" id="hud-net-val">-- ms</strong>
+            </div>
+            <span class="hud-badge hud-badge-good" id="hud-net-badge">在线</span>
+          </div>
+          <div class="hud-item" id="hud-battery-tile">
+            <div class="hud-info">
+              <span class="hud-label">电池能耗状态</span>
+              <strong class="hud-value" id="hud-bat-val">--%</strong>
+            </div>
+            <span class="hud-badge" id="hud-bat-badge">检测中</span>
+          </div>
+        </div>
+
+        <!-- 现代化功能选项卡（收敛页面，不再堆叠下滑） -->
+        <div class="tab-nav-bar" role="tablist" aria-label="快捷工具导航">
+          <button class="tab-nav-item active" role="tab" aria-selected="true" data-tab="boost">
+            <span class="tab-icon">⚡</span>
+            <span>一键加速</span>
+          </button>
+          <button class="tab-nav-item" role="tab" aria-selected="false" data-tab="speedtest">
+            <span class="tab-icon">🚀</span>
+            <span>网络测速</span>
+          </button>
+          <button class="tab-nav-item" role="tab" aria-selected="false" data-tab="wallpaper">
+            <span class="tab-icon">🖼️</span>
+            <span>壁纸管理</span>
+          </button>
+          <button class="tab-nav-item" role="tab" aria-selected="false" data-tab="network-repair">
+            <span class="tab-icon">🛠️</span>
+            <span>网络修复</span>
+          </button>
+          <button class="tab-nav-item" role="tab" aria-selected="false" data-tab="battery">
+            <span class="tab-icon">🔋</span>
+            <span>电池工况</span>
+          </button>
+        </div>
+
+        <div class="tab-content-wrapper">
+          <!-- 1. 一键极速优化 -->
+          <div class="tab-pane active" id="pane-boost">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card tool-card-glow" id="tool-card-boost">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-boost">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">一键极速优化</span>
+                    <span class="tool-tag">RAM 工作集 / 惰性进程</span>
+                  </div>
+                </div>
+                
+                <div class="boost-visual-container">
+                  <div class="boost-radar-circle" id="boost-radar-circle">
+                    <div class="radar-sweep"></div>
+                    <div class="boost-center-stat">
+                      <span class="boost-percent" id="boost-mem-pct">--%</span>
+                      <span class="boost-sub">内存负载</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="tool-desc">深度压缩工作集缓存，回收未释放堆内存并休眠后台无响应应用。</p>
+                
+                <div class="tool-actions">
+                  <button class="action-btn action-btn-boost" id="btn-quick-boost">
+                    <span class="btn-icon">⚡</span>
+                    <span class="btn-text">立即一键深度加速</span>
+                  </button>
+                </div>
+                <div class="tool-result-box boost-result-box" id="boost-result" hidden></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 专业级网络测速仪表 -->
+          <div class="tab-pane" id="pane-speedtest">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card" id="tool-card-speedtest">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-speed">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">网络测速仪表盘</span>
+                    <span class="tool-tag">双向带宽 / 延迟波动 / 丢包率</span>
+                  </div>
+                </div>
+
+                <div class="speedtest-stage">
+                  <div class="gauge-container">
+                    <div class="gauge-dial">
+                      <svg class="gauge-svg" viewBox="0 0 200 110">
+                        <path class="gauge-track" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke-width="12" />
+                        <path class="gauge-fill" id="gauge-fill-arc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="251.2" />
+                      </svg>
+                      <div class="gauge-pointer" id="gauge-pointer"></div>
+                      <div class="gauge-center-val">
+                        <span class="speed-main-num" id="speed-live-num">0.0</span>
+                        <span class="speed-unit">Mbps</span>
+                      </div>
+                    </div>
+                    <div class="gauge-ticks">
+                      <span>0</span>
+                      <span>50</span>
+                      <span>100</span>
+                      <span>200</span>
+                      <span>500+</span>
+                    </div>
+                  </div>
+
+                  <div class="speed-metrics-grid">
+                    <div class="metric-box">
+                      <span class="metric-label">下载速率</span>
+                      <div class="metric-number-row"><strong id="val-download">--</strong> <small>Mbps</small></div>
+                    </div>
+                    <div class="metric-box">
+                      <span class="metric-label">上传速率</span>
+                      <div class="metric-number-row"><strong id="val-upload">--</strong> <small>Mbps</small></div>
+                    </div>
+                    <div class="metric-box">
+                      <span class="metric-label">网络往返 (RTT)</span>
+                      <div class="metric-number-row"><strong id="val-latency">--</strong> <small>ms</small></div>
+                    </div>
+                    <div class="metric-box">
+                      <span class="metric-label">网络抖动 (Jitter)</span>
+                      <div class="metric-number-row"><strong id="val-jitter">--</strong> <small>ms</small></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tool-actions">
+                  <button class="action-btn action-btn-primary" id="btn-run-speedtest">
+                    <span class="spin-indicator" id="speedtest-spinner" hidden></span>
+                    <span id="speedtest-btn-text">开始全面测速</span>
+                  </button>
+                </div>
+                <div class="tool-result-box" id="speedtest-result" hidden></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 壁纸管理 & 备份画廊 -->
+          <div class="tab-pane" id="pane-wallpaper">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card" id="tool-card-wallpaper">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-wallpaper">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">壁纸管理与图库</span>
+                    <span class="tool-tag">本地持久留档 / 一键更换 / 增删改查</span>
+                  </div>
+                </div>
+                
+                <div class="wallpaper-workbench">
+                  <div class="wallpaper-preview-hero" id="wallpaper-preview-box">
+                    <div class="preview-empty-state" id="wallpaper-empty-state">
+                      <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="1.5" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/></svg>
+                      <span>选择下方画廊壁纸或上传新图片</span>
+                    </div>
+                  </div>
+                  <div class="wallpaper-gallery-container">
+                    <div class="gallery-toolbar">
+                      <div class="gallery-title-row">
+                        <span>本地壁纸库 (<b id="gallery-count">0</b>)</span>
+                        <div class="gallery-search-box">
+                          <input type="text" id="wallpaper-search-input" placeholder="搜索壁纸..." />
+                        </div>
+                      </div>
+                      <div class="gallery-btn-row">
+                        <button class="btn-upload-pill" id="btn-trigger-upload" type="button">
+                          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          <span>上传壁纸</span>
+                        </button>
+                        <input type="file" id="wallpaper-file-input" accept="image/png,image/jpeg,image/webp,image/jpg,image/heic,image/heif,.heic,.heif" style="display:none;" />
+                        <button class="btn-clear-pill" id="btn-clear-gallery" title="清空全部图库">
+                          <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          <span>清空图库</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="wallpaper-gallery-scroll" id="wallpaper-gallery-list">
+                      <div class="gallery-empty-hint">暂无备份壁纸，点击上方上传添加</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tool-actions wallpaper-actions">
+                  <div class="wallpaper-edit-meta">
+                    <input type="text" class="wallpaper-rename-input" id="wp-rename-input" placeholder="壁纸名称 (可重命名)" disabled />
+                    <button class="btn-save-rename" id="btn-save-rename" disabled title="保存重命名">重命名</button>
+                  </div>
+                  <button class="action-btn action-btn-primary" id="btn-apply-wallpaper" disabled>
+                    <span>一键设为当前桌面壁纸</span>
+                  </button>
+                </div>
+                <div class="tool-result-box" id="wallpaper-result" hidden></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 网络深度急救与修复 -->
+          <div class="tab-pane" id="pane-network-repair">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card" id="tool-card-network-repair">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-repair">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">网络急救修复</span>
+                    <span class="tool-tag">DNS / Socket / 路由</span>
+                  </div>
+                </div>
+                <p class="tool-desc">智能修复网络解析异常、清除污染缓存及重置本地套接字。</p>
+                <div class="repair-options modern-checks">
+                  <label class="modern-checkbox"><input type="checkbox" id="opt-flush-dns" checked /> <span class="chk-box"></span> <span>刷新 DNS 缓存与 mDNS</span></label>
+                  <label class="modern-checkbox"><input type="checkbox" id="opt-clean-cache" checked /> <span class="chk-box"></span> <span>重置 Socket 与协议栈</span></label>
+                  <label class="modern-checkbox"><input type="checkbox" id="opt-reset-dns" /> <span class="chk-box"></span> <span>推荐极速公共 DNS</span></label>
+                </div>
+                <div class="tool-actions">
+                  <button class="action-btn action-btn-secondary" id="btn-run-network-repair">执行网络修复</button>
+                </div>
+                <div class="tool-result-box" id="network-repair-result" hidden></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. 电池工况与健康 -->
+          <div class="tab-pane" id="pane-battery">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card" id="tool-card-battery">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-battery">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><rect x="1" y="6" width="18" height="12" rx="2" ry="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">电池工况监控</span>
+                    <span class="tool-tag">寿命 / 充放电 / 循环</span>
+                  </div>
+                </div>
+                
+                <div class="battery-dashboard-card">
+                  <div class="bat-dial-wrap">
+                    <div class="bat-chip-graphic">
+                      <div class="bat-chip-level" id="bat-chip-level" style="height: 0%"></div>
+                      <span class="bat-chip-bolt" id="bat-chip-bolt">⚡</span>
+                    </div>
+                    <div class="bat-dial-text">
+                      <span class="bat-huge-pct" id="battery-level-num">--%</span>
+                      <span class="bat-badge" id="battery-state-tag">正在探测</span>
+                    </div>
+                  </div>
+                  <div class="bat-props-list">
+                    <div class="prop-row"><span class="prop-label">电源模式</span><span class="prop-val" id="bat-power-src">--</span></div>
+                    <div class="prop-row"><span class="prop-label">充放电循环</span><span class="prop-val" id="bat-cycle-count">-- 次</span></div>
+                    <div class="prop-row"><span class="prop-label">最大容量健康度</span><span class="prop-val highlight" id="bat-health-val">--</span></div>
+                  </div>
+                </div>
+
+                <div class="tool-actions">
+                  <button class="action-btn action-btn-secondary" id="btn-refresh-battery">刷新工况</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <nav id="modules" class="module-grid" aria-label="系统管家功能模块">

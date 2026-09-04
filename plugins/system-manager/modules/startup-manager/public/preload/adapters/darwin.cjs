@@ -1,3 +1,4 @@
+const { getAppIconDataUrl, getLetterSvgIcon } = require('../icon-helper.cjs');
 'use strict'
 
 const fs = require('node:fs/promises')
@@ -140,6 +141,7 @@ async function scan(deps = {}) {
       commandSummary: command, enabled, running, status: running ? 'running' : enabled ? 'idle' : 'disabled',
       action: { canToggle: false, requiresElevation: location.scope === 'system', reason: !labelValid ? 'LaunchAgent Label 为空、过长或包含控制字符，当前仅支持查看' : isApple ? '系统项目仅支持查看' : location.scope === 'user' ? '无法可信绑定当前 launchd 服务与来源 plist，当前仅支持查看' : '系统域项目需要管理员权限，当前仅查看' },
       metadata: { description: safeBaseName(file), serviceType: plist.KeepAlive ? 'persistent' : 'on-demand' },
+      icon: getAppIconDataUrl(file) || (command ? getAppIconDataUrl(command.split(' ')[0]) : '') || getLetterSvgIcon(label),
       internal: { label },
     }, home)
   }, deadlineAt)

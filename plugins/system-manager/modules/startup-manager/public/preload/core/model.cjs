@@ -73,6 +73,7 @@ function createItem(input, home) {
       requiresElevation: Boolean(action.requiresElevation),
       reason: cleanText(action.reason, 200),
     },
+    icon: typeof input.icon === 'string' ? input.icon : null,
     metadata: sanitizeMetadata(input.metadata || {}),
     internal: input.internal || {},
   }
@@ -80,7 +81,7 @@ function createItem(input, home) {
 
 function publicItem(item, id) {
   const { key, internal, metadata, ...safe } = item
-  return { id, ...safe, metadata: sanitizeMetadata(metadata) }
+  return { id, icon: item.icon || null, ...safe, metadata: sanitizeMetadata(metadata) }
 }
 
 function sanitizeMetadata(metadata) {
