@@ -38,7 +38,7 @@ function printUsage() {
 
 说明:
   获取当前 GitHub 仓库最新 release 的元数据，并按 plugins.json 增量整理 dist 目录。
-  未变更插件复用上一版 EdgeOne 的 ZIP、ZPX 和 logo；变更插件下载并生成新的 ZPX。
+  未变更插件只下载上一版 EdgeOne 的 ZIP；所有 ZIP 在本地生成 ZPX，logo 从 main manifest 的 base64 生成 PNG。
   会将 JSON 中的 base64 图片转换为图片文件放入 dist/images/logo，
   并替换为 EdgeOne 静态访问地址。
   如果存在 ZTOOLS_SERVER_TOKEN，会在最后把 dist/plugins.json 同步到 ZTools 平台。
@@ -226,6 +226,17 @@ function getPreviousAssetUrl(plugin, key) {
     : null;
 }
 
+function validateManifestLogo(plugin) {
+  const logo = plugin?.logo;
+  if (logo === undefined || logo === null || !String(logo).trim()) {
+    return;
+  }
+
+  if (!BASE64_IMAGE_DATA_URL_PATTERN.test(String(logo))) {
+    throw new Error(`插件 ${normalizeString(plugin.name) || '<unknown>'} 的 logo 不是 Base64 图片，无法执行 ZIP-only 资产构建`);
+  }
+}
+
 /**
  * 根据 main manifest 和上一版 EdgeOne manifest 规划资产来源。
  * 缺少 sourceDownloadUrl 的旧 manifest 会进入迁移模式，确保不会误复用旧资产。
@@ -239,6 +250,7 @@ export function buildAssetPlan(currentPluginsJson, previousPluginsJson) {
   const entries = [];
 
   for (const plugin of currentPlugins) {
+    validateManifestLogo(plugin);
     const downloadUrlKey = getDownloadUrlKey(plugin);
     if (!downloadUrlKey) {
       throw new Error(`插件 ${normalizeString(plugin.name) || '<unknown>'} 缺少下载地址`);
@@ -250,8 +262,6 @@ export function buildAssetPlan(currentPluginsJson, previousPluginsJson) {
     const previous = previousByName.get(normalizePluginName(plugin.name));
     const previousSource = getPreviousAssetUrl(previous, 'sourceDownloadUrl');
     const previousZipUrl = getPreviousAssetUrl(previous, 'downloadUrl');
-    const previousZpxUrl = getPreviousAssetUrl(previous, 'zpxDownloadUrl');
-    const previousLogoUrl = getPreviousAssetUrl(previous, 'logo');
     let previousZipFileName = null;
     try {
       previousZipFileName = previousSource ? getZipFileName(previousSource) : null;
@@ -273,10 +283,7 @@ export function buildAssetPlan(currentPluginsJson, previousPluginsJson) {
       zpxDownloadUrl: `${PUBLIC_ASSET_BASE_URL}/${zpxFileName}`,
     };
 
-    if (sameSource && previousZipUrl && previousZpxUrl && previousLogoUrl && !BASE64_IMAGE_DATA_URL_PATTERN.test(previousLogoUrl)) {
-      entry.downloadUrl = previousZipUrl;
-      entry.zpxDownloadUrl = previousZpxUrl;
-      entry.logo = previousLogoUrl;
+    if (sameSource && previousZipUrl) {
       reusedPlugins.push({ current: plugin, previous, entry, zipFileName, zpxFileName });
     } else {
       changedPlugins.push({ current: plugin, previous, entry, zipFileName, zpxFileName });
@@ -756,16 +763,12 @@ async function downloadIncrementalAssets(plan) {
 
   for (const item of plan.reusedPlugins) {
     try {
-      await downloadPlannedAsset(item.previous.downloadUrl, item.zipFileName);
-      await downloadPlannedAsset(item.previous.zpxDownloadUrl, item.zpxFileName);
-      await downloadPlannedAsset(item.previous.logo, `images/logo/${item.zipFileName.replace(/\.zip$/i, '.png')}`);
+      // 旧 EdgeOne 资产只下载 ZIP，ZPX 和 logo 在本地重新生成，减少网络请求。
+      await downloadPlannedAsset(item.previous.downloadUrl, item.zipFileName, false);
       reusedPlugins.push(item);
-      console.log(`✓ 复用 EdgeOne 资产: ${item.zipFileName}`);
+      console.log(`✓ 下载复用 ZIP: ${item.zipFileName}`);
     } catch (error) {
-      console.warn(`复用 ${item.zipFileName} 失败，将从 main Release 重建: ${error.message}`);
-      item.entry.downloadUrl = `${PUBLIC_ASSET_BASE_URL}/${item.zipFileName}`;
-      item.entry.zpxDownloadUrl = `${PUBLIC_ASSET_BASE_URL}/${item.zpxFileName}`;
-      item.entry.logo = item.current.logo;
+      console.warn(`下载复用 ZIP ${item.zipFileName} 失败，将从 main Release 下载: ${error.message}`);
       changedPlugins.push(item);
     }
   }
@@ -1035,20 +1038,15 @@ async function main() {
   const plan = buildAssetPlan(mainPluginsJson, previousPluginsJson);
   console.log(`资产计划: ${plan.changedPlugins.length} 个变更/新增，${plan.reusedPlugins.length} 个复用`);
 
-  const { changedPlugins } = await downloadIncrementalAssets(plan);
-  const changedPluginsJson = changedPlugins.map(item => item.entry);
-  const convertedAssets = await convertReferencedZipAssets(changedPluginsJson);
+  const { changedPlugins, reusedPlugins } = await downloadIncrementalAssets(plan);
+  console.log(`ZIP 下载完成: ${changedPlugins.length} 个 main Release ZIP，${reusedPlugins.length} 个 EdgeOne ZIP`);
 
-  for (const item of changedPlugins) {
-    const convertedAsset = convertedAssets.get(item.zipFileName);
-    if (!convertedAsset) {
-      throw new Error(`插件 ${item.current.name || '<unknown>'} 缺少 ZPX 转换产物`);
-    }
-    item.entry.zpxDownloadUrl = `${PUBLIC_ASSET_BASE_URL}/${convertedAsset.fileName}`;
-  }
+  // 所有 ZIP 都在本地重建 ZPX，避免再下载旧 ZPX；logo 由 main manifest 中的 Base64 统一生成 PNG。
+  const convertedAssets = await convertReferencedZipAssets(plan.entries);
+  const edgePluginsJson = addZpxDownloadUrls(plan.entries, convertedAssets);
 
   const pluginsJsonPath = join(DIST_DIR, PLUGINS_JSON_FILE_NAME);
-  await writeFile(pluginsJsonPath, `${JSON.stringify(plan.entries, null, 2)}\n`, 'utf-8');
+  await writeFile(pluginsJsonPath, `${JSON.stringify(edgePluginsJson, null, 2)}\n`, 'utf-8');
   await updateBase64ImagesInJsonFiles();
   const finalPluginsJson = await readPluginsJson();
   validateDistAssets(finalPluginsJson);

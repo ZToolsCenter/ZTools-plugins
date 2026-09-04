@@ -60,9 +60,9 @@ test('buildAssetPlan reuses unchanged EdgeOne assets by source URL', () => {
 
   assert.equal(plan.changedPlugins.length, 0);
   assert.equal(plan.reusedPlugins.length, 1);
-  assert.equal(plan.entries[0].downloadUrl, previous[0].downloadUrl);
-  assert.equal(plan.entries[0].zpxDownloadUrl, previous[0].zpxDownloadUrl);
-  assert.equal(plan.entries[0].logo, previous[0].logo);
+  assert.equal(plan.entries[0].downloadUrl, 'https://ztools.zosen.link/demo-1.0.0.zip');
+  assert.equal(plan.entries[0].zpxDownloadUrl, 'https://ztools.zosen.link/demo-1.0.0.zpx');
+  assert.equal(plan.entries[0].logo, current[0].logo);
   assert.equal(plan.entries[0].sourceDownloadUrl, sourceUrl);
 });
 
@@ -112,6 +112,18 @@ test('buildAssetPlan treats a legacy entry without sourceDownloadUrl as changed'
 
   assert.equal(plan.changedPlugins.length, 1);
   assert.equal(plan.reusedPlugins.length, 0);
+});
+
+test('buildAssetPlan rejects non-base64 logos for ZIP-only builds', () => {
+  assert.throws(
+    () => buildAssetPlan([{
+      name: 'demo',
+      version: '1.0.0',
+      downloadUrl: 'https://github.com/ZToolsCenter/ZTools-plugins/releases/download/v1/demo-1.0.0.zip',
+      logo: 'https://example.test/demo.png',
+    }], null),
+    /logo 不是 Base64 图片/,
+  );
 });
 
 test('validateDistAssets checks the complete ZIP, ZPX, and logo output', async () => {
