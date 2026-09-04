@@ -1,0 +1,95 @@
+{
+  "name": "openapi-contract-gate",
+  "title": "OpenAPI 契约门禁",
+  "version": "0.1.0",
+  "description": "离线 OpenAPI 兼容性台账与破坏性变更门禁。",
+  "author": "harris",
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ],
+  "categories": [
+    "development"
+  ],
+  "main": "src/main/index.html",
+  "preload": "src/preload/index.cjs",
+  "logo": "logo.svg",
+  "features": [
+    {
+      "code": "compare-openapi",
+      "icon": "logo.svg",
+      "explain": "比较一到两个 OpenAPI 契约",
+      "cmds": [
+        "OpenAPI 对比",
+        "API 契约门禁"
+      ]
+    }
+  ],
+  "tools": {
+    "compare_inline": {
+      "title": "比较内联 OpenAPI 契约",
+      "description": "离线比较两份合计不超过 640 KiB 的 JSON/YAML 契约，返回确定性门禁结果与分页证据。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "before": {
+            "type": "string",
+            "maxLength": 327680
+          },
+          "after": {
+            "type": "string",
+            "maxLength": 327680
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "json",
+              "yaml"
+            ]
+          },
+          "includeMarkdown": {
+            "type": "boolean"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [
+          "before",
+          "after"
+        ]
+      }
+    },
+    "compare_approved_files": {
+      "title": "比较已授权 OpenAPI 文件",
+      "description": "消费用户在插件界面一次性选择的两份契约，不接受文件路径或授权令牌。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "includeMarkdown": {
+            "type": "boolean"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+openapi: 3.0.3
+servers:
+  - url: https://example.test
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: limit
+          in: query
+          required: true
+      responses:
+        '200':
+          description: ok
+components:
+  schemas:
+    Pet:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
