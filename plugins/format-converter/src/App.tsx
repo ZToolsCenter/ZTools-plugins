@@ -18,6 +18,7 @@ import {
   LoaderCircle,
   Play,
   RefreshCw,
+  ScanLine,
   RotateCcw,
   Route,
   Settings2,
@@ -72,7 +73,23 @@ function statusIcon(status: string) {
   return <Clock3 size={16} />;
 }
 
+function rendererHostIsSupported() {
+  if (!window.ztools) return true;
+  try {
+    return window.formatConverter?.hostCompatibility?.().supported === true;
+  } catch {
+    return false;
+  }
+}
+
 export default function App() {
+  if (!rendererHostIsSupported()) {
+    return <main className="app-shell"><section className="workspace"><div className="error-banner"><AlertTriangle size={18} /><span>当前 ZTools 版本过低或无法识别（最低支持 2.4.0）。为了获得更完整、稳定的体验，请升级后再使用格式转换。</span></div></section></main>;
+  }
+  return <FormatConverterApp />;
+}
+
+function FormatConverterApp() {
   const api = window.formatConverter;
   const [capabilities, setCapabilities] = useState<ConversionCapabilities | null>(null);
   const [inputGrant, setInputGrant] = useState<InputGrant | null>(null);
@@ -164,6 +181,21 @@ export default function App() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally { setBusy(null); }
+  };
+
+  const captureScreen = async () => {
+    if (!api) return;
+    setBusy("inputs"); setError("");
+    try { setInputGrant(unwrap(await api.captureScreen())); setJob(null); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+    finally { setBusy(null); }
+  };
+
+  const dragOutput = async (event: React.DragEvent, outputs: string[]) => {
+    event.preventDefault();
+    if (!api) return;
+    try { unwrap(await api.startDrag(outputs)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
 
   const selectOutput = async () => {
@@ -289,6 +321,7 @@ export default function App() {
               <strong>{inputGrant ? "继续添加或重新选择" : "拖入文件，或点击选择"}</strong>
               <span>Office、PDF、图片、文本与数据文件 · 最多 200 个</span>
             </div>
+            {api?.canCaptureScreen() && <button className="text-button" disabled={busy === "inputs"} onClick={() => void captureScreen()}><ScanLine size={15} />截图导入</button>}
             <div className="file-list">
               {inputGrant?.files.map(file => {
                 const definition = formatDefinition(file.format);
@@ -364,7 +397,7 @@ export default function App() {
             <div className="job-actions"><strong>{progressLabel}</strong>{["queued", "running"].includes(job.status) && <button onClick={() => void cancel()}><CircleStop size={16} />取消</button>}{["partial", "failed"].includes(job.status) && <button onClick={() => void retry()}><RotateCcw size={16} />重试失败项</button>}</div>
           </div>
           <div className="progress-track"><i style={{ width: `${job.progress}%` }} /></div>
-          <div className="job-items">{job.items.map(item => <div className={`job-item ${item.status}`} key={item.id}><span className="job-status">{statusIcon(item.status)}</span><div><strong>{item.input.name}</strong><small>{item.route.description}</small></div><span>{item.progress}%</span>{item.outputs.length > 0 && <button onClick={() => void api?.revealPath(item.outputs[0])}><FolderOpen size={15} />{item.outputs.length} 个输出</button>}{item.error && <em title={item.error.message}>{item.error.message}</em>}</div>)}</div>
+          <div className="job-items">{job.items.map(item => <div className={`job-item ${item.status}`} key={item.id}><span className="job-status">{statusIcon(item.status)}</span><div><strong>{item.input.name}</strong><small>{item.route.description}</small></div><span>{item.progress}%</span>{item.outputs.length > 0 && <button draggable={api?.canStartDrag()} onDragStart={event => void dragOutput(event, item.outputs)} onClick={() => void api?.revealPath(item.outputs[0])}><FolderOpen size={15} />{item.outputs.length} 个输出</button>}{item.error && <em title={item.error.message}>{item.error.message}</em>}</div>)}</div>
         </section>}
 
         <section className="runtime-strip">

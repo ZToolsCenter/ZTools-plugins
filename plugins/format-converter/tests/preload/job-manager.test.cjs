@@ -68,3 +68,19 @@ test("expires completed jobs and enforces a bounded job store", async () => {
   assert.throws(() => activeManager.start(request, plan), error => error.code === "JOB_CAPACITY_REACHED");
   for (const job of activeManager._jobs.values()) activeManager.cancel(job.id);
 });
+
+test("notifies lifecycle cleanup after the job has fully settled", async () => {
+  let settled;
+  const manager = createJobManager({
+    pathPolicy: { requireOutputGrant: () => ({ directory: "/authorized" }) },
+    conversionEngine: { async convertItem() { return { outputs: ["/authorized/ok.txt"], warnings: [] }; } },
+    onJobSettled(job) { settled = job; }
+  });
+  const request = { inputGrantId: "capture-grant", outputGrantId: "output", target: "txt", profile: "extract", collision: "rename", options: {} };
+  const plan = { items: [{ input: { name: "a.txt", path: "/a.txt", format: "txt", family: "text", size: 1 }, route: { description: "test" } }] };
+  const started = manager.start(request, plan);
+  await waitFor(() => settled?.id === started.id);
+  assert.equal(settled.status, "succeeded");
+  assert.equal(settled.running, false);
+  assert.equal(settled.request.inputGrantId, "capture-grant");
+});

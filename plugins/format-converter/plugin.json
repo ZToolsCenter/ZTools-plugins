@@ -3,7 +3,7 @@
   "title": "格式转换",
   "description": "Word、Excel、PPT、PDF、图片、文本与常见数据格式的本地批量转换中心。",
   "author": "harris",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "index.html",
   "preload": "preload/services.cjs",
   "logo": "logo.svg",
