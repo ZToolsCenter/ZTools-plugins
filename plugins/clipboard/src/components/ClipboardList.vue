@@ -13,7 +13,8 @@ const props = defineProps({
   selectedItems: { type: Set, default: () => new Set() },
   activeTab: { type: String, required: true },
   expandedItems: { type: Set, default: () => new Set() },
-  needsExpand: { type: Object, default: () => ({}) }
+  needsExpand: { type: Object, default: () => ({}) },
+  isTextMasked: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
@@ -254,6 +255,7 @@ onBeforeUnmount(resetDragState)
         :is-expanded="expandedItems.has(item.id)"
         :needs-expand="!!needsExpand[item.id]"
         :is-favorite-tab="activeTab === 'favorite'"
+        :is-text-masked="isTextMasked"
         @toggle-expand="emit('toggle-expand', item.id)"
         @delete-favorite="emit('delete-favorite', index)"
       />
