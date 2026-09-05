@@ -8,6 +8,7 @@ import MessageList from './components/MessageList.vue'
 import PairingDialog from './components/PairingDialog.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import { useDeviceLink } from './composables/useDeviceLink'
+import { detectZToolsHostCompatibility } from './lib/ztoolsCompat'
 
 const pairingOpen = ref(false)
 const settingsOpen = ref(false)
@@ -23,7 +24,10 @@ const moreMenu = ref<HTMLElement | null>(null)
 const dropActive = ref(false)
 const dropCount = ref(0)
 let dragDepth = 0
-const link = useDeviceLink()
+const ztoolsCompatibility = detectZToolsHostCompatibility(window.ztools)
+const ztoolsVersion = ztoolsCompatibility.version
+const upgradeRequired = ztoolsCompatibility.requiresUpgrade
+const link = useDeviceLink({ enabled: !upgradeRequired && Boolean(window.deviceLink) })
 
 const filteredMessages = computed(() => {
   const query = searchQuery.value.trim().toLocaleLowerCase()
@@ -152,9 +156,21 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 }
 
+function resetTransientUi() {
+  // Do not stop the preload server: backgroundRunning is intentional. Only UI
+  // layers are reset so 3.2's ESC direct-hide and later re-entry are stable.
+  closeMore()
+  closeSearch()
+  pairingOpen.value = false
+  settingsOpen.value = false
+  historyClearOpen.value = false
+  resetDropState()
+}
+
 onMounted(() => {
   document.addEventListener('pointerdown', handlePointerDown)
   document.addEventListener('keydown', handleKeyDown)
+  window.ztools?.onPluginOut?.(resetTransientUi)
 })
 
 onUnmounted(() => {
@@ -164,7 +180,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="app-shell">
+  <main v-if="upgradeRequired" class="app-shell upgrade-required" role="alert">
+    <section class="upgrade-required__card">
+      <span>需要更新 ZTOOLS</span>
+      <h1>请升级后使用设备互联</h1>
+      <p>{{ ztoolsVersion ? `当前版本 ${ztoolsVersion} 低于 2.4.0。` : '无法确认当前 ZTools 版本。' }} 为了获得更完整、稳定的体验，请升级至 ZTools 2.4.0 或更高版本。</p>
+    </section>
+  </main>
+  <main v-else class="app-shell">
     <DeviceSidebar
       :devices="link.devices.value"
       :server="link.server.value"

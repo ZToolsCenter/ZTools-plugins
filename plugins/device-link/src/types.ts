@@ -129,6 +129,8 @@ declare global {
     deviceLink: DeviceLinkApi
     ztools?: {
       onPluginEnter?: (callback: (params: { type?: string; code?: string; payload?: unknown }) => void) => void
+      onPluginOut?: (callback: () => void) => void
+      getAppVersion?: () => string
       hideMainWindow?: () => void
     }
   }

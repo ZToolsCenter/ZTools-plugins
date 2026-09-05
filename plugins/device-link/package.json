@@ -1,6 +1,6 @@
 {
   "name": "device-link",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "type": "module",
   "description": "以聊天方式安全连接电脑与手机，实时分享文本、链接、图片和文件。",

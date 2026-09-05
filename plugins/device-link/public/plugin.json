@@ -4,7 +4,7 @@
   "title": "设备互联",
   "description": "以聊天方式安全连接电脑与手机，实时分享文本、链接、图片和文件",
   "author": "harris",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.svg",
