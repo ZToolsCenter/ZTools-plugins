@@ -15,8 +15,25 @@ import {
   normalizePluginForServer,
   packDirectoryAsZpx,
   resolvePlannedAssetPath,
+  runWithConcurrency,
   validateDistAssets,
 } from './download-latest-assets.js';
+
+test('runWithConcurrency limits active tasks and preserves result order', async () => {
+  let activeTasks = 0;
+  let maxActiveTasks = 0;
+
+  const results = await runWithConcurrency([1, 2, 3, 4, 5], async value => {
+    activeTasks += 1;
+    maxActiveTasks = Math.max(maxActiveTasks, activeTasks);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    activeTasks -= 1;
+    return value * 2;
+  }, 2);
+
+  assert.equal(maxActiveTasks, 2);
+  assert.deepEqual(results, [2, 4, 6, 8, 10]);
+});
 
 test('collectReferencedZipAssets groups entries by their ZIP asset', () => {
   const pluginsJson = [

@@ -26,6 +26,11 @@ const BASE64_IMAGE_OUTPUT_DIR = join(DIST_DIR, 'images', 'logo');
 const BASE64_IMAGE_PUBLIC_PATH = 'images/logo';
 const DOWNLOAD_MAX_ATTEMPTS = 5;
 const DOWNLOAD_RETRY_DELAY_MS = 2000;
+const DEFAULT_DOWNLOAD_CONCURRENCY = 4;
+const configuredDownloadConcurrency = Number.parseInt(process.env.DOWNLOAD_CONCURRENCY || '', 10);
+const DOWNLOAD_CONCURRENCY = Number.isInteger(configuredDownloadConcurrency) && configuredDownloadConcurrency > 0
+  ? configuredDownloadConcurrency
+  : DEFAULT_DOWNLOAD_CONCURRENCY;
 const GITHUB_RELEASE_ASSET_URL_PATTERN = /^https:\/\/github\.com\/ZToolsCenter\/ZTools-plugins\/releases\/download\/[^/]+\/([^/?#]+)([?#].*)?$/;
 const BASE64_IMAGE_DATA_URL_PATTERN = /^data:(image\/[a-z0-9.+-]+(?:;[^,]*)*);base64,([\s\S]+)$/i;
 const RELEASE_METADATA_FILES = ['plugins.json', 'categories.json', 'layout.yaml', 'latest'];
@@ -41,6 +46,7 @@ function printUsage() {
   未变更插件只下载上一版 EdgeOne 的 ZIP；所有 ZIP 在本地生成 ZPX，logo 从 main manifest 的 base64 生成 PNG。
   会将 JSON 中的 base64 图片转换为图片文件放入 dist/images/logo，
   并替换为 EdgeOne 静态访问地址。
+  ZIP 下载默认最多并发 4 个任务，可通过 DOWNLOAD_CONCURRENCY 调整。
   如果存在 ZTOOLS_SERVER_TOKEN，会在最后把 dist/plugins.json 同步到 ZTools 平台。
   仓库信息优先读取 GITHUB_REPOSITORY=owner/repo，否则从 git remote origin 解析。
 `);
@@ -757,27 +763,79 @@ async function downloadPlannedAsset(url, fallbackFileName, preserveUrlPath = tru
   return relativePath;
 }
 
-async function downloadIncrementalAssets(plan) {
-  const changedPlugins = [...plan.changedPlugins];
-  const reusedPlugins = [];
+/**
+ * 以固定并发数执行独立任务，并保持结果与输入顺序一致。
+ * 下载任务使用流式写入，限制并发可以提高吞吐，同时避免触发网络限流。
+ */
+export async function runWithConcurrency(items, task, concurrency = DOWNLOAD_CONCURRENCY) {
+  if (items.length === 0) {
+    return [];
+  }
 
-  for (const item of plan.reusedPlugins) {
-    try {
-      // 旧 EdgeOne 资产只下载 ZIP，ZPX 和 logo 在本地重新生成，减少网络请求。
-      await downloadPlannedAsset(item.previous.downloadUrl, item.zipFileName, false);
-      reusedPlugins.push(item);
-      console.log(`✓ 下载复用 ZIP: ${item.zipFileName}`);
-    } catch (error) {
-      console.warn(`下载复用 ZIP ${item.zipFileName} 失败，将从 main Release 下载: ${error.message}`);
-      changedPlugins.push(item);
+  const requestedConcurrency = Number.isFinite(concurrency) ? Math.floor(concurrency) : 1;
+  const limit = Math.max(1, Math.min(items.length, requestedConcurrency));
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function consume() {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+
+      if (index >= items.length) {
+        return;
+      }
+
+      results[index] = await task(items[index], index);
     }
   }
 
-  for (const item of changedPlugins) {
+  await Promise.all(Array.from({ length: limit }, () => consume()));
+  return results;
+}
+
+async function downloadIncrementalAssets(plan) {
+  console.log(`开始并发下载 ZIP，最大并发数: ${DOWNLOAD_CONCURRENCY}`);
+
+  const initialTasks = [
+    ...plan.reusedPlugins.map(item => ({ type: 'reuse', item })),
+    ...plan.changedPlugins.map(item => ({ type: 'changed', item })),
+  ];
+  const initialResults = await runWithConcurrency(initialTasks, async task => {
+    if (task.type === 'changed') {
+      console.log(`下载变更插件: ${task.item.zipFileName}`);
+      // GitHub Release URL 包含 releases/download/<tag>/ 前缀，本地 ZIP 必须落在 dist 根目录。
+      await downloadPlannedAsset(task.item.entry.sourceDownloadUrl, task.item.zipFileName, false);
+      return { type: 'changed', item: task.item };
+    }
+
+    try {
+      // 旧 EdgeOne 资产只下载 ZIP，ZPX 和 logo 在本地重新生成，减少网络请求。
+      await downloadPlannedAsset(task.item.previous.downloadUrl, task.item.zipFileName, false);
+      console.log(`✓ 下载复用 ZIP: ${task.item.zipFileName}`);
+      return { type: 'reused', item: task.item };
+    } catch (error) {
+      console.warn(`下载复用 ZIP ${task.item.zipFileName} 失败，将从 main Release 下载: ${error.message}`);
+      return { type: 'fallback', item: task.item };
+    }
+  });
+
+  const reusedPlugins = initialResults
+    .filter(result => result.type === 'reused')
+    .map(result => result.item);
+  const fallbackPlugins = initialResults
+    .filter(result => result.type === 'fallback')
+    .map(result => result.item);
+  const changedPlugins = [
+    ...plan.changedPlugins,
+    ...fallbackPlugins,
+  ];
+
+  await runWithConcurrency(fallbackPlugins, async item => {
     console.log(`下载变更插件: ${item.zipFileName}`);
     // GitHub Release URL 包含 releases/download/<tag>/ 前缀，本地 ZIP 必须落在 dist 根目录。
     await downloadPlannedAsset(item.entry.sourceDownloadUrl, item.zipFileName, false);
-  }
+  });
 
   return { changedPlugins, reusedPlugins };
 }
