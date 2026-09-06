@@ -1,0 +1,121 @@
+.settings { padding: 12px; }
+
+.settings h2 {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings .subtitle {
+  color: var(--fg2);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.empty-hint { color: var(--fg2); text-align: center; padding: 32px 0; }
+
+.btn-toggle {
+  width: 100%;
+  padding: 4px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--fg2);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.btn-toggle:hover { border-color: var(--blue); color: var(--blue); }
+
+.add-form {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: var(--bg2);
+}
+
+.add-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.add-form label span { color: var(--fg2); margin-bottom: 2px; display: block; }
+.add-form input { display: block; width: 100%; }
+
+.quick-fill {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.qf-label { color: var(--fg2); line-height: 22px; font-size: 12px; }
+
+.btn-qf {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg2);
+  font-size: 12px;
+  line-height: 20px;
+}
+.btn-qf:hover { border-color: var(--blue); color: var(--blue); }
+
+.btn-submit {
+  width: 100%;
+  padding: 4px;
+  margin-top: 4px;
+  background: var(--blue);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 22px;
+}
+.btn-submit:hover { opacity: .85; }
+
+.ide-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+.ide-table th {
+  text-align: left;
+  padding: 5px 8px;
+  font-weight: 500;
+  color: var(--fg2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.ide-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.ide-table td code { font-weight: 600; font-family: monospace; font-size: 12px; color: var(--blue); }
+
+.ide-table td input {
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 2px;
+}
+.ide-table td input:focus { border-color: var(--blue); background: var(--bg); }
+
+.td-path { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-actions { white-space: nowrap; text-align: right; }
+
+.btn-edit {
+  color: var(--blue);
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.btn-edit:hover { background: rgba(22,119,255,.06); }
+
+.btn-remove {
+  color: var(--red);
+  font-size: 13px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  opacity: .6;
+}
+.btn-remove:hover { opacity: 1; background: rgba(255,77,79,.06); }
