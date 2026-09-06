@@ -33,7 +33,7 @@ const DOWNLOAD_CONCURRENCY = Number.isInteger(configuredDownloadConcurrency) && 
   : DEFAULT_DOWNLOAD_CONCURRENCY;
 const GITHUB_RELEASE_ASSET_URL_PATTERN = /^https:\/\/github\.com\/ZToolsCenter\/ZTools-plugins\/releases\/download\/[^/]+\/([^/?#]+)([?#].*)?$/;
 const BASE64_IMAGE_DATA_URL_PATTERN = /^data:(image\/[a-z0-9.+-]+(?:;[^,]*)*);base64,([\s\S]+)$/i;
-const RELEASE_METADATA_FILES = ['plugins.json', 'categories.json', 'layout.yaml', 'latest'];
+const RELEASE_METADATA_FILES = ['plugins.json'];
 
 function printUsage() {
   console.log(`
