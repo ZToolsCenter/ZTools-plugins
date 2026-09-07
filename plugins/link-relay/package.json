@@ -1,0 +1,23 @@
+{
+  "name": "link-relay",
+  "version": "1.0.0",
+  "description": "ZTools 插件：将任意目录（IDE 扩展/配置、缓存、用户数据等）从系统盘迁移到其他磁盘，通过 Junction/符号链接保持程序无感知运行；内置常见 IDE 目录预设，支持自定义目录迁移与链接重建。",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build"
+  },
+  "dependencies": {
+    "pinia": "^4.0.3",
+    "uuid": "^14.0.2",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "sass": "^1.103.1",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vue-tsc": "^2.2.12"
+  }
+}
