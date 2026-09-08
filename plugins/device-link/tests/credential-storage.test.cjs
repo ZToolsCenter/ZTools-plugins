@@ -122,3 +122,43 @@ test('existing local credentials remain readable and unavailable safeStorage is 
     (error) => error.code === 'CREDENTIAL_INVALID',
   )
 })
+
+test('local:v2 credentials remain readable across the 2.4–3.1 and 3.2 data-directory boundary', (context) => {
+  const root = testDirectory(context)
+  const legacyDataDir = path.join(root, 'userData', 'device-link')
+  const pluginDataDir = path.join(root, 'pluginData')
+  const legacy = createCredentialStorage({ dataDir: legacyDataDir, safeStorage: undefined, legacyKey: crypto.randomBytes(32) })
+  const beforeUpgrade = legacy.seal('trusted-before-upgrade')
+  const modern = createCredentialStorage({
+    dataDir: pluginDataDir,
+    safeStorage: undefined,
+    legacyKey: crypto.randomBytes(32),
+    localKeyDataDir: legacyDataDir,
+    fallbackLocalKeyDataDirs: [pluginDataDir],
+  })
+
+  assert.equal(modern.unseal(beforeUpgrade), 'trusted-before-upgrade')
+  const beforeDowngrade = modern.seal('trusted-before-downgrade')
+  assert.equal(legacy.unseal(beforeDowngrade), 'trusted-before-downgrade')
+  assert.equal(fs.existsSync(path.join(pluginDataDir, 'credential-key-v2')), false)
+})
+
+test('3.2 safely falls back to a previously-created pluginData local:v2 key', (context) => {
+  const root = testDirectory(context)
+  const legacyDataDir = path.join(root, 'userData', 'device-link')
+  const pluginDataDir = path.join(root, 'pluginData')
+  const early32 = createCredentialStorage({ dataDir: pluginDataDir, safeStorage: undefined, legacyKey: crypto.randomBytes(32) })
+  const earlyCredential = early32.seal('trusted-early-3.2')
+  const modern = createCredentialStorage({
+    dataDir: pluginDataDir,
+    safeStorage: undefined,
+    legacyKey: crypto.randomBytes(32),
+    localKeyDataDir: legacyDataDir,
+    fallbackLocalKeyDataDirs: [pluginDataDir],
+  })
+
+  assert.equal(modern.unseal(earlyCredential), 'trusted-early-3.2')
+  const downgradeCredential = modern.seal('trusted-after-migration')
+  const legacy = createCredentialStorage({ dataDir: legacyDataDir, safeStorage: undefined, legacyKey: crypto.randomBytes(32) })
+  assert.equal(legacy.unseal(downgradeCredential), 'trusted-after-migration')
+})

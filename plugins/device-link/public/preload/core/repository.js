@@ -32,13 +32,16 @@ function storageError(operation, result) {
   return error
 }
 
-function createRepository(db, dataDir) {
+function createRepository(db, dataDir, options = {}) {
   const attachmentsDir = path.join(dataDir, 'attachments')
   const transfersDir = path.join(dataDir, 'transfers')
+  const attachmentRoots = [attachmentsDir]
+  const ready = Promise.resolve(options.ready)
   fs.mkdirSync(attachmentsDir, { recursive: true })
   fs.mkdirSync(transfersDir, { recursive: true })
 
   async function allDocs(prefix) {
+    await ready
     if (typeof db.allDocs === 'function') {
       const result = await db.allDocs(prefix)
       if (isFailedResult(result)) throw storageError('读取', result)
@@ -51,6 +54,7 @@ function createRepository(db, dataDir) {
     attachmentsDir,
     transfersDir,
     async get(id) {
+      await ready
       try {
         const result = await db.get(id)
         if (isNotFound(result)) return null
@@ -62,12 +66,14 @@ function createRepository(db, dataDir) {
       }
     },
     async put(doc) {
+      await ready
       const current = await this.get(doc._id)
       const result = await db.put(current?._rev ? { ...doc, _rev: current._rev } : doc)
       if (isFailedResult(result)) throw storageError('写入', result)
       return result
     },
     async remove(id) {
+      await ready
       const current = await this.get(id)
       if (!current) return false
       const result = await db.remove(current)
@@ -108,8 +114,11 @@ function createRepository(db, dataDir) {
         const current = await this.get(`${MESSAGE_PREFIX}${id}`)
         for (const attachment of current?.attachments || []) {
           if (!attachment.path) continue
-          const relative = path.relative(attachmentsDir, path.resolve(attachment.path))
-          if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+          const isOwnedAttachment = attachmentRoots.some((root) => {
+            const relative = path.relative(root, path.resolve(attachment.path))
+            return relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+          })
+          if (isOwnedAttachment) {
             try { await fs.promises.rm(attachment.path, { force: true }) } catch {}
           }
         }
