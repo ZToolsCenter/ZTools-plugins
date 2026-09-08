@@ -3,7 +3,7 @@
   "name": "system-diagnostic-report",
   "title": "系统诊断报告",
   "description": "在本地采集系统与硬件摘要，生成便于排障和分享的诊断报告。",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.svg",

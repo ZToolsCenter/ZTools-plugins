@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import { escapeMarkdown, reportToMarkdown } from '../src/composables/formatReport'
 import { normalizeReport, useSystemReport } from '../src/composables/useSystemReport'
+import { getZToolsCompatibility, hostCompatibility } from '../src/composables/ztoolsCompatibility'
 import type { NormalizedReport, SystemReport } from '../src/types/report'
 
 function rawReport(generatedAt = '2026-07-30T10:20:30.000Z'): SystemReport {
@@ -24,6 +25,36 @@ test('normalization uses canonical overview time and keeps false fields neutral'
   assert.equal(report.generatedAt, '2026-07-30T10:20:30.000Z')
   assert.equal(virtual?.value, '否')
   assert.equal(virtual?.status, 'neutral')
+})
+
+test('ZTools 2.4 is the supported floor while an unreadable detected version fails closed', () => {
+  assert.equal(getZToolsCompatibility('2.3.9').supported, false)
+  assert.equal(getZToolsCompatibility('2.4.0-beta.1').supported, false)
+  assert.equal(getZToolsCompatibility('2.4.0').supported, true)
+  assert.equal(getZToolsCompatibility('3.1.9').supported, true)
+  assert.equal(getZToolsCompatibility('3.2.0').supported, true)
+  assert.deepEqual(getZToolsCompatibility(undefined), { supported: false, detected: true, version: null })
+  assert.deepEqual(getZToolsCompatibility('current'), { supported: false, detected: true, version: null })
+})
+
+test('host compatibility allows only a bridge-free browser preview to have an unknown version', () => {
+  const previousWindow = globalThis.window
+  try {
+    Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: {} })
+    assert.deepEqual(hostCompatibility(), { supported: true, detected: false, version: null })
+    for (const ztools of [
+      {},
+      { getAppVersion() { throw new Error('unavailable') } },
+      { getAppVersion: () => '' },
+      { getAppVersion: () => 'invalid' },
+    ]) {
+      globalThis.window = { ztools } as Window & typeof globalThis
+      assert.deepEqual(hostCompatibility(), { supported: false, detected: true, version: null })
+    }
+  } finally {
+    if (previousWindow === undefined) delete (globalThis as { window?: Window }).window
+    else globalThis.window = previousWindow
+  }
 })
 
 test('collector errors retain their source without being duplicated as warnings', () => {

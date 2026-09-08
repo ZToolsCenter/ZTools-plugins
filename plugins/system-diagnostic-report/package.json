@@ -1,6 +1,6 @@
 {
   "name": "system-diagnostic-report",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "本地生成软硬件系统信息与脱敏诊断报告的 ZTools 插件。",

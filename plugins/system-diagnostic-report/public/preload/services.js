@@ -2,12 +2,21 @@
 
 const fs = require('node:fs/promises')
 const path = require('node:path')
-const nodeOs = require('node:os')
-const systeminformation = require('systeminformation')
-const { collectSystemReport } = require('./collectors/core.cjs')
+const { getHostCompatibility } = require('./host-compatibility.cjs')
+
+const compatibility = getHostCompatibility(typeof window === 'undefined' ? undefined : window)
+// systeminformation and the collector graph may spawn probes. Do not even
+// require them until a real host has positively identified itself as 2.4+.
+const nodeOs = compatibility.supported ? require('node:os') : null
+const systeminformation = compatibility.supported ? require('systeminformation') : null
+const collectSystemReport = compatibility.supported
+  ? require('./collectors/core.cjs').collectSystemReport
+  : null
 
 const MAX_REPORT_BYTES = 20 * 1024 * 1024
+const DRAG_GRANT_TTL_MS = 5 * 60 * 1000
 const collectionFlights = new Map()
+const dragGrants = new Map()
 
 function hostApi() {
   return window && window.ztools ? window.ztools : null
@@ -35,6 +44,9 @@ function getDisplays() {
 }
 
 function collect(options = {}) {
+  if (!compatibility.supported || !collectSystemReport) {
+    return Promise.reject(new Error('ZTools 2.4.0 or newer is required'))
+  }
   const privacy = options && options.privacy === 'fingerprint-minimal'
     ? 'fingerprint-minimal'
     : 'safe'
@@ -59,6 +71,7 @@ function collect(options = {}) {
 }
 
 async function copyText(text) {
+  if (!compatibility.supported) return false
   if (typeof text !== 'string') return false
   const api = hostApi()
   if (!api || typeof api.copyText !== 'function') return false
@@ -79,6 +92,7 @@ function safeDefaultName(value, format) {
 }
 
 async function saveReport(options = {}) {
+  if (!compatibility.supported) throw new Error('ZTools 2.4.0 or newer is required')
   const format = options.format === 'json' ? 'json' : options.format === 'markdown' ? 'markdown' : null
   if (!format) throw new TypeError('Unsupported report format')
   if (typeof options.content !== 'string') throw new TypeError('Report content must be text')
@@ -108,11 +122,37 @@ async function saveReport(options = {}) {
 
   if (!filePath) return { canceled: true }
   await fs.writeFile(filePath, options.content, { encoding: 'utf8' })
+  const realPath = await fs.realpath(filePath)
+  dragGrants.clear()
+  dragGrants.set(realPath, Date.now() + DRAG_GRANT_TTL_MS)
   return { canceled: false, filePath }
+}
+
+async function startDrag(filePath) {
+  if (!compatibility.supported) return false
+  if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) return false
+  const api = hostApi()
+  if (!api || typeof api.startDrag !== 'function') return false
+  try {
+    const realPath = await fs.realpath(filePath)
+    const expiresAt = dragGrants.get(realPath)
+    if (!expiresAt || expiresAt < Date.now()) {
+      dragGrants.delete(realPath)
+      return false
+    }
+    const stat = await fs.stat(realPath)
+    if (!stat.isFile()) return false
+    dragGrants.delete(realPath)
+    api.startDrag(realPath)
+    return true
+  } catch {
+    return false
+  }
 }
 
 window.systemReport = Object.freeze({
   collect,
   copyText,
-  saveReport
+  saveReport,
+  startDrag
 })
