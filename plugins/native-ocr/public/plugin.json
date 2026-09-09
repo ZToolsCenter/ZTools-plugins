@@ -2,7 +2,7 @@
   "name": "native-ocr",
   "title": "Native OCR",
   "description": "本地多引擎 OCR（微信 OCR / macOS Vision）",
-  "version": "0.6.12",
+  "version": "0.6.13",
   "author": "Samson",
   "platform": [
     "darwin",

@@ -21,6 +21,9 @@ import jpeg from 'jpeg-js';
 import { InferenceSession } from 'onnxruntime-node';
 import BaseOcr, { registerBackend } from '@gutenye/ocr-common';
 import { splitIntoLineImages } from '@gutenye/ocr-common/splitIntoLineImages';
+// Detection/Recognition 未从包根导出（exports 限制），走运行时扁平 node_modules 的相对路径
+import { Detection, Recognition } from './node_modules/@gutenye/ocr-common/build/models/index.js';
+import { planTableSplits } from './onnx_table_split.mjs';
 
 const RUNTIME_DIR = path.dirname(fileURLToPath(import.meta.url));
 const IDLE_TIMEOUT = 15 * 60;
@@ -131,11 +134,27 @@ const MODELS = {
   dictionaryPath: path.join(RUNTIME_DIR, 'assets', 'ppocr_keys_v1.txt'),
 };
 
+// 绕过 Recognition.run 内部 afAfRec 的同行合并（它会把同一中线的多个单元格
+// 合并成一个横跨整行的宽框，导致下游表格列聚类退化为 1 列），改为逐张
+// line image 独立解码：直接复用 Recognition 的 imageToInput/runModel/decodeText，
+// 文本对齐到 det 输出的原始单元格 box。
+async function recognizeSingle(recognition, lineImage) {
+  const image = await lineImage.image.resize({ height: 48 });
+  const modelData = recognition.imageToInput(image, {});
+  const output = await recognition.runModel({ modelData, onnxOptions: {} });
+  const lines = (recognition.decodeText(output) || []).filter(Boolean);
+  const best = lines.sort((a, b) => (b.mean || 0) - (a.mean || 0))[0];
+  return best && best.mean >= 0.5 ? String(best.text || '') : '';
+}
+
 async function main() {
   for (const file of Object.values(MODELS)) {
     await fs.access(file);
   }
   const ocr = await BaseOcr.create({ models: MODELS });
+  // det / rec 分离实例：用于"表格宽行切列后重识别"管线
+  const detection = await Detection.create({ models: MODELS });
+  const recognition = await Recognition.create({ models: MODELS });
 
   const timer = setTimeout(() => process.exit(0), IDLE_TIMEOUT * 1000);
   timer.unref?.();
@@ -161,7 +180,27 @@ async function main() {
         const imagePath = String(request.imagePath || '');
         if (!imagePath) throw new Error('imagePath is required');
         const source = await ImageRaw.open(imagePath);
-        const detected = await ocr.detect(imagePath);
+        let detected;
+        try {
+          // 表格增强管线：det → 宽行切列 → rec（失败时回退整管线）
+          const lineImages = await detection.run(imagePath);
+          const plan = planTableSplits(lineImages, {
+            sourceWidth: source.width,
+            sourceHeight: source.height,
+            makeImage: (args) => new ImageRaw(args)
+          });
+          const cells = [];
+          for (let index = 0; index < plan.images.length; index += 1) {
+            cells.push({
+              text: await recognizeSingle(recognition, plan.images[index]),
+              box: plan.boxes[index] || plan.images[index].box || null
+            });
+          }
+          if (!cells.length) throw new Error('no cells detected');
+          detected = cells;
+        } catch (splitError) {
+          detected = await ocr.detect(imagePath);
+        }
         response.ok = true;
         response.width = source.width;
         response.height = source.height;

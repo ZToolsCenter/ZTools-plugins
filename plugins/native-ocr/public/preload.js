@@ -1059,6 +1059,19 @@ function ensureOnnxServer() {
   if (!fs.existsSync(scriptPath)) {
     throw new Error("ONNX OCR 服务脚本缺失，请重新下载引擎");
   }
+  // 启动前同步最新服务脚本：识别逻辑修复不依赖模型重下载
+  try {
+    for (const name of ["onnx_ocr_server.mjs", "onnx_ocr_backend.mjs", "onnx_table_split.mjs"]) {
+      const src = path.join(__dirname, "bin", name);
+      const dst = path.join(getOnnxRuntimeDir(), name);
+      if (!fs.existsSync(src)) continue;
+      if (!fs.existsSync(dst) || fs.readFileSync(src, "utf8") !== fs.readFileSync(dst, "utf8")) {
+        fs.copyFileSync(src, dst);
+      }
+    }
+  } catch (_) {
+    // 同步失败沿用已安装脚本
+  }
   const proc = spawn(process.execPath, [scriptPath], {
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
