@@ -41,16 +41,16 @@ function handleSave() {
       <button
         v-for="preset in presets"
         :key="preset.id"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] transition-colors cursor-pointer"
+        class="app-text-control inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors cursor-pointer"
         :class="activePresetId === preset.id
           ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30'
           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent hover:bg-slate-200 dark:hover:bg-slate-700'"
         @click="emit('apply', preset)"
       >
-        <div class="i-mdi-eye-outline text-[10px]" />
+        <div class="i-mdi-eye-outline text-xs" />
         <span class="max-w-20 truncate">{{ preset.name }}</span>
         <div
-          class="i-mdi-close-circle text-[10px] opacity-40 hover:opacity-100 ml-0.5"
+          class="i-mdi-close-circle text-xs opacity-40 hover:opacity-100 ml-0.5"
           @click.stop="emit('delete', preset.id)"
         />
       </button>
@@ -70,17 +70,17 @@ function handleSave() {
         <input
           v-model="newViewName"
           :placeholder="t('dashboard.viewNamePlaceholder')"
-          class="w-24 px-1.5 py-0.5 text-[11px] rounded border border-slate-300 dark:border-slate-600 bg-transparent outline-none focus:border-blue-500"
+          class="app-text-control w-24 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-600 bg-transparent outline-none focus:border-blue-500"
           @keydown.enter="handleSave"
           @keydown.escape="showSaveDialog = false"
           autofocus
         />
         <button
-          class="text-[11px] text-blue-500 hover:text-blue-600"
+          class="app-text-control text-blue-500 hover:text-blue-600"
           @click="handleSave"
         >{{ t('common.confirm') }}</button>
         <button
-          class="text-[11px] text-slate-400 hover:text-slate-600"
+          class="app-text-control text-slate-400 hover:text-slate-600"
           @click="showSaveDialog = false"
         >{{ t('common.cancel') }}</button>
       </div>

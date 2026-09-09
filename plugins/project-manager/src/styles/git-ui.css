@@ -52,7 +52,7 @@
   background:
     linear-gradient(160deg, color-mix(in srgb, var(--app-primary) 4%, transparent) 0%, transparent 42%),
     var(--git-panel);
-  font-size: 12px;
+  font-size: var(--app-font-control);
 }
 
 html.dark .git-module {
@@ -87,7 +87,7 @@ html.dark .git-module {
   border: none;
   border-radius: var(--git-radius);
   padding: 7px 14px;
-  font-size: 12px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   color: #fff;
   background: var(--git-accent);
@@ -116,7 +116,7 @@ html.dark .git-module {
   border: none;
   background: transparent;
   padding: 9px 12px 8px;
-  font-size: 11px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--git-muted);
@@ -230,7 +230,7 @@ html.dark .git-module {
   display: flex;
   flex-direction: column;
   background: var(--git-panel);
-  font-size: 11.5px;
+  font-size: var(--app-font-control);
   user-select: none;
 }
 
@@ -275,7 +275,7 @@ html.dark .git-module {
   height: 18px;
   padding: 0 6px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--app-font-meta);
   font-weight: 600;
   color: var(--git-muted);
   background: color-mix(in srgb, var(--git-panel) 70%, transparent);
@@ -292,7 +292,7 @@ html.dark .git-module {
   border: none;
   border-radius: 6px;
   padding: 2px 7px;
-  font-size: 10px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   cursor: pointer;
   background: color-mix(in srgb, currentColor 10%, transparent);
@@ -338,7 +338,7 @@ html.dark .git-module {
   height: 100%;
   min-height: 36px;
   color: color-mix(in srgb, var(--git-muted) 70%, transparent);
-  font-size: 10px;
+  font-size: var(--app-font-meta);
 }
 
 .git-module .git-scm-file-row {
@@ -365,7 +365,7 @@ html.dark .git-module {
 
 .git-module .git-scm-file-status {
   font-family: var(--git-mono);
-  font-size: 11px;
+  font-size: var(--app-font-meta);
   font-weight: 700;
   text-align: center;
 }
@@ -461,7 +461,7 @@ html.dark .git-module {
   border-radius: 8px !important;
   border-color: var(--git-border-strong) !important;
   background: var(--git-sunken) !important;
-  font-size: 12px !important;
+  font-size: var(--app-font-body) !important;
   line-height: 1.45 !important;
   color: var(--git-text) !important;
 }
@@ -523,7 +523,7 @@ html.dark .git-module {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   color: var(--git-text-secondary);
   font-family: var(--git-mono);
@@ -531,14 +531,14 @@ html.dark .git-module {
 
 .git-module .git-diff-stat-add {
   font-family: var(--git-mono);
-  font-size: 11px;
+  font-size: var(--app-font-meta);
   font-weight: 600;
   color: var(--git-success);
 }
 
 .git-module .git-diff-stat-del {
   font-family: var(--git-mono);
-  font-size: 11px;
+  font-size: var(--app-font-meta);
   font-weight: 600;
   color: var(--git-danger);
 }
@@ -548,8 +548,8 @@ html.dark .git-module {
   overflow: auto;
   padding: 10px;
   font-family: var(--git-mono);
-  font-size: 11.5px;
-  line-height: 1.55;
+  font-size: var(--app-font-console);
+  line-height: var(--app-line-height-console);
 }
 
 .git-module .git-diff-hunk {
@@ -568,7 +568,7 @@ html.dark .git-module {
   padding: 6px 10px;
   border-bottom: 1px solid var(--git-border);
   background: color-mix(in srgb, var(--git-accent) 5%, var(--git-panel-soft));
-  font-size: 10.5px;
+  font-size: var(--app-font-meta);
   color: var(--git-accent);
   font-family: var(--git-mono);
 }
@@ -578,7 +578,7 @@ html.dark .git-module {
   border: none;
   border-radius: 6px;
   padding: 2px 8px;
-  font-size: 10px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   cursor: pointer;
   color: var(--git-danger);
@@ -592,6 +592,114 @@ html.dark .git-module {
 .git-module .git-diff-hunk-header .git-diff-rollback:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.git-module .git-diff-hunk-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.git-module .git-diff-hunk-action {
+  border: none;
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: var(--app-font-control);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.git-module .git-diff-hunk-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.git-module .git-diff-hunk-action.is-stage {
+  color: var(--git-success);
+  background: color-mix(in srgb, var(--git-success) 10%, transparent);
+}
+
+.git-module .git-diff-hunk-action.is-stage:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--git-success) 18%, transparent);
+}
+
+.git-module .git-diff-hunk-action.is-unstage {
+  color: var(--git-accent);
+  background: color-mix(in srgb, var(--git-accent) 10%, transparent);
+}
+
+.git-module .git-diff-hunk-action.is-unstage:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--git-accent) 18%, transparent);
+}
+
+.git-module .git-diff-hunk-action.is-discard {
+  color: var(--git-danger);
+  background: color-mix(in srgb, var(--git-danger) 10%, transparent);
+}
+
+.git-module .git-diff-hunk-action.is-discard:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--git-danger) 18%, transparent);
+}
+
+.git-module .git-binary-fallback {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  color: var(--git-text-secondary);
+}
+
+.git-module .git-binary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--app-font-control);
+  font-weight: 650;
+}
+
+.git-module .git-binary-status {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--git-accent) 10%, transparent);
+  color: var(--git-accent);
+  font-size: var(--app-font-control);
+  font-weight: 600;
+}
+
+.git-module .git-binary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--git-border);
+  border-radius: var(--git-radius-md);
+  background: var(--git-border);
+}
+
+.git-module .git-binary-grid > div {
+  display: flex;
+  min-width: 120px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--git-panel);
+  font-size: var(--app-font-meta);
+}
+
+.git-module .git-binary-grid span {
+  color: var(--git-muted);
+}
+
+.git-module .git-binary-grid strong {
+  color: var(--git-text);
+  font-family: var(--git-mono);
+  font-size: var(--app-font-control);
 }
 
 .git-module .git-diff-table {
@@ -658,12 +766,31 @@ html.dark .git-module {
   border: none;
   outline: none;
   background: transparent;
-  font-size: 12px;
+  font-size: var(--app-font-control);
   color: var(--git-text-secondary);
 }
 
 .git-module .git-history-search input::placeholder {
   color: var(--git-muted);
+}
+
+.git-module .git-history-file-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 250px;
+  min-height: 24px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--git-accent) 35%, var(--git-border));
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--git-accent) 8%, transparent);
+  color: var(--git-accent);
+  font-size: var(--app-font-control);
+  cursor: pointer;
+}
+
+.git-module .git-history-file-filter:hover {
+  background: color-mix(in srgb, var(--git-accent) 14%, transparent);
 }
 
 .git-module .git-history-header {
@@ -677,7 +804,7 @@ html.dark .git-module {
   display: flex;
   align-items: center;
   height: 26px;
-  font-size: 10px;
+  font-size: var(--app-font-control);
   font-weight: 650;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -763,7 +890,7 @@ html.dark .git-module {
   white-space: nowrap;
   padding: 0 7px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: var(--app-font-meta);
   font-weight: 650;
   line-height: 16px;
 }
@@ -775,12 +902,12 @@ html.dark .git-module {
   padding: 0 10px;
   box-sizing: border-box;
   color: var(--git-muted);
-  font-size: 11px;
+  font-size: var(--app-font-meta);
 }
 
 .git-module .git-history-hash {
   font-family: var(--git-mono);
-  font-size: 11px;
+  font-size: var(--app-font-meta);
 }
 
 /***********************历史详情 / 文件列表*********************/
@@ -790,7 +917,7 @@ html.dark .git-module {
 }
 
 .git-module .git-history-detail-label {
-  font-size: 10px;
+  font-size: var(--app-font-meta);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -801,7 +928,7 @@ html.dark .git-module {
   border: none;
   border-radius: 6px;
   padding: 2px 8px;
-  font-size: 10px;
+  font-size: var(--app-font-control);
   cursor: pointer;
   color: var(--git-text-secondary);
   background: var(--git-panel-soft);
@@ -827,7 +954,7 @@ html.dark .git-module {
   flex-shrink: 0;
   padding: 7px 10px;
   border-bottom: 1px solid var(--git-border);
-  font-size: 10px;
+  font-size: var(--app-font-meta);
   font-weight: 650;
   color: var(--git-muted);
 }
@@ -837,7 +964,7 @@ html.dark .git-module {
   min-width: 18px;
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: var(--app-font-meta);
   font-weight: 600;
   color: var(--git-muted);
   background: var(--git-panel-soft);

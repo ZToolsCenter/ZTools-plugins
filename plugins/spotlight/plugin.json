@@ -1,0 +1,23 @@
+{
+  "name": "spotlight",
+  "title": "聚光灯",
+  "description": "屏幕聚光灯：一键全屏变暗，光圈平滑跟随鼠标，演示录屏时聚焦视线",
+  "author": "Reaosen",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "spotlight",
+      "explain": "开启聚光灯（全屏变暗，光圈跟随鼠标）",
+      "cmds": ["聚光灯", "spotlight", "jgd"],
+      "mainHide": true
+    },
+    {
+      "code": "spotlight-settings",
+      "explain": "聚光灯设置（快捷键 / 光圈大小 / 明暗 / 柔化）",
+      "cmds": ["聚光灯设置", "spotlight设置", "聚光灯配置", "jgd设置"]
+    }
+  ]
+}

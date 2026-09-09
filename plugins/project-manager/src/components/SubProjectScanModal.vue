@@ -5,7 +5,7 @@
  * 1. 单个添加项目后的层级选择——Dashboard 先创建父项目，再把已扫描的候选树
  *    通过 presetNodes 传进来，由用户决定挂载哪几级；
  * 2. 编辑项目时再次调整层级——AddProjectModal 打开本弹窗重新扫描；
- * 3. 已有项目工作区的"扫描子项目"——ProjectWorkspace 直接扫描其路径。
+ * 3. 已有项目工作区的"管理子项目"——ProjectWorkspace 直接扫描其路径。
  */
 import { ref, computed, watch } from 'vue';
 import { useProjectStore } from '../stores/project';
@@ -105,12 +105,12 @@ function buildExistingSubtree(parentId: string): ImportNode[] {
   }));
 }
 
-/** 应用候选树并重置默认勾选（全选：已导入的也勾上，取消才表示移除） */
+/** 应用候选树并重置默认勾选：已有项目保留，新候选等待用户明确选择。 */
 function applyNodes(tree: ImportNode[]) {
   // 并入已入库的子树，保证已有子项目一定出现在列表里、可被取消
   const merged = mergeExistingSubtree(tree, buildExistingSubtree(props.parentProject.id));
   nodes.value = merged;
-  selected.value = buildDefaultSelection(merged);
+  selected.value = buildDefaultSelection(merged, existingPaths.value);
 }
 
 async function runScan() {
@@ -246,7 +246,7 @@ function handleClosed() {
 <template>
   <el-dialog
     v-model="visible"
-    :title="t('dashboard.scanSubProjects')"
+    :title="t('dashboard.manageSubProjects')"
     width="600px"
     align-center
     class="app-centered-dialog"
@@ -258,15 +258,20 @@ function handleClosed() {
       class="flex items-start gap-2 mb-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20"
     >
       <div class="i-mdi-alert-circle-outline text-amber-500 shrink-0 mt-0.5" />
-      <p class="text-xs text-amber-700 dark:text-amber-400">{{ t('dashboard.maxDepthReached') }}</p>
+      <p class="app-text-control text-amber-700 dark:text-amber-400">{{ t('dashboard.maxDepthReached') }}</p>
     </div>
 
     <template v-if="canAddChildren || nodes.length > 0">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs text-slate-400 truncate font-mono">{{ parentProject.path }}</span>
-        <el-button v-if="canAddChildren" size="small" :loading="scanning" @click="runScan">
-          <div class="i-mdi-refresh mr-1" /> {{ t('import.rescan') }}
-        </el-button>
+      <div class="mb-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="app-text-meta truncate font-mono text-slate-400">{{ parentProject.path }}</span>
+          <el-button v-if="canAddChildren" size="small" :loading="scanning" @click="runScan">
+            <div class="i-mdi-refresh mr-1" /> {{ t('import.rescan') }}
+          </el-button>
+        </div>
+        <p class="app-text-meta mt-1 text-slate-500 dark:text-slate-400">
+          {{ t('dashboard.subProjectManagementHint') }}
+        </p>
       </div>
 
       <div v-if="nodes.length > 0" class="border rounded-lg overflow-hidden app-section-divider">
@@ -279,7 +284,7 @@ function handleClosed() {
           >
             {{ t('import.selectAll') }}
           </el-checkbox>
-          <span class="text-xs text-slate-400">{{ t('import.selectedCount', { count: selectedCount }) }}</span>
+          <span class="app-text-meta text-slate-400">{{ t('import.selectedCount', { count: selectedCount }) }}</span>
         </div>
         <div class="max-h-80 overflow-y-auto custom-scrollbar">
           <ScanCandidateTree
@@ -292,8 +297,8 @@ function handleClosed() {
         </div>
         <!-- 层级说明 + 本次增删预览 -->
         <div class="px-3 py-2 border-t bg-slate-50 dark:bg-slate-800/40">
-          <div class="text-[10px] text-slate-400">{{ t('dashboard.subProjectLevelHint') }}</div>
-          <div v-if="removingPaths.length > 0" class="mt-1 text-[10px] text-red-500">
+          <div class="app-text-meta text-slate-400">{{ t('dashboard.subProjectLevelHint') }}</div>
+          <div v-if="removingPaths.length > 0" class="mt-1 app-text-meta text-red-500">
             {{ t('dashboard.subProjectRemoveHint', { count: removingPaths.length }) }}
           </div>
         </div>

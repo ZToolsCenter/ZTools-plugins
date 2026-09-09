@@ -81,7 +81,7 @@ onUnmounted(() => {
   <div class="app-titlebar">
     <!-- Expanded drag region -->
     <div data-tauri-drag-region class="flex-1 h-full flex items-center pl-4 cursor-default">
-      <span class="text-xs pointer-events-none font-medium tracking-wide">{{ t('common.title') }}</span>
+      <span class="app-text-caption pointer-events-none font-medium tracking-wide">{{ t('common.title') }}</span>
     </div>
     
     <!-- Control buttons -->

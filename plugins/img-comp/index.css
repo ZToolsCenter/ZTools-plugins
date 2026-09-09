@@ -1,0 +1,67 @@
+/* 图片压缩 - 紧凑、独立实现的 ZTools 界面 */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #cdd6e0; background: #1e2127; overflow: hidden; }
+button, input { font-family: inherit; }
+
+#root { height: 100%; display: flex; flex-direction: column; }
+.batch-view { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+
+/* ---- 顶部 tab 栏：标题只显示时间和图片数量 ---- */
+.tabs { display: flex; align-items: center; height: 32px; border-bottom: 1px solid #14161a; flex-shrink: 0; background: #181b21; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { display: inline-flex; align-items: center; gap: 6px; height: 100%; padding: 0 10px 0 12px; border-right: 1px solid #14161a; color: #8a93a0; font-size: 12px; cursor: pointer; user-select: none; flex-shrink: 0; min-width: 0; }
+.tab:hover { background: rgba(255,255,255,.03); color: #cdd6e0; }
+.tab.active { background: #1e2127; color: #4fa3ff; }
+.tab .text { white-space: nowrap; }
+.tab .x { color: #6b7280; padding: 0 4px; border-radius: 2px; font-size: 14px; line-height: 1; flex-shrink: 0; }
+.tab .x:hover { background: rgba(255,255,255,.08); color: #fff; }
+
+/* 进度条：极细，全局顶部 */
+.progress { height: 2px; background: #2a2d33; flex-shrink: 0; }
+.progress > div { height: 100%; background: #4fa3ff; transition: width .15s ease; }
+
+/* 主区域 */
+.main { flex: 1; overflow: auto; }
+
+/* 文件列表 */
+.list { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: 40px 1fr 90px 24px 90px 56px 24px; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid #14161a; }
+.row:hover { background: rgba(255,255,255,.02); }
+.row .thumb { width: 32px; height: 32px; background: #2a2d33; border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #6b7280; font-size: 16px; }
+.row .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.row .name .sub { color: #6b7280; font-size: 11px; margin-left: 6px; }
+.row .sz { text-align: right; font-variant-numeric: tabular-nums; color: #8a93a0; font-size: 12px; }
+.row .arrow { color: #6b7280; text-align: center; font-size: 12px; }
+.row .sz2 { text-align: right; font-variant-numeric: tabular-nums; color: #cdd6e0; font-size: 12px; }
+.row .reduce { text-align: right; font-variant-numeric: tabular-nums; color: #4ade80; font-size: 13px; font-weight: 600; }
+.row .reduce.zero { color: #6b7280; }
+.row .reduce.err { color: #ef4444; }
+.row .copy { background: transparent; border: none; color: #6b7280; cursor: pointer; padding: 4px 0; font-size: 14px; }
+.row .copy:hover { color: #4fa3ff; }
+
+/* 底部状态栏 */
+.status { display: flex; align-items: center; gap: 14px; height: 36px; padding: 0 12px; border-top: 1px solid #14161a; background: #1e2127; flex-shrink: 0; }
+.status .left { color: #8a93a0; font-size: 12px; }
+.status .left b { color: #cdd6e0; font-weight: 600; margin: 0 2px; }
+.status .center { color: #4ade80; font-size: 12px; font-variant-numeric: tabular-nums; }
+.status .center .bytes { color: #4fa3ff; font-weight: 600; margin: 0 2px; }
+.status .spacer { flex: 1; }
+.status .btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; font-size: 12px; background: #2a2d33; color: #cdd6e0; border: 1px solid #14161a; border-radius: 3px; cursor: pointer; line-height: 1.4; }
+.status .btn:hover { background: #34373d; }
+.status .btn.primary { background: #4fa3ff; color: #fff; border-color: #4fa3ff; }
+.status .btn.primary:hover { background: #3b8ce8; }
+.status .btn.danger { background: #4b1e22; color: #fca5a5; border-color: #4b1e22; }
+.status .btn.danger:hover { background: #5b2429; }
+.status kbd { display: inline-block; padding: 1px 5px; font-size: 10px; background: rgba(255,255,255,.16); border-radius: 2px; color: #fff; margin: 0 2px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.status .btn:not(.primary) kbd { background: rgba(255,255,255,.06); color: #8a93a0; }
+
+/* 空状态 */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #6b7280; gap: 8px; font-size: 13px; padding: 40px; }
+.empty .big { font-size: 28px; opacity: .4; }
+
+/* 拖拽时的高亮遮罩 */
+.drop-overlay { position: fixed; inset: 0; background: rgba(79,163,255,.1); border: 2px dashed #4fa3ff; z-index: 9999; display: flex; align-items: center; justify-content: center; pointer-events: none; font-size: 14px; color: #4fa3ff; font-weight: 600; }
+
+/* 子目录缩进 */
+.row.sub .name::before { content: '└ '; color: #4b5563; }

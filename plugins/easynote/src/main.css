@@ -483,6 +483,12 @@ textarea {
   font-weight: 600;
 }
 
+.home-col-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .home-list {
   flex: 1;
   min-height: 0;

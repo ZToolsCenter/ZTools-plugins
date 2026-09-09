@@ -2,7 +2,7 @@
   "name": "quick-translate",
   "title": "快翻译",
   "description": "通过 ZTools 服务快速使用 Google 翻译文本",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.png",

@@ -4,7 +4,7 @@
   "title": "文件共享",
   "description": "局域网文件共享，支持在线预览文本、代码、Markdown、音视频",
   "author": "meidlinger",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

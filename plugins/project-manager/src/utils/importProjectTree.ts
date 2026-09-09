@@ -1,6 +1,7 @@
 import type { ImportCandidate, ImportNode, ProjectInfo } from '../api/types';
 import type { Project, ProjectModuleKind } from '../types';
 import { createProjectId } from './projectId.ts';
+import { buildJavaPresetCommands, isWindowsPlatform } from './projectCommands.ts';
 
 type BuildImportRootProjectOptions = {
   createId?: () => string;
@@ -24,7 +25,14 @@ function toModuleKind(kind: string): ProjectModuleKind {
   return (validKinds as string[]).includes(kind) ? (kind as ProjectModuleKind) : 'unknown';
 }
 
-function toProjectType(kind: string): Project['type'] {
+/**
+ * 扫描节点 → 项目类型。
+ *
+ * 带构建工具的模块一律建成 'java'：否则会落到 'other'，
+ * 拿不到构建命令，「命令」页签整个不渲染。
+ */
+function toProjectType(kind: string, buildTool?: 'maven' | 'gradle'): Project['type'] {
+  if (buildTool) return 'java';
   return kind === 'node' || kind === 'frontend' || kind === 'static' ? 'node' : 'other';
 }
 
@@ -54,6 +62,7 @@ export function buildImportRootProject(
     root.nodeVersion = options.nodeVersion;
     root.packageManager = info?.packageManager || 'npm';
     root.scripts = info?.scripts || [];
+    root.terminalInjectNode = true;
   }
 
   return root;
@@ -104,7 +113,7 @@ export function flattenImportNodeTree(
       parentId: parent,
       name: node.name,
       path: node.path,
-      type: toProjectType(node.kind),
+      type: toProjectType(node.kind, node.buildTool),
       moduleKind,
     };
     if (node.hasPackageJson) {
@@ -112,8 +121,21 @@ export function flattenImportNodeTree(
       project.scripts = node.scripts;
     }
     if (node.kind === 'node' || node.kind === 'frontend' || node.kind === 'static') {
-      // 嵌套扫描未携带 nvm 版本信息，统一使用 Default
       project.nodeVersion = 'Default';
+      project.terminalInjectNode = true;
+    }
+    // Java 模块：预置构建命令。
+    // 不预置的话「命令」页签整个不渲染（它要求有脚本或自定义命令），
+    // 而 monorepo 里的 Java 后端正是走这条扫描导入路径进来的。
+    if (project.type === 'java' && node.buildTool) {
+      project.buildTool = node.buildTool;
+      project.hasWrapper = !!node.hasWrapper;
+      project.customCommands = buildJavaPresetCommands(
+        node.buildTool,
+        !!node.hasWrapper,
+        isWindowsPlatform(),
+        createId,
+      );
     }
     out.push(project);
     for (const child of node.children) walk(child, project.id, depth + 1);

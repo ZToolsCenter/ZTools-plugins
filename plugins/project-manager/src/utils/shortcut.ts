@@ -39,6 +39,40 @@ const KEY_ALIASES: Record<string, string> = {
 export const DEFAULT_QUICK_SEARCH_APP_SHORTCUT = 'Ctrl+K';
 export const DEFAULT_QUICK_SEARCH_GLOBAL_SHORTCUT = 'CommandOrControl+Shift+K';
 
+/***********************应用内常用操作的默认键位*********************/
+/** 方案约定的项目列表快捷键，可在设置页修改。 */
+export const DEFAULT_FOCUS_SEARCH_SHORTCUT = 'Ctrl+F';
+export const DEFAULT_NEW_PROJECT_SHORTCUT = 'Ctrl+N';
+export const DEFAULT_REFRESH_PROJECTS_SHORTCUT = 'F5';
+
+/** 左侧菜单快捷键，依次映射项目、Node、端口、提交日历、设置。 */
+export const DEFAULT_SIDEBAR_MENU_SHORTCUTS = [
+  'Ctrl+1',
+  'Ctrl+2',
+  'Ctrl+3',
+  'Ctrl+4',
+  'Ctrl+5',
+] as const;
+
+/**
+ * 上一版临时改用的 Alt 默认键位。
+ * Windows 端关闭 WebView2 浏览器加速键后，需迁移回产品方案约定的键位。
+ */
+export const SUPERSEDED_SHORTCUT_DEFAULTS: Record<string, string> = {
+  focusSearchShortcut: 'Alt+S',
+  newProjectShortcut: 'Alt+N',
+  refreshProjectsShortcut: 'Alt+R',
+};
+
+/** 上一版数字导航临时使用的 Alt 默认键位，仅用于兼容迁移。 */
+export const SUPERSEDED_SIDEBAR_MENU_SHORTCUTS = [
+  'Alt+1',
+  'Alt+2',
+  'Alt+3',
+  'Alt+4',
+  'Alt+5',
+] as const;
+
 function normalizeKeyName(key: string) {
   const directAlias = KEY_ALIASES[key.toLowerCase()];
   if (directAlias) return directAlias;
@@ -99,7 +133,10 @@ export function shortcutFromKeyboardEvent(event: KeyboardEvent) {
   if (event.metaKey) modifiers.push('Meta');
   if (event.altKey) modifiers.push('Alt');
   if (event.shiftKey) modifiers.push('Shift');
-  if (modifiers.length === 0) return '';
+  // 可配置的刷新默认使用裸 F5，因此允许录制功能键；普通裸键与 Esc 仍拒绝。
+  if (modifiers.length === 0) {
+    return /^F(?:[1-9]|1[0-2])$/.test(key) ? key : '';
+  }
 
   return normalizeShortcut([...modifiers, key].join('+'));
 }

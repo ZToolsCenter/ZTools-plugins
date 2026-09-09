@@ -6,6 +6,7 @@ const path = require('node:path')
 const crypto = require('node:crypto')
 const QRCode = require('qrcode')
 const { clipboard, nativeImage, safeStorage, shell, webUtils } = require('electron')
+const { saveAttachmentFile } = require('./core/attachment')
 const { createCredentialStorage } = require('./core/credential-storage')
 const { resolveDroppedFilePaths } = require('./core/drop')
 const { clearMessageHistory, removeMessageFromHistory } = require('./core/history')
@@ -317,6 +318,11 @@ async function sendText(text, requestedConversationId) {
   return publishDesktopMessage(message)
 }
 
+async function localAttachment(messageId, attachmentId) {
+  const message = await repository.getMessage(messageId)
+  return message?.attachments?.find((item) => item.id === attachmentId) || null
+}
+
 window.deviceLink = {
   async getState() {
     const running = await startServer()
@@ -420,12 +426,14 @@ window.deviceLink = {
     } else return false
     return true
   },
-  async openAttachment(attachmentId) {
-    const messages = await repository.listMessages(Number.MAX_SAFE_INTEGER)
-    const attachment = messages.flatMap((message) => message.attachments || []).find((item) => item.id === attachmentId)
+  async openAttachment(messageId, attachmentId) {
+    const attachment = await localAttachment(messageId, attachmentId)
     if (!attachment?.path || !fs.existsSync(attachment.path)) return false
     await shell.openPath(attachment.path)
     return true
+  },
+  async saveAttachment(messageId, attachmentId) {
+    return saveAttachmentFile(await localAttachment(messageId, attachmentId), ztools)
   },
   async deleteMessage(messageId) {
     const message = (await repository.listMessages(Number.MAX_SAFE_INTEGER)).find((item) => item.id === messageId)

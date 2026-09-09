@@ -166,7 +166,7 @@ function removeModule(module: CodeModule) {
   <div class="flex flex-col h-full">
     <!-- 工具栏 -->
     <div class="flex items-center justify-between px-4 py-2 border-b border-slate-200/70 dark:border-slate-700/50">
-      <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+      <span class="app-text-meta font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
         {{ t('dashboard.modules') }}
       </span>
       <el-button
@@ -186,8 +186,8 @@ function removeModule(module: CodeModule) {
       <!-- 空状态 -->
       <div v-if="modules.length === 0" class="flex flex-col items-center justify-center py-8 text-slate-400 dark:text-slate-500">
         <div class="i-mdi-source-branch text-3xl mb-2 opacity-20" />
-        <p class="text-xs font-medium">{{ t('dashboard.moduleNoModules') }}</p>
-        <p class="text-[10px] mt-1">{{ t('dashboard.moduleNoModulesHint') }}</p>
+        <p class="app-text-body font-medium">{{ t('dashboard.moduleNoModules') }}</p>
+        <p class="app-text-meta mt-1">{{ t('dashboard.moduleNoModulesHint') }}</p>
       </div>
 
       <!-- 置顶模块 -->
@@ -200,10 +200,10 @@ function removeModule(module: CodeModule) {
         >
           <div :class="[getFrameworkIcon(mod.framework), getFrameworkColor(mod.framework)]" class="text-base flex-shrink-0" />
           <div class="flex-1 min-w-0">
-            <div class="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{{ mod.name }}</div>
-            <div class="text-[10px] text-slate-400 dark:text-slate-500 truncate font-mono">{{ mod.relativePath }}</div>
+            <div class="app-text-control font-semibold text-slate-800 dark:text-slate-100 truncate">{{ mod.name }}</div>
+            <div class="app-text-meta text-slate-400 dark:text-slate-500 truncate font-mono">{{ mod.relativePath }}</div>
           </div>
-          <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex-shrink-0">
+          <span class="app-text-caption px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex-shrink-0">
             {{ getFrameworkLabel(mod.framework) }}
           </span>
           <!-- 操作按钮 -->
@@ -213,28 +213,28 @@ function removeModule(module: CodeModule) {
               :title="t('dashboard.moduleUnpin')"
               @click.stop="toggleModulePin(mod)"
             >
-              <div class="i-mdi-pin-off text-[11px]" />
+              <div class="i-mdi-pin-off text-xs" />
             </button>
             <button
               class="p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-500"
               :title="t('dashboard.moduleOpenFolder')"
               @click.stop="openModuleFolder(mod)"
             >
-              <div class="i-mdi-folder-open-outline text-[11px]" />
+              <div class="i-mdi-folder-open-outline text-xs" />
             </button>
             <button
               class="p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-500"
               :title="t('dashboard.moduleOpenEditor')"
               @click.stop="openModuleInEditor(mod)"
             >
-              <div class="i-mdi-code-braces text-[11px]" />
+              <div class="i-mdi-code-braces text-xs" />
             </button>
             <button
               class="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500"
               :title="t('dashboard.moduleRemove')"
               @click.stop="removeModule(mod)"
             >
-              <div class="i-mdi-close text-[11px]" />
+              <div class="i-mdi-close text-xs" />
             </button>
           </div>
         </div>
@@ -250,10 +250,10 @@ function removeModule(module: CodeModule) {
         >
           <div :class="[getFrameworkIcon(mod.framework), getFrameworkColor(mod.framework)]" class="text-base flex-shrink-0" />
           <div class="flex-1 min-w-0">
-            <div class="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{{ mod.name }}</div>
-            <div class="text-[10px] text-slate-400 dark:text-slate-500 truncate font-mono">{{ mod.relativePath }}</div>
+            <div class="app-text-control font-semibold text-slate-800 dark:text-slate-100 truncate">{{ mod.name }}</div>
+            <div class="app-text-meta text-slate-400 dark:text-slate-500 truncate font-mono">{{ mod.relativePath }}</div>
           </div>
-          <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex-shrink-0">
+          <span class="app-text-caption px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex-shrink-0">
             {{ getFrameworkLabel(mod.framework) }}
           </span>
           <!-- 操作按钮 -->
@@ -263,28 +263,28 @@ function removeModule(module: CodeModule) {
               :title="t('dashboard.modulePin')"
               @click.stop="toggleModulePin(mod)"
             >
-              <div class="i-mdi-pin text-[11px]" />
+              <div class="i-mdi-pin text-xs" />
             </button>
             <button
               class="p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-500"
               :title="t('dashboard.moduleOpenFolder')"
               @click.stop="openModuleFolder(mod)"
             >
-              <div class="i-mdi-folder-open-outline text-[11px]" />
+              <div class="i-mdi-folder-open-outline text-xs" />
             </button>
             <button
               class="p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-500"
               :title="t('dashboard.moduleOpenEditor')"
               @click.stop="openModuleInEditor(mod)"
             >
-              <div class="i-mdi-code-braces text-[11px]" />
+              <div class="i-mdi-code-braces text-xs" />
             </button>
             <button
               class="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500"
               :title="t('dashboard.moduleRemove')"
               @click.stop="removeModule(mod)"
             >
-              <div class="i-mdi-close text-[11px]" />
+              <div class="i-mdi-close text-xs" />
             </button>
           </div>
         </div>

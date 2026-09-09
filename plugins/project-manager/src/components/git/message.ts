@@ -29,7 +29,7 @@ export function showPersistentGitError(message: string) {
 
   // 同步弹出详情，便于复制完整 stderr
   void ElMessageBox.alert(
-    `<pre style="white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow:auto;margin:0;font-size:12px;line-height:1.5;">${escapeHtml(text)}</pre>`,
+    `<pre style="white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow:auto;margin:0;font-size:var(--app-font-code);line-height:var(--app-line-height-code);">${escapeHtml(text)}</pre>`,
     'Git 错误详情',
     {
       dangerouslyUseHTMLString: true,

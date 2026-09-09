@@ -1,0 +1,282 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@config "../tailwind.config.js";
+
+@layer base {
+  :root {
+    --background: 30 33% 98%;
+    --foreground: 20 14% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 12%;
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 20% 92%;
+    --secondary-foreground: 20 14% 20%;
+    --muted: 30 16% 94%;
+    --muted-foreground: 25 10% 45%;
+    --accent: 24 90% 95%;
+    --accent-foreground: 24 80% 35%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 15% 86%;
+    --input: 30 15% 86%;
+    --ring: 24 95% 53%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 20 14% 10%;
+    --foreground: 30 10% 96%;
+    --card: 20 14% 13%;
+    --card-foreground: 30 10% 96%;
+    --primary: 24 95% 55%;
+    --primary-foreground: 20 14% 8%;
+    --secondary: 20 10% 20%;
+    --secondary-foreground: 30 10% 92%;
+    --muted: 20 10% 18%;
+    --muted-foreground: 25 8% 60%;
+    --accent: 24 50% 22%;
+    --accent-foreground: 24 90% 80%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 20 10% 24%;
+    --input: 20 10% 24%;
+    --ring: 24 95% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    background: transparent;
+  }
+  body {
+    @apply text-foreground antialiased;
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+}
+
+/* ============================================================
+   Design tokens: layered shadows + glow for depth & hierarchy
+   ============================================================ */
+:root {
+  --shadow-soft: 0 1px 2px rgba(60, 40, 20, 0.06),
+    0 4px 12px -2px rgba(60, 40, 20, 0.08);
+  --shadow-card: 0 2px 8px rgba(60, 40, 20, 0.07),
+    0 18px 40px -16px rgba(60, 40, 20, 0.22);
+  --shadow-float: 0 12px 30px -12px rgba(234, 88, 12, 0.32),
+    0 6px 14px -6px rgba(60, 40, 20, 0.12);
+  --shadow-glow: 0 0 0 1px rgba(234, 88, 12, 0.25),
+    0 10px 28px -8px rgba(234, 88, 12, 0.45);
+}
+
+/* ============================================================
+   Keyframes
+   ============================================================ */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes float-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+@keyframes pop-in {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes fade-up {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+  70% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-7deg);
+  }
+  75% {
+    transform: rotate(7deg);
+  }
+}
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@keyframes aurora-shift {
+  0% {
+    transform: translate3d(-6%, -4%, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(6%, 4%, 0) scale(1.25);
+  }
+  100% {
+    transform: translate3d(-6%, -4%, 0) scale(1.1);
+  }
+}
+@keyframes bounce-dot {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+@keyframes confetti-fall {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--cx, 0), var(--cy, -120px)) rotate(540deg);
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   Utility classes
+   ============================================================ */
+@layer components {
+  .animate-shimmer {
+    animation: shimmer 1.6s infinite;
+  }
+  .animate-float {
+    animation: float-bob 5s ease-in-out infinite;
+  }
+  .animate-pop-in {
+    animation: pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .animate-fade-up {
+    animation: fade-up 0.5s ease-out both;
+  }
+  .animate-wiggle {
+    animation: wiggle 0.6s ease-in-out;
+  }
+  .animate-twinkle {
+    animation: twinkle 3.5s ease-in-out infinite;
+  }
+  .animate-aurora {
+    animation: aurora-shift 18s ease-in-out infinite;
+  }
+
+  /* Frosted-glass panel */
+  .glass {
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.82),
+      rgba(255, 252, 247, 0.72)
+    );
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Animated multi-stop gradient text for the brand */
+  .text-gradient {
+    background: linear-gradient(
+      100deg,
+      #ea580c,
+      #f59e0b 35%,
+      #f97316 60%,
+      #d946ef 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: bg-pan 12s linear infinite;
+  }
+  @keyframes bg-pan {
+    to {
+      background-position: 200% center;
+    }
+  }
+
+  /* Shimmering skeleton block */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: rgba(120, 90, 60, 0.08);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.55),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+}
+
+/* ============================================================
+   Respect users who prefer reduced motion (a11y + perf)
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

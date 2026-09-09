@@ -4,7 +4,7 @@
   "title": "自动化助手",
   "description": "自动化助手，让繁琐的步骤一步到位。自定义指令 + JavaScript 脚本，一条指令完成一串操作",
   "author": "lee",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

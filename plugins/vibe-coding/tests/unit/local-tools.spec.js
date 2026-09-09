@@ -23,6 +23,7 @@ const {
   normalizePathEnvironment,
   resolveShellCommand,
 } = require('../../public/runtime/tools/shell-command.js')
+const { detectLineEnding } = require('../../public/runtime/tools/edit-diff.js')
 const {
   resolveRuntimeToolName,
 } = require('../../public/runtime/tools/shell-tool-name.js')
@@ -42,7 +43,7 @@ test('read 按行读取且 edit 原子应用多个修改并保留 BOM 与 CRLF',
 
   try {
     const readResult = await tools.execute('read', { path: 'sample.txt', offset: 2, limit: 1 }, null)
-    assert.equal(readResult.output.content, 'second\n\n[显示第 2-2 行，共 4 行。请使用 offset=3 继续读取。]')
+    assert.equal(readResult.output, 'second\n\n[显示第 2-2 行，共 4 行。请使用 offset=3 继续读取。]')
     await tools.execute('edit', {
       path: 'sample.txt',
       edits: [
@@ -72,12 +73,122 @@ test('edit 拒绝非唯一匹配且不改写原文件', async () => {
   try {
     await assert.rejects(
       tools.execute('edit', { path: 'sample.txt', edits: [{ oldText: 'same', newText: 'next' }] }, null),
-      /必须唯一匹配/,
+      /找到 2 处相同文本|确保 oldText 唯一/,
     )
     assert.equal(await fs.readFile(filePath, 'utf8'), 'same\nsame\n')
   } finally {
     await fs.rm(root, { recursive: true, force: true })
   }
+})
+
+test('edit 按 Pi 规则容忍行尾空格、Unicode 引号和单对象参数', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zvc-edit-fuzzy-'))
+  const filePath = path.join(root, 'sample.txt')
+  await fs.writeFile(filePath, 'const value = “old”   \nconst keep = true\n', 'utf8')
+  const tools = createFileTools({
+    resolvePath: (_workspace, input) => path.resolve(root, String(input)),
+    getAttachmentStore: () => null,
+    createPresentedResult: (output, presentation) => ({ output, presentation }),
+    computeDiffs: () => [],
+    resolveLanguage: () => '',
+    createLines: () => [],
+  })
+
+  try {
+    const result = await tools.execute('edit', {
+      path: 'sample.txt',
+      edits: { oldText: 'const value = "old"', newText: 'const value = "new"' },
+    }, null)
+    assert.match(result.output, /已完成 1 处文本替换/)
+    assert.equal(await fs.readFile(filePath, 'utf8'), 'const value = "new"\nconst keep = true\n')
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('edit 在智能引号文本重复时拒绝模糊替换', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zvc-edit-duplicate-unicode-'))
+  const filePath = path.join(root, 'sample.txt')
+  await fs.writeFile(filePath, 'const value = “old”\nconst copy = “old”\n', 'utf8')
+  const tools = createFileTools({
+    resolvePath: (_workspace, input) => path.resolve(root, String(input)),
+    getAttachmentStore: () => null,
+    createPresentedResult: (output, presentation) => ({ output, presentation }),
+    computeDiffs: () => [],
+    resolveLanguage: () => '',
+    createLines: () => [],
+  })
+
+  try {
+    await assert.rejects(
+      tools.execute('edit', {
+        path: 'sample.txt',
+        edits: [{ oldText: '“old”', newText: '“new”' }],
+      }, null),
+      /找到 2 处相同文本/,
+    )
+    assert.equal(await fs.readFile(filePath, 'utf8'), 'const value = “old”\nconst copy = “old”\n')
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('edit 兼容 JSON 字符串 edits 和顶层 oldText/newText 参数', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zvc-edit-arguments-'))
+  const filePath = path.join(root, 'sample.txt')
+  await fs.writeFile(filePath, 'before\n', 'utf8')
+  const tools = createFileTools({
+    resolvePath: (_workspace, input) => path.resolve(root, String(input)),
+    getAttachmentStore: () => null,
+    createPresentedResult: (output, presentation) => ({ output, presentation }),
+    computeDiffs: () => [],
+    resolveLanguage: () => '',
+    createLines: () => [],
+  })
+
+  try {
+    await tools.execute('edit', {
+      path: 'sample.txt',
+      edits: JSON.stringify([{ oldText: 'before', newText: 'after' }]),
+    }, null)
+    await tools.execute('edit', {
+      path: 'sample.txt',
+      oldText: 'after',
+      newText: 'done',
+    }, null)
+    assert.equal(await fs.readFile(filePath, 'utf8'), 'done\n')
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('edit 的零匹配错误会要求重新读取文件', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zvc-edit-missing-'))
+  const filePath = path.join(root, 'sample.txt')
+  await fs.writeFile(filePath, 'actual\n', 'utf8')
+  const tools = createFileTools({
+    resolvePath: (_workspace, input) => path.resolve(root, String(input)),
+    getAttachmentStore: () => null,
+    createPresentedResult: (output, presentation) => ({ output, presentation }),
+    computeDiffs: () => [],
+    resolveLanguage: () => '',
+    createLines: () => [],
+  })
+
+  try {
+    await assert.rejects(
+      tools.execute('edit', { path: 'sample.txt', edits: [{ oldText: 'stale', newText: 'next' }] }, null),
+      /请重新读取文件后重试/,
+    )
+    assert.equal(await fs.readFile(filePath, 'utf8'), 'actual\n')
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
+})
+
+test('edit 按文件中首次出现的换行格式恢复混合换行正文', () => {
+  assert.equal(detectLineEnding('first\nsecond\r\n'), '\n')
+  assert.equal(detectLineEnding('first\r\nsecond\n'), '\r\n')
 })
 
 test('ls 返回排序后的单层目录并标识子目录', async () => {

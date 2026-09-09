@@ -3,10 +3,11 @@
   "title": "窗口置顶",
   "description": "一个简单的窗口置顶插件，支持切换当前窗口的置顶状态。",
   "author": "evanwen97-ops",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "logo": "logo.png",
   "main": "index.html",
   "preload": "preload.js",
+  "unpack": "toggle-topmost.ps1",
   "platform": ["win32"],
   "features": [
     {

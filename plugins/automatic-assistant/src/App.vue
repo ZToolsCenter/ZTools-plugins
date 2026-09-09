@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import type { CategoryDoc, Feature, ScriptDoc } from './types'
 import { INSET_SCRIPTS } from './insets'
 import {
@@ -86,7 +86,10 @@ const stringifyResult = (value: unknown) => {
 //   有返回值 / 抛错     → 重新显示主窗口并展示结果面板
 //   结果出来后 print 的内容不再追加
 
-function runScript(script: string, action: Record<string, unknown>) {
+// mainHide 为 true 时，在运行页挂载后隐藏主窗口，再开始执行脚本
+// （对齐原版 componentDidMount 里先 hideMainWindow、再 setTimeout(run) 的时序；
+//   在 onPluginEnter 回调里同步隐藏会被宿主随后的显示/聚焦覆盖）
+function runScript(script: string, action: Record<string, unknown>, mainHide = false) {
   runInfo.script = script
   runInfo.action = action
   view.value = 'run'
@@ -95,6 +98,13 @@ function runScript(script: string, action: Record<string, unknown>) {
   runInfo.error = null
   runInfo.running = true
 
+  nextTick(() => {
+    if (mainHide) window.ztools.hideMainWindow()
+    window.setTimeout(() => execScript(script, action), 0)
+  })
+}
+
+function execScript(script: string, action: Record<string, unknown>) {
   const print = (msg: unknown) => {
     if (runInfo.result !== null || runInfo.error !== null) return
     runInfo.logs = [...runInfo.logs, stringify(msg)]
@@ -126,7 +136,7 @@ function rerun() {
   runInfo.logs = []
   runInfo.result = null
   runInfo.error = null
-  window.setTimeout(() => runScript(script, action), 50)
+  window.setTimeout(() => runScript(script, action, false), 50)
 }
 
 function handleEnter(action: { code: string; type: string; payload: unknown; option: unknown; from?: string }) {
@@ -144,18 +154,20 @@ function handleEnter(action: { code: string; type: string; payload: unknown; opt
     window.ztools.removeFeature(code)
     window.ztools.outPlugin()
   }
+  // ZTools 的 action.from 为可选字段，未提供时按主输入框入口处理，
+  // 否则 mainHide 会因判断恒为假而完全失效
+  const fromMain = (action.from || 'main') === 'main'
+  const enter = action as unknown as Record<string, unknown>
   const inset = INSET_SCRIPTS.find((x) => x.id === action.code)
   if (inset) {
     const script = window.services.getInsetScript(inset.id)
     if (!script) return bail(action.code)
-    if (insetFeature(inset.id)?.mainHide && action.from === 'main') window.ztools.hideMainWindow()
-    runScript(script, action as unknown as Record<string, unknown>)
+    runScript(script, enter, !!insetFeature(inset.id)?.mainHide && fromMain)
     return
   }
   const doc = scripts.value.find((s) => s.feature.code === action.code)
   if (!doc) return bail(action.code)
-  if (doc.feature.mainHide && action.from === 'main') window.ztools.hideMainWindow()
-  runScript(doc.script, action as unknown as Record<string, unknown>)
+  runScript(doc.script, enter, !!doc.feature.mainHide && fromMain)
 }
 
 onMounted(() => {

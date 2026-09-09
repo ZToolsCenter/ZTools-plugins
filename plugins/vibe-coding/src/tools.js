@@ -29,7 +29,7 @@ export const TOOL_GROUPS = [
         path: { type: 'string', description: '文件绝对路径，或相对于当前工作区/默认工作区根目录的路径。' },
         content: { type: 'string', description: '要写入的完整文件内容。' },
       }, ['path', 'content']),
-      functionTool('edit', '对单个文件执行一组原子的精确文本替换。每个 oldText 必须在原文件中唯一匹配，修改区域不能重叠；调用前必须先 read。', {
+      functionTool('edit', '对单个文件执行精确文本替换。每个 oldText 必须在原文件中唯一匹配，多个编辑不能重叠；调用前请先读取文件。', {
         path: { type: 'string', description: '文件绝对路径，或相对于当前工作区/默认工作区根目录的路径。' },
         edits: {
           type: 'array',

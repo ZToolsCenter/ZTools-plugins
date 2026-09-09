@@ -1,22 +1,31 @@
 <script setup lang="ts">
-import { computed, ref, watch, onUnmounted, onMounted } from 'vue';
+import { computed, nextTick, ref, watch, onUnmounted, onMounted } from 'vue';
 import { useGitStore } from '../../stores/git';
 import { useSettingsStore } from '../../stores/settings';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { Project, GitCommit } from '../../types';
 import { showPersistentGitError } from './message';
+import { clampContextMenuPosition } from '../../utils/contextMenuPosition';
 
 const props = defineProps<{
   project: Project;
+  filePath?: string;
+}>();
+
+const emit = defineEmits<{
+  'clear-file-filter': [];
 }>();
 
 const { t } = useI18n();
 const gitStore = useGitStore();
 const settingsStore = useSettingsStore();
+const filePath = computed(() => props.filePath || '');
 
 const selectedHash = computed(() => gitStore.selectedCommitHash[props.project.id] || '');
-const allCommits = computed(() => gitStore.history[props.project.id] || []);
+const allCommits = computed(() => props.filePath
+  ? gitStore.getFileHistory(props.project.id, props.filePath)
+  : (gitStore.history[props.project.id] || []));
 const headerRef = ref<HTMLElement | null>(null);
 const listRef = ref<HTMLElement | null>(null);
 const loadingMore = ref(false);
@@ -36,18 +45,67 @@ const commits = computed(() => {
 
 /***********************右键菜单*********************/
 const ctxMenu = ref<{ x: number; y: number; commit: GitCommit } | null>(null);
+const ctxMenuRef = ref<HTMLElement | null>(null);
+const ctxMenuStyle = ref({ left: '0px', top: '0px' });
 
 function openContextMenu(e: MouseEvent, commit: GitCommit) {
   e.preventDefault();
   ctxMenu.value = { x: e.clientX, y: e.clientY, commit };
+  void nextTick(updateContextMenuPosition);
 }
 
 function closeContextMenu() {
   ctxMenu.value = null;
 }
 
-onMounted(() => document.addEventListener('click', closeContextMenu));
-onUnmounted(() => document.removeEventListener('click', closeContextMenu));
+function updateContextMenuPosition(): void {
+  if (!ctxMenu.value || !ctxMenuRef.value) return;
+  const position = clampContextMenuPosition(
+    ctxMenu.value.x,
+    ctxMenu.value.y,
+    ctxMenuRef.value.offsetWidth || 190,
+    ctxMenuRef.value.offsetHeight || 260,
+    { width: window.innerWidth, height: window.innerHeight },
+  );
+  ctxMenuStyle.value = { left: `${position.left}px`, top: `${position.top}px` };
+}
+
+function isContextMenuElement(target: EventTarget | null): boolean {
+  return target instanceof Node && Boolean(ctxMenuRef.value?.contains(target));
+}
+
+function closeOnDocumentMouseDown(event: MouseEvent): void {
+  if (!isContextMenuElement(event.target)) closeContextMenu();
+}
+
+function closeOnViewportChange(): void {
+  closeContextMenu();
+}
+
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && ctxMenu.value) {
+    event.preventDefault();
+    event.stopPropagation();
+    closeContextMenu();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('mousedown', closeOnDocumentMouseDown, true);
+  document.addEventListener('click', closeContextMenu);
+  document.addEventListener('wheel', closeOnViewportChange, true);
+  document.addEventListener('scroll', closeOnViewportChange, true);
+  document.addEventListener('keydown', onKeydown, true);
+  window.addEventListener('resize', closeOnViewportChange);
+});
+onUnmounted(() => {
+  document.removeEventListener('mousedown', closeOnDocumentMouseDown, true);
+  document.removeEventListener('click', closeContextMenu);
+  document.removeEventListener('wheel', closeOnViewportChange, true);
+  document.removeEventListener('scroll', closeOnViewportChange, true);
+  document.removeEventListener('keydown', onKeydown, true);
+  window.removeEventListener('resize', closeOnViewportChange);
+});
 
 async function copyText(value: string, successKey: string) {
   try {
@@ -183,7 +241,7 @@ async function selectCommit(commit: GitCommit) {
   }
 
   gitStore.selectedCommitHash[props.project.id] = commit.hash;
-  gitStore.clearDiff();
+  gitStore.clearDiff(props.project.id);
 
   const tasks: Promise<unknown>[] = [];
   if (gitStore.getCommitFiles(props.project.id, commit.hash).length === 0) {
@@ -206,8 +264,14 @@ async function loadMore() {
   const current = allCommits.value.length;
   const next = current + 100;
   requestedCount.value = next;
-  await gitStore.refreshHistory(props.project.id, props.project.path, next);
-  const latest = (gitStore.history[props.project.id] || []).length;
+  if (props.filePath) {
+    await gitStore.refreshFileHistory(props.project.id, props.project.path, props.filePath, next);
+  } else {
+    await gitStore.refreshHistory(props.project.id, props.project.path, next);
+  }
+  const latest = props.filePath
+    ? gitStore.getFileHistory(props.project.id, props.filePath).length
+    : (gitStore.history[props.project.id] || []).length;
   if (latest <= current || latest < next) {
     hasMore.value = false;
   }
@@ -389,13 +453,10 @@ const minRowWidth = computed(() => {
   return colWidths.value[0] + colWidths.value[1] + colWidths.value[2] + colWidths.value[3] + colWidths.value[4];
 });
 
-// Clear selection on project change
-watch(() => props.project.id, () => {
-  gitStore.selectedCommitHash[props.project.id] = '';
-  gitStore.clearDiff();
-  hasMore.value = true;
-  requestedCount.value = 100;
-});
+// 注：原先这里有一个 watch(() => props.project.id) 在切项目时清提交选中态与 diff。
+// GitView 已改为 props 驱动、且外层 `:key` 含项目 id，所以 props.project.id
+// 在实例生命周期内恒定，该 watcher 永不触发。更重要的是它**有害**：
+// 缓存实例跟着全局值一起变时，它清掉的是新项目的 selectedCommitHash。故整段删除。
 
 watch(allCommits, (newCommits, oldCommits) => {
   if (newCommits.length < 100) {
@@ -406,10 +467,16 @@ watch(allCommits, (newCommits, oldCommits) => {
     hasMore.value = true;
   }
 });
+
+watch(() => props.filePath, () => {
+  hasMore.value = true;
+  requestedCount.value = 100;
+  searchQuery.value = '';
+});
 </script>
 
 <template>
-  <div class="git-history text-[11px]">
+  <div class="git-history app-text-control">
     <!-- 搜索筛选 -->
     <div class="git-history-search">
       <div class="i-mdi-magnify text-sm opacity-60" />
@@ -418,9 +485,20 @@ watch(allCommits, (newCommits, oldCommits) => {
         type="search"
         :placeholder="t('git.historySearchPlaceholder')"
       />
-      <span v-if="searchQuery.trim()" class="text-[10px] opacity-60 shrink-0">
+      <span v-if="searchQuery.trim()" class="app-text-meta shrink-0">
         {{ commits.length }}/{{ allCommits.length }}
       </span>
+      <button
+        v-if="filePath"
+        type="button"
+        class="git-history-file-filter"
+        :title="t('git.clearFileHistoryFilter')"
+        @click="emit('clear-file-filter')"
+      >
+        <span class="i-mdi-file-search-outline" />
+        <span class="truncate max-w-[180px]">{{ filePath }}</span>
+        <span class="i-mdi-close text-xs" />
+      </button>
     </div>
 
     <!-- No commits -->
@@ -547,7 +625,7 @@ watch(allCommits, (newCommits, oldCommits) => {
       </div>
 
       <!-- Auto-loading indicator -->
-      <div v-if="loadingMore" class="px-3 py-1.5 shrink-0 text-center text-[10px] text-slate-400 dark:text-slate-500">
+      <div v-if="loadingMore" class="px-3 py-1.5 shrink-0 text-center app-text-meta text-slate-400 dark:text-slate-500">
         加载中...
       </div>
     </template>
@@ -556,35 +634,37 @@ watch(allCommits, (newCommits, oldCommits) => {
     <Teleport to="body">
       <div
         v-if="ctxMenu"
-        class="git-history-ctx fixed z-50 min-w-44 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg py-1 text-[11px]"
-        :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }"
+        class="git-history-ctx app-text-control fixed z-50 min-w-44 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg py-1"
+        ref="ctxMenuRef"
+        :style="ctxMenuStyle"
+        @mousedown.stop
         @click.stop
       >
         <button type="button" class="ctx-item" @click="copyText(ctxMenu.commit.hash, 'git.copyHashSuccess')">
-          {{ t('git.copyHash') }}
+          <span>{{ t('git.copyHash') }}</span>
         </button>
         <button type="button" class="ctx-item" @click="copyText(ctxMenu.commit.message, 'git.copyCommitMessageSuccess')">
-          {{ t('git.copyCommitMessage') }}
+          <span>{{ t('git.copyCommitMessage') }}</span>
         </button>
         <div class="ctx-sep" />
         <button type="button" class="ctx-item" @click="createBranchFromCommit(ctxMenu.commit)">
-          {{ t('git.createBranch') }}
+          <span>{{ t('git.createBranch') }}</span>
         </button>
         <button type="button" class="ctx-item" @click="cherryPickCommit(ctxMenu.commit)">
-          {{ t('git.cherryPick') }}
+          <span>{{ t('git.cherryPick') }}</span>
         </button>
         <button type="button" class="ctx-item" @click="revertSelectedCommit(ctxMenu.commit)">
-          {{ t('git.revertCommit') }}
+          <span>{{ t('git.revertCommit') }}</span>
         </button>
         <div class="ctx-sep" />
         <button type="button" class="ctx-item" @click="resetToCommit(ctxMenu.commit, 'soft')">
-          {{ t('git.resetSoft') }}
+          <span>{{ t('git.resetSoft') }}</span>
         </button>
         <button type="button" class="ctx-item" @click="resetToCommit(ctxMenu.commit, 'mixed')">
-          {{ t('git.resetMixed') }}
+          <span>{{ t('git.resetMixed') }}</span>
         </button>
         <button type="button" class="ctx-item danger" @click="resetToCommit(ctxMenu.commit, 'hard')">
-          {{ t('git.resetHard') }}
+          <span>{{ t('git.resetHard') }}</span>
         </button>
       </div>
     </Teleport>
@@ -593,14 +673,32 @@ watch(allCommits, (newCommits, oldCommits) => {
 
 <style scoped>
 .ctx-item {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   text-align: left;
   border: none;
   background: transparent;
   padding: 6px 12px;
   cursor: pointer;
   color: var(--app-text-secondary, #475569);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.git-history-ctx {
+  width: max-content;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 16px));
+  overflow: hidden;
+}
+.ctx-item > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ctx-item:hover {
   background: var(--app-primary-soft, #dbeafe);

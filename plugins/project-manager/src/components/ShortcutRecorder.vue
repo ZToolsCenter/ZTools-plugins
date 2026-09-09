@@ -114,7 +114,7 @@ function handleKeydown(event: KeyboardEvent) {
       </span>
     </button>
     <div v-if="invalid" class="shortcut-recorder-error" role="alert">
-      {{ t('settings.shortcutRequiresModifier') }}
+      {{ t('settings.shortcutRequiresModifierOrFunctionKey') }}
     </div>
   </div>
 </template>
@@ -178,14 +178,14 @@ function handleKeydown(event: KeyboardEvent) {
 
 .shortcut-recorder-action {
   flex: 0 0 auto;
-  font-size: 11px;
+  font-size: var(--app-font-meta);
   color: var(--app-text-muted);
 }
 
 .shortcut-recorder-error {
   margin-top: 5px;
   color: var(--app-danger);
-  font-size: 11px;
+  font-size: var(--app-font-meta);
   line-height: 1.4;
 }
 </style>

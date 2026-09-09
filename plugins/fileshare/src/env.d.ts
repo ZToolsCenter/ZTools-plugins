@@ -22,7 +22,7 @@ interface SharedItem {
   enabled: boolean
   children?: SharedItem[]
   fileCount?: number
-  origin?: { type: 'upload'; ip: string; time: string }
+  origin?: { type: 'upload'; ip: string; time: string; local?: boolean }
   hash?: string
   hashSize?: number
   hashMtime?: number
@@ -49,6 +49,54 @@ interface DownloadLog {
   timestamp: string
 }
 
+interface P2pSummary {
+  pending: number
+  active: number
+  unreadTotal: number
+}
+
+interface P2pSession {
+  id: string
+  peerIp: string
+  peerName: string
+  requestMessage: string
+  status: 'pending' | 'active' | 'rejected' | 'deleted'
+  createdAt: number
+  lastActiveAt: number
+  unreadByHost: number
+  deletedBy?: 'host' | 'peer'
+  deletedAt?: number
+  peerOnline: boolean
+  lastMessage: string
+}
+
+interface P2pMessage {
+  seq: number
+  id: string
+  from: 'host' | 'peer'
+  kind: 'text' | 'files' | 'system'
+  text?: string
+  files?: {
+    fileId: string
+    name: string
+    size: number
+    mime: string
+    direction: 'in' | 'out'
+    storedPath?: string
+    refPath?: string
+  }[]
+  createdAt: number
+  status: string
+}
+
+interface P2pEvent {
+  seq: number
+  type: string
+  data: any
+  ts: number
+  sessionId: string | null
+}
+
 interface Services {
   startServer: (port: number, ip: string) => Promise<{ ok: boolean; error?: string }>
   stopServer: () => void
@@ -73,6 +121,18 @@ interface Services {
   shareText: (text: string) => SharedItem | null
   readFile: (filePath: string) => { type: 'text' | 'base64' | 'too-large'; data: string; mime: string } | null
   getFileMimeType: (filePath: string) => string
+  getP2pSummary: () => P2pSummary
+  getP2pSessions: () => P2pSession[]
+  getP2pMessages: (sessionId: string, after?: number) => P2pMessage[]
+  getP2pEvents: (since: number) => { events: P2pEvent[]; since: number }
+  respondP2p: (id: string, accept: boolean) => boolean
+  sendP2pMessage: (sessionId: string, text: string) => boolean
+  sendP2pFiles: (sessionId: string, filePaths: string[]) => boolean
+  deleteP2pMessage: (sessionId: string, msgId: string) => boolean
+  markP2pRead: (sessionId: string) => boolean
+  deleteP2p: (sessionId: string) => boolean
+  getP2pFileSavePath: (sessionId: string, fileId: string) => string
+  saveP2pFileAs: (sessionId: string, fileId: string, destPath: string) => boolean
 }
 
 declare global {

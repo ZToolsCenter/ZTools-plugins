@@ -93,6 +93,12 @@ function createRepository(db, dataDir) {
         .flatMap((group) => group.slice(-limit))
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     },
+    async getMessage(id) {
+      const doc = await this.get(`${MESSAGE_PREFIX}${id}`)
+      if (!doc || doc.type !== 'device-link-message') return null
+      const { _id, _rev, type, ...message } = doc
+      return message
+    },
     async putMessage(message) {
       await this.put({ _id: `${MESSAGE_PREFIX}${message.id}`, type: 'device-link-message', ...message })
       return message

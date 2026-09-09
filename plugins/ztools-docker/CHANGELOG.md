@@ -2,7 +2,7 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
-## [1.0.0] - 2026-08-15
+## 1.0.0 - 2026-08-15
 
 Docker Lite 首个完整版本：可视化 Docker 容器管理插件，覆盖容器全生命周期（查看 / 管理 / 创建）+ 终端 + 日志。
 

@@ -1,43 +1,142 @@
 <template>
-  <div class="app-card fixed bottom-4 right-4 z-50 w-80 p-4 transition-all duration-300">
-    <div class="flex items-center justify-between mb-2">
-      <h3 class="font-medium text-primary">{{ t('update.downloading') }}</h3>
-      <div class="flex items-center gap-2">
-        <button 
-          @click="$emit('background')" 
-          class="app-icon-btn !h-7 !min-w-7"
-          :title="t('update.background')"
-        >
-          <div class="i-mdi-minus" />
-        </button>
-        <button 
-          @click="$emit('cancel')"
-          class="app-danger-action !h-7 !px-1"
-          :title="t('update.cancel')"
-        >
-          <div class="i-mdi-close" />
-        </button>
-      </div>
-    </div>
-    
-    <div class="w-full rounded-full h-2.5 mb-1" style="background: var(--app-surface-soft);">
-      <div class="h-2.5 rounded-full transition-all duration-300" style="background: var(--app-primary);" :style="{ width: `${percentage}%` }"></div>
-    </div>
-    <div class="text-right text-xs text-muted">{{ percentage }}%</div>
-  </div>
+  <Teleport to="body">
+    <Transition name="update-progress-fade">
+      <section class="update-progress-panel" role="status" aria-live="polite">
+        <el-card shadow="always" :body-style="{ padding: '14px 16px 12px' }">
+          <header class="update-progress-header">
+            <div class="update-progress-title">
+              <span class="update-progress-icon" aria-hidden="true">
+                <span class="i-mdi-download" />
+              </span>
+              <span>{{ phaseLabel }}</span>
+            </div>
+
+            <div class="update-progress-actions">
+              <el-tooltip :content="t('update.background')" placement="top">
+                <el-button text circle :aria-label="t('update.background')" @click="$emit('background')">
+                  <span class="i-mdi-minus" />
+                </el-button>
+              </el-tooltip>
+            </div>
+          </header>
+
+          <el-progress
+            :percentage="normalizedPercentage"
+            :stroke-width="8"
+            :show-text="false"
+            :indeterminate="indeterminate"
+            color="var(--app-primary)"
+          />
+
+          <footer class="update-progress-footer">
+            <el-tag v-if="!indeterminate" size="small" type="primary" effect="light">{{ normalizedPercentage }}%</el-tag>
+          </footer>
+        </el-card>
+      </section>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-defineProps<{
-  percentage: number
+const props = defineProps<{
+  percentage: number;
+  indeterminate?: boolean;
+  phase?: 'downloading' | 'verifying' | 'installing';
 }>();
 
 defineEmits<{
-  (e: 'cancel'): void
-  (e: 'background'): void
+  (e: 'background'): void;
 }>();
 
 const { t } = useI18n();
+const normalizedPercentage = computed(() => Math.max(0, Math.min(100, Math.round(props.percentage))));
+const phaseLabel = computed(() => t(`update.${props.phase || 'downloading'}`));
 </script>
+
+<style scoped>
+.update-progress-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 3000;
+  width: min(360px, calc(100vw - 32px));
+}
+
+.update-progress-panel :deep(.el-card) {
+  border-color: var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface);
+}
+
+.update-progress-header,
+.update-progress-title,
+.update-progress-actions,
+.update-progress-footer {
+  display: flex;
+  align-items: center;
+}
+
+.update-progress-header {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.update-progress-title {
+  min-width: 0;
+  gap: 8px;
+  color: var(--app-text);
+  font-size: var(--app-font-control);
+  font-weight: 600;
+}
+
+.update-progress-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--app-primary);
+  background: var(--app-surface-soft);
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+.update-progress-actions {
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.update-progress-actions :deep(.el-button) {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+}
+
+.update-progress-panel :deep(.el-progress-bar__outer) {
+  background: var(--app-surface-soft);
+}
+
+.update-progress-footer {
+  justify-content: flex-end;
+  margin-top: 10px;
+  color: var(--app-text-muted);
+  font-size: var(--app-font-meta);
+  line-height: var(--app-line-height-caption);
+}
+
+.update-progress-fade-enter-active,
+.update-progress-fade-leave-active {
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.update-progress-fade-enter-from,
+.update-progress-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+</style>

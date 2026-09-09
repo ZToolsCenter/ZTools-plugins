@@ -2,7 +2,7 @@
 
 本插件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [1.1.0] - 2026-08-25
+## 1.1.0 - 2026-08-25
 
 聚焦交互紧凑度与列表滚动体验。
 
@@ -24,7 +24,7 @@
 - **列表独立滚动链**：补齐 `html` / `body` / `#app` 到 viewport 的 `height: 100%` + `overflow: hidden`，`.maven-panel` 由 `min-height` 改为 `height`，让 `.results > ul` / `.versions > ul` 的 `overflow-y: auto` 真正生效
 - **Shift+← 在版本面板不再误返回**：版本面板的 `onVersionKey` 之前不区分 shift 修饰键，按 ← 一律返回上层并提前把 `selectedArtifact` 清空，导致全局 `cycleCategory` 切到错的 ref。增加 `!e.shiftKey` 守卫让 Shift+← 透传到全局处理器
 
-## [1.0.0] - 2026-08-14
+## 1.0.0 - 2026-08-14
 
 首个正式版本。一款在 ZTools 内快速检索 Maven 依赖、浏览历史版本并一键复制依赖声明的插件。
 

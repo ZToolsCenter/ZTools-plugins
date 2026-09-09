@@ -97,6 +97,11 @@ export interface SaveWebDavInput {
   syncPassword?: string
 }
 
+export interface SaveAttachmentResult {
+  status: 'saved' | 'cancelled' | 'missing'
+  name?: string
+}
+
 export interface DeviceLinkApi {
   getState(): Promise<DeviceLinkState>
   startServer(): Promise<ServerStatus>
@@ -111,7 +116,8 @@ export interface DeviceLinkApi {
   sendImage(dataUrl: string, conversationId: string): Promise<DeviceLinkMessage>
   selectFiles(): Promise<string[]>
   copyMessage(messageId: string): Promise<boolean>
-  openAttachment(attachmentId: string): Promise<boolean>
+  openAttachment(messageId: string, attachmentId: string): Promise<boolean>
+  saveAttachment(messageId: string, attachmentId: string): Promise<SaveAttachmentResult>
   deleteMessage(messageId: string): Promise<boolean>
   clearHistory(): Promise<{ deleted: number }>
   disconnectDevice(deviceId: string): Promise<boolean>

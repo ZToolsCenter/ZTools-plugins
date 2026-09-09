@@ -1,0 +1,339 @@
+/* 人民币大写 - 样式 */
+
+/* 默认深色主题（变量在 :root[data-theme] 上声明） */
+:root {
+  --bg: #1f1f1f;
+  --bg-elevated: #2a2a2a;
+  --bg-input: #1a1a1a;
+  --fg: #f5f5f5;
+  --fg-muted: #a0a0a0;
+  --fg-subtle: #707070;
+  --accent: #FFD60A;
+  --accent-fg: #1a1a1a;
+  --border: #3a3a3a;
+  --row-hover: #333333;
+  --danger: #ff6b6b;
+  --shortcut-bg: rgba(255, 255, 255, 0.06);
+  --shortcut-fg: #c0c0c0;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* 浅色主题：通过 :root[data-theme="light"] 显式生效（手动切换优先级高于系统） */
+:root[data-theme="light"] {
+  --bg: #f5f6f8;
+  --bg-elevated: #ffffff;
+  --bg-input: #ffffff;
+  --fg: #1a1a1a;
+  --fg-muted: #555555;
+  --fg-subtle: #909090;
+  --accent: #E8B500;
+  --accent-fg: #1a1a1a;
+  --border: #e0e0e0;
+  --row-hover: #f3f3f3;
+  --danger: #d63031;
+  --shortcut-bg: rgba(0, 0, 0, 0.06);
+  --shortcut-fg: #555555;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* 跟随系统的默认模式：仅在用户未手动设置主题（无 [data-theme]）时生效 */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg: #f5f6f8;
+    --bg-elevated: #ffffff;
+    --bg-input: #ffffff;
+    --fg: #1a1a1a;
+    --fg-muted: #555555;
+    --fg-subtle: #909090;
+    --accent: #E8B500;
+    --accent-fg: #1a1a1a;
+    --border: #e0e0e0;
+    --row-hover: #f3f3f3;
+    --danger: #d63031;
+    --shortcut-bg: rgba(0, 0, 0, 0.06);
+    --shortcut-fg: #555555;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", "Heiti SC", sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 20px 32px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 8px;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.brand-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* 主题切换按钮：放在品牌行右侧，根据当前主题显示对应图标 */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+/* 深色主题：显示月亮（点击切到浅色） */
+:root:not([data-theme="light"]) .theme-icon-light { display: none; }
+:root[data-theme="light"] .theme-icon-dark { display: none; }
+/* 当用户切到深色（data-theme="dark"）时也显示月亮 */
+:root[data-theme="dark"] .theme-icon-light { display: none; }
+
+.search {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 16px;
+  color: var(--fg);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+}
+
+.search-input::placeholder {
+  color: var(--fg-subtle);
+}
+
+.clear-btn {
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 18px;
+  font-size: 14px;
+  color: var(--fg-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.clear-btn:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+.clear-btn:active {
+  transform: translateY(1px);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+  user-select: none;
+  box-shadow: var(--shadow);
+}
+
+.row:hover {
+  background: var(--row-hover);
+  border-color: var(--accent);
+}
+
+.row:active {
+  transform: scale(0.995);
+}
+
+.row.copied {
+  border-color: var(--accent);
+}
+
+/* 行内"复制成功"气泡：贴在行右侧尾部，从下往上滑入，2 秒后淡出 */
+.copy-toast {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translate(0, calc(-50% + 8px));
+  opacity: 0;
+  padding: 3px 10px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+  z-index: 1;
+}
+
+.copy-toast.show {
+  transform: translate(0, -50%);
+  opacity: 1;
+}
+
+.copy-toast.fade-out {
+  opacity: 0;
+  transform: translate(0, calc(-50% - 4px));
+}
+
+.row-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.row-icon.thousand {
+  background: var(--bg-input);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.row-icon.plain {
+  background: var(--bg-input);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-title {
+  font-size: 16px;
+  font-weight: 600;
+  word-break: break-all;
+  line-height: 1.3;
+}
+
+.row-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.row-shortcut {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  background: var(--shortcut-bg);
+  color: var(--shortcut-fg);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: 0.5px;
+}
+
+.row.hidden {
+  display: none;
+}
+
+.error {
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.error.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.hint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--fg-subtle);
+  text-align: center;
+}

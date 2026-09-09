@@ -13,6 +13,12 @@
   const defaultName = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "iPhone / iPad" : /Android/i.test(navigator.userAgent) ? "Android 手机" : "浏览器设备";
   document.querySelector("#deviceName").value = storageGet(persistentStorage, "deviceLinkDeviceName") || defaultName;
   const reduceMotion = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  const AUTO_PAIR_TIMING = Object.freeze({
+    recognitionHold: 420,
+    digitInterval: 100,
+    verificationMinimum: 650,
+    successHold: 900
+  });
   let pairing, token, key, socket, reconnectTimer, scannedPairingContext, manualFallbackMessage = "", recoveryTrustedSaved = true, autoPairingAttempted = false, ownDeviceId = deviceId, currentConversationId = `device:${deviceId}`, messageMap = /* @__PURE__ */ new Map();
   function browserStorage(name) {
     try {
@@ -440,7 +446,7 @@
       pairCode.value += code[index];
       digits[index].textContent = code[index];
       digits[index].classList.add("is-filled");
-      await pause(72);
+      await pause(AUTO_PAIR_TIMING.digitInterval);
     }
   }
   async function establishPairing(code) {
@@ -521,16 +527,19 @@
       if (!context.secret || !context.requestedSessionId || !/^\d{6,12}$/.test(context.autoCode)) {
         throw new Error("二维码缺少自动连接信息，请重新扫描电脑端最新二维码");
       }
-      await pause(130);
+      await pause(AUTO_PAIR_TIMING.recognitionHold);
       setAutoPairStep(1, "正在读取一次性扫码授权码");
       await animateAutoPairCode(context.autoCode);
       setAutoPairStep(2, "正在校验并建立加密连接");
-      paired = await establishPairing(context.autoCode);
+      [paired] = await Promise.all([
+        establishPairing(context.autoCode),
+        pause(AUTO_PAIR_TIMING.verificationMinimum)
+      ]);
       autoPairPanel.classList.add("is-complete");
       autoPairBadge.textContent = "✓";
       autoPairTitle.textContent = "连接完成";
       setAutoPairStep(3, "安全连接已建立，正在进入会话");
-      await pause(260);
+      await pause(AUTO_PAIR_TIMING.successHold);
       await openSavedChat(paired.trustedSaved);
       return true;
     } catch (error) {

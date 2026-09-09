@@ -5,6 +5,7 @@ import { useProjectStore } from '../stores/project';
 import { useI18n } from 'vue-i18n';
 import { marked } from 'marked';
 import { api } from '../api';
+import { isSafeExternalUrl } from '../utils/externalUrl';
 
 const { t } = useI18n();
 const props = defineProps<{ project: Project }>();
@@ -101,11 +102,10 @@ function handleMarkdownClick(e: MouseEvent) {
     const anchor = (e.target as HTMLElement).closest('a');
     if (!anchor) return;
     const href = anchor.getAttribute('href');
-    if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        api.openUrl(href);
-    }
+    if (!href) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (isSafeExternalUrl(href)) void api.openUrl(href);
 }
 </script>
 
@@ -115,15 +115,15 @@ function handleMarkdownClick(e: MouseEvent) {
         <div class="app-panel-toolbar flex items-center justify-between px-3 py-1.5 shrink-0">
             <div class="flex items-center gap-2">
                 <div class="i-mdi-note-text text-sm text-slate-400" />
-                <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{{ t('memo.title') }}</span>
-                <span class="app-muted-pill text-[9px] px-1.5 py-0.5 font-mono">Markdown</span>
-                <span v-if="isDirty" class="text-[10px] text-amber-500 font-bold">●</span>
+                <span class="app-text-control text-slate-500 dark:text-slate-400 uppercase tracking-wider">{{ t('memo.title') }}</span>
+                <span class="app-muted-pill app-text-caption px-1.5 py-0.5 font-mono">Markdown</span>
+                <span v-if="isDirty" class="app-text-caption text-amber-500 font-bold">●</span>
             </div>
             <div class="flex items-center gap-1.5">
                 <!-- Preview mode: show Edit button -->
                 <template v-if="editorMode === 'preview'">
                     <button @click="enterEditMode"
-                        class="app-primary-action !min-h-0 px-2 py-0.5 text-[11px]">
+                        class="app-primary-action app-text-control !min-h-0 px-2 py-0.5">
                         <div class="i-mdi-pencil text-xs" />
                         {{ t('memo.edit') }}
                     </button>
@@ -131,22 +131,22 @@ function handleMarkdownClick(e: MouseEvent) {
                 <!-- Edit/Split mode: show mode toggle + back + save -->
                 <template v-else>
                     <button v-if="editorMode === 'edit'" @click="enterSplitMode"
-                        class="app-outline-action px-2 py-0.5 text-[11px]">
+                        class="app-outline-action app-text-control px-2 py-0.5">
                         <div class="i-mdi-view-split-vertical text-xs" />
                         {{ t('memo.split') }}
                     </button>
                     <button v-else @click="enterEditMode"
-                        class="app-outline-action px-2 py-0.5 text-[11px]">
+                        class="app-outline-action app-text-control px-2 py-0.5">
                         <div class="i-mdi-pencil text-xs" />
                         {{ t('memo.edit') }}
                     </button>
                     <button v-if="isDirty" @click="saveMemo"
-                        class="px-2 py-0.5 text-[11px] rounded bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15 hover:bg-emerald-500/15 transition-all duration-150 flex items-center gap-1">
+                        class="app-text-control px-2 py-0.5 rounded bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15 hover:bg-emerald-500/15 transition-all duration-150 flex items-center gap-1">
                         <div class="i-mdi-content-save text-xs" />
                         {{ t('common.save') }}
                     </button>
                     <button @click="backToPreview"
-                        class="app-outline-action px-2 py-0.5 text-[11px]">
+                        class="app-outline-action app-text-control px-2 py-0.5">
                         <div class="i-mdi-eye text-xs" />
                         {{ t('memo.preview') }}
                     </button>
@@ -161,7 +161,7 @@ function handleMarkdownClick(e: MouseEvent) {
                 <textarea
                     :value="memoContent"
                     @input="handleInput"
-                    class="memo-editor flex-1 w-full p-4 font-mono text-xs leading-relaxed resize-none outline-none border-none"
+                    class="memo-editor app-text-body flex-1 w-full p-4 font-mono resize-none outline-none border-none"
                     :placeholder="t('memo.placeholder')"
                     spellcheck="false"
                 />
@@ -171,8 +171,8 @@ function handleMarkdownClick(e: MouseEvent) {
             <div v-if="editorMode === 'preview'" class="flex-1 overflow-y-auto">
                 <div v-if="!memoContent" class="flex flex-col items-center justify-center h-full text-slate-300 dark:text-slate-600">
                     <div class="i-mdi-note-text-outline text-5xl mb-3 opacity-20" />
-                    <p class="text-xs">{{ t('memo.empty') }}</p>
-                    <button @click="editorMode = 'edit'" class="mt-2 text-xs text-blue-500 hover:text-blue-600">
+                    <p class="app-text-body">{{ t('memo.empty') }}</p>
+                    <button @click="editorMode = 'edit'" class="app-text-control mt-2 text-blue-500 hover:text-blue-600">
                         {{ t('memo.startEditing') }}
                     </button>
                 </div>
@@ -185,7 +185,7 @@ function handleMarkdownClick(e: MouseEvent) {
                     <textarea
                         :value="memoContent"
                         @input="handleInput"
-                        class="memo-editor flex-1 w-full p-4 font-mono text-xs leading-relaxed resize-none outline-none border-none"
+                        class="memo-editor app-text-body flex-1 w-full p-4 font-mono resize-none outline-none border-none"
                         :placeholder="t('memo.placeholder')"
                         spellcheck="false"
                     />
@@ -201,8 +201,8 @@ function handleMarkdownClick(e: MouseEvent) {
 <style scoped>
 .markdown-body {
     color: inherit;
-    font-size: 13px;
-    line-height: 1.7;
+    font-size: var(--app-font-body);
+    line-height: 1.65;
 }
 
 .markdown-body :deep(h1) {

@@ -6,7 +6,7 @@ let api: PlatformAPI;
 
 // Simple detection logic
 // We can use an environment variable injected by Vite to force a specific adapter
-const target = import.meta.env.VITE_TARGET;
+const target = (import.meta as ImportMeta & { env?: { VITE_TARGET?: string } }).env?.VITE_TARGET;
 
 if (target === 'utools' || target === 'ztools') {
     api = new UToolsAdapter();

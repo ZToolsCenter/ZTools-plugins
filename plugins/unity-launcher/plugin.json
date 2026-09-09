@@ -3,7 +3,7 @@
   "title": "Unity启动器",
   "pluginName": "Unity启动器",
   "description": "独立管理 Unity 项目与编辑器版本，一键打开项目（不依赖 Unity Hub）",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "zhanglei",
   "homepage": "https://example.com",
   "main": "index.html",
@@ -13,7 +13,15 @@
     {
       "code": "unity-launcher",
       "explain": "打开 Unity 项目 / 管理编辑器版本",
-      "cmds": ["ul", "unity", "unity启动器", "Unity项目"]
+      "cmds": [
+        "ul",
+        "unity",
+        "unity启动器",
+        "Unity项目"
+      ]
     }
+  ],
+  "platform": [
+    "win32"
   ]
 }

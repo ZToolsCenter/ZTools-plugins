@@ -137,6 +137,17 @@ async function main() {
   check('list exposes clientIp', r.status === 200 && listJson.clientIp === '127.0.0.1',
     JSON.stringify({ clientIp: listJson.clientIp }))
 
+  // 4b1. Local-host detection: loopback access is flagged local and gets a
+  // localhost URL; a different loopback alias is not the host machine
+  check('loopback access flagged isLocalHost', listJson.isLocalHost === true,
+    JSON.stringify({ isLocalHost: listJson.isLocalHost, hostLocalUrl: listJson.hostLocalUrl }))
+  check('local access exposes localhost URL', typeof listJson.hostLocalUrl === 'string' && listJson.hostLocalUrl.includes('127.0.0.1'),
+    listJson.hostLocalUrl)
+  r = await rawReq(base, 'GET', `/api/list?token=${token}`, { localAddress: '127.0.0.2' })
+  const remoteList = r.json
+  check('other machine (127.0.0.2) not flagged local', remoteList.isLocalHost === false,
+    JSON.stringify({ isLocalHost: remoteList.isLocalHost }))
+
   // 4c. DELETE /api/delete — restricted by the uploader's real socket IP
   // A different source IP cannot delete the upload
   r = await rawReq(base, 'DELETE', `/api/delete?path=${encodeURIComponent(savedPath)}&token=${token}`, { localAddress: '127.0.0.2' })

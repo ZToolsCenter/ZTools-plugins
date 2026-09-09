@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F8CFF"/>
+      <stop offset="1" stop-color="#7A5CFF"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="26" fill="url(#g)"/>
+  <!-- 扫描四角 -->
+  <g stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" fill="none">
+    <path d="M 34 50 L 34 36 Q 34 32 38 32 L 52 32"/>
+    <path d="M 76 32 L 90 32 Q 94 32 94 36 L 94 50"/>
+    <path d="M 94 78 L 94 92 Q 94 96 90 96 L 76 96"/>
+    <path d="M 52 96 L 38 96 Q 34 96 34 92 L 34 78"/>
+  </g>
+  <!-- 文字行 -->
+  <g fill="#FFFFFF">
+    <rect x="44" y="50" width="40" height="7" rx="3.5"/>
+    <rect x="44" y="64" width="28" height="7" rx="3.5"/>
+    <rect x="44" y="78" width="34" height="7" rx="3.5"/>
+  </g>
+  <!-- 扫描线 -->
+  <rect x="38" y="70" width="52" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+</svg>

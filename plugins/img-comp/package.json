@@ -1,0 +1,27 @@
+{
+  "name": "img-comp",
+  "version": "1.0.1",
+  "description": "ZTools 本地图片压缩插件，基于 JavaScript 与 WebAssembly 实现",
+  "private": false,
+  "type": "commonjs",
+  "main": "index.html",
+  "author": "img-comp contributors",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "build": "node build-zpx.js"
+  },
+  "dependencies": {
+    "@jsquash/jpeg": "1.6.0",
+    "@jsquash/oxipng": "2.3.0",
+    "gifenc": "1.0.3",
+    "gifuct-js": "2.1.2",
+    "svgo": "3.3.5"
+  },
+  "devDependencies": {
+    "@electron/asar": "4.3.0"
+  }
+}

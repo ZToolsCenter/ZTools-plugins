@@ -1,0 +1,26 @@
+{
+  "name": "gomoku-3d-ztools",
+  "title": "五子棋 3D",
+  "description": "支持四档 AI、2D/3D 视图、悔棋、回放和棋谱导出的五子棋游戏。",
+  "author": "crper, ZTools port contributors",
+  "version": "1.0.2",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://127.0.0.1:5173/"
+  },
+  "features": [
+    {
+      "code": "gomoku-3d",
+      "explain": "打开五子棋 3D，与四档本地 AI 对弈",
+      "icon": "logo.png",
+      "cmds": [
+        "五子棋",
+        "五子棋 3D",
+        "Gomoku",
+        "连珠"
+      ]
+    }
+  ]
+}

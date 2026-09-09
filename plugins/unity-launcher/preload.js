@@ -20,40 +20,30 @@ window.services = {
   dbSet(key, val) { return ztools.dbStorage ? ztools.dbStorage.setItem(key, val) : null; },
 
   // ---------- 文件/目录选择（支持单个/批量扫描） ----------
+  selectFolder() {
+    if (!ztools.showOpenDialog) return null;
+    const r = ztools.showOpenDialog({
+      title: '选择 Unity 项目文件夹（或选择磁盘根目录/父文件夹以批量扫描项目）',
+      properties: ['openDirectory'],
+      filters: [{ name: 'Unity 项目', extensions: ['*'] }]
+    });
+    if (!r || !r.length) return null;
+    return r[0];
+  },
+  scanFolderAsync(selectedPath, onProgress) {
+    return findUnityProjectsAsync(selectedPath, onProgress);
+  },
   pickFolder() {
     if (!ztools.showOpenDialog) return null;
     const r = ztools.showOpenDialog({
-      title: '选择 Unity 项目文件夹（或选择其父文件夹以批量扫描项目）',
+      title: '选择 Unity 项目文件夹（或选择磁盘根目录/父文件夹以批量扫描项目）',
       properties: ['openDirectory'],
       filters: [{ name: 'Unity 项目', extensions: ['*'] }]
     });
     if (!r || !r.length) return null;
     const selectedPath = r[0];
     
-    // 1. 检查选择 of the directory itself is a Unity project
-    const selfProj = validateProject(selectedPath);
-    if (selfProj.isUnityProject) {
-      return [selfProj];
-    }
-    
-    // 2. If it is not a project itself, scan its first-level subdirectories
-    const subprojects = [];
-    const fs = require('fs');
-    const path = require('path');
-    try {
-      const files = fs.readdirSync(selectedPath, { withFileTypes: true });
-      for (const file of files) {
-        if (file.isDirectory()) {
-          const subPath = path.join(selectedPath, file.name);
-          const subProj = validateProject(subPath);
-          if (subProj.isUnityProject) {
-            subprojects.push(subProj);
-          }
-        }
-      }
-    } catch (e) {}
-    
-    return subprojects;
+    return findUnityProjects(selectedPath);
   },
   pickExe() {
     if (!ztools.showOpenDialog) return null;
@@ -173,6 +163,130 @@ window.services = {
     });
   }
 };
+
+async function findUnityProjectsAsync(dir, onProgress, depth = 0, maxDepth = 8, state = { scannedCount: 0, found: [] }) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  state.scannedCount++;
+  
+  if (state.scannedCount === 1 || state.scannedCount % 10 === 0) {
+    if (onProgress) {
+      onProgress({
+        scannedCount: state.scannedCount,
+        foundCount: state.found.length,
+        currentDir: dir
+      });
+    }
+    if (state.scannedCount % 10 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+  
+  // 1. 检查当前选择/搜索的目录自身是否为 Unity 项目
+  const selfProj = validateProject(dir);
+  if (selfProj.isUnityProject) {
+    state.found.push(selfProj);
+    if (onProgress) {
+      onProgress({
+        scannedCount: state.scannedCount,
+        foundCount: state.found.length,
+        currentDir: dir
+      });
+    }
+    return state.found;
+  }
+  
+  if (depth >= maxDepth) return state.found;
+  
+  try {
+    const files = await fs.promises.readdir(dir, { withFileTypes: true });
+    for (const file of files) {
+      if (file.isSymbolicLink && file.isSymbolicLink()) continue;
+      
+      if (file.isDirectory()) {
+        const nameLower = file.name.toLowerCase();
+        if (
+          file.name.startsWith('.') ||
+          file.name.startsWith('$') ||
+          nameLower === 'node_modules' ||
+          nameLower === 'library' ||
+          nameLower === 'assets' ||
+          nameLower === 'projectsettings' ||
+          nameLower === 'temp' ||
+          nameLower === 'logs' ||
+          nameLower === 'obj' ||
+          nameLower === 'build' ||
+          nameLower === 'builds' ||
+          nameLower === 'windows' ||
+          nameLower === 'program files' ||
+          nameLower === 'program files (x86)' ||
+          nameLower === 'programdata' ||
+          nameLower === 'appdata' ||
+          nameLower === 'system volume information'
+        ) {
+          continue;
+        }
+        const subPath = path.join(dir, file.name);
+        await findUnityProjectsAsync(subPath, onProgress, depth + 1, maxDepth, state);
+      }
+    }
+  } catch (e) {}
+  
+  return state.found;
+}
+
+function findUnityProjects(dir, depth = 0, maxDepth = 8) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  // 1. 检查当前选择/搜索的目录自身是否为 Unity 项目
+  const selfProj = validateProject(dir);
+  if (selfProj.isUnityProject) {
+    return [selfProj];
+  }
+  
+  if (depth >= maxDepth) return [];
+  
+  let results = [];
+  try {
+    const files = fs.readdirSync(dir, { withFileTypes: true });
+    for (const file of files) {
+      if (file.isSymbolicLink && file.isSymbolicLink()) continue;
+      
+      if (file.isDirectory()) {
+        const nameLower = file.name.toLowerCase();
+        if (
+          file.name.startsWith('.') ||
+          file.name.startsWith('$') ||
+          nameLower === 'node_modules' ||
+          nameLower === 'library' ||
+          nameLower === 'assets' ||
+          nameLower === 'projectsettings' ||
+          nameLower === 'temp' ||
+          nameLower === 'logs' ||
+          nameLower === 'obj' ||
+          nameLower === 'build' ||
+          nameLower === 'builds' ||
+          nameLower === 'windows' ||
+          nameLower === 'program files' ||
+          nameLower === 'program files (x86)' ||
+          nameLower === 'programdata' ||
+          nameLower === 'appdata' ||
+          nameLower === 'system volume information'
+        ) {
+          continue;
+        }
+        const subPath = path.join(dir, file.name);
+        const subProjects = findUnityProjects(subPath, depth + 1, maxDepth);
+        if (subProjects.length > 0) {
+          results = results.concat(subProjects);
+        }
+      }
+    }
+  } catch (e) {}
+  return results;
+}
 
 function findUnityExes(dir, depth = 0) {
   if (depth > 3) return []; // 限制深度为 3 层，避免在大目录下卡死

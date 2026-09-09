@@ -41,9 +41,8 @@ default.profraw
 *.sln
 *.sw?
 
-# Local docs / changelog
+# 本地文档
 docs
-CHANGELOG.md
 
 skills-lock.json
 !src/agent/AGENTS.md

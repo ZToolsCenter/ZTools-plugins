@@ -294,7 +294,7 @@ function handleClosed() {
           ]"
           @change="onModeChange"
         />
-        <span class="text-[10px] text-slate-400 leading-tight max-w-[260px] truncate" :title="importMode === 'children' ? t('import.modeChildrenHint') : t('import.modeDirectHint')">
+        <span class="app-text-meta text-slate-500 dark:text-slate-400 leading-tight max-w-[260px] truncate" :title="importMode === 'children' ? t('import.modeChildrenHint') : t('import.modeDirectHint')">
           {{ importMode === 'children' ? t('import.modeChildrenHint') : t('import.modeDirectHint') }}
         </span>
       </div>
@@ -326,9 +326,9 @@ function handleClosed() {
           @close="removeRootPath(p)"
         >
           <div class="inline-flex items-center gap-1 max-w-full">
-            <div class="i-mdi-folder text-[10px]" />
+            <div class="i-mdi-folder text-xs" />
             <span class="font-medium truncate" :title="p">{{ projectFolderName(p) }}</span>
-            <span class="font-mono text-[9px] opacity-50 truncate" :title="p">— {{ p }}</span>
+            <span class="font-mono app-text-meta text-slate-500 dark:text-slate-400 truncate" :title="p">— {{ p }}</span>
           </div>
         </el-tag>
       </div>
@@ -344,7 +344,7 @@ function handleClosed() {
           >
             {{ t('import.selectAll') }}
           </el-checkbox>
-          <span class="text-xs text-slate-400">{{ t('import.selectedCount', { count: selectedCount }) }}</span>
+          <span class="app-text-meta text-slate-400">{{ t('import.selectedCount', { count: selectedCount }) }}</span>
         </div>
         <div class="max-h-80 overflow-y-auto custom-scrollbar">
           <ScanCandidateTree
@@ -385,7 +385,7 @@ function handleClosed() {
   gap: 2px;
   padding: 0 6px;
   border-radius: var(--app-radius-xs);
-  font-size: 9px;
+  font-size: var(--app-font-caption);
   font-weight: 600;
 }
 .import-tag-muted {

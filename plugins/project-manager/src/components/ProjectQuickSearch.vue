@@ -340,7 +340,7 @@ function getTypeLabel(type: SearchResultType): string {
                 <template v-else>
                     <template v-if="showPinnedHeader">
                         <div class="quick-search-section-title">
-                            <div class="i-mdi-pin text-[10px] text-amber-500" />
+                            <div class="i-mdi-pin text-xs text-amber-500" />
                             {{ t('dashboard.pinnedProjects') }}
                         </div>
                         <template v-for="(item, localIdx) in defaultResults.items.filter(i => {
@@ -367,7 +367,7 @@ function getTypeLabel(type: SearchResultType): string {
                     <template v-if="showRecentHeader">
                         <div class="quick-search-divider" />
                         <div class="quick-search-section-title">
-                            <div class="i-mdi-clock-outline text-[10px] text-slate-400" />
+                            <div class="i-mdi-clock-outline text-xs text-slate-400" />
                             {{ t('dashboard.recentProjects') }}
                         </div>
                         <template v-for="(item, localIdx) in defaultResults.items.filter(i => {
@@ -492,7 +492,7 @@ function getTypeLabel(type: SearchResultType): string {
   border: none;
   outline: none;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--app-font-body);
   font-weight: 500;
   color: var(--app-text);
   font-family: inherit;
@@ -520,7 +520,7 @@ function getTypeLabel(type: SearchResultType): string {
   background: var(--app-surface-soft);
   border: 1px solid var(--app-border);
   color: var(--app-text-secondary);
-  font-size: 10px;
+  font-size: var(--app-font-meta);
   font-family: inherit;
   font-weight: 600;
 }
@@ -536,7 +536,7 @@ function getTypeLabel(type: SearchResultType): string {
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  font-size: 10px;
+  font-size: var(--app-font-meta);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -584,7 +584,7 @@ function getTypeLabel(type: SearchResultType): string {
 }
 
 .quick-search-item-name {
-  font-size: 13px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   color: var(--app-text);
   white-space: nowrap;
@@ -593,7 +593,7 @@ function getTypeLabel(type: SearchResultType): string {
 }
 
 .quick-search-item-path {
-  font-size: 11px;
+  font-size: var(--app-font-meta);
   color: var(--app-text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -613,7 +613,7 @@ function getTypeLabel(type: SearchResultType): string {
   align-items: center;
   padding: 1px 6px;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: var(--app-font-caption);
   font-weight: 600;
   background: var(--app-primary-soft);
   color: var(--app-primary);

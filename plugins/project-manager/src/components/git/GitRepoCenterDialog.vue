@@ -355,7 +355,8 @@ function formatStashId(index: number): string {
   border: none;
   background: transparent;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
   border-radius: 6px;
   cursor: pointer;
   color: var(--app-text-secondary, #64748b);
@@ -390,7 +391,8 @@ function formatStashId(index: number): string {
   background: var(--app-surface-soft, #f8fafc);
   border-radius: 6px;
   padding: 6px 8px;
-  font-size: 12px;
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
   color: var(--app-text, #0f172a);
   min-width: 0;
 }
@@ -402,7 +404,7 @@ function formatStashId(index: number): string {
   background: var(--app-surface-soft, #f8fafc);
   border-radius: 6px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--app-font-control);
   cursor: pointer;
   color: var(--app-text-secondary, #64748b);
   white-space: nowrap;
@@ -414,7 +416,7 @@ function formatStashId(index: number): string {
 }
 .btn.sm {
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: var(--app-font-control);
 }
 .btn.danger {
   color: var(--app-danger, #dc2626);
@@ -444,7 +446,8 @@ function formatStashId(index: number): string {
   min-width: 0;
 }
 .msg {
-  font-size: 12px;
+  font-size: var(--app-font-body);
+  line-height: var(--app-line-height-body);
   color: var(--app-text, #0f172a);
 }
 .msg.current {
@@ -453,13 +456,13 @@ function formatStashId(index: number): string {
 }
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  color: var(--app-text-muted, #94a3b8);
+  font-size: var(--app-font-meta);
+  color: var(--app-text-secondary, #475569);
   word-break: break-all;
 }
 .date {
-  font-size: 10px;
-  color: var(--app-text-muted, #94a3b8);
+  font-size: var(--app-font-meta);
+  color: var(--app-text-muted, #64748b);
 }
 .actions {
   display: flex;
@@ -469,7 +472,8 @@ function formatStashId(index: number): string {
 }
 .empty,
 .hint {
-  font-size: 12px;
+  font-size: var(--app-font-meta);
+  line-height: var(--app-line-height-caption);
   color: var(--app-text-muted, #94a3b8);
   padding: 12px 0;
 }

@@ -14,6 +14,7 @@ import {
   WORKSPACE_PROFILE_CUSTOM_PREFIX,
   WORKSPACE_PROFILE_PROJECT_PREFIX,
 } from '../../utils/dashboardProfiles';
+import { getProjectCommandRunId } from '../../utils/projectCommands';
 
 const { t } = useI18n();
 const projectStore = useProjectStore();
@@ -106,7 +107,11 @@ function handleCreate() {
 /** 检查启动组是否有命令正在运行 */
 function isProfileRunning(profile: WorkspaceProfile): boolean {
   return profile.items.some((item) => {
-    const runId = `${item.projectId}:${item.nameOrCommandId}`;
+    const runId = getProjectCommandRunId(
+      item.projectId,
+      item.type === 'custom' ? 'custom' : 'script',
+      item.nameOrCommandId,
+    );
     return !!projectStore.runningStatus[runId];
   });
 }
@@ -123,11 +128,11 @@ function getProjectName(projectId: string): string {
     <div
       v-for="profile in profiles"
       :key="profile.id"
-      class="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs group hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
+      class="app-text-control flex items-center gap-2 px-2 py-1.5 rounded-md group hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
     >
       <div class="i-mdi-rocket-launch-outline text-sm text-slate-400" />
       <span class="text-slate-700 dark:text-slate-300 truncate flex-1">{{ profile.name }}</span>
-      <span class="text-[10px] text-slate-400">{{ profile.items.length }}</span>
+      <span class="app-text-meta text-slate-400">{{ profile.items.length }}</span>
 
       <!-- 运行状态 -->
       <div
@@ -190,7 +195,7 @@ function getProjectName(projectId: string): string {
           <div
             v-for="(item, idx) in newItems"
             :key="idx"
-            class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 px-2 py-1.5 rounded"
+            class="app-text-control flex items-center gap-2 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 px-2 py-1.5 rounded"
           >
             <span class="truncate flex-1">{{ getProjectName(item.projectId) }} · {{ item.label || item.nameOrCommandId }}</span>
             <button

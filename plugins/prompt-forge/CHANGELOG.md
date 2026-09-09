@@ -1,6 +1,6 @@
 # Changelog
 
-## \[1.4.0] - 2026-08-27
+## 1.4.0 - 2026-08-27
 
 ### ✨ Features
 
@@ -10,7 +10,7 @@
 
 * **设置覆盖主题丢失** — 修复保存行为设置时覆盖整个 settings 文档、导致主题（theme）字段丢失的问题，改为合并写入
 
-## \[1.3.0] - 2026-08-25
+## 1.3.0 - 2026-08-25
 
 ### ✨ Features
 
@@ -25,7 +25,7 @@
 
 * **无变量提示词全宽预览** — 点击不含变量的提示词时隐藏「填写变量」表单区域，预览占满全部显示空间；含变量时保持左右分栏
 
-## \[1.2.0] - 2026-08-20
+## 1.2.0 - 2026-08-20
 
 ### ✨ Features
 
@@ -52,7 +52,7 @@
 * **SpaceView 组件拆分** — 从 608 行拆分为 SpaceView（210 行）+ SpaceSidebar / ProjectPanel / HistoryPanel / TrashPanel 四个子组件
 * **ManageView 组件拆分** — 从 477 行拆分为 ManageView（280 行）+ ManageContentTab / ManagePropsTab / ManageVarsTab / ManageVersionsTab / ManageStatsTab 五个 Tab 子组件
 
-## \[1.1.0] - 2026-07-14
+## 1.1.0 - 2026-07-14
 
 ### ✨ Features
 
@@ -77,7 +77,7 @@
 * **存储错误处理统一** — `storage.ts` 所有 `catch` 块统一添加 `console.error` 日志，`save` 函数补全 `try-catch`
 * **ManageView 搜索性能优化** — `filteredItems` 拆分为 `baseItems` + `fuseInstance` + `filteredItems` 三层计算属性，Fuse 索引仅在基础列表变化时重建，避免每次按键重新实例化
 
-## \[1.0.0] - 2026-07-11
+## 1.0.0 - 2026-07-11
 
 ### 🐛 Bug Fixes
 
@@ -102,3 +102,6 @@
 
 * 移除未使用的 `fnvHash` 函数（精确重复检测改为字符串比对后不再需要）
 
+### 根据提交记录补充
+
+- 添加图标

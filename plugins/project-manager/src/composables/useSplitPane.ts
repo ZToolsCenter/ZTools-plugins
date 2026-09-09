@@ -47,6 +47,15 @@ export function useSplitPane(options: SplitPaneOptions) {
   const isDragging = ref(false);
   let startPos = 0;
   let startSize = 0;
+  /**
+   * 本实例是否真的改过尺寸。
+   *
+   * storageKey 是**全局共享**的，而 size 是每实例私有、在实例创建时从
+   * settings 读取。多个实例同时存在时（GitView 被 KeepAlive 缓存），
+   * 卸载时无条件回写会让一个**陈旧**实例的旧比例覆盖用户最近一次拖动。
+   * 所以只有自己动过的实例才有资格在卸载时落盘。
+   */
+  let hasLocalChange = false;
 
   // ---- Re-apply ratio when max changes ----
   // This fires when the caller's reactive max changes (e.g. ResizeObserver updates containerWidth → max recomputes)
@@ -59,6 +68,8 @@ export function useSplitPane(options: SplitPaneOptions) {
       const convertedRatio = Math.min(1, legacyPixelValue / oldMaxForConversion);
       storedRatio.value = Math.round(convertedRatio * 1000) / 1000;
       legacyPixelValue = null;
+      // 一次性格式迁移，属于本实例的真实改动
+      hasLocalChange = true;
       persistSize();
     }
 
@@ -111,6 +122,7 @@ export function useSplitPane(options: SplitPaneOptions) {
     document.removeEventListener('mouseup', onMouseUp);
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    hasLocalChange = true;
     persistSize();
   }
 
@@ -119,7 +131,9 @@ export function useSplitPane(options: SplitPaneOptions) {
     document.removeEventListener('mouseup', onMouseUp);
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
-    persistSize();
+    // 只有本实例真的拖过才落盘：拖拽途中被卸载时靠这里补上，
+    // 而没动过的陈旧实例不许覆盖别人刚拖出来的值
+    if (hasLocalChange) persistSize();
   });
 
   return {

@@ -152,7 +152,7 @@ function getGroupProjectCount(groupId: string): number {
             <span class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate block">
               {{ group.name }}
             </span>
-            <span class="text-[10px] text-slate-400 dark:text-slate-500">
+            <span class="app-text-meta text-slate-400 dark:text-slate-500">
               {{ getGroupProjectCount(group.id) }} {{ t('dashboard.title').toLowerCase() }}
             </span>
           </template>

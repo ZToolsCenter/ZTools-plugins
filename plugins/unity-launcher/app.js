@@ -177,11 +177,63 @@ function renderTabs() {
   };
 }
 
-function addItem() {
+async function addItem() {
   if (state.tab === 'projects') {
-    const list = services.pickFolder();
-    if (!list || !list.length) return;
-    
+    const selectedDir = services.selectFolder ? services.selectFolder() : null;
+    if (!selectedDir) return;
+
+    const progressHtml = `
+      <div style="padding: 10px 0; text-align: center;">
+        <div style="font-weight: 600; color: #6366f1; margin-bottom: 6px; font-size: 13px;">正在深度扫描 Unity 项目，请稍候...</div>
+        <div id="scanCurrentDirText" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 14px; word-break: break-all; opacity: 0.85; font-family: monospace; height: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 0 10px;">${esc(selectedDir)}</div>
+        <div class="progress-container">
+          <div class="progress-track">
+            <div class="progress-bar-fill progress-bar-animated" style="background: linear-gradient(90deg, #6366f1 0%, #3b82f6 50%, #10b981 100%);"></div>
+          </div>
+          <div class="progress-status-text" style="margin-top: 10px; display: flex; justify-content: space-between; padding: 0 4px;">
+            <span id="scanProgressDirCount">已扫描目录: 0</span>
+            <span id="scanProgressFoundCount" style="color: #10b981; font-weight: 600;">已识别项目: 0 个</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    openModal({
+      title: '🔍 批量扫描 Unity 项目',
+      content: progressHtml,
+      isHtml: true,
+      showFooter: false
+    });
+
+    const dirTextEl = document.getElementById('scanCurrentDirText');
+    const dirCountEl = document.getElementById('scanProgressDirCount');
+    const foundCountEl = document.getElementById('scanProgressFoundCount');
+
+    let list = [];
+    try {
+      if (services.scanFolderAsync) {
+        list = await services.scanFolderAsync(selectedDir, ({ scannedCount, foundCount, currentDir }) => {
+          if (dirTextEl) dirTextEl.textContent = currentDir;
+          if (dirCountEl) dirCountEl.textContent = `已扫描目录: ${scannedCount}`;
+          if (foundCountEl) foundCountEl.textContent = `已识别项目: ${foundCount} 个`;
+        });
+      } else {
+        list = services.pickFolder() || [];
+      }
+    } catch (err) {
+      console.error('Scan failed:', err);
+    } finally {
+      const overlay = document.getElementById('modalOverlay');
+      if (overlay) overlay.classList.remove('active');
+    }
+
+    if (!list || !list.length) {
+      if (ztools.showNotification) {
+        ztools.showNotification('没有检测到新的 Unity 项目');
+      }
+      return;
+    }
+
     let addedCount = 0;
     list.forEach(r => {
       if (state.projects.some(p => p.path === r.path)) return;
@@ -195,25 +247,25 @@ function addItem() {
       });
       addedCount++;
     });
-    
+
     if (ztools.showNotification) {
       if (addedCount > 0) {
-        ztools.showNotification(`成功添加 ${addedCount} 个 Unity 项目`);
+        ztools.showNotification(`成功识别并添加 ${addedCount} 个 Unity 项目`);
       } else {
-        ztools.showNotification('没有检测到新的 Unity 项目或项目已存在');
+        ztools.showNotification('未扫描到新的 Unity 项目或项目已存在');
       }
     }
   } else {
     const list = services.pickExe();
     if (!list || !list.length) return;
-    
+
     let addedCount = 0;
     list.forEach(e => {
       if (state.editors.some(x => x.path === e.path)) return;
       state.editors.push(e);
       addedCount++;
     });
-    
+
     if (ztools.showNotification) {
       if (addedCount > 0) {
         ztools.showNotification(`成功识别并添加 ${addedCount} 个 Unity 编辑器`);

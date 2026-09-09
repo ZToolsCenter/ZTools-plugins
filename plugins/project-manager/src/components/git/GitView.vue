@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onActivated, onDeactivated, onUnmounted, nextTick, useTemplateRef } from 'vue';
-import { useProjectStore } from '../../stores/project';
 import { useGitStore } from '../../stores/git';
 import { useSettingsStore } from '../../stores/settings';
+import type { Project } from '../../types';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { useSplitPane } from '../../composables/useSplitPane';
@@ -19,18 +19,27 @@ import GitRepoCenterDialog from './GitRepoCenterDialog.vue';
 import { showPersistentGitError } from './message';
 
 const { t } = useI18n();
-const projectStore = useProjectStore();
 const gitStore = useGitStore();
 const settingsStore = useSettingsStore();
 
+/**
+ * 由父组件显式传入当前项目。
+ *
+ * 之前读全局 projectStore.activeProjectId —— 但本组件被 KeepAlive 缓存，
+ * 缓存里的每个实例都会跟着全局值一起变成**新**项目，导致被停用的实例也去
+ * 清 diff、清提交选中态，清掉的恰恰是即将要显示的那一份。
+ * 改成 props 后，外层的 `:key` 把实例与项目绑定，props 在实例生命周期内恒定。
+ */
+const props = defineProps<{ project: Project }>();
+
 const activeTab = ref<'changes' | 'history'>('changes');
+const fileHistoryPath = ref('');
 const showBranchDialog = ref(false);
 const showSettingsDialog = ref(false);
 const showRepoCenter = ref(false);
 
-const activeProject = computed(() =>
-  projectStore.projects.find(p => p.id === projectStore.activeProjectId)
-);
+// 保留 activeProject 这个名字：模板与下方约 20 处引用无需改动
+const activeProject = computed(() => props.project);
 
 const isGitRepo = computed(() => {
   if (!activeProject.value) return false;
@@ -210,6 +219,14 @@ const isDraggingStagedSplit = ref(false);
 const statusPanelRef = useTemplateRef<HTMLElement>('statusPanelRef');
 const isViewActive = ref(false);
 let refreshTimer: number | null = null;
+/**
+ * 本实例是否真的拖动过分栏。
+ *
+ * leftPaneRatio / stagedRatio 是每实例私有、创建时从 settings 读取，
+ * 而 layoutState 的键是全局共享的。GitView 被 KeepAlive 缓存后会同时存在多个
+ * 实例，卸载时无条件回写会让陈旧实例的旧比例覆盖用户最近一次拖动。
+ */
+let hasDraggedPanes = false;
 
 // 左右分割：拖拽改的是百分比，松手后持久化比例
 function onLeftPaneMouseDown(e: MouseEvent) {
@@ -241,6 +258,7 @@ function onLeftPaneMouseUp() {
   document.removeEventListener('mouseup', onLeftPaneMouseUp);
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
+  hasDraggedPanes = true;
   persistLeftPaneRatio();
 }
 
@@ -271,6 +289,7 @@ function onStagedSplitMouseUp() {
   document.removeEventListener('mouseup', onStagedSplitMouseUp);
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
+  hasDraggedPanes = true;
   persistLayoutNumber('git.changes.stagedRatio', stagedRatio.value);
 }
 
@@ -325,7 +344,8 @@ function enterActiveMode() {
 function enterColdStorage() {
   isViewActive.value = false;
   clearScheduledRefresh();
-  gitStore.setColdStorage(true);
+  // 刷新是否允许由本实例的 isViewActive 控制；不能在这里改写全局 coldStorage，
+  // 否则快速管理弹窗和完整工作区同时缓存 GitView 时会互相误伤。
 }
 
 async function handleRepositoryChanged() {
@@ -336,19 +356,11 @@ async function handleRepositoryChanged() {
   });
 }
 
-// Watch project changes — refresh lazily after the selection UI settles
-watch(activeProject, (newProject, oldProject) => {
-  if (oldProject?.id !== newProject?.id) {
-    gitStore.clearDiff();
-  }
-  if (!newProject || !isViewActive.value) return;
-  scheduleRefresh({
-    force: true,
-    includeHistory: activeTab.value === 'history',
-    includeBranches: true,
-    delayMs: 140,
-  });
-}, { immediate: true });
+// 注：原先这里有一个 watch(activeProject, …, { immediate: true })，做两件事：
+// 切项目时清 diff，以及触发一次刷新。
+// props 化后 project 在实例生命周期内恒定，该 watcher 永不触发，故删除。
+// - 清 diff 本来就是**有害**的：它清的是新项目那一桶（缓存里每个实例都会跑一次）
+// - 刷新已由 onMounted 与 onActivated 的 enterActiveMode（force: true）覆盖
 
 // Auto-refresh when window regains focus (e.g. after alt-tab)
 let unlistenFocus: (() => void) | null = null;
@@ -370,8 +382,12 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', onLeftPaneMouseUp);
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
-  persistLayoutNumber('git.changes.stagedRatio', stagedRatio.value);
-  persistLeftPaneRatio();
+  // 只有本实例真的拖过才落盘：拖拽途中被卸载时靠这里补上，
+  // 而没动过的陈旧缓存实例不许覆盖用户最近一次拖动
+  if (hasDraggedPanes) {
+    persistLayoutNumber('git.changes.stagedRatio', stagedRatio.value);
+    persistLeftPaneRatio();
+  }
 });
 
 onActivated(enterActiveMode);
@@ -379,7 +395,7 @@ onDeactivated(enterColdStorage);
 
 // Clear diff when switching tabs; history is loaded only when the tab is used
 watch(activeTab, (tab) => {
-  gitStore.clearDiff();
+  gitStore.clearDiff(props.project.id);
   if (tab === 'history' && activeProject.value && isViewActive.value) {
     scheduleRefresh({
       force: true,
@@ -406,6 +422,21 @@ async function handleRefresh() {
     includeHistory: activeTab.value === 'history',
     includeBranches: true,
   });
+}
+
+async function handleOpenFileHistory(file: string) {
+  fileHistoryPath.value = file;
+  activeTab.value = 'history';
+  try {
+    await gitStore.ensureFileHistory(activeProject.value.id, activeProject.value.path, file, { force: true });
+  } catch (e) {
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
+  }
+}
+
+function clearFileHistoryFilter() {
+  fileHistoryPath.value = '';
+  gitStore.clearDiff(props.project.id);
 }
 
 const tabs = computed(() => [
@@ -454,7 +485,7 @@ const selectedHistoryParent = computed(() => {
 function closeHistoryDetail() {
   if (!activeProject.value) return;
   gitStore.selectedCommitHash[activeProject.value.id] = '';
-  gitStore.clearDiff();
+  gitStore.clearDiff(props.project.id);
 }
 
 async function copyText(value: string, successMessage: string) {
@@ -517,6 +548,7 @@ async function copyText(value: string, successMessage: string) {
                 :project="activeProject"
                 :staged-ratio="stagedRatio"
                 @staged-split-mousedown="onStagedSplitMouseDown"
+                @open-file-history="handleOpenFileHistory"
               />
             </div>
           </div>
@@ -555,7 +587,11 @@ async function copyText(value: string, successMessage: string) {
           :class="selectedHistoryHash ? '' : 'flex-1'"
           :style="selectedHistoryHash ? { height: historyTopPane.size.value + 'px' } : undefined"
         >
-          <GitHistory :project="activeProject" />
+          <GitHistory
+            :project="activeProject"
+            :file-path="fileHistoryPath || undefined"
+            @clear-file-filter="clearFileHistoryFilter"
+          />
         </div>
 
         <!-- Drag handle: history list ↕ detail workspace -->
@@ -576,7 +612,7 @@ async function copyText(value: string, successMessage: string) {
             <!-- Commit info header -->
             <div
               v-if="selectedHistoryCommit"
-              class="git-history-detail px-3 py-2 shrink-0 text-[11px] space-y-2 overflow-auto select-text"
+              class="git-history-detail app-text-control px-3 py-2 shrink-0 space-y-2 overflow-auto select-text"
               :style="{ height: historyDetailPane.size.value + 'px' }"
             >
               <div class="flex items-center justify-between gap-2 pb-1 border-b border-[color:var(--git-border)]">
@@ -617,7 +653,7 @@ async function copyText(value: string, successMessage: string) {
                 <div class="flex items-center gap-2">
                   <span class="text-slate-400 dark:text-slate-500">提交信息：</span>
                   <button
-                    class="rounded px-1.5 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 transition-colors"
+                    class="app-text-control rounded px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 transition-colors"
                     @click="copyText(selectedHistoryCommit.message, t('git.copyCommitMessageSuccess'))"
                   >
                     {{ t('git.copyCommitMessage') }}
@@ -629,7 +665,7 @@ async function copyText(value: string, successMessage: string) {
                 <span
                   v-for="ref in shortHistoryRefs(selectedHistoryCommit.refs).slice(0, 5)"
                   :key="ref"
-                  class="text-[9px] px-1.5 py-0 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium truncate max-w-26"
+                  class="app-text-caption px-1.5 py-0 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium truncate max-w-26"
                 >{{ ref }}</span>
               </div>
             </div>

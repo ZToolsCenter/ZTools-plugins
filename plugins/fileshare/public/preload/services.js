@@ -11,6 +11,7 @@ const { pipeline, Transform, Writable } = require('node:stream')
 //  State
 // ============================================================
 let server = null
+let loopServer = null // extra 127.0.0.1 listener so local URLs work too
 let serverConfig = {
   port: 23456,
   ip: '',
@@ -29,6 +30,19 @@ let ipWhitelist = []        // ['192.168.1.100', ...]
 let lastLogMap = {}         // dedup: { 'ip|path': timestamp }
 let uploadsDir = ''         // where client uploads are stored
 let pendingUploads = new Map() // unresolved upload conflicts: id -> { name, data, hash, ip, expires }
+
+// ============================================================
+//  P2P private-messaging state
+// ============================================================
+let p2pSessions = []        // P2pSession[]
+let p2pMessages = {}        // sessionId -> P2pMessage[]
+let p2pPeerKeys = {}        // ip -> { key, peerId, createdAt }
+let p2pEventLog = []        // ring buffer of { seq, type, data, ts, sessionId }
+let p2pEventSeq = 0
+let sseClients = {}         // ip -> { res } (one live SSE connection per client IP)
+let p2pDir = ''             // <downloads>/z-share-p2p/<sessionId>/
+let p2pMsgSeq = {}          // sessionId -> last message seq
+let p2pRequestCooldown = {} // ip -> timestamp (rate-limit connection requests)
 
 // ============================================================
 //  Persistence helpers
@@ -86,12 +100,85 @@ function saveWhitelist() {
   } catch (_e) { /* ignore */ }
 }
 
+// Module-level whitelist mutations so both the plugin API and the local
+// browser management console (/api/host/whitelist) share the same logic.
+function addWhitelistEntry(ip) {
+  const trimmed = String(ip || '').trim()
+  if (!trimmed || ipWhitelist.includes(trimmed)) return false
+  // Basic IPv4 validation
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(trimmed)) return false
+  ipWhitelist.push(trimmed)
+  saveWhitelist()
+  return true
+}
+
+function removeWhitelistEntry(ip) {
+  const idx = ipWhitelist.indexOf(ip)
+  if (idx === -1) return false
+  ipWhitelist.splice(idx, 1)
+  saveWhitelist()
+  return true
+}
+
 function ensureUploadsDir() {
   try {
     uploadsDir = path.join(window.ztools.getPath('downloads'), 'z-share-uploads')
     fs.mkdirSync(uploadsDir, { recursive: true })
   } catch (_e) {
     uploadsDir = ''
+  }
+}
+
+// ---- P2P persistence (incremental keys, independent from share data) ----
+function loadP2pState() {
+  try {
+    const s = window.ztools.dbStorage.getItem('z-share-p2p-sessions')
+    if (s) p2pSessions = s
+    const m = window.ztools.dbStorage.getItem('z-share-p2p-msgs')
+    if (m) p2pMessages = m
+    const k = window.ztools.dbStorage.getItem('z-share-p2p-peerkey')
+    if (k) p2pPeerKeys = k
+    for (const sess of p2pSessions) p2pMsgSeq[sess.id] = (p2pMessages[sess.id] || []).length
+  } catch (_e) { /* ignore */ }
+  // Hard cleanup: drop any session that is not pending/active (legacy logical
+  // tombstones, rejected leftovers) together with their messages and received
+  // files, so stale records never accumulate or confuse the client again.
+  cleanupStaleP2pSessions()
+}
+
+// Purge every non-actionable session and free its received files.
+function cleanupStaleP2pSessions() {
+  const stale = p2pSessions.filter(s => s.status !== 'pending' && s.status !== 'active')
+  if (stale.length === 0) return
+  for (const s of stale) {
+    const arr = p2pMessages[s.id] || []
+    for (const m of arr) cleanupP2pFiles(m)
+    delete p2pMessages[s.id]
+    delete p2pMsgSeq[s.id]
+  }
+  p2pSessions = p2pSessions.filter(s => s.status === 'pending' || s.status === 'active')
+  saveP2pSessions()
+  saveP2pMessages()
+}
+
+function saveP2pSessions() {
+  try { window.ztools.dbStorage.setItem('z-share-p2p-sessions', p2pSessions) } catch (_e) { /* ignore */ }
+}
+
+function saveP2pMessages() {
+  try { window.ztools.dbStorage.setItem('z-share-p2p-msgs', p2pMessages) } catch (_e) { /* ignore */ }
+}
+
+function saveP2pPeerKeys() {
+  try { window.ztools.dbStorage.setItem('z-share-p2p-peerkey', p2pPeerKeys) } catch (_e) { /* ignore */ }
+}
+
+function ensureP2pDir() {
+  try {
+    p2pDir = path.join(window.ztools.getPath('downloads'), 'z-share-p2p')
+    fs.mkdirSync(p2pDir, { recursive: true })
+  } catch (_e) {
+    p2pDir = ''
   }
 }
 
@@ -378,6 +465,42 @@ function getClientIp(req) {
   return String(req.socket.remoteAddress || '').replace(/^::ffff:/, '')
 }
 
+// ============================================================
+//  Local-host detection (is the browser on the plugin machine?)
+// ============================================================
+let localIpSet = new Set()
+
+function refreshLocalIpSet() {
+  const set = new Set(['127.0.0.1', '::1'])
+  try {
+    const interfaces = os.networkInterfaces()
+    for (const addrs of Object.values(interfaces)) {
+      for (const addr of (addrs || [])) {
+        if (addr && addr.family === 'IPv4') set.add(addr.address)
+      }
+    }
+  } catch (_e) { /* ignore */ }
+  localIpSet = set
+}
+
+// Whether the requesting browser runs on the same machine as the plugin.
+// Used only for UI hints (e.g. recommending a localhost URL), never as a
+// security boundary — a source address is not an authentication factor.
+function isLocalHost(clientIp) {
+  const ip = String(clientIp || '').replace(/^::ffff:/, '')
+  if (!ip) return false
+  if (localIpSet.has(ip)) return true
+  return serverConfig.running && ip === serverConfig.ip
+}
+
+function buildLocalUrl() {
+  return `http://127.0.0.1:${serverConfig.port}/?token=${serverConfig.token}`
+}
+
+function buildLanUrl() {
+  return serverConfig.ip ? `http://${serverConfig.ip}:${serverConfig.port}/?token=${serverConfig.token}` : ''
+}
+
 function createServer(port, ip) {
   return http.createServer((req, res) => {
     // CORS
@@ -395,11 +518,14 @@ function createServer(port, ip) {
     const urlObj = new URL(req.url, `http://${ip}:${port}`)
     const token = urlObj.searchParams.get('token') || ''
 
-    // Auth check — skip if IP is whitelisted
+    // Auth check — skip if IP is whitelisted, or the request comes from the
+    // plugin machine's own loopback (127.0.0.1 / ::1): localhost access needs
+    // no token by default.
     const clientIp = getClientIp(req)
     const isWhitelisted = ipWhitelist.includes(clientIp)
+    const isLoopback = clientIp === '127.0.0.1' || clientIp === '::1'
 
-    if (token !== serverConfig.token && !isWhitelisted) {
+    if (token !== serverConfig.token && !isWhitelisted && !isLoopback) {
       res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end('<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f172a;color:#f1f5f9}h1{font-size:1.5rem}</style></head><body><h1>访问被拒绝</h1></body></html>')
       return
@@ -418,13 +544,17 @@ function createServer(port, ip) {
     if (pathname === '/api/list' && req.method === 'GET') {
       const scopePath = urlObj.searchParams.get('path') || ''
       const tree = buildApiTree(shareItems, scopePath || null)
+      const local = isLocalHost(clientIp)
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
       res.end(JSON.stringify({
         files: tree,
         token: serverConfig.token,
         scoped: !!scopePath,
         scopePath: scopePath || '',
-        clientIp: clientIp
+        clientIp: clientIp,
+        isLocalHost: local,
+        hostLocalUrl: local ? buildLocalUrl() : '',
+        hostLanUrl: local ? buildLanUrl() : ''
       }))
       return
     }
@@ -464,6 +594,410 @@ function createServer(port, ip) {
     // --- Route: POST /api/upload-resolve (overwrite/rename/skip pending upload) ---
     if (pathname === '/api/upload-resolve' && req.method === 'POST') {
       handleUploadResolve(req, res, clientIp)
+      return
+    }
+
+    // ============================================================
+    //  P2P private-messaging routes (all behind the global token gate)
+    // ============================================================
+
+    // --- GET /api/events (SSE realtime channel for web clients) ---
+    if (pathname === '/api/events' && req.method === 'GET') {
+      handleSse(req, res, clientIp)
+      return
+    }
+
+    // --- POST /api/p2p/register (issue/refresh peerKey + peerId) ---
+    if (pathname === '/api/p2p/register' && req.method === 'POST') {
+      const rec = p2pPeerKeys[clientIp]
+      if (rec) {
+        sendJson(res, 200, { ok: true, peerKey: rec.key, peerId: rec.peerId })
+      } else {
+        const fresh = issuePeerKey(clientIp)
+        sendJson(res, 200, { ok: true, peerKey: fresh.key, peerId: fresh.peerId })
+      }
+      return
+    }
+
+    // --- POST /api/p2p/request (client asks for a private connection) ---
+    if (pathname === '/api/p2p/request' && req.method === 'POST') {
+      readP2pJson(req, res, (body) => {
+        if (!checkPeerKey(clientIp, req.headers['x-p2p-key'] || '')) {
+          sendJson(res, 403, { ok: false, error: '未授权的客户端' })
+          return
+        }
+        if (p2pSessions.some(s => s.peerIp === clientIp && s.status === 'pending')) {
+          sendJson(res, 409, { ok: false, error: '已提交申请，等待主机同意' })
+          return
+        }
+        if (p2pSessions.some(s => s.peerIp === clientIp && s.status === 'active')) {
+          sendJson(res, 409, { ok: false, error: '已建立连接' })
+          return
+        }
+        const last = p2pRequestCooldown[clientIp] || 0
+        if (Date.now() - last < P2P_REQUEST_COOLDOWN) {
+          sendJson(res, 429, { ok: false, error: '请求过于频繁，请稍后再试' })
+          return
+        }
+        p2pRequestCooldown[clientIp] = Date.now()
+        const rec = p2pPeerKeys[clientIp]
+        const id = crypto.randomBytes(6).toString('base64url')
+        const session = {
+          id,
+          peerIp: clientIp,
+          peerName: String((body && body.name) || '访客').slice(0, 32),
+          requestMessage: String((body && body.message) || '').slice(0, 200),
+          peerKey: rec ? rec.key : '',
+          peerId: rec ? rec.peerId : '',
+          status: 'pending',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          unreadByHost: 0,
+          unreadByPeer: 0
+        }
+        p2pSessions.push(session)
+        saveP2pSessions()
+        // plugin-only event (the web client already knows it sent the request)
+        pushEvent('p2p.request', {
+          sessionId: id, peerIp: clientIp, peerName: session.peerName,
+          requestMessage: session.requestMessage, createdAt: session.createdAt
+        }, { sessionId: id, sse: false })
+        try { window.ztools.showNotification(`收到点对点连接申请：${clientIp}（${session.peerName}）`) } catch (_e) { /* ignore */ }
+        sendJson(res, 200, {
+          ok: true,
+          session: { id, peerIp: clientIp, peerName: session.peerName, status: 'pending' }
+        })
+      })
+      return
+    }
+
+    // --- POST /api/p2p/message (client sends text) ---
+    if (pathname === '/api/p2p/message' && req.method === 'POST') {
+      readP2pJson(req, res, (body) => {
+        const session = authorizeP2p(req, clientIp, body && body.session, req.headers['x-p2p-key'] || '')
+        if (!session) { sendJson(res, 403, { ok: false, error: '无权访问该会话' }); return }
+        if (session.status !== 'active') { sendJson(res, 409, { ok: false, error: '连接尚未建立或已断开' }); return }
+        const text = String((body && body.text) || '').slice(0, P2P_MAX_TEXT)
+        if (!text.trim()) { sendJson(res, 400, { ok: false, error: '消息为空' }); return }
+        const msg = appendP2pMessage(session, {
+          id: crypto.randomBytes(8).toString('hex'), from: 'peer', kind: 'text', text,
+          createdAt: Date.now(), status: 'sent'
+        })
+        session.unreadByHost++
+        session.lastActiveAt = Date.now()
+        saveP2pSessions()
+        pushEvent('p2p.message', sanitizeMsgForPeer(msg), { sessionId: session.id })
+        sendJson(res, 200, { ok: true, msg: sanitizeMsgForPeer(msg) })
+      })
+      return
+    }
+
+    // --- GET /api/p2p/messages (client pulls incremental history) ---
+    if (pathname === '/api/p2p/messages' && req.method === 'GET') {
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const after = parseInt(urlObj.searchParams.get('after') || '0', 10) || 0
+      const session = authorizeP2p(req, clientIp, sessionId, p2pKeyFrom(req, urlObj))
+      if (!session) { sendJson(res, 403, { ok: false, error: '无权访问该会话' }); return }
+      const messages = (p2pMessages[sessionId] || [])
+        .filter(m => m.seq > after)
+        .map(sanitizeMsgForPeer)
+      sendJson(res, 200, { ok: true, sessionId, messages })
+      return
+    }
+
+    // --- POST /api/p2p/file (client uploads files; all become ONE message) ---
+    if (pathname === '/api/p2p/file' && req.method === 'POST') {
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const session = authorizeP2p(req, clientIp, sessionId, p2pKeyFrom(req, urlObj))
+      if (!session) { sendJson(res, 403, { ok: false, error: '无权访问该会话' }); return }
+      if (session.status !== 'active') { sendJson(res, 409, { ok: false, error: '连接尚未建立或已断开' }); return }
+      streamP2pUpload(req, res, session, (parts) => {
+        if (!parts || parts.length === 0) {
+          if (res.writableEnded) return
+          sendJson(res, 200, { ok: true, files: [] })
+          return
+        }
+        const files = parts.map(part => {
+          let finalSize = part.size
+          try { finalSize = fs.statSync(part.destPath).size } catch (_e) { /* ignore */ }
+          return {
+            fileId: part.fileId, name: part.name, size: finalSize,
+            mime: getMimeType(part.destPath), direction: 'in', storedPath: part.destPath
+          }
+        })
+        const msg = appendP2pMessage(session, {
+          id: crypto.randomBytes(8).toString('hex'), from: 'peer', kind: 'files',
+          files, createdAt: Date.now(), status: 'sent'
+        })
+        session.unreadByHost++
+        session.lastActiveAt = Date.now()
+        saveP2pSessions()
+        pushEvent('p2p.file', sanitizeMsgForPeer(msg), { sessionId: session.id })
+        sendJson(res, 200, { ok: true, files: sanitizeMsgForPeer(msg).files })
+      })
+      return
+    }
+
+    // --- GET /api/p2p/file (download / preview a session file) ---
+    if (pathname === '/api/p2p/file' && req.method === 'GET') {
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const fileId = urlObj.searchParams.get('file') || ''
+      const session = authorizeP2p(req, clientIp, sessionId, p2pKeyFrom(req, urlObj))
+      if (!session) { sendJson(res, 403, { ok: false, error: '无权访问该会话' }); return }
+      serveP2pFile(req, res, session, fileId, urlObj.searchParams.get('dl') === '1')
+      return
+    }
+
+    // --- DELETE /api/p2p/session (either side deletes the connection) ---
+    if (pathname === '/api/p2p/session' && req.method === 'DELETE') {
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const session = authorizeP2p(req, clientIp, sessionId, p2pKeyFrom(req, urlObj))
+      if (!session) { sendJson(res, 403, { ok: false, error: '无权访问该会话' }); return }
+      destroyP2pSession(session, 'peer')
+      sendJson(res, 200, { ok: true })
+      return
+    }
+
+    // --- DELETE /api/p2p/message (either side deletes one message; the peer
+    // is notified via p2p.msgdeleted so both sides drop it) ---
+    if (pathname === '/api/p2p/message' && req.method === 'DELETE') {
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const msgId = urlObj.searchParams.get('msg') || ''
+      const session = authorizeP2p(req, clientIp, sessionId, p2pKeyFrom(req, urlObj))
+      if (!session) { sendJson(res, 403, { ok: false, error: '无权访问该会话' }); return }
+      if (!msgId || !removeP2pMessage(session, msgId)) {
+        sendJson(res, 404, { ok: false, error: '消息不存在' })
+        return
+      }
+      pushEvent('p2p.msgdeleted', { sessionId: session.id, msgId }, { sessionId: session.id })
+      sendJson(res, 200, { ok: true })
+      return
+    }
+
+    // --- POST /api/p2p/read (peer marks a session read) ---
+    if (pathname === '/api/p2p/read' && req.method === 'POST') {
+      readP2pJson(req, res, (body) => {
+        const session = authorizeP2p(req, clientIp, body && body.session, req.headers['x-p2p-key'] || '')
+        if (!session) { sendJson(res, 403, { ok: false, error: '无权访问该会话' }); return }
+        if (session.unreadByPeer !== 0) {
+          session.unreadByPeer = 0
+          saveP2pSessions()
+        }
+        sendJson(res, 200, { ok: true })
+      })
+      return
+    }
+
+    // --- GET /api/p2p/poll (fallback when SSE is unavailable) ---
+    if (pathname === '/api/p2p/poll' && req.method === 'GET') {
+      const since = parseInt(urlObj.searchParams.get('since') || '0', 10) || 0
+      if (!checkPeerKey(clientIp, p2pKeyFrom(req, urlObj))) {
+        sendJson(res, 403, { ok: false, error: '未授权' })
+        return
+      }
+      const myIds = new Set(p2pSessions.filter(s => s.peerIp === clientIp).map(s => s.id))
+      const events = p2pEventLog
+        .filter(e => e.sessionId && myIds.has(e.sessionId) && e.seq > since)
+        .map(e => ({ seq: e.seq, type: e.type, data: e.data }))
+      const mySession = p2pSessions.find(s => s.peerIp === clientIp && s.status !== 'rejected') || null
+      const snap = mySession ? { id: mySession.id, status: mySession.status, peerName: mySession.peerName } : null
+      sendJson(res, 200, { ok: true, since: p2pEventSeq, events, session: snap })
+      return
+    }
+
+    // ============================================================
+    //  Local management console (/api/host/*) — only the plugin
+    //  machine's own browser may call these (isLocalHost gate).
+    // ============================================================
+
+    // --- GET /api/host/p2p (session list for the local console) ---
+    if (pathname === '/api/host/p2p' && req.method === 'GET') {
+      if (!isHostRequest(res, clientIp)) return
+      const sessions = p2pSessions
+        .filter(s => s.status === 'pending' || s.status === 'active')
+        .map(p2pSessionView)
+      sendJson(res, 200, { ok: true, sessions })
+      return
+    }
+
+    // --- GET /api/host/p2p/messages (raw-ish history for the host view) ---
+    if (pathname === '/api/host/p2p/messages' && req.method === 'GET') {
+      if (!isHostRequest(res, clientIp)) return
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const after = parseInt(urlObj.searchParams.get('after') || '0', 10) || 0
+      const session = findP2pSession(sessionId)
+      if (!session) { sendJson(res, 404, { ok: false, error: '会话不存在' }); return }
+      const messages = (p2pMessages[sessionId] || []).filter(m => m.seq > after)
+      sendJson(res, 200, { ok: true, sessionId, messages })
+      return
+    }
+
+    // --- POST /api/host/p2p/respond (accept / reject a request) ---
+    if (pathname === '/api/host/p2p/respond' && req.method === 'POST') {
+      if (!isHostRequest(res, clientIp)) return
+      readP2pJson(req, res, (body) => {
+        const s = findP2pSession(String((body && body.session) || ''))
+        if (!s || s.status !== 'pending') { sendJson(res, 404, { ok: false, error: '会话不存在或已处理' }); return }
+        const accept = !!body && !!body.accept
+        s.status = accept ? 'active' : 'rejected'
+        s.lastActiveAt = Date.now()
+        saveP2pSessions()
+        pushEvent(accept ? 'p2p.accepted' : 'p2p.rejected', {
+          sessionId: s.id, peerIp: s.peerIp, peerName: s.peerName
+        }, { sessionId: s.id })
+        sendJson(res, 200, { ok: true })
+      })
+      return
+    }
+
+    // --- POST /api/host/p2p/read (mark a session read from the local console) ---
+    if (pathname === '/api/host/p2p/read' && req.method === 'POST') {
+      if (!isHostRequest(res, clientIp)) return
+      readP2pJson(req, res, (body) => {
+        const s = findP2pSession(String((body && body.session) || ''))
+        if (!s) { sendJson(res, 404, { ok: false, error: '会话不存在' }); return }
+        if (s.unreadByHost !== 0) {
+          s.unreadByHost = 0
+          saveP2pSessions()
+        }
+        sendJson(res, 200, { ok: true })
+      })
+      return
+    }
+
+    // --- POST /api/host/p2p/message (host sends text from the browser) ---
+    if (pathname === '/api/host/p2p/message' && req.method === 'POST') {
+      if (!isHostRequest(res, clientIp)) return
+      readP2pJson(req, res, (body) => {
+        const s = findP2pSession(String((body && body.session) || ''))
+        if (!s || s.status !== 'active') { sendJson(res, 409, { ok: false, error: '连接尚未建立或已断开' }); return }
+        const text = String((body && body.text) || '').slice(0, P2P_MAX_TEXT)
+        if (!text.trim()) { sendJson(res, 400, { ok: false, error: '消息为空' }); return }
+        const msg = appendP2pMessage(s, {
+          id: crypto.randomBytes(8).toString('hex'), from: 'host', kind: 'text', text,
+          createdAt: Date.now(), status: 'sent'
+        })
+        s.unreadByPeer++
+        s.lastActiveAt = Date.now()
+        saveP2pSessions()
+        pushEvent('p2p.message', sanitizeMsgForPeer(msg), { sessionId: s.id })
+        sendJson(res, 200, { ok: true, msg: sanitizeMsgForPeer(msg) })
+      })
+      return
+    }
+
+    // --- POST /api/host/p2p/file (host uploads files from the browser;
+    // all become ONE 'from:host' files message, stored under the session) ---
+    if (pathname === '/api/host/p2p/file' && req.method === 'POST') {
+      if (!isHostRequest(res, clientIp)) return
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const session = findP2pSession(sessionId)
+      if (!session) { sendJson(res, 404, { ok: false, error: '会话不存在' }); return }
+      if (session.status !== 'active') { sendJson(res, 409, { ok: false, error: '连接尚未建立或已断开' }); return }
+      streamP2pUpload(req, res, session, (parts) => {
+        if (!parts || parts.length === 0) {
+          if (res.writableEnded) return
+          sendJson(res, 200, { ok: true, files: [] })
+          return
+        }
+        const files = parts.map(part => {
+          let finalSize = part.size
+          try { finalSize = fs.statSync(part.destPath).size } catch (_e) { /* ignore */ }
+          return {
+            fileId: part.fileId, name: part.name, size: finalSize,
+            mime: getMimeType(part.destPath), direction: 'in', storedPath: part.destPath
+          }
+        })
+        const msg = appendP2pMessage(session, {
+          id: crypto.randomBytes(8).toString('hex'), from: 'host', kind: 'files',
+          files, createdAt: Date.now(), status: 'sent'
+        })
+        session.unreadByPeer++
+        session.lastActiveAt = Date.now()
+        saveP2pSessions()
+        pushEvent('p2p.file', sanitizeMsgForPeer(msg), { sessionId: session.id })
+        sendJson(res, 200, { ok: true, files: sanitizeMsgForPeer(msg).files })
+      })
+      return
+    }
+
+    // --- GET /api/host/p2p/file (host previews / downloads a session file) ---
+    if (pathname === '/api/host/p2p/file' && req.method === 'GET') {
+      if (!isHostRequest(res, clientIp)) return
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const fileId = urlObj.searchParams.get('file') || ''
+      const session = findP2pSession(sessionId)
+      if (!session) { sendJson(res, 404, { ok: false, error: '会话不存在' }); return }
+      serveP2pFile(req, res, session, fileId, urlObj.searchParams.get('dl') === '1')
+      return
+    }
+
+    // --- DELETE /api/host/p2p/message (host deletes a message) ---
+    if (pathname === '/api/host/p2p/message' && req.method === 'DELETE') {
+      if (!isHostRequest(res, clientIp)) return
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const msgId = urlObj.searchParams.get('msg') || ''
+      const session = findP2pSession(sessionId)
+      if (!session) { sendJson(res, 404, { ok: false, error: '会话不存在' }); return }
+      if (!msgId || !removeP2pMessage(session, msgId)) {
+        sendJson(res, 404, { ok: false, error: '消息不存在' })
+        return
+      }
+      pushEvent('p2p.msgdeleted', { sessionId: session.id, msgId }, { sessionId: session.id })
+      sendJson(res, 200, { ok: true })
+      return
+    }
+
+    // --- DELETE /api/host/p2p/session (host deletes the connection) ---
+    if (pathname === '/api/host/p2p/session' && req.method === 'DELETE') {
+      if (!isHostRequest(res, clientIp)) return
+      const sessionId = urlObj.searchParams.get('session') || ''
+      const session = findP2pSession(sessionId)
+      if (!session) { sendJson(res, 404, { ok: false, error: '会话不存在' }); return }
+      destroyP2pSession(session, 'host')
+      sendJson(res, 200, { ok: true })
+      return
+    }
+
+    // --- GET /api/host/logs (download log list) ---
+    if (pathname === '/api/host/logs' && req.method === 'GET') {
+      if (!isHostRequest(res, clientIp)) return
+      sendJson(res, 200, { ok: true, logs: downloadLogs.slice().reverse() })
+      return
+    }
+
+    // --- DELETE /api/host/logs (clear logs) ---
+    if (pathname === '/api/host/logs' && req.method === 'DELETE') {
+      if (!isHostRequest(res, clientIp)) return
+      downloadLogs = []
+      saveLogs()
+      sendJson(res, 200, { ok: true })
+      return
+    }
+
+    // --- GET /api/host/whitelist ---
+    if (pathname === '/api/host/whitelist' && req.method === 'GET') {
+      if (!isHostRequest(res, clientIp)) return
+      sendJson(res, 200, { ok: true, whitelist: ipWhitelist.slice() })
+      return
+    }
+
+    // --- POST /api/host/whitelist (add an IP) ---
+    if (pathname === '/api/host/whitelist' && req.method === 'POST') {
+      if (!isHostRequest(res, clientIp)) return
+      readP2pJson(req, res, (body) => {
+        const ok = addWhitelistEntry(String((body && body.ip) || ''))
+        sendJson(res, ok ? 200 : 400, { ok, error: ok ? undefined : '无效的 IP 地址' })
+      })
+      return
+    }
+
+    // --- DELETE /api/host/whitelist?ip= (remove an IP) ---
+    if (pathname === '/api/host/whitelist' && req.method === 'DELETE') {
+      if (!isHostRequest(res, clientIp)) return
+      const ip = urlObj.searchParams.get('ip') || ''
+      const ok = removeWhitelistEntry(ip)
+      sendJson(res, ok ? 200 : 404, { ok })
       return
     }
 
@@ -802,7 +1336,7 @@ function handleUpload(req, res, clientIp) {
           hash: partHash,
           hashSize: part.data.length,
           hashMtime: Math.floor(fs.statSync(destPath).mtimeMs),
-          origin: { type: 'upload', ip: clientIp || 'unknown', time: new Date().toISOString() }
+          origin: { type: 'upload', ip: clientIp || 'unknown', time: new Date().toISOString(), local: isLocalHost(clientIp) }
         }
         shareItems.push(item)
         saved.push({ name: safeName, size: part.data.length })
@@ -982,7 +1516,7 @@ function handleUploadResolve(req, res, clientIp) {
         hash: rec.hash,
         hashSize: rec.data.length,
         hashMtime: Math.floor(fs.statSync(destPath).mtimeMs),
-        origin: { type: 'upload', ip: rec.ip, time: new Date().toISOString() }
+        origin: { type: 'upload', ip: rec.ip, time: new Date().toISOString(), local: isLocalHost(rec.ip) }
       }
       shareItems.push(item)
       saveShares()
@@ -1262,6 +1796,442 @@ async function serveZip(res, scopeList, clientIp) {
 }
 
 // ============================================================
+//  P2P private-messaging core
+// ============================================================
+const P2P_MAX_TEXT = 64 * 1024        // per text message
+const P2P_MAX_FILE = 4 * 1024 * 1024 * 1024 // 4GB per p2p file (streamed)
+const P2P_MAX_BODY = 1024 * 1024      // JSON request body cap
+const P2P_MSG_KEEP = 200              // messages retained per session
+const P2P_REQUEST_COOLDOWN = 60 * 1000
+const P2P_MAX_EVENTS = 200
+
+function findP2pSession(id) { return p2pSessions.find(s => s.id === id) }
+
+// Push an event into the ring buffer, optionally to the peer's SSE channel,
+// and notify the plugin renderer (CustomEvent) so the UI updates instantly.
+function pushEvent(type, data, opts) {
+  const o = opts || {}
+  const ev = { seq: ++p2pEventSeq, type, data, ts: Date.now(), sessionId: o.sessionId || null }
+  p2pEventLog.push(ev)
+  if (p2pEventLog.length > P2P_MAX_EVENTS) p2pEventLog = p2pEventLog.slice(-P2P_MAX_EVENTS)
+  if (o.sessionId && o.sse !== false) {
+    const sess = findP2pSession(o.sessionId)
+    if (sess && sseClients[sess.peerIp]) sseSend(sess.peerIp, ev)
+  }
+  notifyRenderer(ev)
+  return ev
+}
+
+function notifyRenderer(ev) {
+  try {
+    if (typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('zshare:p2p', { detail: ev }))
+    }
+  } catch (_e) { /* no renderer (headless / smoke) */ }
+}
+
+function sseSend(ip, ev) {
+  const c = sseClients[ip]
+  if (!c || c.res.destroyed) return
+  try {
+    c.res.write(`event: ${ev.type}\n`)
+    c.res.write(`id: ${ev.seq}\n`)
+    c.res.write(`data: ${JSON.stringify(ev.data)}\n\n`)
+  } catch (_e) { /* ignore */ }
+}
+
+// One live SSE connection per client IP. On connect we send a snapshot of the
+// client's session state so the web UI can recover after a drop/reconnect;
+// message history is re-fetched by the client via /api/p2p/messages?after=.
+function handleSse(req, res, clientIp) {
+  const prev = sseClients[clientIp]
+  if (prev) { try { prev.res.end() } catch (_e) { /* ignore */ } }
+  sseClients[clientIp] = { res }
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  })
+  res.write(': connected\n\n')
+  const sess = p2pSessions.find(s => s.peerIp === clientIp && s.status !== 'rejected')
+  const snap = sess ? { id: sess.id, status: sess.status, peerIp: sess.peerIp, peerName: sess.peerName } : null
+  res.write('event: p2p.snapshot\n')
+  res.write('data: ' + JSON.stringify(snap) + '\n\n')
+  const heartbeat = setInterval(() => { try { res.write(': ping\n\n') } catch (_e) { /* ignore */ } }, 25000)
+  res.on('close', () => {
+    clearInterval(heartbeat)
+    if (sseClients[clientIp] && sseClients[clientIp].res === res) delete sseClients[clientIp]
+    pushEvent('p2p.presence', { peerIp: clientIp, online: false })
+  })
+  pushEvent('p2p.presence', { peerIp: clientIp, online: true })
+}
+
+// ---- peerKey: a per-page secret bound to the client IP, used as CSRF
+// defense on state-changing P2P calls (CORS is wide open by design). ----
+function issuePeerKey(ip) {
+  const rec = { key: crypto.randomBytes(16).toString('hex'), peerId: crypto.randomBytes(8).toString('base64url'), createdAt: Date.now() }
+  p2pPeerKeys[ip] = rec
+  saveP2pPeerKeys()
+  return rec
+}
+
+function checkPeerKey(ip, key) {
+  const rec = p2pPeerKeys[ip]
+  return !!rec && rec.key === key
+}
+
+// Resolve a session for a web client: must exist, belong to this IP, and
+// carry a valid peerKey. Host-side (plugin window) calls never go through HTTP.
+// `key` may come from the X-P2P-Key header (all P2P calls) or the `p2pkey`
+// query param (GET download/preview URLs, since <a>/<img> cannot send headers).
+function authorizeP2p(req, clientIp, sessionId, key) {
+  if (!sessionId) return null
+  const session = findP2pSession(sessionId)
+  if (!session || session.peerIp !== clientIp) return null
+  if (!checkPeerKey(clientIp, key || '')) return null
+  return session
+}
+
+function p2pKeyFrom(req, urlObj) {
+  return req.headers['x-p2p-key'] || urlObj.searchParams.get('p2pkey') || ''
+}
+
+// Strip host-side paths before a message leaves the server to the peer.
+function sanitizeMsgForPeer(msg) {
+  const copy = Object.assign({}, msg)
+  if (copy.files) {
+    copy.files = copy.files.map(f => {
+      const fc = Object.assign({}, f)
+      delete fc.storedPath
+      delete fc.refPath
+      return fc
+    })
+  }
+  return copy
+}
+
+function appendP2pMessage(session, msg) {
+  const arr = p2pMessages[session.id] || (p2pMessages[session.id] = [])
+  msg.seq = (p2pMsgSeq[session.id] = (p2pMsgSeq[session.id] || 0) + 1)
+  arr.push(msg)
+  if (arr.length > P2P_MSG_KEEP) {
+    const removed = arr.splice(0, arr.length - P2P_MSG_KEEP)
+    for (const m of removed) cleanupP2pFiles(m)
+  }
+  saveP2pMessages()
+  return msg
+}
+
+// Received P2P files live under our managed directory and are cleaned when
+// their message is pruned/deleted. Host-sent files are references, never touched.
+function cleanupP2pFiles(msg) {
+  if (!msg || msg.kind !== 'files' || !msg.files) return
+  for (const f of msg.files) {
+    if (f.direction === 'in' && f.storedPath) {
+      try { fs.unlinkSync(f.storedPath) } catch (_e) { /* ignore */ }
+    }
+  }
+}
+
+// Remove one message (and its received files) from the server store.
+function removeP2pMessage(session, msgId) {
+  const arr = p2pMessages[session.id]
+  if (!arr) return false
+  const idx = arr.findIndex(m => m.id === msgId)
+  if (idx === -1) return false
+  cleanupP2pFiles(arr[idx])
+  arr.splice(idx, 1)
+  saveP2pMessages()
+  return true
+}
+
+// Fully destroy a session: notify the peer first, then free every received
+// file, drop the messages, and remove the session so it disappears from all
+// lists. Deleting is final on the host side.
+function destroyP2pSession(session, deletedBy) {
+  if (!session) return false
+  pushEvent('p2p.deleted', { sessionId: session.id, deletedBy, peerIp: session.peerIp }, { sessionId: session.id })
+  const arr = p2pMessages[session.id] || []
+  for (const m of arr) cleanupP2pFiles(m)
+  delete p2pMessages[session.id]
+  delete p2pMsgSeq[session.id]
+  const idx = p2pSessions.indexOf(session)
+  if (idx !== -1) p2pSessions.splice(idx, 1)
+  saveP2pMessages()
+  saveP2pSessions()
+  return true
+}
+
+// Look up a file entry (by fileId) across all messages of a session.
+function findP2pFileInSession(sessionId, fileId) {
+  const arr = p2pMessages[sessionId] || []
+  for (const m of arr) {
+    if (m.kind === 'files' && m.files) {
+      const f = m.files.find(x => x.fileId === fileId)
+      if (f) return f
+    }
+  }
+  return null
+}
+
+// A safe view of a session for UI consumption (plugin API + local console).
+function p2pSessionView(s) {
+  const arr = p2pMessages[s.id] || []
+  const last = arr[arr.length - 1]
+  return {
+    id: s.id,
+    peerIp: s.peerIp,
+    peerName: s.peerName,
+    requestMessage: s.requestMessage || '',
+    status: s.status,
+    createdAt: s.createdAt,
+    lastActiveAt: s.lastActiveAt,
+    unreadByHost: s.unreadByHost,
+    deletedBy: s.deletedBy,
+    deletedAt: s.deletedAt,
+    peerOnline: !!sseClients[s.peerIp],
+    lastMessage: last ? (last.kind === 'text' ? last.text : (last.files && last.files.length > 0 ? ('[文件] ' + last.files.map(f => f.name).join('、')) : '')) : ''
+  }
+}
+
+// Guard for the local management console: only the plugin machine's own
+// browser may reach /api/host/* (source IP is one of the host's addresses).
+function isHostRequest(res, clientIp) {
+  if (isLocalHost(clientIp)) return true
+  sendJson(res, 403, { ok: false, error: '仅限本机管理' })
+  return false
+}
+
+function readP2pJson(req, res, cb) {
+  const chunks = []
+  let size = 0
+  let settled = false
+  req.on('data', (chunk) => {
+    if (settled) return
+    size += chunk.length
+    if (size > P2P_MAX_BODY) {
+      settled = true
+      sendJson(res, 413, { ok: false, error: '请求过大' })
+      req.destroy()
+      return
+    }
+    chunks.push(chunk)
+  })
+  req.on('error', () => { if (!settled) { settled = true; res.end() } })
+  req.on('end', () => {
+    if (settled) return
+    settled = true
+    let body = {}
+    try { body = JSON.parse(Buffer.concat(chunks).toString('utf-8')) } catch (_e) { /* invalid json */ }
+    cb(body)
+  })
+}
+
+// ============================================================
+//  P2P file receive: streamed multipart straight to disk (constant memory).
+//  Collects EVERY file part and calls onDone(parts) once all streams flushed,
+//  so multiple files in one request become a single chat message.
+// ============================================================
+function streamP2pUpload(req, res, session, onDone) {
+  const contentType = req.headers['content-type'] || ''
+  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i)
+  if (!boundaryMatch) {
+    sendJson(res, 400, { ok: false, error: '无效的请求格式' })
+    return
+  }
+  const boundary = boundaryMatch[1] || boundaryMatch[2]
+  const sessionDir = path.join(p2pDir, session.id)
+  try { fs.mkdirSync(sessionDir, { recursive: true }) } catch (_e) { /* ignore */ }
+
+  let buffer = Buffer.alloc(0)
+  let inHeaders = true
+  let headerBuf = []
+  let cur = null // { fileId, name, size, ws, destPath }
+  const parts = []
+  let settled = false
+
+  function fail(msg, status) {
+    if (settled) return
+    settled = true
+    cleanup()
+    sendJson(res, status || 400, { ok: false, error: msg })
+  }
+
+  function cleanup() {
+    if (cur && cur.ws) { try { cur.ws.destroy() } catch (_e) { /* ignore */ } }
+  }
+
+  function writeData(data) {
+    cur.size += data.length
+    if (cur.size > P2P_MAX_FILE) { fail('文件过大，超过大小限制', 413); return }
+    if (!cur.ws.write(data)) {
+      req.pause()
+      cur.ws.once('drain', () => req.resume())
+    }
+  }
+
+  function closePart() {
+    if (cur && cur.ws) {
+      try { cur.ws.end() } catch (_e) { /* ignore */ }
+      parts.push(cur)
+    }
+    cur = null
+  }
+
+  function finishAll() {
+    const streams = parts.filter(p => p.ws).map(p => p.ws)
+    if (streams.length === 0) { onDone([]); return }
+    let pending = streams.length
+    for (const ws of streams) {
+      ws.once('finish', () => { if (--pending === 0) onDone(parts) })
+    }
+  }
+
+  function scan() {
+    while (!settled) {
+      if (inHeaders) {
+        const marker = Buffer.from('\r\n\r\n')
+        const idx = buffer.indexOf(marker)
+        if (idx === -1) {
+          const keep = Math.max(0, buffer.length - (marker.length - 1))
+          headerBuf.push(buffer.slice(0, keep))
+          buffer = buffer.slice(keep)
+          return
+        }
+        headerBuf.push(buffer.slice(0, idx))
+        const headerText = Buffer.concat(headerBuf).toString('utf-8')
+        headerBuf = []
+        const cd = headerText.match(/Content-Disposition:[^\r\n]*/i)
+        let filename = ''
+        if (cd) {
+          const fnStar = cd[0].match(/filename\*=UTF-8''([^;]+)/i)
+          if (fnStar) { try { filename = decodeURIComponent(fnStar[1].trim().replace(/^"|"$/g, '')) } catch (_e) { filename = '' } }
+          if (!filename) { const fn = cd[0].match(/filename="([^"]*)"/); if (fn) filename = fn[1] }
+        }
+        const safeName = sanitizeFileName(filename || 'p2p-file')
+        const fileId = 'f' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex')
+        const destPath = path.join(sessionDir, fileId + '_' + safeName)
+        cur = { fileId, name: safeName, size: 0, ws: fs.createWriteStream(destPath), destPath }
+        inHeaders = false
+        buffer = buffer.slice(idx + marker.length)
+      } else {
+        const delim = Buffer.from('\r\n--' + boundary)
+        const idx = buffer.indexOf(delim)
+        if (idx === -1) {
+          const keep = Math.max(0, buffer.length - (delim.length - 1))
+          if (cur) writeData(buffer.slice(0, keep))
+          buffer = buffer.slice(keep)
+          return
+        }
+        let data = buffer.slice(0, idx)
+        if (cur) {
+          cur.size += data.length
+          if (cur.size > P2P_MAX_FILE) { fail('文件过大，超过大小限制', 413); return }
+          if (data.length) {
+            if (!cur.ws.write(data)) {
+              req.pause()
+              cur.ws.once('drain', () => req.resume())
+            }
+          }
+        }
+        const after = buffer.slice(idx + delim.length)
+        if (after.length >= 2 && after[0] === 0x2d && after[1] === 0x2d) {
+          // closing boundary — flush the last part, then report everything
+          buffer = Buffer.alloc(0)
+          closePart()
+          settled = true
+          finishAll()
+          return
+        }
+        closePart()
+        inHeaders = true
+        headerBuf = []
+        buffer = (after[0] === 0x0d && after[1] === 0x0a) ? after.slice(2) : after
+      }
+    }
+  }
+
+  req.on('data', (chunk) => {
+    buffer = Buffer.concat([buffer, chunk])
+    scan()
+  })
+  req.on('error', () => fail('上传中断', 500))
+  req.on('aborted', () => fail('上传中断', 500))
+  req.on('end', () => {
+    if (settled) return
+    settled = true
+    closePart()
+    finishAll()
+  })
+}
+
+// ============================================================
+//  P2P file serve (download/preview) with session-scope validation
+// ============================================================
+function serveP2pFile(req, res, session, fileId, isDownload) {
+  if (session.status !== 'active') {
+    sendJson(res, 403, { ok: false, error: '连接已断开' })
+    return
+  }
+  const msgs = p2pMessages[session.id] || []
+  let f = null
+  for (const m of msgs) {
+    if (m.kind === 'files' && m.files) {
+      f = m.files.find(x => x.fileId === fileId)
+      if (f) break
+    }
+  }
+  if (!f) {
+    sendJson(res, 404, { ok: false, error: '文件不存在' })
+    return
+  }
+  const absPath = f.direction === 'out' ? f.refPath : f.storedPath
+  if (!absPath || !fs.existsSync(absPath)) {
+    sendJson(res, 404, { ok: false, error: '文件不存在或已被移动' })
+    return
+  }
+  const stat = fs.statSync(absPath)
+  if (stat.isDirectory()) {
+    sendJson(res, 400, { ok: false, error: '不支持目录' })
+    return
+  }
+  const mimeType = f.mime || getMimeType(absPath)
+  const fileSize = stat.size
+  const encodedName = encodeURIComponent(f.name || path.basename(absPath))
+
+  const range = req.headers.range
+  if (range) {
+    const parts = range.replace(/bytes=/, '').split('-')
+    const start = parseInt(parts[0], 10)
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
+    const chunkSize = end - start + 1
+    res.writeHead(206, {
+      'Content-Type': mimeType,
+      'Content-Disposition': `inline; filename*=UTF-8''${encodedName}`,
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Cache-Control': 'no-store'
+    })
+    const stream = fs.createReadStream(absPath, { start, end })
+    stream.pipe(res)
+    stream.on('error', () => { res.end() })
+    return
+  }
+
+  res.writeHead(200, {
+    'Content-Type': mimeType,
+    'Content-Disposition': `inline; filename*=UTF-8''${encodedName}`,
+    'Content-Length': fileSize,
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'no-store'
+  })
+  const stream = fs.createReadStream(absPath)
+  stream.pipe(res)
+  stream.on('error', () => { res.end() })
+}
+
+// ============================================================
 //  Exported Services
 // ============================================================
 window.services = {
@@ -1272,22 +2242,46 @@ window.services = {
         server.close()
         server = null
       }
+      if (loopServer) {
+        loopServer.close()
+        loopServer = null
+      }
       serverConfig.port = port
       serverConfig.ip = ip
       try {
         const srv = createServer(port, ip)
+        // When binding a LAN interface, also listen on 127.0.0.1 so the
+        // plugin machine's own browser can reach http://127.0.0.1:port
+        // (localhost URLs shown in the "本机访问" hint actually work).
+        const srv2 = (ip && ip !== '127.0.0.1' && ip !== '::1' && ip !== 'localhost')
+          ? createServer(port, ip)
+          : null
         srv.once('error', (err) => {
           serverConfig.running = false
           server = null
           console.error('Server error:', err.message)
           resolve({ ok: false, error: err.code === 'EADDRINUSE' ? '端口已被占用，请更换端口' : err.message })
         })
+        if (srv2) {
+          srv2.once('error', (err) => {
+            // The loopback listener is a convenience only — a failure here
+            // (e.g. the OS refuses the same port on 127.0.0.1) must not break
+            // the main LAN listener.
+            console.error('Loopback listener error:', err.message)
+          })
+        }
         srv.listen(port, ip, () => {
           server = srv
           serverConfig.port = srv.address().port
           serverConfig.running = true
           autoStartEnabled = true
           saveConfig()
+          refreshLocalIpSet()
+          if (srv2) {
+            srv2.listen(serverConfig.port, '127.0.0.1', () => {
+              loopServer = srv2
+            })
+          }
           resolve({ ok: true })
         })
       } catch (err) {
@@ -1303,8 +2297,17 @@ window.services = {
       server.close()
       server = null
     }
+    if (loopServer) {
+      loopServer.close()
+      loopServer = null
+    }
     serverConfig.running = false
     autoStartEnabled = false
+    // Tear down every live SSE channel so web clients reconnect/refresh
+    for (const ip of Object.keys(sseClients)) {
+      try { sseClients[ip].res.end() } catch (_e) { /* ignore */ }
+    }
+    sseClients = {}
   },
 
   // Persist a new port while the server is stopped
@@ -1482,21 +2485,11 @@ window.services = {
   },
 
   addWhitelist(ip) {
-    const trimmed = ip.trim()
-    if (!trimmed || ipWhitelist.includes(trimmed)) return false
-    // Basic IPv4 validation
-    if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(trimmed)) return false
-    ipWhitelist.push(trimmed)
-    saveWhitelist()
-    return true
+    return addWhitelistEntry(ip)
   },
 
   removeWhitelist(ip) {
-    const idx = ipWhitelist.indexOf(ip)
-    if (idx === -1) return false
-    ipWhitelist.splice(idx, 1)
-    saveWhitelist()
-    return true
+    return removeWhitelistEntry(ip)
   },
 
   // ---- Text Sharing ----
@@ -1556,6 +2549,132 @@ window.services = {
   // Get file MIME type
   getFileMimeType(filePath) {
     return getMimeType(filePath)
+  },
+
+  // ---- P2P private messaging (plugin-side API) ----
+  getP2pSummary() {
+    const pending = p2pSessions.filter(s => s.status === 'pending').length
+    const active = p2pSessions.filter(s => s.status === 'active').length
+    const unread = p2pSessions.reduce((a, s) => a + (s.status === 'active' ? s.unreadByHost : 0), 0)
+    return { pending, active, unreadTotal: pending + unread }
+  },
+
+  getP2pSessions() {
+    // Only actionable sessions: pending requests + active conversations.
+    // Deleted/rejected ones are never surfaced to the host lists.
+    return p2pSessions.filter(s => s.status === 'pending' || s.status === 'active').map(p2pSessionView)
+  },
+
+  getP2pMessages(sessionId, after) {
+    const arr = p2pMessages[sessionId] || []
+    return arr.filter(m => !after || m.seq > after)
+  },
+
+  getP2pEvents(since) {
+    const events = p2pEventLog.filter(e => e.seq > (since || 0))
+    return { events, since: p2pEventSeq }
+  },
+
+  respondP2p(id, accept) {
+    const s = findP2pSession(id)
+    if (!s || s.status !== 'pending') return false
+    s.status = accept ? 'active' : 'rejected'
+    s.lastActiveAt = Date.now()
+    saveP2pSessions()
+    pushEvent(accept ? 'p2p.accepted' : 'p2p.rejected', {
+      sessionId: s.id, peerIp: s.peerIp, peerName: s.peerName
+    }, { sessionId: s.id })
+    return true
+  },
+
+  sendP2pMessage(sessionId, text) {
+    const s = findP2pSession(sessionId)
+    if (!s || s.status !== 'active') return false
+    const trimmed = String(text || '').slice(0, P2P_MAX_TEXT)
+    if (!trimmed.trim()) return false
+    const msg = appendP2pMessage(s, {
+      id: crypto.randomBytes(8).toString('hex'), from: 'host', kind: 'text', text: trimmed,
+      createdAt: Date.now(), status: 'sent'
+    })
+    s.unreadByPeer++
+    s.lastActiveAt = Date.now()
+    saveP2pSessions()
+    pushEvent('p2p.message', sanitizeMsgForPeer(msg), { sessionId: s.id })
+    return true
+  },
+
+  sendP2pFiles(sessionId, filePaths) {
+    const s = findP2pSession(sessionId)
+    if (!s || s.status !== 'active') return false
+    const files = []
+    for (const filePath of (filePaths || [])) {
+      let stat = null
+      try { stat = fs.statSync(filePath) } catch (_e) { continue }
+      if (stat.isDirectory()) continue
+      files.push({
+        fileId: 'f' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex'),
+        name: path.basename(filePath),
+        size: stat.size,
+        mime: getMimeType(filePath),
+        direction: 'out',
+        refPath: filePath
+      })
+    }
+    if (files.length === 0) return false
+    const msg = appendP2pMessage(s, {
+      id: crypto.randomBytes(8).toString('hex'), from: 'host', kind: 'files',
+      files, createdAt: Date.now(), status: 'sent'
+    })
+    s.unreadByPeer++
+    s.lastActiveAt = Date.now()
+    saveP2pSessions()
+    pushEvent('p2p.file', sanitizeMsgForPeer(msg), { sessionId: s.id })
+    return true
+  },
+
+  deleteP2pMessage(sessionId, msgId) {
+    const s = findP2pSession(sessionId)
+    if (!s) return false
+    if (!removeP2pMessage(s, msgId)) return false
+    pushEvent('p2p.msgdeleted', { sessionId: s.id, msgId }, { sessionId: s.id })
+    return true
+  },
+
+  // Mark a session's messages as read (host viewed the conversation).
+  markP2pRead(sessionId) {
+    const s = findP2pSession(sessionId)
+    if (!s || s.unreadByHost === 0) return true
+    s.unreadByHost = 0
+    saveP2pSessions()
+    return true
+  },
+
+  deleteP2p(sessionId) {
+    const s = findP2pSession(sessionId)
+    if (!s) return false
+    return destroyP2pSession(s, 'host')
+  },
+
+  getP2pFileSavePath(sessionId, fileId) {
+    const s = findP2pSession(sessionId)
+    if (!s) return ''
+    const f = findP2pFileInSession(sessionId, fileId)
+    return f ? (f.storedPath || f.refPath || '') : ''
+  },
+
+  // Copy a session file to a user-chosen destination (incoming files only).
+  saveP2pFileAs(sessionId, fileId, destPath) {
+    const s = findP2pSession(sessionId)
+    if (!s) return false
+    const f = findP2pFileInSession(sessionId, fileId)
+    const src = f ? (f.storedPath || f.refPath || '') : ''
+    if (!src || !fs.existsSync(src)) return false
+    try {
+      fs.copyFileSync(src, destPath)
+      return true
+    } catch (_e) {
+      return false
+    }
   }
 }
 
@@ -1563,5 +2682,8 @@ window.services = {
 //  Initialize
 // ============================================================
 loadState()
+loadP2pState()
 loadWebUi()
 ensureUploadsDir()
+ensureP2pDir()
+refreshLocalIpSet()

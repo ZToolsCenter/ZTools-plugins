@@ -19,14 +19,19 @@ export function collectForestPaths(nodes: ImportNode[]): string[] {
 }
 
 /**
- * 计算默认勾选集合：**全部勾选**。
+ * 计算默认勾选集合。
  *
- * 已导入的项目同样默认勾选——勾选状态表达的是"该节点应存在于项目树中"，
- * 而不是"本次要新增它"。这样直接确认等于什么都不改；取消某个已导入项目的
- * 勾选，才表示要把它移除。
+ * 批量导入不传 existingPaths 时保留全选语义；层级管理传入已有路径后，
+ * 只有当前 parent subtree 中已经注册的项目默认勾选，新扫描候选必须由用户主动选择。
  */
-export function buildDefaultSelection(nodes: ImportNode[]): Set<string> {
-  return new Set(collectForestPaths(nodes));
+export function buildDefaultSelection(
+  nodes: ImportNode[],
+  existingPaths?: ReadonlySet<string>,
+): Set<string> {
+  const paths = collectForestPaths(nodes);
+  return existingPaths
+    ? new Set(paths.filter((path) => existingPaths.has(path)))
+    : new Set(paths);
 }
 
 /** 在森林中按归一化路径定位节点及其祖先链（祖先在前、目标在后） */

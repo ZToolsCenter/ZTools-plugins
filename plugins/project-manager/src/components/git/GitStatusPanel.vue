@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useGitStore } from '../../stores/git';
 import { useI18n } from 'vue-i18n';
-import { ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import type { Project, GitFileStatus } from '../../types';
 import { showPersistentGitError } from './message';
+import { api } from '../../api';
+import { useProjectExternalActions } from '../../composables/useProjectExternalActions';
+import GitFileContextMenu from './GitFileContextMenu.vue';
+import {
+  gitStatusSelectionKey,
+  isGitStatusSelected,
+  selectedGitStatusFiles,
+  type GitStatusArea,
+} from '../../utils/gitStatusSelection';
 
 const props = defineProps<{
   project: Project;
@@ -13,10 +22,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'staged-split-mousedown': [e: MouseEvent];
+  'open-file-history': [file: string];
 }>();
 
 const { t } = useI18n();
 const gitStore = useGitStore();
+const { resolveEditorPath } = useProjectExternalActions(() => props.project);
 
 const statusResult = computed(() => gitStore.getStatus(props.project.id));
 const stagedFiles = computed(() => statusResult.value?.staged || []);
@@ -33,13 +44,14 @@ const hasChanges = computed(() =>
 // Multi-select state
 const selectedFiles = ref<Set<string>>(new Set());
 const lastClickedFile = ref<string | null>(null);
-const lastClickedArea = ref<'staged' | 'unstaged' | 'conflicted' | null>(null);
+const lastClickedArea = ref<GitStatusArea | null>(null);
+const contextMenu = ref<{ x: number; y: number; targetPath: string; files: GitFileStatus[] } | null>(null);
 
 const selectedStagedCount = computed(() =>
-  stagedFiles.value.filter(f => selectedFiles.value.has(f.path)).length
+  selectedGitStatusFiles(selectedFiles.value, 'staged', stagedFiles.value).length
 );
 const selectedUnstagedCount = computed(() =>
-  unstagedFiles.value.filter(f => selectedFiles.value.has(f.path)).length
+  selectedGitStatusFiles(selectedFiles.value, 'unstaged', unstagedFiles.value).length
 );
 
 // Clear selection when project changes
@@ -47,25 +59,43 @@ watch(() => props.project.id, () => {
   selectedFiles.value.clear();
   lastClickedFile.value = null;
   lastClickedArea.value = null;
+  contextMenu.value = null;
 });
 
 // Clear selection for files that no longer exist in status
 watch(statusResult, () => {
   if (selectedFiles.value.size === 0) return;
   const allPaths = new Set([
-    ...stagedFiles.value.map(f => f.path),
-    ...unstagedFiles.value.map(f => f.path),
-    ...conflictedFiles.value.map(f => f.path),
+    ...stagedFiles.value.map(f => gitStatusSelectionKey('staged', f.path)),
+    ...unstagedFiles.value.map(f => gitStatusSelectionKey('unstaged', f.path)),
+    ...conflictedFiles.value.map(f => gitStatusSelectionKey('conflicted', f.path)),
   ]);
-  for (const path of selectedFiles.value) {
-    if (!allPaths.has(path)) {
-      selectedFiles.value.delete(path);
+  for (const key of selectedFiles.value) {
+    if (!allPaths.has(key)) {
+      selectedFiles.value.delete(key);
     }
   }
 });
 
-function isFileSelected(file: GitFileStatus): boolean {
-  return selectedFiles.value.has(file.path);
+function isFileSelected(file: GitFileStatus, area: GitStatusArea): boolean {
+  return isGitStatusSelected(selectedFiles.value, area, file.path);
+}
+
+function uniqueFiles(files: GitFileStatus[]): GitFileStatus[] {
+  const seen = new Set<string>();
+  return files.filter(file => {
+    if (seen.has(file.path)) return false;
+    seen.add(file.path);
+    return true;
+  });
+}
+
+function selectedStatusFiles(): GitFileStatus[] {
+  return [
+    ...selectedGitStatusFiles(selectedFiles.value, 'staged', stagedFiles.value),
+    ...selectedGitStatusFiles(selectedFiles.value, 'unstaged', unstagedFiles.value),
+    ...selectedGitStatusFiles(selectedFiles.value, 'conflicted', conflictedFiles.value),
+  ];
 }
 
 function getFileList(area: 'staged' | 'unstaged' | 'conflicted'): GitFileStatus[] {
@@ -75,12 +105,13 @@ function getFileList(area: 'staged' | 'unstaged' | 'conflicted'): GitFileStatus[
 }
 
 function handleFileClick(event: MouseEvent, file: GitFileStatus, area: 'staged' | 'unstaged' | 'conflicted') {
+  const key = gitStatusSelectionKey(area, file.path);
   if (event.ctrlKey || event.metaKey) {
     // Ctrl+click: toggle selection
-    if (selectedFiles.value.has(file.path)) {
-      selectedFiles.value.delete(file.path);
+    if (selectedFiles.value.has(key)) {
+      selectedFiles.value.delete(key);
     } else {
-      selectedFiles.value.add(file.path);
+      selectedFiles.value.add(key);
     }
     lastClickedFile.value = file.path;
     lastClickedArea.value = area;
@@ -93,13 +124,13 @@ function handleFileClick(event: MouseEvent, file: GitFileStatus, area: 'staged' 
       const start = Math.min(lastIdx, currentIdx);
       const end = Math.max(lastIdx, currentIdx);
       for (let i = start; i <= end; i++) {
-        selectedFiles.value.add(fileList[i].path);
+        selectedFiles.value.add(gitStatusSelectionKey(area, fileList[i].path));
       }
     }
   } else {
     // Normal click: clear multi-select, select single, view diff
     selectedFiles.value.clear();
-    selectedFiles.value.add(file.path);
+    selectedFiles.value.add(key);
     lastClickedFile.value = file.path;
     lastClickedArea.value = area;
     viewDiff(file);
@@ -131,18 +162,26 @@ function fileDir(path: string): string {
 
 async function viewDiff(file: GitFileStatus) {
   try {
-    await gitStore.getDiff(props.project.path, file.path, file.staged);
+    await gitStore.getDiff(props.project.id, props.project.path, file.path, file.staged, file.old_path);
   } catch (e) {
     showPersistentGitError(t('git.diffLoadFailed', { error: String(e) }));
   }
 }
 
 async function stageFile(file: GitFileStatus) {
-  await gitStore.stageFiles(props.project.id, props.project.path, [file.path]);
+  try {
+    await gitStore.stageFiles(props.project.id, props.project.path, [file.path]);
+  } catch (e) {
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
+  }
 }
 
 async function unstageFile(file: GitFileStatus) {
-  await gitStore.unstageFiles(props.project.id, props.project.path, [file.path]);
+  try {
+    await gitStore.unstageFiles(props.project.id, props.project.path, [file.path]);
+  } catch (e) {
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
+  }
 }
 
 async function discardFile(file: GitFileStatus) {
@@ -162,6 +201,253 @@ async function discardFile(file: GitFileStatus) {
   }
 }
 
+function handleFileContextMenu(
+  event: MouseEvent,
+  file: GitFileStatus,
+  area: 'staged' | 'unstaged' | 'conflicted',
+) {
+  event.preventDefault();
+  const key = gitStatusSelectionKey(area, file.path);
+  if (!selectedFiles.value.has(key)) {
+    selectedFiles.value.clear();
+    selectedFiles.value.add(key);
+    lastClickedFile.value = file.path;
+    lastClickedArea.value = area;
+  }
+  contextMenu.value = {
+    x: event.clientX,
+    y: event.clientY,
+    targetPath: file.path,
+    files: selectedStatusFiles(),
+  };
+}
+
+function closeContextMenu() {
+  contextMenu.value = null;
+}
+
+function isContextMenuElement(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest('.git-file-context-menu'));
+}
+
+function handleGlobalMouseDown(event: MouseEvent) {
+  if (contextMenu.value && !isContextMenuElement(event.target)) closeContextMenu();
+}
+
+function handleGlobalClick(event: MouseEvent) {
+  if (contextMenu.value && !isContextMenuElement(event.target)) closeContextMenu();
+}
+
+function handleGlobalScroll() {
+  if (contextMenu.value) closeContextMenu();
+}
+
+function handleGlobalKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && contextMenu.value) {
+    event.preventDefault();
+    event.stopPropagation();
+    closeContextMenu();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('mousedown', handleGlobalMouseDown, true);
+  document.addEventListener('click', handleGlobalClick);
+  document.addEventListener('wheel', handleGlobalScroll, true);
+  document.addEventListener('scroll', handleGlobalScroll, true);
+  document.addEventListener('keydown', handleGlobalKeydown, true);
+  window.addEventListener('resize', handleGlobalScroll);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('mousedown', handleGlobalMouseDown, true);
+  document.removeEventListener('click', handleGlobalClick);
+  document.removeEventListener('wheel', handleGlobalScroll, true);
+  document.removeEventListener('scroll', handleGlobalScroll, true);
+  document.removeEventListener('keydown', handleGlobalKeydown, true);
+  window.removeEventListener('resize', handleGlobalScroll);
+});
+
+function uniquePaths(files: GitFileStatus[]): string[] {
+  return [...new Set(files.map(file => file.path))];
+}
+
+function fileWithExtension(files: GitFileStatus[]): GitFileStatus[] {
+  return files.filter(file => {
+    const name = file.path.split('/').pop() || file.path;
+    const dot = name.lastIndexOf('.');
+    return dot > 0 && dot < name.length - 1;
+  });
+}
+
+function fileWithDirectory(files: GitFileStatus[]): GitFileStatus[] {
+  return files.filter(file => file.path.includes('/'));
+}
+
+function absoluteFilePath(relativePath: string): string {
+  const root = props.project.path.replace(/[\\/]+$/, '');
+  const separator = root.includes('\\') ? '\\' : '/';
+  return `${root}${separator}${relativePath.replace(/[\\/]+/g, separator)}`;
+}
+
+async function copyPath(value: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    ElMessage.success(t('git.pathCopied'));
+  } catch (e) {
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
+  }
+}
+
+async function confirmDiscard(count: number): Promise<boolean> {
+  try {
+    await ElMessageBox.confirm(
+      t('git.discardNConfirm', { count }),
+      t('common.warning'),
+      { type: 'warning' },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function confirmStopTracking(count: number): Promise<boolean> {
+  try {
+    await ElMessageBox.confirm(
+      t('git.stopTrackingConfirm', { count }),
+      t('common.warning'),
+      {
+        type: 'warning',
+        confirmButtonText: t('git.stopTrackingAndIgnore'),
+        cancelButtonText: t('common.cancel'),
+      },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function handleIgnore(
+  files: GitFileStatus[],
+  kind: 'file' | 'filename' | 'extension' | 'directory',
+  local: boolean,
+) {
+  let applicable = files;
+  if (kind === 'extension') applicable = fileWithExtension(files);
+  if (kind === 'directory') applicable = fileWithDirectory(files);
+  applicable = uniqueFiles(applicable);
+  if (applicable.length === 0) {
+    ElMessage.warning(t('git.ignoreNotApplicable'));
+    return;
+  }
+
+    const tracked = applicable.filter(file => file.status !== 'untracked');
+    const untracked = applicable.filter(file => file.status === 'untracked');
+    try {
+      if (tracked.length > 0) {
+        if (local) {
+          ElMessage.warning(t('git.localIgnoreTrackedUnsupported'));
+        } else {
+          if (!(await confirmStopTracking(tracked.length))) return;
+          await gitStore.stopTracking(
+            props.project.id,
+            props.project.path,
+            uniquePaths(tracked),
+            kind,
+            local,
+          );
+        }
+      }
+      if (untracked.length > 0) {
+      await gitStore.addIgnorePattern(
+        props.project.id,
+        props.project.path,
+        uniquePaths(untracked),
+        kind,
+        local,
+      );
+      }
+      if (tracked.length > 0 && local && untracked.length === 0) return;
+      ElMessage.success(t(local ? 'git.localIgnoreSuccess' : 'git.ignoreSuccess'));
+  } catch (e) {
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
+  }
+}
+
+async function handleContextAction(action: {
+  type: 'stage' | 'unstage' | 'discard' | 'ignore' | 'stopTracking' | 'editor' | 'folder' | 'copyRelative' | 'copyAbsolute' | 'history';
+  kind?: 'file' | 'filename' | 'extension' | 'directory';
+  local?: boolean;
+}) {
+  const menu = contextMenu.value;
+  if (!menu) return;
+  closeContextMenu();
+  const files = menu.files;
+
+  try {
+    if (action.type === 'stage') {
+      const eligible = files.filter(file => !file.staged);
+      if (eligible.length) await gitStore.stageFiles(props.project.id, props.project.path, uniquePaths(eligible));
+      return;
+    }
+    if (action.type === 'unstage') {
+      const eligible = files.filter(file => file.staged);
+      if (eligible.length) await gitStore.unstageFiles(props.project.id, props.project.path, uniquePaths(eligible));
+      return;
+    }
+    if (action.type === 'discard') {
+      const tracked = files.filter(file => !file.staged && file.status !== 'untracked' && file.status !== 'conflicted');
+      const untracked = files.filter(file => !file.staged && file.status === 'untracked');
+      const count = new Set([...tracked, ...untracked].map(file => file.path)).size;
+      if (!count || !(await confirmDiscard(count))) return;
+      if (tracked.length) await gitStore.discardFiles(props.project.id, props.project.path, uniquePaths(tracked));
+      if (untracked.length) await gitStore.discardUntracked(props.project.id, props.project.path, uniquePaths(untracked));
+      return;
+    }
+    if (action.type === 'ignore' && action.kind) {
+      await handleIgnore(files, action.kind, Boolean(action.local));
+      return;
+    }
+    if (action.type === 'stopTracking') {
+      const tracked = files.filter(file => file.status !== 'untracked');
+      if (!tracked.length || !(await confirmStopTracking(tracked.length))) return;
+      await gitStore.stopTracking(
+        props.project.id,
+        props.project.path,
+        uniquePaths(tracked),
+        'file',
+        false,
+      );
+      ElMessage.success(t('git.ignoreSuccess'));
+      return;
+    }
+    const target = absoluteFilePath(menu.targetPath);
+    if (action.type === 'editor') {
+      await api.openInEditor(target, resolveEditorPath(props.project));
+      return;
+    }
+    if (action.type === 'folder') {
+      await api.revealInFolder(target);
+      return;
+    }
+    if (action.type === 'copyRelative') {
+      await copyPath(menu.targetPath);
+      return;
+    }
+    if (action.type === 'copyAbsolute') {
+      await copyPath(target);
+      return;
+    }
+    if (action.type === 'history') {
+      emit('open-file-history', menu.targetPath);
+    }
+  } catch (e) {
+    showPersistentGitError(t('git.operationFailed', { error: String(e) }));
+  }
+}
+
 async function handleStageAll() {
   await gitStore.stageAll(props.project.id, props.project.path);
 }
@@ -173,8 +459,8 @@ async function handleUnstageAll() {
 // Batch operations
 async function handleBatchStage() {
   const files = [
-    ...unstagedFiles.value.filter(f => selectedFiles.value.has(f.path)),
-    ...conflictedFiles.value.filter(f => selectedFiles.value.has(f.path)),
+    ...selectedGitStatusFiles(selectedFiles.value, 'unstaged', unstagedFiles.value),
+    ...selectedGitStatusFiles(selectedFiles.value, 'conflicted', conflictedFiles.value),
   ];
   if (files.length > 0) {
     await gitStore.stageFiles(props.project.id, props.project.path, files.map(f => f.path));
@@ -183,7 +469,7 @@ async function handleBatchStage() {
 }
 
 async function handleBatchUnstage() {
-  const files = stagedFiles.value.filter(f => selectedFiles.value.has(f.path));
+  const files = selectedGitStatusFiles(selectedFiles.value, 'staged', stagedFiles.value);
   if (files.length > 0) {
     await gitStore.unstageFiles(props.project.id, props.project.path, files.map(f => f.path));
     selectedFiles.value.clear();
@@ -196,7 +482,7 @@ async function handleBatchDiscard() {
   } catch {
     return;
   }
-  const selected = unstagedFiles.value.filter(f => selectedFiles.value.has(f.path));
+  const selected = selectedGitStatusFiles(selectedFiles.value, 'unstaged', unstagedFiles.value);
   const untracked = selected.filter(f => f.status === 'untracked');
   const modified = selected.filter(f => f.status !== 'untracked');
   try {
@@ -260,8 +546,9 @@ async function handleBatchDiscard() {
             v-for="file in stagedFiles"
             :key="'s:' + file.path"
             class="git-scm-file-row"
-            :class="{ 'is-selected': isFileSelected(file) }"
+            :class="{ 'is-selected': isFileSelected(file, 'staged') }"
             @click="handleFileClick($event, file, 'staged')"
+            @contextmenu="handleFileContextMenu($event, file, 'staged')"
           >
             <span class="git-scm-file-status" :class="`is-${file.status}`">{{ statusIcon(file.status) }}</span>
             <span class="git-scm-file-main">
@@ -297,8 +584,9 @@ async function handleBatchDiscard() {
               v-for="file in conflictedFiles"
               :key="'c:' + file.path"
               class="git-scm-file-row"
-              :class="{ 'is-selected': isFileSelected(file) }"
+              :class="{ 'is-selected': isFileSelected(file, 'conflicted') }"
               @click="handleFileClick($event, file, 'conflicted')"
+              @contextmenu="handleFileContextMenu($event, file, 'conflicted')"
             >
               <span class="git-scm-file-status is-conflicted">C</span>
               <span class="git-scm-file-main">
@@ -352,8 +640,9 @@ async function handleBatchDiscard() {
             v-for="file in unstagedFiles"
             :key="'u:' + file.path"
             class="git-scm-file-row"
-            :class="{ 'is-selected': isFileSelected(file) }"
+            :class="{ 'is-selected': isFileSelected(file, 'unstaged') }"
             @click="handleFileClick($event, file, 'unstaged')"
+            @contextmenu="handleFileContextMenu($event, file, 'unstaged')"
           >
             <span class="git-scm-file-status" :class="`is-${file.status}`">{{ statusIcon(file.status) }}</span>
             <span class="git-scm-file-main">
@@ -371,6 +660,15 @@ async function handleBatchDiscard() {
         </div>
       </div>
 
+      <GitFileContextMenu
+        v-if="contextMenu"
+        :x="contextMenu.x"
+        :y="contextMenu.y"
+        :target-path="contextMenu.targetPath"
+        :files="contextMenu.files"
+        @action="handleContextAction"
+        @close="closeContextMenu"
+      />
     </template>
   </div>
 </template>

@@ -48,20 +48,20 @@ function handleTagChange(v: string) {
   <div class="batch-action-bar fixed bottom-0 left-0 right-0 z-40 px-3 py-2 flex items-center gap-2">
     <!-- 退出 -->
     <button
-      class="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-1 shrink-0"
+      class="app-icon-btn !h-7 !min-w-7 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-1 shrink-0"
       @click="emit('exit')"
     >
       <div class="i-mdi-close text-sm" />
     </button>
 
     <!-- 选中数量 -->
-    <span class="text-[11px] text-slate-500 dark:text-slate-400 shrink-0">
+    <span class="app-text-meta text-slate-500 dark:text-slate-400 shrink-0">
       {{ t('dashboard.batchSelected', { count: selectedCount }) }}
     </span>
 
     <!-- 全选 -->
     <button
-      class="app-outline-action text-[11px] px-1.5 py-0.5 shrink-0"
+      class="app-outline-action app-text-control px-1.5 py-0.5 shrink-0"
       @click="emit('toggleSelectAll')"
     >
       {{ isAllSelected ? t('dashboard.batchDeselectAll') : t('dashboard.batchSelectAll') }}
@@ -118,17 +118,17 @@ function handleTagChange(v: string) {
 
     <!-- 置顶/取消置顶 -->
     <button
-      class="app-outline-action text-[11px] px-1.5 py-0.5 shrink-0"
+      class="app-outline-action app-text-control px-1.5 py-0.5 shrink-0"
       @click="emit('batchPin')"
     >
-      <div class="i-mdi-pin text-[10px] inline mr-0.5" />
+      <div class="i-mdi-pin text-xs inline mr-0.5" />
       {{ t('dashboard.batchPin') }}
     </button>
     <button
-      class="app-outline-action text-[11px] px-1.5 py-0.5 shrink-0"
+      class="app-outline-action app-text-control px-1.5 py-0.5 shrink-0"
       @click="emit('batchUnpin')"
     >
-      <div class="i-mdi-pin-off text-[10px] inline mr-0.5" />
+      <div class="i-mdi-pin-off text-xs inline mr-0.5" />
       {{ t('dashboard.batchUnpin') }}
     </button>
 
@@ -136,24 +136,24 @@ function handleTagChange(v: string) {
 
     <!-- 右侧危险/辅助操作 -->
     <button
-      class="app-outline-action text-[11px] px-1.5 py-0.5 shrink-0"
+      class="app-outline-action app-text-control px-1.5 py-0.5 shrink-0"
       @click="emit('batchRefresh')"
     >
-      <div class="i-mdi-refresh text-[10px] inline mr-0.5" />
+      <div class="i-mdi-refresh text-xs inline mr-0.5" />
       {{ t('common.refresh') }}
     </button>
     <button
-      class="app-outline-action text-[11px] px-1.5 py-0.5 shrink-0"
+      class="app-outline-action app-text-control px-1.5 py-0.5 shrink-0"
       @click="emit('batchOpenFolder')"
     >
-      <div class="i-mdi-folder-open-outline text-[10px] inline mr-0.5" />
+      <div class="i-mdi-folder-open-outline text-xs inline mr-0.5" />
       {{ t('dashboard.batchOpenFolder') }}
     </button>
     <button
-      class="app-danger-action text-[11px] px-1.5 py-0.5 shrink-0"
+      class="app-danger-action app-text-control px-1.5 py-0.5 shrink-0"
       @click="emit('batchRemove')"
     >
-      <div class="i-mdi-delete-outline text-[10px] inline mr-0.5" />
+      <div class="i-mdi-delete-outline text-xs inline mr-0.5" />
       {{ t('dashboard.batchRemove') }}
     </button>
   </div>

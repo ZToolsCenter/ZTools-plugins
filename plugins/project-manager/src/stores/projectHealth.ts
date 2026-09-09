@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { api } from '../api';
 import type { Project, ProjectHealthSnapshot, ProjectHealthIssue } from '../types';
 import { useNodeStore } from './node';
-import { resolveProjectNodePath } from '../utils/nodeRuntime';
+import { resolveAppDefaultNodePath, resolveProjectNodePath } from '../utils/nodeRuntime';
 
 export const useProjectHealthStore = defineStore('projectHealth', () => {
   /** 项目健康快照缓存 */
@@ -120,13 +120,10 @@ export const useProjectHealthStore = defineStore('projectHealth', () => {
           try {
             const nodeStore = useNodeStore();
             if (!nodeStore.versions.length) {
-              await nodeStore.loadNvmNodes();
+              await nodeStore.loadRuntimes();
             }
-            const nodePath = resolveProjectNodePath(project, nodeStore.versions);
-            let defaultNodePath = '';
-            try {
-              defaultNodePath = await api.getSystemNodePath();
-            } catch (_) {}
+            const nodePath = resolveProjectNodePath(project, nodeStore.versions, nodeStore.appDefault, nodeStore.systemNodeRuntime);
+            const defaultNodePath = resolveAppDefaultNodePath(nodeStore.versions, nodeStore.appDefault, nodeStore.systemNodeRuntime);
 
             const source = project.packageManagerSource || 'project';
             const pmResult = await api.resolvePackageManager(

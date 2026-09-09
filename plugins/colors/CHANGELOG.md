@@ -1,8 +1,9 @@
 # Changelog
 
-所有对本项目的重要变动都会记录在此文件中。
-## 1.5.0 - 2026-06-15 ([v1.4.2...v1.5.0](https://github.com/mekefly/colors/compare/v1.4.2...v1.5.0))
 
+所有对本项目的重要变动都会记录在此文件中。
+
+## 1.5.0 - 2026-06-15
 
 ### ✨ Features
 
@@ -13,8 +14,10 @@
 
 - fmt
 - 插件更名为调色板
-## 1.4.2 - 2026-06-14 ([v1.4.1...v1.4.2](https://github.com/mekefly/colors/compare/v1.4.1...v1.4.2))
 
+相关链接：<https://github.com/mekefly/colors/compare/v1.4.2...v1.5.0>
+
+## 1.4.2 - 2026-06-14
 
 ### 🐛 Bug Fixes
 
@@ -24,15 +27,19 @@
 ### 🔧 Chores
 
 - 忽略掉lint未使用的变量规则
-## 1.4.1 - 2026-06-14 ([v1.4.0...v1.4.1](https://github.com/mekefly/colors/compare/v1.4.0...v1.4.1))
 
+相关链接：<https://github.com/mekefly/colors/compare/v1.4.1...v1.4.2>
+
+## 1.4.1 - 2026-06-14
 
 ### 🔧 Chores
 
 - fmt
 - 添加 git-cliff 配置、release 脚本和 CHANGELOG
 
-## 1.4.0 - 2026-06-13  ([#13](https://github.com/mekefly/colors/pull/13))
+相关链接：<https://github.com/mekefly/colors/compare/v1.4.0...v1.4.1>
+
+## 1.4.0 - 2026-06-13
 
 #### ✨ 新功能
 
@@ -57,7 +64,9 @@
 
 - updata version
 
-## 1.3.0 - 2026-05-11  ([#11](https://github.com/mekefly/colors/pull/11))
+相关链接：<https://github.com/mekefly/colors/pull/13>
+
+## 1.3.0 - 2026-05-11
 
 #### ✨ 新功能
 
@@ -75,7 +84,9 @@
 - 更新版本号
 - 修复样式
 
-## 1.2.2 - 2026-05-09  ([#10](https://github.com/mekefly/colors/pull/10))
+相关链接：<https://github.com/mekefly/colors/pull/11>
+
+## 1.2.2 - 2026-05-09
 
 #### 🐛 Bug 修复
 
@@ -89,7 +100,9 @@
 
 - 更新版本1.2.2
 
-## 1.2.1 - 2026-05-09  ([#9](https://github.com/mekefly/colors/pull/9))
+相关链接：<https://github.com/mekefly/colors/pull/10>
+
+## 1.2.1 - 2026-05-09
 
 #### 🐛 Bug 修复
 
@@ -99,7 +112,9 @@
 
 - 更新版本号1.2.1
 
-## 1.2.0 - 2026-05-08  ([#8](https://github.com/mekefly/colors/pull/8))
+相关链接：<https://github.com/mekefly/colors/pull/9>
+
+## 1.2.0 - 2026-05-08
 
 #### ✨ 新功能
 
@@ -130,7 +145,9 @@
 - 更新README文档
 - 发布1.2.0版本
 
-## 1.1.0 - 2026-04-28  ([#7](https://github.com/mekefly/colors/pull/7))
+相关链接：<https://github.com/mekefly/colors/pull/8>
+
+## 1.1.0 - 2026-04-28
 
 #### ✨ 新功能
 
@@ -153,7 +170,9 @@
 - 修改版本号到1.1.0
 - 代码格式化
 
-## 1.0.4 - 2026-04-25  ([#6](https://github.com/mekefly/colors/pull/6))
+相关链接：<https://github.com/mekefly/colors/pull/7>
+
+## 1.0.4 - 2026-04-25
 
 #### ✨ 新功能
 
@@ -175,7 +194,9 @@
 - 修改package
 - 不直接从@ztools-center/ztools-api-types引入api而是经过window
 
-## 1.0.3 - 2026-04-24  ([#5](https://github.com/mekefly/colors/pull/5))
+相关链接：<https://github.com/mekefly/colors/pull/6>
+
+## 1.0.3 - 2026-04-24
 
 #### ✨ 新功能
 
@@ -187,7 +208,9 @@
 - 更新文档
 - 更新版本信息
 
-## 1.0.2 - 2026-04-24  ([#4](https://github.com/mekefly/colors/pull/4))
+相关链接：<https://github.com/mekefly/colors/pull/5>
+
+## 1.0.2 - 2026-04-24
 
 #### ✨ 新功能
 
@@ -203,7 +226,9 @@
 - 删除遗留的console.log
 - 删除一些暂时没用启用的代码
 
-## 1.0.1 - 2026-04-24  ([#3](https://github.com/mekefly/colors/pull/3))
+相关链接：<https://github.com/mekefly/colors/pull/4>
+
+## 1.0.1 - 2026-04-24
 
 #### 📝 其他
 
@@ -215,3 +240,15 @@
 
 ---
 此文件由 [git-cliff](https://github.com/orhun/git-cliff) 配置 + 脚本自动生成。
+
+相关链接：<https://github.com/mekefly/colors/pull/3>
+
+## 1.0.0 - 2026-04-23
+
+- 初次发布，将插件提交至 ZTools 插件仓库。
+- pnpm不兼容构建
+- vue更新到最新3.6
+- 配置tailwindcss
+- 加入了ZTollsApi
+- 颜色助手已完成
+- 优化显示异常

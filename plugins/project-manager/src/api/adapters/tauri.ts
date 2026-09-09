@@ -2,10 +2,28 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getVersion } from '@tauri-apps/api/app';
 import { open as openDialogFn, save as saveDialogFn } from '@tauri-apps/plugin-dialog';
-import { openPath as openPathFn, openUrl as openUrlFn } from '@tauri-apps/plugin-opener';
-import type { PlatformAPI, ProjectInfo, TerminalInfo, EditorInfo, PortEntry, PackageManagerResolveResult } from '../types';
+import { openUrl as openUrlFn } from '@tauri-apps/plugin-opener';
+import type {
+    PlatformAPI,
+    ProjectInfo,
+    TerminalInfo,
+    EditorInfo,
+    PortEntry,
+    PackageManagerResolveResult,
+    WorkspaceDirEntry,
+    WorkspaceStat,
+    EditorFileSnapshot,
+    EditorWriteResult,
+    ProjectOutputPayload,
+    ProjectExitPayload,
+} from '../types';
 import type {
     NodeVersion,
+    NodeInstallProgress,
+    NodeReleaseInfo,
+    SystemNodeState,
+    SystemNodeSwitchOptions,
+    SystemNodeSwitchResult,
     GitStatusResult,
     GitBranch,
     GitCommit,
@@ -16,28 +34,43 @@ import type {
     GitTag,
     GitResetMode,
     GitPullStrategy,
+    GitIgnoreKind,
+    GitHunkMode,
+    GitImageDiffPayload,
+    GitBinaryDiffMeta,
+    ManagedRuntimeLocation,
+    ManagedRuntimeLocationInfo,
+    ManagedRuntimeSizeInfo,
 } from '../../types';
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { assertSafeExternalUrl } from '../../utils/externalUrl';
 
 export class TauriAdapter implements PlatformAPI {
     private appWindow = getCurrentWindow();
 
-    // NVM
-    async getNvmList(): Promise<NodeVersion[]> {
-        return invoke('get_nvm_list');
+    async listInstalledNodeRuntimes(): Promise<NodeVersion[]> {
+        return invoke('list_installed_node_runtimes');
     }
 
-    async installNode(version: string): Promise<string> {
-        return invoke('install_node', { version });
+    async scanNvmNodeRuntimes(): Promise<NodeVersion[]> {
+        return invoke('scan_nvm_node_runtimes');
     }
 
-    async uninstallNode(version: string): Promise<string> {
-        return invoke('uninstall_node', { version });
+    async listAvailableNodeReleases(): Promise<NodeReleaseInfo[]> {
+        return invoke('list_available_node_releases');
     }
 
-    async useNode(version: string): Promise<string> {
-        return invoke('use_node', { version });
+    async installManagedNode(version: string, operationId?: string): Promise<string> {
+        return invoke('install_managed_node', { version, operationId: operationId || null });
+    }
+
+    async cancelManagedNodeInstall(operationId: string): Promise<void> {
+        return invoke('cancel_managed_node_install', { operationId });
+    }
+
+    async uninstallManagedNode(version: string): Promise<void> {
+        return invoke('uninstall_managed_node', { version });
     }
 
     async getSystemNodePath(): Promise<string> {
@@ -46,6 +79,74 @@ export class TauriAdapter implements PlatformAPI {
 
     async getNodeVersion(path: string): Promise<string> {
         return invoke('get_node_version', { path });
+    }
+
+    async getSystemNodeState(): Promise<SystemNodeState> {
+        return invoke('get_system_node_state');
+    }
+
+    async switchSystemNode(runtime: NodeVersion, options: SystemNodeSwitchOptions = {}): Promise<SystemNodeSwitchResult> {
+        return invoke('switch_system_node', { runtime, options });
+    }
+
+    async systemNodeSwitchSupported(): Promise<boolean> {
+        return invoke('system_node_switch_supported_command');
+    }
+
+    async managedNodeRuntimeSupported(): Promise<boolean> {
+        return invoke('managed_node_runtime_supported');
+    }
+
+    async getManagedNodeRuntimeLocation(): Promise<ManagedRuntimeLocationInfo> {
+        return invoke('get_managed_node_runtime_location');
+    }
+
+    async getManagedNodeRuntimeSize(): Promise<ManagedRuntimeSizeInfo> {
+        return invoke('get_managed_node_runtime_size');
+    }
+
+    async openManagedNodeRuntimeRoot(): Promise<void> {
+        return invoke('open_managed_node_runtime_root');
+    }
+
+    async migrateManagedNodeRuntimeLocation(
+        location: ManagedRuntimeLocation,
+        migrate: boolean,
+        runningRuntimePaths: string[] = [],
+    ): Promise<ManagedRuntimeLocationInfo> {
+        return invoke('migrate_managed_node_runtime_location', {
+            mode: location.mode,
+            customPath: location.customPath || null,
+            migrate,
+            runningRuntimePaths,
+        });
+    }
+
+    async onNodeRuntimeProgress(callback: (payload: NodeInstallProgress) => void): Promise<() => void> {
+        return listen<NodeInstallProgress>('node-runtime-progress', (event) => {
+            callback(event.payload);
+        });
+    }
+
+    /** @deprecated */
+    async getNvmList(): Promise<NodeVersion[]> {
+        return this.listInstalledNodeRuntimes();
+    }
+
+    /** @deprecated */
+    async installNode(version: string): Promise<string> {
+        return this.installManagedNode(version);
+    }
+
+    /** @deprecated */
+    async uninstallNode(version: string): Promise<string> {
+        await this.uninstallManagedNode(version);
+        return 'ok';
+    }
+
+    /** @deprecated */
+    async useNode(_version: string): Promise<string> {
+        throw new Error('use_node is deprecated; set the Project Manager default Node instead');
     }
 
     // Project
@@ -74,16 +175,24 @@ export class TauriAdapter implements PlatformAPI {
     }
 
     // Runner
-    async runProjectCommand(id: string, path: string, script: string, packageManager: string, nodePath: string, commandPath?: string, pmNodePath?: string): Promise<void> {
-        return invoke('run_project_command', { id, path, script, packageManager, nodePath, commandPath: commandPath || null, pmNodePath: pmNodePath || null });
+    async runProjectCommand(commandKey: string, sessionId: string, path: string, script: string, packageManager: string, nodePath: string, commandPath?: string, pmNodePath?: string): Promise<void> {
+        return invoke('run_project_command', { commandKey, sessionId, path, script, packageManager, nodePath, commandPath: commandPath || null, pmNodePath: pmNodePath || null });
     }
 
-    async runCustomCommand(id: string, path: string, command: string): Promise<void> {
-        return invoke('run_custom_command', { id, path, command });
+    async runCustomCommand(commandKey: string, sessionId: string, path: string, command: string): Promise<void> {
+        return invoke('run_custom_command', { commandKey, sessionId, path, command });
     }
 
-    async stopProjectCommand(id: string): Promise<void> {
-        return invoke('stop_project_command', { id });
+    async stopProjectCommand(commandKey: string): Promise<void> {
+        return invoke('stop_project_command', { commandKey });
+    }
+
+    async sendProjectInput(commandKey: string, input: string): Promise<void> {
+        return invoke('send_project_input', { commandKey, input });
+    }
+
+    async closeProjectInput(commandKey: string): Promise<void> {
+        return invoke('close_project_input', { commandKey });
     }
 
     async installPm(nodePath: string, pmName: string): Promise<void> {
@@ -99,28 +208,37 @@ export class TauriAdapter implements PlatformAPI {
         return invoke('open_in_editor', { path, editor });
     }
 
+    async getHomeDirectory(): Promise<string> {
+        return invoke('get_home_directory');
+    }
+
     async openInTerminal(path: string, terminal?: string, nodePath?: string, packageManager?: string): Promise<void> {
         return invoke('open_in_terminal', { path, terminal: terminal || 'cmd', nodePath: nodePath || '', packageManager: packageManager || '' });
     }
 
     async openFolder(path: string): Promise<void> {
-        try {
-            await openPathFn(path);
-        } catch {
-            return invoke('open_folder', { path });
-        }
+        return invoke('open_folder', { path });
+    }
+
+    async openPath(path: string): Promise<void> {
+        return invoke('open_path', { path });
+    }
+
+    async revealInFolder(path: string): Promise<void> {
+        return invoke('reveal_in_folder', { path });
     }
 
     async openUrl(url: string): Promise<void> {
+        const safeUrl = assertSafeExternalUrl(url);
         // Prefer plugin if available, or backend if needed.
         // The project has both. Let's use the backend one if it does custom logic,
         // or the plugin one if it's standard.
         // Settings.vue uses plugin.
         try {
-            await openUrlFn(url);
+            await openUrlFn(safeUrl);
         } catch (e) {
             // Fallback to invoke if plugin fails or if we prefer invoke
-            return invoke('open_url', { url });
+            return invoke('open_url', { url: safeUrl });
         }
     }
 
@@ -131,6 +249,26 @@ export class TauriAdapter implements PlatformAPI {
 
     async writeConfigFile(filename: string, content: string): Promise<void> {
         return invoke('write_config_file', { filename, content });
+    }
+
+    async hasConfigBackup(filename: string): Promise<boolean> {
+        return invoke('has_config_backup', { filename });
+    }
+
+    async readConfigBackup(filename: string): Promise<string> {
+        return invoke('read_config_backup', { filename });
+    }
+
+    async restoreConfigBackup(filename: string): Promise<string> {
+        return invoke('restore_config_backup', { filename });
+    }
+
+    async canOpenConfigDirectory(): Promise<boolean> {
+        return true;
+    }
+
+    async openConfigDirectory(): Promise<void> {
+        return invoke('open_config_directory');
     }
 
     async readTextFile(path: string): Promise<string> {
@@ -149,13 +287,60 @@ export class TauriAdapter implements PlatformAPI {
         return invoke('read_dir', { path });
     }
 
-    // Updater
-    async installUpdate(url: string): Promise<void> {
-        return invoke('install_update', { url });
+    async workspaceReadDir(root: string, relativePath: string): Promise<WorkspaceDirEntry[]> {
+        return invoke('workspace_read_dir', { root, relativePath });
     }
 
-    async cancelUpdate(): Promise<void> {
-        return invoke('cancel_update');
+    async workspaceCreateFile(root: string, relativePath: string): Promise<void> {
+        return invoke('workspace_create_file', { root, relativePath });
+    }
+
+    async workspaceCreateDirectory(root: string, relativePath: string): Promise<void> {
+        return invoke('workspace_create_directory', { root, relativePath });
+    }
+
+    async workspaceRename(root: string, fromRelative: string, toRelative: string): Promise<void> {
+        return invoke('workspace_rename', { root, fromRelative, toRelative });
+    }
+
+    async workspaceTrash(root: string, relativePath: string): Promise<void> {
+        return invoke('workspace_trash', { root, relativePath });
+    }
+
+    async workspaceStat(root: string, relativePath: string): Promise<WorkspaceStat> {
+        return invoke('workspace_stat', { root, relativePath });
+    }
+
+    async workspaceReadEditorFile(root: string, relativePath: string): Promise<EditorFileSnapshot> {
+        return invoke('workspace_read_editor_file', { root, relativePath });
+    }
+
+    async workspaceReadBinaryFileBase64(root: string, relativePath: string): Promise<string> {
+        return invoke('workspace_read_binary_file_base64', { root, relativePath });
+    }
+
+    async workspaceWriteEditorFile(
+        root: string,
+        relativePath: string,
+        content: string,
+        expectedDiskVersion?: string,
+        eol?: 'lf' | 'crlf',
+        bom?: boolean,
+        force?: boolean,
+    ): Promise<EditorWriteResult> {
+        return invoke('workspace_write_editor_file', {
+            root,
+            relativePath,
+            content,
+            expectedDiskVersion,
+            eol,
+            bom,
+            force,
+        });
+    }
+
+    async workspaceTrashMode(): Promise<'recycle_bin' | 'permanent'> {
+        return invoke('workspace_trash_mode');
     }
 
     async getAppVersion(): Promise<string> {
@@ -172,20 +357,14 @@ export class TauriAdapter implements PlatformAPI {
     }
 
     // Events
-    async onProjectOutput(callback: (payload: { id: string; data: string }) => void): Promise<() => void> {
-        return listen<any>('project-output', (event) => {
+    async onProjectOutput(callback: (payload: ProjectOutputPayload) => void): Promise<() => void> {
+        return listen<ProjectOutputPayload>('project-output', (event) => {
             callback(event.payload);
         });
     }
 
-    async onProjectExit(callback: (payload: { id: string }) => void): Promise<() => void> {
-        return listen<any>('project-exit', (event) => {
-            callback(event.payload);
-        });
-    }
-
-    async onDownloadProgress(callback: (percentage: number) => void): Promise<() => void> {
-        return listen<number>('download-progress', (event) => {
+    async onProjectExit(callback: (payload: ProjectExitPayload) => void): Promise<() => void> {
+        return listen<ProjectExitPayload>('project-exit', (event) => {
             callback(event.payload);
         });
     }
@@ -457,6 +636,30 @@ export class TauriAdapter implements PlatformAPI {
 
     async gitDiffCommitFile(path: string, hash: string, file: string): Promise<string> {
         return invoke('git_diff_commit_file', { path, hash, file });
+    }
+
+    async gitGetImageDiff(path: string, file: string, staged?: boolean, commit?: string, oldPath?: string): Promise<GitImageDiffPayload> {
+        return invoke('git_get_image_diff', { path, file, staged, commit, oldPath });
+    }
+
+    async gitGetBinaryDiffMeta(path: string, file: string, staged?: boolean, commit?: string, oldPath?: string): Promise<GitBinaryDiffMeta> {
+        return invoke('git_get_binary_diff_meta', { path, file, staged, commit, oldPath });
+    }
+
+    async gitFileHistory(path: string, file: string, maxCount?: number): Promise<GitCommit[]> {
+        return invoke('git_file_history', { path, file, maxCount });
+    }
+
+    async gitAddIgnorePattern(path: string, files: string[], kind: GitIgnoreKind, local?: boolean): Promise<string[]> {
+        return invoke('git_add_ignore_pattern', { path, files, kind, local });
+    }
+
+    async gitStopTracking(path: string, files: string[], kind: GitIgnoreKind, local?: boolean): Promise<string> {
+        return invoke('git_stop_tracking', { path, files, kind, local });
+    }
+
+    async gitApplyHunk(path: string, patch: string, mode: GitHunkMode): Promise<string> {
+        return invoke('git_apply_hunk', { path, patch, mode });
     }
 
     async gitRevertHunk(path: string, patch: string, staged?: boolean): Promise<string> {

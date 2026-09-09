@@ -1,6 +1,6 @@
 {
   "name": "automatic-assistant",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "自动化助手，让繁琐的步骤一步到位",
   "type": "module",
   "scripts": {

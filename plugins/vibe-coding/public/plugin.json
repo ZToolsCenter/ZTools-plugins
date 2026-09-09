@@ -2,7 +2,7 @@
   "name": "vibe-coding",
   "title": "Vibe Coding",
   "description": "全能 AI 助手，支持对话、网页搜索、工具调用与 ZTools 插件开发",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.png",

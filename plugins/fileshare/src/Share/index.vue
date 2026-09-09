@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import QRCode from 'qrcode'
 import type { SharedItem, NetworkInterface, ServerConfig, ScanResult, DownloadLog } from './types'
 import NetworkSelector from './NetworkSelector.vue'
 import FileTree from './FileTree.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
+import P2pCenter from './P2pCenter.vue'
 
 const props = defineProps<{
   enterAction: { type: string; payload: any; code: string }
@@ -45,6 +46,13 @@ const downloadLogs = ref<DownloadLog[]>([])
 const whitelist = ref<string[]>([])
 const newWhitelistIp = ref('')
 const showWhitelist = ref(false)
+
+// P2P private messaging
+const showP2pCenter = ref(false)
+const p2pBadge = ref(0)
+const p2pEventTick = ref(0)
+const p2pEventSince = ref(0)
+let p2pPollTimer: ReturnType<typeof setInterval> | null = null
 
 // File Preview
 const showPreview = ref(false)
@@ -275,7 +283,54 @@ onMounted(() => {
   generateMainQr()
   pollTimer = setInterval(pollShareList, 3000)
   window.addEventListener('keydown', onPreviewKeydown)
+  initP2p()
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('zshare:p2p', onP2pEvent)
+  if (p2pPollTimer) clearInterval(p2pPollTimer)
+})
+
+// ---- P2P: badge, realtime events (CustomEvent), and missed-event catch-up ----
+function initP2p() {
+  const ev = window.services.getP2pEvents(0)
+  p2pEventSince.value = ev.since
+  refreshP2pBadge()
+  window.addEventListener('zshare:p2p', onP2pEvent)
+  p2pPollTimer = setInterval(pollP2p, 2500)
+}
+
+function onP2pEvent() {
+  pollP2p()
+}
+
+function pollP2p() {
+  const res = window.services.getP2pEvents(p2pEventSince.value)
+  if (res.since !== p2pEventSince.value) {
+    for (const ev of res.events) {
+      if (ev.type === 'p2p.request') {
+        showToast(`收到连接申请：${ev.data.peerName || ev.data.peerIp}`)
+      }
+    }
+    p2pEventSince.value = res.since
+    p2pEventTick.value++
+  }
+  refreshP2pBadge()
+}
+
+function refreshP2pBadge() {
+  const summary = window.services.getP2pSummary()
+  p2pBadge.value = summary.unreadTotal
+}
+
+function openP2pCenter() {
+  showP2pCenter.value = true
+  p2pEventTick.value++
+}
+
+function handleP2pPreview(payload: { name: string; path: string }) {
+  handlePreview({ name: payload.name, path: payload.path, isDirectory: false } as SharedItem)
+}
 
 // Auto-focus preview modal when opened so keyboard events work
 watch(showPreview, (val) => {
@@ -535,7 +590,9 @@ const shareGroups = computed(() => {
   const host: SharedItem[] = []
   const byIp: Record<string, SharedItem[]> = {}
   for (const item of shareList.value) {
-    if (item.origin && item.origin.type === 'upload') {
+    // Uploads made from the plugin machine itself (origin.local) are host-side
+    // files — show them under 主机共享, not as a remote client's upload.
+    if (item.origin && item.origin.type === 'upload' && !item.origin.local) {
       const ip = item.origin.ip || '未知来源'
       if (!byIp[ip]) byIp[ip] = []
       byIp[ip].push(item)
@@ -745,6 +802,10 @@ function handleShareText() {
         </button>
         <span class="status-dot" :class="{ running: serverConfig.running }"></span>
         <span class="status-text">{{ serverConfig.running ? '运行中' : '已停止' }}</span>
+        <button class="btn btn-sm p2p-toolbar-btn" @click="openP2pCenter" title="消息">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+          <span v-if="p2pBadge > 0" class="p2p-toolbar-badge">{{ p2pBadge > 99 ? '99+' : p2pBadge }}</span>
+        </button>
         <button class="btn btn-sm" @click="openLogs" title="下载日志">
           <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         </button>
@@ -1012,6 +1073,9 @@ function handleShareText() {
       </button>
     </div>
 
+    <!-- P2P Workbench -->
+    <P2pCenter v-if="showP2pCenter" :event-tick="p2pEventTick" @close="showP2pCenter = false" @preview="handleP2pPreview" />
+
   </div>
 </template>
 
@@ -1042,6 +1106,17 @@ function handleShareText() {
 .status-dot.running { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
 .status-text { font-size: 11px; color: var(--text-secondary); }
 
+/* P2P toolbar button badge */
+.p2p-toolbar-btn { position: relative; }
+.p2p-toolbar-badge {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 8px; background: var(--danger); color: #fff;
+  font-size: 10px; font-weight: 600; line-height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
 /* Buttons */
 .btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; white-space: nowrap; flex-shrink: 0; }
 .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
@@ -1062,7 +1137,7 @@ function handleShareText() {
 [data-theme="dark"] .btn-icon.copied { background: #14532d; }
 
 /* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; }
 .qr-modal { background: var(--bg); border-radius: 12px; padding: 28px 32px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.15); max-width: 380px; width: 90%; }
 .qr-title { font-size: 14px; font-weight: 600; margin-bottom: 20px; color: var(--text); }
 .qr-svg { display: inline-block; margin-bottom: 16px; }

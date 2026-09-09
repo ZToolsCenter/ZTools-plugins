@@ -1,0 +1,49 @@
+{
+  "name": "ztools-mise-manager",
+  "title": "Mise 控制台",
+  "description": "🚀 可视化管理 mise 开发工具版本。支持已装工具总览、安装/卸载/切换版本、工具市场浏览、项目 .mise.toml 配置管理。",
+  "version": "0.0.1",
+  "main": "index.html",
+  "author": "wangtao",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "mise-manager",
+      "explain": "可视化管理 mise 工具与版本（需本机安装 mise，Windows: winget install jdx.mise，macOS: brew install mise）",
+      "cmds": [
+        "mise",
+        "mise管理",
+        "mise控制台",
+        "mise版本"
+      ]
+    },
+    {
+      "code": "mise-quick-install",
+      "explain": "快速安装工具版本 (e.g. mise 装 node@22, mise install node@22)",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "mise 快速安装",
+          "match": "/^mise\\s*(装|安装|install)\\s*([a-z0-9-]+)(@(.+))?/i"
+        }
+      ]
+    },
+    {
+      "code": "mise-quick-switch",
+      "explain": "快速切换全局工具版本 (e.g. mise 切 node@22, mise use node@22)",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "mise 快速切换",
+          "match": "/^mise\\s*(切|切换|use|全局)\\s*([a-z0-9-]+)(@(.+))?/i"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ]
+}

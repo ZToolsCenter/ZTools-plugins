@@ -1,5 +1,6 @@
-# [1.22.0](https://github.com/fevrax/json-tools/compare/v1.21.0...v1.22.0) (2026-05-03)
+# Changelog
 
+## 1.22.0 - 2026-05-03
 
 ### Bug Fixes
 
@@ -15,8 +16,9 @@
 * increase decorator recognition size limits for base64/url/unicode/image ([6cc6034](https://github.com/fevrax/json-tools/commit/6cc603416499ceda85c2ad9550d6aac5eb6b1817))
 * Increase word count statistics ([1ca5d76](https://github.com/fevrax/json-tools/commit/1ca5d7648678c7f6e75f3c89dc6c999df92200f6))
 
-# [1.21.0](https://github.com/fevrax/json-tools/compare/v1.20.0...v1.21.0) (2026-03-15)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.21.0...v1.22.0>
 
+## 1.21.0 - 2026-03-15
 
 ### Bug Fixes
 
@@ -29,8 +31,9 @@
 
 * add linux/arm64 docker build ([f5a20a1](https://github.com/fevrax/json-tools/commit/f5a20a11a6c973085c873b013ba804b292ce138c))
 
-# [1.20.0](https://github.com/fevrax/json-tools/compare/v1.19.0...v1.20.0) (2026-03-15)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.20.0...v1.21.0>
 
+## 1.20.0 - 2026-03-15
 
 ### Bug Fixes
 
@@ -43,51 +46,58 @@
 
 * tab history ([47b881d](https://github.com/fevrax/json-tools/commit/47b881db282c848643777e6f5d48fb5f7063a379))
 
-# [1.19.0](https://github.com/fevrax/json-tools/compare/v1.18.1...v1.19.0) (2026-03-10)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.19.0...v1.20.0>
 
+## 1.19.0 - 2026-03-10
 
 ### Features
 
 * refactor local storage ([eebdbe4](https://github.com/fevrax/json-tools/commit/eebdbe49390427ff0e7877bda5b358e810c7a764))
 
-## [1.18.1](https://github.com/fevrax/json-tools/compare/v1.18.0...v1.18.1) (2025-12-30)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.18.1...v1.19.0>
 
+## 1.18.1 - 2025-12-30
 
 ### Bug Fixes
 
 * build docker ([2cd3edd](https://github.com/fevrax/json-tools/commit/2cd3edd2083fe9be6ce2960533e991056b83ff3c))
 
-# [1.18.0](https://github.com/fevrax/json-tools/compare/v1.17.1...v1.18.0) (2025-12-28)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.18.0...v1.18.1>
 
+## 1.18.0 - 2025-12-28
 
 ### Features
 
 * automatically save historical data ([09e2e83](https://github.com/fevrax/json-tools/commit/09e2e837b0808854ee3651200df677f6d0b598ae))
 * show history ([b2a05e2](https://github.com/fevrax/json-tools/commit/b2a05e258a31713d7e1110abe1a980564124ccf5))
 
-## [1.17.1](https://github.com/fevrax/json-tools/compare/v1.17.0...v1.17.1) (2025-12-28)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.17.1...v1.18.0>
 
+## 1.17.1 - 2025-12-28
 
 ### Bug Fixes
 
 * save bug when setting ([e3a3610](https://github.com/fevrax/json-tools/commit/e3a36106eeaeeb5d1f16c2b9d4494122d923eaa7))
 
-# [1.17.0](https://github.com/fevrax/json-tools/compare/v1.16.1...v1.17.0) (2025-12-07)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.17.0...v1.17.1>
 
+## 1.17.0 - 2025-12-07
 
 ### Features
 
 * pwa install ([a291c57](https://github.com/fevrax/json-tools/commit/a291c5721e6aa67a112b8b5c44988901a20a4446))
 
-## [1.16.1](https://github.com/fevrax/json-tools/compare/v1.16.0...v1.16.1) (2025-11-23)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.16.1...v1.17.0>
 
+## 1.16.1 - 2025-11-23
 
 ### Bug Fixes
 
 * content cannot be sent to AI. ([0da2536](https://github.com/fevrax/json-tools/commit/0da253627c64c31bebde3c154c49b8e3653ac8be))
 
-# [1.16.0](https://github.com/fevrax/json-tools/compare/v1.15.3...v1.16.0) (2025-11-23)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.16.0...v1.16.1>
 
+## 1.16.0 - 2025-11-23
 
 ### Bug Fixes
 
@@ -99,15 +109,17 @@
 
 * utools input json automatic formatting ([58f38d8](https://github.com/fevrax/json-tools/commit/58f38d85e8551b98c163766c274f5532f0907630))
 
-## [1.15.3](https://github.com/fevrax/json-tools/compare/v1.15.2...v1.15.3) (2025-11-09)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.15.3...v1.16.0>
 
+## 1.15.3 - 2025-11-09
 
 ### Bug Fixes
 
 * format fix ([ed6b801](https://github.com/fevrax/json-tools/commit/ed6b801360dafcef8405d612f6ac0c23432fc7f9))
 
-## [1.15.2](https://github.com/fevrax/json-tools/compare/v1.15.1...v1.15.2) (2025-11-09)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.15.2...v1.15.3>
 
+## 1.15.2 - 2025-11-09
 
 ### Bug Fixes
 
@@ -116,8 +128,9 @@
 * format fix ([498f2dd](https://github.com/fevrax/json-tools/commit/498f2dd67ecb3c3d46d6bce88b67651e5a3fcc3c))
 * image preview ([5a22b2c](https://github.com/fevrax/json-tools/commit/5a22b2c51715b2fd9027648bc7364347d393924a))
 
-# [1.15.0](https://github.com/fevrax/json-tools/compare/v1.14.0...v1.15.0) (2025-11-02)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.15.1...v1.15.2>
 
+## 1.15.0 - 2025-11-02
 
 ### Bug Fixes
 
@@ -130,8 +143,9 @@
 
 * operation button ([4b21eca](https://github.com/fevrax/json-tools/commit/4b21ecad36aff9b7a35b8e0961a32e8a7122a776))
 
-# [1.14.0](https://github.com/fevrax/json-tools/compare/v1.13.0...v1.14.0) (2025-11-02)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.14.0...v1.15.0>
 
+## 1.14.0 - 2025-11-02
 
 ### Bug Fixes
 
@@ -143,15 +157,17 @@
 
 * json parse big integer ([eca7ba6](https://github.com/fevrax/json-tools/commit/eca7ba60f8e0a2bb3f4fb431cdc4cbbe96d90ad8))
 
-# [1.13.0](https://github.com/fevrax/json-tools/compare/v1.12.0...v1.13.0) (2025-11-01)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.13.0...v1.14.0>
 
+## 1.13.0 - 2025-11-01
 
 ### Features
 
 * auto format ([59d28bd](https://github.com/fevrax/json-tools/commit/59d28bd3000c6f4b1a0c97579b5eee900e8aca71))
 
-# [1.12.0](https://github.com/fevrax/json-tools/compare/v1.11.0...v1.12.0) (2025-09-21)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.12.0...v1.13.0>
 
+## 1.12.0 - 2025-09-21
 
 ### Bug Fixes
 
@@ -165,8 +181,9 @@
 * json query ([736caeb](https://github.com/fevrax/json-tools/commit/736caeb73247409c69341b67dd5e7a9951ef016f))
 * json query document ([c221f2f](https://github.com/fevrax/json-tools/commit/c221f2fb7ac2aaaf32d4f4bfb3e44bceb1ac2692))
 
-# [1.11.0](https://github.com/fevrax/json-tools/compare/v1.10.0...v1.11.0) (2025-09-20)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.11.0...v1.12.0>
 
+## 1.11.0 - 2025-09-20
 
 ### Bug Fixes
 
@@ -183,8 +200,9 @@
 * edit change tabSize ([82401e5](https://github.com/fevrax/json-tools/commit/82401e59cfc6a00b1eadd8950aafb16102d3a52c))
 * jsonTypeConverter windows move ([df583b5](https://github.com/fevrax/json-tools/commit/df583b5d931677f5370508def6639a2fb92ac10d))
 
-# [1.10.0](https://github.com/fevrax/json-tools/compare/v1.9.1...v1.10.0) (2025-09-19)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.10.0...v1.11.0>
 
+## 1.10.0 - 2025-09-19
 
 ### Bug Fixes
 
@@ -210,44 +228,50 @@
 * release tag ([2efeb6c](https://github.com/fevrax/json-tools/commit/2efeb6cbb8723932769e6dd45d7fbce3964ff698))
 * 测试6 ([d8b25b5](https://github.com/fevrax/json-tools/commit/d8b25b57b7bfeab8d5670cffa96ce16dd96c4ee8))
 
-## [1.9.1](https://github.com/fevrax/json-tools/compare/v1.9.0...v1.9.1) (2025-07-01)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.9.1...v1.10.0>
 
+## 1.9.1 - 2025-07-01
 
 ### Bug Fixes
 
 * 文档说明 ([8a86f0e](https://github.com/fevrax/json-tools/commit/8a86f0e4c7c2bc5c725778322106547d188b567a))
 * 自动发布版本配置 ([d5d7a7a](https://github.com/fevrax/json-tools/commit/d5d7a7a154f5cac6e3cb1ac284f93d78ed303eaf))
 
-# [1.9.0](https://github.com/fevrax/json-tools/compare/v1.8.2...v1.9.0) (2025-07-01)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.9.0...v1.9.1>
 
+## 1.9.0 - 2025-07-01
 
 ### Features
 
 * 解码器默认显示在字符后面，最大100字符 ([5f895c7](https://github.com/fevrax/json-tools/commit/5f895c7a82a7b8531dfe6675bfabdd67da9a7d30))
 
-## [1.8.2](https://github.com/fevrax/json-tools/compare/v1.8.1...v1.8.2) (2025-06-30)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.8.2...v1.9.0>
 
+## 1.8.2 - 2025-06-30
 
 ### Bug Fixes
 
 * test docker push1 ([b378f4c](https://github.com/fevrax/json-tools/commit/b378f4c6c61b2815d8e8913587e6f5d6b8573d35))
 
-## [1.8.1](https://github.com/fevrax/json-tools/compare/v1.8.0...v1.8.1) (2025-06-30)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.8.1...v1.8.2>
 
+## 1.8.1 - 2025-06-30
 
 ### Bug Fixes
 
 * test docker push ([a4526bd](https://github.com/fevrax/json-tools/commit/a4526bdddf77e30baaabbae48454f7e0f0a0343f))
 
-# [1.8.0](https://github.com/fevrax/json-tools/compare/v1.7.0...v1.8.0) (2025-06-30)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.8.0...v1.8.1>
 
+## 1.8.0 - 2025-06-30
 
 ### Features
 
 * auto github docker push ([18a5e1a](https://github.com/fevrax/json-tools/commit/18a5e1ab79817d0ec47c1633cb3d200691dd652b))
 
-# [1.7.0](https://github.com/fevrax/json-tools/compare/v1.6.5...v1.7.0) (2025-06-30)
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.7.0...v1.8.0>
 
+## 1.7.0 - 2025-06-30
 
 ### Bug Fixes
 
@@ -274,3 +298,5 @@
 * 解码器全局设置 ([b941827](https://github.com/fevrax/json-tools/commit/b94182766ce508f11880ec46d27aa6469c92e244))
 * 解码器全局设置 ([573844a](https://github.com/fevrax/json-tools/commit/573844a8242773a33079828207f3e485e3c07295))
 * 默认使用本地存储 ([f9b2b1f](https://github.com/fevrax/json-tools/commit/f9b2b1fd83c357b3af664080c9d792ade9efa45d))
+
+相关链接：<https://github.com/fevrax/json-tools/compare/v1.6.5...v1.7.0>

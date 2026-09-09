@@ -25,6 +25,7 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+.workbuddy
 
 # 系统文件
 .DS_Store

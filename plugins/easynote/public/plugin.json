@@ -4,7 +4,7 @@
   "title": "简单便签",
   "description": "轻量、简单的便签应用，支持 Markdown 所见即所得/双栏编辑、笔记/待办类型管理、纯文本复制、字号控制",
   "author": "咖啡八杯",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "categories": "productivity",
   "main": "index.html",
   "preload": "preload/services.js",

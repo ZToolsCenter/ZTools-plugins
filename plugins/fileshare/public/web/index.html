@@ -21,7 +21,11 @@
       --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
       --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.12);
       --success: #22c55e;
+      --success-light: #dcfce7;
       --danger: #ef4444;
+      --danger-light: #fef2f2;
+      --warning: #f59e0b;
+      --warning-light: #fffbeb;
     }
 
     [data-theme="dark"] {
@@ -112,6 +116,94 @@
     .header-right .file-count {
       font-size: 12px;
       color: var(--text3);
+    }
+
+    /* ===== Local / remote access pill ===== */
+    .access-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 26px;
+      padding: 0 10px;
+      border-radius: 13px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: default;
+      user-select: none;
+    }
+
+    .access-pill .pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .access-pill.local {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .access-pill.local .pill-dot {
+      background: #22c55e;
+    }
+
+    .access-pill.remote {
+      background: var(--bg3);
+      color: var(--text2);
+    }
+
+    .access-pill.remote .pill-dot {
+      background: var(--text3);
+    }
+
+    [data-theme="dark"] .access-pill.local {
+      background: #14532d;
+      color: #4ade80;
+    }
+
+    .local-hint {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      border-radius: var(--radius);
+      background: var(--primary-light);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text2);
+      flex-wrap: wrap;
+    }
+
+    .local-hint.show {
+      display: flex;
+    }
+
+    .local-hint code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: var(--primary);
+      word-break: break-all;
+    }
+
+    .local-hint .copy-mini {
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 5px;
+      background: var(--primary);
+      color: #fff;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .local-hint .copy-mini:hover {
+      background: #2563eb;
     }
 
     .theme-btn {
@@ -232,7 +324,7 @@
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.45);
-      z-index: 1000;
+      z-index: 1300;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -754,6 +846,10 @@
       opacity: 0;
       transition: all 0.2s ease;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      white-space: nowrap;
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .web-toast.show {
@@ -1241,11 +1337,989 @@
       color: var(--text3);
       font-size: 13px;
     }
+
+    /* ===== P2P private messaging ===== */
+    .p2p-btn {
+      position: relative;
+    }
+
+    .p2p-badge {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      min-width: 15px;
+      height: 15px;
+      padding: 0 3px;
+      border-radius: 8px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid var(--bg);
+      line-height: 15px;
+    }
+
+    .p2p-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.25);
+      z-index: 1199;
+    }
+
+    .p2p-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 400px;
+      max-width: 100vw;
+      height: 100%;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      z-index: 1200;
+      display: flex;
+      flex-direction: column;
+      animation: drawerIn 0.18s ease-out;
+    }
+
+    @keyframes drawerIn {
+      from {
+        transform: translateX(40px);
+        opacity: 0.4;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .p2p-drawer-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .p2p-drawer-title {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .p2p-drawer-close {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text2);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .p2p-drawer-close:hover {
+      background: var(--bg3);
+    }
+
+    .p2p-reconnect {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px;
+      font-size: 11px;
+      color: var(--text2);
+      background: var(--warning-light);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .p2p-reconnect.show {
+      display: flex;
+    }
+
+    .p2p-drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    /* states */
+    .p2p-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--text2);
+      font-size: 13px;
+      flex: 1;
+    }
+
+    .p2p-state svg {
+      stroke: var(--text3);
+      fill: none;
+      stroke-width: 1.2;
+    }
+
+    .p2p-state-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .p2p-state-sub {
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    .p2p-form {
+      padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .p2p-form label {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .p2p-form input,
+    .p2p-form textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 11px;
+      font-size: 13px;
+      background: var(--bg2);
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    .p2p-form input:focus,
+    .p2p-form textarea:focus {
+      border-color: var(--primary);
+    }
+
+    .p2p-submit {
+      height: 38px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+    }
+
+    .p2p-submit:hover {
+      background: #2563eb;
+    }
+
+    .p2p-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* chat */
+    .p2p-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .p2p-chat-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .p2p-peer-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .p2p-peer-ip {
+      font-size: 11px;
+      color: var(--text3);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .p2p-online {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .p2p-online.on {
+      background: var(--success);
+    }
+
+    .p2p-chat-del {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text3);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+    }
+
+    .p2p-chat-del:hover {
+      color: var(--danger);
+      background: var(--danger-light);
+    }
+
+    .p2p-msgs {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--bg2);
+    }
+
+    .p2p-msg {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      cursor: default;
+    }
+
+    .p2p-msg.mine {
+      align-items: flex-end;
+    }
+
+    .p2p-msg-time {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    /* Message head layout: theirs = [时间][复制][删除], mine = [删除][复制][时间] */
+    .p2p-msg.theirs .p2p-msg-time {
+      order: 0;
+    }
+
+    .p2p-msg.theirs .p2p-msg-copy {
+      order: 1;
+    }
+
+    .p2p-msg.theirs .p2p-msg-del {
+      order: 2;
+    }
+
+    .p2p-msg.mine .p2p-msg-del {
+      order: 0;
+    }
+
+    .p2p-msg.mine .p2p-msg-copy {
+      order: 1;
+    }
+
+    .p2p-msg.mine .p2p-msg-time {
+      order: 2;
+    }
+
+    .p2p-msg-del {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: var(--text3);
+      cursor: pointer;
+      opacity: 0.55;
+      transition: opacity 0.12s;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .p2p-msg-copy {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: var(--text3);
+      cursor: pointer;
+      opacity: 0.55;
+      transition: opacity 0.12s;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .p2p-msg-del:hover {
+      opacity: 1;
+      background: var(--danger-light);
+      color: var(--danger);
+    }
+
+    .p2p-msg-copy:hover {
+      opacity: 1;
+      background: var(--bg3);
+      color: var(--primary);
+    }
+
+    .p2p-msg-copy.copied {
+      opacity: 1;
+      color: var(--success);
+      background: var(--success-light);
+    }
+
+    [data-theme="dark"] .p2p-msg-copy.copied {
+      background: #14532d;
+    }
+
+    .p2p-file-item {
+      display: flex;
+      gap: 10px;
+      padding: 5px 4px;
+    }
+
+    .p2p-bubble {
+      max-width: 82%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.55;
+      word-break: break-word;
+      white-space: pre-wrap;
+      cursor: default;
+      user-select: text;
+    }
+
+    .p2p-msg.theirs .p2p-bubble {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-top-left-radius: 2px;
+      color: var(--text);
+    }
+
+    .p2p-msg.mine .p2p-bubble {
+      background: var(--primary);
+      color: #fff;
+      border-top-right-radius: 2px;
+    }
+
+    .p2p-system {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text3);
+      padding: 2px 0;
+    }
+
+    .p2p-file {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 8px;
+      max-width: 340px;
+      min-width: 230px;
+    }
+
+    .p2p-msg.mine .p2p-file {
+      background: var(--primary-light);
+      border-color: var(--primary-light);
+    }
+
+    .p2p-msg.mine .p2p-file-item+.p2p-file-item {
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    .p2p-file-icon {
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .p2p-file-name {
+      font-size: 12px;
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    .p2p-file-meta {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    .p2p-file-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 7px;
+    }
+
+    .p2p-file-btn {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--primary);
+      cursor: pointer;
+    }
+
+    .p2p-file-btn:hover {
+      background: var(--primary-light);
+    }
+
+    .p2p-inputbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .p2p-file-send {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .p2p-file-send:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .p2p-input {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 11px;
+      min-height: 34px;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      max-height: 96px;
+    }
+
+    .p2p-input:focus {
+      border-color: var(--primary);
+    }
+
+    .p2p-send {
+      height: 34px;
+      padding: 0 16px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      border: none;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .p2p-send:hover {
+      background: #2563eb;
+    }
+
+    .p2p-send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .p2p-upload-row {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text2);
+      flex-shrink: 0;
+    }
+
+    .p2p-upload-row.show {
+      display: flex;
+    }
+
+    .p2p-upload-name {
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .p2p-upload-track {
+      flex: 1;
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .p2p-upload-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 0;
+      transition: width 0.15s;
+    }
+
+    .p2p-upload-pct {
+      font-size: 11px;
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    /* ===== Host management console (local browser) ===== */
+    .host-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .host-list {
+      width: 280px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .host-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    @media (max-width: 699px) {
+      .host-body.host-view-list .host-chat {
+        display: none;
+      }
+
+      .host-body.host-view-chat .host-list {
+        display: none;
+      }
+
+      .host-list {
+        width: 100%;
+        border-right: none;
+      }
+    }
+
+    /* ===== Host console session list ===== */
+    .p2p-group-label {
+      font-size: 11px;
+      color: var(--text3);
+      padding: 10px 16px 4px;
+    }
+
+    .p2p-session {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .p2p-session:hover {
+      background: var(--bg2);
+    }
+
+    .p2p-session.active {
+      background: var(--primary-light);
+    }
+
+    .p2p-session.pending {
+      background: var(--bg2);
+      border-left: 3px solid var(--warning);
+      cursor: default;
+    }
+
+    .p2p-session-main {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .p2p-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .p2p-session-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .p2p-session-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .p2p-session-ip {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--text3);
+    }
+
+    .p2p-session-preview {
+      font-size: 11px;
+      color: var(--text3);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+
+    .p2p-session-side {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .p2p-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    .p2p-status-dot.online {
+      background: var(--success);
+    }
+
+    .p2p-status-text {
+      font-size: 10px;
+      color: var(--text3);
+      white-space: nowrap;
+    }
+
+    .p2p-unread {
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 9px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .p2p-del {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: none;
+      color: var(--text3);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .p2p-del:hover {
+      background: var(--danger-light);
+      color: var(--danger);
+    }
+
+    .p2p-btn {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text2);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .p2p-btn.accept {
+      background: var(--success);
+      border-color: var(--success);
+      color: #fff;
+    }
+
+    .p2p-btn.reject {
+      color: var(--danger);
+      border-color: var(--border);
+    }
+
+    .p2p-btn.reject:hover {
+      background: var(--danger-light);
+    }
+
+    /* ===== Host layout (local browser): side menu + content ===== */
+    .app.app-host {
+      display: flex;
+      flex-direction: column;
+      max-width: 1200px;
+      height: 100vh;
+      min-height: 100vh;
+      padding-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .layout-row {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .side-menu {
+      width: 148px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .side-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text2);
+      cursor: pointer;
+      background: none;
+      border: none;
+      position: relative;
+      font-family: inherit;
+    }
+
+    .side-tab:hover {
+      background: var(--bg2);
+      color: var(--text);
+    }
+
+    .side-tab.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .side-tab svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      flex-shrink: 0;
+    }
+
+    .side-badge {
+      position: absolute;
+      right: 8px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 8px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 16px;
+    }
+
+    .main-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #filesView {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      min-height: 0;
+      padding: 0 14px;
+    }
+
+    #messagesView {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #messagesViewBody {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    @media (max-width: 767px) {
+      .side-menu {
+        display: none;
+      }
+
+      .app.app-host {
+        max-width: 100%;
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+      }
+    }
+
+    /* mobile bottom nav */
+    .mobile-nav {
+      display: none;
+    }
+
+    @media (max-width: 767px) {
+      .p2p-drawer {
+        width: 100%;
+      }
+
+      .mobile-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg);
+        border-top: 1px solid var(--border);
+        z-index: 900;
+        height: 54px;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      .mobile-nav-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        font-size: 11px;
+        color: var(--text2);
+        cursor: pointer;
+        position: relative;
+        background: none;
+        border: none;
+        font-family: inherit;
+      }
+
+      .mobile-nav-btn.active {
+        color: var(--primary);
+      }
+
+      .mobile-nav-btn svg {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.8;
+      }
+
+      .mobile-nav-badge {
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        margin-left: 8px;
+        min-width: 15px;
+        height: 15px;
+        padding: 0 3px;
+        border-radius: 8px;
+        background: var(--danger);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 15px;
+      }
+
+      .app {
+        padding-bottom: 74px;
+      }
+
+      .p2p-inputbar {
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      }
+    }
   </style>
 </head>
 
 <body>
-  <div class="app">
+  <div class="app" id="app">
     <!-- Header -->
     <div class="header">
       <div class="header-left">
@@ -1255,6 +2329,7 @@
         <h1>文件共享</h1>
       </div>
       <div class="header-right">
+        <span class="access-pill" id="accessPill" style="display:none"></span>
         <span class="file-count" id="fileCount"></span>
         <div class="search-box" id="searchBox">
           <svg viewBox="0 0 24 24">
@@ -1284,6 +2359,27 @@
             <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
           </svg>
         </button>
+        <button class="theme-btn" id="hostLogsBtn" title="下载日志" style="display:none">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" fill="none" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        </button>
+        <button class="theme-btn" id="hostWhitelistBtn" title="IP 白名单" style="display:none">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" fill="none" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+          </svg>
+        </button>
+        <button class="theme-btn p2p-btn" id="p2pBtn" title="私密连接">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2">
+            <path
+              d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+          </svg>
+          <span class="p2p-badge" id="p2pBadge" style="display:none"></span>
+        </button>
         <button class="theme-btn" id="themeBtn" title="切换主题">
           <svg viewBox="0 0 24 24" id="sunIcon">
             <circle cx="12" cy="12" r="5" />
@@ -1297,30 +2393,63 @@
       </div>
     </div>
 
-    <!-- Bulk Actions -->
-    <div class="bulk-bar" id="bulkBar">
-      <input type="checkbox" class="tree-cb" id="selectAllCb" title="Select all files">
-      <span class="bulk-count" id="bulkCount">已选择 0</span>
-      <button class="bulk-btn primary" id="dlSelectedBtn">
-        <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-        下载选中
-      </button>
-      <button class="bulk-btn" id="dlAllBtn">
-        <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-        全部下载
-      </button>
+    <!-- Local host hint -->
+    <div class="local-hint" id="localHint">
+      <span>当前在本机浏览器打开，推荐使用下面的地址访问更稳定：</span>
+      <code id="localHintUrl"></code>
+      <button class="copy-mini" id="localHintCopy">复制</button>
     </div>
 
-    <!-- File Tree -->
-    <div class="tree" id="tree"></div>
+    <!-- Local host layout: side menu tab + content -->
+    <div class="layout-row" id="layoutRow">
+      <aside class="side-menu" id="sideMenu" style="display:none">
+        <button class="side-tab active" id="sideTabFiles">
+          <svg viewBox="0 0 24 24">
+            <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6.5l-1.5-2H5a2 2 0 00-2 2z" />
+          </svg>
+          文件
+        </button>
+        <button class="side-tab" id="sideTabMessages">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+          </svg>
+          消息
+          <span class="side-badge" id="sideMsgBadge" style="display:none"></span>
+        </button>
+      </aside>
+      <main class="main-col" id="mainCol">
+        <div id="filesView">
+          <!-- Bulk Actions -->
+          <div class="bulk-bar" id="bulkBar">
+            <input type="checkbox" class="tree-cb" id="selectAllCb" title="Select all files">
+            <span class="bulk-count" id="bulkCount">已选择 0</span>
+            <button class="bulk-btn primary" id="dlSelectedBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              下载选中
+            </button>
+            <button class="bulk-btn" id="dlAllBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              全部下载
+            </button>
+          </div>
+
+          <!-- File Tree -->
+          <div class="tree" id="tree"></div>
+        </div>
+        <div id="messagesView" style="display:none">
+          <div class="host-body host-view-list" id="messagesViewBody"></div>
+        </div>
+      </main>
+    </div>
 
     <!-- Toast -->
     <div class="web-toast" id="webToast"></div>
@@ -1415,11 +2544,57 @@
     </div>
   </div>
 
+  <!-- P2P drawer -->
+  <div class="p2p-mask" id="p2pMask" style="display:none"></div>
+  <div class="p2p-drawer" id="p2pDrawer" style="display:none">
+    <div class="p2p-drawer-header">
+      <span class="p2p-drawer-title" id="p2pDrawerTitle">私密连接</span>
+      <button class="p2p-drawer-close" id="p2pDrawerClose">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div class="p2p-reconnect" id="p2pReconnect">连接已断开，正在重连…</div>
+    <div class="p2p-drawer-body" id="p2pDrawerBody"></div>
+    <div class="p2p-upload-row" id="p2pUploadRow">
+      <span class="p2p-upload-name" id="p2pUploadName"></span>
+      <div class="p2p-upload-track">
+        <div class="p2p-upload-fill" id="p2pUploadFill"></div>
+      </div>
+      <span class="p2p-upload-pct" id="p2pUploadPct">0%</span>
+    </div>
+  </div>
+  <input type="file" id="p2pFileInput" multiple style="display:none" />
+
+  <!-- Mobile bottom nav -->
+  <div class="mobile-nav" id="mobileNav">
+    <button class="mobile-nav-btn active" id="navFilesBtn">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6.5l-1.5-2H5a2 2 0 00-2 2z" />
+      </svg>
+      文件
+    </button>
+    <button class="mobile-nav-btn" id="navP2pBtn">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+      </svg>
+      <span id="navP2pLabel">消息</span>
+      <span class="mobile-nav-badge" id="navP2pBadge" style="display:none"></span>
+    </button>
+  </div>
+
   <script>
     // ===== State =====
     const params = new URLSearchParams(location.search);
     const TOKEN = params.get('token') || '';
     const SCOPE_PATH = params.get('path') || '';
+    // Dev/test switch: ?peer=1 forces this browser into the remote-client
+    // (peer) flow even on the plugin machine, so the client experience can be
+    // exercised from a local browser without a second device.
+    const FORCE_PEER = params.get('peer') === '1';
     let fileTree = [];
     let currentFilePath = null;
     let currentFileExt = '';
@@ -1428,12 +2603,35 @@
     let searchQuery = '';
     let searchTimer = null;
     let myIp = ''; // this client's IP as seen by the server
+    let isLocalHost = false; // is the browser on the plugin machine?
+    let hostLocalUrl = '';   // http://127.0.0.1:port/?token=...
+    let hostLanUrl = '';     // http://<lan ip>:port/?token=...
+
+    // ===== P2P private messaging state =====
+    const p2p = {
+      ready: false,
+      peerKey: '',
+      peerId: '',
+      session: null,      // { id, status, peerName }
+      messages: [],
+      lastSeq: 0,
+      es: null,
+      pollTimer: null,
+      pollSince: 0,
+      unread: 0,
+      drawing: false
+    };
 
     // ===== Init =====
     function init() {
       loadTheme();
       document.getElementById('themeBtn').addEventListener('click', toggleTheme);
       document.getElementById('refreshBtn').addEventListener('click', function () { loadFileList(); showToast('列表已刷新'); });
+      document.getElementById('localHintCopy').addEventListener('click', function () {
+        if (hostLocalUrl) {
+          copyToClipboard(hostLocalUrl).then(() => showToast('本机地址已复制')).catch(() => { });
+        }
+      });
       document.getElementById('modalClose').addEventListener('click', closeModal);
       document.getElementById('modalOverlay').addEventListener('click', function (e) {
         if (e.target === this) closeModal();
@@ -1450,6 +2648,7 @@
         if (e.key === 'Escape') {
           if (document.getElementById('imgViewer').style.display !== 'none') closeImgViewer();
           else if (document.getElementById('confirmOverlay').style.display !== 'none') closeDialog(null);
+          else if (p2p.drawing || host.active) closeP2pEntry();
           else closeModal();
         }
       });
@@ -1528,6 +2727,18 @@
         }
       });
 
+      // P2P / host wiring (mode-aware: remote = peer flow, local = message console)
+      document.getElementById('p2pBtn').addEventListener('click', toggleP2pEntry);
+      document.getElementById('p2pMask').addEventListener('click', closeP2pEntry);
+      document.getElementById('p2pDrawerClose').addEventListener('click', closeP2pEntry);
+      document.getElementById('p2pFileInput').addEventListener('change', onP2pFileInput);
+      document.getElementById('hostLogsBtn').addEventListener('click', openHostLogs);
+      document.getElementById('hostWhitelistBtn').addEventListener('click', openHostWhitelist);
+      document.getElementById('sideTabFiles').addEventListener('click', () => setView('files'));
+      document.getElementById('sideTabMessages').addEventListener('click', () => setView('messages'));
+      document.getElementById('navP2pBtn').addEventListener('click', () => { if (hostUiMode()) setView('messages'); else openP2pDrawer(); });
+      document.getElementById('navFilesBtn').addEventListener('click', () => { if (hostUiMode()) setView('files'); else closeP2pDrawer(); });
+
       loadFileList();
     }
 
@@ -1559,6 +2770,11 @@
         const data = await res.json();
         fileTree = data.files || [];
         myIp = data.clientIp || '';
+        isLocalHost = !!data.isLocalHost;
+        hostLocalUrl = data.hostLocalUrl || '';
+        hostLanUrl = data.hostLanUrl || '';
+        renderAccessInfo();
+        initP2pMode();
         // If scoped, hide header title area (show scope path instead)
         if (data.scoped && data.scopePath) {
           document.querySelector('.header-left h1').textContent = decodeURIComponent(data.scopePath).split(/[/\\]/).filter(Boolean).pop() || 'FileShare';
@@ -1581,12 +2797,40 @@
       document.getElementById('fileCount').textContent = countFiles(items) + ' 个文件';
     }
 
+    // ===== Local / remote access pill =====
+    function renderAccessInfo() {
+      const pill = document.getElementById('accessPill');
+      const hint = document.getElementById('localHint');
+      // Already on the loopback address (127.0.0.1/localhost)? Then there is
+      // nothing to "switch to" — drop the redundant recommendation.
+      const hostname = (location.hostname || '').toLowerCase();
+      const onLoopback = hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1';
+      if (isLocalHost) {
+        pill.className = 'access-pill local';
+        pill.innerHTML = '<span class="pill-dot"></span>本机访问';
+        if (!onLoopback && hostLocalUrl) {
+          // arrived via the LAN IP — recommend the stable localhost URL
+          document.getElementById('localHintUrl').textContent = hostLocalUrl;
+          hint.classList.add('show');
+        } else {
+          hint.classList.remove('show');
+        }
+      } else {
+        pill.className = 'access-pill remote';
+        pill.innerHTML = '<span class="pill-dot"></span>远程访问' + (myIp ? ' · ' + escHtml(myIp) : '');
+        hint.classList.remove('show');
+      }
+      pill.style.display = '';
+    }
+
     // ===== Section grouping: host shares vs per-IP client uploads =====
     function groupItems(items) {
       const host = [];
       const byIp = {};
       for (const item of items) {
-        if (item.origin && item.origin.type === 'upload') {
+        // Uploads made from the plugin machine itself (origin.local) belong to
+        // the host section — they are not a remote client's upload.
+        if (item.origin && item.origin.type === 'upload' && !item.origin.local) {
           const ip = item.origin.ip || '未知来源';
           if (!byIp[ip]) byIp[ip] = [];
           byIp[ip].push(item);
@@ -2414,6 +3658,1360 @@
           document.getElementById('uploadPanelBody').innerHTML = '';
         }, 3000);
       }
+    }
+
+    // ===== P2P private messaging =====
+    function p2pApi(path, method, body) {
+      // Every /api/* route requires the access token; append it centrally so
+      // register/request/messages/send all work from a remote browser.
+      const sep = path.includes('?') ? '&' : '?';
+      const opts = { method: method || 'GET', headers: {} };
+      if (p2p.peerKey) opts.headers['X-P2P-Key'] = p2p.peerKey;
+      if (body !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      return fetch(path + sep + 'token=' + TOKEN, opts);
+    }
+
+    function safeJson(s) { try { return JSON.parse(s) } catch (_e) { return null } }
+
+    function initP2p() {
+      p2pRegister();
+    }
+
+    let p2pRegisterAttempts = 0;
+
+    // Register to obtain a peerKey bound to this client IP (CSRF defense).
+    // Retry a few times so a slow start never leaves the UI stuck on
+    // "正在初始化".
+    async function p2pRegister() {
+      try {
+        const r = await p2pApi('/api/p2p/register', 'POST');
+        const data = await r.json().catch(() => null);
+        if (data && data.ok) {
+          p2p.peerKey = data.peerKey;
+          p2p.peerId = data.peerId;
+          p2p.ready = true;
+          openP2pChannel();
+          // Eagerly restore the session state (active/rejected) so a refreshed
+          // page doesn't fall back to the "申请私密连接" form while SSE is
+          // still (re)connecting.
+          pollP2pOnce();
+          if (p2p.drawing) renderP2pDrawer();
+          return;
+        }
+        console.warn('[p2p] register failed: status=' + r.status, data);
+      } catch (e) {
+        console.warn('[p2p] register error:', e);
+      }
+      if (p2pRegisterAttempts < 3) {
+        p2pRegisterAttempts++;
+        setTimeout(p2pRegister, 1500);
+      }
+    }
+
+    function openP2pChannel() {
+      if (p2p.es) { try { p2p.es.close() } catch (_e) { } }
+      if (typeof EventSource !== 'undefined') {
+        const es = new EventSource('/api/events?token=' + TOKEN);
+        p2p.es = es;
+        // Track whether we've seen the initial snapshot yet. Events arriving
+        // before the snapshot are historical replays from the SSE reconnection
+        // and must not be treated as new messages.
+        let sseSnapshotSeen = false;
+        es.addEventListener('p2p.snapshot', (e) => { sseSnapshotSeen = true; onP2pEvent('p2p.snapshot', safeJson(e.data)); });
+        es.addEventListener('p2p.message', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.message', safeJson(e.data)); });
+        es.addEventListener('p2p.file', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.file', safeJson(e.data)); });
+        es.addEventListener('p2p.accepted', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.accepted', safeJson(e.data)); });
+        es.addEventListener('p2p.rejected', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.rejected', safeJson(e.data)); });
+        es.addEventListener('p2p.deleted', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.deleted', safeJson(e.data)); });
+        es.onopen = () => {
+          document.getElementById('p2pReconnect').classList.remove('show');
+          // SSE is the realtime channel — stop any fallback poll once it's up.
+          stopP2pPoll();
+        };
+        es.onerror = () => {
+          document.getElementById('p2pReconnect').classList.add('show');
+          if (p2p.es === es) p2p.es = null;
+          startP2pPoll();
+        };
+      } else {
+        startP2pPoll();
+      }
+    }
+
+    function startP2pPoll() {
+      if (p2p.pollTimer) return;
+      p2p.pollTimer = setInterval(pollP2pOnce, 2000);
+    }
+
+    function stopP2pPoll() {
+      if (p2p.pollTimer) {
+        clearInterval(p2p.pollTimer);
+        p2p.pollTimer = null;
+      }
+    }
+
+    async function pollP2pOnce() {
+      if (!p2p.ready) return;
+      try {
+        const firstPoll = p2p.pollSince === 0;
+        const res = await p2pApi('/api/p2p/poll?since=' + p2p.pollSince);
+        const data = await res.json();
+        if (!data.ok) return;
+        // Authoritative session snapshot (active/rejected/pending).
+        if (data.session) applyP2pSession(data.session);
+        // Per-event handling is scoped to the current session (onP2pEvent).
+        // On the very first poll after a page refresh, all events in the ring
+        // buffer are historical replays. We must NOT let them update
+        // p2p.lastSeq, otherwise the subsequent fetchP2pMessages() (which uses
+        // after=lastSeq) would skip messages that were already evicted from
+        // the ring buffer. The full history is recovered via
+        // fetchP2pMessages() when the drawer opens or the session becomes
+        // active.
+        for (const ev of data.events) {
+          if (firstPoll && (ev.type === 'p2p.message' || ev.type === 'p2p.file')) {
+            // Skip historical message/file events — they will be pulled
+            // in full via /api/p2p/messages when needed.
+            continue;
+          }
+          onP2pEvent(ev.type, ev.data);
+        }
+        p2p.pollSince = data.since;
+      } catch (_e) { /* ignore */ }
+    }
+
+    function onP2pEvent(type, data, forceSilent) {
+      if (type === 'p2p.snapshot') { applyP2pSession(data); return; }
+      if (type === 'p2p.accepted') { applyP2pSession({ id: data.sessionId, status: 'active', peerName: data.peerName }); return; }
+      if (type === 'p2p.rejected') {
+        // Only surface a rejection for the session we're asking about — an old
+        // rejected session from this IP must never kick us out of a live chat.
+        if (p2p.session && p2p.session.status === 'active' && data.sessionId !== p2p.session.id) return;
+        applyP2pSession({ id: data.sessionId, status: 'rejected', peerName: data.peerName });
+        return;
+      }
+      if (type === 'p2p.deleted') {
+        // Only revert for the session the client is currently in; deletions of
+        // other/old sessions are ignored.
+        if (p2p.session && data.sessionId !== p2p.session.id) return;
+        // Connection removed (by either side): go straight back to the apply
+        // form — deleted conversations are not shown.
+        p2p.messages = [];
+        p2p.lastSeq = 0;
+        applyP2pSession(null);
+        if (p2p.drawing) showToast('连接已删除');
+        return;
+      }
+      if (type === 'p2p.message' || type === 'p2p.file') { if (data) onIncomingMessage(data, { silent: p2p.drawing || forceSilent }); return; }
+      if (type === 'p2p.msgdeleted') {
+        // The peer deleted a message — drop it from our local history too.
+        p2p.messages = p2p.messages.filter(m => m.id !== data.msgId);
+        if (p2p.drawing && p2p.session && p2p.session.status === 'active') renderP2pChat();
+        return;
+      }
+    }
+
+    function applyP2pSession(snap) {
+      const prev = p2p.session;
+      // Only re-render when the session actually changed. The background poll
+      // would otherwise rebuild the drawer (and its inputs) every 2s, stealing
+      // focus and wiping typed text.
+      const prevActive = prev && prev.status === 'active';
+      const nowActive = snap && snap.status === 'active';
+      const changed = (!!snap !== !!prev) || (prev && snap && (prev.id !== snap.id || prev.status !== snap.status));
+      p2p.session = snap;
+      if (changed && p2p.drawing) {
+        if (nowActive) { fetchP2pMessages({ silent: true }); renderP2pDrawer(); }
+        else renderP2pDrawer();
+      } else if (!prevActive && nowActive && !p2p.drawing) {
+        // Session just became active in the background (e.g. host accepted
+        // while the drawer was closed). Pre-fetch history silently so it's
+        // ready when the user opens the drawer.
+        fetchP2pMessages({ silent: true });
+      }
+      updateP2pBadge();
+    }
+
+    function onIncomingMessage(msg, opts) {
+      if (!msg || typeof msg.seq !== 'number' || msg.seq <= p2p.lastSeq) return;
+      p2p.messages.push(msg);
+      p2p.lastSeq = msg.seq;
+      if (p2p.drawing && p2p.session && p2p.session.status === 'active') {
+        renderP2pChat();
+        scrollP2pChat();
+        p2pApi('/api/p2p/read', 'POST', { session: p2p.session.id });
+      } else if (msg.from === 'host' && !(opts && opts.silent)) {
+        p2p.unread++;
+        updateP2pBadge();
+        showToast('收到消息：' + (msg.kind === 'text' ? msg.text.slice(0, 20) : '[文件] ' + ((msg.files && msg.files[0] && msg.files[0].name) || '')));
+      }
+    }
+
+    async function fetchP2pMessages(opts) {
+      if (!p2p.session || p2p.session.status !== 'active') return;
+      try {
+        const res = await p2pApi('/api/p2p/messages?session=' + p2p.session.id + '&after=' + p2p.lastSeq);
+        const data = await res.json();
+        for (const m of (data.messages || [])) onIncomingMessage(m, opts);
+      } catch (_e) { /* ignore */ }
+    }
+
+    // ---- Drawer open/close ----
+    function openP2pDrawer() {
+      p2p.drawing = true;
+      p2p.unread = 0;
+      updateP2pBadge();
+      document.getElementById('p2pMask').style.display = '';
+      document.getElementById('p2pDrawer').style.display = 'flex';
+      setMobileNav('p2p');
+      renderP2pDrawer();
+      if (p2p.session && p2p.session.status === 'active') {
+        // Silent fetch: messages recovered on open must never trigger an
+        // unread toast or increment the badge — the user is already looking.
+        fetchP2pMessages({ silent: true });
+        p2pApi('/api/p2p/read', 'POST', { session: p2p.session.id });
+      }
+      // Refresh the session state from the server whenever the drawer opens,
+      // so a just-refreshed page recovers the active conversation even if the
+      // SSE snapshot has not arrived yet.
+      if (p2p.ready) {
+        pollP2pOnce().then(() => {
+          if (p2p.drawing && p2p.session && p2p.session.status === 'active') {
+            fetchP2pMessages({ silent: true });
+            p2pApi('/api/p2p/read', 'POST', { session: p2p.session.id });
+            renderP2pDrawer();
+          }
+        });
+      }
+    }
+
+    function closeP2pDrawer() {
+      p2p.drawing = false;
+      document.getElementById('p2pMask').style.display = 'none';
+      document.getElementById('p2pDrawer').style.display = 'none';
+      setMobileNav('files');
+    }
+
+    function toggleP2pDrawer() {
+      if (p2p.drawing) closeP2pDrawer();
+      else openP2pDrawer();
+    }
+
+    // Mode-aware entry: remote browsers act as a peer (drawer); the plugin
+    // machine's own browser switches the page to the message console instead
+    // (no self-application).
+    function toggleP2pEntry() {
+      if (hostUiMode()) setView(currentView === 'messages' ? 'files' : 'messages');
+      else toggleP2pDrawer();
+    }
+
+    function openP2pEntry() {
+      if (hostUiMode()) setView('messages');
+      else openP2pDrawer();
+    }
+
+    function closeP2pEntry() {
+      if (hostUiMode()) { if (currentView === 'messages') setView('files'); }
+      else closeP2pDrawer();
+    }
+
+    function setMobileNav(tab) {
+      document.getElementById('navFilesBtn').classList.toggle('active', tab === 'files');
+      document.getElementById('navP2pBtn').classList.toggle('active', tab === 'p2p');
+    }
+
+    function updateP2pBadge() {
+      const n = p2p.unread;
+      const head = document.getElementById('p2pBadge');
+      const nav = document.getElementById('navP2pBadge');
+      const show = n > 0;
+      head.style.display = show ? '' : 'none';
+      nav.style.display = show ? '' : 'none';
+      head.textContent = n > 99 ? '99+' : String(n);
+      nav.textContent = n > 99 ? '99+' : String(n);
+    }
+
+    // ---- Drawer rendering ----
+    function renderP2pDrawer() {
+      const body = document.getElementById('p2pDrawerBody');
+      body.innerHTML = '';
+      const s = p2p.session;
+      if (!s) { renderP2pForm(body); return; }
+      if (s.status === 'pending') { renderP2pState(body, 'pending'); return; }
+      if (s.status === 'rejected') { renderP2pState(body, 'rejected'); return; }
+      if (s.status === 'active') { renderP2pChat(); return; }
+      renderP2pForm(body);
+    }
+
+    function renderP2pState(body, kind) {
+      const box = document.createElement('div');
+      box.className = 'p2p-state';
+      let icon = '', title = '', sub = '';
+      if (kind === 'pending') {
+        icon = '<svg viewBox="0 0 24 24" width="44" height="44"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
+        title = '已提交连接申请';
+        sub = '等待主机同意…';
+      } else {
+        icon = '<svg viewBox="0 0 24 24" width="44" height="44"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+        title = '主机拒绝了你的申请';
+        sub = '你可以稍后重新申请';
+      }
+      box.innerHTML = icon;
+      const t = document.createElement('div'); t.className = 'p2p-state-title'; t.textContent = title;
+      const subEl = document.createElement('div'); subEl.className = 'p2p-state-sub'; subEl.textContent = sub;
+      box.appendChild(t); box.appendChild(subEl);
+      if (kind !== 'pending') {
+        const b = document.createElement('button'); b.className = 'p2p-submit';
+        b.style.cssText = 'margin-top:10px;padding:0 18px;height:34px';
+        b.textContent = '重新申请';
+        b.addEventListener('click', () => { p2p.session = null; renderP2pDrawer(); });
+        box.appendChild(b);
+      } else {
+        const b = document.createElement('button'); b.className = 'p2p-submit';
+        b.style.cssText = 'margin-top:10px;padding:0 18px;height:34px';
+        b.textContent = '取消申请';
+        b.addEventListener('click', cancelP2pRequest);
+        box.appendChild(b);
+      }
+      body.appendChild(box);
+    }
+
+    async function cancelP2pRequest() {
+      if (!p2p.session) return;
+      try {
+        await p2pApi('/api/p2p/session?session=' + p2p.session.id, 'DELETE');
+        applyP2pSession(null);
+        showToast('已取消申请');
+      } catch (_e) { showToast('取消失败'); }
+    }
+
+    function renderP2pForm(body) {
+      const form = document.createElement('div');
+      form.className = 'p2p-form';
+      const savedName = localStorage.getItem('fs-p2p-name') || '';
+      form.innerHTML =
+        '<div style="font-size:14px;font-weight:600;color:var(--text)">申请私密连接</div>' +
+        '<div style="font-size:12px;color:var(--text3);line-height:1.6">连接建立后，你可以与主机进行点对点私密聊天与文件传输，其他访客不可见。</div>' +
+        '<label>你的昵称</label>' +
+        '<input id="p2pReqName" maxlength="32" placeholder="例如：老王" value="' + escHtml(savedName) + '" />' +
+        '<label>留言（可选）</label>' +
+        '<textarea id="p2pReqMsg" rows="2" maxlength="200" placeholder="例如：发个文件给你"></textarea>' +
+        '<button class="p2p-submit" id="p2pReqBtn">申请连接</button>';
+      body.appendChild(form);
+      document.getElementById('p2pReqBtn').addEventListener('click', submitP2pRequest);
+      document.getElementById('p2pReqMsg').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitP2pRequest(); }
+      });
+    }
+
+    async function submitP2pRequest() {
+      const name = (document.getElementById('p2pReqName').value || '').trim();
+      const msg = (document.getElementById('p2pReqMsg').value || '').trim();
+      localStorage.setItem('fs-p2p-name', name);
+      if (!p2p.ready) {
+        showToast('正在初始化连接，请稍候…');
+        p2pRegister();
+        return;
+      }
+      try {
+        const res = await p2pApi('/api/p2p/request', 'POST', { name: name, message: msg });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          applyP2pSession({ id: data.session.id, status: 'pending', peerName: data.session.peerName });
+          showToast('申请已提交');
+        } else {
+          showToast(data.error || '申请失败（HTTP ' + res.status + '）');
+          pollP2pOnce();
+        }
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function renderP2pChat() {
+      const body = document.getElementById('p2pDrawerBody');
+      const s = p2p.session;
+      // Preserve the input across re-renders so typing is never wiped by an
+      // incoming message / poll refresh.
+      const oldInput = document.getElementById('p2pInput');
+      const savedValue = oldInput ? oldInput.value : '';
+      const hadFocus = oldInput && document.activeElement === oldInput;
+      body.innerHTML = '';
+      const chat = document.createElement('div');
+      chat.className = 'p2p-chat';
+
+      const head = document.createElement('div');
+      head.className = 'p2p-chat-header';
+      head.innerHTML = '<span class="p2p-peer-name">' + escHtml(s.peerName || '对方') + '</span>' +
+        '<span class="p2p-peer-ip">' + escHtml(s.peerIp || myIp || '') + '</span>' +
+        '<span class="p2p-online on"></span>';
+      const del = document.createElement('button');
+      del.className = 'p2p-chat-del'; del.textContent = '删除连接';
+      del.addEventListener('click', deleteP2pConnection);
+      head.appendChild(del);
+      chat.appendChild(head);
+
+      const msgs = document.createElement('div');
+      msgs.className = 'p2p-msgs';
+      msgs.id = 'p2pMsgs';
+      if (p2p.messages.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'margin:auto;color:var(--text3);font-size:12px;text-align:center;padding:30px';
+        empty.textContent = '已建立私密连接，发送第一条消息吧';
+        msgs.appendChild(empty);
+      } else {
+        for (const m of p2p.messages) msgs.appendChild(buildP2pMsg(m));
+      }
+      chat.appendChild(msgs);
+
+      const bar = document.createElement('div');
+      bar.className = 'p2p-inputbar';
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'p2p-file-send'; sendBtn.title = '发送文件';
+      sendBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>';
+      sendBtn.addEventListener('click', () => document.getElementById('p2pFileInput').click());
+      const input = document.createElement('textarea');
+      input.className = 'p2p-input'; input.rows = 1; input.id = 'p2pInput';
+      input.placeholder = '输入消息，Enter 发送';
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendP2pMessage(); } });
+      input.addEventListener('input', () => { const b = document.getElementById('p2pSendBtn'); if (b) b.disabled = !input.value.trim(); });
+      const s2 = document.createElement('button');
+      s2.className = 'p2p-send'; s2.id = 'p2pSendBtn'; s2.textContent = '发送'; s2.disabled = true;
+      s2.addEventListener('click', sendP2pMessage);
+      bar.appendChild(sendBtn); bar.appendChild(input); bar.appendChild(s2);
+      chat.appendChild(bar);
+
+      body.appendChild(chat);
+      if (savedValue) input.value = savedValue;
+      const b = document.getElementById('p2pSendBtn');
+      if (b) b.disabled = !savedValue.trim();
+      scrollP2pChat();
+      // Only focus the input when the user was already typing in it.
+      // Auto-focusing on every re-render (e.g. incoming message) steals focus
+      // from whatever the user was doing elsewhere.
+      if (hadFocus) {
+        input.focus();
+        input.setSelectionRange(savedValue.length, savedValue.length);
+      }
+    }
+
+    let p2pCopiedId = null;
+    let p2pCopiedTimer = null;
+
+    function buildP2pMsg(m) {
+      const row = document.createElement('div');
+      row.className = 'p2p-msg ' + (m.from === 'host' ? 'theirs' : 'mine');
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;gap:6px';
+      const time = document.createElement('div');
+      time.className = 'p2p-msg-time';
+      time.textContent = fmtP2pTime(m.createdAt);
+      head.appendChild(time);
+      if (m.kind === 'text') {
+        const copy = document.createElement('button');
+        copy.className = 'p2p-msg-copy' + (p2pCopiedId === m.id ? ' copied' : '');
+        copy.dataset.msgId = m.id;
+        copy.title = '复制内容';
+        copy.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+        copy.addEventListener('click', () => copyP2pText(m));
+        head.appendChild(copy);
+      }
+      const del = document.createElement('button');
+      del.className = 'p2p-msg-del'; del.title = '删除消息';
+      del.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+      del.addEventListener('click', () => deleteP2pMessage(m));
+      head.appendChild(del);
+      row.appendChild(head);
+      if (m.kind === 'text') {
+        const b = document.createElement('div');
+        b.className = 'p2p-bubble';
+        b.textContent = m.text;
+        row.appendChild(b);
+      } else if (m.kind === 'files' && m.files && m.files.length > 0) {
+        const card = document.createElement('div');
+        card.className = 'p2p-file';
+        const list = document.createElement('div');
+        list.style.cssText = 'display:flex;flex-direction:column;width:100%';
+        m.files.forEach((f, fi) => {
+          const item = document.createElement('div');
+          item.className = 'p2p-file-item';
+          if (fi > 0) item.style.borderTop = '1px solid var(--border)';
+          const icon = document.createElement('span');
+          icon.className = 'p2p-file-icon';
+          icon.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+          const info = document.createElement('div');
+          info.style.cssText = 'min-width:0;flex:1';
+          const nm = document.createElement('div'); nm.className = 'p2p-file-name'; nm.textContent = f.name;
+          const meta = document.createElement('div'); meta.className = 'p2p-file-meta'; meta.textContent = fmtP2pSize(f.size);
+          const actions = document.createElement('div'); actions.className = 'p2p-file-actions';
+          const dl = document.createElement('button'); dl.className = 'p2p-file-btn'; dl.textContent = '下载';
+          dl.addEventListener('click', () => downloadP2pFile(f.fileId, f.name));
+          actions.appendChild(dl);
+          if (isP2pPreviewable(f.name)) {
+            const pv = document.createElement('button'); pv.className = 'p2p-file-btn'; pv.textContent = '预览';
+            pv.addEventListener('click', () => openP2pPreview(f));
+            actions.appendChild(pv);
+          }
+          info.appendChild(nm); info.appendChild(meta); info.appendChild(actions);
+          item.appendChild(icon); item.appendChild(info);
+          list.appendChild(item);
+        });
+        card.appendChild(list);
+        row.appendChild(card);
+      }
+      return row;
+    }
+
+    function copyP2pText(m) {
+      copyToClipboard(m.text).then(() => {
+        p2pCopiedId = m.id;
+        if (p2pCopiedTimer) clearTimeout(p2pCopiedTimer);
+        p2pCopiedTimer = setTimeout(() => { p2pCopiedId = null; markP2pCopiedBtn(); }, 1200);
+        markP2pCopiedBtn();
+        showToast('已复制');
+      }).catch(() => { });
+    }
+
+    // Highlight the copy button that was just clicked (without re-rendering
+    // the whole chat, which would reset the scroll position).
+    function markP2pCopiedBtn() {
+      document.querySelectorAll('.p2p-msg-copy').forEach(btn => {
+        btn.classList.toggle('copied', p2pCopiedId && btn.dataset.msgId === p2pCopiedId);
+      });
+    }
+
+    async function deleteP2pMessage(m) {
+      if (!p2p.session) return;
+      const ok = await showConfirm('删除这条消息？服务端留存也会一并删除。', '删除消息', '删除');
+      if (!ok) return;
+      try {
+        const res = await p2pApi('/api/p2p/message?session=' + p2p.session.id + '&msg=' + encodeURIComponent(m.id), 'DELETE');
+        if (res.ok) {
+          p2p.messages = p2p.messages.filter(x => x.id !== m.id);
+          if (p2p.drawing) renderP2pChat();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || '删除失败');
+        }
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function scrollP2pChat() {
+      const el = document.getElementById('p2pMsgs');
+      if (el) el.scrollTop = el.scrollHeight;
+    }
+
+    function fmtP2pTime(ts) {
+      const d = new Date(ts);
+      const pad = (n) => String(n).padStart(2, '0');
+      return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function fmtP2pSize(s) {
+      if (s >= 1024 * 1024 * 1024) return (s / 1024 / 1024 / 1024).toFixed(1) + ' GB';
+      if (s >= 1024 * 1024) return (s / 1024 / 1024).toFixed(1) + ' MB';
+      if (s >= 1024) return (s / 1024).toFixed(1) + ' KB';
+      return s + ' B';
+    }
+
+    async function sendP2pMessage() {
+      const input = document.getElementById('p2pInput');
+      if (!input || !p2p.session) return;
+      const text = input.value.trim();
+      if (!text) return;
+      // Clear the input *before* onIncomingMessage triggers a re-render,
+      // otherwise renderP2pChat will restore the old value from the DOM.
+      input.value = '';
+      const b0 = document.getElementById('p2pSendBtn'); if (b0) b0.disabled = true;
+      try {
+        const res = await p2pApi('/api/p2p/message', 'POST', { session: p2p.session.id, text: text });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok && data.msg) { onIncomingMessage(data.msg); }
+        else showToast(data.error || '发送失败');
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    async function deleteP2pConnection() {
+      if (!p2p.session) return;
+      const ok = await showConfirm('确定删除这条私密连接？', '删除连接', '删除');
+      if (!ok) return;
+      try {
+        await p2pApi('/api/p2p/session?session=' + p2p.session.id, 'DELETE');
+        p2p.messages = [];
+        p2p.lastSeq = 0;
+        applyP2pSession(null);
+        showToast('连接已删除');
+      } catch (_e) { showToast('删除失败'); }
+    }
+
+    // ---- P2P files ----
+    function p2pFileUrl(fileId, dl) {
+      let u = '/api/p2p/file?session=' + p2p.session.id +
+        '&file=' + encodeURIComponent(fileId) +
+        '&token=' + TOKEN +
+        '&p2pkey=' + encodeURIComponent(p2p.peerKey);
+      if (dl) u += '&dl=1';
+      return u;
+    }
+
+    function downloadP2pFile(fileId, name) {
+      const a = document.createElement('a');
+      a.href = p2pFileUrl(fileId, true);
+      a.download = name;
+      a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function onP2pFileInput() {
+      const input = document.getElementById('p2pFileInput');
+      if (!input.files || input.files.length === 0) { input.value = ''; return; }
+      const files = Array.from(input.files);
+      input.value = '';
+      if (hostUiMode() && host.active && host.selectedId) uploadHostFiles(files);
+      else if (p2p.session && p2p.session.status === 'active') uploadP2pFiles(files);
+    }
+
+    // Upload several files in ONE request so they arrive as a single chat
+    // message (kind: 'files') instead of one message per file.
+    function uploadP2pFiles(fileList) {
+      const row = document.getElementById('p2pUploadRow');
+      const fill = document.getElementById('p2pUploadFill');
+      const pct = document.getElementById('p2pUploadPct');
+      const nameEl = document.getElementById('p2pUploadName');
+      row.classList.add('show'); fill.style.width = '0%'; pct.textContent = '0%';
+      nameEl.textContent = fileList.length > 1 ? ('正在发送 ' + fileList.length + ' 个文件…') : fileList[0].name;
+      const fd = new FormData();
+      for (const file of fileList) {
+        try { fd.append('file', file, file.name); } catch (_e) { fd.append('file', file); }
+      }
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/p2p/file?session=' + p2p.session.id + '&token=' + TOKEN);
+      xhr.setRequestHeader('X-P2P-Key', p2p.peerKey);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) { const p = Math.round(e.loaded / e.total * 100); fill.style.width = p + '%'; pct.textContent = p + '%'; }
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200) { showToast(fileList.length > 1 ? '文件已发送' : '文件已发送'); fetchP2pMessages({ silent: true }); }
+        else {
+          let err = '发送失败';
+          try { err = JSON.parse(xhr.responseText).error || err } catch (_e) { /* ignore */ }
+          showToast(err);
+        }
+        setTimeout(() => row.classList.remove('show'), 1500);
+      };
+      xhr.onerror = () => { showToast('网络错误'); row.classList.remove('show'); };
+      xhr.send(fd);
+    }
+
+    // ---- P2P file preview (reuses the shared modal) ----
+    const P2P_PREVIEW_EXTS = ['txt', 'log', 'csv', 'json', 'xml', 'yml', 'yaml', 'toml', 'ini', 'cfg', 'conf', 'env', 'properties', 'md', 'markdown', 'mdown', 'mkd', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'rs', 'go', 'rb', 'php', 'swift', 'kt', 'kts', 'scala', 'dart', 'lua', 'r', 'sql', 'sh', 'bash', 'zsh', 'bat', 'cmd', 'ps1', 'html', 'htm', 'css', 'scss', 'less', 'vue', 'svelte', 'svg', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'mp4', 'webm', 'mkv', 'avi', 'mov', 'flv', 'pdf'];
+
+    function isP2pPreviewable(name) {
+      const ext = (name || '').split('.').pop().toLowerCase();
+      return P2P_PREVIEW_EXTS.includes(ext);
+    }
+
+    // url is optional: peer mode builds /api/p2p/file, host mode passes the
+    // /api/host/p2p/file URL explicitly.
+    function openP2pPreview(f, url) {
+      const baseUrl = url || p2pFileUrl(f.fileId, false);
+      const dlUrl = baseUrl + '&dl=1';
+      const ext = (f.name || '').split('.').pop().toLowerCase();
+      const cat = getFileCategory(ext);
+      currentFilePath = null;
+      currentRawContent = '';
+      document.getElementById('modalTitle').textContent = f.name;
+      document.getElementById('modalOverlay').style.display = 'flex';
+      document.getElementById('modalDownload').href = dlUrl;
+      document.querySelectorAll('.modal-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+      currentViewMode = 'preview';
+      const showTabs = cat === 'markdown' || cat === 'code';
+      const isTextType = cat === 'markdown' || cat === 'code' || cat === 'text';
+      document.getElementById('modalTabs').style.display = showTabs ? 'flex' : 'none';
+      document.getElementById('modalCopyBtn').style.display = isTextType ? '' : 'none';
+      const body = document.getElementById('modalBody');
+
+      if (cat === 'image') {
+        body.innerHTML = '<img src="' + baseUrl + '" alt="' + escHtml(f.name) + '" style="max-width:100%;max-height:65vh;display:block;margin:0 auto;cursor:zoom-in" onclick="openImgViewer(\'' + baseUrl.replace(/'/g, "\\'") + '\')">';
+        return;
+      }
+      if (cat === 'audio') {
+        body.innerHTML = '<div style="text-align:center;padding:20px"><p style="margin-bottom:16px;font-weight:500">' + escHtml(f.name) + '</p><audio controls autoplay style="width:100%;max-width:500px"><source src="' + baseUrl + '"></audio></div>';
+        return;
+      }
+      if (cat === 'video') {
+        body.innerHTML = '<video controls autoplay style="width:100%;max-height:55vh;display:block"><source src="' + baseUrl + '"></video>';
+        return;
+      }
+      if (ext === 'pdf') {
+        body.innerHTML = '<iframe src="' + baseUrl + '" style="width:100%;height:70vh;border:none;border-radius:8px"></iframe>';
+        return;
+      }
+      if (cat === 'markdown' || cat === 'code' || cat === 'text') {
+        currentFileExt = ext;
+        body.innerHTML = '<div class="empty-hint"><span>加载中...</span></div>';
+        fetch(baseUrl).then(r => r.text()).then(text => {
+          currentRawContent = text;
+          currentFilePath = baseUrl;
+          renderPreview(text, ext);
+        }).catch(() => {
+          body.innerHTML = '<div class="empty-hint"><span style="color:var(--danger)">加载失败</span></div>';
+        });
+        return;
+      }
+      showAlert('该文件类型暂不支持在线预览，请下载后查看。');
+    }
+
+    // ===== Local management console (host mode) =====
+    // When the browser runs on the plugin machine, a left-side menu switches
+    // between the file view and the message console (same P2P conversations
+    // as the plugin window). No drawer, no self-application.
+    const host = {
+      sessions: [],
+      selectedId: '',
+      messages: [],
+      lastSeq: 0,
+      active: false,      // message console is the visible view
+      view: 'list',       // 'list' | 'chat' (mobile single-pane switch)
+      timer: null,
+      msgTimer: null,
+      pendingCount: -1,
+      unreadCount: -1
+    };
+
+    let currentView = 'files'; // 'files' | 'messages'
+
+    let p2pModeInit = false;
+
+    // The plugin machine's own browser shows the host console, unless the
+    // ?peer=1 dev switch forces the remote-client (peer) flow for testing.
+    function hostUiMode() {
+      return isLocalHost && !FORCE_PEER;
+    }
+
+    function initP2pMode() {
+      if (p2pModeInit) return;
+      p2pModeInit = true;
+      if (hostUiMode()) initHost();
+      else initP2p();
+    }
+
+    function setView(v) {
+      currentView = v;
+      document.getElementById('filesView').style.display = v === 'files' ? '' : 'none';
+      document.getElementById('messagesView').style.display = v === 'messages' ? '' : 'none';
+      document.getElementById('sideTabFiles').classList.toggle('active', v === 'files');
+      document.getElementById('sideTabMessages').classList.toggle('active', v === 'messages');
+      setMobileNav(v === 'files' ? 'files' : 'p2p');
+      if (v === 'messages') {
+        host.active = true;
+        hostPoll();
+        renderHostBody();
+        if (host.selectedId) hostPollMessages();
+        host.msgTimer = setInterval(hostPollMessages, 1500);
+      } else {
+        host.active = false;
+        if (host.msgTimer) clearInterval(host.msgTimer);
+      }
+    }
+
+    function hostApi(path, method, body) {
+      const sep = path.includes('?') ? '&' : '?';
+      const opts = { method: method || 'GET', headers: {} };
+      if (body !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      return fetch(path + sep + 'token=' + TOKEN, opts);
+    }
+
+    function initHost() {
+      document.getElementById('p2pBtn').style.display = 'none';
+      document.getElementById('hostLogsBtn').style.display = '';
+      document.getElementById('hostWhitelistBtn').style.display = '';
+      document.getElementById('sideMenu').style.display = 'flex';
+      document.getElementById('app').classList.add('app-host');
+      document.getElementById('navP2pLabel').textContent = '管理';
+      hostPoll();
+      host.timer = setInterval(hostPoll, 2000);
+    }
+
+    async function hostPoll() {
+      try {
+        const res = await hostApi('/api/host/p2p');
+        const data = await res.json();
+        if (!data.ok) return;
+        const prevSessionsJson = JSON.stringify(host.sessions);
+        host.sessions = data.sessions || [];
+        const pending = host.sessions.filter(s => s.status === 'pending').length;
+        const unread = host.sessions.reduce((a, s) => a + (s.status === 'active' ? s.unreadByHost : 0), 0);
+        if (!host.active) {
+          if (host.pendingCount >= 0 && pending > host.pendingCount) showToast('收到新的连接申请');
+          if (host.unreadCount >= 0 && unread > host.unreadCount) showToast('收到新消息');
+        }
+        host.pendingCount = pending;
+        host.unreadCount = unread;
+        updateHostBadge();
+        // Only re-render the console when the session data actually changed,
+        // so the 2s poll never disrupts typing/focus in the open chat.
+        if (host.active && JSON.stringify(host.sessions) !== prevSessionsJson) renderHostBody();
+      } catch (_e) { /* ignore */ }
+    }
+
+    function updateHostBadge() {
+      const n = host.pendingCount + host.unreadCount;
+      const side = document.getElementById('sideMsgBadge');
+      const nav = document.getElementById('navP2pBadge');
+      const show = n > 0;
+      side.style.display = show ? '' : 'none';
+      nav.style.display = show ? '' : 'none';
+      side.textContent = n > 99 ? '99+' : String(n);
+      nav.textContent = n > 99 ? '99+' : String(n);
+    }
+
+    async function hostPollMessages() {
+      if (!host.selectedId) return;
+      try {
+        const res = await hostApi('/api/host/p2p/messages?session=' + host.selectedId + '&after=' + host.lastSeq);
+        const data = await res.json();
+        if (data.messages && data.messages.length > 0) {
+          for (const m of data.messages) {
+            if (m.seq > host.lastSeq) { host.messages.push(m); host.lastSeq = m.seq; }
+          }
+          if (host.active) renderHostBody();
+        }
+        // While this conversation is open, keep its unread badge cleared.
+        hostApi('/api/host/p2p/read', 'POST', { session: host.selectedId });
+        hostPoll();
+      } catch (_e) { /* ignore */ }
+    }
+
+    // ---- host message console rendering (into #messagesViewBody) ----
+    function renderHostBody() {
+      const body = document.getElementById('messagesViewBody');
+      // Preserve the chat input across re-renders (incoming messages / poll).
+      const oldInput = document.getElementById('hostInput');
+      const savedValue = oldInput ? oldInput.value : '';
+      const hadFocus = oldInput && document.activeElement === oldInput;
+      body.innerHTML = '';
+      body.className = 'host-body' + (host.view === 'chat' ? ' host-view-chat' : ' host-view-list');
+
+      // list pane
+      const list = document.createElement('div');
+      list.className = 'host-list';
+      const pending = host.sessions.filter(s => s.status === 'pending');
+      const others = host.sessions.filter(s => s.status === 'active');
+      if (pending.length > 0) {
+        list.appendChild(groupLabel('连接申请'));
+        for (const s of pending) list.appendChild(hostSessionRow(s, true));
+      }
+      if (others.length > 0) {
+        list.appendChild(groupLabel('会话'));
+        for (const s of others) list.appendChild(hostSessionRow(s, false));
+      }
+      if (host.sessions.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding:30px 16px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6';
+        empty.textContent = '暂无连接。\n远程设备访问共享页面后可申请点对点私密连接。';
+        list.appendChild(empty);
+      }
+      body.appendChild(list);
+
+      // chat pane
+      const chat = document.createElement('div');
+      chat.className = 'host-chat';
+      const sel = host.sessions.find(s => s.id === host.selectedId);
+      if (sel && sel.status === 'active') {
+        chat.appendChild(buildHostChat(sel));
+      } else {
+        const empty2 = document.createElement('div');
+        empty2.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);gap:8px;font-size:13px';
+        empty2.innerHTML = '<svg viewBox="0 0 24 24" width="52" height="52" stroke="currentColor" fill="none" stroke-width="1" opacity="0.25"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><div>选择左侧会话开始对话</div>';
+        chat.appendChild(empty2);
+      }
+      body.appendChild(chat);
+
+      const msgs = document.getElementById('hostMsgs');
+      if (msgs) msgs.scrollTop = msgs.scrollHeight;
+      const newInput = document.getElementById('hostInput');
+      if (newInput) {
+        newInput.value = savedValue;
+        const b = document.getElementById('hostSendBtn');
+        if (b) b.disabled = !savedValue.trim();
+        if (hadFocus) {
+          newInput.focus();
+          newInput.setSelectionRange(savedValue.length, savedValue.length);
+        }
+      }
+    }
+
+    function groupLabel(text) {
+      const d = document.createElement('div');
+      d.className = 'p2p-group-label';
+      d.textContent = text;
+      return d;
+    }
+
+    function hostSessionRow(s, isPending) {
+      const row = document.createElement('div');
+      row.className = 'p2p-session' + (isPending ? ' pending' : '') + (!isPending && host.selectedId === s.id ? ' active' : '');
+      const main = document.createElement('div');
+      main.className = 'p2p-session-main';
+      const avatar = document.createElement('div');
+      avatar.className = 'p2p-avatar';
+      avatar.textContent = (s.peerName || s.peerIp).slice(0, 1);
+      const info = document.createElement('div');
+      info.className = 'p2p-session-info';
+      const name = document.createElement('div');
+      name.className = 'p2p-session-name';
+      name.textContent = s.peerName;
+      const ip = document.createElement('span');
+      ip.className = 'p2p-session-ip';
+      ip.textContent = s.peerIp;
+      name.appendChild(ip);
+      if (!isPending) {
+        const dot = document.createElement('span');
+        dot.className = 'p2p-status-dot' + (s.peerOnline ? ' online' : '');
+        name.appendChild(dot);
+      }
+      const preview = document.createElement('div');
+      preview.className = 'p2p-session-preview';
+      preview.textContent = isPending
+        ? (s.requestMessage || '想与你建立私密连接')
+        : (s.lastMessage || (s.status === 'rejected' ? '已拒绝' : s.status === 'deleted' ? '已删除' : ''));
+      info.appendChild(name);
+      info.appendChild(preview);
+      main.appendChild(avatar);
+      main.appendChild(info);
+      row.appendChild(main);
+
+      const side = document.createElement('div');
+      side.className = 'p2p-session-side';
+      if (isPending) {
+        const acc = document.createElement('button');
+        acc.className = 'p2p-btn accept';
+        acc.textContent = '同意';
+        acc.addEventListener('click', (e) => { e.stopPropagation(); hostRespond(s, true); });
+        const rej = document.createElement('button');
+        rej.className = 'p2p-btn reject';
+        rej.textContent = '拒绝';
+        rej.addEventListener('click', (e) => { e.stopPropagation(); hostRespond(s, false); });
+        side.appendChild(acc);
+        side.appendChild(rej);
+      } else {
+        if (s.status === 'active' && s.unreadByHost > 0) {
+          const un = document.createElement('span');
+          un.className = 'p2p-unread';
+          un.textContent = s.unreadByHost;
+          side.appendChild(un);
+        }
+        if (s.status === 'active') {
+          const del = document.createElement('button');
+          del.className = 'p2p-del';
+          del.title = '删除连接';
+          del.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+          del.addEventListener('click', (e) => { e.stopPropagation(); hostDeleteSession(s); });
+          side.appendChild(del);
+        } else {
+          const st = document.createElement('span');
+          st.className = 'p2p-status-text';
+          st.textContent = s.status === 'rejected' ? '已拒绝' : '已删除';
+          side.appendChild(st);
+        }
+      }
+      row.appendChild(side);
+
+      if (!isPending && s.status === 'active') {
+        row.addEventListener('click', () => hostOpenChat(s.id));
+      }
+      return row;
+    }
+
+    async function hostRespond(s, accept) {
+      try {
+        const res = await hostApi('/api/host/p2p/respond', 'POST', { session: s.id, accept: accept });
+        if (res.ok) { showToast(accept ? '已同意连接' : '已拒绝申请'); hostPoll(); }
+        else showToast('操作失败');
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function hostOpenChat(id) {
+      host.selectedId = id;
+      host.messages = [];
+      host.lastSeq = 0;
+      host.view = 'chat';
+      renderHostBody();
+      hostPollMessages();
+      setTimeout(() => { const input = document.getElementById('hostInput'); if (input) input.focus(); }, 60);
+    }
+
+    function hostBackToList() {
+      host.selectedId = '';
+      host.messages = [];
+      host.view = 'list';
+      renderHostBody();
+    }
+
+    async function hostDeleteSession(s) {
+      const ok = await showConfirm('确定删除与 ' + s.peerName + ' 的私密连接？', '删除连接', '删除');
+      if (!ok) return;
+      try {
+        const res = await hostApi('/api/host/p2p/session?session=' + s.id, 'DELETE');
+        if (res.ok) {
+          showToast('连接已删除');
+          if (host.selectedId === s.id) { host.selectedId = ''; host.messages = []; }
+          hostPoll();
+        }
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function buildHostChat(s) {
+      const chat = document.createElement('div');
+      chat.className = 'p2p-chat';
+      const head = document.createElement('div');
+      head.className = 'p2p-chat-header';
+      const back = document.createElement('button');
+      back.className = 'p2p-back';
+      back.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>';
+      back.addEventListener('click', hostBackToList);
+      const name = document.createElement('span');
+      name.className = 'p2p-peer-name';
+      name.textContent = s.peerName;
+      const ip = document.createElement('span');
+      ip.className = 'p2p-peer-ip';
+      ip.textContent = s.peerIp;
+      const dot = document.createElement('span');
+      dot.className = 'p2p-online' + (s.peerOnline ? ' on' : '');
+      const del = document.createElement('button');
+      del.className = 'p2p-chat-del';
+      del.textContent = '删除连接';
+      del.addEventListener('click', () => hostDeleteSession(s));
+      head.appendChild(back);
+      head.appendChild(name);
+      head.appendChild(ip);
+      head.appendChild(dot);
+      head.appendChild(del);
+      chat.appendChild(head);
+
+      const msgs = document.createElement('div');
+      msgs.className = 'p2p-msgs';
+      msgs.id = 'hostMsgs';
+      if (host.messages.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'margin:auto;color:var(--text3);font-size:12px';
+        empty.textContent = '还没有消息';
+        msgs.appendChild(empty);
+      } else {
+        for (const m of host.messages) msgs.appendChild(buildHostMsg(m));
+      }
+      chat.appendChild(msgs);
+
+      const bar = document.createElement('div');
+      bar.className = 'p2p-inputbar';
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'p2p-file-send'; sendBtn.title = '发送文件';
+      sendBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>';
+      sendBtn.addEventListener('click', () => document.getElementById('p2pFileInput').click());
+      const input = document.createElement('textarea');
+      input.className = 'p2p-input'; input.rows = 1; input.id = 'hostInput';
+      input.placeholder = '输入消息，Enter 发送';
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); hostSendMessage(); } });
+      input.addEventListener('input', () => { const b = document.getElementById('hostSendBtn'); if (b) b.disabled = !input.value.trim(); });
+      const s2 = document.createElement('button');
+      s2.className = 'p2p-send'; s2.id = 'hostSendBtn'; s2.textContent = '发送'; s2.disabled = true;
+      s2.addEventListener('click', hostSendMessage);
+      bar.appendChild(sendBtn); bar.appendChild(input); bar.appendChild(s2);
+      chat.appendChild(bar);
+      return chat;
+    }
+
+    function buildHostMsg(m) {
+      const row = document.createElement('div');
+      row.className = 'p2p-msg ' + (m.from === 'host' ? 'mine' : 'theirs');
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;gap:6px';
+      const time = document.createElement('div');
+      time.className = 'p2p-msg-time';
+      time.textContent = fmtP2pTime(m.createdAt);
+      head.appendChild(time);
+      if (m.kind === 'text') {
+        const copy = document.createElement('button');
+        copy.className = 'p2p-msg-copy' + (p2pCopiedId === m.id ? ' copied' : '');
+        copy.dataset.msgId = m.id;
+        copy.title = '复制内容';
+        copy.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+        copy.addEventListener('click', () => copyP2pText(m));
+        head.appendChild(copy);
+      }
+      const del = document.createElement('button');
+      del.className = 'p2p-msg-del'; del.title = '删除消息';
+      del.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+      del.addEventListener('click', () => hostDeleteMessage(m));
+      head.appendChild(del);
+      row.appendChild(head);
+      if (m.kind === 'text') {
+        const b = document.createElement('div');
+        b.className = 'p2p-bubble';
+        b.textContent = m.text;
+        row.appendChild(b);
+      } else if (m.kind === 'files' && m.files && m.files.length > 0) {
+        const card = document.createElement('div');
+        card.className = 'p2p-file';
+        const list = document.createElement('div');
+        list.style.cssText = 'display:flex;flex-direction:column;width:100%';
+        m.files.forEach((f, fi) => {
+          const item = document.createElement('div');
+          item.className = 'p2p-file-item';
+          if (fi > 0) item.style.borderTop = '1px solid var(--border)';
+          const icon = document.createElement('span');
+          icon.className = 'p2p-file-icon';
+          icon.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+          const info = document.createElement('div');
+          info.style.cssText = 'min-width:0;flex:1';
+          const nm = document.createElement('div'); nm.className = 'p2p-file-name'; nm.textContent = f.name;
+          const meta = document.createElement('div'); meta.className = 'p2p-file-meta'; meta.textContent = fmtP2pSize(f.size);
+          const actions = document.createElement('div'); actions.className = 'p2p-file-actions';
+          const dl = document.createElement('button'); dl.className = 'p2p-file-btn'; dl.textContent = '下载';
+          dl.addEventListener('click', () => hostDownloadFile(f.fileId, f.name));
+          actions.appendChild(dl);
+          if (isP2pPreviewable(f.name)) {
+            const pv = document.createElement('button'); pv.className = 'p2p-file-btn'; pv.textContent = '预览';
+            pv.addEventListener('click', () => openP2pPreview(f, hostFileUrl(f.fileId, false)));
+            actions.appendChild(pv);
+          }
+          info.appendChild(nm); info.appendChild(meta); info.appendChild(actions);
+          item.appendChild(icon); item.appendChild(info);
+          list.appendChild(item);
+        });
+        card.appendChild(list);
+        row.appendChild(card);
+      }
+      return row;
+    }
+
+    function hostFileUrl(fileId, dl) {
+      let u = '/api/host/p2p/file?session=' + host.selectedId + '&file=' + encodeURIComponent(fileId) + '&token=' + TOKEN;
+      if (dl) u += '&dl=1';
+      return u;
+    }
+
+    function hostDownloadFile(fileId, name) {
+      const a = document.createElement('a');
+      a.href = hostFileUrl(fileId, true);
+      a.download = name;
+      a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    async function hostSendMessage() {
+      const input = document.getElementById('hostInput');
+      if (!input || !host.selectedId) return;
+      const text = input.value.trim();
+      if (!text) return;
+      // Clear the input *before* renderHostBody triggers a re-render,
+      // otherwise renderHostBody will restore the old value from the DOM.
+      input.value = '';
+      const b0 = document.getElementById('hostSendBtn'); if (b0) b0.disabled = true;
+      try {
+        const res = await hostApi('/api/host/p2p/message', 'POST', { session: host.selectedId, text: text });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok && data.msg) {
+          if (data.msg.seq > host.lastSeq) { host.messages.push(data.msg); host.lastSeq = data.msg.seq; renderHostBody(); }
+        } else showToast(data.error || '发送失败');
+      } catch (_e) { showToast('网络错误'); }
+      input.focus();
+    }
+
+    async function hostDeleteMessage(m) {
+      if (!host.selectedId) return;
+      const ok = await showConfirm('删除这条消息？服务端留存也会一并删除。', '删除消息', '删除');
+      if (!ok) return;
+      try {
+        const res = await hostApi('/api/host/p2p/message?session=' + host.selectedId + '&msg=' + encodeURIComponent(m.id), 'DELETE');
+        if (res.ok) {
+          host.messages = host.messages.filter(x => x.id !== m.id);
+          renderHostBody();
+        } else showToast('删除失败');
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function uploadHostFiles(fileList) {
+      const row = document.getElementById('p2pUploadRow');
+      const fill = document.getElementById('p2pUploadFill');
+      const pct = document.getElementById('p2pUploadPct');
+      const nameEl = document.getElementById('p2pUploadName');
+      row.classList.add('show'); fill.style.width = '0%'; pct.textContent = '0%';
+      nameEl.textContent = fileList.length > 1 ? ('正在发送 ' + fileList.length + ' 个文件…') : fileList[0].name;
+      const fd = new FormData();
+      for (const file of fileList) {
+        try { fd.append('file', file, file.name); } catch (_e) { fd.append('file', file); }
+      }
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/host/p2p/file?session=' + host.selectedId + '&token=' + TOKEN);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) { const p = Math.round(e.loaded / e.total * 100); fill.style.width = p + '%'; pct.textContent = p + '%'; }
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200) { showToast('文件已发送'); hostPollMessages(); }
+        else {
+          let err = '发送失败';
+          try { err = JSON.parse(xhr.responseText).error || err } catch (_e) { /* ignore */ }
+          showToast(err);
+        }
+        setTimeout(() => row.classList.remove('show'), 1500);
+      };
+      xhr.onerror = () => { showToast('网络错误'); row.classList.remove('show'); };
+      xhr.send(fd);
+    }
+
+    // ---- host logs / whitelist modals ----
+    let hostModalEl = null;
+    function closeHostModal() {
+      if (hostModalEl) { hostModalEl.remove(); hostModalEl = null; }
+    }
+
+    async function openHostLogs() {
+      try {
+        const res = await hostApi('/api/host/logs');
+        const data = await res.json();
+        renderHostLogsModal(data.logs || []);
+      } catch (_e) { showToast('加载日志失败'); }
+    }
+
+    function renderHostLogsModal(logs) {
+      closeHostModal();
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1300;display:flex;align-items:center;justify-content:center;padding:24px';
+      const modal = document.createElement('div');
+      modal.style.cssText = 'background:var(--bg);border-radius:12px;width:100%;max-width:720px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-lg)';
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border);gap:10px';
+      const title = document.createElement('span');
+      title.style.cssText = 'font-size:14px;font-weight:600;flex:1';
+      title.textContent = '下载 / 上传日志';
+      const clear = document.createElement('button');
+      clear.style.cssText = 'font-size:12px;color:var(--danger);background:none;border:none;cursor:pointer;padding:4px 8px';
+      clear.textContent = '清空';
+      clear.addEventListener('click', async () => {
+        await hostApi('/api/host/logs', 'DELETE');
+        openHostLogs();
+      });
+      const close = document.createElement('button');
+      close.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      close.style.cssText = 'width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:var(--text2)';
+      close.addEventListener('click', closeHostModal);
+      head.appendChild(title); head.appendChild(clear); head.appendChild(close);
+      const body = document.createElement('div');
+      body.style.cssText = 'flex:1;overflow-y:auto';
+      if (logs.length === 0) {
+        body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3)">暂无记录</div>';
+      } else {
+        const table = document.createElement('table');
+        table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px';
+        const thead = document.createElement('thead');
+        const thr = document.createElement('tr');
+        thr.innerHTML = '<th style="text-align:left;padding:8px 14px;background:var(--bg2);color:var(--text2);border-bottom:1px solid var(--border)">时间</th>' +
+          '<th style="text-align:left;padding:8px 14px;background:var(--bg2);color:var(--text2);border-bottom:1px solid var(--border)">IP</th>' +
+          '<th style="text-align:left;padding:8px 14px;background:var(--bg2);color:var(--text2);border-bottom:1px solid var(--border)">类型</th>' +
+          '<th style="text-align:left;padding:8px 14px;background:var(--bg2);color:var(--text2);border-bottom:1px solid var(--border)">文件</th>';
+        thead.appendChild(thr);
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        for (const log of logs) {
+          const d = new Date(log.timestamp);
+          const pad = n => String(n).padStart(2, '0');
+          const ts = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+          const type = log.type === 'upload' ? '上传' : '下载';
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td style="padding:7px 14px;border-bottom:1px solid var(--border-light);color:var(--text2);white-space:nowrap">' + ts + '</td>' +
+            '<td style="padding:7px 14px;border-bottom:1px solid var(--border-light);font-family:monospace;color:var(--primary);white-space:nowrap">' + escHtml(log.ip || '') + '</td>' +
+            '<td style="padding:7px 14px;border-bottom:1px solid var(--border-light);white-space:nowrap;width:56px">' + type + '</td>' +
+            '<td style="padding:7px 14px;border-bottom:1px solid var(--border-light);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(log.filePath || '') + '">' + escHtml(log.fileName || '') + '</td>';
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        body.appendChild(table);
+      }
+      modal.appendChild(head); modal.appendChild(body);
+      overlay.appendChild(modal);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeHostModal(); });
+      document.body.appendChild(overlay);
+      hostModalEl = overlay;
+    }
+
+    async function openHostWhitelist() {
+      try {
+        const res = await hostApi('/api/host/whitelist');
+        const data = await res.json();
+        renderHostWhitelistModal(data.whitelist || []);
+      } catch (_e) { showToast('加载白名单失败'); }
+    }
+
+    function renderHostWhitelistModal(list) {
+      closeHostModal();
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1300;display:flex;align-items:center;justify-content:center;padding:24px';
+      const modal = document.createElement('div');
+      modal.style.cssText = 'background:var(--bg);border-radius:12px;width:100%;max-width:420px;max-height:70vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-lg)';
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border);gap:10px';
+      const title = document.createElement('span');
+      title.style.cssText = 'font-size:14px;font-weight:600;flex:1';
+      title.textContent = 'IP 白名单';
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:11px;color:var(--text3)';
+      hint.textContent = '白名单内 IP 无需 Token 即可访问';
+      const close = document.createElement('button');
+      close.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      close.style.cssText = 'width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:var(--text2)';
+      close.addEventListener('click', closeHostModal);
+      head.appendChild(title); head.appendChild(hint); head.appendChild(close);
+      const body = document.createElement('div');
+      body.style.cssText = 'flex:1;overflow-y:auto;padding:14px';
+      const addRow = document.createElement('div');
+      addRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px';
+      const input = document.createElement('input');
+      input.placeholder = '输入 IP 地址，如 192.168.1.100';
+      input.style.cssText = 'flex:1;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);outline:none;font-family:monospace';
+      const addBtn = document.createElement('button');
+      addBtn.textContent = '添加';
+      addBtn.style.cssText = 'padding:6px 14px;border-radius:6px;background:var(--primary);color:#fff;font-size:12px;border:none;cursor:pointer';
+      addBtn.addEventListener('click', async () => {
+        const ip = input.value.trim();
+        if (!ip) return;
+        const res = await hostApi('/api/host/whitelist', 'POST', { ip: ip });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) { input.value = ''; openHostWhitelist(); }
+        else showToast(data.error || '添加失败');
+      });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addBtn.click(); });
+      addRow.appendChild(input); addRow.appendChild(addBtn);
+      body.appendChild(addRow);
+      if (list.length === 0) {
+        body.innerHTML += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">白名单为空，所有访问均需 Token</div>';
+      } else {
+        for (const ip of list) {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg2);border-radius:6px;margin-bottom:4px';
+          const ipSpan = document.createElement('span');
+          ipSpan.textContent = ip;
+          ipSpan.style.cssText = 'font-family:monospace;font-size:13px;color:var(--text)';
+          const rm = document.createElement('button');
+          rm.textContent = '移除';
+          rm.style.cssText = 'font-size:11px;color:var(--danger);background:none;border:none;cursor:pointer;padding:3px 6px';
+          rm.addEventListener('click', async () => {
+            await hostApi('/api/host/whitelist?ip=' + encodeURIComponent(ip), 'DELETE');
+            openHostWhitelist();
+          });
+          row.appendChild(ipSpan); row.appendChild(rm);
+          body.appendChild(row);
+        }
+      }
+      modal.appendChild(head); modal.appendChild(body);
+      overlay.appendChild(modal);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeHostModal(); });
+      document.body.appendChild(overlay);
+      hostModalEl = overlay;
     }
 
     // ===== Start =====

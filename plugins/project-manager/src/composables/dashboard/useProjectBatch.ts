@@ -1,5 +1,6 @@
 import { computed } from 'vue';
 import { useProjectStore } from '../../stores/project';
+import { useWorkspaceEditorStore } from '../../stores/workspaceEditor';
 import { api } from '../../api';
 import type { Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -15,6 +16,7 @@ export function useProjectBatch(options: {
   filteredProjectIds: Ref<string[]>;
 }) {
   const projectStore = useProjectStore();
+  const editorStore = useWorkspaceEditorStore();
   const { t } = useI18n();
 
   /** 批量模式开关 */
@@ -146,7 +148,9 @@ export function useProjectBatch(options: {
     const count = ids.length;
     try {
       await ElMessageBox.confirm(
-        t('dashboard.batchRemoveConfirm', { count }),
+        `${t('dashboard.batchRemoveConfirm', { count })}${editorStore.hasDirtyDocuments(ids)
+          ? '\n\n所选项目有未保存的编辑器内容，删除后这些文档会关闭。'
+          : ''}`,
         t('dashboard.batchRemoveTitle'),
         { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
       );

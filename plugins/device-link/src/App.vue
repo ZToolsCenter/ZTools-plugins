@@ -235,7 +235,7 @@ onUnmounted(() => {
       </header>
 
       <div v-if="link.loading.value" class="loading-state"><span class="spinner" />正在建立本机会话…</div>
-      <MessageList v-else :messages="filteredMessages" :search-query="searchQuery" @copy="link.copyMessage" @open="link.openAttachment" @delete="link.deleteMessage" />
+      <MessageList v-else :messages="filteredMessages" :search-query="searchQuery" :saving-attachment-ids="link.savingAttachmentIds.value" @copy="link.copyMessage" @open="link.openAttachment" @download="link.saveAttachment" @delete="link.deleteMessage" />
       <MessageComposer :busy="link.busy.value" :target-count="link.conversationTargetCount.value" :target-label="link.conversationTitle.value" @send="sendText" @attach="link.chooseAndSendFiles" />
     </section>
 

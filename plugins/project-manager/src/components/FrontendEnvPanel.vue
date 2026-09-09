@@ -113,7 +113,7 @@ watch(
 <template>
   <div class="frontend-env-panel flex h-full flex-col font-sans">
     <div class="flex shrink-0 items-center justify-between border-b border-slate-200/70 px-4 py-2 dark:border-slate-700/50">
-      <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <span class="app-text-meta font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         {{ t('dashboard.envSwitcher') }}
       </span>
       <el-button
@@ -131,11 +131,11 @@ watch(
     <div class="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
       <div v-if="scanned && totalGroupCount === 0" class="flex flex-col items-center justify-center py-12 text-slate-400 dark:text-slate-500">
         <div class="i-mdi-tune-variant text-4xl opacity-20" />
-        <p class="mt-2 text-xs font-medium">{{ t('dashboard.envNoItems') }}</p>
+        <p class="app-text-body mt-2 font-medium">{{ t('dashboard.envNoItems') }}</p>
       </div>
 
       <section v-if="envGroups.length > 0" class="space-y-2">
-        <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+        <div class="app-text-meta flex items-center gap-2 font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
           <div class="i-mdi-variable text-sm" />
           {{ t('dashboard.envVars') }}
         </div>
@@ -147,10 +147,10 @@ watch(
         >
           <div class="mb-2 flex min-w-0 items-center justify-between gap-3">
             <div class="min-w-0">
-              <div class="truncate font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">{{ group.key }}</div>
-              <div class="truncate text-[10px] text-slate-400 dark:text-slate-500">{{ group.fileName }}</div>
+              <div class="app-text-control truncate font-mono font-semibold text-slate-700 dark:text-slate-200">{{ group.key }}</div>
+              <div class="app-text-meta truncate text-slate-400 dark:text-slate-500">{{ group.fileName }}</div>
             </div>
-            <span class="max-w-[45%] shrink-0 truncate rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+            <span class="app-text-caption max-w-[45%] shrink-0 truncate rounded bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-600 dark:text-emerald-400">
               {{ t('dashboard.envCurrent') }}: {{ getActiveCandidate(group)?.value || '-' }}
             </span>
           </div>
@@ -160,7 +160,7 @@ watch(
               v-for="candidate in group.candidates"
               :key="candidate.id"
               type="button"
-              class="max-w-full truncate rounded-md border px-2 py-1 font-mono text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              class="app-text-control max-w-full truncate rounded-md border px-2 py-1 font-mono transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               :class="candidate.active
                 ? 'border-blue-400 bg-blue-500/10 text-blue-600 dark:border-blue-500/60 dark:text-blue-300'
                 : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:border-blue-500/60 dark:hover:text-blue-300'"
@@ -174,7 +174,7 @@ watch(
       </section>
 
       <section v-if="proxyGroups.length > 0" class="space-y-2">
-        <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+        <div class="app-text-meta flex items-center gap-2 font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
           <div class="i-mdi-lan-connect text-sm" />
           {{ t('dashboard.envProxies') }}
         </div>
@@ -186,10 +186,10 @@ watch(
         >
           <div class="mb-2 flex min-w-0 items-center justify-between gap-3">
             <div class="min-w-0">
-              <div class="truncate font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">{{ group.key }}</div>
-              <div class="truncate text-[10px] text-slate-400 dark:text-slate-500">{{ group.fileName }}</div>
+              <div class="app-text-control truncate font-mono font-semibold text-slate-700 dark:text-slate-200">{{ group.key }}</div>
+              <div class="app-text-meta truncate text-slate-400 dark:text-slate-500">{{ group.fileName }}</div>
             </div>
-            <span class="max-w-[45%] shrink-0 truncate rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+            <span class="app-text-caption max-w-[45%] shrink-0 truncate rounded bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-600 dark:text-emerald-400">
               {{ t('dashboard.envCurrent') }}: {{ getActiveCandidate(group)?.value || '-' }}
             </span>
           </div>
@@ -199,7 +199,7 @@ watch(
               v-for="candidate in group.candidates"
               :key="candidate.id"
               type="button"
-              class="max-w-full truncate rounded-md border px-2 py-1 font-mono text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              class="app-text-control max-w-full truncate rounded-md border px-2 py-1 font-mono transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               :class="candidate.active
                 ? 'border-blue-400 bg-blue-500/10 text-blue-600 dark:border-blue-500/60 dark:text-blue-300'
                 : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:border-blue-500/60 dark:hover:text-blue-300'"

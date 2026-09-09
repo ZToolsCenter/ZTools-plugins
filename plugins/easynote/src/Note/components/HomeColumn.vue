@@ -2,9 +2,22 @@
   <div class="home-col">
     <div class="home-col-header">
       <span class="home-col-title">{{ title }}</span>
-      <el-tag size="small" :type="tagType" effect="plain">
-        <slot name="count">{{ items.length }}</slot>
-      </el-tag>
+      <div class="home-col-header-right">
+        <el-tag size="small" :type="tagType" effect="plain">
+          <slot name="count">{{ items.length }}</slot>
+        </el-tag>
+        <el-button
+          link
+          type="danger"
+          size="small"
+          :icon="Delete"
+          :disabled="!items.length"
+          title="清空该栏"
+          @click="$emit('clear')"
+        >
+          清空
+        </el-button>
+      </div>
     </div>
     <div class="home-list">
       <div
@@ -70,5 +83,6 @@ defineEmits<{
   (e: 'openSticky', id: string): void
   (e: 'changeType', id: string): void
   (e: 'delete', id: string): void
+  (e: 'clear'): void
 }>()
 </script>

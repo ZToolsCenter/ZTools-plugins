@@ -1,5 +1,10 @@
 import type {
     NodeVersion,
+    NodeInstallProgress,
+    NodeReleaseInfo,
+    SystemNodeState,
+    SystemNodeSwitchOptions,
+    SystemNodeSwitchResult,
     GitStatusResult,
     GitBranch,
     GitCommit,
@@ -10,6 +15,13 @@ import type {
     GitTag,
     GitResetMode,
     GitPullStrategy,
+    GitIgnoreKind,
+    GitHunkMode,
+    GitImageDiffPayload,
+    GitBinaryDiffMeta,
+    ManagedRuntimeLocation,
+    ManagedRuntimeLocationInfo,
+    ManagedRuntimeSizeInfo,
 } from '../types';
 
 /** 包管理器解析结果 */
@@ -22,13 +34,39 @@ export interface PackageManagerResolveResult {
     reason?: string;
 }
 
+export interface ProjectOutputPayload {
+    /** 稳定命令键；用于同一命令的互斥、停止和 stdin。 */
+    commandKey: string;
+    /** 一次具体执行的唯一会话 id；日志和生命周期必须按它路由。 */
+    sessionId: string;
+    stream: 'stdout' | 'stderr';
+    data: string;
+    partial?: boolean;
+}
+
+export interface ProjectExitPayload {
+    commandKey: string;
+    sessionId: string;
+    exitCode: number | null;
+    stopped: boolean;
+    durationMs: number;
+    waitError?: string;
+}
+
 export interface ProjectInfo {
     name: string;
     scripts: string[];
     path: string;
     packageManager?: 'npm' | 'yarn' | 'pnpm' | 'cnpm';
+    /** @deprecated 兼容旧字段，请优先读 nodeVersionHint */
     nvmVersion?: string;
+    /** .nvmrc / .node-version 提示，不是 NVM 实现绑定 */
+    nodeVersionHint?: string;
     projectType: string;
+    /** Java 构建工具；非 Java 项目为空 */
+    buildTool?: 'maven' | 'gradle';
+    /** 是否存在 mvnw / gradlew，有则优先用 wrapper */
+    hasWrapper?: boolean;
 }
 
 /** 导入候选（批量导入列表项的展示形状） */
@@ -55,6 +93,10 @@ export interface ImportNode {
     hasPackageJson: boolean;
     /** 该目录下的 npm scripts（仅 node/前端项目有值） */
     scripts: string[];
+    /** Java 构建工具；非 Java 模块无此值 */
+    buildTool?: 'maven' | 'gradle';
+    /** 是否存在 mvnw / gradlew */
+    hasWrapper?: boolean;
     /** 子节点（仅容器目录会继续下沉；已识别模块节点为空数组） */
     children: ImportNode[];
 }
@@ -82,14 +124,66 @@ export interface PortEntry {
     command_line?: string | null;
 }
 
+export interface WorkspaceDirEntry {
+    name: string;
+    isDirectory: boolean;
+    size?: number;
+}
+
+export interface WorkspaceStat {
+    exists: boolean;
+    isDirectory: boolean;
+    size: number;
+    diskVersion: string;
+    readOnly: boolean;
+}
+
+export interface EditorFileSnapshot {
+    content: string;
+    size: number;
+    diskVersion: string;
+    encoding: 'utf-8' | 'utf-8-bom' | 'other';
+    eol: 'lf' | 'crlf';
+    readOnly: boolean;
+}
+
+export interface EditorWriteResult {
+    diskVersion: string;
+    size: number;
+}
+
 export interface PlatformAPI {
-    // NVM
-    getNvmList(): Promise<NodeVersion[]>;
-    installNode(version: string): Promise<string>;
-    uninstallNode(version: string): Promise<string>;
-    useNode(version: string): Promise<string>;
+    // Node runtime
+    listInstalledNodeRuntimes(): Promise<NodeVersion[]>;
+    scanNvmNodeRuntimes(): Promise<NodeVersion[]>;
+    listAvailableNodeReleases(): Promise<NodeReleaseInfo[]>;
+    installManagedNode(version: string, operationId?: string): Promise<string>;
+    cancelManagedNodeInstall(operationId: string): Promise<void>;
+    uninstallManagedNode(version: string): Promise<void>;
     getSystemNodePath(): Promise<string>;
     getNodeVersion(path: string): Promise<string>;
+    getSystemNodeState(): Promise<SystemNodeState>;
+    switchSystemNode(runtime: NodeVersion, options?: SystemNodeSwitchOptions): Promise<SystemNodeSwitchResult>;
+    systemNodeSwitchSupported(): Promise<boolean>;
+    managedNodeRuntimeSupported(): Promise<boolean>;
+    getManagedNodeRuntimeLocation(): Promise<ManagedRuntimeLocationInfo>;
+    getManagedNodeRuntimeSize(): Promise<ManagedRuntimeSizeInfo>;
+    openManagedNodeRuntimeRoot(): Promise<void>;
+    migrateManagedNodeRuntimeLocation(
+        location: ManagedRuntimeLocation,
+        migrate: boolean,
+        runningRuntimePaths?: string[],
+    ): Promise<ManagedRuntimeLocationInfo>;
+    onNodeRuntimeProgress?(callback: (payload: NodeInstallProgress) => void): Promise<() => void>;
+
+    /** @deprecated 使用 listInstalledNodeRuntimes */
+    getNvmList(): Promise<NodeVersion[]>;
+    /** @deprecated 使用 installManagedNode */
+    installNode(version: string): Promise<string>;
+    /** @deprecated 使用 uninstallManagedNode */
+    uninstallNode(version: string): Promise<string>;
+    /** @deprecated 不再调用 nvm use */
+    useNode(version: string): Promise<string>;
 
     // Project
     scanProject(path: string): Promise<ProjectInfo>;
@@ -103,9 +197,11 @@ export interface PlatformAPI {
     gitCancelOperation(operationId: string): Promise<void>;
 
     // Runner
-    runProjectCommand(id: string, path: string, script: string, packageManager: string, nodePath: string, commandPath?: string, pmNodePath?: string): Promise<void>;
-    runCustomCommand(id: string, path: string, command: string): Promise<void>;
-    stopProjectCommand(id: string): Promise<void>;
+    runProjectCommand(commandKey: string, sessionId: string, path: string, script: string, packageManager: string, nodePath: string, commandPath?: string, pmNodePath?: string): Promise<void>;
+    runCustomCommand(commandKey: string, sessionId: string, path: string, command: string): Promise<void>;
+    stopProjectCommand(commandKey: string): Promise<void>;
+    sendProjectInput(commandKey: string, input: string): Promise<void>;
+    closeProjectInput(commandKey: string): Promise<void>;
     installPm(nodePath: string, pmName: string): Promise<void>;
 
     /**
@@ -118,22 +214,45 @@ export interface PlatformAPI {
     resolvePackageManager(nodePath: string, defaultNodePath: string, packageManager: string, source: 'project' | 'default'): Promise<PackageManagerResolveResult>;
 
     // System / Shell
+    getHomeDirectory(): Promise<string>;
     openInEditor(path: string, editor?: string): Promise<void>;
     openInTerminal(path: string, terminal?: string, nodePath?: string, packageManager?: string): Promise<void>;
     openFolder(path: string): Promise<void>;
+    openPath(path: string): Promise<void>;
+    revealInFolder(path: string): Promise<void>;
     openUrl(url: string): Promise<void>;
 
     // Config / FS
     readConfigFile(filename: string): Promise<string>;
     writeConfigFile(filename: string, content: string): Promise<void>;
+    hasConfigBackup(filename: string): Promise<boolean>;
+    readConfigBackup(filename: string): Promise<string>;
+    restoreConfigBackup(filename: string): Promise<string>;
+    canOpenConfigDirectory(): Promise<boolean>;
+    openConfigDirectory(): Promise<void>;
     readTextFile(path: string): Promise<string>;
     readBinaryFileBase64(path: string): Promise<string>;
     writeTextFile(path: string, content: string): Promise<void>;
     readDir(path: string): Promise<{ name: string; isDirectory: boolean }[]>;
+    workspaceReadDir(root: string, relativePath: string): Promise<WorkspaceDirEntry[]>;
+    workspaceCreateFile(root: string, relativePath: string): Promise<void>;
+    workspaceCreateDirectory(root: string, relativePath: string): Promise<void>;
+    workspaceRename(root: string, fromRelative: string, toRelative: string): Promise<void>;
+    workspaceTrash(root: string, relativePath: string): Promise<void>;
+    workspaceStat(root: string, relativePath: string): Promise<WorkspaceStat>;
+    workspaceReadEditorFile(root: string, relativePath: string): Promise<EditorFileSnapshot>;
+    workspaceReadBinaryFileBase64(root: string, relativePath: string): Promise<string>;
+    workspaceWriteEditorFile(
+        root: string,
+        relativePath: string,
+        content: string,
+        expectedDiskVersion?: string,
+        eol?: 'lf' | 'crlf',
+        bom?: boolean,
+        force?: boolean,
+    ): Promise<EditorWriteResult>;
+    workspaceTrashMode(): Promise<'recycle_bin' | 'permanent'>;
 
-    // Updater
-    installUpdate(url: string): Promise<void>;
-    cancelUpdate(): Promise<void>;
     getAppVersion(): Promise<string>;
 
     // Dialogs
@@ -150,9 +269,8 @@ export interface PlatformAPI {
     }): Promise<string | null>;
 
     // Events
-    onProjectOutput(callback: (payload: { id: string; data: string }) => void): Promise<() => void>;
-    onProjectExit(callback: (payload: { id: string }) => void): Promise<() => void>;
-    onDownloadProgress(callback: (percentage: number) => void): Promise<() => void>;
+    onProjectOutput(callback: (payload: ProjectOutputPayload) => void): Promise<() => void>;
+    onProjectExit(callback: (payload: ProjectExitPayload) => void): Promise<() => void>;
 
     // Window
     windowMinimize(): Promise<void>;
@@ -234,6 +352,12 @@ export interface PlatformAPI {
     gitCommitDetail(path: string, hash: string): Promise<GitCommit>;
     gitCommitFiles(path: string, hash: string): Promise<GitCommitFile[]>;
     gitDiffCommitFile(path: string, hash: string, file: string): Promise<string>;
+    gitGetImageDiff(path: string, file: string, staged?: boolean, commit?: string, oldPath?: string): Promise<GitImageDiffPayload>;
+    gitGetBinaryDiffMeta(path: string, file: string, staged?: boolean, commit?: string, oldPath?: string): Promise<GitBinaryDiffMeta>;
+    gitFileHistory(path: string, file: string, maxCount?: number): Promise<GitCommit[]>;
+    gitAddIgnorePattern(path: string, files: string[], kind: GitIgnoreKind, local?: boolean): Promise<string[]>;
+    gitStopTracking(path: string, files: string[], kind: GitIgnoreKind, local?: boolean): Promise<string>;
+    gitApplyHunk(path: string, patch: string, mode: GitHunkMode): Promise<string>;
     gitRevertHunk(path: string, patch: string, staged?: boolean): Promise<string>;
     gitRemoteList(path: string): Promise<import('../types').GitRemote[]>;
     gitRemoteAdd(path: string, name: string, url: string): Promise<string>;

@@ -41,6 +41,7 @@
         @open-sticky="$emit('openSticky', $event)"
         @change-type="onChangeType"
         @delete="onDelete"
+        @clear="onClear('note')"
       />
 
       <HomeColumn
@@ -52,6 +53,7 @@
         @open-sticky="$emit('openSticky', $event)"
         @change-type="onChangeType"
         @delete="onDelete"
+        @clear="onClear('todo')"
       >
         <template #count>{{ doneCount }}/{{ todos.length }}</template>
         <template #prefix="{ item }">
@@ -69,6 +71,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Minus } from '@element-plus/icons-vue'
 import HomeColumn from './components/HomeColumn.vue'
 import { useNotes } from './composables/useNotes'
@@ -80,7 +83,7 @@ defineEmits<{
   (e: 'openSticky', id: string): void
 }>()
 
-const { sortedNotes, deleteNote, toggleDone, changeType } = useNotes()
+const { sortedNotes, deleteNote, clearByType, toggleDone, changeType } = useNotes()
 const { settings, setMode, setFontSize } = useSettings()
 
 const notes = computed(() => sortedNotes.value.filter((n) => n.type === 'note'))
@@ -108,5 +111,31 @@ function onToggleDone(id: string) {
 }
 function onChangeType(id: string) {
   changeType(id)
+}
+
+/** 清空指定类型的便签：二次确认后删除该栏全部条目 */
+async function onClear(type: 'note' | 'todo') {
+  const list = type === 'note' ? notes.value : todos.value
+  if (!list.length) return
+
+  const label = type === 'note' ? '笔记' : '待办'
+  try {
+    await ElMessageBox.confirm(
+      `将删除全部 ${list.length} 条${label}，删除后无法恢复。`,
+      `清空${label}`,
+      {
+        type: 'warning',
+        confirmButtonText: '确认清空',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+        closeOnClickModal: false
+      }
+    )
+  } catch {
+    return // 取消
+  }
+
+  const removed = clearByType(type)
+  if (removed) ElMessage.success(`已删除 ${removed} 条${label}`)
 }
 </script>

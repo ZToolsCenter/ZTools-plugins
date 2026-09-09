@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html lang="zh-CN" data-page-node-id="k5TpN0PAIDCLu3yrFR2BFH">
+<head data-page-node-id="wd1YHdGFbudEbRbdz41iBO">
+<meta charset="UTF-8" data-page-node-id="uPNu3bSDPXH123OKlXczeJ" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="srHKu6qV8BhnFns2GKdRB0" />
 <title>贷款计算器</title>
 <style>
   :root {
@@ -94,15 +94,15 @@
   select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(91,110,245,.12); background: #fff; }
 
   .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
-  .stat { background: linear-gradient(180deg, #fbfcff, #f4f6ff); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; text-align: center; }
+  .stat { background: linear-gradient(180deg, #fbfcff, #f4f6ff); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; text-align: center; min-width: 0; }
   .stat .k { font-size: 12px; color: var(--muted); margin-bottom: 7px; }
-  .stat .v { font-size: 19px; font-weight: 800; color: var(--primary); letter-spacing: .3px; }
+  .stat .v { font-size: 19px; font-weight: 800; color: var(--primary); letter-spacing: .3px; overflow-wrap: anywhere; word-break: break-word; }
   .stat.alt .v { color: var(--text); }
 
-  .highlight { background: var(--primary-grad); border: none; border-radius: var(--radius); padding: 22px 24px; margin-bottom: 18px; display: flex; align-items: baseline; gap: 14px; box-shadow: 0 10px 26px rgba(91,110,245,.28); color: #fff; }
-  .highlight .big { font-size: 34px; font-weight: 800; color: #fff; letter-spacing: .5px; }
-  .highlight .lab { font-size: 12px; color: rgba(255,255,255,.85); }
-  .highlight .note { margin-left: auto; font-size: 12px; color: #d7ffe9; background: rgba(255,255,255,.16); padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
+  .highlight { background: var(--primary-grad); border: none; border-radius: var(--radius); padding: 22px 24px; margin-bottom: 18px; display: flex; align-items: baseline; gap: 14px; box-shadow: 0 10px 26px rgba(91,110,245,.28); color: #fff; min-width: 0; }
+  .highlight .big { font-size: 34px; font-weight: 800; color: #fff; letter-spacing: .5px; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+  .highlight .lab { font-size: 12px; color: rgba(255,255,255,.85); min-width: 0; }
+  .highlight .note { margin-left: auto; font-size: 12px; color: #d7ffe9; background: rgba(255,255,255,.16); padding: 4px 12px; border-radius: 20px; white-space: nowrap; flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 
   /* DTI bar */
   .dti-bar { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 18px; display: none; box-shadow: var(--shadow-sm); }
@@ -121,6 +121,10 @@
   .chart-box .chart-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
 
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  /* 明细表横向不溢出：表格自身作为滚动容器，窄屏时横向滚动而非撑破卡片；sticky 表头在滚动容器内仍生效 */
+  .detail-table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .detail-table-scroll > table { display: block; max-width: 100%; }
+  .detail-table-scroll > table th, .detail-table-scroll > table td { overflow-wrap: break-word; word-break: break-word; }
   th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--line); }
   th:first-child, td:first-child { text-align: left; }
   th { color: var(--muted); font-weight: 600; background: var(--bg); position: sticky; top: 0; font-size: 11px; }
@@ -243,487 +247,605 @@
 
   /* VR save state */
   .btn.saved { color: var(--green); border-color: var(--green); background: var(--green-soft); }
+
+  /* ============ 防溢出：内容尽量不超出边界 ============ */
+  /* 网格/弹性子项默认 min-width:auto 不收缩，长数字/长文本会把容器撑宽；统一放开 */
+  .layout > *, .result-grid > *, .cmp-summary > *, .chart-row > *, .highlight { min-width: 0; }
+  /* 顶部页签窄屏时横向滚动，而非撑破头部 */
+  .tabs { overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  /* 明细表表头操作区、按钮组窄屏换行，避免被挤破 */
+  .table-head { flex-wrap: wrap; }
+  .save-bar { flex-wrap: wrap; }
+  .save-bar .btn { flex: 1; min-width: 0; }
+  .act-bar { flex-wrap: wrap; }
 </style>
 </head>
-<body>
-<div class="app">
-  <header>
-    <svg class="logo" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#5b6ef5"/><path d="M9 22 L16 9 L23 22" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.5 17 H20.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>
-    <h1>贷款计算器</h1>
-    <span class="sub">房贷 · 真实利率（IRR） · 方案对比 · 提前还款 · 浮动利率 · 历史记录</span>
-    <span class="ver">v1.9.0</span>
+<body data-page-node-id="7zoQasJvbQyYvvNUrtOOxX">
+<div class="app" data-page-node-id="VfVyAXkFvcccTNBKy6391f">
+  <header data-page-node-id="9tYTl2SCT5EzLKWlCMx5hL">
+    <svg class="logo" viewBox="0 0 32 32" data-page-node-id="E1E0iE1DxE8iOVlL8R3PgC"><rect width="32" height="32" rx="8" fill="#5b6ef5" data-page-node-id="thnnXqlDfRAljigMmyrR4N"/><path d="M9 22 L16 9 L23 22" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="YBsyBAGUrjHLrpNm2uYFeE"/><path d="M11.5 17 H20.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" data-page-node-id="F4ugGBsH3HANB5PVlFrt3L"/></svg>
+    <h1 data-page-node-id="IGbt5ZpqkuHGo3o1iaCSRT">贷款计算器</h1>
+    <span class="sub" data-page-node-id="SlZZ4Huv0tD4pKDhiH1izF">房贷 · 贷款计算器 · 方案对比 · 提前还款 · 浮动利率 · 真实利率（IRR） · 历史记录</span>
+    <span class="ver" data-page-node-id="F2QK8EbaDR6MLW1dAbE9rR">v2.0.0</span>
   </header>
 
-  <div class="tabs">
-    <button class="tab active" data-tab="calc">房贷计算器</button>
-    <button class="tab" data-tab="compare">方案对比</button>
-    <button class="tab" data-tab="prepay">提前还款</button>
-    <button class="tab" data-tab="variable">浮动利率</button>
-    <button class="tab" data-tab="irr">真实利率（IRR）</button>
-    <button class="tab" data-tab="history">历史记录</button>
+  <div class="tabs" data-page-node-id="Hz32K3hX0IC5XRnHu9Xirv">
+    <button class="tab active" data-tab="calc" data-page-node-id="ym8K0YV6RKHI2EWhakX2UI">房贷计算器</button>
+    <button class="tab" data-tab="loan" data-page-node-id="w814d1PZiGVNqCT5hjFaQJ">贷款计算器</button>
+    <button class="tab" data-tab="compare" data-page-node-id="EH93jtCxlDKv77w1lTy1xn">方案对比</button>
+    <button class="tab" data-tab="prepay" data-page-node-id="CpKfu24hC72PTjz3XCrxkA">提前还款</button>
+    <button class="tab" data-tab="variable" data-page-node-id="vOMhXkrplAPRuX0nVDy4QJ">浮动利率</button>
+    <button class="tab" data-tab="irr" data-page-node-id="owYHYR3AUMOzJ2ekdkj7wA">真实利率（IRR）</button>
+    <button class="tab" data-tab="history" data-page-node-id="b01Hnvus8VqpScv7xc19Sq">历史记录</button>
   </div>
 
   <!-- ============ 房贷计算器 ============ -->
-  <section class="panel active" id="calc">
-    <div class="layout">
-      <div class="card col-left">
-        <h3>贷款信息</h3>
+  <section class="panel active" id="calc" data-page-node-id="uBNsA9H2hA0bJGB6abKAlg">
+    <div class="layout" data-page-node-id="r2mfXJcylJzMw80QcrExuT">
+      <div class="card col-left" data-page-node-id="UIy6sIjQQWVH7Qrn8SN57m">
+        <h3 data-page-node-id="92HzgbYC0Xw6AKZDKLkNQU">贷款信息</h3>
 
         <!-- P0-2: 购房套数 -->
-        <div class="field">
-          <label>购房套数</label>
-          <select id="calc-house-type">
-            <option value="first">首套房</option>
-            <option value="second">二套房</option>
+        <div class="field" data-page-node-id="pONRiDOOKh4s8mEiw2JaUP">
+          <label data-page-node-id="icLU3az43mYsWAXBrtsdhK">购房套数</label>
+          <select id="calc-house-type" data-page-node-id="bryH49DMwO0OuEqAkqralb">
+            <option value="first" data-page-node-id="N2KX3VLUJRmxhhl3FMBA78">首套房</option>
+            <option value="second" data-page-node-id="uqwhanaC86URiU0bb7Quhz">二套房</option>
           </select>
-          <div class="hint" id="calc-house-hint">首套：商业 LPR-20BP · 公积金 2.6%（5年内 2.1%）</div>
+          <div class="hint" id="calc-house-hint" data-page-node-id="bo6npzje0Uu5jKdEY8FHZg">首套：商业 LPR-20BP · 公积金 2.6%（5年内 2.1%）</div>
         </div>
 
-        <div class="field">
-          <label>贷款类型</label>
-          <div class="seg" id="calc-type">
-            <button data-v="commercial" class="active">商业贷款</button>
-            <button data-v="fund">公积金</button>
-            <button data-v="combo">组合贷</button>
+        <div class="field" data-page-node-id="YYcH8y01ZaJzFJa8iqKCcc">
+          <label data-page-node-id="F8Angj1ZPJ9pGQ4BpMGdg6">贷款类型</label>
+          <div class="seg" id="calc-type" data-page-node-id="0Vc3ALFnZQarXAcjA1h4eX">
+            <button data-v="commercial" class="active" data-page-node-id="TzP3ebO0HF2QmaoXb1X2QE">商业贷款</button>
+            <button data-v="fund" data-page-node-id="gHXCpPiQ13jRLHvHt012Gt">公积金</button>
+            <button data-v="combo" data-page-node-id="tlM5fIyQOo7CX3NGmSfsAH">组合贷</button>
           </div>
         </div>
 
-        <div class="field" id="calc-amount-wrap">
-          <label id="calc-amount-label">贷款金额（万元）</label>
-          <div class="input-wrap"><input type="number" id="calc-amount" value="200" min="0" step="1" /><span class="unit">万</span></div>
+        <div class="field" id="calc-amount-wrap" data-page-node-id="8i1yYH9z5ybxOW6ZVEEbHc">
+          <label id="calc-amount-label" for="calc-amount" data-page-node-id="C5v4OlRxGaChs0NCTA3eXF">贷款金额（万元）</label>
+          <div class="input-wrap" data-page-node-id="WdHv7B3GQlcXGywgWNFa9y"><input type="number" id="calc-amount" value="200" min="0" step="1" data-page-node-id="rU6hTcCZwh4qcZ34aZfzh8" /><span class="unit" data-page-node-id="d1rOyDAbNj31oCERB0pigH">万</span></div>
         </div>
 
-        <div id="combo-wrap" style="display:none">
-          <div class="field">
-            <label>商业贷款金额（万元）</label>
-            <div class="input-wrap"><input type="number" id="calc-combo-commercial" value="150" min="0" step="1" /><span class="unit">万</span></div>
+        <div id="combo-wrap" style="display:none" data-page-node-id="yNsOOWDkF3ynopitiRrrVN">
+          <div class="field" data-page-node-id="DbZHGQjKYT1NGaaUwmpqpu">
+            <label data-page-node-id="PaJI9DD0PEWEfEWXEySUh8">商业贷款金额（万元）</label>
+            <div class="input-wrap" data-page-node-id="djmUjoxym3cD98WbvHEw4a"><input type="number" id="calc-combo-commercial" value="150" min="0" step="1" data-page-node-id="C7EiJSoTV9pADCB1SW84EA" /><span class="unit" data-page-node-id="h7NLB2LYqqUzf8Zt5yQ5wj">万</span></div>
           </div>
-          <div class="field">
-            <label>公积金金额（万元）</label>
-            <div class="input-wrap"><input type="number" id="calc-combo-fund" value="50" min="0" step="1" /><span class="unit">万</span></div>
+          <div class="field" data-page-node-id="s89mjyqEjYTLvKD7zflpWw">
+            <label data-page-node-id="28dKmfdPFgO8ZcfAGft1D4">公积金金额（万元）</label>
+            <div class="input-wrap" data-page-node-id="XRYU3AbLGgm7CXsgZCcYqW"><input type="number" id="calc-combo-fund" value="50" min="0" step="1" data-page-node-id="kFEVkx19HkIHVrs8hG9Pt9" /><span class="unit" data-page-node-id="biNru9zM98oVpFJ4AsSh0C">万</span></div>
           </div>
         </div>
 
-        <div class="field">
-          <label>贷款年限</label>
-          <div class="input-wrap"><input type="number" id="calc-years" value="30" min="1" max="40" step="1" /><span class="unit">年</span></div>
+        <div class="field" data-page-node-id="EDJsNJ3gEc65iiAksIHimr">
+          <label data-page-node-id="2gxbumWLhFcuX4yM81yGzZ">贷款年限</label>
+          <div class="input-wrap" data-page-node-id="8GjvItRnKnNwGoRWluLsqB"><input type="number" id="calc-years" value="30" min="1" max="40" step="1" data-page-node-id="0UVLCcko1hB2LErhzSbQfK" /><span class="unit" data-page-node-id="yPSHX0rAEHif31r5uoOkRJ">年</span></div>
         </div>
 
-        <div class="field">
-          <label>利率方式</label>
-          <select id="calc-rate-mode">
-            <option value="latest">最新基准利率</option>
-            <option value="custom">自定义</option>
+        <div class="field" data-page-node-id="aN2ylnNlXQpohkbkL5yfgU">
+          <label data-page-node-id="KXBgpWV06FNGcCEdmPH2X4">利率方式</label>
+          <select id="calc-rate-mode" data-page-node-id="2yY4d0rLSk5qSNRoLMHw7I">
+            <option value="latest" data-page-node-id="7GtDxqgoJvtpG5LUqDC9Iv">最新基准利率</option>
+            <option value="custom" data-page-node-id="OWIpvhLxnUN5qlw24mSG48">自定义</option>
           </select>
-          <div class="bp-row" style="margin-top:8px">
-            <button type="button" class="btn" id="rate-refresh">联网获取最新</button>
-            <span class="rate-status" id="rate-status">内置最新 · 商业 3.5% · 公积金 首套2.6%/二套3.075%（2026-08）</span>
+          <div class="bp-row" style="margin-top:8px" data-page-node-id="5dzcVV9iIuFZEayjcHroGS">
+            <button type="button" class="btn" id="rate-refresh" data-page-node-id="JhB2NfwG8vz0Pt0Ofn58Wt">联网获取最新</button>
+            <span class="rate-status" id="rate-status" data-page-node-id="WpmFSoVgNA92w2Vdl6W5aW">内置最新 · 商业 3.5% · 公积金 首套2.6%/二套3.075%（2026-08）</span>
           </div>
         </div>
 
-        <div class="card lpr-card">
-          <div class="table-head"><h3>近 12 个月 LPR 5年期走势</h3><span class="hint" id="lpr-src">参考数据</span></div>
-          <div id="lpr-trend" class="lpr-trend"></div>
-          <div class="hint">公开参考值，点「联网获取最新」可更新最新一期</div>
+        <div class="card lpr-card" data-page-node-id="rgaVdZgWx3GU48uJ9ICCZH">
+          <div class="table-head" data-page-node-id="VONKPEWyMMksxKfvYF0b3G"><h3 data-page-node-id="lO81raBKIU2hnoLIEwLRnv">近 12 个月 LPR 5年期走势</h3><span class="hint" id="lpr-src" data-page-node-id="hPH6pH69I8dnnVgLxQYZVa">参考数据</span></div>
+          <div id="lpr-trend" class="lpr-trend" data-page-node-id="2VE74zfzEOzHz3RU67z0U2"></div>
+          <div class="hint" data-page-node-id="Pa2KFkaxMaoVjzyj7JCP7k">公开参考值，点「联网获取最新」可更新最新一期</div>
         </div>
 
-        <div id="calc-rate-wrap">
-          <div class="field" id="rate-commercial-wrap">
-            <label>商业贷款年利率（%）</label>
-            <div class="input-wrap"><input type="number" id="calc-rate-commercial" value="3.5" min="0" step="0.01" /><span class="unit">%</span></div>
-            <div class="bp-row">
-              <span class="bp-label">加点</span>
-              <button type="button" class="bp-btn" data-bpid="calc-bp-commercial" data-d="-25">-25</button>
-              <input type="number" id="calc-bp-commercial" class="bp-input" value="0" step="5" />
-              <span class="unit">BP</span>
-              <button type="button" class="bp-btn" data-bpid="calc-bp-commercial" data-d="25">+25</button>
-              <span class="eff" id="calc-eff-commercial">实际 3.50%</span>
+        <div id="calc-rate-wrap" data-page-node-id="igqBmfsClXnB7gcEOtHqdz">
+          <div class="field" id="rate-commercial-wrap" data-page-node-id="5JE9MHOVsnhAyOCIhc7u5Z">
+            <label data-page-node-id="tymZbxJB7N9ojGH0PNoumq">商业贷款年利率（%）</label>
+            <div class="input-wrap" data-page-node-id="6yQoKCID5n6aXv6dUG1fxk"><input type="number" id="calc-rate-commercial" value="3.5" min="0" step="0.01" data-page-node-id="pFFA7CgG7UaL8jwJJbGA9j" /><span class="unit" data-page-node-id="F8BPFUyTAHxhoeBGiyH7nn">%</span></div>
+            <div class="bp-row" data-page-node-id="0ZAo0rUFjUVyQjOqhn3cSZ">
+              <span class="bp-label" data-page-node-id="OH9CFCsLnE7K0SS4FUvEAU">加点</span>
+              <button type="button" class="bp-btn" data-bpid="calc-bp-commercial" data-d="-25" data-page-node-id="0YrTULbIcs1TFbGWWsGdmt">-25</button>
+              <input type="number" id="calc-bp-commercial" class="bp-input" value="0" step="5" data-page-node-id="XFIWgEdqREseNmndVIjCJC" />
+              <span class="unit" data-page-node-id="i9kZpFFVeoozoLmEE1PHGH">BP</span>
+              <button type="button" class="bp-btn" data-bpid="calc-bp-commercial" data-d="25" data-page-node-id="o4NNbkXO5K9C1BWOq6Qtp8">+25</button>
+              <span class="eff" id="calc-eff-commercial" data-page-node-id="1jSFC5YFiRUPfYZf6sGKYS">实际 3.50%</span>
             </div>
           </div>
-          <div class="field" id="rate-fund-wrap" style="display:none">
-            <label>公积金年利率（%）</label>
-            <div class="input-wrap"><input type="number" id="calc-rate-fund" value="2.6" min="0" step="0.01" /><span class="unit">%</span></div>
-            <div class="bp-row">
-              <span class="bp-label">加点</span>
-              <button type="button" class="bp-btn" data-bpid="calc-bp-fund" data-d="-25">-25</button>
-              <input type="number" id="calc-bp-fund" class="bp-input" value="0" step="5" />
-              <span class="unit">BP</span>
-              <button type="button" class="bp-btn" data-bpid="calc-bp-fund" data-d="25">+25</button>
-              <span class="eff" id="calc-eff-fund">实际 2.60%</span>
+          <div class="field" id="rate-fund-wrap" style="display:none" data-page-node-id="vGLKWdCi5EtAgzb5cXAnTA">
+            <label data-page-node-id="jWPULcoFapgurgSbudSO7Y">公积金年利率（%）</label>
+            <div class="input-wrap" data-page-node-id="Krr8qZSAhNEV03oebHBBXn"><input type="number" id="calc-rate-fund" value="2.6" min="0" step="0.01" data-page-node-id="0g2rQd6mGWFDVQZQ50lCZa" /><span class="unit" data-page-node-id="QG6Hj1S6IvvlhpmqEIFdTY">%</span></div>
+            <div class="bp-row" data-page-node-id="EpkwNH5BVvVtlSrVcGtGqO">
+              <span class="bp-label" data-page-node-id="CphMtVEd0REw3T0p2XFutc">加点</span>
+              <button type="button" class="bp-btn" data-bpid="calc-bp-fund" data-d="-25" data-page-node-id="7HRW3gOZJ9OnfGZYFIVNFF">-25</button>
+              <input type="number" id="calc-bp-fund" class="bp-input" value="0" step="5" data-page-node-id="sFcNGASBkp25rwqavlrIke" />
+              <span class="unit" data-page-node-id="EVsGp4dqEUnWiBGH3ZBYiq">BP</span>
+              <button type="button" class="bp-btn" data-bpid="calc-bp-fund" data-d="25" data-page-node-id="rbfSddPexhe1bocow4lQh3">+25</button>
+              <span class="eff" id="calc-eff-fund" data-page-node-id="P4fiXHSpt2FJHYCnl8lGbj">实际 2.60%</span>
             </div>
           </div>
         </div>
 
-        <div class="field">
-          <label>还款方式</label>
-          <div class="seg" id="calc-method">
-            <button data-v="equal-installment" class="active">等额本息</button>
-            <button data-v="equal-principal">等额本金</button>
+        <div class="field" data-page-node-id="jvuFGJsOHZHkliQ8EFyQRP">
+          <label data-page-node-id="oRdhgqJnHlOeiMc3lhP4PM">还款方式</label>
+          <div class="seg" id="calc-method" data-page-node-id="hVCZ8zmlpy4W3KDk6uOXIq">
+            <button data-v="equal-installment" class="active" data-page-node-id="yA5DpRijVf1I8DDT3dZckl">等额本息</button>
+            <button data-v="equal-principal" data-page-node-id="cpfSL2bfN6PzNwJ7HesEK6">等额本金</button>
           </div>
         </div>
 
         <!-- P0-3: 月收入 / DTI -->
-        <div class="field">
-          <label>月收入（元，选填）</label>
-          <div class="input-wrap"><input type="number" id="calc-income" value="" min="0" step="100" placeholder="用于计算月供收入比" /><span class="unit">元</span></div>
+        <div class="field" data-page-node-id="Chhfpjb2HHj12hyyCiP7Z3">
+          <label data-page-node-id="QY6BU4Sc74wA6Vjk6JqJMn">月收入（元，选填）</label>
+          <div class="input-wrap" data-page-node-id="1gSpOpI3x7r9ZHy13QtdGC"><input type="number" id="calc-income" value="" min="0" step="100" placeholder="用于计算月供收入比" data-page-node-id="G1pIEvqfutMCsX9Y4yIlyV" /><span class="unit" data-page-node-id="Ujmn7OIIcDXmHaD9SzyYii">元</span></div>
         </div>
 
-        <div class="err-msg" id="calc-err"></div>
-        <button class="btn primary" style="width:100%" id="calc-btn">开始计算</button>
-        <div class="save-bar">
-          <button class="btn" id="calc-save" style="flex:1">保存到历史</button>
-          <button class="btn" id="calc-copy" style="flex:1">复制结果</button>
+        <div class="err-msg" id="calc-err" data-page-node-id="VTW860ok0ZyCMVB8t2INlL"></div>
+        <button class="btn primary" style="width:100%" id="calc-btn" data-page-node-id="Behi5FXkFAbYMFXLdsWMbK">开始计算</button>
+        <div class="save-bar" data-page-node-id="TJwIauPNyDycUSrn3XRljM">
+          <button class="btn" id="calc-save" style="flex:1" data-page-node-id="TQVgnOrAyEkQ0i9EzMF1gn">保存到历史</button>
+          <button class="btn" id="calc-copy" style="flex:1" data-page-node-id="7L9yraBBEBld9Tf8A2zHLD">复制结果</button>
         </div>
-        <button class="btn accent" id="calc-to-compare" style="width:100%;margin-top:8px">＋ 加入方案对比（A），原 A 移至 B</button>
-        <button class="btn" style="width:100%" id="calc-reset">恢复默认</button>
+        <button class="btn accent" id="calc-to-compare" style="width:100%;margin-top:8px" data-page-node-id="MXQeQedCzyN9q8RKhGRpOR">＋ 加入方案对比（A），原 A 移至 B</button>
+        <button class="btn" style="width:100%" id="calc-reset" data-page-node-id="rgcvBQAbbozDBwjh8zWnEW">恢复默认</button>
       </div>
 
-      <div>
-        <div class="highlight">
-          <div>
-            <div class="lab" id="calc-month-label">等额本息月供</div>
-            <div class="big" id="calc-month">—</div>
+      <div data-page-node-id="KJLRpxGcCerAg3y38XD5mU" aria-live="polite">
+        <div class="highlight" data-page-node-id="yE4dO6JRnoHqWsv4zC1RWi">
+          <div data-page-node-id="jdk6nKI617sIWuczS5Hbgd">
+            <div class="lab" id="calc-month-label" data-page-node-id="ZN7qxajBGup2NLUw8VXx8E">等额本息月供</div>
+            <div class="big" id="calc-month" data-page-node-id="XB1p3OT47D3iQIsO0YoPXv">—</div>
           </div>
-          <div class="note" id="calc-month-note"></div>
+          <div class="note" id="calc-month-note" data-page-node-id="RE36d6THLnmuqU1D12pNC5"></div>
         </div>
 
         <!-- P0-3: DTI bar -->
-        <div class="dti-bar" id="dti-bar">
-          <div class="dti-head">
-            <span class="dti-title">月供收入比（DTI）</span>
-            <span class="dti-ratio" id="dti-ratio">—</span>
+        <div class="dti-bar" id="dti-bar" data-page-node-id="oZ8c4ofauvSCeH6KD4Y4XZ">
+          <div class="dti-head" data-page-node-id="Dy3Q5rLrafFOZQSNUEELo6">
+            <span class="dti-title" data-page-node-id="u8M4sboRUUjwFcWGygBmuG">月供收入比（DTI）</span>
+            <span class="dti-ratio" id="dti-ratio" data-page-node-id="0ufNyEBDi5NlwIpmzE8v0A">—</span>
           </div>
-          <div class="dti-track"><div class="dti-fill" id="dti-fill" style="width:0%"></div></div>
-          <div class="dti-warn" id="dti-warn"></div>
+          <div class="dti-track" data-page-node-id="kvXXTNVBnHOkYDf86RUpid"><div class="dti-fill" id="dti-fill" style="width:0%" data-page-node-id="gkQFx1mSKp29fUcAM14xSu"></div></div>
+          <div class="dti-warn" id="dti-warn" data-page-node-id="Lp5fCfJdpZjvdrNEgYLxaC"></div>
         </div>
 
-        <div class="result-grid">
-          <div class="stat"><div class="k">还款总额</div><div class="v" id="calc-total">—</div></div>
-          <div class="stat alt"><div class="k">贷款总额</div><div class="v" id="calc-principal">—</div></div>
-          <div class="stat alt"><div class="k">支付利息</div><div class="v" id="calc-interest">—</div></div>
+        <div class="result-grid" data-page-node-id="bFT8vrphgOZ0yGsfkxgnUQ">
+          <div class="stat" data-page-node-id="PTF6No47aXRNbH1qfftLEg"><div class="k" data-page-node-id="Hy9aP6p3Q4IARPhIDdfu6N">还款总额</div><div class="v" id="calc-total" data-page-node-id="cZPFcOhC8vhBROGFSOjtnp">—</div></div>
+          <div class="stat alt" data-page-node-id="N2nArxtiFKUOEaeZvtvGAG"><div class="k" data-page-node-id="PBtACcmjM7uk4VggtNc8CO">贷款总额</div><div class="v" id="calc-principal" data-page-node-id="Hp60Ejy4BjPZ2GSFBItAT8">—</div></div>
+          <div class="stat alt" data-page-node-id="AKGHaT3iRXeFb618FBnA6u"><div class="k" data-page-node-id="LrL4JzqnponBxt53hyaWPP">支付利息</div><div class="v" id="calc-interest" data-page-node-id="dNIOl7bpmfMPsHQEpaJPZy">—</div></div>
         </div>
 
-        <div class="suggest-bar" id="calc-suggest" style="display:none"></div>
+        <div class="suggest-bar" id="calc-suggest" style="display:none" data-page-node-id="ZJdlGIqTzTbm4TC3MiYT8P"></div>
 
         <!-- P1-5/6: Pie chart + Trend line -->
-        <div class="chart-row">
-          <div class="chart-box">
-            <div class="chart-title">本金 / 利息占比</div>
-            <div id="pie-chart"></div>
+        <div class="chart-row" data-page-node-id="idlBX1joQqh9o59YHTr5HQ">
+          <div class="chart-box" data-page-node-id="z7AGuNwtceYplLb3VUxakb">
+            <div class="chart-title" data-page-node-id="KT3DJh9H5oBzKBm5W2FcCz">本金 / 利息占比</div>
+            <div id="pie-chart" data-page-node-id="HfxAlW02Qt3ES5jEMYyOEl" role="img" aria-label="本金与利息占比饼图"></div>
           </div>
-          <div class="chart-box">
-            <div class="chart-title">剩余本金趋势</div>
-            <div id="trend-chart"></div>
+          <div class="chart-box" data-page-node-id="m0Ld3nkOCAYrStksKKWoXH">
+            <div class="chart-title" data-page-node-id="qBMnseqPPY4Gz3bc0fmKcb">剩余本金趋势</div>
+            <div id="trend-chart" data-page-node-id="gRppHO00re0NRieEqWSEWf" role="img" aria-label="剩余本金趋势图"></div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="table-head">
-            <h3>月供明细</h3>
-            <div class="ctrl">
-              <select id="calc-detail-mode">
-                <option value="year">按年</option>
-                <option value="month">按期</option>
+        <div class="card" data-page-node-id="VjAiLG8fGO0sHnGBw07lMM">
+          <div class="table-head" data-page-node-id="AEfs9TZSvvntZpZXzK5xPG">
+            <h3 data-page-node-id="RMRfRVzHKvNuEIqs5sTqDk">月供明细</h3>
+            <div class="ctrl" data-page-node-id="ctUvMxIHHVutnQEmQFi3Ad">
+              <select id="calc-detail-mode" data-page-node-id="4kqOGgZ2FxovDxJygnpeBQ">
+                <option value="year" data-page-node-id="PfU2NUmrbjzBTzB1gDy0rY">按年</option>
+                <option value="month" data-page-node-id="LDd2r0boPCbZAnf7ByoemL">按期</option>
               </select>
-              <button class="btn" id="calc-export-csv">导出CSV</button>
+              <button class="btn" id="calc-export-csv" data-page-node-id="N7IHgkOF2hMPGFBsx9JWaz">导出CSV</button>
             </div>
           </div>
-          <table>
-            <thead id="calc-thead"></thead>
-            <tbody id="calc-tbody"></tbody>
+          <div class="detail-table-scroll" data-page-node-id="j74JH4aGJaIyUHJeO3tXF7">
+          <table data-page-node-id="lhivjnRb0zAk623IdFjF1i">
+            <thead id="calc-thead" data-page-node-id="jGJhwUc58Fl1K2CNbB1X43"></thead>
+            <tbody id="calc-tbody" data-page-node-id="3p5PcjBMxInq3JB9rSG3e0"></tbody>
           </table>
-          <div class="pager">
-            <button class="btn" id="calc-prev">上一页</button>
-            <span id="calc-page">1 / 1</span>
-            <button class="btn" id="calc-next">下一页</button>
           </div>
+          <div class="pager" data-page-node-id="onBLp7AB9A6lLAw7A44v0b">
+            <button class="btn" id="calc-prev" data-page-node-id="ksK3NX2dMbcOmHHfLkkZks">上一页</button>
+            <span id="calc-page" data-page-node-id="bmV8SKT3tgRZF1n3DlGyJt">1 / 1</span>
+            <button class="btn" id="calc-next" data-page-node-id="CAjL22LkPd48yhdg3cpz4E">下一页</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 贷款计算器（通用，新增） ============ -->
+  <section class="panel" id="loan" data-page-node-id="Za6hC0zPT9Cf9EnR15oHgv">
+    <div class="layout" data-page-node-id="HQChgCHk22QqEsGGxHsbPe">
+      <div class="card col-left" data-page-node-id="lVdYCm5cTz0s5O5OXXWQ9C">
+        <h3 data-page-node-id="AvImJUJQddwjyohnG2ppDH">贷款信息</h3>
+
+        <div class="field" data-page-node-id="kyBofRpEVPRp1RPQHbc7Vn">
+          <label for="loan-amount" data-page-node-id="oKHRGEYWnT9FM1ezFpmBGS">贷款金额（元）</label>
+          <div class="input-wrap" data-page-node-id="BGCm3HxsQP233R7VlBH9SU"><input type="number" id="loan-amount" value="200000" min="0" step="1" data-page-node-id="UZV9GXSpCWryCGZQibliCO" /><span class="unit" data-page-node-id="t8V6wA8e7G9hwHexXxEjOa">元</span></div>
+        </div>
+
+        <div class="field" data-page-node-id="iXo0znrlhnatfIxmXD5rsu">
+          <label data-page-node-id="BuUHpgzV34MKKML0zDrug3">利率类型</label>
+          <div class="seg" id="loan-rate-type" data-page-node-id="QA2YqxK0g0zkHBvmG4P3rC">
+            <button data-v="year" class="active" data-page-node-id="EpwaNAlZyYnYUAi3rbBBTS">年利率</button>
+            <button data-v="month" data-page-node-id="uacUxxFk48CwTRQogLVk1E">月利率</button>
+            <button data-v="day" data-page-node-id="vHn21zr8ahDpNGRqxXOz3P">日利率</button>
+          </div>
+          <div class="hint" data-page-node-id="itpxnX4X5iiTE9Cp8M9rJT">年利率/月利率按期数（月）计息；日利率按期数（天）计息</div>
+        </div>
+
+        <div class="field" data-page-node-id="NNvw6PJdJkuikBu6zEvICO">
+          <label data-page-node-id="3T5D7jrvILcmYgJy3I2myR">利率（%）</label>
+          <div class="input-wrap" data-page-node-id="xzssqcQPoFx74pQ2Qt8j7w"><input type="number" id="loan-rate" value="4.9" min="0" step="0.01" data-page-node-id="xQS5QrrCoVLmCWojSArEom" /><span class="unit" data-page-node-id="9cfnJxCAtQz2sOyiy4w77E">%</span></div>
+        </div>
+
+        <div class="field" data-page-node-id="klZS8cpDX5MuJ4RCeM6EHe">
+          <label data-page-node-id="xnoRU9w0sMDlwMBklw0GtA">还款期数</label>
+          <div class="input-wrap" data-page-node-id="PxC00I4iQZi3D1BvnOU9H7"><input type="number" id="loan-periods" value="36" min="1" step="1" data-page-node-id="l5qTBDvmjgdCidumtLMfP0" /><span class="unit" id="loan-period-unit" data-page-node-id="8pK1wiWwsODtIyFvQuL3cs">月</span></div>
+        </div>
+
+        <div class="field" data-page-node-id="AYCHzV9zWM3a518AXsabIo">
+          <label data-page-node-id="LCXeaQDrzJH1FrxMxnvz2U">还款方式</label>
+          <div class="seg" id="loan-method" data-page-node-id="2Tr1ajkvAD2XLrx2UbkB4o">
+            <button data-v="equal-installment" class="active" data-page-node-id="yb6XUJgU9GygJq8pURFSYa">等额本息</button>
+            <button data-v="equal-principal" data-page-node-id="J4hzR3iC8Xgt7g0cMz41Kh">等额本金</button>
+            <button data-v="interest-only" data-page-node-id="v3mvxjDlIS81ho7Q97S4xo">先息后本</button>
+          </div>
+        </div>
+
+        <div class="err-msg" id="loan-err" data-page-node-id="8IQtNwNjEHAFJSO0ujBRpA"></div>
+        <button class="btn primary" style="width:100%" id="loan-btn" data-page-node-id="ghtqZhVAI8vZLPatnDZrm6">开始计算</button>
+        <div class="save-bar" data-page-node-id="t9pxy9kAOaY2MugNLbZoCf">
+          <button class="btn" id="loan-save" style="flex:1" data-page-node-id="IHmOSMADWW9WGaXq6ECD0h">保存到历史</button>
+          <button class="btn" id="loan-copy" style="flex:1" data-page-node-id="WaXibRiHDyZWWsQi3csvVF">复制结果</button>
+        </div>
+        <button class="btn accent" id="loan-reset" style="width:100%;margin-top:8px" data-page-node-id="bTZDqzyL3sdPJWi9UyALYq">恢复默认</button>
+      </div>
+
+      <div data-page-node-id="x0CIDs7rbSA2oHv4HU0wYC" aria-live="polite">
+        <div class="highlight" data-page-node-id="mam33HS2f2w2W0ZPIXUlv1">
+          <div data-page-node-id="pFjj1pp1KCB57AJE0ulosu">
+            <div class="lab" id="loan-month-label" data-page-node-id="kjZgQ8VRarV5bm0JDQtBUV">每期还款</div>
+            <div class="big" id="loan-month" data-page-node-id="divE5v7wVpkiiReTDbBz6w">—</div>
+          </div>
+          <div class="note" id="loan-month-note" data-page-node-id="KOKWb3JZJvOkyYLgMwDZL7"></div>
+        </div>
+
+        <div class="result-grid" data-page-node-id="gcCqHhm61uapsGgSixRorG">
+          <div class="stat" data-page-node-id="wNCqh5nTAFXpVtJsV37oAc"><div class="k" data-page-node-id="G4AA2Jp9EFYCjjGMHP1xDH">还款总额</div><div class="v" id="loan-total" data-page-node-id="nkeFf44EenQnXU42eCX2KV">—</div></div>
+          <div class="stat alt" data-page-node-id="TkjBBAZ4emo7vnJv5iIVpR"><div class="k" data-page-node-id="cpAVf5WVAB4FZLp8Fvt31A">贷款本金</div><div class="v" id="loan-principal" data-page-node-id="un8e5UcWphV86b2Wu6bfz3">—</div></div>
+          <div class="stat alt" data-page-node-id="zUJp0byLiYyT3cH8HEtRr8"><div class="k" data-page-node-id="IerkxtM4jafILFKh5X1zwZ">支付利息</div><div class="v" id="loan-interest" data-page-node-id="88BUOvDiNVQXoYnDm0DSBt">—</div></div>
+        </div>
+
+        <div class="chart-row" data-page-node-id="HqDUgGnv3Lr0Y9Ez7yunGR">
+          <div class="chart-box" data-page-node-id="HvOZ9cZYRc2r1tEC9qHdhf">
+            <div class="chart-title" data-page-node-id="nhzjT15khNDwAkLeEF7Gf2">本金 / 利息占比</div>
+            <div id="loan-pie" data-page-node-id="uJkAtGEKC0FrBXywrQ1FHF"></div>
+          </div>
+          <div class="chart-box" data-page-node-id="fmdk4BzaWrfPgujAA7xaQh">
+            <div class="chart-title" data-page-node-id="dB7MX9Dyj92DlNYZQVBFlC">剩余本金趋势</div>
+            <div id="loan-trend" data-page-node-id="BPkJTXz7xnqZeF9Cxvncqu"></div>
+          </div>
+        </div>
+
+        <div class="card" data-page-node-id="0zrMdDeE9AV8HmaqexcSmO">
+          <div class="table-head" data-page-node-id="UJLSlmfcXssqvV2vxYRVQh">
+            <h3 data-page-node-id="i9n1VeFGveH4gEwj4UprGe">还款明细</h3>
+            <div class="ctrl" data-page-node-id="46VEnKJSbdUCyOLIvjklH3">
+              <select id="loan-detail-mode" data-page-node-id="9ckdHgq5w8QS8FC38dBKRQ">
+                <option value="period" selected data-page-node-id="0oqnzaMso0hvZEDKq19puc">按期</option>
+                <option value="year" data-page-node-id="J5p7OTXO3XWu2147XwJb2D">按年</option>
+              </select>
+              <button class="btn" id="loan-export-csv" data-page-node-id="GqHnWzBLnSJBz4kLT4WQTU">导出CSV</button>
+            </div>
+          </div>
+          <div class="detail-table-scroll" data-page-node-id="LFyNmWgDgRHI89UpePs9SA">
+          <table data-page-node-id="pYOnh87BUg26iIlp5cN3JN">
+            <thead id="loan-thead" data-page-node-id="HI40t9EBID2A0bMAcDUMcW"></thead>
+            <tbody id="loan-tbody" data-page-node-id="HVEZGDH13JHGkL8NusbH3Y"></tbody>
+          </table>
+          </div>
+          <div class="pager" data-page-node-id="RcEyKASXZTyYmjgXSuPHeC">
+            <button class="btn" id="loan-prev" data-page-node-id="ytAnlBaZ53Xhf3QAMT6XZD">上一页</button>
+            <span id="loan-page" data-page-node-id="WUgte0g37KeAnfHndxpLed">1 / 1</span>
+            <button class="btn" id="loan-next" data-page-node-id="kdDFiNjBxtRMVmCQGtjNFD">下一页</button>
+          </div>
+          <div class="hint" id="loan-detail-hint" data-page-node-id="o6nGaqiJSeMMC7zQXoGY25"></div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ============ 方案对比 ============ -->
-  <section class="panel" id="compare">
-    <div class="layout cmp-layout">
-      <div class="card">
-        <h3>方案 A</h3>
-        <div class="field"><label>贷款类型</label>
-          <div class="seg" id="cmp-a-type"><button data-v="commercial" class="active">商业</button><button data-v="fund">公积金</button><button data-v="combo">组合贷</button></div>
+  <section class="panel" id="compare" data-page-node-id="zNRIKpVo2c8oIavr3NpOxK">
+    <div class="layout cmp-layout" data-page-node-id="z0JTDloMASZOpcgRYQL75Y">
+      <div class="card" data-page-node-id="Vhx8OFUI5za3SWCkpHd5af">
+        <h3 data-page-node-id="VPMiCHvOPogkEQMOO5hpWN">方案 A</h3>
+        <div class="field" data-page-node-id="vAmKXpsRG6732zG4T3MLAf"><label data-page-node-id="eeRMUYNeH22SUj24oD4vLX">贷款类型</label>
+          <div class="seg" id="cmp-a-type" data-page-node-id="s7tguxuYkskGu114WKddbz"><button data-v="commercial" class="active" data-page-node-id="JKffXnrbI2F4xnR4qwRmlt">商业</button><button data-v="fund" data-page-node-id="l3LoAIFYpeaS10deoyLX9s">公积金</button><button data-v="combo" data-page-node-id="Y3CrjtBXUEadnWHjj9GnTP">组合贷</button></div>
         </div>
-        <div class="field" id="cmp-a-amount-wrap"><label>贷款金额（万元）</label><div class="input-wrap"><input type="number" id="cmp-a-amount" value="200" min="0" step="1" /><span class="unit">万</span></div></div>
-        <div class="field" id="cmp-a-combo-wrap" style="display:none">
-          <label>组合贷金额（万元）</label>
-          <div class="input-wrap"><input type="number" id="cmp-a-combo-c" value="150" min="0" step="1" /><span class="unit">商</span></div>
-          <div class="input-wrap" style="margin-top:6px"><input type="number" id="cmp-a-combo-f" value="50" min="0" step="1" /><span class="unit">公</span></div>
+        <div class="field" id="cmp-a-amount-wrap" data-page-node-id="F6AY42nefxUpttRsupX8GA"><label for="cmp-a-amount" data-page-node-id="9tQAiNQ8yW90BHH3ZALyjt">贷款金额（万元）</label><div class="input-wrap" data-page-node-id="fcxyDkk3YBQC0WgVj16Vr0"><input type="number" id="cmp-a-amount" value="200" min="0" step="1" data-page-node-id="W05tzJdIZD7EOgfywOPzSJ" /><span class="unit" data-page-node-id="MCEK6KbOqsQVvI31iSUUmw">万</span></div></div>
+        <div class="field" id="cmp-a-combo-wrap" style="display:none" data-page-node-id="O0Xy4R9uVheGIEeIntjUKq">
+          <label data-page-node-id="9Haw7SMU4K61r6eyD3wCVp">组合贷金额（万元）</label>
+          <div class="input-wrap" data-page-node-id="zxEkPTfe67tUjGzZ4o3oMF"><input type="number" id="cmp-a-combo-c" value="150" min="0" step="1" data-page-node-id="f0XjHcSN6NlLYLsoGUrJCh" /><span class="unit" data-page-node-id="fhq3tbWK1DsYA2wHIeZfG2">商</span></div>
+          <div class="input-wrap" style="margin-top:6px" data-page-node-id="sHDHy2l7k48bCcmMmDzsoA"><input type="number" id="cmp-a-combo-f" value="50" min="0" step="1" data-page-node-id="PNBjKf8Tj8Ta5hnoZ1f3ZM" /><span class="unit" data-page-node-id="v5TRI7GccASVrZ6YIWlUXH">公</span></div>
         </div>
-        <div class="field"><label>年限（年）</label><div class="input-wrap"><input type="number" id="cmp-a-years" value="30" min="1" step="1" /><span class="unit">年</span></div></div>
-        <div class="field" id="cmp-a-rate-wrap"><label>商业年利率（%）</label><div class="input-wrap"><input type="number" id="cmp-a-rate" value="3.5" min="0" step="0.01" /><span class="unit">%</span></div>
-          <div class="bp-row">
-            <span class="bp-label">加点</span>
-            <button type="button" class="bp-btn" data-bpid="cmp-a-bp" data-d="-25">-25</button>
-            <input type="number" id="cmp-a-bp" class="bp-input" value="0" step="5" />
-            <span class="unit">BP</span>
-            <button type="button" class="bp-btn" data-bpid="cmp-a-bp" data-d="25">+25</button>
-            <span class="eff" id="cmp-a-eff">实际 3.50%</span>
+        <div class="field" data-page-node-id="EO6M9JEUHFkMrkK2bNXBgw"><label data-page-node-id="Nfz7StyymHDL9taAnsyb8Y">年限（年）</label><div class="input-wrap" data-page-node-id="Dl5OZgnJAT0AxkfhIiCMul"><input type="number" id="cmp-a-years" value="30" min="1" step="1" data-page-node-id="7oc5L89wT3Qzst7lSIfyxb" /><span class="unit" data-page-node-id="yN6FOr6opkxc2rqv2uKBzw">年</span></div></div>
+        <div class="field" id="cmp-a-rate-wrap" data-page-node-id="8DNQprbbERASPO2WxPFWeW"><label data-page-node-id="C6mRdenD668MReJZAkAHVH">商业年利率（%）</label><div class="input-wrap" data-page-node-id="HOq9LDLapAhGKDYHkFZN7C"><input type="number" id="cmp-a-rate" value="3.5" min="0" step="0.01" data-page-node-id="Sxn7zvBzaD3vfaHVeBD0pX" /><span class="unit" data-page-node-id="ZWEOLrVnutXPcmOCzinvHy">%</span></div>
+          <div class="bp-row" data-page-node-id="lz6eQsVttCuBhTEhEojx7d">
+            <span class="bp-label" data-page-node-id="DKORkfquictfFBTymFW6Kg">加点</span>
+            <button type="button" class="bp-btn" data-bpid="cmp-a-bp" data-d="-25" data-page-node-id="hGahVd3uodBBOvdy2THZ1Y">-25</button>
+            <input type="number" id="cmp-a-bp" class="bp-input" value="0" step="5" data-page-node-id="MgQ699zHkl3j3GfGiPTopD" />
+            <span class="unit" data-page-node-id="GUsPjg5HwQDXfBIpLwmxuV">BP</span>
+            <button type="button" class="bp-btn" data-bpid="cmp-a-bp" data-d="25" data-page-node-id="01LaMt5udriJOtWNSQkD9s">+25</button>
+            <span class="eff" id="cmp-a-eff" data-page-node-id="oedDlYU4mNoENrSHgpX28w">实际 3.50%</span>
           </div>
         </div>
-        <div class="field" id="cmp-a-rate-f-wrap" style="display:none"><label>公积金年利率（%）</label><div class="input-wrap"><input type="number" id="cmp-a-rate-f" value="2.6" min="0" step="0.01" /><span class="unit">%</span></div>
-          <div class="bp-row">
-            <span class="bp-label">加点</span>
-            <button type="button" class="bp-btn" data-bpid="cmp-a-bp-f" data-d="-25">-25</button>
-            <input type="number" id="cmp-a-bp-f" class="bp-input" value="0" step="5" />
-            <span class="unit">BP</span>
-            <button type="button" class="bp-btn" data-bpid="cmp-a-bp-f" data-d="25">+25</button>
-            <span class="eff" id="cmp-a-eff-f">实际 2.60%</span>
+        <div class="field" id="cmp-a-rate-f-wrap" style="display:none" data-page-node-id="Bz63OR64raslkMpr2pqVMe"><label data-page-node-id="DFQXNKd5Vb0CXZXBcy4GA7">公积金年利率（%）</label><div class="input-wrap" data-page-node-id="OAaFypHW5DPwkYDk1gtlc6"><input type="number" id="cmp-a-rate-f" value="2.6" min="0" step="0.01" data-page-node-id="C3pD3xN9IyP8OYzuKPupAU" /><span class="unit" data-page-node-id="6kHv0SNUTauFuLnBPA0y4q">%</span></div>
+          <div class="bp-row" data-page-node-id="W1bTGvCHQ0DC4dN0ERpg0P">
+            <span class="bp-label" data-page-node-id="VX50bQ88CofnAG06ji8ela">加点</span>
+            <button type="button" class="bp-btn" data-bpid="cmp-a-bp-f" data-d="-25" data-page-node-id="qv8zOGqBhi7Q3vFouicmWo">-25</button>
+            <input type="number" id="cmp-a-bp-f" class="bp-input" value="0" step="5" data-page-node-id="XEDKwDEMHEY9pvqSHBk9mC" />
+            <span class="unit" data-page-node-id="j5xyWbB3mhZ5AGthr6yuqF">BP</span>
+            <button type="button" class="bp-btn" data-bpid="cmp-a-bp-f" data-d="25" data-page-node-id="CDk8CHBhvGaG3gD6arDBtN">+25</button>
+            <span class="eff" id="cmp-a-eff-f" data-page-node-id="VFb6Q3AOyoO9bAVAMZyIb6">实际 2.60%</span>
           </div>
         </div>
-        <div class="field"><label>还款方式</label>
-          <div class="seg" id="cmp-a-method"><button data-v="equal-installment" class="active">等额本息</button><button data-v="equal-principal">等额本金</button></div>
+        <div class="field" data-page-node-id="9yzQUc963PuJYYnVnjmhbT"><label data-page-node-id="2KuaCAE1K2861eXjtBnrOp">还款方式</label>
+          <div class="seg" id="cmp-a-method" data-page-node-id="jQVRcy6i4icu7lHsXEo5Le"><button data-v="equal-installment" class="active" data-page-node-id="pvCSysHK7Cgi3Ja9MY7OMD">等额本息</button><button data-v="equal-principal" data-page-node-id="sayDGe0Og670Kxwpip2SWa">等额本金</button></div>
         </div>
       </div>
-      <div class="card">
-        <h3>方案 B</h3>
-        <div class="field"><label>贷款类型</label>
-          <div class="seg" id="cmp-b-type"><button data-v="commercial" class="active">商业</button><button data-v="fund">公积金</button><button data-v="combo">组合贷</button></div>
+      <div class="card" data-page-node-id="yMMBNkWD5JQQ1DdjfV5WCP">
+        <h3 data-page-node-id="3jW0ZfPIZ90S4HkqiMUFj3">方案 B</h3>
+        <div class="field" data-page-node-id="mzKI0TogZ8C3JQw0Yz7zzF"><label data-page-node-id="9EZSMqMnKwR2rrHOFiYZRi">贷款类型</label>
+          <div class="seg" id="cmp-b-type" data-page-node-id="PVvePyuX8phTZH3vEa2ohd"><button data-v="commercial" class="active" data-page-node-id="kk9JgledmFk5bDy5zpGqrp">商业</button><button data-v="fund" data-page-node-id="17L4UD9PDSOgAZEGzS9tHf">公积金</button><button data-v="combo" data-page-node-id="QMM0m1KlUVU06r4591X2wk">组合贷</button></div>
         </div>
-        <div class="field" id="cmp-b-amount-wrap"><label>贷款金额（万元）</label><div class="input-wrap"><input type="number" id="cmp-b-amount" value="150" min="0" step="1" /><span class="unit">万</span></div></div>
-        <div class="field" id="cmp-b-combo-wrap" style="display:none">
-          <label>组合贷金额（万元）</label>
-          <div class="input-wrap"><input type="number" id="cmp-b-combo-c" value="100" min="0" step="1" /><span class="unit">商</span></div>
-          <div class="input-wrap" style="margin-top:6px"><input type="number" id="cmp-b-combo-f" value="50" min="0" step="1" /><span class="unit">公</span></div>
+        <div class="field" id="cmp-b-amount-wrap" data-page-node-id="UJQd6nBsTqtLDRswibYqof"><label data-page-node-id="jyxFEZGT8mNNosaSa48LUL">贷款金额（万元）</label><div class="input-wrap" data-page-node-id="WMS3bA0Te6STIDiFCZQYDH"><input type="number" id="cmp-b-amount" value="150" min="0" step="1" data-page-node-id="tQcmvw5nSz9Q3FMmzq0xAu" /><span class="unit" data-page-node-id="rPSsgQjU8hO6QayIJQekAj">万</span></div></div>
+        <div class="field" id="cmp-b-combo-wrap" style="display:none" data-page-node-id="T0dGwpn1TnOxMIKkAjYfxf">
+          <label data-page-node-id="6E2Zz8Fj3RnsuXxcCRQx3h">组合贷金额（万元）</label>
+          <div class="input-wrap" data-page-node-id="qJJ0sOFPlnj9rjaG3tNHlI"><input type="number" id="cmp-b-combo-c" value="100" min="0" step="1" data-page-node-id="sBNzs4hIYmBNElpEXC61Fp" /><span class="unit" data-page-node-id="ncnAC0rWPHjMNkhnl3dNCd">商</span></div>
+          <div class="input-wrap" style="margin-top:6px" data-page-node-id="DDHIEj5OAyrTcqbwGGuvE2"><input type="number" id="cmp-b-combo-f" value="50" min="0" step="1" data-page-node-id="VAXTnDOistuFqqYhzDZ6Tu" /><span class="unit" data-page-node-id="85NkXayuJ6j3Al4DP1EDo4">公</span></div>
         </div>
-        <div class="field"><label>年限（年）</label><div class="input-wrap"><input type="number" id="cmp-b-years" value="20" min="1" step="1" /><span class="unit">年</span></div></div>
-        <div class="field" id="cmp-b-rate-wrap"><label>商业年利率（%）</label><div class="input-wrap"><input type="number" id="cmp-b-rate" value="3.5" min="0" step="0.01" /><span class="unit">%</span></div>
-          <div class="bp-row">
-            <span class="bp-label">加点</span>
-            <button type="button" class="bp-btn" data-bpid="cmp-b-bp" data-d="-25">-25</button>
-            <input type="number" id="cmp-b-bp" class="bp-input" value="0" step="5" />
-            <span class="unit">BP</span>
-            <button type="button" class="bp-btn" data-bpid="cmp-b-bp" data-d="25">+25</button>
-            <span class="eff" id="cmp-b-eff">实际 3.50%</span>
+        <div class="field" data-page-node-id="VeTAUbzttPcSreydm3EBHL"><label data-page-node-id="jrTO8DHhJCbu2Ha0ZDmGCH">年限（年）</label><div class="input-wrap" data-page-node-id="FLI6IsWgfjYM8G4CDFI1Xu"><input type="number" id="cmp-b-years" value="20" min="1" step="1" data-page-node-id="PJ3O4mE9NDfuhCFLGUqM3H" /><span class="unit" data-page-node-id="lSr5Fp3Fu62AMoHqg9NBFK">年</span></div></div>
+        <div class="field" id="cmp-b-rate-wrap" data-page-node-id="oryGtcr2bHv1IkzuWii3bD"><label data-page-node-id="ZBf79EkFO2qh1tj3x5GTGn">商业年利率（%）</label><div class="input-wrap" data-page-node-id="z9GkMHjONk8h5fQCSqFJzh"><input type="number" id="cmp-b-rate" value="3.5" min="0" step="0.01" data-page-node-id="Cpl9t1xLB8oyejCvUpe4WR" /><span class="unit" data-page-node-id="kSP1NvnH2BJLcjQrikD5zi">%</span></div>
+          <div class="bp-row" data-page-node-id="o9iwkq758XpB3Cz7d1qcUe">
+            <span class="bp-label" data-page-node-id="OCThEG4wEbgDH0M6Ie0HUj">加点</span>
+            <button type="button" class="bp-btn" data-bpid="cmp-b-bp" data-d="-25" data-page-node-id="sQwFSDcWMkQYpkR2VlkcIT">-25</button>
+            <input type="number" id="cmp-b-bp" class="bp-input" value="0" step="5" data-page-node-id="VNPPAUcOmWs6GyxhiSKmqR" />
+            <span class="unit" data-page-node-id="2gJKUebTo0WpD3we4X02HG">BP</span>
+            <button type="button" class="bp-btn" data-bpid="cmp-b-bp" data-d="25" data-page-node-id="GMdz6jSHck4u3SHylfDALq">+25</button>
+            <span class="eff" id="cmp-b-eff" data-page-node-id="HG1dsQA82stejhATh3EY96">实际 3.50%</span>
           </div>
         </div>
-        <div class="field" id="cmp-b-rate-f-wrap" style="display:none"><label>公积金年利率（%）</label><div class="input-wrap"><input type="number" id="cmp-b-rate-f" value="2.6" min="0" step="0.01" /><span class="unit">%</span></div>
-          <div class="bp-row">
-            <span class="bp-label">加点</span>
-            <button type="button" class="bp-btn" data-bpid="cmp-b-bp-f" data-d="-25">-25</button>
-            <input type="number" id="cmp-b-bp-f" class="bp-input" value="0" step="5" />
-            <span class="unit">BP</span>
-            <button type="button" class="bp-btn" data-bpid="cmp-b-bp-f" data-d="25">+25</button>
-            <span class="eff" id="cmp-b-eff-f">实际 2.60%</span>
+        <div class="field" id="cmp-b-rate-f-wrap" style="display:none" data-page-node-id="h4Ih3EJd5u2RVJwPtAwlQf"><label data-page-node-id="WOoa6IYDaqKB3CVL4lgkWN">公积金年利率（%）</label><div class="input-wrap" data-page-node-id="oeGYS34inh24ePRFkvbnKM"><input type="number" id="cmp-b-rate-f" value="2.6" min="0" step="0.01" data-page-node-id="Q0i21uC7C0b0ajgI45C4OV" /><span class="unit" data-page-node-id="HOODtodmlN5IFvcr2GQFMR">%</span></div>
+          <div class="bp-row" data-page-node-id="z8g6T5yVRV5qgnbDtHYLE1">
+            <span class="bp-label" data-page-node-id="itI3Yjx68Gu9XUIhdgro58">加点</span>
+            <button type="button" class="bp-btn" data-bpid="cmp-b-bp-f" data-d="-25" data-page-node-id="FxCyO7WZKaBLVO0Zpy3m94">-25</button>
+            <input type="number" id="cmp-b-bp-f" class="bp-input" value="0" step="5" data-page-node-id="f8rqViqbDk4onf7cgWEcHM" />
+            <span class="unit" data-page-node-id="e2qAHn1xGT5riGVnpjauaJ">BP</span>
+            <button type="button" class="bp-btn" data-bpid="cmp-b-bp-f" data-d="25" data-page-node-id="qLrVI0o0Qh4HBMzFTJYWu9">+25</button>
+            <span class="eff" id="cmp-b-eff-f" data-page-node-id="ywUAaDBPhJIgpKF1bMf0rD">实际 2.60%</span>
           </div>
         </div>
-        <div class="field"><label>还款方式</label>
-          <div class="seg" id="cmp-b-method"><button data-v="equal-installment" class="active">等额本息</button><button data-v="equal-principal">等额本金</button></div>
+        <div class="field" data-page-node-id="mUfrn7v9QfrGyShkFTj6r9"><label data-page-node-id="sSPlKYms8mKUk3aEb5AcJH">还款方式</label>
+          <div class="seg" id="cmp-b-method" data-page-node-id="oL4D8mcKMCyGXCSzUhjDvv"><button data-v="equal-installment" class="active" data-page-node-id="BZUliYV8LjvMBNS4y9G4FN">等额本息</button><button data-v="equal-principal" data-page-node-id="IWKjX2htCgK00rxHtTS5Wg">等额本金</button></div>
         </div>
       </div>
     </div>
-    <div style="margin-top:16px">
-      <div class="field" style="margin-bottom:12px"><label>家庭月收入（元，用于 DTI 评估）</label><div class="input-wrap"><input type="number" id="cmp-income" value="0" min="0" step="500" /><span class="unit">元</span></div></div>
-      <button class="btn primary" id="cmp-btn">对比方案</button>
-      <button class="btn" id="cmp-reset">恢复默认</button>
-      <div class="cmp-summary" id="cmp-result" style="display:none">
-        <div class="col a"><h4>方案 A</h4><div id="cmp-a-out"></div></div>
-        <div class="vs">VS</div>
-        <div class="col b"><h4>方案 B</h4><div id="cmp-b-out"></div></div>
+    <div style="margin-top:16px" data-page-node-id="lcPjIzvWyxyN0vUbxtqHFN">
+      <div class="field" style="margin-bottom:12px" data-page-node-id="iJXGaGQShNngU9GCtvqTFg"><label data-page-node-id="EAB6pzn4XMTqhAfRaQDHIq">家庭月收入（元，用于 DTI 评估）</label><div class="input-wrap" data-page-node-id="Wj1m1GPTbCGCS0vJvLxC8b"><input type="number" id="cmp-income" value="0" min="0" step="500" data-page-node-id="yMaEFRefaP67W5n37zjRxG" /><span class="unit" data-page-node-id="kBHNzauaZhlDY7hLcIWrVl">元</span></div></div>
+      <button class="btn primary" id="cmp-btn" data-page-node-id="hr6Ir80R8R822gOqgetibu">对比方案</button>
+      <button class="btn" id="cmp-reset" data-page-node-id="RXKrLProqWI2en8MQwoFEW">恢复默认</button>
+      <div class="cmp-summary" id="cmp-result" style="display:none" data-page-node-id="ubbNNVhhbKWdL2O58693JD">
+        <div class="col a" data-page-node-id="okUyjcKCnzGhHgDcm9uhvB"><h4 data-page-node-id="3SGFIhCpYO8A8ZaB1Da1ls">方案 A</h4><div id="cmp-a-out" data-page-node-id="CqQGyBI9WeqjGUG9zmwAO9"></div></div>
+        <div class="vs" data-page-node-id="AzFZ09a0o9aCmO82qkKkvS">VS</div>
+        <div class="col b" data-page-node-id="x4pJhNXrdVUiXL7cCpyspH"><h4 data-page-node-id="dFsS3N50IXjW9hGAYMF6eD">方案 B</h4><div id="cmp-b-out" data-page-node-id="UEl7GtCh32Xz609YgzQRoN"></div></div>
       </div>
       <!-- P1-8: 差异对比 -->
-      <div class="cmp-diff" id="cmp-diff" style="display:none"></div>
-      <div class="act-bar" id="cmp-act-bar" style="display:none">
-        <button class="btn" id="cmp-copy">复制对比结果</button>
-        <button class="btn" id="cmp-export">导出CSV</button>
+      <div class="cmp-diff" id="cmp-diff" style="display:none" data-page-node-id="HN5NS3mQ6QygEKLS9d7PtK"></div>
+      <div class="act-bar" id="cmp-act-bar" style="display:none" data-page-node-id="pyjq2FpiZNXxO4E7ddc46f">
+        <button class="btn" id="cmp-copy" data-page-node-id="5hNzF03YPexssDFiyZinB6">复制对比结果</button>
+        <button class="btn" id="cmp-export" data-page-node-id="SHZJ5BInxntTRrAzlSzrVC">导出CSV</button>
       </div>
     </div>
   </section>
 
   <!-- ============ 提前还款 ============ -->
-  <section class="panel" id="prepay">
-    <div class="layout">
-      <div class="col-left">
-        <div class="card">
-          <h3>原贷款信息</h3>
-          <div class="field"><label>贷款类型</label>
-            <div class="seg" id="pp-type"><button data-v="commercial" class="active">商业</button><button data-v="fund">公积金</button><button data-v="combo">组合贷</button></div>
+  <section class="panel" id="prepay" data-page-node-id="c3rCAWgTFJ1fvzu4yT46v9">
+    <div class="layout" data-page-node-id="FPKz2cimdMuzg21wyrnL1H">
+      <div class="col-left" data-page-node-id="eltk2EeMW18fcVHZBBFqrr">
+        <div class="card" data-page-node-id="IF6rnMhpZJ03gOmmOrT5CH">
+          <h3 data-page-node-id="OzAJf2gZaPsEHy6Bqg3IT9">原贷款信息</h3>
+          <div class="field" data-page-node-id="gGtZfIyeqY1d67UpqeYm0u"><label data-page-node-id="EVJfoj95uHVdalhnu2yuxy">贷款类型</label>
+            <div class="seg" id="pp-type" data-page-node-id="q8FdVBsoIWDdUy4xI82VTA"><button data-v="commercial" class="active" data-page-node-id="HAktup2d1a17EC7wOD0hZu">商业</button><button data-v="fund" data-page-node-id="3MWkZSsRIjOkatVwRzjPMS">公积金</button><button data-v="combo" data-page-node-id="o24tIBmONyrEbYZw4qwp6K">组合贷</button></div>
           </div>
-          <div class="field" id="pp-amount-wrap"><label>贷款本金（万元）</label><div class="input-wrap"><input type="number" id="pp-amount" value="200" min="0" step="1" /><span class="unit">万</span></div></div>
-          <div class="field" id="pp-combo-wrap" style="display:none">
-            <label>组合贷金额（万元）</label>
-            <div class="input-wrap"><input type="number" id="pp-combo-c" value="150" min="0" step="1" /><span class="unit">商</span></div>
-            <div class="input-wrap" style="margin-top:6px"><input type="number" id="pp-combo-f" value="50" min="0" step="1" /><span class="unit">公</span></div>
+          <div class="field" id="pp-amount-wrap" data-page-node-id="UFxXqwQsqJQFOoaNUSlVI4"><label for="pp-amount" data-page-node-id="ABOdNSpJBddQ4VNVIXpAnE">贷款本金（万元）</label><div class="input-wrap" data-page-node-id="FQqG5TElMEYgvXlqk9SA6C"><input type="number" id="pp-amount" value="200" min="0" step="1" data-page-node-id="aKY3o9728mdJhwez75uosU" /><span class="unit" data-page-node-id="DxmeWlLVoKisamBCPmIjCH">万</span></div></div>
+          <div class="field" id="pp-combo-wrap" style="display:none" data-page-node-id="XpHjDLCGLYjcb453hxKncD">
+            <label data-page-node-id="iZR7OptbLt6MKTwjgU7cNY">组合贷金额（万元）</label>
+            <div class="input-wrap" data-page-node-id="e8ZG88U8vvDXMfGBphtFKW"><input type="number" id="pp-combo-c" value="150" min="0" step="1" data-page-node-id="PXBCPcd2g4byt0Vp6igfwD" /><span class="unit" data-page-node-id="aZyy8fsyMJ3wL0syNx94KQ">商</span></div>
+            <div class="input-wrap" style="margin-top:6px" data-page-node-id="RF1ZcAGYr3lLlAzB7Caj3M"><input type="number" id="pp-combo-f" value="50" min="0" step="1" data-page-node-id="BbCRtZBpBlVXFOFVvX7Yow" /><span class="unit" data-page-node-id="SNYefIID4a4g14Nv6ZgQrs">公</span></div>
           </div>
-          <div class="field"><label>贷款年限（年）</label><div class="input-wrap"><input type="number" id="pp-years" value="30" min="1" step="1" /><span class="unit">年</span></div></div>
-          <div class="field" id="pp-rate-wrap"><label>商业年利率（%）</label><div class="input-wrap"><input type="number" id="pp-rate" value="3.5" min="0" step="0.01" /><span class="unit">%</span></div>
-            <div class="bp-row">
-              <span class="bp-label">加点</span>
-              <button type="button" class="bp-btn" data-bpid="pp-bp" data-d="-25">-25</button>
-              <input type="number" id="pp-bp" class="bp-input" value="0" step="5" />
-              <span class="unit">BP</span>
-              <button type="button" class="bp-btn" data-bpid="pp-bp" data-d="25">+25</button>
-              <span class="eff" id="pp-eff">实际 3.50%</span>
+          <div class="field" data-page-node-id="teihH7BffAHGT6sCtw3bWV"><label data-page-node-id="6WVBEupPtUeFrEDkuAYrBO">贷款年限（年）</label><div class="input-wrap" data-page-node-id="aHXH22LhVEbiNcgJMel7w9"><input type="number" id="pp-years" value="30" min="1" step="1" data-page-node-id="CbJBN7DEd9c42PkzIsfPwT" /><span class="unit" data-page-node-id="iAc2VCK5EwEa7d5PAAyT2G">年</span></div></div>
+          <div class="field" id="pp-rate-wrap" data-page-node-id="daK8UyaAde1Lz2crnytrbY"><label data-page-node-id="8Ysy8FDi33uzziChO4iE5l">商业年利率（%）</label><div class="input-wrap" data-page-node-id="1RXPAxF3xBtKDQao2MFdK3"><input type="number" id="pp-rate" value="3.5" min="0" step="0.01" data-page-node-id="qTwe9MJbtD4MRHoxd3LYaB" /><span class="unit" data-page-node-id="mAkk0EgPTdg6QSRPBekjfz">%</span></div>
+            <div class="bp-row" data-page-node-id="8PCnmwr9mMfvereujjI2MW">
+              <span class="bp-label" data-page-node-id="nUoZ0KKr02zzLPyCMEnNgu">加点</span>
+              <button type="button" class="bp-btn" data-bpid="pp-bp" data-d="-25" data-page-node-id="0akgpOHebE2j5snNCGuVnu">-25</button>
+              <input type="number" id="pp-bp" class="bp-input" value="0" step="5" data-page-node-id="Dxsh7wGy26jRSh5RRQ0Qa6" />
+              <span class="unit" data-page-node-id="wuWslOPbSQ8zW7exa3AAjM">BP</span>
+              <button type="button" class="bp-btn" data-bpid="pp-bp" data-d="25" data-page-node-id="DDQIe4jQvQhrVNeGJaObBH">+25</button>
+              <span class="eff" id="pp-eff" data-page-node-id="0QamqILNVUjfDus8MhEhWN">实际 3.50%</span>
             </div>
           </div>
-          <div class="field" id="pp-rate-f-wrap" style="display:none"><label>公积金年利率（%）</label><div class="input-wrap"><input type="number" id="pp-rate-f" value="2.6" min="0" step="0.01" /><span class="unit">%</span></div>
-            <div class="bp-row">
-              <span class="bp-label">加点</span>
-              <button type="button" class="bp-btn" data-bpid="pp-bp-f" data-d="-25">-25</button>
-              <input type="number" id="pp-bp-f" class="bp-input" value="0" step="5" />
-              <span class="unit">BP</span>
-              <button type="button" class="bp-btn" data-bpid="pp-bp-f" data-d="25">+25</button>
-              <span class="eff" id="pp-eff-f">实际 2.60%</span>
+          <div class="field" id="pp-rate-f-wrap" style="display:none" data-page-node-id="CYNAde8eQy04AssdnDGQ96"><label data-page-node-id="FGBAmM77N9HCViNB432gBy">公积金年利率（%）</label><div class="input-wrap" data-page-node-id="0JCdV3tFtrvRQ2rQzAvWZv"><input type="number" id="pp-rate-f" value="2.6" min="0" step="0.01" data-page-node-id="vsuFP9yBW2HbpdmvSS5Qpt" /><span class="unit" data-page-node-id="Pl7qk8J1kxNvAJQdruDCJm">%</span></div>
+            <div class="bp-row" data-page-node-id="saDQRFcH1pdY2NYmhKJ8Ae">
+              <span class="bp-label" data-page-node-id="fDaDdsHC26sFFsCyrikCPj">加点</span>
+              <button type="button" class="bp-btn" data-bpid="pp-bp-f" data-d="-25" data-page-node-id="jquGqu0Bz4IEQPglpQ7ueV">-25</button>
+              <input type="number" id="pp-bp-f" class="bp-input" value="0" step="5" data-page-node-id="83RrJ4lYa0bDmxmqxo7N9y" />
+              <span class="unit" data-page-node-id="sj6qv349fPMTjvU6jrdv2f">BP</span>
+              <button type="button" class="bp-btn" data-bpid="pp-bp-f" data-d="25" data-page-node-id="rgpgxOme60uCBF0ul1u3pF">+25</button>
+              <span class="eff" id="pp-eff-f" data-page-node-id="ZoVlDNBDCTfFCLntbNSY8J">实际 2.60%</span>
             </div>
           </div>
-          <div class="field"><label>还款方式</label>
-            <div class="seg" id="pp-method"><button data-v="equal-installment" class="active">等额本息</button><button data-v="equal-principal">等额本金</button></div>
+          <div class="field" data-page-node-id="tnFwPDYEPwxSLSpOQBvglU"><label data-page-node-id="Km1ADWG50TjY6bR0wz0Yiz">还款方式</label>
+            <div class="seg" id="pp-method" data-page-node-id="vSXVcMmyDMpHLJTkA0GSST"><button data-v="equal-installment" class="active" data-page-node-id="G3dPcRefDuqGvcd2Des9P7">等额本息</button><button data-v="equal-principal" data-page-node-id="0ciCFINQhQfDhoqQbtWkM4">等额本金</button></div>
           </div>
-          <div class="field"><label>已还期数（月）</label><div class="input-wrap"><input type="number" id="pp-paid" value="36" min="0" step="1" /><span class="unit">期</span></div></div>
+          <div class="field" data-page-node-id="S2wxbjj3uIWMIpfMOGDV2Z"><label data-page-node-id="p74Ox24YHielCEgjtSqxfx">已还期数（月）</label><div class="input-wrap" data-page-node-id="4n47eDxQSCDW2eKSiFFf9o"><input type="number" id="pp-paid" value="36" min="0" step="1" data-page-node-id="sVAAVSR5Sd6fLkyPTgeRxa" /><span class="unit" data-page-node-id="3kzBYrPZikCI5celKXbcEZ">期</span></div></div>
         </div>
 
         <!-- P2-10: 多次提前还款时间线 -->
-        <div class="card">
-          <h3>提前还款计划</h3>
-          <div id="pp-timeline"></div>
-          <button class="btn" id="pp-add-entry" style="margin-top:4px;width:100%">+ 添加一笔提前还款</button>
+        <div class="card" data-page-node-id="yX50p9yBOpvMvYzq4o3BM7">
+          <h3 data-page-node-id="61Fihzmra2iaBhf95XM8ks">提前还款计划</h3>
+          <div id="pp-timeline" data-page-node-id="ZLzt2ydYwBiz30jtkFDRp4"></div>
+          <button class="btn" id="pp-add-entry" style="margin-top:4px;width:100%" data-page-node-id="nD1BJB3HzgQBeUAhIs1Hw3">+ 添加一笔提前还款</button>
 
-          <div class="field" style="margin-top:14px">
-            <label>预期理财年化收益率（%）</label>
-            <div class="input-wrap"><input type="number" id="pp-invest-rate" value="3.0" min="0" step="0.1" /><span class="unit">%</span></div>
-            <div class="hint">用于对比"提前还款省利息" vs "同等金额理财收益"</div>
+          <div class="field" style="margin-top:14px" data-page-node-id="E0Q0JI7pD3DpKQdzzw9PFv">
+            <label data-page-node-id="cjZzuXjTZsyswV9wvNAp37">预期理财年化收益率（%）</label>
+            <div class="input-wrap" data-page-node-id="ENX5z8rKMcyqtO63qu6jHZ"><input type="number" id="pp-invest-rate" value="3.0" min="0" step="0.1" data-page-node-id="mEvycLCFCtqU12EQfe89PM" /><span class="unit" data-page-node-id="htZA9XjZrxu0xwG9uiK0DV">%</span></div>
+            <div class="hint" data-page-node-id="qsufE42nH90jSC6HnUqkW5">用于对比"提前还款省利息" vs "同等金额理财收益"</div>
           </div>
-          <div class="field" style="margin-bottom:12px"><label>家庭月收入（元，用于 DTI 评估）</label><div class="input-wrap"><input type="number" id="pp-income" value="0" min="0" step="500" /><span class="unit">元</span></div></div>
-          <button class="btn primary" style="width:100%" id="pp-btn">分析提前还款</button>
-          <button class="btn" style="width:100%;margin-top:8px" id="pp-reset">恢复默认</button>
+          <div class="field" style="margin-bottom:12px" data-page-node-id="EhOiJF9lF6Z1ZqK8He93tw"><label data-page-node-id="18bMB2VoH5XpnjMW9EXKrn">家庭月收入（元，用于 DTI 评估）</label><div class="input-wrap" data-page-node-id="pPTU9ZGdAl1ijJnwXvAsxj"><input type="number" id="pp-income" value="0" min="0" step="500" data-page-node-id="rRJZ98qouz9MXTRe6jmT9w" /><span class="unit" data-page-node-id="98G8aHERzW5GtVvkFqlZS7">元</span></div></div>
+          <button class="btn primary" style="width:100%" id="pp-btn" data-page-node-id="Pdn0byYn4PNz4THTlFsX8Y">分析提前还款</button>
+          <button class="btn" style="width:100%;margin-top:8px" id="pp-reset" data-page-node-id="w8BydkffHGfsvnkLv3hsUV">恢复默认</button>
         </div>
       </div>
 
-      <div>
+      <div data-page-node-id="0bHyxq3YgH2zNqhHMQOhEg">
         <!-- P2-9: 双策略并排 -->
-        <div class="card">
-          <h3>两种策略并排对比</h3>
-          <div class="dual-strategy">
-            <div class="strategy-col">
-              <h4>缩短期限</h4>
-              <div id="pp-shorten-out"><div class="hint">点击"分析提前还款"查看结果</div></div>
+        <div class="card" data-page-node-id="tr8j5btBnCyTi4dPEG1uRQ">
+          <h3 data-page-node-id="tBHH108L0UAYxcOH0GMeXB">两种策略并排对比</h3>
+          <div class="dual-strategy" data-page-node-id="eMlBoZ4WNJ3YDDb1MT8xId">
+            <div class="strategy-col" data-page-node-id="3G4vTz5lIJXwiX9GAa5qqR">
+              <h4 data-page-node-id="Eo4KLfL5PdMEPvA30ShZBB">缩短期限</h4>
+              <div id="pp-shorten-out" data-page-node-id="ca4xUWuvPOKtCiuB7rz0ix"><div class="hint" data-page-node-id="GwwvTDdYXRypdHWrOGkYGM">点击"分析提前还款"查看结果</div></div>
             </div>
-            <div class="strategy-col alt">
-              <h4>减少月供</h4>
-              <div id="pp-reduce-out"><div class="hint">点击"分析提前还款"查看结果</div></div>
+            <div class="strategy-col alt" data-page-node-id="kdvrMIKCivR340w0srJpD9">
+              <h4 data-page-node-id="0TXqXzkaoy6Rx5GaaiU4p2">减少月供</h4>
+              <div id="pp-reduce-out" data-page-node-id="Rs3qgocaqihS2L0qE6Gd29"><div class="hint" data-page-node-id="3BBiBJEHAiLNeaqXUPV0Js">点击"分析提前还款"查看结果</div></div>
             </div>
           </div>
         </div>
 
         <!-- P2-11: vs 投资 -->
-        <div class="card">
-          <h3>提前还款 vs 理财投资</h3>
-          <div id="pp-invest-out"><div class="hint">点击"分析提前还款"查看对比</div></div>
+        <div class="card" data-page-node-id="l5OSlHzlp1znBj1LmUDtbH">
+          <h3 data-page-node-id="WpaZt1OZLkPMd3WcdbirtP">提前还款 vs 理财投资</h3>
+          <div id="pp-invest-out" data-page-node-id="6hJNb9i4675xPa1HnqUNd4"><div class="hint" data-page-node-id="2CjixFcFxk5V8ZqAjTNBow">点击"分析提前还款"查看对比</div></div>
         </div>
-        <div class="act-bar" id="pp-act-bar" style="display:none">
-          <button class="btn" id="pp-copy">复制结果</button>
-          <button class="btn" id="pp-export">导出CSV</button>
+        <div class="act-bar" id="pp-act-bar" style="display:none" data-page-node-id="fcFkzNuR3oZZUfp3CzQend">
+          <button class="btn" id="pp-copy" data-page-node-id="sKOCIRoui14wVNycVcCu1p">复制结果</button>
+          <button class="btn" id="pp-export" data-page-node-id="6mqbJCQ9D0FrDbmLbbEkKr">导出CSV</button>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ============ 浮动利率 ============ -->
-  <section class="panel" id="variable">
-    <div class="layout">
-      <div class="col-left">
-        <div class="card">
-          <h3>贷款信息</h3>
-          <div class="field"><label>贷款类型</label>
-            <div class="seg" id="vr-type"><button data-v="commercial" class="active">商业</button><button data-v="fund">公积金</button><button data-v="combo">组合贷</button></div>
+  <section class="panel" id="variable" data-page-node-id="ecyT2DtyUK7z5YxEkgJ8CM">
+    <div class="layout" data-page-node-id="CKs02BeBZkGKs7vn1wuz8r">
+      <div class="col-left" data-page-node-id="CG5XA3wvzTRxe240As7fut">
+        <div class="card" data-page-node-id="1X2hvmu0w8QgTTnB3m9NFv">
+          <h3 data-page-node-id="SwTUA90NxTQgHxh13cFKIU">贷款信息</h3>
+          <div class="field" data-page-node-id="zZV735LrZcFZOJtfBadwg9"><label data-page-node-id="kcD044h1uSjdCgMDzp9ECM">贷款类型</label>
+            <div class="seg" id="vr-type" data-page-node-id="z8nHRFr1gsemqGrXqgAADC"><button data-v="commercial" class="active" data-page-node-id="M5RBD5elrNcRFDDaOJIl2S">商业</button><button data-v="fund" data-page-node-id="iMSRaasYxh9ovb0AOU76W5">公积金</button><button data-v="combo" data-page-node-id="KBPCSaiJIRtEHplmz9CvlM">组合贷</button></div>
           </div>
-          <div class="field" id="vr-amount-wrap"><label>贷款本金（万元）</label><div class="input-wrap"><input type="number" id="vr-amount" value="200" min="0" step="1" /><span class="unit">万</span></div></div>
-          <div class="field" id="vr-combo-wrap" style="display:none">
-            <label>组合贷金额（万元）</label>
-            <div class="input-wrap"><input type="number" id="vr-combo-c" value="150" min="0" step="1" /><span class="unit">商</span></div>
-            <div class="input-wrap" style="margin-top:6px"><input type="number" id="vr-combo-f" value="50" min="0" step="1" /><span class="unit">公</span></div>
+          <div class="field" id="vr-amount-wrap" data-page-node-id="i3Ar9E8COqdtJHjPYJTSqI"><label for="vr-amount" data-page-node-id="IQ7fhaaE8OBCZkuXJwBveS">贷款本金（万元）</label><div class="input-wrap" data-page-node-id="TLSljJ6A3PUhgNU64kEvZL"><input type="number" id="vr-amount" value="200" min="0" step="1" data-page-node-id="2ADqec9C9wNn5ks0WhAe47" /><span class="unit" data-page-node-id="Tzn5WiNFVjw1eR0GiFzCtC">万</span></div></div>
+          <div class="field" id="vr-combo-wrap" style="display:none" data-page-node-id="zdApKtRNnn255PbrvNQjRj">
+            <label data-page-node-id="b3HKaH6A1ImyyOS7M7AYsJ">组合贷金额（万元）</label>
+            <div class="input-wrap" data-page-node-id="e9TAehv9WKW5FYm1Sqju08"><input type="number" id="vr-combo-c" value="150" min="0" step="1" data-page-node-id="Kfqi5WSVM3c22tDjkbHP5z" /><span class="unit" data-page-node-id="iFFszwKg3x7y5uSmHPtLPA">商</span></div>
+            <div class="input-wrap" style="margin-top:6px" data-page-node-id="qPqhI1Eksf11DnCJWPYREi"><input type="number" id="vr-combo-f" value="50" min="0" step="1" data-page-node-id="Ci1B2lmVsDpiC6ZsTA4Uqv" /><span class="unit" data-page-node-id="VAKH2C66veLljdEBf6ckfz">公</span></div>
           </div>
-          <div class="field"><label>贷款年限</label><div class="input-wrap"><input type="number" id="vr-years" value="30" min="1" max="40" step="1" /><span class="unit">年</span></div></div>
-          <div class="field"><label>初始还款方式</label>
-            <div class="seg" id="vr-method"><button data-v="equal-installment" class="active">等额本息</button><button data-v="equal-principal">等额本金</button></div>
-            <div class="hint">时间线节点可从中途切换还款方式</div>
+          <div class="field" data-page-node-id="YbVGAfiWozTq3JAUpK1n5b"><label data-page-node-id="QP5E8sD9c4TvhVM1LvBiP4">贷款年限</label><div class="input-wrap" data-page-node-id="DZIm5Tbaov81I5d9nM5Osc"><input type="number" id="vr-years" value="30" min="1" max="40" step="1" data-page-node-id="JMbDj0RY3hSLNQz8JTG3T7" /><span class="unit" data-page-node-id="LDesCKVrGvGGJaBpG5PtCk">年</span></div></div>
+          <div class="field" data-page-node-id="gOD74Y7WdeUmVQQgOtgjcv"><label data-page-node-id="m07bFaflLUrEiFG4C5G21Y">初始还款方式</label>
+            <div class="seg" id="vr-method" data-page-node-id="66meaTGczeN3dSVNGjwpk4"><button data-v="equal-installment" class="active" data-page-node-id="XXlkhJ94AaXkoVbA0DNWpV">等额本息</button><button data-v="equal-principal" data-page-node-id="0YdlMue6EGDDCIsy3OWCl9">等额本金</button></div>
+            <div class="hint" data-page-node-id="jBAi6vOKcHrs6v0R4SoG7e">时间线节点可从中途切换还款方式</div>
           </div>
-          <div class="field" id="vr-init-wrap">
-            <label>商业初始利率（LPR）</label>
-            <div class="bp-row">
-              <span class="bp-label">LPR</span>
-              <input type="number" id="vr-init-lpr" class="bp-input" value="3.5" step="0.05" style="width:58px" />
-              <span class="unit">%</span>
-              <span class="bp-label" style="margin-left:6px">加点</span>
-              <input type="number" id="vr-init-bp" class="bp-input" value="-20" step="5" />
-              <span class="unit">BP</span>
-              <span class="eff" id="vr-init-eff">实际 3.30%</span>
+          <div class="field" id="vr-init-wrap" data-page-node-id="PU8KE2DF8J30IMAmhVQaYm">
+            <label data-page-node-id="Z8MwgVbYpIoPgU4yYjSSLs">商业初始利率（LPR）</label>
+            <div class="bp-row" data-page-node-id="ABxSTzfViJNMHJdZgzYZtE">
+              <span class="bp-label" data-page-node-id="1hyioA4Ew3yqRAZHUzY2rk">LPR</span>
+              <input type="number" id="vr-init-lpr" class="bp-input" value="3.5" step="0.05" style="width:58px" data-page-node-id="LNusEDjgetr5VCed3HICjR" />
+              <span class="unit" data-page-node-id="BkgTrToBqmb2Y5nLW1Rsi4">%</span>
+              <span class="bp-label" style="margin-left:6px" data-page-node-id="ll6nNtG7wQMrooE3unwY0K">加点</span>
+              <input type="number" id="vr-init-bp" class="bp-input" value="-20" step="5" data-page-node-id="Y2UY5tAzGnxJAOtxvmApBh" />
+              <span class="unit" data-page-node-id="pV7tDhA6QJwivdemkkDNLF">BP</span>
+              <span class="eff" id="vr-init-eff" data-page-node-id="AixP6mO9xEtpoQLE3BNQpM">实际 3.30%</span>
             </div>
-            <div class="hint">起始利率 = LPR + BP/100，后续按时间线变化；公积金部分按政策利率固定</div>
+            <div class="hint" data-page-node-id="BI5m5l1MDdm4qqk2pktoE4">起始利率 = LPR + BP/100，后续按时间线变化；公积金部分按政策利率固定</div>
           </div>
         </div>
 
-        <div class="card">
-          <h3>利率变化时间线</h3>
-          <div class="vr-presets">
-            <button type="button" class="btn" id="vr-preset-recent">近3年LPR走势</button>
-            <button type="button" class="btn" id="vr-preset-annual">每年降10BP</button>
-            <button type="button" class="btn" id="vr-preset-clear">清空</button>
+        <div class="card" data-page-node-id="rKoLaMmIiQwmAFMMt1ypu1">
+          <h3 data-page-node-id="lXhqlQyuojVPkXkkyNkGIq">利率变化时间线</h3>
+          <div class="vr-presets" data-page-node-id="lMNeQGuBrek7BGUFoFOkYn">
+            <button type="button" class="btn" id="vr-preset-recent" data-page-node-id="M1ZhjiYiljCEG1OlN7ibVg">近3年LPR走势</button>
+            <button type="button" class="btn" id="vr-preset-annual" data-page-node-id="1jFLPPRPE9WL5SjLAxBYjO">每年降10BP</button>
+            <button type="button" class="btn" id="vr-preset-clear" data-page-node-id="P2VtuEDYSsTeJ2Q2OCnltO">清空</button>
           </div>
-          <div id="vr-timeline"></div>
-          <button class="btn" id="vr-add-entry" style="margin-top:4px;width:100%">+ 添加利率变化节点</button>
-          <div class="hint" style="margin-top:8px">每个节点设定从该月起生效的新 LPR 和 BP；留空则保持原值</div>
-          <button class="btn primary" style="width:100%;margin-top:8px" id="vr-btn">开始模拟</button>
-          <button class="btn" style="width:100%;margin-top:8px" id="vr-reset">恢复默认配置</button>
+          <div id="vr-timeline" data-page-node-id="0YPAqYVWxPz58w0t2OFxLD"></div>
+          <button class="btn" id="vr-add-entry" style="margin-top:4px;width:100%" data-page-node-id="YftHmHf7EuCQjt1gVK850Q">+ 添加利率变化节点</button>
+          <div class="hint" style="margin-top:8px" data-page-node-id="ERAlhUwZWNSldy3lujXnoG">每个节点设定从该月起生效的新 LPR 和 BP；留空则保持原值</div>
+          <button class="btn primary" style="width:100%;margin-top:8px" id="vr-btn" data-page-node-id="BqUYunlYFIF5X3GrWAqptR">开始模拟</button>
+          <button class="btn" style="width:100%;margin-top:8px" id="vr-reset" data-page-node-id="cgUang2mVol4R9rWsEZ3o5">恢复默认配置</button>
         </div>
       </div>
 
-      <div>
-        <div class="result-grid">
-          <div class="stat"><div class="k">初始月供</div><div class="v" id="vr-init-monthly">—</div></div>
-          <div class="stat alt"><div class="k">最终月供</div><div class="v" id="vr-final-monthly">—</div></div>
-          <div class="stat alt"><div class="k">利息总额</div><div class="v" id="vr-total-interest">—</div></div>
+      <div data-page-node-id="ZomvBWDKflB81nI0pPWb2K">
+        <div class="result-grid" data-page-node-id="OzD9G4kJuFQgEwGxY85T9j">
+          <div class="stat" data-page-node-id="yWlJ3Ao70vlSEkCe0kHGrP"><div class="k" data-page-node-id="SJgIzyuyDPBwCzFMCjOAMn">初始月供</div><div class="v" id="vr-init-monthly" data-page-node-id="tTGfnjiYhuyXKpNbl8sLvI">—</div></div>
+          <div class="stat alt" data-page-node-id="ZJkVJCcl9n0K3DyQOFw0kR"><div class="k" data-page-node-id="XBcv389MbcnDRkqLaAvBow">最终月供</div><div class="v" id="vr-final-monthly" data-page-node-id="wXoWMid5a4uNfNwM9Hx7OO">—</div></div>
+          <div class="stat alt" data-page-node-id="mfimr5nVaLHLLxQrfZoim0"><div class="k" data-page-node-id="qGPWaqWDeET4muwHqViTOk">利息总额</div><div class="v" id="vr-total-interest" data-page-node-id="sMLvIEg0mMWnmmNNxkWyCb">—</div></div>
         </div>
 
-        <div class="act-bar" id="vr-act-bar" style="display:none">
-          <button class="btn" id="vr-copy">复制结果</button>
-          <button class="btn" id="vr-save">保存到历史</button>
-          <button class="btn" id="vr-export">导出CSV</button>
+        <div class="act-bar" id="vr-act-bar" style="display:none" data-page-node-id="aN3NXXLh3npGZMjmkZrSHR">
+          <button class="btn" id="vr-copy" data-page-node-id="DrVAdMGVrOeYfI2ZAGkwyB">复制结果</button>
+          <button class="btn" id="vr-save" data-page-node-id="IOqDwEcqiPy5J4PV23AAe7">保存到历史</button>
+          <button class="btn" id="vr-export" data-page-node-id="vvacoTlaIv1uY1ZbYNTLhI">导出CSV</button>
         </div>
 
-        <div class="card" id="vr-compare-card" style="display:none">
-          <h3>固定利率 vs 浮动利率</h3>
-          <div id="vr-compare-out"></div>
+        <div class="card" id="vr-compare-card" style="display:none" data-page-node-id="8Bx1JaNCM8ASlCV7imGGJo">
+          <h3 data-page-node-id="6n99zGAFWZJsRAcIfuduey">固定利率 vs 浮动利率</h3>
+          <div id="vr-compare-out" data-page-node-id="TFTSiXIFt5gl67COC27De1"></div>
         </div>
 
-        <div class="card">
-          <div class="table-head"><h3>利率变化节点</h3></div>
-          <table>
-            <thead id="vr-changes-thead"></thead>
-            <tbody id="vr-changes-tbody"></tbody>
+        <div class="card" data-page-node-id="zZmCHSErRdHHs87PAFfaqS">
+          <div class="table-head" data-page-node-id="tUNZnrF9ehPnIYUZQxOPCH"><h3 data-page-node-id="6pD4P9QVQ5GOvUag1CW3Bt">利率变化节点</h3></div>
+          <table data-page-node-id="9cFyb2SmFAvgRgATB9EBzO">
+            <thead id="vr-changes-thead" data-page-node-id="owSh4TSVRMwJzwpKpPCBwT"></thead>
+            <tbody id="vr-changes-tbody" data-page-node-id="jIVQf5VygLW7RZF1Hwghyp"></tbody>
           </table>
         </div>
 
-        <div class="chart-row">
-          <div class="chart-box">
-            <div class="chart-title">月供变化趋势</div>
-            <div id="vr-trend-chart"></div>
+        <div class="chart-row" data-page-node-id="3A5rUzBUV6Yyo7kcks5QUF">
+          <div class="chart-box" data-page-node-id="UamupPjg358LNd3UOagfNs">
+            <div class="chart-title" data-page-node-id="I9D0wqAomtLupVgEJHhnKs">月供变化趋势</div>
+            <div id="vr-trend-chart" data-page-node-id="thHbnFfgHEkxtNW4jrCIs9" role="img" aria-label="月供趋势图"></div>
           </div>
-          <div class="chart-box">
-            <div class="chart-title">利率变化曲线</div>
-            <div id="vr-rate-chart"></div>
+          <div class="chart-box" data-page-node-id="7lgEVvXrrXKpWRj0IdvT94">
+            <div class="chart-title" data-page-node-id="2ttYATxUV1HiqHnCWx8PGK">利率变化曲线</div>
+            <div id="vr-rate-chart" data-page-node-id="eZJd9B92kfFrwKXixLs3QV" role="img" aria-label="利率变化图"></div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="table-head">
-            <h3>月供明细</h3>
-            <div class="ctrl"><select id="vr-detail-mode"><option value="year">按年</option><option value="month">按期</option></select></div>
+        <div class="card" data-page-node-id="3aaZrNY8Z5UmdyUviBuc5z">
+          <div class="table-head" data-page-node-id="VRp1WjH5OjjZF7Al1mO3E9">
+            <h3 data-page-node-id="pj1vWs8zpEtkwSC3oBwyrj">月供明细</h3>
+            <div class="ctrl" data-page-node-id="sB5HVMumvttSDe0LoitI8P"><select id="vr-detail-mode" data-page-node-id="aFGoev5zv3sxfzJe0lpQQw"><option value="year" data-page-node-id="kGRoHpeG3Tso5AAeshvXl4">按年</option><option value="month" data-page-node-id="ZW8LjdXvhMXy7vL778JwLO">按期</option></select></div>
           </div>
-          <table>
-            <thead id="vr-thead"></thead>
-            <tbody id="vr-tbody"></tbody>
+          <table data-page-node-id="CoQmxx4V5Ca5lwIhdJHFFo">
+            <thead id="vr-thead" data-page-node-id="vCXaaUD74ZfRY8GpqR4y8g"></thead>
+            <tbody id="vr-tbody" data-page-node-id="gmDx3I4FBNDEUf7k98RKbb"></tbody>
           </table>
-          <div class="pager">
-            <button class="btn" id="vr-prev">上一页</button>
-            <span id="vr-page">1 / 1</span>
-            <button class="btn" id="vr-next">下一页</button>
+          <div class="pager" data-page-node-id="QkeRsFCdBtpERymlGVBjW5">
+            <button class="btn" id="vr-prev" data-page-node-id="tDB5GzV6dh707ruiSFyp93">上一页</button>
+            <span id="vr-page" data-page-node-id="OhMS3XJAg7aDPlWObUkmGr">1 / 1</span>
+            <button class="btn" id="vr-next" data-page-node-id="rwKuZAznqIvJFmcN8UuDpu">下一页</button>
           </div>
         </div>
       </div>
@@ -731,118 +853,120 @@
   </section>
 
   <!-- ============ 历史记录 ============ -->
-  <section class="panel" id="history">
-    <div class="card">
-      <div class="table-head">
-        <h3>历史记录</h3>
-        <div class="ctrl">
-          <input type="search" id="hist-search" class="hist-search" placeholder="搜索 金额/年限/类型/备注…" />
-          <select id="hist-filter" class="hist-filter">
-            <option value="all">全部类型</option>
-            <option value="commercial">商业</option>
-            <option value="fund">公积金</option>
-            <option value="combo">组合贷</option>
-            <option value="variable">浮动利率</option>
+  <section class="panel" id="history" data-page-node-id="9X0eUitTwElA2BjwccFObN">
+    <div class="card" data-page-node-id="NuJTnYbZP3yTp2icknWEE9">
+      <div class="table-head" data-page-node-id="Etd0YFEkfoy34QBz6AFGF5">
+        <h3 data-page-node-id="CLui2JuzpmB2xEb8Z3bbPY">历史记录</h3>
+        <div class="ctrl" data-page-node-id="Ki3kYcD9VJcRFFYX4XelGC">
+          <input type="search" id="hist-search" class="hist-search" placeholder="搜索 金额/年限/类型/备注…" data-page-node-id="aaSWGlu0uEPyyN8FxnjZt0" />
+          <select id="hist-filter" class="hist-filter" data-page-node-id="Tlp6osgBZgoPuHA3uQkzAt">
+            <option value="all" data-page-node-id="2s9PH2OgEf48z32ynmbFnl">全部类型</option>
+            <option value="commercial" data-page-node-id="cYOglPo5tAqFHcommLFiPV">商业</option>
+            <option value="fund" data-page-node-id="rVucKXpCKLfTrJZIXOW49c">公积金</option>
+            <option value="combo" data-page-node-id="KtCO67F8UK21QFGQwJwkJI">组合贷</option>
+            <option value="variable" data-page-node-id="B26ntifRfa3KXgww5Vt6HP">浮动利率</option>
           </select>
-          <button class="btn danger" id="hist-clear">清空全部</button>
+          <button class="btn danger" id="hist-clear" data-page-node-id="MwKxGXF4y7kPffknigJsPB">清空全部</button>
         </div>
       </div>
-      <div class="hist-toolbar">
-        <label class="chk"><input type="checkbox" id="hist-selectall" /> 全选</label>
-        <button class="btn danger" id="hist-batch-del" disabled>删除选中 (<span id="hist-selcount">0</span>)</button>
-        <span class="hist-count" id="hist-count"></span>
+      <div class="hist-toolbar" data-page-node-id="8epP7yj4EXAB6FWcJfBv9E">
+        <label class="chk" data-page-node-id="v98hXAURrX1vFhAvuJbPIN"><input type="checkbox" id="hist-selectall" data-page-node-id="9BNCbPSniFXb0d3pBik1em" /> 全选</label>
+        <button class="btn danger" id="hist-batch-del" disabled data-page-node-id="jVfrVk1d9FGY1ctI6nAOTR">删除选中 (<span id="hist-selcount" data-page-node-id="K6F51qfv9uXesg3PE0mqdI">0</span>)</button>
+        <span class="hist-count" id="hist-count" data-page-node-id="LG8kKZFdNrPA4FbVWLv0HK"></span>
       </div>
-      <div id="hist-list"></div>
+      <div id="hist-list" data-page-node-id="FYRlplX8yMF2yApVqljVH0"></div>
     </div>
   </section>
 
   <!-- ============ 真实利率（IRR 反算真实利率） ============ -->
-  <section class="panel" id="irr">
-    <div class="layout">
-      <div class="card col-left">
-        <h3>分期参数</h3>
+  <section class="panel" id="irr" data-page-node-id="cuw9yHUjVtpLrFyerl6TDF">
+    <div class="layout" data-page-node-id="UvdVdMdh8fiZCwzGGjzmxm">
+      <div class="card col-left" data-page-node-id="iDHgad0gZcTegwFEm32GRN">
+        <h3 data-page-node-id="GqaHCAdGBl7WG2NIKAOEac">分期参数</h3>
 
-        <div class="field">
-          <label>本金（元）</label>
-          <div class="input-wrap"><input type="number" id="irr-principal" value="50000" min="0" step="0.01" /><span class="unit">元</span></div>
-          <div class="err-msg" id="irr-principal-err"></div>
+        <div class="field" data-page-node-id="73FIWdBHGuKjGyw7lSQ5fb">
+          <label for="irr-principal" data-page-node-id="UUOKT4ZW07JHsBFD3zGO2K">本金（元）</label>
+          <div class="input-wrap" data-page-node-id="MG9f1fyCjFzDCOIa2MDyyL"><input type="number" id="irr-principal" value="50000" min="0" step="0.01" data-page-node-id="mH40VAtOoJpYXk5GsMrIDb" /><span class="unit" data-page-node-id="1EjAQEikRhILkvAl6FkZcf">元</span></div>
+          <div class="err-msg" id="irr-principal-err" data-page-node-id="3Tooc8yN5IoEAJfvRKfwu4"></div>
         </div>
 
-        <div class="field">
-          <label>分期方式</label>
-          <div class="seg" id="irr-method">
-            <button data-v="equal-installment" class="active">等额本息</button>
-            <button data-v="equal-principal">等额本金</button>
-            <button data-v="interest-only">先息后本</button>
+        <div class="field" data-page-node-id="zSh7hFooe6SI1DHnLWBeds">
+          <label data-page-node-id="5HnGF72pPh7E5fqyksesRb">分期方式</label>
+          <div class="seg" id="irr-method" data-page-node-id="MDPmVIZmmQerFGFNAH4p84">
+            <button data-v="equal-installment" class="active" data-page-node-id="HlJyDl5u4jIysK8EgGsFfS">等额本息</button>
+            <button data-v="equal-principal" data-page-node-id="KKBQlN4Eaij4p2WrnJU5SK">等额本金</button>
+            <button data-v="interest-only" data-page-node-id="35Wvh3hv6Hn0ak2sGxDzUR">先息后本</button>
           </div>
         </div>
 
-        <div class="field">
-          <label>分期期数（期，按月）</label>
-          <div class="input-wrap"><input type="number" id="irr-periods" value="12" min="1" step="1" /><span class="unit">期</span></div>
-          <div class="err-msg" id="irr-periods-err"></div>
+        <div class="field" data-page-node-id="iKq8hQGXu7mHjrxWsWhmGl">
+          <label for="irr-periods" data-page-node-id="y20JERDW2QAMBidsApnst9">分期期数（期，按月）</label>
+          <div class="input-wrap" data-page-node-id="2xXAVTdLt4Y1R3joaewWDf"><input type="number" id="irr-periods" value="12" min="1" step="1" data-page-node-id="umnNIZRak18eIQ9w1nxEXu" /><span class="unit" data-page-node-id="Ftghw0xC6rL9Jr2yMCrnQs">期</span></div>
+          <div class="err-msg" id="irr-periods-err" data-page-node-id="gpsNDguDXVpkinBNBPrMAw"></div>
         </div>
 
-        <div class="field">
-          <label>每期还款（元）</label>
-          <div class="input-wrap"><input type="number" id="irr-payment" value="4236.74" min="0" step="0.01" /><span class="unit">元</span></div>
-          <div class="hint" id="irr-payment-hint"></div>
-          <div class="err-msg" id="irr-payment-err"></div>
+        <div class="field" data-page-node-id="dEwiyU3Z9HmaXfkmstyh9Q">
+          <label for="irr-payment" data-page-node-id="xKJDnvk39yb5JqiPRJ8jFZ">每期还款（元）</label>
+          <div class="input-wrap" data-page-node-id="OxD74nHFCMCjTRaLbVfvSV"><input type="number" id="irr-payment" value="4236.74" min="0" step="0.01" data-page-node-id="bUspwiHWZwCibupD9tNrxn" /><span class="unit" data-page-node-id="PfSNhRCPn3JhKSA96CZL19">元</span></div>
+          <div class="hint" id="irr-payment-hint" data-page-node-id="IuKlm6QD1iTXmdkj4Xtuh0"></div>
+          <div class="err-msg" id="irr-payment-err" data-page-node-id="3yuzffsVd2oDDI8NckvBEx"></div>
         </div>
 
-        <div class="field">
-          <label>每期手续费（元，无则 0）</label>
-          <div class="input-wrap"><input type="number" id="irr-fee" value="0" min="0" step="0.01" /><span class="unit">元</span></div>
-          <div class="err-msg" id="irr-fee-err"></div>
+        <div class="field" data-page-node-id="pzTVQtGmidG1RbiApPiUxk">
+          <label for="irr-fee" data-page-node-id="ahBuus0LykZxrTKZhFqIdX">每期手续费（元，无则 0）</label>
+          <div class="input-wrap" data-page-node-id="11MgoxC7vDJxqO5JmPHMdU"><input type="number" id="irr-fee" value="0" min="0" step="0.01" data-page-node-id="eSaJnmzmF5mTPtxTLsnQis" /><span class="unit" data-page-node-id="Wh7FX77cw6Z6OHLFFIl1an">元</span></div>
+          <div class="err-msg" id="irr-fee-err" data-page-node-id="ahGHEiFxzG4wUCF4cOBErS"></div>
         </div>
 
-        <div class="err-msg" id="irr-err"></div>
-        <button class="btn primary" style="width:100%" id="irr-btn">开始计算</button>
-        <div class="save-bar">
-          <button class="btn" id="irr-save" style="flex:1">保存到历史</button>
-          <button class="btn" id="irr-copy" style="flex:1">复制结果</button>
+        <div class="err-msg" id="irr-err" data-page-node-id="Vyw1riQuPwZ45mIKSbFrTJ"></div>
+        <button class="btn primary" style="width:100%" id="irr-btn" data-page-node-id="v0aqtKBLVLDkDT8wKJW9Fb">开始计算</button>
+        <div class="save-bar" data-page-node-id="Y5SPjqblEZJW7yFIAg0DpN">
+          <button class="btn" id="irr-save" style="flex:1" data-page-node-id="ACq1wJ7RhyUQD04EgMilo0">保存到历史</button>
+          <button class="btn" id="irr-copy" style="flex:1" data-page-node-id="e7Ymz56EgxP5FQiwuJf47I">复制结果</button>
         </div>
-        <button class="btn accent" id="irr-reset" style="width:100%;margin-top:8px">恢复默认</button>
+        <button class="btn accent" id="irr-reset" style="width:100%;margin-top:8px" data-page-node-id="MwqseFz2CHTNexOt2KqLUc">恢复默认</button>
       </div>
 
-      <div>
-        <div class="highlight">
-          <div>
-            <div class="lab">真实月利率（IRR 反算）</div>
-            <div class="big" id="irr-monthly">—</div>
+      <div data-page-node-id="sQyPN46o5GKdDi18UKpK3H">
+        <div class="highlight" data-page-node-id="qn1Jl2kSHWGewplDd9IyK1">
+          <div data-page-node-id="TL2DscmPLt6EJCuHWCOECn">
+            <div class="lab" data-page-node-id="89hXiGrGVXxuTpJv1E7kLm">真实月利率（IRR 反算）</div>
+            <div class="big" id="irr-monthly" data-page-node-id="hYCCHZgGffxp7nuNVNsbgz">—</div>
           </div>
-          <div class="note" id="irr-method-note"></div>
+          <div class="note" id="irr-method-note" data-page-node-id="bzT3lMZWdhcLGsGCUs5kC5"></div>
         </div>
 
-        <div class="result-grid">
-          <div class="stat"><div class="k">名义年化 APR（单利）</div><div class="v" id="irr-apr">—</div></div>
-          <div class="stat alt"><div class="k">实际年化 IRR（复利）</div><div class="v" id="irr-irr">—</div></div>
-          <div class="stat alt"><div class="k">总利息</div><div class="v" id="irr-interest">—</div></div>
+        <div class="result-grid" data-page-node-id="fu5jUqVKUFtYNOmwQRngXd">
+          <div class="stat" data-page-node-id="Rn4vEnqdwoGxdLXlbvBUt2"><div class="k" data-page-node-id="0eZ3MlFEsXHCzEV28seoms">名义年化 APR（单利）</div><div class="v" id="irr-apr" data-page-node-id="x05pJkXfWVWdb3Y1sFyssK">—</div></div>
+          <div class="stat alt" data-page-node-id="Z9CohHUSXOWHwvDM93ktKg"><div class="k" data-page-node-id="K5lG537raV59dkoJ90GjEa">实际年化 IRR（复利）</div><div class="v" id="irr-irr" data-page-node-id="OP3aamstl5bgfWQdDvntaq">—</div></div>
+          <div class="stat alt" data-page-node-id="puJ4MP9Ql2Un35yLhjAuOP"><div class="k" data-page-node-id="jMu4pQTVaRCxF0HQDnYbDP">总利息</div><div class="v" id="irr-interest" data-page-node-id="a4OCV7kQ3r6YF2b2EeN16a">—</div></div>
         </div>
 
-        <div id="irr-verify" style="margin-bottom:18px"></div>
+        <div id="irr-verify" style="margin-bottom:18px" data-page-node-id="YJqmYseEA9oerZhKxmkom2"></div>
 
-        <div class="card">
-          <div class="table-head">
-            <h3>还款明细</h3>
-            <div class="ctrl">
-              <select id="irr-detail-mode">
-                <option value="month" selected>按期</option>
-                <option value="year">按年</option>
+        <div class="card" data-page-node-id="CYAAuHQHAxKViQXUkYqkCH">
+          <div class="table-head" data-page-node-id="MyVAVtRVvtRuYoeBtjpGbM">
+            <h3 data-page-node-id="BBuPtMMY4lxPGKE8CEu2kW">还款明细</h3>
+            <div class="ctrl" data-page-node-id="drIDH3gwecs4YHAAayUMHx">
+              <select id="irr-detail-mode" data-page-node-id="prs03S2dIfO8G33v5ldCy7">
+                <option value="month" selected data-page-node-id="zy3YrA1uUcy9cqb6NPtVAQ">按期</option>
+                <option value="year" data-page-node-id="vhnzIx1VlL600TCYmLy9MD">按年</option>
               </select>
-              <button class="btn" id="irr-export-csv">导出CSV</button>
+              <button class="btn" id="irr-export-csv" data-page-node-id="rfPTRyJHuh3zSK4AiyEHaR">导出CSV</button>
             </div>
           </div>
-          <table>
-            <thead id="irr-thead"></thead>
-            <tbody id="irr-tbody"></tbody>
+          <div class="detail-table-scroll" data-page-node-id="i5IIMnX3RPk3b9DiBrDUQ3">
+          <table data-page-node-id="y8yUORqspObjjh1tO4ICT1">
+            <thead id="irr-thead" data-page-node-id="Ekf6CfqHrZFHw68bIdfslM"></thead>
+            <tbody id="irr-tbody" data-page-node-id="AHc8gX3YndRfRy2HSr25Fw"></tbody>
           </table>
-          <div class="pager">
-            <button class="btn" id="irr-prev">上一页</button>
-            <span id="irr-page">1 / 1</span>
-            <button class="btn" id="irr-next">下一页</button>
           </div>
-          <div class="hint" id="irr-detail-hint"></div>
+          <div class="pager" data-page-node-id="7oTDflKcRF5jZwsLBchqtF">
+            <button class="btn" id="irr-prev" data-page-node-id="twCzP42WGAV3CLAj6OjYPa">上一页</button>
+            <span id="irr-page" data-page-node-id="Fnrg8ATnCkyfT6jFAx3tn1">1 / 1</span>
+            <button class="btn" id="irr-next" data-page-node-id="e3LKMhPyEdLclETObPUlwR">下一页</button>
+          </div>
+          <div class="hint" id="irr-detail-hint" data-page-node-id="3AbWHhXNJNWYBp4E345E4l"></div>
         </div>
       </div>
     </div>
@@ -853,46 +977,61 @@
 /* ===================== 计算核心 ===================== */
 const wan = 10000;
 
-function equalInstallment(principal, annualRate, months) {
-  const r = annualRate / 12;
-  let monthly;
-  if (r === 0) monthly = principal / months;
-  else monthly = principal * r * Math.pow(1 + r, months) / (Math.pow(1 + r, months) - 1);
+/* 通用摊销引擎（按「每期」利率计算，支持等额本息 / 等额本金 / 先息后本）。
+ * 所有页签（房贷 / 贷款 / 方案对比 / 提前还款 / 浮动利率）共用本函数，
+ * computeLoan 直接委托本函数，避免双引擎重复实现、保证数值结果一致。
+ * 参数 perPeriodRate 为每期十进制利率（非年利率），periods 为期数。
+ * 返回 { monthly, firstMonthly, schedule, totalInterest, totalPayment, totalPrincipal }，
+ * schedule 元素含 { period, payment, principal, interest, balance, rate, method }，便于复用 renderPie/renderTrend。 */
+function buildLoanSchedule(principal, perPeriodRate, periods, method) {
+  const r = perPeriodRate;
   const schedule = [];
-  let balance = principal, totalInterest = 0;
-  for (let i = 1; i <= months; i++) {
-    const interest = balance * r;
-    let p = monthly - interest;
-    let pay = monthly;
-    if (i === months) { p = balance; pay = p + interest; }
-    balance -= p; if (balance < 0) balance = 0;
-    totalInterest += interest;
-    schedule.push({ period: i, payment: pay, principal: p, interest, balance });
-  }
-  return { monthly, firstMonthly: monthly, schedule, totalInterest, totalPayment: principal + totalInterest, totalPrincipal: principal };
-}
-
-function equalPrincipal(principal, annualRate, months) {
-  const r = annualRate / 12;
-  const base = principal / months;
-  const schedule = [];
-  let balance = principal, totalInterest = 0, firstMonthly = 0;
-  for (let i = 1; i <= months; i++) {
-    const interest = balance * r;
-    let p = (i === months) ? balance : base;
-    const pay = p + interest;
+  let balance = principal, totalInterest = 0, firstMonthly = 0, monthly = 0;
+  const pushRow = (i, pay, p, interest) => {
     balance -= p; if (balance < 0) balance = 0;
     totalInterest += interest;
     if (i === 1) firstMonthly = pay;
-    schedule.push({ period: i, payment: pay, principal: p, interest, balance });
+    schedule.push({ period: i, payment: pay, principal: p, interest, balance, rate: r, method });
+  };
+  if (method === 'equal-principal') {
+    // 等额本金：每期本金固定，利息按剩余本金计，末期本金=余额
+    const base = principal / periods;
+    for (let i = 1; i <= periods; i++) {
+      const interest = balance * r;
+      const p = (i === periods) ? balance : base;
+      pushRow(i, p + interest, p, interest);
+    }
+    monthly = firstMonthly;
+  } else if (method === 'interest-only') {
+    // 先息后本：前 periods-1 期只还利息，末期利息+本金；每期利息=剩余本金×r（本金未还前恒定）
+    for (let i = 1; i <= periods; i++) {
+      const interest = balance * r;
+      const p = (i === periods) ? balance : 0;
+      pushRow(i, interest + p, p, interest);
+    }
+    monthly = firstMonthly;
+  } else {
+    // 等额本息
+    if (r === 0) monthly = principal / periods;
+    else monthly = principal * r * Math.pow(1 + r, periods) / (Math.pow(1 + r, periods) - 1);
+    if (!isFinite(monthly) || monthly <= 0) monthly = principal / periods; // P1-1: 极端参数兜底，避免 NaN/非正月供
+    for (let i = 1; i <= periods; i++) {
+      const interest = balance * r;
+      let p = monthly - interest;
+      let pay = monthly;
+      if (i === periods) { p = balance; pay = p + interest; }
+      pushRow(i, pay, p, interest);
+    }
+    if (schedule.length) monthly = schedule[0].payment;
   }
-  return { firstMonthly, schedule, totalInterest, totalPayment: principal + totalInterest, totalPrincipal: principal };
+  return { monthly, firstMonthly, schedule, totalInterest, totalPayment: principal + totalInterest, totalPrincipal: principal };
 }
 
+/* 统一入口：所有页签共用 buildLoanSchedule（按每期利率计算）。
+ * 调用方传入的 rate 为「年利率」的十进制（如 0.049），此处 ÷12 转成每期利率，
+ * 与 buildLoanSchedule 以每期利率计算保持一致，保证数值结果不变。 */
 function computeLoan(principal, annualRate, months, method) {
-  return method === 'equal-principal'
-    ? equalPrincipal(principal, annualRate, months)
-    : equalInstallment(principal, annualRate, months);
+  return buildLoanSchedule(principal, annualRate / 12, months, method);
 }
 
 /* ===================== 工具 ===================== */
@@ -901,6 +1040,21 @@ const num = (id) => parseFloat($(id).value) || 0;
 function fmtMoney(y) { return (y / wan).toFixed(2) + '万'; }
 function fmtYuan(y) { return '¥' + Math.round(y).toLocaleString('zh-CN'); }
 function f2(y) { return y.toFixed(2); }
+/* 两位小写的金额展示（与 CSV toFixed(2) 对齐），用于明细表单元格 */
+function fmtYuan2(y) { return '¥' + (y || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+/* P2-1: 明细表通用渲染（表头 + 分页 + 行）。各页签 render*Detail 复用，opts 控制列/单位，不改变可见文案与行数 */
+function renderScheduleTable(tbodyId, theadId, slice, opts) {
+  const tbody = $(tbodyId); if (!tbody) return;
+  tbody.innerHTML = slice.map(opts.renderRow).join('');
+  const thead = $(theadId); if (thead) thead.innerHTML = opts.thead;
+  const pageEl = $(opts.pageId); if (pageEl) pageEl.textContent = opts.page + ' / ' + opts.total;
+  const prevEl = $(opts.prevId); if (prevEl) prevEl.disabled = opts.page <= 1;
+  const nextEl = $(opts.nextId); if (nextEl) nextEl.disabled = opts.page >= opts.total;
+}
+/* P2-1: 统一的「复制结果」文本拼装，6 个页签复制按钮复用，保证输出格式一致 */
+function buildCopyText(title, lines) {
+  return '【' + title + '】\n' + lines.join('\n');
+}
 
 /* ===================== 通用：Toast / 复制 / 校验 ===================== */
 let _toastTimer = null;
@@ -1019,11 +1173,12 @@ function applyLatest() {
   updateEffHints();
 }
 
+const EASTMONEY_TOKEN = '894050c76af8597a853f5b408b759f5d';  // 东方财富接口令牌；失效时在此替换一处即可（联网失败自动回退内置值）
 async function fetchLatestRates() {
   const status = $('rate-status');
   status.textContent = '联网获取中…';
   status.className = 'rate-status loading';
-  const url = 'https://datacenter.eastmoney.com/api/data/get?type=RPTA_WEB_RATE&sty=ALL&token=894050c76af8597a853f5b408b759f5d&p=1&ps=1&st=TRADE_DATE&sr=-1&var=WPuRCBoA';
+  const url = 'https://datacenter.eastmoney.com/api/data/get?type=RPTA_WEB_RATE&sty=ALL&token=' + EASTMONEY_TOKEN + '&p=1&ps=1&st=TRADE_DATE&sr=-1&var=WPuRCBoA';
   let lastErr = '';
   for (let attempt = 1; attempt <= 2; attempt++) {
     const ctrl = ('AbortController' in window) ? new AbortController() : null;
@@ -1148,7 +1303,7 @@ function validateCalc() {
   const rate = calcState.type === 'fund'
     ? effRate('calc-rate-fund', 'calc-bp-fund')
     : effRate('calc-rate-commercial', 'calc-bp-commercial');
-  if (rate <= 0 || rate > 20) errs.push('实际利率需在 0–20% 之间');
+  if (rate < 0 || rate > 20) errs.push('实际利率需在 0–20% 之间');
   return errs;
 }
 function showCalcErr(msgs) {
@@ -1194,10 +1349,18 @@ document.querySelectorAll('.bp-btn').forEach(btn => {
   };
 });
 
+let _calcRecomputeTimer = null;
 ['calc-rate-commercial','calc-rate-fund','calc-bp-commercial','calc-bp-fund',
  'cmp-a-rate','cmp-a-bp','cmp-b-rate','cmp-b-bp','pp-rate','pp-bp'].forEach(id => {
   const el = $(id); if (!el) return;
-  el.oninput = () => { updateEffHints(); if (id.indexOf('calc-') === 0 && calcResult) runCalc(); };
+  el.oninput = () => {
+    updateEffHints();
+    if (id.indexOf('calc-') === 0 && calcResult) {
+      // P2-2: 房贷页利率实时重算加 ~200ms 防抖，避免连续输入时频繁重算；校验提示保持即时
+      if (_calcRecomputeTimer) clearTimeout(_calcRecomputeTimer);
+      _calcRecomputeTimer = setTimeout(runCalc, 200);
+    }
+  };
 });
 
 // P0-4: 实时校验
@@ -1368,7 +1531,7 @@ function renderPie(principal, interest) {
   const y2 = cy - r * Math.cos(pAngle);
   const largeArc = pAngle > Math.PI ? 1 : 0;
   $('pie-chart').innerHTML =
-    '<svg viewBox="0 0 150 115" width="150" height="115">' +
+    '<svg viewBox="0 0 150 115" width="100%">' +
     '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#5b6ef5"/>' +
     '<path d="M' + cx + ',' + cy + ' L' + x1 + ',' + y1 + ' A' + r + ',' + r + ' 0 ' + largeArc + ',1 ' + x2.toFixed(1) + ',' + y2.toFixed(1) + ' Z" fill="#f5a524" opacity="0.85"/>' +
     '<text x="' + cx + '" y="' + (cy - 2) + '" text-anchor="middle" font-size="10" fill="#fff" font-weight="600">本金</text>' +
@@ -1428,13 +1591,16 @@ function renderDetail() {
   if (calcPage > total) calcPage = total;
   const start = (calcPage - 1) * PAGE;
   const slice = data.slice(start, start + PAGE);
-  $('calc-tbody').innerHTML = slice.map(r => {
-    const c0 = mode === 'year' ? r.year + ' 年' : r.period + ' 期';
-    return '<tr><td>' + c0 + '</td><td>' + fmtYuan(r.payment) + '</td><td>' + fmtYuan(r.principal) + '</td><td>' + fmtYuan(r.interest) + '</td><td>' + fmtYuan(r.balance) + '</td></tr>';
-  }).join('');
-  $('calc-page').textContent = calcPage + ' / ' + total;
-  $('calc-prev').disabled = calcPage <= 1;
-  $('calc-next').disabled = calcPage >= total;
+  renderScheduleTable('calc-tbody', 'calc-thead', slice, {
+    thead: mode === 'year'
+      ? '<tr><th>年份</th><th>年还本息</th><th>年还本金</th><th>年还利息</th><th>年末剩余</th></tr>'
+      : '<tr><th>期数</th><th>月供</th><th>本金</th><th>利息</th><th>剩余本金</th></tr>',
+    page: calcPage, total, pageId: 'calc-page', prevId: 'calc-prev', nextId: 'calc-next',
+    renderRow: (r) => {
+      const c0 = mode === 'year' ? (r.year + ' 年') : (r.period + ' 期');
+      return '<tr><td>' + c0 + '</td><td>' + fmtYuan2(r.payment) + '</td><td>' + fmtYuan2(r.principal) + '</td><td>' + fmtYuan2(r.interest) + '</td><td>' + fmtYuan2(r.balance) + '</td></tr>';
+    }
+  });
 }
 
 /* P1-7 / P2-10: 通用 CSV 下载（带 BOM，失败回退新窗口） */
@@ -1514,6 +1680,214 @@ $('calc-save').onclick = () => {
   setTimeout(() => { $('calc-save').textContent = '保存到历史'; }, 1500);
 };
 
+/* ===================== 贷款计算器（通用，新增） ===================== */
+/* 金额单位用「元」（与「真实利率」页一致，契合通用贷款场景）；利率类型 year/month/day 切换期数单位。 */
+const RATE_TYPE_LABEL = { year: '年利率', month: '月利率', day: '日利率' };
+const DEFAULT_RATE = { year: 4.9, month: 0.4, day: 0.013 };  // 切换利率类型时填入的合理默认值
+let loanResult = null;
+let loanPage = 1;
+const LOAN_PAGE = 12;
+let loanRateType = 'year';     // year | month | day
+let loanMethod = 'equal-installment';
+let loanPerPeriodRate = 0;    // 每期利率（十进制）
+let loanRate = 0;             // 输入利率（%）
+let loanPeriods = 0;          // 输入期数
+let loanAmount = 0;           // 输入本金（元）
+let loanTotalPeriods = 0;     // 实际期数
+
+const getLoanRateType = bindSeg('loan-rate-type', v => {
+  const prev = loanRateType;
+  loanRateType = v;
+  if (v !== prev) {                       // 仅在真正切换类型时填入该类型合理默认值，避免重复点击覆盖手填值
+    const rateInput = $('loan-rate');
+    if (rateInput && DEFAULT_RATE[v] != null) rateInput.value = DEFAULT_RATE[v];
+  }
+  const unit = $('loan-period-unit');
+  if (unit) unit.textContent = (v === 'day') ? '天' : '月';
+  showLoanErr(validateLoan());
+});
+const getLoanMethod = bindSeg('loan-method', v => { loanMethod = v; showLoanErr(validateLoan()); });
+
+function validateLoan() {
+  const amount = parseFloat($('loan-amount').value);
+  const rate = parseFloat($('loan-rate').value);
+  const periods = parseInt($('loan-periods').value, 10);
+  if (!(amount > 0)) return '贷款金额需大于 0';
+  if (isNaN(rate) || rate < 0) return '利率需 ≥ 0';
+  const RATE_CAP = { year: 100, month: 10, day: 1 };   // 按利率类型设合理上限，避免误填（如日利率填成 1000%）
+  if (rate > RATE_CAP[loanRateType]) return '利率过大（' + RATE_TYPE_LABEL[loanRateType] + '上限 ' + RATE_CAP[loanRateType] + '%）';
+  if (!(periods >= 1) || !Number.isInteger(periods)) return '还款期数需为 ≥ 1 的整数';
+  if (loanRateType === 'day' ? periods > 3650 : periods > 600) return '期数过大，请缩小后重试';
+  if (!RATE_TYPE_LABEL[loanRateType]) return '利率类型不合法';
+  if (!METHOD_LABELS[loanMethod]) return '还款方式不合法';
+  return '';
+}
+
+function showLoanErr(msg) {
+  const box = $('loan-err');
+  const btn = $('loan-btn');
+  if (msg) { box.textContent = '⚠ ' + msg; box.classList.add('show'); if (btn) btn.disabled = true; }
+  else { box.textContent = ''; box.classList.remove('show'); if (btn) btn.disabled = false; }
+}
+
+function runLoan() {
+  const err = validateLoan();
+  if (err) { showLoanErr(err); return; }
+  showLoanErr('');
+  const amount = parseFloat($('loan-amount').value) || 0;
+  const rate = parseFloat($('loan-rate').value) || 0;
+  const periods = parseInt($('loan-periods').value, 10);
+  // 换算每期利率：year → 年利率/12；month/day → 输入%直接作为每期%
+  const perPeriodRate = (loanRateType === 'year') ? (rate / 100 / 12) : (rate / 100);
+  const res = buildLoanSchedule(amount, perPeriodRate, periods, loanMethod);
+
+  loanResult = res;
+  loanRate = rate; loanPeriods = periods; loanAmount = amount;
+  loanPerPeriodRate = perPeriodRate; loanTotalPeriods = periods;
+  markComputed('loan');
+  loanPage = 1;
+
+  // highlight 文案
+  const label = $('loan-month-label');
+  const note = $('loan-month-note');
+  if (loanMethod === 'equal-principal') {
+    label.textContent = '首期还款';
+    const dec = res.schedule.length > 1 ? res.schedule[0].payment - res.schedule[1].payment : 0;
+    note.textContent = '每期递减约 ' + fmtYuan(dec);
+  } else if (loanMethod === 'interest-only') {
+    label.textContent = '每期利息（到期还本）';
+    note.textContent = '前 ' + (periods - 1) + ' 期仅利息，第 ' + periods + ' 期利息+本金';
+  } else {
+    label.textContent = (loanRateType === 'year') ? '每期还款（按月）' : '每期还款';
+    note.textContent = '';
+  }
+  $('loan-month').textContent = fmtYuan(res.firstMonthly);
+  $('loan-total').textContent = fmtYuan(res.totalPayment);
+  $('loan-principal').textContent = fmtYuan(res.totalPrincipal);
+  $('loan-interest').textContent = fmtYuan(res.totalInterest);
+
+  renderPie(res.totalPrincipal, res.totalInterest);
+  renderTrend(res.schedule);
+  renderLoanDetail();
+}
+
+function renderLoanDetail() {
+  if (!loanResult) return;
+  const mode = $('loan-detail-mode').value;
+  const rows = loanResult.schedule;
+  const perYear = (loanRateType === 'day') ? 365 : 12;   // 按年聚合：月利率12期/年，日利率365天/年
+  let data = [];
+  if (mode === 'year') {
+    const groups = {};
+    rows.forEach(r => {
+      const y = Math.ceil(r.period / perYear);
+      if (!groups[y]) groups[y] = { year: y, payment: 0, principal: 0, interest: 0, balance: 0, rate: r.rate, method: r.method };
+      groups[y].payment += r.payment; groups[y].principal += r.principal;
+      groups[y].interest += r.interest; groups[y].balance = r.balance;
+    });
+    data = Object.values(groups);
+  } else {
+    data = rows;
+  }
+  const total = Math.ceil(data.length / LOAN_PAGE);
+  if (loanPage > total) loanPage = total;
+  const start = (loanPage - 1) * LOAN_PAGE;
+  const slice = data.slice(start, start + LOAN_PAGE);
+  const periodUnit = (loanRateType === 'day') ? '天' : '期';
+  const thead = mode === 'year'
+    ? '<tr><th>年份</th><th>年还本息(元)</th><th>年还本金(元)</th><th>年还利息(元)</th><th>年末剩余(元)</th><th>执行利率(%)</th><th>还款方式</th></tr>'
+    : '<tr><th>期数</th><th>每期还款(元)</th><th>本金(元)</th><th>利息(元)</th><th>剩余本金(元)</th><th>执行利率(%)</th><th>还款方式</th></tr>';
+  renderScheduleTable('loan-tbody', 'loan-thead', slice, {
+    thead, page: loanPage, total, pageId: 'loan-page', prevId: 'loan-prev', nextId: 'loan-next',
+    renderRow: (r) => {
+      const c0 = (mode === 'year') ? (r.year + ' 年') : (r.period + ' ' + periodUnit);
+      const ratePct = (r.rate * 100).toFixed(4);
+      return '<tr><td>' + c0 + '</td><td>' + fmtYuan2(r.payment) + '</td><td>' + fmtYuan2(r.principal) + '</td><td>' + fmtYuan2(r.interest) + '</td><td>' + fmtYuan2(r.balance) + '</td><td>' + ratePct + '</td><td>' + METHOD_LABELS[r.method] + '</td></tr>';
+    }
+  });
+  const hint = $('loan-detail-hint');
+  if (hint) hint.textContent = (mode === 'year')
+    ? ('按年聚合：' + (loanRateType === 'day' ? '每 365 天' : '每 12 期') + '为 1 年，共 ' + data.length + ' 行')
+    : ('按期展示，共 ' + data.length + ' 行');
+}
+
+function loanCsvRows() {
+  const rows = [['期数', '每期还款(元)', '本金(元)', '利息(元)', '剩余本金(元)', '执行利率(%)', '还款方式']];
+  loanResult.schedule.forEach(r => {
+    rows.push([r.period, r.payment.toFixed(2), r.principal.toFixed(2), r.interest.toFixed(2), r.balance.toFixed(2), (r.rate * 100).toFixed(4), METHOD_LABELS[r.method]]);
+  });
+  return rows;
+}
+function exportLoanCsv() {
+  if (!loanResult) { showToast('请先计算'); return; }
+  downloadCsv('贷款计算器明细.csv', toCsv(loanCsvRows()));
+}
+
+$('loan-btn').onclick = runLoan;
+// 数字输入实时校验：校验失败时 #loan-btn 会被禁用，需随输入重新校验以免用户无法恢复
+['loan-amount', 'loan-rate', 'loan-periods'].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener('input', () => showLoanErr(validateLoan()));
+});
+$('loan-detail-mode').onchange = () => { loanPage = 1; renderLoanDetail(); };
+$('loan-prev').onclick = () => { if (loanPage > 1) { loanPage--; renderLoanDetail(); } };
+$('loan-next').onclick = () => { loanPage++; renderLoanDetail(); };
+$('loan-export-csv').onclick = exportLoanCsv;
+
+$('loan-save').onclick = () => {
+  if (!loanResult) runLoan();
+  if (!loanResult) return;
+  const rtLabel = RATE_TYPE_LABEL[loanRateType] || loanRateType;
+  const item = {
+    ts: Date.now(),
+    type: 'loan',
+    title: '贷款计算器·' + METHOD_LABELS[loanMethod] + '·' + rtLabel + ' ' + loanRate + '%',
+    principal: loanAmount,
+    amount: loanAmount,
+    rate: loanRate,
+    rateType: loanRateType,
+    periods: loanPeriods,
+    method: loanMethod,
+    monthly: loanResult.firstMonthly,
+    firstMonthly: loanResult.firstMonthly,
+    totalInterest: loanResult.totalInterest,
+    totalPayment: loanResult.totalPayment
+  };
+  const ok = saveHistoryItem(item);
+  $('loan-save').textContent = ok ? '已保存 ✓' : '保存失败';
+  setTimeout(() => { $('loan-save').textContent = '保存到历史'; }, 1500);
+  if (ok) showToast('已保存 ✓');
+};
+
+$('loan-copy').onclick = () => {
+  if (!loanResult) { showToast('请先计算'); return; }
+  const rtLabel = RATE_TYPE_LABEL[loanRateType] || loanRateType;
+  const lines = [
+    '本金：' + fmtYuan(loanAmount),
+    '利率类型：' + rtLabel + ' ' + loanRate + '%',
+    '期数：' + loanPeriods,
+    '还款方式：' + METHOD_LABELS[loanMethod],
+    '每期还款：' + fmtYuan(loanResult.firstMonthly),
+    '还款总额：' + fmtYuan(loanResult.totalPayment),
+    '支付利息：' + fmtYuan(loanResult.totalInterest)
+  ];
+  copyText(buildCopyText('贷款计算器', lines));
+};
+
+$('loan-reset').onclick = () => {
+  $('loan-amount').value = '200000';
+  setSeg('loan-rate-type', 'year'); loanRateType = 'year';
+  $('loan-period-unit').textContent = '月';
+  $('loan-rate').value = '4.9';
+  $('loan-periods').value = '36';
+  setSeg('loan-method', 'equal-installment'); loanMethod = 'equal-installment';
+  showLoanErr('');
+  runLoan();
+  showToast('已恢复默认');
+};
+
+bindEnter('loan', 'loan-btn');
+
 /* ===================== 方案对比 ===================== */
 const getCmpMethod = { a: bindSeg('cmp-a-method', null), b: bindSeg('cmp-b-method', null) };
 /* 组合贷：对比页 A/B 各自贷款类型切换 */
@@ -1555,7 +1929,7 @@ function buildCmpParts(side) {
 function weightedRate(parts) {
   const tp = parts.reduce((s, p) => s + p.principal, 0);
   if (!tp) return 0;
-  return parts.reduce((s, p) => s + p.principal * p.rate, 0) / tp * 100;
+  return parts.reduce((s, p) => s + p.principal * p.rate, 0) / tp;
 }
 function validateCmp() {
   const errs = [];
@@ -1629,8 +2003,8 @@ $('cmp-btn').onclick = () => {
     const amtA = sideA.type === 'combo' ? (num('cmp-a-combo-c') + num('cmp-a-combo-f')) : num('cmp-a-amount');
     const amtB = sideB.type === 'combo' ? (num('cmp-b-combo-c') + num('cmp-b-combo-f')) : num('cmp-b-amount');
     cmpResult = {
-      a: { amount: amtA, type: sideA.type, years: num('cmp-a-years'), rate: weightedRate(sideA.parts), bp: 0, method: ma, monthly: ra, res: a },
-      b: { amount: amtB, type: sideB.type, years: num('cmp-b-years'), rate: weightedRate(sideB.parts), bp: 0, method: mb, monthly: rb, res: b },
+      a: { amount: amtA, type: sideA.type, years: num('cmp-a-years'), rate: weightedRate(sideA.parts) * 100, bp: 0, method: ma, monthly: ra, res: a },
+      b: { amount: amtB, type: sideB.type, years: num('cmp-b-years'), rate: weightedRate(sideB.parts) * 100, bp: 0, method: mb, monthly: rb, res: b },
       diffMonthly, diffInterest, diffPct, winner
     };
     markComputed('cmp');
@@ -1818,7 +2192,7 @@ $('pp-btn').onclick = () => {
   const parts = buildPPParts();
   if (!parts.length) { showToast('贷款金额需大于 0'); return; }
   const principal = parts.reduce((s, p) => s + p.principal, 0);
-  const rate = weightedRate(parts) / 100;
+  const rate = weightedRate(parts);
   const totalMonths = Math.max.apply(null, parts.map(p => p.months));
   const paid = Math.round(num('pp-paid'));
   const entries = prepayEntries.map(e => ({ month: e.month, amount: e.amount }));
@@ -2316,13 +2690,16 @@ function renderVrDetail() {
   if (vrPage > total) vrPage = total;
   const start = (vrPage - 1) * PAGE;
   const slice = data.slice(start, start + PAGE);
-  $('vr-tbody').innerHTML = slice.map(r => {
-    const c0 = mode === 'year' ? r.year + ' 年' : r.period + ' 期';
-    return '<tr><td>' + c0 + '</td><td>' + fmtYuan(r.payment) + '</td><td>' + fmtYuan(r.principal) + '</td><td>' + fmtYuan(r.interest) + '</td><td>' + f2(r.rate) + '%</td><td>' + fmtYuan(r.balance) + '</td><td>' + (mShort[r.method] || '—') + '</td></tr>';
-  }).join('');
-  $('vr-page').textContent = vrPage + ' / ' + total;
-  $('vr-prev').disabled = vrPage <= 1;
-  $('vr-next').disabled = vrPage >= total;
+  renderScheduleTable('vr-tbody', 'vr-thead', slice, {
+    thead: mode === 'year'
+      ? '<tr><th>年份</th><th>年还本息</th><th>年还本金</th><th>年还利息</th><th>年末利率</th><th>年末剩余</th><th>方式</th></tr>'
+      : '<tr><th>期数</th><th>月供</th><th>本金</th><th>利息</th><th>利率</th><th>剩余本金</th><th>方式</th></tr>',
+    page: vrPage, total, pageId: 'vr-page', prevId: 'vr-prev', nextId: 'vr-next',
+    renderRow: (r) => {
+      const c0 = mode === 'year' ? r.year + ' 年' : r.period + ' 期';
+      return '<tr><td>' + c0 + '</td><td>' + fmtYuan2(r.payment) + '</td><td>' + fmtYuan2(r.principal) + '</td><td>' + fmtYuan2(r.interest) + '</td><td>' + f2(r.rate) + '%</td><td>' + fmtYuan2(r.balance) + '</td><td>' + (mShort[r.method] || '—') + '</td></tr>';
+    }
+  });
 }
 
 $('vr-detail-mode').onchange = () => { vrPage = 1; renderVrDetail(); };
@@ -2340,7 +2717,7 @@ function saveHistory(list) {
 }
 
 const TYPE_LABELS = { commercial: '商业贷款', fund: '公积金', combo: '组合贷' };
-const METHOD_LABELS = { 'equal-installment': '等额本息', 'equal-principal': '等额本金' };
+const METHOD_LABELS = { 'equal-installment': '等额本息', 'equal-principal': '等额本金', 'interest-only': '先息后本' };
 
 let histSelected = new Set();
 let histFilterState = { text: '', type: 'all' };
@@ -2382,6 +2759,20 @@ function renderHistory() {
   c.innerHTML = filtered.map(item => {
     const d = new Date(item.ts);
     const ds = (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+    // 贷款计算器（type==='loan'）：标题已含方式/利率类型，直接展示本金·期数·每期·总息，避免 undefined 字段
+    if (item.type === 'loan') {
+      const monthVal = item.firstMonthly || item.monthly || 0;
+      return '<div class="hist-item" data-id="' + item._id + '">' +
+        '<label class="chk"><input type="checkbox" class="hist-chk" /></label>' +
+        '<div class="hist-info" data-act="refill">' +
+          '<div class="hist-title">' + escapeHtml(item.title || '贷款计算器') + '</div>' +
+          '<div class="hist-detail">' + fmtYuan(item.principal || item.amount) + ' · ' + (item.periods || 0) + '期 · 每期 ' + fmtYuan(monthVal) + ' · 总息 ' + fmtYuan(item.totalInterest) + ' · ' + ds + '</div>' +
+        '</div>' +
+        '<button class="btn" data-act="rename">重命名</button>' +
+        '<button class="btn" data-act="refill">回填</button>' +
+        '<button class="btn danger" data-act="del">删除</button>' +
+      '</div>';
+    }
     const isVar = item.mode === 'variable';
     const titleLabel = isVar ? '浮动利率' : (TYPE_LABELS[item.type] || item.type);
     const methodLabel = METHOD_LABELS[item.method || item.initMethod] || (item.method || item.initMethod) || '';
@@ -2464,6 +2855,24 @@ function refillHistItem(id) {
     showToast('已回填浮动利率配置');
     return;
   }
+  if (item.type === 'loan') {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    document.querySelector('.tab[data-tab="loan"]').classList.add('active');
+    $('loan').classList.add('active');
+    $('loan-amount').value = item.amount;
+    $('loan-rate').value = item.rate;
+    setSeg('loan-rate-type', item.rateType || 'year');
+    $('loan-period-unit').textContent = (item.rateType === 'day') ? '天' : '月';
+    $('loan-periods').value = item.periods;
+    setSeg('loan-method', item.method || 'equal-installment');
+    loanRateType = item.rateType || 'year';
+    loanMethod = item.method || 'equal-installment';
+    showLoanErr('');
+    runLoan();
+    showToast('已回填贷款计算器');
+    return;
+  }
   calcState.type = item.type;
   calcState.method = item.method;
   document.querySelectorAll('#calc-type button').forEach(b => { b.classList.toggle('active', b.dataset.v === item.type); });
@@ -2535,7 +2944,7 @@ function bindEnter(panelId, btnId) {
 /* ===================== 跨页签缓存：自动保存/回填，切换与重载不丢数据 ===================== */
 const STATE_KEY = 'loan-calc-state-v1';
 let _saveTimer = null;
-const computed = { calc: false, cmp: false, pp: false, vr: false, irr: false };
+const computed = { calc: false, cmp: false, pp: false, vr: false, irr: false, loan: false };
 function scheduleSave() { if (_saveTimer) clearTimeout(_saveTimer); _saveTimer = setTimeout(saveState, 250); }
 function saveState() {
   _saveTimer = null;
@@ -2545,20 +2954,9 @@ function markComputed(k) { computed[k] = true; scheduleSave(); }
 function setSeg(id, val) {
   document.querySelectorAll('#' + id + ' button').forEach(b => b.classList.toggle('active', b.dataset.v === val));
 }
-/* 组合贷：求一个等效固定年利率，使首月供与混合贷款一致（用于填入方案对比） */
-function equivalentRate(principal, months, targetMonthly, method) {
-  if (!(targetMonthly > 0) || months <= 0 || !(principal > 0)) return 0;
-  let lo = 0, hi = 0.2;
-  for (let i = 0; i < 50; i++) {
-    const mid = (lo + hi) / 2;
-    const m = computeLoan(principal, mid, months, method).firstMonthly;
-    if (m > targetMonthly) hi = mid; else lo = mid;
-  }
-  return (lo + hi) / 2 * 100;
-}
 function collectState() {
   const inputs = {};
-  document.querySelectorAll('#calc input, #calc select, #compare input, #compare select, #prepay input, #prepay select, #variable input, #variable select, #irr input, #irr select').forEach(el => {
+  document.querySelectorAll('#calc input, #calc select, #compare input, #compare select, #prepay input, #prepay select, #variable input, #variable select, #irr input, #irr select, #loan input, #loan select').forEach(el => {
     if (el.id) inputs[el.id] = el.value;
   });
   const segs = {};
@@ -2647,17 +3045,18 @@ $('calc-to-compare').onclick = () => {
 /* 任何输入/选择/点击都自动缓存（防抖） */
 document.addEventListener('input', scheduleSave);
 document.addEventListener('change', scheduleSave);
-document.addEventListener('click', scheduleSave);
 
 $('calc-copy').onclick = () => {
   if (!calcResult) { showToast('请先计算'); return; }
   const method = calcState.method === 'equal-principal' ? '等额本金' : '等额本息';
-  const text = '【贷款计算器】\n月供：' + fmtYuan(calcResult.monthly || calcResult.firstMonthly) +
-    '\n还款总额：' + f2(calcResult.totalPayment / wan) + '万' +
-    '\n贷款本金：' + f2(calcResult.totalPrincipal / wan) + '万' +
-    '\n支付利息：' + f2(calcResult.totalInterest / wan) + '万' +
-    '\n还款方式：' + method;
-  copyText(text);
+  const lines = [
+    '月供：' + fmtYuan(calcResult.monthly || calcResult.firstMonthly),
+    '还款总额：' + f2(calcResult.totalPayment / wan) + '万',
+    '贷款本金：' + f2(calcResult.totalPrincipal / wan) + '万',
+    '支付利息：' + f2(calcResult.totalInterest / wan) + '万',
+    '还款方式：' + method
+  ];
+  copyText(buildCopyText('贷款计算器', lines));
 };
 $('calc-reset').onclick = () => {
   $('calc-house-type').value = 'first';
@@ -2685,7 +3084,7 @@ $('calc-reset').onclick = () => {
 $('cmp-copy').onclick = () => {
   if (!cmpResult) { showToast('请先对比'); return; }
   const grab = (id) => { const el = $(id); return (el.innerText || el.textContent || '').replace(/\n{2,}/g, '\n').trim(); };
-  copyText('【方案对比】\n' + grab('cmp-a-out') + '\n' + grab('cmp-b-out') + '\n' + grab('cmp-diff'));
+  copyText(buildCopyText('方案对比', [grab('cmp-a-out'), grab('cmp-b-out'), grab('cmp-diff')]));
 };
 $('cmp-reset').onclick = () => {
   setSeg('cmp-a-type', 'commercial'); refreshCmpTypeUI('a', 'commercial');
@@ -2706,7 +3105,7 @@ $('cmp-reset').onclick = () => {
 $('pp-copy').onclick = () => {
   if (!ppResult) { showToast('请先分析'); return; }
   const grab = (id) => { const el = $(id); return (el.innerText || el.textContent || '').replace(/\n{2,}/g, '\n').trim(); };
-  copyText('【提前还款】\n' + grab('pp-shorten-out') + '\n' + grab('pp-reduce-out') + '\n' + grab('pp-invest-out'));
+  copyText(buildCopyText('提前还款', [grab('pp-shorten-out'), grab('pp-reduce-out'), grab('pp-invest-out')]));
 };
 $('pp-reset').onclick = () => {
   setSeg('pp-type', 'commercial'); refreshPPTypeUI('commercial');
@@ -2728,11 +3127,13 @@ $('pp-reset').onclick = () => {
 
 $('vr-copy').onclick = () => {
   if (!vrResult) { showToast('请先模拟'); return; }
-  const text = '【浮动利率】\n初始月供：' + fmtYuan(vrResult.firstMonthly) +
-    '\n最终月供：' + fmtYuan(vrResult.lastMonthly) +
-    '\n利息总额：' + f2(vrResult.totalInterest / wan) + '万' +
-    '\n总还款额：' + f2(vrResult.totalPayment / wan) + '万';
-  copyText(text);
+  const lines = [
+    '初始月供：' + fmtYuan(vrResult.firstMonthly),
+    '最终月供：' + fmtYuan(vrResult.lastMonthly),
+    '利息总额：' + f2(vrResult.totalInterest / wan) + '万',
+    '总还款额：' + f2(vrResult.totalPayment / wan) + '万'
+  ];
+  copyText(buildCopyText('浮动利率', lines));
 };
 $('vr-reset').onclick = () => {
   setSeg('vr-type', 'commercial'); refreshVRTypeUI('commercial');
@@ -2982,6 +3383,7 @@ function validateIrr() {
   const method = irrState.method || 'equal-installment';
   if (!(P > 0)) errs.push('本金需大于 0');
   if (!(n >= 1)) errs.push('分期期数需为 ≥ 1 的正整数');
+  if (n > 600) errs.push('分期期数过大（600 期内），请缩小后重试');
   if (!(pay >= 0)) errs.push('每期还款需 ≥ 0');
   if (fee < 0) errs.push('手续费需 ≥ 0');
   const C = pay + fee;
@@ -3077,18 +3479,17 @@ function renderIrrDetail() {
     data = rows;
     head = '<tr><th>期数</th><th>当期还款</th><th>本金</th><th>利息</th><th>剩余本金</th></tr>';
   }
-  $('irr-thead').innerHTML = head;
   const total = Math.ceil(data.length / PAGE);
   if (irrPage > total) irrPage = total;
   const start = (irrPage - 1) * PAGE;
   const slice = data.slice(start, start + PAGE);
-  $('irr-tbody').innerHTML = slice.map(r => {
-    const c0 = mode === 'year' ? r.year + ' 年' : r.period + ' 期';
-    return '<tr><td>' + c0 + '</td><td>' + fmtCNY(r.payment) + '</td><td>' + fmtCNY(r.principal) + '</td><td>' + fmtCNY(r.interest) + '</td><td>' + fmtCNY(r.balance) + '</td></tr>';
-  }).join('');
-  $('irr-page').textContent = irrPage + ' / ' + total;
-  $('irr-prev').disabled = irrPage <= 1;
-  $('irr-next').disabled = irrPage >= total;
+  renderScheduleTable('irr-tbody', 'irr-thead', slice, {
+    thead: head, page: irrPage, total, pageId: 'irr-page', prevId: 'irr-prev', nextId: 'irr-next',
+    renderRow: (r) => {
+      const c0 = mode === 'year' ? r.year + ' 年' : r.period + ' 期';
+      return '<tr><td>' + c0 + '</td><td>' + fmtYuan2(r.payment) + '</td><td>' + fmtYuan2(r.principal) + '</td><td>' + fmtYuan2(r.interest) + '</td><td>' + fmtYuan2(r.balance) + '</td></tr>';
+    }
+  });
 }
 
 $('irr-btn').onclick = runIrr;
@@ -3117,17 +3518,19 @@ $('irr-export-csv').onclick = () => {
 };
 $('irr-copy').onclick = () => {
   if (!irrResult) { showToast('请先计算'); return; }
-  const text = '【真实利率计算】\n本金：' + fmtCNY(irrResult.P) +
-    '\n分期方式：' + IRR_METHOD_LABEL[irrResult.method] +
-    '\n期数：' + irrResult.n +
-    '\n每期还款：' + fmtCNY(irrResult.pay) +
-    '\n每期手续费：' + fmtCNY(irrResult.fee) +
-    '\n真实月利率：' + fmtPct(irrResult.r) +
-    '\n名义年化 APR：' + fmtPct(irrResult.apr) +
-    '\n实际年化 IRR：' + fmtPct(irrResult.irr) +
-    '\n总利息：' + fmtCNY(irrResult.totalInterest) +
-    '\n校验：' + (irrResult.ok ? (irrResult.n + '期后余额归零 ✓') : '未通过');
-  copyText(text);
+  const lines = [
+    '本金：' + fmtCNY(irrResult.P),
+    '分期方式：' + IRR_METHOD_LABEL[irrResult.method],
+    '期数：' + irrResult.n,
+    '每期还款：' + fmtCNY(irrResult.pay),
+    '每期手续费：' + fmtCNY(irrResult.fee),
+    '真实月利率：' + fmtPct(irrResult.r),
+    '名义年化 APR：' + fmtPct(irrResult.apr),
+    '实际年化 IRR：' + fmtPct(irrResult.irr),
+    '总利息：' + fmtCNY(irrResult.totalInterest),
+    '校验：' + (irrResult.ok ? (irrResult.n + '期后余额归零 ✓') : '未通过')
+  ];
+  copyText(buildCopyText('真实利率计算', lines));
 };
 $('irr-save').onclick = () => {
   if (!irrResult) runIrr();
@@ -3167,6 +3570,7 @@ runCalc();
 if (computed.cmp) { try { $('cmp-btn').onclick(); } catch (e) {} }
 if (computed.pp) { try { $('pp-btn').onclick(); } catch (e) {} }
 if (computed.vr) { try { $('vr-btn').onclick(); } catch (e) {} }
+if (computed.loan) { try { $('loan-btn').onclick(); } catch (e) {} }
 runIrr();
 </script>
 </body>

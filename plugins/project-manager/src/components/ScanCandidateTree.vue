@@ -99,11 +99,11 @@ function onChildToggle(path: string, checked: boolean) {
       />
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2">
-          <div v-if="node.children.length > 0" class="i-mdi-folder-outline text-[11px] text-slate-400 shrink-0" />
+          <div v-if="node.children.length > 0" class="i-mdi-folder-outline text-xs text-slate-400 shrink-0" />
           <span class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{{ node.name }}</span>
           <span class="candidate-chip">{{ kindLabel(node.kind) }}</span>
-          <span v-if="node.framework" class="text-[10px] text-slate-400">{{ node.framework }}</span>
-          <span v-if="node.hasGit" class="candidate-chip candidate-chip-git"><div class="i-mdi-git text-[9px]" /> Git</span>
+          <span v-if="node.framework" class="app-text-meta text-slate-400">{{ node.framework }}</span>
+          <span v-if="node.hasGit" class="candidate-chip candidate-chip-git"><div class="i-mdi-git text-xs" /> Git</span>
           <span v-if="node.children.length > 0" class="candidate-chip candidate-chip-muted">
             {{ t('import.moduleCount', { count: countModulesInNode(node) }) }}
           </span>
@@ -116,7 +116,7 @@ function onChildToggle(path: string, checked: boolean) {
             {{ t('import.willRemove') }}
           </span>
         </div>
-        <div class="text-[10px] text-slate-400 font-mono truncate">{{ node.path }}</div>
+        <div class="app-text-meta text-slate-400 font-mono truncate">{{ node.path }}</div>
       </div>
     </div>
 
@@ -143,7 +143,7 @@ function onChildToggle(path: string, checked: boolean) {
   gap: 2px;
   padding: 0 6px;
   border-radius: var(--app-radius-xs);
-  font-size: 9px;
+  font-size: var(--app-font-caption);
   font-weight: 600;
   background: color-mix(in srgb, var(--app-primary) 12%, transparent);
   color: var(--app-primary);

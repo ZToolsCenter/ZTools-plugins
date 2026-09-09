@@ -178,6 +178,7 @@ jobs:
           path: release
 
       - name: Download built plugin packages
+        if: needs.detect.outputs.has_linux == 'true' || needs.detect.outputs.has_windows == 'true' || needs.detect.outputs.has_macos == 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: release-*-plugin-packages
@@ -186,20 +187,20 @@ jobs:
 
       - name: Collect built plugin packages
         run: |
-          cp release-artifacts/*.zip release/
-          node -e "const fs = require('fs'); const info = JSON.parse(fs.readFileSync('release/build-info.json', 'utf8')); fs.writeFileSync('release/latest', info.releaseVersion, 'utf8')"
+          if compgen -G "release-artifacts/*.zip" > /dev/null; then
+            cp release-artifacts/*.zip release/
+          else
+            echo "本次没有需要上传的插件 ZIP（可能仅删除插件）"
+          fi
           ls -la release
 
-      - name: Download previous release assets
+      - name: Download previous release manifest
         run: node scripts/download-previous-assets.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate plugins.json
         run: node scripts/generate-plugins-json.js
-
-      - name: Prepare layout.yaml
-        run: cp layout.yaml release/layout.yaml
 
       - name: Prepare release body
         run: |
@@ -218,23 +219,31 @@ jobs:
             echo "无变更信息" >> release/release-body.md
           fi
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.detect.outputs.release_version }}
-          name: Release v${{ needs.detect.outputs.release_version }}
-          body_path: release/release-body.md
-          preserve_order: true
-          files: |
-            release/*.zip
-            release/plugins.json
-            release/categories.json
-            release/layout.yaml
-            release/latest
-          draft: false
-          prerelease: false
+      - name: Publish Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: v${{ needs.detect.outputs.release_version }}
+          RELEASE_TITLE: Release v${{ needs.detect.outputs.release_version }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Keep the manifest assets in a fixed order and add only the ZIPs
+          # produced by this run. nullglob keeps deletion-only releases valid.
+          assets=(
+            release/plugins.json
+          )
+          shopt -s nullglob
+          assets+=(release/*.zip)
+          shopt -u nullglob
+
+          echo "Creating release ${RELEASE_TAG}..."
+          gh release create "${RELEASE_TAG}" \
+            "${assets[@]}" \
+            --repo "${REPOSITORY}" \
+            --title "${RELEASE_TITLE}" \
+            --notes-file release/release-body.md \
+            --latest
 
       - name: Trigger EdgeOne build hook
         run: |

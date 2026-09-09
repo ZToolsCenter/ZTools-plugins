@@ -53,13 +53,13 @@ function detectChangedPlugins() {
   if (BUILD_PLUGINS.length > 0) {
     validatePluginNames(BUILD_PLUGINS);
     console.log(`检测到 BUILD_PLUGINS，将构建指定插件: ${BUILD_PLUGINS.join(', ')}`);
-    return BUILD_PLUGINS;
+    return { changedPlugins: BUILD_PLUGINS, deletedPlugins: [] };
   }
 
   // 如果指定了--all参数，构建所有插件
   if (BUILD_ALL) {
     console.log('检测到 --all 参数，将构建所有插件');
-    return getAllPlugins();
+    return { changedPlugins: getAllPlugins(), deletedPlugins: [] };
   }
 
   try {
@@ -97,10 +97,10 @@ function detectChangedPlugins() {
       console.log(`忽略已删除的插件目录: ${deletedPlugins.join(', ')}`);
     }
 
-    return existingPlugins;
+    return { changedPlugins: existingPlugins, deletedPlugins };
   } catch (error) {
     console.log('无法检测git变动，可能是首次提交，构建所有插件');
-    return getAllPlugins();
+    return { changedPlugins: getAllPlugins(), deletedPlugins: [] };
   }
 }
 
@@ -119,9 +119,9 @@ function generateReleaseVersion() {
 }
 
 // 主逻辑
-const changedPlugins = detectChangedPlugins();
+const { changedPlugins, deletedPlugins } = detectChangedPlugins();
 
-if (changedPlugins.length === 0) {
+if (changedPlugins.length === 0 && deletedPlugins.length === 0) {
   console.log('没有检测到插件变动');
 
   // 写入GitHub Actions输出
@@ -133,6 +133,9 @@ if (changedPlugins.length === 0) {
 }
 
 console.log(`检测到 ${changedPlugins.length} 个插件变动:`, changedPlugins);
+if (deletedPlugins.length > 0) {
+  console.log(`检测到 ${deletedPlugins.length} 个插件删除:`, deletedPlugins);
+}
 
 // 生成release版本号
 const releaseVersion = generateReleaseVersion();
@@ -142,7 +145,8 @@ if (process.env.GITHUB_OUTPUT) {
   const outputContent = [
     'has_changes=true',
     `release_version=${releaseVersion}`,
-    `changed_plugins=${changedPlugins.join(',')}`
+    `changed_plugins=${changedPlugins.join(',')}`,
+    `deleted_plugins=${deletedPlugins.join(',')}`
   ].join('\n') + '\n';
 
   writeFileSync(process.env.GITHUB_OUTPUT, outputContent, { flag: 'a' });
@@ -159,7 +163,8 @@ const output = {
   releaseVersion,
   changedPlugins: changedPlugins,
   buildAll: BUILD_ALL,
-  requestedPlugins: BUILD_PLUGINS
+  requestedPlugins: BUILD_PLUGINS,
+  deletedPlugins
 };
 
 // 确保release目录存在

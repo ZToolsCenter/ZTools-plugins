@@ -17,11 +17,17 @@ const files = computed(() => {
   return gitStore.getCommitFiles(props.project.id, selectedHash.value);
 });
 
-const selectedFile = computed(() => gitStore.selectedDiffFile);
+const selectedFile = computed(() => gitStore.getDiffSelection(props.project.id).file);
 
 async function selectFile(file: GitCommitFile) {
   if (!selectedHash.value) return;
-  await gitStore.getDiffCommitFile(props.project.path, selectedHash.value, file.path);
+  await gitStore.getDiffCommitFile(
+    props.project.id,
+    props.project.path,
+    selectedHash.value,
+    file.path,
+    file.old_path,
+  );
 }
 
 // Auto-select first file when commit selection changes
@@ -63,7 +69,7 @@ function dirname(path: string): string {
 </script>
 
 <template>
-  <div class="git-commit-files text-[11px]">
+  <div class="git-commit-files app-text-control">
     <!-- Header -->
     <div class="git-commit-files-header">
       <div class="i-mdi-file-tree-outline text-xs opacity-70" />
@@ -91,7 +97,7 @@ function dirname(path: string): string {
         </span>
         <div class="flex-1 min-w-0">
           <div class="git-scm-file-name truncate">{{ filename(file.path) }}</div>
-          <div v-if="dirname(file.path)" class="git-scm-file-dir truncate text-[9px]">{{ dirname(file.path) }}</div>
+          <div v-if="dirname(file.path)" class="git-scm-file-dir truncate app-text-meta">{{ dirname(file.path) }}</div>
         </div>
       </div>
     </div>

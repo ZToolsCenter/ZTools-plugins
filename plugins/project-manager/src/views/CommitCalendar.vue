@@ -160,11 +160,11 @@ onActivated(refreshIfNeeded);
         <div class="app-page-heading">
           <div class="flex items-center gap-2">
             <div class="i-mdi-calendar-month text-xl text-blue-500" />
-            <h2 class="app-page-title !mt-0 !text-base">
+            <h2 class="app-page-title !mt-0">
               {{ t('commitCalendar.title') }}
             </h2>
           </div>
-          <p class="app-page-description !text-xs">
+          <p class="app-page-description">
             {{ t('commitCalendar.subtitle', { month: range.title, count: totalCommits }) }}
           </p>
         </div>
@@ -181,7 +181,7 @@ onActivated(refreshIfNeeded);
             >
               <div class="i-mdi-chevron-left text-base" />
             </button>
-            <span class="min-w-18 px-1 text-center text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+            <span class="app-text-control min-w-18 px-1 text-center font-semibold tabular-nums text-slate-700 dark:text-slate-200">
               {{ range.title }}
             </span>
             <button
@@ -207,7 +207,7 @@ onActivated(refreshIfNeeded);
           </button>
 
           <button
-            class="app-primary-action !min-h-8 !rounded-md !px-3 !py-1.5 !text-xs"
+            class="app-primary-action !min-h-8 !rounded-md !px-3 !py-1.5"
             :disabled="loading"
             @click="refresh()"
           >
@@ -219,7 +219,7 @@ onActivated(refreshIfNeeded);
 
       <div
         v-if="skippedSummary"
-        class="app-alert-warning app-page-header-extra px-3 py-2 text-xs"
+        class="app-alert-warning app-page-header-extra app-text-control px-3 py-2"
       >
         <div class="font-medium">{{ skippedSummary }}</div>
         <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 overflow-hidden">
@@ -230,7 +230,7 @@ onActivated(refreshIfNeeded);
         <button
           v-if="skippedProjects.length > SKIPPED_PREVIEW_LIMIT"
           type="button"
-          class="mt-2 text-xs font-semibold text-amber-700 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200"
+          class="app-text-control mt-2 font-semibold text-amber-700 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200"
           :aria-expanded="skippedExpanded"
           @click="skippedExpanded = !skippedExpanded"
         >
@@ -247,7 +247,7 @@ onActivated(refreshIfNeeded);
       <div
         v-for="day in weekdays"
         :key="day"
-        class="h-8 flex items-center justify-center text-[11px] font-semibold text-slate-500 dark:text-slate-400"
+        class="h-8 flex items-center justify-center app-text-meta font-semibold text-slate-500 dark:text-slate-400"
       >
         {{ day }}
       </div>
@@ -271,14 +271,14 @@ onActivated(refreshIfNeeded);
         >
           <div class="flex items-center justify-between gap-2">
             <span
-              class="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold"
+              class="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 app-text-caption font-semibold"
               :class="day.inCurrentMonth ? 'text-slate-600 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'"
             >
               {{ day.day }}
             </span>
             <span
               v-if="day.items.length > 0"
-              class="shrink-0 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-300"
+              class="shrink-0 rounded-full bg-blue-500/10 px-1.5 py-0.5 app-text-caption font-semibold text-blue-600 dark:text-blue-300"
             >
               {{ day.items.length }}
             </span>
@@ -308,7 +308,7 @@ onActivated(refreshIfNeeded);
         <div class="app-card px-5 py-4">
           <div class="i-mdi-calendar-blank-outline text-3xl mx-auto mb-2 text-slate-300 dark:text-slate-600" />
           <div class="text-sm font-medium text-slate-500 dark:text-slate-300">{{ t('commitCalendar.empty') }}</div>
-          <div class="mt-1 text-xs text-slate-400 dark:text-slate-500">{{ t('commitCalendar.emptyHint') }}</div>
+          <div class="app-text-meta mt-1 text-slate-400 dark:text-slate-500">{{ t('commitCalendar.emptyHint') }}</div>
         </div>
       </div>
     </div>
@@ -321,26 +321,26 @@ onActivated(refreshIfNeeded);
       align-center
       class="commit-calendar-dialog"
     >
-      <div v-if="selectedCommit" class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
-        <div class="grid grid-cols-[72px_1fr] gap-x-3 gap-y-2 text-xs">
-          <span class="text-slate-400 dark:text-slate-500">{{ t('commitCalendar.project') }}</span>
+      <div v-if="selectedCommit" class="app-text-body space-y-3 text-slate-600 dark:text-slate-300">
+        <div class="grid grid-cols-[72px_1fr] gap-x-3 gap-y-2">
+          <span class="app-text-meta text-slate-400 dark:text-slate-500">{{ t('commitCalendar.project') }}</span>
           <span class="font-medium text-slate-700 dark:text-slate-100">{{ selectedCommit.projectName }}</span>
-          <span class="text-slate-400 dark:text-slate-500">{{ t('commitCalendar.time') }}</span>
+          <span class="app-text-meta text-slate-400 dark:text-slate-500">{{ t('commitCalendar.time') }}</span>
           <span>{{ formatCommitDateTime(selectedCommit.date) }}</span>
-          <span class="text-slate-400 dark:text-slate-500">{{ t('git.hash') }}</span>
+          <span class="app-text-meta text-slate-400 dark:text-slate-500">{{ t('git.hash') }}</span>
           <span class="font-mono">{{ selectedCommit.shortHash }}</span>
         </div>
 
         <div>
-          <div class="mb-1 text-xs text-slate-400 dark:text-slate-500">{{ t('git.commitMessage') }}</div>
+          <div class="app-text-meta mb-1 text-slate-400 dark:text-slate-500">{{ t('git.commitMessage') }}</div>
           <div
             v-if="detailLoading"
-            class="app-code-block flex min-h-24 items-center justify-center text-xs"
+            class="app-code-block app-text-code flex min-h-24 items-center justify-center"
           >
             <div class="i-mdi-loading animate-spin mr-1.5" />
             {{ t('common.loading') }}
           </div>
-          <pre v-else class="app-code-block m-0 max-h-60 overflow-auto whitespace-pre-wrap px-3 py-2 text-xs leading-5">{{ selectedCommitMessageText }}</pre>
+          <pre v-else class="app-code-block app-text-code m-0 max-h-60 overflow-auto whitespace-pre-wrap px-3 py-2">{{ selectedCommitMessageText }}</pre>
         </div>
       </div>
 
@@ -390,7 +390,8 @@ onActivated(refreshIfNeeded);
   border: 1px solid var(--app-border, #e2e8f0);
   background: var(--app-surface-soft, #f8fafc);
   color: var(--app-text-secondary, #475569);
-  font-size: 12px;
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
   cursor: pointer;
 }
 
@@ -430,7 +431,7 @@ onActivated(refreshIfNeeded);
   background: transparent;
   padding: 2px 4px;
   text-align: left;
-  font-size: 11px;
+  font-size: var(--app-font-control);
   line-height: 18px;
   color: var(--app-text-secondary);
   transition:

@@ -60,6 +60,36 @@ test('database error results are rejected instead of reporting a successful writ
   )
 })
 
+test('messages can be read directly without scanning the complete history', async (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'device-link-repository-message-test-'))
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  let requestedId = ''
+  let allDocsCalls = 0
+  const repository = createRepository({
+    async allDocs() { allDocsCalls += 1; return [] },
+    async get(id) {
+      requestedId = id
+      return {
+        _id: id,
+        _rev: '1-a',
+        type: 'device-link-message',
+        id: 'phone-image',
+        createdAt: '2026-08-31T00:00:00.000Z',
+        attachments: [{ id: 'attachment-1', path: '/tmp/phone-image.jpg' }],
+      }
+    },
+    async put() {},
+    async remove() {},
+  }, root)
+
+  const message = await repository.getMessage('phone-image')
+  assert.equal(requestedId, 'device-link:message:phone-image')
+  assert.equal(allDocsCalls, 0)
+  assert.equal(message.id, 'phone-image')
+  assert.equal(message.attachments[0].id, 'attachment-1')
+  assert.equal('_rev' in message, false)
+})
+
 test('database read failures are not mistaken for missing records', async (context) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'device-link-repository-read-error-test-'))
   context.after(() => fs.rmSync(root, { recursive: true, force: true }))

@@ -1,12 +1,12 @@
 {
   "name": "z-share",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "局域网共享文件",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "test": "node test/smoke.cjs"
+    "test": "node test/smoke.cjs && node test/p2p-smoke.cjs"
   },
   "dependencies": {
     "qrcode": "^1.5.4",

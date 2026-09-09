@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { nextTick, onUpdated, ref } from 'vue'
-import { Check, Clipboard, ExternalLink, File, FileImage, Link, MoreHorizontal, Search, Trash2 } from 'lucide-vue-next'
+import { Check, Clipboard, Download, ExternalLink, File, FileImage, Link, MoreHorizontal, Search, Trash2 } from 'lucide-vue-next'
 import type { DeviceLinkMessage } from '../types'
 
-defineProps<{ messages: DeviceLinkMessage[]; searchQuery?: string }>()
-const emit = defineEmits<{ copy: [id: string]; open: [id: string]; delete: [id: string] }>()
+defineProps<{ messages: DeviceLinkMessage[]; searchQuery?: string; savingAttachmentIds?: ReadonlySet<string> }>()
+const emit = defineEmits<{
+  copy: [id: string]
+  open: [messageId: string, attachmentId: string]
+  download: [messageId: string, attachmentId: string]
+  delete: [id: string]
+}>()
 const list = ref<HTMLElement | null>(null)
 
 function formatTime(value: string) {
@@ -49,11 +54,23 @@ onUpdated(() => nextTick(() => {
           <div v-if="message.direction === 'incoming'" class="message-sender">{{ message.senderName }}</div>
           <a v-if="message.kind === 'link' && message.text" class="message-link" :href="message.text" target="_blank" rel="noopener noreferrer">{{ message.text }}<ExternalLink :size="13" /></a>
           <p v-else-if="message.text" class="message-text">{{ message.text }}</p>
-          <button v-for="attachment in message.attachments" :key="attachment.id" class="attachment" type="button" @click="emit('open', attachment.id)">
-            <span class="attachment__icon"><FileImage v-if="attachment.mime.startsWith('image/')" :size="21" /><File v-else :size="21" /></span>
-            <span class="attachment__info"><strong>{{ attachment.name }}</strong><small>{{ formatSize(attachment.size) }} · {{ attachment.mime }}</small></span>
-            <ExternalLink :size="15" />
-          </button>
+          <div v-for="attachment in message.attachments" :key="attachment.id" class="attachment">
+            <button class="attachment__open" type="button" :aria-label="`打开附件 ${attachment.name}`" @click="emit('open', message.id, attachment.id)">
+              <span class="attachment__icon"><FileImage v-if="attachment.mime.startsWith('image/')" :size="21" aria-hidden="true" /><File v-else :size="21" aria-hidden="true" /></span>
+              <span class="attachment__info"><strong>{{ attachment.name }}</strong><small>{{ formatSize(attachment.size) }} · {{ attachment.mime }}</small></span>
+              <ExternalLink :size="15" aria-hidden="true" />
+            </button>
+            <button
+              class="attachment__download"
+              type="button"
+              :disabled="savingAttachmentIds?.has(attachment.id)"
+              :aria-busy="savingAttachmentIds?.has(attachment.id)"
+              :aria-label="savingAttachmentIds?.has(attachment.id) ? `正在保存附件 ${attachment.name}` : `下载附件 ${attachment.name}`"
+              @click="emit('download', message.id, attachment.id)"
+            >
+              <Download :size="14" aria-hidden="true" /><span>{{ savingAttachmentIds?.has(attachment.id) ? '保存中…' : '下载' }}</span>
+            </button>
+          </div>
           <div class="message-meta">
             <span>{{ formatTime(message.createdAt) }}</span><Check v-if="message.direction === 'outgoing'" :size="12" />
             <button class="message-action" type="button" title="复制" @click="emit('copy', message.id)"><Clipboard :size="13" /></button>

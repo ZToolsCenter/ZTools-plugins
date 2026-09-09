@@ -23,8 +23,8 @@
       <div class="grid">
         <button class="tool" data-open="journal">
           <span class="tool__icon tool__icon--blue">📊</span>
-          <span class="tool__name">期刊查询</span>
-          <span class="tool__desc">影响因子 / 分区 / 被引</span>
+          <span class="tool__name">期刊 · 会议查询</span>
+          <span class="tool__desc">影响因子 / 分区 / CCF 等级</span>
           <span class="tool__badge tool__badge--on">可用</span>
         </button>
         <button class="tool" data-open="database">
@@ -49,9 +49,14 @@
         class="io__input"
         type="text"
         autocomplete="off"
-        placeholder="输入期刊名 / 缩写 / ISSN，如 Nature、NAT REV MOL CELL BIO、1471-0072"
+        placeholder="期刊 / 会议 / 缩写 / ISSN，如 Nature、TPAMI、CVPR、1471-0072"
       />
-      <div class="io__hint" id="jHint">正在加载期刊数据…</div>
+      <div class="chips" id="jFilter">
+        <button class="chip is-on" data-filter="all">全部</button>
+        <button class="chip" data-filter="journal">期刊</button>
+        <button class="chip" data-filter="conf">会议</button>
+      </div>
+      <div class="io__hint" id="jHint">正在加载期刊与 CCF 数据…</div>
       <div class="results" id="jResults"></div>
     </section>
 
@@ -69,7 +74,7 @@
     </section>
 
     <footer class="app__footer" id="footer">
-      提示：ZTools 搜索框输入 <code>期刊 Nature</code>、<code>影响因子 JACS</code> 或 <code>数据库 BRCA1</code> 可直接触发。
+      提示：ZTools 搜索框输入 <code>期刊 Nature</code>、<code>ccf CVPR</code> 或 <code>数据库 BRCA1</code> 可直接触发。
     </footer>
   </main>
 

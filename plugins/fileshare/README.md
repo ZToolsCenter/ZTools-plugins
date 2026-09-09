@@ -44,6 +44,17 @@
 - 随机生成访问令牌，保障访问安全
 - 一键复制访问地址，方便分享给局域网内其他设备
 
+### 点对点私密共享
+- 远程访问者可按来源 IP 向主机申请点对点私密连接，插件端实时收到申请通知并可同意/拒绝
+- 同意后双方建立类 QQ 的私密对话：文本消息、一次多文件发送（合并为一条消息）、文件上传/下载/在线预览
+- 支持离线消息与文件的投递、实时消息通知（Web 端 SSE + 插件端系统通知）
+- 双方均可删除单条消息（服务端留存同步删除、收到的文件同步清理）或删除整个私密连接，删除结果双方可见
+
+### 本机访问与管理
+- Web 页面识别是否在插件宿主机浏览器访问，头部显示「本机访问 / 远程访问」标识
+- 本机访问时 Web 页面通过左侧「文件 / 消息」菜单切换：消息页与插件端一致地管理、查看点对点对话（同意/拒绝申请、聊天、文件收发）
+- 本机页面可查看下载/上传日志、管理 IP 白名单（头部图标按钮），在浏览器侧完成部分插件端操作
+
 ### 在线预览（Web 端）
 - 文件树浏览，支持层级展开折叠
 - 文件名实时搜索过滤，匹配目录自动保留父级结构
@@ -64,10 +75,50 @@
 
 ### 安全与性能
 - 访问令牌鉴权，防止未授权访问
+- 本机回环访问（127.0.0.1 / ::1）默认免 Token；局域网 IP 访问仍需 Token
 - 文件访问路径强校验，仅可访问共享列表内的文件
 - 文件流式传输，不占用额外内存
 - 支持 Range 请求，音视频支持拖动进度条
 - 引用原文件路径，不复制文件，不占用额外存储空间
+
+## 功能截图
+
+<details>
+<summary>点击展开截图</summary>
+
+### 插件主页
+
+<img src="https://files.seeusercontent.com/2026/09/06/nqN3/image_187.png" width="600" />
+
+### 共享文件预览
+
+<img src="https://files.seeusercontent.com/2026/09/06/ye4C/image_185.png" width="600" />
+
+### 客户端页面
+
+<img src="https://files.seeusercontent.com/2026/09/06/sG6t/eca88891401e2792f2b5efc114c0c74c.jpg" width="600" />
+
+### 客户端申请私密连接
+
+<img src="https://files.seeusercontent.com/2026/09/06/cpG0/55305d5a511430364a2bbf7218885cc6.jpg" width="600" />
+
+### 私密连接申请消息
+
+<img src="https://files.seeusercontent.com/2026/09/06/L4dq/image_184.png" width="600" />
+
+### 私密消息-客户端界面
+
+<img src="https://files.seeusercontent.com/2026/09/06/idH7/06c363f872e57b07af5cefb333114165.jpg" width="600" />
+
+### 私密消息-插件界面
+
+<img src="https://files.seeusercontent.com/2026/09/06/4Ywb/image_183.png" width="600" />
+
+### 私密消息-web界面
+
+<img src="https://files.seeusercontent.com/2026/09/06/L2ed/image_181.png" width="600" />
+
+</details>
 
 ## 快速开始
 
@@ -108,6 +159,8 @@ npm run build    # 构建生产版本
 6. 其他设备在浏览器中打开该地址即可浏览、预览、下载文件
 7. 其他设备在页面点击「上传文件」或拖拽文件到页面，即可把文件回传到电脑（按 IP 分组展示）
 8. 上传者在 Web 页面点击文件旁的删除按钮，即可删除自己上传的文件（仅限同一 IP 操作）
+9. **点对点私密共享**：其他设备在页面点击「私密连接」→ 填写昵称与留言 → 申请连接；插件端收到申请后点「消息」→ 同意/拒绝；同意后双方进入私密对话，可发文本、一次多文件发送、上传/下载/预览
+10. **本机管理**：在插件主机本机浏览器打开页面时，页面左侧出现「文件 / 消息」菜单，消息页与插件端一致地管理点对点对话；头部「下载日志」「IP 白名单」图标按钮可查看日志与管理白名单
 
 ## 技术细节
 
@@ -139,10 +192,10 @@ npm run build    # 构建生产版本
 │   ├── plugin.json               # ZTools 插件配置
 │   ├── logo.png                  # 插件图标
 │   ├── web/
-│   │   └── index.html            # 外部 Web 预览界面
+│   │   └── index.html            # 外部 Web 预览界面（含点对点对话与本机管理台）
 │   └── preload/
 │       ├── package.json
-│       └── services.js           # Node.js 后端服务
+│       └── services.js           # Node.js 后端服务（HTTP + P2P 实时通道）
 ├── src/
 │   ├── App.vue                   # 根组件
 │   ├── main.ts                   # 应用入口
@@ -155,9 +208,8 @@ npm run build    # 构建生产版本
 │       ├── FileTree.vue          # 递归文件树
 │       ├── ShareItem.vue         # 共享条目行
 │       ├── NetworkSelector.vue   # 网卡选择器
-│       └── ConfirmDialog.vue     # 确认弹窗
-├── docs/
-│   └── 分享链接方案.md            # 限时/一次性/密码分享链接设计方案
+│       ├── ConfirmDialog.vue     # 确认弹窗
+│       └── P2pCenter.vue         # 点对点消息工作台（会话列表 + 对话窗口）
 ├── test/
 │   └── smoke.cjs                 # 后端冒烟测试
 ├── .gitignore

@@ -13,3 +13,6 @@
   `uuid5 dns example.com` 确定性生成（命名空间 dns/url/oid/x500 或任意 UUID）
 - 体检：自动显示版本与 variant，v1/v6/v7 还原生成时间，v1/v6 展示 node 与时钟序列
 
+### 根据提交记录补充
+
+- 修复输入法回车触发、负毫秒时间格式和 UID 占位符问题，替换废弃字符串 API。

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawn, exec, execFile, execSync, execFileSync } = require('child_process');
 const { TextDecoder } = require('util');
 
@@ -20,6 +21,342 @@ function runCmd(cmd) {
             else resolve(stdout.trim());
         });
     });
+}
+
+const GIT_IMAGE_SIDE_MAX_SIZE = 10 * 1024 * 1024;
+const GIT_IMAGE_TOTAL_MAX_SIZE = 20 * 1024 * 1024;
+
+function normalizeRepoRelativePath(raw) {
+    const replaced = String(raw || '').replace(/\\/g, '/');
+    if (!replaced || replaced.startsWith('/') || /^[A-Za-z]:/.test(replaced) || replaced.includes('\0')) {
+        throw new Error(`Invalid repository-relative path: ${raw}`);
+    }
+    const parts = [];
+    for (const part of replaced.split('/')) {
+        if (!part || part === '.') continue;
+        if (part === '..') throw new Error(`Path escapes repository root: ${raw}`);
+        parts.push(part);
+    }
+    if (!parts.length) throw new Error(`Invalid repository-relative path: ${raw}`);
+    return parts.join('/');
+}
+
+function normalizeWorkspaceRelativePath(raw, allowEmpty = false) {
+    const replaced = String(raw || '').replace(/\\/g, '/');
+    if (replaced.includes('\0') || replaced.startsWith('/') || /^[A-Za-z]:/.test(replaced)) {
+        throw new Error(`Invalid workspace-relative path: ${raw}`);
+    }
+    const parts = [];
+    for (const part of replaced.split('/')) {
+        if (!part || part === '.') continue;
+        if (part === '..') throw new Error(`Path escapes workspace root: ${raw}`);
+        parts.push(part);
+    }
+    if (!allowEmpty && !parts.length) throw new Error(`Workspace-relative path is required: ${raw}`);
+    return parts;
+}
+
+function assertWorkspaceWithin(root, candidate) {
+    const relative = path.relative(root, candidate);
+    if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+        throw new Error(`Path escapes workspace root: ${candidate}`);
+    }
+}
+
+function resolveWorkspacePath(root, relative, allowMissing = false) {
+    const rootPath = fs.realpathSync(path.resolve(String(root || '')));
+    if (!fs.statSync(rootPath).isDirectory()) throw new Error('Workspace root is not a directory');
+    const parts = normalizeWorkspaceRelativePath(relative, true);
+    const candidate = path.resolve(rootPath, ...parts);
+    if (fs.existsSync(candidate)) {
+        const realPath = fs.realpathSync(candidate);
+        assertWorkspaceWithin(rootPath, realPath);
+        return realPath;
+    }
+    if (!allowMissing) throw new Error(`Workspace path does not exist: ${relative}`);
+    let cursor = candidate;
+    while (true) {
+        const parent = path.dirname(cursor);
+        if (parent === cursor) throw new Error(`Failed to resolve missing workspace path: ${relative}`);
+        if (fs.existsSync(parent)) {
+            const realParent = fs.realpathSync(parent);
+            assertWorkspaceWithin(rootPath, realParent);
+            return candidate;
+        }
+        cursor = parent;
+    }
+}
+
+function workspaceDiskVersion(filePath, stat = fs.statSync(filePath)) {
+    return `${path.resolve(filePath)}:${stat.size}:${stat.mtimeMs}:${stat.mode}`;
+}
+
+function isReadonlyPath(filePath, stat = fs.statSync(filePath)) {
+    if ((stat.mode & 0o222) === 0) return true;
+    try {
+        fs.accessSync(filePath, fs.constants.W_OK);
+        return false;
+    } catch (_) {
+        return true;
+    }
+}
+
+function decodeEditorBuffer(buffer) {
+    let encoding = 'utf-8';
+    let contentBuffer = buffer;
+    if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+        encoding = 'utf-8-bom';
+        contentBuffer = buffer.subarray(3);
+    } else {
+        try {
+            new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+        } catch (_) {
+            encoding = 'other';
+        }
+    }
+    return {
+        content: decodeTextBuffer(contentBuffer).replace(/\r\n/g, '\n').replace(/\r/g, '\n'),
+        encoding,
+        readOnly: encoding === 'other',
+    };
+}
+
+function editorBytes(content, eol = 'lf', bom = false) {
+    const normalized = String(content || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const output = eol === 'crlf' ? normalized.replace(/\n/g, '\r\n') : normalized;
+    const prefix = bom ? Buffer.from([0xef, 0xbb, 0xbf]) : Buffer.alloc(0);
+    return Buffer.concat([prefix, Buffer.from(output, 'utf8')]);
+}
+
+function atomicWriteEditorBytes(target, bytes) {
+    const parent = path.dirname(target);
+    let mode;
+    try { mode = fs.statSync(target).mode; } catch (_) {}
+    const temp = path.join(parent, `.${path.basename(target)}.${process.pid}.${Date.now()}.editor.tmp`);
+    fs.writeFileSync(temp, bytes);
+    if (mode != null) {
+        try { fs.chmodSync(temp, mode); } catch (_) {}
+    }
+    try {
+        fs.renameSync(temp, target);
+        if (mode != null) {
+            try { fs.chmodSync(target, mode); } catch (_) {}
+        }
+    } catch (error) {
+        if (!fs.existsSync(target) || !fs.statSync(target).isFile()) {
+            try { fs.rmSync(temp, { force: true }); } catch (_) {}
+            throw error;
+        }
+        const backup = path.join(parent, `.${path.basename(target)}.${process.pid}.${Date.now()}.editor.bak`);
+        try {
+            fs.renameSync(target, backup);
+            try {
+                fs.renameSync(temp, target);
+                if (mode != null) {
+                    try { fs.chmodSync(target, mode); } catch (_) {}
+                }
+                try { fs.rmSync(backup, { force: true }); } catch (_) {}
+            } catch (replaceError) {
+                try { fs.renameSync(backup, target); } catch (restoreError) {
+                    throw new Error(`${replaceError.message}; failed to restore original: ${restoreError.message}`);
+                }
+                throw replaceError;
+            }
+        } catch (replaceError) {
+            try { fs.rmSync(temp, { force: true }); } catch (_) {}
+            throw replaceError;
+        }
+    }
+}
+
+function gitRepoRoot(projectPath) {
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], {
+        cwd: projectPath, windowsHide: true,
+    }).toString().trim();
+}
+
+function escapeGitignoreComponent(value) {
+    const chars = Array.from(value);
+    return chars.map((char, index) => {
+        const needsEscape = (index === 0 && (char === '#' || char === '!'))
+            || ['\\', '*', '?', '[', ']'].includes(char)
+            || (index === chars.length - 1 && (char === ' ' || char === '\t'));
+        return needsEscape ? `\\${char}` : char;
+    }).join('');
+}
+
+function escapeGitignorePath(relative) {
+    return relative.split('/').map(escapeGitignoreComponent).join('/');
+}
+
+function buildGitIgnorePattern(root, rawPath, kind) {
+    const relative = normalizeRepoRelativePath(rawPath);
+    const fullPath = path.join(root, ...relative.split('/'));
+    if (kind === 'file') return `/${escapeGitignorePath(relative)}`;
+    const name = relative.split('/').pop();
+    if (kind === 'filename') return escapeGitignoreComponent(name);
+    if (kind === 'extension') {
+        const dot = name.lastIndexOf('.');
+        if (dot <= 0 || dot === name.length - 1) throw new Error(`File has no extension: ${relative}`);
+        return `*.${escapeGitignoreComponent(name.slice(dot + 1))}`;
+    }
+    if (kind === 'directory') {
+        const directory = fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()
+            ? relative
+            : relative.includes('/') ? relative.slice(0, relative.lastIndexOf('/')) : '';
+        if (!directory) throw new Error(`File is in repository root: ${relative}`);
+        return `/${escapeGitignorePath(directory)}/`;
+    }
+    throw new Error(`Unsupported ignore kind: ${kind}`);
+}
+
+function atomicWriteUtf8(target, content) {
+    const parent = path.dirname(target);
+    fs.mkdirSync(parent, { recursive: true });
+    const temp = path.join(parent, `.${path.basename(target)}.${process.pid}.${Date.now()}.tmp`);
+    fs.writeFileSync(temp, content, 'utf8');
+    try {
+        fs.renameSync(temp, target);
+    } catch (error) {
+        // Windows cannot always replace an existing file with renameSync. Move the
+        // original aside first so a failed replacement never deletes it.
+        if (!fs.existsSync(target) || !fs.statSync(target).isFile()) {
+            try { fs.rmSync(temp, { force: true }); } catch (_) {}
+            throw error;
+        }
+        const backup = path.join(parent, `.${path.basename(target)}.${process.pid}.${Date.now()}.bak`);
+        try {
+            fs.renameSync(target, backup);
+            try {
+                fs.renameSync(temp, target);
+                try { fs.rmSync(backup, { force: true }); } catch (_) {}
+            } catch (replaceError) {
+                try {
+                    fs.renameSync(backup, target);
+                } catch (restoreError) {
+                    throw new Error(`${replaceError.message}; failed to restore original: ${restoreError.message}`);
+                }
+                throw replaceError;
+            }
+        } catch (replaceError) {
+            try { fs.rmSync(temp, { force: true }); } catch (_) {}
+            throw replaceError;
+        }
+    }
+}
+
+function appendGitIgnorePatterns(target, patterns) {
+    const original = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
+    const eol = original.includes('\r\n') ? '\r\n' : '\n';
+    let content = original;
+    const added = [];
+    for (const pattern of patterns) {
+        if (!pattern || added.includes(pattern)) continue;
+        const exists = original.split(/\r?\n/).some((line) => line === pattern);
+        if (exists) continue;
+        if (content && !content.endsWith('\n')) content += eol;
+        content += pattern + eol;
+        added.push(pattern);
+    }
+    if (added.length) atomicWriteUtf8(target, content);
+    return added;
+}
+
+function gitIgnoreTarget(projectPath, root, local) {
+    if (!local) return path.join(root, '.gitignore');
+    const gitPath = execFileSync('git', ['rev-parse', '--git-path', 'info/exclude'], {
+        cwd: projectPath, windowsHide: true,
+    }).toString().trim();
+    return path.isAbsolute(gitPath) ? gitPath : path.join(root, gitPath);
+}
+
+function gitImageMime(file) {
+    switch (path.extname(file).toLowerCase()) {
+        case '.png': return 'image/png';
+        case '.jpg':
+        case '.jpeg': return 'image/jpeg';
+        case '.webp': return 'image/webp';
+        case '.gif': return 'image/gif';
+        case '.bmp': return 'image/bmp';
+        case '.svg': return 'image/svg+xml';
+        case '.ico': return 'image/x-icon';
+        default: return null;
+    }
+}
+
+function validateGitCommitHash(hash) {
+    if (!/^[0-9a-f]{4,64}$/i.test(String(hash || ''))) throw new Error('Invalid Git commit hash');
+}
+
+function gitDiffSources(projectPath, file, staged, commit, oldPath) {
+    const relative = normalizeRepoRelativePath(file);
+    const previous = oldPath ? normalizeRepoRelativePath(oldPath) : null;
+    if (commit) {
+        validateGitCommitHash(commit);
+        execFileSync('git', ['rev-parse', '--verify', `${commit}^{commit}`], { cwd: projectPath, windowsHide: true });
+        const parents = execFileSync('git', ['rev-list', '--parents', '-n', '1', commit], {
+            cwd: projectPath, windowsHide: true,
+        }).toString().trim().split(/\s+/);
+        return {
+            before: parents[1] ? { source: 'commit', ref: parents[1], path: previous || relative } : null,
+            after: { source: 'commit', ref: commit, path: relative },
+        };
+    }
+
+    let tracked = true;
+    try {
+        execFileSync('git', ['ls-files', '--error-unmatch', '--', relative], { cwd: projectPath, windowsHide: true });
+    } catch (_) {
+        tracked = false;
+    }
+    if (!staged && !tracked) {
+        return { before: null, after: { source: 'worktree', path: relative } };
+    }
+    if (staged) {
+        return {
+            before: { source: 'head', path: previous || relative },
+            after: { source: 'index', path: relative },
+        };
+    }
+    return {
+        before: { source: 'index', path: previous || relative },
+        after: { source: 'worktree', path: relative },
+    };
+}
+
+function readGitBlob(projectPath, source) {
+    if (!source) return null;
+    if (source.source === 'worktree') {
+        const fullPath = path.join(gitRepoRoot(projectPath), ...source.path.split('/'));
+        if (!fs.existsSync(fullPath)) return null;
+        if (fs.statSync(fullPath).isDirectory()) throw new Error(`Cannot read directory as a file: ${source.path}`);
+        return fs.readFileSync(fullPath);
+    }
+    const spec = source.source === 'index' ? `:${source.path}`
+        : source.source === 'head' ? `HEAD:${source.path}`
+            : `${source.ref}:${source.path}`;
+    try {
+        return execFileSync('git', ['show', spec], { cwd: projectPath, windowsHide: true, encoding: null });
+    } catch (error) {
+        return null;
+    }
+}
+
+function readGitBlobSize(projectPath, source) {
+    if (!source) return null;
+    if (source.source === 'worktree') {
+        const fullPath = path.join(gitRepoRoot(projectPath), ...source.path.split('/'));
+        if (!fs.existsSync(fullPath)) return null;
+        return fs.statSync(fullPath).size;
+    }
+    const spec = source.source === 'index' ? `:${source.path}`
+        : source.source === 'head' ? `HEAD:${source.path}`
+            : `${source.ref}:${source.path}`;
+    try {
+        return Number(execFileSync('git', ['cat-file', '-s', spec], { cwd: projectPath, windowsHide: true }).toString().trim());
+    } catch (_) {
+        return null;
+    }
 }
 
 const PROJECT_SCAN_IGNORED_DIRS = new Set([
@@ -47,8 +384,20 @@ function readPackageJson(projectPath) {
 
 function identifyProjectModule(projectPath) {
     const has = (name) => fs.existsSync(path.join(projectPath, name));
-    if (has('pom.xml')) return { kind: 'backend', framework: 'Spring Boot' };
-    if (has('build.gradle') || has('build.gradle.kts')) return { kind: 'backend', framework: 'Gradle' };
+    // 只有真的引了 spring-boot 才报 Spring Boot，否则一律报 Maven
+    if (has('pom.xml')) {
+        let framework = 'Maven';
+        try {
+            if (fs.readFileSync(path.join(projectPath, 'pom.xml'), 'utf-8').includes('spring-boot')) {
+                framework = 'Spring Boot';
+            }
+        } catch (e) { /* 读不到就按 Maven 处理 */ }
+        return { kind: 'backend', framework };
+    }
+    // settings.gradle(.kts) 也算：多模块仓库根目录可能只有 settings 没有 build
+    if (has('build.gradle') || has('build.gradle.kts') || has('settings.gradle') || has('settings.gradle.kts')) {
+        return { kind: 'backend', framework: 'Gradle' };
+    }
     if (has('package.json')) {
         const pkg = readPackageJson(projectPath);
         const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
@@ -92,6 +441,18 @@ function scanProjectTree(dirPath, depth, maxDepth, seen) {
     const pkg = hasPackageJson ? readPackageJson(dirPath) : {};
     const scripts = Object.keys(pkg.scripts || {}).sort();
 
+    // Java 构建信息：与 src-tauri 的 scan_child_dirs 保持一致，
+    // 否则两条导入路径识别出的项目类型会分叉
+    const isMavenNode = fs.existsSync(path.join(dirPath, 'pom.xml'));
+    const isGradleNode = ['build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts']
+        .some((n) => fs.existsSync(path.join(dirPath, n)));
+    const nodeBuildTool = isMavenNode ? 'maven' : (isGradleNode ? 'gradle' : undefined);
+    const nodeHasWrapper = nodeBuildTool === 'maven'
+        ? (fs.existsSync(path.join(dirPath, 'mvnw')) || fs.existsSync(path.join(dirPath, 'mvnw.cmd')))
+        : (nodeBuildTool === 'gradle'
+            ? (fs.existsSync(path.join(dirPath, 'gradlew')) || fs.existsSync(path.join(dirPath, 'gradlew.bat')))
+            : undefined);
+
     const makeNode = (kind, framework, children) => ({
         name,
         path: dirPath,
@@ -99,6 +460,8 @@ function scanProjectTree(dirPath, depth, maxDepth, seen) {
         framework,
         hasGit,
         hasPackageJson,
+        buildTool: nodeBuildTool,
+        hasWrapper: nodeHasWrapper,
         scripts,
         children,
     });
@@ -146,6 +509,7 @@ function scanChildDirs(dirPath, depth, maxDepth, seen) {
 }
 
 const processes = new Map();
+const runnerProcessStates = new Map();
 let outputCallback = null;
 let exitCallback = null;
 
@@ -184,6 +548,36 @@ function terminateProcessTree(child, { synchronous = false } = {}) {
     }
 
     const timer = setTimeout(escalate, 1500);
+    if (typeof timer.unref === 'function') timer.unref();
+}
+
+function terminateRunnerProcessTree(child) {
+    if (!child || !child.pid) throw new Error('commandKey 不存在');
+
+    if (process.platform === 'win32') {
+        execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+            stdio: 'ignore',
+            windowsHide: true,
+        });
+        return;
+    }
+
+    let terminated = false;
+    try {
+        process.kill(-child.pid, 'SIGTERM');
+        terminated = true;
+    } catch (_) {
+        try { terminated = child.kill('SIGTERM'); } catch (_) {}
+    }
+    if (!terminated) throw new Error(`Failed to stop process ${child.pid}`);
+
+    const timer = setTimeout(() => {
+        try {
+            process.kill(-child.pid, 'SIGKILL');
+        } catch (_) {
+            try { child.kill('SIGKILL'); } catch (_) {}
+        }
+    }, 1500);
     if (typeof timer.unref === 'function') timer.unref();
 }
 
@@ -227,6 +621,7 @@ function cleanupAllProcesses({ synchronous = false } = {}) {
         } catch (_) {}
     }
     processes.clear();
+    runnerProcessStates.clear();
 }
 
 function decodeTextBuffer(buffer) {
@@ -488,6 +883,148 @@ function escapePowerShellSingleQuotes(value) {
 // Platform-adaptive: support both uTools and ZTools
 const platform = typeof ztools !== 'undefined' ? ztools : utools;
 
+const CONFIG_FILE_NAME = 'data.json';
+
+function assertSafeConfigFilename(filename) {
+    const value = String(filename || '');
+    if (!value || value !== path.basename(value) || /[\\/:\0]/.test(value) || value === '.' || value === '..' || /^[A-Za-z]:/.test(value)) {
+        throw new Error(`Invalid config filename: ${filename}`);
+    }
+    return value;
+}
+
+function configPath(filename) {
+    const safeFilename = assertSafeConfigFilename(filename);
+    return path.join(platform.getPath('userData'), safeFilename);
+}
+
+function syncDirectory(directory) {
+    if (process.platform === 'win32') return;
+    try {
+        const descriptor = fs.openSync(directory, 'r');
+        try {
+            fs.fsyncSync(descriptor);
+        } finally {
+            fs.closeSync(descriptor);
+        }
+    } catch (_) {
+        // Some hosts do not allow opening directories; the file fsync is still useful.
+    }
+}
+
+function uniqueSiblingPath(target, suffix) {
+    return path.join(
+        path.dirname(target),
+        `.${path.basename(target)}.${suffix}-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
+}
+
+function replaceFileAtomically(target, content) {
+    const directory = path.dirname(target);
+    fs.mkdirSync(directory, { recursive: true });
+    const temporary = uniqueSiblingPath(target, 'tmp');
+    let temporaryExists = false;
+    let displaced = null;
+
+    try {
+        const descriptor = fs.openSync(temporary, 'wx');
+        temporaryExists = true;
+        try {
+            fs.writeFileSync(descriptor, content);
+            fs.fsyncSync(descriptor);
+        } finally {
+            fs.closeSync(descriptor);
+        }
+
+        if (process.platform === 'win32' && fs.existsSync(target)) {
+            displaced = uniqueSiblingPath(target, 'old');
+            fs.renameSync(target, displaced);
+        }
+
+        fs.renameSync(temporary, target);
+        temporaryExists = false;
+        syncDirectory(directory);
+    } catch (error) {
+        if (displaced && !fs.existsSync(target) && fs.existsSync(displaced)) {
+            try {
+                fs.renameSync(displaced, target);
+                displaced = null;
+            } catch (_) {
+                // Keep the displaced file as evidence if rollback itself fails.
+            }
+        }
+        throw error;
+    } finally {
+        if (temporaryExists) {
+            try { fs.unlinkSync(temporary); } catch (_) {}
+        }
+        if (displaced && fs.existsSync(target)) {
+            try { fs.unlinkSync(displaced); } catch (_) {}
+        }
+    }
+}
+
+function backupPath(primaryPath) {
+    return `${primaryPath}.bak`;
+}
+
+function corruptSnapshotPath(primaryPath) {
+    const prefix = `${primaryPath}.corrupt-${Date.now()}-${process.pid}`;
+    let candidate = prefix;
+    while (fs.existsSync(candidate)) candidate = `${prefix}-${Math.random().toString(16).slice(2)}`;
+    return candidate;
+}
+
+function validateConfigContent(filename, content) {
+    let value;
+    try {
+        value = JSON.parse(content);
+    } catch (error) {
+        throw new Error(`Invalid JSON in ${filename}: ${error.message}`);
+    }
+    if (filename === CONFIG_FILE_NAME && (!value || Array.isArray(value) || typeof value !== 'object'
+        || !Array.isArray(value.projects) || !value.settings || typeof value.settings !== 'object' || Array.isArray(value.settings))) {
+        throw new Error('Config does not have the expected persisted data shape');
+    }
+}
+
+function writeConfigSafely(filename, content) {
+    const safeFilename = assertSafeConfigFilename(filename);
+    validateConfigContent(safeFilename, content);
+    const primaryPath = configPath(safeFilename);
+    fs.mkdirSync(path.dirname(primaryPath), { recursive: true });
+    if (safeFilename === CONFIG_FILE_NAME && fs.existsSync(primaryPath)) {
+        const previous = fs.readFileSync(primaryPath, 'utf8');
+        validateConfigContent(safeFilename, previous);
+        replaceFileAtomically(backupPath(primaryPath), Buffer.from(previous, 'utf8'));
+    }
+    replaceFileAtomically(primaryPath, Buffer.from(content, 'utf8'));
+}
+
+function restoreConfigSafely(filename) {
+    const safeFilename = assertSafeConfigFilename(filename);
+    const primaryPath = configPath(safeFilename);
+    const backup = backupPath(primaryPath);
+    const content = fs.readFileSync(backup, 'utf8');
+    validateConfigContent(safeFilename, content);
+    if (fs.existsSync(primaryPath)) {
+        replaceFileAtomically(corruptSnapshotPath(primaryPath), fs.readFileSync(primaryPath));
+    }
+    replaceFileAtomically(primaryPath, Buffer.from(content, 'utf8'));
+    return content;
+}
+
+function assertSafeExternalUrl(url) {
+    const value = String(url || '').trim();
+    try {
+        const parsed = new URL(value);
+        if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || !parsed.hostname) throw new Error('unsafe protocol');
+    } catch (_) {
+        throw new Error('Only http and https URLs can be opened externally.');
+    }
+    return value;
+}
+
 // Editor detection helpers
 const PLUGIN_EDITOR_DEFINITIONS = [
     { name: 'Visual Studio Code', matches: ['visual studio code'], commands: ['code'], relativePaths: [['bin', 'code.cmd'], ['bin', 'code'], ['Code.exe']] },
@@ -675,59 +1212,210 @@ process.once('unhandledRejection', (reason) => {
     process.exit(1);
 });
 
+function createStreamDecoder() {
+    let pending = Buffer.alloc(0);
+    return {
+        push(chunk) {
+            pending = Buffer.concat([pending, Buffer.from(chunk)]);
+            const lines = [];
+            let index;
+            while ((index = pending.indexOf(0x0a)) >= 0) {
+                const raw = pending.subarray(0, index);
+                pending = pending.subarray(index + 1);
+                lines.push(raw.toString('utf8').replace(/\r$/, ''));
+            }
+            let partial = null;
+            if (pending.length) {
+                try {
+                    partial = pending.toString('utf8');
+                } catch (_) {
+                    partial = null;
+                }
+            }
+            return { lines, partial };
+        },
+        finish() {
+            if (!pending.length) return null;
+            const leftover = pending.toString('utf8');
+            pending = Buffer.alloc(0);
+            return leftover || null;
+        },
+    };
+}
+
+function emitProcessOutput(commandKey, sessionId, stream, data, partial, logFn) {
+    if (outputCallback) outputCallback({
+        id: commandKey,
+        commandKey,
+        sessionId,
+        stream,
+        type: stream,
+        data,
+        partial: !!partial,
+    });
+    if (!partial && logFn) logFn(stream === 'stderr' ? `ERR: ${data}` : data);
+}
+
+function attachProcessIo(commandKey, sessionId, child, logFn) {
+    const stdoutDecoder = createStreamDecoder();
+    const stderrDecoder = createStreamDecoder();
+    const handleChunk = (decoder, type, chunk) => {
+        const { lines, partial } = decoder.push(chunk);
+        for (const line of lines) emitProcessOutput(commandKey, sessionId, type, line, false, logFn);
+        if (partial) emitProcessOutput(commandKey, sessionId, type, partial, true, null);
+    };
+    if (child.stdout) child.stdout.on('data', (data) => handleChunk(stdoutDecoder, 'stdout', data));
+    if (child.stderr) child.stderr.on('data', (data) => handleChunk(stderrDecoder, 'stderr', data));
+    child.on('close', () => {
+        const leftoverOut = stdoutDecoder.finish();
+        if (leftoverOut) emitProcessOutput(commandKey, sessionId, 'stdout', leftoverOut, false, logFn);
+        const leftoverErr = stderrDecoder.finish();
+        if (leftoverErr) emitProcessOutput(commandKey, sessionId, 'stderr', leftoverErr, false, logFn);
+    });
+}
+
+function writeChildStdin(commandKey, input) {
+    const child = processes.get(commandKey);
+    if (!child) return Promise.reject(new Error('commandKey 不存在'));
+    if (!child.stdin || child.stdin.destroyed || !child.stdin.writable) {
+        return Promise.reject(new Error('stdin closed'));
+    }
+    return new Promise((resolve, reject) => {
+        child.stdin.write(input, (error) => {
+            if (error) {
+                reject(new Error(error.code === 'EPIPE' ? 'broken pipe' : error.message));
+                return;
+            }
+            resolve();
+        });
+    });
+}
+
+function normalizeRuntimePath(runtimePath) {
+    return String(runtimePath || '').trim().replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/$/, '').toLowerCase();
+}
+
+function nodeExecutableForRuntime(runtimePath) {
+    const root = String(runtimePath || '').trim();
+    if (!root) return '';
+    try {
+        if (fs.existsSync(root) && fs.statSync(root).isFile()) return root;
+        const candidates = process.platform === 'win32'
+            ? [path.join(root, 'node.exe'), path.join(root, 'bin', 'node.exe')]
+            : [path.join(root, 'bin', 'node'), path.join(root, 'node')];
+        return candidates.find(candidate => fs.existsSync(candidate)) || '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function nvmDiscoveryRoots() {
+    const roots = [];
+    const add = value => {
+        if (!value) return;
+        const candidate = path.resolve(String(value));
+        if (!roots.some(item => normalizeRuntimePath(item) === normalizeRuntimePath(candidate))) roots.push(candidate);
+    };
+    if (process.platform === 'win32') {
+        add(process.env.NVM_HOME);
+        add(process.env.NVM_SYMLINK);
+        add(process.env.APPDATA && path.join(process.env.APPDATA, 'nvm'));
+        add(process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'nvm'));
+    } else {
+        add(process.env.NVM_DIR);
+        add(path.join(os.homedir(), '.nvm'));
+    }
+    return roots;
+}
+
+function nvmDiscoveryCandidates(root) {
+    const candidates = [];
+    const add = candidate => {
+        if (nodeExecutableForRuntime(candidate) && !candidates.some(item => normalizeRuntimePath(item) === normalizeRuntimePath(candidate))) {
+            candidates.push(candidate);
+        }
+    };
+    add(root);
+    try {
+        const scanRoot = process.platform === 'win32' ? root : path.join(root, 'versions', 'node');
+        for (const entry of fs.readdirSync(scanRoot, { withFileTypes: true })) {
+            if (entry.isDirectory()) add(path.join(scanRoot, entry.name));
+        }
+    } catch (_) {}
+    return candidates;
+}
+
+function readNodeVersion(executable) {
+    return new Promise(resolve => {
+        execFile(executable, ['-v'], { timeout: 3000, windowsHide: true }, (error, stdout) => {
+            if (error) return resolve('');
+            const line = String(stdout || '').trim().split(/\r?\n/)[0];
+            const normalized = line.startsWith('v') ? line : `v${line}`;
+            resolve(/^v\d+\.\d+\.\d+$/.test(normalized) ? normalized : '');
+        });
+    });
+}
+
+async function scanNvmNodeRuntimes() {
+    const result = [];
+    const seen = new Set();
+    for (const root of nvmDiscoveryRoots()) {
+        for (const candidate of nvmDiscoveryCandidates(root)) {
+            const executable = nodeExecutableForRuntime(candidate);
+            const version = await readNodeVersion(executable);
+            if (!version) continue;
+            const runtimeId = `nvm:${normalizeRuntimePath(candidate)}`;
+            if (seen.has(runtimeId)) continue;
+            seen.add(runtimeId);
+            result.push({ runtimeId, version, path: candidate, source: 'nvm', status: 'available', runtimeRoot: root });
+        }
+    }
+    return result.sort((a, b) => b.version.localeCompare(a.version) || a.path.localeCompare(b.path));
+}
+
+async function getPluginSystemNodeState() {
+    let nodePath = '';
+    try {
+        nodePath = String(await runCmd('node -e "console.log(process.execPath)"') || '').trim();
+    } catch (_) {}
+    const version = nodePath ? await readNodeVersion(nodePath) : '';
+    return {
+        available: !!nodePath && !!version,
+        version: version || undefined,
+        nodePath: nodePath || undefined,
+        source: 'unknown',
+        candidates: nodePath ? [{ path: nodePath, version: version || undefined }] : [],
+        pathScope: 'unknown',
+    };
+}
+
 window.services = {
-    getNvmList: async () => {
-        // Windows
-        if (process.platform === 'win32') {
-            const nvmHome = process.env.NVM_HOME;
-            if (!nvmHome) return [];
-
-            try {
-                const dirs = fs.readdirSync(nvmHome);
-                const versions = [];
-
-                for (const dir of dirs) {
-                    if (dir.startsWith('v')) {
-                        versions.push({
-                            version: dir,
-                            path: path.join(nvmHome, dir),
-                            source: 'nvm'
-                        });
-                    }
-                }
-                return versions;
-            } catch (e) {
-                console.error(e);
-                return [];
-            }
-        }
-        // macOS / Linux
-        else {
-            const home = process.env.HOME;
-            const nvmDir = process.env.NVM_DIR || path.join(home, '.nvm');
-            const versionsDir = path.join(nvmDir, 'versions', 'node');
-
-            if (!fs.existsSync(versionsDir)) return [];
-
-            try {
-                const dirs = fs.readdirSync(versionsDir);
-                const versions = [];
-
-                for (const dir of dirs) {
-                    if (dir.startsWith('v')) {
-                        versions.push({
-                            version: dir,
-                            path: path.join(versionsDir, dir),
-                            source: 'nvm'
-                        });
-                    }
-                }
-                return versions;
-            } catch (e) {
-                console.error(e);
-                return [];
-            }
-        }
+    managedNodeRuntimeSupported: async () => false,
+    listInstalledNodeRuntimes: async () => [],
+    scanNvmNodeRuntimes,
+    getManagedNodeRuntimeLocation: async () => {
+        const rootPath = path.join(platform.getPath('userData'), 'runtimes', 'node');
+        return { mode: 'app-data', rootPath, writable: true, portableAvailable: false, installedCount: 0, sizeBytes: 0, sizeStatus: 'ready', warnings: [] };
+    },
+    migrateManagedNodeRuntimeLocation: async () => {
+        throw new Error('Managed Node runtime location is not supported in this plugin');
+    },
+    listAvailableNodeReleases: async () => [],
+    installManagedNode: async () => {
+        throw new Error('Managed Node runtime is not supported in this plugin. Use the desktop app.');
+    },
+    cancelManagedNodeInstall: async () => {
+        throw new Error('Managed Node runtime is not supported in this plugin');
+    },
+    uninstallManagedNode: async () => {
+        throw new Error('Managed Node runtime is not supported in this plugin');
+    },
+    getNvmList: async () => [],
+    sendProjectInput: async (commandKey, input) => writeChildStdin(commandKey, input),
+    closeProjectInput: async (commandKey) => {
+        const child = processes.get(commandKey);
+        if (!child) throw new Error('commandKey 不存在');
+        if (child.stdin && !child.stdin.destroyed) child.stdin.end();
     },
 
     getSystemNodePath: async () => {
@@ -737,6 +1425,14 @@ window.services = {
             return null;
         }
     },
+    getSystemNodeState: getPluginSystemNodeState,
+    systemNodeSwitchSupported: async () => false,
+    switchSystemNode: async () => ({
+        success: false,
+        status: 'failed',
+        errorCode: 'unsupported_platform',
+        message: 'System Node switching is only supported in the desktop app',
+    }),
 
     getNodeVersion: async (nodePath) => {
         return new Promise(resolve => {
@@ -744,169 +1440,35 @@ window.services = {
                 if (err) return resolve('');
                 resolve(stdout.trim());
             };
-            if (nodePath) {
-                execFile(nodePath, ['-v'], cb);
+            if (nodePath && nodePath !== 'System Default') {
+                let exe = nodePath;
+                try {
+                    if (fs.existsSync(nodePath) && fs.statSync(nodePath).isDirectory()) {
+                        const win = path.join(nodePath, 'node.exe');
+                        const unix = path.join(nodePath, 'bin', 'node');
+                        if (fs.existsSync(win)) exe = win;
+                        else if (fs.existsSync(unix)) exe = unix;
+                    }
+                } catch (_) {}
+                execFile(exe, ['-v'], cb);
             } else {
                 exec('node -v', cb);
             }
         });
     },
 
-    installNode: async (version) => {
-        return new Promise((resolve, reject) => {
-            if (!isValidVersion(version)) {
-                return reject(new Error('Invalid version string.'));
-            }
-            if (process.platform === 'win32') {
-                // Use PowerShell to start a new elevated window that runs nvm install
-                // /c executes and terminates, but we add pause so user can see the result
-                // Start-Process -Wait ensures we wait for that window to close
-                const psCommand = `Start-Process cmd -ArgumentList '/c nvm install ${version} & pause' -Verb RunAs -Wait`;
-                exec(`powershell -Command "${psCommand}"`, (error) => {
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
+    getHomeDirectory: async () => os.homedir(),
 
-                    // Best-effort verify installation for numeric versions only.
-                    // For aliases (e.g. lts), nvm may install a resolved semver folder.
-                    const nvmHome = process.env.NVM_HOME;
-                    const normalizedVersion = String(version || '').trim().replace(/^v/i, '');
-                    const isNumericVersion = /^\d+(\.\d+){0,2}$/.test(normalizedVersion);
-                    if (nvmHome && isNumericVersion) {
-                        try {
-                            const dirs = fs.readdirSync(nvmHome);
-                            const installed = dirs.some((dir) => {
-                                if (!dir.startsWith('v')) return false;
-                                const normalizedDir = dir.replace(/^v/i, '');
-                                return (
-                                    normalizedDir === normalizedVersion ||
-                                    normalizedDir.startsWith(`${normalizedVersion}.`)
-                                );
-                            });
-
-                            if (installed) {
-                                resolve("Success");
-                                return;
-                            }
-                        } catch (e) {
-                            // Ignore verification errors and trust command result.
-                        }
-                    }
-
-                    resolve("Success");
-                });
-            } else if (process.platform === 'darwin') {
-                // macOS: Use AppleScript to open Terminal
-                const script = `source ~/.nvm/nvm.sh && nvm install ${version}`;
-                const appleScript = `tell application "Terminal" to do script "${script}"`;
-                exec(`osascript -e '${appleScript}'`, (error) => {
-                    if (error) reject(error);
-                    else resolve("Started in Terminal");
-                });
-            } else {
-                // Linux: Try common terminal emulators or fallback to background
-                const script = `source ~/.nvm/nvm.sh && nvm install ${version} && read -p "Press enter to close"`;
-                const terminals = [
-                    { cmd: 'gnome-terminal', args: ['--', 'bash', '-c', script] },
-                    { cmd: 'x-terminal-emulator', args: ['-e', `bash -c "${script}"`] },
-                    { cmd: 'konsole', args: ['-e', 'bash', '-c', script] },
-                    { cmd: 'xfce4-terminal', args: ['-e', `bash -c "${script}"`] },
-                    { cmd: 'xterm', args: ['-e', `bash -c "${script}"`] }
-                ];
-
-                let started = false;
-                for (const t of terminals) {
-                    try {
-                        spawn(t.cmd, t.args, { detached: true, stdio: 'ignore' });
-                        started = true;
-                        break;
-                    } catch (e) {}
-                }
-
-                if (started) {
-                    resolve("Started in Terminal");
-                } else {
-                    // Fallback: run in background and capture output
-                    exec(`bash -c "source ~/.nvm/nvm.sh && nvm install ${version}"`, (error, stdout, stderr) => {
-                         if (error) reject(new Error(stderr || error.message));
-                         else resolve("Success");
-                    });
-                }
-            }
-        });
+    installNode: async () => {
+        throw new Error('Managed Node runtime is not supported in this plugin. Use the desktop app.');
     },
 
-    uninstallNode: async (version) => {
-        return new Promise((resolve, reject) => {
-            if (!isValidVersion(version)) {
-                return reject(new Error('Invalid version string.'));
-            }
-            if (process.platform === 'win32') {
-                const psCommand = `Start-Process cmd -ArgumentList '/c nvm uninstall ${version} & pause' -Verb RunAs -Wait`;
-                exec(`powershell -Command "${psCommand}"`, (error) => {
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-
-                    // Verify uninstallation
-                    const nvmHome = process.env.NVM_HOME;
-                    if (nvmHome) {
-                        const versionPath = path.join(nvmHome, version);
-                        if (!fs.existsSync(versionPath)) {
-                            resolve("Success");
-                        } else {
-                            reject(new Error("Uninstallation failed or cancelled"));
-                        }
-                    } else {
-                        resolve("Done");
-                    }
-                });
-            } else if (process.platform === 'darwin') {
-                const script = `source ~/.nvm/nvm.sh && nvm uninstall ${version}`;
-                const appleScript = `tell application "Terminal" to do script "${script}"`;
-                exec(`osascript -e '${appleScript}'`, (error) => {
-                    if (error) reject(error);
-                    else resolve("Started in Terminal");
-                });
-            } else {
-                // Linux
-                 exec(`bash -c "source ~/.nvm/nvm.sh && nvm uninstall ${version}"`, (error, stdout, stderr) => {
-                     if (error) reject(new Error(stderr || error.message));
-                     else resolve("Success");
-                 });
-            }
-        });
+    uninstallNode: async () => {
+        throw new Error('Managed Node runtime is not supported in this plugin');
     },
 
-    useNode: async (version) => {
-        return new Promise((resolve, reject) => {
-            if (!isValidVersion(version)) {
-                return reject(new Error('Invalid version string.'));
-            }
-            if (process.platform === 'win32') {
-                const psCommand = `Start-Process cmd -ArgumentList '/c nvm use ${version} & pause' -Verb RunAs -Wait`;
-                exec(`powershell -Command "${psCommand}"`, (error) => {
-                    if (error) reject(error);
-                    else resolve("Done");
-                });
-            } else if (process.platform === 'darwin') {
-                 const script = `source ~/.nvm/nvm.sh && nvm use ${version}`;
-                 const appleScript = `tell application "Terminal" to do script "${script}"`;
-                 exec(`osascript -e '${appleScript}'`, (error) => {
-                     if (error) reject(error);
-                     else resolve("Done");
-                 });
-            } else {
-                 // Linux: nvm use affects current shell only, usually useless for future commands
-                 // But we can run it to set default if alias default is used
-                 exec(`bash -c "source ~/.nvm/nvm.sh && nvm alias default ${version}"`, (error) => {
-                     if (error) reject(error);
-                     else resolve("Done (Set as default)");
-                 });
-            }
-        });
+    useNode: async () => {
+        throw new Error('use_node is deprecated; set the Project Manager default Node instead');
     },
 
     scanProject: async (projectPath) => {
@@ -915,6 +1477,29 @@ window.services = {
             const dirName = path.basename(projectPath);
 
             if (!fs.existsSync(pkgPath)) {
+                // Java：先于 "other" 判定，与 src-tauri/src/project.rs 的 scan_project 保持一致。
+                // 不识别的话前端「命令」页签整个不渲染，Java 项目就只能开编辑器。
+                const isMaven = fs.existsSync(path.join(projectPath, 'pom.xml'));
+                const isGradle = ['build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts']
+                    .some((name) => fs.existsSync(path.join(projectPath, name)));
+                if (isMaven || isGradle) {
+                    const buildTool = isMaven ? 'maven' : 'gradle';
+                    const hasWrapper = isMaven
+                        ? (fs.existsSync(path.join(projectPath, 'mvnw')) || fs.existsSync(path.join(projectPath, 'mvnw.cmd')))
+                        : (fs.existsSync(path.join(projectPath, 'gradlew')) || fs.existsSync(path.join(projectPath, 'gradlew.bat')));
+                    return {
+                        name: dirName,
+                        scripts: [],
+                        path: projectPath,
+                        packageManager: undefined,
+                        nvmVersion: undefined,
+                        nodeVersionHint: undefined,
+                        projectType: 'java',
+                        buildTool,
+                        hasWrapper
+                    };
+                }
+
                 // Non-Node project
                 return {
                     name: dirName,
@@ -922,6 +1507,7 @@ window.services = {
                     path: projectPath,
                     packageManager: undefined,
                     nvmVersion: undefined,
+                    nodeVersionHint: undefined,
                     projectType: 'other'
                 };
             }
@@ -944,11 +1530,14 @@ window.services = {
             }
 
             let nvmVersion = undefined;
-            const nvmrcPath = path.join(projectPath, '.nvmrc');
-            if (fs.existsSync(nvmrcPath)) {
-                const rawNvmVersion = fs.readFileSync(nvmrcPath, 'utf-8').trim();
-                if (rawNvmVersion) {
-                    nvmVersion = rawNvmVersion;
+            for (const hintName of ['.nvmrc', '.node-version']) {
+                const hintPath = path.join(projectPath, hintName);
+                if (fs.existsSync(hintPath)) {
+                    const rawHint = fs.readFileSync(hintPath, 'utf-8').trim();
+                    if (rawHint) {
+                        nvmVersion = rawHint;
+                        break;
+                    }
                 }
             }
 
@@ -958,6 +1547,7 @@ window.services = {
                 path: projectPath,
                 packageManager,
                 nvmVersion,
+                nodeVersionHint: nvmVersion,
                 projectType: 'node'
             };
         } catch (e) {
@@ -1037,8 +1627,8 @@ window.services = {
         }
     },
 
-    runProjectCommand: async (id, projectPath, script, packageManager, nodePath) => {
-        if (processes.has(id)) throw new Error('Already running');
+    runProjectCommand: async (commandKey, sessionId, projectPath, script, packageManager, nodePath) => {
+        if (processes.has(commandKey)) throw new Error('Already running');
 
         // Setup logging
         let logFilePath = null;
@@ -1175,6 +1765,7 @@ window.services = {
             console.log('[Runner] Node Dir:', nodeDir);
             console.log('[Runner] Package Manager:', pm);
 
+            emitProcessOutput(commandKey, sessionId, 'stdout', `Executing: ${cmdStr}`, false, null);
             appendLog(`Executing: ${cmdStr}\n`);
             appendLog(`Node Path used: ${nodeDir || 'System Default'}\n`);
 
@@ -1188,38 +1779,43 @@ window.services = {
 
             spawnParentDeathWatch(child);
 
-            processes.set(id, child);
+            const startedAt = Date.now();
+            const runState = { child, sessionId, startedAt, stopRequested: false };
+            processes.set(commandKey, child);
+            runnerProcessStates.set(commandKey, runState);
+            attachProcessIo(commandKey, sessionId, child, (text) => appendLog(typeof text === 'string' && text.endsWith('\n') ? text : `${text}\n`));
 
-            child.stdout.on('data', (data) => {
-                const str = data.toString();
-                if (outputCallback) outputCallback({ id, data: str });
-                appendLog(str);
-            });
-
-            child.stderr.on('data', (data) => {
-                const str = data.toString();
-                if (outputCallback) outputCallback({ id, data: str });
-                appendLog(`ERR: ${str}`);
-            });
-
-            child.on('exit', () => {
-                processes.delete(id);
-                // Final rewrite
+            let finished = false;
+            let waitError = null;
+            const finishRun = (exitCode, errorMessage = null) => {
+                if (finished) return;
+                finished = true;
+                const currentState = runnerProcessStates.get(commandKey);
+                const stopped = currentState?.sessionId === sessionId && currentState.stopRequested === true;
+                runnerProcessStates.delete(commandKey);
+                processes.delete(commandKey);
                 rewriteLogFile();
                 if (logStream) logStream.end();
-                if (exitCallback) exitCallback({ id });
-            });
+                if (exitCallback) {
+                    exitCallback({
+                        id: commandKey,
+                        commandKey,
+                        sessionId,
+                        exitCode: typeof exitCode === 'number' ? exitCode : null,
+                        stopped,
+                        durationMs: Math.max(0, Date.now() - startedAt),
+                        ...(errorMessage ? { waitError: errorMessage } : {}),
+                    });
+                }
+            };
 
+            child.on('close', (code) => finishRun(code, waitError));
             child.on('error', (err) => {
                 console.error('[Runner] Spawn error:', err);
                 const errMsg = `Error spawning process: ${err.message}`;
-                if (outputCallback) outputCallback({ id, data: errMsg });
+                emitProcessOutput(commandKey, sessionId, 'stderr', errMsg, false, null);
                 appendLog(`${errMsg}\n`);
-                rewriteLogFile(); // Ensure log is saved
-                if (logStream) {
-                    logStream.end();
-                }
-                processes.delete(id);
+                waitError = err.message;
             });
 
         } catch (e) {
@@ -1228,16 +1824,21 @@ window.services = {
         }
     },
 
-    stopProjectCommand: async (id) => {
-        const child = processes.get(id);
-        if (child) {
-            terminateProcessTree(child);
-            processes.delete(id);
+    stopProjectCommand: async (commandKey) => {
+        const state = runnerProcessStates.get(commandKey);
+        const child = processes.get(commandKey);
+        if (!state || !child) throw new Error('commandKey 不存在');
+        state.stopRequested = true;
+        try {
+            terminateRunnerProcessTree(child);
+        } catch (error) {
+            state.stopRequested = false;
+            throw error;
         }
     },
 
-    runCustomCommand: async (id, projectPath, command) => {
-        if (processes.has(id)) throw new Error('Already running');
+    runCustomCommand: async (commandKey, sessionId, projectPath, command) => {
+        if (processes.has(commandKey)) throw new Error('Already running');
 
         const child = spawn(command, {
             cwd: projectPath,
@@ -1249,26 +1850,39 @@ window.services = {
 
         spawnParentDeathWatch(child);
 
-        processes.set(id, child);
+        const startedAt = Date.now();
+        const runState = { child, sessionId, startedAt, stopRequested: false };
+        processes.set(commandKey, child);
+        runnerProcessStates.set(commandKey, runState);
+        attachProcessIo(commandKey, sessionId, child);
 
-        child.stdout.on('data', (data) => {
-            const str = data.toString();
-            if (outputCallback) outputCallback({ id, data: str });
-        });
+        let finished = false;
+        let waitError = null;
+        const finishRun = (exitCode, errorMessage = null) => {
+            if (finished) return;
+            finished = true;
+            const currentState = runnerProcessStates.get(commandKey);
+            const stopped = currentState?.sessionId === sessionId && currentState.stopRequested === true;
+            runnerProcessStates.delete(commandKey);
+            processes.delete(commandKey);
+            if (exitCallback) {
+                exitCallback({
+                    id: commandKey,
+                    commandKey,
+                    sessionId,
+                    exitCode: typeof exitCode === 'number' ? exitCode : null,
+                    stopped,
+                    durationMs: Math.max(0, Date.now() - startedAt),
+                    ...(errorMessage ? { waitError: errorMessage } : {}),
+                });
+            }
+        };
 
-        child.stderr.on('data', (data) => {
-            const str = data.toString();
-            if (outputCallback) outputCallback({ id, data: str });
-        });
-
-        child.on('exit', () => {
-            processes.delete(id);
-            if (exitCallback) exitCallback({ id });
-        });
-
+        child.on('close', (code) => finishRun(code, waitError));
         child.on('error', (err) => {
-            if (outputCallback) outputCallback({ id, data: `Error: ${err.message}\n` });
-            processes.delete(id);
+            const errMsg = `Error spawning process: ${err.message}`;
+            emitProcessOutput(commandKey, sessionId, 'stderr', errMsg, false, null);
+            waitError = err.message;
         });
     },
 
@@ -1283,9 +1897,7 @@ window.services = {
     },
 
     readConfigFile: async (filename) => {
-        // Use userData path
-        const userPath = platform.getPath('userData');
-        const filePath = path.join(userPath, filename);
+        const filePath = configPath(filename);
         if (fs.existsSync(filePath)) {
             return fs.readFileSync(filePath, 'utf-8');
         }
@@ -1293,9 +1905,37 @@ window.services = {
     },
 
     writeConfigFile: async (filename, content) => {
+        writeConfigSafely(filename, content);
+    },
+
+    hasConfigBackup: async (filename) => {
+        return fs.existsSync(backupPath(configPath(filename)));
+    },
+
+    readConfigBackup: async (filename) => {
+        const filePath = backupPath(configPath(filename));
+        return fs.readFileSync(filePath, 'utf-8');
+    },
+
+    restoreConfigBackup: async (filename) => {
+        return restoreConfigSafely(filename);
+    },
+
+    canOpenConfigDirectory: async () => {
+        return typeof platform.shellOpenPath === 'function' || typeof platform.openFolder === 'function';
+    },
+
+    openConfigDirectory: async () => {
         const userPath = platform.getPath('userData');
-        const filePath = path.join(userPath, filename);
-        fs.writeFileSync(filePath, content, 'utf-8');
+        if (typeof platform.shellOpenPath === 'function') {
+            await platform.shellOpenPath(userPath);
+            return;
+        }
+        if (typeof platform.openFolder === 'function') {
+            await platform.openFolder(userPath);
+            return;
+        }
+        throw new Error('Opening the config directory is unavailable in this host.');
     },
 
     readTextFile: async (path) => {
@@ -1348,11 +1988,122 @@ window.services = {
     },
 
     openUrl: async (url) => {
-        platform.shellOpenExternal(url);
+        platform.shellOpenExternal(assertSafeExternalUrl(url));
     },
 
-    openFolder: async (path) => {
-        platform.shellOpenPath(path);
+    openFolder: async (folderPath) => {
+        if (process.platform === 'win32') {
+            spawn('explorer.exe', [folderPath], { windowsHide: true });
+            return;
+        }
+        if (process.platform === 'darwin') {
+            spawn('open', [folderPath]);
+            return;
+        }
+        platform.shellOpenPath(folderPath);
+    },
+
+    openPath: async (filePath) => {
+        platform.shellOpenPath(filePath);
+    },
+
+    workspaceReadDir: async (root, relativePath = '') => {
+        const rootPath = fs.realpathSync(path.resolve(root));
+        const directory = resolveWorkspacePath(rootPath, relativePath);
+        if (!fs.statSync(directory).isDirectory()) throw new Error('Workspace path is not a directory');
+        return fs.readdirSync(directory, { withFileTypes: true })
+            .filter(entry => !entry.isSymbolicLink())
+            .map(entry => {
+                const fullPath = path.join(directory, entry.name);
+                assertWorkspaceWithin(rootPath, fs.realpathSync(fullPath));
+                return { name: entry.name, isDirectory: entry.isDirectory(), size: fs.statSync(fullPath).size };
+            })
+            .sort((a, b) => Number(!a.isDirectory) - Number(!b.isDirectory) || a.name.localeCompare(b.name));
+    },
+
+    workspaceCreateFile: async (root, relativePath) => {
+        const filePath = resolveWorkspacePath(root, relativePath, true);
+        if (fs.existsSync(filePath)) throw new Error(`Path already exists: ${relativePath}`);
+        const fd = fs.openSync(filePath, 'wx');
+        fs.closeSync(fd);
+    },
+
+    workspaceCreateDirectory: async (root, relativePath) => {
+        const directory = resolveWorkspacePath(root, relativePath, true);
+        if (fs.existsSync(directory)) throw new Error(`Path already exists: ${relativePath}`);
+        fs.mkdirSync(directory);
+    },
+
+    workspaceRename: async (root, fromRelative, toRelative) => {
+        const rootPath = fs.realpathSync(path.resolve(root));
+        const fromPath = resolveWorkspacePath(rootPath, fromRelative);
+        if (fromPath === rootPath) throw new Error('Cannot rename workspace root');
+        const toPath = resolveWorkspacePath(rootPath, toRelative, true);
+        if (fs.existsSync(toPath)) throw new Error(`Target path already exists: ${toRelative}`);
+        fs.renameSync(fromPath, toPath);
+    },
+
+    workspaceTrash: async (root, relativePath) => {
+        const rootPath = fs.realpathSync(path.resolve(root));
+        const target = resolveWorkspacePath(rootPath, relativePath);
+        if (target === rootPath) throw new Error('Cannot delete workspace root');
+        fs.rmSync(target, { recursive: true, force: false });
+    },
+
+    workspaceStat: async (root, relativePath = '') => {
+        const target = resolveWorkspacePath(root, relativePath, true);
+        if (!fs.existsSync(target)) return { exists: false, isDirectory: false, size: 0, diskVersion: `missing:${target}`, readOnly: false };
+        const stat = fs.statSync(target);
+        return { exists: true, isDirectory: stat.isDirectory(), size: stat.size, diskVersion: workspaceDiskVersion(target, stat), readOnly: isReadonlyPath(target, stat) };
+    },
+
+    workspaceReadEditorFile: async (root, relativePath) => {
+        const target = resolveWorkspacePath(root, relativePath);
+        const stat = fs.statSync(target);
+        if (stat.isDirectory()) throw new Error('Cannot open a directory in the editor');
+        const bytes = fs.readFileSync(target);
+        const decoded = decodeEditorBuffer(bytes);
+        return {
+            content: decoded.content,
+            size: bytes.length,
+            diskVersion: workspaceDiskVersion(target, stat),
+            encoding: decoded.encoding,
+            eol: bytes.includes(Buffer.from('\r\n')) ? 'crlf' : 'lf',
+            readOnly: decoded.readOnly || isReadonlyPath(target, stat),
+        };
+    },
+
+    workspaceReadBinaryFileBase64: async (root, relativePath) => {
+        const target = resolveWorkspacePath(root, relativePath);
+        const stat = fs.statSync(target);
+        if (stat.size > 20 * 1024 * 1024) throw new Error('file_too_large');
+        return fs.readFileSync(target).toString('base64');
+    },
+
+    workspaceWriteEditorFile: async (root, relativePath, content, expectedDiskVersion = '', eol = 'lf', bom = false, force = false) => {
+        const target = resolveWorkspacePath(root, relativePath, true);
+        const currentVersion = fs.existsSync(target) ? workspaceDiskVersion(target) : '';
+        if (!force && String(expectedDiskVersion || '') !== currentVersion) throw new Error('external_modified');
+        const bytes = editorBytes(content, eol, Boolean(bom));
+        atomicWriteEditorBytes(target, bytes);
+        const stat = fs.statSync(target);
+        return { diskVersion: workspaceDiskVersion(target, stat), size: stat.size };
+    },
+
+    workspaceTrashMode: async () => 'permanent',
+
+    revealInFolder: async (filePath) => {
+        if (process.platform === 'win32') {
+            const normalized = filePath.replace(/\//g, '\\');
+            const target = fs.existsSync(normalized) ? normalized : path.dirname(normalized);
+            spawn('explorer.exe', ['/select,', target], { windowsHide: true });
+            return;
+        }
+        if (process.platform === 'darwin') {
+            spawn('open', ['-R', filePath]);
+            return;
+        }
+        platform.shellOpenPath(path.dirname(filePath));
     },
 
     openInEditor: async (path, editor = 'code') => {
@@ -1367,11 +2118,11 @@ window.services = {
     },
 
     getAppVersion: async () => {
-        return "1.5.7";
+        return "1.7.0";
     },
 
     installUpdate: async (url) => {
-        platform.shellOpenExternal(url);
+        platform.shellOpenExternal(assertSafeExternalUrl(url));
     },
 
     onDownloadProgress: async (cb) => {
@@ -2307,8 +3058,6 @@ $result | ConvertTo-Json -Compress`;
                 '--no-pager',
                 'log',
                 '--all',
-                `--since=${since}`,
-                `--before=${until}`,
                 '--format=%H%x1f%h%x1f%an%x1f%ae%x1f%aI%x1f%s'
             ], {
                 cwd: projectPath, windowsHide: true, maxBuffer: 10 * 1024 * 1024
@@ -2324,6 +3073,8 @@ $result | ConvertTo-Json -Compress`;
 
             const author = parts[2];
             const email = parts[3];
+            const date = parts[4];
+            if (date < since || date >= until) continue;
             const matched = identity.email
                 ? email.toLowerCase() === identity.email.toLowerCase()
                 : author === identity.name;
@@ -2334,7 +3085,7 @@ $result | ConvertTo-Json -Compress`;
                 shortHash: parts[1],
                 author,
                 email,
-                date: parts[4],
+                date,
                 message: parts[5],
             });
         }
@@ -2434,6 +3185,120 @@ $result | ConvertTo-Json -Compress`;
             input: patch,
             stdio: ['pipe', 'pipe', 'pipe'],
         }).toString();
+    },
+
+    gitAddIgnorePattern: async (projectPath, files, kind, local) => {
+        const root = gitRepoRoot(projectPath);
+        const patterns = files.map((file) => buildGitIgnorePattern(root, file, kind));
+        return appendGitIgnorePatterns(gitIgnoreTarget(projectPath, root, Boolean(local)), patterns);
+    },
+
+    gitStopTracking: async (projectPath, files, kind, local) => {
+        const root = gitRepoRoot(projectPath);
+        const normalized = files.map(normalizeRepoRelativePath);
+        for (const file of normalized) {
+            execFileSync('git', ['ls-files', '--error-unmatch', '--', file], {
+                cwd: projectPath, windowsHide: true, stdio: 'pipe',
+            });
+        }
+        const patterns = normalized.map((file) => buildGitIgnorePattern(root, file, kind));
+        const ignoreFile = gitIgnoreTarget(projectPath, root, Boolean(local));
+        execFileSync('git', ['rm', '--cached', '--dry-run', '--'].concat(normalized), {
+            cwd: projectPath, windowsHide: true, stdio: 'pipe',
+        });
+        const added = appendGitIgnorePatterns(ignoreFile, patterns);
+        try {
+            return execFileSync('git', ['rm', '--cached', '--'].concat(normalized), {
+                cwd: projectPath, windowsHide: true,
+            }).toString();
+        } catch (error) {
+            const message = error.stderr ? error.stderr.toString() : error.message;
+            if (added.length) throw new Error(`Ignore rule was written, but stopping tracking failed: ${message}`);
+            throw error;
+        }
+    },
+
+    gitApplyHunk: async (projectPath, patch, mode) => {
+        if (Buffer.byteLength(String(patch), 'utf8') > GIT_IMAGE_TOTAL_MAX_SIZE
+            || !String(patch).includes('diff --git')
+            || !String(patch).split(/\r?\n/).some((line) => line.startsWith('index '))
+            || !String(patch).includes('@@')
+            || !String(patch).includes('--- ')
+            || !String(patch).includes('+++ ')) {
+            throw new Error('Patch does not contain a safe file diff header');
+        }
+        const args = ['apply', '--whitespace=nowarn'];
+        if (mode === 'stage') args.push('--cached');
+        else if (mode === 'unstage') args.push('--cached', '--reverse');
+        else if (mode === 'discard') args.push('--reverse');
+        else throw new Error(`Unsupported hunk mode: ${mode}`);
+        args.push('-');
+        return execFileSync('git', args, {
+            cwd: projectPath, windowsHide: true, input: patch,
+            stdio: ['pipe', 'pipe', 'pipe'],
+        }).toString();
+    },
+
+    gitGetImageDiff: async (projectPath, file, staged, commit, oldPath) => {
+        const relative = normalizeRepoRelativePath(file);
+        const root = gitRepoRoot(projectPath);
+        const sources = gitDiffSources(projectPath, relative, Boolean(staged), commit, oldPath);
+        const readSide = (side) => {
+            if (!side) return null;
+            const size = readGitBlobSize(projectPath, side);
+            if (size === null) return null;
+            if (size > GIT_IMAGE_SIDE_MAX_SIZE) throw new Error('too_large: image side exceeds 10 MB');
+            const bytes = readGitBlob(projectPath, side);
+            if (!bytes) return null;
+            if (bytes.length > GIT_IMAGE_SIDE_MAX_SIZE) throw new Error('too_large: image side exceeds 10 MB');
+            const mime = gitImageMime(side.path);
+            if (!mime) throw new Error(`Unsupported image format: ${side.path}`);
+            return { mime, base64: bytes.toString('base64'), size: bytes.length };
+        };
+        const before = readSide(sources.before);
+        const after = readSide(sources.after);
+        if ((before?.size || 0) + (after?.size || 0) > GIT_IMAGE_TOTAL_MAX_SIZE) {
+            throw new Error('too_large: image payload exceeds 20 MB');
+        }
+        void root;
+        return { kind: 'image', before, after };
+    },
+
+    gitGetBinaryDiffMeta: async (projectPath, file, staged, commit, oldPath) => {
+        const sources = gitDiffSources(projectPath, file, Boolean(staged), commit, oldPath);
+        const beforeSize = readGitBlobSize(projectPath, sources.before);
+        const afterSize = readGitBlobSize(projectPath, sources.after);
+        return {
+            kind: 'binary',
+            beforeSize,
+            afterSize,
+            beforeExists: beforeSize !== null,
+            afterExists: afterSize !== null,
+        };
+    },
+
+    gitFileHistory: async (projectPath, file, maxCount) => {
+        const relative = normalizeRepoRelativePath(file);
+        const count = Math.max(1, Number(maxCount) || 100);
+        let output = '';
+        try {
+            output = execFileSync('git', [
+                'log', '--follow', `--max-count=${count}`,
+                '--format=%H%x1f%h%x1f%an%x1f%ae%x1f%cn%x1f%aI%x1f%s%x1f%P%x1f%D',
+                '--', relative,
+            ], { cwd: projectPath, windowsHide: true }).toString();
+        } catch (error) {
+            output = error.stdout ? error.stdout.toString() : '';
+        }
+        return output.split('\n').filter(Boolean).map((line) => {
+            const parts = line.split('\x1f');
+            return {
+                hash: parts[0] || '', short_hash: parts[1] || '', author: parts[2] || '',
+                email: parts[3] || '', committer: parts[4] || '', date: parts[5] || '',
+                message: parts[6] || '', parents: parts[7] ? parts[7].split(' ') : [],
+                refs: parts[8] ? parts[8].split(', ').map((s) => s.trim()).filter(Boolean) : [],
+            };
+        });
     },
 
     gitMerge: async (projectPath, branch) => {
@@ -2629,8 +3494,8 @@ $result | ConvertTo-Json -Compress`;
     },
 
     //************* 带 commandPath 的 runProjectCommand *************
-    runProjectCommandWithCommandPath: async (id, projectPath, script, packageManager, nodePath, commandPath, pmNodePath) => {
-        if (processes.has(id)) throw new Error('Already running');
+    runProjectCommandWithCommandPath: async (commandKey, sessionId, projectPath, script, packageManager, nodePath, commandPath, pmNodePath) => {
+        if (processes.has(commandKey)) throw new Error('Already running');
 
         // Setup logging (与 runProjectCommand 相同)
         let logFilePath = null;
@@ -2738,6 +3603,7 @@ $result | ConvertTo-Json -Compress`;
 
         const cmdStr = `${spawnCmd} run ${script}`;
         try {
+            emitProcessOutput(commandKey, sessionId, 'stdout', `Executing: ${cmdStr}`, false, null);
             appendLog(`Executing: ${cmdStr}\n`);
             appendLog(`Node Path used: ${nodeDir || 'System Default'}\n`);
             if (commandPath) appendLog(`PM Command Path: ${commandPath}\n`);
@@ -2751,35 +3617,43 @@ $result | ConvertTo-Json -Compress`;
             });
 
             spawnParentDeathWatch(child);
-            processes.set(id, child);
+            const startedAt = Date.now();
+            const runState = { child, sessionId, startedAt, stopRequested: false };
+            processes.set(commandKey, child);
+            runnerProcessStates.set(commandKey, runState);
+            attachProcessIo(commandKey, sessionId, child, (text) => appendLog(typeof text === 'string' && text.endsWith('\n') ? text : `${text}\n`));
 
-            child.stdout.on('data', (data) => {
-                const str = data.toString();
-                if (outputCallback) outputCallback({ id, data: str });
-                appendLog(str);
-            });
-
-            child.stderr.on('data', (data) => {
-                const str = data.toString();
-                if (outputCallback) outputCallback({ id, data: str });
-                appendLog(`ERR: ${str}`);
-            });
-
-            child.on('exit', () => {
-                processes.delete(id);
+            let finished = false;
+            let waitError = null;
+            const finishRun = (exitCode, errorMessage = null) => {
+                if (finished) return;
+                finished = true;
+                const currentState = runnerProcessStates.get(commandKey);
+                const stopped = currentState?.sessionId === sessionId && currentState.stopRequested === true;
+                runnerProcessStates.delete(commandKey);
+                processes.delete(commandKey);
                 rewriteLogFile();
                 if (logStream) logStream.end();
-                if (exitCallback) exitCallback({ id });
-            });
+                if (exitCallback) {
+                    exitCallback({
+                        id: commandKey,
+                        commandKey,
+                        sessionId,
+                        exitCode: typeof exitCode === 'number' ? exitCode : null,
+                        stopped,
+                        durationMs: Math.max(0, Date.now() - startedAt),
+                        ...(errorMessage ? { waitError: errorMessage } : {}),
+                    });
+                }
+            };
 
+            child.on('close', (code) => finishRun(code, waitError));
             child.on('error', (err) => {
                 console.error('[Runner] Spawn error:', err);
                 const errMsg = `Error spawning process: ${err.message}`;
-                if (outputCallback) outputCallback({ id, data: errMsg });
+                emitProcessOutput(commandKey, sessionId, 'stderr', errMsg, false, null);
                 appendLog(`${errMsg}\n`);
-                rewriteLogFile();
-                if (logStream) logStream.end();
-                processes.delete(id);
+                waitError = err.message;
             });
         } catch (e) {
             if (logStream) logStream.end();

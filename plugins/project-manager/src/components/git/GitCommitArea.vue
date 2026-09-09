@@ -7,6 +7,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import type { Project } from '../../types.ts';
 import { showPersistentGitError } from './message.ts';
 import { applyGeneratedCommitMessage } from './aiCommitMessageTarget.ts';
+import { buildAiAttempts } from '../../utils/aiFallback.ts';
 
 /***********************组件输入与依赖*********************/
 
@@ -202,8 +203,10 @@ async function handleUndoLastCommit(mode: 'soft' | 'mixed') {
 
 async function handleAiGenerate() {
   const s = settingsStore.settings;
-  const service = s.gitAiPrimaryService;
-  if (!service?.apiKey?.trim() || !service?.baseUrl?.trim() || !service?.model?.trim()) {
+  // 槽位是否可用的判断收敛在 buildAiAttempts 里：
+  // 空列表 = 压根没配好任何一个渠道
+  const attempts = buildAiAttempts(s);
+  if (attempts.length === 0) {
     ElMessage.warning(t('git.aiConfigMissing'));
     return;
   }
@@ -217,13 +220,18 @@ async function handleAiGenerate() {
     if (willAutoStage.value) {
       await gitStore.stageAll(requestProjectId, requestProjectPath);
     }
-    const msg = await gitStore.generateAiCommitMessage(requestProjectId, requestProjectPath, {
-      service,
+    const result = await gitStore.generateAiCommitMessage(requestProjectId, requestProjectPath, {
+      attempts,
       promptTemplate: s.gitAiPromptTemplate,
       stream: s.gitAiStream,
     });
-    if (applyGeneratedCommitMessage(gitStore.commitMessage, requestProjectId, msg)) {
-      ElMessage.success(t('git.aiSuccess'));
+    if (applyGeneratedCommitMessage(gitStore.commitMessage, requestProjectId, result.text)) {
+      // 发生回退时要告诉用户实际用的不是首选渠道，否则他会以为首选一直正常
+      if (result.didFallback) {
+        ElMessage.success(t('git.aiSuccessFallback', { target: result.usedAttempt.label }));
+      } else {
+        ElMessage.success(t('git.aiSuccess'));
+      }
     }
   } catch (e: any) {
     const msg = String(e);
@@ -242,7 +250,7 @@ async function handleAiGenerate() {
   <div class="git-commit-area flex flex-col shrink-0 overflow-hidden font-sans">
     <!-- Header -->
     <div class="git-commit-header flex items-center justify-between px-2.5 py-1 shrink-0">
-      <span class="text-[10px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+      <span class="app-text-meta font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
         <div class="i-mdi-message-text-outline text-xs text-blue-500/60" />
         {{ t('git.commitMessage') }}
       </span>
@@ -251,7 +259,7 @@ async function handleAiGenerate() {
           v-if="aiEnabled"
           @click="handleAiGenerate"
           :disabled="aiGenerating || hasConflicts"
-          class="git-ai-button flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          class="git-ai-button app-outline-action app-text-control flex items-center gap-0.5 px-1.5 py-0.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           :title="t('git.aiGenerate')"
         >
           <div :class="aiGenerating ? 'i-mdi-loading animate-spin' : 'i-mdi-auto-fix'" class="text-xs" />
@@ -259,17 +267,17 @@ async function handleAiGenerate() {
         </button>
         <span
           v-if="stagedFiles.length > 0"
-          class="git-staged-pill text-[9px] px-1.5 py-0.5 rounded-full leading-none font-medium"
+          class="git-staged-pill app-text-caption px-1.5 py-0.5 rounded-full leading-none font-medium"
         >{{ stagedFiles.length }} {{ t('git.staged') }}</span>
         <span
           v-else-if="willAutoStage"
-          class="git-autostage-pill text-[9px] px-1.5 py-0.5 rounded-full leading-none font-medium"
+          class="git-autostage-pill app-text-caption px-1.5 py-0.5 rounded-full leading-none font-medium"
         >{{ t('git.autoStage') }}</span>
       </div>
     </div>
 
     <!-- 冲突 / 自动暂存提示 -->
-    <div v-if="commitHint" class="px-2.5 py-1 text-[10px] shrink-0" :class="hasConflicts ? 'git-hint-danger' : 'git-hint-info'">
+    <div v-if="commitHint" class="app-text-meta px-2.5 py-1 shrink-0" :class="hasConflicts ? 'git-hint-danger' : 'git-hint-info'">
       {{ commitHint }}
     </div>
 
@@ -278,7 +286,7 @@ async function handleAiGenerate() {
       <textarea
         v-model="commitMessage"
         :placeholder="t('git.commitPlaceholder')"
-        class="git-commit-textarea w-full h-full box-border px-2 py-1.5 text-[11px] rounded-md resize-none focus:outline-none transition-all duration-150"
+        class="git-commit-textarea app-text-body w-full h-full box-border px-2 py-1.5 rounded-md resize-none focus:outline-none transition-all duration-150"
         @keydown.ctrl.enter="handleCommit"
       />
     </div>
@@ -288,7 +296,7 @@ async function handleAiGenerate() {
       <button
         @click="handleCommit"
         :disabled="!commitMessage.trim() || !canCommit"
-        class="git-commit-primary flex-1 py-1.5 rounded-md text-[11px] font-medium transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+        class="git-commit-primary app-text-control flex-1 py-1.5 rounded-md font-medium transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1"
       >
         <div class="i-mdi-check text-xs" />
         {{ t('git.commit') }}
@@ -296,7 +304,7 @@ async function handleAiGenerate() {
       <button
         @click="handleCommitAndPush"
         :disabled="!commitMessage.trim() || !canCommit"
-        class="git-commit-success flex-1 py-1.5 rounded-md text-[11px] font-medium transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+        class="git-commit-success app-text-control flex-1 py-1.5 rounded-md font-medium transition-all duration-200 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1"
         :title="t('git.commitAndPush')"
       >
         <div class="i-mdi-source-commit text-xs" />
@@ -306,7 +314,7 @@ async function handleAiGenerate() {
       <div ref="menuRef" class="relative shrink-0">
         <button
           type="button"
-          class="git-commit-more h-full px-2 rounded-md text-[11px] cursor-pointer"
+          class="git-commit-more app-text-control h-full px-2 rounded-md cursor-pointer"
           :title="t('git.moreCommitActions')"
           @click.stop="menuOpen = !menuOpen"
         >
@@ -339,12 +347,8 @@ async function handleAiGenerate() {
 }
 
 .git-ai-button {
-  background: color-mix(in srgb, var(--app-primary) 10%, transparent);
+  appearance: none;
   color: var(--app-primary);
-}
-
-.git-ai-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--app-primary) 16%, transparent);
 }
 
 .git-staged-pill {
@@ -419,7 +423,9 @@ async function handleAiGenerate() {
   position: absolute;
   right: 0;
   bottom: calc(100% + 4px);
-  min-width: 160px;
+  width: max-content;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 16px));
   padding: 4px;
   border-radius: 8px;
   border: 1px solid var(--app-border);
@@ -429,17 +435,25 @@ async function handleAiGenerate() {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow: hidden;
 }
 
 .git-commit-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
   border: none;
   background: transparent;
   text-align: left;
   padding: 6px 10px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--app-font-control);
   color: var(--app-text-secondary);
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .git-commit-menu button:hover:not(:disabled) {

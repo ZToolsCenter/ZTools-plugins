@@ -1,0 +1,63 @@
+{
+  "name": "img-comp",
+  "title": "图片压缩",
+  "homepage": "https://github.com/z-hanzhe/ztools-img-comp",
+  "description": "本地图片压缩，支持 JPG、PNG、GIF、SVG。基于 JavaScript 与 WebAssembly 实现。",
+  "author": "hanzhe",
+  "version": "1.0.1",
+  "main": "index.html",
+  "logo": "assets/logo.png",
+  "preload": "preload.js",
+  "platform": [
+    "win32",
+    "darwin"
+  ],
+  "features": [
+    {
+      "code": "local-image-optimizer",
+      "explain": "本地图片优化",
+      "cmds": [
+        "图片压缩",
+        {
+          "type": "files",
+          "fileType": "file",
+          "extensions": [
+            "jpg",
+            "jpeg",
+            "png",
+            "gif",
+            "svg"
+          ],
+          "minLength": 1,
+          "maxLength": 10000,
+          "label": "选择图片进行优化"
+        },
+        {
+          "type": "files",
+          "fileType": "directory",
+          "minLength": 1,
+          "maxLength": 1,
+          "label": "优化目录中的图片"
+        },
+        {
+          "type": "img",
+          "label": "优化剪贴板图片"
+        },
+        {
+          "type": "window",
+          "label": "压缩当前目录图片",
+          "match": {
+            "app": [
+              "Finder.app",
+              "explorer.exe"
+            ],
+            "class": [
+              "",
+              "CabinetWClass"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

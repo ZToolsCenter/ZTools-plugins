@@ -4,10 +4,10 @@
   "title": "馒头OCR",
   "description": "支持腾讯云/百度云/阿里云的多引擎 OCR 文字识别工具",
   "author": "menghaohao",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "preload": "preload/services.js",
-  "logo": "logo.svg",
+  "logo": "logo.png",
   "development": {
     "main": "http://localhost:5173"
   },
@@ -15,7 +15,7 @@
     {
       "code": "ocr",
       "explain": "OCR 文字识别，支持截图/本地图片/剪贴板/拖放",
-      "icon": "logo.svg",
+      "icon": "logo.png",
       "cmds": [
         "OCR",
         "ocr",

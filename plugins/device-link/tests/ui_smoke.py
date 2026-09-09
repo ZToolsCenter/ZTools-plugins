@@ -15,6 +15,30 @@ with sync_playwright() as playwright:
     page.get_by_role("heading", name="Harris 的 iPhone").wait_for()
     assert page.get_by_text("Harris 的 iPhone", exact=True).count() >= 1
     assert page.get_by_text("刚拍的白板", exact=True).count() == 1
+    assert page.get_by_role("button", name="打开附件 IMG_2048.HEIC").is_visible()
+    assert page.get_by_role("button", name="下载附件 IMG_2048.HEIC").is_visible()
+    download_button = page.locator(".attachment__download").first
+    page.evaluate("""
+      () => {
+        window.__resolveAttachmentSave = undefined
+        window.__attachmentSaveCalls = 0
+        window.deviceLink.saveAttachment = () => new Promise((resolve) => {
+          window.__attachmentSaveCalls += 1
+          window.__resolveAttachmentSave = resolve
+        })
+      }
+    """)
+    download_button.focus()
+    assert download_button.evaluate("element => element === document.activeElement")
+    download_button.evaluate("element => { element.click(); element.click() }")
+    assert page.evaluate("window.__attachmentSaveCalls") == 1
+    assert download_button.is_disabled()
+    assert download_button.get_attribute("aria-busy") == "true"
+    assert download_button.get_attribute("aria-label") == "正在保存附件 IMG_2048.HEIC"
+    assert "保存中" in download_button.inner_text()
+    page.evaluate("window.__resolveAttachmentSave({ status: 'saved', name: 'IMG_2048.HEIC' })")
+    page.get_by_text("已保存 IMG_2048.HEIC", exact=True).wait_for()
+    assert download_button.is_enabled()
     assert page.get_by_text("https://ztools.app/device-link", exact=True).count() == 0
     page.locator(".device-card__select", has_text="Pixel 9 Pro").click()
     page.get_by_role("heading", name="Pixel 9 Pro").wait_for()

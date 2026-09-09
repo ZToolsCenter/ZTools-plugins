@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useProjectStore } from './project';
 import { useSettingsStore } from './settings';
 import type { WorkspaceProfile, WorkspaceProfileItem } from '../types';
+import { getProjectCommandRunId } from '../utils/projectCommands';
 
 /**
  * 启动组 store：管理 WorkspaceProfile 的 CRUD 与执行逻辑。
@@ -72,7 +73,11 @@ export const useWorkspaceProfileStore = defineStore('workspaceProfile', () => {
 
   /** 构建 runId（与 project store 一致） */
   function buildRunId(item: WorkspaceProfileItem): string {
-    return `${item.projectId}:${item.nameOrCommandId}`;
+    return getProjectCommandRunId(
+      item.projectId,
+      item.type === 'custom' ? 'custom' : 'script',
+      item.nameOrCommandId,
+    );
   }
 
   /** 一键启动整个启动组（已 running 的跳过） */
@@ -113,7 +118,11 @@ export const useWorkspaceProfileStore = defineStore('workspaceProfile', () => {
       if (projectStore.runningStatus[runId]) {
         const project = projectStore.projects.find((p) => p.id === item.projectId);
         if (project) {
-          await projectStore.stopProject(project, item.nameOrCommandId);
+          await projectStore.stopProject(
+            project,
+            item.nameOrCommandId,
+            item.type === 'custom' ? 'custom' : 'script',
+          );
           stopped++;
         }
       } else {

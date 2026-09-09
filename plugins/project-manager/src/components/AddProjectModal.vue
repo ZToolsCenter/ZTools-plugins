@@ -3,16 +3,24 @@ import { computed, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api';
-import type { Project, CustomCommand } from '../types';
+import type { Project, CustomCommand, ProjectQuickCommand } from '../types';
 import type { ProjectInfo, ImportNode } from '../api/types';
-import { normalizeNvmVersion, findInstalledNodeVersion } from '../utils/nvm';
-import { ensureNodeInstallCommand, getInstallDependenciesCommand } from '../utils/projectCommands';
+import { useNodeStore } from '../stores/node';
+import { normalizeNodeVersion, projectNodeVersionHint } from '../utils/nvm';
+import { getNodeRuntimeId, normalizeRuntimeVersion, resolveAppDefaultNodePath, resolveProjectNodePath, resolveProjectRuntime } from '../utils/nodeRuntime';
+import { ensureNodeInstallCommand, getInstallDependenciesCommand, buildJavaPresetCommands, isWindowsPlatform } from '../utils/projectCommands';
+import { getCustomCommandDisplayName } from '../utils/projectCommands';
 import { useSettingsStore } from '../stores/settings';
 import { useProjectStore } from '../stores/project';
 import type { PackageManagerResolveResult } from '../api/types';
 import { collectProjectTags, normalizeProjectTags } from '../utils/projectTags';
 import { countModulesInNode } from '../utils/scanCandidateTree';
 import { MAX_PROJECT_DEPTH } from '../utils/projectTree';
+import {
+  getAvailableProjectQuickCommands,
+  getDefaultProjectQuickCommands,
+  normalizeProjectQuickCommands,
+} from '../utils/projectQuickCommands';
 import SubProjectScanModal from './SubProjectScanModal.vue';
 
 /**
@@ -29,25 +37,33 @@ type ProjectForm = {
   id: string;
   name: string;
   path: string;
-  type: 'node' | 'other';
+  type: 'node' | 'java' | 'other';
+  /** Java 构建工具，仅 type === 'java' 时有值 */
+  buildTool?: 'maven' | 'gradle';
+  /** 是否存在 mvnw / gradlew，有则命令优先走 wrapper */
+  hasWrapper?: boolean;
   gitConfigured: boolean;
   gitRemoteUrl: string;
   gitBranch: string;
+  nodeRuntimeId: string;
   nodeVersion: string;
   packageManager: 'npm' | 'yarn' | 'pnpm' | 'cnpm';
   packageManagerSource: 'project' | 'default';
   scripts: string[];
   visibleScripts: string[];
   customCommands: CustomCommand[];
+  quickCommands: ProjectQuickCommand[];
   editorId: string;
   description: string;
   tags: string[];
   groupId: string;
+  terminalInjectNode: boolean;
 };
 
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
 const projectStore = useProjectStore();
+const nodeStore = useNodeStore();
 const props = defineProps<{
   modelValue: boolean;
   editProject?: Project | null;
@@ -79,8 +95,19 @@ const editorHint = computed(() => defaultEditor.value
   ? `${t('project.editorHint')}：${defaultEditor.value.name || defaultEditor.value.path}`
   : t('project.editorHint'));
 
-const nodeVersions = ref<string[]>([]);
 const loading = ref(false);
+
+function runtimeSourceLabel(source: string): string {
+  if (source === 'managed') return t('nodes.sourceManaged');
+  if (source === 'nvm') return t('nodes.sourceNvm');
+  if (source === 'system') return t('nodes.sourceSystem');
+  if (source === 'external') return t('nodes.sourceExternal');
+  return t('nodes.sourceCustom');
+}
+
+function runtimeOptionLabel(runtime: { version: string; source: string }): string {
+  return `${runtime.version} · ${runtimeSourceLabel(runtime.source)}`;
+}
 /** 各 PM 的可用性状态 { pmName: PackageManagerResolveResult } */
 const pmAvailability = ref<Record<string, PackageManagerResolveResult>>({});
 /** PM 可用性检查是否进行中 */
@@ -96,6 +123,49 @@ const scannedSubProjects = ref<ImportNode[]>([]);
 const scannedSubModuleCount = computed(() =>
   scannedSubProjects.value.reduce((sum, node) => sum + countModulesInNode(node), 0),
 );
+
+/***********************一级页快捷运行配置*********************/
+const availableQuickCommands = computed(() => getAvailableProjectQuickCommands(form.value));
+const selectedQuickCommands = computed(() => normalizeProjectQuickCommands(form.value, form.value.quickCommands));
+
+function getQuickCommandLabel(command: ProjectQuickCommand): string {
+  if (command.type === 'script') return command.id;
+  const customCommand = form.value.customCommands.find(item => item.id === command.id);
+  return customCommand ? getCustomCommandDisplayName(customCommand, t) : command.id;
+}
+
+function isQuickCommandSelected(command: ProjectQuickCommand): boolean {
+  return selectedQuickCommands.value.some(item => item.type === command.type && item.id === command.id);
+}
+
+function toggleQuickCommand(command: ProjectQuickCommand): void {
+  if (isQuickCommandSelected(command)) {
+    form.value.quickCommands = form.value.quickCommands.filter(item => !(item.type === command.type && item.id === command.id));
+    return;
+  }
+
+  if (selectedQuickCommands.value.length >= 3) {
+    ElMessage.warning(t('project.quickCommandsMax'));
+    return;
+  }
+  form.value.quickCommands = [...form.value.quickCommands, command];
+}
+
+function moveQuickCommand(index: number, direction: -1 | 1): void {
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= form.value.quickCommands.length) return;
+  const commands = [...form.value.quickCommands];
+  [commands[index], commands[nextIndex]] = [commands[nextIndex], commands[index]];
+  form.value.quickCommands = commands;
+}
+
+function syncQuickCommands(useDefault = false): void {
+  const current = form.value.quickCommands;
+  form.value.quickCommands = normalizeProjectQuickCommands(
+    form.value,
+    useDefault && current.length === 0 ? getDefaultProjectQuickCommands(form.value) : current,
+  );
+}
 
 /***********************编辑态：调整子项目层级*********************/
 /** 层级管理弹窗开关 */
@@ -122,16 +192,48 @@ const form = ref<ProjectForm>({
   gitConfigured: false,
   gitRemoteUrl: '',
   gitBranch: '',
+  nodeRuntimeId: '',
   nodeVersion: '',
   packageManager: 'npm',
   packageManagerSource: 'project',
   scripts: [],
   visibleScripts: [],
   customCommands: [],
+  quickCommands: [],
   editorId: '',
   description: '',
   tags: [],
   groupId: '',
+  terminalInjectNode: true,
+});
+
+const selectedExistingRuntime = computed(() => {
+  const runtimeId = form.value.nodeRuntimeId;
+  if (!runtimeId) return undefined;
+  return nodeStore.versions.find(runtime => getNodeRuntimeId(runtime) === runtimeId);
+});
+
+const runtimeOptions = computed(() => nodeStore.versionEntries
+  .map(entry => {
+    const selected = selectedExistingRuntime.value;
+    const selectedVersion = selected && normalizeRuntimeVersion(selected.version).toLowerCase();
+    const entryVersion = normalizeRuntimeVersion(entry.version).toLowerCase();
+    // Preserve an existing exact project binding while editing, but keep one
+    // option per version and use the effective Runtime for new selections.
+    return selected && selectedVersion === entryVersion
+      ? { ...selected, version: entry.version }
+      : { ...entry.effectiveRuntime, version: entry.version };
+  })
+  .filter(runtime => runtime.status !== 'broken' && runtime.status !== 'unavailable'));
+
+const missingRuntimeOption = computed(() => {
+  if (!form.value.nodeRuntimeId || runtimeOptions.value.some(runtime => runtime.runtimeId === form.value.nodeRuntimeId)) return null;
+  return {
+    runtimeId: form.value.nodeRuntimeId,
+    version: form.value.nodeVersion || t('nodes.unavailable'),
+    source: selectedExistingRuntime.value?.source || 'custom',
+    status: 'unavailable' as const,
+  };
 });
 
 /***********************标签输入处理*********************/
@@ -151,42 +253,33 @@ function buildEmptyForm(): ProjectForm {
     gitConfigured: false,
     gitRemoteUrl: '',
     gitBranch: '',
-    nodeVersion: nodeVersions.value[0] || '',
+    nodeRuntimeId: '',
+    nodeVersion: '',
     packageManager: 'npm',
     packageManagerSource: 'project',
     scripts: [],
     visibleScripts: [],
     customCommands: [],
+    quickCommands: [],
     editorId: '',
     description: '',
     tags: [],
     groupId: '',
+    terminalInjectNode: true,
   };
-}
-
-function setNodeVersionOptions(list: string[], preserveCurrent = true) {
-  const current = form.value.nodeVersion;
-  const next = [...list];
-
-  if (preserveCurrent && current && !next.includes(current)) {
-    next.unshift(current);
-  }
-
-  nodeVersions.value = next;
-
-  if (!form.value.nodeVersion) {
-    form.value.nodeVersion = next[0] || '';
-  }
 }
 
 async function refreshNodeVersions() {
   try {
-    const list = await api.getNvmList();
-    setNodeVersionOptions(list.map((item) => item.version));
+    await nodeStore.loadRuntimes();
   } catch (error) {
     console.error('Failed to load node versions', error);
-    setNodeVersionOptions([]);
   }
+}
+
+function effectiveRuntimeForVersion(version: string): typeof runtimeOptions.value[number] | undefined {
+  const normalized = normalizeRuntimeVersion(version).toLowerCase();
+  return runtimeOptions.value.find(runtime => normalizeRuntimeVersion(runtime.version).toLowerCase() === normalized);
 }
 
 function resetRepoConfigState() {
@@ -204,7 +297,7 @@ function resetPathScanState() {
 }
 
 async function applyDetectedNodeVersion(rawVersion?: string | null) {
-  const normalizedNvmVersion = normalizeNvmVersion(rawVersion);
+  const normalizedNvmVersion = normalizeNodeVersion(rawVersion);
   if (!normalizedNvmVersion) {
     if (rawVersion) {
       console.warn('Invalid .nvmrc version, skipping auto install', rawVersion);
@@ -213,15 +306,15 @@ async function applyDetectedNodeVersion(rawVersion?: string | null) {
     return;
   }
 
-  let installed = findInstalledNodeVersion(nodeVersions.value, normalizedNvmVersion);
+  let installed = effectiveRuntimeForVersion(normalizedNvmVersion);
 
-  if (!installed) {
+  if (!installed && nodeStore.managedSupported) {
     try {
       ElMessage.info(t('project.autoInstallStart', { version: normalizedNvmVersion }));
-      await api.installNode(normalizedNvmVersion);
+      await nodeStore.installManagedNode(normalizedNvmVersion);
       ElMessage.success(t('project.autoInstallSuccess', { version: normalizedNvmVersion }));
       await refreshNodeVersions();
-      installed = findInstalledNodeVersion(nodeVersions.value, normalizedNvmVersion);
+      installed = effectiveRuntimeForVersion(normalizedNvmVersion);
     } catch (installError) {
       ElMessage.error(`${t('project.autoInstallFailed', { version: normalizedNvmVersion })}: ${String(installError)}`);
       console.error('Failed to auto-install node version', installError);
@@ -229,7 +322,8 @@ async function applyDetectedNodeVersion(rawVersion?: string | null) {
   }
 
   if (installed) {
-    form.value.nodeVersion = installed;
+    form.value.nodeRuntimeId = installed.runtimeId || '';
+    form.value.nodeVersion = installed.version;
   }
 }
 
@@ -246,24 +340,51 @@ async function applyScanResult(info: ProjectInfo, options: { preferDetectedName?
     form.value.packageManager = info.packageManager || 'npm';
     form.value.scripts = info.scripts || [];
     form.value.visibleScripts = [...(info.scripts || [])];
-    await applyDetectedNodeVersion(info.nvmVersion);
+    syncQuickCommands(true);
+    await applyDetectedNodeVersion(projectNodeVersionHint(info));
+    return;
+  }
+
+  if (info.projectType === 'java' && info.buildTool) {
+    form.value.type = 'java';
+    form.value.buildTool = info.buildTool;
+    form.value.hasWrapper = !!info.hasWrapper;
+    // Java 没有 package.json 那样的脚本清单，用预设自定义命令代替，
+    // 这样「命令」页签才会渲染出来（它的条件是有脚本或有自定义命令）
+    form.value.scripts = [];
+    form.value.visibleScripts = [];
+    if (form.value.customCommands.length === 0) {
+      form.value.customCommands = buildJavaPresetCommands(
+        info.buildTool,
+        !!info.hasWrapper,
+        isWindowsPlatform(),
+        () => crypto.randomUUID(),
+      );
+    }
+    syncQuickCommands(true);
     return;
   }
 
   form.value.type = 'other';
+  form.value.buildTool = undefined;
+  form.value.hasWrapper = undefined;
   form.value.scripts = [];
   form.value.visibleScripts = [];
 }
 
 function hydrateFormFromProject(project: Project) {
+  const resolvedRuntime = resolveProjectRuntime(project, nodeStore.versions, nodeStore.appDefault, nodeStore.systemNodeRuntime).runtime;
   form.value = {
     id: project.id,
     name: project.name,
     path: project.path,
     type: project.type,
+    buildTool: project.buildTool,
+    hasWrapper: project.hasWrapper,
     gitConfigured: !!project.gitConfigured,
     gitRemoteUrl: project.gitRemoteUrl || '',
     gitBranch: project.gitBranch || '',
+    nodeRuntimeId: resolvedRuntime?.runtimeId || project.nodeRuntimeId || '',
     nodeVersion: project.nodeVersion || '',
     packageManager: project.packageManager || 'npm',
     packageManagerSource: project.packageManagerSource || 'project',
@@ -277,10 +398,14 @@ function hydrateFormFromProject(project: Project) {
           : command.name,
       }))
       : [],
+    quickCommands: project.quickCommands
+      ? [...project.quickCommands]
+      : getDefaultProjectQuickCommands(project),
     editorId: project.editorId || '',
     description: project.description || '',
     tags: project.tags ? [...project.tags] : [],
     groupId: project.groupId || '',
+    terminalInjectNode: project.terminalInjectNode !== false,
   };
 }
 
@@ -334,6 +459,17 @@ watch(() => form.value.nodeVersion, () => {
   refreshPmAvailability();
 });
 
+watch(() => form.value.nodeRuntimeId, (runtimeId) => {
+  if (!runtimeId) {
+    if (form.value.nodeVersion && !effectiveRuntimeForVersion(form.value.nodeVersion)) {
+      form.value.nodeVersion = '';
+    }
+    return;
+  }
+  const runtime = nodeStore.getRuntime(runtimeId);
+  if (runtime) form.value.nodeVersion = runtime.version;
+});
+
 // When PM source changes, refresh PM availability
 watch(() => form.value.packageManagerSource, () => {
   refreshPmAvailability();
@@ -350,15 +486,23 @@ async function refreshPmAvailability() {
 
   try {
     // 解析项目 Node 路径
-    const nvmList = await api.getNvmList().catch(() => []);
-    const projectNodeEntry = nvmList.find((v) => v.version === form.value.nodeVersion);
-    const nodePath = projectNodeEntry?.path || '';
-
-    // 解析默认 Node 路径
-    let defaultNodePath = '';
-    try {
-      defaultNodePath = await api.getSystemNodePath();
-    } catch (_) {}
+    if (!nodeStore.versions.length) {
+      await nodeStore.loadRuntimes();
+    }
+    const nodePath = resolveProjectNodePath(
+      {
+        id: '',
+        name: '',
+        path: form.value.path,
+        type: 'node',
+        nodeRuntimeId: form.value.nodeRuntimeId || undefined,
+        nodeVersion: form.value.nodeVersion,
+      },
+      nodeStore.versions,
+      nodeStore.appDefault,
+      nodeStore.systemNodeRuntime,
+    );
+    const defaultNodePath = resolveAppDefaultNodePath(nodeStore.versions, nodeStore.appDefault, nodeStore.systemNodeRuntime);
 
     const allPms: Array<'npm' | 'yarn' | 'pnpm' | 'cnpm'> = ['npm', 'yarn', 'pnpm', 'cnpm'];
     const results: Record<string, PackageManagerResolveResult> = {};
@@ -415,7 +559,7 @@ async function installPMForNode(pm: string, nodeVersion: string, nodePath: strin
     console.error('Failed to install PM for selected node:', error);
     // Fallback: try to install using default node version's npm
     try {
-      const defaultNodePath = await api.getSystemNodePath();
+      const defaultNodePath = resolveAppDefaultNodePath(nodeStore.versions, nodeStore.appDefault, nodeStore.systemNodeRuntime);
       if (defaultNodePath) {
         await api.installPm(defaultNodePath, pm);
         ElMessage.warning(t('project.pmInstallFallback', { pm, version: nodeVersion }));
@@ -547,14 +691,25 @@ function buildProjectPayload(): Project {
   }
 
   if (form.value.type === 'node') {
-    project.nodeVersion = form.value.nodeVersion;
+    const selectedRuntime = form.value.nodeRuntimeId
+      ? nodeStore.getRuntime(form.value.nodeRuntimeId)
+      : undefined;
+    project.nodeRuntimeId = form.value.nodeRuntimeId || undefined;
+    project.nodeVersion = selectedRuntime?.version || (form.value.nodeRuntimeId ? form.value.nodeVersion : '');
     project.packageManager = form.value.packageManager;
     project.packageManagerSource = form.value.packageManagerSource;
     project.scripts = form.value.scripts;
     project.visibleScripts = form.value.visibleScripts;
+    project.terminalInjectNode = form.value.terminalInjectNode;
+  }
+
+  if (form.value.type === 'java') {
+    project.buildTool = form.value.buildTool;
+    project.hasWrapper = form.value.hasWrapper;
   }
 
   project.customCommands = form.value.customCommands.filter((command) => command.name && command.command);
+  project.quickCommands = normalizeProjectQuickCommands(project, form.value.quickCommands);
 
   if (form.value.editorId) {
     project.editorId = form.value.editorId;
@@ -727,12 +882,12 @@ async function cancelClone() {
             </template>
           </el-input>
         </div>
-        <div v-if="form.path" class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+        <div v-if="form.path" class="app-text-meta mt-2 text-slate-500 dark:text-slate-400">
           <span v-if="pathIsGitRepo">{{ t('project.gitLocalRepoDetected') }}</span>
           <span v-else>{{ t('project.gitLocalRepoMissing') }}</span>
         </div>
         <!-- 扫描到子项目时提示：提交后会弹出层级选择弹窗，由用户决定挂载哪几级 -->
-        <div v-if="!isEdit && scannedSubModuleCount > 0" class="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+        <div v-if="!isEdit && scannedSubModuleCount > 0" class="app-text-meta mt-1 text-emerald-600 dark:text-emerald-400">
           {{ t('project.subProjectsDetected', { count: scannedSubModuleCount }) }}
         </div>
         <!-- 编辑态：随时重新扫描并调整子项目层级（含移除已有子项目） -->
@@ -741,7 +896,7 @@ async function cancelClone() {
             <div class="i-mdi-file-tree-outline mr-1" />
             {{ t('dashboard.manageSubProjects') }}
           </el-button>
-          <span v-if="!canManageSubLevels" class="ml-2 text-xs text-slate-400">
+          <span v-if="!canManageSubLevels" class="app-text-meta ml-2 text-slate-400">
             {{ t('dashboard.maxDepthReached') }}
           </span>
         </div>
@@ -750,7 +905,7 @@ async function cancelClone() {
       <template v-if="canConfigureRepo">
         <el-form-item :label="t('project.gitConfigureRepo')">
           <el-switch v-model="form.gitConfigured" />
-          <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          <div class="app-text-meta mt-2 text-slate-500 dark:text-slate-400">
             {{ t('project.gitConfigureRepoHint') }}
           </div>
         </el-form-item>
@@ -788,7 +943,7 @@ async function cancelClone() {
 
           <div
             v-if="repoTargetHasFiles"
-            class="mb-4 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+            class="app-text-control mb-4 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
           >
             {{ t('project.gitTargetMustBeEmpty') }}
           </div>
@@ -798,6 +953,7 @@ async function cancelClone() {
       <el-form-item :label="t('project.type')">
         <el-select v-model="form.type" class="w-full">
           <el-option label="Node" value="node" />
+          <el-option label="Java" value="java" />
           <el-option :label="t('project.typeOther')" value="other" />
         </el-select>
       </el-form-item>
@@ -806,9 +962,25 @@ async function cancelClone() {
         <div class="grid gap-4 grid-cols-3">
           <div class="min-w-0">
             <el-form-item :label="t('project.nodeVersion')">
-              <el-select v-model="form.nodeVersion">
-                <el-option :label="t('nodes.select')" value="" />
-                <el-option v-for="version in nodeVersions" :key="version" :label="version" :value="version" />
+              <el-select v-model="form.nodeRuntimeId" class="w-full">
+                <el-option :label="t('nodes.projectManagerDefault')" value="" />
+                <el-option
+                  v-if="missingRuntimeOption"
+                  :label="`${missingRuntimeOption.version} · ${t('nodes.unavailable')}`"
+                  :value="missingRuntimeOption.runtimeId"
+                  disabled
+                />
+                <el-option
+                  v-for="runtime in runtimeOptions"
+                  :key="runtime.runtimeId"
+                  :label="runtimeOptionLabel(runtime)"
+                  :value="runtime.runtimeId"
+                >
+                  <div class="flex min-w-0 items-center justify-between gap-3">
+                    <span class="font-mono">{{ runtime.version }}</span>
+                    <span class="app-text-meta text-slate-400">{{ runtimeSourceLabel(runtime.source) }}</span>
+                  </div>
+                </el-option>
               </el-select>
             </el-form-item>
           </div>
@@ -829,7 +1001,7 @@ async function cancelClone() {
                   :value="pm"
                 >
                   <span>{{ pm }}</span>
-                  <span v-if="pmAvailability[pm]" class="ml-1 text-[10px]" :class="pmAvailability[pm].available ? 'text-emerald-500' : 'text-red-400'">
+                  <span v-if="pmAvailability[pm]" class="ml-1 app-text-meta" :class="pmAvailability[pm].available ? 'text-emerald-500' : 'text-red-400'">
                     {{ pmAvailability[pm].available
                       ? (form.packageManagerSource === 'default' ? t('project.pmDefaultAvailable') : t('project.pmProjectAvailable'))
                       : t('project.pmNotAvailable')
@@ -841,9 +1013,16 @@ async function cancelClone() {
           </div>
         </div>
 
+        <el-form-item :label="t('project.terminalInjectNode')">
+          <el-switch v-model="form.terminalInjectNode" />
+          <div class="app-text-meta mt-2 text-slate-500 dark:text-slate-400">
+            {{ t('project.terminalInjectNodeHint') }}
+          </div>
+        </el-form-item>
+
         <el-form-item v-if="form.scripts.length > 0" :label="t('project.scripts')">
           <div class="w-full rounded-xl border border-slate-200/70 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-900/40 p-3">
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">{{ t('project.scriptsVisibilityHint') }}</p>
+            <p class="app-text-meta text-slate-500 dark:text-slate-400 mb-3">{{ t('project.scriptsVisibilityHint') }}</p>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <button
                 v-for="script in form.scripts"
@@ -853,7 +1032,7 @@ async function cancelClone() {
                 class="script-toggle"
                 :class="isScriptVisible(script) ? 'script-toggle-active' : 'script-toggle-inactive'"
               >
-                <span class="truncate font-mono text-[12px]">{{ script }}</span>
+                <span class="app-text-control truncate font-mono">{{ script }}</span>
                 <div
                   class="text-sm transition-transform duration-200"
                   :class="isScriptVisible(script)
@@ -865,6 +1044,59 @@ async function cancelClone() {
           </div>
         </el-form-item>
       </template>
+
+      <el-form-item v-if="availableQuickCommands.length > 0" :label="t('project.quickCommandsTitle')">
+        <div class="quick-command-config w-full">
+          <p class="app-text-meta text-slate-500 dark:text-slate-400 mb-3">{{ t('project.quickCommandsHint') }}</p>
+          <div v-if="selectedQuickCommands.length > 0" class="quick-command-selected">
+            <div
+              v-for="(command, index) in selectedQuickCommands"
+              :key="`${command.type}:${command.id}`"
+              class="quick-command-selected-item"
+            >
+              <div class="flex min-w-0 items-center gap-2">
+                <div class="i-mdi-play-circle-outline text-blue-500 text-sm" />
+                <span class="truncate">{{ getQuickCommandLabel(command) }}</span>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  class="quick-command-order-btn"
+                  :disabled="index === 0"
+                  :title="t('project.moveQuickCommandUp')"
+                  @click="moveQuickCommand(index, -1)"
+                >
+                  <div class="i-mdi-chevron-up" />
+                </button>
+                <button
+                  class="quick-command-order-btn"
+                  :disabled="index === selectedQuickCommands.length - 1"
+                  :title="t('project.moveQuickCommandDown')"
+                  @click="moveQuickCommand(index, 1)"
+                >
+                  <div class="i-mdi-chevron-down" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="quick-command-options">
+            <button
+              v-for="command in availableQuickCommands"
+              :key="`${command.type}:${command.id}`"
+              type="button"
+              class="quick-command-option"
+              :class="isQuickCommandSelected(command) ? 'quick-command-option-active' : 'quick-command-option-inactive'"
+              @click="toggleQuickCommand(command)"
+            >
+              <span class="truncate">{{ getQuickCommandLabel(command) }}</span>
+              <span class="quick-command-type">{{ command.type === 'script' ? t('project.quickCommandScript') : t('project.quickCommandCustom') }}</span>
+              <div
+                class="text-sm"
+                :class="isQuickCommandSelected(command) ? 'i-mdi-checkbox-marked-circle text-blue-500' : 'i-mdi-checkbox-blank-circle-outline text-slate-300 dark:text-slate-500'"
+              />
+            </button>
+          </div>
+        </div>
+      </el-form-item>
 
       <el-form-item :label="t('project.customCommands')">
         <div class="w-full space-y-2">
@@ -902,7 +1134,7 @@ async function cancelClone() {
             :value="editor.id"
           />
         </el-select>
-        <div class="text-xs text-slate-400 mt-1">{{ editorHint }}</div>
+        <div class="app-text-meta text-slate-400 mt-1">{{ editorHint }}</div>
       </el-form-item>
     </el-form>
 
@@ -971,6 +1203,79 @@ async function cancelClone() {
 .script-toggle:hover {
   transform: translateY(-1px);
   box-shadow: var(--app-shadow-md);
+}
+
+.quick-command-config {
+  padding: 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-soft);
+}
+.quick-command-selected,
+.quick-command-options {
+  display: grid;
+  gap: 6px;
+}
+.quick-command-selected {
+  margin-bottom: 10px;
+}
+.quick-command-selected-item,
+.quick-command-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
+  text-align: left;
+}
+.quick-command-selected-item {
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+.quick-command-option {
+  width: 100%;
+  transition: background-color var(--app-duration-fast) var(--app-ease), border-color var(--app-duration-fast) var(--app-ease), color var(--app-duration-fast) var(--app-ease);
+}
+.quick-command-option-active {
+  border-color: color-mix(in srgb, var(--app-primary) 35%, transparent);
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+.quick-command-option-inactive {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+}
+.quick-command-option:hover {
+  border-color: color-mix(in srgb, var(--app-primary) 35%, transparent);
+}
+.quick-command-type {
+  flex-shrink: 0;
+  color: var(--app-text-muted);
+  font-size: var(--app-font-meta);
+}
+.quick-command-order-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  color: var(--app-text-secondary);
+}
+.quick-command-order-btn:hover:not(:disabled) {
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+.quick-command-order-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
 }
 
 .project-modal {

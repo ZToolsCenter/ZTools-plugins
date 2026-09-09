@@ -10,6 +10,7 @@
   --app-surface: #ffffff;
   --app-surface-soft: #f8fafc;
   --app-surface-raised: rgba(255, 255, 255, 0.94);
+  --app-popup-surface: #ffffff;
   --app-dialog-surface: rgba(255, 255, 255, 0.9);
   --app-dialog-overlay: rgba(15, 23, 42, 0.38);
   --app-content-max: 1440px;
@@ -18,7 +19,7 @@
   --app-border-strong: rgba(100, 116, 139, 0.3);
   --app-text: #0f172a;
   --app-text-secondary: #475569;
-  --app-text-muted: #94a3b8;
+  --app-text-muted: #64748b;
   --app-primary: #2563eb;
   --app-primary-hover: #1d4ed8;
   --app-primary-soft: rgba(37, 99, 235, 0.1);
@@ -39,6 +40,37 @@
   --app-z-sticky: 20;
   --app-z-overlay: 50;
   --app-z-modal: 1000;
+  --app-titlebar-height: 32px;
+
+  /* Typography roles: keep readability changes semantic and mode-driven. */
+  --app-font-caption: 12px;
+  --app-font-meta: 12px;
+  --app-font-control: 13px;
+  --app-font-body: 14px;
+  --app-font-subheading: 15px;
+  --app-font-section-title: 16px;
+  --app-font-page-title: 20px;
+  --app-font-console: 13px;
+  --app-font-code: 14px;
+  --app-line-height-caption: 1.35;
+  --app-line-height-control: 1.4;
+  --app-line-height-body: 1.5;
+  --app-line-height-console: 1.55;
+  --app-line-height-code: 1.55;
+
+  /* Small density surface: spacing changes, never unreadable type. */
+  --app-control-height-sm: 28px;
+  --app-control-height: 34px;
+  --app-row-padding-y: 8px;
+  --app-panel-padding: 16px;
+  --app-toolbar-gap: 8px;
+
+  --el-font-size-extra-small: var(--app-font-caption);
+  --el-font-size-small: var(--app-font-control);
+  --el-font-size-base: var(--app-font-body);
+  --el-font-size-medium: var(--app-font-section-title);
+  --el-component-size-small: var(--app-control-height-sm);
+  --el-component-size: var(--app-control-height);
 
   --el-color-primary: var(--app-primary);
   --el-color-success: var(--app-success);
@@ -49,10 +81,48 @@
   --el-border-color-light: var(--app-border);
   --el-border-color-lighter: rgba(203, 213, 225, 0.6);
   --el-bg-color: var(--app-surface);
-  --el-bg-color-overlay: var(--app-surface);
+  --el-bg-color-overlay: var(--app-popup-surface);
   --el-fill-color-blank: var(--app-surface);
   --el-text-color-primary: var(--app-text);
   --el-text-color-regular: var(--app-text-secondary);
+}
+
+html[data-ui-size='compact'] {
+  --app-font-body: 13px;
+  --app-font-subheading: 14px;
+  --app-font-section-title: 15px;
+  --app-font-page-title: 19px;
+  --app-font-code: 13px;
+  --app-line-height-body: 1.45;
+  --app-line-height-console: 1.5;
+  --app-line-height-code: 1.5;
+  --app-control-height-sm: 27px;
+  --app-control-height: 32px;
+  --app-row-padding-y: 6px;
+  --app-panel-padding: 12px;
+  --app-toolbar-gap: 6px;
+}
+
+html[data-ui-size='comfortable'] {
+  --app-font-caption: 13px;
+  --app-font-meta: 13px;
+  --app-font-control: 14px;
+  --app-font-body: 15px;
+  --app-font-subheading: 16px;
+  --app-font-section-title: 17px;
+  --app-font-page-title: 22px;
+  --app-font-console: 14px;
+  --app-font-code: 15px;
+  --app-line-height-caption: 1.4;
+  --app-line-height-control: 1.45;
+  --app-line-height-body: 1.6;
+  --app-line-height-console: 1.6;
+  --app-line-height-code: 1.6;
+  --app-control-height-sm: 30px;
+  --app-control-height: 36px;
+  --app-row-padding-y: 10px;
+  --app-panel-padding: 20px;
+  --app-toolbar-gap: 10px;
 }
 
 html.dark {
@@ -62,13 +132,14 @@ html.dark {
   --app-surface: #111827;
   --app-surface-soft: #172033;
   --app-surface-raised: rgba(17, 24, 39, 0.94);
+  --app-popup-surface: #111827;
   --app-dialog-surface: rgba(17, 24, 39, 0.92);
   --app-dialog-overlay: rgba(2, 6, 23, 0.56);
   --app-border: rgba(100, 116, 139, 0.28);
   --app-border-strong: rgba(148, 163, 184, 0.26);
   --app-text: #f8fafc;
   --app-text-secondary: #cbd5e1;
-  --app-text-muted: #64748b;
+  --app-text-muted: #94a3b8;
   --app-primary: #60a5fa;
   --app-primary-hover: #93c5fd;
   --app-primary-soft: rgba(96, 165, 250, 0.14);
@@ -80,7 +151,7 @@ html.dark {
   --app-shadow-lg: 0 18px 46px rgba(2, 6, 23, 0.38);
 
   --el-bg-color: var(--app-surface) !important;
-  --el-bg-color-overlay: var(--app-surface) !important;
+  --el-bg-color-overlay: var(--app-popup-surface) !important;
   --el-border-color: var(--app-border) !important;
   --el-border-color-light: var(--app-border) !important;
   --el-border-color-lighter: var(--app-border) !important;
@@ -121,6 +192,70 @@ pre,
 kbd,
 samp {
   font-family: var(--font-mono);
+}
+
+body,
+.app-shell {
+  font-size: var(--app-font-body);
+  line-height: var(--app-line-height-body);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+.app-text-caption {
+  font-size: var(--app-font-caption);
+  line-height: var(--app-line-height-caption);
+}
+
+.app-text-meta {
+  font-size: var(--app-font-meta);
+  line-height: var(--app-line-height-caption);
+}
+
+.app-text-control {
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
+  font-weight: 500;
+}
+
+.app-text-body {
+  font-size: var(--app-font-body);
+  line-height: var(--app-line-height-body);
+  font-weight: 400;
+}
+
+.app-text-subheading {
+  font-size: var(--app-font-subheading);
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.app-text-section-title {
+  font-size: var(--app-font-section-title);
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.app-text-page-title {
+  font-size: var(--app-font-page-title);
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.app-text-console {
+  font-size: var(--app-font-console);
+  line-height: var(--app-line-height-console);
+}
+
+.app-text-code {
+  font-family: var(--font-mono);
+  font-size: var(--app-font-code);
+  line-height: var(--app-line-height-code);
 }
 
 button,
@@ -332,12 +467,12 @@ html.has-custom-background .commit-day-muted {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 16px 20px;
+  padding: var(--app-panel-padding) 20px;
 }
 
 .app-page-header {
   flex-shrink: 0;
-  padding: 16px 20px;
+  padding: var(--app-panel-padding) 20px;
   background: var(--app-surface-raised);
   border-bottom: 1px solid var(--app-border);
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--app-border) 70%, transparent);
@@ -345,7 +480,7 @@ html.has-custom-background .commit-day-muted {
 
 .app-page-header-main {
   display: flex;
-  min-height: 48px;
+  min-height: calc(var(--app-control-height) + 14px);
   align-items: center;
   justify-content: space-between;
   gap: 20px;
@@ -360,7 +495,7 @@ html.has-custom-background .commit-day-muted {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--app-toolbar-gap);
 }
 
 .app-page-header-extra {
@@ -370,7 +505,7 @@ html.has-custom-background .commit-day-muted {
 }
 
 .app-page-kicker {
-  font-size: 11px;
+  font-size: var(--app-font-caption);
   font-weight: 700;
   letter-spacing: 0.18em;
   line-height: 1.2;
@@ -381,7 +516,7 @@ html.has-custom-background .commit-day-muted {
 .app-page-title {
   margin: 0;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--app-font-page-title);
   font-weight: 700;
   line-height: 1.25;
 }
@@ -389,8 +524,8 @@ html.has-custom-background .commit-day-muted {
 .app-page-description {
   margin: 4px 0 0;
   color: var(--app-text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
 }
 
 .app-card {
@@ -439,7 +574,7 @@ html.has-custom-background .commit-day-muted {
 
 .app-summary-label {
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--app-font-meta);
   font-weight: 600;
   letter-spacing: 0.12em;
   line-height: 1.2;
@@ -482,8 +617,8 @@ html.has-custom-background .commit-day-muted {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 32px;
+  min-width: var(--app-control-height);
+  height: var(--app-control-height);
   border: 1px solid transparent;
   border-radius: var(--app-radius-md);
   color: var(--app-text-secondary);
@@ -507,7 +642,7 @@ html.has-custom-background .commit-day-muted {
 
 .app-primary-action {
   display: inline-flex;
-  min-height: 36px;
+  min-height: var(--app-control-height);
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -515,7 +650,7 @@ html.has-custom-background .commit-day-muted {
   border-radius: var(--app-radius-lg);
   background: var(--app-primary-soft);
   color: var(--app-primary);
-  font-size: 13px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   padding: 8px 14px;
   transition:
@@ -542,6 +677,8 @@ html.has-custom-background .commit-day-muted {
   border-radius: var(--app-radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
   font-weight: 500;
   transition:
     background-color var(--app-duration-fast) var(--app-ease),
@@ -563,6 +700,8 @@ html.has-custom-background .commit-day-muted {
   border-radius: var(--app-radius-xs);
   background: color-mix(in srgb, var(--app-danger) 8%, transparent);
   color: var(--app-danger);
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
   font-weight: 500;
   transition:
     background-color var(--app-duration-fast) var(--app-ease),
@@ -618,6 +757,40 @@ html.has-custom-background .commit-day-muted {
   -webkit-backdrop-filter: blur(5px);
 }
 
+/*
+ * Dialog overlay 被 append 到 body，而标题栏属于 #app 内部。
+ * 让 overlay 从标题栏底部开始铺设，避免依赖跨容器 z-index 竞争。
+ */
+body:has(.app-shell-with-titlebar) .el-overlay {
+  top: var(--app-titlebar-height);
+  height: calc(100% - var(--app-titlebar-height));
+  box-sizing: border-box;
+}
+
+/* align-center 在剩余窗口区域内计算，而不是以整个 viewport 为基准。 */
+body:has(.app-shell-with-titlebar) .el-overlay-dialog {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  box-sizing: border-box;
+  padding-top: 0;
+}
+
+/* 下拉/Popover 必须是不透明的，避免自定义背景透过选项文字造成串色。 */
+.el-popper.is-light {
+  background-color: var(--app-popup-surface) !important;
+  background-image: none !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.el-popper.is-light .el-popper__arrow::before {
+  background-color: var(--app-popup-surface) !important;
+}
+
 .el-dialog__header,
 .el-dialog__footer {
   border-color: var(--app-border);
@@ -657,6 +830,64 @@ html.has-custom-background .commit-day-muted {
   flex-direction: column;
   max-width: calc(100vw - 32px);
   overflow: hidden;
+}
+
+.el-button,
+.el-input,
+.el-select,
+.el-textarea,
+.el-checkbox,
+.el-radio,
+.el-switch,
+.el-segmented,
+.el-dropdown-menu__item,
+.el-select-dropdown__item,
+.el-popper,
+.el-tooltip__trigger {
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
+}
+
+.el-button--small {
+  min-height: var(--app-control-height-sm);
+}
+
+.el-dialog__title,
+.el-drawer__title {
+  font-size: var(--app-font-section-title);
+  font-weight: 600;
+}
+
+.el-dialog__body,
+.el-drawer__body,
+.el-popover {
+  font-size: var(--app-font-body);
+  line-height: var(--app-line-height-body);
+}
+
+.el-dropdown-menu {
+  width: max-content;
+  min-width: 180px;
+  max-width: min(320px, calc(100vw - 16px));
+  overflow: hidden;
+}
+
+.el-dropdown-menu__item {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.el-table {
+  font-size: var(--app-font-control);
+}
+
+.el-table th.el-table__cell {
+  font-size: var(--app-font-meta);
+  font-weight: 600;
 }
 
 .app-dialog {
@@ -765,6 +996,7 @@ html.has-custom-background .commit-day-muted {
 .dashboard-secondary-action {
   display: inline-flex;
   min-height: 32px;
+  min-height: var(--app-control-height);
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -774,7 +1006,7 @@ html.has-custom-background .commit-day-muted {
   padding: 0 11px;
   color: var(--app-text-secondary);
   box-shadow: var(--app-shadow-sm);
-  font-size: 12px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   line-height: 1;
   transition:
@@ -816,4 +1048,45 @@ html.has-custom-background .commit-day-muted {
 .page-fade-leave-to {
   opacity: 0;
   transform: translateX(-6px) scale(0.998);
+}
+
+/* ─── 列表手动拖拽排序 ──────────────────────────────────────────────
+   一级项目列表与工作区的子项目列表共用这套 DOM 约定与样式，
+   逻辑在 composables/useListDragSort.ts。放全局是因为两处必须完全一致：
+   位移与换位判定依赖 .draggable-list 的直接子元素与 .draggable-item 的下标对应。 */
+
+.draggable-list {
+  position: relative;
+}
+
+.draggable-item {
+  position: relative;
+}
+
+/* 正在被拖动的那一项：抬起来一点，盖住相邻卡片 */
+.draggable-item-active {
+  box-shadow: var(--app-shadow-md);
+  border-radius: var(--app-radius-lg);
+  opacity: 0.95;
+}
+
+/* 拖拽手柄：参与标题行的正常布局，不用绝对定位，否则会脱离卡片行 */
+.drag-handle {
+  width: 22px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: grab;
+  opacity: 0.6;
+  transition: opacity var(--app-duration-fast) var(--app-ease);
+}
+
+.draggable-item:hover .drag-handle {
+  opacity: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }

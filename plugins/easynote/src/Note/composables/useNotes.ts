@@ -172,6 +172,28 @@ export function useNotes() {
     savedNotes.value = notes
   }
 
+  /** 清空指定类型的便签（笔记 / 待办），返回被清除的条数 */
+  function clearByType(type: NoteType): number {
+    const remaining = savedNotes.value.filter((x) => x.type !== type)
+    const count = savedNotes.value.length - remaining.length
+    if (!count) return 0
+
+    persist(remaining)
+    savedNotes.value = remaining
+
+    // 草稿若指向已被清空的便签，断开关联但保留内容，
+    // 由用户再次保存时决定是重新创建还是放弃
+    if (draft.value.noteId && !remaining.some((x) => x.id === draft.value.noteId)) {
+      draft.value = {
+        noteId: null,
+        content: draft.value.content,
+        type: draft.value.type,
+        done: false
+      }
+    }
+    return count
+  }
+
   const sortedNotes = computed(() =>
     [...savedNotes.value].sort((a, b) => b.updatedAt - a.updatedAt)
   )
@@ -186,6 +208,7 @@ export function useNotes() {
     saveDraft,
     toggleDone,
     changeType,
-    deleteNote
+    deleteNote,
+    clearByType
   }
 }

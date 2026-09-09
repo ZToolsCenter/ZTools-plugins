@@ -256,12 +256,12 @@ onMounted(() => {
           <el-table-column prop="protocol" :label="t('ports.protocol')" width="90" align="center"/>
           <el-table-column :label="t('ports.localEndpoint')" align="center">
             <template #default="{ row }">
-              <span class="font-mono text-xs">{{ formatEndpoint(row.local_address, row.local_port) }}</span>
+              <span class="app-text-control font-mono">{{ formatEndpoint(row.local_address, row.local_port) }}</span>
             </template>
           </el-table-column>
           <el-table-column :label="t('ports.remoteEndpoint')" align="center">
             <template #default="{ row }">
-              <span class="font-mono text-xs">{{ formatEndpoint(row.remote_address, row.remote_port) }}</span>
+              <span class="app-text-control font-mono">{{ formatEndpoint(row.remote_address, row.remote_port) }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="state" :label="t('ports.state')" align="center">
@@ -328,7 +328,7 @@ onMounted(() => {
           </el-descriptions-item>
           <el-descriptions-item :label="t('ports.executablePath')">
             <div class="space-y-2">
-              <div class="detail-value-block font-mono text-xs">{{ selectedPort.executable_path || '-' }}</div>
+              <div class="detail-value-block app-text-code font-mono">{{ selectedPort.executable_path || '-' }}</div>
               <el-button
                   v-if="selectedPort.executable_path"
                   text
@@ -340,7 +340,7 @@ onMounted(() => {
             </div>
           </el-descriptions-item>
           <el-descriptions-item :label="t('ports.commandLine')">
-            <div class="detail-value-block font-mono text-xs leading-6">
+            <div class="detail-value-block app-text-code font-mono leading-6">
               {{ selectedPort.command_line || '-' }}
             </div>
           </el-descriptions-item>
@@ -373,7 +373,7 @@ onMounted(() => {
 }
 
 .summary-label {
-  font-size: 11px;
+  font-size: var(--app-font-meta);
   color: var(--app-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.18em;

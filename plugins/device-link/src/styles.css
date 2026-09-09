@@ -140,13 +140,19 @@ button:disabled { cursor: default; opacity: .5; }
 .message-bubble:hover .more-wrap { opacity: 1; }
 .delete-action { position: absolute; z-index: 2; right: 0; bottom: 18px; display: none; align-items: center; gap: 5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--red); background: var(--paper); box-shadow: 0 6px 18px rgb(0 0 0 / 12%); font-size: 10px; white-space: nowrap; }
 .more-wrap:hover .delete-action { display: flex; }
-.attachment { display: grid; min-width: min(300px, 58vw); grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 9px; margin-top: 4px; padding: 7px; border: 1px solid var(--line-soft); border-radius: 11px; color: inherit; text-align: left; background: color-mix(in srgb, var(--paper) 75%, transparent); }
+.attachment { display: grid; min-width: min(300px, 58vw); grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px; margin-top: 4px; padding: 4px; border: 1px solid var(--line-soft); border-radius: 11px; color: inherit; background: color-mix(in srgb, var(--paper) 75%, transparent); }
 .attachment:hover { border-color: rgb(112 89 223 / 28%); }
+.attachment__open { display: grid; min-width: 0; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 3px; border: 0; border-radius: 8px; color: inherit; text-align: left; background: transparent; }
+.attachment__open:hover { background: color-mix(in srgb, var(--accent-soft) 46%, transparent); }
 .attachment__icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 10px; color: var(--accent); background: var(--accent-soft); }
 .attachment__info { min-width: 0; }
 .attachment__info strong, .attachment__info small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attachment__info strong { font-size: 12px; }
 .attachment__info small { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.attachment__download { display: inline-flex; min-width: 62px; min-height: 32px; align-items: center; justify-content: center; gap: 4px; padding: 0 9px; border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius: 9px; color: var(--accent-deep); background: var(--accent-soft); font-size: 10px; font-weight: 700; }
+.attachment__download:hover { border-color: color-mix(in srgb, var(--accent) 48%, var(--line)); }
+.attachment__download:disabled { cursor: progress; opacity: .72; }
+.attachment__open:focus-visible, .attachment__download:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 64%, transparent); outline-offset: 1px; }
 
 .composer { padding: 9px clamp(18px, 4vw, 54px) 13px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 83%, transparent); backdrop-filter: blur(18px); }
 .composer__box { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: 7px; padding: 6px; border: 1px solid var(--line); border-radius: 15px; background: var(--panel); box-shadow: 0 4px 15px rgb(50 44 35 / 4%); }

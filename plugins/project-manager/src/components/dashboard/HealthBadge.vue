@@ -35,7 +35,7 @@ const showTooltip = computed(() => visibleIssues.value.length > 0);
 <template>
   <el-tooltip v-if="showTooltip" placement="top" :show-after="200">
     <template #content>
-      <div class="text-xs space-y-0.5 max-w-48">
+      <div class="app-text-meta space-y-0.5 max-w-48">
         <div
           v-for="(issue, idx) in visibleIssues"
           :key="idx"

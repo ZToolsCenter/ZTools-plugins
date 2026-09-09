@@ -2,21 +2,27 @@
 // 规则：遵循 CommonJS 规范，可 require Node.js / Electron 原生能力；
 // 本文件源码保持清晰可读，未压缩混淆，并与插件一起发布。
 //
-// 职责：读取并解压同目录下的 journals.json.gz（短键名压缩版），
-//       映射回完整字段后供前端检索使用。
-//       数据源替换：重新生成 journals.json.gz 即可（字段映射见 KEY_MAP）。
+// 职责：读取并解压同目录下的两个数据集，映射回完整字段后供前端检索：
+//   1. journals.json.gz —— JCR 2026 期刊（影响因子 / 分区 / JCI …）
+//   2. ccf.json.gz      —— CCF 第七版（2026.3）推荐国际学术会议与期刊目录
+// 两者在加载时按 ISSN 关联合并：同一本刊既显示影响因子，也显示 CCF 等级；
+// 未被 JCR 收录的 CCF 条目（全部会议 + 少数期刊）作为独立记录并入检索。
 
 const fs = require('fs')
 const path = require('path')
 const zlib = require('zlib')
 
 const DATA_FILE = 'journals.json.gz'
+const CCF_FILE = 'ccf.json.gz'
 
-let DATA = []
+let DATA = []          // JCR 期刊（合并后会挂上 CCF 字段）
+let CCF = []           // 未关联 JCR 的独立 CCF 条目
+let ALL = []           // 统一检索数组 = DATA + CCF
 let LOADED = false
 let ERROR = null
+let CCF_ERROR = null
 
-// 短键名 → 完整字段名（与 Python 压缩脚本的 KEY_MAP 对应）
+// 短键名 → 完整字段名（与生成脚本对应）
 const KEY_MAP = {
   n: 'name', a: 'abbr', i: 'issn', e: 'eissn',
   p: 'publisher', c: 'category', j: 'jif', q: 'quartile',
@@ -30,8 +36,7 @@ function expand(rec) {
   for (var k in rec) {
     out[KEY_MAP[k] || k] = rec[k]
   }
-  // 补充计算字段
-  var jifStr = String(out.jif || '')
+  var jifStr = String(out.jif == null ? '' : out.jif)
   var jifNum = -1
   if (jifStr !== '') {
     var n = parseFloat(jifStr)
@@ -41,86 +46,166 @@ function expand(rec) {
   return out
 }
 
-// 解压 gzip → JSON → 展开键名 → 记录数组（懒加载）
+/* ---------------- 检索辅助 ---------------- */
+
+function isIssnLike(q) {
+  return /^\d{4}-?\d{3}[\dxX]$/.test(q.replace(/\s+/g, ''))
+}
+
+// 归一化：转大写并去除所有非字母数字（消除空格/连字符/点/大小写差异）
+function norm(s) {
+  return String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
+var STOP = { THE: 1, OF: 1, AND: 1, A: 1, AN: 1, VOL: 1, NO: 1 }
+function tok(s) {
+  return String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter(function (t) { return t && !STOP[t] })
+}
+
+/* ---------------- 加载 JCR ---------------- */
+
+function loadJournals() {
+  var file = path.join(__dirname, DATA_FILE)
+  var raw = JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString('utf-8'))
+  DATA = new Array(raw.length)
+  for (var i = 0; i < raw.length; i++) {
+    var j = expand(raw[i])
+    j._tokensAll = tok((j.abbr || '') + ' ' + (j.name || ''))
+    DATA[i] = j
+  }
+}
+
+/* ---------------- 加载 CCF 并合并 ---------------- */
+
+function loadCcf() {
+  var file = path.join(__dirname, CCF_FILE)
+  var raw = JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString('utf-8'))
+
+  // ISSN/eISSN → JCR 记录（用于校验下标是否仍然有效）
+  var byIssn = {}
+  for (var i = 0; i < DATA.length; i++) {
+    var d = DATA[i]
+    if (d.issn) byIssn[d.issn] = d
+    if (d.eissn) byIssn[d.eissn] = d
+  }
+
+  CCF = []
+  var linked = 0
+
+  for (var k = 0; k < raw.length; k++) {
+    var o = raw[k]
+    var type = o.t === 1 ? '期刊' : '会议'
+    var info = {
+      ccfRank: o.r || '',
+      ccfCat: o.c || '',
+      ccfType: type,
+      ccfUrl: o.u || '',
+      ccfNotes: o.x || '',
+      ccfAbbr: o.a || ''
+    }
+
+    var host = null
+    if (o.k != null) {
+      var cand = DATA[o.k]
+      if (cand && (!o.s || cand.issn === o.s || cand.eissn === o.s)) {
+        host = cand
+      } else if (o.s && byIssn[o.s]) {
+        host = byIssn[o.s]   // 下标失效时退回 ISSN 查找
+      }
+    }
+
+    if (host) {
+      // 关联成功：把 CCF 信息挂到 JCR 期刊上，并把 CCF 缩写/中文领域并入检索
+      host.ccfRank = info.ccfRank
+      host.ccfCat = info.ccfCat
+      host.ccfType = type
+      host.ccfUrl = info.ccfUrl
+      host.ccfNotes = info.ccfNotes
+      host.ccfAbbr = info.ccfAbbr
+      host._tokensAll = host._tokensAll.concat(tok((o.a || '') + ' ' + (o.n || '') + ' ' + (o.c || '')))
+      linked++
+      continue
+    }
+
+    // 无 JCR 对应（会议，或已被 JCR 除名的期刊）：独立成条
+    var rec = {
+      name: o.n || '',
+      abbr: o.a || '',
+      publisher: o.p || '',
+      ccfRank: info.ccfRank,
+      ccfCat: info.ccfCat,
+      ccfType: type,
+      ccfUrl: info.ccfUrl,
+      ccfNotes: info.ccfNotes,
+      ccfAbbr: info.ccfAbbr,
+      // 与 JCR 记录保持同构，便于复用同一套评分/渲染
+      issn: '', eissn: '', jif: '', jifNum: -1, quartile: '',
+      jci: '', citations: '', fiveYearJif: '', jifRank: '', oa: '', catDetail: '',
+      category: o.c || '', year: '',
+      _conf: type === '会议',
+      _tokensAll: tok((o.a || '') + ' ' + (o.n || '') + ' ' + (o.p || '') + ' ' + (o.c || ''))
+    }
+    CCF.push(rec)
+  }
+
+  ALL = DATA.concat(CCF)
+  // 记录自身在统一数组中的下标，供渲染后按 data-idx 精确回查（避免按名字反查出错）
+  for (var z = 0; z < ALL.length; z++) ALL[z]._i = z
+  return { total: raw.length, linked: linked, standalone: CCF.length }
+}
+
 function ensureLoaded() {
-  if (LOADED) return { ok: !ERROR, total: DATA.length, error: ERROR }
+  if (LOADED) return { ok: !ERROR, total: DATA.length, error: ERROR, ccf: CCF.length, ccfError: CCF_ERROR }
   LOADED = true
   try {
-    var file = path.join(__dirname, DATA_FILE)
-    var gzBuf = fs.readFileSync(file)
-    var jsonBuf = zlib.gunzipSync(gzBuf)
-    var raw = JSON.parse(jsonBuf.toString('utf-8'))
-
-    DATA = new Array(raw.length)
-    for (var i = 0; i < raw.length; i++) {
-      var j = expand(raw[i])
-      // 构建检索用的小写拼接串（一次性）
-      j._hay = ((j.name || '') + ' ' + (j.abbr || '') + ' ' +
-                 (j.issn || '') + ' ' + (j.eissn || '')).toLowerCase()
-      // 缩写前缀匹配用：同时覆盖“缩写 + 全称”的全部词（去停用词）
-      j._tokensAll = tok((j.abbr || '') + ' ' + (j.name || ''))
-      DATA[i] = j
-    }
+    loadJournals()
     ERROR = null
   } catch (e) {
     ERROR = String((e && e.message) || e)
     DATA = []
     console.error('[科研小盒] 加载 journals.json.gz 失败:', ERROR)
   }
-  return { ok: !ERROR, total: DATA.length, error: ERROR }
+  try {
+    if (!ERROR) loadCcf()
+  } catch (e2) {
+    CCF_ERROR = String((e2 && e2.message) || e2)
+    CCF = []
+    ALL = DATA
+    console.error('[科研小盒] 加载 ccf.json.gz 失败:', CCF_ERROR)
+  }
+  if (!ALL.length) ALL = DATA.concat(CCF)
+  return { ok: !ERROR, total: DATA.length, error: ERROR, ccf: CCF.length, ccfError: CCF_ERROR }
 }
 
 /* ---------------- 搜索相关性评分 ---------------- */
 
-function isIssnLike(q) {
-  return /^\d{4}-?\d{3}[\dxX]$/.test(q.replace(/\s+/g, ''))
-}
-
 /**
- * 计算查询词与期刊的相关性得分（越高越相关）
- * 3 = 精确匹配（ISSN / 期刊全名 / 缩写完全等于 query）
+ * 3 = 精确匹配（ISSN / 全称 / 缩写 / CCF 缩写 完全等于 query）
  * 2 = 词首/前缀匹配
- * 1 = 包含匹配
+ * 1 = 包含匹配 / 全词命中
  * 0 = 不匹配
  */
-// 归一化：转大写并去除所有非字母数字（消除空格/连字符/点/大小写差异）
-// 例： "Acta Derm Venereol" 与 "ACTA DERM-VENEREOL" 归一化后均为 "ACTADERMVENEREOL"
-function norm(s) {
-  return String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '')
-}
+function relevanceScore(r, q) {
+  // 中文查询（如"人工智能"）归一化后会变成空串，需在此单独处理：只匹配 CCF 中文领域
+  if (r.ccfCat && q && String(r.ccfCat).indexOf(q) !== -1) return 1
 
-// 分词 + 停用词（用于词级回退匹配）
-var STOP = { THE: 1, OF: 1, AND: 1, A: 1, AN: 1, VOL: 1, NO: 1 }
-function tok(s) {
-  return String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter(function (t) { return t && !STOP[t] })
-}
-
-function relevanceScore(journal, q) {
   var qn = norm(q)
   if (!qn) return 0
 
-  // ISSN 精确匹配
-  var issnNorm = norm(journal.issn || '')
-  var eissnNorm = norm(journal.eissn || '')
-  if (issnNorm === qn || eissnNorm === qn) return 3
+  var issnNorm = norm(r.issn || '')
+  var eissnNorm = norm(r.eissn || '')
+  if ((issnNorm && issnNorm === qn) || (eissnNorm && eissnNorm === qn)) return 3
 
-  var name = norm(journal.name || '')
-  var abbr = norm(journal.abbr || '')
+  var name = norm(r.name || '')
+  var abbr = norm(r.abbr || '')
+  var ccfA = norm(r.ccfAbbr || '')
 
-  // 精确全名/缩写（已归一化，自动容忍符号与大小写）
-  if (name === qn || abbr === qn) return 3
-
-  // 前缀匹配
-  if (name.indexOf(qn) === 0 || abbr.indexOf(qn) === 0) return 2
-
-  // 子串包含
-  if (name.indexOf(qn) !== -1 || abbr.indexOf(qn) !== -1) return 1
-
-  // 词级回退：查询的每个分词都能在刊名/缩写分词中找到，或作为某词前缀（如 N→NEW）
-  // 注意：必须用“原始带空格的 q”做分词，不能用归一化后的结果（会丢失词边界）
+  if (name === qn || abbr === qn || ccfA === qn) return 3
+  if (name.indexOf(qn) === 0 || abbr.indexOf(qn) === 0 || ccfA.indexOf(qn) === 0) return 2
+  if (name.indexOf(qn) !== -1 || abbr.indexOf(qn) !== -1 || ccfA.indexOf(qn) !== -1) return 1
   var qt = tok(q)
   if (qt.length) {
-    var recTok = tok(journal.abbr || journal.name)
+    var recTok = tok((r.abbr || '') + ' ' + (r.name || '') + ' ' + (r.ccfAbbr || ''))
     if (recTok.length) {
       var hit = 0
       for (var ti = 0; ti < qt.length; ti++) {
@@ -134,17 +219,13 @@ function relevanceScore(journal, q) {
     }
   }
 
-  // 缩写前缀匹配：处理 PubMed/NLM 缩写与 JCR 全称/缩写差异。
-  // query 每个词必须是候选某词的前缀或反之（双向），且全部词命中。
-  // 例： "Comput Struct Biotechnol J" -> "Computational and Structural Biotechnology Journal"
-  //     "Probiotics Antimicrob Proteins" -> "Probiotics and Antimicrobial Proteins"
-  //     "Clinical, Cosmetic and Investigational Dermatology" -> "CLIN COSMET INV DERM"
-  if (qt.length >= 2 && journal._tokensAll && journal._tokensAll.length) {
+  // 缩写前缀双向匹配（处理 PubMed/NLM 缩写与全称差异）
+  if (qt.length >= 2 && r._tokensAll && r._tokensAll.length) {
     var allHit = true
     for (var ci = 0; ci < qt.length; ci++) {
       var qw = qt[ci], found = false
-      for (var di = 0; di < journal._tokensAll.length; di++) {
-        var cw = journal._tokensAll[di]
+      for (var di = 0; di < r._tokensAll.length; di++) {
+        var cw = r._tokensAll[di]
         if (cw.indexOf(qw) === 0 || qw.indexOf(cw) === 0) { found = true; break }
       }
       if (!found) { allHit = false; break }
@@ -162,51 +243,61 @@ window.journalApi = {
   get loaded() { return LOADED && !ERROR },
   get total()   { return DATA.length },
   get error()   { return ERROR },
+  get allTotal() { return ALL.length },
+  get ccfTotal() { return CCF.length },
+  get ccfError() { return CCF_ERROR },
+
+  /** 按下标取统一检索数组中的记录（渲染与操作复用，避免按名字反查出错） */
+  get(i) { return ALL[i] },
 
   /**
-   * 搜索期刊：按相关性得分排序（精确 > 前缀 > 包含），同分按 JIF 高→低
-   * @param {string} query  查询词（期刊名 / 缩写 / ISSN）
-   * @param {number} limit  最大返回条数
+   * 统一检索：JCR 期刊 + CCF 目录
+   * @param {string} query
+   * @param {number} limit
+   * @param {string} filter  'all' | 'journal' | 'conf'
    */
-  search(query, limit /* = 60 */) {
+  search(query, limit /* = 60 */, filter /* = 'all' */) {
     if (limit == null) limit = 60
+    if (filter == null) filter = 'all'
     ensureLoaded()
-    var q = String(query == null ? '' : query).trim().toLowerCase()
+    var q = String(query == null ? '' : query).trim()
     if (!q) return []
+
+    var out = []
+    var wantConf = filter === 'conf'
+    var wantJour = filter === 'journal'
 
     // ISSN 路径：精确匹配优先
     if (isIssnLike(q)) {
-      var norm = q.replace(/\s+/g, '')
-      var results = []
-      for (var i = 0; i < DATA.length; i++) {
-        var j = DATA[i]
-        if ((j.issn || '').replace(/\s+/g, '').toLowerCase() === norm ||
-            (j.eissn || '').replace(/\s+/g, '').toLowerCase() === norm) {
-          results.push(j)
-          if (results.length >= limit) break
-        }
+      var nq = q.replace(/\s+/g, '').toLowerCase()
+      for (var i = 0; i < ALL.length && out.length < limit; i++) {
+        var r = ALL[i]
+        if (r._conf && wantJour) continue
+        if (!r._conf && wantConf) continue
+        if ((r.issn || '').replace(/\s+/g, '').toLowerCase() === nq ||
+            (r.eissn || '').replace(/\s+/g, '').toLowerCase() === nq) out.push(r)
       }
-      return results
+      return out
     }
 
-    // 通用路径：评分 + 排序
+    var ql = q.toLowerCase()
     var scored = []
-    for (var k = 0; k < DATA.length; k++) {
-      var journal = DATA[k]
-      var s = relevanceScore(journal, q)
-      if (s > 0) scored.push({ j: journal, score: s })
+    for (var k = 0; k < ALL.length; k++) {
+      var rec = ALL[k]
+      if (rec._conf && wantJour) continue
+      if (!rec._conf && wantConf) continue
+      var s = relevanceScore(rec, ql)
+      if (s > 0) scored.push({ r: rec, score: s, i: k })
     }
 
     scored.sort(function (a, b) {
       if (b.score !== a.score) return b.score - a.score
-      return b.j.jifNum - a.j.jifNum
+      if (b.r.jifNum !== a.r.jifNum) return b.r.jifNum - a.r.jifNum
+      return a.i - b.i
     })
 
-    var result = []
-    for (var m = 0; m < scored.length && m < limit; m++) {
-      result.push(scored[m].j)
-    }
-    return result
+    for (var m = 0; m < scored.length && m < limit; m++) out.push(scored[m].r)
+    return out
   },
 
   top(n /* = 20 */) {

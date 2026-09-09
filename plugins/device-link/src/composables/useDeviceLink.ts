@@ -19,6 +19,7 @@ export function useDeviceLink() {
   const settings = ref<DeviceLinkSettings | null>(null)
   const error = ref('')
   const notice = ref('')
+  const savingAttachmentIds = ref<Set<string>>(new Set())
   const selectedConversationId = ref('shared')
   let unsubscribe: (() => void) | undefined
   let noticeTimer: ReturnType<typeof setTimeout> | undefined
@@ -122,8 +123,24 @@ export function useDeviceLink() {
     if (await window.deviceLink.copyMessage(id)) toast('已复制')
   }
 
-  async function openAttachment(id: string) {
-    if (!(await window.deviceLink.openAttachment(id))) report(new Error('附件尚未同步到本机'))
+  async function openAttachment(messageId: string, attachmentId: string) {
+    if (!(await window.deviceLink.openAttachment(messageId, attachmentId))) report(new Error('附件尚未同步到本机'))
+  }
+
+  async function saveAttachment(messageId: string, attachmentId: string) {
+    if (savingAttachmentIds.value.has(attachmentId)) return
+    savingAttachmentIds.value = new Set(savingAttachmentIds.value).add(attachmentId)
+    try {
+      const result = await window.deviceLink.saveAttachment(messageId, attachmentId)
+      if (result.status === 'saved') toast(`已保存 ${result.name || '附件'}`)
+      else if (result.status === 'missing') report(new Error('附件尚未同步到本机'))
+    } catch (reason) {
+      report(reason)
+    } finally {
+      const remaining = new Set(savingAttachmentIds.value)
+      remaining.delete(attachmentId)
+      savingAttachmentIds.value = remaining
+    }
   }
 
   async function deleteMessage(id: string) {
@@ -259,6 +276,7 @@ export function useDeviceLink() {
     loading,
     messages: conversationMessages,
     notice,
+    savingAttachmentIds,
     server,
     selectedConversationId,
     selectedDevice,
@@ -270,6 +288,7 @@ export function useDeviceLink() {
     disconnectDevice,
     openAttachment,
     regeneratePairing,
+    saveAttachment,
     saveSettings,
     saveWebDav,
     sendDroppedFiles,

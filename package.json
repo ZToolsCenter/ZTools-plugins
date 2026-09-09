@@ -9,6 +9,7 @@
     "detect:all": "node scripts/detect-changes.js --all",
     "build": "node scripts/build-plugins.js",
     "test:package-manager": "node --test scripts/package-manager.test.js",
+    "test:manifest": "node --test scripts/generate-plugins-json.test.js",
     "clean:plugins-node-modules": "node scripts/clean-plugin-node-modules.js",
     "generate": "node scripts/generate-plugins-json.js"
   },

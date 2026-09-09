@@ -193,22 +193,22 @@ async function handleCancel() {
     <!-- Branch chip -->
     <button class="branch-chip" @click="emit('open-branch-dialog')" :title="t('git.switchBranch')">
       <div class="i-mdi-source-branch text-xs text-blue-500" />
-      <span class="text-[11px] font-medium text-slate-700 dark:text-slate-300 max-w-[140px] truncate">
+      <span class="app-text-control font-medium text-slate-700 dark:text-slate-300 max-w-[140px] truncate">
         {{ summary?.branch || 'HEAD' }}
       </span>
       <template v-if="summary">
-        <span v-if="summary.is_detached" class="text-[9px] px-1 py-0.5 rounded-sm bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium">
+        <span v-if="summary.is_detached" class="app-text-caption px-1 py-0.5 rounded-sm bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium">
           detached
         </span>
-        <span v-if="summary.ahead > 0" class="text-[9px] px-1 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">
+        <span v-if="summary.ahead > 0" class="app-text-caption px-1 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">
           ↑{{ summary.ahead }}
         </span>
-        <span v-if="summary.behind > 0" class="text-[9px] px-1 py-0.5 rounded-sm bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium">
+        <span v-if="summary.behind > 0" class="app-text-caption px-1 py-0.5 rounded-sm bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium">
           ↓{{ summary.behind }}
         </span>
         <span
           v-if="hasConflicts"
-          class="text-[9px] px-1 py-0.5 rounded-sm bg-red-500/10 text-red-600 dark:text-red-400 font-medium"
+          class="app-text-caption px-1 py-0.5 rounded-sm bg-red-500/10 text-red-600 dark:text-red-400 font-medium"
         >
           {{ t('git.conflictBadge', { count: summary.conflicted_count || status?.conflicted.length || 0 }) }}
         </span>
@@ -321,7 +321,7 @@ async function handleCancel() {
 
   <div v-if="isLoading" class="git-toolbar-status">
     <span class="status-pill">
-      <div class="i-mdi-loading animate-spin text-[10px]" />
+      <div class="i-mdi-loading animate-spin text-xs" />
       {{ t('git.operationInProgress', { action: activeOperationLabel }) }}
     </span>
     <button
@@ -361,7 +361,7 @@ async function handleCancel() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--app-font-control);
   color: var(--app-text-secondary);
 }
 .op-actions {
@@ -373,7 +373,7 @@ async function handleCancel() {
   background: var(--app-surface-soft);
   border-radius: 6px;
   padding: 3px 8px;
-  font-size: 10px;
+  font-size: var(--app-font-control);
   cursor: pointer;
   color: var(--app-text-secondary);
 }
@@ -397,7 +397,7 @@ async function handleCancel() {
   min-width: 0;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--app-font-control);
   color: var(--app-text-secondary);
   background: var(--app-primary-soft);
 }
@@ -405,7 +405,7 @@ async function handleCancel() {
   border: none;
   background: transparent;
   color: var(--app-danger);
-  font-size: 10px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   cursor: pointer;
 }
@@ -442,7 +442,7 @@ async function handleCancel() {
   padding: 5px 10px;
   border-radius: 8px;
   border: none;
-  font-size: 11px;
+  font-size: var(--app-font-control);
   font-weight: 600;
   cursor: pointer;
   color: white;
@@ -458,7 +458,7 @@ async function handleCancel() {
   background: var(--app-warning, #f59e0b);
 }
 .toolbar-diverged {
-  font-size: 10px;
+  font-size: var(--app-font-caption);
   padding: 4px 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--app-danger) 10%, transparent);
@@ -500,7 +500,7 @@ async function handleCancel() {
   position: absolute;
   top: 0;
   right: 0;
-  font-size: 9px;
+  font-size: var(--app-font-caption);
   min-width: 14px;
   height: 14px;
   border-radius: 7px;

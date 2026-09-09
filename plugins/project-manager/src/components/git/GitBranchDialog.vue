@@ -207,8 +207,8 @@ async function deleteBranch(name: string, force = false) {
       <div class="flex items-center gap-2 min-w-0">
         <div class="i-mdi-source-branch text-sm text-blue-500" />
         <div class="min-w-0 flex-1">
-          <div class="truncate text-[12px] font-medium text-blue-600 dark:text-blue-400">{{ currentBranch.name }}</div>
-          <div v-if="currentBranch.upstream" class="truncate text-[10px] text-slate-400 dark:text-slate-500">
+          <div class="app-text-control truncate font-medium text-blue-600 dark:text-blue-400">{{ currentBranch.name }}</div>
+          <div v-if="currentBranch.upstream" class="app-text-meta truncate text-slate-400 dark:text-slate-500">
             {{ t('git.upstream') }}：{{ currentBranch.upstream }}
           </div>
         </div>
@@ -221,7 +221,7 @@ async function deleteBranch(name: string, force = false) {
     </div>
 
     <div class="mb-4 p-3 rounded-lg bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/40 dark:border-slate-700/30">
-      <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">{{ t('git.newBranch') }}</div>
+      <div class="app-text-control font-medium text-slate-500 dark:text-slate-400 mb-2">{{ t('git.newBranch') }}</div>
       <div class="flex flex-col gap-2 sm:flex-row">
         <el-input
           v-model="newBranchName"
@@ -250,27 +250,27 @@ async function deleteBranch(name: string, force = false) {
     </div>
 
     <div class="mb-3">
-      <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 px-1">
+      <div class="app-text-control font-medium text-slate-500 dark:text-slate-400 mb-1 px-1">
         {{ t('git.localBranches') }} ({{ filteredLocal.length }})
       </div>
       <div class="max-h-[200px] overflow-auto rounded-md border border-slate-200/40 dark:border-slate-700/30">
         <div
           v-for="branch in filteredLocal"
           :key="branch.name"
-          class="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100/60 dark:hover:bg-slate-800/30 text-[12px] group"
+          class="app-text-control flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100/60 dark:hover:bg-slate-800/30 group"
         >
           <div class="i-mdi-source-branch text-sm" :class="branch.is_current ? 'text-blue-500' : 'text-slate-400'" />
           <span class="flex-1 truncate" :class="branch.is_current ? 'font-medium text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'">
             {{ branch.name }}
           </span>
           <template v-if="branch.upstream">
-            <span v-if="branch.ahead > 0" class="text-[9px] text-green-500 font-mono">↑{{ branch.ahead }}</span>
-            <span v-if="branch.behind > 0" class="text-[9px] text-orange-500 font-mono">↓{{ branch.behind }}</span>
+            <span v-if="branch.ahead > 0" class="app-text-caption text-green-500 font-mono">↑{{ branch.ahead }}</span>
+            <span v-if="branch.behind > 0" class="app-text-caption text-orange-500 font-mono">↓{{ branch.behind }}</span>
           </template>
           <div class="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
             <button
               @click="switchToBranch(branch.name)"
-              class="text-[10px] text-blue-500 hover:text-blue-700 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              class="app-text-meta text-blue-500 hover:text-blue-700 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               :disabled="isBranchActionDisabled(branch, 'switch') || isLoading"
               :title="t('git.switchBranch')"
             >
@@ -278,7 +278,7 @@ async function deleteBranch(name: string, force = false) {
             </button>
             <button
               @click="renameBranch(branch)"
-              class="text-[10px] text-slate-400 hover:text-blue-600 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              class="app-text-meta text-slate-400 hover:text-blue-600 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               :disabled="isBranchActionDisabled(branch, 'rename') || isLoading"
               :title="t('git.renameBranch')"
             >
@@ -286,7 +286,7 @@ async function deleteBranch(name: string, force = false) {
             </button>
             <button
               @click="deleteBranch(branch.name)"
-              class="text-[10px] text-red-400 hover:text-red-600 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              class="app-text-meta text-red-400 hover:text-red-600 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               :disabled="isBranchActionDisabled(branch, 'delete') || isLoading"
               :title="t('git.deleteBranch')"
             >
@@ -294,30 +294,30 @@ async function deleteBranch(name: string, force = false) {
             </button>
           </div>
         </div>
-        <div v-if="filteredLocal.length === 0" class="px-3 py-4 text-center text-slate-400 text-[11px]">
+        <div v-if="filteredLocal.length === 0" class="px-3 py-4 text-center app-text-meta text-slate-400">
           {{ t('git.noBranches') }}
         </div>
       </div>
     </div>
 
     <div v-if="filteredRemote.length > 0">
-      <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 px-1">
+      <div class="app-text-control font-medium text-slate-500 dark:text-slate-400 mb-1 px-1">
         {{ t('git.remoteBranches') }} ({{ filteredRemote.length }})
       </div>
       <div class="max-h-[200px] overflow-auto rounded-md border border-slate-200/40 dark:border-slate-700/30">
         <div
           v-for="branch in filteredRemote"
           :key="branch.name"
-          class="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100/60 dark:hover:bg-slate-800/30 text-[12px] group"
+          class="app-text-control flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100/60 dark:hover:bg-slate-800/30 group"
         >
           <div class="i-mdi-cloud-outline text-sm text-slate-400" />
           <span class="flex-1 truncate text-slate-600 dark:text-slate-400">{{ branch.name }}</span>
-          <span class="hidden sm:inline text-[9px] text-slate-400 dark:text-slate-500 truncate max-w-[140px]">
+          <span class="hidden sm:inline app-text-meta text-slate-400 dark:text-slate-500 truncate max-w-[140px]">
             {{ t('git.checkoutRemoteAs', { name: getRemoteCheckoutName(branch.name) }) }}
           </span>
           <button
             @click="checkoutRemoteBranch(branch)"
-            class="opacity-0 group-hover:opacity-100 text-[10px] text-blue-500 hover:text-blue-700 cursor-pointer transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+            class="opacity-0 group-hover:opacity-100 app-text-meta text-blue-500 hover:text-blue-700 cursor-pointer transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             :disabled="isLoading"
             :title="t('git.checkoutBranch', { name: branch.name })"
           >
@@ -357,7 +357,7 @@ async function deleteBranch(name: string, force = false) {
 .branch-badge {
   padding: 2px 6px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: var(--app-font-caption);
   color: var(--app-primary);
   background: var(--app-primary-soft);
 }

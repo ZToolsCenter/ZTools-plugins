@@ -13,7 +13,7 @@ export interface SharedItem {
   enabled: boolean
   children?: SharedItem[]
   fileCount?: number
-  origin?: { type: 'upload'; ip: string; time: string }
+  origin?: { type: 'upload'; ip: string; time: string; local?: boolean }
   hash?: string
   hashSize?: number
   hashMtime?: number

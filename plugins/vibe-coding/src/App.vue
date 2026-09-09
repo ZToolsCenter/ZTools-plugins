@@ -2303,6 +2303,17 @@ function isPresentedToolResult(value) {
 }
 
 /**
+ * 将工具结果转换为模型可直接理解的文本，字符串不再额外套 JSON 引号。
+ * @param {unknown} value 工具返回值。
+ * @returns {string} 发送给模型并保存到会话的结果文本。
+ */
+function serializeToolResult(value) {
+  if (typeof value === "string") return value;
+  const serialized = JSON.stringify(value, null, 2);
+  return serialized === undefined ? String(value) : serialized;
+}
+
+/**
  * 计算单次工具调用在前端等待的最长时间。
  * @param {Record<string, unknown>} call 工具调用对象。
  * @returns {number} 前端等待超时时间，单位毫秒。
@@ -2420,7 +2431,7 @@ async function executeTool(runtime, call, approved = false, persist = true) {
         : [];
     // 仅在桥接调用完整返回后标记成功并保存可序列化结果。
     call.status = "completed";
-    call.result = JSON.stringify(output, null, 2);
+    call.result = serializeToolResult(output);
     delete call.liveOutput;
     trace("tool:done", {
       conversationId: runtime.id,

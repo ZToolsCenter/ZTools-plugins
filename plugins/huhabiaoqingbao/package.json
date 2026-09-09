@@ -1,0 +1,44 @@
+{
+  "name": "huhabiaoqingbao",
+  "private": true,
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/post-build.js",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit",
+    "generate-image-index": "node scripts/generateImageIndex.js"
+  },
+  "keywords": [
+    "ztools",
+    "emoticon",
+    "vue3"
+  ],
+  "author": "HUHA",
+  "license": "MIT",
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@types/md5": "^2.3.5",
+    "axios": "^1.9.0",
+    "cheerio": "^1.1.2",
+    "element-plus": "^2.5.3",
+    "gifshot": "^0.4.5",
+    "html2canvas": "^1.4.1",
+    "idb": "^8.0.0",
+    "jszip": "^3.10.1",
+    "md5": "^2.3.0",
+    "nanoid": "^5.0.4",
+    "pinia": "^2.1.7",
+    "vue": "^3.3.11",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.50",
+    "@vitejs/plugin-vue": "^4.5.2",
+    "sass": "^1.70.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8",
+    "vue-tsc": "^2.2.12"
+  }
+}
