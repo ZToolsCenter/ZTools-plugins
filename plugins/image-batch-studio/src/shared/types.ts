@@ -19,6 +19,7 @@ export interface SourceFile {
   width?: number;
   height?: number;
   format?: string;
+  previewUrl?: string;
 }
 
 export type SharpRuntimeState = "checking" | "missing" | "installing" | "ready" | "error" | "unsupported";
@@ -91,6 +92,7 @@ export interface WatermarkSettings {
   kind: "text" | "image";
   text?: string;
   imagePath?: string;
+  previewUrl?: string;
   position: WatermarkPosition;
   opacity: number;
   fontSize: number;

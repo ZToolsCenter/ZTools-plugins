@@ -33,6 +33,11 @@ export function isImagePath(filePath: string): boolean {
   return imageExtensions.has(path.extname(filePath).toLowerCase());
 }
 
+export function isBrowserRenderableImage(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase();
+  return ext === ".jpg" || ext === ".jpeg" || ext === ".png" || ext === ".webp" || ext === ".gif";
+}
+
 export function isPdfPath(filePath: string): boolean {
   return pdfExtensions.has(path.extname(filePath).toLowerCase());
 }

@@ -40,7 +40,9 @@ export function clusterRows(cells, threshold) {
   const rows = []
   for (const cell of sorted) {
     const last = rows[rows.length - 1]
-    if (last && Math.abs(cell.cy - last.cy) <= threshold) {
+    // 与前一个单元格（而非滑动均值）比较：间隙判定，避免簇中心漂移吞行
+    const prev = last && last.cells[last.cells.length - 1]
+    if (last && prev && Math.abs(cell.cy - prev.cy) <= threshold) {
       last.cells.push(cell)
       last.cy = last.cells.reduce((sum, item) => sum + item.cy, 0) / last.cells.length
     } else {
@@ -55,7 +57,9 @@ export function clusterColumns(cells, threshold) {
   const cols = []
   for (const cell of sorted) {
     const last = cols[cols.length - 1]
-    if (last && Math.abs(cell.cx - last.cx) <= threshold) {
+    // 与前一个单元格（而非滑动均值）比较：间隙判定，避免簇中心漂移吞列
+    const prev = last && last.cells[last.cells.length - 1]
+    if (last && prev && Math.abs(cell.cx - prev.cx) <= threshold) {
       last.cells.push(cell)
       last.cx = last.cells.reduce((sum, item) => sum + item.cx, 0) / last.cells.length
     } else {
