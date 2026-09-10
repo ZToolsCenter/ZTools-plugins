@@ -1,0 +1,28 @@
+{
+  "name": "plugin-guard",
+  "title": "插件安全体检",
+  "version": "0.1.0",
+  "description": "面向 ZTools 插件的只读能力与风险扫描器。",
+  "author": "harris",
+  "main": "src/ui/index.html",
+  "logo": "logo.svg",
+  "preload": "preload/index.cjs",
+  "platform": ["darwin", "win32", "linux"],
+  "categories": ["development", "system"],
+  "features": [{"code": "inspect-plugin", "explain": "只读检查所选插件目录，不修改其中内容。", "icon": "logo.svg", "cmds": ["插件体检", "插件安全扫描"]}],
+  "tools": {
+    "scan_approved": {
+      "title": "扫描已授权的 ZTools 插件目录",
+      "description": "只读扫描最近五分钟内由用户在插件界面选择的目录；不接受路径参数。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "report": {"type": "string", "enum": ["json", "markdown", "both"]},
+          "offset": {"type": "integer", "minimum": 0, "maximum": 400},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 200}
+        }
+      }
+    }
+  }
+}
