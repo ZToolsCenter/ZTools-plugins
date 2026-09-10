@@ -16,7 +16,7 @@ async function requireFile(relativePath) {
 
 const required = [
   "index.html", "plugin.json", "logo.svg", "README.md", "CHANGELOG.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
-  "preload/services.cjs", "preload/format-registry.cjs", "preload/path-policy.cjs", "preload/runtime-probe.cjs",
+  "preload/services.cjs", "preload/capture-temp-store.cjs", "preload/format-registry.cjs", "preload/path-policy.cjs", "preload/runtime-probe.cjs",
   "preload/conversion-engine.cjs", "preload/job-manager.cjs", "preload/engine-utils.cjs", "preload/text-converter.cjs",
   "preload/image-converter.cjs", "preload/pdf-converter.cjs", "preload/office-converter.cjs", "preload/officecli-installer.cjs",
   "preload/runtime-loader.cjs", "preload/runtime-installer.cjs", "preload/runtime-manifest.json",

@@ -83,6 +83,7 @@ function createJobManager(options) {
     }
     job.completedAt = now();
     job.running = false;
+    try { await options.onJobSettled?.(snapshot(job)); } catch {}
   }
 
   function start(request, plan) {
