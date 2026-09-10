@@ -1,0 +1,14 @@
+{
+  "name": "share-sanitizer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "test": "node --test",
+    "build": "node --test && node scripts/build.mjs && node scripts/verify-dist.mjs",
+    "verify-dist": "node scripts/verify-dist.mjs"
+  }
+}
