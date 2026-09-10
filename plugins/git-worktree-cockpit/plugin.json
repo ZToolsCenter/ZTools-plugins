@@ -1,0 +1,41 @@
+{
+  "name": "git-worktree-cockpit",
+  "title": "Git 工作树驾驶舱",
+  "description": "本地只读查看 Git 工作树、分支与未提交状态，生成可分享快照。",
+  "version": "0.1.0",
+  "author": "harris",
+  "main": "index.html",
+  "preload": "preload/services.cjs",
+  "logo": "logo.svg",
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ],
+  "categories": [
+    "development"
+  ],
+  "features": [
+    {
+      "code": "git-worktree-cockpit-open",
+      "explain": "查看已授权 Git 仓库的工作树状态",
+      "icon": "logo.svg",
+      "cmds": [
+        "查看 Git 工作树",
+        "Git 工作树状态",
+        "分支驾驶舱"
+      ]
+    }
+  ],
+  "tools": {
+    "snapshot_approved": {
+      "title": "读取已授权 Git 工作树快照",
+      "description": "只读检查用户当前在插件界面授权的 Git 仓库，不接受路径，不访问或返回其他工作树的绝对路径。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    }
+  }
+}

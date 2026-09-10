@@ -1,0 +1,28 @@
+'use strict'
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+test('worktree UI renders runtime values through textContent, never innerHTML', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
+  assert.match(html, /textContent=String\(value/)
+  assert.ok(!html.includes('.innerHTML'))
+})
+test('worktree UI is localized to simplified Chinese', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
+  assert.match(html, /<html lang="zh-CN">/)
+  assert.match(html, /<title>Git 工作树驾驶舱<\/title>/)
+  assert.match(html, />工作树</)
+  assert.match(html, /当前 ZTools 版本不支持目录选择对话框/)
+  for (const visibleEnglish of ['READ-ONLY FLIGHT DECK', 'Branch graph', '>WORKTREE<', '>BRANCH<', '>SYNC<', '>STATE<']) assert.equal(html.includes(visibleEnglish), false)
+})
+test('plugin-out reset clears renderer-held authorization and stale async callbacks are epoch gated', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
+  assert.match(html, /addEventListener\('git-worktree-cockpit-session-ended',resetRenderer\)/)
+  assert.match(html, /function resetRenderer\(\)\{rendererEpoch\+=1;grantId=null;enabled\(false\);chooseButton\.disabled=false;renderHeader\(\)/)
+  assert.match(html, /function runCurrent\(button,operation,onSuccess,onFailure\)\{const epoch=rendererEpoch;/)
+  assert.match(html, /if\(!isCurrent\(epoch\)\)return;onSuccess\(result\)/)
+  assert.match(html, /if\(!isCurrent\(epoch\)\)return;onFailure\(error\)/)
+  assert.match(html, /finally\{if\(!isCurrent\(epoch\)\)return;button\.disabled=false\}/)
+  assert.equal(html.includes('error.message'), false)
+})
