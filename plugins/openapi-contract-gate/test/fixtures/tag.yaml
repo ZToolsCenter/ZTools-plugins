@@ -1,0 +1,2 @@
+openapi: !!str 3.1.0
+paths: !<tag:example.com,2026:x> {}
