@@ -2,7 +2,8 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import Home from './Note/Home.vue'
 import StickyNote from './Note/StickyNote.vue'
-import { openStickyWindow, isStandaloneSupported, isStickyNoteOpen } from './Note/host'
+import EdgeTab from './Note/EdgeTab.vue'
+import { openStickyWindow, isStandaloneSupported, isStickyNoteOpen, initHostBridge } from './Note/host'
 import { useNotes } from './Note/composables/useNotes'
 
 const winType = ref<'main' | 'detach' | 'browser'>(window.ztools.getWindowType())
@@ -12,14 +13,23 @@ const { reloadNotes, loadDraft } = useNotes()
 
 let unloadTimer: ReturnType<typeof setInterval> | null = null
 
+const params = new URLSearchParams(location.search)
+/** 最小化后的边缘标签窗口（?view=tab） */
+const isEdgeTab = winType.value === 'browser' && params.get('view') === 'tab'
+
 // 独立便利贴窗口：同步加载草稿，确保 MilkdownEditor 初始值正确
-if (winType.value === 'browser') {
-  const noteId = new URLSearchParams(location.search).get('note')
-  loadDraft(noteId)
+if (winType.value === 'browser' && !isEdgeTab) {
+  loadDraft(params.get('note'))
 }
+
+// 标签窗口铺满整个窗口，不能带外层背景色，否则窗口边缘会露出底色
+if (isEdgeTab) document.body.classList.add('win-edge-tab')
 
 onMounted(() => {
   if (winType.value === 'browser') return
+
+  // 窗口管家：接便利贴 / 标签窗口发来的指令（最小化、还原、关闭）
+  initHostBridge()
 
   reloadNotes()
   window.ztools.setExpendHeight?.(560)
@@ -112,7 +122,8 @@ function onSaved() {
 </script>
 
 <template>
-  <StickyNote v-if="winType === 'browser'" />
+  <EdgeTab v-if="isEdgeTab" />
+  <StickyNote v-else-if="winType === 'browser'" />
   <StickyNote
     v-else-if="view === 'editor'"
     embedded

@@ -401,6 +401,134 @@ textarea {
   margin-top: 6px;
 }
 
+/* === 边缘标签（便利贴最小化后的独立小窗口） === */
+/* 标签铺满整个窗口，body 不能再带底色，否则窗口四周会露出一圈灰边 */
+body.win-edge-tab {
+  background-color: transparent;
+  overflow: hidden;
+}
+
+.edge-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 5px 0 6px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  background: var(--edge-tab-bg);
+  border: 1px solid var(--edge-tab-border);
+  color: var(--edge-tab-text);
+}
+
+/* 贴边的那一侧不画边框，看上去像是从屏幕边缘长出来的一条 */
+.edge-tab--right {
+  border-right: none;
+}
+
+.edge-tab--left {
+  border-left: none;
+}
+
+/* 底色区分类型：笔记=蓝、待办=橙 */
+.edge-tab--note {
+  --edge-tab-bg: #ecf5ff;
+  --edge-tab-border: #b3d8ff;
+  --edge-tab-text: #337ecc;
+}
+
+.edge-tab--todo {
+  --edge-tab-bg: #fdf6ec;
+  --edge-tab-border: #f5dab1;
+  --edge-tab-text: #b88230;
+}
+
+.edge-tab:hover {
+  box-shadow: inset 0 0 0 999px rgba(127, 127, 127, 0.12);
+}
+
+.edge-tab:active {
+  box-shadow: inset 0 0 0 999px rgba(127, 127, 127, 0.2);
+}
+
+.edge-tab-close {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  line-height: 13px;
+  font-size: 12px;
+  text-align: center;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+}
+
+.edge-tab-close:hover {
+  opacity: 1;
+}
+
+.edge-tab-title {
+  writing-mode: vertical-rl;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  line-height: 1;
+  /* flex 纵向布局下 min-height 默认是 auto，不置 0 的话内容超长会把容器撑开 */
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* 可拖动的暗示：底部三颗点 */
+.edge-tab-grip {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.4;
+}
+
+.edge-tab-grip i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* 拖动中：光标变抓握，且不再显示 hover 高亮 */
+body.edge-tab-dragging,
+body.edge-tab-dragging .edge-tab {
+  cursor: grabbing;
+}
+
+body.edge-tab-dragging .edge-tab {
+  box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .edge-tab--note {
+    --edge-tab-bg: #18222c;
+    --edge-tab-border: #1d4a7a;
+    --edge-tab-text: #79bbff;
+  }
+
+  .edge-tab--todo {
+    --edge-tab-bg: #2b2118;
+    --edge-tab-border: #5c421d;
+    --edge-tab-text: #eebe77;
+  }
+}
+
 /* === 主页面 Home === */
 .home {
   padding: 12px;
