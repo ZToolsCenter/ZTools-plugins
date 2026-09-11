@@ -1,0 +1,43 @@
+.pdf-to-image-format {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  background: #2a2a36;
+  border: 1px solid #3a3a48;
+  border-radius: 10px;
+  color: #cfcfdb;
+  font-size: 13px;
+}
+
+.pdf-to-image-format label {
+  color: #a8a8b8;
+  white-space: nowrap;
+}
+
+.pdf-to-image-format select {
+  min-width: 100px;
+  padding: 6px 10px;
+  background: #1a1a28;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+}
+
+/* When shown inside workspace toolbar, drop outer margin */
+.workspace-toolbar .pdf-to-image-format {
+  margin: 0;
+}
+
+.convert-options {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.convert-options .action-btn {
+  align-self: flex-start;
+}

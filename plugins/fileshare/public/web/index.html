@@ -1,0 +1,5022 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>文件共享</title>
+  <style>
+    /* ===== CSS Variables ===== */
+    :root {
+      --bg: #ffffff;
+      --bg2: #f8fafc;
+      --bg3: #f1f5f9;
+      --text: #1e293b;
+      --text2: #64748b;
+      --text3: #94a3b8;
+      --border: #e2e8f0;
+      --primary: #3b82f6;
+      --primary-light: #dbeafe;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.12);
+      --success: #22c55e;
+      --success-light: #dcfce7;
+      --danger: #ef4444;
+      --danger-light: #fef2f2;
+      --warning: #f59e0b;
+      --warning-light: #fffbeb;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --bg2: #1e293b;
+      --bg3: #334155;
+      --text: #f1f5f9;
+      --text2: #94a3b8;
+      --text3: #64748b;
+      --border: #334155;
+      --primary-light: #1e3a5f;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+      font: inherit;
+      color: inherit;
+    }
+
+    /* ===== Layout ===== */
+    .app {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+      min-height: 100vh;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-left svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--primary);
+      fill: none;
+      stroke-width: 1.5;
+    }
+
+    .header-left h1 {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .header-right .file-count {
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    /* ===== Local / remote access pill ===== */
+    .access-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 26px;
+      padding: 0 10px;
+      border-radius: 13px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: default;
+      user-select: none;
+    }
+
+    .access-pill .pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .access-pill.local {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .access-pill.local .pill-dot {
+      background: #22c55e;
+    }
+
+    .access-pill.remote {
+      background: var(--bg3);
+      color: var(--text2);
+    }
+
+    .access-pill.remote .pill-dot {
+      background: var(--text3);
+    }
+
+    [data-theme="dark"] .access-pill.local {
+      background: #14532d;
+      color: #4ade80;
+    }
+
+    .local-hint {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      border-radius: var(--radius);
+      background: var(--primary-light);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text2);
+      flex-wrap: wrap;
+    }
+
+    .local-hint.show {
+      display: flex;
+    }
+
+    .local-hint code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: var(--primary);
+      word-break: break-all;
+    }
+
+    .local-hint .copy-mini {
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 5px;
+      background: var(--primary);
+      color: #fff;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .local-hint .copy-mini:hover {
+      background: #2563eb;
+    }
+
+    .theme-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    .theme-btn:hover {
+      background: var(--bg3);
+    }
+
+    .theme-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--text2);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* ===== File Tree ===== */
+    .tree {}
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      gap: 8px;
+      border-radius: 6px;
+      transition: background 0.1s;
+      cursor: pointer;
+      min-height: 38px;
+    }
+
+    .tree-item:hover {
+      background: var(--bg2);
+    }
+
+    .tree-item .arrow {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s;
+      color: var(--text3);
+    }
+
+    .tree-item .arrow svg {
+      width: 12px;
+      height: 12px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .tree-item.dir.expanded>.arrow {
+      transform: rotate(90deg);
+    }
+
+    .tree-item .icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tree-item .icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .tree-item .name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .tree-item .name.no-preview {
+      color: var(--text3);
+      cursor: default;
+    }
+
+    .tree-item .size {
+      font-size: 11px;
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .tree-item .badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: var(--bg3);
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .tree-children {
+      margin-left: 20px;
+    }
+
+    .tree-children.collapsed {
+      display: none;
+    }
+
+    /* ===== Modal Overlay ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      z-index: 1300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      animation: fadeIn 0.15s;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .modal {
+      background: var(--bg);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 900px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .modal-header .modal-title {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .modal-header .modal-tabs {
+      display: flex;
+      gap: 0;
+    }
+
+    .modal-header .modal-tab {
+      padding: 4px 12px;
+      font-size: 12px;
+      border-radius: 4px;
+      color: var(--text2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .modal-header .modal-tab.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .modal-close {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    .modal-close:hover {
+      background: var(--bg3);
+    }
+
+    .modal-close svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--text2);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .modal-body {
+      flex: 1;
+      overflow: auto;
+      padding: 20px 24px;
+    }
+
+    .modal-body img {
+      max-width: 100%;
+      border-radius: var(--radius);
+      display: block;
+      margin: 0 auto;
+    }
+
+    .modal-body audio {
+      width: 100%;
+      max-width: 500px;
+      display: block;
+      margin: 20px auto;
+      outline: none;
+    }
+
+    .modal-body video {
+      width: 100%;
+      max-height: 60vh;
+      border-radius: var(--radius);
+      outline: none;
+    }
+
+    .modal-body pre {
+      background: var(--bg3);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      tab-size: 2;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .modal-body code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+    }
+
+    .modal-body .empty-hint {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: var(--text3);
+      gap: 8px;
+    }
+
+    .modal-body .empty-hint svg {
+      width: 40px;
+      height: 40px;
+      stroke: var(--text3);
+      fill: none;
+      stroke-width: 1.5;
+    }
+
+    /* ===== Fullscreen Image Viewer ===== */
+    .img-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: rgba(0, 0, 0, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .img-viewer.dragging {
+      cursor: grabbing;
+    }
+
+    .img-viewer img {
+      max-width: none;
+      max-height: none;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+      transform-origin: center center;
+      transition: transform 0.05s linear;
+    }
+
+    .img-viewer-hint {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .img-viewer-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      z-index: 1;
+    }
+
+    .img-viewer-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .img-viewer-close svg {
+      width: 22px;
+      height: 22px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .img-viewer-zoom {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    /* ===== Confirm Dialog (unified custom styling, no native dialogs) ===== */
+    .confirm-modal {
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .confirm-body {
+      padding: 26px 24px 6px;
+      text-align: center;
+    }
+
+    .confirm-icon {
+      width: 46px;
+      height: 46px;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      background: #fef2f2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    [data-theme="dark"] .confirm-icon {
+      background: #3b1515;
+    }
+
+    .confirm-icon svg {
+      width: 22px;
+      height: 22px;
+      stroke: var(--danger);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .confirm-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .confirm-msg {
+      font-size: 13px;
+      color: var(--text2);
+      word-break: break-all;
+      line-height: 1.6;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 10px;
+      padding: 20px 24px 24px;
+    }
+
+    .confirm-btn {
+      flex: 1;
+      padding: 9px 0;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      transition: all 0.15s;
+    }
+
+    .confirm-btn:hover {
+      background: var(--bg3);
+    }
+
+    .confirm-btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .confirm-btn.primary:hover {
+      background: #2563eb;
+    }
+
+    .confirm-btn.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .confirm-btn.danger:hover {
+      background: #dc2626;
+    }
+
+    /* ===== Markdown rendered ===== */
+    .md-body {
+      line-height: 1.7;
+    }
+
+    .md-body h1 {
+      font-size: 1.6em;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin: 20px 0 12px;
+    }
+
+    .md-body h2 {
+      font-size: 1.35em;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      margin: 18px 0 10px;
+    }
+
+    .md-body h3 {
+      font-size: 1.15em;
+      margin: 14px 0 8px;
+    }
+
+    .md-body h4,
+    .md-body h5,
+    .md-body h6 {
+      font-size: 1.05em;
+      margin: 10px 0 6px;
+    }
+
+    .md-body p {
+      margin: 6px 0;
+    }
+
+    .md-body ul,
+    .md-body ol {
+      padding-left: 22px;
+      margin: 6px 0;
+    }
+
+    .md-body li {
+      margin: 2px 0;
+    }
+
+    .md-body blockquote {
+      border-left: 3px solid var(--primary);
+      padding: 4px 14px;
+      margin: 10px 0;
+      background: var(--bg2);
+      border-radius: 0 4px 4px 0;
+      color: var(--text2);
+    }
+
+    .md-body code {
+      background: var(--bg3);
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+
+    .md-body pre {
+      margin: 10px 0;
+    }
+
+    .md-body pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .md-body table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    .md-body th,
+    .md-body td {
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    .md-body th {
+      background: var(--bg2);
+      font-weight: 600;
+    }
+
+    .md-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    .md-body a {
+      color: var(--primary);
+    }
+
+    .md-body img {
+      max-width: 100%;
+      border-radius: 4px;
+    }
+
+    /* ===== Syntax Highlighting ===== */
+    .hljs-keyword {
+      color: #7c3aed;
+    }
+
+    .hljs-string {
+      color: #059669;
+    }
+
+    .hljs-comment {
+      color: #94a3b8;
+      font-style: italic;
+    }
+
+    .hljs-number {
+      color: #d97706;
+    }
+
+    .hljs-function {
+      color: #2563eb;
+    }
+
+    .hljs-type {
+      color: #0891b2;
+    }
+
+    .hljs-attr {
+      color: #c026d3;
+    }
+
+    .hljs-builtin {
+      color: #dc2626;
+    }
+
+    [data-theme="dark"] .hljs-keyword {
+      color: #a78bfa;
+    }
+
+    [data-theme="dark"] .hljs-string {
+      color: #34d399;
+    }
+
+    [data-theme="dark"] .hljs-comment {
+      color: #64748b;
+    }
+
+    [data-theme="dark"] .hljs-number {
+      color: #fbbf24;
+    }
+
+    [data-theme="dark"] .hljs-function {
+      color: #60a5fa;
+    }
+
+    [data-theme="dark"] .hljs-type {
+      color: #22d3ee;
+    }
+
+    [data-theme="dark"] .hljs-attr {
+      color: #e879f9;
+    }
+
+    [data-theme="dark"] .hljs-builtin {
+      color: #f87171;
+    }
+
+    /* ===== Scrollbar ===== */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    /* ===== Toast ===== */
+    .web-toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-12px);
+      background: #1e293b;
+      color: #fff;
+      padding: 8px 22px;
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 2000;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      white-space: nowrap;
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .web-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ===== Bulk actions bar ===== */
+    .bulk-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    .bulk-bar .bulk-btn {
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .bulk-bar .bulk-btn:hover {
+      background: var(--bg3);
+    }
+
+    .bulk-bar .bulk-btn.primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .bulk-bar .bulk-btn.primary:hover {
+      background: #2563eb;
+    }
+
+    .bulk-bar .bulk-count {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    /* Checkbox */
+    .tree-cb {
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border: 1.5px solid var(--border);
+      border-radius: 3px;
+      flex-shrink: 0;
+      cursor: pointer;
+      position: relative;
+      margin: 0;
+    }
+
+    .tree-cb:checked {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .tree-cb:checked::after {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 1px;
+      width: 5px;
+      height: 9px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    /* Download button per row */
+    .dl-btn {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: none;
+      color: var(--text3);
+      cursor: pointer;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .dl-btn:hover {
+      background: var(--bg3);
+      color: var(--primary);
+    }
+
+    .dl-btn.del:hover {
+      background: #fef2f2;
+      color: var(--danger);
+    }
+
+    [data-theme="dark"] .dl-btn.del:hover {
+      background: #3b1515;
+    }
+
+    .dl-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* ===== Search Box ===== */
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0 10px;
+      height: 34px;
+      min-width: 140px;
+      transition: border-color 0.15s;
+    }
+
+    .search-box:focus-within {
+      border-color: var(--primary);
+    }
+
+    .search-box svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--text3);
+      fill: none;
+      stroke-width: 2;
+      flex-shrink: 0;
+    }
+
+    .search-box input {
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      width: 100%;
+    }
+
+    .search-box input::placeholder {
+      color: var(--text3);
+    }
+
+    .search-clear {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .search-clear:hover {
+      background: var(--bg3);
+      color: var(--text);
+    }
+
+    .search-clear svg {
+      width: 10px;
+      height: 10px;
+    }
+
+    /* ===== Upload button ===== */
+    .upload-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 34px;
+      padding: 0 14px;
+      border-radius: var(--radius);
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .upload-btn:hover {
+      background: #2563eb;
+    }
+
+    .upload-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* ===== Section grouping (host shares vs client uploads) ===== */
+    .section {
+      margin-bottom: 4px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 20px 0 2px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-header .section-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-header .section-label svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--primary);
+      fill: none;
+      stroke-width: 1.5;
+    }
+
+    .section-header .section-ip {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      color: var(--primary);
+      font-weight: 500;
+      font-size: 11px;
+      background: var(--primary-light);
+      padding: 1px 8px;
+      border-radius: 10px;
+    }
+
+    .section-header .section-count {
+      font-weight: 400;
+      color: var(--text3);
+      margin-left: auto;
+    }
+
+    /* ===== Upload progress panel ===== */
+    .upload-panel {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 320px;
+      max-width: calc(100vw - 40px);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      z-index: 1500;
+      overflow: hidden;
+      display: none;
+    }
+
+    .upload-panel.show {
+      display: block;
+      animation: slideUp 0.2s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .upload-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .upload-panel-header svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--primary);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .upload-panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .upload-panel-close {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .upload-panel-close:hover {
+      background: var(--bg3);
+      color: var(--text);
+    }
+
+    .upload-panel-close svg {
+      width: 12px;
+      height: 12px;
+      stroke: currentColor;
+    }
+
+    .upload-panel-body {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .upload-row {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .upload-row:last-child {
+      border-bottom: none;
+    }
+
+    .upload-row-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .upload-row-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .upload-row-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .upload-row-icon.uploading svg {
+      stroke: var(--primary);
+      fill: none;
+      stroke-width: 2;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .upload-row-icon.done svg {
+      stroke: var(--success);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .upload-row-icon.error svg {
+      stroke: var(--danger);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .upload-row-name {
+      flex: 1;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .upload-row-status {
+      font-size: 11px;
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .upload-row-status.done {
+      color: var(--success);
+    }
+
+    .upload-row-status.error {
+      color: var(--danger);
+    }
+
+    .progress-track {
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 0;
+      transition: width 0.15s ease;
+    }
+
+    .progress-fill.done {
+      background: var(--success);
+    }
+
+    .progress-fill.error {
+      background: var(--danger);
+    }
+
+    /* ===== Drag & drop overlay ===== */
+    .drop-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      z-index: 3000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drop-overlay.show {
+      display: flex;
+    }
+
+    .drop-box {
+      background: var(--bg);
+      border: 2px dashed var(--primary);
+      border-radius: 16px;
+      padding: 48px 64px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .drop-box svg {
+      width: 48px;
+      height: 48px;
+      stroke: var(--primary);
+      fill: none;
+      stroke-width: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .drop-box-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .drop-box-desc {
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    /* ===== Empty search result ===== */
+    .empty-search {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text3);
+      font-size: 13px;
+    }
+
+    /* ===== P2P private messaging ===== */
+    .p2p-btn {
+      position: relative;
+    }
+
+    .p2p-badge {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      min-width: 15px;
+      height: 15px;
+      padding: 0 3px;
+      border-radius: 8px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid var(--bg);
+      line-height: 15px;
+    }
+
+    .p2p-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.25);
+      z-index: 1199;
+    }
+
+    .p2p-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 400px;
+      max-width: 100vw;
+      height: 100%;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      z-index: 1200;
+      display: flex;
+      flex-direction: column;
+      animation: drawerIn 0.18s ease-out;
+    }
+
+    @keyframes drawerIn {
+      from {
+        transform: translateX(40px);
+        opacity: 0.4;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .p2p-drawer-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .p2p-drawer-title {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .p2p-drawer-close {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text2);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .p2p-drawer-close:hover {
+      background: var(--bg3);
+    }
+
+    .p2p-reconnect {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px;
+      font-size: 11px;
+      color: var(--text2);
+      background: var(--warning-light);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .p2p-reconnect.show {
+      display: flex;
+    }
+
+    .p2p-drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    /* states */
+    .p2p-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--text2);
+      font-size: 13px;
+      flex: 1;
+    }
+
+    .p2p-state svg {
+      stroke: var(--text3);
+      fill: none;
+      stroke-width: 1.2;
+    }
+
+    .p2p-state-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .p2p-state-sub {
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    .p2p-form {
+      padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .p2p-form label {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .p2p-form input,
+    .p2p-form textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 11px;
+      font-size: 13px;
+      background: var(--bg2);
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    .p2p-form input:focus,
+    .p2p-form textarea:focus {
+      border-color: var(--primary);
+    }
+
+    .p2p-submit {
+      height: 38px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+    }
+
+    .p2p-submit:hover {
+      background: #2563eb;
+    }
+
+    .p2p-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* chat */
+    .p2p-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .p2p-chat-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .p2p-peer-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .p2p-peer-ip {
+      font-size: 11px;
+      color: var(--text3);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .p2p-online {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .p2p-online.on {
+      background: var(--success);
+    }
+
+    .p2p-chat-del {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text3);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+    }
+
+    .p2p-chat-del:hover {
+      color: var(--danger);
+      background: var(--danger-light);
+    }
+
+    .p2p-msgs {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--bg2);
+    }
+
+    .p2p-msg {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      cursor: default;
+    }
+
+    .p2p-msg.mine {
+      align-items: flex-end;
+    }
+
+    .p2p-msg-time {
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    /* Message head layout: theirs = [时间][复制][删除], mine = [删除][复制][时间] */
+    .p2p-msg.theirs .p2p-msg-time {
+      order: 0;
+    }
+
+    .p2p-msg.theirs .p2p-msg-copy {
+      order: 1;
+    }
+
+    .p2p-msg.theirs .p2p-msg-del {
+      order: 2;
+    }
+
+    .p2p-msg.mine .p2p-msg-del {
+      order: 0;
+    }
+
+    .p2p-msg.mine .p2p-msg-copy {
+      order: 1;
+    }
+
+    .p2p-msg.mine .p2p-msg-time {
+      order: 2;
+    }
+
+    .p2p-msg-del {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: var(--text3);
+      cursor: pointer;
+      opacity: 0.55;
+      transition: opacity 0.12s;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .p2p-msg-copy {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: var(--text3);
+      cursor: pointer;
+      opacity: 0.55;
+      transition: opacity 0.12s;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .p2p-msg-del:hover {
+      opacity: 1;
+      background: var(--danger-light);
+      color: var(--danger);
+    }
+
+    .p2p-msg-copy:hover {
+      opacity: 1;
+      background: var(--bg3);
+      color: var(--primary);
+    }
+
+    .p2p-msg-copy.copied {
+      opacity: 1;
+      color: var(--success);
+      background: var(--success-light);
+    }
+
+    [data-theme="dark"] .p2p-msg-copy.copied {
+      background: #14532d;
+    }
+
+    .p2p-file-item {
+      display: flex;
+      gap: 10px;
+      padding: 5px 4px;
+    }
+
+    .p2p-bubble {
+      max-width: 82%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.55;
+      word-break: break-word;
+      white-space: pre-wrap;
+      cursor: default;
+      user-select: text;
+    }
+
+    .p2p-msg.theirs .p2p-bubble {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-top-left-radius: 2px;
+      color: var(--text);
+    }
+
+    .p2p-msg.mine .p2p-bubble {
+      background: var(--primary);
+      color: #fff;
+      border-top-right-radius: 2px;
+    }
+
+    .p2p-system {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text3);
+      padding: 2px 0;
+    }
+
+    .p2p-file {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 8px;
+      max-width: 340px;
+      min-width: 230px;
+    }
+
+    .p2p-msg.mine .p2p-file {
+      background: var(--primary-light);
+      border-color: var(--primary-light);
+    }
+
+    .p2p-msg.mine .p2p-file-item+.p2p-file-item {
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    .p2p-file-icon {
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .p2p-file-name {
+      font-size: 12px;
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    .p2p-file-meta {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    .p2p-file-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 7px;
+    }
+
+    .p2p-file-btn {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--primary);
+      cursor: pointer;
+    }
+
+    .p2p-file-btn:hover {
+      background: var(--primary-light);
+    }
+
+    .p2p-inputbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .p2p-file-send {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .p2p-file-send:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .p2p-input {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 11px;
+      min-height: 34px;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      max-height: 96px;
+    }
+
+    .p2p-input:focus {
+      border-color: var(--primary);
+    }
+
+    .p2p-send {
+      height: 34px;
+      padding: 0 16px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      border: none;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .p2p-send:hover {
+      background: #2563eb;
+    }
+
+    .p2p-send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .p2p-upload-row {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text2);
+      flex-shrink: 0;
+    }
+
+    .p2p-upload-row.show {
+      display: flex;
+    }
+
+    .p2p-upload-name {
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .p2p-upload-track {
+      flex: 1;
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .p2p-upload-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 0;
+      transition: width 0.15s;
+    }
+
+    .p2p-upload-pct {
+      font-size: 11px;
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    /* ===== Host management console (local browser) ===== */
+    .host-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .host-list {
+      width: 280px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .host-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    @media (max-width: 699px) {
+      .host-body.host-view-list .host-chat {
+        display: none;
+      }
+
+      .host-body.host-view-chat .host-list {
+        display: none;
+      }
+
+      .host-list {
+        width: 100%;
+        border-right: none;
+      }
+    }
+
+    /* ===== Host console session list ===== */
+    .p2p-group-label {
+      font-size: 11px;
+      color: var(--text3);
+      padding: 10px 16px 4px;
+    }
+
+    .p2p-session {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .p2p-session:hover {
+      background: var(--bg2);
+    }
+
+    .p2p-session.active {
+      background: var(--primary-light);
+    }
+
+    .p2p-session.pending {
+      background: var(--bg2);
+      border-left: 3px solid var(--warning);
+      cursor: default;
+    }
+
+    .p2p-session-main {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .p2p-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .p2p-session-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .p2p-session-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .p2p-session-ip {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--text3);
+    }
+
+    .p2p-session-preview {
+      font-size: 11px;
+      color: var(--text3);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+
+    .p2p-session-side {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .p2p-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    .p2p-status-dot.online {
+      background: var(--success);
+    }
+
+    .p2p-status-text {
+      font-size: 10px;
+      color: var(--text3);
+      white-space: nowrap;
+    }
+
+    .p2p-unread {
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 9px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .p2p-del {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: none;
+      color: var(--text3);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .p2p-del:hover {
+      background: var(--danger-light);
+      color: var(--danger);
+    }
+
+    .p2p-btn {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text2);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .p2p-btn.accept {
+      background: var(--success);
+      border-color: var(--success);
+      color: #fff;
+    }
+
+    .p2p-btn.reject {
+      color: var(--danger);
+      border-color: var(--border);
+    }
+
+    .p2p-btn.reject:hover {
+      background: var(--danger-light);
+    }
+
+    /* ===== Host layout (local browser): side menu + content ===== */
+    .app.app-host {
+      display: flex;
+      flex-direction: column;
+      max-width: 1200px;
+      height: 100vh;
+      min-height: 100vh;
+      padding-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .layout-row {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .side-menu {
+      width: 148px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .side-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text2);
+      cursor: pointer;
+      background: none;
+      border: none;
+      position: relative;
+      font-family: inherit;
+    }
+
+    .side-tab:hover {
+      background: var(--bg2);
+      color: var(--text);
+    }
+
+    .side-tab.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .side-tab svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      flex-shrink: 0;
+    }
+
+    .side-badge {
+      position: absolute;
+      right: 8px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 8px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 16px;
+    }
+
+    .main-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #filesView {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      min-height: 0;
+      padding: 0 14px;
+    }
+
+    #messagesView {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #messagesViewBody {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    @media (max-width: 767px) {
+      .side-menu {
+        display: none;
+      }
+
+      .app.app-host {
+        max-width: 100%;
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+      }
+    }
+
+    /* mobile bottom nav */
+    .mobile-nav {
+      display: none;
+    }
+
+    @media (max-width: 767px) {
+      .p2p-drawer {
+        width: 100%;
+      }
+
+      .mobile-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg);
+        border-top: 1px solid var(--border);
+        z-index: 900;
+        height: 54px;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      .mobile-nav-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        font-size: 11px;
+        color: var(--text2);
+        cursor: pointer;
+        position: relative;
+        background: none;
+        border: none;
+        font-family: inherit;
+      }
+
+      .mobile-nav-btn.active {
+        color: var(--primary);
+      }
+
+      .mobile-nav-btn svg {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.8;
+      }
+
+      .mobile-nav-badge {
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        margin-left: 8px;
+        min-width: 15px;
+        height: 15px;
+        padding: 0 3px;
+        border-radius: 8px;
+        background: var(--danger);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 15px;
+      }
+
+      .app {
+        padding-bottom: 74px;
+      }
+
+      .p2p-inputbar {
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app" id="app">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6.5l-1.5-2H5a2 2 0 00-2 2z" stroke-width="1.5" />
+        </svg>
+        <h1>文件共享</h1>
+      </div>
+      <div class="header-right">
+        <span class="access-pill" id="accessPill" style="display:none"></span>
+        <span class="file-count" id="fileCount"></span>
+        <div class="search-box" id="searchBox">
+          <svg viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input type="text" id="searchInput" placeholder="搜索文件..." autocomplete="off" />
+          <button class="search-clear" id="searchClear" style="display:none" title="清除搜索">
+            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <button class="upload-btn" id="uploadBtn" title="上传文件到共享">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          上传文件
+        </button>
+        <input type="file" id="uploadInput" multiple style="display:none" />
+        <button class="theme-btn" id="refreshBtn" title="刷新文件列表">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" fill="none" stroke-width="2">
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+          </svg>
+        </button>
+        <button class="theme-btn" id="hostLogsBtn" title="下载日志" style="display:none">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" fill="none" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        </button>
+        <button class="theme-btn" id="hostWhitelistBtn" title="IP 白名单" style="display:none">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" fill="none" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+          </svg>
+        </button>
+        <button class="theme-btn p2p-btn" id="p2pBtn" title="私密连接">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2">
+            <path
+              d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+          </svg>
+          <span class="p2p-badge" id="p2pBadge" style="display:none"></span>
+        </button>
+        <button class="theme-btn" id="themeBtn" title="切换主题">
+          <svg viewBox="0 0 24 24" id="sunIcon">
+            <circle cx="12" cy="12" r="5" />
+            <path
+              d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+          </svg>
+          <svg viewBox="0 0 24 24" id="moonIcon" style="display:none">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Local host hint -->
+    <div class="local-hint" id="localHint">
+      <span>当前在本机浏览器打开，推荐使用下面的地址访问更稳定：</span>
+      <code id="localHintUrl"></code>
+      <button class="copy-mini" id="localHintCopy">复制</button>
+    </div>
+
+    <!-- Local host layout: side menu tab + content -->
+    <div class="layout-row" id="layoutRow">
+      <aside class="side-menu" id="sideMenu" style="display:none">
+        <button class="side-tab active" id="sideTabFiles">
+          <svg viewBox="0 0 24 24">
+            <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6.5l-1.5-2H5a2 2 0 00-2 2z" />
+          </svg>
+          文件
+        </button>
+        <button class="side-tab" id="sideTabMessages">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+          </svg>
+          消息
+          <span class="side-badge" id="sideMsgBadge" style="display:none"></span>
+        </button>
+      </aside>
+      <main class="main-col" id="mainCol">
+        <div id="filesView">
+          <!-- Bulk Actions -->
+          <div class="bulk-bar" id="bulkBar">
+            <input type="checkbox" class="tree-cb" id="selectAllCb" title="Select all files">
+            <span class="bulk-count" id="bulkCount">已选择 0</span>
+            <button class="bulk-btn primary" id="dlSelectedBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              下载选中
+            </button>
+            <button class="bulk-btn" id="dlAllBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              全部下载
+            </button>
+          </div>
+
+          <!-- File Tree -->
+          <div class="tree" id="tree"></div>
+        </div>
+        <div id="messagesView" style="display:none">
+          <div class="host-body host-view-list" id="messagesViewBody"></div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Toast -->
+    <div class="web-toast" id="webToast"></div>
+  </div>
+
+  <!-- Upload progress panel -->
+  <div class="upload-panel" id="uploadPanel">
+    <div class="upload-panel-header">
+      <svg viewBox="0 0 24 24">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+      <span class="upload-panel-title">上传</span>
+      <button class="upload-panel-close" id="uploadPanelClose" title="关闭">
+        <svg viewBox="0 0 24 24">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div class="upload-panel-body" id="uploadPanelBody"></div>
+  </div>
+
+  <!-- Drag & drop overlay -->
+  <div class="drop-overlay" id="dropOverlay">
+    <div class="drop-box">
+      <svg viewBox="0 0 24 24">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+      <div class="drop-box-title">松开以共享文件</div>
+      <div class="drop-box-desc">文件将上传并共享给所有访问者</div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="modal-overlay" id="modalOverlay" style="display:none">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle"></span>
+        <div style="flex:1"></div>
+        <div class="modal-tabs" id="modalTabs" style="display:none">
+          <span class="modal-tab active" data-view="preview">预览</span>
+          <span class="modal-tab" data-view="source">源码</span>
+        </div>
+        <div style="flex:1"></div>
+        <a id="modalDownload" href="#"
+          style="font-size:12px;color:var(--primary);text-decoration:none;margin-right:8px;flex-shrink:0">下载</a>
+        <button id="modalCopyBtn"
+          style="display:none;font-size:12px;color:var(--primary);background:none;border:none;cursor:pointer;margin-right:8px;flex-shrink:0">复制内容</button>
+        <button class="modal-close" id="modalClose">
+          <svg viewBox="0 0 24 24">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Image Viewer -->
+  <div class="img-viewer" id="imgViewer" style="display:none">
+    <button class="img-viewer-close" id="imgViewerClose">
+      <svg viewBox="0 0 24 24">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
+    <span class="img-viewer-zoom" id="imgViewerZoom"></span>
+    <img id="imgViewerImg" alt="">
+    <span class="img-viewer-hint">滚轮缩放 · 拖拽移动 · ESC 退出</span>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div class="modal-overlay" id="confirmOverlay" style="display:none">
+    <div class="modal confirm-modal">
+      <div class="confirm-body">
+        <div class="confirm-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </div>
+        <div class="confirm-title" id="confirmTitle">确认操作</div>
+        <div class="confirm-msg" id="confirmMsg"></div>
+      </div>
+      <div class="confirm-actions" id="confirmActions"></div>
+    </div>
+  </div>
+
+  <!-- P2P drawer -->
+  <div class="p2p-mask" id="p2pMask" style="display:none"></div>
+  <div class="p2p-drawer" id="p2pDrawer" style="display:none">
+    <div class="p2p-drawer-header">
+      <span class="p2p-drawer-title" id="p2pDrawerTitle">私密连接</span>
+      <button class="p2p-drawer-close" id="p2pDrawerClose">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div class="p2p-reconnect" id="p2pReconnect">连接已断开，正在重连…</div>
+    <div class="p2p-drawer-body" id="p2pDrawerBody"></div>
+    <div class="p2p-upload-row" id="p2pUploadRow">
+      <span class="p2p-upload-name" id="p2pUploadName"></span>
+      <div class="p2p-upload-track">
+        <div class="p2p-upload-fill" id="p2pUploadFill"></div>
+      </div>
+      <span class="p2p-upload-pct" id="p2pUploadPct">0%</span>
+    </div>
+  </div>
+  <input type="file" id="p2pFileInput" multiple style="display:none" />
+
+  <!-- Mobile bottom nav -->
+  <div class="mobile-nav" id="mobileNav">
+    <button class="mobile-nav-btn active" id="navFilesBtn">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6.5l-1.5-2H5a2 2 0 00-2 2z" />
+      </svg>
+      文件
+    </button>
+    <button class="mobile-nav-btn" id="navP2pBtn">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+      </svg>
+      <span id="navP2pLabel">消息</span>
+      <span class="mobile-nav-badge" id="navP2pBadge" style="display:none"></span>
+    </button>
+  </div>
+
+  <script>
+    // ===== State =====
+    const params = new URLSearchParams(location.search);
+    const TOKEN = params.get('token') || '';
+    const SCOPE_PATH = params.get('path') || '';
+    // Dev/test switch: ?peer=1 forces this browser into the remote-client
+    // (peer) flow even on the plugin machine, so the client experience can be
+    // exercised from a local browser without a second device.
+    const FORCE_PEER = params.get('peer') === '1';
+    let fileTree = [];
+    let currentFilePath = null;
+    let currentFileExt = '';
+    let currentViewMode = 'preview';
+    let currentRawContent = '';
+    let searchQuery = '';
+    let searchTimer = null;
+    let myIp = ''; // this client's IP as seen by the server
+    let isLocalHost = false; // is the browser on the plugin machine?
+    let hostLocalUrl = '';   // http://127.0.0.1:port/?token=...
+    let hostLanUrl = '';     // http://<lan ip>:port/?token=...
+
+    // ===== P2P private messaging state =====
+    const p2p = {
+      ready: false,
+      peerKey: '',
+      peerId: '',
+      session: null,      // { id, status, peerName }
+      messages: [],
+      lastSeq: 0,
+      es: null,
+      pollTimer: null,
+      pollSince: 0,
+      unread: 0,
+      drawing: false
+    };
+
+    // ===== Init =====
+    function init() {
+      loadTheme();
+      document.getElementById('themeBtn').addEventListener('click', toggleTheme);
+      document.getElementById('refreshBtn').addEventListener('click', function () { loadFileList(); showToast('列表已刷新'); });
+      document.getElementById('localHintCopy').addEventListener('click', function () {
+        if (hostLocalUrl) {
+          copyToClipboard(hostLocalUrl).then(() => showToast('本机地址已复制')).catch(() => { });
+        }
+      });
+      document.getElementById('modalClose').addEventListener('click', closeModal);
+      document.getElementById('modalOverlay').addEventListener('click', function (e) {
+        if (e.target === this) closeModal();
+      });
+      document.getElementById('modalTabs').addEventListener('click', function (e) {
+        if (e.target.classList.contains('modal-tab')) {
+          document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+          e.target.classList.add('active');
+          currentViewMode = e.target.dataset.view;
+          if (currentFilePath) renderPreview(currentRawContent, currentFileExt);
+        }
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          if (document.getElementById('imgViewer').style.display !== 'none') closeImgViewer();
+          else if (document.getElementById('confirmOverlay').style.display !== 'none') closeDialog(null);
+          else if (p2p.drawing || host.active) closeP2pEntry();
+          else closeModal();
+        }
+      });
+      initImgViewer();
+      // Dialog wiring (overlay click closes like a cancel)
+      document.getElementById('confirmOverlay').addEventListener('click', function (e) {
+        if (e.target === this) closeDialog(null);
+      });
+      document.getElementById('selectAllCb').addEventListener('click', selectAllFiles);
+      document.getElementById('dlSelectedBtn').addEventListener('click', downloadSelected);
+      document.getElementById('dlAllBtn').addEventListener('click', downloadAllFiles);
+      document.getElementById('modalCopyBtn').addEventListener('click', function () {
+        if (currentRawContent) {
+          copyToClipboard(currentRawContent).then(() => {
+            const btn = document.getElementById('modalCopyBtn');
+            btn.textContent = '已复制';
+            showToast('内容已复制到剪贴板');
+            setTimeout(() => { btn.textContent = '复制内容'; }, 2000);
+          }).catch(() => { });
+        }
+      });
+
+      // Search
+      const searchInput = document.getElementById('searchInput');
+      searchInput.addEventListener('input', function () {
+        searchQuery = this.value.trim().toLowerCase();
+        document.getElementById('searchClear').style.display = searchQuery ? '' : 'none';
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(renderSections, 200);
+      });
+      document.getElementById('searchClear').addEventListener('click', function () {
+        searchInput.value = '';
+        searchQuery = '';
+        this.style.display = 'none';
+        renderSections();
+      });
+
+      // Upload (hidden in scoped views — scoped links are read-only)
+      if (SCOPE_PATH) {
+        document.getElementById('uploadBtn').style.display = 'none';
+      }
+      document.getElementById('uploadBtn').addEventListener('click', function () {
+        document.getElementById('uploadInput').click();
+      });
+      document.getElementById('uploadInput').addEventListener('change', function () {
+        if (this.files && this.files.length > 0) {
+          uploadFiles(this.files);
+          this.value = '';
+        }
+      });
+      document.getElementById('uploadPanelClose').addEventListener('click', function () {
+        document.getElementById('uploadPanel').classList.remove('show');
+      });
+
+      // Drag & drop upload
+      let dragDepth = 0;
+      document.addEventListener('dragenter', function (e) {
+        e.preventDefault();
+        if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+          dragDepth++;
+          document.getElementById('dropOverlay').classList.add('show');
+        }
+      });
+      document.addEventListener('dragover', function (e) { e.preventDefault(); });
+      document.addEventListener('dragleave', function (e) {
+        e.preventDefault();
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) document.getElementById('dropOverlay').classList.remove('show');
+      });
+      document.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dragDepth = 0;
+        document.getElementById('dropOverlay').classList.remove('show');
+        if (!SCOPE_PATH && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          uploadFiles(e.dataTransfer.files);
+        }
+      });
+
+      // P2P / host wiring (mode-aware: remote = peer flow, local = message console)
+      document.getElementById('p2pBtn').addEventListener('click', toggleP2pEntry);
+      document.getElementById('p2pMask').addEventListener('click', closeP2pEntry);
+      document.getElementById('p2pDrawerClose').addEventListener('click', closeP2pEntry);
+      document.getElementById('p2pFileInput').addEventListener('change', onP2pFileInput);
+      document.getElementById('hostLogsBtn').addEventListener('click', openHostLogs);
+      document.getElementById('hostWhitelistBtn').addEventListener('click', openHostWhitelist);
+      document.getElementById('sideTabFiles').addEventListener('click', () => setView('files'));
+      document.getElementById('sideTabMessages').addEventListener('click', () => setView('messages'));
+      document.getElementById('navP2pBtn').addEventListener('click', () => { if (hostUiMode()) setView('messages'); else openP2pDrawer(); });
+      document.getElementById('navFilesBtn').addEventListener('click', () => { if (hostUiMode()) setView('files'); else closeP2pDrawer(); });
+
+      loadFileList();
+    }
+
+    // ===== Theme =====
+    function loadTheme() {
+      const saved = localStorage.getItem('fs-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', saved);
+      updateThemeIcon(saved);
+    }
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('fs-theme', next);
+      updateThemeIcon(next);
+      if (currentFilePath) renderPreview(currentRawContent, currentFileExt);
+    }
+    function updateThemeIcon(theme) {
+      document.getElementById('sunIcon').style.display = theme === 'dark' ? 'none' : '';
+      document.getElementById('moonIcon').style.display = theme === 'dark' ? '' : 'none';
+    }
+
+    // ===== File List =====
+    async function loadFileList() {
+      try {
+        let apiUrl = '/api/list?token=' + TOKEN;
+        if (SCOPE_PATH) apiUrl += '&path=' + encodeURIComponent(SCOPE_PATH);
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        fileTree = data.files || [];
+        myIp = data.clientIp || '';
+        isLocalHost = !!data.isLocalHost;
+        hostLocalUrl = data.hostLocalUrl || '';
+        hostLanUrl = data.hostLanUrl || '';
+        renderAccessInfo();
+        initP2pMode();
+        // If scoped, hide header title area (show scope path instead)
+        if (data.scoped && data.scopePath) {
+          document.querySelector('.header-left h1').textContent = decodeURIComponent(data.scopePath).split(/[/\\]/).filter(Boolean).pop() || 'FileShare';
+        }
+        renderSections();
+        updateFileCount(fileTree);
+      } catch (err) {
+        document.getElementById('tree').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3)">加载文件列表失败</div>';
+      }
+    }
+    function countFiles(items) {
+      let c = 0;
+      for (const item of items) {
+        if (!item.isDirectory) c++;
+        if (item.children) c += countFiles(item.children);
+      }
+      return c;
+    }
+    function updateFileCount(items) {
+      document.getElementById('fileCount').textContent = countFiles(items) + ' 个文件';
+    }
+
+    // ===== Local / remote access pill =====
+    function renderAccessInfo() {
+      const pill = document.getElementById('accessPill');
+      const hint = document.getElementById('localHint');
+      // Already on the loopback address (127.0.0.1/localhost)? Then there is
+      // nothing to "switch to" — drop the redundant recommendation.
+      const hostname = (location.hostname || '').toLowerCase();
+      const onLoopback = hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1';
+      if (isLocalHost) {
+        pill.className = 'access-pill local';
+        pill.innerHTML = '<span class="pill-dot"></span>本机访问';
+        if (!onLoopback && hostLocalUrl) {
+          // arrived via the LAN IP — recommend the stable localhost URL
+          document.getElementById('localHintUrl').textContent = hostLocalUrl;
+          hint.classList.add('show');
+        } else {
+          hint.classList.remove('show');
+        }
+      } else {
+        pill.className = 'access-pill remote';
+        pill.innerHTML = '<span class="pill-dot"></span>远程访问' + (myIp ? ' · ' + escHtml(myIp) : '');
+        hint.classList.remove('show');
+      }
+      pill.style.display = '';
+    }
+
+    // ===== Section grouping: host shares vs per-IP client uploads =====
+    function groupItems(items) {
+      const host = [];
+      const byIp = {};
+      for (const item of items) {
+        // Uploads made from the plugin machine itself (origin.local) belong to
+        // the host section — they are not a remote client's upload.
+        if (item.origin && item.origin.type === 'upload' && !item.origin.local) {
+          const ip = item.origin.ip || '未知来源';
+          if (!byIp[ip]) byIp[ip] = [];
+          byIp[ip].push(item);
+        } else {
+          host.push(item);
+        }
+      }
+      const uploadSections = Object.entries(byIp)
+        .map(([ip, list]) => {
+          list.sort((a, b) => ((b.origin && b.origin.time) || '').localeCompare((a.origin && a.origin.time) || ''));
+          return { ip: ip, items: list };
+        })
+        .sort((a, b) => ((b.items[0].origin && b.items[0].origin.time) || '').localeCompare((a.items[0].origin && a.items[0].origin.time) || ''));
+      return { host, uploadSections };
+    }
+
+    // ===== Search filter: keep items whose name matches or whose children match =====
+    function filterTree(items, q) {
+      if (!q) return items;
+      const result = [];
+      for (const item of items) {
+        const nameMatch = (item.name || '').toLowerCase().includes(q);
+        let children = null;
+        if (item.children && item.children.length > 0) {
+          children = filterTree(item.children, q);
+        }
+        if (nameMatch || (children && children.length > 0)) {
+          const copy = { name: item.name, path: item.path, isDirectory: item.isDirectory };
+          if (item.origin) copy.origin = item.origin;
+          if (children && children.length > 0) copy.children = children;
+          result.push(copy);
+        }
+      }
+      return result;
+    }
+
+    function renderSections() {
+      const treeEl = document.getElementById('tree');
+      treeEl.innerHTML = '';
+
+      const q = searchQuery.trim().toLowerCase();
+      const { host, uploadSections } = groupItems(fileTree);
+      const filteredHost = filterTree(host, q);
+      const filteredUploads = uploadSections
+        .map(s => ({ ip: s.ip, items: filterTree(s.items, q) }))
+        .filter(s => s.items.length > 0);
+
+      let anyRendered = false;
+
+      // Host shares section
+      if (filteredHost.length > 0) {
+        const section = document.createElement('div');
+        section.className = 'section';
+        const header = document.createElement('div');
+        header.className = 'section-header';
+        header.innerHTML = '<span class="section-label"><svg viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6.5l-1.5-2H5a2 2 0 00-2 2z"/></svg>主机共享</span>' +
+          '<span class="section-count">' + countFiles(filteredHost) + ' 个文件</span>';
+        section.appendChild(header);
+        const rows = document.createElement('div');
+        rows.className = 'section-rows';
+        section.appendChild(rows);
+        renderTree(filteredHost, rows, 0);
+        treeEl.appendChild(section);
+        anyRendered = true;
+      }
+
+      // Client upload sections, one per IP
+      for (const s of filteredUploads) {
+        const section = document.createElement('div');
+        section.className = 'section';
+        const header = document.createElement('div');
+        header.className = 'section-header';
+        header.innerHTML = '<span class="section-label"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>客户端上传</span>' +
+          '<span class="section-ip">' + escHtml(s.ip) + '</span>' +
+          '<span class="section-count">' + countFiles(s.items) + ' 个文件</span>';
+        section.appendChild(header);
+        const rows = document.createElement('div');
+        rows.className = 'section-rows';
+        section.appendChild(rows);
+        renderTree(s.items, rows, 0);
+        treeEl.appendChild(section);
+        anyRendered = true;
+      }
+
+      if (!anyRendered) {
+        treeEl.innerHTML = q
+          ? '<div class="empty-search">没有匹配「' + escHtml(searchQuery) + '」的文件</div>'
+          : '<div class="empty-search">暂无共享文件</div>';
+      }
+    }
+
+    // ===== Previewability =====
+    const PREVIEW_TEXT_EXTS = ['txt', 'log', 'csv', 'json', 'xml', 'yml', 'yaml', 'toml', 'ini', 'cfg', 'conf', 'env', 'properties'];
+    const PREVIEW_CODE_EXTS = ['js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'rs', 'go', 'rb', 'php', 'swift', 'kt', 'kts', 'scala', 'dart', 'lua', 'r', 'sql', 'sh', 'bash', 'zsh', 'bat', 'cmd', 'ps1', 'html', 'htm', 'css', 'scss', 'less', 'vue', 'svelte', 'svg'];
+    const PREVIEW_MD_EXTS = ['md', 'markdown', 'mdown', 'mkd'];
+    const PREVIEW_IMG_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico'];
+    const PREVIEW_AUDIO_EXTS = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'];
+    const PREVIEW_VIDEO_EXTS = ['mp4', 'webm', 'mkv', 'avi', 'mov', 'flv', 'wmv'];
+
+    function getFileCategory(ext) {
+      if (PREVIEW_MD_EXTS.includes(ext)) return 'markdown';
+      if (PREVIEW_CODE_EXTS.includes(ext)) return 'code';
+      if (PREVIEW_TEXT_EXTS.includes(ext)) return 'text';
+      if (PREVIEW_IMG_EXTS.includes(ext)) return 'image';
+      if (PREVIEW_AUDIO_EXTS.includes(ext)) return 'audio';
+      if (PREVIEW_VIDEO_EXTS.includes(ext)) return 'video';
+      return 'binary';
+    }
+
+    function isPreviewable(ext) {
+      return getFileCategory(ext) !== 'binary';
+    }
+
+    // ===== Render Tree =====
+    function renderTree(items, parent, depth) {
+      for (const item of items) {
+        const container = document.createElement('div');
+        const row = document.createElement('div');
+        const ext = ((item.name || '').split('.').pop() || '').toLowerCase();
+        const previewable = item.isDirectory || isPreviewable(ext);
+
+        row.className = 'tree-item' + (item.isDirectory ? ' dir' : '');
+        row.style.paddingLeft = (8 + depth * 22) + 'px';
+
+        // Arrow
+        if (item.isDirectory && item.children && item.children.length > 0) {
+          row.classList.add('expanded');
+          const arrow = document.createElement('span');
+          arrow.className = 'arrow';
+          arrow.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>';
+          row.appendChild(arrow);
+        } else {
+          const spacer = document.createElement('span');
+          spacer.style.cssText = 'width:18px;flex-shrink:0';
+          row.appendChild(spacer);
+        }
+
+        // Icon
+        const icon = document.createElement('span');
+        icon.className = 'icon';
+        icon.innerHTML = getIconSvg(item);
+        row.appendChild(icon);
+
+        // Name
+        const name = document.createElement('span');
+        name.className = 'name' + (!item.isDirectory && !previewable ? ' no-preview' : '');
+        name.textContent = item.name;
+        name.title = item.name;
+        row.appendChild(name);
+
+        // Non-previewable badge
+        if (!item.isDirectory && !previewable) {
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.textContent = '二进制';
+          row.appendChild(badge);
+        }
+
+        // Download button (directories download as ZIP, files directly)
+        if (item.isDirectory) {
+          const dlBtn = document.createElement('button');
+          dlBtn.className = 'dl-btn';
+          dlBtn.title = '打包下载 ' + item.name;
+          dlBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M21 8v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8"/><polyline points="7 8 7 4 17 4 17 8"/><polyline points="3 8 21 8"/></svg>';
+          dlBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            downloadZipPaths([item.path]);
+          });
+          row.appendChild(dlBtn);
+
+          // Checkbox (select whole directory for bulk ZIP download)
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'tree-cb';
+          cb.dataset.path = item.path;
+          cb.dataset.name = item.name;
+          cb.addEventListener('click', function (e) { e.stopPropagation(); updateBulkBar(); });
+          row.appendChild(cb);
+        } else {
+          const dlBtn = document.createElement('button');
+          dlBtn.className = 'dl-btn';
+          dlBtn.title = '下载 ' + item.name;
+          dlBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+          dlBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            downloadFile(item.path, item.name);
+          });
+          row.appendChild(dlBtn);
+
+          // Delete button — only for uploads made from this client's IP (or the owner)
+          if (canDeleteOwnUpload(item)) {
+            const delBtn = document.createElement('button');
+            delBtn.className = 'dl-btn del';
+            delBtn.title = '删除我上传的文件';
+            delBtn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+            delBtn.addEventListener('click', function (e) {
+              e.stopPropagation();
+              deleteUpload(item);
+            });
+            row.appendChild(delBtn);
+          }
+
+          // Checkbox
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'tree-cb';
+          cb.dataset.path = item.path;
+          cb.dataset.name = item.name;
+          cb.addEventListener('click', function (e) { e.stopPropagation(); updateBulkBar(); });
+          row.appendChild(cb);
+        }
+
+        row.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (item.isDirectory) {
+            const childDiv = container.querySelector('.tree-children');
+            if (childDiv) {
+              childDiv.classList.toggle('collapsed');
+              row.classList.toggle('expanded');
+            }
+          } else if (previewable) {
+            openPreview(item.path, item.name, ext);
+          }
+        });
+
+        container.appendChild(row);
+
+        // Children
+        if (item.children && item.children.length > 0) {
+          const childDiv = document.createElement('div');
+          childDiv.className = 'tree-children';
+          renderTree(item.children, childDiv, depth + 1);
+          container.appendChild(childDiv);
+        }
+
+        parent.appendChild(container);
+      }
+    }
+
+    function getIconSvg(item) {
+      if (item.isDirectory) {
+        return '<svg viewBox="0 0 24 24" style="stroke:#f59e0b;fill:#fef3c7;stroke-width:1.5"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6.5l-1.5-2H5a2 2 0 00-2 2z"/></svg>';
+      }
+      const ext = (item.name || '').split('.').pop().toLowerCase();
+      if (PREVIEW_AUDIO_EXTS.includes(ext)) {
+        return '<svg viewBox="0 0 24 24" style="stroke:#8b5cf6;fill:none;stroke-width:1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+      }
+      if (PREVIEW_VIDEO_EXTS.includes(ext)) {
+        return '<svg viewBox="0 0 24 24" style="stroke:#ef4444;fill:none;stroke-width:1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+      }
+      if (PREVIEW_IMG_EXTS.includes(ext)) {
+        return '<svg viewBox="0 0 24 24" style="stroke:#22c55e;fill:none;stroke-width:1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+      }
+      if (PREVIEW_CODE_EXTS.includes(ext) || PREVIEW_MD_EXTS.includes(ext)) {
+        return '<svg viewBox="0 0 24 24" style="stroke:#3b82f6;fill:none;stroke-width:1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>';
+      }
+      return '<svg viewBox="0 0 24 24" style="stroke:var(--text3);fill:none;stroke-width:1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    }
+
+    // ===== Preview Modal =====
+    function openPreview(filePath, fileName, ext) {
+      currentFilePath = filePath;
+      currentFileExt = ext;
+      currentViewMode = 'preview';
+
+      document.getElementById('modalTitle').textContent = fileName;
+      document.getElementById('modalOverlay').style.display = 'flex';
+      document.getElementById('modalDownload').href = '/api/file?path=' + encodeURIComponent(filePath) + '&token=' + TOKEN + '&dl=1';
+
+      // Reset tabs
+      document.querySelectorAll('.modal-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+
+      const cat = getFileCategory(ext);
+      const showTabs = cat === 'markdown' || cat === 'code';
+      const isTextType = cat === 'markdown' || cat === 'code' || cat === 'text';
+      document.getElementById('modalTabs').style.display = showTabs ? 'flex' : 'none';
+      document.getElementById('modalCopyBtn').style.display = isTextType ? '' : 'none';
+
+      const body = document.getElementById('modalBody');
+
+      // Image
+      if (cat === 'image') {
+        const imgSrc = '/api/file?path=' + encodeURIComponent(filePath) + '&token=' + TOKEN;
+        body.innerHTML = '<img src="' + imgSrc + '" alt="' + escHtml(fileName) + '" style="max-width:100%;max-height:65vh;display:block;margin:0 auto;cursor:zoom-in" onclick="openImgViewer(\'' + imgSrc.replace(/'/g, "\\'") + '\')">';
+        return;
+      }
+      // Audio
+      if (cat === 'audio') {
+        body.innerHTML = '<div style="text-align:center;padding:20px"><p style="margin-bottom:16px;font-weight:500">' + escHtml(fileName) + '</p><audio controls autoplay style="width:100%;max-width:500px"><source src="/api/file?path=' + encodeURIComponent(filePath) + '&token=' + TOKEN + '"></audio></div>';
+        return;
+      }
+      // Video
+      if (cat === 'video') {
+        body.innerHTML = '<video controls autoplay style="width:100%;max-height:55vh;display:block"><source src="/api/file?path=' + encodeURIComponent(filePath) + '&token=' + TOKEN + '"></video>';
+        return;
+      }
+
+      // Text/code/markdown
+      body.innerHTML = '<div class="empty-hint"><span>加载中...</span></div>';
+      fetch('/api/file?path=' + encodeURIComponent(filePath) + '&token=' + TOKEN)
+        .then(r => r.text())
+        .then(text => {
+          currentRawContent = text;
+          renderPreview(text, ext);
+        })
+        .catch(err => {
+          body.innerHTML = '<div class="empty-hint"><span style="color:var(--danger)">加载失败: ' + escHtml(err.message) + '</span></div>';
+        });
+    }
+
+    function renderPreview(text, ext) {
+      const body = document.getElementById('modalBody');
+      const cat = getFileCategory(ext);
+
+      if (currentViewMode === 'source') {
+        const lines = text.split('\n');
+        const pad = String(lines.length).length;
+        const numbered = lines.map((l, i) => '<span style="color:var(--text3);user-select:none;margin-right:12px">' + String(i + 1).padStart(pad, ' ') + '</span>' + escHtml(l)).join('\n');
+        body.innerHTML = '<pre style="white-space:pre-wrap;word-break:break-all">' + numbered + '</pre>';
+        return;
+      }
+
+      if (cat === 'markdown') {
+        body.innerHTML = '<div class="md-body">' + parseMarkdown(text) + '</div>';
+        return;
+      }
+
+      // Code or text
+      const highlighted = (cat === 'code') ? highlightCode(text, ext) : escHtml(text);
+      body.innerHTML = '<pre>' + highlighted + '</pre>';
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').style.display = 'none';
+      // Destroy media elements to stop playback
+      document.getElementById('modalBody').innerHTML = '';
+      currentFilePath = null;
+      currentRawContent = '';
+    }
+
+    // ===== Fullscreen Image Viewer =====
+    let viewerScale = 1, viewerX = 0, viewerY = 0;
+    let viewerDragging = false, viewerLastX = 0, viewerLastY = 0;
+
+    function openImgViewer(src) {
+      const viewer = document.getElementById('imgViewer');
+      const img = document.getElementById('imgViewerImg');
+      img.src = src;
+      viewerScale = 1; viewerX = 0; viewerY = 0;
+      updateImgTransform();
+      viewer.style.display = 'flex';
+      document.getElementById('imgViewerZoom').textContent = '100%';
+    }
+
+    function closeImgViewer() {
+      document.getElementById('imgViewer').style.display = 'none';
+      document.getElementById('imgViewerImg').src = '';
+    }
+
+    function updateImgTransform() {
+      const img = document.getElementById('imgViewerImg');
+      img.style.transform = 'translate(' + viewerX + 'px,' + viewerY + 'px) scale(' + viewerScale + ')';
+      document.getElementById('imgViewerZoom').textContent = Math.round(viewerScale * 100) + '%';
+    }
+
+    function initImgViewer() {
+      const viewer = document.getElementById('imgViewer');
+      const img = document.getElementById('imgViewerImg');
+
+      document.getElementById('imgViewerClose').addEventListener('click', closeImgViewer);
+
+      viewer.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        viewerScale = Math.max(0.1, Math.min(20, viewerScale * delta));
+        updateImgTransform();
+      }, { passive: false });
+
+      viewer.addEventListener('mousedown', function (e) {
+        if (e.target === viewer || e.target === img) {
+          viewerDragging = true;
+          viewerLastX = e.clientX; viewerLastY = e.clientY;
+          viewer.classList.add('dragging');
+        }
+      });
+
+      document.addEventListener('mousemove', function (e) {
+        if (!viewerDragging) return;
+        viewerX += e.clientX - viewerLastX;
+        viewerY += e.clientY - viewerLastY;
+        viewerLastX = e.clientX; viewerLastY = e.clientY;
+        updateImgTransform();
+      });
+
+      document.addEventListener('mouseup', function () {
+        if (viewerDragging) { viewerDragging = false; viewer.classList.remove('dragging'); }
+      });
+
+      // Double-click to reset
+      viewer.addEventListener('dblclick', function () {
+        viewerScale = 1; viewerX = 0; viewerY = 0;
+        updateImgTransform();
+      });
+    }
+
+    // ===== Simple Markdown Parser =====
+    function parseMarkdown(src) {
+      let html = src.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      // Fenced code blocks
+      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function (_, lang, code) {
+        const h = lang ? highlightCode(code.trim(), lang) : escHtml(code.trim());
+        return '<pre><code>' + h + '</code></pre>';
+      });
+      // Inline code
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      // Headers
+      html = html.replace(/^###### (.+)$/gm, '<h6>$1</h6>');
+      html = html.replace(/^##### (.+)$/gm, '<h5>$1</h5>');
+      html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+      html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+      html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+      // HR
+      html = html.replace(/^(---|\*\*\*|___)\s*$/gm, '<hr>');
+      // Bold / Italic
+      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      html = html.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+      html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+      html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+      // Images
+      html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+      // Links
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+      // Blockquotes
+      html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+      html = html.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
+      // Unordered lists
+      html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+      // Paragraphs
+      const lines = html.split('\n');
+      const result = [];
+      let inList = false;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.startsWith('<h') || line.startsWith('<hr') || line.startsWith('<pre') || line.startsWith('<blockquote') || line.startsWith('<table')) {
+          if (inList) { result.push('</ul>'); inList = false; }
+          result.push(line);
+        } else if (line.startsWith('<li>')) {
+          if (!inList) { result.push('<ul>'); inList = true; }
+          result.push(line);
+        } else if (line.trim() === '') {
+          if (inList) { result.push('</ul>'); inList = false; }
+          result.push('');
+        } else if (line.trim()) {
+          if (inList) { result.push('</ul>'); inList = false; }
+          result.push('<p>' + line + '</p>');
+        } else {
+          result.push(line);
+        }
+      }
+      if (inList) result.push('</ul>');
+      return result.join('\n');
+    }
+
+    // ===== Code Highlighting =====
+    const KEYWORDS = {
+      js: 'break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof let new of return super switch this throw try typeof var void while with yield async await static get set from as'.split(' '),
+      py: 'False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield'.split(' '),
+      java: 'abstract assert boolean break byte case catch char class const continue default do double else enum extends final finally float for goto if implements import instanceof int interface long native new package private protected public return short static strictfp super switch synchronized this throw throws transient try void volatile while'.split(' '),
+      cpp: 'auto break case char const continue default do double else enum extern float for goto if int long register return short signed sizeof static struct switch typedef union unsigned void volatile while class namespace template typename virtual public private protected new delete try catch throw nullptr override final'.split(' '),
+      go: 'break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var'.split(' '),
+      rs: 'as break const continue crate else enum extern false fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait true type unsafe use where while async await dyn'.split(' '),
+      sql: 'SELECT FROM WHERE AND OR NOT IN IS NULL LIKE BETWEEN JOIN INNER LEFT RIGHT OUTER ON AS ORDER BY GROUP HAVING LIMIT OFFSET INSERT INTO VALUES UPDATE SET DELETE CREATE TABLE DROP ALTER INDEX VIEW UNION ALL DISTINCT COUNT SUM AVG MIN MAX CASE WHEN THEN ELSE END EXISTS PRIMARY KEY FOREIGN REFERENCES CASCADE'.split(' ')
+    };
+    function highlightCode(code, lang) {
+      const keywords = KEYWORDS[lang] || KEYWORDS['js'];
+      const kwPattern = '\\b(' + keywords.join('|') + ')\\b';
+      let html = escHtml(code);
+      // Line comments
+      if (['js', 'ts', 'jsx', 'tsx', 'go', 'rs', 'java', 'cpp', 'c', 'swift', 'kt', 'scala', 'dart', 'php'].includes(lang)) {
+        html = html.replace(/(\/\/.*$)/gm, '<span class="hljs-comment">$1</span>');
+      }
+      if (['py', 'rb', 'sh', 'bash', 'yaml', 'toml'].includes(lang)) {
+        html = html.replace(/(#.*$)/gm, '<span class="hljs-comment">$1</span>');
+      }
+      if (lang === 'sql') {
+        html = html.replace(/(--.*$)/gm, '<span class="hljs-comment">$1</span>');
+      }
+      // Block comments
+      html = html.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="hljs-comment">$1</span>');
+      // Strings
+      html = html.replace(/(["'`])(?:(?!\1|\\).|\\.)*\1/g, '<span class="hljs-string">$&</span>');
+      // Numbers
+      html = html.replace(/\b(\d+\.?\d*)\b/g, '<span class="hljs-number">$1</span>');
+      // Keywords
+      html = html.replace(new RegExp(kwPattern, 'gi'), '<span class="hljs-keyword">$1</span>');
+      // Function calls
+      html = html.replace(/\b([a-zA-Z_$][\w$]*)\(/g, '<span class="hljs-function">$1</span>(');
+      return html;
+    }
+    function escHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Clipboard helper (works on both HTTPS and HTTP)
+    function copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); return Promise.resolve(); }
+      catch (e) { return Promise.reject(e); }
+      finally { document.body.removeChild(ta); }
+    }
+
+    // Toast
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('webToast');
+      el.textContent = msg;
+      el.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.classList.remove('show'); }, 2000);
+    }
+
+    // ===== Download & Bulk Actions =====
+    function downloadFile(filePath, fileName) {
+      const a = document.createElement('a');
+      a.href = '/api/file?path=' + encodeURIComponent(filePath) + '&token=' + TOKEN + '&dl=1';
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // Download one or more paths as a single ZIP archive
+    function downloadZipPaths(paths) {
+      if (!paths || paths.length === 0) return;
+      const url = '/api/zip?token=' + TOKEN + paths.map(p => '&path=' + encodeURIComponent(p)).join('');
+      const a = document.createElement('a');
+      a.href = url;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('正在打包下载...');
+    }
+
+    function getCheckedFiles() {
+      const cbs = document.querySelectorAll('.tree-cb:checked');
+      const files = [];
+      cbs.forEach(cb => {
+        if (cb.dataset.path) files.push({ path: cb.dataset.path, name: cb.dataset.name });
+      });
+      return files;
+    }
+
+    // Drop paths that live inside another selected path (avoids duplicates in ZIP)
+    function dedupePaths(paths) {
+      const sorted = paths.slice().sort((a, b) => a.length - b.length);
+      const result = [];
+      for (const p of sorted) {
+        const norm = p.replace(/\\/g, '/');
+        if (!result.some(r => norm.startsWith(r.replace(/\\/g, '/') + '/'))) {
+          result.push(p);
+        }
+      }
+      return result;
+    }
+
+    function updateBulkBar() {
+      const files = getCheckedFiles();
+      document.getElementById('bulkCount').textContent = '已选择 ' + files.length;
+      // Update select-all checkbox state
+      const allCbs = document.querySelectorAll('.tree-cb[data-path]');
+      const checkedCbs = document.querySelectorAll('.tree-cb[data-path]:checked');
+      document.getElementById('selectAllCb').checked = allCbs.length > 0 && checkedCbs.length === allCbs.length;
+      document.getElementById('selectAllCb').indeterminate = checkedCbs.length > 0 && checkedCbs.length < allCbs.length;
+    }
+
+    function selectAllFiles() {
+      const checked = document.getElementById('selectAllCb').checked;
+      document.querySelectorAll('.tree-cb[data-path]').forEach(cb => { cb.checked = checked; });
+      updateBulkBar();
+    }
+
+    function downloadSelected() {
+      const files = getCheckedFiles();
+      if (files.length === 0) return;
+      downloadZipPaths(dedupePaths(files.map(f => f.path)));
+    }
+
+    function downloadAllFiles() {
+      document.querySelectorAll('.tree-cb[data-path]').forEach(cb => { cb.checked = true; });
+      updateBulkBar();
+      downloadZipPaths(fileTree.map(item => item.path));
+    }
+
+    // ===== Upload deletion (restricted by uploader IP) =====
+    function canDeleteOwnUpload(item) {
+      return !!item.origin && item.origin.type === 'upload' &&
+        !!myIp && myIp === item.origin.ip;
+    }
+
+    // Unified custom dialog — replaces every native, unstyled alert/confirm.
+    // Buttons are rendered dynamically so one component covers alert (single
+    // button), confirm (cancel/ok) and choice (overwrite/rename/skip) cases.
+    let dialogResolve = null;
+    function openDialog(opts) {
+      return new Promise((resolve) => {
+        dialogResolve = resolve;
+        document.getElementById('confirmTitle').textContent = opts.title || '提示';
+        document.getElementById('confirmMsg').textContent = opts.message || '';
+        const actions = document.getElementById('confirmActions');
+        actions.innerHTML = '';
+        (opts.buttons || [{ text: '确定', value: true, primary: true }]).forEach(function (b) {
+          const btn = document.createElement('button');
+          btn.className = 'confirm-btn' + (b.primary ? ' primary' : '') + (b.danger ? ' danger' : '');
+          btn.textContent = b.text;
+          btn.addEventListener('click', function () { closeDialog(b.value); });
+          actions.appendChild(btn);
+        });
+        document.getElementById('confirmOverlay').style.display = 'flex';
+      });
+    }
+    function closeDialog(result) {
+      document.getElementById('confirmOverlay').style.display = 'none';
+      if (dialogResolve) { dialogResolve(result); dialogResolve = null; }
+    }
+    function showConfirm(message, title, okText) {
+      return openDialog({
+        title: title || '确认操作',
+        message: message,
+        buttons: [
+          { text: '取消', value: false },
+          { text: okText || '确定', value: true, danger: true }
+        ]
+      });
+    }
+    function showAlert(message, title) {
+      return openDialog({
+        title: title || '提示',
+        message: message,
+        buttons: [{ text: '确定', value: true, primary: true }]
+      });
+    }
+
+    async function deleteUpload(item) {
+      const ok = await showConfirm('确定删除「' + item.name + '」？删除后不可恢复。', '删除确认', '删除');
+      if (!ok) return;
+      try {
+        const res = await fetch('/api/delete?path=' + encodeURIComponent(item.path) + '&token=' + encodeURIComponent(TOKEN), { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          showToast('已删除「' + item.name + '」');
+          loadFileList();
+        } else {
+          showToast('删除失败：' + (data.error || ('HTTP ' + res.status)));
+        }
+      } catch (_e) {
+        showToast('删除失败：网络错误');
+      }
+    }
+
+    // ===== Upload =====
+    function uploadFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (files.length === 0) return;
+
+      const panel = document.getElementById('uploadPanel');
+      const body = document.getElementById('uploadPanelBody');
+      panel.classList.add('show');
+
+      let pending = files.length;
+
+      files.forEach(file => {
+        const row = document.createElement('div');
+        row.className = 'upload-row';
+        row.innerHTML =
+          '<div class="upload-row-top">' +
+          '<span class="upload-row-icon uploading"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.22-8.56"/><polyline points="21 3 21 9 15 9"/></svg></span>' +
+          '<span class="upload-row-name">' + escHtml(file.name) + '</span>' +
+          '<span class="upload-row-status">0%</span>' +
+          '</div>' +
+          '<div class="progress-track"><div class="progress-fill"></div></div>';
+        body.insertBefore(row, body.firstChild);
+
+        const statusEl = row.querySelector('.upload-row-status');
+        const iconEl = row.querySelector('.upload-row-icon');
+        const fillEl = row.querySelector('.progress-fill');
+        const nameEl = row.querySelector('.upload-row-name');
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/upload?token=' + encodeURIComponent(TOKEN));
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            fillEl.style.width = pct + '%';
+            statusEl.textContent = pct + '%';
+          }
+        };
+        xhr.onload = async function () {
+          pending--;
+          if (xhr.status === 200) {
+            let savedName = file.name;
+            let statusText = '完成';
+            let resp = {};
+            try { resp = JSON.parse(xhr.responseText); } catch (_e) { /* keep original name */ }
+            if (resp.ok) {
+              if (resp.duplicates && resp.duplicates.length > 0) {
+                // Identical content already shared — nothing was written
+                statusText = '已存在';
+                savedName = resp.duplicates[0].name || file.name;
+                await showAlert('「' + resp.duplicates.map(d => d.name).join('、') + '」已上传过（内容相同），已跳过。', '已上传');
+              } else if (resp.pending && resp.pending.length > 0) {
+                // Same name, different content — let the user decide
+                const result = await resolvePendingUploads(resp.pending);
+                if (result.savedName) savedName = result.savedName;
+                if (result.skipped) statusText = '已跳过';
+              } else if (resp.files && resp.files.length > 0) {
+                savedName = resp.files[0].name;
+              }
+            }
+            iconEl.className = 'upload-row-icon done';
+            iconEl.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+            fillEl.style.width = '100%';
+            fillEl.classList.add('done');
+            statusEl.textContent = statusText;
+            statusEl.classList.add('done');
+            nameEl.textContent = savedName;
+          } else {
+            markUploadError(iconEl, fillEl, statusEl, xhr.status === 413 ? '文件过大' : (xhr.status === 403 ? '无权限' : '失败'));
+          }
+          if (pending === 0) finishUploadBatch();
+        };
+        xhr.onerror = function () {
+          pending--;
+          markUploadError(iconEl, fillEl, statusEl, '网络错误');
+          if (pending === 0) finishUploadBatch();
+        };
+        xhr.send(buildFormData(file));
+      });
+    }
+
+    // Walk pending upload conflicts one by one: the user picks overwrite /
+    // rename / skip for each, then the server applies the decision on the
+    // already-buffered data (no re-upload needed).
+    async function resolvePendingUploads(pendingList) {
+      let savedName = '';
+      let skipped = false;
+      for (const p of pendingList) {
+        let action = null;
+        if (p.canOverwrite) {
+          action = await openDialog({
+            title: '同名文件已存在',
+            message: '「' + p.name + '」已存在同名文件，且内容不同。请选择处理方式。',
+            buttons: [
+              { text: '重命名', value: 'rename', primary: true },
+              { text: '覆盖', value: 'overwrite', danger: true },
+              { text: '跳过', value: 'skip' }
+            ]
+          });
+        } else {
+          action = await openDialog({
+            title: '同名文件已存在',
+            message: '「' + p.name + '」已存在同名文件（主机共享或他人上传），不可覆盖。请选择处理方式。',
+            buttons: [
+              { text: '重命名', value: 'rename', primary: true },
+              { text: '跳过', value: 'skip' }
+            ]
+          });
+        }
+        if (!action || action === 'skip') { skipped = true; continue; }
+        try {
+          const res = await fetch('/api/upload-resolve?token=' + encodeURIComponent(TOKEN), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: p.id, action: action })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.ok && data.saved) savedName = data.saved.name;
+          else showToast('处理失败：' + (data.error || ('HTTP ' + res.status)));
+        } catch (_e) {
+          showToast('处理失败：网络错误');
+        }
+      }
+      return { savedName: savedName, skipped: skipped };
+    }
+
+    function buildFormData(file) {
+      const fd = new FormData();
+      // Safari/legacy fallback: plain filename; modern browsers handle UTF-8 natively
+      if (file.name !== undefined) {
+        try {
+          fd.append('file', file, file.name);
+        } catch (_e) {
+          fd.append('file', file);
+        }
+      }
+      return fd;
+    }
+
+    function markUploadError(iconEl, fillEl, statusEl, message) {
+      iconEl.className = 'upload-row-icon error';
+      iconEl.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+      fillEl.classList.add('error');
+      statusEl.textContent = message;
+      statusEl.classList.add('error');
+    }
+
+    function finishUploadBatch() {
+      showToast('上传完成');
+      loadFileList();
+      // Auto-dismiss the panel after a pause if everything succeeded
+      const hasError = document.querySelector('.upload-row-icon.error');
+      if (!hasError) {
+        setTimeout(() => {
+          document.getElementById('uploadPanel').classList.remove('show');
+          document.getElementById('uploadPanelBody').innerHTML = '';
+        }, 3000);
+      }
+    }
+
+    // ===== P2P private messaging =====
+    function p2pApi(path, method, body) {
+      // Every /api/* route requires the access token; append it centrally so
+      // register/request/messages/send all work from a remote browser.
+      const sep = path.includes('?') ? '&' : '?';
+      const opts = { method: method || 'GET', headers: {} };
+      if (p2p.peerKey) opts.headers['X-P2P-Key'] = p2p.peerKey;
+      if (body !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      return fetch(path + sep + 'token=' + TOKEN, opts);
+    }
+
+    function safeJson(s) { try { return JSON.parse(s) } catch (_e) { return null } }
+
+    function initP2p() {
+      p2pRegister();
+    }
+
+    let p2pRegisterAttempts = 0;
+
+    // Register to obtain a peerKey bound to this client IP (CSRF defense).
+    // Retry a few times so a slow start never leaves the UI stuck on
+    // "正在初始化".
+    async function p2pRegister() {
+      try {
+        const r = await p2pApi('/api/p2p/register', 'POST');
+        const data = await r.json().catch(() => null);
+        if (data && data.ok) {
+          p2p.peerKey = data.peerKey;
+          p2p.peerId = data.peerId;
+          p2p.ready = true;
+          openP2pChannel();
+          // Eagerly restore the session state (active/rejected) so a refreshed
+          // page doesn't fall back to the "申请私密连接" form while SSE is
+          // still (re)connecting.
+          pollP2pOnce();
+          if (p2p.drawing) renderP2pDrawer();
+          return;
+        }
+        console.warn('[p2p] register failed: status=' + r.status, data);
+      } catch (e) {
+        console.warn('[p2p] register error:', e);
+      }
+      if (p2pRegisterAttempts < 3) {
+        p2pRegisterAttempts++;
+        setTimeout(p2pRegister, 1500);
+      }
+    }
+
+    function openP2pChannel() {
+      if (p2p.es) { try { p2p.es.close() } catch (_e) { } }
+      if (typeof EventSource !== 'undefined') {
+        const es = new EventSource('/api/events?token=' + TOKEN);
+        p2p.es = es;
+        // Track whether we've seen the initial snapshot yet. Events arriving
+        // before the snapshot are historical replays from the SSE reconnection
+        // and must not be treated as new messages.
+        let sseSnapshotSeen = false;
+        es.addEventListener('p2p.snapshot', (e) => { sseSnapshotSeen = true; onP2pEvent('p2p.snapshot', safeJson(e.data)); });
+        es.addEventListener('p2p.message', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.message', safeJson(e.data)); });
+        es.addEventListener('p2p.file', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.file', safeJson(e.data)); });
+        es.addEventListener('p2p.accepted', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.accepted', safeJson(e.data)); });
+        es.addEventListener('p2p.rejected', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.rejected', safeJson(e.data)); });
+        es.addEventListener('p2p.deleted', (e) => { if (!sseSnapshotSeen) return; onP2pEvent('p2p.deleted', safeJson(e.data)); });
+        es.onopen = () => {
+          document.getElementById('p2pReconnect').classList.remove('show');
+          // SSE is the realtime channel — stop any fallback poll once it's up.
+          stopP2pPoll();
+        };
+        es.onerror = () => {
+          document.getElementById('p2pReconnect').classList.add('show');
+          if (p2p.es === es) p2p.es = null;
+          startP2pPoll();
+        };
+      } else {
+        startP2pPoll();
+      }
+    }
+
+    function startP2pPoll() {
+      if (p2p.pollTimer) return;
+      p2p.pollTimer = setInterval(pollP2pOnce, 2000);
+    }
+
+    function stopP2pPoll() {
+      if (p2p.pollTimer) {
+        clearInterval(p2p.pollTimer);
+        p2p.pollTimer = null;
+      }
+    }
+
+    async function pollP2pOnce() {
+      if (!p2p.ready) return;
+      try {
+        const firstPoll = p2p.pollSince === 0;
+        const res = await p2pApi('/api/p2p/poll?since=' + p2p.pollSince);
+        const data = await res.json();
+        if (!data.ok) return;
+        // Authoritative session snapshot (active/rejected/pending).
+        if (data.session) applyP2pSession(data.session);
+        // Per-event handling is scoped to the current session (onP2pEvent).
+        // On the very first poll after a page refresh, all events in the ring
+        // buffer are historical replays. We must NOT let them update
+        // p2p.lastSeq, otherwise the subsequent fetchP2pMessages() (which uses
+        // after=lastSeq) would skip messages that were already evicted from
+        // the ring buffer. The full history is recovered via
+        // fetchP2pMessages() when the drawer opens or the session becomes
+        // active.
+        for (const ev of data.events) {
+          if (firstPoll && (ev.type === 'p2p.message' || ev.type === 'p2p.file')) {
+            // Skip historical message/file events — they will be pulled
+            // in full via /api/p2p/messages when needed.
+            continue;
+          }
+          onP2pEvent(ev.type, ev.data);
+        }
+        p2p.pollSince = data.since;
+      } catch (_e) { /* ignore */ }
+    }
+
+    function onP2pEvent(type, data, forceSilent) {
+      if (type === 'p2p.snapshot') { applyP2pSession(data); return; }
+      if (type === 'p2p.accepted') { applyP2pSession({ id: data.sessionId, status: 'active', peerName: data.peerName }); return; }
+      if (type === 'p2p.rejected') {
+        // Only surface a rejection for the session we're asking about — an old
+        // rejected session from this IP must never kick us out of a live chat.
+        if (p2p.session && p2p.session.status === 'active' && data.sessionId !== p2p.session.id) return;
+        applyP2pSession({ id: data.sessionId, status: 'rejected', peerName: data.peerName });
+        return;
+      }
+      if (type === 'p2p.deleted') {
+        // Only revert for the session the client is currently in; deletions of
+        // other/old sessions are ignored.
+        if (p2p.session && data.sessionId !== p2p.session.id) return;
+        // Connection removed (by either side): go straight back to the apply
+        // form — deleted conversations are not shown.
+        p2p.messages = [];
+        p2p.lastSeq = 0;
+        applyP2pSession(null);
+        if (p2p.drawing) showToast('连接已删除');
+        return;
+      }
+      if (type === 'p2p.message' || type === 'p2p.file') { if (data) onIncomingMessage(data, { silent: p2p.drawing || forceSilent }); return; }
+      if (type === 'p2p.msgdeleted') {
+        // The peer deleted a message — drop it from our local history too.
+        p2p.messages = p2p.messages.filter(m => m.id !== data.msgId);
+        if (p2p.drawing && p2p.session && p2p.session.status === 'active') renderP2pChat();
+        return;
+      }
+    }
+
+    function applyP2pSession(snap) {
+      const prev = p2p.session;
+      // Only re-render when the session actually changed. The background poll
+      // would otherwise rebuild the drawer (and its inputs) every 2s, stealing
+      // focus and wiping typed text.
+      const prevActive = prev && prev.status === 'active';
+      const nowActive = snap && snap.status === 'active';
+      const changed = (!!snap !== !!prev) || (prev && snap && (prev.id !== snap.id || prev.status !== snap.status));
+      p2p.session = snap;
+      if (changed && p2p.drawing) {
+        if (nowActive) { fetchP2pMessages({ silent: true }); renderP2pDrawer(); }
+        else renderP2pDrawer();
+      } else if (!prevActive && nowActive && !p2p.drawing) {
+        // Session just became active in the background (e.g. host accepted
+        // while the drawer was closed). Pre-fetch history silently so it's
+        // ready when the user opens the drawer.
+        fetchP2pMessages({ silent: true });
+      }
+      updateP2pBadge();
+    }
+
+    function onIncomingMessage(msg, opts) {
+      if (!msg || typeof msg.seq !== 'number' || msg.seq <= p2p.lastSeq) return;
+      p2p.messages.push(msg);
+      p2p.lastSeq = msg.seq;
+      if (p2p.drawing && p2p.session && p2p.session.status === 'active') {
+        renderP2pChat();
+        scrollP2pChat();
+        p2pApi('/api/p2p/read', 'POST', { session: p2p.session.id });
+      } else if (msg.from === 'host' && !(opts && opts.silent)) {
+        p2p.unread++;
+        updateP2pBadge();
+        showToast('收到消息：' + (msg.kind === 'text' ? msg.text.slice(0, 20) : '[文件] ' + ((msg.files && msg.files[0] && msg.files[0].name) || '')));
+      }
+    }
+
+    async function fetchP2pMessages(opts) {
+      if (!p2p.session || p2p.session.status !== 'active') return;
+      try {
+        const res = await p2pApi('/api/p2p/messages?session=' + p2p.session.id + '&after=' + p2p.lastSeq);
+        const data = await res.json();
+        for (const m of (data.messages || [])) onIncomingMessage(m, opts);
+      } catch (_e) { /* ignore */ }
+    }
+
+    // ---- Drawer open/close ----
+    function openP2pDrawer() {
+      p2p.drawing = true;
+      p2p.unread = 0;
+      updateP2pBadge();
+      document.getElementById('p2pMask').style.display = '';
+      document.getElementById('p2pDrawer').style.display = 'flex';
+      setMobileNav('p2p');
+      renderP2pDrawer();
+      if (p2p.session && p2p.session.status === 'active') {
+        // Silent fetch: messages recovered on open must never trigger an
+        // unread toast or increment the badge — the user is already looking.
+        fetchP2pMessages({ silent: true });
+        p2pApi('/api/p2p/read', 'POST', { session: p2p.session.id });
+      }
+      // Refresh the session state from the server whenever the drawer opens,
+      // so a just-refreshed page recovers the active conversation even if the
+      // SSE snapshot has not arrived yet.
+      if (p2p.ready) {
+        pollP2pOnce().then(() => {
+          if (p2p.drawing && p2p.session && p2p.session.status === 'active') {
+            fetchP2pMessages({ silent: true });
+            p2pApi('/api/p2p/read', 'POST', { session: p2p.session.id });
+            renderP2pDrawer();
+          }
+        });
+      }
+    }
+
+    function closeP2pDrawer() {
+      p2p.drawing = false;
+      document.getElementById('p2pMask').style.display = 'none';
+      document.getElementById('p2pDrawer').style.display = 'none';
+      setMobileNav('files');
+    }
+
+    function toggleP2pDrawer() {
+      if (p2p.drawing) closeP2pDrawer();
+      else openP2pDrawer();
+    }
+
+    // Mode-aware entry: remote browsers act as a peer (drawer); the plugin
+    // machine's own browser switches the page to the message console instead
+    // (no self-application).
+    function toggleP2pEntry() {
+      if (hostUiMode()) setView(currentView === 'messages' ? 'files' : 'messages');
+      else toggleP2pDrawer();
+    }
+
+    function openP2pEntry() {
+      if (hostUiMode()) setView('messages');
+      else openP2pDrawer();
+    }
+
+    function closeP2pEntry() {
+      if (hostUiMode()) { if (currentView === 'messages') setView('files'); }
+      else closeP2pDrawer();
+    }
+
+    function setMobileNav(tab) {
+      document.getElementById('navFilesBtn').classList.toggle('active', tab === 'files');
+      document.getElementById('navP2pBtn').classList.toggle('active', tab === 'p2p');
+    }
+
+    function updateP2pBadge() {
+      const n = p2p.unread;
+      const head = document.getElementById('p2pBadge');
+      const nav = document.getElementById('navP2pBadge');
+      const show = n > 0;
+      head.style.display = show ? '' : 'none';
+      nav.style.display = show ? '' : 'none';
+      head.textContent = n > 99 ? '99+' : String(n);
+      nav.textContent = n > 99 ? '99+' : String(n);
+    }
+
+    // ---- Drawer rendering ----
+    function renderP2pDrawer() {
+      const body = document.getElementById('p2pDrawerBody');
+      body.innerHTML = '';
+      const s = p2p.session;
+      if (!s) { renderP2pForm(body); return; }
+      if (s.status === 'pending') { renderP2pState(body, 'pending'); return; }
+      if (s.status === 'rejected') { renderP2pState(body, 'rejected'); return; }
+      if (s.status === 'active') { renderP2pChat(); return; }
+      renderP2pForm(body);
+    }
+
+    function renderP2pState(body, kind) {
+      const box = document.createElement('div');
+      box.className = 'p2p-state';
+      let icon = '', title = '', sub = '';
+      if (kind === 'pending') {
+        icon = '<svg viewBox="0 0 24 24" width="44" height="44"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
+        title = '已提交连接申请';
+        sub = '等待主机同意…';
+      } else {
+        icon = '<svg viewBox="0 0 24 24" width="44" height="44"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+        title = '主机拒绝了你的申请';
+        sub = '你可以稍后重新申请';
+      }
+      box.innerHTML = icon;
+      const t = document.createElement('div'); t.className = 'p2p-state-title'; t.textContent = title;
+      const subEl = document.createElement('div'); subEl.className = 'p2p-state-sub'; subEl.textContent = sub;
+      box.appendChild(t); box.appendChild(subEl);
+      if (kind !== 'pending') {
+        const b = document.createElement('button'); b.className = 'p2p-submit';
+        b.style.cssText = 'margin-top:10px;padding:0 18px;height:34px';
+        b.textContent = '重新申请';
+        b.addEventListener('click', () => { p2p.session = null; renderP2pDrawer(); });
+        box.appendChild(b);
+      } else {
+        const b = document.createElement('button'); b.className = 'p2p-submit';
+        b.style.cssText = 'margin-top:10px;padding:0 18px;height:34px';
+        b.textContent = '取消申请';
+        b.addEventListener('click', cancelP2pRequest);
+        box.appendChild(b);
+      }
+      body.appendChild(box);
+    }
+
+    async function cancelP2pRequest() {
+      if (!p2p.session) return;
+      try {
+        await p2pApi('/api/p2p/session?session=' + p2p.session.id, 'DELETE');
+        applyP2pSession(null);
+        showToast('已取消申请');
+      } catch (_e) { showToast('取消失败'); }
+    }
+
+    function renderP2pForm(body) {
+      const form = document.createElement('div');
+      form.className = 'p2p-form';
+      const savedName = localStorage.getItem('fs-p2p-name') || '';
+      form.innerHTML =
+        '<div style="font-size:14px;font-weight:600;color:var(--text)">申请私密连接</div>' +
+        '<div style="font-size:12px;color:var(--text3);line-height:1.6">连接建立后，你可以与主机进行点对点私密聊天与文件传输，其他访客不可见。</div>' +
+        '<label>你的昵称</label>' +
+        '<input id="p2pReqName" maxlength="32" placeholder="例如：老王" value="' + escHtml(savedName) + '" />' +
+        '<label>留言（可选）</label>' +
+        '<textarea id="p2pReqMsg" rows="2" maxlength="200" placeholder="例如：发个文件给你"></textarea>' +
+        '<button class="p2p-submit" id="p2pReqBtn">申请连接</button>';
+      body.appendChild(form);
+      document.getElementById('p2pReqBtn').addEventListener('click', submitP2pRequest);
+      document.getElementById('p2pReqMsg').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitP2pRequest(); }
+      });
+    }
+
+    async function submitP2pRequest() {
+      const name = (document.getElementById('p2pReqName').value || '').trim();
+      const msg = (document.getElementById('p2pReqMsg').value || '').trim();
+      localStorage.setItem('fs-p2p-name', name);
+      if (!p2p.ready) {
+        showToast('正在初始化连接，请稍候…');
+        p2pRegister();
+        return;
+      }
+      try {
+        const res = await p2pApi('/api/p2p/request', 'POST', { name: name, message: msg });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          applyP2pSession({ id: data.session.id, status: 'pending', peerName: data.session.peerName });
+          showToast('申请已提交');
+        } else {
+          showToast(data.error || '申请失败（HTTP ' + res.status + '）');
+          pollP2pOnce();
+        }
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function renderP2pChat() {
+      const body = document.getElementById('p2pDrawerBody');
+      const s = p2p.session;
+      // Preserve the input across re-renders so typing is never wiped by an
+      // incoming message / poll refresh.
+      const oldInput = document.getElementById('p2pInput');
+      const savedValue = oldInput ? oldInput.value : '';
+      const hadFocus = oldInput && document.activeElement === oldInput;
+      body.innerHTML = '';
+      const chat = document.createElement('div');
+      chat.className = 'p2p-chat';
+
+      const head = document.createElement('div');
+      head.className = 'p2p-chat-header';
+      head.innerHTML = '<span class="p2p-peer-name">' + escHtml(s.peerName || '对方') + '</span>' +
+        '<span class="p2p-peer-ip">' + escHtml(s.peerIp || myIp || '') + '</span>' +
+        '<span class="p2p-online on"></span>';
+      const del = document.createElement('button');
+      del.className = 'p2p-chat-del'; del.textContent = '删除连接';
+      del.addEventListener('click', deleteP2pConnection);
+      head.appendChild(del);
+      chat.appendChild(head);
+
+      const msgs = document.createElement('div');
+      msgs.className = 'p2p-msgs';
+      msgs.id = 'p2pMsgs';
+      if (p2p.messages.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'margin:auto;color:var(--text3);font-size:12px;text-align:center;padding:30px';
+        empty.textContent = '已建立私密连接，发送第一条消息吧';
+        msgs.appendChild(empty);
+      } else {
+        for (const m of p2p.messages) msgs.appendChild(buildP2pMsg(m));
+      }
+      chat.appendChild(msgs);
+
+      const bar = document.createElement('div');
+      bar.className = 'p2p-inputbar';
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'p2p-file-send'; sendBtn.title = '发送文件';
+      sendBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>';
+      sendBtn.addEventListener('click', () => document.getElementById('p2pFileInput').click());
+      const input = document.createElement('textarea');
+      input.className = 'p2p-input'; input.rows = 1; input.id = 'p2pInput';
+      input.placeholder = '输入消息，Enter 发送';
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendP2pMessage(); } });
+      input.addEventListener('input', () => { const b = document.getElementById('p2pSendBtn'); if (b) b.disabled = !input.value.trim(); });
+      const s2 = document.createElement('button');
+      s2.className = 'p2p-send'; s2.id = 'p2pSendBtn'; s2.textContent = '发送'; s2.disabled = true;
+      s2.addEventListener('click', sendP2pMessage);
+      bar.appendChild(sendBtn); bar.appendChild(input); bar.appendChild(s2);
+      chat.appendChild(bar);
+
+      body.appendChild(chat);
+      if (savedValue) input.value = savedValue;
+      const b = document.getElementById('p2pSendBtn');
+      if (b) b.disabled = !savedValue.trim();
+      scrollP2pChat();
+      // Only focus the input when the user was already typing in it.
+      // Auto-focusing on every re-render (e.g. incoming message) steals focus
+      // from whatever the user was doing elsewhere.
+      if (hadFocus) {
+        input.focus();
+        input.setSelectionRange(savedValue.length, savedValue.length);
+      }
+    }
+
+    let p2pCopiedId = null;
+    let p2pCopiedTimer = null;
+
+    function buildP2pMsg(m) {
+      const row = document.createElement('div');
+      row.className = 'p2p-msg ' + (m.from === 'host' ? 'theirs' : 'mine');
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;gap:6px';
+      const time = document.createElement('div');
+      time.className = 'p2p-msg-time';
+      time.textContent = fmtP2pTime(m.createdAt);
+      head.appendChild(time);
+      if (m.kind === 'text') {
+        const copy = document.createElement('button');
+        copy.className = 'p2p-msg-copy' + (p2pCopiedId === m.id ? ' copied' : '');
+        copy.dataset.msgId = m.id;
+        copy.title = '复制内容';
+        copy.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+        copy.addEventListener('click', () => copyP2pText(m));
+        head.appendChild(copy);
+      }
+      const del = document.createElement('button');
+      del.className = 'p2p-msg-del'; del.title = '删除消息';
+      del.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+      del.addEventListener('click', () => deleteP2pMessage(m));
+      head.appendChild(del);
+      row.appendChild(head);
+      if (m.kind === 'text') {
+        const b = document.createElement('div');
+        b.className = 'p2p-bubble';
+        b.textContent = m.text;
+        row.appendChild(b);
+      } else if (m.kind === 'files' && m.files && m.files.length > 0) {
+        const card = document.createElement('div');
+        card.className = 'p2p-file';
+        const list = document.createElement('div');
+        list.style.cssText = 'display:flex;flex-direction:column;width:100%';
+        m.files.forEach((f, fi) => {
+          const item = document.createElement('div');
+          item.className = 'p2p-file-item';
+          if (fi > 0) item.style.borderTop = '1px solid var(--border)';
+          const icon = document.createElement('span');
+          icon.className = 'p2p-file-icon';
+          icon.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+          const info = document.createElement('div');
+          info.style.cssText = 'min-width:0;flex:1';
+          const nm = document.createElement('div'); nm.className = 'p2p-file-name'; nm.textContent = f.name;
+          const meta = document.createElement('div'); meta.className = 'p2p-file-meta'; meta.textContent = fmtP2pSize(f.size);
+          const actions = document.createElement('div'); actions.className = 'p2p-file-actions';
+          const dl = document.createElement('button'); dl.className = 'p2p-file-btn'; dl.textContent = '下载';
+          dl.addEventListener('click', () => downloadP2pFile(f.fileId, f.name));
+          actions.appendChild(dl);
+          if (isP2pPreviewable(f.name)) {
+            const pv = document.createElement('button'); pv.className = 'p2p-file-btn'; pv.textContent = '预览';
+            pv.addEventListener('click', () => openP2pPreview(f));
+            actions.appendChild(pv);
+          }
+          info.appendChild(nm); info.appendChild(meta); info.appendChild(actions);
+          item.appendChild(icon); item.appendChild(info);
+          list.appendChild(item);
+        });
+        card.appendChild(list);
+        row.appendChild(card);
+      }
+      return row;
+    }
+
+    function copyP2pText(m) {
+      copyToClipboard(m.text).then(() => {
+        p2pCopiedId = m.id;
+        if (p2pCopiedTimer) clearTimeout(p2pCopiedTimer);
+        p2pCopiedTimer = setTimeout(() => { p2pCopiedId = null; markP2pCopiedBtn(); }, 1200);
+        markP2pCopiedBtn();
+        showToast('已复制');
+      }).catch(() => { });
+    }
+
+    // Highlight the copy button that was just clicked (without re-rendering
+    // the whole chat, which would reset the scroll position).
+    function markP2pCopiedBtn() {
+      document.querySelectorAll('.p2p-msg-copy').forEach(btn => {
+        btn.classList.toggle('copied', p2pCopiedId && btn.dataset.msgId === p2pCopiedId);
+      });
+    }
+
+    async function deleteP2pMessage(m) {
+      if (!p2p.session) return;
+      const ok = await showConfirm('删除这条消息？服务端留存也会一并删除。', '删除消息', '删除');
+      if (!ok) return;
+      try {
+        const res = await p2pApi('/api/p2p/message?session=' + p2p.session.id + '&msg=' + encodeURIComponent(m.id), 'DELETE');
+        if (res.ok) {
+          p2p.messages = p2p.messages.filter(x => x.id !== m.id);
+          if (p2p.drawing) renderP2pChat();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || '删除失败');
+        }
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function scrollP2pChat() {
+      const el = document.getElementById('p2pMsgs');
+      if (el) el.scrollTop = el.scrollHeight;
+    }
+
+    function fmtP2pTime(ts) {
+      const d = new Date(ts);
+      const pad = (n) => String(n).padStart(2, '0');
+      return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function fmtP2pSize(s) {
+      if (s >= 1024 * 1024 * 1024) return (s / 1024 / 1024 / 1024).toFixed(1) + ' GB';
+      if (s >= 1024 * 1024) return (s / 1024 / 1024).toFixed(1) + ' MB';
+      if (s >= 1024) return (s / 1024).toFixed(1) + ' KB';
+      return s + ' B';
+    }
+
+    async function sendP2pMessage() {
+      const input = document.getElementById('p2pInput');
+      if (!input || !p2p.session) return;
+      const text = input.value.trim();
+      if (!text) return;
+      // Clear the input *before* onIncomingMessage triggers a re-render,
+      // otherwise renderP2pChat will restore the old value from the DOM.
+      input.value = '';
+      const b0 = document.getElementById('p2pSendBtn'); if (b0) b0.disabled = true;
+      try {
+        const res = await p2pApi('/api/p2p/message', 'POST', { session: p2p.session.id, text: text });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok && data.msg) { onIncomingMessage(data.msg); }
+        else showToast(data.error || '发送失败');
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    async function deleteP2pConnection() {
+      if (!p2p.session) return;
+      const ok = await showConfirm('确定删除这条私密连接？', '删除连接', '删除');
+      if (!ok) return;
+      try {
+        await p2pApi('/api/p2p/session?session=' + p2p.session.id, 'DELETE');
+        p2p.messages = [];
+        p2p.lastSeq = 0;
+        applyP2pSession(null);
+        showToast('连接已删除');
+      } catch (_e) { showToast('删除失败'); }
+    }
+
+    // ---- P2P files ----
+    function p2pFileUrl(fileId, dl) {
+      let u = '/api/p2p/file?session=' + p2p.session.id +
+        '&file=' + encodeURIComponent(fileId) +
+        '&token=' + TOKEN +
+        '&p2pkey=' + encodeURIComponent(p2p.peerKey);
+      if (dl) u += '&dl=1';
+      return u;
+    }
+
+    function downloadP2pFile(fileId, name) {
+      const a = document.createElement('a');
+      a.href = p2pFileUrl(fileId, true);
+      a.download = name;
+      a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function onP2pFileInput() {
+      const input = document.getElementById('p2pFileInput');
+      if (!input.files || input.files.length === 0) { input.value = ''; return; }
+      const files = Array.from(input.files);
+      input.value = '';
+      if (hostUiMode() && host.active && host.selectedId) uploadHostFiles(files);
+      else if (p2p.session && p2p.session.status === 'active') uploadP2pFiles(files);
+    }
+
+    // Upload several files in ONE request so they arrive as a single chat
+    // message (kind: 'files') instead of one message per file.
+    function uploadP2pFiles(fileList) {
+      const row = document.getElementById('p2pUploadRow');
+      const fill = document.getElementById('p2pUploadFill');
+      const pct = document.getElementById('p2pUploadPct');
+      const nameEl = document.getElementById('p2pUploadName');
+      row.classList.add('show'); fill.style.width = '0%'; pct.textContent = '0%';
+      nameEl.textContent = fileList.length > 1 ? ('正在发送 ' + fileList.length + ' 个文件…') : fileList[0].name;
+      const fd = new FormData();
+      for (const file of fileList) {
+        try { fd.append('file', file, file.name); } catch (_e) { fd.append('file', file); }
+      }
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/p2p/file?session=' + p2p.session.id + '&token=' + TOKEN);
+      xhr.setRequestHeader('X-P2P-Key', p2p.peerKey);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) { const p = Math.round(e.loaded / e.total * 100); fill.style.width = p + '%'; pct.textContent = p + '%'; }
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200) { showToast(fileList.length > 1 ? '文件已发送' : '文件已发送'); fetchP2pMessages({ silent: true }); }
+        else {
+          let err = '发送失败';
+          try { err = JSON.parse(xhr.responseText).error || err } catch (_e) { /* ignore */ }
+          showToast(err);
+        }
+        setTimeout(() => row.classList.remove('show'), 1500);
+      };
+      xhr.onerror = () => { showToast('网络错误'); row.classList.remove('show'); };
+      xhr.send(fd);
+    }
+
+    // ---- P2P file preview (reuses the shared modal) ----
+    const P2P_PREVIEW_EXTS = ['txt', 'log', 'csv', 'json', 'xml', 'yml', 'yaml', 'toml', 'ini', 'cfg', 'conf', 'env', 'properties', 'md', 'markdown', 'mdown', 'mkd', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'rs', 'go', 'rb', 'php', 'swift', 'kt', 'kts', 'scala', 'dart', 'lua', 'r', 'sql', 'sh', 'bash', 'zsh', 'bat', 'cmd', 'ps1', 'html', 'htm', 'css', 'scss', 'less', 'vue', 'svelte', 'svg', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'mp4', 'webm', 'mkv', 'avi', 'mov', 'flv', 'pdf'];
+
+    function isP2pPreviewable(name) {
+      const ext = (name || '').split('.').pop().toLowerCase();
+      return P2P_PREVIEW_EXTS.includes(ext);
+    }
+
+    // url is optional: peer mode builds /api/p2p/file, host mode passes the
+    // /api/host/p2p/file URL explicitly.
+    function openP2pPreview(f, url) {
+      const baseUrl = url || p2pFileUrl(f.fileId, false);
+      const dlUrl = baseUrl + '&dl=1';
+      const ext = (f.name || '').split('.').pop().toLowerCase();
+      const cat = getFileCategory(ext);
+      currentFilePath = null;
+      currentRawContent = '';
+      document.getElementById('modalTitle').textContent = f.name;
+      document.getElementById('modalOverlay').style.display = 'flex';
+      document.getElementById('modalDownload').href = dlUrl;
+      document.querySelectorAll('.modal-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+      currentViewMode = 'preview';
+      const showTabs = cat === 'markdown' || cat === 'code';
+      const isTextType = cat === 'markdown' || cat === 'code' || cat === 'text';
+      document.getElementById('modalTabs').style.display = showTabs ? 'flex' : 'none';
+      document.getElementById('modalCopyBtn').style.display = isTextType ? '' : 'none';
+      const body = document.getElementById('modalBody');
+
+      if (cat === 'image') {
+        body.innerHTML = '<img src="' + baseUrl + '" alt="' + escHtml(f.name) + '" style="max-width:100%;max-height:65vh;display:block;margin:0 auto;cursor:zoom-in" onclick="openImgViewer(\'' + baseUrl.replace(/'/g, "\\'") + '\')">';
+        return;
+      }
+      if (cat === 'audio') {
+        body.innerHTML = '<div style="text-align:center;padding:20px"><p style="margin-bottom:16px;font-weight:500">' + escHtml(f.name) + '</p><audio controls autoplay style="width:100%;max-width:500px"><source src="' + baseUrl + '"></audio></div>';
+        return;
+      }
+      if (cat === 'video') {
+        body.innerHTML = '<video controls autoplay style="width:100%;max-height:55vh;display:block"><source src="' + baseUrl + '"></video>';
+        return;
+      }
+      if (ext === 'pdf') {
+        body.innerHTML = '<iframe src="' + baseUrl + '" style="width:100%;height:70vh;border:none;border-radius:8px"></iframe>';
+        return;
+      }
+      if (cat === 'markdown' || cat === 'code' || cat === 'text') {
+        currentFileExt = ext;
+        body.innerHTML = '<div class="empty-hint"><span>加载中...</span></div>';
+        fetch(baseUrl).then(r => r.text()).then(text => {
+          currentRawContent = text;
+          currentFilePath = baseUrl;
+          renderPreview(text, ext);
+        }).catch(() => {
+          body.innerHTML = '<div class="empty-hint"><span style="color:var(--danger)">加载失败</span></div>';
+        });
+        return;
+      }
+      showAlert('该文件类型暂不支持在线预览，请下载后查看。');
+    }
+
+    // ===== Local management console (host mode) =====
+    // When the browser runs on the plugin machine, a left-side menu switches
+    // between the file view and the message console (same P2P conversations
+    // as the plugin window). No drawer, no self-application.
+    const host = {
+      sessions: [],
+      selectedId: '',
+      messages: [],
+      lastSeq: 0,
+      active: false,      // message console is the visible view
+      view: 'list',       // 'list' | 'chat' (mobile single-pane switch)
+      timer: null,
+      msgTimer: null,
+      pendingCount: -1,
+      unreadCount: -1
+    };
+
+    let currentView = 'files'; // 'files' | 'messages'
+
+    let p2pModeInit = false;
+
+    // The plugin machine's own browser shows the host console, unless the
+    // ?peer=1 dev switch forces the remote-client (peer) flow for testing.
+    function hostUiMode() {
+      return isLocalHost && !FORCE_PEER;
+    }
+
+    function initP2pMode() {
+      if (p2pModeInit) return;
+      p2pModeInit = true;
+      if (hostUiMode()) initHost();
+      else initP2p();
+    }
+
+    function setView(v) {
+      currentView = v;
+      document.getElementById('filesView').style.display = v === 'files' ? '' : 'none';
+      document.getElementById('messagesView').style.display = v === 'messages' ? '' : 'none';
+      document.getElementById('sideTabFiles').classList.toggle('active', v === 'files');
+      document.getElementById('sideTabMessages').classList.toggle('active', v === 'messages');
+      setMobileNav(v === 'files' ? 'files' : 'p2p');
+      if (v === 'messages') {
+        host.active = true;
+        hostPoll();
+        renderHostBody();
+        if (host.selectedId) hostPollMessages();
+        host.msgTimer = setInterval(hostPollMessages, 1500);
+      } else {
+        host.active = false;
+        if (host.msgTimer) clearInterval(host.msgTimer);
+      }
+    }
+
+    function hostApi(path, method, body) {
+      const sep = path.includes('?') ? '&' : '?';
+      const opts = { method: method || 'GET', headers: {} };
+      if (body !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      return fetch(path + sep + 'token=' + TOKEN, opts);
+    }
+
+    function initHost() {
+      document.getElementById('p2pBtn').style.display = 'none';
+      document.getElementById('hostLogsBtn').style.display = '';
+      document.getElementById('hostWhitelistBtn').style.display = '';
+      document.getElementById('sideMenu').style.display = 'flex';
+      document.getElementById('app').classList.add('app-host');
+      document.getElementById('navP2pLabel').textContent = '管理';
+      hostPoll();
+      host.timer = setInterval(hostPoll, 2000);
+    }
+
+    async function hostPoll() {
+      try {
+        const res = await hostApi('/api/host/p2p');
+        const data = await res.json();
+        if (!data.ok) return;
+        const prevSessionsJson = JSON.stringify(host.sessions);
+        host.sessions = data.sessions || [];
+        const pending = host.sessions.filter(s => s.status === 'pending').length;
+        const unread = host.sessions.reduce((a, s) => a + (s.status === 'active' ? s.unreadByHost : 0), 0);
+        if (!host.active) {
+          if (host.pendingCount >= 0 && pending > host.pendingCount) showToast('收到新的连接申请');
+          if (host.unreadCount >= 0 && unread > host.unreadCount) showToast('收到新消息');
+        }
+        host.pendingCount = pending;
+        host.unreadCount = unread;
+        updateHostBadge();
+        // Only re-render the console when the session data actually changed,
+        // so the 2s poll never disrupts typing/focus in the open chat.
+        if (host.active && JSON.stringify(host.sessions) !== prevSessionsJson) renderHostBody();
+      } catch (_e) { /* ignore */ }
+    }
+
+    function updateHostBadge() {
+      const n = host.pendingCount + host.unreadCount;
+      const side = document.getElementById('sideMsgBadge');
+      const nav = document.getElementById('navP2pBadge');
+      const show = n > 0;
+      side.style.display = show ? '' : 'none';
+      nav.style.display = show ? '' : 'none';
+      side.textContent = n > 99 ? '99+' : String(n);
+      nav.textContent = n > 99 ? '99+' : String(n);
+    }
+
+    async function hostPollMessages() {
+      if (!host.selectedId) return;
+      try {
+        const res = await hostApi('/api/host/p2p/messages?session=' + host.selectedId + '&after=' + host.lastSeq);
+        const data = await res.json();
+        if (data.messages && data.messages.length > 0) {
+          for (const m of data.messages) {
+            if (m.seq > host.lastSeq) { host.messages.push(m); host.lastSeq = m.seq; }
+          }
+          if (host.active) renderHostBody();
+        }
+        // While this conversation is open, keep its unread badge cleared.
+        hostApi('/api/host/p2p/read', 'POST', { session: host.selectedId });
+        hostPoll();
+      } catch (_e) { /* ignore */ }
+    }
+
+    // ---- host message console rendering (into #messagesViewBody) ----
+    function renderHostBody() {
+      const body = document.getElementById('messagesViewBody');
+      // Preserve the chat input across re-renders (incoming messages / poll).
+      const oldInput = document.getElementById('hostInput');
+      const savedValue = oldInput ? oldInput.value : '';
+      const hadFocus = oldInput && document.activeElement === oldInput;
+      body.innerHTML = '';
+      body.className = 'host-body' + (host.view === 'chat' ? ' host-view-chat' : ' host-view-list');
+
+      // list pane
+      const list = document.createElement('div');
+      list.className = 'host-list';
+      const pending = host.sessions.filter(s => s.status === 'pending');
+      const others = host.sessions.filter(s => s.status === 'active');
+      if (pending.length > 0) {
+        list.appendChild(groupLabel('连接申请'));
+        for (const s of pending) list.appendChild(hostSessionRow(s, true));
+      }
+      if (others.length > 0) {
+        list.appendChild(groupLabel('会话'));
+        for (const s of others) list.appendChild(hostSessionRow(s, false));
+      }
+      if (host.sessions.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding:30px 16px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6';
+        empty.textContent = '暂无连接。\n远程设备访问共享页面后可申请点对点私密连接。';
+        list.appendChild(empty);
+      }
+      body.appendChild(list);
+
+      // chat pane
+      const chat = document.createElement('div');
+      chat.className = 'host-chat';
+      const sel = host.sessions.find(s => s.id === host.selectedId);
+      if (sel && sel.status === 'active') {
+        chat.appendChild(buildHostChat(sel));
+      } else {
+        const empty2 = document.createElement('div');
+        empty2.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);gap:8px;font-size:13px';
+        empty2.innerHTML = '<svg viewBox="0 0 24 24" width="52" height="52" stroke="currentColor" fill="none" stroke-width="1" opacity="0.25"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><div>选择左侧会话开始对话</div>';
+        chat.appendChild(empty2);
+      }
+      body.appendChild(chat);
+
+      const msgs = document.getElementById('hostMsgs');
+      if (msgs) msgs.scrollTop = msgs.scrollHeight;
+      const newInput = document.getElementById('hostInput');
+      if (newInput) {
+        newInput.value = savedValue;
+        const b = document.getElementById('hostSendBtn');
+        if (b) b.disabled = !savedValue.trim();
+        if (hadFocus) {
+          newInput.focus();
+          newInput.setSelectionRange(savedValue.length, savedValue.length);
+        }
+      }
+    }
+
+    function groupLabel(text) {
+      const d = document.createElement('div');
+      d.className = 'p2p-group-label';
+      d.textContent = text;
+      return d;
+    }
+
+    function hostSessionRow(s, isPending) {
+      const row = document.createElement('div');
+      row.className = 'p2p-session' + (isPending ? ' pending' : '') + (!isPending && host.selectedId === s.id ? ' active' : '');
+      const main = document.createElement('div');
+      main.className = 'p2p-session-main';
+      const avatar = document.createElement('div');
+      avatar.className = 'p2p-avatar';
+      avatar.textContent = (s.peerName || s.peerIp).slice(0, 1);
+      const info = document.createElement('div');
+      info.className = 'p2p-session-info';
+      const name = document.createElement('div');
+      name.className = 'p2p-session-name';
+      name.textContent = s.peerName;
+      const ip = document.createElement('span');
+      ip.className = 'p2p-session-ip';
+      ip.textContent = s.peerIp;
+      name.appendChild(ip);
+      if (!isPending) {
+        const dot = document.createElement('span');
+        dot.className = 'p2p-status-dot' + (s.peerOnline ? ' online' : '');
+        name.appendChild(dot);
+      }
+      const preview = document.createElement('div');
+      preview.className = 'p2p-session-preview';
+      preview.textContent = isPending
+        ? (s.requestMessage || '想与你建立私密连接')
+        : (s.lastMessage || (s.status === 'rejected' ? '已拒绝' : s.status === 'deleted' ? '已删除' : ''));
+      info.appendChild(name);
+      info.appendChild(preview);
+      main.appendChild(avatar);
+      main.appendChild(info);
+      row.appendChild(main);
+
+      const side = document.createElement('div');
+      side.className = 'p2p-session-side';
+      if (isPending) {
+        const acc = document.createElement('button');
+        acc.className = 'p2p-btn accept';
+        acc.textContent = '同意';
+        acc.addEventListener('click', (e) => { e.stopPropagation(); hostRespond(s, true); });
+        const rej = document.createElement('button');
+        rej.className = 'p2p-btn reject';
+        rej.textContent = '拒绝';
+        rej.addEventListener('click', (e) => { e.stopPropagation(); hostRespond(s, false); });
+        side.appendChild(acc);
+        side.appendChild(rej);
+      } else {
+        if (s.status === 'active' && s.unreadByHost > 0) {
+          const un = document.createElement('span');
+          un.className = 'p2p-unread';
+          un.textContent = s.unreadByHost;
+          side.appendChild(un);
+        }
+        if (s.status === 'active') {
+          const del = document.createElement('button');
+          del.className = 'p2p-del';
+          del.title = '删除连接';
+          del.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+          del.addEventListener('click', (e) => { e.stopPropagation(); hostDeleteSession(s); });
+          side.appendChild(del);
+        } else {
+          const st = document.createElement('span');
+          st.className = 'p2p-status-text';
+          st.textContent = s.status === 'rejected' ? '已拒绝' : '已删除';
+          side.appendChild(st);
+        }
+      }
+      row.appendChild(side);
+
+      if (!isPending && s.status === 'active') {
+        row.addEventListener('click', () => hostOpenChat(s.id));
+      }
+      return row;
+    }
+
+    async function hostRespond(s, accept) {
+      try {
+        const res = await hostApi('/api/host/p2p/respond', 'POST', { session: s.id, accept: accept });
+        if (res.ok) { showToast(accept ? '已同意连接' : '已拒绝申请'); hostPoll(); }
+        else showToast('操作失败');
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function hostOpenChat(id) {
+      host.selectedId = id;
+      host.messages = [];
+      host.lastSeq = 0;
+      host.view = 'chat';
+      renderHostBody();
+      hostPollMessages();
+      setTimeout(() => { const input = document.getElementById('hostInput'); if (input) input.focus(); }, 60);
+    }
+
+    function hostBackToList() {
+      host.selectedId = '';
+      host.messages = [];
+      host.view = 'list';
+      renderHostBody();
+    }
+
+    async function hostDeleteSession(s) {
+      const ok = await showConfirm('确定删除与 ' + s.peerName + ' 的私密连接？', '删除连接', '删除');
+      if (!ok) return;
+      try {
+        const res = await hostApi('/api/host/p2p/session?session=' + s.id, 'DELETE');
+        if (res.ok) {
+          showToast('连接已删除');
+          if (host.selectedId === s.id) { host.selectedId = ''; host.messages = []; }
+          hostPoll();
+        }
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function buildHostChat(s) {
+      const chat = document.createElement('div');
+      chat.className = 'p2p-chat';
+      const head = document.createElement('div');
+      head.className = 'p2p-chat-header';
+      const back = document.createElement('button');
+      back.className = 'p2p-back';
+      back.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>';
+      back.addEventListener('click', hostBackToList);
+      const name = document.createElement('span');
+      name.className = 'p2p-peer-name';
+      name.textContent = s.peerName;
+      const ip = document.createElement('span');
+      ip.className = 'p2p-peer-ip';
+      ip.textContent = s.peerIp;
+      const dot = document.createElement('span');
+      dot.className = 'p2p-online' + (s.peerOnline ? ' on' : '');
+      const del = document.createElement('button');
+      del.className = 'p2p-chat-del';
+      del.textContent = '删除连接';
+      del.addEventListener('click', () => hostDeleteSession(s));
+      head.appendChild(back);
+      head.appendChild(name);
+      head.appendChild(ip);
+      head.appendChild(dot);
+      head.appendChild(del);
+      chat.appendChild(head);
+
+      const msgs = document.createElement('div');
+      msgs.className = 'p2p-msgs';
+      msgs.id = 'hostMsgs';
+      if (host.messages.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'margin:auto;color:var(--text3);font-size:12px';
+        empty.textContent = '还没有消息';
+        msgs.appendChild(empty);
+      } else {
+        for (const m of host.messages) msgs.appendChild(buildHostMsg(m));
+      }
+      chat.appendChild(msgs);
+
+      const bar = document.createElement('div');
+      bar.className = 'p2p-inputbar';
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'p2p-file-send'; sendBtn.title = '发送文件';
+      sendBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>';
+      sendBtn.addEventListener('click', () => document.getElementById('p2pFileInput').click());
+      const input = document.createElement('textarea');
+      input.className = 'p2p-input'; input.rows = 1; input.id = 'hostInput';
+      input.placeholder = '输入消息，Enter 发送';
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); hostSendMessage(); } });
+      input.addEventListener('input', () => { const b = document.getElementById('hostSendBtn'); if (b) b.disabled = !input.value.trim(); });
+      const s2 = document.createElement('button');
+      s2.className = 'p2p-send'; s2.id = 'hostSendBtn'; s2.textContent = '发送'; s2.disabled = true;
+      s2.addEventListener('click', hostSendMessage);
+      bar.appendChild(sendBtn); bar.appendChild(input); bar.appendChild(s2);
+      chat.appendChild(bar);
+      return chat;
+    }
+
+    function buildHostMsg(m) {
+      const row = document.createElement('div');
+      row.className = 'p2p-msg ' + (m.from === 'host' ? 'mine' : 'theirs');
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;gap:6px';
+      const time = document.createElement('div');
+      time.className = 'p2p-msg-time';
+      time.textContent = fmtP2pTime(m.createdAt);
+      head.appendChild(time);
+      if (m.kind === 'text') {
+        const copy = document.createElement('button');
+        copy.className = 'p2p-msg-copy' + (p2pCopiedId === m.id ? ' copied' : '');
+        copy.dataset.msgId = m.id;
+        copy.title = '复制内容';
+        copy.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+        copy.addEventListener('click', () => copyP2pText(m));
+        head.appendChild(copy);
+      }
+      const del = document.createElement('button');
+      del.className = 'p2p-msg-del'; del.title = '删除消息';
+      del.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+      del.addEventListener('click', () => hostDeleteMessage(m));
+      head.appendChild(del);
+      row.appendChild(head);
+      if (m.kind === 'text') {
+        const b = document.createElement('div');
+        b.className = 'p2p-bubble';
+        b.textContent = m.text;
+        row.appendChild(b);
+      } else if (m.kind === 'files' && m.files && m.files.length > 0) {
+        const card = document.createElement('div');
+        card.className = 'p2p-file';
+        const list = document.createElement('div');
+        list.style.cssText = 'display:flex;flex-direction:column;width:100%';
+        m.files.forEach((f, fi) => {
+          const item = document.createElement('div');
+          item.className = 'p2p-file-item';
+          if (fi > 0) item.style.borderTop = '1px solid var(--border)';
+          const icon = document.createElement('span');
+          icon.className = 'p2p-file-icon';
+          icon.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+          const info = document.createElement('div');
+          info.style.cssText = 'min-width:0;flex:1';
+          const nm = document.createElement('div'); nm.className = 'p2p-file-name'; nm.textContent = f.name;
+          const meta = document.createElement('div'); meta.className = 'p2p-file-meta'; meta.textContent = fmtP2pSize(f.size);
+          const actions = document.createElement('div'); actions.className = 'p2p-file-actions';
+          const dl = document.createElement('button'); dl.className = 'p2p-file-btn'; dl.textContent = '下载';
+          dl.addEventListener('click', () => hostDownloadFile(f.fileId, f.name));
+          actions.appendChild(dl);
+          if (isP2pPreviewable(f.name)) {
+            const pv = document.createElement('button'); pv.className = 'p2p-file-btn'; pv.textContent = '预览';
+            pv.addEventListener('click', () => openP2pPreview(f, hostFileUrl(f.fileId, false)));
+            actions.appendChild(pv);
+          }
+          info.appendChild(nm); info.appendChild(meta); info.appendChild(actions);
+          item.appendChild(icon); item.appendChild(info);
+          list.appendChild(item);
+        });
+        card.appendChild(list);
+        row.appendChild(card);
+      }
+      return row;
+    }
+
+    function hostFileUrl(fileId, dl) {
+      let u = '/api/host/p2p/file?session=' + host.selectedId + '&file=' + encodeURIComponent(fileId) + '&token=' + TOKEN;
+      if (dl) u += '&dl=1';
+      return u;
+    }
+
+    function hostDownloadFile(fileId, name) {
+      const a = document.createElement('a');
+      a.href = hostFileUrl(fileId, true);
+      a.download = name;
+      a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    async function hostSendMessage() {
+      const input = document.getElementById('hostInput');
+      if (!input || !host.selectedId) return;
+      const text = input.value.trim();
+      if (!text) return;
+      // Clear the input *before* renderHostBody triggers a re-render,
+      // otherwise renderHostBody will restore the old value from the DOM.
+      input.value = '';
+      const b0 = document.getElementById('hostSendBtn'); if (b0) b0.disabled = true;
+      try {
+        const res = await hostApi('/api/host/p2p/message', 'POST', { session: host.selectedId, text: text });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok && data.msg) {
+          if (data.msg.seq > host.lastSeq) { host.messages.push(data.msg); host.lastSeq = data.msg.seq; renderHostBody(); }
+        } else showToast(data.error || '发送失败');
+      } catch (_e) { showToast('网络错误'); }
+      input.focus();
+    }
+
+    async function hostDeleteMessage(m) {
+      if (!host.selectedId) return;
+      const ok = await showConfirm('删除这条消息？服务端留存也会一并删除。', '删除消息', '删除');
+      if (!ok) return;
+      try {
+        const res = await hostApi('/api/host/p2p/message?session=' + host.selectedId + '&msg=' + encodeURIComponent(m.id), 'DELETE');
+        if (res.ok) {
+          host.messages = host.messages.filter(x => x.id !== m.id);
+          renderHostBody();
+        } else showToast('删除失败');
+      } catch (_e) { showToast('网络错误'); }
+    }
+
+    function uploadHostFiles(fileList) {
+      const row = document.getElementById('p2pUploadRow');
+      const fill = document.getElementById('p2pUploadFill');
+      const pct = document.getElementById('p2pUploadPct');
+      const nameEl = document.getElementById('p2pUploadName');
+      row.classList.add('show'); fill.style.width = '0%'; pct.textContent = '0%';
+      nameEl.textContent = fileList.length > 1 ? ('正在发送 ' + fileList.length + ' 个文件…') : fileList[0].name;
+      const fd = new FormData();
+      for (const file of fileList) {
+        try { fd.append('file', file, file.name); } catch (_e) { fd.append('file', file); }
+      }
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/host/p2p/file?session=' + host.selectedId + '&token=' + TOKEN);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) { const p = Math.round(e.loaded / e.total * 100); fill.style.width = p + '%'; pct.textContent = p + '%'; }
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200) { showToast('文件已发送'); hostPollMessages(); }
+        else {
+          let err = '发送失败';
+          try { err = JSON.parse(xhr.responseText).error || err } catch (_e) { /* ignore */ }
+          showToast(err);
+        }
+        setTimeout(() => row.classList.remove('show'), 1500);
+      };
+      xhr.onerror = () => { showToast('网络错误'); row.classList.remove('show'); };
+      xhr.send(fd);
+    }
+
+    // ---- host logs / whitelist modals ----
+    let hostModalEl = null;
+    function closeHostModal() {
+      if (hostModalEl) { hostModalEl.remove(); hostModalEl = null; }
+    }
+
+    async function openHostLogs() {
+      try {
+        const res = await hostApi('/api/host/logs');
+        const data = await res.json();
+        renderHostLogsModal(data.logs || []);
+      } catch (_e) { showToast('加载日志失败'); }
+    }
+
+    function renderHostLogsModal(logs) {
+      closeHostModal();
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1300;display:flex;align-items:center;justify-content:center;padding:24px';
+      const modal = document.createElement('div');
+      modal.style.cssText = 'background:var(--bg);border-radius:12px;width:100%;max-width:720px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-lg)';
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border);gap:10px';
+      const title = document.createElement('span');
+      title.style.cssText = 'font-size:14px;font-weight:600;flex:1';
+      title.textContent = '下载 / 上传日志';
+      const clear = document.createElement('button');
+      clear.style.cssText = 'font-size:12px;color:var(--danger);background:none;border:none;cursor:pointer;padding:4px 8px';
+      clear.textContent = '清空';
+      clear.addEventListener('click', async () => {
+        await hostApi('/api/host/logs', 'DELETE');
+        openHostLogs();
+      });
+      const close = document.createElement('button');
+      close.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      close.style.cssText = 'width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:var(--text2)';
+      close.addEventListener('click', closeHostModal);
+      head.appendChild(title); head.appendChild(clear); head.appendChild(close);
+      const body = document.createElement('div');
+      body.style.cssText = 'flex:1;overflow-y:auto';
+      if (logs.length === 0) {
+        body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3)">暂无记录</div>';
+      } else {
+        const table = document.createElement('table');
+        table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px';
+        const thead = document.createElement('thead');
+        const thr = document.createElement('tr');
+        thr.innerHTML = '<th style="text-align:left;padding:8px 14px;background:var(--bg2);color:var(--text2);border-bottom:1px solid var(--border)">时间</th>' +
+          '<th style="text-align:left;padding:8px 14px;background:var(--bg2);color:var(--text2);border-bottom:1px solid var(--border)">IP</th>' +
+          '<th style="text-align:left;padding:8px 14px;background:var(--bg2);color:var(--text2);border-bottom:1px solid var(--border)">类型</th>' +
+          '<th style="text-align:left;padding:8px 14px;background:var(--bg2);color:var(--text2);border-bottom:1px solid var(--border)">文件</th>';
+        thead.appendChild(thr);
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        for (const log of logs) {
+          const d = new Date(log.timestamp);
+          const pad = n => String(n).padStart(2, '0');
+          const ts = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+          const type = log.type === 'upload' ? '上传' : '下载';
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td style="padding:7px 14px;border-bottom:1px solid var(--border-light);color:var(--text2);white-space:nowrap">' + ts + '</td>' +
+            '<td style="padding:7px 14px;border-bottom:1px solid var(--border-light);font-family:monospace;color:var(--primary);white-space:nowrap">' + escHtml(log.ip || '') + '</td>' +
+            '<td style="padding:7px 14px;border-bottom:1px solid var(--border-light);white-space:nowrap;width:56px">' + type + '</td>' +
+            '<td style="padding:7px 14px;border-bottom:1px solid var(--border-light);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(log.filePath || '') + '">' + escHtml(log.fileName || '') + '</td>';
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        body.appendChild(table);
+      }
+      modal.appendChild(head); modal.appendChild(body);
+      overlay.appendChild(modal);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeHostModal(); });
+      document.body.appendChild(overlay);
+      hostModalEl = overlay;
+    }
+
+    async function openHostWhitelist() {
+      try {
+        const res = await hostApi('/api/host/whitelist');
+        const data = await res.json();
+        renderHostWhitelistModal(data.whitelist || []);
+      } catch (_e) { showToast('加载白名单失败'); }
+    }
+
+    function renderHostWhitelistModal(list) {
+      closeHostModal();
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1300;display:flex;align-items:center;justify-content:center;padding:24px';
+      const modal = document.createElement('div');
+      modal.style.cssText = 'background:var(--bg);border-radius:12px;width:100%;max-width:420px;max-height:70vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-lg)';
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border);gap:10px';
+      const title = document.createElement('span');
+      title.style.cssText = 'font-size:14px;font-weight:600;flex:1';
+      title.textContent = 'IP 白名单';
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:11px;color:var(--text3)';
+      hint.textContent = '白名单内 IP 无需 Token 即可访问';
+      const close = document.createElement('button');
+      close.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      close.style.cssText = 'width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:var(--text2)';
+      close.addEventListener('click', closeHostModal);
+      head.appendChild(title); head.appendChild(hint); head.appendChild(close);
+      const body = document.createElement('div');
+      body.style.cssText = 'flex:1;overflow-y:auto;padding:14px';
+      const addRow = document.createElement('div');
+      addRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px';
+      const input = document.createElement('input');
+      input.placeholder = '输入 IP 地址，如 192.168.1.100';
+      input.style.cssText = 'flex:1;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);outline:none;font-family:monospace';
+      const addBtn = document.createElement('button');
+      addBtn.textContent = '添加';
+      addBtn.style.cssText = 'padding:6px 14px;border-radius:6px;background:var(--primary);color:#fff;font-size:12px;border:none;cursor:pointer';
+      addBtn.addEventListener('click', async () => {
+        const ip = input.value.trim();
+        if (!ip) return;
+        const res = await hostApi('/api/host/whitelist', 'POST', { ip: ip });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) { input.value = ''; openHostWhitelist(); }
+        else showToast(data.error || '添加失败');
+      });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addBtn.click(); });
+      addRow.appendChild(input); addRow.appendChild(addBtn);
+      body.appendChild(addRow);
+      if (list.length === 0) {
+        body.innerHTML += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">白名单为空，所有访问均需 Token</div>';
+      } else {
+        for (const ip of list) {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg2);border-radius:6px;margin-bottom:4px';
+          const ipSpan = document.createElement('span');
+          ipSpan.textContent = ip;
+          ipSpan.style.cssText = 'font-family:monospace;font-size:13px;color:var(--text)';
+          const rm = document.createElement('button');
+          rm.textContent = '移除';
+          rm.style.cssText = 'font-size:11px;color:var(--danger);background:none;border:none;cursor:pointer;padding:3px 6px';
+          rm.addEventListener('click', async () => {
+            await hostApi('/api/host/whitelist?ip=' + encodeURIComponent(ip), 'DELETE');
+            openHostWhitelist();
+          });
+          row.appendChild(ipSpan); row.appendChild(rm);
+          body.appendChild(row);
+        }
+      }
+      modal.appendChild(head); modal.appendChild(body);
+      overlay.appendChild(modal);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeHostModal(); });
+      document.body.appendChild(overlay);
+      hostModalEl = overlay;
+    }
+
+    // ===== Start =====
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+
+</html>

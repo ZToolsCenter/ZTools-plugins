@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist.zip
+
+# Environment files (contain secrets)
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+
+# Logs
+*.log

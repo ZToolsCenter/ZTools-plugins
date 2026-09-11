@@ -33,6 +33,10 @@ declare global {
     code?: string
     type?: string
     payload?: string
+    option?: {
+      action?: string
+      url?: string
+    }
     inputState?: {
       searchQuery?: string
       pastedText?: string
@@ -55,6 +59,7 @@ declare global {
     webQuickOpen: WebQuickOpenApi
     ztools: {
       onPluginEnter: (callback: (param: LaunchParam) => void) => void
+      setSubInputValue?: (value: string) => unknown
       showNotification?: (body: string) => void
       getThemeInfo?: () => {
         isDark: boolean

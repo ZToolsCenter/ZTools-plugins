@@ -1,11 +1,13 @@
 <script setup>
-import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted, nextTick, onActivated, onDeactivated, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
+
 import { createClient } from "webdav/web";
-import { Refresh, Delete as DeleteIcon, ChatDotRound, Edit, Upload, Download, Switch, QuestionFilled, Brush } from '@element-plus/icons-vue'
+import { Refresh, Delete as DeleteIcon, ChatDotRound, Edit, Upload, Download, Switch, QuestionFilled, Brush, Share, Plus, ArrowRight, Folder } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const { t } = useI18n();
+const currentConfig = inject('config');
 
 // --- Component State ---
 const activeView = ref('local');
@@ -19,8 +21,104 @@ const cloudChatFiles = ref([]);
 const isTableLoading = ref(false);
 const selectedFiles = ref([]);
 const currentPage = ref(1);
-const pageSize = ref(10);
+const pageSize = ref(20);
 const singleFileSyncing = ref({});
+const isDeletingFiles = ref(false);
+const sortMode = ref('createdAt');
+const sortDirection = ref('desc');
+
+const LOCAL_REFRESH_THROTTLE_MS = 2000;
+const LOCAL_TITLE_HYDRATE_DELAY_MS = 120;
+let localFilesInFlight = null;
+let localFilesInFlightPath = '';
+let localFilesRequestSeq = 0;
+let localTitleHydrationSeq = 0;
+let lastLocalFilesLoadedAt = 0;
+let refreshDataInFlight = null;
+let lastRefreshDataAt = 0;
+
+// --- 项目（目录）分组拖拽状态 ---
+const draggedFileBasenames = ref([]);
+const dragOverProjectTarget = ref('');
+const isProjectDragging = ref(false);
+const dragGhostX = ref(0);
+const dragGhostY = ref(0);
+const dragGhostLabel = ref('');
+
+// --- 项目（目录）分组状态 ---
+const COLLAPSED_PROJECTS_STORAGE_KEY = 'chats-collapsed-projects';
+
+function loadCollapsedProjectState() {
+    try {
+        const raw = localStorage.getItem(COLLAPSED_PROJECTS_STORAGE_KEY);
+        if (raw === null) return { ids: [], hasUserPreference: false };
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            // 旧版本数组格式代表用户已明确调整过展开状态，必须保持兼容。
+            return { ids: parsed.filter((id) => typeof id === 'string'), hasUserPreference: true };
+        }
+        if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.ids)) {
+            return { ids: [], hasUserPreference: false };
+        }
+        return {
+            ids: parsed.ids.filter((id) => typeof id === 'string'),
+            hasUserPreference: parsed.hasUserPreference === true
+        };
+    } catch {
+        return { ids: [], hasUserPreference: false };
+    }
+}
+
+function persistCollapsedProjectIds(ids, hasUserPreference = false) {
+    try {
+        localStorage.setItem(COLLAPSED_PROJECTS_STORAGE_KEY, JSON.stringify({
+            ids: Array.from(ids),
+            hasUserPreference
+        }));
+    } catch {
+        // ignore localStorage persistence failure
+    }
+}
+
+const localProjects = ref({ version: 1, projects: [] });
+const cloudProjects = ref({ version: 1, projects: [] });
+const initialCollapsedProjectState = loadCollapsedProjectState();
+const collapsedProjectIds = ref(new Set(initialCollapsedProjectState.ids));
+const hasUserCollapsedProjectPreference = ref(initialCollapsedProjectState.hasUserPreference);
+
+function initializeDefaultCollapsedProjects(projectsData) {
+    if (hasUserCollapsedProjectPreference.value) return;
+    const projectIds = (Array.isArray(projectsData?.projects) ? projectsData.projects : [])
+        .map((project) => String(project?.id || '').trim())
+        .filter(Boolean);
+    if (projectIds.length === 0) return;
+
+    const collapsedIds = new Set([...collapsedProjectIds.value, ...projectIds]);
+    collapsedProjectIds.value = collapsedIds;
+    persistCollapsedProjectIds(collapsedIds);
+}
+const projectDeleteDialog = ref({ visible: false, id: '', name: '', busy: false });
+const PROJECT_UNGROUPED_DROP_ID = '__ungrouped__';
+
+watch(() => currentConfig.value?.webdav, (newWebdav) => {
+    if (newWebdav) {
+        const oldLocalPath = localChatPath.value;
+        localChatPath.value = newWebdav.localChatPath || '';
+        webdavConfig.value = newWebdav;
+        isWebdavConfigValid.value = !!(webdavConfig.value.url && webdavConfig.value.data_path);
+        
+        // 如果本地路径发生变化，且当前在"本地对话"视图，则重新获取列表
+        if (oldLocalPath !== localChatPath.value) {
+            if (activeView.value === 'local') {
+                if (localChatPath.value) {
+                    fetchLocalFiles(true);
+                } else {
+                    localChatFiles.value = [];
+                }
+            }
+        }
+    }
+}, { deep: true });
 
 // --- Sync Progress State ---
 const isSyncing = ref(false);
@@ -46,33 +144,666 @@ let hasMoved = false;
 // 记录拖拽开始前哪些文件是选中的 (Set<Basename>)
 let initialSelectionSnap = new Set(); 
 
+
+const normalizeDateValue = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const safeDateValue = (value) => {
+    const normalized = normalizeDateValue(value);
+    return normalized ? new Date(normalized).getTime() : 0;
+};
+
+const normalizeTitleValue = (file) => {
+    const basename = formatFilenameDisplay(file?.basename || '');
+    if (basename) return basename;
+    return typeof file?.title === 'string' && file.title.trim() ? file.title.trim() : '';
+};
+
+
+const CHAT_METADATA_BATCH_SIZE = 10;
+
+const getSafeString = (value = '') => (typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim());
+
+const resolveWebdavDataPath = () => {
+    const rawPath = webdavConfig.value?.data_path ?? webdavConfig.value?.path ?? '';
+    const normalized = String(rawPath || '').trim();
+    if (!normalized) return '';
+    return normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+};
+
+const buildWebdavInput = (extra = {}) => ({
+    webdavConfig: {
+        url: getSafeString(webdavConfig.value?.url),
+        username: getSafeString(webdavConfig.value?.username),
+        password: getSafeString(webdavConfig.value?.password),
+        path: resolveWebdavDataPath() || getSafeString(webdavConfig.value?.path) || '/anywhere_data'
+    },
+    ...extra
+});
+
+const buildChatWebdavInput = (extra = {}) => buildWebdavInput({
+    useChatMetadata: true,
+    ...extra
+});
+
+const ensureWebdavResult = (result, fallbackReason = 'webdav_operation_failed') => {
+    if (!result || result.ok === false) {
+        throw new Error(result?.reason || result?.error || fallbackReason);
+    }
+    return result;
+};
+
+const extractSessionTitleFromContent = (jsonString, fallbackBasename = '') => {
+    const normalizedFallback = typeof fallbackBasename === 'string' ? fallbackBasename.trim() : '';
+    try {
+        const sessionData = JSON.parse(typeof jsonString === 'string' ? jsonString : '{}');
+        if (!sessionData || sessionData.anywhere_history !== true) return '';
+
+        const rawMetadata = sessionData.sessionMetadata && typeof sessionData.sessionMetadata === 'object'
+            ? sessionData.sessionMetadata
+            : {};
+        const rawTitle = typeof rawMetadata.title === 'string' ? rawMetadata.title.trim() : '';
+        return rawTitle || (normalizedFallback.endsWith('.json') ? normalizedFallback.slice(0, -5) : normalizedFallback);
+    } catch {
+        return '';
+    }
+};
+
+const buildChatMetadataPayload = (basename, jsonString, fallbackFile = null) => {
+    const titleFromContent = extractSessionTitleFromContent(jsonString, basename);
+    const fallbackTitle = normalizeTitleValue(fallbackFile || { basename });
+    const fallbackCreatedAt = normalizeDateValue(fallbackFile?.createdAt || fallbackFile?.birthtime || fallbackFile?.ctime || fallbackFile?.lastmod || '');
+    const fallbackUpdatedAt = normalizeDateValue(fallbackFile?.updatedAt || fallbackFile?.lastmod || fallbackCreatedAt || '');
+
+    return {
+        title: titleFromContent || fallbackTitle,
+        createdAt: fallbackCreatedAt || fallbackUpdatedAt,
+        updatedAt: fallbackUpdatedAt || fallbackCreatedAt
+    };
+};
+
+const toUtcString = (value) => {
+    const normalized = normalizeDateValue(value);
+    if (!normalized) return '';
+    return new Date(normalized).toUTCString();
+};
+
+const buildCloudUploadFilePayload = async (basename, options = {}) => {
+    const normalizedBasename = getSafeString(basename);
+    const localPath = options.localPath || `${localChatPath.value}/${normalizedBasename}`;
+    const localFile = options.localFile || localChatFiles.value.find((file) => file.basename === normalizedBasename);
+    if (!localFile) {
+        throw new Error(`本地文件 "${normalizedBasename}" 未找到`);
+    }
+
+    const content = typeof options.content === 'string'
+        ? options.content
+        : await window.api.readLocalFile(localPath, options.signal);
+
+    return {
+        filename: normalizedBasename,
+        content,
+        lastModified: toUtcString(getCompareTimestamp(localFile)),
+        chatMetadata: buildChatMetadataPayload(normalizedBasename, content, localFile)
+    };
+};
+
+const splitIntoBatches = (items, batchSize = CHAT_METADATA_BATCH_SIZE) => {
+    const normalizedSize = Math.max(1, Number(batchSize) || CHAT_METADATA_BATCH_SIZE);
+    const batches = [];
+    for (let index = 0; index < items.length; index += normalizedSize) {
+        batches.push(items.slice(index, index + normalizedSize));
+    }
+    return batches;
+};
+
+
+
+
+const normalizeDirectoryContents = (contents) => {
+    if (Array.isArray(contents)) return contents;
+    if (contents && Array.isArray(contents.data)) return contents.data;
+    return [];
+};
+
+const getWebdavClientForChats = () => {
+    const url = getSafeString(webdavConfig.value?.url);
+    if (!url) throw new Error('webdav_url_required');
+    const username = getSafeString(webdavConfig.value?.username);
+    const password = typeof webdavConfig.value?.password === 'string'
+        ? webdavConfig.value.password
+        : String(webdavConfig.value?.password || '');
+    const remoteDir = resolveWebdavDataPath() || getSafeString(webdavConfig.value?.path) || '/anywhere_data';
+    return {
+        client: createClient(url, { username, password }),
+        remoteDir
+    };
+};
+
+const normalizeWebdavTimestamp = (value) => normalizeDateValue(value) || '';
+
+const normalizeCloudFileFromWebdav = (file, remoteDir, metadataEntry = null) => {
+    const basename = getSafeString(file?.basename || file?.filename || file?.name || '');
+    const fallbackCreatedAt = normalizeWebdavTimestamp(file?.createdAt || file?.creationdate || file?.birthtime || file?.ctime || file?.lastmod || file?.props?.creationdate || file?.props?.getcreationdate);
+    const fallbackUpdatedAt = normalizeWebdavTimestamp(file?.updatedAt || file?.lastmod || file?.lastModified || file?.mtime || file?.props?.getlastmodified || file?.props?.lastmod || fallbackCreatedAt);
+    const metadata = metadataEntry
+        ? window.api.normalizeChatMetadataEntry(basename, metadataEntry)
+        : null;
+    const createdAt = metadata?.createdAt || fallbackCreatedAt || fallbackUpdatedAt;
+    const updatedAt = metadata?.updatedAt || fallbackUpdatedAt || createdAt;
+
+    return {
+        ...file,
+        basename,
+        filename: basename,
+        path: file?.filename || file?.path || `${remoteDir}/${basename}`,
+        type: 'file',
+        title: metadata?.title || normalizeTitleValue(file),
+        createdAt,
+        updatedAt,
+        lastmod: updatedAt || file?.lastmod || file?.lastModified || '',
+        size: Number(file?.size || 0)
+    };
+};
+
+const listCloudChatFilesWithMetadata = async () => {
+    const { client, remoteDir } = getWebdavClientForChats();
+    const exists = await client.exists(remoteDir);
+    if (!exists) {
+        return { exists: false, files: [] };
+    }
+
+    const rawList = normalizeDirectoryContents(await client.getDirectoryContents(remoteDir, { details: true }));
+    const jsonFiles = rawList.filter((item) => {
+        const basename = getSafeString(item?.basename || item?.filename || item?.name || '');
+        return item?.type === 'file' && basename.toLowerCase().endsWith('.json');
+    }).map((item) => ({
+        ...item,
+        basename: getSafeString(item?.basename || item?.filename || item?.name || '')
+    }));
+    const metadata = await reconcileCloudChatMetadata(client, remoteDir, jsonFiles);
+
+    return {
+        exists: true,
+        files: jsonFiles.map((file) => normalizeCloudFileFromWebdav(file, remoteDir, metadata?.chats?.[file.basename]))
+    };
+};
+
+const readCloudChatFile = async (basename) => {
+    const normalizedBasename = getSafeString(basename);
+    const { client, remoteDir } = getWebdavClientForChats();
+    const metadata = await reconcileCloudChatMetadata(client, remoteDir);
+    const remotePath = `${remoteDir}/${normalizedBasename}`;
+    const content = await client.getFileContents(remotePath, { format: 'text' });
+    return {
+        ok: true,
+        filename: normalizedBasename,
+        path: remotePath,
+        content: typeof content === 'string' ? content : String(content || ''),
+        chatMetadata: metadata?.chats?.[normalizedBasename] || null
+    };
+};
+
+const writeSingleCloudChatFile = async ({ filename, content, chatMetadata }) => {
+    const normalizedBasename = getSafeString(filename);
+    const { client, remoteDir } = getWebdavClientForChats();
+    if (!(await client.exists(remoteDir))) {
+        await client.createDirectory(remoteDir, { recursive: true });
+    }
+
+    const remoteList = normalizeDirectoryContents(await client.getDirectoryContents(remoteDir, { details: true }).catch(() => []));
+    const metadata = await reconcileCloudChatMetadata(client, remoteDir, remoteList);
+    const previousEntry = metadata.chats[normalizedBasename] ? { ...metadata.chats[normalizedBasename] } : null;
+    metadata.chats[normalizedBasename] = window.api.normalizeChatMetadataEntry(
+        normalizedBasename,
+        normalizeChatMetadataPayload(chatMetadata)
+    );
+    await writeCloudChatMetadata(client, remoteDir, metadata);
+
+    try {
+        await client.putFileContents(`${remoteDir}/${normalizedBasename}`, content, { overwrite: true });
+        return { ok: true, filename: normalizedBasename };
+    } catch (error) {
+        if (previousEntry) {
+            metadata.chats[normalizedBasename] = previousEntry;
+        } else {
+            delete metadata.chats[normalizedBasename];
+        }
+        await writeCloudChatMetadata(client, remoteDir, metadata).catch(() => {});
+        throw error;
+    }
+};
+
+const moveCloudChatFileWithMetadata = async (oldFilename, newFilename) => {
+    const fromFilename = getSafeString(oldFilename);
+    const toFilename = getSafeString(newFilename);
+    const { client, remoteDir } = getWebdavClientForChats();
+    const fromPath = `${remoteDir}/${fromFilename}`;
+    const toPath = `${remoteDir}/${toFilename}`;
+    const metadata = await reconcileCloudChatMetadata(client, remoteDir);
+    const previous = metadata.chats[fromFilename] ? { ...metadata.chats[fromFilename] } : null;
+
+    await client.moveFile(fromPath, toPath);
+
+    try {
+        const nextTitle = toFilename.toLowerCase().endsWith('.json') ? toFilename.slice(0, -5) : toFilename;
+        const content = await client.getFileContents(toPath, { format: 'text' });
+        const sessionData = JSON.parse(typeof content === 'string' ? content : String(content));
+        if (sessionData && sessionData.anywhere_history === true && typeof sessionData === 'object') {
+            const sessionMetadata = sessionData.sessionMetadata && typeof sessionData.sessionMetadata === 'object'
+                ? sessionData.sessionMetadata
+                : {};
+            if ((sessionMetadata.title || '').trim() !== nextTitle) {
+                sessionData.sessionMetadata = { ...sessionMetadata, title: nextTitle };
+                await client.putFileContents(toPath, JSON.stringify(sessionData, null, 2), { overwrite: true });
+            }
+        }
+    } catch {
+        // ignore title sync failure; YAML metadata is still updated below
+    }
+
+    delete metadata.chats[fromFilename];
+    if (toFilename.toLowerCase().endsWith('.json')) {
+        metadata.chats[toFilename] = window.api.normalizeChatMetadataEntry(toFilename, {
+            ...(previous || {}),
+            title: toFilename.slice(0, -5)
+        });
+    }
+    await writeCloudChatMetadata(client, remoteDir, metadata);
+    return { ok: true, fromFilename, toFilename, fromPath, toPath };
+};
+
+const deleteCloudChatFileWithMetadata = async (basename) => {
+    const normalizedBasename = getSafeString(basename);
+    const { client, remoteDir } = getWebdavClientForChats();
+    try {
+        await client.deleteFile(`${remoteDir}/${normalizedBasename}`);
+    } catch (error) {
+        const message = String(error?.message || error || '').toLowerCase();
+        if (!message.includes('404') && !message.includes('not found') && !message.includes('does not exist')) {
+            throw error;
+        }
+    }
+
+    try {
+        const metadata = await reconcileCloudChatMetadata(client, remoteDir);
+        if (metadata?.chats?.[normalizedBasename]) {
+            delete metadata.chats[normalizedBasename];
+            await writeCloudChatMetadata(client, remoteDir, metadata);
+        }
+    } catch (error) {
+        console.warn('[chats] 更新云端 chat-metadata.yaml 删除记录失败:', error);
+    }
+
+    return { ok: true, filename: normalizedBasename };
+};
+const CHAT_METADATA_FILENAME = 'chat-metadata.yaml';
+
+const normalizeChatMetadataPayload = (payload = {}) => ({
+    title: getSafeString(payload?.title) || '',
+    createdAt: normalizeDateValue(payload?.createdAt) || '',
+    updatedAt: normalizeDateValue(payload?.updatedAt) || ''
+});
+
+const buildChatMetadataRemotePath = (remoteDir) => `${remoteDir}/${CHAT_METADATA_FILENAME}`;
+
+const readCloudChatMetadata = async (client, remoteDir) => {
+    const remotePath = buildChatMetadataRemotePath(remoteDir);
+    try {
+        const text = await client.getFileContents(remotePath, { format: 'text' });
+        return window.api.normalizeChatMetadataIndex(
+            await window.api.parseChatMetadataYaml(typeof text === 'string' ? text : String(text || ''))
+        );
+    } catch {
+        return window.api.normalizeChatMetadataIndex({ version: 1, chats: {} });
+    }
+};
+
+const writeCloudChatMetadata = async (client, remoteDir, metadata) => {
+    const remotePath = buildChatMetadataRemotePath(remoteDir);
+    const content = await window.api.serializeChatMetadataYaml(metadata);
+    await client.putFileContents(remotePath, content, { overwrite: true });
+};
+
+const reconcileCloudChatMetadata = async (client, remoteDir, files = null) => {
+    const list = Array.isArray(files)
+        ? files
+        : normalizeDirectoryContents(await client.getDirectoryContents(remoteDir, { details: true }).catch(() => []));
+    const jsonFiles = normalizeDirectoryContents(list)
+        .map((item) => ({
+            ...item,
+            basename: getSafeString(item?.basename || item?.filename || item?.name || '')
+        }))
+        .filter((item) => item?.type === 'file' && item.basename.toLowerCase().endsWith('.json'));
+    const metadata = await readCloudChatMetadata(client, remoteDir);
+    const nextChats = { ...(metadata?.chats || {}) };
+    let changed = false;
+
+    jsonFiles.forEach((file) => {
+        const basename = getSafeString(file.basename);
+        const current = nextChats[basename];
+        const candidate = window.api.normalizeChatMetadataEntry(basename, {
+            title: current?.title || normalizeTitleValue(file),
+            createdAt: current?.createdAt || normalizeDateValue(file.createdAt || file.birthtime || file.lastmod),
+            updatedAt: current?.updatedAt || normalizeDateValue(file.updatedAt || file.lastmod || file.createdAt)
+        });
+        const currentString = JSON.stringify(current || null);
+        const candidateString = JSON.stringify(candidate || null);
+        if (currentString !== candidateString) {
+            nextChats[basename] = candidate;
+            changed = true;
+        }
+    });
+
+    Object.keys(nextChats).forEach((basename) => {
+        if (!jsonFiles.some((file) => file.basename === basename)) {
+            delete nextChats[basename];
+            changed = true;
+        }
+    });
+
+    const nextMetadata = window.api.normalizeChatMetadataIndex({ version: 1, chats: nextChats });
+    if (changed) {
+        await writeCloudChatMetadata(client, remoteDir, nextMetadata);
+    }
+    return nextMetadata;
+};
+const uploadFilesToCloudInBatches = async (basenames, signal, options = {}) => {
+    const normalizedNames = Array.isArray(basenames)
+        ? basenames.map((name) => getSafeString(name)).filter(Boolean)
+        : [];
+    if (normalizedNames.length === 0) {
+        return { completed: [], failed: [], completedFiles: [] };
+    }
+
+    const localMap = new Map(localChatFiles.value.map((file) => [file.basename, file]));
+    const completed = [];
+    const failed = [];
+    const batches = splitIntoBatches(normalizedNames, options.batchSize || CHAT_METADATA_BATCH_SIZE);
+    const { client, remoteDir } = getWebdavClientForChats();
+
+    if (!(await client.exists(remoteDir))) {
+        await client.createDirectory(remoteDir, { recursive: true });
+    }
+
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+        if (signal?.aborted) throw new Error('Cancelled');
+
+        const currentBatch = batches[batchIndex];
+        const files = [];
+        for (const basename of currentBatch) {
+            const payload = await buildCloudUploadFilePayload(basename, {
+                signal,
+                localFile: localMap.get(basename)
+            });
+            files.push(payload);
+        }
+
+        const remoteList = await client.getDirectoryContents(remoteDir, { details: true });
+        const metadata = await reconcileCloudChatMetadata(client, remoteDir, Array.isArray(remoteList) ? remoteList : (Array.isArray(remoteList?.data) ? remoteList.data : []));
+        const previousEntries = new Map();
+
+        files.forEach((file) => {
+            previousEntries.set(file.filename, metadata.chats[file.filename] ? { ...metadata.chats[file.filename] } : null);
+            metadata.chats[file.filename] = window.api.normalizeChatMetadataEntry(file.filename, normalizeChatMetadataPayload(file.chatMetadata));
+        });
+        await writeCloudChatMetadata(client, remoteDir, metadata);
+
+        const batchResults = await Promise.all(files.map(async (file) => {
+            try {
+                await client.putFileContents(`${remoteDir}/${file.filename}`, file.content, { overwrite: true });
+                return { ok: true, filename: file.filename };
+            } catch (error) {
+                return { ok: false, filename: file.filename, message: String(error?.message || error) };
+            }
+        }));
+
+        let hasFailed = false;
+        batchResults.forEach((result) => {
+            if (result.ok) {
+                completed.push(result.filename);
+            } else {
+                hasFailed = true;
+                failed.push({ filename: result.filename, message: result.message });
+                const previous = previousEntries.get(result.filename);
+                if (previous) {
+                    metadata.chats[result.filename] = previous;
+                } else {
+                    delete metadata.chats[result.filename];
+                }
+            }
+        });
+
+        if (hasFailed) {
+            await writeCloudChatMetadata(client, remoteDir, metadata);
+        }
+
+        if (!signal?.aborted) {
+            const processedCount = completed.length + failed.length;
+            syncProgress.value = Math.round((processedCount / normalizedNames.length) * 100);
+            syncStatusText.value = t('chats.alerts.syncProcessing', {
+                completed: processedCount,
+                total: normalizedNames.length
+            });
+        }
+    }
+
+    return { completed, failed, completedFiles: completed.map((name) => getSafeString(name)).filter(Boolean) };
+};
+
+const collectMessageTimestamps = (sessionData) => {
+    const timestamps = [];
+    const messageLists = [sessionData?.chat_show, sessionData?.history];
+
+    messageLists.forEach((messages) => {
+        if (!Array.isArray(messages)) return;
+        messages.forEach((message) => {
+            [message?.timestamp, message?.completedTimestamp, message?.updatedAt, message?.createdAt].forEach((candidate) => {
+                const normalized = normalizeDateValue(candidate);
+                if (normalized) timestamps.push(normalized);
+            });
+        });
+    });
+
+    return timestamps.sort((a, b) => new Date(a) - new Date(b));
+};
+
+const normalizeSessionFile = (file, sessionData = null) => {
+    const sessionMetadata = sessionData?.sessionMetadata || {};
+
+    return {
+        ...file,
+        title: (typeof sessionMetadata.title === 'string' && sessionMetadata.title.trim()) || normalizeTitleValue(file),
+        createdAt: normalizeDateValue(file.createdAt) || normalizeDateValue(file.birthtime) || normalizeDateValue(file.lastmod),
+        updatedAt: normalizeDateValue(file.updatedAt) || normalizeDateValue(file.lastmod) || normalizeDateValue(file.createdAt),
+    };
+};
+
+
+const isCloudView = computed(() => activeView.value === 'cloud');
+const showCreatedAtColumn = computed(() => true);
+const chatTableColumns = computed(() => (
+    '22px minmax(0, 1.3fr) minmax(96px, 0.9fr) minmax(96px, 0.9fr) minmax(58px, 0.5fr) 120px'
+));
+
+const getSortDirectionLabel = () => sortDirection.value === 'asc' ? '↑' : '↓';
+
+const getColumnSortLabel = (mode) => `${t(`chats.sort.${mode}`)} ${getSortDirectionLabel()}`;
+
+const toggleSort = (mode) => {
+    if (sortMode.value === mode) {
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortMode.value = mode;
+        sortDirection.value = mode === 'name' ? 'asc' : 'desc';
+    }
+
+    currentPage.value = 1;
+};
+
+const ensureValidSortModeForView = () => {
+    if (!['name', 'createdAt', 'updatedAt', 'size'].includes(sortMode.value)) {
+        sortMode.value = 'updatedAt';
+        sortDirection.value = 'desc';
+    }
+};
+
+const compareFilesBySortMode = (a, b) => {
+    let result = 0;
+
+    if (sortMode.value === 'name') {
+        result = normalizeTitleValue(a).localeCompare(normalizeTitleValue(b), undefined, { numeric: true, sensitivity: 'base' });
+    } else if (sortMode.value === 'updatedAt') {
+        result = safeDateValue(b.updatedAt || b.lastmod || b.createdAt) - safeDateValue(a.updatedAt || a.lastmod || a.createdAt);
+    } else if (sortMode.value === 'size') {
+        result = Number(b.size || 0) - Number(a.size || 0);
+    } else {
+        result = safeDateValue(b.createdAt || b.lastmod) - safeDateValue(a.createdAt || a.lastmod);
+    }
+
+    return sortDirection.value === 'asc' ? -result : result;
+};
+
+const getCompareTimestamp = (file) => {
+    return file.updatedAt || file.lastmod || file.createdAt;
+};
+
+const shouldUploadFile = (local, cloudFile) => {
+    if (!cloudFile) return true;
+    return safeDateValue(getCompareTimestamp(local)) > safeDateValue(getCompareTimestamp(cloudFile));
+};
+
+const shouldDownloadFile = (cloud, localFile) => {
+    if (!localFile) return true;
+    return safeDateValue(getCompareTimestamp(cloud)) > safeDateValue(getCompareTimestamp(localFile));
+};
+
 // --- Computed Properties ---
 const getFileMap = (fileList) => new Map(fileList.map(f => [f.basename, f]));
 
 const uploadableCount = computed(() => {
     if (!isWebdavConfigValid.value) return 0;
     const cloudMap = getFileMap(cloudChatFiles.value);
-    return localChatFiles.value.filter(local => {
-        const cloudFile = cloudMap.get(local.basename);
-        return !cloudFile || new Date(local.lastmod) > new Date(cloudFile.lastmod);
-    }).length;
+    return localChatFiles.value.filter(local => shouldUploadFile(local, cloudMap.get(local.basename))).length;
 });
 
 const downloadableCount = computed(() => {
     if (!isWebdavConfigValid.value) return 0;
     const localMap = getFileMap(localChatFiles.value);
-    return cloudChatFiles.value.filter(cloud => {
-        const localFile = localMap.get(cloud.basename);
-        return !localFile || new Date(cloud.lastmod) > new Date(localFile.lastmod);
-    }).length;
+    return cloudChatFiles.value.filter(cloud => shouldDownloadFile(cloud, localMap.get(cloud.basename))).length;
 });
 
-const currentFiles = computed(() => activeView.value === 'local' ? localChatFiles.value : cloudChatFiles.value);
+const currentFiles = computed(() => {
+    const fileList = activeView.value === 'local' ? localChatFiles.value : cloudChatFiles.value;
+    return [...fileList].sort(compareFilesBySortMode);
+});
 const paginatedFiles = computed(() => {
     const start = (currentPage.value - 1) * pageSize.value;
     const end = start + pageSize.value;
     return currentFiles.value.slice(start, end);
 });
+
+// --- 项目分组视图 ---
+const activeProjectsData = computed(() =>
+    activeView.value === 'local' ? localProjects.value : cloudProjects.value
+);
+
+const fileByBasename = computed(() => {
+    const fileList = activeView.value === 'local' ? localChatFiles.value : cloudChatFiles.value;
+    return new Map(fileList.map((f) => [f.basename, f]));
+});
+
+const getJsonBasenameCandidate = (value) => {
+    const basename = String(value || '').trim();
+    if (!basename) return '';
+    return basename.toLowerCase().endsWith('.json') ? basename : `${basename}.json`;
+};
+
+const resolveProjectFileBasename = (value, map = fileByBasename.value) => {
+    const basename = String(value || '').trim();
+    if (!basename) return '';
+    if (map.has(basename)) return basename;
+    const jsonBasename = getJsonBasenameCandidate(basename);
+    return map.has(jsonBasename) ? jsonBasename : basename;
+};
+
+const isSameProjectFile = (projectFile, basename) => {
+    const rawProjectFile = String(projectFile || '').trim();
+    const rawBasename = String(basename || '').trim();
+    if (!rawProjectFile || !rawBasename) return false;
+    return rawProjectFile === rawBasename || getJsonBasenameCandidate(rawProjectFile) === rawBasename;
+};
+
+const assignedBasenames = computed(() => {
+    const set = new Set();
+    const projects = Array.isArray(activeProjectsData.value?.projects) ? activeProjectsData.value.projects : [];
+    const map = fileByBasename.value;
+    projects.forEach((project) => {
+        (Array.isArray(project?.files) ? project.files : []).forEach((bn) => {
+            const basename = resolveProjectFileBasename(bn, map);
+            if (basename) set.add(basename);
+        });
+    });
+    return set;
+});
+
+// 项目按 name 字典序置顶；项目内文件按当前排序模式排序；保留空项目以便拖入。
+const projectGroups = computed(() => {
+    const projects = Array.isArray(activeProjectsData.value?.projects) ? [...activeProjectsData.value.projects] : [];
+    projects.sort((a, b) =>
+        String(a?.name || '').localeCompare(String(b?.name || ''), undefined, { numeric: true, sensitivity: 'base' })
+    );
+    const map = fileByBasename.value;
+    return projects.map((project) => {
+        const files = (Array.isArray(project?.files) ? project.files : [])
+            .map((bn) => map.get(resolveProjectFileBasename(bn, map)))
+            .filter(Boolean)
+            .sort(compareFilesBySortMode);
+        return {
+            id: project.id,
+            name: project.name || project.id,
+            files,
+            count: files.length,
+            collapsed: collapsedProjectIds.value.has(project.id)
+        };
+    });
+});
+
+// 未分组文件（参与分页）
+const ungroupedFiles = computed(() => {
+    const assigned = assignedBasenames.value;
+    return currentFiles.value.filter((f) => !assigned.has(f.basename));
+});
+
+const paginatedUngrouped = computed(() => {
+    const start = (currentPage.value - 1) * pageSize.value;
+    const end = start + pageSize.value;
+    return ungroupedFiles.value.slice(start, end);
+});
+
+// 扁平渲染行：项目头 + 项目内文件 + 未分组标签 + 未分组文件
+const displayRows = computed(() => {
+    const rows = [];
+    const groups = projectGroups.value;
+    groups.forEach((group) => {
+        rows.push({ kind: 'project', id: group.id, name: group.name, count: group.count, collapsed: group.collapsed });
+        if (!group.collapsed) {
+            group.files.forEach((file) => rows.push({ kind: 'file', file, projectId: group.id }));
+        }
+    });
+    const ungrouped = paginatedUngrouped.value;
+    if (groups.length > 0) {
+        rows.push({ kind: 'ungrouped-label' });
+    }
+    ungrouped.forEach((file) => rows.push({ kind: 'file', file, projectId: null }));
+    return rows;
+});
+
+// 当前可见文件（用于全选/框选）
+const visibleFiles = computed(() => displayRows.value.filter((r) => r.kind === 'file').map((r) => r.file));
 
 // --- Helper Functions ---
 const formatDate = (dateString) => {
@@ -88,7 +819,7 @@ const formatBytes = (bytes, decimals = 2) => {
 };
 
 const handleWindowFocus = () => {
-    refreshData(true);
+    refreshData(true, { throttle: true });
 };
 
 onMounted(async () => {
@@ -98,17 +829,28 @@ onMounted(async () => {
             localChatPath.value = result.config.webdav.localChatPath;
             webdavConfig.value = result.config.webdav;
             isWebdavConfigValid.value = !!(webdavConfig.value.url && webdavConfig.value.data_path);
-            if (localChatPath.value) await fetchLocalFiles();
+            if (localChatPath.value) fetchLocalFiles(true);
         }
     } catch (error) { 
         ElMessage.error(t('chats.alerts.configError')); 
     }
+});
+
+onActivated(() => {
     window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('keydown', handleKeyDown);
-    
-    // 全局鼠标监听
     window.addEventListener('mouseup', onGlobalMouseUp);
     window.addEventListener('mousemove', onGlobalMouseMove);
+    window.addEventListener('wheel', onProjectDragWheel, { passive: false });
+    refreshData(true, { throttle: true });
+});
+
+onDeactivated(() => {
+    window.removeEventListener('focus', handleWindowFocus);
+    window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('mouseup', onGlobalMouseUp);
+    window.removeEventListener('mousemove', onGlobalMouseMove);
+    window.removeEventListener('wheel', onProjectDragWheel);
 });
 
 onUnmounted(() => {
@@ -116,6 +858,7 @@ onUnmounted(() => {
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('mouseup', onGlobalMouseUp);
     window.removeEventListener('mousemove', onGlobalMouseMove);
+    window.removeEventListener('wheel', onProjectDragWheel);
 });
 
 // --- 框选核心逻辑 ---
@@ -123,8 +866,8 @@ onUnmounted(() => {
 const onMouseDown = (e) => {
     if (e.button !== 0) return; // 仅左键
 
-    // 排除特定交互元素（避免点复选框或按钮时触发选框）
-    if (e.target.closest('.list-checkbox') || e.target.closest('.list-actions') || e.target.closest('.el-button')) {
+    // 排除特定交互元素（名称区改用拖拽改归属，时间/大小区才触发框选）
+    if (e.target.closest('.list-checkbox') || e.target.closest('.list-actions') || e.target.closest('.el-button') || e.target.closest('.project-header') || e.target.closest('.list-title')) {
         return;
     }
 
@@ -142,6 +885,10 @@ const onMouseDown = (e) => {
 };
 
 const onGlobalMouseMove = (e) => {
+    if (dragPending) {
+        handleProjectDragMove(e);
+        return;
+    }
     if (!isMouseDown) return;
 
     const currentX = e.clientX;
@@ -184,10 +931,12 @@ const updateSelectionInvert = () => {
 
     const currentInBox = new Set();
 
-    // 1. 找出当前所有在框内的文件
-    items.forEach((item, index) => {
+    // 1. 找出当前所有在框内的文件（以 data-basename 标识，兼容分组渲染）
+    items.forEach((item) => {
+        const basename = item.dataset?.basename;
+        if (!basename) return;
         const itemRect = item.getBoundingClientRect();
-        
+
         // AABB 碰撞检测
         const isIntersecting = !(
             boxRect.left > itemRect.right ||
@@ -197,19 +946,13 @@ const updateSelectionInvert = () => {
         );
 
         if (isIntersecting) {
-            const file = paginatedFiles.value[index];
-            if (file) currentInBox.add(file.basename);
+            currentInBox.add(basename);
         }
     });
 
-    // 2. 应用反转逻辑 (XOR)
+    // 2. 应用反转逻辑 (XOR)，仅作用于当前可见文件
     // 最终状态 = 初始状态 XOR 框选状态
-    // - 原来已选 && 在框内 -> 变未选
-    // - 原来已选 && 不在框内 -> 保持已选
-    // - 原来未选 && 在框内 -> 变已选
-    // - 原来未选 && 不在框内 -> 保持未选
-    
-    selectedFiles.value = paginatedFiles.value.filter(file => {
+    selectedFiles.value = visibleFiles.value.filter(file => {
         const wasSelected = initialSelectionSnap.has(file.basename);
         const isInBox = currentInBox.has(file.basename);
 
@@ -222,6 +965,10 @@ const updateSelectionInvert = () => {
 };
 
 const onGlobalMouseUp = (e) => {
+    if (dragPending) {
+        finishProjectDrag();
+        return;
+    }
     if (isMouseDown) {
         // 如果没有发生拖拽，且没有按住 Ctrl/Shift，且点击的是空白处（不是列表项），则清空选择
         // 这是为了符合“点击空白处取消选择”的直觉
@@ -247,8 +994,8 @@ const onGlobalMouseUp = (e) => {
 
 // 列表项点击处理 (保持原有逻辑)
 const handleItemClick = (file) => {
-    // 如果刚刚发生了拖拽，则忽略此次点击（避免抬起鼠标时触发 click 导致状态再次反转）
-    if (hasMoved) return;
+    // 如果刚刚发生了框选或项目拖拽，则忽略此次点击（避免抬起鼠标时触发 click 导致状态再次反转）
+    if (hasMoved || justDraggedProject) return;
 
     toggleFileSelection(file, !isFileSelected(file));
 };
@@ -273,12 +1020,22 @@ const handleKeyDown = (e) => {
     }
 
     if (e.key === 'Delete' || (e.key === 'Backspace' && !e.altKey && !e.ctrlKey && !e.shiftKey)) {
+        if (e.repeat) return;
         if (selectedFiles.value.length > 0) {
             e.preventDefault();
             deleteFiles(selectedFiles.value);
         }
     }
 };
+
+
+watch(sortMode, () => {
+    currentPage.value = 1;
+});
+
+watch(activeView, () => {
+    ensureValidSortModeForView();
+}, { immediate: true });
 
 watch(activeView, async (newView) => {
     if (newView === 'cloud' && !isCloudDataLoaded.value && isWebdavConfigValid.value) {
@@ -291,29 +1048,77 @@ watch(activeView, async (newView) => {
 });
 
 // --- Main Functions ---
-async function fetchLocalFiles(silent = false) {
+function scheduleLocalTitleHydration(expectedPath) {
+    const hydrateSeq = ++localTitleHydrationSeq;
+    window.setTimeout(async () => {
+        if (hydrateSeq !== localTitleHydrationSeq || expectedPath !== localChatPath.value) return;
+        try {
+            const result = await window.api.listJsonFiles(expectedPath, { includeSessionMetadataTitle: true });
+            if (hydrateSeq !== localTitleHydrationSeq || expectedPath !== localChatPath.value) return;
+            const titleMap = new Map(
+                (Array.isArray(result) ? result : [])
+                    .map((item) => [item?.basename || '', normalizeSessionFile(item).title])
+                    .filter(([basename, title]) => basename && title)
+            );
+            if (!titleMap.size) return;
+            localChatFiles.value = localChatFiles.value.map((file) => {
+                const hydratedTitle = titleMap.get(file.basename);
+                return hydratedTitle && hydratedTitle !== file.title ? { ...file, title: hydratedTitle } : file;
+            });
+        } catch (error) {
+            console.warn('[Chats] 后台补读本地对话标题失败:', error);
+        }
+    }, LOCAL_TITLE_HYDRATE_DELAY_MS);
+}
+
+async function fetchLocalFiles(silent = false, options = {}) {
     if (!localChatPath.value) return;
-    if (!silent) isTableLoading.value = true;
-    try {
-        localChatFiles.value = await window.api.listJsonFiles(localChatPath.value);
-    } catch (error) {
-        ElMessage.error(`读取本地文件列表失败: ${error.message}`);
-        localChatFiles.value = [];
-    } finally {
-        isTableLoading.value = false;
-    }
+    const requestPath = localChatPath.value;
+    if (localFilesInFlight && localFilesInFlightPath === requestPath && options.dedupe !== false) return localFilesInFlight;
+
+    const requestSeq = ++localFilesRequestSeq;
+    const includeSessionMetadataTitle = options.includeSessionMetadataTitle === true;
+
+    localFilesInFlightPath = requestPath;
+    localFilesInFlight = (async () => {
+        if (!silent) isTableLoading.value = true;
+        try {
+            const files = await window.api.listJsonFiles(requestPath, { includeSessionMetadataTitle });
+            if (requestSeq !== localFilesRequestSeq || requestPath !== localChatPath.value) return;
+            localChatFiles.value = (Array.isArray(files) ? files : []).map(file => normalizeSessionFile(file));
+            lastLocalFilesLoadedAt = Date.now();
+            await fetchLocalProjects();
+            if (!includeSessionMetadataTitle) {
+                scheduleLocalTitleHydration(requestPath);
+            }
+        } catch (error) {
+            if (requestSeq !== localFilesRequestSeq) return;
+            ElMessage.error(`读取本地文件列表失败: ${error.message}`);
+            localChatFiles.value = [];
+        } finally {
+            if (requestSeq === localFilesRequestSeq) isTableLoading.value = false;
+            if (localFilesInFlightPath === requestPath) {
+                localFilesInFlight = null;
+                localFilesInFlightPath = '';
+            }
+        }
+    })();
+
+    return localFilesInFlight;
 }
 
 async function fetchCloudFiles(silent = false) {
     if (!isWebdavConfigValid.value) return;
     if (!silent) isTableLoading.value = true;
     try {
-        const { url, username, password, data_path } = webdavConfig.value;
-        const client = createClient(url, { username, password });
-        const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
-        if (!(await client.exists(remoteDir))) await client.createDirectory(remoteDir, { recursive: true });
-        const response = await client.getDirectoryContents(remoteDir, { details: true });
-        cloudChatFiles.value = response.data.filter(item => item.type === 'file' && item.basename.endsWith('.json')).sort((a, b) => new Date(b.lastmod) - new Date(a.lastmod));
+        const result = await listCloudChatFilesWithMetadata();
+        if (!result.exists) {
+            cloudChatFiles.value = [];
+            await fetchCloudProjects();
+            return;
+        }
+        cloudChatFiles.value = (Array.isArray(result.files) ? result.files : []).map(file => normalizeSessionFile(file));
+        await fetchCloudProjects();
     } catch (error) {
         ElMessage.error(`${t('chats.alerts.fetchFailed')}: ${error.message}`);
         cloudChatFiles.value = [];
@@ -322,18 +1127,543 @@ async function fetchCloudFiles(silent = false) {
     }
 }
 
-async function refreshData(silent = false) {
-    if (activeView.value === 'local') {
-        if (localChatPath.value) {
-            await fetchLocalFiles(silent);
+async function refreshData(silent = false, options = {}) {
+    const now = Date.now();
+    if (options.throttle && refreshDataInFlight) return refreshDataInFlight;
+    if (options.throttle && now - lastRefreshDataAt < LOCAL_REFRESH_THROTTLE_MS) return;
+
+    refreshDataInFlight = (async () => {
+        lastRefreshDataAt = Date.now();
+        if (activeView.value === 'local') {
+            if (localChatPath.value) {
+                const justLoaded = options.throttle && now - lastLocalFilesLoadedAt < LOCAL_REFRESH_THROTTLE_MS;
+                if (!justLoaded) await fetchLocalFiles(silent);
+            }
+        } else if (activeView.value === 'cloud') {
+            if (isWebdavConfigValid.value) {
+                await fetchCloudFiles(silent);
+                isCloudDataLoaded.value = true;
+            }
         }
-    } else if (activeView.value === 'cloud') {
-        if (isWebdavConfigValid.value) {
-            await fetchCloudFiles(silent);
-            isCloudDataLoaded.value = true;
-        }
+    })();
+
+    try {
+        return await refreshDataInFlight;
+    } finally {
+        refreshDataInFlight = null;
     }
 }
+
+
+// --- 项目分组：数据装载 / 持久化 ---
+const normalizeProjectsResult = (result) => {
+    const projects = Array.isArray(result?.projects) ? result.projects : [];
+    return {
+        version: Number(result?.version) || 1,
+        projects: projects
+            .filter((p) => p && typeof p === 'object')
+            .map((p) => ({
+                id: String(p.id || '').trim(),
+                name: String(p.name || '').trim() || String(p.id || '').trim(),
+                files: Array.isArray(p.files) ? p.files.map((f) => String(f || '').trim()).filter(Boolean) : []
+            }))
+            .filter((p) => p.id)
+    };
+};
+
+const buildCloudProjectsRemotePath = () => {
+    const dp = String(webdavConfig.value?.data_path || '');
+    const dir = dp.endsWith('/') ? dp.slice(0, -1) : dp;
+    return `${dir}/projects.yaml`;
+};
+
+async function readCloudProjectsViaWebdav() {
+    const { url, username, password } = webdavConfig.value;
+    const client = createClient(url, { username, password });
+    const remotePath = buildCloudProjectsRemotePath();
+    try {
+        if (!(await client.exists(remotePath))) return { version: 1, projects: [] };
+        const text = await client.getFileContents(remotePath, { format: 'text' });
+        const parsed = await window.api.parseProjectsYaml(typeof text === 'string' ? text : String(text));
+        return normalizeProjectsResult(parsed);
+    } catch (error) {
+        console.warn('[chats] 读取云端项目失败:', error);
+        return { version: 1, projects: [] };
+    }
+}
+
+async function writeCloudProjectsViaWebdav(data) {
+    const { url, username, password } = webdavConfig.value;
+    const client = createClient(url, { username, password });
+    const remotePath = buildCloudProjectsRemotePath();
+    const content = await window.api.serializeProjectsYaml(data);
+    await client.putFileContents(remotePath, content, { overwrite: true });
+}
+
+async function fetchLocalProjects() {
+    if (!localChatPath.value) {
+        localProjects.value = { version: 1, projects: [] };
+        return;
+    }
+    try {
+        const result = await window.api.readLocalProjects(localChatPath.value);
+        localProjects.value = normalizeProjectsResult(result);
+        initializeDefaultCollapsedProjects(localProjects.value);
+    } catch (error) {
+        console.warn('[chats] 读取本地项目失败:', error);
+        localProjects.value = { version: 1, projects: [] };
+    }
+}
+
+async function fetchCloudProjects() {
+    if (!isWebdavConfigValid.value) {
+        cloudProjects.value = { version: 1, projects: [] };
+        return;
+    }
+    cloudProjects.value = await readCloudProjectsViaWebdav();
+    initializeDefaultCollapsedProjects(cloudProjects.value);
+}
+
+async function persistLocalProjects() {
+    if (!localChatPath.value) return;
+    await window.api.writeLocalProjects(localChatPath.value, localProjects.value);
+}
+
+async function persistCloudProjects() {
+    if (!isWebdavConfigValid.value) return;
+    await writeCloudProjectsViaWebdav(cloudProjects.value);
+}
+
+const toggleProjectCollapse = (projectId) => {
+    const id = String(projectId || '');
+    if (!id) return;
+    const next = new Set(collapsedProjectIds.value);
+    if (next.has(id)) {
+        next.delete(id);
+    } else {
+        next.add(id);
+    }
+    collapsedProjectIds.value = next;
+    hasUserCollapsedProjectPreference.value = true;
+    persistCollapsedProjectIds(next, true);
+};
+
+// --- 项目 CRUD ---
+const setActiveProjectsData = (data) => {
+    if (activeView.value === 'local') {
+        localProjects.value = data;
+    } else {
+        cloudProjects.value = data;
+    }
+};
+
+async function persistActiveProjects() {
+    if (activeView.value === 'local') {
+        await persistLocalProjects();
+    } else {
+        await persistCloudProjects();
+    }
+}
+
+function generateProjectId(name) {
+    const base = String(name || '').trim().toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, '-')
+        .replace(/^-+|-+$/g, '');
+    let id = base || `project-${Date.now().toString(36)}`;
+    const existing = new Set((activeProjectsData.value.projects || []).map((p) => p.id));
+    if (!existing.has(id)) return id;
+    let suffix = 2;
+    while (existing.has(`${id}-${suffix}`)) suffix += 1;
+    return `${id}-${suffix}`;
+}
+
+async function createProject() {
+    if (activeView.value === 'local' ? !localChatPath.value : !isWebdavConfigValid.value) return;
+    try {
+        const { value } = await ElMessageBox.prompt(t('chats.projects.createPrompt'), t('chats.projects.create'), {
+            inputPattern: /\S/,
+            inputErrorMessage: t('chats.projects.nameRequired')
+        });
+        const name = String(value || '').trim();
+        if (!name) return;
+        const projects = [...(activeProjectsData.value.projects || [])];
+        if (projects.some((p) => p.name === name)) {
+            ElMessage.warning(t('chats.projects.nameExists'));
+            return;
+        }
+        projects.push({ id: generateProjectId(name), name, files: [] });
+        setActiveProjectsData({ version: activeProjectsData.value.version || 1, projects });
+        await persistActiveProjects();
+        ElMessage.success(t('chats.projects.createSuccess'));
+    } catch (error) {
+        if (error !== 'cancel' && error !== 'close') ElMessage.error(String(error?.message || error));
+    }
+}
+
+async function renameProject(projectId) {
+    const project = (activeProjectsData.value.projects || []).find((p) => p.id === projectId);
+    if (!project) return;
+    try {
+        const { value } = await ElMessageBox.prompt(t('chats.projects.renamePrompt'), t('chats.projects.rename'), {
+            inputValue: project.name,
+            inputPattern: /\S/,
+            inputErrorMessage: t('chats.projects.nameRequired')
+        });
+        const name = String(value || '').trim();
+        if (!name || name === project.name) return;
+        if ((activeProjectsData.value.projects || []).some((p) => p.id !== projectId && p.name === name)) {
+            ElMessage.warning(t('chats.projects.nameExists'));
+            return;
+        }
+        const projects = (activeProjectsData.value.projects || []).map((p) =>
+            p.id === projectId ? { ...p, name } : p
+        );
+        setActiveProjectsData({ version: activeProjectsData.value.version || 1, projects });
+        await persistActiveProjects();
+        ElMessage.success(t('chats.projects.renameSuccess'));
+    } catch (error) {
+        if (error !== 'cancel' && error !== 'close') ElMessage.error(String(error?.message || error));
+    }
+}
+
+function deleteProject(projectId) {
+    const project = (activeProjectsData.value.projects || []).find((p) => p.id === projectId);
+    if (!project) return;
+    projectDeleteDialog.value = { visible: true, id: project.id, name: project.name, busy: false };
+}
+
+// 仅删除项目：内部对话移回未分组，不删除对话文件
+async function confirmDeleteProjectKeepChats() {
+    const { id } = projectDeleteDialog.value;
+    if (!id) return;
+    projectDeleteDialog.value.busy = true;
+    try {
+        const projects = (activeProjectsData.value.projects || []).filter((p) => p.id !== id);
+        setActiveProjectsData({ version: activeProjectsData.value.version || 1, projects });
+        await persistActiveProjects();
+        ElMessage.success(t('chats.projects.deleteSuccess'));
+        projectDeleteDialog.value.visible = false;
+    } catch (error) {
+        ElMessage.error(String(error?.message || error));
+    } finally {
+        projectDeleteDialog.value.busy = false;
+    }
+}
+
+// 删除项目及其内部对话历史（真实删除对话文件）
+async function confirmDeleteProjectWithChats() {
+    const { id } = projectDeleteDialog.value;
+    if (!id) return;
+    projectDeleteDialog.value.busy = true;
+    try {
+        const group = projectGroups.value.find((g) => g.id === id);
+        const files = group ? group.files : [];
+        for (const file of files) {
+            if (activeView.value === 'local') {
+                const localPath = file?.path || `${localChatPath.value}/${file.basename}`;
+                await window.api.deleteLocalFile(localPath);
+            } else {
+                await deleteCloudChatFileWithMetadata(file.basename);
+            }
+        }
+        const projects = (activeProjectsData.value.projects || []).filter((p) => p.id !== id);
+        setActiveProjectsData({ version: activeProjectsData.value.version || 1, projects });
+        await persistActiveProjects();
+        ElMessage.success(t('chats.projects.deleteWithChatsSuccess', { count: files.length }));
+        projectDeleteDialog.value.visible = false;
+        selectedFiles.value = [];
+        await refreshData();
+    } catch (error) {
+        ElMessage.error(String(error?.message || error));
+    } finally {
+        projectDeleteDialog.value.busy = false;
+    }
+}
+
+// --- 自定义指针拖拽改归属（不用原生 HTML5 DnD，以便拖拽时滚轮可用、命中更可靠）---
+let dragPending = false;
+let dragActivated = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragPendingBasenames = [];
+let lastDragClientX = 0;
+let lastDragClientY = 0;
+let justDraggedProject = false;
+
+let projectAutoScrollRAF = null;
+let projectAutoScrollDir = 0;
+const PROJECT_AUTOSCROLL_EDGE = 56;
+const PROJECT_AUTOSCROLL_SPEED = 14;
+
+const getChatScrollWrap = () => chatListRef.value?.closest('.el-scrollbar__wrap') || null;
+
+const stopProjectAutoScroll = () => {
+    if (projectAutoScrollRAF) {
+        cancelAnimationFrame(projectAutoScrollRAF);
+        projectAutoScrollRAF = null;
+    }
+    projectAutoScrollDir = 0;
+};
+
+const runProjectAutoScroll = () => {
+    const wrap = getChatScrollWrap();
+    if (!wrap || !projectAutoScrollDir || !isProjectDragging.value) {
+        projectAutoScrollRAF = null;
+        projectAutoScrollDir = 0;
+        return;
+    }
+    wrap.scrollTop += projectAutoScrollDir * PROJECT_AUTOSCROLL_SPEED;
+    updateDragTarget(lastDragClientX, lastDragClientY);
+    projectAutoScrollRAF = requestAnimationFrame(runProjectAutoScroll);
+};
+
+const updateAutoScrollByY = (y) => {
+    const wrap = getChatScrollWrap();
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    let dir = 0;
+    if (y < rect.top + PROJECT_AUTOSCROLL_EDGE) dir = -1;
+    else if (y > rect.bottom - PROJECT_AUTOSCROLL_EDGE) dir = 1;
+    projectAutoScrollDir = dir;
+    if (dir) {
+        if (!projectAutoScrollRAF) projectAutoScrollRAF = requestAnimationFrame(runProjectAutoScroll);
+    } else {
+        stopProjectAutoScroll();
+    }
+};
+
+// 命中检测：返回项目 id、PROJECT_UNGROUPED_DROP_ID 或 ''（无效目标）
+const resolveDropTarget = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return '';
+    const header = el.closest('.project-header');
+    if (header) return header.dataset.projectId || '';
+    const label = el.closest('.ungrouped-label');
+    if (label) return PROJECT_UNGROUPED_DROP_ID;
+    const row = el.closest('.chat-list-item');
+    if (row) return row.dataset.projectId ? row.dataset.projectId : PROJECT_UNGROUPED_DROP_ID;
+    if (el.closest('.chat-list')) return PROJECT_UNGROUPED_DROP_ID;
+    return '';
+};
+
+const updateDragTarget = (x, y) => {
+    dragOverProjectTarget.value = resolveDropTarget(x, y);
+};
+
+const onTitleMouseDown = (file, event) => {
+    if (event.button !== 0) return;
+    dragPendingBasenames = (isFileSelected(file) && selectedFiles.value.length > 0)
+        ? selectedFiles.value.map((f) => f.basename)
+        : [file.basename];
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    lastDragClientX = event.clientX;
+    lastDragClientY = event.clientY;
+    dragPending = true;
+    dragActivated = false;
+};
+
+const handleProjectDragMove = (event) => {
+    lastDragClientX = event.clientX;
+    lastDragClientY = event.clientY;
+    if (!dragActivated) {
+        if (Math.abs(event.clientX - dragStartX) <= 5 && Math.abs(event.clientY - dragStartY) <= 5) {
+            return;
+        }
+        dragActivated = true;
+        isProjectDragging.value = true;
+        draggedFileBasenames.value = dragPendingBasenames;
+        dragGhostLabel.value = dragPendingBasenames.length > 1
+            ? t('chats.projects.dragCount', { count: dragPendingBasenames.length })
+            : formatFilenameDisplay(dragPendingBasenames[0]);
+        window.getSelection()?.removeAllRanges();
+    }
+    dragGhostX.value = event.clientX + 14;
+    dragGhostY.value = event.clientY + 14;
+    updateDragTarget(event.clientX, event.clientY);
+    updateAutoScrollByY(event.clientY);
+};
+
+const resetProjectDragState = () => {
+    dragPending = false;
+    dragActivated = false;
+    dragPendingBasenames = [];
+    isProjectDragging.value = false;
+    draggedFileBasenames.value = [];
+    dragOverProjectTarget.value = '';
+    stopProjectAutoScroll();
+};
+
+async function finishProjectDrag() {
+    const wasActivated = dragActivated;
+    const basenames = [...draggedFileBasenames.value];
+    const target = dragOverProjectTarget.value;
+    resetProjectDragState();
+    if (!wasActivated || !basenames.length) return;
+    justDraggedProject = true;
+    setTimeout(() => { justDraggedProject = false; }, 0);
+    if (!target) return; // 拖到列表外，视为取消
+    const projectId = target === PROJECT_UNGROUPED_DROP_ID ? '' : target;
+    await assignFilesToProject(basenames, projectId);
+}
+
+const onProjectDragWheel = (event) => {
+    if (!isProjectDragging.value) return;
+    const wrap = getChatScrollWrap();
+    if (!wrap) return;
+    event.preventDefault();
+    wrap.scrollTop += event.deltaY;
+    updateDragTarget(lastDragClientX, lastDragClientY);
+};
+
+async function assignFilesToProject(basenames, projectId) {
+    if (!Array.isArray(basenames) || basenames.length === 0) return;
+    try {
+        const draggedSet = new Set(basenames.map((n) => getJsonBasenameCandidate(n)));
+        // 先从所有项目移除（兼容带/不带 .json），保证单一归属
+        let projects = (activeProjectsData.value.projects || []).map((p) => ({
+            ...p,
+            files: (Array.isArray(p.files) ? p.files : []).filter((f) => !draggedSet.has(getJsonBasenameCandidate(f)))
+        }));
+        if (projectId) {
+            if (!projects.some((p) => p.id === projectId)) return;
+            projects = projects.map((p) =>
+                p.id === projectId ? { ...p, files: [...p.files, ...basenames] } : p
+            );
+        }
+        setActiveProjectsData({ version: activeProjectsData.value.version || 1, projects });
+        await persistActiveProjects();
+        selectedFiles.value = [];
+        ElMessage.success(t('chats.projects.moveSuccess'));
+    } catch (error) {
+        ElMessage.error(`${t('chats.projects.moveFailed')}: ${error?.message || error}`);
+    }
+}
+
+// --- 项目归属的云端同步 ---
+const findProjectOfBasename = (projectsData, basename) => {
+    for (const project of (projectsData?.projects || [])) {
+        if ((project.files || []).some((f) => isSameProjectFile(f, basename))) {
+            return { id: project.id, name: project.name };
+        }
+    }
+    return null;
+};
+
+// 单文件同步后，把它的项目归属同步到对端 projects.yaml（读一端归属→改对端→写对端）
+const syncFileAssignmentAcross = async (basename, direction) => {
+    try {
+        if (direction === 'upload') {
+            const proj = findProjectOfBasename(localProjects.value, basename);
+            const cloudData = await readCloudProjectsViaWebdav();
+            const merged = await window.api.mergeFileAssignment(cloudData, { basename, projectId: proj?.id || '', projectName: proj?.name || '' });
+            await writeCloudProjectsViaWebdav(merged);
+            cloudProjects.value = normalizeProjectsResult(merged);
+        } else {
+            const proj = findProjectOfBasename(cloudProjects.value, basename);
+            const localData = normalizeProjectsResult(await window.api.readLocalProjects(localChatPath.value));
+            const merged = await window.api.mergeFileAssignment(localData, { basename, projectId: proj?.id || '', projectName: proj?.name || '' });
+            await window.api.writeLocalProjects(localChatPath.value, merged);
+            localProjects.value = normalizeProjectsResult(merged);
+        }
+    } catch (error) {
+        console.warn('[projects] 同步单文件项目归属失败:', error);
+    }
+};
+
+const syncProject = (projectId) =>
+    activeView.value === 'local' ? syncProjectToCloud(projectId) : syncProjectToLocal(projectId);
+
+async function syncProjectToCloud(projectId) {
+    if (!isWebdavConfigValid.value) return ElMessage.warning(t('chats.alerts.webdavRequired'));
+    const group = projectGroups.value.find((g) => g.id === projectId);
+    if (!group) return;
+    const basenames = group.files.map((f) => f.basename);
+    try {
+        if (basenames.length > 0) {
+            const syncResult = await executeSync([
+                {
+                    name: group.name || projectId,
+                    action: (signal) => uploadFilesToCloudInBatches(basenames, signal)
+                }
+            ], t('chats.alerts.syncConfirmUploadTitle'));
+            const uploadedBasenames = Array.isArray(syncResult?.completedFiles)
+                ? syncResult.completedFiles
+                : [];
+            if (uploadedBasenames.length > 0) {
+                const cloudData = await readCloudProjectsViaWebdav();
+                const merged = await window.api.mergeProjectAssignment(cloudData, { id: group.id, name: group.name, files: uploadedBasenames });
+                await writeCloudProjectsViaWebdav(merged);
+                cloudProjects.value = normalizeProjectsResult(merged);
+            }
+        }
+        ElMessage.success(t('chats.projects.syncProjectSuccess'));
+        await refreshData();
+    } catch (error) {
+        if (error?.message !== 'Cancelled') ElMessage.error(String(error?.message || error));
+    }
+}
+
+async function syncProjectToLocal(projectId) {
+    if (!localChatPath.value) return ElMessage.warning(t('chats.alerts.localPathRequired'));
+    const group = projectGroups.value.find((g) => g.id === projectId);
+    if (!group) return;
+    const basenames = group.files.map((f) => f.basename);
+    try {
+        if (basenames.length > 0) {
+            const tasks = basenames.map((bn) => ({
+                name: bn,
+                action: (signal) => forceSyncFile(bn, 'download', signal, { syncProject: false })
+            }));
+            await executeSync(tasks, t('chats.alerts.syncConfirmDownloadTitle'));
+        }
+        const localData = normalizeProjectsResult(await window.api.readLocalProjects(localChatPath.value));
+        const merged = await window.api.mergeProjectAssignment(localData, { id: group.id, name: group.name, files: basenames });
+        await window.api.writeLocalProjects(localChatPath.value, merged);
+        localProjects.value = normalizeProjectsResult(merged);
+        ElMessage.success(t('chats.projects.syncProjectSuccess'));
+        await refreshData();
+    } catch (error) {
+        if (error?.message !== 'Cancelled') ElMessage.error(String(error?.message || error));
+    }
+}
+
+// 批量同步结束后，一次性把多文件的项目归属合并进对端 yaml（读一次、改、写一次，避免并发竞争）
+async function syncProjectsBulk(basenames, direction) {
+    if (!Array.isArray(basenames) || basenames.length === 0) return;
+    try {
+        if (direction === 'upload') {
+            let cloudData = await readCloudProjectsViaWebdav();
+            for (const bn of basenames) {
+                const proj = findProjectOfBasename(localProjects.value, bn);
+                cloudData = await window.api.mergeFileAssignment(cloudData, { basename: bn, projectId: proj?.id || '', projectName: proj?.name || '' });
+            }
+            await writeCloudProjectsViaWebdav(cloudData);
+            cloudProjects.value = normalizeProjectsResult(cloudData);
+        } else {
+            let localData = normalizeProjectsResult(await window.api.readLocalProjects(localChatPath.value));
+            for (const bn of basenames) {
+                const proj = findProjectOfBasename(cloudProjects.value, bn);
+                localData = await window.api.mergeFileAssignment(localData, { basename: bn, projectId: proj?.id || '', projectName: proj?.name || '' });
+            }
+            await window.api.writeLocalProjects(localChatPath.value, localData);
+            localProjects.value = normalizeProjectsResult(localData);
+        }
+        await refreshData();
+    } catch (error) {
+        console.warn('[projects] 批量同步项目归属失败:', error);
+    }
+}
+
+
+const handleItemContextMenu = async (file, event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    if (hasMoved) return;
+
+    await startChat(file);
+};
 
 async function startChat(file) {
     ElMessage.info(t('chats.alerts.loadingChat'));
@@ -342,16 +1672,79 @@ async function startChat(file) {
         if (activeView.value === 'local') {
             jsonString = await window.api.readLocalFile(file.path);
         } else {
-            const { url, username, password, data_path } = webdavConfig.value;
-            const client = createClient(url, { username, password });
-            jsonString = await client.getFileContents(`${data_path.endsWith('/') ? data_path.slice(0, -1) : data_path}/${file.basename}`, { format: "text" });
+            const result = await readCloudChatFile(file.basename);
+            jsonString = typeof result.content === 'string' ? result.content : String(result.content || '');
         }
-        await window.api.coderedirect(t('chats.alerts.restoreChat'), JSON.stringify({ sessionData: jsonString, filename: file.basename }));
+        await window.api.coderedirect('恢复聊天', JSON.stringify({ sessionData: jsonString, filename: file.basename }));
         ElMessage.success(t('chats.alerts.restoreInitiated'));
-    } catch (error) { ElMessage.error(`${t('chats.alerts.restoreFailed')}: ${error.message}`); }
+    } catch (error) { 
+        ElMessage.error(`${t('chats.alerts.restoreFailed')}: ${error.message}`); 
+    }
 }
+
+
+async function renameRemoteSessionFileWithMetadata(client, remoteDir, oldFilename, newFilename) {
+    const normalizedRemoteDir = String(remoteDir || '').endsWith('/') ? String(remoteDir).slice(0, -1) : String(remoteDir || '');
+    const oldRemotePath = `${normalizedRemoteDir}/${oldFilename}`;
+    const newRemotePath = `${normalizedRemoteDir}/${newFilename}`;
+    const nextTitle = newFilename.toLowerCase().endsWith('.json') ? newFilename.slice(0, -5) : newFilename;
+
+    await client.moveFile(oldRemotePath, newRemotePath);
+
+    try {
+        const content = await client.getFileContents(newRemotePath, { format: 'text' });
+        const sessionData = JSON.parse(typeof content === 'string' ? content : String(content));
+        if (sessionData && sessionData.anywhere_history === true && typeof sessionData === 'object') {
+            const sessionMetadata =
+                sessionData.sessionMetadata && typeof sessionData.sessionMetadata === 'object'
+                    ? sessionData.sessionMetadata
+                    : {};
+
+            if ((sessionMetadata.title || '').trim() !== nextTitle) {
+                sessionData.sessionMetadata = {
+                    ...sessionMetadata,
+                    title: nextTitle
+                };
+                await client.putFileContents(newRemotePath, JSON.stringify(sessionData, null, 2), { overwrite: true });
+            }
+        }
+    } catch {
+        // ignore remote metadata sync failure to preserve rename compatibility
+    }
+}
+async function exportLocalChat(file) {
+    if (activeView.value !== 'local') return;
+    if (!file?.path) {
+        ElMessage.warning(t('chats.alerts.localFileMissing'));
+        return;
+    }
+
+    try {
+        const result = await window.api.exportLocalChatFile(file.path, {
+            title: t('chats.export.dialogTitle'),
+            defaultPath: file.basename,
+            filters: [{ name: 'JSON Files', extensions: ['json'] }]
+        });
+
+        if (result?.cancelled) {
+            ElMessage.info(t('chats.export.cancelled'));
+            return;
+        }
+
+        if (result?.path) {
+            window.api.shellShowItemInFolder(result.path);
+        }
+
+        ElMessage.success(t('chats.export.success'));
+    } catch (error) {
+        ElMessage.error(`${t('chats.export.failed')}: ${error.message}`);
+    }
+}
+
+
+
 async function renameFile(file) {
-    const defaultInputValue = file.basename.endsWith('.json') ? file.basename.slice(0, -5) : file.basename;
+    const defaultInputValue = file.title || (file.basename.endsWith('.json') ? file.basename.slice(0, -5) : file.basename);
     try {
         const { value: userInput } = await ElMessageBox.prompt(t('chats.rename.promptMessage'), t('chats.rename.promptTitle'), { inputValue: defaultInputValue });
         let finalFilename = (userInput || "").trim();
@@ -367,13 +1760,11 @@ async function renameFile(file) {
                     { type: 'info' }
                 ).catch(() => false);
                 if (confirm) {
-                    const client = createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password });
-                    await client.moveFile(`${webdavConfig.value.data_path}/${file.basename}`, `${webdavConfig.value.data_path}/${finalFilename}`);
+                    await moveCloudChatFileWithMetadata(file.basename, finalFilename);
                 }
             }
         } else { // cloud
-            const client = createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password });
-            await client.moveFile(`${webdavConfig.value.data_path}/${file.basename}`, `${webdavConfig.value.data_path}/${finalFilename}`);
+            await moveCloudChatFileWithMetadata(file.basename, finalFilename);
             if (localChatFiles.value.some(f => f.basename === file.basename)) {
                 const confirm = await ElMessageBox.confirm(
                     t('chats.rename.syncLocalConfirm'),
@@ -390,11 +1781,14 @@ async function renameFile(file) {
     }
 }
 async function deleteFiles(filesToDelete) {
+    if (isDeletingFiles.value) return; // 拦截正在进行中的删除操作
+
     if (filesToDelete.length === 0) {
         ElMessage.warning(t('common.noFileSelected'));
         return;
     }
 
+    isDeletingFiles.value = true; // 上锁
     try {
         await ElMessageBox.confirm(t('common.confirmDeleteMultiple', { count: filesToDelete.length }), t('common.warningTitle'), { type: 'warning' });
 
@@ -424,17 +1818,15 @@ async function deleteFiles(filesToDelete) {
         }
 
         isTableLoading.value = true;
-        const client = isWebdavConfigValid.value ? createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password }) : null;
-
         for (const file of filesToDelete) {
             if (activeView.value === 'local') {
                 await window.api.deleteLocalFile(file.path);
-                if (syncDeletions && client && cloudChatFiles.value.some(f => f.basename === file.basename)) {
-                    await client.deleteFile(`${webdavConfig.value.data_path}/${file.basename}`);
+                if (syncDeletions && isWebdavConfigValid.value && cloudChatFiles.value.some(f => f.basename === file.basename)) {
+                    await deleteCloudChatFileWithMetadata(file.basename);
                 }
             } else { // cloud view
-                if (client) {
-                    await client.deleteFile(`${webdavConfig.value.data_path}/${file.basename}`);
+                {
+                    await deleteCloudChatFileWithMetadata(file.basename);
                     if (syncDeletions && localChatFiles.value.some(f => f.basename === file.basename)) {
                         await window.api.deleteLocalFile(`${localChatPath.value}/${file.basename}`);
                     }
@@ -452,6 +1844,7 @@ async function deleteFiles(filesToDelete) {
         }
     } finally {
         isTableLoading.value = false;
+        isDeletingFiles.value = false; // 释放锁
     }
 }
 const handleSelectionChange = (val) => selectedFiles.value = val;
@@ -463,7 +1856,7 @@ const cancelSync = () => {
 };
 
 async function runConcurrentTasks(tasks, signal, concurrencyLimit = 3) {
-    const results = { completed: 0, failed: 0, failedFiles: [] };
+    const results = { completed: 0, failed: 0, failedFiles: [], completedFiles: [] };
     const queue = [...tasks];
 
     const worker = async () => {
@@ -471,8 +1864,20 @@ async function runConcurrentTasks(tasks, signal, concurrencyLimit = 3) {
             if (signal.aborted) throw new Error("Cancelled");
             const task = queue.shift();
             try {
-                await task.action(signal);
-                results.completed++;
+                const taskResult = await task.action(signal);
+                if (Array.isArray(taskResult?.completedFiles)) {
+                    results.completed += taskResult.completedFiles.length;
+                    results.completedFiles.push(...taskResult.completedFiles);
+                    if (Array.isArray(taskResult?.failed)) {
+                        results.failed += taskResult.failed.length;
+                        results.failedFiles.push(...taskResult.failed.map((item) => item?.filename || item).filter(Boolean));
+                    }
+                } else {
+                    results.completed++;
+                    if (typeof task.name === 'string' && task.name.trim()) {
+                        results.completedFiles.push(task.name);
+                    }
+                }
             } catch (error) {
                 if (error.name === 'AbortError') {
                     throw new Error("Cancelled");
@@ -482,8 +1887,10 @@ async function runConcurrentTasks(tasks, signal, concurrencyLimit = 3) {
                 console.error(`Task failed for ${task.name}:`, error);
             } finally {
                 if (!signal.aborted) {
-                    syncProgress.value = Math.round(((results.completed + results.failed) / tasks.length) * 100);
-                    syncStatusText.value = t('chats.alerts.syncProcessing', { completed: results.completed + results.failed, total: tasks.length });
+                    const processedCount = results.completed + results.failed;
+                    const totalCount = Math.max(tasks.length, processedCount || 0);
+                    syncProgress.value = totalCount > 0 ? Math.round((processedCount / totalCount) * 100) : 0;
+                    syncStatusText.value = t('chats.alerts.syncProcessing', { completed: processedCount, total: totalCount });
                 }
             }
         }
@@ -496,10 +1903,7 @@ async function runConcurrentTasks(tasks, signal, concurrencyLimit = 3) {
 
 async function intelligentUpload() {
     if (!isWebdavConfigValid.value) return ElMessage.warning(t('chats.alerts.webdavRequired'));
-    const filesToUpload = localChatFiles.value.filter(local => {
-        const cloudFile = getFileMap(cloudChatFiles.value).get(local.basename);
-        return !cloudFile || new Date(local.lastmod) > new Date(cloudFile.lastmod);
-    });
+    const filesToUpload = localChatFiles.value.filter(local => shouldUploadFile(local, getFileMap(cloudChatFiles.value).get(local.basename)));
     if (filesToUpload.length === 0) return ElMessage.info(t('chats.alerts.syncNoUpload'));
 
     try {
@@ -508,8 +1912,16 @@ async function intelligentUpload() {
             t('chats.alerts.syncConfirmUploadTitle'),
             { type: 'info' }
         );
-        const tasks = filesToUpload.map(file => ({ name: file.basename, action: (signal) => forceSyncFile(file.basename, 'upload', signal) }));
-        await executeSync(tasks, t('chats.alerts.syncConfirmUploadTitle'));
+        const syncResult = await executeSync([
+            {
+                name: t('chats.alerts.syncConfirmUploadTitle'),
+                action: (signal) => uploadFilesToCloudInBatches(filesToUpload.map(file => file.basename), signal)
+            }
+        ], t('chats.alerts.syncConfirmUploadTitle'));
+        const uploadedBasenames = Array.isArray(syncResult?.completedFiles)
+            ? syncResult.completedFiles
+            : [];
+        await syncProjectsBulk(uploadedBasenames, 'upload');
     } catch (error) {
         if (error === 'cancel' || error === 'close') return;
         ElMessage.error(`${error.message}`);
@@ -518,10 +1930,7 @@ async function intelligentUpload() {
 
 async function intelligentDownload() {
     if (!localChatPath.value) return ElMessage.warning(t('chats.alerts.localPathRequired'));
-    const filesToDownload = cloudChatFiles.value.filter(cloud => {
-        const localFile = getFileMap(localChatFiles.value).get(cloud.basename);
-        return !localFile || new Date(cloud.lastmod) > new Date(localFile.lastmod);
-    });
+    const filesToDownload = cloudChatFiles.value.filter(cloud => shouldDownloadFile(cloud, getFileMap(localChatFiles.value).get(cloud.basename)));
     if (filesToDownload.length === 0) return ElMessage.info(t('chats.alerts.syncNoDownload'));
 
     try {
@@ -530,8 +1939,9 @@ async function intelligentDownload() {
             t('chats.alerts.syncConfirmDownloadTitle'),
             { type: 'info' }
         );
-        const tasks = filesToDownload.map(file => ({ name: file.basename, action: (signal) => forceSyncFile(file.basename, 'download', signal) }));
+        const tasks = filesToDownload.map(file => ({ name: file.basename, action: (signal) => forceSyncFile(file.basename, 'download', signal, { syncProject: false }) }));
         await executeSync(tasks, t('chats.alerts.syncConfirmDownloadTitle'));
+        await syncProjectsBulk(filesToDownload.map(f => f.basename), 'download');
     } catch (error) {
         if (error === 'cancel' || error === 'close') return;
         ElMessage.error(`${error.message}`);
@@ -550,54 +1960,45 @@ async function executeSync(tasks, title) {
         if (results.failed > 0) message += ` ${t('chats.alerts.syncFailedPartially', { failedCount: results.failed })}`;
         ElMessage.success(message);
         await refreshData();
+        return results;
     } catch (error) {
         if (error.message === 'Cancelled') {
             ElMessage.warning(t('chats.alerts.syncCancelled'));
         } else {
             ElMessage.error(t('chats.alerts.syncFailed', { message: error.message }));
         }
+        throw error;
     } finally {
         isSyncing.value = false;
         syncAbortController.value = null;
     }
 }
 
-async function forceSyncFile(basename, direction, signal) {
+async function forceSyncFile(basename, direction, signal, options = {}) {
+    const { syncProject = true } = options;
     singleFileSyncing.value[basename] = true;
     try {
-        const client = createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password });
-        const remotePath = `${webdavConfig.value.data_path}/${basename}`;
-        const localPath = `${localChatPath.value}/${basename}`;
+        const normalizedBasename = getSafeString(basename);
+        const localPath = `${localChatPath.value}/${normalizedBasename}`;
 
         if (direction === 'upload') {
-            const localFile = localChatFiles.value.find(f => f.basename === basename);
-            if (!localFile) throw new Error(`本地文件 "${basename}" 未找到`);
-
-            const content = await window.api.readLocalFile(localPath, signal);
-            await client.putFileContents(remotePath, content, { overwrite: true, signal });
-
-            await client.customRequest(remotePath, {
-                method: "PROPPATCH",
-                headers: { "Content-Type": "application/xml" },
-                data: `<?xml version="1.0"?>
-                       <d:propertyupdate xmlns:d="DAV:">
-                         <d:set>
-                           <d:prop>
-                             <lastmodified xmlns="DAV:">${new Date(localFile.lastmod).toUTCString()}</lastmodified>
-                           </d:prop>
-                         </d:set>
-                       </d:propertyupdate>`,
-                signal
+            const uploadPayload = await buildCloudUploadFilePayload(normalizedBasename, { signal, localPath });
+            await writeSingleCloudChatFile({
+                filename: normalizedBasename,
+                content: uploadPayload.content,
+                chatMetadata: uploadPayload.chatMetadata
             });
-
         } else { // download
-            const cloudFile = cloudChatFiles.value.find(f => f.basename === basename);
-            if (!cloudFile) throw new Error(`云端文件 "${basename}" 未找到`);
+            const cloudFile = cloudChatFiles.value.find(f => f.basename === normalizedBasename);
+            if (!cloudFile) throw new Error(`云端文件 "${normalizedBasename}" 未找到`);
 
-            const content = await client.getFileContents(remotePath, { format: 'text', signal });
-            await window.api.writeLocalFile(localPath, content, signal);
+            const result = await readCloudChatFile(normalizedBasename);
+            await window.api.writeLocalFile(localPath, typeof result.content === 'string' ? result.content : String(result.content || ''), signal);
+            await window.api.setFileMtime(localPath, cloudFile.updatedAt || cloudFile.lastmod);
+        }
 
-            await window.api.setFileMtime(localPath, cloudFile.lastmod);
+        if (syncProject) {
+            await syncFileAssignmentAcross(normalizedBasename, direction);
         }
     } catch (error) {
         if (error.name === 'AbortError') throw new Error("Cancelled");
@@ -617,7 +2018,7 @@ const computedFilesToClean = computed(() => {
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
     return currentFiles.value.filter(file => {
-        const fileDate = new Date(file.lastmod);
+        const fileDate = new Date(file.updatedAt || file.lastmod || file.createdAt);
         return fileDate < cutoffDate;
     });
 });
@@ -636,15 +2037,11 @@ async function executeAutoClean() {
 
     isCleaning.value = true;
     try {
-        const client = isWebdavConfigValid.value ? createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password }) : null;
-
         const tasks = filesToDelete.map(file => async () => {
             if (activeView.value === 'local') {
                 await window.api.deleteLocalFile(file.path);
             } else {
-                if (client) {
-                    await client.deleteFile(`${webdavConfig.value.data_path}/${file.basename}`);
-                }
+                await deleteCloudChatFileWithMetadata(file.basename);
             }
         });
 
@@ -685,16 +2082,16 @@ const formatFilenameDisplay = (basename) => {
 };
 
 const isAllSelected = computed(() => {
-    if (paginatedFiles.value.length === 0) return false;
-    return paginatedFiles.value.every(f => isFileSelected(f));
+    if (visibleFiles.value.length === 0) return false;
+    return visibleFiles.value.every(f => isFileSelected(f));
 });
 
 const toggleSelectAll = () => {
     if (isAllSelected.value) {
-        const visibleNames = new Set(paginatedFiles.value.map(f => f.basename));
+        const visibleNames = new Set(visibleFiles.value.map(f => f.basename));
         selectedFiles.value = selectedFiles.value.filter(f => !visibleNames.has(f.basename));
     } else {
-        paginatedFiles.value.forEach(f => {
+        visibleFiles.value.forEach(f => {
             if (!isFileSelected(f)) selectedFiles.value.push(f);
         });
     }
@@ -718,6 +2115,10 @@ const toggleSelectAll = () => {
                 </el-popover>
                 <el-tooltip :content="t('chats.clean.button')" placement="bottom">
                     <el-button :icon="Brush" circle @click="openCleanDialog" />
+                </el-tooltip>
+                <el-tooltip :content="t('chats.projects.create')" placement="bottom">
+                    <el-button :icon="Plus" circle @click="createProject"
+                        :disabled="activeView === 'local' ? !localChatPath : !isWebdavConfigValid" />
                 </el-tooltip>
             </div>
             <div class="sync-buttons-container">
@@ -775,81 +2176,147 @@ const toggleSelectAll = () => {
                 </div>
 
                 <!-- 空状态：无文件 -->
-                <div v-else-if="paginatedFiles.length === 0 && !isTableLoading" class="config-prompt-small">
+                <div v-else-if="displayRows.length === 0 && !isTableLoading" class="config-prompt-small">
                     <el-empty :description="t('common.noFileSelected').replace('选中', '')" :image-size="80" />
                 </div>
 
                 <!-- 列表视图 -->
-                <el-scrollbar v-else v-loading="isTableLoading" view-class="chat-list-view">
-                    <!-- 绑定 mousedown 启动框选 -->
+                <div v-else class="chat-table-shell" v-loading="isTableLoading" :style="{ '--chat-table-columns': chatTableColumns }">
+                    <div class="chat-table-header">
+                        <div class="chat-column chat-column-checkbox"></div>
+                        <button type="button" class="chat-column chat-column-title sortable" :class="{ active: sortMode === 'name' }"
+                            :title="getColumnSortLabel('name')" @click="toggleSort('name')">
+                            <span>{{ t('chats.table.filename') }}</span>
+                            <span v-if="sortMode === 'name'" class="sort-indicator">{{ getSortDirectionLabel() }}</span>
+                        </button>
+                        <button v-if="showCreatedAtColumn" type="button" class="chat-column chat-column-created sortable"
+                            :class="{ active: sortMode === 'createdAt' }" :title="getColumnSortLabel('createdAt')" @click="toggleSort('createdAt')">
+                            <span>{{ t('chats.table.createdTime') }}</span>
+                            <span v-if="sortMode === 'createdAt'" class="sort-indicator">{{ getSortDirectionLabel() }}</span>
+                        </button>
+                        <button type="button" class="chat-column chat-column-updated sortable" :class="{ active: sortMode === 'updatedAt' }"
+                            :title="getColumnSortLabel('updatedAt')" @click="toggleSort('updatedAt')">
+                            <span>{{ t('chats.table.modifiedTime') }}</span>
+                            <span v-if="sortMode === 'updatedAt'" class="sort-indicator">{{ getSortDirectionLabel() }}</span>
+                        </button>
+                        <button type="button" class="chat-column chat-column-size sortable" :class="{ active: sortMode === 'size' }"
+                            :title="getColumnSortLabel('size')" @click="toggleSort('size')">
+                            <span>{{ t('chats.table.size') }}</span>
+                            <span v-if="sortMode === 'size'" class="sort-indicator">{{ getSortDirectionLabel() }}</span>
+                        </button>
+                        <div class="chat-column chat-column-actions">{{ t('chats.table.actions') }}</div>
+                    </div>
+                    <el-scrollbar view-class="chat-list-view">
+                    <!-- 绑定 mousedown 启动框选；项目拖拽改用自定义指针拖拽（见 onTitleMouseDown） -->
                     <div class="chat-list" ref="chatListRef" @mousedown="onMouseDown">
-                        <div v-for="file in paginatedFiles" :key="file.basename" class="chat-list-item"
-                            :class="{ 'is-selected': isFileSelected(file) }"
-                            @click="handleItemClick(file)">
+                        <template v-for="row in displayRows" :key="row.kind === 'file' ? `file-${row.file.basename}` : (row.kind === 'project' ? `proj-${row.id}` : 'ungrouped-label')">
 
-                            <!-- 左侧：选择框 -->
-                            <div class="list-checkbox">
-                                <el-checkbox :model-value="isFileSelected(file)"
-                                    @change="(val) => toggleFileSelection(file, val)" @click.stop />
-                            </div>
-
-                            <!-- 中间：名称 -->
-                            <div class="list-content">
-                                <div class="list-title" :title="file.basename">
-                                    {{ formatFilenameDisplay(file.basename) }}
+                            <!-- 项目头行 -->
+                            <div v-if="row.kind === 'project'" class="project-header"
+                                :class="{ 'drag-over': dragOverProjectTarget === row.id }"
+                                :data-project-id="row.id"
+                                @click="toggleProjectCollapse(row.id)">
+                                <el-icon class="project-caret" :class="{ expanded: !row.collapsed }"><ArrowRight /></el-icon>
+                                <el-icon class="project-folder"><Folder /></el-icon>
+                                <span class="project-name" :title="row.name">{{ row.name }}</span>
+                                <span class="project-count">{{ row.count }}</span>
+                                <div class="project-actions" @click.stop>
+                                    <el-tooltip v-if="isWebdavConfigValid"
+                                        :content="activeView === 'local' ? t('chats.projects.syncToCloud') : t('chats.projects.syncToLocal')"
+                                        placement="top" :show-after="500">
+                                        <el-button link type="primary" :icon="Switch" class="action-icon-btn"
+                                            @click.stop="syncProject(row.id)" />
+                                    </el-tooltip>
+                                    <el-tooltip :content="t('chats.projects.rename')" placement="top" :show-after="500">
+                                        <el-button link type="warning" :icon="Edit" class="action-icon-btn"
+                                            @click.stop="renameProject(row.id)" />
+                                    </el-tooltip>
+                                    <el-tooltip :content="t('chats.projects.delete')" placement="top" :show-after="500">
+                                        <el-button link type="danger" :icon="DeleteIcon" class="action-icon-btn"
+                                            @click.stop="deleteProject(row.id)" />
+                                    </el-tooltip>
                                 </div>
-                                <!-- 元数据现在紧跟标题 -->
-                                <div class="list-meta">
-                                    <span class="meta-time">{{ formatDate(file.lastmod) }}</span>
-                                    <span class="meta-separator">|</span>
-                                    <span class="meta-size">{{ formatBytes(file.size) }}</span>
+                            </div>
+
+                            <!-- 未分组分隔标签（同时作为"移出项目"放置目标） -->
+                            <div v-else-if="row.kind === 'ungrouped-label'" class="ungrouped-label"
+                                :class="{ 'drag-over': dragOverProjectTarget === PROJECT_UNGROUPED_DROP_ID }">
+                                {{ t('chats.projects.ungrouped') }}
+                            </div>
+
+                            <!-- 文件行 -->
+                            <div v-else class="chat-list-item"
+                                :class="{ 'is-selected': isFileSelected(row.file), 'in-project': row.projectId }"
+                                :data-basename="row.file.basename"
+                                :data-project-id="row.projectId || ''"
+                                @click="handleItemClick(row.file)"
+                                @contextmenu.prevent.stop="handleItemContextMenu(row.file, $event)">
+
+                                <!-- 左侧：选择框 -->
+                                <div class="list-checkbox">
+                                    <el-checkbox :model-value="isFileSelected(row.file)"
+                                        @change="(val) => toggleFileSelection(row.file, val)" @click.stop />
+                                </div>
+
+                                <div class="list-title" :title="normalizeTitleValue(row.file)"
+                                    @mousedown="onTitleMouseDown(row.file, $event)">
+                                    {{ normalizeTitleValue(row.file) }}
+                                </div>
+                                <div v-if="showCreatedAtColumn" class="meta-created">{{ formatDate(row.file.createdAt || row.file.lastmod) }}</div>
+                                <div class="meta-updated">{{ formatDate(row.file.updatedAt || row.file.lastmod || row.file.createdAt) }}</div>
+                                <div class="meta-size">{{ formatBytes(row.file.size) }}</div>
+
+                                <!-- 右侧：仅操作按钮 -->
+                                <div class="list-actions">
+                                    <!-- 1. 聊天按钮 -->
+                                    <el-tooltip :content="t('chats.actions.chat')" placement="top" :show-after="500">
+                                        <el-button link type="primary" :icon="ChatDotRound"
+                                            class="action-icon-btn chat-highlight" @click.stop="startChat(row.file)" />
+                                    </el-tooltip>
+                                    <!-- 2. 分享/导出按钮（仅本地） -->
+                                    <el-tooltip v-if="activeView === 'local'" :content="t('chats.actions.share')" placement="top" :show-after="500">
+                                        <el-button link type="success" :icon="Share" class="action-icon-btn"
+                                            @click.stop="exportLocalChat(row.file)" />
+                                    </el-tooltip>
+
+                                    <!-- 3. 同步按钮 -->
+                                    <el-tooltip
+                                        :content="activeView === 'local' ? t('chats.tooltips.forceUpload') : t('chats.tooltips.forceDownload')"
+                                        placement="top" :show-after="500">
+                                        <el-button link type="primary" :icon="Switch" class="action-icon-btn"
+                                            @click.stop="forceSyncFile(row.file.basename, activeView === 'local' ? 'upload' : 'download')"
+                                            :loading="singleFileSyncing[row.file.basename]" />
+                                    </el-tooltip>
+
+                                    <!-- 4. 重命名按钮 -->
+                                    <el-tooltip :content="t('chats.actions.rename')" placement="top" :show-after="500">
+                                        <el-button link type="warning" :icon="Edit" class="action-icon-btn"
+                                            @click.stop="renameFile(row.file)" />
+                                    </el-tooltip>
+
+                                    <!-- 5. 删除按钮 -->
+                                    <el-tooltip :content="t('chats.actions.delete')" placement="top" :show-after="500">
+                                        <el-button link type="danger" :icon="DeleteIcon" class="action-icon-btn"
+                                            @click.stop="deleteFiles([row.file])" />
+                                    </el-tooltip>
                                 </div>
                             </div>
-
-                            <!-- 右侧：仅操作按钮 (移除 list-right-group 容器) -->
-                            <div class="list-actions">
-                                <!-- 1. 聊天按钮 -->
-                                <el-tooltip :content="t('chats.actions.chat')" placement="top" :show-after="500">
-                                    <el-button link type="primary" :icon="ChatDotRound"
-                                        class="action-icon-btn chat-highlight" @click.stop="startChat(file)" />
-                                </el-tooltip>
-
-                                <!-- 2. 同步按钮 -->
-                                <el-tooltip
-                                    :content="activeView === 'local' ? t('chats.tooltips.forceUpload') : t('chats.tooltips.forceDownload')"
-                                    placement="top" :show-after="500">
-                                    <el-button link type="primary" :icon="Switch" class="action-icon-btn"
-                                        @click.stop="forceSyncFile(file.basename, activeView === 'local' ? 'upload' : 'download')"
-                                        :loading="singleFileSyncing[file.basename]" />
-                                </el-tooltip>
-
-                                <!-- 3. 重命名按钮 -->
-                                <el-tooltip :content="t('chats.actions.rename')" placement="top" :show-after="500">
-                                    <el-button link type="warning" :icon="Edit" class="action-icon-btn"
-                                        @click.stop="renameFile(file)" />
-                                </el-tooltip>
-
-                                <!-- 4. 删除按钮 -->
-                                <el-tooltip :content="t('chats.actions.delete')" placement="top" :show-after="500">
-                                    <el-button link type="danger" :icon="DeleteIcon" class="action-icon-btn"
-                                        @click.stop="deleteFiles([file])" />
-                                </el-tooltip>
-                            </div>
-                        </div>
+                        </template>
                     </div>
                 </el-scrollbar>
+                </div>
             </div>
 
             <div class="footer-bar">
                 <div class="footer-left">
-                    <el-checkbox :model-value="isAllSelected" @change="toggleSelectAll" label="全选" size="large"
-                        :disabled="paginatedFiles.length === 0" />
-                    <span v-if="selectedFiles.length > 0" class="selection-count">已选 {{ selectedFiles.length }} 项</span>
+                    <el-checkbox :model-value="isAllSelected" @change="toggleSelectAll" :label="t('common.selectAll')" size="large"
+                        :disabled="visibleFiles.length === 0" />
+                    <span v-if="selectedFiles.length > 0" class="selection-count">{{ t('chats.selection.count', { count: selectedFiles.length }) }}</span>
                 </div>
                 <div class="footer-center">
-                    <el-pagination v-if="currentFiles.length > 0" v-model:current-page="currentPage"
-                        v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="currentFiles.length"
-                        layout="total, sizes, prev, pager, next, jumper" background size="small" />
+                    <el-pagination v-if="ungroupedFiles.length > 0" v-model:current-page="currentPage"
+                        v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="ungroupedFiles.length"
+                        :pager-count="5" layout="total, sizes, prev, pager, next, jumper" background size="small" />
                 </div>
                 <div class="footer-right">
                     <el-tooltip :content="t('common.refresh')" placement="top">
@@ -902,7 +2369,7 @@ const toggleSelectAll = () => {
                     <ul class="file-preview-list">
                         <li v-for="file in computedFilesToClean" :key="file.basename">
                             <span class="fname">{{ file.basename }}</span>
-                            <span class="fdate">{{ formatDate(file.lastmod) }}</span>
+                            <span class="fdate">{{ formatDate(file.updatedAt || file.lastmod || file.createdAt) }}</span>
                         </li>
                     </ul>
                 </el-scrollbar>
@@ -916,6 +2383,34 @@ const toggleSelectAll = () => {
             </el-button>
         </template>
     </el-dialog>
+
+    <!-- 删除项目：三选项 -->
+    <el-dialog v-model="projectDeleteDialog.visible" :title="t('chats.projects.delete')" width="420px" append-to-body
+        align-center class="project-delete-dialog">
+        <p class="project-delete-message">{{ t('chats.projects.deleteDialogMessage', { name: projectDeleteDialog.name }) }}</p>
+        <div class="project-delete-options">
+            <button type="button" class="project-delete-option" :disabled="projectDeleteDialog.busy"
+                @click="confirmDeleteProjectKeepChats">
+                <span class="opt-title">{{ t('chats.projects.deleteKeepChats') }}</span>
+                <span class="opt-desc">{{ t('chats.projects.deleteKeepChatsDesc') }}</span>
+            </button>
+            <button type="button" class="project-delete-option danger" :disabled="projectDeleteDialog.busy"
+                @click="confirmDeleteProjectWithChats">
+                <span class="opt-title">{{ t('chats.projects.deleteWithChats') }}</span>
+                <span class="opt-desc">{{ t('chats.projects.deleteWithChatsDesc') }}</span>
+            </button>
+        </div>
+        <template #footer>
+            <el-button :disabled="projectDeleteDialog.busy" @click="projectDeleteDialog.visible = false">
+                {{ t('chats.projects.deleteCancel') }}
+            </el-button>
+        </template>
+    </el-dialog>
+
+    <!-- 自定义拖拽悬浮提示 -->
+    <div v-show="isProjectDragging" class="drag-ghost" :style="{ top: dragGhostY + 'px', left: dragGhostX + 'px' }">
+        {{ dragGhostLabel }}
+    </div>
 </template>
 
 <style scoped>
@@ -935,8 +2430,13 @@ const toggleSelectAll = () => {
 }
 
 .view-selector {
-    padding: 5px 15px 0px 0px;
+    padding: 5px 100px 0px 100px;
     text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .chats-page-container {
@@ -995,6 +2495,68 @@ const toggleSelectAll = () => {
     user-select: none;  /* 防止拖拽时选中文本 */
 }
 
+/* === 表头（可点击排序） === */
+.chat-table-shell {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.chat-table-header {
+    display: grid;
+    grid-template-columns: var(--chat-table-columns);
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px 8px 12px;
+    margin: 2px 10px 4px 0;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.chat-column {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 0;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.chat-column.sortable {
+    justify-content: flex-start;
+    gap: 4px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.chat-column.sortable:hover,
+.chat-column.sortable.active {
+    color: var(--el-color-primary);
+}
+
+.sort-indicator {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.chat-column-actions {
+    justify-content: flex-start;
+    padding-right: 0;
+}
+
+.chat-table-shell :deep(.el-scrollbar) {
+    min-height: 0;
+    flex: 1;
+}
+
 /* === 紧凑列表样式 Start === */
 .chat-list {
     display: flex;
@@ -1006,15 +2568,17 @@ const toggleSelectAll = () => {
 }
 
 .chat-list-item {
-    display: flex;
+    display: grid;
+    grid-template-columns: var(--chat-table-columns);
     align-items: center;
-    padding: 8px 16px;
+    gap: 8px;
+    padding: 6px 12px;
     background-color: transparent;
     border-radius: 16px 8px 8px 16px;
     transition: background-color 0.2s;
     cursor: pointer;
     position: relative;
-    height: 44px;
+    height: 40px;
     box-sizing: border-box;
     width: 100%;
 }
@@ -1055,55 +2619,36 @@ const toggleSelectAll = () => {
     pointer-events: auto;
 }
 
-.list-content {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    margin-right: 8px;
-}
-
 .list-title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 0 1 auto;
-    margin-right: 12px;
+    min-width: 0;
+    padding-right: 6px;
 }
 
-.list-meta {
-    font-size: 12px;
+.meta-created,
+.meta-updated,
+.meta-size {
+    min-width: 0;
+    font-size: 11px;
     color: var(--text-tertiary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    text-align: left;
     white-space: nowrap;
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .list-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
-    margin-left: auto;
+    justify-content: flex-start;
+    gap: 2px;
+    min-width: 0;
     flex-shrink: 0;
-    
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.meta-separator {
-    opacity: 0.5;
-}
-
-.list-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
     opacity: 0;
     transition: opacity 0.2s;
 }
@@ -1114,8 +2659,8 @@ const toggleSelectAll = () => {
 }
 
 .action-icon-btn {
-    font-size: 16px;
-    padding: 6px;
+    font-size: 14px;
+    padding: 4px;
     margin-left: 0 !important;
     color: var(--text-secondary);
 }
@@ -1164,9 +2709,11 @@ const toggleSelectAll = () => {
 }
 
 .footer-center {
-    flex-grow: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     display: flex;
     justify-content: center;
+    overflow: hidden;
 }
 
 .footer-right {
@@ -1180,6 +2727,18 @@ const toggleSelectAll = () => {
 :deep(.el-pagination) {
     --el-pagination-text-color: var(--text-secondary);
 }
+
+:deep(.el-pagination) {
+    flex-wrap: nowrap;
+    max-width: 100%;
+}
+
+:deep(.el-pagination .el-pagination__sizes),
+:deep(.el-pagination .el-pagination__total),
+:deep(.el-pagination .el-pagination__jump) {
+    white-space: nowrap;
+}
+
 
 :deep(.el-pagination.is-background .el-pager li),
 :deep(.el-pagination.is-background .btn-prev),
@@ -1363,5 +2922,201 @@ html.dark .custom-clean-scrollbar :deep(.el-scrollbar__thumb:hover) {
     flex-shrink: 0;
     color: var(--text-tertiary);
     margin-right: 12px;
+}
+
+/* --- 项目分组 --- */
+.project-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-top: 2px;
+    border-radius: 10px;
+    cursor: pointer;
+    user-select: none;
+    background-color: var(--bg-tertiary);
+    transition: background-color 0.2s;
+}
+
+.project-header:hover {
+    background-color: var(--bg-accent-soft, var(--bg-tertiary));
+}
+
+.project-header.drag-over {
+    outline: 2px dashed var(--el-color-primary);
+    outline-offset: -2px;
+    background-color: var(--el-color-primary-light-9);
+}
+
+.ungrouped-label.drag-over {
+    outline: 2px dashed var(--el-color-primary);
+    outline-offset: -2px;
+    border-radius: 8px;
+    color: var(--el-color-primary);
+}
+
+.project-caret {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    transition: transform 0.2s ease;
+}
+
+.project-caret.expanded {
+    transform: rotate(90deg);
+}
+
+.project-folder {
+    font-size: 14px;
+    color: var(--el-color-primary);
+}
+
+.project-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 0 1 auto;
+}
+
+.project-count {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    background-color: var(--bg-primary);
+    border-radius: 10px;
+    padding: 0 8px;
+    line-height: 18px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.project-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.project-header:hover .project-actions {
+    opacity: 1;
+}
+
+/* 未分组分隔标签 */
+.ungrouped-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    padding: 10px 12px 4px;
+    letter-spacing: 0.02em;
+}
+
+/* 项目内文件行缩进 */
+.chat-list-item.in-project {
+    padding-left: 28px;
+}
+
+/* 自定义拖拽悬浮提示 */
+.drag-ghost {
+    position: fixed;
+    z-index: 99999;
+    pointer-events: none;
+    max-width: 260px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background-color: var(--el-color-primary);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.project-delete-message {
+    margin: 0 0 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.project-delete-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.project-delete-option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md, 10px);
+    background-color: var(--bg-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.project-delete-option:hover {
+    border-color: var(--el-color-primary);
+    background-color: var(--el-color-primary-light-9);
+}
+
+.project-delete-option:active {
+    transform: scale(0.995);
+}
+
+.project-delete-option:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.project-delete-option.danger:hover {
+    border-color: var(--el-color-danger);
+    background-color: var(--el-color-danger-light-9);
+}
+
+.project-delete-option .opt-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.project-delete-option.danger .opt-title {
+    color: var(--el-color-danger);
+}
+
+.project-delete-option .opt-desc {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+</style>
+
+<style>
+.project-delete-dialog .el-dialog__header {
+    padding: 20px 20px 14px;
+    margin-right: 0;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.project-delete-dialog .el-dialog__body {
+    padding: 18px 20px 6px;
+}
+
+.project-delete-dialog .el-dialog__footer {
+    padding: 8px 20px 18px;
+}
+
+.project-delete-dialog .el-dialog__title {
+    font-size: 16px;
+    font-weight: 600;
 }
 </style>

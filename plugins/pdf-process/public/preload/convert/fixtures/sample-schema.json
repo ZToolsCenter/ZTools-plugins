@@ -1,0 +1,39 @@
+{
+  "title": "示例文档",
+  "pages": [
+    {
+      "page": 1,
+      "title": "第一页",
+      "blocks": [
+        { "type": "heading", "level": 1, "text": "标题一" },
+        { "type": "paragraph", "text": "这是一段正文。" },
+        { "type": "bullet", "items": ["要点 A", "要点 B"] },
+        {
+          "type": "table",
+          "rows": [
+            ["姓名", "分数"],
+            ["张三", "95"],
+            ["李四", "88"]
+          ]
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "blocks": [
+        { "type": "heading", "level": 2, "text": "第二页" },
+        { "type": "paragraph", "text": "更多内容。" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "name": "成绩",
+      "rows": [
+        ["姓名", "分数"],
+        ["张三", "95"],
+        ["李四", "88"]
+      ]
+    }
+  ]
+}

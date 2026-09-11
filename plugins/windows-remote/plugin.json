@@ -1,0 +1,27 @@
+{
+  "name": "windows-remote",
+  "title": "Windows 远程桌面管理",
+  "pluginName": "Windows 远程桌面管理",
+  "description": "快捷管理并一键连接多个 Windows 远程桌面，支持账号密码凭据自动填充",
+  "version": "1.0.0",
+  "author": "zhanglei",
+  "homepage": "https://example.com",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "windows-remote",
+      "explain": "打开远程桌面管理",
+      "cmds": [
+        "rdp",
+        "mstsc",
+        "远程桌面",
+        "remote"
+      ]
+    }
+  ],
+  "platform": [
+    "win32"
+  ]
+}

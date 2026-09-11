@@ -1,0 +1,27 @@
+{
+  "name": "jenkins-lite",
+  "version": "1.4.0",
+  "description": "Jenkins Lite 一款轻量级的 Jenkins 辅助工具。告别繁琐的网页操作，插件提供实时查询与一键构建功能，帮助开发者快速检索任务状态、监控构建进度并秒级触发构建，显著提升 CI/CD 工作效率。",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "test": "vitest run",
+    "build": "vue-tsc && vite build && node scripts/prepare-package.mjs && node scripts/create-zip.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.6",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "fflate": "^0.8.3",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vite-plugin-node-polyfills": "^0.28.0",
+    "vitest": "^3.2.4",
+    "vue-tsc": "^2.0.0"
+  }
+}

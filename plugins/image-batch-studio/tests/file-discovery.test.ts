@@ -36,6 +36,20 @@ async function makeHeif(filePath: string) {
     .toFile(filePath);
 }
 
+async function makeOrientedJpeg(filePath: string) {
+  await sharp({
+    create: {
+      width: 100,
+      height: 50,
+      channels: 3,
+      background: "#446a9d"
+    }
+  })
+    .jpeg()
+    .withMetadata({ orientation: 6 })
+    .toFile(filePath);
+}
+
 async function makeAnimatedGif(filePath: string) {
   const dir = path.dirname(filePath);
   const first = path.join(dir, "gif-frame-a.png");
@@ -76,6 +90,17 @@ describe("file discovery", () => {
     expect(file.format).toBe("gif");
     expect(file.width).toBe(32);
     expect(file.height).toBe(24);
+  });
+
+  it("reports auto-oriented dimensions for EXIF images", async () => {
+    const dir = await makeTempDir();
+    const image = path.join(dir, "oriented.jpg");
+    await makeOrientedJpeg(image);
+
+    const [file] = await discoverFiles([image]);
+
+    expect(file.width).toBe(50);
+    expect(file.height).toBe(100);
   });
 
   it("continues scanning when a child directory cannot be read", async () => {

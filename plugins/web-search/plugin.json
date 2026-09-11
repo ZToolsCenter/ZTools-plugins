@@ -1,0 +1,32 @@
+{
+  "name": "web-search",
+  "title": "网页搜索",
+  "author": "ScottLim",
+  "description": "在 ztools 中快速使用各种搜索引擎进行网页搜索。内置 11 个常用搜索引擎，支持自定义添加，输入指令直接用浏览器打开搜索结果。",
+  "version": "1.0.0",
+  "logo": "assets/logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "pluginSetting": {
+    "single": false,
+    "height": 1
+  },
+  "features": [
+    {
+      "code": "search",
+      "explain": "网页搜索",
+      "icon": "assets/logo.png",
+      "cmds": [
+        "网页搜索"
+      ]
+    },
+    {
+      "code": "settings",
+      "explain": "网页搜索设置",
+      "icon": "assets/logo.png",
+      "cmds": [
+        "网页搜索设置"
+      ]
+    }
+  ]
+}

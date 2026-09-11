@@ -1,0 +1,110 @@
+/* ═══════════════════════════════════════════════════════════
+   SEARCH INPUT
+   ═══════════════════════════════════════════════════════════ */
+.search-input {
+  position: relative;
+  width: 100%;
+}
+
+.search-input .search-icon {
+  position: absolute;
+  left: var(--sp-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--clay);
+  pointer-events: none;
+}
+
+.search-input input {
+  width: 100%;
+  padding: var(--sp-1) var(--sp-3);
+  padding-left: var(--sp-8);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.search-input input::placeholder {
+  color: var(--clay);
+}
+
+.search-input input:focus {
+  background: transparent;
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+.search-input .clear-btn {
+  position: absolute;
+  right: var(--sp-2);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--clay);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.search-input .clear-btn:hover {
+  color: var(--ink);
+  background: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EMPTY STATE
+   ═══════════════════════════════════════════════════════════ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-12) var(--sp-6);
+  text-align: center;
+}
+
+.empty-state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--sp-4);
+  color: var(--clay);
+  opacity: 0.5;
+}
+
+.empty-state-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--graphite);
+  margin-bottom: var(--sp-2);
+}
+
+.empty-state-description {
+  font-size: var(--text-sm);
+  color: var(--clay);
+  max-width: 240px;
+  line-height: 1.5;
+}
+
+.empty-state-action {
+  margin-top: var(--sp-4);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--teal);
+  border: 1px solid var(--teal-border);
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.empty-state-action:hover {
+  background: transparent;
+  border-color: var(--teal);
+}

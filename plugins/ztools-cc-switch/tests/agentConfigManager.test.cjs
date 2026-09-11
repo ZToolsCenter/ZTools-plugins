@@ -1,0 +1,118 @@
+'use strict'
+
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fsp = require('node:fs/promises')
+const os = require('node:os')
+const path = require('node:path')
+const JSON5 = require('../preload/node_modules/json5')
+const YAML = require('../preload/node_modules/yaml')
+const { createAgentConfigManager } = require('../preload/agentConfigManager')
+
+test('manages OpenClaw Agents, Tools and Env while preserving unrelated fields', async (t) => {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'ztools-agent-config-test-'))
+  t.after(() => fsp.rm(root, { recursive: true, force: true }))
+  const homeDir = path.join(root, 'home')
+  const configPath = path.join(homeDir, '.openclaw', 'openclaw.json')
+  await fsp.mkdir(path.dirname(configPath), { recursive: true })
+  await fsp.writeFile(configPath, `{
+    // existing OpenClaw config
+    models: { mode: 'merge', providers: { demo: { baseUrl: 'https://example.test' } } },
+    agents: { defaults: { timeout: 30, workspace: '/tmp/project', custom: true } },
+    tools: { profile: 'unsupported', allow: ['read'] },
+    env: { vars: 'bad' },
+    untouched: { keep: 42 },
+  }`)
+  const manager = createAgentConfigManager({ homeDir })
+  const health = await manager.scanOpenClawHealth()
+  assert.deepEqual(health.map((item) => item.code).sort(), ['invalid_tools_profile', 'legacy_agents_timeout', 'stringified_env_vars'])
+
+  const outcome = await manager.setOpenClawAgentsDefaults({ model: { primary: 'demo/model', fallbacks: ['demo/fallback'] }, timeout: 20, timeoutSeconds: 60, workspace: '/work', custom: true })
+  assert.equal(outcome.backupPath, `${configPath}.bak`)
+  await manager.setOpenClawTools({ profile: 'coding', allow: ['read', 'read', 'exec'], deny: ['browser'], customToolSetting: true })
+  await manager.setOpenClawEnv({ vars: { TOKEN: 'value' }, shellEnv: { enabled: true }, customEnv: 7 })
+  const config = JSON5.parse(await fsp.readFile(configPath, 'utf8'))
+  assert.equal(config.untouched.keep, 42)
+  assert.equal(config.models.providers.demo.baseUrl, 'https://example.test')
+  assert.equal(config.agents.defaults.timeout, undefined)
+  assert.equal(config.agents.defaults.timeoutSeconds, 60)
+  assert.deepEqual(config.tools.allow, ['read', 'exec'])
+  assert.equal(config.tools.customToolSetting, true)
+  assert.equal(config.env.vars.TOKEN, 'value')
+  assert.deepEqual(await manager.scanOpenClawHealth(), [])
+})
+
+test('edits Hermes MEMORY and USER with limits and preserves YAML fields', async (t) => {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'ztools-hermes-memory-test-'))
+  t.after(() => fsp.rm(root, { recursive: true, force: true }))
+  const homeDir = path.join(root, 'home')
+  const configPath = path.join(homeDir, '.hermes', 'config.yaml')
+  await fsp.mkdir(path.dirname(configPath), { recursive: true })
+  await fsp.writeFile(configPath, `model:\n  default: demo\nmemory:\n  memory_char_limit: 3000\n  user_char_limit: 1500\n  memory_enabled: true\n  user_profile_enabled: true\n  external_provider: keep\n`)
+  const manager = createAgentConfigManager({ homeDir })
+  assert.deepEqual(await manager.getHermesModelConfig(), { default: 'demo' })
+  assert.deepEqual(await manager.getHermesMemoryLimits(), { memory: 3000, user: 1500, memoryEnabled: true, userEnabled: true })
+  await manager.setHermesMemory('memory', '# Notes\n\nRemember this.')
+  await manager.setHermesMemory('user', '# User\n\nPrefers concise answers.')
+  assert.match(await manager.getHermesMemory('memory'), /Remember this/)
+  const updated = await manager.setHermesMemoryEnabled('user', false)
+  assert.equal(updated.userEnabled, false)
+  const config = YAML.parse(await fsp.readFile(configPath, 'utf8'))
+  assert.equal(config.model.default, 'demo')
+  assert.equal(config.memory.external_provider, 'keep')
+  assert.equal(config.memory.user_profile_enabled, false)
+})
+
+test('edits OpenClaw default model and catalog without replacing neighboring defaults', async (t) => {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'ztools-openclaw-models-test-'))
+  t.after(() => fsp.rm(root, { recursive: true, force: true }))
+  const homeDir = path.join(root, 'home')
+  const configPath = path.join(homeDir, '.openclaw', 'openclaw.json')
+  await fsp.mkdir(path.dirname(configPath), { recursive: true })
+  await fsp.writeFile(configPath, JSON.stringify({ agents: { defaults: { workspace: '/keep', custom: 7, model: { primary: 'old/model', reasoning: 'high' }, models: { 'old/model': { alias: 'Old', temperature: 0.2 } } }, named: { keep: true } }, untouched: 42 }))
+  const manager = createAgentConfigManager({ homeDir })
+  assert.deepEqual(await manager.getOpenClawDefaultModel(), { primary: 'old/model', fallbacks: [], reasoning: 'high' })
+  assert.deepEqual(await manager.getOpenClawModelCatalog(), { 'old/model': { alias: 'Old', temperature: 0.2 } })
+
+  await manager.setOpenClawDefaultModel({ primary: 'new/model', fallbacks: ['backup/model', 'backup/model'], reasoning: 'medium' })
+  await manager.setOpenClawModelCatalog({ 'new/model': { alias: 'New', custom: { tier: 1 } }, 'backup/model': {} })
+  let config = JSON.parse(await fsp.readFile(configPath, 'utf8'))
+  assert.equal(config.agents.defaults.workspace, '/keep')
+  assert.equal(config.agents.defaults.custom, 7)
+  assert.deepEqual(config.agents.named, { keep: true })
+  assert.equal(config.untouched, 42)
+  assert.deepEqual(config.agents.defaults.model.fallbacks, ['backup/model'])
+  assert.equal(config.agents.defaults.models['new/model'].custom.tier, 1)
+
+  await manager.setOpenClawModelCatalog({})
+  config = JSON.parse(await fsp.readFile(configPath, 'utf8'))
+  assert.deepEqual(config.agents.defaults.models, {})
+  assert.equal(config.agents.defaults.workspace, '/keep')
+  await assert.rejects(() => manager.setOpenClawDefaultModel({ primary: '', fallbacks: [] }), /非空字符串/)
+  await assert.rejects(() => manager.setOpenClawModelCatalog({ 'bad/model': { alias: 7 } }), /alias/)
+})
+
+test('reads typed Hermes model config with unknown fields intact', async (t) => {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'ztools-hermes-model-test-'))
+  t.after(() => fsp.rm(root, { recursive: true, force: true }))
+  const homeDir = path.join(root, 'home')
+  const configPath = path.join(homeDir, '.hermes', 'config.yaml')
+  await fsp.mkdir(path.dirname(configPath), { recursive: true })
+  await fsp.writeFile(configPath, 'model:\n  default: claude-4\n  provider: openrouter\n  base_url: https://example.test/v1\n  context_length: 200000\n  max_tokens: 8192\n  future_flag: true\n')
+  const model = await createAgentConfigManager({ homeDir }).getHermesModelConfig()
+  assert.equal(model.provider, 'openrouter')
+  assert.equal(model.context_length, 200000)
+  assert.equal(model.future_flag, true)
+})
+
+test('rejects unsafe OpenClaw trees and symlinked Hermes memory files', async (t) => {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'ztools-agent-config-safety-test-'))
+  t.after(() => fsp.rm(root, { recursive: true, force: true }))
+  const homeDir = path.join(root, 'home')
+  const manager = createAgentConfigManager({ homeDir })
+  await assert.rejects(() => manager.setOpenClawEnv([]), /JSON 对象/)
+  const real = path.join(root, 'real.md')
+  const link = path.join(homeDir, '.hermes', 'memories', 'MEMORY.md')
+  await fsp.mkdir(path.dirname(link), { recursive: true }); await fsp.writeFile(real, 'secret'); await fsp.symlink(real, link)
+  await assert.rejects(() => manager.getHermesMemory('memory'), /非普通文件/)
+})

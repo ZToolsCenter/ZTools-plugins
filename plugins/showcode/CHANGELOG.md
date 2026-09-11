@@ -41,3 +41,8 @@ Showcode ZTools 插件首个发布版本。
 - README 已按当前插件的功能、命令、构建和打包方式重写。
 - 增加上游来源说明，项目基于 [stevebauman/showcode](https://github.com/stevebauman/showcode) 改写。
 - 保留 MIT License 原文，并新增 `UPSTREAM.md` 记录与上游项目的主要差异。
+
+### 根据提交记录补充
+
+- 改用异步文件操作。
+- 记住独立窗口高度。

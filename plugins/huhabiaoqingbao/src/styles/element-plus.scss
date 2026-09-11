@@ -1,0 +1,136 @@
+// Element Plus 全局样式覆盖
+
+// 消息提示样式
+.el-message {
+  right: 20px !important;
+  bottom: 20px !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  position: fixed !important;
+  min-width: 340px !important;
+  max-width: 500px !important;
+  padding: 16px 48px 16px 20px !important;
+  border-radius: 12px !important;
+  border: 1px solid #ebeef5 !important;
+  background: #ffffff !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+  backdrop-filter: blur(8px) !important;
+  color: #303133 !important;
+  z-index: 999999 !important;
+  margin-bottom: 16px !important;
+  align-items: center !important;
+  
+  // 图标样式
+  .el-message__icon {
+    font-size: 18px !important;
+    margin-right: 12px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  // 内容样式
+  .el-message__content {
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+    color: #303133 !important;
+    font-weight: 500 !important;
+    min-width: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .el-message__closeBtn {
+    position: absolute !important;
+    top: 50% !important;
+    right: 18px !important;
+    transform: translateY(-50%) !important;
+    color: #909399 !important;
+    font-size: 16px !important;
+    opacity: 1 !important;
+
+    &:hover {
+      color: #606266 !important;
+    }
+  }
+  
+  // 成功消息样式
+  &.el-message--success {
+    background: #ffffff !important;
+    border-color: #d8f3e7 !important;
+    
+    .el-message__icon {
+      color: #079d6e !important;
+    }
+  }
+  
+  // 错误消息样式
+  &.el-message--error {
+    background: #ffffff !important;
+    border-color: #fde2e2 !important;
+    
+    .el-message__icon {
+      color: #e03737 !important;
+    }
+  }
+  
+  // 警告消息样式
+  &.el-message--warning {
+    background: #ffffff !important;
+    border-color: #faecd8 !important;
+    
+    .el-message__icon {
+      color: #e6a23c !important;
+    }
+  }
+  
+  // 信息消息样式
+  &.el-message--info {
+    background: #ffffff !important;
+    border-color: #d9ecff !important;
+    
+    .el-message__icon {
+      color: #2e6fef !important;
+    }
+  }
+}
+
+// 暗黑模式适配
+html.dark {
+  .el-message {
+    background: #ffffff !important;
+    color: #303133 !important;
+    backdrop-filter: blur(12px) !important;
+    
+    // 所有消息在暗色模式下的通用样式
+    .el-message__content {
+      color: #303133 !important;
+      font-weight: 500 !important;
+    }
+
+    .el-message__closeBtn {
+      color: #909399 !important;
+
+      &:hover {
+        color: #606266 !important;
+      }
+    }
+  }
+}
+
+// 消息确认框样式
+.el-message-box {
+  right: 20px !important;
+  bottom: 20px !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  position: fixed !important;
+  margin: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+  backdrop-filter: blur(8px) !important;
+  
+  // 暗黑模式下的样式
+  html.dark & {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+  }
+} 

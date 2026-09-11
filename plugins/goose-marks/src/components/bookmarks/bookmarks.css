@@ -1,0 +1,236 @@
+@reference "../../assets/index.css";
+
+/**
+ * bookmarks.css —— 书签业务组件样式
+ * --------------------------------------------------------------------------
+ * 旧版各 .vue 组件的 <style scoped> 汇总（去 scoped，靠类名隔离）。React 组件
+ * 顶部 import 本文件一次即可。token 与选择器与旧版保持一致，确保视觉等价。
+ */
+
+/* ====================== SubGroupItem ====================== */
+.subgroup-btn {
+  @apply text-muted-foreground bg-transparent;
+}
+.subgroup-btn--idle:hover {
+  @apply text-foreground;
+  background: var(--compat-muted-hover);
+}
+.subgroup-btn--active {
+  @apply text-background font-medium bg-foreground;
+  box-shadow: 0 2px 8px var(--compat-foreground-hover);
+}
+.dark .subgroup-btn--idle:hover {
+  @apply text-accent-foreground bg-accent;
+}
+.dark .subgroup-btn--active {
+  @apply text-accent-foreground bg-accent;
+  box-shadow: 0 2px 10px var(--compat-foreground-hover);
+}
+.subgroup-btn--drag-over {
+  @apply text-foreground;
+  background: var(--compat-primary-weak);
+  box-shadow: inset 0 0 0 2px var(--compat-primary-border);
+}
+.dark .subgroup-btn--drag-over {
+  @apply text-primary;
+}
+.subgroup-btn:focus,
+.subgroup-btn:focus-visible,
+.subgroup-btn:focus-within,
+.subgroup-btn:active {
+  @apply outline-none;
+  box-shadow: none !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-color: transparent !important;
+}
+
+/* ====================== GroupTabs ====================== */
+.group-tab-btn {
+  @apply text-muted-foreground bg-transparent;
+}
+.group-tab-btn:hover {
+  @apply text-foreground;
+  background: var(--compat-muted-hover);
+}
+.group-tab-btn[data-active='true'] {
+  @apply text-background bg-foreground border-foreground;
+  box-shadow: 0 2px 8px var(--compat-foreground-hover);
+}
+.dark .group-tab-btn:hover {
+  @apply text-accent-foreground bg-accent;
+}
+.dark .group-tab-btn[data-active='true'] {
+  @apply text-primary-foreground bg-primary border-primary;
+  box-shadow: 0 2px 10px var(--compat-primary-shadow);
+}
+.group-action-btn--searching {
+  @apply border-primary text-primary;
+  background: var(--compat-primary-weak);
+}
+.group-action-btn--danger-active {
+  background: var(--compat-danger-soft);
+}
+
+/* ====================== SubGroupNav ====================== */
+.subgroup-nav-item--idle {
+  @apply text-muted-foreground;
+}
+.subgroup-nav-item--idle:hover {
+  @apply text-foreground;
+  background: var(--compat-muted-weak);
+}
+.dark .subgroup-nav-item--idle:hover {
+  background: var(--compat-muted-weak);
+}
+.subgroup-nav-item--active {
+  @apply text-foreground font-medium;
+  background: var(--compat-muted);
+}
+.dark .subgroup-nav-item--active {
+  background: var(--compat-muted);
+}
+.subgroup-nav-item--active::before {
+  @apply content-[''] absolute left-0 top-1/2 -translate-y-1/2 bg-primary;
+  width: 2px;
+  height: 14px;
+  border-radius: 0 2px 2px 0;
+}
+
+/* ====================== SubGroupSidebar ====================== */
+.group-nav-item--idle {
+  @apply text-muted-foreground;
+}
+.group-nav-item--idle:hover {
+  @apply text-foreground;
+  background: var(--compat-muted-weak);
+}
+.dark .group-nav-item--idle:hover {
+  background: var(--compat-muted-weak);
+}
+.group-nav-item--active {
+  @apply text-foreground font-medium;
+  background: var(--compat-muted);
+}
+.dark .group-nav-item--active {
+  background: var(--compat-muted);
+}
+.group-nav-item--active::before {
+  @apply content-[''] absolute left-0 top-1/2 -translate-y-1/2 bg-primary;
+  width: 2px;
+  height: 14px;
+  border-radius: 0 2px 2px 0;
+}
+
+/* hide scrollbar helper for module asides */
+.bm-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.bm-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ====================== BookmarksList ====================== */
+.bookmark-list-item:hover {
+  background: var(--compat-muted);
+}
+.dark .bookmark-list-item:hover {
+  background: var(--compat-muted);
+}
+.bookmark-list-item.is-selected {
+  background: var(--compat-primary-weak);
+  box-shadow: inset 0 0 0 1px var(--compat-primary-border);
+}
+.dark .bookmark-list-item.is-selected {
+  background: var(--compat-primary-soft);
+  box-shadow: inset 0 0 0 1px var(--compat-primary-border);
+}
+.bookmark-list-item.is-selected:hover {
+  background: var(--compat-primary-soft);
+}
+.dark .bookmark-list-item.is-selected:hover {
+  background: var(--compat-primary-soft);
+}
+.bookmark-list-item.bookmark-card-item:hover {
+  background: var(--compat-muted-weak);
+}
+.dark .bookmark-list-item.bookmark-card-item:hover {
+  background: var(--compat-muted-weak);
+}
+.bookmark-list-item.bookmark-card-item.is-selected {
+  background: var(--compat-primary-weak);
+  box-shadow: 0 0 0 1px var(--compat-primary-border), 0 1px 3px var(--compat-primary-shadow-weak);
+  border-color: var(--compat-primary-border);
+}
+.dark .bookmark-list-item.bookmark-card-item.is-selected {
+  background: var(--compat-primary-soft);
+  box-shadow: 0 0 0 1px var(--compat-primary-border), 0 1px 3px var(--compat-primary-shadow);
+  border-color: var(--compat-primary-border);
+}
+.bookmark-list-item.bookmark-card-item.is-selected:hover {
+  background: var(--compat-primary-soft);
+}
+.dark .bookmark-list-item.bookmark-card-item.is-selected:hover {
+  background: var(--compat-primary-soft);
+}
+
+/* ====================== BookmarksGrid (drag states) ====================== */
+.bookmark-drag-ghost {
+  opacity: 0.4;
+  background: var(--compat-primary-weak);
+  border-radius: var(--radius-xl);
+  border: 2px dashed var(--compat-primary-border) !important;
+}
+.bookmark-drag-chosen {
+  opacity: 1;
+  transform: scale(1.03) rotate(1deg);
+  filter: drop-shadow(0 12px 40px var(--compat-primary-shadow));
+  z-index: 100;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border-radius: var(--radius-xl);
+  @apply bg-transparent;
+}
+.bookmark-card-wrapper {
+  transition: transform 0.2s ease;
+}
+.bookmark-add-card:hover {
+  background: var(--compat-primary-weak);
+}
+
+/* ====================== SearchOverlay ====================== */
+.search-overlay {
+  background: rgba(250, 249, 245, .96);
+}
+.dark .search-overlay {
+  background: rgba(38, 38, 36, .96);
+}
+
+/* ====================== BookmarkCard ====================== */
+.bookmark-card--selected {
+  border-color: var(--compat-primary-border);
+  background: var(--compat-primary-weak);
+  box-shadow: 0 4px 16px var(--compat-primary-shadow-weak), 0 0 0 1px var(--compat-primary-border);
+}
+.bookmark-card--selected-search {
+  border-color: var(--compat-primary-border);
+  background: var(--compat-primary-weak);
+  box-shadow: 0 4px 12px var(--compat-primary-shadow-weak), 0 0 0 1px var(--compat-primary-border);
+}
+.dark .bookmark-card--hoverable:hover {
+  @apply bg-card;
+}
+.bookmark-card__locate-btn:hover {
+  background-color: var(--compat-foreground-hover) !important;
+}
+@keyframes snake-border {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -1000;
+  }
+}
+.animate-snake-border {
+  animation: snake-border 3s linear infinite;
+}

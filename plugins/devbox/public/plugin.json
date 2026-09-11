@@ -3,9 +3,9 @@
   "name": "devbox",
   "title": "开发百宝箱",
   "categories": ["development"],
-  "description": "开发百宝箱，提供随机生成、编码转换、文本压缩、开发辅助等常用工具集",
+  "description": "开发百宝箱，提供随机生成、编码转换、文本压缩、文本转换、JSON 工具、开发辅助等常用工具集",
   "author": "咖啡八杯",
-  "version": "2.3.3",
+  "version": "2.5.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
@@ -78,6 +78,18 @@
       "explain": "将多行文本中的换行、制表符、多余空格压缩为一个空格，支持移除 SQL 注释",
       "icon": "logo.png",
       "cmds": ["压缩文本", "文本压缩", "compress", "textcompress", "去换行", "压缩", "sql压缩"]
+    },
+    {
+      "code": "texttransform",
+      "explain": "多行与单行文本互转，支持自定义分隔符和包裹符，每行加引号/逗号合并或按分隔符拆分",
+      "icon": "logo.png",
+      "cmds": ["文本转换", "多行转一行", "一行转多行", "合并行", "拆分行", "texttransform", "加引号", "行转换"]
+    },
+    {
+      "code": "jsontool",
+      "explain": "JSON 工具，支持编辑、格式化、压缩、转义与去转义、删除注释、字段排序，能自动识别并解析被转义的 JSON 字符串，带语法高亮和树形查看",
+      "icon": "logo.png",
+      "cmds": ["json", "JSON", "json工具", "JSON工具", "json格式化", "json解析", "格式化json", "json压缩", "json转义", "json校验"]
     }
   ]
 }

@@ -1,0 +1,22 @@
+<html>
+    <head>
+        <title>插件1</title>
+    </head>
+    <body>
+        <h1>插件1</h1>
+        <div id="app-list"></div>
+    </body>
+    <script>
+        console.log(window.api)
+        // 调用主进程API
+        window.api.getApps().then(apps => {
+            console.log(apps);
+            const appList = document.getElementById('app-list');
+            apps.forEach(app => {
+                const appItem = document.createElement('div');
+                appItem.textContent = app.name;
+                appList.appendChild(appItem);
+            })
+        })
+    </script>
+</html>

@@ -34,7 +34,6 @@ export function useEverything({ runSearch }: UseEverythingProps) {
     everythingPending,
     everythingReady,
     ensureEverythingReady,
-    startEverythingStatusPolling,
     stopEverythingStatusPolling,
   };
 }

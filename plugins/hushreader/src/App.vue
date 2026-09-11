@@ -25,6 +25,8 @@ type AppBrowserWindow = {
   setSize?: (width: number, height: number) => void
   setContentSize?: (width: number, height: number) => void
   setContentBounds?: (bounds: HushreaderBounds) => void
+  setBounds?: (bounds: HushreaderBounds) => void
+  setResizable?: (flag: boolean) => void
   setPosition?: (x: number, y: number) => void
   setAlwaysOnTop?: (flag: boolean) => void
   moveTop?: () => void
@@ -97,9 +99,22 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(safeMax, Math.max(safeMin, Math.round(safeValue)))
 }
 
-function getWorkArea() {
+// 工作区（显示器可用区域）缓存：拖动/缩放预览期间不反复走
+// ztools.getPrimaryDisplay() 的 IPC，改为短 TTL 缓存，避免每帧一次跨进程查询。
+const WORK_AREA_CACHE_MS = 1000
+let cachedWorkArea: HushreaderBounds | null = null
+let cachedWorkAreaAt = 0
+
+function getWorkArea(): HushreaderBounds {
+  const now = Date.now()
+  if (cachedWorkArea && now - cachedWorkAreaAt < WORK_AREA_CACHE_MS) {
+    return cachedWorkArea
+  }
   const display = (window as any).ztools?.getPrimaryDisplay?.()
-  return display?.workArea ?? { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }
+  const area: HushreaderBounds = display?.workArea ?? { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }
+  cachedWorkArea = area
+  cachedWorkAreaAt = now
+  return area
 }
 
 function getHushreaderSizeLimits() {
@@ -227,13 +242,25 @@ function getHushreaderPayload(bounds = getHushreaderWindowBounds()) {
   }
 }
 
+// 更新隐阅窗口的位置/尺寸。
+// 关键：每帧（拖动/缩放预览）只发 1 次窗口调用，避免多方法冗余调用。
+// ztools.createBrowserWindow 返回的 Proxy<BrowserWindow> 每个方法都是一次跨进程 IPC，
+// 原来连调 setContentBounds / setContentSize / setSize / setPosition 四个方法（它们互相
+// 冗余，setBounds 本来就同时携带位置与尺寸），导致拖动/缩放时每帧多次 IPC 往返、严重不跟手。
+// 阅读窗每帧只发 1 条消息，主窗口只 setBounds 1 次。
+// 窗口为无边框(frame:false)+无阴影，窗口 bounds 与内容 bounds 一致，单次 setBounds 即可。
 function applyHushreaderWindowBounds(bounds: HushreaderBounds, positionOnly = false) {
   if (!hushreaderWindow || hushreaderWindow.isDestroyed?.()) return
   hushreaderWindowAnchor = { x: bounds.x, y: bounds.y }
-  hushreaderWindow.setContentBounds?.(bounds)
-  hushreaderWindow.setContentSize?.(bounds.width, bounds.height)
-  hushreaderWindow.setSize?.(bounds.width, bounds.height)
-  hushreaderWindow.setPosition?.(bounds.x, bounds.y)
+  const rect: HushreaderBounds = { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+  if (hushreaderWindow.setBounds) {
+    hushreaderWindow.setBounds(rect)
+  } else if (hushreaderWindow.setContentBounds) {
+    hushreaderWindow.setContentBounds(rect)
+  } else {
+    hushreaderWindow.setSize?.(bounds.width, bounds.height)
+    hushreaderWindow.setPosition?.(bounds.x, bounds.y)
+  }
   if (!positionOnly) {
     hushreaderWindow.setAlwaysOnTop?.(true)
     hushreaderWindow.setSkipTaskbar?.(true)
@@ -314,6 +341,7 @@ function ensureHushreaderWindow(options?: { skipShow?: boolean }) {
       focusable: true,
       acceptFirstMouse: true,
       alwaysOnTop: true,
+      useContentSize: true,
       webPreferences: {
         devTools: false,
         zoomFactor: 1,
@@ -779,6 +807,15 @@ onMounted(async () => {
   await configStore.load()
   await bookStore.load()
     ; (window as any).ztools?.onPluginEnter?.((action: any) => {
+      if (action?.code === 'hushreader-close') {
+        saveReadingProgress()
+        hushreaderActivated.value = false
+        stopReadingTimer()
+        hushreaderWindow?.close?.()
+        hushreaderWindow = null
+        try { (window as any).ztools?.outPlugin?.() } catch { }
+        return
+      }
       route.value = action.code
       enterAction.value = action
     })

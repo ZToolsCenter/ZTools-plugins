@@ -1,0 +1,134 @@
+.shortcut-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 150ms var(--ease-out);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.shortcut-panel {
+  background: var(--paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-6);
+  min-width: 420px;
+  max-width: 520px;
+  box-shadow: var(--shadow-lg);
+}
+
+.shortcut-panel h3 {
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: var(--sp-4);
+}
+
+.shortcut-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-6);
+}
+
+.shortcut-section h4 {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--graphite);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--sp-3);
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-1) 0;
+}
+
+.shortcut-label {
+  font-size: var(--font-size-sm);
+  color: var(--ink);
+}
+
+.shortcut-keys {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.shortcut-key {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--graphite);
+  background: var(--color-background-light);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+.gesture-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+}
+
+.gesture-icon {
+  width: 20px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.gesture-icon.complete {
+  background: rgba(22, 163, 74, 0.15);
+  color: var(--color-success);
+}
+
+.gesture-icon.delete {
+  background: rgba(220, 38, 38, 0.15);
+  color: var(--color-danger);
+}
+
+.gesture-icon.edit {
+  background: var(--teal-muted);
+  color: var(--teal);
+}
+
+.gesture-icon.drag {
+  background: rgba(79, 70, 229, 0.15);
+  color: var(--indigo);
+}
+
+.gesture-label {
+  font-size: var(--font-size-sm);
+  color: var(--ink);
+}
+
+.shortcut-panel-close {
+  margin-top: var(--sp-4);
+  text-align: right;
+}
+
+.shortcut-panel-close button {
+  font-size: var(--font-size-xs);
+  color: var(--clay);
+  padding: var(--sp-1) var(--sp-2);
+}
+
+.shortcut-panel-close button:hover {
+  color: var(--ink);
+}

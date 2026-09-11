@@ -1,0 +1,8 @@
+node_modules/
+.idea/
+*.log
+.DS_Store
+*.zpx
+dist/
+# 旧插件目录，被 ZTools 占用暂无法删除，删除后可移除此行
+src-ztools/

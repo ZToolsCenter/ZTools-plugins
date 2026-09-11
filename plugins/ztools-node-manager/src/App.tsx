@@ -399,7 +399,7 @@ const App: React.FC = () => {
             </div>
             <div className="banner">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-              <span>Node 版本切换功能依赖 <strong>nvm-windows</strong>。请确保已安装并具有管理员权限。</span>
+              <span>Node 版本管理功能依赖 <strong>nvm</strong> (Windows 请安装 nvm-windows, macOS 请安装 nvm/n/fnm)。请确保环境已就绪。</span>
             </div>
 
             <div className="sub-heading">已安装版本</div>

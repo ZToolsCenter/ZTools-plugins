@@ -1,9 +1,18 @@
 import { computed, ref, watch } from "vue";
-import { DEFAULT_CATEGORIES, type FinderCategory } from "../core/finderLogic";
+import {
+  DEFAULT_CATEGORIES,
+  type FinderCategory,
+  getNextCyclicCategory,
+  normalizeCategoryOrder,
+  reorderArray,
+} from "../core/finderLogic";
 import { usePersistStorage } from "./usePersistStorage";
 
 const activeCategoryId = ref("all");
 const {
+  categoryOrder,
+  setCategoryOrder,
+  resetCategoryOrder,
   customCategories,
   addCustomCategory,
   updateCustomCategory,
@@ -12,12 +21,22 @@ const {
   setCategoryEnabled,
 } = usePersistStorage();
 
-const allCategories = computed(() =>
-  [...DEFAULT_CATEGORIES, ...customCategories.value].map((category) => ({
-    ...category,
-    enabled: isCategoryEnabled(category.id),
-  })),
-);
+const allCategories = computed(() => {
+  const allCategoryList = [...DEFAULT_CATEGORIES, ...customCategories.value];
+  const allCategoryMap = new Map(allCategoryList.map((cat) => [cat.id, cat]));
+  const orderedIds = normalizeCategoryOrder(
+    categoryOrder.value,
+    allCategoryList.map((c) => c.id),
+  );
+
+  return orderedIds
+    .map((id) => allCategoryMap.get(id))
+    .filter((category): category is FinderCategory => Boolean(category))
+    .map((category) => ({
+      ...category,
+      enabled: isCategoryEnabled(category.id),
+    }));
+});
 const enabledCategories = computed(() =>
   allCategories.value.filter((category) => category.enabled),
 );
@@ -38,6 +57,9 @@ export function useFinderCategories() {
     allCategories,
     selectCategory,
     resetActiveCategory,
+    cycleCategory,
+    handleReorderCategories,
+    handleResetCategoryOrder,
     handleAddCustomCategory,
     handleUpdateCustomCategory,
     handleRemoveCustomCategory,
@@ -49,8 +71,35 @@ function selectCategory(category: FinderCategory) {
   activeCategoryId.value = category.id;
 }
 
+function cycleCategory(direction: -1 | 1) {
+  const next = getNextCyclicCategory(enabledCategories.value, activeCategoryId.value, direction);
+  if (next) {
+    selectCategory(next);
+  }
+}
+
 function resetActiveCategory() {
   activeCategoryId.value = "all";
+}
+
+function handleReorderCategories(fromIndex: number, toIndex: number) {
+  if (fromIndex === toIndex) return;
+  const currentIds = allCategories.value.map((c) => c.id);
+  const newOrder = reorderArray(currentIds, fromIndex, toIndex);
+  try {
+    setCategoryOrder(newOrder);
+  } catch (error) {
+    console.warn("[local-search-neo] 保存分组顺序失败:", error);
+  }
+}
+
+function handleResetCategoryOrder() {
+  try {
+    const allIds = [...DEFAULT_CATEGORIES, ...customCategories.value].map((c) => c.id);
+    resetCategoryOrder(allIds);
+  } catch (error) {
+    console.warn("[local-search-neo] 重置分组顺序失败:", error);
+  }
 }
 
 function handleAddCustomCategory(input: Pick<FinderCategory, "label" | "rule">) {

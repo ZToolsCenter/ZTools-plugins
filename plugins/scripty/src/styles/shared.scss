@@ -1,0 +1,218 @@
+// Cross-component shared classes used by 2+ views. Kept global (not scoped) so the
+// same class works in every component that references it. Migrated 1:1 from main.css.
+
+/* ----- view content wrapper ----- */
+.view-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: 36px;
+  overflow-y: auto;
+}
+
+/* Tree-view branch fills the scripts view and scrolls internally instead of the view-body. */
+.view-body--tree {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 20px;
+  overflow: hidden;
+}
+
+/* ----- section heading (used by 8 views) ----- */
+.section-heading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 0 20px;
+}
+
+.section-heading h2,
+.empty-state h3 {
+  margin: 0;
+}
+
+.section-heading p {
+  display: none;
+}
+
+/* ----- view toolbar (TasksView / HistoryView / DependenciesView) ----- */
+.view-toolbar {
+  flex: 0 0 auto;
+  padding-top: 24px;
+}
+
+.view-toolbar .section-heading {
+  /* .view-toolbar already applies the 24px top padding, so reset it here to avoid double spacing. */
+  padding-top: 0;
+  padding-bottom: 8px;
+}
+
+.view-toolbar .task-filters,
+.view-toolbar .history-filters {
+  margin-bottom: 0;
+}
+
+/* ----- action clusters (shared by several views' toolbars, rows, and drawers) ----- */
+.section-heading__actions,
+.task-row__actions,
+.drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawer-actions {
+  justify-content: flex-end;
+}
+
+/* ----- script row actions (ScriptsView tree suffix + DependenciesView rows) ----- */
+.script-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ----- managed-copy notice (ScriptsView + DependenciesView) ----- */
+.managed-copy-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--info-light-bg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ----- task form (TasksView + EnvironmentsView) ----- */
+.task-form {
+  display: grid;
+  gap: 18px;
+  padding: 4px;
+}
+
+.task-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.task-form__switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+}
+
+/* ----- generic task message (TasksView + HistoryView) ----- */
+.task-message {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* ----- form layout shared by DependenciesView (.dependency-form) and ScriptsView (.path-form) ----- */
+.dependency-form,
+.path-form {
+  display: grid;
+  width: min(440px, calc(100vw - 80px));
+  gap: 16px;
+  padding: 22px;
+}
+
+.dependency-form h3,
+.path-form h3 {
+  margin: 0;
+}
+
+.dependency-form label,
+.path-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* ----- backup preview heading + summary (BackupView + HistoryView detail drawer) ----- */
+.backup-preview__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.backup-preview__heading h3,
+.backup-preview__heading p {
+  margin: 0;
+}
+
+.backup-preview__heading p {
+  margin-top: 6px;
+  color: var(--text-secondary);
+}
+
+.backup-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.backup-summary div {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.backup-summary dt {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.backup-summary dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+}
+
+/* ----- empty state (App.vue fallback + 6 views) ----- */
+.empty-state--compact {
+  min-height: 260px;
+}
+
+.empty-state {
+  display: flex;
+  min-height: 360px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.empty-state__mark {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 20px;
+  place-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  background: var(--card-bg);
+  color: var(--primary-color);
+  font-size: 24px;
+  font-weight: 700;
+  box-shadow: 0 10px 30px var(--shadow-color);
+}
+
+.empty-state h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+
+.empty-state p {
+  max-width: 480px;
+  margin: 0 0 24px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}

@@ -8,6 +8,7 @@ import {
   ChevronsUpDown,
   Clipboard,
   Crop,
+  Download,
   FileArchive,
   FileImage,
   FilePlus2,
@@ -20,6 +21,7 @@ import {
   Loader2,
   PanelRight,
   RotateCcw,
+  ScanLine,
   Scissors,
   Settings2,
   SquareRoundCorner,
@@ -33,6 +35,8 @@ import type {
   ImageJobSettings,
   MergeImagesOptions,
   ProcessResult,
+  SharpRuntimeProgress,
+  SharpRuntimeStatus,
   SourceFile,
   WatermarkPosition
 } from "../shared/types";
@@ -89,7 +93,7 @@ const outputNamingOptions = [
 const compressionPresets = [
   { value: "small", label: "小文件", description: "60" },
   { value: "balanced", label: "均衡", description: "82" },
-  { value: "clear", label: "清晰", description: "94" }
+  { value: "clear", label: "清晰", description: "88" }
 ];
 
 const resizePresets = [
@@ -152,7 +156,23 @@ const defaultGif: GifOptions = {
   background: "#ffffff"
 };
 
+function rendererHostIsSupported() {
+  if (!window.ztools) return true;
+  try {
+    return window.services?.hostCompatibility?.().supported === true;
+  } catch {
+    return false;
+  }
+}
+
 export function App() {
+  if (!rendererHostIsSupported()) {
+    return <main className="app-shell"><section className="workspace"><p className="dropdown-empty">当前 ZTools 版本过低或无法识别（最低支持 2.4.0）。为了获得更完整、稳定的体验，请升级后再使用图片批处理。</p></section></main>;
+  }
+  return <ImageBatchWorkbench />;
+}
+
+function ImageBatchWorkbench() {
   const [files, setFiles] = useState<SourceFile[]>([]);
   const [active, setActive] = useState<ModuleId>("compress");
   const [selectedPath, setSelectedPath] = useState<string>("");
@@ -168,6 +188,13 @@ export function App() {
   const [dropActive, setDropActive] = useState(false);
   const [showFileTray, setShowFileTray] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [runtimeStatus, setRuntimeStatus] = useState<SharpRuntimeStatus>({
+    state: "checking",
+    version: "",
+    target: "",
+    downloadBytes: 0
+  });
+  const [runtimeProgress, setRuntimeProgress] = useState<SharpRuntimeProgress | undefined>();
 
   const imageFiles = useMemo(() => files.filter((file) => file.type === "image"), [files]);
   const pdfFiles = useMemo(() => files.filter((file) => file.type === "pdf"), [files]);
@@ -188,11 +215,28 @@ export function App() {
       const custom = event as CustomEvent<{ completed: number; total: number }>;
       setProgress(`${custom.detail.completed}/${custom.detail.total}`);
     };
+    const onRuntimeProgress = (event: Event) => {
+      const custom = event as CustomEvent<SharpRuntimeProgress>;
+      setRuntimeProgress(custom.detail);
+      setRuntimeStatus((current) => ({ ...current, state: "installing", error: undefined }));
+    };
+    const onRuntimeStatus = (event: Event) => {
+      const custom = event as CustomEvent<SharpRuntimeStatus>;
+      setRuntimeStatus(custom.detail);
+      if (custom.detail.state !== "installing") setRuntimeProgress(undefined);
+    };
     window.addEventListener("image-batch-enter", onEnter);
     window.addEventListener("image-batch-progress", onProgress);
+    window.addEventListener("image-batch-runtime-progress", onRuntimeProgress);
+    window.addEventListener("image-batch-runtime-status", onRuntimeStatus);
+    window.services?.runtimeStatus?.().then(setRuntimeStatus).catch((error) => {
+      setRuntimeStatus((current) => ({ ...current, state: "error", error: errorMessage(error) }));
+    });
     return () => {
       window.removeEventListener("image-batch-enter", onEnter);
       window.removeEventListener("image-batch-progress", onProgress);
+      window.removeEventListener("image-batch-runtime-progress", onRuntimeProgress);
+      window.removeEventListener("image-batch-runtime-status", onRuntimeStatus);
     };
   }, []);
 
@@ -222,7 +266,38 @@ export function App() {
   }
 
   async function chooseFiles() {
-    addFiles(await window.services.chooseFiles());
+    try {
+      addFiles(await window.services.chooseFiles());
+    } catch (error) {
+      notify(errorMessage(error));
+    }
+  }
+
+  async function captureScreen() {
+    try { addFiles(await window.services.captureScreen()); }
+    catch (error) { notify(errorMessage(error)); }
+  }
+
+  async function dragResult(event: React.DragEvent, outputPath: string) {
+    event.preventDefault();
+    try { await window.services.startDrag(outputPath); }
+    catch (error) { notify(errorMessage(error)); }
+  }
+
+  async function installRuntime() {
+    setRuntimeStatus((current) => ({ ...current, state: "installing", error: undefined }));
+    try {
+      const status = await window.services.installRuntime();
+      setRuntimeStatus(status);
+      if (status.state === "ready") notify("图像运行组件已安装");
+      else notify(status.error || "图像运行组件安装失败");
+    } catch (error) {
+      const message = errorMessage(error);
+      setRuntimeStatus((current) => ({ ...current, state: "error", error: message }));
+      notify(message);
+    } finally {
+      setRuntimeProgress(undefined);
+    }
   }
 
   async function chooseOutputDirectory() {
@@ -233,11 +308,17 @@ export function App() {
   }
 
   async function chooseWatermarkImage() {
-    const imagePath = await window.services.chooseWatermarkImage();
-    if (imagePath) {
+    const selected = await window.services.chooseWatermarkImage();
+    if (selected) {
       setSettings((current) => ({
         ...current,
-        watermark: { ...current.watermark!, enabled: true, kind: "image", imagePath }
+        watermark: {
+          ...current.watermark!,
+          enabled: true,
+          kind: "image",
+          imagePath: selected.imagePath,
+          previewUrl: selected.previewUrl
+        }
       }));
     }
   }
@@ -248,7 +329,11 @@ export function App() {
     const paths = Array.from(event.dataTransfer.files)
       .map((file) => window.services.getPathForFile(file))
       .filter(Boolean);
-    addFiles(await window.services.resolveFiles(paths));
+    try {
+      addFiles(await window.services.resolveFiles(paths));
+    } catch (error) {
+      notify(errorMessage(error));
+    }
   }
 
   async function processSelectedImageModule() {
@@ -385,14 +470,14 @@ export function App() {
   }
 
   function applyCompressionPreset(value: string) {
-    const quality = value === "small" ? 60 : value === "clear" ? 94 : 82;
+    const quality = value === "small" ? 60 : value === "clear" ? 88 : 82;
     updateSettings({ compression: { ...settings.compression, quality } });
   }
 
   function activeCompressionPreset() {
     const quality = settings.compression?.quality ?? 82;
     if (quality <= 66) return "small";
-    if (quality >= 90) return "clear";
+    if (quality >= 86) return "clear";
     return "balanced";
   }
 
@@ -489,6 +574,7 @@ export function App() {
               <FilePlus2 size={16} />
               导入
             </button>
+            {window.services.canCaptureScreen() && <button onClick={captureScreen} title="截图导入（ZTools 3.2.0）"><ScanLine size={16} />截图</button>}
             <button onClick={clearFiles} title="清空列表">
               <Trash2 size={16} />
             </button>
@@ -556,7 +642,7 @@ export function App() {
                   <div className="dropdown-empty">{busy ? "等待输出..." : "暂无结果"}</div>
                 ) : (
                   results.map((result) => (
-                    <button key={`${result.inputPath}-${result.outputPath}`} className="result-row" onClick={() => result.outputPath && window.services.reveal(result.outputPath)}>
+                    <button key={`${result.inputPath}-${result.outputPath}`} className="result-row" draggable={Boolean(result.outputPath && window.services.canStartDrag())} onDragStart={(event) => result.outputPath && void dragResult(event, result.outputPath)} onClick={() => result.outputPath && window.services.reveal(result.outputPath)}>
                       {result.ok ? <Check size={14} /> : <PanelRight size={14} />}
                       <span>{result.ok ? basename(result.outputPath) : result.error}</span>
                     </button>
@@ -577,7 +663,11 @@ export function App() {
                   onChange={(crop) => updateSettings({ crop })}
                 />
               ) : selectedFile ? (
-                <img className="preview-image" src={window.services.fileUrl(selectedFile.path)} alt="" />
+                <img
+                  className="preview-image"
+                  src={selectedFile.previewUrl || window.services.fileUrl(selectedFile.path)}
+                  alt=""
+                />
               ) : (
                 <div className="preview-empty">
                   <ImagePlus size={34} />
@@ -601,6 +691,27 @@ export function App() {
                 <span>{successfulResults} 输出</span>
               </div>
             </div>
+          </div>
+          <div className={`runtime-status runtime-status--${runtimeStatus.state}`}>
+            <span className="runtime-dot" aria-hidden="true" />
+            <div className="runtime-copy">
+              <strong>{runtimeStatusLabel(runtimeStatus)}</strong>
+              <small>
+                {runtimeStatus.state === "installing"
+                  ? `${runtimeProgress?.percent ?? 0}%`
+                  : runtimeStatus.error || runtimeStatus.target}
+              </small>
+            </div>
+            {runtimeStatus.state === "installing" ? (
+              <div className="runtime-progress" aria-label="运行组件下载进度">
+                <span style={{ width: `${runtimeProgress?.percent ?? 0}%` }} />
+              </div>
+            ) : runtimeStatus.state !== "ready" && runtimeStatus.state !== "checking" && runtimeStatus.state !== "unsupported" ? (
+              <button className="runtime-install-button" onClick={installRuntime}>
+                <Download size={14} />
+                {formatBytes(runtimeStatus.downloadBytes)}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -631,6 +742,11 @@ export function App() {
                   })
                 }
               />
+              {(settings.compression?.quality ?? 82) > 90 && (
+                <div className="panel-tip warning">
+                  质量高于 90 时高频细节开销激增，压缩后文件体积可能反而增大，建议设为 75~88。
+                </div>
+              )}
               <Toggle
                 label="保留元数据"
                 checked={Boolean(settings.compression?.keepMetadata ?? settings.format?.keepMetadata)}
@@ -1015,7 +1131,7 @@ function ManualCropEditor({
     <div ref={stageRef} className="crop-stage" onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
       <img
         ref={imgRef}
-        src={window.services.fileUrl(file.path)}
+        src={file.previewUrl || window.services.fileUrl(file.path)}
         alt=""
         draggable={false}
         onDragStart={(event) => event.preventDefault()}
@@ -1168,4 +1284,18 @@ function notify(message: string) {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function formatBytes(bytes: number) {
+  if (!bytes) return "安装";
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function runtimeStatusLabel(status: SharpRuntimeStatus) {
+  if (status.state === "checking") return "检查运行组件";
+  if (status.state === "installing") return "安装运行组件";
+  if (status.state === "ready") return `运行组件 ${status.version}`;
+  if (status.state === "unsupported") return "当前平台不支持";
+  if (status.state === "error") return "运行组件异常";
+  return "需要运行组件";
 }

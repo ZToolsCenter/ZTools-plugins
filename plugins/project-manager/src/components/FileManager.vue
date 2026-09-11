@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, watch, onBeforeUnmount, nextTick, useTemplateRef } from 'vue';
 import type { Project, ProjectFileEntry } from '../types';
 import { useProjectStore } from '../stores/project';
 import { api } from '../api';
@@ -32,12 +32,12 @@ const browsingEntry = ref<ProjectFileEntry | null>(null);
 const contextMenuVisible = ref(false);
 const contextMenuStyle = ref({ left: '0px', top: '0px' });
 const contextMenuTarget = ref<{ path: string; name: string; isDirectory: boolean; isRootEntry?: boolean; entry?: ProjectFileEntry } | null>(null);
-const contextMenuRef = ref<HTMLElement | null>(null);
+const contextMenuRef = useTemplateRef<HTMLElement>('contextMenuRef');
 
 // File preview
 const previewVisible = ref(false);
 const previewFile = ref<{ name: string; path: string; content: string; type: 'image' | 'text' | 'unsupported' } | null>(null);
-const fileListContainerRef = ref<HTMLElement | null>(null);
+const fileListContainerRef = useTemplateRef<HTMLElement>('fileListContainerRef');
 const showBackToTop = ref(false);
 const BACK_TO_TOP_THRESHOLD = 480;
 
@@ -570,19 +570,19 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
 </script>
 
 <template>
-    <div class="absolute inset-0 flex flex-col bg-slate-50 dark:bg-[#0f172a] overflow-hidden">
+    <div class="app-page absolute inset-0">
         <!-- Toolbar -->
-        <div class="border-b border-slate-200 dark:border-slate-700/20 bg-white dark:bg-[#1e293b] shrink-0">
+        <div class="app-panel-toolbar shrink-0">
             <div class="flex items-center justify-between px-3 py-1.5 gap-3">
                 <div class="flex items-center gap-2 min-w-0">
                     <button v-if="browsingEntry" @click="navigateToRoot"
                         class="file-toolbar-icon-btn">
                         <div class="i-mdi-arrow-left text-sm" />
                     </button>
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0">
+                    <span class="app-text-meta font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0">
                         {{ t('fileManager.title') }}
                     </span>
-                    <span class="hidden xl:block text-[11px] text-slate-400 dark:text-slate-500 truncate">
+                    <span class="hidden xl:block app-text-meta text-slate-400 dark:text-slate-500 truncate">
                         {{ t('fileManager.interactionHint') }}
                     </span>
                 </div>
@@ -625,16 +625,16 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
         </div>
 
         <!-- Breadcrumbs (when browsing into a directory) -->
-        <div v-if="browsingEntry" class="flex items-center gap-1 px-3 py-1 border-b border-slate-200 dark:border-slate-700/20 bg-slate-50/80 dark:bg-[#0f172a] text-xs overflow-x-auto shrink-0">
-            <button @click="navigateToRoot" class="text-blue-500 hover:text-blue-600 dark:hover:text-blue-300 hover:underline">
+        <div v-if="browsingEntry" class="file-breadcrumb">
+            <button @click="navigateToRoot" class="file-breadcrumb-link">
                 {{ t('fileManager.root') }}
             </button>
             <template v-for="(crumb, i) in breadcrumbs" :key="i">
                 <span class="text-slate-400">/</span>
                 <button
                     @click="navigateToBreadcrumb(i)"
-                    class="cursor-pointer hover:underline"
-                    :class="i === breadcrumbs.length - 1 ? 'text-slate-600 dark:text-slate-300 font-medium' : 'text-blue-500 hover:text-blue-700 dark:hover:text-blue-300'">
+                    class="file-breadcrumb-link"
+                    :class="{ 'file-breadcrumb-link-active': i === breadcrumbs.length - 1 }">
                     {{ crumb.name }}
                 </button>
             </template>
@@ -656,7 +656,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                 <div v-else-if="searchResults.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
                     <div class="i-mdi-magnify text-5xl mb-3 opacity-20" />
                     <p class="text-sm">{{ t('fileManager.noResults') }}</p>
-                    <p class="text-xs opacity-50 mt-1">{{ t('fileManager.noResultsHint') }}</p>
+                    <p class="app-text-meta mt-1 text-slate-500 dark:text-slate-400">{{ t('fileManager.noResultsHint') }}</p>
                 </div>
 
                 <template v-else-if="viewMode === 'list'">
@@ -669,8 +669,8 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                     >
                         <div :class="getFileIcon(result)" class="text-sm flex-shrink-0" />
                         <div class="flex-1 min-w-0">
-                            <p class="text-[13px] text-slate-700 dark:text-slate-200 truncate leading-tight">{{ result.name }}</p>
-                            <p class="text-[11px] text-slate-400 dark:text-slate-500 truncate font-mono leading-tight">{{ result.path }}</p>
+                            <p class="app-text-control text-slate-700 dark:text-slate-200 truncate leading-tight">{{ result.name }}</p>
+                            <p class="app-text-meta text-slate-400 dark:text-slate-500 truncate font-mono">{{ result.path }}</p>
                         </div>
                     </div>
                 </template>
@@ -685,7 +685,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                             class="flex flex-col items-center gap-1 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                         >
                             <div :class="getFileIcon(result)" class="text-2xl" />
-                            <p class="text-xs text-center text-slate-600 dark:text-slate-300 truncate w-full leading-tight">{{ result.name }}</p>
+                            <p class="app-text-control text-center text-slate-600 dark:text-slate-300 truncate w-full leading-tight">{{ result.name }}</p>
                         </div>
                     </div>
                 </template>
@@ -696,13 +696,13 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                 <div v-if="projectFiles.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
                     <div class="i-mdi-folder-open-outline text-5xl mb-3 opacity-20" />
                     <p class="text-sm">{{ t('fileManager.empty') }}</p>
-                    <p class="text-xs opacity-50 mt-1">{{ t('fileManager.emptyHint') }}</p>
+                    <p class="app-text-meta mt-1 text-slate-500 dark:text-slate-400">{{ t('fileManager.emptyHint') }}</p>
                 </div>
 
                 <div v-else-if="filteredProjectFiles.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
                     <div class="i-mdi-magnify text-5xl mb-3 opacity-20" />
                     <p class="text-sm">{{ t('fileManager.noResults') }}</p>
-                    <p class="text-xs opacity-50 mt-1">{{ t('fileManager.noResultsHint') }}</p>
+                    <p class="app-text-meta mt-1 text-slate-500 dark:text-slate-400">{{ t('fileManager.noResultsHint') }}</p>
                 </div>
 
                 <!-- List view -->
@@ -713,8 +713,8 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                         class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
                         <div :class="getFileIcon(file)" class="text-sm flex-shrink-0" />
                         <div class="flex-1 min-w-0">
-                            <p class="text-[13px] text-slate-700 dark:text-slate-200 truncate leading-tight">{{ file.name }}</p>
-                            <p class="text-[11px] text-slate-400 dark:text-slate-500 truncate font-mono leading-tight">{{ file.path }}</p>
+                            <p class="app-text-control text-slate-700 dark:text-slate-200 truncate leading-tight">{{ file.name }}</p>
+                            <p class="app-text-meta text-slate-400 dark:text-slate-500 truncate font-mono">{{ file.path }}</p>
                         </div>
                         <button @click.stop="removeEntry(file)"
                             class="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-red-500 transition-all rounded hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer">
@@ -735,7 +735,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                                 <div class="i-mdi-close text-xs" />
                             </button>
                             <div :class="getFileIcon(file)" class="text-2xl" />
-                            <p class="text-xs text-center text-slate-600 dark:text-slate-300 truncate w-full leading-tight">{{ file.name }}</p>
+                            <p class="app-text-control text-center text-slate-600 dark:text-slate-300 truncate w-full leading-tight">{{ file.name }}</p>
                         </div>
                     </div>
                 </template>
@@ -755,7 +755,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                 <div v-else-if="filteredDirContents.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
                     <div class="i-mdi-magnify text-5xl mb-3 opacity-20" />
                     <p class="text-sm">{{ t('fileManager.noResults') }}</p>
-                    <p class="text-xs opacity-50 mt-1">{{ t('fileManager.noResultsHint') }}</p>
+                    <p class="app-text-meta mt-1 text-slate-500 dark:text-slate-400">{{ t('fileManager.noResultsHint') }}</p>
                 </div>
 
                 <!-- List view for directory browsing -->
@@ -765,7 +765,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                         @contextmenu="onContextMenu($event, { path: joinPath(currentFullPath, entry.name), name: entry.name, isDirectory: entry.isDirectory })"
                         class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
                         <div :class="getFileIcon(entry)" class="text-sm flex-shrink-0" />
-                        <p class="text-[13px] text-slate-700 dark:text-slate-200 truncate leading-tight">{{ entry.name }}</p>
+                            <p class="app-text-control text-slate-700 dark:text-slate-200 truncate leading-tight">{{ entry.name }}</p>
                     </div>
                 </template>
 
@@ -777,7 +777,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                             @contextmenu="onContextMenu($event, { path: joinPath(currentFullPath, entry.name), name: entry.name, isDirectory: entry.isDirectory })"
                             class="flex flex-col items-center gap-1 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
                             <div :class="getFileIcon(entry)" class="text-2xl" />
-                            <p class="text-xs text-center text-slate-600 dark:text-slate-300 truncate w-full leading-tight">{{ entry.name }}</p>
+                            <p class="app-text-control text-center text-slate-600 dark:text-slate-300 truncate w-full leading-tight">{{ entry.name }}</p>
                         </div>
                     </div>
                 </template>
@@ -787,7 +787,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
             <button
                 v-if="showBackToTop"
                 :title="t('fileManager.backToTop')"
-                class="absolute bottom-5 right-5 z-10 inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/88 px-3 py-2 text-xs font-medium text-slate-600 shadow-lg shadow-slate-200/40 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:text-blue-600 dark:border-slate-700/70 dark:bg-slate-900/82 dark:text-slate-200 dark:shadow-black/20 dark:hover:border-blue-400/40 dark:hover:text-blue-300"
+                class="app-primary-action absolute bottom-5 right-5 z-10 rounded-full px-3 py-2"
                 @click="scrollToTop"
             >
                 <div class="i-mdi-arrow-up text-sm" />
@@ -799,7 +799,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
         <Teleport to="body">
             <div v-if="contextMenuVisible"
                 ref="contextMenuRef"
-                class="file-context-menu fixed z-999 min-w-[166px] overflow-hidden rounded-[13px] bg-white/78 p-[4px] text-sm backdrop-blur-2xl dark:bg-slate-900/74"
+                class="file-context-menu fixed z-999 min-w-[166px] overflow-hidden rounded-[13px] p-[4px] text-sm"
                 :style="contextMenuStyle">
                 <button @click="contextOpen"
                     class="menu-item w-full">
@@ -837,21 +837,21 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
 
         <!-- File Preview Dialog -->
         <Teleport to="body">
-            <div v-if="previewVisible" class="fixed inset-0 z-998 bg-black/40 backdrop-blur-sm flex items-center justify-center p-8" @click.self="previewVisible = false">
-                <div class="bg-white dark:bg-[#1e293b] rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden">
-                    <div class="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-slate-700/30 shrink-0">
+            <div v-if="previewVisible" class="file-preview-overlay" @click.self="previewVisible = false">
+                <div class="file-preview-dialog">
+                    <div class="file-preview-header">
                         <div class="flex items-center gap-2 min-w-0">
                             <div v-if="previewFile" :class="getFileIcon({ name: previewFile.name, isDirectory: false })" class="text-sm" />
-                            <span class="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{{ previewFile?.name }}</span>
+                        <span class="app-text-control font-medium text-slate-700 dark:text-slate-200 truncate">{{ previewFile?.name }}</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <button v-if="previewFile" @click="openFile(previewFile.path)"
-                                class="px-2 py-0.5 text-[11px] rounded bg-blue-500/8 text-blue-600 dark:text-blue-400 border border-blue-500/15 hover:bg-blue-500/15 flex items-center gap-1 transition-all duration-150">
+                                class="app-text-control px-2 py-0.5 rounded bg-blue-500/8 text-blue-600 dark:text-blue-400 border border-blue-500/15 hover:bg-blue-500/15 flex items-center gap-1 transition-all duration-150">
                                 <div class="i-mdi-open-in-new text-xs" />
                                 {{ t('fileManager.open') }}
                             </button>
                             <button @click="previewVisible = false"
-                                class="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-150">
+                                class="app-icon-btn">
                                 <div class="i-mdi-close text-sm" />
                             </button>
                         </div>
@@ -862,13 +862,13 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
                             <div v-else class="flex flex-col items-center justify-center py-16 text-slate-400">
                                 <div class="i-mdi-file-image text-6xl mb-3 opacity-30" />
                                 <p class="text-sm">{{ previewFile.name }}</p>
-                                <button @click="openFile(previewFile.path)" class="mt-3 px-3 py-1.5 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 cursor-pointer">
+                                <button @click="openFile(previewFile.path)" class="app-text-control mt-3 px-3 py-1.5 rounded bg-blue-500 text-white hover:bg-blue-600 cursor-pointer">
                                     {{ t('fileManager.open') }}
                                 </button>
                             </div>
                         </template>
                         <template v-else-if="previewFile?.type === 'text'">
-                            <pre class="text-xs font-mono text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words leading-relaxed">{{ previewFile.content }}</pre>
+                            <pre class="app-text-code text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words">{{ previewFile.content }}</pre>
                         </template>
                     </div>
                 </div>
@@ -878,12 +878,76 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
 </template>
 
 <style scoped>
+.file-breadcrumb {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  padding: 4px 12px;
+  color: var(--app-text-muted);
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
+}
+
+.file-breadcrumb-link {
+  color: var(--app-primary);
+  cursor: pointer;
+  font-weight: 500;
+  transition: color var(--app-duration-fast) var(--app-ease);
+}
+
+.file-breadcrumb-link:hover {
+  color: var(--app-primary-hover);
+  text-decoration: underline;
+}
+
+.file-breadcrumb-link-active {
+  color: var(--app-text-secondary);
+}
+
+.file-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, black 46%, transparent);
+  padding: 32px;
+  backdrop-filter: blur(8px);
+}
+
+.file-preview-dialog {
+  display: flex;
+  width: 100%;
+  max-width: 768px;
+  max-height: 80vh;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-lg);
+}
+
+.file-preview-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--app-border);
+  padding: 8px 16px;
+}
+
 .file-context-menu {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-raised);
   transform-origin: top left;
-  box-shadow:
-    0 14px 30px rgba(15, 23, 42, 0.12),
-    0 4px 12px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.52);
+  box-shadow: var(--app-shadow-lg);
+  backdrop-filter: blur(18px) saturate(1.08);
 }
 
 .menu-item {
@@ -896,51 +960,27 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
   border-radius: 8px;
   background: transparent;
   padding: 0.34rem 0.52rem;
-  color: rgba(15, 23, 42, 0.84);
-  font-size: 12px;
-  line-height: 1.15;
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
   transition:
-    background-color 0.16s ease,
-    color 0.16s ease,
-    box-shadow 0.16s ease,
-    transform 0.16s ease;
+    background-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease),
+    transform var(--app-duration-fast) var(--app-ease);
 }
 
 .menu-item:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.58));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 1px 2px rgba(15, 23, 42, 0.06);
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
   transform: translateY(-0.5px);
 }
 
-.dark .menu-item {
-  color: rgba(241, 245, 249, 0.9);
-}
-
-.dark .menu-item:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.07));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 1px 2px rgba(2, 6, 23, 0.16);
-}
-
 .menu-item-danger {
-  color: rgba(225, 29, 72, 0.9);
+  color: var(--app-danger);
 }
 
 .menu-item-danger:hover {
-  background: linear-gradient(180deg, rgba(255, 241, 242, 0.92), rgba(255, 228, 230, 0.74));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 1px 2px rgba(190, 24, 93, 0.08);
-}
-
-.dark .menu-item-danger:hover {
-  background: linear-gradient(180deg, rgba(136, 19, 55, 0.26), rgba(113, 19, 48, 0.18));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 1px 2px rgba(15, 23, 42, 0.18);
+  background: color-mix(in srgb, var(--app-danger) 10%, transparent);
 }
 
 .menu-item__icon {
@@ -971,11 +1011,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
 .menu-divider {
   margin: 0.16rem 0.28rem;
   height: 1px;
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0), rgba(148, 163, 184, 0.22), rgba(148, 163, 184, 0));
-}
-
-.dark .menu-divider {
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0), rgba(148, 163, 184, 0.16), rgba(148, 163, 184, 0));
+  background: var(--app-border);
 }
 
 .file-toolbar-icon-btn {
@@ -984,38 +1020,29 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
   justify-content: center;
   height: 30px;
   width: 30px;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.68), rgba(248,250,252,0.5));
-  color: rgb(100 116 139);
-  backdrop-filter: blur(14px) saturate(1.16);
-  -webkit-backdrop-filter: blur(14px) saturate(1.16);
-  box-shadow:
-    0 8px 18px rgba(15,23,42,0.05),
-    inset 0 1px 0 rgba(255,255,255,0.44),
-    inset 0 0 0 1px rgba(226,232,240,0.5);
-  transition: all 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease),
+    border-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease);
 }
 
 .file-toolbar-icon-btn:hover {
-  color: rgb(37 99 235);
-  transform: translateY(-1px);
-  backdrop-filter: blur(18px) saturate(1.28);
-  -webkit-backdrop-filter: blur(18px) saturate(1.28);
+  border-color: color-mix(in srgb, var(--app-primary) 30%, transparent);
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
 }
 
 .file-view-switcher {
   display: inline-flex;
   gap: 3px;
   padding: 3px;
-  border-radius: 12px;
-  background: rgba(248,250,252,0.56);
-  backdrop-filter: blur(18px) saturate(1.18);
-  -webkit-backdrop-filter: blur(18px) saturate(1.18);
-  box-shadow:
-    0 10px 22px rgba(15,23,42,0.05),
-    inset 0 1px 0 rgba(255,255,255,0.4),
-    inset 0 0 0 1px rgba(226,232,240,0.48);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface-soft);
 }
 
 .file-view-btn {
@@ -1025,26 +1052,23 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
   height: 30px;
   width: 30px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--app-radius-md);
   background: transparent;
-  color: rgb(100 116 139);
-  transition: all 0.18s ease;
+  color: var(--app-text-secondary);
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease);
 }
 
 .file-view-btn:hover {
-  background: rgba(255,255,255,0.42);
-  color: rgb(51 65 85);
+  background: var(--app-surface);
+  color: var(--app-text);
 }
 
 .file-view-btn-active {
-  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(248,250,252,0.5));
-  color: rgb(37 99 235);
-  backdrop-filter: blur(16px) saturate(1.22);
-  -webkit-backdrop-filter: blur(16px) saturate(1.22);
-  box-shadow:
-    0 10px 20px rgba(15,23,42,0.06),
-    inset 0 1px 0 rgba(255,255,255,0.4),
-    inset 0 0 0 1px rgba(191,219,254,0.58);
+  background: var(--app-surface);
+  color: var(--app-primary);
+  box-shadow: var(--app-shadow-sm);
 }
 
 .file-toolbar-btn {
@@ -1053,100 +1077,23 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
   gap: 6px;
   height: 36px;
   padding: 0 14px;
-  border: none;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.68), rgba(248,250,252,0.5));
-  color: rgb(71 85 105);
-  font-size: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
   font-weight: 600;
-  backdrop-filter: blur(14px) saturate(1.16);
-  -webkit-backdrop-filter: blur(14px) saturate(1.16);
-  box-shadow:
-    0 8px 18px rgba(15,23,42,0.05),
-    inset 0 1px 0 rgba(255,255,255,0.42),
-    inset 0 0 0 1px rgba(226,232,240,0.5);
-  transition: all 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease),
+    border-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease);
 }
 
 .file-toolbar-btn:hover {
-  color: rgb(37 99 235);
-  transform: translateY(-1px);
-  backdrop-filter: blur(18px) saturate(1.28);
-  -webkit-backdrop-filter: blur(18px) saturate(1.28);
-  box-shadow:
-    0 12px 24px rgba(15,23,42,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.48),
-    inset 0 0 0 1px rgba(191,219,254,0.64);
-}
-
-.dark .file-toolbar-icon-btn {
-  background:
-    linear-gradient(180deg, rgba(45,212,191,0.02), rgba(45,212,191,0)),
-    linear-gradient(180deg, rgba(15,23,42,0.82), rgba(2,6,23,0.72));
-  color: rgb(148 163 184);
-  backdrop-filter: blur(20px) saturate(1.18);
-  -webkit-backdrop-filter: blur(20px) saturate(1.18);
-  box-shadow:
-    0 16px 28px rgba(2,6,23,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.05),
-    inset 0 0 0 1px rgba(148,163,184,0.12);
-}
-
-.dark .file-view-switcher {
-  background:
-    linear-gradient(180deg, rgba(59,130,246,0.04), rgba(59,130,246,0.01)),
-    rgba(2,6,23,0.62);
-  backdrop-filter: blur(24px) saturate(1.16);
-  -webkit-backdrop-filter: blur(24px) saturate(1.16);
-  box-shadow:
-    0 18px 34px rgba(2,6,23,0.32),
-    inset 0 1px 0 rgba(255,255,255,0.05),
-    inset 0 0 0 1px rgba(148,163,184,0.12);
-}
-
-.dark .file-view-btn {
-  color: rgb(148 163 184);
-}
-
-.dark .file-view-btn:hover {
-  background: rgba(30,41,59,0.54);
-  color: rgb(226 232 240);
-}
-
-.dark .file-view-btn-active {
-  background:
-    linear-gradient(180deg, rgba(96,165,250,0.18), rgba(59,130,246,0.08)),
-    linear-gradient(180deg, rgba(30,41,59,0.78), rgba(15,23,42,0.64));
-  color: rgb(191 219 254);
-  backdrop-filter: blur(22px) saturate(1.2);
-  -webkit-backdrop-filter: blur(22px) saturate(1.2);
-  box-shadow:
-    0 16px 28px rgba(2,6,23,0.34),
-    inset 0 1px 0 rgba(255,255,255,0.09),
-    inset 0 0 0 1px rgba(96,165,250,0.22);
-}
-
-.dark .file-toolbar-btn {
-  background:
-    linear-gradient(180deg, rgba(96,165,250,0.03), rgba(96,165,250,0)),
-    linear-gradient(180deg, rgba(15,23,42,0.84), rgba(2,6,23,0.74));
-  color: rgb(203 213 225);
-  backdrop-filter: blur(20px) saturate(1.18);
-  -webkit-backdrop-filter: blur(20px) saturate(1.18);
-  box-shadow:
-    0 16px 30px rgba(2,6,23,0.32),
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    inset 0 0 0 1px rgba(148,163,184,0.13);
-}
-
-.dark .file-toolbar-btn:hover {
-  color: rgb(96 165 250);
-  backdrop-filter: blur(24px) saturate(1.26);
-  -webkit-backdrop-filter: blur(24px) saturate(1.26);
-  box-shadow:
-    0 18px 34px rgba(2,6,23,0.36),
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    inset 0 0 0 1px rgba(96,165,250,0.24);
+  border-color: color-mix(in srgb, var(--app-primary) 30%, transparent);
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -1156,10 +1103,7 @@ function getFileIcon(entry: { name: string; isDirectory: boolean }) {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: color-mix(in srgb, var(--app-text-muted) 56%, transparent);
   border-radius: 2px;
-}
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #334155;
 }
 </style>

@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const MarkitdownModule = require('markitdown-js');
+const { randomUUID } = require('crypto');
+const { encode: encodeTokens, decode: decodeTokens } = require('gpt-tokenizer');
 const { exec, spawn } = require('child_process');
 const { handleFilePath, parseFileObject } = require('./file.js');
 
@@ -15,10 +18,32 @@ let bashCwd = os.homedir();
 const backgroundShells = new Map();
 const MAX_BG_LOG_SIZE = 1024 * 1024; // 1MB 日志上限
 
+const COLORLESS_COMMAND_ENV = {
+    NO_COLOR: '1',
+    FORCE_COLOR: '0',
+    CLICOLOR: '0',
+    npm_config_color: 'false',
+    PNPM_COLOR: 'never',
+    YARN_ENABLE_COLORS: '0'
+};
+
+const stripTerminalControlSequences = (text = '') => {
+    if (typeof text !== 'string' || text.length === 0) return '';
+    return text
+        .replace(/\x1B\][\s\S]*?(?:\x07|\x1B\\)/g, '')
+        .replace(/\x1B[PX^_][\s\S]*?\x1B\\/g, '')
+        .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '')
+        .replace(/\u009B[0-?]*[ -/]*[@-~]/g, '')
+        .replace(/\x1B[@-Z\\-_]/g, '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/\u0008/g, '');
+};
+
 function appendBgLog(id, text) {
     const proc = backgroundShells.get(id);
     if (!proc) return;
-    proc.logs += text;
+    proc.logs += stripTerminalControlSequences(text);
     if (proc.logs.length > MAX_BG_LOG_SIZE) {
         proc.logs = "[...Logs Truncated...]\n" + proc.logs.slice(proc.logs.length - (MAX_BG_LOG_SIZE / 2));
     }
@@ -26,7 +51,7 @@ function appendBgLog(id, text) {
 
 // 引入 IPC 用于子窗口通信
 let ipcRenderer = null;
-try { ipcRenderer = require('electron').ipcRenderer; } catch (e) {}
+try { ipcRenderer = require('electron').ipcRenderer; } catch (e) { }
 
 // 判断是否为独立窗口 (通过 location 判断或 API 特征)
 function isChildWindow() {
@@ -36,34 +61,329 @@ function isChildWindow() {
     return false;
 }
 
-// 子窗口呼叫父进程的 Promise 包装器
-async function callParentShell(action, payload) {
+// 子窗口呼叫父进程的 Promise 包装器 (支持中断)
+async function callParentShell(action, payload, signal = null) {
     return new Promise((resolve, reject) => {
         const requestId = Math.random().toString(36).substr(2);
-        
-        // 监听一次性回复
+        let isDone = false;
+
         const handler = (event, response) => {
             if (response.requestId === requestId) {
+                isDone = true;
                 ipcRenderer.off('background-shell-reply', handler);
                 if (response.error) reject(new Error(response.error));
                 else resolve(response.data);
             }
         };
-        
+
         ipcRenderer.on('background-shell-reply', handler);
-        
-        // 发送请求给 preload.js
         utools.sendToParent('background-shell-request', { requestId, action, payload });
-        
-        // 30s 超时
+
+        // 监听前端的取消操作
+        if (signal) {
+            const abortHandler = () => {
+                if (isDone) return;
+                isDone = true;
+                ipcRenderer.off('background-shell-reply', handler);
+                // 抛出标准的 AbortError，前端即可终止 loading 状态
+                const err = new Error("Tool execution cancelled by user");
+                err.name = "AbortError";
+                reject(err);
+            };
+            if (signal.aborted) abortHandler();
+            else signal.addEventListener('abort', abortHandler);
+        }
+
+        // 超时保护
         setTimeout(() => {
+            if (isDone) return;
+            isDone = true;
             ipcRenderer.off('background-shell-reply', handler);
-            reject(new Error("Timeout waiting for background shell response"));
-        }, 30000); 
+            resolve(`[System Notice]: The request timed out after 60s. The target agent may still be generating. You can try again later, or check previous messages which may be useful.`);
+        }, 60000);
     });
 }
 
-const MAX_READ = 256 * 1000; // 512k characters
+const MAX_READ = 128 * 1000; // 128k characters
+
+const subAgentTasks = new Map();
+const MAX_SUBAGENT_TASKS = 100;
+const MAX_SUBAGENT_LOG_CHARS = 1024 * 1024;
+const MAX_SUBAGENT_STATUS_TOKENS = 100000;
+
+function normalizeSubAgentText(value) {
+    if (typeof value === 'string') return value;
+    if (value === undefined || value === null) return '';
+    try {
+        return JSON.stringify(value, null, 2);
+    } catch {
+        return String(value);
+    }
+}
+
+function limitSubAgentLog(text = '') {
+    const normalized = normalizeSubAgentText(text);
+    if (normalized.length <= MAX_SUBAGENT_LOG_CHARS) return normalized;
+    return `[... Sub-Agent log truncated to ${MAX_SUBAGENT_LOG_CHARS} characters ...]\n${normalized.slice(-MAX_SUBAGENT_LOG_CHARS)}`;
+}
+
+function trimSubAgentTasks() {
+    if (subAgentTasks.size <= MAX_SUBAGENT_TASKS) return;
+    const removable = [...subAgentTasks.values()]
+        .filter((item) => item.status !== 'running')
+        .sort((a, b) => (a.finishedAt || a.createdAt) - (b.finishedAt || b.createdAt));
+    while (subAgentTasks.size > MAX_SUBAGENT_TASKS && removable.length > 0) {
+        subAgentTasks.delete(removable.shift().id);
+    }
+}
+
+function resolveSubAgentOwnerId(context = null, args = {}) {
+    const fromContext = typeof context?.conversationOwnerId === 'string' ? context.conversationOwnerId.trim() : '';
+    if (fromContext) return fromContext;
+    const fromArgs = typeof args?.conversation_owner_id === 'string' ? args.conversation_owner_id.trim() : '';
+    return fromArgs || '';
+}
+
+function toSubAgentSnapshot(task, { includeOutput = true } = {}) {
+    if (!task) return null;
+    const snapshot = {
+        subagent_id: task.id,
+        status: task.status,
+        task: task.task,
+        model_route: task.modelRoute,
+        model_name: task.modelName || '',
+        provider_name: task.providerName || '',
+        conversation_owner_id: task.ownerId || '',
+        created_at: task.createdAt,
+        started_at: task.startedAt,
+        finished_at: task.finishedAt || null,
+        updated_at: task.updatedAt,
+        stop_requested_at: task.stopRequestedAt || null
+    };
+    if (includeOutput) {
+        snapshot.latest_log = task.latestLog || '';
+        if (task.result) snapshot.final_result = task.result;
+        if (task.error) snapshot.error = task.error;
+    }
+    return snapshot;
+}
+
+function truncateSubAgentStatusOutput(value, maxTokens = MAX_SUBAGENT_STATUS_TOKENS) {
+    const text = normalizeSubAgentText(value);
+    try {
+        const tokens = encodeTokens(text);
+        if (tokens.length <= maxTokens) return text;
+        const marker = `\n\n--- [SYSTEM NOTE: SUBAGENT STATUS OUTPUT TRUNCATED] ---\nOriginal token count: ${tokens.length}. Returned content is limited to ${maxTokens} tokens including this notice.\n\n`;
+        const contentBudget = Math.max(1, maxTokens - encodeTokens(marker).length);
+        const headTokens = Math.min(2048, Math.floor(contentBudget * 0.1));
+        const tailTokens = Math.max(1, contentBudget - headTokens);
+        return `${decodeTokens(tokens.slice(0, headTokens))}${marker}${decodeTokens(tokens.slice(-tailTokens))}`;
+    } catch {
+        const fallbackLimit = maxTokens * 4;
+        if (text.length <= fallbackLimit) return text;
+        return `${text.slice(0, 4096)}\n\n--- [SYSTEM NOTE: SUBAGENT STATUS OUTPUT TRUNCATED] ---\nTokenizer unavailable; output is conservatively limited.\n\n${text.slice(-Math.max(1, fallbackLimit - 4096))}`;
+    }
+}
+
+function formatSubAgentStatus(tasks) {
+    return truncateSubAgentStatusOutput(JSON.stringify(tasks, null, 2));
+}
+
+
+async function resolveSubAgentModelMeta(args = {}) {
+    try {
+        const { getConfig, resolveDefaultAssistantModel } = require('./data.js');
+        const configData = await getConfig();
+        const resolvedConfig = configData?.config || {};
+        const modelRoute = ['superior', 'general', 'fast'].includes(args?.model_route) ? args.model_route : 'general';
+        const model = resolveDefaultAssistantModel(resolvedConfig, modelRoute);
+        const providerInfo = resolveProviderConfigByModel(resolvedConfig, model);
+        return {
+            modelRoute,
+            modelName: providerInfo.modelName || (typeof model === 'string' ? (model.split('|')[1] || model) : ''),
+            providerName: providerInfo.providerName || providerInfo.providerId || ''
+        };
+    } catch {
+        return {
+            modelRoute: typeof args?.model_route === 'string' ? args.model_route : 'general',
+            modelName: '',
+            providerName: ''
+        };
+    }
+}
+
+function executeBackgroundSubAgent(task, args, globalContext) {
+    const originalOnUpdate = globalContext?.onUpdate;
+    const taskContext = {
+        ...(globalContext || {}),
+        onUpdate: (payload) => {
+            task.latestLog = limitSubAgentLog(payload);
+            task.updatedAt = Date.now();
+            if (typeof originalOnUpdate === 'function') {
+                try {
+                    originalOnUpdate(task.latestLog, toSubAgentSnapshot(task));
+                } catch {
+                    // Ignore UI callback failures; background execution must continue.
+                }
+            }
+        }
+    };
+
+    void Promise.resolve()
+        .then(() => runSubAgent(args, taskContext, task.controller.signal))
+        .then((result) => {
+            task.result = normalizeSubAgentText(result);
+            if (task.controller.signal.aborted) task.status = 'stopped';
+            else if (/^\[Sub-Agent Error\]/.test(task.result)) {
+                task.status = 'failed';
+                task.error = task.result;
+            } else task.status = 'completed';
+            if (task.status === 'stopped' && !task.latestLog.includes('[Stop]')) {
+                task.latestLog = limitSubAgentLog(`${task.latestLog}\n[Stop] Stopped by user.`.trim());
+            }
+        })
+        .catch((error) => {
+            const message = error?.message || String(error);
+            if (task.controller.signal.aborted || error?.name === 'AbortError') {
+                task.status = 'stopped';
+                task.error = message;
+                task.latestLog = limitSubAgentLog(`${task.latestLog}\n[Stop] ${message}`.trim());
+            } else {
+                task.status = 'failed';
+                task.error = message;
+                task.latestLog = limitSubAgentLog(`${task.latestLog}\n[Critical Error] ${message}`.trim());
+            }
+        })
+        .finally(() => {
+            task.finishedAt = Date.now();
+            task.updatedAt = task.finishedAt;
+            trimSubAgentTasks();
+            if (typeof originalOnUpdate === 'function') {
+                try {
+                    originalOnUpdate(task.latestLog, toSubAgentSnapshot(task));
+                } catch {
+                    // ignore callback failure
+                }
+            }
+        });
+}
+
+async function createBackgroundSubAgent(args, globalContext) {
+    const id = `subagent_${randomUUID()}`;
+    const modelMeta = await resolveSubAgentModelMeta(args);
+    const ownerId = resolveSubAgentOwnerId(globalContext, args);
+    if (!ownerId) {
+        return { error: 'Sub-Agent requires a conversation owner id for session isolation.' };
+    }
+    const task = {
+        id,
+        status: 'running',
+        task: typeof args?.task === 'string' ? args.task : '',
+        modelRoute: modelMeta.modelRoute,
+        modelName: modelMeta.modelName,
+        providerName: modelMeta.providerName,
+        ownerId,
+        createdAt: Date.now(),
+        startedAt: Date.now(),
+        updatedAt: Date.now(),
+        finishedAt: null,
+        stopRequestedAt: null,
+        latestLog: '',
+        result: '',
+        error: '',
+        launchArgs: JSON.parse(JSON.stringify(args || {})),
+        launchContext: { ...(globalContext || {}), onUpdate: undefined },
+        controller: new AbortController()
+    };
+    subAgentTasks.set(id, task);
+    trimSubAgentTasks();
+    executeBackgroundSubAgent(task, task.launchArgs, globalContext);
+    return toSubAgentSnapshot(task, { includeOutput: false });
+}
+
+function getOwnedSubAgentTask(id, ownerId) {
+    const task = subAgentTasks.get(id);
+    if (!task) return { error: `Sub-Agent '${id}' was not found or has expired.` };
+    if (!ownerId || task.ownerId !== ownerId) {
+        return { error: `Sub-Agent '${id}' is not accessible from the current conversation.` };
+    }
+    return { task };
+}
+
+function getSubAgentStatus(args = {}, context = null) {
+    const id = typeof args?.subagent_id === 'string' ? args.subagent_id.trim() : '';
+    const includeOutput = args?.include_output === true;
+    const ownerId = resolveSubAgentOwnerId(context, args);
+    if (!ownerId) {
+        return formatSubAgentStatus({ error: 'conversation_owner_id is required to query Sub-Agent status.' });
+    }
+    if (id) {
+        const owned = getOwnedSubAgentTask(id, ownerId);
+        if (owned.error) return formatSubAgentStatus({ error: owned.error });
+        return formatSubAgentStatus(toSubAgentSnapshot(owned.task, { includeOutput }));
+    }
+    return formatSubAgentStatus({
+        subagents: [...subAgentTasks.values()]
+            .filter((task) => task.ownerId === ownerId)
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .map((task) => toSubAgentSnapshot(task, { includeOutput: false }))
+    });
+}
+
+function stopSubAgent(args = {}, context = null) {
+    const id = typeof args?.subagent_id === 'string' ? args.subagent_id.trim() : '';
+    const ownerId = resolveSubAgentOwnerId(context, args);
+    const owned = getOwnedSubAgentTask(id, ownerId);
+    if (owned.error) return formatSubAgentStatus({ error: owned.error });
+    const task = owned.task;
+    if (task.status === 'running') {
+        task.stopRequestedAt = Date.now();
+        task.updatedAt = task.stopRequestedAt;
+        task.controller.abort();
+    }
+    return formatSubAgentStatus(toSubAgentSnapshot(task));
+}
+
+async function rerunSubAgent(args = {}, context = null) {
+    const id = typeof args?.subagent_id === 'string' ? args.subagent_id.trim() : '';
+    const ownerId = resolveSubAgentOwnerId(context, args);
+    const owned = getOwnedSubAgentTask(id, ownerId);
+    if (owned.error) return formatSubAgentStatus({ error: owned.error });
+    const task = owned.task;
+    if (task.status === 'running') return formatSubAgentStatus({ error: `Sub-Agent '${id}' is still running and cannot be restarted yet.` });
+
+    const modelMeta = await resolveSubAgentModelMeta(task.launchArgs || {});
+    const now = Date.now();
+    task.status = 'running';
+    task.modelRoute = modelMeta.modelRoute;
+    task.modelName = modelMeta.modelName;
+    task.providerName = modelMeta.providerName;
+    task.startedAt = now;
+    task.updatedAt = now;
+    task.finishedAt = null;
+    task.stopRequestedAt = null;
+    task.latestLog = '';
+    task.result = '';
+    task.error = '';
+    task.controller = new AbortController();
+    executeBackgroundSubAgent(task, task.launchArgs, task.launchContext);
+    return task.id;
+}
+
+function killSubAgent(args = {}, context = null) {
+    const id = typeof args?.subagent_id === 'string' ? args.subagent_id.trim() : '';
+    const ownerId = resolveSubAgentOwnerId(context, args);
+    const owned = getOwnedSubAgentTask(id, ownerId);
+    if (owned.error) return formatSubAgentStatus({ error: owned.error });
+    const task = owned.task;
+    if (task.status === 'running') {
+        task.stopRequestedAt = Date.now();
+        task.updatedAt = task.stopRequestedAt;
+        task.controller.abort();
+    }
+    return formatSubAgentStatus(toSubAgentSnapshot(task, { includeOutput: false }));
+}
+
 
 // 数据提取函数 (提取标题、作者、简介)
 function extractMetadata(html) {
@@ -95,6 +415,27 @@ function extractMetadata(html) {
 }
 
 // HTML 转 Markdown 辅助函数
+
+function resolveProviderConfigByModel(fullConfig = {}, modelValue = '') {
+    const normalizedModelValue = typeof modelValue === 'string' ? modelValue.trim() : '';
+    const [providerId, ...modelParts] = normalizedModelValue.split('|');
+    const modelName = modelParts.join('|').trim();
+    const providers = fullConfig?.providers && typeof fullConfig.providers === 'object' ? fullConfig.providers : {};
+    const provider = providerId ? providers[providerId] : null;
+
+    return {
+        providerId: providerId || '',
+        providerName: provider?.name || providerId || '',
+        modelName,
+        provider,
+        apiType: provider?.apiType || 'chat_completions',
+        baseUrl: provider?.url || '',
+        apiKey: provider?.api_key || '',
+        headers: provider?.headers || {},
+        retryCount: Number.isInteger(provider?.retryCount) ? provider.retryCount : 3
+    };
+}
+
 function convertHtmlToMarkdown(html, baseUrl = '') {
     let text = html;
 
@@ -230,6 +571,128 @@ function convertHtmlToMarkdown(html, baseUrl = '') {
     return cleanLines.join('\n').trim();
 }
 
+function resolveMarkitdownConstructor() {
+    const candidates = [
+        MarkitdownModule,
+        MarkitdownModule?.default,
+        MarkitdownModule?.MarkItDown,
+        MarkitdownModule?.default?.default,
+        MarkitdownModule?.default?.MarkItDown
+    ];
+
+    for (const candidate of candidates) {
+        if (typeof candidate === 'function') return candidate;
+    }
+
+    const exportKeys = MarkitdownModule && typeof MarkitdownModule === 'object' ? Object.keys(MarkitdownModule).join(', ') : typeof MarkitdownModule;
+    throw new Error(`markitdown_js_constructor_not_found: exports=${exportKeys}`);
+}
+
+function decodeHtmlEntitiesForMarkdown(str = '') {
+    const entities = {
+        '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&#x27;': "'",
+        '&copy;': '©', '&mdash;': '—', '&ndash;': '–', '&hellip;': '…', '&rsquo;': '’', '&lsquo;': '‘',
+        '&rdquo;': '”', '&ldquo;': '“'
+    };
+    return String(str).replace(/&(?:[a-zA-Z0-9#]+);/g, (match) => entities[match] || match);
+}
+
+function escapeHtmlForMarkdown(str = '') {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function extractCodeTextFromHtmlFragment(fragment = '') {
+    return decodeHtmlEntitiesForMarkdown(fragment)
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/span>\s*<span\b[^>]*class=["'][^"']*line[^"']*["'][^>]*>/gi, '\n')
+        .replace(/<span\b[^>]*class=["'][^"']*line[^"']*["'][^>]*>/gi, '')
+        .replace(/<\/span>/gi, '')
+        .replace(/<[^>]+>/g, '')
+        .split('\n')
+        .map((line) => line.trimEnd())
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function normalizeCodeBlocksForMarkitdown(html = '') {
+    return String(html).replace(/<pre\b([^>]*)>([\s\S]*?)<\/pre>/gi, (match, preAttrs = '', inner = '') => {
+        const langMatch = `${preAttrs} ${inner}`.match(/language-([\w-]+)/i) || `${preAttrs} ${inner}`.match(/lang(?:uage)?-["']?([\w-]+)/i);
+        const lang = langMatch?.[1] || '';
+        const codeText = extractCodeTextFromHtmlFragment(inner);
+        return `<pre><code class="language-${lang}">${escapeHtmlForMarkdown(codeText)}</code></pre>`;
+    });
+}
+
+function absolutizeHtmlResourceLinks(html = '', baseUrl = '') {
+    if (!baseUrl) return html;
+    return String(html).replace(/\s(href|src)=(['"])(?!https?:|data:|mailto:|tel:|#|javascript:)([^'"]+)\2/gi, (match, attr, quote, value) => {
+        try {
+            return ` ${attr}=${quote}${new URL(value, baseUrl).href}${quote}`;
+        } catch (e) {
+            return match;
+        }
+    });
+}
+
+function sanitizeHtmlForMarkitdownJs(html = '', baseUrl = '') {
+    let text = normalizeCodeBlocksForMarkitdown(html);
+
+    // 只移除纯技术噪音。按用户要求保留 header/footer/nav/aside/button 等页面结构与底部信息。
+    text = text.replace(/<!--[\s\S]*?-->/g, '');
+    text = text.replace(/<(script|style|svg|noscript|iframe|canvas|template)[^>]*>[\s\S]*?<\/\1>/gi, '');
+    text = text.replace(/<(input|select|option|textarea)[^>]*>[\s\S]*?<\/\1>/gi, '');
+    text = text.replace(/<(input|select|option|textarea)[^>]*\/?>/gi, '');
+    text = absolutizeHtmlResourceLinks(text, baseUrl);
+
+    return text;
+}
+
+function postProcessMarkitdownMarkdown(markdown = '') {
+    let text = String(markdown || '');
+
+    text = decodeHtmlEntitiesForMarkdown(text)
+        .replace(/\r\n/g, '\n')
+        .replace(/[ \t]+$/gm, '')
+        .replace(/\n{4,}/g, '\n\n\n')
+        .replace(/^(Expand|Collapse|Copy|Copied)$/gmi, '')
+        .replace(/^format(?:unix)?time$/gmi, '')
+        .replace(/\n{4,}/g, '\n\n\n')
+        .trim();
+
+    return text;
+}
+
+async function convertHtmlWithMarkitdownJs(html, baseUrl = '') {
+    const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'anywhere-web-fetch-'));
+    const tempFile = path.join(tempDir, 'page.html');
+    let timeoutId = null;
+
+    try {
+        const sanitizedHtml = sanitizeHtmlForMarkitdownJs(html, baseUrl);
+        await fs.promises.writeFile(tempFile, sanitizedHtml, 'utf8');
+
+        const MarkitdownConstructor = resolveMarkitdownConstructor();
+        const converter = new MarkitdownConstructor();
+        const conversionPromise = converter.convert(tempFile, { fileExtension: '.html' });
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('markitdown_js_conversion_timeout')), 30000);
+        });
+        const result = await Promise.race([conversionPromise, timeoutPromise]);
+        const markdown = postProcessMarkitdownMarkdown(result?.textContent || '');
+
+        if (!markdown || markdown.length < 20) {
+            throw new Error('markitdown_js_empty_output');
+        }
+
+        return markdown;
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+        await fs.promises.rm(tempDir, { recursive: true, force: true }).catch(() => { });
+    }
+}
+
+
 // --- Definitions ---
 const BUILTIN_SERVERS = {
     "builtin_python": {
@@ -272,14 +735,14 @@ const BUILTIN_SERVERS = {
         tags: ["search", "web", "fetch"],
         logoUrl: "https://upload.wikimedia.org/wikipedia/en/9/90/The_DuckDuckGo_Duck.png"
     },
-    "builtin_subagent": {
-        id: "builtin_subagent",
-        name: "Sub-Agent",
-        description: "一个能够自主规划的子智能体。主智能体需显式分配工具给它。",
+    "builtin_superagent": {
+        id: "builtin_superagent",
+        name: "Super-Agent",
+        description: "超级智能体调度中心。包含后台静默执行的子智能体(Sub-Agent)，以及能够召唤、监控、协作其他独立窗口Agent的编排能力。",
         type: "builtin",
         isActive: true,
         isPersistent: false,
-        tags: ["agent"],
+        tags: ["agent", "orchestration"],
         logoUrl: "https://s2.loli.net/2026/01/22/tTsJjkpiOYAeGdy.png"
     },
     "builtin_tasks": {
@@ -301,6 +764,26 @@ const BUILTIN_SERVERS = {
         isPersistent: false,
         tags: ["time", "clock"],
         logoUrl: "https://api.iconify.design/lucide:clock.svg"
+    },
+    "builtin_memory": {
+        id: "builtin_memory",
+        name: "Memory System",
+        description: "基于 uTools 本地存储的持久化记忆系统。支持创建文档、分章节存储、列表项管理及全文搜索。数据将在多设备间自动同步。",
+        type: "builtin",
+        isActive: true,
+        isPersistent: false,
+        tags: ["memory", "storage", "sync"],
+        logoUrl: "https://api.iconify.design/lucide:brain.svg"
+    },
+    "builtin_betterwork": {
+        id: "builtin_betterwork",
+        name: "Better Work",
+        description: "主动向用户发起选择题确认（多问题多选项），并维护当前对话的临时任务清单与进度展示。",
+        type: "builtin",
+        isActive: true,
+        isPersistent: false,
+        tags: ["interactive", "task", "confirm"],
+        logoUrl: "https://api.iconify.design/lucide:list-checks.svg"
     },
 };
 
@@ -365,27 +848,34 @@ const BUILTIN_TOOLS = {
                         enum: ["content", "files_with_matches", "count"],
                         description: "Output mode: 'content' (lines), 'files_with_matches' (paths only), 'count'."
                     },
-                    multiline: { type: "boolean", description: "Enable multiline matching. When true, enables 'm' and 's' (dotAll) regex flags so '.' matches newlines." }
+                    multiline: { type: "boolean", description: "Enable multiline matching. When true, enables 'm' and 's' (dotAll) regex flags so '.' matches newlines." },
+                    max_results: { type: "integer", description: "Optional. Maximum result blocks to return for content/files modes. Defaults to 20, max 100." },
+                    context_lines: { type: "integer", description: "Optional. Number of lines before and after each content match. Defaults to 2, max 10." },
+                    max_output_chars: { type: "integer", description: "Optional. Maximum total characters returned. Defaults to 20000, max 80000." },
+                    max_line_length: { type: "integer", description: "Optional. Maximum characters per context line before truncation. Defaults to 500, max 2000." }
                 },
                 required: ["pattern", "path"]
             }
         },
         {
             name: "read_file",
-            description: "Read content from a local file path or a remote file. Supports text, code, and document parsing. For large files, use 'offset' and 'length' to read in chunks.",
+            description: "Read content from a local file path or a remote file. \nIMPORTANT RULES FOR READING:\n1. You must use EITHER ('offset' and 'length' for character-based reading) OR ('start_line' and 'end_line' for line-based reading). DO NOT use both simultaneously.\n2. If you want to use offset, set 'start_line' and 'end_line' to 0 or leave them empty.",
             inputSchema: {
                 type: "object",
                 properties: {
                     file_path: { type: "string", description: "Absolute path to the local file OR a valid HTTP/HTTPS URL." },
-                    offset: { type: "integer", description: "Optional. The character position to start reading from. Defaults to 0.", default: 0 },
-                    length: { type: "integer", description: `Optional. Number of characters to read. Defaults to ${MAX_READ}.`, default: MAX_READ }
+                    offset: { type: "integer", description: "Optional. Character offset. Defaults to 0.", default: 0 },
+                    length: { type: "integer", description: `Optional. Characters to read. Defaults to ${MAX_READ}.`, default: MAX_READ },
+                    start_line: { type: "integer", description: "Optional. The line number to start reading from (1-based). Set to 0 to use 'offset' mode." },
+                    end_line: { type: "integer", description: "Optional. The line number to end reading at (inclusive). Set to 0 to use 'offset' mode." },
+                    show_line_numbers: { type: "boolean", description: "Optional. Whether to prefix each line with its line number. Defaults to true.", default: true }
                 },
                 required: ["file_path"]
             }
         },
         {
             name: "write_file",
-            description: "Create a new file or completely overwrite an existing file. CAUTION: This tool is ONLY for TEXT-BASED files (code, txt, md, json, etc.). DO NOT use this for binary or Office files (e.g., .docx, .xlsx, .pdf, .png) as it will corrupt them.",
+            description: "Create a new file or completely overwrite an existing file. CAUTION: This tool is ONLY for TEXT-BASED files (code, txt, md, json, etc.). DO NOT use this for binary or Office files (e.g., .docx, .xlsx, .pdf, .png) as it will corrupt them. BEST PRACTICE: Before overwriting an EXISTING file, call 'read_file' first to confirm its current content and avoid accidental data loss.",
             inputSchema: {
                 type: "object",
                 properties: {
@@ -397,7 +887,7 @@ const BUILTIN_TOOLS = {
         },
         {
             name: "edit_file",
-            description: "EXACT literal string replacement for modifying files. Safer than regex for code containing special characters (like LaTeX or C++). YOU MUST READ THE FILE FIRST to ensure you have the exact 'old_string'.",
+            description: "EXACT literal string replacement for modifying files. Safer than regex for code containing special characters (like LaTeX or C++). YOU MUST READ THE FILE FIRST to ensure you have the exact 'old_string'. NOTE: read_file shows a `NNNN | ` line-number prefix for display only — never include that prefix in 'old_string'; use the raw file text.",
             inputSchema: {
                 type: "object",
                 properties: {
@@ -411,7 +901,7 @@ const BUILTIN_TOOLS = {
         },
         {
             name: "replace_pattern",
-            description: "Efficiently replace text in a file using JavaScript RegExp. Supports capture groups ($1, $2).\nCRITICAL WARNING FOR LATEX/CODE: The 'replacement' string is inserted literally. DO NOT double-escape backslashes in 'replacement' unless you actually want two backslashes. For example, to insert '\\begin', pass '\\begin' in JSON",
+            description: "Efficiently replace text in a file using JavaScript RegExp. Supports capture groups ($1, $2). You SHOULD call 'read_file' to read the file first so your pattern matches the real content. The `NNNN | ` line numbers shown by read_file are display-only; never put them in 'pattern'.\nCRITICAL WARNING FOR LATEX/CODE: The 'replacement' string is inserted literally. DO NOT double-escape backslashes in 'replacement' unless you actually want two backslashes. For example, to insert '\\begin', pass '\\begin' in JSON",
             inputSchema: {
                 type: "object",
                 properties: {
@@ -425,14 +915,14 @@ const BUILTIN_TOOLS = {
         },
         {
             name: "insert_content",
-            description: "Efficient insert content into a file. Supports two modes: 1. By 'anchor_pattern' (Recommended, safer). 2. By 'line_number' (Use ONLY if you have verified the exact line number via grep_search).",
+            description: "Efficient insert content into a file. It is recommended to call 'read_file' first to confirm the insertion point. (read_file's `NNNN | ` line numbers are display-only; do not include them in 'anchor_pattern'.) Supports two modes: 1. By 'anchor_pattern' (Recommended, safer). 2. By 'line_number' (Use ONLY if you have verified the exact line number via grep_search).",
             inputSchema: {
                 type: "object",
                 properties: {
                     file_path: { type: "string", description: "Absolute path to the file." },
                     content: { type: "string", description: "The content to insert." },
                     anchor_pattern: { type: "string", description: "Mode A: A unique regex pattern to locate the insertion point." },
-                    line_number: { type: "integer", description: "Mode B: Absolute line number (1-based). CAUTION: Only use if you recently retrieved the line number using 'grep_search'." },
+                    line_number: { type: "integer", description: "Mode B: Absolute line number (1-based). CAUTION: Only use if you recently retrieved the line number using 'grep_search'.", minimum: 0},
                     direction: {
                         type: "string",
                         enum: ["before", "after"],
@@ -450,8 +940,11 @@ const BUILTIN_TOOLS = {
             description: `Execute a shell command.
 IMPORTANT:
 1. The underlying shell is **${currentOS}**:**${isWin ? "PowerShell" : "Bash"}**. Adjust syntax accordingly.
-2. **Long-running processes**: For servers (e.g. 'npm run dev', 'python server.py') or tasks taking >15s, YOU MUST set 'background': true.
-3. When 'background': true, you will receive a 'shell_id' immediately. Use 'read_background_shell_output' to check logs and 'kill_background_shell' to stop it.`,
+2. **Stateless Sessions**: Each execution starts in a fresh environment at the default system path. Do NOT assume that a previous 'cd' or environment change persists. To run commands in a specific directory, you MUST chain them: 
+   - **PowerShell**: \`Set-Location "your_path" ; your_command\`
+   - **Bash**: \`cd "your_path" && your_command\`
+3. **Long-running processes**: For servers (e.g. 'npm run dev', 'python server.py') or tasks taking >15s, YOU MUST set 'background': true.
+4. When 'background': true, you will receive a 'shell_id' immediately. Use 'read_background_shell_output' to check logs and 'kill_background_shell' to stop it.`,
             inputSchema: {
                 type: "object",
                 properties: {
@@ -505,7 +998,7 @@ IMPORTANT:
     ],
     "builtin_search": [
         {
-            name: "web_search",
+            name: "builtin_web_search",
             description: "Search the internet for a given query. Returns snippets only. Constraint: After replying, 'Sources:' citation links must be included.",
             inputSchema: {
                 type: "object",
@@ -521,7 +1014,7 @@ IMPORTANT:
             }
         },
         {
-            name: "web_fetch",
+            name: "builtin_web_fetch",
             description: "Retrieve and parse the FULL text content of a specific URL. Use this when the user provides a URL or after getting a URL from search results. Capable of parsing complex pages like documentation, papers, and code repositories.",
             inputSchema: {
                 type: "object",
@@ -534,43 +1027,139 @@ IMPORTANT:
             }
         }
     ],
-    "builtin_subagent": [
+    "builtin_superagent": [
         {
             name: "sub_agent",
-            description: "Delegates a complex task to a Sub-Agent. You can assign specific tools, set the planning depth, and provide context. The Sub-Agent will autonomous plan and execute.",
+            description: "【Asynchronous Background Worker】Starts a temporary Sub-Agent in the background and returns a subagent_id immediately; it never blocks the main conversation. Continue working after launch. Call get_subagent_status with the returned ID when you need progress or the final result.",
             inputSchema: {
                 type: "object",
                 properties: {
-                    task: { type: "string", description: "The detailed task description." },
-                    context: { type: "string", description: "Background info, previous conversation summary, code snippets, or user constraints. Do NOT leave empty if the task depends on previous messages." },
-                    tools: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "List of tool names to grant. You MUST explicitly list the tools required for the task. If omitted or empty, the Sub-Agent will have NO tools."
-                    },
-                    planning_level: {
-                        type: "string",
-                        enum: ["fast", "medium", "high", "custom"],
-                        description: "Complexity level: 'fast'(10 steps), 'medium'(20 steps, default), 'high'(30 steps), or 'custom'."
-                    },
-                    custom_steps: {
-                        type: "integer",
-                        minimum: 10,
-                        maximum: 100,
-                        description: "Only used if planning_level is 'custom'."
-                    }
+                    task: { type: "string", description: "The detailed task description for the worker." },
+                    context: { type: "string", description: "Background info or required variables." },
+                    tools: { type: "array", items: { type: "string" }, description: "Tool names granted to the worker." },
+                    model_route: { type: "string", enum: ["superior", "general", "fast"], description: "Choose which default assistant route the Sub-Agent should use based on the task difficulty. Defaults to 'general'." },
+                    planning_level: { type: "string", enum: ["fast", "medium", "high", "custom"] },
+                    custom_steps: { type: "integer" }
                 },
                 required: ["task", "tools"]
             }
-        }
-    ],
-    // 大约在第 380 行附近，找到 "builtin_tasks" 的定义，替换为以下代码：
-    "builtin_tasks": [
+        },
+        {
+            name: "get_subagent_status",
+            description: "Get the lifecycle state of one background Sub-Agent. With no subagent_id, lists known tasks as summaries. Set include_output=true only when you need the full logs/result (capped at 100K tokens). Status values: running, completed, stopped, failed.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    subagent_id: { type: "string", description: "Optional Sub-Agent ID returned by sub_agent. Omit to list known Sub-Agents." },
+                    include_output: { type: "boolean", description: "When true and subagent_id is provided, include full latest log/final result/error. Defaults to false for lightweight status checks." }
+                }
+            }
+        },
+        {
+            name: "stop_subagent",
+            description: "Stop one running background Sub-Agent by its subagent_id. This only stops that Sub-Agent and does not cancel the main conversation or other tasks.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    subagent_id: { type: "string", description: "The running Sub-Agent ID to stop." }
+                },
+                required: ["subagent_id"]
+            }
+        },
+        {
+            name: "kill_subagent",
+            description: "Immediately abort one running background Sub-Agent to release its execution resources. Use this when the user asks to kill, cancel, or stop a Sub-Agent that may otherwise keep consuming resources. The task record remains queryable with get_subagent_status.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    subagent_id: { type: "string", description: "The running Sub-Agent ID to kill." }
+                },
+                required: ["subagent_id"]
+            }
+        },
+
+        {
+            name: "rerun_subagent",
+            description: "Retry a completed, stopped, or failed Sub-Agent in place. Keeps the same subagent_id, clears previous logs/result for that ID, and restarts with the original task configuration.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    subagent_id: { type: "string", description: "The completed, stopped, or failed Sub-Agent ID to retry." }
+                },
+                required: ["subagent_id"]
+            }
+        },
+
         {
             name: "list_agents",
-            description: "List all available Agents (Quick Prompts). Use this to find the exact 'agent_name' for creating or editing tasks.",
+            description: "List all pre-configured professional Agents (System Prompts). You can optionally provide an 'agent_name' to inspect its system prompt and capabilities before summoning it.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    agent_name: { type: "string", description: "Optional. Name of the agent to inspect." }
+                }
+            }
+        },
+        {
+            name: "summon_agent",
+            description: "Summon a specific ai agent (from list_agents) in a NEW window with a BLANK history, and send an initial task. Returns a 'window_id' immediately.\n\nThe target agent will start generating a response in the background. You can do other things or immediately call 'read_agent_chats' to wait for its result. \n\n Use 'summon_agent' ONLY when you explicitly need a brand-new, isolated conversation. \n\n If the agent invocation is temporary, please ensure that the summoned agent window is closed once it is no longer needed after the temporary conversation is completed.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    agent_name: { type: "string", description: "The exact name of the agent to summon." },
+                    text: { type: "string", description: "The first message or task description to send to this agent." },
+                    file_paths: { type: "array", items: { type: "string" }, description: "Optional. Local absolute file paths to attach. Use this field ONLY when you already know the real absolute local paths (for example, paths explicitly provided by the user or returned by a tool). Never invent, guess, or infer paths from images/files visible in the current chat. If the user uploaded an image but no actual local path is available, DO NOT generate a path and DO NOT include this field." },
+                    enable_tools: { type: "boolean", description: "Optional. If true, the summoned agent will be granted access to all built-in MCP tools (like file system, shell, web search, etc.), thereby expanding its local control capabilities." },
+                    model_route: { type: "string", enum: ["superior", "general", "fast"], description: "Optional. Only applies when agent_name is '__DEFAULT__'. Choose which default assistant route to use for this summoned agent window." }
+                },
+                required: ["agent_name", "text"]
+            }
+        },
+        {
+            name: "list_agent_chats",
+            description: "【Collaboration Info】List all CURRENTLY ACTIVE standalone agent windows and their 'window_id's（including your own）. \n\nBEST PRACTICE: Always check this list to see if an agent is already open. If so, REUSE it via 'continue_agent_chats' instead of summoning a new one. It also marks which window_id belongs to YOU.",
             inputSchema: { type: "object", properties: {} }
         },
+        {
+            name: "read_agent_chats",
+            description: "Read chat history. \nSMART BLOCKING: If you request the LATEST message (e.g. index=-1) and the agent is currently generating (Busy), this tool will BLOCK and WAIT until the generation is finished, then return the complete response. You don't need to poll repeatedly.\n\nINDEX RULES:\n- 0: System Prompt（if exists）.\n- 1: First user message.\n- -1: Latest message.\n\nUSAGE:\n1. Call WITHOUT 'message_index' to get the chat outline.\n2. Call WITH 'message_index=-1' to get the latest reply (will auto-wait if busy). AI Agent may return multiple messages (e.g. `message_index` may be `-2`, `-3`, etc.). which can include tool calls or other intermediate process information, so make sure to retrieve the specific message you actually need.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    window_id: { type: "string", description: "The window_id of the target agent." },
+                    message_index: { type: "integer", description: "Optional. Index of the message. 0=System, 1=First User Msg, -1=Latest. Leave empty for outline." },
+                    offset: { type: "integer", description: "Optional. Character offset.", default: 0 },
+                    length: { type: "integer", description: "Optional. Max characters.", default: 128000 }
+                },
+                required: ["window_id"]
+            }
+        },
+        {
+            name: "continue_agent_chats",
+            description: "Send follow-up messages to an ALREADY OPEN agent window. Returns immediately. The agent starts generating in background. You can do other things or immediately call 'read_agent_chats' with index=-1 to wait for its result.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    window_id: { type: "string", description: "The window_id of the target agent." },
+                    text: { type: "string", description: "The follow-up message to send." },
+                    file_paths: { type: "array", items: { type: "string" }, description: "Optional. Local absolute file paths to attach. Include this field ONLY when you have the exact real absolute local paths. Never fabricate, estimate, or infer paths from chat-visible images/files. If no verified local path is available, omit this field entirely." }
+                },
+                required: ["window_id", "text"]
+            }
+        },
+        {
+            name: "close_agent_window",
+            description: "Close an active agent window using its 'window_id' (retrieved via 'list_agent_chats'). The system will automatically generate a name and save the chat history before closing. **HIGH PRIVILEGE OPERATION**: Please use this function with caution, ensuring that the window's task is complete before closing the Agent window. Additionally, if an Agent is invoked for temporary tasks, please ensure it is closed promptly upon completion to avoid opening excessive redundant windows.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    window_id: { type: "string", description: "The window_id of the target agent to close." }
+                },
+                required: ["window_id"]
+            }
+        }
+    ],
+    "builtin_tasks": [
         {
             name: "list_mcp_servers",
             description: "List all MCP servers with their IDs and descriptions available for scheduled tasks. Use this to find the exact 'id' for assigning 'extra_mcp' to a scheduled task.",
@@ -579,11 +1168,11 @@ IMPORTANT:
         {
             name: "list_tasks",
             description: "List scheduled tasks. By default, it returns a summary (ID and Name). If 'task_name_or_id' is provided, it returns full details for that specific task.",
-            inputSchema: { 
-                type: "object", 
+            inputSchema: {
+                type: "object",
                 properties: {
                     task_name_or_id: { type: "string", description: "Optional. Provide a Task ID or Name to view detailed configuration (including schedule, instructions, etc.)." }
-                } 
+                }
             }
         },
         {
@@ -593,17 +1182,17 @@ IMPORTANT:
                 type: "object",
                 properties: {
                     name: { type: "string", description: "Task name: concise, clear, and unique." },
-                    instruction: { type: "string", description: "The specific, self-contained prompt sent to the AI when the schedule triggers. Since it executes autonomously without human interaction, the instruction MUST be highly detailed and actionable. Explicitly state the exact goal, what tools to invoke (e.g., 'Use web_search to find...', 'Use write_file to save...'), and the desired output format. Example: 'Search the web for today's AI news, summarize the top 3 items in a markdown list, and save the result as a local file to...'" },
+                    instruction: { type: "string", description: "The specific, self-contained prompt sent to the AI when the schedule triggers. Since it executes autonomously without human interaction, the instruction MUST be highly detailed and actionable. Explicitly state the exact goal, what tools to invoke (e.g., 'Use builtin_web_search to find...', 'Use write_file to save...'), and the desired output format. Example: 'Search the web for today's AI news, summarize the top 3 items in a markdown list, and save the result as a local file to...'" },
                     agent_name: { type: "string", description: "Optional. Name of the Quick Prompt to use. Defaults to '__DEFAULT__'." },
-                    schedule_type: { 
-                        type: "string", enum: ["interval", "daily", "weekly", "monthly", "single"], 
-                        description: "Type of schedule. 'interval'(every X mins), 'daily'(fixed time), 'weekly'(fixed days in week), 'monthly'(fixed dates in month)." 
+                    schedule_type: {
+                        type: "string", enum: ["interval", "daily", "weekly", "monthly", "single"],
+                        description: "Type of schedule. 'interval'(every X mins), 'daily'(fixed time), 'weekly'(fixed days in week), 'monthly'(fixed dates in month)."
                     },
                     time_param: { type: "string", description: "For 'interval': number of minutes. For others: HH:mm format." },
-                    interval_time_ranges: { 
-                        type: "array", 
-                        items: { type: "string" }, 
-                        description: "Optional. Active time ranges for 'interval' only. Format: ['HH:mm-HH:mm']. If omitted, runs 24h." 
+                    interval_time_ranges: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Optional. Active time ranges for 'interval' only. Format: ['HH:mm-HH:mm']. If omitted, runs 24h."
                     },
                     weekly_days: {
                         type: "array",
@@ -615,9 +1204,9 @@ IMPORTANT:
                         items: { type: "integer" },
                         description: "Optional. Required for 'monthly'. Array of dates in month (1-31). e.g. [1, 15, 28]."
                     },
-                    single_date: { 
-                        type: "string", 
-                        description: "Optional. Required for 'single'. Format: YYYY-MM-DD (e.g. 2026-03-05). Defaults to today if omitted." 
+                    single_date: {
+                        type: "string",
+                        description: "Optional. Required for 'single'. Format: YYYY-MM-DD (e.g. 2026-03-05). Defaults to today if omitted."
                     },
                     enabled: { type: "boolean", description: "Enable immediately. Defaults to true.", default: true },
                     extra_mcp: {
@@ -642,7 +1231,7 @@ IMPORTANT:
                 properties: {
                     task_name_or_id: { type: "string" },
                     new_name: { type: "string" },
-                    instruction: { type: "string",description: "New prompt content. Provide a highly detailed, self-contained instruction for autonomous execution (explicitly stating tools to use, goals, and output formats)." },
+                    instruction: { type: "string", description: "New prompt content. Provide a highly detailed, self-contained instruction for autonomous execution (explicitly stating tools to use, goals, and output formats)." },
                     agent_name: { type: "string" },
                     schedule_type: { type: "string", enum: ["interval", "daily", "weekly", "monthly", "single"] },
                     time_param: { type: "string" },
@@ -687,12 +1276,215 @@ IMPORTANT:
             inputSchema: {
                 type: "object",
                 properties: {
-                    timezone: { 
-                        type: "string", 
-                        description: "Optional. The timezone to get the time for, e.g., 'Asia/Shanghai', 'America/New_York', 'UTC'. If omitted, returns the local system time." 
+                    timezone: {
+                        type: "string",
+                        description: "Optional. The timezone to get the time for, e.g., 'Asia/Shanghai', 'America/New_York', 'UTC'. If omitted, returns the local system time."
                     }
                 }
             }
+        }
+    ],
+    "builtin_memory": [
+        {
+            name: "create_memory",
+            description: "Create a new structured memory. It initializes with a default 'Main' section. CRITICAL: Upon successful creation, you MUST inform the user of the generated 'name'. You are highly encouraged to use 'update_section' or 'add_to_list' later to create custom categorized sections (e.g., 'Preferences', 'Code Snippets', 'Todos') to keep data organized, rather than dumping everything into 'Main'.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    name: { type: "string", description: "Unique identifier/name for this memory." },
+                    content: { type: "string", description: "Optional initial content. Focus on capturing user preferences or requirements." }
+                },
+                required: ["name"]
+            }
+        },
+        {
+            name: "list_memories",
+            description: "Please list all available memories and read the necessary relevant memory content before starting the formal chat.",
+            inputSchema: { type: "object", properties: {} }
+        },
+        {
+            name: "get_memory_summary",
+            description: "Get a high-level summary of a memory.",
+            inputSchema: {
+                type: "object",
+                properties: { memory_id: { type: "string", description: "The ID of the memory to summarize." } },
+                required: ["memory_id"]
+            }
+        },
+        {
+            name: "get_full_memory",
+            description: "Retrieve the complete content of a memory with all Markdown formatting preserved. Please naturally integrate memories to better maintain memory continuity across sessions.",
+            inputSchema: {
+                type: "object",
+                properties: { memory_id: { type: "string", description: "The ID(not the name of memory, use list_memories to get memory_id) of the memory to retrieve." } },
+                required: ["memory_id"]
+            }
+        },
+        {
+            name: "get_section",
+            description: "Retrieve a specific section from a memory. Please naturally integrate memories to better maintain memory continuity across sessions.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    memory_id: { type: "string", description: "The ID of the memory to read from." },
+                    section: { type: "string", description: "The section name to retrieve." }
+                },
+                required: ["memory_id", "section"]
+            }
+        },
+        {
+            name: "search_within_memory",
+            description: "Search for information within a memory. Please naturally integrate memories to better maintain memory continuity across sessions.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    memory_id: { type: "string", description: "The ID of the memory to search." },
+                    query: { type: "string", description: "The search query (words or phrases)." }
+                },
+                required: ["memory_id", "query"]
+            }
+        },
+        {
+            name: "update_section",
+            description: "Update a section of a memory. If the 'section' name does not exist, it will be CREATED AUTOMATICALLY. Use this to organize data into meaningful categories (e.g., 'User Preferences', 'Project Links'). Content supports full Markdown formatting.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    memory_id: { type: "string", description: "The ID of the memory to update." },
+                    section: { type: "string", description: "The section name to update." },
+                    content: { type: "string", description: "The new content for the section. Supports full Markdown." },
+                    mode: { type: "string", enum: ["append", "replace"], description: "Whether to append to or replace the section content (default: append).", default: "append" }
+                },
+                required: ["memory_id", "section", "content"]
+            }
+        },
+        {
+            name: "add_to_list",
+            description: "Add an item to a list section in a memory. If the 'section' does not exist, a NEW list section will be CREATED AUTOMATICALLY.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    memory_id: { type: "string", description: "The ID of the memory to update." },
+                    section: { type: "string", description: "The section name to add the item to." },
+                    item: { type: "object", description: "The item data (object) to add." }
+                },
+                required: ["memory_id", "section", "item"]
+            }
+        },
+        {
+            name: "update_list_item",
+            description: "Update an existing item in a list section. It uses fuzzy matching to find the item.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    memory_id: { type: "string", description: "The ID of the memory to update." },
+                    section: { type: "string", description: "The section containing the item to update." },
+                    item_identifier: { type: "string", description: "Identifier for the item to update (e.g., name, keyword)." },
+                    updates: { type: "object", description: "Fields to update with their new values." }
+                },
+                required: ["memory_id", "section", "item_identifier", "updates"]
+            }
+        },
+        {
+            name: "move_list_item",
+            description: "Move an item from one section to another.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    memory_id: { type: "string", description: "The ID of the memory to update." },
+                    from_section: { type: "string", description: "The source section containing the item." },
+                    to_section: { type: "string", description: "The destination section for the item." },
+                    item_identifier: { type: "string", description: "Identifier for the item to move." },
+                    reason: { type: "string", description: "Optional reason for the move (stored as metadata)." }
+                },
+                required: ["memory_id", "from_section", "to_section", "item_identifier"]
+            }
+        },
+        {
+            name: "delete_memory",
+            description: "Delete an existing memory completely. This action is irreversible.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    memory_id: { type: "string", description: "The ID of the memory to delete." }
+                },
+                required: ["memory_id"]
+            }
+        }
+    ],
+    "builtin_betterwork": [
+        {
+            name: "ask_user_choice",
+            description: "Proactively ask the user one or more single-choice questions to confirm a decision, resolve ambiguity, or let the user pick between approaches before you proceed. Use this whenever a plan branches or you need the user to make a call. Options render as clickable buttons inside the chat bubble and the user picks exactly ONE option per question. IMPORTANT: Do NOT add your own 'type your own answer' or 'discuss this' options, and do NOT ask the user to multi-select — the UI automatically appends a free-text input (for any other idea) and a 'discuss this' option to every question. Keep each option 'label' short; put rationale in 'description'.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    questions: {
+                        type: "array",
+                        description: "One or more questions to present to the user.",
+                        items: {
+                            type: "object",
+                            properties: {
+                                question: { type: "string", description: "The full question text." },
+                                header: { type: "string", description: "Optional very short label (<= 12 chars) shown as a tag/chip." },
+                                options: {
+                                    type: "array",
+                                    description: "The selectable options. Do NOT include a free-text or 'discuss' option here.",
+                                    items: {
+                                        type: "object",
+                                        properties: {
+                                            label: { type: "string", description: "Short option text the user sees." },
+                                            description: { type: "string", description: "Optional explanation or trade-off for this option." }
+                                        },
+                                        required: ["label"]
+                                    }
+                                }
+                            },
+                            required: ["question", "options"]
+                        }
+                    }
+                },
+                required: ["questions"]
+            }
+        },
+        {
+            name: "task_write",
+            description: "Create or update the temporary task list for the CURRENT conversation, shown in a floating panel so the user can watch your progress in real time (a live to-do checklist). This is NOT a scheduled/cron task. WORKFLOW: (1) ALWAYS call task_read FIRST to fetch the latest list before writing, so you never drop existing tasks or steps; (2) pass the FULL list every time (full snapshot / overwrite) — include every task with its current status; (3) the MOMENT you finish a task or step, immediately call task_write again to mark it 'completed' and set the next item to 'in_progress', so the user can track up-to-date progress at all times. Break the work into a few tasks, each optionally with sub-steps.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    tasks: {
+                        type: "array",
+                        description: "The complete task list (full snapshot; overwrites the previous list).",
+                        items: {
+                            type: "object",
+                            properties: {
+                                content: { type: "string", description: "Task title / what needs to be done." },
+                                status: { type: "string", enum: ["pending", "in_progress", "completed"], description: "Current status of the task." },
+                                steps: {
+                                    type: "array",
+                                    description: "Optional sub-steps of this task.",
+                                    items: {
+                                        type: "object",
+                                        properties: {
+                                            content: { type: "string", description: "Step description." },
+                                            status: { type: "string", enum: ["pending", "in_progress", "completed"], description: "Step status." }
+                                        },
+                                        required: ["content", "status"]
+                                    }
+                                }
+                            },
+                            required: ["content", "status"]
+                        }
+                    }
+                },
+                required: ["tasks"]
+            }
+        },
+        {
+            name: "task_read",
+            description: "Read back the current task list for this conversation (the same list maintained via task_write and shown in the task panel). Use this to re-orient yourself on progress — for example after a long conversation or a context compaction — so you do not lose track of what is done and what remains, and ALWAYS call it right before task_write to fetch the latest state. Returns every task with its status and steps.",
+            inputSchema: { type: "object", properties: {} }
         }
     ],
 };
@@ -765,6 +1557,58 @@ const globToRegex = (glob) => {
 
 // 路径标准化 (统一使用 /)
 const normalizePath = (p) => p.split(path.sep).join('/');
+
+// 生成编辑后改动区域的带行号片段（展示用，输入为 LF 归一化内容）
+function buildEditSnippet(content, insertedText, contextLines = 3) {
+    if (!insertedText) return '';
+    const idx = content.indexOf(insertedText);
+    if (idx === -1) return '';
+    const startLine = content.slice(0, idx).split('\n').length; // 1-based
+    const endLine = startLine + insertedText.split('\n').length - 1;
+    const lines = content.split('\n');
+    const from = Math.max(1, startLine - contextLines);
+    const to = Math.min(lines.length, endLine + contextLines);
+    const out = [];
+    for (let i = from; i <= to; i++) {
+        out.push(`${String(i).padStart(4)} | ${lines[i - 1]}`);
+    }
+    return out.join('\n');
+}
+
+// 行号前缀匹配（read_file 的显示格式：可选前导空白 + 数字 + " | "）
+const LINE_NUMBER_PREFIX_RE = /^\s*\d+\s*\|\s?/;
+
+// 安全剥离 old_string 里误带的 "NNNN | " 行号前缀：仅当每个非空行都符合行号格式才剥离，否则返回 null
+function stripLineNumberPrefix(text) {
+    if (typeof text !== 'string' || !text.includes('|')) return null;
+    const lines = text.split('\n');
+    const nonEmpty = lines.filter(l => l.trim() !== '');
+    if (nonEmpty.length === 0) return null;
+    if (!nonEmpty.every(l => LINE_NUMBER_PREFIX_RE.test(l))) return null;
+    return lines.map(l => l.replace(LINE_NUMBER_PREFIX_RE, '')).join('\n');
+}
+
+// edit_file 精确匹配失败时的诊断信息（提示行号前缀 / 空白差异，并给出文件中最相近的一行）
+function buildEditNotFoundDiagnostic(content, targetOld) {
+    let msg = `Error: 'old_string' not found in file. Matching is EXACT (whitespace/indentation sensitive). Please read_file again and copy the exact text.`;
+    if (LINE_NUMBER_PREFIX_RE.test(targetOld)) {
+        msg += `\nHint: 'old_string' looks like it still contains read_file's "NNNN | " line-number prefix — remove the prefix and use the raw file text only.`;
+    }
+    const firstLine = (targetOld.split('\n').find(l => l.trim() !== '') || '')
+        .replace(LINE_NUMBER_PREFIX_RE, '')
+        .trim();
+    if (firstLine) {
+        const fileLines = content.split('\n');
+        const hit = fileLines.findIndex(l => l.includes(firstLine));
+        if (hit !== -1) {
+            msg += `\nClosest match in file at line ${hit + 1}:\n${String(hit + 1).padStart(4)} | ${fileLines[hit]}`;
+            msg += `\nTip: copy the exact text (including leading/trailing whitespace and tabs) from that region.`;
+        } else {
+            msg += `\nHint: also check for trailing spaces, tabs vs spaces, or that you are editing the latest version of the file.`;
+        }
+    }
+    return msg;
+}
 
 // 递归文件遍历器
 async function* walkDir(dir, maxDepth = 20, currentDepth = 0, signal = null) {
@@ -921,14 +1765,30 @@ const isPathSafe = (targetPath) => {
 };
 
 async function runSubAgent(args, globalContext, signal) {
-    const { task, context: userContext, tools: allowedToolNames, planning_level, custom_steps } = args;
-    const { apiKey, baseUrl, model, tools: allToolDefinitions, mcpSystemPrompt, onUpdate, apiType } = globalContext;
+    const { task, context: userContext, tools: allowedToolNames, model_route = 'general', planning_level, custom_steps } = args;
+    const { tools: allToolDefinitions, mcpSystemPrompt, onUpdate } = globalContext;
+    const { getConfig, resolveDefaultAssistantModel } = require('./data.js');
+    const configData = await getConfig();
+    const resolvedConfig = configData?.config || {};
+    const normalizedModelRoute = ['superior', 'general', 'fast'].includes(model_route) ? model_route : 'general';
+    const model = resolveDefaultAssistantModel(resolvedConfig, normalizedModelRoute);
+    const providerInfo = resolveProviderConfigByModel(resolvedConfig, model);
+    const baseUrl = providerInfo.baseUrl;
+    const apiKey = providerInfo.apiKey;
+    const apiType = providerInfo.apiType;
+    const providerHeaders = providerInfo.headers || {};
+    const requestModelName = providerInfo.modelName || '';
 
-    // --- 1. 工具权限控制 (最小权限原则) ---
+    if (!baseUrl || !apiKey || !requestModelName) {
+        return `[Sub-Agent Error] Missing provider configuration for route '${normalizedModelRoute}'. Provider: ${providerInfo.providerId || 'N/A'}, model: ${model || 'N/A'}`;
+    }
+
+    // --- 1. 工具直接映射 (Direct Mapping) ---
     let availableTools = [];
     if (allowedToolNames && Array.isArray(allowedToolNames) && allowedToolNames.length > 0) {
         const allowedSet = new Set(allowedToolNames);
         availableTools = (allToolDefinitions || []).filter(t =>
+            // 映射逻辑：只要名字匹配，就授予权限
             allowedSet.has(t.function.name) && t.function.name !== 'sub_agent'
         );
     }
@@ -970,7 +1830,7 @@ ${userContext || 'No additional context provided.'}
         }
     };
 
-    log(`[Sub-Agent] Started. Max steps: ${MAX_STEPS}. Tools: ${availableTools.map(t => t.function.name).join(', ') || 'None'}`);
+    log(`[Sub-Agent] Started. Route: ${normalizedModelRoute}. Model: ${requestModelName || 'N/A'}. Provider: ${providerInfo.providerName || 'N/A'}. Max steps: ${MAX_STEPS}. Tools: ${availableTools.map(t => t.function.name).join(', ') || 'None'}`);
 
     const { invokeMcpTool } = require('./mcp.js');
 
@@ -987,8 +1847,10 @@ ${userContext || 'No additional context provided.'}
             const response = await createChatCompletion({
                 baseUrl: baseUrl,
                 apiKey: apiKey,
-                model: model,
+                model: requestModelName,
                 apiType: currentApiType,
+                retryCount: Number.isInteger(providerInfo.retryCount) ? providerInfo.retryCount : 3,
+                headers: providerHeaders,
                 messages: messages,
                 tools: availableTools.length > 0 ? availableTools : undefined,
                 tool_choice: availableTools.length > 0 ? "auto" : undefined,
@@ -1002,7 +1864,6 @@ ${userContext || 'No additional context provided.'}
 
             if (currentApiType === 'responses' && response.output) {
                 // Responses API 处理逻辑
-                // 1. 提取文本消息
                 const textItems = response.output.filter(item => item.type === 'message');
                 textItems.forEach(item => {
                     if (item.content) {
@@ -1012,7 +1873,6 @@ ${userContext || 'No additional context provided.'}
                     }
                 });
 
-                // 2. 提取工具调用
                 const functionCallItems = response.output.filter(item => item.type === 'function_call');
                 toolCalls = functionCallItems.map(item => ({
                     id: item.call_id,
@@ -1023,7 +1883,6 @@ ${userContext || 'No additional context provided.'}
                     }
                 }));
 
-                // 3. 构造兼容的 message 对象供后续逻辑使用
                 message = {
                     role: 'assistant',
                     content: messageContent || null,
@@ -1037,7 +1896,6 @@ ${userContext || 'No additional context provided.'}
                 toolCalls = message.tool_calls || [];
             }
 
-            // 将助手回复（或转换后的回复）推入历史
             messages.push(message);
 
             // 3.2 决策
@@ -1109,7 +1967,6 @@ ${userContext || 'No additional context provided.'}
         return report;
     };
 
-    // 达到步数限制后，让 AI 总结
     try {
         log(`[System] Requesting status summary from Sub-Agent...`);
         messages.push({
@@ -1117,13 +1974,14 @@ ${userContext || 'No additional context provided.'}
             content: "SYSTEM ALERT: You have reached the maximum number of steps allowed. Please provide a concise summary of:\n1. What has been successfully completed.\n2. What is the current status/obstacles.\n3. What specific actions remain to be done.\nDo not use any tools, just answer with text."
         });
 
-        // (使用 chat.js)
         const currentApiType = apiType || 'chat_completions';
         const summaryResponse = await createChatCompletion({
             baseUrl: baseUrl,
             apiKey: apiKey,
-            model: model,
+            model: requestModelName,
             apiType: currentApiType,
+            retryCount: Number.isInteger(providerInfo.retryCount) ? providerInfo.retryCount : 3,
+            headers: providerHeaders,
             messages: messages,
             tools: availableTools.length > 0 ? availableTools : undefined,
             tool_choice: availableTools.length > 0 ? "auto" : undefined,
@@ -1157,6 +2015,18 @@ ${userContext || 'No additional context provided.'}
 
 // --- Execution Handlers ---
 const handlers = {
+    // Better Work (interactive: actually handled in the chat window UI; these are graceful fallbacks for non-UI contexts such as sub-agents)
+    ask_user_choice: async ({ questions } = {}) => {
+        const count = Array.isArray(questions) ? questions.length : 0;
+        return `[Better Work] ask_user_choice must be answered by the user in the interactive chat window. The current execution context (e.g. a sub-agent with no UI) cannot collect a user selection, so ask the user directly in your message text instead. (questions: ${count})`;
+    },
+    task_write: async ({ tasks } = {}) => {
+        const count = Array.isArray(tasks) ? tasks.length : 0;
+        return `[Better Work] Received the task list (${count} item(s)). The task progress panel is only shown in the interactive chat window.`;
+    },
+    task_read: async () => {
+        return `[Better Work] task_read returns the current task list, which is only available in the interactive chat window.`;
+    },
     // Python
     list_python_interpreters: async () => {
         const paths = await findAllPythonPaths();
@@ -1281,8 +2151,18 @@ const handlers = {
         }
     },
 
-    // 2. Grep Search (优化版：提供详细上下文、行号、列号)
-    grep_search: async ({ pattern, path: searchPath, glob, output_mode = 'content', multiline = false }, context, signal) => {
+    // 2. Grep Search
+    grep_search: async ({
+        pattern,
+        path: searchPath,
+        glob,
+        output_mode = 'content',
+        multiline = false,
+        max_results,
+        context_lines,
+        max_output_chars,
+        max_line_length
+    }, context, signal) => {
         try {
             if (!searchPath) {
                 return "Error: You MUST provide a 'path' argument to specify the directory.";
@@ -1291,13 +2171,25 @@ const handlers = {
                 return "Error: You MUST provide a 'pattern' argument.";
             }
 
-            const rootDir = resolvePath(searchPath);
-            const parsed = path.parse(rootDir);
-            if (parsed.root === rootDir && rootDir.length <= 3) {
-                return `Error: Grep searching the system root directory ('${rootDir}') is not allowed. Please specify a project directory.`;
+            const targetPath = resolvePath(searchPath);
+            const parsed = path.parse(targetPath);
+            if (parsed.root === targetPath && targetPath.length <= 3) {
+                return `Error: Grep searching the system root directory ('${targetPath}') is not allowed. Please specify a project directory.`;
             }
 
-            if (!fs.existsSync(rootDir)) return `Error: Directory not found: ${rootDir}`;
+            if (!fs.existsSync(targetPath)) return `Error: Directory not found: ${targetPath}`;
+
+            let targetStats;
+            try {
+                targetStats = await fs.promises.stat(targetPath);
+            } catch (e) {
+                return `Error: Unable to access path: ${targetPath}`;
+            }
+
+            const isSingleFile = targetStats.isFile();
+            if (!isSingleFile && !targetStats.isDirectory()) {
+                return `Error: Unsupported path type: ${targetPath}`;
+            }
 
             const regexFlags = multiline ? 'gmsi' : 'gi';
             let searchRegex;
@@ -1311,20 +2203,64 @@ const handlers = {
             searchRegex.lastIndex = 0;
 
             const globRegex = glob ? globToRegex(glob) : null;
-            const normalizedRoot = normalizePath(rootDir);
+            const normalizedRoot = normalizePath(isSingleFile ? path.dirname(targetPath) : targetPath);
+
+            const clampInteger = (value, fallback, min, max) => {
+                const numeric = Number(value);
+                if (!Number.isFinite(numeric)) return fallback;
+                return Math.max(min, Math.min(max, Math.floor(numeric)));
+            };
+
+            const effectiveMaxResults = clampInteger(max_results, 20, 1, 100);
+            const effectiveContextLines = clampInteger(context_lines, 2, 0, 10);
+            const effectiveMaxOutputChars = clampInteger(max_output_chars, 20000, 1000, 80000);
+            const effectiveMaxLineLength = clampInteger(max_line_length, 500, 80, 2000);
+            const outputBudgetApplies = output_mode !== 'count';
 
             const results = [];
+            let outputChars = 0;
+            let outputTruncated = false;
             let matchCount = 0;
             const MAX_SCANNED = 5000;
-            const MAX_RESULTS_BLOCKS = 100;
             let scanned = 0;
+            const filesToSearch = isSingleFile ? [targetPath] : walkDir(targetPath, 20, 0, signal);
 
-            for await (const filePath of walkDir(rootDir, 20, 0, signal)) {
+            const truncateLine = (line = '') => {
+                const text = String(line ?? '');
+                if (text.length <= effectiveMaxLineLength) return text;
+                return `${text.slice(0, effectiveMaxLineLength)}... [line truncated, ${text.length - effectiveMaxLineLength} chars omitted]`;
+            };
+
+            const pushResult = (block, { force = false } = {}) => {
+                const text = String(block ?? '');
+                if (!outputBudgetApplies) {
+                    results.push(text);
+                    return true;
+                }
+
+                if (!force && outputChars + text.length > effectiveMaxOutputChars) {
+                    const remaining = Math.max(0, effectiveMaxOutputChars - outputChars);
+                    if (remaining > 200) {
+                        results.push(`${text.slice(0, remaining)}\n[System Warning] Current result block truncated by max_output_chars=${effectiveMaxOutputChars}.`);
+                        outputChars = effectiveMaxOutputChars;
+                    }
+                    outputTruncated = true;
+                    return false;
+                }
+
+                results.push(text);
+                outputChars += text.length + 1;
+                return true;
+            };
+
+            for await (const filePath of filesToSearch) {
                 if (signal && signal.aborted) throw new Error("Operation aborted by user.");
                 if (scanned++ > MAX_SCANNED) {
-                    results.push(`\n[System] Scan limit reached (${MAX_SCANNED} files). Please narrow down your search path or use a glob filter.`);
+                    pushResult(`\n[System] Scan limit reached (${MAX_SCANNED} files). Please narrow down your search path or use a glob filter.`, { force: true });
                     break;
                 }
+
+                if (outputTruncated) break;
 
                 if (globRegex) {
                     const normalizedFilePath = normalizePath(filePath);
@@ -1344,9 +2280,9 @@ const handlers = {
 
                     if (output_mode === 'files_with_matches') {
                         if (searchRegex.test(content)) {
-                            results.push(filePath);
                             searchRegex.lastIndex = 0;
-                            if (results.length >= MAX_RESULTS_BLOCKS) break;
+                            if (!pushResult(filePath)) break;
+                            if (results.length >= effectiveMaxResults) break;
                         }
                     } else {
                         const matches = [...content.matchAll(searchRegex)];
@@ -1355,38 +2291,32 @@ const handlers = {
                             if (output_mode === 'count') continue;
 
                             const lines = content.split(/\r?\n/);
-                            
+
                             for (const m of matches) {
-                                if (results.length >= MAX_RESULTS_BLOCKS) break;
+                                if (results.length >= effectiveMaxResults) break;
+                                if (outputTruncated) break;
 
                                 const offset = m.index;
-                                const matchLen = m[0].length;
-                                
-                                // 计算行号 (1-based)
-                                const preMatch = content.substring(0, offset);
-                                const lineNum = preMatch.split(/\r?\n/).length;
-                                
-                                // 计算列号 (1-based)
-                                const lastNewLinePos = preMatch.lastIndexOf('\n');
-                                const colNum = offset - lastNewLinePos; 
+                                const lineNum = content.substring(0, offset).split(/\r?\n/).length;
 
-                                // 计算匹配结束行号 (处理多行匹配)
+                                const preMatch = content.substring(0, offset);
+                                const lastNewLinePos = preMatch.lastIndexOf('\n');
+                                const colNum = offset - lastNewLinePos;
+
                                 const matchText = m[0];
                                 const newLinesInMatch = (matchText.match(/\n/g) || []).length;
                                 const endLineNum = lineNum + newLinesInMatch;
 
-                                // 获取上下文 (前后 20 行)
-                                const contextLines = 20;
-                                const startLineIdx = Math.max(0, lineNum - 1 - contextLines);
-                                const endLineIdx = Math.min(lines.length, endLineNum - 1 + 1 + contextLines);
-                                
+                                const startLineIdx = Math.max(0, lineNum - 1 - effectiveContextLines);
+                                const endLineIdx = Math.min(lines.length, endLineNum - 1 + 1 + effectiveContextLines);
+
                                 let contextBlock = "";
                                 for (let i = startLineIdx; i < endLineIdx; i++) {
                                     const currentLineNum = i + 1;
-                                    const lineContent = lines[i];
-                                    // 使用 '>' 标记匹配覆盖的行
-                                    const marker = (currentLineNum >= lineNum && currentLineNum <= endLineNum) ? ">" : " ";
-                                    contextBlock += `${currentLineNum.toString().padEnd(4)} |${marker} ${lineContent}\n`;
+                                    const lineContent = truncateLine(lines[i]);
+                                    const isMatch = (currentLineNum >= lineNum && currentLineNum <= endLineNum);
+                                    const marker = isMatch ? "=>" : "  ";
+                                    contextBlock += `${marker} ${String(currentLineNum).padStart(4)} | ${lineContent}\n`;
                                 }
 
                                 const block = `[Match] ${filePath}
@@ -1394,41 +2324,42 @@ Location: Line ${lineNum}, Col ${colNum} (Start Offset: ${offset})
 Context:
 ${contextBlock}
 --------------------------------------------------`;
-                                results.push(block);
+                                if (!pushResult(block)) break;
                             }
                         }
                     }
                 } catch (readErr) { /* ignore */ }
 
-                if (output_mode !== 'count' && results.length >= MAX_RESULTS_BLOCKS) {
-                    results.push(`\n[System Warning] Output truncated. Reached maximum of ${MAX_RESULTS_BLOCKS} result blocks. Please use a more specific pattern.`);
+                if (output_mode !== 'count' && results.length >= effectiveMaxResults) {
+                    pushResult(`\n[System Warning] Output truncated. Reached maximum of ${effectiveMaxResults} result blocks. Use a more specific pattern, output_mode='files_with_matches', or increase max_results.`, { force: true });
                     break;
                 }
             }
 
             if (output_mode === 'count') return `Total matches: ${matchCount}`;
             if (results.length === 0) return "No matches found.";
-            return results.join('\n');
+            const suffix = outputTruncated
+                ? `\n[System Warning] Output truncated. Reached max_output_chars=${effectiveMaxOutputChars}. Use a narrower path/glob/pattern, output_mode='files_with_matches', or increase max_output_chars.`
+                : '';
+            return results.join('\n') + suffix;
         } catch (e) {
             return `Grep error: ${e.message}`;
         }
     },
+
     // 3. Read File
-    read_file: async ({ file_path, offset = 0, length = MAX_READ }, context, signal) => {
+    read_file: async ({ file_path, offset = 0, length = MAX_READ, start_line, end_line, show_line_numbers = true }, context, signal) => {
         try {
             const MAX_SINGLE_READ = MAX_READ;
             const readLength = Math.min(length, MAX_SINGLE_READ);
             let fileForHandler;
 
             if (file_path.startsWith('http://') || file_path.startsWith('https://')) {
-                // 处理 URL
                 try {
-                    // [修改] 传递 signal
                     const response = await fetch(file_path, { signal });
                     if (!response.ok) {
                         return `Error fetching URL: ${response.status} ${response.statusText}`;
                     }
-                    // ... (后续逻辑保持不变)
                     const arrayBuffer = await response.arrayBuffer();
                     const buffer = Buffer.from(arrayBuffer);
                     const base64String = buffer.toString('base64');
@@ -1451,7 +2382,6 @@ ${contextBlock}
                     return `Network error: ${fetchErr.message}`;
                 }
             } else {
-                // 处理本地文件
                 const safePath = resolvePath(file_path);
                 if (!isPathSafe(safePath)) {
                     return `[Security Block] Access to sensitive system file '${path.basename(safePath)}' is restricted.`;
@@ -1459,7 +2389,6 @@ ${contextBlock}
 
                 if (!fs.existsSync(safePath)) return `Error: File not found at ${safePath}`;
 
-                // 传递 signal 给 readFile (Node v14.17+ 支持)
                 const fileBuffer = await fs.promises.readFile(safePath, { signal });
                 const stats = await fs.promises.stat(safePath);
 
@@ -1467,12 +2396,9 @@ ${contextBlock}
                     return `Error: File is too large for processing (>200MB).`;
                 }
 
-                // 构造 File 对象逻辑简化，避免依赖前端对象
-                // 这里直接用 buffer 处理
                 const base64String = fileBuffer.toString('base64');
                 const ext = path.extname(safePath).toLowerCase();
-                // 简单的 mime 推断
-                const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.pdf': 'application/pdf' }[ext] || 'application/octet-stream';
+                const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.pdf': 'application/pdf', '.gif': 'image/gif' }[ext] || 'application/octet-stream';
                 const dataUrl = `data:${mime};base64,${base64String}`;
 
                 fileForHandler = {
@@ -1489,29 +2415,102 @@ ${contextBlock}
             let fullText = "";
             if (result.type === 'text' && result.text) {
                 fullText = result.text;
+
+                const prefixRegex = /^file name:.*?\nfile content:\n/;
+                const suffixRegex = /\nfile end$/;
+                fullText = fullText.replace(prefixRegex, '').replace(suffixRegex, '');
+
             } else {
                 const typeInfo = result.type === 'image_url' ? 'Image' : 'Binary/PDF';
                 return `[System] File '${fileForHandler.name}' detected as ${typeInfo}. \nContent extraction is currently NOT supported via this tool for binary formats in this context.`;
             }
 
-            // --- 分页读取逻辑 ---
-            const totalChars = fullText.length;
-            const startPos = Math.max(0, offset);
-            const contentChunk = fullText.substring(startPos, startPos + readLength);
-            const remainingChars = totalChars - (startPos + contentChunk.length);
+            // --- 分页与按行读取逻辑 ---
+            let output = "";
+            const useLineMode = (start_line !== undefined && start_line > 0) || (end_line !== undefined && end_line > 0);
 
-            let output = contentChunk;
+            if (useLineMode) {
+                // 按行读取模式
+                const lines = fullText.split(/\r?\n/);
+                const totalLines = lines.length;
 
-            if (remainingChars > 0) {
-                const nextOffset = startPos + contentChunk.length;
-                output += `\n\n--- [SYSTEM NOTE: CONTENT TRUNCATED] ---\n`;
-                output += `Total characters in file: ${totalChars}\n`;
-                output += `Current chunk: ${startPos} to ${nextOffset}\n`;
-                output += `Remaining unread characters: ${remainingChars}\n`;
-                output += `To read more, call read_file with offset: ${nextOffset}\n`;
-                output += `---------------------------------------`;
-            } else if (startPos > 0) {
-                output += `\n\n--- [SYSTEM NOTE: END OF FILE REACHED] ---`;
+                let startIdx = 0;
+                let endIdx = totalLines - 1;
+
+                if (start_line !== undefined && start_line > 0) startIdx = Math.max(0, parseInt(start_line) - 1);
+                if (end_line !== undefined && end_line > 0) endIdx = Math.min(totalLines - 1, parseInt(end_line) - 1);
+
+                if (startIdx > endIdx || startIdx >= totalLines) {
+                    return `Error: Invalid line range. The file has ${totalLines} lines.`;
+                }
+
+                let currentLength = 0;
+                let safeEndIdx = startIdx;
+                let chunkLinesArray = [];
+
+                for (let i = startIdx; i <= endIdx; i++) {
+                    let lineContent = lines[i];
+                    if (show_line_numbers) {
+                        const lineNumStr = String(i + 1).padStart(4);
+                        lineContent = `${lineNumStr} | ${lineContent}`;
+                    }
+
+                    const lineLen = lineContent.length + 1; // +1 for '\n'
+                    if (currentLength + lineLen > MAX_READ && i > startIdx) {
+                        break;
+                    }
+                    currentLength += lineLen;
+                    safeEndIdx = i;
+                    chunkLinesArray.push(lineContent);
+                }
+                endIdx = safeEndIdx;
+
+                output = chunkLinesArray.join('\n');
+
+                if (endIdx < totalLines - 1) {
+                    const nextLine = endIdx + 2; // 1-based next line
+                    output += `\n\n--- [SYSTEM NOTE: CONTENT TRUNCATED] ---\n`;
+                    output += `Total lines in file: ${totalLines}\n`;
+                    output += `Current chunk: lines ${startIdx + 1} to ${endIdx + 1}\n`;
+                    output += `Remaining unread lines: ${totalLines - endIdx - 1}\n`;
+                    output += `To read more, call read_file with start_line: ${nextLine}, end_line: 0\n`;
+                    output += `---------------------------------------`;
+                } else if (startIdx > 0) {
+                    output += `\n\n--- [SYSTEM NOTE: END OF FILE REACHED] ---`;
+                }
+            } else {
+                // 默认的按字符偏移读取模式
+                const totalChars = fullText.length;
+                const startPos = Math.max(0, offset);
+                let contentChunk = fullText.substring(startPos, startPos + readLength);
+                const actualReadLength = contentChunk.length; // 记录原始读取的字符长度
+                const remainingChars = totalChars - (startPos + actualReadLength);
+
+                if (show_line_numbers) {
+                    const preText = fullText.substring(0, startPos);
+                    let lineNum = (preText.match(/\n/g) || []).length + 1;
+                    const chunkLines = contentChunk.split('\n');
+                    let numberedLines = [];
+                    for (let i = 0; i < chunkLines.length; i++) {
+                        const lineNumStr = String(lineNum + i).padStart(4);
+                        numberedLines.push(`${lineNumStr} | ${chunkLines[i]}`);
+                    }
+                    contentChunk = numberedLines.join('\n');
+                }
+
+                output = contentChunk;
+
+                if (remainingChars > 0) {
+                    const nextOffset = startPos + actualReadLength;
+                    output += `\n\n--- [SYSTEM NOTE: CONTENT TRUNCATED] ---\n`;
+                    output += `Total characters in file: ${totalChars}\n`;
+                    output += `Current chunk: ${startPos} to ${nextOffset}\n`;
+                    output += `Remaining unread characters: ${remainingChars}\n`;
+                    output += `To read more, call read_file with offset: ${nextOffset}\n`;
+                    output += `---------------------------------------`;
+                } else if (startPos > 0) {
+                    output += `\n\n--- [SYSTEM NOTE: END OF FILE REACHED] ---`;
+                }
             }
 
             return output;
@@ -1529,35 +2528,63 @@ ${contextBlock}
 
         const unlock = await acquireLock(safePath);
         try {
-            let content = await fs.promises.readFile(safePath, 'utf-8');
+            let rawContent = await fs.promises.readFile(safePath, 'utf-8');
+            // 判断原始文件的换行符风格 (是否存在 \r\n)
+            const isCRLF = rawContent.includes('\r\n');
+            
+            // 统一换行符为 \n，消除因系统换行符差异导致的严格匹配失败
+            let content = rawContent.replace(/\r\n/g, '\n');
+            const targetOld = typeof old_string === 'string' ? old_string.replace(/\r\n/g, '\n') : old_string;
+            const targetNew = typeof new_string === 'string' ? new_string.replace(/\r\n/g, '\n') : new_string;
 
-            const targetOld = old_string;
-            const targetNew = new_string;
-
-            // 检查 old_string 是否存在
-            if (!content.includes(targetOld)) {
-                return `Error: 'old_string' not found in file. Please ensure you read the file first and use the exact string.`;
+            // 精确匹配 old_string；失败时做安全兜底恢复
+            let effectiveOld = targetOld;
+            let recoveryNote = '';
+            if (!content.includes(effectiveOld)) {
+                // 兜底（原因①）：old_string 可能误含 read_file 的 "NNNN | " 行号前缀，尝试剥离后重试
+                const stripped = stripLineNumberPrefix(targetOld);
+                if (stripped && stripped !== targetOld && content.includes(stripped)) {
+                    effectiveOld = stripped;
+                    recoveryNote = ' [auto-removed line-number prefixes from old_string]';
+                } else {
+                    // 仍未命中：返回带诊断的错误（原因①④）
+                    return buildEditNotFoundDiagnostic(content, targetOld);
+                }
             }
 
             // 检查唯一性
-            if (!replace_all) {
-                const count = content.split(targetOld).length - 1;
-                if (count > 1) {
-                    return `Error: 'old_string' occurs ${count} times. Please set 'replace_all' to true if you intend to replace all, or provide a more unique context string.`;
-                }
+            const occurrences = content.split(effectiveOld).length - 1;
+            if (!replace_all && occurrences > 1) {
+                return `Error: 'old_string' occurs ${occurrences} times. Please set 'replace_all' to true if you intend to replace all, or provide a more unique context string.`;
             }
 
             if (replace_all) {
-                content = content.split(targetOld).join(targetNew);
+                content = content.split(effectiveOld).join(targetNew);
             } else {
-                const index = content.indexOf(targetOld);
+                const index = content.indexOf(effectiveOld);
                 if (index !== -1) {
-                    content = content.substring(0, index) + targetNew + content.substring(index + targetOld.length);
+                    content = content.substring(0, index) + targetNew + content.substring(index + effectiveOld.length);
                 }
             }
 
+            // 在 CRLF 恢复前，用 LF 版内容生成改动片段（展示用）
+            const snippet = buildEditSnippet(content, targetNew);
+
+            // 恢复原文件的换行符风格
+            if (isCRLF) {
+                content = content.replace(/\n/g, '\r\n');
+            }
+
             await fs.promises.writeFile(safePath, content, 'utf-8');
-            return `Successfully edited ${path.basename(safePath)}.`;
+
+            const baseName = path.basename(safePath);
+            let resultMsg = replace_all
+                ? `Successfully edited ${baseName} (replaced all ${occurrences} occurrence(s)${occurrences > 1 ? ', showing first below' : ''})${recoveryNote}.`
+                : `Successfully edited ${baseName} (1 occurrence replaced)${recoveryNote}.`;
+            if (snippet) {
+                resultMsg += `\nUpdated section:\n${snippet}`;
+            }
+            return resultMsg;
         } catch (e) {
             return `Edit failed: ${e.message}`;
         } finally {
@@ -1639,23 +2666,8 @@ ${contextBlock}
             let fileContent = await fs.promises.readFile(safePath, 'utf-8');
             const processedContent = content;
 
-            if (line_number !== undefined && line_number !== null) {
-                const lines = fileContent.split(/\r?\n/);
-                const targetIndex = parseInt(line_number) - 1;
-
-                if (isNaN(targetIndex) || targetIndex < 0 || targetIndex > lines.length) {
-                    return `Error: Line number ${line_number} is out of bounds (File has ${lines.length} lines).`;
-                }
-
-                const insertPos = direction === 'before' ? targetIndex : targetIndex + 1;
-                const contentLines = processedContent.split(/\r?\n/);
-                lines.splice(insertPos, 0, ...contentLines);
-
-                await fs.promises.writeFile(safePath, lines.join('\n'), 'utf-8');
-                return `Successfully inserted content at line ${line_number} in ${path.basename(safePath)}.`;
-            }
-
-            if (anchor_pattern) {
+            // 优先判断 anchor_pattern 模式 (即使 AI 生成了错误的 line_number = 0 也会被拦截)
+            if (anchor_pattern && typeof anchor_pattern === 'string' && anchor_pattern.trim() !== '') {
                 let regex;
                 try {
                     regex = new RegExp(anchor_pattern, 'm');
@@ -1672,7 +2684,26 @@ ${contextBlock}
                 await fs.promises.writeFile(safePath, newFullContent, 'utf-8');
                 return `Successfully inserted content ${direction} anchor pattern in ${path.basename(safePath)}.`;
             }
-            return `Error: You must provide either 'line_number' or 'anchor_pattern'.`;
+
+            // 当没有 anchor_pattern 时，退回行号模式，并过滤 line_number 为 0 或非正数的值
+            if (line_number !== undefined && line_number !== null && parseInt(line_number) > 0) {
+                const lines = fileContent.split(/\r?\n/);
+                const targetIndex = parseInt(line_number) - 1;
+
+                if (isNaN(targetIndex) || targetIndex < 0 || targetIndex > lines.length) {
+                    return `Error: Line number ${line_number} is out of bounds (File has ${lines.length} lines).`;
+                }
+
+                const insertPos = direction === 'before' ? targetIndex : targetIndex + 1;
+                const contentLines = processedContent.split(/\r?\n/);
+                lines.splice(insertPos, 0, ...contentLines);
+
+                await fs.promises.writeFile(safePath, lines.join('\n'), 'utf-8');
+                return `Successfully inserted content at line ${line_number} in ${path.basename(safePath)}.`;
+            }
+
+            // 若两者皆未有效提供
+            return `Error: You must provide either a valid 'line_number' (> 0) or 'anchor_pattern'.`;
         } catch (e) {
             return `Insert error: ${e.message}`;
         } finally {
@@ -1710,39 +2741,36 @@ ${contextBlock}
         const crypto = require('crypto');
         const scriptId = crypto.randomBytes(4).toString('hex');
         const tempDir = os.tmpdir();
-        
+
         let tempFile = '';
         let shellToUse = '';
         let spawnArgs = [];
-        let execCmd = '';
 
         if (isWin) {
             tempFile = path.join(tempDir, `anywhere_cmd_${Date.now()}_${scriptId}.ps1`);
             const preamble = `
 $OutputEncoding = [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
 $PSDefaultParameterValues['*:Encoding'] = 'utf8';
+$env:NO_COLOR = '1';
+$env:FORCE_COLOR = '0';
+$env:CLICOLOR = '0';
+$env:npm_config_color = 'false';
+$env:PNPM_COLOR = 'never';
+$env:YARN_ENABLE_COLORS = '0';
+if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) { $PSStyle.OutputRendering = 'PlainText' }
 `;
-            // 添加 UTF-8 BOM (\uFEFF)，解决 PowerShell 5.1 默认按 ANSI 读取导致的 Unicode 乱码和引号配对破坏问题
             fs.writeFileSync(tempFile, '\uFEFF' + preamble + '\n' + command, { encoding: 'utf8' });
             shellToUse = 'powershell.exe';
             spawnArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', tempFile];
-            execCmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${tempFile}"`;
         } else {
             tempFile = path.join(tempDir, `anywhere_cmd_${Date.now()}_${scriptId}.sh`);
             fs.writeFileSync(tempFile, command, { encoding: 'utf8' });
             shellToUse = '/bin/bash';
             spawnArgs = [tempFile];
-            execCmd = `"/bin/bash" "${tempFile}"`;
         }
 
         const cleanupTempFile = () => {
-            try {
-                if (fs.existsSync(tempFile)) {
-                    fs.unlinkSync(tempFile);
-                }
-            } catch (e) {
-                console.error("Failed to clean up temp script:", e);
-            }
+            try { if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile); } catch (e) { }
         };
 
         if (!background && trimmedCmd.startsWith('cd ') && trimmedCmd.split('\n').length === 1) {
@@ -1769,128 +2797,120 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
         if (background) {
             return new Promise((resolve) => {
                 const shellId = `shell_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-                
                 try {
                     const child = require('child_process').spawn(shellToUse, spawnArgs, {
                         cwd: bashCwd,
-                        env: { ...process.env, FORCE_COLOR: '1' },
-                        detached: !isWin 
+                        env: { ...process.env, ...COLORLESS_COMMAND_ENV },
+                        detached: !isWin
                     });
-
                     backgroundShells.set(shellId, {
-                        process: child,
-                        command: command,
-                        startTime: new Date().toISOString(),
-                        logs: "",
-                        pid: child.pid,
-                        active: true
+                        process: child, command: command, startTime: new Date().toISOString(),
+                        logs: "", pid: child.pid, active: true
                     });
-
                     child.stdout.on('data', (data) => appendBgLog(shellId, data.toString()));
                     child.stderr.on('data', (data) => appendBgLog(shellId, data.toString()));
-
-                    child.on('error', (err) => {
-                        appendBgLog(shellId, `\n[System Error]: ${err.message}\n`);
-                        const proc = backgroundShells.get(shellId);
-                        if(proc) proc.active = false;
-                        cleanupTempFile();
-                    });
-
                     child.on('close', (code) => {
-                        appendBgLog(shellId, `\n[System]: Process exited with code ${code}\n`);
                         const proc = backgroundShells.get(shellId);
-                        if(proc) proc.active = false;
+                        if (proc) proc.active = false;
                         cleanupTempFile();
                     });
-
-                    try {
-                        const parentPid = process.pid;
-                        const targetPid = child.pid;
-                        
-                        if (isWin) {
-                            const watcherCmd = `Wait-Process -Id ${parentPid} -ErrorAction SilentlyContinue; taskkill /pid ${targetPid} /T /F 2>$null`;
-                            require('child_process').spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', watcherCmd], {
-                                detached: true, stdio: 'ignore', windowsHide: true
-                            }).unref();
-                        } else {
-                            const watcherCmd = `while kill -0 ${parentPid} 2>/dev/null; do sleep 1; done; kill -9 -${targetPid} 2>/dev/null || kill -9 ${targetPid} 2>/dev/null`;
-                            require('child_process').spawn('sh', ['-c', watcherCmd], {
-                                detached: true, stdio: 'ignore'
-                            }).unref();
-                        }
-                    } catch (watcherErr) {
-                        console.error("Failed to start process watcher:", watcherErr);
-                    }
-
-                    resolve(`Background process started successfully.\nID: ${shellId}\nPID: ${child.pid}\n\nUse 'read_background_shell_output' to view logs.`);
-                } catch (e) {
-                    cleanupTempFile();
-                    resolve(`Failed to start background process: ${e.message}`);
-                }
+                    resolve(`Background process started successfully.\nID: ${shellId}\nUse 'read_background_shell_output' to view logs.`);
+                } catch (e) { cleanupTempFile(); resolve(`Failed: ${e.message}`); }
             });
         }
 
         return new Promise((resolve) => {
             const validTimeout = (typeof timeout === 'number' && timeout > 0) ? timeout : 15000;
+            const MAX_BUFFER = 1024 * 1024 * 10;
+            let isResolved = false;
 
-            let shellOptions = {
+            const child = require('child_process').spawn(shellToUse, spawnArgs, {
                 cwd: bashCwd,
-                encoding: 'buffer',
-                maxBuffer: 1024 * 1024 * 10,
-                timeout: validTimeout
+                env: { ...process.env, ...COLORLESS_COMMAND_ENV },
+                detached: !isWin
+            });
+
+            let outChunks = [];
+            let errChunks = [];
+            let totalLength = 0;
+
+            const killProcess = (pid) => {
+                try {
+                    if (isWin) {
+                        require('child_process').execSync(`taskkill /pid ${pid} /T /F`, { stdio: 'ignore' });
+                    } else {
+                        process.kill(-pid, 'SIGKILL');
+                    }
+                } catch (e) {
+                    try { child.kill('SIGKILL'); } catch (e2) { }
+                }
             };
 
-            const child = require('child_process').exec(execCmd, shellOptions, (error, stdout, stderr) => {
-                cleanupTempFile();
-                
-                const decodeBuffer = (buf) => {
-                    if (!buf || buf.length === 0) return "";
-                    const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
-                    const utf8Str = utf8Decoder.decode(buf);
-
-                    if (isWin && (utf8Str.includes('\uFFFD') || error)) {
-                        try {
-                            const gbkDecoder = new TextDecoder('gbk', { fatal: false });
-                            return gbkDecoder.decode(buf);
-                        } catch (e) {
-                            return utf8Str;
-                        }
-                    }
-                    return utf8Str;
-                };
-
-                let result = "";
-                const outStr = decodeBuffer(stdout);
-                const errStr = decodeBuffer(stderr);
-
-                if (outStr) result += outStr;
-                
-                if (errStr) {
-                    result += `\n[Stderr/Warning]:\n${errStr}`;
-                }
-
-                if (error) {
-                    if (error.signal === 'SIGTERM') {
-                        result += `\n\n[System Note]: Command timed out after ${validTimeout / 1000}s. For long tasks, set 'background': true.`;
-                    } else if (error.killed) {
-                        result += `\n\n[System Note]: Command was aborted by user.`;
-                    } else {
-                        if (!errStr && error.message) {
-                            result += `\n\n[Execution Error]: ${error.message}`;
-                        }
-                    }
-                }
-
-                if (!result.trim()) result = "Command executed successfully (no output).";
-                resolve(`[CWD: ${bashCwd}]\n${result}`);
-            });
+            const timer = setTimeout(() => {
+                if (isResolved) return;
+                killProcess(child.pid);
+                isResolved = true;
+                resolve(`[System Note]: Command timed out after ${validTimeout / 1000}s.`);
+            }, validTimeout);
 
             if (signal) {
                 signal.addEventListener('abort', () => {
-                    child.kill();
-                    cleanupTempFile();
+                    if (isResolved) return;
+                    clearTimeout(timer);
+                    killProcess(child.pid);
+                    isResolved = true;
+                    resolve(`[System Note]: Command was aborted by user.`);
                 });
             }
+
+            const handleData = (data, targetArray) => {
+                targetArray.push(data);
+                totalLength += data.length;
+                if (totalLength > MAX_BUFFER) {
+                    killProcess(child.pid);
+                    if (!isResolved) {
+                        isResolved = true;
+                        clearTimeout(timer);
+                        cleanupTempFile();
+                        resolve(`[Execution Error]: Max buffer size (10MB) exceeded. Process killed.`);
+                    }
+                }
+            };
+
+            child.stdout.on('data', (data) => handleData(data, outChunks));
+            child.stderr.on('data', (data) => handleData(data, errChunks));
+
+            child.on('close', (code) => {
+                if (isResolved) return;
+                isResolved = true;
+                clearTimeout(timer);
+                cleanupTempFile();
+
+                const decode = (bufArray) => {
+                    if (bufArray.length === 0) return "";
+                    const buf = Buffer.concat(bufArray);
+                    const str = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+                    if (isWin && str.includes('\uFFFD')) { // 乱码回退 GBK
+                        try { return new TextDecoder('gbk', { fatal: false }).decode(buf); } catch (e) { return str; }
+                    }
+                    return str;
+                };
+
+                let result = stripTerminalControlSequences(decode(outChunks));
+                const errorStr = stripTerminalControlSequences(decode(errChunks));
+                if (errorStr) result += `\n[Stderr]:\n${errorStr}`;
+
+                if (!result.trim()) result = "Command executed successfully.";
+                resolve(`[CWD: ${bashCwd}]\n${result}`);
+            });
+
+            child.on('error', (err) => {
+                if (isResolved) return;
+                isResolved = true;
+                clearTimeout(timer);
+                cleanupTempFile();
+                resolve(`Execution error: ${err.message}`);
+            });
         });
     },
 
@@ -1898,16 +2918,16 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
         if (isChildWindow()) return await callParentShell('list', {});
 
         if (backgroundShells.size === 0) return "No active background shells.";
-        
+
         let output = "ID | PID | Status | Start Time | Command\n";
         output += "--- | --- | --- | --- | ---\n";
-        
+
         backgroundShells.forEach((proc, id) => {
             const status = proc.active ? "Running" : "Exited";
             const cmdDisplay = proc.command.length > 30 ? proc.command.substring(0, 30) + '...' : proc.command;
             output += `${id} | ${proc.pid} | ${status} | ${proc.startTime} | ${cmdDisplay}\n`;
         });
-        
+
         return output;
     },
 
@@ -1922,12 +2942,13 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
         const safeOffset = Math.max(0, offset);
         const safeLength = Math.min(length, MAX_READ);
 
-        const chunk = fullLogs.substring(safeOffset, safeOffset + safeLength);
-        const nextOffset = safeOffset + chunk.length;
-        
+        const rawChunk = fullLogs.substring(safeOffset, safeOffset + safeLength);
+        const chunk = stripTerminalControlSequences(rawChunk);
+        const nextOffset = safeOffset + rawChunk.length;
+
         let statusInfo = `[Process State: ${proc.active ? 'Running' : 'Exited'}]`;
         let footer = "";
-        
+
         if (nextOffset < totalLength) {
             footer = `\n\n[System]: More output available (${totalLength - nextOffset} chars remaining). Call tool again with offset=${nextOffset}.`;
         }
@@ -1956,12 +2977,12 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
             } else {
                 // Unix Group Kill (使用 -pid)
                 try {
-                    process.kill(-pid, 'SIGKILL'); 
+                    process.kill(-pid, 'SIGKILL');
                 } catch (e) {
-                    try { process.kill(pid, 'SIGKILL'); } catch(e2){}
+                    try { process.kill(pid, 'SIGKILL'); } catch (e2) { }
                 }
             }
-            
+
             proc.active = false;
             appendBgLog(shell_id, `\n[System]: Process terminated by user request (Tree Kill).\n`);
             return `Successfully sent tree kill signal to process ${pid} (${shell_id}).`;
@@ -1971,27 +2992,31 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
     },
 
     // Web Search Handler
-    web_search: async ({ query, count = 5, language = 'zh-CN' }, context, signal) => {
+    builtin_web_search: async ({ query, count = 5, language = 'zh-CN' }, context, signal) => {
         try {
             const limit = Math.min(Math.max(parseInt(count) || 5, 1), 10);
-            const url = "https://html.duckduckgo.com/html/";
 
             let ddgRegion = 'cn-zh';
             let acceptLang = 'zh-CN,zh;q=0.9,en;q=0.8';
+            let bingMarket = 'zh-CN';
 
             const langInput = (language || '').toLowerCase();
             if (langInput.includes('en') || langInput.includes('us')) {
                 ddgRegion = 'us-en';
                 acceptLang = 'en-US,en;q=0.9';
+                bingMarket = 'en-US';
             } else if (langInput.includes('jp') || langInput.includes('ja')) {
                 ddgRegion = 'jp-jp';
                 acceptLang = 'ja-JP,ja;q=0.9,en;q=0.8';
+                bingMarket = 'ja-JP';
             } else if (langInput.includes('ru')) {
                 ddgRegion = 'ru-ru';
                 acceptLang = 'ru-RU,ru;q=0.9,en;q=0.8';
+                bingMarket = 'ru-RU';
             } else if (langInput === 'all' || langInput === 'world') {
                 ddgRegion = 'wt-wt';
                 acceptLang = 'en-US,en;q=0.9';
+                bingMarket = 'en-WW';
             }
 
             const headers = {
@@ -2003,53 +3028,143 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
                 "Referer": "https://html.duckduckgo.com/"
             };
 
-            const body = new URLSearchParams();
-            body.append('q', query);
-            body.append('b', '');
-            body.append('kl', ddgRegion);
-
-            // 传递 signal
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: headers,
-                body: body,
-                signal: signal
-            });
-
-            if (!response.ok) throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
-            const html = await response.text();
-
-            const results = [];
-            const titleLinkRegex = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
-            const snippetRegex = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
-            const titles = [...html.matchAll(titleLinkRegex)];
-            const snippets = [...html.matchAll(snippetRegex)];
             const decodeHtml = (str) => {
                 if (!str) return "";
                 return str
                     .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
                     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
-                    .replace(/<b>/g, "").replace(/<\/b>/g, "").replace(/\s+/g, " ").trim();
+                    .replace(/<b>/g, "").replace(/<\/b>/g, "")
+                    .replace(/<strong>/g, "").replace(/<\/strong>/g, "")
+                    .replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
             };
-            for (let i = 0; i < titles.length && i < limit; i++) {
-                let link = titles[i][1];
-                const titleRaw = titles[i][2];
-                const snippetRaw = snippets[i] ? snippets[i][1] : "";
-                try {
-                    if (link.includes('uddg=')) {
-                        const urlObj = new URL(link, "https://html.duckduckgo.com");
-                        const uddg = urlObj.searchParams.get("uddg");
-                        if (uddg) link = decodeURIComponent(uddg);
+
+            const parseDuckDuckGoResults = (html) => {
+                const parsed = [];
+                const titleLinkRegex = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+                const snippetRegex = /class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:a|div)>/g;
+                const titles = [...html.matchAll(titleLinkRegex)];
+                const snippets = [...html.matchAll(snippetRegex)];
+
+                for (let i = 0; i < titles.length && i < limit; i++) {
+                    let link = titles[i][1];
+                    const titleRaw = titles[i][2];
+                    const snippetRaw = snippets[i] ? snippets[i][1] : "";
+
+                    try {
+                        if (link.includes('uddg=')) {
+                            const urlObj = new URL(link, "https://html.duckduckgo.com");
+                            const uddg = urlObj.searchParams.get("uddg");
+                            if (uddg) link = decodeURIComponent(uddg);
+                        }
+                    } catch (e) { }
+
+                    parsed.push({
+                        title: decodeHtml(titleRaw),
+                        link: link,
+                        snippet: decodeHtml(snippetRaw)
+                    });
+                }
+
+                return parsed.filter(item => item.title && item.link);
+            };
+
+            const parseBingResults = (html) => {
+                const parsed = [];
+                const resultRegex = /<li[^>]*class="[^"]*b_algo[^"]*"[^>]*>([\s\S]*?)<\/li>/g;
+                const blocks = [...html.matchAll(resultRegex)];
+
+                const extractBingSnippet = (block) => {
+                    const candidates = [
+                        block.match(/<div[^>]*class="[^"]*b_caption[^"]*"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i),
+                        block.match(/<p[^>]*>([\s\S]*?)<\/p>/i),
+                        block.match(/<div[^>]*class="[^"]*(?:b_lineclamp\d*|b_snippet|b_caption)[^"]*"[^>]*>([\s\S]*?)<\/div>/i),
+                        block.match(/<span[^>]*class="[^"]*(?:b_lineclamp\d*|b_snippet)[^"]*"[^>]*>([\s\S]*?)<\/span>/i)
+                    ];
+                    for (const candidate of candidates) {
+                        const snippet = decodeHtml(candidate ? candidate[1] : "");
+                        if (snippet) return snippet;
                     }
-                } catch (e) { }
-                results.push({
-                    title: decodeHtml(titleRaw),
-                    link: link,
-                    snippet: decodeHtml(snippetRaw)
+
+                    const withoutTitle = block.replace(/<h2[\s\S]*?<\/h2>/i, ' ');
+                    const fallbackText = decodeHtml(withoutTitle);
+                    return fallbackText.length > 240 ? `${fallbackText.slice(0, 240).trim()}...` : fallbackText;
+                };
+
+                for (let i = 0; i < blocks.length && parsed.length < limit; i++) {
+                    const block = blocks[i][1] || "";
+                    const titleMatch = block.match(/<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+                    if (!titleMatch) continue;
+                    parsed.push({
+                        title: decodeHtml(titleMatch[2]),
+                        link: titleMatch[1],
+                        snippet: extractBingSnippet(block)
+                    });
+                }
+
+                return parsed.filter(item => item.title && item.link);
+            };
+
+            let results = [];
+            let searchRequestFailed = null;
+            let fallbackUsed = false;
+
+            try {
+                const body = new URLSearchParams();
+                body.append('q', query);
+                body.append('b', '');
+                body.append('kl', ddgRegion);
+
+                const response = await fetch("https://html.duckduckgo.com/html/", {
+                    method: 'POST',
+                    headers: headers,
+                    body: body,
+                    signal: signal
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} ${response.statusText}`);
+                }
+
+                const html = await response.text();
+                results = parseDuckDuckGoResults(html);
+            } catch (e) {
+                searchRequestFailed = e;
             }
+
+            if (results.length === 0 && searchRequestFailed) {
+                try {
+                    fallbackUsed = true;
+                    const bingHeaders = {
+                        "User-Agent": headers["User-Agent"],
+                        "Accept": headers["Accept"],
+                        "Accept-Language": acceptLang,
+                        "Referer": "https://www.bing.com/"
+                    };
+                    const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=${encodeURIComponent(bingMarket)}&mkt=${encodeURIComponent(bingMarket)}`;
+                    const response = await fetch(bingUrl, {
+                        method: 'GET',
+                        headers: bingHeaders,
+                        signal: signal
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+                    }
+
+                    const html = await response.text();
+                    results = parseBingResults(html);
+                } catch (fallbackError) {
+                    return JSON.stringify({
+                        message: "Web search request failed. Please check your network or proxy settings.",
+                        query: query,
+                        error: searchRequestFailed.message,
+                        fallbackError: fallbackError.message
+                    });
+                }
+            }
+
             if (results.length === 0) {
-                if (ddgRegion === 'cn-zh') return JSON.stringify({ message: "No results found in Chinese region. Try setting language='en' or 'all'.", query: query });
+                if (ddgRegion === 'cn-zh') return JSON.stringify({ message: fallbackUsed ? "No results found from Bing fallback." : "No results found in Chinese region. Try setting language='en' or 'all'.", query: query });
                 return JSON.stringify({ message: "No results found.", query: query });
             }
             return JSON.stringify(results, null, 2);
@@ -2060,7 +3175,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
     },
 
     // Web Fetch Handler
-    web_fetch: async ({ url, offset = 0, length = MAX_READ }, context, signal) => {
+    builtin_web_fetch: async ({ url, offset = 0, length = MAX_READ }, context, signal) => {
         try {
             if (!url || !url.startsWith('http')) {
                 return "Error: Invalid URL. Please provide a full URL starting with http:// or https://";
@@ -2091,7 +3206,13 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
                 try { fullText = JSON.stringify(JSON.parse(rawText), null, 2); } catch (e) { fullText = rawText; }
             } else {
                 const metadata = extractMetadata(rawText);
-                const markdownBody = convertHtmlToMarkdown(rawText, url);
+                let markdownBody = "";
+                try {
+                    markdownBody = await convertHtmlWithMarkitdownJs(rawText, url);
+                } catch (markitdownError) {
+                    console.warn('[builtin_web_fetch] markitdown-js conversion failed, fallback to legacy converter:', markitdownError?.message || markitdownError);
+                    markdownBody = convertHtmlToMarkdown(rawText, url);
+                }
                 if (!markdownBody || markdownBody.length < 50) {
                     return `Fetched URL: ${url}\n\nTitle: ${metadata.title}\n\n[System Info]: The extracted content is very short.`;
                 }
@@ -2109,7 +3230,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
                 const nextOffset = startPos + contentChunk.length;
                 result += `\n\n--- [SYSTEM NOTE: CONTENT TRUNCATED] ---\n`;
                 result += `Total characters: ${totalChars}. Current chunk: ${startPos}-${nextOffset}.\n`;
-                result += `Remaining: ${remainingChars}. Call 'web_fetch' with offset=${nextOffset} to read more.\n`;
+                result += `Remaining: ${remainingChars}. Call 'builtin_web_fetch' with offset=${nextOffset} to read more.\n`;
             } else if (startPos > 0) {
                 result += `\n\n--- [SYSTEM NOTE: END OF PAGE REACHED] ---`;
             }
@@ -2120,33 +3241,284 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
         }
     },
 
-    // Sub Agent Handler
-    sub_agent: async (args, globalContext, signal) => {
+    // Background Sub-Agent handlers
+    sub_agent: async (args, globalContext) => {
         if (!globalContext || !globalContext.apiKey) {
             return "Error: Sub-Agent requires global context(should be in a chat session).";
         }
-        return await runSubAgent(args, globalContext, signal);
+        if (!resolveSubAgentOwnerId(globalContext, args)) {
+            return "Error: Sub-Agent requires conversation_owner_id for session isolation.";
+        }
+        const task = await createBackgroundSubAgent(args, globalContext);
+        if (task?.error) return `Error: ${task.error}`;
+        return task.subagent_id;
     },
+    get_subagent_status: async (args = {}, context = null) => getSubAgentStatus(args, context),
+    rerun_subagent: async (args = {}, context = null) => rerunSubAgent(args, context),
 
-    // --- Task Management Handlers ---
-    list_agents: async () => {
+    stop_subagent: async (args = {}, context = null) => stopSubAgent(args, context),
+    kill_subagent: async (args = {}, context = null) => killSubAgent(args, context),
+
+
+    // --- Agent Collaboration Handlers ---
+    list_agents: async (args, context, signal) => {
+        if (isChildWindow()) return await callParentShell('list_agents', args, signal);
+
         const { getConfig } = require('./data.js');
         const configData = await getConfig();
         const prompts = configData.config.prompts || {};
+        const allMcpServers = configData.config.mcpServers || {};
 
-        let agentStr = "- __DEFAULT__ (The global default agent with empty prompt. Recommended for general tasks)\n";
-        Object.entries(prompts).filter(([_, p]) => p.showMode === 'window').forEach(([key]) => {
-            agentStr += `- ${key}\n`;
-        });
+        if (args && args.agent_name) {
+            const agent = prompts[args.agent_name];
+            if (!agent) return `Error: Agent "${args.agent_name}" not found.`;
 
-        return `Available Agents:\n${agentStr}`;
+            // --- 解析能力信息 (MCP & Skills) ---
+
+            // 1. 获取并映射 MCP 名称
+            const mcpIds = agent.defaultMcpServers || [];
+            const mcpNames = mcpIds.map(id => {
+                const server = allMcpServers[id];
+                // 如果能找到配置则显示名称，否则显示ID
+                return server ? server.name : id;
+            });
+            const mcpDisplay = mcpNames.length > 0 ? `[${mcpNames.join(', ')}]` : "None";
+
+            // 2. 获取 Skills 列表
+            const skills = agent.defaultSkills || [];
+            const skillDisplay = skills.length > 0 ? `[${skills.join(', ')}]` : "None";
+
+            // --- 构建详情 ---
+            let detail = `Agent: ${args.agent_name}\n`;
+            detail += `Type: ${agent.type}\n`;
+            detail += `Model: ${agent.model}\n`;
+            detail += `Enabled: ${agent.enable}\n`;
+            detail += `\n[Capabilities]\n`;
+            detail += `- Bound MCP Tools: ${mcpDisplay}\n`;
+            detail += `- Bound Skills: ${skillDisplay}\n`;
+            detail += `\n[System Prompt]\n${agent.prompt || 'None'}`;
+
+            return detail;
+        }
+
+        let agentStr = "- __DEFAULT__ (The global default agent)\n";
+        // 筛选 Standalone Window 模式 且 已启用 的 Agent
+        Object.entries(prompts)
+            .filter(([_, p]) => p.showMode === 'window' && p.enable)
+            .forEach(([key]) => {
+                agentStr += `- ${key}\n`;
+            });
+
+        return `Available Agents (Standalone Window Mode & Enabled):\n${agentStr}`;
+    },
+
+    summon_agent: async (args, context, signal) => {
+        if (isChildWindow()) return await callParentShell('summon_agent', args, signal);
+
+        const { agent_name, text, file_paths, enable_tools, model_route } = args;
+        const { getConfig, openWindow, resolveDefaultAssistantModel } = require('./data.js');
+        const configData = await getConfig();
+        const windowConfig = JSON.parse(JSON.stringify(configData.config));
+        const normalizedAgentName = typeof agent_name === 'string' && agent_name.trim() ? agent_name.trim() : '__DEFAULT__';
+        const normalizedModelRoute = ['superior', 'general', 'fast'].includes(model_route) ? model_route : 'general';
+
+        if (normalizedAgentName !== '__DEFAULT__' && !windowConfig.prompts[normalizedAgentName]) {
+            return `Error: Agent "${normalizedAgentName}" not found.`;
+        }
+        if (normalizedAgentName === '__DEFAULT__') {
+            if (!windowConfig.prompts) windowConfig.prompts = {};
+            windowConfig.prompts['__DEFAULT__'] = {
+                type: "general", prompt: "", showMode: "window", model: resolveDefaultAssistantModel(windowConfig, normalizedModelRoute), stream: true, isAlwaysOnTop: true, autoCloseOnBlur: false, window_width: 580, window_height: 740, icon: ""
+            };
+        }
+
+        const msg = {
+            os: process.platform === 'win32' ? 'win' : (process.platform === 'darwin' ? 'macos' : 'linux'),
+            code: normalizedAgentName,
+            type: "summon",
+            summonData: {
+                text,
+                file_paths,
+                enable_tools,
+                model_route: normalizedAgentName === '__DEFAULT__' ? normalizedModelRoute : undefined
+            },
+            tempPromptConfig: normalizedAgentName === '__DEFAULT__' ? windowConfig.prompts['__DEFAULT__'] : null
+        };
+
+        const senderId = await openWindow(windowConfig, msg);
+        return `Agent summoned successfully. Window ID: ${senderId}`;
+    },
+
+    list_agent_chats: async (args, context, signal) => {
+        if (isChildWindow()) return await callParentShell('list_agent_chats', { _callerId: context?.senderId }, signal);
+
+        const { windowMap } = require('./data.js');
+        let result = "Active Agent Windows:\n";
+        const callerId = args ? args._callerId : (context ? context.senderId : null);
+
+        const deadIds = []; // 收集已死亡的窗口ID用于清理
+
+        for (const [id, win] of windowMap.entries()) {
+            if (win.isDestroyed()) {
+                deadIds.push(id);
+                continue;
+            }
+            const title = win.getTitle();
+            // 标题依然是默认的 "Anywhere" 代表渲染未完成或已成死区
+            if (title === "Anywhere") {
+                continue;
+            }
+            const isMe = callerId === id ? "  <-- [This is YOU]" : "";
+            result += `- Window ID: ${id} | Agent: ${title}${isMe}\n`;
+        }
+
+        // 执行垃圾回收
+        deadIds.forEach(id => windowMap.delete(id));
+
+        if (result === "Active Agent Windows:\n") result = "No active agent windows.";
+        return result;
+    },
+
+    read_agent_chats: async (args, context, signal) => {
+        // 传递 callerId 到主进程
+        if (isChildWindow()) {
+            args._callerId = context?.senderId;
+            return await callParentShell('read_agent_chats', args, signal);
+        }
+
+        const callerId = args._callerId || context?.senderId;
+        const { window_id, message_index, offset = 0, length = 128000 } = args;
+
+        if (window_id === callerId) {
+            return `[System Error]: You cannot use this tool to read your own window (Window ID: ${window_id}). You already have your own chat history in your current context.`;
+        }
+
+        const { windowMap } = require('./data.js');
+        const win = windowMap.get(window_id);
+
+        if (!win || win.isDestroyed()) return `[System Notice]: Target Window (ID: ${window_id}) is already closed or does not exist.`;
+
+        try {
+            const chatLength = await win.webContents.executeJavaScript('window.__AGENT_API__ ? window.__AGENT_API__.getChatLength() : 0');
+
+            let shouldWait = false;
+            if (message_index !== undefined && message_index !== null) {
+                let actualIndex = parseInt(message_index);
+                if (actualIndex < 0) actualIndex = chatLength + actualIndex;
+                if (actualIndex >= chatLength - 1) {
+                    shouldWait = true;
+                }
+            }
+
+            let timeoutMsg = "";
+            if (shouldWait) {
+                let waitCount = 0;
+                while (!win.isDestroyed() && waitCount < 1200) {
+                    const isBusy = await win.webContents.executeJavaScript('window.__AGENT_API__ ? window.__AGENT_API__.isBusy() : false').catch(() => false);
+                    if (!isBusy) break;
+                    await new Promise(r => setTimeout(r, 100));
+                    waitCount++;
+                }
+
+                if (win.isDestroyed()) return `[System Notice]: The target window was CLOSED by the user while waiting for the response. Operation aborted.`;
+
+                if (waitCount >= 1200) {
+                    timeoutMsg = `\n[System Warning]: The request timed out after 120s. The agent is still generating, so the following content may be incomplete.`;
+                }
+            }
+
+            const outline = await win.webContents.executeJavaScript('window.__AGENT_API__ ? window.__AGENT_API__.getOutline() : "Error: API not ready."');
+            const outlineSection = `### Current Conversation Outline (Window ${window_id})${timeoutMsg}\n${outline}\n`;
+
+            if (message_index === undefined || message_index === null) {
+                return `${outlineSection}\n[System]: To read a specific message detail, use 'read_agent_chats' WITH the 'message_index'.`;
+            }
+
+            const content = await win.webContents.executeJavaScript(`window.__AGENT_API__ ? window.__AGENT_API__.getMessage(${message_index}) : "Error: API not ready."`);
+
+            if (content.startsWith("Error:")) {
+                return `${outlineSection}\n\n[System Error fetching message]: ${content}`;
+            }
+
+            const totalChars = content.length;
+            const safeOffset = Math.max(0, offset);
+            const safeLength = Math.min(length, 128000);
+
+            const chunk = content.substring(safeOffset, safeOffset + safeLength);
+            const currentEndPos = safeOffset + chunk.length;
+
+            let footer = "";
+
+            if (currentEndPos < totalChars) {
+                const remaining = totalChars - currentEndPos;
+                footer = `\n\n--- [SYSTEM: CONTENT TRUNCATED] ---\n(Showing chars ${safeOffset}-${currentEndPos} of ${totalChars})\nRemaining: ${remaining} chars.\n>>> ACTION REQUIRED: Call 'read_agent_chats' again with offset=${currentEndPos} to read the rest.`;
+            } else {
+                footer = `\n\n--- [SYSTEM: END OF MESSAGE] ---\n(Total length: ${totalChars} chars)`;
+            }
+
+            return `${outlineSection}\n========================================\n### Detailed Message Content (Index: ${message_index})\n${chunk}${footer}`;
+
+        } catch (e) {
+            return `Error communicating with window: ${e.message}`;
+        }
+    },
+
+    continue_agent_chats: async (args, context, signal) => {
+        // 传递 callerId 到主进程
+        if (isChildWindow()) {
+            args._callerId = context?.senderId;
+            return await callParentShell('continue_agent_chats', args, signal);
+        }
+
+        const callerId = args._callerId || context?.senderId;
+        const { window_id, text, file_paths } = args;
+
+        if (window_id === callerId) {
+            return `[System Error]: You cannot send messages to yourself (Window ID: ${window_id}). If you need to reason or take multiple steps, use the 'sub_agent' tool or just respond normally in the chat.`;
+        }
+
+        const { windowMap } = require('./data.js');
+        const win = windowMap.get(window_id);
+        if (!win || win.isDestroyed()) return `Error: Window ID ${window_id} not found or closed.`;
+
+        try {
+            const res = await win.webContents.executeJavaScript(`window.__AGENT_API__ ? window.__AGENT_API__.sendMessage(${JSON.stringify(text)}, ${JSON.stringify(file_paths || [])}) : Promise.reject("API not ready")`);
+            return res;
+        } catch (e) {
+            return `Error sending message: ${e.message}`;
+        }
+    },
+
+    close_agent_window: async (args, context, signal) => {
+        // 传递 callerId 到主进程
+        if (isChildWindow()) {
+            args._callerId = context?.senderId;
+            return await callParentShell('close_agent_window', args, signal);
+        }
+
+        const { window_id } = args;
+        const { windowMap } = require('./data.js');
+        const win = windowMap.get(window_id);
+
+        if (!win || win.isDestroyed()) return `Error: Window ID ${window_id} not found or already closed.`;
+
+        try {
+            await win.webContents.executeJavaScript(`window.__AGENT_API__ ? window.__AGENT_API__.closeWindow() : Promise.reject("API not ready")`);
+            return `Successfully saved and closed agent window (ID: ${window_id}).`;
+        } catch (e) {
+            // 如果 AI 关闭的是自己，窗口销毁会导致 IPC 断连报错，这里做无感捕获处理
+            if (e.message.includes('Object has been destroyed')) {
+                return `Successfully saved and closed agent window (ID: ${window_id}).`;
+            }
+            return `Error closing window: ${e.message}`;
+        }
     },
 
     list_mcp_servers: async () => {
         const { getConfig } = require('./data.js');
         const configData = await getConfig();
         const mcpServers = configData.config.mcpServers || {};
-        
+
         let mcpStr = "Available MCP Servers (ID - Name: Description):\n";
         Object.entries(mcpServers).filter(([_, s]) => s.isActive).forEach(([id, s]) => {
             mcpStr += `- ID: [${id}] - Name: [${s.name}] - Desc: ${s.description || 'No description'}\n`;
@@ -2158,7 +3530,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
         const { getConfig } = require('./data.js');
         const configData = await getConfig();
         const tasks = configData.config.tasks || {};
-        
+
         if (Object.keys(tasks).length === 0) return "No tasks found.";
 
         if (task_name_or_id) {
@@ -2169,7 +3541,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
             }
 
             if (!targetId) return `Error: Task "${task_name_or_id}" not found.`;
-            
+
             const task = tasks[targetId];
             let details = `### Task Details\n`;
             details += `- ID: ${targetId}\n`;
@@ -2177,7 +3549,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
             details += `- Enabled: ${task.enabled}\n`;
             details += `- Agent: ${task.promptKey}\n`;
             details += `- Schedule Type: ${task.triggerType}\n`;
-            
+
             if (task.triggerType === 'interval') {
                 details += `- Interval: Every ${task.intervalMinutes} mins\n`;
                 if (task.intervalStartTime) details += `- Daily Start Check: ${task.intervalStartTime}\n`;
@@ -2197,10 +3569,10 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
             } else if (task.triggerType === 'single') {
                 details += `- Single Run: ${task.singleDate} at ${task.singleTime}\n`;
             }
-            
+
             if (task.extraMcp && task.extraMcp.length > 0) details += `- Extra MCPs: [${task.extraMcp.join(', ')}]\n`;
             if (task.extraSkills && task.extraSkills.length > 0) details += `- Extra Skills: [${task.extraSkills.join(', ')}]\n`;
-            
+
             details += `\n**Instruction:**\n${task.description}`;
             return details;
         }
@@ -2212,7 +3584,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
         return "Current Tasks (Summary):\n" + taskList.join('\n') + "\n\n(Tip: Use 'task_name_or_id' argument to see full details of a specific task)";
     },
 
-    create_task: async ({ name, instruction, agent_name = '__DEFAULT__', schedule_type, time_param, enabled = true, single_date, interval_time_ranges, weekly_days, monthly_days, extra_mcp, extra_skills, }) => {
+    create_task: async ({ name, instruction, agent_name = '__DEFAULT__', schedule_type, time_param, enabled = true, single_date, interval_time_ranges, weekly_days, monthly_days, extra_mcp, extra_skills, model_route }) => {
         const unlock = await acquireLock('config_tasks');
         try {
             const { getConfig, updateConfigWithoutFeatures } = require('./data.js');
@@ -2238,11 +3610,12 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
                 name: name,
                 description: instruction || "",
                 promptKey: targetPromptKey,
+                modelRoute: ['superior', 'general', 'fast'].includes(model_route) ? model_route : 'general',
                 triggerType: schedule_type,
                 enabled: enabled,
-                intervalMinutes: 60, intervalStartTime: '00:00', intervalTimeRanges: [], 
-                dailyTime: '12:00', weeklyDays: [1,2,3,4,5], weeklyTime: '12:00', monthlyDays: [1], monthlyTime: '12:00',
-                extraMcp: [], extraSkills: [], autoSave: true, autoClose: true, history: [],
+                intervalMinutes: 60, intervalStartTime: '00:00', intervalTimeRanges: [],
+                dailyTime: '12:00', weeklyDays: [1, 2, 3, 4, 5], weeklyTime: '12:00', monthlyDays: [1], monthlyTime: '12:00',
+                extraMcp: [], extraSkills: [], autoSave: true, autoClose: false, history: [],
                 lastRunTime: enabled ? Date.now() : 0,
                 singleDate: single_date || new Date().toISOString().split('T')[0],
                 singleTime: '12:00',
@@ -2251,7 +3624,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
             if (interval_time_ranges && Array.isArray(interval_time_ranges)) {
                 newTask.intervalTimeRanges = interval_time_ranges.map(r => r.split('-')).filter(r => r.length === 2);
             }
-            
+
             // --- MCP / SKill 逻辑 ---
             if (extra_mcp && Array.isArray(extra_mcp)) {
                 newTask.extraMcp = extra_mcp;
@@ -2259,7 +3632,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
                 // 如果没传，默认挂载所有内置服务
                 newTask.extraMcp = Object.entries(configData.config.mcpServers).filter(([_, s]) => s.type === 'builtin').map(([id]) => id);
             }
-            
+
             if (extra_skills && Array.isArray(extra_skills)) {
                 newTask.extraSkills = extra_skills;
             }
@@ -2310,7 +3683,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
         }
     },
 
-    edit_task: async ({ task_name_or_id, new_name, instruction, agent_name, schedule_type, time_param, single_date, interval_time_ranges, weekly_days, monthly_days, extra_mcp, extra_skills }) => {
+    edit_task: async ({ task_name_or_id, new_name, instruction, agent_name, schedule_type, time_param, single_date, interval_time_ranges, weekly_days, monthly_days, extra_mcp, extra_skills, model_route }) => {
         const unlock = await acquireLock('config_tasks');
         try {
             const { getConfig, updateConfigWithoutFeatures } = require('./data.js');
@@ -2333,6 +3706,12 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
             }
 
             if (instruction !== undefined) task.description = instruction;
+
+            if (model_route !== undefined) {
+                if (['superior', 'general', 'fast'].includes(model_route)) task.modelRoute = model_route;
+                else return "Error: model_route must be one of superior/general/fast.";
+            }
+
 
             if (agent_name) {
                 if (agent_name === '__DEFAULT__') {
@@ -2373,12 +3752,12 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
 
             if (time_param) {
                 if (currentType === 'daily' || currentType === 'weekly' || currentType === 'monthly' || currentType === 'single') {
-                    if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time_param)) { 
-                        if (currentType === 'daily') task.dailyTime = time_param; 
-                        if (currentType === 'weekly') task.weeklyTime = time_param; 
+                    if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time_param)) {
+                        if (currentType === 'daily') task.dailyTime = time_param;
+                        if (currentType === 'weekly') task.weeklyTime = time_param;
                         if (currentType === 'monthly') task.monthlyTime = time_param;
-                        if (currentType === 'single') task.singleTime = time_param; 
-                        timeChanged = true; 
+                        if (currentType === 'single') task.singleTime = time_param;
+                        timeChanged = true;
                     }
                     else return "Error: Invalid time format. Use HH:mm.";
                 } else if (currentType === 'interval') {
@@ -2486,19 +3865,223 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8';
             if (timezone) {
                 options.timeZone = timezone;
             }
-            
+
             const now = new Date();
             const dateStr = new Intl.DateTimeFormat('zh-CN', options).format(now).replace(/\//g, '-');
-            const weekdayStr = new Intl.DateTimeFormat('en-US', { 
-                weekday: 'long', 
-                ...(timezone ? { timeZone: timezone } : {}) 
+            const weekdayStr = new Intl.DateTimeFormat('en-US', {
+                weekday: 'long',
+                ...(timezone ? { timeZone: timezone } : {})
             }).format(now);
-            
+
             const tzDisplay = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "Local System Time";
 
             return `Current Time (${tzDisplay}):\nDate & Time: ${dateStr}\nDay of Week: ${weekdayStr}`;
         } catch (e) {
             return `Error getting time: ${e.message}. Please ensure the timezone string is valid (e.g., 'Asia/Shanghai').`;
+        }
+    },
+
+    // Memory MCP Handlers
+    create_memory: async ({ name, content }) => {
+        const id = Date.now().toString(36);
+        const fullId = `anywhere_mem_${id}`;
+        try {
+            await utools.db.promises.put({
+                _id: fullId,
+                name: name,
+                sections: { "Main": content || "" },
+                updated_at: Date.now()
+            });
+            return `Memory created successfully.\nID: ${id}\nName: ${name}\nPlease use this ID for future operations.`;
+        } catch (e) {
+            return `Failed to create memory: ${e.message}`;
+        }
+    },
+
+    list_memories: async () => {
+        try {
+            const docs = await utools.db.promises.allDocs('anywhere_mem_');
+            if (!docs || docs.length === 0) return "No memory found.";
+            return docs.map(d => `- ID: ${d._id.replace('anywhere_mem_', '')} | Name: ${d.name} | Updated: ${new Date(d.updated_at || Date.now()).toLocaleString()}`).join('\n');
+        } catch (e) {
+            return `Failed to list memories: ${e.message}`;
+        }
+    },
+
+    get_memory_summary: async ({ memory_id }) => {
+        const doc = await utools.db.promises.get(`anywhere_mem_${memory_id}`);
+        if (!doc) return `Error: Memory ID '${memory_id}' not found.`;
+        const sections = Object.keys(doc.sections || {});
+        let summary = `Memory Name: ${doc.name}\nID: ${memory_id}\nLast Updated: ${new Date(doc.updated_at || Date.now()).toLocaleString()}\n\nSections:\n`;
+        for (const sec of sections) {
+            const data = doc.sections[sec];
+            if (Array.isArray(data)) {
+                summary += `- ${sec} (List: ${data.length} items)\n`;
+            } else {
+                summary += `- ${sec} (Text: ${String(data).length} chars)\n`;
+            }
+        }
+        return summary;
+    },
+
+    get_full_memory: async ({ memory_id }) => {
+        const doc = await utools.db.promises.get(`anywhere_mem_${memory_id}`);
+        if (!doc) return `Error: Memory ID '${memory_id}' not found.`;
+        let full = `# ${doc.name}\nID: ${memory_id}\n\n`;
+        for (const [sec, data] of Object.entries(doc.sections || {})) {
+            full += `## Section: ${sec}\n`;
+            if (Array.isArray(data)) {
+                full += JSON.stringify(data, null, 2) + "\n\n";
+            } else {
+                full += data + "\n\n";
+            }
+        }
+        return full;
+    },
+
+    get_section: async ({ memory_id, section }) => {
+        const doc = await utools.db.promises.get(`anywhere_mem_${memory_id}`);
+        if (!doc) return `Error: Memory ID '${memory_id}' not found.`;
+        if (!doc.sections || doc.sections[section] === undefined) return `Error: Section '${section}' not found in memory '${memory_id}'.`;
+        const data = doc.sections[section];
+        return Array.isArray(data) ? JSON.stringify(data, null, 2) : String(data);
+    },
+
+    search_within_memory: async ({ memory_id, query }) => {
+        const doc = await utools.db.promises.get(`anywhere_mem_${memory_id}`);
+        if (!doc) return `Error: Memory ID '${memory_id}' not found.`;
+        let results = [];
+        const q = (query || "").toLowerCase();
+        for (const [sec, data] of Object.entries(doc.sections || {})) {
+            const strData = typeof data === 'string' ? data : JSON.stringify(data);
+            if (strData.toLowerCase().includes(q)) {
+                const idx = strData.toLowerCase().indexOf(q);
+                const start = Math.max(0, idx - 50);
+                const end = Math.min(strData.length, idx + q.length + 50);
+                results.push(`[Section: ${sec}] ...${strData.substring(start, end)}...`);
+            }
+        }
+        return results.length === 0 ? `No matches found for '${query}'.` : results.join('\n\n');
+    },
+
+    update_section: async ({ memory_id, section, content, mode = "append" }) => {
+        const fullId = `anywhere_mem_${memory_id}`;
+        const unlock = await acquireLock(fullId);
+        try {
+            const doc = await utools.db.promises.get(fullId);
+            if (!doc) return `Error: Memory ID '${memory_id}' not found.`;
+            if (!doc.sections) doc.sections = {};
+
+            let current = doc.sections[section] || "";
+            if (Array.isArray(current)) return `Error: Section '${section}' is a list. Use list tools to modify it.`;
+
+            if (mode === 'append') {
+                doc.sections[section] = current ? current + "\n" + content : content;
+            } else {
+                doc.sections[section] = content;
+            }
+            doc.updated_at = Date.now();
+            await utools.db.promises.put(doc);
+            return `Section '${section}' successfully updated.`;
+        } catch(e) {
+            return `Error: ${e.message}`;
+        } finally {
+            unlock();
+        }
+    },
+
+    add_to_list: async ({ memory_id, section, item }) => {
+        const fullId = `anywhere_mem_${memory_id}`;
+        const unlock = await acquireLock(fullId);
+        try {
+            const doc = await utools.db.promises.get(fullId);
+            if (!doc) return `Error: Memory ID '${memory_id}' not found.`;
+            if (!doc.sections) doc.sections = {};
+
+            if (doc.sections[section] === undefined) doc.sections[section] = [];
+            if (!Array.isArray(doc.sections[section])) return `Error: Section '${section}' is not a list.`;
+
+            doc.sections[section].push(item);
+            doc.updated_at = Date.now();
+            await utools.db.promises.put(doc);
+            return `Item added to list section '${section}'.`;
+        } catch(e) {
+            return `Error: ${e.message}`;
+        } finally {
+            unlock();
+        }
+    },
+
+    update_list_item: async ({ memory_id, section, item_identifier, updates }) => {
+        const fullId = `anywhere_mem_${memory_id}`;
+        const unlock = await acquireLock(fullId);
+        try {
+            const doc = await utools.db.promises.get(fullId);
+            if (!doc) return `Error: Memory ID '${memory_id}' not found.`;
+            if (!doc.sections || !Array.isArray(doc.sections[section])) return `Error: Section '${section}' is not a valid list.`;
+
+            const list = doc.sections[section];
+            const idStr = String(item_identifier).toLowerCase();
+            
+            // 模糊匹配寻找该项
+            let foundIdx = list.findIndex(item => JSON.stringify(item).toLowerCase().includes(idStr));
+            if (foundIdx === -1) return `Error: Item matching '${item_identifier}' not found in section '${section}'.`;
+
+            list[foundIdx] = { ...list[foundIdx], ...updates };
+            doc.updated_at = Date.now();
+            await utools.db.promises.put(doc);
+            return `Item updated in section '${section}'.`;
+        } catch(e) {
+            return `Error: ${e.message}`;
+        } finally {
+            unlock();
+        }
+    },
+
+    move_list_item: async ({ memory_id, from_section, to_section, item_identifier, reason }) => {
+        const fullId = `anywhere_mem_${memory_id}`;
+        const unlock = await acquireLock(fullId);
+        try {
+            const doc = await utools.db.promises.get(fullId);
+            if (!doc) return `Error: Memory ID '${memory_id}' not found.`;
+            if (!doc.sections || !Array.isArray(doc.sections[from_section])) return `Error: Source section '${from_section}' is not a valid list.`;
+
+            if (doc.sections[to_section] === undefined) doc.sections[to_section] = [];
+            if (!Array.isArray(doc.sections[to_section])) return `Error: Destination section '${to_section}' is not a valid list.`;
+
+            const list = doc.sections[from_section];
+            const idStr = String(item_identifier).toLowerCase();
+            
+            let foundIdx = list.findIndex(item => JSON.stringify(item).toLowerCase().includes(idStr));
+            if (foundIdx === -1) return `Error: Item matching '${item_identifier}' not found in section '${from_section}'.`;
+
+            const itemToMove = list.splice(foundIdx, 1)[0];
+            if (reason) itemToMove._move_reason = reason; // 附加上移动原因元数据
+
+            doc.sections[to_section].push(itemToMove);
+            doc.updated_at = Date.now();
+            await utools.db.promises.put(doc);
+            return `Item moved from '${from_section}' to '${to_section}'.`;
+        } catch(e) {
+            return `Error: ${e.message}`;
+        } finally {
+            unlock();
+        }
+    },
+
+    delete_memory: async ({ memory_id }) => {
+        const fullId = `anywhere_mem_${memory_id}`;
+        const unlock = await acquireLock(fullId);
+        try {
+            const doc = await utools.db.promises.get(fullId);
+            if (!doc) return `Error: Memory ID '${memory_id}' not found.`;
+            
+            await utools.db.promises.remove(fullId);
+            return `memory '${memory_id}' and all its sections successfully deleted.`;
+        } catch(e) {
+            return `Error: ${e.message}`;
+        } finally {
+            unlock();
         }
     },
 };
@@ -2510,7 +4093,60 @@ function getBuiltinServers() {
 }
 
 function getBuiltinTools(serverId) {
-    return BUILTIN_TOOLS[serverId] || [];
+    // 必须深拷贝，避免修改原始常量导致叠加污染
+    const tools = JSON.parse(JSON.stringify(BUILTIN_TOOLS[serverId] || []));
+
+    // [动态注入] Super-Agent 自动枚举所有可用 Agent，消除模型幻觉
+    if (serverId === 'builtin_superagent') {
+        try {
+            // 同步读取数据库获取最新 Agent 列表 (utools.db.get 是同步的，非常适合这里)
+            const promptsDoc = utools.db.get("prompts");
+            const prompts = promptsDoc ? promptsDoc.data : {};
+
+            // 筛选 Standalone Window 模式 且 已启用 的 Agent (只有这种才能被召唤)
+            const agentNames = Object.entries(prompts)
+                .filter(([_, p]) => p.showMode === 'window' && p.enable)
+                .map(([k]) => k)
+                .sort();
+
+            // 始终包含默认 Agent
+            const allAgents = ['__DEFAULT__', ...agentNames];
+
+            // 限制展示数量，防止 Description 过长导致 Token 溢出 (虽然一般不会超)
+            const displayAgents = allAgents.slice(0, 100);
+            const agentListStr = displayAgents.map(n => `"${n}"`).join(', ');
+            const suffix = allAgents.length > 100 ? `...and ${allAgents.length - 100} more` : '';
+
+            const fullListStr = `${agentListStr}${suffix}`;
+
+            // 1. 注入到 list_agents
+            const listTool = tools.find(t => t.name === 'list_agents');
+            if (listTool) {
+                listTool.description += `\n\n[CURRENTLY AVAILABLE AGENTS]: ${fullListStr}`;
+                
+                // 在独立窗口中，前端(App.vue)会将 document.title 设为 Agent 的名称
+                if (typeof document !== 'undefined' && document.title) {
+                    const currentAgentName = document.title;
+                    // 排除掉设置主页面和快捷输入面板的默认标题，确保只在真实 Agent 窗口生效
+                    if (currentAgentName !== 'Anywhere' && currentAgentName !== 'Anywhere Clip') {
+                        listTool.description += `\n[SYSTEM NOTE]: You are an Agent named "${currentAgentName}".`;
+                    }
+                }
+            }
+
+            // 2. 同时也注入到 summon_agent，让 AI 在决定召唤时手边就有确切的名单
+            const summonTool = tools.find(t => t.name === 'summon_agent');
+            if (summonTool) {
+                summonTool.description += `\n\n[VALID TARGET NAMES]: ${fullListStr}`;
+            }
+
+        } catch (e) {
+            // 即使出错也不影响基础功能，只是少了个提示
+            // console.error("Inject agent list failed:", e);
+        }
+    }
+
+    return tools;
 }
 
 async function invokeBuiltinTool(toolName, args, signal = null, context = null) {
@@ -2529,7 +4165,7 @@ async function invokeBuiltinTool(toolName, args, signal = null, context = null) 
 function killAllBackgroundShells() {
     if (backgroundShells.size === 0) return;
     const { execSync } = require('child_process');
-    
+
     backgroundShells.forEach((proc, shell_id) => {
         if (proc.active && proc.pid) {
             try {
@@ -2537,8 +4173,8 @@ function killAllBackgroundShells() {
                     // 使用同步阻塞执行，确保在插件进程死亡前把子进程杀干净
                     execSync(`taskkill /pid ${proc.pid} /T /F`, { stdio: 'ignore' });
                 } else {
-                    try { process.kill(-proc.pid, 'SIGKILL'); } 
-                    catch (e) { try { process.kill(proc.pid, 'SIGKILL'); } catch(e2){} }
+                    try { process.kill(-proc.pid, 'SIGKILL'); }
+                    catch (e) { try { process.kill(proc.pid, 'SIGKILL'); } catch (e2) { } }
                 }
             } catch (e) {
                 // 忽略错误，强制执行
@@ -2557,15 +4193,24 @@ process.on('SIGTERM', () => { killAllBackgroundShells(); process.exit(); });
 // 供 preload.js 调用的统一入口
 function handleBgShellRequest(action, payload) {
     const fnMap = {
+        // 绑定命令行工具命令
         'start': handlers.execute_bash_command,
         'list': handlers.list_background_shells,
         'read': handlers.read_background_shell_output,
-        'kill': handlers.kill_background_shell
+        'kill': handlers.kill_background_shell,
+
+        // 绑定agent协作命令
+        'list_agents': handlers.list_agents,
+        'summon_agent': handlers.summon_agent,
+        'list_agent_chats': handlers.list_agent_chats,
+        'read_agent_chats': handlers.read_agent_chats,
+        'continue_agent_chats': handlers.continue_agent_chats,
+        'close_agent_window': handlers.close_agent_window,
     };
-    
+
     const fn = fnMap[action];
     if (!fn) throw new Error("Unknown action: " + action);
-    
+
     if (action === 'start') {
         return fn({ command: payload.command, background: true }, null, null);
     }

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Goose 2FA</title>
+    <script>
+      // 优先读取用户手动保存的偏好，避免 FOUC
+      var saved = localStorage.getItem('goose-2fa-dark');
+      var isDark = saved !== null ? saved === 'true' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (isDark) document.documentElement.classList.add('dark');
+      // 仅在用户未手动设置时跟随系统主题变化
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+        if (localStorage.getItem('goose-2fa-dark') === null) {
+          document.documentElement.classList.toggle('dark', e.matches);
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

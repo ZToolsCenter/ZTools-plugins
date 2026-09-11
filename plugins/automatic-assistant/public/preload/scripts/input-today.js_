@@ -1,0 +1,1 @@
+ztools.hideMainWindowTypeString(new Date().toLocaleDateString().replaceAll('/', '-'))

@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ztools-plugin-zdic-search",
+  "title": "汉典查询",
+  "description": "接入汉典(zdic.net)在线查询汉字、词语释义",
+  "author": "Zinlone",
+  "homepage": "https://github.com/rusyue",
+  "version": "0.3.2",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "zdic-home",
+      "explain": "打开汉典首页",
+      "icon": "logo.png",
+      "cmds": ["汉典", "hd"]
+    },
+    {
+      "code": "zdic-search",
+      "explain": "在汉典中查询汉字或词语",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "汉典查询",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      ]
+    }
+  ]
+}

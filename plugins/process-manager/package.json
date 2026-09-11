@@ -1,13 +1,13 @@
 {
   "name": "process-manager",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "快速搜索进程、端口、PID、路径，支持一键 Kill 进程，支持深色模式",
   "type": "module",
   "author": "Agitator",
   "homepage": "https://github.com/Code-Agitator/process-manager",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build"
+    "build": "tsc && vite build && esbuild public/preload/services.js --bundle --platform=node --outfile=dist/preload/services.js"
   },
   "dependencies": {
     "iconv-lite": "^0.7.3",
@@ -19,8 +19,9 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.1",
-    "@ztools-center/ztools-api-types": "^1.0.1",
-    "typescript": "^5.3.0",
+    "@ztools-center/ztools-api-types": "^1.0.3",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
     "vite": "^6.0.11"
   }
 }

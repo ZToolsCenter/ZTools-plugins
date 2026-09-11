@@ -2,9 +2,10 @@
   "$schema": "../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
   "name": "local-search-neo",
   "author": "the_tree",
+  "homepage": "https://github.com/guopenghui/local-search-neo",
   "title": "本地搜索Neo",
   "description": "借助 Everything 来进行文件搜索",
-  "version": "1.0.2",
+  "version": "1.2.0",
   "main": "index.html",
   "preload": "preload/services.js",
   "unpack": "Everything.*",
@@ -34,6 +35,97 @@
           "label": "文件搜索"
         }
       ]
+    },
+    {
+      "code": "explorerfind",
+      "explain": "「文件资源管理器」窗口所在目录内搜索",
+      "platform": ["win32"],
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "window",
+          "match": {
+            "app": [
+              "explorer.exe",
+              "SearchApp.exe",
+              "SearchHost.exe",
+              "FESearchHost.exe",
+              "prevhost.exe"
+            ],
+            "class": ["CabinetWClass", "ExploreWClass"]
+          },
+          "label": "窗口目录内搜索"
+        }
+      ]
+    },
+    {
+      "code": "folderfind",
+      "explain": "选中的文件夹内搜索",
+      "platform": ["win32"],
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "files",
+          "fileType": "directory",
+          "maxLength": 1,
+          "label": "文件夹内搜索"
+        }
+      ]
     }
-  ]
+  ],
+  "tools": {
+    "everything_search": {
+      "description": "使用 Everything 本地搜索引擎高速检索 Windows 文件和目录，支持 Everything 丰富语法（如 ext:pdf, folder:xxx, 通配符等）",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Everything 风格搜索关键词或语法（例如 '年度总结 *.docx', 'ext:png;jpg', 'folder:node_modules', 'C:\\Windows notepad' 等）"
+          },
+          "n": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 30,
+            "default": 20,
+            "description": "最大返回结果数量（范围 10-30，默认 20）"
+          }
+        },
+        "required": ["query"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "搜索命中的总数量"
+          },
+          "results": {
+            "type": "array",
+            "description": "搜索命中的文件/目录结果列表",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fullPath": {
+                  "type": "string",
+                  "description": "完整绝对路径"
+                },
+                "size": {
+                  "type": "integer",
+                  "description": "文件大小（字节）"
+                },
+                "modified": {
+                  "type": "string",
+                  "description": "最后修改时间 ISO 格式"
+                }
+              },
+              "required": ["fullPath"]
+            }
+          }
+        },
+        "required": ["total", "results"]
+      }
+    }
+  }
 }

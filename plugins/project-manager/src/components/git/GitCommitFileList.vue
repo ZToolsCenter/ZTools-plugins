@@ -17,11 +17,17 @@ const files = computed(() => {
   return gitStore.getCommitFiles(props.project.id, selectedHash.value);
 });
 
-const selectedFile = computed(() => gitStore.selectedDiffFile);
+const selectedFile = computed(() => gitStore.getDiffSelection(props.project.id).file);
 
 async function selectFile(file: GitCommitFile) {
   if (!selectedHash.value) return;
-  await gitStore.getDiffCommitFile(props.project.path, selectedHash.value, file.path);
+  await gitStore.getDiffCommitFile(
+    props.project.id,
+    props.project.path,
+    selectedHash.value,
+    file.path,
+    file.old_path,
+  );
 }
 
 // Auto-select first file when commit selection changes
@@ -63,20 +69,18 @@ function dirname(path: string): string {
 </script>
 
 <template>
-  <div class="h-full flex flex-col overflow-hidden text-[11px]">
+  <div class="git-commit-files app-text-control">
     <!-- Header -->
-    <div class="px-2.5 py-1.5 border-b border-slate-200/40 dark:border-slate-700/20 shrink-0 flex items-center gap-1">
-      <div class="i-mdi-file-tree-outline text-xs text-slate-400" />
-      <span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-        {{ t('git.commitFiles') }}
-      </span>
-      <span v-if="files.length > 0" class="ml-auto text-[9px] text-slate-400 bg-slate-200/50 dark:bg-slate-700/30 px-1.5 py-0.5 rounded-full">{{ files.length }}</span>
+    <div class="git-commit-files-header">
+      <div class="i-mdi-file-tree-outline text-xs opacity-70" />
+      <span>{{ t('git.commitFiles') }}</span>
+      <span v-if="files.length > 0" class="git-commit-files-count">{{ files.length }}</span>
     </div>
 
     <!-- Empty state -->
-    <div v-if="!selectedHash" class="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-1 p-4">
-      <div class="i-mdi-source-commit text-2xl" />
-      <span class="text-center">{{ t('git.selectCommitToView') }}</span>
+    <div v-if="!selectedHash" class="git-empty">
+      <div class="i-mdi-source-commit git-empty-icon" />
+      <span>{{ t('git.selectCommitToView') }}</span>
     </div>
 
     <!-- File list -->
@@ -84,18 +88,16 @@ function dirname(path: string): string {
       <div
         v-for="file in files"
         :key="file.path"
+        class="git-commit-file-row"
+        :class="{ 'is-active': selectedFile === file.path }"
         @click="selectFile(file)"
-        class="flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer border-b border-slate-200/15 dark:border-slate-700/10 transition-colors"
-        :class="selectedFile === file.path
-          ? 'bg-blue-500/8'
-          : 'hover:bg-slate-100/50 dark:hover:bg-slate-800/20'"
       >
-        <span class="shrink-0 font-mono font-bold text-[10px] w-3" :class="statusClass[file.status] || 'text-slate-400'">
+        <span class="git-scm-file-status shrink-0 w-3" :class="statusClass[file.status] || ''">
           {{ statusLabel[file.status] || file.status }}
         </span>
         <div class="flex-1 min-w-0">
-          <div class="truncate text-slate-700 dark:text-slate-300">{{ filename(file.path) }}</div>
-          <div v-if="dirname(file.path)" class="truncate text-slate-400 dark:text-slate-500 text-[9px]">{{ dirname(file.path) }}</div>
+          <div class="git-scm-file-name truncate">{{ filename(file.path) }}</div>
+          <div v-if="dirname(file.path)" class="git-scm-file-dir truncate app-text-meta">{{ dirname(file.path) }}</div>
         </div>
       </div>
     </div>

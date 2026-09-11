@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.4.0](https://github.com/me1dlinger/hushreader/releases/tag/v1.4.0) - 2026-06-23
+## 1.4.2 - 2026-09-07
+
+### Fixed
+- **优化隐阅窗口拖拽和拉伸逻辑%**：优化隐阅窗口拖拽和拉伸逻辑，减少粘滞感
+
+## 1.4.1 - 2026-09-01
+
+### Added
+- **关闭隐阅窗口指令**：新增 `hushreader-close` 指令，支持通过 ZTools 平台快捷键绑定直接关闭隐阅窗口，无需鼠标移动到窗口上即可触发（需升级 ZTools 至最新版以支持 `mainHide` 特性）
+
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.4.1>
+
+## 1.4.0 - 2026-06-23
 
 ### Added
 - **已读完标记**：读完最后一章时自动标记为"已读完"，书籍卡片封面右上角显示"已读完"角标
@@ -29,7 +41,9 @@ All notable changes to this project will be documented in this file.
 - **搜索 XSS 隐患**：修复全文搜索结果使用 v-html 渲染未转义内容导致的 XSS 安全隐患
 - **搜索性能问题**：修复全文搜索循环中每次迭代重复调用 toLowerCase() 导致大文件 OOM 和卡死的问题，将小写转换提取到循环外并限制句子边界查找窗口
 
-## [1.3.3](https://github.com/me1dlinger/hushreader/releases/tag/v1.3.3) - 2026-06-19
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.4.0>
+
+## 1.3.3 - 2026-06-19
 
 ### Added
 - **自动检测系统深浅色模式**：在插件加载时，根据系统深浅色模式自动切换主题，支持手动切换主题
@@ -49,8 +63,13 @@ All notable changes to this project will be documented in this file.
 - **优化书籍导入流程**：在导入书籍的循环中，每次调用 bookStore.addBook(book) 都会触发一次同步的 save() 写入操作（保存到 dbStorage 或 localStorage）。如果用户导入的书籍数量较多，会产生大量连续的同步 I/O 写入
 - **JSON配置导入漏洞**：如果导入的备份 JSON 文件被恶意篡改，包含 __proto__ 或 constructor 等属性，可能会导致原型链污染（Prototype Pollution）漏洞
 
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.3.3>
 
-## [1.3.2](https://github.com/me1dlinger/hushreader/releases/tag/v1.3.2) - 2026-06-18
+### 根据提交记录补充
+
+- 为新书籍数组添加类型声明，修复build错误
+
+## 1.3.2 - 2026-06-18
 
 ### Added
 - **拖拽导入书籍**：将书籍文件拖入书架界面时，显示拖拽悬停覆盖层提示"导入书籍"，松手后弹出确认弹窗列出待导入文件，确认后解析书籍并保存元数据，取消则放弃导入
@@ -73,7 +92,9 @@ All notable changes to this project will be documented in this file.
 - **文件读取失败时导致元数据被静默清空**：修复了在文件读取失败时，元数据被静默清空的问题，确保元数据完整。
 - **修复书籍信息编辑时分类交互缺陷**：修复了在书籍信息编辑时，分类交互存在的缺陷。
 
-## [1.3.1](https://github.com/me1dlinger/hushreader/releases/tag/v1.3.1) - 2026-06-17
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.3.2>
+
+## 1.3.1 - 2026-06-17
 
 ### Added
 - **窗口大小锁定开关**：功能设置中新增"窗口大小锁定"开关，开启后窗口不允许拉伸调整大小
@@ -91,8 +112,9 @@ All notable changes to this project will be documented in this file.
 ### Removed
 - **固定行数分页模式**：移除分页模式中的"固定行数"选项，统一使用自适应模式
 
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.3.1>
 
-## [1.3.0](https://github.com/me1dlinger/hushreader/releases/tag/v1.3.0) - 2026-06-17
+## 1.3.0 - 2026-06-17
 
 ### Added
 - **MOBI 格式支持**：新增 MOBI 电子书格式的解析和阅读功能
@@ -106,7 +128,9 @@ All notable changes to this project will be documented in this file.
   - 开启"显示纯色封面"时清除数据库中的封面数据
   - dbStorage 中仅保留轻量数据：书籍列表（不含封面）、阅读进度、配置
 
-## [1.2.0](https://github.com/me1dlinger/hushreader/releases/tag/v1.2.0) - 2026-06-16
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.3.0>
+
+## 1.2.0 - 2026-06-16
 
 ### Fixed
 - **移除大体积缓存，改为实时解析**：EPUB 封面和章节内容不再持久化到 dbStorage，改为每次需要时从文件实时解析，彻底解决存储空间溢出导致书籍丢失的问题
@@ -118,12 +142,16 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **显示纯色封面选项**：其他设置中新增"显示纯色封面"开关，开启后 EPUB 不再解析封面图片，所有书籍使用纯色背景封面，节省性能消耗
 
-## [1.1.1](https://github.com/me1dlinger/hushreader/releases/tag/v1.1.1) - 2026-06-16
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.2.0>
+
+## 1.1.1 - 2026-06-16
 
 ### Fixed
 - **窗口拖动/拉伸卡顿**：修复移动和拉伸阅读窗口时严重卡顿的问题——移动预览未做帧节流、预览期间重复调用 `setAlwaysOnTop`/`moveTop` 等重操作、提交时重复推送状态
 
-## [1.1.0](https://github.com/me1dlinger/hushreader/releases/tag/v1.1.0) - 2026-06-16
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.1.1>
+
+## 1.1.0 - 2026-06-16
 
 ### Fixed
 - **设置编辑触发主窗口隐藏**：修复在设置界面编辑背景颜色输入框或快捷键时，每次输入/删除字符都会触发沉浸式阅读窗口 `show()`，导致主窗口被推到后面的问题
@@ -147,8 +175,16 @@ All notable changes to this project will be documented in this file.
 - **百分比进度编辑跳转**：百分比进度模式下，左键点击进度组件进入编辑模式，输入 0-100 数字后按 Enter 或点击外部区域跳转到对应进度，支持 ArrowUp/Down 微调（Shift 步进 10），Escape 取消
 - **书架"最近阅读"排序**：书架排序栏新增"最近阅读"选项，按最后阅读时间降序排列，未读过的书排在最后
 
-## [1.0.0](https://github.com/me1dlinger/hushreader/releases/tag/v1.0.0) - 2026-06-16
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.1.0>
+
+## 1.0.0 - 2026-06-16
 
 ### Added
 - **隐阅盒阅读器插件**：隐阅盒阅读器插件初版实现
 
+相关链接：<https://github.com/me1dlinger/hushreader/releases/tag/v1.0.0>
+
+### 根据提交记录补充
+
+- 修复书架导入书籍异常未捕获、完善本地存储数据兼容逻辑
+- 发布1.1.0版本，新增多项功能并修复多个bug

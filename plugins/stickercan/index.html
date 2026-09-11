@@ -181,10 +181,6 @@
                                 <i class="mdi mdi-cloud-upload"></i>
                                 <span>云端存储</span>
                             </button>
-                            <!-- <button class="settings-nav-item" data-settings="sync">
-                                <i class="mdi mdi-sync"></i>
-                                <span>同步设置</span>
-                            </button-->
                             <button class="settings-nav-item" data-settings="about">
                                 <i class="mdi mdi-information"></i>
                                 <span>关于</span>
@@ -245,13 +241,12 @@
                             </div>
                             <div class="settings-panel-body">
                                 <div class="form-group">
-                                <label>图床选择</label>
-                                <select id="cloudProvider" class="form-select">
-                                    <option value="imgbb">ImgBB（免费）</option>
-                                    <option value="tucang">图仓（免费）</option>
-                                    <!--option value="s3">S3 兼容存储</option>-->
-                                </select>
-                            </div>
+                                    <label>图床选择</label>
+                                    <select id="cloudProvider" class="form-select">
+                                        <option value="imgbb">ImgBB（免费）</option>
+                                        <option value="tucang">图仓（免费）</option>
+                                    </select>
+                                </div>
 
                                 <div id="imgbbConfig" class="provider-config">
                                     <div class="config-card">
@@ -510,10 +505,6 @@
                                         <i class="mdi mdi-check-circle"></i>
                                         <span>多标签搜索</span>
                                     </div>
-                                    <!-- <div class="feature-item">
-                                        <i class="mdi mdi-check-circle"></i>
-                                        <span>多设备同步</span>
-                                    </div> -->
                                     <div class="feature-item">
                                         <i class="mdi mdi-check-circle"></i>
                                         <span>聚合搜索</span>
@@ -529,7 +520,7 @@
                                         <i class="mdi mdi-book-open-variant"></i>
                                         <span>使用文档</span>
                                     </a>
-                                    <a href="https://qm.qq.com/q/C47gAUqrok" class="about-link" data-external-link="true">
+                                    <a href="https://qm.qq.com/q/Ypk0i3h1cI" class="about-link" data-external-link="true">
                                         <i class="mdi mdi-account-group"></i>
                                         <span>官方QQ群</span>
                                     </a>
@@ -704,13 +695,35 @@
         </div>
     </div>
 
-    <script src="theme-manager.js"></script>
-    <script src="data-manager.js"></script>
-    <script src="search-manager.js"></script>
-    <script src="ui-manager.js"></script>
-    <script src="storage-manager.js"></script>
-    <script src="emotion-manager.js"></script>
-    <script src="changelog-manager.js"></script>
+        <script src="core/interfaces/StorageProvider.js"></script>
+    <script src="core/interfaces/ClipboardProvider.js"></script>
+    <script src="core/interfaces/FileProvider.js"></script>
+    <script src="core/interfaces/HttpProvider.js"></script>
+    <script src="core/interfaces/NotificationProvider.js"></script>
+    <script src="core/interfaces/SearchProvider.js"></script>
+    <script src="core/models/Emotion.js"></script>
+    <script src="core/models/Settings.js"></script>
+    <script src="core/utils/CryptoUtils.js"></script>
+    <script src="core/utils/MimeUtils.js"></script>
+    <script src="core/utils/HtmlUtils.js"></script>
+    <script src="core/search/SearchSourceBase.js"></script>
+    <script src="core/services/SettingsService.js"></script>
+    <script src="core/services/EmotionService.js"></script>
+    <script src="core/search/ApiHzSearchSource.js"></script>
+    <script src="core/search/BaiduSearchSource.js"></script>
+    <script src="core/search/SogouSearchSource.js"></script>
+    <script src="core/search/TangdouziSearchSource.js"></script>
+    <script src="core/search/YujianSearchSource.js"></script>
+    <script src="core/services/SearchService.js"></script>
+    <script src="core/core.js"></script>
+    <script src="adapters/ZToolsStorageProvider.js"></script>
+    <script src="adapters/ZToolsClipboardProvider.js"></script>
+    <script src="adapters/ZToolsFileProvider.js"></script>
+    <script src="adapters/ZToolsHttpProvider.js"></script>
+    <script src="adapters/ZToolsNotificationProvider.js"></script>
+    <script src="ui/ThemeManager.js"></script>
+    <script src="ui/ChangelogManager.js"></script>
+    <script src="ui/UIManager.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

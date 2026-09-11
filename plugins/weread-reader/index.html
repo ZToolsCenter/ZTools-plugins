@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-src https://weread.qq.com; child-src https://weread.qq.com; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>微信读书</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="toolbar" aria-label="阅读工具栏">
+        <button
+          id="menuButton"
+          class="menu-button"
+          type="button"
+          title="打开阅读菜单"
+          aria-label="打开阅读菜单"
+          aria-controls="menuPanel"
+          aria-expanded="false"
+        >
+          <span aria-hidden="true">☰</span>
+        </button>
+
+        <div id="menuPanel" class="toolbar-group" role="menu" aria-label="阅读菜单">
+          <button id="backButton" class="tool-button" type="button" title="返回上一页" role="menuitem">
+            <span aria-hidden="true">←</span><span>返回</span>
+          </button>
+          <button id="continueButton" class="tool-button tool-button--text" type="button" title="继续上次阅读" role="menuitem">
+            续读
+          </button>
+          <button id="shelfButton" class="tool-button tool-button--text" type="button" title="返回微信读书书架" role="menuitem">
+            书架
+          </button>
+          <button id="reloadButton" class="tool-button" type="button" title="刷新当前页面" role="menuitem">
+            <span aria-hidden="true">↻</span><span>刷新</span>
+          </button>
+
+          <div class="menu-divider" role="separator"></div>
+
+          <button
+            id="singleLineButton"
+            class="tool-button"
+            type="button"
+            title="打开单行阅读窗口"
+            role="menuitem"
+            hidden
+          >
+            <span aria-hidden="true">▰</span><span>单行阅读</span>
+          </button>
+          <button
+            id="cleanModeButton"
+            class="tool-button tool-button--compact"
+            type="button"
+            title="切换纯净阅读"
+            aria-label="切换纯净阅读"
+            aria-pressed="true"
+            hidden
+          >
+            原版界面
+          </button>
+          <button
+            id="externalButton"
+            class="tool-button"
+            type="button"
+            title="在系统浏览器中打开当前页面"
+            role="menuitem"
+          >
+            <span aria-hidden="true">↗</span><span>浏览器打开</span>
+          </button>
+        </div>
+
+        <p id="statusText" class="status-text" role="status" aria-live="polite">准备打开微信读书…</p>
+      </header>
+
+      <section class="reader-stage" aria-label="微信读书网页">
+        <webview
+          id="readerWebview"
+          src="about:blank"
+          partition="persist:weread-reader-web"
+          preload="./webview-preload.js"
+          webpreferences="contextIsolation=yes,nodeIntegration=no,sandbox=yes,transparent=yes"
+        ></webview>
+
+        <div id="loadingOverlay" class="overlay overlay--loading">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>正在打开微信读书…</p>
+        </div>
+
+        <div id="errorOverlay" class="overlay overlay--error" hidden>
+          <div class="error-card">
+            <h1>页面暂时没有打开</h1>
+            <p id="errorMessage">请检查网络后重试。</p>
+            <div class="error-actions">
+              <button id="retryButton" type="button">重试</button>
+              <button id="errorShelfButton" type="button">返回书架</button>
+              <button id="errorExternalButton" type="button">浏览器打开</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

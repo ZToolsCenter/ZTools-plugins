@@ -1,0 +1,78 @@
+.workspace-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 80px;
+  position: relative;
+}
+
+.workspace-files.is-dropping {
+  outline: 2px dashed #4c8dff;
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.workspace-list-wrap {
+  position: relative;
+}
+
+.workspace-drop-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 26, 46, 0.72);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.workspace-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  min-height: 28px;
+}
+
+.workspace-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.workspace-hint {
+  color: #888;
+  font-size: 12px;
+}
+
+.workspace-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #cfcfdb;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.workspace-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.workspace-btn-icon {
+  font-size: 14px;
+  opacity: 0.9;
+}

@@ -71,7 +71,7 @@ const emit = defineEmits<{
 }
 
 .context-menu-item:hover:not(:disabled) {
-  background: #424751;
+  background: var(--primary-color-dark-subtle-hover, #424751);
 }
 
 .context-menu-item.danger {
@@ -104,7 +104,7 @@ const emit = defineEmits<{
   }
 
   .context-menu-item:hover:not(:disabled) {
-    background: #e9eef6;
+    background: var(--primary-color-subtle-hover);
   }
 
   .context-menu-item.danger {

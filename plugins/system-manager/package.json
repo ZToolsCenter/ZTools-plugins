@@ -1,0 +1,16 @@
+{
+  "name": "system-manager",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "description": "系统管家：系统诊断、应用卸载、开机启动、垃圾清理和局域网设备发现。",
+  "workspaces": [
+    "modules/*"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "verify": "node scripts/verify-dist.mjs",
+    "package": "node scripts/package-release.mjs"
+  }
+}

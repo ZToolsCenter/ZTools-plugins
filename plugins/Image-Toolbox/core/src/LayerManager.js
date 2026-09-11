@@ -95,11 +95,16 @@ class LayerManager {
   }
 
   /**
-   * 根据 Fabric 对象获取图层元数据
+   * 根据 Fabric 对象获取图层元数据（公开接口）
+   *
+   * 仅在已同步的 _layers 列表中查找。对于尚未被 syncLayers() 收录的对象
+   * （如工具激活期间新增的临时对象），返回 null，由调用方决定回退策略。
+   *
    * @param {fabric.Object} obj
    * @returns {object|null}
    */
   getLayerByObject(obj) {
+    if (!obj) return null;
     return this._findMeta(obj);
   }
 

@@ -1,0 +1,14 @@
+# 依赖与构建产物由本地或中心仓库 CI 重新生成
+node_modules/
+dist/
+release/
+
+# 本地环境与日志文件不得提交到插件中心
+.env
+.env.*
+*.log
+.DS_Store
+
+# 常见编辑器临时配置
+.idea/
+.vscode/

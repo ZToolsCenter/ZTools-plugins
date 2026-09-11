@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "screen-to-gif",
+  "title": "录屏生成GIF",
+  "description": "截取屏幕或窗口内容，录制后一键生成 GIF 动图",
+  "author": "HeLex",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "categories": [
+    "media"
+  ],
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "gif",
+      "explain": "屏幕截图并生成 GIF 动图",
+      "icon": "logo.png",
+      "cmds": [
+        "截图生成GIF",
+        "录屏GIF",
+        "屏幕转GIF"
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32"
+  ]
+}

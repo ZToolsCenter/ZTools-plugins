@@ -159,6 +159,7 @@ class ColorModule extends BaseModule {
 
     if (eventType === 'change') {
       this._filterDragSaving = false;
+      this.history?.saveState?.();
       eventBus.emit('canvas:objectModified', targets[0]);
     }
     return false; // 不刷新属性面板（避免滑块失焦）

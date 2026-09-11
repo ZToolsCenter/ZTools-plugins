@@ -1,0 +1,31 @@
+{
+  "name": "device-link",
+  "version": "0.1.7",
+  "private": true,
+  "type": "module",
+  "description": "以聊天方式安全连接电脑与手机，实时分享文本、链接、图片和文件。",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "node --test tests/*.test.cjs",
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^1.3.0",
+    "@noble/hashes": "^1.8.0",
+    "lucide-vue-next": "^0.468.0",
+    "qrcode": "^1.5.4",
+    "vue": "^3.5.13",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vue-tsc": "^2.2.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

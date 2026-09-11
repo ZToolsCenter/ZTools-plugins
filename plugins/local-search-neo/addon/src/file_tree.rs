@@ -40,14 +40,24 @@ struct RenderedTree {
     truncated: bool,
 }
 
-pub fn print_directory_tree(mut cx: FunctionContext) -> JsResult<JsObject> {
+pub fn print_directory_tree(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let path = required_string_arg(&mut cx, 0, "directory")?;
     let options = parse_tree_options(&mut cx, 1)?;
-    let root =
-        read_directory_tree(Path::new(&path), &options).or_else(|error| cx.throw_error(error))?;
-    let rendered = render_tree(&root, &options);
 
-    rendered_tree_to_js(&mut cx, rendered)
+    let promise = cx
+        .task(move || {
+            let root = read_directory_tree(Path::new(&path), &options)?;
+            let rendered = render_tree(&root, &options);
+            Ok(rendered)
+        })
+        .promise(
+            move |mut cx, result: Result<RenderedTree, String>| match result {
+                Ok(rendered) => rendered_tree_to_js(&mut cx, rendered),
+                Err(error) => cx.throw_error(error),
+            },
+        );
+
+    Ok(promise)
 }
 
 pub fn print_archive_tree(mut cx: FunctionContext) -> JsResult<JsObject> {
@@ -457,8 +467,8 @@ fn level_limit(options: &TreeOptions, level: usize) -> usize {
         .unwrap_or(DEFAULT_LEVEL_LIMITS[DEFAULT_LEVEL_LIMITS.len() - 1])
 }
 
-fn rendered_tree_to_js<'a>(
-    cx: &mut FunctionContext<'a>,
+fn rendered_tree_to_js<'a, C: Context<'a>>(
+    cx: &mut C,
     rendered: RenderedTree,
 ) -> JsResult<'a, JsObject> {
     let object = cx.empty_object();

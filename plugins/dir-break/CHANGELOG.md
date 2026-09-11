@@ -1,6 +1,11 @@
 # Changelog
 
-## [1.1.0] - 2026-07-19
+
+## 1.2.0 - 2026-07-15
+
+- 初次发布，将插件提交至 ZTools 插件仓库。
+
+## 1.1.0 - 2026-07-19
 
 ###  新增
 - 组件化重构：将内联 UI 拆分为 6 个独立组件（DropArea、FolderBar、ConfigBar、PreviewPanel、ConfirmDialog、HistoryList）
@@ -43,3 +48,7 @@
 - 修复递归扫描子目录时 `sub.dirs` 未重新计算相对于源目录的 `relativePath`，导致前端预览过滤逻辑错误
 - 修复 `fs.statSync` 遇到损坏符号链接或无权限文件时崩溃，现用 try-catch 跳过并继续扫描
 - 移除未使用的 `afterSummary` 计算属性、`pathDirname` 函数及 `FileInfo` 导入
+
+## 1.0.0 - 2026-07-15
+
+- 修复多目录处理、安全漏洞及代码清理

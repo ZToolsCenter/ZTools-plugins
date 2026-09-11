@@ -2,22 +2,19 @@
 
 import {
   DEFAULT_CATEGORIES,
+  DEFAULT_CATEGORY_ORDER,
   buildEverythingQuery,
-  formatBytes,
-  getArchiveTreePreviewBlockedReason,
-  getCodePreviewLanguage,
+  filterResultsExcludingPaths,
+  getDragTargetPaths,
+  getMatchPathQueryPlan,
+  getNextCyclicCategory,
   getNextSelectedPath,
   getNextVisibleCount,
+  getRangeSelectedPaths,
   getRestoredSelectedPath,
-  isArchiveTreePreviewCandidate,
-  isAudioPreviewCandidate,
-  isCodePreviewCandidate,
-  isImagePreviewCandidate,
-  isMarkdownPreviewCandidate,
-  isPdfPreviewCandidate,
-  isTextPreviewCandidate,
-  isVideoPreviewCandidate,
   mergeResultsByMatchPathPriority,
+  normalizeCategoryOrder,
+  reorderArray,
   type FinderCategory,
   type FinderResult,
 } from "./finderLogic";
@@ -30,6 +27,9 @@ const sampleResults: FinderResult[] = [
     name: "b.txt",
     path: "C:\\beta",
     fullPath: "C:\\beta\\b.txt",
+    highlightedName: "b.txt",
+    highlightedPath: "C:\\beta",
+    extension: "txt",
     size: 10,
     modifiedAt: 200,
   },
@@ -37,6 +37,9 @@ const sampleResults: FinderResult[] = [
     name: "a.log",
     path: "C:\\alpha",
     fullPath: "C:\\alpha\\a.log",
+    highlightedName: "a.log",
+    highlightedPath: "C:\\alpha",
+    extension: "log",
     size: 30,
     modifiedAt: 100,
   },
@@ -44,7 +47,11 @@ const sampleResults: FinderResult[] = [
     name: "folder",
     path: "C:\\alpha",
     fullPath: "C:\\alpha\\folder",
+    highlightedName: "folder",
+    highlightedPath: "C:\\alpha",
+    extension: "",
     isDirectory: true,
+    size: 0,
     modifiedAt: 300,
   },
 ];
@@ -83,6 +90,31 @@ test("buildEverythingQuery supports custom Everything rules and extension shorth
   );
 });
 
+test("buildEverythingQuery handles folder prefix and paths with spaces", () => {
+  const pdfCategory = DEFAULT_CATEGORIES.find(
+    (category) => category.id === "pdf",
+  ) as FinderCategory;
+
+  assert.equal(
+    buildEverythingQuery("report", pdfCategory, "D:\\workspace"),
+    "D:\\workspace report ext:pdf",
+  );
+  assert.equal(
+    buildEverythingQuery("report", pdfCategory, "C:\\Program Files\\App"),
+    '"C:\\Program Files\\App" report ext:pdf',
+  );
+  assert.equal(
+    buildEverythingQuery("report", pdfCategory, '"C:\\Program Files\\App"'),
+    '"C:\\Program Files\\App" report ext:pdf',
+  );
+  assert.equal(buildEverythingQuery("", DEFAULT_CATEGORIES[0], "D:\\workspace"), "D:\\workspace");
+  assert.equal(
+    buildEverythingQuery("", DEFAULT_CATEGORIES[0], "D:\\My Documents"),
+    '"D:\\My Documents"',
+  );
+  assert.equal(buildEverythingQuery("test", DEFAULT_CATEGORIES[0], "   "), "test");
+});
+
 test("getNextVisibleCount grows by page size without exceeding total", () => {
   assert.equal(getNextVisibleCount(0, 100, 40), 40);
   assert.equal(getNextVisibleCount(40, 100, 40), 80);
@@ -90,13 +122,38 @@ test("getNextVisibleCount grows by page size without exceeding total", () => {
 });
 
 test("getNextSelectedPath moves selection with arrow keys", () => {
-  const orderedPaths = sampleResults.map((item) => item.fullPath as string);
+  const orderedPaths = sampleResults.map((item) => item.fullPath);
 
   assert.equal(getNextSelectedPath(orderedPaths, "", 1), "C:\\beta\\b.txt");
   assert.equal(getNextSelectedPath(orderedPaths, "C:\\beta\\b.txt", 1), "C:\\alpha\\a.log");
   assert.equal(getNextSelectedPath(orderedPaths, "C:\\alpha\\a.log", -1), "C:\\beta\\b.txt");
   assert.equal(getNextSelectedPath(orderedPaths, "C:\\alpha\\folder", 1), "C:\\alpha\\folder");
   assert.equal(getNextSelectedPath(orderedPaths, "C:\\beta\\b.txt", -1), "C:\\beta\\b.txt");
+});
+
+test("getNextCyclicCategory cycles category forward and backward with wrap-around", () => {
+  const categories = [
+    { id: "all", label: "全部" },
+    { id: "folder", label: "文件夹" },
+    { id: "pdf", label: "PDF" },
+  ];
+
+  // Tab: 向下切换，最后一个回到第一个
+  assert.equal(getNextCyclicCategory(categories, "all", 1)?.id, "folder");
+  assert.equal(getNextCyclicCategory(categories, "folder", 1)?.id, "pdf");
+  assert.equal(getNextCyclicCategory(categories, "pdf", 1)?.id, "all");
+
+  // Shift+Tab: 向上切换，第一个回到最后一个
+  assert.equal(getNextCyclicCategory(categories, "all", -1)?.id, "pdf");
+  assert.equal(getNextCyclicCategory(categories, "pdf", -1)?.id, "folder");
+  assert.equal(getNextCyclicCategory(categories, "folder", -1)?.id, "all");
+
+  // 当前分类不存在时回退
+  assert.equal(getNextCyclicCategory(categories, "unknown", 1)?.id, "all");
+  assert.equal(getNextCyclicCategory(categories, "unknown", -1)?.id, "pdf");
+
+  // 空列表
+  assert.equal(getNextCyclicCategory([], "all", 1), undefined);
 });
 
 test("getRestoredSelectedPath keeps existing visible selection or picks sorted first item", () => {
@@ -108,14 +165,68 @@ test("getRestoredSelectedPath keeps existing visible selection or picks sorted f
 
 test("mergeResultsByMatchPathPriority keeps name matches first and removes duplicates", () => {
   const nameResults: FinderResult[] = [
-    { name: "name-a.txt", path: "C:\\demo", fullPath: "C:\\demo\\name-a.txt" },
-    { name: "shared.txt", path: "C:\\demo", fullPath: "C:\\demo\\shared.txt" },
-    { name: "name-b.txt", path: "D:\\demo", fullPath: "D:\\demo\\name-b.txt" },
+    {
+      name: "name-a.txt",
+      path: "C:\\demo",
+      fullPath: "C:\\demo\\name-a.txt",
+      highlightedName: "name-a.txt",
+      highlightedPath: "C:\\demo",
+      extension: "txt",
+      size: 100,
+      modifiedAt: 1,
+    },
+    {
+      name: "shared.txt",
+      path: "C:\\demo",
+      fullPath: "C:\\demo\\shared.txt",
+      highlightedName: "shared.txt",
+      highlightedPath: "C:\\demo",
+      extension: "txt",
+      size: 100,
+      modifiedAt: 1,
+    },
+    {
+      name: "name-b.txt",
+      path: "D:\\demo",
+      fullPath: "D:\\demo\\name-b.txt",
+      highlightedName: "name-b.txt",
+      highlightedPath: "D:\\demo",
+      extension: "txt",
+      size: 100,
+      modifiedAt: 1,
+    },
   ];
   const matchPathResults: FinderResult[] = [
-    { name: "shared.txt", path: "C:\\demo", fullPath: "c:\\demo\\shared.txt" },
-    { name: "path-a.txt", path: "C:\\demo", fullPath: "C:\\demo\\path-a.txt" },
-    { name: "path-b.txt", path: "D:\\demo", fullPath: "D:\\demo\\path-b.txt" },
+    {
+      name: "shared.txt",
+      path: "C:\\demo",
+      fullPath: "c:\\demo\\shared.txt",
+      highlightedName: "shared.txt",
+      highlightedPath: "C:\\demo",
+      extension: "txt",
+      size: 100,
+      modifiedAt: 1,
+    },
+    {
+      name: "path-a.txt",
+      path: "C:\\demo",
+      fullPath: "C:\\demo\\path-a.txt",
+      highlightedName: "path-a.txt",
+      highlightedPath: "C:\\demo",
+      extension: "txt",
+      size: 100,
+      modifiedAt: 1,
+    },
+    {
+      name: "path-b.txt",
+      path: "D:\\demo",
+      fullPath: "D:\\demo\\path-b.txt",
+      highlightedName: "path-b.txt",
+      highlightedPath: "D:\\demo",
+      extension: "txt",
+      size: 100,
+      modifiedAt: 1,
+    },
   ];
 
   assert.deepEqual(
@@ -130,83 +241,102 @@ test("mergeResultsByMatchPathPriority keeps name matches first and removes dupli
   );
 });
 
-test("preview candidate helpers detect supported file types", () => {
-  assert.equal(isTextPreviewCandidate({ name: "main.log", size: 1024 }), true);
-  assert.equal(isTextPreviewCandidate({ name: "notes.md", size: 1024 }), true);
-  assert.equal(isTextPreviewCandidate({ name: "image.png", size: 1024 }), false);
-  assert.equal(isTextPreviewCandidate({ name: "big.txt", size: 30 * 1024 * 1024 }), false);
-  assert.equal(isTextPreviewCandidate({ name: "folder", isDirectory: true }), false);
+test("getRangeSelectedPaths calculates slice of items between anchor and target", () => {
+  const visiblePaths = ["C:\\a.txt", "C:\\b.txt", "C:\\c.txt", "C:\\d.txt"];
 
-  assert.equal(isImagePreviewCandidate({ name: "photo.webp" }), true);
-  assert.equal(isImagePreviewCandidate({ name: "movie.mp4" }), false);
-  assert.equal(isImagePreviewCandidate({ name: "Pictures", isDirectory: true }), false);
-
-  assert.equal(isVideoPreviewCandidate({ name: "movie.mp4" }), true);
-  assert.equal(isVideoPreviewCandidate({ name: "clip.webm" }), true);
-  assert.equal(isVideoPreviewCandidate({ name: "sound.ogg" }), false);
-  assert.equal(isVideoPreviewCandidate({ name: "photo.jpg" }), false);
-  assert.equal(isVideoPreviewCandidate({ name: "Videos", isDirectory: true }), false);
-
-  assert.equal(isAudioPreviewCandidate({ name: "sound.mp3" }), true);
-  assert.equal(isAudioPreviewCandidate({ name: "voice.ogg" }), true);
-  assert.equal(isAudioPreviewCandidate({ name: "track.flac" }), true);
-  assert.equal(isAudioPreviewCandidate({ name: "movie.mp4" }), false);
-  assert.equal(isAudioPreviewCandidate({ name: "Music", isDirectory: true }), false);
-
-  assert.equal(isPdfPreviewCandidate({ name: "document.pdf" }), true);
-  assert.equal(isPdfPreviewCandidate({ name: "PDFs", isDirectory: true }), false);
-
-  assert.equal(isArchiveTreePreviewCandidate({ name: "archive.zip" }), true);
-  assert.equal(isArchiveTreePreviewCandidate({ name: "source.tar" }), true);
-  assert.equal(isArchiveTreePreviewCandidate({ name: "source.tar.gz" }), true);
-  assert.equal(isArchiveTreePreviewCandidate({ name: "source.tgz" }), true);
-  assert.equal(
-    isArchiveTreePreviewCandidate({ name: "source.tar", size: 100 * 1024 * 1024 }),
-    true,
-  );
-  assert.equal(
-    isArchiveTreePreviewCandidate({ name: "source.tar", size: 100 * 1024 * 1024 + 1 }),
-    false,
-  );
-  assert.equal(
-    getArchiveTreePreviewBlockedReason({ name: "source.tar", size: 100 * 1024 * 1024 + 1 }),
-    "压缩包超过 100 MB，不提供预览",
-  );
-  assert.equal(
-    isArchiveTreePreviewCandidate({ name: "source.tar.gz", size: 100 * 1024 * 1024 + 1 }),
-    false,
-  );
-  assert.equal(
-    isArchiveTreePreviewCandidate({ name: "source.tgz", size: 100 * 1024 * 1024 + 1 }),
-    false,
-  );
-  assert.equal(
-    isArchiveTreePreviewCandidate({ name: "single-file.gz", size: 100 * 1024 * 1024 + 1 }),
-    true,
-  );
-  assert.equal(
-    getArchiveTreePreviewBlockedReason({
-      name: "single-file.gz",
-      size: 100 * 1024 * 1024 + 1,
-    }),
-    undefined,
-  );
-  assert.equal(isArchiveTreePreviewCandidate({ name: "archive.rar" }), false);
-  assert.equal(isArchiveTreePreviewCandidate({ name: "Archives", isDirectory: true }), false);
-
-  assert.equal(isMarkdownPreviewCandidate({ name: "README.md" }), true);
-  assert.equal(isMarkdownPreviewCandidate({ name: "notes.markdown" }), true);
-  assert.equal(isMarkdownPreviewCandidate({ name: "script.ts" }), false);
-
-  assert.equal(isCodePreviewCandidate({ name: "script.ts" }), true);
-  assert.equal(isCodePreviewCandidate({ name: "Component.vue" }), true);
-  assert.equal(isCodePreviewCandidate({ name: "README.md" }), false);
-  assert.equal(getCodePreviewLanguage({ name: "script.ts" }), "typescript");
+  assert.deepEqual(getRangeSelectedPaths(visiblePaths, "C:\\a.txt", "C:\\c.txt"), [
+    "C:\\a.txt",
+    "C:\\b.txt",
+    "C:\\c.txt",
+  ]);
+  assert.deepEqual(getRangeSelectedPaths(visiblePaths, "C:\\c.txt", "C:\\a.txt"), [
+    "C:\\a.txt",
+    "C:\\b.txt",
+    "C:\\c.txt",
+  ]);
+  assert.deepEqual(getRangeSelectedPaths(visiblePaths, "C:\\missing.txt", "C:\\b.txt"), [
+    "C:\\b.txt",
+  ]);
+  assert.deepEqual(getRangeSelectedPaths(visiblePaths, "C:\\a.txt", "C:\\missing.txt"), []);
+  assert.deepEqual(getRangeSelectedPaths([], "C:\\a.txt", "C:\\b.txt"), []);
 });
 
-test("formatBytes returns compact human-readable values", () => {
-  assert.equal(formatBytes(undefined), "");
-  assert.equal(formatBytes(512), "512 B");
-  assert.equal(formatBytes(1536), "1.5 KB");
-  assert.equal(formatBytes(5 * 1024 * 1024), "5 MB");
+test("getDragTargetPaths resolves single vs multi-selection drag targets", () => {
+  assert.equal(getDragTargetPaths("C:\\a.txt"), "C:\\a.txt");
+  assert.equal(getDragTargetPaths("C:\\a.txt", ["C:\\a.txt"]), "C:\\a.txt");
+  assert.deepEqual(getDragTargetPaths("C:\\a.txt", ["C:\\a.txt", "C:\\b.txt"]), [
+    "C:\\a.txt",
+    "C:\\b.txt",
+  ]);
+  assert.equal(getDragTargetPaths("C:\\c.txt", ["C:\\a.txt", "C:\\b.txt"]), "C:\\c.txt");
+  assert.equal(getDragTargetPaths(""), "");
+});
+
+test("filterResultsExcludingPaths removes specified paths and preserves others", () => {
+  const items = [
+    { name: "1.txt", fullPath: "C:\\1.txt" },
+    { name: "2.txt", fullPath: "C:\\2.txt" },
+    { name: "3.txt", fullPath: "C:\\3.txt" },
+  ];
+
+  assert.deepEqual(filterResultsExcludingPaths(items, ["C:\\2.txt"]), [
+    { name: "1.txt", fullPath: "C:\\1.txt" },
+    { name: "3.txt", fullPath: "C:\\3.txt" },
+  ]);
+  assert.deepEqual(filterResultsExcludingPaths(items, ["C:\\missing.txt"]), items);
+  assert.deepEqual(filterResultsExcludingPaths(items, []), items);
+});
+
+test("normalizeCategoryOrder retains valid IDs, deduplicates, and appends missing IDs", () => {
+  const allIds = ["all", "folder", "excel", "custom-1", "custom-2"];
+  // Valid partial stored order with deleted ID and duplicates
+  const stored = ["custom-2", "folder", "custom-2", "deleted-id", "all"];
+  const result = normalizeCategoryOrder(stored, allIds);
+
+  assert.deepEqual(result, ["custom-2", "folder", "all", "excel", "custom-1"]);
+
+  // Undefined stored order falls back to natural order
+  assert.deepEqual(normalizeCategoryOrder(undefined, allIds), allIds);
+  assert.deepEqual(normalizeCategoryOrder([], allIds), allIds);
+  assert.deepEqual(
+    normalizeCategoryOrder(DEFAULT_CATEGORY_ORDER, DEFAULT_CATEGORY_ORDER),
+    DEFAULT_CATEGORY_ORDER,
+  );
+});
+
+test("reorderArray moves items correctly within bounds and handles invalid indices", () => {
+  const list = ["A", "B", "C", "D"];
+
+  // Move forward: 0 -> 2
+  assert.deepEqual(reorderArray(list, 0, 2), ["B", "C", "A", "D"]);
+  // Move backward: 3 -> 1
+  assert.deepEqual(reorderArray(list, 3, 1), ["A", "D", "B", "C"]);
+  // Same index
+  assert.deepEqual(reorderArray(list, 1, 1), ["A", "B", "C", "D"]);
+  // Out of bounds
+  assert.deepEqual(reorderArray(list, -1, 2), ["A", "B", "C", "D"]);
+  assert.deepEqual(reorderArray(list, 1, 10), ["A", "B", "C", "D"]);
+});
+
+test("getMatchPathQueryPlan optimizes search execution based on keyword and matchPathEnabled", () => {
+  // 1. matchPathEnabled 关闭时，始终单次查询
+  assert.deepEqual(getMatchPathQueryPlan(false, ""), { mode: "single", matchPath: false });
+  assert.deepEqual(getMatchPathQueryPlan(false, "test"), { mode: "single", matchPath: false });
+  assert.deepEqual(getMatchPathQueryPlan(false, "src/components"), {
+    mode: "single",
+    matchPath: false,
+  });
+
+  // 2. keyword 为空或全空格（如纯分类切换），只执行单次 matchPath: false 查询
+  assert.deepEqual(getMatchPathQueryPlan(true, ""), { mode: "single", matchPath: false });
+  assert.deepEqual(getMatchPathQueryPlan(true, "   "), { mode: "single", matchPath: false });
+
+  // 3. keyword 包含路径分隔符（/ 或 \），直接单次 matchPath: true 查询
+  assert.deepEqual(getMatchPathQueryPlan(true, "src/main"), { mode: "single", matchPath: true });
+  assert.deepEqual(getMatchPathQueryPlan(true, "app\\assets"), { mode: "single", matchPath: true });
+  assert.deepEqual(getMatchPathQueryPlan(true, "C:\\Users"), { mode: "single", matchPath: true });
+
+  // 4. keyword 为普通纯词，执行双阶段查询
+  assert.deepEqual(getMatchPathQueryPlan(true, "report"), { mode: "dual" });
+  assert.deepEqual(getMatchPathQueryPlan(true, "test.pdf"), { mode: "dual" });
 });

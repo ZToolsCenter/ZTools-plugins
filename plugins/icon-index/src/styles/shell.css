@@ -1,0 +1,248 @@
+.app-shell {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  background: #f3f5f2;
+}
+
+.app-header {
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 190px minmax(260px, 680px);
+  align-items: center;
+  gap: 26px;
+  min-height: 78px;
+  padding: 12px 20px;
+  color: #f8fbf8;
+  background: #17312f;
+  border-bottom: 3px solid var(--coral);
+}
+
+.brand-lockup {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 8px;
+}
+
+.brand-lockup h1,
+.brand-lockup p {
+  margin: 0;
+}
+
+.brand-lockup h1 {
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 720;
+}
+
+.brand-lockup p {
+  margin-top: 2px;
+  color: #a8c5bd;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.search-form {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding-left: 13px;
+  color: #31403d;
+  background: #ffffff;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.search-form:focus-within {
+  border-color: #8ec6b9;
+  box-shadow: 0 0 0 3px rgba(142, 198, 185, 0.2);
+}
+
+.search-form input {
+  min-width: 0;
+  height: 42px;
+  padding: 0;
+  color: #17201f;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.search-form input::placeholder {
+  color: #84908c;
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--surface-muted);
+  border-color: var(--line-strong);
+}
+
+.icon-button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.search-button {
+  color: #ffffff;
+  background: var(--coral);
+  border-color: transparent;
+}
+
+.search-button:hover:not(:disabled) {
+  background: #c75d48;
+  border-color: transparent;
+}
+
+.workspace {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--surface);
+}
+
+.results-pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.results-toolbar {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 16px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--line);
+}
+
+.query-summary {
+  min-width: 0;
+}
+
+.query-summary strong,
+.query-summary span {
+  display: block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.query-summary strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.query-summary span {
+  margin-top: 2px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.format-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.segmented-control {
+  display: inline-grid;
+  grid-template-columns: repeat(2, 46px);
+  padding: 2px;
+  background: #e6eae6;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.segmented-control button {
+  min-height: 30px;
+  padding: 0 8px;
+  color: var(--ink-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.segmented-control button.active {
+  color: #ffffff;
+  background: var(--accent);
+  box-shadow: 0 1px 3px rgba(25, 48, 44, 0.22);
+}
+
+.size-select {
+  width: 86px;
+  height: 36px;
+  padding: 0 26px 0 9px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.color-control {
+  display: flex;
+  height: 36px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.color-control.disabled {
+  opacity: 0.42;
+}
+
+.color-swatch {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 18px;
+  overflow: hidden;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+
+.color-swatch input {
+  position: absolute;
+  inset: -8px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  opacity: 0;
+}

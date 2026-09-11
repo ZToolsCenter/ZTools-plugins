@@ -1,0 +1,13 @@
+{
+  "name": "ztools-pdf-office-workbench",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "ZTools PDF and office document workflow plugin.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

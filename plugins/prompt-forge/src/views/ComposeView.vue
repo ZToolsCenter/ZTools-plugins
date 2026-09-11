@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Pin, Shield, Paperclip, ChevronUp, ChevronDown, X } from 'lucide-vue-next'
 import { useRouter } from '../stores/router'
 import { usePromptStore } from '../stores/prompt'
 import { useAppSettings } from '../stores/app'
@@ -31,7 +32,10 @@ const backFrags = computed(() => canvasFrags.value.filter(f => f.position === 'b
 
 onMounted(async () => {
   await promptStore.ensureReady()
-  if (basePrompts.value.length && !selectedBaseId.value) selectedBaseId.value = basePrompts.value[0].id
+  if (basePrompts.value.length && !selectedBaseId.value) {
+    const first = basePrompts.value[0]
+    if (first) selectedBaseId.value = first.id
+  }
 })
 
 const composedText = computed(() => {
@@ -103,14 +107,14 @@ async function saveAsNew() {
       <div class="canvas">
         <!-- 前置片段 -->
         <div v-for="(f, i) in frontFrags" :key="f.item.id" class="cc front">
-          <div class="cc-h"><span>📌 前置 {{ i+1 }}</span><span class="moves"><button :disabled="i===0" @click="moveFrag(canvasFrags.indexOf(f),'up')">▲</button><button :disabled="i===frontFrags.length-1" @click="moveFrag(canvasFrags.indexOf(f),'down')">▼</button></span><span class="x" @click="removeFrag(canvasFrags.indexOf(f))">×</span></div>
+          <div class="cc-h"><span class="cc-label"><Pin :size="12" />前置 {{ i+1 }}</span><span class="moves"><button :disabled="i===0" @click="moveFrag(canvasFrags.indexOf(f),'up')"><ChevronUp :size="12" /></button><button :disabled="i===frontFrags.length-1" @click="moveFrag(canvasFrags.indexOf(f),'down')"><ChevronDown :size="12" /></button></span><span class="x" @click="removeFrag(canvasFrags.indexOf(f))"><X :size="13" /></span></div>
           <div class="ct">{{ f.item.title }}</div><div class="cc-b">{{ f.item.content }}</div>
         </div>
         <!-- 基础 -->
         <div class="cc muted"><div class="cc-h">基础</div><div class="ct">{{ selectedBase?.title || '未选择' }}</div><div class="cc-b">{{ selectedBase?.content }}</div></div>
         <!-- 后置片段/约束 -->
         <div v-for="(f, i) in backFrags" :key="f.item.id" class="cc back">
-          <div class="cc-h"><span>{{ f.item.type === 'constraint' ? '🛡 约束' : '📎 片段' }} {{ i+1 }}</span><span class="moves"><button :disabled="i===0" @click="moveFrag(canvasFrags.indexOf(f),'up')">▲</button><button :disabled="i===backFrags.length-1" @click="moveFrag(canvasFrags.indexOf(f),'down')">▼</button></span><span class="x" @click="removeFrag(canvasFrags.indexOf(f))">×</span></div>
+          <div class="cc-h"><span class="cc-label"><Shield v-if="f.item.type === 'constraint'" :size="12" /><Paperclip v-else :size="12" />{{ f.item.type === 'constraint' ? '约束' : '片段' }} {{ i+1 }}</span><span class="moves"><button :disabled="i===0" @click="moveFrag(canvasFrags.indexOf(f),'up')"><ChevronUp :size="12" /></button><button :disabled="i===backFrags.length-1" @click="moveFrag(canvasFrags.indexOf(f),'down')"><ChevronDown :size="12" /></button></span><span class="x" @click="removeFrag(canvasFrags.indexOf(f))"><X :size="13" /></span></div>
           <div class="ct">{{ f.item.title }}</div><div class="cc-b">{{ f.item.content }}</div>
         </div>
         <div v-if="!canvasFrags.length" class="empty-c">在右侧选择片段或约束添加至此</div>
@@ -132,14 +136,19 @@ async function saveAsNew() {
               <div class="ct">{{ f.title }}</div>
               <div class="cd">{{ f.content }}</div>
               <div class="add-btns">
-                <button class="abtn" @click="addFrag(f, 'front')" title="添加到前置">↑ 前置</button>
-                <button class="abtn" @click="addFrag(f, 'back')" title="添加到后置">↓ 后置</button>
+                <button class="abtn" @click="addFrag(f, 'front')" title="添加到前置"><ChevronUp :size="12" />前置</button>
+                <button class="abtn" @click="addFrag(f, 'back')" title="添加到后置"><ChevronDown :size="12" />后置</button>
               </div>
             </div>
           </template>
           <div v-else class="empty-c">{{ rightTab === 'snippet' ? '暂无片段' : '暂无约束' }}</div>
         </div>
       </div>
+    </div>
+    <div class="compose-foot">
+      <span class="spacer"></span>
+      <button class="btn" :disabled="!composedText.trim()" @click="copyComposite">复制结果</button>
+      <button class="btn primary" :disabled="!composedText.trim()" @click="saveAsNew">转为提示词</button>
     </div>
   </div>
 </template>
@@ -162,6 +171,7 @@ async function saveAsNew() {
 .cc.muted { background: var(--pf-surface-raised); border-style: dashed; }
 .cc.preview { border-color: var(--pf-accent); }
 .cc-h { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--pf-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.cc-label { display: inline-flex; align-items: center; gap: 3px; }
 .cc-b { font-size: 11.5px; color: var(--pf-text-muted); line-height: 1.5; }
 .cc-b.mono { font-family: var(--pf-font-mono); white-space: pre-wrap; color: var(--pf-text); }
 .moves { display: flex; gap: 2px; margin-left: 4px; }
@@ -177,7 +187,7 @@ async function saveAsNew() {
 .tab:hover { color: var(--pf-accent); }
 .tab-sep { color: var(--pf-text-faint); margin: 0 2px; }
 .add-btns { display: flex; gap: 4px; margin-top: 6px; }
-.abtn { flex: 1; padding: 4px 0; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-xs); font-size: 10.5px; color: var(--pf-text-muted); background: var(--pf-surface); cursor: pointer; transition: all 0.12s; }
+.abtn { flex: 1; padding: 4px 0; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-xs); font-size: 10.5px; color: var(--pf-text-muted); background: var(--pf-surface); cursor: pointer; transition: all 0.12s; display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
 .abtn:hover { border-color: var(--pf-accent); color: var(--pf-accent); background: var(--pf-accent-soft); }
 .vars { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--pf-border); }
 .vt { display: inline-flex; align-items: center; gap: 4px; background: var(--pf-accent-soft); color: var(--pf-accent); padding: 2px 6px; border-radius: var(--pf-radius-xs); font-size: 11px; font-weight: 500; }

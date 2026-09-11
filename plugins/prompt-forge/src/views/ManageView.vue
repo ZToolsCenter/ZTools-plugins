@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { Star } from 'lucide-vue-next'
 import Fuse from 'fuse.js'
 import { useRouter } from '../stores/router'
 import { usePromptStore } from '../stores/prompt'
 import { useProjectStore } from '../stores/project'
 import { extractVariables } from '../utils/index'
-import type { PromptItem, Variable, PromptType } from '../types'
+import type { PromptItem, Variable, PromptType, Snapshot } from '../types'
 import { showNotification } from '../utils/platform'
+import ManageContentTab from '../components/ManageContentTab.vue'
+import ManagePropsTab from '../components/ManagePropsTab.vue'
+import ManageVarsTab from '../components/ManageVarsTab.vue'
+import ManageVersionsTab from '../components/ManageVersionsTab.vue'
+import ManageStatsTab from '../components/ManageStatsTab.vue'
 
 const router = useRouter()
 const prompt = usePromptStore()
@@ -30,9 +36,6 @@ const selectMode = ref(false)
 const filterType = ref<string>('')
 const filterScope = ref<string>('')
 
-// 快照
-const viewingSnapshot = ref<number | null>(null)
-
 const selectedUnit = computed(() => prompt.rawItems.value.find(i => i.id === selectedId.value) || null)
 
 const baseItems = computed(() => {
@@ -43,17 +46,24 @@ const baseItems = computed(() => {
   return items
 })
 
-const fuseInstance = computed(() => new Fuse(baseItems.value, {
-  keys: ['title', 'content', 'tags'],
-  threshold: 0.4,
-  ignoreLocation: true,
-  minMatchCharLength: 1,
-}))
+// ====== Fuse.js 懒加载缓存 ======
+const fuseIndex = ref<Fuse<PromptItem> | null>(null)
+
+// baseItems 变化时标记索引失效
+watch(baseItems, () => { fuseIndex.value = null })
 
 const filteredItems = computed(() => {
   const q = prompt.query.value.trim()
   if (!q) return baseItems.value
-  return fuseInstance.value.search(q).map(r => r.item)
+  if (!fuseIndex.value) {
+    fuseIndex.value = new Fuse(baseItems.value, {
+      keys: ['title', 'content', 'tags'],
+      threshold: 0.4,
+      ignoreLocation: true,
+      minMatchCharLength: 1,
+    })
+  }
+  return fuseIndex.value.search(q).map(r => r.item)
 })
 
 watch(selectedUnit, (u) => {
@@ -63,7 +73,6 @@ watch(selectedUnit, (u) => {
   editVars.value = u.variables ? JSON.parse(JSON.stringify(u.variables)) : []
   editType.value = (u.type as PromptType) || 'prompt'
   editProjectId.value = u.projectId || ''
-  viewingSnapshot.value = null
 }, { immediate: true })
 
 function addTag() { const t = tagInput.value.trim(); if (t && !editTags.value.includes(t)) editTags.value.push(t); tagInput.value = '' }
@@ -91,11 +100,7 @@ function batchDelete() {
   let changed = false
   const now = Date.now()
   prompt.rawItems.value.forEach(item => {
-    if (selectedIds.value.has(item.id)) {
-      item.deleted = true
-      item.updatedAt = now
-      changed = true
-    }
+    if (selectedIds.value.has(item.id)) { item.deleted = true; item.updatedAt = now; changed = true }
   })
   if (changed) prompt.persistAll()
   selectedIds.value = new Set()
@@ -108,11 +113,7 @@ function batchMoveProject(e: Event) {
   let changed = false
   const now = Date.now()
   prompt.rawItems.value.forEach(item => {
-    if (selectedIds.value.has(item.id)) {
-      item.projectId = v
-      item.updatedAt = now
-      changed = true
-    }
+    if (selectedIds.value.has(item.id)) { item.projectId = v; item.updatedAt = now; changed = true }
   })
   if (changed) prompt.persistAll()
   ;(e.target as HTMLSelectElement).value = ''
@@ -123,9 +124,7 @@ function selectItem(id: string) {
   if (selectMode.value) { toggleSelect(id) } else { selectedId.value = id; editTab.value = 'content' }
 }
 
-function formatTime(ts: number) { return new Date(ts).toLocaleString('zh-CN') }
-
-function restoreSnapshot(snap: { version: number; body: string }) {
+function handleRestoreSnapshot(snap: Snapshot) {
   if (!selectedUnit.value) return
   if (!confirm(`恢复到 v${snap.version} 的内容？`)) return
   const u = selectedUnit.value
@@ -145,12 +144,7 @@ function restoreSnapshot(snap: { version: number; body: string }) {
     return { name: d.name, required: existing?.required ?? d.required, defaultValue: existing?.defaultValue ?? d.defaultValue }
   })
   const newVersion = (u.version || 1) + 1
-  prompt.updateItem(u.id, {
-    content: snap.body,
-    variables: vars,
-    version: newVersion,
-    snapshots,
-  })
+  prompt.updateItem(u.id, { content: snap.body, variables: vars, version: newVersion, snapshots })
   editBody.value = snap.body
   editVars.value = vars
   showNotification(`✓ 已恢复 v${snap.version} 的内容 → 当前 v${newVersion}`)
@@ -171,20 +165,12 @@ async function saveEdit() {
   const newVersion = bodyChanged ? (u.version || 1) + 1 : (u.version || 1)
   const now = Date.now()
   const snapshots = u.snapshots ? [...u.snapshots] : []
-  if (bodyChanged) {
-    snapshots.push({
-      version: u.version || 1,
-      body: u.content,
-      note: `编辑前保存`,
-      createdAt: now,
-    })
-  }
+  if (bodyChanged) { snapshots.push({ version: u.version || 1, body: u.content, note: '编辑前保存', createdAt: now }) }
   prompt.updateItem(u.id, {
     title: editTitle.value.trim() || u.title,
     content: editBody.value, tags: editTags.value, variables: vars,
     type: editType.value, projectId: editProjectId.value || undefined,
-    version: newVersion,
-    snapshots,
+    version: newVersion, snapshots,
   })
   showNotification('✓ 保存成功')
 }
@@ -198,12 +184,8 @@ async function deleteUnit() {
 onMounted(() => {
   prompt.ensureReady()
   projectStore.ensureReady()
-  // 检查是否有从空间视图传来的编辑 ID
   const editId = router.consumeManageEditId()
-  if (editId) {
-    selectedId.value = editId
-    editTab.value = 'content'
-  }
+  if (editId) { selectedId.value = editId; editTab.value = 'content' }
 })
 </script>
 
@@ -250,11 +232,11 @@ onMounted(() => {
         >
           <input v-if="selectMode" type="checkbox" :checked="selectedIds.has(item.id)" class="m-cb" @click.stop="toggleSelect(item.id)" />
           <div class="mi-body">
-            <div class="mi-title"><span v-if="item.favorite" class="star">★</span>{{ item.title }}</div>
+            <div class="mi-title"><Star v-if="item.favorite" :size="12" class="star" :fill="'currentColor'" />{{ item.title }}</div>
             <div class="mi-meta"><span class="type-tag">{{ { prompt: '提示词', snippet: '片段', template: '模板', constraint: '约束' }[item.type] || item.type }}</span><span class="spacer"></span><span class="cnt">{{ item.usageCount }}次</span></div>
           </div>
           <button v-if="!selectMode" class="mi-fav" @click.stop="toggleFavorite(item.id)" :title="item.favorite ? '取消收藏' : '收藏'">
-            {{ item.favorite ? '★' : '☆' }}
+            <Star :size="15" :fill="item.favorite ? 'currentColor' : 'none'" />
           </button>
         </div>
       </div>
@@ -271,105 +253,49 @@ onMounted(() => {
         <span class="ti">v{{ selectedUnit.version || 1 }}</span>
       </div>
       <div class="ec">
-        <!-- 正文 -->
-        <template v-if="editTab === 'content'">
-          <div class="field"><label>标题</label><input v-model="editTitle" /></div>
-          <div class="field"><label>正文</label><textarea v-model="editBody" class="body-editor" /></div>
-        </template>
+        <ManageContentTab
+          v-if="editTab === 'content'"
+          :editTitle="editTitle"
+          :editBody="editBody"
+          @update:editTitle="editTitle = $event"
+          @update:editBody="editBody = $event"
+        />
 
-        <!-- 属性 -->
-        <template v-else-if="editTab === 'props'">
-          <div class="field">
-            <label>类型</label>
-            <div class="type-grid">
-              <button v-for="t in [{v:'prompt' as PromptType,l:'提示词'},{v:'snippet' as PromptType,l:'片段'},{v:'template' as PromptType,l:'模板'},{v:'constraint' as PromptType,l:'约束'}]"
-                :key="t.v" :class="['type-btn', { active: editType === t.v }]" @click="editType = t.v">{{ t.l }}</button>
-            </div>
-          </div>
-          <div class="field">
-            <label>归属项目</label>
-            <select v-model="editProjectId" class="prop-select">
-              <option value="">无项目（资产）</option>
-              <option v-for="p in projectStore.items.value" :key="p.id" :value="p.id">{{ p.group }} / {{ p.name }}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>标签</label>
-            <div v-if="editTags.length" class="tag-list">
-              <span v-for="t in editTags" :key="t" class="tag-item">{{ t }} <button class="tag-rm" @click="removeTag(t)">×</button></span>
-            </div>
-            <div class="tag-input-row">
-              <input v-model="tagInput" class="tag-input" placeholder="输入标签，回车添加" @keydown.enter.prevent="addTag" />
-              <button class="btn btn-xs" @click="addTag">添加</button>
-            </div>
-          </div>
-          <div class="field">
-            <label>收藏</label>
-            <button class="btn" @click="selectedUnit && toggleFavorite(selectedUnit.id)">
-              {{ selectedUnit?.favorite ? '★ 已收藏' : '☆ 加入收藏' }}
-            </button>
-          </div>
-        </template>
+        <ManagePropsTab
+          v-else-if="editTab === 'props'"
+          :editType="editType"
+          :editProjectId="editProjectId"
+          :editTags="editTags"
+          :tagInput="tagInput"
+          :projects="projectStore.items.value"
+          :isFavorite="!!selectedUnit?.favorite"
+          @update:editType="editType = $event"
+          @update:editProjectId="editProjectId = $event"
+          @update:editTags="editTags = $event"
+          @update:tagInput="tagInput = $event"
+          @addTag="addTag"
+          @removeTag="removeTag"
+          @toggleFavorite="selectedUnit && toggleFavorite(selectedUnit.id)"
+        />
 
-        <!-- 变量 -->
-        <template v-else-if="editTab === 'vars'">
-          <div class="vh"><h3>变量配置</h3><button class="btn" @click="addVar">+ 添加</button></div>
-          <div v-if="editVars.length" class="vt">
-            <div class="vr header"><div>变量名</div><div>默认值</div><div style="text-align:center">必填</div><div></div></div>
-            <div v-for="(v, i) in editVars" :key="i" class="vr">
-              <input v-model="v.name" /><input v-model="v.defaultValue" placeholder="默认…" />
-              <div style="text-align:center"><input type="checkbox" v-model="v.required" /></div>
-              <button class="db" @click="removeVar(i)">×</button>
-            </div>
-          </div>
-          <div v-else class="empty">没有变量</div>
-        </template>
+        <ManageVarsTab
+          v-else-if="editTab === 'vars'"
+          :editVars="editVars"
+          @update:editVars="editVars = $event"
+          @addVar="addVar"
+          @removeVar="removeVar"
+        />
 
-        <!-- 版本 -->
-        <template v-else-if="editTab === 'versions'">
-          <!-- 当前版本 -->
-          <div class="version-item current">
-            <div class="vi-head">
-              <span class="vi-ver">v{{ selectedUnit.version || 1 }}</span>
-              <span class="vi-note">当前版本</span>
-            </div>
-            <div class="vi-body">{{ (selectedUnit.content || '').slice(0, 200) }}{{ (selectedUnit.content || '').length > 200 ? '…' : '' }}</div>
-          </div>
-          <!-- 历史快照 -->
-          <div v-if="selectedUnit.snapshots && selectedUnit.snapshots.length" class="version-list">
-            <div class="version-divider">历史版本（{{ selectedUnit.snapshots.length }}）</div>
-            <div v-for="(snap, i) in [...selectedUnit.snapshots].reverse()" :key="i" class="version-item">
-              <div class="vi-head">
-                <span class="vi-ver">v{{ snap.version }}</span>
-                <span class="vi-note">{{ snap.note }}</span>
-                <span class="vi-time">{{ formatTime(snap.createdAt) }}</span>
-              </div>
-              <div class="vi-body">{{ snap.body.slice(0, 200) }}{{ snap.body.length > 200 ? '…' : '' }}</div>
-              <div class="vi-actions">
-                <button class="btn btn-xs" @click="viewingSnapshot = viewingSnapshot === i ? null : i">
-                  {{ viewingSnapshot === i ? '收起' : '查看' }}
-                </button>
-                <button class="btn btn-xs" @click="restoreSnapshot(snap)">恢复此版本</button>
-              </div>
-              <div v-if="viewingSnapshot === i" class="vi-full">{{ snap.body }}</div>
-            </div>
-          </div>
-          <div v-else class="empty">暂无历史版本。编辑正文并保存后会自动记录。</div>
-        </template>
+        <ManageVersionsTab
+          v-else-if="editTab === 'versions'"
+          :unit="selectedUnit"
+          @restore="handleRestoreSnapshot"
+        />
 
-        <!-- 统计 -->
-        <template v-else>
-          <div class="stats-grid">
-            <div class="sc"><div class="sv">{{ selectedUnit.usageCount }}</div><div class="sl">复制次数</div></div>
-            <div class="sc"><div class="sv">v{{ selectedUnit.version || 1 }}</div><div class="sl">版本</div></div>
-            <div class="sc"><div class="sv">{{ selectedUnit.variables?.length || 0 }}</div><div class="sl">变量</div></div>
-          </div>
-          <div class="stats-meta">
-            <div class="sm-row"><span class="sm-label">创建时间</span><span>{{ formatTime(selectedUnit.createdAt) }}</span></div>
-            <div class="sm-row"><span class="sm-label">更新时间</span><span>{{ formatTime(selectedUnit.updatedAt) }}</span></div>
-            <div v-if="selectedUnit.lastUsedAt" class="sm-row"><span class="sm-label">最后使用</span><span>{{ formatTime(selectedUnit.lastUsedAt) }}</span></div>
-          </div>
-        </template>
+        <ManageStatsTab
+          v-else
+          :unit="selectedUnit"
+        />
       </div>
       <div class="ef">
         <button class="btn danger" @click="deleteUnit">删除</button>
@@ -417,59 +343,12 @@ onMounted(() => {
 
 .m-foot { padding: 8px; border-top: 1px solid var(--pf-border); }
 .m-foot .btn { width: 100%; justify-content: center; }
-.m-editor { display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--pf-surface); }
+.m-editor { display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--pf-surface); position: relative; }
 .tabs { height: 36px; display: flex; align-items: center; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--pf-border); background: var(--pf-bg-elevated); }
 .tabs button { border: 0; background: none; color: var(--pf-text-muted); padding: 4px 12px; font-size: 13px; font-weight: 500; height: 36px; cursor: pointer; }
 .tabs button.active { color: var(--pf-accent); font-weight: 600; }
 .ti { margin-left: auto; font-size: 11px; color: var(--pf-text-faint); font-family: var(--pf-font-mono); }
 .ec { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
-.field { margin-bottom: 14px; }
-.field label { display: block; font-size: 12px; font-weight: 600; color: var(--pf-text-secondary); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
-.field input, .field textarea, .field select { width: 100%; border: 1px solid var(--pf-border); background: var(--pf-surface); border-radius: var(--pf-radius-sm); padding: 10px 14px; font-size: 13.5px; }
-.field input:focus, .field textarea:focus { border-color: var(--pf-accent); outline: none; box-shadow: 0 0 0 3px var(--pf-accent-soft); }
-.field select { height: 38px; padding: 0 10px; }
-.body-editor { min-height: 250px; max-height: 50vh; resize: vertical; font-family: var(--pf-font-mono); line-height: 1.6; }
-
-.type-grid { display: flex; gap: 6px; flex-wrap: wrap; }
-.type-btn { padding: 6px 14px; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); background: var(--pf-surface); font-size: 12px; cursor: pointer; transition: all 0.12s; }
-.type-btn:hover { border-color: var(--pf-accent); }
-.type-btn.active { background: var(--pf-accent); color: #fff; border-color: var(--pf-accent); }
-.tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.tag-item { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--pf-accent-soft); color: var(--pf-accent); border-radius: var(--pf-radius-xs); font-size: 12px; font-weight: 500; }
-.tag-rm { background: none; border: none; color: var(--pf-accent); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
-.tag-input-row { display: flex; gap: 6px; }
-.tag-input { flex: 1; height: 30px; }
-
-.vh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.vh h3 { font-size: 14px; margin: 0; }
-.vt { border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); }
-.vr { display: grid; grid-template-columns: 1fr 1fr 50px 30px; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--pf-border); }
-.vr.header { font-size: 11px; font-weight: 600; color: var(--pf-text-muted); background: var(--pf-bg-elevated); }
-.vr input { height: 28px; padding: 2px 6px; font-size: 12px; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-xs); }
-.vr input:focus { border-color: var(--pf-accent); outline: none; }
-.db { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--pf-danger); color: var(--pf-danger); background: var(--pf-danger-soft); display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
-.db:hover { background: var(--pf-danger); color: #fff; }
-.empty { padding: 24px; text-align: center; color: var(--pf-text-muted); }
-
-.version-list { display: flex; flex-direction: column; gap: 10px; }
-.version-item { border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); padding: 12px; background: var(--pf-bg-elevated); }
-.version-item.current { border-color: var(--pf-accent); background: var(--pf-accent-soft); }
-.version-divider { font-size: 11px; font-weight: 700; color: var(--pf-text-faint); text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 0 2px; }
-.vi-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.vi-ver { font-family: var(--pf-font-mono); font-size: 12px; font-weight: 700; color: var(--pf-accent); background: var(--pf-accent-soft); padding: 2px 8px; border-radius: var(--pf-radius-xs); }
-.vi-note { font-size: 12px; color: var(--pf-text-secondary); flex: 1; }
-.vi-time { font-size: 11px; color: var(--pf-text-faint); font-family: var(--pf-font-mono); }
-.vi-body { font-size: 12px; color: var(--pf-text-muted); font-family: var(--pf-font-mono); line-height: 1.5; white-space: pre-wrap; word-break: break-all; background: var(--pf-surface); padding: 8px; border-radius: var(--pf-radius-xs); margin-bottom: 8px; max-height: 80px; overflow: hidden; }
-.vi-full { font-size: 12px; color: var(--pf-text); font-family: var(--pf-font-mono); line-height: 1.6; white-space: pre-wrap; word-break: break-all; background: var(--pf-surface); padding: 12px; border-radius: var(--pf-radius-xs); border: 1px solid var(--pf-border); margin-top: 8px; }
-.vi-actions { display: flex; gap: 6px; }
-
-.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-.sc { border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); padding: 14px; text-align: center; background: var(--pf-bg-elevated); }
-.sv { font-size: 20px; font-weight: 700; color: var(--pf-accent); }
-.sl { font-size: 11px; color: var(--pf-text-faint); margin-top: 4px; }
-.stats-meta { display: flex; flex-direction: column; gap: 0; }
-.sm-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--pf-text-secondary); padding: 8px 0; border-bottom: 1px solid var(--pf-border); }
-.sm-label { font-weight: 600; color: var(--pf-text-muted); }
 
 .ef { flex-shrink: 0; height: 48px; border-top: 1px solid var(--pf-border); padding: 0 16px; display: flex; align-items: center; gap: 8px; background: var(--pf-bg-elevated); }
 .m-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--pf-text-faint); font-size: 13px; }

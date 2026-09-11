@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>截图标注</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #252525;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      -webkit-app-region: drag;
+    }
+    /* 可交互元素不可拖动 */
+    button, input, select, canvas, #toolbar, .tui-image-editor-canvas-container, #dialog-overlay, #close-btn {
+      -webkit-app-region: no-drag;
+    }
+    /* ── Close Button ── */
+    #close-btn {
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      z-index: 100;
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s;
+    }
+    #close-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    #close-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: #fff;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+    /* ── Editor Container ── */
+    #editor-container {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #252525;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+    /* 缩放/拖动的视口层：图片画布绝对定位在其中 */
+    #viewer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      flex: 0 0 56px;
+      gap: 3px;
+      height: 56px;
+      padding: 0 8px;
+      background: #1f1f1f;
+      border-top: 1px solid #333;
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
+      overflow: visible;
+    }
+    #toolbar .sep {
+      width: 1px; height: 24px; background: #3a3a3a; margin: 0 2px; flex-shrink: 0;
+    }
+    #toolbar .spacer { flex: 1; min-width: 0; }
+    .toolbar-group { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+    #status {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      z-index: 90;
+      transform: translateX(-50%);
+      max-width: calc(100% - 120px);
+      color: #d9d9d9;
+      font-size: 13px;
+      pointer-events: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tb-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border: 1px solid transparent; border-radius: 7px;
+      background: transparent; color: #ccc; cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s, transform .15s;
+      flex-shrink: 0;
+    }
+    .tb-btn:hover { background: #333; border-color: #444; color: #fff; }
+    .tb-btn.active { background: #1a6dff; color: #fff; }
+    .tb-btn:focus-visible, .menu-trigger:focus-visible, #fontSizeSelect:focus-visible, #lineWidthRange:focus-visible, #customColorInput:focus-visible {
+      outline: 2px solid #70a5ff;
+      outline-offset: 2px;
+    }
+    .tb-btn svg { width: 20px; height: 20px; fill: currentColor; }
+    .tb-btn-copy { background: #1a6dff; color: #fff; }
+    .tb-btn-copy:hover { background: #3385ff; }
+    .screenshot-actions { display: none; align-items: center; gap: 6px; flex-shrink: 0; }
+    .screenshot-actions.show { display: flex; }
+    .flow-btn { width: auto; min-width: 40px; padding: 0 8px; background: #147d78; color: #fff; font-size: 12px; font-weight: 600; }
+    .flow-btn:hover { background: #0d5f5a; }
+    /* Style controls stay available without taking over the toolbar. */
+    .toolbar-menu { position: relative; flex-shrink: 0; }
+    .toolbar-menu > summary { list-style: none; }
+    .toolbar-menu > summary::-webkit-details-marker { display: none; }
+    .menu-trigger {
+      width: auto;
+      min-width: 58px;
+      padding: 0 6px;
+      gap: 4px;
+      background: #2a2a2a;
+      color: #ddd;
+      font-size: 12px;
+    }
+    .menu-trigger:hover, .toolbar-menu[open] > .menu-trigger { background: #353535; border-color: #555; }
+    .current-color-swatch {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, .35);
+    }
+    .menu-trigger-chevron { width: 12px !important; height: 12px !important; fill: none !important; stroke: currentColor; stroke-width: 2; }
+    .menu-panel {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 10px);
+      z-index: 200;
+      width: 238px;
+      max-width: calc(100vw - 16px);
+      padding: 12px;
+      transform: translateX(-50%);
+      border: 1px solid #494949;
+      border-radius: 10px;
+      background: #292929;
+      color: #eee;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, .42);
+    }
+    .menu-panel::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -6px;
+      width: 10px;
+      height: 10px;
+      transform: translateX(-50%) rotate(45deg);
+      border-right: 1px solid #494949;
+      border-bottom: 1px solid #494949;
+      background: #292929;
+    }
+    .menu-panel-heading, .style-setting-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .menu-panel-heading { padding-bottom: 9px; border-bottom: 1px solid #414141; }
+    .menu-panel-heading strong { font-size: 12px; font-weight: 650; }
+    .menu-panel-heading span, .style-setting-heading span { color: #999; font-size: 11px; }
+    .style-setting { padding-top: 11px; }
+    .style-setting + .style-setting { margin-top: 12px; padding-top: 12px; border-top: 1px solid #414141; }
+    .style-setting-heading label { color: #ddd; font-size: 11px; }
+    .color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 9px; }
+    .tb-btn.color-btn {
+      width: 30px !important;
+      height: 30px !important;
+      margin: 0 auto;
+      padding: 0 !important;
+      border: 2px solid transparent;
+      border-radius: 50%;
+    }
+    .tb-btn.color-btn:hover { transform: scale(1.08); }
+    .tb-btn.color-btn.active { box-shadow: 0 0 0 2px #292929, 0 0 0 4px #fff; }
+    .custom-color-control { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 10px; color: #aaa; font-size: 11px; cursor: pointer; }
+    #customColorInput { width: 28px; height: 22px; padding: 0; border: 1px solid #555; border-radius: 5px; background: transparent; cursor: pointer; }
+    #lineWidthRange { width: 100%; margin-top: 9px; accent-color: #4e8dff; }
+    #lineWidthValue { min-width: 26px; color: #ddd; font-size: 11px; text-align: right; }
+    .range-scale { display: flex; justify-content: space-between; margin-top: 2px; color: #888; font-size: 10px; }
+    #fontSizeSelect { width: 76px; padding: 6px 8px; border: 1px solid #4b4b4b; border-radius: 6px; background: #333; color: #fff; font-size: 12px; outline: none; }
+    /* ── Loading ── */
+    #loading {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      color: #999; font-size: 16px; z-index: 99999; background: #252525;
+    }
+    #loading.show { display: flex; }
+    /* ── Dialog ── */
+    #dialog-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.5);
+    }
+    #dialog-overlay.show { display: flex; }
+    #dialog-box {
+      background: #2a2a2a; border-radius: 12px; padding: 24px;
+      min-width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      border: 1px solid #3a3a3a;
+    }
+    #dialog-box h3 { color: #eee; font-size: 15px; font-weight: 500; margin-bottom: 16px; }
+    #dialog-box input {
+      width: 100%; padding: 10px 12px; border: 1px solid #3a3a3a;
+      border-radius: 8px; background: #1a1a1a; color: #eee;
+      font-size: 14px; outline: none;
+    }
+    #dialog-box input:focus { border-color: #1a6dff; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .dialog-actions button {
+      padding: 8px 20px; border: none; border-radius: 8px;
+      font-size: 14px; cursor: pointer; transition: background .15s;
+    }
+    #dialog-confirm { background: #1a6dff; color: #fff; }
+    #dialog-confirm:hover { background: #3385ff; }
+    #dialog-cancel { background: #3a3a3a; color: #999; }
+    #dialog-cancel:hover { color: #eee; }
+    #dialog-input-wrapper { display: block; }
+    #dialog-input-wrapper.hidden { display: none; }
+    /* ── tui-image-editor overrides ── */
+    .tui-image-editor-canvas-container {
+      margin: 0 auto !important;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <!-- Close Button -->
+  <button id="close-btn" title="关闭 (Escape)">
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M18 6L6 18M6 6l12 12"/>
+    </svg>
+  </button>
+  <!-- Editor Container -->
+  <div id="editor-container">
+    <!-- 缩放/拖动视口，tui 画布挂载于此 -->
+    <div id="viewer"></div>
+  </div>
+  <!-- Toolbar -->
+  <div id="toolbar" class="toolbar" aria-label="截图编辑工具栏">
+    <div class="toolbar-group toolbar-tools" aria-label="标注工具">
+    <button class="tb-btn active" id="btn-select" type="button" title="选择" aria-label="选择">
+      <svg viewBox="0 0 24 24"><path d="M4 3l1.5 15.5L10 14l5 7 2-1-5-7 7-1z"/></svg>
+    </button>
+    <button class="tb-btn" id="btn-rect" type="button" title="矩形" aria-label="矩形">
+      <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    </button>
+    <button class="tb-btn" id="btn-arrow" type="button" title="箭头" aria-label="箭头">
+      <svg viewBox="0 0 24 24"><path d="M5 17l12-12M5 17h8M5 17V9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="tb-btn" id="btn-text" type="button" title="文字" aria-label="文字">
+      <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M12 4v16M9 20h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="tb-btn" id="btn-mosaic" type="button" title="马赛克" aria-label="马赛克">
+      <svg viewBox="0 0 24 24"><path d="M3 3h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4zM3 10h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4zM3 17h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4z" fill="currentColor"/></svg>
+    </button>
+    </div>
+    <span class="sep"></span>
+    <div class="toolbar-group toolbar-history" aria-label="编辑操作">
+    <button class="tb-btn" id="btn-undo" type="button" title="撤销 (Ctrl+Z)" aria-label="撤销">
+      <svg viewBox="0 0 24 24"><path d="M9 7H4V2M4 7c2.2-2.2 5.3-3.3 8.4-2.6A7 7 0 1 1 7 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="tb-btn" id="btn-redo" type="button" title="重做 (Ctrl+Y)" aria-label="重做">
+      <svg viewBox="0 0 24 24"><path d="M15 7h5V2M20 7c-2.2-2.2-5.3-3.3-8.4-2.6A7 7 0 1 0 17 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="tb-btn" id="btn-clear" type="button" title="清空标注" aria-label="清空标注">
+      <svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3m-7 0 1 13h8l1-13M10 11v6m4-6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    </div>
+    <span class="sep"></span>
+    <details id="style-menu" class="toolbar-menu">
+      <summary id="style-menu-trigger" class="tb-btn menu-trigger" title="调整颜色、线条和文字样式" aria-label="调整标注样式">
+        <span id="currentColorSwatch" class="current-color-swatch" aria-hidden="true"></span>
+        <span class="menu-trigger-label">样式</span>
+        <svg class="menu-trigger-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+      </summary>
+      <div class="menu-panel style-panel">
+        <div class="menu-panel-heading"><strong>标注样式</strong><span>当前设置</span></div>
+        <section class="style-setting">
+          <div class="style-setting-heading"><span>颜色</span><span>选择标注颜色</span></div>
+          <div class="color-grid" aria-label="标注颜色">
+            <button class="tb-btn color-btn active" type="button" data-color="#ff4d4f" title="红色" aria-label="红色" style="background: #ff4d4f;"></button>
+            <button class="tb-btn color-btn" type="button" data-color="#1890ff" title="蓝色" aria-label="蓝色" style="background: #1890ff;"></button>
+            <button class="tb-btn color-btn" type="button" data-color="#52c41a" title="绿色" aria-label="绿色" style="background: #52c41a;"></button>
+            <button class="tb-btn color-btn" type="button" data-color="#faad14" title="黄色" aria-label="黄色" style="background: #faad14;"></button>
+            <button class="tb-btn color-btn" type="button" data-color="#722ed1" title="紫色" aria-label="紫色" style="background: #722ed1;"></button>
+            <button class="tb-btn color-btn" type="button" data-color="#000000" title="黑色" aria-label="黑色" style="background: #000000;"></button>
+            <button class="tb-btn color-btn" type="button" data-color="#ffffff" title="白色" aria-label="白色" style="background: #ffffff;"></button>
+          </div>
+          <label class="custom-color-control">自定义颜色<input id="customColorInput" type="color" value="#ff4d4f" aria-label="自定义颜色"></label>
+        </section>
+        <section class="style-setting">
+          <div class="style-setting-heading"><label for="lineWidthRange">线条粗细</label><span><output id="lineWidthValue">3</output> px</span></div>
+          <input type="range" id="lineWidthRange" min="1" max="10" value="3" step="1" aria-label="线条粗细">
+          <div class="range-scale"><span>细</span><span>粗</span></div>
+        </section>
+        <section class="style-setting">
+          <div class="style-setting-heading"><label for="fontSizeSelect">文字大小</label><span>字号</span></div>
+          <select id="fontSizeSelect" aria-label="文字大小">
+            <option value="20">20</option>
+            <option value="24">24</option>
+            <option value="28" selected>28</option>
+            <option value="32">32</option>
+            <option value="36">36</option>
+            <option value="40">40</option>
+            <option value="48">48</option>
+          </select>
+        </section>
+      </div>
+    </details>
+    <div id="screenshot-actions" class="screenshot-actions" aria-label="截图下一步">
+      <button class="tb-btn flow-btn" id="btn-ocr" type="button" title="识别当前图片">OCR</button>
+      <button class="tb-btn flow-btn" id="btn-translate" type="button" title="识别并翻译当前图片">翻译</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="tb-btn" id="btn-download" type="button" title="下载图片" aria-label="下载图片">
+      <svg viewBox="0 0 24 24"><path d="M12 3v10m0 0 4-4m-4 4-4-4M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="tb-btn" id="btn-cancel" type="button" title="取消 (Escape)" aria-label="取消">
+      <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <button class="tb-btn tb-btn-copy" id="btn-copy" type="button" title="复制 (Ctrl+Enter)" aria-label="复制图片">
+      <svg viewBox="0 0 24 24"><path d="M8 16V4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2h-8a2 2 0 01-2-2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16v2a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    </button>
+  </div>
+  <div id="status" role="status" aria-live="polite"></div>
+  <!-- Dialog Overlay -->
+  <div id="dialog-overlay" class="custom-dialog-overlay">
+    <div id="dialog-box">
+      <h3 id="dialog-title">输入文字内容</h3>
+      <div id="dialog-input-wrapper">
+        <input id="dialog-input" type="text" placeholder="请输入文字">
+      </div>
+      <div class="dialog-actions">
+        <button id="dialog-cancel">取消</button>
+        <button id="dialog-confirm">确定</button>
+      </div>
+    </div>
+  </div>
+  <!-- Loading -->
+  <div id="loading">加载中...</div>
+  <!-- Dependencies -->
+  <script src="./assets/fabric.min.js"></script>
+  <script src="./assets/tui-code-snippet.min.js"></script>
+  <script src="./assets/tui-color-picker.min.js"></script>
+  <script src="./assets/tui-image-editor.min.js"></script>
+  <!-- Plugin enter capture -->
+  <script>
+    (function() {
+      var win = window;
+      function onEnter(param) {
+        win.__ztoolsEnterParam = param;
+      }
+      if (win.ztools && typeof win.ztools.onPluginEnter === 'function') {
+        win.ztools.onPluginEnter(onEnter);
+      } else if (win.utools) {
+        win.utools.onPluginEnter(onEnter);
+      }
+    })();
+  </script>
+  <script type="module" src="/src/annotate.js"></script>
+</body>
+</html>

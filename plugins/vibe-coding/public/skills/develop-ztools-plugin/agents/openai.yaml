@@ -1,0 +1,4 @@
+interface:
+  display_name: "ZTools 插件开发"
+  short_description: "快速创建、调试、测试、验证和发布完整可靠的 ZTools 插件"
+  default_prompt: "使用 $develop-ztools-plugins 创建并验证一个新的 ZTools 插件。"

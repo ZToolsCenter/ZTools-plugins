@@ -1,4 +1,4 @@
-﻿import BaseModule from './BaseModule.js';
+﻿﻿import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
 import { clamp } from '../utils/helpers.js';
 
@@ -37,6 +37,7 @@ class EraserModule extends BaseModule {
     canvas.isDrawingMode = false;
     canvas.defaultCursor = 'crosshair';
     canvas.freeDrawingCursor = 'crosshair';
+    canvas.skipTargetFind = true;
     canvas.on('mouse:down', this._boundMouseDown);
     canvas.on('mouse:move', this._boundMouseMove);
     canvas.on('mouse:up', this._boundMouseUp);
@@ -54,6 +55,7 @@ class EraserModule extends BaseModule {
       this._commitLivePreview();
       canvas.isDrawingMode = false;
       canvas.freeDrawingCursor = 'crosshair';
+      canvas.skipTargetFind = false;
       this._targetObject = null;
       this._strokeTarget = null;
       this._isDrawing = false;

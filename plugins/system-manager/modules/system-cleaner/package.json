@@ -1,0 +1,14 @@
+{
+  "name": "system-cleaner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "安全预览本机缓存、日志和临时文件并移入废纸篓的 ZTools 插件。",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.cjs",
+    "typecheck": "node --check public/app.js && node --check public/preload/services.js && node --check public/preload/core.cjs && node --check public/preload/roots.cjs && node --check scripts/build.mjs && node --check scripts/serve.mjs",
+    "build:dist": "npm run typecheck && npm test && node scripts/build.mjs && node ../../scripts/finalize-module-dist.mjs system-cleaner",
+    "build": "npm run build:dist"
+  }
+}

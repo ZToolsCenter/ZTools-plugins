@@ -1,0 +1,26 @@
+{
+  "name": "ztools-markdown-notes",
+  "title": "Markdown 笔记",
+  "description": "基于真实本地 Markdown 文件的轻量笔记插件",
+  "version": "0.1.1",
+  "main": "index.html",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "logo": "logo.png",
+  "preload": "preload/services.js",
+  "features": [
+    {
+      "code": "markdown-notes",
+      "explain": "打开 Markdown 笔记",
+      "icon": "logo.png",
+      "cmds": ["md", "markdown", "笔记"]
+    },
+    {
+      "code": "new-note",
+      "explain": "新建 Markdown 笔记",
+      "icon": "logo.png",
+      "cmds": ["新建笔记"]
+    }
+  ]
+}

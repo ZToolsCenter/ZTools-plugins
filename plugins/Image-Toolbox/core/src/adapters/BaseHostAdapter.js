@@ -239,8 +239,8 @@ class BaseHostAdapter {
    */
   pickImage() {
     if (typeof window !== 'undefined' && typeof window.showOpenImageDialog === 'function') {
-      const result = window.showOpenImageDialog();
-      const filePath = Array.isArray(result) ? result[0] : result?.filePaths?.[0];
+      // showOpenImageDialog 返回文件路径字符串或 null
+      const filePath = window.showOpenImageDialog();
       return filePath ? this.readImageFile(filePath) : null;
     }
     return null;
@@ -279,9 +279,9 @@ class BaseHostAdapter {
   /**
    * 显示保存对话框（仅返回路径）
    */
-  showSaveImageDialog(suggestedName = 'edited.png') {
+  showSaveImageDialog(suggestedName = 'edited.png', format = null) {
     if (typeof window !== 'undefined' && typeof window.showSaveImageDialog === 'function') {
-      return window.showSaveImageDialog(suggestedName);
+      return window.showSaveImageDialog(suggestedName, format);
     }
     return null;
   }

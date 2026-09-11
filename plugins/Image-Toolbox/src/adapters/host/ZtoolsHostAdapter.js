@@ -89,20 +89,25 @@ class ZtoolsHostAdapter extends BaseHostAdapter {
 export default ZtoolsHostAdapter;
 
 // 便捷导出函数（旧 UI 兼容；新代码优先注入 host adapter）
-const defaultAdapter = new ZtoolsHostAdapter();
+// 使用惰性实例化，避免模块加载时的副作用
+let _defaultAdapter = null;
+const _getDefaultAdapter = () => {
+  if (!_defaultAdapter) _defaultAdapter = new ZtoolsHostAdapter();
+  return _defaultAdapter;
+};
 
 export function getHostAppVersion() {
-  return defaultAdapter.getHostAppVersion();
+  return _getDefaultAdapter().getHostAppVersion();
 }
 
 export function getHostName() {
-  return defaultAdapter.getHostName();
+  return _getDefaultAdapter().getHostName();
 }
 
 export function getHostUser() {
-  return defaultAdapter.getHostUser();
+  return _getDefaultAdapter().getHostUser();
 }
 
 export function openHostExternal(url) {
-  return defaultAdapter.openHostExternal(url);
+  return _getDefaultAdapter().openHostExternal(url);
 }

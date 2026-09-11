@@ -1,6 +1,58 @@
 # Changelog
 
-## \[1.1.0] - 2026-07-14
+## 1.4.0 - 2026-08-27
+
+### ✨ Features
+
+* **完整备份 / 恢复** — 导入导出从「仅提示词裸数组」升级为结构化数据包（`promptforge-backup` 格式），涵盖提示词、项目、设置、历史记录；导入时合并去重、`projectId` 完整性校验（指向不存在项目的提示词自动转为资产）、settings 逐字段合并；内置种子数据（教程提示词）导出时自动排除；兼容旧版裸数组格式
+
+### 🐛 Bug Fixes
+
+* **设置覆盖主题丢失** — 修复保存行为设置时覆盖整个 settings 文档、导致主题（theme）字段丢失的问题，改为合并写入
+
+## 1.3.0 - 2026-08-25
+
+### ✨ Features
+
+* **Markdown 渲染预览** — FillPanel 预览区与 ManageView 编辑页新增「文本 / Markdown」「编辑 / 预览」切换按钮，基于 markdown-it 渲染（`html: false` 防 XSS），支持标题、列表、代码块、引用、表格、链接等；渲染顺序为先替换变量再渲染 Markdown
+* **使用统计分析面板** — 空间页新增「统计」tab，手写 SVG 可视化仪表盘：总提示词数 / 累计使用 / 收藏 / 含变量四个指标卡、类型分布环形图、使用 TOP10（本周 / 本月切换）、使用频次趋势折线图（基于历史记录按日期聚合）
+
+### 🎨 Design
+
+* **UI 图标现代化** — 引入 lucide-vue-next 图标库，将全部 emoji 图标（侧栏导航、右键菜单、卡片元信息、面板标题、关闭 / 移动按钮等）替换为统一的线条图标，按需 tree-shake（JS 仅 +14KB）
+
+### ⚡ Enhancement
+
+* **无变量提示词全宽预览** — 点击不含变量的提示词时隐藏「填写变量」表单区域，预览占满全部显示空间；含变量时保持左右分栏
+
+## 1.2.0 - 2026-08-20
+
+### ✨ Features
+
+* **版本差异对比** — 版本 Tab 新增「对比」按钮，基于 LCS（最长公共子序列）算法生成行级 diff，覆盖层并排展示快照版本与当前版本差异（新增绿色 / 删除红色 / 相同无色）
+* **全局快捷键面板** — 按 `?` 键弹出快捷键速查面板，按视图分组展示所有可用快捷键，`Esc` 或点击遮罩关闭
+
+### ⚡ Performance
+
+* **持久化 Debounce** — `prompt.ts` 新增 `schedulePersist()` 300ms debounce，高频操作（收藏 / 删除 / 新增 / 更新）合并写入，连续操作 I/O 从 N 次降为 1 次；关键操作（记录使用、批量操作）保留立即 flush
+* **Fuse 索引懒加载** — `prompt.ts` 与 `ManageView.vue` 的 Fuse 索引从 `computed(new Fuse(...))` 改为 `ref + watch` 懒加载，仅在搜索词非空时按需构建，避免列表变化时冗余重建
+
+### 🎨 Design
+
+* **搜索高亮** — PromptList 搜索结果标题中匹配关键词以 `<mark>` 标签高亮，支持浅色 / 深色主题
+
+### 🐛 Bug Fixes
+
+* **FillPanel null 安全** — `v-for` 访问 `unit.tags.slice()` 改为 `(unit?.tags || []).slice()`，防止 `unit` 为 null 时运行时崩溃
+* **ComposeView 空值保护** — `onMounted` 中 `basePrompts[0].id` 添加空值守卫，防止空库打开组合视图崩溃
+* **存储 Key 前缀统一** — `storage.ts` fallback 路径 key 前缀 `pf:` 统一为 `promptforge:`，与 preload `services.js` 一致，消除切换存储路径后数据不互通风险
+
+### ♻️ Refactor
+
+* **SpaceView 组件拆分** — 从 608 行拆分为 SpaceView（210 行）+ SpaceSidebar / ProjectPanel / HistoryPanel / TrashPanel 四个子组件
+* **ManageView 组件拆分** — 从 477 行拆分为 ManageView（280 行）+ ManageContentTab / ManagePropsTab / ManageVarsTab / ManageVersionsTab / ManageStatsTab 五个 Tab 子组件
+
+## 1.1.0 - 2026-07-14
 
 ### ✨ Features
 
@@ -25,7 +77,7 @@
 * **存储错误处理统一** — `storage.ts` 所有 `catch` 块统一添加 `console.error` 日志，`save` 函数补全 `try-catch`
 * **ManageView 搜索性能优化** — `filteredItems` 拆分为 `baseItems` + `fuseInstance` + `filteredItems` 三层计算属性，Fuse 索引仅在基础列表变化时重建，避免每次按键重新实例化
 
-## \[1.0.0] - 2026-07-11
+## 1.0.0 - 2026-07-11
 
 ### 🐛 Bug Fixes
 
@@ -50,3 +102,6 @@
 
 * 移除未使用的 `fnvHash` 函数（精确重复检测改为字符串比对后不再需要）
 
+### 根据提交记录补充
+
+- 添加图标

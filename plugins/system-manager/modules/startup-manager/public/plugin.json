@@ -1,0 +1,22 @@
+{
+  "name": "startup-manager",
+  "title": "开机启动管理",
+  "description": "查看开机启动项、登录项与后台服务，安全启停可回滚的用户级项目。",
+  "author": "Harris",
+  "version": "0.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://127.0.0.1:5173/"
+  },
+  "features": [
+    {
+      "code": "startup-manager",
+      "explain": "管理开机启动项",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["开机启动", "启动项", "登录项", "自启动管理"]
+    }
+  ]
+}

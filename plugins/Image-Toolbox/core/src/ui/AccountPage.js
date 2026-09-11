@@ -3,6 +3,7 @@ import { SIDE_PANEL_LAYOUT_KEY, SIDE_PANEL_LAYOUTS } from './SidePanelTabs.js';
 import { THEME_CHOICES, applyThemeChoice, getThemeChoice } from '../utils/theme.js';
 import { updateCategories, updateRecords, PLATFORMS } from '../updateRecords.js';
 import { escapeHTML, escapeAttr } from '../utils/helpers.js';
+import IdentityClient from '../identity/IdentityClient.js';
 
 /**
  * 获取当前平台标识
@@ -45,9 +46,23 @@ export const TOOLBAR_LABELS_VISIBLE = {
   OFF: 'off',
 };
 
+export const TOOLBAR_COLLAPSED_KEY = 'image-toolbox-toolbar-collapsed';
+export const TOOLBAR_COLLAPSED = {
+  EXPANDED: 'expanded',
+  COLLAPSED: 'collapsed',
+};
+
+export const TOOLBAR_TOGGLE_VISIBLE_KEY = 'image-toolbox-toolbar-toggle-visible';
+export const TOOLBAR_TOGGLE_VISIBLE = {
+  ON: 'on',
+  OFF: 'off',
+};
+
 const VALID_EDITOR_BARS_LAYOUTS = new Set(Object.values(EDITOR_BARS_LAYOUTS));
 const VALID_EDITOR_SIDE_PANEL_POSITIONS = new Set(Object.values(EDITOR_SIDE_PANEL_POSITIONS));
 const VALID_TOOLBAR_LABELS_VISIBLE = new Set(Object.values(TOOLBAR_LABELS_VISIBLE));
+const VALID_TOOLBAR_COLLAPSED = new Set(Object.values(TOOLBAR_COLLAPSED));
+const VALID_TOOLBAR_TOGGLE_VISIBLE = new Set(Object.values(TOOLBAR_TOGGLE_VISIBLE));
 
 /**
  * Account page UI component.
@@ -62,6 +77,23 @@ class AccountPage {
     this._activeSection = 'mine';
     this._user = this._getHostUser();
     this._eventBusUnsubscribers = [];
+    this._identity = new IdentityClient();
+    this._profile = null;
+    this._profileLoading = false;
+    this._nicknameEditing = false;
+    this._magicLinkEmail = '';
+    this._magicLinkSending = false;
+
+    // 初始化 SDK（异步，不阻塞渲染）
+    this._identity.init().then(() => {
+      // 初始化后重新渲染，更新登录状态
+      this._render();
+      if (this._identity.isAuthenticated() && !this._profile) {
+        this._loadProfile();
+      }
+    }).catch((e) => {
+      console.warn('[AccountPage] Identity SDK 初始化失败:', e);
+    });
 
     this._render();
     this._bindEvents();
@@ -72,6 +104,12 @@ class AccountPage {
     this._render();
     this._editorEl?.classList.add('hidden');
     this._el?.classList.remove('hidden');
+    // 打开时尝试加载档案（SDK 初始化后）
+    this._identity.init().then(() => {
+      if (this._identity.isAuthenticated() && !this._profile) {
+        this._loadProfile();
+      }
+    }).catch(() => {});
   }
 
   close() {
@@ -134,6 +172,7 @@ class AccountPage {
       const navItem = this._closest(e.target, '[data-section]');
       if (navItem) {
         this._activeSection = navItem.getAttribute('data-section');
+        this._nicknameEditing = false;
         this._render();
         return;
       }
@@ -183,6 +222,81 @@ class AccountPage {
       if (toolbarLabels) {
         this._setToolbarLabelsVisible(toolbarLabels);
         this._render();
+        return;
+      }
+
+      const toolbarCollapsed = this._closest(e.target, '[data-toolbar-collapsed]')?.getAttribute('data-toolbar-collapsed');
+      if (toolbarCollapsed) {
+        this._setToolbarCollapsed(toolbarCollapsed);
+        this._render();
+        return;
+      }
+
+      const toolbarToggleVisible = this._closest(e.target, '[data-toolbar-toggle-visible]')?.getAttribute('data-toolbar-toggle-visible');
+      if (toolbarToggleVisible) {
+        this._setToolbarToggleVisible(toolbarToggleVisible);
+        this._render();
+        return;
+      }
+
+      // ── 账户区域操作 ──
+      const accountAction = this._closest(e.target, '[data-action]')?.getAttribute('data-action');
+      if (accountAction === 'login') {
+        this._openLoginModal();
+        return;
+      }
+      if (accountAction === 'logout') {
+        this._handleLogout();
+        return;
+      }
+      if (accountAction === 'edit-nickname') {
+        this._nicknameEditing = true;
+        this._render();
+        this._el?.querySelector('[data-nickname-input]')?.focus();
+        return;
+      }
+      if (accountAction === 'cancel-nickname') {
+        this._nicknameEditing = false;
+        this._render();
+        return;
+      }
+      if (accountAction === 'save-nickname') {
+        const input = this._el?.querySelector('[data-nickname-input]');
+        if (input) this._handleNicknameSave(input.value);
+        return;
+      }
+      if (accountAction === 'upload-avatar') {
+        this._el?.querySelector('[data-avatar-input]')?.click();
+        return;
+      }
+
+      // ── 登录弹窗操作 ──
+      const modalAction = this._closest(e.target, '[data-modal-action]')?.getAttribute('data-modal-action');
+      if (modalAction === 'close-login') {
+        this._closeLoginModal();
+        return;
+      }
+      if (modalAction === 'utools-login') {
+        this._handleUToolsLogin();
+        return;
+      }
+      if (modalAction === 'send-magic-link') {
+        const emailInput = document.getElementById('login-email-input');
+        if (emailInput) this._handleSendMagicLink(emailInput.value);
+        return;
+      }
+      if (modalAction === 'verify-magic-link') {
+        const tokenInput = document.getElementById('login-token-input');
+        if (tokenInput) this._handleVerifyMagicLink(tokenInput.value);
+        return;
+      }
+    });
+
+    // 头像文件选择
+    this._el.addEventListener('change', (e) => {
+      const fileInput = e.target.closest('[data-avatar-input]');
+      if (fileInput && fileInput.files?.[0]) {
+        this._handleAvatarUpload(fileInput.files[0]);
       }
     });
 
@@ -222,21 +336,76 @@ class AccountPage {
     return this._renderMine();
   }
 
+  // ═══════════════════════════════════════
+  // 我的区域（登录 / 昵称头像编辑）
+  // ═══════════════════════════════════════
+
   _renderMine() {
-    const user = this._getUserView();
-    const hostName = this._getHostName();
-    return `
-      <div class="account-card account-card--profile">
-        <div class="account-card__avatar-wrap">
-          ${this._renderAvatar('account-page__avatar account-page__avatar--large')}
+    let identityCard = '';
+    if (this._profileLoading) {
+      identityCard = `
+        <div class="account-card account-card--profile">
+          <div class="account-page__loading">加载中…</div>
         </div>
-        <div class="account-card__body">
-          <div class="account-card__label">${this._escapeHTML(hostName)} 账号</div>
-          <h2>${this._escapeHTML(user.name)}</h2>
-          <p>${this._escapeHTML(user.status)}</p>
+      `;
+    } else if (!this._identity.isAuthenticated()) {
+      identityCard = `
+        <div class="account-card account-card--profile">
+          <div class="account-card__body">
+            <div class="account-card__label">我的账号</div>
+            <h2>未登录</h2>
+            <p>登录后可以同步昵称和头像，使用素材网盘等更多功能。</p>
+            <button class="account-page__btn account-page__btn--primary" type="button" data-action="login">登录 / 注册</button>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      const profile = this._profile || {};
+      const nickname = profile.nickname || '未设置';
+      const avatar = profile.avatar;
+      const initial = this._getInitial(nickname);
+      const uid = profile.id || '—';
+
+      let nicknameRow = '';
+      if (this._nicknameEditing) {
+        nicknameRow = `
+          <div class="account-page__nickname-row">
+            <input type="text" class="account-page__nickname-input" id="nickname-input" value="${this._escapeAttr(nickname)}" placeholder="设置昵称" maxlength="32" data-nickname-input>
+            <button class="account-page__btn account-page__btn--small" type="button" data-action="save-nickname">保存</button>
+            <button class="account-page__btn account-page__btn--small" type="button" data-action="cancel-nickname">取消</button>
+          </div>
+        `;
+      } else {
+        nicknameRow = `
+          <div class="account-page__nickname-row">
+            <span class="account-page__nickname-display">${this._escapeHTML(nickname)}</span>
+            <button class="account-page__btn account-page__btn--small" type="button" data-action="edit-nickname">修改</button>
+          </div>
+        `;
+      }
+
+      identityCard = `
+        <div class="account-card account-card--profile">
+          <div class="account-card__avatar-wrap" data-action="upload-avatar" title="点击更换头像">
+            ${avatar
+              ? `<img class="account-page__avatar account-page__avatar--large account-page__avatar-img" src="${this._escapeAttr(avatar)}" alt="${this._escapeAttr(nickname)}" data-initial="${this._escapeAttr(initial)}">`
+              : `<div class="account-page__avatar account-page__avatar--large account-page__avatar-fallback">${this._escapeHTML(initial)}</div>`
+            }
+            <div class="account-page__avatar-edit-hint"><span>更换</span></div>
+          </div>
+          <div class="account-card__body">
+            <div class="account-card__label">我的账号</div>
+            ${nicknameRow}
+            <p>UID：${this._escapeHTML(uid)}</p>
+            <p class="account-page__hint">昵称和头像将同步到所有已登录的设备。</p>
+            <button class="account-page__btn" type="button" data-action="logout">退出登录</button>
+          </div>
+          <input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp" data-avatar-input hidden>
+        </div>
+      `;
+    }
+
+    return identityCard;
   }
 
   _renderSettings() {
@@ -245,6 +414,8 @@ class AccountPage {
     const editorBarsLayout = this._getEditorBarsLayout();
     const editorSidePanelPosition = this._getEditorSidePanelPosition();
     const toolbarLabels = this._getToolbarLabelsVisible();
+    const toolbarCollapsed = this._getToolbarCollapsed();
+    const toolbarToggleVisible = this._getToolbarToggleVisible();
     return `
       <div class="account-card">
         <div class="account-card__label">外观</div>
@@ -294,6 +465,26 @@ class AccountPage {
         <div class="account-page__theme-row">
           <button class="account-page__theme-choice ${toolbarLabels === TOOLBAR_LABELS_VISIBLE.ON ? 'account-page__theme-choice--active' : ''}" type="button" data-toolbar-labels="${TOOLBAR_LABELS_VISIBLE.ON}">显示文字</button>
           <button class="account-page__theme-choice ${toolbarLabels === TOOLBAR_LABELS_VISIBLE.OFF ? 'account-page__theme-choice--active' : ''}" type="button" data-toolbar-labels="${TOOLBAR_LABELS_VISIBLE.OFF}">仅图标</button>
+        </div>
+      </div>
+
+      <div class="account-card">
+        <div class="account-card__label">编辑器</div>
+        <div class="account-card__value">侧栏展开/收起</div>
+        <p>展开后侧栏图标和文字并排显示，并在头像旁展示昵称；收起后仅显示图标和简短文字，更节省空间。</p>
+        <div class="account-page__theme-row">
+          <button class="account-page__theme-choice ${toolbarCollapsed === TOOLBAR_COLLAPSED.EXPANDED ? 'account-page__theme-choice--active' : ''}" type="button" data-toolbar-collapsed="${TOOLBAR_COLLAPSED.EXPANDED}">展开</button>
+          <button class="account-page__theme-choice ${toolbarCollapsed === TOOLBAR_COLLAPSED.COLLAPSED ? 'account-page__theme-choice--active' : ''}" type="button" data-toolbar-collapsed="${TOOLBAR_COLLAPSED.COLLAPSED}">收起</button>
+        </div>
+      </div>
+
+      <div class="account-card">
+        <div class="account-card__label">编辑器</div>
+        <div class="account-card__value">侧栏展开/收起按钮</div>
+        <p>选择是否在侧栏顶部显示展开/收起切换按钮。关闭后仍可在设置中切换侧栏状态。</p>
+        <div class="account-page__theme-row">
+          <button class="account-page__theme-choice ${toolbarToggleVisible === TOOLBAR_TOGGLE_VISIBLE.ON ? 'account-page__theme-choice--active' : ''}" type="button" data-toolbar-toggle-visible="${TOOLBAR_TOGGLE_VISIBLE.ON}">显示按钮</button>
+          <button class="account-page__theme-choice ${toolbarToggleVisible === TOOLBAR_TOGGLE_VISIBLE.OFF ? 'account-page__theme-choice--active' : ''}" type="button" data-toolbar-toggle-visible="${TOOLBAR_TOGGLE_VISIBLE.OFF}">隐藏按钮</button>
         </div>
       </div>
     `;
@@ -412,7 +603,7 @@ class AccountPage {
    }
 
    /**
-    * 渲染单个更新项，处理平台限制标记
+    * 渲染单个更新项（仅展示文本内容，不展示平台标签）
     */
    _renderChangeItem(item) {
      // 兼容旧格式（字符串）
@@ -420,26 +611,9 @@ class AccountPage {
        return `<li>${this._escapeHTML(item)}</li>`;
      }
 
-     // 新格式（对象）
+     // 新格式（对象）— 仅展示文本，平台过滤已在 _renderChangeGroup 中完成
      const text = item.text || '';
-     const platforms = item.platforms;
-     const currentPlatform = getCurrentPlatform();
-
-     // 如果有平台限制且当前不是所有平台，添加平台标签
-     let badge = '';
-     if (Array.isArray(platforms) && platforms.length > 0 && platforms.length < 3) {
-       const platformLabels = {
-         'utools': 'uTools',
-         'ztools': 'ZTools',
-         'local': '本地环境'
-       };
-       const labels = platforms.map(p => platformLabels[p] || p).join('/');
-       const isCurrentPlatform = shouldShowForCurrentPlatform(platforms);
-       const badgeClass = isCurrentPlatform ? 'update-item__platform-badge--current' : 'update-item__platform-badge--other';
-       badge = `<span class="update-item__platform-badge ${badgeClass}">${this._escapeHTML(labels)}</span>`;
-     }
-
-     return `<li><span class="update-item__text">${this._escapeHTML(text)}</span>${badge}</li>`;
+     return `<li>${this._escapeHTML(text)}</li>`;
    }
 
   _renderAvatar(className) {
@@ -545,6 +719,20 @@ class AccountPage {
     eventBus.emit('toolbar:labelsVisibilityChanged', value);
   }
 
+  _setToolbarCollapsed(value) {
+    if (!VALID_TOOLBAR_COLLAPSED.has(value)) return;
+
+    localStorage.setItem(TOOLBAR_COLLAPSED_KEY, value);
+    eventBus.emit('toolbar:collapsedChanged', value);
+  }
+
+  _setToolbarToggleVisible(value) {
+    if (!VALID_TOOLBAR_TOGGLE_VISIBLE.has(value)) return;
+
+    localStorage.setItem(TOOLBAR_TOGGLE_VISIBLE_KEY, value);
+    eventBus.emit('toolbar:toggleVisibleChanged', value);
+  }
+
   _getSidePanelLayout() {
     const saved = localStorage.getItem(SIDE_PANEL_LAYOUT_KEY);
     return Object.values(SIDE_PANEL_LAYOUTS).includes(saved) ? saved : SIDE_PANEL_LAYOUTS.TABS;
@@ -563,6 +751,16 @@ class AccountPage {
   _getToolbarLabelsVisible() {
     const saved = localStorage.getItem(TOOLBAR_LABELS_VISIBLE_KEY);
     return VALID_TOOLBAR_LABELS_VISIBLE.has(saved) ? saved : TOOLBAR_LABELS_VISIBLE.ON;
+  }
+
+  _getToolbarCollapsed() {
+    const saved = localStorage.getItem(TOOLBAR_COLLAPSED_KEY);
+    return VALID_TOOLBAR_COLLAPSED.has(saved) ? saved : TOOLBAR_COLLAPSED.COLLAPSED;
+  }
+
+  _getToolbarToggleVisible() {
+    const saved = localStorage.getItem(TOOLBAR_TOGGLE_VISIBLE_KEY);
+    return VALID_TOOLBAR_TOGGLE_VISIBLE.has(saved) ? saved : TOOLBAR_TOGGLE_VISIBLE.ON;
   }
 
   _getHostUser() {
@@ -599,6 +797,216 @@ class AccountPage {
   _getInitial(name) {
     const text = String(name || '').trim();
     return text ? text.slice(0, 1).toUpperCase() : 'U';
+  }
+
+  _formatTime(ts) {
+    if (!ts) return '—';
+    const d = new Date(typeof ts === 'number' ? ts : Date.parse(ts));
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ═══════════════════════════════════════
+  // 账户异步操作
+  // ═══════════════════════════════════════
+
+  async _loadProfile() {
+    this._profileLoading = true;
+    this._render();
+    try {
+      this._profile = await this._identity.getProfile();
+    } catch (e) {
+      console.warn('[AccountPage] 加载用户档案失败:', e);
+      this._profile = null;
+    }
+    this._profileLoading = false;
+    this._render();
+    // 通知侧栏等外部组件同步刷新头像
+    eventBus.emit('account:profileChanged', this._profile);
+  }
+
+  async _handleNicknameSave(nickname) {
+    const trimmed = String(nickname || '').trim();
+    if (!trimmed) {
+      eventBus.emit('toast:show', { message: '昵称不能为空', type: 'error' });
+      return;
+    }
+    if (trimmed.length > 32) {
+      eventBus.emit('toast:show', { message: '昵称最多 32 字符', type: 'error' });
+      return;
+    }
+    try {
+      this._profile = await this._identity.updateProfile({ nickname: trimmed });
+      this._nicknameEditing = false;
+      this._render();
+      eventBus.emit('toast:show', { message: '昵称已更新', type: 'success' });
+      eventBus.emit('account:profileChanged', this._profile);
+    } catch (e) {
+      eventBus.emit('toast:show', { message: e?.message || '保存失败', type: 'error' });
+    }
+  }
+
+  async _handleAvatarUpload(file) {
+    try {
+      this._profile = await this._identity.uploadAvatar(file);
+      this._render();
+      eventBus.emit('toast:show', { message: '头像已更新', type: 'success' });
+      eventBus.emit('account:profileChanged', this._profile);
+    } catch (e) {
+      eventBus.emit('toast:show', { message: e?.message || '头像上传失败', type: 'error' });
+    }
+  }
+
+  async _handleLogout() {
+    try {
+      await this._identity.logout();
+    } catch {}
+    this._profile = null;
+    this._nicknameEditing = false;
+    this._render();
+    eventBus.emit('toast:show', { message: '已退出登录', type: 'success' });
+    eventBus.emit('account:profileChanged', null);
+  }
+
+  // ═══════════════════════════════════════
+  // 登录弹窗
+  // ═══════════════════════════════════════
+
+  _openLoginModal() {
+    let modal = document.getElementById('login-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'login-modal';
+      modal.className = 'login-modal';
+      document.body.appendChild(modal);
+    }
+    const isUTools = !!window.utools;
+    const magicLinkSent = this._magicLinkSending === 'done';
+    modal.innerHTML = `
+      <div class="login-modal__backdrop" data-modal-action="close-login"></div>
+      <div class="login-modal__card">
+        <div class="login-modal__header">
+          <h3>登录 / 注册</h3>
+          <button class="login-modal__close" type="button" data-modal-action="close-login">×</button>
+        </div>
+        <div class="login-modal__body">
+          ${isUTools ? `
+            <button class="login-modal__btn login-modal__btn--utools" type="button" data-modal-action="utools-login">
+              <span>使用 uTools 账号一键登录</span>
+            </button>
+            <div class="login-modal__divider"><span>或</span></div>
+          ` : ''}
+          <div class="login-modal__field">
+            <label>邮箱</label>
+            <input type="email" id="login-email-input" placeholder="请输入邮箱地址" autocomplete="email" value="${this._escapeAttr(this._magicLinkEmail)}">
+          </div>
+          ${magicLinkSent ? `
+            <p class="login-modal__hint" style="text-align:center;color:var(--accent-color,#597EF7);">
+              登录链接已发送到您的邮箱，请查收邮件并点击链接完成登录。
+            </p>
+            <div class="login-modal__field">
+              <label>或手动输入链接中的 token</label>
+              <input type="text" id="login-token-input" placeholder="粘贴 Magic Link 中的 token" autocomplete="off">
+            </div>
+            <button class="login-modal__btn login-modal__btn--primary" type="button" data-modal-action="verify-magic-link">验证并登录</button>
+          ` : `
+            <button class="login-modal__btn login-modal__btn--primary" type="button" data-modal-action="send-magic-link" id="send-magic-link-btn">
+              ${this._magicLinkSending ? '发送中…' : '发送登录链接'}
+            </button>
+          `}
+          <p class="login-modal__hint">首次登录将自动注册账号</p>
+        </div>
+      </div>
+    `;
+    modal.classList.add('login-modal--active');
+
+    // 弹窗挂载在 document.body 上，不在 this._el 内，
+    // 因此需要单独绑定点击事件
+    modal.onclick = (e) => {
+      const modalAction = e.target.closest('[data-modal-action]')?.getAttribute('data-modal-action');
+      if (modalAction === 'close-login') {
+        this._closeLoginModal();
+        return;
+      }
+      if (modalAction === 'utools-login') {
+        this._handleUToolsLogin();
+        return;
+      }
+      if (modalAction === 'send-magic-link') {
+        const emailInput = document.getElementById('login-email-input');
+        if (emailInput) this._handleSendMagicLink(emailInput.value);
+        return;
+      }
+      if (modalAction === 'verify-magic-link') {
+        const tokenInput = document.getElementById('login-token-input');
+        if (tokenInput) this._handleVerifyMagicLink(tokenInput.value);
+        return;
+      }
+    };
+  }
+
+  _closeLoginModal() {
+    const modal = document.getElementById('login-modal');
+    if (modal) {
+      modal.classList.remove('login-modal--active');
+      setTimeout(() => modal.remove(), 200);
+    }
+  }
+
+  async _handleSendMagicLink(email) {
+    const btn = document.getElementById('send-magic-link-btn');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      eventBus.emit('toast:show', { message: '请输入有效的邮箱地址', type: 'error' });
+      return;
+    }
+    try {
+      if (btn) { btn.disabled = true; btn.textContent = '发送中…'; }
+      this._magicLinkSending = true;
+      this._magicLinkEmail = email;
+      await this._identity.requestMagicLink(email);
+      this._magicLinkSending = 'done';
+      eventBus.emit('toast:show', { message: '登录链接已发送，请查收邮件', type: 'success' });
+      this._openLoginModal(); // 重新渲染弹窗，显示 token 输入框
+    } catch (e) {
+      eventBus.emit('toast:show', { message: e?.message || '发送失败', type: 'error' });
+      this._magicLinkSending = false;
+      if (btn) { btn.disabled = false; btn.textContent = '发送登录链接'; }
+    }
+  }
+
+  async _handleVerifyMagicLink(token) {
+    if (!token || !token.trim()) {
+      eventBus.emit('toast:show', { message: '请输入登录链接中的 token', type: 'error' });
+      return;
+    }
+    try {
+      await this._identity.verifyMagicLink(token.trim());
+      this._closeLoginModal();
+      this._magicLinkSending = false;
+      this._magicLinkEmail = '';
+      eventBus.emit('toast:show', { message: '登录成功', type: 'success' });
+      await this._loadProfile();
+    } catch (e) {
+      eventBus.emit('toast:show', { message: e?.message || '登录失败', type: 'error' });
+    }
+  }
+
+  async _handleUToolsLogin() {
+    try {
+      const api = window.utools;
+      if (!api?.fetchUserServerTemporaryToken) {
+        eventBus.emit('toast:show', { message: '当前环境不支持一键登录', type: 'error' });
+        return;
+      }
+      const { token: accessToken } = await api.fetchUserServerTemporaryToken();
+      // 新版 SDK 不再需要 deviceId
+      await this._identity.loginWithUTools(accessToken);
+      this._closeLoginModal();
+      eventBus.emit('toast:show', { message: '登录成功', type: 'success' });
+      await this._loadProfile();
+    } catch (e) {
+      eventBus.emit('toast:show', { message: e?.message || '登录失败', type: 'error' });
+    }
   }
 
   _escapeAttr(value) {

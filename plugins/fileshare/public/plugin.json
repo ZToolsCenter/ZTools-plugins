@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "fileshare",
+  "title": "文件共享",
+  "description": "局域网文件共享，支持在线预览文本、代码、Markdown、音视频",
+  "author": "meidlinger",
+  "version": "1.2.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "share",
+      "explain": "局域网文件共享",
+      "icon": "logo.png",
+      "cmds": [
+        "共享文件",
+        "share",
+        "文件共享",
+        "share",
+        {
+          "type": "files",
+          "fileType": "all",
+          "minLength": 1,
+          "label": "共享文件"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}

@@ -21,12 +21,15 @@ window.preload = {
             }
         });
     },
-    // [新增] 接收流式数据更新
+    // 接收流式数据更新
     onStreamUpdate: (callback) => {
         ipcRenderer.on('stream-update', (event, data) => {
             callback(data); // data format: { type: 'chunk'|'done'|'error', payload: ... }
         });
-    }
+    },
+    receiveSelectorInit: (callback) => {
+        ipcRenderer.on('init-selector', (event, data) => callback(data));
+    },
 }
 
 window.api = {
@@ -46,5 +49,12 @@ window.api = {
         } else {
             window.close(); 
         }
+    },
+    forwardAppendMsg: (senderId, type, payload) => {
+        utools.sendToParent('forward-append-msg', { senderId, type, payload });
+        window.close(); // 转发完立即自毁面板
+    },
+    closeSelector: () => {
+        window.close();
     }
 }

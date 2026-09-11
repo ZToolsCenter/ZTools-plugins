@@ -22,19 +22,8 @@ const parseTextFile = async (base64Data) => {
 };
 
 const parseExcel = async (base64Data) => {
-    //   const XLSX = await import('xlsx');
-    const XLSX = require('xlsx/dist/xlsx.mini.min.js');
-    const s = base64Data.split(',')[1]; if (!s) throw new Error("Invalid base64 data for Excel file");
-    const buffer = Buffer.from(s, 'base64');
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-
-    let fullTextContent = '';
-    workbook.SheetNames.forEach(sheetName => {
-        const worksheet = workbook.Sheets[sheetName];
-        const csvData = XLSX.utils.sheet_to_csv(worksheet);
-        fullTextContent += `--- Sheet: ${sheetName} ---\n${csvData}\n\n`;
-    });
-    return fullTextContent.trim();
+    const runtimePath = './' + 'file_runtime.js';
+    return require(runtimePath).parseExcelBase64(base64Data);
 };
 
 // Centralized file handling configuration
@@ -52,7 +41,7 @@ const fileHandlers = {
         handler: async (file) => ({ type: "text", text: `file name:${file.name}\nfile content:\n${await parseExcel(file.url)}\nfile end` })
     },
     image: {
-        extensions: ['.png', '.jpg', '.jpeg', '.webp'],
+        extensions: ['.png', '.jpg', '.jpeg', '.webp', '.gif'],
         handler: async (file) => ({ type: "image_url", image_url: { url: file.url } })
     },
     audio: {
@@ -72,18 +61,53 @@ const fileHandlers = {
 const isFileTypeSupported = (fileName) => {
     if (!fileName) return false;
     const extension = ('.' + fileName.split('.').pop()).toLowerCase();
+    
+    // 1. 如果在白名单内，直接支持
     for (const category in fileHandlers) {
         if (fileHandlers[category].extensions.includes(extension)) {
             return true;
         }
     }
-    return false;
+    
+    // 2. 拦截明确不支持且无法作为文本处理的常见二进制黑名单
+    const unsupportedBinary = ['.doc', '.pptx', '.ppt', '.odt', '.ods', '.epub', '.mobi', '.bmp', '.ico', '.mp4', '.mov', '.avi', '.mkv', '.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.dll', '.bin', '.so', '.dmg', '.class', '.jar', '.pyc'];
+    if (unsupportedBinary.includes(extension)) {
+        return false;
+    }
+    
+    // 3. 其他未知后缀统统放行，在 parseFileObject 时通过内容探针检查是否为文本
+    return true;
 };
 
 const parseFileObject = async (fileObj) => {
-    const handler = getFileHandler(fileObj.name);
+    let handler = getFileHandler(fileObj.name);
+    
     if (!handler) {
-        throw new Error(`不支持的文件类型: ${fileObj.name}`);
+        // 尝试通过内容嗅探判断是否为纯文本
+        try {
+            const base64Data = fileObj.url.split(',')[1];
+            if (base64Data) {
+                // 取 Base64 的前一部分进行解码嗅探（8192 字符解码后约 6KB）
+                const buffer = Buffer.from(base64Data.substring(0, 8192), 'base64');
+                let isBinary = false;
+                for (let i = 0; i < buffer.length; i++) {
+                    if (buffer[i] === 0) { // 发现空字符 \0，大概率为二进制文件
+                        isBinary = true;
+                        break;
+                    }
+                }
+                // 没有发现空字符，将其作为普通文本处理
+                if (!isBinary) {
+                    handler = fileHandlers.text.handler;
+                }
+            }
+        } catch (e) {
+            console.warn(`文件内容探针检查失败: ${fileObj.name}`, e);
+        }
+    }
+
+    if (!handler) {
+        throw new Error(`不支持的文件类型且疑似为二进制文件: ${fileObj.name}`);
     }
     return await handler(fileObj);
 };
@@ -148,6 +172,7 @@ const extensionToMimeType = {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.webp': 'image/webp',
+    '.gif': 'image/gif',
 
     // 音频
     '.mp3': 'audio/mpeg',
@@ -200,7 +225,6 @@ async function sendfileDirect(filePathList) {
             // 1. 路径 -> File 对象
             const fileObject = await handleFilePath(filePath);
             if (!fileObject) {
-                utools.showNotification('无法读取或访问文件:', filePath);
                 return null;
             }
             // 2. File 对象 -> Base64 Data URL
@@ -217,7 +241,6 @@ async function sendfileDirect(filePathList) {
             console.error(`处理文件出错: ${item.path}`, error);
             // 仅在非不支持类型错误时弹窗，避免骚扰
             if (!error.message.includes('不支持的文件类型')) {
-                utools.showNotification('处理文件出错:', item.path);
             }
             return null;
         }
@@ -255,35 +278,210 @@ async function selectDirectory() {
     return result && result.length > 0 ? result[0] : null;
 }
 
+async function exportLocalChatFile(sourcePath, dialogOptions = {}) {
+    const normalizedSourcePath = path.resolve(String(sourcePath || '').trim());
+    if (!normalizedSourcePath) {
+        throw new Error('未提供有效的本地对话路径');
+    }
+
+    let sourceStats;
+    try {
+        sourceStats = await fs.stat(normalizedSourcePath);
+    } catch {
+        throw new Error('本地对话文件不存在');
+    }
+
+    if (!sourceStats.isFile()) {
+        throw new Error('仅支持导出本地对话文件');
+    }
+
+    const defaultBasename = path.basename(normalizedSourcePath);
+    const savePath = utools.showSaveDialog({
+        title: '导出对话',
+        defaultPath: defaultBasename,
+        filters: [{ name: 'JSON Files', extensions: ['json'] }],
+        ...dialogOptions,
+    });
+
+    if (!savePath) {
+        return { cancelled: true, path: null, sourcePath: normalizedSourcePath };
+    }
+
+    const normalizedSavePath = path.resolve(String(savePath));
+    if (normalizedSavePath !== normalizedSourcePath) {
+        await fs.copyFile(normalizedSourcePath, normalizedSavePath);
+        await fs.utimes(normalizedSavePath, sourceStats.atime, sourceStats.mtime);
+    }
+
+    return {
+        cancelled: false,
+        sourcePath: normalizedSourcePath,
+        path: normalizedSavePath,
+        basename: path.basename(normalizedSavePath),
+        skippedCopy: normalizedSavePath === normalizedSourcePath,
+    };
+}
+
+
+const localSessionMetadataCache = new Map();
+
+function buildLocalSessionCacheKey(filePath) {
+    return path.resolve(String(filePath || ''));
+}
+
+function cloneSessionMetadataCacheEntry(entry) {
+    return entry ? { ...entry } : null;
+}
+
+function createSessionFileSummary({ filePath, basename, stats }) {
+    const normalizedBasename = basename || path.basename(filePath);
+    const createdAt = normalizeSessionTimestamp(stats.birthtime) || normalizeSessionTimestamp(stats.ctime) || normalizeSessionTimestamp(stats.mtime);
+    const updatedAt = normalizeSessionTimestamp(stats.mtime) || createdAt;
+    const title = normalizedBasename.toLowerCase().endsWith('.json')
+        ? normalizedBasename.slice(0, -5)
+        : normalizedBasename;
+
+    return {
+        basename: normalizedBasename,
+        path: filePath,
+        lastmod: stats.mtime.toISOString(),
+        createdAt,
+        updatedAt,
+        title,
+        size: stats.size,
+        type: 'file'
+    };
+}
+
+function pruneLocalSessionMetadataCache(validFilePaths) {
+    const validPathSet = new Set(validFilePaths.map(filePath => buildLocalSessionCacheKey(filePath)));
+    for (const cacheKey of localSessionMetadataCache.keys()) {
+        if (!validPathSet.has(cacheKey)) {
+            localSessionMetadataCache.delete(cacheKey);
+        }
+    }
+}
+
+
+const normalizeSessionTimestamp = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const collectSessionTimestamps = (sessionData) => {
+    const timestamps = [];
+    const messageLists = [sessionData?.chat_show, sessionData?.history];
+
+    messageLists.forEach((messages) => {
+        if (!Array.isArray(messages)) return;
+        messages.forEach((message) => {
+            const candidates = [
+                message?.timestamp,
+                message?.completedTimestamp,
+                message?.updatedAt,
+                message?.createdAt,
+            ];
+            candidates.forEach((candidate) => {
+                const normalized = normalizeSessionTimestamp(candidate);
+                if (normalized) timestamps.push(normalized);
+            });
+        });
+    });
+
+    return timestamps.sort((a, b) => new Date(a) - new Date(b));
+};
+
+async function readSessionMetadata(filePath, fallbackBasename, cacheContext = null) {
+    const cacheKey = buildLocalSessionCacheKey(filePath);
+
+    if (cacheContext && cacheContext.stats) {
+        const cachedEntry = localSessionMetadataCache.get(cacheKey);
+        const mtimeMs = cacheContext.stats.mtimeMs;
+        const size = cacheContext.stats.size;
+        if (cachedEntry && cachedEntry.mtimeMs === mtimeMs && cachedEntry.size === size) {
+            return cloneSessionMetadataCacheEntry(cachedEntry.sessionMetadata);
+        }
+    }
+
+    try {
+        const rawContent = await fs.readFile(filePath, 'utf-8');
+        const sessionData = JSON.parse(rawContent);
+        if (!sessionData || sessionData.anywhere_history !== true) {
+            localSessionMetadataCache.delete(cacheKey);
+            return null;
+        }
+
+        const sessionMetadata = sessionData.sessionMetadata || {};
+
+        const normalizedMetadata = {
+            title: typeof sessionMetadata.title === 'string' && sessionMetadata.title.trim()
+                ? sessionMetadata.title.trim()
+                : (fallbackBasename.endsWith('.json') ? fallbackBasename.slice(0, -5) : fallbackBasename),
+        };
+
+        if (cacheContext && cacheContext.stats) {
+            localSessionMetadataCache.set(cacheKey, {
+                mtimeMs: cacheContext.stats.mtimeMs,
+                size: cacheContext.stats.size,
+                sessionMetadata: normalizedMetadata
+            });
+        }
+
+        return cloneSessionMetadataCacheEntry(normalizedMetadata);
+    } catch (error) {
+        return null;
+    }
+}
+
 /**
  * [新增] 读取指定目录下的所有 .json 文件信息
  * @param {string} dirPath - 目录路径
  * @returns {Promise<Array<object>>} 返回文件信息数组
  */
-async function listJsonFiles(dirPath) {
+async function listJsonFiles(dirPath, options = {}) {
     if (!dirPath) return [];
-    const files = await fs.readdir(dirPath);
-    const jsonFiles = files.filter(file => path.extname(file).toLowerCase() === '.json');
+    const includeSessionMetadataTitle = options?.includeSessionMetadataTitle !== false;
+    const resolvedDirPath = path.resolve(String(dirPath).trim());
+    const entries = await fs.readdir(resolvedDirPath, { withFileTypes: true });
+    const jsonFiles = entries.filter(
+        (entry) => entry.isFile() && path.extname(entry.name).toLowerCase() === '.json'
+    );
+    const validFilePaths = jsonFiles.map(entry => path.join(resolvedDirPath, entry.name));
+    pruneLocalSessionMetadataCache(validFilePaths);
 
     const fileDetails = await Promise.all(
-        jsonFiles.map(async file => {
-            const filePath = path.join(dirPath, file);
+        jsonFiles.map(async entry => {
+            const filePath = path.join(resolvedDirPath, entry.name);
             try {
                 const stats = await fs_node.promises.stat(filePath);
-                return {
-                    basename: file,
-                    path: filePath,
-                    lastmod: stats.mtime.toISOString(),
-                    size: stats.size,
-                    type: 'file'
-                };
+                const summary = createSessionFileSummary({
+                    filePath,
+                    basename: entry.name,
+                    stats
+                });
+                if (!includeSessionMetadataTitle) {
+                    return summary;
+                }
+                const sessionMetadata = await readSessionMetadata(filePath, entry.name, { stats });
+
+                if (sessionMetadata) {
+                    return {
+                        ...summary,
+                        title: sessionMetadata.title || summary.title
+                    };
+                }
+
+                return summary;
             } catch (error) {
                 console.error(`无法获取文件信息: ${filePath}`, error);
                 return null;
             }
         })
     );
-    return fileDetails.filter(Boolean).sort((a, b) => new Date(b.lastmod) - new Date(a.lastmod));
+    return fileDetails
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.createdAt || b.lastmod) - new Date(a.createdAt || a.lastmod));
 }
 
 /**
@@ -302,8 +500,61 @@ async function readLocalFile(filePath, signal) {
  * @param {string} newPath 
  * @returns {Promise<void>}
  */
+
+function resolveRenamedSessionTitleFromPath(filePath = '') {
+    const normalizedBasename = path.basename(String(filePath || '').trim());
+    if (!normalizedBasename) return '';
+    return normalizedBasename.toLowerCase().endsWith('.json')
+        ? normalizedBasename.slice(0, -5)
+        : normalizedBasename;
+}
+
+async function syncLocalSessionMetadataTitleAfterRename(filePath, title) {
+    const normalizedTitle = typeof title === 'string' ? title.trim() : '';
+    if (!normalizedTitle) return false;
+
+    try {
+        const rawContent = await fs.readFile(filePath, 'utf-8');
+        const sessionData = JSON.parse(rawContent);
+        if (!sessionData || sessionData.anywhere_history !== true || typeof sessionData !== 'object') {
+            return false;
+        }
+
+        const sessionMetadata =
+            sessionData.sessionMetadata && typeof sessionData.sessionMetadata === 'object'
+                ? sessionData.sessionMetadata
+                : {};
+
+        if (typeof sessionMetadata.title === 'string' && sessionMetadata.title.trim() === normalizedTitle) {
+            return false;
+        }
+
+        sessionData.sessionMetadata = {
+            ...sessionMetadata,
+            title: normalizedTitle
+        };
+
+        await fs.writeFile(filePath, JSON.stringify(sessionData, null, 2), { encoding: 'utf-8' });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 async function renameLocalFile(oldPath, newPath) {
-    return await fs.rename(oldPath, newPath);
+    await fs.rename(oldPath, newPath);
+
+    const metadataSynced = await syncLocalSessionMetadataTitleAfterRename(
+        newPath,
+        resolveRenamedSessionTitleFromPath(newPath)
+    );
+
+    return {
+        ok: true,
+        oldPath,
+        newPath,
+        metadataSynced
+    };
 }
 
 /**
@@ -355,6 +606,7 @@ module.exports = {
     saveFile,
 
     selectDirectory,
+    exportLocalChatFile,
     listJsonFiles,
     readLocalFile,
     renameLocalFile,

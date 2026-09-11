@@ -25,12 +25,20 @@ const props = withDefaults(
     loading?: boolean
     /** 无图片时的空态文案。 */
     emptyText?: string
+    /** 隐藏内置结果列表（父组件自行渲染右侧结果面板时使用）。 */
+    hideResult?: boolean
+    /** 隐藏图片预览区（仅保留结果列表，常用于历史记录文字 OCR 详情）。 */
+    hideImage?: boolean
+    /** 结果列表底部留白（px），用于避开外层悬浮导航栏遮挡。 */
+    resultPadBottom?: number
   }>(),
-  { loading: false, emptyText: '' }
+  { loading: false, emptyText: '', hideResult: false, hideImage: false, resultPadBottom: 0 }
 )
 
 const emit = defineEmits<{
   (e: 'copy', text: string): void
+  /** 悬停的行索引变化（-1 表示无悬停），用于外部结果列表联动高亮 */
+  (e: 'hover', index: number): void
 }>()
 
 // ─── canvas 绘图 ─────────────────────────────────────────────────────
@@ -74,7 +82,8 @@ watch([canvasRef, naturalWidth, naturalHeight], () => {
   if (lastImg.value) drawToCanvas(lastImg.value)
 })
 
-// 图源变化：重新加载并绘制
+// 图源变化：重新加载并绘制（immediate 首次执行时内联缩放状态尚未声明，
+// 默认即 1:1 无需复位；后续切换图片时复位内联视图）
 watch(
   () => props.imageSrc,
   (src) => {
@@ -86,6 +95,14 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// 非首次的图源切换：复位内联缩放/拖动视图
+watch(
+  () => props.imageSrc,
+  () => {
+    resetInlineView()
+  }
 )
 
 // ─── 文字层（百分比定位）+ 结果列表双向高亮 ──────────────────────────
@@ -106,18 +123,23 @@ interface OverlayLine {
 }
 
 const overlays = computed<OverlayLine[]>(() =>
-  props.lines.map((l) => ({
-    text: l.text,
-    rate: l.rate,
-    left: pct(l.left, naturalWidth.value),
-    top: pct(l.top, naturalHeight.value),
-    width: pct(l.right - l.left, naturalWidth.value),
-    height: pct(l.bottom - l.top, naturalHeight.value)
-  }))
+  // 过滤坐标无效的行（AI 识图渠道返回的伪 OcrLine 坐标全 0），
+  // 避免文字叠层全部叠到图片左上角。真实微信 OCR 行坐标恒为正，不受影响。
+  props.lines
+    .filter((l) => l.right > l.left && l.bottom > l.top)
+    .map((l) => ({
+      text: l.text,
+      rate: l.rate,
+      left: pct(l.left, naturalWidth.value),
+      top: pct(l.top, naturalHeight.value),
+      width: pct(l.right - l.left, naturalWidth.value),
+      height: pct(l.bottom - l.top, naturalHeight.value)
+    }))
 )
 
 // 列表↔图片高亮联动：鼠标在某一侧 hover 时另一侧同步高亮
 const hoveredIndex = ref<number | null>(null)
+watch(hoveredIndex, (v) => emit('hover', v ?? -1))
 
 function copyText(text: string) {
   emit('copy', text)
@@ -199,6 +221,10 @@ function closeFullscreen() {
   dragging.value = false
 }
 
+// 对外暴露打开全屏：供 HistoryView 等父组件点击 OCR 缩略图时直接触发，
+// 复用内部 canvas 绘图 + 文字层 + 缩放/拖拽的整套全屏预览能力。
+defineExpose({ openFullscreen })
+
 // 滚轮缩放：以鼠标位置为锚点
 function onFsWheel(e: WheelEvent) {
   e.preventDefault()
@@ -264,6 +290,75 @@ function onFsResize() {
   resetFsView()
 }
 
+// ─── 内联缩放/拖动（非全屏，与全屏状态独立） ─────────────────────────
+// 直接在 .canvas-wrap 上叠加 transform（translate + scale），不重绘 canvas；
+// 透明文字层按百分比定位天然跟随对齐。
+const inlineScale = ref(1)
+const inlineOffset = ref({ x: 0, y: 0 })
+const inlineDragging = ref(false)
+let inlinePointerActive = false
+let inlineDragStart = { x: 0, y: 0 }
+let inlineDragOriginOffset = { x: 0, y: 0 }
+
+const inlineTransform = computed(
+  () =>
+    `translate(${inlineOffset.value.x}px, ${inlineOffset.value.y}px) scale(${inlineScale.value})`
+)
+
+// 复位内联视图（图片切换时调用）
+function resetInlineView() {
+  inlineScale.value = 1
+  inlineOffset.value = { x: 0, y: 0 }
+}
+
+// 滚轮缩放：以鼠标位置为锚点（相对 canvas-wrap 中心）
+function onInlineWheel(e: WheelEvent) {
+  e.preventDefault()
+  const wrap = e.currentTarget as HTMLElement
+  const rect = wrap.getBoundingClientRect()
+  const mx = e.clientX - rect.left - rect.width / 2
+  const my = e.clientY - rect.top - rect.height / 2
+  const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
+  const next = Math.min(8, Math.max(1, inlineScale.value * factor))
+  const ratio = next / inlineScale.value
+  inlineOffset.value = {
+    x: mx - (mx - inlineOffset.value.x) * ratio,
+    y: my - (my - inlineOffset.value.y) * ratio
+  }
+  inlineScale.value = next
+}
+
+// 拖动：移动超过阈值才真正进入拖拽，避免误吞文字点击复制（复用全屏阈值）
+function onInlinePointerDown(e: PointerEvent) {
+  if (e.button !== 0) return
+  inlinePointerActive = true
+  inlineDragStart = { x: e.clientX, y: e.clientY }
+  inlineDragOriginOffset = { ...inlineOffset.value }
+}
+
+function onInlinePointerMove(e: PointerEvent) {
+  if (!inlinePointerActive) return
+  const dx = e.clientX - inlineDragStart.x
+  const dy = e.clientY - inlineDragStart.y
+  if (!inlineDragging.value && Math.hypot(dx, dy) < DRAG_THRESHOLD) return
+  if (!inlineDragging.value) {
+    inlineDragging.value = true
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+  inlineOffset.value = {
+    x: inlineDragOriginOffset.x + dx,
+    y: inlineDragOriginOffset.y + dy
+  }
+}
+
+function onInlinePointerUp(e: PointerEvent) {
+  inlinePointerActive = false
+  if (inlineDragging.value) {
+    inlineDragging.value = false
+    ;(e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId)
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', onFullscreenKeydown)
   window.addEventListener('resize', onFsResize)
@@ -277,57 +372,80 @@ onUnmounted(() => {
 
 <template>
   <div class="viewer">
-    <div v-if="imageSrc" class="canvas-wrap">
-      <!-- 用 canvas 绘制原图作为可见底图；CSS 等比缩放 -->
-      <canvas ref="canvasRef" class="stage-canvas"></canvas>
-      <!-- 全屏按钮 -->
-      <button
-        type="button"
-        class="fs-btn"
-        title="全屏预览"
-        aria-label="全屏预览"
-        @click="openFullscreen"
-      >
-        ⛶
-      </button>
-      <!-- 透明文字层：按百分比定位，鼠标可选中 -->
-      <div v-if="hasResult" class="overlay">
-        <ZPopover
-          v-for="(o, i) in overlays"
-          :key="i"
-          trigger="hover"
-          placement="top"
-          :keep-alive-on-hover="true"
-          :show-arrow="true"
-          :class="{ active: hoveredIndex === i }"
-          :style="{
-            left: o.left + '%',
-            top: o.top + '%',
-            width: o.width + '%',
-            height: o.height + '%'
-          }"
-          class="overlay-line"
-        >
-          <!-- 触发器：透明文字块（点击复制） -->
-          <template #trigger>
-            <div
-              class="overlay-trigger"
-              @mouseenter="hoveredIndex = i"
-              @mouseleave="hoveredIndex = null"
-              @click="copyText(o.text)"
-            >
-              <span class="overlay-text">{{ o.text }}</span>
-            </div>
-          </template>
+    <div
+      v-if="imageSrc && !hideImage"
+      class="canvas-stage"
+      :class="{ 'is-dragging': inlineDragging }"
+      @wheel.prevent="onInlineWheel"
+      @pointerdown="onInlinePointerDown"
+      @pointermove="onInlinePointerMove"
+      @pointerup="onInlinePointerUp"
+      @pointercancel="onInlinePointerUp"
+    >
+      <div class="canvas-wrap" :style="{ transform: inlineTransform }">
+        <!-- 用 canvas 绘制原图作为可见底图；CSS 等比缩放 -->
+        <canvas ref="canvasRef" class="stage-canvas"></canvas>
+        <!-- 透明文字层：按百分比定位，鼠标可选中 -->
+        <div v-if="hasResult" class="overlay">
+          <ZPopover
+            v-for="(o, i) in overlays"
+            :key="i"
+            trigger="hover"
+            placement="top"
+            :keep-alive-on-hover="true"
+            :show-arrow="true"
+            :class="{ active: hoveredIndex === i }"
+            :style="{
+              left: o.left + '%',
+              top: o.top + '%',
+              width: o.width + '%',
+              height: o.height + '%'
+            }"
+            class="overlay-line"
+          >
+            <!-- 触发器：透明文字块（点击复制） -->
+            <template #trigger>
+              <div
+                class="overlay-trigger"
+                @mouseenter="hoveredIndex = i"
+                @mouseleave="hoveredIndex = null"
+                @click="copyText(o.text)"
+              >
+                <span class="overlay-text">{{ o.text }}</span>
+              </div>
+            </template>
 
-          <!-- Popover 内容：预览该行识别文字 -->
-          <div class="tooltip-content">
-            {{ o.text }}
-          </div>
-        </ZPopover>
+            <!-- Popover 内容：预览该行识别文字 -->
+            <div class="tooltip-content">
+              {{ o.text }}
+            </div>
+          </ZPopover>
+        </div>
+        <!-- 识别中遮罩 -->
+        <div v-if="loading" class="loading-overlay">识别中…</div>
       </div>
-      <!-- 识别中遮罩 -->
-      <div v-if="loading" class="loading-overlay">识别中…</div>
+      <!-- 左下角工具条：全屏（左）· 复位（右），绝对定位不参与缩放/拖拽 -->
+      <div class="stage-tools" @pointerdown.stop>
+        <button
+          type="button"
+          class="fs-btn"
+          title="全屏预览"
+          aria-label="全屏预览"
+          @click="openFullscreen"
+        >
+          ⛶
+        </button>
+        <button
+          v-if="inlineScale > 1 || inlineOffset.x !== 0 || inlineOffset.y !== 0"
+          type="button"
+          class="reset-btn"
+          title="复位（1:1）"
+          aria-label="复位"
+          @click.stop="resetInlineView"
+        >
+          复位
+        </button>
+      </div>
     </div>
     <div v-else class="empty">
       <div class="empty-icon" :class="{ spin: loading }">{{ loading ? '🔍' : '🖼️' }}</div>
@@ -336,8 +454,12 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 明细结果列表 -->
-    <div v-if="hasResult" class="result">
+    <!-- 明细结果列表（可由父组件通过 hideResult 接管渲染） -->
+    <div
+      v-if="hasResult && !hideResult"
+      class="result"
+      :style="{ paddingBottom: resultPadBottom ? resultPadBottom + 'px' : undefined }"
+    >
       <div class="result-head">
         <span class="result-title">识别明细（{{ lines.length }} 行）</span>
         <span class="result-tip">图上文字可直接鼠标选中，或点击对应文字复制</span>
@@ -460,48 +582,89 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
-/* canvas-wrap 是一个 inline-block，宽度由图片等比决定，
-   内部 canvas/img/overlay 全部按其宽高百分比定位。
-   align-self: center 既让画布在容器内水平居中，又阻止父级 flex column
-   把它拉伸到全宽——否则 overlay（inset:0）会比实际显示的 canvas 宽，
-   按百分比定位的文字层就会与底图错位。 */
+/* canvas-stage 铺满左侧预览区域，作为滚轮缩放/拖拽的接收容器（整片区域均可操作）；
+   内部 .canvas-wrap 承载 canvas + overlay 并叠加 transform（缩放/拖拽），居中放置。
+   工具条与遮罩绝对定位在 stage 上，不跟随 transform 缩放或位移。 */
+.canvas-stage {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  line-height: 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.canvas-stage.is-dragging {
+  cursor: grabbing;
+}
+
+/* canvas-wrap：宽度由 canvas 等比决定，内部 overlay 按百分比定位 */
 .canvas-wrap {
   position: relative;
   display: inline-block;
-  align-self: center;
+  flex-shrink: 0;
   max-width: 100%;
   line-height: 0;
+  transform-origin: center center;
 }
 
-/* 全屏按钮：落在 canvas-wrap 右下角 */
-.fs-btn {
+/* 左下角工具条：全屏（左）· 复位（右），横向排列。
+   绝对定位在 canvas-stage 左下角，不参与缩放/拖拽（pointerdown 已 stop）。 */
+.stage-tools {
   position: absolute;
-  right: 6px;
-  bottom: 6px;
-  width: 30px;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.canvas-stage:hover .stage-tools {
+  opacity: 1;
+}
+
+/* 全屏 / 复位按钮共享样式：不单独定位，由 .stage-tools 统一排列 */
+.fs-btn,
+.reset-btn {
   height: 30px;
   border: none;
   border-radius: 7px;
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
-  font-size: 17px;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s, background 0.15s;
-  z-index: 2;
+  transition: background 0.15s;
 }
 
-.canvas-wrap:hover .fs-btn {
-  opacity: 1;
+.fs-btn {
+  width: 30px;
+  font-size: 17px;
 }
 
-.fs-btn:hover {
+.reset-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.fs-btn:hover,
+.reset-btn:hover {
   background: rgba(0, 0, 0, 0.72);
 }
 
@@ -566,8 +729,8 @@ onUnmounted(() => {
 .overlay-text {
   font-size: 0.9em;
   line-height: 1.1;
-  color: transparent; /* 透明，不影响看到底图，但可被鼠标选中 */
-  user-select: text;
+  color: transparent; /* 透明，不影响看到底图 */
+  user-select: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -584,9 +747,11 @@ onUnmounted(() => {
 
 /* ── 空态 ── */
 .empty {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   padding: 40px 0;
 }
@@ -742,7 +907,7 @@ onUnmounted(() => {
   font-size: 0.9em;
   line-height: 1.1;
   color: transparent;
-  user-select: text;
+  user-select: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

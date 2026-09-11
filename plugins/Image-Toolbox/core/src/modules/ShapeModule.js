@@ -3,7 +3,7 @@ import eventBus from '../EventBus.js';
 import { clamp, escapeAttr, normalizeColor } from '../utils/helpers.js';
 
 /**
- * 图形绘制模块 - 支持矩形、椭圆、星星、心形、梯形、直线、箭头等多种图形
+ * 图形绘制模块 - 支持矩形、椭圆、星星、心形、梯形、平行四边形、菱形、直线、箭头等多种图形
  */
 class ShapeModule extends BaseModule {
   static SHAPE_OPTIONS = [
@@ -14,6 +14,7 @@ class ShapeModule extends BaseModule {
     { type: 'heart', preset: 'shape-type-heart', label: '心形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27C8.3 20.6 4 16.6 4 11.3C4 7.3 6.9 4.5 10.7 4.5C13 4.5 15 5.8 16 7.8C17 5.8 19 4.5 21.3 4.5C25.1 4.5 28 7.3 28 11.3C28 16.6 23.7 20.6 16 27Z" /></svg>' },
     { type: 'trapezoid', preset: 'shape-type-trapezoid', label: '梯形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="10 8 22 8 28 24 4 24" /></svg>' },
     { type: 'parallelogram', preset: 'shape-type-parallelogram', label: '平行四边形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="9 8 26 8 23 24 6 24" /></svg>' },
+    { type: 'diamond', preset: 'shape-type-diamond', label: '菱形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16 4 28 16 16 28 4 16" /></svg>' },
     { type: 'line', preset: 'shape-type-line', label: '直线', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><line x1="5" y1="24" x2="27" y2="8" /></svg>' },
     { type: 'arrow', preset: 'shape-type-arrow', label: '箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L25 8" /><path d="M16 7H26V17" /></svg>' },
     { type: 'double-arrow', preset: 'shape-type-double-arrow', label: '双箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L27 8" /><path d="M18 7H28V17" /><path d="M14 25H4V15" /></svg>' },
@@ -94,7 +95,7 @@ class ShapeModule extends BaseModule {
   }
 
   setShapeType(type) {
-    if (['rect', 'triangle', 'circle', 'star', 'heart', 'trapezoid', 'parallelogram', 'line', 'arrow', 'double-arrow'].includes(type)) {
+    if (['rect', 'triangle', 'circle', 'star', 'heart', 'trapezoid', 'parallelogram', 'diamond', 'line', 'arrow', 'double-arrow'].includes(type)) {
       this.options.shapeType = type;
     }
   }
@@ -142,6 +143,7 @@ class ShapeModule extends BaseModule {
       'shape-type-heart': { shapeType: 'heart' },
       'shape-type-trapezoid': { shapeType: 'trapezoid' },
       'shape-type-parallelogram': { shapeType: 'parallelogram' },
+      'shape-type-diamond': { shapeType: 'diamond' },
       'shape-type-line': { shapeType: 'line' },
       'shape-type-arrow': { shapeType: 'arrow' },
       'shape-type-double-arrow': { shapeType: 'double-arrow' },
@@ -183,8 +185,10 @@ class ShapeModule extends BaseModule {
           <span class="shape-picker-trigger__arrow">▾</span>
         </button>
       </div>
-      <div class="options-group">
-        ${colorPresets}
+      <div class="options-group options-group--scrollable shape-style-group">
+        <div class="shape-style-scroll">
+          ${colorPresets}
+        </div>
       </div>
       <div class="options-group">
         <button class="options-btn options-btn-sm ${strokeWidth === 1 ? 'active' : ''}" data-preset="shape-width-thin">细</button>
@@ -264,7 +268,7 @@ class ShapeModule extends BaseModule {
         <input type="range" class="property-range" data-module-prop="strokeWidth" min="1" max="20" value="${this.options.strokeWidth}" />
         <span class="property-value">${this.options.strokeWidth}px</span>
       </div>
-      <div class="property-empty">拖拽鼠标绘制图形，支持矩形、三角形、椭圆、星星、心形等。</div>
+      <div class="property-empty">拖拽鼠标绘制图形，支持矩形、三角形、椭圆、星星、心形、菱形等。</div>
     `;
   }
 
@@ -431,6 +435,9 @@ class ShapeModule extends BaseModule {
       case 'parallelogram':
         return this._createParallelogram(left, top, width, height, commonProps);
 
+      case 'diamond':
+        return this._createDiamond(left, top, width, height, commonProps);
+
       case 'line':
         return this._createLine(startPoint, endPoint, commonProps);
 
@@ -542,6 +549,25 @@ class ShapeModule extends BaseModule {
       { x: 0, y: -height / 2 },
       { x: width / 2, y: height / 2 },
       { x: -width / 2, y: height / 2 },
+    ];
+
+    return new fabric.Polygon(points, {
+      ...props,
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+    });
+  }
+
+  _createDiamond(left, top, width, height, props) {
+    const centerX = left + width / 2;
+    const centerY = top + height / 2;
+    const points = [
+      { x: 0, y: -height / 2 },
+      { x: width / 2, y: 0 },
+      { x: 0, y: height / 2 },
+      { x: -width / 2, y: 0 },
     ];
 
     return new fabric.Polygon(points, {

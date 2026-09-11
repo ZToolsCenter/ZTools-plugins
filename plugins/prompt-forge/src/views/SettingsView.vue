@@ -1,35 +1,70 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { Settings, Palette, Download, Info } from 'lucide-vue-next'
 import { useRouter } from '../stores/router'
 import { usePromptStore } from '../stores/prompt'
+import { useProjectStore } from '../stores/project'
 import { useAppSettings } from '../stores/app'
 import { useTheme } from '../stores/theme'
+import { buildBackup, parseBackup, mergeBackup } from '../utils/backup'
+import { saveProjects, saveHistory, setSettings } from '../utils/storage'
 
 const router = useRouter()
 const promptStore = usePromptStore()
+const projectStore = useProjectStore()
 const appSettings = useAppSettings()
 const theme = useTheme()
 const tab = ref('behavior')
 
+/** 将合并后的 settings 写回行为设置与主题 store，并一次性持久化 */
+async function applyImportedSettings(settings: Record<string, any>) {
+  if (typeof settings.closeAfterCopy === 'boolean') appSettings.settings.value.closeAfterCopy = settings.closeAfterCopy
+  if (typeof settings.autoFocus === 'boolean') appSettings.settings.value.autoFocus = settings.autoFocus
+  if (typeof settings.maxHistory === 'number' && settings.maxHistory > 0) appSettings.settings.value.maxHistory = settings.maxHistory
+  if (settings.theme === 'dark' || settings.theme === 'light') theme.set(settings.theme)
+  // 一次性写入完整 settings（行为 + 主题），避免 app.save 覆盖 theme 字段
+  await setSettings({ ...appSettings.settings.value, theme: theme.theme.value })
+}
+
 function exportJson() {
-  const json = JSON.stringify(promptStore.rawItems.value, null, 2)
+  const pkg = buildBackup({
+    prompts: promptStore.rawItems.value,
+    projects: projectStore.items.value,
+    settings: { ...appSettings.settings.value, theme: theme.theme.value },
+    history: promptStore.historyItems.value,
+  })
+  const json = JSON.stringify(pkg, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `promptforge-${new Date().toISOString().split('T')[0]}.json`; a.click()
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `promptforge-backup-${new Date().toISOString().split('T')[0]}.json`; a.click()
 }
 function importJson(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return
   const reader = new FileReader()
   reader.onload = async () => {
     try {
-      const data = JSON.parse(reader.result as string); if (!Array.isArray(data)) { alert('格式不正确'); return }
-      await promptStore.ensureReady(); let count = 0
-      let changed = false
-      for (const item of data) { if (item.id && item.title && item.content && !promptStore.rawItems.value.some(i => i.id === item.id)) { promptStore.rawItems.value.push(item); count++; changed = true } }
-      if (changed) await promptStore.persistAll()
-      alert(`✓ 导入 ${count} 条`)
+      const pkg = parseBackup(JSON.parse(reader.result as string))
+      if (!pkg) { alert('格式不正确：不是有效的 PromptForge 备份文件'); return }
+      await promptStore.ensureReady()
+      await projectStore.ensureReady()
+      const merged = mergeBackup(pkg, {
+        prompts: promptStore.rawItems.value,
+        projects: projectStore.items.value,
+        settings: { ...appSettings.settings.value, theme: theme.theme.value },
+        history: promptStore.historyItems.value,
+      })
+      promptStore.rawItems.value = merged.prompts
+      await promptStore.persistAll()
+      projectStore.items.value = merged.projects
+      await saveProjects(merged.projects)
+      promptStore.historyItems.value = merged.history
+      await saveHistory(merged.history)
+      await applyImportedSettings(merged.settings)
+      const c = merged.counts
+      alert(`✓ 导入完成：提示词 ${c.prompts} 条、项目 ${c.projects} 个、历史 ${c.history} 条`)
     } catch { alert('导入失败') }
   }
   reader.readAsText(file)
+  ;(e.target as HTMLInputElement).value = ''
 }
 async function clearAll() {
   if (!confirm('⚠ 确定清空全部？')) return
@@ -43,12 +78,12 @@ async function clearAll() {
   <div class="sv">
     <div class="sv-nav">
       <div class="ns">通用</div>
-      <div :class="['ni', { active: tab === 'behavior' }]" @click="tab = 'behavior'">⚙ 行为</div>
-      <div :class="['ni', { active: tab === 'theme' }]" @click="tab = 'theme'">🎨 主题</div>
+      <div :class="['ni', { active: tab === 'behavior' }]" @click="tab = 'behavior'"><Settings :size="15" />行为</div>
+      <div :class="['ni', { active: tab === 'theme' }]" @click="tab = 'theme'"><Palette :size="15" />主题</div>
       <div class="ns">数据</div>
-      <div :class="['ni', { active: tab === 'import-export' }]" @click="tab = 'import-export'">📦 导入/导出</div>
+      <div :class="['ni', { active: tab === 'import-export' }]" @click="tab = 'import-export'"><Download :size="15" />导入/导出</div>
       <div class="ns">关于</div>
-      <div :class="['ni', { active: tab === 'about' }]" @click="tab = 'about'">ℹ 关于</div>
+      <div :class="['ni', { active: tab === 'about' }]" @click="tab = 'about'"><Info :size="15" />关于</div>
     </div>
     <div class="sv-content">
       <div v-if="tab === 'behavior'">
@@ -80,7 +115,7 @@ async function clearAll() {
       </div>
       <div v-if="tab === 'about'">
         <h2>关于 PromptForge</h2><p class="sub">AI 工作流增强插件。</p>
-        <div class="about-card"><div class="about-logo">PF</div><div><h3>PromptForge</h3><p class="ver">v1.1.0</p><p class="copy">© 2026</p></div></div>
+        <div class="about-card"><div class="about-logo">PF</div><div><h3>PromptForge</h3><p class="ver">v1.4.0</p><p class="copy">© 2026</p></div></div>
         <p class="privacy">本插件不发起网络请求。数据仅存储在本地。</p>
       </div>
     </div>

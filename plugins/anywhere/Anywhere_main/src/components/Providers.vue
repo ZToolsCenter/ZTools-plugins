@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed, inject, onBeforeUnmount } from 'vue'
+import { ref, reactive, watch, onMounted, computed, inject, onActivated, onDeactivated } from 'vue'
 import { Plus, Delete, Edit, ArrowUp, ArrowDown, Refresh, CirclePlus, Remove, Search, Folder, FolderOpened, FolderAdd } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -9,6 +9,10 @@ const { t } = useI18n();
 
 const currentConfig = inject('config');
 const provider_key = ref(null);
+
+const providerSearchQuery = ref('');
+const providerSearchMode = ref('provider');
+
 
 // 文件夹相关状态
 const addFolder_page = ref(false);
@@ -24,10 +28,13 @@ onMounted(() => {
   } else {
     provider_key.value = null;
   }
-  window.addEventListener('keydown', handleGlobalKeyDown);
 });
 
-onBeforeUnmount(() => {
+onActivated(() => {
+    window.addEventListener('keydown', handleGlobalKeyDown);
+});
+
+onDeactivated(() => {
     window.removeEventListener('keydown', handleGlobalKeyDown);
 });
 
@@ -66,6 +73,49 @@ const getProvidersInFolder = (folderId) => {
   });
 };
 
+
+const normalizeSearchText = (value) => String(value || '').trim().toLowerCase();
+
+function providerMatchesSearch(provider) {
+  const query = normalizeSearchText(providerSearchQuery.value);
+  if (!query) return true;
+  if (!provider || typeof provider !== 'object') return false;
+
+  const providerName = normalizeSearchText(provider.name);
+  const providerUrl = normalizeSearchText(provider.url);
+  const modelList = Array.isArray(provider.modelList) ? provider.modelList : [];
+
+  if (providerSearchMode.value === 'model') {
+    return modelList.some(model => normalizeSearchText(model).includes(query));
+  }
+
+  return providerName.includes(query) || providerUrl.includes(query);
+}
+
+const visibleFolderEntries = computed(() => {
+  const query = normalizeSearchText(providerSearchQuery.value);
+  if (!query) {
+    return sortedFolders.value.map(folder => ({
+      ...folder,
+      providers: getProvidersInFolder(folder.id)
+    }));
+  }
+
+  return sortedFolders.value
+    .map(folder => ({
+      ...folder,
+      providers: getProvidersInFolder(folder.id).filter(key => providerMatchesSearch(currentConfig.value.providers[key]))
+    }))
+    .filter(folder => folder.providers.length > 0);
+});
+
+const visibleRootProviders = computed(() => {
+  const query = normalizeSearchText(providerSearchQuery.value);
+  if (!query) return rootProviders.value;
+  return rootProviders.value.filter(key => providerMatchesSearch(currentConfig.value.providers[key]));
+});
+
+
 // [新增] 获取当前选中服务商所在的“分组”内的所有ID列表（按顺序）
 // 分组指的是：具体的文件夹 或 根目录
 const getCurrentGroupIds = () => {
@@ -100,25 +150,32 @@ const canMoveDown = computed(() => {
   return groupIds.indexOf(provider_key.value) < groupIds.length - 1;
 });
 
-// 原子化保存函数
+// 原子化保存：串行化，避免快速连删/连改时 getConfig 与写回交错导致丢更新
+let atomicSaveQueue = Promise.resolve();
 async function atomicSave(updateFunction) {
-  try {
-    const latestConfigData = await window.api.getConfig();
-    if (!latestConfigData || !latestConfigData.config) {
-      throw new Error("Failed to get latest config from DB.");
+  const run = async () => {
+    try {
+      const latestConfigData = await window.api.getConfig();
+      if (!latestConfigData || !latestConfigData.config) {
+        throw new Error("Failed to get latest config from DB.");
+      }
+      const latestConfig = latestConfigData.config;
+
+      updateFunction(latestConfig);
+
+      await window.api.updateConfigWithoutFeatures({ config: latestConfig });
+
+      currentConfig.value = latestConfig;
+
+    } catch (error) {
+      console.error("Atomic save failed:", error);
+      ElMessage.error(t('providers.alerts.configSaveFailed'));
     }
-    const latestConfig = latestConfigData.config;
+  };
 
-    updateFunction(latestConfig);
-
-    await window.api.updateConfigWithoutFeatures({ config: latestConfig });
-
-    currentConfig.value = latestConfig;
-
-  } catch (error) {
-    console.error("Atomic save failed:", error);
-    ElMessage.error(t('providers.alerts.configSaveFailed'));
-  }
+  const next = atomicSaveQueue.then(run, run);
+  atomicSaveQueue = next.catch(() => {});
+  return next;
 }
 
 // 添加文件夹
@@ -267,7 +324,9 @@ function add_prvider_function() {
       modelList: [],
       enable: true,
       folderId: "",
-      apiType: "chat_completions"
+      apiType: "chat_completions",
+      headers: {},
+      retryCount: 3
     };
     config.providerOrder.push(timestamp);
     provider_key.value = timestamp;
@@ -308,7 +367,7 @@ function delete_model(model) {
 
   atomicSave(config => {
     const provider = config.providers[keyToUpdate];
-    if (provider) {
+    if (provider && Array.isArray(provider.modelList)) {
       provider.modelList = provider.modelList.filter(m => m !== model);
     }
   });
@@ -365,19 +424,31 @@ async function activate_get_model_function() {
 
   const url = selectedProvider.value.url;
   const apiKey = selectedProvider.value.api_key;
+  const apiType = selectedProvider.value.apiType || 'chat_completions';
+  const isClaude = apiType === 'claude';
   const apiKeyToUse = window.api && typeof window.api.getRandomItem === 'function' && apiKey ? window.api.getRandomItem(apiKey) : apiKey;
 
-
+  // 合并服务商自定义请求头（用户配置优先级最低，认证头随后覆盖）
+  const customHeaders = (selectedProvider.value.headers && typeof selectedProvider.value.headers === 'object') ? selectedProvider.value.headers : {};
   const options = {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json', ...customHeaders }
   };
-  if (apiKeyToUse) {
-    options.headers['Authorization'] = `Bearer ${apiKeyToUse}`;
+
+  let endpoint;
+  if (isClaude) {
+    // Anthropic：URL 去掉末尾 / 与 /v1，模型端点为 /v1/models，认证用 x-api-key + anthropic-version
+    const base = String(url || '').trim().replace(/\/+$/, '').replace(/\/v1$/, '');
+    endpoint = `${base}/v1/models`;
+    if (apiKeyToUse) options.headers['x-api-key'] = apiKeyToUse;
+    options.headers['anthropic-version'] = '2023-06-01';
+  } else {
+    endpoint = `${url}/models`;
+    if (apiKeyToUse) options.headers['Authorization'] = `Bearer ${apiKeyToUse}`;
   }
 
   try {
-    const response = await fetch(`${url}/models`, options);
+    const response = await fetch(endpoint, options);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       const errorMessage = t('providers.alerts.fetchModelsError', { status: response.status, message: errorData.message || t('providers.alerts.fetchModelsFailedDefault') });
@@ -500,6 +571,47 @@ async function saveSingleProviderSetting(key, value) {
   }
 }
 
+// --- 服务商自定义请求头 ---
+let headerRowIdSeq = 0;
+const headerRows = ref([]);
+
+function createHeaderRow(key = '', value = '') {
+  headerRowIdSeq += 1;
+  return { _id: `hr_${headerRowIdSeq}`, key, value };
+}
+
+function rebuildHeaderRows() {
+  const headers = (selectedProvider.value && selectedProvider.value.headers && typeof selectedProvider.value.headers === 'object')
+    ? selectedProvider.value.headers
+    : {};
+  headerRows.value = Object.entries(headers).map(([key, value]) => createHeaderRow(String(key), value == null ? '' : String(value)));
+}
+
+// 仅在切换服务商时重建；编辑过程中绝不重建，避免正在填写的半成品行消失
+watch(provider_key, () => { rebuildHeaderRows(); }, { immediate: true });
+
+function persistProviderHeaders() {
+  if (!provider_key.value) return;
+  const normalized = {};
+  for (const row of headerRows.value) {
+    const key = String(row?.key || '').trim();
+    const value = String(row?.value || '').trim();
+    if (!key || !value) continue;
+    if (/[\r\n]/.test(key) || /[\r\n]/.test(value)) continue;
+    normalized[key] = value;
+  }
+  saveSingleProviderSetting('headers', normalized);
+}
+
+function addHeaderRow() {
+  headerRows.value.push(createHeaderRow());
+}
+
+function removeHeaderRow(index) {
+  headerRows.value.splice(index, 1);
+  persistProviderHeaders();
+}
+
 const apiKeyCount = computed(() => {
   if (!selectedProvider.value || !selectedProvider.value.api_key || !selectedProvider.value.api_key.trim()) {
     return 0;
@@ -508,6 +620,131 @@ const apiKeyCount = computed(() => {
   const keys = selectedProvider.value.api_key.split(/[,，]/).filter(k => k.trim() !== '');
   return keys.length;
 });
+
+
+function normalizeApiKeys(apiKeyText = '') {
+  return String(apiKeyText || '')
+    .split(/[,，]/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+const batchTestDialogVisible = ref(false);
+const batchTestLoading = ref(false);
+const batchTestCodeFilter = ref('ALL');
+const batchTestSelection = ref([]);
+const batchTestForm = reactive({ model: '' });
+const batchTestResults = ref([]);
+
+const batchTestModelOptions = computed(() => Array.isArray(selectedProvider.value?.modelList)
+  ? selectedProvider.value.modelList.filter(Boolean)
+  : []);
+
+const batchTestCodeOptions = computed(() => {
+  const codes = new Set(batchTestResults.value.map(item => String(item?.code || 'REQUEST_ERROR')));
+  return ['ALL', ...Array.from(codes)];
+});
+
+const filteredBatchTestResults = computed(() => {
+  if (batchTestCodeFilter.value === 'ALL') return batchTestResults.value;
+  return batchTestResults.value.filter(item => String(item?.code || '') === batchTestCodeFilter.value);
+});
+
+function handleRetryCountChange(value) {
+  const normalized = Number.isInteger(value) ? Math.min(Math.max(value, 0), 10) : 3;
+  saveSingleProviderSetting('retryCount', normalized);
+}
+
+function openBatchTestDialog() {
+  if (!selectedProvider.value) return;
+  if (!selectedProvider.value.url) {
+    ElMessage.warning('请先配置服务商 URL');
+    return;
+  }
+  const keys = normalizeApiKeys(selectedProvider.value.api_key);
+  if (!keys.length) {
+    ElMessage.warning('请先配置至少一个 API Key');
+    return;
+  }
+  if (!batchTestModelOptions.value.length) {
+    ElMessage.warning(t('providers.noModelsAdded'));
+    return;
+  }
+
+  batchTestDialogVisible.value = true;
+  batchTestForm.model = batchTestModelOptions.value.includes(batchTestForm.model)
+    ? batchTestForm.model
+    : batchTestModelOptions.value[0];
+  batchTestResults.value = keys.map((key, index) => ({
+    key,
+    maskedKey: key.length <= 8 ? key : `${key.slice(0, 6)}...${key.slice(-3)}`,
+    index,
+    ok: false,
+    status: 0,
+    code: 'PENDING',
+    message: 'pending'
+  }));
+  batchTestSelection.value = [];
+  batchTestCodeFilter.value = 'ALL';
+}
+
+async function runBatchProviderTest() {
+  if (!selectedProvider.value) return;
+  if (!batchTestForm.model) {
+    ElMessage.warning('请先选择测试模型');
+    return;
+  }
+
+  batchTestLoading.value = true;
+  batchTestSelection.value = [];
+  batchTestCodeFilter.value = 'ALL';
+  try {
+    const result = await window.api.batchTestProviderKeys({
+      baseUrl: selectedProvider.value.url,
+      apiKeys: selectedProvider.value.api_key,
+      model: batchTestForm.model,
+      apiType: selectedProvider.value.apiType,
+      headers: JSON.parse(JSON.stringify(selectedProvider.value.headers || {})),
+      retryCount: Number.isInteger(selectedProvider.value.retryCount) ? selectedProvider.value.retryCount : 3
+    });
+
+    batchTestResults.value = Array.isArray(result?.results) ? result.results : [];
+    const successCount = batchTestResults.value.filter(item => item.ok).length;
+    ElMessage.success(`测试完成：${successCount}/${batchTestResults.value.length} 个 Key 可用`);
+  } catch (error) {
+    console.error(error);
+    ElMessage.error(`批量测试失败：${error.message}`);
+  } finally {
+    batchTestLoading.value = false;
+  }
+}
+
+function handleBatchTestSelectionChange(rows) {
+  batchTestSelection.value = Array.isArray(rows) ? rows : [];
+}
+
+async function deleteSelectedBatchTestKeys() {
+  if (!selectedProvider.value) return;
+  const keysToDelete = new Set(batchTestSelection.value.map(item => String(item?.key || '').trim()).filter(Boolean));
+  if (!keysToDelete.size) {
+    ElMessage.warning('请先选择要删除的 Key');
+    return;
+  }
+
+  await ElMessageBox.confirm(`确定删除选中的 ${keysToDelete.size} 个 Key 吗？`, '删除 Key', {
+    type: 'warning',
+    confirmButtonText: t('common.confirm'),
+    cancelButtonText: t('common.cancel')
+  });
+
+  const remainingKeys = normalizeApiKeys(selectedProvider.value.api_key).filter(key => !keysToDelete.has(key));
+  const nextValue = remainingKeys.join(',');
+  await saveSingleProviderSetting('api_key', nextValue);
+  batchTestResults.value = batchTestResults.value.filter(item => !keysToDelete.has(String(item?.key || '').trim()));
+  batchTestSelection.value = [];
+  ElMessage.success(t('common.deleteSuccess'));
+}
+
 </script>
 
 <template>
@@ -516,8 +753,16 @@ const apiKeyCount = computed(() => {
       <el-container>
         <el-aside width="240px" class="providers-aside">
           <el-scrollbar class="provider-list-scrollbar">
+            <div class="provider-search-toolbar">
+              <el-input v-model="providerSearchQuery" clearable :prefix-icon="Search" placeholder="搜索服务商或模型"
+                class="provider-search-input" />
+              <el-radio-group v-model="providerSearchMode" size="small" class="provider-search-mode">
+                <el-radio-button label="provider">服务商</el-radio-button>
+                <el-radio-button label="model">模型</el-radio-button>
+              </el-radio-group>
+            </div>
             <!-- 1. 渲染文件夹 -->
-            <div v-for="folder in sortedFolders" :key="folder.id" class="folder-group">
+            <div v-for="folder in visibleFolderEntries" :key="folder.id" class="folder-group">
               <div class="folder-header" @click="toggle_folder(folder.id)">
                 <div class="folder-icon-wrapper">
                   <el-icon :size="16" class="folder-icon">
@@ -537,7 +782,7 @@ const apiKeyCount = computed(() => {
 
               <!-- 文件夹内的服务商 -->
               <div v-show="!folder.collapsed" class="folder-content">
-                <div v-for="key_id in getProvidersInFolder(folder.id)" :key="key_id" class="provider-item in-folder"
+                <div v-for="key_id in folder.providers" :key="key_id" class="provider-item in-folder"
                   :class="{
                     'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
                   }" @click="provider_key = key_id">
@@ -547,17 +792,17 @@ const apiKeyCount = computed(() => {
                     size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
                 </div>
                 <!-- 空文件夹提示 -->
-                <div v-if="getProvidersInFolder(folder.id).length === 0" class="empty-folder-tip">
+                <div v-if="folder.providers.length === 0" class="empty-folder-tip">
                   {{ t('providers.folders.empty') }}
                 </div>
               </div>
             </div>
 
             <!-- 分隔线 -->
-            <div class="root-providers-divider" v-if="sortedFolders.length > 0 && rootProviders.length > 0"></div>
+            <div class="root-providers-divider" v-if="visibleFolderEntries.length > 0 && visibleRootProviders.length > 0"></div>
 
             <!-- 2. 渲染根目录服务商 -->
-            <div v-for="key_id in rootProviders" :key="key_id" class="provider-item" :class="{
+            <div v-for="key_id in visibleRootProviders" :key="key_id" class="provider-item" :class="{
               'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
             }" @click="provider_key = key_id">
               <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
@@ -566,7 +811,7 @@ const apiKeyCount = computed(() => {
                 size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
             </div>
             <div
-              v-if="(!currentConfig.providerOrder || currentConfig.providerOrder.length === 0) && sortedFolders.length === 0"
+              v-if="visibleRootProviders.length === 0 && visibleFolderEntries.length === 0"
               class="no-providers">
               {{ t('providers.noProviders') }}
             </div>
@@ -613,6 +858,8 @@ const apiKeyCount = computed(() => {
                       placeholder="Chat Completions">
                       <el-option :label="t('providers.apiTypes.chatCompletions')" value="chat_completions" />
                       <el-option :label="t('providers.apiTypes.responses')" value="responses" />
+                      <el-option :label="t('providers.apiTypes.codex')" value="codex" />
+                      <el-option :label="t('providers.apiTypes.claude')" value="claude" />
                     </el-select>
                   </el-tooltip>
                   <el-switch v-model="selectedProvider.enable"
@@ -633,7 +880,7 @@ const apiKeyCount = computed(() => {
                     @change="(value) => saveSingleProviderSetting('api_key', value)" />
                 </el-form-item>
                 <el-form-item :label="t('providers.apiUrlLabel')">
-                  <el-input v-model="selectedProvider.url" :placeholder="t('providers.apiUrlPlaceholder')" clearable
+                  <el-input v-model="selectedProvider.url" :placeholder="selectedProvider.apiType === 'claude' ? t('providers.apiUrlPlaceholderClaude') : t('providers.apiUrlPlaceholder')" clearable
                     @change="(value) => saveSingleProviderSetting('url', value)" />
                 </el-form-item>
 
@@ -645,13 +892,14 @@ const apiKeyCount = computed(() => {
                     <el-button :icon="Plus" plain @click="addModel_page = true">{{
                       t('providers.addManuallyBtn')
                     }}</el-button>
+                    <el-button plain @click="openBatchTestDialog">测试</el-button>
                   </div>
                 </el-form-item>
                 <div class="models-list-wrapper">
                   <draggable v-if="selectedProvider.modelList && selectedProvider.modelList.length > 0"
-                    v-model="selectedProvider.modelList" item-key="model"
+                    v-model="selectedProvider.modelList" :item-key="(m) => m"
                     class="models-list-container draggable-models-list" @end="saveModelOrder"
-                    ghost-class="sortable-ghost">
+                    ghost-class="sortable-ghost" filter=".el-tag__close" :prevent-on-filter="true">
                     <template #item="{ element: model }">
                       <el-tag :key="model" closable @close="delete_model(model)" class="model-tag" type="info"
                         effect="light">
@@ -663,6 +911,33 @@ const apiKeyCount = computed(() => {
                     <div class="no-models-message">
                       {{ t('providers.noModelsAdded') }}
                     </div>
+                  </div>
+                </div>
+
+                <!-- 自定义请求头编辑器 -->
+                <el-form-item :label="t('providers.headersLabel')">
+                  <div class="header-actions-row">
+                    <el-button :icon="Plus" plain @click="addHeaderRow">{{
+                      t('providers.addHeaderBtn')
+                    }}</el-button>
+                    <div class="provider-retry-inline">
+                      <span class="provider-retry-inline-label">重试次数</span>
+                      <el-input-number :model-value="Number.isInteger(selectedProvider.retryCount) ? selectedProvider.retryCount : 3"
+                        :min="0" :max="10" @change="handleRetryCountChange" />
+                    </div>
+                  </div>
+                </el-form-item>
+                <div class="provider-headers-list">
+                  <div v-for="(row, index) in headerRows" :key="row._id" class="header-row">
+                    <el-input v-model="row.key" :placeholder="t('providers.headerKeyPlaceholder')"
+                      class="header-key-input" @change="persistProviderHeaders" />
+                    <el-input v-model="row.value" :placeholder="t('providers.headerValuePlaceholder')"
+                      class="header-value-input" @change="persistProviderHeaders" />
+                    <el-button :icon="Delete" plain circle class="header-delete-btn"
+                      @click="removeHeaderRow(index)" />
+                  </div>
+                  <div v-if="headerRows.length === 0" class="no-headers-message">
+                    {{ t('providers.noHeaders') }}
                   </div>
                 </div>
 
@@ -763,7 +1038,39 @@ const apiKeyCount = computed(() => {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="addFolder_page" :title="t('providers.folders.newFolderTitle')" width="400px"
+        <el-dialog v-model="batchTestDialogVisible" title="批量测试 Provider Keys" width="760px" top="6vh" :close-on-click-modal="false" class="batch-test-dialog">
+      <div class="batch-test-toolbar">
+        <el-select v-model="batchTestForm.model" placeholder="选择测试模型" style="width: 260px;">
+          <el-option v-for="item in batchTestModelOptions" :key="item" :label="item" :value="item" />
+        </el-select>
+        <el-select v-model="batchTestCodeFilter" style="width: 160px;">
+          <el-option v-for="code in batchTestCodeOptions" :key="code" :label="code" :value="code" />
+        </el-select>
+        <el-button type="primary" :loading="batchTestLoading" @click="runBatchProviderTest">开始测试</el-button>
+      </div>
+
+      <el-table :data="filteredBatchTestResults" stripe border max-height="320" @selection-change="handleBatchTestSelectionChange">
+        <el-table-column type="selection" width="48" />
+        <el-table-column prop="maskedKey" label="Key" min-width="220" />
+        <el-table-column prop="code" label="状态码" width="100" />
+        <el-table-column label="结果" width="90">
+          <template #default="scope">
+            <el-tag :type="scope.row.code === 'PENDING' ? 'info' : (scope.row.ok ? 'success' : 'danger')">{{ scope.row.code === 'PENDING' ? '待测试' : (scope.row.ok ? '可用' : '失败') }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="message" label="信息" min-width="180" show-overflow-tooltip />
+      </el-table>
+
+      <template #footer>
+        <div class="batch-test-footer">
+          <el-button type="danger" plain @click="deleteSelectedBatchTestKeys" :disabled="batchTestSelection.length === 0">删除选中 Key</el-button>
+          <el-button @click="batchTestDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+
+<el-dialog v-model="addFolder_page" :title="t('providers.folders.newFolderTitle')" width="400px"
       :close-on-click-modal="false">
       <el-form :model="addFolder_form" @submit.prevent="add_folder_function">
         <el-form-item :label="t('providers.folders.folderNameLabel')" required>
@@ -830,6 +1137,100 @@ const apiKeyCount = computed(() => {
   flex-direction: column;
   padding: 0;
 }
+
+.provider-search-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 8px 10px;
+}
+
+.provider-search-mode {
+  width: 100%;
+}
+
+.provider-search-mode :deep(.el-radio-button) {
+  flex: 1;
+}
+
+.provider-search-mode :deep(.el-radio-button__inner) {
+  width: 100%;
+}
+
+.provider-retry-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.provider-retry-inline-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.batch-test-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.batch-test-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+
+.provider-search-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 8px 10px;
+}
+
+.provider-search-mode {
+  width: 100%;
+}
+
+.provider-search-mode :deep(.el-radio-button) {
+  flex: 1;
+}
+
+.provider-search-mode :deep(.el-radio-button__inner) {
+  width: 100%;
+}
+
+.provider-retry-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.provider-retry-inline-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.batch-test-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.batch-test-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 
 .provider-list-scrollbar {
   flex-grow: 1;
@@ -1025,6 +1426,45 @@ html.dark .api-type-select {
   color: var(--text-secondary);
   font-size: 13px;
   padding: 12px 0;
+}
+
+/* 自定义请求头编辑器样式 */
+.header-actions-row {
+  display: flex;
+  gap: 10px;
+}
+
+.provider-headers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-key-input {
+  flex: 0 0 35%;
+}
+
+.header-value-input {
+  flex: 1 1 auto;
+}
+
+.header-delete-btn {
+  flex: 0 0 auto;
+}
+
+.no-headers-message {
+  width: 100%;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 4px 0;
 }
 
 .model-tag {

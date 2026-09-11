@@ -2,6 +2,7 @@
   "app": {
     "header": {
       "chats": "Chats",
+      "tasks": "Scheduled Task",
       "prompts": "Agent Prompts",
       "mcp": "MCP Servers",
       "skills": "Skills",
@@ -11,6 +12,7 @@
     },
     "tabs": {
       "chats": "Chat History",
+      "tasks": "Scheduled Task",
       "prompts": "Agent Prompts",
       "mcp": "MCP Servers",
       "skills": "Skills",
@@ -30,7 +32,8 @@
       "mcp": "MCP Servers",
       "skill": "Skill Library",
       "provider": "Providers",
-      "setting": "Settings"
+      "setting": "Settings",
+      "about": "About"
     }
   },
   "chats": {
@@ -44,6 +47,13 @@
       "pathNotSet": "Not configured",
       "cloudDesc": "· Cloud Chats: Conversations uploaded to the cloud, which can be pulled to local at any time."
     },
+    "sort": {
+      "button": "Sort",
+      "createdAt": "Sort by Created Time",
+      "updatedAt": "Sort by Edited Time",
+      "name": "Sort by Name",
+      "size": "Sort by Size"
+    },
     "configRequired": {
       "title": "Cloud Chats",
       "webdavDescription": "Please configure WebDAV URL and data path (data_path) in 'Settings' to use this feature.",
@@ -51,12 +61,40 @@
     },
     "table": {
       "filename": "Chat Name",
+      "createdTime": "Created Time",
       "modifiedTime": "Modified Time",
       "size": "Size",
       "actions": "Actions"
     },
+    "projects": {
+      "create": "New Project",
+      "rename": "Rename Project",
+      "delete": "Delete Project",
+      "ungrouped": "Ungrouped",
+      "createPrompt": "Enter project name",
+      "renamePrompt": "Enter new project name",
+      "nameRequired": "Project name cannot be empty",
+      "nameExists": "A project with this name already exists",
+      "createSuccess": "Project created",
+      "renameSuccess": "Project renamed",
+      "deleteSuccess": "Project deleted",
+      "moveSuccess": "Project assignment updated",
+      "moveFailed": "Failed to update project assignment",
+      "dragCount": "{count} chats",
+      "deleteDialogMessage": "How do you want to delete project \"{name}\"?",
+      "deleteWithChats": "Delete project & chats",
+      "deleteWithChatsDesc": "Permanently delete the chat files in this project. This cannot be undone.",
+      "deleteKeepChats": "Delete project only",
+      "deleteKeepChatsDesc": "Keep chat files and move them to Ungrouped",
+      "deleteCancel": "Cancel",
+      "deleteWithChatsSuccess": "Deleted project and {count} chats",
+      "syncToCloud": "Sync whole project to cloud",
+      "syncToLocal": "Sync whole project from cloud",
+      "syncProjectSuccess": "Project synced"
+    },
     "actions": {
       "chat": "Chat",
+      "share": "Share / Export",
       "rename": "Rename",
       "delete": "Delete",
       "forceSync": "Sync"
@@ -69,6 +107,13 @@
       "syncCloudConfirm": "A file with the same name exists in the cloud. Rename it synchronously?",
       "syncLocalConfirm": "A file with the same name exists locally. Rename it synchronously?"
     },
+    "export": {
+      "dialogTitle": "Export Chat",
+      "success": "Chat exported successfully.",
+      "failed": "Failed to export chat",
+      "cancelled": "Export cancelled"
+    },
+
     "tooltips": {
       "syncToCloud": "Upload to Cloud",
       "syncFromCloud": "Sync from Cloud",
@@ -94,6 +139,9 @@
         "custom": "Custom"
       },
       "scopeTip": "Note: This action only deletes files in the current view ({view}) and will not sync delete files on the other side."
+    },
+    "selection": {
+      "count": "Selected {count} items"
     },
     "alerts": {
       "configError": "Failed to get configuration.",
@@ -125,7 +173,8 @@
       "webdavRequired": "Please configure WebDAV first",
       "localPathRequired": "Please configure local chat path first",
       "continueConfirm": "Continue?",
-      "restoreChat": "Restore Chat"
+      "restoreChat": "Restore Chat",
+      "localFileMissing": "Local chat file not found"
     }
   },
   "tasks": {
@@ -162,7 +211,7 @@
     "singleDateLabel": "Execution Date",
     "singleTimeLabel": "Execution Time",
     "intervalMinutesLabel": "Interval (Minutes)",
-    "intervalStartTimeLabel": "Daily Start Time",
+    "intervalStartTimeLabel": "Daily Start Time (Anchor)",
     "intervalStartTimePlaceholder": "Default: 00:00",
     "intervalTimeRangesLabel": "Active Time Ranges (Optional)",
     "addTimeRange": "Add Time Range",
@@ -186,7 +235,8 @@
     },
     "executionContentTitle": "Execution Content & Target",
     "targetPromptLabel": "Target Quick Prompt",
-    "targetPromptTooltip": "Only 'Standalone Window' mode assistants can perform scheduled tasks",
+    "targetPromptTooltip": "Only enabled assistants in 'Standalone Window' mode can perform scheduled tasks",
+    "targetPromptUnavailableWarning": "The prompt currently referenced by this task is disabled, deleted, or no longer in standalone window mode. Please select another enabled prompt.",
     "promptContentLabel": "Prompt Content",
     "promptContentPlaceholder": "Please describe what the AI needs to do in natural language. E.g., Search for today's big AI news and summarize it into a table.\nYou can enable built-in MCP to allow the assistant to perform more functions, such as saving the result as an MD file.",
     "advancedSettingsTitle": "Background & Extensions",
@@ -197,6 +247,9 @@
     "backgroundOptionsLabel": "Background Options",
     "autoSaveLabel": "Auto-save Chat",
     "autoSaveTooltip": "When enabled, records will be automatically saved as: [TaskName]-[Time].json in the background",
+    "autoSaveProjectLabel": "Save to",
+    "autoSaveProjectPlaceholder": "Ungrouped",
+    "autoSaveProjectUngrouped": "Ungrouped",
     "autoCloseLabel": "Auto-close window after execution",
     "recentHistoryTitle": "Recent Execution History",
     "refreshHistoryBtn": "Refresh",
@@ -208,13 +261,26 @@
     "addDialogTitle": "New Scheduled Task",
     "addDialogNameLabel": "Task Name",
     "addDialogNamePlaceholder": "Enter a valid filename format",
-    "globalSettingsDialogTitle": "Global Default Agent Settings",
-    "executionModelLabel": "Execution Model",
-    "executionModelTooltip": "When a scheduled task is assigned to the [Default Agent], this model will be used uniformly, without any preset system prompts."
+    "globalSettingsDialogTitle": "Default Assistant Route Settings",
+    "defaultAssistantRouteLabel": "Default Assistant Model Capability",
+    "defaultAssistantRoutes": {
+      "superior": {
+        "label": "Superior Model",
+        "tooltip": "Use for the strongest reasoning, complex analysis, and high-quality planning. Falls back to the first available model if not configured."
+      },
+      "general": {
+        "label": "General Model",
+        "tooltip": "Use for balanced everyday tasks; seamlessly compatible with the current `defaultTaskModel`. Falls back to the first available model if not configured."
+      },
+      "fast": {
+        "label": "Fast Model",
+        "tooltip": "Use for lightweight tasks where speed matters most. Falls back to the first available model if not configured."
+      }
+    }
   },
   "prompts": {
     "allPrompts": "ALL",
-    "searchPlaceholder": "Search name or content...",
+    "searchPlaceholder": "Search name, content, model or provider...",
     "noPrompts": "No prompts defined yet.",
     "noPromptsInTag": "No prompts in this tag.",
     "addExistingPrompt": "Add Existing Prompt",
@@ -276,6 +342,7 @@
     "AssistantParametersLabel": "Quick Prompt Parameters",
     "sendDirectLabel": "Direct Text Sending",
     "sendImageDirectLabel": "Direct Image Sending",
+    "sendFileLabel": "Direct File Sending",
     "ifTextNecessary": "Add Text Info",
     "streamLabel": "Stream Responses",
     "enableTemperatureLabel": "Custom Temperature",
@@ -290,6 +357,12 @@
     "isAlwaysOnTopLabel": "Always on Top",
     "autoCloseOnBlurLabel": "Auto-close on Blur",
     "autoSaveChatLabel": "Auto-save Chat",
+    "autoSaveProjectLabel": "Save to",
+    "autoSaveProjectPlaceholder": "Ungrouped",
+    "autoSaveProjectUngrouped": "Ungrouped",
+    "defaultAssistantRoutesButton": "Default Assistant Route",
+    "defaultAssistantRoutesDialogTitle": "Default Assistant Route",
+    "defaultAssistantRoutesFastTip": "For the fast route, choose the quickest and most cost-effective model. It is suitable for simple sub-agent tasks, lightweight scheduled tasks, and automatic chat naming.",
     "replaceModels": "Replace Models",
     "replaceModelsDialog": {
       "title": "Bulk Replace Models",
@@ -320,6 +393,7 @@
       "moveLeft": "Move Left",
       "moveRight": "Move Right",
       "removeFromTag": "Remove prompt from this tag",
+      "deleteTag": "Delete current tag",
       "sendDirect": "When enabled, selected text will be sent directly to the AI.",
       "sendImageDirect": "When enabled, selected screenshot/image will be sent directly to the AI.",
       "sendFile": "When enabled, selected files will be sent directly to the AI for processing.",
@@ -328,6 +402,7 @@
       "isAlwaysOnTopTooltip": "Enable to keep the window always on top of other windows.",
       "autoCloseOnBlurTooltip": "Enable to close the standalone window when it loses focus.",
       "autoSaveChatTooltip": "When enabled, conversations will be automatically saved to local storage every 15 seconds (requires local chat path configured in settings).",
+      "autoSaveProjectTooltip": "When selected, auto-saved conversations will be assigned to this project. Leave empty to keep them ungrouped.",
       "defaultMcpServers": "When set, the selected MCP services will be automatically enabled when this assistant is opened in a standalone window.",
       "defaultSkills": "When set, these skills will be automatically visible to AI when this assistant is opened in a standalone window."
     },
@@ -340,13 +415,15 @@
     "reasoningEffortLabel": "Reasoning Effort",
     "reasoningEffort": {
       "default": "Default",
+      "none": "Off",
       "low": "Low",
       "medium": "Medium",
-      "high": "High"
+      "high": "High",
+      "xhigh": "xHigh"
     },
     "defaultMcpServersLabel": "MCP",
     "defaultMcpServersPlaceholder": "Select default MCP services for this assistant",
-    "defaultSkillsLabel": "Skills",
+    "defaultSkillsLabel": "SKILL",
     "defaultSkillsPlaceholder": "Select default skills for this assistant"
   },
   "mcp": {
@@ -362,6 +439,9 @@
     "descriptionLabel": "Description",
     "typeLabel": "Type",
     "activeLabel": "Active",
+    "timeoutLabel": "Tool Call Timeout (seconds)",
+    "timeoutTooltip": "Default 120s",
+    "timeoutPlaceholder": "Leave empty for default 120",
     "persistentOn": "Persistent connection ON",
     "persistentOff": "Persistent connection OFF",
     "testConnectionTooltip": "Test Connection / View Cached Tools",
@@ -388,6 +468,48 @@
     "http": {
       "url": "Base URL",
       "headers": "Request Headers"
+    },
+    "auth": {
+      "sectionTitle": "Authentication",
+      "type": "Auth Type",
+      "typeNone": "None",
+      "typeBearer": "Bearer Token",
+      "typeOAuth": "OAuth",
+      "bearerToken": "Bearer Token",
+      "bearerTokenPlaceholder": "Paste the static bearer token",
+      "clientId": "Client ID",
+      "clientIdPlaceholder": "Leave empty to use Dynamic Client Registration (DCR)",
+      "clientSecret": "Client Secret",
+      "clientSecretPlaceholder": "Required only for confidential clients (DCR/manual)",
+      "scopes": "Scopes",
+      "scopesPlaceholder": "scope1, scope2",
+      "envMapping": "Env Var Mapping (stdio)",
+      "envMappingPlaceholder": "OAUTH_TOKEN, MCP_OAUTH_TOKEN",
+      "useDcr": "Use Dynamic Client Registration",
+      "dcrHint": "Dynamic Client Registration (DCR) is used by default. To supply your own OAuth client, turn off DCR in Advanced settings.",
+      "oauthAdvancedSection": "OAuth Advanced",
+      "actions": "Actions",
+      "saveClient": "Save Client",
+      "login": "Login",
+      "refresh": "Refresh",
+      "logout": "Log Out",
+      "tokenStatus": "Token Status",
+      "statusNotConfigured": "Not configured",
+      "statusNotLoggedIn": "Not logged in",
+      "statusLoggedIn": "Logged in",
+      "statusExpired": "Expired — please re-login",
+      "loginSuccess": "OAuth login completed.",
+      "loginFailed": "OAuth login failed",
+      "refreshed": "Token refreshed.",
+      "refreshFailed": "Token refresh failed",
+      "loggedOut": "Logged out.",
+      "logoutConfirm": "Log out and clear stored OAuth tokens for this server?",
+      "needClientId": "Please enter a Client ID first.",
+      "needUrl": "Please enter the server URL before starting OAuth login.",
+      "clientSaved": "Client credentials saved.",
+      "manualClientSection": "Manual OAuth Client (Optional)",
+      "migrationNotice": "Detected a legacy Authorization: Bearer header — migrated to Bearer Token auth.",
+      "stdioInteractiveUnsupported": "Interactive OAuth login currently supports HTTP/SSE MCP servers only. For stdio servers, please use a static bearer token for now."
     },
     "advanced": "Advanced/Optional Settings",
     "registryUrl": "Registry URL",
@@ -492,6 +614,7 @@
       "forkOn": "Enable Sub-Agent Mode",
       "forkOff": "Disable Sub-Agent Mode",
       "refresh": "Refresh List",
+      "openFolder": "Open skill folder",
       "forkMode": "When enabled, AI will spawn an isolated sub-agent to execute this skill with its own context."
     },
     "filesTab": {
@@ -502,6 +625,8 @@
     "alerts": {
       "listFailed": "Failed to list skills",
       "loadFailed": "Failed to load skill details",
+      "openFolderPathMissing": "Skill folder path is missing",
+      "openFolderFailed": "Failed to open skill folder",
       "nameRequired": "Skill name is required",
       "deleteConfirm": "Are you sure you want to delete skill \"{name}\"? This will permanently delete its directory.",
       "deleteFileConfirm": "Are you sure you want to delete file \"{name}\"?",
@@ -525,6 +650,7 @@
       "empty": "No skills available to export",
       "selectAll": "Select All",
       "clear": "Clear",
+      "hideEnv": "Hide .env",
       "confirmBtn": "Select Folder & Export",
       "success": "Successfully exported {count} skill packages"
     }
@@ -541,18 +667,26 @@
     "apiTypeTooltip": "Select API Protocol",
     "apiTypes": {
       "chatCompletions": "OpenAI-Chat",
-      "responses": "OpenAI-Response"
+      "responses": "OpenAI-Response",
+      "codex": "Codex",
+      "claude": "Claude"
     },
     "apiKeyLabel": "API Key",
     "apiKeyPlaceholder": "Enter API Key (multiple can be entered, separated by commas)",
     "apiKeyDescription": "You can enter multiple API keys separated by commas.",
     "apiUrlLabel": "API URL",
     "apiUrlPlaceholder": "e.g., https://api.openai.com/v1",
+    "apiUrlPlaceholderClaude": "e.g., https://api.anthropic.com",
     "modelsLabel": "Models",
     "searchModelsPlaceholder": "Search models",
     "noModelsAdded": "No models added yet.",
     "getModelsFromApiBtn": "Get Models from API",
     "addManuallyBtn": "Add Manually",
+    "headersLabel": "Request Headers",
+    "addHeaderBtn": "Add Header",
+    "headerKeyPlaceholder": "Header name (e.g. User-Agent)",
+    "headerValuePlaceholder": "Header value",
+    "noHeaders": "No custom headers configured.",
     "selectProviderOrAdd": "Select a provider or add a new one",
     "addProviderDialogTitle": "Add New Provider",
     "providerNameLabel": "Provider Name",
@@ -638,10 +772,6 @@
       "label": "Ctrl+Enter to Send",
       "description": "Enable to send messages by pressing Ctrl+Enter."
     },
-    "notification": {
-      "label": "Show Success Notification",
-      "description": "Enable to show a notification on successful response."
-    },
     "darkMode": {
       "label": "Theme",
       "description": "Light mode or dark mode",
@@ -660,7 +790,9 @@
       "exportButton": "Export",
       "importLabel": "Import Configuration",
       "importDesc": "Import settings from a JSON file. This will overwrite current settings.",
-      "importButton": "Import"
+      "importButton": "Import",
+      "skillPath": "Local SKILLS Path",
+      "skillPathPlaceholder": "Please select a local folder to store SKILLS"
     },
     "dimensions": {
       "widthLabel": "Window Width (px)",
@@ -743,6 +875,7 @@
     "downloadIcon": "Download",
     "warningTitle": "Warning",
     "refresh": "Refresh",
+    "selectAll": "Select All",
     "deleteSelected": "Delete",
     "noFileSelected": "No files selected.",
     "confirmDeleteMultiple": "Are you sure you want to permanently delete the {count} selected files?",

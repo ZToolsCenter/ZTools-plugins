@@ -1,0 +1,33 @@
+{
+  "name": "json-formatter",
+  "title": "JSON 格式化",
+  "description": "离线格式化、校验与树形浏览 JSON/JSON5，支持节点查看和编辑。",
+  "author": "hulin",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.cjs",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "height": 660,
+    "single": true
+  },
+  "features": [
+    {
+      "code": "json-formatter.open",
+      "explain": "格式化 JSON",
+      "icon": "logo.png",
+      "cmds": [
+        "JSON 格式化",
+        "格式化 JSON",
+        "JSON Formatter",
+        "JSON Viewer",
+        {
+          "type": "regex",
+          "match": "/^\\s*[\\[{][\\s\\S]{2,}[\\]}]\\s*$/",
+          "label": "格式化这段 JSON",
+          "minLength": 4
+        }
+      ]
+    }
+  ]
+}

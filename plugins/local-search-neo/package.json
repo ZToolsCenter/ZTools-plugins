@@ -1,6 +1,6 @@
 {
   "name": "local-search-neo",
-  "version": "1.0.2",
+  "version": "1.2.0",
   "description": "借助 Everything 来进行文件搜索",
   "type": "module",
   "scripts": {
@@ -9,17 +9,18 @@
     "build:addon": "npm run prepare:addon && npm --prefix addon run build-release && node scripts/copy-addon.cjs",
     "lint": "oxlint .",
     "lint:fix": "oxlint . --fix",
-    "format": "oxfmt --write .",
-    "format:check": "oxfmt --check .",
+    "format": "oxfmt --write . && npm --prefix addon run format",
+    "format:check": "oxfmt --check . && npm --prefix addon run format:check",
     "check": "npm run lint && npm run format:check && npm test",
-    "test": "node scripts/run-ts-tests.cjs src/Finder/core/finderLogic.test.ts",
+    "test": "node scripts/run-ts-tests.cjs src/Finder/core/finderLogic.test.ts src/Finder/core/previewCandidate.test.ts",
     "test:everything-addon": "node scripts/test-everything-addon.cjs",
     "bench:everything": "node scripts/benchmark-everything-addon.cjs",
     "predev": "npm run prepare:pdfjs && npm run build:addon",
     "dev": "vite",
     "prebuild": "npm run prepare:pdfjs && npm run build:addon",
     "build": "vue-tsc && vite build",
-    "postbuild": "node scripts/prepare-dist.cjs"
+    "postbuild": "node scripts/prepare-dist.cjs",
+    "version:set": "node scripts/set-version.cjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.17.0",

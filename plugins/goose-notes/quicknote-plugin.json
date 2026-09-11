@@ -1,0 +1,33 @@
+{
+  "pluginName": "鹅的小窗",
+  "description": "鹅的笔记 · 独立速记小窗",
+  "author": "Antigravity",
+  "version": "0.0.1",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "single": true
+  },
+  "features": [
+    {
+      "code": "quicknote_new",
+      "explain": "新建速记小窗",
+      "mainHide": true,
+      "cmds": [
+        "速记",
+        "jot",
+        "小窗",
+        "note"
+      ]
+    },
+    {
+      "code": "quicknote_last",
+      "explain": "打开上次速记小窗",
+      "mainHide": true,
+      "cmds": [
+        "便签",
+        "sticky"
+      ]
+    }
+  ],
+  "preload": "preload-quicknote.js"
+}

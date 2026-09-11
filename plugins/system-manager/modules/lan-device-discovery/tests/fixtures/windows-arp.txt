@@ -1,0 +1,9 @@
+Interface: 192.168.1.50 --- 0x8
+  Internet Address      Physical Address      Type
+  192.168.1.1           50-c7-bf-11-22-33     dynamic
+  192.168.1.61          00-15-5d-44-55-66     static
+  192.168.1.255         ff-ff-ff-ff-ff-ff     static
+
+接口: 10.0.0.20 --- 0x10
+  Internet 地址         物理地址              类型
+  10.0.0.1              00-1b-54-01-02-03     动态

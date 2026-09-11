@@ -1,0 +1,28 @@
+{
+  "name": "ztools-lyrics",
+  "title": "歌词搜索",
+  "description": "搜索并阅读歌曲歌词：支持实时搜索、翻译对照、逐行复制、收藏、保存为 TXT",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "lyric-search",
+      "explain": "搜索并查看歌词",
+      "cmds": ["歌词", "搜歌词", "lyric", "gc"]
+    },
+    {
+      "code": "lyric-search-keyword",
+      "explain": "用输入的内容搜索歌词",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "搜歌词",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      ]
+    }
+  ]
+}

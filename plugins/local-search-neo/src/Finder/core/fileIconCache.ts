@@ -3,7 +3,6 @@ import type { FinderResult } from "./finderLogic";
 interface IconCacheEntry {
   hash: string;
   url: string;
-  dataUrl?: string;
 }
 
 type IconFile = Pick<FinderResult, "name" | "extension" | "fullPath" | "isDirectory">;
@@ -36,7 +35,7 @@ export function warmUpFileIconCache() {
   loadSharedIcon(FOLDER_CACHE_KEY, WINDOWS_FOLDER_ICON_PATH);
 }
 
-export function getUnknownFileIconUrl(): string {
+function getUnknownFileIconUrl(): string {
   return loadSharedIcon(UNKNOWN_CACHE_KEY, UNKNOWN_FILE_ICON_PATH)?.url ?? "";
 }
 
@@ -59,16 +58,12 @@ export function loadFileIconUrl(file: IconFile): string {
   return getFileIconEntry(file)?.url ?? getUnknownFileIconUrl();
 }
 
-export function getFileIconDataUrl(file: IconFile): string {
-  return getFileIconEntry(file)?.dataUrl ?? getSharedIconDataUrl(UNKNOWN_CACHE_KEY);
-}
-
 export function shouldLoadFileIcon(file: IconFile): boolean {
   if (file.isDirectory) return !sharedIconCache.has(FOLDER_CACHE_KEY);
 
   const extension = getResultExtension(file);
   if (!extension) return false;
-  if (PATH_DEPENDENT_EXTENSIONS.has(extension)) return !!file.fullPath;
+  if (PATH_DEPENDENT_EXTENSIONS.has(extension)) return true;
 
   return !sharedIconCache.has(getExtensionCacheKey(extension));
 }
@@ -80,7 +75,7 @@ function getFileIconEntry(file: IconFile): IconCacheEntry | null {
   if (!extension) return loadSharedIcon(UNKNOWN_CACHE_KEY, UNKNOWN_FILE_ICON_PATH);
 
   if (PATH_DEPENDENT_EXTENSIONS.has(extension)) {
-    return file.fullPath ? readIcon(file.fullPath) : null;
+    return readIcon(file.fullPath);
   }
 
   return loadSharedIcon(getExtensionCacheKey(extension), getExtensionIconPath(extension));
@@ -113,24 +108,19 @@ function loadSharedIcon(cacheKey: string, iconPath: string): IconCacheEntry | nu
   return fallback;
 }
 
-function getSharedIconDataUrl(cacheKey: string): string {
-  return sharedIconCache.get(cacheKey)?.dataUrl ?? "";
-}
-
 function readIcon(fullPath: string): IconCacheEntry | null {
   try {
     const icon = window.ztools.getFileIcon(fullPath);
     if (!icon) return null;
 
     const hash = hashIcon(icon);
-    const dataUrl = icon.startsWith("data:") ? icon : undefined;
     const existedUrl = iconUrlByHash.get(hash);
-    if (existedUrl) return { hash, url: existedUrl, dataUrl };
+    if (existedUrl) return { hash, url: existedUrl };
 
-    const url = dataUrl ? dataUrlToObjectUrl(dataUrl) : icon;
+    const url = icon.startsWith("data:") ? dataUrlToObjectUrl(icon) : icon;
     iconUrlByHash.set(hash, url);
 
-    return { hash, url, dataUrl };
+    return { hash, url };
   } catch {
     return null;
   }
@@ -174,8 +164,8 @@ function hashIcon(icon: string): string {
   return `${icon.length}:${(hash >>> 0).toString(16)}`;
 }
 
-function getResultExtension(file: Pick<FinderResult, "name" | "extension" | "fullPath">): string {
-  return (file.extension || getExtension(file.name || file.fullPath || "")).toLowerCase();
+function getResultExtension(file: Pick<FinderResult, "name" | "extension">): string {
+  return (file.extension || getExtension(file.name)).toLowerCase();
 }
 
 function getExtension(name: string): string {

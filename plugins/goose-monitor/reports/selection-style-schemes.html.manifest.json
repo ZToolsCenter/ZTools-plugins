@@ -1,0 +1,42 @@
+{
+  "artifacts": [
+    {
+      "path": "selection-style-schemes.html",
+      "role": "portable-html",
+      "sha256": "33abaea15a98f02a469571de9510782c65e0a3ee72105f5ac51aae49a92749ae"
+    }
+  ],
+  "compiler": {
+    "name": "make-report-pages",
+    "version": "2.0.0-alpha.1"
+  },
+  "schemaVersion": 2,
+  "selection": {
+    "delivery": "portable",
+    "profile": "frontend",
+    "runtime": "native"
+  },
+  "source": {
+    "canonicalSha256": "cb832c9c41d786e5a2e09a711fd4e7b36ead2b72babbd813b27885c9d7e0de3e",
+    "sha256": "957b7b36c9f9515851bc46e684e21e1b842a9784096b686f9dfe3fb542b74304"
+  },
+  "style": {
+    "asset": "report-v2-unocss-66.0.0.css",
+    "engine": "unocss-compiled",
+    "package": "@unocss/cli",
+    "sha256": "efca9119d0e174b1a1a2b64b6234691e0cb86fcfef845f3a5efb21995e74ea62",
+    "version": "66.0.0"
+  },
+  "validation": {
+    "checks": [
+      "schema-v2",
+      "no-user-html-style",
+      "references",
+      "block-contracts",
+      "portable-no-network-runtime",
+      "unocss-asset"
+    ],
+    "status": "passed",
+    "strict": true
+  }
+}

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { TriangleAlert, X } from 'lucide-vue-next'
 import { useRouter } from '../stores/router'
 import { usePromptStore } from '../stores/prompt'
 import { useProjectStore } from '../stores/project'
@@ -66,7 +67,7 @@ async function saveNew() {
         <div class="preview-head"><span class="src-tag">{{ source }}</span><span>{{ detectedVars.length }} 变量 · {{ content.length }} 字符</span></div>
         <div class="preview-body">{{ content }}</div>
       </div>
-      <div v-if="dupPhase === 'exact'" class="dup-banner">⚠ 完全相同的内容已存在</div>
+      <div v-if="dupPhase === 'exact'" class="dup-banner"><TriangleAlert :size="14" />完全相同的内容已存在</div>
       <div class="qsv-form">
         <div class="ff span-2"><label>标题 *</label><input v-model="title" :disabled="dupPhase === 'exact'" /></div>
         <div class="ff"><label>归属项目</label>
@@ -75,7 +76,7 @@ async function saveNew() {
             <option v-for="p in projectStore.items.value" :key="p.id" :value="p.id">{{ p.group }} / {{ p.name }}</option>
           </select>
         </div>
-        <div class="ff"><label>标签</label><div class="tags-input"><span v-for="t in tags" :key="t" class="chip">{{ t }} <span class="x" @click="removeTag(t)">×</span></span><input v-model="tagInput" @keydown.enter.prevent="addTag" placeholder="添加…" /></div></div>
+        <div class="ff"><label>标签</label><div class="tags-input"><span v-for="t in tags" :key="t" class="chip">{{ t }} <span class="x" @click="removeTag(t)"><X :size="12" /></span></span><input v-model="tagInput" @keydown.enter.prevent="addTag" placeholder="添加…" /></div></div>
       </div>
     </div>
     <div class="qsv-footer">
@@ -93,7 +94,7 @@ async function saveNew() {
 .preview-head { padding: 8px 14px; border-bottom: 1px solid var(--pf-border); background: var(--pf-bg-elevated); display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--pf-text-muted); }
 .src-tag { background: var(--pf-success-soft); color: var(--pf-success); padding: 2px 8px; border-radius: var(--pf-radius-xs); font-size: 11px; font-weight: 600; }
 .preview-body { padding: 12px 14px; font-family: var(--pf-font-mono); font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; color: var(--pf-text-secondary); }
-.dup-banner { padding: 10px 14px; border-radius: var(--pf-radius-sm); background: var(--pf-danger-soft); color: var(--pf-danger); border: 1px solid var(--pf-danger); font-size: 12.5px; }
+.dup-banner { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: var(--pf-radius-sm); background: var(--pf-danger-soft); color: var(--pf-danger); border: 1px solid var(--pf-danger); font-size: 12.5px; }
 .qsv-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
 .ff { display: flex; flex-direction: column; gap: 4px; }
 .ff.span-2 { grid-column: 1 / -1; }

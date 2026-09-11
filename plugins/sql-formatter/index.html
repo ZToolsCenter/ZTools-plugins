@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SQL 格式化</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="toolbar">
+        <div class="brand">
+          <img src="/logo.png" alt="" width="28" height="28" />
+          <div>
+            <h1>SQL 格式化</h1>
+            <p>本地处理，不上传 SQL</p>
+          </div>
+        </div>
+        <div class="toolbar-actions">
+          <button id="pasteButton" class="button ghost" type="button" title="从剪贴板粘贴">
+            粘贴
+          </button>
+          <button id="clearButton" class="button ghost" type="button">清空</button>
+          <button id="formatButton" class="button primary" type="button" title="Ctrl + Enter">
+            格式化
+          </button>
+        </div>
+      </header>
+
+      <section class="settings" aria-label="格式化选项">
+        <label>
+          <span>SQL 方言</span>
+          <select id="languageSelect"></select>
+        </label>
+        <label>
+          <span>关键字</span>
+          <select id="keywordCaseSelect">
+            <option value="upper">大写</option>
+            <option value="lower">小写</option>
+            <option value="preserve" selected>保持原样</option>
+          </select>
+        </label>
+        <label>
+          <span>缩进</span>
+          <select id="tabWidthSelect">
+            <option value="2">2 空格</option>
+            <option value="4">4 空格</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input id="denseOperatorsInput" type="checkbox" />
+          <span>紧凑运算符</span>
+        </label>
+      </section>
+
+      <section class="workspace">
+        <article class="editor-panel">
+          <div class="panel-heading">
+            <span>原始 SQL</span>
+            <span id="inputStats" class="stats">0 字符</span>
+          </div>
+          <textarea
+            id="inputSql"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="在这里输入或粘贴 SQL，将自动格式化…"
+            aria-label="原始 SQL"
+          ></textarea>
+        </article>
+
+        <article class="editor-panel output-panel">
+          <div class="panel-heading">
+            <span>格式化结果</span>
+            <span id="outputStats" class="stats">等待格式化</span>
+          </div>
+          <textarea
+            id="outputSql"
+            spellcheck="false"
+            readonly
+            placeholder="格式化结果会显示在这里"
+            aria-label="格式化结果"
+          ></textarea>
+          <button id="copyButton" class="copy-button" type="button" disabled>复制结果</button>
+        </article>
+      </section>
+
+      <footer class="statusbar">
+        <span id="statusText" role="status" aria-live="polite">输入后自动格式化 · Ctrl + Shift + C 复制</span>
+        <span>sql-formatter 15.8.2</span>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

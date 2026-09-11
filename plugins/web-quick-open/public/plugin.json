@@ -4,7 +4,7 @@
   "title": "网页快开",
   "description": "管理网页快开和搜索引擎快捷入口",
   "author": "Zing",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.png",
@@ -17,6 +17,20 @@
       "explain": "管理网页快开",
       "icon": "logo.png",
       "cmds": ["网页快开", "Web Quick Open"]
+    },
+    {
+      "code": "main-push",
+      "explain": "添加网址",
+      "icon": "logo.png",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "over",
+          "label": "添加网址",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      ]
     }
   ]
 }

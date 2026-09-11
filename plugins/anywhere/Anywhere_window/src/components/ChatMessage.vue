@@ -1,13 +1,23 @@
 <script setup>
-import { computed, ref, nextTick } from 'vue';
+import { computed, ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue';
 import { Bubble, Thinking, XMarkdown } from 'vue-element-plus-x';
 import { ElTooltip, ElButton, ElInput, ElCollapse, ElCollapseItem, ElIcon, ElCheckbox, ElTag, ElMessage } from 'element-plus';
 import { DocumentCopy, Refresh, Delete, Document, CaretTop, CaretBottom, Edit, Check, Close, CloseBold, Picture } from '@element-plus/icons-vue';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
-import html2canvas from 'html2canvas';
 
 import { formatTimestamp, formatMessageText, sanitizeToolArgs, formatToolResult } from '../utils/formatters.js';
+import ChoiceCard from './ChoiceCard.vue';
+
+let html2canvasPromise = null;
+const loadHtml2Canvas = () => {
+  if (!html2canvasPromise) {
+    html2canvasPromise = import('html2canvas').then(mod => mod.default || mod);
+  }
+  return html2canvasPromise;
+};
+
+const CODE_BLOCK_COPY_SVG = `<svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>`;
 
 const props = defineProps({
   message: Object,
@@ -21,13 +31,62 @@ const props = defineProps({
   isAutoApprove: Boolean,
 });
 
-const emit = defineEmits(['copy-text', 're-ask', 'delete-message', 'toggle-collapse', 'avatar-click', 'edit-message', 'edit-message-requested', 'edit-finished', 'cancel-tool-call', 'confirm-tool', 'reject-tool', 'update-auto-approve']);
+const emit = defineEmits(['copy-text', 're-ask', 'delete-message', 'toggle-collapse', 'avatar-click', 'edit-message', 'edit-message-requested', 'edit-finished', 'cancel-tool-call', 'confirm-tool', 'reject-tool', 'update-auto-approve', 'submit-choice', 'restore-compact']);
 const editInputRef = ref(null);
 const isEditing = ref(false);
+
+// 压缩摘要默认折叠，避免长 handoff 占满视野
+const isCompactionExpanded = ref(false);
+
+watch(() => props.message?.expanded, (expanded) => {
+  if (props.message?.role === 'compaction') {
+    isCompactionExpanded.value = expanded === true;
+  }
+}, { immediate: true });
+
+const toggleCompactionExpanded = () => {
+  isCompactionExpanded.value = !isCompactionExpanded.value;
+  if (props.message && typeof props.message === 'object') {
+    props.message.expanded = isCompactionExpanded.value;
+  }
+};
+
+
 const editedContent = ref('');
 const messageWrapperRef = ref(null);
+const markdownRootRef = ref(null);
+let copyButtonRafId = 0;
+let copyButtonTimerId = 0;
+
+const isStreamingThisMessage = computed(() => Boolean(props.isLoading && props.isLastMessage));
 
 // 计算耗时或显示开始时间
+const formatTokenCount = (value) => {
+  const count = Number(value);
+  if (!Number.isFinite(count) || count < 0) return '0';
+  if (count >= 1000000) return `${(count / 1000000).toFixed(count >= 10000000 ? 1 : 2)}M`;
+  if (count >= 10000) return `${(count / 1000).toFixed(count >= 100000 ? 0 : 1)}K`;
+  return String(Math.round(count));
+};
+
+const tokenUsageDisplay = computed(() => {
+  if (props.message?.role !== 'assistant') return '';
+  const usage = props.message?.tokenUsage;
+  if (!usage || typeof usage !== 'object') return '';
+
+  const promptTokens = Number(usage.prompt_tokens ?? usage.input_tokens);
+  const completionTokens = Number(usage.completion_tokens ?? usage.output_tokens);
+  const reasoningTokens = Number(usage.reasoning_tokens);
+  if (!Number.isFinite(promptTokens) && !Number.isFinite(completionTokens)) return '';
+
+  if (Number.isFinite(reasoningTokens) && reasoningTokens > 0) {
+    return `总输入 ${formatTokenCount(promptTokens)} · 思考 ${formatTokenCount(reasoningTokens)} · 输出 ${formatTokenCount(completionTokens)}`;
+  }
+
+  return `总输入 ${formatTokenCount(promptTokens)} · 输出 ${formatTokenCount(completionTokens)}`;
+});
+
+
 const timeDisplay = computed(() => {
   const msg = props.message;
   // 获取开始时间：优先取 startTime (AI)，其次取 timestamp (User/AI旧数据)
@@ -41,9 +100,9 @@ const timeDisplay = computed(() => {
     const duration = (msg.endTime - msg.startTime) / 1000;
     let durationStr = '';
     if (duration < 60) {
-        durationStr = `${duration.toFixed(1)} s`;
+      durationStr = `${duration.toFixed(1)} s`;
     } else {
-        durationStr = `${(duration / 60).toFixed(1)} min`;
+      durationStr = `${(duration / 60).toFixed(1)} min`;
     }
     // 格式：2023-01-01 12:00 (3.5 s)
     return `${formattedStart} (${durationStr})`;
@@ -55,9 +114,9 @@ const timeDisplay = computed(() => {
 
 const onCopyImage = async () => {
   if (!messageWrapperRef.value) return;
-  
+
   const loadingMsg = ElMessage.info({ message: '正在生成图片...', duration: 0 });
-  
+
   // 延时让 UI 有机会渲染 Loading
   setTimeout(async () => {
     let wrapper = null;
@@ -65,18 +124,18 @@ const onCopyImage = async () => {
       // 1. 获取 App 全局背景节点
       const originalBgBase = document.querySelector('.window-bg-base');
       const originalBgLayer = document.querySelector('.window-bg-layer');
-      
+
       // 2. 获取兜底主题色
       const rootStyle = getComputedStyle(document.documentElement);
       let themeBgColor = rootStyle.getPropertyValue('--el-bg-color').trim();
       const isDark = document.documentElement.classList.contains('dark');
       if (!themeBgColor || themeBgColor === 'transparent' || themeBgColor === 'rgba(0, 0, 0, 0)') {
-          themeBgColor = isDark ? '#212121' : '#FFFFFD'; 
+        themeBgColor = isDark ? '#212121' : '#FFFFFD';
       }
 
       // 3. 构建截图容器 (Wrapper)
       // 设置最小宽度
-      const MIN_IMAGE_WIDTH = 800; 
+      const MIN_IMAGE_WIDTH = 800;
       const targetWidth = Math.max(messageWrapperRef.value.clientWidth, MIN_IMAGE_WIDTH);
 
       wrapper = document.createElement('div');
@@ -92,18 +151,18 @@ const onCopyImage = async () => {
       const bgBaseClone = document.createElement('div');
       bgBaseClone.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; z-index: 0;';
       if (originalBgBase) {
-          bgBaseClone.style.backgroundColor = getComputedStyle(originalBgBase).backgroundColor;
+        bgBaseClone.style.backgroundColor = getComputedStyle(originalBgBase).backgroundColor;
       } else {
-          bgBaseClone.style.backgroundColor = themeBgColor;
+        bgBaseClone.style.backgroundColor = themeBgColor;
       }
       wrapper.appendChild(bgBaseClone);
 
       // 3.2 重建背景层 (Layer)
       if (originalBgLayer) {
-          const layerComputed = getComputedStyle(originalBgLayer);
-          if (layerComputed.backgroundImage !== 'none' && layerComputed.opacity !== '0') {
-              const bgLayerClone = document.createElement('div');
-              bgLayerClone.style.cssText = `
+        const layerComputed = getComputedStyle(originalBgLayer);
+        if (layerComputed.backgroundImage !== 'none' && layerComputed.opacity !== '0') {
+          const bgLayerClone = document.createElement('div');
+          bgLayerClone.style.cssText = `
                   position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
                   background-image: ${layerComputed.backgroundImage};
                   background-size: ${layerComputed.backgroundSize};
@@ -112,93 +171,93 @@ const onCopyImage = async () => {
                   opacity: ${layerComputed.opacity};
                   filter: ${layerComputed.filter};
               `;
-              wrapper.appendChild(bgLayerClone);
-          }
+          wrapper.appendChild(bgLayerClone);
+        }
       }
 
       // 4. 克隆消息内容
       const clone = messageWrapperRef.value.cloneNode(true);
       clone.style.position = 'relative';
-      clone.style.zIndex = '2'; 
+      clone.style.zIndex = '2';
       clone.style.margin = '0';
       clone.style.maxWidth = '100%';
-      
+
       const footer = clone.querySelector('.message-footer');
       if (footer) footer.remove();
 
       if (props.message.role === 'user') {
-          clone.style.alignSelf = 'flex-end';
+        clone.style.alignSelf = 'flex-end';
       } else {
-          clone.style.alignSelf = 'flex-start';
+        clone.style.alignSelf = 'flex-start';
       }
 
       // A. 气泡本体
       const originalBubble = messageWrapperRef.value.querySelector('.el-bubble-content');
       const clonedBubble = clone.querySelector('.el-bubble-content');
-      
+
       if (originalBubble && clonedBubble) {
-          const comp = getComputedStyle(originalBubble);
-          clonedBubble.style.backgroundColor = comp.backgroundColor;
-          clonedBubble.style.color = comp.color;
-          clonedBubble.style.border = comp.border;
-          clonedBubble.style.borderRadius = comp.borderRadius;
-          clonedBubble.style.boxShadow = comp.boxShadow;
-          clonedBubble.style.backdropFilter = 'none';
-          clonedBubble.style.overflow = 'hidden'; 
+        const comp = getComputedStyle(originalBubble);
+        clonedBubble.style.backgroundColor = comp.backgroundColor;
+        clonedBubble.style.color = comp.color;
+        clonedBubble.style.border = comp.border;
+        clonedBubble.style.borderRadius = comp.borderRadius;
+        clonedBubble.style.boxShadow = comp.boxShadow;
+        clonedBubble.style.backdropFilter = 'none';
+        clonedBubble.style.overflow = 'hidden';
       }
 
       // B. 思考按钮
       const originalThinkingTriggers = messageWrapperRef.value.querySelectorAll('.el-thinking .trigger');
       const clonedThinkingTriggers = clone.querySelectorAll('.el-thinking .trigger');
       originalThinkingTriggers.forEach((orig, i) => {
-          if (clonedThinkingTriggers[i]) {
-              const comp = getComputedStyle(orig);
-              clonedThinkingTriggers[i].style.backgroundColor = comp.backgroundColor;
-              clonedThinkingTriggers[i].style.border = comp.border;
-              clonedThinkingTriggers[i].style.borderRadius = comp.borderRadius;
-              clonedThinkingTriggers[i].style.color = comp.color;
-          }
+        if (clonedThinkingTriggers[i]) {
+          const comp = getComputedStyle(orig);
+          clonedThinkingTriggers[i].style.backgroundColor = comp.backgroundColor;
+          clonedThinkingTriggers[i].style.border = comp.border;
+          clonedThinkingTriggers[i].style.borderRadius = comp.borderRadius;
+          clonedThinkingTriggers[i].style.color = comp.color;
+        }
       });
 
       // E. 思考内容块
       const originalThinkingContent = messageWrapperRef.value.querySelectorAll('.el-thinking .content pre');
       const clonedThinkingContent = clone.querySelectorAll('.el-thinking .content pre');
       originalThinkingContent.forEach((orig, i) => {
-          if (clonedThinkingContent[i]) {
-              const comp = getComputedStyle(orig);
-              clonedThinkingContent[i].style.borderRadius = comp.borderRadius;
-              clonedThinkingContent[i].style.backgroundColor = comp.backgroundColor;
-              clonedThinkingContent[i].style.border = comp.border;
-              clonedThinkingContent[i].style.color = comp.color;
-              clonedThinkingContent[i].style.whiteSpace = 'pre-wrap';
-              clonedThinkingContent[i].style.overflow = 'visible';
-              clonedThinkingContent[i].style.height = 'auto';
-              clonedThinkingContent[i].style.maxHeight = 'none';
-          }
+        if (clonedThinkingContent[i]) {
+          const comp = getComputedStyle(orig);
+          clonedThinkingContent[i].style.borderRadius = comp.borderRadius;
+          clonedThinkingContent[i].style.backgroundColor = comp.backgroundColor;
+          clonedThinkingContent[i].style.border = comp.border;
+          clonedThinkingContent[i].style.color = comp.color;
+          clonedThinkingContent[i].style.whiteSpace = 'pre-wrap';
+          clonedThinkingContent[i].style.overflow = 'visible';
+          clonedThinkingContent[i].style.height = 'auto';
+          clonedThinkingContent[i].style.maxHeight = 'none';
+        }
       });
 
       // C. 普通代码块
       const originalPres = messageWrapperRef.value.querySelectorAll('pre:not(.el-thinking *)');
       const clonedPres = clone.querySelectorAll('pre:not(.el-thinking *)');
       originalPres.forEach((orig, i) => {
-          if (clonedPres[i]) {
-              const comp = getComputedStyle(orig);
-              clonedPres[i].style.backgroundColor = comp.backgroundColor;
-              clonedPres[i].style.color = comp.color;
-              clonedPres[i].style.border = comp.border;
-              clonedPres[i].style.borderRadius = comp.borderRadius;
-              clonedPres[i].style.whiteSpace = 'pre-wrap';
-              clonedPres[i].style.overflow = 'visible';
-              clonedPres[i].style.height = 'auto';
-              clonedPres[i].style.maxHeight = 'none';
-          }
+        if (clonedPres[i]) {
+          const comp = getComputedStyle(orig);
+          clonedPres[i].style.backgroundColor = comp.backgroundColor;
+          clonedPres[i].style.color = comp.color;
+          clonedPres[i].style.border = comp.border;
+          clonedPres[i].style.borderRadius = comp.borderRadius;
+          clonedPres[i].style.whiteSpace = 'pre-wrap';
+          clonedPres[i].style.overflow = 'visible';
+          clonedPres[i].style.height = 'auto';
+          clonedPres[i].style.maxHeight = 'none';
+        }
       });
 
       // D. Markdown 容器
       clone.querySelectorAll('.markdown-wrapper').forEach(md => {
-          md.style.height = 'auto';
-          md.style.overflow = 'visible';
-          md.classList.remove('collapsed');
+        md.style.height = 'auto';
+        md.style.overflow = 'visible';
+        md.classList.remove('collapsed');
       });
 
       wrapper.appendChild(clone);
@@ -207,11 +266,12 @@ const onCopyImage = async () => {
       await new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)));
 
       // 5. 截图
+      const html2canvas = await loadHtml2Canvas();
       const canvas = await html2canvas(wrapper, {
-        useCORS: true, 
+        useCORS: true,
         allowTaint: true,
         backgroundColor: null,
-        scale: 2, 
+        scale: 2,
         logging: false,
         ignoreElements: (el) => false
       });
@@ -222,17 +282,17 @@ const onCopyImage = async () => {
 
       // 7. 导出
       const dataUrl = canvas.toDataURL('image/png');
-      
+
       requestAnimationFrame(async () => {
-          try {
-              await window.api.copyImage(dataUrl);
-              loadingMsg.close();
-              ElMessage.success('消息图片已复制');
-          } catch (clipErr) {
-              console.error(clipErr);
-              loadingMsg.close();
-              ElMessage.error('写入剪贴板失败');
-          }
+        try {
+          await window.api.copyImage(dataUrl);
+          loadingMsg.close();
+          ElMessage.success('消息图片已复制');
+        } catch (clipErr) {
+          console.error(clipErr);
+          loadingMsg.close();
+          ElMessage.error('写入剪贴板失败');
+        }
       });
 
     } catch (error) {
@@ -240,7 +300,7 @@ const onCopyImage = async () => {
       loadingMsg.close();
       ElMessage.error('生成图片失败');
       if (wrapper && wrapper.parentNode) {
-          wrapper.parentNode.removeChild(wrapper);
+        wrapper.parentNode.removeChild(wrapper);
       }
       const orphans = document.querySelectorAll('[style*="-10000px"]');
       orphans.forEach(el => el.remove());
@@ -252,12 +312,12 @@ const onCopyImage = async () => {
 // 如果是最后一条消息 && 正在加载 && 没有正在进行的思考内容
 const showBubbleLoading = computed(() => {
   if (!props.isLastMessage || !props.isLoading) return false;
-  
+
   // 如果有 reasoning_content 且状态是 thinking，说明正在思考，不显示正文 loading
   if (props.message.reasoning_content && props.message.status === 'thinking') {
     return false;
   }
-  
+
   // 正文为空时才显示 loading
   const contentEmpty = !props.message.content || (Array.isArray(props.message.content) && props.message.content.length === 0);
   return contentEmpty && (!props.message.tool_calls || props.message.tool_calls.length === 0);
@@ -275,8 +335,7 @@ const formatToolArgs = (argsString) => {
   }
 };
 
-const preprocessKatex = (text) => {
-  if (!text) return '';
+const preprocessKatexPlainText = (text) => {
   let processedText = text;
 
   // 1. 替换非标准连字符
@@ -301,11 +360,33 @@ const preprocessKatex = (text) => {
   // 将其替换为右侧间距 + 文本的形式： \qquad \text{(...)}
   processedText = processedText.replace(/(?<!\\)\\tag\s*\{([^{}]+)\}/g, '\\qquad \\text{($1)}');
 
-  processedText = processedText.replace(/(?<!\\)(\$)([^$]+?)(?<!\\)(\$)/g, (match, p1, p2, p3) => {
-    if (/[，。、！？：“”【】（）\u4e00-\u9fa5]/.test(p2) || p2.includes('\n\n') || p2.length > 200) {
-      return `$${p2}$`;
-    }
-    return match;
+  return processedText;
+};
+
+const preprocessKatex = (text) => {
+  if (!text) return '';
+
+  const protectedMap = new Map();
+  let placeholderIndex = 0;
+  const addPlaceholder = (segment) => {
+    const placeholder = `\uE000KATEX_PROTECTED_${placeholderIndex++}\uE001`;
+    protectedMap.set(placeholder, segment);
+    return placeholder;
+  };
+
+  // KaTeX 兼容预处理只能作用于普通 Markdown 文本。
+  // 代码围栏与行内代码中的反斜杠/方括号是代码语义，例如 Bash 正则 ^\[bot\]，不能被转换成 $$bot$$。
+  let protectedText = text.replace(/(^|\n)([ \t]*)(`{3,}|~{3,})([^\n]*)\n[\s\S]*?(?:\n[ \t]*\3[ \t]*(?=\n|$)|$)/g, (match) => {
+    return addPlaceholder(match);
+  });
+
+  protectedText = protectedText.replace(/(`+)([^`\n]*?)\1/g, (match) => {
+    return addPlaceholder(match);
+  });
+
+  let processedText = preprocessKatexPlainText(protectedText);
+  protectedMap.forEach((segment, placeholder) => {
+    processedText = processedText.replaceAll(placeholder, segment);
   });
 
   return processedText;
@@ -314,6 +395,31 @@ const preprocessKatex = (text) => {
 const mermaidConfig = computed(() => ({
   theme: props.isDarkMode ? 'dark' : 'neutral',
 }));
+
+const normalizeWindowsLocalMarkdownImagePaths = (markdown) => {
+  const protectedMap = new Map();
+  let placeholderIndex = 0;
+  const addPlaceholder = (segment) => {
+    const placeholder = `\uE000LOCAL_IMAGE_PROTECTED_${placeholderIndex++}\uE001`;
+    protectedMap.set(placeholder, segment);
+    return placeholder;
+  };
+
+  // 仅处理普通 Markdown 图片路径，避免改写代码围栏和行内代码中的示例文本。
+  let protectedText = String(markdown || '')
+    .replace(/(^|\n)([ \t]*)(`{3,}|~{3,})([^\n]*)\n[\s\S]*?(?:\n[ \t]*\3[ \t]*(?=\n|$)|$)/g, (match) => addPlaceholder(match));
+  protectedText = protectedText.replace(/(`+)([^`\n]*?)\1/g, (match) => addPlaceholder(match));
+
+  protectedText = protectedText.replace(/(!\[[^\]\r\n]*\]\()([A-Za-z]:[\\/][^)\r\n]*)(\))/g, (match, prefix, rawPath, suffix) => {
+    return `${prefix}${String(rawPath || '').replace(/\\/g, '/')}${suffix}`;
+  });
+
+  protectedMap.forEach((segment, placeholder) => {
+    protectedText = protectedText.replaceAll(placeholder, segment);
+  });
+  return protectedText;
+};
+
 
 const formatMessageContent = (content, role) => {
   if (!content) return "";
@@ -419,15 +525,29 @@ const handleEditKeyDown = (event) => {
 const renderedMarkdownContent = computed(() => {
   const content = props.message.role ? props.message.content : props.message;
   const role = props.message.role ? props.message.role : 'user';
-  let formattedContent = formatMessageContent(content, role);
+  let formattedContent = normalizeWindowsLocalMarkdownImagePaths(formatMessageContent(content, role));
   formattedContent = preprocessKatex(formattedContent);
 
   const protectedMap = new Map();
   let placeholderIndex = 0;
+  const protectedContentPattern = /__PROTECTED_CONTENT_\d+__/g;
   const addPlaceholder = (text) => {
     const placeholder = `__PROTECTED_CONTENT_${placeholderIndex++}__`;
     protectedMap.set(placeholder, text);
     return placeholder;
+  };
+  const restoreProtectedContent = (text) => {
+    let restoredText = text;
+    // 内联代码可能先被 `...` 保护，再被 $...$ 误判包裹成更大的数学公式保护块。
+    // 因此必须递归恢复，避免内层 __PROTECTED_CONTENT_X__ 泄漏并被 Markdown 渲染为 PROTECTED_CONTENT_X。
+    for (let i = 0; i < placeholderIndex; i++) {
+      const nextText = restoredText.replace(protectedContentPattern, (placeholder) => {
+        return protectedMap.get(placeholder) || placeholder;
+      });
+      if (nextText === restoredText) break;
+      restoredText = nextText;
+    }
+    return restoredText;
   };
 
   // 1. 保护代码块和数学公式不被 DOMPurify 处理
@@ -449,14 +569,104 @@ const renderedMarkdownContent = computed(() => {
   sanitizedPart = sanitizedPart.replace(/&gt;/g, '>');
 
   // 3. 恢复受保护的内容（代码块等）
-  let finalContent = sanitizedPart.replace(/__PROTECTED_CONTENT_\d+__/g, (placeholder) => {
-    return protectedMap.get(placeholder) || placeholder;
-  });
+  let finalContent = restoreProtectedContent(sanitizedPart);
 
   // 匹配 <table...> 标签并包裹 div，利用正则确保只匹配实际的标签
   finalContent = finalContent.replace(/<table/g, '<div class="table-scroll-wrapper"><table').replace(/<\/table>/g, '</table></div>');
 
   return finalContent || '';
+});
+
+const injectCopyButtonsForRoot = (root) => {
+  if (!root) return;
+  const codeBlocks = root.querySelectorAll('pre.hljs, pre.shiki');
+  codeBlocks.forEach((pre) => {
+    if (pre.closest('.code-block-wrapper')) return;
+    if (pre.querySelector('.code-block-copy-button')) return;
+    const codeElement = pre.querySelector('code');
+    if (!codeElement) return;
+
+    const parent = pre.parentNode;
+    if (!parent) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'code-block-wrapper';
+    parent.insertBefore(wrapper, pre);
+    wrapper.appendChild(pre);
+
+    const codeText = codeElement.textContent || '';
+    const lineCount = codeText.trimEnd().split('\n').length;
+    const createButton = (positionClass) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `code-block-copy-button ${positionClass}`;
+      button.innerHTML = CODE_BLOCK_COPY_SVG;
+      button.title = 'Copy code';
+      button.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(codeText.trimEnd());
+          ElMessage.success('Code copied to clipboard!');
+        } catch (err) {
+          console.error('Failed to copy code:', err);
+          ElMessage.error('Failed to copy code.');
+        }
+      });
+      wrapper.appendChild(button);
+    };
+    createButton('code-block-copy-button-bottom');
+    if (lineCount > 3) createButton('code-block-copy-button-top');
+  });
+};
+
+const scheduleInjectCopyButtons = (immediate = false) => {
+  // 流式过程中不注入复制按钮，避免频繁 DOM wrap 造成 reflow
+  if (isStreamingThisMessage.value && !immediate) return;
+
+  if (copyButtonTimerId) {
+    clearTimeout(copyButtonTimerId);
+    copyButtonTimerId = 0;
+  }
+  if (copyButtonRafId) {
+    cancelAnimationFrame(copyButtonRafId);
+    copyButtonRafId = 0;
+  }
+
+  const run = async () => {
+    await nextTick();
+    copyButtonRafId = requestAnimationFrame(() => {
+      copyButtonRafId = 0;
+      injectCopyButtonsForRoot(markdownRootRef.value);
+    });
+  };
+
+  if (immediate) {
+    run();
+    return;
+  }
+
+  copyButtonTimerId = setTimeout(() => {
+    copyButtonTimerId = 0;
+    run();
+  }, 120);
+};
+
+watch(
+  () => [renderedMarkdownContent.value, props.isLoading, props.isLastMessage, props.isCollapsed, isEditing.value],
+  ([, loading, isLast]) => {
+    const finishedStreaming = isLast && !loading;
+    scheduleInjectCopyButtons(finishedStreaming);
+  },
+  { flush: 'post' }
+);
+
+onMounted(() => {
+  scheduleInjectCopyButtons(true);
+});
+
+onBeforeUnmount(() => {
+  if (copyButtonTimerId) clearTimeout(copyButtonTimerId);
+  if (copyButtonRafId) cancelAnimationFrame(copyButtonRafId);
 });
 
 const hasContentToShow = computed(() => {
@@ -495,6 +705,62 @@ const truncateFilename = (filename, maxLength = 30) => {
 <template>
   <div class="chat-message" v-if="message.role !== 'system'">
 
+    <!-- 压缩消息：样式对齐普通 AI 消息，默认折叠摘要，可展开；不可编辑 -->
+    <div v-if="message.role === 'compaction'" class="message-wrapper ai-wrapper" ref="messageWrapperRef">
+      <div class="message-meta-header ai-meta-header">
+        <img
+          :src="aiAvatar"
+          alt="AI Avatar"
+          class="chat-avatar-top ai-avatar"
+          title="点击折叠/展开摘要"
+          @click="toggleCompactionExpanded"
+        >
+        <div class="meta-info-column">
+          <div class="meta-name-row">
+            <span class="ai-name">上下文压缩</span>
+          </div>
+          <span class="timestamp-row" v-if="message.timestamp">{{ formatTimestamp(message.timestamp) }}</span>
+        </div>
+      </div>
+
+      <Bubble class="ai-bubble" placement="start" shape="corner" maxWidth="100%">
+        <template #content>
+          <div ref="markdownRootRef" class="markdown-wrapper" :class="{ 'collapsed': !isCompactionExpanded }" @click.capture="handleMarkdownLinkClick">
+            <div class="compaction-inline-badge" @click.stop="toggleCompactionExpanded">上下文已压缩</div>
+            <XMarkdown
+              :markdown="message.summary || (typeof message.content === 'string' ? message.content : '会话上下文已压缩为摘要。')"
+              :is-dark="isDarkMode"
+              :enable-latex="true"
+              :mermaid-config="mermaidConfig"
+              :default-theme-mode="isDarkMode ? 'dark' : 'light'"
+              :themes="{ light: 'one-light', dark: 'vesper' }"
+              :allow-html="true"
+            />
+          </div>
+        </template>
+        <template #footer>
+          <div class="message-footer compaction-footer">
+            <div class="compaction-footer-row">
+              <el-button size="small" circle @click="toggleCompactionExpanded">
+                <el-icon>
+                  <component :is="isCompactionExpanded ? CaretTop : CaretBottom" />
+                </el-icon>
+              </el-button>
+              <button
+                v-if="message.canRestore !== false"
+                type="button"
+                class="compaction-restore-btn"
+                @click="emit('restore-compact', message)"
+              >
+                <span class="compaction-restore-icon">↺</span>
+                <span>恢复压缩前</span>
+              </button>
+            </div>
+          </div>
+        </template>
+      </Bubble>
+    </div>
+
     <!-- 用户消息 -->
     <div v-if="message.role === 'user'" class="message-wrapper user-wrapper" ref="messageWrapperRef">
       <div class="message-meta-header user-meta-header">
@@ -505,7 +771,7 @@ const truncateFilename = (filename, maxLength = 30) => {
 
       <Bubble class="user-bubble" placement="end" shape="corner" maxWidth="100%">
         <template #content>
-          <div v-if="!isEditing" class="markdown-wrapper" :class="{ 'collapsed': isCollapsed }">
+          <div v-if="!isEditing" ref="markdownRootRef" class="markdown-wrapper" :class="{ 'collapsed': isCollapsed }">
             <XMarkdown :markdown="renderedMarkdownContent" :is-dark="isDarkMode" :enable-latex="true"
               :mermaid-config="mermaidConfig" :default-theme-mode="isDarkMode ? 'dark' : 'light'"
               :themes="{ light: 'github-light', dark: 'github-dark-default' }" :allow-html="true" />
@@ -564,15 +830,14 @@ const truncateFilename = (filename, maxLength = 30) => {
       </div>
 
       <Bubble class="ai-bubble" placement="start" shape="corner" maxWidth="100%"
-        :class="{ 'no-content': !hasContentToShow }"
-        :loading="showBubbleLoading">
+        :class="{ 'no-content': !hasContentToShow }" :loading="showBubbleLoading">
         <template #header>
           <Thinking v-if="message.reasoning_content && message.reasoning_content.trim().length > 0" maxWidth="90%"
             :content="(message.reasoning_content || '').trim()" :modelValue="false" :status="message.status">
           </Thinking>
         </template>
         <template #content v-if="hasContentToShow">
-          <div v-if="!isEditing" class="markdown-wrapper" :class="{ 'collapsed': isCollapsed }">
+          <div v-if="!isEditing" ref="markdownRootRef" class="markdown-wrapper" :class="{ 'collapsed': isCollapsed }">
             <XMarkdown :markdown="renderedMarkdownContent" :is-dark="isDarkMode" :enable-latex="true"
               :mermaid-config="mermaidConfig" :default-theme-mode="isDarkMode ? 'dark' : 'light'"
               :themes="{ light: 'one-light', dark: 'vesper' }" :allow-html="true" />
@@ -589,7 +854,7 @@ const truncateFilename = (filename, maxLength = 30) => {
           <div v-if="message.tool_calls && message.tool_calls.length > 0" class="tool-calls-container">
             <div v-for="toolCall in message.tool_calls" :key="toolCall.id" class="single-tool-wrapper">
               <el-collapse class="tool-collapse"
-                :model-value="(!isAutoApprove && (toolCall.approvalStatus === 'waiting' || toolCall.approvalStatus === 'executing')) ? [toolCall.id] : []">
+                :model-value="((!isAutoApprove && (toolCall.approvalStatus === 'waiting' || toolCall.approvalStatus === 'executing')) || toolCall.approvalStatus === 'choosing') ? [toolCall.id] : []">
                 <el-collapse-item :name="toolCall.id">
                   <template #title>
                     <div class="tool-call-title">
@@ -603,12 +868,18 @@ const truncateFilename = (filename, maxLength = 30) => {
                           </path>
                         </svg>
                       </el-icon>
-                      <span class="tool-name">{{ toolCall.name }}</span>
+                      <div class="tool-name-wrapper">
+                        <el-tooltip :content="toolCall.name" placement="top" :show-after="500">
+                          <span class="tool-name">{{ toolCall.name }}</span>
+                        </el-tooltip>
+                      </div>
                       <div class="tool-header-right">
                         <el-tag v-if="toolCall.approvalStatus === 'waiting'" type="warning" size="small" effect="light"
                           round>等待批准</el-tag>
                         <el-tag v-else-if="toolCall.approvalStatus === 'executing'" type="primary" size="small"
                           effect="light" round>执行中</el-tag>
+                        <el-tag v-else-if="toolCall.approvalStatus === 'choosing'" type="warning" size="small"
+                          effect="light" round>待选择</el-tag>
                         <el-tag v-else-if="toolCall.approvalStatus === 'rejected'" type="danger" size="small"
                           effect="plain" round>已拒绝</el-tag>
                         <el-tag v-else-if="toolCall.approvalStatus === 'finished'" type="success" size="small"
@@ -628,8 +899,12 @@ const truncateFilename = (filename, maxLength = 30) => {
                       <strong>参数:</strong>
                       <pre><code>{{ formatToolArgs(toolCall.args) }}</code></pre>
                     </div>
+                    <div v-if="toolCall.approvalStatus === 'choosing' && toolCall.choiceData" class="tool-choice-wrapper">
+                      <ChoiceCard :questions="toolCall.choiceData.questions || []"
+                        @submit="(payload) => $emit('submit-choice', toolCall.id, payload)" />
+                    </div>
                     <div class="tool-detail-section"
-                      v-if="toolCall.result && toolCall.result !== '等待批准...' && toolCall.result !== '执行中...'">
+                      v-if="toolCall.result && toolCall.result !== '等待批准...' && toolCall.result !== '执行中...' && toolCall.result !== '等待用户选择...'">
                       <strong>结果:</strong>
                       <div class="tool-result-wrapper">
                         <pre><code>{{ formatToolResult(toolCall.result) }}</code></pre>
@@ -657,8 +932,8 @@ const truncateFilename = (filename, maxLength = 30) => {
             <div class="footer-actions">
               <el-button :icon="DocumentCopy" @click="onCopy" size="small" circle />
               <el-tooltip content="复制为图片" placement="top" :show-after="500">
-                  <el-button :icon="Picture" @click="onCopyImage" size="small" circle />
-                </el-tooltip>
+                <el-button :icon="Picture" @click="onCopyImage" size="small" circle />
+              </el-tooltip>
               <el-button v-if="isEditable" :icon="Edit" @click="emit('edit-message-requested', index)" size="small"
                 circle />
               <el-button v-if="shouldShowCollapseButton" :icon="isCollapsed ? CaretBottom : CaretTop"
@@ -666,6 +941,7 @@ const truncateFilename = (filename, maxLength = 30) => {
               <el-button v-if="isLastMessage" :icon="Refresh" @click="onReAsk" size="small" circle />
               <el-button :icon="Delete" size="small" @click="onDelete" circle />
             </div>
+            <span v-if="tokenUsageDisplay" class="token-usage-row">{{ tokenUsageDisplay }}</span>
           </div>
         </template>
       </Bubble>
@@ -765,6 +1041,7 @@ const truncateFilename = (filename, maxLength = 30) => {
   border-radius: 6px;
   margin-right: 10px;
 }
+
 .ai-name {
   font-weight: 700;
   font-size: 13px;
@@ -1082,6 +1359,64 @@ html.dark .chat-message .ai-bubble {
 
   html:not(.dark) & :deep(pre.shiki) {
     background-color: #f6f8fa !important;
+  }
+
+  :deep(.code-block-wrapper) {
+    position: relative;
+    margin: 0.75em 0;
+  }
+
+  :deep(.code-block-wrapper > pre) {
+    margin: 0;
+  }
+
+  :deep(.code-block-copy-button) {
+    position: absolute;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.88);
+    color: var(--el-text-color-secondary);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  }
+
+  :deep(.code-block-wrapper:hover .code-block-copy-button),
+  :deep(.code-block-copy-button:focus-visible) {
+    opacity: 1;
+  }
+
+  :deep(.code-block-copy-button-top) {
+    top: 8px;
+    right: 8px;
+  }
+
+  :deep(.code-block-copy-button-bottom) {
+    right: 8px;
+    bottom: 8px;
+  }
+
+  :deep(.code-block-copy-button:hover) {
+    color: var(--el-color-primary);
+    background: rgba(255, 255, 255, 0.98);
+  }
+
+  html.dark & :deep(.code-block-copy-button) {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(30, 32, 36, 0.9);
+    color: var(--el-text-color-secondary);
+  }
+
+  html.dark & :deep(.code-block-copy-button:hover) {
+    background: rgba(40, 44, 52, 0.98);
+    color: var(--el-color-primary);
   }
 
   html.dark & {
@@ -1432,6 +1767,26 @@ html.dark .ai-name {
   margin-top: 8px;
 }
 
+.ai-bubble .message-footer {
+  justify-content: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.token-usage-row {
+  font-size: 11px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--el-text-color-primary) 72%, transparent);
+  white-space: nowrap;
+  user-select: none;
+  padding-top: 1px;
+}
+
+html.dark .token-usage-row {
+  color: rgba(221, 225, 235, 0.68);
+}
+
+
 .footer-actions {
   display: flex;
   align-items: center;
@@ -1553,13 +1908,27 @@ html.dark .ai-bubble :deep(.el-thinking .content pre) {
   gap: 8px;
 }
 
+.tool-name-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
 .tool-name {
   font-weight: 500;
   color: var(--el-text-color-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  width: 100%;
 }
 
 .tool-icon {
   color: var(--el-text-color-secondary);
+  flex-shrink: 0;
 }
 
 .tool-header-right {
@@ -1568,6 +1937,7 @@ html.dark .ai-bubble :deep(.el-thinking .content pre) {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .stop-btn-wrapper {
@@ -1679,7 +2049,7 @@ html.dark .stop-btn-wrapper {
 }
 
 .tool-call-details .tool-detail-section pre {
-    border-radius: var(--bubble-radius);
+  border-radius: var(--bubble-radius);
 }
 
 .tool-call-details .tool-detail-section pre::-webkit-scrollbar {
@@ -1776,5 +2146,93 @@ html.dark .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb:h
       }
     }
   }
+}
+
+
+/* conversation compaction */
+.compaction-inline-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #c2185b;
+  background: rgba(233, 30, 99, 0.12);
+  border: 1px solid rgba(233, 30, 99, 0.28);
+  cursor: pointer;
+  user-select: none;
+}
+.compaction-inline-badge {
+  color: #ff80ab;
+  background: rgba(233, 30, 99, 0.18);
+  border-color: rgba(255, 128, 171, 0.35);
+}
+.compaction-footer {
+  width: 100%;
+  margin-top: 4px;
+}
+.compaction-footer-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compaction-footer-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compaction-restore-btn {
+  flex: 1 1 auto;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid rgba(250, 173, 20, 0.45);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 236, 179, 0.55) 0%, rgba(255, 214, 102, 0.28) 100%);
+  color: #8a6400;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  box-shadow: 0 4px 14px rgba(250, 173, 20, 0.16);
+}
+.compaction-restore-btn {
+  border-color: rgba(255, 214, 102, 0.4);
+  background: linear-gradient(180deg, rgba(250, 173, 20, 0.28) 0%, rgba(250, 173, 20, 0.12) 100%);
+  color: #ffd666;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.compaction-restore-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(250, 173, 20, 0.7);
+  box-shadow: 0 8px 20px rgba(250, 173, 20, 0.24);
+  background: linear-gradient(180deg, rgba(255, 241, 194, 0.75) 0%, rgba(255, 214, 102, 0.4) 100%);
+}
+.compaction-restore-btn:hover {
+  border-color: rgba(255, 214, 102, 0.65);
+  background: linear-gradient(180deg, rgba(250, 173, 20, 0.38) 0%, rgba(250, 173, 20, 0.18) 100%);
+}
+.compaction-restore-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+html.dark .compaction-inline-badge {
+  color: #ff80ab;
+  background: rgba(233, 30, 99, 0.18);
+  border-color: rgba(255, 128, 171, 0.35);
+}
+html.dark .compaction-restore-btn {
+  border-color: rgba(255, 214, 102, 0.4);
+  background: linear-gradient(180deg, rgba(250, 173, 20, 0.28) 0%, rgba(250, 173, 20, 0.12) 100%);
+  color: #ffd666;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 </style>

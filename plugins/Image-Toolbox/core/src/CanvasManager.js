@@ -75,7 +75,7 @@ class CanvasManager {
    * @param {string|File} source - URL / DataURL / File 对象
    * @returns {Promise<fabric.Image>}
    */
-  loadImage(source) {
+    loadImage(source) {
     return new Promise((resolve, reject) => {
       if (!this.canvas) {
         reject(new Error('画布未初始化'));
@@ -84,8 +84,8 @@ class CanvasManager {
 
       // 超时保护：防止 fabric.Image.fromURL 永远不回调
       const timeout = setTimeout(() => {
-        reject(new Error('图片加载超时（30s），可能是格式不支持'));
-      }, 30000);
+        reject(new Error('图片加载超时（15s），可能是格式不支持或文件过大'));
+      }, 15000);
 
       /**
        * fabric.Image.fromURL 回调签名: function(fabricImage, isError)
@@ -251,12 +251,12 @@ class CanvasManager {
     eventBus.emit('canvas:zoomChanged', this.zoomLevel);
   }
 
-  zoomIn(step = 0.1) {
-    this.setZoom(this.zoomLevel + step);
+  zoomIn(step = 0.1, point) {
+    this.setZoom(this.zoomLevel + step, point);
   }
 
-  zoomOut(step = 0.1) {
-    this.setZoom(this.zoomLevel - step);
+  zoomOut(step = 0.1, point) {
+    this.setZoom(this.zoomLevel - step, point);
   }
 
   resetZoom() {
@@ -450,16 +450,102 @@ class CanvasManager {
     if (newWidth <= 0 || newHeight <= 0) return;
 
     if (this.canvas.width !== newWidth || this.canvas.height !== newHeight) {
-      this.canvas.setWidth(newWidth);
-      this.canvas.setHeight(newHeight);
-      this.canvas.calcOffset();
-
-      // 如果已加载图片，重新适配
+      // 调整画布尺寸时保留编辑内容的相对布局，避免覆盖层与原图错位
       if (this.originalImage) {
-        this.fitToCanvas();
+        this._resizePreservingLayout(newWidth, newHeight);
+      } else {
+        this.canvas.setWidth(newWidth);
+        this.canvas.setHeight(newHeight);
+        this.canvas.calcOffset();
       }
 
       eventBus.emit('canvas:resized', { width: newWidth, height: newHeight });
+    }
+  }
+
+  /**
+   * 调整画布尺寸时保留编辑内容的相对布局
+   * 计算原图在新画布尺寸下的 fit 变换，将变换差值同步应用到所有覆盖层和裁剪路径，
+   * 使覆盖层（文字/图形/画笔/马赛克等）与原图的相对位置保持不变
+   */
+  _resizePreservingLayout(newWidth, newHeight) {
+    const img = this.originalImage;
+    const padding = 40;
+
+    // 记录原图当前的变换（可能是 fit 状态，也可能是用户手动调整后的状态）
+    const oldLeft = img.left;
+    const oldTop = img.top;
+    const oldScaleX = img.scaleX;
+    const oldScaleY = img.scaleY;
+
+    // 计算新画布下的 fit 变换
+    const availableW = newWidth - padding * 2;
+    const availableH = newHeight - padding * 2;
+    const newScale = Math.min(availableW / img.width, availableH / img.height, 1);
+    const newLeft = (newWidth - img.width * newScale) / 2;
+    const newTop = (newHeight - img.height * newScale) / 2;
+
+    // 计算缩放比例（避免除零）
+    const ratioX = oldScaleX ? newScale / oldScaleX : 1;
+    const ratioY = oldScaleY ? newScale / oldScaleY : 1;
+
+    // 更新画布尺寸
+    this.canvas.setWidth(newWidth);
+    this.canvas.setHeight(newHeight);
+    this.canvas.calcOffset();
+
+    // 将差值应用到所有覆盖层（非原图、非临时对象）
+    const overlays = this.canvas.getObjects().filter(obj =>
+      obj !== img &&
+      !obj.excludeFromHistory &&
+      !obj.excludeFromLayer
+    );
+    overlays.forEach(obj => {
+      const relX = obj.left - oldLeft;
+      const relY = obj.top - oldTop;
+      obj.set({
+        left: newLeft + relX * ratioX,
+        top: newTop + relY * ratioY,
+        scaleX: obj.scaleX * ratioX,
+        scaleY: obj.scaleY * ratioY,
+      });
+      obj.setCoords();
+    });
+
+    // 同步调整画布级裁剪路径，保留裁剪效果与原图的相对位置
+    this._transformClipPath(this.canvas.clipPath, oldLeft, oldTop, newLeft, newTop, ratioX, ratioY);
+
+    // 应用新的 fit 变换到原图
+    img.set({
+      scaleX: newScale,
+      scaleY: newScale,
+      left: newLeft,
+      top: newTop,
+    });
+    img.setCoords();
+
+    this.canvas.renderAll();
+
+    // 刷新动态马赛克（基于新的原图位置重新计算）
+    this.refreshDynamicMosaics({ render: true });
+  }
+
+  /**
+   * 递归调整 clipPath 的位置和缩放，使其跟随原图变换
+   */
+  _transformClipPath(clipPath, oldLeft, oldTop, newLeft, newTop, ratioX, ratioY) {
+    if (!clipPath) return;
+    const relX = (clipPath.left || 0) - oldLeft;
+    const relY = (clipPath.top || 0) - oldTop;
+    clipPath.set({
+      left: newLeft + relX * ratioX,
+      top: newTop + relY * ratioY,
+      scaleX: (clipPath.scaleX == null ? 1 : clipPath.scaleX) * ratioX,
+      scaleY: (clipPath.scaleY == null ? 1 : clipPath.scaleY) * ratioY,
+    });
+    clipPath.setCoords();
+    if (clipPath.clipPath) {
+      this._transformClipPath(clipPath.clipPath, oldLeft, oldTop, newLeft, newTop, ratioX, ratioY);
     }
   }
 

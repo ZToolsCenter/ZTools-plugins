@@ -14,25 +14,29 @@ const visible = computed({
 });
 
 const nodeStore = useNodeStore();
-const versions = computed(() => nodeStore.versions.filter(v => v.source === 'nvm'));
-const selectedVersion = ref('');
+const versions = computed(() => nodeStore.versions.filter(v => v.status !== 'broken' && v.status !== 'unavailable'));
+const selectedKey = ref('');
 const loading = ref(false);
 
-function selectVersion(v: string) {
-    selectedVersion.value = v;
+function rowKey(v: { runtimeId?: string; source: string; path: string; version: string }) {
+  return v.runtimeId || `${v.source}:${v.path}:${v.version}`;
+}
+
+function selectVersion(v: { source: string; path: string; version: string }) {
+    selectedKey.value = rowKey(v);
 }
 
 async function submit() {
-  if (!selectedVersion.value) return;
+  if (!selectedKey.value) return;
   
   try {
     loading.value = true;
-    const targetNode = nodeStore.versions.find(v => v.source === 'nvm' && v.version === selectedVersion.value);
+    const targetNode = nodeStore.versions.find(v => rowKey(v) === selectedKey.value);
     if (!targetNode) {
       throw new Error(t('nodes.noNodes'));
     }
 
-    await nodeStore.setDefaultNode(targetNode);
+    await nodeStore.setAppDefaultNode(targetNode);
     ElMessage.success(t('common.success'));
     visible.value = false;
   } catch (e: any) {
@@ -46,24 +50,27 @@ async function submit() {
 <template>
   <el-dialog
     v-model="visible"
-    :title="t('nodes.setSystemPath')" 
+    :title="t('nodes.setDefaultNode')" 
     width="500px"
     destroy-on-close
     class="rounded-xl app-dialog"
     align-center
   >
     <div class="mb-4">
-        <p class="text-sm text-slate-500 mb-2">Select a version from NVM to set as system default:</p>
+        <p class="text-sm text-slate-500 mb-2">{{ t('nodes.setDefaultHint') }}</p>
         <div class="max-h-[300px] overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-md">
             <div 
                 v-for="v in versions" 
-                :key="v.version"
-                @click="selectVersion(v.version)"
+                :key="rowKey(v)"
+                @click="selectVersion(v)"
                 class="p-3 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 flex justify-between items-center transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0"
-                :class="{'bg-blue-50 dark:bg-blue-900/30': selectedVersion === v.version}"
+                :class="{'bg-blue-50 dark:bg-blue-900/30': selectedKey === rowKey(v)}"
             >
-                <span class="font-mono font-bold text-slate-700 dark:text-slate-300">{{ v.version }}</span>
-                <div v-if="selectedVersion === v.version" class="i-mdi-check text-blue-500 text-lg" />
+                <div class="min-w-0">
+                  <span class="font-mono font-bold text-slate-700 dark:text-slate-300">{{ v.version }}</span>
+                  <span class="ml-2 app-text-meta text-slate-400">{{ v.source }}</span>
+                </div>
+                <div v-if="selectedKey === rowKey(v)" class="i-mdi-check text-blue-500 text-lg" />
             </div>
             <div v-if="versions.length === 0" class="p-8 text-center text-slate-400">
                 {{ t('nodes.noNodes') }}
@@ -74,7 +81,7 @@ async function submit() {
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submit" :loading="loading" :disabled="!selectedVersion">
+        <el-button type="primary" @click="submit" :loading="loading" :disabled="!selectedKey">
           {{ t('common.confirm') }}
         </el-button>
       </div>

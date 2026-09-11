@@ -4,7 +4,7 @@
   "title": "AI助手",
   "description": "轻量级 AI 聊天助手",
   "author": "Zing",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

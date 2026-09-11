@@ -23,10 +23,10 @@ const { everything } = require("./index.node");
 
 - `inspectTextFile(file, maxBytes?)`
 - `readTextPreview(file, maxBytes?, direction?)`
-- `printDirectoryTree(directory, options?)`
+- `printDirectoryTree(directory, options?)`（异步，返回 `Promise<FileTreeResult>`）
 - `printArchiveTree(file, options?)`
 
-`printDirectoryTree()` / `printArchiveTree()` 默认打印 2 层，第一层最多 50 项，第二层最多 20 项，超出时使用 `...` 表示。压缩包树当前支持 `.zip`、`.tar`、`.tar.gz`、`.tgz`。
+`printDirectoryTree()` / `printArchiveTree()` 默认打印 2 层，第一层最多 50 项，第二层最多 20 项，超出时使用 `...` 表示。`printDirectoryTree()` 在后台线程池异步执行目录扫描，不阻塞主线程。压缩包树当前支持 `.zip`、`.tar`、`.tar.gz`、`.tgz`。
 
 `query()` 的 `matchPath` 参数未传入时默认 `false`。前端偏好设置默认开启“同时搜索路径”，开启后会传入 `true` 并使用 Everything 的 `SearchFlags::MatchPath`，让普通关键字同时匹配路径和文件名。
 

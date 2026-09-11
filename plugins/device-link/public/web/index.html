@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f3ef">
+  <link rel="icon" href="data:,">
+  <title>设备互联</title>
+  <style>
+    :root{color-scheme:light;--ink:#252422;--muted:#797671;--line:#dedbd4;--paper:#f5f3ef;--card:#fff;--accent:#7259e8;--accent-2:#4c87f5;--danger:#c44848}*{box-sizing:border-box}html,body{margin:0;min-height:100%;font:15px/1.45 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--paper)}button,input,textarea{font:inherit}button{cursor:pointer}.screen{min-height:100dvh}.pair{display:grid;place-items:center;padding:28px 20px}.pair-card{width:min(100%,420px);background:var(--card);border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 24px 64px #463f3218}.mark{display:grid;place-items:center;width:58px;height:58px;border-radius:18px;color:white;font-size:26px;background:linear-gradient(145deg,var(--accent),var(--accent-2));box-shadow:0 12px 28px #7259e83d}.pair h1{margin:22px 0 6px;font-size:28px;letter-spacing:-.04em}.pair p{margin:0 0 24px;color:var(--muted)}label{display:block;margin:16px 0 7px;font-size:13px;font-weight:650}.field{width:100%;height:48px;border:1px solid var(--line);border-radius:14px;background:#fbfaf8;padding:0 14px;color:var(--ink);outline:none}.field:focus,.composer textarea:focus{border-color:#917cef;box-shadow:0 0 0 3px #7259e815}.code{font-size:22px;letter-spacing:.28em;text-align:center;font-variant-numeric:tabular-nums}.primary{width:100%;height:50px;border:0;border-radius:15px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;font-weight:700;margin-top:20px;box-shadow:0 10px 25px #7259e82d}.primary:disabled{opacity:.55}.error{min-height:21px;margin-top:12px;color:var(--danger);font-size:13px}.hint{margin-top:18px!important;font-size:12px}.app{display:none;grid-template-rows:auto 1fr auto;height:100dvh;max-width:760px;margin:auto;background:#faf9f7;border-inline:1px solid var(--line)}.topbar{display:flex;align-items:center;gap:12px;padding:max(13px,env(safe-area-inset-top)) 16px 13px;background:#ffffffd9;backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}.avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:13px;color:white;background:linear-gradient(145deg,var(--accent),var(--accent-2));font-weight:750}.topbar strong{display:block}.status{font-size:12px;color:var(--muted)}.status.online{color:#348a56}.messages{overflow:auto;padding:24px 16px 40px}.empty{text-align:center;color:var(--muted);padding:64px 20px}.day{text-align:center;color:var(--muted);font-size:12px;margin:20px}.row{display:flex;margin:9px 0}.row.outgoing{justify-content:flex-end}.bubble{max-width:min(82%,560px);border:1px solid var(--line);border-radius:18px 18px 18px 5px;padding:11px 13px;background:white;box-shadow:0 3px 12px #332e2410}.outgoing .bubble{border:0;border-radius:18px 18px 5px 18px;background:#e9e3ff}.sender{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px}.text{white-space:pre-wrap;overflow-wrap:anywhere}.text a{color:#315fbd}.meta{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:7px;font-size:10px;color:var(--muted)}.mini{border:0;padding:2px 0;color:var(--accent);background:transparent;font-size:11px}.file{display:grid;grid-template-columns:40px 1fr auto;gap:10px;align-items:center;min-width:240px}.file-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#f0edf9;font-size:20px}.file-name{font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-size{font-size:11px;color:var(--muted)}.download{border:0;border-radius:10px;padding:7px 9px;color:var(--accent);background:#f1edff}.composer{padding:10px 12px max(10px,env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#ffffffeb;backdrop-filter:blur(18px)}.compose-box{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:end}.attach,.send{display:grid;place-items:center;width:42px;height:42px;border:0;border-radius:14px}.attach{background:#eeece7;color:#5e5a54}.send{background:var(--accent);color:white}.composer textarea{resize:none;max-height:120px;min-height:42px;border:1px solid var(--line);border-radius:15px;background:#f8f7f4;padding:10px 12px;outline:none}.progress{display:none;height:3px;margin:0 5px 7px;border-radius:4px;background:#e7e3dc;overflow:hidden}.progress i{display:block;width:0;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .15s}.toast{position:fixed;left:50%;bottom:90px;transform:translate(-50%,20px);padding:9px 13px;border-radius:12px;background:#262421;color:white;font-size:12px;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--ink:#f1eee9;--muted:#aaa59d;--line:#3a3733;--paper:#1c1a18;--card:#272421}.field,.composer textarea{background:#211f1c}.app{background:#201e1b}.topbar,.composer{background:#272421e8}.bubble{background:#2a2723}.outgoing .bubble{background:#443776}.file-icon{background:#37313f}.attach{background:#3a3631}.download{background:#3a3153}}
+  </style>
+  <style>
+    .topbar__main{min-width:0;flex:1}.conversation-switch{max-width:150px;height:36px;padding:0 30px 0 10px;border:1px solid var(--line);border-radius:11px;color:var(--ink);background:var(--card);font-size:12px;font-weight:650;outline:none}.conversation-switch:focus{border-color:#917cef}@media(max-width:420px){.conversation-switch{max-width:126px}.topbar{gap:8px}}
+  </style>
+  <style>
+    [hidden]{display:none!important}.auto-pair{margin-top:22px;padding:18px;border:1px solid #dcd5fa;border-radius:20px;background:linear-gradient(155deg,#f8f6ff,#f7faff);box-shadow:inset 0 1px #fff}.auto-pair__head{display:flex;align-items:center;gap:12px}.auto-pair__badge{display:grid;place-items:center;flex:0 0 auto;width:42px;height:42px;border-radius:14px;color:#fff;background:linear-gradient(145deg,var(--accent),var(--accent-2));box-shadow:0 8px 20px #7259e82b}.auto-pair__copy{min-width:0}.auto-pair__copy strong{display:block;font-size:15px}.auto-pair__copy span{display:block;margin-top:2px;color:var(--muted);font-size:12px}.auto-code{--code-columns:6;display:grid;grid-template-columns:repeat(var(--code-columns),minmax(0,1fr));gap:7px;margin:20px 0 18px}.auto-code__digit{display:grid;place-items:center;min-width:0;height:44px;border:1px solid var(--line);border-radius:12px;color:transparent;background:var(--card);font-size:20px;font-weight:760;font-variant-numeric:tabular-nums;box-shadow:0 4px 12px #39305f0a;transition:border-color .18s,background .18s,color .18s,transform .18s}.auto-code__digit::after{content:"";width:6px;height:6px;border-radius:50%;background:#c7c2ba}.auto-code__digit.is-filled{border-color:#aa9af2;color:var(--ink);background:#fff;transform:translateY(-2px)}.auto-code__digit.is-filled::after{display:none}.auto-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0;padding:0;list-style:none}.auto-step{position:relative;padding-top:25px;color:var(--muted);font-size:10px;text-align:center}.auto-step::before{content:"";position:absolute;top:3px;left:50%;z-index:1;width:14px;height:14px;border:3px solid #eeebf8;border-radius:50%;background:#c3becf;transform:translateX(-50%);transition:.2s}.auto-step:not(:last-child)::after{content:"";position:absolute;top:9px;left:calc(50% + 9px);width:calc(100% - 10px);height:2px;background:#e2deeb}.auto-step.is-active,.auto-step.is-complete{color:var(--ink);font-weight:650}.auto-step.is-active::before{background:var(--accent);box-shadow:0 0 0 5px #7259e818}.auto-step.is-complete::before{border-color:#d8d1fb;background:var(--accent)}.auto-step.is-complete:not(:last-child)::after{background:#b6a7f5}.auto-pair__error{min-height:18px;margin-top:13px;color:var(--danger);font-size:12px}.manual-link{display:block;width:100%;margin-top:10px;padding:8px;border:0;color:var(--accent);background:transparent;font-size:12px;font-weight:650}.manual-pair{margin-top:4px}.pair-card>.pair-intro{margin-bottom:0}.auto-pair>.auto-pair-note{margin:14px 0 0;color:var(--muted);font-size:11px}.auto-pair.is-complete .auto-pair__badge{background:#3f9a63}.auto-pair.is-failed{border-color:#e9c9c9;background:#fff8f7}.auto-pair.is-failed .auto-pair__badge{background:#c65d5d}@media(max-width:360px){.pair{padding-inline:14px}.pair-card{padding:22px}.auto-pair{padding:15px}.auto-code{gap:5px}.auto-code__digit{height:40px;border-radius:10px;font-size:17px}}@media(prefers-reduced-motion:reduce){.auto-code__digit,.auto-step::before{transition:none}.auto-code__digit.is-filled{transform:none}}@media(prefers-color-scheme:dark){.auto-pair{border-color:#4a4269;background:linear-gradient(155deg,#2d2938,#272a35);box-shadow:inset 0 1px #ffffff0d}.auto-code__digit{background:#211f2a}.auto-code__digit.is-filled{background:#312b45}.auto-step::before{border-color:#383342}.auto-step:not(:last-child)::after{background:#44404c}.auto-pair.is-failed{border-color:#694446;background:#352627}}
+  </style>
+  <style>
+    .auto-pair.is-recovering .auto-code,.auto-pair.is-recovering .auto-steps,.auto-pair.is-recovering .auto-pair-note{display:none}.auto-pair.is-recovering .auto-pair__error{margin-top:14px}
+  </style>
+</head>
+<body>
+  <main id="pairScreen" class="screen pair">
+    <section class="pair-card">
+      <div class="mark">↗</div>
+      <h1>连接到 <span id="serverName">电脑</span></h1>
+      <p class="pair-intro">扫码会自动完成授权；直接打开电脑地址时再手动输入。</p>
+      <section id="autoPairPanel" class="auto-pair" hidden>
+        <div class="auto-pair__head">
+          <div class="auto-pair__badge" aria-hidden="true">✓</div>
+          <div class="auto-pair__copy"><strong id="autoPairTitle">已识别二维码</strong><span id="autoPairStatus" role="status" aria-live="polite" aria-atomic="true">准备建立安全连接</span></div>
+        </div>
+        <div id="autoPairCode" class="auto-code" aria-label="正在读取一次性扫码授权码"></div>
+        <ol id="autoPairSteps" class="auto-steps" aria-label="自动连接进度">
+          <li class="auto-step" data-step="0">识别电脑</li>
+          <li class="auto-step" data-step="1">读取授权码</li>
+          <li class="auto-step" data-step="2">建立连接</li>
+        </ol>
+        <div id="autoPairError" class="auto-pair__error" role="alert"></div>
+        <button id="retryChatButton" class="manual-link" type="button" hidden>重试进入会话</button>
+        <button id="manualPairButton" class="manual-link" type="button" hidden>改为手动输入</button>
+        <p class="auto-pair-note">一次性扫码授权码只用于本次连接，成功后二维码立即失效。</p>
+      </section>
+      <div id="manualPairForm" class="manual-pair" hidden>
+        <label for="deviceName">这台设备的名称</label>
+        <input id="deviceName" class="field" maxlength="60">
+        <label for="pairCode">匹配码</label>
+        <input id="pairCode" class="field code" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="••••••">
+        <button id="pairButton" class="primary">安全连接</button>
+        <div id="pairError" class="error" role="alert"></div>
+        <p class="hint">扫码使用一次性高熵密钥；手动连接受匹配码与错误锁定保护。首次授权后，本浏览器再次访问会自动连接。</p>
+      </div>
+    </section>
+  </main>
+
+  <main id="chatApp" class="app">
+    <header class="topbar"><div class="avatar">DL</div><div class="topbar__main"><strong id="chatTitle" tabindex="-1">设备互联</strong><span id="status" class="status">正在连接…</span></div><select id="conversationSelect" class="conversation-switch" aria-label="切换会话"><option value="private">与电脑单聊</option><option value="shared">全部设备</option></select></header>
+    <section id="messages" class="messages"><div class="empty">还没有消息<br>从任意设备发送文字、图片或文件</div></section>
+    <footer class="composer">
+      <div id="progress" class="progress"><i></i></div>
+      <div class="compose-box">
+        <button id="attachButton" class="attach" aria-label="选择文件">＋</button>
+        <textarea id="composer" rows="1" maxlength="200000" placeholder="发送文字或链接…"></textarea>
+        <button id="sendButton" class="send" aria-label="发送">↑</button>
+      </div>
+      <input id="fileInput" type="file" multiple hidden>
+    </footer>
+  </main>
+  <div id="toast" class="toast"></div>
+
+  <script src="/crypto-fallback.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

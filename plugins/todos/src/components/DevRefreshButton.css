@@ -1,0 +1,29 @@
+.dev-refresh-btn {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--clay);
+  color: white;
+  font-size: 18px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-light);
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.dev-refresh-btn:hover {
+  background: var(--graphite);
+  transform: scale(1.1);
+}
+
+.dev-refresh-btn:active {
+  transform: scale(0.95);
+}

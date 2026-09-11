@@ -165,9 +165,15 @@ class HistoryManager {
   }
 
   _snapshotSignature(json) {
+    // 使用更强的内容指纹：首尾各 32 字符 + 长度 + 中间 16 字符，
+    // 显著降低碰撞概率，同时仍然避免对大图做完整序列化。
     return JSON.stringify(json, (key, value) => {
       if (key === 'src' && typeof value === 'string' && value.length > 64) {
-        return `${value.length}:${value.slice(0, 16)}:${value.slice(-16)}`;
+        const len = value.length;
+        const head = value.slice(0, 32);
+        const tail = value.slice(-32);
+        const mid = value.slice(Math.floor(len / 2) - 8, Math.floor(len / 2) + 8);
+        return `${len}:${head}:${mid}:${tail}`;
       }
       return value;
     });

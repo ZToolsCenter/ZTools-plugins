@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="style.css">
   <!-- Fabric.js 5.x 本地引用（插件环境不依赖网络资源） -->
   <script src="../core/src/lib/fabric.min.js"></script>
+  <!-- JSZip (MIT) — 用于 ORA 工程文件打包/解压 -->
+  <script src="../core/src/lib/jszip.min.js"></script>
 </head>
 <body>
   <!-- ═══ 主布局：五区编辑结构 ═══ -->
@@ -29,7 +31,7 @@
           </svg>
         </div>
         <div class="welcome__text">拖入图片 / 粘贴截图 / 点击图标导入</div>
-        <div class="welcome__hint">支持 PNG · JPG · WebP · BMP · GIF · SVG</div>
+        <div class="welcome__hint">支持 ORA · PNG · JPG · WebP · BMP · GIF · SVG</div>
         <button class="welcome__btn" id="welcome-btn">选择图片</button>
       </div>
 

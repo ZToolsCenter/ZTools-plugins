@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 模块基类 — 所有功能模块的抽象基类
  */
 class BaseModule {
@@ -94,6 +94,9 @@ class BaseModule {
     objects.forEach(obj => {
       if (obj.excludeFromLayer || obj.excludeFromHistory) return;
 
+      // 优先走 LayerManager 公开接口。getLayerByObject 仅在已同步的 _layers
+      // 列表中查找；当对象尚未被 syncLayers() 收录（如工具激活期间新增的临时
+      // 对象）时返回 null，此时回退到对象自身的 _layerLocked 标记判断锁定状态。
       const meta = layerManager?.getLayerByObject?.(obj) || null;
       const locked = meta ? meta.locked : obj._layerLocked === true;
       if (locked && !meta?.isBackground && obj !== this.canvasManager.originalImage && !obj._originalImage) return;

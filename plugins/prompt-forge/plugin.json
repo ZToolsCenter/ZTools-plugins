@@ -4,7 +4,7 @@
   "title": "词匠",
   "description": "词匠 (PromptForge) 是一款专为AI创作者与开发者打造的提示词资产管理插件，集模板化编排、变量注入、版本控制与一键调用为一体，助你像工匠打磨作品一样，系统化地沉淀、优化并复用高质量提示词。",
   "author": "lunan",
-  "version": "1.1.0",
+  "version": "1.4.0",
   "main": "dist/index.html",
   "preload": "dist/preload/services.js",
   "logo": "dist/logo.png",

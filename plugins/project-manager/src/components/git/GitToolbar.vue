@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useGitStore } from '../../stores/git';
+import { useGitStore } from '../../stores/git.ts';
+import { useSettingsStore } from '../../stores/settings.ts';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
-import type { Project } from '../../types';
-import { showPersistentGitError } from './message';
+import type { Project } from '../../types.ts';
+import { showPersistentGitError } from './message.ts';
+
+/***********************组件输入与依赖*********************/
 
 const props = defineProps<{
   project: Project;
@@ -13,17 +16,53 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'open-branch-dialog'): void;
   (e: 'open-settings-dialog'): void;
+  (e: 'open-repo-center'): void;
   (e: 'refresh'): void;
 }>();
 
 const { t } = useI18n();
 const gitStore = useGitStore();
+const settingsStore = useSettingsStore();
+
+/***********************状态派生*********************/
 
 const summary = computed(() => gitStore.getSummary(props.project.id));
-const isLoading = computed(() => gitStore.operationLoading);
-const isCancellable = computed(() => gitStore.operationCancellable);
-const isCancelling = computed(() => gitStore.operationCancelling);
+const status = computed(() => gitStore.getStatus(props.project.id));
+const isLoading = computed(() =>
+  gitStore.operationLoading && gitStore.activeOperationProjectId === props.project.id
+);
+const isCancellable = computed(() => isLoading.value && gitStore.operationCancellable);
+const isCancelling = computed(() => isLoading.value && gitStore.operationCancelling);
+
+const dirtyCount = computed(() => {
+  const s = status.value;
+  if (!s) return summary.value
+    ? (summary.value.staged_count || 0) + (summary.value.unstaged_count || 0) + (summary.value.untracked_count || 0)
+    : 0;
+  return s.staged.length + s.unstaged.length + s.untracked.length + s.conflicted.length;
+});
+
+const hasConflicts = computed(() =>
+  Boolean(summary.value?.has_conflicts) || (status.value?.conflicted?.length || 0) > 0
+);
+
+const operationState = computed(() => summary.value?.operation_state || null);
+
+/** 干净工作区 + 仅 ahead → 突出 Push */
+const canSmartPush = computed(() =>
+  dirtyCount.value === 0 && !hasConflicts.value && (summary.value?.ahead || 0) > 0 && (summary.value?.behind || 0) === 0
+);
+/** 干净 + 仅 behind → 突出 Pull */
+const canSmartPull = computed(() =>
+  dirtyCount.value === 0 && !hasConflicts.value && (summary.value?.behind || 0) > 0 && (summary.value?.ahead || 0) === 0
+);
+/** 双向分歧 */
+const isDiverged = computed(() =>
+  (summary.value?.ahead || 0) > 0 && (summary.value?.behind || 0) > 0
+);
+
 const activeOperationLabel = computed(() => {
+  if (!isLoading.value) return '';
   const kind = gitStore.activeOperationKind;
   if (!kind) return '';
 
@@ -33,6 +72,7 @@ const activeOperationLabel = computed(() => {
     stageAll: t('git.stageAll'),
     unstageAll: t('git.unstageAll'),
     commit: t('git.commit'),
+    amend: t('git.amend'),
     pull: t('git.pull'),
     push: t('git.push'),
     fetch: t('git.fetch'),
@@ -40,6 +80,13 @@ const activeOperationLabel = computed(() => {
     createBranch: t('git.createBranch'),
     deleteBranch: t('git.deleteBranch'),
     renameBranch: t('git.renameBranch'),
+    merge: t('git.merge'),
+    rebase: t('git.rebase'),
+    reset: t('git.reset'),
+    cherryPick: t('git.cherryPick'),
+    revertCommit: t('git.revertCommit'),
+    stash: t('git.stash'),
+    tag: t('git.tag'),
     revertHunk: t('git.discard'),
     discard: t('git.discard'),
     discardUntracked: t('git.discard'),
@@ -47,6 +94,18 @@ const activeOperationLabel = computed(() => {
 
   return labelMap[kind] || t('git.loading');
 });
+
+const operationBannerText = computed(() => {
+  const state = operationState.value;
+  if (!state) return '';
+  if (state === 'merge') return t('git.operationStateMerge');
+  if (state === 'rebase') return t('git.operationStateRebase');
+  if (state === 'cherry-pick') return t('git.operationStateCherryPick');
+  if (state === 'revert') return t('git.operationStateRevert');
+  return '';
+});
+
+/***********************操作*********************/
 
 function showError(error: unknown) {
   showPersistentGitError(t('git.operationFailed', { error: String(error) }));
@@ -71,7 +130,8 @@ async function handleFetch() {
 
 async function handlePull() {
   try {
-    await gitStore.pull(props.project.id, props.project.path);
+    const strategy = settingsStore.settings.gitPullStrategy || 'default';
+    await gitStore.pull(props.project.id, props.project.path, undefined, undefined, strategy);
     ElMessage.success(t('git.pullSuccess'));
   } catch (e) {
     if (isCancelledError(e)) {
@@ -100,6 +160,24 @@ async function handlePush() {
   }
 }
 
+async function handleMergeContinue() {
+  try {
+    await gitStore.mergeContinue(props.project.id, props.project.path);
+    ElMessage.success(t('git.mergeContinueSuccess'));
+  } catch (e) {
+    showError(e);
+  }
+}
+
+async function handleMergeAbort() {
+  try {
+    await gitStore.mergeAbort(props.project.id, props.project.path);
+    ElMessage.success(t('git.mergeAbortSuccess'));
+  } catch (e) {
+    showError(e);
+  }
+}
+
 async function handleCancel() {
   try {
     await gitStore.cancelActiveOperation();
@@ -115,33 +193,80 @@ async function handleCancel() {
     <!-- Branch chip -->
     <button class="branch-chip" @click="emit('open-branch-dialog')" :title="t('git.switchBranch')">
       <div class="i-mdi-source-branch text-xs text-blue-500" />
-      <span class="text-[11px] font-medium text-slate-700 dark:text-slate-300 max-w-[140px] truncate">
+      <span class="app-text-control font-medium text-slate-700 dark:text-slate-300 max-w-[140px] truncate">
         {{ summary?.branch || 'HEAD' }}
       </span>
       <template v-if="summary">
-        <span v-if="summary.is_detached" class="text-[9px] px-1 py-0.5 rounded-sm bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium">
+        <span v-if="summary.is_detached" class="app-text-caption px-1 py-0.5 rounded-sm bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium">
           detached
         </span>
-        <span v-if="summary.ahead > 0" class="text-[9px] px-1 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">
+        <span v-if="summary.ahead > 0" class="app-text-caption px-1 py-0.5 rounded-sm bg-green-500/10 text-green-600 dark:text-green-400 font-medium">
           ↑{{ summary.ahead }}
         </span>
-        <span v-if="summary.behind > 0" class="text-[9px] px-1 py-0.5 rounded-sm bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium">
+        <span v-if="summary.behind > 0" class="app-text-caption px-1 py-0.5 rounded-sm bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium">
           ↓{{ summary.behind }}
+        </span>
+        <span
+          v-if="hasConflicts"
+          class="app-text-caption px-1 py-0.5 rounded-sm bg-red-500/10 text-red-600 dark:text-red-400 font-medium"
+        >
+          {{ t('git.conflictBadge', { count: summary.conflicted_count || status?.conflicted.length || 0 }) }}
         </span>
       </template>
     </button>
 
     <div class="flex-1" />
 
+    <!-- 智能主操作：干净工作区时突出 Push/Pull -->
+    <button
+      v-if="canSmartPush"
+      @click="handlePush"
+      :disabled="isLoading"
+      class="toolbar-smart toolbar-smart-push"
+      :title="t('git.pushN', { count: summary?.ahead || 0 })"
+    >
+      <div class="i-mdi-arrow-up-bold text-xs" />
+      {{ t('git.pushN', { count: summary?.ahead || 0 }) }}
+    </button>
+    <button
+      v-else-if="canSmartPull"
+      @click="handlePull"
+      :disabled="isLoading"
+      class="toolbar-smart toolbar-smart-pull"
+      :title="t('git.pullN', { count: summary?.behind || 0 })"
+    >
+      <div class="i-mdi-arrow-down-bold text-xs" />
+      {{ t('git.pullN', { count: summary?.behind || 0 }) }}
+    </button>
+    <span
+      v-else-if="isDiverged"
+      class="toolbar-diverged"
+      :title="t('git.divergedHint')"
+    >
+      {{ t('git.diverged') }}
+    </span>
+
     <!-- Action buttons -->
     <button @click="handleFetch" :disabled="isLoading" class="toolbar-action" :title="t('git.fetch')">
       <div class="i-mdi-cloud-download-outline action-icon" />
     </button>
-    <button @click="handlePull" :disabled="isLoading" class="toolbar-action" :title="t('git.pull')">
+    <button
+      v-if="!canSmartPull"
+      @click="handlePull"
+      :disabled="isLoading"
+      class="toolbar-action"
+      :title="t('git.pull')"
+    >
       <div class="i-mdi-arrow-down-bold action-icon" />
       <span v-if="summary && summary.behind > 0" class="action-badge bg-orange-500">{{ summary.behind }}</span>
     </button>
-    <button @click="handlePush" :disabled="isLoading" class="toolbar-action" :title="t('git.push')">
+    <button
+      v-if="!canSmartPush"
+      @click="handlePush"
+      :disabled="isLoading"
+      class="toolbar-action"
+      :title="t('git.push')"
+    >
       <div class="i-mdi-arrow-up-bold action-icon" />
       <span v-if="summary && summary.ahead > 0" class="action-badge bg-blue-500">{{ summary.ahead }}</span>
     </button>
@@ -157,13 +282,46 @@ async function handleCancel() {
     >
       <div :class="isCancelling ? 'i-mdi-loading animate-spin' : 'i-mdi-close-circle-outline'" class="action-icon" />
     </button>
+    <button @click="emit('open-repo-center')" class="toolbar-action" :title="t('git.repoCenter')">
+      <div class="i-mdi-source-repository action-icon" />
+    </button>
     <button @click="emit('open-settings-dialog')" class="toolbar-action" :title="t('git.repoSettings')">
       <div class="i-mdi-cog-outline action-icon" />
     </button>
   </div>
+
+  <!-- 进行中操作 banner（merge/rebase…） -->
+  <div v-if="operationBannerText && !isLoading" class="git-op-banner">
+    <span class="op-text">
+      <div class="i-mdi-alert-outline text-xs" />
+      {{ operationBannerText }}
+    </span>
+    <div class="op-actions">
+      <button
+        v-if="operationState === 'merge'"
+        type="button"
+        class="op-btn primary"
+        :disabled="isLoading || hasConflicts"
+        :title="hasConflicts ? t('git.resolveConflictsFirst') : t('git.mergeContinue')"
+        @click="handleMergeContinue"
+      >
+        {{ t('git.mergeContinue') }}
+      </button>
+      <button
+        v-if="operationState === 'merge'"
+        type="button"
+        class="op-btn danger"
+        :disabled="isLoading"
+        @click="handleMergeAbort"
+      >
+        {{ t('git.mergeAbort') }}
+      </button>
+    </div>
+  </div>
+
   <div v-if="isLoading" class="git-toolbar-status">
     <span class="status-pill">
-      <div class="i-mdi-loading animate-spin text-[10px]" />
+      <div class="i-mdi-loading animate-spin text-xs" />
       {{ t('git.operationInProgress', { action: activeOperationLabel }) }}
     </span>
     <button
@@ -183,15 +341,54 @@ async function handleCancel() {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface-raised);
 }
-.git-toolbar-status {
+.git-toolbar-status,
+.git-op-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 0 12px 8px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface-raised);
+}
+.git-op-banner {
+  background: color-mix(in srgb, var(--app-warning, #f59e0b) 10%, var(--app-surface-raised));
+}
+.op-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--app-font-control);
+  color: var(--app-text-secondary);
+}
+.op-actions {
+  display: flex;
+  gap: 6px;
+}
+.op-btn {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: var(--app-font-control);
+  cursor: pointer;
+  color: var(--app-text-secondary);
+}
+.op-btn.primary {
+  border-color: color-mix(in srgb, var(--app-primary) 34%, transparent);
+  color: var(--app-primary);
+  background: var(--app-primary-soft);
+}
+.op-btn.danger {
+  border-color: color-mix(in srgb, var(--app-danger) 34%, transparent);
+  color: var(--app-danger);
+}
+.op-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .status-pill {
   display: inline-flex;
@@ -200,15 +397,15 @@ async function handleCancel() {
   min-width: 0;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 10px;
-  color: rgb(71, 85, 105);
-  background: rgba(59, 130, 246, 0.08);
+  font-size: var(--app-font-control);
+  color: var(--app-text-secondary);
+  background: var(--app-primary-soft);
 }
 .status-cancel {
   border: none;
   background: transparent;
-  color: rgb(239, 68, 68);
-  font-size: 10px;
+  color: var(--app-danger);
+  font-size: var(--app-font-control);
   font-weight: 600;
   cursor: pointer;
 }
@@ -221,26 +418,51 @@ async function handleCancel() {
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.68), rgba(248,250,252,0.5));
-  border: none;
-  backdrop-filter: blur(14px) saturate(1.16);
-  -webkit-backdrop-filter: blur(14px) saturate(1.16);
-  box-shadow:
-    0 8px 18px rgba(15,23,42,0.05),
-    inset 0 1px 0 rgba(255,255,255,0.42),
-    inset 0 0 0 1px rgba(191,219,254,0.5);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
   cursor: pointer;
-  transition: all 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease),
+    border-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease),
+    box-shadow var(--app-duration-fast) var(--app-ease);
 }
 .branch-chip:hover {
-  transform: translateY(-1px);
-  backdrop-filter: blur(18px) saturate(1.28);
-  -webkit-backdrop-filter: blur(18px) saturate(1.28);
-  box-shadow:
-    0 12px 24px rgba(15,23,42,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.46),
-    inset 0 0 0 1px rgba(96,165,250,0.4);
+  border-color: color-mix(in srgb, var(--app-primary) 30%, transparent);
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  box-shadow: var(--app-shadow-sm);
+}
+.toolbar-smart {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: var(--app-font-control);
+  font-weight: 600;
+  cursor: pointer;
+  color: white;
+}
+.toolbar-smart:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.toolbar-smart-push {
+  background: var(--app-primary);
+}
+.toolbar-smart-pull {
+  background: var(--app-warning, #f59e0b);
+}
+.toolbar-diverged {
+  font-size: var(--app-font-caption);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-danger) 10%, transparent);
+  color: var(--app-danger);
 }
 .toolbar-action {
   position: relative;
@@ -251,24 +473,16 @@ async function handleCancel() {
   height: 32px;
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
-  border: none;
-  background: linear-gradient(180deg, rgba(255,255,255,0.66), rgba(248,250,252,0.48));
-  backdrop-filter: blur(14px) saturate(1.16);
-  -webkit-backdrop-filter: blur(14px) saturate(1.16);
-  box-shadow:
-    0 8px 18px rgba(15,23,42,0.05),
-    inset 0 1px 0 rgba(255,255,255,0.42),
-    inset 0 0 0 1px rgba(226,232,240,0.5);
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease),
+    border-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
 }
 .toolbar-action:hover:not(:disabled) {
-  transform: translateY(-1px);
-  backdrop-filter: blur(18px) saturate(1.28);
-  -webkit-backdrop-filter: blur(18px) saturate(1.28);
-  box-shadow:
-    0 12px 24px rgba(15,23,42,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.48),
-    inset 0 0 0 1px rgba(191,219,254,0.64);
+  border-color: color-mix(in srgb, var(--app-primary) 30%, transparent);
+  background: var(--app-primary-soft);
 }
 .toolbar-action:disabled {
   opacity: 0.4;
@@ -276,54 +490,17 @@ async function handleCancel() {
 }
 .action-icon {
   font-size: 14px;
-  color: rgb(100, 116, 139);
+  color: var(--app-text-secondary);
+  transition: color var(--app-duration-fast) var(--app-ease);
 }
-:global(.dark) .branch-chip {
-  background:
-    linear-gradient(180deg, rgba(96,165,250,0.03), rgba(96,165,250,0)),
-    linear-gradient(180deg, rgba(15,23,42,0.84), rgba(2,6,23,0.74));
-  backdrop-filter: blur(20px) saturate(1.18);
-  -webkit-backdrop-filter: blur(20px) saturate(1.18);
-  box-shadow:
-    0 16px 30px rgba(2,6,23,0.32),
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    inset 0 0 0 1px rgba(96,165,250,0.18);
-}
-:global(.dark) .branch-chip:hover {
-  backdrop-filter: blur(24px) saturate(1.26);
-  -webkit-backdrop-filter: blur(24px) saturate(1.26);
-  box-shadow:
-    0 18px 34px rgba(2,6,23,0.36),
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    inset 0 0 0 1px rgba(96,165,250,0.24);
-}
-:global(.dark) .toolbar-action {
-  background:
-    linear-gradient(180deg, rgba(45,212,191,0.02), rgba(45,212,191,0)),
-    linear-gradient(180deg, rgba(15,23,42,0.82), rgba(2,6,23,0.72));
-  backdrop-filter: blur(20px) saturate(1.18);
-  -webkit-backdrop-filter: blur(20px) saturate(1.18);
-  box-shadow:
-    0 16px 28px rgba(2,6,23,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.05),
-    inset 0 0 0 1px rgba(148,163,184,0.12);
-}
-:global(.dark) .toolbar-action:hover:not(:disabled) {
-  backdrop-filter: blur(24px) saturate(1.26);
-  -webkit-backdrop-filter: blur(24px) saturate(1.26);
-  box-shadow:
-    0 18px 34px rgba(2,6,23,0.36),
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    inset 0 0 0 1px rgba(96,165,250,0.24);
-}
-:global(.dark) .action-icon {
-  color: rgb(148, 163, 184);
+.toolbar-action:hover:not(:disabled) .action-icon {
+  color: var(--app-primary);
 }
 .action-badge {
   position: absolute;
   top: 0;
   right: 0;
-  font-size: 9px;
+  font-size: var(--app-font-caption);
   min-width: 14px;
   height: 14px;
   border-radius: 7px;
@@ -335,19 +512,11 @@ async function handleCancel() {
   font-weight: 600;
 }
 .toolbar-cancel {
-  box-shadow:
-    0 8px 18px rgba(239,68,68,0.12),
-    inset 0 1px 0 rgba(255,255,255,0.42),
-    inset 0 0 0 1px rgba(252,165,165,0.5);
+  border-color: color-mix(in srgb, var(--app-danger) 34%, transparent);
+  background: color-mix(in srgb, var(--app-danger) 8%, transparent);
 }
-:global(.dark) .git-toolbar-status {
-  border-bottom-color: rgba(148, 163, 184, 0.1);
-}
-:global(.dark) .status-pill {
-  color: rgb(203, 213, 225);
-  background: rgba(59, 130, 246, 0.14);
-}
-:global(.dark) .status-cancel {
-  color: rgb(248, 113, 113);
+.toolbar-cancel .action-icon,
+.toolbar-cancel:hover:not(:disabled) .action-icon {
+  color: var(--app-danger);
 }
 </style>

@@ -1,5 +1,67 @@
 export const updateRecords = [
   {
+    version: '2.4.2',
+    date: '2026-08-28',
+    changes: {
+      added: [
+        { text: '新增 ORA (OpenRaster) 工程文件导入/导出功能，可保存含图层的完整编辑状态', platforms: null }
+      ],
+      fixed: [
+        { text: '修复使用马赛克、橡皮擦等工具后，鼠标变成移动状态，绘制第二个选区时会移动图层的问题', platforms: null },
+      ],
+      improved: [
+        { text: '底部状态栏新增「打开」按钮，支持选择 ORA 工程文件和 WebP / JPG / PNG 等常见图片格式', platforms: null },
+        { text: '底部状态栏「保存」按钮弹出格式选择窗口，可一键保存为 ORA、PNG、JPEG 或 WebP', platforms: null }
+      ],
+      adjusted: [],
+      removed: []
+    }
+  },
+  {
+    version: '2.4.1',
+    date: '2026-08-21',
+    changes: {
+      added: [],
+      fixed: [
+        { text: '修复通过功能指令进入插件时图片无法加载的问题', platforms: ['utools', 'ztools'] },
+        { text: '修复部分字体名称显示不正确的问题', platforms: null },
+        { text: '修复部分 Windows 平台无法获取系统字体列表的问题', platforms: ['utools', 'ztools'] },
+        { text: '修复大图片加载时可能超时失败的问题', platforms: ['utools', 'ztools'] },
+        { text: '修复重复进入插件时图片可能无法加载的问题', platforms: ['utools', 'ztools'] }
+      ],
+      improved: [
+        { text: '滚轮缩放改为以鼠标位置为中心进行缩放', platforms: null },
+        { text: '图片加载超时反馈更快', platforms: null }
+      ],
+      adjusted: [],
+      removed: []
+    }
+  },
+  {
+    version: '2.4',
+    date: '2026-08-04',
+    changes: {
+      added: [
+        { text: '左侧工具栏支持展开/收起', platforms: null },
+        { text: '图形工具新增菱形图形', platforms: null },
+        { text: '新增「接入统一账号系统」功能', platforms: null }
+      ],
+      fixed: [
+        { text: '修复窗口大小缩放时，已添加的文字、图形、画笔、马赛克等编辑内容与原图错位的问题', platforms: null },
+        { text: '修复使用调色工具调整滤镜滑块后无法撤销的问题', platforms: null },
+        { text: '修复调色面板销毁时未清理 DOM 事件监听器导致的内存泄漏问题', platforms: null },
+        { text: '修复马赛克工具辅助图形（选区框、套索预览、画笔预览）出现在导出结果和图层列表中的问题', platforms: null }
+      ],
+      improved: [
+        { text: '图形工具配色预设栏支持左右滑动查看更多配色，粗细按钮固定在右侧不被压缩', platforms: null },
+        { text: '优化应用滤镜预设时的性能，批量设置时只重算一次滤镜，响应更迅速', platforms: null },
+        { text: '优化窗口缩放时编辑内容的布局保持逻辑，按比例同步调整所有覆盖层和裁剪路径的相对位置', platforms: null }
+      ],
+      adjusted: [],
+      removed: []
+    }
+  },
+  {
     version: '2.3.1',
     date: '2026-07-17',
     changes: {

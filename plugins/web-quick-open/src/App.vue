@@ -120,11 +120,24 @@ async function loadEngines(): Promise<void> {
   }
 }
 
-function openAddEditor(): void {
+function openAddEditor(url = ''): void {
   showCreateMenu.value = false
   editingEngine.value = null
-  formData.value = createEmptyEngine()
+  const normalizedUrl = url.trim() ? ensureUrlProtocol(url.trim()) : ''
+  formData.value = {
+    ...createEmptyEngine(),
+    name: normalizedUrl ? getUrlName(normalizedUrl) : '',
+    url: normalizedUrl
+  }
   showEditor.value = true
+}
+
+function getUrlName(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\\./i, '')
+  } catch {
+    return url
+  }
 }
 
 function openEditEditor(engine: WebSearchEngine): void {
@@ -403,6 +416,10 @@ function isHttpUrl(url: string): boolean {
   }
 }
 
+function isWebUrl(value: string): boolean {
+  return isHttpUrl(ensureUrlProtocol(value.trim()))
+}
+
 function getLaunchPayload(param: LaunchParam): string {
   return (
     param.payload ||
@@ -414,6 +431,13 @@ function getLaunchPayload(param: LaunchParam): string {
 
 async function handlePluginEnter(param: LaunchParam): Promise<void> {
   const code = param?.code || ''
+  if (code === 'main-push') {
+    const url = param.option?.url || getLaunchPayload(param)
+    if (url && isWebUrl(url)) {
+      openAddEditor(url)
+    }
+    return
+  }
   if (!code.startsWith(FEATURE_PREFIX)) return
 
   try {
@@ -494,7 +518,7 @@ onUnmounted(() => {
             刷新
           </ZButton>
           <div class="split-create-group" @click.stop>
-            <button class="split-create-main" type="button" @click="openAddEditor">
+            <button class="split-create-main" type="button" @click="() => openAddEditor()">
               <Plus :size="15" />
               <span>添加</span>
             </button>

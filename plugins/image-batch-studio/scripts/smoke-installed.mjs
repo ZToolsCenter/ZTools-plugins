@@ -5,23 +5,33 @@ import { createRequire } from "node:module";
 import sharp from "sharp";
 import { PDFDocument } from "pdf-lib";
 import { open } from "lmdb";
+import { getZToolsRoots } from "./ztools-data-paths.mjs";
 
 const require = createRequire(import.meta.url);
-const installedPlugin = path.join(
-  os.homedir(),
-  "Library",
-  "Application Support",
-  "ZTools",
-  "plugins",
-  "image-batch-studio"
-);
+const { modernRoot, legacyRoot } = getZToolsRoots();
+const modernLayout = await fs
+  .access(path.join(modernRoot, "version.json"))
+  .then(() => true)
+  .catch(() => false);
+const dataRoot = modernLayout ? modernRoot : legacyRoot;
+const installedPlugin = path.join(dataRoot, "plugins", "image-batch-studio");
+const dbPath = modernLayout
+  ? path.join(dataRoot, "lmdb", "device")
+  : path.join(dataRoot, "lmdb");
+const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ztools-image-batch-installed-"));
+process.env.IMAGE_BATCH_RUNTIME_ROOT = path.join(dir, "runtime");
+const runtime = require(path.join(installedPlugin, "preload", "sharp-runtime.js"));
+const runtimeStatus = await runtime.installSharpRuntime();
+if (runtimeStatus.state !== "ready") {
+  throw new Error(runtimeStatus.error || "Installed dynamic Sharp runtime failed");
+}
 const processor = require(path.join(installedPlugin, "preload", "processor.js"));
 
 function readInstalledPluginRecord() {
   const env = open({
-    path: path.join(os.homedir(), "Library", "Application Support", "ZTools", "lmdb"),
+    path: dbPath,
     mapSize: 2 * 1024 * 1024 * 1024,
-    maxDbs: 3,
+    maxDbs: modernLayout ? 6 : 3,
     compression: false,
     encoding: "binary"
   });
@@ -70,7 +80,6 @@ async function makePdf(filePath, text) {
   await fs.writeFile(filePath, await doc.save());
 }
 
-const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ztools-image-batch-installed-"));
 const out = path.join(dir, "out");
 const first = path.join(dir, "first.png");
 const second = path.join(dir, "second.png");
@@ -161,4 +170,4 @@ if (!installedRecord.features?.some((feature) => feature.code === "image-batch")
   throw new Error(`Installed plugin record is missing image-batch feature: ${JSON.stringify(installedRecord)}`);
 }
 
-console.log(JSON.stringify({ ok: true, dir }, null, 2));
+console.log(JSON.stringify({ ok: true, dir, runtime: runtimeStatus.version }, null, 2));

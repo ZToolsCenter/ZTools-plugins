@@ -62,7 +62,6 @@ onMounted(async () => {
           }
           source = 'clipboard'
         }
-        console.log('[PromptForge] quick save:', { source, contentLen: content.trim().length, type: param.type, payload: param.payload })
         if (content.trim().length >= 20) {
           const ctxProjectId = promptStore.filterProjectId.value || ''
           router.enterQuickSave(content.trim(), source, ctxProjectId)

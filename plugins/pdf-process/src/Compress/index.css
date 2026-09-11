@@ -1,0 +1,370 @@
+.compress-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 40px);
+  color: #e8e8ef;
+}
+
+.compress-page.is-dropping {
+  outline: 2px dashed #4c8dff;
+  outline-offset: -6px;
+  border-radius: 12px;
+}
+
+.compress-title {
+  margin: 0 0 14px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.compress-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.compress-toolbar-left,
+.compress-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.compress-mode-group {
+  display: inline-flex;
+  background: #2a2a36;
+  border-radius: 999px;
+  padding: 3px;
+  border: 1px solid #3a3a48;
+}
+
+.compress-mode-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #b8b8c8;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+
+.compress-mode-btn.active {
+  background: #3d3d4d;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px #55556a;
+}
+
+.compress-mode-check {
+  color: #f0c674;
+  font-size: 12px;
+}
+
+.compress-mode-hint {
+  margin: -6px 0 14px;
+  color: #8a8a9a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.compress-quality {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #aaa;
+  font-size: 12px;
+  /* Fixed footprint so label text changes don't shove the thumb while dragging */
+  min-width: 280px;
+  flex-shrink: 0;
+}
+
+.compress-quality-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  width: 118px;
+  flex-shrink: 0;
+  line-height: 1.2;
+  user-select: none;
+}
+
+.compress-quality-pct {
+  color: #cfcfdb;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.compress-quality-pct b {
+  color: #fff;
+  font-weight: 600;
+  display: inline-block;
+  min-width: 2.2em;
+  text-align: right;
+}
+
+.compress-quality-detail {
+  color: #8a8a9a;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-height: 1.2em;
+}
+
+.compress-quality-range,
+.compress-quality input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 148px;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  /* Avoid browser focus ring jumping layout */
+  outline: none;
+}
+
+.compress-quality-range:focus-visible {
+  outline: 1px solid rgba(231, 76, 111, 0.55);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+/* WebKit track/thumb — stable geometry */
+.compress-quality-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #3a3a48;
+}
+
+.compress-quality-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #e74c6f;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.compress-quality-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #3a3a48;
+}
+
+.compress-quality-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e74c6f;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.compress-tool-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #cfcfdb;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.compress-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.compress-tool-icon {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.compress-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.compress-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  max-height: calc(100vh - 200px);
+  padding-right: 2px;
+}
+
+.compress-file-row {
+  display: grid;
+  grid-template-columns: 18px 40px 1fr auto auto auto;
+  align-items: center;
+  gap: 12px;
+  background: #2a2a36;
+  border: 1px solid #343445;
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: grab;
+  user-select: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.compress-file-row:hover {
+  border-color: #4a4a5c;
+}
+
+.compress-file-row.selected {
+  border-color: #e74c6f;
+  background: #322a34;
+}
+
+.compress-file-row:active {
+  cursor: grabbing;
+}
+
+.compress-file-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compress-file-check input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #e74c6f;
+  cursor: pointer;
+}
+
+.compress-file-icon {
+  width: 40px;
+  height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1c1c28;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.compress-file-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.compress-file-icon-fallback {
+  color: #888;
+  font-size: 11px;
+}
+
+.compress-file-meta {
+  min-width: 0;
+}
+
+.compress-file-name {
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compress-file-sub {
+  margin-top: 4px;
+  color: #9a9aaa;
+  font-size: 12px;
+}
+
+.compress-file-status {
+  color: #8a8a9a;
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
+.compress-row-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #9a9aaa;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compress-row-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.compress-row-btn.danger:hover {
+  color: #ff8a8a;
+}
+
+.compress-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  margin-top: auto;
+}
+
+.compress-start-btn {
+  appearance: none;
+  border: none;
+  background: #e74c6f;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(231, 76, 111, 0.28);
+}
+
+.compress-start-btn:hover:not(:disabled) {
+  background: #f05a7c;
+}
+
+.compress-start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.compress-start-btn.stop {
+  background: #c0392b;
+  box-shadow: none;
+}
+
+.compress-error {
+  margin: 0;
+}

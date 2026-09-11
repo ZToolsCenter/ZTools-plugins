@@ -1,0 +1,136 @@
+@media (max-width: 760px) {
+  .app-header {
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: 12px;
+    padding-inline: 12px;
+  }
+
+}
+
+@media (max-width: 540px) {
+  .app-header {
+    min-height: 112px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px 10px 10px;
+  }
+
+  .brand-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand-lockup h1 {
+    font-size: 16px;
+  }
+
+  .search-form {
+    min-height: 40px;
+  }
+
+  .search-form input {
+    height: 38px;
+  }
+
+  .results-toolbar {
+    min-height: 94px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+    padding: 8px 10px;
+  }
+
+  .format-toolbar {
+    width: 100%;
+  }
+
+  .format-toolbar .color-control {
+    margin-left: auto;
+  }
+
+  .icon-grid,
+  .loading-grid {
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .pagination-bar {
+    grid-template-columns: 1fr auto;
+    padding-inline: 9px;
+  }
+
+  .loaded-count {
+    display: none;
+  }
+
+  .quick-action-overlay {
+    padding: 8px;
+  }
+
+  .quick-action-dialog {
+    width: calc(100vw - 16px);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #e8efeb;
+    background: #171c1b;
+    --surface: #202624;
+    --surface-muted: #2a312f;
+    --surface-raised: #252b29;
+    --ink: #edf3ef;
+    --ink-muted: #9da9a4;
+    --line: #3a4440;
+    --line-strong: #52605a;
+    --accent: #5fb9a8;
+    --accent-strong: #368f80;
+    --accent-soft: #27453f;
+    --danger: #ef8b81;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  .app-shell,
+  .workspace {
+    background: #171c1b;
+  }
+
+  .search-form,
+  .search-form input {
+    color: #17201f;
+    background: #f7faf7;
+  }
+
+  .segmented-control {
+    background: #171c1b;
+  }
+
+  .icon-artboard {
+    background-color: #f7faf7;
+  }
+
+  .quick-action-dialog {
+    background: #202624;
+  }
+
+  .secondary-command:hover:not(:disabled) {
+    background: #2d3532;
+  }
+
+  .loading-tile {
+    background: linear-gradient(100deg, #242b29 20%, #303735 40%, #242b29 60%);
+    background-size: 220% 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

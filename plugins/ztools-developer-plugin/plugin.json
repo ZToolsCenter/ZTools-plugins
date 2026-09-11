@@ -4,9 +4,11 @@
   "title": "ZTools 开发者工具",
   "description": "ZTools 开发者插件",
   "author": "xiaou",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "dist/index.html",
   "logo": "logo.png",
+  "preload": "preload.js",
+  "unpack": "{vue-vite/**,react-vite/**}",
   "development": {
     "main": "http://localhost:8686/"
   },

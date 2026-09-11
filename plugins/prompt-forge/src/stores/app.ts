@@ -31,7 +31,9 @@ export function useAppSettings() {
 
   async function save() {
     try {
-      await setSettings({ ...settings.value })
+      // 合并写入，避免覆盖 theme 等其他字段（与 theme.persist 保持一致）
+      const existing = await getSettings() || {}
+      await setSettings({ ...existing, ...settings.value })
     } catch (e) {
       console.error('Failed to save settings:', e)
     }

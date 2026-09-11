@@ -92,6 +92,7 @@ class MosaicModule extends BaseModule {
 
     const canvas = this.canvasManager.canvas;
     canvas.defaultCursor = this._getCursorForDrawMode();
+    canvas.skipTargetFind = true;
     this._detachCanvasClipPath();
 
     canvas.on('mouse:down', this._boundMouseDown);
@@ -109,6 +110,7 @@ class MosaicModule extends BaseModule {
     canvas.off('mouse:move', this._boundMouseMove);
     canvas.off('mouse:up', this._boundMouseUp);
     canvas.off('mouse:out', this._boundMouseOut);
+    canvas.skipTargetFind = false;
     this._cleanupRect();
     this._cleanupLasso();
     this._cleanupLiveBrushOverlay();
@@ -246,6 +248,10 @@ class MosaicModule extends BaseModule {
       strokeDashArray: [4, 3],
       selectable: false,
       evented: false,
+      excludeFromExport: true,
+      excludeFromLayer: true,
+      excludeFromProperty: true,
+      excludeFromHistory: true,
     });
     this.canvasManager.canvas.add(this._selectionRect);
   }
@@ -310,6 +316,10 @@ class MosaicModule extends BaseModule {
       selectable: false,
       evented: false,
       objectCaching: false,
+      excludeFromExport: true,
+      excludeFromLayer: true,
+      excludeFromProperty: true,
+      excludeFromHistory: true,
     });
     this.canvasManager.canvas.add(this._lassoPreview);
     this.canvasManager.canvas.renderAll();
@@ -445,6 +455,10 @@ class MosaicModule extends BaseModule {
         selectable: false,
         evented: false,
         objectCaching: false,
+        excludeFromExport: true,
+        excludeFromLayer: true,
+        excludeFromProperty: true,
+        excludeFromHistory: true,
       });
       this.canvasManager.canvas.add(this._brushPreview);
     } else {
@@ -498,7 +512,7 @@ class MosaicModule extends BaseModule {
     }
   }
 
-  _finishBrush(e) {
+    _finishBrush(e) {
     this._isDrawing = false;
     this._updateBrushPreview(this.canvasManager.canvas.getPointer(e.e));
     this._updateLiveBrushOverlay();
@@ -507,7 +521,7 @@ class MosaicModule extends BaseModule {
     this._brushPoints = [];
 
     if (!this._liveBrushOverlay) return;
-
+    // 将实时预览转为持久化图层：保留在画布上，但解除引用
     this._liveBrushOverlay = null;
   }
 

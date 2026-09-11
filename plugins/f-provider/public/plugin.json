@@ -4,7 +4,7 @@
   "title": "ZTools 提供商",
   "description": "OCR + 翻译提供商集合（百度/谷歌/有道/微软翻译、微信 OCR）",
   "author": "kaineooo",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
@@ -36,12 +36,22 @@
       "type": "translation",
       "label": "微软翻译",
       "description": "微软 Edge 翻译（免密钥，两种鉴权方案）"
+    },
+    "ai-translation": {
+      "type": "translation",
+      "label": "AI 翻译",
+      "description": "基于大语言模型翻译（复用 ZTools 已配置的 AI 模型，无需密钥）"
+    },
+    "ai-ocr": {
+      "type": "ocr",
+      "label": "AI 识图",
+      "description": "基于视觉模型识别图片文字（需选择支持视觉的模型）"
     }
   },
   "features": [
     {
       "code": "manage",
-      "explain": "OCR 识别与翻译（关键词进入管理；图片/选中文本进入识别或翻译）",
+      "explain": "OCR 识别与翻译",
       "icon": "logo.png",
       "cmds": [
         "ZTools 提供商",
@@ -56,46 +66,113 @@
           "label": "识别图片文字"
         },
         {
-          "type": "regex",
+          "type": "over",
           "label": "翻译",
-          "match": "/^[\\s\\S]*$/",
           "minLength": 1
         }
       ]
     },
     {
       "code": "code-translate",
-      "explain": "把选中文本翻译为代码命名（多种风格，↑↓ 切换、回车粘贴）",
+      "explain": "把选中文本翻译为代码命名",
       "icon": "logo.png",
       "cmds": [
         {
-          "type": "regex",
+          "type": "over",
           "label": "代码翻译",
-          "match": "/^[\\s\\S]*$/",
           "minLength": 1
         }
       ]
     },
     {
       "code": "screen-ocr",
-      "explain": "截屏并识别图中文字（自动截屏→OCR）",
+      "explain": "截屏并识别图中文字",
       "icon": "logo.png",
       "platform": ["win32", "darwin"],
       "cmds": [
         "截图识别文字"
       ]
+    },
+    {
+      "code": "latex-recognize",
+      "explain": "识别图片中的数学公式为 LaTeX",
+      "icon": "logo.png",
+      "cmds": [
+        "公式识别",
+        {
+          "type": "img",
+          "label": "识别图片公式"
+        },
+        {
+          "type": "files",
+          "extensions": ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
+          "maxLength": 1,
+          "label": "识别图片公式"
+        }
+      ]
+    },
+    {
+      "code": "screen-latex",
+      "explain": "截屏并识别图中公式为 LaTeX",
+      "icon": "logo.png",
+      "platform": ["win32", "darwin"],
+      "cmds": [
+        "截图识别公式"
+      ]
+    },
+    {
+      "code": "ocr-translate",
+      "explain": "识别图片文字并翻译",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "img",
+          "label": "识别图片并翻译"
+        },
+        {
+          "type": "files",
+          "extensions": ["png", "jpg", "jpeg", "gif", "bmp", "webp"],
+          "maxLength": 1,
+          "label": "识别图片并翻译"
+        }
+      ]
+    },
+    {
+      "code": "screen-ocr-translate",
+      "explain": "截屏并识别图中文字翻译",
+      "icon": "logo.png",
+      "platform": ["win32", "darwin"],
+      "cmds": [
+        "截图识别并翻译"
+      ]
     }
   ],
   "native": {
     "win": {
-      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.0.0/native-win.zip",
+      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/native-win.zip",
       "sha256": "",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
     "mac": {
-      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.0.0/native-mac.zip",
+      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/native-mac.zip",
       "sha256": "",
-      "version": "1.0.0"
+      "version": "1.1.0"
+    }
+  },
+  "nativeLatex": {
+    "win": {
+      "ortUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/latex-ort-win.zip",
+      "modelsUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/latex-models.zip",
+      "ortSha256": "",
+      "modelsSha256": "",
+      "version": "1.1.0"
+    },
+    "mac": {
+      "ortUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/latex-ort-mac.zip",
+      "modelsUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/latex-models.zip",
+      "ortSha256": "",
+      "modelsSha256": "",
+      "version": "1.1.0"
     }
   }
 }

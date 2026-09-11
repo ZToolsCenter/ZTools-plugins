@@ -41,6 +41,21 @@ interface Services {
     ctimeMs: number
     birthtimeMs: number
   }>
+  /** Reads one directory level and returns serializable metadata. */
+  readDirectory: (targetPath: string) => Promise<Array<{
+    name: string
+    path: string
+    isFile: boolean
+    isDirectory: boolean
+    size: number
+    mtimeMs: number
+    ctimeMs: number
+    birthtimeMs: number
+  }>>
+  /** Reads file paths copied in the operating system file manager. */
+  getClipboardFilePaths: () => string[] | Promise<string[]>
+  /** Writes text using Electron's system clipboard integration. */
+  writeClipboardText: (text: string) => void | Promise<void>
   /**
    * Gets the local absolute path for a File object obtained from a drag-drop event.
    * Uses Electron's webUtils.getPathForFile() (replaces the deprecated File.path).

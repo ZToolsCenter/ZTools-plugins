@@ -4,10 +4,10 @@ import vue from '@vitejs/plugin-vue'
 
 // https://vite.dev/config/
 //
-// 多页入口：
-//   - index.html              主窗口（设置/识别/翻译/截图识别触发器）
-//   - screen-ocr-result.html  截图识别结果展示窗口（由 ztools.createBrowserWindow 打开，
-//                             纯展示：左图右文，不带 preload，不调 window.ztools API）
+// 单页入口：
+//   - index.html 主窗口（设置 / OCR 识别 / 翻译 / 代码翻译）
+//     截图识别（screen-ocr / screen-latex）也在此主窗口内完成：进入即自动截屏，
+//     识别结果在主窗口左右分栏展示，不再开独立结果窗口。
 export default defineConfig({
   plugins: [vue()],
   base: './',
@@ -21,8 +21,7 @@ export default defineConfig({
     emptyOutDir: false,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        screenOcrResult: resolve(__dirname, 'screen-ocr-result.html')
+        main: resolve(__dirname, 'index.html')
       }
     }
   }

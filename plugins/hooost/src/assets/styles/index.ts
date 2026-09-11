@@ -1,2 +1,2 @@
 import 'virtual:uno.css'
-import './css/global.css'
+import 'ztools-ui/style.css'

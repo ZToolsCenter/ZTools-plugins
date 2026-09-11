@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.4](https://github.com/ZToolsCenter/ZTools-plugins) - 2026-05-11
+## 1.0.4 - 2026-05-11
 
 ### Fixed
 
@@ -19,7 +19,9 @@ All notable changes to this project will be documented in this file.
 - 代码审查问题修复：处理代码检测工具发现的各类问题
 - 优化代码结构，提升可维护性
 
-## [1.0.3](https://github.com/ZToolsCenter/ZTools-plugins) - 2026-05-11
+相关链接：<https://github.com/ZToolsCenter/ZTools-plugins>
+
+## 1.0.3 - 2026-05-11
 
 ### Fixed
 
@@ -39,13 +41,17 @@ All notable changes to this project will be documented in this file.
 - 移除冗余的数据库操作，提升性能
 - 添加参数去重机制，避免重复处理相同的插件入口参数
 
-## [1.0.2](https://github.com/ZToolsCenter/ZTools-plugins) - 2026-05-11
+相关链接：<https://github.com/ZToolsCenter/ZTools-plugins>
+
+## 1.0.2 - 2026-05-11
 
 ### Fixed
 
 - 修正拼写错误：`dowload` → `download`
 
-## [1.0.1](https://github.com/ZToolsCenter/ZTools-plugins) - 2026-05-09
+相关链接：<https://github.com/ZToolsCenter/ZTools-plugins>
+
+## 1.0.1 - 2026-05-09
 
 ### Changed
 
@@ -54,7 +60,13 @@ All notable changes to this project will be documented in this file.
 - 页面滚动问题修复
 - 修改拼写错误
 
-## [1.0.0](https://github.com/ZToolsCenter/ZTools-plugins) - 2026-05-09
+相关链接：<https://github.com/ZToolsCenter/ZTools-plugins>
+
+### 根据提交记录补充
+
+- 优化无content-length时的进度显示逻辑
+
+## 1.0.0 - 2026-05-09
 
 ### Added
 
@@ -80,3 +92,4 @@ All notable changes to this project will be documented in this file.
   - `download`：直接下载指定 URL 文件
   - `copygitclone`：复制 Git Clone 命令
 
+相关链接：<https://github.com/ZToolsCenter/ZTools-plugins>

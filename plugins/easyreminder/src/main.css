@@ -1,0 +1,165 @@
+:root {
+  --blue: rgb(88, 164, 246);
+  --light: #fff;
+
+  /* Element Plus CSS Variables — Light Mode */
+  --el-color-primary: #409eff;
+  --el-color-primary-light-3: #79bbff;
+  --el-color-primary-light-5: #a0cfff;
+  --el-color-primary-light-7: #c6e2ff;
+  --el-color-primary-light-8: #d9ecff;
+  --el-color-primary-light-9: #ecf5ff;
+  --el-color-primary-dark-2: #337ecc;
+  --el-color-danger: #f56c6c;
+  --el-color-danger-light-9: #fef0f0;
+  --el-text-color-primary: #303133;
+  --el-text-color-regular: #606266;
+  --el-text-color-secondary: #909399;
+  --el-text-color-placeholder: #a8abb2;
+  --el-border-color: #dcdfe6;
+  --el-border-color-light: #e4e7ed;
+  --el-border-color-lighter: #ebeef5;
+  --el-bg-color: #ffffff;
+  --el-fill-color: #f0f2f5;
+  --el-fill-color-light: #f5f7fa;
+  --el-fill-color-lighter: #fafafa;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  border: none;
+  background: var(--blue);
+  color: var(--light);
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button:disabled {
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+button:not(:disabled):active {
+  opacity: 0.6;
+}
+
+textarea {
+  display: block;
+  margin: 0;
+}
+
+/* ElMessageBox button overrides */
+.el-message-box__btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.el-message-box__btns .el-button {
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-color: #f4f4f4;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --blue: #5ba3f0;
+    --light: #e5eaf3;
+
+    /* Element Plus CSS Variables — Dark Mode */
+    --el-color-primary: #409eff;
+    --el-color-primary-light-3: #79bbff;
+    --el-color-primary-light-5: #a0cfff;
+    --el-color-primary-light-7: #3375b0;
+    --el-color-primary-light-8: #2a598a;
+    --el-color-primary-light-9: #1d3050;
+    --el-color-primary-dark-2: #66b1ff;
+    --el-color-danger: #f56c6c;
+    --el-color-danger-light-9: #4c2428;
+    --el-color-danger-light-3: #f89898;
+    --el-color-success: #67c23a;
+    --el-color-success-light-9: #293b24;
+    --el-color-warning: #e6a23c;
+    --el-color-warning-light-9: #4a3824;
+    --el-color-info: #909399;
+    --el-text-color-primary: #e5eaf3;
+    --el-text-color-regular: #cfd3dc;
+    --el-text-color-secondary: #a3a6ad;
+    --el-text-color-placeholder: #8d9095;
+    --el-text-color-disabled: #5a5c60;
+    --el-border-color: #4c4d4f;
+    --el-border-color-light: #414243;
+    --el-border-color-lighter: #363637;
+    --el-border-color-extra-light: #2d2d2f;
+    --el-bg-color: #1d1e1f;
+    --el-bg-color-overlay: #25262a;
+    --el-bg-color-page: #0a0a0a;
+    --el-fill-color: #303030;
+    --el-fill-color-light: #262727;
+    --el-fill-color-lighter: #1d1d1d;
+    --el-fill-color-blank: #1d1e1f;
+    --el-mask-color: rgba(0, 0, 0, 0.8);
+    --el-mask-color-extra-light: rgba(0, 0, 0, 0.3);
+  }
+
+  body {
+    background-color: #1d1e1f;
+    color: #e5eaf3;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: var(--el-bg-color);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--el-fill-color);
+    border-color: var(--el-bg-color);
+  }
+
+  /* Element Plus 组件暗色覆盖 */
+  .el-message-box {
+    background-color: var(--el-bg-color-overlay);
+    border-color: var(--el-border-color);
+  }
+
+  .el-message-box__title {
+    color: var(--el-text-color-primary);
+  }
+
+  .el-message-box__message {
+    color: var(--el-text-color-regular);
+  }
+
+  .el-message {
+    background-color: var(--el-bg-color-overlay);
+    border-color: var(--el-border-color);
+  }
+
+  .el-message__content {
+    color: var(--el-text-color-regular);
+  }
+}

@@ -1,0 +1,1 @@
+import{h as e}from"./vendor-mermaid~mermaid.core~xychartDiagram-2RQKCTM6~wardleyDiagram-YWT4CUSO~vennDiagram-CII~i4ce8ps1.js";var t=class{constructor(e){this.init=e,this.records=this.init()}static{e(this,`ImperativeState`)}reset(){this.records=this.init()}};export{t};

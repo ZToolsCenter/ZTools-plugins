@@ -1,0 +1,35 @@
+{
+  "name": "url-to-app",
+  "title": "网盘链接速开",
+  "description": "主窗口粘贴网盘等链接，推荐区直接出现「打开 XX App」：百度网盘、夸克、阿里云盘、UC、天翼、115、迅雷、123 云盘。点击直接启动本地 App（图标预置、毫秒级响应）；未装本地 App 时回退系统默认。",
+  "version": "1.5.0",
+  "author": "一个成熟的剪辑猿",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "open",
+      "explain": "识别链接并打开对应 App",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "over",
+          "maxLength": 200,
+          "label": "网盘链接速开"
+        },
+        "打开链接",
+        "链接打开app",
+        "网盘链接速开",
+        "openurl"
+      ]
+    }
+  ],
+  "platform": [
+    "win32",
+    "darwin"
+  ],
+  "categories": [
+    "productivity"
+  ]
+}

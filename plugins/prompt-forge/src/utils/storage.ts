@@ -5,10 +5,11 @@ function getKv() {
   const preload = window.kvStorage
   if (preload) return preload
   const ds = window.ztools?.dbStorage
+  const PREFIX = 'promptforge:'
   if (ds) return {
-    get: (key: string) => ds.getItem('pf:' + key),
-    set: (key: string, value: any) => ds.setItem('pf:' + key, value),
-    remove: (key: string) => ds.removeItem('pf:' + key),
+    get: (key: string) => ds.getItem(PREFIX + key),
+    set: (key: string, value: any) => ds.setItem(PREFIX + key, value),
+    remove: (key: string) => ds.removeItem(PREFIX + key),
   }
   return null
 }

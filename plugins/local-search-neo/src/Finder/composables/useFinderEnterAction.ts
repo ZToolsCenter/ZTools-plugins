@@ -3,15 +3,15 @@ import type { RunSearchOptions } from "./useFinderSearch";
 import { useFinderQuery } from "./useFinderQuery";
 import { useSubInput } from "./useSubInput";
 
-export interface FinderEnterAction {
-  payload: string;
-  option?: {
-    fullPath?: string;
-  };
-}
+export type FinderEnterAction = {
+  prefix?: string;
+  query?: string;
+  placeholder?: string;
+  fullPath?: string;
+};
 
 interface UseFinderEnterActionOptions {
-  selectedPath: Ref<string>;
+  activePath: Ref<string>;
   search: (options?: RunSearchOptions) => void;
 }
 
@@ -21,16 +21,18 @@ let activeHandler: EnterActionHandler | undefined;
 let pendingAction: FinderEnterAction | undefined;
 
 export function useFinderEnterAction(options?: UseFinderEnterActionOptions) {
-  const { setQueryText } = useFinderQuery();
-  const { syncSubInputValue } = useSubInput();
+  const { setQueryText, prefixFilter } = useFinderQuery();
+  const { syncSubInputValue, bindSubInput } = useSubInput();
 
   if (options) {
     const handler: EnterActionHandler = (action) => {
-      const fullPath = action.option?.fullPath;
+      const fullPath = action.fullPath;
 
-      setQueryText(action.payload);
+      prefixFilter.value = action.prefix ?? "";
+      bindSubInput(action.placeholder);
+      setQueryText(action.query ?? "");
       syncSubInputValue();
-      options.selectedPath.value = fullPath ?? "";
+      options.activePath.value = fullPath ?? "";
       options.search({ preserveSelection: !!fullPath });
     };
 
@@ -51,7 +53,7 @@ export function useFinderEnterAction(options?: UseFinderEnterActionOptions) {
     }
 
     pendingAction = action;
-    setQueryText(action.payload);
+    setQueryText(action.query ?? "");
     syncSubInputValue();
   }
 

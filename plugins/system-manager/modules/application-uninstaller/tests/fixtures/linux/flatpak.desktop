@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Flat Notes
+Exec=/usr/bin/flatpak run io.acme.Notes
+X-Flatpak=io.acme.Notes

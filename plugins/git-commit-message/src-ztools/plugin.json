@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "git-commit-message",
+  "title": "git commit message",
+  "description": "快速生成带 Gitmoji 的 Git 提交信息",
+  "author": "xyflii",
+  "version": "0.1.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "commit-message",
+      "explain": "快速生成带 Gitmoji 的 Git 提交信息",
+      "icon": "logo.png",
+      "cmds": ["git commit", "commit message", "提交信息", "生成提交消息"]
+    }
+  ]
+}

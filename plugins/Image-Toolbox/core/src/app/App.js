@@ -13,6 +13,8 @@ import {
   ToolManager,
 } from '../runtime/fabric.js';
 
+import { exportORA, importORA } from '../utils/ora.js';
+
 import Toolbar from '../ui/Toolbar.js';
 import OptionsBar from '../ui/OptionsBar.js';
 import SidePanelTabs from '../ui/SidePanelTabs.js';
@@ -24,6 +26,8 @@ import AccountPage, {
   EDITOR_BARS_LAYOUTS,
   EDITOR_SIDE_PANEL_POSITION_KEY,
   EDITOR_SIDE_PANEL_POSITIONS,
+  TOOLBAR_COLLAPSED_KEY,
+  TOOLBAR_COLLAPSED,
 } from '../ui/AccountPage.js';
 import { initTheme } from '../utils/theme.js';
 
@@ -48,6 +52,9 @@ class App {
     this.accountPage = null;
     this.hostAdapter = null;
     this._destroyed = false;
+    this._boundGlobalListeners = null;
+    this._externalSourceTimer = null;
+    this._onPluginEnterCallback = null;
 
     this._init();
   }
@@ -64,6 +71,7 @@ class App {
       initTheme();
       this._applyEditorBarsLayout(this._getEditorBarsLayout());
       this._applyEditorSidePanelPosition(this._getEditorSidePanelPosition());
+      this._applyToolbarCollapsed(this._getToolbarCollapsed());
 
       // 1. 初始化画布管理器
       this.canvasManager = new CanvasManager('fabric-canvas');
@@ -150,26 +158,31 @@ class App {
     // ═══ 图片导入 ═══
 
     // 拖拽导入
-    document.addEventListener('dragover', (e) => {
+    const onDragOver = (e) => {
       e.preventDefault();
       e.stopPropagation();
-    });
+    };
 
-    document.addEventListener('drop', (e) => {
+    const onDrop = (e) => {
       e.preventDefault();
       e.stopPropagation();
 
       const files = e.dataTransfer.files;
       if (files.length > 0) {
         const file = files[0];
+        // ORA 工程文件
+        if (file.name.toLowerCase().endsWith('.ora')) {
+          eventBus.emit('ora:import', file);
+          return;
+        }
         if (file.type.startsWith('image/')) {
           this._loadImage(file);
         }
       }
-    });
+    };
 
     // 粘贴导入
-    document.addEventListener('paste', (e) => {
+    const onPaste = (e) => {
       const items = e.clipboardData?.items;
       if (!items) return;
 
@@ -182,14 +195,34 @@ class App {
           break;
         }
       }
-    });
+    };
 
     // 文件选择对话框（宿主 API）
     document.getElementById('welcome-btn')?.addEventListener('click', () => {
       if (typeof window.showOpenImageDialog === 'function') {
-        const result = window.showOpenImageDialog();
-        if (result && result.length > 0) {
-          const dataURL = window.readImageFile(result[0]);
+        // showOpenImageDialog 返回文件路径字符串或 null
+        const filePath = window.showOpenImageDialog();
+        if (filePath) {
+          // ORA 工程文件走单独导入流程
+          if (filePath.toLowerCase().endsWith('.ora')) {
+            if (typeof window.readImageFile === 'function') {
+              const dataURL = window.readImageFile(filePath);
+              if (dataURL) {
+                // dataURL → Blob → ora:import
+                const match = dataURL.match(/^data:[^;]+;base64,(.+)$/i);
+                if (match) {
+                  const binary = atob(match[1]);
+                  const bytes = new Uint8Array(binary.length);
+                  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                  const blob = new Blob([bytes], { type: 'application/zip' });
+                  eventBus.emit('ora:import', blob);
+                }
+              }
+            }
+            return;
+          }
+          // 普通图片
+          const dataURL = window.readImageFile(filePath);
           if (dataURL) {
             this._loadImage(dataURL);
           }
@@ -198,10 +231,16 @@ class App {
         // 降级方案：浏览器 file input
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = 'image/png,image/jpeg,image/webp,image/bmp,image/gif,image/svg+xml';
+        input.accept = '.ora,.png,.jpg,.jpeg,.webp,.bmp,.gif,.svg,image/*,application/zip';
         input.onchange = (e) => {
           const file = e.target.files[0];
-          if (file) this._loadImage(file);
+          if (!file) return;
+          // ORA 工程文件
+          if (file.name.toLowerCase().endsWith('.ora')) {
+            eventBus.emit('ora:import', file);
+            return;
+          }
+          this._loadImage(file);
         };
         input.click();
       }
@@ -228,15 +267,6 @@ class App {
       this._updateZoomLabel();
     });
 
-    // 滚轮缩放
-    document.getElementById('canvas-area')?.addEventListener('wheel', (e) => {
-      if (!this.canvasManager?.canvas) return;
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.05 : 0.05;
-      this.canvasManager.zoomIn(delta);
-      this._updateZoomLabel();
-    }, { passive: false });
-
     eventBus.on('canvas:zoomIn', () => {
       this.canvasManager?.zoomIn();
       this._updateZoomLabel();
@@ -247,14 +277,43 @@ class App {
     });
 
     // ═══ 导出 ═══
-    eventBus.on('export:requested', async (format) => {
-      if (format === 'clipboard') {
+    eventBus.on('export:requested', async (payload) => {
+      // 兼容旧调用方式：字符串 'clipboard' 或 { type: 'file', format }
+      const type = typeof payload === 'string' ? payload : payload?.type;
+      if (type === 'clipboard') {
         await this.toolManager?.export('clipboard');
       } else {
         const exportModule = this.toolManager?.getModule('export');
         if (exportModule) {
-          await exportModule.exportToFile();
+          await exportModule.exportToFile(payload?.format);
         }
+      }
+    });
+
+    // ═══ 打开文件（从状态栏「打开」按钮）═══
+    eventBus.on('file:open', async (source) => {
+      if (source) {
+        await this._loadImage(source);
+        this.hostAdapter?.setWindowHeight(560);
+      }
+    });
+
+    // ═══ ORA 导出/导入 ═══
+    eventBus.on('ora:export', async () => {
+      if (!this.canvasManager?.originalImage) {
+        eventBus.emit('toast:show', { message: '请先加载图片', type: 'error' });
+        return;
+      }
+      await exportORA(this.canvasManager, this.layerManager, this.hostAdapter);
+    });
+
+    eventBus.on('ora:import', async (file) => {
+      if (file instanceof Blob) {
+        document.getElementById('welcome')?.classList.add('hidden');
+        document.getElementById('canvas-container')?.classList.remove('hidden');
+        document.getElementById('zoom-control')?.classList.remove('hidden');
+        await importORA(file, this.canvasManager, this.layerManager, this.historyManager);
+        this.hostAdapter?.setWindowHeight(560);
       }
     });
 
@@ -279,8 +338,12 @@ class App {
       this._applyEditorSidePanelPosition(position);
     });
 
+    eventBus.on('toolbar:collapsedChanged', (value) => {
+      this._applyToolbarCollapsed(value);
+    });
+
     // ═══ 快捷键 ═══
-    document.addEventListener('keydown', (e) => {
+    const onKeyDown = (e) => {
       // Ctrl+Z 撤销
       if (e.ctrlKey && !e.shiftKey && e.key === 'z') {
         e.preventDefault();
@@ -322,7 +385,26 @@ class App {
           this.toolManager?.activateTool(tool.name);
         }
       }
-    });
+    };
+
+    // ═══ 滚轮缩放 ═══
+    const onWheel = (e) => {
+      if (!this.canvasManager?.canvas) return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      const pointer = this.canvasManager.canvas.getPointer(e);
+      this.canvasManager.zoomIn(delta, new fabric.Point(pointer.x, pointer.y));
+      this._updateZoomLabel();
+    };
+
+    // 注册所有全局监听器并保存引用以便销毁时移除
+    document.addEventListener('dragover', onDragOver);
+    document.addEventListener('drop', onDrop);
+    document.addEventListener('paste', onPaste);
+    document.addEventListener('keydown', onKeyDown);
+    document.getElementById('canvas-area')?.addEventListener('wheel', onWheel, { passive: false });
+
+    this._boundGlobalListeners = { onDragOver, onDrop, onPaste, onKeyDown, onWheel };
 
     // ═══ 画布操作后自动保存历史 ═══
     eventBus.on('canvas:objectModified', (target) => {
@@ -349,7 +431,10 @@ class App {
     });
 
     // ═══ 插件重复进入 ═══
-    this.hostAdapter?.onPluginEnter(({ code, type, payload, from }) => {
+    // preload.js 已在插件加载时注册了 onPluginEnter，将首次进入的图片
+    // payload 暂存到 window.__imageSource，由 _checkExternalSource() 拾取。
+    // 此处重新注册 onPluginEnter 处理后续进入（覆盖 preload 中的回调）。
+    this._onPluginEnterCallback = ({ code, type, payload, from }) => {
       console.log('[App] onPluginEnter:', { code, type, from, payload });
       if (code === 'image-edit') {
         const source = this._getExternalImageSource(type, payload);
@@ -360,16 +445,17 @@ class App {
           }
           this._loadImage(source);
         } else if (type === 'img' && window.__imageSource) {
-          const source = window.__imageSource;
-          if (source) {
+          const fallbackSource = window.__imageSource;
+          if (fallbackSource) {
             window.__imageSource = null;
-            this._loadImage(source);
+            this._loadImage(fallbackSource);
           }
         }
 
         this.hostAdapter?.setWindowHeight(560);
       }
-    });
+    };
+    this.hostAdapter?.onPluginEnter(this._onPluginEnterCallback);
   }
 
   destroy() {
@@ -379,6 +465,22 @@ class App {
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
+    }
+
+    if (this._externalSourceTimer) {
+      clearTimeout(this._externalSourceTimer);
+      this._externalSourceTimer = null;
+    }
+
+    // 移除全局事件监听器
+    if (this._boundGlobalListeners) {
+      const { onDragOver, onDrop, onPaste, onKeyDown, onWheel } = this._boundGlobalListeners;
+      document.removeEventListener('dragover', onDragOver);
+      document.removeEventListener('drop', onDrop);
+      document.removeEventListener('paste', onPaste);
+      document.removeEventListener('keydown', onKeyDown);
+      document.getElementById('canvas-area')?.removeEventListener('wheel', onWheel);
+      this._boundGlobalListeners = null;
     }
 
     [
@@ -466,9 +568,8 @@ class App {
   }
 
   _checkExternalSource() {
-    let attempts = 0;
-    const maxAttempts = 30;
-
+    // 使用事件驱动 + 轮询降级：先检查是否已有图片源，
+    // 如果没有则设置一个更长的轮询窗口（10s），等待 preload 回调写入。
     const check = () => {
       if (window.__imageSource) {
         const source = window.__imageSource;
@@ -479,15 +580,21 @@ class App {
         }
         return;
       }
-      attempts++;
-      if (attempts < maxAttempts) {
-        setTimeout(check, 100);
-      } else {
-        console.log('[App] _checkExternalSource 超时（3s），未发现外部图片源');
-      }
+      // 继续等待，直到超时
+      this._externalSourceTimer = setTimeout(check, 200);
     };
 
-    setTimeout(check, 100);
+    // 先等待 100ms 再开始检查，给 preload 回调留出时间
+    this._externalSourceTimer = setTimeout(check, 100);
+
+    // 安全兜底：10 秒后清理定时器
+    setTimeout(() => {
+      if (this._externalSourceTimer) {
+        clearTimeout(this._externalSourceTimer);
+        this._externalSourceTimer = null;
+        console.log('[App] _checkExternalSource 超时（10s），未发现外部图片源');
+      }
+    }, 10000);
   }
 
   _updateZoomLabel() {
@@ -526,6 +633,22 @@ class App {
     document.getElementById('app')?.classList.toggle(
       'app--panel-left',
       normalized === EDITOR_SIDE_PANEL_POSITIONS.LEFT
+    );
+  }
+
+  _getToolbarCollapsed() {
+    const saved = localStorage.getItem(TOOLBAR_COLLAPSED_KEY);
+    return Object.values(TOOLBAR_COLLAPSED).includes(saved) ? saved : TOOLBAR_COLLAPSED.COLLAPSED;
+  }
+
+  _applyToolbarCollapsed(value) {
+    const normalized = Object.values(TOOLBAR_COLLAPSED).includes(value)
+      ? value
+      : TOOLBAR_COLLAPSED.COLLAPSED;
+
+    document.getElementById('app')?.classList.toggle(
+      'app--toolbar-expanded',
+      normalized === TOOLBAR_COLLAPSED.EXPANDED
     );
   }
 }

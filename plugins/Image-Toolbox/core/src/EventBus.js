@@ -31,10 +31,13 @@ class EventBus {
    * @param {object} [context]
    */
   once(event, callback, context) {
-    const off = this.on(event, (...args) => {
+    let off = null;
+    const wrapper = (...args) => {
       off();
       callback.apply(context, args);
-    }, context);
+    };
+    off = this.on(event, wrapper, context);
+    return off;
   }
 
   /**

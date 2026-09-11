@@ -3,10 +3,11 @@ import { getFileIconType } from '@/utils/fileIcon'
 
 defineProps({
   item: { type: Object, required: true },
-  isExpanded: { type: Boolean, default: false }
+  isExpanded: { type: Boolean, default: false },
+  isFavoriteTab: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['toggle-expand'])
+const emit = defineEmits(['toggle-expand', 'delete-favorite'])
 </script>
 
 <template>
@@ -100,6 +101,14 @@ const emit = defineEmits(['toggle-expand'])
       >
         <span class="expand-icon">{{ isExpanded ? '▲' : '▼' }}</span>
         <span>{{ isExpanded ? '收起' : '展开' }}</span>
+      </button>
+      <button
+        v-if="isFavoriteTab"
+        class="delete-btn"
+        @click.stop="emit('delete-favorite')"
+        title="删除收藏"
+      >
+        ✕
       </button>
       <span class="meta-count">{{ item.preview || `${item.fileCount} 个项目` }}</span>
     </div>
@@ -220,6 +229,26 @@ const emit = defineEmits(['toggle-expand'])
 
 .expand-icon {
   font-size: 10px;
+}
+
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 4px 8px;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.delete-btn:hover {
+  color: var(--text-danger);
+  background: var(--bg-danger-light);
 }
 
 .meta-count {

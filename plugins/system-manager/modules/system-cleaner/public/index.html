@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+  <title>垃圾清理</title>
+  <link rel="icon" href="logo.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到清理内容</a>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><img src="logo.svg" alt="" /><div><strong>垃圾清理</strong><span>预览优先 · 可恢复删除</span></div></div>
+      <div class="actions">
+        <button id="themeButton" class="quiet" type="button" aria-label="切换深浅主题">◐</button>
+        <button id="scanButton" type="button">重新扫描</button>
+        <button id="cleanButton" class="primary" type="button" disabled>移到废纸篓</button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="heroTitle">
+        <p class="eyebrow">LOCAL CLEANUP / SAFE MODE</p>
+        <div class="hero-grid">
+          <div><h1 id="heroTitle">先看清，再清理</h1><p>只扫描当前用户的白名单目录。所有项目都会完整预览，执行前再次核对位置与目录内容摘要。</p></div>
+          <div class="total-card"><span>可移至废纸篓</span><strong id="totalSize">—</strong><small id="scanMeta">等待扫描</small></div>
+        </div>
+        <div class="safety-strip"><span aria-hidden="true">✓</span><span>默认跳过近期内容、符号链接、其他用户文件和系统目录；清理操作进入系统废纸篓。</span></div>
+      </section>
+
+      <section class="filters" aria-label="扫描分类">
+        <label><input type="checkbox" name="category" value="cache" checked /> 应用缓存</label>
+        <label><input type="checkbox" name="category" value="logs" checked /> 日志</label>
+        <label><input type="checkbox" name="category" value="temporary" checked /> 临时文件</label>
+      </section>
+
+      <section id="statusPanel" class="status-panel" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div><div><strong>正在读取安全清理范围</strong><p>不会扫描文档、照片或其他个人内容目录。</p></div>
+      </section>
+
+      <section id="resultPanel" class="results" hidden>
+        <header class="section-title"><div><p class="eyebrow">REVIEW</p><h2>清理预览</h2></div><div><strong id="selectedSize">0 B</strong><span id="selectedCount">已选 0 项</span></div></header>
+        <div id="warnings" class="warnings" hidden></div>
+        <div id="candidateList" class="candidate-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="confirmDialog" aria-labelledby="confirmTitle">
+    <form method="dialog" class="dialog-card">
+      <header><div><p class="eyebrow">FINAL REVIEW</p><h2 id="confirmTitle">确认移到废纸篓</h2></div><button value="cancel" class="quiet" aria-label="关闭">×</button></header>
+      <p>已选择 <strong id="dialogCount">0</strong> 项，共 <strong id="dialogSize">0 B</strong>。项目会进入系统废纸篓，可以在清空废纸篓前恢复。</p>
+      <label class="confirm-label">请输入“移到废纸篓”以继续<input id="confirmInput" autocomplete="off" /></label>
+      <footer><button value="cancel" type="submit">取消</button><button id="confirmCleanButton" class="danger" value="default" type="button" disabled>确认清理</button></footer>
+    </form>
+  </dialog>
+
+  <template id="candidateTemplate">
+    <article class="candidate">
+      <label class="candidate-select">
+        <input class="candidate-check" type="checkbox" name="cleanup-candidate" />
+        <span aria-hidden="true"></span>
+      </label>
+      <div class="candidate-main"><div><strong class="candidate-label"></strong><span class="candidate-badge"></span></div><p class="candidate-location"></p></div>
+      <div class="candidate-info"><strong class="candidate-size"></strong><span class="candidate-age"></span></div>
+      <button class="reveal-button quiet" type="button">定位</button>
+    </article>
+  </template>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1146 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+/* HeroUI v3：须紧跟 tailwindcss；包内自带主题与组件结构样式 */
+@import "@heroui/styles";
+
+@source "./App.tsx";
+@source "./main.tsx";
+/* 仅扫描业务入口与 shell；勿扫整包 ui/，以免 Tailwind 产出 color-mix 等旧内核禁忌语法 */
+@source "./components/shell/**/*.{ts,tsx}";
+@source "./components/agent/**/*.{ts,tsx}";
+@source "./components/settings/**/*.{ts,tsx}";
+@source "./components/changes/**/*.{ts,tsx}";
+@source "./components/automations/**/*.{ts,tsx}";
+@source "./components/skills-editor/**/*.{ts,tsx}";
+@source "./components/onboarding/**/*.{ts,tsx}";
+@source "./stores/**/*.{ts,tsx}";
+@source "./platform/**/*.{ts,tsx}";
+@source "./lib/**/*.{ts,tsx}";
+/* HeroUI 业务接入文件（W2/W3 起）；保证 @source 能扫到类名用法 */
+@source "./lib/heroui.ts";
+/* Streamdown：扫描 dist 中的 Tailwind class（路径相对 src/ → 根 node_modules） */
+@source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@streamdown/code/dist/*.js";
+@source "../node_modules/@streamdown/mermaid/dist/*.js";
+
+/* agent-chat：仅关键帧动画 + .agent-md 排版，无 color-mix / oklch */
+@import "./components/agent/agent-chat.css";
+/* Beautiful UI：hex keyframes / .bui scoped，无 oklch / color-mix */
+@import "./components/agent/beautiful-ui.css";
+/* Streamdown：仅 keyframes / [data-sd-animate]；token 复用下方 shadcn hex 变量 */
+@import "streamdown/styles.css";
+/* 首次导览 popover 主题（driver 本体 css 由 runTour 侧 import） */
+@import "./components/onboarding/tour.css";
+/* 全局 Toast：surface + 语义色，禁 richColors 大色块 */
+@import "./styles/goose-toast.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-bg: #f4f4f4;
+  --color-surface: #ffffff;
+  --color-surface-hover: #ebebeb;
+  --color-surface-active: #e1e1e1;
+  --color-fg: #171717;
+  --color-fg-muted: #525252;
+  /* faint 略深于纯中灰，保证 #f4f4f4 / 白底上 ≥ 可读 */
+  --color-fg-faint: #5c5c5c;
+  --color-accent: #171717;
+  --color-accent-hover: #262626;
+  --color-accent-active: #0a0a0a;
+  --color-accent-subtle: #e5e5e5;
+  --color-accent-fg: #fafafa;
+  /* 浅色描边：在 #f4f4f4 与白 surface 上均可见，避免 muddy */
+  --color-border: #d0d0d0;
+  --color-timer-low: #b42318;
+  --color-copied: #177245;
+  --color-copied-subtle: #e4f5eb;
+  /* 输入凹回 canvas，与 surface 白卡分层 */
+  --color-input: #f4f4f4;
+  --color-border-strong: #9a9a9a;
+  --color-border-soft: #dedede;
+  --color-accent-border: #bdbdbd;
+  --color-danger-soft: #fbe9e7;
+  --color-danger-faint: #fff5f4;
+  --color-danger-border: #e4aaa5;
+  --color-danger-fg: #ffffff;
+  --color-copied-border: #9bc9ae;
+  /* 圆角阶梯：panel 为主表面标准，后续大卡片/主内容区统一用 rounded-panel */
+  --radius-panel: 16px;
+  --radius-cell: 14px;
+
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei", sans-serif;
+  --font-serif: "Iowan Old Style", Palatino, Georgia, "Songti SC", serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Cascadia Mono", "Segoe UI Mono", "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+  --font-size-ui: 13px;
+  --font-size-chat: 14px;
+  --line-height-chat: 1.65;
+}
+
+@layer base {
+  :root {
+    --color-bg: #f4f4f4;
+    --color-surface: #ffffff;
+    --color-surface-hover: #ebebeb;
+    --color-surface-active: #e1e1e1;
+    --color-fg: #171717;
+    --color-fg-muted: #525252;
+    --color-fg-faint: #5c5c5c;
+    --color-accent: #171717;
+    --color-accent-hover: #262626;
+    --color-accent-active: #0a0a0a;
+    --color-accent-subtle: #e5e5e5;
+    --color-accent-fg: #fafafa;
+    --color-border: #d0d0d0;
+    --color-timer-low: #b42318;
+    --color-copied: #177245;
+    --color-copied-subtle: #e4f5eb;
+    --color-input: #f4f4f4;
+    --color-border-strong: #9a9a9a;
+    --color-border-soft: #dedede;
+    --color-accent-border: #bdbdbd;
+    --color-danger-soft: #fbe9e7;
+    --color-danger-faint: #fff5f4;
+    --color-danger-border: #e4aaa5;
+    --color-danger-fg: #ffffff;
+    --color-copied-border: #9bc9ae;
+  }
+
+  .dark {
+    /* 主背景贴合 uTools #303133；表面略抬升形成留白层级 */
+    --color-bg: #303133;
+    --color-surface: #38393b;
+    --color-surface-hover: #424345;
+    --color-surface-active: #4a4b4d;
+    --color-fg: #f0f0f0;
+    --color-fg-muted: #c8c8c8;
+    --color-fg-faint: #a0a0a0;
+    --color-accent: #e5e5e5;
+    --color-accent-hover: #f5f5f5;
+    --color-accent-active: #ffffff;
+    --color-accent-subtle: #3e3f41;
+    --color-accent-fg: #171717;
+    --color-border: #4a4b4d;
+    --color-timer-low: #ff8a80;
+    --color-copied: #73d6a1;
+    --color-copied-subtle: #243a2e;
+    --color-input: #424345;
+    --color-border-strong: #6b6b6b;
+    --color-border-soft: #3a3b3d;
+    --color-accent-border: #636363;
+    --color-danger-soft: #4a2e2c;
+    --color-danger-faint: #3a2826;
+    --color-danger-border: #8f504b;
+    --color-danger-fg: #ffffff;
+    --color-copied-border: #397a58;
+  }
+
+  * {
+    box-sizing: border-box;
+    border-color: var(--color-border);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+  }
+
+  html,
+  body {
+    overflow: hidden;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-ui, 13px);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* uTools 插件：默认禁选，避免拖侧栏/点按钮时误选 UI 文案 */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /*
+   * 对话正文必须可复制：body 的 user-select:none 写在 @layer base 外，
+   * 会压过 Tailwind utilities 的 .select-text，故在此用同层白名单覆盖。
+   * 子树内按钮/控件仍可自行 select-none。
+   */
+  input,
+  textarea,
+  [contenteditable="true"],
+  .select-text,
+  .agent-md,
+  .agent-msg-user,
+  .agent-msg-assistant,
+  .agent-subagent-selectable {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /*
+   * 全局取消控件 focus ring / outline（含浏览器默认、本仓旧规则、HeroUI
+   * status-focused / Tailwind ring）。点击/Tab 后不出现白/高对比外圈；
+   * 键盘仍可聚焦，仅不做可见 ring，与 icon-control 风格一致。
+   */
+  *:focus,
+  *:focus-visible {
+    outline: none !important;
+    outline-offset: 0;
+  }
+
+  *:focus-visible,
+  *[data-focus-visible="true"],
+  *[data-focused="true"] {
+    --tw-ring-color: transparent !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-width: 0px !important;
+  }
+
+  input, textarea, select {
+    border-width: 1px;
+  }
+
+  /* 分组编辑器是一个复合控件，焦点由外层胶囊统一承载。 */
+  .group-name-input {
+    border-width: 0;
+  }
+
+  /* 拖动后 dnd-kit 会把焦点还给手柄：无外圈，仅用内嵌背景反馈。 */
+  .drag-handle:focus-visible {
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+  }
+
+  input::placeholder {
+    color: var(--color-fg-faint);
+  }
+
+  /* 纵/横统一细轨；未设 height 时旧内核横向条会变得很粗，像底部分隔色带 */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #bdbdbd;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9c9c9c;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #404040;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .cell-content {
+    pointer-events: none;
+  }
+
+  .cell-content button {
+    position: relative;
+    z-index: 1;
+    pointer-events: auto;
+  }
+}
+
+@layer components {
+  .timer-bar {
+    width: 100%;
+    transform-origin: left center;
+    transition:
+      transform 1s linear,
+      background-color 0.15s ease;
+  }
+
+  .timer-ring {
+    transition:
+      stroke-dashoffset 1s linear,
+      stroke 0.15s ease;
+  }
+
+  .timer-reset,
+  .no-transition {
+    transition: none !important;
+  }
+
+  /* 拖动浮层：被"拎起"的卡片——放大、强投影、微旋转 */
+  .dragging-overlay {
+    cursor: grabbing;
+    transform: scale(1.04);
+    box-shadow:
+      0 18px 40px -8px rgb(0 0 0 / 0.35),
+      0 6px 14px -6px rgb(0 0 0 / 0.25);
+    animation: cell-lift 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes cell-lift {
+    from {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgb(0 0 0 / 0);
+    }
+    to {
+      transform: scale(1.04);
+      box-shadow:
+        0 18px 40px -8px rgb(0 0 0 / 0.35),
+        0 6px 14px -6px rgb(0 0 0 / 0.25);
+    }
+  }
+
+  .cell-enter {
+    animation: cell-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes cell-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .copied-flash {
+    animation: flash 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes flash {
+    0% {
+      background: var(--color-copied-subtle);
+    }
+    100% {
+      background: var(--color-surface);
+    }
+  }
+
+  .slide-in {
+    animation: slide-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fade-in {
+    animation: fade-in 0.2s ease-out both;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .flip-scene {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    perspective: 1400px;
+  }
+
+  .flip-face {
+    position: absolute;
+    inset: 0;
+  }
+
+  .flip-front {
+    z-index: 2;
+    transform-origin: center center;
+    will-change: transform, opacity;
+    overflow: hidden;
+  }
+
+  .flip-front.flipping-out {
+    animation: flip-out 0.18s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  }
+
+  .flip-front.flipping-in {
+    animation: flip-in 0.18s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  }
+
+  .flip-back {
+    z-index: 1;
+    transform-origin: center center;
+    transform: rotateY(90deg);
+    opacity: 0;
+    will-change: transform, opacity;
+    overflow-y: auto;
+  }
+
+  .flip-back.flipping-in {
+    animation: flip-in 0.18s cubic-bezier(0, 0, 0.2, 1) forwards;
+    animation-delay: 0.16s;
+  }
+
+  .flip-back.flipping-out {
+    animation: flip-out 0.18s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  }
+
+  @keyframes flip-out {
+    0% {
+      transform: rotateY(0deg) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: rotateY(-90deg) scale(0.92);
+      opacity: 0;
+    }
+  }
+
+  @keyframes flip-in {
+    0% {
+      transform: rotateY(90deg) scale(0.92);
+      opacity: 0;
+    }
+    100% {
+      transform: rotateY(0deg) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface) 25%,
+      var(--color-surface-hover) 50%,
+      var(--color-surface) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .flip-face {
+      transform: none !important;
+    }
+  }
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Cascadia Mono", "Segoe UI Mono", "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-shadcn-input: var(--input);
+  --color-shadcn-border: var(--border);
+  --color-destructive: var(--destructive);
+  /* shadcn 高亮用 subtle，勿绑 HeroUI 品牌 --accent（primary 按钮） */
+  --color-shadcn-accent-foreground: var(--color-fg);
+  --color-shadcn-accent: var(--color-accent-subtle);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* -------------------------------------------------------------------------- */
+/* HeroUI 主题实色覆盖（uTools 旧内核：禁 oklch / color-mix / hsl(var/alpha)） */
+/* 浮层关键：--overlay 必须实色不透明；Dropdown/Popover/Select/ListBox 用此 token */
+/* -------------------------------------------------------------------------- */
+:root,
+.light,
+.default,
+[data-theme="light"],
+[data-theme="default"] {
+  --white: #ffffff;
+  --black: #000000;
+  --snow: #fafafa;
+  --eclipse: #171717;
+
+  --background: #f4f4f4;
+  --foreground: #171717;
+  --surface: #ffffff;
+  --surface-foreground: #171717;
+  --surface-secondary: #f4f4f4;
+  --surface-secondary-foreground: #171717;
+  --surface-tertiary: #ebebeb;
+  --surface-tertiary-foreground: #171717;
+  /* 浮层：实色白，禁止半透明 */
+  --overlay: #ffffff;
+  --overlay-foreground: #171717;
+  --muted: #525252;
+  --default: #ebebeb;
+  --default-foreground: #171717;
+  --accent: #171717;
+  --accent-foreground: #fafafa;
+  /* 浅色字段：凹回 canvas + 细描边，避免白卡上「消失」 */
+  --field-background: #f4f4f4;
+  --field-foreground: #171717;
+  --field-placeholder: #5c5c5c;
+  --field-border: #dedede;
+  --success: #177245;
+  --success-foreground: #171717;
+  --warning: #b45309;
+  --warning-foreground: #171717;
+  --danger: #b42318;
+  --danger-foreground: #ffffff;
+  --segment: #ffffff;
+  --segment-foreground: #171717;
+  --border: #d0d0d0;
+  --separator: #dedede;
+  /* 透明：HeroUI focus-ring / status-focused 不再画出高对比 ring */
+  --focus: transparent;
+  --link: #171717;
+  --backdrop: rgba(0, 0, 0, 0.45);
+
+  /* 用实色替代 color-mix 计算 token */
+  --surface-hover: #ebebeb;
+  --background-secondary: #f0f0f0;
+  --background-tertiary: #ebebeb;
+  --background-inverse: #171717;
+  --default-hover: #e1e1e1;
+  --accent-hover: #262626;
+  --success-hover: #145c38;
+  --warning-hover: #92400e;
+  --danger-hover: #912018;
+  --field-hover: #ebebeb;
+  --field-focus: #ffffff;
+  /* 浅色：hover/focus 预展开实色描边（旧内核不可 color-mix） */
+  --field-border-hover: #d0d0d0;
+  --field-border-focus: #9a9a9a;
+  --default-soft: #f4f4f4;
+  --default-soft-foreground: #171717;
+  --default-soft-hover: #ebebeb;
+  --accent-soft: #e5e5e5;
+  --accent-soft-foreground: #171717;
+  --accent-soft-hover: #d9d9d9;
+  --danger-soft: #fbe9e7;
+  --danger-soft-foreground: #b42318;
+  --danger-soft-hover: #f5d0cc;
+  --warning-soft: #fef3c7;
+  --warning-soft-foreground: #b45309;
+  --warning-soft-hover: #fde68a;
+  --success-soft: #e4f5eb;
+  --success-soft-foreground: #177245;
+  --success-soft-hover: #c8ebd6;
+  --separator-secondary: #dedede;
+  --separator-tertiary: #d4d4d4;
+  --border-secondary: #d0d0d0;
+  --border-tertiary: #bdbdbd;
+  --scrollbar-thumb: #bdbdbd;
+  --scrollbar-track: transparent;
+}
+
+.dark,
+[data-theme="dark"] {
+  --white: #ffffff;
+  --black: #000000;
+  --snow: #f0f0f0;
+  --eclipse: #171717;
+
+  --background: #303133;
+  --foreground: #f0f0f0;
+  --surface: #38393b;
+  --surface-foreground: #f0f0f0;
+  --surface-secondary: #424345;
+  --surface-secondary-foreground: #f0f0f0;
+  --surface-tertiary: #4a4b4d;
+  --surface-tertiary-foreground: #f0f0f0;
+  /* 浮层：贴合 surface 实色，禁止半透明 */
+  --overlay: #38393b;
+  --overlay-foreground: #f0f0f0;
+  --muted: #c8c8c8;
+  --default: #424345;
+  --default-foreground: #f0f0f0;
+  --accent: #e5e5e5;
+  --accent-foreground: #171717;
+  /* 相对 surface(#38393b) 抬一层，避免 Input/TextArea 与卡片融为一体 */
+  --field-background: #424345;
+  --field-foreground: #f0f0f0;
+  --field-placeholder: #a0a0a0;
+  --field-border: transparent;
+  --success: #73d6a1;
+  --success-foreground: #102217;
+  --warning: #fbbf24;
+  --warning-foreground: #2a1b04;
+  --danger: #ff8a80;
+  --danger-foreground: #ffffff;
+  --segment: #4a4b4d;
+  --segment-foreground: #f0f0f0;
+  --border: #4a4b4d;
+  --separator: #3a3b3d;
+  /* 透明：HeroUI focus-ring / status-focused 不再画出高对比 ring */
+  --focus: transparent;
+  --link: #f0f0f0;
+  --backdrop: rgba(0, 0, 0, 0.6);
+
+  --surface-hover: #424345;
+  --background-secondary: #38393b;
+  --background-tertiary: #424345;
+  --background-inverse: #f0f0f0;
+  --default-hover: #4a4b4d;
+  --accent-hover: #f5f5f5;
+  --success-hover: #86efac;
+  --warning-hover: #fcd34d;
+  --danger-hover: #ffab91;
+  --field-hover: #4a4b4d;
+  --field-focus: #424345;
+  /* 输入框无描边：靠背景层级区分，不画 border */
+  --field-border-hover: transparent;
+  --field-border-focus: transparent;
+  --default-soft: #3e3f41;
+  --default-soft-foreground: #f0f0f0;
+  --default-soft-hover: #4a4b4d;
+  --accent-soft: #3e3f41;
+  --accent-soft-foreground: #e5e5e5;
+  --accent-soft-hover: #4a4b4d;
+  --danger-soft: #4a2e2c;
+  --danger-soft-foreground: #ff8a80;
+  --danger-soft-hover: #5a3834;
+  --warning-soft: #463619;
+  --warning-soft-foreground: #fbbf24;
+  --warning-soft-hover: #5a4620;
+  --success-soft: #243a2e;
+  --success-soft-foreground: #73d6a1;
+  --success-soft-hover: #2e4a3a;
+  --separator-secondary: #4a4b4d;
+  --separator-tertiary: #424345;
+  --border-secondary: #4a4b4d;
+  --border-tertiary: #6b6b6b;
+  --scrollbar-thumb: #404040;
+  --scrollbar-track: transparent;
+}
+
+/* 浮层 class 兜底：强制实色背景（HeroUI 用 bg-overlay → var(--overlay)） */
+.dropdown__popover,
+.popover,
+.select__popover,
+.combo-box__popover,
+.autocomplete__popover,
+.list-box,
+[data-slot="popover"],
+[data-slot="dropdown-popover"],
+[class*="__popover"] {
+  background-color: var(--overlay) !important;
+  background-image: none !important;
+  /* 浅色：白浮层贴在 #f4f4f4 上需可见描边；深色靠 surface 阶梯仍可读 */
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Dropdown 默认 active/pressed scale(0.97)：芯片（项目/模型/思考/权限）点击会明显缩小跳动 */
+.dropdown__trigger:active,
+.dropdown__trigger[data-pressed="true"] {
+  transform: none;
+}
+
+/* ToggleButton 选中态：深/浅均用品牌 accent 实色（勿依赖 accent-soft 对比） */
+.toggle-button[data-selected="true"] {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+  --toggle-button-bg-selected: var(--accent);
+  --toggle-button-bg-selected-hover: var(--accent-hover);
+  --toggle-button-bg-selected-pressed: var(--accent-hover);
+  --toggle-button-fg-selected: var(--accent-foreground);
+}
+
+.toggle-button[data-selected="true"]:hover,
+.toggle-button[data-selected="true"][data-hovered="true"] {
+  background-color: var(--accent-hover);
+  color: var(--accent-foreground);
+}
+
+.toggle-button[data-selected="true"]:active,
+.toggle-button[data-selected="true"][data-pressed="true"] {
+  background-color: var(--accent-hover);
+  color: var(--accent-foreground);
+}
+
+/* -------------------------------------------------------------------------- */
+/* 浮层紧凑（全局）：侧栏/Composer 空间有限，压 HeroUI 默认 oversized 菜单       */
+/* 圆角 32px / min-h-9 / gap-3 / md:min-w-55 / text-sm 在窄面板里显得过大       */
+/* -------------------------------------------------------------------------- */
+
+/* 壳：Dropdown / Popover / Select / ComboBox 共用 */
+.dropdown__popover,
+.popover,
+.select__popover,
+.combo-box__popover,
+.autocomplete__popover {
+  font-size: 12px;
+  line-height: 1.35;
+  border-radius: 10px;
+}
+
+/* Dropdown 默认 md:min-w-55 偏宽；改为更贴内容 */
+.dropdown__popover {
+  min-width: 8.75rem; /* 140px，组件 class 可再加宽 */
+  max-width: min(18rem, 92vw);
+}
+
+.dropdown__popover [data-slot="dropdown-menu"],
+.dropdown__menu,
+.menu,
+.list-box {
+  padding: 0.25rem; /* 4px，原 p-1 / p-1.5 */
+  gap: 0.125rem;
+}
+
+/* 菜单项 / ListBox 项：更矮、更密、更小圆角 */
+.menu-item,
+.list-box-item,
+.dropdown__popover [data-slot="menu-item"],
+.select__popover [data-slot="list-box-item"],
+.combo-box__popover [data-slot="list-box-item"] {
+  min-height: 1.75rem; /* 28px，原 min-h-9 = 36px */
+  gap: 0.375rem; /* 6px，原 gap-3 */
+  border-radius: 6px; /* 原 rounded-2xl */
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  font-size: 12px;
+}
+
+/* 项内默认图标略缩（业务 class 指定 size 的仍可覆盖） */
+.menu-item > svg:not([class*="size-"]),
+.list-box-item > svg:not([class*="size-"]) {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* 项 press 缩放同样去掉，避免窄菜单里跳动 */
+.menu-item:active,
+.menu-item[data-pressed="true"],
+.list-box-item:active,
+.list-box-item[data-pressed="true"] {
+  transform: none;
+}
+
+/* 通用 Popover 默认 dialog 内边距偏大；内容自带 p-0 的仍以内容为准 */
+.popover:not([class*="p-0"]) > .popover__dialog {
+  padding: 0.5rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Switch：HeroUI 默认在 .switch 上写 color-mix(oklab) hover，旧内核失效      */
+/* 必须在 .switch 上用实色覆盖（仅 :root 不够，会被组件变量盖掉）              */
+/* -------------------------------------------------------------------------- */
+.switch {
+  /* 浅色关态：比 surface 明显一档，避免与白卡融成一片 */
+  --switch-control-bg: #c8c8c8;
+  --switch-control-bg-hover: #b5b5b5;
+  --switch-control-bg-pressed: #a8a8a8;
+  --switch-control-bg-checked: #171717;
+  --switch-control-bg-checked-hover: #262626;
+}
+
+.dark .switch,
+[data-theme="dark"] .switch {
+  --switch-control-bg: #4a4b4d;
+  --switch-control-bg-hover: #5a5b5d;
+  --switch-control-bg-pressed: #636465;
+  /* 开：亮轨，拇指用深色 */
+  --switch-control-bg-checked: #e5e5e5;
+  --switch-control-bg-checked-hover: #f0f0f0;
+}
+
+.switch .switch__control {
+  background-color: var(--switch-control-bg);
+}
+
+.switch:hover .switch__control,
+.switch[data-hovered="true"] .switch__control,
+.switch:has([data-slot="switch-content"][data-hovered="true"]) .switch__control {
+  background-color: var(--switch-control-bg-hover);
+}
+
+.switch:active .switch__control,
+.switch[data-pressed="true"] .switch__control {
+  background-color: var(--switch-control-bg-pressed);
+}
+
+.switch[aria-checked="true"] .switch__control,
+.switch[data-selected="true"] .switch__control {
+  background-color: var(--switch-control-bg-checked);
+}
+
+.switch[aria-checked="true"]:hover .switch__control,
+.switch[data-selected="true"]:hover .switch__control,
+.switch[aria-checked="true"][data-hovered="true"] .switch__control,
+.switch[data-selected="true"][data-hovered="true"] .switch__control {
+  background-color: var(--switch-control-bg-checked-hover);
+}
+
+.switch .switch__thumb {
+  background-color: #ffffff;
+}
+
+.dark .switch .switch__thumb,
+[data-theme="dark"] .switch .switch__thumb {
+  background-color: #f5f5f5;
+}
+
+.switch[aria-checked="true"] .switch__thumb,
+.switch[data-selected="true"] .switch__thumb {
+  background-color: #ffffff;
+}
+
+.dark .switch[aria-checked="true"] .switch__thumb,
+.dark .switch[data-selected="true"] .switch__thumb,
+[data-theme="dark"] .switch[aria-checked="true"] .switch__thumb,
+[data-theme="dark"] .switch[data-selected="true"] .switch__thumb {
+  background-color: #171717;
+}
+
+/* shadcn 基础变量
+ * 注意：勿在此覆盖 --accent / --accent-foreground / --accent-hover。
+ * 这些是 HeroUI 品牌主色（primary 按钮），见上方 HeroUI 主题块与下方桥接。
+ * shadcn 菜单高亮请用 --color-shadcn-accent → --color-accent-subtle。
+ */
+:root {
+  --background: #f4f4f4;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-accent-fg);
+  --secondary: #ebebeb;
+  --secondary-foreground: #171717;
+  --muted: #ebebeb;
+  --muted-foreground: #525252;
+  --destructive: #b42318;
+  --border: #d0d0d0;
+  --input: #f4f4f4;
+  --ring: var(--color-accent);
+  --chart-1: var(--color-accent);
+  --chart-2: #177245;
+  --chart-3: #525252;
+  --chart-4: #5c5c5c;
+  --chart-5: #171717;
+  --radius: 0.875rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: var(--color-accent);
+  --sidebar-primary-foreground: var(--color-accent-fg);
+  --sidebar-accent: var(--color-accent-subtle);
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #d0d0d0;
+  --sidebar-ring: var(--color-accent);
+}
+
+.dark {
+  --background: #303133;
+  --foreground: #f0f0f0;
+  --card: #38393b;
+  --card-foreground: #f0f0f0;
+  --popover: #38393b;
+  --popover-foreground: #f0f0f0;
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-accent-fg);
+  --secondary: #424345;
+  --secondary-foreground: #f0f0f0;
+  --muted: #424345;
+  --muted-foreground: #c8c8c8;
+  --destructive: #ff8a80;
+  --border: #4a4b4d;
+  --input: #424345;
+  --ring: var(--color-accent);
+  --chart-1: var(--color-accent);
+  --chart-2: #73d6a1;
+  --chart-3: #c8c8c8;
+  --chart-4: #a0a0a0;
+  --chart-5: #f0f0f0;
+  --sidebar: #38393b;
+  --sidebar-foreground: #f0f0f0;
+  --sidebar-primary: var(--color-accent);
+  --sidebar-primary-foreground: var(--color-accent-fg);
+  --sidebar-accent: var(--color-accent-subtle);
+  --sidebar-accent-foreground: #f0f0f0;
+  --sidebar-border: #4a4b4d;
+  --sidebar-ring: var(--color-accent);
+}
+
+/* HeroUI 品牌主色桥接：primary 按钮跟随 --color-accent*（含 data-accent 变体） */
+:root {
+  --accent: var(--color-accent);
+  --accent-foreground: var(--color-accent-fg);
+  --accent-hover: var(--color-accent-hover);
+}
+
+.dark {
+  --accent: var(--color-accent);
+  --accent-foreground: var(--color-accent-fg);
+  --accent-hover: var(--color-accent-hover);
+}
+
+/* 强调色只承担主操作、选中、焦点与计时进度；危险和成功色保持语义独立。 */
+:root[data-accent="mono"] {
+  --color-accent: #171717;
+  --color-accent-hover: #262626;
+  --color-accent-active: #0a0a0a;
+  --color-accent-subtle: #e5e5e5;
+  --color-accent-fg: #fafafa;
+  --color-accent-border: #bdbdbd;
+}
+
+.dark[data-accent="mono"] {
+  --color-accent: #e5e5e5;
+  --color-accent-hover: #f5f5f5;
+  --color-accent-active: #ffffff;
+  --color-accent-subtle: #3e3f41;
+  --color-accent-fg: #171717;
+  --color-accent-border: #636363;
+}
+
+:root[data-accent="iris"] {
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-active: #3730a3;
+  --color-accent-subtle: #e0e7ff;
+  --color-accent-fg: #ffffff;
+  --color-accent-border: #a5b4fc;
+}
+
+.dark[data-accent="iris"] {
+  --color-accent: #a5b4fc;
+  --color-accent-hover: #c7d2fe;
+  --color-accent-active: #818cf8;
+  --color-accent-subtle: #2d2e50;
+  --color-accent-fg: #171717;
+  --color-accent-border: #55588f;
+}
+
+:root[data-accent="ocean"] {
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-accent-active: #1e40af;
+  --color-accent-subtle: #dbeafe;
+  --color-accent-fg: #ffffff;
+  --color-accent-border: #93c5fd;
+}
+
+.dark[data-accent="ocean"] {
+  --color-accent: #93c5fd;
+  --color-accent-hover: #bfdbfe;
+  --color-accent-active: #60a5fa;
+  --color-accent-subtle: #24364d;
+  --color-accent-fg: #111827;
+  --color-accent-border: #3f668f;
+}
+
+:root[data-accent="pine"] {
+  --color-accent: #15803d;
+  --color-accent-hover: #166534;
+  --color-accent-active: #14532d;
+  --color-accent-subtle: #dcfce7;
+  --color-accent-fg: #ffffff;
+  --color-accent-border: #86d9a3;
+}
+
+.dark[data-accent="pine"] {
+  --color-accent: #86efac;
+  --color-accent-hover: #bbf7d0;
+  --color-accent-active: #4ade80;
+  --color-accent-subtle: #1f3b2a;
+  --color-accent-fg: #102217;
+  --color-accent-border: #3f7452;
+}
+
+:root[data-accent="amber"] {
+  --color-accent: #b45309;
+  --color-accent-hover: #92400e;
+  --color-accent-active: #78350f;
+  --color-accent-subtle: #fef3c7;
+  --color-accent-fg: #ffffff;
+  --color-accent-border: #e6bd67;
+}
+
+.dark[data-accent="amber"] {
+  --color-accent: #fbbf24;
+  --color-accent-hover: #fcd34d;
+  --color-accent-active: #f59e0b;
+  --color-accent-subtle: #463619;
+  --color-accent-fg: #2a1b04;
+  --color-accent-border: #80652b;
+}
+
+:root[data-accent="coral"] {
+  --color-accent: #c2410c;
+  --color-accent-hover: #9a3412;
+  --color-accent-active: #7c2d12;
+  --color-accent-subtle: #ffedd5;
+  --color-accent-fg: #ffffff;
+  --color-accent-border: #edb078;
+}
+
+.dark[data-accent="coral"] {
+  --color-accent: #fdba74;
+  --color-accent-hover: #fed7aa;
+  --color-accent-active: #fb923c;
+  --color-accent-subtle: #4b3020;
+  --color-accent-fg: #2b1609;
+  --color-accent-border: #83593a;
+}
+
+:root[data-accent="rose"] {
+  --color-accent: #be123c;
+  --color-accent-hover: #9f1239;
+  --color-accent-active: #881337;
+  --color-accent-subtle: #ffe4e6;
+  --color-accent-fg: #ffffff;
+  --color-accent-border: #eba0aa;
+}
+
+.dark[data-accent="rose"] {
+  --color-accent: #fda4af;
+  --color-accent-hover: #fecdd3;
+  --color-accent-active: #fb7185;
+  --color-accent-subtle: #4a2930;
+  --color-accent-fg: #2b1015;
+  --color-accent-border: #81505a;
+}
+
+:root[data-accent="grape"] {
+  --color-accent: #7e22ce;
+  --color-accent-hover: #6b21a8;
+  --color-accent-active: #581c87;
+  --color-accent-subtle: #f3e8ff;
+  --color-accent-fg: #ffffff;
+  --color-accent-border: #c7a2e8;
+}
+
+.dark[data-accent="grape"] {
+  --color-accent: #d8b4fe;
+  --color-accent-hover: #e9d5ff;
+  --color-accent-active: #c084fc;
+  --color-accent-subtle: #3d2b4e;
+  --color-accent-fg: #21102f;
+  --color-accent-border: #705288;
+}
+
+@layer components {
+  .icon-control {
+    transition:
+      color 140ms ease,
+      background-color 140ms ease,
+      transform 100ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .icon-control:hover {
+    background: var(--color-surface);
+    color: var(--color-fg);
+    transform: translateY(-1px);
+  }
+
+  .icon-control:active {
+    background: var(--color-surface-active);
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .icon-control:hover,
+    .icon-control:active {
+      transform: none;
+    }
+  }
+
+  .primary-control {
+    transition: color 120ms ease, background-color 120ms ease, transform 80ms ease;
+  }
+
+  .primary-control:hover {
+    background: var(--color-accent-hover);
+  }
+
+  .primary-control:active {
+    background: var(--color-accent-active);
+  }
+
+  .accent-swatch {
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+    flex: none;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--swatch-light) 0 50%, var(--swatch-dark) 50% 100%);
+  }
+}

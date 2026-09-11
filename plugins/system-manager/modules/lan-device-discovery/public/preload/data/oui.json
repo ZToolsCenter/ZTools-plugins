@@ -1,0 +1,13 @@
+{
+  "source": "IEEE Registration Authority public OUI registry (curated common-prefix subset)",
+  "updatedAt": "2026-07-30",
+  "entries": {
+    "000C29": "VMware", "00155D": "Microsoft", "0016CB": "Apple", "001B54": "Cisco",
+    "001E10": "Huawei", "0023D6": "Samsung", "005056": "VMware", "08606E": "ASUSTek",
+    "18D6C7": "TP-Link", "24A43C": "Ubiquiti", "286C07": "Xiaomi", "3C22FB": "Apple",
+    "3C970E": "Intel", "48FD8E": "Huawei", "50C7BF": "TP-Link", "640980": "Xiaomi",
+    "74C246": "Amazon", "8086F2": "Intel", "B0BE76": "TP-Link", "B827EB": "Raspberry Pi",
+    "DCA632": "Raspberry Pi", "E45F01": "Raspberry Pi", "F09FC2": "Ubiquiti", "F0D1A9": "Apple",
+    "F4F5D8": "Google"
+  }
+}

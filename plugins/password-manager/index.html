@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cobalt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vault · 密码管理器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+  /* Hallmark · macrostructure: Workbench (tool-first) · theme: Cobalt (modern-minimal, cool engineered) · tone: technical/instrument-panel · anchor hue: electric cobalt */
+  :root,
+  [data-theme="cobalt"] {
+    --color-paper:      oklch(98.5% 0.004 250);
+    --color-paper-2:    oklch(96.5% 0.005 252);
+    --color-paper-3:    oklch(94%   0.006 254);
+    --color-rule:       oklch(91%   0.008 255);
+    --color-rule-2:     oklch(83%   0.011 255);
+    --color-muted:      oklch(56%   0.013 255);
+    --color-neutral:    oklch(46%   0.015 255);
+    --color-ink-2:      oklch(34%   0.018 257);
+    --color-ink:        oklch(24%   0.020 258);
+    --color-accent:     oklch(58%   0.20  256);
+    --color-accent-ink: oklch(99%   0.004 256);
+    --color-focus:      oklch(58%   0.20  256);
+    --color-graphite:   oklch(24%   0.018 260);
+    --color-danger:     oklch(55%   0.18  25);
+
+    --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --font-body:    "Inter", ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-label:   "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --radius-card: 10px;
+    --radius-input: 6px;
+    --shadow-card: 0 1px 2px oklch(24% 0.02 258 / 0.05);
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in:  cubic-bezier(0.7, 0, 0.84, 0);
+    --dur-short: 120ms;
+    --dur-mid: 200ms;
+
+    --space-1: 4px;  --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 24px; --space-6: 32px; --space-7: 48px;
+  }
+
+  [data-theme="cobalt-dark"] {
+    --color-paper:      oklch(22%   0.018 260);
+    --color-paper-2:    oklch(25%   0.020 260);
+    --color-paper-3:    oklch(28%   0.022 260);
+    --color-rule:       oklch(34%   0.020 258);
+    --color-rule-2:     oklch(42%   0.022 258);
+    --color-muted:      oklch(64%   0.015 255);
+    --color-neutral:    oklch(74%   0.013 255);
+    --color-ink-2:      oklch(84%   0.012 257);
+    --color-ink:        oklch(96%   0.010 258);
+    --color-accent:     oklch(70%   0.17  256);
+    --color-accent-ink: oklch(20%   0.02 260);
+    --color-graphite:   oklch(16%   0.014 260);
+    --color-danger:     oklch(66%   0.16  25);
+    --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.45);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { overflow-x: clip; }
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink-2);
+    font-family: var(--font-body);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .mono { font-family: var(--font-label); }
+  .display { font-family: var(--font-display); }
+
+  /* ---------- Reveal (one orchestrated entrance) ---------- */
+  .reveal { opacity: 0; transform: translateY(10px);
+    transition: opacity .55s var(--ease-out), transform .55s var(--ease-out); }
+  .reveal.is-in { opacity: 1; transform: none; }
+
+  /* ============ Unlock — the vault moment (graphite) ============ */
+  .unlock {
+    min-height: 100vh; display: grid; place-items: center; padding: var(--space-5);
+    background: var(--color-graphite);
+    color: var(--color-ink-2);
+  }
+  .unlock-card {
+    width: 380px; max-width: 100%;
+    background: oklch(28% 0.02 260);
+    border: 1px solid oklch(40% 0.02 258);
+    border-radius: var(--radius-card);
+    padding: var(--space-7) var(--space-6) var(--space-6);
+    text-align: center;
+    box-shadow: 0 24px 60px oklch(0% 0 0 / 0.45);
+  }
+  .vault-mark {
+    width: 64px; height: 64px; margin: 0 auto var(--space-4);
+    display: grid; place-items: center; font-size: 30px;
+    border: 1px solid oklch(48% 0.02 258);
+    border-radius: 12px;
+    background: oklch(32% 0.02 260);
+  }
+  .eyebrow {
+    font-family: var(--font-label); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--color-accent);
+  }
+  .unlock-card h1 {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: 1.5rem; letter-spacing: -0.02em;
+    color: oklch(96% 0.01 258); margin: var(--space-2) 0 var(--space-1);
+  }
+  .unlock-card .sub {
+    font-size: 13px; line-height: 1.55; color: var(--color-muted);
+    margin: 0 0 var(--space-5);
+  }
+  .pwd-input {
+    width: 100%; padding: var(--space-3) var(--space-4);
+    border: 1px solid oklch(44% 0.02 258);
+    border-radius: var(--radius-input);
+    background: oklch(24% 0.018 260);
+    color: oklch(96% 0.01 258);
+    font-family: var(--font-mono); font-size: 14px; letter-spacing: 0.04em;
+    outline: none;
+    transition: border-color var(--dur-mid) var(--ease-out);
+  }
+  .pwd-input::placeholder { color: oklch(56% 0.01 258); }
+  .pwd-input:focus-visible { border-color: var(--color-accent); outline: none; }
+  .pwd-input[data-invalid="true"] { border-color: var(--color-danger); }
+
+  .btn {
+    font-family: var(--font-body); cursor: pointer;
+    border-radius: var(--radius-input); border: 1px solid transparent;
+    transition: background-color var(--dur-mid) var(--ease-out),
+                transform var(--dur-short) var(--ease-out),
+                border-color var(--dur-mid) var(--ease-out);
+  }
+  .btn--primary {
+    width: 100%; margin-top: var(--space-4); padding: var(--space-3);
+    font-family: var(--font-label); font-weight: 600; font-size: 13px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--color-accent); color: var(--color-accent-ink);
+  }
+  .btn--primary:hover:not(:disabled) { filter: brightness(1.08); }
+  .btn--primary:active:not(:disabled) { transform: translateY(1px); }
+  .btn--primary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+  .btn--primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .hint {
+    font-family: var(--font-label); font-size: 11px; letter-spacing: 0.04em;
+    color: var(--color-muted); margin-top: var(--space-4);
+  }
+  .err-line {
+    font-family: var(--font-label); font-size: 11px; letter-spacing: 0.04em;
+    color: var(--color-danger); margin-top: var(--space-3); min-height: 14px;
+  }
+
+  /* ============ Main — cool instrument panel ============ */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--space-4) var(--space-5);
+    background: color-mix(in srgb, var(--color-paper) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--color-rule);
+  }
+  .brand { display: flex; align-items: center; gap: var(--space-3); }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center;
+    background: var(--color-accent); color: var(--color-accent-ink); font-size: 16px;
+  }
+  .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+  .brand-text .name {
+    font-family: var(--font-display); font-weight: 600; font-size: 15px;
+    letter-spacing: -0.01em; color: var(--color-ink);
+  }
+  .brand-text .tag {
+    font-family: var(--font-label); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--color-muted);
+  }
+  .actions { display: flex; gap: var(--space-2); align-items: center; }
+  .icon-btn {
+    min-height: 38px; padding: 0 var(--space-3); border-radius: var(--radius-input);
+    cursor: pointer; line-height: 1;
+    border: 1px solid var(--color-rule); background: transparent;
+    font-size: 16px; color: var(--color-ink);
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: border-color var(--dur-mid) var(--ease-out),
+                color var(--dur-mid) var(--ease-out);
+  }
+  .icon-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .icon-btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+  .btn--ghost {
+    min-height: 38px; padding: var(--space-2) var(--space-4); border-radius: var(--radius-input);
+    border: 1px solid var(--color-rule); background: transparent;
+    color: var(--color-ink);
+    font-family: var(--font-label); font-size: 12px; letter-spacing: 0.06em;
+    text-transform: uppercase; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: border-color var(--dur-mid) var(--ease-out),
+                color var(--dur-mid) var(--ease-out);
+  }
+  .btn--ghost:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .btn--ghost:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+
+  .search-wrap { padding: var(--space-5) var(--space-5) var(--space-3); }
+  .search-box { position: relative; max-width: 760px; margin: 0 auto; }
+  .search-box .s-icon {
+    position: absolute; left: var(--space-4); top: 50%; transform: translateY(-50%);
+    color: var(--color-muted); font-size: 14px; pointer-events: none;
+  }
+  .search {
+    width: 100%; padding: var(--space-3) var(--space-4) var(--space-3) 42px;
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-input);
+    background: var(--color-paper-3); color: var(--color-ink);
+    font-family: var(--font-body); font-size: 14px; outline: none;
+    transition: border-color var(--dur-mid) var(--ease-out),
+                background-color var(--dur-mid) var(--ease-out);
+  }
+  .search::placeholder { color: var(--color-muted); }
+  .search:focus-visible {
+    border-color: var(--color-accent);
+    background: var(--color-paper);
+    outline: none;
+  }
+  .search.synced {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
+  }
+
+  .status-readout {
+    max-width: 760px; margin: var(--space-2) auto 0; padding: 0 var(--space-1);
+    font-family: var(--font-label); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--color-muted);
+  }
+
+  .import-status {
+    display: none;
+    max-width: 760px; margin: var(--space-2) auto 0; padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-rule); border-radius: var(--radius-card);
+    background: var(--color-paper-2);
+    font-family: var(--font-label); font-size: 12px; letter-spacing: 0.04em;
+  }
+  .import-status.show { display: block; animation: pm-fade-in 0.2s ease; }
+  .import-status.is-ok { border-color: color-mix(in oklch, var(--color-accent) 45%, var(--color-rule)); color: var(--color-accent); }
+  .import-status.is-err { border-color: var(--color-danger); color: var(--color-danger); }
+
+  /* ---- Add host panel ---- */
+  .add-panel {
+    max-width: 760px; margin: var(--space-3) auto 0; width: 100%;
+    background: var(--color-paper-2);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-card);
+    padding: var(--space-5);
+    display: none;
+  }
+  .add-panel.is-open { display: block; }
+  .add-panel h2 {
+    font-family: var(--font-display); font-weight: 600; font-size: 16px;
+    margin: 0 0 var(--space-4); color: var(--color-ink);
+  }
+  .f-row { display: flex; gap: var(--space-3); margin-bottom: var(--space-3); }
+  .f-col { flex: 1; display: flex; flex-direction: column; gap: var(--space-1); }
+  .f-label {
+    font-family: var(--font-label); font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--color-muted);
+  }
+  .f-input {
+    width: 100%; padding: var(--space-3); border: 1px solid var(--color-rule);
+    border-radius: var(--radius-input); background: var(--color-paper);
+    color: var(--color-ink); font-family: var(--font-body); font-size: 14px; outline: none;
+    transition: border-color var(--dur-mid) var(--ease-out);
+  }
+  .f-input:focus-visible { border-color: var(--color-accent); outline: none; }
+  .f-input.mono { font-family: var(--font-mono); }
+  .field-edit {
+    display: flex; gap: var(--space-2); margin-bottom: var(--space-2); align-items: center;
+  }
+  .field-edit .f-input { flex: 1; }
+  .field-edit .f-input.lbl { max-width: 160px; flex: 0 0 160px; }
+  .x-btn {
+    width: 34px; height: 34px; flex-shrink: 0; border-radius: var(--radius-input);
+    border: 1px solid var(--color-rule); background: var(--color-paper);
+    color: var(--color-muted); cursor: pointer; font-size: 14px;
+    transition: border-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out);
+  }
+  .x-btn:hover { border-color: var(--color-danger); color: var(--color-danger); }
+  .add-actions { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
+  .btn--accent {
+    padding: var(--space-3) var(--space-5);
+    font-family: var(--font-label); font-weight: 600; font-size: 12px; letter-spacing: 0.08em;
+    text-transform: uppercase; border-radius: var(--radius-input);
+    background: var(--color-accent); color: var(--color-accent-ink); border: 1px solid transparent; cursor: pointer;
+    transition: filter var(--dur-mid) var(--ease-out), transform var(--dur-short) var(--ease-out);
+  }
+  .btn--accent:hover { filter: brightness(1.08); }
+  .btn--accent:active { transform: translateY(1px); }
+  .btn--accent:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+  .btn--line {
+    padding: var(--space-3) var(--space-5);
+    font-family: var(--font-label); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+    border-radius: var(--radius-input); border: 1px solid var(--color-rule);
+    background: transparent; color: var(--color-ink); cursor: pointer;
+    transition: border-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out);
+  }
+  .btn--line:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+  .list {
+    max-width: 760px; margin: 0 auto; width: 100%;
+    padding: var(--space-4) var(--space-5) var(--space-7);
+    display: flex; flex-direction: column; gap: var(--space-4);
+  }
+  .host-card {
+    background: var(--color-paper-3);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-card);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-card);
+  }
+  .host-head {
+    display: flex; align-items: baseline; gap: var(--space-3);
+    padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-rule);
+  }
+  .host-ip {
+    font-family: var(--font-mono); font-weight: 600; font-size: 15px;
+    letter-spacing: 0.02em; color: var(--color-ink);
+  }
+  .host-name { font-size: 13px; color: var(--color-muted); }
+  .host-del {
+    margin-left: auto; font-family: var(--font-label); font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--color-muted); cursor: pointer;
+    border: 1px solid var(--color-rule); background: var(--color-paper);
+    border-radius: var(--radius-input); padding: 4px 8px;
+    transition: border-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out);
+  }
+  .host-del:hover { border-color: var(--color-danger); color: var(--color-danger); }
+
+  .field-row {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-3) 0; border-bottom: 1px dashed var(--color-rule);
+  }
+  .field-row:last-child { border-bottom: none; }
+  .field-label {
+    width: 132px; flex-shrink: 0;
+    font-family: var(--font-label); font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--color-muted);
+  }
+  .field-value {
+    flex: 1; min-width: 0;
+    font-family: var(--font-mono); font-size: 14px; letter-spacing: 0.08em;
+    color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mini {
+    font-family: var(--font-label); font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; cursor: pointer;
+    border: 1px solid var(--color-rule); background: var(--color-paper);
+    color: var(--color-ink-2); border-radius: var(--radius-input);
+    padding: 6px 12px; white-space: nowrap;
+    transition: border-color var(--dur-mid) var(--ease-out),
+                color var(--dur-mid) var(--ease-out),
+                background-color var(--dur-mid) var(--ease-out);
+  }
+  .mini:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .mini:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+  .mini.copy[data-state="copied"] {
+    border-color: var(--color-accent); color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  }
+  .mini.copy:disabled,
+  .mini.copy[aria-disabled="true"] {
+    opacity: 0.32; cursor: not-allowed; color: var(--color-muted); border-color: var(--color-rule);
+  }
+  .mini.copy:disabled:hover,
+  .mini.copy[aria-disabled="true"]:hover {
+    border-color: var(--color-rule); color: var(--color-muted);
+  }
+  .cell-value.empty {
+    color: var(--color-muted); font-style: italic; opacity: 0.55; letter-spacing: 0.06em;
+  }
+
+  .copied-tip {
+    margin: var(--space-3) 0 0; font-family: var(--font-label);
+    font-size: 11px; letter-spacing: 0.04em; color: var(--color-accent);
+  }
+  .empty {
+    text-align: center; color: var(--color-muted);
+    border: 1px dashed var(--color-rule); border-radius: var(--radius-card);
+    padding: var(--space-7) var(--space-5);
+    font-family: var(--font-label); font-size: 12px; letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 480px) {
+    .field-row { flex-wrap: wrap; }
+    .field-label { width: 100%; }
+    .field-value { flex-basis: 100%; order: 3; }
+    .mini { flex: 1; }
+    .f-row { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+    * { scroll-behavior: auto; }
+  }
+
+  /* ============ Vault table（字段按列）============ */
+  .table-wrap {
+    max-width: 1180px; margin: 0 auto; width: 100%;
+    padding: var(--space-4) var(--space-5) var(--space-6);
+    overflow-x: auto;
+  }
+  .vault-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px; min-width: 540px;
+  }
+  .vault-table thead th {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--color-paper);
+    font-family: var(--font-label); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted);
+    text-align: left; padding: var(--space-3); border-bottom: 1px solid var(--color-rule-2);
+    white-space: nowrap;
+  }
+  .vault-table tbody td {
+    padding: var(--space-3); border-bottom: 1px solid var(--color-rule);
+    vertical-align: middle; color: var(--color-ink);
+  }
+  .vault-table tbody tr:hover td { background: var(--color-paper-2); }
+  .col-stick { position: sticky; left: 0; z-index: 2; background: var(--color-paper); }
+  .vault-table thead th.col-stick { z-index: 6; }
+  .vault-table tbody tr:hover td.col-stick { background: var(--color-paper-2); }
+  .cell-ip { font-family: var(--font-mono); font-weight: 600; letter-spacing: 0.02em; color: var(--color-ink); white-space: nowrap; }
+  .cell-value {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em;
+    cursor: pointer; color: var(--color-ink); user-select: none;
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cell-value.revealed { color: var(--color-ink); }
+  .cell-actions { white-space: nowrap; }
+  .pg-select {
+    font-family: var(--font-label); font-size: 12px; padding: 4px 6px;
+    border: 1px solid var(--color-rule); border-radius: var(--radius-input);
+    background: var(--color-paper); color: var(--color-ink); outline: none;
+  }
+  .pg-select:focus-visible { border-color: var(--color-accent); outline: none; }
+  .pg-size { font-family: var(--font-label); font-size: 11px; letter-spacing: 0.04em; color: var(--color-muted); }
+  .pager {
+    position: sticky; bottom: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+    max-width: 1180px; margin: 0 auto; padding: var(--space-3) var(--space-5) var(--space-6);
+    background: color-mix(in srgb, var(--color-paper) 90%, transparent);
+    backdrop-filter: blur(8px); border-top: 1px solid var(--color-rule);
+  }
+  .pg-left { display: flex; align-items: center; gap: var(--space-4); }
+  .pg-info { font-family: var(--font-label); font-size: 11px; letter-spacing: 0.06em; color: var(--color-muted); }
+  .pg-right { display: flex; gap: var(--space-2); }
+  .pg-btn {
+    padding: 6px 14px; border-radius: var(--radius-input);
+    border: 1px solid var(--color-rule); background: transparent;
+    font-family: var(--font-label); font-size: 12px; letter-spacing: 0.04em; cursor: pointer;
+    color: var(--color-ink);
+    transition: border-color var(--dur-mid) var(--ease-out), color var(--dur-mid) var(--ease-out);
+  }
+  .pg-btn:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent); }
+  .pg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pg-btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+  .pg-btn[data-state="on"] { border-color: var(--color-accent); color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
+  .vault-fade { animation: pm-fade-in .25s var(--ease-out); }
+  @keyframes pm-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  @media (max-width: 600px) {
+    .pager { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+    .pg-right { justify-content: space-between; }
+  }
+  </style>
+</head>
+<body>
+  <!-- ===== Unlock · the vault ===== -->
+  <div id="unlock" class="unlock">
+    <div class="unlock-card">
+      <div class="vault-mark">🔐</div>
+      <div class="eyebrow" id="unlock-eyebrow">Vault · Locked</div>
+      <h1 id="unlock-title">设置主密码</h1>
+      <p class="sub" id="unlock-sub">首次使用，请设置主密码以加密本地保险库。</p>
+      <input id="master-input" class="pwd-input" type="password" placeholder="主密码" autocomplete="off" />
+      <div class="err-line" id="unlock-err"></div>
+      <button id="unlock-btn" class="btn btn--primary" disabled>解锁</button>
+      <p class="hint" id="unlock-hint">密钥本地派生 · 数据 AES-256-GCM 加密落盘</p>
+    </div>
+  </div>
+
+  <!-- ===== Main · instrument panel ===== -->
+  <div id="main" style="display:none">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">🔐</div>
+        <div class="brand-text">
+          <span class="name">Vault</span>
+          <span class="tag">Password Manager</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn--ghost" id="add-btn">+ 添加</button>
+        <button class="btn btn--ghost" id="import-btn">导入数据</button>
+        <button class="icon-btn" id="theme-btn" title="切换主题" aria-label="切换主题">🌙</button>
+        <button class="btn btn--ghost" id="lock-btn">锁定</button>
+      </div>
+    </header>
+
+    <div class="search-wrap">
+      <div class="search-box">
+        <span class="s-icon">⌕</span>
+        <input id="search" class="search" placeholder="按 IP / 字段检索…（复制 IP 自动填入）" autocomplete="off" />
+      </div>
+      <div class="status-readout" id="readout"></div>
+    </div>
+
+    <!-- Add host panel -->
+    <div class="add-panel" id="add-panel">
+      <h2>添加主机凭据</h2>
+      <div class="f-row">
+        <div class="f-col">
+          <span class="f-label">IP / 主机</span>
+          <input class="f-input mono" id="f-ip" placeholder="192.168.1.10" autocomplete="off" />
+        </div>
+      </div>
+      <div id="f-fields"></div>
+      <button class="btn--line" id="f-add-field" type="button">+ 添加字段</button>
+      <div class="add-actions">
+        <button class="btn--accent" id="f-save" type="button">保存</button>
+        <button class="btn--line" id="f-cancel" type="button">取消</button>
+      </div>
+      <div class="err-line" id="add-err" style="color:var(--color-danger)"></div>
+    </div>
+
+    <div class="import-status" id="import-status"></div>
+    <div class="table-wrap" id="list"></div>
+    <div class="pager" id="pager">
+      <div class="pg-left">
+        <label class="pg-size">每页
+          <select id="pg-size" class="pg-select">
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+            <option value="200">200</option>
+          </select>
+        </label>
+        <span class="pg-info" id="pg-info"></span>
+      </div>
+      <div class="pg-right">
+        <button class="pg-btn" id="pg-prev" type="button">上一页</button>
+        <button class="pg-btn" id="pg-next" type="button">下一页</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const root = document.documentElement;
+    const $ = (id) => document.getElementById(id);
+    const api = (typeof window !== 'undefined' && window.pmApi) ? window.pmApi : null;
+
+    // ===== 主题（跟随 ZTools，否则 localStorage）=====
+    function applyTheme(dark) {
+      root.setAttribute('data-theme', dark ? 'cobalt-dark' : 'cobalt');
+      $('theme-btn').textContent = dark ? '☀️' : '🌙';
+      try { localStorage.setItem('pm-theme', dark ? 'dark' : 'light'); } catch (e) {}
+    }
+    function initTheme() {
+      let dark = false;
+      try { dark = localStorage.getItem('pm-theme') === 'dark'; } catch (e) {}
+      try { if (window.ztools && typeof window.ztools.isDarkColors === 'function') dark = window.ztools.isDarkColors(); } catch (e) {}
+      applyTheme(dark);
+    }
+    $('theme-btn').addEventListener('click', () => applyTheme(root.getAttribute('data-theme') !== 'cobalt-dark'));
+
+    // ===== 状态 =====
+    let hostsData = [];
+    let mode = 'setup'; // 'setup' | 'unlock'
+
+    // ===== 解锁 / 设定 =====
+    const unlockEl = $('unlock'), mainEl = $('main');
+    const input = $('master-input'), unlockBtn = $('unlock-btn'), errEl = $('unlock-err');
+
+    function setUnlockUI() {
+      if (mode === 'setup') {
+        $('unlock-eyebrow').textContent = 'Vault · New';
+        $('unlock-title').textContent = '设置主密码';
+        $('unlock-sub').textContent = '首次使用，请设置主密码以加密本地保险库。';
+        $('unlock-hint').textContent = '密钥本地派生 · 数据 AES-256-GCM 加密落盘';
+        unlockBtn.textContent = '创建保险库';
+      } else {
+        $('unlock-eyebrow').textContent = 'Vault · Locked';
+        $('unlock-title').textContent = '输入主密码';
+        $('unlock-sub').textContent = '解锁以查看你的本地密码库。';
+        $('unlock-hint').textContent = '主密码仅存内存 · 退出即清除';
+        unlockBtn.textContent = '解锁';
+      }
+    }
+
+    input.addEventListener('input', () => {
+      unlockBtn.disabled = !input.value;
+      input.removeAttribute('data-invalid');
+      errEl.textContent = '';
+    });
+
+    const ERR_MSG = {
+      EMPTY_PWD: '! 主密码不能为空',
+      BAD_PASSWORD: '! 主密码错误',
+      NOT_INIT: '! 保险库未初始化',
+      ALREADY_INIT: '! 保险库已存在',
+      MACHINE_MISMATCH: '! 本机指纹不匹配，无法解锁（机器绑定）',
+    };
+
+    async function submitUnlock() {
+      const pwd = input.value;
+      if (!pwd) { input.setAttribute('data-invalid', 'true'); errEl.textContent = ERR_MSG.EMPTY_PWD; return; }
+      unlockBtn.disabled = true;
+      try {
+        if (mode === 'setup') await api.setup(pwd);
+        else await api.unlock(pwd);
+        input.value = '';
+        enterMain();
+      } catch (e) {
+        input.setAttribute('data-invalid', 'true');
+        errEl.textContent = ERR_MSG[e.message] || ('! ' + e.message);
+        unlockBtn.disabled = false;
+      }
+    }
+    unlockBtn.addEventListener('click', submitUnlock);
+    input.addEventListener('keyup', (e) => { if (e.key === 'Enter' && !unlockBtn.disabled) submitUnlock(); });
+
+    async function lock() {
+      try { await api.lock(); } catch (e) {}
+      isUnlocked = false;
+      mainEl.style.display = 'none';
+      unlockEl.style.display = 'grid';
+      input.value = '';
+      unlockBtn.disabled = true;
+      errEl.textContent = '';
+      mode = 'unlock';
+      setUnlockUI();
+    }
+    $('lock-btn').addEventListener('click', lock);
+
+    async function enterMain() {
+      unlockEl.style.display = 'none';
+      mainEl.style.display = 'block';
+      await loadHosts();
+      render();
+      isUnlocked = true;
+      if (pendingQuery) { applyQuery(pendingQuery); pendingQuery = null; }
+    }
+
+    // ===== 唤起参数 / 主搜框集成 =====
+    let isUnlocked = false;
+    let pendingQuery = null;
+    function applyQuery(q) { searchEl.value = q || ''; currentPage = 0; render(); }
+    function handleLaunch(param) {
+      if (!param) return;
+      if (param.type === 'regex' || param.type === 'over') {
+        const q = (param.payload != null ? param.payload : '').toString();
+        if (isUnlocked) applyQuery(q); else pendingQuery = q;
+      }
+    }
+    // preload 已将唤起参数存到 window.launchParam；再注册实时回调兜底
+    if (window.launchParam) handleLaunch(window.launchParam);
+    if (window.ztools && typeof window.ztools.onPluginEnter === 'function') {
+      window.ztools.onPluginEnter(handleLaunch);
+    }
+    // 主搜框直出结果（无需进插件即可见）
+    if (window.ztools && typeof window.ztools.onMainPush === 'function') {
+      window.ztools.onMainPush((q) => {
+        if (!isUnlocked || !q) return [];
+        const kw = String(q).toLowerCase();
+        return (hostsData || []).filter(h =>
+          h.ip.toLowerCase().includes(kw)
+        ).map(h => ({ title: h.ip, description: '主机', payload: h.ip }));
+      }, () => true);
+    }
+
+    // ===== CSV 导入 =====
+    const importStatusEl = $('import-status');
+    let importTimer = null;
+    function showImportStatus(msg, ok) {
+      importStatusEl.textContent = msg;
+      importStatusEl.classList.toggle('is-ok', !!ok);
+      importStatusEl.classList.toggle('is-err', !ok);
+      importStatusEl.classList.add('show');
+      clearTimeout(importTimer);
+      importTimer = setTimeout(() => importStatusEl.classList.remove('show'), 4000);
+    }
+    $('import-btn').addEventListener('click', async () => {
+      if (!isUnlocked) { showImportStatus('! 请先解锁保险库', false); return; }
+      let paths;
+      try {
+        if (window.ztools && typeof window.ztools.showOpenDialog === 'function') {
+          paths = window.ztools.showOpenDialog({ properties: ['openFile'], filters: [{ name: '表格文件', extensions: ['csv', 'xlsx', 'xls'] }] });
+        }
+      } catch (e) { /* ignore */ }
+      if (!paths || !paths.length) return;
+      try {
+        const res = await api.importFile(paths[0]);
+        await loadHosts();
+        render();
+        showImportStatus('✓ 已导入 ' + res.imported + ' 条' + (res.skipped ? '，跳过 ' + res.skipped + ' 条' : ''), true);
+      } catch (e) {
+        showImportStatus('! 导入失败: ' + (e.message || e), false);
+      }
+    });
+
+    // ===== 数据加载（仅元数据；值按页懒解密）=====
+    let allLabels = [];      // 字段并集（列头顺序）
+    let currentPage = 0;
+    let pageSize = 50;
+    let filtered = [];
+    let pageValues = {};      // { ip: { label: value } } 仅当前页
+    let renderToken = 0;
+    const MASK = '••••••••';
+    const searchEl = $('search'), listEl = $('list'), readoutEl = $('readout');
+
+    async function loadHosts() {
+      try {
+        hostsData = await api.listHosts();   // 元数据：{ ip, labels[] }
+        const st = await api.getStatus();
+        statusCache = st;
+      } catch (e) {
+        hostsData = [];
+        statusCache = { hosts: 0, creds: 0 };
+      }
+      // 计算列（字段并集，首次出现顺序）
+      const seen = new Set(), set = [];
+      (hostsData || []).forEach(h => (h.labels || []).forEach(l => { if (!seen.has(l)) { seen.add(l); set.push(l); } }));
+      allLabels = set;
+      currentPage = 0;
+    }
+    let statusCache = { hosts: 0, creds: 0 };
+
+    function computeFiltered() {
+      const q = searchEl.value.trim().toLowerCase();
+      if (!q) return hostsData.slice();
+      return hostsData.filter(h =>
+        h.ip.toLowerCase().includes(q) ||
+        (h.labels || []).some(l => l.toLowerCase().includes(q))
+      );
+    }
+
+    function buildTable(pageHosts) {
+      listEl.innerHTML = '';
+      if (!pageHosts.length) {
+        const e = document.createElement('div');
+        e.className = 'empty';
+        e.textContent = hostsData.length ? '未找到匹配的主机' : '保险库为空 · 点击右上角「+ 添加」';
+        listEl.appendChild(e);
+        return;
+      }
+      const table = document.createElement('table');
+      table.className = 'vault-table vault-fade';
+      const thead = document.createElement('thead');
+      const htr = document.createElement('tr');
+      [['IP', 'col-stick'], ...allLabels.map(l => [l, '']), ['操作', '']].forEach(([txt, cls]) => {
+        const th = document.createElement('th');
+        if (cls) th.className = cls;
+        th.textContent = txt;
+        htr.appendChild(th);
+      });
+      thead.appendChild(htr); table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      pageHosts.forEach(h => {
+        const tr = document.createElement('tr');
+        const tdIp = document.createElement('td'); tdIp.className = 'col-stick cell-ip'; tdIp.textContent = h.ip;
+        tr.appendChild(tdIp);
+        allLabels.forEach(label => {
+          const td = document.createElement('td');
+          const cell = document.createElement('span');
+          cell.className = 'cell-value'; cell.dataset.ip = h.ip; cell.dataset.label = label; cell.dataset.reveal = '1';
+          cell.title = '点击显示 / 隐藏'; cell.textContent = MASK;
+          const cp = document.createElement('button');
+          cp.className = 'mini copy'; cp.textContent = '复制'; cp.dataset.copy = '1'; cp.dataset.ip = h.ip; cp.dataset.label = label;
+          // 默认禁用（等解密完成后由 applyDecodedValues 决定启用/保持禁用）
+          cp.disabled = true; cp.setAttribute('aria-disabled', 'true'); cp.title = '加载中…';
+          td.appendChild(cell); td.appendChild(document.createTextNode(' ')); td.appendChild(cp);
+          tr.appendChild(td);
+        });
+        const tdAct = document.createElement('td'); tdAct.className = 'cell-actions';
+        const del = document.createElement('button');
+        del.className = 'mini'; del.textContent = '删除'; del.dataset.del = '1'; del.dataset.ip = h.ip;
+        tdAct.appendChild(del);
+        tr.appendChild(tdAct);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      listEl.appendChild(table);
+    }
+
+    function updatePager(total, pages) {
+      $('pg-info').textContent = '第 ' + (currentPage + 1) + ' / ' + pages + ' 页 · 共 ' + total + ' 条';
+      $('pg-prev').disabled = currentPage <= 0;
+      $('pg-next').disabled = currentPage >= pages - 1;
+    }
+
+    // 统一收口：按 pageValues 更新所有 .cell-value 文本 / 空值样式 / 复制按钮禁用态
+    //  + 如果该单元格处于 revealed 状态，显示真值；否则显示固定长度掩码（不泄露真实长度）
+    function applyDecodedValues() {
+      const cells = listEl.querySelectorAll('.cell-value');
+      cells.forEach(cell => {
+        const ip = cell.dataset.ip, label = cell.dataset.label;
+        const val = (pageValues[ip] && pageValues[ip][label] != null) ? pageValues[ip][label] : '';
+        const isEmpty = !val;
+        cell.classList.toggle('empty', isEmpty);
+        if (isEmpty) {
+          cell.textContent = '—';
+        } else if (cell.classList.contains('revealed')) {
+          cell.textContent = val;
+        } else {
+          // 固定长度掩码，不泄露真实密码长度
+          cell.textContent = MASK;
+        }
+        // 同步复制按钮
+        const btn = listEl.querySelector('.mini.copy[data-ip="' + cssEscape(ip) + '"][data-label="' + cssEscape(label) + '"]');
+        if (btn) {
+          if (isEmpty) {
+            btn.disabled = true; btn.setAttribute('aria-disabled', 'true');
+            btn.title = '该字段无值';
+          } else {
+            btn.disabled = false; btn.removeAttribute('aria-disabled');
+            btn.title = '复制到剪贴板（30s 后自动清除）';
+          }
+          // 如果该按钮此前处于"已复制 ✓"但对应值变成了空值，则复位
+          if (isEmpty && btn.dataset.state === 'copied') {
+            delete btn.dataset.state; btn.textContent = '复制';
+          }
+        }
+      });
+    }
+
+    function toggleCell(cell) {
+      cell.classList.toggle('revealed');
+      applyDecodedValues();
+    }
+
+    // 轻量 CSS.escape 兼容（ZTools 旧 Chromium 可能没有）
+    function cssEscape(s) {
+      if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(s);
+      return String(s).replace(/[^a-zA-Z0-9_\-]/g, c => '\\' + c);
+    }
+
+    async function copyCell(btn) {
+      if (btn.disabled) return;
+      const ip = btn.dataset.ip, label = btn.dataset.label;
+      const val = (pageValues[ip] && pageValues[ip][label] != null) ? pageValues[ip][label] : '';
+      if (!val) return;
+      await copyField(val, btn);
+    }
+
+    async function render() {
+      filtered = computeFiltered();
+      const total = filtered.length;
+      const pages = Math.max(1, Math.ceil(total / pageSize));
+      if (currentPage >= pages) currentPage = pages - 1;
+      if (currentPage < 0) currentPage = 0;
+      const start = currentPage * pageSize;
+      const pageHosts = filtered.slice(start, start + pageSize);
+      const token = ++renderToken;
+      // 切页 / 重渲：复位上一次复制状态（避免切页后旧按钮还挂"已复制"）
+      resetCopied();
+
+      readoutEl.textContent = total ? total + ' HOSTS · ' + allLabels.length + ' FIELDS' : 'NO MATCHES';
+      buildTable(pageHosts);
+      updatePager(total, pages);
+
+      try {
+        const vals = await api.revealHosts(pageHosts.map(h => h.ip));
+        if (token !== renderToken) return;   // 已有更新的渲染，丢弃本次结果
+        pageValues = vals;
+        applyDecodedValues();                // 解密完成后刷新掩码长度 / 空值标记 / 复制按钮
+      } catch (e) {
+        if (token === renderToken) readoutEl.textContent = '! 解密失败: ' + (e.message || e);
+      }
+    }
+
+    // 事件委托：表格内点击（显隐 / 复制 / 删除）
+    listEl.addEventListener('click', (e) => {
+      const cell = e.target.closest('[data-reveal]');
+      if (cell && listEl.contains(cell)) { toggleCell(cell); return; }
+      const cp = e.target.closest('[data-copy]');
+      if (cp && listEl.contains(cp)) { copyCell(cp); return; }
+      const del = e.target.closest('[data-del]');
+      if (del && listEl.contains(del)) { deleteHost(del.dataset.ip); return; }
+    });
+    // 分页器
+    $('pg-prev').addEventListener('click', () => { if (currentPage > 0) { currentPage--; render(); } });
+    $('pg-next').addEventListener('click', () => { currentPage++; render(); });
+    $('pg-size').addEventListener('change', (e) => { pageSize = parseInt(e.target.value, 10) || 50; currentPage = 0; render(); });
+
+    // 复制到剪贴板（ZTools 优先，逐级回退）
+    // 注意：ztools.clipboard.writeContent 要求 {type:'text', content} 对象；
+    //       更简单的便捷方法 ztools.copyText(text) 直接收字符串、只复制不粘贴。
+    async function doCopy(text) {
+      try {
+        if (window.ztools && typeof window.ztools.copyText === 'function') {
+          return window.ztools.copyText(text);
+        }
+        if (window.ztools && window.ztools.clipboard && typeof window.ztools.clipboard.writeContent === 'function') {
+          return await window.ztools.clipboard.writeContent({ type: 'text', content: text });
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (e) { /* ignore */ }
+      return false;
+    }
+    async function doClearClipboard() {
+      try {
+        if (window.ztools && typeof window.ztools.copyText === 'function') {
+          window.ztools.copyText(''); return;
+        }
+        if (window.ztools && window.ztools.clipboard && typeof window.ztools.clipboard.writeContent === 'function') {
+          await window.ztools.clipboard.writeContent({ type: 'text', content: '' }); return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText('');
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // 复制状态互斥：任何时刻只有最近一次点过的按钮处于"已复制"
+    let lastCopiedBtn = null, lastCopiedTimer = null;
+    function resetCopied(keepBtn) {
+      if (lastCopiedTimer) { clearTimeout(lastCopiedTimer); lastCopiedTimer = null; }
+      if (lastCopiedBtn && lastCopiedBtn !== keepBtn && lastCopiedBtn.isConnected) {
+        if (lastCopiedBtn.dataset.state) delete lastCopiedBtn.dataset.state;
+        lastCopiedBtn.textContent = lastCopiedBtn.disabled ? '空' : '复制';
+      }
+      if (lastCopiedBtn !== keepBtn) lastCopiedBtn = null;
+    }
+
+    async function copyField(value, btn) {
+      if (!value) return;
+      // ① 先把上一个"已复制"按钮立刻复位（不等 30s 自然到期）
+      resetCopied(btn);
+      // ② 复制
+      const ok = await doCopy(value);
+      if (!ok) {
+        btn.textContent = '复制失败'; btn.dataset.state = 'fail';
+        setTimeout(() => {
+          if (btn.isConnected && btn.dataset.state === 'fail') {
+            delete btn.dataset.state; btn.textContent = '复制';
+          }
+        }, 1500);
+        return;
+      }
+      // ③ 标记"已复制"
+      btn.dataset.state = 'copied';
+      btn.textContent = '已复制';
+      lastCopiedBtn = btn;
+      // ④ 30 秒后清空剪贴板并复位
+      lastCopiedTimer = setTimeout(() => {
+        doClearClipboard();
+        if (btn.isConnected) { delete btn.dataset.state; btn.textContent = '复制'; }
+        if (lastCopiedBtn === btn) { lastCopiedBtn = null; }
+        lastCopiedTimer = null;
+      }, 30000);
+    }
+
+    // ===== 添加主机 =====
+    const addPanel = $('add-panel'), fFields = $('f-fields'), addErr = $('add-err');
+    function addFieldRow(label, value) {
+      const row = document.createElement('div'); row.className = 'field-edit';
+      const lbl = document.createElement('input'); lbl.className = 'f-input lbl'; lbl.placeholder = '字段名(如 root 密码)'; lbl.value = label || '';
+      const val = document.createElement('input'); val.className = 'f-input mono'; val.placeholder = '值'; val.value = value || '';
+      const x = document.createElement('button'); x.className = 'x-btn'; x.textContent = '×'; x.type = 'button';
+      x.addEventListener('click', () => row.remove());
+      row.appendChild(lbl); row.appendChild(val); row.appendChild(x);
+      fFields.appendChild(row);
+    }
+    $('add-btn').addEventListener('click', () => {
+      addPanel.classList.toggle('is-open');
+      if (addPanel.classList.contains('is-open') && !fFields.children.length) addFieldRow();
+      $('f-ip').focus();
+    });
+    $('f-add-field').addEventListener('click', () => addFieldRow());
+    $('f-cancel').addEventListener('click', () => { addPanel.classList.remove('is-open'); addErr.textContent = ''; });
+
+    $('f-save').addEventListener('click', async () => {
+      const ip = $('f-ip').value.trim();
+      addErr.textContent = '';
+      if (!ip) { addErr.textContent = '! IP / 主机不能为空'; return; }
+      const fields = [];
+      fFields.querySelectorAll('.field-edit').forEach((row) => {
+        const inp = row.querySelectorAll('input');
+        const label = inp[0].value.trim();
+        const value = inp[1].value;
+        if (label) fields.push({ label, value });
+      });
+      if (!fields.length) { addErr.textContent = '! 至少添加一个字段'; return; }
+      try {
+        await api.addHost(ip, fields);
+        // reset
+        $('f-ip').value = ''; fFields.innerHTML = '';
+        addPanel.classList.remove('is-open');
+        await loadHosts();
+        render();
+      } catch (e) {
+        addErr.textContent = '! 保存失败: ' + (e.message || e);
+      }
+    });
+
+    async function deleteHost(ip) {
+      if (!confirm('确认删除主机 ' + ip + ' 的所有凭据？')) return;
+      try {
+        await api.deleteHost(ip);
+        await loadHosts();
+        render();
+      } catch (e) { /* ignore */ }
+    }
+
+    searchEl.addEventListener('input', () => { currentPage = 0; render(); });
+
+    // ===== 剪贴板联动：复制 IP 自动填充搜索框 =====
+    (function initClipboardLink() {
+      const IP_RE = /^(\d{1,3}\.){3}\d{1,3}$/;   // 仅 IPv4 触发，避免复制密码时也劫持搜索
+      let lastClip = '';
+      let userEditing = false;
+      searchEl.addEventListener('focus', () => { userEditing = true; });
+      searchEl.addEventListener('blur', () => { userEditing = false; });
+
+      function applyClipboard(text) {
+        if (!isUnlocked) return;
+        const t = (text || '').trim();
+        if (!t || t === lastClip) return;
+        lastClip = t;
+        if (!IP_RE.test(t)) return;                       // 不是 IP 就不填
+        if (userEditing && document.activeElement === searchEl) return; // 用户正在手输则不覆盖
+        searchEl.value = t;
+        currentPage = 0;
+        render();
+        searchEl.classList.add('synced');                 // 视觉反馈：搜索框高亮一下
+        setTimeout(() => searchEl.classList.remove('synced'), 900);
+      }
+
+      // 优先用 ZTools 剪贴板变化事件（高效、无轮询）
+      if (window.ztools && window.ztools.clipboard && typeof window.ztools.clipboard.onChange === 'function') {
+        try {
+          window.ztools.clipboard.onChange(() => { api.getClipboardText().then(applyClipboard).catch(() => {}); });
+        } catch (e) { /* onChange 不可用则走轮询 */ }
+      }
+      // 兜底：每 1.5s 轮询（onChange 不存在时仍可工作）
+      const clipTimer = setInterval(() => {
+        api.getClipboardText().then(applyClipboard).catch(() => {});
+      }, 1500);
+      if (typeof clipTimer === 'object' && typeof clipTimer.unref === 'function') clipTimer.unref();
+    })();
+
+    // ===== 启动 =====
+    initTheme();
+    (async () => {
+      if (!api) { errEl.textContent = '! 后端未就绪 (pmApi 缺失)'; return; }
+      try {
+        const init = await api.isInitialized();
+        mode = init ? 'unlock' : 'setup';
+      } catch (e) {
+        mode = 'setup';
+      }
+      setUnlockUI();
+    })();
+  </script>
+</body>
+</html>

@@ -36,8 +36,14 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execFileSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 const { clipboard, nativeImage } = require('electron');
+
+// ── 平台检测 ──
+
+const _isWindows = process.platform === 'win32';
+const _isMacOS = process.platform === 'darwin';
+const _isLinux = process.platform === 'linux';
 
 const FONT_EXTENSIONS = new Set(['.ttf', '.otf', '.ttc', '.woff', '.woff2', '.eot']);
 
@@ -119,17 +125,20 @@ const _isMicrosoftFont = (fileName) => {
   return false;
 };
 
-const _isLikelyMicrosoftFont = (path) => {
-  const normalizedPath = (path || '').toLowerCase();
+/**
+ * 判断字体路径是否指向 Microsoft/Windows 系统字体。
+ * 函数名语义：返回 true = 很可能是 Microsoft 字体。
+ */
+const _isLikelyMicrosoftFont = (filePath) => {
+  const normalized = (filePath || '').toLowerCase();
 
-  if (/^\s*microsoft/i.test(normalizedPath)) return false;
-  if (/^\s*(c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z):/i.test(normalizedPath)) return false;
-  if (/fonts(?:\s|\/|\\\\|\\|%5c|\/|%2f)/i.test(normalizedPath)) return false;
-  if (/microsoft|windows/i.test(normalizedPath)) return false;
-  if (/fonts(?:\s|\/|\\\\|\\|%5c|\/|%2f)/i.test(normalizedPath)) return false;
-  if (/windows/i.test(normalizedPath)) return false;
+  if (/^\s*microsoft/i.test(normalized)) return true;
+  if (/microsoft|windows/i.test(normalized)) return true;
+  // Windows 盘符路径（如 C:\Windows\Fonts）
+  if (/^\s*[a-z]:[\\/]/i.test(normalized)) return true;
+  if (/fonts(?:\s|\/|\\\\|\\|%5c|\/|%2f)/i.test(normalized)) return true;
 
-  return true;
+  return false;
 };
 
 const _isCFFFont = (buffer) => {
@@ -137,10 +146,11 @@ const _isCFFFont = (buffer) => {
   return buffer[0] === 0x00 && buffer[1] === 0x01 && buffer[2] === 0x00 && buffer[3] === 0x00;
 };
 
-const _readNameRecord = (tableData, tag) => {
+const _readNameRecord = (tableData, tag, buffer) => {
   try {
     const numRecords = tableData.readUInt16BE(6);
     const stringDataOffset = tableData.readUInt16BE(8);
+    const isCFF = buffer ? _isCFFFont(buffer) : false;
 
     for (let i = 0; i < numRecords; i++) {
       const recordOffset = 10 + i * 16;
@@ -154,7 +164,7 @@ const _readNameRecord = (tableData, tag) => {
       if (tag === 'fontFamily' && nameID === 1 && platformID === 3 && encodingID === 1) {
         const recordStart = stringDataOffset + offset;
         if (recordStart + length <= tableData.length) {
-          if (_isCFFFont) {
+          if (isCFF) {
             const rawBuffer = tableData.slice(recordStart, recordStart + length);
             return _decodeUtf16BE(rawBuffer);
           }
@@ -165,7 +175,7 @@ const _readNameRecord = (tableData, tag) => {
       if (tag === 'preferredFamily' && nameID === 16 && platformID === 3 && encodingID === 1) {
         const recordStart = stringDataOffset + offset;
         if (recordStart + length <= tableData.length) {
-          if (_isCFFFont) {
+          if (isCFF) {
             const rawBuffer = tableData.slice(recordStart, recordStart + length);
             return _decodeUtf16BE(rawBuffer);
           }
@@ -236,6 +246,121 @@ const _getFontNameFromBuffer = (buffer, filePath) => {
   }
 };
 
+// ── 跨平台系统字体获取 ──
+
+const _getSystemFontsWindows = () => {
+  try {
+    // 使用 PowerShell 读取注册表中的已安装字体名称，比逐个解析字体文件快得多
+    const psScript = `
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      $OutputEncoding = [System.Text.Encoding]::UTF8
+      $fonts = @()
+      $regKeys = @(
+        'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts',
+        'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Fonts',
+        'HKCU:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts',
+        'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Fonts'
+      )
+      foreach ($key in $regKeys) {
+        if (Test-Path $key) {
+          $reg = Get-ItemProperty -Path $key -ErrorAction SilentlyContinue
+          if ($reg) {
+            foreach ($prop in $reg.PSObject.Properties) {
+              if ($prop.Name -notmatch '^PS') {
+                $name = $prop.Name -replace '\\s*\\(TrueType\\)\\s*$',''
+                $name = $name -replace '\\s*\\(OpenType\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Regular\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Bold\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Italic\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Bold Italic\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Light\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Medium\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Semibold\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Black\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Thin\\)\\s*$',''
+                $name = $name -replace '\\s*\\(ExtraBold\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Condensed\\)\\s*$',''
+                $name = $name -replace '\\s*\\(Extended\\)\\s*$',''
+                $name = $name.Trim()
+                if ($name) { $fonts += $name }
+              }
+            }
+          }
+        }
+      }
+      $fonts | Select-Object -Unique
+    `;
+    const result = execSync(psScript, {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+      timeout: 10000,
+      shell: 'powershell.exe',
+    });
+    const fonts = new Set();
+    const lines = result.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed && trimmed.length > 0) {
+        fonts.add(trimmed);
+      }
+    }
+    return Array.from(fonts);
+  } catch (e) {
+    console.warn('[preload] Windows 获取系统字体失败:', e);
+    return [];
+  }
+};
+
+const _getSystemFontsMacOS = () => {
+  try {
+    const result = execSync('system_profiler SPFontsDataType', {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+      timeout: 10000,
+    });
+    const fonts = new Set();
+    const lines = result.split('\n');
+    for (const line of lines) {
+      const match = line.match(/^\s*Full Name:\s*(.+)$/);
+      if (match && match[1]) {
+        const fontName = match[1].trim();
+        if (fontName.length > 0 && !fonts.has(fontName)) {
+          fonts.add(fontName);
+        }
+      }
+    }
+    return Array.from(fonts);
+  } catch (e) {
+    console.warn('[preload] macOS 获取系统字体失败:', e);
+    return [];
+  }
+};
+
+const _getSystemFontsLinux = () => {
+  try {
+    const result = execFileSync('fc-list', {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+      timeout: 5000,
+    });
+    const fonts = new Set();
+    const lines = result.split('\n');
+    for (const line of lines) {
+      const match = line.match(/^.*:\s+(.+?)\s+-?\s*$/);
+      if (match && match[1]) {
+        const fontName = match[1].trim();
+        if (fontName.length > 0 && !fonts.has(fontName)) {
+          fonts.add(fontName);
+        }
+      }
+    }
+    return Array.from(fonts);
+  } catch (e) {
+    console.warn('[preload] Linux 获取系统字体失败:', e);
+    return [];
+  }
+};
+
 const _readFontNameUsingCFF = (buffer) => {
   try {
     const numTables = _readUInt16(buffer, 4);
@@ -248,7 +373,7 @@ const _readFontNameUsingCFF = (buffer) => {
         const tableLength = _readUInt32(buffer, tableOffset + 4);
         const tableOffset2 = _readUInt32(buffer, tableOffset + 8);
         const nameTableData = buffer.slice(tableOffset2, tableOffset2 + tableLength);
-        return _extractFontName(nameTableData);
+        return _extractFontName(nameTableData, buffer);
       }
     }
   } catch (e) {
@@ -269,7 +394,7 @@ const _readFontNameUsingOffsetTable = (buffer) => {
         const tableLength = _readUInt32(buffer, tableOffset + 4);
         const tableOffset2 = _readUInt32(buffer, tableOffset + 8);
         const nameTableData = buffer.slice(tableOffset2, tableOffset2 + tableLength);
-        return _extractFontName(nameTableData);
+        return _extractFontName(nameTableData, buffer);
       }
     }
   } catch (e) {
@@ -278,10 +403,11 @@ const _readFontNameUsingOffsetTable = (buffer) => {
   return null;
 };
 
-const _extractFontName = (nameTableData) => {
+const _extractFontName = (nameTableData, buffer) => {
   try {
     const numRecords = nameTableData.readUInt16BE(6);
     const stringDataOffset = nameTableData.readUInt16BE(8);
+    const isCFF = buffer ? _isCFFFont(buffer) : false;
 
     for (let i = 0; i < numRecords; i++) {
       const recordOffset = 10 + i * 16;
@@ -295,7 +421,7 @@ const _extractFontName = (nameTableData) => {
       const recordStart = stringDataOffset + offset;
       if (recordStart + length <= nameTableData.length) {
         if (nameID === 1 && platformID === 3 && encodingID === 1) {
-          if (_isCFFFont) {
+          if (isCFF) {
             const rawBuffer = nameTableData.slice(recordStart, recordStart + length);
             const fontName = _decodeUtf16BE(rawBuffer);
             return _hasMicrosoftLicense(nameTableData) ? fontName : null;
@@ -304,7 +430,7 @@ const _extractFontName = (nameTableData) => {
           return _hasMicrosoftLicense(nameTableData) ? fontName : null;
         }
         if (nameID === 16 && platformID === 3 && encodingID === 1) {
-          if (_isCFFFont) {
+          if (isCFF) {
             const rawBuffer = nameTableData.slice(recordStart, recordStart + length);
             const fontName = _decodeUtf16BE(rawBuffer);
             return _hasMicrosoftLicense(nameTableData) ? fontName : null;
@@ -323,7 +449,7 @@ const _extractFontName = (nameTableData) => {
 // ── 公共初始化函数 ──
 
 const initPreload = (platform) => {
-  if (typeof window === 'undefined' || !window.require) return;
+  if (typeof window === 'undefined') return;
 
   // 设置公共 API
   window.getPluginPath = () => {
@@ -368,10 +494,19 @@ const setupImageDialog = (platform) => {
     try {
       const result = hostTools.showOpenDialog({
         properties: ['openFile'],
-        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif', 'svg'] }],
+        filters: [
+          { name: '图片和工程文件', extensions: ['ora', 'png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif', 'svg'] },
+          { name: 'OpenRaster 工程文件', extensions: ['ora'] },
+          { name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif', 'svg'] },
+        ],
       });
-      if (result && result.length > 0) {
-        const selectedFile = result[0];
+      let selectedFile = null;
+      if (result) {
+        if (typeof result === 'string') selectedFile = result;
+        else if (Array.isArray(result) && result.length > 0) selectedFile = result[0];
+        else if (result.filePaths && Array.isArray(result.filePaths) && result.filePaths.length > 0) selectedFile = result.filePaths[0];
+      }
+      if (selectedFile) {
         return selectedFile.startsWith('file://') ? selectedFile.replace('file://', '') : selectedFile;
       }
     } catch (e) {
@@ -380,23 +515,41 @@ const setupImageDialog = (platform) => {
     return null;
   };
 
-  window.showSaveImageDialog = (suggestedName = 'edited.png') => {
+  window.showSaveImageDialog = (suggestedName = 'edited.png', format = null) => {
     const hostTools = getHostTools();
     if (!hostTools || typeof hostTools.showSaveDialog !== 'function') return null;
     try {
       const defaultPath = path.join(os.homedir(), 'Desktop', suggestedName);
+
+      // 格式过滤器映射
+      const allFilters = {
+        png:    { name: 'PNG 图片', extensions: ['png'] },
+        jpg:    { name: 'JPEG 图片', extensions: ['jpg', 'jpeg'] },
+        jpeg:   { name: 'JPEG 图片', extensions: ['jpg', 'jpeg'] },
+        webp:   { name: 'WebP 图片', extensions: ['webp'] },
+        ora:    { name: 'OpenRaster 工程文件', extensions: ['ora'] },
+      };
+
+      // 如果指定了格式，只显示该格式的过滤器（+ 所有文件）
+      const filters = format && allFilters[format.toLowerCase()]
+        ? [allFilters[format.toLowerCase()], { name: '所有文件', extensions: ['*'] }]
+        : [
+            { name: 'PNG 图片', extensions: ['png'] },
+            { name: 'JPEG 图片', extensions: ['jpg', 'jpeg'] },
+            { name: 'WebP 图片', extensions: ['webp'] },
+            { name: 'OpenRaster 工程文件', extensions: ['ora'] },
+            { name: '所有文件', extensions: ['*'] },
+          ];
+
       const result = hostTools.showSaveDialog({
         title: '保存图片',
         defaultPath,
-        filters: [
-          { name: 'PNG 图片', extensions: ['png'] },
-          { name: 'JPEG 图片', extensions: ['jpg', 'jpeg'] },
-          { name: 'WebP 图片', extensions: ['webp'] },
-          { name: '所有文件', extensions: ['*'] },
-        ],
+        filters,
       });
-      if (result && result.length > 0) {
-        return result[0];
+      if (result) {
+        if (typeof result === 'string') return result;
+        if (Array.isArray(result) && result.length > 0) return result[0];
+        if (result.filePath && typeof result.filePath === 'string') return result.filePath;
       }
     } catch (e) {
       console.warn(`[${platform.getName()} preload] 保存图片失败:`, e);
@@ -425,9 +578,10 @@ const setupImageDialog = (platform) => {
     if (!dataUrl || typeof dataUrl !== 'string') return false;
     try {
       const cleanedPath = filePath.replace(/^file:\/\//, '');
-      const fs = require('fs');
-      const path = require('path');
-      fs.mkdirSync(path.dirname(cleanedPath), { recursive: true });
+      const dirName = path.dirname(cleanedPath);
+      if (dirName && !/^[a-zA-Z]:\\?$/.test(dirName)) {
+        fs.mkdirSync(dirName, { recursive: true });
+      }
       const base64Match = dataUrl.match(/^data:([^;]+);base64,(.+)$/i);
       if (base64Match) {
         const base64Data = base64Match[2];
@@ -555,28 +709,9 @@ const setupFontTools = (platform) => {
   if (typeof window === 'undefined') return;
 
   window.getSystemFonts = () => {
-    try {
-      const result = execFileSync('fc-list', {
-        encoding: 'utf-8',
-        stdio: 'pipe',
-        timeout: 5000,
-      });
-      const fonts = new Set();
-      const lines = result.split('\n');
-      for (const line of lines) {
-        const match = line.match(/^.*:\s+(.+?)\s+-?\s*$/);
-        if (match && match[1]) {
-          const fontName = match[1].trim();
-          if (fontName.length > 0 && !fonts.has(fontName)) {
-            fonts.add(fontName);
-          }
-        }
-      }
-      return Array.from(fonts);
-    } catch (e) {
-      console.warn('[preload] 获取系统字体失败:', e);
-      return [];
-    }
+    if (_isWindows) return _getSystemFontsWindows();
+    if (_isMacOS) return _getSystemFontsMacOS();
+    return _getSystemFontsLinux();
   };
 
   window.getSystemFontsAsync = () => {
@@ -593,6 +728,14 @@ const setupFontTools = (platform) => {
   };
 
   window.getFontsDirectory = () => {
+    if (_isWindows) {
+      try {
+        return [path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts')];
+      } catch { return []; }
+    }
+    if (_isMacOS) {
+      return ['/Library/Fonts', '/System/Library/Fonts', path.join(os.homedir(), 'Library/Fonts')];
+    }
     try {
       const result = execFileSync('fc-list', ['-s'], { encoding: 'utf-8', stdio: 'pipe', timeout: 5000 });
       const fonts = new Set();
@@ -625,6 +768,18 @@ const setupFontTools = (platform) => {
   };
 
   window.isFontInstalled = (fontName) => {
+    if (_isWindows) {
+      try {
+        const fonts = window.getSystemFonts();
+        return fonts.some(f => f.toLowerCase() === (fontName || '').toLowerCase());
+      } catch { return false; }
+    }
+    if (_isMacOS) {
+      try {
+        const fonts = window.getSystemFonts();
+        return fonts.some(f => f.toLowerCase() === (fontName || '').toLowerCase());
+      } catch { return false; }
+    }
     try {
       const result = execFileSync('fc-list', [fontName], { encoding: 'utf-8', stdio: 'pipe', timeout: 5000 });
       return result.length > 0;
@@ -638,15 +793,24 @@ const setupFontTools = (platform) => {
     try {
       const cleanedPath = filePath.replace(/^file:\/\//, '');
       if (!fs.existsSync(cleanedPath)) return false;
-      const userFontsDir = path.join(os.homedir(), '.fonts');
+      let userFontsDir;
+      if (_isWindows) {
+        userFontsDir = path.join(process.env.LOCALAPPDATA || os.homedir(), 'Microsoft', 'Windows', 'Fonts');
+      } else if (_isMacOS) {
+        userFontsDir = path.join(os.homedir(), 'Library', 'Fonts');
+      } else {
+        userFontsDir = path.join(os.homedir(), '.fonts');
+      }
       fs.mkdirSync(userFontsDir, { recursive: true });
       const fileName = path.basename(cleanedPath);
       const destPath = path.join(userFontsDir, fileName);
       fs.copyFileSync(cleanedPath, destPath);
-      try {
-        execFileSync('fc-cache', ['-f'], { timeout: 10000 });
-      } catch (e) {
-        console.warn('[preload] 字体缓存更新失败:', e);
+      if (_isLinux) {
+        try {
+          execFileSync('fc-cache', ['-f'], { timeout: 10000 });
+        } catch (e) {
+          console.warn('[preload] 字体缓存更新失败:', e);
+        }
       }
       return true;
     } catch (e) {
@@ -675,8 +839,104 @@ const setupUserAPI = (platform) => {
 const setupMiscAPIs = (platform) => {
   if (typeof window === 'undefined') return;
 
+  // ═══ ORA / 通用文件操作 ═══
+
+  // 通用打开文件对话框（返回文件路径数组）
+  window.showOpenDialog = (options) => {
+    const hostTools = getHostTools();
+    if (!hostTools || typeof hostTools.showOpenDialog !== 'function') return null;
+    try {
+      return hostTools.showOpenDialog(options) || null;
+    } catch (e) {
+      console.warn(`[${platform.getName()} preload] 打开文件对话框失败:`, e);
+      return null;
+    }
+  };
+
+  // 读取二进制文件（返回 ArrayBuffer）
+  window.readBinaryFile = (filePath) => {
+    if (!filePath || typeof filePath !== 'string') return null;
+    try {
+      const cleanedPath = filePath.replace(/^file:\/\//, '');
+      if (!fs.existsSync(cleanedPath)) return null;
+      const buffer = fs.readFileSync(cleanedPath);
+      // 返回 ArrayBuffer
+      return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    } catch (e) {
+      console.warn(`[${platform.getName()} preload] 读取二进制文件失败:`, e);
+      return null;
+    }
+  };
+
+  // 写入二进制文件（接收 base64 dataURL 或 ArrayBuffer）
+  window.writeBinaryFile = (filePath, data) => {
+    if (!filePath || typeof filePath !== 'string') return false;
+    try {
+      const cleanedPath = filePath.replace(/^file:\/\//, '');
+      const dirName = path.dirname(cleanedPath);
+      // 仅在目录非盘符根目录时创建，避免 EPERM
+      if (dirName && !/^[a-zA-Z]:\\?$/.test(dirName)) {
+        fs.mkdirSync(dirName, { recursive: true });
+      }
+
+      let buffer;
+      if (typeof data === 'string') {
+        // base64 dataURL
+        const base64Match = data.match(/^data:[^;]+;base64,(.+)$/i);
+        if (base64Match) {
+          buffer = Buffer.from(base64Match[1], 'base64');
+        } else {
+          // 纯 base64
+          buffer = Buffer.from(data, 'base64');
+        }
+      } else if (data instanceof ArrayBuffer) {
+        buffer = Buffer.from(data);
+      } else if (data instanceof Uint8Array) {
+        buffer = Buffer.from(data);
+      } else {
+        return false;
+      }
+
+      fs.writeFileSync(cleanedPath, buffer);
+      return true;
+    } catch (e) {
+      console.warn(`[${platform.getName()} preload] 写入二进制文件失败:`, e);
+      return false;
+    }
+  };
+
+  // 保存 ORA 文件对话框
+  window.showSaveOraDialog = (suggestedName = 'project.ora') => {
+    const hostTools = getHostTools();
+    if (!hostTools || typeof hostTools.showSaveDialog !== 'function') return null;
+    try {
+      const defaultPath = path.join(os.homedir(), 'Desktop', suggestedName);
+      const result = hostTools.showSaveDialog({
+        title: '保存 ORA 工程文件',
+        defaultPath,
+        filters: [
+          { name: 'OpenRaster 工程文件', extensions: ['ora'] },
+          { name: '所有文件', extensions: ['*'] },
+        ],
+      });
+      if (result) {
+        if (typeof result === 'string') return result;
+        if (Array.isArray(result) && result.length > 0) return result[0];
+        if (result.filePath && typeof result.filePath === 'string') return result.filePath;
+      }
+    } catch (e) {
+      console.warn(`[${platform.getName()} preload] 保存 ORA 文件失败:`, e);
+    }
+    return null;
+  };
+
   window.getImageSourceFromPluginPayload = (type, payload) => {
     if (type === 'img' && payload) {
+      // uTools img 匹配指令进入时，payload 是 dataURL 字符串
+      if (typeof payload === 'string' && payload.startsWith('data:')) {
+        return payload;
+      }
+      // 兼容 payload 为对象数组的情况
       const imgPayload = Array.isArray(payload) ? payload : [payload];
       for (const item of imgPayload) {
         const dataURL = (item && typeof item === 'object') ? item.dataURL || item.dataUrl || item.base64 || item.content : null;
@@ -775,9 +1035,131 @@ const _getHostName = () => {
   return '宿主';
 };
 
+/**
+ * 创建平台 preload 配置（减少 preload.js 之间的重复代码）
+ * @param {object} opts - { name, apiKeys, userFnName, contactUrl }
+ * @returns {object} platform 配置对象 + getHostTools + getHostAppVersion
+ */
+const createPlatformConfig = (opts) => {
+  const { name, apiKeys, userFnName, contactUrl } = opts;
+
+  const getHostTools = () => {
+    if (typeof window === 'undefined') return null;
+    for (const key of apiKeys) {
+      if (window[key]) return window[key];
+    }
+    if (typeof globalThis !== 'undefined') {
+      for (const key of apiKeys) {
+        if (globalThis[key]) return globalThis[key];
+      }
+    }
+    return null;
+  };
+
+  const getHostAppVersion = () => {
+    const api = getHostTools();
+    if (api && typeof api.getAppVersion === 'function') return api.getAppVersion();
+    if (api && typeof api.getVersion === 'function') return api.getVersion();
+    if (api && typeof api.getPluginVersion === 'function') return api.getPluginVersion();
+    return 'unknown';
+  };
+
+  const platform = {
+    getName: () => name,
+    getApiKeys: () => apiKeys,
+    getUserFnName: () => userFnName,
+    getContactUrl: () => contactUrl,
+    onPluginEnter: (callback) => {
+      const api = getHostTools();
+      if (api && typeof api.onPluginEnter === 'function') {
+        api.onPluginEnter(callback);
+      }
+      return () => {};
+    },
+    onPluginOut: (callback) => {
+      const api = getHostTools();
+      if (api && typeof api.onPluginOut === 'function') {
+        api.onPluginOut(callback);
+      }
+      return () => {};
+    },
+    openExternal: (url) => {
+      const api = getHostTools();
+      if (api && typeof api.shellOpenExternal === 'function') {
+        api.shellOpenExternal(url);
+        return true;
+      }
+      if (typeof window !== 'undefined') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return true;
+      }
+      return false;
+    },
+  };
+
+  return { platform, getHostTools, getHostAppVersion };
+};
+
+/**
+ * 初始化平台 preload（减少 preload.js 之间的重复代码）
+ * @param {object} opts - { name, apiKeys, userFnName, contactUrl }
+ */
+const initPlatformPreload = (opts) => {
+  const { name, userFnName } = opts;
+  const { platform, getHostTools, getHostAppVersion } = createPlatformConfig(opts);
+
+  initPreload(platform);
+
+  // 注册平台特定 API
+  window.getHostAppVersion = getHostAppVersion;
+  window.getHostName = () => name;
+
+  window[userFnName] = () => {
+    const api = getHostTools();
+    if (!api) return null;
+    try {
+      if (typeof api.getUser === 'function') return api.getUser();
+      if (typeof api.getUserInfo === 'function') return api.getUserInfo();
+    } catch (e) {
+      console.warn(`[${name} preload] 获取宿主用户失败:`, e);
+    }
+    return null;
+  };
+
+  // 在 preload 阶段注册 onPluginEnter
+  window.__pluginEnterAction = null;
+
+  const api = getHostTools();
+  if (api && typeof api.onPluginEnter === 'function') {
+    api.onPluginEnter((action) => {
+      console.log(`[${name} preload] onPluginEnter:`, action);
+      window.__pluginEnterAction = action;
+
+      if (action.code === 'image-edit') {
+        const source = window.getImageSourceFromPluginPayload
+          ? window.getImageSourceFromPluginPayload(action.type, action.payload)
+          : null;
+
+        if (source) {
+          window.__imageSource = source;
+        } else if (action.type === 'img' && window.__imageSource) {
+          // 已有图片源，保持不变
+        }
+
+        // 设置窗口高度
+        if (api && typeof api.setExpendHeight === 'function') {
+          api.setExpendHeight(560);
+        }
+      }
+    });
+  }
+};
+
 // 导出所有公共函数
 module.exports = {
   initPreload,
+  initPlatformPreload,
+  createPlatformConfig,
   setupImageDialog,
   setupClipboard,
   setupExternalLink,

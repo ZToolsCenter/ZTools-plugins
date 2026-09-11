@@ -1,0 +1,28 @@
+{
+  "name": "ztools-kill-process",
+  "title": "杀进程/进程管理",
+  "pluginName": "杀进程/进程管理",
+  "description": "显示当前系统的进程列表，快速搜索与一键结束指定进程",
+  "version": "1.0.1",
+  "author": "zhanglei",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "kill-process",
+      "explain": "杀进程 - 查看并结束运行进程",
+      "cmds": [
+        "kill",
+        "进程",
+        "杀进程",
+        "结束进程",
+        "taskkill",
+        "process"
+      ]
+    }
+  ],
+  "platform": [
+    "win32"
+  ]
+}

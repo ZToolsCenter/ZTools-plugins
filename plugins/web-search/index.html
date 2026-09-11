@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>网页搜索</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow: hidden; }
+    #searchView { display: none; width: 100%; height: 100%; }
+    /* 深浅模式 CSS 变量 */
+    :root {
+      --ws-bg: transparent;
+      --ws-title: #1a1a1a;
+      --ws-icon-color: #666666;
+      --ws-icon-hover-color: #007aff;
+      --ws-icon-disabled-color: #c7c7cc;
+      --ws-section-title: #555;
+      --ws-card-bg: rgba(255,255,255,0.95);
+      --ws-card-border: rgba(0,0,0,0.08);
+      --ws-card-default-bg: rgba(240,247,255,0.95);
+      --ws-text: #333;
+      --ws-text-secondary: #666;
+      --ws-label: #555;
+      --ws-input-bg: #fff;
+      --ws-input-border: #ddd;
+      --ws-btn-secondary-bg: rgba(0,0,0,0.06);
+      --ws-btn-secondary-color: #333;
+      --ws-border-bottom: rgba(0,0,0,0.1);
+    }
+    :root.dark {
+      --ws-title: #f0f0f0;
+      --ws-icon-color: #ffffff;
+      --ws-icon-hover-color: #007aff;
+      --ws-icon-disabled-color: #636366;
+      --ws-section-title: rgba(255,255,255,0.7);
+      --ws-card-bg: rgba(45,45,45,0.95);
+      --ws-card-border: rgba(255,255,255,0.1);
+      --ws-card-default-bg: rgba(30,50,80,0.9);
+      --ws-text: #e0e0e0;
+      --ws-text-secondary: #999;
+      --ws-label: #aaa;
+      --ws-input-bg: #333;
+      --ws-input-border: #555;
+      --ws-btn-secondary-bg: rgba(255,255,255,0.1);
+      --ws-btn-secondary-color: #e0e0e0;
+      --ws-border-bottom: rgba(255,255,255,0.15);
+    }
+    #settingsView {
+      display: none; width: 100%; height: 100%; background: transparent;
+      overflow-y: auto; padding: 20px; color: var(--ws-text);
+    }
+    #settingsView h2 { font-size: 18px; color: var(--ws-title); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ws-border-bottom); }
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 14px; font-weight: 600; color: var(--ws-section-title); margin-bottom: 12px; }
+    .engine-list { display: flex; flex-direction: column; gap: 8px; }
+    .engine-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--ws-card-bg); border-radius: 8px; border: 1px solid var(--ws-card-border); }
+    .engine-item.default { border-color: var(--plugin-primary-color, #007aff); background: var(--ws-card-default-bg); }
+    .engine-icon { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; }
+    .engine-info { flex: 1; }
+    .engine-name { font-size: 14px; font-weight: 600; color: var(--ws-text); }
+    .engine-cmds { font-size: 12px; color: var(--ws-text-secondary); margin-top: 2px; }
+    .engine-actions { display: flex; gap: 4px; align-items: center; }
+    /* 图标按钮样式 */
+    .icon-btn {
+      width: 30px; height: 30px; border: none; background: transparent;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--ws-icon-color, #000000); transition: color 0.15s; padding: 0;
+    }
+    .icon-btn:not(:disabled):hover { color: var(--ws-icon-hover-color, #007aff); }
+    .icon-btn:disabled { color: var(--ws-icon-disabled-color, #c7c7cc); cursor: not-allowed; }
+    .icon-btn:disabled:hover { color: var(--ws-icon-disabled-color, #c7c7cc); }
+    /* 删除按钮 - 默认普通色，悬停变红（禁用时不变色） */
+    .icon-btn-danger { color: var(--ws-icon-color, #666666); }
+    .icon-btn-danger:not(:disabled):hover { color: #ff3b30; }
+    /* 设为默认按钮 - 默认普通色，悬停变金（禁用时不变色） */
+    .icon-btn-star { color: var(--ws-icon-color, #666666); }
+    .icon-btn-star:not(:disabled):hover { color: #f5a623; }
+    .icon-btn-star:disabled { color: var(--ws-icon-disabled-color, #c7c7cc); opacity: 0.6; }
+    /* 保留原按钮样式（弹窗里用） */
+    .btn { padding: 6px 16px; border: none; border-radius: 20px; font-size: 14px; cursor: pointer; transition: all 0.15s; font-weight: 500; }
+    .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary { background: #3a4253; color: #fff; }
+    .btn-primary:hover { background: #2d3443; }
+    :root.dark .btn-primary { background: #39475d; color: #fff; }
+    :root.dark .btn-primary:hover { background: #2d3a4f; }
+    .btn-danger { background: #ff3b30; color: #fff; }
+    :root.dark .btn-danger { background: #8C1A10; color: #fff; }
+    .btn-secondary { background: #fff; color: #333; border: 1px solid #ddd; }
+    .btn-secondary:hover { background: #f5f5f5; border-color: #ccc; }
+    :root.dark .btn-secondary { background: #424243; color: #fff; border-color: #424243; }
+    :root.dark .btn-secondary:hover { background: #525253; border-color: #525253; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .add-form { background: var(--ws-card-bg); border-radius: 8px; border: 1px solid var(--ws-card-border); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .form-row { display: flex; gap: 12px; }
+    .form-group { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 20px; color: #333; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+    .required-star { color: #ff3b30; font-weight: 600; }
+    .tooltip-wrapper { position: relative; display: inline-flex; align-items: center; }
+    .tooltip-icon { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; cursor: help; border-radius: 50%; transition: background 0.15s; }
+    .tooltip-icon svg { width: 16px; height: 16px; }
+    .tooltip-icon:hover { background: #e4e9f8; }
+    :root.dark .tooltip-icon:hover { background: #333b42; }
+    .tooltip-text { visibility: hidden; position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 10px; background: #fff; color: #333; padding: 10px 14px; border-radius: 8px; font-size: 11px; z-index: 1000; opacity: 0; transition: opacity 0.15s; line-height: 1.6; max-width: 260px; width: max-content; min-width: 180px; text-align: left; box-shadow: 0 2px 12px rgba(0,0,0,0.12); border: 1px solid #dddddd; }
+    :root.dark .tooltip-text { background: #0f1729; color: #fff; border-color: #aaaaaa; }
+    .tooltip-wrapper:hover .tooltip-text { visibility: visible; opacity: 1; }
+    .insert-query-btn { cursor: pointer; color: var(--ws-text); font-size: 13px; font-weight: normal; padding: 4px 12px; border-radius: 16px; background: var(--ws-card-bg); transition: background 0.15s; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+    .insert-query-btn:hover { background: rgba(0,0,0,0.08); }
+    :root.dark .insert-query-btn:hover { background: rgba(255,255,255,0.12); }
+    .form-group input { padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; outline: none; background: #fafafa; color: var(--ws-text); transition: border-color 0.15s; }
+    .form-group input::placeholder { color: #bbb; font-size: 13px; }
+    .form-group input:focus { border-color: #999; background: #fff; }
+    .icon-row { display: flex; align-items: center; gap: 12px; }
+    .icon-upload-box { width: 60px; height: 60px; border: 2px dashed #ddd; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; background: #fafafa; flex-shrink: 0; position: relative; }
+    :root.dark .icon-upload-box { background: var(--ws-card-bg); border-color: var(--ws-input-border); }
+    .icon-upload-box:hover { border-color: #999; background: #f5f5f5; }
+    .icon-upload-box .plus-icon { font-size: 28px; color: #999; font-weight: 300; line-height: 1; }
+    .icon-upload-box.has-icon { border-style: solid; border-color: #e5e5e5; padding: 4px; background: #fff; }
+    .icon-upload-box.has-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
+    .icon-delete-btn { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; border-radius: 50%; background: #ff3b30; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; z-index: 10; }
+    .icon-delete-btn:hover { background: #d70015; }
+    .icon-delete-btn svg { width: 12px; height: 12px; }
+    .icon-delete-btn svg path, .icon-delete-btn svg line { stroke: #fff; }
+    /* 弹窗样式 - 极简 Apple 风格 */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal-content {
+      background: var(--ws-card-bg); border-radius: 18px; border: none;
+      width: 88%; max-width: 480px; max-height: 88vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 0 0 0.5px rgba(0,0,0,0.1);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: center; position: relative;
+      padding: 18px 20px 14px; border-bottom: none;
+    }
+    .modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; color: var(--ws-title); letter-spacing: -0.2px; }
+    .modal-close {
+      position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+      width: 28px; height: 28px; border-radius: 50%; border: none;
+      background: var(--ws-btn-secondary-bg); color: var(--ws-text-secondary);
+      font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; line-height: 1;
+    }
+    .modal-close:hover { background: var(--ws-input-border); color: var(--ws-text); }
+    .modal-body { padding: 8px 20px 20px; }
+    .form-actions { display: flex; }
+    .form-actions .btn { min-width: 80px; padding: 6px 16px; }
+.modal-body .form-group { margin-bottom: 14px; }
+    .modal-body .form-group label { font-size: 12px; font-weight: 500; color: var(--ws-label); margin-bottom: 6px; }
+    .modal-body .form-group input {
+      padding: 10px 12px; border-radius: 10px; border: 1px solid var(--ws-input-border);
+      background: var(--ws-input-bg); font-size: 13px; color: var(--ws-text); transition: all 0.15s;
+    }
+    .modal-body .form-group input:focus {
+      border-color: var(--plugin-primary-color, #007aff);
+      box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+    }
+    /* 预设引擎快速选择 */
+.preset-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 8px; }
+    .preset-item {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 10px 4px; border-radius: 12px; cursor: pointer;
+      background: var(--ws-input-bg); border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+    .preset-item:hover {
+      border-color: var(--plugin-primary-color, #007aff);
+      background: var(--ws-card-default-bg);
+      transform: translateY(-1px);
+    }
+    .preset-item img { width: 28px; height: 28px; object-fit: contain; }
+    .preset-item span { font-size: 11px; color: var(--ws-text); text-align: center; line-height: 1.2; }
+    /* 自定义项 - 虚线框 */
+    .preset-item.custom-item {
+      border: 1.5px dashed var(--ws-card-border);
+      background: transparent;
+    }
+    .preset-item.custom-item:hover {
+      border-color: var(--plugin-primary-color, #007aff);
+      background: var(--ws-card-default-bg);
+    }
+    .preset-item.custom-item .custom-icon {
+      width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+      font-size: 20px; color: var(--ws-text-secondary); font-weight: 300;
+    }
+.add-engine-btn {
+      width: 100%; padding: 12px; border: 1.5px dashed var(--ws-card-border);
+      border-radius: 12px; background: transparent; color: var(--ws-section-title);
+      font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; margin-top: 10px;
+    }
+    .add-engine-btn:hover {
+      border-color: var(--plugin-primary-color, #007aff);
+      color: var(--plugin-primary-color, #007aff);
+      background: var(--ws-card-default-bg);
+    }
+      /* Toast 提示 */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px);
+      background: rgba(0,0,0,0.8); color: #fff; padding: 10px 18px; border-radius: 10px;
+      font-size: 13px; z-index: 9999; opacity: 0; transition: all 0.3s ease;
+      pointer-events: none; max-width: 85%; line-height: 1.5;
+      display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast .toast-icon { width: 18px; height: 18px; flex-shrink: 0; }
+    .toast .toast-text { flex: 1; }
+    .toast.success { background: #78A75A; color: #fff; }
+    .toast.error { background: #D16D6A; color: #fff; }
+    .toast.info { background: #EFEFEF; color: #1c1c1e; }
+    :root.dark .toast.info { background: #666666; color: #fff; }
+
+    /* 确认对话框 */
+    .confirm-modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4); z-index: 10000; align-items: center; justify-content: center;
+    }
+    .confirm-box {
+      background: var(--ws-card-bg, #fff); border-radius: 14px; padding: 24px;
+      min-width: 280px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    .confirm-title { font-size: 16px; font-weight: 600; color: var(--ws-title, #1a1a1a); margin-bottom: 10px; }
+    .confirm-message { font-size: 14px; color: var(--ws-text, #666); margin-bottom: 20px; line-height: 1.5; }
+    .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+    .confirm-actions .btn { min-width: 80px; }
+    :root.dark .confirm-box { background: #2c2c2e; }
+    :root.dark .confirm-message { color: #aeaeb2; }
+  </style>
+</head>
+<body>
+  <div id="searchView"></div>
+  <div id="settingsView">
+    <div class="section">
+      <div class="engine-list" id="engineList"></div>
+      <button class="add-engine-btn" onclick="openEngineModal()">+ 添加搜索引擎</button>
+    </div>
+  </div>
+
+  <!-- 添加/编辑搜索引擎弹窗 -->
+  <div id="engineModal" class="modal-overlay" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">添加搜索引擎</h3>
+        <button class="modal-close" onclick="closeEngineModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editingCode" value="" />
+        <!-- 预设引擎快速选择 -->
+        <div id="presetSection">
+          <div class="preset-grid" id="presetGrid"></div>
+        </div>
+        <!-- 自定义表单（点击"自定义"后显示） -->
+        <div id="customForm" style="display:none">
+          <div class="form-group">
+            <label>名称<span class="required-star">*</span></label>
+            <input type="text" id="newEngineName" placeholder="百度" />
+          </div>
+          <div class="form-group">
+            <label>指令<span class="required-star">*</span>
+              <span class="tooltip-wrapper">
+                <span class="tooltip-icon"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#666666"><path d="M440-280h80v-240h-80v240Zm68.5-331.5Q520-623 520-640t-11.5-28.5Q497-680 480-680t-28.5 11.5Q440-657 440-640t11.5 28.5Q463-600 480-600t28.5-11.5ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg></span>
+                <span class="tooltip-text">除自定义指令外，搜索引擎名称也是指令</span>
+              </span>
+            </label>
+            <input type="text" id="newEngineCmds" placeholder="bd" />
+          </div>
+          <div class="form-group">
+            <label style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span style="display:flex; align-items:center; gap:4px;">搜索链接<span class="required-star">*</span>
+                <span class="tooltip-wrapper">
+                  <span class="tooltip-icon"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#666666"><path d="M440-280h80v-240h-80v240Zm68.5-331.5Q520-623 520-640t-11.5-28.5Q497-680 480-680t-28.5 11.5Q440-657 440-640t11.5 28.5Q463-600 480-600t28.5-11.5ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg></span>
+                  <span class="tooltip-text">1.打开你想添加的网站<br>2.输入任一搜索词，触发搜索<br>3.将搜索结果页面 url 粘贴在此处<br>4.将关键词替换为{q}</span>
+                </span>
+              </span>
+              <span class="insert-query-btn" onclick="insertQueryVar()">插入查询变量+</span>
+            </label>
+            <input type="text" id="newEngineUrl" placeholder="https://www.baidu.com/s?wd={q}" />
+          </div>
+          <div class="form-group">
+            <label>图标
+              <span class="tooltip-wrapper">
+                <span class="tooltip-icon"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#666666"><path d="M440-280h80v-240h-80v240Zm68.5-331.5Q520-623 520-640t-11.5-28.5Q497-680 480-680t-28.5 11.5Q440-657 440-640t11.5 28.5Q463-600 480-600t28.5-11.5ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg></span>
+                <span class="tooltip-text">支持 PNG、JPG、WebP、SVG；推荐 128×128 px 以上透明背景正方形图标；留空自动在线获取下载</span>
+              </span>
+            </label>
+            <div class="icon-row">
+              <div class="icon-upload-box" id="iconUploadBox" onclick="document.getElementById('iconFileUpload').click()">
+                <span class="plus-icon">+</span>
+              </div>
+              <input type="file" id="iconFileUpload" accept="image/*" style="display:none" onchange="handleIconUpload(event)" />
+              <input type="text" id="newEngineIcon" placeholder="图标文件名/URL" style="flex:1" oninput="previewIconFromUrl()" />
+            </div>
+          </div>
+        </div>
+        <div class="form-actions" id="formActions" style="display:none; justify-content: space-between; gap: 10px; margin-top: 20px; padding-top: 16px;">
+          <button class="btn btn-secondary" onclick="backToPreset()" id="backBtn" style="display:none;">返回</button>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" id="resetBtn" onclick="closeEngineModal()">取消</button>
+            <button class="btn btn-primary" id="submitBtn" onclick="addEngine()">添加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Toast 提示（代替 alert，不打断 ztools 焦点）
+    let toastTimer = null
+    function showToast(message, type = 'info', duration = 2500) {
+      const toast = document.getElementById('toast')
+      if (!toast) return
+      // 根据类型选择图标
+      let iconSrc = ''
+      if (type === 'success') iconSrc = 'assets/check.svg'
+      else if (type === 'error') iconSrc = 'assets/alert-triangle.svg'
+      else if (type === 'info') {
+        // 信息类型根据深浅模式选择加载图标
+        const isDark = document.documentElement.classList.contains('dark')
+        iconSrc = isDark ? 'assets/loader-dark.svg' : 'assets/loader-light.svg'
+      }
+      const iconHtml = iconSrc ? '<img class="toast-icon" src="' + iconSrc + '" alt="" />' : ''
+      toast.innerHTML = iconHtml + '<span class="toast-text">' + message + '</span>'
+      toast.className = 'toast ' + type
+      void toast.offsetWidth
+      toast.classList.add('show')
+      if (toastTimer) clearTimeout(toastTimer)
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('show')
+      }, duration)
+    }
+
+    // 自定义确认对话框（代替 confirm，不打断焦点）
+    let confirmCallback = null
+    function showConfirm(title, message, onOk) {
+      document.getElementById('confirmTitle').textContent = title
+      document.getElementById('confirmMessage').textContent = message
+      document.getElementById('confirmModal').style.display = 'flex'
+      confirmCallback = onOk
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('confirmCancel').onclick = () => {
+        document.getElementById('confirmModal').style.display = 'none'
+        confirmCallback = null
+      }
+      document.getElementById('confirmOk').onclick = () => {
+        document.getElementById('confirmModal').style.display = 'none'
+        if (confirmCallback) confirmCallback()
+        confirmCallback = null
+      }
+    })
+
+    const STORAGE_KEY = 'web-search-config'
+    const defaultConfig = {
+      defaultEngine: 'baidu',
+      engines: [
+        { code: 'baidu', name: '百度', urlTemplate: 'https://www.baidu.com/s?wd={q}', icon: 'assets/baidu.svg', cmds: ['bd', '百度'], builtin: true },
+        { code: 'google', name: 'Google', urlTemplate: 'https://www.google.com/search?q={q}', icon: 'assets/google.svg', cmds: ['gg', 'Google'], builtin: true }
+      ]
+    }
+
+    // 常用搜索引擎预设（快速添加 + 自动匹配图标）
+    const PRESET_ENGINES = [
+      { name: '百度', cmds: ['bd', '百度搜索'], customCmd: 'bd', urlTemplate: 'https://www.baidu.com/s?wd={q}', icon: 'assets/baidu.svg', keywords: ['baidu', '百度'], urlContains: 'baidu.com' },
+      { name: 'Google', cmds: ['gg', 'Google搜索', '谷歌搜索'], customCmd: 'gg', urlTemplate: 'https://www.google.com/search?q={q}', icon: 'assets/google.svg', keywords: ['google', '谷歌'], urlContains: 'google.com' },
+      { name: 'Bing', cmds: ['bi', 'bing', '必应'], customCmd: 'bi', urlTemplate: 'https://www.bing.com/search?q={q}', icon: 'assets/bing.svg', keywords: ['bing', '必应'], urlContains: 'bing.com' },
+      { name: 'DuckDuckGo', cmds: ['ddg', 'duckduckgo'], customCmd: 'ddg', urlTemplate: 'https://duckduckgo.com/?q={q}', icon: 'assets/duckduckgo.svg', keywords: ['duckduckgo', 'ddg'], urlContains: 'duckduckgo.com' },
+      { name: '搜狗', cmds: ['sg', '搜狗'], customCmd: 'sg', urlTemplate: 'https://www.sogou.com/web?query={q}', icon: 'assets/sogou.svg', keywords: ['sogou', '搜狗'], urlContains: 'sogou.com' },
+      { name: '头条搜索', cmds: ['ttss', '头条搜索'], customCmd: 'ttss', urlTemplate: 'https://so.toutiao.com/search?dvpf=pc&keyword={q}', icon: 'assets/toutiaosousuo.svg', keywords: ['头条', 'toutiao', '头条搜索'], urlContains: 'toutiao.com' },
+      { name: '360搜索', cmds: ['360ss', '360搜索'], customCmd: '360ss', urlTemplate: 'https://www.so.com/s?q={q}', icon: 'assets/360sousuo.svg', keywords: ['360', '360搜索'], urlContains: 'so.com' },
+      { name: 'Brave Search', cmds: ['br', 'brave'], customCmd: 'br', urlTemplate: 'https://search.brave.com/search?q={q}', icon: 'assets/brave-browser.svg', keywords: ['brave'], urlContains: 'search.brave.com' },
+      { name: 'Ecosia', cmds: ['eco', 'ecosia'], customCmd: 'eco', urlTemplate: 'https://www.ecosia.org/search?q={q}', icon: 'assets/ecosia.svg', keywords: ['ecosia'], urlContains: 'ecosia.org' },
+      { name: 'Yahoo', cmds: ['yh', 'yahoo', '雅虎'], customCmd: 'yh', urlTemplate: 'https://search.yahoo.com/search?p={q}', icon: 'assets/Yahoo.svg', keywords: ['yahoo', '雅虎'], urlContains: 'yahoo.com' },
+      { name: 'Yandex', cmds: ['yx', 'yandex'], customCmd: 'yx', urlTemplate: 'https://yandex.com/search/?text={q}', icon: 'assets/Yandex.svg', keywords: ['yandex'], urlContains: 'yandex.com' },
+    ]
+
+    // 引擎图标背景颜色（参考截图）
+    const ENGINE_BG_COLORS = {
+      '百度': '#2932E1',
+      'Google': '#ffffff',
+      'Bing': '#008373',
+      'DuckDuckGo': '#DE5833',
+      '搜狗': '#FF6600',
+      '头条搜索': '#FF4300',
+      '360搜索': '#00B42A',
+      'Brave Search': '#FB542B',
+      'Ecosia': '#36A46E',
+      'Yahoo': '#6001D2',
+      'Yandex': '#FC3F1D'
+    }
+
+    // 获取引擎图标背景色
+    function getEngineBgColor(name) {
+      return ENGINE_BG_COLORS[name] || 'rgba(128,128,128,0.2)'
+    }
+
+    // 根据名称和URL匹配预设引擎图标
+    function matchPresetIcon(name, urlTemplate) {
+      const nameLower = (name || '').toLowerCase()
+      const urlLower = (urlTemplate || '').toLowerCase()
+      for (const preset of PRESET_ENGINES) {
+        for (const kw of preset.keywords) {
+          if (nameLower.includes(kw.toLowerCase())) return preset.icon
+        }
+        if (urlLower.includes(preset.urlContains)) return preset.icon
+      }
+      return null
+    }
+
+    let config = loadConfig()
+    let currentEngine = 'baidu'
+    let keyword = ''
+    let pendingKeyword = ''
+    let activateTimer = null
+    let focusTimer = null
+    let heightCheckTimer = null
+    let isDetached = false
+    let lastInputCmd = '' // 记录用户输入的指令，用于判断是否删除历史记录
+    let lastFeatureCode = '' // 记录用户选择的 feature code
+    let currentView = 'search'
+    let earlyPayload = null // 记录最早的 on-plugin-enter 事件，防止事件丢失
+    const TRIGGER_WORDS = ['搜索', '网页搜索', 'search', '搜一下', 'bd', 'gg', '百度', 'google', '百度搜索', 'googlesearch', '谷歌搜索']
+
+    // 主题切换：根据 ztools 深浅模式切换 dark 类名
+    function applyTheme(isDark) {
+      if (isDark) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+    // 立即初始化主题
+    try {
+      if (window.webSearch && typeof window.webSearch.getIsDark === 'function') {
+        applyTheme(window.webSearch.getIsDark())
+      }
+    } catch (e) {}
+    // 监听主题变化
+    try {
+      if (window.webSearch && typeof window.webSearch.onThemeChange === 'function') {
+        window.webSearch.onThemeChange((themeInfo) => {
+          applyTheme(themeInfo.isDark)
+        })
+      }
+    } catch (e) {}
+
+    // 立即注册 on-plugin-enter 监听器，防止事件在 window load 之前触发而丢失
+    function registerEarlyListener() {
+      if (window.webSearch && window.webSearch.onPluginEnter) {
+        window.webSearch.onPluginEnter((payload) => {
+          earlyPayload = payload || {}
+          // 如果页面已经加载完成，直接处理（参考 v4.5.0）
+          if (document.readyState === 'complete') {
+            handlePluginEnter(earlyPayload)
+          }
+        })
+        return true
+      }
+      return false
+    }
+    if (!registerEarlyListener()) {
+      const retryInterval = setInterval(() => {
+        if (registerEarlyListener()) clearInterval(retryInterval)
+      }, 50)
+      setTimeout(() => clearInterval(retryInterval), 2000)
+    }
+
+    // 处理插件进入事件
+    function handlePluginEnter(payload) {
+      // 每次插件被激活时，确保动态 search feature 已注册（修复第一次安装不显示）
+      try { updateSearchFeature() } catch (e) { console.error('更新 search feature 失败:', e) }
+      // 确保所有引擎的动态 feature 已注册（修复重复图标）
+      try { syncDynamicFeatures() } catch (e) { console.error('同步动态 features 失败:', e) }
+      // 记录用户输入的指令和 feature code，用于判断是否删除历史记录
+      lastInputCmd = (payload?.payload || '').toString().trim()
+      lastFeatureCode = payload?.code || ''
+      // 打开就检查是否删除历史记录（不需要等到搜索完成）
+      // 只删除自定义指令 feature 的记录，引擎名称 feature 的记录保留
+      // 两个 feature 独立，历史记录互相不干涉
+      if (lastFeatureCode && lastFeatureCode !== 'search' && lastFeatureCode !== 'settings' && !lastFeatureCode.endsWith('-name')) {
+        // 只有自定义指令 feature（不以 -name 结尾）才删除历史记录
+        // 引擎名称 feature（以 -name 结尾）不删除历史记录
+        setTimeout(() => {
+          try {
+            if (window.webSearch && window.webSearch.removeFromHistory) {
+              window.webSearch.removeFromHistory(lastFeatureCode)
+              console.log('[web-search] 自定义指令已从历史记录删除:', lastFeatureCode)
+            }
+          } catch (e) { console.error('删除历史记录失败:', e) }
+        }, 300)
+      }
+      // search feature：直接打开默认搜索引擎（参考 v4.5.0 的 baidu/google 行为）
+      if (payload.code === 'search') {
+        currentEngine = config.defaultEngine
+        keyword = ''
+        const searchText = (payload?.payload || '').toString().trim()
+        // 如果用户输入了关键词（不是触发词），自动填写到搜索框内
+        if (searchText && !TRIGGER_WORDS.includes(searchText.toLowerCase())) {
+          pendingKeyword = searchText
+        } else {
+          pendingKeyword = ''
+        }
+        if (currentView === 'settings') showSearch()
+        else setTimeout(() => activateSubInput(), 50)
+        return
+      }
+      if (payload.code === 'settings') {
+        setTimeout(() => showSettings(), 50)
+        return
+      }
+      // 处理两个 feature 的 code：自定义指令 feature 和引擎名称 feature
+      let featureCode = payload.code
+      if (featureCode && featureCode.endsWith('-name')) {
+        featureCode = featureCode.replace('-name', '')
+      }
+      currentEngine = featureCode && findEngine(featureCode) ? featureCode : config.defaultEngine
+      const text = (payload?.payload || '').toString().trim()
+      // 只有 search feature（over 类型匹配任意输入）才把 payload 作为关键词
+      // 具体引擎的 payload 是用户输入的指令文字，不作为关键词
+      if (payload.code === 'search' && text && !TRIGGER_WORDS.includes(text.toLowerCase())) {
+        pendingKeyword = text
+      } else {
+        pendingKeyword = ''
+      }
+      keyword = ''
+      if (currentView === 'settings') showSearch()
+      else setTimeout(() => activateSubInput(), 50)
+    }
+
+    function loadConfig() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          // 完全使用保存的配置，不自动合并默认引擎（支持删除内置引擎）
+          let engines = parsed.engines && parsed.engines.length > 0 
+            ? parsed.engines 
+            : JSON.parse(JSON.stringify(defaultConfig.engines))
+          // 配置迁移：确保 cmds 是字符串数组（兼容旧版本的 regex 对象格式）
+          engines = engines.map(engine => {
+            if (!engine.cmds) {
+              engine.cmds = []
+            } else if (!Array.isArray(engine.cmds)) {
+              engine.cmds = [String(engine.cmds)]
+            } else {
+              // 如果 cmds 是对象数组（旧版本的 regex 格式），转换成字符串数组
+              engine.cmds = engine.cmds.map(cmd => {
+                if (typeof cmd === 'string') return cmd
+                if (cmd && cmd.match) {
+                  const m = cmd.match.replace(/^\/\^\(?/, '').replace(/\)?\$\/[a-z]*$/, '')
+                  return m
+                }
+                return String(cmd)
+              }).filter(cmd => cmd)
+            }
+            // 配置迁移：转换成 [自定义指令, 名称] 的格式（取第一个作为自定义指令）
+            const customCmd = engine.cmds[0] || engine.name.toLowerCase()
+            engine.cmds = [...new Set([customCmd, engine.name])].filter(c => c)
+            return engine
+          })
+          const defaultEngine = parsed.defaultEngine && engines.find(e => e.code === parsed.defaultEngine)
+            ? parsed.defaultEngine 
+            : engines[0].code
+          const result = { defaultEngine, engines }
+          // 保存迁移后的配置
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(result)) } catch (e) {}
+          return result
+        }
+      } catch (e) { console.error('加载配置失败:', e) }
+      return JSON.parse(JSON.stringify(defaultConfig))
+    }
+
+    function saveConfig() { localStorage.setItem(STORAGE_KEY, JSON.stringify(config)) }
+
+    // 预设引擎的带白色背景指令图标映射（按引擎名称匹配）
+    const PRESET_COMMAND_ICONS = {
+      '百度': 'assets/baidu-icon.svg',
+      'Google': 'assets/google-icon.svg',
+      'Bing': 'assets/bing-icon.svg',
+      'DuckDuckGo': 'assets/duckduckgo-icon.svg',
+      '搜狗': 'assets/sogou-icon.svg',
+      '头条搜索': 'assets/toutiao-icon.svg',
+      '360搜索': 'assets/360-icon.svg',
+      'Brave Search': 'assets/brave-icon.svg',
+      'Ecosia': 'assets/ecosia-icon.svg',
+      'Yahoo': 'assets/yahoo-icon.svg',
+      'Yandex': 'assets/yandex-icon.svg'
+    }
+
+    // 为引擎创建带白色圆角背景的指令图标（36x36，圆角10px，图标24x24居中）
+    async function createCommandIcon(engine) {
+      if (!window.webSearch) return engine.icon
+      try {
+        const iconFilename = 'assets/' + engine.code + '-icon.svg'
+        // 如果已经存在，直接返回
+        if (window.webSearch.fileExists(iconFilename)) return iconFilename
+        
+        // 读取原始图标内容
+        let originalSvg = ''
+        if (engine.icon.endsWith('.svg') && window.webSearch.fileExists(engine.icon)) {
+          originalSvg = window.webSearch.readFile(engine.icon) || ''
+        }
+        
+        if (originalSvg) {
+          // 转成 dataURL
+          const dataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(originalSvg)))
+          const wrappedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <rect width="36" height="36" fill="white"/>
+  <image href="${dataUrl}" x="6" y="6" width="24" height="24" preserveAspectRatio="xMidYMid meet"/>
+</svg>`
+          const result = window.webSearch.saveFile(iconFilename, wrappedSvg)
+          if (result.success) return iconFilename
+        }
+        return engine.icon
+      } catch (e) {
+        console.error('创建指令图标失败:', e)
+        return engine.icon
+      }
+    }
+
+    // 获取引擎的指令图标（带白色背景，用于 ztools 搜索结果显示）
+    async function getCommandIcon(engine) {
+      // 预设引擎直接使用预生成的带背景图标
+      if (PRESET_COMMAND_ICONS[engine.name]) {
+        return PRESET_COMMAND_ICONS[engine.name]
+      }
+      // 自定义引擎动态创建带背景图标
+      return await createCommandIcon(engine)
+    }
+
+
+    // 更新通用搜索（search）的图标和名称，随默认引擎变化
+    async function updateSearchFeature() {
+      if (!window.webSearch) return
+      try {
+        const defaultEngine = findEngine(config.defaultEngine)
+        if (!defaultEngine) {
+          console.log('[web-search] updateSearchFeature: 找不到默认引擎', config.defaultEngine)
+          return
+        }
+        const name = defaultEngine.name
+        // 即使图标获取失败也用默认图标，确保 feature 能注册成功
+        let icon = 'assets/logo.png'
+        try {
+          icon = await getCommandIcon(defaultEngine)
+        } catch (e) {
+          console.log('[web-search] 获取默认引擎图标失败，使用默认图标:', e)
+        }
+        // 先移除旧的 search feature，清除缓存
+        try { window.webSearch.removeFeature('search') } catch (e) {}
+        // 动态注册 search feature
+        const feature = {
+          code: 'search',
+          explain: name + '搜索（默认）',
+          icon: icon,
+          cmds: [
+            { type: 'over', minLength: 1, label: name }
+          ]
+        }
+        const result = window.webSearch.setFeature(feature)
+        console.log('[web-search] updateSearchFeature:', { name, icon, result })
+      } catch (e) { console.error('更新通用搜索 feature 失败:', e) }
+    }
+
+    // 重试注册动态 feature，确保成功（修复第一次安装不显示的 bug）
+    let featureRetryCount = 0
+    let searchFeatureRetryCount = 0
+    let syncRetryCount = 0 // syncDynamicFeatures 重试次数
+    function ensureDynamicFeatures() {
+      if (!window.webSearch) {
+        if (featureRetryCount < 30) {
+          featureRetryCount++
+          setTimeout(ensureDynamicFeatures, 300)
+        }
+        return
+      }
+      featureRetryCount = 0
+      // 启动时先清除所有旧的动态 feature 缓存（之前版本可能注册过，导致重复）
+      // 硬编码移除所有可能的动态 feature code
+      const codesToRemove = ['baidu', 'google', 'search']
+      // 加上配置里所有自定义引擎的 code
+      if (config && config.engines) {
+        config.engines.forEach(e => { if (e.code) codesToRemove.push(e.code) })
+      }
+      codesToRemove.forEach(code => {
+        try {
+          const result = window.webSearch.removeFeature(code)
+          console.log('[web-search] 移除旧动态 feature:', code, result)
+        } catch (e) { console.log('[web-search] 移除旧动态 feature 失败:', code, e) }
+      })
+      // 延迟注册，确保 ztools 完全准备好（修复第一次安装不显示）
+      setTimeout(() => {
+        syncDynamicFeatures()
+        // 多次重试，确保所有引擎都注册成功
+        setTimeout(() => syncDynamicFeatures(), 1000)
+        setTimeout(() => syncDynamicFeatures(), 2000)
+        // 第一次注册后，延迟再重试几次，确保 ztools 完全准备好
+        retrySearchFeature()
+      }, 800)
+    }
+
+    // 延迟重试注册 search feature，修复第一次安装不显示
+    function retrySearchFeature() {
+      if (searchFeatureRetryCount < 10) {
+        searchFeatureRetryCount++
+        setTimeout(() => {
+          updateSearchFeature()
+          retrySearchFeature()
+        }, 800 * searchFeatureRetryCount)
+      }
+    }
+
+    function syncDynamicFeatures() {
+      if (!window.webSearch) return
+      if (syncRetryCount > 5) { console.log('[web-search] syncDynamicFeatures 重试次数已达上限'); return }
+      syncRetryCount++
+      try {
+        // 更新通用搜索的图标和名称（随默认引擎）
+        updateSearchFeature()
+        // 动态注册所有引擎，每个引擎注册两个 feature：
+        // 1. 自定义指令 feature（code=engine.code，历史记录会被删除）
+        // 2. 引擎名称指令 feature（code=engine.code+'-name'，历史记录保留）
+        for (const engine of config.engines) {
+          // 注册前先移除旧的动态 feature，避免缓存
+          try { window.webSearch.removeFeature(engine.code) } catch (e) {}
+          try { window.webSearch.removeFeature(engine.code + '-name') } catch (e) {}
+          // 分离自定义指令和引擎名称指令
+          // 自定义指令：engine.customCmd（明确指定的缩写指令）
+          // 引擎名称指令：engine.cmds 中除了 customCmd 的所有指令
+          const customCmd = engine.customCmd || (engine.cmds.length > 0 ? engine.cmds[0] : '')
+          const customCmds = customCmd ? [customCmd] : []
+          const nameCmds = engine.cmds.filter(cmd => cmd.toLowerCase() !== customCmd.toLowerCase())
+          // 异步创建带白色背景的指令图标
+          getCommandIcon(engine).then(icon => {
+            // 注册自定义指令 feature
+            if (customCmds.length > 0) {
+              window.webSearch.setFeature({ code: engine.code, explain: engine.name + '搜索', icon: icon, cmds: customCmds })
+            }
+            // 注册引擎名称指令 feature
+            if (nameCmds.length > 0) {
+              window.webSearch.setFeature({ code: engine.code + '-name', explain: engine.name + '搜索', icon: icon, cmds: nameCmds })
+            }
+          }).catch(e => {
+            // 注册自定义指令 feature（fallback）
+            if (customCmds.length > 0) {
+              window.webSearch.setFeature({ code: engine.code, explain: engine.name + '搜索', icon: 'assets/logo.png', cmds: customCmds })
+            }
+            // 注册引擎名称指令 feature（fallback）
+            if (nameCmds.length > 0) {
+              window.webSearch.setFeature({ code: engine.code + '-name', explain: engine.name + '搜索', icon: 'assets/logo.png', cmds: nameCmds })
+            }
+          })
+        }
+      } catch (e) { console.error('同步动态 features 失败:', e) }
+    }
+
+    // 注册单个引擎（用于添加/编辑引擎后，不经过 syncDynamicFeatures 的重试限制）
+    function registerSingleEngine(engine) {
+      if (!window.webSearch || !engine) return
+      try {
+        // 注册前先移除旧的动态 feature
+        try { window.webSearch.removeFeature(engine.code) } catch (e) {}
+        // 异步创建带白色背景的指令图标，即使失败也用默认图标注册
+        getCommandIcon(engine).then(icon => {
+          const result = window.webSearch.setFeature({ code: engine.code, explain: engine.name + '搜索', icon: icon, cmds: engine.cmds })
+          console.log('[web-search] 注册单个引擎:', engine.code, engine.name, engine.cmds, result)
+        }).catch(e => {
+          console.log('[web-search] 获取引擎图标失败，使用默认图标:', engine.code, e)
+          const result = window.webSearch.setFeature({ code: engine.code, explain: engine.name + '搜索', icon: 'assets/logo.png', cmds: engine.cmds })
+          console.log('[web-search] 注册单个引擎 (fallback):', engine.code, engine.name, engine.cmds, result)
+        })
+      } catch (e) { console.error('注册单个引擎失败:', e) }
+    }
+
+    function findEngine(code) { return config.engines.find(e => e.code === code) }
+    function buildSearchUrl(engine, q) { return engine.urlTemplate.replace('{q}', encodeURIComponent(q)) }
+
+    // 判断用户输入的指令是否跟搜索引擎名称（或翻译/别名）相似
+    function isEngineNameMatch(inputCmd, engine) {
+      if (!inputCmd || !engine) return false
+      const inputLower = inputCmd.toLowerCase()
+      // 判断用户输入的指令是否等于引擎名称（搜索引擎名称生成的指令不需要删除历史记录）
+      // 自定义指令（不等于引擎名称）需要删除历史记录
+      return inputLower === engine.name.toLowerCase()
+    }
+
+    async function doSearch() {
+      const q = keyword.trim()
+      if (!q) return
+      const engine = findEngine(currentEngine) || findEngine(config.defaultEngine)
+      if (!engine) return
+      try {
+        cleanup()
+        if (window.ztools && window.ztools.removeSubInput) window.ztools.removeSubInput()
+        if (window.webSearch) {
+          await window.webSearch.openExternal(buildSearchUrl(engine, q))
+          keyword = ''; pendingKeyword = ''
+          // 历史记录删除逻辑已移到 handlePluginEnter 中（打开就检查）
+          if (isDetached) setTimeout(() => activateSubInput(), 300)
+          else window.webSearch.outPlugin()
+        }
+      } catch (e) { console.error('搜索失败:', e) }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (currentView === 'settings') return
+      if (e.key === 'Enter') { e.preventDefault(); doSearch() }
+      else if (e.key === 'Escape') {
+        cleanup()
+        if (window.ztools && window.ztools.removeSubInput) window.ztools.removeSubInput()
+        if (window.webSearch) window.webSearch.outPlugin()
+      }
+    })
+
+    function cleanup() {
+      if (activateTimer) { window.clearInterval(activateTimer); activateTimer = null }
+      if (focusTimer) { window.clearInterval(focusTimer); focusTimer = null }
+    }
+
+    function setHeight(h) {
+      try { if (window.webSearch && window.webSearch.setExpendHeight) window.webSearch.setExpendHeight(h) } catch (e) {}
+    }
+
+    function activateSubInput() {
+      if (!window.ztools || !window.ztools.setSubInput) return
+      cleanup(); keyword = ''; setHeight(1)
+      if (window.ztools.removeSubInput) window.ztools.removeSubInput()
+      const engine = findEngine(currentEngine) || findEngine(config.defaultEngine)
+      const engineName = engine ? engine.name : '网页'
+      const placeholder = `输入关键词，回车${engineName}搜索…`
+      let count = 0
+      activateTimer = window.setInterval(() => {
+        count++
+        try {
+          const ok = window.ztools.setSubInput(({ text }) => { keyword = text || '' }, placeholder, true)
+          if (ok) {
+            window.clearInterval(activateTimer); activateTimer = null
+            if (window.ztools.setSubInputValue) window.ztools.setSubInputValue('')
+            if (pendingKeyword) setTimeout(() => { if (window.ztools.setSubInputValue) { window.ztools.setSubInputValue(pendingKeyword); keyword = pendingKeyword } }, 120)
+            focusSubInput()
+          } else if (count >= 30) { window.clearInterval(activateTimer); activateTimer = null }
+        } catch (e) {}
+      }, 100)
+    }
+
+    function focusSubInput() {
+      if (!window.ztools) return
+      let count = 0
+      focusTimer = window.setInterval(() => {
+        count++
+        try { const ok = window.ztools.subInputFocus ? window.ztools.subInputFocus() : false; if (ok || count >= 10) { window.clearInterval(focusTimer); focusTimer = null } } catch (e) {}
+      }, 50)
+    }
+
+    function showSettings() {
+      currentView = 'settings'
+      // 重新进入设置页面时，先关闭所有弹窗，确保显示主页面（搜索引擎列表）
+      try { closeEngineModal() } catch (e) {}
+      try { closeConfirmModal() } catch (e) {}
+      document.getElementById('searchView').style.display = 'none'
+      document.getElementById('settingsView').style.display = 'block'
+      renderEngineList()
+      // 多次重试移除子输入框，确保设置页面没有搜索框
+      if (window.ztools && window.ztools.removeSubInput) {
+        window.ztools.removeSubInput()
+        setTimeout(() => window.ztools.removeSubInput(), 100)
+        setTimeout(() => window.ztools.removeSubInput(), 300)
+      }
+      // 先重置高度为1，再设置为600，避免高度累积导致白边
+      setHeight(1)
+      setTimeout(() => setHeight(600), 50)
+    }
+
+    function showSearch() {
+      currentView = 'search'
+      document.getElementById('settingsView').style.display = 'none'
+      document.getElementById('searchView').style.display = 'block'
+      setHeight(1)
+      activateSubInput()
+    }
+
+    function renderEngineList() {
+      const list = document.getElementById('engineList')
+      list.innerHTML = ''
+      for (const engine of config.engines) {
+        const isDefault = engine.code === config.defaultEngine
+        const item = document.createElement('div')
+        item.className = 'engine-item' + (isDefault ? ' default' : '')
+        // 默认引擎的删除按钮显示但禁用（防止全被删除），其他引擎可删除
+        const deleteBtn = `
+          <button class="icon-btn icon-btn-danger" title="${isDefault ? '默认引擎不可删除' : '删除'}" onclick="removeEngine('${engine.code}')" ${isDefault ? 'disabled' : ''}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+          </button>`
+        item.innerHTML = `
+          <img class="engine-icon" src="${engine.icon}" onerror="this.style.display='none'" />
+          <div class="engine-info">
+            <div class="engine-name">${engine.name}${isDefault ? '（默认）' : ''}</div>
+            <div class="engine-cmds">指令：${engine.cmds.join(', ')}</div>
+          </div>
+          <div class="engine-actions">
+            <button class="icon-btn" title="编辑" onclick="editEngine('${engine.code}')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon></svg>
+            </button>
+            <button class="icon-btn icon-btn-star" title="${isDefault ? '默认引擎' : '设为默认'}" onclick="setDefaultEngine('${engine.code}')" ${isDefault ? 'disabled' : ''}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </button>
+            ${deleteBtn}
+          </div>`
+        list.appendChild(item)
+      }
+    }
+
+    function setDefaultEngine(code) { config.defaultEngine = code; saveConfig(); renderEngineList(); updateSearchFeature() }
+
+    function removeEngine(code) {
+      const engine = findEngine(code)
+      if (!engine) return
+      showConfirm('删除搜索引擎', '确定要删除 "' + engine.name + '" 吗？', () => {
+        // 如果删除的是默认引擎，自动把第一个剩余引擎设为默认
+        if (config.defaultEngine === code) {
+          const remaining = config.engines.filter(e => e.code !== code)
+          if (remaining.length > 0) {
+            config.defaultEngine = remaining[0].code
+          }
+        }
+        config.engines = config.engines.filter(e => e.code !== code)
+        saveConfig()
+        // 移除动态 feature（两个 feature：自定义指令和引擎名称指令）
+        try { if (window.webSearch) window.webSearch.removeFeature(code) } catch (e) {}
+        try { if (window.webSearch) window.webSearch.removeFeature(code + '-name') } catch (e) {}
+        // 从历史记录中移除
+        try { if (window.webSearch) window.webSearch.removeFromHistory(code) } catch (e) {}
+        try { if (window.webSearch) window.webSearch.removeFromHistory(code + '-name') } catch (e) {}
+        renderEngineList()
+        showToast('已删除 "' + engine.name + '"', 'success')
+      })
+    }
+
+    // 从URL模板提取域名并下载favicon
+    async function downloadIconFromUrl(urlTemplate) {
+      try {
+        const domain = urlTemplate.replace(/^https?:\/\//, '').split('/')[0]
+        const iconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
+        const response = await fetch(iconUrl)
+        const blob = await response.blob()
+        return new Promise((resolve) => { const reader = new FileReader(); reader.onloadend = () => resolve(reader.result); reader.readAsDataURL(blob) })
+      } catch (e) { console.error('下载图标失败:', e); return null }
+    }
+
+    // 处理图标上传
+    function handleIconUpload(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = function(e) {
+        const dataUrl = e.target.result
+        // 显示图标在虚线框里，添加删除按钮
+        const uploadBox = document.getElementById('iconUploadBox')
+        if (uploadBox) {
+          uploadBox.classList.add('has-icon')
+          uploadBox.innerHTML = '<img src="' + dataUrl + '" alt="icon" /><button class="icon-delete-btn" onclick="event.stopPropagation(); clearIcon()" title="删除图标"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#FFFFFF"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg></button>'
+        }
+        // 生成文件名
+        const code = document.getElementById('editingCode').value || ('custom_' + Date.now())
+        const ext = file.name.split('.').pop() || 'png'
+        const filename = 'assets/' + code + '_icon.' + ext
+        document.getElementById('newEngineIcon').value = filename
+        // 保存文件到插件目录
+        if (window.webSearch) {
+          window.webSearch.saveFile(filename, dataUrl)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+    
+    // 插入查询变量 {q}
+    function insertQueryVar() {
+      const input = document.getElementById('newEngineUrl')
+      if (input) {
+        const start = input.selectionStart
+        const end = input.selectionEnd
+        const value = input.value
+        input.value = value.substring(0, start) + '{q}' + value.substring(end)
+        input.focus()
+        input.setSelectionRange(start + 3, start + 3)
+      }
+    }
+    
+    // 清除图标
+    function clearIcon() {
+      const uploadBox = document.getElementById('iconUploadBox')
+      if (uploadBox) {
+        uploadBox.classList.remove('has-icon')
+        uploadBox.innerHTML = '<span class="plus-icon">+</span>'
+      }
+      document.getElementById('newEngineIcon').value = ''
+      document.getElementById('iconFileUpload').value = ''
+    }
+    
+    // 图标链接自动预览
+    function previewIconFromUrl() {
+      const input = document.getElementById('newEngineIcon')
+      const uploadBox = document.getElementById('iconUploadBox')
+      if (!input || !uploadBox) return
+      const value = input.value.trim()
+      if (value && (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:'))) {
+        uploadBox.classList.add('has-icon')
+        uploadBox.innerHTML = '<img src="' + value + '" alt="icon" onerror="this.parentElement.classList.remove(\'has-icon\');this.parentElement.innerHTML=\'<span class=\'plus-icon\'>+</span>\'" /><button class="icon-delete-btn" onclick="event.stopPropagation(); clearIcon()" title="删除图标"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#FFFFFF"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg></button>'
+      }
+    }
+
+    async function addEngine() {
+      // 禁用添加按钮，防止重复点击
+      const submitBtn = document.getElementById('submitBtn')
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.6' }
+      try {
+      const editingCode = document.getElementById('editingCode').value
+      const name = document.getElementById('newEngineName').value.trim()
+      const customCmd = document.getElementById('newEngineCmds').value.trim().split(/[,，]/)[0].trim()
+      const urlTemplate = document.getElementById('newEngineUrl').value.trim()
+      const iconInput = document.getElementById('newEngineIcon').value.trim()
+      if (!name || !customCmd || !urlTemplate) { showToast('请填写名称、指令和搜索链接', 'error'); if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1' }; return }
+      if (!urlTemplate.includes('{q}')) { showToast('搜索链接必须包含 {q} 占位符', 'error'); if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1' }; return }
+      // 指令 = [自定义指令, 引擎名称]，去重
+      const cmds = [...new Set([customCmd, name])].filter(c => c)
+
+      let code = editingCode
+      let isEditing = !!code
+      if (!isEditing) {
+        code = 'custom_' + Date.now()
+      }
+
+      // 重复检查（排除当前编辑的引擎），不区分大小写
+      const otherEngines = config.engines.filter(e => e.code !== code)
+      const nameLower = name.toLowerCase()
+      const urlLower = urlTemplate.toLowerCase()
+
+      // 1. 名称重复检查
+      const dupName = otherEngines.find(e => e.name.toLowerCase() === nameLower)
+      if (dupName) {
+        showToast('名称 "' + name + '" 已被 "' + dupName.name + '" 使用', 'error');
+        return
+      }
+
+      // 2. 搜索URL模板重复检查
+      const dupUrl = otherEngines.find(e => e.urlTemplate.toLowerCase() === urlLower)
+      if (dupUrl) {
+        showToast('搜索引擎已存在，请勿重复添加', 'error');
+        return
+      }
+
+      // 3. 指令重复检查（每个指令都不能与其他引擎重复）
+      for (const cmd of cmds) {
+        const cmdLower = cmd.toLowerCase()
+        const dupCmdEngine = otherEngines.find(e => e.cmds.some(c => c.toLowerCase() === cmdLower))
+        if (dupCmdEngine) {
+          showToast('指令 "' + cmd + '" 已被 "' + dupCmdEngine.name + '" 使用，请修改"' + dupCmdEngine.name + '"的指令后再添加', 'error');
+          return
+        }
+      }
+
+      let icon = iconInput
+      // 如果没有填写图标，先匹配预设引擎图标
+      if (!icon) {
+        const presetIcon = matchPresetIcon(name, urlTemplate)
+        if (presetIcon) {
+          icon = presetIcon
+        }
+      }
+      // 如果还是没有图标，从URL模板下载favicon
+      if (!icon) {
+        showToast('正在下载图标，请稍候...', 'info', 3000)
+        const dataUrl = await downloadIconFromUrl(urlTemplate)
+        if (dataUrl && window.webSearch) {
+          const filename = 'assets/' + code + '.png'
+          const result = window.webSearch.saveFile(filename, dataUrl)
+          if (result.success) icon = filename
+        }
+      }
+      if (!icon) icon = 'assets/logo.png'
+
+      const engineData = { code, name, urlTemplate, icon, cmds, builtin: isEditing ? (findEngine(code)?.builtin || false) : false }
+
+      if (isEditing) {
+        // 更新现有引擎
+        const index = config.engines.findIndex(e => e.code === code)
+        if (index >= 0) {
+          config.engines[index] = engineData
+        }
+      } else {
+        // 添加新引擎
+        config.engines.push(engineData)
+      }
+      saveConfig()
+      // 注册单个引擎（不经过 syncDynamicFeatures 的重试限制）
+      registerSingleEngine(engineData)
+      renderEngineList()
+      closeEngineModal()
+      showToast(isEditing ? '修改成功！' : '添加成功！指令：' + customCmd + '、' + name, 'success')
+      } catch (e) {
+        console.error('添加/修改引擎失败:', e)
+        showToast('操作失败，请重试', 'error')
+      } finally {
+        // 重新启用添加按钮
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1' }
+      }
+    }
+
+    // 编辑引擎：把信息填充到表单并打开弹窗
+    function editEngine(code) {
+      const engine = findEngine(code)
+      if (!engine) return
+      document.getElementById('editingCode').value = code
+      document.getElementById('newEngineName').value = engine.name
+      // 只显示自定义指令（第一个），名称会自动作为指令
+      document.getElementById('newEngineCmds').value = engine.cmds[0] || '' 
+      document.getElementById('newEngineUrl').value = engine.urlTemplate
+      document.getElementById('newEngineIcon').value = engine.icon
+      document.getElementById('modalTitle').textContent = '编辑搜索引擎：' + engine.name
+      document.getElementById('submitBtn').textContent = '保存修改'
+      document.getElementById('resetBtn').textContent = '取消'
+      // 显示图标在虚线框里，添加删除按钮
+      const uploadBox = document.getElementById('iconUploadBox')
+      if (uploadBox && engine.icon) {
+        uploadBox.classList.add('has-icon')
+        uploadBox.innerHTML = '<img src="' + engine.icon + '" alt="icon" /><button class="icon-delete-btn" onclick="event.stopPropagation(); clearIcon()" title="删除图标"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#FFFFFF"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg></button>'
+      }
+      openEngineModal(true)
+    }
+
+    // 渲染预设引擎快速选择网格
+    function renderPresetGrid() {
+      const grid = document.getElementById('presetGrid')
+      if (!grid) return
+      grid.innerHTML = ''
+      for (const preset of PRESET_ENGINES) {
+        // 跳过已添加的引擎（按名称或URL模板匹配，防止改名后重复添加）
+        if (isPresetAdded(preset)) continue
+        const item = document.createElement('div')
+        item.className = 'preset-item'
+        item.onclick = () => selectPresetEngine(preset)
+        item.innerHTML = `
+          <img src="${preset.icon}" onerror="this.style.display='none'" />
+          <span>${preset.name}</span>
+        `
+        grid.appendChild(item)
+      }
+      // 最后添加"自定义"项
+      const customItem = document.createElement('div')
+      customItem.className = 'preset-item custom-item'
+      customItem.onclick = () => showCustomForm()
+      customItem.innerHTML = `
+        <div class="custom-icon">+</div>
+        <span>自定义</span>
+      `
+      grid.appendChild(customItem)
+    }
+
+    // 显示自定义表单
+    function showCustomForm() {
+      document.getElementById('customForm').style.display = 'block'
+      document.getElementById('formActions').style.display = 'flex'
+      document.getElementById('presetSection').style.display = 'none'
+      // 显示返回按钮（从预设页面进入时）
+      const backBtn = document.getElementById('backBtn')
+      if (backBtn) backBtn.style.display = 'inline-block'
+    }
+
+    // 返回预设快速添加页面
+    function backToPreset() {
+      // 重置表单
+      document.getElementById('editingCode').value = ''
+      document.getElementById('newEngineName').value = ''
+      document.getElementById('newEngineCmds').value = ''
+      document.getElementById('newEngineUrl').value = ''
+      document.getElementById('newEngineIcon').value = ''
+      document.getElementById('iconFileUpload').value = ''
+      // 重置图标上传框
+      const uploadBox = document.getElementById('iconUploadBox')
+      if (uploadBox) {
+        uploadBox.classList.remove('has-icon')
+        uploadBox.innerHTML = '<span class="plus-icon">+</span>'
+      }
+      document.getElementById('modalTitle').textContent = '添加搜索引擎'
+      document.getElementById('submitBtn').textContent = '添加'
+      // 隐藏返回按钮
+      const backBtn = document.getElementById('backBtn')
+      if (backBtn) backBtn.style.display = 'none'
+      // 如果所有预设都已添加，直接关闭弹窗
+      if (allPresetsAdded()) {
+        closeEngineModal()
+        return
+      }
+      // 否则返回预设页面并重新渲染（过滤已添加的引擎）
+      document.getElementById('customForm').style.display = 'none'
+      document.getElementById('formActions').style.display = 'none'
+      document.getElementById('presetSection').style.display = 'block'
+      renderPresetGrid()
+    }
+
+    // 选择预设引擎，直接添加
+    function selectPresetEngine(preset) {
+      // 添加前检查重复（名称、URL、指令，不区分大小写）
+      const nameLower = preset.name.toLowerCase()
+      const urlLower = preset.urlTemplate.toLowerCase()
+
+      // 1. 名称重复检查
+      const dupName = config.engines.find(e => e.name.toLowerCase() === nameLower)
+      if (dupName) {
+        showToast('名称 "' + preset.name + '" 已被使用', 'error');
+        return
+      }
+
+      // 2. URL模板重复检查
+      const dupUrl = config.engines.find(e => e.urlTemplate.toLowerCase() === urlLower)
+      if (dupUrl) {
+        showToast('搜索引擎已存在，请勿重复添加', 'error');
+        return
+      }
+
+      // 3. 指令重复检查
+      for (const cmd of preset.cmds) {
+        const cmdLower = cmd.toLowerCase()
+        const dupCmdEngine = config.engines.find(e => e.cmds.some(c => c.toLowerCase() === cmdLower))
+        if (dupCmdEngine) {
+          showToast('指令 "' + cmd + '" 已被 "' + dupCmdEngine.name + '" 使用，请修改"' + dupCmdEngine.name + '"的指令后再添加', 'error');
+          return
+        }
+      }
+
+      const code = 'custom_' + Date.now()
+      // 指令 = [第一个自定义指令, 引擎名称]，去重
+      const customCmd = preset.cmds[0] || preset.name.toLowerCase()
+      const cmds = [...new Set([customCmd, preset.name])].filter(c => c)
+      const engineData = {
+        code,
+        name: preset.name,
+        urlTemplate: preset.urlTemplate,
+        icon: preset.icon,
+        cmds: cmds,
+        builtin: false
+      }
+      config.engines.push(engineData)
+      saveConfig()
+      // 注册单个引擎（不经过 syncDynamicFeatures 的重试限制）
+      registerSingleEngine(engineData)
+      renderEngineList()
+      closeEngineModal()
+      showToast('添加成功！指令：' + customCmd + '、' + preset.name, 'success')
+    }
+
+    // 检查预设引擎是否已添加（按名称或URL模板匹配，不区分大小写）
+    function isPresetAdded(preset) {
+      return config.engines.some(e =>
+        e.name.toLowerCase() === preset.name.toLowerCase() ||
+        e.urlTemplate.toLowerCase() === preset.urlTemplate.toLowerCase()
+      )
+    }
+
+    // 检查是否所有预设引擎都已添加
+    function allPresetsAdded() {
+      return PRESET_ENGINES.every(preset => isPresetAdded(preset))
+    }
+
+    // 打开弹窗
+    function openEngineModal(isEdit = false) {
+      document.getElementById('engineModal').style.display = 'flex'
+      const presetSection = document.getElementById('presetSection')
+      const customForm = document.getElementById('customForm')
+      const formActions = document.getElementById('formActions')
+      if (isEdit) {
+        // 编辑模式：显示自定义表单，隐藏预设
+        presetSection.style.display = 'none'
+        customForm.style.display = 'block'
+        formActions.style.display = 'flex'
+      } else if (allPresetsAdded()) {
+        // 所有预设都已添加：直接显示自定义表单，跳过预设选择
+        presetSection.style.display = 'none'
+        customForm.style.display = 'block'
+        formActions.style.display = 'flex'
+        document.getElementById('modalTitle').textContent = '添加搜索引擎'
+        document.getElementById('submitBtn').textContent = '添加'
+      } else {
+        // 添加模式：显示预设，隐藏自定义表单
+        presetSection.style.display = 'block'
+        customForm.style.display = 'none'
+        formActions.style.display = 'none'
+        renderPresetGrid()
+      }
+    }
+
+    // 关闭弹窗
+    function closeEngineModal() {
+      document.getElementById('engineModal').style.display = 'none'
+      resetAddForm()
+    }
+
+    function resetAddForm() {
+      document.getElementById('editingCode').value = ''
+      document.getElementById('newEngineName').value = ''
+      document.getElementById('newEngineCmds').value = ''
+      document.getElementById('newEngineUrl').value = ''
+      document.getElementById('newEngineIcon').value = ''
+      document.getElementById('iconFileUpload').value = ''
+      // 重置图标上传框
+      const uploadBox = document.getElementById('iconUploadBox')
+      if (uploadBox) {
+        uploadBox.classList.remove('has-icon')
+        uploadBox.innerHTML = '<span class="plus-icon">+</span>'
+      }
+      document.getElementById('modalTitle').textContent = '添加搜索引擎'
+      document.getElementById('submitBtn').textContent = '添加'
+      document.getElementById('resetBtn').textContent = '取消'
+    }
+
+    window.addEventListener('load', () => {
+      try {
+        ensureDynamicFeatures()
+        // 默认打开搜索界面（默认搜索引擎），不使用 earlyPayload
+        // 防止之前的 settings 事件导致默认打开设置页
+        showSearch()
+      } catch (e) { console.error('初始化失败:', e) }
+    })
+
+    if (window.webSearch && window.webSearch.onPluginDetach) {
+      window.webSearch.onPluginDetach(() => {
+        isDetached = true
+        if (currentView === 'search') {
+          setTimeout(() => setHeight(1), 300)
+          setTimeout(() => setHeight(1), 600)
+          setTimeout(() => setHeight(1), 1000)
+          setTimeout(() => setHeight(1), 1500)
+          setTimeout(() => setHeight(1), 2000)
+          if (heightCheckTimer) window.clearInterval(heightCheckTimer)
+          heightCheckTimer = window.setInterval(() => setHeight(1), 2000)
+        }
+      })
+    }
+
+    window.addEventListener('beforeunload', () => { cleanup(); if (heightCheckTimer) window.clearInterval(heightCheckTimer) })
+  </script>
+  <!-- Toast 提示 -->
+  <div id="toast" class="toast"></div>
+
+  <!-- 确认对话框 -->
+  <div id="confirmModal" class="confirm-modal">
+    <div class="confirm-box">
+      <div class="confirm-title" id="confirmTitle">确认</div>
+      <div class="confirm-message" id="confirmMessage">确定要执行此操作吗？</div>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" id="confirmCancel">取消</button>
+        <button class="btn btn-danger" id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

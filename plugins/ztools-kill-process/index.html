@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>进程杀死工具 - Ztools</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="brand-row">
+      <div class="brand-info">
+        <img src="logo.png" alt="Logo" class="brand-logo" id="brandLogo">
+        <h1 class="brand-title">进程管理与结束工具</h1>
+        <span class="badge" id="processCountBadge">加载中...</span>
+      </div>
+      <div class="keyboard-tips">
+        <span><span class="kbd">Shift/Ctrl</span> 多选</span>
+        <span><span class="kbd">↑</span> <span class="kbd">↓</span> 切换</span>
+        <span><span class="kbd">Enter</span> 杀进程</span>
+        <span><span class="kbd">Esc</span> 取消</span>
+      </div>
+    </div>
+    
+    <div class="controls-row">
+      <div class="search-box-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="搜索进程名称 / PID / 占用端口 (如 8080 或 :3000)... (按 Esc 清空)" autocomplete="off" autofocus>
+        <div id="searchClear" class="search-clear" title="清空搜索">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </div>
+      </div>
+
+      <button type="button" id="btnBatchKill" class="btn-danger-batch" style="display: none;" title="批量结束选中的进程">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+        </svg>
+        批量结束 (<span id="selectedCount">0</span>)
+      </button>
+
+      <button type="button" id="btnRefresh" class="btn-icon" title="刷新进程列表 (F5 / Ctrl+R)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6"></path>
+          <path d="M1 20v-6h6"></path>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        刷新
+      </button>
+    </div>
+  </header>
+
+  <!-- Table Header -->
+  <div class="table-header">
+    <div class="table-header-cell checkbox-cell">
+      <input type="checkbox" id="selectAllCheckbox" title="全选/取消全选">
+    </div>
+    <div class="table-header-cell sortable" id="thName">
+      <span>进程名称</span>
+      <span class="sort-icon"></span>
+    </div>
+    <div class="table-header-cell sortable" id="thPID">
+      <span>PID</span>
+      <span class="sort-icon"></span>
+    </div>
+    <div class="table-header-cell sortable" id="thPort">
+      <span>占用端口</span>
+      <span class="sort-icon"></span>
+    </div>
+    <div class="table-header-cell sortable" id="thMem">
+      <span>内存占用</span>
+      <span class="sort-icon"></span>
+    </div>
+    <div class="table-header-cell" style="justify-content: flex-end;">操作</div>
+  </div>
+
+  <!-- List Container -->
+  <main class="process-list-container" id="processListContainer">
+    <div class="loading-state" id="loadingState">
+      <div class="spinner"></div>
+      <span>正在获取系统运行进程...</span>
+    </div>
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M8 15s1.5 2 4 2 4-2 4-2"></path>
+        <line x1="9" y1="9" x2="9.01" y2="9"></line>
+        <line x1="15" y1="9" x2="15.01" y2="9"></line>
+      </svg>
+      <span>未找到匹配的进程</span>
+    </div>
+    <div id="processList"></div>
+  </main>
+
+  <!-- Kill Confirmation Modal -->
+  <div class="modal-overlay" id="killModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-icon-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </div>
+        <div>
+          <h2 class="modal-title" id="modalTitle">确认结束进程？</h2>
+          <div class="modal-subtitle">按 [Enter] 确认杀掉进程，按 [Esc] 取消</div>
+        </div>
+      </div>
+
+      <div class="modal-body" id="modalBody">
+        <div class="info-row">
+          <span class="info-label">进程名称:</span>
+          <span class="info-value" id="modalProcName">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">进程 PID:</span>
+          <span class="info-value" id="modalProcPID">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">内存占用:</span>
+          <span class="info-value" id="modalProcMem">-</span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="btnModalCancel">取消 (Esc)</button>
+        <button type="button" class="btn btn-danger" id="btnModalConfirm">确认杀死进程 (Enter)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

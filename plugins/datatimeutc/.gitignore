@@ -1,0 +1,17 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+src-ztools/dist
+src-ztools/dist-ssr
+*.local
+
+AGENTS.md
+ztools-dev-reference.md
+*.zpx

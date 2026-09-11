@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { ZInput, ZSelect, ZButton, ZSwitch, ZTabs, ZTabPane, useToast } from 'ztools-ui'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
+import { ZInput, ZSelect, ZButton, ZSwitch, useToast } from 'ztools-ui'
 
 /**
  * 翻译子页（实用翻译器）：单选 provider，原文/译文左右并排。
@@ -15,6 +15,10 @@ import { ZInput, ZSelect, ZButton, ZSwitch, ZTabs, ZTabPane, useToast } from 'zt
 const props = defineProps<{
   /** 进入时预填的待翻译文本（regex 入口）。 */
   initialText?: string
+}>()
+
+const emit = defineEmits<{
+  (e: 'history', item: HistoryEmitItem): void
 }>()
 
 const { success } = useToast()
@@ -37,32 +41,36 @@ const langOptions = [
   { label: '阿拉伯语', value: 'ar' }
 ]
 
-type ProviderName = 'baidu' | 'google' | 'youdao' | 'microsoft'
+type ProviderName = 'baidu' | 'google' | 'youdao' | 'microsoft' | 'ai-translation'
 
 const providerLabels: Record<ProviderName, string> = {
   baidu: '百度翻译',
   google: '谷歌翻译',
   youdao: '有道翻译',
-  microsoft: '微软翻译'
+  microsoft: '微软翻译',
+  'ai-translation': 'AI 翻译'
 }
 
 // 各 provider 对应的 services 方法名。
 const providerFnNames: Record<
   ProviderName,
-  'translateBaidu' | 'translateGoogle' | 'translateYoudao' | 'translateMicrosoft'
+  'translateBaidu' | 'translateGoogle' | 'translateYoudao' | 'translateMicrosoft' | 'translateAi'
 > = {
   baidu: 'translateBaidu',
   google: 'translateGoogle',
   youdao: 'translateYoudao',
-  microsoft: 'translateMicrosoft'
+  microsoft: 'translateMicrosoft',
+  'ai-translation': 'translateAi'
 }
 
 // 读取各 provider 配置状态，用于在 provider 选择器旁标注「已配置 / 免授权」。
+// AI 翻译复用宿主已配置的 AI 模型、无需密钥，始终视为可用（与设置页一致）。
 const providerConfigured = ref<Record<ProviderName, boolean>>({
   baidu: false,
   google: true,
   youdao: false,
-  microsoft: true
+  microsoft: true,
+  'ai-translation': true
 })
 function refreshProviderStatus() {
   try {
@@ -72,18 +80,19 @@ function refreshProviderStatus() {
       baidu: !!(b.appID && b.appKey),
       google: true,
       youdao: !!(y.appKey && y.appSecret),
-      microsoft: true
+      microsoft: true,
+      'ai-translation': true
     }
   } catch (_) {
     /* preload 缺失等异常：保持默认值，不阻塞 */
   }
 }
 
-// provider 列表（用于顶部 segment 切换）。未配置凭据的禁用（百度/有道）。
-const providerList = computed(() =>
+// provider 选项（顶部下拉框，置于语言切换左侧）。未配置凭据的禁用（百度/有道）。
+const providerOptions = computed(() =>
   (Object.keys(providerLabels) as ProviderName[]).map((p) => ({
-    name: p,
     label: providerLabels[p],
+    value: p,
     disabled: !providerConfigured.value[p]
   }))
 )
@@ -94,7 +103,32 @@ function pickDefaultProvider(): ProviderName {
   return order.find((p) => providerConfigured.value[p]) || 'microsoft'
 }
 
-const provider = ref<ProviderName>('microsoft')
+// ─── 上次使用的翻译渠道持久化（dbStorage，与历史记录同库） ──────────
+// 切换渠道后留存，下次进入自动复用；存储值失效（渠道被禁用/移除）时回落默认。
+const LAST_PROVIDER_KEY = 'translate.lastProvider'
+function loadLastProvider(): ProviderName | null {
+  try {
+    const v = window.ztools.dbStorage.getItem<string>(LAST_PROVIDER_KEY)
+    if (v && v in providerLabels && providerConfigured.value[v as ProviderName]) {
+      return v as ProviderName
+    }
+  } catch (_) {
+    /* dbStorage 不可用等异常：回落默认，不阻塞 */
+  }
+  return null
+}
+function saveLastProvider(p: ProviderName): void {
+  try {
+    window.ztools.dbStorage.setItem(LAST_PROVIDER_KEY, p)
+  } catch (_) {
+    /* 写入失败忽略，不影响翻译流程 */
+  }
+}
+
+// 初始化渠道：先刷新各 provider 配置状态，再回填上次使用的渠道；失效时回落默认。
+// 在 setup 期完成，确保挂载时 provider 已是最终值，避免 initialText 首翻用错渠道。
+refreshProviderStatus()
+const provider = ref<ProviderName>(loadLastProvider() || pickDefaultProvider())
 const sourceLang = ref('auto')
 const targetLang = ref('auto') // auto = 走 preload 自动推断（中→英 / 其余→中）
 const sourceText = ref('') // 左侧原文（可编辑）
@@ -171,6 +205,22 @@ async function run() {
       error: '',
       ms: Math.round(performance.now() - t0)
     }
+    // 上抛历史记录：真正调翻译服务成功才留一笔（auto 翻译/手动翻译均走此分支）
+    if (out.text) {
+      emit('history', {
+        kind: 'translate',
+        thumbnail: '',
+        title: out.text.slice(0, 40),
+        payload: {
+          kind: 'translate',
+          source: sourceText.value,
+          target: out.text,
+          from: sourceLang.value,
+          to: targetLang.value,
+          provider: provider.value
+        }
+      })
+    }
   } catch (e: any) {
     result.value = {
       loading: false,
@@ -215,7 +265,9 @@ watch([sourceText, sourceLang, targetLang], () => {
 })
 
 // 切换 provider：立即翻译（不 debounce），让用户即时看到效果
+// 用户切换渠道时留存记录，下次进入自动复用。
 watch(provider, () => {
+  saveLastProvider(provider.value)
   if (hasInput.value) run()
 })
 
@@ -229,25 +281,45 @@ watch(
   () => props.initialText,
   (text) => {
     if (!text) return
-    suppressAuto = true
-    sourceText.value = text
-    run()
+    applyText(text)
   },
   { immediate: true }
 )
 
+/**
+ * 预填原文并立即翻译一次。
+ * - 抑制由程序化赋值引发的下一次自动翻译，避免「立即 run + 1s 后又 run」双重翻译。
+ * - 允许相同文本重复触发（不依赖 watch 值变化），供父组件在用户手动切 tab 时
+ *   把 OCR 识别结果带入翻译输入框。
+ */
+function applyText(text: string) {
+  if (!text) return
+  suppressAuto = true
+  sourceText.value = text
+  run()
+}
+
+// 暴露给父组件：手动切到翻译 tab 时预填 OCR 识别结果（不受 watch 值比较限制）
+defineExpose({ applyText })
+
 onMounted(() => {
-  refreshProviderStatus()
-  provider.value = pickDefaultProvider()
-  // 进入/回到翻译视图时默认聚焦输入框并选中全文，便于直接覆盖输入。
+  // 渠道回填已在 setup 期完成，此处仅做首挂聚焦 + 窗口失焦/恢复监听。
+  // 首次挂载聚焦原文输入框并全选，便于直接覆盖输入。
   // nextTick 确保 DOM（含 v-model 文本）已渲染完成后再 select。
   nextTick(focusAndSelectAll)
   // 兜底：窗口被宿主隐藏→恢复（未触发 onPluginEnter、组件未重建）的场景。
   // Electron 下用 win.hide() 隐藏窗口不会触发 document 的 visibilitychange，
   // 但会触发 window 的 blur/focus，故监听 window 级 focus：仅当此前确实失焦过
   // （即窗口曾进入后台）才在恢复时重新聚焦 + 全选，避免页面内交互误触发。
+  // keep-alive 缓存后切 tab 不重挂载，监听只需在 onMounted 挂一次、onUnmounted 移除。
   window.addEventListener('blur', onWinBlur)
   window.addEventListener('focus', onWinFocus)
+})
+
+// keep-alive 缓存后切回翻译 tab 触发 onActivated：聚焦 + 全选原文，
+// 复用 onMounted 同一逻辑（此处不再 refreshProviderStatus / 重挂窗监听）。
+onActivated(() => {
+  nextTick(focusAndSelectAll)
 })
 
 // 记录窗口是否进入过后台。仅当为 true 时，下一次 focus 才视为「从后台恢复」。
@@ -273,9 +345,15 @@ onUnmounted(() => {
 
 <template>
   <div class="tr-wrap">
-    <!-- 顶部控制栏：第一行 = 源/目标语言 + 自动翻译开关（同一行） -->
+    <!-- 顶部控制栏：翻译渠道下拉框 + 源/目标语言 + 自动翻译开关（同一行） -->
     <div class="tr-bar">
       <div class="tr-lang">
+        <ZSelect
+          v-model="provider"
+          :options="providerOptions"
+          size="small"
+          class="tr-provider"
+        />
         <ZSelect v-model="sourceLang" :options="langOptions" size="small" />
         <button
           type="button"
@@ -293,23 +371,6 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-
-    <!-- 第二行：翻译渠道（segment 切换） -->
-    <ZTabs
-      v-model:value="provider"
-      type="segment"
-      size="small"
-      :pane-wrapper-style="{ display: 'none' }"
-      class="tr-providers"
-    >
-      <ZTabPane
-        v-for="p in providerList"
-        :key="p.name"
-        :name="p.name"
-        :tab="p.label"
-        :disabled="p.disabled"
-      />
-    </ZTabs>
 
     <!-- 原文 / 译文 左右结构 -->
     <div class="tr-cols">
@@ -398,9 +459,10 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* 翻译渠道 segment：让 4 个选项均匀撑满宽度 */
-.tr-providers {
-  width: 100%;
+/* 翻译渠道下拉框：固定窄宽，避免与语言选择挤占同行空间 */
+.tr-provider {
+  width: 120px;
+  flex-shrink: 0;
 }
 
 /* 语言互换按钮 */

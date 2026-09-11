@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Check, Zap, ArrowLeft, ArrowRight } from 'lucide-vue-next'
 import { useRouter } from '../stores/router'
 import { usePromptStore } from '../stores/prompt'
 import { useProjectStore } from '../stores/project'
@@ -63,9 +64,9 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
 <template>
   <div class="wiz">
     <div class="stepper">
-      <div :class="['step', { active: step === 1, done: step > 1 }]"><span class="num">{{ step > 1 ? '✓' : '1' }}</span>正文</div>
+      <div :class="['step', { active: step === 1, done: step > 1 }]"><span class="num"><Check v-if="step > 1" :size="12" /><template v-else>1</template></span>正文</div>
       <div :class="['div', { done: step > 1 }]"></div>
-      <div :class="['step', { active: step === 2, done: step > 2 }]"><span class="num">{{ step > 2 ? '✓' : '2' }}</span>信息</div>
+      <div :class="['step', { active: step === 2, done: step > 2 }]"><span class="num"><Check v-if="step > 2" :size="12" /><template v-else>2</template></span>信息</div>
       <div :class="['div', { done: step > 2 }]"></div>
       <div :class="['step', { active: step === 3 }]"><span class="num">3</span>变量</div>
     </div>
@@ -108,11 +109,11 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
       </div>
     </div>
     <div class="wiz-foot">
-      <button v-if="step > 1" class="btn" @click="step--">← 上一步</button>
+      <button v-if="step > 1" class="btn" @click="step--"><ArrowLeft :size="14" />上一步</button>
       <button v-else class="btn" @click="router.navigateTo('space')">取消</button>
       <span class="spacer"></span>
-      <button v-if="step === 1" class="btn" @click="save()" :disabled="saving || !content.trim()">⚡ 快速保存</button>
-      <template v-if="step < 3"><button class="btn primary" @click="next">下一步 →</button></template>
+      <button v-if="step === 1" class="btn" @click="save()" :disabled="saving || !content.trim()"><Zap :size="14" />快速保存</button>
+      <template v-if="step < 3"><button class="btn primary" @click="next">下一步<ArrowRight :size="14" /></button></template>
       <template v-else>
         <button class="btn" @click="save('snippet')">片段</button>
         <button class="btn primary" @click="save()">发布</button>

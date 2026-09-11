@@ -1,0 +1,86 @@
+:root {
+  --blue: rgb(88, 164, 246);
+  --light: #fff;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* 主插件视图需要撑满视口高度，配合组件内弹性布局 */
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#app > * {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 悬浮窗模式：透明背景，由内部卡片承载视觉 */
+body.float-mode {
+  background: transparent;
+}
+
+/* 悬浮窗模式下的暗色卡片由组件 scoped 样式负责 */
+body.float-mode::-webkit-scrollbar {
+  display: none;
+}
+
+button {
+  border: none;
+  background: none var(--blue);
+  color: var(--light);
+  line-height: 2.5;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button:disabled {
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+button:not(:disabled):active {
+  opacity: 0.6;
+}
+
+textarea {
+  display: block;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-color: #f4f4f4;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  &::-webkit-scrollbar-track-piece {
+    background-color: #303133;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #666;
+    border-color: #303133;
+  }
+
+  body {
+    background-color: #303133;
+    color: #fff;
+  }
+}

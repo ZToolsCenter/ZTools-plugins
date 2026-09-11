@@ -1,0 +1,30 @@
+.file-list {
+  margin-top: 12px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #2a2a3a;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+.file-name {
+  color: #fff;
+  font-size: 14px;
+  word-break: break-all;
+}
+
+.file-remove {
+  background: none;
+  border: none;
+  color: #ff6b6b;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+  flex-shrink: 0;
+}

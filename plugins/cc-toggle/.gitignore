@@ -1,0 +1,27 @@
+﻿node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+.idea/
+.codex/
+.claude/
+
+# TypeScript auto-generated
+auto-imports.d.ts
+components.d.ts
+*.tsbuildinfo
+
+# preload 编译产物
+public/preload/
+
+# 开发数据库
+scripts/.dev-db.json
+.dev-db.json
+
+# Playwright 产物
+test-results/
+blob-report/
+
+# ztools CLI scaffold (stray)
+ztools-cc-toggle/

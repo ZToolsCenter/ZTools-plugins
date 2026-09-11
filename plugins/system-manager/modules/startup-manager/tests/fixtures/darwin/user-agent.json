@@ -1,0 +1,6 @@
+{
+  "Label": "com.example.sync",
+  "ProgramArguments": ["/Users/demo/Applications/sync", "--background"],
+  "RunAtLoad": true,
+  "KeepAlive": false
+}

@@ -1,0 +1,46 @@
+{
+  "name": "native-ocr",
+  "title": "Native OCR",
+  "description": "本地多引擎 OCR（微信 OCR / macOS Vision）",
+  "version": "0.6.13",
+  "author": "Samson",
+  "platform": [
+    "darwin",
+    "win32"
+  ],
+  "main": "index.html",
+  "logo": "logo.svg",
+  "preload": "preload.js",
+  "development": {
+    "main": "http://localhost:5179/"
+  },
+  "features": [
+    {
+      "code": "native-ocr",
+      "explain": "Native OCR 图片识别",
+      "cmds": [
+        "ocr",
+        "native ocr",
+        "nativeocr",
+        "文字识别"
+      ]
+    },
+    {
+      "code": "native-ocr-capture",
+      "explain": "截图并 OCR 识别",
+      "cmds": [
+        "截图并OCR识别"
+      ]
+    },
+    {
+      "code": "native-ocr-image",
+      "explain": "识别图片文字",
+      "cmds": [
+        {
+          "type": "img",
+          "label": "Native OCR 识别图片"
+        }
+      ]
+    }
+  ]
+}

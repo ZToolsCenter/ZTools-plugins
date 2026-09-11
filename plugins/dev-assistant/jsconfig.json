@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "types": [
+      "@ztools-center/ztools-api-types",
+      "utools-api-types"
+    ]
+  },
+  "include": [
+    "src/**/*.jsx",
+    "src/**/*.js"
+  ]
+}
+

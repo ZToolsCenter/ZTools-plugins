@@ -1,0 +1,71 @@
+html,
+body,
+#pin-app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  user-select: none;
+}
+
+.pin-root {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  box-sizing: border-box;
+  padding: 0;
+  pointer-events: none;
+}
+
+.pin-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  background: transparent;
+  pointer-events: auto;
+  cursor: grab;
+}
+.pin-image.dragging {
+  cursor: grabbing;
+}
+
+/* 右键自绘菜单 */
+.pin-menu {
+  position: fixed;
+  z-index: 10;
+  min-width: 150px;
+  background: #23232a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  padding: 5px;
+  pointer-events: auto;
+}
+
+.pin-menu button {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #eee;
+  padding: 8px 14px;
+  text-align: left;
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pin-menu button:hover {
+  background: #4c8dff;
+  color: #fff;
+}
+.pin-menu .sep {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 4px 8px;
+}

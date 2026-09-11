@@ -59,21 +59,6 @@ const langLoaders: Record<string, () => Promise<{ [key: string]: any }>> = {
   markdown: () => import('@codemirror/lang-markdown'),
 }
 
-const langExportMap: Record<string, string> = {
-  javascript: 'javascript',
-  typescript: 'typescript',
-  python: 'python',
-  java: 'java',
-  cpp: 'cpp',
-  html: 'html',
-  css: 'css',
-  go: 'go',
-  rust: 'rust',
-  sql: 'sql',
-  json: 'json',
-  markdown: 'markdown',
-}
-
 const shikiLangMap: Record<string, string> = {
   javascript: 'javascript',
   typescript: 'typescript',
@@ -99,6 +84,7 @@ interface Template {
   tags: string[]
   code: string
   usageCount: number
+  pinned?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -120,13 +106,61 @@ const languageOptions = [
 ]
 
 const LOCAL_KEY = 'code_snippets_templates'
+
+const localLoad = (): Template[] => {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]')
+  } catch { return [] }
+}
+
+const localSave = (list: Template[]) => {
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(list))
+}
+
+const readAllTemplates = (): Template[] => {
+  const ztools = (window as any).ztools
+  if (ztools?.db) {
+    return (ztools.db.allDocs('tpl_') || []).map((doc: any) => doc as Template)
+  }
+  return localLoad()
+}
+
+const matchesKeyword = (t: Template, rawKeyword: string) => {
+  const keyword = rawKeyword.toLowerCase().trim()
+  if (!keyword) return true
+  return (
+    (t.name || '').toLowerCase().includes(keyword) ||
+    (t.description || '').toLowerCase().includes(keyword) ||
+    (t.language || '').toLowerCase().includes(keyword) ||
+    (t.tags || []).some((tag) => (tag || '').toLowerCase().includes(keyword)) ||
+    (t.code || '').toLowerCase().includes(keyword)
+  )
+}
+
+const sortTemplates = (list: Template[]) => {
+  return list.sort((a, b) => {
+    const pa = a.pinned ? 1 : 0
+    const pb = b.pinned ? 1 : 0
+    if (pa !== pb) return pb - pa
+    return (b.usageCount || 0) - (a.usageCount || 0)
+  })
+}
+
 </script>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, toRaw, onUnmounted, shallowRef, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CopyDocument, Delete, Edit } from '@element-plus/icons-vue'
+import { CopyDocument, Delete, Edit, Top } from '@element-plus/icons-vue'
 import type { Extension } from '@codemirror/state'
+
+const props = defineProps<{ enterAction?: any }>()
+
+// 占位符插值状态（${1} / ${1:默认值}）
+const placeholderDialogVisible = ref(false)
+const placeholderItems = ref<{ index: number; label: string; value: string }[]>([])
+const pendingCopyTpl = ref<Template | null>(null)
+const PLACEHOLDER_RE = /\$\{(\d+)(?::([^}]*))?\}/g
 
 const templates = ref<Template[]>([])
 const selected = ref<Template | null>(null)
@@ -150,6 +184,17 @@ const onDarkChange = (e: MediaQueryListEvent) => { isDark.value = e.matches }
 
 onMounted(() => {
   darkMedia.addEventListener('change', onDarkChange)
+  loadTemplates()
+  window.addEventListener('keydown', handleKeydown)
+  window.ztools?.setSubInput?.(({ text }: { text: string }) => {
+    searchKeyword.value = text
+  }, '搜索模板名称、语言、标签...', false)
+  // ZTools 环境下：subInputBlur 让插件应用获得焦点，使快捷键生效
+  if (window.ztools) {
+    nextTick(() => {
+      window.ztools?.subInputBlur?.()
+    })
+  }
 })
 onUnmounted(() => {
   darkMedia.removeEventListener('change', onDarkChange)
@@ -162,8 +207,7 @@ async function loadExtensions(lang: string): Promise<Extension[]> {
   const loader = langLoaders[lang]
   if (loader) {
     const mod = await loader()
-    const exportName = langExportMap[lang]
-    const extFn = mod[exportName]
+    const extFn = mod[lang]
     if (extFn) exts.push(extFn())
   }
   if (isDark.value) exts.push(oneDark)
@@ -192,37 +236,13 @@ async function highlightDetailCode() {
 watch([() => selected.value?.code, () => selected.value?.language, isDark], highlightDetailCode, { immediate: true })
 
 const filteredTemplates = computed(() => {
-  const keyword = searchKeyword.value.toLowerCase().trim()
+  const keyword = searchKeyword.value.trim()
   if (!keyword) return templates.value
-  return templates.value.filter((t) => {
-    return (
-      t.name.toLowerCase().includes(keyword) ||
-      (t.description || '').toLowerCase().includes(keyword) ||
-      t.language.toLowerCase().includes(keyword) ||
-      t.tags.some((tag) => tag.toLowerCase().includes(keyword)) ||
-      t.code.toLowerCase().includes(keyword)
-    )
-  })
+  return templates.value.filter((t) => matchesKeyword(t, keyword))
 })
 
-const localLoad = (): Template[] => {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]')
-  } catch { return [] }
-}
-const localSave = (list: Template[]) => {
-  localStorage.setItem(LOCAL_KEY, JSON.stringify(list))
-}
-
 const loadTemplates = () => {
-  if (window.ztools?.db) {
-    const docs = window.ztools.db.allDocs('tpl_')
-    templates.value = (docs || [])
-      .map((doc: any) => doc as Template)
-      .sort((a, b) => b.usageCount - a.usageCount)
-  } else {
-    templates.value = localLoad().sort((a, b) => b.usageCount - a.usageCount)
-  }
+  templates.value = sortTemplates(readAllTemplates())
 }
 
 const selectTemplate = (tpl: Template) => {
@@ -276,6 +296,7 @@ const handleSave = () => {
       tags,
       code: form.value.code,
       usageCount: 0,
+      pinned: false,
       createdAt: now,
       updatedAt: now
     }
@@ -306,6 +327,7 @@ const handleSave = () => {
       language: form.value.language,
       tags,
       code: form.value.code,
+      pinned: !!selected.value.pinned,
       updatedAt: now
     }
     if (window.ztools?.db) {
@@ -374,23 +396,60 @@ const handleQuickDelete = (tpl: Template, event: Event) => {
   }).catch(() => {})
 }
 
-const handleCopy = (tpl: Template, event?: Event) => {
-  event?.stopPropagation()
-  if (window.ztools?.copyText) {
-    window.ztools.copyText(tpl.code)
-  } else {
-    navigator.clipboard?.writeText(tpl.code)
+function extractPlaceholders(code: string) {
+  const map = new Map<number, string>()
+  const re = /\$\{(\d+)(?::([^}]*))?\}/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(code)) !== null) {
+    const idx = parseInt(m[1], 10)
+    if (!map.has(idx)) map.set(idx, m[2] ?? '')
   }
-  const newCount = tpl.usageCount + 1
+  return Array.from(map.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([index, def]) => ({ index, label: `参数 ${index}`, value: def }))
+}
+
+const copyTemplate = (tpl: Template, event?: Event) => {
+  event?.stopPropagation()
+  const items = extractPlaceholders(tpl.code)
+  if (items.length === 0) {
+    doCopy(tpl, tpl.code)
+    return
+  }
+  pendingCopyTpl.value = tpl
+  placeholderItems.value = items
+  placeholderDialogVisible.value = true
+}
+
+const confirmPlaceholderCopy = () => {
+  const tpl = pendingCopyTpl.value
+  if (!tpl) return
+  const values = new Map<number, string>()
+  placeholderItems.value.forEach((it) => values.set(it.index, it.value))
+  const finalCode = tpl.code.replace(PLACEHOLDER_RE, (_, n, def) => {
+    const v = values.get(parseInt(n, 10))
+    return v != null && v !== '' ? v : (def ?? '')
+  })
+  placeholderDialogVisible.value = false
+  doCopy(tpl, finalCode)
+}
+
+const doCopy = (tpl: Template, code: string) => {
+  if (window.ztools?.copyText) {
+    window.ztools.copyText(code)
+  } else {
+    navigator.clipboard?.writeText(code).catch(() => {})
+  }
+  const newCount = (tpl.usageCount || 0) + 1
   const now = new Date().toISOString()
   const doc: Template = {
     ...toRaw(tpl),
-    tags: [...tpl.tags],
+    tags: [...(tpl.tags || [])],
     usageCount: newCount,
     updatedAt: now
   }
   if (window.ztools?.db) {
-    const result = window.ztools.db.put(doc)
+    const result = window.ztools.db.put(toRaw(doc))
     if (result) {
       tpl.usageCount = newCount
       tpl._rev = result.rev
@@ -416,6 +475,39 @@ const handleCopy = (tpl: Template, event?: Event) => {
     loadTemplates()
   }
   ElMessage({ message: '已复制到剪贴板', type: 'success', duration: 1000 })
+}
+
+const togglePin = (tpl: Template, event?: Event) => {
+  event?.stopPropagation()
+  const doc: Template = {
+    ...toRaw(tpl),
+    tags: [...(tpl.tags || [])],
+    pinned: !tpl.pinned,
+    updatedAt: new Date().toISOString()
+  }
+  if (window.ztools?.db) {
+    const result = window.ztools.db.put(toRaw(doc))
+    if (result) {
+      tpl.pinned = doc.pinned
+      tpl._rev = result.rev
+      if (selected.value?._id === tpl._id) {
+        selected.value.pinned = doc.pinned
+        selected.value._rev = result.rev
+      }
+      loadTemplates()
+    }
+  } else {
+    const list = localLoad()
+    const idx = list.findIndex((t) => t._id === doc._id)
+    if (idx >= 0) list[idx] = doc
+    localSave(list)
+    tpl.pinned = doc.pinned
+    if (selected.value?._id === tpl._id) {
+      selected.value.pinned = doc.pinned
+    }
+    loadTemplates()
+  }
+  ElMessage({ message: doc.pinned ? '已置顶' : '已取消置顶', type: 'success', duration: 1000 })
 }
 
 const handleExport = () => {
@@ -453,12 +545,15 @@ const handleImport = () => {
       }
       const existingIds = new Set(templates.value.map((t) => t._id))
       const newDocs = data
-        .filter((d) => d._id && !existingIds.has(d._id))
+        .filter((d) => d._id && !existingIds.has(d._id) && typeof d.name === 'string' && d.name.trim() && typeof d.code === 'string')
         .map((d) => ({
           ...d,
-          description: d.description || '',
-          usageCount: d.usageCount || 0,
-          tags: d.tags || [],
+          name: d.name.trim(),
+          description: typeof d.description === 'string' ? d.description : '',
+          language: d.language || 'plaintext',
+          usageCount: typeof d.usageCount === 'number' ? d.usageCount : 0,
+          tags: Array.isArray(d.tags) ? d.tags : [],
+          pinned: !!d.pinned,
           createdAt: d.createdAt || new Date().toISOString(),
           updatedAt: d.updatedAt || new Date().toISOString()
         }))
@@ -542,7 +637,7 @@ const handleKeydown = async (e: KeyboardEvent) => {
     if (num >= 1 && num <= 5) {
       e.preventDefault()
       const tpl = filteredTemplates.value[num - 1]
-      if (tpl) handleCopy(tpl)
+      if (tpl) copyTemplate(tpl)
       return
     }
 
@@ -573,19 +668,35 @@ const handleNewWithClipboard = async () => {
   if (clipboardText) form.value.code = clipboardText
 }
 
-onMounted(() => {
-  loadTemplates()
-  window.addEventListener('keydown', handleKeydown)
-  window.ztools?.setSubInput?.(({ text }: { text: string }) => {
-    searchKeyword.value = text
-  }, '搜索模板名称、语言、标签...', false)
-  // ZTools 环境下：subInputBlur 让插件应用获得焦点，使快捷键生效
-  if (window.ztools) {
-    nextTick(() => {
-      window.ztools?.subInputBlur?.()
-    })
+const TRIGGER_CMDS = ['代码模板', 'code snippet', 'snippet', '模板']
+
+function extractSearchFromPayload(payload: unknown): string {
+  if (typeof payload !== 'string') return ''
+  const text = payload.trim()
+  if (!text) return ''
+  const lower = text.toLowerCase()
+  for (const cmd of TRIGGER_CMDS) {
+    const cl = cmd.toLowerCase()
+    if (lower === cl) return ''
+    if (lower.startsWith(cl + ' ')) return text.slice(cl.length).trim()
   }
-})
+  return text
+}
+
+watch(() => props.enterAction, (action) => {
+  const text = extractSearchFromPayload(action?.payload)
+  if (!text) return
+  searchKeyword.value = text
+  // 进入时自动过滤；唯一匹配则自动选中并复制
+  nextTick(() => {
+    const matches = templates.value.filter((t) => matchesKeyword(t, text))
+    if (matches.length === 1) {
+      const tpl = matches[0]
+      selectTemplate(tpl)
+      copyTemplate(tpl)
+    }
+  })
+}, { immediate: true })
 </script>
 
 <template>
@@ -618,6 +729,7 @@ onMounted(() => {
           <div class="template-info">
             <div class="template-title">
               <span class="template-name">{{ tpl.name }}</span>
+              <el-icon v-if="tpl.pinned" class="pin-mark" :size="12"><Top /></el-icon>
               <span class="shortcut-hint" v-if="index < 5">Alt+{{ index + 1 }}</span>
             </div>
             <div class="template-desc" v-if="tpl.description">{{ tpl.description }}</div>
@@ -629,10 +741,18 @@ onMounted(() => {
           </div>
           <div class="template-actions">
             <el-button
+              :icon="Top"
+              size="small"
+              circle
+              :type="tpl.pinned ? 'warning' : ''"
+              :title="tpl.pinned ? '取消置顶' : '置顶'"
+              @click="togglePin(tpl, $event)"
+            />
+            <el-button
               :icon="CopyDocument"
               size="small"
               circle
-              @click="handleCopy(tpl, $event)"
+              @click="copyTemplate(tpl, $event)"
             />
             <el-button
               :icon="Delete"
@@ -666,7 +786,8 @@ onMounted(() => {
             <el-tag v-for="tag in selected.tags" :key="tag" size="small" type="primary" effect="plain">{{ tag }}</el-tag>
           </div>
           <div class="detail-actions">
-            <el-button size="small" type="primary" :icon="CopyDocument" @click="handleCopy(selected)">复制代码</el-button>
+            <el-button size="small" type="primary" :icon="CopyDocument" @click="copyTemplate(selected)">复制代码</el-button>
+            <el-button size="small" :icon="Top" :type="selected.pinned ? 'warning' : ''" @click="togglePin(selected)">{{ selected.pinned ? '取消置顶' : '置顶' }}</el-button>
             <el-button size="small" :icon="Edit" @click="handleEdit">编辑</el-button>
             <el-button size="small" type="danger" :icon="Delete" @click="handleDelete">删除</el-button>
             <span class="detail-usage" v-if="selected.usageCount">已复制 {{ selected.usageCount }} 次</span>
@@ -721,11 +842,12 @@ onMounted(() => {
             <AsyncCodemirror
               v-model="form.code"
               :extensions="cmExtensions"
-              :style="{ height: '360px', width: '100%' }"
+              :style="{ height: '340px', width: '100%' }"
               placeholder="在此输入代码模板..."
               :tab-size="4"
               autofocus
             />
+            <div class="code-hint">支持占位符：${1}、${2:默认值}，复制时弹窗填写参数并自动替换</div>
           </el-form-item>
           <el-form-item>
             <el-button type="primary" size="small" @click="handleSave">保存</el-button>
@@ -738,6 +860,24 @@ onMounted(() => {
       <el-empty v-if="viewMode === 'empty'" description="选择左侧模板进行查看，或点击新建创建模板" />
     </div>
   </div>
+
+  <!-- 占位符填写弹窗 -->
+  <el-dialog
+    v-model="placeholderDialogVisible"
+    title="填写模板参数"
+    width="420px"
+    :append-to-body="true"
+  >
+    <div class="placeholder-hint">模板包含占位符（如 ${1}、${2:默认值}），填写后自动替换并复制</div>
+    <div v-for="item in placeholderItems" :key="item.index" class="placeholder-item">
+      <span class="placeholder-label">参数 {{ item.index }}</span>
+      <el-input v-model="item.value" size="small" :placeholder="`请输入参数 ${item.index}`" />
+    </div>
+    <template #footer>
+      <el-button size="small" @click="placeholderDialogVisible = false">取消</el-button>
+      <el-button size="small" type="primary" @click="confirmPlaceholderCopy">复制</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -925,6 +1065,8 @@ onMounted(() => {
 
 .detail-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
@@ -955,6 +1097,12 @@ onMounted(() => {
   overflow: hidden;
 }
 
+.code-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.55;
+}
+
 :deep(.cm-editor) {
   border: 1px solid rgba(128, 128, 128, 0.3);
   border-radius: 4px;
@@ -964,5 +1112,29 @@ onMounted(() => {
 :deep(.cm-focused) {
   border-color: var(--el-color-primary);
   outline: none;
+}
+
+.pin-mark {
+  color: var(--el-color-warning);
+  flex-shrink: 0;
+}
+
+.placeholder-hint {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-bottom: 12px;
+}
+
+.placeholder-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.placeholder-label {
+  width: 64px;
+  flex-shrink: 0;
+  font-size: 13px;
 }
 </style>

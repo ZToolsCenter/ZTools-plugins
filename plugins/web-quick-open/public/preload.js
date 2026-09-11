@@ -116,6 +116,37 @@ function removeEngineFeature(engineId) {
   getZtools().removeFeature(buildFeatureCode(engineId))
 }
 
+function isWebUrl(value) {
+  return isHttpUrl(ensureUrlProtocol(String(value || '').trim()))
+}
+
+function registerMainPush() {
+  if (typeof getZtools().onMainPush !== 'function') return
+
+  getZtools().onMainPush(({ payload }) => {
+    const input = String(payload || '').trim()
+    if (!isWebUrl(input)) return { type: 'list', data: [] }
+
+    const url = ensureUrlProtocol(input)
+    return {
+      type: 'list',
+      data: [
+        { text: '打开网址', title: url, icon: 'logo.png', action: 'open', url },
+        { text: '添加网址', title: '添加到网页快开', icon: 'logo.png', action: 'add', url }
+      ]
+    }
+  }, ({ option }) => {
+    if (!option || !isWebUrl(option.url)) return false
+    if (option.action === 'open') {
+      getZtools().shellOpenExternal(option.url)
+      getZtools().hideMainWindow(false)
+      return false
+    }
+    if (option.action === 'add') return true
+    return false
+  })
+}
+
 function syncEngineFeatures(engines) {
   for (const engine of engines) {
     setEngineFeature(engine)
@@ -373,6 +404,8 @@ function importFromJsonText(jsonText) {
     skippedCount: duplicateCount + invalidCount
   }
 }
+
+registerMainPush()
 
 window.webQuickOpen = {
   async getAll() {

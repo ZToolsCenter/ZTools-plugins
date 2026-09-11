@@ -3,7 +3,6 @@ import {
   getCachedFileIconUrl,
   getDisplayFileIconUrl,
   getFolderFileIconUrl,
-  getUnknownFileIconUrl,
   loadFileIconUrl,
   shouldLoadFileIcon,
 } from "../core/fileIconCache";
@@ -45,8 +44,6 @@ export function useFileIcons({ visibleResults, isFolderQuery }: UseFileIconsOpti
   });
 
   function iconFor(item: FinderResult) {
-    if (!item.fullPath) return getUnknownFileIconUrl();
-
     const loadedIconUrl = iconUrls.value[item.fullPath];
     if (loadedIconUrl) return loadedIconUrl;
 
@@ -54,7 +51,6 @@ export function useFileIcons({ visibleResults, isFolderQuery }: UseFileIconsOpti
   }
 
   function displayItem(item: FinderResult): FinderResult {
-    if (!item.fullPath) return item;
     if (isFolderQuery()) return { ...item, isDirectory: true };
 
     const fileInfo = fileInfoByPath.value[item.fullPath];
@@ -70,7 +66,7 @@ export function useFileIcons({ visibleResults, isFolderQuery }: UseFileIconsOpti
     }
 
     const queue = items.filter((item) => {
-      if (!item.fullPath || item.isDirectory !== undefined) return false;
+      if (item.isDirectory !== undefined) return false;
       if (hasResultExtension(item)) return false;
       if (loadedFileInfoPaths.has(item.fullPath)) return false;
       return true;
@@ -85,8 +81,6 @@ export function useFileIcons({ visibleResults, isFolderQuery }: UseFileIconsOpti
     const nextFileInfo = { ...fileInfoByPath.value };
 
     for (const item of items) {
-      if (!item.fullPath) continue;
-
       loadedFileInfoPaths.add(item.fullPath);
       loadedIconPaths.add(item.fullPath);
       nextFileInfo[item.fullPath] = { isDirectory: true };
@@ -115,8 +109,6 @@ export function useFileIcons({ visibleResults, isFolderQuery }: UseFileIconsOpti
   }
 
   async function loadFileInfo(item: FinderResult, generation: number) {
-    if (!item.fullPath) return;
-
     const fileInfo = await window.services.getFileInfo(item.fullPath);
     loadedFileInfoPaths.add(item.fullPath);
     if (generation !== fileInfoLoadGeneration) return;
@@ -149,8 +141,6 @@ export function useFileIcons({ visibleResults, isFolderQuery }: UseFileIconsOpti
     const queue: FinderResult[] = [];
 
     for (const item of items) {
-      if (!item.fullPath) continue;
-
       const display = displayItem(item);
       const cachedUrl = getCachedFileIconUrl(display);
       if (cachedUrl) {
@@ -192,8 +182,6 @@ export function useFileIcons({ visibleResults, isFolderQuery }: UseFileIconsOpti
   }
 
   function loadQueuedIcon(item: FinderResult, generation: number) {
-    if (!item.fullPath) return;
-
     const display = displayItem(item);
     const iconUrl = loadFileIconUrl(display);
     loadedIconPaths.add(item.fullPath);
@@ -211,8 +199,8 @@ export function useFileIcons({ visibleResults, isFolderQuery }: UseFileIconsOpti
   };
 }
 
-function hasResultExtension(file: Pick<FinderResult, "name" | "extension" | "fullPath">) {
-  return (file.extension || getExtension(file.name || file.fullPath || "")) !== "";
+function hasResultExtension(file: Pick<FinderResult, "name" | "extension">) {
+  return (file.extension || getExtension(file.name)) !== "";
 }
 
 function getExtension(name: string) {

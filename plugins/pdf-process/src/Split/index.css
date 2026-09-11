@@ -1,0 +1,485 @@
+.split-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 40px);
+  color: #e8e8ef;
+}
+
+.split-title {
+  margin: 0 0 14px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.split-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.split-toolbar-left,
+.split-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.split-tool-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #cfcfdb;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.split-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.split-tool-icon {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.split-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #cfcfdb;
+  font-size: 13px;
+  user-select: none;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #2a2a36;
+  border: 1px solid #3a3a48;
+}
+
+.split-mode-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 3px;
+  border-radius: 10px;
+  background: #2a2a36;
+  border: 1px solid #3a3a48;
+}
+
+.split-mode-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #a8a8b8;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  line-height: 1.2;
+}
+
+.split-mode-btn:hover {
+  color: #fff;
+}
+
+.split-mode-btn.active {
+  background: #e74c6f;
+  color: #fff;
+  font-weight: 600;
+}
+
+.split-extract-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.split-auto.on {
+  border-color: #e74c6f;
+  background: #322a34;
+}
+
+.split-auto input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #e74c6f;
+  cursor: pointer;
+}
+
+.split-every-input {
+  width: 52px;
+  background: #1c1c28;
+  border: 1px solid #4a4a5c;
+  border-radius: 6px;
+  color: #fff;
+  padding: 4px 6px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.split-every-input:disabled {
+  opacity: 0.5;
+}
+
+.split-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.split-note {
+  margin: 0;
+  color: #8a8a9a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.split-link-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #e74c6f;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+  text-decoration: underline;
+}
+
+.split-loading {
+  margin: 0;
+  color: #9a9aaa;
+  font-size: 12px;
+}
+
+.split-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 18px 8px;
+  align-items: stretch;
+  padding: 4px 2px 12px;
+  overflow: auto;
+  max-height: calc(100vh - 240px);
+}
+
+.split-cell {
+  display: grid;
+  grid-template-columns: 1fr 28px;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.split-card {
+  background: #2a2a36;
+  border: 1px solid #343445;
+  border-radius: 10px;
+  padding: 8px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* Cut highlight lives on the scissors column only — never on the page card. */
+
+.split-card.selectable {
+  cursor: pointer;
+}
+
+.split-card.selectable:hover {
+  border-color: #5a6a9a;
+}
+
+.split-card.selected {
+  border-color: #4c8dff;
+  box-shadow: 0 0 0 1px rgba(76, 141, 255, 0.45);
+  background: #2a3348;
+}
+
+.split-card-thumb {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 180px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1a1a28;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.split-card-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #4c8dff;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.split-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+.split-card-placeholder {
+  color: #666;
+  font-size: 12px;
+}
+
+.split-card-caption {
+  min-width: 0;
+  text-align: center;
+}
+
+.split-card-name {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #3a4560;
+  color: #dce6ff;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.split-card-num {
+  text-align: center;
+  color: #9a9aaa;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.split-cut-btn {
+  appearance: none;
+  width: 28px;
+  /* Stretch with the page card so the cut line is a full-height divider */
+  align-self: stretch;
+  min-height: 72px;
+  height: auto;
+  border: none;
+  background: transparent;
+  color: rgba(231, 76, 111, 0.55);
+  font-size: 15px;
+  cursor: pointer;
+  border-radius: 8px;
+  opacity: 0.75;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  transition: color 0.12s, background 0.12s, opacity 0.12s, box-shadow 0.12s;
+}
+
+/* Full-height dashed cut line (the primary affordance) */
+.split-cut-btn::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  bottom: 6px;
+  width: 0;
+  border-left: 2px dashed rgba(231, 76, 111, 0.45);
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: border-color 0.12s, border-width 0.12s, box-shadow 0.12s;
+}
+
+.split-cut-btn:hover:not(:disabled) {
+  opacity: 1;
+  color: #ff6b8a;
+  background: rgba(231, 76, 111, 0.12);
+}
+
+.split-cut-btn:hover:not(:disabled)::before {
+  border-left-color: #e74c6f;
+}
+
+.split-cut-btn.active {
+  opacity: 1;
+  color: #fff;
+  background: rgba(231, 76, 111, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(231, 76, 111, 0.55);
+}
+
+.split-cut-btn.active::before {
+  border-left: 3px solid #e74c6f;
+  box-shadow: 0 0 0 2px rgba(231, 76, 111, 0.2);
+}
+
+.split-cut-btn.locked,
+.split-cut-btn:disabled {
+  cursor: default;
+}
+
+.split-cut-btn.locked.active {
+  opacity: 1;
+}
+
+.split-cell.has-cut .split-cut-btn.active {
+  /* Extra pop when this cell owns an active cut */
+  filter: drop-shadow(0 0 4px rgba(231, 76, 111, 0.45));
+}
+
+.split-cut-spacer {
+  width: 28px;
+  height: 1px;
+}
+
+.split-spec-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'label input'
+    '. hint'
+    '. error';
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: center;
+  padding: 10px 12px;
+  background: #222230;
+  border: 1px solid #343445;
+  border-radius: 10px;
+}
+
+.split-spec-label {
+  grid-area: label;
+  color: #cfcfdb;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.split-spec-input {
+  grid-area: input;
+  width: 100%;
+  min-width: 0;
+  background: #1c1c28;
+  border: 1px solid #4a4a5c;
+  border-radius: 8px;
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.split-spec-input:focus {
+  outline: none;
+  border-color: #e74c6f;
+  box-shadow: 0 0 0 2px rgba(231, 76, 111, 0.2);
+}
+
+.split-spec-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.split-spec-input.error {
+  border-color: #e74c3c;
+}
+
+.split-spec-hint {
+  grid-area: hint;
+  color: #7a7a8a;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.split-spec-error {
+  grid-area: error;
+  color: #ff8a8a;
+  font-size: 12px;
+}
+
+.split-plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #9a9aaa;
+  font-size: 12px;
+}
+
+.split-plan-label {
+  color: #b8b8c8;
+}
+
+.split-plan-ranges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.split-plan-chip {
+  background: #2a2a36;
+  border: 1px solid #3a3a48;
+  border-radius: 999px;
+  padding: 2px 10px;
+  color: #ddd;
+  font-variant-numeric: tabular-nums;
+}
+
+.split-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  margin-top: auto;
+}
+
+.split-start-btn {
+  appearance: none;
+  border: none;
+  background: #e74c6f;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(231, 76, 111, 0.28);
+}
+
+.split-start-btn:hover:not(:disabled) {
+  background: #f05a7c;
+}
+
+.split-start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.split-start-btn.stop {
+  background: #c0392b;
+  box-shadow: none;
+}

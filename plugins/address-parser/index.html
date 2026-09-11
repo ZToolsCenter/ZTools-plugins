@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>收货地址智能解析</title>
+    <link rel="icon" href="logo.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="masthead">
+        <div class="brand-lockup">
+          <img src="logo.svg" alt="" class="brand-logo" width="44" height="44">
+          <div>
+            <p class="eyebrow">ADDRESS SORTING DESK</p>
+            <h1>收货地址智能解析</h1>
+          </div>
+        </div>
+        <p class="masthead-copy">把客服消息和订单备注，整理成可检查、可修正、可导出的地址表。</p>
+      </header>
+
+      <ol class="sort-rail" aria-label="处理流程">
+        <li class="is-active"><span>1</span>粘贴原文</li>
+        <li><span>2</span>自动解析</li>
+        <li><span>3</span>检查缺失</li>
+        <li><span>4</span>导出表格</li>
+      </ol>
+
+      <section class="workbench" aria-labelledby="input-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">原始数据</p>
+            <h2 id="input-title">粘贴收货信息</h2>
+          </div>
+          <div class="mode-switch" role="group" aria-label="记录分隔方式">
+            <label><input type="radio" name="split-mode" value="line" checked><span>每行一条</span></label>
+            <label><input type="radio" name="split-mode" value="blank"><span>空行分组</span></label>
+          </div>
+        </div>
+        <textarea id="source-input" spellcheck="false" placeholder="例如：张三 13800138000 广东省深圳市南山区粤海街道科技园 1 号\n每行粘贴一条地址；多行组成一条时，选择“空行分组”。" aria-describedby="input-help"></textarea>
+        <div class="input-footer">
+          <p id="input-help"><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd> 开始解析；内容仅在本机处理，单次最多 1000 条。</p>
+          <div class="button-row">
+            <button id="sample-button" class="button button-quiet" type="button">填入示例</button>
+            <button id="clear-button" class="button button-quiet" type="button">清空</button>
+            <button id="parse-button" class="button button-primary" type="button">开始解析 <span aria-hidden="true">→</span></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="results" aria-labelledby="results-title">
+        <div class="results-heading">
+          <div>
+            <p class="section-kicker">解析结果</p>
+            <h2 id="results-title">逐项核对后导出</h2>
+          </div>
+          <div class="stats" aria-live="polite">
+            <div><strong id="total-count">0</strong><span>总条数</span></div>
+            <div class="stat-complete"><strong id="complete-count">0</strong><span>完整</span></div>
+            <div class="stat-missing"><strong id="missing-count">0</strong><span>待补充</span></div>
+          </div>
+        </div>
+
+        <div class="result-toolbar">
+          <div class="filter-tabs" role="tablist" aria-label="结果筛选">
+            <button class="filter-tab is-active" data-filter="all" role="tab" aria-selected="true">全部</button>
+            <button class="filter-tab" data-filter="complete" role="tab" aria-selected="false">完整</button>
+            <button class="filter-tab" data-filter="missing" role="tab" aria-selected="false">待补充</button>
+          </div>
+          <button id="export-button" class="button button-export" type="button" disabled>导出全部 CSV</button>
+        </div>
+
+        <div id="empty-state" class="empty-state">
+          <div class="empty-label" aria-hidden="true">待分拣</div>
+          <h3>解析结果会出现在这里</h3>
+          <p>缺失项会用橙色标出，你可以直接在表格里补全后再导出。</p>
+        </div>
+
+        <div id="table-wrap" class="table-wrap" hidden>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">姓名</th>
+                <th scope="col">电话</th>
+                <th scope="col">省</th>
+                <th scope="col">市</th>
+                <th scope="col">区县</th>
+                <th scope="col">详细地址</th>
+                <th scope="col">检查</th>
+                <th scope="col"><span class="visually-hidden">操作</span></th>
+              </tr>
+            </thead>
+            <tbody id="result-body"></tbody>
+          </table>
+        </div>
+        <nav id="pagination" class="pagination" aria-label="结果分页" hidden>
+          <button id="previous-page" class="button button-quiet" type="button">上一页</button>
+          <span id="page-indicator" aria-live="polite">第 1 / 1 页</span>
+          <button id="next-page" class="button button-quiet" type="button">下一页</button>
+        </nav>
+      </section>
+    </main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="core/address-parser.js"></script>
+    <script src="core/csv.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

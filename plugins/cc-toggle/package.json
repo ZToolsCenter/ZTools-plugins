@@ -1,0 +1,61 @@
+{
+  "name": "ccToggle",
+  "private": true,
+  "version": "1.6.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:all": "pnpm build:preload && pnpm parallel:vue-preload",
+    "dev:browser": "pnpm build:preload && pnpm parallel:vue-preload-api",
+    "build": "pnpm build:preload && pnpm tsc:check && vite build",
+    "build:preload": "pnpm tsc:preload",
+    "preview": "vite preview",
+    "type-check": "pnpm tsc:check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "parallel:vue-preload": "concurrently -n vue,preload \"vite\" \"pnpm tsc:preload:watch\"",
+    "parallel:vue-preload-api": "concurrently -n vue,preload,api \"vite --mode browser\" \"pnpm tsc:preload:watch\" \"node scripts/dev-api-server.cjs\"",
+    "tsc:preload": "node scripts/build-preload.cjs",
+    "tsc:preload:watch": "tsc -p tsconfig.preload.json --watch --preserveWatchOutput",
+    "tsc:check": "vue-tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "dependencies": {
+    "@vicons/ionicons5": "^0.13.0",
+    "chart.js": "^4.5.1",
+    "chartjs-chart-matrix": "^3.0.5",
+    "diff": "^9.0.0",
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.7",
+    "marked-highlight": "^2.2.4",
+    "naive-ui": "^2.44.1",
+    "vue": "^3.5.0",
+    "vue-chartjs": "^5.3.4",
+    "vue-draggable-plus": "^0.6.1",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.2.0",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "@vue/tsconfig": "^0.9.1",
+    "@ztools-center/ztools-api-types": "^1.0.3",
+    "concurrently": "^10.0.4",
+    "prettier": "^3.9.6",
+    "sass": "^1.102.0",
+    "sharp": "^0.35.3",
+    "typescript": "^5.9.3",
+    "unplugin-auto-import": "^21.0.0",
+    "unplugin-vue-components": "^32.1.0",
+    "vite": "^6.0.0",
+    "vite-plugin-image-optimizer": "^2.0.3",
+    "vue-tsc": "^3.3.9"
+  },
+  "author": "cifferni",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

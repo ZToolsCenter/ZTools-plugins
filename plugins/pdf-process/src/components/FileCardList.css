@@ -1,0 +1,281 @@
+.file-card-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+  padding: 2px;
+}
+
+.file-card-list--grid {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+
+.file-card-list--list {
+  grid-template-columns: 1fr;
+}
+
+/* ---- Compress-style row list (default for feature tabs) ---- */
+.file-card-list--rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+  padding-right: 2px;
+}
+
+.file-row {
+  display: grid;
+  grid-template-columns: 18px 40px 1fr auto auto auto;
+  align-items: center;
+  gap: 12px;
+  background: #2a2a36;
+  border: 1px solid #343445;
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: grab;
+  user-select: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.file-row:hover {
+  border-color: #4a4a5c;
+}
+
+.file-row.selected {
+  border-color: #e74c6f;
+  background: #322a34;
+}
+
+.file-row:active {
+  cursor: grabbing;
+}
+
+.file-row.drag-over {
+  border-color: #5dade2;
+}
+
+.file-row-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-row-check input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #e74c6f;
+  cursor: pointer;
+}
+
+.file-row-check-spacer {
+  width: 14px;
+  height: 14px;
+}
+
+.file-row-icon {
+  width: 40px;
+  height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1c1c28;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.file-row-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.file-row-icon-fallback {
+  color: #888;
+  font-size: 11px;
+}
+
+.file-row-meta {
+  min-width: 0;
+}
+
+.file-row-name {
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-row-sub {
+  margin-top: 4px;
+  color: #9a9aaa;
+  font-size: 12px;
+}
+
+.file-row-status {
+  color: #8a8a9a;
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
+.file-row-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #9a9aaa;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-row-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.file-row-btn.danger:hover {
+  color: #ff8a8a;
+}
+
+/* ---- Grid card layout (legacy / optional) ---- */
+.file-card {
+  position: relative;
+  background: #2a2a36;
+  border: 1px solid #343445;
+  border-radius: 12px;
+  padding: 6px;
+  cursor: grab;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  user-select: none;
+}
+
+.file-card:active {
+  cursor: grabbing;
+}
+
+.file-card:hover {
+  border-color: #4a4a5a;
+}
+
+.file-card.selected {
+  border-color: #e74c6f;
+  background: #322a34;
+  box-shadow: none;
+}
+
+.file-card.drag-over {
+  border-color: #5dade2;
+  transform: scale(1.02);
+}
+
+.file-card-check {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+}
+
+.file-card-check input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #e74c6f;
+}
+
+.file-card-thumb {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 110px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #1a1a28;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-card-list--grid .file-card-thumb {
+  max-height: 96px;
+}
+
+.file-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+.file-card-placeholder {
+  color: #888;
+  font-size: 11px;
+}
+
+.file-card-placeholder.loading,
+.file-card-placeholder.idle {
+  color: #aaa;
+}
+
+.file-card-meta {
+  margin-top: 6px;
+}
+
+.file-card-name {
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-card-sub {
+  margin-top: 4px;
+  color: #9a9aaa;
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+.file-card-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ff8a8a;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+}
+
+.file-card-remove:hover {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+}

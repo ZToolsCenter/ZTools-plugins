@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
+  <title id="title">系统诊断报告</title>
+  <desc id="description">带有诊断脉冲线的系统报告图标</desc>
+  <rect x="4" y="4" width="56" height="56" rx="15" fill="#315F78"/>
+  <path d="M20 15.5h18l7 7V47a3.5 3.5 0 0 1-3.5 3.5h-21A3.5 3.5 0 0 1 17 47V19a3.5 3.5 0 0 1 3-3.5Z" fill="#fff" fill-opacity=".98"/>
+  <path d="M38 15.5v7h7" fill="none" stroke="#B8CDD8" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M22 35h5l3-8 5 15 3-7h5" fill="none" stroke="#315F78" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="46.5" cy="47.5" r="5.5" fill="#39705B" stroke="#fff" stroke-width="2.5"/>
+</svg>

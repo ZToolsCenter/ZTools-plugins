@@ -1,5 +1,12 @@
-// preload.js - ZTools预加载脚本
-// 此文件在插件初始化时加载，可用于Node.js环境下的操作
+/**
+ * preload.js - ZTools 预加载脚本
+ *
+ * 在 Node.js 环境中运行，将文件操作和 HTTP 能力暴露到 window.emotionCan。
+ * 这里的函数供 ZToolsHttpProvider / ZToolsFileProvider 调用。
+ *
+ * 注意：此文件是 ZTools 平台专有的，属于 clients/ztools 层。
+ *       core 层不直接依赖 window.emotionCan。
+ */
 
 console.log('表情罐头插件 preload.js 已加载');
 
@@ -9,26 +16,28 @@ const os = require('os');
 const https = require('https');
 const http = require('http');
 
-// 暴露必要的功能到 window 对象
 window.emotionCan = {
-  // 选择文件夹 - 使用多种方式兼容
+  // ── 文件操作 ──
+
+  /**
+   * 选择文件夹
+   * @returns {Promise<string|null>}
+   */
   selectFolder: async function() {
     try {
-      // 方式1: 直接使用 ZTools showOpenDialog
-      if (window.ztools && window.ztools.showOpenDialog) {
+      if (typeof ztools !== 'undefined' && ztools.showOpenDialog) {
         try {
-          const result = await window.ztools.showOpenDialog({
+          const result = await ztools.showOpenDialog({
             properties: ['openDirectory', 'createDirectory']
           });
           if (Array.isArray(result) && result.length > 0) {
             return result[0];
           }
         } catch (e) {
-          console.log('ZTools showOpenDialog 失败，尝试其他方法');
+          // 继续尝试
         }
       }
 
-      // 方式2: 尝试使用 electron remote（如果有）
       try {
         const electron = require('electron');
         if (electron && electron.remote) {
@@ -43,35 +52,33 @@ window.emotionCan = {
           }
         }
       } catch (e) {
-        console.log('electron.remote 方式失败:', e.message);
+        // 继续尝试
       }
 
-      // 方式3: 所有方法都失败，返回默认目录
-      const defaultDir = path.join(os.homedir(), '表情罐头');
-      console.log('使用默认目录:', defaultDir);
-      return defaultDir;
-
+      return path.join(os.homedir(), '表情罐头');
     } catch (error) {
-      console.error('选择文件夹失败，返回默认目录:', error);
-      // 出错时返回默认目录
+      console.error('选择文件夹失败:', error);
       return path.join(os.homedir(), '表情罐头');
     }
   },
 
-  // 保存文件到本地
+  /**
+   * 保存文件到本地
+   * @param {string|Buffer} fileData
+   * @param {string} targetPath
+   * @returns {Promise<string>}
+   */
   saveFile: async function(fileData, targetPath) {
     try {
-      // 确保目录存在
       const dir = path.dirname(targetPath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
 
-      // 如果 fileData 是 base64 格式
       if (typeof fileData === 'string' && fileData.startsWith('data:')) {
         const base64Data = fileData.replace(/^data:\w+\/\w+;base64,/, '');
         fs.writeFileSync(targetPath, base64Data, 'base64');
-      } else if (fileData instanceof Buffer) {
+      } else if (Buffer.isBuffer(fileData)) {
         fs.writeFileSync(targetPath, fileData);
       } else {
         throw new Error('不支持的文件数据格式');
@@ -84,12 +91,16 @@ window.emotionCan = {
     }
   },
 
-  // 文件是否存在
+  /**
+   * 判断文件是否存在
+   */
   fileExists: function(filePath) {
     return fs.existsSync(filePath);
   },
 
-  // 删除文件
+  /**
+   * 删除文件
+   */
   deleteFile: function(filePath) {
     try {
       if (fs.existsSync(filePath)) {
@@ -103,12 +114,41 @@ window.emotionCan = {
     }
   },
 
-  // 获取用户默认目录
+  /**
+   * 读取本地文件
+   * @param {string} filePath
+   * @returns {{base64: string, fileName: string}|null}
+   */
+  readFile: function(filePath) {
+    try {
+      if (!fs.existsSync(filePath)) {
+        return null;
+      }
+      const buffer = fs.readFileSync(filePath);
+      const base64 = buffer.toString('base64');
+      const fileName = path.basename(filePath);
+      return { base64, fileName };
+    } catch (error) {
+      console.error('读取文件失败:', error);
+      return null;
+    }
+  },
+
+  /**
+   * 获取默认存储目录
+   */
   getDefaultDir: function() {
     return path.join(os.homedir(), '表情罐头');
   },
 
-  // Node.js HTTP请求（支持下载和上传，绕过CORS）
+  // ── HTTP 操作 ──
+
+  /**
+   * Node.js HTTP 请求（绕过 CORS）
+   * @param {string} url
+   * @param {object} options
+   * @returns {Promise<object>}
+   */
   nodeFetch: function(url, options = {}) {
     return new Promise((resolve, reject) => {
       const urlObj = new URL(url);
@@ -127,7 +167,6 @@ window.emotionCan = {
       const req = lib.request(requestOptions, (res) => {
         // 处理重定向
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          // 跟随重定向
           this.nodeFetch(res.headers.location, options).then(resolve).catch(reject);
           return;
         }
@@ -161,7 +200,11 @@ window.emotionCan = {
     });
   },
 
-  // 下载图片文件
+  /**
+   * 下载图片
+   * @param {string} imageUrl
+   * @returns {Promise<{dataUrl: string, buffer: Buffer, contentType: string}>}
+   */
   downloadImage: function(imageUrl) {
     return new Promise((resolve, reject) => {
       this.nodeFetch(imageUrl, { method: 'GET' })
@@ -185,7 +228,14 @@ window.emotionCan = {
     });
   },
 
-  // 上传数据到S3（Node.js方式）
+  /**
+   * 上传数据到 S3 兼容存储
+   * @param {object} s3Config
+   * @param {string} fileName
+   * @param {Buffer|Uint8Array} data
+   * @param {string} contentType
+   * @returns {Promise<string>} 上传后的 URL
+   */
   uploadToS3Node: function(s3Config, fileName, data, contentType) {
     return new Promise((resolve, reject) => {
       try {
@@ -196,7 +246,6 @@ window.emotionCan = {
           return;
         }
 
-        // 确保endpoint有协议头
         if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
           endpoint = 'https://' + endpoint;
         }

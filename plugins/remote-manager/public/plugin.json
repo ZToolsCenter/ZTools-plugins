@@ -4,7 +4,7 @@
   "title": "远程桌面管理",
   "description": "管理Windows远程桌面，快捷开启远程连接",
   "author": "WorldmeQC",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Acme Editor
+Exec=/home/tester/Applications/Acme.AppImage %U
+Icon=acme
+X-AppImage-Version=2.4.1

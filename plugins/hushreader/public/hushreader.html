@@ -500,6 +500,8 @@
     let pendingMove = null
     let currentResizeSize = null
     let currentMovePosition = null
+    let lastResizeSent = null
+    let lastMoveSent = null
     let resizeFrame = 0
     let moveFrame = 0
     let isAutoHidden = false
@@ -757,6 +759,9 @@
 
       const nextSize = pendingResize
       pendingResize = null
+      // 位置没变化则跳过，避免无谓的 IPC 往返
+      if (lastResizeSent && nextSize.width === lastResizeSent.width && nextSize.height === lastResizeSent.height) return
+      lastResizeSent = nextSize
       sendCommand({
         type: "resize-preview",
         width: nextSize.width,
@@ -775,6 +780,7 @@
         normalizeResizeSize(resizeState?.startWidth || window.innerWidth, resizeState?.startHeight || window.innerHeight)
       pendingResize = null
       currentResizeSize = null
+      lastResizeSent = null
       sendCommand({
         type: "resize",
         width: nextSize.width,
@@ -799,6 +805,9 @@
 
       const nextPosition = pendingMove
       pendingMove = null
+      // 位置没变化则跳过，避免无谓的 IPC 往返
+      if (lastMoveSent && nextPosition.x === lastMoveSent.x && nextPosition.y === lastMoveSent.y) return
+      lastMoveSent = nextPosition
       sendCommand({
         type: "move-preview",
         x: nextPosition.x,
@@ -815,6 +824,7 @@
       const nextPosition = currentMovePosition || normalizeMovePosition(moveState?.startWindowX || 0, moveState?.startWindowY || 0)
       pendingMove = null
       currentMovePosition = null
+      lastMoveSent = null
       sendCommand({
         type: "move",
         x: nextPosition.x,

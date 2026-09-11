@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import Fuse from 'fuse.js'
 import type { PromptItem, HistoryEntry } from '../types'
 import { loadPrompts, savePrompts, loadHistory, saveHistory } from '../utils/storage'
@@ -10,8 +10,28 @@ const historyItems = ref<HistoryEntry[]>([])
 const isLoading = ref(false)
 let _initPromise: Promise<void> | null = null
 
+// Debounce 持久化：频繁操作合并为单次写入，降低 I/O 次数
+let _persistTimer: ReturnType<typeof setTimeout> | null = null
+const DEBOUNCE_MS = 300
+
+function schedulePersist() {
+  if (_persistTimer) clearTimeout(_persistTimer)
+  _persistTimer = setTimeout(() => {
+    savePrompts(rawItems.value)
+  }, DEBOUNCE_MS)
+}
+
+// 有挂起的 debounce 时先 flush，确保数据不丢（用于关键操作）
+async function flushPersist() {
+  if (_persistTimer) {
+    clearTimeout(_persistTimer)
+    _persistTimer = null
+  }
+  await savePrompts(rawItems.value)
+}
+
 // 筛选 & 排序状态（模块级，确保所有组件共享同一份）
-const spaceTab = ref<'all' | 'recent' | 'favorite' | 'project' | 'asset' | 'history' | 'trash'>('recent')
+const spaceTab = ref<'all' | 'recent' | 'favorite' | 'project' | 'asset' | 'history' | 'trash' | 'stats'>('recent')
 const query = ref('')
 const filterTag = ref('')
 const filterProjectId = ref('')
@@ -97,23 +117,29 @@ export function usePromptStore() {
     return [...set].sort()
   })
 
-  // ====== Fuse.js 模糊搜索 ======
-  const fuseInstance = computed(() => new Fuse(spaceItems.value, {
-    keys: [
-      { name: 'title', weight: 0.5 },
-      { name: 'content', weight: 0.3 },
-      { name: 'tags', weight: 0.2 },
-    ],
-    threshold: 0.4,
-    includeScore: true,
-    ignoreLocation: true,
-    minMatchCharLength: 1,
-  }))
+  // ====== Fuse.js 模糊搜索（懒加载 + 缓存，仅在搜索时按需构建索引） ======
+  const fuseIndex = ref<Fuse<PromptItem> | null>(null)
+
+  // spaceItems 变化时标记索引失效，下次搜索时惰性重建
+  watch(spaceItems, () => { fuseIndex.value = null })
 
   const filteredCallItems = computed(() => {
     const q = query.value.trim()
     if (!q) return spaceItems.value
-    return fuseInstance.value.search(q).map(r => r.item)
+    if (!fuseIndex.value) {
+      fuseIndex.value = new Fuse(spaceItems.value, {
+        keys: [
+          { name: 'title', weight: 0.5 },
+          { name: 'content', weight: 0.3 },
+          { name: 'tags', weight: 0.2 },
+        ],
+        threshold: 0.4,
+        includeScore: true,
+        ignoreLocation: true,
+        minMatchCharLength: 1,
+      })
+    }
+    return fuseIndex.value.search(q).map(r => r.item)
   })
 
   const activeItem = computed(() => {
@@ -160,7 +186,10 @@ export function usePromptStore() {
 
   async function ensureReady() { await init() }
 
-  async function persistAll() { await savePrompts(rawItems.value) }
+  /** 立即持久化（flush 挂起的 debounce 后写入），用于批量操作或关键操作 */
+  async function persistAll() { await flushPersist() }
+
+  // ====== 历史记录（独立存储，不使用 debounce） ======
 
   async function addHistory(entry: Omit<HistoryEntry, 'id' | 'usedAt'>) {
     const record: HistoryEntry = {
@@ -186,6 +215,8 @@ export function usePromptStore() {
     await saveHistory(historyItems.value)
   }
 
+  // ====== 提示词操作（高频使用 debounce，关键操作立即 flush） ======
+
   async function recordUsage(id: string) {
     const item = rawItems.value.find(i => i.id === id)
     if (item) {
@@ -197,34 +228,34 @@ export function usePromptStore() {
 
   function toggleFavorite(id: string) {
     const item = rawItems.value.find(i => i.id === id)
-    if (item) { item.favorite = !item.favorite; persistAll() }
+    if (item) { item.favorite = !item.favorite; schedulePersist() }
   }
 
   function softDelete(id: string) {
     const item = rawItems.value.find(i => i.id === id)
-    if (item) { item.deleted = true; item.updatedAt = Date.now(); persistAll() }
+    if (item) { item.deleted = true; item.updatedAt = Date.now(); schedulePersist() }
   }
 
   function restore(id: string) {
     const item = rawItems.value.find(i => i.id === id)
-    if (item) { item.deleted = false; item.updatedAt = Date.now(); persistAll() }
+    if (item) { item.deleted = false; item.updatedAt = Date.now(); schedulePersist() }
   }
 
   function hardDelete(id: string) {
     rawItems.value = rawItems.value.filter(i => i.id !== id)
-    persistAll()
+    schedulePersist()
   }
 
   function addItem(item: PromptItem) {
     rawItems.value.push(item)
-    persistAll()
+    schedulePersist()
   }
 
   function updateItem(id: string, patch: Partial<PromptItem>) {
     const idx = rawItems.value.findIndex(i => i.id === id)
     if (idx !== -1) {
       rawItems.value[idx] = { ...rawItems.value[idx], ...patch, updatedAt: Date.now() }
-      persistAll()
+      schedulePersist()
     }
   }
 

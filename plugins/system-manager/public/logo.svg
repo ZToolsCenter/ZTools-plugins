@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">系统管家</title>
+  <rect width="128" height="128" rx="30" fill="#315f78"/>
+  <path d="M64 22 98 34v27c0 22-13 38-34 46-21-8-34-24-34-46V34l34-12Z" fill="#fff" fill-opacity=".16" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+  <rect x="45" y="43" width="16" height="16" rx="4" fill="#fff"/>
+  <rect x="67" y="43" width="16" height="16" rx="4" fill="#fff" fill-opacity=".8"/>
+  <rect x="45" y="65" width="16" height="16" rx="4" fill="#fff" fill-opacity=".8"/>
+  <rect x="67" y="65" width="16" height="16" rx="4" fill="#fff"/>
+</svg>

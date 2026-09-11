@@ -1,12 +1,192 @@
+// Polyfill Timer.unref/ref for runtimes (e.g. uTools/Electron preload) where
+// setTimeout may return a number or a handle without Node's Timeout.unref().
+// @modelcontextprotocol/sdk StdioClientTransport.close() does:
+//   new Promise(resolve => setTimeout(resolve, 2000).unref())
+// Without this shim, closing user-configured stdio MCP clients fails with:
+//   "setTimeout(...).unref is not a function"
+// which surfaces as "工具执行或参数解析错误" after an otherwise successful tool call.
+(function ensureTimerUnrefPolyfill() {
+  const g = typeof globalThis !== 'undefined' ? globalThis : global;
+  if (!g || typeof g.setTimeout !== 'function') return;
+
+  let probe;
+  try {
+    probe = g.setTimeout(() => {}, 0);
+    if (typeof g.clearTimeout === 'function') g.clearTimeout(probe);
+  } catch (_) {
+    return;
+  }
+
+  if (probe && typeof probe.unref === 'function') return;
+
+  if (probe && (typeof probe === 'object' || typeof probe === 'function')) {
+    try {
+      const proto = Object.getPrototypeOf(probe);
+      if (proto && typeof proto.unref !== 'function') {
+        Object.defineProperty(proto, 'unref', {
+          value: function unref() { return this; },
+          configurable: true,
+          writable: true,
+        });
+      }
+      if (proto && typeof proto.ref !== 'function') {
+        Object.defineProperty(proto, 'ref', {
+          value: function ref() { return this; },
+          configurable: true,
+          writable: true,
+        });
+      }
+      if (typeof probe.unref === 'function') return;
+    } catch (_) {
+      // fall through to wrapper path
+    }
+  }
+
+  const originalSetTimeout = g.setTimeout;
+  if (originalSetTimeout.__anywhereUnrefPatched) return;
+
+  function attachUnref(handle) {
+    if (handle == null) return handle;
+    if (typeof handle === 'object' || typeof handle === 'function') {
+      if (typeof handle.unref !== 'function') {
+        try { handle.unref = function unref() { return handle; }; } catch (_) { /* ignore */ }
+      }
+      if (typeof handle.ref !== 'function') {
+        try { handle.ref = function ref() { return handle; }; } catch (_) { /* ignore */ }
+      }
+      return handle;
+    }
+
+    // Primitive timer id (browser-like). Provide a chainable wrapper that still
+    // round-trips through clearTimeout via the patched clearer below.
+    return {
+      __anywhereTimerId: handle,
+      unref() { return this; },
+      ref() { return this; },
+      valueOf() { return handle; },
+      [Symbol.toPrimitive]() { return handle; },
+    };
+  }
+
+  function setTimeoutPatched(...args) {
+    return attachUnref(originalSetTimeout.apply(this, args));
+  }
+  setTimeoutPatched.__anywhereUnrefPatched = true;
+  g.setTimeout = setTimeoutPatched;
+
+  if (typeof g.setInterval === 'function' && !g.setInterval.__anywhereUnrefPatched) {
+    const originalSetInterval = g.setInterval;
+    function setIntervalPatched(...args) {
+      return attachUnref(originalSetInterval.apply(this, args));
+    }
+    setIntervalPatched.__anywhereUnrefPatched = true;
+    g.setInterval = setIntervalPatched;
+  }
+
+  function patchClearer(name) {
+    const original = g[name];
+    if (typeof original !== 'function' || original.__anywhereUnrefPatched) return;
+    function clearerPatched(handle) {
+      const id = handle && typeof handle === 'object' && Object.prototype.hasOwnProperty.call(handle, '__anywhereTimerId')
+        ? handle.__anywhereTimerId
+        : handle;
+      return original.call(this, id);
+    }
+    clearerPatched.__anywhereUnrefPatched = true;
+    g[name] = clearerPatched;
+  }
+
+  patchClearer('clearTimeout');
+  patchClearer('clearInterval');
+})();
+
+
 const { MultiServerMCPClient } = require("@langchain/mcp-adapters");
 const { getBuiltinTools, invokeBuiltinTool } = require('./mcp_builtin.js');
+const oauthStore = require('./mcp_oauth_store.js');
+const oauthProvider = require('./mcp_oauth_provider.js');
+const oauthCb = require('./mcp_oauth_cb.js');
 
 const PERSISTENT_CONNECTION_LIMIT = 5; // uTools 限制最多5个持久连接
 const ON_DEMAND_CONCURRENCY_LIMIT = 5; // 非持久连接的并发限制
+const TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 let persistentClients = new Map(); // 存储持久化客户端实例，它们会一直存在直到被明确关闭
 let fullToolInfoMap = new Map();
 let currentlyConnectedServerIds = new Set();
+let inFlightToolFetchMap = new Map();
+
+function sanitizeToolName(rawName, fallbackPrefix = 'tool') {
+  const source = typeof rawName === 'string' ? rawName.trim() : '';
+  const baseName = source || fallbackPrefix;
+  const sanitized = baseName
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return sanitized || fallbackPrefix;
+}
+
+function ensureUniqueToolAlias(alias, usedAliases, fallbackPrefix = 'tool') {
+  const safeBase = sanitizeToolName(alias, fallbackPrefix);
+  let candidate = safeBase;
+  let index = 2;
+
+  while (usedAliases.has(candidate)) {
+    candidate = `${safeBase}_${index}`;
+    index += 1;
+  }
+
+  usedAliases.add(candidate);
+  return candidate;
+}
+
+function findCachedToolEntry(cachedTools = [], rawName = '', aliasName = '') {
+  if (!Array.isArray(cachedTools) || cachedTools.length === 0) return null;
+  return cachedTools.find(tool => {
+    if (!tool || typeof tool !== 'object') return false;
+    return tool.name === rawName
+      || tool.alias === aliasName
+      || tool.rawName === rawName
+      || tool.originalName === rawName
+      || (aliasName && tool.name === aliasName);
+  }) || null;
+}
+
+function buildCachedToolRecord(tool, oldTool = null, aliasName = '') {
+  const rawName = typeof tool?.name === 'string'
+    ? tool.name
+    : (typeof oldTool?.rawName === 'string' ? oldTool.rawName : '');
+
+  return {
+    name: rawName || aliasName,
+    alias: aliasName || (typeof oldTool?.alias === 'string' ? oldTool.alias : ''),
+    rawName: rawName || (typeof oldTool?.rawName === 'string' ? oldTool.rawName : ''),
+    originalName: rawName || (typeof oldTool?.originalName === 'string' ? oldTool.originalName : ''),
+    displayName: rawName || (typeof oldTool?.displayName === 'string' ? oldTool.displayName : aliasName),
+    description: tool?.description,
+    inputSchema: tool?.inputSchema || tool?.schema || {},
+    enabled: oldTool ? (oldTool.enabled ?? true) : true
+  };
+}
+
+function registerResolvedTool(tool, toolInfo, usedAliases) {
+  if (!tool || !toolInfo) return null;
+
+  const rawName = typeof tool.name === 'string' ? tool.name : '';
+  const preferredAlias = sanitizeToolName(rawName, toolInfo.serverConfig?.id || 'tool');
+  const aliasName = ensureUniqueToolAlias(preferredAlias, usedAliases, toolInfo.serverConfig?.id || 'tool');
+
+  fullToolInfoMap.set(aliasName, {
+    ...toolInfo,
+    aliasName,
+    rawName,
+    originalName: rawName,
+    displayName: rawName || aliasName
+  });
+
+  return aliasName;
+}
 
 function normalizeTransportType(transport) {
   const streamableHttpRegex = /^streamable[\s_-]?http$/i;
@@ -17,74 +197,330 @@ function normalizeTransportType(transport) {
 }
 
 /**
+ * 预处理 stdio 类型的配置：
+ * 1. 如果 command 中包含空格且没有 args，自动拆分（兼容通用 MCP 配置格式）
+ * 2. 确保 env 中包含完整的 PATH，避免在 Electron 环境下找不到可执行文件
+ */
+function preprocessStdioConfig(config) {
+  const result = { ...config };
+  const transport = normalizeTransportType(result.transport || result.type || '');
+
+  if (transport === 'stdio') {
+    // 兼容 command 中包含参数的写法，如 "npx -y mcp-remote" 使用正则拆分，保护引号内的空格不被截断 (兼容 Windows 的 C:\Program Files\...)
+    if (result.command && result.command.includes(' ') && (!result.args || result.args.length === 0)) {
+      const parts = result.command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g);
+      if (parts && parts.length > 0) {
+        result.command = parts[0].replace(/^["']|["']$/g, '');
+        result.args = parts.slice(1).map(arg => arg.replace(/^["']|["']$/g, ''));
+      }
+    }
+
+    // 确保 env 中包含完整的 PATH，避免在 Electron 环境下找不到可执行文件
+    if (result.env && typeof result.env === 'object') {
+      if (Object.keys(result.env).length === 0) {
+        delete result.env;
+      } else {
+        result.env = { ...process.env, ...result.env };
+      }
+    }
+
+    // OAuth stdio env injection happens at connect time (async) via
+    // prepareStdioAuthEnv, since token resolution is async.
+  }
+
+  return result;
+}
+
+// stdio OAuth env injection (async, resolves current token before spawn).
+async function prepareStdioAuthEnv(serverConfig) {
+  const auth = serverConfig && serverConfig.auth && typeof serverConfig.auth === 'object' ? serverConfig.auth : null;
+  if (!auth || auth.type !== 'oauth' || !auth.oauth) return undefined;
+  const serverId = serverConfig && serverConfig.id;
+  if (!serverId) return undefined;
+  const tokens = await oauthStore.loadTokens(serverId);
+  if (!tokens || !tokens.access_token) return undefined;
+  if (oauthStore.isExpired(tokens.expires_at)) {
+    const err = new Error(`OAuth token expired for ${serverId}`);
+    err.needsReauth = true;
+    err.authExpired = true;
+    throw err;
+  }
+  const mapping = (auth.oauth.envMapping && Array.isArray(auth.oauth.envMapping) && auth.oauth.envMapping.length)
+    ? auth.oauth.envMapping
+    : ['OAUTH_TOKEN', 'MCP_OAUTH_TOKEN'];
+  const env = {};
+  for (const key of mapping) env[key] = tokens.access_token;
+  if (tokens.expires_at) env.OAUTH_EXPIRES_AT = String(tokens.expires_at);
+  return env;
+}
+
+async function applyStdioAuthEnv(runtimeConfig, id, sourceConfig) {
+  const transportType = normalizeTransportType(runtimeConfig.transport || runtimeConfig.type || sourceConfig?.transport || sourceConfig?.type || '');
+  if (transportType !== 'stdio') return runtimeConfig;
+  const stdioEnv = await prepareStdioAuthEnv({ id, ...(sourceConfig || {}) });
+  if (stdioEnv) runtimeConfig.env = { ...(runtimeConfig.env || {}), ...stdioEnv };
+  return runtimeConfig;
+}
+
+
+function normalizeMcpTimeoutSeconds(timeoutSeconds, fallbackSeconds = 120) {
+  const numericValue = Number(timeoutSeconds);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return fallbackSeconds;
+  }
+  return numericValue;
+}
+
+function buildMcpClientServerConfig(id, config = {}, options = {}) {
+  const sourceConfig = config && typeof config === 'object' ? config : {};
+  const useConfiguredTimeout = options.useConfiguredTimeout !== false;
+  const normalizedTimeoutSeconds = normalizeMcpTimeoutSeconds(sourceConfig.timeoutSeconds);
+  const runtimeConfig = preprocessStdioConfig({
+    ...sourceConfig,
+    transport: normalizeTransportType(sourceConfig.transport || sourceConfig.type || '')
+  });
+
+  delete runtimeConfig.timeoutSeconds;
+  delete runtimeConfig.timeout;
+
+  if (useConfiguredTimeout) {
+    runtimeConfig.defaultToolTimeout = normalizedTimeoutSeconds * 1000;
+  } else {
+    delete runtimeConfig.defaultToolTimeout;
+  }
+
+  // --- OAuth: mount authProvider for HTTP/SSE; inject env for stdio ---
+  const auth = sourceConfig.auth && typeof sourceConfig.auth === 'object' ? sourceConfig.auth : null;
+  const transportType = normalizeTransportType(sourceConfig.transport || sourceConfig.type || '');
+  if (auth && auth.type === 'oauth' && (transportType === 'http' || transportType === 'sse')) {
+    runtimeConfig.authProvider = oauthProvider.buildOAuthClientProvider(id, sourceConfig);
+  }
+  if (auth && auth.type === 'bearer' && auth.bearerToken) {
+    // Static bearer stays in headers (existing behavior preserved).
+    runtimeConfig.headers = { ...(runtimeConfig.headers || {}), Authorization: `Bearer ${auth.bearerToken}` };
+  }
+  delete runtimeConfig.auth;
+
+  return { id, ...runtimeConfig };
+}
+
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === 'object') {
+    return Object.keys(value).sort().reduce((acc, key) => {
+      const item = stableValue(value[key]);
+      if (item !== undefined) acc[key] = item;
+      return acc;
+    }, {});
+  }
+  return value;
+}
+
+function getToolFetchKey(id, config = {}) {
+  const normalizedConfig = {
+    id,
+    transport: config.transport || config.type || '',
+    command: config.command || '',
+    args: Array.isArray(config.args) ? [...config.args] : [],
+    url: config.url || config.baseUrl || '',
+    env: config.env && typeof config.env === 'object' ? Object.entries(config.env).sort(([a], [b]) => a.localeCompare(b)) : [],
+    headers: config.headers && typeof config.headers === 'object' ? Object.entries(config.headers).sort(([a], [b]) => a.localeCompare(b)) : [],
+    auth: stableValue(config.auth || null),
+    isPersistent: Boolean(config.isPersistent)
+  };
+  return JSON.stringify(normalizedConfig);
+}
+
+// ---------------------------------------------------------------------------
+// OAuth auth orchestration
+// ---------------------------------------------------------------------------
+
+/**
+ * Run the interactive OAuth login flow for a server when the SDK throws
+ * UnauthorizedError. Steps:
+ *   1. Build provider + start loopback callback.
+ *   2. Trigger discovery+DCR via SDK auth() helper (this calls
+ *      provider.redirectToAuthorization → external browser opens).
+ *   3. Wait for callback, validate state.
+ *   4. Exchange code via finishAuthFlow (transport.finishAuth if a client is
+ *      reachable, else SDK auth() helper).
+ *
+ * Returns true on success, throws on failure. The caller reconnects after.
+ */
+async function ensureMcpAuthenticated(id, serverConfig) {
+  const auth = serverConfig && serverConfig.auth && typeof serverConfig.auth === 'object' ? serverConfig.auth : null;
+  if (!auth || auth.type !== 'oauth') return false;
+
+  const transportType = normalizeTransportType(serverConfig.transport || serverConfig.type || '');
+  if (transportType === 'stdio') {
+    throw new Error(`Interactive OAuth login is not supported for stdio servers (${id}) in this release.`);
+  }
+
+  const serverUrl = serverConfig.url || serverConfig.baseUrl;
+  if (!serverUrl) throw new Error(`OAuth login requires a server url for ${id}`);
+
+  const seedProvider = oauthProvider.buildOAuthClientProvider(id, serverConfig);
+  const state = typeof seedProvider.state === 'function' ? await seedProvider.state() : undefined;
+  const loopback = await oauthCb.startLoopbackCallback({ expectedState: state, port: 0 });
+  const liveProvider = oauthProvider.buildOAuthClientProvider(id, serverConfig, {
+    redirectUri: loopback.redirectUri,
+    state,
+  });
+
+  let authorizeUrl = null;
+  liveProvider.redirectToAuthorization = async (url) => {
+    authorizeUrl = String(url);
+    try {
+      const parsed = new URL(String(url));
+      const nextState = parsed.searchParams.get('state');
+      if (nextState && typeof liveProvider._getPendingState === 'function' && liveProvider._getPendingState() !== nextState) {
+        // keep parity if the SDK regenerated state for any reason
+        liveProvider._getPendingState = () => nextState;
+      }
+    } catch (_) {
+      // ignore malformed urls here; a clearer error is thrown below if needed
+    }
+  };
+
+  try {
+    const { auth: sdkAuth } = oauthProvider.loadSdkAuth();
+    try {
+      await sdkAuth(liveProvider, { serverUrl });
+    } catch (e) {
+      if (!oauthProvider.isUnauthorizedError(e)) throw e;
+    }
+
+    const expectedState = typeof liveProvider._getPendingState === 'function'
+      ? liveProvider._getPendingState()
+      : state;
+    if (!authorizeUrl) {
+      throw new Error(`OAuth authorization URL was not generated for ${id}`);
+    }
+
+    const params = await oauthCb.runAuthFlowWithFallback({
+      authorizeUrl,
+      expectedState,
+      preferredPort: 0,
+      loopback,
+    });
+
+    await oauthProvider.finishAuthFlow({
+      serverId: id,
+      provider: liveProvider,
+      serverConfig,
+      transport: null,
+      callbackParams: params,
+      serverUrl
+    });
+    return true;
+  } finally {
+    if (loopback && loopback.cleanup) loopback.cleanup();
+  }
+}
+
+/**
+ * Returns the auth status for a server (for UI badge + refresh decisions).
+ */
+async function getMcpAuthStatus(serverId, serverConfig) {
+  const auth = serverConfig && serverConfig.auth && typeof serverConfig.auth === 'object' ? serverConfig.auth : null;
+  if (!auth) return { configured: false, authenticated: false, type: 'none' };
+  if (auth.type === 'none') return { configured: false, authenticated: false, type: 'none' };
+  if (auth.type === 'bearer') return { configured: Boolean(auth.bearerToken), authenticated: Boolean(auth.bearerToken), type: 'bearer' };
+  if (auth.type === 'oauth') {
+    const tokens = await oauthStore.loadTokens(serverId);
+    const clientInfo = await oauthStore.loadClientInfo(serverId);
+    const dcrSupported = !auth.oauth || auth.oauth.useDcr !== false;
+    const expired = tokens ? oauthStore.isExpired(tokens.expires_at) : false;
+    return {
+      type: 'oauth',
+      configured: Boolean(auth.oauth),
+      authenticated: Boolean(tokens && tokens.access_token),
+      expired,
+      expiresAt: tokens ? tokens.expires_at : undefined,
+      scope: tokens ? tokens.scope : undefined,
+      dcrSupported,
+      hasClient: Boolean(clientInfo || auth.oauth?.clientId)
+    };
+  }
+  return { configured: false, authenticated: false, type: 'none' };
+}
+
+/**
  * 独立连接并获取工具列表的函数
  * 用于测试连接，以及无缓存时的临时连接获取
  * 包含 10s 超时和强制关闭逻辑
  */
 async function connectAndFetchTools(id, config) {
-  // [拦截] 内置类型直接返回定义的工具列表
-  if (config.transport === 'builtin' || config.type === 'builtin') {
-    return getBuiltinTools(id);
+  const fetchKey = getToolFetchKey(id, config || {});
+  const existingRequest = inFlightToolFetchMap.get(fetchKey);
+  if (existingRequest) {
+    return await existingRequest;
   }
 
-  // console.log(`[MCP] Connecting to ${id} (${config.transport})...`);
-  let tempClient = null;
-  const controller = new AbortController();
+  const requestPromise = (async () => {
+    if (config.transport === 'builtin' || config.type === 'builtin') {
+      return getBuiltinTools(id);
+    }
 
-  // 设置超时，防止连接卡死导致无法关闭 (特别是 stdio)
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+    let tempClient = null;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const runtimeConfig = await applyStdioAuthEnv(buildMcpClientServerConfig(id, config, { useConfiguredTimeout: false }), id, config);
+      tempClient = new MultiServerMCPClient({ [id]: runtimeConfig }, { signal: controller.signal });
+      return await tempClient.getTools();
+    } catch (error) {
+      if (error && error.needsReauth) throw error;
+      // OAuth: SDK ran discovery+DCR+redirectToAuthorization then threw UnauthorizedError.
+      // For the ephemeral test-connect path we surface needsReauth so the UI can
+      // drive the interactive login via mcpOAuth_startAuthFlow (avoid blocking here).
+      if (config.auth && config.auth.type === 'oauth' && oauthProvider.isUnauthorizedError(error)) {
+        const needsReauth = new Error(`OAuth authorization required for ${id}`);
+        needsReauth.needsReauth = true;
+        needsReauth.cause = error;
+        throw needsReauth;
+      }
+      console.error(`[MCP] Error fetching tools from ${id}:`, error);
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+      controller.abort();
+      if (tempClient) {
+        try {
+          await tempClient.close();
+        } catch (closeError) {
+          console.error(`[MCP] Error closing connection for ${id}:`, closeError);
+        }
+      }
+    }
+  })();
+
+  inFlightToolFetchMap.set(fetchKey, requestPromise);
 
   try {
-    const modifiedConfig = { ...config, transport: normalizeTransportType(config.transport) };
-
-    // 创建客户端
-    tempClient = new MultiServerMCPClient({ [id]: { id, ...modifiedConfig } }, { signal: controller.signal });
-
-    // 获取工具
-    const tools = await tempClient.getTools();
-    // console.log(`[MCP] Successfully fetched ${tools.length} tools from ${id}`);
-
-    return tools; // 返回原生工具数组
-  } catch (error) {
-    console.error(`[MCP] Error fetching tools from ${id}:`, error);
-    throw error;
+    return await requestPromise;
   } finally {
-    clearTimeout(timeoutId);
-    controller.abort(); // 确保信号中止
-    if (tempClient) {
-      try {
-        // console.log(`[MCP] Closing temp connection for ${id}...`);
-        await tempClient.close();
-        // console.log(`[MCP] Connection closed for ${id}`);
-      } catch (closeError) {
-        console.error(`[MCP] Error closing connection for ${id}:`, closeError);
-      }
+    if (inFlightToolFetchMap.get(fetchKey) === requestPromise) {
+      inFlightToolFetchMap.delete(fetchKey);
     }
   }
 }
 
-/**
- * 增量式地初始化/同步 MCP 客户端。
- * 1. 先处理非持久连接（优先使用缓存，无缓存则即用即走并自动缓存）
- * 2. 再处理持久连接
- * 3. saveCacheCallback 参数，用于自动缓存获取到的工具
- */
 async function initializeMcpClient(activeServerConfigs = {}, cachedToolsMap = {}, saveCacheCallback = null) {
   const newIds = new Set(Object.keys(activeServerConfigs));
   const oldIds = new Set(currentlyConnectedServerIds);
-
   const idsToAdd = [...newIds].filter(id => !oldIds.has(id));
   const idsToRemove = [...oldIds].filter(id => !newIds.has(id));
   const failedServerIds = [];
 
-  // --- 步骤 1: 处理需要移除的服务 ---
   for (const id of idsToRemove) {
     if (persistentClients.has(id)) {
       const client = persistentClients.get(id);
       try { await client.close(); } catch (e) { }
       persistentClients.delete(id);
     }
-    // 移除相关工具
+
     for (const [toolName, toolInfo] of fullToolInfoMap.entries()) {
       if (toolInfo.serverConfig.id === id) {
         fullToolInfoMap.delete(toolName);
@@ -92,6 +528,70 @@ async function initializeMcpClient(activeServerConfigs = {}, cachedToolsMap = {}
     }
     currentlyConnectedServerIds.delete(id);
   }
+
+  const usedAliases = new Set(
+    [...fullToolInfoMap.values()]
+      .map(toolInfo => toolInfo?.aliasName)
+      .filter(Boolean)
+  );
+
+  const getToolEnabledState = (serverId, toolName, aliasName = '') => {
+    if (cachedToolsMap && cachedToolsMap[serverId]) {
+      const cachedTool = findCachedToolEntry(cachedToolsMap[serverId], toolName, aliasName);
+      return cachedTool ? (cachedTool.enabled ?? true) : true;
+    }
+    return true;
+  };
+
+  const registerCachedTools = (serverId, config, tools = [], isBuiltin = false, isPersistent = false) => {
+    tools.forEach((tool, index) => {
+      const rawName = typeof tool?.rawName === 'string'
+        ? tool.rawName
+        : (typeof tool?.originalName === 'string' ? tool.originalName : tool?.name);
+      const aliasName = ensureUniqueToolAlias(tool?.alias || tool?.name || `${serverId}_tool_${index + 1}`, usedAliases, serverId || 'tool');
+      fullToolInfoMap.set(aliasName, {
+        schema: tool?.inputSchema || tool?.schema,
+        description: tool?.description,
+        isPersistent,
+        serverConfig: { id: serverId, ...config },
+        isBuiltin,
+        enabled: tool?.enabled ?? true,
+        aliasName,
+        rawName,
+        originalName: rawName,
+        displayName: tool?.displayName || rawName || aliasName
+      });
+    });
+  };
+
+  const cacheResolvedTools = async (serverId, tools = [], oldToolsCache = []) => {
+    if (!saveCacheCallback || typeof saveCacheCallback !== 'function') return;
+    const sanitizedTools = tools.map(tool => {
+      const aliasName = sanitizeToolName(tool.name, serverId || 'tool');
+      const oldTool = findCachedToolEntry(oldToolsCache, tool.name, aliasName);
+      return buildCachedToolRecord(tool, oldTool, aliasName);
+    });
+    const cleanTools = JSON.parse(JSON.stringify(sanitizedTools));
+    await saveCacheCallback(serverId, cleanTools, { emitEvent: false, reason: 'auto-bootstrap' });
+  };
+
+  const registerFetchedTools = (serverId, config, tools = [], isBuiltin = false, isPersistent = false) => {
+    tools.forEach(tool => {
+      const aliasName = registerResolvedTool(tool, {
+        instance: isPersistent && !isBuiltin ? tool : undefined,
+        schema: tool.schema || tool.inputSchema,
+        description: tool.description,
+        isPersistent,
+        serverConfig: { id: serverId, ...config },
+        isBuiltin,
+        enabled: true
+      }, usedAliases);
+      const toolInfo = fullToolInfoMap.get(aliasName);
+      if (toolInfo) {
+        toolInfo.enabled = getToolEnabledState(serverId, tool.name, aliasName);
+      }
+    });
+  };
 
   const onDemandConfigsToAdd = idsToAdd
     .map(id => ({ id, config: activeServerConfigs[id] }))
@@ -101,42 +601,17 @@ async function initializeMcpClient(activeServerConfigs = {}, cachedToolsMap = {}
     .map(id => ({ id, config: activeServerConfigs[id] }))
     .filter(({ config }) => config && config.isPersistent);
 
-  // 辅助函数：获取工具的启用状态
-  const getToolEnabledState = (serverId, toolName) => {
-    if (cachedToolsMap && cachedToolsMap[serverId]) {
-      const cachedTool = cachedToolsMap[serverId].find(t => t.name === toolName);
-      // 如果缓存中有记录，使用缓存的 enabled，否则默认 true
-      return cachedTool ? (cachedTool.enabled ?? true) : true;
-    }
-    return true;
-  };
-
-  // --- 步骤 2: 处理非持久化（即用即走）连接 ---
   const onDemandToConnect = [];
-
   for (const { id, config } of onDemandConfigsToAdd) {
     const isBuiltin = config.transport === 'builtin' || config.type === 'builtin';
-
-    // 如果是内置服务，不再直接使用缓存，确保走 onDemandToConnect 路径以拉取源码定义
-    if (!isBuiltin && cachedToolsMap && cachedToolsMap[id] && Array.isArray(cachedToolsMap[id]) && cachedToolsMap[id].length > 0) {
-      const tools = cachedToolsMap[id];
-      tools.forEach(tool => {
-        fullToolInfoMap.set(tool.name, {
-          schema: tool.inputSchema || tool.schema,
-          description: tool.description,
-          isPersistent: false,
-          serverConfig: { id, ...config },
-          isBuiltin: false,
-          enabled: tool.enabled ?? true
-        });
-      });
+    if (!isBuiltin && Array.isArray(cachedToolsMap[id]) && cachedToolsMap[id].length > 0) {
+      registerCachedTools(id, config, cachedToolsMap[id], false, false);
       currentlyConnectedServerIds.add(id);
     } else {
       onDemandToConnect.push({ id, config });
     }
   }
 
-  // 对无缓存(或内置)的非持久化服务进行连接获取
   if (onDemandToConnect.length > 0) {
     const pool = new Set();
     const allTasks = [];
@@ -145,39 +620,15 @@ async function initializeMcpClient(activeServerConfigs = {}, cachedToolsMap = {}
       const taskPromise = (async () => {
         try {
           const tools = await connectAndFetchTools(id, config);
-
-          // 自动缓存逻辑
-          if (saveCacheCallback && typeof saveCacheCallback === 'function') {
-            // 保存前合并旧缓存的 enabled 状态
-            const oldToolsCache = cachedToolsMap[id] || [];
-            const sanitizedTools = tools.map(tool => {
-              const oldTool = oldToolsCache.find(t => t.name === tool.name);
-              return {
-                name: tool.name,
-                description: tool.description,
-                inputSchema: tool.inputSchema || tool.schema || {},
-                enabled: oldTool ? (oldTool.enabled ?? true) : true
-              };
-            });
-            const cleanTools = JSON.parse(JSON.stringify(sanitizedTools));
-            saveCacheCallback(id, cleanTools).catch(e => console.error(`[MCP] Auto-cache failed for ${id}:`, e));
-          }
-
           const isBuiltin = config.transport === 'builtin' || config.type === 'builtin';
-
-          tools.forEach(tool => {
-            fullToolInfoMap.set(tool.name, {
-              schema: tool.schema || tool.inputSchema,
-              description: tool.description,
-              isPersistent: false,
-              serverConfig: { id, ...config },
-              isBuiltin: isBuiltin,
-              enabled: getToolEnabledState(id, tool.name) // [新增] 应用状态
-            });
-          });
+          const oldToolsCache = cachedToolsMap[id] || [];
+          await cacheResolvedTools(id, tools, oldToolsCache).catch(e => console.error(`[MCP] Auto-cache failed for ${id}:`, e));
+          registerFetchedTools(id, config, tools, isBuiltin, false);
           currentlyConnectedServerIds.add(id);
         } catch (error) {
-          if (error.name !== 'AbortError') console.error(`[MCP Debug] Failed to process on-demand server ${id}. Error:`, error.message);
+          if (error.name !== 'AbortError') {
+            console.error(`[MCP Debug] Failed to process on-demand server ${id}. Error:`, error.message);
+          }
           failedServerIds.push(id);
         }
       })();
@@ -187,95 +638,66 @@ async function initializeMcpClient(activeServerConfigs = {}, cachedToolsMap = {}
       const cleanup = () => pool.delete(taskPromise);
       taskPromise.then(cleanup, cleanup);
 
-      if (pool.size >= 5) { // ON_DEMAND_CONCURRENCY_LIMIT
+      if (pool.size >= ON_DEMAND_CONCURRENCY_LIMIT) {
         await Promise.race(pool);
       }
     }
+
     await Promise.all(allTasks);
   }
 
-  // --- 步骤 3: 处理需要持久化的连接 ---
   if (persistentConfigsToAdd.length > 0) {
     for (const { id, config } of persistentConfigsToAdd) {
-      // 内置且持久化
       if (config.transport === 'builtin' || config.type === 'builtin') {
         try {
-          const tools = require('./mcp_builtin.js').getBuiltinTools(id);
-
-          // [新增] 强制更新内置服务的缓存
-          if (saveCacheCallback && typeof saveCacheCallback === 'function') {
-            const oldToolsCache = cachedToolsMap[id] || [];
-            const sanitizedTools = tools.map(tool => {
-              const oldTool = oldToolsCache.find(t => t.name === tool.name);
-              return {
-                name: tool.name,
-                description: tool.description,
-                inputSchema: tool.inputSchema || tool.schema || {},
-                enabled: oldTool ? (oldTool.enabled ?? true) : true // 保留用户的开关状态
-              };
-            });
-            saveCacheCallback(id, JSON.parse(JSON.stringify(sanitizedTools))).catch(e => { });
-          }
-
-          tools.forEach(tool => {
-            fullToolInfoMap.set(tool.name, {
-              schema: tool.schema || tool.inputSchema,
-              description: tool.description,
-              isPersistent: true,
-              serverConfig: { id, ...config },
-              isBuiltin: true,
-              enabled: getToolEnabledState(id, tool.name)
-            });
-          });
+          const tools = getBuiltinTools(id);
+          const oldToolsCache = cachedToolsMap[id] || [];
+          await cacheResolvedTools(id, tools, oldToolsCache).catch(e => console.error(`[MCP] Auto-cache failed for persistent ${id}:`, e));
+          registerFetchedTools(id, config, tools, true, true);
           currentlyConnectedServerIds.add(id);
-        } catch (e) {
+        } catch (error) {
+          console.error(`[MCP Debug] Failed to initialize builtin persistent server ${id}:`, error);
           failedServerIds.push(id);
         }
         continue;
       }
 
-      if (persistentClients.size >= 5) { // PERSISTENT_CONNECTION_LIMIT
+      if (persistentClients.size >= PERSISTENT_CONNECTION_LIMIT) {
         failedServerIds.push(id);
         continue;
       }
+
       try {
-        const modifiedConfig = { ...config, transport: normalizeTransportType(config.transport) };
-        const client = new MultiServerMCPClient({ [id]: { id, ...modifiedConfig } });
-        const tools = await client.getTools();
-
-        if (saveCacheCallback && typeof saveCacheCallback === 'function') {
-          const oldToolsCache = cachedToolsMap[id] || [];
-          const sanitizedTools = tools.map(tool => {
-            const oldTool = oldToolsCache.find(t => t.name === tool.name);
-            return {
-              name: tool.name,
-              description: tool.description,
-              inputSchema: tool.inputSchema || tool.schema || {},
-              enabled: oldTool ? (oldTool.enabled ?? true) : true
-            };
-          });
-          const cleanTools = JSON.parse(JSON.stringify(sanitizedTools));
-          saveCacheCallback(id, cleanTools).catch(e => console.error(`[MCP] Auto-cache failed for persistent ${id}:`, e));
+        const runtimeConfig = await applyStdioAuthEnv(buildMcpClientServerConfig(id, config), id, config);
+        const client = new MultiServerMCPClient({ [id]: runtimeConfig });
+        let tools;
+        try {
+          tools = await client.getTools();
+        } catch (e) {
+          if (config.auth && config.auth.type === 'oauth' && oauthProvider.isUnauthorizedError(e)) {
+            // Run interactive login then reconnect once.
+            await ensureMcpAuthenticated(id, config);
+            try { await client.close(); } catch (_) { }
+            const retryConfig = await applyStdioAuthEnv(buildMcpClientServerConfig(id, config), id, config);
+            const retryClient = new MultiServerMCPClient({ [id]: retryConfig });
+            tools = await retryClient.getTools();
+            persistentClients.set(id, retryClient);
+          } else {
+            throw e;
+          }
         }
-
-        tools.forEach(tool => {
-          fullToolInfoMap.set(tool.name, {
-            instance: tool,
-            schema: tool.schema || tool.inputSchema,
-            description: tool.description,
-            isPersistent: true,
-            serverConfig: { id, ...config },
-            isBuiltin: false,
-            enabled: getToolEnabledState(id, tool.name) // [新增] 应用状态
-          });
-        });
-        persistentClients.set(id, client);
+        const oldToolsCache = cachedToolsMap[id] || [];
+        await cacheResolvedTools(id, tools, oldToolsCache).catch(e => console.error(`[MCP] Auto-cache failed for persistent ${id}:`, e));
+        registerFetchedTools(id, config, tools, false, true);
+        if (!persistentClients.has(id)) persistentClients.set(id, client);
         currentlyConnectedServerIds.add(id);
       } catch (error) {
         console.error(`[MCP Debug] Failed to connect to persistent server ${id}:`, error);
         failedServerIds.push(id);
         const client = persistentClients.get(id);
-        if (client) await client.close();
+        if (client) {
+          try { await client.close(); } catch (e) { }
+        }
         persistentClients.delete(id);
       }
     }
@@ -290,13 +712,24 @@ async function initializeMcpClient(activeServerConfigs = {}, cachedToolsMap = {}
 
 function buildOpenaiFormattedTools() {
   const formattedTools = [];
-  for (const [toolName, toolInfo] of fullToolInfoMap.entries()) {
-    if (toolInfo.schema && toolInfo.enabled !== false) {
-      formattedTools.push({
-        type: "function",
-        function: { name: toolName, description: toolInfo.description, parameters: toolInfo.schema }
-      });
+  for (const [, toolInfo] of fullToolInfoMap.entries()) {
+    if (!toolInfo.schema || toolInfo.enabled === false) {
+      continue;
     }
+
+    const exportedName = toolInfo.aliasName || sanitizeToolName(toolInfo.rawName || toolInfo.displayName || 'tool');
+    if (!TOOL_NAME_PATTERN.test(exportedName)) {
+      continue;
+    }
+
+    formattedTools.push({
+      type: "function",
+      function: {
+        name: exportedName,
+        description: toolInfo.description,
+        parameters: toolInfo.schema
+      }
+    });
   }
   return formattedTools;
 }
@@ -306,10 +739,11 @@ function buildOpenaiFormattedTools() {
  */
 async function invokeMcpTool(toolName, toolArgs, signal, context = null) {
   const toolInfo = fullToolInfoMap.get(toolName);
+  const resolvedToolName = toolInfo?.rawName || toolInfo?.originalName || toolInfo?.displayName || toolName;
+  const toolTimeoutMs = normalizeMcpTimeoutSeconds(toolInfo?.serverConfig?.timeoutSeconds) * 1000;
 
   if (!toolInfo) {
     try {
-      const { invokeBuiltinTool } = require('./mcp_builtin.js');
       return await invokeBuiltinTool(toolName, toolArgs, signal, context);
     } catch (e) {
       throw new Error(`Tool "${toolName}" not found.`);
@@ -317,49 +751,41 @@ async function invokeMcpTool(toolName, toolArgs, signal, context = null) {
   }
 
   if (toolInfo.enabled === false) {
-    throw new Error(`Tool "${toolName}" has been disabled.`);
+    throw new Error(`Tool "${toolInfo.displayName || toolName}" has been disabled.`);
   }
 
-  // 2. 如果是注册过的内置工具，调用 invokeBuiltinTool 并传递 signal 和 context
   if (toolInfo.isBuiltin) {
-    const { invokeBuiltinTool } = require('./mcp_builtin.js');
-    return await invokeBuiltinTool(toolName, toolArgs, signal, context);
+    return await invokeBuiltinTool(resolvedToolName, toolArgs, signal, context);
   }
 
-  // 3. 持久连接
   if (toolInfo.isPersistent && toolInfo.instance) {
-    return await toolInfo.instance.invoke(toolArgs, { signal });
+    return await toolInfo.instance.call(toolArgs, { signal, timeout: toolTimeoutMs });
   }
 
-  // 4. 临时连接
   const serverConfig = toolInfo.serverConfig;
   if (!toolInfo.isPersistent && serverConfig) {
     let tempClient = null;
     const controller = new AbortController();
 
-    // 连接外部传入的 signal
     if (signal) {
       if (signal.aborted) controller.abort();
       signal.addEventListener('abort', () => controller.abort());
     }
 
     try {
-      const modifiedConfig = { ...serverConfig };
-      modifiedConfig.transport = normalizeTransportType(modifiedConfig.transport);
-
-      tempClient = new MultiServerMCPClient({ [serverConfig.id]: { id: serverConfig.id, ...modifiedConfig } }, { signal: controller.signal });
+      const runtimeConfig = await applyStdioAuthEnv(buildMcpClientServerConfig(serverConfig.id, serverConfig), serverConfig.id, serverConfig);
+      tempClient = new MultiServerMCPClient({ [serverConfig.id]: runtimeConfig }, { signal: controller.signal });
       const tools = await tempClient.getTools();
-      const toolToCall = tools.find(t => t.name === toolName);
-      if (!toolToCall) throw new Error(`Tool "${toolName}" not found.`);
-      return await toolToCall.invoke(toolArgs, { signal: controller.signal });
+      const toolToCall = tools.find(t => t.name === resolvedToolName || sanitizeToolName(t.name, serverConfig.id || 'tool') === toolName);
+      if (!toolToCall) throw new Error(`Tool "${resolvedToolName}" not found.`);
+      return await toolToCall.call(toolArgs, { signal: controller.signal, timeout: toolTimeoutMs });
     } finally {
-      // 如果没有外部 signal，我们需要负责清理；如果有，外部 signal 触发 abort 时 controller 也会 abort
       if (!signal) controller.abort();
       if (tempClient) await tempClient.close();
     }
   }
 
-  throw new Error(`Configuration error for tool "${toolName}".`);
+  throw new Error(`Configuration error for tool "${toolInfo.displayName || toolName}".`);
 }
 
 /**
@@ -367,33 +793,40 @@ async function invokeMcpTool(toolName, toolArgs, signal, context = null) {
  * 用于在设置界面测试具体的工具调用
  */
 async function connectAndInvokeTool(id, config, toolName, toolArgs, context = null) {
-  // [拦截] 内置类型直接调用
   if (config.transport === 'builtin' || config.type === 'builtin') {
-    const { invokeBuiltinTool } = require('./mcp_builtin.js');
     return await invokeBuiltinTool(toolName, toolArgs, null, context);
   }
 
   let tempClient = null;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
   try {
-    const modifiedConfig = { ...config, transport: normalizeTransportType(config.transport) };
-    tempClient = new MultiServerMCPClient({ [id]: { id, ...modifiedConfig } }, { signal: controller.signal });
+    const runtimeConfig = await applyStdioAuthEnv(buildMcpClientServerConfig(id, config), id, config);
+    tempClient = new MultiServerMCPClient({ [id]: runtimeConfig }, { signal: controller.signal });
     const tools = await tempClient.getTools();
-    const targetTool = tools.find(t => t.name === toolName || t.name === `${id}_${toolName}`);
+    const normalizedToolName = sanitizeToolName(toolName, id || 'tool');
+    const targetTool = tools.find(t => {
+      const alias = sanitizeToolName(t.name, id || 'tool');
+      return t.name === toolName || alias === toolName || alias === normalizedToolName || t.name === `${id}_${toolName}`;
+    });
 
     if (!targetTool) {
       throw new Error(`Tool '${toolName}' not found on server '${id}'. Available tools: ${tools.map(t => t.name).join(', ')}`);
     }
 
-    const result = await targetTool.invoke(toolArgs, { signal: controller.signal });
-    return result;
+    const toolTimeoutMs = normalizeMcpTimeoutSeconds(config?.timeoutSeconds) * 1000;
+
+    return await targetTool.call(toolArgs, { signal: controller.signal, timeout: toolTimeoutMs });
   } catch (error) {
+    if (config.auth && config.auth.type === 'oauth' && oauthProvider.isUnauthorizedError(error)) {
+      const needsReauth = new Error(`OAuth authorization required for ${id}`);
+      needsReauth.needsReauth = true;
+      needsReauth.cause = error;
+      throw needsReauth;
+    }
     console.error(`[MCP] Error invoking tool ${toolName} on ${id}:`, error);
     throw error;
   } finally {
-    clearTimeout(timeoutId);
     controller.abort();
     if (tempClient) {
       try {
@@ -422,6 +855,12 @@ module.exports = {
   initializeMcpClient,
   invokeMcpTool,
   closeMcpClient,
-  connectAndFetchTools, // 导出供测试
-  connectAndInvokeTool, // 导出供测试
+  connectAndFetchTools,
+  connectAndInvokeTool,
+  ensureMcpAuthenticated,
+  getMcpAuthStatus,
+  _test: {
+    getToolFetchKey,
+    prepareStdioAuthEnv,
+  },
 };

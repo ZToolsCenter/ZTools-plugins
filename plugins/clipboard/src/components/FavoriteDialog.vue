@@ -94,6 +94,18 @@ const handleConfirm = () => {
           <div v-else-if="item?.type === 'image'" class="preview-image">
             <img :src="item.content" alt="预览图" />
           </div>
+          <div v-else-if="item?.type === 'file'" class="preview-files">
+            <div
+              v-for="file in item.files?.slice(0, 5)"
+              :key="file.path"
+              class="preview-file"
+            >
+              {{ file.name }}
+            </div>
+            <div v-if="item.files?.length > 5" class="preview-file-more">
+              另有 {{ item.files.length - 5 }} 个项目
+            </div>
+          </div>
         </div>
         <div class="dialog-field">
           <label>备注</label>
@@ -210,6 +222,25 @@ const handleConfirm = () => {
   max-width: 100%;
   max-height: 180px;
   border-radius: 4px;
+}
+
+.preview-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preview-file {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-file-more {
+  color: var(--text-tertiary);
+  font-size: 12px;
 }
 
 .dialog-field {

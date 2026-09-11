@@ -1,8 +1,9 @@
-import { shallowRef } from "vue";
+import { ref } from "vue";
 import { buildEverythingQuery } from "../core/finderLogic";
 import { useFinderCategories } from "./useFinderCategories";
 
-const queryText = shallowRef("");
+const queryText = ref("");
+const prefixFilter = ref("");
 
 export function useFinderQuery() {
   const { activeCategory } = useFinderCategories();
@@ -12,10 +13,11 @@ export function useFinderQuery() {
   }
 
   function buildFilteredEverythingQuery() {
-    return buildEverythingQuery(queryText.value, activeCategory.value);
+    return buildEverythingQuery(queryText.value, activeCategory.value, prefixFilter.value);
   }
 
   return {
+    prefixFilter,
     queryText,
     setQueryText,
     buildFilteredEverythingQuery,

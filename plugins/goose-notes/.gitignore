@@ -1,0 +1,69 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Package manager: this project uses bun — bun.lock IS committed.
+# Global ~/.gitignore_global has `*.lock`, so force bun.lock back in.
+!bun.lock
+# Ignore lockfiles from other managers to prevent accidental drift.
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+dist-quicknote/
+dist-native-editor/
+default.profraw
+# Vite stubs live in src/lib/vite-stubs/ (NOT src/lib/build/).
+# Global ~/.gitignore_global has `build/`; a folder named build is dropped by
+# ztools publish and store Linux CI then fails (missing node-fs-stub.ts).
+!src/lib/vite-stubs/
+!src/lib/vite-stubs/*
+*.local
+
+# Editor directories and files
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 本地文档
+docs
+
+skills-lock.json
+!src/agent/AGENTS.md
+!src/agent/**/SKILL.md
+
+# ---- Local-only scratch ----
+tasks/
+scripts/*
+!scripts/utools-build.js
+!scripts/check-utools-size.js
+!scripts/utools-size-baseline.json
+!scripts/audit-native-editor.mjs
+!scripts/serve-native-editor.mjs
+# stray verification screenshots in repo root
+/*.png
+!cover.png
+!series-features.png
+
+# app/ 是 ZTools 入口（plugin.json main=app/index.html），发布必须带上
+未命名/
+
+# PDF CJK font (downloaded at build; not committed)
+public/fonts/*.ttf
+public/fonts/*.otf
