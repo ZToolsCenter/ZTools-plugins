@@ -521,15 +521,23 @@ async function recognize(source) {
 const cachedRuntimeScripts = {};
 
 function ensureRuntimeScript(scriptPath, targetName) {
-  const cached = cachedRuntimeScripts[targetName];
-  if (cached && fs.existsSync(cached)) {
-    return cached;
-  }
+  // 内容比对（与 bin/*.mjs 同步循环同款）：插件升级后运行时目录里可能残留旧脚本，
+  // 若只按「文件存在」判断就会一直跑旧版本，改动静默失效。
   const content = fs.readFileSync(scriptPath, "utf8");
   const scriptsDir = path.join(getRuntimeCacheRoot(), "scripts");
   fs.mkdirSync(scriptsDir, { recursive: true });
   const target = path.join(scriptsDir, targetName);
-  fs.writeFileSync(target, content);
+  let upToDate = false;
+  if (fs.existsSync(target)) {
+    try {
+      upToDate = fs.readFileSync(target, "utf8") === content;
+    } catch (_) {
+      upToDate = false;
+    }
+  }
+  if (!upToDate) {
+    fs.writeFileSync(target, content);
+  }
   cachedRuntimeScripts[targetName] = target;
   return target;
 }
@@ -541,11 +549,20 @@ function ensureVisionScript(scriptPath) {
 let cachedVisionBinary = "";
 
 function ensureVisionBinary(scriptPath) {
-  if (cachedVisionBinary && fs.existsSync(cachedVisionBinary)) {
-    return cachedVisionBinary;
-  }
   const scriptReal = ensureVisionScript(scriptPath);
-  const target = `${scriptReal.replace(/\.swift$/, "")}-bin`;
+  // 二进制名带上脚本内容指纹：源文件改了但旧二进制仍在时，旧的会被复用导致改动静默失效
+  // （曾经踩过：改了 ocr-vision.swift 却仍在跑上次编译的二进制）。
+  let stamp = "";
+  try {
+    const content = fs.readFileSync(scriptReal);
+    stamp = crypto.createHash("sha1").update(content).digest("hex").slice(0, 10);
+  } catch (_) {
+    stamp = "nohash";
+  }
+  const target = `${scriptReal.replace(/\.swift$/, "")}-${stamp}-bin`;
+  if (cachedVisionBinary === target && fs.existsSync(target)) {
+    return target;
+  }
   const result = spawnSync("swiftc", ["-O", scriptReal, "-o", target], { timeout: 180000 });
   if (result.status === 0 && fs.existsSync(target)) {
     cachedVisionBinary = target;
@@ -660,6 +677,25 @@ function parseVisionOutput(raw, engineName = "vision") {  const output = String(
         const score = Number(item.score);
         if (Number.isFinite(score)) {
           line.score = score;
+        }
+        // 逐字符框（Vision boundingBox(for:)）：图文混排用它将整行文本按公式区间切开。
+        // 坐标与 line.box 同为「归一化 0..1、原点左下」，由渲染层统一换算。
+        if (Array.isArray(item.chars)) {
+          line.chars = item.chars.map((ch) => {
+            if (!ch || typeof ch !== "object") return { c: "", box: null };
+            const cb = ch.box;
+            let box = null;
+            if (cb && typeof cb === "object") {
+              const cx = Number(cb.x);
+              const cy = Number(cb.y);
+              const cw = Number(cb.w);
+              const chh = Number(cb.h);
+              if ([cx, cy, cw, chh].every(Number.isFinite)) {
+                box = { x: cx, y: cy, w: cw, h: chh };
+              }
+            }
+            return { c: typeof ch.c === "string" ? ch.c : "", box };
+          });
         }
         lines.push(line);
       }
@@ -1037,17 +1073,6 @@ async function installOnnxRuntime(onProgress) {
 
 let onnxServerState = null;
 
-function killOnnxServer() {
-  if (onnxServerState) {
-    try {
-      onnxServerState.proc.kill();
-    } catch (_) {
-      // Ignore kill failures.
-    }
-    onnxServerState = null;
-  }
-}
-
 // ONNX 依赖 ESM 原生模块，渲染进程 preload 的动态 import() 走浏览器解析
 // （报 process is not defined），因此放在 Electron 自带 Node 的子进程里跑：
 // process.execPath + ELECTRON_RUN_AS_NODE=1，无需系统安装 Node。
@@ -1059,9 +1084,16 @@ function ensureOnnxServer() {
   if (!fs.existsSync(scriptPath)) {
     throw new Error("ONNX OCR 服务脚本缺失，请重新下载引擎");
   }
-  // 启动前同步最新服务脚本：识别逻辑修复不依赖模型重下载
+  // 启动前同步最新服务脚本：识别逻辑修复不依赖模型重下载。
+  // 动态扫描 bin/*.mjs（避免新增模块后漏同步导致 import 失败），异常时回退静态列表。
   try {
-    for (const name of ["onnx_ocr_server.mjs", "onnx_ocr_backend.mjs", "onnx_table_split.mjs"]) {
+    let scriptNames;
+    try {
+      scriptNames = fs.readdirSync(path.join(__dirname, "bin")).filter((n) => n.endsWith(".mjs"));
+    } catch (_) {
+      scriptNames = ["onnx_ocr_server.mjs", "onnx_ocr_backend.mjs", "onnx_table_split.mjs", "onnx_text_order.mjs"];
+    }
+    for (const name of scriptNames) {
       const src = path.join(__dirname, "bin", name);
       const dst = path.join(getOnnxRuntimeDir(), name);
       if (!fs.existsSync(src)) continue;
@@ -1166,7 +1198,7 @@ function waitOnnxServerReady(state, timeoutMs = 90000) {
   });
 }
 
-function onnxServerRecognize(state, imagePath, timeoutMs = 120000) {
+function onnxServerRecognize(state, imagePath, timeoutMs = 120000, extra = null) {
   return new Promise((resolve, reject) => {
     const id = state.nextId;
     state.nextId += 1;
@@ -1175,7 +1207,10 @@ function onnxServerRecognize(state, imagePath, timeoutMs = 120000) {
       reject(new Error("ONNX OCR 识别超时"));
     }, timeoutMs);
     state.pending.set(id, { resolve, reject, timer });
-    state.proc.stdin.write(`${JSON.stringify({ id, imagePath })}\n`);
+    // extra 透传额外请求字段（如 op/longSide/conf/iou/textLines），现有 OCR/公式调用不传则行为不变。
+    const requestBody = { id, imagePath };
+    if (extra && typeof extra === "object") Object.assign(requestBody, extra);
+    state.proc.stdin.write(`${JSON.stringify(requestBody)}\n`);
   });
 }
 
@@ -1189,38 +1224,716 @@ async function recognizeOnnxOcr(source) {
     const imagePath = typeof source === "string" && source.startsWith("data:image/")
       ? (tempFile = dataUrlToTempFile(source))
       : assertImagePath(source);
-    const state = ensureOnnxServer();
-    await waitOnnxServerReady(state);
-    const message = await onnxServerRecognize(state, imagePath);
-    const width = Number(message.width) || 1;
-    const height = Number(message.height) || 1;
-    const items = Array.isArray(message.items) ? message.items : [];
-    return {
-      engine: "rapidocr",
-      text: items.map((item) => item.text).join("\n"),
-      lines: items.map((item) => {
-        const polygon = Array.isArray(item.box) ? item.box : [];
-        if (!polygon.length) {
-          return { text: item.text };
-        }
-        const xs = polygon.map((point) => point[0]);
-        const ys = polygon.map((point) => point[1]);
-        const left = Math.min(...xs);
-        const right = Math.max(...xs);
-        const top = Math.min(...ys);
-        const bottom = Math.max(...ys);
+    // Bug 4：ONNX 引擎管线只支持 PNG/JPEG/BMP，WebP 解码会落到 jpeg.decode 抛通用错误。
+    // 在入口给出明确错误，提示用户切换引擎或转存 PNG。
+    if (path.extname(imagePath).toLowerCase() === ".webp") {
+      throw new Error("ONNX 引擎暂不支持 WebP，请切换 Vision/微信引擎或转存 PNG");
+    }
+    // Bug 3：ONNX 子进程可能卡死且永不退出（exitCode === null 但永远不 ready）。
+    // 启动/就绪失败时必须杀掉旧进程并清空 onnxServerState，否则下次 ensureOnnxServer
+    // 会复用同一个卡死进程，永远起不来。最多快速重试一次再 spawn 健康进程。
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let state;
+      try {
+        state = ensureOnnxServer();
+        await waitOnnxServerReady(state);
+      } catch (bootError) {
+        // 启动/就绪失败：清理当前这个（可能卡死的）进程，下次循环重新 spawn。
+        // 精准杀掉 state.proc，仅当全局状态仍指向它时才置空，避免误杀并发新起的进程。
+        try { state && state.proc && state.proc.kill(); } catch (_) {}
+        if (onnxServerState === state) onnxServerState = null;
+        lastError = bootError;
+        continue;
+      }
+      try {
+        const message = await onnxServerRecognize(state, imagePath);
+        const width = Number(message.width) || 1;
+        const height = Number(message.height) || 1;
+        const items = Array.isArray(message.items) ? message.items : [];
         return {
-          text: item.text,
-          box: {
-            x: left / width,
-            y: 1 - bottom / height,
-            w: (right - left) / width,
-            h: (bottom - top) / height
-          }
+          engine: "rapidocr",
+          text: items.map((item) => item.text).join("\n"),
+          lines: items.map((item) => {
+            const polygon = Array.isArray(item.box) ? item.box : [];
+            if (!polygon.length) {
+              return { text: item.text };
+            }
+            const xs = polygon.map((point) => point[0]);
+            const ys = polygon.map((point) => point[1]);
+            const left = Math.min(...xs);
+            const right = Math.max(...xs);
+            const top = Math.min(...ys);
+            const bottom = Math.max(...ys);
+            return {
+              text: item.text,
+              box: {
+                x: left / width,
+                y: 1 - bottom / height,
+                w: (right - left) / width,
+                h: (bottom - top) / height
+              }
+            };
+          }),
+          raw: message
         };
-      }),
-      raw: message
-    };
+      } catch (recError) {
+        // 识别阶段失败：进程仍健康（非启动卡死），不再重试，直接抛出错误。
+        lastError = recError;
+        break;
+      }
+    }
+    throw lastError;
+  } finally {
+    if (tempFile) {
+      try {
+        fs.rmSync(path.dirname(tempFile), { recursive: true, force: true });
+      } catch (_) {
+        // Ignore temp cleanup failures.
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ONNX 公式识别（LaTeX OCR）：复用 onnx-runtime 的 node_modules 运行环境
+// （onnxruntime-node 等），模型为 RapidAI/RapidLaTeXOCR 的 4 个独立文件
+// （约 171MB，按需单独下载，与 OCR 模型物理隔离）。服务进程协议与 ONNX OCR
+// 完全一致（JSON-line stdin/stdout），因此可直接复用 waitOnnxServerReady /
+// onnxServerRecognize 这两个通用辅助函数。
+// ---------------------------------------------------------------------------
+
+const ONNX_FORMULA_ASSETS = [
+  { name: "image_resizer.onnx", size: 38967751, url: "https://ghfast.top/https://github.com/RapidAI/RapidLaTeXOCR/releases/download/v0.0.0/image_resizer.onnx" },
+  { name: "encoder.onnx", size: 89008136, url: "https://ghfast.top/https://github.com/RapidAI/RapidLaTeXOCR/releases/download/v0.0.0/encoder.onnx" },
+  { name: "decoder.onnx", size: 50952726, url: "https://ghfast.top/https://github.com/RapidAI/RapidLaTeXOCR/releases/download/v0.0.0/decoder.onnx" },
+  { name: "tokenizer.json", size: 24174, url: "https://ghfast.top/https://github.com/RapidAI/RapidLaTeXOCR/releases/download/v0.0.0/tokenizer.json" }
+];
+
+function getOnnxFormulaDir() {
+  return path.join(getOnnxRuntimeDir(), "assets", "formula");
+}
+
+function checkOnnxFormula() {
+  const dir = getOnnxFormulaDir();
+  const installed = ONNX_FORMULA_ASSETS.every((file) => {
+    try {
+      return fs.statSync(path.join(dir, file.name)).size === file.size;
+    } catch (_) {
+      return false;
+    }
+  });
+  return { installed, ready: installed, path: dir };
+}
+
+function isOnnxFormulaAvailable() {
+  return checkOnnxFormula().ready;
+}
+
+// ---------------------------------------------------------------------------
+// ONNX MFD（Math Formula Detection）：图文混排二期，定位公式区域
+// （Pix2Text mfd-1.5 / CnSTD YoloDetector，MIT）。与公式识别共用 ONNX 运行环境，
+// 并复用公式引擎识别裁切出的公式；因此「MFD 完整可用」依赖 运行环境 + 公式模型 + MFD 模型
+// 三者齐全。下载/安装逻辑镜像上方 ONNX_FORMULA_ASSETS 一节。
+// ---------------------------------------------------------------------------
+
+const ONNX_MFD_ASSETS = [
+  { name: "pix2text-mfd-1.5.onnx", size: 80311115, url: "https://hf-mirror.com/breezedeus/pix2text-mfd-1.5/resolve/main/pix2text-mfd-1.5.onnx" }
+];
+
+function getOnnxMfdDir() {
+  return path.join(getOnnxRuntimeDir(), "assets", "mfd");
+}
+
+function checkOnnxMfd() {
+  const dir = getOnnxMfdDir();
+  const installed = ONNX_MFD_ASSETS.every((file) => {
+    try {
+      return fs.statSync(path.join(dir, file.name)).size === file.size;
+    } catch (_) {
+      return false;
+    }
+  });
+  return { installed, ready: installed, path: dir };
+}
+
+// 完整可用性：ONNX 运行环境 + 公式模型 + MFD 模型 三者齐全。
+function isOnnxMfdAvailable() {
+  const runtime = checkOnnxRuntime();
+  const formula = checkOnnxFormula();
+  const mfd = checkOnnxMfd();
+  return Boolean(runtime.ready && formula.ready && mfd.ready);
+}
+
+let onnxMfdInstallPromise = null;
+
+async function installOnnxMfd(onProgress) {
+  if (onnxMfdInstallPromise) return onnxMfdInstallPromise;
+  onnxMfdInstallPromise = (async () => {
+    // MFD 复用公式引擎，安装前必须已具备 ONNX 运行环境与公式模型。
+    const runtime = checkOnnxRuntime();
+    if (!runtime.ready) {
+      throw new Error("MFD 公式混排依赖 ONNX 运行环境，请先下载 ONNX OCR 引擎");
+    }
+    const formula = checkOnnxFormula();
+    if (!formula.ready) {
+      throw new Error("MFD 公式混排依赖公式识别模型，请先下载公式识别模型");
+    }
+    const dir = getOnnxMfdDir();
+    fs.mkdirSync(dir, { recursive: true });
+    for (let index = 0; index < ONNX_MFD_ASSETS.length; index += 1) {
+      const file = ONNX_MFD_ASSETS[index];
+      emitProgress(onProgress, {
+        phase: "download",
+        message: `下载 ${file.name}`,
+        percent: Math.round((index / ONNX_MFD_ASSETS.length) * 100)
+      });
+      const tmp = path.join(getRuntimeCacheRoot(), `mfd-${file.name}.tmp`);
+      await downloadFile(file.url, tmp, file.name, (progress) => {
+        if (progress.total) {
+          emitProgress(onProgress, {
+            phase: "download",
+            message: `下载 ${file.name}`,
+            percent: Math.round(
+              ((index + (progress.downloaded || 0) / progress.total) / ONNX_MFD_ASSETS.length) * 100
+            )
+          });
+        }
+      });
+      const size = fs.statSync(tmp).size;
+      if (size !== file.size) {
+        fs.rmSync(tmp, { force: true });
+        throw new Error(`${file.name} 下载校验失败（${size} != ${file.size}）`);
+      }
+      fs.copyFileSync(tmp, path.join(dir, file.name));
+      fs.rmSync(tmp, { force: true });
+    }
+    emitProgress(onProgress, { phase: "done", percent: 100 });
+    return checkOnnxMfd();
+  })();
+  try {
+    return await onnxMfdInstallPromise;
+  } finally {
+    onnxMfdInstallPromise = null;
+  }
+}
+
+let onnxFormulaInstallPromise = null;
+
+async function installOnnxFormula(onProgress) {
+  if (onnxFormulaInstallPromise) return onnxFormulaInstallPromise;
+  onnxFormulaInstallPromise = (async () => {
+    // 公式识别依赖 onnx-runtime 的运行环境（onnxruntime-node 等 node_modules）
+    const runtime = checkOnnxRuntime();
+    if (!runtime.ready) {
+      throw new Error("公式识别依赖 ONNX 运行环境，请先下载 ONNX OCR 引擎");
+    }
+    const dir = getOnnxFormulaDir();
+    fs.mkdirSync(dir, { recursive: true });
+    for (let index = 0; index < ONNX_FORMULA_ASSETS.length; index += 1) {
+      const file = ONNX_FORMULA_ASSETS[index];
+      emitProgress(onProgress, {
+        phase: "download",
+        message: `下载 ${file.name}`,
+        percent: Math.round((index / ONNX_FORMULA_ASSETS.length) * 100)
+      });
+      const tmp = path.join(getRuntimeCacheRoot(), `formula-${file.name}.tmp`);
+      await downloadFile(file.url, tmp, file.name, (progress) => {
+        if (progress.total) {
+          emitProgress(onProgress, {
+            phase: "download",
+            message: `下载 ${file.name}`,
+            percent: Math.round(
+              ((index + (progress.downloaded || 0) / progress.total) / ONNX_FORMULA_ASSETS.length) * 100
+            )
+          });
+        }
+      });
+      const size = fs.statSync(tmp).size;
+      if (size !== file.size) {
+        fs.rmSync(tmp, { force: true });
+        throw new Error(`${file.name} 下载校验失败（${size} != ${file.size}）`);
+      }
+      fs.copyFileSync(tmp, path.join(dir, file.name));
+      fs.rmSync(tmp, { force: true });
+    }
+    emitProgress(onProgress, { phase: "done", percent: 100 });
+    return checkOnnxFormula();
+  })();
+  try {
+    return await onnxFormulaInstallPromise;
+  } finally {
+    onnxFormulaInstallPromise = null;
+  }
+}
+
+let onnxFormulaServerState = null;
+
+// 与 ensureOnnxServer 同构，仅脚本与状态变量不同；stdio 协议一致。
+function ensureOnnxFormulaServer() {
+  if (onnxFormulaServerState && onnxFormulaServerState.proc.exitCode === null) {
+    return onnxFormulaServerState;
+  }
+  const scriptPath = path.join(getOnnxRuntimeDir(), "onnx_formula_server.mjs");
+  if (!fs.existsSync(scriptPath)) {
+    throw new Error("公式识别服务脚本缺失，请重新下载引擎");
+  }
+  // 启动前同步最新服务脚本（含新增的 onnx_formula_server.mjs）
+  try {
+    let scriptNames;
+    try {
+      scriptNames = fs.readdirSync(path.join(__dirname, "bin")).filter((n) => n.endsWith(".mjs"));
+    } catch (_) {
+      scriptNames = ["onnx_ocr_server.mjs", "onnx_ocr_backend.mjs", "onnx_table_split.mjs", "onnx_text_order.mjs", "onnx_formula_server.mjs", "onnx_gray_resize.mjs", "onnx_image_raw.mjs", "onnx_formula_core.mjs", "onnx_mfd_core.mjs", "onnx_mixed_server.mjs"];
+    }
+    for (const name of scriptNames) {
+      const src = path.join(__dirname, "bin", name);
+      const dst = path.join(getOnnxRuntimeDir(), name);
+      if (!fs.existsSync(src)) continue;
+      if (!fs.existsSync(dst) || fs.readFileSync(src, "utf8") !== fs.readFileSync(dst, "utf8")) {
+        fs.copyFileSync(src, dst);
+      }
+    }
+  } catch (_) {
+    // 同步失败沿用已安装脚本
+  }
+  const proc = spawn(process.execPath, [scriptPath], {
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" }
+  });
+  const state = {
+    proc,
+    pending: new Map(),
+    nextId: 1,
+    ready: false,
+    stdoutBuffer: "",
+    stderrTail: ""
+  };
+  proc.stdout.setEncoding("utf8");
+  proc.stdout.on("data", (chunk) => {
+    state.stdoutBuffer += chunk;
+    let newlineIndex;
+    while ((newlineIndex = state.stdoutBuffer.indexOf("\n")) >= 0) {
+      const line = state.stdoutBuffer.slice(0, newlineIndex).trim();
+      state.stdoutBuffer = state.stdoutBuffer.slice(newlineIndex + 1);
+      if (!line) continue;
+      let message;
+      try {
+        message = JSON.parse(line);
+      } catch (_) {
+        continue;
+      }
+      if (message && message.event === "ready") {
+        state.ready = true;
+        continue;
+      }
+      if (message && message.event === "fatal") {
+        state.fatalError = message.error || "公式识别服务启动失败";
+        continue;
+      }
+      if (message && state.pending.has(message.id)) {
+        const entry = state.pending.get(message.id);
+        state.pending.delete(message.id);
+        clearTimeout(entry.timer);
+        if (message.ok) entry.resolve(message);
+        else entry.reject(new Error(message.error || "公式识别失败"));
+      }
+    }
+  });
+  proc.stderr.setEncoding("utf8");
+  proc.stderr.on("data", (chunk) => {
+    state.stderrTail = (state.stderrTail + chunk).slice(-800);
+  });
+  const failAll = (error) => {
+    for (const entry of state.pending.values()) {
+      clearTimeout(entry.timer);
+      entry.reject(error);
+    }
+    state.pending.clear();
+    if (onnxFormulaServerState === state) {
+      onnxFormulaServerState = null;
+    }
+  };
+  proc.on("exit", () => failAll(new Error(state.fatalError || "公式识别服务进程已退出")));
+  proc.on("error", (error) => failAll(error));
+  onnxFormulaServerState = state;
+  return state;
+}
+
+let onnxMixedServerState = null;
+
+// 与 ensureOnnxFormulaServer 同构，仅脚本为 onnx_mixed_server.mjs（MFD+公式合并服务）。
+// stdio 协议一致，复用 waitOnnxServerReady / onnxServerRecognize。脚本同步循环会一并拷贝
+// 新增的 onnx_image_raw.mjs / onnx_formula_core.mjs / onnx_mfd_core.mjs / onnx_mixed_server.mjs。
+function ensureOnnxMixedServer() {
+  if (onnxMixedServerState && onnxMixedServerState.proc.exitCode === null) {
+    return onnxMixedServerState;
+  }
+  const scriptPath = path.join(getOnnxRuntimeDir(), "onnx_mixed_server.mjs");
+  if (!fs.existsSync(scriptPath)) {
+    throw new Error("图文混排服务脚本缺失，请重新下载引擎");
+  }
+  try {
+    let scriptNames;
+    try {
+      scriptNames = fs.readdirSync(path.join(__dirname, "bin")).filter((n) => n.endsWith(".mjs"));
+    } catch (_) {
+      scriptNames = [
+        "onnx_ocr_server.mjs",
+        "onnx_ocr_backend.mjs",
+        "onnx_table_split.mjs",
+        "onnx_text_order.mjs",
+        "onnx_formula_server.mjs",
+        "onnx_gray_resize.mjs",
+        "onnx_image_raw.mjs",
+        "onnx_formula_core.mjs",
+        "onnx_mfd_core.mjs",
+        "onnx_mixed_server.mjs"
+      ];
+    }
+    for (const name of scriptNames) {
+      const src = path.join(__dirname, "bin", name);
+      const dst = path.join(getOnnxRuntimeDir(), name);
+      if (!fs.existsSync(src)) continue;
+      if (!fs.existsSync(dst) || fs.readFileSync(src, "utf8") !== fs.readFileSync(dst, "utf8")) {
+        fs.copyFileSync(src, dst);
+      }
+    }
+  } catch (_) {
+    // 同步失败沿用已安装脚本
+  }
+  const proc = spawn(process.execPath, [scriptPath], {
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" }
+  });
+  const state = {
+    proc,
+    pending: new Map(),
+    nextId: 1,
+    ready: false,
+    stdoutBuffer: "",
+    stderrTail: ""
+  };
+  proc.stdout.setEncoding("utf8");
+  proc.stdout.on("data", (chunk) => {
+    state.stdoutBuffer += chunk;
+    let newlineIndex;
+    while ((newlineIndex = state.stdoutBuffer.indexOf("\n")) >= 0) {
+      const line = state.stdoutBuffer.slice(0, newlineIndex).trim();
+      state.stdoutBuffer = state.stdoutBuffer.slice(newlineIndex + 1);
+      if (!line) continue;
+      let message;
+      try {
+        message = JSON.parse(line);
+      } catch (_) {
+        continue;
+      }
+      if (message && message.event === "ready") {
+        state.ready = true;
+        continue;
+      }
+      if (message && message.event === "fatal") {
+        state.fatalError = message.error || "图文混排服务启动失败";
+        continue;
+      }
+      if (message && state.pending.has(message.id)) {
+        const entry = state.pending.get(message.id);
+        state.pending.delete(message.id);
+        clearTimeout(entry.timer);
+        if (message.ok) entry.resolve(message);
+        else entry.reject(new Error(message.error || "图文混排识别失败"));
+      }
+    }
+  });
+  proc.stderr.setEncoding("utf8");
+  proc.stderr.on("data", (chunk) => {
+    state.stderrTail = (state.stderrTail + chunk).slice(-800);
+  });
+  const failAll = (error) => {
+    for (const entry of state.pending.values()) {
+      clearTimeout(entry.timer);
+      entry.reject(error);
+    }
+    state.pending.clear();
+    if (onnxMixedServerState === state) {
+      onnxMixedServerState = null;
+    }
+  };
+  proc.on("exit", () => failAll(new Error(state.fatalError || "图文混排服务进程已退出")));
+  proc.on("error", (error) => failAll(error));
+  onnxMixedServerState = state;
+  return state;
+}
+
+async function recognizeOnnxFormula(source) {
+  const runtime = checkOnnxRuntime();
+  if (!runtime.ready) {
+    throw new Error("公式识别依赖 ONNX 运行环境，请先下载 ONNX OCR 引擎");
+  }
+  const formula = checkOnnxFormula();
+  if (!formula.ready) {
+    throw new Error("公式识别模型未下载，请先下载公式识别模型");
+  }
+  let tempFile = "";
+  try {
+    const imagePath = typeof source === "string" && source.startsWith("data:image/")
+      ? (tempFile = dataUrlToTempFile(source))
+      : assertImagePath(source);
+    if (path.extname(imagePath).toLowerCase() === ".webp") {
+      throw new Error("公式识别暂不支持 WebP，请转存 PNG");
+    }
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let state;
+      try {
+        state = ensureOnnxFormulaServer();
+        await waitOnnxServerReady(state);
+      } catch (bootError) {
+        try { state && state.proc && state.proc.kill(); } catch (_) {}
+        if (onnxFormulaServerState === state) onnxFormulaServerState = null;
+        lastError = bootError;
+        continue;
+      }
+      try {
+        const message = await onnxServerRecognize(state, imagePath);
+        const text = String(
+          message.text || (message.items && message.items[0] && message.items[0].text) || ""
+        );
+        return {
+          engine: "formula",
+          text,
+          lines: text ? [{ text }] : [],
+          raw: message
+        };
+      } catch (recError) {
+        lastError = recError;
+        break;
+      }
+    }
+    throw lastError;
+  } finally {
+    if (tempFile) {
+      try {
+        fs.rmSync(path.dirname(tempFile), { recursive: true, force: true });
+      } catch (_) {
+        // Ignore temp cleanup failures.
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 图文混排：MFD 检测公式区域 + 公式引擎识别 + 与文本行合并
+// detectOnnxMfd 仅做公式检测（op:"detect"），recognizeOnnxMixed 走完整合并（op:"mixed"），
+// recognizeOnnxFormulas 仅做「检测 + 逐框识别」返回 items 列表（op:"formulas"，供「公式识别」页签一图多公式）。
+// 三者均依赖 ONNX 运行环境 + 公式模型 + MFD 模型（MFD 复用公式引擎）。
+// source 支持 data:image/... 或路径，复用 dataUrlToTempFile + assertImagePath + 临时清理。
+// opts: { textLines, boxes, longSide, conf, iou, boxPad, filterTinyText }
+//   - boxPad：公式框裁剪外扩像素数（0–40，默认 2），贯通「混排」「多公式」裁剪链路。
+//   - conf/iou：MFD 检测灵敏度（不传则用服务端默认 0.25/0.7）；前端可调低 conf 抑制单字母误检。
+//   - filterTinyText：丢弃「识别结果为纯 1–2 字母/数字」的疑似普通文字误检框（默认 true，可 false 关）。
+//   - boxes：已检测 MFD 框（来自 detectOnnxMfd）可复用，避免重复推理。
+//   - textLines 的 chars（逐字符框）会原样透传，供服务端 splitLinePieces 做行内公式交错切分。
+// ---------------------------------------------------------------------------
+
+async function detectOnnxMfd(source, opts) {
+  const runtime = checkOnnxRuntime();
+  if (!runtime.ready) {
+    throw new Error("MFD 公式混排依赖 ONNX 运行环境，请先下载 ONNX OCR 引擎");
+  }
+  const formula = checkOnnxFormula();
+  if (!formula.ready) {
+    throw new Error("MFD 公式混排依赖公式识别模型，请先下载公式识别模型");
+  }
+  const mfd = checkOnnxMfd();
+  if (!mfd.ready) {
+    throw new Error("MFD 模型未下载，请先下载 MFD 公式检测模型");
+  }
+  const imagePath = typeof source === "string" && source.startsWith("data:image/")
+    ? dataUrlToTempFile(source)
+    : assertImagePath(source);
+  const tempFile = imagePath !== source ? imagePath : "";
+  try {
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let state;
+      try {
+        state = ensureOnnxMixedServer();
+        await waitOnnxServerReady(state);
+      } catch (bootError) {
+        try { state && state.proc && state.proc.kill(); } catch (_) {}
+        if (onnxMixedServerState === state) onnxMixedServerState = null;
+        lastError = bootError;
+        continue;
+      }
+      try {
+        const detectPayload = { op: "detect" };
+        if (opts && opts.conf != null) detectPayload.conf = Number(opts.conf);
+        if (opts && opts.iou != null) detectPayload.iou = Number(opts.iou);
+        const message = await onnxServerRecognize(state, imagePath, 120000, detectPayload);
+        if (!message.ok) throw new Error(message.error || "MFD 检测失败");
+        return {
+          ok: true,
+          image: message.image || { w: 0, h: 0 },
+          boxes: Array.isArray(message.boxes) ? message.boxes : []
+        };
+      } catch (recError) {
+        lastError = recError;
+        break;
+      }
+    }
+    throw lastError;
+  } finally {
+    if (tempFile) {
+      try {
+        fs.rmSync(path.dirname(tempFile), { recursive: true, force: true });
+      } catch (_) {
+        // Ignore temp cleanup failures.
+      }
+    }
+  }
+}
+
+async function recognizeOnnxMixed(source, opts) {
+  opts = opts || {};
+  const runtime = checkOnnxRuntime();
+  if (!runtime.ready) {
+    throw new Error("MFD 公式混排依赖 ONNX 运行环境，请先下载 ONNX OCR 引擎");
+  }
+  const formula = checkOnnxFormula();
+  if (!formula.ready) {
+    throw new Error("MFD 公式混排依赖公式识别模型，请先下载公式识别模型");
+  }
+  const mfd = checkOnnxMfd();
+  if (!mfd.ready) {
+    throw new Error("MFD 模型未下载，请先下载 MFD 公式检测模型");
+  }
+  const imagePath = typeof source === "string" && source.startsWith("data:image/")
+    ? dataUrlToTempFile(source)
+    : assertImagePath(source);
+  const tempFile = imagePath !== source ? imagePath : "";
+  const textLines = Array.isArray(opts.textLines)
+    ? opts.textLines
+        .filter((t) => t && t.text != null && Array.isArray(t.box) && t.box.length === 4)
+        .map((t) => {
+          const o = { text: String(t.text), box: t.box.map(Number) };
+          if (Array.isArray(t.chars) && t.chars.length) o.chars = t.chars;
+          return o;
+        })
+    : [];
+  const boxPad = Number(opts.boxPad);
+  const payload = {
+    op: "mixed",
+    longSide: opts.longSide != null ? Number(opts.longSide) : 768,
+    conf: opts.conf != null ? Number(opts.conf) : 0.25,
+    iou: opts.iou != null ? Number(opts.iou) : 0.55, // 0.7.9: 0.7 会放过同一公式的重复框，降到 0.55
+    boxPad: Number.isFinite(boxPad) ? Math.max(0, Math.min(40, Math.round(boxPad))) : 2,
+    filterTinyText: opts.filterTinyText !== false,
+    textLines
+  };
+  // 复用已检测的 MFD 框（来自 detectOnnxMfd），避免服务端重复跑一遍检测。
+  if (Array.isArray(opts.boxes) && opts.boxes.length) payload.boxes = opts.boxes;
+  try {
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let state;
+      try {
+        state = ensureOnnxMixedServer();
+        await waitOnnxServerReady(state);
+      } catch (bootError) {
+        try { state && state.proc && state.proc.kill(); } catch (_) {}
+        if (onnxMixedServerState === state) onnxMixedServerState = null;
+        lastError = bootError;
+        continue;
+      }
+      try {
+        const message = await onnxServerRecognize(state, imagePath, 120000, payload);
+        if (!message.ok) throw new Error(message.error || "图文混排识别失败");
+        return {
+          ok: true,
+          engine: "mixed",
+          image: message.image || { w: 0, h: 0 },
+          boxes: Array.isArray(message.boxes) ? message.boxes : [],
+          segments: Array.isArray(message.segments) ? message.segments : [],
+          markdown: typeof message.markdown === "string" ? message.markdown : "",
+          raw: message.raw || {}
+        };
+      } catch (recError) {
+        lastError = recError;
+        break;
+      }
+    }
+    throw lastError;
+  } finally {
+    if (tempFile) {
+      try {
+        fs.rmSync(path.dirname(tempFile), { recursive: true, force: true });
+      } catch (_) {
+        // Ignore temp cleanup failures.
+      }
+    }
+  }
+}
+
+async function recognizeOnnxFormulas(source, opts) {
+  opts = opts || {};
+  const runtime = checkOnnxRuntime();
+  if (!runtime.ready) {
+    throw new Error("MFD 公式混排依赖 ONNX 运行环境，请先下载 ONNX OCR 引擎");
+  }
+  const formula = checkOnnxFormula();
+  if (!formula.ready) {
+    throw new Error("MFD 公式混排依赖公式识别模型，请先下载公式识别模型");
+  }
+  const mfd = checkOnnxMfd();
+  if (!mfd.ready) {
+    throw new Error("MFD 模型未下载，请先下载 MFD 公式检测模型");
+  }
+  const imagePath = typeof source === "string" && source.startsWith("data:image/")
+    ? dataUrlToTempFile(source)
+    : assertImagePath(source);
+  const tempFile = imagePath !== source ? imagePath : "";
+  const boxPad = Number(opts.boxPad);
+  const payload = {
+    op: "formulas",
+    longSide: opts.longSide != null ? Number(opts.longSide) : 768,
+    conf: opts.conf != null ? Number(opts.conf) : 0.25,
+    iou: opts.iou != null ? Number(opts.iou) : 0.55, // 0.7.9: 0.7 会放过同一公式的重复框，降到 0.55
+    boxPad: Number.isFinite(boxPad) ? Math.max(0, Math.min(40, Math.round(boxPad))) : 2,
+    filterTinyText: opts.filterTinyText !== false
+  };
+  // 复用已检测的 MFD 框（来自 detectOnnxMfd），避免服务端重复跑一遍检测。
+  if (Array.isArray(opts.boxes) && opts.boxes.length) payload.boxes = opts.boxes;
+  try {
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let state;
+      try {
+        state = ensureOnnxMixedServer();
+        await waitOnnxServerReady(state);
+      } catch (bootError) {
+        try { state && state.proc && state.proc.kill(); } catch (_) {}
+        if (onnxMixedServerState === state) onnxMixedServerState = null;
+        lastError = bootError;
+        continue;
+      }
+      try {
+        const message = await onnxServerRecognize(state, imagePath, 120000, payload);
+        if (!message.ok) throw new Error(message.error || "公式识别失败");
+        return {
+          ok: true,
+          engine: "formulas",
+          image: message.image || { w: 0, h: 0 },
+          items: Array.isArray(message.items) ? message.items : []
+        };
+      } catch (recError) {
+        lastError = recError;
+        break;
+      }
+    }
+    throw lastError;
   } finally {
     if (tempFile) {
       try {
@@ -1238,6 +1951,22 @@ async function recognizeOnnxOcr(source) {
 // 协议与 rapid_ocr_server 完全一致（JSON-line stdin/stdout）
 // ---------------------------------------------------------------------------
 
+// P2-11：手动释放常驻 ONNX 服务进程（ocr/formula/mixed 三个），返回释放的进程数。
+// 下次识别会自动重新 spawn（冷启动 2-4s），用于让用户主动归还内存。
+function releaseOnnxServers() {
+  let released = 0;
+  const states = [onnxServerState, onnxFormulaServerState, onnxMixedServerState];
+  for (const state of states) {
+    if (state && state.proc) {
+      try { state.proc.kill(); released += 1; } catch (_) {}
+    }
+  }
+  onnxServerState = null;
+  onnxFormulaServerState = null;
+  onnxMixedServerState = null;
+  return released;
+}
+
 window.nativeOcr = {
   checkRuntime,
   installRuntime,
@@ -1247,6 +1976,15 @@ window.nativeOcr = {
   recognizeOnnxOcr,
   isOnnxOcrAvailable,
   installOnnxRuntime,
+  installOnnxFormula,
+  isOnnxFormulaAvailable,
+  recognizeOnnxFormula,
+  installOnnxMfd,
+  isOnnxMfdAvailable,
+  detectOnnxMfd,
+  recognizeOnnxMixed,
+  recognizeOnnxFormulas,
+  releaseOnnxServers,
   getPlatform() {
     return process.platform;
   },
