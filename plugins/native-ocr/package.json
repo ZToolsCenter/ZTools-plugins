@@ -1,6 +1,6 @@
 {
   "name": "native-ocr",
-  "version": "0.6.13",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "katex": "^0.16.11",
     "pdfjs-dist": "^6.3.289",
     "vue": "^3.5.22",
     "xlsx": "^0.18.5"
