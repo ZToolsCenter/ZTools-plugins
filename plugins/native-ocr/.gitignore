@@ -6,3 +6,10 @@ releases/
 .env
 .env.*
 .onnx-repro/
+# 开发期本地模型副本（171MB）。生产由 preload 按需下载到 onnx-runtime/assets/，
+# 仓库内无任何代码引用本目录，勿提交。
+formula-models/
+
+# 本地复现用资源与脚本（MFD 模型副本 / 真实管线复现脚本），不进发布
+local-assets/
+scripts/
