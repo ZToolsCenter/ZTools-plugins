@@ -21,12 +21,14 @@ import jpeg from 'jpeg-js';
 import { InferenceSession } from 'onnxruntime-node';
 import BaseOcr, { registerBackend } from '@gutenye/ocr-common';
 import { splitIntoLineImages } from '@gutenye/ocr-common/splitIntoLineImages';
-// Detection/Recognition 未从包根导出（exports 限制），走运行时扁平 node_modules 的相对路径
-import { Detection, Recognition } from './node_modules/@gutenye/ocr-common/build/models/index.js';
+// Bug 6：Detection/Recognition 未从包根导出（exports 限制），需走运行时扁平
+// node_modules 的相对深路径。该路径脆弱（包结构变动即 404），故改为在 main()
+// 内动态 import 并先校验文件存在，失败给出明确 fatal 错误而非晦涩的静态 import 失败。
 import { planTableSplits } from './onnx_table_split.mjs';
+import { sortReadingOrder } from './onnx_text_order.mjs';
 
 const RUNTIME_DIR = path.dirname(fileURLToPath(import.meta.url));
-const IDLE_TIMEOUT = 15 * 60;
+const IDLE_TIMEOUT = 60 * 60; // 识别后冷启动 2-4s，15min 太短——延长到 60min，降低二次使用的等待
 
 class FileUtils {
   static async read(filePath) {
@@ -46,15 +48,25 @@ class ImageRaw {
 
   static decode(buf, filePath) {
     const lower = String(filePath || '').toLowerCase();
-    if (lower.endsWith('.png') || (buf[0] === 0x89 && buf[1] === 0x50)) {
+    // 用 magic number 判断真实格式，扩展名仅作辅助，避免"非 png/bmp 一律按 jpeg 解"
+    // 的隐式行为把 WebP/TIFF 等未知格式丢给 jpeg.decode 抛晦涩错误。
+    const isPng = lower.endsWith('.png')
+      || (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47);
+    const isJpeg = lower.endsWith('.jpg') || lower.endsWith('.jpeg')
+      || (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff);
+    const isBmp = lower.endsWith('.bmp') || (buf[0] === 0x42 && buf[1] === 0x4d);
+    if (isPng) {
       const decoded = PNG.sync.read(buf);
       return new ImageRaw({ data: new Uint8Array(decoded.data), width: decoded.width, height: decoded.height });
     }
-    if (lower.endsWith('.bmp')) {
+    if (isBmp) {
       return ImageRaw.decodeBmp(buf);
     }
-    const decoded = jpeg.decode(buf, { useTArray: true, formatAsRGBA: true });
-    return new ImageRaw({ data: new Uint8Array(decoded.data), width: decoded.width, height: decoded.height });
+    if (isJpeg) {
+      const decoded = jpeg.decode(buf, { useTArray: true, formatAsRGBA: true });
+      return new ImageRaw({ data: new Uint8Array(decoded.data), width: decoded.width, height: decoded.height });
+    }
+    throw new Error('unsupported image format (only PNG/JPEG/BMP supported)');
   }
 
   static decodeBmp(buf) {
@@ -142,9 +154,28 @@ async function recognizeSingle(recognition, lineImage) {
   const image = await lineImage.image.resize({ height: 48 });
   const modelData = recognition.imageToInput(image, {});
   const output = await recognition.runModel({ modelData, onnxOptions: {} });
-  const lines = (recognition.decodeText(output) || []).filter(Boolean);
-  const best = lines.sort((a, b) => (b.mean || 0) - (a.mean || 0))[0];
-  return best && best.mean >= 0.5 ? String(best.text || '') : '';
+  // 形态守卫：decodeText 在不同版本可能返回 string[]、{text,mean}[] 或其他形态。
+  // 原代码直接 best.mean 在字符串/无 mean 形态下为 undefined，会把全部文本静默变空。
+  // 这里归一化：字符串项直接采用（视为满置信）；对象项取 text/mean（mean 缺省 1，
+  // 不设阈值）；仅对含数值 mean 的对象保留原 mean >= 0.5 的过滤语义。
+  const raw = recognition.decodeText(output);
+  if (raw == null) return '';
+  const items = Array.isArray(raw) ? raw : [raw];
+  let chosen = null;
+  for (const item of items) {
+    if (typeof item === 'string') {
+      if (item) chosen = { text: item, mean: 1 };
+      break;
+    }
+    if (item && typeof item === 'object') {
+      const text = item.text != null ? String(item.text) : '';
+      if (!text) continue;
+      const mean = typeof item.mean === 'number' ? item.mean : 1;
+      if (mean < 0.5) continue;
+      if (!chosen || mean > chosen.mean) chosen = { text, mean };
+    }
+  }
+  return chosen ? String(chosen.text) : '';
 }
 
 async function main() {
@@ -152,6 +183,24 @@ async function main() {
     await fs.access(file);
   }
   const ocr = await BaseOcr.create({ models: MODELS });
+  // Bug 6：Detection/Recognition 通过运行时扁平 node_modules 的相对深路径解析，
+  // 包结构变动时该文件可能不存在。改为动态 import 并先校验文件存在，失败给出明确
+  // 的 fatal 错误并退出（而非静态 import 直接 fatal 且报错信息晦涩）。
+  // 注意：registerBackend 已在模块顶层调用，runModel 的 backend 注册副作用不受影响，
+  // 动态 import 不会破坏它。
+  let Detection;
+  let Recognition;
+  try {
+    const modelsEntry = new URL('./node_modules/@gutenye/ocr-common/build/models/index.js', import.meta.url);
+    await fs.access(fileURLToPath(modelsEntry));
+    ({ Detection, Recognition } = await import(modelsEntry));
+  } catch (_) {
+    process.stdout.write(JSON.stringify({
+      event: 'fatal',
+      error: 'ONNX 引擎组件缺失或版本不兼容，请在插件设置中重置 ONNX 引擎后重试',
+    }) + '\n');
+    process.exit(1);
+  }
   // det / rec 分离实例：用于"表格宽行切列后重识别"管线
   const detection = await Detection.create({ models: MODELS });
   const recognition = await Recognition.create({ models: MODELS });
@@ -197,7 +246,8 @@ async function main() {
             });
           }
           if (!cells.length) throw new Error('no cells detected');
-          detected = cells;
+          // det 输出顺序不保证自上而下（常见自下而上），按几何位置恢复阅读顺序
+          detected = sortReadingOrder(cells);
         } catch (splitError) {
           detected = await ocr.detect(imagePath);
         }
