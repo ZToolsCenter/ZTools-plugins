@@ -150,3 +150,35 @@ export function buildGrid(cells, rowSeps, colSeps, edits = {}) {
   }
   return { grid, lowCells }
 }
+
+// ============ 网格序列化（P2-8 从 App.vue 拆入；P2-10 新增 Markdown） ============
+
+export function gridToTsv(grid) {
+  return (grid || []).map((row) => row.map((cell) => cell || '').join('\t')).join('\n')
+}
+
+export function csvEscape(value) {
+  const text = String(value == null ? '' : value)
+  if (/[",\n\r]/.test(text)) {
+    return '"' + text.replace(/"/g, '""') + '"'
+  }
+  return text
+}
+
+export function gridToCsv(grid) {
+  return (grid || []).map((row) => row.map((cell) => csvEscape(cell)).join(',')).join('\n')
+}
+
+// Markdown 表格：首行加粗为表头；单元格内换行/竖线转义。
+export function gridToMarkdown(grid) {
+  const g = (grid || []).filter((row) => Array.isArray(row) && row.length)
+  if (!g.length) return ''
+  const esc = (v) => String(v == null ? '' : v).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
+  const width = Math.max(...g.map((row) => row.length))
+  const pad = (row) => Array.from({ length: width }, (_, i) => esc(row[i] || ''))
+  const lines = []
+  lines.push('| ' + pad(g[0]).join(' | ') + ' |')
+  lines.push('| ' + Array.from({ length: width }, () => '---').join(' | ') + ' |')
+  for (let r = 1; r < g.length; r += 1) lines.push('| ' + pad(g[r]).join(' | ') + ' |')
+  return lines.join('\n')
+}
