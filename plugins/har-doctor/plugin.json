@@ -1,0 +1,73 @@
+{
+  "name": "har-doctor",
+  "version": "0.1.0",
+  "title": "HAR 医生",
+  "description": "离线诊断 HAR 网络瀑布，并优先保护报告隐私。",
+  "author": "harris",
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ],
+  "categories": [
+    "development",
+    "network"
+  ],
+  "main": "src/main/index.html",
+  "preload": "src/preload/index.cjs",
+  "logo": "logo.svg",
+  "features": [
+    {
+      "code": "analyze-har",
+      "icon": "logo.svg",
+      "explain": "分析一到两个 HAR 文件",
+      "cmds": [
+        "HAR 分析",
+        "网络瀑布诊断"
+      ]
+    }
+  ],
+  "tools": {
+    "analyze_inline": {
+      "title": "分析内联 HAR",
+      "description": "离线分析一个或两个有界 HAR JSON 文本，返回脱敏且截断的诊断报告。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "har": {
+            "type": "string",
+            "maxLength": 524288
+          },
+          "compareHar": {
+            "type": "string",
+            "maxLength": 524288
+          },
+          "detailLimit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "har"
+        ]
+      }
+    },
+    "analyze_approved_files": {
+      "title": "分析用户已授权的 HAR 文件",
+      "description": "一次性消费用户最近五分钟内在插件界面选择的一到两个 HAR 文件，不接受路径。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "detailLimit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      }
+    }
+  }
+}
