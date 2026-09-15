@@ -1,0 +1,12 @@
+{
+  "name": "subtitle-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "面向 ZTools 的本地优先字幕编辑工作台。",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "build": "npm test && node scripts/build.mjs && node scripts/verify-dist.mjs",
+    "verify-dist": "node scripts/verify-dist.mjs"
+  },
+  "engines": { "node": ">=16" }
+}
