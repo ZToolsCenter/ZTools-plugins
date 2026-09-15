@@ -8,6 +8,7 @@ import { useProjectStore } from '../stores/project'
 import { extractVariables } from '../utils/index'
 import type { PromptItem, Variable, PromptType, Snapshot } from '../types'
 import { showNotification } from '../utils/platform'
+import { useModal } from '../composables/useModal'
 import ManageContentTab from '../components/ManageContentTab.vue'
 import ManagePropsTab from '../components/ManagePropsTab.vue'
 import ManageVarsTab from '../components/ManageVarsTab.vue'
@@ -17,13 +18,13 @@ import ManageStatsTab from '../components/ManageStatsTab.vue'
 const router = useRouter()
 const prompt = usePromptStore()
 const projectStore = useProjectStore()
+const modal = useModal()
 
 const selectedId = ref('')
 const editTab = ref<'content' | 'props' | 'vars' | 'versions' | 'stats'>('content')
 const editBody = ref('')
 const editTitle = ref('')
 const editTags = ref<string[]>([])
-const tagInput = ref('')
 const editVars = ref<Variable[]>([])
 const editType = ref<PromptType>('prompt')
 const editProjectId = ref('')
@@ -75,8 +76,6 @@ watch(selectedUnit, (u) => {
   editProjectId.value = u.projectId || ''
 }, { immediate: true })
 
-function addTag() { const t = tagInput.value.trim(); if (t && !editTags.value.includes(t)) editTags.value.push(t); tagInput.value = '' }
-function removeTag(t: string) { editTags.value = editTags.value.filter(x => x !== t) }
 function addVar() { editVars.value.push({ name: `var_${editVars.value.length + 1}`, required: true, defaultValue: '' }) }
 function removeVar(i: number) { editVars.value.splice(i, 1) }
 
@@ -94,9 +93,9 @@ function selectAll() {
   else { selectedIds.value = new Set(items.map(i => i.id)) }
 }
 
-function batchDelete() {
+async function batchDelete() {
   if (!selectedIds.value.size) return
-  if (!confirm(`确定删除选中的 ${selectedIds.value.size} 项？`)) return
+  if (!await modal.confirm(`确定删除选中的 ${selectedIds.value.size} 项？`)) return
   let changed = false
   const now = Date.now()
   prompt.rawItems.value.forEach(item => {
@@ -124,9 +123,9 @@ function selectItem(id: string) {
   if (selectMode.value) { toggleSelect(id) } else { selectedId.value = id; editTab.value = 'content' }
 }
 
-function handleRestoreSnapshot(snap: Snapshot) {
+async function handleRestoreSnapshot(snap: Snapshot) {
   if (!selectedUnit.value) return
-  if (!confirm(`恢复到 v${snap.version} 的内容？`)) return
+  if (!await modal.confirm(`恢复到 v${snap.version} 的内容？`)) return
   const u = selectedUnit.value
   const now = Date.now()
   const snapshots = u.snapshots ? [...u.snapshots] : []
@@ -177,7 +176,7 @@ async function saveEdit() {
 
 async function deleteUnit() {
   const u = selectedUnit.value; if (!u) return
-  if (!confirm(`确定删除「${u.title}」？`)) return
+  if (!await modal.confirm(`确定删除「${u.title}」？`)) return
   prompt.softDelete(u.id); selectedId.value = ''
 }
 
@@ -266,15 +265,11 @@ onMounted(() => {
           :editType="editType"
           :editProjectId="editProjectId"
           :editTags="editTags"
-          :tagInput="tagInput"
           :projects="projectStore.items.value"
           :isFavorite="!!selectedUnit?.favorite"
           @update:editType="editType = $event"
           @update:editProjectId="editProjectId = $event"
           @update:editTags="editTags = $event"
-          @update:tagInput="tagInput = $event"
-          @addTag="addTag"
-          @removeTag="removeTag"
           @toggleFavorite="selectedUnit && toggleFavorite(selectedUnit.id)"
         />
 

@@ -39,5 +39,9 @@ export function useAppSettings() {
     }
   }
 
-  return { settings, load, save }
+  function reset() {
+    settings.value = { ...DEFAULT_SETTINGS }
+  }
+
+  return { settings, load, save, reset }
 }

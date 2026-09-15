@@ -91,10 +91,6 @@ function toggleSort(field: 'createdAt' | 'updatedAt' | 'title' | 'usageCount') {
   }
 }
 
-const sortLabel = computed(() => {
-  const map: Record<string, string> = { createdAt: '创建时间', updatedAt: '更新时间', title: '名称', usageCount: '使用次数' }
-  return map[prompt.sortBy.value] || '创建时间'
-})
 const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
 </script>
 

@@ -6,6 +6,7 @@ import { usePromptStore } from '../stores/prompt'
 import { useAppSettings } from '../stores/app'
 import { extractVariables, renderVariables, generateId } from '../utils/index'
 import { copyText, showNotification, hideMainWindow } from '../utils/platform'
+import { useModal } from '../composables/useModal'
 import type { PromptItem } from '../types'
 
 interface CanvasItem {
@@ -16,6 +17,7 @@ interface CanvasItem {
 const router = useRouter()
 const promptStore = usePromptStore()
 const appSettings = useAppSettings()
+const modal = useModal()
 const selectedBaseId = ref('')
 const canvasFrags = ref<CanvasItem[]>([])
 const varOverrides = ref<Record<string, string>>({})
@@ -55,12 +57,11 @@ const composedText = computed(() => {
 })
 const composedVars = computed(() => extractVariables(composedText.value))
 const renderedText = computed(() => {
-  let t = composedText.value
-  composedVars.value.forEach(v => {
-    const val = varOverrides.value[v.name] || v.defaultValue || `{{${v.name}}}`
-    t = t.replace(new RegExp(`\\{\\{${v.name}(?:=[^}]+)?\\}\\}`, 'g'), val)
-  })
-  return t
+  const values = Object.fromEntries(composedVars.value.map(variable => [
+    variable.name,
+    varOverrides.value[variable.name] || variable.defaultValue || `{{${variable.name}}}`,
+  ]))
+  return renderVariables(composedText.value, values)
 })
 
 function addFrag(f: PromptItem, position: 'front' | 'back' = 'back') {
@@ -84,7 +85,7 @@ async function copyComposite() {
 }
 
 async function saveAsNew() {
-  const name = prompt('请输入标题：', `组合 ${new Date().toLocaleDateString()}`)
+  const name = await modal.prompt('请输入标题：', `组合 ${new Date().toLocaleDateString()}`, { title: '另存为新提示词' })
   if (!name?.trim()) return
   const now = Date.now()
   promptStore.addItem({
