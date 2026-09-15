@@ -104,8 +104,7 @@ export function mergeBackup(pkg: BackupPackage, existing: BackupSource): MergeRe
     .map(p => {
       // projectId 指向不存在的项目 → 清空（转为资产），避免悬空引用
       if (p.projectId && !validProjectIds.has(p.projectId)) {
-        const { projectId: _drop, ...rest } = p
-        return rest as PromptItem
+        return { ...p, projectId: undefined }
       }
       return p
     })

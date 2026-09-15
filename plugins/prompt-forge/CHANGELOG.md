@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.0] - 2026-09-15
+
+### ✨ Features
+
+* **中文变量支持** — `{{变量名}}` 和 `${变量名}` 现在支持中文变量名（含 CJK 基本区和扩展A区），如 `{{角色=产品经理}}`、`{{需求描述}}`
+* **变量输入智能适配** — 长文本变量（名称含"描述/内容/context"等关键词，或默认值 ≥ 30 字符）自动使用 textarea 并支持自动增高，短变量保持单行 input
+* **应用内 Modal 组件** — 新增 `AppModal` 全局模态框，统一替换所有原生 `prompt()` / `confirm()` / `alert()` 弹窗，支持 alert / confirm / prompt 三种模式，带遮罩和过渡动画
+
+### ♻️ Refactor
+
+* **标签输入组件化** — 抽取 `TagsInput.vue` 可复用组件，统一 WizardView / QuickSaveView / ManagePropsTab 三处重复的标签输入逻辑（Enter 添加、× 删除、自动去重）
+
+### 🛠 Engineering
+
+* **中文变量回归测试** — 新增 `extractVariables` / `renderVariables` 中文变量名测试用例
+
 ## \[1.4.0] - 2026-08-27
 
 ### ✨ Features

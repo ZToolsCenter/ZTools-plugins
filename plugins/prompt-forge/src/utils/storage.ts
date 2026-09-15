@@ -21,12 +21,66 @@ const PROJECTS_KEY = 'projects'
 const SETTINGS_KEY = 'settings'
 const HISTORY_KEY = 'history'
 
+export interface StorageSnapshot {
+  prompts: PromptItem[]
+  projects: Project[]
+  settings: Record<string, any>
+  history: HistoryEntry[]
+}
+
+function cloneForStorage<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+async function writeSnapshot(kv: NonNullable<ReturnType<typeof getKv>>, snapshot: StorageSnapshot) {
+  await kv.set(PROMPTS_KEY, cloneForStorage(snapshot.prompts))
+  await kv.set(PROJECTS_KEY, cloneForStorage(snapshot.projects))
+  await kv.set(SETTINGS_KEY, cloneForStorage(snapshot.settings))
+  await kv.set(HISTORY_KEY, cloneForStorage(snapshot.history))
+}
+
+async function restoreValue(kv: NonNullable<ReturnType<typeof getKv>>, key: string, value: unknown) {
+  if (value === null || value === undefined) await kv.remove(key)
+  else await kv.set(key, value)
+}
+
+/**
+ * 用于导入和清空的整包替换：任一文档写入失败时回滚已写入的数据。
+ * ZTools KV 没有跨文档事务，因此在此处集中控制写入顺序和回滚。
+ */
+export async function replaceStorageSnapshot(snapshot: StorageSnapshot): Promise<void> {
+  const kv = getKv()
+  if (!kv) throw new Error('本地存储不可用')
+
+  const previous = {
+    prompts: await kv.get(PROMPTS_KEY),
+    projects: await kv.get(PROJECTS_KEY),
+    settings: await kv.get(SETTINGS_KEY),
+    history: await kv.get(HISTORY_KEY),
+  }
+
+  try {
+    await writeSnapshot(kv, snapshot)
+  } catch (error) {
+    try {
+      await restoreValue(kv, PROMPTS_KEY, previous.prompts)
+      await restoreValue(kv, PROJECTS_KEY, previous.projects)
+      await restoreValue(kv, SETTINGS_KEY, previous.settings)
+      await restoreValue(kv, HISTORY_KEY, previous.history)
+    } catch (rollbackError) {
+      console.error('[storage] rollback after snapshot write failed:', rollbackError)
+    }
+    throw error
+  }
+}
+
 export async function loadPrompts(): Promise<PromptItem[]> {
   const kv = getKv()
   if (!kv) return seedPrompts()
   try {
     const raw = kv.get(PROMPTS_KEY)
-    if (Array.isArray(raw) && raw.length > 0) return raw
+    // 空数组表示用户主动清空了词库，不能在下次启动时重新写入种子数据。
+    if (Array.isArray(raw)) return raw
     const defaults = seedPrompts()
     kv.set(PROMPTS_KEY, defaults)
     return defaults

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Star } from 'lucide-vue-next'
 import type { PromptType, Project } from '../types'
+import TagsInput from './TagsInput.vue'
 
 defineProps<{
   editType: PromptType
   editProjectId: string
   editTags: string[]
-  tagInput: string
   projects: Project[]
   isFavorite: boolean
 }>()
@@ -15,9 +15,6 @@ const emit = defineEmits<{
   (e: 'update:editType', v: PromptType): void
   (e: 'update:editProjectId', v: string): void
   (e: 'update:editTags', v: string[]): void
-  (e: 'update:tagInput', v: string): void
-  (e: 'addTag'): void
-  (e: 'removeTag', tag: string): void
   (e: 'toggleFavorite'): void
 }>()
 </script>
@@ -39,13 +36,7 @@ const emit = defineEmits<{
   </div>
   <div class="field">
     <label>标签</label>
-    <div v-if="editTags.length" class="tag-list">
-      <span v-for="t in editTags" :key="t" class="tag-item">{{ t }} <button class="tag-rm" @click="emit('removeTag', t)">×</button></span>
-    </div>
-    <div class="tag-input-row">
-      <input :value="tagInput" class="tag-input" placeholder="输入标签，回车添加" @keydown.enter.prevent="emit('addTag')" @input="emit('update:tagInput', ($event.target as HTMLInputElement).value)" />
-      <button class="btn btn-xs" @click="emit('addTag')">添加</button>
-    </div>
+    <TagsInput :modelValue="editTags" @update:modelValue="emit('update:editTags', $event)" />
   </div>
   <div class="field">
     <label>收藏</label>
@@ -62,11 +53,4 @@ const emit = defineEmits<{
 .type-btn.active { background: var(--pf-accent); color: #fff; border-color: var(--pf-accent); }
 .prop-select { height: 38px; padding: 0 10px; width: 100%; border: 1px solid var(--pf-border); background: var(--pf-surface); border-radius: var(--pf-radius-sm); font-size: 13.5px; }
 .prop-select:focus { border-color: var(--pf-accent); outline: none; }
-.tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.tag-item { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--pf-accent-soft); color: var(--pf-accent); border-radius: var(--pf-radius-xs); font-size: 12px; font-weight: 500; }
-.tag-rm { background: none; border: none; color: var(--pf-accent); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
-.tag-input-row { display: flex; gap: 6px; }
-.tag-input { flex: 1; height: 30px; border: 1px solid var(--pf-border); background: var(--pf-surface); border-radius: var(--pf-radius-sm); padding: 0 10px; font-size: 13px; }
-.tag-input:focus { border-color: var(--pf-accent); outline: none; }
-.btn-xs { height: 24px; padding: 0 8px; font-size: 11px; }
 </style>

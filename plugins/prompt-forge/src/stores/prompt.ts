@@ -17,7 +17,8 @@ const DEBOUNCE_MS = 300
 function schedulePersist() {
   if (_persistTimer) clearTimeout(_persistTimer)
   _persistTimer = setTimeout(() => {
-    savePrompts(rawItems.value)
+    _persistTimer = null
+    void savePrompts(rawItems.value)
   }, DEBOUNCE_MS)
 }
 
@@ -27,6 +28,14 @@ async function flushPersist() {
     clearTimeout(_persistTimer)
     _persistTimer = null
   }
+  await savePrompts(rawItems.value)
+}
+
+/** 仅落盘仍在 debounce 队列中的修改，供页面隐藏或退出时调用。 */
+async function flushPendingPersist() {
+  if (!_persistTimer) return
+  clearTimeout(_persistTimer)
+  _persistTimer = null
   await savePrompts(rawItems.value)
 }
 
@@ -268,7 +277,7 @@ export function usePromptStore() {
     sortedHistoryItems,
     spaceItems, allTags, filteredCallItems, activeItem,
     moveSelection, selectActive, resetSelection,
-    init, ensureReady, persistAll, recordUsage,
+    init, ensureReady, persistAll, flushPendingPersist, recordUsage,
     addHistory, clearHistory, deleteHistoryEntry,
     toggleFavorite, softDelete, restore, hardDelete,
     addItem, updateItem,

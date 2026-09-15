@@ -1,29 +1,27 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Settings, Palette, Download, Info } from 'lucide-vue-next'
-import { useRouter } from '../stores/router'
 import { usePromptStore } from '../stores/prompt'
 import { useProjectStore } from '../stores/project'
 import { useAppSettings } from '../stores/app'
 import { useTheme } from '../stores/theme'
 import { buildBackup, parseBackup, mergeBackup } from '../utils/backup'
-import { saveProjects, saveHistory, setSettings } from '../utils/storage'
+import { replaceStorageSnapshot } from '../utils/storage'
+import { useModal } from '../composables/useModal'
 
-const router = useRouter()
 const promptStore = usePromptStore()
 const projectStore = useProjectStore()
 const appSettings = useAppSettings()
 const theme = useTheme()
+const modal = useModal()
 const tab = ref('behavior')
 
-/** 将合并后的 settings 写回行为设置与主题 store，并一次性持久化 */
-async function applyImportedSettings(settings: Record<string, any>) {
+/** 将已持久化的设置同步到内存 store。 */
+function applyImportedSettings(settings: Record<string, any>) {
   if (typeof settings.closeAfterCopy === 'boolean') appSettings.settings.value.closeAfterCopy = settings.closeAfterCopy
   if (typeof settings.autoFocus === 'boolean') appSettings.settings.value.autoFocus = settings.autoFocus
   if (typeof settings.maxHistory === 'number' && settings.maxHistory > 0) appSettings.settings.value.maxHistory = settings.maxHistory
   if (settings.theme === 'dark' || settings.theme === 'light') theme.set(settings.theme)
-  // 一次性写入完整 settings（行为 + 主题），避免 app.save 覆盖 theme 字段
-  await setSettings({ ...appSettings.settings.value, theme: theme.theme.value })
 }
 
 function exportJson() {
@@ -43,7 +41,7 @@ function importJson(e: Event) {
   reader.onload = async () => {
     try {
       const pkg = parseBackup(JSON.parse(reader.result as string))
-      if (!pkg) { alert('格式不正确：不是有效的 PromptForge 备份文件'); return }
+      if (!pkg) { await modal.alert('格式不正确：不是有效的 PromptForge 备份文件'); return }
       await promptStore.ensureReady()
       await projectStore.ensureReady()
       const merged = mergeBackup(pkg, {
@@ -52,25 +50,32 @@ function importJson(e: Event) {
         settings: { ...appSettings.settings.value, theme: theme.theme.value },
         history: promptStore.historyItems.value,
       })
-      promptStore.rawItems.value = merged.prompts
+      // 先落盘当前 debounce 队列，防止旧定时器在导入后覆盖新数据。
       await promptStore.persistAll()
+      await replaceStorageSnapshot(merged)
+      promptStore.rawItems.value = merged.prompts
       projectStore.items.value = merged.projects
-      await saveProjects(merged.projects)
       promptStore.historyItems.value = merged.history
-      await saveHistory(merged.history)
-      await applyImportedSettings(merged.settings)
+      applyImportedSettings(merged.settings)
       const c = merged.counts
-      alert(`✓ 导入完成：提示词 ${c.prompts} 条、项目 ${c.projects} 个、历史 ${c.history} 条`)
-    } catch { alert('导入失败') }
+      await modal.alert(`✓ 导入完成：提示词 ${c.prompts} 条、项目 ${c.projects} 个、历史 ${c.history} 条`)
+    } catch { await modal.alert('导入失败') }
   }
   reader.readAsText(file)
   ;(e.target as HTMLInputElement).value = ''
 }
 async function clearAll() {
-  if (!confirm('⚠ 确定清空全部？')) return
+  if (!await modal.confirm('⚠ 确定清空全部？此操作不可恢复。', { title: '清空数据' })) return
   await promptStore.ensureReady()
-  promptStore.rawItems.value.splice(0, promptStore.rawItems.value.length)
-  await promptStore.persistAll(); alert('✓ 已清空')
+  await projectStore.ensureReady()
+  await promptStore.persistAll()
+  await replaceStorageSnapshot({ prompts: [], projects: [], settings: {}, history: [] })
+  promptStore.rawItems.value = []
+  promptStore.historyItems.value = []
+  projectStore.items.value = []
+  appSettings.reset()
+  theme.reset()
+  await modal.alert('✓ 已清空全部本地数据')
 }
 </script>
 
@@ -115,7 +120,7 @@ async function clearAll() {
       </div>
       <div v-if="tab === 'about'">
         <h2>关于 PromptForge</h2><p class="sub">AI 工作流增强插件。</p>
-        <div class="about-card"><div class="about-logo">PF</div><div><h3>PromptForge</h3><p class="ver">v1.4.0</p><p class="copy">© 2026</p></div></div>
+        <div class="about-card"><div class="about-logo">PF</div><div><h3>PromptForge</h3><p class="ver">v1.5.0</p><p class="copy">© 2026</p></div></div>
         <p class="privacy">本插件不发起网络请求。数据仅存储在本地。</p>
       </div>
     </div>

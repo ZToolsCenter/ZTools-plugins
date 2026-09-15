@@ -1,8 +1,19 @@
 import type { Variable } from '../types'
 
+/** 判断变量是否应使用 textarea */
+const TEXTAREA_KEYWORDS = ['描述', '内容', '上下文', '正文', '摘要', '备注', '说明', '详情',
+  'prompt', 'content', 'context', 'description', 'body', 'text', 'input', 'output', 'message', 'summary']
+
+export function shouldUseTextarea(v: { name: string; defaultValue?: string }): boolean {
+  const lower = v.name.toLowerCase()
+  if (TEXTAREA_KEYWORDS.some(kw => lower.includes(kw))) return true
+  if (v.defaultValue && v.defaultValue.length >= 30) return true
+  return false
+}
+
 /** 从文本中提取 {{name}} 或 ${name} 变量 */
 export function extractVariables(text: string): Variable[] {
-  const regex = /(?:\{\{|\$\{)([a-zA-Z0-9_-]+)(?:=([^}]+))?(?:\}\}|\})/g
+  const regex = /(?:\{\{|\$\{)([\u4e00-\u9fff\u3400-\u4dbfa-zA-Z0-9_-]+)(?:=([^}]+))?(?:\}\}|\})/g
   const vars: Variable[] = []
   const seen = new Set<string>()
   let match: RegExpExecArray | null
@@ -20,7 +31,7 @@ export function extractVariables(text: string): Variable[] {
 /** 替换文本中的变量为实际值 */
 export function renderVariables(text: string, values: Record<string, string>): string {
   if (!text) return ''
-  return text.replace(/(?:\{\{|\$\{)([a-zA-Z0-9_-]+)(?:=[^}]+)?(?:\}\}|\})/g, (_, name) => {
+  return text.replace(/(?:\{\{|\$\{)([\u4e00-\u9fff\u3400-\u4dbfa-zA-Z0-9_-]+)(?:=[^}]+)?(?:\}\}|\})/g, (_, name) => {
     return values[name] ?? `{{${name}}}`
   })
 }

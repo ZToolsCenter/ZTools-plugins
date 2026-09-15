@@ -34,6 +34,10 @@ export function useTheme() {
     theme.value = t
   }
 
+  function reset() {
+    theme.value = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  }
+
   async function persist() {
     try {
       const existing = await getSettings() || {}
@@ -41,5 +45,5 @@ export function useTheme() {
     } catch {}
   }
 
-  return { theme, init, toggle, set, persist }
+  return { theme, init, toggle, set, reset, persist }
 }
