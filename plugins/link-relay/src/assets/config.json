@@ -1,0 +1,42 @@
+{
+  "$comment": "出厂预设模板（只读）。结构与 store 三张表的 CreateDTO 对齐：groups[i] 对应 GroupCreateDTO（name），mappings[i] 对应 MappingCreateDTO（name/sourcePath/targetPath/exeNames/cachePatterns）。key/groupKey 仅用于首启实例化时把映射挂到新建分组（store 中分组 id 由 uuid 生成，故模板不写 id）。sourcePath 支持 %ENV%/~，实例化时由 api/dir.expandPath 展开为绝对路径；targetPath 为迁移目标绝对路径，可按需整体改盘符根目录。仅在宿主内、且 group/mapping 两表均为空的首次启动时实例化一次，之后以 store 持久化数据为准。",
+  "version": 1,
+  "groups": [
+    { "key": "vscode", "name": "Visual Studio Code" },
+    { "key": "qoder", "name": "Qoder IDE" }
+  ],
+  "mappings": [
+    {
+      "groupKey": "vscode",
+      "name": "扩展目录",
+      "sourcePath": "%USERPROFILE%\\.vscode",
+      "targetPath": "D:\\DevTools\\AppData\\Visual Studio Code\\.vscode",
+      "exeNames": ["Code.exe", "Visual Studio Code.exe"],
+      "cachePatterns": ["Cache", "CachedData", "GPUCache", "Code Cache", "log"]
+    },
+    {
+      "groupKey": "vscode",
+      "name": "配置目录",
+      "sourcePath": "%APPDATA%\\Code",
+      "targetPath": "D:\\DevTools\\AppData\\Visual Studio Code\\Code",
+      "exeNames": ["Code.exe", "Visual Studio Code.exe"],
+      "cachePatterns": ["Cache", "CachedData", "GPUCache", "Code Cache", "log"]
+    },
+    {
+      "groupKey": "qoder",
+      "name": "扩展目录",
+      "sourcePath": "%USERPROFILE%\\.qoder",
+      "targetPath": "D:\\DevTools\\AppData\\Qoder IDE\\.qoder",
+      "exeNames": ["Qoder IDE.exe"],
+      "cachePatterns": ["Cache", "GPUCache", "Code Cache", "log"]
+    },
+    {
+      "groupKey": "qoder",
+      "name": "配置目录",
+      "sourcePath": "%APPDATA%\\Qoder",
+      "targetPath": "D:\\DevTools\\AppData\\Qoder IDE\\Qoder",
+      "exeNames": ["Qoder IDE.exe"],
+      "cachePatterns": ["Cache", "GPUCache", "Code Cache", "log"]
+    }
+  ]
+}
