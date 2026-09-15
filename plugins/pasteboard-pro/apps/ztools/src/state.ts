@@ -14,10 +14,16 @@ import {
   pasteboardTokens,
   type DockEdge,
 } from "@pasteboard-pro/design-tokens";
+import {
+  hasAnyCommandModifier,
+  hasPrimaryShortcutModifier,
+  type ShortcutPlatform,
+} from "./platform-shortcuts";
 
 export type PasteboardKeyboardEvent = Readonly<{
   key: string;
   metaKey: boolean;
+  ctrlKey?: boolean;
   shiftKey: boolean;
   altKey: boolean;
 }>;
@@ -43,16 +49,20 @@ export type PasteboardStateInput = Readonly<{
   }>;
   dockEdge?: DockEdge;
   density?: ShelfDensity;
+  shortcutPlatform?: ShortcutPlatform;
 }>;
 
 export function keyboardAction(
   event: PasteboardKeyboardEvent,
   orderedIds: readonly string[],
+  shortcutPlatform: ShortcutPlatform = "darwin",
 ): SelectionAction | null {
-  if (event.metaKey && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "a") {
+  const hasPrimary = hasPrimaryShortcutModifier(event, shortcutPlatform);
+  const hasCommandModifier = hasAnyCommandModifier(event);
+  if (hasPrimary && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "a") {
     return { type: "select-all", orderedIds };
   }
-  if (!event.metaKey && !event.altKey && event.shiftKey) {
+  if (!hasCommandModifier && event.shiftKey) {
     if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       return { type: "extend", orderedIds, direction: -1 };
     }
@@ -61,7 +71,7 @@ export function keyboardAction(
     }
   }
   if (
-    !event.metaKey &&
+    !hasCommandModifier &&
     !event.shiftKey &&
     !event.altKey &&
     event.key === "Escape"
@@ -125,11 +135,13 @@ export class PasteboardState {
   private items: PasteItem[];
   private readonly explicitOrder: ReadonlyMap<string, number> | undefined;
   private query = "";
+  private resolvedItems = false;
 
   selection: SelectionState;
   pasteStack: PasteStackState;
   dockEdge: DockEdge;
   density: ShelfDensity;
+  private readonly shortcutPlatform: ShortcutPlatform;
 
   constructor(input: PasteboardStateInput) {
     this.items = input.items.map((item) => PasteItemSchema.parse(item));
@@ -141,9 +153,11 @@ export class PasteboardState {
     this.pasteStack = clonePasteStack(input.pasteStack);
     this.dockEdge = input.dockEdge ?? "floating";
     this.density = input.density ?? "expanded";
+    this.shortcutPlatform = input.shortcutPlatform ?? "darwin";
   }
 
   get visibleItems(): PasteItem[] {
+    if (this.resolvedItems) return this.items;
     const items = searchPasteItems(this.items, this.query);
     if (this.query.trim().length > 0 || this.explicitOrder === undefined) {
       return items;
@@ -175,7 +189,13 @@ export class PasteboardState {
     });
   }
 
+  replaceResolvedItems(items: readonly unknown[]): void {
+    this.resolvedItems = true;
+    this.items = items.map(item => PasteItemSchema.parse(item));
+  }
+
   replaceItems(items: readonly unknown[]): void {
+    this.resolvedItems = false;
     this.items = items.map((item) => PasteItemSchema.parse(item));
     const orderedIds = this.visibleItems.map((item) => item.id);
     this.selection = reduceSelection(this.selection, {
@@ -293,20 +313,22 @@ export class PasteboardState {
     orderedIds: readonly string[] = this.visibleItems.map((item) => item.id),
   ): PasteboardKeyboardEffect | null {
     const scopedIds = this.scopedOrderedIds(orderedIds);
-    const selectionAction = keyboardAction(event, scopedIds);
+    const selectionAction = keyboardAction(event, scopedIds, this.shortcutPlatform);
     if (selectionAction !== null) {
       this.selection = reduceSelection(this.selection, selectionAction);
       return null;
     }
 
-    if (event.metaKey && !event.altKey && /^[1-9]$/u.test(event.key)) {
+    const hasPrimary = hasPrimaryShortcutModifier(event, this.shortcutPlatform);
+    const hasCommandModifier = hasAnyCommandModifier(event);
+    if (hasPrimary && !event.altKey && /^[1-9]$/u.test(event.key)) {
       const itemId = scopedIds[Number(event.key) - 1];
       return itemId === undefined
         ? null
         : { type: "quick-paste", itemId, plainText: event.shiftKey };
     }
 
-    if (!event.metaKey && !event.shiftKey && !event.altKey) {
+    if (!hasCommandModifier && !event.shiftKey) {
       if (
         event.key === "ArrowLeft" ||
         event.key === "ArrowRight" ||
@@ -336,7 +358,7 @@ export class PasteboardState {
       }
     }
 
-    if (!event.metaKey && event.shiftKey && !event.altKey && event.key === "Enter") {
+    if (!hasCommandModifier && event.shiftKey && event.key === "Enter") {
       const available = new Set(scopedIds);
       const selected = this.selection.selected.filter((id) => available.has(id));
       return selected.length === 0

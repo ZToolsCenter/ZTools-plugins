@@ -10,12 +10,14 @@ import {
 import { containContextMenuKeydown } from "../context-menu-keyboard";
 import { writeSourceDragData } from "../drag-content";
 import { LIST_REORDER_MIME } from "../list-order";
+import { hasPrimaryShortcutModifier, resolveShortcutPlatform } from "../platform-shortcuts";
 
 const props = defineProps<{
   item: PasteItem;
   pinboards: readonly Pinboard[];
   selected: boolean;
   index: number;
+  total?: number;
   vertical?: boolean;
   compact?: boolean;
   reorderEnabled?: boolean;
@@ -38,6 +40,9 @@ const card = ref<HTMLElement>();
 const thumbnailUrl = ref<string>();
 const thumbnailRequested = ref(false);
 const reorderDragging = ref(false);
+const shortcutPlatform = resolveShortcutPlatform(
+  window.pasteboardPro?.getPlatformCapabilities().platform,
+);
 const contextMenu = ref<{ x: number; y: number }>();
 let stopObservingThumbnail: (() => void) | undefined;
 let reorderDragPreview: HTMLElement | undefined;
@@ -69,6 +74,15 @@ function openContextMenu(event: MouseEvent): void {
   };
   document.addEventListener("pointerdown", closeContextMenu);
   window.addEventListener("keydown", closeContextMenuOnEscape);
+}
+
+function selectCard(event: MouseEvent): void {
+  emit(
+    "select",
+    props.item.id,
+    event.shiftKey,
+    hasPrimaryShortcutModifier(event, shortcutPlatform),
+  );
 }
 
 function assignToPinboard(pinboardId: string | undefined): void {
@@ -228,16 +242,18 @@ function prepareNativeFileDrag(): void {
 }
 
 function beginNativeFileDrag(event: DragEvent): void {
-  event.dataTransfer?.setData("application/x-pasteboard-pro-item", props.item.id);
-  if (event.dataTransfer !== null) {
-    event.dataTransfer.effectAllowed = "copy";
-  }
-  // The nested <img> element has a browser-native drag behavior that exposes
-  // its thumbnail URL. Always cancel that default payload; the host API below
-  // supplies the original image/file as a native file drag instead.
-  window.pasteboardPro?.startNativeFileDrag(props.item.id);
-  event.preventDefault();
+  // Stop nested image/file drag events from reaching the card reorder handler.
   event.stopPropagation();
+  const started = window.pasteboardPro?.startNativeFileDrag(props.item.id) ?? false;
+  if (started) {
+    event.preventDefault();
+    return;
+  }
+  // ZTools 2.4–3.1 has no startDrag API. Preserve the browser data-transfer
+  // payload so those hosts still support in-plugin/source dragging.
+  if (event.dataTransfer !== null) {
+    writeSourceDragData(props.item, event.dataTransfer);
+  }
 }
 
 const bodyText = computed(() => {
@@ -288,17 +304,17 @@ onBeforeUnmount(() => {
     :class="[`paste-card--${item.kind}`, { 'paste-card--selected': selected, 'paste-card--vertical': vertical, 'paste-card--compact': compact, 'paste-card--dragging': reorderDragging || reorderHidden, 'paste-card--reorder-active': reorderActive, 'paste-card--shift-backward': reorderShift < 0, 'paste-card--shift-forward': reorderShift > 0 }]"
     :style="reorderTransformStyle"
     :aria-selected="selected"
+    :aria-posinset="index + 1"
+    :aria-setsize="total"
     :data-pb-item-id="item.id"
     role="option"
     tabindex="0"
     :draggable="reorderEnabled !== false"
-    @click="emit('select', item.id, $event.shiftKey, $event.metaKey)"
+    @click="selectCard"
     @dblclick="emit('paste', item.id)"
     @contextmenu.prevent.stop="openContextMenu"
     @dragstart="beginReorderDrag"
     @dragend="finishReorderDrag"
-    @keydown.enter="emit('paste', item.id)"
-    @keydown.space.prevent="emit('preview', item.id)"
   >
     <header>
       <span class="kind">{{ item.kind.replace('_', ' ') }}</span>

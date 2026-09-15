@@ -114,6 +114,82 @@ describe("Vue canonical state", () => {
     ).toBeNull();
   });
 
+  it("maps Ctrl shortcuts to selection and Quick Paste on Windows/Linux", () => {
+    const state = createPasteboardState({
+      items: historyFixture,
+      shortcutPlatform: "win32",
+    });
+
+    expect(
+      state.handleKeyboard({
+        key: "a",
+        metaKey: false,
+        ctrlKey: true,
+        shiftKey: false,
+        altKey: false,
+      }),
+    ).toBeNull();
+    expect(state.selection.selected).toEqual(state.visibleItems.map((item) => item.id));
+
+    expect(
+      state.handleKeyboard({
+        key: "2",
+        metaKey: false,
+        ctrlKey: true,
+        shiftKey: false,
+        altKey: false,
+      }),
+    ).toEqual({
+      type: "quick-paste",
+      itemId: state.visibleItems[1]?.id,
+      plainText: false,
+    });
+
+    expect(
+      state.handleKeyboard({
+        key: "2",
+        metaKey: false,
+        ctrlKey: true,
+        shiftKey: true,
+        altKey: false,
+      }),
+    ).toEqual({
+      type: "quick-paste",
+      itemId: state.visibleItems[1]?.id,
+      plainText: true,
+    });
+  });
+
+  it("does not treat a non-primary platform modifier as a bare list action", () => {
+    const state = createPasteboardState({
+      items: historyFixture,
+      shortcutPlatform: "win32",
+    });
+    const firstId = state.visibleItems[0]!.id;
+    state.replaceSelection(firstId);
+
+    expect(
+      state.handleKeyboard({
+        key: "ArrowRight",
+        metaKey: true,
+        ctrlKey: false,
+        shiftKey: false,
+        altKey: false,
+      }),
+    ).toBeNull();
+    expect(state.selection.selected).toEqual([firstId]);
+
+    expect(
+      state.handleKeyboard({
+        key: "Enter",
+        metaKey: true,
+        ctrlKey: false,
+        shiftKey: false,
+        altKey: false,
+      }),
+    ).toBeNull();
+  });
+
   it("moves single selection with arrows and exposes paste/preview effects", () => {
     const state = createPasteboardState({ items: historyFixture });
     const firstId = state.visibleItems[0]!.id;

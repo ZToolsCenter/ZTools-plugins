@@ -26,6 +26,11 @@ import {
 } from "../privacy-view";
 import { syncStatusPresentation } from "../sync-view";
 import { themeCssVariables } from "../theme";
+import {
+  primaryModifierName,
+  resolveShortcutPlatform,
+} from "../platform-shortcuts";
+import { openPasteShortcutSettings, type ZToolsShortcutSettingsApi } from "../hotkey-settings";
 
 type SettingsTab = "general" | "appearance" | "privacy" | "sync";
 type ThemeBackgroundType = ThemeBackground["type"];
@@ -72,6 +77,7 @@ const backgroundImageError = ref("");
 const clearingHistory = ref(false);
 const historyClearMessage = ref("");
 const historyClearFailed = ref(false);
+const hotkeySettingsMessage = ref("");
 const initialBlobBudgetUnit = preferredBlobBudgetUnit(
   props.privacySettings.retention.maxBlobBytes,
 );
@@ -111,6 +117,24 @@ const blobBudgetConstraints = computed(() =>
 const syncPresentation = computed(() =>
   syncStatusPresentation(props.syncSettings.status),
 );
+const shortcutPlatform = computed(() =>
+  resolveShortcutPlatform(window.pasteboardPro?.getPlatformCapabilities().platform),
+);
+const multiPasteHint = computed(() => {
+  if (shortcutPlatform.value === "darwin") {
+    return "一次性模式按 Enter 合并粘贴；逐一模式可连续按 Command-V。";
+  }
+  if (shortcutPlatform.value === "win32") {
+    return "一次性模式按 Enter 合并粘贴；逐一模式需在插件内按 Enter。Win+V 是 Windows 系统剪贴板历史快捷键，不能用于 Paste。";
+  }
+  return "一次性模式按 Enter 合并粘贴；逐一模式需在插件内按 Enter。";
+});
+const hotkeySettingsHint = computed(() => {
+  if (shortcutPlatform.value === "win32") {
+    return "请设置未被系统占用的组合；Win+V 保留给 Windows 剪贴板历史。";
+  }
+  return `在 ZTools 中设置 Paste剪切板的全局唤起快捷键；列表内快捷键使用 ${primaryModifierName(shortcutPlatform.value)}。`;
+});
 const themePreviewStyle = computed<Record<string, string>>(() => {
   const variables = themeCssVariables(
     {
@@ -226,6 +250,13 @@ async function clearHistory(): Promise<void> {
   }
 }
 
+function openHotkeySettings(): void {
+  const ztools = (window as Window & { ztools?: ZToolsShortcutSettingsApi }).ztools;
+  hotkeySettingsMessage.value = openPasteShortcutSettings(ztools)
+    ? "已打开 ZTools 快捷键设置。"
+    : "当前环境不支持打开 ZTools 快捷键设置；请在 ZTools 中右键 Paste剪切板后选择设置快捷键。";
+}
+
 function selectedThemeBackground(): ThemeBackground {
   if (form.backgroundType === "color") {
     return { type: "color", color: form.backgroundColor };
@@ -321,8 +352,13 @@ function save(): void {
                   <span>{{ option[1] }}</span>
                 </label>
               </div>
-              <small>一次性模式按 Enter 合并粘贴；macOS 逐一模式可连续按 Command-V，Windows/Linux 按 Enter 逐项粘贴。</small>
+              <small>{{ multiPasteHint }}</small>
             </fieldset>
+            <div class="shortcut-settings">
+              <span><strong>全局唤起快捷键</strong><small>{{ hotkeySettingsHint }}</small></span>
+              <button type="button" @click="openHotkeySettings">设置 ZTools 快捷键</button>
+            </div>
+            <p v-if="hotkeySettingsMessage" class="settings-result" role="status">{{ hotkeySettingsMessage }}</p>
           </section>
 
           <section v-show="activeTab === 'appearance'" class="settings-page" aria-label="外观设置">
@@ -411,6 +447,7 @@ function save(): void {
 .option-field { display:grid; gap:9px; margin:0; padding:15px 0; border:0; border-top:1px solid var(--pb-line); }.option-field legend { padding:0; font-size:12px; font-weight:750; }.option-grid { display:grid; gap:7px; }.option-grid--four { grid-template-columns:repeat(4,1fr); }.option-grid--three { grid-template-columns:repeat(3,1fr); }.option-grid--two { grid-template-columns:repeat(2,1fr); }.option-grid label { position:relative; }.option-grid input { position:absolute; opacity:0; pointer-events:none; }.option-grid span { display:grid; min-height:36px; border:1px solid var(--pb-line); border-radius:10px; background:color-mix(in srgb,var(--pb-glass-strong) 58%,transparent); color:var(--pb-muted); cursor:pointer; font-size:11px; font-weight:700; place-items:center; }.option-grid input:checked + span { border-color:var(--pb-violet); background:color-mix(in srgb,var(--pb-violet) 12%,var(--pb-window-bg)); color:var(--pb-violet); }.option-grid input:disabled + span { cursor:not-allowed; opacity:.45; }.option-grid input:focus-visible + span { outline:2px solid color-mix(in srgb,var(--pb-violet) 45%,transparent); outline-offset:1px; }
 .theme-preview { display:grid; grid-template-columns:auto 1fr auto; gap:14px; align-items:center; min-height:112px; margin-bottom:16px; padding:20px; overflow:hidden; border:1px solid var(--pb-line); border-radius:16px; background-position:center; background-repeat:no-repeat; background-size:cover; box-shadow:inset 0 0 0 999px color-mix(in srgb,var(--pb-glass) 32%,transparent); }.theme-preview__brand { color:var(--preview-accent); font-size:20px; font-weight:850; letter-spacing:-.04em; }.theme-preview div { display:flex; gap:5px; }.theme-preview i { width:26px; height:32px; border:1px solid color-mix(in srgb,var(--preview-accent) 22%,var(--pb-line)); border-radius:8px; background:color-mix(in srgb,var(--pb-glass-strong) 72%,transparent); }.theme-preview__button { display:grid; min-height:34px; padding:0 12px; border-radius:9px; background:var(--preview-accent); color:var(--preview-on-accent); font-size:10px; font-weight:750; place-items:center; }.color-field,.background-image-control { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0; border-top:1px solid var(--pb-line); }.color-field > span:first-child,.background-image-control > span:first-child { display:grid; gap:3px; }.color-field strong,.background-image-control strong { font-size:12px; }.color-field small,.background-image-control small { color:var(--pb-muted); font-size:10px; line-height:1.4; }.color-field__control { display:flex; align-items:center; gap:8px; }.color-field__control input { width:36px; height:32px; padding:2px; border:1px solid var(--pb-line); border-radius:9px; background:transparent; cursor:pointer; }.color-field__control code { min-width:66px; color:var(--pb-muted); font-size:10px; text-transform:uppercase; }.color-field--compact { border-bottom:1px solid var(--pb-line); }.background-image-control > div { display:flex; gap:7px; }.quiet-action { min-height:34px; padding:0 11px; border:1px solid var(--pb-line); border-radius:9px; background:color-mix(in srgb,var(--pb-glass-strong) 58%,transparent); color:var(--pb-ink); cursor:pointer; font-size:10px; font-weight:700; }.quiet-action:hover { border-color:var(--pb-violet); color:var(--pb-violet); }.quiet-action:disabled { cursor:wait; opacity:.55; }.quiet-action--danger { color:#c34455; }.settings-error { margin:8px 0 0; color:#c34455; font-size:10px; }
 .settings-toggle { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0; border-top:1px solid var(--pb-line); }.settings-toggle span { display:grid; gap:3px; }.settings-toggle strong { font-size:12px; }.settings-toggle small { color:var(--pb-muted); font-size:10px; line-height:1.4; }.settings-toggle input { width:32px; accent-color:var(--pb-violet); }
+.shortcut-settings { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0; border-top:1px solid var(--pb-line); }.shortcut-settings > span { display:grid; gap:3px; }.shortcut-settings strong { font-size:12px; }.shortcut-settings small { color:var(--pb-muted); font-size:10px; line-height:1.4; }.shortcut-settings button { flex:none; min-height:34px; padding:0 11px; border:1px solid var(--pb-line); border-radius:9px; background:color-mix(in srgb,var(--pb-glass-strong) 58%,transparent); color:var(--pb-ink); cursor:pointer; font-size:10px; font-weight:700; }.shortcut-settings button:hover,.shortcut-settings button:focus-visible { border-color:var(--pb-violet); color:var(--pb-violet); outline:2px solid color-mix(in srgb,var(--pb-violet) 30%,transparent); outline-offset:1px; }
 .danger-zone { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:18px; padding:14px; border:1px solid color-mix(in srgb,#c34455 28%,var(--pb-line)); border-radius:13px; background:color-mix(in srgb,#c34455 5%,transparent); }.danger-zone > span { display:grid; gap:3px; }.danger-zone strong { color:#b63f50; font-size:12px; }.danger-zone small { color:var(--pb-muted); font-size:10px; line-height:1.45; }.danger-zone button { flex:none; min-height:34px; padding:0 12px; border:1px solid color-mix(in srgb,#c34455 38%,var(--pb-line)); border-radius:9px; background:transparent; color:#b63f50; cursor:pointer; font-size:10px; font-weight:750; }.danger-zone button:hover { background:color-mix(in srgb,#c34455 9%,transparent); }.danger-zone button:disabled { cursor:wait; opacity:.55; }.settings-result { margin:8px 0 0; color:#23825d; font-size:10px; }.settings-result--error { color:#c34455; }
 .settings-grid,.sync-grid { display:grid; grid-template-columns:1fr 1fr; gap:11px; padding:14px 0; border-top:1px solid var(--pb-line); }.settings-grid label,.settings-field { display:grid; gap:6px; }.settings-grid span,.settings-field span { color:var(--pb-muted); font-size:10px; font-weight:700; }.settings-grid input,.settings-field input,.settings-field textarea,textarea { width:100%; padding:9px 11px; border:1px solid var(--pb-line); border-radius:10px; outline:none; background:color-mix(in srgb,var(--pb-glass-strong) 58%,transparent); color:var(--pb-ink); }.settings-field { margin-top:12px; }.settings-field--wide { grid-column:1 / -1; margin-top:0; }.settings-field input:focus,.settings-field textarea:focus,textarea:focus { border-color:var(--pb-violet); box-shadow:0 0 0 3px color-mix(in srgb,var(--pb-violet) 14%,transparent); }.settings-field input:disabled { opacity:.45; } textarea { resize:vertical; font:11px/1.45 "SFMono-Regular",Consolas,monospace; }
 .budget-control { display:grid; grid-template-columns:minmax(0,1fr) 84px; overflow:hidden; border:1px solid var(--pb-line); border-radius:10px; background:color-mix(in srgb,var(--pb-glass-strong) 58%,transparent); }.budget-control input { min-width:0; border:0; border-radius:0; background:transparent; }.budget-control select { min-width:0; padding:0 10px; border:0; border-left:1px solid var(--pb-line); outline:0; background:color-mix(in srgb,var(--pb-violet) 7%,transparent); color:var(--pb-ink); cursor:pointer; font:700 11px/1 system-ui,sans-serif; }
