@@ -21,6 +21,7 @@ function publicApp(app) {
   return {
     id: app.id, platform: app.platform, name: app.name, version: app.version,
     publisher: app.publisher, install: app.install, uninstall: app.uninstall, protected: app.protected,
+    icon: app.icon || null,
   }
 }
 

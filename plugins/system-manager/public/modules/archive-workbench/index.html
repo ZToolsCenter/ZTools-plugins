@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>压缩包预览管理 - 系统管家</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="archive-suite-page">
+      <!-- 统一 macOS 仪表盘顶栏 -->
+      <header class="archive-page-header">
+        <div class="header-left">
+          <a href="../../index.html" class="nav-back-link" title="返回系统管家总览">
+            <span class="nav-back-arrow">←</span>
+            <span>返回系统管家</span>
+          </a>
+          <div class="header-divider"></div>
+          <div class="header-title-group">
+            <span class="hw-header-pill">安全解压引擎已挂载</span>
+            <h1 class="header-title">压缩包安全预览与深度管理</h1>
+          </div>
+        </div>
+        <div class="header-actions">
+          <input type="file" id="archive-file-input" accept=".zip,application/zip" style="display:none;" />
+        </div>
+      </header>
+
+      <!-- 拖拽上传与识别区域（自适应大屏高度，居中舒适展示） -->
+      <section class="archive-drop-zone" id="archive-drop-zone" title="点击或拖拽 ZIP 文件至此">
+        <div class="drop-zone-content">
+          <div class="drop-icon-box">📦</div>
+          <div class="drop-text-group">
+            <h3 class="drop-title">拖拽 ZIP 压缩包至此区域，或点击此处选择</h3>
+            <p class="drop-sub">自动执行目录穿越深度免疫检测，无害快速预览内部文件层级树</p>
+            <div class="drop-badge">✨ 支持 macOS / Windows 标准 ZIP 归档</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 状态与错误提示栏 -->
+      <div id="archive-status-bar" class="status-banner" style="display:none;"></div>
+
+      <!-- 解析结果展示区（默认待上传） -->
+      <div class="archive-workbench-grid" id="archive-content-panel" style="display:none;">
+        <!-- 归档关键指标概览 -->
+        <div class="archive-meta-row">
+          <div class="meta-card">
+            <span class="meta-label">归档文件</span>
+            <strong class="meta-val" id="meta-archive-name">--.zip</strong>
+            <span class="meta-sub" id="meta-archive-path">--</span>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">包含项目 / 文件</span>
+            <strong class="meta-val" id="meta-archive-count">0</strong>
+            <span class="meta-sub">条归档文件记录</span>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">展开总体积</span>
+            <strong class="meta-val" id="meta-archive-size">0 B</strong>
+            <span class="meta-sub">解压后预计占用</span>
+          </div>
+          <div class="meta-card meta-card-safe">
+            <span class="meta-label">防目录穿越安全审计</span>
+            <strong class="meta-val text-emerald" id="meta-archive-safe">免疫安全</strong>
+            <span class="meta-sub">未发现恶意 ../ 路径提权</span>
+          </div>
+        </div>
+
+        <!-- 下方双栏：文件树与解压操作 -->
+        <div class="archive-action-grid">
+          <!-- 内部文件层级列表 -->
+          <div class="archive-tree-card">
+            <div class="tree-header">
+              <div class="tree-header-left">
+                <span class="tree-title">压缩包内部文件树明细</span>
+                <span class="tree-hint" id="tree-summary-hint">按目录层次深度解构</span>
+              </div>
+              <div class="tree-header-actions">
+                <button type="button" class="btn-tree-action" id="btn-expand-all">全部展开</button>
+                <button type="button" class="btn-tree-action" id="btn-collapse-all">全部收起</button>
+              </div>
+            </div>
+            <div class="tree-scroll-box" id="archive-entries-list"></div>
+          </div>
+
+          <!-- 安全解压控制台 -->
+          <div class="archive-extract-card">
+            <div class="extract-card-head">
+              <h3 class="extract-title">一键安全解压</h3>
+              <p class="extract-desc">所有文件将安全释放至指定目录，自动隔离潜在跨目录威胁</p>
+            </div>
+            <div class="extract-form">
+              <label class="form-label">解压释放目标目录:</label>
+              <div class="target-input-row">
+                <input type="text" id="extract-dest-input" placeholder="请选择或输入目标文件夹路径..." readonly />
+                <button type="button" class="btn-ghost" id="btn-choose-dest">选择目录</button>
+              </div>
+              <button type="button" class="btn-primary btn-block" id="btn-execute-extract">
+                安全解压到该目录
+              </button>
+              <div id="extract-result-box" class="extract-result" style="display:none;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

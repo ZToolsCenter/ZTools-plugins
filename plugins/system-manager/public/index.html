@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data: file:; base-uri 'none'; form-action 'none'; object-src 'none'"
     />
     <title>系统管家</title>
     <link rel="icon" href="./logo.svg" />
@@ -41,6 +41,687 @@
           <li>变更前预览</li>
           <li>危险操作需确认</li>
         </ul>
+      </section>
+
+      <!-- 现代快捷工具面板 (一键加速 / 壁纸管理 / 网络修复 / 测速 / 电池) -->
+      <section class="quick-toolkit-panel" aria-labelledby="quick-toolkit-title">
+        <div class="toolkit-header">
+          <div>
+            <div class="toolkit-brand-row">
+              <span class="badge-pill">工况与调优控制台</span>
+              <span class="status-live-indicator"><span class="pulse-dot"></span> 实时数据机在线</span>
+            </div>
+            <h2 id="quick-toolkit-title">系统极速调优与工况看板</h2>
+          </div>
+          <p class="toolkit-subtitle">实时监控 CPU、内存、显存与存储工况，集成极速内存加速、壁纸画廊与网络急救</p>
+        </div>
+
+        <!-- 顶部实时态势仪表区 -->
+        <div class="hud-glance-bar">
+          <div class="hud-item" id="hud-mem-tile">
+            <div class="hud-info">
+              <span class="hud-label">快速状态 · 内存负载</span>
+              <strong class="hud-value" id="hud-mem-val">-- / --</strong>
+            </div>
+            <div class="hud-progress"><div class="hud-progress-bar" id="hud-mem-bar" style="width: 0%"></div></div>
+          </div>
+          <div class="hud-item" id="hud-net-tile">
+            <div class="hud-info">
+              <span class="hud-label">网络往返 (RTT)</span>
+              <strong class="hud-value" id="hud-net-val">-- ms</strong>
+            </div>
+            <span class="hud-badge hud-badge-good" id="hud-net-badge">在线</span>
+          </div>
+          <div class="hud-item" id="hud-battery-tile">
+            <div class="hud-info">
+              <span class="hud-label">电池能耗状态</span>
+              <strong class="hud-value" id="hud-bat-val">--%</strong>
+            </div>
+            <span class="hud-badge" id="hud-bat-badge">检测中</span>
+          </div>
+        </div>
+
+        <!-- 硬件精细实时看板（温润暗夜深紫监控卡片：Apple M5 CPU / 内存甜甜圈 / 显存图形引擎） -->
+        <section class="hardware-monitor-section" id="hardware-monitor-section" aria-label="核心硬件看板">
+          <div class="hardware-monitor-header">
+            <div class="hw-header-title-group">
+              <span class="hw-header-pill">实时状态机采样中</span>
+              <h3 class="hw-header-title">核心硬件实时工况看板</h3>
+            </div>
+            <div class="hw-segment-tabs" role="tablist" aria-label="硬件指标切换">
+              <button type="button" class="hw-segment-tab active" data-hw-tab="cpu" role="tab" aria-selected="true">
+                <span class="hw-tab-dot hw-dot-cpu"></span>
+                <span class="hw-tab-text">CPU</span>
+              </button>
+              <button type="button" class="hw-segment-tab" data-hw-tab="mem" role="tab" aria-selected="false">
+                <span class="hw-tab-dot hw-dot-mem"></span>
+                <span class="hw-tab-text">内存</span>
+              </button>
+              <button type="button" class="hw-segment-tab" data-hw-tab="gpu" role="tab" aria-selected="false">
+                <span class="hw-tab-dot hw-dot-gpu"></span>
+                <span class="hw-tab-text">显存 / GPU</span>
+              </button>
+              <button type="button" class="hw-segment-tab" data-hw-tab="disk" role="tab" aria-selected="false">
+                <span class="hw-tab-dot hw-dot-disk"></span>
+                <span class="hw-tab-text">硬盘空间</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="hardware-cards-container">
+            <!-- 卡片 1: CPU 双折线卡片 -->
+            <div class="hw-monitor-card hw-card-cpu active" id="hw-card-cpu">
+              <div class="hw-monitor-card-head">
+                <h4 class="hw-monitor-chip-title" id="hw-cpu-title">Apple M5</h4>
+                <div class="hw-monitor-badge">CPU</div>
+              </div>
+
+              <!-- 图表区：左侧深紫双折线图，右侧纵向数值柱 -->
+              <div class="hw-chart-block hw-chart-block-cpu">
+                <div class="hw-line-chart-container">
+                  <svg class="hw-line-chart-svg" id="hw-cpu-svg" viewBox="0 0 240 130" preserveAspectRatio="none">
+                    <defs>
+                      <!-- 科技感细致网格格子背景 -->
+                      <pattern id="hw-grid-pattern" width="14" height="14" patternUnits="userSpaceOnUse">
+                        <path d="M 14 0 L 0 0 0 14" fill="none" stroke="rgba(167, 139, 250, 0.16)" stroke-width="0.8"/>
+                      </pattern>
+                      <!-- 用户态面积垂直半透明渐变 -->
+                      <linearGradient id="area-grad-user" x1="0" y1="0" x2="0" y2="100%">
+                        <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.42"/>
+                        <stop offset="100%" stop-color="#60a5fa" stop-opacity="0.0"/>
+                      </linearGradient>
+                      <!-- 系统态面积垂直半透明渐变 -->
+                      <linearGradient id="area-grad-sys" x1="0" y1="0" x2="0" y2="100%">
+                        <stop offset="0%" stop-color="#fb7185" stop-opacity="0.38"/>
+                        <stop offset="100%" stop-color="#fb7185" stop-opacity="0.0"/>
+                      </linearGradient>
+                      <!-- 折线自身发光渐变 -->
+                      <linearGradient id="grad-user" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#60a5fa"/>
+                        <stop offset="100%" stop-color="#93c5fd"/>
+                      </linearGradient>
+                      <linearGradient id="grad-sys" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#f43f5e"/>
+                        <stop offset="100%" stop-color="#fb7185"/>
+                      </linearGradient>
+                    </defs>
+                    <!-- 网格底板与外框 -->
+                    <rect width="240" height="130" rx="6" fill="rgba(24, 18, 40, 0.75)" />
+                    <rect width="240" height="130" rx="6" fill="url(#hw-grid-pattern)" stroke="rgba(167, 139, 250, 0.22)" stroke-width="1"/>
+                    <!-- 面积渐变填充 (位于折线底层) -->
+                    <path class="hw-curve-area hw-area-user" id="hw-cpu-area-user" fill="url(#area-grad-user)" d="M0,130 L240,130 Z" />
+                    <path class="hw-curve-area hw-area-sys" id="hw-cpu-area-sys" fill="url(#area-grad-sys)" d="M0,130 L240,130 Z" />
+                    <!-- 动态绘制折线 -->
+                    <path class="hw-curve-line hw-curve-user" id="hw-cpu-path-user" d="M0,90 Q120,40 240,75" />
+                    <path class="hw-curve-line hw-curve-sys" id="hw-cpu-path-sys" d="M0,110 Q120,95 240,105" />
+                    <!-- 最新数据端点高亮菱形标记 -->
+                    <polygon class="hw-curve-diamond dot-user" id="hw-cpu-point-user" points="240,71 244,75 240,79 236,75" />
+                    <polygon class="hw-curve-diamond dot-sys" id="hw-cpu-point-sys" points="240,101 244,105 240,109 236,105" />
+                  </svg>
+                </div>
+                <div class="hw-stat-bars-col">
+                  <div class="hw-stat-bar-row">
+                    <span class="hw-bar-indicator ind-avail"></span>
+                    <div class="hw-bar-text-group">
+                      <strong id="hw-cpu-avail-val">-- %</strong>
+                      <span class="hw-bar-sub">可用</span>
+                    </div>
+                  </div>
+                  <div class="hw-stat-bar-row">
+                    <span class="hw-bar-indicator ind-user"></span>
+                    <div class="hw-bar-text-group">
+                      <strong id="hw-cpu-user-val">-- %</strong>
+                      <span class="hw-bar-sub">用户</span>
+                    </div>
+                  </div>
+                  <div class="hw-stat-bar-row">
+                    <span class="hw-bar-indicator ind-sys"></span>
+                    <div class="hw-bar-text-group">
+                      <strong id="hw-cpu-sys-val">-- %</strong>
+                      <span class="hw-bar-sub">系统</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 两枚状态微卡片：运行时间与温度 -->
+              <div class="hw-subcards-row">
+                <div class="hw-subcard">
+                  <div class="hw-subcard-head">
+                    <div class="hw-subcard-title"><span class="hw-subcard-icon">🕒</span> 正常运行时间</div>
+                    <strong class="hw-subcard-val text-amber" id="hw-cpu-uptime">--</strong>
+                  </div>
+                  <p class="hw-subcard-tip" id="hw-cpu-uptime-desc">系统平稳运行中。定期重启可释放常驻内核缓冲区。</p>
+                </div>
+                <div class="hw-subcard">
+                  <div class="hw-subcard-head">
+                    <div class="hw-subcard-title"><span class="hw-subcard-icon">🌡️</span> 温度</div>
+                    <strong class="hw-subcard-val text-red" id="hw-cpu-temp">--℃</strong>
+                  </div>
+                  <p class="hw-subcard-tip" id="hw-cpu-temp-desc">硬件平稳运行。良好的散热能保证芯片高频寿命。</p>
+                </div>
+              </div>
+
+              <!-- 占用率排行 Top 5 -->
+              <div class="hw-ranking-container">
+                <div class="hw-ranking-head">
+                  <span class="hw-ranking-label">占用率排行</span>
+                  <span class="hw-ranking-col-tag">占用率 %</span>
+                </div>
+                <div class="hw-ranking-list" id="hw-cpu-proc-list">
+                  <div class="hw-ranking-empty">正在拉取活跃进程...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 卡片 2: 内存甜甜圈卡片 -->
+            <div class="hw-monitor-card hw-card-mem" id="hw-card-mem">
+              <div class="hw-monitor-card-head">
+                <h4 class="hw-monitor-chip-title" id="hw-mem-chip-title">Apple M5 统一内存</h4>
+                <div class="hw-monitor-badges-group">
+                  <span class="hw-monitor-badge badge-unified">Unified</span>
+                  <span class="hw-monitor-badge badge-swap" id="hw-mem-badge-swap">交换 0 GB</span>
+                </div>
+              </div>
+
+              <!-- 甜甜圈环形图与右侧圆点说明 -->
+              <div class="hw-chart-block hw-chart-block-donut">
+                <div class="hw-donut-wrapper">
+                  <svg class="hw-donut-svg" viewBox="0 0 180 180">
+                    <circle class="hw-donut-bg-track" cx="90" cy="90" r="70" />
+                    <!-- SVG 圆环半径 70，周长 2 * Math.PI * 70 = 439.82 -->
+                    <circle class="hw-donut-arc arc-active" id="hw-mem-arc-active" cx="90" cy="90" r="70" />
+                    <circle class="hw-donut-arc arc-wired" id="hw-mem-arc-wired" cx="90" cy="90" r="70" />
+                    <circle class="hw-donut-arc arc-compressed" id="hw-mem-arc-compressed" cx="90" cy="90" r="70" />
+                  </svg>
+                  <div class="hw-donut-center-info">
+                    <strong class="hw-donut-large-val" id="hw-mem-free-gb">-- GB</strong>
+                    <span class="hw-donut-sub-label" id="hw-mem-total-sub">可用空间 (总共 32 GB)</span>
+                  </div>
+                </div>
+                <div class="hw-donut-legend">
+                  <div class="hw-legend-item">
+                    <span class="hw-legend-dot dot-active"></span>
+                    <div class="hw-legend-data">
+                      <span class="hw-legend-title">活跃内存</span>
+                      <strong id="hw-mem-val-active">-- GB</strong>
+                    </div>
+                  </div>
+                  <div class="hw-legend-item">
+                    <span class="hw-legend-dot dot-wired"></span>
+                    <div class="hw-legend-data">
+                      <span class="hw-legend-title">联动内存</span>
+                      <strong id="hw-mem-val-wired">-- GB</strong>
+                    </div>
+                  </div>
+                  <div class="hw-legend-item">
+                    <span class="hw-legend-dot dot-compressed"></span>
+                    <div class="hw-legend-data">
+                      <span class="hw-legend-title">被压缩</span>
+                      <strong id="hw-mem-val-compressed">-- GB</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 两枚状态微卡片：压力与交换文件 -->
+              <div class="hw-subcards-row">
+                <div class="hw-subcard">
+                  <div class="hw-subcard-head">
+                    <div class="hw-subcard-title"><span class="hw-subcard-icon">⚡</span> 压力</div>
+                    <strong class="hw-subcard-val text-amber" id="hw-mem-pressure">--%</strong>
+                  </div>
+                  <p class="hw-subcard-tip">考虑退出一些不重要的应用，释放 Mac 内存压力。</p>
+                </div>
+                <div class="hw-subcard">
+                  <div class="hw-subcard-head">
+                    <div class="hw-subcard-title"><span class="hw-subcard-icon">💾</span> 交换文件</div>
+                    <strong class="hw-subcard-val text-white" id="hw-mem-swap">-- GB</strong>
+                  </div>
+                  <p class="hw-subcard-tip">驱动器上的空间可以帮助您优化 Mac 的内存性能。</p>
+                </div>
+              </div>
+
+              <!-- 占用率排行 Top 5 -->
+              <div class="hw-ranking-container">
+                <div class="hw-ranking-head">
+                  <span class="hw-ranking-label">占用率排行</span>
+                  <span class="hw-ranking-col-tag">占用量</span>
+                </div>
+                <div class="hw-ranking-list" id="hw-mem-proc-list">
+                  <div class="hw-ranking-empty">正在拉取内存进程...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 卡片 3: 显卡与显存图形引擎卡片 -->
+            <div class="hw-monitor-card hw-card-gpu" id="hw-card-gpu">
+              <div class="hw-monitor-card-head">
+                <h4 class="hw-monitor-chip-title" id="hw-gpu-title">显存与图形引擎</h4>
+                <div class="hw-monitor-badge" id="hw-gpu-badge">Metal 4</div>
+              </div>
+
+              <!-- 显存分配甜甜圈环形图 -->
+              <div class="hw-chart-block hw-chart-block-donut">
+                <div class="hw-donut-wrapper">
+                  <svg class="hw-donut-svg" viewBox="0 0 180 180">
+                    <circle class="hw-donut-bg-track" cx="90" cy="90" r="70" />
+                    <circle class="hw-donut-arc arc-gpu-alloc" id="hw-gpu-arc-alloc" cx="90" cy="90" r="70" />
+                  </svg>
+                  <div class="hw-donut-center-info">
+                    <strong class="hw-donut-large-val text-emerald" id="hw-gpu-free-gb">-- GB</strong>
+                    <span class="hw-donut-sub-label" id="hw-gpu-total-sub">共享显存池余量</span>
+                  </div>
+                </div>
+                <div class="hw-donut-legend">
+                  <div class="hw-legend-item">
+                    <span class="hw-legend-dot dot-emerald"></span>
+                    <div class="hw-legend-data">
+                      <span class="hw-legend-title">已分配显存</span>
+                      <strong id="hw-gpu-val-alloc">-- GB</strong>
+                    </div>
+                  </div>
+                  <div class="hw-legend-item">
+                    <span class="hw-legend-dot dot-purple"></span>
+                    <div class="hw-legend-data">
+                      <span class="hw-legend-title">Metal 架构</span>
+                      <strong id="hw-gpu-val-metal">Metal 4 硬件加速</strong>
+                    </div>
+                  </div>
+                  <div class="hw-legend-item">
+                    <span class="hw-legend-dot dot-amber"></span>
+                    <div class="hw-legend-data">
+                      <span class="hw-legend-title">渲染器负荷</span>
+                      <strong id="hw-gpu-val-load">-- %</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 两枚状态微卡片：图形负荷与引擎状态 -->
+              <div class="hw-subcards-row">
+                <div class="hw-subcard">
+                  <div class="hw-subcard-head">
+                    <div class="hw-subcard-title"><span class="hw-subcard-icon">🎮</span> 图形负荷</div>
+                    <strong class="hw-subcard-val text-emerald" id="hw-gpu-util">--%</strong>
+                  </div>
+                  <p class="hw-subcard-tip">Metal 硬件加速处于最佳工况，视网膜渲染帧率稳定。</p>
+                </div>
+                <div class="hw-subcard">
+                  <div class="hw-subcard-head">
+                    <div class="hw-subcard-title"><span class="hw-subcard-icon">⚙️</span> 图形引擎</div>
+                    <strong class="hw-subcard-val text-white" id="hw-gpu-family">Metal 4</strong>
+                  </div>
+                  <p class="hw-subcard-tip">统一内存架构零拷贝共享显存，延迟极低按需供给。</p>
+                </div>
+              </div>
+
+              <!-- 显卡/渲染占用 Top 5 -->
+              <div class="hw-ranking-container">
+                <div class="hw-ranking-head">
+                  <span class="hw-ranking-label">图形渲染进程</span>
+                  <span class="hw-ranking-col-tag">负荷 / 占用</span>
+                </div>
+                <div class="hw-ranking-list" id="hw-gpu-proc-list">
+                  <div class="hw-ranking-empty">正在拉取图形进程...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 卡片 4: 硬盘空间卡片 (Macintosh HD) -->
+            <div class="hw-monitor-card hw-card-disk" id="hw-card-disk">
+              <div class="hw-monitor-card-head">
+                <h4 class="hw-monitor-chip-title" id="hw-disk-title">Macintosh HD</h4>
+                <div class="hw-monitor-badge">APFS</div>
+              </div>
+
+              <!-- 甜甜圈图与右侧分类统计 -->
+              <div class="hw-chart-disk-split">
+                <div class="hw-donut-box">
+                  <svg class="hw-donut-svg" viewBox="0 0 100 100">
+                    <circle class="hw-donut-track" cx="50" cy="50" r="38" />
+                    <!-- 6 段彩色分段弧线 (从 12 点钟开始顺时针) -->
+                    <circle class="hw-donut-seg" id="hw-disk-seg-apps" cx="50" cy="50" r="38" stroke="#f43f5e" />
+                    <circle class="hw-donut-seg" id="hw-disk-seg-docs" cx="50" cy="50" r="38" stroke="#818cf8" />
+                    <circle class="hw-donut-seg" id="hw-disk-seg-pics" cx="50" cy="50" r="38" stroke="#fbbf24" />
+                    <circle class="hw-donut-seg" id="hw-disk-seg-video" cx="50" cy="50" r="38" stroke="#2dd4bf" />
+                    <circle class="hw-donut-seg" id="hw-disk-seg-audio" cx="50" cy="50" r="38" stroke="#c084fc" />
+                    <circle class="hw-donut-seg" id="hw-disk-seg-other" cx="50" cy="50" r="38" stroke="#94a3b8" />
+                  </svg>
+                  <div class="hw-donut-center">
+                    <strong class="hw-donut-big-val" id="hw-disk-avail">417.99 GB</strong>
+                    <span class="hw-donut-avail-label">可用空间</span>
+                    <span class="hw-donut-total-label" id="hw-disk-total">(总共 994.61 GB)</span>
+                  </div>
+                </div>
+
+                <!-- 右侧分类清单列表 -->
+                <div class="hw-disk-legend-list">
+                  <div class="hw-disk-legend-row">
+                    <div class="hw-legend-dot" style="background:#f43f5e"></div>
+                    <div class="hw-disk-legend-info">
+                      <div class="hw-disk-item-label">应用程序</div>
+                      <div class="hw-disk-item-val" id="hw-disk-val-apps">60.83 GB</div>
+                    </div>
+                  </div>
+                  <div class="hw-disk-legend-row">
+                    <div class="hw-legend-dot" style="background:#818cf8"></div>
+                    <div class="hw-disk-legend-info">
+                      <div class="hw-disk-item-label">文稿</div>
+                      <div class="hw-disk-item-val" id="hw-disk-val-docs">21.56 GB</div>
+                    </div>
+                  </div>
+                  <div class="hw-disk-legend-row">
+                    <div class="hw-legend-dot" style="background:#fbbf24"></div>
+                    <div class="hw-disk-legend-info">
+                      <div class="hw-disk-item-label">图片</div>
+                      <div class="hw-disk-item-val" id="hw-disk-val-pics">13.85 GB</div>
+                    </div>
+                  </div>
+                  <div class="hw-disk-legend-row">
+                    <div class="hw-legend-dot" style="background:#2dd4bf"></div>
+                    <div class="hw-disk-legend-info">
+                      <div class="hw-disk-item-label">影片</div>
+                      <div class="hw-disk-item-val" id="hw-disk-val-video">3.86 GB</div>
+                    </div>
+                  </div>
+                  <div class="hw-disk-legend-row">
+                    <div class="hw-legend-dot" style="background:#c084fc"></div>
+                    <div class="hw-disk-legend-info">
+                      <div class="hw-disk-item-label">音频</div>
+                      <div class="hw-disk-item-val" id="hw-disk-val-audio">75.9 MB</div>
+                    </div>
+                  </div>
+                  <div class="hw-disk-legend-row">
+                    <div class="hw-legend-dot" style="background:#94a3b8"></div>
+                    <div class="hw-disk-legend-info">
+                      <div class="hw-disk-item-label">其他</div>
+                      <div class="hw-disk-item-val" id="hw-disk-val-other">568.85 GB</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 双状态微卡片 (运行状况 99% + 理想温度 37℃) -->
+              <div class="hw-subcards-row">
+                <div class="hw-subcard">
+                  <div class="hw-subcard-head">
+                    <div class="hw-subcard-title"><span class="hw-subcard-icon">🤍</span> 运行状况</div>
+                    <strong class="hw-subcard-val text-white" id="hw-disk-health-val">99%</strong>
+                  </div>
+                  <p class="hw-subcard-tip" id="hw-disk-health-desc">此驱动器状态良好，不过已经开始逐渐老化。</p>
+                </div>
+
+                <div class="hw-subcard">
+                  <div class="hw-subcard-head">
+                    <div class="hw-subcard-title"><span class="hw-subcard-icon">🌡️</span> 温度</div>
+                    <strong class="hw-subcard-val text-white" id="hw-disk-temp-val">37℃</strong>
+                  </div>
+                  <p class="hw-subcard-tip" id="hw-disk-temp-desc">当前温度在理想工作温度范围内。</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- 现代化功能选项卡（收敛页面，不再堆叠下滑） -->
+        <div class="tab-nav-bar" role="tablist" aria-label="快捷工具导航">
+          <button class="tab-nav-item active" role="tab" aria-selected="true" data-tab="boost">
+            <span class="tab-icon">⚡</span>
+            <span>一键加速</span>
+          </button>
+          <button class="tab-nav-item" role="tab" aria-selected="false" data-tab="speedtest">
+            <span class="tab-icon">🚀</span>
+            <span>网络测速</span>
+          </button>
+          <button class="tab-nav-item" role="tab" aria-selected="false" data-tab="wallpaper">
+            <span class="tab-icon">🖼️</span>
+            <span>壁纸管理</span>
+          </button>
+          <button class="tab-nav-item" role="tab" aria-selected="false" data-tab="network-repair">
+            <span class="tab-icon">🛠️</span>
+            <span>网络修复</span>
+          </button>
+          <button class="tab-nav-item" role="tab" aria-selected="false" data-tab="battery">
+            <span class="tab-icon">🔋</span>
+            <span>电池工况</span>
+          </button>
+        </div>
+
+        <div class="tab-content-wrapper">
+          <!-- 1. 一键极速优化 -->
+          <div class="tab-pane active" id="pane-boost">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card tool-card-glow" id="tool-card-boost">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-boost">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">一键极速优化</span>
+                    <span class="tool-tag">RAM 工作集 / 惰性进程</span>
+                  </div>
+                </div>
+                
+                <div class="boost-visual-container">
+                  <div class="boost-radar-circle" id="boost-radar-circle">
+                    <div class="radar-sweep"></div>
+                    <div class="boost-center-stat">
+                      <span class="boost-percent" id="boost-mem-pct">--%</span>
+                      <span class="boost-sub">内存负载</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="tool-desc">深度压缩工作集缓存，回收未释放堆内存并休眠后台无响应应用。</p>
+                
+                <div class="tool-actions">
+                  <button class="action-btn action-btn-boost" id="btn-quick-boost">
+                    <span class="btn-icon">⚡</span>
+                    <span class="btn-text">立即一键深度加速</span>
+                  </button>
+                </div>
+                <div class="tool-result-box boost-result-box" id="boost-result" hidden></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 专业级网络测速仪表 -->
+          <div class="tab-pane" id="pane-speedtest">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card" id="tool-card-speedtest">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-speed">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">网络测速仪表盘</span>
+                    <span class="tool-tag">双向带宽 / 延迟波动 / 丢包率</span>
+                  </div>
+                </div>
+
+                <div class="speedtest-stage">
+                  <div class="gauge-container">
+                    <div class="gauge-dial">
+                      <svg class="gauge-svg" viewBox="0 0 200 110">
+                        <path class="gauge-track" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke-width="12" />
+                        <path class="gauge-fill" id="gauge-fill-arc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="251.2" />
+                      </svg>
+                      <div class="gauge-pointer" id="gauge-pointer"></div>
+                      <div class="gauge-center-val">
+                        <span class="speed-main-num" id="speed-live-num">0.0</span>
+                        <span class="speed-unit">Mbps</span>
+                      </div>
+                    </div>
+                    <div class="gauge-ticks">
+                      <span>0</span>
+                      <span>50</span>
+                      <span>100</span>
+                      <span>200</span>
+                      <span>500+</span>
+                    </div>
+                  </div>
+
+                  <div class="speed-metrics-grid">
+                    <div class="metric-box">
+                      <span class="metric-label">下载速率</span>
+                      <div class="metric-number-row"><strong id="val-download">--</strong> <small>Mbps</small></div>
+                    </div>
+                    <div class="metric-box">
+                      <span class="metric-label">上传速率</span>
+                      <div class="metric-number-row"><strong id="val-upload">--</strong> <small>Mbps</small></div>
+                    </div>
+                    <div class="metric-box">
+                      <span class="metric-label">网络往返 (RTT)</span>
+                      <div class="metric-number-row"><strong id="val-latency">--</strong> <small>ms</small></div>
+                    </div>
+                    <div class="metric-box">
+                      <span class="metric-label">网络抖动 (Jitter)</span>
+                      <div class="metric-number-row"><strong id="val-jitter">--</strong> <small>ms</small></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tool-actions">
+                  <button class="action-btn action-btn-primary" id="btn-run-speedtest">
+                    <span class="spin-indicator" id="speedtest-spinner" hidden></span>
+                    <span id="speedtest-btn-text">开始全面测速</span>
+                  </button>
+                </div>
+                <div class="tool-result-box" id="speedtest-result" hidden></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 壁纸管理 & 备份画廊 -->
+          <div class="tab-pane" id="pane-wallpaper">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card" id="tool-card-wallpaper">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-wallpaper">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">壁纸管理与图库</span>
+                    <span class="tool-tag">本地持久留档 / 一键更换 / 增删改查</span>
+                  </div>
+                </div>
+                
+                <div class="wallpaper-workbench">
+                  <div class="wallpaper-preview-hero" id="wallpaper-preview-box">
+                    <div class="preview-empty-state" id="wallpaper-empty-state">
+                      <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="1.5" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/></svg>
+                      <span>选择下方画廊壁纸或上传新图片</span>
+                    </div>
+                  </div>
+                  <div class="wallpaper-gallery-container">
+                    <div class="gallery-toolbar">
+                      <div class="gallery-title-row">
+                        <span>本地壁纸库 (<b id="gallery-count">0</b>)</span>
+                        <div class="gallery-search-box">
+                          <input type="text" id="wallpaper-search-input" placeholder="搜索壁纸..." />
+                        </div>
+                      </div>
+                      <div class="gallery-btn-row">
+                        <button class="btn-upload-pill" id="btn-trigger-upload" type="button">
+                          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          <span>上传壁纸</span>
+                        </button>
+                        <input type="file" id="wallpaper-file-input" accept="image/png,image/jpeg,image/webp,image/jpg,image/heic,image/heif,.heic,.heif" style="display:none;" />
+                        <button class="btn-clear-pill" id="btn-clear-gallery" title="清空全部图库">
+                          <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          <span>清空图库</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="wallpaper-gallery-scroll" id="wallpaper-gallery-list">
+                      <div class="gallery-empty-hint">暂无备份壁纸，点击上方上传添加</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tool-actions wallpaper-actions">
+                  <div class="wallpaper-edit-meta">
+                    <input type="text" class="wallpaper-rename-input" id="wp-rename-input" placeholder="壁纸名称 (可重命名)" disabled />
+                    <button class="btn-save-rename" id="btn-save-rename" disabled title="保存重命名">重命名</button>
+                  </div>
+                  <button class="action-btn action-btn-primary" id="btn-apply-wallpaper" disabled>
+                    <span>一键设为当前桌面壁纸</span>
+                  </button>
+                </div>
+                <div class="tool-result-box" id="wallpaper-result" hidden></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 网络深度急救与修复 -->
+          <div class="tab-pane" id="pane-network-repair">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card" id="tool-card-network-repair">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-repair">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">网络急救修复</span>
+                    <span class="tool-tag">DNS / Socket / 路由</span>
+                  </div>
+                </div>
+                <p class="tool-desc">智能修复网络解析异常、清除污染缓存及重置本地套接字。</p>
+                <div class="repair-options modern-checks">
+                  <label class="modern-checkbox"><input type="checkbox" id="opt-flush-dns" checked /> <span class="chk-box"></span> <span>刷新 DNS 缓存与 mDNS</span></label>
+                  <label class="modern-checkbox"><input type="checkbox" id="opt-clean-cache" checked /> <span class="chk-box"></span> <span>重置 Socket 与协议栈</span></label>
+                  <label class="modern-checkbox"><input type="checkbox" id="opt-reset-dns" /> <span class="chk-box"></span> <span>推荐极速公共 DNS</span></label>
+                </div>
+                <div class="tool-actions">
+                  <button class="action-btn action-btn-secondary" id="btn-run-network-repair">执行网络修复</button>
+                </div>
+                <div class="tool-result-box" id="network-repair-result" hidden></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. 电池工况与健康 -->
+          <div class="tab-pane" id="pane-battery">
+            <div class="compact-tool-grid single-col">
+              <div class="tool-card" id="tool-card-battery">
+                <div class="tool-card-head">
+                  <div class="tool-icon-box icon-accent-battery">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><rect x="1" y="6" width="18" height="12" rx="2" ry="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
+                  </div>
+                  <div class="tool-meta">
+                    <span class="tool-title">电池工况监控</span>
+                    <span class="tool-tag">寿命 / 充放电 / 循环</span>
+                  </div>
+                </div>
+                
+                <div class="battery-dashboard-card">
+                  <div class="bat-dial-wrap">
+                    <div class="bat-chip-graphic">
+                      <div class="bat-chip-level" id="bat-chip-level" style="height: 0%"></div>
+                      <span class="bat-chip-bolt" id="bat-chip-bolt">⚡</span>
+                    </div>
+                    <div class="bat-dial-text">
+                      <span class="bat-huge-pct" id="battery-level-num">--%</span>
+                      <span class="bat-badge" id="battery-state-tag">正在探测</span>
+                    </div>
+                  </div>
+                  <div class="bat-props-list">
+                    <div class="prop-row"><span class="prop-label">电源模式</span><span class="prop-val" id="bat-power-src">--</span></div>
+                    <div class="prop-row"><span class="prop-label">充放电循环</span><span class="prop-val" id="bat-cycle-count">-- 次</span></div>
+                    <div class="prop-row"><span class="prop-label">最大容量健康度</span><span class="prop-val highlight" id="bat-health-val">--</span></div>
+                  </div>
+                </div>
+
+                <div class="tool-actions">
+                  <button class="action-btn action-btn-secondary" id="btn-refresh-battery">刷新工况</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          </div>
       </section>
 
       <nav id="modules" class="module-grid" aria-label="系统管家功能模块">
@@ -130,16 +811,51 @@
             <span class="enter">进入 <b aria-hidden="true">→</b></span>
           </div>
         </a>
+
+        <a class="module-card" href="./modules/plugin-guard/index.html">
+          <div class="card-topline">
+            <span class="module-icon icon-guard-module" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+            </span>
+            <span class="behavior behavior-readonly">只读 · 静态审计</span>
+          </div>
+          <div class="card-copy">
+            <h3>插件安全体检</h3>
+            <p>扫描并审计 ZTools 插件目录与清单结构，分析高敏能力、静态语法调用与潜在风险项。</p>
+          </div>
+          <div class="card-footer">
+            <span>静态分析 · 无害读取</span>
+            <span class="enter">进入 <b aria-hidden="true">→</b></span>
+          </div>
+        </a>
+
+        <a class="module-card" href="./modules/archive-workbench/index.html">
+          <div class="card-topline">
+            <span class="module-icon icon-archive-module" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 8V21H3V8M1 3H23V8H1V3ZM10 12H14" /></svg>
+            </span>
+            <span class="behavior behavior-governed">预览 · 防穿越解压</span>
+          </div>
+          <div class="card-copy">
+            <h3>压缩包预览管理</h3>
+            <p>安全解构 ZIP 归档目录，检查恶意目录穿越并计算空间指标，提供安心的一键安全解压。</p>
+          </div>
+          <div class="card-footer">
+            <span>目录穿越深度免疫</span>
+            <span class="enter">进入 <b aria-hidden="true">→</b></span>
+          </div>
+        </a>
       </nav>
+
 
       <section class="agent-access-panel" data-agent-access-state="loading" aria-labelledby="agent-access-title">
         <div class="agent-access-copy">
           <div class="agent-access-heading">
-            <h2 id="agent-access-title">Agent 短时授权</h2>
+            <h2 id="agent-access-title">Agent 授权</h2>
             <span id="agent-access-badge" class="agent-access-badge">检测中</span>
           </div>
           <p>只读查看与预览无需授权；只有明确选择的副作用操作可在授权期内请求执行。</p>
-          <p class="agent-access-boundary">授权最多持续 10 分钟，可随时撤销；刷新、离开当前页面或重启会提前失效。授权不等于跳过每个工具的预览、确认与执行前复验。</p>
+          <p class="agent-access-boundary">授权配置已持久化保存，退出插件保持生效，可随时一键撤销。授权不等于跳过每个工具的预览、确认与执行前复验。</p>
         </div>
         <div class="agent-access-controls">
           <p id="agent-access-status" class="agent-access-status" aria-live="off">正在检查授权能力…</p>
@@ -163,36 +879,73 @@
       >
         <form id="agent-access-form" class="agent-access-form" novalidate>
           <header class="agent-access-dialog-header">
-            <p class="product-label">受控操作</p>
-            <h2 id="agent-access-dialog-title">选择 Agent 授权范围</h2>
-            <p id="agent-access-dialog-description">选择允许 Agent 在当前页面会话内、最多接下来 10 分钟请求执行的副作用操作。每个工具仍会保留预览、确认与执行前复验。</p>
+            <p class="product-label">权限模式</p>
+            <h2 id="agent-access-dialog-title">选择 Agent 授权模式</h2>
+            <p id="agent-access-dialog-description">选择允许 Agent 在当前页面会话内执行操作的授权规则，授权常驻有效直到主动撤销。每个高危工具仍保留确认与执行前复验。</p>
           </header>
 
-          <fieldset class="agent-scope-list" aria-describedby="agent-access-selection-hint">
-            <legend>授权范围</legend>
-            <label class="agent-scope-option">
-              <input type="checkbox" name="agent-scope" value="report_export" />
-              <span><strong>报告导出</strong><small>导出已经预览并确认的诊断报告</small></span>
+          <fieldset class="agent-scope-list codex-mode-list" aria-describedby="agent-access-selection-hint">
+            <legend class="sr-only">授权模式</legend>
+            <label class="agent-scope-option codex-mode-option" data-mode="ask">
+              <input type="radio" name="agent-mode" value="ask" checked />
+              <span class="codex-mode-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+                  <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
+                  <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+                  <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+                </svg>
+              </span>
+              <span class="codex-mode-content">
+                <strong>请求批准</strong>
+                <small>编辑外部文件和使用互联网时始终询问</small>
+              </span>
+              <span class="codex-check-mark">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
             </label>
-            <label class="agent-scope-option">
-              <input type="checkbox" name="agent-scope" value="lan_scan" />
-              <span><strong>主动局域网扫描（DNS 默认关闭）</strong><small>仅允许受限的主动发现，不执行端口扫描</small></span>
+            <label class="agent-scope-option codex-mode-option" data-mode="auto">
+              <input type="radio" name="agent-mode" value="auto" />
+              <span class="codex-mode-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                  <path d="m9 12 2 2 4-4"/>
+                </svg>
+              </span>
+              <span class="codex-mode-content">
+                <strong>帮我批准</strong>
+                <small>仅对检测到的风险操作请求批准</small>
+              </span>
+              <span class="codex-check-mark">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
             </label>
-            <label class="agent-scope-option">
-              <input type="checkbox" name="agent-scope" value="startup_changes" />
-              <span><strong>启动项变更/撤销</strong><small>变更受支持的当前用户启动项或撤销变更</small></span>
-            </label>
-            <label class="agent-scope-option">
-              <input type="checkbox" name="agent-scope" value="system_cleanup" />
-              <span><strong>垃圾移入废纸篓</strong><small>移动已预览、已选择的白名单垃圾项目</small></span>
-            </label>
-            <label class="agent-scope-option">
-              <input type="checkbox" name="agent-scope" value="application_removal" />
-              <span><strong>应用/残留处理</strong><small>仅将当前平台支持且已复验的所选项目移入废纸篓；部分平台只处理用户级残留</small></span>
+            <label class="agent-scope-option codex-mode-option codex-mode-danger" data-mode="full">
+              <input type="radio" name="agent-mode" value="full" />
+              <span class="codex-mode-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                  <path d="M12 8v4"/>
+                  <path d="M12 16h.01"/>
+                </svg>
+              </span>
+              <span class="codex-mode-content">
+                <strong>完全访问权限</strong>
+                <small>可不受限制地访问互联网和你电脑上的任何文件</small>
+              </span>
+              <span class="codex-check-mark">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
             </label>
           </fieldset>
 
-          <p id="agent-access-selection-hint" class="agent-access-selection-hint" aria-live="polite">未选择任何范围。请至少选择一项。</p>
+          <p id="agent-access-selection-hint" class="agent-access-selection-hint" aria-live="polite">已选择权限模式。点击确认将立即生效。</p>
           <div class="agent-access-dialog-actions">
             <button id="agent-access-cancel" class="agent-access-button agent-access-button-secondary" type="button">取消</button>
             <button
@@ -200,12 +953,12 @@
               class="agent-access-button agent-access-button-primary"
               type="submit"
               aria-describedby="agent-access-selection-hint"
-              disabled
-            >授权 10 分钟</button>
+            >确认授权</button>
           </div>
         </form>
       </dialog>
 
+      
       <footer class="suite-footer">
         <span>支持 macOS、Windows 与 Linux</span>
         <span>系统管家不会上传扫描或诊断结果</span>

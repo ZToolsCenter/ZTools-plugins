@@ -41,6 +41,16 @@ function trustedPages(suiteRoot, platform = process.platform) {
     const filePath = pathApi.join(root, ...route.split('/'))
     pages.set(pathKey(filePath, platform), Object.freeze({ kind: 'module', featureCode, hashes, filePath, href: fileHref(filePath, platform) }))
   }
+
+  const toolRoutes = {
+    'plugin-guard': 'modules/plugin-guard/index.html',
+    'archive-workbench': 'modules/archive-workbench/index.html',
+  }
+  for (const [toolCode, route] of Object.entries(toolRoutes)) {
+    const filePath = pathApi.join(root, ...route.split('/'))
+    pages.set(pathKey(filePath, platform), Object.freeze({ kind: 'tool', featureCode: toolCode, hashes: Object.freeze(['']), filePath, href: fileHref(filePath, platform) }))
+  }
+
   return pages
 }
 

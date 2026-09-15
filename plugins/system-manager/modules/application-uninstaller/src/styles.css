@@ -867,3 +867,213 @@ p {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Batch Toolbar & App List Modern Enhancements */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--surface-raised, #ffffff);
+  border: 1px solid var(--line, #e5e7eb);
+  padding: 12px 18px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.batch-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.select-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--line, #e5e7eb);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink, #1f2937);
+  transition: all 0.15s ease;
+}
+
+.select-all-btn:hover {
+  background: var(--surface, #f9fafb);
+  border-color: var(--accent, #3b82f6);
+}
+
+.check-icon.checked {
+  color: var(--accent, #3b82f6);
+}
+
+.check-indeterminate {
+  width: 14px;
+  height: 14px;
+  background: var(--accent, #3b82f6);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.data-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.custom-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent, #3b82f6);
+  cursor: pointer;
+}
+
+.data-option-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink, #374151);
+}
+
+.data-option-text small {
+  color: var(--ink-faint, #9ca3af);
+  font-size: 12px;
+}
+
+.danger-batch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+  transition: all 0.2s ease;
+}
+
+.danger-batch-btn:hover:not(:disabled) {
+  background: #dc2626;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
+}
+
+.danger-batch-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.app-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--surface-raised, #ffffff);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.app-row:hover {
+  border-color: var(--accent, #3b82f6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.app-row.selected {
+  background: #f0f7ff;
+  border-color: var(--accent, #3b82f6);
+}
+
+.row-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.row-check {
+  color: var(--ink-faint, #9ca3af);
+}
+
+.row-check.checked {
+  color: var(--accent, #3b82f6);
+}
+
+.app-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.real-app-icon {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.app-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.app-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-name-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-sub-text {
+  font-size: 12px;
+  color: var(--ink-faint, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-tail {
+  flex-shrink: 0;
+}
+
+.data-mode-tag {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #ecfdf5;
+  color: #059669;
+  font-weight: 500;
+}
+
+.data-mode-tag.tag-clean {
+  background: #fef2f2;
+  color: #dc2626;
+}

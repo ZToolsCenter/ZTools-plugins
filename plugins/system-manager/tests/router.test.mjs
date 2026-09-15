@@ -16,7 +16,7 @@ const TOOL_NAMES = Object.freeze([
   'execute_application_removal', 'scan_startup_items', 'list_startup_items', 'prepare_startup_change',
   'set_startup_item_enabled', 'undo_startup_change', 'scan_system_junk', 'list_system_junk',
   'prepare_system_cleanup', 'clean_system_junk', 'list_network_interfaces', 'prepare_lan_scan',
-  'scan_lan_devices', 'get_operation_result',
+  'scan_lan_devices', 'get_operation_result', 'get_hardware_metrics', 'inspect_archive_safety', 'audit_installed_plugin',
 ])
 
 function hrefFor(relativePath) {
