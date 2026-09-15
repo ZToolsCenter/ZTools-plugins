@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';">
+  <title>人民币大写</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div class="app">
+    <div class="brand">
+      <span class="brand-logo" aria-hidden="true">壹</span>
+      <span class="brand-title">人民币大写转换器</span>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切换主题" title="切换深色 / 浅色主题">
+        <span class="theme-icon-dark" aria-hidden="true">🌙</span>
+        <span class="theme-icon-light" aria-hidden="true">☀</span>
+      </button>
+    </div>
+
+    <div class="search">
+      <input
+        type="text"
+        id="number-input"
+        class="search-input"
+        placeholder="输入阿拉伯数字（最多 2 位小数）"
+        autocomplete="off"
+        spellcheck="false"
+        autofocus>
+      <button id="clear-btn" class="clear-btn" type="button" aria-label="清空">清空</button>
+    </div>
+
+    <div class="results" id="results" role="list" aria-live="polite"></div>
+
+    <div class="hint" id="hint">支持 0.00 ~ 9999999999999999.99（含千分位逗号，最多 2 位小数）</div>
+  </div>
+
+  <script src="converter.js"></script>
+  <script src="index.js"></script>
+</body>
+</html>

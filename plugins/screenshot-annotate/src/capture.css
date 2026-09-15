@@ -1,0 +1,82 @@
+html,
+body,
+#capture-app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.cap-root {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: transparent;
+}
+
+.capture-stage {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  cursor: crosshair;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.preview-canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  /* 背景图半透明，透出下方"实际桌面"的裁切效果 */
+  opacity: 0.92;
+}
+
+.sel-rect {
+  position: absolute;
+  border: 1.5px solid #4c8dff;
+  background: rgba(76, 141, 255, 0.12);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.sel-size {
+  position: absolute;
+  left: 0;
+  top: -24px;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: #fff;
+  background: #4c8dff;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 15px;
+}
+
+.err {
+  color: #ff6b6b;
+}

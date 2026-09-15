@@ -1,0 +1,26 @@
+{
+  "$schema": "../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "petdex-desktop-pet",
+  "title": "Petdex 桌宠",
+  "description": "浏览 Petdex 宠物并在桌面启用动画桌宠",
+  "author": "Zing",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://127.0.0.1:15180"
+  },
+  "pluginSetting": {
+    "single": true,
+    "backgroundRunning": true
+  },
+  "features": [
+    {
+      "code": "petdex-desktop-pet",
+      "explain": "浏览、下载并启用桌面宠物",
+      "icon": "logo.png",
+      "cmds": ["桌宠", "宠物", "desktop pet", "petdex"]
+    }
+  ]
+}

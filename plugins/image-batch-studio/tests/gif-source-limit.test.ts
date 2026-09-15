@@ -5,7 +5,7 @@ import path from "node:path";
 
 const sharpCalls = vi.hoisted(() => [] as Array<{ input: unknown; options: unknown }>);
 
-vi.mock("sharp", () => {
+vi.mock("../src/preload/sharp-runtime", () => {
   const sharpMock = vi.fn((input, options) => {
     sharpCalls.push({ input, options });
     const chain = {
@@ -17,7 +17,7 @@ vi.mock("sharp", () => {
     };
     return chain;
   });
-  return { default: sharpMock };
+  return { sharp: sharpMock };
 });
 
 describe("gif source limits", () => {

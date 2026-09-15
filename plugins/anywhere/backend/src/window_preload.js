@@ -2,8 +2,7 @@ window.utools = { ...window.ztools }
 const { ipcRenderer } = require('electron');
 const fs = require('fs');
 const path = require('path');
-
-const { createChatCompletion, getRandomItem } = require('./chat.js');
+const { fileURLToPath } = require('url');
 
 const {
     getConfig,
@@ -32,25 +31,70 @@ const {
     listJsonFiles,
 } = require('./file.js');
 
-const { 
-  invokeBuiltinTool,
-} = require('./mcp_builtin.js');
+const BLOCKED_EXTERNAL_PROTOCOLS = new Set(['javascript:', 'data:', 'blob:', 'about:']);
 
-const { 
-  initializeMcpClient, 
-  invokeMcpTool,
-  closeMcpClient,
-  connectAndFetchTools,
-} = require('./mcp.js');
+function isBlockedExternalProtocol(protocol = '') {
+    return BLOCKED_EXTERNAL_PROTOCOLS.has(String(protocol || '').toLowerCase());
+}
 
-const {
-    listSkills,
-    getSkillDetails,
-    generateSkillToolDefinition,
-    resolveSkillInvocation,
-    saveSkill,
-    deleteSkill
-} = require('./skill.js');
+function openLinkWithSystemDefault(rawUrl = '') {
+    const targetUrl = String(rawUrl || '').trim();
+    if (!targetUrl || targetUrl.startsWith('#')) {
+        return { ok: false, reason: 'ignored_anchor' };
+    }
+
+    try {
+        const parsedUrl = new URL(targetUrl);
+        const protocol = parsedUrl.protocol.toLowerCase();
+
+        if (isBlockedExternalProtocol(protocol)) {
+            console.warn('[window_preload] Blocked external url with unsafe protocol:', protocol);
+            return { ok: false, reason: 'blocked_protocol' };
+        }
+
+        if (protocol === 'file:') {
+            const localPath = fileURLToPath(parsedUrl);
+            utools.shellOpenPath(localPath);
+            return { ok: true, type: 'path' };
+        }
+    } catch (error) {
+        console.warn('[window_preload] Failed to parse link url, fallback to shellOpenExternal:', error.message);
+    }
+
+    utools.shellOpenExternal(targetUrl);
+    return { ok: true, type: 'url' };
+}
+
+
+function getLazyRuntime() {
+    const runtimePath = './' + 'lazy_runtime.js';
+    return require(runtimePath);
+}
+
+function getChatModule() {
+    return getLazyRuntime();
+}
+
+function getMcpBuiltinModule() {
+    return getLazyRuntime();
+}
+
+function getMcpModule() {
+    return getLazyRuntime();
+}
+
+function getSkillModule() {
+    return getLazyRuntime();
+}
+
+function getCompactModule() {
+    return getLazyRuntime();
+}
+
+function getProjectsModule() {
+    const runtimePath = './' + 'projects_runtime.js';
+    return require(runtimePath);
+}
 
 const channel = "window";
 let senderId = null; // [新增] 用于存储当前窗口的唯一ID
@@ -66,6 +110,11 @@ window.preload = {
                 callback(data);
             }
         });
+    },
+    onAppendMessage: (callback) => {
+        ipcRenderer.on('window-append-msg', (event, data) => {
+            callback(data);
+        });
     }
 }
 
@@ -77,8 +126,11 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         if (target && target.tagName === 'A' && target.href) {
+            const rawHref = String(target.getAttribute('href') || '').trim();
+            if (!rawHref || rawHref.startsWith('#')) return;
+
             event.preventDefault();
-            utools.shellOpenExternal(target.href);
+            openLinkWithSystemDefault(target.href);
         }
     });
 });
@@ -89,32 +141,37 @@ async function handleCodeClick(text) {
   if (!text || typeof text !== 'string') {
     return 'copied';
   }
-  
+
   // 移除首尾空白和引号 (支持 'path' 或 "path")
   const content = text.trim().replace(/^["']|["']$/g, '');
 
   // 1. 检查是否为 URL
+  if (/^file:\/\//i.test(content)) {
+    const result = openLinkWithSystemDefault(content);
+    return result.type === 'path' ? 'opened-path' : 'opened-url';
+  }
+
   if (/^https?:\/\//i.test(content) || /^mailto:/i.test(content)) {
-    utools.shellOpenExternal(content);
+    openLinkWithSystemDefault(content);
     return 'opened-url';
   }
 
   // 2. 检查是否为本地文件路径
   try {
     let resolvedPath = content;
-    
+
     // 处理 ~ 路径 (macOS/Linux)
     if (content.startsWith('~')) {
       resolvedPath = path.join(utools.getPath('home'), content.slice(1));
     }
-    
+
     // 简单的路径格式校验 (Windows盘符 或 Unix根路径 或 相对路径)
     // 增加对 C:\ 或 /Users 等格式的宽容度
     const isLikelyPath = /^[a-zA-Z]:[\\/]/.test(resolvedPath) || resolvedPath.startsWith('/') || resolvedPath.startsWith('./') || resolvedPath.startsWith('../') || resolvedPath.includes(path.sep);
 
     if (isLikelyPath) {
         const exists = fs.existsSync(resolvedPath);
-        
+
         if (exists) {
             // 尝试打开文件或目录
             utools.shellOpenPath(resolvedPath);
@@ -136,9 +193,12 @@ window.api = {
     updateConfig,
     saveSetting,
     getUser,
-    getRandomItem,
+    getRandomItem: (list) => getChatModule().getRandomItem(list),
+    batchTestProviderKeys: async (input = {}) => {
+        return await getChatModule().batchTestProviderKeys(input);
+    },
     createChatCompletion: async (params) => {
-        return await createChatCompletion(params);
+        return await getChatModule().createChatCompletion(params);
     },
     copyText,
     handleFilePath,
@@ -146,6 +206,17 @@ window.api = {
     renameLocalFile,
     listJsonFiles,
     writeLocalFile,
+    readLocalProjects: (...args) => getProjectsModule().readLocalProjects(...args),
+    writeLocalProjects: (...args) => getProjectsModule().writeLocalProjects(...args),
+    parseProjectsYaml: (...args) => getProjectsModule().parseProjectsYaml(...args),
+    serializeProjectsYaml: (...args) => getProjectsModule().serializeProjectsYaml(...args),
+    mergeFileAssignment: (...args) => getProjectsModule().mergeFileAssignment(...args),
+    mergeProjectAssignment: (...args) => getProjectsModule().mergeProjectAssignment(...args),
+    findProjectByBasename: (...args) => getProjectsModule().findProjectByBasename(...args),
+    parseChatMetadataYaml: (...args) => getProjectsModule().parseChatMetadataYaml(...args),
+    serializeChatMetadataYaml: (...args) => getProjectsModule().serializeChatMetadataYaml(...args),
+    normalizeChatMetadataIndex: (...args) => getProjectsModule().normalizeChatMetadataIndex(...args),
+    normalizeChatMetadataEntry: (...args) => getProjectsModule().normalizeChatMetadataEntry(...args),
     handleCodeClick,
     sethotkey,
     setZoomFactor,
@@ -155,8 +226,9 @@ window.api = {
     copyImage: utools.copyImage,
     getMcpToolCache,
     initializeMcpClient: async (activeServerConfigs) => {
+        const { initializeMcpClient } = getMcpModule();
         try {
-            const cache = await getMcpToolCache();            
+            const cache = await getMcpToolCache();
             return await initializeMcpClient(activeServerConfigs, cache, saveMcpToolCache);
         } catch (e) {
             console.error("[WindowPreload] Error loading MCP cache:", e);
@@ -165,6 +237,7 @@ window.api = {
     },
     testMcpConnection: async (serverConfig) => {
         try {
+            const { connectAndFetchTools } = getMcpModule();
             // 连接并获取最新工具
             const rawTools = await connectAndFetchTools(serverConfig.id, {
                 transport: serverConfig.type,
@@ -173,10 +246,25 @@ window.api = {
                 url: serverConfig.baseUrl,
                 env: serverConfig.env,
                 headers: serverConfig.headers,
+                auth: serverConfig.auth,
             });
+
+            const sanitizeToolAlias = (name, fallback = 'tool') => {
+                const source = typeof name === 'string' ? name.trim() : '';
+                const baseName = source || fallback;
+                const sanitized = baseName
+                    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+                    .replace(/_+/g, '_')
+                    .replace(/^_+|_+$/g, '');
+                return sanitized || fallback;
+            };
 
             const sanitizedTools = rawTools.map(tool => ({
                 name: tool.name,
+                alias: sanitizeToolAlias(tool.name, serverConfig.id || 'tool'),
+                rawName: tool.name,
+                originalName: tool.name,
+                displayName: tool.name,
                 description: tool.description,
                 inputSchema: tool.inputSchema || tool.schema || {}
             }));
@@ -186,7 +274,7 @@ window.api = {
             const oldTools = oldCacheMap ? (oldCacheMap[serverConfig.id] || []) : [];
 
             const mergedTools = sanitizedTools.map(newTool => {
-                const oldTool = oldTools.find(t => t.name === newTool.name);
+                const oldTool = oldTools.find(t => t.name === newTool.name || t.alias === newTool.alias || t.rawName === newTool.name || t.originalName === newTool.name);
                 return {
                     ...newTool,
                     enabled: oldTool ? (oldTool.enabled ?? true) : true
@@ -203,10 +291,21 @@ window.api = {
         }
     },
     invokeMcpTool: async (toolName, toolArgs, signal, context = null) => {
-        return await invokeMcpTool(toolName, toolArgs, signal, context);
+        const { invokeMcpTool } = getMcpModule();
+        const extContext = context ? { ...context, senderId } : { senderId };
+        return await invokeMcpTool(toolName, toolArgs, signal, extContext);
     },
     saveMcpToolCache,
-    closeMcpClient,
+    closeMcpClient: async (...args) => {
+        return await getMcpModule().closeMcpClient(...args);
+    },
+    // Read-only OAuth status passthrough (window can display auth badges but
+    // cannot drive login — that lives in the main panel via preload.js).
+    mcpOAuth_getStatus: async ({ serverId, serverConfig } = {}) => {
+        const mod = getMcpModule();
+        if (mod.getMcpAuthStatus) return { success: true, status: await mod.getMcpAuthStatus(serverId, serverConfig) };
+        return { success: false, error: 'getMcpAuthStatus unavailable' };
+    },
     isFileTypeSupported,
     parseFileObject,
     shellOpenPath: (fullPath) => {
@@ -247,27 +346,28 @@ window.api = {
     // Skill 相关 API
     listSkills: async (path) => {
         try {
-            return listSkills(path);
+            return getSkillModule().listSkills(path);
         } catch (e) {
             console.error("listSkills error:", e);
             return [];
         }
     },
     getSkillDetails: async (rootPath, id) => {
-        return getSkillDetails(rootPath, id);
+        return getSkillModule().getSkillDetails(rootPath, id);
     },
     saveSkill: async (rootPath, id, content) => {
-        const res = await saveSkill(rootPath, id, content);
+        const res = await getSkillModule().saveSkill(rootPath, id, content);
         broadcastEvent('skills-updated');
         return res;
     },
     deleteSkill: async (rootPath, id) => {
-        const res = await deleteSkill(rootPath, id);
+        const res = await getSkillModule().deleteSkill(rootPath, id);
         broadcastEvent('skills-updated');
         return res;
     },
     toggleSkillForkMode: async (rootPath, skillId, enableFork) => {
         try {
+            const { getSkillDetails, saveSkill } = getSkillModule();
             const details = await getSkillDetails(rootPath, skillId);
             const meta = details.metadata;
             const body = details.content;
@@ -303,9 +403,39 @@ window.api = {
             throw e;
         }
     },
+
+    exportSkillToPackage: async (rootPath, skillId, outputDir, options = {}) => {
+        return getSkillModule().exportSkillToPackage(rootPath, skillId, outputDir, options);
+    },
+    exportSkillPackageBuffer: async (rootPath, skillId, options = {}) => {
+        return getSkillModule().exportSkillPackageBuffer(rootPath, skillId, options);
+    },
+    extractSkillPackage: async (filePath) => {
+        return getSkillModule().extractSkillPackage(filePath);
+    },
+    importSkillPackageBuffer: async (rootPath, skillId, packageBuffer) => {
+        const res = await getSkillModule().importSkillPackageBuffer(rootPath, skillId, packageBuffer);
+        broadcastEvent('skills-updated');
+        return res;
+    },
+
     onMcpCacheUpdated: (callback) => {
-        ipcRenderer.on('mcp-cache-updated', (event, serverId) => {
-            callback(serverId);
+        const normalizePayload = (payload) => {
+            if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+                return {
+                    serverId: typeof payload.serverId === 'string' ? payload.serverId : '',
+                    reason: typeof payload.reason === 'string' ? payload.reason : '',
+                    emitReloadSuggested: payload.emitReloadSuggested !== false
+                };
+            }
+            return {
+                serverId: typeof payload === 'string' ? payload : '',
+                reason: '',
+                emitReloadSuggested: true
+            };
+        };
+        ipcRenderer.on('mcp-cache-updated', (event, payload) => {
+            callback(normalizePayload(payload));
         });
     },
     onSkillsUpdated: (callback) => {
@@ -316,6 +446,7 @@ window.api = {
     // 生成 Skill Tool 定义
     getSkillToolDefinition: async (rootPath, enabledSkillNames = []) => {
         try {
+            const { listSkills, generateSkillToolDefinition } = getSkillModule();
             const allSkills = listSkills(rootPath);
             const activeSkills = allSkills.filter(s => enabledSkillNames.includes(s.name));
             if (activeSkills.length === 0) return null;
@@ -326,6 +457,7 @@ window.api = {
     },
     // 执行 Skill
     resolveSkillInvocation: async (rootPath, skillName, toolArgs, globalContext = null, signal = null) => {
+        const { resolveSkillInvocation } = getSkillModule();
         // 1. 获取 Skill 解析结果
         const result = resolveSkillInvocation(rootPath, skillName, toolArgs);
 
@@ -338,13 +470,13 @@ window.api = {
                     text: "Error: Sub-Agent skill requires execution context (API Key, etc)."
                 }], null, 2);
             }
-            
+
             // 3. 自动调用内置的 sub_agent 工具
             // 注意：invokeBuiltinTool 已经修复为返回序列化的 JSON 字符串，直接透传即可
-            return await invokeBuiltinTool(
-                'sub_agent', 
-                result.subAgentArgs, 
-                signal, 
+            return await getMcpBuiltinModule().invokeBuiltinTool(
+                'sub_agent',
+                result.subAgentArgs,
+                signal,
                 globalContext
             );
         }
@@ -356,10 +488,64 @@ window.api = {
             text: result
         }], null, 2);
     },
-    // 暴露 path.join 
+    // 暴露 path.join
     pathJoin: (...args) => require('path').join(...args),
     addTaskHistory: async (taskId, logEntry) => {
         const { addTaskHistory } = require('./data.js');
         return await addTaskHistory(taskId, logEntry);
+    },
+
+    // Conversation compaction APIs (aligned with desktop window.api names)
+    getCompactCache: async () => {
+        return getCompactModule().getCompactCacheSnapshot();
+    },
+    importCompactCache: async (models = {}) => {
+        return getCompactModule().importCompactCacheModels(models);
+    },
+    getModelCompactConfig: async (modelInput = '') => {
+        return getCompactModule().getModelCompactConfig(modelInput);
+    },
+    updateModelCompactConfig: async (modelInput = '', patch = {}) => {
+        return getCompactModule().updateModelCompactConfig(modelInput, patch);
+    },
+    applyAdvancedCompactConfigToAll: async (patch = {}) => {
+        return getCompactModule().applyAdvancedCompactConfigToAll(patch);
+    },
+    resolveModelContext: async (modelInput = '', options = {}) => {
+        return getCompactModule().resolveModelContextLength(modelInput, options);
+    },
+    pruneCompactCache: async (enabledModels = []) => {
+        return getCompactModule().pruneCompactCacheByEnabledModels(enabledModels);
+    },
+    estimateCompactTokens: async (messages = []) => {
+        const tokens = getCompactModule().estimateMessagesTokens(messages);
+        return { ok: true, tokens };
+    },
+    shouldAutoCompact: async (input = {}) => {
+        return {
+            ok: true,
+            should: getCompactModule().shouldAutoCompact(input || {})
+        };
+    },
+    runConversationCompact: async (input = {}, options = {}) => {
+        try {
+            const signal = options?.signal || input?.signal || null;
+            const onProgress = typeof options?.onProgress === 'function'
+                ? options.onProgress
+                : (typeof input?.onProgress === 'function' ? input.onProgress : null);
+            const nextInput = { ...(input && typeof input === 'object' ? input : {}) };
+            delete nextInput.signal;
+            delete nextInput.onProgress;
+            return await getCompactModule().runConversationCompaction({
+                ...nextInput,
+                signal,
+                onProgress
+            });
+        } catch (error) {
+            if (error?.name === 'AbortError' || /abort/i.test(String(error?.message || ''))) {
+                return { ok: false, error: { name: 'AbortError', message: error.message || 'aborted' } };
+            }
+            return { ok: false, error: { message: error?.message || String(error) } };
+        }
     },
 };

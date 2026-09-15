@@ -1,0 +1,26 @@
+{
+  "name": "zashboard-panel",
+  "title": "zashboard 面板",
+  "author": "ScottLim",
+  "description": "在 ZTools 面板内直接打开 zashboard（Clash/mihomo 代理控制面板）。本地内置 zashboard，打开后在连接设置页填写地址和端口即可使用",
+  "version": "2.1.1",
+  "logo": "logo.png",
+  "main": "zashboard/index.html",
+  "pluginSetting": {
+    "single": true,
+    "height": 720
+  },
+  "features": [
+    {
+      "code": "open",
+      "explain": "打开 zashboard 代理控制面板",
+      "icon": "logo.png",
+      "cmds": [
+        "zash",
+        "zashboard",
+        "代理面板",
+        "zash面板"
+      ]
+    }
+  ]
+}

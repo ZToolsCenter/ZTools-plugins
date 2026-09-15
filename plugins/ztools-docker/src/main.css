@@ -1,0 +1,244 @@
+:root {
+  --blue: rgb(88, 164, 246);
+  --light: #fff;
+  --panel-bg: rgba(0, 0, 0, 0.03);
+  --border-color: rgba(0, 0, 0, 0.1);
+  --text-secondary: rgba(0, 0, 0, 0.55);
+  --ok: #34c759;
+  --warn: #ff9500;
+  --danger: #ff3b30;
+  --ctrl-height: 26px;
+  --ctrl-radius: 6px;
+}
+
+/* 操作控件统一规范：按钮/下拉/输入框 */
+select,
+input,
+button {
+  font-family: inherit;
+  box-sizing: border-box;
+  font-size: 12px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* 全局按钮体系：统一跨平台样式（消除系统原生 button 差异） */
+button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  font-family: inherit;
+  box-sizing: border-box;
+  font-size: 12px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: var(--ctrl-height);
+  border: 1px solid var(--border-color);
+  background: var(--panel-bg);
+  color: inherit;
+  padding: 0 10px;
+  border-radius: var(--ctrl-radius);
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+.btn:hover:not(:disabled) { background: rgba(127, 127, 127, 0.14); }
+.btn:active:not(:disabled) { opacity: 0.7; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn.primary:disabled { opacity: 0.4; }
+.btn.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn.running { opacity: 0.6; }
+.btn.sm { height: 20px; padding: 0 8px; font-size: 11px; }
+.btn-icon { display: inline-block; flex-shrink: 0; }
+
+textarea {
+  display: block;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-color: #f4f4f4;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --panel-bg: rgba(255, 255, 255, 0.06);
+    --border-color: rgba(255, 255, 255, 0.12);
+    --text-secondary: rgba(255, 255, 255, 0.55);
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #303133;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #666;
+    border-color: #303133;
+  }
+
+  body {
+    background-color: #303133;
+    color: #fff;
+  }
+}
+
+/* ===== CSS 图标库（纯 CSS 绘制，替代 emoji，颜色跟随 currentColor） ===== */
+.icon-play {
+  width: 0;
+  height: 0;
+  border-left: 7px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.icon-stop {
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+}
+.icon-pause {
+  position: relative;
+  width: 8px;
+  height: 10px;
+}
+.icon-pause::before,
+.icon-pause::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: currentColor;
+}
+.icon-pause::before { left: 0; }
+.icon-pause::after { right: 0; }
+.icon-restart {
+  position: relative;
+  width: 12px;
+  height: 12px;
+}
+.icon-restart::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid currentColor;
+  border-left-color: transparent;
+  border-radius: 50%;
+}
+.icon-restart::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -2px;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid currentColor;
+}
+/* 刷新：半环旋转箭头（区别于整环缺口的重启） */
+.icon-refresh {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-top-color: transparent;
+  border-right-color: transparent;
+}
+.icon-refresh::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 4px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+.icon-trash {
+  position: relative;
+  width: 12px;
+  height: 12px;
+}
+.icon-trash::before,
+.icon-trash::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 2px;
+  background: currentColor;
+}
+.icon-trash::before { transform: translate(-50%, -50%) rotate(45deg); }
+.icon-trash::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.icon-down {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid currentColor;
+}
+.icon-terminal {
+  position: relative;
+  width: 14px;
+  height: 11px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+.icon-terminal::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 1px;
+  width: 3px;
+  height: 1.5px;
+  background: currentColor;
+  box-shadow: 0 3px 0 currentColor;
+}
+.icon-terminal::after {
+  content: '';
+  position: absolute;
+  right: 1px;
+  top: 4px;
+  border-left: 4px solid currentColor;
+  border-top: 2.5px solid transparent;
+  border-bottom: 2.5px solid transparent;
+}
+.icon-compose {
+  position: relative;
+  width: 14px;
+  height: 13px;
+  display: inline-block;
+}
+.icon-compose::before,
+.icon-compose::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 7px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+.icon-compose::before { top: 0; right: 0; }
+.icon-compose::after { bottom: 0; left: 0; background: var(--panel-bg); }

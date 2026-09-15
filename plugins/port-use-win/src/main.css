@@ -2,11 +2,21 @@
   --bg-page: #eef3f8;
   --bg-panel: rgba(255, 255, 255, 0.9);
   --bg-panel-strong: #ffffff;
+  --sidebar-bg: #edf5ff;
+  --sidebar-hover: rgba(23, 119, 255, 0.08);
+  --table-header-bg: #f7f9fb;
+  --table-hover: #f7faff;
+  --detail-bg: #f7faff;
+  --tip-bg: rgba(255, 255, 255, 0.72);
+  --count-bg: rgba(96, 112, 134, 0.1);
+  --content-grid: rgba(30, 55, 90, 0.025);
   --text-main: #1a2433;
   --text-subtle: #607086;
+  --text-faint: #8c99aa;
   --border-color: rgba(122, 141, 163, 0.22);
+  --border-strong: rgba(122, 141, 163, 0.34);
   --accent: #1777ff;
-  --accent-soft: rgba(23, 119, 255, 0.12);
+  --accent-soft: rgba(23, 119, 255, 0.15);
   --danger-soft: rgba(216, 62, 62, 0.12);
   --danger-text: #b42318;
   --shadow-panel: 0 18px 50px rgba(30, 55, 90, 0.12);
@@ -22,15 +32,14 @@ html,
 body,
 #app {
   margin: 0;
+  height: 100%;
   min-height: 100%;
 }
 
 body {
   color: var(--text-main);
   font-family: var(--ui-font);
-  background:
-    radial-gradient(circle at top left, rgba(23, 119, 255, 0.18), transparent 28%),
-    linear-gradient(180deg, #f8fbff 0%, var(--bg-page) 100%);
+  background: var(--bg-page);
 }
 
 button,
@@ -80,9 +89,19 @@ td {
     --bg-page: #0f1723;
     --bg-panel: rgba(15, 23, 35, 0.88);
     --bg-panel-strong: #162131;
+    --sidebar-bg: #101925;
+    --sidebar-hover: rgba(151, 168, 190, 0.08);
+    --table-header-bg: #111c29;
+    --table-hover: #182638;
+    --detail-bg: #111c29;
+    --tip-bg: rgba(22, 33, 49, 0.76);
+    --count-bg: rgba(151, 168, 190, 0.1);
+    --content-grid: rgba(151, 168, 190, 0.03);
     --text-main: #edf3ff;
     --text-subtle: #97a8be;
+    --text-faint: #6f8198;
     --border-color: rgba(151, 168, 190, 0.18);
+    --border-strong: rgba(151, 168, 190, 0.3);
     --accent-soft: rgba(23, 119, 255, 0.2);
     --danger-soft: rgba(216, 62, 62, 0.18);
     --danger-text: #ffb4ac;
@@ -90,8 +109,6 @@ td {
   }
 
   body {
-    background:
-      radial-gradient(circle at top left, rgba(23, 119, 255, 0.22), transparent 30%),
-      linear-gradient(180deg, #101926 0%, var(--bg-page) 100%);
+    background: var(--bg-page);
   }
 }

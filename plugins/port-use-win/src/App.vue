@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Delete, RefreshRight } from '@element-plus/icons-vue'
+import {
+  Aim,
+  Connection,
+  DataLine,
+  Delete,
+  Monitor,
+  RefreshRight,
+  Search
+} from '@element-plus/icons-vue'
 
 interface LaunchAction {
   code?: string
@@ -9,7 +17,7 @@ interface LaunchAction {
   payload?: unknown
 }
 
-type FilterField = 'all' | 'name' | 'pid' | 'port' | 'local' | 'remote' | 'state' | 'protocol'
+type ConnectionCategory = 'all' | 'tcp' | 'udp' | 'listening' | 'active'
 
 const FEATURE_CODE = 'port-use-win'
 
@@ -19,17 +27,14 @@ const killingPid = ref<number | null>(null)
 const errorMessage = ref('')
 const keyword = ref('')
 const lastUpdatedAt = ref('')
-const filterField = ref<FilterField>('all')
+const connectionCategory = ref<ConnectionCategory>('all')
 
-const FILTER_OPTIONS = [
-  { label: '全部字段', value: 'all' },
-  { label: '进程名', value: 'name' },
-  { label: 'PID', value: 'pid' },
-  { label: '端口', value: 'port' },
-  { label: '本地地址', value: 'local' },
-  { label: '远程地址', value: 'remote' },
-  { label: '状态', value: 'state' },
-  { label: '协议', value: 'protocol' }
+const CATEGORY_OPTIONS = [
+  { label: '全部连接', value: 'all', icon: Search },
+  { label: 'TCP', value: 'tcp', icon: Connection },
+  { label: 'UDP', value: 'udp', icon: Aim },
+  { label: '监听端口', value: 'listening', icon: Monitor },
+  { label: '活跃连接', value: 'active', icon: DataLine }
 ] as const
 
 function normalizeSearchText(value: string) {
@@ -45,66 +50,61 @@ function includesInFields(fields: Array<string | number>, query: string) {
   return fields.some((item) => normalizeSearchText(String(item)).includes(query))
 }
 
-function matchEntryByField(entry: PortUsage, field: FilterField, value: string) {
+function matchesSearch(entry: PortUsage, value: string) {
   const query = normalizeSearchText(value)
   if (!query) {
     return true
   }
 
-  if (field === 'all') {
-    return includesInFields([
-      entry.processName,
-      entry.pid,
-      entry.localAddress,
-      entry.localHost,
-      entry.localPort,
-      entry.remoteAddress,
-      entry.remoteHost,
-      entry.remotePort,
-      entry.protocol,
-      entry.state
-    ], query)
+  return includesInFields([
+    entry.processName,
+    entry.pid,
+    entry.localAddress,
+    entry.localHost,
+    entry.localPort,
+    entry.remoteAddress,
+    entry.remoteHost,
+    entry.remotePort,
+    entry.protocol,
+    entry.state
+  ], query)
+}
+
+function matchesCategory(entry: PortUsage, category: ConnectionCategory) {
+  const protocol = entry.protocol.toUpperCase()
+  const state = entry.state.toUpperCase()
+
+  if (category === 'all') {
+    return true
   }
 
-  if (field === 'name') {
-    return normalizeSearchText(entry.processName).includes(query)
+  if (category === 'tcp' || category === 'udp') {
+    return protocol === category.toUpperCase()
   }
 
-  if (field === 'pid') {
-    return includesInFields([entry.pid], query)
+  if (category === 'listening') {
+    return state === 'LISTENING'
   }
 
-  if (field === 'port') {
-    return includesInFields([entry.localPort, entry.remotePort], query)
-  }
-
-  if (field === 'local') {
-    return includesInFields([entry.localAddress, entry.localHost, entry.localPort], query)
-  }
-
-  if (field === 'remote') {
-    return includesInFields([entry.remoteAddress, entry.remoteHost, entry.remotePort], query)
-  }
-
-  if (field === 'state') {
-    return normalizeSearchText(entry.state).includes(query)
-  }
-
-  if (field === 'protocol') {
-    return normalizeSearchText(entry.protocol).includes(query)
-  }
-
-  return false
+  return hasMeaningfulRemoteAddress(entry) && !['LISTENING', 'BOUND'].includes(state)
 }
 
 const filteredEntries = computed(() => {
-  const query = normalizeSearchText(keyword.value)
-  if (!query) {
-    return entries.value
-  }
-
-  return entries.value.filter((entry) => matchEntryByField(entry, filterField.value, query))
+  return entries.value.filter((entry) => {
+    return matchesSearch(entry, keyword.value) && matchesCategory(entry, connectionCategory.value)
+  })
 })
+
+function getCategoryCount(category: ConnectionCategory) {
+  return entries.value.filter((entry) => {
+    return matchesSearch(entry, keyword.value) && matchesCategory(entry, category)
+  }).length
+}
+
+function selectCategory(category: ConnectionCategory) {
+  connectionCategory.value = category
+  window.ztools?.subInputFocus()
+}
 
 function formatEntryMeta(entry: PortUsage) {
   return [`PID ${entry.pid}`, entry.protocol].join(' · ')
@@ -121,6 +121,10 @@ function getServices(): Services {
 
 function syncSubInput(value: string) {
   window.ztools?.setSubInputValue(value)
+}
+
+function applySearchKeyword(value: string) {
+  keyword.value = value.trim()
 }
 
 function resolveInitialKeyword(action: LaunchAction) {
@@ -180,7 +184,7 @@ async function handleKillProcess(entry: PortUsage) {
 function setupSubInput(initialKeyword = '') {
   window.ztools?.setSubInput(
     (input: { text: string }) => {
-      keyword.value = input.text.trim()
+      applySearchKeyword(input.text)
     },
     '输入搜索值，如 node / 82 / LISTENING / 127.0.0.1',
     true
@@ -190,13 +194,15 @@ function setupSubInput(initialKeyword = '') {
 
 function handlePluginEnter(action: LaunchAction) {
   const initialKeyword = resolveInitialKeyword(action)
-  keyword.value = initialKeyword
+  connectionCategory.value = 'all'
+  applySearchKeyword(initialKeyword)
   setupSubInput(initialKeyword)
   void loadPortUsage()
 }
 
 function handlePluginOut() {
-  keyword.value = ''
+  connectionCategory.value = 'all'
+  applySearchKeyword('')
   void window.ztools?.removeSubInput()
 }
 
@@ -207,7 +213,7 @@ onMounted(() => {
     return
   }
 
-  ztools.setExpendHeight(720)
+  ztools.setExpendHeight(580)
   ztools.onPluginEnter(handlePluginEnter)
   ztools.onPluginOut(handlePluginOut)
 })
@@ -219,216 +225,379 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="port-app">
-    <div class="header">
-      <div class="header-main">
-        <div class="title-row">
-          <h1>Windows 端口占用</h1>
-          <el-tag class="count-badge" effect="light" round>
-            {{ filteredEntries.length }}
-          </el-tag>
-        </div>
-        <p class="subtitle">页面选择筛选字段，顶部搜索框只输入值；主表展示核心信息，展开行查看更多明细。</p>
-      </div>
-      <el-button class="refresh-button" type="primary" :loading="loading" @click="loadPortUsage">
-        <el-icon><RefreshRight /></el-icon>
-        {{ loading ? '刷新中...' : '刷新' }}
-      </el-button>
-    </div>
-
-    <div class="toolbar">
-      <el-select v-model="filterField" class="filter-select" size="large">
-        <el-option
-          v-for="option in FILTER_OPTIONS"
+    <aside class="category-sidebar">
+      <div class="sidebar-label">连接分类</div>
+      <nav class="category-nav" aria-label="连接分类">
+        <button
+          v-for="option in CATEGORY_OPTIONS"
           :key="option.value"
-          :label="option.label"
-          :value="option.value"
+          class="category-option"
+          :class="{ active: connectionCategory === option.value }"
+          type="button"
+          @click="selectCategory(option.value)"
+        >
+          <el-icon class="category-icon"><component :is="option.icon" /></el-icon>
+          <span class="category-copy">
+            <strong>{{ option.label }}</strong>
+          </span>
+          <span class="category-count">{{ getCategoryCount(option.value) }}</span>
+        </button>
+      </nav>
+    </aside>
+
+    <main class="content-panel">
+      <header class="content-header">
+        <div class="result-summary">
+          <strong>{{ filteredEntries.length }}</strong>
+          <span>条结果</span>
+          <template v-if="keyword">
+            <i></i>
+            <span>“{{ keyword }}”</span>
+          </template>
+          <span class="update-time">更新：{{ lastUpdatedAt || '--' }}</span>
+        </div>
+        <el-button class="refresh-button" type="primary" :loading="loading" @click="loadPortUsage">
+          <el-icon><RefreshRight /></el-icon>
+          {{ loading ? '刷新中' : '刷新' }}
+        </el-button>
+      </header>
+
+      <el-alert v-if="errorMessage" class="error-message" type="error" :closable="false" show-icon>
+        {{ errorMessage }}
+      </el-alert>
+
+      <section class="table-container" aria-label="端口占用结果">
+        <el-empty
+          v-if="!loading && filteredEntries.length === 0"
+          class="empty-state"
+          :description="keyword ? '没有匹配的端口记录' : '未获取到端口记录'"
         />
-      </el-select>
-      <el-tag effect="plain" round>搜索值：{{ keyword || '全部' }}</el-tag>
-      <el-tag effect="plain" round>最后更新：{{ lastUpdatedAt || '--' }}</el-tag>
-    </div>
 
-    <el-alert v-if="errorMessage" class="error-message" type="error" :closable="false" show-icon>
-      {{ errorMessage }}
-    </el-alert>
-
-    <div class="table-container">
-      <el-empty
-        v-if="!loading && filteredEntries.length === 0"
-        class="empty-state"
-        :description="keyword ? '没有匹配的端口记录。' : '未获取到端口记录。'"
-      />
-
-      <el-table
-        v-else
-        class="port-table"
-        :data="filteredEntries"
-        stripe
-        table-layout="fixed"
-        header-cell-class-name="port-table-header"
-        cell-class-name="port-table-cell"
-      >
-        <el-table-column type="expand" width="52">
-          <template #default="{ row }">
-            <div class="details-panel">
-              <div v-if="hasMeaningfulRemoteAddress(row)" class="detail-row">
-                <span class="detail-label">远程地址</span>
-                <span class="mono detail-value">{{ row.remoteAddress }}</span>
+        <el-table
+          v-else
+          class="port-table"
+          :data="filteredEntries"
+          height="100%"
+          table-layout="fixed"
+          header-cell-class-name="port-table-header"
+          cell-class-name="port-table-cell"
+        >
+          <el-table-column type="expand" width="36">
+            <template #default="{ row }">
+              <div class="details-panel">
+                <div class="detail-row">
+                  <span class="detail-label">连接状态</span>
+                  <strong class="detail-value">{{ row.state || '--' }}</strong>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">本地 Host / Port</span>
+                  <span class="mono detail-value">{{ row.localHost }} / {{ row.localPort }}</span>
+                </div>
+                <div v-if="hasMeaningfulRemoteAddress(row)" class="detail-row">
+                  <span class="detail-label">远程地址</span>
+                  <span class="mono detail-value">{{ row.remoteAddress }}</span>
+                </div>
+                <div v-if="hasMeaningfulRemoteAddress(row)" class="detail-row">
+                  <span class="detail-label">远程 Host / Port</span>
+                  <span class="mono detail-value">{{ row.remoteHost }} / {{ row.remotePort }}</span>
+                </div>
               </div>
-              <div class="detail-row">
-                <span class="detail-label">状态</span>
-                <span class="detail-value">{{ row.state || '--' }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="进程" width="150">
+            <template #default="{ row }">
+              <div class="process-cell">
+                <span class="process-avatar">{{ row.processName.slice(0, 1).toUpperCase() }}</span>
+                <span class="process-copy">
+                  <strong>{{ row.processName }}</strong>
+                  <small>{{ formatEntryMeta(row) }}</small>
+                </span>
               </div>
-              <div class="detail-row">
-                <span class="detail-label">本地 Host / Port</span>
-                <span class="mono detail-value">{{ row.localHost }} / {{ row.localPort }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="本地监听" min-width="180">
+            <template #default="{ row }">
+              <div class="address-cell">
+                <span class="mono address-value">{{ row.localHost }}</span>
+                <strong class="mono port-value">{{ row.localPort }}</strong>
               </div>
-              <div v-if="hasMeaningfulRemoteAddress(row)" class="detail-row">
-                <span class="detail-label">远程 Host / Port</span>
-                <span class="mono detail-value">{{ row.remoteHost }} / {{ row.remotePort }}</span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
+            </template>
+          </el-table-column>
 
-        <el-table-column label="进程名" min-width="180">
-          <template #default="{ row }">
-            <div class="process-cell">
-              <strong>{{ row.processName }}</strong>
-              <span class="entry-meta">{{ formatEntryMeta(row) }}</span>
-            </div>
-          </template>
-        </el-table-column>
+          <el-table-column label="状态" width="88">
+            <template #default="{ row }">
+              <span class="state-label">{{ row.state || '--' }}</span>
+            </template>
+          </el-table-column>
 
-        <el-table-column label="监听地址" min-width="250">
-          <template #default="{ row }">
-            <span class="mono address-value">{{ row.localAddress }}</span>
-          </template>
-        </el-table-column>
+          <el-table-column label="协议" width="60" align="center">
+            <template #default="{ row }">
+              <span class="protocol-tag" :class="row.protocol.toLowerCase()">{{ row.protocol }}</span>
+            </template>
+          </el-table-column>
 
-        <el-table-column label="协议" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag class="protocol-tag" :type="row.protocol === 'TCP' ? 'primary' : 'success'" round>
-              {{ row.protocol }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="100" align="center">
-          <template #default="{ row }">
-            <el-tooltip :content="`结束进程 ${row.processName} (${row.pid})`" placement="top">
-              <el-button
-                class="icon-button danger"
-                type="danger"
-                plain
-                :loading="killingPid === row.pid"
-                @click="handleKillProcess(row)"
-              >
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </el-tooltip>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+          <el-table-column width="48" align="center">
+            <template #default="{ row }">
+              <el-tooltip :content="`结束进程 ${row.processName} (${row.pid})`" placement="left">
+                <el-button
+                  class="kill-button"
+                  text
+                  :loading="killingPid === row.pid"
+                  @click="handleKillProcess(row)"
+                >
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </template>
+          </el-table-column>
+        </el-table>
+      </section>
+    </main>
   </div>
 </template>
 
 <style scoped>
 .port-app {
-  padding: 22px;
-  max-width: 800px;
-  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 172px minmax(0, 1fr);
+  height: 580px;
+  min-width: 760px;
+  overflow: hidden;
+  background: var(--bg-panel-strong);
 }
 
-.header {
+.category-sidebar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
+  flex-direction: column;
+  padding: 24px 14px 18px;
+  border-right: 1px solid var(--border-color);
+  background: var(--sidebar-bg);
 }
 
-.header-main {
+.sidebar-label {
+  padding: 1px 9px 13px;
+  color: var(--text-faint);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.category-nav {
+  display: grid;
+  gap: 4px;
+}
+
+.category-option {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 9px;
+  border-radius: 10px;
+  color: var(--text-subtle);
+  text-align: left;
+  background: transparent;
+  transition: color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.category-option:hover {
+  color: var(--text-main);
+  background: var(--sidebar-hover);
+  transform: translateX(2px);
+}
+
+.category-option.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.category-option.active::before {
+  position: absolute;
+  left: -14px;
+  width: 3px;
+  height: 24px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  content: '';
+}
+
+.category-icon {
+  font-size: 17px;
+}
+
+.category-copy,
+.category-copy strong {
+  display: block;
   min-width: 0;
 }
 
-.title-row {
+.category-copy strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.category-count {
+  min-width: 23px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  color: var(--text-faint);
+  font-family: var(--mono-font);
+  font-size: 9px;
+  text-align: center;
+  background: var(--count-bg);
+}
+
+.category-option.active .category-count {
+  color: var(--accent);
+  background: var(--bg-panel-strong);
+}
+
+.content-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 22px 20px 18px;
+  background:
+    linear-gradient(var(--content-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--content-grid) 1px, transparent 1px),
+    var(--bg-panel-strong);
+  background-size: 32px 32px;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  min-height: 36px;
+  margin-bottom: 14px;
+}
+
+.result-summary {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 5px;
+  color: var(--text-faint);
+  font-size: 11px;
 }
 
-.title-row h1 {
-  margin: 0;
-  font-size: 24px;
-  line-height: 1.15;
+.result-summary strong {
+  color: var(--text-main);
+  font-family: var(--mono-font);
+  font-size: 15px;
 }
 
-.count-badge {
-  min-width: 42px;
-  font-weight: 700;
+.result-summary i {
+  width: 3px;
+  height: 3px;
+  margin: 0 4px;
+  border-radius: 50%;
+  background: var(--text-faint);
 }
 
-.subtitle {
-  margin: 10px 0 0;
-  color: var(--text-subtle);
-  font-size: 13px;
+.update-time {
+  margin-left: 8px;
 }
 
 .refresh-button {
-  border-radius: 12px;
-  box-shadow: 0 10px 24px rgba(23, 119, 255, 0.28);
-}
-
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 18px;
-  margin-bottom: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  background: var(--bg-panel);
-  box-shadow: var(--shadow-panel);
-  color: var(--text-subtle);
-  font-size: 13px;
-}
-
-.filter-select {
-  width: 148px;
+  min-width: 86px;
+  border-color: var(--accent);
+  border-radius: 9px;
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 7px 18px rgba(23, 119, 255, 0.2);
 }
 
 .error-message {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .table-container {
-  padding: 4px 0 0;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  box-shadow: 0 16px 40px rgba(30, 55, 90, 0.08);
 }
 
 .process-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
   min-width: 0;
 }
 
-.process-cell strong {
-  font-size: 15px;
-  line-height: 1.2;
-  word-break: break-word;
+.process-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--accent);
+  font-family: var(--mono-font);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--accent-soft);
 }
 
-.entry-meta {
-  color: var(--text-subtle);
+.process-copy,
+.process-copy strong,
+.process-copy small {
+  display: block;
+  min-width: 0;
+}
+
+.process-copy strong {
+  overflow: hidden;
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.process-copy small {
+  margin-top: 4px;
+  color: var(--text-faint);
+  font-size: 9px;
+}
+
+.address-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .address-value {
-  font-size: 14px;
-  word-break: break-all;
+  overflow: hidden;
+  color: var(--text-subtle);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.port-value {
+  margin-left: auto;
+  padding: 4px 7px;
+  border-radius: 6px;
+  color: var(--text-main);
+  font-size: 11px;
+  background: var(--count-bg);
+}
+
+.state-label {
+  color: var(--text-subtle);
+  font-family: var(--mono-font);
+  font-size: 9px;
 }
 
 .mono {
@@ -436,73 +605,67 @@ onBeforeUnmount(() => {
 }
 
 .protocol-tag {
+  display: inline-block;
+  min-width: 38px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  color: var(--accent);
+  font-family: var(--mono-font);
+  font-size: 9px;
   font-weight: 700;
+  background: var(--accent-soft);
+}
+
+.protocol-tag.udp {
+  color: #13875a;
+  background: rgba(32, 164, 107, 0.11);
 }
 
 .empty-state {
-  padding: 42px 0;
+  padding: 120px 0;
 }
 
-.icon-button {
-  border-radius: 12px;
+.kill-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--text-faint);
+}
+
+.kill-button:hover {
+  color: var(--danger-text);
+  background: var(--danger-soft);
 }
 
 .details-panel {
   display: grid;
-  gap: 8px;
-  padding: 8px 4px 8px 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+  margin: 0 16px;
+  padding: 18px;
+  border-left: 2px solid var(--accent);
+  background: var(--detail-bg);
 }
 
 .detail-row {
-  display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
+  min-width: 0;
 }
 
 .detail-label {
-  color: var(--text-subtle);
-  font-size: 12px;
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-faint);
+  font-size: 9px;
 }
 
 .detail-value {
+  display: block;
+  font-size: 11px;
   word-break: break-all;
-}
-
-@media (max-width: 720px) {
-  .port-app {
-    padding: 16px;
-  }
-
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .refresh-button {
-    width: 100%;
-  }
-
-  .filter-select {
-    width: 100%;
-  }
-
-  .detail-row {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
 }
 
 :deep(.el-alert__content) {
   white-space: pre-wrap;
-}
-
-:deep(.port-table) {
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.84);
-  box-shadow: var(--shadow-panel);
 }
 
 :deep(.port-table .el-table__inner-wrapper::before) {
@@ -510,17 +673,33 @@ onBeforeUnmount(() => {
 }
 
 :deep(.port-table-header) {
-  background: rgba(232, 239, 248, 0.92);
-  color: var(--text-subtle);
-  font-size: 12px;
-  font-weight: 700;
+  height: 38px;
+  border-bottom-color: var(--border-color);
+  color: var(--text-faint);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  background: var(--table-header-bg);
 }
 
 :deep(.port-table-cell) {
+  height: 54px;
+  border-bottom-color: var(--border-color);
   vertical-align: middle;
 }
 
+:deep(.port-table-header .cell),
+:deep(.port-table-cell .cell) {
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+:deep(.port-table .el-table__row:hover > td.el-table__cell) {
+  background: var(--table-hover);
+}
+
 :deep(.port-table .el-table__expanded-cell) {
-  background: rgba(23, 119, 255, 0.03);
+  padding: 10px 0 14px;
+  background: var(--bg-panel);
 }
 </style>

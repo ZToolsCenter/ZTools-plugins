@@ -1,0 +1,354 @@
+// 导入 Element Plus 样式覆盖
+@import './element-plus.scss';
+
+:root {
+  color-scheme: light;
+  --app-bg: #f3f6fb;
+  --app-bg-elevated: #fbfdff;
+  --app-surface: rgba(255, 255, 255, 0.94);
+  --app-surface-secondary: #eef3f9;
+  --app-border: rgba(148, 163, 184, 0.24);
+  --app-text: #111827;
+  --app-text-secondary: #5b6472;
+  --app-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+
+  /* Workshop & shared component variables */
+  --ws-bg: #f8f9fa;
+  --ws-panel-bg: #ffffff;
+  --ws-panel-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --ws-preview-border: #409eff;
+  --ws-preview-bg: #f8f9fa;
+  --ws-empty-color: #9ca3af;
+  --ws-empty-hint: #6b7280;
+  --ws-tab-bg: #f1f3f4;
+  --ws-tab-color: #6b7280;
+  --ws-tab-hover-color: #374151;
+  --ws-tab-active-bg: #ffffff;
+  --ws-tab-active-color: #1f2937;
+  --ws-tab-active-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --ws-control-bg: #f8f9fa;
+  --ws-control-label: #374151;
+  --ws-input-border: #e5e7eb;
+  --ws-input-bg: #ffffff;
+  --ws-input-text: #374151;
+  --ws-input-placeholder: #9ca3af;
+  --ws-slider-track: #e5e7eb;
+  --ws-item-bg: #f8f9fa;
+  --ws-filter-select-border: #e5e7eb;
+  --ws-preset-hover-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  --ws-img-error-bg: #f5f5f5;
+  --ws-img-error-color: #999;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+body {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+// 全局滚动条样式
+* {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--el-border-color-lighter);
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+    
+    &:hover {
+      background-color: var(--el-border-color-darker);
+    }
+  }
+}
+
+// 暗黑模式全局样式
+html.dark {
+  color-scheme: dark;
+  --app-bg: #0a0f19;
+  --app-bg-elevated: #131b2a;
+  --app-surface: rgba(17, 24, 39, 0.92);
+  --app-surface-secondary: #182233;
+  --app-border: rgba(148, 163, 184, 0.18);
+  --app-text: #f3f4f6;
+  --app-text-secondary: #9ca3af;
+  --app-shadow: 0 20px 44px rgba(0, 0, 0, 0.34);
+  --el-bg-color: #1a1a1a;
+  --el-bg-color-page: #0a0f19;
+  --el-text-color-primary: #ffffff;
+  --el-text-color-regular: #d1d5db;
+  --el-border-color: #333333;
+  --el-border-color-light: rgba(148, 163, 184, 0.18);
+  --el-border-color-lighter: rgba(148, 163, 184, 0.12);
+  --el-fill-color-blank: #111827;
+  --el-fill-color-light: #1f2937;
+  --el-fill-color-lighter: #273244;
+  --el-fill-color-dark: #0f172a;
+  --el-fill-color-darker: #0b1220;
+
+  /* Workshop dark mode variables */
+  --ws-bg: #0a0f19;
+  --ws-panel-bg: #131b2a;
+  --ws-panel-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --ws-preview-border: #2e6fef;
+  --ws-preview-bg: #1a2332;
+  --ws-empty-color: #6b7280;
+  --ws-empty-hint: #4b5563;
+  --ws-tab-bg: #1a2332;
+  --ws-tab-color: #9ca3af;
+  --ws-tab-hover-color: #e5e7eb;
+  --ws-tab-active-bg: #2a3a4e;
+  --ws-tab-active-color: #f3f4f6;
+  --ws-tab-active-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(46, 111, 239, 0.2);
+  --ws-control-bg: #1a2332;
+  --ws-control-label: #e5e7eb;
+  --ws-input-border: #2a3a4e;
+  --ws-input-bg: #1a2332;
+  --ws-input-text: #f3f4f6;
+  --ws-input-placeholder: #6b7280;
+  --ws-slider-track: #2a3a4e;
+  --ws-item-bg: #1a2332;
+  --ws-filter-select-border: #2a3a4e;
+  --ws-preset-hover-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --ws-img-error-bg: #1a2332;
+  --ws-img-error-color: #6b7280;
+
+  * {
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.2);
+      
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.3);
+      }
+    }
+  }
+}
+
+.online-search,
+.emoticon-workshop,
+.beauty-viewer,
+.handsome-viewer,
+.video-viewer,
+.wallpaper-view {
+  color: var(--app-text);
+}
+
+html.dark {
+  .online-search,
+  .emoticon-workshop,
+  .beauty-viewer,
+  .handsome-viewer,
+  .video-viewer,
+  .wallpaper-view {
+    background: transparent;
+    color: var(--app-text);
+  }
+
+  // AppHeader 搜索框和分类筛选暗黑模式覆盖
+  .custom-search-input {
+    background-color: rgba(30, 41, 59, 0.6) !important;
+    border-color: rgba(100, 116, 139, 0.4) !important;
+
+    &:hover {
+      border-color: rgba(100, 116, 139, 0.6) !important;
+      background-color: rgba(30, 41, 59, 0.8) !important;
+    }
+
+    &:focus-within {
+      border-color: #3b82f6 !important;
+      background-color: rgba(30, 41, 59, 0.9) !important;
+    }
+
+    .search-icon {
+      color: #94a3b8 !important;
+    }
+
+    .search-field {
+      color: #f1f5f9 !important;
+
+      &::placeholder {
+        color: #64748b !important;
+      }
+    }
+
+    .clear-btn {
+      color: #64748b !important;
+
+      &:hover {
+        color: #94a3b8 !important;
+        background-color: rgba(100, 116, 139, 0.3) !important;
+      }
+    }
+  }
+
+  .custom-select-btn {
+    background-color: rgba(30, 41, 59, 0.6) !important;
+    border-color: rgba(100, 116, 139, 0.4) !important;
+    color: #cbd5e1 !important;
+
+    &:hover {
+      border-color: rgba(100, 116, 139, 0.6) !important;
+      background-color: rgba(30, 41, 59, 0.8) !important;
+    }
+
+    &.active {
+      border-color: #3b82f6 !important;
+      background-color: rgba(30, 41, 59, 0.9) !important;
+    }
+
+    .dropdown-icon {
+      color: #94a3b8 !important;
+    }
+  }
+
+  .custom-dropdown {
+    background: rgba(30, 41, 59, 0.98) !important;
+    border-color: rgba(100, 116, 139, 0.4) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+
+    .dropdown-item {
+      color: #cbd5e1 !important;
+
+      &:hover {
+        background-color: rgba(51, 65, 85, 0.6) !important;
+      }
+
+      &.manage-item {
+        color: #60a5fa !important;
+
+        &:hover {
+          background-color: rgba(59, 130, 246, 0.2) !important;
+        }
+      }
+    }
+
+    .dropdown-divider {
+      background-color: rgba(100, 116, 139, 0.4) !important;
+    }
+  }
+
+  // 批量操作面板暗黑模式覆盖
+  .batch-actions-panel {
+    background: linear-gradient(135deg,
+      rgba(30, 41, 59, 0.98) 0%,
+      rgba(51, 65, 85, 0.98) 50%,
+      rgba(71, 85, 105, 0.98) 100%) !important;
+    border-color: rgba(148, 163, 184, 0.4) !important;
+    box-shadow:
+      0 20px 40px rgba(0, 0, 0, 0.4),
+      0 8px 24px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+
+    .batch-header {
+      background: rgba(51, 65, 85, 0.8) !important;
+      border-bottom-color: rgba(148, 163, 184, 0.3) !important;
+
+      .selection-text {
+        color: #f9fafb !important;
+      }
+
+      .count-badge {
+        background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%) !important;
+      }
+    }
+
+    .select-all-btn {
+      background: rgba(142, 142, 147, 0.15) !important;
+      color: #0A84FF !important;
+
+      &:hover {
+        background: rgba(10, 132, 255, 0.12) !important;
+      }
+
+      &.all-selected {
+        background: linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%) !important;
+      }
+    }
+
+    .close-btn {
+      background: rgba(142, 142, 147, 0.2) !important;
+      color: #aeaeb2 !important;
+
+      &:hover {
+        background: rgba(142, 142, 147, 0.3) !important;
+      }
+    }
+
+    .divider {
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.12) 20%,
+        rgba(255, 255, 255, 0.12) 80%,
+        transparent 100%) !important;
+    }
+
+    .action-btn {
+      background: rgba(71, 85, 105, 0.6) !important;
+      border-color: rgba(100, 116, 139, 0.4) !important;
+
+      &:hover {
+        background: rgba(71, 85, 105, 0.8) !important;
+        border-color: rgba(100, 116, 139, 0.6) !important;
+      }
+
+      &.rename-btn .btn-text { color: #818CF8 !important; }
+      &.download-btn .btn-text { color: #30D158 !important; }
+      &.favorite-btn .btn-text { color: #FF9F0A !important; }
+      &.tag-btn .btn-text { color: #0A84FF !important; }
+      &.delete-btn .btn-text { color: #FF453A !important; }
+    }
+  }
+
+  .emoticon-workshop .preset-images,
+  .emoticon-workshop .edit-area,
+  .emoticon-workshop .preview-window,
+  .wallpaper-view .wallpaper-header,
+  .wallpaper-view .modal-content,
+  .beauty-viewer .image-display,
+  .beauty-viewer .controls,
+  .beauty-viewer .history-panel,
+  .handsome-viewer .image-display,
+  .handsome-viewer .controls,
+  .handsome-viewer .history-panel,
+  .video-viewer .video-display,
+  .video-viewer .controls,
+  .video-viewer .history-panel {
+    background: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-border);
+    box-shadow: var(--app-shadow);
+  }
+
+  .emoticon-workshop .preview-window,
+  .wallpaper-view .search-bar input,
+  .wallpaper-view .filters select {
+    background: var(--app-surface-secondary);
+    color: var(--app-text);
+    border-color: var(--app-border);
+  }
+
+  .online-search .fixed-controls {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    box-shadow: var(--app-shadow);
+  }
+
+  .online-search .search-input .el-input__wrapper {
+    background: linear-gradient(180deg, #1f2937 0%, #111827 100%) !important;
+    box-shadow:
+      0 0 0 1px rgba(148, 163, 184, 0.22),
+      0 12px 28px rgba(0, 0, 0, 0.28) !important;
+  }
+}

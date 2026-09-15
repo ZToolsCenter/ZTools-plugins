@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "diffffff",
+  "title": "文本差异对比",
+  "description": "对比两段文本的差异，支持并排/统一视图、智能精度、语法高亮，纯本地离线运行",
+  "author": "皮皮虾我们走",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "diff",
+      "explain": "对比两段文本差异",
+      "cmds": [
+        "diff",
+        "文本差异"
+      ]
+    }
+  ]
+}

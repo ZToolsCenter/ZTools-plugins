@@ -1,0 +1,33 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #f4f5f7;
+  color: #202329;
+}
+
+#root {
+  height: 100%;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #22252b;
+    color: #e9ebef;
+  }
+}

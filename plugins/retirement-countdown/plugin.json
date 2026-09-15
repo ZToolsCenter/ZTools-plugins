@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ZToolsCenter/ZTools/main/ztools-api-types/resource/ztools.schema.json",
+  "name": "retirement-countdown",
+  "title": "退休倒计时",
+  "description": "显示距离法定退休日的倒计时，支持渐进式延迟退休政策估算",
+  "version": "0.1.0",
+  "author": "HZX",
+  "homepage": "https://github.com/ZToolsCenter/ZTools-plugins",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "retirement",
+      "explain": "查看退休倒计时",
+      "cmds": [
+        "退休",
+        "退休倒计时",
+        "retire",
+        "tx"
+      ]
+    }
+  ]
+}

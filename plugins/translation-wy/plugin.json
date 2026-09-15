@@ -1,0 +1,25 @@
+{
+    "name": "translation-wy",
+    "title": "有道翻译",
+    "description": "网页版有道翻译，支持文本翻译、网页翻译、文档翻译",
+    "version": "1.0.0",
+    "main": "https://fanyi.youdao.com/#/TextTranslate",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "author": "Zing",
+    "features": [
+        {
+            "code": "fanyi",
+            "explain": "有道翻译",
+            "cmds": [
+                "有道翻译",
+                {
+                    "type": "over",
+                    "minLength": 1,
+                    "exclude": "/\\n/",
+                    "label": "有道翻译"
+                }
+            ]
+        }
+    ]
+}

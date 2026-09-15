@@ -1,0 +1,22 @@
+{
+  "name": "batch-start",
+  "title": "批量启动",
+  "description": "扫描应用、手动分类，并将启动组注册为 ZTools 指令一键批量启动",
+  "author": "ArthurYang999",
+  "version": "0.1.0",
+  "platform": ["win32", "darwin", "linux"],
+  "main": "dist/index.html",
+  "logo": "logo.png",
+  "preload": "preload/services.js",
+  "features": [
+    {
+      "code": "manage",
+      "explain": "管理应用分类与启动组",
+      "icon": "logo.png",
+      "cmds": ["批量启动", "应用启动组"]
+    }
+  ],
+  "development": {
+    "main": "http://localhost:5173"
+  }
+}

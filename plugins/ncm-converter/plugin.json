@@ -1,0 +1,64 @@
+{
+  "name": "ncm-converter",
+  "title": "音频转 MP3",
+  "description": "一键把任意音频（ncm/wav/ogg/flac/m4a/aac/wma/opus 等）转换为无封面的 MP3。选中音频文件后超级面板出现「音频转 MP3」，也可搜索 tomp3 手动选文件。NCM 走纯 JS 解密，其余格式调用系统 ffmpeg 转码。",
+  "author": "一个成熟的剪辑猿",
+  "version": "2.3.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "convert",
+      "explain": "音频转 MP3（支持 ncm/wav/ogg/flac/m4a/aac/wma/opus 等）",
+      "mainHide": true,
+      "cmds": [
+        {
+          "type": "files",
+          "label": "音频转 MP3",
+          "fileType": "file",
+          "match": {
+            "type": "files",
+            "fileType": "file",
+            "extensions": [
+              "ncm",
+              "wav",
+              "wave",
+              "ogg",
+              "oga",
+              "flac",
+              "m4a",
+              "aac",
+              "wma",
+              "opus",
+              "mp3",
+              "mp2",
+              "caf",
+              "aiff",
+              "aif",
+              "ape",
+              "tta",
+              "wv",
+              "amr"
+            ]
+          }
+        },
+        "音频转 MP3"
+      ]
+    },
+    {
+      "code": "convert-pick",
+      "explain": "选择音频文件并转换为 MP3",
+      "cmds": [
+        "tomp3",
+        "转mp3",
+        "音频转mp3",
+        "mp3",
+        "ncm"
+      ]
+    }
+  ],
+  "categories": [
+    "media"
+  ]
+}

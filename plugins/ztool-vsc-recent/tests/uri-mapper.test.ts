@@ -10,7 +10,8 @@ describe('mapEntries', () => {
     expect(out[0].kind).toBe('folder');
     expect(out[0].title).toBe('foo');
     expect(out[0].subtitle.toLowerCase()).toContain('proj');
-    expect(out[0].rawPath.toLowerCase()).toContain('c:\\proj\\foo');
+    const expectedPath = process.platform === 'win32' ? 'c:\\proj\\foo' : '/c:/proj/foo';
+    expect(out[0].rawPath.toLowerCase()).toContain(expectedPath);
   });
 
   it('maps a workspace file and strips .code-workspace from title', () => {

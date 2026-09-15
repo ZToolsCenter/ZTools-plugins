@@ -4,9 +4,10 @@
   "title": "TinyRDM",
   "description": "redis客户端",
   "author": "Zing",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "main": "index.html",
   "preload": "preload/services.js",
+  "unpack": "@(tinyrdm|tinyrdm.exe)",
   "logo": "favicon.png",
   "pluginSetting": {
     "single": true,

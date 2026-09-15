@@ -3,6 +3,15 @@
 #   - native-win.zip : wechat_ocr.node + wco_data/ (fetched from NuGet)
 #   - native-mac.zip : wechat_ocr.node + wechat-ocr-mac/ (fetched from the npm
 #                       package @ztools-center/wechat-ocr-native)
+#   - latex-ort-{win,mac}.zip : per-platform onnxruntime-node (dedup; models shared)
+#   - latex-models.zip         : shared pix2tex ONNX models + tokenizer (Win job only)
+#
+# The LaTeX assets are deduplicated: models are platform-agnostic so they ship
+# once, while onnxruntime-node's native binaries differ per platform. The plugin
+# runtime now downloads these Release zips directly (GitHub URLs are routed
+# through the v6.gh-proxy.org prefix at runtime); the pack-latex-tgz.mjs /
+# npmmirror tgz path is retained only as a fallback packaging route and is no
+# longer consumed by the plugin.
 #
 # Scope: this workflow ONLY builds & ships the native bits. The frontend plugin
 # is released independently (npm run build) — its plugin.json carries the
@@ -59,6 +68,15 @@ jobs:
       - name: Copy native assets into dist/ and bundle native-win.zip
         run: npm run copy:native
 
+      # LaTeX OCR 引擎：拉取 ONNX 模型 + 复制 onnxruntime-node，打 latex-ort-win.zip
+      - name: Fetch LaTeX OCR models
+        run: npm run fetch:latex
+        shell: bash
+
+      - name: Copy LaTeX assets into dist/ and bundle latex-ort-win.zip + latex-models.zip
+        run: npm run copy:latex
+        shell: bash
+
       - name: Upload native-win.zip to a GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -66,6 +84,8 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: |
             dist/native-win.zip
+            dist/latex-ort-win.zip
+            dist/latex-models.zip
 
   release-mac:
     runs-on: macos-latest
@@ -93,6 +113,15 @@ jobs:
       - name: Copy native assets into dist/ and bundle native-mac.zip
         run: npm run copy:native
 
+      # LaTeX OCR 引擎：拉取 ONNX 模型 + 复制 onnxruntime-node，打 latex-ort-mac.zip
+      - name: Fetch LaTeX OCR models
+        run: npm run fetch:latex
+        shell: bash
+
+      - name: Copy LaTeX assets into dist/ and bundle latex-ort-mac.zip
+        run: npm run copy:latex
+        shell: bash
+
       - name: Upload native-mac.zip to a GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -100,3 +129,4 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: |
             dist/native-mac.zip
+            dist/latex-ort-mac.zip

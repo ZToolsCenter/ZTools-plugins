@@ -1,0 +1,13 @@
+node_modules/
+dist/
+utools-dist/
+*.log
+.DS_Store
+
+# 项目统一用 bun：追踪 bun.lock（覆盖全局 *.lock 忽略），不用 npm lockfile
+!bun.lock
+
+# 本地设计走查产物不纳入版本控制
+.design-check/
+
+未命名/

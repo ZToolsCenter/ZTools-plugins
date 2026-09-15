@@ -13,6 +13,7 @@ interface RemoteHost {
   address: string
   username: string
   password: string
+  order?: number
 }
 
 interface Services {
@@ -23,6 +24,8 @@ interface Services {
   addHost: (host: RemoteHost) => { success: boolean; error?: string }
   updateHost: (originalId: string, host: RemoteHost) => { success: boolean; error?: string }
   deleteHost: (id: string) => { success: boolean; error?: string }
+  decryptPassword: (encrypted: string) => string
+  updateOrder: (hosts: RemoteHost[]) => { success: boolean; error?: string }
   connectRdp: (address: string, username: string, password: string) => { success: boolean; error?: string }
 }
 

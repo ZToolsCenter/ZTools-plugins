@@ -4,7 +4,7 @@
   "title": "进程端口管理",
   "description": "快速搜索进程、端口、PID、路径，支持一键 Kill 进程，支持深色模式",
   "author": "Agitator",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "homepage": "https://github.com/Code-Agitator/process-manager",
   "main": "index.html",
   "preload": "preload/services.js",

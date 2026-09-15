@@ -12,13 +12,14 @@ describe('decideSelectActions', () => {
     expect(actions.length).toBe(1);
   });
 
-  it('on failure: notifies with reason + PATH hint, does NOT close host', () => {
+  it('on failure: notifies with reason + platform guidance, does NOT close host', () => {
     const actions = decideSelectActions({ ok: false, reason: 'spawn ENOENT' });
     expect(actions.length).toBe(1);
     expect(actions[0].kind).toBe('notify');
     if (actions[0].kind === 'notify') {
       expect(actions[0].message).toContain('spawn ENOENT');
-      expect(actions[0].message).toContain('Shell Command: Install code command in PATH');
+      expect(actions[0].message).toContain('设置 VSCode');
+      expect(actions[0].message).toContain('Linux');
     }
     // Regression: must not close ztool main window when launch failed.
     expect(actions.find((a) => a.kind === 'close-host')).toBeUndefined();
@@ -36,8 +37,8 @@ describe('decideSelectActions', () => {
     if (actions[0].kind === 'notify') {
       expect(actions[0].message).toContain('IPC 异常');
       expect(actions[0].message).toContain('channel closed');
-      // No PATH hint for IPC errors — root cause is the channel, not the user's PATH.
-      expect(actions[0].message).not.toContain('Install code command');
+      // No installation hint for IPC errors — root cause is the channel.
+      expect(actions[0].message).not.toContain('设置 VSCode');
     }
     expect(actions.find((a) => a.kind === 'close-host')).toBeUndefined();
   });

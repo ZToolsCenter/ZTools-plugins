@@ -20,11 +20,11 @@ export interface EverythingQueryItem {
   name: string;
   path: string;
   fullPath: string;
-  highlightedName?: string;
-  highlightedPath?: string;
-  extension?: string;
-  size?: number;
-  modifiedAt?: number;
+  highlightedName: string;
+  highlightedPath: string;
+  extension: string;
+  size: number;
+  modifiedAt: number;
 }
 
 export interface EverythingQueryResult {
@@ -81,5 +81,8 @@ export function readTextPreview(
   maxBytes?: number,
   direction?: TextPreviewDirection,
 ): TextPreviewResult;
-export function printDirectoryTree(directory: string, options?: FileTreeOptions): FileTreeResult;
+export function printDirectoryTree(
+  directory: string,
+  options?: FileTreeOptions,
+): Promise<FileTreeResult>;
 export function printArchiveTree(file: string, options?: FileTreeOptions): FileTreeResult;

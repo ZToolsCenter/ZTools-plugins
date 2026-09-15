@@ -1,0 +1,8 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Opening...</title>
+<script>
+const params = new URLSearchParams(location.search)
+const target = params.get('target') || ''
+if (target) location.replace(target)
+</script>

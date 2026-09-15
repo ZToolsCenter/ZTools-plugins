@@ -10,6 +10,8 @@ import Qrcode from '../tools/Qrcode/index.vue'
 import HTMLPreview from '../tools/HTMLPreview/index.vue'
 import TimeConvert from '../tools/TimeConvert/index.vue'
 import TextCompress from '../tools/TextCompress/index.vue'
+import TextTransform from '../tools/TextTransform/index.vue'
+import JsonTool from '../tools/JsonTool/index.vue'
 
 export interface Tool {
   code: string
@@ -52,6 +54,8 @@ export const categories: Category[] = [
     tools: [
       { code: 'htmlpreview', explain: 'HTML预览', icon: '', component: HTMLPreview },
       { code: 'textcompress', explain: '压缩文本', icon: '', component: TextCompress },
+      { code: 'texttransform', explain: '文本转换', icon: '', component: TextTransform },
+      { code: 'jsontool', explain: 'JSON工具', icon: '', component: JsonTool },
     ]
   }
 ]

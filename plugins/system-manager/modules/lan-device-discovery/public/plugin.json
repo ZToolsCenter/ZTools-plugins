@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "lan-device-discovery",
+  "title": "局域网设备发现",
+  "description": "通过被动邻居表与受限 ICMP 探测，查看当前局域网内可见设备。",
+  "version": "0.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://127.0.0.1:5173/"
+  },
+  "features": [
+    {
+      "code": "lan-device-discovery",
+      "explain": "发现当前局域网内的在线设备",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["局域网设备", "设备发现", "局域网扫描", "LAN", "网络设备"]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "ztools-sql-formatter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A local, offline SQL formatter plugin for ZTools",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "test": "vitest run",
+    "package": "node scripts/package.mjs",
+    "verify": "node scripts/verify-package.mjs"
+  },
+  "dependencies": {
+    "sql-formatter": "15.8.2"
+  },
+  "devDependencies": {
+    "@electron/asar": "4.1.0",
+    "adm-zip": "0.5.16",
+    "vite": "7.1.6",
+    "vitest": "4.0.18"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -169,7 +169,7 @@ async function renderPage(token = ++renderToken, options: { keepCurrentCanvas?: 
     if (token !== renderToken) return;
 
     const baseViewport = page.getViewport({ scale: 1 });
-    const availableWidth = Math.max(240, pageShell.clientWidth - 24);
+    const availableWidth = Math.max(240, pageShell.clientWidth);
     const scale = Math.min(2, Math.max(0.4, availableWidth / baseViewport.width));
     const viewport = page.getViewport({ scale });
     const outputScale = window.devicePixelRatio || 1;
@@ -289,7 +289,7 @@ function prepareBlankPage() {
   const pageShell = pageShellRef.value;
   if (!canvas) return;
 
-  const fallbackWidth = pageShell ? Math.max(240, pageShell.clientWidth - 24) : 420;
+  const fallbackWidth = pageShell ? Math.max(240, pageShell.clientWidth) : 420;
   const width = lastPageSize.width || fallbackWidth;
   const height = lastPageSize.height || width * 1.414;
   setBlankCanvas(canvas, width, height);
@@ -461,7 +461,7 @@ function clearCanvas() {
   overflow: auto;
   min-width: 0;
   min-height: 0;
-  padding: 12px;
+  padding: 0;
   text-align: center;
 }
 

@@ -1,0 +1,227 @@
+@import './variables.css';
+
+/* ═══════════════════════════════════════════════════════════
+   RESET
+   ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  color: var(--ink);
+  background-color: transparent;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+input, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  border: none;
+  outline: none;
+  color: inherit;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--clay);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--graphite);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FOCUS STATES
+   ═══════════════════════════════════════════════════════════ */
+*:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LAYOUT SHELL
+   ═══════════════════════════════════════════════════════════ */
+.todo-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.todo-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.todo-content.pool-only .task-pool {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Calendar Panel — takes remaining space */
+.calendar-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Task Panel — fixed width */
+.task-pool {
+  width: 380px;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═══════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — Compact mode for narrow plugin windows
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .header {
+    padding: var(--sp-2) var(--sp-3) !important;
+  }
+
+  .header-left {
+    gap: var(--sp-4) !important;
+  }
+
+  .logo {
+    font-size: var(--font-size-lg) !important;
+  }
+
+  .ws-tab {
+    padding: var(--sp-1) var(--sp-2) !important;
+    font-size: var(--font-size-xs) !important;
+  }
+
+  .cal-nav {
+    padding: var(--sp-2) var(--sp-3) !important;
+  }
+
+  .cal-month {
+    font-size: var(--font-size-lg) !important;
+  }
+
+  .week-view {
+    padding: var(--sp-2) var(--sp-3) !important;
+  }
+
+  .day-row {
+    padding: var(--sp-2) var(--sp-3) !important;
+    min-height: 48px !important;
+  }
+
+  .day-date-card {
+    width: 44px !important;
+    min-width: 44px !important;
+    padding: var(--sp-1) !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .day-name {
+    font-size: 9px !important;
+  }
+
+  .day-date {
+    font-size: 18px !important;
+  }
+
+  .day-tasks {
+    padding-left: var(--sp-2) !important;
+  }
+
+  .task-pool {
+    width: 280px !important;
+    min-width: 240px !important;
+  }
+
+  .task-pool-header {
+    padding: var(--sp-2) var(--sp-3) !important;
+  }
+
+  .task-pool-content {
+    padding: var(--sp-2) var(--sp-3) !important;
+  }
+
+  .task-item {
+    padding: var(--sp-2) var(--sp-3) !important;
+  }
+
+  .task-title {
+    font-size: var(--font-size-sm) !important;
+  }
+
+  .task-pool-input {
+    padding: var(--sp-2) var(--sp-3) !important;
+  }
+
+  .task-pool-input textarea {
+    min-height: 48px !important;
+    font-size: var(--font-size-xs) !important;
+  }
+}

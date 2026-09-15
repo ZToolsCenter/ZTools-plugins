@@ -4,7 +4,7 @@
   "title": "文件批量重命名",
   "description": "批量文件重命名工具，支持多种重命名规则，包括替换、前缀/后缀、大小写转换、序列号、模板、时间戳等",
   "author": "nichijoux",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.svg",

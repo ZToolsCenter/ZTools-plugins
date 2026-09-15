@@ -8,6 +8,7 @@ on:
       - 'scripts/**'
       - 'package.json'
       - 'package-lock.json'
+      - '.bun-version'
   workflow_dispatch:
     inputs:
       pr_number:
@@ -37,6 +38,9 @@ jobs:
       windows_plugins: ${{ steps.split.outputs.windows_plugins }}
       macos_plugins: ${{ steps.split.outputs.macos_plugins }}
       pr_number: ${{ steps.pr.outputs.number }}
+      base_ref: ${{ steps.pr.outputs.base_ref }}
+      base_sha: ${{ steps.pr.outputs.base_sha }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
 
     steps:
       - name: Resolve PR metadata
@@ -82,8 +86,27 @@ jobs:
             pullRequest = await response.json()
           }
 
+          const baseRepository = pullRequest.base.repo.full_name
+          if (baseRepository !== process.env.REPOSITORY) {
+            throw new Error(`Unexpected base repository: ${baseRepository}`)
+          }
+
+          const baseRef = pullRequest.base.ref
+          const baseResponse = await fetch(
+            `https://api.github.com/repos/${baseRepository}/branches/${encodeURIComponent(baseRef)}`,
+            { headers },
+          )
+          if (!baseResponse.ok) {
+            throw new Error(
+              `Failed to resolve current base branch: ${baseResponse.status} ${baseResponse.statusText} ${await baseResponse.text()}`,
+            )
+          }
+          const baseBranch = await baseResponse.json()
+
           const outputs = {
             number: String(pullRequest.number),
+            base_ref: baseRef,
+            base_sha: baseBranch.commit.sha,
             head_sha: pullRequest.head.sha,
           }
 
@@ -95,21 +118,38 @@ jobs:
           )
 
           console.log(`Resolved PR #${outputs.number}`)
+          console.log(`Base: ${outputs.base_ref}@${outputs.base_sha}`)
           console.log(`Head SHA: ${outputs.head_sha}`)
           NODE
 
       - name: Checkout PR code
         env:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+          BASE_SHA: ${{ steps.pr.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           git init .
           git remote add origin "https://github.com/${REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "pull/${PR_NUMBER}/head"
-          git checkout --force FETCH_HEAD
+          git fetch --no-tags --filter=blob:none origin \
+            "+${BASE_SHA}:refs/remotes/origin/pr-base" \
+            "+${HEAD_SHA}:refs/remotes/origin/pr-head"
+          git checkout --force --detach refs/remotes/origin/pr-base
+
+          if ! git \
+            -c user.name=github-actions \
+            -c user.email=github-actions@github.com \
+            merge --no-commit --no-ff refs/remotes/origin/pr-head; then
+            echo "::error::PR #${PR_NUMBER} 无法合并到 ${BASE_REF}@${BASE_SHA}，请先解决与目标分支的冲突"
+            git status --short
+            exit 1
+          fi
+
           git clean -ffdx
+          echo "Prepared PR #${PR_NUMBER}: ${HEAD_SHA} on ${BASE_REF}@${BASE_SHA}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -256,6 +296,7 @@ jobs:
             const pluginJsonPaths = [
               join('plugins', pluginName, 'plugin.json'),
               join('plugins', pluginName, 'public', 'plugin.json'),
+              join('plugins', pluginName, 'src-ztools', 'plugin.json'),
               join('plugins', pluginName, 'dist', 'plugin.json'),
             ]
 
@@ -298,6 +339,9 @@ jobs:
     uses: ./.github/workflows/build-pr-plugin-platform.yml
     with:
       pr_number: ${{ needs.detect.outputs.pr_number }}
+      base_ref: ${{ needs.detect.outputs.base_ref }}
+      base_sha: ${{ needs.detect.outputs.base_sha }}
+      head_sha: ${{ needs.detect.outputs.head_sha }}
       platform_name: linux
       runner: ubuntu-latest
 
@@ -307,6 +351,9 @@ jobs:
     uses: ./.github/workflows/build-pr-plugin-platform.yml
     with:
       pr_number: ${{ needs.detect.outputs.pr_number }}
+      base_ref: ${{ needs.detect.outputs.base_ref }}
+      base_sha: ${{ needs.detect.outputs.base_sha }}
+      head_sha: ${{ needs.detect.outputs.head_sha }}
       platform_name: windows
       runner: windows-latest
 
@@ -316,5 +363,8 @@ jobs:
     uses: ./.github/workflows/build-pr-plugin-platform.yml
     with:
       pr_number: ${{ needs.detect.outputs.pr_number }}
+      base_ref: ${{ needs.detect.outputs.base_ref }}
+      base_sha: ${{ needs.detect.outputs.base_sha }}
+      head_sha: ${{ needs.detect.outputs.head_sha }}
       platform_name: macos
       runner: macos-latest

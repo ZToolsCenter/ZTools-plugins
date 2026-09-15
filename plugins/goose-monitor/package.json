@@ -1,0 +1,31 @@
+{
+  "name": "prockill",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "鹅的监控 — uTools 进程管理插件",
+  "scripts": {
+    "dev": "node node_modules/vite/bin/vite.js",
+    "build": "npm run build:utools",
+    "build:frontend": "node node_modules/vite/bin/vite.js build --mode utools",
+    "test": "bun test",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "check:versions": "node scripts/check-versions.mjs",
+    "check": "bun run check:versions && bun run typecheck && bun test && bun run build:utools",
+    "preview": "node node_modules/vite/bin/vite.js preview",
+    "mcp": "node scripts/goose-monitor-mcp.mjs",
+    "build:utools": "node node_modules/vite/bin/vite.js build --mode utools && node scripts/build-utools.mjs",
+    "utools:build": "npm run build:utools"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "esbuild": "^0.28.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.0.16"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.3.6"
+  },
+  "packageManager": "npm"
+}

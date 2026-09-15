@@ -1,0 +1,39 @@
+{
+  "name": "scripty",
+  "version": "1.0.1",
+  "description": "ZTools 本地脚本任务管理器，支持安全执行、Cron 调度、环境变量、运行日志和备份迁移",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/watch-dev.mjs",
+    "build": "vue-tsc && vite build && node scripts/finalize-build.mjs",
+    "check": "npm run build",
+    "build:verify": "npm run build && node scripts/verify-build.mjs"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/legacy-modes": "^6.5.3",
+    "@codemirror/search": "^6.7.1",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.6",
+    "cron-parser": "^5.6.1",
+    "material-icon-theme": "^5.36.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.6.4",
+    "yauzl": "^3.4.0",
+    "yazl": "^3.3.1",
+    "ztools-ui": "^0.1.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "esbuild": "^0.25.12",
+    "sass-embedded": "^1.100.0",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vue-tsc": "^2.0.0"
+  }
+}

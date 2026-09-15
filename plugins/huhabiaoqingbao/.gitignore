@@ -1,0 +1,9 @@
+node_modules
+dist
+release
+.DS_Store
+*.log
+.env
+.env.*
+src/components/emoji/emoji.md
+src/components/emoji/kaomiji.md

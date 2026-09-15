@@ -1,0 +1,48 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "quickterm",
+  "title": "QuickTerm",
+  "description": "常用文件夹「在终端中打开」快速启动器",
+  "author": "咖啡八杯",
+  "version": "1.1.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "open-folder",
+      "explain": "在终端中打开此文件夹",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "在终端中打开",
+          "fileType": "directory",
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "panel",
+      "explain": "打开 QuickTerm 快速启动面板",
+      "icon": "logo.png",
+      "cmds": ["qt", "term", "quickterm"]
+    },
+    {
+      "code": "search",
+      "explain": "在终端中打开输入的路径",
+      "icon": "logo.png",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "over",
+          "label": "在终端中打开"
+        }
+      ]
+    }
+  ]
+}

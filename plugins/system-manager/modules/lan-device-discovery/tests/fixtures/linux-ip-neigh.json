@@ -1,0 +1,5 @@
+[
+  {"dst":"192.168.1.1","dev":"wlan0","lladdr":"50:c7:bf:11:22:33","state":"REACHABLE"},
+  {"dst":"192.168.1.40","dev":"wlan0","lladdr":"f0:d1:a9:11:22:33","state":"STALE"},
+  {"dst":"192.168.1.41","dev":"wlan0","state":"FAILED"}
+]

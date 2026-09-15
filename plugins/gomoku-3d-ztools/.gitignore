@@ -1,0 +1,6 @@
+node_modules/
+src-ztools/dist/
+test-results/
+.DS_Store
+*.log
+*.tsbuildinfo

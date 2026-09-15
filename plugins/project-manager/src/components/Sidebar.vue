@@ -1,24 +1,32 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+type View = 'dashboard' | 'settings' | 'nodes' | 'ports' | 'commitCalendar';
+
+const props = withDefaults(defineProps<{
+  active?: View;
+}>(), {
+  active: 'dashboard',
+});
+
 const emit = defineEmits<{
-  (e: 'navigate', view: 'dashboard' | 'settings' | 'nodes' | 'ports'): void
+  (e: 'navigate', view: View): void
 }>();
 
 const { t } = useI18n();
-const activeIndex = ref('dashboard');
 
 function handleSelect(key: string) {
-  activeIndex.value = key;
-  emit('navigate', key as any);
+  emit('navigate', key as View);
 }
 </script>
 
 <template>
-  <el-menu :default-active="activeIndex"
-    class="sidebar-menu h-full border-r-0 !bg-white dark:!bg-[#0f172a] transition-colors duration-300"
-    :collapse="true" @select="handleSelect">
+  <el-menu
+    :default-active="props.active"
+    class="sidebar-menu app-sidebar-nav h-full border-r-0 transition-colors duration-300"
+    :collapse="true"
+    @select="handleSelect"
+  >
     <div class="h-4"></div> <!-- Top spacing -->
 
     <el-menu-item index="dashboard">
@@ -39,6 +47,12 @@ function handleSelect(key: string) {
       </el-icon>
     </el-menu-item>
 
+    <el-menu-item index="commitCalendar" :title="t('sidebar.commitCalendar')">
+      <el-icon>
+        <div class="i-mdi-calendar-month" />
+      </el-icon>
+    </el-menu-item>
+
     <div class="flex-1"></div> <!-- Spacer -->
 
     <el-menu-item index="settings" :title="t('sidebar.settings')">
@@ -53,13 +67,13 @@ function handleSelect(key: string) {
 
 <style scoped>
 .sidebar-menu {
-  --item-hover-bg: #f1f5f9;
-  --item-hover-text: #0f172a;
-}
-
-:global(html.dark) .sidebar-menu {
-  --item-hover-bg: rgba(30, 41, 59, 0.6);
-  --item-hover-text: #f1f5f9;
+  --el-menu-bg-color: var(--app-surface);
+  --el-menu-hover-bg-color: var(--app-primary-soft);
+  --el-menu-active-color: var(--app-primary);
+  --el-menu-text-color: var(--app-text-muted);
+  width: 64px;
+  background: var(--app-surface) !important;
+  box-shadow: inset -1px 0 0 var(--app-border);
 }
 
 :deep(.el-menu-item) {
@@ -68,31 +82,24 @@ function handleSelect(key: string) {
   align-items: center;
   height: 48px;
   margin: 6px 10px;
-  border-radius: 10px;
-  transition: all 0.2s ease-out;
-  color: #94a3b8;
-}
-
-:global(html.dark) :deep(.el-menu-item) {
-  color: #64748b;
+  border-radius: var(--app-radius-md);
+  color: var(--app-text-muted);
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease),
+    box-shadow var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease);
 }
 
 :deep(.el-menu-item:hover) {
-  background-color: var(--item-hover-bg) !important;
-  color: var(--item-hover-text) !important;
+  background-color: var(--app-primary-soft) !important;
+  color: var(--app-text) !important;
 }
 
 :deep(.el-menu-item.is-active) {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(37, 99, 235, 0.06)) !important;
-  color: #2563eb !important;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+  background: var(--app-primary-soft) !important;
+  color: var(--app-primary) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-primary) 28%, transparent);
   font-weight: 600;
-}
-
-:global(html.dark) :deep(.el-menu-item.is-active) {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.08)) !important;
-  color: #60a5fa !important;
-  box-shadow: 0 0 16px rgba(59, 130, 246, 0.1);
 }
 
 :deep(.el-icon) {

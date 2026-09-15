@@ -2,7 +2,7 @@
   "name": "shortcut-capture",
   "title": "截图",
   "description": "截图、标注和保存截图",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "zing",
   "platform": ["darwin", "win32"],
   "main": "index.html",
@@ -15,12 +15,14 @@
     {
       "code": "shortcut-capture",
       "explain": "截图",
-      "cmds": ["shortcutCapture", "sc", "截屏", "截图"]
+      "cmds": ["shortcutCapture", "sc", "截屏", "截图"],
+      "mainHide": true
     },
     {
       "code": "shortcut-capture-copy",
       "explain": "截图并复制",
-      "cmds": ["截图并复制", "scc"]
+      "cmds": ["截图并复制", "scc"],
+      "mainHide": true
     },
     {
       "code": "shortcut-capture-save",

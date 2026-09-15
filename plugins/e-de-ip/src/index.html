@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>鹅的IP</title>
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #eef0f3;
+      --accent: #0f766e;
+      --ok: #059669;
+      --warn: #d97706;
+      --bad: #dc2626;
+      --chip: #f8fafc;
+    }
+    html[data-theme="dark"] {
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --line: #262b36;
+      --accent: #2dd4bf;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --bad: #f87171;
+      --chip: #1f2430;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body { padding: 10px 12px 44px; }
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .brand { font-size: 13px; font-weight: 600; }
+    .brand span { color: var(--muted); font-weight: 400; margin-left: 8px; }
+    .refresh {
+      border: 0;
+      background: var(--card);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+      box-shadow: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .refresh:focus { outline: none; box-shadow: none; }
+    .refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 8px 10px;
+      align-items: center;
+      height: 56px;
+      padding: 8px 0;
+      overflow: hidden;
+    }
+    .row + .row { border-top: 1px solid var(--line); }
+    .label { font-size: 12px; color: var(--muted); }
+    .copy-wrap {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      vertical-align: top;
+    }
+    .ip {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      line-height: 20px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .hint {
+      position: absolute;
+      left: 100%;
+      top: 0;
+      margin-left: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 20px;
+      color: var(--ok);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .hint.on { opacity: 1; }
+    .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .row > .meta {
+      margin-top: 0;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+      white-space: normal;
+      word-break: break-word;
+      line-height: 20px;
+      max-height: 40px;
+      min-width: 0;
+    }
+    .row.loc-row {
+      grid-template-columns: 48px minmax(0, 1fr);
+    }
+    .loc-cell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      height: 40px;
+      overflow: hidden;
+    }
+    .loc-cell .copy-wrap { display: block; max-width: 100%; }
+    .loc-cell .hint {
+      left: auto;
+      right: 0;
+      margin-left: 0;
+      padding-left: 10px;
+      background: var(--card);
+      box-shadow: -10px 0 8px var(--card);
+    }
+    .loc {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 20px;
+      max-height: 40px;
+      overflow: hidden;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      cursor: pointer;
+      white-space: normal;
+    }
+    .side {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      max-height: 40px;
+      overflow: hidden;
+      min-width: 0;
+    }
+    select, .check {
+      font-size: 12px;
+      line-height: 14px;
+      color: var(--text);
+      background: var(--chip);
+      border: 0;
+      border-radius: 8px;
+      padding: 2px 8px;
+    }
+    .check { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .tile {
+      background: var(--chip);
+      border-radius: 12px;
+      padding: 10px 10px 8px;
+      min-height: 74px;
+    }
+    .tile .name { font-size: 13px; font-weight: 600; }
+    .tile .region { font-size: 11px; color: var(--muted); margin: 3px 0 8px; }
+    .tile .ms { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .dns { max-height: 260px; overflow: auto; }
+    .dns-row {
+      display: grid;
+      grid-template-columns: 72px minmax(150px, 1.1fr) minmax(0, 1.4fr);
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .dns-row:last-child { border-bottom: 0; }
+    .tag { color: var(--accent); font-weight: 600; }
+    .dns-ip { font-variant-numeric: tabular-nums; line-height: 22px; cursor: pointer; }
+    .error { padding: 24px; text-align: center; color: var(--bad); }
+    .gear {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 20;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--card);
+      color: var(--muted);
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .gear svg { width: 16px; height: 16px; display: block; }
+    .gear.has-keys { color: var(--accent); }
+    .gear:hover { color: var(--text); }
+    .mask {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      background: rgba(15, 23, 42, 0.42);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .mask[hidden] { display: none !important; }
+    .sheet {
+      width: min(420px, 100%);
+      max-height: calc(100% - 8px);
+      overflow: auto;
+      background: var(--card);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 14px 16px 16px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+    }
+    .sheet-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .sheet-top h2 { font-size: 14px; font-weight: 600; }
+    .sheet-close {
+      border: 0;
+      background: var(--chip);
+      color: var(--muted);
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 26px;
+    }
+    .keys-help {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.65;
+      background: var(--chip);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    .keys-help b { color: var(--text); font-weight: 600; }
+    .keys-help a { color: var(--accent); text-decoration: none; }
+    .sheet label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 10px 0 4px;
+    }
+    .sheet input {
+      width: 100%;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--chip);
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .sheet-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .keys-save, .keys-cancel {
+      border: 0;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .keys-cancel { background: var(--chip); color: var(--text); }
+    .keys-save { background: var(--accent); color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand">鹅的IP<span>查看你电脑的 ip 信息</span></div>
+    <button class="refresh" id="refresh" type="button">刷新</button>
+  </div>
+  <section class="card" id="net"></section>
+  <section class="card"><div class="grid" id="sites"></div></section>
+  <section class="card dns" id="dns"></section>
+  <button class="gear" id="keysToggle" type="button" title="设置 API 密钥" aria-label="设置">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path>
+    </svg>
+  </button>
+  <div class="mask" id="keysMask" hidden>
+    <div class="sheet" role="dialog" aria-labelledby="keysTitle">
+      <div class="sheet-top">
+        <h2 id="keysTitle">API 密钥设置</h2>
+        <button class="sheet-close" id="keysClose" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="keys-help">
+        这些密钥是<strong>选填</strong>的，不填也能查 IP；填了后公网区县、国外归属和位置会更准。<br /><br />
+        <b>只保存在本机</b>：写入 ZTools 本地插件存储，不会上传、不会同步到服务器，也不会打进插件压缩包。清空插件数据或卸载插件即删除。<br /><br />
+        申请时请选「Web 服务 / WebService」类型，域名或 IP 白名单可先留空。<br />
+        高德：<a href="https://console.amap.com/dev/key/app" target="_blank" rel="noreferrer">console.amap.com</a><br />
+        腾讯：<a href="https://lbs.qq.com/dev/console/key/manage" target="_blank" rel="noreferrer">lbs.qq.com</a>，开启 WebServiceAPI<br />
+        ipgeolocation：<a href="https://app.ipgeolocation.io/" target="_blank" rel="noreferrer">app.ipgeolocation.io</a>
+      </div>
+      <label>高德 Web 服务 Key</label>
+      <input id="keyAmap" type="password" autocomplete="off" spellcheck="false" placeholder="用于 restapi.amap.com 定位" />
+      <label>腾讯位置服务 Key</label>
+      <input id="keyQq" type="password" autocomplete="off" spellcheck="false" placeholder="用于 apis.map.qq.com 定位" />
+      <label>ipgeolocation API Key</label>
+      <input id="keyIpgeo" type="password" autocomplete="off" spellcheck="false" placeholder="用于 api.ipgeolocation.io 国外归属" />
+      <div class="sheet-actions">
+        <button class="keys-cancel" id="keysCancel" type="button">取消</button>
+        <button class="keys-save" id="keysSave" type="button">保存到本地并刷新</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const netEl = document.getElementById('net')
+      const sitesEl = document.getElementById('sites')
+      const dnsEl = document.getElementById('dns')
+      let state = null
+
+      function theme() {
+        try {
+          document.documentElement.dataset.theme = ztools.isDarkColors() ? 'dark' : 'light'
+        } catch (e) {}
+      }
+
+      function syncHeight() {
+        try {
+          const height = Math.max(document.body.scrollHeight + 8, 360)
+          ztools.setExpendHeight(Math.min(height, 541))
+        } catch (e) {}
+      }
+
+      function msClass(ms) {
+        if (ms == null) return 'bad'
+        if (ms < 250) return 'ok'
+        if (ms < 600) return 'warn'
+        return 'bad'
+      }
+
+      function esc(text) {
+        return String(text || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+      }
+
+      function copyable(text, key, className, emptyText) {
+        if (!text) return '<span class="' + className + '">' + esc(emptyText || '检测中...') + '</span>'
+        const on = state && state.copiedKey === key
+        return '<span class="copy-wrap">' +
+          '<span class="' + className + '" data-copy="' + esc(text) + '" data-key="' + esc(key) + '" title="' + esc(text) + '">' + esc(text) + '</span>' +
+          '<span class="hint' + (on ? ' on' : '') + '">已复制</span>' +
+        '</span>'
+      }
+
+      let lastNetKey = ''
+      let lastSitesKey = ''
+      let lastDnsKey = ''
+
+      function renderNet() {
+        const s = state || {}
+        const lan = s.lan || {}
+        const pub = s.public || {}
+        const over = s.overseas || {}
+        const loc = s.location || {}
+        const ifaces = s.interfaces || []
+        const key = [
+          lan.ip, pub.ip, pub.geo, pub.loading,
+          over.ip, over.geo, over.loading,
+          loc.text, loc.loading, s.autoCopy, s.copiedKey, s.selectedIface,
+          ifaces.map(function (item) { return item.name }).join(',')
+        ].join('|')
+        if (key === lastNetKey) return
+        lastNetKey = key
+        const options = ['<option value="auto">Auto</option>']
+          .concat(ifaces.map(function (item) {
+            return '<option value="' + esc(item.name) + '">' + esc(item.name) + '</option>'
+          }))
+          .join('')
+        netEl.innerHTML =
+          '<div class="row">' +
+            '<div class="label">内网</div>' +
+            '<div>' +
+              '<div>' + copyable(lan.ip, 'lan', 'ip') + '</div>' +
+            '</div>' +
+            '<div class="side">' +
+              '<select id="iface">' + options + '</select>' +
+              '<label class="check"><input id="autoCopy" type="checkbox"' + (s.autoCopy ? ' checked' : '') + ' />自动复制</label>' +
+            '</div>' +
+          '</div>' +
+          '<div class="row">' +
+            '<div class="label">公网</div>' +
+            '<div>' + copyable(pub.ip, 'public', 'ip', pub.loading ? '检测中...' : '获取失败') + '</div>' +
+            '<div class="meta">' + esc(pub.geo || '') + '</div>' +
+          '</div>' +
+          '<div class="row">' +
+            '<div class="label">国外</div>' +
+            '<div>' + copyable(over.ip || (!over.loading && pub.ip) || '', 'overseas', 'ip', over.loading ? '检测中...' : '获取失败') + '</div>' +
+            '<div class="meta">' + esc(over.geo || '') + '</div>' +
+          '</div>' +
+          '<div class="row loc-row">' +
+            '<div class="label">位置</div>' +
+            '<div class="loc-cell">' + copyable(loc.loading ? '' : loc.text, 'location', 'loc', loc.loading ? '定位中...' : '暂无') + '</div>' +
+          '</div>'
+        const select = document.getElementById('iface')
+        const autoCopy = document.getElementById('autoCopy')
+        if (select) {
+          select.value = s.selectedIface || 'auto'
+          select.onchange = function () { window.ipConfig.setInterface(select.value) }
+        }
+        if (autoCopy) {
+          autoCopy.onchange = function () { window.ipConfig.setAutoCopy(autoCopy.checked) }
+        }
+      }
+
+      function renderSites() {
+        const sites = (state && state.sites) || []
+        const key = sites.map(function (site) {
+          return site.id + ':' + site.status + ':' + site.ms
+        }).join('|')
+        if (key === lastSitesKey) return
+        lastSitesKey = key
+        sitesEl.innerHTML = sites.map(function (site) {
+          const pending = site.status === 'loading'
+          const value = pending ? '...' : (site.ms == null ? '超时' : site.ms + 'ms')
+          return '<div class="tile">' +
+            '<div class="name">' + esc(site.name) + '</div>' +
+            '<div class="region">' + esc(site.region) + '</div>' +
+            '<div class="ms ' + (pending ? '' : msClass(site.ms)) + '">' + value + '</div>' +
+          '</div>'
+        }).join('')
+      }
+
+      function renderDns() {
+        const rows = (state && state.dns) || []
+        const key = (state && state.dnsLoading ? '1' : '0') + '|' + rows.map(function (row) {
+          return row.ip + ':' + row.geo
+        }).join('|')
+        if (key === lastDnsKey) return
+        lastDnsKey = key
+        if (state && state.dnsLoading && !rows.length) {
+          dnsEl.innerHTML = '<div class="meta">正在读取 DNS...</div>'
+          return
+        }
+        if (!rows.length) {
+          dnsEl.innerHTML = '<div class="meta">未获取到 DNS</div>'
+          return
+        }
+        dnsEl.innerHTML = '<div class="meta" style="margin-bottom:8px">DNS out：本机解析域名时实际访问的 DNS 服务器（含运营商 DNS 和 Google 等公共 DNS）</div>' + rows.map(function (row, index) {
+          const key = 'dns-' + index
+          return '<div class="dns-row">' +
+            '<div class="tag">DNS out</div>' +
+            '<div>' + copyable(row.ip, key, 'dns-ip') + '</div>' +
+            '<div class="meta">' + esc(row.geo) + '</div>' +
+          '</div>'
+        }).join('')
+      }
+
+      function fillKeysForm() {
+        if (!window.ipConfig) return
+        const keys = (window.ipConfig.getState() || {}).keys || {}
+        const amap = document.getElementById('keyAmap')
+        const qq = document.getElementById('keyQq')
+        const ipgeo = document.getElementById('keyIpgeo')
+        if (amap && document.activeElement !== amap) amap.value = keys.amap || ''
+        if (qq && document.activeElement !== qq) qq.value = keys.qq || ''
+        if (ipgeo && document.activeElement !== ipgeo) ipgeo.value = keys.ipgeo || ''
+        const n = [keys.amap, keys.qq, keys.ipgeo].filter(Boolean).length
+        const gear = document.getElementById('keysToggle')
+        if (gear) {
+          gear.classList.toggle('has-keys', n > 0)
+          gear.title = n ? '设置 API 密钥（已填 ' + n + '/3）' : '设置 API 密钥'
+        }
+      }
+
+      function openKeys() {
+        fillKeysForm()
+        document.getElementById('keysMask').hidden = false
+        const first = document.getElementById('keyAmap')
+        if (first) first.focus()
+      }
+
+      function closeKeys() {
+        document.getElementById('keysMask').hidden = true
+      }
+
+      function render(next) {
+        state = next
+        renderNet()
+        renderSites()
+        renderDns()
+        fillKeysForm()
+        syncHeight()
+        pingSitesInPage((next && next.sites) || [])
+        pingOverseasInPage(next)
+      }
+
+      let pagePingTried = {}
+      let pagePingToken = null
+      let overseasPingToken = null
+
+      function cacheBust(url) {
+        return url + (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now()
+      }
+
+      function pingOnce(url, wait) {
+        return new Promise(function (resolve) {
+          const ctrl = new AbortController()
+          const timer = setTimeout(function () {
+            try { ctrl.abort() } catch (e) {}
+            resolve(null)
+          }, wait)
+          const t0 = performance.now()
+          fetch(cacheBust(url), {
+            method: 'GET',
+            cache: 'no-store',
+            mode: 'no-cors',
+            credentials: 'omit',
+            redirect: 'follow',
+            signal: ctrl.signal
+          }).then(function () {
+            clearTimeout(timer)
+            resolve(Math.max(1, Math.round(performance.now() - t0)))
+          }).catch(function () {
+            clearTimeout(timer)
+            resolve(null)
+          })
+        })
+      }
+
+      // First sample includes DNS + TCP + TLS; second sample reuses the socket.
+      // Always report the second so first-open and refresh are comparable.
+      function pingInPage(url, wait) {
+        return pingOnce(url, wait).then(function (first) {
+          if (!first) return null
+          return pingOnce(url, wait).then(function (second) {
+            return second || first
+          })
+        })
+      }
+
+      function pingSitesInPage(sites) {
+        if (!window.ipConfig || !window.ipConfig.reportSite) return
+        const token = sites.length ? sites[0].token : 0
+        if (!token) return
+        if (token !== pagePingToken) {
+          pagePingToken = token
+          pagePingTried = {}
+        }
+        sites.forEach(function (site) {
+          if (site.status !== 'loading' || !site.needPage || pagePingTried[site.id]) return
+          const url = site.probe || site.url
+          if (!url) return
+          pagePingTried[site.id] = true
+          pingInPage(url, site.region === '境外网站' ? 8000 : 5000).then(function (ms) {
+            if (ms) {
+              window.ipConfig.reportSite(site.id, ms, site.token)
+              return
+            }
+            if (window.ipConfig.probeSite) window.ipConfig.probeSite(site.id, site.token)
+            else window.ipConfig.reportSite(site.id, null, site.token)
+          })
+        })
+      }
+
+      function pingOverseasInPage(s) {
+        if (!window.ipConfig || !window.ipConfig.reportOverseas) return
+        const over = (s && s.overseas) || {}
+        if (!over.token || overseasPingToken === over.token) return
+        overseasPingToken = over.token
+        const token = over.token
+        ;[
+          'https://api4.ipify.org?format=json',
+          'https://ipv4.icanhazip.com',
+          'https://api.ip.sb/ip'
+        ].forEach(function (url) {
+          fetch(url, { cache: 'no-store', credentials: 'omit' }).then(function (res) {
+            return res.text()
+          }).then(function (text) {
+            const match = String(text || '').match(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/)
+            if (match) window.ipConfig.reportOverseas(match[1], token)
+          }).catch(function () {})
+        })
+      }
+
+      document.body.addEventListener('click', function (event) {
+        const target = event.target.closest('[data-copy]')
+        if (!target || !window.ipConfig) return
+        const value = target.getAttribute('data-copy')
+        const key = target.getAttribute('data-key') || value
+        if (value) window.ipConfig.copy(value, key)
+      })
+
+      document.getElementById('refresh').onclick = function () {
+        if (window.ipConfig) window.ipConfig.refresh()
+      }
+
+      document.getElementById('keysToggle').onclick = openKeys
+      document.getElementById('keysClose').onclick = closeKeys
+      document.getElementById('keysCancel').onclick = closeKeys
+      document.getElementById('keysMask').addEventListener('click', function (event) {
+        if (event.target === event.currentTarget) closeKeys()
+      })
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') closeKeys()
+      })
+
+      document.getElementById('keysSave').onclick = function () {
+        if (!window.ipConfig) return
+        window.ipConfig.setKeys({
+          amap: document.getElementById('keyAmap').value,
+          qq: document.getElementById('keyQq').value,
+          ipgeo: document.getElementById('keyIpgeo').value
+        })
+        closeKeys()
+      }
+
+      theme()
+      try { ztools.removeSubInput() } catch (e) {}
+      try { ztools.subInputBlur && ztools.subInputBlur() } catch (e) {}
+
+      if (!window.ipConfig) {
+        netEl.innerHTML = '<div class="error">插件预加载失败，请重新导入包含 src/preload.js 的压缩包。</div>'
+        syncHeight()
+        return
+      }
+
+      window.ipConfig.onUpdate(render)
+      ztools.onPluginEnter(function () {
+        theme()
+        try { ztools.removeSubInput() } catch (e) {}
+        try { ztools.subInputBlur && ztools.subInputBlur() } catch (e) {}
+        window.ipConfig.start()
+        requestAnimationFrame(function () {
+          const refresh = document.getElementById('refresh')
+          if (refresh) refresh.blur()
+          if (document.activeElement && document.activeElement.blur) document.activeElement.blur()
+        })
+      })
+    })()
+  </script>
+</body>
+</html>

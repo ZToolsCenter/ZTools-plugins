@@ -1,7 +1,8 @@
 <script setup>
-import { ref, reactive, onMounted, computed, inject, watch, nextTick } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, computed, inject, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { createClient } from 'webdav/web';
 import {
   FolderOpened, Refresh, Edit, Delete, Plus,
   Document, UploadFilled, QuestionFilled, Search,
@@ -17,7 +18,222 @@ const searchQuery = ref('');
 const isLoading = ref(false);
 const showExportDialog = ref(false);
 const skillsToExport = ref([]);
+const hideEnvOnExport = ref(true);
 const isExporting = ref(false);
+
+const showWebdavSyncDialog = ref(false);
+const showWebdavManagerDialog = ref(false);
+const skillWebdavLoading = ref(false);
+const localSkillsForSync = ref([]);
+const skillsToSync = ref([]);
+const cloudSkills = ref([]);
+const cloudSkillSelection = ref([]);
+
+const selectableDragState = reactive({
+  active: false,
+  mode: '',
+  targetSelected: true,
+  lastIndex: {
+    sync: -1,
+    cloud: -1
+  }
+});
+
+function getSelectableItems(mode) {
+  return mode === 'cloud' ? cloudSkills.value : localSkillsForSync.value;
+}
+
+function getSelectableSelectionRef(mode) {
+  return mode === 'cloud' ? cloudSkillSelection : skillsToSync;
+}
+
+function getSelectableId(item = {}) {
+  return String(item?.id || '').trim();
+}
+
+function isSelectableSelected(mode, id) {
+  return getSelectableSelectionRef(mode).value.includes(id);
+}
+
+function setSelectableSelection(mode, ids = []) {
+  const next = Array.from(new Set(ids.map(id => String(id || '').trim()).filter(Boolean)));
+  getSelectableSelectionRef(mode).value = next;
+}
+
+function setSelectableItemSelected(mode, item, selected) {
+  if (skillWebdavLoading.value) return;
+  const id = getSelectableId(item);
+  if (!id) return;
+  const current = new Set(getSelectableSelectionRef(mode).value);
+  if (selected) current.add(id);
+  else current.delete(id);
+  setSelectableSelection(mode, Array.from(current));
+}
+
+function toggleSelectableItem(mode, item, selected = undefined) {
+  const id = getSelectableId(item);
+  if (!id) return;
+  const nextSelected = typeof selected === 'boolean' ? selected : !isSelectableSelected(mode, id);
+  setSelectableItemSelected(mode, item, nextSelected);
+}
+
+function selectSelectableRange(mode, fromIndex, toIndex, selected = true) {
+  const items = getSelectableItems(mode);
+  const start = Math.max(0, Math.min(fromIndex, toIndex));
+  const end = Math.min(items.length - 1, Math.max(fromIndex, toIndex));
+  const current = new Set(getSelectableSelectionRef(mode).value);
+  for (let index = start; index <= end; index += 1) {
+    const id = getSelectableId(items[index]);
+    if (!id) continue;
+    if (selected) current.add(id);
+    else current.delete(id);
+  }
+  setSelectableSelection(mode, Array.from(current));
+}
+
+function handleSelectableMouseDown(mode, item, index, event) {
+  if (skillWebdavLoading.value || event?.button !== 0) return;
+  event?.preventDefault?.();
+  if (event?.shiftKey && selectableDragState.lastIndex[mode] >= 0) {
+    selectSelectableRange(mode, selectableDragState.lastIndex[mode], index, true);
+    selectableDragState.lastIndex[mode] = index;
+    return;
+  }
+  const targetSelected = !isSelectableSelected(mode, getSelectableId(item));
+  selectableDragState.active = true;
+  selectableDragState.mode = mode;
+  selectableDragState.targetSelected = targetSelected;
+  selectableDragState.lastIndex[mode] = index;
+  toggleSelectableItem(mode, item, targetSelected);
+  window.addEventListener('mouseup', stopSelectableDrag, { once: true });
+}
+
+function handleSelectableMouseEnter(mode, item) {
+  if (!selectableDragState.active || selectableDragState.mode !== mode || skillWebdavLoading.value) return;
+  toggleSelectableItem(mode, item, selectableDragState.targetSelected);
+}
+
+function stopSelectableDrag() {
+  selectableDragState.active = false;
+  selectableDragState.mode = '';
+}
+
+function selectAllSelectable(mode) {
+  if (skillWebdavLoading.value) return;
+  setSelectableSelection(mode, getSelectableItems(mode).map(getSelectableId));
+}
+
+function clearSelectableSelection(mode) {
+  if (skillWebdavLoading.value) return;
+  setSelectableSelection(mode, []);
+}
+
+function invertSelectableSelection(mode) {
+  if (skillWebdavLoading.value) return;
+  const current = new Set(getSelectableSelectionRef(mode).value);
+  const next = getSelectableItems(mode)
+    .map(getSelectableId)
+    .filter(id => id && !current.has(id));
+  setSelectableSelection(mode, next);
+}
+
+function getSelectedCloudSkillRows() {
+  const selectedIds = new Set(cloudSkillSelection.value);
+  return cloudSkills.value.filter(item => selectedIds.has(getSelectableId(item)));
+}
+
+function sleep(ms = 0) {
+  return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
+async function runSkillTasksWithConcurrency(items, worker, concurrency = 1, options = {}) {
+  const queue = [...items];
+  const results = [];
+  const workerCount = Math.min(Math.max(1, concurrency), queue.length || 1);
+  const retries = Number.isFinite(options.retries) ? Math.max(0, options.retries) : 1;
+  const retryDelay = Number.isFinite(options.retryDelay) ? Math.max(0, options.retryDelay) : 250;
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (queue.length) {
+      const item = queue.shift();
+      let lastError = null;
+      for (let attempt = 0; attempt <= retries; attempt += 1) {
+        try {
+          const result = await worker(item, attempt);
+          results.push({ ...result, attempts: attempt + 1 });
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (attempt < retries) {
+            await sleep(retryDelay * (attempt + 1));
+          }
+        }
+      }
+      if (lastError) {
+        results.push({ ok: false, item, error: lastError, attempts: retries + 1 });
+      }
+      await sleep(40);
+    }
+  }));
+
+  return results;
+}
+
+const SKILL_WEBDAV_MAX_PACKAGE_SIZE = 50 * 1024 * 1024;
+const skillSyncProgressVisible = ref(false);
+const skillSyncProgress = reactive({
+  current: 0,
+  total: 0,
+  completed: 0,
+  success: 0,
+  failed: 0,
+  phase: '',
+  skillId: '',
+  cancelled: false,
+  results: []
+});
+
+function resetSkillSyncProgress(total = 0) {
+  skillSyncProgress.current = 0;
+  skillSyncProgress.total = total;
+  skillSyncProgress.completed = 0;
+  skillSyncProgress.success = 0;
+  skillSyncProgress.failed = 0;
+  skillSyncProgress.phase = '';
+  skillSyncProgress.skillId = '';
+  skillSyncProgress.cancelled = false;
+  skillSyncProgress.results = [];
+}
+
+function updateSkillSyncProgress(payload = {}) {
+  if (Number.isFinite(payload.current)) skillSyncProgress.current = payload.current;
+  if (Number.isFinite(payload.total)) skillSyncProgress.total = payload.total;
+  if (Number.isFinite(payload.completed)) skillSyncProgress.completed = payload.completed;
+  if (typeof payload.phase === 'string') skillSyncProgress.phase = payload.phase;
+  if (typeof payload.skillId === 'string') skillSyncProgress.skillId = payload.skillId;
+  if (payload.result && typeof payload.result === 'object') {
+    skillSyncProgress.results = [...skillSyncProgress.results, payload.result];
+    skillSyncProgress.success = skillSyncProgress.results.filter(item => item.ok).length;
+    skillSyncProgress.failed = skillSyncProgress.results.filter(item => !item.ok).length;
+  }
+}
+
+const skillSyncProgressPercent = computed(() => {
+  if (!skillSyncProgress.total) return 0;
+  return Math.min(100, Math.round((skillSyncProgress.completed / skillSyncProgress.total) * 100));
+});
+
+function cancelSkillWebdavSync() {
+  if (!skillWebdavLoading.value || skillSyncProgress.cancelled) return;
+  skillSyncProgress.cancelled = true;
+}
+
+onBeforeUnmount(() => {
+  stopSelectableDrag();
+  window.removeEventListener('mouseup', stopSelectableDrag);
+});
+
 
 // 编辑对话框状态
 const showEditDialog = ref(false);
@@ -31,6 +247,7 @@ const editingSkill = reactive({
   enabled: true,
   forkMode: false,
   allowedTools: '',
+  extraMetadata: {},
   files: [],
   absolutePath: ''
 });
@@ -102,6 +319,7 @@ function prepareAddSkill() {
     enabled: true,
     forkMode: false,
     allowedTools: '',
+    extraMetadata: {},
     files: [],
     absolutePath: ''
   });
@@ -115,14 +333,24 @@ async function prepareEditSkill(skillId) {
     const details = await window.api.getSkillDetails(skillPath.value, skillId);
     const meta = details.metadata;
 
+    const {
+      name,
+      description,
+      context,
+      ['allowed-tools']: allowedTools,
+      ['disable-model-invocation']: disableModelInvocation,
+      ...extraMetadata
+    } = meta;
+
     Object.assign(editingSkill, {
       id: details.id,
-      name: meta.name || details.id,
-      description: meta.description || '',
+      name: name || details.id,
+      description: description || '',
       instructions: details.content || '',
-      enabled: meta['disable-model-invocation'] !== true,
-      forkMode: meta.context === 'fork',
-      allowedTools: Array.isArray(meta['allowed-tools']) ? meta['allowed-tools'].join(', ') : (meta['allowed-tools'] || ''),
+      enabled: disableModelInvocation !== true,
+      forkMode: context === 'fork',
+      allowedTools: Array.isArray(allowedTools) ? allowedTools.join(', ') : (allowedTools || ''),
+      extraMetadata,
       files: details.files || [],
       absolutePath: details.absolutePath
     });
@@ -162,18 +390,47 @@ async function toggleSkillFork(skill, newValue) {
   }
 }
 
+function formatYamlScalar(value) {
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  return String(value);
+}
+
+function appendYamlField(lines, key, value) {
+  if (value === undefined || value === null || value === '') return;
+
+  if (Array.isArray(value)) {
+    const formatted = value
+      .map(item => {
+        const str = String(item).replace(/"/g, '\\"');
+        return `"${str}"`;
+      })
+      .join(', ');
+    lines.push(`${key}: [${formatted}]`);
+    return;
+  }
+
+  if (typeof value === 'string' && value.includes('\n')) {
+    lines.push(`${key}: |`);
+    value.split(/\r?\n/).forEach(line => {
+      lines.push(`  ${line}`);
+    });
+    return;
+  }
+
+  lines.push(`${key}: ${formatYamlScalar(value)}`);
+}
+
 async function saveSkillContent(dirName, metadata, body) {
   const lines = ['---'];
-  if (metadata.name) lines.push(`name: ${metadata.name}`);
-  if (metadata.description) lines.push(`description: ${metadata.description}`);
+  appendYamlField(lines, 'name', metadata.name);
+  appendYamlField(lines, 'description', metadata.description);
+  appendYamlField(lines, 'argument-hint', metadata['argument-hint']);
+  appendYamlField(lines, 'user-invocable', metadata['user-invocable']);
   if (metadata['disable-model-invocation'] === true) lines.push('disable-model-invocation: true');
   if (metadata.context === 'fork') lines.push('context: fork');
-
-  if (metadata['allowed-tools']) {
-    let tools = metadata['allowed-tools'];
-    if (typeof tools === 'string') lines.push(`allowed-tools: [${tools}]`);
-    else if (Array.isArray(tools)) lines.push(`allowed-tools: [${tools.join(', ')}]`);
-  }
+  appendYamlField(lines, 'agent', metadata.agent);
+  appendYamlField(lines, 'model', metadata.model);
+  appendYamlField(lines, 'allowed-tools', metadata['allowed-tools']);
 
   lines.push('---');
   lines.push('');
@@ -190,6 +447,7 @@ async function saveEditDialog() {
   }
 
   const metadata = {
+    ...editingSkill.extraMetadata,
     name: editingSkill.name,
     description: editingSkill.description,
   };
@@ -236,6 +494,23 @@ async function saveEditDialog() {
     }
   } catch (e) {
     ElMessage.error(t('common.saveFailed') + ': ' + e.message);
+  }
+}
+
+async function openSkillFolder(skill) {
+  const targetPath = skill?.path || (skillPath.value && skill?.id ? window.api.pathJoin(skillPath.value, skill.id) : '');
+  if (!targetPath) {
+    ElMessage.warning(t('skills.alerts.openFolderPathMissing'));
+    return;
+  }
+
+  try {
+    const result = await window.api.shellOpenPath(targetPath);
+    if (result?.ok === false) {
+      throw new Error(result.message || result.reason || t('common.operationFailed'));
+    }
+  } catch (e) {
+    ElMessage.error(t('skills.alerts.openFolderFailed') + ': ' + e.message);
   }
 }
 
@@ -303,28 +578,106 @@ function onDialogDragLeave(e) {
   }
 }
 
+function parseYamlScalar(rawValue) {
+  const value = rawValue.trim();
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1);
+  }
+
+  if (value.startsWith('[') && value.endsWith(']')) {
+    const inner = value.slice(1, -1).trim();
+    if (!inner) return [];
+
+    const items = [];
+    let current = '';
+    let quote = null;
+
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i];
+      if ((ch === '"' || ch === "'") && inner[i - 1] !== '\\') {
+        quote = quote === ch ? null : (quote || ch);
+        current += ch;
+        continue;
+      }
+      if (ch === ',' && !quote) {
+        items.push(parseYamlScalar(current));
+        current = '';
+        continue;
+      }
+      current += ch;
+    }
+
+    if (current.trim()) items.push(parseYamlScalar(current));
+    return items;
+  }
+
+  return value;
+}
+
 function parseFrontmatterSimple(text) {
-  const regex = /^---\s*[\r\n]+([\s\S]*?)[\r\n]+---\s*([\s\S]*)$/;
-  const match = text.match(regex);
-  if (!match) return { metadata: {}, body: text };
+  const normalized = text.replace(/\r\n/g, '\n');
+  const regex = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/;
+  const match = normalized.match(regex);
+  if (!match) return { metadata: {}, body: normalized };
 
   const yamlStr = match[1];
   const body = match[2];
   const metadata = {};
+  const lines = yamlStr.split('\n');
 
-  yamlStr.split('\n').forEach(line => {
-    const parts = line.split(':');
-    if (parts.length >= 2) {
-      const key = parts[0].trim();
-      let value = parts.slice(1).join(':').trim();
-      if (value === 'true') value = true;
-      else if (value === 'false') value = false;
-      else if (value.startsWith('[') && value.endsWith(']')) {
-        value = value.slice(1, -1).split(',').map(s => s.trim());
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim() || line.trim().startsWith('#')) continue;
+
+    const keyMatch = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!keyMatch) continue;
+
+    const key = keyMatch[1].trim();
+    const rawValue = keyMatch[2] ?? '';
+
+    if (rawValue === '|' || rawValue === '>') {
+      const blockLines = [];
+      for (i = i + 1; i < lines.length; i++) {
+        const nextLine = lines[i];
+        if (!nextLine.trim()) {
+          blockLines.push('');
+          continue;
+        }
+        if (!/^\s+/.test(nextLine)) {
+          i -= 1;
+          break;
+        }
+        blockLines.push(nextLine.replace(/^\s{2}/, '').replace(/^\t/, ''));
       }
-      metadata[key] = value;
+      metadata[key] = blockLines.join(rawValue === '>' ? ' ' : '\n').trim();
+      continue;
     }
-  });
+
+    if (rawValue === '') {
+      const listItems = [];
+      let foundIndentedList = false;
+      for (let j = i + 1; j < lines.length; j++) {
+        const nextLine = lines[j];
+        if (!nextLine.trim()) {
+          if (foundIndentedList) continue;
+          break;
+        }
+        const listMatch = nextLine.match(/^\s*-\s+(.*)$/);
+        if (!listMatch) break;
+        foundIndentedList = true;
+        listItems.push(parseYamlScalar(listMatch[1]));
+        i = j;
+      }
+      metadata[key] = foundIndentedList ? listItems : '';
+      continue;
+    }
+
+    metadata[key] = parseYamlScalar(rawValue);
+  }
+
   return { metadata, body };
 }
 
@@ -343,7 +696,7 @@ async function onDialogDrop(e) {
     let importPath = '';
 
     // 情况 A: 直接拖入 SKILL.md 文件
-    if (item.name.toLowerCase() === 'skill.md') {
+    if (item.name === 'SKILL.md' || item.name.toLowerCase() === 'skill.md') {
       importContent = await window.api.readLocalFile(item.path);
       importPath = window.api.pathJoin(item.path, '..'); // 记录父级目录用于拷贝资源
       isSkillPackage = true;
@@ -427,14 +780,27 @@ async function onDialogDrop(e) {
 
 // 辅助函数：应用解析出的元数据
 function applyImportedMetadata(metadata, body) {
-  if (metadata.name) editingSkill.name = metadata.name;
-  if (metadata.description) editingSkill.description = metadata.description;
-  if (metadata['allowed-tools']) {
-    const tools = metadata['allowed-tools'];
-    editingSkill.allowedTools = Array.isArray(tools) ? tools.join(', ') : tools;
+  const {
+    name,
+    description,
+    context,
+    ['allowed-tools']: allowedTools,
+    ['disable-model-invocation']: disableModelInvocation,
+    ...extraMetadata
+  } = metadata;
+
+  if (name) editingSkill.name = name;
+  if (description) editingSkill.description = description;
+  editingSkill.enabled = disableModelInvocation !== true;
+
+  if (allowedTools) {
+    editingSkill.allowedTools = Array.isArray(allowedTools) ? allowedTools.join(', ') : allowedTools;
+  } else {
+    editingSkill.allowedTools = '';
   }
   // 兼容布尔值和字符串的 context 配置
-  if (metadata.context === 'fork') editingSkill.forkMode = true;
+  editingSkill.forkMode = context === 'fork';
+  editingSkill.extraMetadata = extraMetadata;
 
   editingSkill.instructions = body.trim();
 }
@@ -460,6 +826,7 @@ function openExportDialog() {
   }
   // 重置选择状态（默认不全选，或者你可以改为默认全选）
   skillsToExport.value = [];
+  hideEnvOnExport.value = true;
   // 打开弹窗
   showExportDialog.value = true;
 }
@@ -477,7 +844,9 @@ async function handleExportSkills() {
   isExporting.value = true;
   try {
     const exportPromises = skillsToExport.value.map(skillId =>
-      window.api.exportSkillToPackage(skillPath.value, skillId, outputDir)
+      window.api.exportSkillToPackage(skillPath.value, skillId, outputDir, {
+        hideEnv: hideEnvOnExport.value
+      })
     );
 
     const results = await Promise.all(exportPromises);
@@ -496,6 +865,310 @@ async function handleExportSkills() {
     isExporting.value = false;
   }
 }
+
+
+function buildSkillWebdavConfig() {
+  return {
+    url: currentConfig.value?.webdav?.url || '',
+    username: currentConfig.value?.webdav?.username || '',
+    password: currentConfig.value?.webdav?.password || ''
+  };
+}
+
+function getSkillWebdavRemoteRoot() {
+  const basePath = String(currentConfig.value?.webdav?.path || '/anywhere').trim() || '/anywhere';
+  return `${basePath.endsWith('/') ? basePath.slice(0, -1) : basePath}/skill`;
+}
+
+function formatCloudTime(value = '') {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || '';
+  const yy = String(date.getFullYear()).slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mi = String(date.getMinutes()).padStart(2, '0');
+  const ss = String(date.getSeconds()).padStart(2, '0');
+  return `${yy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+}
+
+async function ensureSkillWebdavDirectory(client, remoteRoot) {
+  try {
+    if (!(await client.exists(remoteRoot))) {
+      await client.createDirectory(remoteRoot, { recursive: true });
+    }
+  } catch (error) {
+    console.warn('[Skills] ensure remote dir failed:', error);
+    throw error;
+  }
+}
+
+async function openWebdavSyncDialog() {
+  if (!skillPath.value) {
+    ElMessage.warning(t('skills.pathNotSet'));
+    return;
+  }
+  if (!currentConfig.value?.webdav?.url) {
+    ElMessage.warning('请先在设置中配置 WebDAV');
+    return;
+  }
+  localSkillsForSync.value = Array.isArray(skillsList.value) ? skillsList.value : [];
+  setSelectableSelection('sync', localSkillsForSync.value.map(item => item.id));
+  showWebdavSyncDialog.value = true;
+}
+
+async function syncSelectedSkillsToWebdav() {
+  if (!skillPath.value || skillsToSync.value.length === 0) {
+    ElMessage.warning(t('common.noFileSelected'));
+    return;
+  }
+
+  skillWebdavLoading.value = true;
+  skillSyncProgressVisible.value = true;
+  resetSkillSyncProgress(skillsToSync.value.length);
+  try {
+    const { url, username, password } = buildSkillWebdavConfig();
+    const client = createClient(url, { username, password });
+    const remoteRoot = getSkillWebdavRemoteRoot();
+    await ensureSkillWebdavDirectory(client, remoteRoot);
+
+    let processed = 0;
+    const selectedIds = [...skillsToSync.value];
+    const results = await runSkillTasksWithConcurrency(selectedIds, async (skillId) => {
+      if (skillSyncProgress.cancelled) {
+        throw new Error('已取消');
+      }
+      updateSkillSyncProgress({
+        current: processed + 1,
+        total: selectedIds.length,
+        phase: '导出并上传',
+        skillId
+      });
+      const packageBuffer = await window.api.exportSkillPackageBuffer(skillPath.value, skillId, { hideEnv: false });
+      const packageSize = packageBuffer?.byteLength ?? packageBuffer?.length ?? 0;
+      if (packageSize > SKILL_WEBDAV_MAX_PACKAGE_SIZE) {
+        throw new Error(`Skill 包超过 ${(SKILL_WEBDAV_MAX_PACKAGE_SIZE / 1024 / 1024).toFixed(0)}MB 限制`);
+      }
+      await client.putFileContents(`${remoteRoot}/${skillId}.skill`, packageBuffer, { overwrite: true });
+      processed += 1;
+      const result = { ok: true, skillId, message: '同步成功' };
+      updateSkillSyncProgress({
+        current: processed,
+        completed: processed,
+        result,
+        phase: '上传完成',
+        skillId
+      });
+      return result;
+    }, 2, { retries: 1, retryDelay: 300 });
+
+    const success = results.filter(item => item.ok).length;
+    const failedResults = results.filter(item => !item.ok).map(item => ({
+      ok: false,
+      skillId: typeof item.item === 'string' ? item.item : getSelectableId(item.item),
+      message: item.error?.message || '同步失败'
+    }));
+    skillSyncProgress.completed = Math.min(selectedIds.length, success + failedResults.length);
+    skillSyncProgress.current = skillSyncProgress.completed;
+
+    if (failedResults.length > 0) {
+      failedResults.forEach(result => {
+        if (!skillSyncProgress.results.some(row => row.skillId === result.skillId && !row.ok)) {
+          updateSkillSyncProgress({ result });
+        }
+      });
+      ElMessage.warning(`Skill 同步完成：成功 ${success} 个，失败 ${failedResults.length} 个`);
+    } else if (skillSyncProgress.cancelled) {
+      ElMessage.warning(`Skill 同步已取消，已完成 ${success} 个`);
+    } else {
+      ElMessage.success(`已同步 ${success} 个 Skill 到云端`);
+      showWebdavSyncDialog.value = false;
+    }
+  } catch (error) {
+    ElMessage.error(`Skill 同步失败: ${error.message}`);
+  } finally {
+    skillWebdavLoading.value = false;
+    skillSyncProgress.phase = skillSyncProgress.cancelled ? '已取消' : '已完成';
+  }
+}
+
+async function fetchCloudSkills() {
+  skillWebdavLoading.value = true;
+  try {
+    const { url, username, password } = buildSkillWebdavConfig();
+    const client = createClient(url, { username, password });
+    const remoteRoot = getSkillWebdavRemoteRoot();
+
+    if (!(await client.exists(remoteRoot))) {
+      cloudSkills.value = [];
+      cloudSkillSelection.value = [];
+      return;
+    }
+
+    const response = await client.getDirectoryContents(remoteRoot, { details: true });
+    const contents = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
+    cloudSkills.value = contents
+      .filter(item => item.type === 'file' && String(item.basename || '').toLowerCase().endsWith('.skill'))
+      .map(item => ({
+        id: String(item.basename || '').replace(/\.skill$/i, ''),
+        name: String(item.basename || '').replace(/\.skill$/i, ''),
+        basename: item.basename,
+        size: item.size || 0,
+        updatedAt: item.lastmod || item.updatedAt || ''
+      }))
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+    cloudSkillSelection.value = [];
+  } catch (error) {
+    cloudSkills.value = [];
+    ElMessage.error(`获取云端 Skill 失败: ${error.message}`);
+  } finally {
+    skillWebdavLoading.value = false;
+  }
+}
+
+async function openWebdavManagerDialog() {
+  if (!skillPath.value) {
+    ElMessage.warning(t('skills.pathNotSet'));
+    return;
+  }
+  if (!currentConfig.value?.webdav?.url) {
+    ElMessage.warning('请先在设置中配置 WebDAV');
+    return;
+  }
+  showWebdavManagerDialog.value = true;
+  await fetchCloudSkills();
+}
+
+async function pullCloudSkill(skill) {
+  if (!skillPath.value) {
+    ElMessage.warning(t('skills.pathNotSet'));
+    return;
+  }
+  skillWebdavLoading.value = true;
+  skillSyncProgressVisible.value = true;
+  resetSkillSyncProgress(1);
+  try {
+    const { url, username, password } = buildSkillWebdavConfig();
+    const client = createClient(url, { username, password });
+    const remoteRoot = getSkillWebdavRemoteRoot();
+    updateSkillSyncProgress({ current: 1, total: 1, phase: '下载并导入', skillId: skill.id });
+    const content = await client.getFileContents(`${remoteRoot}/${skill.id}.skill`, { format: 'binary' });
+    await window.api.importSkillPackageBuffer(skillPath.value, skill.id, content);
+    updateSkillSyncProgress({
+      current: 1,
+      completed: 1,
+      phase: '导入完成',
+      skillId: skill.id,
+      result: { ok: true, skillId: skill.id, message: '拉取成功' }
+    });
+    ElMessage.success('已拉取到本地');
+    await refreshSkills();
+  } catch (error) {
+    updateSkillSyncProgress({
+      completed: 1,
+      result: { ok: false, skillId: skill.id, message: error.message || '拉取失败' }
+    });
+    ElMessage.error(`拉取 Skill 失败: ${error.message}`);
+  } finally {
+    skillWebdavLoading.value = false;
+    skillSyncProgress.phase = '已完成';
+  }
+}
+
+async function pullSelectedCloudSkills() {
+  const selectedRows = getSelectedCloudSkillRows();
+  if (!selectedRows.length) {
+    ElMessage.warning(t('common.noFileSelected'));
+    return;
+  }
+
+  skillWebdavLoading.value = true;
+  skillSyncProgressVisible.value = true;
+  resetSkillSyncProgress(selectedRows.length);
+  try {
+    const { url, username, password } = buildSkillWebdavConfig();
+    const client = createClient(url, { username, password });
+    const remoteRoot = getSkillWebdavRemoteRoot();
+    let processed = 0;
+
+    const results = await runSkillTasksWithConcurrency(selectedRows, async (skill) => {
+      if (skillSyncProgress.cancelled) {
+        throw new Error('已取消');
+      }
+      updateSkillSyncProgress({
+        current: processed + 1,
+        total: selectedRows.length,
+        phase: '下载并导入',
+        skillId: skill.id
+      });
+      const content = await client.getFileContents(`${remoteRoot}/${skill.id}.skill`, { format: 'binary' });
+      await window.api.importSkillPackageBuffer(skillPath.value, skill.id, content);
+      processed += 1;
+      const result = { ok: true, skillId: skill.id, message: '拉取成功' };
+      updateSkillSyncProgress({
+        current: processed,
+        completed: processed,
+        phase: '导入完成',
+        skillId: skill.id,
+        result
+      });
+      return result;
+    }, 2, { retries: 1, retryDelay: 250 });
+
+    const success = results.filter(item => item.ok).length;
+    const failedResults = results.filter(item => !item.ok).map(item => ({
+      ok: false,
+      skillId: getSelectableId(item.item),
+      message: item.error?.message || '拉取失败'
+    }));
+    skillSyncProgress.completed = Math.min(selectedRows.length, success + failedResults.length);
+    skillSyncProgress.current = skillSyncProgress.completed;
+
+    if (failedResults.length > 0) {
+      failedResults.forEach(result => {
+        if (!skillSyncProgress.results.some(row => row.skillId === result.skillId && !row.ok)) {
+          updateSkillSyncProgress({ result });
+        }
+      });
+      ElMessage.warning(`拉取完成：成功 ${success} 个，失败 ${failedResults.length} 个`);
+    } else if (skillSyncProgress.cancelled) {
+      ElMessage.warning(`拉取已取消，已完成 ${success} 个`);
+    } else {
+      ElMessage.success(`拉取完成：成功 ${success} 个`);
+    }
+    await refreshSkills();
+  } catch (error) {
+    ElMessage.error(`批量拉取 Skill 失败: ${error.message}`);
+  } finally {
+    skillWebdavLoading.value = false;
+    skillSyncProgress.phase = skillSyncProgress.cancelled ? '已取消' : '已完成';
+  }
+}
+
+async function deleteSelectedCloudSkills() {
+  if (!cloudSkillSelection.value.length) {
+    ElMessage.warning(t('common.noFileSelected'));
+    return;
+  }
+
+  await ElMessageBox.confirm(`确定删除选中的 ${cloudSkillSelection.value.length} 个云端 Skill 吗？`, t('common.warningTitle'), { type: 'warning' });
+  skillWebdavLoading.value = true;
+  try {
+    const { url, username, password } = buildSkillWebdavConfig();
+    const client = createClient(url, { username, password });
+    const remoteRoot = getSkillWebdavRemoteRoot();
+    for (const skillId of cloudSkillSelection.value) {
+      await client.deleteFile(`${remoteRoot}/${skillId}.skill`);
+    }
+    ElMessage.success(t('common.deleteSuccess'));
+    await fetchCloudSkills();
+  } catch (error) {
+    ElMessage.error(`删除云端 Skill 失败: ${error.message}`);
+  } finally {
+    skillWebdavLoading.value = false;
+  }
+}
+
 </script>
 
 <template>
@@ -563,6 +1236,9 @@ async function handleExportSkills() {
                   effect="plain" round>Tools</el-tag>
               </div>
               <div class="skill-actions">
+                <el-tooltip :content="t('skills.tooltips.openFolder')" placement="top">
+                  <el-button :icon="FolderOpened" text circle @click="openSkillFolder(skill)" class="action-btn-compact" />
+                </el-tooltip>
                 <el-button :icon="Edit" text circle @click="prepareEditSkill(skill.id)" class="action-btn-compact" />
                 <el-button :icon="Delete" text circle type="danger" @click="deleteSkillFunc(skill)"
                   class="action-btn-compact" />
@@ -585,6 +1261,11 @@ async function handleExportSkills() {
       <el-button class="action-btn" @click="openExportDialog" :icon="Download" :disabled="!skillPath">
         {{ t('skills.export.button') }}
       </el-button>
+      <el-button class="action-btn skill-sync-split-btn" :disabled="!skillPath">
+        <span class="split-left" @click.stop="openWebdavSyncDialog">云端同步</span>
+        <span class="split-divider"></span>
+        <span class="split-right" @click.stop="openWebdavManagerDialog">拉取</span>
+      </el-button>
       <el-button class="action-btn" @click="selectSkillPath" :icon="FolderOpened">
         {{ t('skills.setPathBtn') }}
       </el-button>
@@ -594,7 +1275,6 @@ async function handleExportSkills() {
     <el-dialog v-model="showEditDialog" width="650px" :close-on-click-modal="false" class="skill-edit-dialog">
       <template #header>
         <div class="dialog-header-row" style="justify-content: space-between; width: 100%; padding-right: 30px;">
-          <!-- 左侧：标题 -->
           <div style="display: flex; align-items: baseline; gap: 12px;">
             <span class="dialog-title">{{ isNewSkill ? t('skills.addTitle') : t('skills.editTitle') }}</span>
             <span class="drag-hint-text" v-if="isNewSkill">
@@ -605,7 +1285,6 @@ async function handleExportSkills() {
             </span>
           </div>
 
-          <!-- 右侧：Tab 切换器 -->
           <el-radio-group v-model="activeEditTab" size="small">
             <el-radio-button value="info">{{ t('skills.tabs.info') }}</el-radio-button>
             <el-radio-button value="files" :disabled="isNewSkill">{{ t('skills.tabs.files') }}</el-radio-button>
@@ -613,7 +1292,6 @@ async function handleExportSkills() {
         </div>
       </template>
 
-      <!-- 拖拽覆盖层 -->
       <div v-if="isDialogDragOver" class="dialog-drag-overlay">
         <div class="drag-content">
           <el-icon :size="48">
@@ -627,13 +1305,9 @@ async function handleExportSkills() {
         @drop="onDialogDrop">
         <el-tabs v-model="activeEditTab" class="skill-edit-tabs">
           <el-tab-pane :label="t('skills.tabs.info')" name="info">
-            <!-- 滚动容器 -->
             <el-scrollbar max-height="45vh" class="dialog-form-scrollbar" view-class="dialog-form-view">
               <el-form label-position="top" class="skill-form">
-
-                <!-- 左右分栏布局 -->
                 <div class="form-split-layout">
-                  <!-- 左侧：基础信息 -->
                   <div class="left-col">
                     <el-form-item required>
                       <template #label><span class="custom-label">{{ t('skills.form.name') }}</span></template>
@@ -659,7 +1333,6 @@ async function handleExportSkills() {
                     </el-form-item>
                   </div>
 
-                  <!-- 右侧：详细指令 (占据剩余高度) -->
                   <div class="right-col">
                     <el-form-item :label="t('skills.form.instructions')" class="instructions-item">
                       <el-scrollbar class="textarea-scrollbar-wrapper full-height" view-class="textarea-scrollbar-view">
@@ -670,7 +1343,6 @@ async function handleExportSkills() {
                     </el-form-item>
                   </div>
                 </div>
-
               </el-form>
             </el-scrollbar>
           </el-tab-pane>
@@ -749,13 +1421,132 @@ async function handleExportSkills() {
         </div>
       </div>
       <template #footer>
-        <el-button @click="showExportDialog = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="handleExportSkills" :loading="isExporting"
-          :disabled="skillsToExport.length === 0">
-          {{ t('skills.export.confirmBtn') }}
-        </el-button>
+        <div class="export-dialog-footer">
+          <el-checkbox v-model="hideEnvOnExport">{{ t('skills.export.hideEnv') }}</el-checkbox>
+          <div class="export-dialog-footer-actions">
+            <el-button @click="showExportDialog = false">{{ t('common.cancel') }}</el-button>
+            <el-button type="primary" @click="handleExportSkills" :loading="isExporting"
+              :disabled="skillsToExport.length === 0">
+              {{ t('skills.export.confirmBtn') }}
+            </el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="showWebdavSyncDialog" title="同步 Skill 到 WebDAV" width="580px" top="4vh" :close-on-click-modal="false" class="skill-webdav-sync-dialog">
+      <div class="selectable-toolbar">
+        <span class="selectable-count">已选 {{ skillsToSync.length }} / {{ localSkillsForSync.length }}</span>
+        <div class="selectable-actions">
+          <el-button size="small" text @click="selectAllSelectable('sync')" :disabled="skillWebdavLoading">全选</el-button>
+          <el-button size="small" text @click="clearSelectableSelection('sync')" :disabled="skillWebdavLoading">清空</el-button>
+          <el-button size="small" text @click="invertSelectableSelection('sync')" :disabled="skillWebdavLoading">反选</el-button>
+        </div>
+      </div>
+      <el-scrollbar max-height="280px" class="selectable-list-scroll skill-sync-list-scroll">
+        <div class="selectable-list" :class="{ 'is-disabled': skillWebdavLoading }">
+          <div
+            v-for="(skill, index) in localSkillsForSync"
+            :key="skill.id"
+            class="selectable-row"
+            :class="{ 'is-selected': isSelectableSelected('sync', skill.id) }"
+            @mousedown="handleSelectableMouseDown('sync', skill, index, $event)"
+            @mouseenter="handleSelectableMouseEnter('sync', skill)"
+          >
+            <el-checkbox :model-value="isSelectableSelected('sync', skill.id)" @click.prevent />
+            <div class="selectable-main">
+              <div class="selectable-title">{{ skill.name || skill.id }}</div>
+              <div class="selectable-subtitle">{{ skill.id }}</div>
+            </div>
+          </div>
+        </div>
+      </el-scrollbar>
+      <div class="selectable-hint">提示：点击行可切换选择，按住鼠标拖过多行可批量选择/取消，Shift + 点击可范围选择。</div>
+      <template #footer>
+        <el-button @click="showWebdavSyncDialog = false" :disabled="skillWebdavLoading">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="skillWebdavLoading" @click="syncSelectedSkillsToWebdav">同步</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="skillSyncProgressVisible" title="Skill 云端同步进度" width="520px" top="8vh" :close-on-click-modal="false" :show-close="!skillWebdavLoading">
+      <div class="skill-sync-progress-panel">
+        <el-progress :percentage="skillSyncProgressPercent" :status="skillSyncProgress.failed > 0 ? 'warning' : undefined" />
+        <div class="skill-sync-progress-meta">
+          <span>已处理 {{ skillSyncProgress.completed }} / {{ skillSyncProgress.total }}</span>
+          <span>成功 {{ skillSyncProgress.success }}，失败 {{ skillSyncProgress.failed }}</span>
+        </div>
+        <div class="skill-sync-current" v-if="skillSyncProgress.total > 0">
+          当前：{{ skillSyncProgress.skillId || '-' }}
+          <span v-if="skillSyncProgress.phase">（{{ skillSyncProgress.phase }}）</span>
+        </div>
+        <el-alert v-if="skillSyncProgress.cancelled" title="正在取消任务，已开始的当前项会尽快停止" type="warning" :closable="false" show-icon />
+        <el-scrollbar v-if="skillSyncProgress.results.some(item => !item.ok)" max-height="140px" class="skill-sync-failures">
+          <div v-for="item in skillSyncProgress.results.filter(row => !row.ok)" :key="item.skillId" class="skill-sync-failure-row">
+            <strong>{{ item.skillId }}</strong>
+            <span>{{ item.message || '操作失败' }}</span>
+          </div>
+        </el-scrollbar>
+      </div>
+      <template #footer>
+        <el-button v-if="skillWebdavLoading" type="warning" plain @click="cancelSkillWebdavSync" :disabled="skillSyncProgress.cancelled">取消</el-button>
+        <el-button v-else @click="skillSyncProgressVisible = false">{{ t('common.close') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="showWebdavManagerDialog" title="云端 Skill 管理" width="640px" top="3vh" :close-on-click-modal="false" class="skill-cloud-manager-dialog">
+      <div v-loading="skillWebdavLoading" class="cloud-skill-manager-panel">
+        <div class="selectable-toolbar">
+          <span class="selectable-count">已选 {{ cloudSkillSelection.length }} / {{ cloudSkills.length }}</span>
+          <div class="selectable-actions">
+            <el-button size="small" text @click="selectAllSelectable('cloud')" :disabled="skillWebdavLoading">全选</el-button>
+            <el-button size="small" text @click="clearSelectableSelection('cloud')" :disabled="skillWebdavLoading">清空</el-button>
+            <el-button size="small" text @click="invertSelectableSelection('cloud')" :disabled="skillWebdavLoading">反选</el-button>
+          </div>
+        </div>
+        <div class="cloud-skill-header">
+          <span></span>
+          <span>名称</span>
+          <span>ID</span>
+          <span>更新时间</span>
+          <span>操作</span>
+        </div>
+        <el-scrollbar max-height="260px" class="selectable-list-scroll cloud-skill-scroll">
+          <div class="selectable-list" :class="{ 'is-disabled': skillWebdavLoading }">
+            <div
+              v-for="(skill, index) in cloudSkills"
+              :key="skill.id"
+              class="selectable-row cloud-skill-row"
+              :class="{ 'is-selected': isSelectableSelected('cloud', skill.id) }"
+              @mousedown="handleSelectableMouseDown('cloud', skill, index, $event)"
+              @mouseenter="handleSelectableMouseEnter('cloud', skill)"
+            >
+              <el-checkbox :model-value="isSelectableSelected('cloud', skill.id)" @click.prevent />
+              <div class="cloud-skill-name">
+                <div class="selectable-title">{{ skill.name || skill.id }}</div>
+                <div class="selectable-subtitle">{{ skill.basename }}</div>
+              </div>
+              <div class="cloud-skill-id">{{ skill.id }}</div>
+              <div class="cloud-skill-time">{{ formatCloudTime(skill.updatedAt) }}</div>
+              <div class="cloud-skill-actions">
+                <el-button link type="primary" @mousedown.stop @click="pullCloudSkill(skill)">拉取</el-button>
+              </div>
+            </div>
+          </div>
+        </el-scrollbar>
+        <div class="selectable-hint">提示：点击行/拖过多行可多选，Shift + 点击可范围选择；“拉取选中”会批量拉取所选 Skill。</div>
+      </div>
+      <template #footer>
+        <div class="export-dialog-footer">
+          <el-button :icon="Refresh" @click="fetchCloudSkills" :disabled="skillWebdavLoading"></el-button>
+          <div class="export-dialog-footer-actions">
+            <el-button type="primary" plain @click="pullSelectedCloudSkills" :disabled="cloudSkillSelection.length === 0" :loading="skillWebdavLoading">拉取选中</el-button>
+            <el-button type="danger" plain @click="deleteSelectedCloudSkills" :disabled="cloudSkillSelection.length === 0 || skillWebdavLoading">{{ t('common.deleteSelected') }}</el-button>
+            <el-button @click="showWebdavManagerDialog = false" :disabled="skillWebdavLoading">{{ t('common.close') }}</el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -952,6 +1743,49 @@ async function handleExportSkills() {
 }
 
 /* ================== 底部操作栏 & 刷新按钮 ================== */
+.skill-sync-progress-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skill-sync-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.skill-sync-current {
+  color: var(--text-primary);
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+
+.skill-sync-failures {
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+}
+
+.skill-sync-failure-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.skill-sync-failure-row:last-child {
+  border-bottom: none;
+}
+
+/* ================== 底部操作栏 & 刷新按钮 ================== */
 .bottom-actions-container {
   position: fixed;
   bottom: 0;
@@ -960,8 +1794,8 @@ async function handleExportSkills() {
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: 16px;
-  padding: 12px 24px;
+  gap: 10px;
+  padding: 8px 14px;
   background-color: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -973,10 +1807,55 @@ html.dark .bottom-actions-container {
   background-color: rgba(23, 24, 28, 0.7);
 }
 
+.skill-sync-split-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.skill-sync-split-btn .split-left,
+.skill-sync-split-btn .split-right {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  min-height: 30px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.skill-sync-split-btn .split-left:hover,
+.skill-sync-split-btn .split-right:hover {
+  background: var(--bg-tertiary);
+}
+
+.skill-sync-split-btn .split-left,
+.skill-sync-split-btn .split-right {
+  cursor: pointer;
+}
+
+.skill-sync-split-btn.is-disabled .split-left,
+.skill-sync-split-btn.is-disabled .split-right,
+.skill-sync-split-btn:disabled .split-left,
+.skill-sync-split-btn:disabled .split-right {
+  cursor: not-allowed;
+}
+
+.skill-sync-split-btn .split-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border-primary);
+}
+
 .action-btn {
   flex-grow: 0;
-  min-width: 180px;
+  min-width: 132px;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
   font-weight: 500;
+  letter-spacing: 0;
 }
 
 /* 修复刷新按钮位置 */
@@ -1056,7 +1935,6 @@ html.dark .bottom-actions-container {
   padding: 4px 16px 4px 4px;
 }
 
-/* 分栏布局 */
 .form-split-layout {
   display: flex;
   gap: 20px;
@@ -1071,7 +1949,6 @@ html.dark .bottom-actions-container {
   gap: 0px;
 }
 
-/* 右侧列相关样式 */
 .right-col {
   flex: 1;
   min-width: 0;
@@ -1098,9 +1975,6 @@ html.dark .bottom-actions-container {
   margin-left: 8px;
 }
 
-/* ================== 统一文本框样式 (Scrollbar + Input) ================== */
-
-/* 1. 统一的滚动条包裹容器：负责提供边框、背景和圆角 */
 .textarea-scrollbar-wrapper {
   width: 100%;
   border: 1px solid var(--border-primary);
@@ -1110,18 +1984,15 @@ html.dark .bottom-actions-container {
   box-sizing: border-box;
 }
 
-/* 聚焦时高亮容器边框 */
 .textarea-scrollbar-wrapper:focus-within {
   border-color: var(--el-color-primary);
   box-shadow: 0 0 0 1px var(--el-color-primary) inset;
 }
 
-/* 右侧全高修饰符 */
 .textarea-scrollbar-wrapper.full-height {
   height: 100%;
 }
 
-/* 2. 内部透明 Input：完全透明，无边框，无原生滚动条 */
 .transparent-textarea :deep(.el-textarea__inner),
 .transparent-textarea :deep(.el-textarea__inner:focus),
 .transparent-textarea :deep(.el-textarea__inner:hover) {
@@ -1134,19 +2005,14 @@ html.dark .bottom-actions-container {
   line-height: 1.6;
 }
 
-/* 移除 Input 自身可能的原生滚动条 */
 .transparent-textarea :deep(.el-textarea__inner::-webkit-scrollbar) {
   display: none;
 }
 
-/* 调整 el-scrollbar 内部视图的 padding */
 :deep(.textarea-scrollbar-view) {
   padding-right: 2px;
 }
 
-/* --- 滚动条滑块样式适配 --- */
-
-/* 浅色模式 */
 :deep(.textarea-scrollbar-wrapper .el-scrollbar__thumb) {
   background-color: var(--el-text-color-disabled) !important;
   opacity: 0.5;
@@ -1157,7 +2023,6 @@ html.dark .bottom-actions-container {
   opacity: 0.8;
 }
 
-/* 深色模式覆盖 */
 html.dark .textarea-scrollbar-wrapper {
   background-color: var(--bg-tertiary);
   border-color: var(--border-primary);
@@ -1171,7 +2036,6 @@ html.dark :deep(.textarea-scrollbar-wrapper .el-scrollbar__thumb:hover) {
   background-color: var(--text-secondary) !important;
 }
 
-/* 强制等宽字体 */
 .code-font :deep(.el-textarea__inner) {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 }
@@ -1193,7 +2057,6 @@ html.dark :deep(.textarea-scrollbar-wrapper .el-scrollbar__thumb:hover) {
   height: 100%;
 }
 
-/* ================== 文件管理 Tab ================== */
 .files-tab-content {
   padding-top: 8px;
 }
@@ -1281,12 +2144,10 @@ html.dark :deep(.textarea-scrollbar-wrapper .el-scrollbar__thumb:hover) {
   display: none;
 }
 
-/* 移除 Tab 内容区的默认 padding，让其撑满 */
 .skill-edit-tabs :deep(.el-tabs__content) {
   padding: 0;
 }
 
-/* 调整对话框 Header 的布局以适配 flex */
 :deep(.skill-edit-dialog .el-dialog__header) {
   display: flex;
   align-items: center;
@@ -1320,4 +2181,221 @@ html.dark :deep(.textarea-scrollbar-wrapper .el-scrollbar__thumb:hover) {
   color: var(--text-tertiary);
   font-family: monospace;
 }
+
+.export-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.export-dialog-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.selectable-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-primary);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+}
+
+.selectable-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.selectable-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.selectable-list-scroll {
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  background-color: var(--bg-tertiary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.selectable-list {
+  padding: 8px;
+  user-select: none;
+}
+
+.selectable-list.is-disabled {
+  opacity: 0.64;
+  pointer-events: none;
+}
+
+.selectable-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.selectable-row + .selectable-row {
+  margin-top: 4px;
+}
+
+.selectable-row:hover {
+  background-color: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  border-color: color-mix(in srgb, var(--border-primary) 78%, transparent);
+}
+
+.selectable-row.is-selected {
+  background: linear-gradient(180deg, rgba(64, 158, 255, 0.12) 0%, rgba(64, 158, 255, 0.08) 100%);
+  border-color: rgba(64, 158, 255, 0.42);
+  box-shadow: 0 10px 24px -24px rgba(64, 158, 255, 0.95), 0 0 0 1px rgba(64, 158, 255, 0.16) inset;
+}
+
+.selectable-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.selectable-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectable-subtitle {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectable-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+
+:deep(.skill-webdav-sync-dialog .el-dialog__header) {
+  padding: 13px 16px 8px;
+}
+
+:deep(.skill-webdav-sync-dialog .el-dialog__body) {
+  padding: 8px 16px 10px;
+}
+
+:deep(.skill-webdav-sync-dialog .el-dialog__footer) {
+  padding: 8px 16px 12px;
+  border-top: 1px solid var(--border-primary);
+}
+
+.skill-webdav-sync-dialog .selectable-toolbar {
+  margin-bottom: 8px;
+}
+
+.skill-webdav-sync-dialog .selectable-hint {
+  margin-top: 8px;
+}
+
+.skill-webdav-sync-dialog .selectable-row {
+  min-height: 40px;
+  padding: 7px 10px;
+}
+
+.skill-webdav-sync-dialog .selectable-list {
+  padding: 6px;
+}
+
+.cloud-skill-manager-panel {
+  min-height: 132px;
+}
+
+.cloud-skill-header,
+.cloud-skill-row {
+  display: grid;
+  grid-template-columns: 28px minmax(130px, 1.2fr) minmax(96px, 0.9fr) 104px 42px;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.cloud-skill-header {
+  padding: 1px 10px 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+
+.cloud-skill-row {
+  min-height: 46px;
+}
+
+.cloud-skill-name,
+.cloud-skill-id,
+.cloud-skill-time {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cloud-skill-id {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.cloud-skill-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.cloud-skill-actions {
+  display: flex;
+  justify-content: center;
+}
+
+:deep(.skill-cloud-manager-dialog .el-dialog__header) {
+  padding: 11px 12px 6px;
+}
+
+:deep(.skill-cloud-manager-dialog .el-dialog__body) {
+  padding: 6px 10px 7px;
+}
+
+:deep(.skill-cloud-manager-dialog .el-dialog__footer) {
+  padding: 6px 10px 9px;
+  border-top: 1px solid var(--border-primary);
+}
+
+.skill-cloud-manager-dialog .export-dialog-footer-actions :deep(.el-button),
+.skill-cloud-manager-dialog .selectable-actions :deep(.el-button) {
+  font-size: 12px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+
 </style>

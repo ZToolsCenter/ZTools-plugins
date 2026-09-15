@@ -1,0 +1,64 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "device-link",
+  "title": "设备互联",
+  "description": "以聊天方式安全连接电脑与手机，实时分享文本、链接、图片和文件",
+  "author": "harris",
+  "version": "0.1.7",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "single": true,
+    "backgroundRunning": true
+  },
+  "categories": ["productivity"],
+  "features": [
+    {
+      "code": "device-link",
+      "explain": "打开设备互联",
+      "icon": "logo.svg",
+      "cmds": ["设备互联", "发送到设备", "Device Link"]
+    },
+    {
+      "code": "device-link-text",
+      "explain": "发送文本或链接到设备",
+      "icon": "logo.svg",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "发送到设备",
+          "minLength": 1,
+          "maxLength": 200000
+        }
+      ]
+    },
+    {
+      "code": "device-link-image",
+      "explain": "发送图片到设备",
+      "icon": "logo.svg",
+      "cmds": [
+        {
+          "type": "img",
+          "label": "发送图片到设备"
+        }
+      ]
+    },
+    {
+      "code": "device-link-files",
+      "explain": "发送文件或文件夹到设备",
+      "icon": "logo.svg",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "发送到设备",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      ]
+    }
+  ]
+}

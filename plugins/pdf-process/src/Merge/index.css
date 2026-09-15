@@ -1,0 +1,6 @@
+.add-files-btn { background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin: 16px 0; }
+.file-list { margin: 16px 0; }
+.file-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #2a2a3a; border-radius: 6px; margin-bottom: 8px; color: #fff; }
+.file-item button { background: none; border: none; color: #ff6b6b; cursor: pointer; font-size: 18px; }
+.merge-btn { background: #ff6b6b; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+.merge-btn:disabled { opacity: 0.5; cursor: not-allowed; }

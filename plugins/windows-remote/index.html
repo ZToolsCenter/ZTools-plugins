@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Windows 远程桌面管理</title>
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-header: #1e293b;
+      --bg-row: #1e293b;
+      --bg-row-alt: #161e2e;
+      --bg-row-hover: #334155;
+      --bg-row-highlight: rgba(99, 102, 241, 0.15);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --border-color: #334155;
+      --border-hover: rgba(99, 102, 241, 0.5);
+      --accent-color: #6366f1;
+      --accent-hover: #4f46e5;
+
+      --btn-connect-bg: #10b981;
+      --btn-connect-hover: #059669;
+      --btn-edit-bg: #f59e0b;
+      --btn-edit-hover: #d97706;
+      --btn-delete-bg: #ef4444;
+      --btn-delete-hover: #dc2626;
+
+      --input-bg: #0f172a;
+      --input-border: #334155;
+      --modal-bg: #1e293b;
+      --modal-border: #334155;
+      --shadow-color: rgba(0, 0, 0, 0.4);
+      --dropdown-bg: #1e293b;
+      --group-pill-bg: #111827;
+      --group-pill-text: #f3f4f6;
+
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+    }
+
+    .light-mode {
+      --bg-main: #f4f5f7;
+      --bg-header: #f4f5f7;
+      --bg-row: #ffffff;
+      --bg-row-alt: #ffffff;
+      --bg-row-hover: #f1f5f9;
+      --bg-row-highlight: #e6f7ff;
+      --text-main: #1f2937;
+      --text-sub: #4b5563;
+      --border-color: #e5e7eb;
+      --border-hover: rgba(99, 102, 241, 0.3);
+      --accent-color: #3b82f6;
+      --accent-hover: #2563eb;
+
+      --btn-connect-bg: #5cb85c;
+      --btn-connect-hover: #4cae4c;
+      --btn-edit-bg: #f0ad4e;
+      --btn-edit-hover: #ec971f;
+      --btn-delete-bg: #d9534f;
+      --btn-delete-hover: #c9302c;
+
+      --input-bg: #ffffff;
+      --input-border: #d1d5db;
+      --modal-bg: #ffffff;
+      --modal-border: #d1d5db;
+      --shadow-color: rgba(0, 0, 0, 0.1);
+      --dropdown-bg: #ffffff;
+      --group-pill-bg: #374151;
+      --group-pill-text: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      font-size: 13px;
+      color: var(--text-main);
+      background: var(--bg-main);
+      user-select: none;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Container layout */
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    /* Top Table Header Row */
+    .table-header {
+      display: grid;
+      grid-template-columns: 40px 1.5fr 1.8fr 1.2fr 1.2fr 220px;
+      align-items: center;
+      padding: 8px 16px;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-color);
+      font-weight: bold;
+      color: var(--text-sub);
+      font-size: 12px;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .header-col {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    /* Group Dropdown Trigger Badge */
+    .group-selector-container {
+      position: relative;
+    }
+
+    .group-selector-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: var(--group-pill-bg);
+      color: var(--group-pill-text);
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 1px 2px var(--shadow-color);
+      transition: all 0.2s ease;
+    }
+
+    .group-selector-btn:hover {
+      opacity: 0.9;
+    }
+
+    .group-selector-btn svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
+
+    .group-dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      background: var(--dropdown-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-shadow: 0 10px 15px -3px var(--shadow-color);
+      min-width: 160px;
+      z-index: 50;
+      display: none;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .group-dropdown-menu.active {
+      display: block;
+    }
+
+    .group-dropdown-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .group-dropdown-item:hover {
+      background: var(--bg-row-hover);
+    }
+
+    .group-dropdown-item.active {
+      font-weight: bold;
+      color: var(--accent-color);
+    }
+
+    .group-count-badge {
+      font-size: 10px;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 1px 5px;
+      border-radius: 10px;
+      color: var(--text-sub);
+    }
+
+    /* Password Eye Toggle Badge */
+    .password-toggle-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background: #0284c7;
+      color: #ffffff;
+      border-radius: 12px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: normal;
+      box-shadow: 0 1px 2px var(--shadow-color);
+      transition: background 0.2s;
+    }
+
+    .password-toggle-badge:hover {
+      background: #0369a1;
+    }
+
+    .password-toggle-badge svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
+
+    /* Theme Switcher Button */
+    .theme-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .light-mode .theme-toggle-btn {
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .theme-toggle-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .theme-toggle-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Right Actions Container in Header */
+    .header-actions-col {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .add-conn-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      box-shadow: 0 2px 4px var(--shadow-color);
+    }
+
+    .add-conn-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    .add-conn-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .search-box-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 160px;
+    }
+
+    .search-box-wrapper input {
+      width: 100%;
+      padding: 6px 28px 6px 10px;
+      font-size: 12px;
+      border-radius: 4px;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-box-wrapper input:focus {
+      border-color: var(--accent-color);
+    }
+
+    .search-icon-svg {
+      position: absolute;
+      right: 8px;
+      width: 14px;
+      height: 14px;
+      color: var(--text-sub);
+      pointer-events: none;
+    }
+
+    /* Connections List Body */
+    .connections-list {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg-main);
+    }
+
+    /* Connections List Scrollbar styling */
+    .connections-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .connections-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .connections-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+
+    .light-mode .connections-list::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .connections-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Table Rows */
+    .connection-row {
+      display: grid;
+      grid-template-columns: 40px 1.5fr 1.8fr 1.2fr 1.2fr 220px;
+      align-items: center;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-row);
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      position: relative;
+    }
+
+    .connection-row:nth-child(even) {
+      background: var(--bg-row-alt);
+    }
+
+    .connection-row:hover {
+      background: var(--bg-row-hover);
+    }
+
+    .connection-row.drag-over {
+      background: var(--bg-row-highlight);
+    }
+
+    .connection-row.dragging {
+      opacity: 0.4;
+    }
+
+    /* Columns data cells */
+    .cell {
+      padding: 0 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Drag Handle icon cell */
+    .drag-handle {
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-sub);
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .drag-handle:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .drag-handle svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Name cell bold */
+    .name-cell {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    /* Password field style */
+    .password-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .password-text {
+      font-family: monospace;
+      letter-spacing: 1px;
+      white-space: pre;
+    }
+
+    /* Action Buttons in Rows */
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .row-btn {
+      padding: 4px 10px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #ffffff;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .row-btn svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
+
+    .row-btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-connect {
+      background: var(--btn-connect-bg);
+    }
+
+    .btn-connect:hover {
+      background: var(--btn-connect-hover);
+    }
+
+    .btn-edit {
+      background: var(--btn-edit-bg);
+    }
+
+    .btn-edit:hover {
+      background: var(--btn-edit-hover);
+    }
+
+    .btn-delete {
+      background: var(--btn-delete-bg);
+    }
+
+    .btn-delete:hover {
+      background: var(--btn-delete-hover);
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 250px;
+      color: var(--text-sub);
+      text-align: center;
+      gap: 12px;
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      color: var(--text-sub);
+      opacity: 0.5;
+    }
+
+    /* Modals / Overlays */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal-card {
+      background: var(--modal-bg);
+      border: 1px solid var(--modal-border);
+      border-radius: 8px;
+      width: 90%;
+      max-width: 460px;
+      box-shadow: 0 20px 25px -5px var(--shadow-color);
+      transform: scale(0.95);
+      transition: transform 0.2s ease;
+      overflow: hidden;
+    }
+
+    .modal-overlay.active .modal-card {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .modal-close {
+      cursor: pointer;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    .modal-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-sub);
+    }
+
+    .form-group input {
+      padding: 8px 10px;
+      font-size: 12px;
+      border-radius: 4px;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      color: var(--text-main);
+      outline: none;
+    }
+
+    .form-group input:focus {
+      border-color: var(--accent-color);
+    }
+
+    /* Suggestions / autocomplete tags */
+    .group-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .suggestion-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      color: var(--text-sub);
+      transition: all 0.2s;
+    }
+
+    .light-mode .suggestion-tag {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .suggestion-tag:hover {
+      background: var(--accent-color);
+      color: #ffffff;
+    }
+
+    .modal-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .modal-btn {
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+    }
+
+    .modal-btn.btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+    }
+
+    .modal-btn.btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .light-mode .modal-btn.btn-secondary {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .light-mode .modal-btn.btn-secondary:hover {
+      background: #d1d5db;
+    }
+
+    .modal-btn.btn-primary {
+      background: var(--accent-color);
+      color: #ffffff;
+    }
+
+    .modal-btn.btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    /* Confirm Modal Detail */
+    .confirm-title {
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 8px 0;
+    }
+
+    /* Toast Notification Container */
+    .toast-container {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      background: #1e293b;
+      border: 1px solid #10b981;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast-container.active {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toast-container.error {
+      border-color: #ef4444;
+      background: #7f1d1d;
+    }
+
+    .toast-icon {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Grid Table Header -->
+    <div class="table-header">
+      <!-- 1. Drag -->
+      <div class="header-col"></div>
+
+      <!-- 2. Name -->
+      <div class="header-col">名称</div>
+
+      <!-- 3. Address -->
+      <div class="header-col">地址</div>
+
+      <!-- 4. Username -->
+      <div class="header-col">用户名</div>
+
+      <!-- 5. Password with Oval Eye Badge -->
+      <div class="header-col">
+        <span class="password-toggle-badge" onclick="toggleAllPasswords()">
+          密码
+          <span id="globalEyeIcon">
+            <!-- Closed Eye -->
+            <svg viewBox="0 0 24 24" id="eyeOffSvg">
+              <path
+                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+            </svg>
+          </span>
+        </span>
+      </div>
+
+      <!-- 6. Actions, Theme Switcher & Search Box -->
+      <div class="header-col">
+        <div class="header-actions-col">
+          <button class="theme-toggle-btn" onclick="toggleTheme()" title="切换主题">
+            <span id="themeToggleIcon">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.01c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
+              </svg>
+            </span>
+          </button>
+          <button class="add-conn-btn" onclick="openAddModal()" title="添加连接">
+            <svg viewBox="0 0 24 24">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+          </button>
+          <div class="search-box-wrapper">
+            <input type="text" id="searchInput" placeholder="搜索..." oninput="handleSearch(this.value)">
+            <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table Rows Container -->
+    <div id="connectionsList" class="connections-list">
+      <!-- Populated Dynamically -->
+    </div>
+  </div>
+
+  <!-- ADD / EDIT MODAL -->
+  <div id="editModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">添加连接</h3>
+        <div class="modal-close" onclick="closeEditModal()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="connName">连接名称 *</label>
+          <input type="text" id="connName" placeholder="例如：上网机">
+        </div>
+        <div class="form-group">
+          <label for="connAddress">地址/设备代码 (IP/域名:端口) *</label>
+          <input type="text" id="connAddress" placeholder="例如：192.168.1.19:3389">
+        </div>
+        <div class="form-group">
+          <label for="connUsername">用户名 *</label>
+          <input type="text" id="connUsername" placeholder="例如：Administrator">
+        </div>
+        <div class="form-group">
+          <label for="connPassword">密码</label>
+          <input type="text" id="connPassword" placeholder="填写远程桌面的连接密码（选填/支持空格）">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn btn-secondary" onclick="closeEditModal()">取消</button>
+        <button class="modal-btn btn-primary" onclick="saveConnection()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRMATION MODAL -->
+  <div id="confirmModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 320px;">
+      <div class="modal-header">
+        <h3>确认删除</h3>
+        <div class="modal-close" onclick="closeConfirmModal()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="confirm-title" id="confirmText">确定要删除该连接吗？</div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn btn-secondary" onclick="closeConfirmModal()">取消</button>
+        <button class="modal-btn btn-primary" style="background: var(--btn-delete-bg);" id="confirmOkBtn">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast-container">
+    <span id="toastIcon">
+      <svg class="toast-icon" viewBox="0 0 24 24">
+        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+      </svg>
+    </span>
+    <span id="toastText">操作成功</span>
+  </div>
+
+  <script>
+    // Fallback for window.services if running outside ZTools / preload context
+    if (typeof window.services === 'undefined') {
+      window.services = {
+        dbGet(key) {
+          return localStorage.getItem(key);
+        },
+        dbSet(key, val) {
+          localStorage.setItem(key, val);
+          return true;
+        },
+        connect(ip, username, password) {
+          console.log(`[Mock Connect] Host: ${ip}, User: ${username}`);
+          alert(`[模拟连接] 正在开启mstsc连接到: ${ip}\n用户名: ${username}\n密码: ${password}`);
+          return true;
+        }
+      };
+    }
+
+    // State Variables
+    let connections = [];
+    let searchQuery = '';
+    let globalShowPasswords = false;
+    let currentEditId = null;
+    let deleteTargetId = null;
+
+    // Load initial data
+    document.addEventListener('DOMContentLoaded', () => {
+      // Load connections from ZTools DB
+      loadData();
+
+      // Load theme preference
+      const savedTheme = window.services.dbGet('rdp_theme') || 'dark';
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-mode');
+        updateThemeIcon(true);
+      } else {
+        updateThemeIcon(false);
+      }
+    });
+
+    // Helper functions for storage
+    function loadData() {
+      try {
+        const stored = window.services.dbGet('rdp_connections');
+        connections = stored ? JSON.parse(stored) : [];
+      } catch (e) {
+        console.error('Failed to load connections:', e);
+        connections = [];
+      }
+      renderList();
+    }
+
+    function saveData() {
+      try {
+        window.services.dbSet('rdp_connections', JSON.stringify(connections));
+      } catch (e) {
+        console.error('Failed to save connections:', e);
+        showToast('保存数据失败！', true);
+      }
+    }
+
+    // Toast Notifications
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      const toastText = document.getElementById('toastText');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastText.innerText = message;
+      if (isError) {
+        toast.classList.add('error');
+        toastIcon.innerHTML = `<svg class="toast-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
+      } else {
+        toast.classList.remove('error');
+        toastIcon.innerHTML = `<svg class="toast-icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+      }
+
+      toast.classList.add('active');
+      setTimeout(() => {
+        toast.classList.remove('active');
+      }, 2500);
+    }
+
+    // Toggle Themes
+    function toggleTheme() {
+      const isLight = document.body.classList.toggle('light-mode');
+      window.services.dbSet('rdp_theme', isLight ? 'light' : 'dark');
+      updateThemeIcon(isLight);
+    }
+
+    function updateThemeIcon(isLight) {
+      const iconContainer = document.getElementById('themeToggleIcon');
+      if (isLight) {
+        // Moon icon for Light Mode (represents toggling back to Dark)
+        iconContainer.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12.3 22h-.1c-5.5 0-10-4.5-10-10C2.2 6.8 6.5 2.5 11.7 2.2c.5 0 .9.3 1.1.7.2.4.1.9-.2 1.2-1.7 1.8-2.6 4.1-2.6 6.5 0 4.6 3.7 8.3 8.3 8.3 2.4 0 4.7-.9 6.5-2.6.3-.3.8-.4 1.2-.2.4.2.7.6.7 1.1-.3 5.2-4.6 9.5-9.9 9.8z"/></svg>`;
+        document.body.title = "切换到暗黑模式";
+      } else {
+        // Sun icon for Dark Mode (represents toggling back to Light)
+        iconContainer.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.01c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>`;
+        document.body.title = "切换到明亮模式";
+      }
+    }
+
+    // Toggle passwords globally
+    function toggleAllPasswords() {
+      globalShowPasswords = !globalShowPasswords;
+
+      const badge = document.querySelector('.password-toggle-badge');
+      const eyeIcon = document.getElementById('globalEyeIcon');
+
+      if (globalShowPasswords) {
+        badge.style.background = '#059669'; // Green indicating revealed
+        // Open eye icon
+        eyeIcon.innerHTML = `<svg viewBox="0 0 24 24" id="eyeOnSvg"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`;
+      } else {
+        badge.style.background = '#0284c7'; // Blue standard
+        // Closed eye icon
+        eyeIcon.innerHTML = `<svg viewBox="0 0 24 24" id="eyeOffSvg"><path d="M12 19c.3 0 .6-.04.9-.11l-1.9-1.9c-.31.01-.6.01-.9.01-2.76 0-5-2.24-5-5 0-.3.01-.59.01-.9l-1.9-1.9c-.07.3-.11.6-.11.9 0 4.39 4.27 7.5 9 7.5zm.9-12.89l-2.01 2.01C11.3 8.04 11.65 8 12 8c2.76 0 5 2.24 5 5 0 .35-.04.7-.12 1.09l2.01 2.01c.7-.91 1.25-1.95 1.61-3.1-1.73-4.39-6-7.5-11.5-7.5-.35 0-.7.03-1.04.09l.94.9zm-9.33 1.7L1.41 9.22 3.84 11.6C2.26 12.82 1 14.53 1 15.5c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.33 4.41-.93l4.31 4.31 1.41-1.41L4.47 7.81zM12 12c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/></svg>`;
+      }
+
+      renderList();
+    }
+
+    // Toggle specific password cell visibility
+    function togglePasswordCell(cellId) {
+      const cellText = document.getElementById(`pwd-${cellId}`);
+      if (!cellText) return;
+      const item = connections.find(c => c.id === cellId);
+      if (!item) return;
+
+      const isMasked = cellText.dataset.masked === 'true';
+      const actualPwd = item.password;
+
+      if (isMasked) {
+        cellText.innerText = (actualPwd !== '' && actualPwd !== undefined) ? actualPwd : '(空)';
+        cellText.dataset.masked = 'false';
+      } else {
+        cellText.innerText = '••••••';
+        cellText.dataset.masked = 'true';
+      }
+    }
+
+    // Search input
+    function handleSearch(val) {
+      searchQuery = val.trim().toLowerCase();
+      renderList();
+    }
+
+    // Render connection rows
+    function renderList() {
+      const listContainer = document.getElementById('connectionsList');
+
+      // Filter list
+      const filtered = connections.filter(item => {
+        if (searchQuery) {
+          const name = (item.name || '').toLowerCase();
+          const address = (item.address || '').toLowerCase();
+          const user = (item.username || '').toLowerCase();
+
+          return name.includes(searchQuery) ||
+            address.includes(searchQuery) ||
+            user.includes(searchQuery);
+        }
+
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="22" y2="7"></line><line x1="2" y1="17" x2="22" y2="17"></line></svg>
+            <div>暂无远程连接主机</div>
+          </div>
+        `;
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map((item, index) => {
+        const id = item.id;
+        const hasPwd = item.password !== '' && item.password !== undefined;
+        const displayPwd = globalShowPasswords ? (hasPwd ? item.password : '(空)') : '••••••';
+        const isMasked = !globalShowPasswords;
+
+        return `
+          <div class="connection-row" 
+               draggable="true" 
+               ondragstart="handleDragStart(event, '${id}')"
+               ondragover="handleDragOver(event)"
+               ondragleave="handleDragLeave(event)"
+               ondrop="handleDrop(event, '${id}')"
+               ondragend="handleDragEnd(event)"
+               data-id="${id}">
+            <!-- 1. Drag handle -->
+            <div class="cell">
+              <div class="drag-handle" title="按住拖动排序">
+                <svg viewBox="0 0 24 24"><path d="M20 9H4v2h16V9zm0 4H4v2h16v-2z"/></svg>
+              </div>
+            </div>
+            
+            <!-- 2. Name -->
+            <div class="cell name-cell" title="${item.name}">${item.name}</div>
+            
+            <!-- 3. Address -->
+            <div class="cell" title="${item.address}">${item.address}</div>
+            
+            <!-- 4. Username -->
+            <div class="cell" title="${item.username}">${item.username}</div>
+            
+            <!-- 5. Password with cell visibility toggle -->
+            <div class="cell password-cell" onclick="togglePasswordCell('${id}')" title="点击查看/隐藏">
+              <span id="pwd-${id}" class="password-text" data-masked="${isMasked ? 'true' : 'false'}">${displayPwd}</span>
+            </div>
+            
+            <!-- 6. Actions -->
+            <div class="cell action-buttons">
+              <button class="row-btn btn-connect" onclick="connectRdpById('${id}')">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                连接
+              </button>
+              <button class="row-btn btn-edit" onclick="openEditModal('${id}')">
+                <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                编辑
+              </button>
+              <button class="row-btn btn-delete" onclick="confirmDelete('${id}')">
+                <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                删除
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Connect to Remote Desktop by ID
+    function connectRdpById(id) {
+      const item = connections.find(c => c.id === id);
+      if (!item) return;
+      connectRdp(item.address, item.username, item.password);
+    }
+
+    // Connect to Remote Desktop
+    function connectRdp(ip, user, pwd) {
+      showToast(`正在写入凭据并连接至 ${ip}...`);
+      setTimeout(() => {
+        try {
+          const success = window.services.connect(ip, user, pwd);
+          if (success) {
+            showToast('已成功启动 Windows 远程桌面 (mstsc)');
+          }
+        } catch (e) {
+          console.error(e);
+          showToast(e.message || '启动连接失败，请重试！', true);
+        }
+      }, 300);
+    }
+
+    // Modal Actions: Add & Edit
+    function openAddModal() {
+      currentEditId = null;
+      document.getElementById('modalTitle').innerText = '添加连接';
+      document.getElementById('connName').value = '';
+      document.getElementById('connAddress').value = '';
+      document.getElementById('connUsername').value = '';
+      document.getElementById('connPassword').value = '';
+
+      const modal = document.getElementById('editModal');
+      modal.classList.add('active');
+    }
+
+    function openEditModal(id) {
+      currentEditId = id;
+      const item = connections.find(c => c.id === id);
+      if (!item) return;
+
+      document.getElementById('modalTitle').innerText = '编辑连接';
+      document.getElementById('connName').value = item.name || '';
+      document.getElementById('connAddress').value = item.address || '';
+      document.getElementById('connUsername').value = item.username || '';
+      document.getElementById('connPassword').value = item.password || '';
+
+      const modal = document.getElementById('editModal');
+      modal.classList.add('active');
+    }
+
+    function closeEditModal() {
+      const modal = document.getElementById('editModal');
+      modal.classList.remove('active');
+    }
+
+    function saveConnection() {
+      const name = document.getElementById('connName').value.trim();
+      const address = document.getElementById('connAddress').value.trim();
+      const username = document.getElementById('connUsername').value.trim();
+      const password = document.getElementById('connPassword').value;
+
+      if (!name || !address || !username) {
+        showToast('请完整填写必填项 (*)', true);
+        return;
+      }
+
+      if (currentEditId) {
+        // Edit Mode
+        const itemIdx = connections.findIndex(c => c.id === currentEditId);
+        if (itemIdx !== -1) {
+          connections[itemIdx] = {
+            ...connections[itemIdx],
+            name,
+            address,
+            username,
+            password
+          };
+          showToast('修改成功');
+        }
+      } else {
+        // Add Mode
+        const newConn = {
+          id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+          name,
+          address,
+          username,
+          password
+        };
+        connections.push(newConn);
+        showToast('添加成功');
+      }
+
+      saveData();
+      closeEditModal();
+      renderList();
+    }
+
+    // Delete Operations
+    function confirmDelete(id) {
+      deleteTargetId = id;
+      const item = connections.find(c => c.id === id);
+      if (!item) return;
+
+      document.getElementById('confirmText').innerText = `确定要删除连接 "${item.name}" 吗？`;
+
+      const confirmOverlay = document.getElementById('confirmModal');
+      confirmOverlay.classList.add('active');
+
+      const okBtn = document.getElementById('confirmOkBtn');
+      okBtn.onclick = executeDelete;
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirmModal').classList.remove('active');
+      deleteTargetId = null;
+    }
+
+    function executeDelete() {
+      if (!deleteTargetId) return;
+
+      connections = connections.filter(c => c.id !== deleteTargetId);
+      saveData();
+      closeConfirmModal();
+      showToast('删除成功');
+      renderList();
+    }
+
+    // Drag and Drop implementation
+    let draggedId = null;
+
+    function handleDragStart(e, id) {
+      draggedId = id;
+      e.dataTransfer.setData('text/plain', id);
+      e.dataTransfer.effectAllowed = 'move';
+
+      // Delay styling so ghost image shows correctly
+      setTimeout(() => {
+        const row = document.querySelector(`.connection-row[data-id="${id}"]`);
+        if (row) row.classList.add('dragging');
+      }, 0);
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+
+      const row = e.currentTarget;
+      if (row.dataset.id === draggedId) return;
+
+      const bounding = row.getBoundingClientRect();
+      const offset = e.clientY - bounding.top;
+
+      // Highlight row
+      row.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    function handleDrop(e, targetId) {
+      e.preventDefault();
+      const row = e.currentTarget;
+      row.classList.remove('drag-over');
+
+      if (draggedId === targetId || !draggedId) return;
+
+      const draggedIdx = connections.findIndex(item => item.id === draggedId);
+      const targetIdx = connections.findIndex(item => item.id === targetId);
+
+      if (draggedIdx === -1 || targetIdx === -1) return;
+
+      // Extract item
+      const [draggedItem] = connections.splice(draggedIdx, 1);
+
+      // Re-find target index since array length changed
+      const insertIdx = connections.findIndex(item => item.id === targetId);
+
+      // Insert item at its new position
+      connections.splice(insertIdx, 0, draggedItem);
+
+      saveData();
+      renderList();
+      showToast('排序已保存');
+    }
+
+    function handleDragEnd(e) {
+      const rows = document.querySelectorAll('.connection-row');
+      rows.forEach(r => {
+        r.classList.remove('dragging');
+        r.classList.remove('drag-over');
+      });
+      draggedId = null;
+    }
+  </script>
+</body>
+
+</html>

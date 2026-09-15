@@ -1,0 +1,28 @@
+[
+  {
+    "Origin": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*",
+    "Key": "AcmeEditor",
+    "Scope": "user",
+    "DisplayName": "Acme Editor",
+    "DisplayVersion": "2.4.1",
+    "Publisher": "Acme",
+    "InstallLocation": "C:\\Users\\tester\\AppData\\Local\\AcmeEditor",
+    "UninstallString": "\"C:\\Users\\tester\\AppData\\Local\\AcmeEditor\\uninstall.exe\" /S"
+  },
+  {
+    "Origin": "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*",
+    "Key": "{12345678-1234-1234-1234-1234567890AB}",
+    "Scope": "system",
+    "DisplayName": "Machine Tool",
+    "DisplayVersion": "1.0",
+    "Publisher": "Tools Inc",
+    "UninstallString": "MsiExec.exe /I{12345678-1234-1234-1234-1234567890AB}"
+  },
+  {
+    "Origin": "HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*",
+    "Key": "HiddenComponent",
+    "Scope": "system",
+    "DisplayName": "Hidden Component",
+    "SystemComponent": 1
+  }
+]

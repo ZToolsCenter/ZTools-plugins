@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Cloud Sync
+Comment=Synchronize files
+Exec=/home/demo/bin/sync --background %U
+Hidden=false
+X-GNOME-Autostart-enabled=true
+
+[Desktop Action Settings]
+Name=Settings

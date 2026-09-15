@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "automatic-assistant",
+  "title": "自动化助手",
+  "description": "自动化助手，让繁琐的步骤一步到位。自定义指令 + JavaScript 脚本，一条指令完成一串操作",
+  "author": "lee",
+  "version": "1.0.1",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "setting",
+      "explain": "自动化助手，创建和管理自动化脚本",
+      "icon": "logo.png",
+      "cmds": [
+        "自动化助手",
+        "自动化",
+        "automation",
+        "zdh"
+      ]
+    }
+  ],
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ]
+}

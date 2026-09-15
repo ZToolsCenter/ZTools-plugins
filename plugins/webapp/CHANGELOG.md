@@ -5,7 +5,7 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [1.0.0] - 2025-06-15
+## 1.0.0 - 2025-06-15
 
 ### 新增
 
@@ -35,3 +35,10 @@
 - 修复 webview 事件监听器重复注册导致的内存泄漏
 - 修复 Basic Auth 页面加载异常问题
 - 修复 loading 状态在切换应用时无法正确关闭的问题
+
+### 根据提交记录补充
+
+- 将插件名称统一为小写 webapp，移除冗余的根目录清单。
+- 改用独立端口代理机制，添加 cookie 持久化
+- 修复代码审查发现的问题
+- 使用 loadURL() 替代修改 src 属性，避免 webview 销毁重建

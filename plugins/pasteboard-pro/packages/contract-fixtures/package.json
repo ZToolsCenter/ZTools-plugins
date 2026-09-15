@@ -1,0 +1,19 @@
+{
+  "name": "@pasteboard-pro/contract-fixtures",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#freeze": "./src/freeze.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./history": "./src/history.ts",
+    "./keyboard": "./src/keyboard.ts",
+    "./sync": "./src/sync.ts"
+  },
+  "dependencies": {
+    "@pasteboard-pro/core": "workspace:*",
+    "@pasteboard-pro/sync-protocol": "workspace:*"
+  }
+}

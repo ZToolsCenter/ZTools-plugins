@@ -3,6 +3,9 @@ const https = require('node:https')
 
 const STORAGE_KEY = 'web-quick-open-engines'
 const FEATURE_PREFIX = 'quick-open-'
+const ICON_SIZE = 128
+const compressedIconCache = new Map()
+const registeredFeatureSignatures = new Map()
 const FAVICON_API_URL = 'https://fav.lee.cm/get.php'
 const REQUEST_TIMEOUT_MS = 10000
 const MAX_REDIRECTS = 5
@@ -25,10 +28,6 @@ function getAllEngines() {
   return Array.isArray(value) ? value.map(normalizeEngine).filter((engine) => engine.id) : []
 }
 
-function saveEngines(engines) {
-  getZtools().dbStorage.setItem(STORAGE_KEY, engines.map(normalizeEngine))
-}
-
 function normalizeEngine(engine) {
   const type = engine && engine.type === 'search' ? 'search' : 'webpage'
   return {
@@ -40,6 +39,78 @@ function normalizeEngine(engine) {
     type,
     keyword: typeof engine?.keyword === 'string' ? engine.keyword.trim() : ''
   }
+}
+
+function compressIconToPng(icon) {
+  if (!icon || !/^data:image\//i.test(icon)) return Promise.resolve(icon)
+
+  const cached = compressedIconCache.get(icon)
+  if (cached) return Promise.resolve(cached)
+
+  if (
+    typeof window.Image !== 'function' ||
+    typeof document === 'undefined' ||
+    typeof document.createElement !== 'function'
+  ) {
+    return Promise.resolve(icon)
+  }
+
+  return new Promise((resolve) => {
+    const image = new window.Image()
+    image.onload = () => {
+      try {
+        const width = image.naturalWidth || image.width
+        const height = image.naturalHeight || image.height
+        if (!width || !height) {
+          resolve(icon)
+          return
+        }
+
+        const canvas = document.createElement('canvas')
+        canvas.width = ICON_SIZE
+        canvas.height = ICON_SIZE
+        const context = canvas.getContext('2d')
+        if (!context) {
+          resolve(icon)
+          return
+        }
+
+        const scale = Math.min(ICON_SIZE / width, ICON_SIZE / height)
+        const drawWidth = Math.max(1, Math.round(width * scale))
+        const drawHeight = Math.max(1, Math.round(height * scale))
+        const offsetX = Math.round((ICON_SIZE - drawWidth) / 2)
+        const offsetY = Math.round((ICON_SIZE - drawHeight) / 2)
+
+        context.clearRect(0, 0, ICON_SIZE, ICON_SIZE)
+        context.imageSmoothingEnabled = true
+        context.imageSmoothingQuality = 'high'
+        context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight)
+
+        const compressed = canvas.toDataURL('image/png')
+        compressedIconCache.set(icon, compressed)
+        resolve(compressed)
+      } catch (error) {
+        console.warn('[WebQuickOpen] compress icon failed:', error)
+        resolve(icon)
+      }
+    }
+    image.onerror = () => resolve(icon)
+    image.src = icon
+  })
+}
+
+async function saveEngines(engines) {
+  const normalized = await Promise.all(
+    engines.map(async (engine) => {
+      const normalizedEngine = normalizeEngine(engine)
+      return {
+        ...normalizedEngine,
+        icon: await compressIconToPng(normalizedEngine.icon)
+      }
+    })
+  )
+  getZtools().dbStorage.setItem(STORAGE_KEY, normalized)
+  return normalized
 }
 
 function validateEngine(engine, requireId) {
@@ -79,12 +150,7 @@ function buildFeatureCode(engineId) {
   return `${FEATURE_PREFIX}${engineId}`
 }
 
-function setEngineFeature(engine) {
-  if (!engine.enabled) {
-    getZtools().removeFeature(buildFeatureCode(engine.id))
-    return
-  }
-
+function buildEngineFeature(engine) {
   const baseFeature = {
     code: buildFeatureCode(engine.id),
     explain: engine.name,
@@ -93,14 +159,13 @@ function setEngineFeature(engine) {
   }
 
   if (engine.type === 'webpage') {
-    getZtools().setFeature({
+    return {
       ...baseFeature,
       cmds: [engine.keyword]
-    })
-    return
+    }
   }
 
-  getZtools().setFeature({
+  return {
     ...baseFeature,
     cmds: [
       {
@@ -109,16 +174,128 @@ function setEngineFeature(engine) {
         minLength: 1
       }
     ]
+  }
+}
+
+function getFeatureSignature(feature) {
+  return JSON.stringify({
+    code: feature?.code || '',
+    explain: feature?.explain || '',
+    icon: feature?.icon || '',
+    mainHide: feature?.mainHide === true,
+    cmds: Array.isArray(feature?.cmds)
+      ? feature.cmds.map((command) => {
+          if (typeof command === 'string') return command
+          if (!command || typeof command !== 'object') return command
+          return {
+            type: command.type,
+            label: command.label,
+            minLength: command.minLength,
+            maxLength: command.maxLength
+          }
+        })
+      : []
   })
 }
 
+function getCurrentFeatureMap() {
+  const getFeatures = getZtools().getFeatures
+  if (typeof getFeatures !== 'function') return null
+
+  try {
+    const features = getFeatures()
+    if (!Array.isArray(features)) return new Map()
+    return new Map(
+      features
+        .filter((feature) => typeof feature?.code === 'string' && feature.code.startsWith(FEATURE_PREFIX))
+        .map((feature) => [feature.code, feature])
+    )
+  } catch (error) {
+    console.warn('[WebQuickOpen] get current features failed:', error)
+    return null
+  }
+}
+
+function setEngineFeature(engine, existingFeatures = null) {
+  const code = buildFeatureCode(engine.id)
+  if (!engine.enabled) {
+    if (existingFeatures === null || existingFeatures.has(code) || registeredFeatureSignatures.has(code)) {
+      getZtools().removeFeature(code)
+    }
+    registeredFeatureSignatures.delete(code)
+    return
+  }
+
+  const feature = buildEngineFeature(engine)
+  const signature = JSON.stringify(feature)
+  const currentFeature = existingFeatures?.get(code)
+  if (
+    (existingFeatures === null && registeredFeatureSignatures.get(code) === signature) ||
+    (currentFeature && getFeatureSignature(currentFeature) === getFeatureSignature(feature))
+  ) {
+    registeredFeatureSignatures.set(code, signature)
+    return
+  }
+
+  const result = getZtools().setFeature(feature)
+  if (result !== false) {
+    registeredFeatureSignatures.set(code, signature)
+  }
+}
+
 function removeEngineFeature(engineId) {
-  getZtools().removeFeature(buildFeatureCode(engineId))
+  const code = buildFeatureCode(engineId)
+  getZtools().removeFeature(code)
+  registeredFeatureSignatures.delete(code)
+}
+
+function isWebUrl(value) {
+  return isHttpUrl(ensureUrlProtocol(String(value || '').trim()))
+}
+
+function registerMainPush() {
+  if (typeof getZtools().onMainPush !== 'function') return
+
+  getZtools().onMainPush(({ payload }) => {
+    const input = String(payload || '').trim()
+    if (!isWebUrl(input)) return { type: 'list', data: [] }
+
+    const url = ensureUrlProtocol(input)
+    return {
+      type: 'list',
+      data: [
+        { text: '打开网址', title: url, icon: 'logo.png', action: 'open', url },
+        { text: '添加网址', title: '添加到网页快开', icon: 'logo.png', action: 'add', url }
+      ]
+    }
+  }, ({ option }) => {
+    if (!option || !isWebUrl(option.url)) return false
+    if (option.action === 'open') {
+      getZtools().shellOpenExternal(option.url)
+      getZtools().hideMainWindow(false)
+      return false
+    }
+    if (option.action === 'add') return true
+    return false
+  })
 }
 
 function syncEngineFeatures(engines) {
+  const existingFeatures = getCurrentFeatureMap()
+  const activeCodes = new Set()
   for (const engine of engines) {
-    setEngineFeature(engine)
+    activeCodes.add(buildFeatureCode(engine.id))
+    setEngineFeature(engine, existingFeatures)
+  }
+
+  const knownCodes = new Set([
+    ...registeredFeatureSignatures.keys(),
+    ...(existingFeatures ? existingFeatures.keys() : [])
+  ])
+  for (const code of knownCodes) {
+    if (activeCodes.has(code)) continue
+    getZtools().removeFeature(code)
+    registeredFeatureSignatures.delete(code)
   }
 }
 
@@ -311,7 +488,7 @@ function buildEngineDedupKey(engine) {
   return `webpage::${keyword}::${url.toLowerCase()}`
 }
 
-function importFromJsonText(jsonText) {
+async function importFromJsonText(jsonText) {
   let parsed
   try {
     parsed = JSON.parse(jsonText)
@@ -360,8 +537,8 @@ function importFromJsonText(jsonText) {
   }
 
   if (importedCount > 0) {
-    saveEngines(nextEngines)
-    syncEngineFeatures(nextEngines)
+    const savedEngines = await saveEngines(nextEngines)
+    syncEngineFeatures(savedEngines)
   }
 
   return {
@@ -374,10 +551,11 @@ function importFromJsonText(jsonText) {
   }
 }
 
+registerMainPush()
+
 window.webQuickOpen = {
   async getAll() {
     const engines = getAllEngines()
-    syncEngineFeatures(engines)
     return { success: true, data: engines }
   },
   async add(engine) {
@@ -392,8 +570,8 @@ window.webQuickOpen = {
       return { success: false, error: '入口 ID 已存在' }
     }
     engines.push(nextEngine)
-    saveEngines(engines)
-    setEngineFeature(nextEngine)
+    const savedEngines = await saveEngines(engines)
+    setEngineFeature(savedEngines.find((item) => item.id === nextEngine.id) || nextEngine)
     return { success: true }
   },
   async update(engine) {
@@ -405,8 +583,8 @@ window.webQuickOpen = {
       return { success: false, error: '未找到该入口' }
     }
     engines[index] = validated.engine
-    saveEngines(engines)
-    setEngineFeature(validated.engine)
+    const savedEngines = await saveEngines(engines)
+    setEngineFeature(savedEngines[index] || validated.engine)
     return { success: true }
   },
   async delete(engineId) {
@@ -415,7 +593,7 @@ window.webQuickOpen = {
     if (nextEngines.length === engines.length) {
       return { success: false, error: '未找到该入口' }
     }
-    saveEngines(nextEngines)
+    await saveEngines(nextEngines)
     removeEngineFeature(engineId)
     return { success: true }
   },
@@ -431,7 +609,7 @@ window.webQuickOpen = {
   },
   async importFromJsonText(jsonText) {
     try {
-      return importFromJsonText(jsonText)
+      return await importFromJsonText(jsonText)
     } catch (error) {
       return {
         success: false,
@@ -449,3 +627,6 @@ window.webQuickOpen = {
     return getZtools().outPlugin(false)
   }
 }
+
+// Register persisted dynamic features once when the preload context starts.
+syncEngineFeatures(getAllEngines())

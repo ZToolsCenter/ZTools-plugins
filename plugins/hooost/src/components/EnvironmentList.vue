@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import { useColorScheme } from 'ztools-ui'
 import type { Environment } from '@/types/hosts'
 import { VueDraggable } from 'vue-draggable-plus'
 import ContextMenu from './ContextMenu.vue'
@@ -16,14 +17,21 @@ const emit = defineEmits<{
   apply: [id: string]
   deactivate: [id: string]
   delete: [id: string]
+  rename: [id: string, name: string]
   create: []
   reorder: [orderedIds: string[]]
 }>()
+
+const { isDark } = useColorScheme()
 
 const contextMenuVisible = ref(false)
 const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const contextMenuEnv = ref<Environment | null>(null)
+
+const renamingEnvId = ref<string | null>(null)
+const renameInputValue = ref('')
+const renameInputEl = ref<HTMLInputElement | null>(null)
 
 const publicEnvironments = computed(() => props.environments.filter((env) => env.type === 'public'))
 const managedEnvironments = computed(() =>
@@ -39,6 +47,7 @@ const contextMenuItems = computed<ContextMenuItem[]>(() => {
   } else {
     items.push({ label: '启用此配置', value: 'apply' })
   }
+  items.push({ label: '重命名', value: 'rename' })
   items.push({ label: '删除此配置', value: 'delete', danger: true })
   return items
 })
@@ -66,7 +75,37 @@ function onContextMenuSelect(value: string) {
   if (!env) return
   if (value === 'apply') emit('apply', env.id)
   else if (value === 'deactivate') emit('deactivate', env.id)
+  else if (value === 'rename') startRename(env)
   else if (value === 'delete') emit('delete', env.id)
+}
+
+function setRenameInput(el: Element | null) {
+  renameInputEl.value = el as HTMLInputElement | null
+}
+
+function startRename(env: Environment) {
+  renamingEnvId.value = env.id
+  renameInputValue.value = env.name
+  nextTick(() => {
+    renameInputEl.value?.focus()
+    renameInputEl.value?.select()
+  })
+}
+
+function commitRename() {
+  const envId = renamingEnvId.value
+  if (!envId) return
+
+  const newName = renameInputValue.value.trim()
+  const env = props.environments.find((e) => e.id === envId)
+  renamingEnvId.value = null
+
+  if (!env || !newName || newName === env.name) return
+  emit('rename', envId, newName)
+}
+
+function cancelRename() {
+  renamingEnvId.value = null
 }
 
 function onContextMenuClose() {
@@ -104,7 +143,7 @@ function getItemClasses(env: Environment) {
         <span class="env-item-status"></span>
       </span>
       <span class="env-item-name">{{ env.name }}</span>
-      <span v-if="env.editMode === 'source'" class="env-item-badge">源码</span>
+      <span v-if="env.editMode === 'source'" class="env-item-badge" :class="{ 'env-item-badge--dark': isDark }">源码</span>
       <span v-else class="env-item-count">{{
         env.lines.filter((l) => l.type === 'host' && l.enabled).length
       }}</span>
@@ -128,7 +167,7 @@ function getItemClasses(env: Environment) {
         v-for="env in managedEnvironments"
         :key="env.id"
         class="env-item env-item--sortable"
-        :class="getItemClasses(env)"
+        :class="[getItemClasses(env), { 'env-item--renaming': renamingEnvId === env.id }]"
         @click="emit('select', env.id)"
         @dblclick="onItemDoubleClick(env)"
         @contextmenu.prevent="onContextMenu($event, env)"
@@ -137,10 +176,24 @@ function getItemClasses(env: Environment) {
           <span class="env-item-handle i-z-order" title="拖拽排序"></span>
           <span class="env-item-status"></span>
         </span>
-        <span class="env-item-name">{{ env.name }}</span>
-        <span class="env-item-count">{{
-          env.lines.filter((l) => l.type === 'host' && l.enabled).length
-        }}</span>
+        <input
+          v-if="renamingEnvId === env.id"
+          :ref="setRenameInput"
+          v-model="renameInputValue"
+          class="env-item-rename-input"
+          type="text"
+          @click.stop
+          @dblclick.stop
+          @keydown.enter.prevent="commitRename"
+          @keydown.escape.prevent="cancelRename"
+          @blur="commitRename"
+        />
+        <template v-else>
+          <span class="env-item-name">{{ env.name }}</span>
+          <span class="env-item-count">{{
+            env.lines.filter((l) => l.type === 'host' && l.enabled).length
+          }}</span>
+        </template>
       </div>
     </VueDraggable>
 
@@ -268,6 +321,24 @@ function getItemClasses(env: Environment) {
   white-space: nowrap;
 }
 
+.env-item-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  border: 1px solid var(--primary-color);
+  border-radius: 4px;
+  background: var(--bg-color, #fff);
+  color: var(--text-color);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 0 6px;
+  outline: none;
+}
+
+.env-item--renaming {
+  cursor: default;
+}
+
 .env-item-count,
 .env-item-badge {
   font-size: 11px;
@@ -279,7 +350,11 @@ function getItemClasses(env: Environment) {
 .env-item-badge {
   padding: 1px 6px;
   border-radius: 3px;
-  background: var(--bg-color-secondary, #f0f0f0);
+  background: #f0f0f0;
+}
+
+.env-item-badge--dark {
+  background: #3a3a3c;
 }
 
 .env-item--selected .env-item-badge {

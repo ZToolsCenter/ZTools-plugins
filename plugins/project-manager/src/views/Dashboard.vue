@@ -1,22 +1,44 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, useTemplateRef } from 'vue';
 import { useProjectStore } from '../stores/project';
 import { useGitStore } from '../stores/git';
 import { useUsageStore } from '../stores/usage';
 import { useSettingsStore } from '../stores/settings';
-import ProjectListItem from '../components/ProjectListItem.vue';
-import ConsoleView from '../components/ConsoleView.vue';
-import GitView from '../components/git/GitView.vue';
-import FileManager from '../components/FileManager.vue';
-import ProjectMemo from '../components/ProjectMemo.vue';
 import AddProjectModal from '../components/AddProjectModal.vue';
-import type { Project } from '../types';
+import ProjectGroupManager from '../components/ProjectGroupManager.vue';
+import ImportScanModal from '../components/ImportScanModal.vue';
+import SubProjectScanModal from '../components/SubProjectScanModal.vue';
+import ProjectWorkspace from '../components/dashboard/ProjectWorkspace.vue';
+import ProjectManagementDialog from '../components/dashboard/ProjectManagementDialog.vue';
+import ProjectTreeGroup from '../components/dashboard/ProjectTreeGroup.vue';
+// ─── 项目总控能力组件 ─────────────────────────────────────────────────
+import ViewPresetChips from '../components/dashboard/ViewPresetChips.vue';
+import WorkspaceProfileMenu from '../components/dashboard/WorkspaceProfileMenu.vue';
+// ─── 项目总控能力 composable ──────────────────────────────────────────
+import { useViewPresets } from '../composables/dashboard/useViewPresets';
+import { useProjectBatch } from '../composables/dashboard/useProjectBatch';
+import { useProjectHealth } from '../composables/dashboard/useProjectHealth';
+import { useWorkspaceProfiles } from '../composables/dashboard/useWorkspaceProfiles';
+import type { Project, ProjectHealthSnapshot, WorkspaceTab } from '../types';
+import type { ImportNode } from '../api/types';
 import { useI18n } from 'vue-i18n';
-import { api } from '../api';
-import { ElMessage } from 'element-plus';
-import { normalizeNvmVersion, findInstalledNodeVersion } from '../utils/nvm';
-import { calculateDraggedItemCenterY, calculateDraggedItemTranslateY, calculateFlipTransforms } from '../utils/dragPosition';
-import { pinyin } from 'pinyin-pro';
+import { compareProjectsByPinnedThenOrder } from '../utils/projectTree.ts';
+import { useListDragSort } from '../composables/useListDragSort.ts';
+import { useAppShortcuts } from '../composables/useAppShortcuts.ts';
+import {
+    DEFAULT_FOCUS_SEARCH_SHORTCUT,
+    DEFAULT_NEW_PROJECT_SHORTCUT,
+    DEFAULT_REFRESH_PROJECTS_SHORTCUT,
+} from '../utils/shortcut.ts';
+import { collectProjectTags, projectMatchesSelectedTags } from '../utils/projectTags';
+import { summarizeGitStatus, type ProjectGitOverview } from '../utils/projectGitOverview';
+import { buildProjectSearchEntry, projectSearchEntryMatches } from '../utils/projectSearch';
+import {
+    collectAutoExpandedProjectIds,
+    collectVisibleProjectIds,
+    createProjectTreeExpansionState,
+    setProjectTreeConstraint,
+} from '../utils/projectTreeView';
 
 const { t } = useI18n();
 const projectStore = useProjectStore();
@@ -29,11 +51,110 @@ const refreshing = ref(false);
 const PROJECT_LIST_ITEM_GAP = 8;
 const PROJECT_LIST_OVERSCAN = 4;
 
-// Right panel tab
-const rightTab = ref<'console' | 'git' | 'files' | 'memo'>('console');
+/** 快捷筛选类型：基础(all/pinned/recent/favorite) + 健康(running/dirty/unhealthy/missing) */
+type QuickFilter = 'all' | 'pinned' | 'recent' | 'favorite' | 'running' | 'dirty' | 'unhealthy' | 'missing';
+
+/** *********************钻取状态：为空时显示列表页，否则显示工作区页*********************/
+const drilledRootId = ref<string | null>(null);
+const workspaceTargetProjectId = ref<string | null>(null);
+const managementProjectId = ref<string | null>(null);
+const managementInitialTab = ref<WorkspaceTab | null>(null);
+const showManagementDialog = ref(false);
+
+/** 按 id 解析弹窗项目，避免编辑/扫描替换 store 对象后继续使用旧引用。 */
+const managementProject = computed<Project | null>(() => {
+    if (!managementProjectId.value) return null;
+    return projectStore.projects.find(project => project.id === managementProjectId.value) || null;
+});
+
+/***********************一级项目树状态*********************/
+const treeExpansionState = createProjectTreeExpansionState();
+const expandedProjectIds = ref(treeExpansionState.expandedIds);
+
+function toggleProjectExpanded(project: Project): void {
+    const next = new Set(expandedProjectIds.value);
+    if (next.has(project.id)) next.delete(project.id);
+    else next.add(project.id);
+    expandedProjectIds.value = next;
+    treeExpansionState.expandedIds = next;
+}
+
+function openProjectManagement(project: Project, initialTab: WorkspaceTab | null = null): void {
+    managementProjectId.value = project.id;
+    managementInitialTab.value = initialTab;
+    showManagementDialog.value = true;
+}
+
+/** 打开项目最近运行结果；子树摘要会定位到真正产生该 Session 的项目。 */
+function openProjectRunSummary(project: Project): void {
+    const summary = projectStore.getSubtreeRunSummary(project.id);
+    const target = summary
+        ? projectStore.projects.find(candidate => candidate.id === summary.projectId) || project
+        : project;
+    openProjectManagement(target, 'console');
+    if (summary && summary.status !== 'running' && summary.sessionId) {
+        projectStore.requestConsoleHistory(target.id, summary.sessionId);
+    }
+}
+
+/** 健康快照覆盖整棵已导入项目树，支持后代 dirty/unhealthy/missing 筛选。 */
+const healthProjects = computed(() => projectStore.projects);
+const {
+    getHealth,
+    healthLevel,
+} = useProjectHealth({ filteredProjects: healthProjects });
+
+/** 进入某一级项目的工作区 */
+function openProjectWorkspace(project: Project) {
+    const rootId = projectStore.getRootProjectId(project.id);
+    drilledRootId.value = rootId;
+    workspaceTargetProjectId.value = project.id === rootId ? null : project.id;
+}
+
+/** 从工作区返回列表 */
+function backToList() {
+    drilledRootId.value = null;
+    projectStore.activeRootId = null;
+    projectStore.activeProjectId = null;
+    // 必须清掉搜索跳转目标：它非空会让下次进入同一项目时被自动下钻到旧目标，
+    // 也会让工作区的导航恢复逻辑一直走「搜索优先」的早退分支
+    workspaceTargetProjectId.value = null;
+    void nextTick(() => {
+        const container = projectListContainer.value;
+        if (!container) return;
+        container.scrollTop = projectListScrollTop.value;
+        projectListResizeObserver?.observe(container);
+        updateProjectListViewport();
+    });
+}
+
+/**
+ * 消费外部（如全局搜索）请求打开的工作区信号。
+ * immediate: true 覆盖「Dashboard 因 v-if 重新挂载、错过挂载前赋值」的时序问题；
+ * 消费后立即置空，避免返回列表后再次被触发。
+ */
+watch(() => projectStore.pendingWorkspaceRootId, (rootId) => {
+    if (!rootId) return;
+    const target = projectStore.projects.find(p => p.id === rootId);
+    workspaceTargetProjectId.value = projectStore.pendingWorkspaceProjectId;
+    projectStore.pendingWorkspaceRootId = null;
+    projectStore.pendingWorkspaceProjectId = null;
+    if (!target) return;
+    // 直接切 rootId 即可。
+    // 原先这里要「先返回列表、再于下一帧进入目标」，是因为 ProjectWorkspace 带
+    // :key="workspace:${rootId}"，在 Transition mode="out-in" 下同分支换 key 会挂载失败。
+    // 现在 key 已是静态值（为让 KeepAlive 缓存跨一级项目存活），同一个 vnode 只换 props，
+    // Transition 完全不介入，那套绕法既没必要、又会白白闪一下列表页并销毁整份缓存。
+    openProjectWorkspace(target);
+}, { immediate: true });
+
+/** 工作区内请求编辑项目 */
+function editFromWorkspace(project: Project) {
+    openEditModal(project);
+}
 
 // Project list container ref for scroll-to-project
-const projectListContainer = ref<HTMLElement | null>(null);
+const projectListContainer = useTemplateRef<HTMLElement>('projectListContainer');
 const projectListScrollTop = ref(0);
 const projectListViewportHeight = ref(0);
 const projectItemHeights = ref<Record<string, number>>({});
@@ -49,16 +170,9 @@ function resolveElementRef(target: unknown): Element | null {
 }
 
 function estimateProjectItemHeight(project: Project) {
-    const running = (projectStore.runningProjectCount[project.id] || 0) > 0;
-    const expanded = projectStore.activeProjectId === project.id || running;
-    const scriptCount = (project.visibleScripts?.length || project.scripts?.length || 0) + (project.customCommands?.length || 0);
-
-    if (!expanded || scriptCount === 0) {
-        return 88 + PROJECT_LIST_ITEM_GAP;
-    }
-
-    const rows = Math.min(3, Math.max(1, Math.ceil(scriptCount / 2)));
-    return 116 + rows * 24 + PROJECT_LIST_ITEM_GAP;
+    // 行高固定；含描述/标签的行略高
+    const hasMeta = !!(project.description || (project.tags && project.tags.length) || project.groupId || projectStore.getSubtreeRunSummary(project.id));
+    return (hasMeta ? 68 : 52) + PROJECT_LIST_ITEM_GAP;
 }
 
 function handleProjectListScroll() {
@@ -112,45 +226,7 @@ function findProjectMetricIndexByOffset(offset: number) {
     return Math.max(0, Math.min(metrics.length - 1, low));
 }
 
-function scrollToActiveProject() {
-    if (!projectStore.activeProjectId || !projectListContainer.value) return;
-    const metric = projectListMetrics.value.find(item => item.project.id === projectStore.activeProjectId);
-    if (!metric) return;
-
-    const container = projectListContainer.value;
-    container.scrollTo({
-        top: Math.max(0, metric.start - container.clientHeight / 2 + metric.height / 2),
-        behavior: 'smooth'
-    });
-}
-
-// Tab bar scroll handling
-const tabScrollContainer = ref<HTMLElement | null>(null);
-const canScrollLeft = ref(false);
-const canScrollRight = ref(false);
-
-function checkTabOverflow() {
-    const el = tabScrollContainer.value;
-    if (!el) return;
-    canScrollLeft.value = el.scrollLeft > 0;
-    canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
-}
-
-function scrollTabs(direction: 'left' | 'right') {
-    const el = tabScrollContainer.value;
-    if (!el) return;
-    el.scrollBy({ left: direction === 'left' ? -120 : 120, behavior: 'smooth' });
-}
-
-let tabResizeObserver: ResizeObserver | null = null;
-
 onMounted(() => {
-    nextTick(checkTabOverflow);
-    if (tabScrollContainer.value) {
-        tabResizeObserver = new ResizeObserver(checkTabOverflow);
-        tabResizeObserver.observe(tabScrollContainer.value);
-    }
-
     if (projectListContainer.value) {
         projectListResizeObserver = new ResizeObserver(updateProjectListViewport);
         projectListResizeObserver.observe(projectListContainer.value);
@@ -179,80 +255,85 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    tabResizeObserver?.disconnect();
     projectListResizeObserver?.disconnect();
     projectItemResizeObserver?.disconnect();
     projectItemElements.clear();
-    projectPinyinCache.clear();
 });
-
-const activeProject = computed(() =>
-  projectStore.projects.find(p => p.id === projectStore.activeProjectId)
-);
-
-const isGitRepo = computed(() => {
-  if (!activeProject.value) return false;
-  return gitStore.isGitRepo[activeProject.value.id] || false;
-});
-
-const gitChangesCount = computed(() => {
-  if (!activeProject.value) return 0;
-  return gitStore.getTotalChanges(activeProject.value.id);
-});
-
-// Auto-check git repo when project changes
-watch(activeProject, (newProject) => {
-  if (newProject) {
-    void gitStore.checkGitRepo(newProject.id, newProject.path);
-  }
-}, { immediate: true });
-
-watch(
-    () => projectStore.requestedRightTabToken,
-    () => {
-        if (projectStore.requestedRightTab) {
-            rightTab.value = projectStore.requestedRightTab;
-        }
-    }
-);
 
 //************* 搜索功能 *************
 const searchQuery = ref('');
+/** el-input 实例：聚焦搜索快捷键需要拿到内部的原生 input */
+const projectSearchInput = useTemplateRef<{ $el?: HTMLElement } | null>('projectSearchInput');
+const showGroupManager = ref(false);
+const showImportModal = ref(false);
 
-function buildPinyinSearchText(text: string): string {
-    if (!text) return '';
-    const syllables = pinyin(text, { toneType: 'none', type: 'array' }) as string[];
-    const full = syllables.join('');
-    const initials = syllables.map(s => s[0] || '').join('');
-    return `${full} ${initials}`.toLowerCase();
+/***********************筛选状态*********************/
+const activeQuickFilter = ref<QuickFilter>('all');
+const selectedGroupId = ref('');
+const selectedTags = ref<string[]>([]);
+
+/** 基础快捷筛选（segmented 控件） */
+const quickFilterOptions = computed(() => [
+    { label: t('dashboard.filterAll'), value: 'all' },
+    { label: t('dashboard.filterFavorite'), value: 'favorite' },
+    { label: t('dashboard.filterPinned'), value: 'pinned' },
+    { label: t('dashboard.filterRecent'), value: 'recent' },
+]);
+
+/** 健康状态快捷筛选 chips（原「项目总览」的分类） */
+const healthFilterChips = computed(() => [
+    { key: 'running', label: t('dashboard.overviewRunning'), icon: 'i-mdi-play-circle-outline', tone: 'emerald', count: healthCounts.value.running },
+    { key: 'dirty', label: t('dashboard.overviewDirty'), icon: 'i-mdi-git', tone: 'amber', count: healthCounts.value.dirty },
+    { key: 'unhealthy', label: t('dashboard.overviewUnhealthy'), icon: 'i-mdi-alert-circle-outline', tone: 'red', count: healthCounts.value.unhealthy },
+    { key: 'missing', label: t('dashboard.overviewMissing'), icon: 'i-mdi-folder-alert-outline', tone: 'rose', count: healthCounts.value.missing },
+]);
+
+function toggleHealthFilter(key: QuickFilter) {
+    activeQuickFilter.value = activeQuickFilter.value === key ? 'all' : key;
 }
 
-const projectPinyinCache = new Map<string, string>();
-
-function getCachedPinyinSearchText(text: string) {
-    if (!text) return '';
-    const cached = projectPinyinCache.get(text);
-    if (cached) return cached;
-
-    const next = buildPinyinSearchText(text);
-    projectPinyinCache.set(text, next);
-    return next;
-}
+/** 聚合所有项目标签用于筛选下拉 */
+const allTags = computed(() => collectProjectTags(projectStore.projects));
 
 const sortMode = computed(() => settingsStore.settings.sortMode ?? 'default');
+
+// ─── 保存视图 composable ──────────────────────────────────────────────
+const {
+  presets: viewPresets,
+  activePresetId,
+  saveCurrentView,
+  applyPreset,
+  deletePreset,
+  detectActivePreset,
+} = useViewPresets({
+  searchQuery,
+  activeQuickFilter,
+  selectedGroupId,
+  selectedTags,
+  sortMode,
+});
 
 const sortOptions = computed(() => [
     { label: t('dashboard.sortModeDefault'), value: 'default' },
     { label: t('dashboard.sortModeSmart'), value: 'smart' },
 ]);
 
-// Whether drag is allowed (default mode + no active search)
-const isDraggable = computed(() => sortMode.value === 'default' && !searchQuery.value.trim());
+// Whether drag is allowed (default mode + no active search + no active filters)
+const isDraggable = computed(() =>
+    sortMode.value === 'default'
+    && !searchQuery.value.trim()
+    && activeQuickFilter.value === 'all'
+    && !selectedGroupId.value
+    && selectedTags.value.length === 0
+);
+
+/** 一级项目仍是排序/拖拽单位，树内子项目继续由 parentId 关联。 */
+const rootProjects = computed(() => projectStore.projects.filter(p => !p.parentId));
 
 const sortedProjects = computed(() => {
     if (sortMode.value === 'smart') {
         const weights = usageStore.calculateAllWeights();
-        return [...projectStore.projects].sort((a, b) => {
+        return [...rootProjects.value].sort((a, b) => {
             if (a.pinned && !b.pinned) return -1;
             if (!a.pinned && b.pinned) return 1;
             const wa = weights[a.id] ?? 0;
@@ -262,225 +343,219 @@ const sortedProjects = computed(() => {
             return 0;
         });
     }
-    // Default sort: pinned first, then by sortOrder (manual), then by original array order
-    return [...projectStore.projects].sort((a, b) => {
-        if (a.pinned && !b.pinned) return -1;
-        if (!a.pinned && b.pinned) return 1;
-        if (a.pinned && b.pinned) return (a.pinOrder ?? 0) - (b.pinOrder ?? 0);
-        // For unpinned: use sortOrder if available, otherwise maintain original order
-        const oa = a.sortOrder ?? Infinity;
-        const ob = b.sortOrder ?? Infinity;
-        if (oa !== ob) return oa - ob;
-        return 0;
-    });
+    return [...rootProjects.value].sort(compareProjectsByPinnedThenOrder);
 });
 
-const projectSearchIndex = computed(() => {
-    return sortedProjects.value.map(project => ({
-        project,
-        normalizedName: project.name.toLowerCase(),
-        normalizedPath: project.path.toLowerCase(),
-        compactName: project.name.toLowerCase().replace(/\s+/g, ''),
-        compactPath: project.path.toLowerCase().replace(/\s+/g, ''),
-        namePinyin: getCachedPinyinSearchText(project.name),
-        pathPinyin: getCachedPinyinSearchText(project.path),
-    }));
-});
+const projectSearchIndex = computed(() => projectStore.projects.map(project => ({
+    project,
+    ...buildProjectSearchEntry(project),
+})));
+const projectSearchIndexById = computed(() => new Map(
+    projectSearchIndex.value.map(entry => [entry.project.id, entry]),
+));
 
-const filteredProjects = computed(() => {
-    const query = searchQuery.value.trim().toLowerCase();
-    const compactQuery = query.replace(/\s+/g, '');
+function matchesProjectSearch(project: Project): boolean {
+    const entry = projectSearchIndexById.value.get(project.id);
+    if (!entry) return false;
+    return projectSearchEntryMatches(entry, searchQuery.value);
+}
 
-    if (!query) {
-        return sortedProjects.value;
+function matchesProjectFilter(project: Project): boolean {
+    switch (activeQuickFilter.value) {
+        case 'pinned':
+            if (!project.pinned) return false;
+            break;
+        case 'favorite':
+            if (!project.favorite) return false;
+            break;
+        case 'recent': {
+            const weights = usageStore.calculateAllWeights();
+            if ((weights[project.id] ?? 0) <= 0) return false;
+            break;
+        }
+        case 'running':
+            if (!isProjectRunning(project.id)) return false;
+            break;
+        case 'dirty':
+            if (!getHealth(project.id)?.gitDirty) return false;
+            break;
+        case 'unhealthy':
+            if (!isProjectUnhealthy(project.id)) return false;
+            break;
+        case 'missing':
+            if (getHealth(project.id)?.pathExists !== false) return false;
+            break;
     }
 
-    return projectSearchIndex.value
-        .filter(({ normalizedName, normalizedPath, compactName, compactPath, namePinyin, pathPinyin }) => {
-            return normalizedName.includes(query)
-                || normalizedPath.includes(query)
-                || compactName.includes(compactQuery)
-                || compactPath.includes(compactQuery)
-                || namePinyin.includes(compactQuery)
-                || pathPinyin.includes(compactQuery);
-        })
-        .map(item => item.project);
+    if (selectedGroupId.value && project.groupId !== selectedGroupId.value) return false;
+    if (selectedTags.value.length > 0 && !projectMatchesSelectedTags(project, selectedTags.value)) return false;
+    return matchesProjectSearch(project);
+}
+
+const treeConstraintActive = computed(() => Boolean(
+    searchQuery.value.trim()
+    || activeQuickFilter.value !== 'all'
+    || selectedGroupId.value
+    || selectedTags.value.length > 0,
+));
+
+const matchingProjectIds = computed(() => projectStore.projects
+    .filter(matchesProjectFilter)
+    .map(project => project.id));
+
+/** 匹配子/孙项目时保留其祖先，用于提供完整路径上下文。 */
+const visibleProjectIds = computed(() => {
+    if (!treeConstraintActive.value) {
+        return new Set(projectStore.projects.map(project => project.id));
+    }
+    return collectVisibleProjectIds(projectStore.projects, matchingProjectIds.value);
+});
+const autoExpandedProjectIds = computed(() => treeConstraintActive.value
+    ? collectAutoExpandedProjectIds(projectStore.projects, matchingProjectIds.value)
+    : new Set<string>());
+const effectiveExpandedProjectIds = computed(() => new Set([
+    ...expandedProjectIds.value,
+    ...autoExpandedProjectIds.value,
+]));
+
+watch(treeConstraintActive, (constrained) => {
+    setProjectTreeConstraint(treeExpansionState, constrained);
+    expandedProjectIds.value = treeExpansionState.expandedIds;
+});
+
+/** 批量操作仍默认针对可见一级项目，子项目勾选仍可单独加入 selectedIds。 */
+const filteredProjects = computed(() => sortedProjects.value.filter(project => visibleProjectIds.value.has(project.id)));
+
+// ─── 多选批量操作 composable ──────────────────────────────────────────
+const filteredProjectIds = computed(() => filteredProjects.value.map((p) => p.id));
+const {
+  selectedIds,
+  selectedCount,
+  isAllSelected,
+  toggleSelect,
+  toggleSelectAll,
+  clearSelection,
+  batchSetGroup,
+  batchPin,
+  batchRemove,
+} = useProjectBatch({ filteredProjectIds });
+
+/** 批量设置分组的下拉可见性 */
+const showBatchGroupMenu = ref(false);
+const batchGroupTarget = ref('');
+
+async function applyBatchGroup() {
+    await batchSetGroup(batchGroupTarget.value || undefined);
+    showBatchGroupMenu.value = false;
+    batchGroupTarget.value = '';
+}
+
+// ─── 启动组 composable ────────────────────────────────────────────────
+const {
+  profiles: workspaceProfiles,
+  createProfile,
+  deleteProfile,
+  runProfile,
+  stopAll: stopProfile,
+} = useWorkspaceProfiles();
+
+/***********************健康状态统计与判定*********************/
+// 读聚合值而非 runningProjectCount：后者只按发起命令的项目自身计数，
+// 一级项目卡片会漏掉「子项目正在运行」。
+function isProjectRunning(projectId: string): boolean {
+    return (projectStore.runningSubtreeCount[projectId] ?? 0) > 0;
+}
+
+function getRealHealthIssues(snapshot: ProjectHealthSnapshot | undefined) {
+    return snapshot?.issues.filter((issue) => issue.code !== 'not_git') ?? [];
+}
+
+function isProjectUnhealthy(projectId: string): boolean {
+    const snapshot = getHealth(projectId);
+    if (!snapshot) return false;
+    return !snapshot.pathExists || getRealHealthIssues(snapshot).length > 0;
+}
+
+/** 健康分类计数（仅统计一级项目） */
+const healthCounts = computed(() => {
+    const list = rootProjects.value;
+    return {
+        running: list.filter(p => isProjectRunning(p.id)).length,
+        dirty: list.filter(p => !!getHealth(p.id)?.gitDirty).length,
+        unhealthy: list.filter(p => isProjectUnhealthy(p.id)).length,
+        missing: list.filter(p => getHealth(p.id)?.pathExists === false).length,
+    };
+});
+
+/***********************树节点状态映射与 Git 汇总*********************/
+const healthById = computed<Record<string, ProjectHealthSnapshot | undefined>>(() => {
+    const result: Record<string, ProjectHealthSnapshot | undefined> = {};
+    for (const project of projectStore.projects) result[project.id] = getHealth(project.id);
+    return result;
+});
+const healthLevelById = computed<Record<string, 'healthy' | 'warn' | 'error' | 'unknown'>>(() => {
+    const result: Record<string, 'healthy' | 'warn' | 'error' | 'unknown'> = {};
+    for (const project of projectStore.projects) result[project.id] = healthLevel(getHealth(project.id));
+    return result;
+});
+const gitOverviewById = computed<Record<string, ProjectGitOverview | undefined>>(() => {
+    const result: Record<string, ProjectGitOverview | undefined> = {};
+    for (const project of projectStore.projects) {
+        const overview = summarizeGitStatus(gitStore.getStatus(project.id), gitStore.isGitRepo[project.id]);
+        // 非 Git 项目不向一级行传递 overview，避免渲染成「No Git」伪入口。
+        if (overview?.isGitRepo) result[project.id] = overview;
+    }
+    return result;
+});
+
+function collectRenderedProjectIds(project: Project, result: Set<string>, depth = 1): void {
+    if (!visibleProjectIds.value.has(project.id)) return;
+    result.add(project.id);
+    if (depth >= 3 || !effectiveExpandedProjectIds.value.has(project.id)) return;
+
+    for (const child of projectStore.getChildren(project.id)) {
+        if (child.parentId === project.id && child && visibleProjectIds.value.has(child.id)) {
+            collectRenderedProjectIds(child, result, depth + 1);
+        }
+    }
+}
+
+function handleTreeDragStart(event: MouseEvent, project: Project): void {
+    onDragMouseDown(event, project.id);
+}
+
+function estimateProjectGroupHeight(project: Project): number {
+    let height = estimateProjectItemHeight(project);
+    const visit = (node: Project, depth: number) => {
+        if (depth >= 3 || !effectiveExpandedProjectIds.value.has(node.id)) return;
+        for (const child of projectStore.getChildren(node.id)) {
+            if (!visibleProjectIds.value.has(child.id)) continue;
+            height += 6 + estimateProjectItemHeight(child);
+            visit(child, depth + 1);
+        }
+    };
+    visit(project, 1);
+    return height;
+}
+
+/** 自动检测活跃视图 */
+watch([searchQuery, activeQuickFilter, selectedGroupId, selectedTags, sortMode], () => {
+  detectActivePreset();
 });
 
 /***********************项目列表手动拖拽排序*********************/
-const draggableList = ref<Project[]>([]);
-const dragState = ref({
-    dragging: false,
-    projectId: null as string | null,
-    pointerOffsetY: 0,
-    dragDelta: 0,
-    fromIndex: -1,
-    currentFromIndex: -1,
-    containerEl: null as HTMLElement | null,
+// 拖拽逻辑抽到 composables/useListDragSort.ts，与工作区的子项目列表共用；
+// 这里只负责把新顺序写回项目数据。
+const { draggableList, dragState, onDragMouseDown } = useListDragSort<Project>({
+    items: sortedProjects,
+    onCommit: (ordered) => projectStore.applyManualOrder(ordered),
 });
-let flipAnimating = false;
-
-watch(() => sortedProjects.value, (newSorted) => {
-    if (!dragState.value.dragging) {
-        draggableList.value = [...newSorted];
-    }
-}, { immediate: true });
-
-function onDragMouseDown(e: MouseEvent, projectId: string) {
-    e.preventDefault();
-    const handleEl = e.currentTarget as HTMLElement;
-    const itemEl = handleEl.closest('.draggable-item') as HTMLElement;
-    const listEl = handleEl.closest('.draggable-list') as HTMLElement;
-    if (!itemEl || !listEl) return;
-
-    const startIndex = draggableList.value.findIndex(p => p.id === projectId);
-    if (startIndex < 0) return;
-
-    const itemRect = itemEl.getBoundingClientRect();
-
-    dragState.value = {
-        dragging: true,
-        projectId,
-        pointerOffsetY: e.clientY - itemRect.top,
-        dragDelta: 0,
-        fromIndex: startIndex,
-        currentFromIndex: startIndex,
-        containerEl: listEl,
-    };
-
-    document.addEventListener('mousemove', onDragMouseMove);
-    document.addEventListener('mouseup', onDragMouseUp);
-}
-
-function onDragMouseMove(e: MouseEvent) {
-    const state = dragState.value;
-    if (!state.dragging || !state.containerEl) return;
-
-    // 按当前 DOM 基准位置计算位移，避免换位后叠加初始位移导致元素远离鼠标。
-    const items = Array.from(state.containerEl.children) as HTMLElement[];
-    const draggedItem = items[state.currentFromIndex];
-    if (!draggedItem) return;
-
-    state.dragDelta = calculateDraggedItemTranslateY({
-        pointerClientY: e.clientY,
-        listClientTop: state.containerEl.getBoundingClientRect().top,
-        pointerOffsetY: state.pointerOffsetY,
-        itemOffsetTop: draggedItem.offsetTop,
-    });
-
-    let targetIndex = state.currentFromIndex;
-    const draggedCenter = calculateDraggedItemCenterY({
-        itemOffsetTop: draggedItem.offsetTop,
-        itemHeight: draggedItem.offsetHeight,
-        translateY: state.dragDelta,
-    });
-
-    for (let i = 0; i < items.length; i++) {
-        if (i === state.currentFromIndex) continue;
-        const itemTop = items[i].offsetTop;
-        const itemHeight = items[i].offsetHeight;
-        const itemCenter = itemTop + itemHeight / 2;
-
-        if (state.currentFromIndex < i && draggedCenter > itemCenter) {
-            targetIndex = i;
-        } else if (state.currentFromIndex > i && draggedCenter < itemCenter) {
-            targetIndex = i;
-        }
-    }
-
-    if (targetIndex !== state.currentFromIndex && !flipAnimating) {
-        animateReorder(state.currentFromIndex, targetIndex);
-        state.currentFromIndex = targetIndex;
-    }
-}
-
-function animateReorder(fromIdx: number, toIdx: number) {
-    const listEl = dragState.value.containerEl;
-    if (!listEl) return;
-    flipAnimating = true;
-
-    // 按项目 ID 记录换位前位置，用于 FLIP 动画。
-    const children = Array.from(listEl.children) as HTMLElement[];
-    const oldPositions = children
-        .map(el => ({ id: el.dataset.projectId ?? '', top: el.offsetTop }))
-        .filter(item => item.id);
-
-    // 更新列表顺序，让 DOM 进入换位后的真实布局。
-    const [moved] = draggableList.value.splice(fromIdx, 1);
-    draggableList.value.splice(toIdx, 0, moved);
-
-    // DOM 更新后，让非拖拽元素从旧位置平滑移动到新位置。
-    nextTick(() => {
-        const newChildren = Array.from(listEl.children) as HTMLElement[];
-        const transforms = calculateFlipTransforms({
-            oldPositions,
-            newPositions: newChildren
-                .map(el => ({ id: el.dataset.projectId ?? '', top: el.offsetTop }))
-                .filter(item => item.id),
-            excludedId: dragState.value.projectId,
-        });
-
-        newChildren.forEach((el) => {
-            const translateY = transforms.get(el.dataset.projectId ?? '');
-            if (translateY !== undefined) {
-                el.style.transition = 'none';
-                el.style.transform = `translateY(${translateY}px)`;
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        el.style.transition = 'transform 0.18s ease';
-                        el.style.transform = '';
-                        el.addEventListener('transitionend', () => {
-                            el.style.transition = '';
-                            el.style.transform = '';
-                        }, { once: true });
-                    });
-                });
-            }
-        });
-
-        setTimeout(() => { flipAnimating = false; }, 200);
-    });
-}
-
-function onDragMouseUp() {
-    document.removeEventListener('mousemove', onDragMouseMove);
-    document.removeEventListener('mouseup', onDragMouseUp);
-
-    const state = dragState.value;
-    if (state.dragging && state.currentFromIndex !== state.fromIndex) {
-        syncDraggableOrder();
-    }
-
-    dragState.value = {
-        dragging: false,
-        projectId: null,
-        pointerOffsetY: 0,
-        dragDelta: 0,
-        fromIndex: -1,
-        currentFromIndex: -1,
-        containerEl: null,
-    };
-}
-
-function syncDraggableOrder() {
-    const projectMap = new Map(projectStore.projects.map(p => [p.id, p]));
-    let unpinnedIndex = 0;
-    draggableList.value.forEach((p, i) => {
-        const proj = projectMap.get(p.id);
-        if (!proj) return;
-        if (p.pinned) {
-            proj.pinOrder = i;
-        } else {
-            proj.sortOrder = unpinnedIndex++;
-        }
-    });
-}
 
 const projectListMetrics = computed(() => {
     let offset = 0;
 
     return filteredProjects.value.map((project) => {
-        const height = projectItemHeights.value[project.id] ?? estimateProjectItemHeight(project);
+        const height = projectItemHeights.value[project.id] ?? estimateProjectGroupHeight(project);
         const start = offset;
         offset += height;
 
@@ -510,8 +585,56 @@ const visibleProjectMetrics = computed(() => {
     return metrics.slice(startIndex, endIndex);
 });
 
-function handleAdd(project: Project) {
+/**
+ * 默认模式下整组都在 DOM 中，虚拟模式下只刷新视口及 overscan 内的 root 分组。
+ * 这样 Git 状态加载跟随真实可见项，不会因项目总数增长而一次性请求全部仓库。
+ */
+const renderedRootProjects = computed(() =>
+    isDraggable.value
+        ? filteredProjects.value
+        : visibleProjectMetrics.value.map(metric => metric.project),
+);
+const renderedProjectIds = computed(() => {
+    const result = new Set<string>();
+    for (const root of renderedRootProjects.value) collectRenderedProjectIds(root, result);
+    return result;
+});
+const renderedProjectIdList = computed(() => [...renderedProjectIds.value]);
+
+async function refreshRenderedGitStatuses(force = false): Promise<void> {
+    const projectsById = new Map(projectStore.projects.map(project => [project.id, project]));
+    await Promise.all(renderedProjectIdList.value.map(async id => {
+        const project = projectsById.get(id);
+        if (project) await gitStore.ensureSummaryAndStatus(project.id, project.path, { force });
+    }));
+}
+
+watch(renderedProjectIdList, () => {
+    void refreshRenderedGitStatuses();
+}, { immediate: true });
+
+/** 待选择层级的新建项目（父项目已入库，等待用户决定挂载哪些子级） */
+const pendingLevelProject = ref<Project | null>(null);
+/** 该项目扫描到的候选树 */
+const pendingLevelNodes = ref<ImportNode[]>([]);
+const showLevelModal = ref(false);
+
+function handleAdd(project: Project, subProjectTree: ImportNode[] = []) {
   projectStore.addProject(project);
+  if (subProjectTree.length === 0) return;
+
+  // 扫描到子级/孙级：弹出树形层级选择弹窗，由用户决定挂载到哪一级。
+  // 父项目已先行入库，因此这里直接把它当作已有项目传给弹窗，
+  // 用户取消也不影响父项目本身——他之后还能在编辑页再次调整层级。
+  pendingLevelProject.value = project;
+  pendingLevelNodes.value = subProjectTree;
+  showLevelModal.value = true;
+}
+
+/** 层级选择弹窗彻底关闭后再清理暂存，避免关闭动画被截断 */
+function handleLevelClosed() {
+  pendingLevelProject.value = null;
+  pendingLevelNodes.value = [];
 }
 
 function handleUpdate(project: Project) {
@@ -533,339 +656,296 @@ async function refreshProjects() {
     refreshing.value = true;
     try {
         await projectStore.refreshAll();
+        // 手动刷新后强制更新当前树中已渲染项目的 Git 状态，避免沿用旧缓存。
+        await refreshRenderedGitStatuses(true);
     } finally {
         refreshing.value = false;
     }
 }
 
-async function batchAddProjects() {
-    try {
-        const selected = await api.openDialog({
-            directory: true,
-            multiple: true,
-        });
-        
-        if (!selected) return;
-        
-        const paths = Array.isArray(selected) ? selected : [selected];
-        if (paths.length === 0) return;
-        
-        let addedCount = 0;
-        let skipCount = 0;
-        let failCount = 0;
-        let hasInvalidNvmrc = false;
-        
-        const pathsToScan: string[] = [];
-        const processedInstallVersions = new Set<string>();
-        let currentNodeVersions: string[] = [];
-
-        try {
-            const nvmList = await api.getNvmList();
-            currentNodeVersions = nvmList.map(v => v.version);
-        } catch (e) {
-            console.error('Failed to load node versions before batch add', e);
-        }
-        
-        // First pass: determine which paths to scan
-        for (const path of paths) {
-            try {
-                // Try to scan the selected path directly
-                await api.scanProject(path);
-                pathsToScan.push(path);
-            } catch (e) {
-                // If it fails, it might be a parent directory. Let's check its subdirectories.
-                try {
-                    const entries = await api.readDir(path);
-                    for (const entry of entries) {
-                        if (entry.isDirectory) {
-                            const subPath = `${path}/${entry.name}`.replace(/\\/g, '/');
-                            try {
-                                await api.scanProject(subPath);
-                                pathsToScan.push(subPath);
-                            } catch (subE) {
-                                // Not a valid directory, ignore
-                            }
-                        }
-                    }
-                } catch (dirE) {
-                    console.error(`Failed to read directory ${path}`, dirE);
-                    failCount++;
-                }
+/***********************列表页快捷键*********************/
+// 只在列表页生效：Dashboard 挂载期间注册，工作区那套键位写在 ProjectWorkspace 里。
+// 键位可在设置页改，缺省值见 utils/shortcut.ts。
+useAppShortcuts([
+    {
+        keys: () => settingsStore.settings.focusSearchShortcut || DEFAULT_FOCUS_SEARCH_SHORTCUT,
+        // 搜索框本身也要能用这个键重新聚焦并全选，所以允许在输入框内触发
+        allowInEditable: true,
+        enabled: () => !drilledRootId.value,
+        handler: () => {
+            const input = projectSearchInput.value?.$el?.querySelector?.('input');
+            if (input instanceof HTMLInputElement) {
+                input.focus();
+                input.select();
             }
-        }
-        
-        // Second pass: add the valid projects
-        for (const path of pathsToScan) {
-            // Check if already exists
-            if (projectStore.projects.some(p => p.path === path)) {
-                skipCount++;
-                continue;
-            }
-            
-            try {
-                const info = await api.scanProject(path);
-                let nodeVersion = 'Default';
-
-                const project: Project = {
-                    id: crypto.randomUUID(),
-                    name: info.name || path.split(/[/\\]/).pop() || 'Unknown',
-                    path: path,
-                    type: (info.projectType === 'node' ? 'node' : 'other') as Project['type'],
-                };
-
-                if (info.projectType === 'node') {
-                    const normalizedNvmVersion = normalizeNvmVersion(info.nvmVersion);
-                    if (normalizedNvmVersion) {
-                        let installed = findInstalledNodeVersion(currentNodeVersions, normalizedNvmVersion);
-
-                        if (!installed && !processedInstallVersions.has(normalizedNvmVersion)) {
-                            processedInstallVersions.add(normalizedNvmVersion);
-                            try {
-                                ElMessage.info(t('project.autoInstallStart', { version: normalizedNvmVersion }));
-                                await api.installNode(normalizedNvmVersion);
-                                ElMessage.success(t('project.autoInstallSuccess', { version: normalizedNvmVersion }));
-
-                                const latestList = await api.getNvmList();
-                                currentNodeVersions = latestList.map(v => v.version);
-                                installed = findInstalledNodeVersion(currentNodeVersions, normalizedNvmVersion);
-                            } catch (installErr) {
-                                ElMessage.error(`${t('project.autoInstallFailed', { version: normalizedNvmVersion })}: ${String(installErr)}`);
-                                console.error('Failed to auto-install node version in batch add', installErr);
-                            }
-                        }
-
-                        if (!installed) {
-                            installed = findInstalledNodeVersion(currentNodeVersions, normalizedNvmVersion);
-                        }
-
-                        if (installed) {
-                            nodeVersion = installed;
-                        }
-                    } else if (info.nvmVersion) {
-                        hasInvalidNvmrc = true;
-                        console.warn('Invalid .nvmrc version in batch add, skipping auto install', info.nvmVersion);
-                    }
-
-                    project.nodeVersion = nodeVersion;
-                    project.packageManager = info.packageManager || 'npm';
-                    project.scripts = info.scripts;
-                }
-
-                projectStore.addProject(project);
-                addedCount++;
-            } catch (e) {
-                console.error(`Failed to scan project at ${path}`, e);
-                failCount++;
-            }
-        }
-        
-        if (addedCount > 0) {
-            ElMessage.success(t('dashboard.batchAddSuccess', { count: addedCount }));
-        }
-        if (skipCount > 0) {
-            ElMessage.info(t('dashboard.batchAddSkip', { count: skipCount }));
-        }
-        if (failCount > 0 && addedCount === 0) {
-            ElMessage.warning(t('dashboard.batchAddFail', { count: failCount }));
-        }
-        if (hasInvalidNvmrc) {
-            ElMessage.warning(t('project.invalidNvmrc'));
-        }
-    } catch (err) {
-        console.error('Failed to batch add projects:', err);
-        ElMessage.error(t('common.error'));
-    }
-}
+        },
+    },
+    {
+        keys: () => settingsStore.settings.newProjectShortcut || DEFAULT_NEW_PROJECT_SHORTCUT,
+        enabled: () => !drilledRootId.value,
+        handler: openAddModal,
+    },
+    {
+        keys: () => settingsStore.settings.refreshProjectsShortcut || DEFAULT_REFRESH_PROJECTS_SHORTCUT,
+        enabled: () => !drilledRootId.value && !refreshing.value,
+        handler: () => void refreshProjects(),
+    },
+]);
 </script>
 
 <template>
-  <div class="h-full flex overflow-hidden">
-    <!-- Project List Sidebar -->
-    <div class="w-72 flex flex-col border-r border-slate-200 dark:border-slate-700/20 bg-white dark:bg-[#0f172a] z-20 transition-colors duration-200">
-        <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-700/20 flex justify-between items-center">
-            <h2 class="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-widest uppercase pl-1">{{ t('dashboard.title') }}</h2>
-            <div class="sidebar-header-actions">
-                <button @click="refreshProjects" :disabled="refreshing" class="sidebar-header-btn" :title="t('common.refresh') || 'Refresh'">
+  <div class="h-full overflow-hidden">
+    <!-- 列表页 ↔ 工作区页过渡：进入工作区滑入，返回列表滑出。 -->
+    <Transition name="dashboard-page" mode="out-in">
+      <!-- ═══ 钻取后：项目工作区页 ═══ -->
+      <ProjectWorkspace
+        v-if="drilledRootId"
+        key="workspace"
+        :root-id="drilledRootId"
+        :target-project-id="workspaceTargetProjectId"
+        :git-overview-by-id="gitOverviewById"
+        :running-count-by-project-id="projectStore.runningSubtreeCount"
+        @back="backToList"
+        @edit="editFromWorkspace"
+        @open-project="openProjectWorkspace"
+      />
+
+      <!-- ═══ 默认：项目列表页（全宽） ═══ -->
+      <div v-else key="project-list" class="h-full flex flex-col app-surface-sidebar">
+        <!-- 顶部工具栏 -->
+        <div class="app-page-header">
+          <div class="app-content-container app-page-header-main">
+            <div class="app-page-heading">
+                <h2 class="app-page-title">{{ t('dashboard.title') }}</h2>
+                <p class="app-page-description">{{ t('dashboard.projectCount', { count: rootProjects.length }) }}</p>
+            </div>
+            <div class="app-page-actions">
+                <button @click="showImportModal = true" class="toolbar-text-btn">
+                    <div class="i-mdi-folder-search-outline text-base" />
+                    <span>{{ t('dashboard.batchAddProject') }}</span>
+                </button>
+                <button @click="showGroupManager = true" class="toolbar-text-btn">
+                    <div class="i-mdi-folder-plus-outline text-base" />
+                    <span>{{ t('dashboard.manageGroups') }}</span>
+                </button>
+                <button @click="refreshProjects" :disabled="refreshing" class="toolbar-text-btn">
                     <div class="i-mdi-refresh text-base transition-transform duration-700" :class="{ 'animate-spin': refreshing }" />
+                    <span>{{ t('common.refresh') }}</span>
                 </button>
-                <button @click="batchAddProjects" class="sidebar-header-btn" :title="t('dashboard.batchAddProject')">
-                    <div class="i-mdi-folder-multiple-plus text-base" />
-                </button>
-                <button @click="openAddModal" class="sidebar-header-btn" :title="t('dashboard.addProject')">
+                <button @click="openAddModal" class="toolbar-primary-btn">
                     <div class="i-mdi-plus text-base" />
+                    <span>{{ t('dashboard.addProject') }}</span>
                 </button>
             </div>
+          </div>
         </div>
-        
-        <!-- 搜索框 -->
-        <div class="px-3 py-2 border-b border-slate-200 dark:border-slate-700/20">
-            <el-input
-                v-model="searchQuery"
-                :placeholder="t('dashboard.searchPlaceholder')"
-                clearable
-                class="w-full"
-                size="small"
-            >
-                <template #prefix>
-                    <el-icon><div class="i-mdi-magnify" /></el-icon>
-                </template>
-            </el-input>
-            <div class="flex items-center justify-between mt-1.5 sort-mode-control">
-                <span class="text-[10px] text-slate-400 dark:text-slate-500">{{ t('dashboard.sortMode') }}</span>
+
+        <!-- 选择操作栏（有选中项时显示） -->
+        <div v-if="selectedCount > 0" class="selection-bar app-section-divider px-6 py-2.5 border-b flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="text-sm font-semibold text-blue-600 dark:text-blue-400">{{ t('dashboard.batchSelected', { count: selectedCount }) }}</span>
+                <button class="selection-link" @click="toggleSelectAll">{{ isAllSelected ? t('dashboard.batchDeselectAll') : t('dashboard.batchSelectAll') }}</button>
+                <button class="selection-link" @click="clearSelection">{{ t('common.cancel') }}</button>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="selection-action-btn" @click="batchPin"><div class="i-mdi-pin-outline text-sm" />{{ t('dashboard.batchPin') }}</button>
+                <button class="selection-action-btn" @click="showBatchGroupMenu = true"><div class="i-mdi-folder-outline text-sm" />{{ t('dashboard.batchSetGroup') }}</button>
+                <button class="selection-action-btn selection-action-danger" @click="batchRemove"><div class="i-mdi-delete-outline text-sm" />{{ t('dashboard.batchRemove') }}</button>
+            </div>
+        </div>
+
+        <!-- 筛选工具栏 -->
+        <div class="app-section-divider px-6 py-3 border-b filter-toolbar">
+          <div class="app-content-container space-y-3">
+            <!-- 第一行：搜索 + 分组/标签 + 排序 -->
+            <div class="flex items-center gap-3">
+                <el-input
+                    v-model="searchQuery"
+                    ref="projectSearchInput"
+                    :placeholder="t('dashboard.searchPlaceholder')"
+                    clearable
+                    style="width: 280px"
+                >
+                    <template #prefix>
+                        <el-icon><div class="i-mdi-magnify" /></el-icon>
+                    </template>
+                </el-input>
+
+                <el-select v-model="selectedGroupId" clearable :placeholder="t('dashboard.group')" style="width: 150px">
+                    <el-option :label="t('dashboard.filterAll')" value="" />
+                    <el-option v-for="group in projectStore.projectGroups" :key="group.id" :label="group.name" :value="group.id" />
+                </el-select>
+                <el-select v-model="selectedTags" multiple clearable collapse-tags collapse-tags-tooltip :placeholder="t('dashboard.tags')" style="width: 180px">
+                    <el-option v-for="tag in allTags" :key="tag" :label="tag" :value="tag" />
+                </el-select>
+
+                <div class="flex-1" />
+
+                <span class="app-text-meta text-slate-400 dark:text-slate-500">{{ t('dashboard.sortMode') }}</span>
                 <el-tooltip :content="sortMode === 'smart' ? t('dashboard.sortModeSmartHint') : t('dashboard.sortModeDefaultHint')" placement="top" :show-after="300">
-                    <el-segmented v-model="settingsStore.settings.sortMode" :options="sortOptions" size="small" />
+                    <el-segmented v-model="settingsStore.settings.sortMode" :options="sortOptions" />
                 </el-tooltip>
             </div>
+
+            <!-- 第二行：基础快捷筛选 + 健康状态 chips + 保存视图/启动组 -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <el-segmented v-model="activeQuickFilter" :options="quickFilterOptions" />
+                <span class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+                <button
+                    v-for="chip in healthFilterChips"
+                    :key="chip.key"
+                    @click="toggleHealthFilter(chip.key as any)"
+                    class="health-chip"
+                    :class="[`health-chip-${chip.tone}`, { 'health-chip-active': activeQuickFilter === chip.key }]"
+                    :title="chip.label"
+                >
+                    <div :class="chip.icon" class="text-sm" />
+                    <span>{{ chip.label }}</span>
+                    <span class="health-chip-count">{{ chip.count }}</span>
+                </button>
+
+                <div class="flex-1" />
+
+                <ViewPresetChips
+                    :presets="viewPresets"
+                    :active-preset-id="activePresetId"
+                    @apply="applyPreset"
+                    @delete="deletePreset"
+                    @save="saveCurrentView"
+                />
+                <WorkspaceProfileMenu
+                    :profiles="workspaceProfiles"
+                    :projects="projectStore.projects"
+                    @create="createProfile"
+                    @delete="deleteProfile"
+                    @run="runProfile"
+                    @stop="stopProfile"
+                />
+            </div>
+          </div>
         </div>
-        
-        <div class="flex-1 overflow-y-auto p-3 custom-scrollbar" ref="projectListContainer" @scroll="handleProjectListScroll">
-             <!-- Draggable list (default sort mode, no search) -->
-             <div v-if="isDraggable && draggableList.length > 0" class="draggable-list">
-                 <div
+
+        <!-- 项目列表 -->
+        <div class="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar" ref="projectListContainer" @scroll="handleProjectListScroll">
+              <!-- Draggable list：root 仍是拖拽单位，展开后的整组随 root 一起移动。 -->
+              <div v-if="isDraggable && draggableList.length > 0" class="draggable-list app-content-container space-y-2">
+                  <div
                      v-for="project in draggableList"
                      :key="project.id"
                      :data-project-id="project.id"
-                     class="draggable-item group/item"
+                     class="draggable-item"
                      :class="{ 'draggable-item-active': dragState.dragging && dragState.projectId === project.id }"
                      :style="dragState.dragging && dragState.projectId === project.id
                          ? `transform: translateY(${dragState.dragDelta}px); z-index: 50; transition: none;`
                          : ''"
-                 >
-                     <div
-                         class="drag-handle"
-                         @mousedown.prevent="onDragMouseDown($event, project.id)"
-                     >
-                         <div class="i-mdi-drag text-[11px] text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 dark:group-hover/item:text-slate-500 transition-colors" />
-                     </div>
-                     <ProjectListItem
-                         :project="project"
-                         @edit="openEditModal(project)"
+                  >
+                     <ProjectTreeGroup
+                         :root-project="project"
+                         :visible-ids="visibleProjectIds"
+                         :expanded-ids="effectiveExpandedProjectIds"
+                         :git-overview-by-id="gitOverviewById"
+                         :health-by-id="healthById"
+                         :health-level-by-id="healthLevelById"
+                         :selected-ids="selectedIds"
+                         draggable
+                         @toggle-expand="toggleProjectExpanded"
+                         @open-management="openProjectManagement"
+                         @open-workspace="openProjectWorkspace"
+                         @open-git="openProjectManagement($event, 'git')"
+                         @open-running="openProjectRunSummary"
+                         @toggle-select="toggleSelect"
+                         @edit="openEditModal"
+                         @drag-start="handleTreeDragStart"
                      />
-                 </div>
+                  </div>
              </div>
 
              <!-- Virtual scroll list (smart sort mode or searching) -->
-             <div v-else-if="filteredProjects.length > 0" class="relative min-h-full" :style="{ height: `${totalProjectListHeight}px` }">
+             <div v-else-if="filteredProjects.length > 0" class="relative min-h-full app-content-container" :style="{ height: `${totalProjectListHeight}px` }">
                 <div
                     v-for="item in visibleProjectMetrics"
                     :key="item.project.id"
                     :ref="(el) => registerProjectItemRef(item.project.id, resolveElementRef(el))"
                     class="absolute left-0 right-0"
-                    :style="{ transform: `translateY(${item.start}px)` }"
+                    :style="{ transform: `translateY(${item.start}px)`, paddingBottom: `${PROJECT_LIST_ITEM_GAP}px` }"
                 >
-                    <div :style="{ paddingBottom: `${PROJECT_LIST_ITEM_GAP}px` }">
-                        <ProjectListItem
-                            :project="item.project"
-                            @edit="openEditModal(item.project)"
-                        />
-                    </div>
-                </div>
+                     <ProjectTreeGroup
+                         :root-project="item.project"
+                         :visible-ids="visibleProjectIds"
+                         :expanded-ids="effectiveExpandedProjectIds"
+                         :git-overview-by-id="gitOverviewById"
+                         :health-by-id="healthById"
+                         :health-level-by-id="healthLevelById"
+                         :selected-ids="selectedIds"
+                         @toggle-expand="toggleProjectExpanded"
+                         @open-management="openProjectManagement"
+                         @open-workspace="openProjectWorkspace"
+                         @open-git="openProjectManagement($event, 'git')"
+                         @open-running="openProjectRunSummary"
+                         @toggle-select="toggleSelect"
+                         @edit="openEditModal"
+                     />
+                  </div>
              </div>
 
-             <div v-if="filteredProjects.length === 0 && projectStore.projects.length > 0" class="text-center mt-10 text-slate-400 dark:text-slate-500">
+             <div v-if="filteredProjects.length === 0 && rootProjects.length > 0" class="text-center mt-16 text-slate-400 dark:text-slate-500">
                 <div class="i-mdi-magnify text-4xl mb-3 opacity-20 mx-auto" />
                 <p class="text-sm font-medium">{{ t('common.search') }}</p>
-                <p class="text-xs opacity-50 mt-1">{{ t('dashboard.searchPlaceholder') }}</p>
+                <p class="app-text-meta mt-1 text-slate-500 dark:text-slate-400">{{ t('dashboard.searchPlaceholder') }}</p>
              </div>
 
-             <div v-else-if="projectStore.projects.length === 0" class="text-center mt-20 text-slate-400 dark:text-slate-500">
+             <div v-else-if="rootProjects.length === 0" class="text-center mt-20 text-slate-400 dark:text-slate-500">
                 <div class="i-mdi-folder-open-outline text-5xl mb-3 opacity-20 mx-auto" />
                 <p class="text-sm font-medium">{{ t('dashboard.noProjects') }}</p>
-                <p class="text-xs opacity-50 mt-1">{{ t('dashboard.addProject') }}</p>
+                <p class="app-text-meta mt-1 text-slate-500 dark:text-slate-400">{{ t('dashboard.addProject') }}</p>
              </div>
-        </div>
+         </div>
     </div>
+    </Transition>
 
-    <!-- Main Right Panel -->
-    <div class="flex-1 overflow-hidden relative bg-slate-50 dark:bg-[#0b1120] transition-colors duration-200 flex flex-col">
-        <!-- Empty state when no project selected -->
-        <div v-if="!activeProject" class="flex-1 flex flex-col items-center justify-center gap-3 text-slate-300 dark:text-slate-600">
-            <div class="i-mdi-monitor-dashboard text-6xl opacity-30" />
-            <p class="text-sm font-medium">{{ t('dashboard.selectProjectHint') }}</p>
-            <p class="text-xs opacity-50">{{ t('dashboard.selectProjectDesc') }}</p>
-        </div>
-
-        <!-- Workspace when project selected -->
-        <template v-else>
-            <!-- Project Name + Tab Bar -->
-            <div class="workspace-topbar flex items-center border-b border-slate-200 dark:border-slate-700/20 bg-white dark:bg-[#0f172a] px-3 shrink-0 min-w-0">
-                <!-- Project Name (always visible) -->
-                <div class="project-title-group flex items-center gap-2 pr-3 mr-2 shrink-0 min-w-0">
-                    <button @click="scrollToActiveProject" class="toolbar-icon-btn" :title="t('dashboard.locateProject')">
-                        <div class="i-mdi-crosshairs-gps text-sm" />
-                    </button>
-                    <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate max-w-48 tracking-tight">{{ activeProject.name }}</h3>
-                </div>
-                <!-- Tab scroll left arrow -->
-                <button v-show="canScrollLeft" @click="scrollTabs('left')"
-                    class="toolbar-scroll-btn shrink-0">
-                    <div class="i-mdi-chevron-left text-base" />
-                </button>
-                <!-- Scrollable tabs container -->
-                <div ref="tabScrollContainer" @scroll="checkTabOverflow" class="flex items-center overflow-x-auto scrollbar-none min-w-0 flex-1 py-2 px-1">
-                <div class="workspace-tab-group">
-                <button
-                    @click="rightTab = 'console'"
-                    class="workspace-tab-btn"
-                    :class="{ 'workspace-tab-btn-active': rightTab === 'console' }"
-                >
-                    <div class="i-mdi-console text-sm" />
-                    <span>{{ t('dashboard.console') }}</span>
-                </button>
-                <button
-                    @click="rightTab = 'git'"
-                    class="workspace-tab-btn"
-                    :class="{ 'workspace-tab-btn-active': rightTab === 'git' }"
-                >
-                    <div class="i-mdi-git text-sm" />
-                    <span>{{ t('git.title') }}</span>
-                    <span v-if="isGitRepo && gitChangesCount > 0" class="workspace-tab-badge">{{ gitChangesCount }}</span>
-                </button>
-                <button
-                    @click="rightTab = 'files'"
-                    class="workspace-tab-btn"
-                    :class="{ 'workspace-tab-btn-active': rightTab === 'files' }"
-                >
-                    <div class="i-mdi-folder-outline text-sm" />
-                    <span>{{ t('dashboard.files') }}</span>
-                </button>
-                <button
-                    @click="rightTab = 'memo'"
-                    class="workspace-tab-btn"
-                    :class="{ 'workspace-tab-btn-active': rightTab === 'memo' }"
-                >
-                    <div class="i-mdi-note-text-outline text-sm" />
-                    <span>{{ t('dashboard.memo') }}</span>
-                </button>
-                </div>
-                </div>
-                <!-- Tab scroll right arrow -->
-                <button v-show="canScrollRight" @click="scrollTabs('right')"
-                    class="toolbar-scroll-btn shrink-0">
-                    <div class="i-mdi-chevron-right text-base" />
-                </button>
-            </div>
-
-            <!-- Tab Content -->
-            <div class="flex-1 overflow-hidden relative">
-                <Transition name="tab-fade" mode="out-in">
-                <KeepAlive>
-                <ConsoleView v-if="rightTab === 'console'" />
-                <GitView v-else-if="rightTab === 'git'" />
-                <FileManager v-else-if="rightTab === 'files'" :project="activeProject" />
-                <ProjectMemo v-else-if="rightTab === 'memo'" :project="activeProject" />
-                </KeepAlive>
-                </Transition>
-            </div>
-        </template>
-    </div>
-
-    <AddProjectModal 
-        v-model="showModal" 
+    <AddProjectModal
+        v-model="showModal"
         :edit-project="editingProject"
-        @add="handleAdd" 
+        @add="handleAdd"
         @update="handleUpdate"
     />
+
+    <!-- 单个添加后的层级选择：让用户决定扫描到的子级/孙级挂到哪一级 -->
+    <SubProjectScanModal
+        v-if="pendingLevelProject"
+        v-model="showLevelModal"
+        :parent-project="pendingLevelProject"
+        :preset-nodes="pendingLevelNodes"
+        @closed="handleLevelClosed"
+    />
+
+    <ProjectGroupManager v-model="showGroupManager" />
+
+    <ImportScanModal v-model="showImportModal" />
+
+    <ProjectManagementDialog
+        v-model="showManagementDialog"
+        :project="managementProject"
+        :projects="projectStore.projects"
+        :git-overview-by-id="gitOverviewById"
+        :running-count-by-project-id="projectStore.runningSubtreeCount"
+        :initial-tab="managementInitialTab"
+        @select-project="managementProjectId = $event.id"
+        @open-workspace="openProjectWorkspace"
+        @edit="openEditModal"
+    />
+
+    <!-- 批量设置分组 -->
+    <el-dialog v-model="showBatchGroupMenu" :title="t('dashboard.batchSetGroup')" width="360px" align-center>
+      <el-select v-model="batchGroupTarget" :placeholder="t('dashboard.group')" clearable class="w-full">
+        <el-option :label="t('dashboard.ungrouped')" value="" />
+        <el-option v-for="group in projectStore.projectGroups" :key="group.id" :label="group.name" :value="group.id" />
+      </el-select>
+      <template #footer>
+        <el-button @click="showBatchGroupMenu = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="applyBatchGroup">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -877,17 +957,11 @@ async function batchAddProjects() {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: color-mix(in srgb, var(--app-text-muted) 56%, transparent);
   border-radius: 2px;
 }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #334155;
-}
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: color-mix(in srgb, var(--app-text-muted) 72%, transparent);
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
@@ -906,301 +980,145 @@ async function batchAddProjects() {
   opacity: 0;
 }
 
-.workspace-topbar {
-  box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.08);
-}
-
-.project-title-group {
-  padding: 3px 6px 3px 3px;
-  border-radius: 16px;
-}
-
-.sidebar-header-actions {
+/* 顶部工具栏文字按钮 */
+.toolbar-text-btn {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 4px;
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(248, 250, 252, 0.42));
-  backdrop-filter: blur(18px) saturate(1.08);
-  -webkit-backdrop-filter: blur(18px) saturate(1.08);
-  box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 0 0 1px rgba(226, 232, 240, 0.46);
-}
-
-.sidebar-header-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
+  gap: 6px;
+  height: var(--app-control-height);
+  padding: 0 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--app-radius-md);
   background: transparent;
-  color: rgb(148 163 184);
-  transition: all 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-control);
+  font-weight: 500;
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease);
 }
-
-.sidebar-header-btn:hover:not(:disabled) {
-  color: rgb(37 99 235);
-  background: rgba(255, 255, 255, 0.44);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.38),
-    inset 0 0 0 1px rgba(191, 219, 254, 0.32);
+.toolbar-text-btn:hover:not(:disabled) {
+  color: var(--app-primary);
+  background: var(--app-primary-soft);
 }
-
-.sidebar-header-btn:disabled {
+.toolbar-text-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.toolbar-icon-btn,
-.toolbar-scroll-btn {
+.toolbar-primary-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  height: 32px;
-  width: 32px;
+  gap: 6px;
+  height: var(--app-control-height);
+  padding: 0 16px;
   border: none;
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(248, 250, 252, 0.36));
-  color: rgb(100 116 139);
-  backdrop-filter: blur(16px) saturate(1.08);
-  -webkit-backdrop-filter: blur(16px) saturate(1.08);
-  box-shadow:
-    0 8px 18px rgba(15, 23, 42, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 0 0 0 1px rgba(226, 232, 240, 0.42);
-  transition: all 0.2s ease, background-color 0.2s ease, color 0.2s ease;
-}
-
-.toolbar-icon-btn:hover,
-.toolbar-scroll-btn:hover {
-  color: rgb(37 99 235);
-  background: rgba(255, 255, 255, 0.62);
-  box-shadow:
-    0 10px 20px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.48),
-    inset 0 0 0 1px rgba(191, 219, 254, 0.28);
-}
-
-.workspace-tab-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(248, 250, 252, 0.4));
-  backdrop-filter: blur(18px) saturate(1.08);
-  -webkit-backdrop-filter: blur(18px) saturate(1.08);
-  box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.48),
-    inset 0 0 0 1px rgba(226, 232, 240, 0.44);
-}
-
-.workspace-tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 14px;
-  background: transparent;
-  color: rgb(100 116 139);
-  font-size: 12px;
+  border-radius: var(--app-radius-md);
+  background: var(--app-primary);
+  color: #fff;
+  font-size: var(--app-font-control);
   font-weight: 600;
-  white-space: nowrap;
-  transition: all 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+  box-shadow: var(--app-shadow-sm);
+  transition: filter var(--app-duration-fast) var(--app-ease);
+}
+.toolbar-primary-btn:hover {
+  filter: brightness(1.08);
 }
 
-.workspace-tab-btn:hover {
-  color: rgb(51 65 85);
-  background: rgba(255, 255, 255, 0.34);
+/* 选择操作栏 */
+.selection-bar {
+  background: color-mix(in srgb, var(--app-primary) 6%, transparent);
 }
-
-.workspace-tab-btn-active {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(248, 250, 252, 0.44));
-  color: rgb(37 99 235);
-  backdrop-filter: blur(14px) saturate(1.1);
-  -webkit-backdrop-filter: blur(14px) saturate(1.1);
-  box-shadow:
-    0 8px 18px rgba(15, 23, 42, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 0 0 0 1px rgba(191, 219, 254, 0.32);
-}
-
-.workspace-tab-badge {
-  margin-left: 2px;
-  min-width: 18px;
-  border-radius: 999px;
-  background: rgba(249, 115, 22, 0.14);
-  padding: 0 6px;
-  color: rgb(234 88 12);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 18px;
-  text-align: center;
-}
-
-:global(html.dark) .project-title-group {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
-    rgba(15, 23, 42, 0.14);
-}
-
-:global(html.dark) .sidebar-header-actions {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
-    linear-gradient(180deg, rgba(30, 41, 59, 0.24), rgba(15, 23, 42, 0.18));
-  backdrop-filter: blur(18px) saturate(1.02);
-  -webkit-backdrop-filter: blur(18px) saturate(1.02);
-  box-shadow:
-    0 10px 24px rgba(2, 6, 23, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.035),
-    inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-}
-
-:global(html.dark) .toolbar-icon-btn,
-:global(html.dark) .toolbar-scroll-btn {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
-    linear-gradient(180deg, rgba(30, 41, 59, 0.24), rgba(15, 23, 42, 0.18));
-  color: rgb(148 163 184);
-  backdrop-filter: blur(16px) saturate(1.02);
-  -webkit-backdrop-filter: blur(16px) saturate(1.02);
-  box-shadow:
-    0 8px 18px rgba(2, 6, 23, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-}
-
-:global(html.dark) .sidebar-header-btn {
+.selection-link {
+  border: none;
   background: transparent;
-  color: rgb(148 163 184);
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-control);
+  transition: color var(--app-duration-fast) var(--app-ease);
 }
-
-:global(html.dark) .sidebar-header-btn:hover:not(:disabled) {
-  color: rgb(96 165 250);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 0 0 1px rgba(96, 165, 250, 0.12);
+.selection-link:hover {
+  color: var(--app-primary);
 }
-
-:global(html.dark) .toolbar-icon-btn:hover,
-:global(html.dark) .toolbar-scroll-btn:hover {
-  color: rgb(96 165 250);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0)),
-    linear-gradient(180deg, rgba(30, 41, 59, 0.28), rgba(15, 23, 42, 0.2));
-  box-shadow:
-    0 10px 20px rgba(2, 6, 23, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.035),
-    inset 0 0 0 1px rgba(96, 165, 250, 0.12);
-}
-
-:global(html.dark) .workspace-tab-group {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
-    linear-gradient(180deg, rgba(30, 41, 59, 0.24), rgba(15, 23, 42, 0.18));
-  backdrop-filter: blur(18px) saturate(1.02);
-  -webkit-backdrop-filter: blur(18px) saturate(1.02);
-  box-shadow:
-    0 10px 24px rgba(2, 6, 23, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-}
-
-:global(html.dark) .workspace-tab-btn {
-  color: rgb(124 140 164);
-}
-
-:global(html.dark) .workspace-tab-btn:hover {
-  color: rgb(203 213 225);
-  background: rgba(255, 255, 255, 0.045);
-}
-
-:global(html.dark) .workspace-tab-btn-active {
-  background:
-    linear-gradient(180deg, rgba(96, 165, 250, 0.12), rgba(59, 130, 246, 0.04)),
-    linear-gradient(180deg, rgba(51, 65, 85, 0.34), rgba(15, 23, 42, 0.22));
-  color: rgb(165 206 255);
-  backdrop-filter: blur(16px) saturate(1.05);
-  -webkit-backdrop-filter: blur(16px) saturate(1.05);
-  box-shadow:
-    0 8px 18px rgba(2, 6, 23, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.035),
-    inset 0 0 0 1px rgba(96, 165, 250, 0.12);
-}
-
-:global(html.dark) .workspace-tab-badge {
-  background: rgba(249, 115, 22, 0.16);
-  color: rgb(251 146 60);
-}
-
-/* Draggable list items */
-.draggable-list {
-  position: relative;
-}
-
-.draggable-item {
-  position: relative;
-  margin-bottom: 8px;
-}
-
-.draggable-item-active {
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
-  border-radius: 8px;
-  opacity: 0.92;
-}
-
-.dark .draggable-item-active {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-/* Drag handle - inside item top-left corner, no space taken */
-.drag-handle {
-  position: absolute;
-  left: 6px;
-  top: 6px;
-  width: 16px;
-  height: 18px;
-  display: flex;
+.selection-action-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  cursor: grab;
+  gap: 5px;
+  min-height: var(--app-control-height-sm);
+  padding: 0 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-control);
+  font-weight: 500;
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease),
+    border-color var(--app-duration-fast) var(--app-ease);
+}
+.selection-action-btn:hover {
+  color: var(--app-primary);
+  border-color: color-mix(in srgb, var(--app-primary) 40%, transparent);
+}
+.selection-action-danger:hover {
+  color: var(--app-danger, #ef4444);
+  border-color: color-mix(in srgb, #ef4444 40%, transparent);
+}
+
+/* 健康状态快捷筛选 chips */
+.health-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: var(--app-font-meta);
+  font-weight: 600;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease),
+    border-color var(--app-duration-fast) var(--app-ease);
+}
+.health-chip:hover {
+  border-color: var(--app-border-strong);
+  color: var(--app-text);
+}
+.health-chip-count {
+  min-width: 18px;
+  text-align: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--app-surface-soft);
+  font-size: var(--app-font-caption);
+  font-weight: 700;
+}
+.health-chip-active {
+  color: #fff;
+}
+.health-chip-emerald.health-chip-active { background: var(--app-success); border-color: var(--app-success); }
+.health-chip-amber.health-chip-active { background: var(--app-warning); border-color: var(--app-warning); }
+.health-chip-red.health-chip-active,
+.health-chip-rose.health-chip-active { background: var(--app-danger, #ef4444); border-color: var(--app-danger, #ef4444); }
+.health-chip-active .health-chip-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* 列表页 ↔ 工作区页过渡：工作区从下方滑入，返回时列表从下方回到原位。 */
+.dashboard-page-enter-active,
+.dashboard-page-leave-active {
+  transition: opacity 180ms var(--app-ease), transform 180ms var(--app-ease);
+}
+.dashboard-page-enter-from {
   opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 30;
+  transform: translateY(12px);
 }
-
-.draggable-item:hover .drag-handle {
-  opacity: 1;
-}
-
-.drag-handle:active {
-  cursor: grabbing;
-}
-
-/* Sort mode segmented control font size */
-.sort-mode-control :deep(.el-segmented) {
-  font-size: 10px;
-}
-
-.sort-mode-control :deep(.el-segmented__item) {
-  padding: 2px 8px;
-  min-height: 22px;
-}
-
-.sort-mode-control :deep(.el-segmented__item-label) {
-  font-size: 10px;
-  line-height: 1.2;
+.dashboard-page-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>

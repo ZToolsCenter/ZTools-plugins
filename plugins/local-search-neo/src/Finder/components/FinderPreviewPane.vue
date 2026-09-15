@@ -13,8 +13,8 @@ import VideoPreview from "../preview/VideoPreview.vue";
 import { useFilePreview } from "../composables/useFilePreview";
 import type { ContextMenuItem } from "../composables/useContextMenu";
 
-const { selectedItem } = defineProps<{
-  selectedItem: ComputedRef<FinderResult | undefined>;
+const { activeItem } = defineProps<{
+  activeItem: ComputedRef<FinderResult | undefined>;
 }>();
 
 const emit = defineEmits<{
@@ -29,16 +29,16 @@ const {
   previewLanguage,
   previewSource,
 } = useFilePreview({
-  selectedItem,
+  activeItem,
 });
 
 function openImagePreviewMenu(event: MouseEvent) {
-  const imagePath = selectedItem.value?.fullPath ?? "";
+  const imagePath = activeItem.value?.fullPath;
+  if (!imagePath) return;
   emit("context-menu", event, [
     {
       id: "copy-preview-image",
       label: "复制图片",
-      disabled: !imagePath,
       action: () => {
         window.ztools.copyFile(imagePath);
       },

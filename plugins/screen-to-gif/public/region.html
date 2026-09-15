@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>选择录制区域</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      user-select: none;
+      cursor: crosshair;
+      background: transparent;
+    }
+
+    #mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.38);
+    }
+
+    #selection {
+      position: fixed;
+      border: 2px solid rgb(88, 164, 246);
+      background: rgba(88, 164, 246, 0.08);
+      box-sizing: border-box;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.38);
+      display: none;
+    }
+
+    #selection.active {
+      display: block;
+    }
+
+    #tip {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      border-radius: 7px;
+      background: #1e1e1e;
+      color: #fff;
+      font-size: 13px;
+      letter-spacing: 0;
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28);
+      white-space: nowrap;
+    }
+
+    #actions {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%);
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border-radius: 9px;
+      background: rgba(30, 30, 30, 0.94);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(10px);
+    }
+
+    #actions.show {
+      display: flex;
+    }
+
+    #recordCombo {
+      position: relative;
+      display: flex;
+    }
+
+    #confirm {
+      height: 34px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 6px 0 0 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      background: #ff8a1c;
+      white-space: nowrap;
+    }
+
+    #menuToggle {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      border: 0;
+      border-radius: 0 6px 6px 0;
+      background: #ff8a1c;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-left: 1px solid rgba(255, 255, 255, 0.32);
+    }
+
+    #menuToggle svg {
+      width: 15px;
+      height: 15px;
+      transition: transform 0.15s ease;
+    }
+
+    #menuToggle.open svg {
+      transform: rotate(180deg);
+    }
+
+    #confirm:hover,
+    #menuToggle:hover {
+      filter: brightness(1.08);
+    }
+
+    #recordMenu {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 8px);
+      display: none;
+      width: 148px;
+      padding: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      background: #1f2227;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.34);
+      z-index: 10;
+    }
+
+    #recordMenu.open {
+      display: block;
+    }
+
+    #recordMenu button {
+      display: block;
+      width: 100%;
+      height: 32px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 5px;
+      font-size: 13px;
+      text-align: left;
+      color: #d7dce4;
+      background: transparent;
+    }
+
+    #recordMenu button:hover {
+      background: #30343c;
+      color: #ffb45c;
+    }
+
+    #recordMenu button.active {
+      background: #352a1d;
+      color: #ffb45c;
+      font-weight: 600;
+    }
+
+    button {
+      height: 34px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      color: #fff;
+      background: #58a4f6;
+    }
+
+    button.secondary {
+      background: #3f4147;
+    }
+
+    button.danger {
+      background: #c94f4f;
+    }
+
+    button:hover {
+      filter: brightness(1.08);
+    }
+
+    #size {
+      padding: 0 10px;
+      color: #d8dce4;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="mask"></div>
+  <div id="selection"></div>
+  <div id="tip">按住并拖动鼠标，框选要录制的区域</div>
+  <div id="actions">
+    <span id="size"></span>
+    <div id="recordCombo">
+      <button id="confirm">开始录制</button>
+      <button id="menuToggle" aria-label="录制时长">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="4 6 8 10 12 6"></polyline>
+        </svg>
+      </button>
+      <div id="recordMenu"></div>
+    </div>
+    <button id="redo" class="secondary">重选</button>
+    <button id="cancel" class="danger">取消</button>
+  </div>
+  <script>
+    const selection = document.getElementById('selection')
+    const actions = document.getElementById('actions')
+    const sizeLabel = document.getElementById('size')
+    const tip = document.getElementById('tip')
+
+    let startPoint = null
+    let hasSelection = false
+    let currentRect = null
+    let settledRect = null
+
+    const RECORD_OPTIONS = [
+      { label: '手动停止', value: 0 },
+      { label: '5秒', value: 5 },
+      { label: '10秒', value: 10 },
+      { label: '30秒', value: 30 }
+    ]
+    const recordCombo = document.getElementById('recordCombo')
+    const recordMenu = document.getElementById('recordMenu')
+    const menuToggle = document.getElementById('menuToggle')
+    const confirmButton = document.getElementById('confirm')
+    let selectedAutoStopSeconds = Number(new URLSearchParams(location.search).get('autoStop') || 0)
+    if (!RECORD_OPTIONS.some((item) => item.value === selectedAutoStopSeconds)) {
+      selectedAutoStopSeconds = 0
+    }
+
+    // 生成时长下拉选项，并把选中状态同步到“开始录制”按钮文字
+    function renderRecordMenu() {
+      confirmButton.textContent = selectedAutoStopSeconds > 0
+        ? `录制${selectedAutoStopSeconds}秒`
+        : '开始录制'
+      recordMenu.querySelectorAll('button').forEach((button) => {
+        button.classList.toggle('active', Number(button.dataset.value) === selectedAutoStopSeconds)
+      })
+    }
+
+    function chooseRecordOption(value) {
+      selectedAutoStopSeconds = value
+      renderRecordMenu()
+      closeRecordMenu()
+    }
+
+    function closeRecordMenu() {
+      recordMenu.classList.remove('open')
+      menuToggle.classList.remove('open')
+    }
+
+    RECORD_OPTIONS.forEach((item) => {
+      const optionButton = document.createElement('button')
+      optionButton.type = 'button'
+      optionButton.textContent = item.label
+      optionButton.dataset.value = String(item.value)
+      optionButton.addEventListener('click', (event) => {
+        event.stopPropagation()
+        chooseRecordOption(item.value)
+      })
+      recordMenu.appendChild(optionButton)
+    })
+    renderRecordMenu()
+
+    menuToggle.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const willOpen = !recordMenu.classList.contains('open')
+      recordMenu.classList.toggle('open', willOpen)
+      menuToggle.classList.toggle('open', willOpen)
+    })
+
+    document.addEventListener('click', (event) => {
+      if (!recordCombo.contains(event.target)) closeRecordMenu()
+    })
+
+    // 更新选区矩形的展示位置和尺寸
+    function renderRect(rect) {
+      selection.style.left = rect.x + 'px'
+      selection.style.top = rect.y + 'px'
+      selection.style.width = rect.width + 'px'
+      selection.style.height = rect.height + 'px'
+      selection.classList.add('active')
+      sizeLabel.textContent = Math.round(rect.width) + ' × ' + Math.round(rect.height)
+    }
+
+    // 将拖动坐标规范成左上角 + 宽高的矩形
+    function normalize(a, b) {
+      const x = Math.min(a.x, b.x)
+      const y = Math.min(a.y, b.y)
+      return {
+        x,
+        y,
+        width: Math.abs(a.x - b.x),
+        height: Math.abs(a.y - b.y)
+      }
+    }
+
+    // 确认当前选区，关闭窗口并通知主插件
+    function confirmSelection() {
+      closeRecordMenu()
+      if (!lastRect || lastRect.width < 20 || lastRect.height < 20) return
+      window.gifRegionApi.done({
+        ...lastRect,
+        width: Math.round(lastRect.width),
+        height: Math.round(lastRect.height),
+        x: Math.round(lastRect.x),
+        y: Math.round(lastRect.y),
+        autoStopSeconds: selectedAutoStopSeconds
+      })
+      window.close()
+    }
+
+    let lastRect = null
+
+    // 鼠标交互：按下开始，移动绘制，松开后展示操作按钮
+    document.addEventListener('mousedown', (event) => {
+      if (hasSelection) return
+      startPoint = { x: event.clientX, y: event.clientY }
+      currentRect = { x: startPoint.x, y: startPoint.y, width: 0, height: 0 }
+      selection.classList.add('active')
+    })
+
+    document.addEventListener('mousemove', (event) => {
+      if (!startPoint || hasSelection) return
+      currentRect = normalize(startPoint, { x: event.clientX, y: event.clientY })
+      renderRect(currentRect)
+    })
+
+    document.addEventListener('mouseup', () => {
+      if (!startPoint) return
+      if (currentRect && currentRect.width >= 20 && currentRect.height >= 20) {
+        lastRect = currentRect
+        hasSelection = true
+        actions.classList.add('show')
+        tip.style.display = 'none'
+      } else {
+        startPoint = null
+        selection.classList.remove('active')
+      }
+    })
+
+    // 完成 / 重选 / 取消
+    document.getElementById('confirm').addEventListener('click', confirmSelection)
+    document.getElementById('redo').addEventListener('click', () => {
+      closeRecordMenu()
+      hasSelection = false
+      actions.classList.remove('show')
+      tip.style.display = 'block'
+      selection.classList.remove('active')
+    })
+    document.getElementById('cancel').addEventListener('click', () => {
+      closeRecordMenu()
+      window.gifRegionApi.cancel()
+      window.close()
+    })
+
+    // Esc 取消
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        if (recordMenu.classList.contains('open')) {
+          closeRecordMenu()
+          return
+        }
+        window.gifRegionApi.cancel()
+        window.close()
+      }
+    })
+  </script>
+</body>
+</html>

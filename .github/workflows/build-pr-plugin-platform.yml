@@ -6,6 +6,15 @@ on:
       pr_number:
         required: true
         type: string
+      base_ref:
+        required: true
+        type: string
+      base_sha:
+        required: true
+        type: string
+      head_sha:
+        required: true
+        type: string
       platform_name:
         required: true
         type: string
@@ -22,15 +31,31 @@ jobs:
         shell: bash
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
+          BASE_REF: ${{ inputs.base_ref }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           git init .
           git remote add origin "https://github.com/${REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "pull/${PR_NUMBER}/head"
-          git checkout --force FETCH_HEAD
+          git fetch --no-tags --filter=blob:none origin \
+            "+${BASE_SHA}:refs/remotes/origin/pr-base" \
+            "+${HEAD_SHA}:refs/remotes/origin/pr-head"
+          git checkout --force --detach refs/remotes/origin/pr-base
+
+          if ! git \
+            -c user.name=github-actions \
+            -c user.email=github-actions@github.com \
+            merge --no-commit --no-ff refs/remotes/origin/pr-head; then
+            echo "::error::PR #${PR_NUMBER} 无法合并到 ${BASE_REF}@${BASE_SHA}，请先解决与目标分支的冲突"
+            git status --short
+            exit 1
+          fi
+
           git clean -ffdx
+          echo "Prepared PR #${PR_NUMBER}: ${HEAD_SHA} on ${BASE_REF}@${BASE_SHA}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,7 +65,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 9
+          version: 10.5.0
 
       - name: Download build info
         uses: actions/download-artifact@v4
@@ -51,6 +76,16 @@ jobs:
       - name: Select platform build info
         run: |
           node -e "const fs = require('fs'); fs.copyFileSync('release/build-info.${{ inputs.platform_name }}.json', 'release/build-info.json')"
+
+      - name: Detect build requirements
+        id: build-requirements
+        run: node scripts/detect-build-requirements.js
+
+      - name: Setup Bun
+        if: steps.build-requirements.outputs.needs_bun == 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version-file: .bun-version
 
       - name: Install root dependencies
         run: npm ci

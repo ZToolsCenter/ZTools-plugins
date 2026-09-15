@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "application-uninstaller",
+  "title": "应用卸载助手",
+  "description": "查找应用及其缓存、日志和配置残留，完整预览后安全移入废纸篓。",
+  "version": "0.1.0",
+  "main": "index.html",
+  "preload": "preload/services.cjs",
+  "logo": "logo.svg",
+  "development": { "main": "http://127.0.0.1:5173/" },
+  "features": [
+    {
+      "code": "application-uninstaller",
+      "explain": "卸载应用并清理关联残留",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["应用卸载", "彻底卸载", "软件卸载", "卸载助手"]
+    }
+  ]
+}

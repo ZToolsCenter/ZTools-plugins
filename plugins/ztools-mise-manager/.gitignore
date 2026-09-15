@@ -1,0 +1,5 @@
+node_modules/
+dist/
+public/projects.json
+*.log
+.DS_Store

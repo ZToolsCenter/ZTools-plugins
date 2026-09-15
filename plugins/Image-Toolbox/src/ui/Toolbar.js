@@ -1,4 +1,5 @@
 ﻿import { eventBus } from '../../core/src/index.js';
+import { escapeHTML, escapeAttr } from '../../core/src/utils/helpers.js';
 
 /**
  * Toolbar UI component.
@@ -11,12 +12,14 @@ class Toolbar {
     this._host = host;
     this._currentTool = 'select';
     this._user = this._getHostUser();
+    this._eventBusUnsubscribers = [];
 
     // SVG 图标模板
     this._icons = {
       select: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>`,
       mosaic: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>`,
       crop: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/></svg>`,
+      color: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1.3" fill="currentColor"/><circle cx="16" cy="10" r="1.3" fill="currentColor"/><circle cx="12" cy="15" r="1.3" fill="currentColor"/><circle cx="7" cy="14" r="1" fill="currentColor"/><circle cx="17" cy="14" r="1" fill="currentColor"/></svg>`,
       brush: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 19.5c-1.8 1.2-3.7 1.5-5.5 1.5.6-1.4.9-3.3 2.1-5.1"/><path d="M6.8 16.2L17.6 5.4a2.1 2.1 0 013 3L9.8 19.2"/><path d="M15.8 7.2l3 3"/></svg>`,
       eraser: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 13.5l-7 7a3 3 0 01-4.24 0L3.5 14.74a3 3 0 010-4.24l7-7a3 3 0 014.24 0l5.76 5.76a3 3 0 010 4.24z"/><path d="M7 18h10"/><path d="M8.5 5.5l10 10"/></svg>`,
       text: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`,
@@ -36,7 +39,7 @@ class Toolbar {
     let currentGroup = null;
 
     // Render tool groups in a stable order.
-    const groupOrder = ['edit', 'annotate', 'view', 'action'];
+    const groupOrder = ['edit', 'adjust', 'redact', 'annotate', 'view', 'action'];
     for (const group of groupOrder) {
       const groupTools = tools.filter(t => t.group === group);
       if (groupTools.length === 0) continue;
@@ -120,15 +123,15 @@ class Toolbar {
     }, true);
 
     // 监听工具切换事件（外部触发）
-    eventBus.on('tool:changed', (toolName) => {
-      this._currentTool = toolName;
-      this._updateActive();
-    });
-
-    // 监听历史状态变化，更新撤销/重做按钮
-    eventBus.on('history:changed', ({ canUndo, canRedo }) => {
-      this._updateHistoryButtons(canUndo, canRedo);
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('tool:changed', (toolName) => {
+        this._currentTool = toolName;
+        this._updateActive();
+      }),
+      eventBus.on('history:changed', ({ canUndo, canRedo }) => {
+        this._updateHistoryButtons(canUndo, canRedo);
+      })
+    );
   }
 
   _updateHistoryButtons(canUndo, canRedo) {
@@ -205,18 +208,16 @@ class Toolbar {
   }
 
   _escapeAttr(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/"/g, '&quot;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    return escapeAttr(value);
   }
 
   _escapeHTML(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    return escapeHTML(value);
+  }
+
+  destroy() {
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 

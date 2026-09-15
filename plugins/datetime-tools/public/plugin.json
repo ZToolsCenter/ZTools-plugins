@@ -1,0 +1,151 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "datetime-tools",
+  "title": "时间日期工具",
+  "description": "时间戳转换，计算日期差，推算日期，推算工作日，工作天数，日期格式，世界时间，在线秒表",
+  "author": "lee",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "datetime",
+      "explain": "时间日期转换",
+      "icon": "logo.png",
+      "cmds": [
+        "时间日期转换",
+        "datetime",
+        "date",
+        "time",
+        {
+          "type": "regex",
+          "label": "时间戳转换",
+          "match": "/^[0-9]{10}$/i",
+          "minLength": 10
+        },
+        {
+          "type": "regex",
+          "label": "时间戳转换",
+          "match": "/^[0-9]{13}$/i",
+          "minLength": 13
+        },
+        {
+          "type": "regex",
+          "label": "日期转换",
+          "match": "/^[0-9]{4}-[0-9]{2}-[0-9]{2}/i",
+          "minLength": 10
+        }
+      ]
+    },
+    {
+      "code": "dateDiff",
+      "explain": "计算日期差",
+      "icon": "logo.png",
+      "cmds": [
+        "计算日期差",
+        "dateDiff",
+        {
+          "type": "regex",
+          "label": "计算日期差",
+          "match": "/^[0-9]{4}-[0-9]{2}-[0-9]{2}/i",
+          "minLength": 10,
+          "maxLength": 10
+        }
+      ]
+    },
+    {
+      "code": "dateCalc",
+      "explain": "推算日期",
+      "icon": "logo.png",
+      "cmds": [
+        "推算日期",
+        "dateCalc",
+        {
+          "type": "regex",
+          "label": "推算日期",
+          "match": "/^[0-9]{4}-[0-9]{2}-[0-9]{2}/i",
+          "minLength": 10,
+          "maxLength": 10
+        }
+      ]
+    },
+    {
+      "code": "dateWeekday",
+      "explain": "工作日推算",
+      "icon": "logo.png",
+      "cmds": [
+        "工作日推算",
+        {
+          "type": "regex",
+          "label": "工作日推算",
+          "match": "/^[0-9]{4}-[0-9]{2}-[0-9]{2}/i",
+          "minLength": 10,
+          "maxLength": 10
+        }
+      ]
+    },
+    {
+      "code": "dateWorkdays",
+      "explain": "工作天数计算",
+      "icon": "logo.png",
+      "cmds": [
+        "工作天数",
+        {
+          "type": "regex",
+          "label": "工作天数",
+          "match": "/^[0-9]{4}-[0-9]{2}-[0-9]{2}/i",
+          "minLength": 10,
+          "maxLength": 10
+        }
+      ]
+    },
+    {
+      "code": "stopWatch",
+      "explain": "秒表",
+      "icon": "logo.png",
+      "cmds": [
+        "秒表",
+        "stopwatch"
+      ]
+    },
+    {
+      "code": "dateFormat",
+      "explain": "英文日期格式转换",
+      "icon": "logo.png",
+      "cmds": [
+        "英文日期格式转换",
+        {
+          "type": "regex",
+          "label": "英文日期格式转换",
+          "match": "/^[0-9]{4}-[0-9]{2}-[0-9]{2}/i",
+          "minLength": 10,
+          "maxLength": 10
+        }
+      ]
+    },
+    {
+      "code": "dateTimezone",
+      "explain": "世界时间转换器",
+      "icon": "logo.png",
+      "cmds": [
+        "世界时间转换",
+        "时区转换",
+        {
+          "type": "regex",
+          "label": "世界时间转换器",
+          "match": "/^[0-9]{4}-[0-9]{2}-[0-9]{2}/i",
+          "minLength": 10
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ]
+}

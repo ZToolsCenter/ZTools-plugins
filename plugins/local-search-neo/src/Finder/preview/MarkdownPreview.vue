@@ -104,7 +104,7 @@ async function renderMarkdown(content: string) {
 }
 
 .markdown-preview :deep(a) {
-  color: #8ab4f8;
+  color: var(--primary-color-light);
 }
 
 @media (prefers-color-scheme: light) {
@@ -133,7 +133,7 @@ async function renderMarkdown(content: string) {
   }
 
   .markdown-preview :deep(a) {
-    color: #2563eb;
+    color: var(--primary-color-text, var(--primary-color));
   }
 }
 </style>

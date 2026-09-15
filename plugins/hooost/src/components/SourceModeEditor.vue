@@ -19,6 +19,34 @@ const isDark = computed(() => document.documentElement.classList.contains('dark'
 let editor: aceBuilds.Ace.Editor | null = null
 let isInternalChange = false
 
+/**
+ * Enable the built-in find (Ctrl+F) / replace (Ctrl+H) searchbox.
+ * ACE ships the keybindings by default but needs a module loader to resolve
+ * the searchbox extension in a bundled (Vite) environment. We also localize
+ * the searchbox labels to Chinese for consistency with the rest of the app.
+ */
+function setupSearchBox(ace: typeof import('ace-builds')): void {
+  ace.config.setModuleLoader('ace/ext/searchbox', () =>
+    import('ace-builds/src-noconflict/ext-searchbox')
+  )
+
+  const defaultMessages = ace.require('ace/lib/default_english_messages')
+    .defaultEnglishMessages
+  ace.config.setMessages({
+    ...defaultMessages,
+    'search-box.find.placeholder': '查找',
+    'search-box.find-all.text': '全部',
+    'search-box.replace.placeholder': '替换为',
+    'search-box.replace-next.text': '替换',
+    'search-box.replace-all.text': '全部',
+    'search-box.toggle-replace.title': '切换替换模式',
+    'search-box.toggle-regexp.title': '正则搜索',
+    'search-box.toggle-case.title': '区分大小写',
+    'search-box.toggle-whole-word.title': '全字匹配',
+    'search-box.search-counter': '$0 / $1',
+  })
+}
+
 async function createEditor(): Promise<void> {
   if (!editorRef.value) return
 
@@ -27,6 +55,8 @@ async function createEditor(): Promise<void> {
   await import('ace-builds/src-noconflict/theme-github')
   await import('ace-builds/src-noconflict/theme-one_dark')
   await import('ace-builds/src-noconflict/ext-language_tools')
+
+  setupSearchBox(ace)
 
   if (!editorRef.value || editor) return
 

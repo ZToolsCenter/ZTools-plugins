@@ -7,7 +7,7 @@ import { toCandidates, isMostlyAscii, type CaseCandidate } from '../composables/
  * 代码翻译子页（独立 feature code-translate 的全屏视图）。
  *
  * 流程：
- *   1. 进入时拿到 initialText（regex 入口选中的文本）。
+ *   1. 进入时拿到 initialText（over 入口选中的文本）。
  *   2. 文本基本是 ASCII（纯英文/代码）→ 跳过翻译，直接走命名风格转换；
  *      否则用 translation provider 翻译到英文（auto→en），失败时用原文兜底。
  *   3. 对译文（或原文）跑 toCandidates，得到 8 种风格候选。
@@ -15,11 +15,11 @@ import { toCandidates, isMostlyAscii, type CaseCandidate } from '../composables/
  *
  * 直接调 window.services.translateXxx（不经宿主 provider 调度），
  * 必须以 .call(window.services, ...) 形式调用，保证方法内 this 指向 services
- * （与 Translate.vue / TranslateTest.vue 保持一致的调用约定）。
+ * （与 Translate.vue 保持一致的调用约定）。
  */
 
 const props = defineProps<{
-  /** 进入时预填的待翻译文本（regex 入口）。 */
+  /** 进入时预填的待翻译文本（over 入口）。 */
   initialText?: string
 }>()
 

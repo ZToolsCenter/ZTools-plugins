@@ -56,18 +56,18 @@ describe("module job settings", () => {
     });
   });
 
-  it("activates only the selected optional image module", () => {
+  it("preserves the enable state of the selected optional image module", () => {
     expect(buildModuleJobSettings("watermark", fullSettings())).toEqual({
       output,
-      watermark: { ...fullSettings().watermark!, enabled: true }
+      watermark: fullSettings().watermark
     });
     expect(buildModuleJobSettings("border", fullSettings())).toEqual({
       output,
-      border: { ...fullSettings().border!, enabled: true }
+      border: fullSettings().border
     });
     expect(buildModuleJobSettings("round", fullSettings())).toEqual({
       output,
-      rounded: { ...fullSettings().rounded!, enabled: true }
+      rounded: fullSettings().rounded
     });
   });
 

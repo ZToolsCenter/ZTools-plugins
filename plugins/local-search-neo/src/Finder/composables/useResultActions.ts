@@ -1,55 +1,83 @@
 import { useGlocalConfirmDialog } from "../../components/useGlocalConfirmDialog";
-import type { FinderResult } from "../core/finderLogic";
+import { getDragTargetPaths, type FinderResult } from "../core/finderLogic";
 
 interface UseResultActionsOptions {
-  onTrashed: (fullPath: string) => void;
+  onTrashed: (fullPaths: string[]) => void;
 }
 
 export interface ResultActions {
-  open(item?: FinderResult): void;
-  showInFolder(item: FinderResult): void;
-  copyFullPath(item: FinderResult): void;
-  copyDirectoryPath(item: FinderResult): void;
-  copyFile(item: FinderResult): void;
-  trash(item: FinderResult): Promise<void>;
+  open(items: FinderResult[]): void;
+  showInFolder(items: FinderResult[]): void;
+  copyFullPath(items: FinderResult[]): void;
+  copyDirectoryPath(items: FinderResult[]): void;
+  copyFile(items: FinderResult[]): void;
+  trash(items: FinderResult[]): Promise<void>;
+  startDrag(item: FinderResult, selectedPaths: string[]): void;
 }
 
 const { confirm } = useGlocalConfirmDialog();
 
 export function useResultActions({ onTrashed }: UseResultActionsOptions): ResultActions {
-  function open(item?: FinderResult) {
-    if (item?.fullPath) window.ztools.shellOpenPath(item.fullPath);
+  function open(items: FinderResult[]) {
+    for (const item of items) {
+      window.ztools.shellOpenPath(item.fullPath);
+    }
   }
 
-  function showInFolder(item: FinderResult) {
-    if (item.fullPath) window.ztools.shellShowItemInFolder(item.fullPath);
+  function showInFolder(items: FinderResult[]) {
+    for (const item of items) {
+      window.ztools.shellShowItemInFolder(item.fullPath);
+    }
   }
 
-  function copyFullPath(item: FinderResult) {
-    if (item.fullPath) window.ztools.copyText(item.fullPath);
+  function copyFullPath(items: FinderResult[]) {
+    const paths = items.map((item) => item.fullPath);
+    if (paths.length > 0) window.ztools.copyText(paths.join("\r\n"));
   }
 
-  function copyDirectoryPath(item: FinderResult) {
-    if (item.path) window.ztools.copyText(item.path);
+  function copyDirectoryPath(items: FinderResult[]) {
+    const directories = Array.from(new Set(items.map((item) => item.path)));
+    if (directories.length > 0) window.ztools.copyText(directories.join("\r\n"));
   }
 
-  function copyFile(item: FinderResult) {
-    if (item.fullPath) window.ztools.copyFile(item.fullPath);
+  function copyFile(items: FinderResult[]) {
+    const paths = items.map((item) => item.fullPath);
+    if (paths.length > 0) window.ztools.copyFile(paths);
   }
 
-  async function trash(item: FinderResult) {
-    if (!item.fullPath) return;
+  function startDrag(item: FinderResult, selectedPaths: string[]) {
+    const target = getDragTargetPaths(item.fullPath, selectedPaths);
+    window.ztools.startDrag(target);
+  }
 
+  async function trash(items: FinderResult[]) {
+    if (items.length === 0) return;
+
+    const isSingle = items.length === 1;
     const confirmed = await confirm({
-      title: "删除文件",
-      message: `确定要将“${item.name}”移入回收站吗？`,
+      title: isSingle ? "删除文件" : `删除 ${items.length} 个文件`,
+      message: isSingle
+        ? `确定要将“${items[0].name}”移入回收站吗？`
+        : `确定要将选中的 ${items.length} 个文件移入回收站吗？`,
       confirmText: "删除",
       danger: true,
     });
     if (!confirmed) return;
 
-    await window.ztools.shellTrashItem(item.fullPath);
-    onTrashed(item.fullPath);
+    const results = await Promise.allSettled(
+      items.map(async (item) => {
+        await window.ztools.shellTrashItem(item.fullPath);
+        return item.fullPath;
+      }),
+    );
+
+    const successPaths = results
+      .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
+      .map((r) => r.value);
+
+    if (successPaths.length > 0) {
+      onTrashed(successPaths);
+    }
   }
 
   return {
@@ -59,5 +87,6 @@ export function useResultActions({ onTrashed }: UseResultActionsOptions): Result
     copyDirectoryPath,
     copyFile,
     trash,
+    startDrag,
   };
 }

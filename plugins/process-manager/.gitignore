@@ -29,4 +29,5 @@ dist-ssr
 reasonix*
 .opencode
 skills-lock.json
+pnpm-workspace.yaml
 

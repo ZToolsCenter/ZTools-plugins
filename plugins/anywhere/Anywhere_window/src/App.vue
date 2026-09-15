@@ -1,21 +1,371 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, watch, h, computed, defineAsyncComponent } from 'vue';
-import { ElContainer, ElMain, ElDialog, ElImageViewer, ElMessage, ElMessageBox, ElInput, ElButton, ElCheckbox, ElButtonGroup, ElTag, ElTooltip, ElIcon, ElAvatar, ElSwitch } from 'element-plus';
-import { createClient } from "webdav/web";
-import { DocumentCopy, QuestionFilled, Download, Search, Tools, CaretRight, Collection, Warning, Cpu, ArrowUp, ArrowDown, Refresh } from '@element-plus/icons-vue';
+  import { ArrowDown, ArrowUp, CaretRight, Collection, Cpu, DocumentCopy, Download, QuestionFilled, Refresh, Search, Tools, Warning } from '@element-plus/icons-vue';
+  import { ElAvatar, ElButton, ElCheckbox, ElContainer, ElDialog, ElIcon, ElImageViewer, ElInput, ElMain, ElMessage, ElMessageBox, ElOption, ElSelect, ElSwitch, ElTag, ElTooltip } from 'element-plus';
+  import { computed, defineAsyncComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+  import { createClient } from "webdav/web";
 
-import TitleBar from './components/TitleBar.vue';
-import ChatHeader from './components/ChatHeader.vue';
-const ChatMessage = defineAsyncComponent(() => import('./components/ChatMessage.vue'));
+  import ChatHeader from './components/ChatHeader.vue';
 import ChatInput from './components/ChatInput.vue';
 import ModelSelectionDialog from './components/ModelSelectionDialog.vue';
-
-import DOMPurify from 'dompurify';
-import { marked } from 'marked';
-import html2canvas from 'html2canvas';
+import TaskPanel from './components/TaskPanel.vue';
+  import TitleBar from './components/TitleBar.vue';
+  const ChatMessage = defineAsyncComponent(() => import('./components/ChatMessage.vue'));
 
 import TextSearchUI from './utils/TextSearchUI.js';
-import { formatTimestamp, sanitizeToolArgs } from './utils/formatters.js';
+import { formatTimestamp, formatToolResult, sanitizeToolArgs, sanitizeToolFunctionName } from './utils/formatters.js';
+
+const conversationOwnerId = ref('');
+
+const ensureConversationOwnerId = () => {
+  if (typeof conversationOwnerId.value === 'string' && conversationOwnerId.value.trim()) {
+    return conversationOwnerId.value.trim();
+  }
+  const nextId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+    ? `conv_${crypto.randomUUID()}`
+    : `conv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  conversationOwnerId.value = nextId;
+  return nextId;
+};
+
+const withConversationOwnerContext = (context = null) => {
+  const ownerId = ensureConversationOwnerId();
+  const base = context && typeof context === 'object' ? { ...context } : {};
+  base.conversationOwnerId = ownerId;
+  return base;
+};
+
+const withConversationOwnerArgs = (args = {}) => {
+  const ownerId = ensureConversationOwnerId();
+  const nextArgs = args && typeof args === 'object' ? { ...args } : {};
+  nextArgs.conversation_owner_id = ownerId;
+  return nextArgs;
+};
+
+const subAgentTasks = ref([]);
+let subAgentStatusPollTimer = null;
+
+const unwrapSubAgentToolText = (value) => {
+  let current = formatToolResult(value);
+  for (let index = 0; index < 2; index += 1) {
+    try {
+      const parsed = JSON.parse(current);
+      if (Array.isArray(parsed)) {
+        const text = parsed.find((item) => item?.type === 'text' && typeof item.text === 'string')?.text;
+        if (text) {
+          current = text;
+          continue;
+        }
+      }
+    } catch {
+      // The tool already returned plain text.
+    }
+    break;
+  }
+  return current;
+};
+
+const parseSubAgentStatus = (value) => {
+  try {
+    const parsed = JSON.parse(unwrapSubAgentToolText(value));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const upsertSubAgentTask = (snapshot) => {
+  if (!snapshot?.subagent_id) return;
+  const normalized = { ...snapshot };
+  const index = subAgentTasks.value.findIndex((item) => item.subagent_id === normalized.subagent_id);
+  if (index >= 0) subAgentTasks.value.splice(index, 1, { ...subAgentTasks.value[index], ...normalized });
+  else subAgentTasks.value.unshift(normalized);
+};
+
+const registerSubAgentFromToolContent = (toolContent, taskText = '') => {
+  const idMatch = String(toolContent || '').match(/(subagent_[\w-]+)/i);
+  if (!idMatch) return;
+  upsertSubAgentTask({
+    subagent_id: idMatch[1],
+    status: 'running',
+    task: typeof taskText === 'string' && taskText.trim() ? taskText.trim() : '后台 Sub-Agent'
+  });
+  void refreshSubAgentStatuses();
+  scheduleAutoSave({ reason: 'subagent-registered', immediate: true });
+};
+
+
+const normalizeSubAgentSummary = (task) => {
+  if (!task || typeof task !== 'object') return null;
+  const id = typeof task.subagent_id === 'string' ? task.subagent_id.trim() : '';
+  if (!id) return null;
+  return {
+    subagent_id: id,
+    status: task.status || 'running',
+    task: typeof task.task === 'string' ? task.task : '后台 Sub-Agent',
+    model_route: task.model_route || '',
+    model_name: task.model_name || '',
+    provider_name: task.provider_name || '',
+    created_at: task.created_at || null,
+    started_at: task.started_at || null,
+    finished_at: task.finished_at || null,
+    updated_at: task.updated_at || null
+  };
+};
+
+const restoreSubAgentTasksFromSession = (sessionData = {}) => {
+  const restoredTasks = Array.isArray(sessionData.subAgentTasks)
+    ? sessionData.subAgentTasks.map(normalizeSubAgentSummary).filter(Boolean)
+    : [];
+  subAgentTasks.value = restoredTasks;
+  const restoredDetails = sessionData.subAgentDetails && typeof sessionData.subAgentDetails === 'object' && !Array.isArray(sessionData.subAgentDetails)
+    ? sessionData.subAgentDetails
+    : {};
+  const allowedIds = new Set(restoredTasks.map((item) => item.subagent_id));
+  const nextDetails = {};
+  Object.entries(restoredDetails).forEach(([id, detail]) => {
+    if (allowedIds.has(id) && detail && typeof detail === 'object') nextDetails[id] = detail;
+  });
+  subAgentDetails.value = nextDetails;
+  closeSubAgentDetailFromInput();
+  void refreshSubAgentStatuses();
+};
+
+const clearSubAgentSessionState = () => {
+  subAgentTasks.value = [];
+  subAgentDetails.value = {};
+  closeSubAgentDetailFromInput();
+};
+
+const refreshSubAgentStatuses = async () => {
+  if (!window.api?.invokeMcpTool || subAgentTasks.value.length === 0) return;
+  await Promise.all(subAgentTasks.value.map(async (task) => {
+    try {
+      const response = await window.api.invokeMcpTool(
+        'get_subagent_status',
+        withConversationOwnerArgs({ subagent_id: task.subagent_id }),
+        null,
+        withConversationOwnerContext()
+      );
+      const snapshot = parseSubAgentStatus(response);
+      if (snapshot?.subagent_id) {
+        upsertSubAgentTask(snapshot);
+        return;
+      }
+      if (snapshot?.error) {
+        if (task.status === 'running') {
+          upsertSubAgentTask({ ...task, status: 'stopped', finished_at: Date.now(), updated_at: Date.now() });
+        }
+      }
+    } catch (error) {
+      console.warn('[Sub-Agent] Failed to refresh status:', error);
+    }
+  }));
+};
+
+const subAgentDetails = ref({});
+
+const loadSubAgentDetail = async (subagentId) => {
+  if (!subagentId || !window.api?.invokeMcpTool) return;
+  try {
+    const response = await window.api.invokeMcpTool(
+      'get_subagent_status',
+      withConversationOwnerArgs({
+        subagent_id: subagentId,
+        include_output: true
+      }),
+      null,
+      withConversationOwnerContext()
+    );
+    const snapshot = parseSubAgentStatus(response);
+    if (!snapshot?.subagent_id) return;
+    subAgentDetails.value = { ...subAgentDetails.value, [snapshot.subagent_id]: snapshot };
+    upsertSubAgentTask({
+      subagent_id: snapshot.subagent_id,
+      status: snapshot.status,
+      task: snapshot.task,
+      model_route: snapshot.model_route,
+      model_name: snapshot.model_name,
+      provider_name: snapshot.provider_name,
+      created_at: snapshot.created_at,
+      started_at: snapshot.started_at,
+      finished_at: snapshot.finished_at,
+      updated_at: snapshot.updated_at
+    });
+  } catch (error) {
+    console.warn('[Sub-Agent] Failed to load detail:', error);
+  }
+};
+
+
+const startSubAgentStatusPolling = () => {
+  if (subAgentStatusPollTimer) return;
+  subAgentStatusPollTimer = window.setInterval(() => void refreshSubAgentStatuses(), 1500);
+};
+
+const selectedSubAgentDetailId = ref('');
+let subAgentDetailPollTimer = null;
+
+const closeSubAgentDetailFromInput = () => {
+  selectedSubAgentDetailId.value = '';
+  if (subAgentDetailPollTimer) {
+    window.clearInterval(subAgentDetailPollTimer);
+    subAgentDetailPollTimer = null;
+  }
+};
+
+const openSubAgentDetailFromInput = async (subagentId) => {
+  selectedSubAgentDetailId.value = subagentId;
+  await loadSubAgentDetail(subagentId);
+  if (subAgentDetailPollTimer) return;
+  subAgentDetailPollTimer = window.setInterval(() => {
+    const task = subAgentTasks.value.find((item) => item.subagent_id === selectedSubAgentDetailId.value);
+    if (!selectedSubAgentDetailId.value) return;
+    if (!task || task.status !== 'running') {
+      if (subAgentDetailPollTimer) {
+        window.clearInterval(subAgentDetailPollTimer);
+        subAgentDetailPollTimer = null;
+      }
+      return;
+    }
+    void loadSubAgentDetail(task.subagent_id);
+  }, 2500);
+};
+
+
+const stopSubAgentFromInput = async (subagentId) => {
+  if (!subagentId || !window.api?.invokeMcpTool) return;
+  try {
+    const response = await window.api.invokeMcpTool(
+      'kill_subagent',
+      withConversationOwnerArgs({ subagent_id: subagentId }),
+      null,
+      withConversationOwnerContext()
+    );
+    const snapshot = parseSubAgentStatus(response);
+    if (snapshot?.subagent_id) upsertSubAgentTask(snapshot);
+    await refreshSubAgentStatuses();
+    if (selectedSubAgentDetailId.value === subagentId) await loadSubAgentDetail(subagentId);
+  } catch (error) {
+    showDismissibleMessage.error(`结束 Sub-Agent 失败：${error?.message || error}`);
+  }
+};
+
+const acknowledgeSubAgentFromInput = (subagentId) => {
+  const index = subAgentTasks.value.findIndex((task) => task.subagent_id === subagentId);
+  if (index >= 0) subAgentTasks.value.splice(index, 1);
+  if (subagentId && subAgentDetails.value[subagentId]) {
+    const next = { ...subAgentDetails.value };
+    delete next[subagentId];
+    subAgentDetails.value = next;
+  }
+  if (selectedSubAgentDetailId.value === subagentId) closeSubAgentDetailFromInput();
+};
+
+const acknowledgeAllFinishedSubAgentsFromInput = () => {
+  const keepRunning = [];
+  const removedIds = new Set();
+  subAgentTasks.value.forEach((task) => {
+    if (task?.status === 'running') keepRunning.push(task);
+    else if (task?.subagent_id) removedIds.add(task.subagent_id);
+  });
+  subAgentTasks.value = keepRunning;
+  if (removedIds.size > 0) {
+    const nextDetails = { ...subAgentDetails.value };
+    removedIds.forEach((id) => { delete nextDetails[id]; });
+    subAgentDetails.value = nextDetails;
+  }
+  if (selectedSubAgentDetailId.value && removedIds.has(selectedSubAgentDetailId.value)) {
+    closeSubAgentDetailFromInput();
+  }
+  scheduleAutoSave({ reason: 'subagent-ack-all', immediate: true });
+};
+
+const killAllRunningSubAgentsForCurrentConversation = async () => {
+  if (!window.api?.invokeMcpTool) return;
+  const runningTasks = subAgentTasks.value.filter((task) => task?.status === 'running' && task?.subagent_id);
+  if (runningTasks.length === 0) return;
+
+  await Promise.all(runningTasks.map(async (task) => {
+    try {
+      await window.api.invokeMcpTool(
+        'kill_subagent',
+        withConversationOwnerArgs({ subagent_id: task.subagent_id }),
+        null,
+        withConversationOwnerContext()
+      );
+      upsertSubAgentTask({
+        ...task,
+        status: 'stopped',
+        finished_at: Date.now(),
+        updated_at: Date.now()
+      });
+    } catch (error) {
+      console.warn('[Sub-Agent] Failed to kill on conversation close:', task.subagent_id, error);
+      upsertSubAgentTask({
+        ...task,
+        status: 'stopped',
+        finished_at: Date.now(),
+        updated_at: Date.now()
+      });
+    }
+  }));
+};
+
+const rerunSubAgentFromInput = async (subagentId) => {
+  if (!subagentId || !window.api?.invokeMcpTool) return;
+  try {
+    const response = await window.api.invokeMcpTool(
+      'rerun_subagent',
+      withConversationOwnerArgs({ subagent_id: subagentId }),
+      null,
+      withConversationOwnerContext()
+    );
+    const returnedId = String(formatToolResult(response) || '').match(/(subagent_[\w-]+)/i)?.[1];
+    if (returnedId !== subagentId) throw new Error('重新运行未保持当前 Sub-Agent ID');
+    if (subAgentDetails.value[subagentId]) {
+      const next = { ...subAgentDetails.value };
+      delete next[subagentId];
+      subAgentDetails.value = next;
+    }
+    upsertSubAgentTask({ subagent_id: subagentId, status: 'running', task: '后台 Sub-Agent' });
+    void refreshSubAgentStatuses();
+    if (selectedSubAgentDetailId.value === subagentId) void openSubAgentDetailFromInput(subagentId);
+  } catch (error) {
+    showDismissibleMessage.error(`重新运行 Sub-Agent 失败：${error?.message || error}`);
+  }
+};
+
+
+
+let gptTokenizerEncodePromise = null;
+const loadGptTokenizerEncode = () => {
+  if (!gptTokenizerEncodePromise) {
+    gptTokenizerEncodePromise = import('gpt-tokenizer').then(mod => mod.encode || mod.default?.encode);
+  }
+  return gptTokenizerEncodePromise;
+};
+
+let html2canvasPromise = null;
+const loadHtml2Canvas = () => {
+  if (!html2canvasPromise) {
+    html2canvasPromise = import('html2canvas').then(mod => mod.default || mod);
+  }
+  return html2canvasPromise;
+};
+
+let exportHtmlDepsPromise = null;
+const loadExportHtmlDeps = () => {
+  if (!exportHtmlDepsPromise) {
+    exportHtmlDepsPromise = Promise.all([
+      import('dompurify'),
+      import('marked')
+    ]).then(([dompurifyMod, markedMod]) => ({
+      DOMPurify: dompurifyMod.default || dompurifyMod,
+      marked: markedMod.marked || markedMod.default || markedMod
+    }));
+  }
+  return exportHtmlDepsPromise;
+};
 
 const showDismissibleMessage = (options) => {
   const opts = typeof options === 'string' ? { message: options } : options;
@@ -55,12 +405,53 @@ const showScrollToBottomButton = ref(false);
 const isForcingScroll = ref(false);
 const messageRefs = new Map();
 const focusedMessageIndex = ref(null);
+const navTimelineScrollerRef = ref(null);
+
+const getLastNavigableMessageIndex = () => {
+  for (let i = chat_show.value.length - 1; i >= 0; i--) {
+    if (chat_show.value[i]?.role !== 'system') return i;
+  }
+  return null;
+};
+
+const centerActiveNavNode = async (targetIndex = focusedMessageIndex.value) => {
+  if (targetIndex === null || targetIndex === undefined) return;
+  await nextTick();
+  const scroller = navTimelineScrollerRef.value;
+  if (!scroller) return;
+  const activeNode = scroller.querySelector(`.timeline-node-wrapper[data-original-index="${targetIndex}"]`);
+  if (!activeNode) return;
+  const targetScrollTop = activeNode.offsetTop - (scroller.clientHeight / 2) + (activeNode.offsetHeight / 2);
+  scroller.scrollTo({
+    top: Math.max(0, targetScrollTop),
+    behavior: 'smooth'
+  });
+};
 
 // 核心状态：是否粘滞在底部
 const isSticky = ref(true);
-let chatObserver = null;    // DOM 观察器实例
+let chatObserver = null;    // ResizeObserver 实例，用于兜底监听消息高度变化
+let stickyObservedContainer = null;
+let stickyObservedMessage = null;
+let stickyScrollGuardUntil = 0;
+let lastUserScrollIntentAt = 0;
+let lastKnownChatScrollTop = 0;
+let stickyScrollRafIds = [];
+const STICKY_SCROLL_GUARD_MS = 220;
+const USER_SCROLL_INTENT_MS = 260;
 
-let autoSaveInterval = null;
+const AUTO_SAVE_INPUT_DEBOUNCE_MS = 800;
+const AUTO_SAVE_LOADING_THROTTLE_MS = 2500;
+let autoSaveTimer = null;
+let scheduledAutoSaveRequest = null;
+let queuedAutoSaveRequest = null;
+let autoSaveExecutionPromise = null;
+let sessionMutationVersion = 0;
+let lastPersistedSessionVersion = 0;
+let lastAutoSaveAt = 0;
+
+
+
 
 let textSearchInstance = null;
 
@@ -73,6 +464,125 @@ const getMessageComponentByIndex = (index) => {
   const msg = chat_show.value[index];
   if (!msg) return undefined;
   return messageRefs.get(msg.id);
+};
+
+const getMessageElementByIndex = (index) => {
+  const target = getMessageComponentByIndex(index);
+  return target?.$el?.nodeType === 1 ? target.$el : null;
+};
+
+const getLastMessageElement = () => {
+  const lastIndex = getLastNavigableMessageIndex();
+  return lastIndex === null || lastIndex === undefined
+    ? null
+    : getMessageElementByIndex(lastIndex);
+};
+
+
+const normalizeModelDialogProviderCollapseStates = (input, providerNames = []) => {
+  const nextStates = {};
+  const source = input && typeof input === 'object' ? input : {};
+  const providerSet = new Set(providerNames.filter(Boolean));
+
+  providerSet.forEach((providerName) => {
+    nextStates[providerName] = typeof source[providerName] === 'boolean' ? source[providerName] : true;
+  });
+
+  return nextStates;
+};
+
+const syncModelDialogProviderCollapseStates = (config) => {
+  const providerNames = (modelList.value || [])
+    .map(item => item?.providerName || String(item?.label || '').split('|')[0])
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index);
+
+  const savedStates = config?.ui?.windowModelDialogProviderCollapseStates;
+  const normalizedStates = normalizeModelDialogProviderCollapseStates(savedStates, providerNames);
+  const prevSerialized = JSON.stringify(modelDialogProviderCollapseStates.value || {});
+  const nextSerialized = JSON.stringify(normalizedStates);
+
+  if (prevSerialized !== nextSerialized) {
+    modelDialogProviderCollapseStates.value = normalizedStates;
+  }
+
+  return normalizedStates;
+};
+
+const handleProviderCollapseStatesChange = async (nextStates) => {
+  const normalizedStates = normalizeModelDialogProviderCollapseStates(
+    nextStates,
+    (modelList.value || []).map(item => item?.providerName || String(item?.label || '').split('|')[0])
+  );
+  const prevSerialized = JSON.stringify(modelDialogProviderCollapseStates.value || {});
+  const nextSerialized = JSON.stringify(normalizedStates);
+
+  if (prevSerialized === nextSerialized) {
+    return;
+  }
+
+  modelDialogProviderCollapseStates.value = normalizedStates;
+  currentConfig.value.ui = currentConfig.value.ui || {};
+  currentConfig.value.ui.windowModelDialogProviderCollapseStates = normalizedStates;
+
+  try {
+    await window.api.saveSetting('ui.windowModelDialogProviderCollapseStates', normalizedStates);
+  } catch (error) {
+    console.warn('保存模型弹窗折叠状态失败', error);
+  }
+};
+
+const updateModelListAndMap = (config) => {
+  const newModelList = [];
+  const newModelMap = {};
+
+  const folders = config.providerFolders || {};
+  const order = config.providerOrder || [];
+
+  // 1. 文件夹按字母序排序
+  const sortedFolderIds = Object.keys(folders).sort((a, b) =>
+    (folders[a].name || '').localeCompare(folders[b].name || '')
+  );
+
+  const orderedProviderIds = [];
+  // 2. 优先提取文件夹内的服务商
+  sortedFolderIds.forEach(folderId => {
+    order.forEach(id => {
+      const p = config.providers[id];
+      if (p && p.folderId === folderId) orderedProviderIds.push(id);
+    });
+  });
+  // 3. 提取根目录的服务商
+  order.forEach(id => {
+    const p = config.providers[id];
+    if (p && (!p.folderId || !folders[p.folderId])) orderedProviderIds.push(id);
+  });
+
+  // 4. 组装最终的模型列表
+  orderedProviderIds.forEach(id => {
+    const provider = config.providers[id];
+    if (provider?.enable) {
+      const providerName = String(provider.name || id);
+      provider.modelList.forEach(m => {
+        const key = `${id}|${m}`;
+        newModelList.push({
+          key,
+          value: key,
+          label: `${providerName}|${m}`,
+          providerName,
+          modelName: String(m || ''),
+          providerId: String(id),
+          providerUrl: String(provider.url || ''),
+          providerApiKey: String(provider.api_key || '')
+        });
+        newModelMap[key] = `${providerName}|${m}`;
+      });
+    }
+  });
+
+  modelList.value = newModelList;
+  modelMap.value = newModelMap;
+  syncModelDialogProviderCollapseStates(config);
 };
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -89,6 +599,7 @@ const CODE = ref("");
 
 const isInit = ref(false);
 const isFilePickerOpen = ref(false); // 标记文件选择器是否打开
+const isPreparingSend = ref(false); // 防止发送文件异步解析时的并发触发
 const basic_msg = ref({ os: "macos", code: "AI", type: "over", payload: "请简洁地介绍一下你自己" });
 const initialConfigData = JSON.parse(JSON.stringify(defaultConfig.config));
 if (isDarkInit) {
@@ -99,6 +610,56 @@ const autoCloseOnBlur = ref(false);
 const modelList = ref([]);
 const modelMap = ref({});
 const model = ref("");
+
+const currentModelLogo = ref('');
+let modelLogoResolveToken = 0;
+
+const getCurrentModelNameForLogo = (modelValue = model.value) => {
+  const parts = String(modelValue || '').split('|');
+  return (parts[1] || parts[0] || '').trim();
+};
+
+const resolveCurrentModelLogo = async (modelValue = model.value) => {
+  const modelName = getCurrentModelNameForLogo(modelValue);
+  const requestToken = ++modelLogoResolveToken;
+
+  if (!modelName) {
+    currentModelLogo.value = '';
+    return;
+  }
+
+  try {
+    const response = await fetch(`https://llm-model.141277.xyz/v1/resolve?model=${encodeURIComponent(modelName)}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const logo = typeof payload?.resolved?.logo === 'string' ? payload.resolved.logo.trim() : '';
+    const shouldUseLogo = /^https?:\/\//i.test(logo);
+
+    if (requestToken === modelLogoResolveToken) {
+      currentModelLogo.value = shouldUseLogo ? logo : '';
+    }
+  } catch (error) {
+    if (requestToken === modelLogoResolveToken) {
+      currentModelLogo.value = '';
+    }
+  }
+};
+
+const handleModelLogoError = () => {
+  currentModelLogo.value = '';
+};
+
+watch(model, (nextModel) => {
+  resolveCurrentModelLogo(nextModel);
+  loadCompactConfigForCurrentModel({ forceRefresh: false }).catch((error) => {
+    console.warn('[compact] model change config load failed:', error);
+  });
+}, { immediate: false });
+
+const modelDialogProviderCollapseStates = ref({});
 const isAlwaysOnTop = ref(true);
 const currentOS = ref('win');
 const currentTaskConfig = ref(null);
@@ -106,13 +667,52 @@ const currentTaskConfig = ref(null);
 const currentProviderID = ref(defaultConfig.config.providerOrder[0]);
 const base_url = ref("");
 const api_key = ref("");
+// fullHistory is the only complete API-level transcript. history/chat_show are derived request/UI views.
+const fullHistory = ref([]);
 const history = ref([]);
 const chat_show = ref([]);
 const loading = ref(false);
+const compacting = ref(false);
+const compactProgress = ref({ percent: 0, message: '', stage: '' });
+
+// Invalidate stale async config loads whenever the active compact settings change.
+let compactConfigLoadVersion = 0;
+let compactConfigModelValue = '';
+
+
+const compactConfig = ref({
+  autoCompactEnabled: true,
+  triggerRatio: 0.9,
+  contextLength: 262144,
+  contextLengthSource: 'default',
+  contextLengthManual: false,
+  keepRecentRounds: 3,
+  compactPrompt: '',
+  resolvedId: ''
+});
+const compactArchives = ref([]);
+const autoCompactSuppressedForTurn = ref(false);
+let compactAbortController = null;
 const prompt = ref("");
 const signalController = ref(null);
+const activeAssistantTurnId = ref(0);
 const fileList = ref([]);
 const zoomLevel = ref(1);
+
+const normalizeZoomLevel = (value) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return null;
+  return Math.max(0.5, Math.min(2.0, numericValue));
+};
+
+const resolveWindowZoomLevel = (...candidates) => {
+  for (const candidate of candidates) {
+    const normalizedZoom = normalizeZoomLevel(candidate);
+    if (normalizedZoom !== null) return normalizedZoom;
+  }
+  return 1;
+};
+
 const collapsedMessages = ref(new Set());
 const defaultConversationName = ref("");
 const selectedVoice = ref(null);
@@ -181,6 +781,38 @@ watch(() => {
 const inputLayout = computed(() => currentConfig.value.inputLayout || 'horizontal');
 const currentSystemPrompt = ref("");
 
+const normalizeSessionTimestamp = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const getConversationDisplayName = () => {
+  const title = defaultConversationName.value || '';
+  if (title.trim()) return title.trim();
+
+  const firstUserMsg = chat_show.value.find(msg => msg.role === 'user');
+  if (!firstUserMsg) return CODE.value || 'AI';
+
+  const content = firstUserMsg.content;
+  if (Array.isArray(content)) {
+    const textPart = content.find(part => part.type === 'text' && part.text?.trim());
+    if (textPart?.text) return textPart.text.trim().slice(0, 50);
+    if (content.some(part => part.type === 'image_url')) return '图片对话';
+    if (content.some(part => part.type === 'file' || part.type === 'input_file')) return '文件对话';
+  }
+
+  if (typeof content === 'string' && content.trim()) return content.trim().slice(0, 50);
+  return CODE.value || 'AI';
+};
+
+const getSessionMetadata = () => {
+  return {
+    title: getConversationDisplayName(),
+  };
+};
+
+
 const changeModel_page = ref(false);
 const systemPromptDialogVisible = ref(false);
 const systemPromptContent = ref('');
@@ -190,6 +822,7 @@ const imageViewerInitialIndex = ref(0);
 const currentImageViewerIndex = ref(0);
 
 const toolCallControllers = ref(new Map());
+let activeAssistantTurnMeta = null;
 const tempSessionMcpServerIds = ref([]);
 
 const isAutoApproveTools = ref(true);
@@ -202,14 +835,23 @@ const handleToolApproval = (toolCallId, isApproved) => {
     pendingToolApprovals.value.delete(toolCallId);
   }
 };
+
+const resolvePendingToolApprovals = (isApproved = false) => {
+  pendingToolApprovals.value.forEach((resolve) => {
+    try {
+      resolve(isApproved);
+    } catch {
+      // ignore approval resolve race
+    }
+  });
+  pendingToolApprovals.value.clear();
+};
+
 const handleToggleAutoApprove = (val) => {
   isAutoApproveTools.value = val;
 
   if (val) {
-    pendingToolApprovals.value.forEach((resolve, id) => {
-      resolve(true);
-    });
-    pendingToolApprovals.value.clear();
+    resolvePendingToolApprovals(true);
 
     chat_show.value.forEach(msg => {
       if (msg.tool_calls) {
@@ -223,6 +865,289 @@ const handleToggleAutoApprove = (val) => {
   }
 };
 
+const isAbortError = (error) => {
+  if (!error) return false;
+  return error.name === 'AbortError' || String(error?.message || '').includes('aborted');
+};
+
+const createAbortError = () => {
+  if (typeof DOMException === 'function') {
+    return new DOMException('The operation was aborted.', 'AbortError');
+  }
+  const error = new Error('The operation was aborted.');
+  error.name = 'AbortError';
+  return error;
+};
+
+const normalizeAssistantMessageContent = (content) => {
+  if (Array.isArray(content)) return content.filter(part => part && typeof part === 'object');
+  if (typeof content === 'string') {
+    return content ? [{ type: 'text', text: content }] : [];
+  }
+  return [];
+};
+
+const appendTerminalNoticeToAssistantContent = (content, terminalNotice) => {
+  const normalizedContent = normalizeAssistantMessageContent(content);
+  if (!terminalNotice || !terminalNotice.trim()) {
+    return normalizedContent;
+  }
+  const noticeText = terminalNotice.trim();
+  if (noticeText && normalizedContent.some(part => part?.type === 'text' && typeof part.text === 'string' && part.text.includes(noticeText))) {
+    return normalizedContent;
+  }
+
+  if (normalizedContent.length === 0) {
+    return [{ type: 'text', text: terminalNotice }];
+  }
+
+  const nextContent = normalizedContent.map(part => ({ ...part }));
+  const lastTextIndex = nextContent.map(part => part?.type).lastIndexOf('text');
+  if (lastTextIndex >= 0) {
+    const lastTextPart = nextContent[lastTextIndex];
+    lastTextPart.text = `${lastTextPart.text || ''}${terminalNotice}`;
+    return nextContent;
+  }
+
+  nextContent.push({ type: 'text', text: terminalNotice });
+  return nextContent;
+};
+
+const ASSISTANT_CANCELLED_NOTICE_MARKDOWN = "\n\n> **请求已取消**";
+
+const getAssistantTerminalNoticeMarkdown = (aborted, errorDisplay) => {
+  if (aborted) {
+    return ASSISTANT_CANCELLED_NOTICE_MARKDOWN;
+  }
+  return `\n\n> **错误信息**：${errorDisplay}`;
+};
+
+const getCurrentAssistantDisplayName = () => {
+  return modelMap.value[model.value] || model.value.split('|')[1] || model.value || '';
+};
+
+const findAssistantTurnBubbleIndex = (turnMeta = activeAssistantTurnMeta) => {
+  const assistantMessageId = turnMeta?.assistantMessageId;
+  if (assistantMessageId !== undefined && assistantMessageId !== null) {
+    const index = chat_show.value.findIndex(msg => msg?.role === 'assistant' && msg.id === assistantMessageId);
+    if (index !== -1) return index;
+  }
+
+  for (let index = chat_show.value.length - 1; index >= 0; index -= 1) {
+    const message = chat_show.value[index];
+    if (message?.role === 'assistant' && !message.endTime && !message.completedTimestamp) {
+      return index;
+    }
+  }
+  return -1;
+};
+
+const buildMissingToolAbortMessages = () => {
+  let assistantIndex = -1;
+  for (let index = history.value.length - 1; index >= 0; index -= 1) {
+    const message = history.value[index];
+    if (message?.role === 'assistant' && Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+      assistantIndex = index;
+      break;
+    }
+    if (message?.role !== 'tool') {
+      break;
+    }
+  }
+
+  if (assistantIndex === -1) return [];
+  const trailingMessages = history.value.slice(assistantIndex + 1);
+  if (trailingMessages.some(message => message?.role !== 'tool')) return [];
+
+  const respondedToolCallIds = new Set(
+    trailingMessages
+      .filter(message => message?.role === 'tool' && message.tool_call_id)
+      .map(message => message.tool_call_id)
+  );
+
+  return history.value[assistantIndex].tool_calls
+    .filter(toolCall => toolCall?.id && !respondedToolCallIds.has(toolCall.id))
+    .map(toolCall => ({
+      tool_call_id: toolCall.id,
+      role: 'tool',
+      name: toolCall.function?.name || toolCall.name || '',
+      content: '[System Note]: Tool call was aborted by user.'
+    }));
+};
+
+const finalizeCancelledAssistantTurn = (turnMeta = activeAssistantTurnMeta) => {
+  let assistantBubbleIndex = findAssistantTurnBubbleIndex(turnMeta);
+  if (assistantBubbleIndex === -1) {
+    chat_show.value.push({
+      id: messageIdCounter.value++,
+      role: 'assistant',
+      content: [],
+      reasoning_content: "",
+      status: "",
+      aiName: getCurrentAssistantDisplayName(),
+      voiceName: selectedVoice.value,
+      tool_calls: [],
+      startTime: Date.now()
+    });
+    assistantBubbleIndex = chat_show.value.length - 1;
+    if (turnMeta) {
+      turnMeta.assistantMessageId = chat_show.value[assistantBubbleIndex].id;
+    }
+  }
+
+  const currentBubble = chat_show.value[assistantBubbleIndex];
+  const finalContent = appendTerminalNoticeToAssistantContent(currentBubble.content, ASSISTANT_CANCELLED_NOTICE_MARKDOWN);
+  const finalReasoningContent = typeof currentBubble.reasoning_content === 'string'
+    ? currentBubble.reasoning_content
+    : (currentBubble.reasoning_content ? String(currentBubble.reasoning_content) : '');
+  const endTime = Date.now();
+
+  currentBubble.content = finalContent;
+  currentBubble.reasoning_content = finalReasoningContent;
+  currentBubble.status = 'cancelled';
+  currentBubble.endTime = endTime;
+  currentBubble.completedTimestamp = new Date().toLocaleString('sv-SE');
+
+  if (turnMeta && !turnMeta.cancellationRecorded) {
+    const missingToolMessages = buildMissingToolAbortMessages();
+    if (missingToolMessages.length > 0) {
+      appendFullHistory(...missingToolMessages);
+    }
+    appendFullHistory({
+      role: 'assistant',
+      content: finalContent,
+      reasoning_content: finalReasoningContent || null
+    });
+    turnMeta.cancellationRecorded = true;
+  }
+
+  return assistantBubbleIndex;
+};
+
+// --- Better Work MCP（前端拦截执行：choices 选项卡 / 任务面板） ---
+const pendingChoices = ref(new Map());
+const taskList = ref([]);
+const taskPanelVisible = ref(false);
+const pendingAppendBuffer = ref([]);
+const BETTERWORK_FRONTEND_TOOLS = new Set(['ask_user_choice', 'task_write', 'task_read']);
+
+const resolvePendingChoices = (payload = null) => {
+  pendingChoices.value.forEach((resolve) => {
+    try { resolve(payload); } catch { /* ignore choice resolve race */ }
+  });
+  pendingChoices.value.clear();
+};
+
+const handleChoiceSubmit = (toolCallId, payload) => {
+  const resolver = pendingChoices.value.get(toolCallId);
+  if (resolver) {
+    resolver(payload);
+    pendingChoices.value.delete(toolCallId);
+  }
+};
+
+const buildChoiceResultText = (questions, answer) => {
+  if (!answer || !Array.isArray(answer.responses)) {
+    return 'The user cancelled the selection (the request was interrupted).';
+  }
+  const lines = answer.responses.map((r, i) => {
+    const q = questions[r.questionIndex] || questions[i] || {};
+    const qText = q.question || r.question || `Question ${i + 1}`;
+    if (r.type === 'discuss') {
+      return `Q: ${qText}\nA: The user wants to discuss this question further. Proactively ask clarifying follow-up questions before proceeding.`;
+    }
+    if (r.type === 'custom') {
+      return `Q: ${qText}\nA (user's own input): ${r.customText || ''}`;
+    }
+    const selected = Array.isArray(r.selected) ? r.selected.join('; ') : '';
+    return `Q: ${qText}\nA: ${selected}`;
+  });
+  return lines.join('\n\n');
+};
+
+const normalizeTaskStatus = (status) => {
+  const s = String(status || '').toLowerCase();
+  if (s === 'in_progress' || s === 'doing' || s === 'active' || s === 'running') return 'in_progress';
+  if (s === 'completed' || s === 'done' || s === 'finished') return 'completed';
+  return 'pending';
+};
+
+const normalizeTaskList = (tasks) => {
+  if (!Array.isArray(tasks)) return [];
+  return tasks
+    .filter(t => t && typeof t.content === 'string')
+    .map((t, i) => ({
+      id: i,
+      content: t.content,
+      status: normalizeTaskStatus(t.status),
+      steps: Array.isArray(t.steps)
+        ? t.steps
+            .filter(s => s && typeof s.content === 'string')
+            .map(s => ({ content: s.content, status: normalizeTaskStatus(s.status) }))
+        : []
+    }));
+};
+
+const applyTaskList = (tasks) => {
+  taskList.value = normalizeTaskList(tasks);
+  if (taskList.value.length > 0) {
+    taskPanelVisible.value = true;
+  }
+};
+
+const serializeTaskListForModel = (tasks) => {
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return 'The task list is currently empty.';
+  }
+  const lines = tasks.map((t, i) => {
+    let block = `${i + 1}. [${t.status}] ${t.content}`;
+    if (Array.isArray(t.steps) && t.steps.length > 0) {
+      block += '\n' + t.steps.map(s => `   - [${s.status}] ${s.content}`).join('\n');
+    }
+    return block;
+  });
+  return 'Current task list:\n' + lines.join('\n');
+};
+
+const handleBetterWorkTool = async (toolCall, args, uiToolCall) => {
+  if (toolCall.function.name === 'ask_user_choice') {
+    const questions = Array.isArray(args?.questions) ? args.questions : [];
+    if (questions.length === 0) {
+      if (uiToolCall) { uiToolCall.approvalStatus = 'finished'; uiToolCall.result = 'No questions were provided.'; }
+      return 'No questions were provided.';
+    }
+    if (uiToolCall) {
+      uiToolCall.choiceData = { questions };
+      uiToolCall.approvalStatus = 'choosing';
+      uiToolCall.result = '等待用户选择...';
+    }
+    const answer = await new Promise((resolve) => {
+      pendingChoices.value.set(toolCall.id, resolve);
+    });
+    const resultText = buildChoiceResultText(questions, answer);
+    if (uiToolCall) {
+      uiToolCall.approvalStatus = answer ? 'finished' : 'rejected';
+      uiToolCall.result = resultText;
+    }
+    return resultText;
+  }
+  if (toolCall.function.name === 'task_write') {
+    const tasks = Array.isArray(args?.tasks) ? args.tasks : [];
+    applyTaskList(tasks);
+    const total = taskList.value.length;
+    const done = taskList.value.filter(t => t.status === 'completed').length;
+    const ack = `Task list updated: ${total} task(s) total, ${done} completed.`;
+    if (uiToolCall) { uiToolCall.approvalStatus = 'finished'; uiToolCall.result = ack; }
+    return ack;
+  }
+  if (toolCall.function.name === 'task_read') {
+    const text = serializeTaskListForModel(taskList.value);
+    if (uiToolCall) { uiToolCall.approvalStatus = 'finished'; uiToolCall.result = text; }
+    return text;
+  }
+  return '';
+};
+
 const isMcpDialogVisible = ref(false);
 const sessionMcpServerIds = ref([]);
 const openaiFormattedTools = ref([]);
@@ -231,7 +1156,69 @@ const isMcpLoading = ref(false);
 const mcpFilter = ref('all');
 const isRefreshingMcp = ref(false);
 const mcpToolCache = ref({});
+
+// Better Work：任务工具是否激活（决定 header 任务按钮是否显示）与任务整体状态（驱动徽章）
+const TASK_MCP_TOOL_NAMES = new Set(['task_write', 'task_read']);
+const hasTaskMcpTool = computed(() => {
+  return openaiFormattedTools.value.some(tool => TASK_MCP_TOOL_NAMES.has(tool?.function?.name));
+});
+const taskOverallStatus = computed(() => {
+  const tasks = taskList.value;
+  if (!Array.isArray(tasks) || tasks.length === 0) return '';
+  const isActive = (t) => t.status === 'in_progress'
+    || (Array.isArray(t.steps) && t.steps.some(s => s.status === 'in_progress'));
+  if (tasks.some(isActive)) return 'in_progress';
+  if (tasks.every(t => t.status === 'completed')) return 'completed';
+  return 'pending';
+});
 const expandedMcpServers = ref(new Set());
+
+const lastAppliedMcpConfigFingerprint = ref('');
+
+  const stableComparableValue = (value) => {
+    if (Array.isArray(value)) return value.map(stableComparableValue);
+    if (value && typeof value === 'object') {
+      return Object.keys(value).sort().reduce((acc, key) => {
+        if (key === 'clientSecret') {
+          acc[key] = value[key] ? '__present__' : '';
+          return acc;
+        }
+        const item = stableComparableValue(value[key]);
+        if (item !== undefined) acc[key] = item;
+        return acc;
+      }, {});
+    }
+    return value;
+  };
+
+const buildComparableMcpServerConfig = (server = {}) => ({
+  type: server?.type || '',
+  command: server?.command || '',
+  args: Array.isArray(server?.args) ? [...server.args] : [],
+  baseUrl: server?.baseUrl || '',
+  env: server?.env && typeof server.env === 'object'
+    ? Object.entries(server.env).sort(([a], [b]) => String(a).localeCompare(String(b)))
+    : [],
+  headers: server?.headers && typeof server.headers === 'object'
+    ? Object.entries(server.headers).sort(([a], [b]) => String(a).localeCompare(String(b)))
+    : [],
+  auth: stableComparableValue(server?.auth || null),
+  isPersistent: Boolean(server?.isPersistent),
+  timeoutSeconds: Number(server?.timeoutSeconds) || 120
+});
+
+const buildSelectedMcpConfigFingerprint = (serverIds = sessionMcpServerIds.value, mcpServers = currentConfig.value?.mcpServers || {}) => {
+  const payload = (Array.isArray(serverIds) ? [...serverIds] : [])
+    .filter(id => mcpServers && mcpServers[id])
+    .sort()
+    .map((id) => ({
+      id,
+      config: buildComparableMcpServerConfig(mcpServers[id])
+    }));
+
+  return JSON.stringify(payload);
+};
+
 
 const toggleMcpServerExpansion = (serverId) => {
   if (expandedMcpServers.value.has(serverId)) {
@@ -252,7 +1239,7 @@ const refreshSelectedMcpServers = async () => {
 
   for (const id of tempSessionMcpServerIds.value) {
     const serverConf = currentConfig.value.mcpServers[id];
-    if (!serverConf || serverConf.type === 'builtin') continue; 
+    if (!serverConf || serverConf.type === 'builtin') continue;
 
     const configToTest = {
       id: id,
@@ -261,7 +1248,8 @@ const refreshSelectedMcpServers = async () => {
       baseUrl: serverConf.baseUrl,
       env: serverConf.env,
       headers: serverConf.headers,
-      args: serverConf.args
+      args: serverConf.args,
+      auth: serverConf.auth,
     };
 
     const res = await window.api.testMcpConnection(configToTest);
@@ -455,6 +1443,13 @@ const fetchSkillsList = async () => {
   }
 };
 
+const getActiveBuiltinIds = () => {
+  if (!currentConfig.value.mcpServers) return [];
+  return Object.entries(currentConfig.value.mcpServers)
+    .filter(([, server]) => server.type === 'builtin' && server.isActive !== false)
+    .map(([id]) => id);
+};
+
 const handleQuickSkillToggle = async (skillName) => {
   const index = sessionSkillIds.value.indexOf(skillName);
   if (index === -1) {
@@ -465,10 +1460,8 @@ const handleQuickSkillToggle = async (skillName) => {
     }
 
     // 检查是否需要自动启用内置 MCP
-    if (currentConfig.value.mcpServers) {
-      const builtinIds = Object.entries(currentConfig.value.mcpServers)
-        .filter(([, server]) => server.type === 'builtin')
-        .map(([id]) => id);
+    {
+      const builtinIds = getActiveBuiltinIds();
 
       let changed = false;
       builtinIds.forEach(id => {
@@ -484,7 +1477,7 @@ const handleQuickSkillToggle = async (skillName) => {
 
       if (changed) {
         showDismissibleMessage.success(`已启用 Skill "${skillName}" (并自动关联内置 MCP)`);
-        await applyMcpTools(false); // 重新加载 MCP
+        await requestApplyMcpTools(false, 'skill-builtin-auto-enable'); // 重新加载 MCP
         return;
       }
     }
@@ -527,10 +1520,8 @@ const handleSkillSelectionConfirm = async () => {
   sessionSkillIds.value = [...tempSessionSkillIds.value];
   isSkillDialogVisible.value = false;
 
-  if (sessionSkillIds.value.length > 0 && currentConfig.value.mcpServers) {
-    const builtinIds = Object.entries(currentConfig.value.mcpServers)
-      .filter(([, server]) => server.type === 'builtin')
-      .map(([id]) => id);
+  if (sessionSkillIds.value.length > 0) {
+    const builtinIds = getActiveBuiltinIds();
 
     let changed = false;
     builtinIds.forEach(id => {
@@ -545,7 +1536,7 @@ const handleSkillSelectionConfirm = async () => {
 
     if (changed) {
       showDismissibleMessage.success('已自动启用内置 MCP 服务以支持 Skill');
-      await applyMcpTools(false);
+      await requestApplyMcpTools(false, 'skill-builtin-auto-enable');
     }
   }
 };
@@ -586,10 +1577,11 @@ const forceScrollToBottom = () => {
   isSticky.value = true; // 强制激活粘滞
   isAtBottom.value = true;
   showScrollToBottomButton.value = false;
-  focusedMessageIndex.value = null;
+  focusedMessageIndex.value = getLastNavigableMessageIndex();
 
   // 点击按钮时，为了视觉反馈，可以使用平滑滚动
   scrollToBottom('smooth');
+  centerActiveNavNode(focusedMessageIndex.value);
 
   setTimeout(() => { isForcingScroll.value = false; }, 500);
 };
@@ -601,9 +1593,8 @@ const findFocusedMessageIndex = () => {
   let closestIndex = -1;
   let smallestDistance = Infinity;
   for (let i = chat_show.value.length - 1; i >= 0; i--) {
-    const msgComponent = getMessageComponentByIndex(i);
-    if (msgComponent) {
-      const el = msgComponent.$el;
+    const el = getMessageElementByIndex(i);
+    if (el) {
       const elTop = el.offsetTop;
       const elBottom = elTop + el.clientHeight;
       if (elTop < scrollTop + container.clientHeight && elBottom > scrollTop) {
@@ -616,7 +1607,13 @@ const findFocusedMessageIndex = () => {
     }
   }
   if (closestIndex !== -1) focusedMessageIndex.value = closestIndex;
+  else if (isSticky.value || isAtBottom.value) focusedMessageIndex.value = getLastNavigableMessageIndex();
 };
+
+const markUserScrollIntent = () => {
+  lastUserScrollIntentAt = Date.now();
+};
+
 
 // 滚动监听：仅负责更新 isSticky 状态和 UI 按钮显示
 const handleScroll = (event) => {
@@ -628,6 +1625,9 @@ const handleScroll = (event) => {
   // 计算距离底部的距离
   const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
   const tolerance = 20; // 容差值
+  const previousScrollTop = lastKnownChatScrollTop;
+  const scrollTopDelta = el.scrollTop - previousScrollTop;
+  lastKnownChatScrollTop = el.scrollTop;
 
   // 核心逻辑：用户只要向上滚动离开底部，就取消粘滞；一旦触底，重新激活粘滞
   const atBottom = distanceToBottom <= tolerance;
@@ -636,8 +1636,21 @@ const handleScroll = (event) => {
     if (!isSticky.value) isSticky.value = true;
     if (!isAtBottom.value) isAtBottom.value = true;
     showScrollToBottomButton.value = false;
-    focusedMessageIndex.value = null;
+    focusedMessageIndex.value = getLastNavigableMessageIndex();
   } else {
+    const hasRecentUserIntent = Date.now() - lastUserScrollIntentAt <= USER_SCROLL_INTENT_MS;
+    const isLikelyProgrammaticStickyScroll = isSticky.value
+      && !hasRecentUserIntent
+      && (Date.now() <= stickyScrollGuardUntil || scrollTopDelta >= -1);
+
+    if (isLikelyProgrammaticStickyScroll) {
+      // 流式 Markdown/代码块后续排版会让 scrollHeight 继续增长；不要误判为用户离开底部。
+      isAtBottom.value = true;
+      showScrollToBottomButton.value = false;
+      scheduleStickyScrollFrames();
+      return;
+    }
+
     if (isSticky.value) isSticky.value = false; // 用户主动离开了底部
     if (isAtBottom.value) isAtBottom.value = false;
     showScrollToBottomButton.value = true;
@@ -649,57 +1662,42 @@ const navigateToPreviousMessage = () => {
   findFocusedMessageIndex();
   const currentIndex = focusedMessageIndex.value;
   if (currentIndex === null) return;
-  const targetComponent = getMessageComponentByIndex(currentIndex);
+  const element = getMessageElementByIndex(currentIndex);
   const container = chatContainerRef.value?.$el;
-  if (!targetComponent || !container) return;
-  const element = targetComponent.$el;
+  if (!element || !container) return;
   const scrollDifference = container.scrollTop - element.offsetTop;
-  if (scrollDifference > 5) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  else if (currentIndex > 0) {
-    const newIndex = currentIndex - 1;
-    focusedMessageIndex.value = newIndex;
-    const previousComponent = getMessageComponentByIndex(newIndex);
-    if (previousComponent) previousComponent.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (scrollDifference > 5) {
+    scrollChatContainerToMessage(currentIndex);
+  } else if (currentIndex > 0) {
+    scrollChatContainerToMessage(currentIndex - 1);
   }
 };
 
 const navigateToNextMessage = () => {
   findFocusedMessageIndex();
   if (focusedMessageIndex.value !== null && focusedMessageIndex.value < chat_show.value.length - 1) {
-    focusedMessageIndex.value++;
-    const targetComponent = getMessageComponentByIndex(focusedMessageIndex.value);
-    if (targetComponent) targetComponent.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollChatContainerToMessage(focusedMessageIndex.value + 1);
   } else {
     forceScrollToBottom();
   }
 };
 
-const isCollapsed = (index) => collapsedMessages.value.has(index);
+watch(focusedMessageIndex, (value) => {
+  if (value === null || value === undefined) return;
+  centerActiveNavNode(value);
+});
+watch(() => chat_show.value.length, () => {
+  const hasNavigableMessage = chat_show.value.some(msg => msg?.role !== 'system');
+  if (!hasNavigableMessage) {
+    focusedMessageIndex.value = null;
+    return;
+  }
+  if (isSticky.value || isAtBottom.value) {
+    focusedMessageIndex.value = getLastNavigableMessageIndex();
+  }
+});
 
-const addCopyButtonsToCodeBlocks = async () => {
-  await nextTick();
-  document.querySelectorAll('.markdown-body pre.hljs').forEach(pre => {
-    if (pre.querySelector('.code-block-copy-button')) return;
-    const codeElement = pre.querySelector('code'); if (!codeElement) return;
-    const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; pre.parentNode.insertBefore(wrapper, pre); wrapper.appendChild(pre);
-    const codeText = codeElement.textContent || ''; const lines = codeText.trimEnd().split('\n'); const lineCount = lines.length;
-    const copyButtonSVG = `<svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>`;
-    const createButton = (positionClass) => {
-      const button = document.createElement('button'); button.className = `code-block-copy-button ${positionClass}`; button.innerHTML = copyButtonSVG; button.title = 'Copy code';
-      button.addEventListener('click', async (event) => {
-        event.stopPropagation();
-        try {
-          await navigator.clipboard.writeText(codeText.trimEnd());
-          showDismissibleMessage.success('Code copied to clipboard!');
-        }
-        catch (err) { console.error('Failed to copy code:', err); showDismissibleMessage.error('Failed to copy code.'); }
-      });
-      wrapper.appendChild(button);
-    };
-    createButton('code-block-copy-button-bottom');
-    if (lineCount > 3) createButton('code-block-copy-button-top');
-  });
-};
+const isCollapsed = (index) => collapsedMessages.value.has(index);
 
 const handleMainClick = async (event) => {
   const target = event.target;
@@ -778,20 +1776,7 @@ const handleOpenModelDialog = async () => {
       currentConfig.value.providers = result.config.providers;
       currentConfig.value.providerOrder = result.config.providerOrder;
 
-      const newModelList = [];
-      const newModelMap = {};
-      currentConfig.value.providerOrder.forEach(id => {
-        const provider = currentConfig.value.providers[id];
-        if (provider?.enable) {
-          provider.modelList.forEach(m => {
-            const key = `${id}|${m}`;
-            newModelList.push({ key, value: key, label: `${provider.name}|${m}` });
-            newModelMap[key] = `${provider.name}|${m}`;
-          });
-        }
-      });
-      modelList.value = newModelList;
-      modelMap.value = newModelMap;
+      updateModelListAndMap(currentConfig.value);
 
       if (currentProviderID.value && currentConfig.value.providers[currentProviderID.value]) {
         const activeProvider = currentConfig.value.providers[currentProviderID.value];
@@ -814,12 +1799,155 @@ const handleChangeModel = (chosenModel) => {
 };
 const handleTogglePin = () => {
   autoCloseOnBlur.value = !autoCloseOnBlur.value;
-  if (autoCloseOnBlur.value) window.addEventListener('blur', closePage);
-  else window.removeEventListener('blur', closePage);
+  syncAutoCloseOnBlurListener();
 };
 const handleToggleAlwaysOnTop = () => {
   window.api.toggleAlwaysOnTop();
 };
+const withTemporaryAutoScroll = (chatContainer, updater) => {
+  if (!chatContainer) return;
+  const previousBehavior = chatContainer.style.scrollBehavior;
+  chatContainer.style.scrollBehavior = 'auto';
+  updater();
+  chatContainer.style.scrollBehavior = previousBehavior || 'smooth';
+};
+
+const markStickyProgrammaticScroll = () => {
+  stickyScrollGuardUntil = Date.now() + STICKY_SCROLL_GUARD_MS;
+};
+
+const clearStickyScrollFrames = () => {
+  stickyScrollRafIds.forEach((id) => cancelAnimationFrame(id));
+  stickyScrollRafIds = [];
+};
+
+const scrollToBottomImmediately = () => {
+  const chatContainer = chatContainerRef.value?.$el;
+  if (!chatContainer) return;
+  markStickyProgrammaticScroll();
+  withTemporaryAutoScroll(chatContainer, () => {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    lastKnownChatScrollTop = chatContainer.scrollTop;
+  });
+  isAtBottom.value = true;
+  showScrollToBottomButton.value = false;
+};
+
+const scheduleStickyScrollFrames = () => {
+  if (!isSticky.value) return;
+  clearStickyScrollFrames();
+  scrollToBottomImmediately();
+
+  const firstFrameId = requestAnimationFrame(() => {
+    stickyScrollRafIds = stickyScrollRafIds.filter((id) => id !== firstFrameId);
+    if (!isSticky.value) return;
+    scrollToBottomImmediately();
+
+    const secondFrameId = requestAnimationFrame(() => {
+      stickyScrollRafIds = stickyScrollRafIds.filter((id) => id !== secondFrameId);
+      if (isSticky.value) scrollToBottomImmediately();
+    });
+    stickyScrollRafIds.push(secondFrameId);
+  });
+  stickyScrollRafIds.push(firstFrameId);
+};
+
+const scrollChatContainerToMessage = (index, behavior = 'smooth') => {
+  const chatContainer = chatContainerRef.value?.$el;
+  const targetElement = getMessageElementByIndex(index);
+  if (!chatContainer || !targetElement) return false;
+
+  isSticky.value = false;
+  isAtBottom.value = false;
+  showScrollToBottomButton.value = true;
+
+  chatContainer.scrollTo({
+    top: Math.max(0, targetElement.offsetTop),
+    behavior
+  });
+  focusedMessageIndex.value = index;
+  centerActiveNavNode(index);
+  return true;
+};
+
+const keepMessageAnchor = async (messageElement, updater, fallbackToBottom = false) => {
+  const chatContainer = chatContainerRef.value?.$el;
+  if (!chatContainer || !messageElement) {
+    await updater();
+    return;
+  }
+
+  if (fallbackToBottom && isSticky.value) {
+    await updater();
+    await nextTick();
+    scheduleStickyScrollFrames();
+    return;
+  }
+
+  const originalScrollTop = chatContainer.scrollTop;
+  const originalElementTop = messageElement.offsetTop;
+  const originalVisualPosition = originalElementTop - originalScrollTop;
+
+  await updater();
+  await nextTick();
+
+  const newElementTop = messageElement.offsetTop;
+  withTemporaryAutoScroll(chatContainer, () => {
+    chatContainer.scrollTop = newElementTop - originalVisualPosition;
+    lastKnownChatScrollTop = chatContainer.scrollTop;
+  });
+};
+
+const ensureStickyResizeObserver = () => {
+  if (chatObserver || typeof ResizeObserver === 'undefined') return chatObserver;
+  chatObserver = new ResizeObserver(() => {
+    if (!isSticky.value) return;
+    if (Date.now() - lastUserScrollIntentAt <= USER_SCROLL_INTENT_MS) return;
+    scheduleStickyScrollFrames();
+  });
+  return chatObserver;
+};
+
+const updateStickyResizeObserver = async () => {
+  await nextTick();
+  const observer = ensureStickyResizeObserver();
+  if (!observer) return;
+
+  const chatContainer = chatContainerRef.value?.$el || null;
+  const lastMessageElement = getLastMessageElement();
+
+  if (stickyObservedContainer !== chatContainer) {
+    if (stickyObservedContainer) observer.unobserve(stickyObservedContainer);
+    stickyObservedContainer = chatContainer;
+    if (stickyObservedContainer) observer.observe(stickyObservedContainer);
+  }
+
+  if (stickyObservedMessage !== lastMessageElement) {
+    if (stickyObservedMessage) observer.unobserve(stickyObservedMessage);
+    stickyObservedMessage = lastMessageElement;
+    if (stickyObservedMessage) observer.observe(stickyObservedMessage);
+  }
+};
+
+const cleanupStickyResizeObserver = () => {
+  clearStickyScrollFrames();
+  if (chatObserver) {
+    chatObserver.disconnect();
+    chatObserver = null;
+  }
+  stickyObservedContainer = null;
+  stickyObservedMessage = null;
+};
+
+const syncStickyScrollAfterRender = () => {
+  if (!isSticky.value) return;
+  nextTick(() => {
+    updateStickyResizeObserver();
+    scheduleStickyScrollFrames();
+  });
+};
+
+
 const handleSaveSession = () => handleSaveAction();
 const handleDeleteMessage = (index) => deleteMessage(index);
 const handleCopyText = (content, index) => copyText(content, index);
@@ -829,52 +1957,53 @@ const handleShowSystemPrompt = () => {
   systemPromptDialogVisible.value = true;
 };
 const handleToggleCollapse = async (index, event) => {
-  const chatContainer = chatContainerRef.value?.$el;
-  const buttonElement = event.currentTarget;
-  const messageElement = buttonElement.closest('.chat-message');
-  if (!chatContainer || !buttonElement || !messageElement) return;
-  const originalScrollTop = chatContainer.scrollTop;
+  const messageElement = event.currentTarget?.closest('.chat-message');
+  if (!messageElement) return;
+
   const isExpanding = isCollapsed(index);
-  if (isExpanding) {
-    const originalElementTop = messageElement.offsetTop;
-    const originalVisualPosition = originalElementTop - originalScrollTop;
-    collapsedMessages.value.delete(index);
-    await nextTick();
-    const newElementTop = messageElement.offsetTop;
-    chatContainer.style.scrollBehavior = 'auto';
-    chatContainer.scrollTop = newElementTop - originalVisualPosition;
-    chatContainer.style.scrollBehavior = 'smooth';
-  } else {
-    const originalButtonTop = buttonElement.getBoundingClientRect().top;
-    collapsedMessages.value.add(index);
-    await nextTick();
-    const newButtonTop = buttonElement.getBoundingClientRect().top;
-    chatContainer.style.scrollBehavior = 'auto';
-    chatContainer.scrollTop = originalScrollTop + (newButtonTop - originalButtonTop);
-    chatContainer.style.scrollBehavior = 'smooth';
-  }
+  await keepMessageAnchor(messageElement, async () => {
+    if (isExpanding) {
+      collapsedMessages.value.delete(index);
+    } else {
+      collapsedMessages.value.add(index);
+    }
+  }, index === chat_show.value.length - 1);
 };
 const onAvatarClick = async (role, event) => {
-  const chatContainer = chatContainerRef.value?.$el;
   const messageElement = event.currentTarget.closest('.chat-message');
-  if (!chatContainer || !messageElement) return;
-  const originalScrollTop = chatContainer.scrollTop;
-  const originalElementTop = messageElement.offsetTop;
-  const originalVisualPosition = originalElementTop - originalScrollTop;
+  if (!messageElement) return;
+
   const roleMessageIndices = chat_show.value.map((msg, index) => (msg.role === role ? index : -1)).filter(index => index !== -1);
   if (roleMessageIndices.length === 0) return;
+
   const anyExpanded = roleMessageIndices.some(index => !collapsedMessages.value.has(index));
-  if (anyExpanded) roleMessageIndices.forEach(index => collapsedMessages.value.add(index));
-  else roleMessageIndices.forEach(index => collapsedMessages.value.delete(index));
-  await nextTick();
-  const newElementTop = messageElement.offsetTop;
-  chatContainer.style.scrollBehavior = 'auto';
-  chatContainer.scrollTop = newElementTop - originalVisualPosition;
-  chatContainer.style.scrollBehavior = 'smooth';
+  await keepMessageAnchor(messageElement, async () => {
+    if (anyExpanded) roleMessageIndices.forEach(index => collapsedMessages.value.add(index));
+    else roleMessageIndices.forEach(index => collapsedMessages.value.delete(index));
+  }, roleMessageIndices.includes(chat_show.value.length - 1));
 };
 
-const handleSubmit = () => askAI(false);
-const handleCancel = () => cancelAskAI();
+const handleSubmit = () => {
+  // 自动/手动压缩中：禁止发送与缓冲，避免用户误以为卡死
+  if (compacting.value) {
+    showDismissibleMessage.warning('压缩进行中，暂不可发送');
+    return;
+  }
+  // 生成中（或正在准备发送）时，把消息暂存进缓冲区，本轮结束后自动发送
+  if (loading.value || isPreparingSend.value) {
+    enqueueInputToBuffer();
+    return;
+  }
+  askAI(false);
+};
+const handleCancel = () => {
+  // 发送按钮在 compacting 时也会进入 loading/取消态，优先取消压缩
+  if (compacting.value) {
+    handleCancelCompact();
+    return;
+  }
+  cancelAskAI();
+};
 const handleClearHistory = () => clearHistory();
 const handleRemoveFile = (index) => fileList.value.splice(index, 1);
 const handleUpload = async ({ fileList: newFiles }) => {
@@ -897,25 +2026,96 @@ const handleWindowBlur = () => {
   }
 };
 
+
+const getChatInputTextarea = () => chatInputRef.value?.senderRef?.$refs.textarea || null;
+
+const isVisibleElement = (element) => {
+  if (!(element instanceof Element)) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 || rect.height > 0;
+};
+
+const hasVisibleElement = (selector) => Array.from(document.querySelectorAll(selector)).some(isVisibleElement);
+
+const isEditableElement = (element) => {
+  if (!(element instanceof HTMLElement)) return false;
+  const tagName = element.tagName.toLowerCase();
+  return tagName === 'input' || tagName === 'textarea' || element.isContentEditable;
+};
+
+const isInteractiveElement = (element) => {
+  if (!(element instanceof HTMLElement)) return false;
+  return Boolean(element.closest('button, [role="button"], a[href], select, .el-button, .el-select, .el-checkbox, .el-switch'));
+};
+
+const isChatInputInternalElement = (element) => {
+  if (!(element instanceof Element)) return false;
+  return Boolean(element.closest('.input-footer, .chat-input-area-vertical'));
+};
+
+const hasOpenChatInputSelector = () => hasVisibleElement('.mcp-quick-select, .option-selector-row');
+
+const hasBlockingOverlay = () => {
+  if (
+    systemPromptDialogVisible.value ||
+    changeModel_page.value ||
+    isMcpDialogVisible.value ||
+    isSkillDialogVisible.value ||
+    imageViewerVisible.value
+  ) {
+    return true;
+  }
+
+  return hasVisibleElement('.el-message-box, .el-overlay-message-box, .el-dialog__wrapper, .el-overlay-dialog, .el-image-viewer__wrapper');
+};
+
+const shouldAutoFocusChatInput = () => {
+  const textarea = getChatInputTextarea();
+  if (!textarea) return false;
+  const activeElement = document.activeElement;
+
+  if (!activeElement || activeElement === document.body || activeElement === document.documentElement) {
+    return !hasBlockingOverlay() && !hasOpenChatInputSelector();
+  }
+
+  if (activeElement === textarea) return true;
+
+  if (hasBlockingOverlay() || hasOpenChatInputSelector()) return false;
+
+  if (hasVisibleElement('.editing-wrapper, .text-search-container, .tool-choice-wrapper, .tool-approval-actions')) {
+    return false;
+  }
+
+  if (activeElement.closest?.('.editing-wrapper, .text-search-container, .tool-choice-wrapper, .tool-approval-actions')) {
+    return false;
+  }
+
+  if (isEditableElement(activeElement)) return false;
+
+  if (isInteractiveElement(activeElement) && !isChatInputInternalElement(activeElement)) {
+    return false;
+  }
+
+  return true;
+};
+
+const focusChatInputIfSafe = (options = { cursor: 'end' }) => {
+  if (!shouldAutoFocusChatInput()) return false;
+  chatInputRef.value?.focus(options);
+  return true;
+};
+
 const handleWindowFocus = () => {
   if (isFilePickerOpen.value) {
     isFilePickerOpen.value = false;
   }
   setTimeout(() => {
-    if (systemPromptDialogVisible.value) {
-      return;
-    }
-    if (document.activeElement && document.activeElement.tagName.toLowerCase() === 'textarea' && document.activeElement.closest('.editing-wrapper')) {
-      return;
-    }
-    if (document.activeElement && document.activeElement.closest('.text-search-container')) {
-      return;
-    }
-    const textarea = chatInputRef.value?.senderRef?.$refs.textarea;
-    if (!textarea) return;
-    if (document.activeElement !== textarea) {
-      if (lastSelectionStart.value !== null && lastSelectionEnd.value !== null) chatInputRef.value?.focus({ position: { start: lastSelectionStart.value, end: lastSelectionEnd.value } });
-      else chatInputRef.value?.focus({ cursor: 'end' });
+    if (lastSelectionStart.value !== null && lastSelectionEnd.value !== null) {
+      focusChatInputIfSafe({ position: { start: lastSelectionStart.value, end: lastSelectionEnd.value } });
+    } else {
+      focusChatInputIfSafe({ cursor: 'end' });
     }
   }, 50);
 };
@@ -976,49 +2176,46 @@ const handleDownloadImageFromViewer = async (url) => {
 };
 
 const handleEditMessage = (index, newContent) => {
-  if (index < 0 || index >= chat_show.value.length) return;
-
-  let history_idx = -1;
-  let show_counter = -1;
-  for (let i = 0; i < history.value.length; i++) {
-    if (history.value[i].role !== 'tool') {
-      show_counter++;
-    }
-    if (show_counter === index) {
-      history_idx = i;
-      break;
-    }
+  if (compacting.value) {
+    showDismissibleMessage.warning('压缩进行中，暂不可编辑历史');
+    return false;
   }
+  if (index < 0 || index >= chat_show.value.length) return false;
+
+  const editedMessageId = chat_show.value[index]?.id;
+  const showIndex = chat_show.value.findIndex((message) => message?.id === editedMessageId);
+  if (showIndex < 0) return false;
 
   const updateContent = (message) => {
     if (!message) return;
     if (typeof message.content === 'string' || message.content === null) {
       message.content = newContent;
     } else if (Array.isArray(message.content)) {
-      const textPart = message.content.find(p => p.type === 'text' && !(p.text && p.text.toLowerCase().startsWith('file name:')));
-      if (textPart) {
-        textPart.text = newContent;
-      } else {
-        message.content.push({ type: 'text', text: newContent });
-      }
+      const textPart = message.content.find((part) => (
+        part?.type === 'text' && !(part.text && part.text.toLowerCase().startsWith('file name:'))
+      ));
+      if (textPart) textPart.text = newContent;
+      else message.content.push({ type: 'text', text: newContent });
     }
   };
 
-  if (chat_show.value[index]) {
-    updateContent(chat_show.value[index]);
-  }
+  const visibleShowIndexes = getVisibleChatShowIndexes();
+  const logicalIndex = visibleShowIndexes.indexOf(showIndex);
+  const fullIndex = logicalIndex >= 0 ? getVisibleFullHistoryIndexes()[logicalIndex] : -1;
+  const uiMessage = chat_show.value[showIndex];
+  const fullMessage = Number.isInteger(fullIndex) ? fullHistory.value[fullIndex] : null;
+  if (!uiMessage || !fullMessage || uiMessage.role !== fullMessage.role) return false;
 
-  if (history_idx !== -1 && history.value[history_idx]) {
-    updateContent(history.value[history_idx]);
-  } else {
-    console.error("错误：无法将 chat_show 索引映射到 history 索引。下次API请求可能会使用旧数据。");
-  }
+  updateContent(uiMessage);
+  updateContent(fullMessage);
+  syncHistoryFromFullHistory();
+  return true;
 };
 
 const handleEditStart = async (index) => {
   const scrollContainer = chatContainerRef.value?.$el;
   const childComponent = getMessageComponentByIndex(index);
-  const element = childComponent?.$el;
+  const element = getMessageElementByIndex(index);
 
   if (!scrollContainer || !element || !childComponent) return;
 
@@ -1040,10 +2237,16 @@ const handleEditEnd = async ({ id, action, content }) => {
 
   if (currentIndex === -1) return;
 
-  handleEditMessage(currentIndex, content);
+  const updated = handleEditMessage(currentIndex, content);
+  if (!updated) {
+    showDismissibleMessage.warning('消息状态已变化，请重新编辑');
+    return;
+  }
+  const updatedIndex = chat_show.value.findIndex((message) => message?.id === id);
+  scheduleAutoSave({ reason: 'message-edited', immediate: true });
   showDismissibleMessage.success('消息已更新');
 
-  if (currentIndex === chat_show.value.length - 1 && chat_show.value[currentIndex].role === 'user') {
+  if (updatedIndex === chat_show.value.length - 1 && chat_show.value[updatedIndex]?.role === 'user') {
     await nextTick();
     await reaskAI();
   }
@@ -1119,21 +2322,56 @@ const saveSystemPrompt = async () => {
   systemPromptDialogVisible.value = false;
 };
 
-const closePage = async () => {
+const handleAutoCloseOnBlur = () => closePage(false);
+const syncAutoCloseOnBlurListener = () => {
+  window.removeEventListener('blur', handleAutoCloseOnBlur);
+  if (autoCloseOnBlur.value && !loading.value) {
+    window.addEventListener('blur', handleAutoCloseOnBlur);
+  }
+};
+
+const closePage = async (force_save = false) => {
+  const shouldForceSave = force_save === true;
+
   // 1. 如果是为了打开文件选择器而失去焦点，拦截关闭
   if (isFilePickerOpen.value) return;
 
+  // Do not let a delayed save create a second full serialization while this window is closing.
+  clearScheduledAutoSave();
+  queuedAutoSaveRequest = null;
+
+  // 关闭对话前先结束本对话所有运行中 Subagent，避免后台孤儿任务继续占资源
+  try {
+    await killAllRunningSubAgentsForCurrentConversation();
+  } catch (e) {
+    console.warn('[Sub-Agent] Kill-on-close failed:', e);
+  }
+
   // 条件：配置了本地存储路径 且 当前对话已有名称
-  if (currentConfig.value?.webdav?.localChatPath && defaultConversationName.value) {
+  if (currentConfig.value?.webdav?.localChatPath && (defaultConversationName.value || shouldForceSave)) {
     try {
-      await autoSaveSession();
+      const closeVersion = sessionMutationVersion;
+      await executeAutoSaveRequest({
+        reason: 'window-close',
+        force: shouldForceSave,
+        version: closeVersion,
+        skipQueueWhenBusy: true,
+        skipProjectAssignment: true
+      });
+      if (lastPersistedSessionVersion < closeVersion) {
+        await executeAutoSaveRequest({
+          reason: 'window-close-final',
+          force: shouldForceSave,
+          version: closeVersion,
+          skipProjectAssignment: true
+        });
+      }
     } catch (e) {
       console.error("关闭时自动保存失败:", e);
     }
   }
 
   // 3. 关闭窗口
-  // window.close();
   window.api.windowControl('close-window');
 };
 
@@ -1145,7 +2383,8 @@ watch(zoomLevel, (newZoom) => {
   if (window.api && typeof window.api.setZoomFactor === 'function') window.api.setZoomFactor(newZoom);
 });
 watch(chat_show, async () => {
-  await addCopyButtonsToCodeBlocks();
+  // 代码块复制按钮已下沉到 ChatMessage 本地注入，避免每次 deep watch 全页扫描 pre.hljs
+  await updateStickyResizeObserver();
 }, { deep: true, flush: 'post' });
 watch(() => currentConfig.value?.isDarkMode, (isDark) => {
   if (isDark) {
@@ -1163,6 +2402,12 @@ onMounted(async () => {
   if (isInit.value) return;
   isInit.value = true;
 
+  startSubAgentStatusPolling();
+
+
+
+  await updateStickyResizeObserver();
+
   if (window.api && window.api.onAlwaysOnTopChanged) {
     window.api.onAlwaysOnTopChanged((newState) => {
       isAlwaysOnTop.value = newState;
@@ -1174,26 +2419,159 @@ onMounted(async () => {
     theme: currentConfig.value?.isDarkMode ? 'dark' : 'light'
   });
 
+  // 暴露给后台MCP调用的 Agent API
+
+  window.__AGENT_API__ = {
+    isBusy: () => loading.value,
+
+    getChatLength: () => chat_show.value.length,
+
+    getOutline: () => {
+      const isBusy = loading.value;
+      const statusLine = isBusy ? "Current State: [Busy: Thinking or Generating...]" : "Current State: [Idle: Ready]";
+
+      const outlineStr = chat_show.value.map((msg, idx) => {
+        if (msg.role === 'system') return null;
+        let type = msg.role === 'user' ? 'User' : (msg.role === 'assistant' ? 'AI' : 'Tool');
+        let prev = '';
+
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          // 提取文本内容
+          let textContent = '';
+          if (typeof msg.content === 'string') {
+            textContent = msg.content;
+          } else if (Array.isArray(msg.content)) {
+            const txt = msg.content.find(p => p.type === 'text');
+            if (txt && txt.text) textContent = txt.text;
+          }
+
+          // 优先级 1: 显示文本内容
+          if (textContent && textContent.trim()) {
+            prev = textContent.trim().substring(0, 40).replace(/\n/g, ' ');
+          }
+          // 优先级 2: 文本为空，但有工具调用
+          else if (msg.tool_calls && msg.tool_calls.length > 0) {
+            const tools = msg.tool_calls.map(t => t.name).join(', ');
+            prev = `[Calling Tool: ${tools}]`;
+          }
+          // 优先级 3: 有附件(图片/文件)
+          else if (Array.isArray(msg.content) && msg.content.length > 0) {
+            prev = '[Media/Files Attached]';
+          }
+          // 优先级 4: 真正的空消息或正在生成
+          else {
+            if (msg.role === 'assistant') {
+              // 结合全局 loading 状态判断是否正在生成
+              if (isBusy && idx === chat_show.value.length - 1) {
+                if (msg.status === 'thinking') prev = '[Thinking...]';
+                else prev = '[Generating...]';
+              } else {
+                prev = '[Empty Response]';
+              }
+            } else {
+              prev = '[Empty Message]';
+            }
+          }
+        }
+        return `[Index ${idx}] ${type}: ${prev}...`;
+      }).filter(Boolean).join('\n');
+
+      return `${statusLine}\n\nMessages Outline:\n${outlineStr}`;
+    },
+
+    getMessage: (index) => {
+      let actualIndex = parseInt(index);
+      if (isNaN(actualIndex)) return "Error: Invalid index format.";
+
+      // 转换负数索引
+      if (actualIndex < 0) {
+        actualIndex = chat_show.value.length + actualIndex;
+      }
+
+      const msg = chat_show.value[actualIndex];
+      if (!msg) return `Error: Message index ${index} out of bounds (Total: ${chat_show.value.length - 1}).`;
+
+      let headerInfo = `[Message Info] Index: ${actualIndex} (Requested: ${index})/Total ${chat_show.value.length} messages | Role: ${msg.role}\n`;
+
+      // 如果还在生成中，追加提示
+      if (actualIndex === chat_show.value.length - 1 && loading.value) {
+        headerInfo += "[SYSTEM NOTICE]: This message is currently being generated. Content may be incomplete.\n";
+      }
+
+      if (msg.role === 'system') {
+        return `${headerInfo}\n[System Prompt]:\n${msg.content}`;
+      }
+
+      let contentStr = "";
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        if (Array.isArray(msg.content)) {
+          contentStr = msg.content.map(p => {
+            if (p.type === 'text') return p.text;
+            if (p.type === 'image_url') return '[Image attachment]';
+            if (p.type === 'file' || p.type === 'input_file') return `[File attachment: ${p.filename || p.name}]`;
+            return '';
+          }).join('\n');
+        } else {
+          contentStr = msg.content || "";
+        }
+
+        if (msg.role === 'assistant') {
+          let extraInfo = "";
+          if (msg.status === 'thinking') extraInfo += "(State: Thinking...)\n";
+
+          if (msg.tool_calls && msg.tool_calls.length > 0) {
+            extraInfo += `\n[Tools Execution History]:\n`;
+            msg.tool_calls.forEach(tc => {
+              extraInfo += `> Tool: ${tc.name}\n  Args: ${tc.args}\n  Status: ${tc.approvalStatus}\n`;
+              const toolResultMsg = history.value.find(m => m.role === 'tool' && m.tool_call_id === tc.id);
+              if (toolResultMsg) {
+                let resultPreview = toolResultMsg.content;
+                if (typeof resultPreview !== 'string') {
+                  try { resultPreview = JSON.stringify(resultPreview, null, 2); } catch (e) { }
+                }
+                extraInfo += `  < Result: ${resultPreview}\n`;
+              } else {
+                extraInfo += `  < Result: (Pending or not in history)\n`;
+              }
+              extraInfo += `\n`;
+            });
+            contentStr = extraInfo + `[Final Response Text]:\n${contentStr}`;
+          }
+        }
+        return headerInfo + contentStr;
+      } else if (msg.role === 'tool') {
+        return `${headerInfo}\n[Tool Output]:\n${msg.content}`;
+      }
+      return "Unknown message format.";
+    },
+    sendMessage: async (text, filePaths) => {
+      if (loading.value) {
+        return Promise.reject("Error: This agent is currently busy generating a response. Please wait until it becomes Idle.");
+      }
+      if (text) prompt.value = text;
+
+      let fileMsg = "";
+      if (filePaths && Array.isArray(filePaths) && filePaths.length > 0) {
+        let success = 0;
+        for (const p of filePaths) {
+          try { await processFilePath(p); success++; } catch (e) { }
+        }
+        await nextTick();
+        fileMsg = ` (${success} files attached)`;
+      }
+
+      askAI(false).catch(err => console.error("Background generation error:", err));
+      return `Message sent successfully${fileMsg}. Agent is now generating response...`;
+    },
+    closeWindow: async () => {
+      await closePage(true);
+      return "Window closing initiated.";
+    }
+  };
+
   window.addEventListener('wheel', handleWheel, { passive: false });
   window.addEventListener('focus', handleWindowFocus);
   window.addEventListener('blur', handleWindowBlur);
-  const chatMainElement = chatContainerRef.value?.$el;
-  if (chatMainElement) {
-    chatObserver = new MutationObserver(() => {
-      // 只要处于粘滞状态，任何 DOM 变化（文字生成、元素高度变化）
-      // 都立即将 scrollTop 设为最大值。这在浏览器重绘前发生，因此视觉上是“内容上推”。
-      if (isSticky.value) {
-        chatMainElement.scrollTop = chatMainElement.scrollHeight;
-      }
-    });
-
-    // 监听子节点变化（新消息）和子树字符数据变化（打字机效果）
-    chatObserver.observe(chatMainElement, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
-  }
 
   const initializeWindow = async (data = null) => {
     try {
@@ -1220,17 +2598,7 @@ onMounted(async () => {
       currentOS.value = data.os;
     }
 
-    modelList.value = []; modelMap.value = {};
-    currentConfig.value.providerOrder.forEach(id => {
-      const provider = currentConfig.value.providers[id];
-      if (provider?.enable) {
-        provider.modelList.forEach(m => {
-          const key = `${id}|${m}`;
-          modelList.value.push({ key, value: key, label: `${provider.name}|${m}` });
-          modelMap.value[key] = `${provider.name}|${m}`;
-        });
-      }
-    });
+    updateModelListAndMap(currentConfig.value);
 
     const code = data?.code || "AI";
     const currentPromptConfig = currentConfig.value.prompts[code] || defaultConfig.config.prompts.AI;
@@ -1238,7 +2606,7 @@ onMounted(async () => {
       loadBackground(currentPromptConfig.backgroundImage);
     }
     isAlwaysOnTop.value = data?.isAlwaysOnTop ?? currentPromptConfig.isAlwaysOnTop ?? true;
-    zoomLevel.value = currentPromptConfig.zoom || currentConfig.value.zoom || 1;
+    zoomLevel.value = resolveWindowZoomLevel(currentPromptConfig.zoom, currentConfig.value.zoom, 1);
     if (window.api && typeof window.api.setZoomFactor === 'function') {
       window.api.setZoomFactor(zoomLevel.value);
     }
@@ -1255,10 +2623,13 @@ onMounted(async () => {
       favicon.value = currentPromptConfig.icon;
     } else {
       AIAvart.value = "ai.svg";
-      favicon.value = currentConfig.value.isDarkMode ? "favicon-b.png" : "favicon.png";
+      favicon.value = "favicon.png";
     }
 
     autoCloseOnBlur.value = currentPromptConfig.autoCloseOnBlur ?? false;
+    if (data?.type === "task" || data?.type === "summon") {
+      autoCloseOnBlur.value = false;
+    }
     tempReasoningEffort.value = currentPromptConfig.reasoning_effort || 'default';
     model.value = currentPromptConfig.model || modelList.value[0]?.value || '';
     selectedVoice.value = currentPromptConfig.voice || null;
@@ -1271,7 +2642,7 @@ onMounted(async () => {
 
     if (currentPromptConfig.prompt) {
       currentSystemPrompt.value = currentPromptConfig.prompt;
-      history.value = [{ role: "system", content: currentPromptConfig.prompt }];
+      replaceFullHistory([{ role: "system", content: currentPromptConfig.prompt }]);
       chat_show.value = [{
         role: "system",
         content: currentPromptConfig.prompt,
@@ -1279,8 +2650,9 @@ onMounted(async () => {
       }];
     } else {
       currentSystemPrompt.value = "";
-      history.value = [];
+      replaceFullHistory([]);
       chat_show.value = [];
+    compactArchives.value = [];
     }
 
     if (currentPromptConfig.defaultSkills && Array.isArray(currentPromptConfig.defaultSkills)) {
@@ -1315,16 +2687,38 @@ onMounted(async () => {
         const system_time = new Date().toLocaleString('sv-SE');
         const pre_prompt = `## Scheduled Task\n\n**system_time**:${system_time}\n\n`;
         const suffix_prompt = "\n\nScheduled task triggered! This is a task that you need to execute autonomously without human intervention. Please execute immediately and provide correct feedback.";
-        history.value.push({ role: "user", content: pre_prompt+data.payload+suffix_prompt });
+        appendFullHistory({ role: "user", content: pre_prompt + data.payload + suffix_prompt });
         chat_show.value.push({
           id: messageIdCounter.value++,
           role: "user",
-          content: [{ type: "text", text: pre_prompt+data.payload+suffix_prompt }],
+          content: [{ type: "text", text: pre_prompt + data.payload + suffix_prompt }],
           timestamp: new Date().toLocaleString('sv-SE')
         });
 
         // 标记需要直接发送
         shouldDirectSend = true;
+      } else if (data.type === "summon") {
+        defaultConversationName.value = buildConversationTimestampedBasename('召唤', { force: false, includeCode: true, includeSummonPrefix: false }) || `召唤-${CODE.value}-${buildConversationTimestampSuffix()}`;
+        shouldDirectSend = true;
+        isFileDirectSend = true;
+        if (data.summonData) {
+          const { text, file_paths, enable_tools } = data.summonData;
+          if (text) prompt.value = text;
+          if (file_paths && Array.isArray(file_paths) && file_paths.length > 0) {
+            for (const p of file_paths) await processFilePath(p);
+          }
+          if (enable_tools) {
+            const builtinIds = getActiveBuiltinIds();
+            builtinIds.forEach(id => {
+              if (!sessionMcpServerIds.value.includes(id)) {
+                sessionMcpServerIds.value.push(id);
+              }
+              if (!tempSessionMcpServerIds.value.includes(id)) {
+                tempSessionMcpServerIds.value.push(id);
+              }
+            });
+          }
+        }
       }
       if (data.type === "over" && data.payload) {
         let sessionLoaded = false;
@@ -1341,7 +2735,7 @@ onMounted(async () => {
           if (CODE.value.trim().toLowerCase().includes(data.payload.trim().toLowerCase())) { /* do nothing */ }
           else {
             if (currentPromptConfig.isDirectSend_normal) {
-              history.value.push({ role: "user", content: data.payload });
+              appendFullHistory({ role: "user", content: data.payload });
               chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: [{ type: "text", text: data.payload }] });
               shouldDirectSend = true;
             } else { prompt.value = data.payload; }
@@ -1349,7 +2743,7 @@ onMounted(async () => {
         }
       } else if (data.type === "img" && data.payload) {
         if (currentPromptConfig.isDirectSend_image ?? true) {
-          history.value.push({ role: "user", content: [{ type: "image_url", image_url: { url: String(data.payload) } }] });
+          appendFullHistory({ role: "user", content: [{ type: "image_url", image_url: { url: String(data.payload) } }] });
           chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: [{ type: "image_url", image_url: { url: String(data.payload) } }] });
           shouldDirectSend = true;
         } else {
@@ -1376,19 +2770,15 @@ onMounted(async () => {
         } catch (error) { console.error("Error during initial file processing:", error); showDismissibleMessage.error("文件处理失败: " + error.message); }
       }
     }
-    if (autoCloseOnBlur.value) {
-      window.addEventListener('blur', closePage);
-    }
+    syncAutoCloseOnBlurListener();
 
     if (!isSessionRestored) {
       const defaultMcpServers = currentPromptConfig.defaultMcpServers || [];
 
       let mcpServersToLoad = [...new Set([...defaultMcpServers, ...sessionMcpServerIds.value])];
 
-      if (sessionSkillIds.value.length > 0 && currentConfig.value.mcpServers) {
-        const builtinIds = Object.entries(currentConfig.value.mcpServers)
-          .filter(([, server]) => server.type === 'builtin')
-          .map(([id]) => id);
+      if (sessionSkillIds.value.length > 0) {
+        const builtinIds = getActiveBuiltinIds();
         mcpServersToLoad = [...new Set([...mcpServersToLoad, ...builtinIds])];
       }
 
@@ -1400,7 +2790,7 @@ onMounted(async () => {
         if (validIds.length > 0) {
           sessionMcpServerIds.value = [...validIds];
           tempSessionMcpServerIds.value = [...validIds];
-          await applyMcpTools(false);
+          await requestApplyMcpTools(false, 'skill-builtin-auto-enable');
         }
       }
     }
@@ -1408,12 +2798,11 @@ onMounted(async () => {
     await fetchSkillsList();
 
     if (shouldDirectSend) {
-      scrollToBottom();
+      if (isAtBottom.value) scrollToBottom();
       if (isFileDirectSend) await askAI(false);
       else await askAI(true);
     }
 
-    await addCopyButtonsToCodeBlocks();
     setTimeout(() => {
       chatInputRef.value?.focus({ cursor: 'end' });
     }, 100);
@@ -1431,8 +2820,51 @@ onMounted(async () => {
     };
     await initializeWindow(data);
   }
-  if (autoSaveInterval) clearInterval(autoSaveInterval);
-  autoSaveInterval = setInterval(autoSaveSession, 15000);
+
+  // 监听来自 uTools 的"追问"内容追加事件
+  if (window.preload && typeof window.preload.onAppendMessage === 'function') {
+    window.preload.onAppendMessage(async (data) => {
+      // 1. 如果 AI 正在生成，立刻中断当前生成
+      if (loading.value) {
+        cancelAskAI();
+        showDismissibleMessage.info('已中断当前生成，开始处理追问');
+        // 等待状态清理和 DOM 更新
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      let isFileDirectSend = false;
+      const nowTime = new Date().toLocaleString('sv-SE');
+
+      // 2. 将收到的数据直接压入聊天历史或文件列表
+      if (data.type === "over" && data.payload) {
+        appendFullHistory({ role: "user", content: data.payload });
+        chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: [{ type: "text", text: data.payload }], timestamp: nowTime });
+      } else if (data.type === "img" && data.payload) {
+        appendFullHistory({ role: "user", content: [{ type: "image_url", image_url: { url: String(data.payload) } }] });
+        chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: [{ type: "image_url", image_url: { url: String(data.payload) } }], timestamp: nowTime });
+      } else if (data.type === "files" && data.payload) {
+        try {
+          const fileProcessingPromises = data.payload.map((fileInfo) => processFilePath(fileInfo.path));
+          await Promise.all(fileProcessingPromises);
+          isFileDirectSend = true;
+        } catch (error) {
+          console.error(error);
+          showDismissibleMessage.error("处理文件失败: " + error.message);
+          return; // 处理失败则终止发送
+        }
+      }
+
+      // 3. 强制触发自动发送
+      scrollToBottom();
+      if (isFileDirectSend) {
+        // 如果是文件，askAI(false) 会自动收集刚才压入 fileList.value 的文件并发起对话
+        await askAI(false);
+      } else {
+        // 如果是文本/图片，已经压入 history，传入 true 跳过输入框收集，直接向 AI 发送
+        await askAI(true);
+      }
+    });
+  }
   window.addEventListener('error', handleGlobalImageError, true);
   window.addEventListener('keydown', handleGlobalKeyDown);
 
@@ -1440,29 +2872,15 @@ onMounted(async () => {
     window.api.onConfigUpdated((newConfig) => {
       if (newConfig) {
         currentConfig.value = newConfig;
-        if (newConfig.zoom !== undefined) {
-          zoomLevel.value = newConfig.zoom;
-        }
+        // 配置热更新时保留当前窗口已调整的缩放，避免新增服务商等操作后被全局配置覆盖。
 
         // 1. 配置更新后同步重构服务商和模型列表
-        const newModelList = [];
-        const newModelMap = {};
-        newConfig.providerOrder.forEach(id => {
-          const provider = newConfig.providers[id];
-          if (provider?.enable) {
-            provider.modelList.forEach(m => {
-              const key = `${id}|${m}`;
-              newModelList.push({ key, value: key, label: `${provider.name}|${m}` });
-              newModelMap[key] = `${provider.name}|${m}`;
-            });
-          }
-        });
-        modelList.value = newModelList;
-        modelMap.value = newModelMap;
+        updateModelListAndMap(newConfig);
 
-        // 2. 校验并清理已删除或被禁用的 MCP 服务
+        // 2. 校验并清理已删除、被禁用或运行时配置已变化的 MCP 服务
         if (newConfig.mcpServers) {
           let mcpChanged = false;
+          const previousFingerprint = lastAppliedMcpConfigFingerprint.value;
           // 筛选当前真正有效的选中 ID
           const validMcpIds = sessionMcpServerIds.value.filter(id => {
             const server = newConfig.mcpServers[id];
@@ -1478,9 +2896,14 @@ onMounted(async () => {
             mcpChanged = true;
           }
 
-          // 如果发现存在失效的 MCP 服务，通知后端重新加载客户端
-          if (mcpChanged && !loading.value) {
-            applyMcpTools(false);
+          const nextFingerprint = buildSelectedMcpConfigFingerprint(validMcpIds, newConfig.mcpServers);
+          if (nextFingerprint !== previousFingerprint) {
+            mcpChanged = true;
+          }
+
+          // 仅在当前窗口实际使用的 MCP 运行时配置变化时，本地重新加载，不回写配置，避免广播风暴
+          if (mcpChanged && !loading.value && !isMcpLoading.value) {
+            requestApplyMcpTools(false, 'config-runtime-changed');
           }
         }
       }
@@ -1488,14 +2911,25 @@ onMounted(async () => {
   }
 
   if (window.api && window.api.onMcpCacheUpdated) {
-    window.api.onMcpCacheUpdated(async (serverId) => {
+    window.api.onMcpCacheUpdated(async (payload) => {
       try {
         const cache = await window.api.getMcpToolCache() || {};
         mcpToolCache.value = cache;
 
-        // 如果被修改具体工具启停的 MCP 正在被当前对话使用，并且没有在生成消息，重载工具
-        if (sessionMcpServerIds.value.includes(serverId) && !loading.value) {
-          applyMcpTools(false);
+        const serverId = typeof payload?.serverId === 'string' ? payload.serverId : '';
+        const reason = typeof payload?.reason === 'string' ? payload.reason : '';
+        const emitReloadSuggested = payload?.emitReloadSuggested !== false;
+
+        if (!serverId || !sessionMcpServerIds.value.includes(serverId)) {
+          return;
+        }
+
+        if (reason === 'auto-bootstrap' || !emitReloadSuggested) {
+          return;
+        }
+
+        if (!loading.value && !isMcpLoading.value) {
+          requestApplyMcpTools(false, `mcp-cache-updated:${reason || 'manual'}`);
         }
       } catch (error) {
         console.error("Auto refresh MCP cache failed:", error);
@@ -1511,87 +2945,714 @@ onMounted(async () => {
   }
 });
 
-const autoSaveSession = async () => {
-  if (loading.value || !currentConfig.value?.webdav?.localChatPath) {
-    return;
+
+const AUTO_NAMING_TIMEOUT_MS = 30000;
+const AUTO_NAMING_MAX_TEXT_CHARS = 1000;
+const AUTO_NAMING_MAX_IMAGES = 3;
+const AUTO_NAMING_MAX_TITLE_TOKENS = 16;
+const buildAutoNamingSystemPrompt = () => {
+  const locale = currentConfig.value?.language === 'en'
+    ? 'English'
+    : currentConfig.value?.language === 'zh'
+      ? 'Chinese'
+      : (currentConfig.value?.language || 'the user primary language');
+
+  return `You are a conversation title generator. I will provide dialogue content with clearly labeled <system_prompt> and <user_prompt> blocks. Summarize the conversation into a short title that captures the main topic of this conversation.
+
+Rules:
+1. The title language must match the user's primary language.
+2. Do not use punctuation, separators, quotes, emoji, or other special symbols.
+3. Reply directly with the title only.
+4. If the user's primary language is unclear, summarize using ${locale}.
+5. Keep the title natural and concise. Titles within about ${AUTO_NAMING_MAX_TITLE_TOKENS} tokenizer tokens are acceptable; do not intentionally shorten a clear normal-length mixed-language title.`;
+};
+
+const sanitizeConversationTitlePart = (value, maxLength = 30) => {
+  const normalized = typeof value === 'string' ? value : String(value ?? '');
+  return normalized
+    .replace(/^\s*(?:标题|会话标题|名称|命名)\s*[:：-]\s*/i, '')
+    .replace(/^[`'"“”‘’\s]+|[`'"“”‘’\s]+$/g, '')
+    .replace(/[\\/:*?"<>|\n\r]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength)
+    .trim();
+};
+
+
+const countConversationTitleTokens = async (value = '') => {
+  try {
+    const encodeGptTokens = await loadGptTokenizerEncode();
+    if (typeof encodeGptTokens !== 'function') {
+      throw new Error('gpt-tokenizer encode export is unavailable');
+    }
+    return encodeGptTokens(String(value || '')).length;
+  } catch {
+    return Array.from(String(value || '')).length;
+  }
+};
+
+const truncateConversationTitleByTokens = async (value, maxTokens = AUTO_NAMING_MAX_TITLE_TOKENS) => {
+  const normalized = typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+  if (!normalized) return '';
+
+  if (await countConversationTitleTokens(normalized) <= maxTokens) {
+    return normalized;
   }
 
-  // 2. 获取当前快捷助手的配置
+  let result = '';
+  for (const char of Array.from(normalized)) {
+    const next = result + char;
+    if (await countConversationTitleTokens(next) > maxTokens) break;
+    result = next;
+  }
+
+  return result.trim();
+};
+
+const sanitizeAutoNamingTitlePart = async (value) => {
+  const normalized = sanitizeConversationTitlePart(value, 1000)
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return truncateConversationTitleByTokens(normalized, AUTO_NAMING_MAX_TITLE_TOKENS);
+};
+
+const buildConversationTimestampSuffix = (date = new Date()) => {
+  const year = String(date.getFullYear()).slice(-2);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+  return `${year}${month}${day}-${hours}${minutes}${seconds}-${milliseconds}`;
+};
+
+const buildConversationTimestampedBasename = (namePrefix = '', { force = false, date = new Date(), includeCode = true, includeSummonPrefix = true } = {}) => {
+  const safeNamePrefix = sanitizeConversationTitlePart(namePrefix, 36);
+  if (!safeNamePrefix) return '';
+  const safeCodeName = sanitizeConversationTitlePart(CODE.value || 'AI', 36).replace(/[\\/:*?"<>|]/g, '_');
+  const timestampSuffix = buildConversationTimestampSuffix(date);
+  return includeCode && safeCodeName
+    ? `${getAutoSavePrefixTag({ force, includeSummonPrefix })}${safeNamePrefix}-${safeCodeName}-${timestampSuffix}`
+    : `${getAutoSavePrefixTag({ force, includeSummonPrefix })}${safeNamePrefix}-${timestampSuffix}`;
+};
+
+const getAutoSavePrefixTag = (options = {}) => {
+  const normalizedOptions = typeof options === 'boolean'
+    ? { force: options }
+    : (options && typeof options === 'object' ? options : {});
+  const { force = false, includeSummonPrefix = true } = normalizedOptions;
+  if (includeSummonPrefix && basic_msg.value?.type === "summon") return "召唤-";
+  if (force) return "关闭留档-";
+  return "";
+};
+
+const buildConversationTitleOnly = (namePrefix, force = false, options = {}) => {
+  const safeNamePrefix = sanitizeConversationTitlePart(namePrefix, 36);
+  if (!safeNamePrefix) return '';
+  return `${getAutoSavePrefixTag({ force, ...options })}${safeNamePrefix}`;
+};
+
+const resolveUniqueConversationFileName = async (baseTitle = '', dirPath = '') => {
+  const normalizedBaseTitle = sanitizeConversationTitlePart(baseTitle, 80);
+  const normalizedDirPath = typeof dirPath === 'string' ? dirPath.trim() : '';
+  if (!normalizedBaseTitle || !normalizedDirPath) return normalizedBaseTitle;
+
+  try {
+    const existingFiles = await window.api.listJsonFiles(normalizedDirPath);
+    const existingTitles = new Set(
+      (Array.isArray(existingFiles) ? existingFiles : [])
+        .map(item => {
+          const rawTitle = typeof item?.title === 'string' && item.title.trim()
+            ? item.title.trim()
+            : typeof item?.basename === 'string'
+              ? item.basename.replace(/\.json$/i, '').trim()
+              : '';
+          return rawTitle;
+        })
+        .filter(Boolean)
+    );
+
+    if (!existingTitles.has(normalizedBaseTitle)) {
+      return normalizedBaseTitle;
+    }
+
+    let suffix = 2;
+    while (existingTitles.has(`${normalizedBaseTitle}-${suffix}`)) {
+      suffix += 1;
+    }
+
+    return `${normalizedBaseTitle}-${suffix}`;
+  } catch (error) {
+    console.warn('[Auto Naming] failed to inspect existing local chat files, fallback to base title:', error);
+    return normalizedBaseTitle;
+  }
+};
+
+const buildLegacyFallbackConversationFileName = (namePrefix, force = false) => {
+  return buildConversationTimestampedBasename(namePrefix, { force });
+};
+
+const autoNamingAbortController = ref(null);
+const autoNamingPromise = ref(null);
+
+
+const isCurrentPromptAutoSaveEnabled = () => {
   const promptConfig = currentConfig.value?.prompts?.[CODE.value];
-  const isAutoSaveConfigEnabled = promptConfig?.autoSaveChat ?? true;
+  return Boolean(promptConfig?.autoSaveChat);
+};
 
-  if (!defaultConversationName.value && !isAutoSaveConfigEnabled) {
-    return;
+const isNamedLocalConversationAvailable = () => Boolean(
+  currentConfig.value?.webdav?.localChatPath &&
+  typeof defaultConversationName.value === 'string' &&
+  defaultConversationName.value.trim()
+);
+
+const shouldPersistCurrentSessionAutomatically = () => {
+  return basic_msg.value?.type === 'summon' || isCurrentPromptAutoSaveEnabled() || isNamedLocalConversationAvailable();
+};
+
+const cancelAutoNamingRequest = () => {
+  if (autoNamingAbortController.value) {
+    try {
+      autoNamingAbortController.value.abort();
+    } catch {
+      // ignore abort race
+    }
+    autoNamingAbortController.value = null;
+  }
+};
+
+const getFallbackConversationNamePrefix = (firstUserMsg) => {
+  if (!firstUserMsg) return '';
+  const content = firstUserMsg.content;
+
+  if (Array.isArray(content)) {
+    const hasImage = content.some(p => p?.type === 'image_url');
+    const hasFile = content.some(p => p?.type === 'file' || p?.type === 'input_file');
+    const textPart = content.find(p => p?.type === 'text' && typeof p.text === 'string' && p.text.trim());
+
+    if (hasImage) return '图片';
+    if (hasFile) return '文件';
+    if (textPart?.text) return sanitizeConversationTitlePart(textPart.text, 20);
+    return '';
   }
 
-  // 自动命名逻辑：
-  if (!defaultConversationName.value && chat_show.value.length > 0) {
-    const firstUserMsg = chat_show.value.find(msg => msg.role === 'user');
-    if (firstUserMsg) {
-      let namePrefix = '';
-      const content = firstUserMsg.content;
+  if (typeof content === 'string') {
+    return sanitizeConversationTitlePart(content, 20);
+  }
 
-      // 提取并清洗用户输入内容，作为文件名前缀
-      if (Array.isArray(content)) {
-        const hasImage = content.some(p => p.type === 'image_url');
-        const hasFile = content.some(p => p.type === 'file');
-        const textPart = content.find(p => p.type === 'text');
+  return '';
+};
 
-        if (hasImage) {
-          namePrefix = '图片';
-        } else if (hasFile) {
-          namePrefix = '文件';
-        } else if (textPart?.text) {
-          namePrefix = textPart.text.slice(0, 20).replace(/[\\/:*?"<>|\n\r]/g, '').trim();
-        }
-      } else if (typeof content === 'string') {
-        namePrefix = content.slice(0, 20).replace(/[\\/:*?"<>|\n\r]/g, '').trim();
+const isConfiguredFastModelAvailable = (modelKey = '') => {
+  if (typeof modelKey !== 'string' || !modelKey.trim()) return false;
+  const separatorIndex = modelKey.indexOf('|');
+  if (separatorIndex <= 0) return false;
+
+  const providerId = modelKey.slice(0, separatorIndex);
+  const modelName = modelKey.slice(separatorIndex + 1);
+  const provider = currentConfig.value?.providers?.[providerId];
+  return Boolean(
+    provider &&
+    provider.enable !== false &&
+    modelName &&
+    Array.isArray(provider.modelList) &&
+    provider.modelList.includes(modelName)
+  );
+};
+
+const takeLastTextChars = (value, maxChars = AUTO_NAMING_MAX_TEXT_CHARS) => {
+  const normalized = typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+  if (!normalized) return '';
+  if (normalized.length <= maxChars) return normalized;
+  return normalized.slice(-maxChars);
+};
+
+const getCurrentConversationSystemPromptTail = () => {
+  return takeLastTextChars(currentSystemPrompt.value || '', AUTO_NAMING_MAX_TEXT_CHARS);
+};
+
+const getFirstUserMessageTextTail = (firstUserMsg) => {
+  const content = firstUserMsg?.content;
+
+  if (typeof content === 'string') {
+    return takeLastTextChars(content, AUTO_NAMING_MAX_TEXT_CHARS);
+  }
+
+  if (!Array.isArray(content)) return '';
+
+  const textContent = content
+    .filter(part => part?.type === 'text' && typeof part.text === 'string' && part.text.trim())
+    .map(part => part.text.trim())
+    .join('\n');
+
+  return takeLastTextChars(textContent, AUTO_NAMING_MAX_TEXT_CHARS);
+};
+
+const wrapAutoNamingPromptBlock = (tag, content) => {
+  const normalizedTag = String(tag || '').trim();
+  const normalizedContent = typeof content === 'string' ? content.trim() : String(content ?? '').trim();
+  if (!normalizedTag || !normalizedContent) return '';
+  return `<${normalizedTag}>\n${normalizedContent}\n</${normalizedTag}>`;
+};
+
+const buildAutoNamingUserMessageText = (firstUserMsg) => {
+  const sections = [];
+  const conversationSystemPrompt = getCurrentConversationSystemPromptTail();
+  const firstUserMessage = getFirstUserMessageTextTail(firstUserMsg);
+  const fileNames = [];
+
+  if (conversationSystemPrompt) {
+    sections.push(`Conversation system prompt:\n${wrapAutoNamingPromptBlock('system_prompt', conversationSystemPrompt)}`);
+  }
+
+  if (firstUserMessage) {
+    sections.push(`First user message:\n${wrapAutoNamingPromptBlock('user_prompt', firstUserMessage)}`);
+  }
+
+  if (Array.isArray(firstUserMsg?.content)) {
+    firstUserMsg.content.forEach((part) => {
+      if (part?.type === 'file' || part?.type === 'input_file') {
+        const fileInput = part.file || part;
+        const fileName = fileInput?.filename || fileInput?.name;
+        if (fileName) fileNames.push(String(fileName));
       }
+    });
+  }
 
-      if (namePrefix) {
-        // 清洗智能助手名称中的非法字符 (如 /, \, :, *, ?, ", <, >, |)
-        const safeCodeName = CODE.value.replace(/[\\/:*?"<>|]/g, '_');
+  if (fileNames.length > 0) {
+    sections.push(`Attached file names:\n${fileNames.slice(0, 10).join('\n')}`);
+  }
 
-        // 添加时间戳避免文件名重复覆盖
-        const now = new Date();
-        const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  return sections.join('\n\n').trim();
+};
 
-        // 组合文件名
-        defaultConversationName.value = `${namePrefix}-${safeCodeName}-${timestamp}`;
-      }
+const buildAutoNamingImageParts = (firstUserMsg) => {
+  const content = firstUserMsg?.content;
+  if (!Array.isArray(content)) return [];
+
+  return content
+    .filter(part => part?.type === 'image_url')
+    .slice(0, AUTO_NAMING_MAX_IMAGES)
+    .map((part) => {
+      const imageUrl = part.image_url?.url || part.image_url;
+      if (!imageUrl) return null;
+      return {
+        type: 'image_url',
+        image_url: typeof imageUrl === 'string' ? { url: imageUrl } : imageUrl
+      };
+    })
+    .filter(Boolean);
+};
+
+const buildAutoNamingPromptText = (content) => String(content ?? '').trim();
+
+const buildAutoNamingUserContent = (firstUserMsg) => {
+  const userMessageText = buildAutoNamingUserMessageText(firstUserMsg);
+  const imageParts = buildAutoNamingImageParts(firstUserMsg);
+
+  if (!userMessageText && imageParts.length === 0) return '';
+  if (imageParts.length === 0) return buildAutoNamingPromptText(userMessageText);
+
+  return [
+    ...(userMessageText ? [{ type: 'text', text: buildAutoNamingPromptText(userMessageText) }] : []),
+    ...imageParts
+  ];
+};
+
+const extractAssistantTextFromContent = (content) => {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map(part => {
+        if (typeof part === 'string') return part;
+        if (typeof part?.text === 'string') return part.text;
+        if (typeof part?.content === 'string') return part.content;
+        return '';
+      })
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (content && typeof content === 'object') {
+    if (typeof content.text === 'string') return content.text;
+    if (typeof content.content === 'string') return content.content;
+  }
+  return '';
+};
+
+const extractAutoNamingResponseText = async (response, apiType = 'chat_completions') => {
+  if (!response) return '';
+
+  if (isAsyncIterableResponse(response)) {
+    const message = await collectChatCompletionStreamToMessage(response);
+    return extractAssistantTextFromContent(message?.content);
+  }
+
+  if (apiType === 'responses' || apiType === 'codex') {
+    if (typeof response.output_text === 'string' && response.output_text.trim()) {
+      return response.output_text;
+    }
+
+    if (Array.isArray(response.output)) {
+      return response.output
+        .flatMap(item => Array.isArray(item?.content) ? item.content : [])
+        .map(part => part?.text || '')
+        .filter(Boolean)
+        .join(' ');
     }
   }
 
+  return extractAssistantTextFromContent(response?.choices?.[0]?.message?.content);
+};
+
+const generateConversationNamePrefixWithFastModel = async (firstUserMsg, signal = null) => {
+  const fastModelKey = currentConfig.value?.defaultFastModel;
+  if (!isConfiguredFastModelAvailable(fastModelKey)) return '';
+
+  const separatorIndex = fastModelKey.indexOf('|');
+  const providerId = fastModelKey.slice(0, separatorIndex);
+  const modelName = fastModelKey.slice(separatorIndex + 1);
+  const provider = currentConfig.value.providers[providerId];
+  const userContent = buildAutoNamingUserContent(firstUserMsg);
+
+  if (!userContent || (Array.isArray(userContent) && userContent.length === 0)) return '';
+
+  const namingController = signal instanceof AbortSignal ? null : new AbortController();
+  const namingSignal = signal || namingController?.signal || null;
+  const timeoutId = namingController ? setTimeout(() => namingController.abort(), AUTO_NAMING_TIMEOUT_MS) : null;
+
+  try {
+    if (namingSignal?.aborted) {
+      throw new DOMException('The operation was aborted.', 'AbortError');
+    }
+
+    const apiType = provider?.apiType || 'chat_completions';
+    const response = await window.api.createChatCompletion({
+      baseUrl: provider.url,
+      apiKey: provider.api_key,
+      model: modelName,
+      apiType,
+      headers: JSON.parse(JSON.stringify(provider?.headers || {})),
+      messages: [
+        { role: 'system', content: buildAutoNamingSystemPrompt() },
+        { role: 'user', content: userContent }
+      ],
+      stream: false,
+      signal: namingSignal,
+      temperature: 0.2
+    });
+
+    if (namingSignal?.aborted) {
+      throw new DOMException('The operation was aborted.', 'AbortError');
+    }
+
+    const rawTitle = await extractAutoNamingResponseText(response, apiType);
+    return await sanitizeAutoNamingTitlePart(rawTitle);
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw error;
+    }
+    console.warn('[Auto Naming] fast model naming failed, fallback to local naming:', error);
+    return '';
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
+const generateSuggestedConversationBasename = async ({
+  force = false,
+  uniqueDirPath = '',
+  signal = null,
+  firstUserMsg = null,
+  allowFastModel = true
+} = {}) => {
+  const targetFirstUserMsg = firstUserMsg || chat_show.value.find(msg => msg.role === 'user') || null;
+  const fallbackNamePrefix = getFallbackConversationNamePrefix(targetFirstUserMsg) || CODE.value || 'AI';
+  let generatedBaseTitle = '';
+
+  if (targetFirstUserMsg && allowFastModel && isConfiguredFastModelAvailable(currentConfig.value?.defaultFastModel)) {
+    const aiNamePrefix = await generateConversationNamePrefixWithFastModel(targetFirstUserMsg, signal);
+    if (aiNamePrefix) {
+      generatedBaseTitle = buildConversationTitleOnly(aiNamePrefix, force, { includeSummonPrefix: false });
+    }
+  }
+
+  if (!generatedBaseTitle) {
+    generatedBaseTitle = buildLegacyFallbackConversationFileName(fallbackNamePrefix, force)
+      || buildLegacyFallbackConversationFileName(CODE.value || 'AI', force);
+  }
+
+  if (!generatedBaseTitle) return '';
+  return resolveUniqueConversationFileName(generatedBaseTitle, uniqueDirPath);
+};
+
+const renderFilenameAutoNamingButton = ({ canUseAutoNaming = false, isAutoNaming, onClick }) => {
+  if (!canUseAutoNaming) return null;
+  return h(ElButton, {
+    class: 'filename-auto-name-button',
+    size: 'small',
+    loading: Boolean(isAutoNaming?.value),
+    disabled: Boolean(isAutoNaming?.value),
+    onClick
+  }, () => isAutoNaming?.value ? '命名中...' : '自动命名');
+};
+
+const renderFilenamePromptTitleRow = ({ text = '请输入文件名。', canUseAutoNaming = false, isAutoNaming, onClick }) => h(
+  'div',
+  { class: 'filename-prompt-title-row' },
+  [
+    h('p', { class: 'filename-prompt-title-text' }, text),
+    renderFilenameAutoNamingButton({ canUseAutoNaming, isAutoNaming, onClick })
+  ].filter(Boolean)
+);
+
+const createManualAutoNamingHandler = ({ inputValue, isAutoNaming, uniqueDirPath = '', fallbackBasename = '' }) => async () => {
+  if (isAutoNaming.value) return;
+  isAutoNaming.value = true;
+  try {
+    const generatedName = await generateSuggestedConversationBasename({
+      uniqueDirPath,
+      allowFastModel: true
+    });
+    const nextName = sanitizeConversationTitlePart(generatedName || fallbackBasename || CODE.value || 'AI', 80);
+    if (nextName) {
+      inputValue.value = nextName;
+    } else {
+      showDismissibleMessage.warning('当前对话内容不足，无法自动命名');
+    }
+  } catch (error) {
+    console.warn('[Auto Naming] manual naming failed:', error);
+    const fallbackName = sanitizeConversationTitlePart(fallbackBasename || CODE.value || 'AI', 80);
+    if (fallbackName) {
+      inputValue.value = fallbackName;
+    }
+  } finally {
+    isAutoNaming.value = false;
+  }
+};
+
+const triggerAutoNamingForFirstUserMessage = async ({ force = false, requestSignal = null } = {}) => {
+  if (!force && !isCurrentPromptAutoSaveEnabled()) {
+    return '';
+  }
+
+  if (defaultConversationName.value || !currentConfig.value?.webdav?.localChatPath) {
+    return defaultConversationName.value || '';
+  }
+
+  const firstUserMsg = chat_show.value.find(msg => msg.role === 'user');
+  if (!firstUserMsg) return '';
+
+  cancelAutoNamingRequest();
+  const localController = requestSignal instanceof AbortSignal ? null : new AbortController();
+  const namingSignal = requestSignal || localController?.signal || null;
+  if (localController) {
+    autoNamingAbortController.value = localController;
+  }
+
+  const namingTask = (async () => {
+    try {
+      const generatedName = await generateSuggestedConversationBasename({
+        force,
+        uniqueDirPath: currentConfig.value.webdav.localChatPath,
+        signal: namingSignal,
+        firstUserMsg
+      });
+      if (!defaultConversationName.value && generatedName) {
+        defaultConversationName.value = generatedName;
+        scheduleAutoSave({
+          reason: isConfiguredFastModelAvailable(currentConfig.value?.defaultFastModel)
+            ? 'auto-naming-completed'
+            : 'auto-naming-fallback-completed',
+          immediate: true
+        });
+      }
+      return defaultConversationName.value || generatedName || '';
+    } finally {
+      if (autoNamingAbortController.value === localController) {
+        autoNamingAbortController.value = null;
+      }
+      if (autoNamingPromise.value === namingTask) {
+        autoNamingPromise.value = null;
+      }
+    }
+  })();
+
+  autoNamingPromise.value = namingTask;
+  return namingTask;
+};
+
+const autoSaveSession = async (force = false, { skipProjectAssignment = false, version = sessionMutationVersion } = {}) => {
+  if (!currentConfig.value?.webdav?.localChatPath) {
+    return false;
+  }
+
+  const promptConfig = currentConfig.value?.prompts?.[CODE.value] || {};
+  const autoSaveProjectId = typeof promptConfig.autoSaveProjectId === 'string' ? promptConfig.autoSaveProjectId : '';
+
+  // 2. 获取当前快捷助手的配置
+  const shouldAutoSave = shouldPersistCurrentSessionAutomatically();
+
+  if (!shouldAutoSave && !force) {
+    return false;
+  }
+  // 自动命名已前移到首条消息发送阶段；自动保存阶段仅负责持久化已有会话名。
+
   // 5. 如果经过尝试后仍然没有对话名称（例如空对话），则不保存
   if (!defaultConversationName.value) {
-    return;
+    return false;
   }
 
   // 6. 执行写入操作
   try {
-    const sessionData = getSessionDataAsObject();
-    const jsonString = JSON.stringify(sessionData, null, 2);
-    const filePath = `${currentConfig.value.webdav.localChatPath}/${defaultConversationName.value}.json`;
-    await window.api.writeLocalFile(filePath, jsonString);
+    await persistSessionToLocalJsonFile(defaultConversationName.value);
+
+    if (!skipProjectAssignment) {
+      try {
+        const localProjects = normalizeWindowProjects(await window.api.readLocalProjects(currentConfig.value.webdav.localChatPath));
+        const filename = `${defaultConversationName.value}.json`;
+        const existingProjectId = findProjectIdByFilename(localProjects, filename);
+        if (!existingProjectId && autoSaveProjectId) {
+          const projectName = localProjects.projects.find((p) => p.id === autoSaveProjectId)?.name || '';
+          await reassignLocalProject({
+            projectId: autoSaveProjectId,
+            projectName,
+            addFilename: filename,
+            removeFilenames: []
+          });
+        }
+      } catch (projectError) {
+        console.warn('[projects] auto-save local project assignment failed:', projectError);
+      }
+    }
+
+    lastPersistedSessionVersion = Math.max(lastPersistedSessionVersion, Number(version) || 0);
+    lastAutoSaveAt = Date.now();
+    return true;
   } catch (error) {
     console.error('Auto-save failed:', error);
+    return false;
   }
 };
 
-onBeforeUnmount(async () => {
+const clearScheduledAutoSave = () => {
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
+  scheduledAutoSaveRequest = null;
+};
+
+const executeAutoSaveRequest = async (request = {}) => {
+  if (!request || !request.force) {
+    if (!shouldPersistCurrentSessionAutomatically()) {
+      return false;
+    }
+  }
+
+  if (autoSaveExecutionPromise) {
+    // Closing only needs the in-flight durable write; never enqueue a duplicate full save.
+    if (request.skipQueueWhenBusy) return autoSaveExecutionPromise;
+    queuedAutoSaveRequest = {
+      force: queuedAutoSaveRequest?.force || request.force || false,
+      reason: request.reason || queuedAutoSaveRequest?.reason || 'queued',
+      version: Math.max(Number(queuedAutoSaveRequest?.version) || 0, Number(request.version) || sessionMutationVersion),
+      skipProjectAssignment: Boolean(queuedAutoSaveRequest?.skipProjectAssignment && request.skipProjectAssignment)
+    };
+    return autoSaveExecutionPromise;
+  }
+
+  autoSaveExecutionPromise = (async () => {
+    try {
+      return await autoSaveSession(Boolean(request.force), {
+        skipProjectAssignment: request.skipProjectAssignment === true,
+        version: Number(request.version) || sessionMutationVersion
+      });
+    } finally {
+      autoSaveExecutionPromise = null;
+      if (queuedAutoSaveRequest) {
+        const nextRequest = queuedAutoSaveRequest;
+        queuedAutoSaveRequest = null;
+        await executeAutoSaveRequest(nextRequest);
+      }
+    }
+  })();
+
+  return autoSaveExecutionPromise;
+};
+
+const scheduleAutoSave = ({ reason = 'generic', immediate = false, force = false, delay = 0 } = {}) => {
+  if (!force && !shouldPersistCurrentSessionAutomatically()) {
+    return;
+  }
+
+  const request = { reason, force, version: ++sessionMutationVersion };
+
+  if (immediate || force || delay <= 0) {
+    clearScheduledAutoSave();
+    executeAutoSaveRequest(request);
+    return;
+  }
+
+  if (scheduledAutoSaveRequest?.force) {
+    request.force = true;
+  }
+  scheduledAutoSaveRequest = request;
+
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+  }
+  autoSaveTimer = setTimeout(() => {
+    const pendingRequest = scheduledAutoSaveRequest || request;
+    autoSaveTimer = null;
+    scheduledAutoSaveRequest = null;
+    executeAutoSaveRequest(pendingRequest);
+  }, delay);
+};
+
+const scheduleInputDraftAutoSave = (reason = 'input-draft') => {
+  scheduleAutoSave({ reason, delay: AUTO_SAVE_INPUT_DEBOUNCE_MS });
+};
+
+const scheduleLoadingAutoSave = (reason = 'loading-progress') => {
+  const elapsed = Date.now() - lastAutoSaveAt;
+  if (elapsed >= AUTO_SAVE_LOADING_THROTTLE_MS) {
+    scheduleAutoSave({ reason, immediate: true });
+  } else {
+    scheduleAutoSave({ reason, delay: Math.max(120, AUTO_SAVE_LOADING_THROTTLE_MS - elapsed) });
+  }
+};
+
+
+onBeforeUnmount(async () => {  // 15s 轮询自动保存已移除；当前仅保留显式业务触发的保存链路。
+
+
+  closeSubAgentDetailFromInput();
+
+  if (subAgentStatusPollTimer) {
+    window.clearInterval(subAgentStatusPollTimer);
+    subAgentStatusPollTimer = null;
+  }
+
+
   window.removeEventListener('wheel', handleWheel);
   window.removeEventListener('focus', handleWindowFocus);
   window.removeEventListener('blur', handleWindowBlur);
   if (textSearchInstance) textSearchInstance.destroy();
-  if (!autoCloseOnBlur.value) window.removeEventListener('blur', closePage);
+  window.removeEventListener('blur', handleAutoCloseOnBlur);
   await window.api.closeMcpClient();
   window.removeEventListener('error', handleGlobalImageError, true);
   window.removeEventListener('keydown', handleGlobalKeyDown);
 
-  if (chatObserver) {
-    chatObserver.disconnect();
-    chatObserver = null;
-  }
+  cleanupStickyResizeObserver();
+  clearScheduledAutoSave();
+
 });
 
 const saveWindowSize = async () => {
@@ -1629,31 +3690,297 @@ const saveWindowSize = async () => {
   }
 }
 
-const getSessionDataAsObject = () => {
+const getSessionDataAsObject = (options = {}) => {
   const currentPromptConfig = currentConfig.value.prompts[CODE.value] || {};
+  const explicitTitle = typeof options?.title === 'string' ? options.title.trim() : '';
+  // Keep the request projection current, but do not rebuild the UI cache while serializing.
+  rehydrateHistoryToolsIfNeeded();
+  syncHistoryFromFullHistory();
+  // Do not reconcile chat_show here: serializing must stay off the close/save hot path.
   return {
     anywhere_history: true, CODE: CODE.value, basic_msg: basic_msg.value, isInit: isInit.value,
     autoCloseOnBlur: autoCloseOnBlur.value, model: model.value,
-    currentPromptConfig: currentPromptConfig, history: history.value, chat_show: chat_show.value, selectedVoice: selectedVoice.value,
+    sessionMetadata: { title: explicitTitle || getSessionMetadata().title },
+    currentPromptConfig: currentPromptConfig, fullHistory: fullHistory.value, history: history.value, chat_show: chat_show.value, selectedVoice: selectedVoice.value,
     activeMcpServerIds: sessionMcpServerIds.value || [],
     activeSkillIds: sessionSkillIds.value || [],
-    isAutoApproveTools: isAutoApproveTools.value
+    isAutoApproveTools: isAutoApproveTools.value,
+    taskList: taskList.value,
+    conversationOwnerId: ensureConversationOwnerId(),
+    subAgentTasks: subAgentTasks.value.map(normalizeSubAgentSummary).filter(Boolean),
+    subAgentDetails: subAgentDetails.value,
+    compactArchives: compactArchives.value,
+    compactConfig: compactConfig.value
   };
 }
+// --- 项目（目录）归属：窗口端 helper ---
+const stripJsonName = (value) => {
+  const name = String(value || '').trim();
+  return name.toLowerCase().endsWith('.json') ? name.slice(0, -5) : name;
+};
+
+const normalizeWindowProjects = (data) => {
+  const projects = Array.isArray(data?.projects) ? data.projects : [];
+  return {
+    version: Number(data?.version) || 1,
+    projects: projects
+      .filter((p) => p && typeof p === 'object')
+      .map((p) => ({
+        id: String(p.id || '').trim(),
+        name: String(p.name || '').trim() || String(p.id || '').trim(),
+        files: Array.isArray(p.files) ? p.files.map((f) => String(f || '').trim()).filter(Boolean) : []
+      }))
+      .filter((p) => p.id)
+  };
+};
+
+const loadProjectsForScope = async (scope) => {
+  try {
+    if (scope === 'cloud') {
+      const { url, username, password, data_path } = currentConfig.value?.webdav || {};
+      if (!url || !data_path) return { version: 1, projects: [] };
+      const client = createClient(url, { username, password });
+      const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
+      const remotePath = `${remoteDir}/projects.yaml`;
+      if (!(await client.exists(remotePath))) return { version: 1, projects: [] };
+      const text = await client.getFileContents(remotePath, { format: 'text' });
+      return normalizeWindowProjects(await window.api.parseProjectsYaml(typeof text === 'string' ? text : String(text)));
+    }
+    const localPath = currentConfig.value?.webdav?.localChatPath || '';
+    if (!localPath) return { version: 1, projects: [] };
+    return normalizeWindowProjects(await window.api.readLocalProjects(localPath));
+  } catch (error) {
+    console.warn('[projects] load for scope failed:', error);
+    return { version: 1, projects: [] };
+  }
+};
+
+const findProjectIdByFilename = (projectsData, filename) => {
+  const stripped = stripJsonName(filename);
+  const project = (projectsData?.projects || []).find((p) =>
+    (p.files || []).some((f) => stripJsonName(f) === stripped)
+  );
+  return project?.id || '';
+};
+
+const renderProjectSelectRow = ({ projects, selectedProjectId }) => h(
+  'div',
+  { class: 'filename-project-row' },
+  [
+    h('span', { class: 'filename-project-label' }, '项目'),
+    h(ElSelect, {
+      modelValue: selectedProjectId.value,
+      'onUpdate:modelValue': (val) => { selectedProjectId.value = val; },
+      placeholder: '未分组',
+      clearable: true,
+      class: 'filename-project-select',
+      popperClass: 'filename-project-popper',
+      teleported: true,
+      placement: 'bottom-start'
+    }, () => [
+      h(ElOption, { label: '未分组', value: '' }),
+      ...projects.map((p) => h(ElOption, { key: p.id, label: p.name, value: p.id }))
+    ])
+  ]
+);
+
+// 本地项目归属重写：移除旧名 + 当前名，按需加入目标项目（projectId 为空=未分组）。
+const reassignLocalProject = async ({ projectId, projectName, addFilename, removeFilenames = [] }) => {
+  const localPath = currentConfig.value?.webdav?.localChatPath || '';
+  if (!localPath) return;
+  const data = normalizeWindowProjects(await window.api.readLocalProjects(localPath));
+  const removeSet = new Set([addFilename, ...removeFilenames].map((n) => stripJsonName(n)).filter(Boolean));
+  let projects = data.projects.map((p) => ({
+    ...p,
+    files: (p.files || []).filter((f) => !removeSet.has(stripJsonName(f)))
+  }));
+  if (projectId && addFilename) {
+    if (!projects.some((p) => p.id === projectId)) {
+      projects.push({ id: projectId, name: projectName || projectId, files: [] });
+    }
+    projects = projects.map((p) =>
+      p.id === projectId ? { ...p, files: [...p.files, addFilename] } : p
+    );
+  }
+  await window.api.writeLocalProjects(localPath, { version: data.version || 1, projects });
+};
+
+// 云端项目归属：读取云端 projects.yaml → 单文件归属合并 → 写回（webdav 在渲染层）。
+const assignCloudProject = async ({ projectId, projectName, basename }) => {
+  const { url, username, password, data_path } = currentConfig.value?.webdav || {};
+  if (!url || !data_path) return;
+  const client = createClient(url, { username, password });
+  const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
+  const remotePath = `${remoteDir}/projects.yaml`;
+  let current = { version: 1, projects: [] };
+  try {
+    if (await client.exists(remotePath)) {
+      const text = await client.getFileContents(remotePath, { format: 'text' });
+      current = await window.api.parseProjectsYaml(typeof text === 'string' ? text : String(text));
+    }
+  } catch {
+    current = { version: 1, projects: [] };
+  }
+  const merged = await window.api.mergeFileAssignment(current, {
+    basename,
+    projectId: projectId || '',
+    projectName: projectName || ''
+  });
+  const content = await window.api.serializeProjectsYaml(merged);
+  await client.putFileContents(remotePath, content, { overwrite: true });
+};
+
+
+const CHAT_METADATA_FILENAME = 'chat-metadata.yaml';
+
+const normalizeWebdavContents = (contents) => {
+  if (Array.isArray(contents)) return contents;
+  if (contents && Array.isArray(contents.data)) return contents.data;
+  return [];
+};
+
+const normalizeWebdavFileTime = (value) => normalizeSessionTimestamp(value) || '';
+const buildChatMetadataRemotePath = (remoteDir) => `${remoteDir}/${CHAT_METADATA_FILENAME}`;
+
+const resolveWindowCloudSaveFileSystemTimes = async (filename) => {
+  const localDir = currentConfig.value?.webdav?.localChatPath || '';
+  const nowIso = new Date().toISOString();
+  if (!localDir) {
+    return { createdAt: nowIso, updatedAt: nowIso, source: 'now' };
+  }
+
+  try {
+    const files = await window.api.listJsonFiles(localDir);
+    const matchedFile = (Array.isArray(files) ? files : []).find((item) => item?.basename === filename);
+    if (!matchedFile) {
+      return { createdAt: nowIso, updatedAt: nowIso, source: 'now' };
+    }
+
+    const createdAt = normalizeSessionTimestamp(matchedFile.createdAt || matchedFile.birthtime || matchedFile.ctime) || normalizeSessionTimestamp(matchedFile.updatedAt) || nowIso;
+    const updatedAt = normalizeSessionTimestamp(matchedFile.updatedAt || matchedFile.lastmod || matchedFile.mtime) || createdAt;
+    return { createdAt, updatedAt, source: 'local-file' };
+  } catch {
+    return { createdAt: nowIso, updatedAt: nowIso, source: 'now' };
+  }
+};
+
+const buildWindowChatMetadataPayload = (basename, options = {}) => {
+  const { sessionData = null, createdAt = '', updatedAt = '' } = options;
+  const metadata = sessionData?.sessionMetadata && typeof sessionData.sessionMetadata === 'object'
+    ? sessionData.sessionMetadata
+    : getSessionMetadata();
+  const normalizedCreatedAt = normalizeSessionTimestamp(createdAt);
+  const normalizedUpdatedAt = normalizeSessionTimestamp(updatedAt);
+  const fallbackNow = new Date().toISOString();
+
+  return {
+    title: typeof metadata?.title === 'string' && metadata.title.trim()
+      ? metadata.title.trim()
+      : stripJsonName(basename),
+    createdAt: normalizedCreatedAt || normalizedUpdatedAt || fallbackNow,
+    updatedAt: normalizedUpdatedAt || normalizedCreatedAt || fallbackNow
+  };
+};
+
+const readCloudChatMetadataIndex = async (client, remoteDir) => {
+  try {
+    const text = await client.getFileContents(buildChatMetadataRemotePath(remoteDir), { format: 'text' });
+    return window.api.normalizeChatMetadataIndex(
+      await window.api.parseChatMetadataYaml(typeof text === 'string' ? text : String(text || ''))
+    );
+  } catch {
+    return window.api.normalizeChatMetadataIndex({ version: 1, chats: {} });
+  }
+};
+
+const writeCloudChatMetadataIndex = async (client, remoteDir, metadata) => {
+  const content = await window.api.serializeChatMetadataYaml(metadata);
+  await client.putFileContents(buildChatMetadataRemotePath(remoteDir), content, { overwrite: true });
+};
+
+const reconcileWindowCloudChatMetadata = async (client, remoteDir, files = null) => {
+  const list = Array.isArray(files)
+    ? files
+    : normalizeWebdavContents(await client.getDirectoryContents(remoteDir, { details: true }).catch(() => []));
+  const jsonFiles = normalizeWebdavContents(list)
+    .map((item) => ({
+      ...item,
+      basename: String(item?.basename || item?.filename || item?.name || '').trim()
+    }))
+    .filter((item) => item?.type === 'file' && item.basename.toLowerCase().endsWith('.json'));
+  const metadata = await readCloudChatMetadataIndex(client, remoteDir);
+  const nextChats = { ...(metadata?.chats || {}) };
+  let changed = false;
+
+  jsonFiles.forEach((file) => {
+    const current = nextChats[file.basename];
+    const candidate = window.api.normalizeChatMetadataEntry(file.basename, {
+      title: current?.title || stripJsonName(file.basename),
+      createdAt: current?.createdAt || normalizeWebdavFileTime(file.createdAt || file.creationdate || file.birthtime || file.ctime || file.lastmod || file.props?.creationdate || file.props?.getcreationdate),
+      updatedAt: current?.updatedAt || normalizeWebdavFileTime(file.updatedAt || file.lastmod || file.lastModified || file.mtime || file.props?.getlastmodified || file.props?.lastmod || file.createdAt)
+    });
+    if (JSON.stringify(current || null) !== JSON.stringify(candidate || null)) {
+      nextChats[file.basename] = candidate;
+      changed = true;
+    }
+  });
+
+  Object.keys(nextChats).forEach((basename) => {
+    if (!jsonFiles.some((file) => file.basename === basename)) {
+      delete nextChats[basename];
+      changed = true;
+    }
+  });
+
+  const nextMetadata = window.api.normalizeChatMetadataIndex({ version: 1, chats: nextChats });
+  if (changed) {
+    await writeCloudChatMetadataIndex(client, remoteDir, nextMetadata);
+  }
+  return nextMetadata;
+};
+
+const upsertWindowCloudChatMetadata = async (client, remoteDir, filename, chatMetadata) => {
+  const remoteList = normalizeWebdavContents(await client.getDirectoryContents(remoteDir, { details: true }).catch(() => []));
+  const metadata = await reconcileWindowCloudChatMetadata(client, remoteDir, remoteList);
+  const previousEntry = metadata.chats[filename] ? { ...metadata.chats[filename] } : null;
+  metadata.chats[filename] = window.api.normalizeChatMetadataEntry(filename, chatMetadata);
+  await writeCloudChatMetadataIndex(client, remoteDir, metadata);
+  return { metadata, previousEntry };
+};
+
+const restoreWindowCloudChatMetadataEntry = async (client, remoteDir, filename, metadata, previousEntry) => {
+  if (!metadata) return;
+  if (previousEntry) {
+    metadata.chats[filename] = previousEntry;
+  } else {
+    delete metadata.chats[filename];
+  }
+  await writeCloudChatMetadataIndex(client, remoteDir, metadata).catch(() => {});
+};
+
 const saveSessionToCloud = async () => {
-  const now = new Date();
-  const year = String(now.getFullYear()).slice(-2);
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).toString().padStart(2, '0');
-  const hours = String(now.getHours()).toString().padStart(2, '0');
-  const minutes = String(now.getMinutes()).toString().padStart(2, '0');
-  const defaultBasename = defaultConversationName.value || `${CODE.value || 'AI'}-${year}${month}${day}-${hours}${minutes}`;
+  const defaultBasename = defaultConversationName.value || buildConversationTimestampedBasename(CODE.value || 'AI', { force: false, includeCode: false });
   const inputValue = ref(defaultBasename);
+  const isAutoNaming = ref(false);
+  const canUseAutoNaming = isConfiguredFastModelAvailable(currentConfig.value?.defaultFastModel);
+  const handleManualAutoNaming = createManualAutoNamingHandler({
+    inputValue,
+    isAutoNaming,
+    uniqueDirPath: currentConfig.value?.webdav?.localChatPath || '',
+    fallbackBasename: defaultBasename
+  });
+  const projectsData = await loadProjectsForScope('cloud');
+  const selectedProjectId = ref(findProjectIdByFilename(projectsData, `${defaultBasename}.json`));
   try {
     await ElMessageBox({
       title: '保存到云端',
       message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入要保存到云端的会话名称。'),
+        renderFilenamePromptTitleRow({
+          text: '请输入要保存到云端的会话名称。',
+          canUseAutoNaming,
+          isAutoNaming,
+          onClick: handleManualAutoNaming
+        }),
         h(ElInput, {
           modelValue: inputValue.value,
           'onUpdate:modelValue': (val) => { inputValue.value = val; },
@@ -1670,7 +3997,8 @@ const saveSessionToCloud = async () => {
             }
           }
         },
-          { append: () => h('div', { class: 'input-suffix-display' }, '.json') })]),
+          { append: () => h('div', { class: 'input-suffix-display' }, '.json') }),
+        renderProjectSelectRow({ projects: projectsData.projects, selectedProjectId })]),
       showCancelButton: true, confirmButtonText: '确认', cancelButtonText: '取消', customClass: 'filename-prompt-dialog',
       beforeClose: async (action, instance, done) => {
         if (action === 'confirm') {
@@ -1681,15 +4009,37 @@ const saveSessionToCloud = async () => {
           instance.confirmButtonLoading = true;
           showDismissibleMessage.info('正在保存到云端...');
           try {
-            const sessionData = getSessionDataAsObject();
+            const sessionData = getSessionDataAsObject({ title: finalBasename });
             const jsonString = JSON.stringify(sessionData, null, 2);
             const { url, username, password, data_path } = currentConfig.value.webdav;
             const client = createClient(url, { username, password });
             const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
             const remoteFilePath = `${remoteDir}/${filename}`;
             if (!(await client.exists(remoteDir))) await client.createDirectory(remoteDir, { recursive: true });
-            await client.putFileContents(remoteFilePath, jsonString, { overwrite: true });
+            const fileSystemTimes = await resolveWindowCloudSaveFileSystemTimes(filename);
+            const { metadata: previousMetadataIndex, previousEntry } = await upsertWindowCloudChatMetadata(
+              client,
+              remoteDir,
+              filename,
+              buildWindowChatMetadataPayload(filename, {
+                sessionData,
+                createdAt: fileSystemTimes.createdAt,
+                updatedAt: fileSystemTimes.updatedAt
+              })
+            );
+            try {
+              await client.putFileContents(remoteFilePath, jsonString, { overwrite: true });
+            } catch (uploadError) {
+              await restoreWindowCloudChatMetadataEntry(client, remoteDir, filename, previousMetadataIndex, previousEntry);
+              throw uploadError;
+            }
             defaultConversationName.value = finalBasename;
+            try {
+              const projectName = projectsData.projects.find((p) => p.id === selectedProjectId.value)?.name || '';
+              await assignCloudProject({ projectId: selectedProjectId.value, projectName, basename: filename });
+            } catch (projectError) {
+              console.warn('[projects] 更新云端项目归属失败:', projectError);
+            }
             showDismissibleMessage.success('会话已成功保存到云端！');
             done();
           } catch (error) {
@@ -1778,7 +4128,7 @@ const saveSessionAsMarkdown = async () => {
     await ElMessageBox({
       title: '保存为 Markdown',
       message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入会话名称。'),
+        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入文件名。'),
         h(ElInput, {
           modelValue: inputValue.value,
           'onUpdate:modelValue': (val) => { inputValue.value = val; },
@@ -1806,8 +4156,7 @@ const saveSessionAsMarkdown = async () => {
           instance.confirmButtonLoading = true;
           try {
             await window.api.saveFile({ title: '保存为 Markdown', defaultPath: finalFilename, buttonLabel: '保存', filters: [{ name: 'Markdown 文件', extensions: ['md'] }, { name: '所有文件', extensions: ['*'] }], fileContent: markdownContent });
-            defaultConversationName.value = finalBasename;
-            showDismissibleMessage.success('会话已成功保存为 Markdown！');
+            showDismissibleMessage.success('Markdown 文件已成功导出！');
             done();
           } catch (error) {
             if (!error.message.includes('canceled by the user')) { console.error('保存 Markdown 失败:', error); showDismissibleMessage.error(`保存失败: ${error.message}`); }
@@ -1828,7 +4177,8 @@ const saveSessionAsHtml = async () => {
 
   const defaultAiSvg = `<svg width="200" height="200" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#FDA5A5" /><g stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="25" y="32" width="50" height="42" rx="8" /><line x1="40" y1="63" x2="60" y2="63" /><line x1="35" y1="32" x2="32" y2="22" /><line x1="65" y1="32" x2="68" y2="22" /></g><g fill="white" stroke="none"><circle cx="40" cy="48" r="3.5" /><circle cx="60" cy="48" r="3.5" /><circle cx="32" cy="20" r="3" /><circle cx="68" cy="20" r="3" /></g></svg>`;
 
-  const generateHtmlContent = () => {
+  const generateHtmlContent = async () => {
+    const { DOMPurify, marked } = await loadExportHtmlDeps();
     let bodyContent = '';
     let tocContent = '';
 
@@ -1987,27 +4337,27 @@ const saveSessionAsHtml = async () => {
 
     const cssStyles = `
       <style>
-        :root { 
-            --bg-color: #f7f7f7; 
-            --text-color: #333; 
-            --card-bg: #fff; 
-            --user-bg: #e1f5fe; 
-            --ai-bg: #fff; 
-            --border-color: #eee; 
-            --accent-color: #1F2937; 
+        :root {
+            --bg-color: #f7f7f7;
+            --text-color: #333;
+            --card-bg: #fff;
+            --user-bg: #e1f5fe;
+            --ai-bg: #fff;
+            --border-color: #eee;
+            --accent-color: #1F2937;
             --timeline-line: #e0e0e0;
             --timeline-dot-default: #bdbdbd;
             --timeline-dot-active: #1F2937;
         }
         @media (prefers-color-scheme: dark) {
-          :root { 
-              --bg-color: #1a1a1a; 
-              --text-color: #e0e0e0; 
-              --card-bg: #2a2a2a; 
-              --user-bg: #0d47a1; 
-              --ai-bg: #3a3a3a; 
-              --border-color: #444; 
-              --accent-color: #64b5f6; 
+          :root {
+              --bg-color: #1a1a1a;
+              --text-color: #e0e0e0;
+              --card-bg: #2a2a2a;
+              --user-bg: #0d47a1;
+              --ai-bg: #3a3a3a;
+              --border-color: #444;
+              --accent-color: #64b5f6;
               --timeline-line: #444;
               --timeline-dot-default: #666;
               --timeline-dot-active: #64b5f6;
@@ -2029,7 +4379,7 @@ const saveSessionAsHtml = async () => {
             z-index: 100;
             max-height: 80vh;
             overflow-y: auto;
-            scrollbar-width: none; 
+            scrollbar-width: none;
             padding: 10px;
         }
         .timeline-toc::-webkit-scrollbar { display: none; }
@@ -2041,7 +4391,7 @@ const saveSessionAsHtml = async () => {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px; 
+            gap: 12px;
         }
         .timeline-list::before {
             content: '';
@@ -2069,7 +4419,7 @@ const saveSessionAsHtml = async () => {
         .timeline-dot.user-dot {
             background-color: var(--timeline-dot-active);
             border-color: var(--timeline-dot-active);
-            width: 12px; 
+            width: 12px;
             height: 12px;
         }
         .timeline-dot.ai-dot {
@@ -2135,7 +4485,19 @@ const saveSessionAsHtml = async () => {
           .user-body { max-width: 95%; }
           body { padding: 0; }
         }
-      </style>
+      
+.timeline-node.is-compaction,
+.timeline-node.compaction {
+  background: linear-gradient(90deg, #f6c945 0%, #e0a800 100%) !important;
+  box-shadow: 0 0 6px rgba(224, 168, 0, 0.45) !important;
+  height: 3px !important;
+}
+html.dark .timeline-node.is-compaction,
+html.dark .timeline-node.compaction {
+  background: linear-gradient(90deg, #ffd666 0%, #faad14 100%) !important;
+  box-shadow: 0 0 8px rgba(250, 173, 20, 0.5) !important;
+}
+</style>
     `;
 
     return `
@@ -2171,7 +4533,7 @@ const saveSessionAsHtml = async () => {
     await ElMessageBox({
       title: '保存为 HTML',
       message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入会话名称。'),
+        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入文件名。'),
         h(ElInput, {
           modelValue: inputValue.value,
           'onUpdate:modelValue': (val) => { inputValue.value = val; },
@@ -2193,10 +4555,9 @@ const saveSessionAsHtml = async () => {
           const finalFilename = finalBasename + '.html';
           instance.confirmButtonLoading = true;
           try {
-            const htmlContent = generateHtmlContent();
+            const htmlContent = await generateHtmlContent();
             await window.api.saveFile({ title: '保存为 HTML', defaultPath: finalFilename, buttonLabel: '保存', filters: [{ name: 'HTML 文件', extensions: ['html'] }, { name: '所有文件', extensions: ['*'] }], fileContent: htmlContent });
-            defaultConversationName.value = finalBasename;
-            showDismissibleMessage.success('会话已成功保存为 HTML！');
+            showDismissibleMessage.success('HTML 文件已成功导出！');
             done();
           } catch (error) {
             if (!error.message.includes('User cancelled') && !error.message.includes('用户取消')) { console.error('保存 HTML 失败:', error); showDismissibleMessage.error(`保存失败: ${error.message}`); }
@@ -2208,18 +4569,47 @@ const saveSessionAsHtml = async () => {
   } catch (error) { if (error !== 'cancel' && error !== 'close') console.error('MessageBox error:', error); }
 };
 
-const saveSessionAsJson = async () => {
-  const sessionData = getSessionDataAsObject();
+const persistSessionToLocalJsonFile = async (baseName = defaultConversationName.value, options = {}) => {
+  const localChatPath = currentConfig.value.webdav?.localChatPath;
+  const normalizedBaseName = typeof baseName === 'string' ? baseName.trim() : '';
+
+  if (!localChatPath || !normalizedBaseName) {
+    return false;
+  }
+
+  const separator = currentOS.value === 'win' ? '\\' : '/';
+  const sessionData = getSessionDataAsObject({ title: typeof options?.title === 'string' ? options.title : normalizedBaseName });
   const jsonString = JSON.stringify(sessionData, null, 2);
-  const now = new Date();
-  const fileTimestamp = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-  const defaultBasename = defaultConversationName.value || `${CODE.value || 'AI'}-${fileTimestamp}`;
+  const fullPath = `${localChatPath}${separator}${normalizedBaseName}.json`;
+
+  await window.api.writeLocalFile(fullPath, jsonString);
+  return true;
+};
+
+
+const saveSessionAsJson = async () => {
+  const defaultBasename = defaultConversationName.value || buildConversationTimestampedBasename(CODE.value || 'AI', { force: false, includeCode: false });
   const inputValue = ref(defaultBasename);
+  const isAutoNaming = ref(false);
+  const canUseAutoNaming = isConfiguredFastModelAvailable(currentConfig.value?.defaultFastModel);
+  const handleManualAutoNaming = createManualAutoNamingHandler({
+    inputValue,
+    isAutoNaming,
+    uniqueDirPath: currentConfig.value?.webdav?.localChatPath || '',
+    fallbackBasename: defaultBasename
+  });
+  const projectsData = await loadProjectsForScope('local');
+  const selectedProjectId = ref(findProjectIdByFilename(projectsData, `${defaultBasename}.json`));
   try {
     await ElMessageBox({
       title: '保存为 JSON',
       message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入会话名称。'),
+        renderFilenamePromptTitleRow({
+          text: '请输入文件名。',
+          canUseAutoNaming,
+          isAutoNaming,
+          onClick: handleManualAutoNaming
+        }),
         h(ElInput, {
           modelValue: inputValue.value,
           'onUpdate:modelValue': (val) => { inputValue.value = val; },
@@ -2236,7 +4626,8 @@ const saveSessionAsJson = async () => {
             }
           }
         },
-          { append: () => h('div', { class: 'input-suffix-display' }, '.json') })]),
+          { append: () => h('div', { class: 'input-suffix-display' }, '.json') }),
+        renderProjectSelectRow({ projects: projectsData.projects, selectedProjectId })]),
       showCancelButton: true, confirmButtonText: '保存', cancelButtonText: '取消', customClass: 'filename-prompt-dialog',
       beforeClose: async (action, instance, done) => {
         if (action === 'confirm') {
@@ -2250,12 +4641,25 @@ const saveSessionAsJson = async () => {
 
             // 优化逻辑：如果有本地路径，直接写入；否则弹出保存框
             if (localChatPath) {
-              const separator = currentOS.value === 'win' ? '\\' : '/';
-              const fullPath = `${localChatPath}${separator}${finalFilename}`;
-              // 直接写入文件，不弹窗
-              await window.api.writeLocalFile(fullPath, jsonString);
+              await persistSessionToLocalJsonFile(finalBasename, { title: finalBasename });
+              // 更新项目归属（仅在已配置本地路径时维护 projects.yaml）
+              try {
+                const oldFilename = defaultConversationName.value ? `${defaultConversationName.value}.json` : '';
+                const removeFilenames = oldFilename && oldFilename !== finalFilename ? [oldFilename] : [];
+                const projectName = projectsData.projects.find((p) => p.id === selectedProjectId.value)?.name || '';
+                await reassignLocalProject({
+                  projectId: selectedProjectId.value,
+                  projectName,
+                  addFilename: finalFilename,
+                  removeFilenames
+                });
+              } catch (projectError) {
+                console.warn('[projects] 更新本地项目归属失败:', projectError);
+              }
             } else {
               // 未配置路径，弹出系统选择框
+              const sessionData = getSessionDataAsObject({ title: finalBasename });
+              const jsonString = JSON.stringify(sessionData, null, 2);
               await window.api.saveFile({
                 title: '保存聊天会话',
                 defaultPath: finalFilename,
@@ -2282,6 +4686,49 @@ const saveSessionAsJson = async () => {
 };
 
 // 重命名当前会话逻辑
+
+const renameRemoteSessionFileWithMetadata = async (client, remoteDir, oldFilename, newFilename) => {
+  const normalizedRemoteDir = String(remoteDir || '').endsWith('/') ? String(remoteDir).slice(0, -1) : String(remoteDir || '');
+  const oldRemotePath = `${normalizedRemoteDir}/${oldFilename}`;
+  const newRemotePath = `${normalizedRemoteDir}/${newFilename}`;
+  const nextTitle = newFilename.toLowerCase().endsWith('.json') ? newFilename.slice(0, -5) : newFilename;
+  const metadata = await reconcileWindowCloudChatMetadata(client, normalizedRemoteDir);
+  const previousEntry = metadata.chats[oldFilename] ? { ...metadata.chats[oldFilename] } : null;
+
+  await client.moveFile(oldRemotePath, newRemotePath);
+
+  try {
+    const content = await client.getFileContents(newRemotePath, { format: 'text' });
+    const sessionData = JSON.parse(typeof content === 'string' ? content : String(content));
+    if (sessionData && sessionData.anywhere_history === true && typeof sessionData === 'object') {
+      const sessionMetadata =
+        sessionData.sessionMetadata && typeof sessionData.sessionMetadata === 'object'
+          ? sessionData.sessionMetadata
+          : {};
+
+      if ((sessionMetadata.title || '').trim() !== nextTitle) {
+        sessionData.sessionMetadata = {
+          ...sessionMetadata,
+          title: nextTitle
+        };
+        await client.putFileContents(newRemotePath, JSON.stringify(sessionData, null, 2), { overwrite: true });
+      }
+    }
+  } catch {
+    // ignore remote title sync failure; YAML metadata is still updated below
+  }
+
+  delete metadata.chats[oldFilename];
+  if (newFilename.toLowerCase().endsWith('.json')) {
+    metadata.chats[newFilename] = window.api.normalizeChatMetadataEntry(newFilename, {
+      ...(previousEntry || {}),
+      title: nextTitle
+    });
+  }
+  await writeCloudChatMetadataIndex(client, normalizedRemoteDir, metadata);
+};
+
+
 const handleRenameSession = async () => {
   if (autoCloseOnBlur.value) handleTogglePin(); // 暂停失焦关闭，防止弹窗时窗口消失
 
@@ -2299,70 +4746,150 @@ const handleRenameSession = async () => {
   const oldFilename = `${oldBaseName}.json`;
   // 简单拼接路径，electron/node 环境下通常能正确处理
   const oldFilePath = `${localPath}/${oldFilename}`;
+  const inputValue = ref(oldBaseName);
+  const projectsData = await loadProjectsForScope('local');
+  const originalProjectId = findProjectIdByFilename(projectsData, oldFilename);
+  const selectedProjectId = ref(originalProjectId);
 
   try {
-    const { value: userInput } = await ElMessageBox.prompt(
-      '请输入新的会话名称',
-      '重命名对话',
-      {
-        inputValue: oldBaseName,
-        confirmButtonText: '确认',
-        cancelButtonText: '取消',
-        inputValidator: (val) => {
-          if (!val || !val.trim()) return '名称不能为空';
-          if (/[\\/:*?"<>|]/.test(val)) return '文件名包含非法字符';
-          return true;
-        },
-        customClass: 'filename-prompt-dialog', // 复用已有的弹窗样式
-      }
-    );
-
-    let newBaseName = (userInput || "").trim();
-    if (newBaseName.toLowerCase().endsWith('.json')) newBaseName = newBaseName.slice(0, -5);
-
-    if (newBaseName === oldBaseName) return;
-
-    const newFilename = `${newBaseName}.json`;
-    const newFilePath = `${localPath}/${newFilename}`;
-
-    // 检查本地是否存在同名文件
-    const files = await window.api.listJsonFiles(localPath);
-    if (files.some(f => f.basename === newFilename)) {
-      showDismissibleMessage.error(`文件名 "${newFilename}" 已存在，操作取消`);
-      return;
-    }
-
-    // 执行本地重命名
-    await window.api.renameLocalFile(oldFilePath, newFilePath);
-    defaultConversationName.value = newBaseName;
-    showDismissibleMessage.success('本地重命名成功');
-
-    // 尝试同步重命名云端文件
-    const { url, username, password, data_path } = currentConfig.value.webdav || {};
-    if (url && data_path) {
-      try {
-        const client = createClient(url, { username, password });
-        const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
-        const oldRemotePath = `${remoteDir}/${oldFilename}`;
-        const newRemotePath = `${remoteDir}/${newFilename}`;
-
-        // 检查云端是否存在该文件
-        if (await client.exists(oldRemotePath)) {
-          await ElMessageBox.confirm(
-            '云端也存在同名文件，是否同步重命名？',
-            '同步操作提示',
-            { confirmButtonText: '是', cancelButtonText: '否', type: 'info' }
-          );
-          await client.moveFile(oldRemotePath, newRemotePath);
-          showDismissibleMessage.success('云端同步重命名成功');
+    await ElMessageBox({
+      title: '重命名对话',
+      message: () => h('div', null, [
+        renderFilenamePromptTitleRow({
+          text: '请输入新的会话名称',
+          canUseAutoNaming: false,
+          isAutoNaming: null,
+          onClick: null
+        }),
+        h(ElInput, {
+          modelValue: inputValue.value,
+          'onUpdate:modelValue': (val) => { inputValue.value = val; },
+          placeholder: '会话名称',
+          ref: (elInputInstance) => {
+            if (elInputInstance) {
+              setTimeout(() => elInputInstance.focus(), 100);
+            }
+          },
+          onKeydown: (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              document.querySelector('.filename-prompt-dialog .el-message-box__btns .el-button--primary')?.click();
+            }
+          }
+        }),
+        renderProjectSelectRow({ projects: projectsData.projects, selectedProjectId })
+      ]),
+      showCancelButton: true,
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      customClass: 'filename-prompt-dialog',
+      beforeClose: async (action, instance, done) => {
+        if (action !== 'confirm') {
+          done();
+          return;
         }
-      } catch (e) {
-        if (e !== 'cancel' && e !== 'close') {
-          console.warn('Cloud rename skipped:', e);
+
+        let newBaseName = (inputValue.value || '').trim();
+        if (!newBaseName) {
+          showDismissibleMessage.error('名称不能为空');
+          return;
+        }
+        if (/[\\/:*?"<>|]/.test(newBaseName)) {
+          showDismissibleMessage.error('文件名包含非法字符');
+          return;
+        }
+        if (newBaseName.toLowerCase().endsWith('.json')) newBaseName = newBaseName.slice(0, -5);
+        if (!newBaseName) {
+          showDismissibleMessage.error('名称不能为空');
+          return;
+        }
+
+        const projectChanged = selectedProjectId.value !== originalProjectId;
+        if (newBaseName === oldBaseName) {
+          // 名称未变，仅在项目归属变化时更新 projects.yaml
+          if (projectChanged) {
+            instance.confirmButtonLoading = true;
+            try {
+              const projectName = projectsData.projects.find((p) => p.id === selectedProjectId.value)?.name || '';
+              await reassignLocalProject({
+                projectId: selectedProjectId.value,
+                projectName,
+                addFilename: oldFilename,
+                removeFilenames: []
+              });
+              showDismissibleMessage.success('项目归属已更新');
+            } catch (projectError) {
+              console.warn('[projects] 更新本地项目归属失败:', projectError);
+              showDismissibleMessage.error('更新项目归属失败');
+            } finally {
+              instance.confirmButtonLoading = false;
+            }
+          }
+          done();
+          return;
+        }
+
+        const newFilename = `${newBaseName}.json`;
+        const newFilePath = `${localPath}/${newFilename}`;
+
+        // 检查本地是否存在同名文件
+        const files = await window.api.listJsonFiles(localPath);
+        if (files.some(f => f.basename === newFilename)) {
+          showDismissibleMessage.error(`文件名 "${newFilename}" 已存在，操作取消`);
+          return;
+        }
+
+        instance.confirmButtonLoading = true;
+        try {
+          // 执行本地重命名
+          await window.api.renameLocalFile(oldFilePath, newFilePath);
+          defaultConversationName.value = newBaseName;
+          // 同步更新项目归属：移除旧名，新名按所选项目归属
+          try {
+            const projectName = projectsData.projects.find((p) => p.id === selectedProjectId.value)?.name || '';
+            await reassignLocalProject({
+              projectId: selectedProjectId.value,
+              projectName,
+              addFilename: newFilename,
+              removeFilenames: [oldFilename]
+            });
+          } catch (projectError) {
+            console.warn('[projects] 重命名后更新本地项目归属失败:', projectError);
+          }
+          showDismissibleMessage.success('本地重命名成功');
+          done();
+
+          // 尝试同步重命名云端文件
+          const { url, username, password, data_path } = currentConfig.value.webdav || {};
+          if (url && data_path) {
+            try {
+              const client = createClient(url, { username, password });
+              const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
+              const oldRemotePath = `${remoteDir}/${oldFilename}`;
+
+              // 检查云端是否存在该文件
+              if (await client.exists(oldRemotePath)) {
+                await ElMessageBox.confirm(
+                  '云端也存在同名文件，是否同步重命名？',
+                  '同步操作提示',
+                  { confirmButtonText: '是', cancelButtonText: '否', type: 'info' }
+                );
+                await renameRemoteSessionFileWithMetadata(client, remoteDir, oldFilename, newFilename);
+                showDismissibleMessage.success('云端同步重命名成功');
+              }
+            } catch (e) {
+              if (e !== 'cancel' && e !== 'close') {
+                console.warn('Cloud rename skipped:', e);
+              }
+            }
+          }
+        } catch (error) {
+          showDismissibleMessage.error(`操作失败: ${error.message}`);
+        } finally {
+          instance.confirmButtonLoading = false;
         }
       }
-    }
-
+    });
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
       showDismissibleMessage.error(`操作失败: ${error.message}`);
@@ -2411,6 +4938,8 @@ const saveSessionAsImage = async () => {
 
           try {
             const chatMain = chatContainerRef.value.$el;
+
+            const html2canvas = await loadHtml2Canvas();
             const messageNodes = Array.from(chatMain.querySelectorAll('.chat-message'));
 
             const computedStyle = getComputedStyle(document.documentElement);
@@ -2537,7 +5066,7 @@ const saveSessionAsImage = async () => {
 
             await new Promise(r => setTimeout(r, 200));
 
-            // 进行极速合影 (因为此时 DOM 里只有几张 <img> 和 背景，没有任何复杂样式树，耗时约等于0)
+            // 进行快速合影
             const finalCanvas = await html2canvas(finalContainer, {
               useCORS: true,
               allowTaint: true,
@@ -2564,10 +5093,8 @@ const saveSessionAsImage = async () => {
               filters: [{ name: 'PNG 图片', extensions: ['png'] }],
               fileContent: ia
             });
-
-            defaultConversationName.value = finalBasename;
             loadingMsg.close();
-            showDismissibleMessage.success('会话已成功保存为长图！');
+            showDismissibleMessage.success('图片已成功导出！');
             done();
           } catch (error) {
             loadingMsg.close();
@@ -2591,13 +5118,16 @@ const handleSaveAction = async () => {
   const isCloudEnabled = currentConfig.value.webdav?.url && currentConfig.value.webdav?.data_path;
   const saveOptions = [];
 
-  // 只有当已存在本地文件名（即已保存过）且配置了本地路径时，才显示重命名选项
+  // 只有当已存在本地文件名（即已保存过）且配置了本地路径时，才显示重命名选项；请求中继续禁用重命名，避免路径竞态。
   if (currentConfig.value.webdav?.localChatPath && defaultConversationName.value) {
     saveOptions.push({
       title: '重命名对话',
-      description: '修改当前对话名称，并同步修改本地文件（以及云端文件）。',
+      description: loading.value
+        ? '当前 AI 仍在回复中，请等待本轮回复结束后再重命名，避免与自动保存路径产生竞态。'
+        : '修改当前对话名称，并同步修改本地文件（以及云端文件）。',
       buttonType: 'warning',
-      action: handleRenameSession
+      action: handleRenameSession,
+      disabled: loading.value
     });
   }
 
@@ -2611,15 +5141,23 @@ const handleSaveAction = async () => {
   saveOptions.push({ title: '保存为 图片', description: '将完整聊天记录保存为长图 (.png)。', buttonType: '', action: saveSessionAsImage });
 
   const messageVNode = h('div', { class: 'save-options-list' }, saveOptions.map(opt => {
-    const trigger = () => { ElMessageBox.close(); opt.action(); };
+    const trigger = () => {
+      if (opt.disabled) return;
+      ElMessageBox.close();
+      opt.action();
+    };
 
-    return h('div', { class: 'save-option-item', onClick: trigger }, [
+    return h('div', {
+      class: ['save-option-item', opt.disabled ? 'is-disabled' : ''],
+      onClick: trigger
+    }, [
       h('div', { class: 'save-option-text' }, [
         h('h4', null, opt.title), h('p', null, opt.description)
       ]),
       h(ElButton, {
         type: opt.buttonType,
         plain: true,
+        disabled: Boolean(opt.disabled),
         class: opt.isDefault ? 'default-save-target' : '',
         onClick: (e) => { e.stopPropagation(); trigger(); }
       }, { default: () => '选择' })
@@ -2657,16 +5195,60 @@ const loadSession = async (jsonData) => {
     isInit.value = jsonData.isInit;
     autoCloseOnBlur.value = jsonData.autoCloseOnBlur;
 
-    history.value = jsonData.history;
-    chat_show.value = jsonData.chat_show;
+    const rawFullHistory = Array.isArray(jsonData.fullHistory) ? jsonData.fullHistory : [];
+    const rawHistory = Array.isArray(jsonData.history) ? jsonData.history : [];
+    const rawChatShow = Array.isArray(jsonData.chat_show) ? jsonData.chat_show : [];
+    compactArchives.value = Array.isArray(jsonData.compactArchives) ? jsonData.compactArchives : [];
+    if (jsonData.compactConfig && typeof jsonData.compactConfig === 'object') {
+      compactConfig.value = normalizeCompactConfigState({ ...compactConfig.value, ...jsonData.compactConfig });
+    }
+
+    if (rawFullHistory.length > 0) {
+      replaceFullHistory(rawFullHistory);
+    } else if (rawHistory.length > 0 && !rawChatShow.some((message) => message?.role === 'compaction')) {
+      replaceFullHistory(rawHistory);
+    } else if (rawChatShow.length > 0) {
+      replaceFullHistory(projectUiToFullHistoryForLegacyMigration(rawChatShow));
+    } else {
+      replaceFullHistory(rawHistory);
+    }
+
+    if (rawChatShow.length > 0) {
+      chat_show.value = typeof migrateInsertStyleChatShow === 'function' ? migrateInsertStyleChatShow(rawChatShow) : rawChatShow;
+    } else {
+      chat_show.value = fullHistory.value
+        .filter((message) => message?.role !== 'tool')
+        .map((message, index) => ({
+          id: messageIdCounter.value + index + 1,
+          ...deepCloneSafe(message),
+          timestamp: message.timestamp || new Date().toLocaleString('sv-SE')
+        }));
+      messageIdCounter.value += chat_show.value.length + 1;
+    }
+    if (typeof markOutermostCanRestore === 'function') markOutermostCanRestore();
+    syncHistoryFromFullHistory();
+
     selectedVoice.value = jsonData.selectedVoice || '';
     tempReasoningEffort.value = jsonData.currentPromptConfig?.reasoning_effort || 'default';
     isAutoApproveTools.value = jsonData.isAutoApproveTools || true;
+    taskList.value = Array.isArray(jsonData.taskList) ? normalizeTaskList(jsonData.taskList) : [];
+    taskPanelVisible.value = false;
+    pendingAppendBuffer.value = [];
+    conversationOwnerId.value = typeof jsonData.conversationOwnerId === 'string' && jsonData.conversationOwnerId.trim()
+      ? jsonData.conversationOwnerId.trim()
+      : '';
+    ensureConversationOwnerId();
+    restoreSubAgentTasksFromSession(jsonData);
 
     const configData = await window.api.getConfig();
     currentConfig.value = configData.config;
 
-    zoomLevel.value = currentConfig.value.zoom || 1;
+    zoomLevel.value = resolveWindowZoomLevel(
+      jsonData.currentPromptConfig?.zoom,
+      currentConfig.value.prompts?.[CODE.value]?.zoom,
+      currentConfig.value.zoom,
+      1
+    );
     if (window.api && typeof window.api.setZoomFactor === 'function') window.api.setZoomFactor(zoomLevel.value);
 
     if (currentConfig.value.isDarkMode) { document.documentElement.classList.add('dark'); }
@@ -2678,21 +5260,10 @@ const loadSession = async (jsonData) => {
       favicon.value = currentPromptConfigFromLoad.icon;
     } else {
       AIAvart.value = "ai.svg";
-      favicon.value = currentConfig.value.isDarkMode ? "favicon-b.png" : "favicon.png";
+      favicon.value = "favicon.png";
     }
 
-    modelList.value = [];
-    modelMap.value = {};
-    currentConfig.value.providerOrder.forEach(id => {
-      const provider = currentConfig.value.providers[id];
-      if (provider?.enable) {
-        provider.modelList.forEach(m => {
-          const key = `${id}|${m}`;
-          modelList.value.push({ key, value: key, label: `${provider.name}|${m}` });
-          modelMap.value[key] = `${provider.name}|${m}`;
-        });
-      }
-    });
+    updateModelListAndMap(currentConfig.value);
 
     let restoredModel = '';
     if (jsonData.model && modelMap.value[jsonData.model]) restoredModel = jsonData.model;
@@ -2716,6 +5287,8 @@ const loadSession = async (jsonData) => {
       const maxId = Math.max(...chat_show.value.map(m => m.id || 0));
       messageIdCounter.value = maxId + 1;
     }
+    // Preserve historical model labels from adjacent assistant bubbles without rebuilding the UI cache.
+    inheritMissingAssistantDisplayNames();
 
     const systemMessageIndex = history.value.findIndex(m => m.role === 'system');
     if (systemMessageIndex !== -1) {
@@ -2739,6 +5312,9 @@ const loadSession = async (jsonData) => {
       });
     } else {
       currentSystemPrompt.value = "";
+      if (chat_show.value.length > 0 && chat_show.value[0].role === 'system') {
+        chat_show.value.shift();
+      }
     }
 
     if (model.value) {
@@ -2777,11 +5353,11 @@ const loadSession = async (jsonData) => {
     if (validMcpServerIds.length > 0) {
       sessionMcpServerIds.value = [...validMcpServerIds];
       tempSessionMcpServerIds.value = [...validMcpServerIds];
-      applyMcpTools(false);
+      requestApplyMcpTools(false, 'config-or-session-sync');
     } else {
       sessionMcpServerIds.value = [];
       tempSessionMcpServerIds.value = [];
-      applyMcpTools(false);
+      requestApplyMcpTools(false, 'config-or-session-sync');
     }
 
   } catch (error) {
@@ -2875,13 +5451,41 @@ const sendFile = async () => {
   return contentList;
 };
 
-async function applyMcpTools(show_none = true) {
+
+const isApplyMcpRunning = ref(false);
+const pendingApplyMcpRequest = ref(null);
+
+const requestApplyMcpTools = async (show_none = true, reason = 'unknown') => {
+  pendingApplyMcpRequest.value = {
+    show_none: show_none !== false,
+    reason: typeof reason === 'string' && reason ? reason : 'unknown'
+  };
+
+  if (isApplyMcpRunning.value) {
+    return;
+  }
+
+  isApplyMcpRunning.value = true;
+  try {
+    while (pendingApplyMcpRequest.value) {
+      const currentRequest = pendingApplyMcpRequest.value;
+      pendingApplyMcpRequest.value = null;
+      await applyMcpTools(currentRequest.show_none, currentRequest.reason);
+    }
+  } finally {
+    isApplyMcpRunning.value = false;
+  }
+};
+
+async function applyMcpTools(show_none = true, reason = 'unknown') {
   isMcpDialogVisible.value = false;
   isMcpLoading.value = true;
   await nextTick();
 
   const activeServerConfigs = {};
   const serverIdsToLoad = [...sessionMcpServerIds.value];
+  console.log('[Plugin Window MCP] applying tools', { reason, show_none, serverIdsToLoad });
+
   for (const id of serverIdsToLoad) {
     if (currentConfig.value.mcpServers[id]) {
       const serverConf = currentConfig.value.mcpServers[id];
@@ -2892,7 +5496,9 @@ async function applyMcpTools(show_none = true) {
         url: serverConf.baseUrl,
         env: serverConf.env,
         headers: serverConf.headers,
+        timeoutSeconds: serverConf.timeoutSeconds,
         isPersistent: serverConf.isPersistent,
+        auth: serverConf.auth,
       };
     }
   }
@@ -2906,6 +5512,7 @@ async function applyMcpTools(show_none = true) {
 
     openaiFormattedTools.value = newFormattedTools;
     sessionMcpServerIds.value = successfulServerIds;
+    lastAppliedMcpConfigFingerprint.value = buildSelectedMcpConfigFingerprint(successfulServerIds, currentConfig.value?.mcpServers || {});
 
     if (failedServerIds && failedServerIds.length > 0) {
       const failedNames = failedServerIds.map(id => currentConfig.value.mcpServers[id]?.name || id).join('、');
@@ -2928,6 +5535,7 @@ async function applyMcpTools(show_none = true) {
     showDismissibleMessage.error(`加载MCP工具失败: ${error.message}`);
     openaiFormattedTools.value = [];
     sessionMcpServerIds.value = [];
+    lastAppliedMcpConfigFingerprint.value = buildSelectedMcpConfigFingerprint([], currentConfig.value?.mcpServers || {});
   } finally {
     isMcpLoading.value = false;
   }
@@ -3038,8 +5646,1437 @@ Here are the rules you should always follow to solve your task:
 `;
 };
 
+
+
+const shouldBackfillAssistantReasoningContent = (reasoningEffort) => {
+  return typeof reasoningEffort === 'string' && !['', 'default', 'none'].includes(reasoningEffort);
+};
+
+const ensureAssistantReasoningContentForThinkingMode = (messages = [], reasoningEffort) => {
+  if (!Array.isArray(messages) || !shouldBackfillAssistantReasoningContent(reasoningEffort)) {
+    return messages;
+  }
+
+  messages.forEach(msg => {
+    if (msg?.role === 'assistant' && typeof msg.reasoning_content !== 'string') {
+      msg.reasoning_content = '';
+    }
+  });
+
+  return messages;
+};
+
+
+const isAsyncIterableResponse = (value) => {
+  return value && typeof value[Symbol.asyncIterator] === 'function';
+};
+
+
+const collectChatCompletionStreamToMessage = async (streamLike) => {
+  let aggregatedReasoningContent = '';
+  let aggregatedContent = '';
+  let aggregatedMedia = [];
+  let aggregatedToolCalls = [];
+  let aggregatedExtraContent = null;
+  let aggregatedUsage = null;
+
+  for await (const part of streamLike) {
+    if (part?.usage) {
+      aggregatedUsage = part.usage;
+    }
+
+    const delta = part?.choices?.[0]?.delta;
+    if (!delta) continue;
+
+    if (delta.extra_content) {
+      aggregatedExtraContent = { ...aggregatedExtraContent, ...delta.extra_content };
+    }
+    if (delta.thought_signature) {
+      aggregatedExtraContent = aggregatedExtraContent || {};
+      aggregatedExtraContent.google = aggregatedExtraContent.google || {};
+      aggregatedExtraContent.google.thought_signature = delta.thought_signature;
+    }
+    if (delta.reasoning_content || delta.reasoning) {
+      aggregatedReasoningContent += delta.reasoning_content || delta.reasoning;
+    }
+    if (delta.content) {
+      if (typeof delta.content === 'string') {
+        aggregatedContent += delta.content;
+      } else if (Array.isArray(delta.content)) {
+        delta.content.forEach(item => {
+          if (item?.type === 'text') {
+            aggregatedContent += (item.text || '');
+          } else if (item?.type === 'image_url') {
+            aggregatedMedia.push(item);
+          }
+        });
+      }
+    }
+    if (delta.tool_calls) {
+      for (const toolCallChunk of delta.tool_calls) {
+        const index = toolCallChunk.index ?? aggregatedToolCalls.length;
+        if (!aggregatedToolCalls[index]) {
+          aggregatedToolCalls[index] = { id: '', type: 'function', function: { name: '', arguments: '' } };
+        }
+        const currentTool = aggregatedToolCalls[index];
+        if (toolCallChunk.id) currentTool.id = toolCallChunk.id;
+        if (toolCallChunk.function?.name) currentTool.function.name = toolCallChunk.function.name;
+        if (toolCallChunk.function?.arguments) currentTool.function.arguments += toolCallChunk.function.arguments;
+        if (toolCallChunk.extra_content) {
+          currentTool.extra_content = { ...currentTool.extra_content, ...toolCallChunk.extra_content };
+        }
+      }
+    }
+  }
+
+  let normalizedContent = aggregatedContent || null;
+  if (aggregatedMedia.length > 0) {
+    normalizedContent = [];
+    if (aggregatedContent) normalizedContent.push({ type: 'text', text: aggregatedContent });
+    normalizedContent.push(...aggregatedMedia);
+  }
+
+  const message = {
+    role: 'assistant',
+    content: normalizedContent,
+    reasoning_content: aggregatedReasoningContent || null,
+    extra_content: aggregatedExtraContent
+  };
+
+  const validToolCalls = aggregatedToolCalls.filter(tc => tc?.id && tc?.function?.name);
+  if (validToolCalls.length > 0) {
+    message.tool_calls = validToolCalls;
+  }
+  if (aggregatedUsage) {
+    message.tokenUsage = normalizeAssistantTokenUsage(aggregatedUsage);
+  }
+
+  return message;
+};
+
+const normalizeToolsForRequest = (tools = []) => {
+  const usedNames = new Set();
+  return (Array.isArray(tools) ? tools : []).map((tool, index) => {
+    if (!tool || tool.type !== 'function' || !tool.function) {
+      return tool;
+    }
+
+    const clonedTool = JSON.parse(JSON.stringify(tool));
+    const rawName = clonedTool.function.name;
+    let safeName = sanitizeToolFunctionName(rawName, `tool_${index + 1}`);
+    let suffix = 2;
+    while (usedNames.has(safeName)) {
+      safeName = `${sanitizeToolFunctionName(rawName, `tool_${index + 1}`)}_${suffix}`;
+      suffix += 1;
+    }
+    usedNames.add(safeName);
+    clonedTool.function.name = safeName;
+    return clonedTool;
+  });
+};
+
+const normalizeAssistantTokenUsage = (usage) => {
+  if (!usage || typeof usage !== 'object') return null;
+
+  const promptTokens = Number.isFinite(Number(usage.prompt_tokens))
+    ? Number(usage.prompt_tokens)
+    : (Number.isFinite(Number(usage.input_tokens)) ? Number(usage.input_tokens) : null);
+  const completionTokens = Number.isFinite(Number(usage.completion_tokens))
+    ? Number(usage.completion_tokens)
+    : (Number.isFinite(Number(usage.output_tokens)) ? Number(usage.output_tokens) : null);
+  const reasoningTokens = Number.isFinite(Number(usage.reasoning_tokens))
+    ? Number(usage.reasoning_tokens)
+    : (Number.isFinite(Number(usage.completion_tokens_details?.reasoning_tokens))
+      ? Number(usage.completion_tokens_details.reasoning_tokens)
+      : (Number.isFinite(Number(usage.output_tokens_details?.reasoning_tokens))
+        ? Number(usage.output_tokens_details.reasoning_tokens)
+        : null));
+
+  if (promptTokens === null && completionTokens === null) return null;
+
+  const totalTokens = Number.isFinite(Number(usage.total_tokens)) ? Number(usage.total_tokens) : null;
+  return {
+    prompt_tokens: promptTokens ?? 0,
+    completion_tokens: completionTokens ?? 0,
+    reasoning_tokens: reasoningTokens ?? 0,
+    total_tokens: totalTokens ?? ((promptTokens ?? 0) + (completionTokens ?? 0)),
+    raw: usage
+  };
+};
+
+const applyTokenUsageToAssistantMessage = (chatShowIndex, tokenUsage) => {
+  const normalizedUsage = normalizeAssistantTokenUsage(tokenUsage);
+  if (!normalizedUsage || chatShowIndex < 0) return null;
+
+  const bubble = chat_show.value[chatShowIndex];
+  if (bubble?.role === 'assistant') {
+    bubble.tokenUsage = normalizedUsage;
+  }
+  return normalizedUsage;
+};
+
+
+// --- 追加消息缓冲区：loading 期间发送的消息暂存于此，本轮结束后自动追加并续请求 ---
+const enqueueInputToBuffer = () => {
+  const text = prompt.value.trim();
+  const files = Array.isArray(fileList.value) ? fileList.value.slice() : [];
+  if (!text && files.length === 0) return;
+  pendingAppendBuffer.value.push({
+    kind: 'input',
+    text,
+    files,
+    preview: text || `[${files.length} 个文件]`
+  });
+  prompt.value = "";
+  fileList.value = [];
+  showDismissibleMessage.info('正在生成，消息已加入缓冲区，将在本轮结束后自动发送');
+};
+
+const removeBufferedMessage = (index) => {
+  if (index >= 0 && index < pendingAppendBuffer.value.length) {
+    pendingAppendBuffer.value.splice(index, 1);
+  }
+};
+
+// 把当前输入框内容（prompt + fileList）构造为一条 user 消息追加进历史（不发起请求），返回是否追加成功
+const appendCurrentInputToHistory = async () => {
+  const file_content = await sendFile();
+  const promptText = prompt.value.trim();
+  if (!((file_content && file_content.length > 0) || promptText)) return false;
+  const userContentList = [];
+  if (promptText) userContentList.push({ type: "text", text: promptText });
+  if (file_content && file_content.length > 0) userContentList.push(...file_content);
+  if (userContentList.length === 0) return false;
+  const userTimestamp = new Date().toLocaleString('sv-SE');
+  const contentForHistory = userContentList.length === 1 && userContentList[0].type === 'text'
+    ? userContentList[0].text
+    : userContentList;
+  appendFullHistory({ role: "user", content: contentForHistory });
+  chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: userContentList, timestamp: userTimestamp });
+  scheduleAutoSave({ reason: 'user-message', immediate: true });
+  prompt.value = "";
+  return true;
+};
+
+const drainBufferIntoHistory = async () => {
+  if (pendingAppendBuffer.value.length === 0) return false;
+  const items = pendingAppendBuffer.value.splice(0, pendingAppendBuffer.value.length);
+  // 还原用户在缓冲期间可能输入但尚未发送的内容
+  const savedPrompt = prompt.value;
+  const savedFiles = Array.isArray(fileList.value) ? fileList.value.slice() : [];
+  let appendedAny = false;
+  for (const item of items) {
+    if (item.kind === 'input') {
+      prompt.value = item.text || '';
+      fileList.value = Array.isArray(item.files) ? item.files : [];
+      isPreparingSend.value = true;
+      try {
+        const added = await appendCurrentInputToHistory();
+        if (added) appendedAny = true;
+      } finally {
+        isPreparingSend.value = false;
+      }
+    }
+  }
+  prompt.value = savedPrompt;
+  fileList.value = savedFiles;
+  return appendedAny;
+};
+
+const flushAppendBuffer = async () => {
+  if (loading.value || isPreparingSend.value) return;
+  const appendedAny = await drainBufferIntoHistory();
+  if (appendedAny) {
+    await askAI(true);
+  }
+};
+
+watch(loading, (now, prev) => {
+  if (prev && !now) {
+    nextTick(() => { flushAppendBuffer(); });
+  }
+});
+
+
+const resolveProviderByModelValue = (modelValue = '') => {
+  const raw = String(modelValue || '');
+  if (!raw.includes('|')) return null;
+  const providerId = raw.split('|')[0];
+  return currentConfig.value?.providers?.[providerId] || null;
+};
+
+const syncEnabledModelCompactCache = async () => {
+  try {
+    const enabled = (modelList.value || []).map((item) => item.value).filter(Boolean);
+    if (window.api?.pruneCompactCache) {
+      await window.api.pruneCompactCache(enabled);
+    }
+  } catch (error) {
+    console.warn('[compact] prune cache failed:', error);
+  }
+};
+
+const normalizeCompactConfigState = (nextConfig = {}) => ({
+  autoCompactEnabled: nextConfig.autoCompactEnabled !== false,
+  triggerRatio: Number.isFinite(Number(nextConfig.triggerRatio)) ? Number(nextConfig.triggerRatio) : 0.9,
+  contextLength: Number.isFinite(Number(nextConfig.contextLength)) ? Number(nextConfig.contextLength) : 262144,
+  contextLengthSource: nextConfig.contextLengthSource || 'default',
+  contextLengthManual: nextConfig.contextLengthManual === true || nextConfig.contextLengthSource === 'manual',
+  keepRecentRounds: Number.isFinite(Number(nextConfig.keepRecentRounds)) ? Number(nextConfig.keepRecentRounds) : 3,
+  compactPrompt: typeof nextConfig.compactPrompt === 'string' ? nextConfig.compactPrompt : '',
+  resolvedId: typeof nextConfig.resolvedId === 'string' ? nextConfig.resolvedId : ''
+});
+
+const loadCompactConfigForCurrentModel = async ({
+  forceRefresh = false,
+  preferManual = true
+} = {}) => {
+  if (!window.api?.getModelCompactConfig) return;
+  const loadVersion = ++compactConfigLoadVersion;
+  const requestedModel = model.value;
+  try {
+    // 优先级：用户手动值最高；其他模型均复用“重新检索”的 API resolve；API 失败才回退默认值。
+    let resolveResult = null;
+    if (window.api.resolveModelContext) {
+      const cached = await window.api.getModelCompactConfig(requestedModel);
+      const cachedConfig = cached?.config || {};
+      const hasManualOverride = cachedConfig.contextLengthManual === true
+        || cachedConfig.contextLengthSource === 'manual';
+
+      // 非手动模型在切换/打开时执行与“重新检索”完全相同的 API resolve；
+      // 只有用户保存过的长度可以跳过刷新并保持最高优先级。
+      resolveResult = await window.api.resolveModelContext(requestedModel, {
+        forceRefresh: forceRefresh || !hasManualOverride,
+        preferManual
+      });
+    }
+
+    const configResult = await window.api.getModelCompactConfig(requestedModel);
+    // A newer load/save or model switch happened while this request was in flight.
+    if (loadVersion !== compactConfigLoadVersion || requestedModel !== model.value) return;
+    // A saved manual value is authoritative unless the user explicitly refreshes from API.
+    if (
+      !forceRefresh
+      && compactConfigModelValue === requestedModel
+      && (compactConfig.value.contextLengthManual === true
+        || compactConfig.value.contextLengthSource === 'manual')
+    ) return;
+
+    const nextConfig = {
+      ...(configResult?.config || {}),
+      ...(resolveResult?.config || {})
+    };
+
+    // 仅在没有 manual 覆盖、或明确 preferManual=false 时，才用 resolve 结果覆盖长度
+    const manualLocked = preferManual && (
+      nextConfig.contextLengthManual === true || nextConfig.contextLengthSource === 'manual'
+    );
+    if (resolveResult?.contextLength && !manualLocked) {
+      nextConfig.contextLength = resolveResult.contextLength;
+      nextConfig.contextLengthSource = resolveResult.source || nextConfig.contextLengthSource;
+      nextConfig.resolvedId = resolveResult.resolvedId || nextConfig.resolvedId;
+      if (resolveResult.source === 'api') {
+        nextConfig.contextLengthManual = false;
+      }
+    }
+
+    compactConfig.value = normalizeCompactConfigState(nextConfig);
+
+    compactConfigModelValue = requestedModel;
+
+  } catch (error) {
+    console.warn('[compact] load model config failed:', error);
+  }
+};
+
+const handleOpenCompactDialog = async () => {
+  // 打开时读缓存；保留用户手动上下文长度，不强制 API 覆盖
+  await loadCompactConfigForCurrentModel({ forceRefresh: false, preferManual: true });
+};
+
+const handleSaveCompactConfig = async (patch = {}) => {
+  // A completed save must win over any older asynchronous config load.
+  const saveVersion = ++compactConfigLoadVersion;
+  try {
+    // Only update compact cache; never touch active chat request/abort controllers.
+    const nextPatch = patch && typeof patch === 'object' ? { ...patch } : {};
+    const nextConfig = normalizeCompactConfigState({
+      ...compactConfig.value,
+      ...nextPatch
+    });
+
+    // 保存时把当前 contextLength 记为手动覆盖，避免下次被 API 冲掉
+    nextConfig.contextLengthManual = true;
+    nextConfig.contextLengthSource = 'manual';
+
+    // Make the new manual value effective immediately, before the async persistence call completes.
+    compactConfig.value = nextConfig;
+    compactConfigModelValue = model.value;
+
+
+
+    if (window.api?.updateModelCompactConfig) {
+      const result = await window.api.updateModelCompactConfig(model.value, {
+        ...nextConfig,
+        contextLength: nextConfig.contextLength,
+        contextLengthSource: 'manual',
+        contextLengthManual: true
+      });
+      if (result?.config) {
+        // Ignore an older save response if a later save/load has superseded it.
+        if (saveVersion !== compactConfigLoadVersion) return false;
+        compactConfig.value = normalizeCompactConfigState({
+          ...nextConfig,
+          ...result.config,
+          contextLength: nextConfig.contextLength,
+          contextLengthManual: true,
+          contextLengthSource: 'manual'
+        });
+      } else {
+        compactConfig.value = nextConfig;
+      }
+    } else {
+      compactConfig.value = nextConfig;
+    }
+    // Use lightweight toast; avoid any side effects that might abort chat streams.
+    showDismissibleMessage.success('压缩参数已保存');
+    return true;
+  } catch (error) {
+    console.error('[compact] save config failed:', error);
+    showDismissibleMessage.error(`保存压缩参数失败: ${error?.message || error}`);
+    return false;
+  }
+};
+
+const handleRefreshCompactContext = async () => {
+  try {
+    // 用户明确点「重新检索」：允许 API 覆盖手动值
+    await loadCompactConfigForCurrentModel({ forceRefresh: true, preferManual: false });
+    showDismissibleMessage.success('已重新检索模型上下文长度');
+  } catch (error) {
+    showDismissibleMessage.error(`检索失败: ${error?.message || error}`);
+  }
+};
+
+const handleResetCompactConfig = async () => {
+  try {
+    // 恢复当前模型的共享参数默认值；上下文长度清掉手动覆盖后重新检索
+    const defaultPatch = {
+      autoCompactEnabled: true,
+      triggerRatio: 0.9,
+      keepRecentRounds: 3,
+      keepRecentRoundsUserSet: true,
+      compactPrompt: '',
+      contextLengthManual: false,
+      contextLengthSource: 'default'
+    };
+
+    if (window.api?.updateModelCompactConfig) {
+      const result = await window.api.updateModelCompactConfig(model.value, defaultPatch);
+      if (result?.config) {
+        compactConfig.value = normalizeCompactConfigState({
+          ...compactConfig.value,
+          ...result.config,
+          ...defaultPatch,
+          // compactPrompt 存库后会被填成完整默认模板
+          compactPrompt: result.config.compactPrompt || '',
+          contextLengthManual: false
+        });
+      } else {
+        compactConfig.value = normalizeCompactConfigState({
+          ...compactConfig.value,
+          ...defaultPatch
+        });
+      }
+    } else {
+      compactConfig.value = normalizeCompactConfigState({
+        ...compactConfig.value,
+        ...defaultPatch
+      });
+    }
+
+    // 重新检索 API 上下文长度（覆盖手动值）
+    await loadCompactConfigForCurrentModel({ forceRefresh: true, preferManual: false });
+    showDismissibleMessage.success('已恢复默认压缩参数');
+  } catch (error) {
+    console.error('[compact] reset config failed:', error);
+    showDismissibleMessage.error(`恢复默认失败: ${error?.message || error}`);
+  }
+};
+
+const handleApplyCompactAdvancedGlobal = async (patch = {}) => {
+  try {
+    // 先保存当前模型参数
+    await handleSaveCompactConfig({
+      ...compactConfig.value,
+      ...(patch || {}),
+      contextLengthManual: true,
+      contextLengthSource: 'manual'
+    });
+
+    if (typeof window.api?.applyAdvancedCompactConfigToAll !== 'function') {
+      showDismissibleMessage.error('全局应用接口未就绪，请重载插件后再试');
+      return;
+    }
+
+    const result = await window.api.applyAdvancedCompactConfigToAll({
+      autoCompactEnabled: patch?.autoCompactEnabled ?? compactConfig.value.autoCompactEnabled,
+      triggerRatio: patch?.triggerRatio ?? compactConfig.value.triggerRatio,
+      keepRecentRounds: patch?.keepRecentRounds ?? compactConfig.value.keepRecentRounds,
+      compactPrompt: patch?.compactPrompt ?? compactConfig.value.compactPrompt
+    });
+
+    if (result?.ok === false) {
+      throw new Error(result?.error?.message || result?.error || 'apply_advanced_failed');
+    }
+
+    const updated = Number(result?.updated) || 0;
+    showDismissibleMessage.success(updated > 0
+      ? `高级参数已应用到 ${updated} 个模型缓存`
+      : '当前没有可更新的模型缓存');
+  } catch (error) {
+    console.error('[compact] apply advanced global failed:', error);
+    const msg = String(error?.message || error || '');
+    if (/No handler registered/i.test(msg)) {
+      showDismissibleMessage.error('压缩接口未就绪，请重载插件后再试');
+      return;
+    }
+    showDismissibleMessage.error(`应用到全局失败: ${msg}`);
+  }
+};
+
+
+const handleRunCompactWithConfig = async (patch = {}) => {
+  const saved = await handleSaveCompactConfig(patch);
+  if (!saved) return false;
+  return runConversationCompact({ manual: true });
+};
+
+const handleCancelCompact = () => {
+  if (compactAbortController) {
+    try {
+      compactAbortController.abort();
+    } catch {
+      // ignore
+    }
+  }
+  // 仅跳过当前回合剩余的自动检测；下一回合必须恢复自动压缩。
+  autoCompactSuppressedForTurn.value = true;
+  compactProgress.value = {
+    percent: compactProgress.value?.percent || 0,
+    message: '正在取消压缩…',
+    stage: 'cancelling'
+  };
+};
+
+const deepCloneSafe = (value) => {
+  try {
+    return JSON.parse(JSON.stringify(value ?? null));
+  } catch {
+    return value;
+  }
+};
+
+const DEFAULT_SUMMARY_PREFIX =
+  'Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:';
+
+const normalizeToolResultContent = (result) => {
+  if (typeof result === 'string') return result;
+  if (result == null) return '';
+  try {
+    return JSON.stringify(result);
+  } catch {
+    return String(result);
+  }
+};
+
+// UI 里 tool 结果挂在 assistant.tool_calls[].result；API history 需要独立 role=tool 消息
+const toApiToolCallsFromUi = (toolCalls = []) => {
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) return [];
+  return toolCalls
+    .map((tc) => {
+      if (!tc || typeof tc !== 'object') return null;
+      // 已是 OpenAI 结构
+      if (tc.function && (tc.id || tc.function.name)) {
+        return {
+          id: tc.id || '',
+          type: tc.type || 'function',
+          function: {
+            name: tc.function.name || '',
+            arguments: typeof tc.function.arguments === 'string'
+              ? tc.function.arguments
+              : JSON.stringify(tc.function.arguments ?? {})
+          }
+        };
+      }
+      // chat_show 结构：{ id, name, args, result, approvalStatus }
+      const id = tc.id || '';
+      const name = tc.name || tc.function?.name || '';
+      if (!id && !name) return null;
+      const args = tc.args ?? tc.arguments ?? tc.function?.arguments ?? '{}';
+      return {
+        id,
+        type: 'function',
+        function: {
+          name,
+          arguments: typeof args === 'string' ? args : JSON.stringify(args ?? {})
+        }
+      };
+    })
+    .filter(Boolean);
+};
+
+const toToolResultMessagesFromUiAssistant = (message = {}) => {
+  const toolCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
+  if (!toolCalls.length) return [];
+  return toolCalls
+    .map((tc) => {
+      if (!tc || typeof tc !== 'object') return null;
+      const id = tc.id || tc.tool_call_id || '';
+      // 只有已有结果时才还原为 role=tool；否则 API 会报 tool_calls 未响应
+      const hasResult = Object.prototype.hasOwnProperty.call(tc, 'result')
+        || Object.prototype.hasOwnProperty.call(tc, 'content');
+      if (!id || !hasResult) return null;
+      const content = Object.prototype.hasOwnProperty.call(tc, 'result')
+        ? normalizeToolResultContent(tc.result)
+        : normalizeToolResultContent(tc.content);
+      // 尚未真正执行的占位状态不写入 history，避免脏上下文
+      if (
+        tc.approvalStatus === 'waiting'
+        || tc.approvalStatus === 'executing'
+        || content === '等待批准...'
+        || content === '执行中...'
+      ) {
+        return null;
+      }
+      return {
+        role: 'tool',
+        tool_call_id: id,
+        name: tc.name || tc.function?.name || '',
+        content
+      };
+    })
+    .filter(Boolean);
+};
+
+const toHistoryMessageFromUi = (message) => {
+  if (!message || typeof message !== 'object') return null;
+  if (message.role === 'system') {
+    return { role: 'system', content: typeof message.content === 'string' ? message.content : '' };
+  }
+  if (message.role === 'compaction') {
+    const summary = String(message.summary || message.content || '').trim() || '(no summary available)';
+    const prefix = String(message.summaryPrefix || DEFAULT_SUMMARY_PREFIX);
+    return {
+      role: 'user',
+      content: `${prefix}\n${summary}`
+    };
+  }
+  if (message.role === 'user') {
+    return {
+      role: 'user',
+      content: message.content
+    };
+  }
+  if (message.role === 'assistant') {
+    const next = {
+      role: 'assistant',
+      content: message.content ?? null
+    };
+    if (typeof message.reasoning_content === 'string') next.reasoning_content = message.reasoning_content;
+    const apiToolCalls = toApiToolCallsFromUi(message.tool_calls);
+    if (apiToolCalls.length) next.tool_calls = apiToolCalls;
+    if (message.tokenUsage) next.tokenUsage = deepCloneSafe(message.tokenUsage);
+    return next;
+  }
+  if (message.role === 'tool') {
+    // 兼容：若 chat_show 里已有独立 tool 消息
+    const next = {
+      role: 'tool',
+      content: message.content
+    };
+    if (message.tool_call_id) next.tool_call_id = message.tool_call_id;
+    if (message.name) next.name = message.name;
+    return next;
+  }
+  return null;
+};
+
+
+// Complete API transcript → current request window. The latest compaction checkpoint replaces
+// earlier messages only for outbound context; the earlier messages remain in fullHistory.
+const toRequestMessageFromFullHistory = (message = {}) => {
+  if (!message || typeof message !== 'object') return null;
+  if (message.role === 'compaction') {
+    const summary = String(message.summary || message.content || '').trim() || '(no summary available)';
+    return { role: 'user', content: `${String(message.summaryPrefix || DEFAULT_SUMMARY_PREFIX)}\n${summary}` };
+  }
+  if (!['system', 'user', 'assistant', 'tool'].includes(message.role)) return null;
+  const cloned = deepCloneSafe(message);
+  ['id', 'timestamp', 'aiName', 'voiceName', 'status', 'approvalStatus', 'result', 'canRestore', 'coveredCount'].forEach((key) => delete cloned[key]);
+  return cloned;
+};
+
+const projectFullHistoryToRequestHistory = (messages = fullHistory.value) => {
+  const list = Array.isArray(messages) ? messages : [];
+  const out = [];
+  for (const message of list) {
+    if (message?.role === 'system') {
+      const projected = toRequestMessageFromFullHistory(message);
+      if (projected) out.push(projected);
+    }
+  }
+  let lastCompactIndex = -1;
+  for (let index = list.length - 1; index >= 0; index -= 1) {
+    if (list[index]?.role === 'compaction') { lastCompactIndex = index; break; }
+  }
+  for (let index = lastCompactIndex >= 0 ? lastCompactIndex : 0; index < list.length; index += 1) {
+    const message = list[index];
+    if (!message || message.role === 'system') continue;
+    if (message.role === 'compaction' && index !== lastCompactIndex) continue;
+    const projected = toRequestMessageFromFullHistory(message);
+    if (projected) out.push(projected);
+  }
+  return out;
+};
+
+const syncHistoryFromFullHistory = () => { history.value = projectFullHistoryToRequestHistory(); };
+const appendFullHistory = (...messages) => {
+  const nextMessages = messages.filter((message) => message && typeof message === 'object');
+  if (!nextMessages.length) return;
+  fullHistory.value.push(...nextMessages.map((message) => deepCloneSafe(message)));
+  syncHistoryFromFullHistory();
+};
+const replaceFullHistory = (messages = []) => {
+  fullHistory.value = Array.isArray(messages) ? messages.filter((message) => message && typeof message === 'object').map((message) => deepCloneSafe(message)) : [];
+  syncHistoryFromFullHistory();
+};
+
+
+// Keep edit mapping in terms of visible messages so tool records never shift indexes.
+const getVisibleFullHistoryIndexes = () => fullHistory.value
+  .map((message, fullIndex) => (message?.role === 'tool' ? -1 : fullIndex))
+  .filter((fullIndex) => fullIndex >= 0);
+
+const getVisibleChatShowIndexes = () => chat_show.value
+  .map((message, showIndex) => (message?.role === 'tool' ? -1 : showIndex))
+  .filter((showIndex) => showIndex >= 0);
+
+// UI metadata is not part of fullHistory. Fill only missing assistant names from adjacent UI bubbles.
+// Do not infer a model name when the whole conversation has no recorded assistant name.
+const inheritMissingAssistantDisplayNames = () => {
+  const messages = Array.isArray(chat_show.value) ? chat_show.value : [];
+  let previousAiName = '';
+  messages.forEach((message) => {
+    if (message?.role !== 'assistant') return;
+    const aiName = typeof message.aiName === 'string' ? message.aiName.trim() : '';
+    if (aiName) {
+      previousAiName = aiName;
+    } else if (previousAiName) {
+      message.aiName = previousAiName;
+    }
+  });
+
+  let nextAiName = '';
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role !== 'assistant') continue;
+    const aiName = typeof message.aiName === 'string' ? message.aiName.trim() : '';
+    if (aiName) {
+      nextAiName = aiName;
+    } else if (nextAiName) {
+      message.aiName = nextAiName;
+    }
+  }
+};
+
+const projectUiToFullHistoryForLegacyMigration = (messages = []) => {
+  const full = [];
+  for (const message of (Array.isArray(messages) ? messages : [])) {
+    if (!message || typeof message !== 'object') continue;
+    if (message.role === 'compaction') {
+      full.push({ role: 'compaction', content: String(message.summary || message.content || ''), summary: String(message.summary || message.content || ''), summaryPrefix: String(message.summaryPrefix || DEFAULT_SUMMARY_PREFIX), snapshotId: message.snapshotId || message.id || `compact_legacy_${full.length}`, createdAt: message.createdAt || Date.now() });
+      continue;
+    }
+    const projected = toHistoryMessageFromUi(message);
+    if (projected) full.push(projected);
+    if (message.role === 'assistant') full.push(...toToolResultMessagesFromUiAssistant(message));
+  }
+  return full;
+};
+
+const estimateCompactHistoryTokens = async (messages = []) => {
+  if (!window.api?.estimateCompactTokens) return 0;
+  const estimate = await window.api.estimateCompactTokens(messages);
+  return Math.max(0, Number(estimate?.tokens) || 0);
+};
+
+/**
+ * Select one bounded compaction prefix from the current AI-visible window.
+ * The threshold limits the summary input; keepRecentRounds then moves the cut
+ * backwards by complete user rounds so those rounds remain verbatim in the tail.
+ */
+const splitFullHistoryPrefixAndTail = async (
+  messages = fullHistory.value,
+  { maxPrefixTokens = 0, keepRecentRounds = 0 } = {}
+) => {
+  const list = Array.isArray(messages) ? messages : [];
+  let windowStart = 0;
+  for (let index = list.length - 1; index >= 0; index -= 1) {
+    if (list[index]?.role === 'compaction') {
+      windowStart = index;
+      break;
+    }
+  }
+  if (windowStart === 0) {
+    const first = list.findIndex((message) => message?.role !== 'system');
+    windowStart = first >= 0 ? first : list.length;
+  }
+
+  const systemMessages = list.filter((message) => message?.role === 'system');
+  const windowMessages = list.slice(windowStart);
+  const userStartIndexes = [];
+  windowMessages.forEach((message, index) => {
+    // Cut only before a user message, keeping the previous user/assistant/tool round intact.
+    if (message?.role === 'user' && index > 0) userStartIndexes.push(index);
+  });
+  if (userStartIndexes.length === 0 || !Number.isFinite(Number(maxPrefixTokens)) || maxPrefixTokens <= 0) {
+    return {
+      insertIndex: list.length,
+      prefix: [],
+      tail: windowMessages,
+      prefixTokens: 0,
+      tailTokens: await estimateCompactHistoryTokens([...systemMessages, ...windowMessages]),
+      maxPrefixTokens: Math.max(0, Number(maxPrefixTokens) || 0),
+      tailStartUserOrdinal: 0
+    };
+  }
+
+  const budget = Math.floor(Number(maxPrefixTokens));
+  const estimatePrefixAt = async (cutIndex) => (
+    estimateCompactHistoryTokens([...systemMessages, ...windowMessages.slice(0, cutIndex)])
+  );
+
+  // Token totals are monotonic as complete message rounds are added, so binary-search the largest safe cut.
+  let low = 0;
+  let high = userStartIndexes.length - 1;
+  let bestCandidate = -1;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const candidate = userStartIndexes[middle];
+    const tokens = await estimatePrefixAt(candidate);
+    if (tokens <= budget) {
+      bestCandidate = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+
+  if (bestCandidate < 0) {
+    return {
+      insertIndex: list.length,
+      prefix: [],
+      tail: windowMessages,
+      prefixTokens: 0,
+      tailTokens: await estimateCompactHistoryTokens([...systemMessages, ...windowMessages]),
+      maxPrefixTokens: budget,
+      tailStartUserOrdinal: 0
+    };
+  }
+
+  const thresholdCutIndex = userStartIndexes[bestCandidate];
+  const requestedKeepRounds = Math.max(0, Math.floor(Number(keepRecentRounds) || 0));
+  // Move the threshold cut backwards by N complete user rounds to keep them verbatim.
+  const tailStartUserOrdinal = Math.max(0, bestCandidate - requestedKeepRounds);
+  let cutIndex = userStartIndexes[tailStartUserOrdinal] ?? thresholdCutIndex;
+
+  // Never summarize only an existing compaction marker: that would not reduce history.
+  const hasRealPrefixMessage = windowMessages
+    .slice(0, cutIndex)
+    .some((message) => message?.role && message.role !== 'system' && message.role !== 'compaction');
+  if (!hasRealPrefixMessage) cutIndex = thresholdCutIndex;
+
+  const prefix = windowMessages.slice(0, cutIndex);
+  const tail = windowMessages.slice(cutIndex);
+  return {
+    insertIndex: windowStart + cutIndex,
+    prefix,
+    tail,
+    prefixTokens: await estimateCompactHistoryTokens([...systemMessages, ...prefix]),
+    tailTokens: await estimateCompactHistoryTokens([...systemMessages, ...tail]),
+    maxPrefixTokens: budget,
+    tailStartUserOrdinal: Math.max(0, userStartIndexes.indexOf(cutIndex))
+  };
+};
+
+
+const getOutermostCompactionIndexIn = (list = []) => {
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i]?.role === 'compaction') return i;
+  }
+  return -1;
+};
+
+// 旧会话可能只有 [compaction{archivedMessages}]；展开为「完整列表 + 摘要插入」
+const migrateInsertStyleChatShow = (messages = []) => {
+  const walk = (list = [], allowExpand = true) => {
+    const result = [];
+    for (const msg of (Array.isArray(list) ? list : [])) {
+      if (
+        allowExpand &&
+        msg?.role === 'compaction' &&
+        Array.isArray(msg.archivedMessages) &&
+        msg.archivedMessages.length > 0
+      ) {
+        const hasVisiblePrefix = result.some((m) => m?.role && m.role !== 'system' && m.role !== 'compaction');
+        if (!hasVisiblePrefix) {
+          result.push(...walk(msg.archivedMessages, true));
+          const { archivedMessages, expanded, collapsed, ...rest } = msg;
+          result.push({
+            ...rest,
+            coveredCount: archivedMessages.length
+          });
+          continue;
+        }
+      }
+      if (msg?.role === 'compaction') {
+        const { archivedMessages, expanded, collapsed, ...rest } = msg;
+        result.push(rest);
+      } else {
+        result.push(msg);
+      }
+    }
+    return result;
+  };
+  return walk(messages, true);
+};
+
+/**
+ * AI 投影规则：
+ * - 系统提示词
+ * - 仅最后一层（最外层）summary
+ * - 该 summary 之后的消息
+ * 关键：assistant.tool_calls[].result 必须还原为独立 role=tool 消息，
+ * 否则保存/换模型/sync 后 tool 结果会丢失。
+ */
+const appendProjectedUiMessage = (out, message) => {
+  if (!message || message.role === 'system' || message.role === 'compaction') return;
+  // 独立 tool 行（少数场景）直接投影
+  if (message.role === 'tool') {
+    const projected = toHistoryMessageFromUi(message);
+    if (projected) out.push(projected);
+    return;
+  }
+  if (message.role === 'user') {
+    const projected = toHistoryMessageFromUi(message);
+    if (projected) out.push(projected);
+    return;
+  }
+  if (message.role === 'assistant') {
+    const projected = toHistoryMessageFromUi(message);
+    if (projected) out.push(projected);
+    // 从 UI 气泡还原 tool 返回
+    const toolMsgs = toToolResultMessagesFromUiAssistant(message);
+    if (toolMsgs.length) out.push(...toolMsgs);
+  }
+};
+
+const projectCascadeToHistory = (messages = []) => {
+  const list = Array.isArray(messages) ? messages : [];
+  const out = [];
+
+  for (const message of list) {
+    if (message?.role === 'system') {
+      const projected = toHistoryMessageFromUi(message);
+      if (projected) out.push(projected);
+    }
+  }
+
+  const lastCompactIdx = getOutermostCompactionIndexIn(list);
+  if (lastCompactIdx < 0) {
+    for (const message of list) {
+      appendProjectedUiMessage(out, message);
+    }
+    return out;
+  }
+
+  const summaryProjected = toHistoryMessageFromUi(list[lastCompactIdx]);
+  if (summaryProjected) out.push(summaryProjected);
+
+  for (let i = lastCompactIdx + 1; i < list.length; i += 1) {
+    const message = list[i];
+    if (!message || message.role === 'system') continue;
+    // 只认最后一层 summary；其后若还有旧 compaction 标记，跳过其自身，仍保留后续真实消息
+    if (message.role === 'compaction') continue;
+    appendProjectedUiMessage(out, message);
+  }
+  return out;
+};
+
+const countToolMessages = (messages = []) => (
+  (Array.isArray(messages) ? messages : []).filter((m) => m?.role === 'tool').length
+);
+
+// New sessions never rebuild API history from UI. This remains only for one-time legacy migration.
+const rehydrateHistoryToolsIfNeeded = () => {
+  if (Array.isArray(fullHistory.value) && fullHistory.value.length > 0) {
+    syncHistoryFromFullHistory();
+    return false;
+  }
+  const projected = projectCascadeToHistory(chat_show.value);
+  if (projected.length > 0) {
+    replaceFullHistory(projected);
+    return true;
+  }
+  return false;
+};
+
+const syncHistoryFromChatShow = () => {
+  if (Array.isArray(fullHistory.value) && fullHistory.value.length > 0) {
+    syncHistoryFromFullHistory();
+    return;
+  }
+  replaceFullHistory(projectCascadeToHistory(chat_show.value));
+};
+
+const getOutermostCompactionIndex = () => getOutermostCompactionIndexIn(chat_show.value);
+
+const canRestoreCompact = computed(() => getOutermostCompactionIndex() >= 0);
+
+const canRestoreCompactMarker = (message = null) => {
+  const outermostIndex = getOutermostCompactionIndex();
+  if (outermostIndex < 0) return false;
+  if (!message) return true;
+  const snapshotId = message?.snapshotId || message?.id;
+  const outermost = chat_show.value[outermostIndex];
+  if (!snapshotId) return outermostIndex >= 0;
+  return outermost?.snapshotId === snapshotId || outermost?.id === snapshotId;
+};
+
+const markOutermostCanRestore = () => {
+  const outermost = getOutermostCompactionIndex();
+  chat_show.value = chat_show.value.map((msg, idx) => {
+    if (msg?.role !== 'compaction') return msg;
+    return { ...msg, canRestore: idx === outermost };
+  });
+};
+
+const getCompactTokenSnapshot = async (messagesForAi = history.value) => {
+  // 自动压缩只看本地估算：压缩后对 summary + 尾部原文重新 estimate，
+  // 避免沿用压缩前 assistant.tokenUsage.total_tokens 导致立刻二次压缩。
+  let localTokens = 0;
+  if (window.api?.estimateCompactTokens) {
+    const estimate = await window.api.estimateCompactTokens(messagesForAi);
+    localTokens = Math.max(0, Number(estimate?.tokens) || 0);
+  }
+  return {
+    localTokens,
+    usageTotalTokens: 0,
+    activeTokens: localTokens
+  };
+};
+
+const estimateActiveTokens = async (messagesForAi = history.value) => {
+  const snapshot = await getCompactTokenSnapshot(messagesForAi);
+  return snapshot.activeTokens;
+};
+
+const shouldCompactNow = async (messagesForAi = history.value) => {
+  if (!window.api?.shouldAutoCompact) return false;
+  const tokenSnapshot = await getCompactTokenSnapshot(messagesForAi);
+  const contextLength = Number(compactConfig.value.contextLength) || 0;
+  const triggerRatio = Number(compactConfig.value.triggerRatio) || 0;
+  const decision = await window.api.shouldAutoCompact({
+    activeTokens: tokenSnapshot.activeTokens,
+    contextLength,
+    triggerRatio,
+    autoCompactEnabled: true
+  });
+  return Boolean(decision?.should);
+};
+
+// 当前 AI 可见窗口起点：最后一个 compaction（含），否则第一个非 system。
+const findAiWindowStartIndex = (list = []) => {
+  const lastCompact = getOutermostCompactionIndexIn(list);
+  if (lastCompact >= 0) return lastCompact;
+  for (let i = 0; i < list.length; i += 1) {
+    if (list[i]?.role !== 'system') return i;
+  }
+  return 0;
+};
+
+/**
+ * 在「AI 可见窗口」内切 prefix/tail。
+ * UI 不删除 prefix，只在 prefix 后插入 summary。
+ */
+const splitAiWindowPrefixAndTail = (messages = [], tailStartUserOrdinal = 0) => {
+  const list = Array.isArray(messages) ? messages : [];
+  if (list.length === 0) {
+    return { windowStart: 0, insertIndex: 0, prefix: [], tail: [] };
+  }
+
+  const windowStart = findAiWindowStartIndex(list);
+  const windowMsgs = list.slice(windowStart);
+  const userStartIndexes = [];
+  windowMsgs.forEach((message, index) => {
+    if (message?.role === 'user' && index > 0) userStartIndexes.push(index);
+  });
+  if (userStartIndexes.length === 0) {
+    return { windowStart, insertIndex: list.length, prefix: [], tail: windowMsgs };
+  }
+
+  const safeOrdinal = Math.min(
+    Math.max(0, Math.floor(Number(tailStartUserOrdinal) || 0)),
+    userStartIndexes.length - 1
+  );
+  const cutInWindow = userStartIndexes[safeOrdinal];
+  return {
+    windowStart,
+    insertIndex: windowStart + cutInWindow,
+    prefix: windowMsgs.slice(0, cutInWindow),
+    tail: windowMsgs.slice(cutInWindow)
+  };
+};
+
+// UI：在 insertIndex 插入一条压缩消息；压缩前消息全部保留可见。
+const applyCascadeCompactStep = (marker, insertIndex, prefix, fullInsertIndex = insertIndex) => {
+  const nextMarker = {
+    id: messageIdCounter.value++,
+    role: 'compaction',
+    content: marker?.summary || marker?.content || '',
+    summary: marker?.summary || marker?.content || '',
+    summaryPrefix: marker?.summaryPrefix || DEFAULT_SUMMARY_PREFIX,
+    snapshotId: marker?.snapshotId || `compact_${Date.now()}`,
+    createdAt: marker?.createdAt || Date.now(),
+    canRestore: true,
+    // 仅作备份/调试；UI 已保留原文，还原时删除该 marker 即可
+    coveredCount: Array.isArray(prefix) ? prefix.length : 0,
+    timestamp: new Date().toLocaleString('sv-SE')
+  };
+
+  const safeIndex = Math.max(0, Math.min(Number(insertIndex) || 0, chat_show.value.length));
+  chat_show.value = [
+    ...chat_show.value.slice(0, safeIndex),
+    nextMarker,
+    ...chat_show.value.slice(safeIndex)
+  ];
+  markOutermostCanRestore();
+  const safeFullInsertIndex = Math.max(0, Math.min(Number(fullInsertIndex) || 0, fullHistory.value.length));
+  fullHistory.value.splice(safeFullInsertIndex, 0, {
+    role: 'compaction',
+    content: nextMarker.summary,
+    summary: nextMarker.summary,
+    summaryPrefix: nextMarker.summaryPrefix,
+    snapshotId: nextMarker.snapshotId,
+    createdAt: nextMarker.createdAt
+  });
+  syncHistoryFromFullHistory();
+  compactArchives.value = [...compactArchives.value, {
+    id: nextMarker.snapshotId,
+    createdAt: nextMarker.createdAt,
+    summary: nextMarker.summary,
+    markerId: nextMarker.id,
+    insertIndex: safeIndex
+  }].slice(-50);
+};
+
+const handleRestoreCompact = async (payload = null) => {
+  if (compacting.value) {
+    showDismissibleMessage.warning('压缩进行中，暂不可恢复');
+    return;
+  }
+
+  const outermostIndex = getOutermostCompactionIndex();
+  if (outermostIndex < 0) {
+    showDismissibleMessage.info('没有可恢复的压缩检查点');
+    return;
+  }
+
+  const requestedId = typeof payload === 'string'
+    ? payload
+    : (payload?.snapshotId || payload?.id || '');
+  const outermost = chat_show.value[outermostIndex];
+  if (requestedId && outermost?.snapshotId !== requestedId && outermost?.id !== requestedId) {
+    showDismissibleMessage.warning('请先恢复更外层的压缩，再恢复内层（级联还原）');
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      '将移除最外层压缩摘要。压缩前消息本就在列表中，移除后 AI 将重新看到更早的上下文。',
+      '恢复压缩前',
+      {
+        type: 'warning',
+        confirmButtonText: '恢复',
+        cancelButtonText: '取消'
+      }
+    );
+  } catch {
+    return;
+  }
+
+  // UI 原文一直在，只需删除最外层 summary 标记
+  chat_show.value = [
+    ...chat_show.value.slice(0, outermostIndex),
+    ...chat_show.value.slice(outermostIndex + 1)
+  ];
+  markOutermostCanRestore();
+  fullHistory.value = fullHistory.value.filter((message) => (
+    message?.role !== 'compaction' || (message?.snapshotId || message?.id) !== outermost.snapshotId
+  ));
+  syncHistoryFromFullHistory();
+  compactArchives.value = compactArchives.value.filter((item) => item?.id !== outermost.snapshotId);
+  scheduleAutoSave({ reason: 'compact-restored', immediate: true });
+  showDismissibleMessage.success('已还原最外层压缩');
+};
+
+const runConversationCompact = async ({
+  manual = true,
+  // 工具循环中：允许在 loading 时压缩，避免 tool 轮次撞上下文上限
+  allowDuringLoading = false,
+  quiet = false
+} = {}) => {
+  if (compacting.value) return false;
+  if (loading.value && !allowDuringLoading) {
+    if (!quiet) showDismissibleMessage.warning('请等待当前回复完成后再压缩');
+    return false;
+  }
+  if (!window.api?.runConversationCompact) {
+    if (!quiet) showDismissibleMessage.error('压缩能力不可用');
+    return false;
+  }
+  if (!Array.isArray(chat_show.value) || chat_show.value.length === 0) {
+    if (!quiet && manual) showDismissibleMessage.info('当前没有可压缩的会话内容');
+    return false;
+  }
+
+  // Full API history is the compression source; UI is only updated after summary succeeds.
+  rehydrateHistoryToolsIfNeeded();
+  syncHistoryFromFullHistory();
+
+  compacting.value = true;
+  compactProgress.value = { percent: 2, message: '准备级联压缩…', stage: 'prepare' };
+  compactAbortController = new AbortController();
+  // 发送区仅 loading 时用户不易感知原因；气泡提示当前在做会话压缩
+  showDismissibleMessage({
+    message: manual ? '正在进行会话压缩，请稍候…' : '上下文将超限，正在自动压缩会话…',
+    type: 'info',
+    duration: 2500
+  });
+
+  try {
+    // 无层数上限：每步将超阈值前缀有损压成单条 summary，直到低于阈值、无前缀或用户取消
+    let steps = 0;
+    let didAny = false;
+
+    while (true) {
+      if (compactAbortController?.signal?.aborted) {
+        const abortError = new Error('Aborted');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
+
+      steps += 1;
+      const projected = projectFullHistoryToRequestHistory();
+
+      // 手动首步强制压一次；工具轮/自动轮只按阈值判断
+      const need = manual && steps === 1 && !allowDuringLoading
+        ? true
+        : await shouldCompactNow(projected);
+      if (!need) {
+        // 未执行任何压缩时 steps 回退，避免成功文案显示虚高步数
+        if (!didAny) steps = 0;
+        else steps -= 1;
+        break;
+      }
+
+      const maxPrefixTokens = Math.floor(
+        Number(compactConfig.value.contextLength || 0)
+        * Number(compactConfig.value.triggerRatio || 0)
+      );
+      const fullSplit = await splitFullHistoryPrefixAndTail(fullHistory.value, {
+        maxPrefixTokens,
+        keepRecentRounds: compactConfig.value.keepRecentRounds
+      });
+      const {
+        insertIndex: fullInsertIndex,
+        prefix,
+        tailStartUserOrdinal
+      } = fullSplit;
+      const uiSplit = splitAiWindowPrefixAndTail(chat_show.value, tailStartUserOrdinal);
+      if (!prefix.length) {
+        if (manual && steps === 1 && !quiet) {
+          showDismissibleMessage.info('可压缩前缀不足，已跳过');
+        }
+        if (!didAny) steps = 0;
+        else steps -= 1;
+        break;
+      }
+
+      // 无限级联：进度按步渐进，上限 96%，避免依赖固定层数
+      const progressBase = Math.min(88, 4 + (steps - 1) * 6);
+      const progressSpan = 8;
+      compactProgress.value = {
+        percent: progressBase + 1,
+        message: `级联压缩第 ${steps} 层…`,
+        stage: 'cascade'
+      };
+
+      // Summary is an ordinary request over the exact API-level prefix being covered.
+      const result = await window.api.runConversationCompact({
+        messages: [
+          ...fullHistory.value.filter((message) => message?.role === 'system'),
+          ...prefix
+        ],
+        modelValue: model.value,
+        provider: resolveProviderByModelValue(model.value),
+        config: compactConfig.value,
+        stream: (currentConfig.value.prompts?.[CODE.value]?.stream ?? true) && !selectedVoice.value,
+        signal: compactAbortController.signal,
+        progressBase,
+        progressSpan,
+        onProgress: (payload) => {
+          compactProgress.value = {
+            percent: Number(payload?.percent) || compactProgress.value.percent || 0,
+            message: payload?.message || compactProgress.value.message || '',
+            stage: payload?.stage || ''
+          };
+        }
+      });
+
+      if (result?.ok === false) {
+        throw new Error(result?.error?.message || 'compact_failed');
+      }
+
+      const marker = result.marker || {
+        summary: result.summary,
+        snapshotId: result.snapshotId,
+        summaryPrefix: result.summaryPrefix
+      };
+      // UI keeps the original messages; fullHistory receives the checkpoint at the same logical cut.
+      applyCascadeCompactStep(marker, uiSplit.insertIndex, uiSplit.prefix, fullInsertIndex);
+      didAny = true;
+
+      if (result.modelConfig) {
+        const currentConfig = compactConfig.value;
+        const preserveManualContext = currentConfig.contextLengthManual === true
+          || currentConfig.contextLengthSource === 'manual';
+        compactConfig.value = {
+          ...currentConfig,
+          ...result.modelConfig,
+          ...(preserveManualContext
+            ? {
+                contextLength: currentConfig.contextLength,
+                contextLengthManual: true,
+                contextLengthSource: 'manual',
+                triggerRatio: currentConfig.triggerRatio
+              }
+            : {})
+        };
+      }
+      // 继续循环：若仍超阈值则再压一层，直至阈值以下
+    }
+
+    if (!didAny) {
+      if (manual && !quiet) showDismissibleMessage.info('当前上下文未超过阈值，无需压缩');
+      return false;
+    }
+
+    autoCompactSuppressedForTurn.value = false;
+    scheduleAutoSave({ reason: 'conversation-compacted', immediate: true });
+    if (!quiet) {
+      showDismissibleMessage.success(manual ? `手动级联压缩完成（${steps} 步）` : `自动级联压缩完成（${steps} 步）`);
+    }
+    return true;
+  } catch (error) {
+    // 仅认定本地压缩控制器已真实中止为用户取消；网关返回的 abort 文案仍是请求失败。
+    const cancelledByUser = compactAbortController?.signal?.aborted === true;
+    if (cancelledByUser) {
+      if (!manual) autoCompactSuppressedForTurn.value = true;
+      if (!quiet) showDismissibleMessage.info('已取消压缩');
+      return false;
+    }
+    if (!quiet) showDismissibleMessage.error(`压缩失败: ${error?.message || error}`);
+    return false;
+  } finally {
+    compacting.value = false;
+    compactAbortController = null;
+    compactProgress.value = { percent: 0, message: '', stage: '' };
+  }
+};
+
+// 工具循环内：tool 结果写回后、下一轮 AI 请求前检测并压缩
+const maybeAutoCompactBeforeNextRequest = async ({ reason = 'pre-request' } = {}) => {
+  if (autoCompactSuppressedForTurn.value) {
+    autoCompactSuppressedForTurn.value = false;
+    return false;
+  }
+  if (compacting.value) return false;
+  if (compactConfig.value.autoCompactEnabled === false) return false;
+  try {
+    rehydrateHistoryToolsIfNeeded();
+    // 不在这里 sync 掉内存 history 的 tool 细节；rehydrate 已保证 tool 完整
+    const need = await shouldCompactNow(history.value);
+    if (!need) return false;
+    const ok = await runConversationCompact({
+      manual: false,
+      allowDuringLoading: true,
+      quiet: true
+    });
+    if (ok) {
+      // 压缩后投影会变短；确保 tool 仍完整
+      rehydrateHistoryToolsIfNeeded();
+      scheduleAutoSave({ reason: `compacted-${reason}`, immediate: true });
+      showDismissibleMessage.success('上下文已自动压缩，继续处理…');
+    }
+    return ok;
+  } catch (error) {
+    console.warn('[compact] pre-request compact failed:', error);
+    return false;
+  }
+};
+
+const maybeAutoCompactAfterTurn = async () => {
+  if (autoCompactSuppressedForTurn.value) {
+    autoCompactSuppressedForTurn.value = false;
+    return;
+  }
+  if (compacting.value) return;
+  // 回合结束后 loading 通常已 false；若仍 true 也允许压缩
+  if (compactConfig.value.autoCompactEnabled === false) return;
+  try {
+    rehydrateHistoryToolsIfNeeded();
+    const need = await shouldCompactNow(history.value);
+    if (need) {
+      await runConversationCompact({
+        manual: false,
+        allowDuringLoading: true
+      });
+    }
+  } catch (error) {
+    console.warn('[compact] auto compact after turn failed:', error);
+  } finally {
+    autoCompactSuppressedForTurn.value = false;
+  }
+};
+
+
+
+// 单条 tool 结果进入 history 的硬顶，防止第三方 MCP / 意外大输出瞬间撑爆上下文
+const MAX_TOOL_RESULT_CHARS = 48 * 1000;
+
+const truncateToolResultForHistory = (text = '') => {
+  const value = String(text ?? '');
+  if (value.length <= MAX_TOOL_RESULT_CHARS) return value;
+  const head = Math.floor(MAX_TOOL_RESULT_CHARS * 0.2);
+  const tail = MAX_TOOL_RESULT_CHARS - head - 160;
+  return `${value.slice(0, head)}\n\n--- [SYSTEM NOTE: TOOL RESULT TRUNCATED] ---\nOriginal characters: ${value.length}. Kept head ${head} + tail ${Math.max(0, tail)} chars to protect conversation context.\n\n${value.slice(-Math.max(0, tail))}`;
+};
+
+
 const askAI = async (forceSend = false) => {
-  if (loading.value) return;
+  if (loading.value || isPreparingSend.value || compacting.value) return;
   if (isMcpLoading.value) {
     showDismissibleMessage.info('正在加载工具，请稍后再试...');
     return;
@@ -3047,38 +7084,68 @@ const askAI = async (forceSend = false) => {
 
   // --- 1. 处理用户输入 ---
   if (!forceSend) {
-    let file_content = await sendFile();
-    const promptText = prompt.value.trim();
-    if ((file_content && file_content.length > 0) || promptText) {
-      const userContentList = [];
-      if (promptText) userContentList.push({ type: "text", text: promptText });
-      if (file_content && file_content.length > 0) userContentList.push(...file_content);
-      const userTimestamp = new Date().toLocaleString('sv-SE');
-      if (userContentList.length > 0) {
-        const contentForHistory = userContentList.length === 1 && userContentList[0].type === 'text'
-          ? userContentList[0].text
-          : userContentList;
-        history.value.push({ role: "user", content: contentForHistory });
-        chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: userContentList, timestamp: userTimestamp });
+    isPreparingSend.value = true;
+    let added = false;
+    try {
+      added = await appendCurrentInputToHistory();
+    } finally {
+      isPreparingSend.value = false;
+    }
+    if (!added) return;
+  }
 
-        autoSaveSession();
-
-      } else return;
-    } else return;
-    prompt.value = "";
+  // 用户消息写入后、进入 AI 请求前：若已超阈值，先压缩再开跑
+  // 覆盖 ask / reask / 强制发送等同一入口，避免直接超上下文请求。
+  try {
+    await maybeAutoCompactBeforeNextRequest({ reason: 'before-askAI' });
+  } catch (error) {
+    console.warn('[compact] before-askAI compact failed:', error);
   }
 
   // --- 2. 初始化 AI 回合 ---
   loading.value = true;
+  syncAutoCloseOnBlurListener();
+  const turnId = activeAssistantTurnId.value + 1;
+  activeAssistantTurnId.value = turnId;
   signalController.value = new AbortController();
-  await nextTick();
+  const requestAbortController = signalController.value;
+  const requestSignal = requestAbortController.signal;
+  const turnMeta = {
+    id: turnId,
+    controller: requestAbortController,
+    assistantMessageId: null,
+    cancellationRecorded: false,
+    cancelledByUser: false
+  };
+  activeAssistantTurnMeta = turnMeta;
+  const isCurrentAssistantTurn = () => activeAssistantTurnId.value === turnId && activeAssistantTurnMeta === turnMeta;
+  const isTurnAborted = () => requestSignal.aborted || !isCurrentAssistantTurn();
+  const throwIfTurnAborted = () => {
+    if (isTurnAborted()) {
+      throw createAbortError();
+    }
+  };
 
-  isSticky.value = true;
-  scrollToBottom('auto');
+  const shouldTriggerAutoNaming = !defaultConversationName.value && chat_show.value.filter(msg => msg.role === 'user').length === 1;
+  if (shouldTriggerAutoNaming) {
+    triggerAutoNamingForFirstUserMessage({ force: false, requestSignal }).catch((error) => {
+      if (error?.name !== 'AbortError') {
+        console.warn('[Auto Naming] trigger failed:', error);
+      }
+    });
+  }
+
+  await nextTick();
+  if (isTurnAborted()) return;
+
+  if (isAtBottom.value) {
+    isSticky.value = true;
+    scrollToBottom('auto');
+  }
 
   const currentPromptConfig = currentConfig.value.prompts[CODE.value];
   const isVoiceReply = !!selectedVoice.value;
-  let useStream = currentPromptConfig?.stream && !isVoiceReply;
+  let useStream = (currentPromptConfig?.stream ?? true) && !isVoiceReply;
   let tool_calls_count = 0;
 
   // 获取当前服务商的 API 类型
@@ -3089,8 +7156,8 @@ const askAI = async (forceSend = false) => {
 
   try {
     // --- 3. 开始工具调用循环 ---
-    while (!signalController.value.signal.aborted) {
-      chatInputRef.value?.focus({ cursor: 'end' });
+    while (!isTurnAborted()) {
+      // chatInputRef.value?.focus({ cursor: 'end' });
 
       // --- 为本次请求创建临时消息列表 ---
       let messagesForThisRequest = JSON.parse(JSON.stringify(history.value));
@@ -3102,6 +7169,8 @@ const askAI = async (forceSend = false) => {
         return true;
       });
 
+      ensureAssistantReasoningContentForThinkingMode(messagesForThisRequest, tempReasoningEffort.value);
+
       messagesForThisRequest.forEach(msg => {
         if (Array.isArray(msg.content)) {
           msg.content = msg.content.filter(part => !part.isTranscript);
@@ -3112,6 +7181,7 @@ const askAI = async (forceSend = false) => {
             delete msg[key];
           }
         });
+        delete msg.tokenUsage;
       });
 
       if (currentPromptConfig && currentPromptConfig.ifTextNecessary) {
@@ -3165,9 +7235,11 @@ const askAI = async (forceSend = false) => {
         apiKey: api_key.value,
         model: model.value.split("|")[1],
         apiType: apiType,
+        retryCount: Number.isInteger(currentProviderConfig?.retryCount) ? currentProviderConfig.retryCount : 3,
+        headers: JSON.parse(JSON.stringify(currentProviderConfig?.headers || {})),
         messages: messagesForThisRequest,
         stream: useStream,
-        signal: signalController.value.signal
+        signal: requestSignal
       };
 
       if (currentPromptConfig?.isTemperature) requestParams.temperature = currentPromptConfig.temperature;
@@ -3178,7 +7250,9 @@ const askAI = async (forceSend = false) => {
 
       if (sessionSkillIds.value.length > 0 && currentConfig.value.skillPath) {
         try {
+          throwIfTurnAborted();
           const skillToolDef = await window.api.getSkillToolDefinition(currentConfig.value.skillPath, sessionSkillIds.value);
+          throwIfTurnAborted();
           if (skillToolDef) {
             activeTools.push(skillToolDef);
           }
@@ -3188,7 +7262,7 @@ const askAI = async (forceSend = false) => {
       }
 
       if (activeTools.length > 0) {
-        requestParams.tools = activeTools;
+        requestParams.tools = normalizeToolsForRequest(activeTools);
         requestParams.tool_choice = "auto";
       }
 
@@ -3199,6 +7273,7 @@ const askAI = async (forceSend = false) => {
         requestParams.audio = { voice: selectedVoice.value.split('-')[0].trim(), format: "wav" };
       }
 
+      throwIfTurnAborted();
       const assistantMessageId = messageIdCounter.value++;
       chat_show.value.push({
         id: assistantMessageId,
@@ -3207,28 +7282,58 @@ const askAI = async (forceSend = false) => {
         voiceName: selectedVoice.value, tool_calls: [],
         startTime: Date.now()
       });
+      turnMeta.assistantMessageId = assistantMessageId;
       currentAssistantChatShowIndex = chat_show.value.length - 1;
 
       if (isAtBottom.value) scrollToBottom('auto');
 
       let responseMessage;
 
+
       if (useStream) {
         // --- 流式处理 ---
         const stream = await window.api.createChatCompletion(requestParams);
+        throwIfTurnAborted();
 
         let aggregatedReasoningContent = "";
         let aggregatedContent = "";
         let aggregatedMedia = [];
         let aggregatedToolCalls = [];
         let aggregatedExtraContent = null;
+        let aggregatedUsage = null;
         let lastUpdateTime = Date.now();
 
         const responsesItemIdToIndexMap = new Map();
 
+        const flushStreamingDisplay = (force = false) => {
+          if ((!force && isTurnAborted()) || currentAssistantChatShowIndex < 0 || !chat_show.value[currentAssistantChatShowIndex]) {
+            return;
+          }
+          const currentDisplayContent = [];
+          if (aggregatedContent) currentDisplayContent.push({ type: 'text', text: aggregatedContent });
+          if (aggregatedMedia.length > 0) currentDisplayContent.push(...aggregatedMedia);
+
+          chat_show.value[currentAssistantChatShowIndex].content = currentDisplayContent;
+          if (aggregatedReasoningContent) {
+            chat_show.value[currentAssistantChatShowIndex].reasoning_content = aggregatedReasoningContent;
+          }
+          lastUpdateTime = Date.now();
+          syncStickyScrollAfterRender();
+        };
+
+
         for await (const part of stream) {
+          if (isTurnAborted()) {
+            break;
+          }
           // console.log(part);
-          if (apiType === 'responses') {
+          if (part?.usage) {
+            aggregatedUsage = part.usage;
+          }
+          if (apiType === 'responses' || apiType === 'codex') {
+            if (part.type === 'response.completed' && part.response?.usage) {
+              aggregatedUsage = part.response.usage;
+            }
             if (part.type === 'response.output_text.delta') {
               aggregatedContent += part.delta;
               if (chat_show.value[currentAssistantChatShowIndex].status === 'thinking') {
@@ -3239,10 +7344,6 @@ const askAI = async (forceSend = false) => {
               aggregatedReasoningContent += part.delta;
               if (chat_show.value[currentAssistantChatShowIndex].status !== 'thinking') {
                 chat_show.value[currentAssistantChatShowIndex].status = 'thinking';
-              }
-              if (Date.now() - lastUpdateTime > 100) {
-                chat_show.value[currentAssistantChatShowIndex].reasoning_content = aggregatedReasoningContent;
-                lastUpdateTime = Date.now();
               }
             }
             else if (part.type === 'response.output_item.added') {
@@ -3281,10 +7382,6 @@ const askAI = async (forceSend = false) => {
               if (chat_show.value[currentAssistantChatShowIndex].status !== 'thinking') {
                 chat_show.value[currentAssistantChatShowIndex].status = 'thinking';
               }
-              if (Date.now() - lastUpdateTime > 100) {
-                chat_show.value[currentAssistantChatShowIndex].reasoning_content = aggregatedReasoningContent;
-                lastUpdateTime = Date.now();
-              }
             }
 
             if (delta.content) {
@@ -3321,19 +7418,35 @@ const askAI = async (forceSend = false) => {
             }
           }
 
-          if (Date.now() - lastUpdateTime > 100) {
-            const currentDisplayContent = [];
-            if (aggregatedContent) currentDisplayContent.push({ type: 'text', text: aggregatedContent });
-            if (aggregatedMedia.length > 0) currentDisplayContent.push(...aggregatedMedia);
+          let throttleDelay = 100;
+          const currentTotalLength = aggregatedContent.length + aggregatedReasoningContent.length;
+          if (currentTotalLength > 1500) throttleDelay = 160;
+          if (currentTotalLength > 4000) throttleDelay = 250;
+          if (currentTotalLength > 8000) throttleDelay = 400;
 
-            chat_show.value[currentAssistantChatShowIndex].content = currentDisplayContent;
+          // 未闭合代码围栏时加大节流，降低流式代码块重渲染频率
+          const fenceTicks = (aggregatedContent.match(/```/g) || []).length
+            + (aggregatedContent.match(/~~~/g) || []).length;
+          if (fenceTicks % 2 === 1) {
+            throttleDelay = Math.max(throttleDelay, 360);
+          }
 
-            if (aggregatedReasoningContent) {
-              chat_show.value[currentAssistantChatShowIndex].reasoning_content = aggregatedReasoningContent;
-            }
-            lastUpdateTime = Date.now();
+          if (isTurnAborted()) {
+            break;
+          }
+
+          if (Date.now() - lastUpdateTime > throttleDelay) {
+            flushStreamingDisplay();
           }
         }
+
+        if (isTurnAborted()) {
+          if (isCurrentAssistantTurn()) {
+            flushStreamingDisplay(true);
+          }
+          throw createAbortError();
+        }
+        flushStreamingDisplay(true);
 
         let finalContentForHistory = null;
         if (aggregatedMedia.length > 0) {
@@ -3347,18 +7460,22 @@ const askAI = async (forceSend = false) => {
         responseMessage = {
           role: 'assistant',
           content: finalContentForHistory,
-          reasoning_content: aggregatedReasoningContent || null,
+          reasoning_content: aggregatedReasoningContent || (shouldBackfillAssistantReasoningContent(tempReasoningEffort.value) ? '' : null),
           extra_content: aggregatedExtraContent
         };
 
         if (aggregatedToolCalls.length > 0) {
           responseMessage.tool_calls = aggregatedToolCalls.filter(tc => tc.id && tc.function.name);
         }
+        if (aggregatedUsage) {
+          responseMessage.tokenUsage = normalizeAssistantTokenUsage(aggregatedUsage);
+        }
       } else {
         // --- 非流式处理 ---
         const response = await window.api.createChatCompletion(requestParams);
+        throwIfTurnAborted();
 
-        if (apiType === 'responses') {
+        if (apiType === 'responses' || apiType === 'codex') {
           let contentText = "";
           let toolCalls = [];
           let reasoningText = "";
@@ -3399,14 +7516,24 @@ const askAI = async (forceSend = false) => {
           responseMessage = {
             role: 'assistant',
             content: contentText || null,
-            reasoning_content: reasoningText || null,
-            tool_calls: toolCalls.length > 0 ? toolCalls : undefined
+            reasoning_content: reasoningText || (shouldBackfillAssistantReasoningContent(tempReasoningEffort.value) ? '' : null),
+            tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+            tokenUsage: normalizeAssistantTokenUsage(response.usage)
           };
         } else {
-          // Chat Completions
-          responseMessage = response.choices[0].message;
+          if (isAsyncIterableResponse(response)) {
+            responseMessage = await collectChatCompletionStreamToMessage(response);
+            throwIfTurnAborted();
+          } else if (response && response.choices && response.choices.length > 0) {
+            responseMessage = response.choices[0].message;
+            responseMessage.tokenUsage = normalizeAssistantTokenUsage(response.usage);
+          } else {
+            throw new Error(`API 返回异常，未包含有效的 choices 数据: ${JSON.stringify(response)}`);
+          }
         }
       }
+
+      throwIfTurnAborted();
 
       if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
         responseMessage.tool_calls.forEach(tc => {
@@ -3416,10 +7543,17 @@ const askAI = async (forceSend = false) => {
         });
       }
 
-      history.value.push(responseMessage);
+      ensureAssistantReasoningContentForThinkingMode([responseMessage], tempReasoningEffort.value);
+      if (!responseMessage.tokenUsage) {
+        delete responseMessage.tokenUsage;
+      }
+
+      appendFullHistory(responseMessage);
+      throwIfTurnAborted();
 
       // --- 更新 UI 气泡 ---
       const currentBubble = chat_show.value[currentAssistantChatShowIndex];
+      applyTokenUsageToAssistantMessage(currentAssistantChatShowIndex, responseMessage.tokenUsage);
 
       // 更新正文
       if (responseMessage.content) {
@@ -3448,12 +7582,29 @@ const askAI = async (forceSend = false) => {
         }));
 
         await nextTick();
+        throwIfTurnAborted();
 
         // 工具调用执行逻辑
         const toolMessages = await Promise.all(
           responseMessage.tool_calls.map(async (toolCall) => {
             const uiToolCall = currentBubble.tool_calls.find(t => t.id === toolCall.id);
             let toolContent;
+
+            // Better Work 交互工具：前端拦截，不走审批 / invokeMcpTool
+            if (BETTERWORK_FRONTEND_TOOLS.has(toolCall.function.name)) {
+              try {
+                const bwArgs = JSON.parse(toolCall.function.arguments || '{}');
+                toolContent = await handleBetterWorkTool(toolCall, bwArgs, uiToolCall);
+                throwIfTurnAborted();
+              } catch (e) {
+                if (isTurnAborted()) {
+                  throw createAbortError();
+                }
+                toolContent = `{'result':'Better Work tool error: ${e.message}'}`;
+                if (uiToolCall) { uiToolCall.approvalStatus = 'finished'; uiToolCall.result = toolContent; }
+              }
+              return { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: toolContent };
+            }
 
             if (!isAutoApproveTools.value) {
               try {
@@ -3464,18 +7615,20 @@ const askAI = async (forceSend = false) => {
                 if (!isApproved) {
                   if (uiToolCall) {
                     uiToolCall.approvalStatus = 'rejected';
-                    uiToolCall.result = '用户已取消执行';
+                    uiToolCall.result = requestSignal.aborted ? '[System Note]: Tool call was aborted by user.' : '用户已取消执行';
                   }
                   return {
                     tool_call_id: toolCall.id,
                     role: "tool",
                     name: toolCall.function.name,
-                    content: "User denied this tool execution."
+                    content: requestSignal.aborted ? '[System Note]: Tool call was aborted by user.' : 'User denied this tool execution.'
                   };
                 }
               } catch (e) {
               }
             }
+
+            throwIfTurnAborted();
 
             if (uiToolCall) {
               uiToolCall.approvalStatus = 'executing';
@@ -3485,6 +7638,10 @@ const askAI = async (forceSend = false) => {
             toolCallControllers.value.set(toolCall.id, controller);
 
             try {
+              if (requestSignal.aborted) {
+                throw createAbortError();
+              }
+
               const toolArgs = JSON.parse(toolCall.function.arguments);
 
               if (toolCall.function.name === 'Skill') {
@@ -3495,42 +7652,26 @@ const askAI = async (forceSend = false) => {
                 const currentBaseUrl = base_url.value;
                 const currentModelName = model.value.split('|')[1] || model.value;
 
-                const onUpdateCallback = (logContent) => {
-                  if (uiToolCall) {
-                    uiToolCall.result = logContent + "\n\n[Skill (Sub-Agent) Running...]";
-                  }
-                };
-
-                executionContext = {
+                executionContext = withConversationOwnerContext({
                   apiKey: currentApiKey,
                   baseUrl: currentBaseUrl,
                   model: currentModelName,
                   tools: activeTools.filter(t => t.function.name !== 'sub_agent'),
                   mcpSystemPrompt: mcpSystemPromptStr,
-                  onUpdate: onUpdateCallback,
                   apiType: apiType
-                };
+                });
 
                 toolContent = await window.api.resolveSkillInvocation(
                   currentConfig.value.skillPath,
                   toolArgs.skill,
                   toolArgs,
                   executionContext,
-                  toolCallControllers.value.get(toolCall.id)?.signal || signalController.value.signal
+                  toolCallControllers.value.get(toolCall.id)?.signal || requestSignal
                 );
 
-                if (uiToolCall) {
-                  if (toolContent.includes("[Sub-Agent]")) {
-                    const currentLog = uiToolCall.result ? uiToolCall.result.replace("\n\n[Skill (Sub-Agent) Running...]", "") : "";
-                    if (!currentLog.includes(toolContent)) {
-                      uiToolCall.result = `${currentLog}\n\n=== Skill Execution Result ===\n${toolContent}`;
-                    } else {
-                      uiToolCall.result = currentLog;
-                    }
-                  } else {
-                    uiToolCall.result = toolContent;
-                  }
-                }
+                throwIfTurnAborted();
+
+                if (uiToolCall) uiToolCall.result = toolContent;
 
               } else {
                 let executionContext = null;
@@ -3542,57 +7683,56 @@ const askAI = async (forceSend = false) => {
 
                   const toolsContext = activeTools.filter(t => t.function.name !== 'sub_agent');
 
-                  const onUpdateCallback = (logContent) => {
-                    if (uiToolCall) {
-                      uiToolCall.result = logContent + "\n\n[Sub-Agent 执行中...]";
-                    }
-                  };
-
-                  executionContext = {
+                  executionContext = withConversationOwnerContext({
                     apiKey: currentApiKey,
                     baseUrl: currentBaseUrl,
                     model: currentModelName,
                     tools: toolsContext,
                     mcpSystemPrompt: mcpSystemPromptStr,
-                    onUpdate: onUpdateCallback,
                     apiType: apiType
-                  };
+                  });
                 }
+
+                const invokeArgs = (
+                  toolCall.function.name === 'sub_agent'
+                  || toolCall.function.name === 'get_subagent_status'
+                  || toolCall.function.name === 'stop_subagent'
+                  || toolCall.function.name === 'kill_subagent'
+                  || toolCall.function.name === 'rerun_subagent'
+                ) ? withConversationOwnerArgs(toolArgs) : toolArgs;
 
                 const result = await window.api.invokeMcpTool(
                   toolCall.function.name,
-                  toolArgs,
-                  toolCallControllers.value.get(toolCall.id)?.signal || signalController.value.signal,
-                  executionContext
+                  invokeArgs,
+                  toolCallControllers.value.get(toolCall.id)?.signal || requestSignal,
+                  withConversationOwnerContext(executionContext)
                 );
 
-                toolContent = Array.isArray(result) ? result.filter(item => item?.type === 'text' && typeof item.text === 'string').map(item => item.text).join('\n\n') : String(result);
+                toolContent = formatToolResult(result);
+                throwIfTurnAborted();
 
-                if (uiToolCall) {
-                  if (toolCall.function.name === 'sub_agent') {
-                    const currentLog = uiToolCall.result ? uiToolCall.result.replace("\n\n[Sub-Agent 执行中...]", "") : "";
-                    if (!currentLog.includes(toolContent)) {
-                      uiToolCall.result = `${currentLog}\n\n=== 最终结果 ===\n${toolContent}`;
-                    } else {
-                      uiToolCall.result = currentLog;
-                    }
-                  } else {
-                    uiToolCall.result = toolContent;
-                  }
-                }
+                if (uiToolCall) uiToolCall.result = toolContent;
               }
 
-              if (uiToolCall) uiToolCall.approvalStatus = 'finished';
+
+              if (toolCall.function.name === 'sub_agent' || toolCall.function.name === 'Skill') {
+                const taskText = toolCall.function.name === 'sub_agent'
+                  ? (typeof toolArgs?.task === 'string' ? toolArgs.task : '')
+                  : (typeof toolArgs?.task === 'string' ? toolArgs.task : (typeof toolArgs?.skill === 'string' ? `Skill: ${toolArgs.skill}` : ''));
+                registerSubAgentFromToolContent(toolContent, taskText);
+              }
+
+              if (!isTurnAborted() && uiToolCall) uiToolCall.approvalStatus = 'finished';
 
             } catch (e) {
               if (e.name === 'AbortError') {
-                toolContent = "Error: Tool call was canceled by the user.";
+                toolContent = "[System Note]: Tool call was aborted by user.";
                 if (uiToolCall) uiToolCall.approvalStatus = 'rejected';
               } else {
                 toolContent = `{'result':'工具执行或参数解析错误: ${e.message}'}`;
-                if (uiToolCall) uiToolCall.approvalStatus = 'finished';
+                if (!isTurnAborted() && uiToolCall) uiToolCall.approvalStatus = 'finished';
               }
-              if (uiToolCall) uiToolCall.result = toolContent;
+              if (!isTurnAborted() && uiToolCall) uiToolCall.result = toolContent;
             } finally {
               toolCallControllers.value.delete(toolCall.id);
             }
@@ -3600,7 +7740,32 @@ const askAI = async (forceSend = false) => {
           })
         );
 
-        history.value.push(...toolMessages);
+        throwIfTurnAborted();
+        // 统一硬截断 tool 结果（覆盖 Skill/BetterWork 等未走 formatToolResult 的路径）
+        const safeToolMessages = toolMessages.map((msg) => ({
+          ...msg,
+          content: truncateToolResultForHistory(msg?.content)
+        }));
+        // UI 气泡同步截断，避免显示与 history 不一致的超长结果
+        if (Array.isArray(currentBubble?.tool_calls)) {
+          currentBubble.tool_calls.forEach((tc) => {
+            if (tc && Object.prototype.hasOwnProperty.call(tc, 'result')) {
+              tc.result = truncateToolResultForHistory(tc.result);
+            }
+          });
+        }
+        appendFullHistory(...safeToolMessages);
+        // 工具调用完成本质也会向 AI 续发请求，此处保存一次
+        scheduleAutoSave({ reason: 'tool-calls-completed', immediate: true });
+        // 工具调用完成后，把缓冲区消息插入历史，使下一轮请求即可纳入
+        throwIfTurnAborted();
+        await drainBufferIntoHistory();
+        throwIfTurnAborted();
+
+        // 关键：tool 结果与缓冲消息写回后、进入下一轮 AI 请求前做上下文检测。
+        // 超限则先压缩，压缩完成后再 continue 循环发送。
+        await maybeAutoCompactBeforeNextRequest({ reason: 'after-tool-results' });
+        throwIfTurnAborted();
       } else {
         if (isVoiceReply && responseMessage.audio) {
           currentBubble.content = currentBubble.content || [];
@@ -3626,8 +7791,19 @@ const askAI = async (forceSend = false) => {
       }
     }
   } catch (error) {
+    const aborted = isAbortError(error);
+    const staleTurn = !isCurrentAssistantTurn();
+    if (staleTurn) {
+      if (!aborted) {
+        console.warn('[askAI] Ignored stale assistant turn error:', error);
+      }
+      return;
+    }
+    if (aborted && turnMeta.cancellationRecorded) {
+      return;
+    }
     let errorDisplay = `发生错误: ${error.message || '未知错误'}`;
-    if (error.name === 'AbortError') errorDisplay = "请求已取消";
+    if (aborted) errorDisplay = "请求已取消";
 
     const errorBubbleIndex = currentAssistantChatShowIndex > -1 ? currentAssistantChatShowIndex : chat_show.value.length;
     if (currentAssistantChatShowIndex === -1) {
@@ -3637,47 +7813,45 @@ const askAI = async (forceSend = false) => {
       });
     }
     const currentBubble = chat_show.value[errorBubbleIndex];
-    if (chat_show.value[errorBubbleIndex].reasoning_content && currentBubble.status === 'thinking') {
-      chat_show.value[errorBubbleIndex].status = "error";
-    }
 
-    let existingText = "";
-    if (currentBubble.content && Array.isArray(currentBubble.content)) {
-      existingText = currentBubble.content
-        .filter(part => part.type === 'text')
-        .map(part => part.text)
-        .join('');
-    } else if (typeof currentBubble.content === 'string') {
-      existingText = currentBubble.content;
-    }
-
-    if (existingText && existingText.trim().length > 0) {
-      const combinedText = `${existingText}\n\n> **Error**: ${errorDisplay}`;
-      currentBubble.content = [{ type: "text", text: combinedText }];
-      history.value.push({
-        role: 'assistant',
-        content: combinedText,
-        reasoning_content: currentBubble.reasoning_content || null
-      });
+    if (aborted) {
+      finalizeCancelledAssistantTurn(turnMeta);
     } else {
-      currentBubble.content = [{ type: "text", text: `${errorDisplay}` }];
-      history.value.push({
+      const terminalNotice = getAssistantTerminalNoticeMarkdown(aborted, errorDisplay);
+      const finalContent = appendTerminalNoticeToAssistantContent(currentBubble.content, terminalNotice);
+      const finalReasoningContent = typeof currentBubble.reasoning_content === 'string'
+        ? currentBubble.reasoning_content
+        : (currentBubble.reasoning_content ? String(currentBubble.reasoning_content) : '');
+
+      currentBubble.content = finalContent;
+      currentBubble.reasoning_content = finalReasoningContent;
+      currentBubble.status = 'error';
+
+      appendFullHistory({
         role: 'assistant',
-        content: `${errorDisplay}`,
-        reasoning_content: currentBubble.reasoning_content || null
+        content: finalContent,
+        reasoning_content: finalReasoningContent || null
       });
     }
+    scheduleAutoSave({ reason: aborted ? 'assistant-cancelled-error' : 'assistant-error', immediate: true });
 
   } finally {
-    loading.value = false;
-    signalController.value = null;
-    if (currentAssistantChatShowIndex > -1) {
+    const stillOwnsTurn = activeAssistantTurnMeta === turnMeta;
+    const stillOwnsSignal = signalController.value === requestAbortController;
+    if (stillOwnsTurn || stillOwnsSignal) {
+      loading.value = false;
+      syncAutoCloseOnBlurListener();
+    }
+    if (stillOwnsSignal) {
+      signalController.value = null;
+    }
+    if (currentAssistantChatShowIndex > -1 && !turnMeta.cancellationRecorded) {
       const endTime = Date.now();
       chat_show.value[currentAssistantChatShowIndex].endTime = endTime;
       chat_show.value[currentAssistantChatShowIndex].completedTimestamp = new Date().toLocaleString('sv-SE');
     }
     await nextTick();
-    chatInputRef.value?.focus({ cursor: 'end' });
+    focusChatInputIfSafe({ cursor: 'end' });
 
     if (currentTaskConfig.value) {
       let savedFileName = '未保存';
@@ -3685,7 +7859,7 @@ const askAI = async (forceSend = false) => {
         if (currentTaskConfig.value.autoSave && currentConfig.value.webdav?.localChatPath) {
           // 构造文件名：任务名-时间
           const timeStr = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/[\/ :]/g, '-').replace(/,/g, '');
-          defaultConversationName.value = `${currentTaskConfig.value.name}-${timeStr}`;
+          defaultConversationName.value = `定时任务-${currentTaskConfig.value.name}-${timeStr}`;
           const sessionData = getSessionDataAsObject();
           const jsonString = JSON.stringify(sessionData, null, 2);
 
@@ -3694,6 +7868,20 @@ const askAI = async (forceSend = false) => {
 
           await window.api.writeLocalFile(filePath, jsonString);
           savedFileName = `${defaultConversationName.value}.json`;
+
+          try {
+            const localProjects = normalizeWindowProjects(await window.api.readLocalProjects(currentConfig.value.webdav.localChatPath));
+            const taskProjectId = typeof currentTaskConfig.value.autoSaveProjectId === 'string' ? currentTaskConfig.value.autoSaveProjectId : '';
+            const projectName = localProjects.projects.find((p) => p.id === taskProjectId)?.name || '';
+            await reassignLocalProject({
+              projectId: taskProjectId,
+              projectName,
+              addFilename: savedFileName,
+              removeFilenames: []
+            });
+          } catch (projectError) {
+            console.warn('[projects] task auto-save local project assignment failed:', projectError);
+          }
         }
         // 将历史记录写入主配置
         await window.api.addTaskHistory(currentTaskConfig.value.id, {
@@ -3716,12 +7904,69 @@ const askAI = async (forceSend = false) => {
       }
       currentTaskConfig.value = null; // 清空标记，避免后续手动问答也触发
     } else {
-      autoSaveSession(); // 普通对话的自动保存
+      scheduleAutoSave({ reason: 'assistant-turn-finalized', immediate: true }); // 普通对话的自动保存
+      await maybeAutoCompactAfterTurn();
+    }
+    if (stillOwnsTurn) {
+      activeAssistantTurnMeta = null;
     }
   }
 };
 
-const cancelAskAI = () => { if (loading.value && signalController.value) { signalController.value.abort(); chatInputRef.value?.focus(); } };
+const cancelAskAI = () => {
+  if (!loading.value) {
+    return;
+  }
+
+  const turnMeta = activeAssistantTurnMeta;
+  const requestAbortController = signalController.value;
+  if (turnMeta) {
+    turnMeta.cancelledByUser = true;
+  }
+
+  if (requestAbortController) {
+    requestAbortController.abort();
+  }
+  cancelAutoNamingRequest();
+
+  resolvePendingToolApprovals(false);
+  resolvePendingChoices(null);
+  toolCallControllers.value.forEach((controller) => {
+    try {
+      controller.abort();
+    } catch {
+      // ignore abort race
+    }
+  });
+
+  chat_show.value.forEach(msg => {
+    if (!Array.isArray(msg.tool_calls)) return;
+    msg.tool_calls.forEach(tc => {
+      if (tc.approvalStatus === 'waiting' || tc.approvalStatus === 'executing') {
+        tc.approvalStatus = 'rejected';
+        tc.result = '[System Note]: Tool call was aborted by user.';
+      }
+    });
+  });
+
+  finalizeCancelledAssistantTurn(turnMeta);
+  if (turnMeta) {
+    activeAssistantTurnId.value = Math.max(activeAssistantTurnId.value, turnMeta.id) + 1;
+    if (activeAssistantTurnMeta === turnMeta) {
+      activeAssistantTurnMeta = null;
+    }
+  } else {
+    activeAssistantTurnId.value += 1;
+  }
+  toolCallControllers.value.clear();
+  if (signalController.value === requestAbortController) {
+    signalController.value = null;
+  }
+  loading.value = false;
+  syncAutoCloseOnBlurListener();
+  scheduleAutoSave({ reason: 'assistant-cancelled', immediate: true });
+  focusChatInputIfSafe({ cursor: 'end' });
+};
 const copyText = async (content, index) => { if (loading.value && index === chat_show.value.length - 1) return; await window.api.copyText(content); };
 const reaskAI = async () => {
   if (loading.value) return;
@@ -3740,7 +7985,11 @@ const reaskAI = async () => {
     const showItemsToRemove = history.value.slice(lastVisibleMessageIndexInHistory)
       .filter(m => m.role !== 'tool').length;
 
-    history.value.splice(lastVisibleMessageIndexInHistory, historyItemsToRemove);
+    const lastVisibleMessageIndexInFullHistory = fullHistory.value.findLastIndex((message) => message?.role === 'assistant');
+    if (lastVisibleMessageIndexInFullHistory >= 0) {
+      fullHistory.value.splice(lastVisibleMessageIndexInFullHistory);
+      syncHistoryFromFullHistory();
+    }
     if (showItemsToRemove > 0) {
       chat_show.value.splice(chat_show.value.length - showItemsToRemove);
     }
@@ -3757,79 +8006,56 @@ const reaskAI = async () => {
 };
 
 const deleteMessage = (index) => {
-  if (loading.value) {
-    showDismissibleMessage.warning('请等待当前回复完成后再操作');
+  if (loading.value || compacting.value) {
+    showDismissibleMessage.warning(compacting.value ? '压缩进行中，暂不可编辑历史' : '请等待当前回复完成后再操作');
     return;
   }
   if (index < 0 || index >= chat_show.value.length) return;
-
-  const msgToDeleteInShow = chat_show.value[index];
-  if (msgToDeleteInShow?.role === 'system') {
+  const messageToDelete = chat_show.value[index];
+  if (messageToDelete?.role === 'system') {
     showDismissibleMessage.info('系统提示词不能被删除');
     return;
   }
 
-  let history_idx = -1;
-  let show_counter = -1;
-  for (let i = 0; i < history.value.length; i++) {
-    if (history.value[i].role !== 'tool') {
-      show_counter++;
+  const fullVisibleIndexes = fullHistory.value
+    .map((message, fullIndex) => (message?.role === 'tool' ? -1 : fullIndex))
+    .filter((fullIndex) => fullIndex >= 0);
+  const fullStartIndex = fullVisibleIndexes[index];
+  if (Number.isInteger(fullStartIndex)) {
+    let fullDeleteCount = 1;
+    if (fullHistory.value[fullStartIndex]?.role === 'assistant') {
+      const calledIds = new Set((fullHistory.value[fullStartIndex]?.tool_calls || []).map((call) => call?.id).filter(Boolean));
+      let cursor = fullStartIndex + 1;
+      while (cursor < fullHistory.value.length && fullHistory.value[cursor]?.role === 'tool') {
+        if (calledIds.size === 0 || calledIds.has(fullHistory.value[cursor]?.tool_call_id)) fullDeleteCount += 1;
+        cursor += 1;
+      }
     }
-    if (show_counter === index) {
-      history_idx = i;
-      break;
-    }
+    fullHistory.value.splice(fullStartIndex, fullDeleteCount);
   }
+  chat_show.value.splice(index, 1);
+  markOutermostCanRestore();
+  syncHistoryFromFullHistory();
 
-  if (history_idx === -1) {
-    console.error("关键错误: 无法将 chat_show 索引映射到 history 索引。中止删除。");
-    showDismissibleMessage.error("删除失败：消息状态不一致。");
-    return;
+  const nextCollapsed = new Set();
+  for (const collapsedIndex of collapsedMessages.value) {
+    if (collapsedIndex < index) nextCollapsed.add(collapsedIndex);
+    else if (collapsedIndex > index) nextCollapsed.add(collapsedIndex - 1);
   }
-
-  const messageToDeleteInHistory = history.value[history_idx];
-  let history_start_idx = history_idx;
-  let history_end_idx = history_idx;
-
-  if (
-    messageToDeleteInHistory.role === 'assistant' &&
-    messageToDeleteInHistory.tool_calls &&
-    messageToDeleteInHistory.tool_calls.length > 0
-  ) {
-    while (history.value[history_end_idx + 1]?.role === 'tool') {
-      history_end_idx++;
-    }
-  }
-
-  const history_delete_count = history_end_idx - history_start_idx + 1;
-  const show_delete_count = 1;
-  const show_start_idx = index;
-
-  if (history_delete_count > 0) {
-    history.value.splice(history_start_idx, history_delete_count);
-  }
-
-  if (show_delete_count > 0) {
-    chat_show.value.splice(show_start_idx, show_delete_count);
-  }
-
-  const deletedIndexInShow = index;
-  const newCollapsedMessages = new Set();
-  for (const collapsedIdx of collapsedMessages.value) {
-    if (collapsedIdx < deletedIndexInShow) {
-      newCollapsedMessages.add(collapsedIdx);
-    } else if (collapsedIdx > deletedIndexInShow) {
-      newCollapsedMessages.add(collapsedIdx - 1);
-    }
-  }
-  collapsedMessages.value = newCollapsedMessages;
-
+  collapsedMessages.value = nextCollapsed;
   focusedMessageIndex.value = null;
+  scheduleAutoSave({ reason: 'message-deleted', immediate: true });
 };
 
-const clearHistory = () => {
+const clearHistory = async () => {
   if (loading.value) {
     return;
+  }
+
+  try {
+    await killAllRunningSubAgentsForCurrentConversation();
+  } catch (e) {
+    console.warn('[Sub-Agent] Kill-on-clear failed:', e);
   }
 
   const systemPromptFromConfig = currentConfig.value.prompts[CODE.value]?.prompt;
@@ -3838,17 +8064,24 @@ const clearHistory = () => {
   const systemPromptToKeep = systemPromptFromConfig ? { role: "system", content: systemPromptFromConfig } : systemPromptFromHistory;
 
   if (systemPromptToKeep) {
-    history.value = [systemPromptToKeep];
+    replaceFullHistory([systemPromptToKeep]);
     chat_show.value = [{ ...systemPromptToKeep, id: messageIdCounter.value++ }];
   } else {
-    history.value = [];
+    replaceFullHistory([]);
     chat_show.value = [];
   }
 
   collapsedMessages.value.clear();
   messageRefs.clear();
   focusedMessageIndex.value = null;
+  cancelAutoNamingRequest();
   defaultConversationName.value = "";
+  taskList.value = [];
+  taskPanelVisible.value = false;
+  pendingAppendBuffer.value = [];
+  clearSubAgentSessionState();
+  conversationOwnerId.value = '';
+  ensureConversationOwnerId();
   chatInputRef.value?.focus({ cursor: 'end' });
   showDismissibleMessage.success('历史记录已清除');
 };
@@ -3872,7 +8105,7 @@ async function handleQuickMcpToggle(serverId) {
 
   tempSessionMcpServerIds.value = [...sessionMcpServerIds.value];
 
-  await applyMcpTools(false);
+  await requestApplyMcpTools(false, 'quick-toggle');
 }
 
 const focusOnInput = () => {
@@ -3990,7 +8223,14 @@ const handleGlobalKeyDown = (event) => {
     return;
   }
 
-  // 2. 缩放快捷键控制
+  // 2. 任务进度面板开关 (Ctrl + T)
+  if (isCtrl && event.key.toLowerCase() === 't') {
+    event.preventDefault();
+    taskPanelVisible.value = !taskPanelVisible.value;
+    return;
+  }
+
+  // 3. 缩放快捷键控制
   if (isCtrl) {
     // 重置缩放 (Ctrl + 0)
     if (event.key === '0') {
@@ -4020,12 +8260,6 @@ const handleGlobalKeyDown = (event) => {
       showDismissibleMessage.info(`缩放: ${Math.round(zoomLevel.value * 100)}%`);
       return;
     }
-  }
-};
-
-const handleOpenSearch = () => {
-  if (textSearchInstance) {
-    textSearchInstance.show();
   }
 };
 
@@ -4084,11 +8318,7 @@ const getMessagePreviewText = (message) => {
 
 // 2. 滚动到指定消息
 const scrollToMessageByIndex = (index) => {
-  const component = getMessageComponentByIndex(index);
-  if (component && component.$el && component.$el.nodeType === 1) {
-    component.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    focusedMessageIndex.value = index;
-  }
+  scrollChatContainerToMessage(index);
 };
 </script>
 
@@ -4107,13 +8337,18 @@ const scrollToMessageByIndex = (index) => {
         :os="currentOS" @save-window-size="handleSaveWindowSize" @save-session="handleSaveSession"
         @toggle-pin="handleTogglePin" @toggle-always-on-top="handleToggleAlwaysOnTop" @minimize="handleMinimize"
         @maximize="handleMaximize" @close="handleCloseWindow" />
-      <ChatHeader :modelMap="modelMap" :model="model" :is-mcp-loading="isMcpLoading" :systemPrompt="currentSystemPrompt"
+      <ChatHeader :modelMap="modelMap" :model="model" :model-logo="currentModelLogo" :is-mcp-loading="isMcpLoading" :systemPrompt="currentSystemPrompt"
+        :has-task-tool="hasTaskMcpTool" :task-panel-visible="taskPanelVisible" :task-status="taskOverallStatus"
         @open-model-dialog="handleOpenModelDialog" @show-system-prompt="handleShowSystemPrompt"
-        @open-search="handleOpenSearch" />
+        @model-logo-error="handleModelLogoError"
+        @toggle-task-panel="taskPanelVisible = !taskPanelVisible" />
+
+      <TaskPanel :tasks="taskList" :visible="taskPanelVisible" @close="taskPanelVisible = false" />
 
       <div class="main-area-wrapper">
         <el-main ref="chatContainerRef" class="chat-main custom-scrollbar" @click="handleMainClick"
-          @scroll="handleScroll">
+          @wheel.passive="markUserScrollIntent" @touchstart.passive="markUserScrollIntent"
+          @pointerdown="markUserScrollIntent" @scroll="handleScroll">
           <ChatMessage v-for="(message, index) in chat_show" :key="message.id" :is-auto-approve="isAutoApproveTools"
             @update-auto-approve="handleToggleAutoApprove" @confirm-tool="handleToolApproval"
             @reject-tool="handleToolApproval" :ref="el => setMessageRef(el, message.id)" :message="message"
@@ -4122,7 +8357,7 @@ const scrollToMessageByIndex = (index) => {
             :is-dark-mode="currentConfig.isDarkMode" @delete-message="handleDeleteMessage" @copy-text="handleCopyText"
             @re-ask="handleReAsk" @toggle-collapse="handleToggleCollapse" @show-system-prompt="handleShowSystemPrompt"
             @avatar-click="onAvatarClick" @edit-message-requested="handleEditStart" @edit-finished="handleEditEnd"
-            @edit-message="handleEditMessage" @cancel-tool-call="handleCancelToolCall" />
+            @edit-message="handleEditMessage" @cancel-tool-call="handleCancelToolCall" @submit-choice="handleChoiceSubmit" @restore-compact="handleRestoreCompact" />
         </el-main>
 
         <div class="unified-nav-sidebar" v-if="chat_show.length > 0">
@@ -4151,18 +8386,18 @@ const scrollToMessageByIndex = (index) => {
 
           <div class="nav-timeline-area">
             <div class="timeline-track"></div>
-            <div class="timeline-scroller no-scrollbar">
-              <div v-for="msg in navMessages" :key="msg.id" class="timeline-node-wrapper"
-                @click="scrollToMessageByIndex(msg.originalIndex)">
-                <el-tooltip :content="getMessagePreviewText(msg)" placement="left" :show-after="200" :enterable="false"
-                  effect="dark">
+            <div ref="navTimelineScrollerRef" class="timeline-scroller no-scrollbar">
+              <el-tooltip v-for="msg in navMessages" :key="msg.id" :content="getMessagePreviewText(msg)" placement="left"
+                :show-after="160" :enterable="false" effect="dark" popper-class="nav-message-tooltip">
+                <div class="timeline-node-wrapper" :data-original-index="msg.originalIndex"
+                  @click="scrollToMessageByIndex(msg.originalIndex)">
                   <div class="timeline-node" :class="[
                     msg.role,
-                    { 'active': focusedMessageIndex === msg.originalIndex }
+                    { 'active': focusedMessageIndex === msg.originalIndex, 'is-compaction': msg.role === 'compaction' }
                   ]">
                   </div>
-                </el-tooltip>
-              </div>
+                </div>
+              </el-tooltip>
             </div>
           </div>
 
@@ -4192,20 +8427,40 @@ const scrollToMessageByIndex = (index) => {
 
         </div>
 
-        <ChatInput ref="chatInputRef" v-model:prompt="prompt" v-model:fileList="fileList"
-          v-model:selectedVoice="selectedVoice" v-model:tempReasoningEffort="tempReasoningEffort" :loading="loading"
+        <ChatInput
+            :compacting="compacting"
+            :compact-progress="compactProgress"
+            :compact-config="compactConfig"
+            :can-restore-compact="canRestoreCompact"
+ ref="chatInputRef" v-model:prompt="prompt" v-model:fileList="fileList"
+          v-model:selectedVoice="selectedVoice" v-model:tempReasoningEffort="tempReasoningEffort" :loading="loading || compacting"
           :ctrlEnterToSend="currentConfig.CtrlEnterToSend" :layout="inputLayout" :voiceList="currentConfig.voiceList"
           :is-mcp-active="isMcpActive" :all-mcp-servers="availableMcpServers" :active-mcp-ids="sessionMcpServerIds"
-          :active-skill-ids="sessionSkillIds" :all-skills="allSkillsList" @submit="handleSubmit" @cancel="handleCancel"
+          :active-skill-ids="sessionSkillIds" :all-skills="allSkillsList" :append-buffer="pendingAppendBuffer" :sub-agent-tasks="subAgentTasks" @open-compact-dialog="handleOpenCompactDialog"
+            @run-compact="handleRunCompactWithConfig"
+            @cancel-compact="handleCancelCompact"
+            @save-compact-config="handleSaveCompactConfig"
+            @apply-compact-advanced-global="handleApplyCompactAdvancedGlobal"
+            @reset-compact-config="handleResetCompactConfig"
+            @refresh-compact-context="handleRefreshCompactContext"
+            @restore-compact="handleRestoreCompact"
+            @submit="handleSubmit" @cancel="handleCancel"
           @clear-history="handleClearHistory" @remove-file="handleRemoveFile" @upload="handleUpload"
           @send-audio="handleSendAudio" @open-mcp-dialog="handleOpenMcpDialog" @pick-file-start="handlePickFileStart"
           @toggle-mcp="handleQuickMcpToggle" @toggle-skill="handleQuickSkillToggle"
-          @open-skill-dialog="toggleSkillDialog" />
+          @open-skill-dialog="toggleSkillDialog" @cancel-buffer="removeBufferedMessage" @stop-subagent="stopSubAgentFromInput"
+          :sub-agent-details="subAgentDetails"
+          @acknowledge-subagent="acknowledgeSubAgentFromInput"
+          @acknowledge-all-subagents="acknowledgeAllFinishedSubAgentsFromInput"
+          @rerun-subagent="rerunSubAgentFromInput"
+          @open-subagent-detail="openSubAgentDetailFromInput" @close-subagent-detail="closeSubAgentDetailFromInput" />
       </div>
     </el-container>
   </main>
 
   <ModelSelectionDialog v-model="changeModel_page" :modelList="modelList" :currentModel="model"
+    :providerCollapseStates="modelDialogProviderCollapseStates"
+    @update:providerCollapseStates="handleProviderCollapseStatesChange"
     @select="handleChangeModel" @save-model="handleSaveModel" />
 
   <el-dialog v-model="systemPromptDialogVisible" title="" custom-class="system-prompt-dialog" width="60%"
@@ -4241,12 +8496,16 @@ const scrollToMessageByIndex = (index) => {
       <div class="mcp-dialog-toolbar">
         <div class="filter-tags">
           <span class="filter-tag" :class="{ active: mcpFilter === 'all' }" @click="mcpFilter = 'all'">全部</span>
-          <span class="filter-tag" :class="{ active: mcpFilter === 'selected' }" @click="mcpFilter = 'selected'">已选</span>
-          <span class="filter-tag" :class="{ active: mcpFilter === 'unselected' }" @click="mcpFilter = 'unselected'">未选</span>
+          <span class="filter-tag" :class="{ active: mcpFilter === 'selected' }"
+            @click="mcpFilter = 'selected'">已选</span>
+          <span class="filter-tag" :class="{ active: mcpFilter === 'unselected' }"
+            @click="mcpFilter = 'unselected'">未选</span>
         </div>
         <div class="action-tags">
           <span class="action-tag" @click="refreshSelectedMcpServers" title="强制重新拉取选中服务的最新工具配置">
-            <el-icon :class="{ 'is-loading': isRefreshingMcp }"><Refresh /></el-icon>
+            <el-icon :class="{ 'is-loading': isRefreshingMcp }">
+              <Refresh />
+            </el-icon>
           </span>
           <span class="action-tag" @click="selectAllMcpServers">全选</span>
           <span class="action-tag" @click="clearMcpTools">清空</span>
@@ -4354,11 +8613,12 @@ const scrollToMessageByIndex = (index) => {
               </el-icon>
             </el-tooltip>
           </span>
-          <el-checkbox v-model="isAutoApproveTools" label="自动批准工具调用" class="bw-checkbox" style="margin-left: 40px; margin-right: 0;" />
+          <el-checkbox v-model="isAutoApproveTools" label="自动批准工具调用" class="bw-checkbox"
+            style="margin-left: 40px; margin-right: 0;" />
         </div>
         <div>
           <el-button type="primary" class="bw-btn"
-            @click="sessionMcpServerIds = [...tempSessionMcpServerIds]; applyMcpTools();">应用</el-button>
+            @click="sessionMcpServerIds = [...tempSessionMcpServerIds]; requestApplyMcpTools(true, 'dialog-apply');">应用</el-button>
         </div>
       </div>
     </template>
@@ -4373,8 +8633,10 @@ const scrollToMessageByIndex = (index) => {
       <div class="mcp-dialog-toolbar">
         <div class="filter-tags">
           <span class="filter-tag" :class="{ active: skillFilter === 'all' }" @click="skillFilter = 'all'">全部</span>
-          <span class="filter-tag" :class="{ active: skillFilter === 'selected' }" @click="skillFilter = 'selected'">已选</span>
-          <span class="filter-tag" :class="{ active: skillFilter === 'unselected' }" @click="skillFilter = 'unselected'">未选</span>
+          <span class="filter-tag" :class="{ active: skillFilter === 'selected' }"
+            @click="skillFilter = 'selected'">已选</span>
+          <span class="filter-tag" :class="{ active: skillFilter === 'unselected' }"
+            @click="skillFilter = 'unselected'">未选</span>
         </div>
         <div class="action-tags">
           <span class="action-tag" @click="selectAllSkills">全选</span>
@@ -4567,6 +8829,17 @@ html.dark .el-dialog {
   box-shadow: var(--el-box-shadow-light);
 }
 
+.save-option-item.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.save-option-item.is-disabled:hover {
+  transform: none;
+  border-color: var(--el-border-color-lighter);
+  box-shadow: none;
+}
+
 .save-option-text {
   flex-grow: 1;
   margin-right: 20px;
@@ -4592,6 +8865,11 @@ html.dark .save-option-item {
 html.dark .save-option-item:hover {
   border-color: var(--el-color-primary);
   background-color: var(--el-fill-color-dark);
+}
+
+html.dark .save-option-item.is-disabled:hover {
+  border-color: var(--el-border-color-dark);
+  background-color: transparent;
 }
 
 html.dark .save-option-text p {
@@ -4655,6 +8933,28 @@ html.dark .system-prompt-full-content .el-textarea__inner {
   background-color: var(--el-fill-color-dark) !important;
 }
 
+
+.filename-prompt-title-row {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.filename-prompt-title-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+  flex: 1;
+}
+
+.filename-auto-name-button {
+  flex-shrink: 0;
+}
+
 /* Filename Prompt Dialog */
 .filename-prompt-dialog.el-dialog {
   position: fixed;
@@ -4700,6 +9000,26 @@ html.dark .filename-prompt-dialog .el-input-group__append {
   background-color: var(--el-bg-color);
   color: var(--el-text-color-placeholder);
   border-color: var(--el-border-color);
+}
+
+.filename-project-row {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.filename-project-label {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+}
+
+.filename-project-select {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Custom Viewer Actions */
@@ -4874,13 +9194,15 @@ html.dark .mcp-dialog-footer-search {
   padding: 0 4px;
 }
 
-.filter-tags, .action-tags {
+.filter-tags,
+.action-tags {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.filter-tag, .action-tag {
+.filter-tag,
+.action-tag {
   font-size: 12px;
   padding: 4px 12px;
   border-radius: 14px;
@@ -4896,7 +9218,8 @@ html.dark .mcp-dialog-footer-search {
   border: 1px solid transparent;
 }
 
-.filter-tag:hover, .action-tag:hover {
+.filter-tag:hover,
+.action-tag:hover {
   background-color: var(--el-fill-color-darker);
   color: var(--el-text-color-primary);
 }
@@ -5224,7 +9547,7 @@ html.dark .app-container {
 
 .chat-main {
   flex-grow: 1;
-  padding: 0 10px;
+  padding: 8px 18px 0 12px;
   margin: 0;
   overflow-y: auto;
   scroll-behavior: auto !important;
@@ -5234,13 +9557,21 @@ html.dark .app-container {
   transform: translateZ(0);
 }
 
+.main-area-wrapper {
+  --window-nav-raise: 46px;
+  --window-nav-safe-bottom: 118px;
+  --window-nav-height: 74vh;
+}
+
 .unified-nav-sidebar {
   position: absolute;
-  right: 12px;
-  top: 40%;
+  right: 10px;
+  top: calc(50% - var(--window-nav-raise));
   transform: translateY(-50%);
-  max-height: 60vh;
-  width: 24px;
+  height: min(var(--window-nav-height), calc(100% - var(--window-nav-safe-bottom)));
+  max-height: calc(100% - var(--window-nav-safe-bottom));
+  min-height: 240px;
+  width: 30px;
   z-index: 90;
   display: flex;
   flex-direction: column;
@@ -5249,77 +9580,64 @@ html.dark .app-container {
   pointer-events: none;
 }
 
-/* 上下控制按钮组 */
 .nav-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
   pointer-events: auto;
-  border-radius: 12px;
-  padding: 2px 0;
   flex-shrink: 0;
+  padding: 2px 0;
 }
 
 .nav-mini-btn {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-
-  color: #2c2c2c;
-  background-color: transparent !important;
+  color: rgba(46, 41, 34, 0.72);
+  background: transparent !important;
   border: none;
   box-shadow: none;
-
   transition: all 0.2s ease;
   font-size: 14px;
-  border-radius: 4px;
+  border-radius: 999px;
 
   &:hover {
-    color: #000;
-    background-color: transparent;
-    transform: scale(1.2);
+    color: rgba(28, 25, 22, 0.96);
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+    box-shadow: none;
   }
 }
 
-/* 中间时间轴区域 */
 .nav-timeline-area {
   flex: 1;
   position: relative;
   width: 100%;
+  min-height: 0;
   display: flex;
   justify-content: center;
   overflow: hidden;
-  flex-direction: column;
-  min-height: 0;
   pointer-events: auto;
 }
 
 .timeline-track {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  background-color: var(--el-border-color-lighter);
-  transform: translateX(-1px);
-  z-index: -1;
-  border-radius: 2px;
-  opacity: 0.6;
+  display: none;
 }
 
 .timeline-scroller {
   width: 100%;
   height: 100%;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: visible;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 4px 0;
+  gap: 3px;
+  padding: 6px 0;
+  scroll-behavior: smooth;
 
   &::-webkit-scrollbar {
     display: none;
@@ -5328,68 +9646,68 @@ html.dark .app-container {
   scrollbar-width: none;
 }
 
-/* 消息节点 */
 .timeline-node-wrapper {
   width: 100%;
-  height: 8px;
-  /* 减小高度，让横线更紧凑 */
+  min-height: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-
-  /* 增加悬浮热区高度 */
   padding: 2px 0;
 
   &:hover .timeline-node {
-    transform: scaleX(1.5) scaleY(1.2);
-    /* 横向拉长效果 */
+    transform: translateX(-1px) scaleX(1.08);
   }
 
-  &:hover .node-tooltip {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-    visibility: visible;
+  &:hover .timeline-node.active {
+    transform: translateX(-4px) scaleX(1.04);
   }
 }
 
 .timeline-node {
-  /* 变成短横线 */
-  width: 10px;
-  height: 3px;
-  border-radius: 2px;
-  /* 微圆角 */
-
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  width: 9px;
+  height: 2px;
+  border-radius: 999px;
+  transition: all 0.18s ease;
   box-shadow: none;
   border: none;
-  opacity: 0.6;
-  /* 默认半透明，不抢眼 */
+  opacity: 1;
+
+  &::before {
+    content: none;
+  }
 
   &.user {
-    background-color: var(--el-color-primary);
+    background: rgba(64, 158, 255, 0.96);
   }
 
   &.assistant {
-    background-color: #000000;
+    background: rgba(0, 0, 0, 0.96);
   }
 
-  /* 当前聚焦的消息：高亮、变宽、完全不透明 */
+  &.compaction {
+    background: linear-gradient(90deg, #f6c945 0%, #e0a800 100%);
+    height: 3px;
+    box-shadow: 0 0 6px rgba(224, 168, 0, 0.45);
+  }
+
   &.active {
+    width: 15px;
+    height: 3px;
     opacity: 1;
-    width: 16px;
-    /* 激活时变长 */
-    box-shadow: 0 0 4px rgba(255, 215, 0, 0.5);
+    transform: translateX(-4px);
   }
 }
 
-/* 悬浮提示框 (Tooltip) */
+.timeline-node-text {
+  display: none;
+}
+
 .node-tooltip {
   position: absolute;
   right: 28px;
-  /* 点的左侧 */
   top: 50%;
   transform: translateY(-50%) translateX(10px) scale(0.9);
   background-color: var(--el-color-black);
@@ -5412,42 +9730,42 @@ html.dark .app-container {
 
 html.dark {
   .nav-mini-btn {
-    background-color: #2c2c2c;
-    border-color: #4c4c4c;
-    color: #a3a6ad;
+    color: rgba(235, 236, 240, 0.75);
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    box-shadow: none;
 
     &:hover {
-      background-color: transparent;
-      color: #fff;
-    }
-
-    &.highlight-bottom {
-      background-color: rgba(64, 158, 255, 0.2);
-      color: #409eff;
-      border-color: #409eff;
+      color: rgba(255, 255, 255, 0.96);
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow: none;
     }
   }
 
-  /* 强制区分颜色 */
   .timeline-node.user {
-    background-color: #409eff;
-    /* 用户：强制蓝色 */
-    border-color: #409eff;
+    background: rgba(96, 165, 250, 0.98);
   }
 
   .timeline-node.assistant {
-    background-color: #ffffff;
-    /* AI：强制纯白 */
-    border-color: #ffffff;
+    background: rgba(255, 255, 255, 0.96);
   }
 
-  .timeline-track {
-    background-color: #4c4c4c;
+  .timeline-node.compaction {
+    background: linear-gradient(90deg, #ffd666 0%, #faad14 100%);
+    box-shadow: 0 0 8px rgba(250, 173, 20, 0.5);
   }
 
   .node-tooltip {
     background-color: #E5EAF3;
     color: #000;
+  }
+}
+
+@media (max-height: 760px) {
+  .main-area-wrapper {
+    --window-nav-raise: 56px;
+    --window-nav-safe-bottom: 148px;
+    --window-nav-height: 54vh;
   }
 }
 
@@ -5944,9 +10262,12 @@ html.dark .subagent-toggle-btn-small:hover {
 }
 
 .mcp-server-item-wrapper:has(.mcp-server-item.is-checked) {
-  border-color: var(--el-text-color-primary) !important; /* 黑/白边框 */
-  background-color: var(--el-fill-color-light) !important; /* 浅灰背景 */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* 轻微浮起感 */
+  border-color: var(--el-text-color-primary) !important;
+  /* 黑/白边框 */
+  background-color: var(--el-fill-color-light) !important;
+  /* 浅灰背景 */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* 轻微浮起感 */
 }
 
 .mcp-server-item-wrapper:hover {
@@ -5955,7 +10276,8 @@ html.dark .subagent-toggle-btn-small:hover {
 }
 
 .mcp-server-item.is-checked {
-  background-color: transparent !important; /* 让位给外层容器 */
+  background-color: transparent !important;
+  /* 让位给外层容器 */
 }
 
 .mcp-server-item :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
@@ -5983,6 +10305,7 @@ html.dark .subagent-toggle-btn-small:hover {
   background-color: var(--el-text-color-primary) !important;
   border-color: var(--el-text-color-primary) !important;
 }
+
 .mcp-server-item :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner::before) {
   background-color: var(--el-bg-color) !important;
 }

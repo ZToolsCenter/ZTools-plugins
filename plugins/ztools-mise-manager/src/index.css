@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============ shadcn 主题变量 ============ */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.004 200);
+  --foreground: oklch(0.22 0.02 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 250);
+  --primary: oklch(0.72 0.14 178);
+  --primary-foreground: oklch(0.16 0.04 180);
+  --secondary: oklch(0.955 0.008 230);
+  --secondary-foreground: oklch(0.3 0.02 250);
+  --muted: oklch(0.955 0.008 230);
+  --muted-foreground: oklch(0.5 0.02 250);
+  --accent: oklch(0.93 0.05 178);
+  --accent-foreground: oklch(0.3 0.08 178);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.9 0.01 240);
+  --input: oklch(0.9 0.01 240);
+  --ring: oklch(0.72 0.14 178);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+.dark {
+  --background: oklch(0.16 0.018 265);
+  --foreground: oklch(0.93 0.008 250);
+  --card: oklch(0.195 0.02 265);
+  --card-foreground: oklch(0.93 0.008 250);
+  --popover: oklch(0.2 0.02 265);
+  --popover-foreground: oklch(0.93 0.008 250);
+  --primary: oklch(0.75 0.15 178);
+  --primary-foreground: oklch(0.15 0.04 180);
+  --secondary: oklch(0.26 0.02 265);
+  --secondary-foreground: oklch(0.9 0.01 250);
+  --muted: oklch(0.26 0.02 265);
+  --muted-foreground: oklch(0.65 0.015 250);
+  --accent: oklch(0.3 0.07 178);
+  --accent-foreground: oklch(0.85 0.09 178);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.28 0.02 265);
+  --input: oklch(0.28 0.02 265);
+  --ring: oklch(0.75 0.15 178);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ============ 全局 ============ */
+html, body, #root { height: 100%; }
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+
+* { box-sizing: border-box; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ============ 业务样式 ============ */
+.app-shell { display: flex; flex-direction: column; height: 100vh; min-height: 480px; }
+.content-area { flex: 1; overflow-y: auto; padding: 18px 20px; }
+
+.logo-img { border-radius: 8px; }
+
+.status-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; padding: 4px 10px; border-radius: 9999px;
+  background: var(--secondary); color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.status-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+.status-chip .dot.warn { background: var(--chart-4); }
+.status-chip .dot.err { background: var(--destructive); }
+
+.mono { font-family: Consolas, "JetBrains Mono", monospace; }
+
+.tool-card-body { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
+.tool-card-body:hover { border-color: var(--ring); box-shadow: 0 6px 24px -8px rgb(0 0 0 / 0.35); transform: translateY(-2px); }
+
+.tool-icon {
+  width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary);
+  background: var(--secondary);
+  border: 1px solid var(--border);
+}
+.tool-icon svg { width: 22px; height: 22px; }
+
+.tool-icon-sm {
+  width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary);
+  background: var(--secondary);
+  border: 1px solid var(--border);
+}
+.tool-icon-sm svg { width: 14px; height: 14px; }
+
+.version-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-md); margin-bottom: 8px; border: 1px solid var(--border); background: var(--secondary); }
+.version-row.active-row { border-color: var(--ring); background: color-mix(in oklch, var(--accent) 40%, var(--card)); }
+
+.detail-pre {
+  background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 12px; font-family: Consolas, monospace; font-size: 12px; color: var(--muted-foreground);
+  white-space: pre-wrap; word-break: break-all; margin-top: 6px;
+  overflow-y: auto;
+}
+
+.log-box {
+  margin-top: 8px; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 10px; font-family: Consolas, monospace; font-size: 11px; color: var(--muted-foreground);
+  max-height: 180px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+}
+
+.fade-in { animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }

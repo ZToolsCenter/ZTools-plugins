@@ -1,0 +1,47 @@
+{
+  "name": "ztools-format-converter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cross-platform batch format conversion workbench for ZTools.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5192",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:unit && npm run test:preload && npm run test:integration",
+    "test:unit": "vitest run tests/unit",
+    "test:preload": "node --test tests/preload/*.test.cjs",
+    "test:integration": "node --test tests/integration/*.test.cjs",
+    "runtime:manifest": "node scripts/generate-runtime-manifest.mjs",
+    "runtime:manifest:check": "node scripts/generate-runtime-manifest.mjs --check",
+    "build": "npm run runtime:manifest:check && npm test && npm run typecheck && vite build && node scripts/prepare-dist.mjs && npm run verify:dist",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "preview": "vite preview --host 127.0.0.1 --port 4192"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "0.1.68",
+    "@tesseract.js-data/chi_sim": "1.0.0",
+    "@tesseract.js-data/eng": "1.0.0",
+    "exceljs": "4.4.0",
+    "iconv-lite": "0.6.3",
+    "lucide-react": "1.17.0",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "3.11.174",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "sharp": "0.34.4",
+    "tesseract.js": "6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "typescript": "6.0.3",
+    "vite": "8.1.5",
+    "vitest": "4.1.7"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

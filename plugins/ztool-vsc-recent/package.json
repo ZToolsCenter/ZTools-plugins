@@ -1,10 +1,10 @@
 {
   "name": "ztool-vsc-recent",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ZTools 插件：VSCode 最近项目快速启动",
   "type": "commonjs",
   "scripts": {
-    "build": "tsc",
+    "build": "node scripts/build.mjs",
     "watch": "tsc -w",
     "test": "vitest run",
     "test:watch": "vitest"

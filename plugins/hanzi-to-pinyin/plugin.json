@@ -1,0 +1,34 @@
+{
+  "name": "hanzi-to-pinyin",
+  "title": "汉字转拼音",
+  "description": "支持标准模式与变量命名模式的汉字转拼音工具：可配置大小写、音调、结果类型、非汉字处理、间隔/换行/ü→v/姓氏等，并支持 10 种变量命名格式。",
+  "version": "1.2.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "author": "SZYPXJ",
+  "categories": ["text", "productivity"],
+  "pluginSetting": {
+    "single": true,
+    "height": 680
+  },
+  "features": [
+    {
+      "code": "hanzi-to-pinyin",
+      "explain": "汉字转拼音",
+      "icon": "logo.png",
+      "cmds": [
+        "拼音",
+        "pinyin",
+        "汉字转拼音",
+        "hanzi2pinyin",
+        {
+          "type": "regex",
+          "label": "转拼音",
+          "match": "/[\\u4e00-\\u9fa5]/",
+          "minLength": 1
+        }
+      ]
+    }
+  ]
+}

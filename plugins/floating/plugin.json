@@ -4,13 +4,20 @@
   "author": "qinyongliang",
   "homepage": "https://github.com/qinyongliang/",
   "preload": "preload.js",
-  "version": "1.2.13",
+  "version": "1.2.14",
   "logo": "icon.png",
   "features": [
     {
       "code": "suspend-screenshot",
       "cmds": [
         "截图并悬浮"
+      ]
+    },
+    {
+      "code": "suspend",
+      "cmds": [
+        { "type": "img", "label": "悬浮" },
+        { "type": "files", "label": "悬浮", "fileType": "file", "extensions": ["png", "jpg", "jpeg", "gif", "bmp", "webp"], "minLength": 1, "maxLength": 1 }
       ]
     }
   ],

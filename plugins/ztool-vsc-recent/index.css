@@ -7,6 +7,48 @@ html, body {
   background: #fff;
 }
 
+#toolbar[hidden] { display: none; }
+
+#toolbar {
+  position: fixed;
+  top: 8px;
+  right: 10px;
+  z-index: 10;
+}
+
+#configure-vscode {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 50%;
+  color: #666;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+#configure-vscode svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  transition: transform 160ms ease;
+}
+
+#configure-vscode:hover {
+  color: #007acc;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+
+#configure-vscode:hover svg { transform: rotate(30deg); }
+#configure-vscode:focus-visible { outline: 2px solid #007acc; outline-offset: 2px; }
+#configure-vscode:disabled { cursor: default; opacity: 0.6; }
+
 #list {
   list-style: none;
   max-height: 480px;
@@ -14,7 +56,7 @@ html, body {
 }
 
 #list li {
-  padding: 8px 16px;
+  padding: 8px 52px 8px 16px;
   cursor: pointer;
   border-bottom: 1px solid #f0f0f0;
 }
@@ -52,6 +94,13 @@ html, body {
 @media (prefers-color-scheme: dark) {
   html, body { background: #1e1e1e; color: #ddd; }
   #list li { border-bottom-color: #2d2d2d; }
+  #configure-vscode {
+    color: #bbb;
+    background: rgba(37, 37, 37, 0.92);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+  #configure-vscode:hover { color: #75beff; background: #303030; }
   #list li:hover { background: #2a2a2a; }
   .subtitle { color: #888; }
   #list li.active .subtitle { color: #cfe6f7; }

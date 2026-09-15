@@ -1,0 +1,10 @@
+{
+  "name": "ssh-batch-exec-preload",
+  "version": "1.0.0",
+  "description": "preload.js 的 Node.js 依赖清单（CommonJS），与 preload.js 同级",
+  "type": "commonjs",
+  "main": "preload.js",
+  "dependencies": {
+    "ssh2": "^1.15.0"
+  }
+}

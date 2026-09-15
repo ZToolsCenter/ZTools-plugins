@@ -1,0 +1,23 @@
+{
+  "name": "quickterm",
+  "version": "1.1.0",
+  "description": "在终端中打开",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build"
+  },
+  "dependencies": {
+    "element-plus": "^2.14.5",
+    "unplugin-auto-import": "^21.1.0",
+    "unplugin-vue-components": "^32.1.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vue-tsc": "^2.0.0"
+  }
+}

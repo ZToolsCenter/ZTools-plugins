@@ -1,10 +1,10 @@
 {
   "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
   "name": "port-use-win",
-  "title": "Windows 端口占用",
+  "title": "端口占用",
   "description": "使用 PowerShell 查询 Windows 端口占用并支持搜索进程名、PID、地址和端口",
   "author": "rainow",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
@@ -19,7 +19,13 @@
       "cmds": [
         "端口占用",
         "port-use",
-        "端口使用情况"
+        "端口使用情况",
+        {
+          "type": "regex",
+          "label": "端口占用",
+          "match": "/^\\d{1,5}$/",
+          "minLength": 1
+        }
       ]
     }
   ],

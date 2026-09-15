@@ -1,10 +1,13 @@
 {
   "name": "json-editor",
   "description": "JSON 编辑器",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.png",
+  "pluginSetting": {
+    "single": false
+  },
   "features": [
     {
       "code": "clean-cache",

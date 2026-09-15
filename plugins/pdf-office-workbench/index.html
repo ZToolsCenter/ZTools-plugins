@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="./logo.svg" />
+    <title>PDF 办公工坊</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172033;
+        --muted: #63708a;
+        --paper: #ffffff;
+        --canvas: #f3f6fb;
+        --line: #d9e1ee;
+        --primary: var(--primary-color, #3657d6);
+        --primary-soft: #eef2ff;
+        --danger: #c24141;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 720px; min-height: 100vh; color: var(--ink); background: var(--canvas); font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+      header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+      h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+      h2 { margin: 0; font-size: 16px; }
+      p { margin: 4px 0 0; color: var(--muted); }
+      .eyebrow { margin-bottom: 4px; color: var(--primary); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+      .layout { display: grid; grid-template-columns: minmax(340px, 1.15fr) minmax(300px, .85fr); gap: 16px; }
+      .card { border: 1px solid var(--line); border-radius: 16px; background: var(--paper); padding: 18px; box-shadow: 0 10px 30px rgba(28, 44, 78, .06); }
+      .card + .card { margin-top: 16px; }
+      .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+      .muted { color: var(--muted); font-size: 12px; }
+      button { border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink); padding: 8px 12px; font: inherit; cursor: pointer; }
+      button:hover { border-color: var(--primary); background: var(--primary-soft); }
+      button.primary { border-color: var(--primary); background: var(--primary); color: #fff; font-weight: 700; }
+      button.danger { color: var(--danger); }
+      button:disabled { cursor: not-allowed; opacity: .45; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .file-list { display: grid; gap: 8px; min-height: 88px; }
+      .file-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; }
+      .file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+      .file-meta { color: var(--muted); font-size: 12px; white-space: nowrap; }
+      .empty { display: grid; place-items: center; min-height: 80px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); }
+      label { display: grid; gap: 6px; margin: 12px 0; color: var(--muted); font-size: 12px; font-weight: 600; }
+      input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink); padding: 9px 10px; font: inherit; }
+      textarea { min-height: 100px; resize: vertical; }
+      input:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--primary) 25%, transparent); border-color: var(--primary); }
+      .tool { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+      .tool:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+      .tool-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+      pre { min-height: 150px; max-height: 330px; overflow: auto; margin: 0; border-radius: 10px; background: #101827; color: #dbeafe; padding: 12px; white-space: pre-wrap; word-break: break-word; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .status { min-height: 20px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+      .status.error { color: var(--danger); }
+      @media (max-width: 860px) { body { min-width: 0; } main { padding: 16px; } .layout { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <div class="eyebrow">PDF WORKBENCH</div>
+          <h1>PDF 办公工坊</h1>
+          <p>在本机完成合并、拆分、批量重命名和票据字段整理。</p>
+        </div>
+        <button id="choose">选择 PDF 文件</button>
+      </header>
+
+      <div class="layout">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>文件队列</h2>
+              <div id="summary" class="muted">尚未选择文件</div>
+            </div>
+            <button id="clear" class="danger" disabled>清空</button>
+          </div>
+          <div id="files" class="file-list"><div class="empty">选择或从超级面板传入 PDF 文件</div></div>
+
+          <div class="tool">
+            <div class="tool-title"><h2>合并 PDF</h2><span class="muted">按队列顺序输出</span></div>
+            <label>输出文件名
+              <input id="merge-name" value="merged.pdf" spellcheck="false" />
+            </label>
+            <div class="actions"><button id="merge" class="primary" disabled>合并选中的 PDF</button></div>
+          </div>
+
+          <div class="tool">
+            <div class="tool-title"><h2>拆分 PDF</h2><span class="muted">例如 1-3,5,8-9</span></div>
+            <label>页码范围
+              <input id="ranges" value="1-2" inputmode="numeric" spellcheck="false" />
+            </label>
+            <div class="actions"><button id="split" disabled>拆分第一份 PDF</button></div>
+          </div>
+
+          <div class="tool">
+            <div class="tool-title"><h2>批量重命名</h2><span class="muted">支持 {name}、{index}</span></div>
+            <label>文件名模板（不含扩展名）
+              <input id="rename-template" value="{name}-整理-{index}" spellcheck="false" />
+            </label>
+            <div class="actions"><button id="rename" disabled>执行批量重命名</button></div>
+          </div>
+        </section>
+
+        <aside>
+          <section class="card">
+            <div class="card-head"><h2>票据字段提取</h2><span class="muted">粘贴 OCR 文本</span></div>
+            <textarea id="invoice-input">发票号码: 12345678
+开票日期: 2026-06-01
+金额 ¥88.50
+购买方: ZTools</textarea>
+            <div class="actions" style="margin-top:10px"><button id="invoice" class="primary">提取字段</button></div>
+          </section>
+          <section class="card">
+            <div class="card-head"><h2>操作结果</h2><button id="open-result" disabled>打开所在文件夹</button></div>
+            <pre id="output">等待操作…</pre>
+            <div id="status" class="status"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <script type="module">
+      import { extractInvoiceFields } from './src/core/index.mjs';
+
+      const services = window.services;
+      const state = { files: [], lastPath: '' };
+      const $ = (selector) => document.querySelector(selector);
+      const output = $('#output');
+      const status = $('#status');
+
+      function formatBytes(value) {
+        if (!Number.isFinite(value) || value < 1024) return `${value || 0} B`;
+        const units = ['KB', 'MB', 'GB'];
+        let size = value;
+        let unit = -1;
+        do { size /= 1024; unit += 1; } while (size >= 1024 && unit < units.length - 1);
+        return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unit]}`;
+      }
+
+      function show(value) {
+        output.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+      }
+
+      function setStatus(message, isError = false) {
+        status.textContent = message || '';
+        status.className = `status${isError ? ' error' : ''}`;
+      }
+
+      function render() {
+        const files = $('#files');
+        $('#summary').textContent = state.files.length
+          ? `${state.files.length} 份 · ${state.files.reduce((sum, file) => sum + file.pages, 0)} 页 · ${formatBytes(state.files.reduce((sum, file) => sum + file.size, 0))}`
+          : '尚未选择文件';
+        $('#clear').disabled = state.files.length === 0;
+        $('#merge').disabled = state.files.length < 2;
+        $('#split').disabled = state.files.length === 0;
+        $('#rename').disabled = state.files.length === 0;
+        if (!state.files.length) {
+          files.innerHTML = '<div class="empty">选择或从超级面板传入 PDF 文件</div>';
+          return;
+        }
+        files.innerHTML = state.files.map((file, index) => `
+          <div class="file-row">
+            <span class="file-name" title="${file.path.replaceAll('"', '&quot;')}">${index + 1}. ${file.name}</span>
+            <span class="file-meta">${file.pages} 页 · ${formatBytes(file.size)}</span>
+            <button class="danger" data-remove="${index}">移除</button>
+          </div>`).join('');
+        files.querySelectorAll('[data-remove]').forEach(button => {
+          button.addEventListener('click', () => {
+            state.files.splice(Number(button.dataset.remove), 1);
+            render();
+          });
+        });
+      }
+
+      async function addFiles(files) {
+        const existing = new Set(state.files.map(file => file.path));
+        state.files.push(...files.filter(file => !existing.has(file.path)));
+        render();
+      }
+
+      async function run(task) {
+        setStatus('处理中…');
+        try {
+          const result = await task();
+          state.lastPath = Array.isArray(result) ? result.at(-1)?.path || '' : result?.path || '';
+          if (state.lastPath) $('#open-result').disabled = false;
+          show(result);
+          setStatus('完成');
+          return result;
+        } catch (error) {
+          const message = error?.message || String(error);
+          show(message);
+          setStatus(message, true);
+          window.ztools?.showNotification?.(message);
+          return null;
+        }
+      }
+
+      $('#choose').addEventListener('click', async () => addFiles(await services.chooseFiles()));
+      $('#clear').addEventListener('click', () => { state.files = []; render(); });
+      $('#merge').addEventListener('click', async () => {
+        const defaultPath = `${services.getDefaultOutputDirectory()}/${$('#merge-name').value || 'merged.pdf'}`;
+        const outputPath = await services.chooseSavePath(defaultPath);
+        if (outputPath) await run(() => services.mergePdfs(state.files.map(file => file.path), outputPath));
+      });
+      $('#split').addEventListener('click', () => run(() => services.splitPdf(state.files[0].path, $('#ranges').value, services.getDefaultOutputDirectory())));
+      $('#rename').addEventListener('click', async () => {
+        const result = await run(() => services.renameFiles(state.files.map(file => file.path), $('#rename-template').value));
+        if (result) {
+          state.files = await Promise.all(result.map(item => services.readPdfInfo(item.path)));
+          render();
+        }
+      });
+      $('#invoice').addEventListener('click', () => { show(extractInvoiceFields($('#invoice-input').value)); setStatus('字段提取完成'); });
+      $('#open-result').addEventListener('click', () => state.lastPath && services.reveal(state.lastPath));
+
+      window.addEventListener('pdf-office-enter', event => addFiles(event.detail.files));
+      render();
+    </script>
+  </body>
+</html>

@@ -3,31 +3,25 @@ import { useFinderQuery } from "./useFinderQuery";
 
 interface UseSubInputOptions {
   onInput?: () => void;
-  placeholder?: string;
 }
 
 const inputListeners = new Set<() => void>();
 let subInputReady = false;
 let programmaticInputValue: string | undefined;
-let activePlaceholder = "全盘搜索";
 
-export function useSubInput({ onInput, placeholder = "全盘搜索" }: UseSubInputOptions = {}) {
+export function useSubInput({ onInput }: UseSubInputOptions = {}) {
   const { queryText, setQueryText } = useFinderQuery();
 
   if (onInput) {
     inputListeners.add(onInput);
+    onUnmounted(() => {
+      if (onInput) {
+        inputListeners.delete(onInput);
+      }
+    });
   }
 
-  onUnmounted(() => {
-    if (onInput) {
-      inputListeners.delete(onInput);
-    }
-  });
-
-  function bindSubInput() {
-    activePlaceholder = placeholder;
-    if (subInputReady) return;
-
+  function bindSubInput(placeholder: string = "全盘搜索") {
     window.ztools.setSubInput(
       ({ text }) => {
         if (programmaticInputValue === text) {
@@ -39,7 +33,7 @@ export function useSubInput({ onInput, placeholder = "全盘搜索" }: UseSubInp
         setQueryText(text);
         notifyInputListeners();
       },
-      activePlaceholder,
+      placeholder,
       true,
     );
     subInputReady = true;

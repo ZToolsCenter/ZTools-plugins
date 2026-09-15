@@ -1,0 +1,60 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "dev-assistant",
+  "title": "研发助手",
+  "description": "常用研发工具：JSON、SQL/Go Struct、Base64、URL、时间戳、二维码、UUID、变量命名",
+  "author": "zhuguojie",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "platform": ["darwin", "win32", "linux"],
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "dev-tools",
+      "explain": "常用研发工具：JSON、SQL/Go Struct、Base64、URL、时间戳、二维码和 UUID",
+      "cmds": [
+        "研发工具",
+        "研发助手",
+        "变量命名",
+        "json",
+        {
+          "type": "over",
+          "label": "研发工具处理文本"
+        }
+      ]
+    },
+    {
+      "code": "read",
+      "explain": "功能指令+匹配指令示例，使用 node.js 能力读文件",
+      "cmds": [
+        "读文件",
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 1,
+          "label": "读文件"
+        }
+      ]
+    },
+    {
+      "code": "write",
+      "explain": "匹配指令示例，使用 node.js 能力写文件",
+      "mainHide": true,
+      "cmds": [
+        {
+          "type": "over",
+          "label": "保存为文件"
+        },
+        {
+          "type": "img",
+          "label": "保存为文件"
+        }
+      ]
+    }
+  ]
+}
+

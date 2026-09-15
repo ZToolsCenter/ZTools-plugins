@@ -17,7 +17,7 @@ export default defineConfig({
           dest: ''
         },
         {
-          src: 'screenshot.png',
+          src: ['screenshot.png', 'screenshot-dark.png'],
           dest: ''
         }
       ]

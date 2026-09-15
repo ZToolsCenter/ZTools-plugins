@@ -1,0 +1,878 @@
+/* 所有 @import 必须置于文件最顶部（CSS 规范：@import 须先于其他语句） */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+/* HeroUI 组件按需引入；当前首页不加载 @heroui/styles，避免 uTools 旧 Chromium 吃到现代颜色主题变量。 */
+/* 衬线标题字体（Newsreader 已本地化，见 fonts.css；CJK 标题回退系统 Songti SC / serif，
+   不再远程拉取 Noto Serif SC，避免 uTools/离线环境对 Google Fonts 的网络依赖与隐私外泄）。 */
+
+@config "../../tailwind.config.js";
+
+/* ============================================================
+   goose-home 调色板 → Tailwind 工具类（g- 前缀，零撞车）
+   home.css 的 --fg/--surface/--accent… 是 .goose-home 作用域内的裸色值；
+   与 index.css/HeroUI 的 HSL token 同名会撞车（accent/ai/input/border/success），
+   故统一加 g- 前缀注册成工具类（text-g-fg / bg-g-surface / rounded-g-md …）。
+   @theme inline：工具类按 var(...) 内联引用，随 .goose-home[data-theme=dark]
+   自动切换明暗，与现有 HeroUI/Tailwind token 完全隔离。
+   ============================================================ */
+@theme inline {
+  --color-g-bg: var(--bg);
+  --color-g-surface: var(--surface);
+  --color-g-surface-hover: var(--surface-hover);
+  --color-g-input: var(--input);
+  --color-g-fg: var(--fg);
+  --color-g-fg-muted: var(--fg-muted);
+  --color-g-fg-faint: var(--fg-faint);
+  --color-g-accent: var(--accent);
+  --color-g-accent-hover: var(--accent-hover);
+  --color-g-accent-subtle: var(--accent-subtle);
+  --color-g-accent-fg: var(--accent-fg);
+  --color-g-ai: var(--ai);
+  --color-g-ai-subtle: var(--ai-subtle);
+  --color-g-ai-bright: var(--ai-bright);
+  --color-g-border: var(--border);
+  --color-g-success: var(--success);
+  --color-g-success-subtle: var(--success-subtle);
+  --color-g-danger: var(--danger);
+  --radius-g: var(--radius);
+  --radius-g-md: var(--radius-md);
+  --radius-g-sm: var(--radius-sm);
+}
+
+/* 图标迁移说明：原 UnoCSS presetIcons 的 i-ph-* 用法已废弃，
+   组件阶段统一改用 lucide-react 的命名导出（如 import { Bookmark } from 'lucide-react'）。 */
+
+  /* ============================================================
+     配色：暖象牙纸 + 珊瑚强调 + AI 紫 + 衬线标题（goose-run 风格）
+     主色 --primary 由深蓝近黑改为珊瑚 #d97757；AI 触点用紫 #7c52e0。
+     ============================================================ */
+  :root {
+    --background: 48 33.3% 97.1%;        /* 暖象牙纸 #faf9f5 */
+    --foreground: 30 3.3% 11.8%;
+    font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+    --card: 48 25% 92.2%;                /* 暖奶油 #f0eee6 */
+    --card-foreground: 30 3.3% 11.8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 3.3% 11.8%;
+
+    --primary: 15 63.1% 59.6%;           /* 珊瑚 #d97757 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 51 22% 88.4%;
+    --secondary-foreground: 30 3.3% 11.8%;
+
+    --muted: 48 25% 92.2%;
+    --muted-foreground: 53 3.8% 40.8%;
+
+    --accent: 51 22% 88.4%;
+    --accent-foreground: 30 3.3% 11.8%;
+
+    --destructive: 6 48.4% 47.8%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 46 20.6% 87.6%;
+    --input: 46 20.6% 87.6%;
+    --ring: 15 63.1% 59.6%;
+
+    /* AI 紫（珊瑚留给主操作/选中/链接，AI 触点用紫） */
+    --ai: 258 69.6% 60%;                 /* #7c52e0 */
+    --ai-subtle: 260 100% 95.9%;
+    --ai-bright: 269 72.2% 78.8%;
+    --success: 149 67.6% 29%;
+    --success-subtle: 139 40% 92.2%;
+    --compat-muted-weak: #f5f3ed;
+    --compat-muted: #f0eee6;
+    --compat-muted-hover: #ebe8df;
+    --compat-primary-weak: #f8ede8;
+    --compat-primary-soft: #f4e2d9;
+    --compat-primary-border: #e9c8b9;
+    --compat-card-soft: #f8f7f3;
+    --compat-card-border: #eeeae1;
+    --compat-danger-soft: #f5e5e2;
+    --compat-foreground-hover: rgba(31, 30, 29, .1);
+    --compat-primary-shadow-weak: rgba(217, 119, 87, .08);
+    --compat-primary-shadow: rgba(217, 119, 87, .18);
+
+    --radius: 0.875rem;                  /* 14px */
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+    --radius-3xl: calc(var(--radius) + 16px);
+    --radius-full: 9999px;
+
+    /* 标题衬线栈 */
+    --font-serif: "Newsreader", "Noto Serif SC", Georgia, "Songti SC", serif;
+
+    /* 密度驱动（由 <html data-density> 覆盖；默认 regular） */
+    --row-h: 40px;
+    --gap: 10px;
+    --pad: 16px;
+
+    --chart-1: 12 76% 61%;
+
+    --chart-2: 173 58% 39%;
+
+    --chart-3: 197 37% 24%;
+
+    --chart-4: 43 74% 66%;
+
+    --chart-5: 27 87% 67%;
+  }
+
+  /* Force dark mode variables when .dark class is present on html/body */
+  .dark {
+    --background: 60 2.7% 14.5%;         /* 中性暖炭灰 #262624（非棕色） */
+    --foreground: 48 33.3% 97.1%;
+
+    --card: 60 2.1% 18.4%;
+    --card-foreground: 48 33.3% 97.1%;
+
+    --popover: 45 3.6% 22%;
+    --popover-foreground: 48 33.3% 97.1%;
+
+    --primary: 19 67.5% 62.5%;           /* 珊瑚（暗色提亮）#e0875f */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 45 3.6% 22%;
+    --secondary-foreground: 48 33.3% 97.1%;
+
+    --muted: 60 2.1% 18.4%;
+    --muted-foreground: 48 6.5% 69.8%;
+
+    --accent: 45 3.6% 22%;
+    --accent-foreground: 48 33.3% 97.1%;
+
+    --destructive: 3 57.2% 57.8%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 60 3.3% 23.5%;
+    --input: 60 3.3% 23.5%;
+    --ring: 19 67.5% 62.5%;
+
+    --ai: 255 91.7% 76.3%;               /* #a78bfa（暗色提亮紫） */
+    --ai-subtle: 254 25.5% 20%;
+    --ai-bright: 269 76% 85.3%;
+    --success: 149 60% 38%;
+    --success-subtle: 150 35% 12%;
+    --compat-muted-weak: #2c2c2a;
+    --compat-muted: #30302e;
+    --compat-muted-hover: #3a3936;
+    --compat-primary-weak: #33261f;
+    --compat-primary-soft: #3a2a22;
+    --compat-primary-border: #684533;
+    --compat-card-soft: #2f2f2d;
+    --compat-card-border: #3a3936;
+    --compat-danger-soft: #3a2422;
+    --compat-foreground-hover: rgba(250, 249, 245, .12);
+    --compat-primary-shadow-weak: rgba(224, 135, 95, .1);
+    --compat-primary-shadow: rgba(224, 135, 95, .22);
+
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+
+  /* 密度变体（compact / regular / comfy） */
+  [data-density="compact"] { --row-h: 36px; --gap: 8px;  --pad: 13px; }
+  [data-density="regular"] { --row-h: 40px; --gap: 10px; --pad: 16px; }
+  [data-density="comfy"]   { --row-h: 46px; --gap: 14px; --pad: 20px; }
+
+/* Support system preference via media query if no class is present? 
+   Tailwind 'class' mode disables media query support unless we handle it manually or simple @media (prefers-color-scheme: dark) { :root { ... } } 
+   But creating conflict with .dark class toggler. 
+   Usually best to use JS to detect and add class. 
+   For now, let's add a script in index.html or App.vue to sync.
+*/
+
+html, body, #root {
+  height: 100%;
+}
+* {
+  border-color: hsl(var(--border));
+}
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  transition: color 150ms, background-color 150ms;
+  font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+/* 全局移除 focus/focus-visible 的选中描边与光环 */
+*:focus,
+*:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-color: transparent !important;
+}
+/* 默认全局禁用文本选中，提升原生应用感（避免主界面误拖选）。
+   注意：必须挂在 body 上靠继承下传，不能用 `*`。旧版 WebKit
+   与旧版 Chromium（uTools 内核）对表单控件的 -webkit-user-select 继承是「粘性」的——
+   一旦用 `*` 把 none 直接写到 input 本体及其整条祖先链，即便子元素声明 text !important，
+   旧引擎仍会吞掉输入框内的鼠标拖选。改挂 body 后 input 自身不再被直接置 none，
+   下面的放开规则才能真正生效。现代 Chrome 两种写法都正常，故浏览器里不易复现该回归。 */
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* 放开输入类元素与显式标记可选的内容。-webkit-user-select 用 auto（而非 text）：
+   auto 让表单控件回归 UA 原生选中行为，是旧 WKWebView 下最可靠的「解锁」值。 */
+input,
+textarea,
+select,
+[contenteditable="true"],
+[contenteditable=""],
+.select-text,
+.user-select-text {
+  -webkit-user-select: auto !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default;
+}
+
+input,
+textarea {
+  caret-color: hsl(var(--foreground));
+}
+
+/* 全局文字选中样式 */
+::selection {
+  background: hsl(var(--primary) / 0.22);
+}
+
+/* 全局 placeholder 样式 - 确保优先级高于 color: inherit */
+input::placeholder,
+textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 0.6) !important;
+  opacity: 1 !important; /* Firefox 默认会降低 placeholder 透明度 */
+}
+
+/* Prevent dragging of images and links */
+img, a, [role="img"] {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* 全局隐藏滚动条 */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
+.custom-scroll {
+  scrollbar-width: thin;
+  -ms-overflow-style: auto;
+  scrollbar-gutter: stable;
+}
+
+.custom-scroll::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+
+/* 隐藏数字输入框步进器 */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+/* ============================================================
+   标题衬线（正文仍 DM Sans）— 命中应用标题 / 设置 / 弹窗 / 详情标题
+   ============================================================ */
+#root h1, #root h2, #root h3,
+.font-serif-title,
+.bookmark-preview__title,
+.settings-block__title,
+.bookmark-form__title {
+  font-family: var(--font-serif);
+  letter-spacing: -0.005em;
+}
+
+/* ============================================================
+   AI 紫 hook — 珊瑚留给主操作/选中/链接，AI 触点改紫。
+   给元素加 class="ai-accent"（文字变紫）或 "ai-accent-bg"（紫底白字）。
+   ============================================================ */
+.ai-accent { color: hsl(var(--ai)) !important; }
+.ai-accent-bg { background: hsl(var(--ai)) !important; color: #fff !important; }
+.ai-accent-subtle {
+  background: hsl(var(--ai-subtle)) !important;
+  border-color: hsl(var(--ai) / 0.25) !important;
+}
+
+/* ============================================================
+   组件动画 / 样式（React 重写阶段）
+   旧版分散在各 .vue 的 <style scoped>；React 无 scoped CSS，集中迁移到此。
+   ============================================================ */
+
+/* ContextMenu 弹出 */
+@keyframes ctx-pop-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* BookmarkCard 蛇形描边彩蛋 */
+@keyframes snake-border {
+  0%   { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -1000; }
+}
+.animate-snake-border {
+  animation: snake-border 3s linear infinite;
+}
+
+/* BookmarkCard 选中态（普通 / 搜索浮层两种变体） */
+.bookmark-card--selected {
+  border-color: var(--compat-primary-border);
+  background: var(--compat-primary-weak);
+  box-shadow:
+    0 4px 16px var(--compat-primary-shadow-weak),
+    0 0 0 1px var(--compat-primary-border);
+}
+.bookmark-card--selected-search {
+  border-color: var(--compat-primary-border);
+  background: var(--compat-primary-weak);
+  box-shadow:
+    0 4px 12px var(--compat-primary-shadow-weak),
+    0 0 0 1px var(--compat-primary-border);
+}
+.dark .bookmark-card--hoverable:hover {
+  @apply bg-card;
+}
+.bookmark-card__locate-btn:hover {
+  background-color: var(--compat-foreground-hover) !important;
+}
+
+/* CategoryMultiSelect 子分组 chip */
+.subgroup-chip {
+  @apply transition-all duration-150;
+}
+.subgroup-chip--idle {
+  @apply text-foreground border border-transparent;
+  background: var(--compat-muted-weak);
+}
+.subgroup-chip--idle:hover {
+  @apply border-border;
+  background: var(--compat-muted);
+}
+.subgroup-chip--selected {
+  @apply text-primary border;
+  background: var(--compat-primary-weak);
+  border-color: var(--compat-primary-border);
+}
+.dark .subgroup-chip--selected {
+  background: var(--compat-primary-soft);
+  border-color: var(--compat-primary-border);
+  box-shadow: 0 0 8px var(--compat-primary-shadow-weak);
+}
+
+/* IconSelector tab 激活态 */
+.icon-selector-tab--active {
+  @apply text-primary;
+  background: var(--compat-primary-weak);
+}
+
+/* OnboardingBanner 渐变背景 */
+.onboarding-banner {
+  border-color: var(--compat-primary-border);
+  background: linear-gradient(
+    135deg,
+    var(--compat-primary-weak),
+    var(--compat-primary-soft)
+  );
+}
+.onboarding-banner__icon {
+  background: var(--compat-primary-weak);
+}
+
+/* AppSidebar 导航项 —— 对齐设计稿：hover 中性微暗(surface-2)、active 珊瑚浅染(accent-tint) */
+.nav-item {
+  @apply transition-[color,background-color] duration-[120ms];
+}
+.nav-item--idle {
+  @apply text-foreground;
+}
+.nav-item--idle:hover {
+  @apply text-foreground;
+  background: var(--compat-muted-hover);
+}
+.dark .nav-item--idle:hover {
+  background: var(--compat-muted-hover);
+}
+/* 子项 idle 文字淡一档（对齐设计稿 text-2）；hover/active 仍由上面规则接管 */
+.nav-item--sub.nav-item--idle {
+  @apply text-muted-foreground;
+}
+.nav-item--sub.nav-item--idle:hover {
+  @apply text-foreground;
+}
+.nav-item--active {
+  @apply text-primary font-medium;
+  background: var(--compat-primary-weak);
+}
+.dark .nav-item--active {
+  background: var(--compat-primary-soft);
+}
+.nav-item--trash-active {
+  @apply text-destructive;
+  background: var(--compat-danger-soft);
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* ResultToast 容器（从触发位置生长，配合 @starting-style + allow-discrete） */
+.toast-container {
+  @apply fixed z-[20000] w-80 max-w-[calc(100vw-2rem)] max-h-[200px] overflow-y-auto border-border bg-card p-4 pointer-events-auto opacity-100 scale-100;
+  border-radius: var(--radius-lg);
+  border-width: 1px;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  backdrop-filter: blur(8px);
+  transform-origin: var(--origin-x, right) var(--origin-y, bottom);
+
+  transition:
+    opacity 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    display 220ms allow-discrete;
+
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+.toast-container[hidden] {
+  display: block;
+  @apply opacity-0 scale-[0.92] pointer-events-none;
+
+  transition:
+    opacity 180ms ease-in,
+    transform 180ms ease-in,
+    display 180ms allow-discrete;
+}
+
+/* FeatureNoticeCenter 进出场（React 用 data-state 驱动） */
+@keyframes feature-notice-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.feature-notice {
+  animation: feature-notice-in 180ms ease forwards;
+}
+
+/* ============================================================
+   设置中心（settings 模块）— 从各 .vue <style> 集中迁移到全局。
+   ============================================================ */
+.settings-block {
+  @apply p-4 rounded-[14px] border bg-card flex flex-col;
+  border-color: var(--compat-card-border);
+  box-shadow: 0 10px 24px rgba(31, 30, 29, .03);
+}
+
+.dark .settings-block {
+  background: var(--compat-card-soft);
+  border-color: var(--compat-card-border);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+}
+
+.settings-block__head {
+  @apply mb-3;
+}
+
+.settings-block__title {
+  @apply text-sm font-semibold text-foreground;
+}
+
+.settings-block__desc {
+  @apply mt-1 text-xs leading-[18px] text-muted-foreground;
+}
+
+.settings-row {
+  @apply flex items-center justify-between gap-4;
+}
+
+.settings-row--top {
+  @apply items-start;
+}
+
+.settings-field {
+  @apply flex flex-col gap-2;
+}
+
+.settings-field__label {
+  @apply text-sm font-medium text-foreground;
+}
+
+.settings-section {
+  @apply scroll-mt-3;
+}
+
+/* TOC 侧栏 */
+.settings-nav {
+  @apply border-r;
+  background: var(--compat-card-soft);
+  border-color: var(--compat-card-border);
+}
+
+.dark .settings-nav {
+  background: var(--compat-card-soft);
+  border-color: var(--compat-card-border);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.settings-nav-item {
+  border-radius: var(--radius-sm);
+  @apply transition-[color,background-color] duration-[120ms];
+}
+
+.settings-nav-item__icon {
+  @apply inline-flex items-center justify-center shrink-0;
+}
+
+/* 对齐「配色改造预览」设置导航：idle 次级文字、hover 奶油面、active 珊瑚实底 */
+.settings-nav-item--idle {
+  @apply text-muted-foreground;
+}
+
+.settings-nav-item--idle:hover {
+  @apply text-foreground bg-card;
+}
+
+.dark .settings-nav-item--idle:hover {
+  @apply bg-accent;
+}
+
+.settings-nav-item--active {
+  @apply text-primary-foreground bg-primary font-medium;
+}
+
+.dark .settings-nav-item--active {
+  @apply text-primary-foreground bg-primary;
+}
+
+.settings-back {
+  @apply text-muted-foreground transition-[color,background-color] duration-[120ms];
+  background: var(--compat-muted-weak);
+}
+
+.settings-back:hover {
+  @apply text-foreground;
+  background: var(--compat-muted-hover);
+}
+
+.dark .settings-back {
+  background: var(--compat-muted-weak);
+}
+
+.dark .settings-back:hover {
+  background: var(--compat-muted-hover);
+}
+
+.settings-feedback {
+  @apply text-muted-foreground transition-[color,background-color] duration-[120ms];
+  background: var(--compat-muted);
+}
+
+.settings-feedback:hover {
+  @apply text-foreground;
+  background: var(--compat-muted-hover);
+}
+
+/* AI 模型选择列表项 */
+.settings-list-item {
+  @apply w-full flex items-start gap-3 rounded-xl px-3 py-[0.625rem] text-left transition-[color,background-color] duration-[120ms];
+}
+
+.settings-list-item:hover {
+  background: var(--compat-muted-hover);
+}
+
+/* 强调色样本 */
+.accent-swatch {
+  @apply size-6 rounded-full cursor-pointer shrink-0;
+  border: none;
+  transition: transform 100ms ease, box-shadow 100ms ease;
+}
+
+.accent-swatch:hover {
+  transform: scale(1.12);
+}
+
+/* 外观预览（深色模式背景选择） */
+.background-preview {
+  @apply size-10 rounded-xl inline-flex items-center justify-center;
+}
+
+.background-preview--dark {
+  background: linear-gradient(180deg, #30302e 0%, #262624 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+.background-preview--light-utools {
+  background: linear-gradient(180deg, #f5f0eb 0%, #ede8e2 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+.background-preview--light-white {
+  background: linear-gradient(180deg, #ffffff 0%, #f7f7f7 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+.sky-preview {
+  @apply relative size-10 overflow-hidden;
+  border-radius: 0.625rem;
+  background:
+    radial-gradient(circle at 50% -5%, rgb(25 53 84 / 0.95), transparent 52%),
+    linear-gradient(180deg, #08111c 0%, #020204 62%, #000000 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 10px 20px rgb(0 0 0 / 0.18);
+}
+
+.sky-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgb(148 201 255 / 0.18), transparent 48%);
+}
+
+.sky-preview::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: -10px;
+  width: 32px;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(255 255 255 / 0), rgb(255 255 255 / 0.92), rgb(255 255 255 / 0));
+  transform: rotate(25deg);
+  animation: sky-meteor 3.6s ease-in-out infinite;
+}
+
+.sky-preview__main {
+  position: absolute;
+  top: 8px;
+  left: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: rgb(226 238 255 / 0.92);
+  box-shadow:
+    0 0 8px rgb(173 216 255 / 0.65),
+    0 0 14px rgb(173 216 255 / 0.3);
+  animation: sky-twinkle 2.4s ease-in-out infinite;
+}
+
+.sky-preview__dot {
+  position: absolute;
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 9999px;
+  background: rgb(225 235 255 / 0.82);
+  box-shadow: 0 0 5px rgb(173 216 255 / 0.38);
+  animation: sky-dot 2.8s ease-in-out infinite;
+}
+
+.sky-preview__dot--1 { top: 10px; right: 9px; animation-delay: 0.2s; }
+.sky-preview__dot--2 { top: 18px; left: 8px; animation-delay: 0.7s; }
+.sky-preview__dot--3 { top: 22px; right: 12px; animation-delay: 1.2s; }
+
+@keyframes sky-twinkle {
+  0%, 100% { opacity: 0.5; transform: scale(0.86); }
+  50% { opacity: 1; transform: scale(1.18); }
+}
+@keyframes sky-dot {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50% { opacity: 0.85; transform: scale(1.12); }
+}
+@keyframes sky-meteor {
+  0%, 58%, 100% { opacity: 0; transform: translate(-10px, -6px) rotate(25deg); }
+  70% { opacity: 0.9; }
+  84% { opacity: 0; transform: translate(24px, 16px) rotate(25deg); }
+}
+
+/* ============================================================
+   设置页行内交互增强
+   ============================================================ */
+.goose-home .set-row-link:hover {
+  @apply bg-g-accent-subtle;
+}
+
+/* ============================================================
+   GroupManagePage (.gm-*)
+   ============================================================ */
+.goose-home .gm-page {
+  @apply absolute inset-0 z-50 flex flex-col bg-g-bg text-g-fg;
+}
+
+.goose-home .gm-header {
+  @apply shrink-0 flex items-center gap-3 px-[22px] pt-4 pb-3;
+  border-bottom:1px solid var(--border-muted);
+}
+
+.goose-home .gm-back-btn {
+  @apply flex items-center gap-1 h-8 pl-1.5 pr-2.5 bg-g-surface text-g-fg-muted text-[12.5px] cursor-pointer transition-all duration-150;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.goose-home .gm-back-btn:hover { @apply text-g-fg bg-g-surface-hover; }
+.goose-home .gm-back-btn .lucide { font-size: 15px; }
+
+.goose-home .gm-title {
+  @apply text-lg font-semibold tracking-[-0.01em];
+  font-family: var(--font-serif);
+}
+
+.goose-home .gm-body {
+  @apply flex-1 min-h-0 flex overflow-hidden;
+  gap: 0;
+}
+
+/* 左栏 */
+.goose-home .gm-left {
+  @apply w-[220px] shrink-0 flex flex-col overflow-hidden;
+  border-right:1px solid var(--border-muted);
+}
+
+/* 右栏 */
+.goose-home .gm-right {
+  @apply flex-1 min-w-0 flex flex-col overflow-hidden;
+}
+
+.goose-home .gm-col-label {
+  @apply shrink-0 px-3.5 pt-2.5 pb-1.5 text-[11px] font-medium tracking-[.04em] uppercase text-g-fg-faint;
+}
+
+.goose-home .gm-list {
+  @apply flex-1 overflow-y-auto px-2 pt-1 pb-3 flex flex-col gap-0.5;
+}
+
+/* 行 */
+.goose-home .gm-item {
+  @apply relative flex items-center gap-2 py-[7px] px-2 cursor-pointer transition-[background] duration-[120ms];
+  border-radius: var(--radius-sm);
+  /* 固定行高（非 min-height）：hover 显示的 24px 操作按钮比基础文字行高，
+     用 min-height 会让行从 34→38px 撑高、反复 hover 抖动；锁死 34px 即可消除 */
+  height: 34px;
+}
+.goose-home .gm-item:hover { @apply bg-g-surface; }
+.goose-home .gm-item.on { @apply bg-g-surface-hover font-medium; }
+
+.goose-home .gm-item-name {
+  @apply flex-1 text-[13px] text-g-fg whitespace-nowrap overflow-hidden text-ellipsis;
+}
+
+.goose-home .gm-item-badge {
+  @apply text-[10.5px] text-g-fg-faint tabular-nums whitespace-nowrap shrink-0;
+}
+
+/* 行内操作按钮组（hover 显示） */
+.goose-home .gm-item-actions {
+  @apply hidden items-center gap-px shrink-0;
+}
+.goose-home .gm-item:hover .gm-item-actions { @apply flex; }
+.goose-home .gm-item.on .gm-item-actions { @apply flex; }
+
+.goose-home .gm-item-actions button {
+  @apply size-6 border-none bg-transparent text-g-fg-muted cursor-pointer flex items-center justify-center transition-all duration-[120ms] shrink-0;
+  border-radius: var(--radius-sm);
+}
+.goose-home .gm-item-actions button .lucide { font-size: 13px; }
+.goose-home .gm-item-actions button:hover { @apply bg-g-surface-hover text-g-fg; }
+.goose-home .gm-item-actions button.danger:hover { @apply text-destructive; }
+.goose-home .gm-item-actions button:disabled { @apply opacity-30 cursor-not-allowed; }
+.goose-home .gm-item-actions button:disabled:hover { @apply bg-transparent text-g-fg-muted; }
+
+/* 编辑态 */
+.goose-home .gm-item-editing {
+  @apply cursor-default;
+  background: var(--surface) !important;
+}
+
+.goose-home .gm-inline-input {
+  @apply flex-1 h-[26px] px-2 py-0 text-[13px] text-g-fg bg-g-input outline-none transition-[border-color] duration-150;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+.goose-home .gm-inline-input:focus { border-color:var(--accent); }
+
+/* 确认态 */
+.goose-home .gm-item-confirm {
+  @apply cursor-default flex-wrap gap-1.5;
+  background:var(--danger-subtle) !important;
+}
+.goose-home .gm-item-confirm > span {
+  @apply text-xs text-g-fg-muted flex-1 min-w-0;
+}
+
+.goose-home .gm-confirm-btns {
+  @apply flex gap-1 shrink-0;
+}
+
+.goose-home .gm-btn-danger {
+  @apply h-6 px-2.5 py-0 border-none bg-destructive text-destructive-foreground text-xs cursor-pointer transition-[opacity] duration-150;
+  border-radius: var(--radius-sm);
+}
+.goose-home .gm-btn-danger:hover { @apply opacity-85; }
+
+.goose-home .gm-btn-ghost {
+  @apply h-6 px-2.5 py-0 bg-transparent text-g-fg-muted text-xs cursor-pointer transition-all duration-150;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.goose-home .gm-btn-ghost:hover { @apply bg-g-surface-hover text-g-fg; }
+
+/* 移动下拉浮层 */
+.goose-home .gm-move-dropdown {
+  @apply absolute right-2 top-[calc(100%+4px)] z-10 bg-popover p-1 flex flex-col gap-px min-w-[140px];
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px hsl(0 0% 0% / 0.12);
+}
+.goose-home .gm-move-dropdown button {
+  @apply w-full h-[30px] px-2.5 py-0 border-none bg-transparent text-g-fg-muted text-[12.5px] text-left cursor-pointer transition-all duration-[120ms] whitespace-nowrap;
+  border-radius: var(--radius-sm);
+}
+.goose-home .gm-move-dropdown button:hover { @apply bg-g-surface-hover text-g-fg; }
+
+/* 新建行按钮 */
+.goose-home .gm-add-row {
+  @apply flex items-center gap-1.5 py-[7px] px-2 border-none bg-transparent text-g-fg-faint text-[12.5px] cursor-pointer transition-all duration-[120ms] text-left mt-0.5;
+  border-radius: var(--radius-sm);
+}
+.goose-home .gm-add-row:hover { @apply bg-g-surface text-g-fg; }
+.goose-home .gm-add-row .lucide { font-size: 13px; }
+
+/* 空态 */
+.goose-home .gm-empty {
+  @apply flex-1 flex flex-col items-center justify-center gap-2 text-g-fg-faint text-[12.5px] px-4 py-8;
+}
+.goose-home .gm-empty .lucide { font-size: 24px; @apply opacity-50; }
+.goose-home .gm-empty-right { @apply justify-center; }
+
+.goose-home .gm-text-btn {
+  @apply h-7 px-3 py-0 bg-g-surface text-g-fg-muted text-xs cursor-pointer transition-all duration-150 mt-1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.goose-home .gm-text-btn:hover { @apply bg-g-surface-hover text-g-fg; }

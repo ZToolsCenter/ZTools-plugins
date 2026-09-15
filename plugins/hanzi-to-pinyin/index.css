@@ -1,0 +1,371 @@
+:root {
+  --bg: #f5f6fa;
+  --panel: #ffffff;
+  --border: #e6e8ef;
+  --text: #1f2430;
+  --muted: #8a90a2;
+  --primary: #4f7cff;
+  --primary-weak: #eaf0ff;
+  --field-bg: #fbfcfe;
+  --field-bg-focus: #ffffff;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(20, 24, 40, 0.06), 0 6px 18px rgba(20, 24, 40, 0.04);
+}
+
+html.dark {
+  --bg: #16191f;
+  --panel: #21252e;
+  --border: #323845;
+  --text: #e7eaf2;
+  --muted: #9aa3b6;
+  --primary: #5e86ff;
+  --primary-weak: #2a3450;
+  --field-bg: #1b1e25;
+  --field-bg-focus: #262b35;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", "Hiragino Sans GB", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 14px 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 头部 + 模式切换 */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-row h1 {
+  font-size: 19px;
+  margin: 0;
+  font-weight: 700;
+}
+
+.badge {
+  font-size: 11px;
+  color: var(--primary);
+  background: var(--primary-weak);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.header-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 32px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.theme-toggle .icon-moon {
+  display: none;
+}
+
+html.dark .theme-toggle .icon-sun {
+  display: none;
+}
+
+html.dark .theme-toggle .icon-moon {
+  display: block;
+}
+
+.mode-switch {
+  display: inline-flex;
+  background: var(--field-bg);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.mode-btn.active {
+  background: var(--panel);
+  color: var(--primary);
+  box-shadow: var(--shadow);
+}
+
+/* 面板通用 */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+}
+
+.panel-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+/* 输入区 */
+.input-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.input-head .panel-label {
+  margin-bottom: 0;
+}
+
+.input-area {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--field-bg);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input-area:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-weak);
+  background: var(--field-bg-focus);
+}
+
+/* 配置区 */
+.config-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.cfg-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.cfg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cfg-group {
+  grid-column: 1 / -1;
+}
+
+.cfg-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cfg-select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 26px 6px 10px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--field-bg)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238a90a2' d='M0 1.1L1.06 0 5 3.8 8.94 0 10 1.1 5 6z'/%3E%3C/svg%3E")
+    no-repeat right 10px center;
+  background-size: 10px 6px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cfg-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-weak);
+  background-color: var(--field-bg-focus);
+}
+
+.opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.opts-check .opt {
+  display: inline-flex;
+  align-items: center;
+}
+
+.opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.opt input {
+  accent-color: var(--primary);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .config-grid,
+  .cfg-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 结果区 */
+.result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.result-head .panel-label {
+  margin-bottom: 0;
+}
+
+.result-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  padding: 6px 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #3f6bf0;
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 4px 11px;
+  font-size: 13px;
+}
+
+.toast {
+  font-size: 13px;
+  color: #2bb673;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.toast.show {
+  opacity: 1;
+}
+
+.result-area {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 14px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  color: var(--text);
+  background: var(--field-bg);
+  outline: none;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.hidden {
+  display: none !important;
+}

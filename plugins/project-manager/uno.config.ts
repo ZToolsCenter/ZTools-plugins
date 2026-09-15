@@ -11,16 +11,16 @@ export default defineConfig({
   theme: {
     colors: {
       surface: {
-        DEFAULT: '#ffffff',
-        dark: '#0f172a',
+        DEFAULT: 'var(--app-surface)',
+        dark: 'var(--app-bg)',
       },
       panel: {
-        DEFAULT: '#f8fafc',
-        dark: '#0b1120',
+        DEFAULT: 'var(--app-bg-muted)',
+        dark: 'var(--app-bg-muted)',
       },
       card: {
-        DEFAULT: '#ffffff',
-        dark: '#1e293b',
+        DEFAULT: 'var(--app-surface)',
+        dark: 'var(--app-surface)',
       },
     },
   },
@@ -28,18 +28,21 @@ export default defineConfig({
     // Consistent focus ring for all interactive elements
     'focus-ring': 'outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-1',
     // Standard transition preset
-    'transition-base': 'transition-all duration-200 ease-out',
+    'transition-base': 'transition-all duration-200 ease-out motion-reduce:transition-none',
     // Clickable elements always get pointer
     'clickable': 'cursor-pointer select-none',
     // Panel backgrounds
-    'bg-surface': 'bg-white dark:bg-[#0f172a]',
-    'bg-panel': 'bg-slate-50 dark:bg-[#0b1120]',
-    'bg-card': 'bg-white dark:bg-[#1e293b]',
+    'bg-surface': 'bg-[var(--app-surface)]',
+    'bg-panel': 'bg-[var(--app-bg-muted)]',
+    'bg-card': 'bg-[var(--app-surface)]',
     // Text colors
-    'text-primary': 'text-slate-900 dark:text-slate-100',
-    'text-secondary': 'text-slate-600 dark:text-slate-400',
-    'text-muted': 'text-slate-400 dark:text-slate-500',
+    'text-primary': 'text-[var(--app-text)]',
+    'text-secondary': 'text-[var(--app-text-secondary)]',
+    'text-muted': 'text-[var(--app-text-muted)]',
     // Border
-    'border-base': 'border-slate-200 dark:border-slate-700/30',
+    'border-base': 'border-[var(--app-border)]',
+    // Shared desktop app surfaces
+    'app-card': 'bg-[var(--app-surface)] border border-[var(--app-border)] rounded-lg shadow-sm',
+    'app-toolbar': 'bg-[var(--app-surface-soft)] border border-[var(--app-border)] rounded-lg',
   },
 })

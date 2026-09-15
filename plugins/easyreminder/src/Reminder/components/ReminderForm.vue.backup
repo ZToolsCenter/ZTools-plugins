@@ -1,0 +1,523 @@
+<script setup lang="ts">
+import { ref, watch, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import 'element-plus/theme-chalk/el-message.css'
+import type { Reminder, ReminderFormData, DaySchedule, ReminderType } from '../../types/reminder'
+import { WEEKDAY_LABELS, REMINDER_TYPE_LABELS, createEmptyReminder } from '../../types/reminder'
+
+const props = defineProps<{
+  editReminder?: Reminder | null
+}>()
+
+const emit = defineEmits<{
+  save: [data: ReminderFormData]
+  cancel: []
+}>()
+
+const form = ref<ReminderFormData>(createEmptyReminder())
+const customInterval = ref<number | undefined>(undefined)
+
+// once 类型：日期 + 时间
+const onceDate = ref('')
+const onceTime = ref('09:00')
+
+// daily 类型
+const dailyTime = ref('09:00')
+
+// interval 类型
+const unifiedTime = ref(true)
+const unifiedRanges = ref<Array<{ startTime: string; endTime: string }>>([
+  { startTime: '09:00', endTime: '18:00' }
+])
+
+const presetIntervals = [
+  { value: 15, label: '15 分钟' },
+  { value: 30, label: '30 分钟' },
+  { value: 60, label: '1 小时' },
+  { value: 120, label: '2 小时' },
+  { value: 180, label: '3 小时' },
+]
+const presetValues = presetIntervals.map(p => p.value)
+
+const selectedWeekdays = computed(() => {
+  if (form.value.type === 'daily') {
+    return [...(form.value.weekdays || [])].sort((a, b) => a - b)
+  }
+  return [...new Set(form.value.schedules.map(s => s.weekday))].sort((a, b) => a - b)
+})
+
+// --- 类型切换 ---
+function onTypeChange(type: ReminderType) {
+  form.value.type = type
+}
+
+// --- once 类型 ---
+function initOnceDefaults() {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  onceDate.value = tomorrow.toISOString().slice(0, 10)
+  onceTime.value = '09:00'
+}
+
+function buildTriggerAt(): number {
+  return new Date(`${onceDate.value}T${onceTime.value}:00`).getTime()
+}
+
+// --- daily 类型 ---
+function toggleDailyWeekday(day: number) {
+  if (!form.value.weekdays) form.value.weekdays = []
+  const idx = form.value.weekdays.indexOf(day)
+  if (idx > -1) {
+    form.value.weekdays.splice(idx, 1)
+  } else {
+    form.value.weekdays.push(day)
+  }
+  form.value.weekdays.sort()
+}
+
+// --- interval 类型 ---
+function getDayRanges(weekday: number): Array<{ startTime: string; endTime: string }> {
+  return form.value.schedules
+    .filter(s => s.weekday === weekday)
+    .map(s => ({ startTime: s.startTime, endTime: s.endTime }))
+}
+
+function rebuildFromUnified() {
+  form.value.schedules = []
+  for (const day of selectedWeekdays.value) {
+    for (const range of unifiedRanges.value) {
+      form.value.schedules.push({ weekday: day, startTime: range.startTime, endTime: range.endTime })
+    }
+  }
+}
+
+function toggleWeekday(day: number) {
+  const hasDay = form.value.schedules.some(s => s.weekday === day)
+  if (hasDay) {
+    form.value.schedules = form.value.schedules.filter(s => s.weekday !== day)
+  } else {
+    if (unifiedTime.value) {
+      for (const range of unifiedRanges.value) {
+        form.value.schedules.push({ weekday: day, startTime: range.startTime, endTime: range.endTime })
+      }
+    } else {
+      form.value.schedules.push({ weekday: day, startTime: '09:00', endTime: '18:00' })
+    }
+  }
+}
+
+function addRange(weekday: number) {
+  form.value.schedules.push({ weekday, startTime: '09:00', endTime: '18:00' })
+}
+
+function removeRange(weekday: number, index: number) {
+  const daySchedules = form.value.schedules.filter(s => s.weekday === weekday)
+  const target = daySchedules[index]
+  if (target) {
+    const idx = form.value.schedules.indexOf(target)
+    if (idx > -1) form.value.schedules.splice(idx, 1)
+  }
+}
+
+function addUnifiedRange() {
+  unifiedRanges.value.push({ startTime: '09:00', endTime: '18:00' })
+}
+
+function removeUnifiedRange(index: number) {
+  if (unifiedRanges.value.length > 1) {
+    unifiedRanges.value.splice(index, 1)
+  }
+}
+
+function onUnifiedRangeChange() {
+  if (unifiedTime.value) rebuildFromUnified()
+}
+
+function onSwitchUnified() {
+  if (unifiedTime.value) {
+    const firstDay = selectedWeekdays.value[0]
+    if (firstDay !== undefined) {
+      const ranges = getDayRanges(firstDay)
+      unifiedRanges.value = ranges.length > 0 ? ranges.map(r => ({ ...r })) : [{ startTime: '09:00', endTime: '18:00' }]
+    }
+    rebuildFromUnified()
+  }
+}
+
+function updateDayRange(weekday: number, index: number, field: 'startTime' | 'endTime', val: string) {
+  const daySchedules = form.value.schedules.filter(s => s.weekday === weekday)
+  const target = daySchedules[index]
+  if (target) target[field] = val
+}
+
+// --- 加载/保存 ---
+function loadFromReminder(r: Reminder) {
+  const isPreset = presetValues.includes(r.interval)
+  form.value = {
+    title: r.title,
+    content: r.content,
+    type: r.type,
+    schedules: r.schedules.map(s => ({ ...s })),
+    interval: isPreset ? r.interval : 0,
+    triggerAt: r.triggerAt,
+    weekdays: r.weekdays ? [...r.weekdays] : [],
+    triggerTime: r.triggerTime || '09:00'
+  }
+  customInterval.value = isPreset ? undefined : r.interval
+
+  // once 类型
+  if (r.type === 'once' && r.triggerAt) {
+    const d = new Date(r.triggerAt)
+    onceDate.value = d.toISOString().slice(0, 10)
+    onceTime.value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+
+  // daily 类型
+  if (r.type === 'daily') {
+    dailyTime.value = r.triggerTime || '09:00'
+  }
+
+  // interval 类型
+  if (r.type === 'interval') {
+    const days = [...new Set(r.schedules.map(s => s.weekday))]
+    const allSame = days.length > 0 && days.every(day => {
+      const a = r.schedules.filter(s => s.weekday === day)
+      const b = r.schedules.filter(s => s.weekday === days[0])
+      if (a.length !== b.length) return false
+      return a.every((x, i) => x.startTime === b[i].startTime && x.endTime === b[i].endTime)
+    })
+    unifiedTime.value = allSame
+    if (allSame && days.length > 0) {
+      unifiedRanges.value = r.schedules
+        .filter(s => s.weekday === days[0])
+        .map(s => ({ startTime: s.startTime, endTime: s.endTime }))
+    }
+  }
+}
+
+onMounted(() => {
+  if (props.editReminder) {
+    loadFromReminder(props.editReminder)
+  } else {
+    initOnceDefaults()
+  }
+})
+
+watch(() => props.editReminder, (val) => {
+  if (val) {
+    loadFromReminder(val)
+  } else {
+    form.value = createEmptyReminder()
+    customInterval.value = undefined
+    unifiedTime.value = true
+    unifiedRanges.value = [{ startTime: '09:00', endTime: '18:00' }]
+    initOnceDefaults()
+  }
+})
+
+function handleSubmit() {
+  if (!form.value.title.trim()) {
+    ElMessage.warning('请输入提醒标题')
+    return
+  }
+
+  const submitData: ReminderFormData = {
+    title: form.value.title,
+    content: form.value.content,
+    type: form.value.type,
+    schedules: [],
+    interval: form.value.interval
+  }
+
+  if (form.value.type === 'once') {
+    if (!onceDate.value) {
+      ElMessage.warning('请选择提醒日期')
+      return
+    }
+    submitData.triggerAt = buildTriggerAt()
+    if (submitData.triggerAt <= Date.now()) {
+      ElMessage.warning('提醒时间必须在当前时间之后')
+      return
+    }
+  } else if (form.value.type === 'daily') {
+    if (!form.value.weekdays || form.value.weekdays.length === 0) {
+      ElMessage.warning('请选择至少一个星期')
+      return
+    }
+    submitData.weekdays = [...form.value.weekdays]
+    submitData.triggerTime = dailyTime.value
+  } else {
+    // interval
+    if (form.value.schedules.length === 0) {
+      ElMessage.warning('请选择至少一个星期')
+      return
+    }
+    submitData.schedules = form.value.schedules.map(s => ({ ...s }))
+    if (submitData.interval === 0) {
+      if (!customInterval.value || customInterval.value < 1) {
+        ElMessage.warning('请输入有效的自定义间隔')
+        return
+      }
+      submitData.interval = customInterval.value
+    }
+  }
+
+  emit('save', submitData)
+}
+</script>
+
+<template>
+  <div class="reminder-form">
+    <div class="form-header">
+      <h3>{{ editReminder ? '编辑提醒' : '新建提醒' }}</h3>
+    </div>
+
+    <div class="form-body">
+      <!-- 类型切换 -->
+      <div class="form-item">
+        <el-radio-group v-model="form.type" @change="onTypeChange">
+          <el-radio-button v-for="(label, key) in REMINDER_TYPE_LABELS" :key="key" :value="key">
+            {{ label }}
+          </el-radio-button>
+        </el-radio-group>
+      </div>
+
+      <!-- 标题 + 内容（通用） -->
+      <div class="form-item">
+        <label>提醒标题</label>
+        <el-input v-model="form.title" placeholder="输入提醒标题" maxlength="50" clearable />
+      </div>
+
+      <div class="form-item">
+        <label>提醒内容</label>
+        <el-input v-model="form.content" type="textarea" placeholder="输入提醒内容（可选）" :rows="2" maxlength="200" show-word-limit />
+      </div>
+
+      <!-- ===== once：定时提醒 ===== -->
+      <template v-if="form.type === 'once'">
+        <div class="form-item form-row">
+          <div class="form-col">
+            <label>提醒日期</label>
+            <el-date-picker v-model="onceDate" type="date" placeholder="选择日期" value-format="YYYY-MM-DD" style="width: 100%" />
+          </div>
+          <div class="form-col">
+            <label>提醒时间</label>
+            <el-input v-model="onceTime" type="time" />
+          </div>
+        </div>
+      </template>
+
+      <!-- ===== daily：每日提醒 ===== -->
+      <template v-if="form.type === 'daily'">
+        <div class="form-item">
+          <label>提醒星期</label>
+          <div class="weekday-selector">
+            <button
+              v-for="(label, index) in WEEKDAY_LABELS"
+              :key="index"
+              :class="['weekday-btn', { active: (form.weekdays || []).includes(index) }]"
+              @click="toggleDailyWeekday(index)"
+            >
+              {{ label }}
+            </button>
+          </div>
+        </div>
+        <div class="form-item">
+          <label>提醒时间</label>
+          <el-input v-model="dailyTime" type="time" />
+        </div>
+      </template>
+
+      <!-- ===== interval：间隔提醒 ===== -->
+      <template v-if="form.type === 'interval'">
+        <div class="form-item">
+          <label>提醒星期</label>
+          <div class="weekday-selector">
+            <button
+              v-for="(label, index) in WEEKDAY_LABELS"
+              :key="index"
+              :class="['weekday-btn', { active: selectedWeekdays.includes(index) }]"
+              @click="toggleWeekday(index)"
+            >
+              {{ label }}
+            </button>
+          </div>
+        </div>
+
+        <div class="form-item" v-if="selectedWeekdays.length > 0">
+          <div class="time-header">
+            <label>提醒时间段</label>
+            <el-switch v-model="unifiedTime" active-text="统一时间" size="small" @change="onSwitchUnified" />
+          </div>
+
+          <div v-if="unifiedTime" class="unified-ranges">
+            <div v-for="(range, i) in unifiedRanges" :key="i" class="range-row">
+              <el-input v-model="range.startTime" type="time" size="small" @change="onUnifiedRangeChange" />
+              <span class="range-sep">-</span>
+              <el-input v-model="range.endTime" type="time" size="small" @change="onUnifiedRangeChange" />
+              <el-button v-if="unifiedRanges.length > 1" size="small" circle plain type="danger" @click="removeUnifiedRange(i); onUnifiedRangeChange()">×</el-button>
+            </div>
+            <el-button size="small" plain @click="addUnifiedRange(); onUnifiedRangeChange()">+ 添加时间段</el-button>
+          </div>
+
+          <div v-else class="day-schedules">
+            <div v-for="day in selectedWeekdays" :key="day" class="day-block">
+              <div class="day-header">
+                <span class="day-label">{{ WEEKDAY_LABELS[day] }}</span>
+              </div>
+              <div v-for="(r, i) in getDayRanges(day)" :key="i" class="range-row">
+                <el-input :model-value="r.startTime" type="time" size="small" @update:model-value="(v: string) => updateDayRange(day, i, 'startTime', v)" />
+                <span class="range-sep">-</span>
+                <el-input :model-value="r.endTime" type="time" size="small" @update:model-value="(v: string) => updateDayRange(day, i, 'endTime', v)" />
+                <el-button v-if="getDayRanges(day).length > 1" size="small" circle plain type="danger" @click="removeRange(day, i)">×</el-button>
+              </div>
+              <el-button size="small" plain @click="addRange(day)">+ 添加时间段</el-button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-item">
+          <label>提醒间隔</label>
+          <div class="interval-row">
+            <el-select v-model.number="form.interval" @change="customInterval = undefined" style="flex: 1">
+              <el-option v-for="p in presetIntervals" :key="p.value" :value="p.value" :label="p.label" />
+              <el-option :value="0" label="自定义…" />
+            </el-select>
+            <el-input-number v-if="form.interval === 0" v-model="customInterval" :min="1" :max="1440" placeholder="分钟数" controls-position="right" style="flex: 1" />
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <div class="form-actions">
+      <el-button @click="emit('cancel')">取消</el-button>
+      <el-button type="primary" @click="handleSubmit">保存</el-button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.reminder-form {
+  padding: 16px;
+}
+
+.form-header h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: var(--el-text-color-primary);
+}
+
+.form-item {
+  margin-bottom: 14px;
+}
+
+.form-item label {
+  display: block;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 6px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-col {
+  flex: 1;
+}
+
+.weekday-selector {
+  display: flex;
+  gap: 6px;
+}
+
+.weekday-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.weekday-btn:hover {
+  border-color: var(--el-color-primary);
+}
+
+.weekday-btn.active {
+  background: var(--el-color-primary);
+  color: #fff;
+  border-color: var(--el-color-primary);
+}
+
+.time-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.time-header label {
+  margin-bottom: 0;
+}
+
+.interval-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.unified-ranges,
+.day-schedules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.day-block {
+  padding: 8px 10px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-fill-color-lighter);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.day-header {
+  display: flex;
+  align-items: center;
+}
+
+.day-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.range-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.range-sep {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+</style>

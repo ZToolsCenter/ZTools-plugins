@@ -1,0 +1,19 @@
+node_modules
+dist
+*.local
+.DS_Store
+*.tsbuildinfo
+
+# 构建输出
+dist-utools/
+!CLAUDE.md
+!AGENTS.md
+
+
+# 产品文档 / 任务
+PRODUCT.md
+tasks/
+test-results/
+pnpm-lock.yaml
+
+未命名/

@@ -1,5 +1,6 @@
-﻿import BaseModule from './BaseModule.js';
+﻿﻿import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
+import { clamp } from '../utils/helpers.js';
 
 /**
  * 橡皮擦模块 - 默认擦除当前图层，并把擦除结果固化为位图。
@@ -36,6 +37,7 @@ class EraserModule extends BaseModule {
     canvas.isDrawingMode = false;
     canvas.defaultCursor = 'crosshair';
     canvas.freeDrawingCursor = 'crosshair';
+    canvas.skipTargetFind = true;
     canvas.on('mouse:down', this._boundMouseDown);
     canvas.on('mouse:move', this._boundMouseMove);
     canvas.on('mouse:up', this._boundMouseUp);
@@ -53,6 +55,7 @@ class EraserModule extends BaseModule {
       this._commitLivePreview();
       canvas.isDrawingMode = false;
       canvas.freeDrawingCursor = 'crosshair';
+      canvas.skipTargetFind = false;
       this._targetObject = null;
       this._strokeTarget = null;
       this._isDrawing = false;
@@ -226,6 +229,10 @@ class EraserModule extends BaseModule {
       evented: false,
       objectCaching: false,
     });
+
+    if (typeof target._layerLocked === 'boolean') {
+      image._layerLocked = target._layerLocked;
+    }
 
     if (layerName) {
       image._layerName = layerName;
@@ -417,7 +424,7 @@ class EraserModule extends BaseModule {
   }
 
   _clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+    return clamp(value, min, max);
   }
 }
 

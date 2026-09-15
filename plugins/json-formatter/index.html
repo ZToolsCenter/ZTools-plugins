@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>JSON 格式化</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="toolbar">
+        <div class="brand">
+          <img src="/logo.png" alt="" width="30" height="30" />
+          <div>
+            <h1>JSON 格式化(双击顶部全屏显示效果最佳)</h1>
+            <p>格式化 · 校验 · 树形浏览，数据仅在本地处理</p>
+          </div>
+        </div>
+        <div class="toolbar-actions">
+          <button id="pasteButton" class="button ghost" type="button">粘贴</button>
+          <button id="sampleButton" class="button ghost" type="button">示例</button>
+          <button id="clearButton" class="button ghost" type="button">清空</button>
+          <button id="formatButton" class="button primary" type="button" title="Ctrl + Enter">格式化</button>
+        </div>
+      </header>
+
+      <section class="controlbar" aria-label="格式化选项">
+        <label class="checkbox-label"><input id="json5Input" type="checkbox" checked /><span>兼容 JSON5</span></label>
+        <label class="checkbox-label"><input id="sortKeysInput" type="checkbox" /><span>Key 排序</span></label>
+        <div id="treeActions" class="tree-actions">
+          <button id="expandButton" class="text-button" type="button">全部展开</button>
+          <button id="collapseButton" class="text-button" type="button">全部收起</button>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <article class="editor-panel input-panel">
+          <div class="panel-heading">
+            <span>原始数据</span>
+            <span id="inputStats" class="stats">0 字符</span>
+          </div>
+          <div class="editor-wrap">
+            <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
+            <textarea id="inputJson" spellcheck="false" autocomplete="off" placeholder='粘贴 JSON 或 JSON5，例如 { name: "ZTools" }' aria-label="原始 JSON"></textarea>
+          </div>
+        </article>
+
+        <article class="editor-panel result-panel">
+          <div class="panel-heading result-heading">
+            <div class="view-tabs" role="tablist" aria-label="结果视图">
+              <button class="view-tab active" data-view="tree" type="button">树形</button>
+              <button class="view-tab" data-view="text" type="button">文本</button>
+            </div>
+            <span id="outputStats" class="stats">等待格式化</span>
+            <button id="copyButton" class="mini-button" type="button" disabled>复制</button>
+          </div>
+
+          <section id="treeView" class="result-view active" aria-label="JSON 树形视图">
+            <div id="treeEmpty" class="empty-state">
+              <span class="empty-mark">{ }</span>
+              <strong>等待 JSON</strong>
+              <small>输入后会自动解析并生成可折叠树</small>
+            </div>
+            <div id="jsonTree" class="json-tree"></div>
+            <aside id="nodeInspector" class="node-inspector" hidden>
+              <div class="inspector-meta">
+                <span id="nodeType" class="type-badge">string</span>
+                <code id="nodePath">$</code>
+              </div>
+              <textarea id="nodeValue" spellcheck="false" aria-label="节点值"></textarea>
+              <div class="inspector-actions">
+                <button id="copyPathButton" class="text-button" type="button">复制路径</button>
+                <button id="copyValueButton" class="text-button" type="button">复制值</button>
+                <button id="saveNodeButton" class="text-button accent" type="button">应用修改</button>
+              </div>
+            </aside>
+          </section>
+
+          <section id="textView" class="result-view" aria-label="格式化文本">
+            <textarea id="outputJson" spellcheck="false" readonly aria-label="格式化 JSON"></textarea>
+          </section>
+
+        </article>
+      </section>
+
+      <footer class="statusbar">
+        <span id="statusText" role="status" aria-live="polite">输入停止后自动格式化 · Ctrl + Enter 立即格式化</span>
+        <span id="parseMode">JSON / JSON5</span>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

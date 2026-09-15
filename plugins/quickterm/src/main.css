@@ -1,0 +1,44 @@
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  /* 必须 height:100% 而非仅 min-height：面板 .qt-panel 依赖这条百分比高度链，
+     否则面板只撑到内容高度，插件窗口下方空白区域收不到拖拽事件 */
+  height: 100%;
+}
+
+body {
+  font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  font-size: 13px;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: #ffffff;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #f4f4f4;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-color: #f4f4f4;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #303133;
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #303133;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #666;
+    border-color: #303133;
+  }
+}

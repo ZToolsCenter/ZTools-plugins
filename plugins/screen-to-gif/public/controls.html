@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>录制中</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      user-select: none;
+    }
+
+    #panel {
+      position: fixed;
+      inset: 4px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 14px;
+      border-radius: 10px;
+      box-sizing: border-box;
+      background: rgba(28, 29, 32, 0.96);
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.3);
+      -webkit-app-region: drag;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      flex: none;
+      border-radius: 50%;
+      background: #ff5f57;
+      box-shadow: 0 0 0 4px rgba(255, 95, 87, 0.16);
+      animation: blink 1.25s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%,
+      100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.35;
+      }
+    }
+
+    #timer {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 15px;
+      letter-spacing: 0;
+      color: #f2f4f8;
+      min-width: 58px;
+    }
+
+    #button {
+      margin-left: auto;
+      height: 34px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: 7px;
+      font-size: 13px;
+      color: #fff;
+      background: #e5484d;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+    }
+
+    #button:hover {
+      filter: brightness(1.08);
+    }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <span class="dot"></span>
+    <span id="timer">00:00</span>
+    <button id="button">停止录制</button>
+  </div>
+  <script>
+    const startTime = Date.now()
+    const timerEl = document.getElementById('timer')
+
+    // 每秒刷新一次录制时长
+    function formatTime(totalSeconds) {
+      const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0')
+      const seconds = Math.floor(totalSeconds % 60).toString().padStart(2, '0')
+      return `${minutes}:${seconds}`
+    }
+
+    setInterval(() => {
+      timerEl.textContent = formatTime((Date.now() - startTime) / 1000)
+    }, 500)
+
+    // 点击停止后通知主插件窗口进行收尾，并关闭控制条
+    document.getElementById('button').addEventListener('click', () => {
+      window.gifControlsApi.stop()
+      window.close()
+    })
+  </script>
+</body>
+</html>

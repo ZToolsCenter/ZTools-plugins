@@ -1,0 +1,185 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    "Microsoft YaHei",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  background: #f5f7fa;
+  color: #1f2937;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f5f7fa;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  padding: 0 11px;
+  background: #fff;
+  color: #111827;
+  font-size: 13px;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 26px;
+}
+
+.header {
+  margin-bottom: 18px;
+}
+
+.header h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel {
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 8%);
+}
+
+.compact-panel {
+  margin-top: 18px;
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.count-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.count-picker.solo {
+  gap: 12px;
+}
+
+.count-picker label {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.count-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 140px) auto;
+  justify-content: start;
+  gap: 10px;
+}
+
+.primary {
+  background: #16a34a;
+  color: #fff;
+}
+
+.secondary,
+.ghost {
+  border-color: #d8dee7;
+  background: #eef2f7;
+  color: #263241;
+}
+
+.status {
+  min-height: 20px;
+  margin: 16px 0 0;
+  color: #2563eb;
+  font-size: 13px;
+}
+
+.error {
+  color: #dc2626;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root,
+  body {
+    background: #111827;
+    color: #f9fafb;
+  }
+
+  .panel {
+    border-color: #303b4e;
+    background: #182131;
+    box-shadow: none;
+  }
+
+  .header p,
+  .count-picker label,
+  .status {
+    color: #b9c2d0;
+  }
+
+  input {
+    border-color: #3f4b5f;
+    background: #111827;
+    color: #f9fafb;
+  }
+
+  .secondary,
+  .ghost {
+    border-color: #3a465b;
+    background: #253044;
+    color: #f9fafb;
+  }
+}

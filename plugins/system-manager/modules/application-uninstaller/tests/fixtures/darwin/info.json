@@ -1,0 +1,5 @@
+{
+  "CFBundleIdentifier": "io.acme.Editor",
+  "CFBundleDisplayName": "Acme Editor",
+  "CFBundleShortVersionString": "2.4.1"
+}

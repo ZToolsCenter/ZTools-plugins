@@ -11,53 +11,172 @@ const { getBuiltinServers, getBuiltinTools } = require('./mcp_builtin.js');
 function getAllBuiltinToolNames() {
     const servers = getBuiltinServers();
     let allToolNames = [];
+
+    // 1. 获取当前 MCP 服务配置 (判断服务是否被禁用)
+    const mcpServersDoc = utools.db.get("mcpServers");
+    const configDoc = utools.db.get("config");
+    const mcpServersConfig = mcpServersDoc ? mcpServersDoc.data : (configDoc?.data?.config?.mcpServers || {});
+
+    // 2. 获取工具缓存 (判断具体工具是否被单独禁用)
+    const cacheDoc = utools.db.get("mcp_tools_cache");
+    const mcpToolCache = cacheDoc ? cacheDoc.data : {};
+
     // 遍历所有内置服务 ID
     for (const serverId in servers) {
-        // 获取该服务下的所有工具
+        // 校验 1：如果该服务在用户设置中被明确禁用，直接跳过
+        const serverState = mcpServersConfig[serverId];
+        if (serverState && serverState.isActive === false) {
+            continue;
+        }
+
+        // 获取该服务下的静态工具定义
         const tools = getBuiltinTools(serverId);
         if (tools && Array.isArray(tools)) {
-            allToolNames.push(...tools.map(t => t.name));
+            const cachedTools = mcpToolCache[serverId] || [];
+
+            tools.forEach(t => {
+                // 校验 2：如果该具体工具在面板中被用户单独关闭，则跳过
+                const cachedTool = cachedTools.find(ct => ct.name === t.name);
+                const isToolEnabled = cachedTool ? (cachedTool.enabled !== false) : true;
+
+                // 过滤掉 'sub_agent' 自身，防止子智能体无限递归调用子智能体
+                if (isToolEnabled && t.name !== 'sub_agent') {
+                    allToolNames.push(t.name);
+                }
+            });
         }
     }
-    // 过滤掉 'sub_agent' 自身，防止子智能体无限递归调用子智能体（除非显式指定）
-    return allToolNames.filter(name => name !== 'sub_agent');
+    
+    return allToolNames;
 }
 
-// 解析 Frontmatter (简单的 YAML 解析，不需要额外依赖)
+// 解析 Frontmatter（兼容 Claude Code Skill 常见 YAML：多行 |、数组、布尔值、带引号字符串）
+function parseYamlScalar(rawValue) {
+    const value = rawValue.trim();
+
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        return value.slice(1, -1);
+    }
+
+    if (value.startsWith('[') && value.endsWith(']')) {
+        const inner = value.slice(1, -1).trim();
+        if (!inner) return [];
+
+        const items = [];
+        let current = '';
+        let quote = null;
+
+        for (let i = 0; i < inner.length; i++) {
+            const ch = inner[i];
+            if ((ch === '"' || ch === "'") && inner[i - 1] !== '\\') {
+                quote = quote === ch ? null : (quote || ch);
+                current += ch;
+                continue;
+            }
+            if (ch === ',' && !quote) {
+                items.push(parseYamlScalar(current));
+                current = '';
+                continue;
+            }
+            current += ch;
+        }
+        if (current.trim()) items.push(parseYamlScalar(current));
+        return items;
+    }
+
+    return value;
+}
+
 function parseFrontmatter(content) {
-    const regex = /^---\s*[\r\n]+([\s\S]*?)[\r\n]+---\s*([\s\S]*)$/;
-    const match = content.match(regex);
-    
+    const normalized = content.replace(/\r\n/g, '\n');
+    const regex = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/;
+    const match = normalized.match(regex);
+
     if (!match) {
-        return { 
-            metadata: {}, 
-            body: content 
+        return {
+            metadata: {},
+            body: normalized
         };
     }
 
     const yamlStr = match[1];
     const body = match[2];
     const metadata = {};
+    const lines = yamlStr.split('\n');
 
-    yamlStr.split('\n').forEach(line => {
-        const parts = line.split(':');
-        if (parts.length >= 2) {
-            const key = parts[0].trim();
-            let value = parts.slice(1).join(':').trim();
-            
-            // 处理布尔值
-            if (value === 'true') value = true;
-            else if (value === 'false') value = false;
-            // 处理简单的数组 (例如 allowed-tools: [Read, Grep])
-            else if (value.startsWith('[') && value.endsWith(']')) {
-                value = value.slice(1, -1).split(',').map(s => s.trim());
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim() || line.trim().startsWith('#')) continue;
+
+        const keyMatch = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+        if (!keyMatch) continue;
+
+        const key = keyMatch[1].trim();
+        const rawValue = keyMatch[2] ?? '';
+
+        if (rawValue === '|' || rawValue === '>') {
+            const blockLines = [];
+            for (i = i + 1; i < lines.length; i++) {
+                const nextLine = lines[i];
+                if (!nextLine.trim()) {
+                    blockLines.push('');
+                    continue;
+                }
+                if (!/^\s+/.test(nextLine)) {
+                    i -= 1;
+                    break;
+                }
+                blockLines.push(nextLine.replace(/^\s{2}/, '').replace(/^\t/, ''));
             }
-            
-            metadata[key] = value;
+            metadata[key] = blockLines.join(rawValue === '>' ? ' ' : '\n').trim();
+            continue;
         }
-    });
+
+        if (rawValue === '') {
+            const listItems = [];
+            let foundIndentedList = false;
+            for (let j = i + 1; j < lines.length; j++) {
+                const nextLine = lines[j];
+                if (!nextLine.trim()) {
+                    if (foundIndentedList) continue;
+                    break;
+                }
+                const listMatch = nextLine.match(/^\s*-\s+(.*)$/);
+                if (!listMatch) break;
+                foundIndentedList = true;
+                listItems.push(parseYamlScalar(listMatch[1]));
+                i = j;
+            }
+            metadata[key] = foundIndentedList ? listItems : '';
+            continue;
+        }
+
+        metadata[key] = parseYamlScalar(rawValue);
+    }
 
     return { metadata, body };
+}
+
+function findSkillEntryDir(rootDir) {
+    const directSkillPath = path.join(rootDir, 'SKILL.md');
+    if (fs.existsSync(directSkillPath)) {
+        return rootDir;
+    }
+
+    const items = fs.readdirSync(rootDir, { withFileTypes: true });
+    for (const item of items) {
+        if (!item.isDirectory()) continue;
+        if (item.name.startsWith('.') || item.name === '__MACOSX' || item.name === 'node_modules') continue;
+
+        const fullPath = path.join(rootDir, item.name);
+        const found = findSkillEntryDir(fullPath);
+        if (found) return found;
+    }
+
+    return null;
 }
 
 // 递归获取目录结构
@@ -256,6 +375,11 @@ ${availableSkillsText}
                         type: "string",
                         enum: ["fast", "medium", "high"],
                         description: "Complexity level for Sub-Agent. Defaults to 'medium'. Required for Sub-Agent mode."
+                    },
+                    model_route: {
+                        type: "string",
+                        enum: ["superior", "general", "fast"],
+                        description: "Optional. Choose which default assistant route the Sub-Agent should use based on the task difficulty. Defaults to 'general'."
                     }
                 },
                 required: ["skill"],
@@ -318,7 +442,7 @@ function resolveSkillInvocation(skillRootPath, skillName, toolArgsObj) {
         const fileTreeStr = renderFiles(details.files);
         if (fileTreeStr.trim()) {
             assetsInfo += fileTreeStr;
-            assetsInfo += `\nNote: You can read these files using 'read_file' tool if referenced in the instructions.\n`;
+            assetsInfo += `\nNote: If referenced in the instructions, you can read these files (e.g., files in the \`references\` directory, rather than scripts/*) and run the relevant scripts (do not read the script files themselves, such as those in the \`scripts\` directory). Modifying files in the skill directory without permission is prohibited.\n`
             assetsInfo += `(Note: 'SKILL.md' contains the instructions you are currently reading, so it is hidden from this list.)\n`;
         }
     }
@@ -364,6 +488,7 @@ function resolveSkillInvocation(skillRootPath, skillName, toolArgsObj) {
                 context: (toolArgsObj.context || "No additional context."),
                 tools: toolsToUse,
                 planning_level: toolArgsObj.planning_level || 'medium',
+                model_route: toolArgsObj.model_route || 'general',
                 custom_steps: toolArgsObj.custom_steps
             }
         };
@@ -422,7 +547,59 @@ function deleteSkill(skillRootPath, skillId) {
  * @param {string} outputDir 导出目标目录
  * @returns {Promise<string>} 导出的文件路径
  */
-function exportSkillToPackage(skillRootPath, skillId, outputDir) {
+
+function generateEnvExampleContent(envContent) {
+    return String(envContent || '')
+        .split(/\r\n|\n|\r/)
+        .map((line) => {
+            if (!line.includes('=')) return line;
+
+            const equalIndex = line.indexOf('=');
+            return `${line.slice(0, equalIndex + 1)}`;
+        })
+        .join('\n');
+}
+
+function addSkillDirectoryToZip(zip, sourceDir, options = {}) {
+    const hideEnv = options?.hideEnv === true;
+
+    const walk = (currentDir, relativeDir = '') => {
+        const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+        const hasEnvExampleInCurrentDir = entries.some((entry) => entry.isFile() && entry.name === '.env.example');
+
+        for (const entry of entries) {
+            const absolutePath = path.join(currentDir, entry.name);
+            const relativePath = relativeDir ? path.join(relativeDir, entry.name) : entry.name;
+            const zipRelativePath = relativePath.split(path.sep).join('/');
+            const zipDir = path.posix.dirname(zipRelativePath) === '.' ? '' : path.posix.dirname(zipRelativePath);
+
+            if (hideEnv && entry.isFile() && entry.name === '.env') {
+                const envExampleName = hasEnvExampleInCurrentDir ? '.env.example2' : '.env.example';
+                const envExamplePath = zipDir ? `${zipDir}/${envExampleName}` : envExampleName;
+                const envExampleContent = generateEnvExampleContent(fs.readFileSync(absolutePath, 'utf8'));
+                zip.addFile(envExamplePath, Buffer.from(envExampleContent, 'utf8'));
+                continue;
+            }
+
+            if (entry.isDirectory()) {
+                walk(absolutePath, relativePath);
+                continue;
+            }
+
+            if (entry.isFile()) {
+                zip.addLocalFile(
+                    absolutePath,
+                    zipDir,
+                    path.posix.basename(zipRelativePath)
+                );
+            }
+        }
+    };
+
+    walk(sourceDir);
+}
+
+function exportSkillToPackage(skillRootPath, skillId, outputDir, options = {}) {
     return new Promise((resolve, reject) => {
         try {
             const skillDir = path.join(skillRootPath, skillId);
@@ -431,11 +608,10 @@ function exportSkillToPackage(skillRootPath, skillId, outputDir) {
             }
 
             const zip = new AdmZip();
-            // 将整个文件夹添加到 zip，不包含根文件夹本身，直接将内容放在根下
-            zip.addLocalFolder(skillDir);
+            // 将整个文件夹内容添加到 zip 根目录；隐藏 .env 时生成脱敏的 .env.example
+            addSkillDirectoryToZip(zip, skillDir, options);
 
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const outputFilename = `${skillId}_${timestamp}.skill`;
+            const outputFilename = `${skillId}.skill`;
             const outputPath = path.join(outputDir, outputFilename);
 
             zip.writeZip(outputPath);
@@ -456,28 +632,16 @@ function extractSkillPackage(filePath) {
         try {
             const zip = new AdmZip(filePath);
             const tempDir = path.join(os.tmpdir(), 'anywhere_skill_import', Date.now().toString());
-            
+
             if (!fs.existsSync(tempDir)) {
                 fs.mkdirSync(tempDir, { recursive: true });
             }
 
             zip.extractAllTo(tempDir, true);
-            
-            // 智能查找 SKILL.md 所在目录
-            let finalDir = tempDir;
-            const skillPath = path.join(tempDir, 'SKILL.md');
-            
-            // 如果根目录下没有 SKILL.md，尝试寻找唯一的有效子文件夹
-            if (!fs.existsSync(skillPath)) {
-                const items = fs.readdirSync(tempDir, { withFileTypes: true });
-                // 排除系统生成的隐藏目录或 Mac 资源目录
-                const dirs = items.filter(item => item.isDirectory() && !item.name.startsWith('.') && item.name !== '__MACOSX');
-                if (dirs.length === 1) {
-                    const subDir = path.join(tempDir, dirs[0].name);
-                    if (fs.existsSync(path.join(subDir, 'SKILL.md'))) {
-                        finalDir = subDir;
-                    }
-                }
+
+            const finalDir = findSkillEntryDir(tempDir);
+            if (!finalDir) {
+                throw new Error('Invalid skill package: SKILL.md not found');
             }
 
             resolve(finalDir);
@@ -485,6 +649,54 @@ function extractSkillPackage(filePath) {
             reject(e);
         }
     });
+}
+
+function exportSkillPackageBuffer(skillRootPath, skillId, options = {}) {
+    const skillDir = path.join(skillRootPath, skillId);
+    if (!fs.existsSync(skillDir)) {
+        throw new Error(`Skill directory not found: ${skillDir}`);
+    }
+
+    const zip = new AdmZip();
+    addSkillDirectoryToZip(zip, skillDir, options);
+    return zip.toBuffer();
+}
+
+function importSkillPackageBuffer(skillRootPath, skillId, packageBuffer) {
+    const zipBuffer = Buffer.isBuffer(packageBuffer)
+        ? packageBuffer
+        : Array.isArray(packageBuffer)
+            ? Buffer.from(packageBuffer)
+            : Buffer.from(packageBuffer || []);
+
+    const zip = new AdmZip(zipBuffer);
+    const tempDir = path.join(os.tmpdir(), 'anywhere_skill_import_buffer', Date.now().toString());
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    try {
+        zip.extractAllTo(tempDir, true);
+        const finalDir = findSkillEntryDir(tempDir);
+        if (!finalDir) {
+            throw new Error('Invalid skill package: SKILL.md not found');
+        }
+
+        if (!fs.existsSync(skillRootPath)) {
+            fs.mkdirSync(skillRootPath, { recursive: true });
+        }
+
+        const targetDir = path.join(skillRootPath, skillId);
+        if (fs.existsSync(targetDir)) {
+            fs.rmSync(targetDir, { recursive: true, force: true });
+        }
+        fs.cpSync(finalDir, targetDir, { recursive: true, force: true });
+        return { ok: true, targetDir };
+    } finally {
+        if (fs.existsSync(tempDir)) {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    }
 }
 
 module.exports = {
@@ -495,5 +707,7 @@ module.exports = {
     saveSkill,
     deleteSkill,
     exportSkillToPackage,
+    exportSkillPackageBuffer,
     extractSkillPackage,
+    importSkillPackageBuffer,
 };

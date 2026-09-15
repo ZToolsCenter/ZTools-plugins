@@ -1,6 +1,7 @@
 # Changelog
 
-## 2.0.0
+
+## 2.0.0 - 2026-07-07
 
 ### Changed
 
@@ -13,7 +14,7 @@
 - 驼峰/蛇形/常量/短横线、Base64、MD5、URL 编解码等转换类型
 - `docs/prds/char-transform.md` 需求文档
 
-## 1.1.0
+## 1.1.0 - 2026-07-07
 
 ### Changed
 
@@ -28,7 +29,7 @@
 - `scripts/sync-template.sh` — 发布后同步标准 template
 - `vue-router` 作为 ztools-ui 对等依赖
 
-## 1.0.0
+## 1.0.0 - 2026-07-07
 
 ### Added
 

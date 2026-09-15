@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "noEmit": true
+  },
+  "references": [],
+  "include": ["preload/**/*.ts", "src/**/*.ts", "src/**/*.vue", "tests/**/*.ts"]
+}

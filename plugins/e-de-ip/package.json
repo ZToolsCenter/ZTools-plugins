@@ -1,0 +1,7 @@
+{
+    "name": "e-de-ip",
+    "version": "1.0.2",
+    "description": "查看电脑内网、公网、延迟与 DNS 信息。",
+    "author": "Hi",
+    "license": "MIT"
+}

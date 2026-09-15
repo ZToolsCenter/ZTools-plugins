@@ -15,7 +15,8 @@
 - **一键连接** —— 点击连接按钮，自动生成 RDP 配置文件并调用 `mstsc.exe` 发起远程桌面连接
 - **凭据存储** —— 使用 `cmdkey` 预存 Windows 凭据，实现免密连接体验
 - **搜索筛选** —— 支持按编号实时搜索筛选列表
-- **数据持久化** —— 主机列表存储在 ZTools 用户数据目录的 `hosts.json` 文件中
+- **数据持久化** —— 主机列表通过 ZTools 数据库 API 存储，每个主机作为独立文档，以插件名称隔离
+- **密码加密** —— 密码使用 `AES-256-CBC` 加密存储，每次加密使用随机 IV，并兼容旧版本 base64 数据
 
 ## 技术栈
 
@@ -66,7 +67,10 @@ ZTools 插件配置文件，定义插件名称、触发指令、入口文件、p
 | `deleteHost(id)` | 删除主机 |
 | `connectRdp(address, username, password)` | 生成临时 RDP 文件，使用 `cmdkey` 存储凭据，调用 `mstsc.exe` 连接，5秒后清理凭据和临时文件 |
 
-密码使用 `base64` 编码存储于 `hosts.json` 中。
+数据存储使用 ZTools 数据库 API（`window.ztools.db`）：
+- 每个主机作为一条独立文档，`_id` 即为主机编号
+- 密码通过 `AES-256-CBC` 加密后保存，格式为 `enc:<iv>:<encrypted>`
+- 连接时自动解密，并保留对旧版本 `base64` 编码数据的兼容
 
 ### `src/RemoteManager/index.vue`
 

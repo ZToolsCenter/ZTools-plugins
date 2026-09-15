@@ -1,0 +1,62 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "icon-creator",
+  "title": "图标创建工具",
+  "description": "可视化图标设计工具，支持图层编辑、样式预设和 PNG/SVG 多格式导出",
+  "author": "皮皮虾我们走",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:3000"
+  },
+  "features": [
+    {
+      "code": "icon-creator",
+      "explain": "图标创建工具",
+      "icon": "logo.png",
+      "cmds": [
+        "图标创建工具"
+      ]
+    }
+  ],
+  "tools": {
+    "command_dispatcher": {
+      "description": "图标创建工具编辑器操作入口。通过 operation 参数路由到具体编辑能力：查询画布概览/对象列表/选区/画板/历史/色板/快照/对齐参考线，画布设置（尺寸/背景/像素网格/Keyline 模板），组件符号系统（定义/列表/插入实例/更新定义/解除关联），添加对象（基础图形/文本/SVG/Iconify 图标/内置模板/批量创建），对象操作（属性/批量属性/文本编辑/层级/显隐/锁定/命名/复制/删除/翻转/编组/蒙版），对齐分布，布尔运算，文字转曲，位图滤镜与混合模式、位图裁剪与图案填充，全局颜色替换，样式系统（色板/渐变/阴影/样式预设），撤销重做/历史跳转/命名快照，工程文档（新建/保存/读写 JSON），画板管理（切换/新建/删除/重命名），导出（SVG/PNG/WebP 文本与文件、多尺寸套件、ICO/ICNS 容器、按画板导出）与视口缩放及画布缩略图预览。所有操作直接作用于当前打开的编辑器窗口。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "要执行的操作名。常用：get_overview（画布概览）、list_objects（对象列表）、get_selection（选区查询）、add_shape（添加图形）、add_text（添加文本）、insert_svg（导入 SVG）、insert_iconify_icon（插入 Iconify 图标）、set_object_props（修改对象属性）、update_text（更新文本内容与排版）、delete_objects（删除对象）、undo（撤销）、redo（重做）、export_svg_text（导出 SVG 文本）、export_png_file（导出 PNG 文件）、get_canvas_thumbnail（画布缩略图预览）。完整操作名列表：get_overview, list_objects, get_object, find_objects, get_selection, get_selection_svg, list_artboards, list_history, list_swatches, list_snapshots, add_swatch, remove_swatch, resize_canvas, set_canvas_background, set_pixel_grid, set_keyline, list_guides, set_guides, clear_guides, replace_color, define_symbol, list_symbols, insert_symbol_instance, update_symbol, detach_symbol_instance, add_shape, add_text, insert_svg, insert_iconify_icon, insert_icon_template, apply_icon_template, create_objects, select_objects, select_all, set_object_props, update_text, move_layer, set_object_visible, set_object_locked, duplicate_objects, delete_objects, flip_object, group_objects, ungroup_object, set_object_name, align_objects, distribute_objects, batch_set_props, save_style_preset, remove_style_preset, list_style_presets, apply_style_preset, outline_text, boolean_ops, mask_objects, unmask_object, undo, redo, jump_to_history, save_snapshot, restore_snapshot, delete_snapshot, new_document, save_project, get_project_json, load_project_json, switch_artboard, add_artboard, delete_artboard, rename_artboard, export_svg_text, export_png_data_url, get_canvas_thumbnail, export_svg_file, export_png_file, export_size_set, export_icon_container, set_viewport, apply_image_filter, crop_image, set_pattern_fill。传错操作名会返回全部可用操作列表。"
+          },
+          "args": {
+            "type": "object",
+            "description": "操作参数对象，具体字段由 operation 决定。示例：add_shape 传 {\"shape\":\"circle\",\"x\":256,\"y\":256}；add_text 传 {\"text\":\"你好\",\"preset\":\"title\"}；set_object_props 传 {\"objectId\":\"editor-object-1\",\"props\":{\"fill\":\"#ff0000\",\"angle\":45}}；update_text 传 {\"objectId\":\"editor-object-1\",\"text\":\"新文案\",\"fontSize\":32,\"textAlign\":\"center\"}；export_png_file 传 {\"size\":512,\"fileName\":\"my-icon\",\"transparentBackground\":true}。"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "操作是否成功执行。"
+          },
+          "message": {
+            "type": "string",
+            "description": "ok=false 时的可读错误说明。"
+          },
+          "data": {
+            "type": "object",
+            "description": "操作结果数据，结构由 operation 决定。"
+          }
+        }
+      }
+    }
+  }
+}

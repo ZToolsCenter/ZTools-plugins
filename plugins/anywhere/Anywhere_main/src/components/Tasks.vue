@@ -1,10 +1,10 @@
 <script setup>
-import { ref, watch, reactive, onMounted, onBeforeUnmount, computed, inject } from 'vue'
+import { ref, watch, reactive, onMounted, onActivated, onDeactivated, computed, inject } from 'vue'
 import { Plus, Delete, Document, Edit, Search, InfoFilled, Refresh, Clock, Setting as SettingIcon, List, VideoPlay } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const currentConfig = inject('config');
 const activeTaskId = ref(null);
 const searchQuery = ref('');
@@ -13,18 +13,48 @@ const searchQuery = ref('');
 const availablePrompts = computed(() => {
     if (!currentConfig.value || !currentConfig.value.prompts) return [];
     const prompts = Object.entries(currentConfig.value.prompts)
-        .filter(([key, p]) => p.showMode === 'window')
-        .map(([key, p]) => ({ label: key, value: key }))
+        .filter(([, p]) => p.showMode === 'window' && p.enable !== false)
+        .map(([key]) => ({ label: key, value: key }))
         .sort((a, b) => a.label.localeCompare(b.label));
 
     return [{ label: t('tasks.defaultPromptLabel'), value: '__DEFAULT__' }, ...prompts];
 });
 
+const isSelectedTaskPromptUnavailable = computed(() => {
+    const promptKey = selectedTask.value?.promptKey;
+    if (!promptKey || promptKey === '__DEFAULT__') return false;
+
+    const promptConfig = currentConfig.value?.prompts?.[promptKey];
+    return !promptConfig || promptConfig.showMode !== 'window' || promptConfig.enable === false;
+});
+
 const availableModels = computed(() => {
     const models = [];
     if (!currentConfig.value || !currentConfig.value.providers) return models;
-    const providerOrder = currentConfig.value.providerOrder || [];
-    providerOrder.forEach(providerId => {
+
+    const folders = currentConfig.value.providerFolders || {};
+    const order = currentConfig.value.providerOrder || [];
+
+    // 1. 文件夹按字母序排序
+    const sortedFolderIds = Object.keys(folders).sort((a, b) =>
+        (folders[a].name || '').localeCompare(folders[b].name || '')
+    );
+
+    const orderedProviderIds = [];
+    // 2. 提取文件夹内的服务商
+    sortedFolderIds.forEach(folderId => {
+        order.forEach(id => {
+            const p = currentConfig.value.providers[id];
+            if (p && p.folderId === folderId) orderedProviderIds.push(id);
+        });
+    });
+    // 3. 提取根目录的服务商
+    order.forEach(id => {
+        const p = currentConfig.value.providers[id];
+        if (p && (!p.folderId || !folders[p.folderId])) orderedProviderIds.push(id);
+    });
+
+    orderedProviderIds.forEach(providerId => {
         const provider = currentConfig.value.providers[providerId];
         if (provider && provider.enable && provider.modelList && provider.modelList.length > 0) {
             provider.modelList.forEach(modelName => {
@@ -50,10 +80,34 @@ const availableMcpServers = computed(() => {
 // 获取所有技能
 const availableSkills = ref([]);
 
+const localProjectOptions = ref([]);
+
+const refreshLocalProjectOptions = async () => {
+    const localChatPath = currentConfig.value?.webdav?.localChatPath || '';
+    if (!localChatPath) {
+        localProjectOptions.value = [];
+        return;
+    }
+
+    try {
+        const result = await window.api.readLocalProjects(localChatPath);
+        const projects = Array.isArray(result?.projects) ? result.projects : [];
+        localProjectOptions.value = projects
+            .filter(project => project && typeof project === 'object' && String(project.id || '').trim())
+            .map(project => ({ label: project.name || project.id, value: project.id }))
+            .sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { numeric: true, sensitivity: 'base' }));
+    } catch (error) {
+        console.warn('[tasks] failed to load local projects:', error);
+        localProjectOptions.value = [];
+    }
+};
+
 onMounted(async () => {
     if (!currentConfig.value.tasks) currentConfig.value.tasks = {};
     const taskIds = Object.keys(currentConfig.value.tasks);
     if (taskIds.length > 0) activeTaskId.value = taskIds[0];
+
+    await refreshLocalProjectOptions();
 
     if (currentConfig.value.skillPath) {
         try {
@@ -61,10 +115,13 @@ onMounted(async () => {
             availableSkills.value = skills.sort((a, b) => a.name.localeCompare(b.name));
         } catch (e) { console.error(e); }
     }
+});
+
+onActivated(() => {
     window.addEventListener('keydown', handleGlobalKeyDown);
 });
 
-onBeforeUnmount(() => {
+onDeactivated(() => {
     window.removeEventListener('keydown', handleGlobalKeyDown);
 });
 
@@ -98,17 +155,26 @@ const selectedTask = computed(() => {
     return null;
 });
 
-async function atomicSave(updateFunction) {
-    try {
-        const latestConfigData = await window.api.getConfig();
-        const latestConfig = latestConfigData.config;
-        if (!latestConfig.tasks) latestConfig.tasks = {};
-        updateFunction(latestConfig);
-        await window.api.updateConfigWithoutFeatures({ config: latestConfig });
-        currentConfig.value = latestConfig;
-    } catch (error) {
-        ElMessage.error(t('common.saveFailed'));
-    }
+let taskSaveQueue = Promise.resolve();
+
+function atomicSave(updateFunction) {
+    taskSaveQueue = taskSaveQueue
+        .catch(() => {})
+        .then(async () => {
+            try {
+                const latestConfigData = await window.api.getConfig();
+                const latestConfig = latestConfigData.config;
+                if (!latestConfig.tasks) latestConfig.tasks = {};
+                updateFunction(latestConfig);
+                await window.api.updateConfigWithoutFeatures({ config: latestConfig });
+                currentConfig.value = latestConfig;
+                return latestConfig;
+            } catch (error) {
+                ElMessage.error(t('common.saveFailed'));
+                throw error;
+            }
+        });
+    return taskSaveQueue;
 }
 
 // 手动刷新配置
@@ -129,9 +195,16 @@ const showAddDialog = ref(false);
 const showGlobalSettingDialog = ref(false);
 const addTaskForm = reactive({ name: "" });
 
-function saveGlobalTaskModel(val) {
+
+const defaultAssistantRouteOptions = computed(() => ([
+    { value: 'superior', label: t('tasks.defaultAssistantRoutes.superior.label') },
+    { value: 'general', label: t('tasks.defaultAssistantRoutes.general.label') },
+    { value: 'fast', label: t('tasks.defaultAssistantRoutes.fast.label') }
+]));
+
+function saveDefaultAssistantModel(settingKey, val) {
     atomicSave(config => {
-        config.defaultTaskModel = val;
+        config[settingKey] = val;
     });
     ElMessage.success(t('tasks.defaultModelUpdated'));
 }
@@ -147,7 +220,7 @@ function handleAddTask() {
     const taskId = `task_${Date.now()}`;
 
     const builtinIds = Object.entries(currentConfig.value.mcpServers || {})
-        .filter(([, server]) => server.type === 'builtin')
+        .filter(([, server]) => server.type === 'builtin' && server.isActive !== false)
         .map(([id]) => id);
 
     atomicSave(config => {
@@ -165,11 +238,13 @@ function handleAddTask() {
             singleDate: new Date().toLocaleDateString('sv-SE'),
             singleTime: '12:00',
             promptKey: '__DEFAULT__',
+            modelRoute: 'general',
             description: '',
             extraMcp: builtinIds,
             extraSkills: [],
             autoSave: true,
-            autoClose: true,
+            autoSaveProjectId: '',
+            autoClose: false,
             enabled: false,
             history: []
         };
@@ -280,24 +355,27 @@ async function clearTaskHistory() {
 }
 
 async function saveTaskSetting(key, value) {
-    if (!activeTaskId.value) return;
+    const taskId = activeTaskId.value;
+    if (!taskId) return;
     if (key === 'name' && /[\\/:*?"<>|]/.test(value)) {
         ElMessage.warning(t('tasks.nameInvalidFileSystem'));
         return;
     }
 
-    if (currentConfig.value.tasks[activeTaskId.value]) {
-        currentConfig.value.tasks[activeTaskId.value][key] = value;
-        if (key === 'enabled' && value === true) {
-            currentConfig.value.tasks[activeTaskId.value].lastRunTime = Date.now();
+    const enabledAt = key === 'enabled' && value === true ? Date.now() : 0;
+
+    if (currentConfig.value.tasks[taskId]) {
+        currentConfig.value.tasks[taskId][key] = value;
+        if (enabledAt) {
+            currentConfig.value.tasks[taskId].lastRunTime = enabledAt;
         }
     }
 
-    atomicSave(config => {
-        config.tasks[activeTaskId.value][key] = value;
-        // 同步保存到数据库
-        if (key === 'enabled' && value === true) {
-            config.tasks[activeTaskId.value].lastRunTime = Date.now();
+    await atomicSave(config => {
+        if (!config.tasks[taskId]) return;
+        config.tasks[taskId][key] = value;
+        if (enabledAt) {
+            config.tasks[taskId].lastRunTime = enabledAt;
         }
     });
 }
@@ -326,7 +404,7 @@ const handleGlobalKeyDown = (e) => {
 
 const formatTime = (ts) => {
     if (!ts) return t('tasks.neverExecuted');
-    return new Date(ts).toLocaleString('zh-CN'); // 日期时间格式建议保留本地化
+    return new Date(ts).toLocaleString(locale.value === 'en' ? 'en-US' : 'zh-CN'); // 日期时间格式建议保留本地化
 }
 
 async function openTaskChat(logFile) {
@@ -348,7 +426,8 @@ async function openTaskChat(logFile) {
     try {
         ElMessage.info(t('chats.alerts.loadingChat') || '正在加载对话...');
         const jsonString = await window.api.readLocalFile(filePath);
-        await window.api.coderedirect(t('chats.alerts.restoreChat') || '恢复聊天', JSON.stringify({ sessionData: jsonString, filename: logFile }));
+        // 将 t('chats.alerts.restoreChat') || '恢复聊天' 修改为硬编码的 '恢复聊天'
+        await window.api.coderedirect('恢复聊天', JSON.stringify({ sessionData: jsonString, filename: logFile }));
         ElMessage.success(t('chats.alerts.restoreInitiated') || '对话已开始');
     } catch (error) {
         ElMessage.error((t('chats.alerts.restoreFailed') || '无法打开对话') + `: ${error.message}`);
@@ -601,6 +680,20 @@ async function openTaskChat(logFile) {
                                                 <el-option v-for="item in availablePrompts" :key="item.value"
                                                     :label="item.label" :value="item.value" />
                                             </el-select>
+                                            <el-alert v-if="isSelectedTaskPromptUnavailable"
+                                                :title="t('tasks.targetPromptUnavailableWarning')"
+                                                type="warning" :closable="false" show-icon
+                                                style="margin-top: 10px;" />
+                                        </el-form-item>
+
+                                        <el-form-item v-if="selectedTask.promptKey === '__DEFAULT__'"
+                                            :label="t('tasks.defaultAssistantRouteLabel')">
+                                            <el-select v-model="selectedTask.modelRoute"
+                                                @change="(val) => saveTaskSetting('modelRoute', val)"
+                                                style="width: 100%;">
+                                                <el-option v-for="item in defaultAssistantRouteOptions" :key="item.value"
+                                                    :label="item.label" :value="item.value" />
+                                            </el-select>
                                         </el-form-item>
                                         <el-form-item :label="t('tasks.promptContentLabel')"
                                             class="task-desc-form-item">
@@ -650,21 +743,38 @@ async function openTaskChat(logFile) {
                                             </el-col>
                                             <el-col :span="24" style="margin-top: 5px;">
                                                 <el-form-item :label="t('tasks.backgroundOptionsLabel')">
-                                                    <div class="toggle-group">
-                                                        <el-checkbox v-model="selectedTask.autoSave"
-                                                            @change="(val) => saveTaskSetting('autoSave', val)">
-                                                            {{ t('tasks.autoSaveLabel') }}
-                                                            <el-tooltip :content="t('tasks.autoSaveTooltip')"
-                                                                placement="top">
-                                                                <el-icon
-                                                                    style="margin-left: 4px; vertical-align: middle;">
-                                                                    <InfoFilled />
-                                                                </el-icon>
-                                                            </el-tooltip>
-                                                        </el-checkbox>
-                                                        <el-checkbox v-model="selectedTask.autoClose"
-                                                            @change="(val) => saveTaskSetting('autoClose', val)"
-                                                            :label="t('tasks.autoCloseLabel')" />
+                                                    <div class="toggle-group task-toggle-group">
+                                                        <div class="task-toggle-row">
+                                                            <el-checkbox v-model="selectedTask.autoSave"
+                                                                @change="(val) => saveTaskSetting('autoSave', val)">
+                                                                {{ t('tasks.autoSaveLabel') }}
+                                                                <el-tooltip :content="t('tasks.autoSaveTooltip')"
+                                                                    placement="top">
+                                                                    <el-icon
+                                                                        style="margin-left: 4px; vertical-align: middle;">
+                                                                        <InfoFilled />
+                                                                    </el-icon>
+                                                                </el-tooltip>
+                                                            </el-checkbox>
+                                                        </div>
+                                                        <div v-if="selectedTask.autoSave" class="task-project-row">
+                                                            <span class="task-project-label">{{ t('tasks.autoSaveProjectLabel', '保存到') }}</span>
+                                                            <el-select
+                                                                :model-value="selectedTask.autoSaveProjectId || ''"
+                                                                @change="(val) => saveTaskSetting('autoSaveProjectId', val || '')"
+                                                                clearable
+                                                                :placeholder="t('tasks.autoSaveProjectPlaceholder', '未分组')"
+                                                                class="task-project-select">
+                                                                <el-option :label="t('tasks.autoSaveProjectUngrouped', '未分组')" value="" />
+                                                                <el-option v-for="project in localProjectOptions" :key="project.value"
+                                                                    :label="project.label" :value="project.value" />
+                                                            </el-select>
+                                                        </div>
+                                                        <div class="task-toggle-row">
+                                                            <el-checkbox v-model="selectedTask.autoClose"
+                                                                @change="(val) => saveTaskSetting('autoClose', val)"
+                                                                :label="t('tasks.autoCloseLabel')" />
+                                                        </div>
                                                     </div>
                                                 </el-form-item>
                                             </el-col>
@@ -758,18 +868,44 @@ async function openTaskChat(logFile) {
         </el-dialog>
 
         <!-- 默认助手设置弹窗 -->
-        <el-dialog v-model="showGlobalSettingDialog" :title="t('tasks.globalSettingsDialogTitle')" width="400px"
+        <el-dialog v-model="showGlobalSettingDialog" :title="t('tasks.globalSettingsDialogTitle')" width="520px"
             :close-on-click-modal="false">
             <el-form label-position="top">
                 <el-form-item>
                     <template #label>
-                        {{ t('tasks.executionModelLabel') }}
-                        <el-tooltip :content="t('tasks.executionModelTooltip')"><el-icon>
+                        {{ t('tasks.defaultAssistantRoutes.superior.label') }}
+                        <el-tooltip :content="t('tasks.defaultAssistantRoutes.superior.tooltip')"><el-icon>
+                                <InfoFilled />
+                            </el-icon></el-tooltip>
+                    </template>
+                    <el-select v-model="currentConfig.defaultSuperiorModel" filterable style="width: 100%;"
+                        @change="(val) => saveDefaultAssistantModel('defaultSuperiorModel', val)">
+                        <el-option v-for="item in availableModels" :key="item.value" :label="item.label"
+                            :value="item.value" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <template #label>
+                        {{ t('tasks.defaultAssistantRoutes.general.label') }}
+                        <el-tooltip :content="t('tasks.defaultAssistantRoutes.general.tooltip')"><el-icon>
                                 <InfoFilled />
                             </el-icon></el-tooltip>
                     </template>
                     <el-select v-model="currentConfig.defaultTaskModel" filterable style="width: 100%;"
-                        @change="saveGlobalTaskModel">
+                        @change="(val) => saveDefaultAssistantModel('defaultTaskModel', val)">
+                        <el-option v-for="item in availableModels" :key="item.value" :label="item.label"
+                            :value="item.value" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <template #label>
+                        {{ t('tasks.defaultAssistantRoutes.fast.label') }}
+                        <el-tooltip :content="t('tasks.defaultAssistantRoutes.fast.tooltip')"><el-icon>
+                                <InfoFilled />
+                            </el-icon></el-tooltip>
+                    </template>
+                    <el-select v-model="currentConfig.defaultFastModel" filterable style="width: 100%;"
+                        @change="(val) => saveDefaultAssistantModel('defaultFastModel', val)">
                         <el-option v-for="item in availableModels" :key="item.value" :label="item.label"
                             :value="item.value" />
                     </el-select>
@@ -1018,6 +1154,36 @@ async function openTaskChat(logFile) {
     margin-top: 4px;
 }
 
+.task-toggle-group {
+    gap: 10px;
+}
+
+.task-toggle-row {
+    display: flex;
+    align-items: center;
+    min-height: 32px;
+}
+
+.task-project-row {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 280px);
+    align-items: center;
+    gap: 12px;
+    margin-left: 24px;
+}
+
+.task-project-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.task-project-select {
+    width: 100%;
+}
+
+
 .task-textarea :deep(.el-textarea__inner) {
     background-color: var(--bg-primary);
     border: 1px solid var(--border-primary);
@@ -1200,4 +1366,28 @@ html.dark .task-textarea-scrollbar :deep(.el-scrollbar__thumb:hover) {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+
+html.dark .task-form :deep(.el-checkbox-button__inner) {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border-primary) !important;
+    box-shadow: none !important;
+}
+
+html.dark .task-form :deep(.el-checkbox-button.is-checked .el-checkbox-button__inner) {
+    background-color: var(--el-color-primary) !important;
+    color: #000000 !important;
+    border-color: var(--el-color-primary) !important;
+    box-shadow: -1px 0 0 0 var(--el-color-primary) !important;
+}
+
+html.dark .task-form :deep(.el-checkbox-button:first-child .el-checkbox-button__inner) {
+    border-left-color: var(--border-primary) !important;
+}
+
+html.dark .task-form :deep(.el-checkbox-button.is-checked:first-child .el-checkbox-button__inner) {
+    border-left-color: var(--el-color-primary) !important;
+}
+
 </style>

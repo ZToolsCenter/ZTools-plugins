@@ -1,0 +1,25 @@
+{
+    "name": "var-conv",
+    "title": "变量名转换",
+    "description": "将任意写法变量名转换为任意写法变量名，另兼有大小写转换功能。本插件由 uTools 插件 imdong/Var-Conv 移植而来并优化，原作者青石 (ImDong)。",
+    "author": "Hi,ImDong",
+    "version": "1.0.2",
+    "main": "index.html",
+    "logo": "logo.png",
+    "preload": "src/preload.js",
+    "features": [{
+        "code": "convert",
+        "explain": "将任意写法变量名转换为任意命名风格",
+        "icon": "logo.png",
+        "cmds": [
+            "变量",
+            {
+                "type": "over",
+                "label": "将变量名转换为",
+                "exclude": "/[\\t\\n]/",
+                "minLength": 1,
+                "maxLength": 120
+            }
+        ]
+    }]
+}

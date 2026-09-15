@@ -1,0 +1,76 @@
+{
+  "name": "dagu-ocr",
+  "title": "大古截图",
+  "version": "1.1.0",
+  "description": "截图、OCR 文字识别与图片翻译，从图片中提取并翻译文字",
+  "author": "beierweiwei",
+  "logo": "icon.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "development": {
+    "main": "http://127.0.0.1:5173/index.html"
+  },
+  "width": 960,
+  "height": 640,
+  "categories": ["media"],
+  "features": [
+    {
+      "code": "screenshot",
+      "mainHide": true,
+      "explain": "截图",
+      "icon": "icon.png",
+      "cmds": [
+        "截图",
+        "Screenshot"
+      ]
+    },
+    {
+      "code": "edit-image",
+      "explain": "编辑图片",
+      "icon": "icon.png",
+      "cmds": [
+        "编辑图片",
+        "Edit Image",
+        { "type": "img", "label": "编辑图片" }
+      ]
+    },
+    {
+      "code": "ocr",
+      "explain": "图片 OCR",
+      "icon": "icon.png",
+      "cmds": [
+        "OCR",
+        "Image OCR",
+        { "type": "img", "label": "图片 OCR" }
+      ]
+    },
+    {
+      "code": "setup",
+      "explain": "配置",
+      "icon": "icon.png",
+      "cmds": [
+        "配置",
+        "Settings"
+      ]
+    },
+    {
+      "code": "translate",
+      "explain": "翻译文字",
+      "icon": "icon.png",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "翻译文字",
+          "minLength": 1,
+          "maxLength": 10000
+        },
+        {
+          "type": "over",
+          "label": "Translate Text",
+          "minLength": 1,
+          "maxLength": 10000
+        }
+      ]
+    }
+  ]
+}

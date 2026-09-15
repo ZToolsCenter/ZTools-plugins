@@ -1,0 +1,481 @@
+{
+  "pluginName": "鹅的书签",
+  "description": "参考 noice.so 风格的 uTools 书签插件，支持二级分类、搜索、图标缓存与无效检测",
+  "version": "0.1.0",
+  "author": "eachann",
+  "homepage": "https://github.com/eachann1024/goose-mark",
+  "preload": "preload.js",
+  "name": "goose-marks",
+  "title": "鹅的书签",
+  "main": "index.html",
+  "pluginSetting": {
+    "height": 800
+  },
+  "logo": "logo.png",
+  "tools": {
+    "get_mcp_capabilities": {
+      "description": "获取鹅的书签 MCP 能力、版本与写入确认约束，用于客户端发现可用工具。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    },
+    "get_bookmark_tree": {
+      "description": "获取书签分组树，可选是否返回每个子分组下的书签列表。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "includeBookmarks": {
+            "type": "boolean",
+            "description": "是否在树结构中包含书签列表，默认 true。"
+          },
+          "includeTrash": {
+            "type": "boolean",
+            "description": "是否包含回收站，默认 false。"
+          }
+        }
+      }
+    },
+    "list_groups": {
+      "description": "列出所有一级分组和其下二级分组摘要。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "includeTrash": {
+            "type": "boolean",
+            "description": "是否包含回收站，默认 false。"
+          }
+        }
+      }
+    },
+    "list_bookmarks": {
+      "description": "按分组或二级分组列出书签。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "一级分组 ID。"
+          },
+          "subGroupId": {
+            "type": "string",
+            "description": "二级分组 ID。"
+          },
+          "includeTrash": {
+            "type": "boolean",
+            "description": "是否包含回收站，默认 false。"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "description": "分页大小，默认 100。"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "分页偏移，默认 0。"
+          }
+        }
+      }
+    },
+    "search_bookmarks": {
+      "description": "按标题、描述、标签、URL 和拼音搜索书签。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "搜索关键词。"
+          },
+          "groupId": {
+            "type": "string",
+            "description": "可选，限制在某个一级分组内搜索。"
+          },
+          "subGroupId": {
+            "type": "string",
+            "description": "可选，限制在某个二级分组内搜索。"
+          },
+          "includeTrash": {
+            "type": "boolean",
+            "description": "是否包含回收站，默认 false。"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "description": "返回条数上限，默认 50。"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    "get_bookmark": {
+      "description": "获取单条书签详情。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bookmarkId": {
+            "type": "string",
+            "description": "书签 ID。"
+          }
+        },
+        "required": [
+          "bookmarkId"
+        ]
+      }
+    },
+    "open_bookmark": {
+      "description": "打开指定书签；模板书签需要提供 query。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bookmarkId": {
+            "type": "string",
+            "description": "书签 ID。"
+          },
+          "query": {
+            "type": "string",
+            "description": "模板书签替换占位符使用的查询词。"
+          }
+        },
+        "required": [
+          "bookmarkId"
+        ]
+      }
+    },
+    "create_group": {
+      "description": "创建一级分组。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "分组名称。"
+          },
+          "firstSubGroupName": {
+            "type": "string",
+            "description": "首个二级分组名称，可选。"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    "update_group": {
+      "description": "重命名一级分组。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "一级分组 ID。"
+          },
+          "name": {
+            "type": "string",
+            "description": "新名称。"
+          }
+        },
+        "required": [
+          "groupId",
+          "name"
+        ]
+      }
+    },
+    "remove_group": {
+      "description": "删除一级分组，失去归属的书签会进入回收站。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "一级分组 ID。"
+          }
+        },
+        "required": [
+          "groupId"
+        ]
+      }
+    },
+    "create_sub_group": {
+      "description": "在指定一级分组下创建二级分组。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "一级分组 ID。"
+          },
+          "name": {
+            "type": "string",
+            "description": "二级分组名称。"
+          }
+        },
+        "required": [
+          "groupId",
+          "name"
+        ]
+      }
+    },
+    "update_sub_group": {
+      "description": "重命名二级分组。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "一级分组 ID。"
+          },
+          "subGroupId": {
+            "type": "string",
+            "description": "二级分组 ID。"
+          },
+          "name": {
+            "type": "string",
+            "description": "新名称。"
+          }
+        },
+        "required": [
+          "groupId",
+          "subGroupId",
+          "name"
+        ]
+      }
+    },
+    "remove_sub_group": {
+      "description": "删除二级分组，失去归属的书签会进入回收站。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "description": "一级分组 ID。"
+          },
+          "subGroupId": {
+            "type": "string",
+            "description": "二级分组 ID。"
+          }
+        },
+        "required": [
+          "groupId",
+          "subGroupId"
+        ]
+      }
+    },
+    "create_bookmark": {
+      "description": "创建书签，可选指定一个或多个位置。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "书签标题。"
+          },
+          "url": {
+            "type": "string",
+            "description": "书签地址。"
+          },
+          "desc": {
+            "type": "string",
+            "description": "书签描述。"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "标签列表。"
+          },
+          "pinned": {
+            "type": "boolean",
+            "description": "是否置顶。"
+          },
+          "allowUniversal": {
+            "type": "boolean",
+            "description": "是否允许在 uTools 主输入框万能匹配。"
+          },
+          "locations": {
+            "type": "array",
+            "description": "书签归属位置列表。",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "groupId": {
+                  "type": "string"
+                },
+                "subGroupId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "groupId",
+                "subGroupId"
+              ]
+            }
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    },
+    "update_bookmark": {
+      "description": "更新书签内容，不修改位置。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bookmarkId": {
+            "type": "string",
+            "description": "书签 ID。"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "desc": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "allowUniversal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "bookmarkId"
+        ]
+      }
+    },
+    "set_bookmark_locations": {
+      "description": "设置书签的一个或多个归属位置。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bookmarkId": {
+            "type": "string",
+            "description": "书签 ID。"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "groupId": {
+                  "type": "string"
+                },
+                "subGroupId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "groupId",
+                "subGroupId"
+              ]
+            },
+            "minItems": 1,
+            "description": "新的位置列表。"
+          }
+        },
+        "required": [
+          "bookmarkId",
+          "locations"
+        ]
+      }
+    },
+    "remove_bookmark": {
+      "description": "删除书签；若已在回收站则永久删除。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bookmarkId": {
+            "type": "string",
+            "description": "书签 ID。"
+          }
+        },
+        "required": [
+          "bookmarkId"
+        ]
+      }
+    },
+    "restore_bookmark": {
+      "description": "从回收站恢复书签。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bookmarkId": {
+            "type": "string",
+            "description": "书签 ID。"
+          }
+        },
+        "required": [
+          "bookmarkId"
+        ]
+      }
+    }
+  },
+  "features": [
+    {
+      "code": "bookmarks",
+      "explain": "打开鹅的书签",
+      "mainHide": false,
+      "cmds": [
+        "书签",
+        "bookmark",
+        "bookmarks"
+      ]
+    },
+    {
+      "code": "quick_save",
+      "explain": "保存当前页到书签",
+      "mainHide": false,
+      "cmds": [
+        "快速保存",
+        "快速收藏",
+        "保存弹窗",
+        "quick save",
+        {
+          "type": "regex",
+          "label": "保存到书签",
+          "match": "/^https?:\\/\\/.*$/i"
+        }
+      ],
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ]
+    }
+  ]
+}

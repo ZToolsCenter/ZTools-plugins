@@ -1,0 +1,124 @@
+// 全屏切换性能优化样式
+// 彻底解决全屏时的闪烁问题
+
+/* 全局性能优化 */
+* {
+  // 在全屏切换时禁用所有过渡效果
+  &.fullscreen-transition-disabled {
+    transition: none !important;
+    animation: none !important;
+    will-change: auto !important;
+  }
+}
+
+/* 容器级别的性能优化 */
+.performance-optimized {
+  // 强制硬件加速
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  
+  // 强制复合层
+  will-change: transform;
+  contain: layout style paint;
+  isolation: isolate;
+  
+  // 避免重排重绘
+  position: relative;
+  
+  /* 禁用子元素的过渡效果 */
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  /* Grid容器特殊优化 */
+  &.grid-container {
+    // 使用固定布局避免重计算
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+    
+    // 禁用响应式变化
+    @media screen {
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+    }
+  }
+}
+
+/* 全屏状态检测 */
+:fullscreen {
+  .emoticon-grid-container,
+  .emoticon-grid,
+  .emoticon-item {
+    transition: none !important;
+    animation: none !important;
+    will-change: auto !important;
+  }
+  
+  // 强制使用固定网格
+  .emoticon-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+  }
+}
+
+/* 兼容Webkit全屏 */
+:-webkit-full-screen {
+  .emoticon-grid-container,
+  .emoticon-grid,
+  .emoticon-item {
+    transition: none !important;
+    animation: none !important;
+    will-change: auto !important;
+  }
+  
+  .emoticon-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+  }
+}
+
+/* 兼容Mozilla全屏 */
+:-moz-full-screen {
+  .emoticon-grid-container,
+  .emoticon-grid,
+  .emoticon-item {
+    transition: none !important;
+    animation: none !important;
+    will-change: auto !important;
+  }
+  
+  .emoticon-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+  }
+}
+
+/* 强制禁用动画的工具类 */
+.no-transition {
+  transition: none !important;
+  animation: none !important;
+  
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* GPU加速工具类 */
+.gpu-accelerated {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: transform;
+  contain: layout style paint;
+}
+
+/* 防止闪烁的容器类 */
+.flicker-resistant {
+  contain: strict;
+  isolation: isolate;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  
+  // 禁用所有子元素的过渡
+  * {
+    transition: none !important;
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

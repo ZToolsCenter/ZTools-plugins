@@ -185,20 +185,20 @@ window.exports = {
         mode: "none",
         args: {
             enter: (action) => {
-                window.utools.hideMainWindow();
+                window.ztools.hideMainWindow();
                 if (action.type === 'files') {
                     for (i in action.payload) {
                         fileUrlData(action.payload[i].path).then(payload => {
                             show(payload, action.payload[i].path);
                         }).catch(err => {
-                            utools.showNotification(err);
+                            window.ztools.showNotification(err);
                         }).finally(() => {
-                            window.utools.outPlugin();
+                            window.ztools.outPlugin();
                         })
                     }
                 } else if (action.type === 'img') {
                     show(action.payload);
-                    window.utools.outPlugin();
+                    window.ztools.outPlugin();
                 }
             }
         }

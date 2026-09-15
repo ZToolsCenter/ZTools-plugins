@@ -1,0 +1,14 @@
+node_modules/
+.pnpm-store/
+dist/
+docs/
+.vite/
+.codegraph/
+outputs/
+work/
+*.local
+*.log
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store

@@ -29,6 +29,27 @@ export interface FileItem {
   extension: string;
 }
 
+/** 文件系统统计信息的可序列化子集。 */
+export interface FileStats {
+  isFile: boolean;
+  isDirectory: boolean;
+  size: number;
+  mtimeMs: number;
+  ctimeMs: number;
+  birthtimeMs: number;
+}
+
+/** 目录导航中的一个层级。 */
+export interface DirectoryBreadcrumb {
+  name: string;
+  path: string;
+}
+
+export type ClipboardCopyRequest = {
+  field: 'path' | 'name';
+  format: 'text' | 'json';
+}
+
 /**
  * 表示单次工作流运行期间的共享运行态。
  * 用于在同一批处理中为插件提供稳定的共享上下文。

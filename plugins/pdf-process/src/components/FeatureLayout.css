@@ -1,0 +1,61 @@
+.feature-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 40px);
+  color: #e8e8ef;
+  box-sizing: border-box;
+}
+
+.feature-title {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.feature-subtitle {
+  color: #888;
+  font-size: 13px;
+  margin: -6px 0 16px;
+}
+
+.feature-content {
+  flex: 1;
+  min-height: 0;
+  margin-bottom: 16px;
+}
+
+.feature-action {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.feature-result {
+  margin-bottom: 12px;
+}
+
+/* Primary action button used across feature pages (match compress start) */
+.feature-page .action-btn {
+  appearance: none;
+  border: none;
+  background: #e74c6f;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(231, 76, 111, 0.28);
+}
+
+.feature-page .action-btn:hover:not(:disabled) {
+  background: #f05a7c;
+}
+
+.feature-page .action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}

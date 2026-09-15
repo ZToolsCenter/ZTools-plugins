@@ -1,17 +1,23 @@
 import { computed, nextTick, onUnmounted, ref, type Ref } from "vue";
 import {
+  filterResultsExcludingPaths,
+  getMatchPathQueryPlan,
   getNextSelectedPath,
   getNextVisibleCount,
+  getRangeSelectedPaths,
   getRestoredSelectedPath,
   mergeResultsByMatchPathPriority,
   type FinderResult,
   type FinderSortMode,
+  type SelectionMode,
 } from "../core/finderLogic";
+import { logger } from "../core/logger";
 
 interface UseFinderSearchOptions {
   pageSize: number;
   maxResults: number;
   buildQuery: () => string;
+  queryKeyword?: () => string;
   sortMode: Ref<FinderSortMode>;
   matchPathEnabled: Ref<boolean>;
 }
@@ -24,19 +30,28 @@ export function useFinderSearch({
   pageSize,
   maxResults,
   buildQuery,
+  queryKeyword,
   sortMode,
   matchPathEnabled,
 }: UseFinderSearchOptions) {
   const results = ref<FinderResult[]>([]);
   const everythingTotal = ref(0);
   const visibleCount = ref(pageSize);
-  const selectedPath = ref("");
+  const activePath = ref("");
+  const selectedPaths = ref<string[]>([]);
   const statusText = ref("输入关键字开始搜索");
   const isLoading = ref(false);
   const visibleResults = computed(() => results.value.slice(0, visibleCount.value));
-  const selectedItem = computed(() =>
-    results.value.find((item) => item.fullPath === selectedPath.value),
+  const activeItem = computed(() =>
+    results.value.find((item) => item.fullPath === activePath.value),
   );
+  const selectedItems = computed<FinderResult[]>(() => {
+    if (selectedPaths.value.length === 0) {
+      return activeItem.value ? [activeItem.value] : [];
+    }
+    const pathSet = new Set(selectedPaths.value);
+    return results.value.filter((item) => pathSet.has(item.fullPath));
+  });
 
   let searchTimer: number | undefined;
   let searchSequence = 0;
@@ -44,7 +59,7 @@ export function useFinderSearch({
   onUnmounted(clearSearchTimer);
 
   function scrollSelectedIntoView() {
-    const index = visibleResults.value.findIndex((item) => item.fullPath === selectedPath.value);
+    const index = visibleResults.value.findIndex((item) => item.fullPath === activePath.value);
     if (index < 0) return;
 
     document.querySelector(`[data-result-index="${index}"]`)?.scrollIntoView({
@@ -64,7 +79,8 @@ export function useFinderSearch({
     searchSequence += 1;
     const everythingQuery = buildQuery();
     const currentSortMode = sortMode.value;
-    const currentMatchPathEnabled = matchPathEnabled.value;
+    const currentKeyword = queryKeyword ? queryKeyword() : "";
+    const queryPlan = getMatchPathQueryPlan(matchPathEnabled.value, currentKeyword);
 
     if (!window.services.everything.isAvailable()) {
       results.value = [];
@@ -77,14 +93,14 @@ export function useFinderSearch({
     visibleCount.value = pageSize;
 
     try {
-      const nameResult = window.services.everything.query(
-        everythingQuery,
-        maxResults,
-        currentSortMode,
-        false,
-      );
-
-      if (currentMatchPathEnabled) {
+      const searchStart = performance.now();
+      if (queryPlan.mode === "dual") {
+        const nameResult = window.services.everything.query(
+          everythingQuery,
+          maxResults,
+          currentSortMode,
+          false,
+        );
         const matchPathResult = window.services.everything.query(
           everythingQuery,
           maxResults,
@@ -97,12 +113,25 @@ export function useFinderSearch({
         ).slice(0, maxResults);
         everythingTotal.value = matchPathResult.total;
       } else {
-        results.value = nameResult.items;
-        everythingTotal.value = nameResult.total;
+        const queryResult = window.services.everything.query(
+          everythingQuery,
+          maxResults,
+          currentSortMode,
+          queryPlan.matchPath,
+        );
+        results.value = queryResult.items;
+        everythingTotal.value = queryResult.total;
       }
+      logger.perf("Everything 检索", performance.now() - searchStart, {
+        query: everythingQuery,
+        mode: queryPlan.mode,
+        total: everythingTotal.value,
+        loaded: results.value.length,
+      });
       updateResultStatus();
       restoreSelection(options);
     } catch (error: unknown) {
+      logger.warn("Everything 检索失败:", error);
       results.value = [];
       everythingTotal.value = 0;
       statusText.value = error instanceof Error ? error.message : "搜索失败";
@@ -123,44 +152,68 @@ export function useFinderSearch({
   }
 
   function restoreSelection(options: RunSearchOptions = {}) {
-    const currentPath = selectedPath.value;
-    const selectedPathExists = results.value.some((item) => item.fullPath === currentPath);
+    const currentPath = activePath.value;
+    const activePathExists = results.value.some((item) => item.fullPath === currentPath);
 
-    if (options.preserveSelection && currentPath && !selectedPathExists) {
+    if (options.preserveSelection && currentPath && !activePathExists) {
       nextTick(() => onSelectionRestored?.());
       return;
     }
 
-    selectedPath.value = getRestoredSelectedPath(results.value, currentPath);
+    activePath.value = getRestoredSelectedPath(results.value, currentPath);
+    selectedPaths.value = activePath.value ? [activePath.value] : [];
     nextTick(() => onSelectionRestored?.());
   }
 
-  function selectItem(item: FinderResult) {
-    selectedPath.value = item.fullPath ?? "";
+  function selectItem(item: FinderResult, mode: SelectionMode = "single") {
+    const targetPath = item.fullPath ?? "";
+    if (!targetPath) return;
+
+    if (mode === "toggle") {
+      if (selectedPaths.value.includes(targetPath)) {
+        selectedPaths.value = selectedPaths.value.filter((p) => p !== targetPath);
+        if (activePath.value === targetPath) {
+          activePath.value = selectedPaths.value[selectedPaths.value.length - 1] ?? "";
+        }
+      } else {
+        selectedPaths.value = [...selectedPaths.value, targetPath];
+        activePath.value = targetPath;
+      }
+    } else if (mode === "range") {
+      const visiblePaths = visibleResults.value.map((r) => r.fullPath);
+      const anchor = activePath.value || visiblePaths[0] || targetPath;
+      selectedPaths.value = getRangeSelectedPaths(visiblePaths, anchor, targetPath);
+    } else {
+      activePath.value = targetPath;
+      selectedPaths.value = [targetPath];
+    }
   }
 
   function clearSelection() {
-    selectedPath.value = "";
+    activePath.value = "";
+    selectedPaths.value = [];
   }
 
-  function removeResultByPath(fullPath: string) {
+  function removeResultsByPaths(fullPaths: string[]) {
     const beforeLength = results.value.length;
-    results.value = results.value.filter((item) => item.fullPath !== fullPath);
+    results.value = filterResultsExcludingPaths(results.value, fullPaths);
     if (results.value.length === beforeLength) return;
 
-    everythingTotal.value = Math.max(0, everythingTotal.value - 1);
-    restoreSelection();
+    clearSelection();
+    everythingTotal.value = Math.max(
+      0,
+      everythingTotal.value - (beforeLength - results.value.length),
+    );
     updateResultStatus();
   }
 
   function moveSelection(direction: -1 | 1) {
-    const paths = results.value
-      .map((item) => item.fullPath)
-      .filter((path): path is string => !!path);
-    const nextPath = getNextSelectedPath(paths, selectedPath.value, direction);
+    const paths = results.value.map((item) => item.fullPath);
+    const nextPath = getNextSelectedPath(paths, activePath.value, direction);
     if (!nextPath) return;
 
-    selectedPath.value = nextPath;
+    activePath.value = nextPath;
+    selectedPaths.value = [nextPath];
     const nextIndex = results.value.findIndex((item) => item.fullPath === nextPath);
     if (nextIndex >= visibleCount.value - 4) {
       visibleCount.value = getNextVisibleCount(visibleCount.value, results.value.length, pageSize);
@@ -183,18 +236,20 @@ export function useFinderSearch({
     results,
     everythingTotal,
     visibleCount,
-    selectedPath,
+    activePath,
+    activeItem,
+    selectedPaths,
+    selectedItems,
     statusText,
     isLoading,
     visibleResults,
-    selectedItem,
     queueSearch,
     runSearch,
     restoreSelection,
     updateResultStatus,
     selectItem,
     clearSelection,
-    removeResultByPath,
+    removeResultsByPaths,
     moveSelection,
     growVisibleCount,
     resetVisibleCount,

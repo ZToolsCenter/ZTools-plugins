@@ -1,0 +1,29 @@
+{
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "platform": ["win32", "darwin"],
+  "categories": ["productivity"],
+  "author": "ScottLim",
+  "features": [
+    { "code": "all", "explain": "搜索 Chrome / Edge 书签与历史记录", "cmds": ["书签"] },
+    { "code": "history", "explain": "搜索 Chrome / Edge 浏览历史记录", "cmds": ["历史记录"] },
+    { "code": "chrome_bookmarks", "explain": "仅搜索 Chrome 书签", "cmds": ["chrome书签"] },
+    { "code": "chrome_history", "explain": "仅搜索 Chrome 历史记录", "cmds": ["chrome历史记录"] },
+    { "code": "edge_bookmarks", "explain": "仅搜索 Edge 书签", "cmds": ["Edge书签"] },
+    { "code": "edge_history", "explain": "仅搜索 Edge 历史记录", "cmds": ["Edge历史记录"] },
+    { "code": "search", "explain": "书签与历史记录全局搜索", "mainPush": true, "cmds": [{ "type": "over", "maxLength": 40, "label": "书签与历史记录搜索" }] },
+    { "code": "settings", "explain": "设置便携版浏览器书签/历史目录", "cmds": ["书签设置"] }
+  ],
+  "tools": {
+    "bookmarks_query": {
+      "title": "书签搜索",
+      "description": "在 Chrome、Edge 浏览器的书签中进行搜索",
+      "inputSchema": { "type": "object", "additionalProperties": false, "properties": { "keyword": { "type": "string", "description": "搜索关键词" } }, "required": ["keyword"] },
+      "outputSchema": { "type": "array", "items": { "type": "object", "properties": { "title": { "type": "string" }, "url": { "type": "string" } }, "required": ["title", "url"] } }
+    }
+  },
+  "name": "browser-bookmarks-history",
+  "title": "书签与历史记录搜索",
+  "description": "搜索 Chrome / Edge 浏览器书签与历史记录，支持便携版浏览器",
+  "version": "2.4.1"
+}

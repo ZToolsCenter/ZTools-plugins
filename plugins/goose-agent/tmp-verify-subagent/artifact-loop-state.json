@@ -1,0 +1,27 @@
+{
+  "optRound": 5,
+  "maxOptRounds": 5,
+  "phase": "done",
+  "build": "pass",
+  "lastAction": "optRound5: showSvg schema 双路径 content/source 别名对齐；formatToolResultForModel 剥离长 svg/mermaid source；ADR 0022 后果补全；visual SKILL 文案；75 artifact-related tests pass → phase=done + scheduler_delete",
+  "notes": [
+    "2026-08-09 implement: full artifact surface",
+    "2026-08-09 opt1: lazy office libs, model payload sanitize, schema alias fix, uTools hex styles, schema sync tests",
+    "2026-08-09 opt2: images API capability cache, permissionMode wire to ArtifactCard, a11y labels, edge tests",
+    "2026-08-09 opt3: download tests, mermaid error copy, multi-series chart preview, office size edges, visual kind consistency",
+    "2026-08-09 opt4: showSvg empty guard, ToolProgressCard artifact detail helper, Composer office chip/toast polish",
+    "2026-08-09 opt5: showSvg schema alias sync, model sanitize svg/source, ADR0022 consequences, done optRound>=5",
+    "STOPPED: feature-complete + optRound=5/5; further work is product scope expansion not phase-1 polish"
+  ],
+  "doneCapabilities": [
+    "html",
+    "office",
+    "image",
+    "mermaid",
+    "composer",
+    "adr"
+  ],
+  "gap": "none",
+  "schedulerDeleted": true,
+  "schedulerTaskId": "019fe22c952c"
+}

@@ -1,0 +1,20 @@
+node_modules
+dist
+*.local
+.DS_Store
+*.tsbuildinfo
+
+# 构建输出
+dist-utools/
+
+# 本地任务 / 测试产物
+tasks/
+test-results/
+pnpm-lock.yaml
+
+artifacts/
+.grok/
+.playwright-cli/
+.env
+.env.*
+*.pem

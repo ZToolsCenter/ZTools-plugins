@@ -1,0 +1,1 @@
+import{h as e}from"./vendor-mermaid~mermaid.core~xychartDiagram-2RQKCTM6~wardleyDiagram-YWT4CUSO~vennDiagram-CII~i4ce8ps1.js";function t(e,t){e.accDescr&&t.setAccDescription?.(e.accDescr),e.accTitle&&t.setAccTitle?.(e.accTitle),e.title&&t.setDiagramTitle?.(e.title)}e(t,`populateCommonDb`);export{t};

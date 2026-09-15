@@ -29,10 +29,10 @@ export function buildOutputPath(input: OutputPathInput): string {
     date: new Date().toISOString().slice(0, 10).replace(/-/g, "")
   };
 
-  let filename = input.namingPattern || "{name}.{ext}";
-  for (const [token, value] of Object.entries(replacements)) {
-    filename = filename.replaceAll(`{${token}}`, value);
-  }
+  let filename = (input.namingPattern || "{name}.{ext}").replace(
+    /\{(name|ext|index|width|height|date)\}/g,
+    (_match, token: keyof typeof replacements) => replacements[token]
+  );
   if (!path.extname(filename)) {
     filename = `${filename}.${extension}`;
   }

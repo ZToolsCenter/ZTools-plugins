@@ -65,6 +65,7 @@ function getPluginInfo(pluginName) {
   const pluginJsonPaths = [
     join('plugins', pluginName, 'plugin.json'),
     join('plugins', pluginName, 'public', 'plugin.json'),
+    join('plugins', pluginName, 'src-ztools', 'plugin.json'),
     join('plugins', pluginName, 'dist', 'plugin.json'),
   ];
 

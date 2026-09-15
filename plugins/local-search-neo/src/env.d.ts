@@ -66,14 +66,45 @@ interface Services {
     maxBytes?: number,
     direction?: TextPreviewDirection,
   ) => TextPreviewResult;
-  printDirectoryTree: (directory: string, options?: FileTreeOptions) => FileTreeResult;
+  printDirectoryTree: (directory: string, options?: FileTreeOptions) => Promise<FileTreeResult>;
   printArchiveTree: (file: string, options?: FileTreeOptions) => FileTreeResult;
 }
 
 declare global {
+  interface ZToolsApi {
+    startDrag(filePath: string | string[]): void;
+  }
   interface Window {
     services: Services;
   }
-}
 
-export {};
+  interface PluginEnterAction {
+    code: string;
+    type: "text" | "img" | "files" | "regex" | "over" | "window";
+    payload: string | MatchFile[] | MatchWindow;
+    from: "main" | "panel" | "hotkey" | "redirect";
+    option?: {
+      fullPath?: string;
+    };
+  }
+
+  interface MatchFile {
+    isFile: boolean;
+    isDirectory: boolean;
+    name: string;
+    path: string;
+  }
+
+  interface MatchWindow {
+    id: number;
+    class: string;
+    title: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    appPath: string;
+    pid: number;
+    app: string;
+  }
+}

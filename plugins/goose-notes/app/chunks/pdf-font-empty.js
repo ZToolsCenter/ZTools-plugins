@@ -1,0 +1,1 @@
+var e=`data:font/ttf;base64,AA==`;export{e as default};
