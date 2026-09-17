@@ -7,8 +7,6 @@ const { exec } = require("child_process");
  * @param search
  */
 function search(channel, search) {
-  console.debug("init_data", initService.recentProjects);
-
   // 获取列表
   let recentProjectList = [];
   if (channel && initService.recentProjects[channel]) {
@@ -17,7 +15,6 @@ function search(channel, search) {
     // all 全部软件
     recentProjectList = Object.values(initService.recentProjects).flat();
   }
-  console.debug("recentProjectList", recentProjectList);
 
   // 查询对应数据
   if (search && search !== "") {
@@ -26,17 +23,53 @@ function search(channel, search) {
     );
   }
 
-  // 排序
-  recentProjectList = recentProjectList.sort((o, n) => {
-    return n.projectOpenTimestamp - o.projectOpenTimestamp;
+  // 补充必要数据（IDE 信息来自 initService.channels）
+  recentProjectList.forEach((item) => {
+    const channelInfo = initService.channels[item.channel] || {};
+    item.title = item.name;
+    item.description = buildDescription(item, channelInfo);
+    item.appSource = channelInfo.appSource || "";
+    item.appLastUsedTimestamp = channelInfo.appLastUsedTimestamp || 0;
   });
 
-  // 补充必要数据
-  recentProjectList.forEach((item) => {
-    item.title = item.name;
-    item.description = item.path;
+  // 排序：项目打开时间优先，相同则按 IDE 最近使用时间
+  recentProjectList = recentProjectList.sort((o, n) => {
+    return (
+      n.projectOpenTimestamp - o.projectOpenTimestamp ||
+      n.appLastUsedTimestamp - o.appLastUsedTimestamp
+    );
   });
   return recentProjectList;
+}
+
+/**
+ * 列表副标题：项目路径 · IDE 名称 · IDE 最近使用时间
+ * @param item 项目数据
+ * @param channelInfo 对应 IDE 信息（initService.channels[channel]）
+ */
+function buildDescription(item, channelInfo) {
+  const parts = [item.path];
+  const ideName = (channelInfo.displayName || item.channel || "").replace(
+    /\.app$/,
+    ""
+  );
+  if (ideName) {
+    parts.push(ideName);
+  }
+  if (channelInfo.appLastUsedDate) {
+    parts.push(`最近使用 ${channelInfo.appLastUsedDate.slice(5, 16)}`);
+  }
+  return parts.join(" · ");
+}
+
+/**
+ * 系统通知（宿主不支持时忽略）
+ * @param message 通知内容
+ */
+function showNotification(message) {
+  if (window.ztools && typeof window.ztools.showNotification === "function") {
+    window.ztools.showNotification(message);
+  }
 }
 
 /**
@@ -45,10 +78,17 @@ function search(channel, search) {
  * @param path
  */
 function launchProjectFromApp(channel, path) {
-  let channel_info = initService.channels[channel];
-  // 启动路径中如果包含空格则会导致 启动失败 这里使用双引号 保证启动命令解析正确
-  exec(`"${channel_info.launchCommand}"  ${path}`, (err, stdout, stderr) => {
-    console.debug({ "launch app": { err, stdout, stderr } });
+  const channel_info = initService.channels[channel];
+  if (!channel_info) {
+    showNotification("未找到应用信息：" + channel);
+    return;
+  }
+  // 应用路径与项目路径都可能包含空格，统一用双引号包裹，保证启动命令解析正确
+  exec(`"${channel_info.launchCommand}" "${path}"`, (error) => {
+    if (error) {
+      console.error("launch project failed:", error.message);
+      showNotification("启动失败：" + String(error.message).split("\n")[0]);
+    }
   });
 }
 
@@ -62,11 +102,15 @@ exports.features = {
         if (window.ztools.isDev()) {
           window.ztools.zbrowser.devTools("undocked");
         }
-        initService.init().then((res) => {
-          let recentProjectList = search("", "");
-          console.debug(recentProjectList);
-          callbackSetList(recentProjectList);
-        });
+        initService
+          .init()
+          .catch((error) => {
+            // 初始化失败也要回调，避免插件空白
+            console.error("init failed:", error && error.message);
+          })
+          .then(() => {
+            callbackSetList(search("", ""));
+          });
       },
       search: (action, searchWord, callbackSetList) => {
         let recentProjectList = search("", searchWord);

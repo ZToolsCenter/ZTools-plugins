@@ -36,7 +36,6 @@ async function getInternalMacInstalledApps () {
 
 	let user_applications_arr = [];
 	let users = fs.readdirSync("/Users")
-	console.log({"用户目录": users})
 	for (let user of users) {
 		if ("Shared" == user) {
 			continue
@@ -44,12 +43,10 @@ async function getInternalMacInstalledApps () {
 		if (user.startsWith(".")) {
 			continue;
 		}
-		console.log("/Users/" + user + "/Applications")
 		let path = "/Users/" + user + "/Applications";
-        if(!fs.existsSync(path)){
-            console.debug("用户应用目录不存在：" + path)
-            continue
-        }
+		if (!fs.existsSync(path)) {
+			continue
+		}
 		let target_user_applications_arr = await (0, mac_1.getInstalledApps)(path);
 		target_user_applications_arr.forEach(item => {
 			item['app_dir'] = path
@@ -60,7 +57,25 @@ async function getInternalMacInstalledApps () {
 	application_arr = application_arr.concat(global_application_arr)
 	application_arr = application_arr.concat(system_application_arr)
 	application_arr = application_arr.concat(user_applications_arr)
-	return application_arr;
+	return application_arr.map(normalizeAppData);
+}
+
+/**
+ * 统一各平台字段，避免上层（channels / UI）再处理 undefined
+ * Windows 走注册表、没有 Spotlight，最近使用时间等字段给默认值
+ * @param item 应用数据
+ * @returns 补齐字段后的应用数据
+ */
+function normalizeAppData (item) {
+	item.appName = item.appName || "";
+	item.appVersion = item.appVersion || "";
+	item.appIdentifier = item.appIdentifier || "";
+	item.appInstallDate = item.appInstallDate || "";
+	item.appSource = item.appSource || "registry";
+	item.appLastUsedDate = item.appLastUsedDate || "";
+	item.appLastUsedTimestamp = item.appLastUsedTimestamp || 0;
+	item.appUseCount = item.appUseCount || 0;
+	return item;
 }
 
 exports.getInstalledApps = getInstalledApps;
