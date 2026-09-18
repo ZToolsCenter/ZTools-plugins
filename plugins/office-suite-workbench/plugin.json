@@ -3,7 +3,7 @@
   "title": "Office 全家桶",
   "description": "基于 OfficeCLI 的 Word、Excel、PowerPoint 文档工作台，支持检查、编辑、批处理与 MCP 调用。",
   "author": "harris",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "index.html",
   "preload": "preload/services.cjs",
   "logo": "logo.svg",
