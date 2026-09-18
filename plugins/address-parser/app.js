@@ -1,6 +1,20 @@
 (function () {
   "use strict";
 
+  function isSupportedHost() {
+    if (!window.ztools) return true;
+    try {
+      return window.addressParserBridge?.hostCompatibility?.().supported === true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  if (!isSupportedHost()) {
+    document.querySelector("main").innerHTML = '<section class="workbench"><h2>需要升级 ZTools</h2><p>当前 ZTools 版本过低或无法识别（最低支持 2.4.0）。为了获得更完整、稳定的体验，请升级后再使用收货地址智能解析。</p></section>';
+    return;
+  }
+
   const core = window.AddressParserCore;
   const csv = window.AddressCsv;
   const sourceInput = document.getElementById("source-input");
@@ -8,6 +22,7 @@
   const sampleButton = document.getElementById("sample-button");
   const clearButton = document.getElementById("clear-button");
   const exportButton = document.getElementById("export-button");
+  const dragExportButton = document.getElementById("drag-export-button");
   const resultBody = document.getElementById("result-body");
   const emptyState = document.getElementById("empty-state");
   const tableWrap = document.getElementById("table-wrap");
@@ -35,6 +50,7 @@
   let activeFilter = "all";
   let currentPage = 1;
   let toastTimer = null;
+  let lastExportPath = "";
 
   function getSplitMode() {
     const checked = document.querySelector('input[name="split-mode"]:checked');
@@ -198,6 +214,11 @@
       if (window.addressParserBridge && typeof window.addressParserBridge.saveCsv === "function") {
         const result = await window.addressParserBridge.saveCsv(content, fileName);
         if (result && result.canceled) return;
+        lastExportPath = result.path || "";
+        if (lastExportPath && window.addressParserBridge.canStartDrag()) {
+          dragExportButton.hidden = false;
+          dragExportButton.draggable = true;
+        }
         showToast("CSV 已导出：" + (result.path || fileName), false);
       } else {
         downloadInBrowser(content, fileName);
@@ -259,6 +280,13 @@
   sampleButton.addEventListener("click", function () { sourceInput.value = sampleText; sourceInput.focus(); });
   clearButton.addEventListener("click", clearAll);
   exportButton.addEventListener("click", exportCsv);
+  dragExportButton.addEventListener("dragstart", function (event) {
+    event.preventDefault();
+    if (!lastExportPath) return;
+    window.addressParserBridge.startDrag(lastExportPath).catch(function (error) {
+      showToast(error && error.message ? error.message : String(error), true);
+    });
+  });
   sourceInput.addEventListener("keydown", function (event) {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();

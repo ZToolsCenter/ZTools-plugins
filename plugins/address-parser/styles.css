@@ -79,6 +79,7 @@ kbd { padding: 2px 5px; border: 1px solid var(--line); border-bottom-width: 2px;
 .stats .stat-complete { border-left-color: var(--verified); background: var(--verified-soft); }
 .stats .stat-missing { border-left-color: var(--parcel); background: var(--parcel-soft); }
 .result-toolbar { padding: 10px 20px; background: #fbfcfd; border-bottom: 1px solid var(--line); }
+.export-actions { display: flex; gap: 8px; align-items: center; }
 .filter-tabs { display: flex; gap: 3px; }
 .filter-tab { padding: 7px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 12px; font-weight: 700; }
 .filter-tab.is-active { background: var(--ink); color: white; }
