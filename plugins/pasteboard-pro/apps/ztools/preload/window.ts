@@ -1,9 +1,11 @@
+import type { HistoryReply } from "./history-rpc";
 import {
   clampShelfBounds,
   type DockEdge,
   type Rect,
 } from "@pasteboard-pro/design-tokens";
 import type { PasteStackState } from "@pasteboard-pro/core";
+import { waitForWindowReadyScript } from "../window-ready";
 
 export type ShelfDisplay = Readonly<{
   id: string | number;
@@ -49,7 +51,9 @@ export interface BrowserWindowHandle {
   show(): void;
   focus(): void;
   close(): void;
-  setBounds(bounds: Rect): void;
+  setBounds(bounds: Rect, animate?: boolean): void;
+  getBounds?(): Rect;
+  setOpacity?(opacity: number): void;
   setContentProtection(enabled: boolean): void;
 }
 
@@ -86,17 +90,20 @@ const PANEL_SIZES: Readonly<Record<AuxiliaryPanel, Readonly<{ width: number; hei
   editor: { width: 660, height: 520 },
 };
 
+const requestedWindowBounds = new WeakMap<BrowserWindowHandle, BrowserWindowOptions>();
+
 function setWindowBounds(
   handle: BrowserWindowHandle,
   options: BrowserWindowOptions,
 ): void {
   if (handle.isDestroyed()) return;
+  requestedWindowBounds.set(handle, options);
   handle.setBounds({
     x: options.x,
     y: options.y,
     width: options.width,
     height: options.height,
-  });
+  }, false);
 }
 
 function scheduleBoundsCorrection(
@@ -104,9 +111,61 @@ function scheduleBoundsCorrection(
   options: BrowserWindowOptions,
 ): void {
   for (const delay of [50, 250, 750]) {
-    const timer = globalThis.setTimeout(() => setWindowBounds(handle, options), delay);
+    const timer = globalThis.setTimeout(() => {
+      if (handle.isDestroyed()) return;
+      const target = requestedWindowBounds.get(handle) ?? options;
+      const actual = handle.getBounds?.();
+      if (actual !== undefined && actual.x === target.x && actual.y === target.y &&
+        actual.width === target.width && actual.height === target.height) return;
+      setWindowBounds(handle, target);
+    }, delay);
     (timer as unknown as { unref?: () => void }).unref?.();
   }
+}
+
+// On macOS, show() can move an off-primary-screen window even when its
+// hidden bounds are correct. Materialize it at zero opacity, then correct the
+// native frame after show/focus before exposing any pixels. Older hosts without
+// opacity support still receive the immediate post-show correction.
+function revealWindow(handle: BrowserWindowHandle): void {
+  handle.setOpacity?.(0);
+  handle.show();
+  handle.focus();
+  const bounds = requestedWindowBounds.get(handle);
+  if (bounds !== undefined) setWindowBounds(handle, bounds);
+  handle.setOpacity?.(1);
+}
+
+// ZTools invokes its DOM-ready callback once. Never reload or reveal the window
+// there: the renderer still needs to load its preferences and initial content.
+function createReadyWindow(
+  host: ShelfWindowHost,
+  url: string,
+  options: BrowserWindowOptions,
+  isCurrent: (handle: BrowserWindowHandle) => boolean,
+  onReady: (handle: BrowserWindowHandle) => void,
+): BrowserWindowHandle {
+  let waiting = false;
+  const handle = host.createBrowserWindow(url, options, () => {
+    if (waiting) return;
+    waiting = true;
+    // Also supports hosts that invoke the callback before returning the handle.
+    queueMicrotask(async () => {
+      if (handle.isDestroyed() || !isCurrent(handle)) return;
+      try {
+        await handle.webContents.executeJavaScript(waitForWindowReadyScript);
+        if (handle.isDestroyed() || !isCurrent(handle)) return;
+        onReady(handle);
+        revealWindow(handle);
+      } catch (error) {
+        // A closed/replaced window must never steal focus when its work settles.
+        if (handle.isDestroyed() || !isCurrent(handle)) return;
+        console.error("Paste window initialization failed", error);
+        handle.close();
+      }
+    });
+  });
+  return handle;
 }
 
 function preferredBounds(display: ShelfDisplay, edge: DockEdge): Rect {
@@ -243,6 +302,7 @@ export function resolveShelfPlacement(
 }
 
 export class ShelfWindowManager {
+  private readonly readyHandles = new WeakSet<BrowserWindowHandle>();
   private current: BrowserWindowHandle | undefined;
   private currentEdge: DockEdge | undefined;
 
@@ -281,8 +341,9 @@ export class ShelfWindowManager {
       setWindowBounds(this.current, windowOptions);
       scheduleBoundsCorrection(this.current, windowOptions);
       this.current.setContentProtection(options.contentProtection);
-      this.current.show();
-      this.current.focus();
+      if (this.readyHandles.has(this.current)) {
+        revealWindow(this.current);
+      }
       return this.current;
     }
     if (this.current !== undefined && !this.current.isDestroyed()) {
@@ -291,41 +352,18 @@ export class ShelfWindowManager {
     this.current = undefined;
 
     const url = `index.html?shelf=1&dock=${encodeURIComponent(options.edge)}&display=${encodeURIComponent(String(display.id))}`;
-    let handle: BrowserWindowHandle | undefined;
-    let readyBeforeAssignment = false;
-    let preloadReloaded = false;
-    const finishOpening = (): void => {
-      if (handle === undefined) {
-        readyBeforeAssignment = true;
-        return;
-      }
-      if (!preloadReloaded) {
-        preloadReloaded = true;
-        void handle.webContents.executeJavaScript("window.location.reload()");
-        return;
-      }
-      setWindowBounds(handle, windowOptions);
-      handle.show();
-      handle.focus();
-      this.host.hideMainWindow(false);
-    };
-
-    handle = this.host.createBrowserWindow(
+    const handle = createReadyWindow(
+      this.host,
       url,
       windowOptions,
-      finishOpening,
+      (candidate) => this.current === candidate,
+      (candidate) => this.readyHandles.add(candidate),
     );
     this.current = handle;
     this.currentEdge = options.edge;
     setWindowBounds(handle, windowOptions);
     scheduleBoundsCorrection(handle, windowOptions);
     handle.setContentProtection(options.contentProtection);
-    handle.show();
-    handle.focus();
-
-    if (readyBeforeAssignment) {
-      finishOpening();
-    }
 
     return handle;
   }
@@ -344,10 +382,20 @@ export class ShelfWindowManager {
     }
   }
 
-  notifyHistoryChanged(): void {
+  notifyHistoryResult(result: HistoryReply): void {
+    if (this.current === undefined || this.current.isDestroyed()) return;
+    const detail = JSON.stringify(result).replaceAll("<", "\\u003c");
+    void this.current.webContents.executeJavaScript(
+      `window.dispatchEvent(new CustomEvent('pasteboard-pro:history-result', { detail: ${detail} }))`,
+    );
+  }
+
+  notifyHistoryChanged(changes?: readonly string[]): void {
     if (this.current === undefined || this.current.isDestroyed()) return;
     void this.current.webContents.executeJavaScript(
-      "window.dispatchEvent(new CustomEvent('pasteboard-pro:history-changed'))",
+      changes === undefined
+        ? "window.dispatchEvent(new CustomEvent('pasteboard-pro:history-changed'))"
+        : `window.dispatchEvent(new CustomEvent('pasteboard-pro:history-changed', { detail: ${JSON.stringify(changes).replaceAll("<", "\\u003c")} }))`,
     );
   }
 
@@ -368,6 +416,7 @@ export class ShelfWindowManager {
 }
 
 export class PanelWindowManager {
+  private readonly readyHandles = new WeakSet<BrowserWindowHandle>();
   private current:
     | Readonly<{ key: string; handle: BrowserWindowHandle }>
     | undefined;
@@ -396,8 +445,9 @@ export class PanelWindowManager {
     ) {
       setWindowBounds(this.current.handle, windowOptions);
       scheduleBoundsCorrection(this.current.handle, windowOptions);
-      this.current.handle.show();
-      this.current.handle.focus();
+      if (this.readyHandles.has(this.current.handle)) {
+        revealWindow(this.current.handle);
+      }
       return this.current.handle;
     }
 
@@ -406,38 +456,16 @@ export class PanelWindowManager {
     }
 
     const url = `index.html?${params.toString()}`;
-    let handle: BrowserWindowHandle | undefined;
-    let readyBeforeAssignment = false;
-    let preloadReloaded = false;
-    const finishOpening = (): void => {
-      if (handle === undefined) {
-        readyBeforeAssignment = true;
-        return;
-      }
-      if (!preloadReloaded) {
-        preloadReloaded = true;
-        void handle.webContents.executeJavaScript("window.location.reload()");
-        return;
-      }
-      setWindowBounds(handle, windowOptions);
-      handle.show();
-      handle.focus();
-    };
-
-    handle = this.host.createBrowserWindow(
+    const handle = createReadyWindow(
+      this.host,
       url,
       windowOptions,
-      finishOpening,
+      (candidate) => this.current?.handle === candidate,
+      (candidate) => this.readyHandles.add(candidate),
     );
     this.current = { key, handle };
     setWindowBounds(handle, windowOptions);
     scheduleBoundsCorrection(handle, windowOptions);
-    handle.show();
-    handle.focus();
-
-    if (readyBeforeAssignment) {
-      finishOpening();
-    }
 
     return handle;
   }

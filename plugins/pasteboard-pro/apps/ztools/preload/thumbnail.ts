@@ -22,6 +22,7 @@ export type NativeImageApi = Readonly<{
 
 export type ThumbnailRecordStore = Readonly<{
   listRecords(): Promise<CanonicalClipboardRecord[]>;
+  findRecordByItemId?(itemId: string): Promise<CanonicalClipboardRecord | undefined>;
 }>;
 
 const THUMBNAIL_WIDTH = 480;
@@ -82,13 +83,13 @@ export class ThumbnailService {
     const requestedIds = uniqueItemIds(itemIds);
     if (requestedIds.length === 0) return [];
 
-    const byId = await this.recordsById();
+    const byId = this.store.findRecordByItemId === undefined ? await this.recordsById() : undefined;
 
     const values = await concurrentMap(
       requestedIds,
       GENERATION_CONCURRENCY,
       async (itemId) => {
-        const record = byId.get(itemId);
+        const record = byId === undefined ? await this.store.findRecordByItemId!(itemId) : byId.get(itemId);
         return record === undefined ? null : await this.cachedThumbnail(record);
       },
     );

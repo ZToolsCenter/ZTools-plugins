@@ -3,7 +3,7 @@ import type { ZToolsDocumentDatabase } from "./clipboard-store";
 export type ListOrders = Readonly<Record<string, readonly string[]>>;
 
 const LIST_ORDER_ID = "pasteboard-pro:settings:list-orders";
-const MAX_ORDERED_ITEMS = 10_000;
+const MAX_ORDERED_ITEMS = 100_000;
 const MAX_SCOPES = 258;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
