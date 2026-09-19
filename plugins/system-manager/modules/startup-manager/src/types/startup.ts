@@ -6,6 +6,7 @@ export type ItemKind = 'login-item' | 'launch-agent' | 'launch-daemon' | 'run-ke
 export interface StartupItem {
   id: string
   name: string
+  icon?: string | null
   scope: Scope
   kind: ItemKind
   source: { label: string; location: string | null }
