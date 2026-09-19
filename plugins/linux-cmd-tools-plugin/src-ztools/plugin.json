@@ -1,0 +1,21 @@
+{
+  "$schema": "../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "linux-cmd-tools-plugin",
+  "title": "linux 命令文档",
+  "description": "linux 命令文档",
+  "author": "ltxhhz",
+  "version": "1.0.0",
+  "main": "dist/index.html",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "page",
+      "explain": "查看文档",
+      "icon": "logo.png",
+      "cmds": ["linux"]
+    }
+  ]
+}

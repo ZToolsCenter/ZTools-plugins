@@ -1,0 +1,24 @@
+{
+  "name": "linux-cmd-tools-plugin",
+  "version": "1.0.0",
+  "description": "linux 命令文档",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "postinstall": "node scripts/copy.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.1",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "linux-command": "^1.22.0",
+    "typescript": "^6.0.3",
+    "unplugin-vue-markdown": "^32.1.1",
+    "vite": "^8.3.0",
+    "vue-tsc": "^3.3.11"
+  }
+}
