@@ -1,12 +1,20 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import { maskTextContent } from '@/utils/textMask'
+
+const props = defineProps({
   item: { type: Object, required: true },
   isExpanded: { type: Boolean, default: false },
   needsExpand: { type: Boolean, default: false },
-  isFavoriteTab: { type: Boolean, default: false }
+  isFavoriteTab: { type: Boolean, default: false },
+  isTextMasked: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['toggle-expand', 'delete-favorite'])
+
+const displayedContent = computed(() =>
+  props.isTextMasked ? maskTextContent(props.item.content) : props.item.content
+)
 </script>
 
 <template>
@@ -19,7 +27,7 @@ const emit = defineEmits(['toggle-expand', 'delete-favorite'])
         'text-expanded': isExpanded
       }"
     >
-      {{ item.content }}
+      {{ displayedContent }}
     </div>
     <div class="item-meta">
       <span class="meta-time">{{ item.time }}</span>

@@ -18,6 +18,22 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 // ---- 状态 ----
 const activeTab = ref('all')
 const searchText = ref('')
+const TEXT_MASK_STORAGE_KEY = 'clipboard.isTextMasked'
+
+const getInitialTextMaskState = () => {
+  try {
+    return window.localStorage.getItem(TEXT_MASK_STORAGE_KEY) === 'true'
+  } catch (error) {
+    console.warn('读取掩码显示设置失败:', error)
+    return false
+  }
+}
+
+const isTextMasked = ref(getInitialTextMaskState())
+
+const toggleTextMask = () => {
+  isTextMasked.value = !isTextMasked.value
+}
 
 const getCurrentAppVersion = () => {
   try {
@@ -258,6 +274,14 @@ const resetSearchAndFocus = async () => {
 
 // ---- 监听 & 生命周期 ----
 watch(activeTab, doReload)
+watch(isTextMasked, (masked) => {
+  try {
+    window.localStorage.setItem(TEXT_MASK_STORAGE_KEY, String(masked))
+  } catch (error) {
+    console.warn('保存掩码显示设置失败:', error)
+  }
+  checkTextOverflow()
+})
 
 // 当对话框打开时，阻止全局键盘快捷键（如 Enter 粘贴）
 const isAnyModalOpen = computed(() =>
@@ -325,6 +349,7 @@ onUnmounted(() => {
         :active-tab="activeTab"
         :expanded-items="expandedItems"
         :needs-expand="needsExpand"
+        :is-text-masked="isTextMasked"
         @select="handleItemClick"
         @toggle-selection="handleToggleClick"
         @dblclick="handleDoubleClick"
@@ -338,8 +363,10 @@ onUnmounted(() => {
 
     <SideBar
       :selected-count="selectedCount"
+      :is-text-masked="isTextMasked"
       @copy="copySelected"
       @paste="pasteSelected"
+      @toggle-text-mask="toggleTextMask"
       @clear="handleClearClick"
     />
 
