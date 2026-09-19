@@ -1,6 +1,6 @@
 {
   "name": "git-commit-message",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "快速生成带 Gitmoji 的 Git 提交信息",
   "type": "module",
   "scripts": {

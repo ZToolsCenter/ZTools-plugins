@@ -9,6 +9,7 @@
 - 常用 Gitmoji 推荐，覆盖新增、修复、优化、文档、UI、重构、测试、CI、依赖、安全等高频场景
 - 支持搜索更多 Gitmoji 类型，可按中文名称、英文 shortcode、commit type 或关键词搜索
 - 自动生成 Gitmoji + Conventional Commit 格式
+- 支持切换输出格式，可选择 Gitmoji 在 commit type 前或在摘要前
 - 支持可选 scope、详细说明和关联 issue
 - 点击“生成并复制”后写入系统剪贴板
 - 自动保存最近 20 条生成历史
@@ -18,8 +19,16 @@
 
 ## 输出示例
 
+默认格式：
+
 ```text
 ✨ feat(auth): 添加登录页
+```
+
+Gitmoji 放在摘要前：
+
+```text
+feat(auth): ✨ 添加登录页
 ```
 
 带正文和 issue 时：
@@ -37,7 +46,8 @@ Refs #123
 1. 在 ZTools 中搜索 `git commit`、`commit message`、`提交信息` 或 `生成提交消息` 打开插件。
 2. 输入提交摘要，按需填写影响范围、详细说明和关联 issue。
 3. 选择合适的 Gitmoji 类型，或通过搜索框查找更细的类型。
-4. 点击“生成并复制”，然后把提交信息粘贴到 Git 客户端或终端中。
+4. 按需在预览区切换输出格式。
+5. 点击“生成并复制”，然后把提交信息粘贴到 Git 客户端或终端中。
 
 ## 常用类型映射
 
@@ -78,7 +88,7 @@ Refs #123
 
 ## 本地存储
 
-插件仅使用本地存储保存历史记录，存储键为 `git-commit-message:history`。插件不会读取 Git 仓库内容，也不会把提交信息发送到任何远程服务。
+插件仅使用本地存储保存历史记录和输出格式设置，存储键为 `git-commit-message:history` 和 `git-commit-message:settings`。插件不会读取 Git 仓库内容，也不会把提交信息发送到任何远程服务。
 
 ## 快速开始
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { gitmojis, type GitmojiItem } from './gitmojis'
 
-defineProps({
+const props = defineProps({
   enterAction: {
     type: Object,
     required: true
@@ -18,8 +18,27 @@ interface HistoryItem {
   createdAt: string
 }
 
+type CommitMessageFormat = 'emoji-first' | 'emoji-after-type'
+
+interface PluginSettings {
+  messageFormat: CommitMessageFormat
+}
+
 const HISTORY_STORAGE_KEY = 'git-commit-message:history'
+const SETTINGS_STORAGE_KEY = 'git-commit-message:settings'
 const MAX_HISTORY_ITEMS = 20
+const MESSAGE_FORMAT_OPTIONS: Array<{ value: CommitMessageFormat; label: string; example: string }> = [
+  {
+    value: 'emoji-first',
+    label: 'Gitmoji 在前',
+    example: '✨ feat(scope): 摘要'
+  },
+  {
+    value: 'emoji-after-type',
+    label: 'Gitmoji 在摘要前',
+    example: 'feat(scope): ✨ 摘要'
+  }
+]
 
 const selectedType = ref<GitmojiItem>(gitmojis[0])
 const gitmojiQuery = ref('')
@@ -27,9 +46,13 @@ const scope = ref('')
 const summary = ref('')
 const body = ref('')
 const issue = ref('')
+const messageFormat = ref<CommitMessageFormat>('emoji-first')
 const copyStatus = ref<'idle' | 'success' | 'error'>('idle')
 const historyItems = ref<HistoryItem[]>([])
+const commitToolRef = ref<HTMLElement | null>(null)
+const summaryInputRef = ref<HTMLInputElement | null>(null)
 let statusTimer: number | undefined
+let scrollResetFrame: number | undefined
 
 const normalizedSummary = computed(() => summary.value.trim())
 const canGenerate = computed(() => normalizedSummary.value.length > 0)
@@ -63,11 +86,30 @@ const gitmojiSectionTitle = computed(() =>
   normalizedGitmojiQuery.value ? `搜索结果 (${visibleGitmojis.value.length})` : '常用推荐'
 )
 
+const isCommitMessageFormat = (value: unknown): value is CommitMessageFormat =>
+  value === 'emoji-first' || value === 'emoji-after-type'
+
+const isPluginSettings = (value: unknown): value is PluginSettings => {
+  if (!value || typeof value !== 'object') return false
+
+  return isCommitMessageFormat((value as Record<string, unknown>).messageFormat)
+}
+
+const formatHeader = (selected: GitmojiItem, normalizedScope: string, normalizedSummary: string) => {
+  const scopeText = normalizedScope ? `(${normalizedScope})` : ''
+  const typeText = `${selected.commitType}${scopeText}`
+
+  if (messageFormat.value === 'emoji-after-type') {
+    return `${typeText}: ${selected.emoji} ${normalizedSummary}`
+  }
+
+  return `${selected.emoji} ${typeText}: ${normalizedSummary}`
+}
+
 const generatedMessage = computed(() => {
   const selected = selectedType.value
   const normalizedScope = scope.value.trim()
-  const scopeText = normalizedScope ? `(${normalizedScope})` : ''
-  const header = `${selected.emoji} ${selected.commitType}${scopeText}: ${normalizedSummary.value}`
+  const header = formatHeader(selected, normalizedScope, normalizedSummary.value)
   const segments = [header]
   const normalizedBody = body.value.trim()
   const normalizedIssue = issue.value.trim()
@@ -147,6 +189,30 @@ const clearPersistedHistory = () => {
     window.localStorage.removeItem(HISTORY_STORAGE_KEY)
   } catch (err) {
     // localStorage may be unavailable in a restricted WebView.
+  }
+}
+
+const saveSettings = () => {
+  try {
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ messageFormat: messageFormat.value }))
+  } catch (err) {
+    // localStorage may be unavailable in a restricted WebView.
+  }
+}
+
+const loadSettings = () => {
+  try {
+    const rawSettings = window.localStorage.getItem(SETTINGS_STORAGE_KEY)
+    if (!rawSettings) return
+
+    const parsedSettings = JSON.parse(rawSettings)
+    if (isPluginSettings(parsedSettings)) {
+      messageFormat.value = parsedSettings.messageFormat
+    } else {
+      saveSettings()
+    }
+  } catch (err) {
+    saveSettings()
   }
 }
 
@@ -239,19 +305,63 @@ const handleKeydown = (event: KeyboardEvent) => {
   }
 }
 
+const scrollCommitToolToTop = () => {
+  const commitTool = commitToolRef.value
+  if (!commitTool) return
+
+  commitTool.scrollTop = 0
+  commitTool.scrollLeft = 0
+}
+
+const focusSummaryWithoutScroll = () => {
+  const summaryInput = summaryInputRef.value
+  if (!summaryInput) return
+
+  try {
+    summaryInput.focus({ preventScroll: true })
+  } catch (err) {
+    summaryInput.focus()
+  }
+}
+
+const handlePluginEnter = async () => {
+  await nextTick()
+
+  scrollCommitToolToTop()
+  focusSummaryWithoutScroll()
+
+  if (scrollResetFrame) {
+    window.cancelAnimationFrame(scrollResetFrame)
+  }
+
+  scrollResetFrame = window.requestAnimationFrame(() => {
+    scrollCommitToolToTop()
+    scrollResetFrame = undefined
+  })
+}
+
+watch(messageFormat, saveSettings)
+watch(() => props.enterAction, handlePluginEnter)
+
 onMounted(() => {
+  loadSettings()
   loadHistoryItems()
+  handlePluginEnter()
 })
 
 onBeforeUnmount(() => {
   if (statusTimer) {
     window.clearTimeout(statusTimer)
   }
+
+  if (scrollResetFrame) {
+    window.cancelAnimationFrame(scrollResetFrame)
+  }
 })
 </script>
 
 <template>
-  <main class="commit-tool" @keydown="handleKeydown">
+  <main ref="commitToolRef" class="commit-tool" @keydown="handleKeydown">
     <section class="commit-panel">
       <header class="commit-header">
         <div>
@@ -263,12 +373,7 @@ onBeforeUnmount(() => {
       <div class="form-grid">
         <label class="field summary-field">
           <span class="field-label required">提交摘要</span>
-          <input v-model="summary" type="text" placeholder="请输入提交摘要" autofocus />
-        </label>
-
-        <label class="field scope-field">
-          <span class="field-label">影响范围</span>
-          <input v-model="scope" type="text" placeholder="auth / ui / api" />
+          <input ref="summaryInputRef" v-model="summary" type="text" placeholder="请输入提交摘要" />
         </label>
       </div>
 
@@ -311,30 +416,45 @@ onBeforeUnmount(() => {
             没有找到匹配的 Gitmoji
           </div>
         </div>
-        <div class="selected-hint">
-          <span>{{ selectedType.emoji }}</span>
-          <strong>{{ selectedType.label }}</strong>
-          <code>{{ selectedType.code }}</code>
-          <span>{{ selectedType.description }}</span>
-        </div>
       </div>
-
-      <label class="field">
-        <span class="field-label">详细说明</span>
-        <textarea v-model="body" rows="4" placeholder="可选：补充说明这次提交的背景或影响"></textarea>
-      </label>
-
-      <label class="field issue-field">
-        <span class="field-label">关联 issue</span>
-        <input v-model="issue" type="text" placeholder="#123" />
-      </label>
 
       <section class="preview-block">
         <div class="preview-header">
           <span class="field-label">预览 · {{ selectedType.code }}</span>
+          <label class="format-control">
+            <span>输出格式</span>
+            <select v-model="messageFormat">
+              <option
+                v-for="formatOption in MESSAGE_FORMAT_OPTIONS"
+                :key="formatOption.value"
+                :value="formatOption.value"
+              >
+                {{ formatOption.label }} · {{ formatOption.example }}
+              </option>
+            </select>
+          </label>
         </div>
         <pre>{{ generatedMessage }}</pre>
       </section>
+
+      <div class="optional-grid">
+        <label class="field">
+          <span class="field-label">详细说明</span>
+          <textarea v-model="body" rows="3" placeholder="可选：补充说明这次提交的背景或影响"></textarea>
+        </label>
+
+        <div class="optional-side">
+          <label class="field scope-field">
+            <span class="field-label">影响范围</span>
+            <input v-model="scope" type="text" placeholder="auth / ui / api" />
+          </label>
+
+          <label class="field issue-field">
+            <span class="field-label">关联 issue</span>
+            <input v-model="issue" type="text" placeholder="#123" />
+          </label>
+        </div>
+      </div>
 
       <div class="action-bar">
         <div
@@ -432,7 +552,7 @@ onBeforeUnmount(() => {
 .field,
 .preview-block {
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .field-label {
@@ -482,7 +602,7 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
-  max-height: min(146px, 24vh);
+  max-height: min(124px, 22vh);
   overflow: auto;
   padding-right: 4px;
   scrollbar-color: rgba(17, 124, 109, 0.38) transparent;
@@ -490,7 +610,7 @@ onBeforeUnmount(() => {
 }
 
 .type-grid.searching {
-  max-height: min(210px, 34vh);
+  max-height: min(170px, 30vh);
 }
 
 .commit-tool::-webkit-scrollbar,
@@ -598,35 +718,14 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.selected-hint {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-height: 30px;
-  margin-top: 8px;
-  padding: 6px 9px;
-  box-sizing: border-box;
-  border: 1px solid #d8dee8;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #526071;
-  font-size: 12px;
-}
-
-.selected-hint code {
-  color: #0b5f54;
-  font-family: Consolas, Monaco, 'Courier New', monospace;
-  font-size: 12px;
-}
-
 .form-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 170px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
 }
 
 input,
+select,
 textarea {
   width: 100%;
   box-sizing: border-box;
@@ -679,12 +778,13 @@ input {
 
 textarea {
   resize: vertical;
-  min-height: 76px;
+  min-height: 58px;
   padding: 10px 11px;
   line-height: 1.55;
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: #117c6d;
   box-shadow: 0 0 0 3px rgba(17, 124, 109, 0.12);
@@ -694,8 +794,28 @@ textarea:focus {
   max-width: 220px;
 }
 
+.optional-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 10px;
+  align-items: start;
+}
+
+.optional-grid .field {
+  margin-bottom: 10px;
+}
+
+.optional-side {
+  display: grid;
+  gap: 10px;
+}
+
+.optional-side .field {
+  margin-bottom: 0;
+}
+
 .preview-block {
-  padding-top: 4px;
+  padding-top: 0;
 }
 
 .preview-header {
@@ -706,11 +826,37 @@ textarea:focus {
   gap: 12px;
 }
 
+.format-control {
+  display: flex;
+  flex: 0 1 360px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 8px;
+  color: #526071;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.format-control span {
+  flex: 0 0 auto;
+}
+
+.format-control select {
+  min-width: 0;
+  height: 30px;
+  padding: 0 28px 0 9px;
+  border-color: #dfe4ec;
+  background: #fff;
+  color: #263241;
+  font-size: 12px;
+}
+
 pre {
-  min-height: 58px;
-  max-height: 120px;
+  min-height: 52px;
+  max-height: 96px;
   margin: 0;
-  padding: 13px;
+  padding: 11px;
   overflow: auto;
   border: 1px solid #d8dee8;
   border-radius: 8px;
@@ -910,7 +1056,7 @@ pre {
 
   .type-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-height: min(140px, 24vh);
+    max-height: min(118px, 22vh);
   }
 
   .form-grid {
@@ -929,6 +1075,19 @@ pre {
 
   .issue-field {
     max-width: none;
+  }
+
+  .optional-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .optional-side {
+    gap: 0;
+  }
+
+  .optional-side .field {
+    margin-bottom: 10px;
   }
 
   .history-item-header {
@@ -950,7 +1109,7 @@ pre {
   .type-grid {
     gap: 6px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-height: min(122px, 23vh);
+    max-height: min(104px, 21vh);
   }
 
   .type-button {
@@ -967,11 +1126,6 @@ pre {
 
   .type-meta span:last-child {
     display: none;
-  }
-
-  .selected-hint {
-    gap: 6px;
-    padding: 7px 8px;
   }
 
   .summary-field input {
@@ -1010,20 +1164,20 @@ pre {
   }
 
   .type-grid {
-    max-height: min(118px, 22vh);
+    max-height: min(98px, 20vh);
   }
 
   .type-grid.searching {
-    max-height: min(164px, 30vh);
+    max-height: min(138px, 27vh);
   }
 
   textarea {
-    min-height: 66px;
+    min-height: 54px;
   }
 
   pre {
-    min-height: 50px;
-    max-height: 100px;
+    min-height: 48px;
+    max-height: 82px;
   }
 
   .copy-button {
@@ -1049,16 +1203,13 @@ pre {
   }
 
   .type-grid {
-    max-height: min(102px, 21vh);
+    max-height: min(88px, 19vh);
   }
 
   .type-grid.searching {
-    max-height: min(146px, 28vh);
+    max-height: min(124px, 25vh);
   }
 
-  .selected-hint span:last-child {
-    display: none;
-  }
 }
 
 @media (max-height: 560px) {
@@ -1076,29 +1227,24 @@ pre {
   }
 
   .type-grid {
-    max-height: min(88px, 20vh);
+    max-height: min(78px, 18vh);
   }
 
   .type-grid.searching {
-    max-height: min(130px, 28vh);
+    max-height: min(112px, 24vh);
   }
 
   .type-button {
     min-height: 34px;
   }
 
-  .selected-hint {
-    min-height: 30px;
-    margin-top: 8px;
-  }
-
   textarea {
-    min-height: 52px;
+    min-height: 48px;
   }
 
   pre {
-    min-height: 44px;
-    max-height: 76px;
+    min-height: 42px;
+    max-height: 68px;
   }
 
   .history-empty {
@@ -1136,6 +1282,7 @@ pre {
 
   .type-button,
   input,
+  select,
   textarea,
   pre,
   .clear-search,
@@ -1192,8 +1339,31 @@ pre {
     color: #71e2d1;
   }
 
+  .format-control {
+    color: #a7b0be;
+  }
+
+  .format-control select {
+    border-color: #3a424f;
+    background: #242a33;
+    color: #edf1f7;
+  }
+
+  .format-control select:hover {
+    border-color: #4c5868;
+  }
+
+  .format-control select:focus {
+    border-color: #26b8a3;
+    box-shadow: 0 0 0 2px rgba(38, 184, 163, 0.18);
+  }
+
+  .format-control select option {
+    background: #242a33;
+    color: #edf1f7;
+  }
+
   .empty-result,
-  .selected-hint,
   .history-empty,
   .history-item {
     border-color: #3a424f;
@@ -1203,10 +1373,6 @@ pre {
 
   .history-clear:not(:disabled):hover,
   .history-copy:hover {
-    color: #71e2d1;
-  }
-
-  .selected-hint code {
     color: #71e2d1;
   }
 
@@ -1231,6 +1397,7 @@ pre {
   }
 
   input:focus,
+  select:focus,
   textarea:focus {
     border-color: #26b8a3;
     box-shadow: 0 0 0 3px rgba(38, 184, 163, 0.16);
