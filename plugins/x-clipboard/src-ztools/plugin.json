@@ -4,7 +4,7 @@
   "title": "极简剪贴板",
   "description": "极简剪贴板 —— 打开就是内容",
   "author": "xing",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "dist/index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

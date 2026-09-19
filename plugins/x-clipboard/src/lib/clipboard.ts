@@ -301,12 +301,36 @@ export async function clearHistory(type?: ClipType): Promise<number> {
  * 小工具
  * ------------------------------------------------------------------ */
 
-/** 本地图片路径要转成 file:// 才能喂给 <img> */
+/**
+ * 本地图片路径 → 能喂给 `<img>` 的 `file://` URL。
+ *
+ * ⚠️ **不能无脑 `'file://' + path`**（09-19 Windows 真机踩的）：宿主给的
+ *    `imagePath` 是**原生绝对路径**，Windows 上长这样 `C:\Users\…\a.png`，
+ *    拼出来是 `file://C:%5CUsers%5C…` —— `\` 被 `encodeURI` 编成 `%5C`，
+ *    整串没有斜杠，于是全部落进 URL 的 **host** 位置，`new URL()` 直接抛
+ *    `Invalid URL` ⇒ `<img>` 触发 `@error` ⇒ **缩略图全线退成占位图标**。
+ *    macOS 是 `/Users/…`，`file://` 后头正好接一个 `/`，凑成 `file:///…`
+ *    才是合法的 —— 所以这个 bug 在 mac 上一直看不见。
+ *
+ * 三种路径各自该拼成什么：
+ *   POSIX   `/Users/x/.ztools/…/a.png`  → `file:///Users/x/.ztools/…/a.png`
+ *   Windows `C:\Users\x\…\a.png`        → `file:///C:/Users/x/…/a.png`（盘符前补一个 `/`）
+ *   UNC     `\\server\share\a.png`      → `file://server/share/a.png`（server 是 host，只留两个 `/`）
+ */
 export function imageSrc(item: ClipContent): string {
   const p = item.imagePath || item.content || ''
   if (!p) return ''
   if (/^(file|data|blob|https?):/i.test(p)) return p
-  return 'file://' + encodeURI(p)
+  // 反斜杠先换成正斜杠：`encodeURI` 会把 `\` 编成 `%5C`，路径就此报废
+  const flat = p.replace(/\\/g, '/')
+  // `encodeURI` 对路径基本够用（`:` `/` 都留着），但它按"整条 URL"设计，
+  // **不编 `#` 和 `?`** —— 那俩在 URL 里有别的含义，会把路径从中间截断，单独补上。
+  const enc = (s: string) => encodeURI(s).replace(/#/g, '%23').replace(/\?/g, '%3F')
+  // `C:/…` 这种盘符开头：必须凑成 `file:///C:/…`（三个斜杠），少一个就成 host 了
+  if (/^[a-zA-Z]:\//.test(flat)) return 'file:///' + enc(flat)
+  // `//server/share`：server 要当 host，所以只能 `file:` + 两个斜杠
+  if (flat.startsWith('//')) return 'file:' + enc(flat)
+  return 'file://' + enc(flat)
 }
 
 /**
