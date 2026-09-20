@@ -25,5 +25,5 @@
   "name": "browser-bookmarks-history",
   "title": "书签与历史记录搜索",
   "description": "搜索 Chrome / Edge 浏览器书签与历史记录，支持便携版浏览器",
-  "version": "2.4.1"
+  "version": "1.0.1"
 }
