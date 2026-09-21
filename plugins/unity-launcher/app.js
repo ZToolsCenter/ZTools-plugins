@@ -12,9 +12,40 @@ let state = {
 
 function sortProjects() {
   state.projects.sort((a, b) => {
+    // 1. 置顶/收藏优先
     if (!!b.pinned !== !!a.pinned) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
-    return (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0);
+    // 2. 最近打开优先（不再把「导入时间」写进 lastOpenedAt）
+    const ta = a.lastOpenedAt || 0;
+    const tb = b.lastOpenedAt || 0;
+    if (tb !== ta) return tb - ta;
+    // 3. 同名/同时间兜底：按名称排序，避免"看起来随机"的顺序
+    return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans-CN');
   });
+}
+
+// ---------- 稳定主键：所有 DOM 操作都按 id 定位，彻底避免排序后下标错位 ----------
+let __idSeq = 0;
+function ensureProjectIds() {
+  const seen = new Set();
+  state.projects.forEach(p => {
+    // 优先用路径（项目天然唯一键，跨会话稳定）；重复/缺失时才生成随机 id
+    if (!p.id || seen.has(p.id)) p.id = p.path;
+    if (!p.id || seen.has(p.id)) {
+      p.id = `proj_${Date.now().toString(36)}_${(__idSeq++).toString(36)}`;
+    }
+    seen.add(p.id);
+  });
+}
+function projectById(id) {
+  if (id == null) return null;
+  return state.projects.find(p => p.id === id) || null;
+}
+function editorByPath(p) {
+  if (p == null) return null;
+  return state.editors.find(e => e.path === p) || null;
+}
+function normalizePath(s) {
+  return String(s || '').replace(/[\\/]+$/, '').toLowerCase();
 }
 
 function getTagColor(tag) {
@@ -26,7 +57,7 @@ function getTagColor(tag) {
   return { bg: 'rgba(255, 255, 255, 0.08)', border: 'rgba(255, 255, 255, 0.15)', text: 'rgba(255, 255, 255, 0.85)' };
 }
 
-function renderTagBadges(p, origIdx) {
+function renderTagBadges(p) {
   const tags = Array.isArray(p.tags) ? p.tags : [];
   const badgesHtml = tags.map(t => {
     const c = getTagColor(t);
@@ -36,7 +67,7 @@ function renderTagBadges(p, origIdx) {
   return `
     <div class="tags-list-container">
       ${badgesHtml}
-      <span class="tag-badge-add" data-tagmgr="${origIdx}" title="点击管理项目分类标签">+ 标签</span>
+      <span class="tag-badge-add" data-tagmgr="${esc(p.id)}" title="点击管理项目分类标签">+ 标签</span>
     </div>`;
 }
 
@@ -73,12 +104,19 @@ function compareUnityVersions(v1, v2) {
 
 function load() {
   console.log('load() executing...');
-  state.projects = services.dbGet(KEY_PROJECTS) || [];
-  state.editors = services.dbGet(KEY_EDITORS) || [];
+  const rawProjects = services.dbGet(KEY_PROJECTS);
+  const rawEditors = services.dbGet(KEY_EDITORS);
+  state.projects = Array.isArray(rawProjects) ? rawProjects.filter(p => p && p.path) : [];
+  state.editors = Array.isArray(rawEditors) ? rawEditors.filter(e => e && e.path) : [];
   state.projects.forEach(p => {
     p.pinned = !!p.pinned;
     if (!Array.isArray(p.tags)) p.tags = [];
+    if (!p.name) p.name = String(p.path).split(/[\\/]/).filter(Boolean).pop() || p.path;
+    if (typeof p.remark !== 'string') p.remark = '';
+    if (typeof p.lastOpenedAt !== 'number') p.lastOpenedAt = typeof p.addedAt === 'number' ? p.addedAt : 0;
+    if (typeof p.addedAt !== 'number') p.addedAt = p.lastOpenedAt || 0;
   });
+  ensureProjectIds();
   sortProjects();
   state.editors.sort((a, b) => compareUnityVersions(a.version, b.version));
   console.log('Loaded state:', JSON.stringify(state));
@@ -235,15 +273,17 @@ async function addItem() {
     }
 
     let addedCount = 0;
+    const now = Date.now();
     list.forEach(r => {
-      if (state.projects.some(p => p.path === r.path)) return;
+      if (state.projects.some(p => normalizePath(p.path) === normalizePath(r.path))) return;
       state.projects.push({
         path: r.path,
         name: r.path.split(/[\\/]/).filter(Boolean).pop() || r.path,
         version: r.detectedVersion,
         editorPath: null,
         remark: "",
-        lastOpenedAt: Date.now()
+        addedAt: now,
+        lastOpenedAt: 0
       });
       addedCount++;
     });
@@ -261,7 +301,7 @@ async function addItem() {
 
     let addedCount = 0;
     list.forEach(e => {
-      if (state.editors.some(x => x.path === e.path)) return;
+      if (state.editors.some(x => normalizePath(x.path) === normalizePath(e.path))) return;
       state.editors.push(e);
       addedCount++;
     });
@@ -274,6 +314,7 @@ async function addItem() {
       }
     }
   }
+  ensureProjectIds();
   sortProjects();
   state.editors.sort((a, b) => compareUnityVersions(a.version, b.version));
   save(); render();
@@ -306,7 +347,7 @@ function createProjectForm() {
         <label>Unity 编辑器版本</label>
         <div class="custom-select-wrapper">
           <select id="newProjEditorSelect">
-            ${state.editors.map((e, idx) => `<option value="${idx}">⚡ Unity ${e.version} — ${e.path}</option>`).join('')}
+            ${state.editors.map((e) => `<option value="${esc(e.path)}">⚡ Unity ${esc(e.version)} — ${esc(e.path)}</option>`).join('')}
           </select>
           <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
@@ -325,7 +366,7 @@ function createProjectForm() {
 
       const name = nameInput.value.trim();
       const parentPath = parentInput.value.trim();
-      const editorIdx = +editorSelectEl.value;
+      const editorPath = editorSelectEl.value;
 
       if (!name) {
         if (ztools.showNotification) ztools.showNotification('请输入项目名称');
@@ -336,22 +377,29 @@ function createProjectForm() {
         return;
       }
 
-      const editor = state.editors[editorIdx];
+      const editor = editorByPath(editorPath);
+      if (!editor) {
+        if (ztools.showNotification) ztools.showNotification('请选择一个有效的 Unity 编辑器');
+        return;
+      }
       
       try {
         const targetProjPath = services.createNewProject(editor.path, parentPath, name);
         
         // Add to project list
+        const nowTs = Date.now();
         state.projects.push({
           path: targetProjPath,
           name: name,
           version: editor.version,
           editorPath: editor.path, // pin it to this editor
           remark: "新建项目",
-          lastOpenedAt: Date.now()
+          addedAt: nowTs,
+          lastOpenedAt: nowTs // 新建后立刻会启动编辑器，视为一次打开
         });
 
         // Sort and save
+        ensureProjectIds();
         sortProjects();
         save();
         render();
@@ -399,6 +447,15 @@ function renderTagFilterBar() {
 
   const allTags = Array.from(allTagsSet);
 
+  // 过滤标签已不存在时自动回退，避免停留在空列表
+  if (state.activeTagFilter !== 'ALL' && state.activeTagFilter !== '__PINNED__'
+      && !allTags.includes(state.activeTagFilter)) {
+    state.activeTagFilter = 'ALL';
+  }
+  if (state.activeTagFilter === '__PINNED__' && !hasPinned) {
+    state.activeTagFilter = 'ALL';
+  }
+
   if (!hasPinned && allTags.length === 0) {
     bar.style.display = 'none';
     return;
@@ -434,8 +491,9 @@ function renderTagFilterBar() {
   });
 }
 
-function openTagManagerModal(origIdx) {
-  const proj = state.projects[origIdx];
+function openTagManagerModal(projectId) {
+  const proj = projectById(projectId);
+  if (!proj) return;
   let currentTags = Array.isArray(proj.tags) ? [...proj.tags] : [];
 
   const updateModalDOM = () => {
@@ -547,15 +605,17 @@ function render() {
     // 只有项目列表显示搜索框（且有项目时显示）
     if (state.projects.length > 0) {
       searchBarWrapper.style.display = 'flex';
-      searchInput.value = state.searchQuery;
+      // 仅在值不一致时赋值，避免输入过程中光标跳到末尾
+      if (searchInput.value !== state.searchQuery) searchInput.value = state.searchQuery;
       searchClearBtn.style.display = state.searchQuery ? 'block' : 'none';
     } else {
       searchBarWrapper.style.display = 'none';
       state.searchQuery = '';
+      searchInput.value = '';
     }
 
     const query = state.searchQuery.toLowerCase().trim();
-    let displayProjects = state.projects.map((p, idx) => ({ ...p, originalIndex: idx }));
+    let displayProjects = state.projects.slice();
 
     if (state.activeTagFilter === '__PINNED__') {
       displayProjects = displayProjects.filter(p => p.pinned);
@@ -565,9 +625,9 @@ function render() {
 
     if (query) {
       displayProjects = displayProjects.filter(p =>
-        p.name.toLowerCase().includes(query) ||
-        (p.remark && p.remark.toLowerCase().includes(query)) ||
-        (Array.isArray(p.tags) && p.tags.some(t => t.toLowerCase().includes(query)))
+        String(p.name || '').toLowerCase().includes(query) ||
+        String(p.remark || '').toLowerCase().includes(query) ||
+        (Array.isArray(p.tags) && p.tags.some(t => String(t).toLowerCase().includes(query)))
       );
     }
 
@@ -606,25 +666,25 @@ function render() {
           </div>
           <span class="sub" title="${esc(p.path)}">${esc(p.path)}</span>
           <div class="remark-container">
-            <input type="text" class="remark-input" data-idx="${p.originalIndex}" value="${esc(p.remark || '')}" placeholder="添加项目备注信息（点击编辑，自动保存）..." />
+            <input type="text" class="remark-input" data-id="${esc(p.id)}" value="${esc(p.remark || '')}" placeholder="添加项目备注信息（点击编辑，自动保存）..." />
           </div>
-          ${renderTagBadges(p, p.originalIndex)}
+          ${renderTagBadges(p)}
         </div>
         <div class="actions">
-          <button class="btn pin ${p.pinned ? 'active' : ''}" data-pin="${p.originalIndex}" title="${p.pinned ? '取消收藏/置顶' : '收藏并置顶项目'}">
+          <button class="btn pin ${p.pinned ? 'active' : ''}" data-pin="${esc(p.id)}" title="${p.pinned ? '取消收藏/置顶' : '收藏并置顶项目'}">
             <svg viewBox="0 0 24 24" fill="${p.pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
           </button>
           ${editorSelect(p)}
-          <button class="btn open" data-open="${p.originalIndex}" title="使用指定/默认编辑器打开项目">
+          <button class="btn open" data-open="${esc(p.id)}" title="使用指定/默认编辑器打开项目">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
           </button>
-          <button class="btn exp" data-exp="${p.originalIndex}" title="在资源管理器中显示">
+          <button class="btn exp" data-exp="${esc(p.id)}" title="在资源管理器中显示">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
           </button>
-          <button class="btn del" data-del="${p.originalIndex}" title="从列表中移除项目">
+          <button class="btn del" data-del="${esc(p.id)}" title="从列表中移除项目">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
           </button>
-          <button class="btn rmdir" data-rmdir="${p.originalIndex}" title="彻底删除本地项目文件夹（危险）">
+          <button class="btn rmdir" data-rmdir="${esc(p.id)}" title="彻底删除本地项目文件夹（危险）">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="9" y1="14" x2="15" y2="14"></line></svg>
           </button>
         </div>
@@ -640,7 +700,7 @@ function render() {
         <div class="empty">
           <span class="empty-icon">⚙️</span>
           <span>暂无关联的 Unity 编辑器</span>
-          <span class="warn">点击右上角「添加编辑器」选择您电脑里的 Unity.exe<br>（例如：&lt;Unity安装目录&gt;/Editor/Unity.exe）</span>
+          <span class="warn">点击右上角「添加编辑器」选择包含 Unity.exe 的文件夹<br>（会递归查找，例如 &lt;Unity安装目录&gt;/Editor/Unity.exe）</span>
         </div>`;
       return bindContent(c);
     }
@@ -660,7 +720,7 @@ function render() {
           <span class="sub" title="${esc(e.path)}">${esc(e.path)}</span>
         </div>
         <div class="actions">
-          <button class="btn del" data-dele="${i}" title="从列表中移除编辑器">
+          <button class="btn del" data-dele="${esc(e.path)}" title="从列表中移除编辑器">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
           </button>
         </div>
@@ -672,13 +732,13 @@ function render() {
 }
 
 function editorSelect(p) {
-  const idx = state.projects.indexOf(p);
+  // 用稳定主键定位，不再依赖数组下标（排序后下标会错位）
   const opts = ['<option value="">自动选择编辑器</option>']
-    .concat(state.editors.map((e, i) =>
-      `<option value="${i}" ${p.editorPath===e.path?'selected':''}>${esc(e.version)}</option>`));
+    .concat(state.editors.map((e) =>
+      `<option value="${esc(e.path)}" ${p.editorPath===e.path?'selected':''}>${esc(e.version)}</option>`));
   return `
     <div class="select-wrapper">
-      <select data-sel="${idx}">
+      <select data-sel="${esc(p.id)}">
         ${opts.join('')}
       </select>
       <svg class="select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -687,7 +747,8 @@ function editorSelect(p) {
 
 function bindContent(c) {
   c.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
-    const p = state.projects[+b.dataset.open];
+    const p = projectById(b.dataset.open);
+    if (!p) return;
     let editor = null;
     
     // 1. 如果手动指定了编辑器，使用指定的
@@ -745,13 +806,14 @@ function bindContent(c) {
       p.lastOpenedAt = Date.now();
       sortProjects();
       save();
+      render(); // 关键：顺序变了必须重绘，否则 DOM 与 state 错位（会删错项目）
     }
     if (ztools.hideMainWindow) ztools.hideMainWindow();
   });
 
   c.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => {
-    const idx = +b.dataset.pin;
-    const p = state.projects[idx];
+    const p = projectById(b.dataset.pin);
+    if (!p) return;
     p.pinned = !p.pinned;
     sortProjects();
     save();
@@ -759,25 +821,30 @@ function bindContent(c) {
   });
 
   c.querySelectorAll('[data-tagmgr]').forEach(b => b.onclick = () => {
-    const idx = +b.dataset.tagmgr;
-    openTagManagerModal(idx);
+    openTagManagerModal(b.dataset.tagmgr);
   });
 
   c.querySelectorAll('select[data-sel]').forEach(s => s.onchange = () => {
-    state.projects[+s.dataset.sel].editorPath = s.value === '' ? null : state.editors[+s.value].path;
+    const p = projectById(s.dataset.sel);
+    if (!p) return;
+    p.editorPath = s.value === '' ? null : s.value;
     save();
   });
 
-  c.querySelectorAll('[data-exp]').forEach(b => b.onclick = () => services.openInExplorer(state.projects[+b.dataset.exp].path));
+  c.querySelectorAll('[data-exp]').forEach(b => b.onclick = () => {
+    const p = projectById(b.dataset.exp);
+    if (p) services.openInExplorer(p.path);
+  });
 
   c.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
-    const idx = +b.dataset.del;
-    const proj = state.projects[idx];
+    const proj = projectById(b.dataset.del);
+    if (!proj) return;
     openModal({
       title: '确认移除项目',
       content: `确认从列表中移除项目「${proj.name}」吗？\n（此操作仅清理快捷启动记录，不会影响硬盘上的实际项目文件）`,
       onConfirm: () => {
-        state.projects.splice(idx, 1);
+        const i = state.projects.findIndex(x => x.id === proj.id);
+        if (i >= 0) state.projects.splice(i, 1);
         save();
         render();
       }
@@ -785,8 +852,8 @@ function bindContent(c) {
   });
 
   c.querySelectorAll('[data-rmdir]').forEach(b => b.onclick = () => {
-    const idx = +b.dataset.rmdir;
-    const proj = state.projects[idx];
+    const proj = projectById(b.dataset.rmdir);
+    if (!proj) return;
     
     // 第一阶段：严重警告
     openModal({
@@ -833,7 +900,8 @@ function bindContent(c) {
                     const overlay = document.getElementById('modalOverlay');
                     if (overlay) overlay.classList.remove('active');
 
-                    state.projects.splice(idx, 1);
+                    const i = state.projects.findIndex(x => x.id === proj.id);
+                    if (i >= 0) state.projects.splice(i, 1);
                     save();
                     render();
                     if (ztools.showNotification) {
@@ -860,13 +928,14 @@ function bindContent(c) {
   });
 
   c.querySelectorAll('[data-dele]').forEach(b => b.onclick = () => {
-    const idx = +b.dataset.dele;
-    const editor = state.editors[idx];
+    const editor = editorByPath(b.dataset.dele);
+    if (!editor) return;
     openModal({
       title: '确认移除编辑器',
       content: `确认从列表中移除 Unity ${editor.version} 编辑器的启动关联记录吗？`,
       onConfirm: () => {
-        state.editors.splice(idx, 1);
+        const i = state.editors.findIndex(x => x.path === editor.path);
+        if (i >= 0) state.editors.splice(i, 1);
         save();
         render();
       }
@@ -875,8 +944,9 @@ function bindContent(c) {
 
   c.querySelectorAll('.remark-input').forEach(input => {
     input.onchange = () => {
-      const idx = +input.dataset.idx;
-      state.projects[idx].remark = input.value.trim();
+      const p = projectById(input.dataset.id);
+      if (!p) return;
+      p.remark = input.value.trim();
       save();
     };
     input.onkeydown = (e) => {
@@ -885,7 +955,14 @@ function bindContent(c) {
   });
 }
 
-function esc(s){ return String(s||'').replace(/</g,'&lt;').replace(/&/g,'&amp;'); }
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function setupSearchListeners() {
   const searchInput = document.getElementById('searchInput');
@@ -945,6 +1022,10 @@ function boot() {
     if (ztools.onPluginEnter) {
       ztools.onPluginEnter(() => {
         applyTheme();
+        // 每次唤起都重新读库 + 重绘，保证排序与 DOM 一致
+        load();
+        setupSearchListeners();
+        render();
       });
     }
     load();
@@ -1021,6 +1102,7 @@ function openModal({ title, content, onConfirm, showCancel = true, showInput = n
     setTimeout(() => inputEl.focus(), 50);
   } else {
     inputEl.style.display = 'none';
+    inputEl.oninput = null; // 清理上一次 showInput 绑定的监听，避免状态残留
     newConfirm.disabled = false;
     newConfirm.style.opacity = '1';
     newConfirm.style.cursor = 'pointer';

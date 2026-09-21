@@ -42,6 +42,10 @@
   --mem-color: #38bdf8;
   --cpu-color: #f43f5e;
 
+  --scrollbar-track: rgba(15, 23, 42, 0.4);
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
+
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -99,6 +103,10 @@
     --mem-color: #0284c7;
     --cpu-color: #e11d48;
 
+    --scrollbar-track: rgba(226, 232, 240, 0.7);
+    --scrollbar-thumb: #94a3b8;
+    --scrollbar-thumb-hover: #64748b;
+
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
@@ -147,6 +155,10 @@ body.light-mode {
 
   --mem-color: #0284c7;
   --cpu-color: #e11d48;
+
+  --scrollbar-track: rgba(226, 232, 240, 0.7);
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-thumb-hover: #64748b;
 }
 
 body.dark-mode {
@@ -191,6 +203,10 @@ body.dark-mode {
 
   --mem-color: #38bdf8;
   --cpu-color: #f43f5e;
+
+  --scrollbar-track: rgba(15, 23, 42, 0.4);
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
 }
 
 * {
@@ -481,25 +497,35 @@ input[type="checkbox"]:indeterminate::before {
 /* Process List Body */
 .process-list-container {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   padding: 6px 12px;
 }
 
 .process-list-container::-webkit-scrollbar {
   width: 8px;
+  display: block;
 }
 
 .process-list-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.process-list-container::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--scrollbar-track);
   border-radius: 4px;
 }
 
+.process-list-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
 .process-list-container::-webkit-scrollbar-thumb:hover {
-  background: var(--border-highlight);
+  background: var(--scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 .process-item {
@@ -535,12 +561,32 @@ input[type="checkbox"]:indeterminate::before {
 .process-name-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text-primary);
+}
+
+.proc-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proc-desc-tag {
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--text-muted);
+  background: var(--badge-bg);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .process-icon {

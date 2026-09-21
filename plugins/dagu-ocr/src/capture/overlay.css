@@ -1,0 +1,300 @@
+/* 沉浸式截图覆盖层：冻结画面即画布，工具条贴靠选区浮动。 */
+
+:root {
+  /* 与主页面共用同一套主题 token，截图工具条只做局部覆盖。 */
+  --capture-accent: var(--primary-color, #2b7de9);
+  --capture-accent-hover: var(--primary-hover, #1f6fd6);
+  --capture-toolbar-bg: var(--surface, rgba(252, 252, 253, .96));
+  --capture-toolbar-border: var(--border-color, rgba(15, 23, 42, .10));
+  --capture-icon: var(--text-color, #3c4043);
+  --capture-hover: var(--hover-bg, rgba(15, 23, 42, .08));
+  --capture-panel-bg: var(--surface, rgba(255, 255, 255, .98));
+  --capture-danger: var(--danger-color, #ef4444);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000000;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  cursor: crosshair;
+  user-select: none;
+}
+
+#capture-stage {
+  position: absolute;
+  inset: 0;
+}
+
+#capture-stage canvas {
+  display: block;
+}
+
+#capture-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, .35);
+}
+
+#capture-badge {
+  position: fixed;
+  display: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .94);
+  color: #1f2937;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .18);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#capture-hint {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  max-width: 70%;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(17, 20, 24, .78);
+  color: #e5e7eb;
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+
+#capture-hint.visible { opacity: 1; }
+
+#capture-toolbar-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.capture-toolbar {
+  position: absolute;
+  display: none;
+  pointer-events: auto;
+}
+
+.capture-toolbar.visible { display: block; }
+
+.capture-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 6px;
+  border: 1px solid var(--capture-toolbar-border);
+  border-radius: var(--radius-md, 10px);
+  background: var(--capture-toolbar-bg);
+  box-shadow: var(--shadow-pop, 0 10px 30px rgba(15, 23, 42, .22));
+  width: max-content;
+}
+
+.capture-row-sub {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--capture-panel-bg);
+}
+
+.capture-row-sub.hidden,
+.capture-panel.hidden { display: none; }
+
+.capture-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.capture-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  color: var(--capture-icon);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .14s ease, color .14s ease;
+}
+
+.capture-btn:hover { background: var(--capture-hover); }
+.capture-btn:disabled { opacity: .35; cursor: default; }
+.capture-btn:disabled:hover { background: transparent; }
+.capture-btn svg { width: 20px; height: 20px; }
+
+.capture-tool.active,
+.capture-toggle.active {
+  background: var(--capture-accent);
+  color: #ffffff;
+}
+
+.capture-btn.capture-primary {
+  background: var(--capture-accent);
+  color: #ffffff;
+}
+
+.capture-btn.capture-primary:hover { background: var(--capture-accent-hover); }
+
+.capture-btn.capture-flow {
+  width: auto;
+  min-width: 44px;
+  padding: 0 10px;
+}
+
+.capture-sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--capture-toolbar-border);
+  flex-shrink: 0;
+}
+
+.capture-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm, 8px);
+  background: rgba(15, 23, 42, .06);
+}
+
+.capture-toggle {
+  min-width: 32px;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--capture-icon);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.capture-toggle:hover { background: var(--capture-hover); }
+.capture-toggle.active:hover { background: var(--capture-accent-hover); }
+
+.capture-toggle-font { font-weight: 700; }
+.capture-toggle-font.capture-italic { font-style: italic; font-family: Georgia, serif; }
+
+.capture-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--capture-icon);
+  font-size: 12px;
+}
+
+.capture-range input[type="range"] {
+  width: 96px;
+  accent-color: var(--capture-accent);
+}
+
+.capture-range output {
+  min-width: 20px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.capture-select select {
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--capture-toolbar-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--capture-icon);
+  font: inherit;
+  font-size: 12px;
+}
+
+.capture-palette {
+  display: grid;
+  grid-template-columns: repeat(8, 18px);
+  gap: 4px;
+}
+
+.capture-color {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(15, 23, 42, .18);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.capture-color.active {
+  outline: 2px solid var(--capture-accent);
+  outline-offset: 1px;
+}
+
+.capture-custom-color {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: rgba(15, 23, 42, .06);
+}
+
+.capture-custom-color input {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.capture-loading {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #e5e7eb;
+  font-size: 13px;
+  letter-spacing: .04em;
+}
+
+/* 就地文字编辑：贴在点击位置的轻量输入框。 */
+.capture-text-editor {
+  position: fixed;
+  display: none;
+  min-width: 90px;
+  min-height: 1.4em;
+  padding: 2px 6px;
+  border: 1px dashed rgba(255, 255, 255, .85);
+  border-radius: 4px;
+  background: rgba(15, 23, 42, .45);
+  color: #ffffff;
+  font-family: Inter, "Microsoft YaHei", sans-serif;
+  line-height: 1.35;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  outline: none;
+  z-index: 40;
+}
+
+.capture-text-editor.visible { display: block; }

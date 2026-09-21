@@ -89,11 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Resolution of process service from preload
   const processService = window.services || window.processService || {
     getProcesses: async () => [
-      { name: 'chrome.exe', pid: 12100, memoryStr: '132.3 MB', memoryKB: 135480, listeningPorts: [8080, 8081], allPorts: [8080, 8081], primaryPort: 8080, portsStr: ':8080, :8081' },
-      { name: 'Antigravity.exe', pid: 65176, memoryStr: '252.4 MB', memoryKB: 258488, listeningPorts: [], allPorts: [54321], primaryPort: 54321, portsStr: ':54321' },
-      { name: 'ZTools.exe', pid: 56044, memoryStr: '91.9 MB', memoryKB: 94092, listeningPorts: [], allPorts: [], primaryPort: Infinity, portsStr: '' },
-      { name: 'WeChatAppEx.exe', pid: 54964, memoryStr: '133.1 MB', memoryKB: 136308, listeningPorts: [], allPorts: [], primaryPort: Infinity, portsStr: '' },
-      { name: 'Unity.exe', pid: 28976, memoryStr: '0.96 GB', memoryKB: 1002752, listeningPorts: [3000], allPorts: [3000], primaryPort: 3000, portsStr: ':3000' }
+      { name: 'chrome.exe', description: 'Google Chrome', pid: 12100, memoryStr: '132.3 MB', memoryKB: 135480, listeningPorts: [8080, 8081], allPorts: [8080, 8081], primaryPort: 8080, portsStr: ':8080, :8081' },
+      { name: 'Antigravity.exe', description: 'Antigravity IDE', pid: 65176, memoryStr: '252.4 MB', memoryKB: 258488, listeningPorts: [], allPorts: [54321], primaryPort: 54321, portsStr: ':54321' },
+      { name: 'ZTools.exe', description: 'ZTools 快捷工具', pid: 56044, memoryStr: '91.9 MB', memoryKB: 94092, listeningPorts: [], allPorts: [], primaryPort: Infinity, portsStr: '' },
+      { name: 'WeChatAppEx.exe', description: '微信小程序进程', pid: 54964, memoryStr: '133.1 MB', memoryKB: 136308, listeningPorts: [], allPorts: [], primaryPort: Infinity, portsStr: '' },
+      { name: 'Unity.exe', description: 'Unity Editor', pid: 28976, memoryStr: '0.96 GB', memoryKB: 1002752, listeningPorts: [3000], allPorts: [3000], primaryPort: 3000, portsStr: ':3000' }
     ],
     killProcess: async (pid) => `Mock killed process PID ${pid}`
   };
@@ -255,6 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       filteredProcesses = allProcesses.filter(p => {
         const nameMatch = p.name.toLowerCase().includes(rawQuery);
+        const descMatch = p.description ? p.description.toLowerCase().includes(rawQuery) : false;
         const pidMatch = p.pid.toString().includes(rawQuery);
         
         let portMatch = false;
@@ -270,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
           portMatch = hasListeningMatch || hasAllMatch || hasStrMatch;
         }
 
-        return nameMatch || pidMatch || portMatch;
+        return nameMatch || descMatch || pidMatch || portMatch;
       });
     }
 
@@ -352,12 +353,15 @@ document.addEventListener('DOMContentLoaded', () => {
       item.setAttribute('data-index', index);
 
       const portHtml = renderPortBadges(proc);
+      const hasDesc = proc.description && proc.description.toLowerCase() !== proc.name.toLowerCase().replace(/\.exe$/, '');
+      const descTagHtml = hasDesc ? `<span class="proc-desc-tag" title="${escapeHtml(proc.description)}">${escapeHtml(proc.description)}</span>` : '';
+      const fullTooltip = proc.description ? `${proc.name} (${proc.description})` : proc.name;
 
       item.innerHTML = `
         <div class="checkbox-cell">
           <input type="checkbox" class="row-checkbox" data-index="${index}" ${isChecked ? 'checked' : ''}>
         </div>
-        <div class="process-name-cell" title="${escapeHtml(proc.name)}">
+        <div class="process-name-cell" title="${escapeHtml(fullTooltip)}">
           <svg class="process-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
             <rect x="9" y="9" width="6" height="6"></rect>
@@ -370,7 +374,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <line x1="1" y1="9" x2="4" y2="9"></line>
             <line x1="1" y1="15" x2="4" y2="15"></line>
           </svg>
-          <span>${escapeHtml(proc.name)}</span>
+          <span class="proc-name-text">${escapeHtml(proc.name)}</span>
+          ${descTagHtml}
         </div>
         <div class="pid-cell">${proc.pid}</div>
         <div class="port-cell">${portHtml}</div>
@@ -512,11 +517,19 @@ document.addEventListener('DOMContentLoaded', () => {
     isModalOpen = true;
 
     modalTitle.textContent = '确认结束进程？';
+    const descInfoRow = proc.description ? `
+      <div class="info-row">
+        <span class="info-label">程序描述:</span>
+        <span class="info-value" style="color: var(--text-primary); font-family: var(--font-sans);">${escapeHtml(proc.description)}</span>
+      </div>
+    ` : '';
+
     modalBody.innerHTML = `
       <div class="info-row">
         <span class="info-label">进程名称:</span>
         <span class="info-value">${escapeHtml(proc.name)}</span>
       </div>
+      ${descInfoRow}
       <div class="info-row">
         <span class="info-label">进程 PID:</span>
         <span class="info-value">${proc.pid}</span>
@@ -549,7 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let html = selectedProcs.map(p => `
       <div class="modal-proc-tag">
-        <span><strong>${escapeHtml(p.name)}</strong> (PID: ${p.pid}${p.portsStr ? ' | ' + escapeHtml(p.portsStr) : ''})</span>
+        <span><strong>${escapeHtml(p.name)}</strong>${p.description ? ' (' + escapeHtml(p.description) + ')' : ''} (PID: ${p.pid}${p.portsStr ? ' | ' + escapeHtml(p.portsStr) : ''})</span>
         <span style="color: #38bdf8; font-family: var(--font-mono); font-size: 11px;">${p.memoryStr}</span>
       </div>
     `).join('');

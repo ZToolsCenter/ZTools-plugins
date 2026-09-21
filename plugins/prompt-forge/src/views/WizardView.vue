@@ -4,7 +4,8 @@ import { Check, Zap, ArrowLeft, ArrowRight } from 'lucide-vue-next'
 import { useRouter } from '../stores/router'
 import { usePromptStore } from '../stores/prompt'
 import { useProjectStore } from '../stores/project'
-import { extractVariables, generateId, inferTitle } from '../utils/index'
+import { extractVariables, generateId, inferTitle, shouldUseTextarea } from '../utils/index'
+import TagsInput from '../components/TagsInput.vue'
 import type { PromptItem } from '../types'
 
 const router = useRouter()
@@ -13,7 +14,7 @@ const projectStore = useProjectStore()
 const step = ref(1)
 const content = ref('')
 const title = ref('')
-const tagsRaw = ref('')
+const tags = ref<string[]>([])
 const selectedProjectId = ref('')
 const selectedType = ref<'prompt' | 'snippet' | 'template' | 'constraint'>('prompt')
 const varConfigs = ref<Record<string, { required: boolean; defaultValue: string }>>({})
@@ -22,7 +23,6 @@ const saving = ref(false)
 
 const detectedVars = computed(() => extractVariables(content.value))
 const autoTitle = computed(() => title.value.trim() || inferTitle(content.value))
-const tags = computed(() => tagsRaw.value.split(',').map(s => s.trim()).filter(Boolean))
 
 onMounted(() => {
   const p = router.consumeWizardPrefill()
@@ -81,7 +81,7 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
       <div v-if="step === 2" class="pane">
         <h2>基本信息</h2>
         <div class="field"><label>标题 <span class="hi">默认：{{ autoTitle }}</span></label><input v-model="title" placeholder="如：PRD 评审建议" /></div>
-        <div class="field"><label>标签 <span class="hi">逗号分隔</span></label><input v-model="tagsRaw" placeholder="PRD, 评审" /></div>
+        <div class="field"><label>标签 <span class="hi">回车添加</span></label><TagsInput v-model="tags" /></div>
         <div class="field"><label>类型</label>
           <div class="type-grid">
             <button v-for="t in [{v:'prompt',l:'提示词'},{v:'snippet',l:'片段'},{v:'template',l:'模板'},{v:'constraint',l:'约束'}] as const"
@@ -101,7 +101,10 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
           <div class="vr header"><div>变量名</div><div>默认值</div><div style="text-align:center">必填</div></div>
           <div v-for="v in detectedVars" :key="v.name" class="vr">
             <div class="vn">{{ v.name }}</div>
-            <div><input :value="varConfigs[v.name]?.defaultValue ?? v.defaultValue ?? ''" @input="varConfigs[v.name] = { required: varConfigs[v.name]?.required ?? v.required, defaultValue: ($event.target as HTMLInputElement).value }" placeholder="默认值…" /></div>
+            <div>
+              <textarea v-if="shouldUseTextarea(v)" rows="2" class="var-ta" :value="varConfigs[v.name]?.defaultValue ?? v.defaultValue ?? ''" @input="varConfigs[v.name] = { required: varConfigs[v.name]?.required ?? v.required, defaultValue: ($event.target as HTMLTextAreaElement).value }" placeholder="默认值…"></textarea>
+              <input v-else :value="varConfigs[v.name]?.defaultValue ?? v.defaultValue ?? ''" @input="varConfigs[v.name] = { required: varConfigs[v.name]?.required ?? v.required, defaultValue: ($event.target as HTMLInputElement).value }" placeholder="默认值…" />
+            </div>
             <div style="text-align:center"><input type="checkbox" :checked="varConfigs[v.name]?.required ?? v.required" @change="varConfigs[v.name] = { required: ($event.target as HTMLInputElement).checked, defaultValue: varConfigs[v.name]?.defaultValue ?? v.defaultValue ?? '' }" /></div>
           </div>
         </div>
@@ -158,6 +161,8 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
 .vn { font-family: var(--pf-font-mono); font-weight: 700; color: var(--pf-accent); font-size: 12px; }
 .vr input { height: 30px; padding: 2px 8px; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-xs); background: var(--pf-surface); width: 100%; }
 .vr input:focus { border-color: var(--pf-accent); outline: none; }
+.var-ta { width: 100%; min-height: 44px; max-height: 120px; padding: 6px 8px; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-xs); background: var(--pf-surface); font-size: 12px; font-family: var(--pf-font); line-height: 1.4; resize: none; }
+.var-ta:focus { border-color: var(--pf-accent); outline: none; }
 .empty { padding: 24px; text-align: center; color: var(--pf-text-muted); }
 .wiz-foot { height: 50px; flex-shrink: 0; padding: 8px 24px; background: var(--pf-bg-elevated); border-top: 1px solid var(--pf-border); display: flex; align-items: center; gap: 8px; }
 .spacer { flex: 1; }

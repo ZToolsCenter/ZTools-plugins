@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "es-client",
+  "title": "ESClient",
+  "description": "Elasticsearch 客户端：连接管理、集群/索引、DSL 查询、文档 CRUD、通用 REST 控制台",
+  "author": "ArthurYang999",
+  "version": "0.1.0",
+  "platform": ["win32", "darwin", "linux"],
+  "main": "dist/index.html",
+  "logo": "logo.png",
+  "preload": "preload/services.js",
+  "features": [
+    {
+      "code": "manage",
+      "explain": "打开 Elasticsearch 控制台",
+      "icon": "logo.png",
+      "cmds": ["ESClient", "es", "Elasticsearch"]
+    }
+  ],
+  "development": {
+    "main": "http://localhost:5173"
+  }
+}

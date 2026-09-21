@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.0 - 2026-09-16
+
+### ✨ Features
+
+* **中文变量支持** — `{{变量名}}` 和 `${变量名}` 现在支持中文变量名（含 CJK 基本区和扩展A区），如 `{{角色=产品经理}}`、`{{需求描述}}`
+* **变量输入智能适配** — 长文本变量（名称含"描述/内容/context"等关键词，或默认值 ≥ 30 字符）自动使用 textarea 并支持自动增高，短变量保持单行 input
+* **应用内 Modal 组件** — 新增 `AppModal` 全局模态框，统一替换所有原生 `prompt()` / `confirm()` / `alert()` 弹窗，支持 alert / confirm / prompt 三种模式，带遮罩和过渡动画
+
+### ♻️ Refactor
+
+* **标签输入组件化** — 抽取 `TagsInput.vue` 可复用组件，统一 WizardView / QuickSaveView / ManagePropsTab 三处重复的标签输入逻辑（Enter 添加、× 删除、自动去重）
+
+### 🛠 Engineering
+
+* **中文变量回归测试** — 新增 `extractVariables` / `renderVariables` 中文变量名测试用例
+
 ## 1.4.0 - 2026-08-27
 
 ### ✨ Features
@@ -52,7 +68,7 @@
 * **SpaceView 组件拆分** — 从 608 行拆分为 SpaceView（210 行）+ SpaceSidebar / ProjectPanel / HistoryPanel / TrashPanel 四个子组件
 * **ManageView 组件拆分** — 从 477 行拆分为 ManageView（280 行）+ ManageContentTab / ManagePropsTab / ManageVarsTab / ManageVersionsTab / ManageStatsTab 五个 Tab 子组件
 
-## 1.1.0 - 2026-07-14
+## \[1.1.0] - 2026-07-14
 
 ### ✨ Features
 
@@ -77,7 +93,7 @@
 * **存储错误处理统一** — `storage.ts` 所有 `catch` 块统一添加 `console.error` 日志，`save` 函数补全 `try-catch`
 * **ManageView 搜索性能优化** — `filteredItems` 拆分为 `baseItems` + `fuseInstance` + `filteredItems` 三层计算属性，Fuse 索引仅在基础列表变化时重建，避免每次按键重新实例化
 
-## 1.0.0 - 2026-07-11
+## \[1.0.0] - 2026-07-11
 
 ### 🐛 Bug Fixes
 
@@ -102,6 +118,3 @@
 
 * 移除未使用的 `fnvHash` 函数（精确重复检测改为字符串比对后不再需要）
 
-### 根据提交记录补充
-
-- 添加图标

@@ -2,9 +2,10 @@
   "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
   "name": "jet-plugin",
   "title": "jet plugin",
-  "description": "A ZTools plugin",
+  "description": "扫描本机已安装的 JetBrains IDE，聚合各 IDE 最近打开的项目，支持模糊搜索与一键启动",
   "author": "zl",
-  "version": "1.0.3",
+  "version": "1.2.2",
+  "platform": ["darwin", "win32"],
   "preload": "preload.js",
   "logo": "logo.png",
   "features": [

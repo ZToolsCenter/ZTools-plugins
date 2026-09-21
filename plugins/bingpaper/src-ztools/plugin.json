@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "bingpaper",
+  "title": "Bing 每日壁纸",
+  "description": "浏览 Bing 每日壁纸，下载并设为桌面壁纸",
+  "author": "咖啡八杯",
+  "version": "1.0.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "wallpaper",
+      "explain": "Bing 每日壁纸",
+      "icon": "logo.png",
+      "cmds": ["壁纸", "bing", "wallpaper", "bp"]
+    }
+  ]
+}

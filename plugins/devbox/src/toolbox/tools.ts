@@ -5,6 +5,8 @@ import RandomNumber from '../tools/RandomNumber/index.vue'
 import UUID from '../tools/UUID/index.vue'
 import RandomColor from '../tools/RandomColor/index.vue'
 import Signature from '../tools/Signature/index.vue'
+import Base64 from '../tools/Base64/index.vue'
+import UrlCodec from '../tools/UrlCodec/index.vue'
 import Pinyin from '../tools/Pinyin/index.vue'
 import Qrcode from '../tools/Qrcode/index.vue'
 import HTMLPreview from '../tools/HTMLPreview/index.vue'
@@ -43,6 +45,8 @@ export const categories: Category[] = [
     code: 'convert',
     tools: [
       { code: 'signature', explain: '加密签名', icon: '', component: Signature },
+      { code: 'base64', explain: 'Base64 编解码', icon: '', component: Base64 },
+      { code: 'urlcodec', explain: 'URL 编解码', icon: '', component: UrlCodec },
       { code: 'pinyin', explain: '中文转拼音', icon: '', component: Pinyin },
       { code: 'qrcode', explain: '二维码', icon: '', component: Qrcode },
       { code: 'timeconvert', explain: '时间转换', icon: '', component: TimeConvert },

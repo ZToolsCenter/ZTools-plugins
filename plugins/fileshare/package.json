@@ -1,6 +1,6 @@
 {
   "name": "z-share",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "局域网共享文件",
   "type": "module",
   "scripts": {

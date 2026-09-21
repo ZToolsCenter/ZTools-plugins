@@ -1,7 +1,7 @@
 {
   "name": "myPlugins",
-  "version": "2.5.1",
-  "description": "开发百宝箱，提供随机生成、编码转换、文本压缩、开发辅助等常用工具集",
+  "version": "2.7.2",
+  "description": "开发百宝箱，提供随机生成、Base64 编解码、URL 编解码、加密签名、二维码、文本压缩、开发辅助等常用工具集",
   "type": "module",
   "scripts": {
     "dev": "vite",

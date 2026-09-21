@@ -11,6 +11,7 @@
 // [browser] 上述模块已通过 <script> 标签全局加载
 // [browser] 上述模块已通过 <script> 标签全局加载
 // [browser] 上述模块已通过 <script> 标签全局加载
+// [browser] 上述模块已通过 <script> 标签全局加载
 class SearchService {
   /**
    * @param {object} deps
@@ -28,6 +29,26 @@ class SearchService {
     this._registerDefaultSources();
 
     this.activeSourceId = null;
+
+    // 搜索结果缓存：切换搜索源标签页时复用，避免重复请求接口
+    this.cacheEnabled = deps.cacheEnabled !== false;
+    this.cache = new SearchCache({
+      maxEntries: deps.cacheMaxEntries,
+      ttl: deps.cacheTtl,
+    });
+  }
+
+  /**
+   * 将搜索源的当前状态写入缓存
+   * @param {SearchProvider} source
+   */
+  _saveToCache(source) {
+    if (!this.cacheEnabled || !source) return;
+    this.cache.set(source.getId(), source.currentKeyword, {
+      images: source.results,
+      page: source.currentPage,
+      hasMore: source.hasMore,
+    });
   }
 
   /**
@@ -36,7 +57,7 @@ class SearchService {
   _registerDefaultSources() {
     const deps = { httpProvider: this.http };
     this.registerSource(new YujianSearchSource(deps));
-    this.registerSource(new TangdouziSearchSource(deps));
+    this.registerSource(new QQSearchSource(deps));
     this.registerSource(new BaiduSearchSource(deps));
     this.registerSource(new SogouSearchSource(deps));
     this.registerSource(new ApiHzSearchSource(deps));
@@ -105,12 +126,59 @@ class SearchService {
       throw new Error('未选择搜索源');
     }
 
-    if (!keyword) {
+    const kw = String(keyword || '').trim();
+    if (!kw) {
       this.notification.showMessage('请输入搜索关键词', 'error');
-      return { images: [], keyword, isFirstPage: true, hasMore: false };
+      return { images: [], keyword: kw, isFirstPage: true, hasMore: false };
     }
 
-    return await source.search(keyword, page);
+    // 首页搜索优先读缓存（切换标签页回来时不再请求接口）
+    if (page === 1 && this.cacheEnabled) {
+      const cached = this.getCachedResult(kw);
+      if (cached) return cached;
+    }
+
+    const result = await source.search(kw, page);
+
+    // 仅缓存有结果的首页搜索，避免缓存失败请求
+    if (page === 1 && result && result.images.length > 0) {
+      this._saveToCache(source);
+    }
+
+    return result;
+  }
+
+  /**
+   * 读取当前搜索源的缓存结果
+   *
+   * 命中时会把缓存状态还原到搜索源实例，
+   * 使后续「加载更多」能从缓存页码继续分页。
+   *
+   * @param {string} keyword
+   * @returns {object|null} { images, keyword, isFirstPage, hasMore, fromCache }
+   */
+  getCachedResult(keyword) {
+    const source = this.getActiveSource();
+    const kw = String(keyword || '').trim();
+    if (!source || !kw || !this.cacheEnabled) return null;
+
+    const cached = this.cache.get(source.getId(), kw);
+    if (!cached || !cached.images.length) return null;
+
+    source.restoreState({
+      keyword: cached.keyword,
+      images: cached.images,
+      page: cached.page,
+      hasMore: cached.hasMore,
+    });
+
+    return {
+      images: cached.images,
+      keyword: cached.keyword,
+      isFirstPage: true,
+      hasMore: cached.hasMore,
+      fromCache: true,
+    };
   }
 
   /**
@@ -120,16 +188,27 @@ class SearchService {
   async loadMore() {
     const source = this.getActiveSource();
     if (!source) return null;
-    return await source.loadMore();
+    const result = await source.loadMore();
+    if (result) this._saveToCache(source);
+    return result;
   }
 
   /**
-   * 重置所有搜索源状态
+   * 清空搜索结果缓存
+   * @param {string} [sourceId] - 指定搜索源，缺省清空全部
+   */
+  clearCache(sourceId) {
+    this.cache.clear(sourceId);
+  }
+
+  /**
+   * 重置所有搜索源状态（同时清空缓存）
    */
   resetAll() {
     for (const source of this.sources.values()) {
       source.reset();
     }
+    this.cache.clearAll();
   }
 }
 

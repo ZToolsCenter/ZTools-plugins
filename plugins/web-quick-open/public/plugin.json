@@ -4,7 +4,7 @@
   "title": "网页快开",
   "description": "管理网页快开和搜索引擎快捷入口",
   "author": "Zing",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.png",

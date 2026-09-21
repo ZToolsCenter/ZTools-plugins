@@ -59,18 +59,42 @@ export function toPlainText(src: string): string {
   return s.trim()
 }
 
+/** CommonMark 可转义的 ASCII 标点：remark-stringify 防语意冲突时会给它们加 \（如 \&） */
+const ESCAPABLE_CHARS = "[!\"#$%&'()*+,\\-./:;<=>?@[\\\\\\]^_`{|}~]"
+
+/**
+ * 还原 remark-stringify（Milkdown 序列化器）留下的痕迹：
+ * - 硬换行被序列化成行尾 \（CommonMark 硬换行写法），还原为普通换行
+ * - & # * 等标点被加防冲突转义（\&），还原为原字符
+ * - 段落间隔比视觉上多一行（段落边界 = \n\n），按少一行还原：
+ *   按 1 次 Enter（\n\n）→ 单换行，按多次（\n{3,}）→ 保留一个空行
+ *   这样"粘贴的行"与"手动 Enter 的行"复制出来处理一致
+ * 代码围栏内不动：里面的 \ 和空行是用户写的字面量，不是序列化加的。
+ */
+function unescapeSerialized(src: string): string {
+  return src
+    .split(/(```[\s\S]*?```)/g)
+    .map((part, i) => {
+      if (i % 2 === 1) return part // 奇数段是围栏代码块，原样保留
+      return part
+        .replace(/\\\r?\n/g, '\n')
+        .replace(new RegExp(`\\\\(${ESCAPABLE_CHARS})`, 'g'), '$1')
+        .replace(/\n{2,}/g, (m) => '\n'.repeat(m.length - 1))
+    })
+    .join('')
+}
+
 /** 净化 Markdown 内容：移除 <br> 空行，合并连续空行，清理序列化转义 */
 export function normalizeContent(src: string): string {
   if (!src) return ''
-  return src
+  // 移除 <br /> 独立行（包括 > <br /> 块引用内空行）
+  const withoutBr = src
     .split('\n')
-    // 移除 <br /> 独立行（包括 > <br /> 块引用内空行）
     .filter(line => !/^(\s*>\s+)?<br\s*\/?>\s*$/i.test(line.trim()))
-    // 行首转义字符还原（remark-stringify 为防止语意冲突加的 \）
-    .map(line => line.replace(/^(\s*)\\([#*\-+>=])/, '$1$2'))
     .join('\n')
+  const unescaped = unescapeSerialized(withoutBr)
+  return unescaped
     // 移除尾部空引用行（空段落残留）
     .replace(/(?:\n\s*>\s*)+\s*$/, '')
-    .replace(/\n{3,}/g, '\n\n')
     .trim()
 }

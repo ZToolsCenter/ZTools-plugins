@@ -91,7 +91,6 @@ function handleKeyDown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') { e.preventDefault(); router.enterWizard(prompt.query.value.trim(), currentProjectId()); return }
 
   if (prompt.phase.value === 'search') {
-    const tag = (e.target as HTMLElement)?.tagName
     if (e.key === 'Enter' && prompt.filteredCallItems.value.length === 0 && prompt.query.value.trim()) {
       e.preventDefault(); router.enterWizard(prompt.query.value.trim(), currentProjectId()); return
     }

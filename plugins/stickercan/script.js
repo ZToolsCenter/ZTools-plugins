@@ -94,6 +94,13 @@ document.addEventListener('DOMContentLoaded', () => {
     uiManager.init();
     initUserInfo();
 
+    // ZTools 子输入框必须在 onPluginEnter 回调中设置才能生效
+    if (typeof ztools !== 'undefined' && ztools.onPluginEnter) {
+      ztools.onPluginEnter(() => {
+        uiManager.setupSubInput();
+      });
+    }
+
     // 添加表情包弹窗的标签页切换
     const sourceTabs = document.querySelectorAll('.source-tab');
     sourceTabs.forEach(tab => {
@@ -158,6 +165,24 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       shellOpenExternal(url) {
         window.open(url, '_blank');
+      },
+      setSubInput(onChange, placeholder) {
+        console.log('模拟 setSubInput:', placeholder);
+        // 在非 ztools 环境中创建一个顶部搜索框来模拟子输入框
+        if (!document.getElementById('mockSubInput')) {
+          const container = document.createElement('div');
+          container.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:8px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);z-index:9999;';
+          const input = document.createElement('input');
+          input.id = 'mockSubInput';
+          input.type = 'text';
+          input.placeholder = placeholder || '搜索...';
+          input.style.cssText = 'width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;font-size:14px;background:var(--bg-primary);color:var(--text-primary);';
+          input.addEventListener('input', () => {
+            onChange({ text: input.value });
+          });
+          container.appendChild(input);
+          document.body.insertBefore(container, document.body.firstChild);
+        }
       }
     };
 
@@ -209,5 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     uiManager.init();
     initUserInfo();
+    uiManager.setupSubInput();
   }
 });

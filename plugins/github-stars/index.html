@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GitHub 星标管理</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <img src="logo.png" alt="logo">
+      <div>
+        <b>GitHub 星标</b>
+        <span id="acct-info" class="muted">未添加账号</span>
+      </div>
+    </div>
+    <div class="acts">
+      <select id="acct" title="切换账号"></select>
+      <button id="acct-add" class="primary">＋ 添加账号</button>
+      <button id="acct-edit" title="编辑当前账号（改备注 / 换 Token）">编辑</button>
+      <button id="acct-del" title="删除当前账号及其缓存">删除</button>
+      <button id="refresh" title="从 GitHub 拉取最新星标">⟳ 刷新</button>
+      <button id="open-star" title="在浏览器打开该账号的星标页">⭐ 星标页</button>
+      <button id="export" title="把当前缓存导出为 JSON 文件">导出</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <input id="q" type="search" placeholder="模糊搜索：仓库名 / 备注 / 简介 / 语言 / 标签（按 / 聚焦，Esc 清空）" autocomplete="off" spellcheck="false">
+    <select id="sort" title="排序方式">
+      <option value="star-desc">⭐ Star 从多到少</option>
+      <option value="star-asc">⭐ Star 从少到多</option>
+      <option value="lang">按语言分组</option>
+      <option value="note">按备注时间</option>
+      <option value="name">按名称 A→Z</option>
+      <option value="pushed">最近更新</option>
+    </select>
+    <label class="chk" title="只显示已经写过备注的仓库"><input type="checkbox" id="onlynotes"> 只看有备注</label>
+    <span id="count" class="muted"></span>
+  </div>
+
+  <div id="chips" class="chips"></div>
+  <div id="msg" class="msg hidden"></div>
+  <main id="list"></main>
+  <footer id="foot" class="muted"></footer>
+
+  <div id="modal" class="mask hidden">
+    <div class="modal">
+      <h3 id="modal-title">添加账号</h3>
+      <label>GitHub 用户名（可选，留空则用 Token 自动识别）
+        <input id="f-user" placeholder="例如 torvalds" autocomplete="off" spellcheck="false">
+      </label>
+      <label>账号别名（可选，仅本地显示）
+        <input id="f-label" placeholder="例如 工作账号" autocomplete="off">
+      </label>
+      <label>Token（<b>必填</b>，用于访问 <code>/user/starred</code>，也能看到私有星标）
+        <textarea id="f-token" rows="2" placeholder="" spellcheck="false"></textarea>
+      </label>
+      <p class="hint" id="modal-hint">Token 只保存在本机 ZTools 数据库（dbStorage），不会上传到任何地方。</p>
+      <div class="modal-acts">
+        <button id="modal-cancel">取消</button>
+        <button id="modal-ok" class="primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="mask hidden">
+    <div class="modal confirm-dialog">
+      <div class="confirm-head">
+        <div class="confirm-icon danger">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </div>
+        <div class="confirm-title-wrap">
+          <h3 id="confirm-title">确认删除</h3>
+          <div id="confirm-sub" class="confirm-sub">此操作无法撤销</div>
+        </div>
+      </div>
+      <div id="confirm-msg" class="confirm-msg"></div>
+      <div class="modal-acts">
+        <button id="confirm-cancel">取消</button>
+        <button id="confirm-ok" class="btn-danger">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

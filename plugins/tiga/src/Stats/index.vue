@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { StatsData, Config, STORAGE_KEYS, calculateStreak, getTodayDate } from '../types'
 
 const props = defineProps<{
@@ -75,8 +75,37 @@ const loadStats = () => {
   }
 }
 
+// ===== 下次提醒时间 =====
+const nextReminderTime = ref('--:--')
+
+const formatClock = (ts: number) => {
+  const d = new Date(ts)
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+}
+
+const refreshNextReminder = () => {
+  if (!props.config.enabled) {
+    nextReminderTime.value = '已暂停'
+    return
+  }
+  const ts = window.services.getNextReminderAt?.()
+  nextReminderTime.value = ts ? formatClock(ts) : '--:--'
+}
+
+let reminderPollTimer: ReturnType<typeof setInterval> | undefined
+
 onMounted(() => {
   loadStats()
+  refreshNextReminder()
+  // 定时轮询：定时器每次 tick 后 nextTickAt 会前移，轮询保证展示跟上实际状态
+  reminderPollTimer = setInterval(refreshNextReminder, 5000)
+})
+
+onUnmounted(() => {
+  if (reminderPollTimer) {
+    clearInterval(reminderPollTimer)
+    reminderPollTimer = undefined
+  }
 })
 </script>
 
@@ -107,6 +136,11 @@ onMounted(() => {
         <div class="stat-item">
           <span class="stat-label">今日完成</span>
           <el-tag type="primary" size="large">{{ todayCount }} 次</el-tag>
+        </div>
+        <!-- 下次提醒时间 -->
+        <div class="stat-item">
+          <span class="stat-label">下次提醒</span>
+          <el-tag type="success" size="large">{{ nextReminderTime }}</el-tag>
         </div>
         <!-- 今日完成时间列表 -->
         <div v-if="todayTimes.length > 0" class="today-times">

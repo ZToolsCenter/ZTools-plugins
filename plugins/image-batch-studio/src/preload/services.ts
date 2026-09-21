@@ -14,6 +14,7 @@ import { discoverFiles, isBrowserRenderableImage, isImagePath } from "./file-dis
 import { hostCompatibility } from "../shared/host-compatibility";
 import { requestZToolsScreenCapture } from "../shared/ztools-screen-capture";
 import { createFileDragGrantStore } from "./file-drag-grants";
+import { prepareCompatibleImageInput } from "./heic-bridge";
 import {
   installSharpRuntime,
   sharp,
@@ -94,7 +95,8 @@ async function getPreviewUrl(filePath: string): Promise<string> {
     try {
       await fs.access(previewFilePath);
     } catch {
-      await sharp(filePath)
+      const { effectivePath } = await prepareCompatibleImageInput(filePath);
+      await sharp(effectivePath)
         .rotate()
         .resize({
           width: 1600,

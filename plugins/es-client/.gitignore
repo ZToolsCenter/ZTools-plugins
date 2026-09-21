@@ -1,0 +1,12 @@
+node_modules/
+dist/
+src-ztools/dist/
+src-ztools/preload/services.js
+es-client-plugin.zip
+.DS_Store
+*.local
+.env*
+.worktrees/
+.cursor/
+scripts/*.py
+scripts/t.txt

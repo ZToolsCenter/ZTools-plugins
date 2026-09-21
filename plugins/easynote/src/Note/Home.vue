@@ -27,8 +27,19 @@
     </div>
 
     <div class="home-actions">
-      <el-button type="primary" :icon="Plus" @click="$emit('new')">新建便签</el-button>
-      <span class="home-tip">在便利贴内可 Ctrl+滚轮 调字号</span>
+      <div class="home-actions-group">
+        <el-button type="primary" size="small" :icon="Plus" @click="$emit('new')">
+          新建便签
+        </el-button>
+        <span class="home-tip">在便利贴内可 Ctrl+滚轮 调字号</span>
+      </div>
+      <div class="home-actions-group">
+        <span class="home-label">桌面便利贴</span>
+        <span class="home-tip">{{ stickyCountText }}</span>
+        <el-button size="small" :disabled="!stickyStats.total" @click="onCloseAll">
+          全部关闭
+        </el-button>
+      </div>
     </div>
 
     <div class="home-columns">
@@ -70,12 +81,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Minus } from '@element-plus/icons-vue'
 import HomeColumn from './components/HomeColumn.vue'
 import { useNotes } from './composables/useNotes'
 import { useSettings } from './composables/useSettings'
+import { getStickyStats, closeAllStickies } from './host'
 
 defineEmits<{
   (e: 'new'): void
@@ -137,5 +149,56 @@ async function onClear(type: 'note' | 'todo') {
 
   const removed = clearByType(type)
   if (removed) ElMessage.success(`已删除 ${removed} 条${label}`)
+}
+
+/** 桌面便利贴状态：数量存在管家（本窗口进程）的注册表里，轮询取最新（开/关/折叠都算） */
+const stickyStats = ref<{ total: number; collapsed: number }>({ total: 0, collapsed: 0 })
+let statsTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  refreshStickyStats()
+  statsTimer = setInterval(refreshStickyStats, 1000)
+})
+onUnmounted(() => {
+  if (statsTimer) {
+    clearInterval(statsTimer)
+    statsTimer = null
+  }
+})
+
+function refreshStickyStats() {
+  stickyStats.value = getStickyStats()
+}
+
+const stickyCountText = computed(() => {
+  const { total, collapsed } = stickyStats.value
+  if (!total) return '未打开'
+  return `已打开 ${total} 张${collapsed ? `，${collapsed} 张最小化中` : ''}`
+})
+
+/** 关闭全部桌面便利贴：整体二次确认（不逐窗确认，未保存内容会丢） */
+async function onCloseAll() {
+  const { total, collapsed } = stickyStats.value
+  if (!total) return
+
+  const extra = collapsed ? `（其中 ${collapsed} 张最小化中）` : ''
+  try {
+    await ElMessageBox.confirm(
+      `将关闭全部 ${total} 张便利贴${extra}，未保存的修改会丢失。`,
+      '关闭全部便利贴',
+      {
+        type: 'warning',
+        confirmButtonText: '全部关闭',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+        closeOnClickModal: false
+      }
+    )
+  } catch {
+    return // 取消
+  }
+
+  closeAllStickies()
+  refreshStickyStats()
 }
 </script>

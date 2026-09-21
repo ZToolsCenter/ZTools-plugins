@@ -18,6 +18,10 @@
   --switch-bg: rgba(120, 132, 150, 0.5);
   --toast-bg: rgba(36, 36, 36, 0.92);
   --toast-text: #ffffff;
+  --formula-error-bg: rgba(220, 76, 70, 0.12);
+  --formula-error-text: #c0392b;
+  --formula-fixed-bg: rgba(214, 137, 16, 0.14);
+  --formula-fixed-text: #a86a00;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -41,5 +45,9 @@
     --switch-bg: rgba(130, 140, 160, 0.46);
     --toast-bg: rgba(245, 245, 245, 0.94);
     --toast-text: #1f1f1f;
+    --formula-error-bg: rgba(255, 107, 107, 0.16);
+    --formula-error-text: #ff8d8d;
+    --formula-fixed-bg: rgba(255, 200, 87, 0.16);
+    --formula-fixed-text: #ffc857;
   }
 }

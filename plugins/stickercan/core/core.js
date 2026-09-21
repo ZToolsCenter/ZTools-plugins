@@ -20,6 +20,7 @@
 // [browser] 上述模块已通过 <script> 标签全局加载
 // [browser] 上述模块已通过 <script> 标签全局加载
 // [browser] 上述模块已通过 <script> 标签全局加载
+// [browser] 上述模块已通过 <script> 标签全局加载
 /**
  * 创建应用实例
  * @param {object} deps - 平台适配器依赖
@@ -78,11 +79,12 @@ if (typeof module !== 'undefined' && module.exports) {
     ApiHzSearchSource: require('./search/ApiHzSearchSource.js'),
     BaiduSearchSource: require('./search/BaiduSearchSource.js'),
     SogouSearchSource: require('./search/SogouSearchSource.js'),
-    TangdouziSearchSource: require('./search/TangdouziSearchSource.js'),
+    QQSearchSource: require('./search/QQSearchSource.js'),
     YujianSearchSource: require('./search/YujianSearchSource.js'),
     SettingsService,
     EmotionService,
     SearchService,
+    SearchCache,
   };
 }
 // 浏览器环境：暴露 createApp 为全局变量

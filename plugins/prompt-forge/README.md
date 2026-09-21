@@ -59,14 +59,14 @@
 # 安装依赖
 npm install
 
-# 启动开发服务器（http://localhost:5173）
+# 启动开发服务器（http://localhost:5174）
 npm run dev
 
 # 构建
 npx vite build
 ```
 
-在 ZTools 的插件配置中将开发地址设为 `http://localhost:5173` 即可实时预览。
+在 ZTools 的插件配置中将开发地址设为 `http://localhost:5174` 即可实时预览。
 
 ## 项目结构
 
@@ -76,7 +76,7 @@ prompt-forge/
 │   ├── plugin.json          # 插件配置（功能入口、命令）
 │   ├── logo.png
 │   └── preload/
-│       └── services.js      # Node.js 能力注入（文件读写、KV 存储）
+│       └── services.js      # 插件 KV 存储注入
 ├── src/
 │   ├── App.vue              # 根组件（路由、CommandBar）
 │   ├── main.ts
@@ -112,7 +112,7 @@ prompt-forge/
 ### 存储架构
 
 ```
-preload/services.js  →  window.kvStorage  →  storage.ts  →  Pinia Store (内存)
+preload/services.js  →  window.kvStorage  →  storage.ts  →  Vue 响应式 Store（内存）
      (封装层)              (KV 接口)           (读写函数)      (响应式状态)
 ```
 
@@ -125,6 +125,7 @@ preload/services.js  →  window.kvStorage  →  storage.ts  →  Pinia Store (�
 | `promptforge:prompts` | `PromptItem[]` | 所有提示词，包含已删除项 |
 | `promptforge:projects` | `Project[]` | 所有项目 |
 | `promptforge:settings` | `Record<string, any>` | 用户设置（主题、行为等） |
+| `promptforge:history` | `HistoryEntry[]` | 使用历史记录 |
 
 ### 核心数据模型
 
@@ -190,6 +191,20 @@ preload/services.js  →  window.kvStorage  →  storage.ts  →  Pinia Store (�
 - **PromptItem → Project**：多对一，通过 `projectId` 关联（可选）
 - **PromptItem → Variable**：一对多，变量从正文 `{{name}}` 语法自动提取
 - **PromptItem → Snapshot**：一对多，正文变更时自动保存快照
+
+## 常见问题
+
+**“清空全部”会清掉什么？**
+
+提示词、项目、使用历史和设置都会被移除；清空后词库会保持为空，不会自动重新写入教程数据。请先导出备份，清空操作不可撤销。
+
+**导入过程中失败会损坏现有数据吗？**
+
+导入会先完成格式解析与合并，再统一写入四类数据。任一写入失败时，已写入的文档会回滚为导入前的内容，并显示导入失败。
+
+**插件是否会读取或暴露本地文件、剪贴板内容？**
+
+插件只在用户触发快速保存时读取最新文本剪贴板内容；不会把剪贴板内容打印到日志。预加载层仅开放本插件的本地 KV 存储，不提供任意文件读写能力。
 
 ## 许可
 

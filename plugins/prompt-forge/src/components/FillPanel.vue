@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import type { PromptItem } from '../types'
-import { renderVariables } from '../utils/index'
+import { renderVariables, shouldUseTextarea } from '../utils/index'
 import { renderMarkdown } from '../utils/markdown'
 
 const props = defineProps<{
@@ -31,6 +31,17 @@ const markdownHtml = computed(() => renderMarkdown(preview.value))
 function updateValue(name: string, value: string) {
   emit('update:values', { ...props.values, [name]: value })
 }
+
+function autoResize(e: Event) {
+  const el = e.target as HTMLTextAreaElement
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px'
+}
+
+function onTextareaInput(name: string, e: Event) {
+  updateValue(name, (e.target as HTMLTextAreaElement).value)
+  nextTick(() => autoResize(e))
+}
 </script>
 
 <template>
@@ -52,7 +63,16 @@ function updateValue(name: string, value: string) {
                 <span v-if="v.required" class="req">*</span>
                 <span class="hint">{{ v.required ? '必填' : '可选' }}</span>
               </label>
+              <textarea
+                v-if="shouldUseTextarea(v)"
+                :value="values[v.name]"
+                rows="2"
+                :placeholder="v.defaultValue ? `默认: ${v.defaultValue}` : '请输入…'"
+                class="var-textarea"
+                @input="onTextareaInput(v.name, $event)"
+              ></textarea>
               <input
+                v-else
                 :value="values[v.name]"
                 type="text"
                 :placeholder="v.defaultValue ? `默认: ${v.defaultValue}` : '请输入…'"
@@ -169,6 +189,23 @@ function updateValue(name: string, value: string) {
   box-shadow: 0 0 0 3px var(--pf-accent-soft);
 }
 .field input::placeholder { color: var(--pf-text-faint); }
+.var-textarea {
+  min-height: 52px; max-height: 160px;
+  padding: 10px 14px;
+  background: var(--pf-surface);
+  border: 1px solid var(--pf-border);
+  border-radius: var(--pf-radius-sm);
+  font-size: 14px; color: var(--pf-text);
+  font-family: var(--pf-font);
+  line-height: 1.5;
+  resize: none;
+  transition: all 0.15s ease;
+}
+.var-textarea:focus {
+  border-color: var(--pf-accent);
+  box-shadow: 0 0 0 3px var(--pf-accent-soft);
+}
+.var-textarea::placeholder { color: var(--pf-text-faint); }
 .form-actions {
   height: 52px; min-height: 52px;
   padding: 12px 20px;

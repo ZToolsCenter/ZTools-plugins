@@ -1,0 +1,18 @@
+{
+  "name": "base64",
+  "version": "1.0.0",
+  "private": true,
+  "description": "离线 ZTools Base64 编解码插件",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "node tests/ui.cjs",
+    "build": "node scripts/build.cjs",
+    "package": "node scripts/package.cjs",
+    "verify": "node scripts/verify-package.cjs"
+  },
+  "devDependencies": {
+    "@electron/asar": "4.1.0",
+    "@playwright/test": "1.63.0",
+    "adm-zip": "0.5.16"
+  }
+}

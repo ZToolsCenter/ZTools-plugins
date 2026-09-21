@@ -7,6 +7,7 @@
 ## 一、发布前检查
 
 ### 1. 同步分支
+
 发布前必须与远程同步，避免丢失他人提交：
 
 ```powershell
@@ -21,9 +22,11 @@ git status
 - 注意检查与远程提交是否有重叠改动，有冲突需手动解决。
 
 ### 2. 确认改动已提交
+
 ```powershell
 git status
 ```
+
 工作树应干净（`nothing to commit, working tree clean`）。
 
 ---
@@ -31,16 +34,17 @@ git status
 ## 二、版本号升级（3 个文件必须同步）
 
 遵循语义化版本（SemVer）：
+
 - `major.minor.patch`
 - 新增功能 → minor（如 1.1.0 → 1.2.0）
 - Bug 修复 / 小优化 → patch（如 1.2.0 → 1.2.1）
 - 破坏性变更 → major
 
-| 文件 | 用途 | 说明 |
-|---|---|---|
-| `package.json` | 项目版本 | `"version": "x.y.z"` |
-| `plugin.json`（根目录） | 开发模式 manifest | `"version": "x.y.z"` |
-| `public/plugin.json` | **打包进 .zpx 的 manifest** | vite 会把 `public/` 原样复制到 `dist/`，这是真正随包发布的版本号 |
+| 文件                      | 用途                              | 说明                                                                |
+| ------------------------- | --------------------------------- | ------------------------------------------------------------------- |
+| `package.json`          | 项目版本                          | `"version": "x.y.z"`                                              |
+| `plugin.json`（根目录） | 开发模式 manifest                 | `"version": "x.y.z"`                                              |
+|  `public/plugin.json`   | **打包进 .zpx 的 manifest** | vite 会把`public/` 原样复制到 `dist/`，这是真正随包发布的版本号 |
 
 > ⚠️ 三处版本号必须一致，遗漏会导致发布包与实际版本不符。
 
@@ -48,7 +52,7 @@ git status
 
 ## 三、更新 CHANGELOG.md
 
-1. 将顶部 `[Unreleased] - 日期` 改为正式版本号：`[x.y.z] - YYYY-MM-DD`
+1. 将顶部 `Unreleased` 改为正式版本号：`## x.y.z - YYYY-MM-DD`（二级标题，无方括号）
 2. 按分类（Features / Performance / Design / Bug Fixes / Refactor）确认记录完整
 3. 若本次还合并了远程提交，一并补充其变更
 
@@ -63,6 +67,7 @@ npm run build
 等价于 `vue-tsc && vite build`，包含 TypeScript 类型检查 + 打包，产物输出到 `dist/`。
 
 构建成功后 `dist/` 应包含：
+
 ```
 dist/
 ├── index.html
@@ -89,6 +94,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 ```
 
 > ⚠️ 注意：
+>
 > - `.zpx` 是发布产物，历史上已从 git 移除，**不要提交进仓库**（`dist/` 也在 `.gitignore` 中）。
 > - 若目标文件已存在，会报错，先删除旧文件或换版本号。
 
@@ -150,14 +156,14 @@ git push origin prompt-forge --tags
 
 ## 快速参考
 
-| 步骤 | 命令 / 文件 |
-|---|---|
-| 同步分支 | `git pull --rebase origin prompt-forge` |
-| 版本号 | `package.json` + `plugin.json` + `public/plugin.json` |
-| 变更记录 | `CHANGELOG.md` |
-| 构建 | `npm run build` |
-| 打包 | `.NET ZipFile::CreateFromDirectory("dist", "...zpx")` |
-| 提交 | `git commit` + `git tag vX.Y.Z` + `git push` |
+| 步骤     | 命令 / 文件                                                 |
+| -------- | ----------------------------------------------------------- |
+| 同步分支 | `git pull --rebase origin prompt-forge`                   |
+| 版本号   | `package.json` + `plugin.json` + `public/plugin.json` |
+| 变更记录 | `CHANGELOG.md`                                            |
+| 构建     | `npm run build`                                           |
+| 打包     | `.NET ZipFile::CreateFromDirectory("dist", "...zpx")`     |
+| 提交     | `git commit` + `git tag vX.Y.Z` + `git push`          |
 
 ---
 

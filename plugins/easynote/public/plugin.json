@@ -2,9 +2,9 @@
   "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
   "name": "easynote",
   "title": "简单便签",
-  "description": "轻量、简单的便签应用，支持 Markdown 所见即所得/双栏编辑、笔记/待办类型管理、纯文本复制、字号控制",
+  "description": "轻量、简单的便签应用，支持多张桌面便利贴、Markdown 所见即所得/双栏编辑、笔记/待办类型管理、纯文本复制、字号控制",
   "author": "咖啡八杯",
-  "version": "1.7.3",
+  "version": "1.9.1",
   "categories": "productivity",
   "main": "index.html",
   "preload": "preload/services.js",
@@ -15,7 +15,7 @@
   "features": [
     {
       "code": "note",
-      "explain": "便签：Markdown 所见即所得/双栏编辑、笔记/待办类型管理、纯文本复制、字号控制",
+      "explain": "便签：多张桌面便利贴、Markdown 所见即所得/双栏编辑、笔记/待办类型管理、纯文本复制、字号控制",
       "icon": "logo.png",
       "cmds": ["便签", "note", "bj"]
     },

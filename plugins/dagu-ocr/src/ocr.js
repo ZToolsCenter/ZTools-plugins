@@ -7,6 +7,7 @@ import {
   ProviderService,
   md5
 } from './core/providers.js';
+import { copyImageDataUrl } from './clipboard-image.js';
 
 function getWindow() {
   return globalThis.window || globalThis;
@@ -476,6 +477,17 @@ export class OCRApp {
     return success;
   }
 
+  async copyImageResult(imageUrl = this.state.imageUrl) {
+    const dataUrl = String(imageUrl || '').trim();
+    if (!dataUrl) {
+      this.setStatus('没有可复制的图片');
+      return false;
+    }
+    const success = await copyImageDataUrl(this.win, dataUrl);
+    this.setStatus(success ? '图片已复制到剪贴板' : '复制图片失败');
+    return success;
+  }
+
   copyTranslateResult() {
     const text = this.getTranslateValue().trim();
     if (!text) {
@@ -539,7 +551,7 @@ export class OCRApp {
     }
     this.state.busy = true;
     this.state.busyLabel = '正在翻译';
-    this.setStatus('正在翻译...');
+    this.emit();
     try {
       const result = await this.translate(source, this.config.sourceLang, this.config.targetLang);
       this.state.translationInput = source;

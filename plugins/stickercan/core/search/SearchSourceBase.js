@@ -111,6 +111,26 @@ class SearchSourceBase extends SearchProvider {
   }
 
   /**
+   * 从缓存恢复搜索状态
+   *
+   * 切换搜索源标签页后复用已有结果时使用，
+   * 恢复后可继续从缓存页码执行 loadMore。
+   *
+   * @param {object} state
+   * @param {string} state.keyword - 关键词
+   * @param {string[]} state.images - 已累计的结果列表
+   * @param {number} state.page - 当前页码
+   * @param {boolean} state.hasMore - 是否还有下一页
+   */
+  restoreState(state = {}) {
+    this.results = Array.isArray(state.images) ? [...state.images] : [];
+    this.currentKeyword = state.keyword || '';
+    this.currentPage = state.page > 0 ? state.page : 1;
+    this.hasMore = !!state.hasMore;
+    this.loading = false;
+  }
+
+  /**
    * 重置状态
    */
   reset() {

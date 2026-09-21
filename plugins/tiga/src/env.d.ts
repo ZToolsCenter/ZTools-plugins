@@ -32,6 +32,7 @@ interface Services {
   timerId: ReturnType<typeof setInterval> | null
   startTimer: (intervalMinutes: number) => void
   stopTimer: () => void
+  getNextReminderAt: () => number | null
   isInWorkTime: (workTimeConfig: WorkTimeConfig, workTimeMode: string) => boolean
   sendNotification: (title: string, body: string, onClick?: () => void) => void
   addRecord: () => void

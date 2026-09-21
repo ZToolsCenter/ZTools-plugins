@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { SourceFile } from "../shared/types";
 import { sharp } from "./sharp-runtime";
+import { prepareCompatibleImageInput } from "./heic-bridge";
 
 const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif", ".heif", ".heic", ".tif", ".tiff", ".gif"]);
 const pdfExtensions = new Set([".pdf"]);
@@ -132,7 +133,13 @@ export async function inspectFile(filePath: string): Promise<SourceFile> {
   }
 
   if (isImagePath(filePath)) {
-    const metadata = await sharp(filePath, { animated: true }).metadata().catch(() => null);
+    let metadata: any = null;
+    try {
+      const { effectivePath } = await prepareCompatibleImageInput(filePath, { animated: true });
+      metadata = await sharp(effectivePath, { animated: true }).metadata().catch(() => null);
+    } catch {
+      metadata = await sharp(filePath, { animated: true }).metadata().catch(() => null);
+    }
     const animated = (metadata?.pages ?? 1) > 1;
     const width = animated ? metadata?.width : metadata?.autoOrient?.width ?? metadata?.width;
     const height = animated

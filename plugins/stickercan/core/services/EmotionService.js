@@ -137,11 +137,15 @@ class EmotionService {
   }
 
   /**
-   * 获取所有表情包
+   * 获取所有表情包（去重：同一表情包同时存在于本地和云端时只展示一次）
+   * 优先保留本地版本（本地访问更快），过滤掉已在本地有配对的云端表情包。
    * @returns {Array}
    */
   getAllEmotions() {
-    return [...this.emotions.local, ...this.emotions.cloud];
+    const cloudDeduped = this.emotions.cloud.filter(cloudEmotion => {
+      return !this.findPairedEmotion(cloudEmotion, 'local');
+    });
+    return [...this.emotions.local, ...cloudDeduped];
   }
 
   /**
@@ -635,6 +639,20 @@ class EmotionService {
   }
 
   /**
+   * 删除指定存储类型的配对表情包
+   * 用于同一表情包同时存在于本地和云端时，删除指定一端。
+   * @param {object} emotion - 当前表情包
+   * @param {'local'|'cloud'} targetType - 要删除的目标存储类型
+   * @param {boolean} deleteLocalFile - 是否同时删除本地文件
+   */
+  async deletePairedEmotion(emotion, targetType, deleteLocalFile = false) {
+    const paired = this.findPairedEmotion(emotion, targetType);
+    if (paired) {
+      await this.deleteEmotion(paired, deleteLocalFile);
+    }
+  }
+
+  /**
    * 复制表情包到剪贴板
    * @param {object} emotion
    */
@@ -736,6 +754,7 @@ class EmotionService {
 
   /**
    * 获取统计信息
+   * total 为去重后的总数（同一表情包在本地和云端只计一次）
    * @returns {{total: number, cloud: number, local: number}}
    */
   getStats() {

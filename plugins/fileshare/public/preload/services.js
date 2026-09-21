@@ -540,6 +540,20 @@ function createServer(port, ip) {
       return
     }
 
+    // --- Route: GET /logo.png (favicon) ---
+    if (pathname === '/logo.png' && req.method === 'GET') {
+      const logoPath = path.join(__dirname, '..', 'logo.png')
+      try {
+        const logoBuf = fs.readFileSync(logoPath)
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' })
+        res.end(logoBuf)
+      } catch (_e) {
+        res.writeHead(404)
+        res.end()
+      }
+      return
+    }
+
     // --- Route: GET /api/list ---
     if (pathname === '/api/list' && req.method === 'GET') {
       const scopePath = urlObj.searchParams.get('path') || ''

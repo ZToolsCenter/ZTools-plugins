@@ -3,9 +3,9 @@
   "name": "devbox",
   "title": "开发百宝箱",
   "categories": ["development"],
-  "description": "开发百宝箱，提供随机生成、编码转换、文本压缩、文本转换、JSON 工具、开发辅助等常用工具集",
+  "description": "开发百宝箱，提供随机生成、Base64 编解码、URL 编解码、加密签名、二维码、文本压缩、文本转换、JSON 工具、开发辅助等常用工具集",
   "author": "咖啡八杯",
-  "version": "2.5.1",
+  "version": "2.7.2",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
@@ -50,6 +50,18 @@
       "cmds": ["加密", "签名", "token", "signature", "hash", "加密签名", "哈希", "签名生成", "md5", "sha", "hmac"]
     },
     {
+      "code": "base64",
+      "explain": "文本与 Base64 实时互转，支持 URL-safe 变体、去除填充、容错换行，可将文件与图片转为 dataURL，也可把 Base64 预览为图片",
+      "icon": "logo.png",
+      "cmds": ["base64", "Base64", "B64", "base64编码", "base64解码", "b64编码", "b64解码", "编解码"]
+    },
+    {
+      "code": "urlcodec",
+      "explain": "URL 编码与解码（percent-encoding），支持参数值 / 完整 URL 两种范围、+ 还原为空格，自动解析 URL 结构与查询参数表",
+      "icon": "logo.png",
+      "cmds": ["url", "URL", "url编码", "url解码", "URL编码", "URL解码", "urlencode", "urldecode", "urlcodec", "百分号编码"]
+    },
+    {
       "code": "pinyin",
       "explain": "将中文转换为拼音命名格式，支持全拼、驼峰、下划线、常量、首字母等多种格式",
       "icon": "logo.png",
@@ -63,7 +75,7 @@
     },
     {
       "code": "htmlpreview",
-      "explain": "粘贴或输入 HTML 代码，实时预览渲染效果，支持导出 HTML 文件",
+      "explain": "粘贴或输入 HTML 代码实时预览，支持常用标签片段插入、粘贴 Base64 自动包成图片标签、导出 HTML 文件",
       "icon": "logo.png",
       "cmds": ["html", "HTML", "预览", "html预览", "HTML预览", "htmlpreview", "网页预览"]
     },

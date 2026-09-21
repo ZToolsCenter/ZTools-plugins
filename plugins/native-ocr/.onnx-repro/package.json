@@ -1,0 +1,1 @@
+{"name":"onnx-repro","version":"1.0.0","private":true,"dependencies":{"@gutenye/ocr-node":"^1.4.8","pngjs":"^7.0.0"}}

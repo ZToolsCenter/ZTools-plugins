@@ -93,7 +93,7 @@ const outputNamingOptions = [
 const compressionPresets = [
   { value: "small", label: "小文件", description: "60" },
   { value: "balanced", label: "均衡", description: "82" },
-  { value: "clear", label: "清晰", description: "94" }
+  { value: "clear", label: "清晰", description: "88" }
 ];
 
 const resizePresets = [
@@ -470,14 +470,14 @@ function ImageBatchWorkbench() {
   }
 
   function applyCompressionPreset(value: string) {
-    const quality = value === "small" ? 60 : value === "clear" ? 94 : 82;
+    const quality = value === "small" ? 60 : value === "clear" ? 88 : 82;
     updateSettings({ compression: { ...settings.compression, quality } });
   }
 
   function activeCompressionPreset() {
     const quality = settings.compression?.quality ?? 82;
     if (quality <= 66) return "small";
-    if (quality >= 90) return "clear";
+    if (quality >= 86) return "clear";
     return "balanced";
   }
 
@@ -742,6 +742,11 @@ function ImageBatchWorkbench() {
                   })
                 }
               />
+              {(settings.compression?.quality ?? 82) > 90 && (
+                <div className="panel-tip warning">
+                  质量高于 90 时高频细节开销激增，压缩后文件体积可能反而增大，建议设为 75~88。
+                </div>
+              )}
               <Toggle
                 label="保留元数据"
                 checked={Boolean(settings.compression?.keepMetadata ?? settings.format?.keepMetadata)}

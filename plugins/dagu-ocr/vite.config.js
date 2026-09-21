@@ -19,7 +19,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: resolve(pluginRoot, 'index.html'),
-        annotate: resolve(pluginRoot, 'annotate.html'),
+        overlay: resolve(pluginRoot, 'overlay.html'),
+        pin: resolve(pluginRoot, 'pin.html'),
       },
     },
   },

@@ -19,6 +19,8 @@ function copyExtras() {
       if (existsSync(binSrc)) {
         cpSync(binSrc, binDest, { recursive: true })
       }
+      // 注：KaTeX 字体由 Vite 自动从 node_modules 打包进 dist/assets（含 fingerprint），
+      // 无需再手动拷贝一份，避免包体翻倍。
     }
   }
 }

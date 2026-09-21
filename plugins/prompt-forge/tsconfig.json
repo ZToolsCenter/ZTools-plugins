@@ -11,8 +11,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
-    "strict": false,
-    "noImplicitAny": false,
+    "strict": true,
     "types": ["@ztools-center/ztools-api-types"]
   },
   "include": ["src"]

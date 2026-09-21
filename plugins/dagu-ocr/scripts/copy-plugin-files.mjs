@@ -12,6 +12,6 @@ for (const file of ['plugin.json', 'preload.js', 'icon.png', 'LICENSE', 'CHANGEL
 
 // 随 README 一起发布的界面截图（README 仅引用这三个）
 mkdirSync(`${distDir}docs/screenshots/`, { recursive: true })
-for (const file of ['annotate-editor.png', 'main-ocr.png', 'translation.png']) {
+for (const file of ['editor.png', 'main-ocr.png', 'translation.png']) {
   copyFileSync(`${pluginRoot}docs/screenshots/${file}`, `${distDir}docs/screenshots/${file}`)
 }

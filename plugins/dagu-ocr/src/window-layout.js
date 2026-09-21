@@ -1,16 +1,6 @@
-function finiteHeight(value) {
-  return Number.isFinite(value) ? Math.ceil(value) : 0;
-}
+// 插件页面统一窗口尺寸：800×600（4:3，宿主主窗口内容宽度固定 800px），所有主页面一致（截图覆盖层与图片编辑窗口除外）。
 
-export function measurePluginHeight({ root, doc } = {}) {
-  const rootHeight = finiteHeight(root?.scrollHeight);
-  if (rootHeight) return rootHeight;
-
-  return Math.max(
-    finiteHeight(doc?.documentElement?.scrollHeight),
-    finiteHeight(doc?.body?.scrollHeight)
-  );
-}
+export const UNIFIED_PLUGIN_HEIGHT = 600;
 
 function getHost(win) {
   if (typeof win?.ztools?.setExpendHeight === 'function') return win.ztools;
@@ -27,15 +17,10 @@ function isBrowserWindow(host) {
   }
 }
 
-export function createPluginWindowLayoutSync({ win = globalThis.window, doc = win?.document, root } = {}) {
+export function createPluginWindowLayoutSync({ win = globalThis.window, height = UNIFIED_PLUGIN_HEIGHT } = {}) {
   const host = getHost(win);
-  const target = root || doc?.querySelector?.('.app-shell') || doc?.getElementById?.('app');
-  if (!host || !target || isBrowserWindow(host)) {
-    return {
-      schedule() {},
-      sync() {},
-      dispose() {}
-    };
+  if (!host || isBrowserWindow(host)) {
+    return { schedule() {}, sync() {}, dispose() {} };
   }
 
   const requestFrame = typeof win?.requestAnimationFrame === 'function'
@@ -45,55 +30,28 @@ export function createPluginWindowLayoutSync({ win = globalThis.window, doc = wi
     ? win.cancelAnimationFrame.bind(win)
     : clearTimeout;
   let frameId = null;
-  let forcePending = false;
-  let lastHeight = 0;
-  let disposed = false;
+  let applied = false;
 
-  const syncNow = (force = false) => {
+  const apply = (force = false) => {
     frameId = null;
-    if (disposed) return;
-
-    const height = measurePluginHeight({
-      root: target,
-      doc
-    });
-    if (!height || (!force && height === lastHeight)) return;
-
-    lastHeight = height;
+    if (applied && !force) return;
+    applied = true;
     try {
       Promise.resolve(host.setExpendHeight(height)).catch(() => {});
     } catch {
-      // Host APIs are optional when the plugin runs in a normal browser.
+      // 宿主 API 不可用时忽略，普通浏览器开发环境没有该能力。
     }
   };
 
-  const schedule = (force = false) => {
-    if (disposed) return;
-    forcePending = forcePending || force;
-    if (frameId !== null) return;
-    frameId = requestFrame(() => {
-      const shouldForce = forcePending;
-      forcePending = false;
-      syncNow(shouldForce);
-    });
-  };
-
-  const onResize = () => schedule();
-  win?.addEventListener?.('resize', onResize);
-
-  const Observer = win?.ResizeObserver || globalThis.ResizeObserver;
-  const observer = typeof Observer === 'function' ? new Observer(() => schedule()) : null;
-  observer?.observe(target);
-
   return {
-    schedule,
-    sync: () => syncNow(true),
+    schedule() {
+      if (frameId !== null) return;
+      frameId = requestFrame(() => apply());
+    },
+    sync: () => apply(true),
     dispose() {
-      if (disposed) return;
-      disposed = true;
       if (frameId !== null) cancelFrame(frameId);
-      observer?.disconnect();
-      win?.removeEventListener?.('resize', onResize);
+      frameId = null;
     }
   };
 }

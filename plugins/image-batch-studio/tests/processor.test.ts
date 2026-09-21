@@ -303,6 +303,30 @@ describe("offline processing engine", () => {
     expect(metadata.height).toBe(1);
   });
 
+  it("keeps general compression output from exceeding input size when preserving format", async () => {
+    const dir = await makeTempDir();
+    const input = path.join(dir, "test.jpg");
+    const outputDir = path.join(dir, "out");
+    // Create an already well-compressed JPEG
+    await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: { r: 120, g: 120, b: 120 }
+      }
+    }).jpeg({ quality: 60, mozjpeg: true }).toFile(input);
+
+    // Try compressing at quality 98 which would normally expand the file
+    const [result] = await processImages([input], {
+      output: { directory: outputDir, namingPattern: "{name}-comp.{ext}", overwrite: false },
+      compression: { quality: 98, keepMetadata: false }
+    });
+
+    expect(result.ok, result.error).toBe(true);
+    expect(result.outputBytes).toBeLessThanOrEqual(result.inputBytes ?? 0);
+  });
+
   it("adds HEIC image watermarks to HEIF inputs without changing canvas size", async () => {
     const dir = await makeTempDir();
     const input = path.join(dir, "base.heif");

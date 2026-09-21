@@ -21,6 +21,27 @@ class UIManager {
     this.sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
     this.loadingCount = 0;
     this._scrollBound = false;
+    this.searchKeyword = '';
+  }
+
+  // ─────────────── ZTools 子输入框 ───────────────
+
+  setupSubInput() {
+    if (typeof ztools !== 'undefined' && ztools.setSubInput) {
+      ztools.setSubInput((data) => {
+        this.searchKeyword = data.text.trim();
+        if (this.currentTab === 'mine') {
+          this.searchEmotions(this.searchKeyword);
+        } else {
+          if (this.searchKeyword) {
+            this.handleExternalSearch(this.searchKeyword);
+          } else {
+            const er = document.getElementById('externalResults');
+            if (er) { er.style.display = 'block'; er.innerHTML = '<p class="hint-text">请输入关键词进行搜索</p>'; }
+          }
+        }
+      }, '搜索表情包...');
+    }
   }
 
   showLoading(message = '加载中...') {
@@ -89,11 +110,10 @@ class UIManager {
     if (tb) tb.classList.add('active');
     this.clearContent();
     if (tabName === 'mine') {
-      this.renderEmotions(this.searchService.searchLocal(''));
+      this.renderEmotions(this.searchService.searchLocal(this.searchKeyword));
     } else {
       this.searchService.setActiveSource(tabName);
-      const keyword = document.getElementById('searchInput').value.trim();
-      if (keyword) { this.handleExternalSearch(keyword); }
+      if (this.searchKeyword) { this.handleExternalSearch(this.searchKeyword); }
       else {
         const er = document.getElementById('externalResults');
         er.style.display = 'block';
@@ -232,42 +252,124 @@ class UIManager {
 
   showEmotionDetail(emotion) {
     this.currentEmotion = emotion;
-    const lw = document.getElementById('localImageWrapper');
-    const cw = document.getElementById('cloudImageWrapper');
+    const paired = this.emotionService.findPairedEmotion(
+      emotion,
+      emotion.storageType === 'cloud' ? 'local' : 'cloud'
+    );
+    this.detailVersions = {
+      local: emotion.storageType === 'local' ? emotion : paired,
+      cloud: emotion.storageType === 'cloud' ? emotion : paired
+    };
+
+    this._setDetailImage('local', this.detailVersions.local);
+    this._setDetailImage('cloud', this.detailVersions.cloud);
+    const sw = document.getElementById('previewSwitch');
+    if (sw) {
+      sw.style.display = (this.detailVersions.local && this.detailVersions.cloud) ? 'flex' : 'none';
+    }
+
+    this._renderDetailVersion(emotion.storageType);
+    this._renderDetailTags(emotion);
+    this._resetTagEditor();
+    this.showModal('emotionModal');
+  }
+
+  switchDetailVersion(storageType) {
+    const target = this.detailVersions && this.detailVersions[storageType];
+    if (!target || target === this.currentEmotion) return;
+    this.currentEmotion = target;
+    this._renderDetailVersion(storageType);
+    this._renderDetailTags(target);
+    this._resetTagEditor();
+  }
+
+  _setDetailImage(storageType, emotion) {
+    const img = document.getElementById(storageType === 'cloud' ? 'modalCloudImage' : 'modalLocalImage');
+    if (!img) return;
+    if (emotion && emotion.url) img.src = this.emotionService.getImageSrc(emotion);
+    else img.removeAttribute('src');
+  }
+
+  _renderDetailVersion(storageType) {
+    const em = (this.detailVersions && this.detailVersions[storageType]) || this.currentEmotion;
     const li = document.getElementById('modalLocalImage');
     const ci = document.getElementById('modalCloudImage');
-    lw.style.display = 'none'; cw.style.display = 'none';
-    if (emotion.storageType === 'cloud') {
-      ci.src = emotion.url; cw.style.display = 'block';
-      const p = this.emotionService.findPairedEmotion(emotion, 'local');
-      if (p) { li.src = p.url; lw.style.display = 'block'; }
-    } else {
-      li.src = emotion.url; lw.style.display = 'block';
-      const p = this.emotionService.findPairedEmotion(emotion, 'cloud');
-      if (p) { ci.src = p.url; cw.style.display = 'block'; }
-    }
+    if (li) li.classList.toggle('active', storageType === 'local');
+    if (ci) ci.classList.toggle('active', storageType === 'cloud');
+    document.querySelectorAll('.preview-switch-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.storage === storageType);
+    });
+
     const badge = document.getElementById('storageBadge');
-    badge.className = 'storage-badge ' + emotion.storageType;
-    badge.querySelector('.badge-icon').className = 'mdi mdi-' + (emotion.storageType === 'cloud' ? 'cloud' : 'folder');
-    badge.querySelector('.badge-text').textContent = emotion.storageType === 'cloud' ? '云端存储' : '本地存储';
+    if (badge) {
+      badge.className = 'storage-badge ' + storageType;
+      const bIcon = badge.querySelector('.badge-icon');
+      if (bIcon) bIcon.className = 'badge-icon mdi mdi-' + (storageType === 'cloud' ? 'cloud-outline' : 'folder-outline');
+      const bText = badge.querySelector('.badge-text');
+      if (bText) bText.textContent = storageType === 'cloud' ? '云端存储' : '本地存储';
+    }
+
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const hasBoth = !!(this.detailVersions && this.detailVersions.local && this.detailVersions.cloud);
+    set('detailCreatedAt', this._formatDateTime(em.createdAt));
+    set('detailUpdatedAt', this._formatDateTime(em.updatedAt));
+    set('detailPairStatus', hasBoth ? '本地 + 云端' : '未配对');
+    set('detailId', em.id || '-');
+    const path = document.getElementById('detailPath');
+    if (path) { path.textContent = em.url || '-'; path.title = em.url || ''; }
+
     const cb = document.getElementById('convertBtn');
     if (cb) {
-      const hp = emotion.storageType === 'cloud'
-        ? this.emotionService.findPairedEmotion(emotion, 'local')
-        : this.emotionService.findPairedEmotion(emotion, 'cloud');
-      if (hp) {
-        cb.innerHTML = '<i class="mdi mdi-check-circle"></i><span>' + (emotion.storageType === 'cloud' ? '已存在本地' : '已存在云端') + '</span>';
-        cb.disabled = true;
-      } else {
-        cb.innerHTML = '<i class="mdi mdi-' + (emotion.storageType === 'cloud' ? 'folder-download' : 'cloud-upload') + '"></i><span>' + (emotion.storageType === 'cloud' ? '保存到本地' : '上传到云端') + '</span>';
-        cb.disabled = false;
-      }
+      const toCloud = storageType === 'local';
+      cb.innerHTML = '<i class="mdi mdi-' + (toCloud ? 'cloud-upload-outline' : 'folder-download-outline') +
+        '"></i><span>' + (toCloud ? '上传到云端' : '保存到本地') + '</span>';
     }
-    document.getElementById('tagList').innerHTML = emotion.tags.map(t => '<span class="tag">' + HtmlUtils.escapeHtml(t) + '</span>').join('');
-    document.getElementById('tagEditor').style.display = 'none';
-    document.getElementById('tagList').style.display = 'flex';
-    document.getElementById('editTagsBtn').innerHTML = '<i class="mdi mdi-tag"></i><span>编辑标签</span>';
-    this.showModal('emotionModal');
+
+    this._renderDeleteMenu(storageType);
+  }
+
+  _renderDeleteMenu(storageType) {
+    const paired = storageType === 'cloud' ? this.detailVersions.local : this.detailVersions.cloud;
+    const deleteCurrentLabel = document.getElementById('deleteCurrentLabel');
+    const deletePairedBtn = document.getElementById('deletePairedBtn');
+    const deleteBothBtn = document.getElementById('deleteBothBtn');
+    const deletePairedLabel = document.getElementById('deletePairedLabel');
+    if (deleteCurrentLabel) deleteCurrentLabel.textContent = storageType === 'cloud' ? '仅删除云端' : '仅删除本地';
+    if (paired) {
+      if (deletePairedBtn) deletePairedBtn.style.display = 'flex';
+      if (deleteBothBtn) deleteBothBtn.style.display = 'flex';
+      if (deletePairedLabel) deletePairedLabel.textContent = storageType === 'cloud' ? '仅删除本地' : '仅删除云端';
+    } else {
+      if (deletePairedBtn) deletePairedBtn.style.display = 'none';
+      if (deleteBothBtn) deleteBothBtn.style.display = 'none';
+    }
+  }
+
+  _renderDetailTags(emotion) {
+    const tc = document.getElementById('detailTagCount');
+    const tl = document.getElementById('tagList');
+    if (tc) tc.textContent = emotion.tags.length;
+    if (!tl) return;
+    tl.innerHTML = emotion.tags.length
+      ? emotion.tags.map(t => '<span class="tag">' + HtmlUtils.escapeHtml(t) + '</span>').join('')
+      : '<span class="tag-list-empty">暂无标签</span>';
+  }
+
+  _resetTagEditor() {
+    const te = document.getElementById('tagEditor');
+    const tl = document.getElementById('tagList');
+    const eb = document.getElementById('editTagsBtn');
+    if (te) te.style.display = 'none';
+    if (tl) tl.style.display = 'flex';
+    if (eb) eb.innerHTML = '<i class="mdi mdi-tag"></i><span>编辑标签</span>';
+  }
+
+  _formatDateTime(value) {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '-';
+    const p = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
   }
 
   toggleEditMode() {
@@ -324,10 +426,8 @@ class UIManager {
     this.emotionService.updateEmotion(this.currentEmotion);
     await this.emotionService.saveData();
     this.renderAllViews();
-    document.getElementById('tagList').innerHTML = tags.map(t => '<span class="tag">' + HtmlUtils.escapeHtml(t) + '</span>').join('');
-    document.getElementById('tagEditor').style.display = 'none';
-    document.getElementById('tagList').style.display = 'flex';
-    document.getElementById('editTagsBtn').innerHTML = '<i class="mdi mdi-tag"></i> 编辑标签';
+    this._renderDetailTags(this.currentEmotion);
+    this._resetTagEditor();
     this.notification.showMessage('标签已更新', 'success');
   }
 
@@ -338,11 +438,49 @@ class UIManager {
     catch (e) { this.notification.showMessage(e.message, 'error'); }
   }
 
-  async deleteCurrentEmotion() {
+  toggleDeleteDropdown() {
+    const dd = document.querySelector('.delete-dropdown');
+    if (dd) dd.classList.toggle('open');
+  }
+
+  closeDeleteDropdown() {
+    const dd = document.querySelector('.delete-dropdown');
+    if (dd) dd.classList.remove('open');
+  }
+
+  async deleteCurrentEmotion(action) {
     if (!this.currentEmotion) return;
-    if (confirm('确定要删除这个表情包吗？')) {
-      const dl = this.settingsService.settings.deleteLocalFile;
-      await this.emotionService.deleteEmotion(this.currentEmotion, dl);
+    this.closeDeleteDropdown();
+
+    const emotion = this.currentEmotion;
+    const dl = this.settingsService.settings.deleteLocalFile;
+
+    if (action === 'current') {
+      const label = emotion.storageType === 'cloud' ? '云端' : '本地';
+      if (!confirm('确定要删除' + label + '的表情包吗？')) return;
+      await this.emotionService.deleteEmotion(emotion, dl);
+      this.renderAllViews();
+      this.hideModal('emotionModal');
+      this.notification.showMessage('已删除' + label + '表情包', 'success');
+    } else if (action === 'paired') {
+      const targetType = emotion.storageType === 'cloud' ? 'local' : 'cloud';
+      const label = targetType === 'cloud' ? '云端' : '本地';
+      if (!confirm('确定要删除' + label + '的表情包吗？')) return;
+      await this.emotionService.deletePairedEmotion(emotion, targetType, dl);
+      this.renderAllViews();
+      this.hideModal('emotionModal');
+      this.notification.showMessage('已删除' + label + '表情包', 'success');
+    } else if (action === 'both') {
+      if (!confirm('确定要删除本地和云端的表情包吗？')) return;
+      const targetType = emotion.storageType === 'cloud' ? 'local' : 'cloud';
+      await this.emotionService.deletePairedEmotion(emotion, targetType, dl);
+      await this.emotionService.deleteEmotion(emotion, dl);
+      this.renderAllViews();
+      this.hideModal('emotionModal');
+      this.notification.showMessage('表情包已全部删除', 'success');
+    } else {
+      if (!confirm('确定要删除这个表情包吗？')) return;
+      await this.emotionService.deleteEmotion(emotion, dl);
       this.renderAllViews();
       this.hideModal('emotionModal');
       this.notification.showMessage('表情包已删除', 'success');
@@ -354,9 +492,9 @@ class UIManager {
     try {
       this.notification.showMessage('正在转换...', 'info');
       const wasCloud = this.currentEmotion.storageType === 'cloud';
-      await this.emotionService.convertStorage(this.currentEmotion, (m) => this.notification.showMessage(m, 'info'));
+      const newEmotion = await this.emotionService.convertStorage(this.currentEmotion, (m) => this.notification.showMessage(m, 'info'));
       this.renderAllViews();
-      this.hideModal('emotionModal');
+      this.showEmotionDetail(newEmotion);
       this.notification.showMessage(wasCloud ? '表情包已保存到本地' : '表情包已上传到云端', 'success');
     } catch (e) { this.notification.showMessage('转换失败: ' + e.message, 'error'); }
   }
@@ -414,9 +552,8 @@ class UIManager {
   }
 
   handleSearch() {
-    const keyword = document.getElementById('searchInput').value.trim();
-    if (this.currentTab === 'mine') { this.renderEmotions(this.searchService.searchLocal(keyword)); }
-    else { this.handleExternalSearch(keyword); }
+    if (this.currentTab === 'mine') { this.renderEmotions(this.searchService.searchLocal(this.searchKeyword)); }
+    else { this.handleExternalSearch(this.searchKeyword); }
   }
 
   async handleExternalSearch(keyword) {
@@ -424,6 +561,15 @@ class UIManager {
     this.searchService.setActiveSource(this.currentTab);
     const er = document.getElementById('externalResults');
     er.style.display = 'block';
+
+    // 命中缓存：直接渲染，切换标签页回来时不再请求接口
+    const cached = this.searchService.getCachedResult(keyword);
+    if (cached) {
+      this._renderExternalResults(cached.images, cached.keyword, cached.hasMore);
+      this._setupInfiniteScroll();
+      return;
+    }
+
     er.innerHTML = '<p class="hint-text">正在搜索...</p>';
     try {
       const result = await this.searchService.search(keyword, 1);
@@ -623,13 +769,6 @@ class UIManager {
     document.querySelectorAll('input[name="theme"]').forEach(radio => {
       radio.addEventListener('change', (e) => { this.themeManager.setUserPreference(e.target.value); });
     });
-    const si = document.getElementById('searchInput');
-    if (si) {
-      si.addEventListener('keypress', (e) => { if (e.key === 'Enter') this.handleSearch(); });
-      si.addEventListener('input', (e) => { if (this.currentTab === 'mine') this.searchEmotions(e.target.value); });
-    }
-    const sb = document.getElementById('searchBtn');
-    if (sb) sb.addEventListener('click', () => this.handleSearch());
     const ab = document.getElementById('addBtn');
     if (ab) ab.addEventListener('click', () => this.showModal('addModal'));
     document.querySelectorAll('.close').forEach(cb => {
@@ -667,8 +806,16 @@ class UIManager {
     if (cb) cb.addEventListener('click', () => this.copyEmotionToClipboard());
     const etb = document.getElementById('editTagsBtn');
     if (etb) etb.addEventListener('click', () => this.toggleEditMode());
+
+    document.querySelectorAll('.preview-switch-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.switchDetailVersion(btn.dataset.storage));
+    });
     const db = document.getElementById('deleteBtn');
-    if (db) db.addEventListener('click', () => this.deleteCurrentEmotion());
+    if (db) db.addEventListener('click', (e) => { e.stopPropagation(); this.toggleDeleteDropdown(); });
+    document.querySelectorAll('.delete-option').forEach(opt => {
+      opt.addEventListener('click', (e) => { e.stopPropagation(); this.deleteCurrentEmotion(opt.dataset.action); });
+    });
+    document.addEventListener('click', () => this.closeDeleteDropdown());
     const cvb = document.getElementById('convertBtn');
     if (cvb) cvb.addEventListener('click', () => this.convertCurrentEmotionStorage());
     const ti = document.getElementById('tagInput');
@@ -693,6 +840,40 @@ class UIManager {
         else window.open(url, '_blank');
       });
     });
+
+    // 图片放大遮罩
+    document.querySelectorAll('.zoomable-image').forEach(img => {
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._showImageZoom(img.src);
+      });
+    });
+    const zoomOverlay = document.getElementById('imageZoomOverlay');
+    if (zoomOverlay) {
+      zoomOverlay.addEventListener('click', (e) => {
+        if (e.target === zoomOverlay) this._hideImageZoom();
+      });
+    }
+    const zoomedImg = document.getElementById('zoomedImage');
+    if (zoomedImg) {
+      zoomedImg.addEventListener('click', (e) => e.stopPropagation());
+    }
+  }
+
+  _showImageZoom(src) {
+    const overlay = document.getElementById('imageZoomOverlay');
+    const img = document.getElementById('zoomedImage');
+    if (overlay && img) {
+      img.src = src;
+      overlay.classList.add('active');
+    }
+  }
+
+  _hideImageZoom() {
+    const overlay = document.getElementById('imageZoomOverlay');
+    if (overlay) {
+      overlay.classList.remove('active');
+    }
   }
 
   async _selectLocalFolder() {

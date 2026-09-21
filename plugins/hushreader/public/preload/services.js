@@ -1,6 +1,63 @@
 const fs = require('node:fs')
 const path = require('node:path')
+const http = require('node:http')
+const https = require('node:https')
+const zlib = require('node:zlib')
 const { ipcRenderer } = require('electron')
+
+function httpRequest(method, url, { timeout = 15000, headers = {}, body = null, maxRedirects = 5 } = {}) {
+  return new Promise((resolve, reject) => {
+    let parsed
+    try {
+      parsed = new URL(url)
+    } catch (e) {
+      reject(new Error('非法 URL'))
+      return
+    }
+    const lib = parsed.protocol === 'https:' ? https : http
+    const reqHeaders = { ...headers }
+    if (!reqHeaders['User-Agent'] && !reqHeaders['user-agent']) {
+      reqHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'
+    }
+    reqHeaders['Accept'] = reqHeaders['Accept'] || reqHeaders['accept'] || '*/*'
+    if (body != null && reqHeaders['Content-Length'] == null && reqHeaders['content-length'] == null) {
+      reqHeaders['Content-Length'] = Buffer.byteLength(body)
+    }
+
+    const req = lib.request(parsed, { method, headers: reqHeaders }, (res) => {
+      const chunks = []
+      res.on('data', (c) => chunks.push(c))
+      res.on('end', () => {
+        let buffer = Buffer.concat(chunks)
+        const enc = String(res.headers['content-encoding'] || '').toLowerCase()
+        try {
+          if (enc === 'gzip') buffer = zlib.gunzipSync(buffer)
+          else if (enc === 'deflate') buffer = zlib.inflateSync(buffer)
+          else if (enc === 'br') buffer = zlib.brotliDecompressSync(buffer)
+        } catch (e) { /* 解码失败则保留原始内容 */ }
+
+        const status = res.statusCode || 0
+        if (status >= 300 && status < 400 && res.headers.location && maxRedirects > 0) {
+          let next
+          try {
+            next = new URL(res.headers.location, parsed).href
+          } catch (e) {
+            reject(new Error('重定向地址非法'))
+            return
+          }
+          httpRequest(method, next, { timeout, headers, body, maxRedirects: maxRedirects - 1 })
+            .then(resolve, reject)
+          return
+        }
+        resolve({ status, headers: res.headers, buffer })
+      })
+    })
+    req.setTimeout(timeout, () => req.destroy(new Error('请求超时')))
+    req.on('error', reject)
+    if (body != null) req.write(body)
+    req.end()
+  })
+}
 
 function decodeText(buffer) {
   if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
@@ -12,6 +69,21 @@ function decodeText(buffer) {
   if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
     return new TextDecoder('utf-16be').decode(buffer.subarray(2))
   }
+
+  // 根因修复：严格 UTF-8 校验通过即直接采用（且不含 NUL 字节，排除 UTF-16 文本）。
+  // 原因：此前的“编码评分”流程会让 utf-16le/gb18030 把 UTF-8 字节流解码出的乱码
+  // （每个字节对都变成汉字，得分极高）盖过正确解码——英文为主的书源 JSON / 接口
+  // 响应全部被误判成乱码。其它编码的正文（GBK/Big5/UTF-16）几乎不可能通过严格
+  // UTF-8 校验，因此这条规则不会误伤，只会在“确实是 UTF-8”时正确命中。
+  try {
+    const utf8Strict = decodeWith(buffer, 'utf-8', true)
+    if (countMatches(utf8Strict, /\x00/g) === 0) return utf8Strict
+  } catch { }
+
+  // 宽松 UTF-8 补救：严格解码因个别损坏/截断字节抛错、但宽松解码几乎无损（0~2 个
+  // 替换符）时按 UTF-8 返回。必须在“乱码评分”之前执行，否则 gb18030 的乱码会先胜出。
+  const utf8Loose = decodeWith(buffer, 'utf-8', false)
+  if (countMatches(utf8Loose, /\uFFFD/g) <= 2) return utf8Loose
 
   const candidates = uniqueEncodings([guessUtf16(buffer), 'utf-8', 'gb18030', 'gbk', 'gb2312', 'big5', 'utf-16le', 'utf-16be'])
   const strictDecoded = pickBestDecode(buffer, candidates, true)
@@ -183,5 +255,76 @@ window.services = {
   readFileFromPath(filePath) {
     const fullPath = path.resolve(filePath)
     return fs.readFileSync(fullPath, 'utf-8')
+  },
+
+  /***  HTTP GET，返回原始二进制 Buffer  ***/
+  httpGetBuffer(url, options = {}) {
+    return httpRequest('GET', url, options).then(res => {
+      if (res.status >= 400) throw new Error(`HTTP ${res.status}`)
+      return res.buffer
+    })
+  },
+
+  /***  HTTP GET，按检测到的编码解码为文本  ***/
+  httpGetText(url, options = {}) {
+    return httpRequest('GET', url, options).then(res => {
+      if (res.status >= 400) throw new Error(`HTTP ${res.status}`)
+      return decodeText(res.buffer)
+    })
+  },
+
+  /***  HTTP GET，解析 JSON  ***/
+  httpGetJson(url, options = {}) {
+    return httpRequest('GET', url, options).then(res => {
+      if (res.status >= 400) throw new Error(`HTTP ${res.status}`)
+      return JSON.parse(decodeText(res.buffer))
+    })
+  },
+
+  /***  HTTP POST，JSON 请求体，返回解析后的 JSON  ***/
+  httpPostJson(url, data, options = {}) {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+    return httpRequest('POST', url, { ...options, headers, body: JSON.stringify(data) }).then(res => {
+      if (res.status >= 400) throw new Error(`HTTP ${res.status}`)
+      const text = decodeText(res.buffer)
+      return text ? JSON.parse(text) : null
+    })
+  },
+
+  /***  HTTP POST，任意请求体，返回解码后的文本  ***/
+  httpPostText(url, body = '', options = {}) {
+    const headers = { ...(options.headers || {}) }
+    if (body && headers['Content-Type'] == null && headers['content-type'] == null) {
+      headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    }
+    return httpRequest('POST', url, { ...options, headers, body }).then(res => {
+      if (res.status >= 400) throw new Error(`HTTP ${res.status}`)
+      return decodeText(res.buffer)
+    })
+  },
+
+  /***  HTTP GET，返回 { status, text, headers }（不因 4xx 抛错；headers 含 set-cookie）  ***/
+  httpGetResponse(url, options = {}) {
+    return httpRequest('GET', url, options).then(res => ({
+      status: res.status,
+      text: decodeText(res.buffer),
+      headers: res.headers
+    }))
+  },
+
+  /***  HTTP POST，返回 { status, text, headers }（不因 4xx 抛错；headers 含 set-cookie）  ***/
+  httpPostResponse(url, body = '', options = {}) {
+    const headers = { ...(options.headers || {}) }
+    if (body && headers['Content-Type'] == null && headers['content-type'] == null) {
+      headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    }
+    return httpRequest('POST', url, { ...options, headers, body }).then(res => ({
+      status: res.status,
+      text: decodeText(res.buffer),
+      headers: res.headers
+    }))
   }
 }

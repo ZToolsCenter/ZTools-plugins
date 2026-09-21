@@ -1,0 +1,34 @@
+{
+  "name": "ztools-file-unlocker",
+  "title": "文件解锁器",
+  "pluginName": "文件解锁器",
+  "description": "查找并解除被占用文件，支持解锁、解锁并删除/重命名/移动、批量处理",
+  "version": "1.0.1",
+  "author": "zhanglei",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "unpack": "bin/**",
+  "features": [
+    {
+      "code": "file-unlocker",
+      "explain": "文件解锁器",
+      "icon": "logo.png",
+      "cmds": [
+        "文件解锁",
+        "文件解锁器",
+        "解锁",
+        "解锁文件",
+        "解除占用",
+        "文件占用",
+        "查占用",
+        "强制删除",
+        "unlock",
+        "unlocker"
+      ]
+    }
+  ],
+  "platform": [
+    "win32"
+  ]
+}

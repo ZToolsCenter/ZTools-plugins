@@ -44,11 +44,19 @@ function loadSessions() {
 function loadMessages() {
   if (!selectedId.value) return
   const next = window.services.getP2pMessages(selectedId.value, msgSince.value)
+  let appended = false
   if (next.length > 0) {
     messages.value = messages.value.concat(next)
     msgSince.value = next[next.length - 1].seq
-    scrollToBottom()
+    appended = true
   }
+  // Reconcile deletions (host or peer removed a message while this chat was open):
+  // drop any locally-held message that no longer exists on the server store.
+  const alive = new Set(window.services.getP2pMessages(selectedId.value, 0).map(m => m.id))
+  if (messages.value.some(m => !alive.has(m.id))) {
+    messages.value = messages.value.filter(m => alive.has(m.id))
+  }
+  if (appended) scrollToBottom()
   // While this conversation is open, keep its unread badge cleared.
   window.services.markP2pRead(selectedId.value)
   loadSessions()

@@ -542,6 +542,10 @@
             : JSON.parse(JSON.stringify(defaultConfig.engines))
           // 配置迁移：确保 cmds 是字符串数组（兼容旧版本的 regex 对象格式）
           engines = engines.map(engine => {
+            // 配置迁移：icon 路径迁移到 assets/ 目录（兼容旧版本无 assets/ 前缀的配置）
+            if (engine.icon && !engine.icon.startsWith('assets/') && !engine.icon.startsWith('http') && !engine.icon.startsWith('data:')) {
+              engine.icon = 'assets/' + engine.icon
+            }
             if (!engine.cmds) {
               engine.cmds = []
             } else if (!Array.isArray(engine.cmds)) {

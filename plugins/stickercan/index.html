@@ -61,44 +61,30 @@
         <main class="main-content">
             <!-- 首页视图 -->
             <div id="homeView" class="view active">
-                <header class="content-header">
-                    <div class="search-box">
-                        <input
-                            type="text"
-                            id="searchInput"
-                            placeholder="搜索表情包..."
-                            autocomplete="off"
-                        >
-                    </div>
-                    <div class="header-actions">
-                        <button id="searchBtn" class="btn btn-secondary">
-                            <i class="mdi mdi-magnify"></i> 搜索
+                <!-- 搜索选项卡 + 添加按钮 -->
+                <div class="search-tabs-row">
+                    <div class="search-tabs">
+                        <button class="tab-btn active" data-tab="mine">
+                            <span>我的</span>
                         </button>
-                        <button id="addBtn" class="btn btn-primary">
-                            <i class="mdi mdi-plus"></i> 添加表情
+                        <button class="tab-btn" data-tab="yujian">
+                            <span>遇见</span>
+                        </button>
+                        <button class="tab-btn" data-tab="qq">
+                            <span>QQ</span>
+                        </button>
+                        <button class="tab-btn" data-tab="baidu">
+                            <span>百度</span>
+                        </button>
+                        <button class="tab-btn" data-tab="sogou">
+                            <span>搜狗</span>
+                        </button>
+                        <button class="tab-btn" data-tab="apihz">
+                            <span>接口盒子</span>
                         </button>
                     </div>
-                </header>
-
-                <!-- 搜索选项卡 -->
-                <div class="search-tabs">
-                    <button class="tab-btn active" data-tab="mine">
-                        我的
-                    </button>
-                    <button class="tab-btn" data-tab="yujian">
-                        遇见
-                    </button>
-                    <button class="tab-btn" data-tab="tangdouzi">
-                        糖豆子
-                    </button>
-                    <button class="tab-btn" data-tab="baidu">
-                        百度
-                    </button>
-                    <button class="tab-btn" data-tab="sogou">
-                        搜狗
-                    </button>
-                    <button class="tab-btn" data-tab="apihz">
-                        接口盒子
+                    <button id="addBtn" class="btn btn-primary btn-icon-only" title="添加表情">
+                        <i class="mdi mdi-plus"></i>
                     </button>
                 </div>
 
@@ -488,7 +474,7 @@
                                         <img src="logo.png" alt="表情罐头" class="about-logo-img">
                                     </div>
                                     <h2>表情罐头</h2>
-                                    <p class="about-version">版本 1.0.0</p>
+                                    <p class="about-version">版本 1.2.0</p>
                                     <p class="about-desc">一款简洁高效的表情包管理工具，支持本地和云端混合存储</p>
                                 </div>
 
@@ -558,32 +544,67 @@
             </div>
             <div class="modal-body">
                 <div class="emotion-detail">
-                    <div class="emotion-images-container">
-                        <div class="emotion-image-wrapper local-wrapper" id="localImageWrapper" style="display: none;">
-                            <div class="image-label">
-                                <i class="mdi mdi-folder"></i>
-                                <span>本地</span>
-                            </div>
-                            <img id="modalLocalImage" src="" alt="本地图片">
+                    <div class="detail-preview">
+                        <div class="preview-stage">
+                            <img id="modalLocalImage" src="" alt="本地图片" class="zoomable-image detail-image" data-storage="local">
+                            <img id="modalCloudImage" src="" alt="云端图片" class="zoomable-image detail-image" data-storage="cloud">
                         </div>
-                        <div class="emotion-image-wrapper cloud-wrapper" id="cloudImageWrapper" style="display: none;">
-                            <div class="image-label">
-                                <i class="mdi mdi-cloud"></i>
+                        <div class="preview-switch" id="previewSwitch">
+                            <button type="button" class="preview-switch-btn" data-storage="local">
+                                <i class="mdi mdi-folder-outline"></i>
+                                <span>本地</span>
+                            </button>
+                            <button type="button" class="preview-switch-btn" data-storage="cloud">
+                                <i class="mdi mdi-cloud-outline"></i>
                                 <span>云端</span>
-                            </div>
-                            <img id="modalCloudImage" src="" alt="云端图片">
+                            </button>
                         </div>
                     </div>
-                    <div class="emotion-info">
-                        <div class="info-section">
-                            <div class="section-title">存储位置</div>
+                    <div class="detail-info">
+                        <div class="info-card">
+                            <div class="info-card-title">
+                                <i class="mdi mdi-database-outline"></i>
+                                <span>存储位置</span>
+                            </div>
                             <div class="storage-badge" id="storageBadge">
                                 <i class="badge-icon mdi"></i>
                                 <span class="badge-text"></span>
                             </div>
                         </div>
-                        <div class="info-section">
-                            <div class="section-title">标签管理</div>
+                        <div class="info-card">
+                            <div class="info-card-title">
+                                <i class="mdi mdi-information-outline"></i>
+                                <span>基本信息</span>
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <span class="info-key">添加时间</span>
+                                    <span class="info-value" id="detailCreatedAt">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-key">更新时间</span>
+                                    <span class="info-value" id="detailUpdatedAt">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-key">配对状态</span>
+                                    <span class="info-value" id="detailPairStatus">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-key">标识 ID</span>
+                                    <span class="info-value info-value-mono" id="detailId">-</span>
+                                </div>
+                            </div>
+                            <div class="info-row info-row-block">
+                                <span class="info-key">图片地址</span>
+                                <span class="info-value info-value-path" id="detailPath">-</span>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-card-title">
+                                <i class="mdi mdi-tag-outline"></i>
+                                <span>标签</span>
+                                <span class="info-count" id="detailTagCount">0</span>
+                            </div>
                             <div id="tagList" class="tag-list"></div>
                             <div id="tagEditor" class="tag-editor" style="display: none;">
                                 <div id="tagInputContainer" class="tag-input-container"></div>
@@ -606,10 +627,27 @@
                     <i class="mdi mdi-tag"></i>
                     <span>编辑标签</span>
                 </button>
-                <button id="deleteBtn" class="btn btn-danger">
-                    <i class="mdi mdi-delete"></i>
-                    <span>删除</span>
-                </button>
+                <div class="delete-dropdown">
+                    <button id="deleteBtn" class="btn btn-danger">
+                        <i class="mdi mdi-delete"></i>
+                        <span>删除</span>
+                        <i class="mdi mdi-chevron-down delete-caret"></i>
+                    </button>
+                    <div id="deleteDropdownMenu" class="delete-dropdown-menu">
+                        <button class="delete-option" data-action="current">
+                            <i class="mdi mdi-delete"></i>
+                            <span id="deleteCurrentLabel">删除当前</span>
+                        </button>
+                        <button class="delete-option" data-action="paired" id="deletePairedBtn" style="display:none;">
+                            <i class="mdi mdi-delete-empty"></i>
+                            <span id="deletePairedLabel">删除配对</span>
+                        </button>
+                        <button class="delete-option" data-action="both" id="deleteBothBtn" style="display:none;">
+                            <i class="mdi mdi-delete-forever"></i>
+                            <span>全部删除</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -695,6 +733,11 @@
         </div>
     </div>
 
+    <!-- 图片放大遮罩层 -->
+    <div id="imageZoomOverlay" class="image-zoom-overlay">
+        <img id="zoomedImage" src="" alt="放大图片">
+    </div>
+
         <script src="core/interfaces/StorageProvider.js"></script>
     <script src="core/interfaces/ClipboardProvider.js"></script>
     <script src="core/interfaces/FileProvider.js"></script>
@@ -709,10 +752,11 @@
     <script src="core/search/SearchSourceBase.js"></script>
     <script src="core/services/SettingsService.js"></script>
     <script src="core/services/EmotionService.js"></script>
+    <script src="core/services/SearchCache.js"></script>
     <script src="core/search/ApiHzSearchSource.js"></script>
     <script src="core/search/BaiduSearchSource.js"></script>
+    <script src="core/search/QQSearchSource.js"></script>
     <script src="core/search/SogouSearchSource.js"></script>
-    <script src="core/search/TangdouziSearchSource.js"></script>
     <script src="core/search/YujianSearchSource.js"></script>
     <script src="core/services/SearchService.js"></script>
     <script src="core/core.js"></script>

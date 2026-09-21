@@ -337,7 +337,10 @@
       position: fixed;
       z-index: 100;
       min-width: 140px;
+      /* 撑高有 maxHeight 天花板：万一撑到最高仍放不下，菜单内部滚动兜底 */
+      max-height: calc(100vh - 8px);
       padding: 4px 0;
+      overflow-y: auto;
       border-radius: 6px;
       background: rgba(30, 31, 34, 0.95);
       color: #cccccc;
@@ -345,6 +348,7 @@
       line-height: 1.4;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(8px);
+      transition: opacity 100ms ease;
     }
 
     .hushreader-context-menu-item {
@@ -511,6 +515,10 @@
     let timerRemaining = null
     let timerTickInterval = 0
     let notifAutoCloseTimer = 0
+    // 右键菜单撑高状态：menuExpandedHeight 为请求撑到的目标高度，关闭菜单后还原
+    let contextMenuAnchor = null
+    let menuExpandedHeight = null
+    let contextMenuRevealTimer = 0
 
     function formatTimer(ms) {
       if (ms == null || ms <= 0) return ''
@@ -716,9 +724,11 @@
     }
 
     function setHushreaderBox(width, height) {
+      // 菜单撑高期间 shell 与撑高后的窗口等高，避免状态推送把 shell 缩回而窗口还撑着的错位
+      const effectiveHeight = Math.max(height, menuExpandedHeight || 0)
       setCssVar("--hushreader-width", `${width}px`)
-      setCssVar("--hushreader-height", `${height}px`)
-      setSizeHint(width, height)
+      setCssVar("--hushreader-height", `${effectiveHeight}px`)
+      setSizeHint(width, effectiveHeight)
     }
 
     function getWindowScreenOffset(bounds) {
@@ -1212,16 +1222,90 @@
         contextMenuNode.append(btn)
       })
 
-      const menuX = Math.min(event.clientX, window.innerWidth - 160)
-      const menuY = Math.min(event.clientY, window.innerHeight - items.length * 30 - 8)
-      contextMenuNode.style.left = `${menuX}px`
-      contextMenuNode.style.top = `${menuY}px`
+      // 窗口太矮时菜单会被 overflow:hidden 裁掉：先按实际菜单高度请求主窗口临时撑高，
+      // 撑高期间菜单先隐藏，等 resize 事件后再以真实屏幕坐标定位显示。
       contextMenuNode.style.display = "block"
+      contextMenuNode.style.opacity = "0"
+      contextMenuNode.style.pointerEvents = "none"
+      // 菜单有 max-height 兜底，矮窗口里 offsetHeight 会被压小；临时去掉上限量出自然高度
+      const savedMenuMaxHeight = contextMenuNode.style.maxHeight
+      contextMenuNode.style.maxHeight = "none"
+      const menuHeight = contextMenuNode.offsetHeight || items.length * 30 + 8
+      contextMenuNode.style.maxHeight = savedMenuMaxHeight
+      const needsExpand = requestContextMenuExpand(menuHeight)
+      contextMenuAnchor = {
+        screenX: event.screenX,
+        screenY: event.screenY,
+        menuHeight
+      }
+      if (needsExpand) {
+        // 兜底：窗口 resize 事件没到（如主窗口异常）时也照常显示菜单
+        contextMenuRevealTimer = setTimeout(revealContextMenu, 250)
+      } else {
+        revealContextMenu()
+      }
     })
+
+    function requestContextMenuExpand(menuHeight) {
+      if (menuExpandedHeight != null) return false
+      const needed = Math.ceil(menuHeight + 12)
+      if (needed <= window.innerHeight) return false
+      menuExpandedHeight = needed
+      sendCommand({ type: "context-menu-expand", height: needed })
+      return true
+    }
+
+    function revealContextMenu() {
+      if (contextMenuRevealTimer) {
+        clearTimeout(contextMenuRevealTimer)
+        contextMenuRevealTimer = 0
+      }
+      positionContextMenu()
+      contextMenuNode.style.pointerEvents = ""
+      contextMenuNode.style.opacity = "1"
+    }
+
+    // 用右键时的屏幕坐标定位：窗口被撑高/位移后 clientX/Y 已失效，屏幕坐标是稳定参考系
+    function positionContextMenu() {
+      if (!contextMenuAnchor) return
+      const menuWidth = contextMenuNode.offsetWidth || 160
+      const menuHeight = contextMenuNode.offsetHeight || contextMenuAnchor.menuHeight
+      const clientX = contextMenuAnchor.screenX - (window.screenX ?? 0)
+      const clientY = contextMenuAnchor.screenY - (window.screenY ?? 0)
+      const maxX = Math.max(0, window.innerWidth - menuWidth - 8)
+      const maxY = Math.max(0, window.innerHeight - menuHeight - 8)
+      contextMenuNode.style.left = `${Math.min(Math.max(0, clientX), maxX)}px`
+      contextMenuNode.style.top = `${Math.min(Math.max(0, clientY), maxY)}px`
+    }
 
     function hideContextMenu() {
       contextMenuNode.style.display = "none"
+      contextMenuNode.style.opacity = "1"
+      contextMenuNode.style.pointerEvents = ""
+      if (contextMenuRevealTimer) {
+        clearTimeout(contextMenuRevealTimer)
+        contextMenuRevealTimer = 0
+      }
+      contextMenuAnchor = null
+      restoreContextMenuExpand()
     }
+
+    function restoreContextMenuExpand() {
+      if (menuExpandedHeight == null) return
+      menuExpandedHeight = null
+      sendCommand({ type: "context-menu-restore" })
+    }
+
+    window.addEventListener("resize", () => {
+      if (menuExpandedHeight != null && window.innerHeight < menuExpandedHeight) {
+        // 主窗口受 maxHeight 上限未能完全撑到请求高度时，让 shell 贴合实际窗口
+        menuExpandedHeight = window.innerHeight
+      }
+      if (!contextMenuAnchor) return
+      revealContextMenu()
+      // screenX/screenY 可能滞后于 resize 事件，稍后再校正一次定位
+      setTimeout(revealContextMenu, 60)
+    })
 
     document.addEventListener("mouseleave", () => {
       isKeyboardActive = false

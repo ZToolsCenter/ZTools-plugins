@@ -1,18 +1,19 @@
 console.log('ztools-kill-process preload.js loaded!');
 
-const ztools = window.ztools || window.utools || {};
+const rootContext = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : {});
+const ztools = rootContext.ztools || rootContext.utools || {};
 
 function notifyPluginEnter(action) {
-  if (typeof window.onPluginEnter === 'function') {
+  if (typeof rootContext.onPluginEnter === 'function') {
     try {
-      window.onPluginEnter(action);
+      rootContext.onPluginEnter(action);
     } catch (e) {
       console.error('Error in onPluginEnter:', e);
     }
   }
 }
 
-window.exports = {
+rootContext.exports = {
   'kill-process': {
     mode: 'none',
     args: {
@@ -33,6 +34,23 @@ if (ztools && typeof ztools.onPluginEnter === 'function') {
   });
 }
 
+// Decode process output safely handling UTF-8 and GBK (for Windows taskkill / netstat / PowerShell)
+function decodeSystemOutput(buffer) {
+  if (!buffer) return '';
+  if (typeof buffer === 'string') return buffer;
+  try {
+    const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+    return utf8Decoder.decode(buffer);
+  } catch (e) {
+    try {
+      const gbkDecoder = new TextDecoder('gbk');
+      return gbkDecoder.decode(buffer);
+    } catch (e2) {
+      return buffer.toString('utf8');
+    }
+  }
+}
+
 // Memory formatter helper
 function formatMemory(memKB) {
   if (!memKB || isNaN(memKB) || memKB <= 0) return '0 KB';
@@ -49,9 +67,10 @@ function formatMemory(memKB) {
 function getPortsWin32() {
   return new Promise((resolve) => {
     const { exec } = require('child_process');
-    exec('netstat -ano', { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, timeout: 5000 }, (err, stdout) => {
+    exec('netstat -ano', { encoding: 'buffer', maxBuffer: 10 * 1024 * 1024, timeout: 5000 }, (err, stdout) => {
       if (err || !stdout) return resolve({});
-      const lines = stdout.split('\r\n');
+      const text = decodeSystemOutput(stdout);
+      const lines = text.split(/\r?\n/);
       const portMap = {}; // pid -> { listening: Set, all: Set }
       for (const line of lines) {
         const parts = line.trim().split(/\s+/);
@@ -132,7 +151,7 @@ function getPortsPosix() {
   });
 }
 
-window.services = {
+const services = {
   getProcesses() {
     return new Promise((resolve, reject) => {
       const { execFile } = require('child_process');
@@ -143,10 +162,13 @@ window.services = {
 
       if (platform === 'win32') {
         const psScript = `
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 Get-Process | ForEach-Object {
     [PSCustomObject]@{
         Id = $_.Id;
         ProcessName = $_.ProcessName;
+        Description = $_.Description;
         WorkingSet64 = $_.WorkingSet64
     }
 } | ConvertTo-Json -Compress
@@ -154,11 +176,12 @@ Get-Process | ForEach-Object {
 
         const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
 
-        execFile('powershell.exe', ['-NoProfile', '-EncodedCommand', encoded], { encoding: 'utf8', timeout: 5000, maxBuffer: 20 * 1024 * 1024 }, async (err, stdout) => {
+        execFile('powershell.exe', ['-NoProfile', '-EncodedCommand', encoded], { encoding: 'buffer', timeout: 5000, maxBuffer: 20 * 1024 * 1024 }, async (err, stdout) => {
           if (err) return reject(err);
 
           try {
-            const rawItems = JSON.parse(stdout || '[]');
+            const jsonText = decodeSystemOutput(stdout);
+            const rawItems = JSON.parse(jsonText || '[]');
             const items = Array.isArray(rawItems) ? rawItems : [rawItems];
             const portMap = await portsPromise.catch(() => ({}));
             const list = [];
@@ -175,6 +198,7 @@ Get-Process | ForEach-Object {
 
               const pid = item.Id;
               const name = rawName ? `${rawName}.exe` : `PID-${pid}`;
+              const description = item.Description ? item.Description.trim() : '';
               const memoryKB = Math.round((item.WorkingSet64 || 0) / 1024);
 
               const portsInfo = portMap[pid] || { listening: [], all: [] };
@@ -186,6 +210,7 @@ Get-Process | ForEach-Object {
 
               list.push({
                 name,
+                description,
                 pid,
                 memoryStr: formatMemory(memoryKB),
                 memoryKB,
@@ -226,6 +251,7 @@ Get-Process | ForEach-Object {
 
                 list.push({
                   name,
+                  description: '',
                   pid,
                   memoryStr: formatMemory(rssKB),
                   memoryKB: rssKB,
@@ -251,22 +277,29 @@ Get-Process | ForEach-Object {
 
       if (platform === 'win32') {
         const args = force ? ['/F', '/PID', pid.toString()] : ['/PID', pid.toString()];
-        execFile('taskkill.exe', args, { encoding: 'utf8', timeout: 5000 }, (err, stdout, stderr) => {
+        execFile('taskkill.exe', args, { encoding: 'buffer', timeout: 5000 }, (err, stdout, stderr) => {
+          const outText = decodeSystemOutput(stdout);
+          const errText = decodeSystemOutput(stderr);
           if (err) {
-            const msg = stderr || stdout || err.message || '结束进程失败';
-            return reject(new Error(msg));
+            const msg = errText || outText || err.message || '结束进程失败';
+            return reject(new Error(msg.trim()));
           }
-          resolve(stdout || '成功杀死进程');
+          resolve((outText || '成功杀死进程').trim());
         });
       } else {
         execFile('kill', ['-9', pid.toString()], { encoding: 'utf8', timeout: 5000 }, (err, stdout, stderr) => {
           if (err) {
             const msg = stderr || stdout || err.message || '结束进程失败';
-            return reject(new Error(msg));
+            return reject(new Error(msg.trim()));
           }
-          resolve(stdout || '成功杀死进程');
+          resolve((stdout || '成功杀死进程').trim());
         });
       }
     });
   }
 };
+
+rootContext.services = services;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = services;
+}

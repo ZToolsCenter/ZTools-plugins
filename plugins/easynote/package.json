@@ -1,7 +1,7 @@
 {
   "name": "easynote",
-  "version": "1.7.3",
-  "description": "轻量、简单的便签应用，支持 Markdown 所见即所得/双栏编辑、笔记/待办类型管理、纯文本复制、字号控制",
+  "version": "1.9.1",
+  "description": "轻量、简单的便签应用，支持多张桌面便利贴、Markdown 所见即所得/双栏编辑、笔记/待办类型管理、纯文本复制、字号控制",
   "type": "module",
   "scripts": {
     "dev": "vite",

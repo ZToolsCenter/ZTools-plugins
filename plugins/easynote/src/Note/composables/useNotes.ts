@@ -99,8 +99,11 @@ export function useNotes() {
     const content = draft.value.content
     const now = Date.now()
     const noteType: NoteType = type ?? draft.value.type ?? 'note'
-    let notes = [...savedNotes.value]
     let targetId = draft.value.noteId
+
+    // 多窗口并发保存：每次落盘前重新读最新数据做合并，只替换本便签那一条，
+    // 避免「读快照 → 整表覆盖写」把别的便利贴窗口刚保存的改动冲掉
+    let notes = [...loadNotes()]
 
     if (targetId) {
       const i = notes.findIndex((x) => x.id === targetId)

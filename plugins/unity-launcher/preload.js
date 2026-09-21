@@ -19,6 +19,26 @@ window.services = {
   dbGet(key) { return ztools.dbStorage ? ztools.dbStorage.getItem(key) : null; },
   dbSet(key, val) { return ztools.dbStorage ? ztools.dbStorage.setItem(key, val) : null; },
 
+  // ---------- 统一的分离式启动（带错误处理，避免未捕获的 'error' 事件） ----------
+  _spawnDetached(exePath, args) {
+    const fs = require('fs');
+    const { spawn } = require('child_process');
+    if (!exePath) throw new Error('未指定 Unity.exe 路径');
+    if (!fs.existsSync(exePath)) throw new Error(`编辑器不存在: ${exePath}`);
+    let child;
+    try {
+      child = spawn(exePath, args, { detached: true, stdio: 'ignore' });
+    } catch (e) {
+      throw new Error(`启动失败: ${e.message}`);
+    }
+    child.on('error', (err) => {
+      console.error('spawn failed:', exePath, err);
+      if (ztools.showNotification) ztools.showNotification(`启动失败: ${err.message}`);
+    });
+    if (child.unref) child.unref();
+    return child;
+  },
+
   // ---------- 文件/目录选择（支持单个/批量扫描） ----------
   selectFolder() {
     if (!ztools.showOpenDialog) return null;
@@ -54,37 +74,18 @@ window.services = {
     });
     if (!r || !r.length) return null;
     const selectedPath = r[0];
-    
-    const path = require('path');
-    const exes = findUnityExes(selectedPath);
-    
-    return exes.map(exe => {
-      const m = exe.match(/(\d{4}\.\d+\.\d+[a-z]\d+)/i);
-      return {
-        path: exe,
-        version: m ? m[1] : path.basename(path.dirname(path.dirname(exe)))
-      };
-    });
+
+    return findUnityExes(selectedPath).map(exeToEditor);
   },
 
   // ---------- 启动 ----------
   launch(editorPath, projectPath) {
-    const { spawn } = require('child_process');
-    const child = spawn(editorPath, ['-projectPath', projectPath], {
-      detached: true,
-      stdio: 'ignore'
-    });
-    child.unref();
+    this._spawnDetached(editorPath, ['-projectPath', projectPath]);
     return true;
   },
 
   createProject(editorPath, projectPath) {
-    const { spawn } = require('child_process');
-    const child = spawn(editorPath, ['-createProject', projectPath], {
-      detached: true,
-      stdio: 'ignore'
-    });
-    child.unref();
+    this._spawnDetached(editorPath, ['-createProject', projectPath]);
     return true;
   },
 
@@ -102,16 +103,14 @@ window.services = {
   createNewProject(editorPath, parentPath, name) {
     const fs = require('fs');
     const path = require('path');
+    if (/[\\/:*?"<>|]/.test(name)) {
+      throw new Error('项目名称不能包含 \\ / : * ? " < > | 等字符');
+    }
     const targetPath = path.join(parentPath, name);
     if (fs.existsSync(targetPath)) {
       throw new Error('该存放目录下已存在同名文件夹！');
     }
-    const { spawn } = require('child_process');
-    const child = spawn(editorPath, ['-createProject', targetPath], {
-      detached: true,
-      stdio: 'ignore'
-    });
-    child.unref();
+    this._spawnDetached(editorPath, ['-createProject', targetPath]);
     return targetPath;
   },
 
@@ -288,8 +287,19 @@ function findUnityProjects(dir, depth = 0, maxDepth = 8) {
   return results;
 }
 
+function exeToEditor(exe) {
+  const path = require('path');
+  const m = exe.match(/(\d{4}\.\d+\.\d+[a-z]\d+)/i);
+  return {
+    path: exe,
+    version: m ? m[1] : path.basename(path.dirname(path.dirname(exe)))
+  };
+}
+
 function findUnityExes(dir, depth = 0) {
-  if (depth > 3) return []; // 限制深度为 3 层，避免在大目录下卡死
+  // 限制深度为 6 层：既避免在大目录下卡死，又能覆盖
+  // C:\Program Files\Unity\Hub\Editor\<版本>\Editor\Unity.exe（深度 5）
+  if (depth > 6) return [];
   const fs = require('fs');
   const path = require('path');
   let results = [];
@@ -300,7 +310,19 @@ function findUnityExes(dir, depth = 0) {
       if (file.isDirectory()) {
         const nameLower = file.name.toLowerCase();
         // 跳过显然不相关的或可能极大的文件夹，以保证扫描效率
-        if (file.name.startsWith('.') || nameLower === 'node_modules' || nameLower === 'library' || nameLower === 'assets' || nameLower === 'projectsettings') {
+        if (
+          file.name.startsWith('.') ||
+          file.name.startsWith('$') ||
+          nameLower === 'node_modules' ||
+          nameLower === 'library' ||
+          nameLower === 'assets' ||
+          nameLower === 'projectsettings' ||
+          nameLower === 'windows' ||
+          nameLower === 'winsxs' ||
+          nameLower === 'system volume information' ||
+          nameLower === 'temp' ||
+          nameLower === 'logs'
+        ) {
           continue;
         }
         results = results.concat(findUnityExes(fullPath, depth + 1));

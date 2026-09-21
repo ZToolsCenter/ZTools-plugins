@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Base64 编解码</title>
+  <link rel="icon" href="logo.png">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="codec.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <div class="brand"><div class="brand-icon">64</div><div><h1>Base64 <span>编解码</span></h1><p>文字与图片，轻松转换。</p></div></div>
+      <span class="local-badge"><i></i> 本地处理</span>
+    </header>
+    <nav class="modebar" aria-label="转换模式">
+      <div class="segmented"><button id="encode-mode" class="active" aria-pressed="true">编码 <span>Encode</span></button><button id="decode-mode" aria-pressed="false">解码 <span>Decode</span></button></div>
+    </nav>
+    <div class="workspace">
+      <section class="panel input-panel">
+        <div class="panel-head"><label for="input" id="input-title">原始内容</label><span id="input-count" class="meta">0 字符</span></div>
+        <div id="source-controls" class="source-controls"><button id="text-source" class="source active" aria-pressed="true">文本</button><button id="image-source" class="source" aria-pressed="false">图片</button></div>
+        <textarea id="input" spellcheck="false" placeholder="在这里输入或粘贴文本…&#10;&#10;支持中文、Emoji 和多行文本。" aria-describedby="input-help"></textarea>
+        <div id="image-input" class="image-input" hidden>
+          <button id="pick-image" class="dropzone"><span class="upload-symbol" aria-hidden="true">↑</span><strong>选择一张图片</strong><span>也可以拖入或直接粘贴图片</span><small>PNG / JPG / GIF / WebP / BMP / ICO / AVIF / SVG · 最大 20 MB</small></button>
+          <div id="selected-image" hidden><div class="checker selected-preview"><img id="source-preview" alt="选择的图片预览"></div><div class="file-row"><span id="file-info"></span><button id="replace-image" class="quiet">更换图片</button></div></div>
+          <input id="file-input" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,image/avif,image/svg+xml,.ico" hidden>
+        </div>
+        <div class="panel-foot"><span id="input-help">文本使用 UTF-8 编码</span><button id="clear" class="primary">清空内容</button></div>
+      </section>
+      <section class="panel output-panel">
+        <div class="panel-head"><span id="output-title">编码结果</span><span id="result-type" class="type-badge">BASE64</span></div>
+        <div id="output-options" class="output-options"><label><input id="data-url" type="checkbox" checked> 包含 Data URL 前缀</label></div>
+        <div id="empty-result" class="empty-result"><span class="empty-symbol" aria-hidden="true">{ }</span><strong>转换结果将在这里显示</strong><p>输入内容后自动转换，也可以按 Ctrl / ⌘ + Enter</p></div>
+        <textarea id="output" aria-label="转换结果" spellcheck="false" readonly hidden></textarea>
+        <div id="image-result" class="image-result" hidden><div class="checker result-preview"><img id="decoded-preview" alt="Base64 解码图片预览"></div><div id="image-meta" class="image-meta"></div></div>
+        <div id="error" class="error" role="alert" hidden></div>
+        <div class="panel-foot"><span id="output-count">等待输入</span><div class="actions"><button id="save" class="primary" hidden>保存图片</button><button id="copy" disabled>复制结果</button></div></div>
+      </section>
+    </div>
+    <footer><span>支持标准 Base64、URL-safe 与 Data URL</span><span>内容不会上传或保存到历史记录</span></footer>
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+  </main>
+</body>
+</html>

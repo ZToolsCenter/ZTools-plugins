@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import Home from './Note/Home.vue'
 import StickyNote from './Note/StickyNote.vue'
-import { openStickyWindow, isStandaloneSupported, isStickyNoteOpen } from './Note/host'
+import EdgeTab from './Note/EdgeTab.vue'
+import {
+  openStickyWindow,
+  isStandaloneSupported,
+  isStickyNoteOpen,
+  initHostBridge,
+  MAX_STICKIES
+} from './Note/host'
 import { useNotes } from './Note/composables/useNotes'
 
 const winType = ref<'main' | 'detach' | 'browser'>(window.ztools.getWindowType())
@@ -12,14 +20,23 @@ const { reloadNotes, loadDraft } = useNotes()
 
 let unloadTimer: ReturnType<typeof setInterval> | null = null
 
+const params = new URLSearchParams(location.search)
+/** 最小化后的边缘标签窗口（?view=tab） */
+const isEdgeTab = winType.value === 'browser' && params.get('view') === 'tab'
+
 // 独立便利贴窗口：同步加载草稿，确保 MilkdownEditor 初始值正确
-if (winType.value === 'browser') {
-  const noteId = new URLSearchParams(location.search).get('note')
-  loadDraft(noteId)
+if (winType.value === 'browser' && !isEdgeTab) {
+  loadDraft(params.get('note'))
 }
+
+// 标签窗口铺满整个窗口，不能带外层背景色，否则窗口边缘会露出底色
+if (isEdgeTab) document.body.classList.add('win-edge-tab')
 
 onMounted(() => {
   if (winType.value === 'browser') return
+
+  // 窗口管家：接便利贴 / 标签窗口发来的指令（最小化、还原、关闭）
+  initHostBridge()
 
   reloadNotes()
   window.ztools.setExpendHeight?.(560)
@@ -77,18 +94,22 @@ function onBeforeUnload(e: BeforeUnloadEvent) {
 function openSticky(noteId: string | null) {
   loadDraft(noteId)
   if (isStandaloneSupported()) {
-    // 独立窗口模式：创建便利贴窗口，如果失败则回退到嵌入模式
-    const ok = openStickyWindow(noteId)
-    if (!ok) {
-      // createBrowserWindow 失败（如 WPS 环境），回退到主窗口内嵌编辑
-      view.value = 'editor'
+    const result = openStickyWindow(noteId)
+    if (result === 'created' || result === 'focused') {
+      // 新开窗口或聚焦已有窗口：主窗口照例隐藏（聚焦场景主窗口本就多为隐藏态）
+      try {
+        window.ztools.hideMainWindow()
+      } catch {
+        /* ignore */
+      }
       return
     }
-    try {
-      window.ztools.hideMainWindow()
-    } catch {
-      /* ignore */
+    if (result === 'limit') {
+      ElMessage.warning(`最多同时打开 ${MAX_STICKIES} 张便利贴`)
+      return
     }
+    // createBrowserWindow 失败等异常，回退到主窗口内嵌编辑
+    view.value = 'editor'
   } else {
     // dev 模式：主窗口内切换到编辑视图
     view.value = 'editor'
@@ -112,7 +133,8 @@ function onSaved() {
 </script>
 
 <template>
-  <StickyNote v-if="winType === 'browser'" />
+  <EdgeTab v-if="isEdgeTab" />
+  <StickyNote v-else-if="winType === 'browser'" />
   <StickyNote
     v-else-if="view === 'editor'"
     embedded

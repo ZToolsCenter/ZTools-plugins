@@ -3,7 +3,7 @@
   "title": "杀进程/进程管理",
   "pluginName": "杀进程/进程管理",
   "description": "显示当前系统的进程列表，快速搜索与一键结束指定进程",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "zhanglei",
   "main": "index.html",
   "preload": "preload.js",

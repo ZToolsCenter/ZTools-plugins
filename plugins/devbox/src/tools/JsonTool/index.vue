@@ -40,14 +40,78 @@ function formatValue(v: unknown, type: string): string {
 }
 
 // === 智能解析（自动去转义）===
-function smartParse(text: string): { obj: unknown; error: string; unescaped: boolean } {
+// 单次还原转义：返回还原后的文本；无法还原返回 null。
+// 覆盖两类来源：带外层引号的字符串字面量（"[{\"a\":1}]"），
+// 以及从日志/字符串字面量复制后丢了外层引号、只剩 \" 转义的文本（[{\"a\":1}]）
+function unescapeOnce(text: string): string | null {
+  if (text.startsWith('"') && text.endsWith('"') && text.length >= 2) {
+    try { return JSON.parse(text) as string } catch { return text.slice(1, -1) }
+  }
+  if (/\\["\\]/.test(text)) {
+    try { return JSON.parse('"' + text + '"') as string } catch {
+      // 存在裸引号/字面换行等非标准形态，按转义对逐个消费，只还原 \" 与 \\
+      return text.replace(/\\[\s\S]/g, (m) => {
+        const c = m[1]
+        return c === '"' ? '"' : c === '\\' ? '\\' : m
+      })
+    }
+  }
+  return null
+}
+
+// 碎片补全：多个 JSON 值缺外层 [] 的拼接 → 包一层 [] 再解析。
+// 两级尝试：①逗号拼接 {...},{...} 直接包；②无逗号拼接 {...}{...} 先在相邻值之间补逗号
+// （补逗号前用引号保护隔离字符串字面量，避免值内恰好出现 }{ 被误伤）
+function parseAsFragment(text: string): { obj: unknown } | null {
+  const t = text.trim()
+  const paired = (t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))
+  if (!paired) return null
+  try { return { obj: JSON.parse('[' + t + ']') } } catch { /* 无逗号拼接形态，继续 */ }
+  const { result, store } = protectQuotes(t)
+  const joined = restoreQuotes(
+    result
+      .replace(/\}\s*\{/g, '},{')
+      .replace(/\]\s*\[/g, '],[')
+      .replace(/\}\s*\[/g, '},[')
+      .replace(/\]\s*\{/g, '],{'),
+    store
+  )
+  if (joined === t) return null
+  try { return { obj: JSON.parse('[' + joined + ']') } } catch { return null }
+}
+
+// 直接解析失败后的兜底链：逐层还原转义（最多 3 层）→ 碎片补全。
+// repaired 表示内容被结构性补全（补了外层 []），不只是去转义
+function parseFallback(text: string): { obj: unknown; unescaped: boolean; repaired: boolean } | null {
+  let s = text
+  let unescaped = false
+  for (let i = 0; i < 3; i++) {
+    const inner = unescapeOnce(s)
+    if (inner === null) break
+    const t = inner.trim()
+    if (!t || t === s) break
+    unescaped = true
+    try { return { obj: JSON.parse(t), unescaped, repaired: false } } catch { /* 继续还原下一层 */ }
+    const frag = parseAsFragment(t)
+    if (frag) return { obj: frag.obj, unescaped, repaired: true }
+    s = t
+  }
+  // 没有转义也要试碎片补全（{...},{...} 原样粘贴的形态）
+  const frag = parseAsFragment(s)
+  if (frag) return { obj: frag.obj, unescaped: false, repaired: true }
+  return null
+}
+
+function smartParse(text: string): { obj: unknown; error: string; unescaped: boolean; repaired: boolean; direct: boolean } {
   const trimmed = text.trim()
-  if (!trimmed) return { obj: undefined, error: '', unescaped: false }
+  if (!trimmed) return { obj: undefined, error: '', unescaped: false, repaired: false, direct: false }
   let obj: unknown
   try {
     obj = JSON.parse(trimmed)
   } catch (e) {
-    return { obj: undefined, error: (e as Error).message, unescaped: false }
+    const r = parseFallback(trimmed)
+    if (r) return { obj: r.obj, error: '', unescaped: r.unescaped, repaired: r.repaired, direct: false }
+    return { obj: undefined, error: (e as Error).message, unescaped: false, repaired: false, direct: false }
   }
   // 若结果仍是字符串，尝试再 parse 一次（处理被转义的 JSON 字符串）
   if (typeof obj === 'string') {
@@ -55,25 +119,27 @@ function smartParse(text: string): { obj: unknown; error: string; unescaped: boo
     if (inner.startsWith('{') || inner.startsWith('[')) {
       try {
         const obj2 = JSON.parse(inner)
-        return { obj: obj2, error: '', unescaped: true }
+        return { obj: obj2, error: '', unescaped: true, repaired: false, direct: true }
       } catch {
         // 内层非 JSON，返回字符串本身
       }
     }
-    return { obj, error: '', unescaped: false }
+    return { obj, error: '', unescaped: false, repaired: false, direct: true }
   }
-  return { obj, error: '', unescaped: false }
+  return { obj, error: '', unescaped: false, repaired: false, direct: true }
 }
 
 const parseResult = computed(() => {
   const t = textContent.value.trim()
-  if (!t) return { obj: undefined as unknown, error: '', empty: true, unescaped: false }
+  if (!t) return { obj: undefined as unknown, error: '', empty: true, unescaped: false, repaired: false, direct: false }
   const r = smartParse(t)
   return { ...r, empty: false }
 })
 
 const hasContent = computed(() => !!textContent.value.trim())
 const isValid = computed(() => !parseResult.value.empty && !parseResult.value.error)
+// 内容能解析出来，但原始输入本身不是标准 JSON（靠去转义/补全数组才解析成功）
+const needsRepair = computed(() => isValid.value && !parseResult.value.direct)
 
 // === 引号保护（删除注释时避免误伤字符串字面量）===
 const SEP_Q = '\x00__Q'
@@ -92,19 +158,19 @@ function setError(msg: string) { errorMsg.value = msg; statusMsg.value = '' }
 
 // === 操作（全部原地修改 textContent，编辑器通过 watch 同步）===
 function format() {
-  const { obj, error, unescaped } = parseResult.value
+  const { obj, error, unescaped, repaired } = parseResult.value
   if (error) { setError(error); return }
   if (obj === undefined) { setError('内容为空'); return }
   textContent.value = JSON.stringify(obj, null, 2)
-  setStatus(unescaped ? '已自动去除转义并格式化' : '格式化成功')
+  setStatus(unescaped ? '已自动去除转义并格式化' : repaired ? '已补全外层数组并格式化' : '格式化成功')
 }
 
 function minify() {
-  const { obj, error, unescaped } = parseResult.value
+  const { obj, error, unescaped, repaired } = parseResult.value
   if (error) { setError(error); return }
   if (obj === undefined) { setError('内容为空'); return }
   textContent.value = JSON.stringify(obj)
-  setStatus(unescaped ? '已自动去转义并压缩' : '压缩成功')
+  setStatus(unescaped ? '已自动去转义并压缩' : repaired ? '已补全外层数组并压缩' : '压缩成功')
 }
 
 function escapeJson() {
@@ -136,8 +202,15 @@ function unescapeJson() {
       textContent.value = JSON.stringify(result, null, 2)
       setStatus('已格式化')
     }
-  } catch (e) {
-    setError((e as Error).message)
+  } catch {
+    // 直接解析失败：还原转义 / 碎片补全后再解析（覆盖丢了外层引号的 \" 转义形态、多对象拼接形态）
+    const r = parseFallback(t)
+    if (r) {
+      textContent.value = JSON.stringify(r.obj, null, 2)
+      setStatus(r.unescaped ? '已去除转义并格式化' : '已补全外层数组并格式化')
+    } else {
+      setError('内容不是可识别的转义 JSON 字符串')
+    }
   }
 }
 
@@ -442,7 +515,8 @@ if ((window as any).ztools?.onPluginEnter) {
 
     <div v-if="stats" class="stats-bar">
       <span>{{ stats.chars }} 字符 · {{ stats.lines }} 行</span>
-      <span v-if="isValid" class="valid-tag">✓ 有效 JSON</span>
+      <span v-if="isValid && !needsRepair" class="valid-tag">✓ 有效 JSON</span>
+      <span v-else-if="needsRepair" class="repair-tag">⚠ 非标准 JSON（可自动修复）</span>
       <span v-else-if="hasContent" class="invalid-tag">✗ 无效 JSON</span>
     </div>
   </div>
@@ -506,6 +580,7 @@ h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
 
 .stats-bar { display: flex; gap: 16px; padding: 6px 12px; font-size: 12px; color: #909399; }
 .valid-tag { color: #67c23a; }
+.repair-tag { color: #e6a23c; }
 .invalid-tag { color: #f56c6c; }
 
 @media (prefers-color-scheme: dark) {
@@ -539,6 +614,9 @@ h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
   .status-bar.success { background: #1a2e1a; color: #67c23a; }
   .status-bar.error { background: #2e1a1a; color: #f56c6c; }
   .stats-bar { color: #8a8a8a; }
+  .valid-tag { color: #67c23a; }
+  .repair-tag { color: #d19a66; }
+  .invalid-tag { color: #f56c6c; }
   h2 { color: #e0e0e0; }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter } from './stores/router'
 import { usePromptStore } from './stores/prompt'
 import { useProjectStore } from './stores/project'
@@ -7,6 +7,7 @@ import { useAppSettings } from './stores/app'
 import { useTheme } from './stores/theme'
 import { readClipboardText, showNotification } from './utils/platform'
 import CommandBar from './components/CommandBar.vue'
+import AppModal from './components/AppModal.vue'
 import SpaceView from './views/SpaceView.vue'
 import WizardView from './views/WizardView.vue'
 import ManageView from './views/ManageView.vue'
@@ -21,12 +22,23 @@ const appSettings = useAppSettings()
 const themeStore = useTheme()
 const ready = ref(false)
 
+function flushPendingChanges() {
+  void promptStore.flushPendingPersist()
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'hidden') flushPendingChanges()
+}
+
 onMounted(async () => {
   await promptStore.ensureReady()
   await projectStore.ensureReady()
   await appSettings.load()
   await themeStore.init()
   ready.value = true
+
+  window.addEventListener('pagehide', flushPendingChanges)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 
   const ztools = (window as any).ztools
   if (ztools) {
@@ -45,21 +57,7 @@ onMounted(async () => {
           source = 'clipboard'
         } else {
           // text 类型命令（pfs 等）：从剪贴板读取
-          const ztools = (window as any).ztools
-          try {
-            if (ztools?.clipboard?.getHistory) {
-              const result = await ztools.clipboard.getHistory(1, 1)
-              console.log('[PromptForge] clipboard history:', result)
-              const records = result?.list || result?.data || result || []
-              const first = Array.isArray(records) ? records[0] : null
-              if (first?.content) content = String(first.content)
-              else if (first?.text) content = String(first.text)
-              else if (first?.value) content = String(first.value)
-            }
-          } catch (e) { console.error('[PromptForge] clipboard error:', e) }
-          if (!content && navigator.clipboard?.readText) {
-            try { content = await navigator.clipboard.readText() } catch {}
-          }
+          content = await readClipboardText()
           source = 'clipboard'
         }
         if (content.trim().length >= 20) {
@@ -71,6 +69,12 @@ onMounted(async () => {
       }
     })
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('pagehide', flushPendingChanges)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  flushPendingChanges()
 })
 
 const viewMap: Record<string, any> = {
@@ -91,6 +95,7 @@ const activeComponent = computed(() => viewMap[router.currentView.value] || Spac
       <div class="view-container">
         <component :is="activeComponent" />
       </div>
+      <AppModal />
     </template>
     <div v-else class="loading">
       <div class="loading-spinner"></div>

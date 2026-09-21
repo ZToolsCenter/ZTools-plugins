@@ -3,6 +3,8 @@ import { ref, computed, watch } from 'vue'
 import { useConfigStore, type ReaderConfig } from '../../stores/config'
 import { useBookStore, type Book } from '../../stores/books'
 import Toast from '../Bookshelf/Toast.vue'
+import OnlineTab from './online/OnlineTab.vue'
+import ReplaceTab from './ReplaceTab.vue'
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -20,7 +22,7 @@ function showToast(msg: string, type: 'info' | 'success' | 'error' = 'info') {
   toastTimer = setTimeout(() => { toastMessage.value = '' }, 2500)
 }
 
-const activeTab = ref<'hushreader' | 'function' | 'other'>('hushreader')
+const activeTab = ref<'hushreader' | 'function' | 'other' | 'online' | 'replace'>('hushreader')
 
 const FONT_OPTIONS = [
   { label: '系统默认', value: 'system-ui, -apple-system, sans-serif' },
@@ -274,15 +276,22 @@ async function importBooks() {
       let skipped = 0
       const newBooks: Book[] = []
       for (const book of data.books) {
-        const filePathName = book.filePath.split(/[\\/]/).pop() ?? book.filePath
         const isDuplicate = bookStore.books.some(b => {
+          if (book.format === 'online' && b.format === 'online') {
+            return b.onlineKind === book.onlineKind && b.bookUrl === book.bookUrl
+          }
+          if (book.format === 'online' || b.format === 'online') return false
           if (b.filePath === book.filePath) return true
           const existingName = b.filePath.split(/[\\/]/).pop() ?? b.filePath
-          return existingName === filePathName
+          return existingName === (book.filePath.split(/[\\/]/).pop() ?? book.filePath)
         }) || newBooks.some(b => {
+          if (book.format === 'online' && b.format === 'online') {
+            return b.onlineKind === book.onlineKind && b.bookUrl === book.bookUrl
+          }
+          if (book.format === 'online' || b.format === 'online') return false
           if (b.filePath === book.filePath) return true
           const existingName = b.filePath.split(/[\\/]/).pop() ?? b.filePath
-          return existingName === filePathName
+          return existingName === (book.filePath.split(/[\\/]/).pop() ?? book.filePath)
         })
 
         if (isDuplicate) {
@@ -521,10 +530,23 @@ function commitCapture(targetArr: string[]) {
         <button class="tab-btn" :class="{ active: activeTab === 'function' }"
           @click="activeTab = 'function'">功能设置</button>
         <button class="tab-btn" :class="{ active: activeTab === 'other' }" @click="activeTab = 'other'">其他设置</button>
+        <button class="tab-btn" :class="{ active: activeTab === 'online' }" @click="activeTab = 'online'">在线</button>
+        <button class="tab-btn" :class="{ active: activeTab === 'replace' }" @click="activeTab = 'replace'">净化</button>
       </div>
 
       <!-- Body -->
       <div class="settings-body">
+
+        <!-- ===== 在线（书源 / 开源阅读同步） ===== -->
+        <div v-if="activeTab === 'online'">
+          <OnlineTab />
+        </div>
+
+        <!-- ===== 净化（替换规则） ===== -->
+        <div v-if="activeTab === 'replace'">
+          <ReplaceTab />
+        </div>
+
 
         <!-- ===== 隐阅窗口 ===== -->
         <div v-if="activeTab === 'hushreader'" class="settings-grid">
@@ -593,7 +615,7 @@ function commitCapture(targetArr: string[]) {
           </div>
 
           <div class="setting-row">
-            <label>透明度</label>
+            <label>整体不透明度</label>
             <div class="input-group">
               <input type="range" min="10" max="100" v-model.number="cfg.hushreader.opacity" class="slider" />
               <span class="badge">{{ cfg.hushreader.opacity }}%</span>
@@ -601,7 +623,7 @@ function commitCapture(targetArr: string[]) {
           </div>
 
           <div class="setting-row">
-            <label>背景透明度</label>
+            <label>背景不透明度</label>
             <div class="input-group">
               <input type="range" min="0" max="100" v-model.number="cfg.hushreader.bgOpacity" class="slider" />
               <span class="badge">{{ cfg.hushreader.bgOpacity }}%</span>
