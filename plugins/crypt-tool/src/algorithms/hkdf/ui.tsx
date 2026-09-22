@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function HkdfUI({ enterPayload }: AlgorithmProps) {
+export default function HkdfUI({}: AlgorithmProps) {
   const [ikm, setIkm] = useState('')
   const [salt, setSalt] = useState('')
   const [info, setInfo] = useState('')
@@ -11,10 +11,6 @@ export default function HkdfUI({ enterPayload }: AlgorithmProps) {
   const [hash, setHash] = useState('sha256')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setIkm(enterPayload)
-  }, [enterPayload])
 
   const run = () => {
     const r = runCodec(() =>

@@ -15,7 +15,8 @@ interface Props {
   view: ShellView
   onViewChange: (v: ShellView) => void
   onSettingsChange: (s: Settings) => void
-  enterPayload?: string
+  searchText: string
+  onSearchClear: () => void
 }
 
 export default function Shell({
@@ -24,7 +25,8 @@ export default function Shell({
   view,
   onViewChange,
   onSettingsChange,
-  enterPayload
+  searchText,
+  onSearchClear
 }: Props) {
   const enabled = getEnabledList(modules, settings.enabled)
   const settingsActive = view.kind === 'settings'
@@ -72,7 +74,7 @@ export default function Shell({
       </div>
     )
   } else {
-    main = <AlgorithmHost module={currentMod} enterPayload={enterPayload} />
+    main = <AlgorithmHost module={currentMod} />
   }
 
   return (
@@ -81,8 +83,9 @@ export default function Shell({
         modules={enabled}
         currentId={currentId}
         settingsActive={settingsActive}
-        onSelect={(id) => onViewChange({ kind: 'algorithm', id })}
-        onOpenSettings={() => onViewChange({ kind: 'settings' })}
+        searchText={searchText}
+        onSelect={(id) => { onSearchClear(); onViewChange({ kind: 'algorithm', id }) }}
+        onOpenSettings={() => { onSearchClear(); onViewChange({ kind: 'settings' }) }}
       />
       {main}
     </div>

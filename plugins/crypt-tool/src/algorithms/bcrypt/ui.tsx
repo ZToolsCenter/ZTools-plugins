@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
 const PRESET_HASH = '$2b$12$KIXxKzKzKIXxKzKzKzKzKu0uEYQ7V1p9XwY6ZbN8mDcFqJ3rHtC'
 
-export default function BcryptUI({ enterPayload }: AlgorithmProps) {
+export default function BcryptUI({}: AlgorithmProps) {
   const [password, setPassword] = useState('')
   const [cost, setCost] = useState('12')
   const [hashInput, setHashInput] = useState('')
@@ -13,12 +13,6 @@ export default function BcryptUI({ enterPayload }: AlgorithmProps) {
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
   const [isVerifyMode, setIsVerifyMode] = useState(false)
-
-  useEffect(() => {
-    if (enterPayload) {
-      setPassword(enterPayload)
-    }
-  }, [enterPayload])
 
   const generate = () => {
     const r = runCodec(() =>

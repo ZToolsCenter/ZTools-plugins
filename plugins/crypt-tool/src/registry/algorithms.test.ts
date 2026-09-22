@@ -38,10 +38,11 @@ describe('registry helpers', () => {
 
   it('ships all algorithms in order', () => {
     expect(algorithms.map((m) => m.meta.id)).toEqual([
-      'base64', 'base58', 'hex', 'url', 'md5', 'sha1', 'sha256', 'sha512', 'sha384', 'sha3_256', 'sha3_512', 'ripemd160',
-      'aes', 'chacha', 'des',
-      'rsa', 'ed25519', 'ecdsa',
+      'base64', 'base58', 'unicodeEscape', 'htmlEntity', 'punycode', 'morse', 'hex', 'url', 'md5', 'sha1', 'sha256', 'sha512', 'sha384', 'sha3_256', 'sha3_512', 'ripemd160',
+      'aes', 'xorStream', 'chacha', 'des',
+      'rsa', 'ecdsa', 'ecdh', 'ed25519',
       'hmac', 'pbkdf2', 'bcrypt', 'scrypt', 'argon2', 'hkdf',
+      'jwt', 'json', 'passwordStrength',
       'uuid', 'crc32', 'adler32', 'randomBytes', 'safeBase64', 'base32'
     ])
     // argon2 defaults disabled (needs native module)

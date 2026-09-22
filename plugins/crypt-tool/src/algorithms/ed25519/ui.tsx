@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
 type Mode = 'sign' | 'verify'
 
-export default function Ed25519UI({ enterPayload }: AlgorithmProps) {
+export default function Ed25519UI({}: AlgorithmProps) {
   const [mode, setMode] = useState<Mode>('sign')
   const [privateKey, setPrivateKey] = useState('')
   const [publicKey, setPublicKey] = useState('')
@@ -14,10 +14,6 @@ export default function Ed25519UI({ enterPayload }: AlgorithmProps) {
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
   const [verifyResult, setVerifyResult] = useState<'' | 'true' | 'false'>('')
-
-  useEffect(() => {
-    if (enterPayload) setData(enterPayload)
-  }, [enterPayload])
 
   const keygen = () => {
     const r = runCodec(() => window.services.crypt.ed25519.generateKeyPair())

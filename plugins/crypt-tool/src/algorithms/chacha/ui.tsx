@@ -1,19 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function ChachaUI({ enterPayload, direction = 'encrypt' }: AlgorithmProps) {
+export default function ChachaUI({ direction = 'encrypt' }: AlgorithmProps) {
   const dir = direction
   const [key, setKey] = useState('')
   const [nonce, setNonce] = useState('')
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setInput(enterPayload)
-  }, [enterPayload])
 
   const keygen = () => {
     const r = runCodec(() => window.services.crypt.chacha.keygen())

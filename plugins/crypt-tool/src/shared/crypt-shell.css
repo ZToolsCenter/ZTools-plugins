@@ -30,6 +30,13 @@
   padding: 14px 10px;
 }
 
+.ct-side-empty {
+  padding: 16px 10px;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.5;
+}
+
 .ct-side-title {
   font-size: 10.5px;
   text-transform: uppercase;

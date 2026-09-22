@@ -23,7 +23,6 @@ export interface AlgorithmMeta {
 }
 
 export interface AlgorithmProps {
-  enterPayload?: string
   direction?: DirectionMode
   onDirectionChange?: (dir: DirectionMode) => void
 }

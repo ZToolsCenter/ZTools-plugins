@@ -262,6 +262,10 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 | base32 | Base32 | ✓ |
 | hex | Hex | ✓ |
 | url | URL | ✓ |
+| unicodeEscape | Unicode 转义 | ✓ |
+| htmlEntity | HTML 实体 | ✓ |
+| punycode | Punycode/IDN | ✓ |
+| morse | 莫尔斯电码 | ✓ |
 
 ### 哈希摘要（hash）
 
@@ -283,6 +287,7 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 | aes | AES | ✓ |
 | chacha | ChaCha20 | ✓ |
 | des | 3DES | ✓ |
+| xorStream | XOR 流加密 | ✓ |
 
 ### 非对称加密（asymmetric）
 
@@ -291,6 +296,7 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 | rsa | RSA | ✓ |
 | ed25519 | Ed25519 | ✗ |
 | ecdsa | ECDSA | ✗ |
+| ecdh | ECDH | ✗ |
 
 ### 消息认证（hmac）
 
@@ -316,6 +322,9 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 | crc32 | CRC32 | ✗ |
 | adler32 | Adler-32 | ✗ |
 | randomBytes | Random Bytes | ✗ |
+| jwt | JWT 解码 | ✗ |
+| json | JSON 格式化 | ✓ |
+| passwordStrength | 密码强度 | ✗ |
 
 ---
 
@@ -328,10 +337,10 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 - [x] **safe-base64** — URL 安全的 Base64（`+/` → `-_`，可去 `=` padding）
 - [x] **base32** — Base32 编解码（RFC 4648，常用于 TOTP 密钥、可读性更好）
 - [x] **base58 / base58check** — Base58 / Base58check（比特币地址风格，无 `0OIl` 歧义字符）
-- [ ] **unicode-escape** — Unicode 转义（`\u4e2d\u6587` ↔ `中文`）
-- [ ] **html-entity** — HTML 实体编解码（`&amp;` ↔ `&`，`&#x4E2D;` 十进制/十六进制数字实体）
-- [ ] **punycode** — Punycode 国际化域名（`中文.cn` ↔ `xn--fiq228c.cn`）
-- [ ] **morse** — 摩尔斯电码（字母/数字 ↔ 长短音，仅编码；中文可用 Unicode 转义）
+- [x] **unicode-escape** — Unicode 转义（`\u4e2d\u6587` ↔ `中文`）
+- [x] **html-entity** — HTML 实体编解码（`&amp;` ↔ `&`，`&#x4E2D;` 十进制/十六进制数字实体）
+- [x] **punycode** — Punycode 国际化域名（`中文.cn` ↔ `xn--fiq228c.cn`）
+- [x] **morse** — 摩尔斯电码（字母/数字 ↔ 长短音，仅编码；中文可用 Unicode 转义）
 
 ### 哈希摘要（hash）
 
@@ -348,13 +357,13 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 - [x] **des / 3des** — DES / 3DES（历史算法 `des-ede3-cbc`，用于兼容老数据；可用 `crypto.createCipheriv`）
 - [x] **chacha20-poly1305** — ChaCha20-Poly1305（现代 AEAD，TLS 1.3 常用；可用 `crypto.createCipheriv('chacha20-poly1305', ...)`）
 - [ ] **sm4** — SM4（国密对称加密标准，128 位分组；可用 Node.js SM4 实现如 `@wecom/crypto` 或自行调用 WebAssembly）
-- [ ] **xor-stream** — XOR 流密码（逐字节/逐字密钥循环 XOR，简单演示用；可用 `Buffer` 实现）
+- [x] **xor-stream** — XOR 流密码（逐字节/逐字密钥循环 XOR，简单演示用；可用 `Buffer` 实现）
 
 ### 非对称加密（asymmetric）
 
 - [x] **ecdsa** — ECDSA（椭圆曲线数字签名；支持 P-256/P-384）
 - [x] **ed25519** — Ed25519（EdDSA 现代曲线；密钥短、速度快、抗侧信道）
-- [ ] **ecdh** — ECDH（椭圆曲线 Diffie-Hellman 密钥协商，双方各取私钥 × 对方公钥得共享秘密）
+- [x] **ecdh** — ECDH（椭圆曲线 Diffie-Hellman 密钥协商，双方各取私钥 × 对方公钥得共享秘密）
 - [ ] **sm2** — SM2（国密椭圆曲线签名 + 加密）
 - [ ] **dh** — Diffie-Hellman（经典 DH 密钥协商，与小素数和大素数域）
 
@@ -376,13 +385,13 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 若实现以下功能，建议在 `src/registry/categories.ts` 新增 `tools` 分类：
 
 - [x] **uuid** — UUID v4 / v7 生成
-- [ ] **random-bytes** — 随机字节生成（可指定长度、编码 hex/base64）
-- [ ] **jwt-decode** — JWT 解码（解析 header.payload，不做签名验证）
+- [x] **random-bytes** — 随机字节生成（可指定长度、编码 hex/base64）
+- [x] **jwt-decode** — JWT 解码（解析 header.payload，不做签名验证）
 - [ ] **hash-file** — 文件哈希（用户选文件，计算 SHA-256/MD5 等）
 - [ ] **base64-image** — Base64 ↔ 图片预览（logo、小图标嵌入场景）
-- [ ] **password-strength** — 密码强度估算（zxcvbn or 简易长度+字符集评分）
+- [x] **password-strength** — 密码强度估算（zxcvbn or 简易长度+字符集评分）
 - [ ] **qr-generate** — QR 码生成（文本 → ASCII-art 或 base64 PNG）
-- [ ] **json-format** — JSON 格式化 / 压缩（常见文本工具）
+- [x] **json-format** — JSON 格式化 / 压缩（常见文本工具）
 - [ ] **jwt-verify** — JWT 签名验证（给定公钥或对称密钥）
 
 ### 编码/序列化相关

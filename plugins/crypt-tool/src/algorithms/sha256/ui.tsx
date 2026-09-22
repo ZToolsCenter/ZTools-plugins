@@ -1,16 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function Sha256UI({ enterPayload }: AlgorithmProps) {
+export default function Sha256UI({}: AlgorithmProps) {
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setInput(enterPayload)
-  }, [enterPayload])
 
   const run = () => {
     const r = runCodec(() => window.services.crypt.sha256.digest(input))

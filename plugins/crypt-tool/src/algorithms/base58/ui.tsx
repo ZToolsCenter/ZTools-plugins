@@ -1,19 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
 type Variant = 'base58' | 'base58check'
 
-export default function Base58UI({ enterPayload }: AlgorithmProps) {
+export default function Base58UI({}: AlgorithmProps) {
   const [variant, setVariant] = useState<Variant>('base58')
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setInput(enterPayload)
-  }, [enterPayload])
 
   const run = () => {
     if (variant === 'base58') {

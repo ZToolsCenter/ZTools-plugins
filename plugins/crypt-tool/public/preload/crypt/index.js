@@ -16,6 +16,15 @@ const ecdsa = require('./ecdsa')
 const { checksum: adler32Checksum } = require('./adler32')
 const { generate: randomBytesGenerate } = require('./random-bytes')
 const des = require('./des')
+const { encode: unicodeEncode, decode: unicodeDecode } = require('./unicode-escape')
+const { encode: htmlEncode, decode: htmlDecode } = require('./html-entity')
+const { encode: punycodeEncode, decode: punycodeDecode } = require('./punycode-idn')
+const { encode: morseEncode, decode: morseDecode } = require('./morse')
+const { encrypt: xorEncrypt, decrypt: xorDecrypt } = require('./xor-cipher')
+const ecdh = require('./ecdh')
+const { decode: jwtDecode } = require('./jwt')
+const { format: jsonFormat, minify: jsonMinify } = require('./text-utils')
+const { analyze: passwordAnalyze } = require('./password-strength')
 
 module.exports = {
   base64: encoding.base64,
@@ -31,11 +40,16 @@ module.exports = {
   ripemd160: hash.ripemd160,
   safeBase64: { encode: urlSafeBase64Encode, decode: urlSafeBase64Decode },
   base32: { encode: base32Encode, decode: base32Decode },
+  unicodeEscape: { encode: unicodeEncode, decode: unicodeDecode },
+  htmlEntity: { encode: htmlEncode, decode: htmlDecode },
+  punycode: { encode: punycodeEncode, decode: punycodeDecode },
+  morse: { encode: morseEncode, decode: morseDecode },
   aes,
   des,
   rsa,
   ecdsa,
   ed25519,
+  ecdh,
   hmac,
   pbkdf2,
   bcrypt,
@@ -48,5 +62,9 @@ module.exports = {
   base58check,
   crc32,
   adler32: { checksum: adler32Checksum },
-  randomBytes: { generate: randomBytesGenerate }
+  randomBytes: { generate: randomBytesGenerate },
+  xorStream: { encrypt: xorEncrypt, decrypt: xorDecrypt },
+  jwt: { decode: jwtDecode },
+  json: { format: jsonFormat, minify: jsonMinify },
+  passwordStrength: { analyze: passwordAnalyze }
 }

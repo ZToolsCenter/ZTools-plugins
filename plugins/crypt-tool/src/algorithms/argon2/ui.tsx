@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { showError, showData } from '../codec'
 
 type Mode = 'hash' | 'verify'
 
-export default function Argon2UI({ enterPayload }: AlgorithmProps) {
+export default function Argon2UI({}: AlgorithmProps) {
   const [mode, setMode] = useState<Mode>('hash')
   const [password, setPassword] = useState('')
   const [hashString, setHashString] = useState('')
@@ -18,10 +18,6 @@ export default function Argon2UI({ enterPayload }: AlgorithmProps) {
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    if (enterPayload) setPassword(enterPayload)
-  }, [enterPayload])
 
   const run = async () => {
     setBusy(true)

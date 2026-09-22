@@ -4,7 +4,7 @@
   "title": "CryptTool",
   "description": "加解密工具，高颜值，可自定义，UI和谐统一，带加密算法的简要指引",
   "author": "Agitator",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.svg",

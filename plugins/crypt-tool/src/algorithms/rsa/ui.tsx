@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function RsaUI({ enterPayload, direction = 'encrypt' }: AlgorithmProps) {
+export default function RsaUI({ direction = 'encrypt' }: AlgorithmProps) {
   const dir = direction
   const [publicKey, setPublicKey] = useState('')
   const [privateKey, setPrivateKey] = useState('')
@@ -11,10 +11,6 @@ export default function RsaUI({ enterPayload, direction = 'encrypt' }: Algorithm
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setInput(enterPayload)
-  }, [enterPayload])
 
   const keygen = () => {
     const r = runCodec(() => window.services.crypt.rsa.generateKeyPair())

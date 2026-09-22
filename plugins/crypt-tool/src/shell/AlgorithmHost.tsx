@@ -5,7 +5,6 @@ import { TeachCard } from '../shared'
 
 interface Props {
   module: AlgorithmModule
-  enterPayload?: string
 }
 
 function getToggleLabels(category: string): [string, string] {
@@ -13,7 +12,7 @@ function getToggleLabels(category: string): [string, string] {
   return ['加密', '解密']
 }
 
-export default function AlgorithmHost({ module, enterPayload }: Props) {
+export default function AlgorithmHost({ module }: Props) {
   const { Component, meta } = module
   const [dir, setDir] = useState<DirectionMode>(
     meta.category === 'encoding' ? 'encode' : 'encrypt'
@@ -47,7 +46,6 @@ export default function AlgorithmHost({ module, enterPayload }: Props) {
         )}
       </div>
       <Component
-        enterPayload={enterPayload}
         direction={meta.reversible ? dir : undefined}
         onDirectionChange={meta.reversible ? setDir : undefined}
       />

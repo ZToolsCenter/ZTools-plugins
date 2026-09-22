@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function AesUI({ enterPayload, direction = 'encrypt' }: AlgorithmProps) {
+export default function AesUI({ direction = 'encrypt' }: AlgorithmProps) {
   const dir = direction
   const [key, setKey] = useState('my-secret-key-16b')
   const [iv, setIv] = useState('random-iv-16bytes')
@@ -11,10 +11,6 @@ export default function AesUI({ enterPayload, direction = 'encrypt' }: Algorithm
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setInput(enterPayload)
-  }, [enterPayload])
 
   const run = () => {
     const r = runCodec(() =>

@@ -29,10 +29,23 @@ import { ecdsa } from '../algorithms/ecdsa'
 import { adler32 } from '../algorithms/adler32'
 import { randomBytes } from '../algorithms/randomBytes'
 import { des } from '../algorithms/des'
+import { unicodeEscape } from '../algorithms/unicodeEscape'
+import { htmlEntity } from '../algorithms/htmlEntity'
+import { punycode } from '../algorithms/punycode'
+import { morse } from '../algorithms/morse'
+import { xorStream } from '../algorithms/xorStream'
+import { ecdh } from '../algorithms/ecdh'
+import { jwt } from '../algorithms/jwt'
+import { json } from '../algorithms/json'
+import { passwordStrength } from '../algorithms/passwordStrength'
 
 export const algorithms: AlgorithmModule[] = [
   base64,
   base58,
+  unicodeEscape,
+  htmlEntity,
+  punycode,
+  morse,
   hex,
   url,
   md5,
@@ -44,17 +57,22 @@ export const algorithms: AlgorithmModule[] = [
   sha3_512,
   ripemd160,
   aes,
+  xorStream,
   chacha,
   des,
   rsa,
-  ed25519,
   ecdsa,
+  ecdh,
+  ed25519,
   hmac,
   pbkdf2,
   bcrypt,
   scrypt,
   argon2,
   hkdf,
+  jwt,
+  json,
+  passwordStrength,
   uuid,
   crc32,
   adler32,

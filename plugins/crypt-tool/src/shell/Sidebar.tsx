@@ -7,14 +7,24 @@ interface Props {
   onSelect: (id: string) => void
   onOpenSettings: () => void
   settingsActive: boolean
+  searchText: string
 }
 
-export default function Sidebar({ modules, currentId, onSelect, onOpenSettings, settingsActive }: Props) {
+function matchAlgo(m: AlgorithmModule, q: string): boolean {
+  if (!q) return true
+  const hay = (m.meta.label + '|' + m.meta.title + '|' + m.meta.id).toLowerCase()
+  return hay.includes(q.toLowerCase())
+}
+
+export default function Sidebar({ modules, currentId, onSelect, onOpenSettings, settingsActive, searchText }: Props) {
+  const q = searchText.trim()
+  const filtered = q ? modules.filter((m) => matchAlgo(m, q)) : modules
+
   return (
     <aside className="ct-side">
       <div className="ct-side-scroll">
         {CATEGORIES.map((cat) => {
-          const items = getByCategory(modules, cat.id)
+          const items = getByCategory(filtered, cat.id)
           if (items.length === 0) return null
           return (
             <div key={cat.id}>
@@ -33,6 +43,9 @@ export default function Sidebar({ modules, currentId, onSelect, onOpenSettings, 
             </div>
           )
         })}
+        {q && filtered.length === 0 ? (
+          <div className="ct-side-empty">没有匹配的算法</div>
+        ) : null}
       </div>
       <div className="ct-side-foot">
         <button type="button" className={`ct-side-item ${settingsActive ? 'on' : ''}`} onClick={onOpenSettings} style={{ justifyContent: 'center' }}>

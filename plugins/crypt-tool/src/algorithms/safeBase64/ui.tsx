@@ -1,18 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function SafeBase64UI({ enterPayload, direction = 'encode' }: AlgorithmProps) {
+export default function SafeBase64UI({ direction = 'encode' }: AlgorithmProps) {
   const dir = direction
   const [input, setInput] = useState('')
   const [stripPadding, setStripPadding] = useState('false')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setInput(enterPayload)
-  }, [enterPayload])
 
   const run = () => {
     const r = runCodec(() =>

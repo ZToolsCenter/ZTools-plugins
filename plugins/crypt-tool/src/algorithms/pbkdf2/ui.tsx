@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function Pbkdf2UI({ enterPayload }: AlgorithmProps) {
+export default function Pbkdf2UI({}: AlgorithmProps) {
   const [password, setPassword] = useState('')
   const [salt, setSalt] = useState('salt')
   const [iterations, setIterations] = useState('100000')
@@ -11,10 +11,6 @@ export default function Pbkdf2UI({ enterPayload }: AlgorithmProps) {
   const [digest, setDigest] = useState('sha256')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setPassword(enterPayload)
-  }, [enterPayload])
 
   const run = () => {
     const r = runCodec(() =>

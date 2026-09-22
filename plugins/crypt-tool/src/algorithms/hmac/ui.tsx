@@ -1,18 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function HmacUI({ enterPayload }: AlgorithmProps) {
+export default function HmacUI({}: AlgorithmProps) {
   const [key, setKey] = useState('')
   const [algorithm, setAlgorithm] = useState('sha256')
   const [message, setMessage] = useState('')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setMessage(enterPayload)
-  }, [enterPayload])
 
   const run = () => {
     const r = runCodec(() =>

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
 type Mode = 'sign' | 'verify'
 
-export default function EcdsaUI({ enterPayload }: AlgorithmProps) {
+export default function EcdsaUI({}: AlgorithmProps) {
   const [mode, setMode] = useState<Mode>('sign')
   const [curve, setCurve] = useState('prime256v1')
   const [hash, setHash] = useState('sha256')
@@ -16,10 +16,6 @@ export default function EcdsaUI({ enterPayload }: AlgorithmProps) {
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
   const [verifyResult, setVerifyResult] = useState<'' | 'true' | 'false'>('')
-
-  useEffect(() => {
-    if (enterPayload) setData(enterPayload)
-  }, [enterPayload])
 
   const keygen = () => {
     const r = runCodec(() => window.services.crypt.ecdsa.generateKeyPair({ curve }))

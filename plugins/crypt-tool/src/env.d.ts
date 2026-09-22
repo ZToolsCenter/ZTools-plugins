@@ -14,6 +14,10 @@ declare global {
           data: string
         }> }
         hex: { encode: (s: string) => CryptResult; decode: (s: string) => CryptResult }
+        unicodeEscape: { encode: (a: { input: string }) => CryptResult; decode: (a: { input: string }) => CryptResult }
+        htmlEntity: { encode: (a: { input: string; useNamed?: boolean }) => CryptResult; decode: (a: { input: string }) => CryptResult }
+        punycode: { encode: (a: { input: string }) => CryptResult; decode: (a: { input: string }) => CryptResult }
+        morse: { encode: (a: { input: string; separator?: string }) => CryptResult; decode: (a: { input: string; separator?: string }) => CryptResult }
         url: { encode: (s: string) => CryptResult; decode: (s: string) => CryptResult }
         md5: { digest: (s: string) => CryptResult }
         sha1: { digest: (s: string) => CryptResult }
@@ -35,6 +39,10 @@ declare global {
           keygen: () => CryptResult
           noncegen: () => CryptResult
         }
+        xorStream: {
+          encrypt: (a: { key: string; plaintext: string }) => CryptResult
+          decrypt: (a: { key: string; ciphertext: string }) => CryptResult
+        }
         des: {
           encrypt: (a: { key: string; iv: string; plaintext: string }) => CryptResult
           decrypt: (a: { key: string; iv: string; ciphertext: string }) => CryptResult
@@ -55,6 +63,10 @@ declare global {
           generateKeyPair: () => CryptResult<{ publicKey: string; privateKey: string }>
           sign: (a: { privateKey: string; data: string }) => CryptResult
           verify: (a: { publicKey: string; data: string; signature: string }) => CryptResult<boolean>
+        }
+        ecdh: {
+          generateKeyPair: (a: { curve?: string }) => CryptResult<{ publicKey: string; privateKey: string; curve: string }>
+          deriveSharedSecret: (a: { privateKey: string; peerPublicKey: string; curve?: string }) => CryptResult
         }
         hmac: {
           sign: (a: { key: string; data: string; algo: string }) => CryptResult
@@ -118,6 +130,16 @@ declare global {
         }
         randomBytes: {
           generate: (a: { length?: number; encoding?: string }) => CryptResult
+        }
+        jwt: {
+          decode: (a: { token: string }) => CryptResult<{ header: any; payload: any }>
+        }
+        json: {
+          format: (a: { input: string; indent?: number }) => CryptResult
+          minify: (a: { input: string }) => CryptResult
+        }
+        passwordStrength: {
+          analyze: (a: { password: string }) => CryptResult<{ score: number; label: string; length: number; hasLower: boolean; hasUpper: boolean; hasDigit: boolean; hasSymbol: boolean }>
         }
       }
     }

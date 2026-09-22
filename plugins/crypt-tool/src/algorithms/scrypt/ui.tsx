@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function ScryptUI({ enterPayload }: AlgorithmProps) {
+export default function ScryptUI({}: AlgorithmProps) {
   const [password, setPassword] = useState('')
   const [salt, setSalt] = useState('')
   const [keylen, setKeylen] = useState('32')
@@ -12,10 +12,6 @@ export default function ScryptUI({ enterPayload }: AlgorithmProps) {
   const [p, setP] = useState('1')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setPassword(enterPayload)
-  }, [enterPayload])
 
   const generateSalt = () => {
     const arr = new Uint8Array(16)

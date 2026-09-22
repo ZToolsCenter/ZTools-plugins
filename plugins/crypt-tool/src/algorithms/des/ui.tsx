@@ -1,19 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function DesUI({ enterPayload, direction = 'encrypt' }: AlgorithmProps) {
+export default function DesUI({ direction = 'encrypt' }: AlgorithmProps) {
   const dir = direction
   const [key, setKey] = useState('')
   const [iv, setIv] = useState('')
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setInput(enterPayload)
-  }, [enterPayload])
 
   const keygen = () => {
     const r = runCodec(() => window.services.crypt.des.keygen())

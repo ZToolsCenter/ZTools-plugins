@@ -1,18 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function Base32UI({ enterPayload, direction = 'encode' }: AlgorithmProps) {
+export default function Base32UI({ direction = 'encode' }: AlgorithmProps) {
   const dir = direction
   const [input, setInput] = useState('')
   const [padding, setPadding] = useState('true')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (enterPayload) setInput(enterPayload)
-  }, [enterPayload])
 
   const run = () => {
     const r = runCodec(() =>

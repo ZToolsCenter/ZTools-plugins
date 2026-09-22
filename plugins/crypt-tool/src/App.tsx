@@ -10,7 +10,7 @@ export default function App() {
     kind: 'algorithm',
     id: firstEnabledId(algorithms, loadSettings(algorithms).enabled) ?? ''
   }))
-  const [enterPayload, setEnterPayload] = useState<string | undefined>(undefined)
+  const [searchText, setSearchText] = useState('')
   const { primaryColor } = useZtoolsTheme()
 
   useEffect(() => {
@@ -24,27 +24,27 @@ export default function App() {
   useEffect(() => {
     window.ztools.onPluginEnter((action: any) => {
       const code = action.code as string
-      const payload =
-        action.type === 'text' || action.type === 'over' || action.type === 'regex'
-          ? typeof action.payload === 'string'
-            ? action.payload
-            : undefined
-          : undefined
-
       if (code && code.startsWith('alg:')) {
         const id = code.slice(4)
-        setEnterPayload(payload)
         setView({ kind: 'algorithm', id })
+        setSearchText('')
       } else {
         const id = firstEnabledId(algorithms, settings.enabled)
-        setEnterPayload(payload)
         setView(id ? { kind: 'algorithm', id } : { kind: 'settings' })
+        setSearchText('')
       }
     })
-    window.ztools.onPluginOut(() => {
-      setEnterPayload(undefined)
-    })
   }, [settings.enabled])
+
+  useEffect(() => {
+    const ok = window.ztools.setSubInput(
+      ({ text }) => { setSearchText(text.trim()) },
+      '搜索算法名称...',
+      false
+    )
+    if (!ok) return
+    return () => { window.ztools.removeSubInput() }
+  }, [])
 
   const onSettingsChange = (s: Settings) => {
     saveSettings(s)
@@ -68,7 +68,8 @@ export default function App() {
         view={view}
         onViewChange={setView}
         onSettingsChange={onSettingsChange}
-        enterPayload={enterPayload}
+        searchText={searchText}
+        onSearchClear={() => setSearchText('')}
       />
     </div>
   )
