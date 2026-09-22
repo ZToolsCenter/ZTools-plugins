@@ -1,0 +1,89 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "crypt-tool",
+  "title": "CryptTool",
+  "description": "加解密工具，高颜值，可自定义，UI和谐统一，带加密算法的简要指引",
+  "author": "Agitator",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "crypt",
+      "explain": "编码 / 加解密 / 哈希工具",
+      "icon": "logo.svg",
+      "cmds": [
+        "编码", "解码", "加密", "解密", "哈希", "散列", "hash",
+        "base64", "url编码", "urlencode", "hex", "十六进制",
+        "md5", "sha", "sha256", "sha512",
+        "aes", "rsa", "hmac", "pbkdf2", "bcrypt",
+        "签名", "验签",
+        "crypt", "encode", "decode", "encrypt", "decrypt"
+      ]
+    },
+    {
+      "code": "base64",
+      "explain": "Base64 编码解码",
+      "icon": "logo.svg",
+      "cmds": ["base64", "base64编码", "base64解码", "b64"]
+    },
+    {
+      "code": "hex",
+      "explain": "Hex 十六进制编解码",
+      "icon": "logo.svg",
+      "cmds": ["hex", "十六进制", "16进制", "hex编码", "hexdecode"]
+    },
+    {
+      "code": "url-encode",
+      "explain": "URL 编码解码",
+      "icon": "logo.svg",
+      "cmds": ["url编码", "urlencode", "urldecode", "url encode", "百分比编码"]
+    },
+    {
+      "code": "md5",
+      "explain": "MD5 哈希计算",
+      "icon": "logo.svg",
+      "cmds": ["md5", "md5sum", "md5校验"]
+    },
+    {
+      "code": "sha256",
+      "explain": "SHA-256 哈希计算",
+      "icon": "logo.svg",
+      "cmds": ["sha256", "sha-256", "sha2", "sha2哈希"]
+    },
+    {
+      "code": "aes",
+      "explain": "AES 对称加密解密",
+      "icon": "logo.svg",
+      "cmds": ["aes", "aes加密", "aes解密", "aes-cbc", "aes-gcm", "对称加密"]
+    },
+    {
+      "code": "rsa",
+      "explain": "RSA 非对称加密解密",
+      "icon": "logo.svg",
+      "cmds": ["rsa", "rsa加密", "rsa解密", "rsa签名", "非对称加密", "公钥", "私钥"]
+    },
+    {
+      "code": "hmac",
+      "explain": "HMAC 消息认证码",
+      "icon": "logo.svg",
+      "cmds": ["hmac", "hmac-sha256", "消息认证", "签名", "验签"]
+    },
+    {
+      "code": "pbkdf2",
+      "explain": "PBKDF2 密钥派生",
+      "icon": "logo.svg",
+      "cmds": ["pbkdf2", "密钥派生", "密码派生", "key derivation"]
+    },
+    {
+      "code": "bcrypt",
+      "explain": "bcrypt 密码哈希",
+      "icon": "logo.svg",
+      "cmds": ["bcrypt", "密码哈希", "密码散列", "password hash", "密码验证"]
+    }
+  ]
+}
