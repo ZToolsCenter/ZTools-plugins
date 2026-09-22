@@ -1,0 +1,26 @@
+{
+  "name": "crypt-tool",
+  "version": "1.0.0",
+  "description": "加解密工具，高颜值，可自定义，UI和谐统一，带加密算法的简要指引",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest run",
+    "postinstall": "cd public/preload && npm install"
+
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "typescript": "^5.3.3",
+    "vite": "^6.0.11",
+    "vitest": "^3.0.0"
+  }
+}

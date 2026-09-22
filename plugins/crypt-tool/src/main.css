@@ -1,0 +1,105 @@
+:root {
+  --blue: rgb(88, 164, 246);
+  --light: #fff;
+  --scrollbar-width: 6px;
+  --scrollbar-thumb: rgba(127, 127, 127, 0.35);
+  --scrollbar-thumb-hover: rgba(88, 164, 246, 0.65);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== 自定义滚动条 ===== */
+::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+  height: var(--scrollbar-width);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+button {
+  border: none;
+  background: none var(--blue);
+  color: var(--light);
+  line-height: 2.5;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button:disabled {
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+button:not(:disabled):active {
+  opacity: 0.6;
+}
+
+textarea {
+  display: block;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+    --scrollbar-thumb-hover: rgba(88, 164, 246, 0.7);
+  }
+  ::-webkit-scrollbar-track-piece {
+    background-color: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-color: transparent;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+    --scrollbar-thumb-hover: rgba(88, 164, 246, 0.7);
+  }
+  ::-webkit-scrollbar-track-piece {
+    background-color: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-color: transparent;
+  }
+  body {
+    color: #fff;
+  }
+}
+
+.ct-app {
+  box-sizing: border-box;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  background: transparent;
+  overflow: hidden;
+}
