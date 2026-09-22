@@ -7,6 +7,7 @@ export type CategoryId =
   | 'asymmetric'
   | 'hmac'
   | 'kdf'
+  | 'tools'
 
 export type DirectionMode = 'encode' | 'decode' | 'encrypt' | 'decrypt'
 

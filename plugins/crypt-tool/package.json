@@ -8,9 +8,9 @@
     "build": "tsc && vite build",
     "test": "vitest run",
     "postinstall": "cd public/preload && npm install"
-
   },
   "dependencies": {
+    "argon2": "^0.45.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

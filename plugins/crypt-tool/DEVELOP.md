@@ -257,6 +257,9 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 | ID | 标签 | 可逆 |
 |----|------|------|
 | base64 | Base64 | ✓ |
+| base58 | Base58 | ✓ |
+| safeBase64 | Safe Base64 | ✓ |
+| base32 | Base32 | ✓ |
 | hex | Hex | ✓ |
 | url | URL | ✓ |
 
@@ -265,19 +268,29 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 | ID | 标签 | 可逆 |
 |----|------|------|
 | md5 | MD5 | ✗ |
+| sha1 | SHA-1 | ✗ |
 | sha256 | SHA-256 | ✗ |
+| sha384 | SHA-384 | ✗ |
+| sha512 | SHA-512 | ✗ |
+| sha3_256 | SHA3-256 | ✗ |
+| sha3_512 | SHA3-512 | ✗ |
+| ripemd160 | RIPEMD-160 | ✗ |
 
 ### 对称加密（symmetric）
 
 | ID | 标签 | 可逆 |
 |----|------|------|
 | aes | AES | ✓ |
+| chacha | ChaCha20 | ✓ |
+| des | 3DES | ✓ |
 
 ### 非对称加密（asymmetric）
 
 | ID | 标签 | 可逆 |
 |----|------|------|
 | rsa | RSA | ✓ |
+| ed25519 | Ed25519 | ✗ |
+| ecdsa | ECDSA | ✗ |
 
 ### 消息认证（hmac）
 
@@ -290,6 +303,19 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 | ID | 标签 | 可逆 |
 |----|------|------|
 | pbkdf2 | PBKDF2 | ✗ |
+| bcrypt | bcrypt | ✗ |
+| scrypt | scrypt | ✗ |
+| argon2 | Argon2 | ✗ |
+| hkdf | HKDF | ✗ |
+
+### 工具与实用（tools）
+
+| ID | 标签 | 可逆 |
+|----|------|------|
+| uuid | UUID | ✗ |
+| crc32 | CRC32 | ✗ |
+| adler32 | Adler-32 | ✗ |
+| randomBytes | Random Bytes | ✗ |
 
 ---
 
@@ -299,9 +325,9 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 
 ### 编码转换（encoding）
 
-- [ ] **safe-base64** — URL 安全的 Base64（`+/` → `-_`，可去 `=` padding）
-- [ ] **base32** — Base32 编解码（RFC 4648，常用于 TOTP 密钥、可读性更好）
-- [ ] **base58 / base58check** — Base58 / Base58check（比特币地址风格，无 `0OIl` 歧义字符）
+- [x] **safe-base64** — URL 安全的 Base64（`+/` → `-_`，可去 `=` padding）
+- [x] **base32** — Base32 编解码（RFC 4648，常用于 TOTP 密钥、可读性更好）
+- [x] **base58 / base58check** — Base58 / Base58check（比特币地址风格，无 `0OIl` 歧义字符）
 - [ ] **unicode-escape** — Unicode 转义（`\u4e2d\u6587` ↔ `中文`）
 - [ ] **html-entity** — HTML 实体编解码（`&amp;` ↔ `&`，`&#x4E2D;` 十进制/十六进制数字实体）
 - [ ] **punycode** — Punycode 国际化域名（`中文.cn` ↔ `xn--fiq228c.cn`）
@@ -309,25 +335,25 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 
 ### 哈希摘要（hash）
 
-- [ ] **sha1** — SHA-1（160 位；仍广泛用于 Git 对象 ID，但不应再用于安全场景）
-- [ ] **sha384** — SHA-384（SHA-384 摘要，与 SHA-512 同族，截断到 384 位）
-- [ ] **sha512** — SHA-512（512 位摘要，安全强度更高）
-- [ ] **sha3-256 / sha3-512** — SHA-3（Keccak，与 SHA-2 完全不同的结构）
+- [x] **sha1** — SHA-1（160 位；仍广泛用于 Git 对象 ID，但不应再用于安全场景）
+- [x] **sha384** — SHA-384（SHA-384 摘要，与 SHA-512 同族，截断到 384 位）
+- [x] **sha512** — SHA-512（512 位摘要，安全强度更高）
+- [x] **sha3-256 / sha3-512** — SHA-3（Keccak，与 SHA-2 完全不同的结构）
 - [ ] **blake2b / blake2s** — BLAKE2（比 MD5/SHA 快且安全，常用作现代哈希）
 - [ ] **blake3** — BLAKE3（并行哈希、极快、可 Keyed 模式做伪 HMAC）
-- [ ] **ripemd160** — RIPEMD-160（比特币地址生成配套哈希）
+- [x] **ripemd160** — RIPEMD-160（比特币地址生成配套哈希）
 
 ### 对称加密（symmetric）
 
-- [ ] **des / 3des** — DES / 3DES（历史算法 `des-ede3-cbc`，用于兼容老数据；可用 `crypto.createCipheriv`）
-- [ ] **chacha20-poly1305** — ChaCha20-Poly1305（现代 AEAD，TLS 1.3 常用；可用 `crypto.createCipheriv('chacha20-poly1305', ...)`）
+- [x] **des / 3des** — DES / 3DES（历史算法 `des-ede3-cbc`，用于兼容老数据；可用 `crypto.createCipheriv`）
+- [x] **chacha20-poly1305** — ChaCha20-Poly1305（现代 AEAD，TLS 1.3 常用；可用 `crypto.createCipheriv('chacha20-poly1305', ...)`）
 - [ ] **sm4** — SM4（国密对称加密标准，128 位分组；可用 Node.js SM4 实现如 `@wecom/crypto` 或自行调用 WebAssembly）
 - [ ] **xor-stream** — XOR 流密码（逐字节/逐字密钥循环 XOR，简单演示用；可用 `Buffer` 实现）
 
 ### 非对称加密（asymmetric）
 
-- [ ] **ecdsa** — ECDSA（椭圆曲线数字签名；支持 P-256/P-384）
-- [ ] **ed25519** — Ed25519（EdDSA 现代曲线；密钥短、速度快、抗侧信道）
+- [x] **ecdsa** — ECDSA（椭圆曲线数字签名；支持 P-256/P-384）
+- [x] **ed25519** — Ed25519（EdDSA 现代曲线；密钥短、速度快、抗侧信道）
 - [ ] **ecdh** — ECDH（椭圆曲线 Diffie-Hellman 密钥协商，双方各取私钥 × 对方公钥得共享秘密）
 - [ ] **sm2** — SM2（国密椭圆曲线签名 + 加密）
 - [ ] **dh** — Diffie-Hellman（经典 DH 密钥协商，与小素数和大素数域）
@@ -341,15 +367,15 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 ### 口令派生（kdf）
 
 - [x] **bcrypt** — bcrypt（自适应成本因子密码哈希，抗 GPU/ASIC，基于 `bcryptjs` 标准库；含自动 salt 生成与验证接口）
-- [ ] **scrypt** — scrypt（内存困难型 KDF，抗 GPU/ASIC；可用 `crypto.scryptSync` 实现）
-- [ ] **argon2** — Argon2（密码哈希竞赛冠军；argon2id 平衡侧信道与 GPU 抗性；可用 `argon2` npm 包）
-- [ ] **hkdf** — HKDF（基于 HMAC 的 KDF，适用于从主密钥派生子密钥；可用 `crypto.hkdf` 或 `@noble/hashes`）
+- [x] **scrypt** — scrypt（内存困难型 KDF，抗 GPU/ASIC；可用 `crypto.scryptSync` 实现）
+- [x] **argon2** — Argon2（密码哈希竞赛冠军；argon2id 平衡侧信道与 GPU 抗性；可用 `argon2` npm 包）
+- [x] **hkdf** — HKDF（基于 HMAC 的 KDF，适用于从主密钥派生子密钥；可用 `crypto.hkdf` 或 `@noble/hashes`）
 
 ### 工具与实用（tools，新分类）
 
 若实现以下功能，建议在 `src/registry/categories.ts` 新增 `tools` 分类：
 
-- [ ] **uuid** — UUID v4 / v7 生成
+- [x] **uuid** — UUID v4 / v7 生成
 - [ ] **random-bytes** — 随机字节生成（可指定长度、编码 hex/base64）
 - [ ] **jwt-decode** — JWT 解码（解析 header.payload，不做签名验证）
 - [ ] **hash-file** — 文件哈希（用户选文件，计算 SHA-256/MD5 等）
@@ -368,7 +394,7 @@ useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
 
 ### 校验和 / 指纹
 
-- [ ] **crc32** — CRC32 校验和（ZIP、PNG 等协议常用）
+- [x] **crc32** — CRC32 校验和（ZIP、PNG 等协议常用）
 - [ ] **adler32** — Adler-32 校验和（zlib 默认）
 - [ ] **luhn** — Luhn 算法（信用卡号校验位计算与验证）
 - [ ] **fletcher16/32** — Fletcher 校验和（TCP 替代校验）

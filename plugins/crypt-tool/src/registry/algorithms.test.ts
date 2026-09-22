@@ -36,10 +36,15 @@ describe('registry helpers', () => {
     expect(getByCategory(list, 'encoding').map((x) => x.meta.id)).toEqual(['base64'])
   })
 
-  it('ships ten batch-1 algorithms in order', () => {
+  it('ships all algorithms in order', () => {
     expect(algorithms.map((m) => m.meta.id)).toEqual([
-      'base64', 'hex', 'url', 'md5', 'sha256', 'aes', 'rsa', 'hmac', 'pbkdf2', 'bcrypt'
+      'base64', 'base58', 'hex', 'url', 'md5', 'sha1', 'sha256', 'sha512', 'sha384', 'sha3_256', 'sha3_512', 'ripemd160',
+      'aes', 'chacha', 'des',
+      'rsa', 'ed25519', 'ecdsa',
+      'hmac', 'pbkdf2', 'bcrypt', 'scrypt', 'argon2', 'hkdf',
+      'uuid', 'crc32', 'adler32', 'randomBytes', 'safeBase64', 'base32'
     ])
-    expect(algorithms.every((m) => m.meta.defaultEnabled)).toBe(true)
+    // argon2 defaults disabled (needs native module)
+    expect(algorithms.filter((m) => !m.meta.defaultEnabled).map((m) => m.meta.id)).toEqual(['argon2'])
   })
 })
