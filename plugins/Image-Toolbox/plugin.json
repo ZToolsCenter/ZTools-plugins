@@ -2,10 +2,15 @@
   "name": "image-toolbox-ztools",
   "title": "图片工具箱",
   "description": "马赛克、剪切、加字等图片编辑功能",
-  "version": "2.4.2",
+  "version": "2.5.0",
   "main": "src/index.html",
   "logo": "logo.png",
   "preload": "preload.js",
+  "pluginSetting": {
+    "single": true,
+    "contextIsolation": true,
+    "nodeIntegration": false
+  },
   "features": [
     {
       "code": "image-edit",

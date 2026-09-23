@@ -7,21 +7,24 @@ import { requestRender as _requestRender } from '../utils/helpers.js';
  */
 class SelectModule extends BaseModule {
   activate(options = {}) {
-    this.active = true;
-    this.options = { ...this.options, ...options };
+    // 先走基类：保存并禁用所有对象的原始 selectable/evented 状态到 _savedInteractivity，
+    // 否则选择工具两端都缺席该状态映射，离开时无法还原锁定图层的交互态。
+    super.activate(options);
 
     const canvas = this.canvasManager.canvas;
     if (!canvas) return;
 
+    // 选择工具需要框选能力与未锁定图层的可交互性，
+    // 因此在基类统一禁用之后再叠加恢复（基类会把 selection 置 false）。
     canvas.selection = true;
     canvas.defaultCursor = 'default';
-
-    // 启用未锁定图层的交互性，确保新建图层切回移动/框选后可选中。
     this._enableEditableLayerInteractivity();
   }
 
   deactivate() {
-    this.active = false;
+    // 交由基类恢复对象交互状态并清空 _savedInteractivity，
+    // 与 activate 对称，避免丢弃被用户锁定图层的原始 selectable/evented 状态。
+    super.deactivate();
   }
 
   getOptionsBarHTML() {

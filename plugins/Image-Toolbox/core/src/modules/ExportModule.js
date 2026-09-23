@@ -1,5 +1,6 @@
 import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
+import { SAVE_STATUS, normalizeSaveResult } from '../adapters/BaseHostAdapter.js';
 
 /**
  * 导出模块 — 将编辑结果导出为图片文件或复制到剪贴板
@@ -33,43 +34,87 @@ class ExportModule extends BaseModule {
 
   /**
    * 导出为文件 — 先弹保存对话框，用户选择格式后自动匹配导出
+   *
+   * 所有失败分支都必须给出用户可见的提示：此前 host.saveImage 返回 false
+   * 时直接 return，界面毫无反应，用户会误以为已保存而关闭窗口丢失编辑成果。
    * @param {string} [presetFormat] - 预设格式 ('png'|'jpeg'|'webp')，优先于对话框选择
    */
   async exportToFile(presetFormat) {
     // 如果指定了预设格式，直接使用该格式导出
     const format = presetFormat || null;
 
-    // 优先使用 host adapter
+    // 优先使用 host adapter 的原生对话框 + 写入能力
     if (this._host?.showSaveImageDialog && this._host?.writeImageFile) {
       const ext = format || 'png';
       // 传入格式，让保存对话框只显示该格式的过滤器
       const filePath = this._host.showSaveImageDialog(`edited.${ext}`, ext);
-      if (!filePath) return;
+      // 对话框返回空 = 用户主动取消，属于正常操作，不提示错误
+      if (!filePath) {
+        return;
+      }
 
       // 如果有预设格式，强制使用；否则从文件名推断
       const actualFormat = format || this._getFormatFromFilePath(filePath);
       const dataURL = this.exportToDataURL(actualFormat);
-      if (!dataURL) return;
+      if (!dataURL) {
+        this._notifyToast('导出失败：无法生成图片数据', 'error');
+        return;
+      }
 
-      const saved = this._host.writeImageFile(filePath, dataURL);
-      this._notifyToast(saved ? '图片已保存' : '保存失败', saved ? 'success' : 'error');
+      const result = normalizeSaveResult(this._host.writeImageFile(filePath, dataURL));
+      this._reportSaveResult(result);
       return;
     }
 
     const actualFormat = format || 'png';
     const dataURL = this.exportToDataURL(actualFormat);
-    if (!dataURL) return;
+    if (!dataURL) {
+      this._notifyToast('导出失败：无法生成图片数据', 'error');
+      return;
+    }
 
+    // 次选：host adapter 的 saveImage（自带保存对话框）
     if (this._host?.saveImage) {
-      const saved = await this._host.saveImage(dataURL, `edited.${actualFormat}`);
-      if (saved) {
-        this._notifyToast('图片已保存', 'success');
+      let result;
+      try {
+        result = normalizeSaveResult(await this._host.saveImage(dataURL, `edited.${actualFormat}`));
+      } catch (err) {
+        // 宿主抛异常也算写入失败，不能让异常静默逃逸
+        console.error('[ExportModule] 保存图片失败:', err);
+        this._notifyToast('保存失败：' + (err?.message || '写入文件时出错'), 'error');
+        return;
       }
+
+      // 平台无保存能力时继续走浏览器下载降级，不当作失败打扰用户
+      if (result.status === SAVE_STATUS.UNSUPPORTED) {
+        this._browserDownload(dataURL, `edited.${actualFormat}`);
+        return;
+      }
+
+      this._reportSaveResult(result);
       return;
     }
 
     // 降级：浏览器下载
     this._browserDownload(dataURL, `edited.${actualFormat}`);
+  }
+
+  /**
+   * 根据保存结果给出用户提示。
+   * - saved    → 成功提示
+   * - canceled → 用户主动取消，静默（不是错误）
+   * - failed   → 明确错误提示，绝不静默
+   * @param {{ ok: boolean, status: string, reason: string|null }} result
+   */
+  _reportSaveResult(result) {
+    if (result.status === SAVE_STATUS.SAVED || result.ok) {
+      this._notifyToast('图片已保存', 'success');
+      return;
+    }
+    if (result.status === SAVE_STATUS.CANCELED) {
+      return;
+    }
+    this._notifyToast('保存失败：' + (result.reason || '无法写入文件'), 'error');
   }
 
   /**

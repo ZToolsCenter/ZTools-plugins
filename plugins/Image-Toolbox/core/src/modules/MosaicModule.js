@@ -104,24 +104,43 @@ class MosaicModule extends BaseModule {
   }
 
   deactivate() {
-    const canvas = this.canvasManager.canvas;
+    // 取消尚未执行的动态马赛克重算帧并重置重算标记，
+    // 否则切走工具后 rAF 回调仍会 _requestRender，若画布已 dispose 则操作已销毁对象。
+    if (this._refreshDynamicRafId) {
+      cancelAnimationFrame(this._refreshDynamicRafId);
+      this._refreshDynamicRafId = null;
+    }
+    this._refreshingDynamicMosaic = false;
 
-    canvas.off('mouse:down', this._boundMouseDown);
-    canvas.off('mouse:move', this._boundMouseMove);
-    canvas.off('mouse:up', this._boundMouseUp);
-    canvas.off('mouse:out', this._boundMouseOut);
-    canvas.skipTargetFind = false;
-    this._cleanupRect();
-    this._cleanupLasso();
-    this._cleanupLiveBrushOverlay();
-    this._cleanupBrush();
+    // canvas 可能因销毁顺序变化已为 null，直接 off/renderAll 会抛 TypeError
+    // 并中断 ToolManager.destroy 的遍历链，导致后续模块 eventBus 解绑被跳过。
+    const canvas = this.canvasManager.canvas;
+    if (canvas) {
+      canvas.off('mouse:down', this._boundMouseDown);
+      canvas.off('mouse:move', this._boundMouseMove);
+      canvas.off('mouse:up', this._boundMouseUp);
+      canvas.off('mouse:out', this._boundMouseOut);
+      canvas.skipTargetFind = false;
+      this._cleanupRect();
+      this._cleanupLasso();
+      this._cleanupLiveBrushOverlay();
+      this._cleanupBrush();
+      canvas.renderAll();
+    }
+    // 以下两个方法内部已自带 canvas 空值守卫，可无条件调用。
     this._restoreDetachedCanvasClipPath(false);
-    canvas.renderAll();
 
     super.deactivate();
   }
 
   destroy() {
+    // 取消尚未执行的 rAF 回调并重置重算标记，防止销毁后仍触碰已 dispose 的画布。
+    if (this._refreshDynamicRafId) {
+      cancelAnimationFrame(this._refreshDynamicRafId);
+      this._refreshDynamicRafId = null;
+    }
+    this._refreshingDynamicMosaic = false;
+
     const canvas = this.canvasManager.canvas;
     if (canvas) {
       canvas.off('object:moving', this._boundObjectMoving);

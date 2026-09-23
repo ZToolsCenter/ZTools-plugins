@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 图片工具箱 — ZTools 平台入口
  * 仅负责引入 HostAdapter 并启动共享 App
  */

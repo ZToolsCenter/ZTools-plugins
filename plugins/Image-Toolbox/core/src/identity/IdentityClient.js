@@ -9,7 +9,7 @@
  * - uTools 一键登录（loginWithUTools）
  */
 
-import { TeavenIdentityClient, createWebStorage } from './sdk/index.js';
+import { TeavenIdentityClient, createWebStorage } from '../lib/identity-sdk/index.js';
 
 const DEFAULT_IDENTITY_BASE = 'https://identity.moruteaven.com';
 const DEFAULT_API_BASE = 'https://api.image-toolbox.moruteaven.com';

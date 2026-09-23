@@ -71,6 +71,14 @@ class SidePanelTabs {
     this._applyLayout(layout, persist);
   }
 
+  /**
+   * 切换到指定标签页（供快捷键等外部调用）
+   * @param {string} tabName
+   */
+  activateTab(tabName) {
+    this._activateTab(tabName, true);
+  }
+
   _activateTab(tabName, persist = true) {
     if (!VALID_TABS.has(tabName)) return;
 

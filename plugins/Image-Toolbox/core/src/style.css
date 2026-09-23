@@ -1,9 +1,9 @@
-/* ══════════════════════════════════════════════
-   图片工具箱 — 全局样式
-   中性编辑器布局 | 灰青主题 | BEM 命名
-   ══════════════════════════════════════════════ */
+/* 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+   鍥剧墖宸ュ叿绠?鈥?鍏ㄥ眬鏍峰紡
+   涓€х紪杈戝櫒甯冨眬 | 鐏伴潚涓婚 | BEM 鍛藉悕
+   鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲 */
 
-/* ── CSS 变量：中性浅色主题（默认） ── */
+/* 鈹€鈹€ CSS 鍙橀噺锛氫腑鎬ф祬鑹蹭富棰橈紙榛樿锛?鈹€鈹€ */
 :root, [data-theme="light"] {
   --bg-window: #f2f4f5;
   --bg-panel: #eef1f2;
@@ -26,7 +26,7 @@
   --scrollbar-thumb-hover: #9facb2;
 }
 
-/* ── CSS 变量：中性深色主题 ── */
+/* 鈹€鈹€ CSS 鍙橀噺锛氫腑鎬ф繁鑹蹭富棰?鈹€鈹€ */
 [data-theme="dark"] {
   --bg-window: #1d2225;
   --bg-panel: #252b2f;
@@ -45,7 +45,7 @@
   --scrollbar-thumb-hover: #5c6971;
 }
 
-/* ── 基础重置 ── */
+/* 鈹€鈹€ 鍩虹閲嶇疆 鈹€鈹€ */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -64,7 +64,7 @@ html, body {
   -webkit-user-select: none;
 }
 
-/* ── 滚动条 ── */
+/* 鈹€鈹€ 婊氬姩鏉?鈹€鈹€ */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -82,9 +82,9 @@ html, body {
   background: var(--scrollbar-thumb-hover);
 }
 
-/* ══════════════════════════════════════════════
-   整体布局 — 五区结构
-   ══════════════════════════════════════════════ */
+/* 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+   鏁翠綋甯冨眬 鈥?浜斿尯缁撴瀯
+   鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲 */
 
 .app {
   display: grid;
@@ -123,12 +123,12 @@ html, body {
     "toolbar optionsbar optionsbar";
 }
 
-/* ── 工具栏展开状态 ── */
+/* 鈹€鈹€ 宸ュ叿鏍忓睍寮€鐘舵€?鈹€鈹€ */
 .app.app--toolbar-expanded {
   --toolbar-width: 160px;
 }
 
-/* ── 工具栏（左侧） ── */
+/* 鈹€鈹€ 宸ュ叿鏍忥紙宸︿晶锛?鈹€鈹€ */
 .toolbar {
   grid-area: toolbar;
   background: var(--bg-panel);
@@ -217,6 +217,11 @@ html, body {
 }
 
 .toolbar__separator {
+  display: none;
+}
+
+.toolbar__footer .toolbar__separator {
+  display: block;
   width: 36px;
   height: 1px;
   background: var(--color-border);
@@ -268,12 +273,12 @@ html, body {
   font-weight: 600;
 }
 
-/* 昵称（仅展开时显示） */
+/* 鏄电О锛堜粎灞曞紑鏃舵樉绀猴級 */
 .toolbar__account-name {
   display: none;
 }
 
-/* 工具栏收起/展开按钮 */
+/* 宸ュ叿鏍忔敹璧?灞曞紑鎸夐挳 */
 .toolbar__toggle {
   width: 36px;
   height: 26px;
@@ -300,12 +305,12 @@ html, body {
   height: 16px;
 }
 
-/* 隐藏展开/收起按钮 */
+/* 闅愯棌灞曞紑/鏀惰捣鎸夐挳 */
 .toolbar--toggle-hidden .toolbar__toggle {
   display: none;
 }
 
-/* ── 展开状态：水平布局 ── */
+/* 鈹€鈹€ 灞曞紑鐘舵€侊細姘村钩甯冨眬 鈹€鈹€ */
 .toolbar--expanded {
   align-items: stretch;
   padding: 6px 4px;
@@ -366,7 +371,7 @@ html, body {
   min-width: 0;
 }
 
-/* ── 账户页 ── */
+/* 鈹€鈹€ 璐︽埛椤?鈹€鈹€ */
 .account-page {
   width: 100%;
   height: 100%;
@@ -502,6 +507,13 @@ html, body {
   border-color: var(--color-border);
   border-radius: 7px;
   font-size: 12px;
+}
+
+.account-page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .account-page__content {
@@ -858,6 +870,9 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* 全局禁用了文本选择，更新日志需要允许手动选取复制 */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .update-record {
@@ -938,7 +953,7 @@ html, body {
   margin-top: 3px;
 }
 
-/* ── 更新项平台限制标记 ── */
+/* 鈹€鈹€ 鏇存柊椤瑰钩鍙伴檺鍒舵爣璁?鈹€鈹€ */
 .update-item__text {
   display: inline-block;
 }
@@ -967,7 +982,7 @@ html, body {
   border: 1px solid rgba(191, 144, 0, 0.25);
 }
 
-/* ── 选项栏（顶部） ── */
+/* 鈹€鈹€ 閫夐」鏍忥紙椤堕儴锛?鈹€鈹€ */
 .optionsbar {
   grid-area: optionsbar;
   background: var(--bg-panel);
@@ -1000,7 +1015,7 @@ html, body {
   overflow: hidden;
 }
 
-/* 选项栏控件 */
+/* 閫夐」鏍忔帶浠?*/
 .options-group {
   display: flex;
   flex-direction: row;
@@ -1010,7 +1025,7 @@ html, body {
   flex-shrink: 0;
 }
 
-/* 可横向滑动的选项组：左右两侧的控件保持固定，中间此组自动压缩并内部滑动 */
+/* 鍙í鍚戞粦鍔ㄧ殑閫夐」缁勶細宸﹀彸涓や晶鐨勬帶浠朵繚鎸佸浐瀹氾紝涓棿姝ょ粍鑷姩鍘嬬缉骞跺唴閮ㄦ粦鍔?*/
 .options-group--scrollable {
   flex: 1 1 auto;
   min-width: 0;
@@ -1167,6 +1182,8 @@ html, body {
   font-size: 12px;
   line-height: 1.4;
   white-space: nowrap;
+  /* 选项栏内的提示文字保持垂直居中（容器已改为 stretch 对齐） */
+  align-self: center;
 }
 
 .shape-picker-trigger {
@@ -1342,14 +1359,173 @@ html, body {
   border-color: #7c878d;
 }
 
-/* 滤镜预设按钮（选项栏） */
-.filter-preset-btn {
-  min-width: 44px;
+/* 娣辫壊妯″紡锛氭枃瀛楅璁炬寜閽儗鏅€傞厤娣辫壊涓婚 */
+[data-theme="dark"] .text-preset-btn {
+  background: #3a4247;
+  border-color: #4a555c;
 }
 
+[data-theme="dark"] .text-preset-btn:hover {
+  background: #465158;
+  border-color: #5c6971;
+}
+
+/* 婊ら暅棰勮鎸夐挳锛堥€夐」鏍忥級 */
 .filter-preset-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/*
+ * 调色预设栏：预设以「效果缩略图 + 名称」卡片展示，横向排列可滚动。
+ *
+ * 高度说明（这里曾两次把卡片压成扁条）：
+ * 卡片高度来自「效果图铺满卡片」，而 flex 里的百分比高度会解析成父容器的高度；
+ * 只要父容器高度是内容驱动（例如归中布局把高度压成一行文字），100% 就只剩几像素。
+ * 上游 .optionsbar__controls 是 align-items: center（其他工具都依赖它，不能改），
+ * 因此这一支改用确定高度：直接取选项栏行高变量，再逐层向下传递，
+ * 不再依赖祖先的拉伸行为。
+ */
+.options-group--filter {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* 确定高度：与选项栏行高一致，自成一个高度来源，不受上游归中布局影响 */
+  height: var(--optionsbar-height);
+  align-self: center;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+/* 滚动区高度跟随父级（.options-group--filter 已有确定高度），卡片由此拿到高度 */
+.filter-preset-scroll {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* 默认不预留滚动条高度，卡片可占满整条选项栏；仅在内容溢出时再加（见 .is-scrollable） */
+  padding-bottom: 0;
+  box-sizing: border-box;
+  scrollbar-width: none;
+}
+
+/* 内容溢出（可横向滚动）时才显示滚动条并让出 6px，避免滚动条压住卡片底部 */
+.filter-preset-scroll.is-scrollable {
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+
+.filter-preset-scroll::-webkit-scrollbar {
+  height: 0;
+}
+
+.filter-preset-scroll.is-scrollable::-webkit-scrollbar {
+  height: 6px;
+}
+
+.filter-preset-scroll::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.filter-preset-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/*
+ * 单个预设卡片：效果缩略图铺满卡片，名称叠加在底部遮罩上。
+ *
+ * 尺寸：高度撑满整条选项栏；宽度按效果图的真实宽高比动态计算
+ * （--preset-aspect 由 JS 按源图比例注入），上下留 4px 边距，
+ * 保证 object-fit: cover 不裁切画面。aspect-ratio 不被支持时回退到 76px。
+ */
+.filter-preset-btn {
+  position: relative;
+  display: block;
+  /* 高度撑满卡片区，宽度由 --preset-aspect 按源图比例推导 */
+  height: 100%;
+  width: auto;
+  aspect-ratio: var(--preset-aspect, 74 / 42);
+  flex: 0 0 auto;
+  align-self: stretch;
+  min-width: 44px;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--bg-canvas);
+  color: var(--color-text);
+  cursor: pointer;
+  line-height: 1;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.filter-preset-btn:hover {
+  border-color: var(--color-accent);
+}
+
+.filter-preset-btn.active {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+/* 效果缩略图铺满整个卡片，卡片高度跟随顶部选项栏 */
+.filter-preset-btn__preview {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* 缩略图生成失败时的占位 */
+.filter-preset-btn__preview--empty {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      var(--bg-card),
+      var(--bg-card) 6px,
+      var(--bg-panel) 6px,
+      var(--bg-panel) 12px
+    );
+}
+
+/* 名称遮罩：下半部分压暗，保证浅色/深色图片上文字都清晰可读 */
+.filter-preset-btn__label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px 2px 3px;
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #ffffff;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.45) 45%,
+    rgba(0, 0, 0, 0.68) 100%
+  );
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.filter-preset-btn.active .filter-preset-btn__label {
+  font-weight: 600;
 }
 
 .brush-color-btn {
@@ -1367,7 +1543,7 @@ html, body {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
 }
 
-/* ── 画布区（中央） ── */
+/* 鈹€鈹€ 鐢诲竷鍖猴紙涓ぎ锛?鈹€鈹€ */
 .canvas-area {
   grid-area: canvas;
   position: relative;
@@ -1388,7 +1564,7 @@ html, body {
   display: block;
 }
 
-/* 画布网格背景 */
+/* 鐢诲竷缃戞牸鑳屾櫙 */
 .canvas-area::before {
   content: '';
   position: absolute;
@@ -1404,7 +1580,7 @@ html, body {
   pointer-events: none;
 }
 
-/* 缩放控制 */
+/* 缂╂斁鎺у埗 */
 .zoom-control {
   position: absolute;
   bottom: 6px;
@@ -1451,7 +1627,7 @@ html, body {
   color: var(--color-accent);
 }
 
-/* ── 右侧面板（属性 / 图层） ── */
+/* 鈹€鈹€ 鍙充晶闈㈡澘锛堝睘鎬?/ 鍥惧眰锛?鈹€鈹€ */
 .panel-area {
   grid-area: panel;
   background: var(--bg-panel);
@@ -1544,9 +1720,65 @@ html, body {
 
 .side-tabs__pane #property-panel,
 .side-tabs__pane #color-panel,
-.side-tabs__pane #layer-panel {
+.side-tabs__pane #layer-panel,
+.side-tabs__pane #sticker-panel {
   height: 100%;
   min-height: 0;
+}
+
+/* 鈹€鈹€ 璐寸焊闈㈡澘 鈹€鈹€ */
+.panel--sticker {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.sticker-panel__body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px 10px;
+}
+
+.sticker-panel__add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px dashed var(--color-accent);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.sticker-panel__add-btn:hover {
+  background: var(--bg-hover);
+}
+
+.sticker-panel__add-btn.is-busy,
+.sticker-panel__add-btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.sticker-panel__add-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sticker-panel__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .side-tabs--tabs .panel__header {
@@ -1626,12 +1858,34 @@ html, body {
   align-content: flex-start;
 }
 
-/* ── 属性面板 ── */
+/* 灞炴€?璋冭壊闈㈡澘浣擄細12 鍒楃綉鏍硷紝閫夐」瀹藉害缁熶竴涓?100% / 50% / 33.3% / 25% */
+.panel--property .panel__body,
+.panel--color .panel__body {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 4px;
+  align-content: flex-start;
+}
+
+/* 璺ㄦ暣琛岀殑闈為€夐」鍏冪礌锛氭爣棰?/ 绌烘彁绀?/ 鎸夐挳缁?/ 婊ら暅棰勮缁?*/
+.property-section-title,
+.property-empty,
+.property-actions,
+.filter-presets {
+  grid-column: 1 / -1;
+}
+
+.filter-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* 鈹€鈹€ 灞炴€ч潰鏉?鈹€鈹€ */
 .property-section-title {
-  width: 100%;
   padding: 4px 6px 2px;
   color: var(--color-text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.4px;
 }
@@ -1640,11 +1894,11 @@ html, body {
   padding: 8px;
   text-align: center;
   color: var(--color-text-secondary);
-  font-size: 11px;
-  width: 100%;
+  font-size: 12px;
 }
 
 .property-item {
+  grid-column: span 6;
   display: flex;
   align-items: center;
   gap: 3px;
@@ -1652,15 +1906,49 @@ html, body {
   background: var(--bg-card);
   border: 1px solid var(--color-border);
   border-radius: 4px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
-.property-item--wide {
-  min-width: 132px;
+/* 鏁磋 100% */
+.property-item--wide,
+.property-item--full {
+  grid-column: span 12;
+}
+
+/* 鍗婅 50% */
+.property-item--half {
+  grid-column: span 6;
+}
+
+/* 涓夊垎涔嬩竴 33.3% */
+.property-item--third {
+  grid-column: span 4;
+}
+
+/* 鍥涘垎涔嬩竴 25% */
+.property-item--quarter {
+  grid-column: span 3;
+}
+
+/* 复选框行：半行宽（一行两个），标签在左、勾选框在右 */
+.property-item--toggle {
+  grid-column: span 6;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 2px 6px;
+}
+
+.property-item--toggle .property-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.property-item--toggle label {
+  text-align: left;
 }
 
 .property-item--stacked {
-  width: 100%;
+  grid-column: span 12;
   align-items: stretch;
   flex-direction: column;
   gap: 6px;
@@ -1718,7 +2006,6 @@ html, body {
 }
 
 .property-actions {
-  width: 100%;
   display: flex;
   gap: 6px;
   padding: 4px;
@@ -1752,7 +2039,7 @@ html, body {
   opacity: 0.88;
 }
 
-/* 调色重置按钮行 */
+/* 璋冭壊閲嶇疆鎸夐挳琛?*/
 .property-item--actions {
   justify-content: flex-end;
   padding: 4px 6px;
@@ -1764,19 +2051,21 @@ html, body {
 }
 
 .property-item label {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--color-text-secondary);
   flex-shrink: 0;
   text-align: right;
 }
 
 .property-input {
-  width: 60px;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
   background: transparent;
   color: var(--color-text);
   border: none;
   padding: 1px 2px;
-  font-size: 11px;
+  font-size: 12px;
   outline: none;
   text-align: center;
   -moz-appearance: textfield;
@@ -1784,7 +2073,9 @@ html, body {
 
 .property-input--name,
 .property-input--text {
-  width: 96px;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
   text-align: left;
 }
 
@@ -1810,18 +2101,20 @@ html, body {
 }
 
 .property-select {
-  width: 120px;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
   background: var(--bg-card);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: 3px;
   padding: 1px 4px;
-  font-size: 11px;
+  font-size: 12px;
   outline: none;
 }
 
 .property-select--short {
-  width: 88px;
+  min-width: 0;
 }
 
 .property-checkbox {
@@ -1834,7 +2127,7 @@ html, body {
 .property-static {
   min-width: 34px;
   color: var(--color-text);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .property-input:disabled,
@@ -1847,8 +2140,9 @@ html, body {
 }
 
 .property-range {
-  width: 90px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
   height: 3px;
   -webkit-appearance: none;
   appearance: none;
@@ -1875,7 +2169,7 @@ html, body {
   flex-shrink: 0;
 }
 
-/* ── 图层面板 ── */
+/* 鈹€鈹€ 鍥惧眰闈㈡澘 鈹€鈹€ */
 .layer-list {
   list-style: none;
   display: flex;
@@ -2021,7 +2315,7 @@ html, body {
   height: 10px;
 }
 
-/* 背景图层特殊样式 */
+/* 鑳屾櫙鍥惧眰鐗规畩鏍峰紡 */
 .layer-item--background {
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-secondary);
@@ -2066,7 +2360,7 @@ html, body {
   color: var(--color-text);
 }
 
-/* ── 状态栏（底部） ── */
+/* 鈹€鈹€ 鐘舵€佹爮锛堝簳閮級 鈹€鈹€ */
 .statusbar {
   grid-area: statusbar;
   background: var(--bg-statusbar);
@@ -2141,7 +2435,7 @@ html, body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.25);
 }
 
-/* ── 标签页（多图编辑预留） ── */
+/* 鈹€鈹€ 鏍囩椤碉紙澶氬浘缂栬緫棰勭暀锛?鈹€鈹€ */
 .tabs {
   display: flex;
   align-items: center;
@@ -2189,7 +2483,7 @@ html, body {
   background: var(--color-border);
 }
 
-/* ── 欢迎/导入界面 ── */
+/* 鈹€鈹€ 娆㈣繋/瀵煎叆鐣岄潰 鈹€鈹€ */
 .welcome {
   display: flex;
   flex-direction: column;
@@ -2247,7 +2541,7 @@ html, body {
   opacity: 0.85;
 }
 
-/* ── 加载状态 ── */
+/* 鈹€鈹€ 鍔犺浇鐘舵€?鈹€鈹€ */
 .loading {
   display: flex;
   align-items: center;
@@ -2257,12 +2551,12 @@ html, body {
   font-size: 13px;
 }
 
-/* ── 隐藏类 ── */
+/* 鈹€鈹€ 闅愯棌绫?鈹€鈹€ */
 .hidden {
   display: none !important;
 }
 
-/* ── Toast 提示 ── */
+/* 鈹€鈹€ Toast 鎻愮ず 鈹€鈹€ */
 .toast {
   position: fixed;
   top: 60px;
@@ -2305,7 +2599,7 @@ html, body {
   100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
 }
 
-/* ═══ 账户区域 — 按钮 / 昵称编辑 / 头像上传 ═══ */
+/* 鈺愨晲鈺?璐︽埛鍖哄煙 鈥?鎸夐挳 / 鏄电О缂栬緫 / 澶村儚涓婁紶 鈺愨晲鈺?*/
 
 .account-page__btn {
   padding: 8px 16px;
@@ -2406,7 +2700,7 @@ html, body {
   opacity: 1;
 }
 
-/* ═══ 登录弹窗 ═══ */
+/* 鈺愨晲鈺?鐧诲綍寮圭獥 鈺愨晲鈺?*/
 
 .login-modal {
   position: fixed;
@@ -2601,7 +2895,7 @@ html, body {
 
 
 
-/* 鈺愨晲鈺?淇濆瓨鏍煎紡寮圭獥 鈺愨晲鈺?*/
+/* 閳烘劏鏅查埡?娣囨繂鐡ㄩ弽鐓庣础瀵湱鐛?閳烘劏鏅查埡?*/
 .save-dialog-overlay {
   position: fixed;
   inset: 0;
@@ -2657,15 +2951,15 @@ html, body {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border: 1px solid var(--border-color, #e0e4e7);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: var(--bg-main, #fff);
+  background: var(--bg-card);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .save-dialog__option:hover {
-  border-color: var(--accent, #5b9bf7);
+  border-color: var(--color-accent);
   background: var(--bg-hover, #f0f6ff);
 }
 
@@ -2673,7 +2967,7 @@ html, body {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: var(--bg-toolbar, #f0f2f5);
+  background: var(--bg-hover);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2709,7 +3003,7 @@ html, body {
   padding: 10px;
   border: none;
   border-radius: 8px;
-  background: var(--bg-toolbar, #f0f2f5);
+  background: var(--bg-hover);
   color: var(--color-text-secondary, #637074);
   font-size: 13px;
   cursor: pointer;

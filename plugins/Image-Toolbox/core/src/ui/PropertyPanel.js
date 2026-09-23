@@ -129,15 +129,15 @@ class PropertyPanel {
         <label>名称</label>
         <input type="text" class="property-input property-input--name" data-prop="layerName" value="${this._escapeAttr(layerName)}"${renameDisabled} />
       </div>
-      <div class="property-item">
+      <div class="property-item property-item--half">
         <label>类型</label>
         <span class="property-static">${this._escapeHTML(typeLabel)}</span>
       </div>
-      <div class="property-item">
+      <div class="property-item property-item--quarter">
         <label>显示</label>
         <input type="checkbox" class="property-checkbox" data-prop="visible" ${active.visible !== false ? 'checked' : ''} />
       </div>
-      <div class="property-item">
+      <div class="property-item property-item--quarter">
         <label>锁定</label>
         <input type="checkbox" class="property-checkbox" data-prop="locked" ${locked ? 'checked' : ''}${lockDisabled} />
       </div>
@@ -179,7 +179,7 @@ class PropertyPanel {
 
     // Opacity.
     html += `
-      <div class="property-item">
+      <div class="property-item property-item--full">
         <label>不透明</label>
         <input type="range" class="property-range" data-prop="opacity"
                min="0" max="100" value="${Math.round(opacity * 100)}"${editDisabled} />
@@ -204,6 +204,14 @@ class PropertyPanel {
           <input type="number" class="property-input" data-prop="fontSize" value="${active.fontSize}" min="8" max="200"${editDisabled} />
         </div>
         <div class="property-item">
+          <label>对齐</label>
+          <select class="property-select property-select--short" data-prop="textAlign"${editDisabled}>
+            ${this._getSelectOption('left', '左', active.textAlign)}
+            ${this._getSelectOption('center', '中', active.textAlign)}
+            ${this._getSelectOption('right', '右', active.textAlign)}
+          </select>
+        </div>
+        <div class="property-item">
           <label>颜色</label>
           <input type="color" class="property-color" data-prop="fill" value="${this._toColorValue(active.fill, '#000000')}"${editDisabled} />
         </div>
@@ -222,29 +230,21 @@ class PropertyPanel {
             ${this._getSelectOption('inside', '内部', active._strokePosition || 'outside')}
           </select>
         </div>
-        <div class="property-item">
+        <div class="property-item property-item--toggle">
           <label>粗体</label>
           <input type="checkbox" class="property-checkbox" data-prop="fontWeight" ${active.fontWeight === 'bold' ? 'checked' : ''}${editDisabled} />
         </div>
-        <div class="property-item">
+        <div class="property-item property-item--toggle">
           <label>斜体</label>
           <input type="checkbox" class="property-checkbox" data-prop="fontStyle" ${active.fontStyle === 'italic' ? 'checked' : ''}${editDisabled} />
         </div>
-        <div class="property-item">
+        <div class="property-item property-item--toggle">
           <label>下划线</label>
           <input type="checkbox" class="property-checkbox" data-prop="underline" ${active.underline ? 'checked' : ''}${editDisabled} />
         </div>
-        <div class="property-item">
+        <div class="property-item property-item--toggle">
           <label>删除线</label>
           <input type="checkbox" class="property-checkbox" data-prop="linethrough" ${active.linethrough ? 'checked' : ''}${editDisabled} />
-        </div>
-        <div class="property-item">
-          <label>对齐</label>
-          <select class="property-select property-select--short" data-prop="textAlign"${editDisabled}>
-            ${this._getSelectOption('left', '左', active.textAlign)}
-            ${this._getSelectOption('center', '中', active.textAlign)}
-            ${this._getSelectOption('right', '右', active.textAlign)}
-          </select>
         </div>
       `;
     } else if (this._supportsPaint(active)) {

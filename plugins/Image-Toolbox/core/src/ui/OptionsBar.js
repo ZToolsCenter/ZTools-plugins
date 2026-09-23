@@ -57,9 +57,9 @@ class OptionsBar {
       this._handleControlEvent(e);
     });
 
-    // 鼠标悬停在配色预设滑动区时，滚轮转为横向滚动
+    // 鼠标悬停在横向滑动的预设区（图形配色 / 调色预设）时，滚轮转为横向滚动
     this._el.addEventListener('wheel', (e) => {
-      const scrollEl = e.target.closest('.shape-style-scroll');
+      const scrollEl = e.target.closest('.shape-style-scroll, .filter-preset-scroll');
       if (!scrollEl) return;
       // 仅在纵向滚轮占主导时接管（触控板原生横向滚动不拦截）
       if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
@@ -77,20 +77,48 @@ class OptionsBar {
     const module = this._tm.getCurrentModule();
     if (module && typeof module.getOptionsBarHTML === 'function') {
       controlsEl.innerHTML = module.getOptionsBarHTML();
-      this._scrollActiveShapePresetIntoView(controlsEl);
+      this._scrollActivePresetIntoView(controlsEl, '.shape-style-scroll', '.shape-style-btn.active');
+      // 调色预设卡片同样需要把当前生效项滚到可视区，避免点击后位置被重置
+      this._scrollActivePresetIntoView(controlsEl, '.filter-preset-scroll', '.filter-preset-btn.active');
+      // 卡片宽度随图片比例变化，需在插入 DOM 后实测是否溢出，再决定滚动条占位
+      this._syncFilterPresetScrollState(controlsEl, module);
     } else {
       controlsEl.innerHTML = '';
     }
   }
 
   /**
-   * 图形工具配色预设可横向滑动，重渲染后把当前选中的预设滚到可视区，
-   * 避免点击后滚动位置被重置导致激活项不可见。
+   * 让调色预设区按实际内容宽度决定是否显示滚动条。
+   *
+   * 卡片宽度是按源图比例动态算的，插入 DOM 前无法得知是否溢出；
+   * 溢出时才给滚动区加标记并让出 6px 高度，避免滚动条压住卡片底部。
+   *
+   * @param {HTMLElement} container 选项栏内容容器
+   * @param {object} module 当前工具模块
    */
-  _scrollActiveShapePresetIntoView(container) {
-    const scrollEl = container.querySelector('.shape-style-scroll');
+  _syncFilterPresetScrollState(container, module) {
+    if (typeof module?.syncPresetScrollState === 'function') {
+      module.syncPresetScrollState(container);
+      return;
+    }
+
+    const scrollEl = container.querySelector('.filter-preset-scroll');
     if (!scrollEl) return;
-    const activeBtn = scrollEl.querySelector('.shape-style-btn.active');
+    scrollEl.classList.toggle('is-scrollable', scrollEl.scrollWidth > scrollEl.clientWidth + 1);
+  }
+
+  /**
+   * 横向滑动的预设区重渲染后，把当前选中的预设滚到可视区，
+   * 避免点击后滚动位置被重置导致激活项不可见。
+   *
+   * @param {HTMLElement} container 选项栏容器
+   * @param {string} scrollSelector 可横向滑动的预设区选择器
+   * @param {string} activeSelector 激活项选择器
+   */
+  _scrollActivePresetIntoView(container, scrollSelector, activeSelector) {
+    const scrollEl = container.querySelector(scrollSelector);
+    if (!scrollEl) return;
+    const activeBtn = scrollEl.querySelector(activeSelector);
     if (!activeBtn) return;
 
     const scrollRect = scrollEl.getBoundingClientRect();
