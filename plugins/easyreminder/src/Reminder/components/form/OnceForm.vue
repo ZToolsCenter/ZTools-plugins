@@ -15,9 +15,10 @@ const onceDate = ref('')
 const onceTime = ref('09:00')
 
 function initDefaults() {
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  onceDate.value = props.initialDate || tomorrow.toISOString().slice(0, 10)
+  // 默认今天（本地时区，不能用 toISOString——那是 UTC，凌晨时段会错一天）
+  const now = new Date()
+  const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
+  onceDate.value = props.initialDate || today
   onceTime.value = props.initialTime || '09:00'
 }
 

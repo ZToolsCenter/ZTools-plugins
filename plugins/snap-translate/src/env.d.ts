@@ -185,6 +185,8 @@ declare global {
       isDark?: boolean
       logo?: string
       title?: string
+      /** screenCapture 回调的截图区域，用于把贴图放在截图原处。 */
+      captureBounds?: { x: number; y: number; width?: number; height?: number }
     }) => boolean
     closeStickyBoard: () => void
     saveImageFile: (dataUrl: string, destPath: string) => string

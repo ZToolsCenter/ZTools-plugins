@@ -99,6 +99,47 @@ describe('storageUtils', () => {
       expect(result.currentWorkspace).toBe('work');
     });
 
+    it('should preserve custom workspace ids on load', () => {
+      const data = {
+        version: '1.0.0',
+        workspaces: {
+          work: [],
+          life: [],
+          study: [],
+          'workspace-123': [{ id: '1', title: 'Custom Group Task' }],
+        },
+        currentWorkspace: 'workspace-123',
+        workspaceConfigs: [
+          ...DEFAULT_WORKSPACE_CONFIGS,
+          { id: 'workspace-123', name: '新组', colorScheme: 'teal', order: 3 },
+        ],
+        viewMode: 'week',
+        currentDate: '2024-01-01',
+      };
+
+      const result = migrateData(data);
+      expect(result.workspaces['workspace-123']).toHaveLength(1);
+      expect(result.currentWorkspace).toBe('workspace-123');
+    });
+
+    it('should keep currentWorkspace when it matches a custom config', () => {
+      const data = {
+        version: '1.0.0',
+        workspaces: { work: [], life: [], study: [], 'workspace-123': [] },
+        currentWorkspace: 'workspace-123',
+        workspaceConfigs: [
+          ...DEFAULT_WORKSPACE_CONFIGS,
+          { id: 'workspace-123', name: '新组', colorScheme: 'teal', order: 3 },
+        ],
+        viewMode: 'week',
+        currentDate: '2024-01-01',
+      };
+
+      const result = migrateData(data);
+      expect(result.currentWorkspace).toBe('workspace-123');
+      expect(result.workspaces['workspace-123']).toEqual([]);
+    });
+
     it('should handle invalid viewMode values', () => {
       const data = {
         version: '1.0.0',

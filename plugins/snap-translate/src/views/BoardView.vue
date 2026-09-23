@@ -6,6 +6,7 @@ import {
   applyResize,
   exclusiveDragMode,
   pointInRects,
+  resolveInjectedPin,
   DEFAULT_DOCK_H,
   COLLAPSED_DOCK_H,
   type DragMode,
@@ -93,6 +94,8 @@ let zoomRaf = 0
 let pinOrigin: Rect = { x: 80, y: 80, width: 400, height: 280 + DEFAULT_DOCK_H }
 let mouseOverPin = true
 let overlayOriginRect = { x: 0, y: 0, width: 0, height: 0 }
+/** 用户拖过/缩放过贴图后，延迟 inject 不得再把 pin 拉回打开时的位置。 */
+let userMoved = false
 
 const pin = ref<Rect>({ x: 80, y: 80, width: 400, height: 280 + DEFAULT_DOCK_H })
 const pinStyle = computed(() => ({
@@ -178,9 +181,14 @@ function tip(msg: string): void {
 }
 
 function load(data: BoardPayload): void {
+  // 同一张图的重复 inject（打开后 400ms/900ms 兜底）不得清掉 OCR/覆盖，也不得回退 pin
+  const sameImage = !!imageSrc.value && imageSrc.value === data.image
   imageSrc.value = data.image
-  lines.value = []
-  overlayLines.value = []
+  if (!sameImage) {
+    lines.value = []
+    overlayLines.value = []
+    userMoved = false
+  }
   loaded.value = true
   document.documentElement.classList.toggle('dark', !!data.isDark)
   if (data.overlay) {
@@ -191,14 +199,7 @@ function load(data: BoardPayload): void {
       height: data.overlay.height
     }
   }
-  if (data.pin && data.pin.width > 0 && data.pin.height > 0) {
-    pin.value = {
-      x: data.pin.x,
-      y: data.pin.y,
-      width: data.pin.width,
-      height: data.pin.height
-    }
-  }
+  pin.value = resolveInjectedPin(pin.value, data.pin, userMoved)
   nextTick(() => {
     setupCanvas()
     reportPin()
@@ -227,6 +228,8 @@ function onUpdate(raw: Record<string, unknown>): void {
       tintOverlayLines()
       paintTextOverlay()
     })
+    // 无框覆盖失败时 overlayLines 可能为空；有内容时给明确 tip
+    if (u.overlayLines.length && u.message) tip(u.message)
   }
   if (u.type === 'overlay' && u.overlay) {
     overlayOriginRect = {
@@ -487,17 +490,23 @@ function onPointerMove(e: PointerEvent): void {
   const dy = e.screenY - originScreenY
   const work = overlayWork()
   if (dragMode === 'move') {
-    pin.value = applyMove(pinOrigin, dx, dy, work)
+    const next = applyMove(pinOrigin, dx, dy, work)
+    if (next.x !== pin.value.x || next.y !== pin.value.y) userMoved = true
+    pin.value = next
     reportPin()
     return
   }
   if (dragMode === 'resize') {
-    pin.value = applyResize(
+    const next = applyResize(
       pinOrigin,
       { edge: resizeEdge, dx, dy },
       work,
       { dockH: dockH.value, aspect: pinOrigin.width / Math.max(pinOrigin.height - dockH.value, 1) }
     )
+    if (next.x !== pin.value.x || next.y !== pin.value.y || next.width !== pin.value.width || next.height !== pin.value.height) {
+      userMoved = true
+    }
+    pin.value = next
   }
 }
 
@@ -513,10 +522,14 @@ function flushZoom(): void {
   const factor = zoomFactorAcc
   zoomFactorAcc = 1
   if (!(factor > 0) || factor === 1) return
-  pin.value = applyZoom(pin.value, factor, overlayWork(), {
+  const next = applyZoom(pin.value, factor, overlayWork(), {
     dockH: dockH.value,
     aspect: pin.value.width / Math.max(pin.value.height - dockH.value, 1)
   })
+  if (next.x !== pin.value.x || next.y !== pin.value.y || next.width !== pin.value.width) {
+    userMoved = true
+  }
+  pin.value = next
   reportPin()
 }
 

@@ -147,6 +147,90 @@ export function remapPinAfterOverlayMove(
 	};
 }
 
+/**
+ * 延迟 inject 的 pin 是否可以覆盖当前贴图位置。
+ * 用户已经拖过 → 绝不能被打开时的初始坐标拉回原位。
+ */
+export function resolveInjectedPin(
+	current: Rect,
+	injected: { x: number; y: number; width: number; height: number } | null | undefined,
+	userMoved: boolean,
+): Rect {
+	if (userMoved) return current;
+	if (
+		injected &&
+		Number.isFinite(injected.width) &&
+		Number.isFinite(injected.height) &&
+		injected.width > 0 &&
+		injected.height > 0
+	) {
+		return {
+			x: injected.x,
+			y: injected.y,
+			width: injected.width,
+			height: injected.height,
+		};
+	}
+	return current;
+}
+
+/**
+ * preload 向 Board 注入 pin 时用的层内坐标：
+ * 有 lastSetBounds（含用户拖动后的 pin-rect）则优先用实时位置，否则用打开时的 initial。
+ */
+export function pinForBoardInject(
+	initialPinLocal: { x: number; y: number; width: number; height: number },
+	lastSetBounds: { x: number; y: number; width: number; height: number } | null | undefined,
+	overlay: { x: number; y: number; width: number; height: number } | null | undefined,
+): { x: number; y: number; width: number; height: number } {
+	if (lastSetBounds && overlay && lastSetBounds.width > 0 && lastSetBounds.height > 0) {
+		return {
+			x: lastSetBounds.x - overlay.x,
+			y: lastSetBounds.y - overlay.y,
+			width: lastSetBounds.width,
+			height: lastSetBounds.height,
+		};
+	}
+	return {
+		x: initialPinLocal.x,
+		y: initialPinLocal.y,
+		width: initialPinLocal.width,
+		height: initialPinLocal.height,
+	};
+}
+
+/**
+ * 截图原处打开贴图：用 screenCapture 的 bounds（屏幕坐标）得到层内 pin 原点。
+ * bounds 与 host 同坐标系时直接相减；若 bounds 更像物理像素则由调用方先转 DIP。
+ */
+export function pinOriginFromCaptureBounds(
+	bounds: { x: number; y: number; width?: number; height?: number } | null | undefined,
+	host: WorkArea,
+	pinW: number,
+	pinH: number,
+	fallback: { x: number; y: number } | null | undefined,
+): { x: number; y: number } {
+	const clamp = (v: number, max: number) => Math.min(Math.max(0, Math.round(v)), Math.max(0, Math.round(max)))
+	if (
+		!bounds ||
+		!Number.isFinite(bounds.x) ||
+		!Number.isFinite(bounds.y) ||
+		!host ||
+		!(host.width > 0) ||
+		!(host.height > 0)
+	) {
+		const fb = fallback
+		return {
+			x: clamp(fb?.x ?? (host?.width ?? 0) / 2 - pinW / 2, (host?.width ?? 0) - pinW),
+			y: clamp(fb?.y ?? (host?.height ?? 0) / 2 - pinH / 2, (host?.height ?? 0) - pinH),
+		};
+	}
+	return {
+		x: clamp(bounds.x - host.x, host.width - pinW),
+		y: clamp(bounds.y - host.y, host.height - pinH),
+	}
+}
+
 /** 点是否落在任一矩形内（含边界）。ignore-mouse 要把溢出的底栏/涂鸦算进去。 */
 export function pointInRects(
 	x: number,
@@ -206,7 +290,10 @@ export function layoutStickyPin(
 	return { imgW: w, imgH: h, dockH, width: w, height: h + dockH };
 }
 
-/** 贴图默认尺寸：大图压到 ≤ 屏幕一半且 ≤600×420，小图保持原生大小。 */
+/**
+ * 贴图尺寸适配（备用）：打开悬浮贴时已改为保持截图原始 DIP 大小，不再自动缩小。
+ * 仅在需要「限制到半屏」的场景使用；默认滚轮可自由缩放。
+ */
 export function fitStickyPinSize(
 	imgW: number,
 	imgH: number,

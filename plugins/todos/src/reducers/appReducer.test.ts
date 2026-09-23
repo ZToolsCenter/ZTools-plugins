@@ -291,6 +291,63 @@ describe('appReducer', () => {
     });
   });
   
+  describe('UPDATE_WORKSPACE_CONFIGS', () => {
+    it('should create empty task list for a newly added group', () => {
+      const state = createInitialState();
+      const newConfigs = [
+        ...state.workspaceConfigs,
+        { id: 'workspace-123', name: '新组', colorScheme: 'teal', order: 3 }
+      ];
+
+      const result = appReducer(state, {
+        type: 'UPDATE_WORKSPACE_CONFIGS',
+        payload: { configs: newConfigs }
+      });
+
+      expect(result.workspaces['workspace-123']).toEqual([]);
+    });
+
+    it('should preserve existing tasks when configs change', () => {
+      const task = createTask('1', 'Existing Task');
+      const state = createInitialState({
+        workspaces: { work: [task], life: [], study: [] }
+      });
+
+      const newConfigs = [
+        ...state.workspaceConfigs,
+        { id: 'workspace-123', name: '新组', colorScheme: 'teal', order: 3 }
+      ];
+
+      const result = appReducer(state, {
+        type: 'UPDATE_WORKSPACE_CONFIGS',
+        payload: { configs: newConfigs }
+      });
+
+      expect(result.workspaces.work).toHaveLength(1);
+      expect(result.workspaces['workspace-123']).toEqual([]);
+    });
+
+    it('should remove task list of deleted group', () => {
+      const state = createInitialState({
+        currentWorkspace: 'life',
+        workspaceConfigs: [
+          { id: 'work', name: '工作', colorScheme: 'teal', order: 0 },
+          { id: 'life', name: '生活', colorScheme: 'orange', order: 1 },
+          { id: 'study', name: '学习', colorScheme: 'blue', order: 2 }
+        ],
+        workspaces: { work: [], life: [], study: [] }
+      });
+
+      const result = appReducer(state, {
+        type: 'UPDATE_WORKSPACE_CONFIGS',
+        payload: { configs: state.workspaceConfigs.filter(c => c.id !== 'life') }
+      });
+
+      expect(result.workspaces.life).toBeUndefined();
+      expect(result.currentWorkspace).toBe('work');
+    });
+  });
+
   describe('SET_VIEW_MODE', () => {
     it('should set view mode to month', () => {
       const state = createInitialState({ viewMode: 'week' });

@@ -36,6 +36,8 @@ export type PasteAction = `paste${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
 export type KeyAction =
   | 'up'
   | 'down'
+  | 'pageDown'
+  | 'pageUp'
   | 'left'
   | 'right'
   | 'enter'
@@ -113,6 +115,35 @@ function withMod(key: string): KeyAction | null {
      */
     case '/':
       return 'openSettings'
+    /*
+     * ★ ⌘↑ / ⌘↓ = 翻一屏（09-21 加）—— **跟 PageDown / PageUp 是同一个动作**，
+     * 但它多一个 PageDown 没有的性质：**搜索框握着焦点时也按得到**。
+     *
+     * 来由：老大问"能不能用 Tab+↑ ↓"。**那个组合表达不出来** —— Tab 不是修饰键，
+     * 键盘事件里根本没有"Tab 被按住"这个字段（只有 shift / ctrl / alt / meta 四个）。
+     * 同时按 Tab 和 ↓，浏览器给的还是一个纯 `ArrowDown`，跟单按 ↓ 一模一样；
+     * 而且 Tab / ⇧Tab 早就被「切分类」领走了。
+     *
+     * 但顺着他的方向查下去，确实有一类键能绕开那个前提：宿主搜索框的白名单是
+     * **六个 base key（← → ↑ ↓ Enter Tab）× 任何修饰键**。依据是宿主那份 Vue 里的
+     * `withKeys` —— 实现是 `hyphenate(event.key)` 跟白名单逐个比，
+     * **四个修饰键一个都没检查**；转发时 `readModifiers` 又会把修饰键一起带上。
+     * （已直接读 `app.asar` 核对，不是推测。）
+     *
+     * 那一批里为什么挑 ⌘↑ / ⌘↓：
+     *   · `⇧↓` / `⇧↑` —— 会在**搜索框里选中文字**，而宿主有个判断：
+     *     `currentView !== 'plugin'` 时只要搜索框**有选区**，方向键一律
+     *     `stopPropagation()` 丢掉。⇒ 第一下能到，第二下就哑了。
+     *   · `←` / `→` —— 会挪搜索框的光标（插件这边 `preventDefault()` 管不到另一个窗口）。
+     *   · `⌘↑` / `⌘↓` —— 既不选区也不挪光标，按多少下都一样。
+     *
+     * ⚠️ **别把它当"PageDown 的别名"随手删掉**：它俩覆盖的场合不一样 ——
+     *    PageDown / PageUp 要求焦点已经在插件里，⌘↓ / ⌘↑ 不要求（打开插件直接按就行）。
+     */
+    case 'arrowdown':
+      return 'pageDown'
+    case 'arrowup':
+      return 'pageUp'
     default:
       return null
   }
@@ -137,6 +168,27 @@ export function resolveKey(e: KeyboardEvent): KeyAction | null {
       return 'up'
     case 'ArrowDown':
       return 'down'
+    /*
+     * ★ PageDown / PageUp = 翻一屏（09-21 加）。
+     *
+     * 来由：一屏 13 行，想找第 14 条得按十几次 ↓。
+     *
+     * ⚠️ **它俩不在宿主那六个转发键里**（`←→↑↓EnterTab`），所以跟 ↑↓ 有一个关键区别：
+     *    能收到 PageDown 的时候，焦点**一定已经**在插件视图里了。⇒ 这条分支
+     *    **不需要** `takeKeyboard()`，那一步在按键走到这儿之前就已经完成了。
+     *    反过来说，「打开插件直接按 PageDown」是收不到的 —— 得先按一下 ↑↓ 或点一下列表。
+     *
+     * ⚠️ 别以为是宿主拦了它。查过 `app.asar`：插件视图的 `before-input-event` 里
+     *    只 `preventDefault` 两个键 —— `⌘D`（分离）和 `⌘Q`（退出），
+     *    其余包括 PageDown / PageUp / Home / End 一律放行。挡住它们的是搜索框那层白名单。
+     *
+     * 步长、基准、到头怎么办都在 App.vue 的 `pageMove()` 上面写着 —— 那边是决定处，
+     * 这里只管"哪个键算翻页"。
+     */
+    case 'PageDown':
+      return 'pageDown'
+    case 'PageUp':
+      return 'pageUp'
     /*
      * ←→ **只有设置面板用**（09-18 加的）：面板里「换行」是 ↑↓、「行内换位置」是 ←→。
      *

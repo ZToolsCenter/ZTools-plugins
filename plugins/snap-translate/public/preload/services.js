@@ -2,10 +2,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {
 	layoutStickyPin,
-	fitStickyPinSize,
 	displayRect,
 	overlayRelocateTarget,
 	remapPinAfterOverlayMove,
+	pinForBoardInject,
+	pinOriginFromCaptureBounds,
 	sideWindowPlacement,
 	DEFAULT_DOCK_H,
 } = require("./pinGeometry.cjs");
@@ -391,69 +392,109 @@ window.services = {
 		bindBoardIpc();
 		const image = payload && payload.image;
 		if (!image) return false;
+		/** 宿主 screenCapture 第二参：截图区域（文档写明 bounds {x,y,width,height}）。 */
+		const captureBounds = payload && payload.captureBounds;
 
 		const display = window.ztools.getPrimaryDisplay();
 		displayList = listDisplays();
 		let host = displayRect(display) || display.bounds || display.workArea;
-		try {
-			if (typeof window.ztools.getCursorScreenPoint === "function") {
-				const pt = window.ztools.getCursorScreenPoint();
-				const hit = displayList.find(
-					(d) =>
-						pt.x >= d.x &&
-						pt.x < d.x + d.width &&
-						pt.y >= d.y &&
-						pt.y < d.y + d.height,
-				);
-				if (hit) host = hit;
+		// 优先按截图区域所在屏选 overlay，而不是跟着光标
+		if (captureBounds && Number.isFinite(captureBounds.x) && Number.isFinite(captureBounds.y)) {
+			const cx = captureBounds.x + (Number(captureBounds.width) || 0) / 2;
+			const cy = captureBounds.y + (Number(captureBounds.height) || 0) / 2;
+			const hit = displayList.find(
+				(d) =>
+					cx >= d.x &&
+					cx < d.x + d.width &&
+					cy >= d.y &&
+					cy < d.y + d.height,
+			);
+			if (hit) host = hit;
+		} else {
+			try {
+				if (typeof window.ztools.getCursorScreenPoint === "function") {
+					const pt = window.ztools.getCursorScreenPoint();
+					const hit = displayList.find(
+						(d) =>
+							pt.x >= d.x &&
+							pt.x < d.x + d.width &&
+							pt.y >= d.y &&
+							pt.y < d.y + d.height,
+					);
+					if (hit) host = hit;
+				}
+			} catch (_) {
+				/* 落在主屏 */
 			}
-		} catch (_) {
-			/* 落在主屏 */
 		}
 		const scaleFactor = display.scaleFactor || 1;
 		const imgSize = decodePngSize(image);
 
 		const DOCK_H = DEFAULT_DOCK_H;
+		// 贴图与截图同大小（物理像素 ÷ DPI = DIP），打开时不自动缩小；大小只靠滚轮调节
 		let imgW = 400;
 		let imgH = 280;
 		if (imgSize) {
-			imgW = imgSize.width / scaleFactor;
-			imgH = imgSize.height / scaleFactor;
-			const fitted = fitStickyPinSize(
-				imgW,
-				imgH,
-				{ width: host.width, height: host.height },
-				{ dockH: DOCK_H },
-			);
-			imgW = fitted.imgW;
-			imgH = fitted.imgH;
+			imgW = Math.max(1, Math.round(imgSize.width / scaleFactor));
+			imgH = Math.max(1, Math.round(imgSize.height / scaleFactor));
 		}
 		const pin = layoutStickyPin(imgW, imgH, { dockH: DOCK_H });
 		imgW = pin.imgW;
 		imgH = pin.imgH;
 		boardAspect = imgW / Math.max(imgH, 1);
 
-		let pinX = Math.round((host.width - pin.width) / 2);
-		let pinY = Math.round((host.height - pin.height) / 2);
-		try {
-			if (typeof window.ztools.getCursorScreenPoint === "function") {
-				const pt = window.ztools.getCursorScreenPoint();
-				pinX = Math.min(
-					Math.max(0, pt.x - host.x - Math.floor(pin.width / 2)),
-					host.width - pin.width,
-				);
-				pinY = Math.min(
-					Math.max(0, pt.y - host.y - 24),
-					host.height - pin.height,
-				);
+		// bounds 可能是物理像素：与截图物理宽接近则转 DIP，保证贴在截图原处
+		let boundsDip = captureBounds;
+		if (
+			captureBounds &&
+			imgSize &&
+			Number.isFinite(captureBounds.width) &&
+			scaleFactor > 1 &&
+			Math.abs(captureBounds.width - imgSize.width) <= Math.max(2, imgSize.width * 0.03) &&
+			Math.abs(captureBounds.width - pin.width) > Math.max(2, pin.width * 0.03)
+		) {
+			try {
+				if (typeof window.ztools.screenToDipPoint === "function") {
+					const a = window.ztools.screenToDipPoint({
+						x: captureBounds.x,
+						y: captureBounds.y,
+					});
+					const b = window.ztools.screenToDipPoint({
+						x: captureBounds.x + captureBounds.width,
+						y: captureBounds.y + (captureBounds.height || 0),
+					});
+					if (a && b && Number.isFinite(a.x) && Number.isFinite(b.x)) {
+						boundsDip = { x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y };
+					}
+				}
+			} catch (_) {
+				/* keep captureBounds */
 			}
-		} catch (_) {
-			/* ignore */
 		}
+
+		const origin = pinOriginFromCaptureBounds(
+			boundsDip,
+			host,
+			pin.width,
+			pin.height,
+			// 无 bounds 时退回屏幕中心（稳定），不跟光标乱跳
+			{
+				x: (host.width - pin.width) / 2,
+				y: (host.height - pin.height) / 2,
+			},
+		);
+		const pinX = origin.x;
+		const pinY = origin.y;
 
 		const inject = () => {
 			if (!boardWin || boardWin.isDestroyed?.()) return;
 			try {
+				// 用户已拖动时用 lastSetBounds，避免 400/900ms 兜底 inject 把贴图拉回打开位置
+				const pinLocal = pinForBoardInject(
+					{ x: pinX, y: pinY, width: pin.width, height: pin.height },
+					lastSetBounds,
+					overlayBounds,
+				);
 				const code =
 					"window.__loadSnapBoard && window.__loadSnapBoard(" +
 					JSON.stringify({
@@ -462,10 +503,10 @@ window.services = {
 						logo: (payload && payload.logo) || "",
 						title: (payload && payload.title) || "悬浮贴",
 						pin: {
-							x: pinX,
-							y: pinY,
-							width: pin.width,
-							height: pin.height,
+							x: pinLocal.x,
+							y: pinLocal.y,
+							width: pinLocal.width,
+							height: pinLocal.height,
 							dockH: DOCK_H,
 						},
 						overlay: {

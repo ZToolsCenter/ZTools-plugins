@@ -102,7 +102,8 @@ test('设置存两次：第二次要成功，且读回来是后一次的值（�
     tailType: true,
     tailIndex: false,
     tailSource: false,
-    tailActs: true
+    tailFav: true,
+    tailDel: true
   }
   const second: Settings = {
     peek: true,
@@ -115,7 +116,8 @@ test('设置存两次：第二次要成功，且读回来是后一次的值（�
     // 两次给**不一样**的值，才验得出"读回来的是后一次那份"
     tailIndex: true,
     tailSource: true,
-    tailActs: false
+    tailFav: false,
+    tailDel: true
   }
 
   assert.equal(await saveSettings(first), true)

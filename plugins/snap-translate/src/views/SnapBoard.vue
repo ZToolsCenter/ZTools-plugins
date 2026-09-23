@@ -154,13 +154,14 @@ function handleErr(err: any): void {
 }
 
 let lastImage = ''
+let lastCaptureBounds: { x: number; y: number; width?: number; height?: number } | null = null
 
 function capture(): void {
   if (busy.value) return
   phase.value = 'capturing'
   errorText.value = ''
 
-  window.ztools.screenCapture((imgBase64: string) => {
+  window.ztools.screenCapture((imgBase64: string, bounds?: { x: number; y: number; width?: number; height?: number }) => {
     if (!imgBase64) {
       try {
         window.ztools.outPlugin()
@@ -172,6 +173,10 @@ function capture(): void {
     const dataUri = imgBase64.startsWith('data:')
       ? imgBase64
       : 'data:image/png;base64,' + imgBase64
+    lastCaptureBounds =
+      bounds && Number.isFinite(bounds.x) && Number.isFinite(bounds.y)
+        ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+        : null
     openBoard(dataUri)
   })
 }
@@ -183,7 +188,8 @@ function openBoard(image: string): void {
     image,
     isDark: window.ztools.isDarkColors(),
     logo: window.services.pluginLogoDataUrl(),
-    title: '截图悬浮贴'
+    title: '截图悬浮贴',
+    captureBounds: lastCaptureBounds || undefined
   })
   if (!ok) {
     phase.value = 'error'

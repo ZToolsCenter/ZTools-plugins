@@ -34,7 +34,7 @@ export function useTasks() {
   };
 
   const getCurrentTasks = () => {
-    return state.workspaces[state.currentWorkspace];
+    return state.workspaces[state.currentWorkspace] || [];
   };
 
   const getTaskStatusById = (taskId: string) => {

@@ -81,7 +81,8 @@ test('多余的键一律丢掉，不往界面里带', () => {
     'foot',
     'mark',
     'peek',
-    'tailActs',
+    'tailDel',
+    'tailFav',
     'tailIndex',
     'tailSource',
     'tailType'
@@ -91,8 +92,8 @@ test('多余的键一律丢掉，不往界面里带', () => {
 /*
  * ★ 这一组锁的是「**加设置不能顺手改掉老用户的行为**」。
  *
- * `confirmDelete` / `tailType` / `tailActs` 的默认值是 `true`，而老版本存下来的文档里
- * 这三个键**根本不存在**（`undefined`）。如果 normalize 写成 `=== true`，
+ * `confirmDelete` / `tailType` / `tailFav` / `tailDel` 的默认值是 `true`，而老版本存下来的
+ * 文档里**根本没有这几个键**（`undefined`）。如果 normalize 写成 `=== true`，
  * 所有老用户升级后会被悄悄关掉「删除前确认」和「行尾按钮」——
  * 那不是加设置，是改别人已有的行为。所以这里专门断言 `undefined` 要落到 `true`。
  */
@@ -100,7 +101,8 @@ test('老文档缺字段时，默认 true 的项要补 true（不能因为 undef
   const old = normalizeSettings({ peek: true, accent: 'auto', mark: 'border', bg: 'auto', foot: 'full' })
   assert.equal(old.confirmDelete, true)
   assert.equal(old.tailType, true)
-  assert.equal(old.tailActs, true)
+  assert.equal(old.tailFav, true)
+  assert.equal(old.tailDel, true)
   // 序号是默认 false 的那一类，缺字段就该是关的
   assert.equal(old.tailIndex, false)
   // 来源同理：老文档里没这个键 ⇒ 关（不能因为"加了个设置"就给别人多显示一列）
@@ -108,15 +110,42 @@ test('老文档缺字段时，默认 true 的项要补 true（不能因为 undef
 })
 
 test('这四个新项：显式写的值要认', () => {
-  const s = normalizeSettings({ confirmDelete: false, tailType: false, tailIndex: true, tailActs: false })
+  const s = normalizeSettings({ confirmDelete: false, tailType: false, tailIndex: true, tailFav: false })
   assert.equal(s.confirmDelete, false)
   assert.equal(s.tailType, false)
   assert.equal(s.tailIndex, true)
-  assert.equal(s.tailActs, false)
+  assert.equal(s.tailFav, false)
+  // 没写的那一颗按默认（开）—— 两颗是各管各的，别互相牵连
+  assert.equal(s.tailDel, true)
+})
+
+/*
+ * ★★ 09-21：`tailFav` / `tailDel` 是从**老键 `tailActs`**（一个总开关管两颗）拆出来的，
+ * 而老文档里**只有 `tailActs`**。
+ *
+ * 所以新键缺席时不能一律给 `true` —— 那会把当初**主动关掉**行尾按钮的人又给他打开，
+ * 等于把一个升级变成了"改别人已有的行为"。判据是"这个键**存过没有**"，
+ * 所以 `normalizeSettings` 里用的是 `typeof === 'boolean'` 而不是 `!== false`。
+ */
+test('★ 老键 tailActs 拆成两颗：主动关过的不能被重新打开', () => {
+  // 当初关掉过 ⇒ 两颗都保持关（鼠标仍然没有操作入口，跟升级前一字不差）
+  assert.equal(normalizeSettings({ tailActs: false }).tailFav, false)
+  assert.equal(normalizeSettings({ tailActs: false }).tailDel, false)
+  // 当初开着 / 压根没存过这个键 ⇒ 两颗都开（跟升级前一字不差）
+  assert.equal(normalizeSettings({ tailActs: true }).tailFav, true)
+  assert.equal(normalizeSettings({}).tailFav, true)
+  // 拆开之后各写各的：老的回来了也只当兜底，新键说了算
+  assert.equal(normalizeSettings({ tailActs: false, tailFav: true }).tailFav, true)
+  assert.equal(normalizeSettings({ tailActs: false, tailFav: true }).tailDel, false)
+  // 两个新键可以独立：只要收藏、不要删除
+  const onlyFav = normalizeSettings({ tailFav: true, tailDel: false })
+  assert.deepEqual([onlyFav.tailFav, onlyFav.tailDel], [true, false])
 })
 
 test('默认 true 的项也认「垃圾值」—— 非 false 一律当开（不猜，只认显式关）', () => {
   assert.equal(normalizeSettings({ confirmDelete: 0 }).confirmDelete, true)
-  assert.equal(normalizeSettings({ tailActs: 'no' }).tailActs, true)
+  // ⚠️ `'no'` 不是 `false` ⇒ 老键那一档算"没关过"，两颗都补成开
+  assert.equal(normalizeSettings({ tailActs: 'no' }).tailFav, true)
+  assert.equal(normalizeSettings({ tailActs: 'no' }).tailDel, true)
   assert.equal(normalizeSettings({ tailIndex: 'yes' }).tailIndex, false)
 })

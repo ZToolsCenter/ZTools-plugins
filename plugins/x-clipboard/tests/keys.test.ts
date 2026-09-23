@@ -213,3 +213,98 @@ test('★ ←→ 映射到 left / right（设置面板用）', () => {
   // 带修饰键的不是面板内那条路（面板里用的是裸方向键）
   assert.equal(resolveKey(ev({ metaKey: true, key: 'ArrowLeft' })), null)
 })
+
+/*
+ * ★ 翻页（09-21 加）。
+ *
+ * 来由：一屏 13 行，找第 14 条要按十几次 ↓。
+ *
+ * 两族键映射到**同一个动作**，别当成重复的随手删掉一个 —— 它们覆盖的场合不一样：
+ *   · `PageDown` / `PageUp` —— 语义最准，但**要求焦点已经在插件里**
+ *     （它俩不在宿主那六个转发键的白名单里）；
+ *   · `⌘↓` / `⌘↑` —— 走的是「六个 base key × 修饰键」那条路（宿主那份 Vue 的
+ *     `withKeys` 只看 `event.key`，四个修饰键一个都没检查），
+ *     **搜索框握着焦点时也按得到**，打开插件直接按就行。
+ *
+ * 老大最初问的是 `Tab+↑ ↓` —— 那个表达不出来（Tab 不是修饰键，事件里没有
+ * "Tab 被按住"这个字段），而且 Tab / ⇧Tab 已经被「切分类」领走了。
+ */
+test('PageDown / PageUp 是翻页', () => {
+  assert.equal(resolveKey(ev({ key: 'PageDown' })), 'pageDown')
+  assert.equal(resolveKey(ev({ key: 'PageUp' })), 'pageUp')
+})
+
+test('⌘↓ / ⌘↑（以及 Ctrl+↓ / Ctrl+↑）跟 PageDown 同一个动作', () => {
+  assert.equal(resolveKey(ev({ metaKey: true, key: 'ArrowDown' })), 'pageDown')
+  assert.equal(resolveKey(ev({ metaKey: true, key: 'ArrowUp' })), 'pageUp')
+  assert.equal(resolveKey(ev({ ctrlKey: true, key: 'ArrowDown' })), 'pageDown')
+})
+
+/*
+ * ⚠️ 加了翻页之后最容易出的事故：**裸 ↑↓ 被顺手改成翻页** ——
+ * 那就是把"一行一行看"整个弄没了。钉住。
+ *
+ * 顺带钉住 `⇧↓` / `⌥↓` 现在**仍然是走一行**（这两个修饰键不参与判定）。
+ * 别把它俩改成翻页：`⇧↓` 会在搜索框里**选中文字**，而宿主的 `keydownEvent` 里
+ * 有个判断 —— 非插件视图下只要搜索框**有选区**，方向键一律 `stopPropagation()` 丢掉。
+ * ⇒ 第一下能到，第二下就哑了。
+ */
+test('★ 裸 ↑↓ 还是走一行，没被翻页抢走；⇧↓ / ⌥↓ 也仍然是走一行', () => {
+  assert.equal(resolveKey(ev({ key: 'ArrowDown' })), 'down')
+  assert.equal(resolveKey(ev({ key: 'ArrowUp' })), 'up')
+  assert.equal(resolveKey(ev({ shiftKey: true, key: 'ArrowDown' })), 'down')
+  assert.equal(resolveKey(ev({ altKey: true, key: 'ArrowDown' })), 'down')
+})
+
+/*
+ * 光有映射不够 —— `onKeydown` 里没接上，翻页键就是个哑键（跟 backspace 那条同一个路子）。
+ * 末段的注释块占了三百多字，所以这里给个够用的窗口，别用 {0,120} 那种紧的。
+ */
+test('onKeydown 真的把 pageDown / pageUp 接到了 pageMove 上', () => {
+  const sfc = readFileSync(fileURLToPath(new URL('../src/App.vue', import.meta.url)), 'utf8')
+  const kd = sfc.slice(sfc.indexOf('function onKeydown('))
+  assert.match(
+    kd,
+    /case 'pageDown':[\s\S]{0,900}?pageMove\(/,
+    "onKeydown 里没有接 pageMove —— 那样翻页键会是个哑键"
+  )
+})
+
+/*
+ * ★ 步长必须**量**出来，不能写死 13。
+ *
+ * 行高有两档（纯文本 36px / 带缩略图·文件图标的 42px），一屏装几行随内容和窗口高度变。
+ * 写死的话，混排的那几屏会漏掉一行 —— 而"漏一行"这种错极难被发现，
+ * 人只会觉得"刚才好像扫过去一条"。
+ *
+ * 同时钉住「留一行」（`pageRows() - 1`）：上一屏的最后一行当新屏第一行，
+ * 跟浏览器的 PageDown 一个做法，顺带保证**步长恒小于屏高 ⇒ 永远不会漏行**。
+ * 想改成"整页无重叠"就是把这个 `- 1` 去掉，改了这条测试会红，提醒你是有意改的。
+ */
+test('★ 翻页步长是量出来的（pageRows() - 1），不是常量', () => {
+  const sfc = readFileSync(fileURLToPath(new URL('../src/App.vue', import.meta.url)), 'utf8')
+  const fn = sfc.slice(sfc.indexOf('function pageMove('))
+  assert.ok(fn.length > 0, 'App.vue 里找不到 pageMove')
+  assert.match(
+    fn,
+    /const step = Math\.max\(1, pageRows\(\) - 1\)/,
+    'pageMove 的步长不是「实测屏高 − 1」—— 写死行数会在 42px 的图片行那几屏漏行'
+  )
+})
+
+/*
+ * 底栏提示条里必须真的写着「⌘↓ 翻页」。
+ *
+ * 跟 ⌘/ 、⌘1–⌘9 两条同一个理由（可发现性），也是老大提过三次的那件事：
+ * **实现了键盘路径就必须在界面上写出来**。翻页尤其隐蔽 —— 一个纯键盘动作，
+ * 界面上本来一点线索都没有，不写就等于只有翻过 README 的人知道。
+ *
+ * 提示条里选 ⌘↓ 而不是 PageDown：⌘↓ 在搜索框里就能按（不用先按 ↑↓ 搬焦点），
+ * 是更该被看见的那一个。
+ */
+test('底栏键位提示里有 ⌘↓ 翻页这一项', () => {
+  const sfc = readFileSync(fileURLToPath(new URL('../src/App.vue', import.meta.url)), 'utf8')
+  const hints = sfc.match(/<div class="hints">[\s\S]*?<\/div>/)
+  assert.ok(hints, 'App.vue 里找不到底栏的 .hints 块')
+  assert.match(hints[0], /\{\{\s*modKey\('↓'\)\s*\}\}<\/kbd>翻页/, '提示条里没写 ⌘↓ 翻页')
+})

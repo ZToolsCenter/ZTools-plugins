@@ -4,7 +4,7 @@
   "title": "定时提醒",
   "description": "支持间隔提醒、每日定点提醒、一次性定时提醒，后台稳定触发",
   "author": "咖啡八杯",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "categories": ["productivity"],
   "main": "index.html",
   "preload": "preload/services.js",

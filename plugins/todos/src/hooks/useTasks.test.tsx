@@ -7,6 +7,12 @@ import { loadData } from '../utils/storageUtils';
 jest.mock('../utils/storageUtils', () => ({
   loadData: jest.fn(),
   saveData: jest.fn(),
+  loadWorkspaceConfigs: jest.fn(() => [
+    { id: 'work', name: '工作', colorScheme: 'teal', order: 0 },
+    { id: 'life', name: '生活', colorScheme: 'orange', order: 1 },
+    { id: 'study', name: '学习', colorScheme: 'purple', order: 2 },
+  ]),
+  saveWorkspaceConfigs: jest.fn(),
 }));
 
 const mockedLoadData = loadData as jest.Mock;

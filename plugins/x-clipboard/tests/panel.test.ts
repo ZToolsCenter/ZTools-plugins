@@ -5,7 +5,7 @@
  * **当前值**上，而且只能给位置、不许落值 —— 否则按一下 ⌘/ 就把底色 / 强调色
  * 刷成「默认」，用户什么都没按。这条单独锁在最前面。
  *
- * 剩下的是三种控件两套规矩：单选行「移到哪颗就是选中哪颗」、多选行（行尾）
+ * 剩下的是三种控件两套规矩：单选行「移到哪颗就是选中哪颗」、多选行（行尾操作 / 行尾显示）
  * 「只挪光标、Enter 才切」、开关行「左关右开」。
  *
  * 末尾几条是**接线断言**（读 App.vue 源码）：纯函数对了不等于界面上真接通了 ——
@@ -44,7 +44,8 @@ function set(partial: Partial<Settings> = {}): Settings {
     tailType: true,
     tailIndex: false,
     tailSource: false,
-    tailActs: true,
+    tailFav: true,
+    tailDel: true,
     ...partial
   }
 }
@@ -57,7 +58,7 @@ const id = (name: string): number => rowIndex(name)
 test('行表 8 行，顺序 = 面板里的先后', () => {
   assert.deepEqual(
     PANEL_ROWS.map((r) => r.id),
-    ['bg', 'accent', 'tail', 'mark', 'foot', 'tailActs', 'peek', 'confirmDelete']
+    ['bg', 'accent', 'tailActs', 'tail', 'mark', 'foot', 'peek', 'confirmDelete']
   )
 })
 
@@ -66,7 +67,7 @@ test('行表 8 行，顺序 = 面板里的先后', () => {
  * ⚠️ 底色那份 `BG_KEYS` **本身含 `'auto'`**，强调色那份 `ACCENT_KEYS` **不含**
  * （界面上那颗「默认」得自己补），两处不一样，这条断言顺带把这件事钉住。
  */
-test('每行的位置数：底色 6 / 强调色 13 / 行尾 3 / 选中项 3 / 底栏 4 / 开关各 1', () => {
+test('每行的位置数：底色 6 / 强调色 13 / 行尾操作 2 / 行尾显示 3 / 选中项 3 / 底栏 4 / 开关各 1', () => {
   assert.equal(slotsOf(PANEL_ROWS[id('bg')]), BG_KEYS.length)
   assert.equal(slotsOf(PANEL_ROWS[id('accent')]), ACCENT_KEYS.length + 1)
   assert.equal(PANEL_ROWS[id('accent')].values[0], 'auto', '强调色第一颗不是「默认」')
@@ -76,11 +77,23 @@ test('每行的位置数：底色 6 / 强调色 13 / 行尾 3 / 选中项 3 / �
    * `←→` 挪到第 3 颗、按 Enter 切掉的却是第 2 颗那个开关（静默切错东西）。
    */
   assert.deepEqual(PANEL_ROWS[id('tail')].values, ['tailType', 'tailIndex', 'tailSource'])
+  /*
+   * 09-21「行尾按钮」拆成「行尾操作」两颗（收藏 / 删除），同样是多选、同样钉顺序。
+   * ⚠️ 这一行**排在三颗的「行尾显示」前面**：面板按段内**短→长**排（2 颗在前）。
+   */
+  assert.equal(slotsOf(PANEL_ROWS[id('tailActs')]), 2)
+  assert.deepEqual(PANEL_ROWS[id('tailActs')].values, ['tailFav', 'tailDel'])
+  assert.ok(
+    id('tailActs') < id('tail'),
+    '「行尾操作」（2 颗）跑到「行尾显示」（3 颗）后面去了 —— 段内要从短到长'
+  )
   assert.equal(slotsOf(PANEL_ROWS[id('mark')]), MARK_MODES.length)
   assert.equal(slotsOf(PANEL_ROWS[id('foot')]), FOOT_MODES.length)
-  for (const name of ['tailActs', 'peek', 'confirmDelete']) {
+  for (const name of ['peek', 'confirmDelete']) {
     assert.equal(slotsOf(PANEL_ROWS[id(name)]), 1, `${name} 的位置数不是 1`)
   }
+  // 开关只剩两行 —— 「行尾按钮」已经变成药丸，别让它又变成开关回到开关段
+  assert.equal(PANEL_ROWS.filter((r) => r.kind === 'switch').length, 2)
 })
 
 test('行名 → 行号，写错的行名回 -1（模板写错时测试会当场红）', () => {
@@ -118,8 +131,9 @@ test('↑↓ 换行：落点重算成那一行的当前值，不沿用上一个�
     PANEL_ROWS[id('accent')].values.indexOf('teal'),
     '换行后没落到新那一行的当前值上'
   )
-  // 行尾是多选，没有"当前值"可言 → 落第一颗
-  assert.equal(moveRow(at(1), 1, set()).slot, 0)
+  // 多选行没有"当前值"可言 → 落第一颗（行尾操作 / 行尾显示都是这样）
+  assert.equal(moveRow(at(id('tailActs') - 1), 1, set()).slot, 0)
+  assert.equal(moveRow(at(id('tail') - 1), 1, set()).slot, 0)
 })
 
 test('↑↓ 换行：行与行之间也不绕圈（第一行再往上、最后一行再往下都停住）', () => {
@@ -150,13 +164,15 @@ test('←→ 落值：开关是「左关右开」', () => {
 })
 
 /*
- * ★ 行尾那一行是**多选**（类型 / 序号 / 来源各自独立）—— `←→` 只挪光标。
- * 要是让它"移到哪颗点亮哪颗"，从类型滑到序号就会顺手把序号也点亮。
+ * ★ 多选行（行尾操作 / 行尾显示）—— `←→` 只挪光标。
+ * 要是让它"移到哪颗点亮哪颗"，从「收藏」滑到「删除」就会顺手把「删除」也点亮。
  */
-test('★ ←→ 在行尾（多选）不给 patch：只挪光标，Enter 才切', () => {
-  const row = id('tail')
-  assert.equal(movePatch(at(row, 0), 1), null)
-  assert.equal(movePatch(at(row, 1), -1), null)
+test('★ ←→ 在多选行不给 patch：只挪光标，Enter 才切', () => {
+  for (const name of ['tailActs', 'tail']) {
+    const row = id(name)
+    assert.equal(movePatch(at(row, 0), 1), null, `${name} 那一行按 → 落值了`)
+    assert.equal(movePatch(at(row, 1), -1), null, `${name} 那一行按 ← 落值了`)
+  }
 })
 
 /* ---------------------------------------------------------------- Enter */
@@ -183,6 +199,23 @@ test('★ Enter：行尾切那一颗、别的颗不受影响；三颗全灭也�
 test('Enter：开关取反', () => {
   assert.deepEqual(toggleAt(set({ peek: false }), at(id('peek'))), { peek: true })
   assert.deepEqual(toggleAt(set({ peek: true }), at(id('peek'))), { peek: false })
+})
+
+/*
+ * ★ 09-21：行尾操作拆成「收藏」「删除」两颗**独立**的药丸 ——
+ * 面板里的先后就是 `tailFav` → `tailDel`，`Enter` 切的是光标那一颗，另一颗不动。
+ * 「两颗都关」是老大要的合法状态（鼠标没有操作入口，收藏 / 删除只剩 ⌘K 和 Delete）。
+ */
+test('★ Enter：行尾操作切那一颗、另一颗不受影响', () => {
+  const row = id('tailActs')
+  // 默认两颗都开 ⇒ 点第一颗是关掉收藏，第二颗是关掉删除
+  assert.deepEqual(toggleAt(set(), at(row, 0)), { tailFav: false })
+  assert.deepEqual(toggleAt(set(), at(row, 1)), { tailDel: false })
+  // 只要收藏、不要删除这一档：点第一颗仍然是"改收藏"，不会把删除牵连进来
+  assert.deepEqual(toggleAt(set({ tailDel: false }), at(row, 0)), { tailFav: false })
+  // 两颗都关着也能重新点亮
+  assert.deepEqual(toggleAt(set({ tailFav: false, tailDel: false }), at(row, 0)), { tailFav: true })
+  assert.deepEqual(toggleAt(set({ tailFav: false, tailDel: false }), at(row, 1)), { tailDel: true })
 })
 
 /* ---------------------------------------------------------------- 接线 */

@@ -75,7 +75,15 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
   const handleSelectTask = useCallback((taskId: string) => {
     skipScrollRef.current = true;
     dispatch({ type: 'SET_SELECTED_TASK', payload: { taskId } });
-  }, [dispatch]);
+
+    if (taskId === state.selectedTaskId) return;
+
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || task.dates.length === 0) return;
+
+    const deadline = [...task.dates].sort().pop() as string;
+    dispatch({ type: 'SET_CURRENT_DATE', payload: { date: deadline } });
+  }, [dispatch, state.selectedTaskId, tasks]);
 
   const isPoolOnly = state.layoutMode === 'pool-only';
 
@@ -393,6 +401,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
       <div className="task-pool-input">
         <textarea
           ref={textareaRef}
+          className="app-input"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleSubmit}

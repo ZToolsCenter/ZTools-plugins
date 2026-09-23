@@ -1,11 +1,12 @@
 ﻿<script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ReminderForm from './components/ReminderForm.vue'
 import ReminderItem from './components/ReminderItem.vue'
 import type { Reminder, ReminderFormData } from '../types/reminder'
 import { useReminders } from '../composables/useReminders'
 import { useLog } from '../composables/useLog'
+import { useHoliday } from '../composables/useHoliday'
 
 const props = defineProps({
   enterAction: {
@@ -82,6 +83,48 @@ function copyLogs() {
   navigator.clipboard.writeText(text)
   ElMessage.success('日志已复制')
 }
+
+// ===== 节假日数据状态 =====
+const { holidayStatus, refreshStatus, updateHolidayData } = useHoliday()
+const holidayUpdating = ref(false)
+
+onMounted(() => {
+  refreshStatus()
+})
+
+const holidayText = computed(() => {
+  const s = holidayStatus.value
+  if (!s) return ''
+  if (s.legacy) return '节假日过滤需重启 ZTools 后生效'
+  if (!s.years.length) return '节假日数据未获取，工作日/节假日按自然周近似'
+  const d = new Date(s.updatedAt)
+  const dateStr = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return `节假日数据：${s.years.join('、')}年 · ${dateStr}更新`
+})
+
+const showHolidayBar = computed(() => {
+  const s = holidayStatus.value
+  if (!s) return false
+  // 旧 preload / 无数据 / 有任意提醒启用过滤 或 已有数据时展示
+  return s.legacy || s.years.length > 0 || sortedReminders.value.some(r => r.dayFilter && r.dayFilter !== 'all')
+})
+
+async function handleUpdateHoliday() {
+  if (holidayUpdating.value) return
+  holidayUpdating.value = true
+  const ok = await updateHolidayData()
+  holidayUpdating.value = false
+  if (ok) {
+    ElMessage.success('节假日数据已更新')
+  } else {
+    const s = holidayStatus.value
+    if (s && s.years.length) {
+      ElMessage.info('当前已是最新数据')
+    } else {
+      ElMessage.error('更新失败，请检查网络')
+    }
+  }
+}
 </script>
 
 <template>
@@ -119,12 +162,24 @@ function copyLogs() {
       @cancel="handleCancel"
     />
 
+    <div class="holiday-bar" v-if="showHolidayBar">
+      <span class="holiday-status">{{ holidayText }}</span>
+      <button
+        class="log-btn"
+        v-if="holidayStatus && !holidayStatus.legacy"
+        :disabled="holidayUpdating"
+        @click="handleUpdateHoliday"
+      >
+        {{ holidayUpdating ? '更新中…' : '更新数据' }}
+      </button>
+    </div>
+
     <div class="log-section">
       <div class="log-bar">
         <label class="log-toggle">
           <input type="checkbox" v-model="showLogs" @change="showLogs && refreshLogs()" />
           <span class="toggle-track"></span>
-          <span class="toggle-label">调试日志</span>
+          <span class="toggle-label">系统日志</span>
         </label>
         <span v-if="showLogs" class="log-count">{{ logs.length }}条</span>
       </div>
@@ -201,6 +256,32 @@ function copyLogs() {
 .log-section {
   margin-top: 16px;
   border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.holiday-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 8px 0;
+}
+
+.holiday-status {
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.holiday-bar .log-btn {
+  flex-shrink: 0;
+}
+
+.holiday-bar .log-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .log-bar {

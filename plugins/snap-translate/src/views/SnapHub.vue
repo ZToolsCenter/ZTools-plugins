@@ -11,13 +11,13 @@ import {
 import { openResultWindow } from '../composables/useResultWindow'
 import { buildOcrResultPayload } from '../pinGeometry'
 import { hasRealBoxes, zipOverlay, type PinOverlayLine } from '../pinOverlay'
+import { loadBoardSettings } from '../composables/useBoardSettings'
 import OcrResult from './OcrResult.vue'
 
 /**
  * 三个入口：
  *   1. 贴图（默认）：截图成悬浮贴
- *        - 先 OCR 再「翻译」→ 侧边简洁弹窗
- *        - 未识别时直接「翻译」→ 识别+翻译后盖在原文字上（无框则退回弹窗）
+ *        - 点 OCR / 翻译；翻译结果形态由设置决定（弹窗 / 原文覆盖，默认弹窗）
  *   2. OCR：截完不贴图，主窗直接出识别文字
  *   3. OCR翻译：截完不贴图，主窗左右两栏对照
  */
@@ -50,6 +50,8 @@ const pinBoxes = ref<PinOverlayLine[]>([])
 const pinImageSize = ref({ width: 0, height: 0 })
 /** 最近一次 OCR 用的引擎（弹窗低调展示）。 */
 const lastOcrProvider = ref('')
+/** screenCapture 回调的截图区域，贴图打开在截图原处。 */
+const captureBounds = ref<{ x: number; y: number; width?: number; height?: number } | null>(null)
 
 const busy = computed(
   () => phase.value === 'capturing' || phase.value === 'processing'
@@ -124,11 +126,11 @@ function rememberImageSize(data: any): void {
   if (w > 0 && h > 0) pinImageSize.value = { width: w, height: h }
 }
 
-function paintPinOverlay(translated: string[]): void {
+function paintPinOverlay(translated: string[]): boolean {
   if (!hasRealBoxes(pinBoxes.value)) {
     inject({ type: 'error', working: false, message: '无法定位原文位置' })
     errorToast('无法在原文位置覆盖。请下载微信 OCR 或 Paddle（需带检测框）。')
-    return
+    return false
   }
   const overlayLines = zipOverlay(
     pinBoxes.value,
@@ -136,10 +138,14 @@ function paintPinOverlay(translated: string[]): void {
     pinImageSize.value.width,
     pinImageSize.value.height
   )
+  if (!overlayLines.length) {
+    inject({ type: 'error', working: false, message: '覆盖层为空' })
+    return false
+  }
   inject({
     type: 'pin-overlay',
     working: false,
-    message: overlayLines.length ? '已覆盖译文' : '翻译完成',
+    message: '已覆盖译文',
     overlayLines
   })
   try {
@@ -147,6 +153,37 @@ function paintPinOverlay(translated: string[]): void {
   } catch (_) {
     /* ignore */
   }
+  return true
+}
+
+/** 按通用设置决定翻译结果：弹窗（默认）或原文覆盖。 */
+async function presentTranslateResult(
+  payload: SnapResultPayload,
+  translated: string[]
+): Promise<void> {
+  const mode = loadBoardSettings().translateResultMode || 'popup'
+  console.info('[snap-translate] presentTranslateResult mode=' + mode)
+  if (mode === 'overlay') {
+    // 覆盖模式：若尚无检测框，现场再取一次（微信/Paddle优先）
+    if (!hasRealBoxes(pinBoxes.value) && image.value) {
+      try {
+        const extra = await ocrWithBoxes(image.value, { preferBoxes: true })
+        if (hasRealBoxes(extra.boxes)) {
+          pinBoxes.value = extra.boxes
+          if (!lastOcrProvider.value) lastOcrProvider.value = extra.ocrProvider || ''
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (hasRealBoxes(pinBoxes.value) && paintPinOverlay(translated)) {
+      success('已覆盖译文')
+      return
+    }
+    infoToast('无法原位覆盖（无检测框），已改用弹窗')
+  }
+  openSide(payload)
+  success('翻译完成')
 }
 
 function wireBoardHandlers(): void {
@@ -156,7 +193,8 @@ function wireBoardHandlers(): void {
       try {
         if (!image.value) throw new Error('无截图')
         rememberImageSize(data)
-        const result = await ocrWithBoxes(image.value)
+        const preferBoxes = loadBoardSettings().translateResultMode === 'overlay'
+        const result = await ocrWithBoxes(image.value, { preferBoxes })
         diagnostics.value = result.diagnostics
         pinBoxes.value = result.boxes
         lastOcrProvider.value = result.ocrProvider || ''
@@ -195,7 +233,7 @@ function wireBoardHandlers(): void {
           return
         }
         inject({ type: 'translate', working: false, message: '翻译完成' })
-        openSide(
+        await presentTranslateResult(
           compactPayload({
             lines: result.lines,
             translateOk: true,
@@ -204,20 +242,21 @@ function wireBoardHandlers(): void {
             ocrProvider: lastOcrProvider.value || undefined,
             translateProvider: result.translateProvider,
             diagnostics: result.diagnostics
-          })
+          }),
+          result.lines.map((l) => l.translated)
         )
-        success('翻译完成')
       } catch (err: any) {
         handleErr(err, true)
       }
     },
     async onOcrTranslate(data: any) {
-      // 未先 OCR 时点「翻译」：直接识别+翻译，并盖在贴图原文字上。
+      // 未先 OCR 时点「翻译」：识别+翻译，结果形态由「翻译按钮结果」设置决定。
       inject({ type: 'status', working: true, message: '识别+翻译…' })
       try {
         if (!image.value) throw new Error('无截图')
         rememberImageSize(data)
-        const ocr = await ocrWithBoxes(image.value)
+        const preferBoxes = loadBoardSettings().translateResultMode === 'overlay'
+        const ocr = await ocrWithBoxes(image.value, { preferBoxes })
         pinBoxes.value = ocr.boxes
         lastOcrProvider.value = ocr.ocrProvider || ''
         diagnostics.value = ocr.diagnostics
@@ -233,25 +272,19 @@ function wireBoardHandlers(): void {
           errorToast('翻译不可用：' + (result.translateError || '见日志'))
           return
         }
-        if (!hasRealBoxes(pinBoxes.value)) {
-          // 无检测框时无法原位覆盖，退回侧边对照弹窗
-          inject({ type: 'ocr-translate', working: false, message: '翻译完成' })
-          openSide(
-            compactPayload({
-              lines: result.lines,
-              translateOk: true,
-              targetLang: result.targetLang,
-              detectedFrom: result.detectedFrom,
-              ocrProvider: ocr.ocrProvider,
-              translateProvider: result.translateProvider,
-              diagnostics: result.diagnostics
-            })
-          )
-          success('翻译完成')
-          return
-        }
-        paintPinOverlay(result.lines.map((l) => l.translated))
-        success('已覆盖译文')
+        inject({ type: 'ocr-translate', working: false, message: '翻译完成' })
+        await presentTranslateResult(
+          compactPayload({
+            lines: result.lines,
+            translateOk: true,
+            targetLang: result.targetLang,
+            detectedFrom: result.detectedFrom,
+            ocrProvider: ocr.ocrProvider,
+            translateProvider: result.translateProvider,
+            diagnostics: result.diagnostics
+          }),
+          result.lines.map((l) => l.translated)
+        )
       } catch (err: any) {
         handleErr(err, true)
       }
@@ -335,7 +368,8 @@ function openBoard(): void {
     image: image.value,
     isDark: window.ztools.isDarkColors(),
     logo: window.services.pluginLogoDataUrl(),
-    title: '悬浮贴'
+    title: '悬浮贴',
+    captureBounds: captureBounds.value || undefined
   })
   if (!ok) {
     phase.value = 'error'
@@ -427,8 +461,9 @@ function capture(): void {
   image.value = ''
   pinBoxes.value = []
   pinImageSize.value = { width: 0, height: 0 }
+  captureBounds.value = null
 
-  window.ztools.screenCapture((imgBase64: string) => {
+  window.ztools.screenCapture((imgBase64: string, bounds?: { x: number; y: number; width?: number; height?: number }) => {
     if (!imgBase64) {
       try {
         window.ztools.outPlugin()
@@ -440,6 +475,10 @@ function capture(): void {
     image.value = imgBase64.startsWith('data:')
       ? imgBase64
       : 'data:image/png;base64,' + imgBase64
+    captureBounds.value =
+      bounds && Number.isFinite(bounds.x) && Number.isFinite(bounds.y)
+        ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+        : null
 
     const auto = props.autoAction || ''
     if (auto === 'ocr-only') {

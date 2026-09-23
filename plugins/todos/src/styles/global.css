@@ -126,6 +126,30 @@ a {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   FORM INPUTS
+   ═══════════════════════════════════════════════════════════ */
+.app-input {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  background: transparent;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  color: var(--ink);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.app-input::placeholder {
+  color: var(--clay);
+}
+
+.app-input:focus {
+  border-color: var(--teal-border);
+  box-shadow: 0 0 0 1px var(--teal-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
    REDUCED MOTION
    ═══════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {

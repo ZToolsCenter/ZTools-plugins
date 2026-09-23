@@ -221,6 +221,21 @@ describe('ocrTranslate pipeline', () => {
     expect((window as any).services.ocrImageDetail).not.toHaveBeenCalled()
   })
 
+  it('ocrWithBoxes preferBoxes uses wechat boxes before host default', async () => {
+    const ocr = vi.fn<OcrFn>().mockResolvedValue({ text: 'host', blocks: ['host'] })
+    installHost({ ocr })
+    ;(window as any).services = {
+      ocrImageDetail: vi.fn(async () => ({
+        ok: true,
+        lines: [{ text: 'Hi', rate: 0.9, left: 1, top: 2, right: 10, bottom: 12 }]
+      }))
+    }
+    const result = await ocrWithBoxes('img', { preferBoxes: true })
+    expect(result.ocrProvider).toBe('ocr')
+    expect(result.boxes).toEqual([{ text: 'Hi', left: 1, top: 2, right: 10, bottom: 12 }])
+    expect(ocr).not.toHaveBeenCalled()
+  })
+
   it('ocrWithBoxes falls back to wechat detail with boxes when host default fails', async () => {
     const ocr = vi.fn<OcrFn>().mockRejectedValue(new Error('no default ocr'))
     installHost({ ocr, translate: vi.fn() })

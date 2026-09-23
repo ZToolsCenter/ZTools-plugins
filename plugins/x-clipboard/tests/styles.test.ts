@@ -178,14 +178,17 @@ test('★ 确认框居中：位置由 .mask 的 flex 给，别再让 JS 算坐�
  * ★ 设置面板的**排布**（09-17 老大要求）：按控件类型分三段、**段内按行长从短到长**。
  *
  *   ① 色点段：底色（4 颗）→ 强调色（13 颗）
- *   ② 选中段（药丸）：行尾（2 颗）→ 选中项（3 颗）→ 底栏（4 颗）
- *   ③ 开关段：行尾按钮 → 显示详情 → 删除前确认
+ *   ② 多选段：行尾操作（2 颗）→ 行尾显示（3 颗）→ 选中项（3 颗）→ 底栏（4 颗）
+ *   ③ 开关段：显示详情 → 删除前确认
  *
  * 改之前是「按主题」混排的（行尾、行尾按钮、底栏、显示详情…），三种控件形状一格一格交替，
  * 右边缘那列开关被药丸行打断。老大原话：「设置也要分类放一起才好看」。
  *
  * ⚠️ **方向是短→长**，我第一版做成了长→短，被老大当场纠回来：「为什么不是每个类都是从短到长呢，
  *    你是从长到短……应该从短到长」。改这条断言时别再顺手翻回去。
+ *
+ * ⚠️ 09-21：「行尾按钮」从**开关**拆成「行尾操作」（收藏 / 删除两颗药丸），于是它从开关段
+ *    搬进了多选段，按短→长排在「行尾显示」前面。别按"先显示后操作"的语序把它俩对调。
  *
  * ⚠️ 这是**有意锁住的**：以后再调整排布，请连这条断言一起改 —— 不要顺手把它删掉，
  *    否则"开关又被夹在两段药丸中间"这种回退没人拦得住。
@@ -209,13 +212,17 @@ test('★ 设置面板：按控件类型分三段（段内短→长），开关�
   const labels = [...panel.matchAll(/class="lbl">([^<]+)</g)].map((m) => m[1])
   assert.deepEqual(
     labels,
-    ['底色', '强调色', '行尾', '选中项', '底栏'],
-    '面板分组顺序变了（期望：色点段 底色/强调色 → 选中段 行尾/选中项/底栏，段内短→长）'
+    ['底色', '强调色', '行尾操作', '行尾显示', '选中项', '底栏'],
+    '面板分组顺序变了（期望：色点段 底色/强调色 → 多选段 行尾操作/行尾显示/选中项/底栏，段内短→长）'
   )
 
-  // 3) 开关段的三行及其先后（标签 4/4/5 字，也正好是短→长；越靠下越危险，删除前确认压尾）
+  // 3) 开关段的两行及其先后（标签 4/5 字，也正好是短→长；越靠下越危险，删除前确认压尾）
   const switches = [...panel.matchAll(/class="nm">([^<]+)</g)].map((m) => m[1])
-  assert.deepEqual(switches, ['行尾按钮', '显示详情', '删除前确认'])
+  assert.deepEqual(
+    switches,
+    ['显示详情', '删除前确认'],
+    '「行尾按钮」已经拆成药丸了，开关段只该剩这两行'
+  )
 
   // 4) 段间空隙标记 `.blk` 正好两处：第②③ 段的第一行各一次
   assert.equal(
@@ -356,6 +363,71 @@ test('★ 行尾按钮：选中行跟 hover 一样出按钮，标签同步让位
   }
   assert.match(fade[1], /\.row\.on \.tail-acts \.tag/, '让位只跟 hover 走 —— 键盘选中的行会叠字')
   assert.match(fade[2], /opacity:\s*0/, '让位那条不是 opacity: 0')
+})
+
+/*
+ * ★ 行内瞬时星（09-21）：行尾**没有**收藏按钮时，`⌘K` 收藏完唯一看得见的反馈
+ * （按钮开着的时候它自己会点亮 / 熄灭，那才是反馈，不用再闪一颗）。
+ *
+ * 这几条都是"做错了不报错、只在真机上别扭"的形状：
+ *   1. 星必须**绝对定位** —— 放进流里 `.tail` 会宽出一颗星、`.t` 跟着短一截，
+ *      每按一次 ⌘K，你正看着的那一行文字就跳一下；
+ *   2. `right` 要让开按钮那一格 —— 收藏按钮关着的时候，「删除」可能正开在那儿；
+ *   3. 动画时长必须跟 JS 的 `FAV_FLASH_MS` 是**同一个数**：短了星提前消失、
+ *      长了 JS 把它摘掉时还在亮着，两边看着都像"卡了一下"；
+ *   4. 实心档（mark-solid）下必须反白：强调色底上填强调色的星 = 看不见。
+ */
+test('★ 瞬时星：绝对定位（不挤文字）、时长跟 FAV_FLASH_MS 同源、实心档反白', () => {
+  const star = css.match(/^\.favflash\s*\{([^}]*)\}/m)
+  assert.ok(star, 'App.vue 里找不到 .favflash')
+  assert.match(star[1], /position:\s*absolute/, '瞬时星进流了 —— 每收藏一次行里的字都会跳一下')
+  assert.match(
+    star[1],
+    /right:\s*calc\(var\(--acts-w\)/,
+    '瞬时星没让开按钮那一格 —— 「删除」开着时会叠字'
+  )
+  assert.match(star[1], /pointer-events:\s*none/, '瞬时星没吃掉鼠标事件')
+
+  // 时长两边必须同源（这是本次最容易悄悄漂掉的一处）
+  const ms = Number(src.match(/const FAV_FLASH_MS = (\d+)/)?.[1])
+  assert.ok(ms > 0, '找不到 FAV_FLASH_MS')
+  const anim = star[1].match(/animation:\s*fav-flash\s+([\d.]+)s/)
+  assert.ok(anim, '.favflash 没挂 fav-flash 动画')
+  assert.equal(Number(anim[1]) * 1000, ms, `CSS 动画 ${anim[1]}s 跟 FAV_FLASH_MS=${ms} 对不上`)
+  assert.match(star[1], /forwards/, '动画没有 forwards —— 放完会弹回不透明，留下一颗不走的星')
+  assert.match(css, /@keyframes fav-flash\s*\{/, 'fav-flash 的 keyframes 没了')
+
+  // 常驻那三样在星亮着时要让位，否则星落在它们身上就是叠字
+  // ⚠️ 正则从 `.row.fav-flash .tail ` 起（**不带最后那个点**）—— 带上的话第 1 个类名
+  //    只抓到 `num` 而不是 `.num`，下面这三条断言会以为"少了一样"。
+  const give = css.match(/\.row\.fav-flash \.tail ([\s\S]*?)\{([^}]*)\}/)
+  assert.ok(give, '找不到 .row.fav-flash 的让位规则')
+  for (const cls of ['num', 'src', 'tag']) {
+    assert.ok(give[1].includes(`.${cls}`), `瞬时星亮着时 .${cls} 没让位 —— 会叠字`)
+  }
+  // ⚠️ 这一组**不许带 `.tail-acts`**：两颗按钮全关时 `.tail` 上根本没有那个类，而星照闪
+  assert.doesNotMatch(give[1], /tail-acts/, '让位挂在 .tail-acts 上了 —— 两颗按钮全关时会叠字')
+
+  // 实心档反白；空心那颗得把 fill 收回去，不然"刚取消收藏"看起来像"刚收藏"
+  assert.match(
+    css,
+    /\.root\.mark-solid \.row\.on \.favflash svg\s*\{[^}]*fill:\s*var\(--row-on-tx\)/,
+    '实心档下瞬时星没反白 —— 强调色底上填强调色的星等于看不见'
+  )
+  assert.match(
+    css,
+    /\.root\.mark-solid \.row\.on \.favflash\.hollow svg\s*\{[^}]*fill:\s*none/,
+    '实心档下空心星没把 fill 收回去 —— 反馈会说反'
+  )
+
+  // 接线：只有「行尾没有收藏按钮」才闪；模板里那颗星跟着 favFlash 走
+  assert.match(
+    src,
+    /if \(!settings\.value\.tailFav\) flashFavorite\(row\.key\)/,
+    'toggleFavorite 没按 tailFav 决定闪不闪（要么少闪、要么按钮在的时候也闪）'
+  )
+  assert.match(template, /v-if="favFlash && favFlash\.key === row\.key"/, '模板没把瞬时星接到 favFlash 上')
+  assert.match(template, /class="favflash"/, '模板里那颗星没挂 .favflash')
 })
 
 /*

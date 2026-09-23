@@ -2,21 +2,12 @@
  * 本地存储工具函数
  */
 
-import { StorageData, Workspace, WorkspaceConfig } from '../types';
+import { StorageData, Task, Workspace, WorkspaceConfig } from '../types';
 import { DEFAULT_WORKSPACE_CONFIGS } from '../constants/colorSchemes';
 
 const STORAGE_KEY = 'todos-data';
 const WORKSPACE_CONFIG_KEY = 'workspace-configs';
 const CURRENT_VERSION = '1.0.0';
-
-/**
- * 默认的空工作空间数据
- */
-const DEFAULT_WORKSPACES: Record<Workspace, []> = {
-  work: [],
-  life: [],
-  study: [],
-};
 
 /**
  * 从 localStorage 加载数据
@@ -91,11 +82,13 @@ export function migrateData(data: any): StorageData {
     return migrateToLatest(data);
   }
 
+  const workspaceConfigs = data.workspaceConfigs || loadWorkspaceConfigs();
+
   return {
     version: CURRENT_VERSION,
-    workspaces: validateWorkspaces(data.workspaces),
-    currentWorkspace: validateWorkspace(data.currentWorkspace),
-    workspaceConfigs: data.workspaceConfigs || loadWorkspaceConfigs(),
+    workspaces: reconcileWorkspaces(data.workspaces, workspaceConfigs),
+    currentWorkspace: validateWorkspace(data.currentWorkspace, workspaceConfigs),
+    workspaceConfigs,
     viewMode: validateViewMode(data.viewMode),
     currentDate: data.currentDate || formatDateForStorage(new Date()),
   };
@@ -106,11 +99,12 @@ export function migrateData(data: any): StorageData {
  * @returns 默认的 StorageData 对象
  */
 function createDefaultData(): StorageData {
+  const workspaceConfigs = loadWorkspaceConfigs();
   return {
     version: CURRENT_VERSION,
-    workspaces: { ...DEFAULT_WORKSPACES },
-    currentWorkspace: 'work',
-    workspaceConfigs: loadWorkspaceConfigs(),
+    workspaces: reconcileWorkspaces({}, workspaceConfigs),
+    currentWorkspace: validateWorkspace('work', workspaceConfigs),
+    workspaceConfigs,
     viewMode: 'week',
     currentDate: formatDateForStorage(new Date()),
   };
@@ -124,16 +118,16 @@ function createDefaultData(): StorageData {
 function migrateToLatest(data: any): StorageData {
   const migrated = createDefaultData();
 
+  if (data.workspaceConfigs) {
+    migrated.workspaceConfigs = data.workspaceConfigs;
+  }
+
   if (data.workspaces && typeof data.workspaces === 'object') {
-    migrated.workspaces = validateWorkspaces(data.workspaces);
+    migrated.workspaces = reconcileWorkspaces(data.workspaces, migrated.workspaceConfigs);
   }
 
   if (data.currentWorkspace) {
-    migrated.currentWorkspace = validateWorkspace(data.currentWorkspace);
-  }
-
-  if (data.workspaceConfigs) {
-    migrated.workspaceConfigs = data.workspaceConfigs;
+    migrated.currentWorkspace = validateWorkspace(data.currentWorkspace, migrated.workspaceConfigs);
   }
 
   if (data.viewMode) {
@@ -148,34 +142,31 @@ function migrateToLatest(data: any): StorageData {
 }
 
 /**
- * 验证并规范化工作空间数据
+ * 按配置对齐工作空间任务数据：每个配置都有任务数组，被删除的组不再保留
  * @param workspaces 原始工作空间数据
- * @returns 规范化后的工作空间数据
+ * @param configs 工作空间配置列表
+ * @returns 对齐后的任务数据
  */
-function validateWorkspaces(workspaces: any): Record<Workspace, any[]> {
-  const result: Record<Workspace, any[]> = { ...DEFAULT_WORKSPACES };
-
-  if (workspaces && typeof workspaces === 'object') {
-    (['work', 'life', 'study'] as Workspace[]).forEach(key => {
-      if (Array.isArray(workspaces[key])) {
-        result[key] = workspaces[key];
-      }
-    });
+function reconcileWorkspaces(workspaces: any, configs: WorkspaceConfig[]): Record<Workspace, Task[]> {
+  const source = workspaces && typeof workspaces === 'object' ? workspaces : {};
+  const result: Record<Workspace, Task[]> = {};
+  for (const config of configs) {
+    result[config.id] = Array.isArray(source[config.id]) ? source[config.id] : [];
   }
-
   return result;
 }
 
 /**
- * 验证工作空间值
+ * 验证工作空间值（支持自定义组 id）
  * @param workspace 工作空间值
+ * @param configs 工作空间配置列表
  * @returns 有效的工作空间值
  */
-function validateWorkspace(workspace: any): Workspace {
-  if (['work', 'life', 'study'].includes(workspace)) {
-    return workspace as Workspace;
+function validateWorkspace(workspace: any, configs: WorkspaceConfig[]): Workspace {
+  if (configs.some(c => c.id === workspace)) {
+    return workspace;
   }
-  return 'work';
+  return configs[0]?.id || 'work';
 }
 
 /**

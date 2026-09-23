@@ -475,6 +475,19 @@ if ((window as any).ztools?.onPluginEnter) {
       </div>
     </div>
 
+    <!-- 状态行：JSON 状态在前，操作状态在后，一行显示在编辑器上方 -->
+    <div v-if="hasContent || errorMsg || statusMsg" class="status-line">
+      <span v-if="hasContent && isValid && !needsRepair" class="json-status valid">✓ 有效 JSON</span>
+      <span v-else-if="hasContent && needsRepair" class="json-status repair">⚠ 非标准 JSON（可自动修复）</span>
+      <span v-else-if="hasContent" class="json-status invalid">✗ 无效 JSON</span>
+      <span v-if="errorMsg" class="op-status error" :title="errorMsg">
+        <el-icon class="status-icon"><Warning /></el-icon>
+        <span class="op-text">{{ errorMsg }}</span>
+      </span>
+      <span v-else-if="statusMsg" class="op-status success">{{ statusMsg }}</span>
+      <span v-if="stats" class="stats">{{ stats.chars }} 字符 · {{ stats.lines }} 行</span>
+    </div>
+
     <!-- 内容区 -->
     <div class="content-area">
       <!-- 编辑视图：CodeMirror 6 -->
@@ -507,37 +520,25 @@ if ((window as any).ztools?.onPluginEnter) {
         <div v-else class="empty-hint">内容非有效 JSON，无法生成树形视图</div>
       </div>
     </div>
-
-    <div v-if="statusMsg || errorMsg" class="status-bar" :class="{ error: !!errorMsg, success: !errorMsg }">
-      <el-icon v-if="errorMsg" class="status-icon"><Warning /></el-icon>
-      <span>{{ errorMsg || statusMsg }}</span>
-    </div>
-
-    <div v-if="stats" class="stats-bar">
-      <span>{{ stats.chars }} 字符 · {{ stats.lines }} 行</span>
-      <span v-if="isValid && !needsRepair" class="valid-tag">✓ 有效 JSON</span>
-      <span v-else-if="needsRepair" class="repair-tag">⚠ 非标准 JSON（可自动修复）</span>
-      <span v-else-if="hasContent" class="invalid-tag">✗ 无效 JSON</span>
-    </div>
   </div>
 </template>
 
 <style scoped>
-.json-tool { padding: 12px; max-width: 820px; margin: 0 auto; font-size: 13px; }
-h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
-.desc { color: #909399; margin: 0 0 12px; font-size: 13px; }
+.json-tool { padding: 12px; max-width: 820px; margin: 0 auto; font-size: 13px; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; }
+h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; flex-shrink: 0; }
+.desc { color: #909399; margin: 0 0 12px; font-size: 13px; flex-shrink: 0; }
 
-.view-bar { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; margin-bottom: 8px; }
+.view-bar { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; margin-bottom: 8px; flex-shrink: 0; }
 .view-bar .view-tabs { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .view-bar .view-tabs :deep(.el-button) { color: #909399; }
 .view-bar .view-tabs :deep(.el-button.active) { color: #667eea; font-weight: 600; }
 .view-bar .ops { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; flex: 1; min-width: 0; }
 .view-bar .view-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
-.content-area { margin-bottom: 10px; }
+.content-area { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0; }
 
 /* === CodeMirror 编辑器容器 === */
-.cm-editor-host { height: 440px; border: 1px solid var(--border-color, #dcdfe6); border-radius: 6px; overflow: hidden; background: var(--bg-main, #fff); }
+.cm-editor-host { flex: 1; min-height: 0; border: 1px solid var(--border-color, #dcdfe6); border-radius: 6px; overflow: hidden; background: var(--bg-main, #fff); }
 .cm-editor-host :deep(.cm-editor) { height: 100%; font-size: 13px; }
 .cm-editor-host :deep(.cm-editor.cm-focused) { outline: none; }
 .cm-editor-host :deep(.cm-scroller) { font-family: 'Consolas', 'Courier New', monospace; line-height: 1.6; }
@@ -548,7 +549,7 @@ h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
 /* 语法错误提示（lint tooltip）层级提升，避免被容器裁剪 */
 .cm-editor-host :deep(.cm-tooltip) { z-index: 100; }
 
-.readonly-view { border: 1px solid var(--border-color, #dcdfe6); border-radius: 6px; background: var(--bg-main, #fff); max-height: 440px; overflow-y: auto; }
+.readonly-view { flex: 1; min-height: 0; border: 1px solid var(--border-color, #dcdfe6); border-radius: 6px; background: var(--bg-main, #fff); overflow-y: auto; }
 .empty-hint { padding: 32px 14px; text-align: center; color: #909399; font-size: 12px; }
 .truncated-hint { padding: 8px 12px; text-align: center; color: #e6a23c; font-size: 12px; border-top: 1px solid var(--border-color, #eee); }
 
@@ -573,15 +574,17 @@ h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
 .tree-type.tv-array { background: #f0e6ff; color: #6f42c1; }
 .tree-type.tv-object { background: #f0f0f0; color: #606266; }
 
-.status-bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 12px; }
-.status-bar.success { background: #f0f9eb; color: #67c23a; }
-.status-bar.error { background: #fef0f0; color: #f56c6c; }
-.status-icon { font-size: 14px; }
-
-.stats-bar { display: flex; gap: 16px; padding: 6px 12px; font-size: 12px; color: #909399; }
-.valid-tag { color: #67c23a; }
-.repair-tag { color: #e6a23c; }
-.invalid-tag { color: #f56c6c; }
+.status-line { display: flex; align-items: center; gap: 12px; min-width: 0; margin-bottom: 8px; font-size: 12px; flex-shrink: 0; }
+.json-status { flex-shrink: 0; font-weight: 600; }
+.json-status.valid { color: #67c23a; }
+.json-status.repair { color: #e6a23c; }
+.json-status.invalid { color: #f56c6c; }
+.op-status { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
+.op-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.op-status.success { color: #67c23a; }
+.op-status.error { color: #f56c6c; }
+.status-icon { font-size: 14px; flex-shrink: 0; }
+.stats { margin-left: auto; color: #909399; flex-shrink: 0; }
 
 @media (prefers-color-scheme: dark) {
   .desc { color: #8a8a8a; }
@@ -611,12 +614,7 @@ h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
   .tree-type.tv-array { background: #2e1a3a; color: #c678dd; }
   .tree-type.tv-object { background: #3a3a3a; color: #aaa; }
   .tree-toggle { color: #8a8a8a; }
-  .status-bar.success { background: #1a2e1a; color: #67c23a; }
-  .status-bar.error { background: #2e1a1a; color: #f56c6c; }
-  .stats-bar { color: #8a8a8a; }
-  .valid-tag { color: #67c23a; }
-  .repair-tag { color: #d19a66; }
-  .invalid-tag { color: #f56c6c; }
+  .stats { color: #8a8a8a; }
   h2 { color: #e0e0e0; }
 }
 </style>

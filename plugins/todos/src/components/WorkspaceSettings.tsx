@@ -74,6 +74,7 @@ export function WorkspaceSettings({ configs, onUpdate, layoutMode, onChangeLayou
               <label>名称</label>
               <input
                 type="text"
+                className="app-input"
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="输入组名称"

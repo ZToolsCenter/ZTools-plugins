@@ -1,9 +1,11 @@
-/** 贴图（悬浮贴）通用设置：按钮显隐、滚轮缩放、关闭手势、复制/保存后行为。 */
+/** 贴图（悬浮贴）通用设置：按钮显隐、滚轮缩放、关闭手势、复制/保存后行为、翻译结果形态。 */
 
 export type WheelZoomMode = 'plain' | 'ctrl'
 export type CloseGesture = 'dblclick' | 'rightclick' | 'both'
 export type CopyAction = 'copy' | 'copy-close'
 export type SaveAction = 'save' | 'save-close'
+/** 点「翻译」后的结果展示：侧边弹窗，或盖在贴图原文字上。 */
+export type TranslateResultMode = 'popup' | 'overlay'
 
 export interface BoardButtonSettings {
   ocr: boolean
@@ -21,6 +23,7 @@ export interface BoardSettings {
   closeGesture: CloseGesture
   copyAction: CopyAction
   saveAction: SaveAction
+  translateResultMode: TranslateResultMode
 }
 
 export const BOARD_SETTINGS_KEY = 'snap-translate.boardSettings'
@@ -38,7 +41,8 @@ export const DEFAULT_BOARD_SETTINGS: BoardSettings = {
   wheelZoom: 'ctrl',
   closeGesture: 'both',
   copyAction: 'copy',
-  saveAction: 'save'
+  saveAction: 'save',
+  translateResultMode: 'popup'
 }
 
 function cloneDefaults(): BoardSettings {
@@ -47,7 +51,8 @@ function cloneDefaults(): BoardSettings {
     wheelZoom: DEFAULT_BOARD_SETTINGS.wheelZoom,
     closeGesture: DEFAULT_BOARD_SETTINGS.closeGesture,
     copyAction: DEFAULT_BOARD_SETTINGS.copyAction,
-    saveAction: DEFAULT_BOARD_SETTINGS.saveAction
+    saveAction: DEFAULT_BOARD_SETTINGS.saveAction,
+    translateResultMode: DEFAULT_BOARD_SETTINGS.translateResultMode
   }
 }
 
@@ -74,6 +79,9 @@ function normalize(input: unknown): BoardSettings {
   }
   if (raw.copyAction === 'copy' || raw.copyAction === 'copy-close') base.copyAction = raw.copyAction
   if (raw.saveAction === 'save' || raw.saveAction === 'save-close') base.saveAction = raw.saveAction
+  if (raw.translateResultMode === 'popup' || raw.translateResultMode === 'overlay') {
+    base.translateResultMode = raw.translateResultMode
+  }
   return base
 }
 

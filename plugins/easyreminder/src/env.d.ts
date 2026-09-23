@@ -46,6 +46,9 @@ interface Services {
   refreshScheduler: () => void
   stopScheduler: () => void
 
+  getHolidayStatus: () => { years: number[]; updatedAt: number; refreshing: boolean }
+  refreshHolidayData: () => Promise<boolean>
+
   getLogs: () => LogEntryLike[]
   addLog: (message: string, detail: Record<string, any>) => void
   clearLogs: () => void

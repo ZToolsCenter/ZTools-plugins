@@ -6,6 +6,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.css$': '<rootDir>/src/__mocks__/styleMock.js',
+    '^.*utils/mockData$': '<rootDir>/src/__mocks__/mockDataMock.js',
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   collectCoverageFrom: [

@@ -302,7 +302,7 @@ export async function clearHistory(type?: ClipType): Promise<number> {
  * ------------------------------------------------------------------ */
 
 /**
- * 本地图片路径 → 能喂给 `<img>` 的 `file://` URL。
+ * 本地原生路径 → 能喂给 `<img>` 的 `file://` URL。**空串进、空串出。**
  *
  * ⚠️ **不能无脑 `'file://' + path`**（09-19 Windows 真机踩的）：宿主给的
  *    `imagePath` 是**原生绝对路径**，Windows 上长这样 `C:\Users\…\a.png`，
@@ -317,8 +317,7 @@ export async function clearHistory(type?: ClipType): Promise<number> {
  *   Windows `C:\Users\x\…\a.png`        → `file:///C:/Users/x/…/a.png`（盘符前补一个 `/`）
  *   UNC     `\\server\share\a.png`      → `file://server/share/a.png`（server 是 host，只留两个 `/`）
  */
-export function imageSrc(item: ClipContent): string {
-  const p = item.imagePath || item.content || ''
+export function fileUrl(p: string): string {
   if (!p) return ''
   if (/^(file|data|blob|https?):/i.test(p)) return p
   // 反斜杠先换成正斜杠：`encodeURI` 会把 `\` 编成 `%5C`，路径就此报废
@@ -331,6 +330,66 @@ export function imageSrc(item: ClipContent): string {
   // `//server/share`：server 要当 host，所以只能 `file:` + 两个斜杠
   if (flat.startsWith('//')) return 'file:' + enc(flat)
   return 'file://' + enc(flat)
+}
+
+/**
+ * 一条**图片内容记录**的缩略图 URL（宿主把它存成 `imagePath`）。
+ *
+ * 判「文件行要不要也显示缩略图」在 `fileThumbSrc` —— 那边拼路径用的就是这个 `fileUrl`，
+ * 所以两处的平台差异只有一份实现。
+ */
+export function imageSrc(item: ClipContent): string {
+  return fileUrl(item.imagePath || item.content || '')
+}
+
+/*
+ * ------------------------------------------------------------------ *
+ * 「这是个图片文件吗」—— 纯看扩展名
+ * ------------------------------------------------------------------ *
+ *
+ * ⚠️ **这跟宿主的类型判定是两回事，别混。**
+ *
+ * 宿主判 `type` 看的是**剪贴板上放的是什么东西**，不看文件名：先问"有没有文件列表"
+ * （mac `clipboard.has("NSFilenamesPboardType")` / win `CF_HDROP`），有就一律 `file`，
+ * 再问图片、最后才轮到文本。所以复制一个 `a.png` **文件**得到的永远是 `type: "file"`，
+ * 扩展名根本不参与 —— 插件改不了，也不该假装能改（记录里写的还是文件）。
+ *
+ * 这里做的是**纯显示层**的让步：文件行本来只有一个通用文件图标，看不出是不是张图。
+ * 既然记录里带着完整路径，那就顺手把它当图片显示出来，跟图片行长得一样。
+ * **只影响长相**：类型标签还是「文件」，按 Tab 到「图像」也照样看不到它。
+ */
+
+/**
+ * 认作图片的扩展名。
+ *
+ * 只收 **Chromium 真渲染得出来** 的那几种 —— 认了却渲染不出来，只会白跑一次
+ * `@error` 再退回文件图标（`.tif` / `.heic` 就是这种：看着像图片，Chromium 打不开）。
+ * `svg` 是**故意不收**的：它多半是图标 / 线条图，缩进 32×24 的框里什么都看不出来，
+ * 不如留个文件图标。想收就加在这儿，别改判定顺序。
+ */
+const IMAGE_FILE = /\.(?:png|jpe?g|jfif|webp|gif|bmp|avif|ico)$/i
+
+export function isImageFileName(name: string): boolean {
+  return IMAGE_FILE.test(name)
+}
+
+/**
+ * 文件行要显示的缩略图 URL —— 不是图片文件就返回空串（那一格还是文件图标）。
+ *
+ * 只认**恰好一个、且不是目录**的文件：
+ * 多选了 5 个文件却显示其中一张的缩略图，会让人以为"这条内容就是那张图"，
+ * 而它其实是 5 个文件。多选就老老实实显示文件图标 + 数量。
+ *
+ * 读不出来（文件被删 / 挪走 / 是个坏文件）不用在这里管 —— `<img>` 自己会 `@error`，
+ * 由调用方退回文件图标（见 App.vue 的 `markBroken`）。
+ */
+export function fileThumbSrc(item: ClipContent): string {
+  if (item.type !== 'file') return ''
+  const files = item.files
+  if (!files || files.length !== 1) return ''
+  const f = files[0]
+  if (f.isDirectory || !isImageFileName(f.name)) return ''
+  return fileUrl(f.path)
 }
 
 /**

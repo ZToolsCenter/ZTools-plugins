@@ -436,25 +436,6 @@
 }
 
 .task-pool-input textarea {
-  width: 100%;
-  padding: var(--sp-2) var(--sp-3);
-  background: transparent;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  color: var(--ink);
   resize: none;
-  min-height: 44px;
-  transition: all var(--duration-fast) var(--ease-out);
   line-height: 1.5;
-}
-
-.task-pool-input textarea::placeholder {
-  color: var(--clay);
-}
-
-.task-pool-input textarea:focus {
-  background: transparent;
-  border-color: var(--teal-border);
-  box-shadow: 0 0 0 1px var(--teal-muted);
 }

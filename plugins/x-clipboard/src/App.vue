@@ -17,6 +17,7 @@ import {
   clearHistory,
   deleteItem,
   fetchHistory,
+  fileThumbSrc,
   imageSrc,
   matchClip,
   zt,
@@ -123,6 +124,21 @@ interface Row {
    */
   seg: Seg[]
   /**
+   * 行首那格要不要显示**真缩略图**，要就给出 URL，不要就是空串（那一格走图标）。
+   *
+   * 两种来源打平成一个字段：
+   *   · `type === "image"` —— 宿主存的图（`imageSrc`）；
+   *   · `type === "file"` —— **单个且扩展名是图片**的文件（`fileThumbSrc`）。
+   *
+   * ⚠️ 后者纯粹是**显示层的让步**，别把它读成"文件变成图片了"：宿主判类型看的是剪贴板
+   *    上放的是文件还是位图，不看扩展名（复制一个 `.png` 文件永远是 `file`，插件的类型
+   *    标签也照旧写「文件」、按 Tab 到「图像」照样看不见它）。这里只是"既然路径就在手里，
+   *    那就把图标换成长相"，判定逻辑全在 `lib/clipboard.ts` 的 `fileThumbSrc`。
+   *
+   * 空串同时也是"这一行没有可显示的图"的唯一说法 —— 模板里 `row.thumb &&` 就是它兜底。
+   */
+  thumb: string
+  /**
    * 来源应用的短名（`VSCode` / `Chrome`…），**没有来源就是 `null`**（那一格不渲染）。
    * 老数据和老收藏里没有 `appName`，所以这里必须是「可能为空」而不是空串。
    */
@@ -168,6 +184,44 @@ const confirmBox = ref<{ text: string; danger: boolean; run: () => void } | null
  * 为什么见 `.foot.fade` 那段样式）。平时恒 false —— 其他三档根本不看它。
  */
 const footRevealed = ref(false)
+
+/* ------------------------------------------------------------------ 行尾
+
+ *
+ * 行尾那一格有两样东西是**跟着设置走**的：
+ *   · `actsShown` —— 收藏 / 删除两颗按钮开着几颗（0 / 1 / 2）。模板靠它决定要不要
+ *     给按钮留位、以及留**几颗**的位（`.tail-acts` / `.tail-acts-one`）。
+ *   · `favFlash` —— 快捷键收藏之后那一颗「行内瞬时星」的落点。
+ *
+ * ⚠️ 瞬时星**只在行尾没有收藏按钮（`tailFav` 为假）时才出现**（老大 09-21 定的）：
+ *    按钮开着的时候它自己会立刻点亮 / 熄灭，再闪一颗就是同一句话说两遍。
+ *    删除**不做**退场动画 —— 数据当场就没了，用户看得出来成功了。
+ */
+
+/** 收藏 / 删除这两颗按钮开着几颗 */
+const actsShown = computed(() => (settings.value.tailFav ? 1 : 0) + (settings.value.tailDel ? 1 : 0))
+
+/** 瞬时星亮多久。⚠️ 跟样式里 `@keyframes fav-flash` 的时长是**同一个数**（`styles.test.ts` 钉着） */
+const FAV_FLASH_MS = 1100
+
+/**
+ * 瞬时星：落在哪一行、第几次。
+ *
+ * `n` 是给模板当 `:key` 用的：同一条连着按两次（收藏 → 取消）时元素并没被卸载，
+ * CSS 动画不会自己重播 —— 换掉 key 才会真正重建一个，动画从头来。
+ */
+const favFlash = ref<{ key: string; n: number } | null>(null)
+
+let favFlashTimer: number | undefined
+
+/** 让某一行闪一颗星。同一行连按只把它续上（并重播动画），不会叠出第二颗 */
+function flashFavorite(key: string): void {
+  window.clearTimeout(favFlashTimer)
+  favFlash.value = { key, n: favFlash.value?.key === key ? favFlash.value.n + 1 : 1 }
+  favFlashTimer = window.setTimeout(() => {
+    favFlash.value = null
+  }, FAV_FLASH_MS)
+}
 
 /* ------------------------------------------------------------------ 浮层
 
@@ -275,6 +329,8 @@ function makeRow(
     ...base,
     text,
     seg: splitHighlight(text, kw),
+    // 图片记录走 `imageSrc`，图片扩展名的文件走 `fileThumbSrc`，两者都可能给空串
+    thumb: base.data.type === 'image' ? imageSrc(base.data) : fileThumbSrc(base.data),
     source: sourceLabel(base.data),
     label: labelOf(base.data),
     favored: favored || favKeys.value.has(favKeyOf(base.data))
@@ -646,6 +702,102 @@ function move(delta: number): void {
   selectOnly(row)
 }
 
+/*
+ * ───────────────────────── 翻页 ─────────────────────────
+ *
+ * `PageDown` / `PageUp`：一次跳一屏（09-21，老大提的 —— 一屏 13 行，
+ * 找第 14 条要按十几次 ↓）。
+ *
+ * 三个决定都写在这儿，免得以后有人"顺手改一下"：
+ *
+ * ① **步长是量出来的，不是常量 13。** 行高有两档（纯文本 36px / 带缩略图·文件图标的
+ *    42px，见 base.css 的 `--row-h` / `--row-h-tall`），一屏到底装几行随内容和窗口高度变。
+ *    写死 13 的话，混排的那几屏会漏掉一行 —— 而"漏一行"这种错极难被发现，
+ *    人只会觉得"刚才好像扫过去一条"。
+ *
+ * ② **留一行**：步长 = 一屏行数 − 1，上一屏的最后一行当新屏的第一行。
+ *    浏览器的 PageDown 也是这么做的，好处是两屏之间有个重合的抓手。
+ *    ⇒ 顺带一个保证：步长恒小于屏高，所以**永远不会漏行**。
+ *    （想改成"整页无重叠"，把下面那个 `- 1` 去掉就行，一处。）
+ *
+ * ③ **基准是"屏幕最上面那一行"，不是"当前行"。** 这样"按一下"和"屏幕动一屏"
+ *    永远是同一件事（跟 vim 的 Ctrl+F 同一套）。若拿当前行当基准，用 ↓ 把光标
+ *    挪到屏幕中间之后再翻页，屏幕只会挪半屏 —— 每次按键前进多少还不一样，就没法预期了。
+ *
+ * 翻过去之后**新屏的第一行就是新的当前行**，列表滚到它贴顶。
+ * 当前行绝不能落在屏幕外面 —— 否则接下来按 Enter 粘到哪一条就成了盲猜。
+ *
+ * ⚠️ 前提：焦点得先在插件里（跟 ⌘K / Delete 一样）。PageDown 不在宿主那六个转发键里，
+ *    所以打开插件就直接按是没反应的。详见 lib/keys.ts 里那两条 case 上面的说明。
+ */
+
+/** 屏幕最上面那一行在（已渲染的）列表里的下标 */
+function topRowIndex(): number {
+  const list = listRef.value
+  if (!list) return 0
+  const box = list.getBoundingClientRect()
+  const els = list.querySelectorAll<HTMLElement>('.row')
+  for (let i = 0; i < els.length; i++) {
+    // 底边越过列表顶 = 这一行至少露出了一点点，就是它
+    if (els[i].getBoundingClientRect().bottom > box.top + 1) return i
+  }
+  return 0
+}
+
+/** 当前视口里**完整露出来**的行数。42px 的行自然少占一格，所以只能量 */
+function pageRows(): number {
+  const list = listRef.value
+  if (!list) return 1
+  const box = list.getBoundingClientRect()
+  let n = 0
+  for (const el of list.querySelectorAll<HTMLElement>('.row')) {
+    const r = el.getBoundingClientRect()
+    if (r.top >= box.top - 1 && r.bottom <= box.bottom + 1) n++
+  }
+  return Math.max(1, n)
+}
+
+function pageMove(dir: 1 | -1): void {
+  const list = listRef.value
+  if (!list || !rows.value.length) return
+
+  const step = Math.max(1, pageRows() - 1)
+  const from = activeIndex.value < 0 ? 0 : topRowIndex()
+  const to = Math.min(rows.value.length - 1, Math.max(0, from + dir * step))
+  const row = rows.value[to]
+  if (!row) return
+  // 到头了：停在原地，**不循环**（循环会让人分不清自己翻到哪儿了）
+  if (row.key === activeKey.value) return
+
+  // 目标行可能还在渲染窗口之外，先放出来 —— 不然下面量不到它的位置
+  ensureRendered(to)
+  selectOnly(row)
+
+  /*
+   * 把它顶到屏幕最上面。
+   *
+   * ⚠️ 这一步**不能**用 `scrollIntoView({ block: 'nearest' })`（`scrollActiveIntoView`
+   *    用的那个）：`nearest` 在"这一行已经完整可见"时什么都不做，而翻页要的恰恰是
+   *    "把它挪到最上面"。用它的话，当光标本来就在屏幕中间时，按 PageDown 会纹丝不动。
+   *
+   * 直接写 `scrollTop`，跟 `watch(activeKey)` 里那次 `scrollActiveIntoView()` 不打架：
+   * 等它跑的时候这一行已经完整可见，`nearest` 自然成了空操作。
+   *
+   * 放在 `nextTick` 里是因为上一步的 `ensureRendered()` 可能要新建 DOM（渲染窗口外的行）。
+   */
+  void nextTick(() => {
+    const el = listRef.value
+    if (!el) return
+    const els = el.querySelectorAll<HTMLElement>('.row')
+    const target = els[to]
+    const first = els[0]
+    if (!target || !first) return
+    // 两个 offsetTop 相减：行的定位基准是 `.root` 而不是 `.list`，但同一次相减
+    // 会把那个基准抵消掉，差值就是内容坐标系里的真实距离（跟滚动位置无关）。
+    el.scrollTop = target.offsetTop - first.offsetTop
+  })
+}
+
 /* ---------------------------------------------------------------- 动作 */
 
 /** 把某一条粘出去。历史走宿主、收藏走自己那条路 —— 两种行都是同一个动作 */
@@ -686,23 +838,29 @@ function copyActive(): void {
   copyToClipboard(row.data)
 }
 
+/**
+ * 收藏 / 取消收藏当前这一条。
+ *
+ * 反馈分两种（老大 09-21 定的）：
+ *   · 行尾**有**收藏按钮 —— 那枚 ☆ 会立刻点亮 / 熄灭，状态就写在你看的那一行上，
+ *     不再加别的东西（这时候闪星是重复的）；
+ *   · 行尾**没有**收藏按钮 —— 界面上什么都不会动，等于"静默成功" ⇒ 补一颗行内瞬时星。
+ * 两种都**不弹提示**（老大 09-16 要求去掉全部 toast）：在内容上面盖一块的收益是零。
+ */
 async function toggleFavorite(): Promise<void> {
   const row = activeRow.value
   if (!row) return
   // 查找走 lib/favorites 的 findFavorite —— 这里原来自己又写了一遍
   // 「算指纹 + 在收藏里找」，跟 isFavorite 是逐字重复的两份实现。
   const hit = findFavorite(row.data, favorites.value)
-
-  /*
-   * 收藏 / 取消收藏**都不弹提示**（老大 09-16 要求去掉）。
-   * 行尾那枚 ☆ 会立刻点亮或熄灭，状态就写在你看的那一行上 ——
-   * 再浮一句「已收藏」，反而在内容上面盖一块，收益是零。
-   */
   favorites.value = hit
     ? await removeFavorite(hit.favId, favorites.value)
     : await addFavorite(row.data, favorites.value)
 
   if (view.value === 'favorites') syncSelection()
+  // ⚠️ 必须排在写库**之后**：那颗星实心 / 空心是跟着收藏状态走的，
+  //    先闪再写会先画出一颗错的（刚收藏却显示空心）。
+  if (!settings.value.tailFav) flashFavorite(row.key)
 }
 
 /**
@@ -1180,6 +1338,25 @@ function onKeydown(e: KeyboardEvent): void {
       if (!e.repeat) takeKeyboard()
       move(1)
       break
+    case 'pageDown':
+    case 'pageUp':
+      /*
+       * 翻一屏。
+       *
+       * `takeKeyboard()` 只有 `⌘↓` / `⌘↑` 这条来路用得上 —— 它俩是宿主从搜索框
+       * 转发过来的，按下去的时候焦点还在搜索框。`PageDown` / `PageUp` 不在那六个
+       * 转发键里，能走到这儿就说明焦点已经在插件里了，这一下等于空跑。
+       * 跟 ↑↓ 同一个目的：**从这一下起算"我在用键盘浏览"** ——
+       * 不然后面按 ⌘K / ⌘C / Delete 还是收不到（详见 takeKeyboard 上面的说明）。
+       *
+       * ⚠️ 跟 ↑↓ 一样用 `!e.repeat` 挡住长按连发：连发时焦点早就过去了，
+       *    没必要每帧来一次同步 IPC。
+       * ⚠️ 但**不挡** `e.repeat` 本身 —— 长按一路翻下去正是想要的，
+       *    跟 ←→ 那种"直接落库"的键不是一回事。
+       */
+      if (!e.repeat) takeKeyboard()
+      pageMove(action === 'pageDown' ? 1 : -1)
+      break
     case 'enter':
       void pasteActive()
       break
@@ -1383,6 +1560,7 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', onVisibilityChange)
   window.clearTimeout(reloadTimer)
   window.clearTimeout(peekTimer)
+  window.clearTimeout(favFlashTimer)
 })
 
 </script>
@@ -1402,20 +1580,29 @@ onUnmounted(() => {
         class="row"
         :class="{
           on: !settingsOpen && row.key === activeKey,
-          tall: row.data.type !== 'text'
+          tall: row.data.type !== 'text',
+          'fav-flash': !!favFlash && favFlash.key === row.key
         }"
         @click="onRowClick(row)"
         @dblclick="onRowDblClick(row)"
       >
+        <!-- ⚠️ 这一格是**三岔、且顺序不能换**的：缩略图（有图才出）→ 文件图标 → 图片占位图标。
+              倒数第二条按 `type === "file"` 兜，所以"图片扩展名的文件"一旦读不出来（文件被删/
+              挪走），掉到的是**文件图标** —— 正是它该有的样子，不会变成破图。
+              最后那条才轮到 `type === "image"`：它专管"图片记录读不出来"（宿主那份 png 被
+              清掉了），用的是同一个 `.thumb` 但里头放的是占位 svg。 -->
         <img
-          v-if="row.data.type === 'image' && !brokenThumbs.has(row.key)"
+          v-if="row.thumb && !brokenThumbs.has(row.key)"
           class="thumb"
-          :src="imageSrc(row.data)"
+          :src="row.thumb"
           alt=""
           loading="lazy"
           decoding="async"
           @error="markBroken(row.key)"
         />
+        <!-- 文件行。普通文件走这个图标；**单个图片扩展名的文件**由上面那条 `<img>` 先接走
+             （`fileThumbSrc` 认 .png/.jpg/…，判定和名单都在 `lib/clipboard.ts`）。
+             类型标签照旧是「文件」—— 它确实还是个文件，只是长出了缩略图。 -->
         <div v-else-if="row.data.type === 'file'" class="ficon">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
             <path d="M9.3 2.3H4.9a1.4 1.4 0 0 0-1.4 1.4v8.6a1.4 1.4 0 0 0 1.4 1.4h6.2a1.4 1.4 0 0 0 1.4-1.4V5.4z" />
@@ -1437,18 +1624,23 @@ onUnmounted(() => {
                 变成真实字符，白白挤掉一格。 -->
         <div class="t"><span v-for="(s, k) in row.seg" :key="k" :class="{ hl: s.hit }">{{ s.t }}</span></div>
 
-        <!-- 行尾那一格。四样东西，各自可以在设置里关掉：
+        <!-- 行尾那一格。常驻四样，各自可以在设置里关掉：
                · 序号（只给前 9 行）—— 配 ⌘1–⌘9 秒贴
                · 来源（VSCode / Chrome…）—— 这条是在哪个软件里复制出来的
                · 类型标签（文本 / 链接 / 图像 / 文件）
-               · 收藏 / 删除两枚按钮 —— **鼠标划过、或这行是当前行**时出现（两者一致）；
+               · 收藏 / 删除两枚按钮 —— 09-21 起**各开各的**（原来「行尾按钮」一个总开关管两颗，
+                 想要"只要收藏、不要删除"做不到）；**鼠标划过、或这行是当前行**时出现（两者一致），
                  它出现时上面三样在这一格让位（同一个位置叠着，见下面对应的 CSS）
              按钮是 absolute 叠在这一格的右端、靠透明度切换，所以它出现/消失都不改行宽
-             （`.tail-acts` 给它留了固定宽度）。四样都不开就是彻底没有行尾。
+             （`.tail-acts` 按**开着几颗**留位）。常驻那几样全关就是彻底没有行尾。
              ⚠️ 序号必须取 `v-for` 的下标 —— 跟 `pasteAt()` 取的是同一个 `visibleRows`，
                 另算一份迟早错位（按 ⌘3 粘到第 4 条）。
              按钮都得 .stop，不然点它们会连带触发行的 click（改选中）/ dblclick（复制）。 -->
-        <div class="tail" :class="{ 'tail-acts': settings.tailActs }" @dblclick.stop>
+        <div
+          class="tail"
+          :class="{ 'tail-acts': actsShown > 0, 'tail-acts-one': actsShown === 1 }"
+          @dblclick.stop
+        >
           <span v-if="settings.tailIndex && i < 9" class="num">{{ i + 1 }}</span>
           <!-- 来源排在类型标签**前面**：两个都是淡淡的纯文字，挨着放；类型标签是带底色的
                药丸，留在最右端当这一格的收尾。
@@ -1456,8 +1648,9 @@ onUnmounted(() => {
                   显示成「未知」等于凭空多一列。 -->
           <span v-if="settings.tailSource && row.source" class="src">{{ row.source }}</span>
           <span v-if="settings.tailType" class="tag">{{ row.label }}</span>
-          <div v-if="settings.tailActs" class="acts">
+          <div v-if="actsShown" class="acts">
             <button
+              v-if="settings.tailFav"
               class="act"
               :class="{ lit: row.favored }"
               :title="row.favored ? '取消收藏' : '收藏'"
@@ -1467,7 +1660,7 @@ onUnmounted(() => {
                 <path d="M8 1.07L9.72 5.63L14.6 5.85L10.79 8.91L12.08 13.61L8 10.93L3.92 13.61L5.21 8.91L1.4 5.85L6.28 5.63Z" />
               </svg>
             </button>
-            <button class="act danger" title="删除" @click.stop="onRowRemove(row)">
+            <button v-if="settings.tailDel" class="act danger" title="删除" @click.stop="onRowRemove(row)">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
                 <path d="M2.27 4.4H13.73" />
                 <path d="M6.27 4.4V3.07A1.2 1.2 0 0 1 7.47 1.87H8.53A1.2 1.2 0 0 1 9.73 3.07V4.4" />
@@ -1477,6 +1670,24 @@ onUnmounted(() => {
               </svg>
             </button>
           </div>
+
+          <!-- 瞬时星：`⌘K` 收藏完那一下的回执，**只在行尾没有收藏按钮时**才需要
+               （按钮开着的时候它自己会点亮 / 熄灭，再闪一颗就是同一句话说两遍）。
+               ⚠️ 绝对定位、不进流：它是"刚成功了"的一句话，不该把行里的字挤走 ——
+                  放进流里 `.tail` 会宽出一颗星、`.t` 跟着短一截，每次收藏都跳一下。
+               ⚠️ `:key` 用次数：同一条连着按两次（收藏 → 取消）时元素没被卸载，
+                  CSS 动画不会自己重播，换掉 key 才会真正重建一个。 -->
+          <span
+            v-if="favFlash && favFlash.key === row.key"
+            :key="favFlash.n"
+            class="favflash"
+            :class="{ hollow: !row.favored }"
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 16 16" stroke-linejoin="round">
+              <path d="M8 1.07L9.72 5.63L14.6 5.85L10.79 8.91L12.08 13.61L8 10.93L3.92 13.61L5.21 8.91L1.4 5.85L6.28 5.63Z" />
+            </svg>
+          </span>
         </div>
       </div>
     </div>
@@ -1532,6 +1743,13 @@ onUnmounted(() => {
       <div class="hints">
         <template v-if="settings.foot === 'full'">
           <span><kbd>↑↓</kbd>选择</span>
+          <!-- ★ 翻页提示（09-21）。跟 ⌘1–⌘9 那条同一个理由：**实现了键盘路径就必须在
+               界面上写出来**，否则只有翻过 README 的人知道。
+               这里写 ⌘↓ 不写 PageDown —— ⌘↓ 在搜索框里就能按（不用先按 ↑↓ 搬焦点），
+               是更该被看见的那一个；PageDown / PageUp 是给习惯标准键的人留的，
+               README 里两个都列着。
+               ⚠️ 这排提示是 `overflow: hidden` 的定宽预算，再加一条之前先想清楚要挤掉谁。 -->
+          <span><kbd>{{ modKey('↓') }}</kbd>翻页</span>
           <span><kbd>Tab</kbd>分类</span>
           <span><kbd>Enter</kbd>粘贴</span>
           <span><kbd>{{ modKey('1') }}–{{ modKey('9') }}</kbd>秒贴</span>
@@ -1606,9 +1824,9 @@ onUnmounted(() => {
           ────────────────────────────────────────────────────────────────
           ★ 09-17 老大要求：按「控件类型」分三段，段内按行长**从短到长**（短的在上面，逐级变宽）。
             ① 色点段：底色（4 颗、一行）→ 强调色（13 颗、两行）
-            ② 选中段：行尾（3 颗）→ 选中项（3 颗）→ 底栏（4 颗）
-            ③ 开关段：行尾按钮 / 显示详情 / 删除前确认
-          为什么不按"主题"排（比如让「行尾按钮」贴着「行尾」）：那样三种控件形状会一格一格
+            ② 多选段：行尾操作（2 颗）→ 行尾显示（3 颗）→ 选中项（3 颗）→ 底栏（4 颗）
+            ③ 开关段：显示详情 / 删除前确认
+          为什么不按"主题"排（比如让「行尾操作」贴着「行尾显示」的另一半）：那样三种控件形状会一格一格
           交替出现 —— 色点、药丸、开关、药丸、开关…… 右边缘那一列开关被药丸行打断，看着毛躁。
           同形状的挨在一起，面板才有节奏。段与段之间靠 `.blk` 多留一点空。
 
@@ -1617,16 +1835,43 @@ onUnmounted(() => {
              底栏 4 颗上面。别再拿"重的放上面更稳"这种直觉改回长→短。
              （09-18 行尾加了第 3 颗「来源」之后，行尾和选中项都是 3 颗 —— 这一段平了，
               两行谁前谁后都不违背判据，所以**保持原样不动**，别为"凑成一个严格递增"去调顺序。）
-          ⚠️ 开关那三行的控件宽度**完全一样**（都是"左标题 + 右侧开关"的满宽行），按颗数没有可排的；
-             按**标签字数**排恰好也就是现在的先后（行尾按钮 4 / 显示详情 4 / 删除前确认 5），所以不动。
+          ⚠️ 09-21「行尾按钮」从开关拆成「行尾操作」（收藏 / 删除两颗药丸）之后，
+             它从**开关段**搬进了**多选段**：按短→长排在「行尾显示」（3 颗）**前面**。
+             别按"先显示后操作"的语序把它俩对调 —— 那是往回走（`panel.ts` 里也写着这条）。
+          ⚠️ 开关那两行的控件宽度**完全一样**（都是"左标题 + 右侧开关"的满宽行），按颗数没有可排的；
+             按**标签字数**排恰好也就是现在的先后（显示详情 4 / 删除前确认 5），所以不动。
         -->
-        <!-- 行尾：**多选**（跟色点一样是「点一下选上、再点一下取消」，区别只是这里能同时选好几个）。
+        <!-- 行尾**操作**：收藏 / 删除两颗按钮，各开各的（两颗都关 = 鼠标没有操作入口，
+             收藏 / 删除只剩 ⌘K 和 Delete —— 老大 09-21 要的就是这个自由度）。
+             跟下面「行尾显示」一样是**多选**：点一下选上、再点一下取消，两颗互不顶掉。
+             ⚠️ 这两颗的**先后必须跟 `panel.ts` 里 `PANEL_ROWS.tailActs.values` 的顺序一致**。 -->
+        <div class="grp blk">
+          <div class="lbl">行尾操作</div>
+          <div class="chips">
+            <button
+              class="chip"
+              :class="{ on: settings.tailFav, cur: isCur('tailActs', 0) }"
+              @click="updateSettings({ tailFav: !settings.tailFav })"
+            >
+              收藏
+            </button>
+            <button
+              class="chip"
+              :class="{ on: settings.tailDel, cur: isCur('tailActs', 1) }"
+              @click="updateSettings({ tailDel: !settings.tailDel })"
+            >
+              删除
+            </button>
+          </div>
+        </div>
+
+        <!-- 行尾**显示**：**多选**（跟色点一样是「点一下选上、再点一下取消」，区别只是这里能同时选好几个）。
              都不选 = 行尾什么都没有。序号 / 来源 / 类型是三件独立的事，不该互相顶掉 —— 不做成三选一。
              ⚠️ 三颗的**先后必须跟 `panel.ts` 里 `PANEL_ROWS.tail.values` 的顺序一致**：
                 `←→` 挪的是第几颗、`Enter` 切的就是 `values[第几]` 那个键，错位就会静默切错开关。
                 改顺序要么两边一起改，要么别改（`tests/panel.test.ts` 钉着这条）。 -->
-        <div class="grp blk">
-          <div class="lbl">行尾</div>
+        <div class="grp">
+          <div class="lbl">行尾显示</div>
           <div class="chips">
             <button
               class="chip"
@@ -1684,15 +1929,6 @@ onUnmounted(() => {
 
         <button
           class="opt blk"
-          :class="{ cur: isCur('tailActs', 0) }"
-          @click="updateSettings({ tailActs: !settings.tailActs })"
-        >
-          <span class="nm">行尾按钮</span>
-          <span class="sw" :class="{ on: settings.tailActs }"><i /></span>
-        </button>
-
-        <button
-          class="opt"
           :class="{ cur: isCur('peek', 0) }"
           @click="updateSettings({ peek: !settings.peek })"
         >
@@ -1875,6 +2111,16 @@ onUnmounted(() => {
 .root.mark-solid .row.on .act.lit svg {
   fill: var(--row-on-tx);
 }
+/* 瞬时星同理：强调色底上填强调色的星 = 自己填自己，实心行里一律反白。
+   ⚠️ 空心那颗（刚取消收藏）得把 fill 收回去，不然反白填满 = 看起来像"刚收藏"，
+      反馈正好说反。特异性比上面那条多一个类，能盖住。 */
+.root.mark-solid .row.on .favflash svg {
+  stroke: var(--row-on-tx);
+  fill: var(--row-on-tx);
+}
+.root.mark-solid .row.on .favflash.hollow svg {
+  fill: none;
+}
 /* 删除键悬停本来是红色，铺在彩色实心底上会打架，统一走反白的深一层 */
 .root.mark-solid .row.on .act.danger:hover {
   background: rgba(var(--on-accent-rgb), 0.34);
@@ -1964,11 +2210,25 @@ onUnmounted(() => {
   gap: 6px;
   justify-content: flex-end;
   height: 22px;
+  /* 行尾按钮那一格占多宽。平时 0（没有按钮），`.tail-acts` / `.tail-acts-one` 各自覆盖；
+     瞬时星靠它停在按钮左边（见 `.favflash`）。 */
+  --acts-w: 0px;
 }
-/* 只给两枚 22px 按钮留位。关掉按钮之后这 50px 也该还回去 ——
-   不然一块空留白会按"行尾"的直觉压着内容，白占地方。 */
+/*
+ * 给行尾按钮留位 —— **开着几颗就留几颗**（09-21 拆成两颗独立按钮之后才有这回事）：
+ * 两颗 22 + 2 + 22 = 46、一颗 22，各多给 4px 当缝隙。
+ * 一颗都不开时这几 px 也该还回去，不然一块空留白会按"行尾"的直觉压着内容，白占地方。
+ *
+ * ⚠️ `--acts-w` 是**同一个数**留给瞬时星用的（它得停在按钮左边，不能压着「删除」）。
+ * ⚠️ 两条的特异性一样（都是 `.tail.X`），靠**源码顺序**决出谁赢 ⇒ `-one` 必须排在后面。
+ */
 .tail.tail-acts {
   min-width: 50px;
+  --acts-w: 46px;
+}
+.tail.tail-acts-one {
+  min-width: 26px;
+  --acts-w: 22px;
 }
 /* 序号：给 ⌘1–⌘9 用的，刻意做得很淡 —— 它是熟练之后的参考线，不是内容本身。
    tabular-nums 让每个数字占同样宽，几十行竖着排不会左右跳。 */
@@ -2075,6 +2335,73 @@ onUnmounted(() => {
 }
 .act.danger:hover {
   color: var(--danger);
+}
+
+/*
+ * ★ 行内瞬时星（09-21）：`⌘K` 收藏完之后，**行尾没有收藏按钮时唯一的反馈**。
+ *
+ * 形态就是行尾那枚 ☆（同一个 path、同样是实心 = 已收藏），只是它自己会淡掉 ——
+ * 实心 = 刚收藏、空心 = 刚取消，跟按钮那套 `lit` 是同一个语义。
+ *
+ * ⚠️ **绝对定位、不进流**：它只是"刚才那一下成了"的一句回执，不该为此把行里的字挤走。
+ *    放进流里（做成 `.tail` 的第一个孩子）`.tail` 会宽出一颗星、`.t` 跟着短一截 ——
+ *    每收藏一次，你正看着的那行文字就跳一下。
+ * ⚠️ `right` 让开按钮那一格（`--acts-w`）：收藏按钮关着的时候，「删除」可能正开在那儿，
+ *    星落在它头上就是叠字。
+ * ⚠️ 动画时长跟 JS 里的 `FAV_FLASH_MS` 是**同一个数**（`styles.test.ts` 钉着），
+ *    改一个就得改另一个；`forwards` 保证放完停在透明上，不会"亮着一颗不走的星"。
+ */
+.favflash {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(var(--acts-w) + 2px);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  transform-origin: right center;
+  animation: fav-flash 1.1s ease forwards;
+}
+/* 弹一下 → 停住 → 淡掉，总长就是 `FAV_FLASH_MS` */
+@keyframes fav-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  14% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+.favflash svg {
+  width: 11px;
+  height: 11px;
+  stroke: var(--accent);
+  fill: var(--accent);
+  stroke-width: 1.1;
+}
+/* 刚取消收藏：给一颗"熄灭"的空心星，别让反馈说反 */
+.favflash.hollow svg {
+  fill: none;
+  stroke: var(--tx-2);
+}
+/*
+ * 星亮着的那 1.1s 里，常驻那三样（序号 / 来源 / 类型）也让位 —— 跟按钮出场是同一套做法，
+ * 星就落在它们原来待的那一格上，不叠字。
+ * ⚠️ 这里**不带 `.tail-acts`**：两颗按钮全关时 `.tail` 上根本没有那个类，而瞬时星照闪。
+ */
+.row.fav-flash .tail .num,
+.row.fav-flash .tail .src,
+.row.fav-flash .tail .tag {
+  opacity: 0;
 }
 
 .empty {

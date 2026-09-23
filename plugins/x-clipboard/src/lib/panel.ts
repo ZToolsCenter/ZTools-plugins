@@ -42,15 +42,20 @@ export interface PanelRow {
  * ⚠️ 底色的候选值直接用 `BG_KEYS`，它**本身就含 `'auto'`**；
  *    而强调色那份 `ACCENT_KEYS` **不含** `'auto'`，得自己补上。
  *    两处不一样（`surface.ts` 和 `accent.ts` 就是这么导出的），别顺手写成一样的。
+ *
+ * ⚠️ `tailActs` 这一行 09-21 从**开关**变成了**多选**（收藏 / 删除拆成两个独立开关），
+ *    于是它从「开关段」搬进了「药丸段」。按段内**短→长**，它（2 颗）排在
+ *    「行尾显示」（3 颗）**前面** —— 别按"先显示后操作"的语序把它俩对调，那是往回走。
  */
 export const PANEL_ROWS: readonly PanelRow[] = [
   { id: 'bg', kind: 'single', values: BG_KEYS },
   { id: 'accent', kind: 'single', values: ['auto', ...ACCENT_KEYS] },
-  // 行尾是**多选**：类型 / 序号 / 来源三件独立的事，各自开关，不互相顶掉
+  // 行尾**操作**：收藏 / 删除两颗按钮，各自独立（两颗都不开 = 鼠标没有操作入口）
+  { id: 'tailActs', kind: 'multi', values: ['tailFav', 'tailDel'] },
+  // 行尾**显示**：类型 / 序号 / 来源三件独立的事，各自开关，不互相顶掉
   { id: 'tail', kind: 'multi', values: ['tailType', 'tailIndex', 'tailSource'] },
   { id: 'mark', kind: 'single', values: MARK_MODES },
   { id: 'foot', kind: 'single', values: FOOT_MODES },
-  { id: 'tailActs', kind: 'switch', values: [] },
   { id: 'peek', kind: 'switch', values: [] },
   { id: 'confirmDelete', kind: 'switch', values: [] }
 ]
@@ -125,8 +130,9 @@ export function moveSlot(cur: Cursor, delta: -1 | 1): Cursor {
  *   （这也是"改个颜色只按一下"的来由）。到边了没挪动就回 `null`：既不该白写一次库，
  *   也免得在边界上反复按把同一份设置存来存去。
  * - `switch`：**左 = 关、右 = 开**。开关只有两个状态，"往左拨"自然就是关。
- * - `multi`：**回 `null`** —— 类型 / 序号是两个独立开关，"移到哪一颗就点亮哪一颗"
- *   会在从类型滑到序号时把序号一起点亮。所以行尾那一行 `←→` 只挪光标，`Enter` 才切。
+ * - `multi`：**回 `null`** —— 多选行里每颗都是独立开关（行尾操作：收藏 / 删除；
+ *   行尾显示：类型 / 序号 / 来源），"移到哪一颗就点亮哪一颗"会在从一颗滑到下一颗时
+ *   把下一颗一起点亮。所以这两行 `←→` 只挪光标，`Enter` 才切。
  */
 export function movePatch(cur: Cursor, delta: -1 | 1): Partial<Settings> | null {
   const row = PANEL_ROWS[cur.row]

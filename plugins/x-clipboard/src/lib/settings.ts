@@ -85,8 +85,17 @@ export interface Settings {
    * 跟 `tailType` / `tailIndex` 是**多选**关系；三样都不开就是行尾什么都没有。
    */
   tailSource: boolean
-  /** 鼠标划过时，行尾浮现「收藏 / 删除」两枚按钮（鼠标唯一的操作入口） */
-  tailActs: boolean
+  /**
+   * 行尾浮现的按钮里，**显示「收藏」那一颗**（鼠标划过 / 这行是当前行时浮现）。
+   *
+   * 跟 `tailDel` 是**多选**关系（09-21 从单个总开关 `tailActs` 拆出来的）——
+   * 之前一个开关管两颗，想要"只要收藏、不要删除"做不到。
+   * 两颗都不开 = 鼠标没有任何操作入口（跟以前 `tailActs: false` 一模一样），
+   * 这时收藏 / 删除只剩 ⌘K 和 Delete —— 老大明确要的就是这个自由度。
+   */
+  tailFav: boolean
+  /** 行尾浮现的按钮里，**显示「删除」那一颗**。跟 `tailFav` 多选，见上。 */
+  tailDel: boolean
 }
 
 /**
@@ -142,20 +151,29 @@ export const DEFAULT_SETTINGS: Settings = {
   tailIndex: false,
   // 来源默认关：88% 是同样两个应用，常驻反而是噪声（理由见上面 tailSource 的说明）
   tailSource: false,
-  // 默认开：这是鼠标唯一的操作入口，关掉之后收藏/删除就只剩键盘了
-  tailActs: true
+  // 两颗按钮都默认开：这是鼠标唯一的操作入口，关掉之后收藏/删除就只剩键盘了。
+  // （09-21 之前是一个 `tailActs` 总开关，默认也是开 —— 拆开之后默认行为一字未变。）
+  tailFav: true,
+  tailDel: true
 }
 
 /**
  * 只认识自己这几个键，多余的一律丢掉，缺的补默认值，不认识的值退回安全值。
  *
- * ⚠️ 几个布尔项写的是 **`!== false`** 而不是 `=== true`：`tailType` / `tailActs` /
- * `confirmDelete` 的默认值是 `true`，而**老版本存下来的文档里根本没有这几个键**
+ * ⚠️ 默认 `true` 的项写的是 **`!== false`** 而不是 `=== true`：`tailType` / `confirmDelete` /
+ * `tailFav` / `tailDel` 的默认值是 `true`，而**老版本存下来的文档里根本没有这几个键**
  * （`undefined`）。写成 `=== true` 就等于给所有老用户悄悄关掉了删除确认和行尾按钮 ——
  * 那是「加一个设置」变成了「改别人已有的行为」。只有默认 `false` 的项才写 `=== true`。
+ *
+ * ⚠️ `tailFav` / `tailDel` 还多一层：它们是从**老键 `tailActs`**（单个开关）拆出来的，
+ * 而老文档里只有 `tailActs`。所以新键缺席时不能一律给 `true` —— 那会把当初**主动关掉**
+ * 行尾按钮的人又给他打开。必须退回老键的值（`tailActs !== false`，缺键也算 `true`）。
+ * 判据是"这个键**存过没有**"，所以要用 `typeof === 'boolean'` 而不是 `!== false`。
  */
 export function normalizeSettings(raw: unknown): Settings {
-  const src = (raw ?? {}) as Partial<Settings>
+  // 老键只在这里读一次，之后不再往外写（saveSettings 写的是整份 normalize 结果）
+  const src = (raw ?? {}) as Partial<Settings> & { tailActs?: unknown }
+  const legacyActs = src.tailActs !== false
   return {
     peek: src.peek === true,
     accent: ACCENT_KEYS.includes(src.accent as never) ? (src.accent as AccentMode) : 'auto',
@@ -166,7 +184,8 @@ export function normalizeSettings(raw: unknown): Settings {
     tailType: src.tailType !== false,
     tailIndex: src.tailIndex === true,
     tailSource: src.tailSource === true,
-    tailActs: src.tailActs !== false
+    tailFav: typeof src.tailFav === 'boolean' ? src.tailFav : legacyActs,
+    tailDel: typeof src.tailDel === 'boolean' ? src.tailDel : legacyActs
   }
 }
 

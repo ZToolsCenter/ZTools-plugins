@@ -1,4 +1,4 @@
-import { AppState, AppAction } from '../types';
+import { AppState, AppAction, Task } from '../types';
 import { DEFAULT_WORKSPACE_CONFIGS } from '../constants/colorSchemes';
 
 export const initialState: AppState = {
@@ -27,7 +27,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         workspaces: {
           ...state.workspaces,
-          [workspace]: [task, ...state.workspaces[workspace]]
+          [workspace]: [task, ...(state.workspaces[workspace] || [])]
         }
       };
     }
@@ -162,11 +162,21 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...action.payload.data
       };
     
-    case 'UPDATE_WORKSPACE_CONFIGS':
+    case 'UPDATE_WORKSPACE_CONFIGS': {
+      const configs = action.payload.configs;
+      const reconciledWorkspaces: Record<string, Task[]> = {};
+      for (const config of configs) {
+        reconciledWorkspaces[config.id] = state.workspaces[config.id] || [];
+      }
       return {
         ...state,
-        workspaceConfigs: action.payload.configs
+        workspaceConfigs: configs,
+        workspaces: reconciledWorkspaces,
+        currentWorkspace: configs.some(c => c.id === state.currentWorkspace)
+          ? state.currentWorkspace
+          : configs[0]?.id || 'work'
       };
+    }
     
     case 'ADD_WORKSPACE':
       return {

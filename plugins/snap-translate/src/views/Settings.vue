@@ -150,6 +150,12 @@ const saveActionOptions = [
   { label: '保存后保留贴图', value: 'save' },
   { label: '保存并关闭贴图', value: 'save-close' }
 ]
+
+const translateResultModeOptions = [
+  { label: '弹窗（默认）', value: 'popup' },
+  { label: '原文覆盖', value: 'overlay' }
+]
+
 const imageHostTypeOptions = [{ label: 'img.scdn.io', value: 'img-scdn' }]
 
 async function loadSettings(): Promise<void> {
@@ -188,8 +194,16 @@ async function loadSettings(): Promise<void> {
 const saving = ref(false)
 
 function saveGeneralSettings(): void {
-  saveBoardSettings({ ...boardSettings.value, buttons: { ...boardSettings.value.buttons } })
-  success('通用设置已保存')
+  const mode: BoardSettings['translateResultMode'] =
+    boardSettings.value.translateResultMode === 'overlay' ? 'overlay' : 'popup'
+  const next: BoardSettings = {
+    ...boardSettings.value,
+    buttons: { ...boardSettings.value.buttons },
+    translateResultMode: mode
+  }
+  saveBoardSettings(next)
+  boardSettings.value = loadBoardSettings()
+  success('通用设置已保存 · 翻译结果：' + (mode === 'overlay' ? '原文覆盖' : '弹窗'))
 }
 
 async function saveProvider(
@@ -486,6 +500,18 @@ onMounted(() => {
         <section class="block">
           <h3>关闭手势</h3>
           <ZSelect v-model="boardSettings.closeGesture" :options="closeGestureOptions" placeholder="选择关闭方式" />
+        </section>
+
+        <section class="block">
+          <h3>翻译按钮结果</h3>
+          <label class="field-label">展示形式</label>
+          <select v-model="boardSettings.translateResultMode" class="native-select" aria-label="翻译按钮结果">
+            <option value="popup">弹窗（默认）</option>
+            <option value="overlay">原文覆盖</option>
+          </select>
+          <p class="muted">
+            「弹窗」在贴图旁打开对照框；「原文覆盖」盖在截图原文字上（需微信 OCR / Paddle 检测框，否则提示后退回弹窗）。
+          </p>
         </section>
 
         <section class="block">

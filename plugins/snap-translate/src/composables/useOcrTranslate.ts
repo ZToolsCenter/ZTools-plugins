@@ -306,39 +306,45 @@ export async function ocrOnly(image: string): Promise<OcrOnlyResult> {
 }
 
 /**
- * 贴图 OCR：与直接 OCR 同一优先级——先宿主默认，默认挂了再回退微信/Paddle。
- * 仅回退路径可能带检测框（供译文覆盖）；宿主默认一般只有文字。
+ * 贴图 OCR。
+ * preferBoxes=false（默认，弹窗）：先宿主默认，失败再回退微信/Paddle。
+ * preferBoxes=true（原文覆盖）：先微信/Paddle 拿检测框，失败再回退宿主默认。
  */
-export async function ocrWithBoxes(image: string): Promise<OcrBoxesResult> {
+export async function ocrWithBoxes(
+  image: string,
+  opts?: { preferBoxes?: boolean }
+): Promise<OcrBoxesResult> {
   const diagnostics: string[] = []
-  // 1) 宿主默认 OCR
-  try {
-    const { blocks, confidence, provider } = await runOcr(image, diagnostics)
-    return {
-      lines: blocks.map((text) => ({ text, translated: '' })),
-      boxes: [],
-      confidence,
-      diagnostics,
-      ocrProvider: provider
+  const preferBoxes = !!opts?.preferBoxes
+  const hostFirst = async (): Promise<OcrBoxesResult | null> => {
+    try {
+      const { blocks, confidence, provider } = await runOcr(image, diagnostics)
+      return {
+        lines: blocks.map((text) => ({ text, translated: '' })),
+        boxes: [],
+        confidence,
+        diagnostics,
+        ocrProvider: provider
+      }
+    } catch (err: any) {
+      pushLog(
+        diagnostics,
+        'host default OCR failed: ' + (err?.message ? String(err.message) : String(err))
+      )
+      return null
     }
-  } catch (err: any) {
-    pushLog(
-      diagnostics,
-      'host default OCR failed → wechat/paddle fallback: ' +
-        (err?.message ? String(err.message) : String(err))
-    )
   }
-  // 2) 微信明细（带框）
-  try {
-    const detail = window.services?.ocrImageDetail
-    if (typeof detail === 'function') {
+  const wechatBoxes = async (): Promise<OcrBoxesResult | null> => {
+    try {
+      const detail = window.services?.ocrImageDetail
+      if (typeof detail !== 'function') return null
       const d = await detail(image)
       if (d?.ok && Array.isArray(d.lines) && d.lines.length) {
         const boxes = d.lines
           .map((l) => boxFromOcrLine(l))
           .filter((b): b is PinOverlayLine => !!b)
         if (boxes.length) {
-          pushLog(diagnostics, `OCR detail fallback: ${boxes.length} boxes`)
+          pushLog(diagnostics, `OCR detail: ${boxes.length} boxes`)
           return {
             lines: boxes.map((b) => ({ text: b.text, translated: '' })),
             boxes,
@@ -352,20 +358,21 @@ export async function ocrWithBoxes(image: string): Promise<OcrBoxesResult> {
       } else if (d && d.ok === false && d.error) {
         pushLog(diagnostics, 'ocrImageDetail: ' + d.error)
       }
+    } catch (err: any) {
+      pushLog(diagnostics, 'ocrImageDetail failed: ' + (err?.message ? String(err.message) : String(err)))
     }
-  } catch (err: any) {
-    pushLog(diagnostics, 'ocrImageDetail failed: ' + (err?.message ? String(err.message) : String(err)))
+    return null
   }
-  // 3) Paddle（带框）
-  try {
-    const paddleReady = window.services?.paddleStatus?.().ready
-    if (paddleReady && typeof window.services.paddleRecognize === 'function') {
+  const paddleBoxes = async (): Promise<OcrBoxesResult | null> => {
+    try {
+      const paddleReady = window.services?.paddleStatus?.().ready
+      if (!paddleReady || typeof window.services.paddleRecognize !== 'function') return null
       const p = await window.services.paddleRecognize(image)
       const boxes = Array.isArray(p?.boxes)
         ? p.boxes.map((b) => boxFromOcrLine(b)).filter((b): b is PinOverlayLine => !!b)
         : []
       if (boxes.length) {
-        pushLog(diagnostics, `Paddle OCR fallback: ${boxes.length} boxes`)
+        pushLog(diagnostics, `Paddle OCR: ${boxes.length} boxes`)
         return {
           lines: boxes.map((b) => ({ text: b.text, translated: '' })),
           boxes,
@@ -374,10 +381,21 @@ export async function ocrWithBoxes(image: string): Promise<OcrBoxesResult> {
           ocrProvider: 'paddle'
         }
       }
+    } catch (err: any) {
+      pushLog(diagnostics, 'paddleRecognize boxes failed: ' + (err?.message ? String(err.message) : String(err)))
     }
-  } catch (err: any) {
-    pushLog(diagnostics, 'paddleRecognize boxes failed: ' + (err?.message ? String(err.message) : String(err)))
+    return null
   }
+
+  if (preferBoxes) {
+    pushLog(diagnostics, 'OCR preferBoxes: wechat/paddle first')
+    return (await wechatBoxes()) || (await paddleBoxes()) || (await hostFirst()) || failAllOcr(diagnostics)
+  }
+  pushLog(diagnostics, 'OCR host-default first')
+  return (await hostFirst()) || (await wechatBoxes()) || (await paddleBoxes()) || failAllOcr(diagnostics)
+}
+
+function failAllOcr(diagnostics: string[]): never {
   throw new OcrUnavailableError(
     'OCR 全部失败（宿主默认 / 微信 / Paddle）。请在宿主「设置 → 提供商」设默认 OCR，或在本插件设置安装微信/Paddle。详情: ' +
       diagnostics.map((l) => l.replace(/^\[snap-translate\]\s*/, '')).join(' | ')

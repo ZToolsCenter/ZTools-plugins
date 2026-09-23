@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Reminder, DaySchedule } from '../../types/reminder'
-import { WEEKDAY_LABELS, REMINDER_TYPE_LABELS } from '../../types/reminder'
+import { WEEKDAY_LABELS, REMINDER_TYPE_LABELS, DAY_FILTER_LABELS, ALIGN_MODE_LABELS } from '../../types/reminder'
 
 const props = defineProps<{
   reminder: Reminder
@@ -81,6 +81,14 @@ function isOncePast(timestamp: number): boolean {
       <div class="item-meta">
         <span class="tag tag-type">{{ REMINDER_TYPE_LABELS[reminder.type] }}</span>
 
+        <!-- 触发日过滤标签 -->
+        <span
+          v-if="reminder.type !== 'once' && reminder.dayFilter && reminder.dayFilter !== 'all'"
+          class="tag tag-dayfilter"
+        >
+          {{ DAY_FILTER_LABELS[reminder.dayFilter] }}
+        </span>
+
         <!-- once 类型 -->
         <template v-if="reminder.type === 'once'">
           <span class="tag" :class="{ 'tag-past': isOncePast(reminder.triggerAt || 0) }">
@@ -107,6 +115,7 @@ function isOncePast(timestamp: number): boolean {
             </span>
           </template>
           <span class="tag">每{{ formatInterval(reminder.interval) }}</span>
+          <span v-if="reminder.align === 'create'" class="tag tag-align-create">{{ ALIGN_MODE_LABELS.create }}</span>
         </template>
       </div>
     </div>
@@ -202,9 +211,19 @@ function isOncePast(timestamp: number): boolean {
   color: var(--el-color-warning);
 }
 
+.tag-dayfilter {
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
+}
+
 .tag-group {
   background: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
+}
+
+.tag-align-create {
+  background: var(--el-color-info-light-9);
+  color: var(--el-color-info);
 }
 
 .tag-past {

@@ -243,6 +243,64 @@ function remapPinAfterOverlayMove(pin, oldO, newO) {
 	};
 }
 
+function resolveInjectedPin(current, injected, userMoved) {
+	if (userMoved) return current;
+	if (
+		injected &&
+		Number.isFinite(injected.width) &&
+		Number.isFinite(injected.height) &&
+		injected.width > 0 &&
+		injected.height > 0
+	) {
+		return {
+			x: injected.x,
+			y: injected.y,
+			width: injected.width,
+			height: injected.height,
+		};
+	}
+	return current;
+}
+
+function pinForBoardInject(initialPinLocal, lastSetBounds, overlay) {
+	if (lastSetBounds && overlay && lastSetBounds.width > 0 && lastSetBounds.height > 0) {
+		return {
+			x: lastSetBounds.x - overlay.x,
+			y: lastSetBounds.y - overlay.y,
+			width: lastSetBounds.width,
+			height: lastSetBounds.height,
+		};
+	}
+	return {
+		x: initialPinLocal.x,
+		y: initialPinLocal.y,
+		width: initialPinLocal.width,
+		height: initialPinLocal.height,
+	};
+}
+
+function pinOriginFromCaptureBounds(bounds, host, pinW, pinH, fallback) {
+	const clamp = (v, max) => Math.min(Math.max(0, Math.round(v)), Math.max(0, Math.round(max)));
+	if (
+		!bounds ||
+		!Number.isFinite(bounds.x) ||
+		!Number.isFinite(bounds.y) ||
+		!host ||
+		!(host.width > 0) ||
+		!(host.height > 0)
+	) {
+		const fb = fallback;
+		return {
+			x: clamp(fb?.x ?? (host?.width ?? 0) / 2 - pinW / 2, (host?.width ?? 0) - pinW),
+			y: clamp(fb?.y ?? (host?.height ?? 0) / 2 - pinH / 2, (host?.height ?? 0) - pinH),
+		};
+	}
+	return {
+		x: clamp(bounds.x - host.x, host.width - pinW),
+		y: clamp(bounds.y - host.y, host.height - pinH),
+	};
+}
+
 function pointInRects(x, y, rects) {
 	for (let i = 0; i < (rects || []).length; i++) {
 		const r = rects[i];
@@ -292,6 +350,9 @@ module.exports = {
 	dockHeight,
 	overlayRelocateTarget,
 	remapPinAfterOverlayMove,
+	resolveInjectedPin,
+	pinForBoardInject,
+	pinOriginFromCaptureBounds,
 	pointInRects,
 	sideWindowPlacement,
 };

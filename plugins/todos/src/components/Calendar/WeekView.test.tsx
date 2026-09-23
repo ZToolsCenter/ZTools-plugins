@@ -8,6 +8,12 @@ import { loadData } from '../../utils/storageUtils';
 jest.mock('../../utils/storageUtils', () => ({
   loadData: jest.fn(),
   saveData: jest.fn(),
+  loadWorkspaceConfigs: jest.fn(() => [
+    { id: 'work', name: '工作', colorScheme: 'teal', order: 0 },
+    { id: 'life', name: '生活', colorScheme: 'orange', order: 1 },
+    { id: 'study', name: '学习', colorScheme: 'purple', order: 2 },
+  ]),
+  saveWorkspaceConfigs: jest.fn(),
 }));
 
 const mockedLoadData = loadData as jest.Mock;
@@ -23,6 +29,29 @@ function StateInspector() {
       <span data-testid="draggedTaskId">{state.draggedTaskId ?? 'null'}</span>
       <span data-testid="dropTargetDate">{state.dropTargetDate ?? 'null'}</span>
     </div>
+  );
+}
+
+function CreateAndSelectGroup() {
+  const { state, dispatch } = useAppContext();
+  return (
+    <button
+      data-testid="create-group"
+      onClick={() => {
+        dispatch({
+          type: 'UPDATE_WORKSPACE_CONFIGS',
+          payload: {
+            configs: [
+              ...state.workspaceConfigs,
+              { id: 'workspace-new', name: '新组', colorScheme: 'teal', order: 3 }
+            ]
+          }
+        });
+        dispatch({ type: 'SWITCH_WORKSPACE', payload: { workspace: 'workspace-new' } });
+      }}
+    >
+      新建分组
+    </button>
   );
 }
 
@@ -47,6 +76,17 @@ describe('WeekView', () => {
   it('renders day names', () => {
     render(<WeekView />, { wrapper });
     expect(screen.getByText('周一')).toBeInTheDocument();
+  });
+
+  it('does not crash after creating and selecting a new group', () => {
+    render(
+      <AppProvider>
+        <CreateAndSelectGroup />
+        <WeekView />
+      </AppProvider>
+    );
+    fireEvent.click(screen.getByTestId('create-group'));
+    expect(document.querySelectorAll('.day-row')).toHaveLength(7);
   });
 
   it('sets drag state on dragover', () => {
