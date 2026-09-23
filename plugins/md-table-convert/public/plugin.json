@@ -1,0 +1,48 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "md-table-convert",
+  "title": "md表格互转",
+  "description": "Markdown 表格与 Excel 表格双向转换",
+  "author": "7788jay",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "md-to-excel",
+      "explain": "Markdown表格转为可复制到Excel的表格",
+      "icon": "logo.png",
+      "cmds": [
+        "md转excel",
+        "markdown转excel",
+        "表格转excel",
+        {
+          "type": "over",
+          "label": "md转excel"
+        }
+      ]
+    },
+    {
+      "code": "excel-to-md",
+      "explain": "Excel复制内容转为Markdown表格",
+      "icon": "logo.png",
+      "cmds": [
+        "excel转md",
+        "excel转markdown",
+        {
+          "type": "over",
+          "label": "excel转md"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}
