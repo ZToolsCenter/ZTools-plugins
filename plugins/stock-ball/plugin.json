@@ -5,7 +5,7 @@
   "description": "实时股票持仓管理、自选行情监控面板与桌面盈利悬浮球",
   "author": "zhanglei",
   "homepage": "",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "logo": "logo.png",
   "main": "index.html",
   "preload": "preload.js",
