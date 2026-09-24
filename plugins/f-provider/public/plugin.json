@@ -4,7 +4,7 @@
   "title": "ZTools 提供商",
   "description": "OCR + 翻译提供商集合（百度/谷歌/有道/微软翻译、微信 OCR）",
   "author": "kaineooo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
@@ -149,30 +149,30 @@
   ],
   "native": {
     "win": {
-      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/native-win.zip",
+      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.1/native-win.zip",
       "sha256": "",
-      "version": "1.1.0"
+      "version": "1.1.1"
     },
     "mac": {
-      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/native-mac.zip",
+      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.1/native-mac.zip",
       "sha256": "",
-      "version": "1.1.0"
+      "version": "1.1.1"
     }
   },
   "nativeLatex": {
     "win": {
-      "ortUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/latex-ort-win.zip",
-      "modelsUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/latex-models.zip",
+      "ortUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.1/latex-ort-win.zip",
+      "modelsUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.1/latex-models.zip",
       "ortSha256": "",
       "modelsSha256": "",
-      "version": "1.1.0"
+      "version": "1.1.1"
     },
     "mac": {
-      "ortUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/latex-ort-mac.zip",
-      "modelsUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/latex-models.zip",
+      "ortUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.1/latex-ort-mac.zip",
+      "modelsUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.1/latex-models.zip",
       "ortSha256": "",
       "modelsSha256": "",
-      "version": "1.1.0"
+      "version": "1.1.1"
     }
   }
 }

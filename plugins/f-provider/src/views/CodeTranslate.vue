@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useToast } from 'ztools-ui'
-import { toCandidates, isMostlyAscii, type CaseCandidate } from '../composables/useCaseConvert'
+import { toCandidates, isMostlyAscii, type CaseCandidate, type CaseStyleKey } from '../composables/useCaseConvert'
 
 /**
  * 代码翻译子页（独立 feature code-translate 的全屏视图）。
@@ -11,7 +11,7 @@ import { toCandidates, isMostlyAscii, type CaseCandidate } from '../composables/
  *   2. 文本基本是 ASCII（纯英文/代码）→ 跳过翻译，直接走命名风格转换；
  *      否则用 translation provider 翻译到英文（auto→en），失败时用原文兜底。
  *   3. 对译文（或原文）跑 toCandidates，得到 8 种风格候选。
- *   4. 纯键盘操作：↑/↓（或 Tab）切换、Enter 确认粘贴、Esc 取消。
+ *   4. 纯键盘操作：↑/↓（或 Tab）切换、Shift+↑/↓ 调整候选顺序（持久化记忆）、Enter 确认粘贴、Esc 取消。
  *
  * 直接调 window.services.translateXxx（不经宿主 provider 调度），
  * 必须以 .call(window.services, ...) 形式调用，保证方法内 this 指向 services
@@ -78,6 +78,60 @@ const itemRefs = ref<HTMLDivElement[]>([])
 
 const hasCandidates = computed(() => candidates.value.length > 0)
 
+// ─── 候选顺序持久化 ────────────────────────────────────────────────
+// Shift+↑↓ 调整候选顺序后，把风格 key 顺序存入 dbStorage；下次进入按此顺序展示。
+const STYLE_ORDER_KEY = 'code-translate.styleOrder'
+
+/** 读取已保存的风格顺序；无记录返回 null（展示默认 STYLES 顺序）。 */
+function loadStyleOrder(): CaseStyleKey[] | null {
+  try {
+    const v = window.ztools.dbStorage.getItem<CaseStyleKey[]>(STYLE_ORDER_KEY)
+    if (Array.isArray(v) && v.length) return v
+  } catch (_) {
+    /* dbStorage 不可用等异常：忽略，按默认顺序展示 */
+  }
+  return null
+}
+
+/** 持久化风格顺序。 */
+function saveStyleOrder(order: CaseStyleKey[]): void {
+  try {
+    window.ztools.dbStorage.setItem(STYLE_ORDER_KEY, order)
+  } catch (_) {
+    /* 写入失败忽略，不影响当次使用 */
+  }
+}
+
+// 当前风格顺序（key 数组）：有保存值用保存值，否则为空（applyStyleOrder 退化为原序）。
+const styleOrder = ref<CaseStyleKey[]>(loadStyleOrder() || [])
+
+/**
+ * 按自定义顺序重排候选；saved order 中缺失的 key 追加到末尾
+ * （兼容未来新增风格时不丢候选）。
+ */
+function applyStyleOrder(cands: CaseCandidate[]): CaseCandidate[] {
+  if (!cands.length || !styleOrder.value.length) return cands
+  const map = new Map(cands.map((c) => [c.key, c]))
+  const result: CaseCandidate[] = []
+  const seen = new Set<CaseStyleKey>()
+  for (const k of styleOrder.value) {
+    const c = map.get(k)
+    if (c) {
+      result.push(c)
+      seen.add(k)
+    }
+  }
+  for (const c of cands) {
+    if (!seen.has(c.key)) result.push(c)
+  }
+  return result
+}
+
+/** 生成候选并按持久化顺序重排。 */
+function buildCandidates(text: string): CaseCandidate[] {
+  return applyStyleOrder(toCandidates(text))
+}
+
 /**
  * 执行核心流程：必要时翻译，再生成候选。
  * @param text 待处理文本
@@ -98,7 +152,7 @@ async function run(text: string): Promise<void> {
   if (isMostlyAscii(trimmed)) {
     translated.value = trimmed
     phase.value = 'done'
-    candidates.value = toCandidates(trimmed)
+    candidates.value = buildCandidates(trimmed)
     return
   }
 
@@ -118,14 +172,14 @@ async function run(text: string): Promise<void> {
       throw new Error('译文为空')
     }
     phase.value = 'done'
-    candidates.value = toCandidates(en)
+    candidates.value = buildCandidates(en)
   } catch (e: any) {
     // 兜底：用原文做风格转换，保证列表非空
     errorMsg.value = e?.message ? String(e.message) : String(e)
     usedFallback.value = true
     translated.value = trimmed
     phase.value = 'fallback'
-    candidates.value = toCandidates(trimmed)
+    candidates.value = buildCandidates(trimmed)
   }
 }
 
@@ -135,6 +189,27 @@ function moveSelection(delta: number): void {
   const len = candidates.value.length
   // 环形循环：越界回绕到另一端
   selectedIndex.value = (selectedIndex.value + delta + len) % len
+  scrollSelectedIntoView()
+}
+
+/**
+ * Shift+↑↓：交换当前高亮项与其上/下相邻项，重排列表并把新顺序持久化。
+ * 不环形回绕——到顶/底时交换无意义，直接忽略。
+ */
+function swapSelected(delta: number): void {
+  if (!hasCandidates.value) return
+  const len = candidates.value.length
+  if (len < 2) return
+  const from = selectedIndex.value
+  const to = from + delta
+  if (to < 0 || to >= len) return
+  const arr = candidates.value.slice()
+  ;[arr[from], arr[to]] = [arr[to], arr[from]]
+  candidates.value = arr
+  selectedIndex.value = to
+  // 持久化新顺序，下次进入按此顺序展示
+  styleOrder.value = arr.map((c) => c.key)
+  saveStyleOrder(styleOrder.value)
   scrollSelectedIntoView()
 }
 
@@ -185,13 +260,19 @@ function scrollSelectedIntoView(): void {
 function onKeydown(e: KeyboardEvent): void {
   switch (e.key) {
     case 'ArrowDown':
-    case 'Tab':
       e.preventDefault()
-      moveSelection(e.shiftKey && e.key === 'Tab' ? -1 : 1)
+      // Shift+方向键交换高亮项顺序，否则仅移动高亮
+      if (e.shiftKey) swapSelected(1)
+      else moveSelection(1)
       break
     case 'ArrowUp':
       e.preventDefault()
-      moveSelection(-1)
+      if (e.shiftKey) swapSelected(-1)
+      else moveSelection(-1)
+      break
+    case 'Tab':
+      e.preventDefault()
+      moveSelection(e.shiftKey ? -1 : 1)
       break
     case 'Enter':
       e.preventDefault()
@@ -270,6 +351,7 @@ function onItemClick(index: number): void {
     <!-- 底部提示 -->
     <div class="ct-footer">
       <span class="ct-hint"><kbd>↑</kbd><kbd>↓</kbd> 切换</span>
+      <span class="ct-hint"><kbd>Shift</kbd>+<kbd>↑</kbd><kbd>↓</kbd> 调整顺序</span>
       <span class="ct-hint"><kbd>Enter</kbd> 粘贴</span>
       <span class="ct-hint"><kbd>Esc</kbd> 取消</span>
     </div>

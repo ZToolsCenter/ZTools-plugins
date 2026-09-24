@@ -145,15 +145,13 @@ declare global {
     | 'microsoft'
     | 'ai-translation'
 
-  /** 微软翻译鉴权方案。 */
-  type MicrosoftRequestMode = 'edge' | 'signature'
-
   /** 各 provider 的设置（凭据 + 非敏感配置）。 */
   interface TranslateSettingsMap {
     baidu: { appID: string; appKey: string }
     google: Record<string, never>
     youdao: { appKey: string; appSecret: string }
-    microsoft: { requestMode: MicrosoftRequestMode }
+    /** 微软：改用 Edge 内置翻译免 key 端点，无需任何配置。 */
+    microsoft: Record<string, never>
     /** AI 翻译：复用宿主 AI 模型，不存密钥；model 留空走宿主默认。 */
     'ai-translation': { model: string; systemPrompt: string }
   }

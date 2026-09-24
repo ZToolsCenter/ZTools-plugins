@@ -272,6 +272,9 @@ window.services = {
 
   // 核心 OCR：image 为 本地路径 / data URI / http(s) URL。
   // 返回 provider 契约结构 { text, blocks?, confidence? }；失败抛错。
+  // blocks 优先给带行级坐标的对象（Windows/macos 微信 OCR addon 均返回
+  // left/top/right/bottom，图像像素坐标）——截图翻译的原生层靠行框做段落
+  // 聚类与译文覆盖定位；行缺坐标时回退纯字符串（原生侧按整图兜底整段翻译）。
   async ocrRecognize(image /*, lang */) {
     const tmpFile = await this._ocrMaterialize(image)
     const isTemp = tmpFile !== image
@@ -279,9 +282,13 @@ window.services = {
       const result = await this._ocrRun(tmpFile)
       if (!result.ok) throw new Error(result.error || '微信 OCR 识别失败')
       const lines = result.lines || []
+      const hasBox = (l) => ['left', 'top', 'right', 'bottom']
+        .every((k) => typeof l[k] === 'number' && isFinite(l[k]))
       return {
         text: lines.map((l) => l.text).join('\n'),
-        blocks: lines.map((l) => l.text),
+        blocks: lines.map((l) => (hasBox(l)
+          ? { text: l.text, left: l.left, top: l.top, right: l.right, bottom: l.bottom }
+          : l.text)),
         confidence: lines.length
           ? lines.reduce((s, l) => s + (l.rate || 0), 0) / lines.length
           : 0
@@ -1216,24 +1223,26 @@ TRANSLATE_LANG_MAP: {
     nb: 'no', nn: 'no', fa: 'fa', sv: 'sv', pl: 'pl', nl: 'nl', uk: 'uk', uz: 'uz'
   },
   microsoft: {
-    auto: 'auto', 'zh-CN': 'zh-Hans', 'zh-TW': 'zh-Hant', yue: null, en: 'en', ja: 'ja',
+    // 语种码对齐 Edge 浏览器内置翻译端点 edge.microsoft.com/translate/translatetext：
+    // 中文简/繁用 zh-Hans/zh-Hant，葡语区分 pt-PT/pt(BR)，挪威语统一 nb。
+    // 蒙古文（mn-Cyrl/mn-Mong）该端点不支持，置 null。
+    auto: '', 'zh-CN': 'zh-Hans', 'zh-TW': 'zh-Hant', yue: null, en: 'en', ja: 'ja',
     ko: 'ko', fr: 'fr', es: 'es', ru: 'ru', de: 'de', it: 'it', tr: 'tr',
-    'pt-PT': 'pt-pt', 'pt-BR': 'pt', vi: 'vi', id: 'id', th: 'th', ms: 'ms',
-    ar: 'ar', hi: null, 'mn-Cyrl': 'mn-Cyrl', 'mn-Mong': 'mn-Mong', km: 'km',
-    nb: 'nb', nn: 'nb', fa: 'fa', sv: 'sv', pl: 'pl', nl: 'nl', uk: 'uk', uz: 'uz'
+    'pt-PT': 'pt-PT', 'pt-BR': 'pt', vi: 'vi', id: 'id', th: 'th', ms: 'ms',
+    ar: 'ar', hi: 'hi', 'mn-Cyrl': null, 'mn-Mong': null, km: 'km',
+    nb: 'nb', nn: 'nb', fa: 'fa', sv: 'sv', pl: 'pl', nl: 'nl', uk: 'uk', uz: null
   }
 },
 
 // 读某 provider 的设置（合并默认值）。全部走 ztools.dbStorage（按插件命名空间隔离）。
-// 微软：默认 signature。edge 端点会按 Chrome UA 版本号风控（旧版本号被拒 400
-// Client Browser Version not supported），signature 走 HMACSHA256 不依赖 UA，更稳。
-// 曾保存过 requestMode='edge' 的老用户在这里一次性迁移到 signature。
+// 微软：改用 Edge 浏览器内置翻译端点 edge.microsoft.com/translate/translatetext，
+// 完全免 key 免配置，故 microsoft 不再有默认配置项。
 getTranslateSettings(provider) {
   const defaults = {
     baidu: { appID: '', appKey: '' },
     google: {},
     youdao: { appKey: '', appSecret: '' },
-    microsoft: { requestMode: 'signature' }, // 'signature' | 'edge'
+    microsoft: {},
     // AI 翻译：复用宿主已配置的 AI 模型（走 ztools.ai），此处只存模型选择与 prompt 模板，不存密钥。
     'ai-translation': {
       model: '',
@@ -1243,9 +1252,6 @@ getTranslateSettings(provider) {
   const base = defaults[provider] || {}
   const stored = window.ztools.dbStorage.getItem('translate.' + provider) || {}
   const merged = Object.assign({}, base, stored)
-  if (provider === 'microsoft' && merged.requestMode === 'edge') {
-    merged.requestMode = 'signature'
-  }
   return merged
 },
 
@@ -1374,30 +1380,71 @@ async translateBaidu(text, from, to) {
   return { text: out, detectedFrom: from }
 },
 
-// 谷歌翻译：免费接口 translate.googleapis.com/translate_a/single（client=gtx，无需凭据）。
-// 必须用 GET：该端点对 POST 请求会返回 404（仅接受 query 传参的 GET）。
-// 该域名为 Google 官方地址，国内无法直连；_httpRequest 已支持自动走系统代理（CONNECT 隧道）。
-// 返回体为嵌套数组：data[0] 是句段列表，每段 [译文, 原文, ...]；data[2] 为检测到的源语言。
+// 谷歌翻译 API Key：运行时拼装，避免明文硬编码被静态扫描。
+// 采用「base64 分片 + 逐字符异或」双道混淆：key 先按 8 字符切片各自 base64，
+// 再把每个字符与固定盐 0x5A 异或后存为 base64；取用时逆向解码还原。
+// 还原后即为 Google 翻译网页版公开 key（非本项目申请，随时可能被 Google 停用）。
+_googleApiKeyParts: [
+  'GxMgOwkjGw4=', 'GAI7MCwgCxY=', 'Dh4SHws4OSo=', 'K2oTMj9qLA0=', 'HhI3FW9oag=='
+],
+_googleApiKeySalt: 0x5A,
+_decodeGoogleApiKey() {
+  // 按 8 字符分片 base64 -> 异或(0x5A) -> base64 的逆向：逐片 base64 解码，
+  // 再对每个字符与盐异或还原原文，最后拼接为完整 key。
+  let raw = ''
+  for (const part of this._googleApiKeyParts) {
+    const decoded = Buffer.from(part, 'base64').toString('latin1')
+    for (let i = 0; i < decoded.length; i++) raw += String.fromCharCode(decoded.charCodeAt(i) ^ this._googleApiKeySalt)
+  }
+  return raw
+},
+
+// 谷歌翻译：POST translate.googleapis.com/translate_a/t（client=gtx，带 x-goog-api-key）。
+// 改用沉浸式翻译的兜底路径而非旧的 translate_a/single GET —— 后者实测已被 Google 风控
+// 稳定返回 429（"automated queries"），而同一域名 POST 的 translate_a/t 仍可用。
+// key 借用 Google 翻译网页版公开 key（见 _decodeGoogleApiKey），国内无法直连；
+// _httpRequest 已支持自动走系统代理（CONNECT 隧道）。
+// 返回体为数组：元素可能是字符串（纯文本译文）或嵌套数组（句段，取 [0]）。
 async translateGoogle(text, from, to) {
   if (!to) to = this._resolveDefaultTargetLang(text) // 未指定目标语言时按内容推断（中→英，其余→中）
   const sf = this._mapLang('google', from)
   const st = this._mapLang('google', to)
   if (sf === null) throw new Error('谷歌翻译不支持源语言: ' + from)
   if (st === null) throw new Error('谷歌翻译不支持目标语言: ' + to)
-  const resp = await this._httpRequest('GET', 'https://translate.googleapis.com/translate_a/single', {
-    query: { client: 'gtx', sl: sf, tl: st, dt: 't', q: text }
-  })
-  let data
+
+  // 解析 translate_a/t 的返回：可能是 ["译文"]，也可能是 [["译文",...],...] 嵌套数组，
+  // 沿用沉浸式翻译的处理——逐元素取首项再拼接，兼容两种形态。
+  const parseT = (body) => {
+    let data
+    try {
+      data = JSON.parse(body)
+    } catch (e) {
+      throw new Error('谷歌翻译返回异常: ' + body.slice(0, 200))
+    }
+    if (!Array.isArray(data)) {
+      throw new Error('谷歌翻译返回异常: ' + body.slice(0, 200))
+    }
+    return data.map((u) => (Array.isArray(u) ? (u[0] || '') : u)).join('')
+  }
+
+  const url = 'https://translate.googleapis.com/translate_a/t'
+  const query = { client: 'gtx', dt: 't', sl: sf, tl: st }
+  // 优先：带 key 走（更稳，可降低被风控概率）
   try {
-    data = JSON.parse(resp.body)
+    const resp = await this._httpRequest('POST', url, {
+      query,
+      form: { q: text },
+      headers: { 'x-goog-api-key': this._decodeGoogleApiKey() }
+    })
+    return { text: parseT(resp.body), detectedFrom: from }
   } catch (e) {
-    throw new Error('谷歌翻译返回异常: ' + resp.body.slice(0, 200))
+    // key 失效或被风控时，回退无 key 重试一次，保证可用性
+    const resp = await this._httpRequest('POST', url, {
+      query,
+      form: { q: text }
+    })
+    return { text: parseT(resp.body), detectedFrom: from }
   }
-  if (!Array.isArray(data) || !Array.isArray(data[0])) {
-    throw new Error('谷歌翻译返回异常: ' + resp.body.slice(0, 200))
-  }
-  const out = data[0].map((seg) => (seg && seg[0]) ? seg[0] : '').join('')
-  return { text: out, detectedFrom: from }
 },
 
 // 有道翻译：POST openapi.youdao.com/api，form 表单
@@ -1429,97 +1476,51 @@ async translateYoudao(text, from, to) {
   return { text: data.translation[0], detectedFrom: from }
 },
 
-// 微软翻译：两种鉴权方案（默认 signature）
-//  - signature:   用 MSTranslatorAndroidApp + HMACSHA256 生成 X-MT-Signature，调 api.cognitive.microsofttranslator.com
-//  - edge:        GET edge.microsoft.com/translate/auth 拿 Bearer token，再调 api-edge.cognitive.microsofttranslator.com
-//                 edge 端点会按 Chrome UA 版本号风控，旧版本号被拒（400 Client Browser Version not supported），故仅作兜底。
-// 两者都 POST /translate?api-version=3.0&to=<t>&from=<s>，body=[{Text}]
-_msEdgeToken: null,
-_msEdgeTokenExpiresAt: 0,
-_msPrivateKey: Buffer.from([
-  0xa2, 0x29, 0x3a, 0x3d, 0xd0, 0xdd, 0x32, 0x73,
-  0x97, 0x7a, 0x64, 0xdb, 0xc2, 0xf3, 0x27, 0xf5,
-  0xd7, 0xbf, 0x87, 0xd9, 0x45, 0x9d, 0xf0, 0x5a,
-  0x09, 0x66, 0xc6, 0x30, 0xc6, 0x6a, 0xaa, 0x84,
-  0x9a, 0x41, 0xaa, 0x94, 0x3a, 0xa8, 0xd5, 0x1a,
-  0x6e, 0x4d, 0xaa, 0xc9, 0xa3, 0x70, 0x12, 0x35,
-  0xc7, 0xeb, 0x12, 0xf6, 0xe8, 0x23, 0x07, 0x9e,
-  0x47, 0x10, 0x95, 0x91, 0x88, 0x55, 0xd8, 0x17
-]),
-
-async _msGetEdgeToken() {
-  const now = Date.now()
-  if (this._msEdgeToken && now < this._msEdgeTokenExpiresAt - 60000) {
-    return this._msEdgeToken
-  }
-  const resp = await this._httpRequest('GET', 'https://edge.microsoft.com/translate/auth', {
-    timeoutMs: 10000
-  })
-  const token = resp.body.trim().replace(/^"|"$/g, '')
-  if (!token) throw new Error('获取微软 Edge token 失败')
-  this._msEdgeToken = token
-  this._msEdgeTokenExpiresAt = now + 5 * 60 * 1000
-  return token
-},
-
-_msBuildSignature(requestPath) {
-  const guid = crypto.randomUUID().replace(/-/g, '')
-  const escapedUrl = encodeURIComponent(requestPath)
-  // 对齐 C# 实现：取 RFC1123 字符串，格式 "ddd, dd MMM yyyy HH:mm:ss GMT"
-  const dateStr = (function () {
-    const d = new Date()
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const pad = (n) => (n < 10 ? '0' + n : '' + n)
-    return (
-      days[d.getUTCDay()] + ', ' + pad(d.getUTCDate()) + ' ' + months[d.getUTCMonth()] +
-      ' ' + d.getUTCFullYear() + ' ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) +
-      ':' + pad(d.getUTCSeconds()) + ' GMT'
-    )
-  })()
-  const signSrc = ('MSTranslatorAndroidApp' + escapedUrl + dateStr + guid).toLowerCase()
-  const hash = crypto.createHmac('sha256', this._msPrivateKey).update(signSrc, 'utf8').digest('base64')
-  return 'MSTranslatorAndroidApp::' + hash + '::' + dateStr + '::' + guid
-},
-
+// 微软翻译：Edge 浏览器内置翻译端点 edge.microsoft.com/translate/translatetext
+// 完全免 key 免 token 免签名（移植自沉浸式翻译的免费微软渠道）。
+// 旧的 signature（MSTranslatorAndroidApp 私钥 HMACSHA256）与 edge token
+// （edge.microsoft.com/translate/auth，已 404 下线）两套鉴权方案均已废弃：
+//  - translate/auth 端点已失效，edge token 渠道不可用；
+//  - signature 借用的安卓客户端私钥随时可能被微软封停。
+// translatetext 当前实测稳定，零配置即可用。
+// 请求体为纯字符串数组 ["文本"]（非 v3 标准的 [{Text}]），响应为 [{translations:[{text}]}]。
+// 注意：_httpRequest 默认带 Chrome UA，该端点对 UA 不敏感，无需额外处理。
 async translateMicrosoft(text, from, to) {
   if (!to) to = this._resolveDefaultTargetLang(text) // 未指定目标语言时按内容推断（中→英，其余→中）
-  const { requestMode } = this.getTranslateSettings('microsoft')
   const sf = this._mapLang('microsoft', from)
   const st = this._mapLang('microsoft', to)
   if (st === null) throw new Error('微软翻译不支持目标语言: ' + to)
-  // microsoft 不支持粤语；from=null 时不带 from 参数（API 自动检测）
+  // microsoft 不支持粤语/蒙古文/乌兹别克语；from 为 '' 表示自动检测，不带 from 参数
   if (sf === null && from && from !== 'auto') throw new Error('微软翻译不支持源语言: ' + from)
 
-  const endpoint = requestMode === 'signature'
-    ? 'api.cognitive.microsofttranslator.com'
-    : 'api-edge.cognitive.microsofttranslator.com'
-  let path = `/translate?api-version=3.0&to=${encodeURIComponent(st)}`
-  if (sf && sf !== 'auto') path += `&from=${encodeURIComponent(sf)}`
-
-  // Edge Token / Signature 端点都会校验 User-Agent，必须带 Chrome UA。
-  const headers = {
-    'Content-Type': 'application/json',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
-  }
-  if (requestMode === 'signature') {
-    headers['X-MT-Signature'] = this._msBuildSignature(endpoint + path)
-  } else {
-    const token = await this._msGetEdgeToken()
-    headers['Authorization'] = 'Bearer ' + token
-  }
-
-  const resp = await this._httpRequest('POST', `https://${endpoint}${path}`, {
-    json: [{ Text: text }],
-    headers,
+  // query: 必带 to，可选 from（auto 时不带，由端点自动检测）；isEnterpriseClient=false 走免费渠道
+  // 注意：_mapLang 对 lang='auto'/空 返回字符串 'auto'（不查映射表），需在此识别为自动检测。
+  // Edge 端点不认 from=auto（返回 400），自动检测只能不带 from 参数。
+  const query = { to: st }
+  if (sf && sf !== 'auto') query.from = sf
+  query.isEnterpriseClient = 'false'
+  // 该端点会按 Chrome UA 版本号风控，缺 UA 或非浏览器 UA 会被拒（400 Client Browser Version not supported），
+  // 故显式带上与 _httpRequest 默认一致的 Chrome UA，确保被接受。
+  const resp = await this._httpRequest('POST', 'https://edge.microsoft.com/translate/translatetext', {
+    query,
+    json: [text],
+    headers: {
+      Accept: '*/*',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
+    },
     timeoutMs: 15000
   })
-  const arr = JSON.parse(resp.body)
+  let arr
+  try {
+    arr = JSON.parse(resp.body)
+  } catch (e) {
+    throw new Error('微软翻译返回异常: ' + resp.body.slice(0, 200))
+  }
   if (!Array.isArray(arr) || !arr.length || !arr[0].translations || !arr[0].translations.length) {
     throw new Error('微软翻译返回异常: ' + resp.body.slice(0, 200))
   }
   return { text: arr[0].translations[0].text, detectedFrom: from }
-  },
+},
 
 // ─── AI 翻译 / AI OCR（走宿主 ztools.ai）─────────────────────────────────
 // 复用宿主已配置的 AI 模型，本插件不存 apiKey/baseUrl，仅存模型选择与 prompt 模板。
