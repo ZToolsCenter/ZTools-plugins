@@ -2,7 +2,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { compressByName } = require('../compression-engine');
+const path = require('node:path');
+const { createRequire } = require('node:module');
+const { pathToFileURL } = require('node:url');
+const preloadRequire = createRequire(path.join(__dirname, '..', 'public', 'preload', 'package.json'));
+const { compressByName } = preloadRequire('./compression-engine');
 
 /**
  * 构造带多余内容的 SVG 测试数据。
@@ -25,8 +29,8 @@ test('未知格式保持原始字节', async () => {
 });
 
 test('GIF 重新编码会保留动画帧和循环次数', async () => {
-  const { GIFEncoder, quantize, applyPalette } = require('gifenc');
-  const { parseGIF, decompressFrames } = require('gifuct-js');
+  const { GIFEncoder, quantize, applyPalette } = preloadRequire('gifenc');
+  const { parseGIF, decompressFrames } = preloadRequire('gifuct-js');
   const encoder = GIFEncoder();
   for (let frameIndex = 0; frameIndex < 3; frameIndex++) {
     const rgba = new Uint8ClampedArray(32 * 24 * 4);
@@ -49,9 +53,9 @@ test('GIF 重新编码会保留动画帧和循环次数', async () => {
 });
 
 test('JPEG 和 PNG 的 WASM 编解码器可初始化', async () => {
-  const encoderModule = await import('@jsquash/jpeg/encode.js');
+  const encoderModule = await import(pathToFileURL(preloadRequire.resolve('@jsquash/jpeg/encode.js')).href);
   const encoderWasm = await WebAssembly.compile(
-    require('node:fs').readFileSync(require.resolve('@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm'))
+    require('node:fs').readFileSync(preloadRequire.resolve('@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm'))
   );
   encoderModule.init(encoderWasm);
   const pixels = new Uint8ClampedArray(32 * 24 * 4);
