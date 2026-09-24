@@ -12,8 +12,8 @@ import wechatLogo from '../assets/wechat.png'
  *  - 引擎卡：状态标签 + 进度/错误内联；操作（下载/重下/删除）集中在卡片底部。
  *  - 翻译服务卡（百度/谷歌/有道/微软）：基础信息 + 「配置」按钮，点击弹出 Modal 改凭据。
  *
- * 凭据敏感字段（百度/有道）走 dbCryptoStorage，非敏感（微软 requestMode）走 dbStorage
- * ——由 preload 的 setTranslateSettings 自动分流。
+ * 凭据敏感字段（百度/有道）走 dbCryptoStorage，非敏感配置走 dbStorage
+ * ——由 preload 的 setTranslateSettings 自动分流；微软改用免 key 端点后无配置项。
  */
 
 const { success, error } = useToast()
@@ -118,7 +118,6 @@ function handleLatexRemove(): void {
 // ─── 翻译设置 ────────────────────────────────────────────────────────
 const baidu = ref({ appID: '', appKey: '' })
 const youdao = ref({ appKey: '', appSecret: '' })
-const microsoft = ref<{ requestMode: 'edge' | 'signature' }>({ requestMode: 'edge' })
 
 // AI 翻译 / AI OCR：复用宿主已配置的 AI 模型，此处仅存模型选择与 prompt 模板（不存密钥）。
 const aiTranslation = ref({ model: '', systemPrompt: '' })
@@ -134,11 +133,6 @@ const aiModelOptions = computed(() => {
   return [{ label: '使用 ZTools 默认模型', value: '' }, ...aiModels.value.map((m) => ({ label: m.label, value: m.id }))]
 })
 
-const requestModeOptions = [
-  { label: 'Signature（X-MT-Signature，推荐）', value: 'signature' },
-  { label: 'Edge Token（Authorization Bearer，兜底）', value: 'edge' }
-]
-
 // 图床类型下拉：后续新增图床在此加一项 + ImageHostType 联合类型扩一项。
 const imageHostTypeOptions = [
   { label: 'img.scdn.io', value: 'img-scdn' }
@@ -150,10 +144,6 @@ async function loadSettings(): Promise<void> {
     baidu.value = { appID: b.appID || '', appKey: b.appKey || '' }
     const y = window.services.getTranslateSettings('youdao')
     youdao.value = { appKey: y.appKey || '', appSecret: y.appSecret || '' }
-    const m = window.services.getTranslateSettings('microsoft')
-    microsoft.value = {
-      requestMode: (m.requestMode as 'edge' | 'signature') || 'edge'
-    }
     // AI 翻译 / AI OCR 配置回填
     const at = window.services.getTranslateSettings('ai-translation')
     aiTranslation.value = { model: at.model || '', systemPrompt: at.systemPrompt || '' }
@@ -198,8 +188,6 @@ async function saveProvider(
     if (p === 'baidu') window.services.setTranslateSettings('baidu', { ...baidu.value })
     else if (p === 'youdao')
       window.services.setTranslateSettings('youdao', { ...youdao.value })
-    else if (p === 'microsoft')
-      window.services.setTranslateSettings('microsoft', { ...microsoft.value })
     else if (p === 'ai-translation')
       window.services.setTranslateSettings('ai-translation', { ...aiTranslation.value })
     else if (p === 'ai-ocr') window.services.setOcrSettings('ai-ocr', { ...aiOcr.value })
@@ -255,7 +243,7 @@ const providers: ProviderMeta[] = [
   {
     key: 'microsoft',
     name: '微软翻译',
-    desc: '免授权，可选 Signature 或 Edge Token 鉴权方案。'
+    desc: '免授权，走 Edge 浏览器内置翻译端点，开箱即用。'
   },
   {
     key: 'ai-translation',
@@ -501,9 +489,7 @@ onMounted(() => {
           <div v-if="p.key === 'baidu' && configured.baidu" class="inline-ready">凭据已配置</div>
           <div v-else-if="p.key === 'youdao' && configured.youdao" class="inline-ready">凭据已配置</div>
           <div v-else-if="p.key === 'google'" class="inline-hint">免授权开箱即用</div>
-          <div v-else-if="p.key === 'microsoft'" class="inline-hint">
-            当前：{{ microsoft.requestMode === 'signature' ? 'Signature' : 'Edge Token' }}
-          </div>
+          <div v-else-if="p.key === 'microsoft'" class="inline-hint">免授权开箱即用</div>
         </div>
 
         <footer class="card-foot">
@@ -567,27 +553,18 @@ onMounted(() => {
 
           <!-- 微软 -->
           <template v-else-if="activeProvider.key === 'microsoft'">
-            <div class="field">
-              <label>鉴权方案</label>
-              <ZSelect
-                v-model="microsoft.requestMode"
-                :options="requestModeOptions"
-                placeholder="选择鉴权方案"
-              />
-            </div>
             <p class="field-hint">
-              Signature：MSTranslatorAndroidApp + HMACSHA256 生成 X-MT-Signature，走 cognitive 端点（推荐，不依赖浏览器 UA）。
+              使用 Edge 浏览器内置翻译接口 <code>edge.microsoft.com/translate/translatetext</code>，免授权、免密钥，开箱即用。
             </p>
             <p class="field-hint">
-              Edge Token：调用 edge.microsoft.com 取 Bearer，走 api-edge 端点（兜底，会按 Chrome UA 风控）。
+              该端点为 Microsoft 官方免费渠道，无需用户配置任何凭据；国内网络通常无法直连，需走系统代理。
             </p>
-            <p class="field-hint">两种方案均无需用户提供密钥。</p>
           </template>
 
           <!-- 谷歌 -->
           <template v-else-if="activeProvider.key === 'google'">
             <p class="field-hint">
-              使用 Google 官方免费接口 <code>translate.googleapis.com</code>，无需凭据。
+              使用 Google 翻译接口 <code>translate.googleapis.com/translate_a/t</code>，免授权、无需凭据。
             </p>
             <p class="field-hint">
               该域名为 Google 官方地址，国内网络通常无法直连，需走系统代理；如不可用可改用其他 provider。
@@ -684,11 +661,11 @@ onMounted(() => {
         <footer class="modal-foot">
           <ZButton size="small" @click="closeModal">取消</ZButton>
           <ZButton
-            v-if="activeProvider.key !== 'google'"
+            v-if="activeProvider.key !== 'google' && activeProvider.key !== 'microsoft'"
             type="primary"
             size="small"
             :loading="saving"
-            @click="saveProvider(activeProvider.key as 'baidu' | 'youdao' | 'microsoft' | 'ai-translation' | 'ai-ocr' | 'ai-latex-ocr' | 'image-host')"
+            @click="saveProvider(activeProvider.key as 'baidu' | 'youdao' | 'ai-translation' | 'ai-ocr' | 'ai-latex-ocr' | 'image-host')"
           >
             保存
           </ZButton>

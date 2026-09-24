@@ -88,13 +88,16 @@ function refreshProviderStatus() {
   }
 }
 
-// provider 选项（顶部下拉框，置于语言切换左侧）。未配置凭据的禁用（百度/有道）。
+// provider 选项（顶部下拉框，置于语言切换左侧）。按可用性排序：已配置靠前，未配置靠后。
 const providerOptions = computed(() =>
-  (Object.keys(providerLabels) as ProviderName[]).map((p) => ({
-    label: providerLabels[p],
-    value: p,
-    disabled: !providerConfigured.value[p]
-  }))
+  (Object.keys(providerLabels) as ProviderName[])
+    .map((p) => ({
+      label: providerLabels[p],
+      value: p,
+      disabled: !providerConfigured.value[p]
+    }))
+    // 已配置(disabled=false) 排前，未配置(disabled=true) 排后；组内保持声明顺序（稳定排序）。
+    .sort((a, b) => Number(a.disabled) - Number(b.disabled))
 )
 
 // 默认选「已配置」的第一个，偏好顺序：microsoft > google > baidu > youdao
