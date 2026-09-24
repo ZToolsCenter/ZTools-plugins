@@ -1,0 +1,8 @@
+{
+  "name": "crypt-tool-preload",
+  "type": "commonjs",
+  "private": true,
+  "dependencies": {
+    "bcryptjs": "^3.0.3"
+  }
+}

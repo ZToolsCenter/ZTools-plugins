@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "crypt-toolkit",
+  "title": "CryptToolkit",
+  "description": "加解密工具，高颜值，可自定义，UI和谐统一，带加密算法的简要指引",
+  "homepage": "https://github.com/Code-Agitator/ztools-crypt-tool",
+  "author": "Agitator",
+  "version": "1.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "crypt",
+      "explain": "编码 / 加解密 / 哈希工具",
+      "icon": "logo.svg",
+      "cmds": [
+        "编码", "解码", "加密", "解密", "哈希", "散列", "hash",
+        "base64", "url编码", "urlencode", "hex", "十六进制",
+        "md5", "sha", "sha256", "sha512",
+        "aes", "rsa", "hmac", "pbkdf2", "bcrypt",
+        "签名", "验签",
+        "crypt", "encode", "decode", "encrypt", "decrypt"
+      ]
+    }
+  ]
+}
