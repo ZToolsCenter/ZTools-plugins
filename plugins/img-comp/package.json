@@ -1,27 +1,30 @@
 {
   "name": "img-comp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "ZTools 本地图片压缩插件，基于 JavaScript 与 WebAssembly 实现",
+  "type": "module",
   "private": false,
-  "type": "commonjs",
   "main": "index.html",
-  "author": "img-comp contributors",
+  "author": "hanzhe",
   "license": "MIT",
   "engines": {
     "node": ">=20.0.0"
   },
   "scripts": {
-    "test": "node --test test/*.test.cjs",
-    "build": "node build-zpx.js"
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "test": "node --test --test-concurrency=1 test/*.test.cjs",
+    "postinstall": "npm install --prefix public/preload --ignore-scripts"
   },
   "dependencies": {
-    "@jsquash/jpeg": "1.6.0",
-    "@jsquash/oxipng": "2.3.0",
-    "gifenc": "1.0.3",
-    "gifuct-js": "2.1.2",
-    "svgo": "3.3.5"
+    "lucide-vue-next": "^0.577.0",
+    "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@electron/asar": "4.3.0"
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vue-tsc": "^2.0.0"
   }
 }

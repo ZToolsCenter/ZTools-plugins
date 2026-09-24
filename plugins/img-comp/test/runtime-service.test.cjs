@@ -6,6 +6,8 @@ const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const SERVICE_PATH = path.join(__dirname, '..', 'public', 'preload', 'runtime-service.js');
+
 /**
  * 加载运行时服务并提供最小 ZTools 宿主桩。
  * @param {{disableWorkers?:boolean}} options 加载选项
@@ -37,9 +39,9 @@ function loadRuntime(options = {}) {
       throw new Error('当前 V8 平台不支持创建工作线程');
     };
   }
-  delete require.cache[require.resolve('../runtime-service')];
+  delete require.cache[require.resolve(SERVICE_PATH)];
   try {
-    return { service: require('../runtime-service'), copiedFiles, storage };
+    return { service: require(SERVICE_PATH), copiedFiles, storage };
   } finally {
     workerThreads.Worker = OriginalWorker;
   }
@@ -47,6 +49,7 @@ function loadRuntime(options = {}) {
 
 test('目录输入只创建一个批次并收集全部图片', async () => {
   const { service } = loadRuntime();
+  service.saveSettings({ recursiveFolders: true });
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'img-comp-batch-'));
   fs.mkdirSync(path.join(root, 'sub'));
   fs.writeFileSync(path.join(root, 'a.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
@@ -62,6 +65,90 @@ test('目录输入只创建一个批次并收集全部图片', async () => {
   assert.equal(batch.entries.length, 3);
   assert.equal(batch.rootPath, root);
   assert.equal(batch.progress.total, 3);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('设置使用默认值并限制在允许范围内', () => {
+  const { service } = loadRuntime();
+  assert.deepEqual(service.getSettings(), {
+    jpegQuality: 75,
+    concurrency: 3,
+    recursiveFolders: false,
+    ignoredFolders: []
+  });
+  assert.deepEqual(service.saveSettings({
+    jpegQuality: 120,
+    concurrency: 0,
+    recursiveFolders: false,
+    ignoredFolders: [' cache ', 'cache', '']
+  }), {
+    jpegQuality: 100,
+    concurrency: 1,
+    recursiveFolders: false,
+    ignoredFolders: ['cache']
+  });
+});
+
+test('目录扫描遵循递归开关和忽略目录设置', async () => {
+  const { service } = loadRuntime();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'img-comp-settings-'));
+  const nested = path.join(root, 'nested');
+  const ignored = path.join(root, 'skip-me');
+  fs.mkdirSync(nested);
+  fs.mkdirSync(ignored);
+  fs.writeFileSync(path.join(root, 'root.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  fs.writeFileSync(path.join(nested, 'nested.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  fs.writeFileSync(path.join(ignored, 'ignored.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+
+  service.saveSettings({ recursiveFolders: false });
+  const shallow = await service.createBatch({ kind: 'files', payload: [{
+    path: root, name: path.basename(root), isDirectory: true, isFile: false
+  }] });
+  assert.deepEqual(shallow.entries.map(entry => entry.filename), ['root.svg']);
+
+  service.saveSettings({ recursiveFolders: true, ignoredFolders: ['skip-me'] });
+  const filtered = await service.createBatch({ kind: 'files', payload: [{
+    path: root, name: path.basename(root), isDirectory: true, isFile: false
+  }] });
+  assert.deepEqual(filtered.entries.map(entry => entry.relativeName), [path.join('nested', 'nested.svg'), 'root.svg']);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('目录扫描完成后才开始压缩并持续报告扫描进度', async () => {
+  const { service } = loadRuntime();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'img-comp-scan-'));
+  fs.writeFileSync(path.join(root, 'a.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  const updates = [];
+  const batch = await service.createBatch({ kind: 'files', payload: [{
+    path: root, name: path.basename(root), isDirectory: true, isFile: false
+  }] }, value => updates.push({ phase: value.phase, found: value.scan.found }));
+  assert.equal(batch.phase, 'scanning');
+  assert.equal(batch.entries.length, 0);
+  await service.executeBatch(batch);
+  assert.equal(batch.phase, 'complete');
+  assert.equal(batch.entries.length, 1);
+  assert.ok(updates.some(update => update.found >= 1));
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('单条替换会写回输入文件但不影响同批其他结果', async () => {
+  const { service } = loadRuntime();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'img-comp-replace-one-'));
+  const first = path.join(root, 'first.svg');
+  const second = path.join(root, 'second.svg');
+  fs.writeFileSync(first, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><!-- first --><rect width="10" height="10" fill="#ff0000"/></svg>');
+  fs.writeFileSync(second, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><!-- second --><rect width="10" height="10" fill="#0000ff"/></svg>');
+  const batch = await service.createBatch({ kind: 'files', payload: [
+    { path: first, name: 'first.svg', isFile: true },
+    { path: second, name: 'second.svg', isFile: true }
+  ] });
+  await service.executeBatch(batch);
+  const firstEntry = batch.entries.find(entry => entry.inputPath === first);
+  const secondEntry = batch.entries.find(entry => entry.inputPath === second);
+  assert.equal(await service.replaceOne(batch, firstEntry), true);
+  assert.equal(firstEntry.resultPath, first);
+  assert.notEqual(secondEntry.resultPath, second);
+  assert.match(fs.readFileSync(first, 'utf8'), /fill="red"/);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -146,9 +233,9 @@ test('工作线程被宿主禁用时会改用多个压缩子进程', async () =>
   const poolRecord = records.find(record => record.event === '执行器池已创建');
   const completed = records.filter(record => record.event === '任务完成');
   assert.deepEqual(poolRecord.modes, [
-    'child-process', 'child-process', 'child-process', 'child-process'
+    'child-process', 'child-process', 'child-process'
   ]);
-  assert.equal(new Set(completed.map(record => record.processId)).size, 4);
+  assert.equal(new Set(completed.map(record => record.processId)).size, 3);
   assert.equal(batch.progress.succeeded, 4);
   assert.equal(batch.progress.failed, 0);
   fs.rmSync(root, { recursive: true, force: true });
