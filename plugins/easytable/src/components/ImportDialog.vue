@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { Row, TableSchema } from '../types/table'
-import { defaultValue } from '../domain/fieldTypes'
+import { initialFieldDefault } from '../domain/fieldTypes'
 import {
   autoColumnMap,
   mapRowValues,
@@ -80,11 +80,8 @@ async function confirmImport() {
   importing.value = true
   const now = Date.now()
   const incoming: Row[] = dataRows.value.map((cells, i) => {
+    // mapRowValues 已按字段预填默认值（initialFieldDefault），未映射列也会带上
     const values = mapRowValues(props.table.fields, headers.value, cells, columnMap.value)
-    // 补全默认值
-    for (const f of props.table.fields) {
-      if (!(f.id in values)) values[f.id] = defaultValue(f.type)
-    }
     return {
       id: generateId('row'),
       tableId: props.table.id,

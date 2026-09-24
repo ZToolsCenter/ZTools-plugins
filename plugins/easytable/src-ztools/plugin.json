@@ -4,7 +4,7 @@
   "title": "简单记录",
   "description": "自定义字段的简单记录表：文本/标签/单选等，一键复制到 Excel，支持 CSV/JSON 导入导出",
   "author": "咖啡八杯",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "categories": ["productivity"],
   "main": "dist/index.html",
   "preload": "preload/services.js",

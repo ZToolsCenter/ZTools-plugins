@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FieldDef, FieldValue, Row, TableSchema } from '../types/table'
-import { defaultValue } from '../domain/fieldTypes'
+import { defaultValue, initialFieldDefault } from '../domain/fieldTypes'
 import { hasOptions } from '../types/table'
 import { generateId } from '../utils/id'
 
@@ -29,7 +29,7 @@ function fill() {
   Object.keys(form).forEach((k) => delete form[k])
   if (!t) return
   for (const f of t.fields) {
-    form[f.id] = defaultValue(f.type)
+    form[f.id] = initialFieldDefault(f)
   }
   if (props.prefillText) {
     const target = t.fields.find((f) => f.type === 'text')

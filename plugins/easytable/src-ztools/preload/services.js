@@ -208,7 +208,8 @@ window.services = {
           tables: meta.tables,
           activeTableId: meta.activeTableId || (meta.tables[0] && meta.tables[0].id) || '',
           multiSeparator: meta.multiSeparator || '、',
-          quickTableId: meta.quickTableId || ''
+          quickTableId: meta.quickTableId || '',
+          rowHeightMode: meta.rowHeightMode === 'auto' ? 'auto' : 'fixed'
         }
       }
     } catch (e) {}
@@ -221,7 +222,8 @@ window.services = {
       tables: (meta && meta.tables) || [],
       activeTableId: (meta && meta.activeTableId) || '',
       multiSeparator: (meta && meta.multiSeparator) || '、',
-      quickTableId: (meta && meta.quickTableId) || ''
+      quickTableId: (meta && meta.quickTableId) || '',
+      rowHeightMode: meta && meta.rowHeightMode === 'auto' ? 'auto' : 'fixed'
     }
     window.ztools.dbStorage.setItem(META_KEY, JSON.stringify(next))
     return next

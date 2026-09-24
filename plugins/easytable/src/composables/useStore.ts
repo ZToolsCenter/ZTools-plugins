@@ -56,6 +56,7 @@ export function useStore() {
     activeTable.value ? rowsByTable.value[activeTable.value.id] ?? [] : []
   )
   const multiSeparator = computed(() => meta.value.multiSeparator || '、')
+  const rowHeightMode = computed<'fixed' | 'auto'>(() => meta.value.rowHeightMode ?? 'fixed')
 
   function ensureBootstrapped() {
     if (loaded.value) return
@@ -128,6 +129,17 @@ export function useStore() {
   function setQuickTableId(id: string) {
     meta.value.quickTableId = id || ''
     persistMeta()
+  }
+
+  function setRowHeightMode(mode: 'fixed' | 'auto') {
+    meta.value.rowHeightMode = mode
+    persistMeta()
+  }
+
+  /** 新增字段回填默认值：更新内存行 + bulkDocs 一次持久化整表 */
+  async function backfillRows(tableId: string, rows: Row[]): Promise<void> {
+    rowsByTable.value = { ...rowsByTable.value, [tableId]: rows }
+    await replaceRows(tableId, rows)
   }
 
   function upsertRow(row: Row) {
@@ -268,6 +280,7 @@ function collectAllRows(): Record<string, Row[]> {
     activeTable,
     activeRows,
     multiSeparator,
+    rowHeightMode,
     ensureBootstrapped,
     setActiveTable,
     addTable,
@@ -276,6 +289,8 @@ function collectAllRows(): Record<string, Row[]> {
     removeTable,
     setMultiSeparator,
     setQuickTableId,
+    setRowHeightMode,
+    backfillRows,
     createRow,
     saveRow,
     deleteRow,

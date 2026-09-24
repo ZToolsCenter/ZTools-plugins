@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import type { FieldDef, FieldValue, Row, TableSchema } from '../types/table'
-import { defaultValue } from '../domain/fieldTypes'
+import { defaultValue, initialFieldDefault } from '../domain/fieldTypes'
 import { DEFAULT_MULTI_SEP, splitMultiValue } from '../domain/separators'
 import { hasOptions } from '../types/table'
 
@@ -24,7 +24,8 @@ function fillFromRow() {
   rowId.value = props.row?.id ?? null
   const values: Record<string, FieldValue> = {}
   for (const f of props.table.fields) {
-    values[f.id] = props.row?.values?.[f.id] ?? defaultValue(f.type)
+    values[f.id] =
+      props.row?.values?.[f.id] ?? (props.row ? defaultValue(f.type) : initialFieldDefault(f))
   }
   if (!props.row && props.prefillText) {
     const target = props.table.fields.find((f) => f.type === 'text')

@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
-import type { FieldDef, FieldValue, Row, TableSchema } from '../types/table'
+import type { FieldDef, FieldValue, FilterCond, FilterOp, Row, TableSchema } from '../types/table'
 import {
   CREATED_AT_FIELD_ID,
   UPDATED_AT_FIELD_ID,
-  hasOptions,
-  isMultiValue
+  hasOptions
 } from '../types/table'
-import { displayValue, defaultValue, searchTextOf } from '../domain/fieldTypes'
+import { displayValue, defaultValue, searchTextOf, backfillField } from '../domain/fieldTypes'
+import {
+  filterableFields,
+  opsForField,
+  matchAll
+} from '../domain/filters'
 import { formatTimestamp } from '../utils/time'
 import { rowsToCsv, rowsToTsv } from '../domain/codec/tableCodec'
 import { toBackup, serializeBackup } from '../domain/codec/jsonBackup'
@@ -26,6 +30,7 @@ const {
   activeTable,
   activeRows,
   multiSeparator,
+  rowHeightMode,
   ensureBootstrapped,
   setActiveTable,
   addTable,
@@ -36,7 +41,9 @@ const {
   deleteRows,
   clearTableRows,
   importBackupTables,
-  collectAllRows
+  collectAllRows,
+  setRowHeightMode,
+  backfillRows
 } = store
 
 const keyword = ref('')
@@ -47,8 +54,8 @@ const showRowForm = ref(false)
 const editingRow = ref<Row | null>(null)
 const showFieldMgr = ref(false)
 const showImport = ref(false)
-const filterFieldId = ref<string | null>(null)
-const filterValue = ref<string>('')
+/** 高级筛选：AND 条件组（替代旧的单字段筛选） */
+const filters = ref<FilterCond[]>([])
 const filterOpen = ref(false)
 const page = ref(1)
 const pageSize = ref(50)
@@ -62,7 +69,6 @@ try {
 }
 
 const fields = computed<FieldDef[]>(() => activeTable.value?.fields ?? [])
-
 /** 展示列 = 用户字段 + 可选系统时间列 */
 const displayFields = computed<FieldDef[]>(() => {
   const list: FieldDef[] = [...fields.value]
@@ -74,16 +80,6 @@ const displayFields = computed<FieldDef[]>(() => {
     list.push({ id: UPDATED_AT_FIELD_ID, name: '修改时间', type: 'text' })
   }
   return list
-})
-
-const filterField = computed(() =>
-  fields.value.find((f) => f.id === filterFieldId.value) ?? null
-)
-
-const filterOptions = computed(() => {
-  const f = filterField.value
-  if (!f || !hasOptions(f)) return []
-  return f.options
 })
 
 function rawSortValue(row: Row, sid: string): string | number {
@@ -118,14 +114,9 @@ const filteredRows = computed(() => {
       searchTextOf(fields.value, r.values, multiSeparator.value).includes(kw)
     )
   }
-  const ff = filterField.value
-  if (ff && filterValue.value) {
-    const want = filterValue.value
-    list = list.filter((r) => {
-      const v = r.values[ff.id]
-      if (isMultiValue(ff)) return Array.isArray(v) && v.includes(want)
-      return String(v ?? '') === want
-    })
+  if (filters.value.length) {
+    const now = Date.now()
+    list = list.filter((r) => matchAll(filters.value, r, fields.value, now, multiSeparator.value))
   }
   const sid = sortFieldId.value
   const dir = sortDir.value === 'asc' ? 1 : -1
@@ -160,9 +151,18 @@ const pageRows = computed(() => {
   return filteredRows.value.slice(start, start + pageSize.value)
 })
 
-watch([keyword, filterFieldId, filterValue, sortFieldId, pageSize, () => activeTable.value?.id], () => {
-  page.value = 1
-})
+watch(
+  [
+    keyword,
+    () => filters.value.map((c) => c.fieldId + c.op + c.value).join('|'),
+    sortFieldId,
+    pageSize,
+    () => activeTable.value?.id
+  ],
+  () => {
+    page.value = 1
+  }
+)
 
 const allSelected = computed({
   get: () =>
@@ -396,7 +396,40 @@ async function importJsonBackup() {
 
 function onSaveSchema(schema: TableSchema) {
   updateTableSchema(schema)
+  // 清掉引用了已删除字段的条件（系统时间列不受影响）
+  const validIds = new Set(schema.fields.map((f) => f.id))
+  filters.value = filters.value.filter(
+    (c) => c.fieldId.startsWith('__') || validIds.has(c.fieldId)
+  )
   ElMessage.success('字段已更新')
+}
+
+/** 新增字段带默认值时：把默认值回填到已有记录（FieldManagerDialog 已确认过） */
+function onBackfill(fieldIds: string[]) {
+  const table = activeTable.value
+  if (!table || !fieldIds.length) return
+  let n = 0
+  const ids = [...fieldIds]
+  const applyNext = () => {
+    const fid = ids.shift()
+    if (!fid) {
+      if (n) ElMessage.success(`已回填 ${n} 条记录`)
+      return
+    }
+    const f = table.fields.find((x) => x.id === fid)
+    if (!f) {
+      applyNext()
+      return
+    }
+    const next = backfillField(activeRows.value, f)
+    if (next) {
+      n += next.length
+      void backfillRows(table.id, next as Row[]).then(applyNext)
+    } else {
+      applyNext()
+    }
+  }
+  applyNext()
 }
 
 async function onCreateTable() {
@@ -500,20 +533,88 @@ function onExportCommand(cmd: string | number | object) {
 function onMoreCommand(cmd: string | number | object) {
   const c = String(cmd)
   if (c === 'fields') showFieldMgr.value = true
+  else if (c === 'rowheight-fixed') setRowHeightMode('fixed')
+  else if (c === 'rowheight-auto') setRowHeightMode('auto')
   else if (c === 'clear') onClearTable()
   else if (c === 'delete') onRemoveTable()
 }
 
-const hasFilterFields = computed(() =>
-  fields.value.some((f) => f.type === 'select' || f.type === 'multi_select')
-)
+const filterActive = computed(() => filters.value.length > 0)
 
-const filterActive = computed(() => Boolean(filterFieldId.value && filterValue.value))
+const hasFilterFields = computed(() => fields.value.length > 0)
 
 function clearFilter() {
-  filterFieldId.value = null
-  filterValue.value = ''
+  filters.value = []
 }
+
+/** 生成条件 key */
+let condSeq = 0
+function newCondKey(): string {
+  condSeq += 1
+  return `c_${Date.now().toString(36)}_${condSeq}`
+}
+
+function addFilter() {
+  const f = filterableFields(fields.value)[0]
+  if (!f) return
+  const ops = opsForField(f)
+  filters.value.push({
+    key: newCondKey(),
+    fieldId: f.id,
+    op: ops[0]?.op ?? 'empty',
+    value: ''
+  })
+}
+
+/** 条件当前字段的操作符选项（字段不存在时给空列表） */
+function condOps(fieldId: string) {
+  const f = filterableFields(fields.value).find((x) => x.id === fieldId)
+  return f ? opsForField(f) : []
+}
+
+function onFilterFieldChange(cond: FilterCond) {
+  const ops = condOps(cond.fieldId)
+  // 字段切换后 op 可能不适用：重置为该字段第一个操作符并清值
+  if (!ops.some((o) => o.op === cond.op)) {
+    cond.op = ops[0]?.op ?? 'empty'
+  }
+  if (cond.op !== 'eq' && cond.op !== 'contains') cond.value = ''
+}
+
+function onFilterOpChange(cond: FilterCond) {
+  if (cond.op !== 'eq' && cond.op !== 'contains') cond.value = ''
+}
+
+function removeFilter(key: string) {
+  filters.value = filters.value.filter((c) => c.key !== key)
+}
+
+/** 快捷时间条件：已有同字段同 op 条件则移除（再次点击=取消），否则追加 */
+function toggleQuickCond(fieldId: string, op: FilterOp) {
+  const idx = filters.value.findIndex((c) => c.fieldId === fieldId && c.op === op)
+  if (idx >= 0) {
+    filters.value.splice(idx, 1)
+    return
+  }
+  filters.value.push({ key: newCondKey(), fieldId, op, value: '' })
+}
+
+function quickCondActive(fieldId: string, op: FilterOp): boolean {
+  return filters.value.some((c) => c.fieldId === fieldId && c.op === op)
+}
+
+/** eq 条件的候选项（单选/多选用字段 options） */
+function condOptions(fieldId: string): string[] {
+  const f = fields.value.find((x) => x.id === fieldId)
+  return f && hasOptions(f) ? f.options : []
+}
+
+const quickConds = computed(() => [
+  { fieldId: CREATED_AT_FIELD_ID, op: 'thisWeek' as FilterOp, label: '本周创建' },
+  { fieldId: CREATED_AT_FIELD_ID, op: 'thisMonth' as FilterOp, label: '本月创建' },
+  { fieldId: UPDATED_AT_FIELD_ID, op: 'today' as FilterOp, label: '今天更新' },
+  { fieldId: UPDATED_AT_FIELD_ID, op: 'thisWeek' as FilterOp, label: '本周更新' }
+])
 
 function clearSelection() {
   selectedIds.value = new Set()
@@ -524,8 +625,7 @@ watch(
   () => activeTable.value?.id,
   () => {
     selectedIds.value = new Set()
-    filterFieldId.value = null
-    filterValue.value = ''
+    filters.value = []
     filterOpen.value = false
     sortFieldId.value = null
   }
@@ -564,6 +664,7 @@ defineExpose({ applyEnterAction })
 
       <template v-else>
       <header class="toolbar">
+        <el-button size="small" type="primary" plain @click="onCreateTable">+ 新建表</el-button>
         <el-select
           :model-value="activeTable?.id ?? ''"
           placeholder="选择表格"
@@ -573,7 +674,6 @@ defineExpose({ applyEnterAction })
         >
           <el-option v-for="t in tables" :key="t.id" :label="t.name" :value="t.id" />
         </el-select>
-        <el-button size="small" text @click="onCreateTable">新建表</el-button>
         <el-input
           v-model="keyword"
           placeholder="搜索当前表…"
@@ -586,7 +686,7 @@ defineExpose({ applyEnterAction })
         <el-popover
           v-if="hasFilterFields"
           placement="bottom-end"
-          :width="240"
+          :width="360"
           trigger="click"
           popper-class="filter-pop"
           v-model:visible="filterOpen"
@@ -594,47 +694,76 @@ defineExpose({ applyEnterAction })
         >
           <template #reference>
             <el-button size="small" text :type="filterActive ? 'primary' : 'default'">
-              筛选{{ filterActive ? ' ·' : '' }}
+              筛选{{ filterActive ? ` · ${filters.length}` : '' }}
             </el-button>
           </template>
           <!-- teleported=false：下拉留在弹层内，避免点选项被当成「点外部」关掉筛选 -->
           <div class="filter-panel" @click.stop>
-            <el-select
-              v-model="filterFieldId"
-              placeholder="按字段筛选"
-              clearable
-              size="small"
-              style="width: 100%"
-              :teleported="false"
-              @change="filterValue = ''"
-            >
-              <el-option
-                v-for="f in fields.filter((x) => x.type === 'select' || x.type === 'multi_select')"
-                :key="f.id"
-                :label="f.name"
-                :value="f.id"
-              />
-            </el-select>
-            <el-select
-              v-if="filterField"
-              v-model="filterValue"
-              placeholder="选择取值"
-              clearable
-              size="small"
-              style="width: 100%; margin-top: 8px"
-              :teleported="false"
-            >
-              <el-option v-for="opt in filterOptions" :key="opt" :label="opt" :value="opt" />
-            </el-select>
-            <div class="filter-actions">
+            <div class="quick-conds">
               <el-button
-                v-if="filterActive"
+                v-for="qc in quickConds"
+                :key="qc.fieldId + qc.op"
                 size="small"
-                text
-                type="primary"
-                @click="clearFilter"
+                :type="quickCondActive(qc.fieldId, qc.op) ? 'primary' : 'default'"
+                plain
+                class="quick-chip"
+                @click="toggleQuickCond(qc.fieldId, qc.op)"
               >
-                清除筛选
+                {{ qc.label }}
+              </el-button>
+            </div>
+            <div v-for="cond in filters" :key="cond.key" class="cond-row">
+              <el-select
+                :model-value="cond.fieldId"
+                size="small"
+                class="cond-field"
+                :teleported="false"
+                @update:model-value="(v: string) => { cond.fieldId = v; onFilterFieldChange(cond) }"
+              >
+                <el-option
+                  v-for="f in filterableFields(fields)"
+                  :key="f.id"
+                  :label="f.name"
+                  :value="f.id"
+                />
+              </el-select>
+              <el-select
+                :model-value="cond.op"
+                size="small"
+                class="cond-op"
+                :teleported="false"
+                @update:model-value="(v: FilterOp) => { cond.op = v; onFilterOpChange(cond) }"
+              >
+                <el-option v-for="o in condOps(cond.fieldId)" :key="o.op" :label="o.label" :value="o.op" />
+              </el-select>
+              <el-select
+                v-if="cond.op === 'eq'"
+                :model-value="cond.value"
+                size="small"
+                class="cond-value"
+                :teleported="false"
+                placeholder="选择"
+                @update:model-value="(v: string) => { cond.value = v }"
+              >
+                <el-option v-for="opt in condOptions(cond.fieldId)" :key="opt" :label="opt" :value="opt" />
+              </el-select>
+              <el-input
+                v-else-if="cond.op === 'contains'"
+                :model-value="cond.value"
+                size="small"
+                class="cond-value"
+                placeholder="关键词"
+                clearable
+                @update:model-value="(v: string) => { cond.value = v }"
+              />
+              <el-button size="small" text type="danger" class="cond-del" @click="removeFilter(cond.key)">
+                ×
+              </el-button>
+            </div>
+            <el-button size="small" text type="primary" @click="addFilter">+ 添加条件</el-button>
+            <div class="filter-actions">
+              <el-button v-if="filterActive" size="small" text type="primary" @click="clearFilter">
+                清除全部
               </el-button>
               <el-button size="small" text style="margin-left: auto" @click="filterOpen = false">
                 收起
@@ -671,6 +800,16 @@ defineExpose({ applyEnterAction })
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="fields">表设置（字段 / 表名）</el-dropdown-item>
+              <el-dropdown-item command="rowheight-fixed">
+                <span class="rowheight-item">
+                  {{ rowHeightMode === 'fixed' ? '✓' : '' }} 固定行高（超出省略）
+                </span>
+              </el-dropdown-item>
+              <el-dropdown-item command="rowheight-auto">
+                <span class="rowheight-item">
+                  {{ rowHeightMode === 'auto' ? '✓' : '' }} 自适应行高（随内容撑高）
+                </span>
+              </el-dropdown-item>
               <el-dropdown-item command="clear" divided>清空当前表（仅记录）</el-dropdown-item>
               <el-dropdown-item command="delete" divided>删除当前表</el-dropdown-item>
             </el-dropdown-menu>
@@ -694,6 +833,7 @@ defineExpose({ applyEnterAction })
           size="small"
           border
           row-key="id"
+          :class="rowHeightMode === 'auto' ? 'row-height-auto' : 'row-height-fixed'"
           @selection-change="(rows: Row[]) => { selectedIds = new Set(rows.map((r) => r.id)) }"
           @row-dblclick="(row: Row) => openEdit(row)"
           @sort-change="onSortChange"
@@ -777,6 +917,7 @@ defineExpose({ applyEnterAction })
       :table="activeTable ?? { id: '', name: '', fields: [], createdAt: 0, updatedAt: 0 }"
       :row-count="activeRows.length"
       @save="onSaveSchema"
+      @backfill="onBackfill"
     />
     <ImportDialog
       v-model:visible="showImport"
@@ -888,9 +1029,45 @@ defineExpose({ applyEnterAction })
   letter-spacing: 1px;
   font-weight: 600;
 }
+.rowheight-item {
+  display: inline-block;
+  min-width: 130px;
+  text-align: left;
+  white-space: nowrap;
+}
 .filter-panel {
   display: flex;
   flex-direction: column;
+}
+.quick-conds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.quick-chip {
+  margin: 0 !important;
+}
+.cond-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.cond-field {
+  width: 108px;
+  flex-shrink: 0;
+}
+.cond-op {
+  width: 92px;
+  flex-shrink: 0;
+}
+.cond-value {
+  flex: 1;
+  min-width: 0;
+}
+.cond-del {
+  padding: 4px !important;
 }
 .filter-actions {
   display: flex;
@@ -921,6 +1098,23 @@ defineExpose({ applyEnterAction })
   flex: 1;
   min-height: 0;
   width: 100%;
+}
+/* 行高样式开关：fixed=固定行高（单行省略），auto=随内容撑高 */
+.grid-wrap :deep(.el-table.row-height-fixed .el-table__cell) {
+  padding: 5px 0;
+}
+.grid-wrap :deep(.el-table.row-height-fixed .cell) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.grid-wrap :deep(.el-table.row-height-fixed .tag) {
+  margin: 0 4px 0 0;
+  white-space: nowrap;
+}
+.grid-wrap :deep(.el-table.row-height-auto .cell) {
+  white-space: normal;
+  word-break: break-all;
 }
 .grid {
   width: max-content;

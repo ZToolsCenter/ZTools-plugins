@@ -1,6 +1,6 @@
 import type { FieldDef, FieldValue, Row, TableSchema } from '../../types/table.ts'
 import { CREATED_AT_FIELD_ID, UPDATED_AT_FIELD_ID, isMultiValue } from '../../types/table.ts'
-import { coerceFieldValue, defaultValue, displayValue } from '../fieldTypes.ts'
+import { coerceFieldValue, displayValue, initialFieldDefault } from '../fieldTypes.ts'
 import { encodeCsv, encodeTsv, parseCsv, parseDelimited, parseTsv } from './tsv.ts'
 import { DEFAULT_MULTI_SEP, splitMultiValue } from '../separators.ts'
 import { formatTimestamp } from '../../utils/time.ts'
@@ -21,7 +21,8 @@ export function formatCell(
   value: FieldValue | undefined,
   multiSep = DEFAULT_MULTI_SEP
 ): string {
-  return displayValue(field, value ?? defaultValue(field.type), multiSep)
+  // 导出/展示兜底：缺失值显示为空，不编造字段默认值
+  return displayValue(field, value ?? null, multiSep)
 }
 
 function cellForRow(field: FieldDef, row: Row, multiSep: string): string {
@@ -93,7 +94,7 @@ export function mapRowValues(
   multiSep = DEFAULT_MULTI_SEP
 ): Record<string, FieldValue> {
   const values: Record<string, FieldValue> = {}
-  for (const f of fields) values[f.id] = defaultValue(f.type)
+  for (const f of fields) values[f.id] = initialFieldDefault(f)
 
   for (let col = 0; col < headers.length; col += 1) {
     const fieldId = columnMap[col]

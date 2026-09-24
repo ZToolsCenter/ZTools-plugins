@@ -11,13 +11,22 @@ export type FieldType =
 
 export type FieldValue = string | number | boolean | string[] | null
 
+/** 字段默认值：新建行预填；新增字段保存时可选回填到已有数据（回填与否是一次性决策，不持久化） */
+export type FieldDefault = FieldValue
+
 export type FieldDef =
-  | { id: string; name: string; type: 'text' | 'longtext' | 'url' }
-  | { id: string; name: string; type: 'list' }
-  | { id: string; name: string; type: 'select' | 'multi_select'; options: string[] }
-  | { id: string; name: string; type: 'number' }
-  | { id: string; name: string; type: 'date' }
-  | { id: string; name: string; type: 'checkbox' }
+  | ({ id: string; name: string; type: 'text' | 'longtext' | 'url'; default?: FieldDefault })
+  | ({ id: string; name: string; type: 'list'; default?: FieldDefault })
+  | ({
+      id: string
+      name: string
+      type: 'select' | 'multi_select'
+      options: string[]
+      default?: FieldDefault
+    })
+  | ({ id: string; name: string; type: 'number'; default?: FieldDefault })
+  | ({ id: string; name: string; type: 'date'; default?: FieldDefault })
+  | ({ id: string; name: string; type: 'checkbox'; default?: FieldDefault })
 
 export interface TableSchema {
   id: string
@@ -46,6 +55,25 @@ export interface Row {
   updatedAt: number
 }
 
+export type FilterOp =
+  | 'empty'
+  | 'notEmpty'
+  | 'eq'
+  | 'contains'
+  | 'today'
+  | 'thisWeek'
+  | 'thisMonth'
+
+/** 高级筛选条件；多条之间 AND */
+export interface FilterCond {
+  /** 条件实例 id（列表 key） */
+  key: string
+  fieldId: string
+  op: FilterOp
+  /** 仅 eq / contains 使用 */
+  value: string
+}
+
 export interface AppMeta {
   version: 1
   tables: TableSchema[]
@@ -53,6 +81,8 @@ export interface AppMeta {
   multiSeparator: string
   /** 快捷记一笔上次使用的表 */
   quickTableId?: string
+  /** 行高样式：fixed=固定行高（单行省略），auto=自适应（随内容撑高）；默认 fixed */
+  rowHeightMode?: 'fixed' | 'auto'
 }
 
 export interface BackupFile {

@@ -32,6 +32,32 @@ export function defaultValue(type: FieldType): FieldValue {
   }
 }
 
+/** 新建行时取字段默认值：配置了 default 用之，否则按类型给空值 */
+export function initialFieldDefault(field: FieldDef): FieldValue {
+  if (field.default !== undefined) return field.default
+  return defaultValue(field.type)
+}
+
+/**
+ * 新增字段回填已有数据：field.default 存在且非空时，把该值写进「缺失该字段」的行。
+ * 返回新行数组；无变化返回 null。
+ */
+export function backfillField(
+  rows: Array<{ id: string; values: Record<string, FieldValue> }>,
+  field: FieldDef
+): Array<{ id: string; values: Record<string, FieldValue> }> | null {
+  const v = field.default
+  // 空串 / null / undefined / 空数组都视为「未设置默认值」，不回填
+  if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null
+  let changed = false
+  const next = rows.map((r) => {
+    if (r.values[field.id] !== undefined) return r
+    changed = true
+    return { ...r, values: { ...r.values, [field.id]: v } }
+  })
+  return changed ? next : null
+}
+
 export function createField(name: string, type: FieldType): FieldDef {
   const id = `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
   if (type === 'select' || type === 'multi_select') {

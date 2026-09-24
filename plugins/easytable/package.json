@@ -1,12 +1,11 @@
 {
   "name": "easytable",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "自定义字段的简单记录表：文本/标签/单选等，一键复制到 Excel，支持 CSV/JSON 导入导出",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
-    "test:codec": "node --experimental-strip-types scripts/test-codec.mjs"
+    "build": "vue-tsc && vite build"
   },
   "dependencies": {
     "element-plus": "^2.14.2",
