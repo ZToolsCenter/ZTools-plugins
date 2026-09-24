@@ -1,6 +1,6 @@
 {
   "name": "ztools-office-suite-workbench",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "A ZTools workbench for Word, Excel and PowerPoint powered by OfficeCLI, with native MCP access.",
