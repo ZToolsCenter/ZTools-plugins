@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Build / pack outputs
+dist/
+*.zip
+
+# Logs & caches
+*.log
+.DS_Store
+Thumbs.db
+.vite/
