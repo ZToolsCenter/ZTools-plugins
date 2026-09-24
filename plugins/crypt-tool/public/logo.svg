@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="crypt-tool logo">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="26%" r="90%">
+      <stop offset="0%" stop-color="#1e2e58"/>
+      <stop offset="60%" stop-color="#111b38"/>
+      <stop offset="100%" stop-color="#0a1024"/>
+    </radialGradient>
+    <linearGradient id="disc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7dd3fc"/>
+      <stop offset="50%" stop-color="#58a4f6"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#7dd3fc"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bfe3ff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#bfe3ff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="rounded">
+      <rect width="512" height="512" rx="116"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#rounded)">
+    <rect width="512" height="512" fill="url(#bg)"/>
+
+    <!-- spotlight cone from top -->
+    <path d="M224 -20 H288 L346 470 H166 Z" fill="url(#beam)"/>
+
+    <!-- orbit ring, broken by the disc -->
+    <circle cx="256" cy="272" r="196" fill="none" stroke="url(#ring)" stroke-width="10" opacity="0.45"/>
+
+    <!-- gradient disc -->
+    <circle cx="256" cy="272" r="148" fill="url(#disc)"/>
+
+    <!-- top-light sheen on disc -->
+    <path d="M108 272 A148 148 0 0 1 404 272 A148 148 0 0 0 108 272 Z" fill="#ffffff" opacity="0.18"/>
+
+    <!-- keyhole cut in negative space -->
+    <path fill="#0d1730" d="M256 204 a52 52 0 1 1 0 104 a52 52 0 1 1 0 -104 Z M256 332 L218 412 h76 Z" fill-rule="evenodd"/>
+
+    <!-- accent dot on the orbit -->
+    <circle cx="256" cy="76" r="16" fill="#7dd3fc"/>
+  </g>
+</svg>
