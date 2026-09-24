@@ -563,14 +563,22 @@ onBeforeUnmount(() => {
       <span>其他时区</span>
     </button>
 
-    <template v-if="isTimezonePanelOpen">
+    <Transition name="timezone-backdrop">
       <button
+        v-if="isTimezonePanelOpen"
         class="panel-backdrop"
         type="button"
         aria-label="关闭其他时区"
         @click="closeTimezonePanel"
       ></button>
-      <aside id="timezone-panel" class="timezone-panel" aria-label="其他时区">
+    </Transition>
+    <Transition name="timezone-drawer">
+      <aside
+        v-if="isTimezonePanelOpen"
+        id="timezone-panel"
+        class="timezone-panel"
+        aria-label="其他时区"
+      >
         <label
           v-for="timezone in TIMEZONES"
           :key="timezone.id"
@@ -596,21 +604,30 @@ onBeforeUnmount(() => {
           <span>{{ format.label }}</span>
         </label>
       </aside>
-    </template>
+    </Transition>
   </div>
 </template>
 
 <style scoped>
 .timestamp-app {
-  --app-background: #303233;
-  --input-background: #3b3b3b;
-  --row-background: #3d3d3d;
-  --row-shadow: rgba(0, 0, 0, 0.2);
-  --primary-text: #f4f4f4;
-  --secondary-text: #9a9a9a;
-  --accent: #8ac9f6;
-  --panel-background: #4a4a4a;
-  --panel-hover: #555555;
+  --app-background: #181b1f;
+  --input-background: #252a30;
+  --row-background: #202429;
+  --row-shadow: rgba(0, 0, 0, 0.16);
+  --primary-text: #edf0f3;
+  --secondary-text: #bac1c9;
+  --accent: #59a9e6;
+  --panel-background: #202429;
+  --panel-hover: #343a42;
+  --input-border: #424952;
+  --input-focus-border: #59a9e6;
+  --empty-text: #8e98a3;
+  --checkbox-border: #68727d;
+  --checkbox-check: #1d3547;
+  --scrollbar-thumb: #555e68;
+  --content-scrollbar-thumb: #555e68;
+  --panel-scrollbar-thumb: #555e68;
+  --copy-hover-background: rgba(89, 169, 230, 0.12);
   position: relative;
   width: 100%;
   height: 100%;
@@ -625,7 +642,7 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   overflow-y: auto;
   padding: 9px 20px 54px;
-  scrollbar-color: #6f6f6f transparent;
+  scrollbar-color: var(--content-scrollbar-thumb) transparent;
   scrollbar-width: thin;
 }
 
@@ -642,7 +659,7 @@ onBeforeUnmount(() => {
 .app-content::-webkit-scrollbar-thumb,
 .timezone-panel::-webkit-scrollbar-thumb {
   border-radius: 4px;
-  background: #707070;
+  background: var(--scrollbar-thumb);
 }
 
 .timestamp-input {
@@ -652,18 +669,18 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   padding: 0 12px;
   border: 0;
-  border-bottom: 1px solid #aaaaaa;
+  border-bottom: 1px solid var(--input-border);
   border-radius: 2px 2px 0 0;
   outline: none;
   background: var(--input-background);
   color: var(--primary-text);
   font-size: 17px;
   font-weight: 600;
-  line-height: 59px;
+  line-height: 24px;
 }
 
 .timestamp-input:focus {
-  border-bottom-color: #d5d5d5;
+  border-bottom-color: var(--input-focus-border);
 }
 
 .result-list {
@@ -710,7 +727,7 @@ onBeforeUnmount(() => {
 }
 
 .result-row.is-empty .result-label {
-  color: #777777;
+  color: var(--empty-text);
 }
 
 .row-actions {
@@ -744,7 +761,7 @@ onBeforeUnmount(() => {
 }
 
 .copy-button:hover {
-  background: rgba(138, 201, 246, 0.12);
+  background: var(--copy-hover-background);
 }
 
 .copy-button:focus-visible,
@@ -824,8 +841,33 @@ onBeforeUnmount(() => {
   padding: 0 0 12px;
   background: var(--panel-background);
   box-shadow: -3px 0 6px rgba(0, 0, 0, 0.15);
-  scrollbar-color: #777777 transparent;
+  scrollbar-color: var(--panel-scrollbar-thumb) transparent;
   scrollbar-width: thin;
+}
+
+.timezone-backdrop-enter-active,
+.timezone-backdrop-leave-active {
+  transition: opacity 200ms ease;
+}
+
+.timezone-backdrop-enter-from,
+.timezone-backdrop-leave-to {
+  opacity: 0;
+}
+
+.timezone-drawer-enter-active,
+.timezone-drawer-leave-active {
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.timezone-drawer-enter-from,
+.timezone-drawer-leave-to {
+  transform: translateX(100%);
+}
+
+.timezone-backdrop-leave-active,
+.timezone-drawer-leave-active {
+  pointer-events: none;
 }
 
 .timezone-option {
@@ -851,7 +893,7 @@ onBeforeUnmount(() => {
   height: 16px;
   flex: 0 0 16px;
   margin: 0 12px 0 0;
-  border: 2px solid #c0c0c0;
+  border: 2px solid var(--checkbox-border);
   border-radius: 2px;
   appearance: none;
   background: transparent;
@@ -870,7 +912,7 @@ onBeforeUnmount(() => {
   left: 3px;
   width: 5px;
   height: 9px;
-  border: solid #31566e;
+  border: solid var(--checkbox-check);
   border-width: 0 2px 2px 0;
   content: '';
   transform: rotate(45deg);
@@ -894,22 +936,28 @@ onBeforeUnmount(() => {
     --accent: #1976b8;
     --panel-background: #ffffff;
     --panel-hover: #edf4f9;
-  }
-
-  .timestamp-input {
-    border-bottom-color: #9da4aa;
-  }
-
-  .result-row.is-empty .result-label {
-    color: #9da4aa;
+    --input-border: #9da4aa;
+    --input-focus-border: #d5d5d5;
+    --empty-text: #9da4aa;
+    --checkbox-border: #c0c0c0;
+    --checkbox-check: #ffffff;
+    --scrollbar-thumb: #707070;
+    --content-scrollbar-thumb: #6f6f6f;
+    --panel-scrollbar-thumb: #777777;
+    --copy-hover-background: rgba(138, 201, 246, 0.12);
   }
 
   .panel-backdrop {
     background: rgba(25, 30, 35, 0.36);
   }
+}
 
-  .timezone-option input:checked::after {
-    border-color: #ffffff;
+@media (prefers-reduced-motion: reduce) {
+  .timezone-backdrop-enter-active,
+  .timezone-backdrop-leave-active,
+  .timezone-drawer-enter-active,
+  .timezone-drawer-leave-active {
+    transition: none;
   }
 }
 
