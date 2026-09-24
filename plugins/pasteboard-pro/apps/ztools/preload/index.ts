@@ -1,3 +1,8 @@
+import { HistoryRpcClient, HISTORY_QUERY_CHANNEL, HISTORY_RESULT_CHANNEL, type HistoryReply } from "./history-rpc";
+import { reorderItemGroupIds, listOrderScope, type ListReorderRequest } from "../src/list-order";
+import { HistorySearchService } from "./history-search";
+import { rememberRecord, takeRecordChanges } from "./record-index";
+import type { HistoryPage, HistoryRequest } from "./history-page";
 import { readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -8,10 +13,25 @@ import {
   type HostClipboardApi,
   type ZToolsDocumentDatabase,
 } from "./clipboard-store";
+import {
+  clipboardWindowRole,
+  ownsClipboardHistoryMirror,
+} from "./clipboard-window-role";
 import { ensureZToolsAutoStart } from "./auto-start";
 import type { PasteStackState } from "@pasteboard-pro/core";
 import { createOcrClient, createTesseractOcrClient } from "./ocr";
 import { NativeFileDragService } from "./native-file-drag";
+import {
+  inspectHostCompatibility,
+  type ZToolsHostCompatibility,
+} from "./host-compatibility";
+import { migratePasteboardProPluginData } from "./plugin-data-migration";
+import { resolvePasteboardProDataPaths } from "./plugin-data";
+import {
+  importScreenCapture,
+  type ScreenCaptureImportResult,
+  type ScreenshotNativeImageApi,
+} from "./screenshot-import";
 import { localizeMirroredImage } from "./mirrored-image";
 import { openQuickLook } from "./quick-look";
 import { rotateImageFile } from "./image-rotation";
@@ -59,7 +79,11 @@ import {
   saveSyncConfiguration,
   type SaveSyncConfigurationInput,
 } from "./sync-config";
-import { ZToolsSyncStore, type SyncSettings } from "./sync-store";
+import {
+  ZToolsSyncStore,
+  DEFAULT_SYNC_INTERVAL_MINUTES,
+  type SyncSettings,
+} from "./sync-store";
 import { ZToolsSyncEntityRepository } from "./sync-repository";
 import { createSearchHistoryHandler } from "./tools";
 import {
@@ -104,13 +128,19 @@ type ZToolsDisplay = Readonly<{
 }>;
 
 type ZToolsHost = Readonly<{
+  getAppVersion?(): unknown;
+  getPath?(name: string): unknown;
   onPluginEnter(callback: (parameter: unknown) => void): void;
   registerTool(
     name: string,
     handler: (input?: unknown) => Promise<unknown>,
   ): void;
   getNativeId(): string;
-  startDrag(file: string | string[]): void;
+  startDrag?(file: string | string[]): void;
+  screenCapture?(
+    callback: (image: unknown, bounds?: unknown) => void,
+    autoConfirm?: boolean,
+  ): void | Promise<unknown>;
   clipboard: HostClipboardApi &
     ClipboardPasteHost &
     Readonly<{
@@ -138,14 +168,21 @@ type ZToolsHost = Readonly<{
 }>;
 
 type PasteboardProBridge = Readonly<{
+  getHostCompatibility(): ZToolsHostCompatibility;
   getPlatformCapabilities(): Readonly<{
     platform: NodeJS.Platform;
     supportsGlobalPasteQueue: boolean;
     supportsQuickLook: boolean;
     supportsSystemOcr: boolean;
     supportsImageRotation: boolean;
+    supportsNativeFileDrag: boolean;
+    supportsScreenCapture: boolean;
   }>;
+  captureScreenshot(): Promise<ScreenCaptureImportResult>;
   searchHistory(query?: string, limit?: number): Promise<Readonly<{ items: unknown[]; total: number }>>;
+  searchHistoryPage(request: HistoryRequest): Promise<HistoryPage>;
+  getHistoryItem(itemId: string, fingerprint?: string): Promise<unknown>;
+  reorderHistory(request: ListReorderRequest, pinboardId?: string): Promise<ListOrders>;
   getPrivacySettings(): Promise<PrivacySettings>;
   savePrivacySettings(settings: PrivacySettings): Promise<PrivacySettings>;
   setCapturePause(pause: CapturePauseState): Promise<PrivacySettings>;
@@ -200,12 +237,44 @@ if (host === undefined) {
 }
 
 const ztools: ZToolsHost = host;
+const hostCompatibility = inspectHostCompatibility(ztools);
+const platformCapabilities = {
+  platform: process.platform,
+  supportsGlobalPasteQueue: process.platform === "darwin",
+  supportsQuickLook:
+    process.platform === "darwin" ||
+    process.platform === "win32" ||
+    process.platform === "linux",
+  supportsSystemOcr: true,
+  supportsImageRotation:
+    process.platform === "darwin" ||
+    process.platform === "win32" ||
+    process.platform === "linux",
+  supportsNativeFileDrag: hostCompatibility.supportsNativeFileDrag,
+  supportsScreenCapture: hostCompatibility.supportsScreenCapture,
+} as const;
+
+if (!hostCompatibility.supported) {
+  const compatibilityBridge = {
+    getHostCompatibility: () => hostCompatibility,
+    getPlatformCapabilities: () => platformCapabilities,
+  } as PasteboardProBridge;
+  (window as Window & { pasteboardPro?: PasteboardProBridge }).pasteboardPro =
+    compatibilityBridge;
+} else {
 const windowParams = new URLSearchParams(window.location.search);
-const isShelfWindow = windowParams.get("shelf") === "1";
-const isPanelWindow = windowParams.has("panel");
-const isPrimaryWindow = !isShelfWindow && !isPanelWindow;
+const windowRole = clipboardWindowRole(windowParams);
+const isShelfWindow = windowRole === "shelf";
+const isPanelWindow = windowRole === "panel";
+const isPrimaryWindow = windowRole === "primary";
+const dataPaths = resolvePasteboardProDataPaths(ztools);
+const dataMigration = isPrimaryWindow
+  ? migratePasteboardProPluginData(ztools.db.promises, dataPaths)
+  : Promise.resolve();
+dataMigration.catch((error) => console.error("[pasteboard-pro] pluginData migration failed", error));
 const store = new ZToolsCanonicalClipboardStore(ztools.db.promises, {
   deviceId: ztools.getNativeId(),
+  ready: dataMigration,
 });
 const privacyStore = new ZToolsPrivacySettingsStore(ztools.db.promises);
 const windowPreferencesStore = new ZToolsWindowPreferencesStore(ztools.db.promises, {
@@ -237,11 +306,28 @@ const keychain =
 const syncRepository = new ZToolsSyncEntityRepository(
   ztools.db.promises,
   ztools.getNativeId(),
+  dataPaths.blobRoot,
+  dataPaths.legacyBlobRoots,
+  dataMigration,
 );
 const shelfWindows = new ShelfWindowManager(ztools);
 const panelWindows = new PanelWindowManager(ztools);
 const thumbnailService = new ThumbnailService(store, nativeImage);
 const nativeFileDragService = new NativeFileDragService(store, ztools);
+const historySearch = new HistorySearchService(path.join(__dirname, "history-worker.cjs"), {
+  all: () => store.readHistoryDocuments(),
+  changed: ids => store.readHistoryChanges(ids),
+});
+const historyRpc = !isPrimaryWindow && ztools.sendToParent !== undefined
+  ? new HistoryRpcClient(`${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      (id, request) => ztools.sendToParent!(HISTORY_QUERY_CHANNEL, id, request))
+  : undefined;
+window.addEventListener(HISTORY_RESULT_CHANNEL, event => historyRpc?.receive((event as CustomEvent<HistoryReply>).detail));
+window.addEventListener("beforeunload", () => { historySearch.dispose(); historyRpc?.dispose(); });
+window.addEventListener("pasteboard-pro:history-changed", (event) => {
+  const detail = (event as CustomEvent<unknown>).detail;
+  historySearch.invalidate(Array.isArray(detail) && detail.every(id => typeof id === "string") ? detail : undefined);
+});
 const ocrClient =
   process.platform === "darwin"
     ? createOcrClient({
@@ -261,6 +347,7 @@ const SHELF_EDGE_CHANNEL = "pasteboard-pro:set-shelf-edge";
 const HISTORY_CHANGED_CHANNEL = "pasteboard-pro:history-changed";
 const WINDOW_PREFERENCES_CHANGED_CHANNEL = "pasteboard-pro:window-preferences-changed";
 const PASTE_STACK_CHANGED_CHANNEL = "pasteboard-pro:paste-stack-changed";
+const SYNC_SETTINGS_CHANGED_CHANNEL = "pasteboard-pro:sync-settings-changed";
 
 const canonicalClipboardHost = withRichClipboard(ztools.clipboard, {
   write: (data) => clipboard.write(data),
@@ -347,7 +434,8 @@ function parsedPanelRequest(value: unknown): PanelRequest | undefined {
     panel !== "privacy" &&
     panel !== "sync" &&
     panel !== "preview" &&
-    panel !== "editor"
+    panel !== "editor" &&
+    panel !== "whatsnew"
   ) return undefined;
   if (value.params === undefined) return { panel };
   if (
@@ -377,12 +465,13 @@ function requestShelfEdge(edge: ShelfDockEdge): void {
 
 function broadcastHistoryChanged(): void {
   thumbnailService.invalidateRecordIndex();
-  window.dispatchEvent(new CustomEvent(HISTORY_CHANGED_CHANNEL));
+  const changes = takeRecordChanges(ztools.db.promises);
+  window.dispatchEvent(new CustomEvent(HISTORY_CHANGED_CHANNEL, { detail: changes }));
   if (isPrimaryWindow) {
-    shelfWindows.notifyHistoryChanged();
+    shelfWindows.notifyHistoryChanged(changes);
     return;
   }
-  ztools.sendToParent?.(HISTORY_CHANGED_CHANNEL);
+  ztools.sendToParent?.(HISTORY_CHANGED_CHANNEL, changes);
 }
 
 function broadcastWindowPreferencesChanged(): void {
@@ -392,6 +481,34 @@ function broadcastWindowPreferencesChanged(): void {
     return;
   }
   ztools.sendToParent?.(WINDOW_PREFERENCES_CHANGED_CHANNEL);
+}
+
+let vaultSyncIntervalTimer: NodeJS.Timeout | undefined;
+
+function configureVaultSyncInterval(settings: SyncSettings): void {
+  if (vaultSyncIntervalTimer !== undefined) {
+    clearInterval(vaultSyncIntervalTimer);
+    vaultSyncIntervalTimer = undefined;
+  }
+  if (!settings.enabled) return;
+
+  const intervalMinutes = Math.max(1, settings.intervalMinutes ?? DEFAULT_SYNC_INTERVAL_MINUTES);
+  const intervalMs = intervalMinutes * 60 * 1_000;
+
+  vaultSyncIntervalTimer = setInterval(() => {
+    void scheduleVaultSync().catch(reportSynchronizationError);
+  }, intervalMs);
+}
+
+function broadcastSyncSettingsChanged(settings: SyncSettings): void {
+  window.dispatchEvent(
+    new CustomEvent(SYNC_SETTINGS_CHANGED_CHANNEL, { detail: settings }),
+  );
+  if (isPrimaryWindow) {
+    configureVaultSyncInterval(settings);
+    return;
+  }
+  ztools.sendToParent?.(SYNC_SETTINGS_CHANGED_CHANNEL, settings);
 }
 
 function reportSynchronizationError(error: unknown): void {
@@ -454,8 +571,8 @@ async function runRetentionIfDue(): Promise<void> {
   }
 }
 
-function scheduleHistoryMirror(): void {
-  synchronization = synchronization
+function scheduleHistoryMirror(): Promise<void> {
+  const nextSynchronization = synchronization
     .then(async () => {
       const privacy = await privacyStore.get();
       const result = await mirrorHostHistory(ztools.clipboard, store, {
@@ -485,11 +602,12 @@ function scheduleHistoryMirror(): void {
       await runRetentionIfDue();
       broadcastHistoryChanged();
       void scheduleVaultSync().catch(reportSynchronizationError);
-    })
-    .catch(reportSynchronizationError);
+    });
+  synchronization = nextSynchronization.catch(reportSynchronizationError);
+  return nextSynchronization;
 }
 
-if (isPrimaryWindow) {
+if (ownsClipboardHistoryMirror(windowRole)) {
   void ensureZToolsAutoStart(ipcRenderer).catch((error: unknown) => {
     console.warn("Paste剪切板自动启动登记失败", error);
   });
@@ -508,12 +626,39 @@ if (isPrimaryWindow) {
       void repositionShelf(edge).catch(reportSynchronizationError);
     }
   });
-  ipcRenderer.on(HISTORY_CHANGED_CHANNEL, () => {
-    shelfWindows.notifyHistoryChanged();
+  ipcRenderer.on(HISTORY_QUERY_CHANNEL, (_event, id, request) => {
+    if (typeof id !== "string" || id.length > 128 || !isRecord(request)) return;
+    void historySearch.page(request as HistoryRequest).then(
+      page => shelfWindows.notifyHistoryResult({ id, page }),
+      error => shelfWindows.notifyHistoryResult({ id, error: error instanceof Error ? error.message : "历史查询失败" }),
+    );
+  });
+  ipcRenderer.on(HISTORY_CHANGED_CHANNEL, (_event, detail) => {
+    const changes = Array.isArray(detail) && detail.every(id => typeof id === "string") ? detail : undefined;
+    historySearch.invalidate(changes);
+    thumbnailService.invalidateRecordIndex();
+    shelfWindows.notifyHistoryChanged(changes);
   });
   ipcRenderer.on(WINDOW_PREFERENCES_CHANGED_CHANNEL, () => {
     shelfWindows.notifyWindowPreferencesChanged();
   });
+  ipcRenderer.on(SYNC_SETTINGS_CHANGED_CHANNEL, (_event, settings) => {
+    if (isRecord(settings)) {
+      configureVaultSyncInterval(settings as unknown as SyncSettings);
+    }
+  });
+  void syncStore.getSettings().then((settings) => {
+    configureVaultSyncInterval(settings);
+    if (settings.enabled) {
+      const lastSyncedTime = settings.status.lastSyncedAt
+        ? new Date(settings.status.lastSyncedAt).getTime()
+        : 0;
+      const intervalMs = (settings.intervalMinutes ?? DEFAULT_SYNC_INTERVAL_MINUTES) * 60 * 1_000;
+      if (Date.now() - lastSyncedTime >= intervalMs) {
+        void scheduleVaultSync().catch(reportSynchronizationError);
+      }
+    }
+  }).catch(reportSynchronizationError);
   ipcRenderer.on(PASTE_STACK_CHANGED_CHANNEL, (_event, value) => {
     void pasteStackRuntime
       ?.replace(normalizePasteStackState(value), false)
@@ -574,21 +719,42 @@ if (isPrimaryWindow) {
 }
 
 const bridge: PasteboardProBridge = {
-  getPlatformCapabilities: () => ({
-    platform: process.platform,
-    supportsGlobalPasteQueue: process.platform === "darwin",
-    supportsQuickLook: process.platform === "darwin" || process.platform === "win32" || process.platform === "linux",
-    supportsSystemOcr: true,
-    supportsImageRotation: process.platform === "darwin" || process.platform === "win32" || process.platform === "linux",
-  }),
+  getHostCompatibility: () => hostCompatibility,
+  getPlatformCapabilities: () => platformCapabilities,
+  captureScreenshot: () =>
+    importScreenCapture(
+      ztools,
+      nativeImage as NativeImageApi & ScreenshotNativeImageApi,
+      clipboard,
+      {
+        canImport: async () => {
+          const privacy = await privacyStore.get();
+          return !isCapturePaused(privacy.pause);
+        },
+      },
+    ),
   async searchHistory(query = "", limit = 1_000) {
     const normalizedLimit = Math.max(1, Math.min(10_000, Math.floor(limit)));
-    const [result, records] = await Promise.all([
-      store.search(query, normalizedLimit),
-      store.listRecords(),
-    ]);
+    const { result, records } = await store.searchWithRecords(query, normalizedLimit);
     nativeFileDragService.refresh(records);
     return result;
+  },
+  async searchHistoryPage(request) {
+    const page = await (historyRpc === undefined ? historySearch.page(request) : historyRpc.page(request));
+    for (const item of page.items) rememberRecord(ztools.db.promises, item.id, `pasteboard-pro:record:${item.contentFingerprint}`);
+    return page;
+  },
+  async getHistoryItem(itemId, fingerprint) {
+    if (fingerprint !== undefined) rememberRecord(ztools.db.promises, itemId, `pasteboard-pro:record:${fingerprint}`);
+    return (await store.findRecordByItemId(itemId))?.item;
+  },
+  async reorderHistory(request, pinboardId) {
+    const scope = listOrderScope(pinboardId);
+    const orders = await listOrderStore.get();
+    const ids = await historySearch.order({
+      ...(pinboardId === undefined ? {} : { pinboardId }), orderedIds: orders[scope] ?? [],
+    });
+    return listOrderStore.put(scope, reorderItemGroupIds(ids, request.sourceIds, request.targetId, request.position));
   },
   getPrivacySettings: () => privacyStore.get(),
   async savePrivacySettings(settings) {
@@ -783,6 +949,7 @@ const bridge: PasteboardProBridge = {
   getSyncSettings: () => syncStore.getSettings(),
   async saveSyncSettings(input) {
     const settings = await saveSyncConfiguration(syncStore, keychain, input);
+    broadcastSyncSettingsChanged(settings);
     return settings.enabled ? await scheduleVaultSync() : settings;
   },
   retrySync: () => scheduleVaultSync(),
@@ -857,3 +1024,4 @@ const bridge: PasteboardProBridge = {
 };
 
 (window as Window & { pasteboardPro?: PasteboardProBridge }).pasteboardPro = bridge;
+}

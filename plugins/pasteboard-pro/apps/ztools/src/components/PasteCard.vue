@@ -10,12 +10,14 @@ import {
 import { containContextMenuKeydown } from "../context-menu-keyboard";
 import { writeSourceDragData } from "../drag-content";
 import { LIST_REORDER_MIME } from "../list-order";
+import { hasPrimaryShortcutModifier, resolveShortcutPlatform } from "../platform-shortcuts";
 
 const props = defineProps<{
   item: PasteItem;
   pinboards: readonly Pinboard[];
   selected: boolean;
   index: number;
+  total?: number;
   vertical?: boolean;
   compact?: boolean;
   reorderEnabled?: boolean;
@@ -36,8 +38,14 @@ const emit = defineEmits<{
 }>();
 const card = ref<HTMLElement>();
 const thumbnailUrl = ref<string>();
+const imageDimensions = ref<string>();
+const imageWidth = ref<number>();
+const imageHeight = ref<number>();
 const thumbnailRequested = ref(false);
 const reorderDragging = ref(false);
+const shortcutPlatform = resolveShortcutPlatform(
+  window.pasteboardPro?.getPlatformCapabilities().platform,
+);
 const contextMenu = ref<{ x: number; y: number }>();
 let stopObservingThumbnail: (() => void) | undefined;
 let reorderDragPreview: HTMLElement | undefined;
@@ -69,6 +77,15 @@ function openContextMenu(event: MouseEvent): void {
   };
   document.addEventListener("pointerdown", closeContextMenu);
   window.addEventListener("keydown", closeContextMenuOnEscape);
+}
+
+function selectCard(event: MouseEvent): void {
+  emit(
+    "select",
+    props.item.id,
+    event.shiftKey,
+    hasPrimaryShortcutModifier(event, shortcutPlatform),
+  );
 }
 
 function assignToPinboard(pinboardId: string | undefined): void {
@@ -228,16 +245,18 @@ function prepareNativeFileDrag(): void {
 }
 
 function beginNativeFileDrag(event: DragEvent): void {
-  event.dataTransfer?.setData("application/x-pasteboard-pro-item", props.item.id);
-  if (event.dataTransfer !== null) {
-    event.dataTransfer.effectAllowed = "copy";
-  }
-  // The nested <img> element has a browser-native drag behavior that exposes
-  // its thumbnail URL. Always cancel that default payload; the host API below
-  // supplies the original image/file as a native file drag instead.
-  window.pasteboardPro?.startNativeFileDrag(props.item.id);
-  event.preventDefault();
+  // Stop nested image/file drag events from reaching the card reorder handler.
   event.stopPropagation();
+  const started = window.pasteboardPro?.startNativeFileDrag(props.item.id) ?? false;
+  if (started) {
+    event.preventDefault();
+    return;
+  }
+  // ZTools 2.4–3.1 has no startDrag API. Preserve the browser data-transfer
+  // payload so those hosts still support in-plugin/source dragging.
+  if (event.dataTransfer !== null) {
+    writeSourceDragData(props.item, event.dataTransfer);
+  }
 }
 
 const bodyText = computed(() => {
@@ -249,13 +268,25 @@ const bodyText = computed(() => {
   return props.item.payload.mediaType ?? props.item.kind;
 });
 
+function updateImageDimensions(w: number, h: number): void {
+  if (w > 0 && h > 0) {
+    imageWidth.value = w;
+    imageHeight.value = h;
+    imageDimensions.value = `${w}×${h}`;
+  }
+}
+
 async function loadThumbnail(): Promise<void> {
   if (props.item.kind !== "image") return;
   thumbnailRequested.value = true;
-  thumbnailUrl.value = await loadItemThumbnail(
+  const thumbnailData = await loadItemThumbnail(
     props.item.id,
     props.item.payload.revision,
   );
+  thumbnailUrl.value = thumbnailData?.url;
+  if (thumbnailData?.originalWidth && thumbnailData?.originalHeight) {
+    updateImageDimensions(thumbnailData.originalWidth, thumbnailData.originalHeight);
+  }
   prepareNativeFileDrag();
 }
 
@@ -270,9 +301,31 @@ watch(
   () => props.item.payload.revision,
   () => {
     thumbnailUrl.value = undefined;
+    imageDimensions.value = undefined;
+    imageWidth.value = undefined;
+    imageHeight.value = undefined;
     if (thumbnailRequested.value) void loadThumbnail();
   },
 );
+
+function handleImageLoad(event: Event) {
+  const target = event.currentTarget as HTMLImageElement | null;
+  if (!target || !target.naturalWidth || !target.naturalHeight) return;
+  updateImageDimensions(target.naturalWidth, target.naturalHeight);
+}
+
+// 宽高比与滚动方向：
+// 1. 宽高比大于 1（常规横图/截图）：宽度 100%，高度（垂直）平滑滚动浏览；纵向长图同样以宽度 100% 高度滚动浏览
+// 2. 超宽全景图（宽高比显著超出容器）：高度 100%，宽度（水平）平滑滚动浏览
+const isFitWidth = computed<boolean>(() => {
+  if (imageWidth.value && imageHeight.value && imageHeight.value > 0) {
+    const ratio = imageWidth.value / imageHeight.value;
+    // 容器宽高比约为 3.2。若比例超过 3.0 则为超长宽图（高度100%，横向滚动）
+    // 其余常规图与长图均以宽度100%纵向滚动浏览
+    return ratio <= 3.0;
+  }
+  return true;
+});
 
 onBeforeUnmount(() => {
   stopObservingThumbnail?.();
@@ -288,20 +341,23 @@ onBeforeUnmount(() => {
     :class="[`paste-card--${item.kind}`, { 'paste-card--selected': selected, 'paste-card--vertical': vertical, 'paste-card--compact': compact, 'paste-card--dragging': reorderDragging || reorderHidden, 'paste-card--reorder-active': reorderActive, 'paste-card--shift-backward': reorderShift < 0, 'paste-card--shift-forward': reorderShift > 0 }]"
     :style="reorderTransformStyle"
     :aria-selected="selected"
+    :aria-posinset="index + 1"
+    :aria-setsize="total"
     :data-pb-item-id="item.id"
     role="option"
     tabindex="0"
     :draggable="reorderEnabled !== false"
-    @click="emit('select', item.id, $event.shiftKey, $event.metaKey)"
+    @click="selectCard"
     @dblclick="emit('paste', item.id)"
     @contextmenu.prevent.stop="openContextMenu"
     @dragstart="beginReorderDrag"
     @dragend="finishReorderDrag"
-    @keydown.enter="emit('paste', item.id)"
-    @keydown.space.prevent="emit('preview', item.id)"
   >
     <header>
-      <span class="kind">{{ item.kind.replace('_', ' ') }}</span>
+      <span class="kind">
+        {{ item.kind.replace('_', ' ') }}
+        <span v-if="item.kind === 'image' && imageDimensions" class="kind-meta">· {{ imageDimensions }}</span>
+      </span>
       <span class="card-tools">
         <span
           v-if="reorderEnabled !== false"
@@ -313,7 +369,15 @@ onBeforeUnmount(() => {
       </span>
     </header>
     <div v-if="item.kind === 'color'" class="color-preview" :style="{ background: item.payload.text }"></div>
-    <div v-else-if="item.kind === 'image'" class="image-preview" aria-label="图片缩略图" draggable="true" @pointerdown="prepareNativeFileDrag" @dragstart="beginNativeFileDrag">
+    <div
+      v-else-if="item.kind === 'image'"
+      class="image-preview"
+      :class="isFitWidth ? 'image-preview--ratio-gt-1' : 'image-preview--ratio-lt-1'"
+      aria-label="图片缩略图"
+      draggable="true"
+      @pointerdown="prepareNativeFileDrag"
+      @dragstart="beginNativeFileDrag"
+    >
       <img
         v-if="thumbnailUrl"
         :src="thumbnailUrl"
@@ -322,6 +386,7 @@ onBeforeUnmount(() => {
         draggable="true"
         @pointerdown="prepareNativeFileDrag"
         @dragstart="beginNativeFileDrag"
+        @load="handleImageLoad"
       />
       <span v-else>IMAGE</span>
     </div>
@@ -553,12 +618,9 @@ onBeforeUnmount(() => {
 .paste-card--vertical.paste-card--compact .color-preview,
 .paste-card--vertical.paste-card--compact .image-preview {
   min-height: 38px;
+  height: 38px;
   margin: 5px 0;
   border-radius: 9px;
-}
-
-.paste-card--vertical.paste-card--compact .image-preview img {
-  min-height: 38px;
 }
 
 .paste-card--vertical.paste-card--compact kbd {
@@ -616,6 +678,13 @@ header {
   text-transform: uppercase;
 }
 
+.kind-meta {
+  color: var(--pb-muted);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 kbd {
   display: grid;
   width: 18px;
@@ -642,12 +711,16 @@ p {
 .color-preview,
 .image-preview {
   min-height: 62px;
+  height: 62px;
   margin: 8px 0;
   border-radius: 11px;
 }
 
 .image-preview {
-  display: grid;
+  display: flex;
+  overscroll-behavior: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
   background:
     radial-gradient(circle at 28% 30%, rgba(255, 255, 255, 0.7), transparent 30%),
     linear-gradient(135deg, #8e82e8, #423c72);
@@ -655,16 +728,59 @@ p {
   font-size: 9px;
   font-weight: 750;
   letter-spacing: 0.18em;
-  place-items: center;
+  will-change: scroll-position;
 }
 
-.image-preview img {
+.image-preview::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.image-preview::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+}
+
+/* 宽高比大于 1：宽度 100%，高度滚动 */
+.image-preview--ratio-gt-1 {
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.image-preview--ratio-gt-1 img {
   display: block;
   width: 100%;
-  height: 100%;
-  min-height: 62px;
+  height: auto;
+  min-width: 100%;
+  max-width: 100%;
+  max-height: none;
+  flex-shrink: 0;
   cursor: grab;
-  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: element;
+}
+
+/* 宽高比小于等于 1：高度 100%，宽度滚动 */
+.image-preview--ratio-lt-1 {
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.image-preview--ratio-lt-1 img {
+  display: block;
+  height: 100%;
+  width: auto;
+  min-height: 100%;
+  max-height: 100%;
+  max-width: none;
+  flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: element;
 }
 
 .image-preview img:active {
@@ -684,6 +800,7 @@ footer {
   justify-content: space-between;
   color: var(--pb-muted);
   font-size: 9px;
+  flex-shrink: 0;
 }
 
 footer strong,

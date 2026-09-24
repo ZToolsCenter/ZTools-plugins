@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowReactive, ref } from "vue";
 
 import {
   PinboardSchema,
+  PasteItemSchema,
   type PasteItem,
   type PasteStackAction,
   type PasteStackState,
@@ -21,10 +22,19 @@ import {
   type WindowPreferences,
 } from "../preload/window-preferences";
 
+import { markWindowReady } from "../window-ready";
 import Shelf from "./components/Shelf.vue";
+import { createHistoryRefresh } from "./history-refresh";
+import { HistoryPager } from "./history-pager";
 import Preview from "./components/Preview.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
 import TextEditor from "./components/TextEditor.vue";
+import WhatsNewModal from "./components/WhatsNewModal.vue";
+import {
+  CURRENT_APP_VERSION,
+  markWhatsNewSeen,
+  shouldShowWhatsNew,
+} from "./whats-new";
 import { combinedTextPasteContent } from "./batch-paste";
 import { assignmentItemIds } from "./pinboard-assignment";
 import {
@@ -34,6 +44,12 @@ import {
 } from "./state";
 import { queryAfterTypeToSearch } from "./type-to-search";
 import { isListNavigationKey, shouldResumeListControl } from "./list-control-key";
+import { shelfKeyboardRoute } from "./keyboard-routing";
+import {
+  hasAnyCommandModifier,
+  matchesPrimaryShortcut,
+  resolveShortcutPlatform,
+} from "./platform-shortcuts";
 import { themeCssVariables } from "./theme";
 import {
   applyListOrder,
@@ -53,10 +69,19 @@ const panelMode =
   panel === "privacy" ||
   panel === "sync" ||
   panel === "preview" ||
-  panel === "editor"
+  panel === "editor" ||
+  panel === "whatsnew"
     ? panel
     : undefined;
 const isShelfMode = params.get("shelf") === "1";
+const hostCompatibility = window.pasteboardPro?.getHostCompatibility();
+const requiresHostUpgrade = hostCompatibility?.supported === false;
+const platformCapabilities = window.pasteboardPro?.getPlatformCapabilities();
+const shortcutPlatform = resolveShortcutPlatform(
+  platformCapabilities?.platform,
+);
+const supportsScreenCapture =
+  platformCapabilities?.supportsScreenCapture === true;
 const dockValue = params.get("dock");
 const edge: DockEdge =
   dockValue === "top" ||
@@ -66,20 +91,31 @@ const edge: DockEdge =
     ? dockValue
     : "floating";
 
-const state = reactive(
+// State methods replace snapshots; avoid proxying every field of 10,000 records.
+const state = shallowReactive(
   createPasteboardState({
     items: [],
     dockEdge: edge,
+    shortcutPlatform,
   }),
 );
 const pinboards = ref<Pinboard[]>([]);
 const query = ref("");
+const pagedHistory = window.pasteboardPro?.searchHistoryPage !== undefined;
+const historyTotal = ref(0);
+const hasMoreHistory = ref(false);
+let queryTimer: ReturnType<typeof setTimeout> | undefined;
 const paused = ref(false);
+const canCaptureScreen = computed(
+  () => supportsScreenCapture && !paused.value,
+);
 const activePinboardId = ref<string>();
 const listOrders = ref<ListOrders>({});
 const listOrderSaving = ref(false);
 const previewItemId = ref<string>();
 const status = ref("本地历史已就绪");
+const startupError = ref<string>();
+const shelfView = ref<InstanceType<typeof Shelf>>();
 const syncSettings = ref<SyncSettings>(structuredClone(defaultSyncSettings));
 const privacySettings = ref<PrivacySettings>(structuredClone(defaultPrivacySettings));
 const windowPreferences = ref<WindowPreferences>(structuredClone(defaultWindowPreferences));
@@ -94,6 +130,15 @@ const hasImageBackground = computed(
 const settingsOpen = ref(false);
 const settingsSaving = ref(false);
 const settingsInitialTab = ref<"general" | "appearance" | "privacy" | "sync">("general");
+
+function openWhatsNew(): void {
+  window.pasteboardPro?.openPanel("whatsnew");
+}
+
+function closeWhatsNew(): void {
+  markWhatsNewSeen();
+  closeWindow();
+}
 const editor = ref<{
   mode: "create" | "edit" | "rename";
   itemId?: string;
@@ -125,6 +170,7 @@ async function loadDevelopmentFixtures(): Promise<void> {
 
 const visibleItems = computed(() => {
   const items = state.visibleItems;
+  if (pagedHistory) return items;
   const pinboardId = activePinboardId.value;
   const filtered = pinboardId === undefined
     ? items
@@ -147,6 +193,15 @@ const focusedItem = computed<PasteItem | undefined>(() => {
 
 function updateQuery(value: string): void {
   query.value = value;
+  if (pagedHistory) {
+    clearTimeout(queryTimer);
+    // Invalidate the old query immediately; debounce only the next search.
+    historyPager?.invalidate();
+    state.replaceResolvedItems([]);
+    hasMoreHistory.value = false;
+    queryTimer = setTimeout(() => { queryTimer = undefined; void loadPagedHistory(false).catch(reportHistoryError); }, 120);
+    return;
+  }
   state.setQuery(value);
   state.restoreSelection(visibleItems.value.map((item) => item.id));
 }
@@ -180,12 +235,7 @@ function focusLatestItem(itemId: string): void {
 
 function focusListCard(itemId: string | undefined): void {
   if (itemId === undefined) return;
-  void nextTick(() => {
-    const card = [...document.querySelectorAll<HTMLElement>("[data-pb-item-id]")]
-      .find((candidate) => candidate.dataset.pbItemId === itemId);
-    card?.focus({ preventScroll: true });
-    card?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  });
+  void shelfView.value?.focusItem(itemId);
 }
 
 async function pasteItem(
@@ -212,10 +262,13 @@ async function pasteItems(
   plainText = false,
   combineText = true,
 ): Promise<void> {
-  const items = itemIds.flatMap((itemId) => {
-    const item = visibleItems.value.find((candidate) => candidate.id === itemId);
-    return item === undefined ? [] : [item];
-  });
+  const items = pagedHistory
+    ? (await Promise.all(itemIds.map(id => window.pasteboardPro?.getHistoryItem?.(id))))
+        .flatMap(value => { const result = PasteItemSchema.safeParse(value); return result.success ? [result.data] : []; })
+    : itemIds.flatMap((itemId) => {
+        const item = visibleItems.value.find((candidate) => candidate.id === itemId);
+        return item === undefined ? [] : [item];
+      });
   const combinedContent =
     combineText && items.length === itemIds.length && items.length > 1
       ? combinedTextPasteContent(items)
@@ -259,16 +312,21 @@ function createTextItem(): void {
   });
 }
 
+function itemPanelParams(itemId: string): Record<string, string> {
+  const item = visibleItems.value.find(candidate => candidate.id === itemId);
+  return { itemId, ...(item === undefined ? {} : { fingerprint: item.contentFingerprint }) };
+}
+
 function editItem(itemId: string): void {
-  window.pasteboardPro?.openPanel("editor", { mode: "edit", itemId });
+  window.pasteboardPro?.openPanel("editor", { mode: "edit", ...itemPanelParams(itemId) });
 }
 
 function renameItem(itemId: string): void {
-  window.pasteboardPro?.openPanel("editor", { mode: "rename", itemId });
+  window.pasteboardPro?.openPanel("editor", { mode: "rename", ...itemPanelParams(itemId) });
 }
 
 function openPreview(itemId: string): void {
-  window.pasteboardPro?.openPanel("preview", { itemId });
+  window.pasteboardPro?.openPanel("preview", itemPanelParams(itemId));
 }
 
 async function saveEditor(value: { title: string; text: string }): Promise<void> {
@@ -369,7 +427,7 @@ async function handleEffect(effect: PasteboardKeyboardEffect | null): Promise<vo
   await pasteItems(effect.itemIds, effect.plainText);
 }
 
-function onKeydown(event: KeyboardEvent): void {
+async function onKeydown(event: KeyboardEvent): Promise<void> {
   if (event.isComposing) return;
   if (event.key === "Escape" && (isShelfMode || panelMode !== undefined)) {
     event.preventDefault();
@@ -378,12 +436,12 @@ function onKeydown(event: KeyboardEvent): void {
   }
   if (!isShelfMode) return;
   if (settingsOpen.value) return;
-  if (event.metaKey && event.key.toLowerCase() === "f") {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "f")) {
     event.preventDefault();
     document.querySelector<HTMLInputElement>("[data-pb-search]")?.focus();
     return;
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "n") {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "n")) {
     event.preventDefault();
     createTextItem();
     return;
@@ -420,33 +478,50 @@ function onKeydown(event: KeyboardEvent): void {
       return;
     }
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "c") {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "c")) {
     event.preventDefault();
     void copySelection();
     return;
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "t") {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "t")) {
     event.preventDefault();
     void togglePause();
     return;
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "e" && focusedItem.value !== undefined) {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "e") && focusedItem.value !== undefined) {
     event.preventDefault();
     editItem(focusedItem.value.id);
     return;
   }
-  if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "r" && focusedItem.value !== undefined) {
+  if (matchesPrimaryShortcut(event, shortcutPlatform, "r") && focusedItem.value !== undefined) {
     event.preventDefault();
     renameItem(focusedItem.value.id);
     return;
   }
-  const isSpaceActivation =
-    event.key === " " &&
-    event.target instanceof Element &&
-    event.target.closest(
-      "button, a[href], summary, [role='button'], [role='menuitem']",
-    ) !== null;
-  const nextQuery = isSpaceActivation
+  const previousSelection = state.selection.selected.join("\0");
+  const keyboardTarget = event.target instanceof Element ? event.target : undefined;
+  const listCardTarget = keyboardTarget?.closest<HTMLElement>("[data-pb-item-id]");
+  const keyboardRoute = shelfKeyboardRoute(event.key, {
+    nativeControl:
+      keyboardTarget !== undefined &&
+      keyboardTarget.closest(
+        "button, a[href], summary, [role='button'], [role='menuitem']",
+      ) !== null,
+    listCard: listCardTarget !== undefined && listCardTarget !== null,
+  });
+  if (keyboardRoute === "native-control") return;
+  if (
+    keyboardRoute === "list-card" &&
+    !hasAnyCommandModifier(event) &&
+    listCardTarget !== undefined &&
+    listCardTarget !== null
+  ) {
+    const itemId = listCardTarget.dataset.pbItemId;
+    if (itemId !== undefined && !state.selection.selected.includes(itemId)) {
+      state.replaceSelection(itemId);
+    }
+  }
+  const nextQuery = keyboardRoute === "list-card"
     ? undefined
     : queryAfterTypeToSearch(query.value, event);
   if (nextQuery !== undefined) {
@@ -459,11 +534,20 @@ function onKeydown(event: KeyboardEvent): void {
     );
     return;
   }
-  const previousSelection = state.selection.selected.join("\0");
+  if (pagedHistory && hasMoreHistory.value &&
+      (event.key === "ArrowRight" || event.key === "ArrowDown") &&
+      state.selection.focus === visibleItems.value.at(-1)?.id) {
+    event.preventDefault();
+    const currentQuery = query.value;
+    const currentBoard = activePinboardId.value;
+    try { await historyPager?.loadMore(); } catch (error) { reportHistoryError(error); return; }
+    if (query.value !== currentQuery || activePinboardId.value !== currentBoard) return;
+  }
   const effect = state.handleKeyboard(
     {
       key: event.key,
       metaKey: event.metaKey,
+      ctrlKey: event.ctrlKey,
       shiftKey: event.shiftKey,
       altKey: event.altKey,
     },
@@ -493,22 +577,84 @@ async function togglePause(): Promise<void> {
   status.value = paused.value ? "剪贴板捕获已暂停" : "剪贴板捕获已继续";
 }
 
+async function captureScreen(): Promise<void> {
+  status.value = "正在截取屏幕…";
+  try {
+    const result = await window.pasteboardPro?.captureScreenshot();
+    if (result === undefined) throw new Error("当前 ZTools 版本不支持截图导入");
+    const bounds = result.bounds;
+    status.value = bounds === undefined
+      ? "截图已写入剪贴板，正在同步历史"
+      : `截图已写入剪贴板（${Math.round(bounds.width)} × ${Math.round(bounds.height)}），正在同步历史`;
+  } catch (error) {
+    status.value = error instanceof Error ? error.message : "截图导入失败";
+  }
+}
+
 function onMirrored(event: Event): void {
   const detail = (event as CustomEvent<{ imported: number }>).detail;
   status.value = detail.imported > 0 ? `已导入 ${detail.imported} 条记录` : "历史已同步";
 }
 
+const loadLegacyHistory = createHistoryRefresh(
+  async () => window.pasteboardPro?.searchHistory("", 10_000),
+  (history) => {
+    if (history !== undefined) {
+      state.replaceItems(history.items);
+      state.restoreSelection(visibleItems.value.map((item) => item.id));
+      status.value = `已载入 ${history.total} 条记录`;
+    }
+  },
+);
+
+function createPager(): HistoryPager | undefined {
+  if (!pagedHistory) return undefined;
+  return new HistoryPager(
+    request => window.pasteboardPro!.searchHistoryPage!(request),
+    page => {
+      state.replaceResolvedItems(page.items);
+      state.restoreSelection(page.items.map(item => item.id));
+      historyTotal.value = page.total;
+      hasMoreHistory.value = page.nextCursor !== undefined;
+      status.value = `已载入 ${page.items.length} / ${page.total} 条记录`;
+    },
+  );
+}
+const historyPager = createPager();
+function reportHistoryError(error: unknown): void {
+  status.value = error instanceof Error ? error.message : "历史加载失败";
+}
+function loadPagedHistory(preserveCount = true): Promise<void> {
+  return historyPager!.refresh({
+    query: query.value,
+    ...(activePinboardId.value === undefined ? {} : { pinboardId: activePinboardId.value }),
+    orderedIds: [...(listOrders.value[listOrderScope(activePinboardId.value)] ?? [])],
+  }, preserveCount);
+}
 async function loadHistory(): Promise<void> {
-  const history = await window.pasteboardPro?.searchHistory("", 10_000);
-  if (history !== undefined) {
-    state.replaceItems(history.items);
-    state.restoreSelection(visibleItems.value.map((item) => item.id));
-    status.value = `已载入 ${history.total} 条记录`;
+  if (!pagedHistory) return loadLegacyHistory();
+  if (panelMode === "preview" || panelMode === "editor") {
+    const id = params.get("itemId");
+    const item = id === null ? undefined : await window.pasteboardPro?.getHistoryItem?.(id, params.get("fingerprint") ?? undefined);
+    state.replaceResolvedItems(item === undefined ? [] : [item]);
+    return;
   }
+  await loadPagedHistory();
+}
+function loadMoreHistory(): void {
+  if (queryTimer !== undefined || !hasMoreHistory.value) return;
+  void historyPager?.loadMore().catch(reportHistoryError);
+}
+
+function onHistoryChanged(): void {
+  void loadHistory().catch((error: unknown) => {
+    status.value = error instanceof Error ? error.message : "历史加载失败";
+  });
 }
 
 function selectPinboard(pinboardId: string | undefined): void {
   activePinboardId.value = pinboardId;
+  if (pagedHistory) { void loadPagedHistory(false).catch(reportHistoryError); return; }
   state.restoreSelection(visibleItems.value.map((item) => item.id));
 }
 
@@ -535,8 +681,11 @@ async function reorderVisibleItems(value: ListReorderRequest): Promise<void> {
   state.restoreSelection(nextIds);
   listOrderSaving.value = true;
   try {
-    const saved = await window.pasteboardPro?.saveListOrder(scope, nextIds);
+    const saved = pagedHistory
+      ? await window.pasteboardPro?.reorderHistory?.(value, activePinboardId.value)
+      : await window.pasteboardPro?.saveListOrder(scope, nextIds);
     if (saved !== undefined) listOrders.value = saved;
+    if (pagedHistory) await loadPagedHistory();
     status.value = "列表顺序已保存";
   } catch (error) {
     if (
@@ -734,6 +883,7 @@ async function saveSettings(
       syncInput.enabled !== currentSync.enabled ||
       syncInput.baseUrl.trim() !== currentSync.baseUrl ||
       syncInput.username.trim() !== currentSync.username ||
+      syncInput.intervalMinutes !== currentSync.intervalMinutes ||
       syncInput.webdavPassword !== undefined ||
       syncInput.syncPassword !== undefined;
     const [saved, savedPreferences, savedSync] = await Promise.all([
@@ -787,6 +937,9 @@ function onWindowFocus(): void {
   if (isShelfMode) {
     shelfHasFocused = true;
     nativeDialogOpen = false;
+    if (shouldShowWhatsNew()) {
+      openWhatsNew();
+    }
   }
 }
 
@@ -803,7 +956,11 @@ async function onWindowPreferencesChanged(): Promise<void> {
   if (preferences !== undefined) windowPreferences.value = preferences;
 }
 
-onMounted(async () => {
+async function initializeWindow(): Promise<void> {
+  if (requiresHostUpgrade) return;
+  if (!import.meta.env.DEV && window.pasteboardPro === undefined) {
+    throw new Error("Paste preload bridge is unavailable");
+  }
   window.addEventListener("keydown", onKeydown);
   window.addEventListener("pasteboard-pro:paste-stack-changed", onPasteStackChanged);
   window.addEventListener(
@@ -866,7 +1023,7 @@ onMounted(async () => {
   }
   if (!isShelfMode) return;
   window.addEventListener("pasteboard-pro:history-mirrored", onMirrored);
-  window.addEventListener("pasteboard-pro:history-changed", loadHistory);
+  window.addEventListener("pasteboard-pro:history-changed", onHistoryChanged);
   const [settings, savedListOrders] = await Promise.all([
     window.pasteboardPro?.getPrivacySettings(),
     window.pasteboardPro?.getListOrders(),
@@ -888,15 +1045,35 @@ onMounted(async () => {
   }
   await loadHistory();
   await loadPinboards();
+  if (panelMode === undefined && shouldShowWhatsNew()) {
+    openWhatsNew();
+  }
+}
+
+onMounted(async () => {
+  try {
+    await initializeWindow();
+  } catch (error) {
+    console.error("Paste initial content failed to load", error);
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    startupError.value = `加载失败，请关闭后重新打开 Paste (${detail})`;
+  } finally {
+    // nextTick includes child updates from the initial history and theme. Unlike
+    // requestAnimationFrame, it also runs while an Electron window is hidden.
+    await nextTick();
+    markWindowReady();
+  }
 });
 
 onBeforeUnmount(() => {
+  clearTimeout(queryTimer);
+  historyPager?.dispose();
   window.removeEventListener("keydown", onKeydown);
   window.removeEventListener("pasteboard-pro:paste-stack-changed", onPasteStackChanged);
   window.removeEventListener("focus", onWindowFocus);
   window.removeEventListener("blur", onWindowBlur);
   window.removeEventListener("pasteboard-pro:history-mirrored", onMirrored);
-  window.removeEventListener("pasteboard-pro:history-changed", loadHistory);
+  window.removeEventListener("pasteboard-pro:history-changed", onHistoryChanged);
   window.removeEventListener(
     "pasteboard-pro:window-preferences-changed",
     onWindowPreferencesChanged,
@@ -911,13 +1088,32 @@ onBeforeUnmount(() => {
     :style="themeStyle"
     :class="{
       'stage--panel': panelMode !== undefined,
-      'stage--primary': !isShelfMode && panelMode === undefined,
+      'stage--primary': !requiresHostUpgrade && !isShelfMode && panelMode === undefined,
       'stage--image-background': hasImageBackground,
     }"
   >
+    <section v-if="requiresHostUpgrade" class="upgrade-required" role="alert">
+      <img src="/logo.png" alt="" />
+      <h1>请升级 ZTools</h1>
+      <p>
+        Paste剪切板需要 ZTools {{ hostCompatibility?.minimumVersion ?? "2.4.0" }} 或更高版本。
+      </p>
+      <small v-if="hostCompatibility?.currentVersion">
+        当前版本：{{ hostCompatibility.currentVersion }}
+      </small>
+    </section>
+    <section v-else-if="startupError" class="upgrade-required" role="alert">
+      <p>{{ startupError }}</p>
+      <button type="button" @click="closeWindow">关闭</button>
+    </section>
+    <template v-else>
     <Shelf
+      ref="shelfView"
       v-if="isShelfMode"
       :items="visibleItems"
+      :total="pagedHistory ? historyTotal : visibleItems.length"
+      :has-more="hasMoreHistory"
+      @load-more="loadMoreHistory"
       :pinboards="pinboards"
       :smart-pinboards="defaultSmartPinboards"
       :selected-ids="state.selection.selected"
@@ -930,6 +1126,7 @@ onBeforeUnmount(() => {
       :paste-stack-count="state.pasteStack.itemIds.length"
       :paste-stack-direction="state.pasteStack.direction"
       :reorder-enabled="reorderEnabled"
+      :can-capture-screen="canCaptureScreen"
       @update:query="updateQuery"
       @select="selectItem"
       @paste="pasteItem"
@@ -948,6 +1145,7 @@ onBeforeUnmount(() => {
       @clear-stack="updatePasteStack({ type: 'clear' })"
       @open-privacy-settings="openPrivacySettings"
       @create-text="createTextItem"
+      @capture-screen="captureScreen"
       @edit-item="editItem"
       @rename-item="renameItem"
       @reorder="reorderVisibleItems"
@@ -964,6 +1162,13 @@ onBeforeUnmount(() => {
       @save="saveSettings"
       @retry="retrySync"
       @history-cleared="onHistoryCleared"
+      @show-whats-new="openWhatsNew"
+    />
+    <WhatsNewModal
+      v-if="panelMode === 'whatsnew'"
+      standalone
+      :version="CURRENT_APP_VERSION"
+      @close="closeWhatsNew"
     />
     <TextEditor
       v-if="panelMode === 'editor' && editor"
@@ -988,6 +1193,7 @@ onBeforeUnmount(() => {
       @rename="renameItem"
     />
     <p v-if="isShelfMode" class="status" aria-live="polite">{{ status }}</p>
+    </template>
   </main>
 </template>
 
@@ -1016,6 +1222,24 @@ onBeforeUnmount(() => {
   padding: 0;
   place-items: center;
 }
+
+.upgrade-required {
+  align-self: center;
+  justify-self: center;
+  width: min(420px, calc(100% - 32px));
+  padding: 28px;
+  border: 1px solid var(--pb-line);
+  border-radius: 20px;
+  background: var(--pb-glass-strong);
+  box-shadow: 0 24px 80px var(--pb-shadow);
+  color: var(--pb-ink);
+  text-align: center;
+}
+
+.upgrade-required img { width: 52px; height: 52px; border-radius: 14px; }
+.upgrade-required h1 { margin: 14px 0 8px; font-size: 22px; }
+.upgrade-required p { margin: 0; color: var(--pb-muted); line-height: 1.6; }
+.upgrade-required small { display: block; margin-top: 10px; color: var(--pb-muted); }
 
 .stage--image-background .shelf.glass-surface {
   background-color: var(--pb-theme-background-color, var(--pb-window-bg));

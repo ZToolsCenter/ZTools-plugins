@@ -1,15 +1,23 @@
+export type ThumbnailData = Readonly<{
+  url: string;
+  originalWidth?: number | undefined;
+  originalHeight?: number | undefined;
+}>;
+
 type ThumbnailResult = Readonly<{
   itemId: string;
   mediaType: string;
   dataBase64: string;
+  originalWidth?: number | undefined;
+  originalHeight?: number | undefined;
 }>;
 
 type PendingThumbnail = Readonly<{
   itemId: string;
-  resolve(value: string | undefined): void;
+  resolve(value: ThumbnailData | undefined): void;
 }>;
 
-const urlCache = new Map<string, Promise<string | undefined>>();
+const urlCache = new Map<string, Promise<ThumbnailData | undefined>>();
 const pending = new Map<string, PendingThumbnail>();
 const visibilityCallbacks = new WeakMap<Element, () => void>();
 const MAX_URL_CACHE_ENTRIES = 64;
@@ -17,7 +25,7 @@ const MAX_BATCH_SIZE = 24;
 let flushScheduled = false;
 let visibilityObserver: IntersectionObserver | undefined;
 
-function remember(key: string, value: Promise<string | undefined>): void {
+function remember(key: string, value: Promise<ThumbnailData | undefined>): void {
   urlCache.set(key, value);
   while (urlCache.size > MAX_URL_CACHE_ENTRIES) {
     const oldest = urlCache.keys().next().value as string | undefined;
@@ -50,7 +58,11 @@ async function flush(): Promise<void> {
     value.resolve(
       thumbnail === undefined
         ? undefined
-        : `data:${thumbnail.mediaType};base64,${thumbnail.dataBase64}`,
+        : {
+            url: `data:${thumbnail.mediaType};base64,${thumbnail.dataBase64}`,
+            originalWidth: thumbnail.originalWidth,
+            originalHeight: thumbnail.originalHeight,
+          },
     );
   }
 }
@@ -70,7 +82,7 @@ function scheduleFlush(): void {
 export function loadItemThumbnail(
   itemId: string,
   revision: string,
-): Promise<string | undefined> {
+): Promise<ThumbnailData | undefined> {
   const key = `${itemId}\u0000${revision}`;
   const cached = urlCache.get(key);
   if (cached !== undefined) {
@@ -79,7 +91,7 @@ export function loadItemThumbnail(
     return cached;
   }
 
-  const value = new Promise<string | undefined>((resolve) => {
+  const value = new Promise<ThumbnailData | undefined>((resolve) => {
     pending.set(key, { itemId, resolve });
     scheduleFlush();
   });

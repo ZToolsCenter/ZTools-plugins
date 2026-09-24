@@ -154,6 +154,41 @@ describe("sync configuration", () => {
     expect(secrets.get("vault-key")).toBe(previousKey);
     expect(secrets.get("webdav")).toBe("old-dav-secret");
   });
+
+  it("defaults to 60 minutes sync interval when unspecified", async () => {
+    const db = stateDatabaseForConfig();
+    const keychain: KeychainSecretStore = {
+      async save() {},
+      async load() { return undefined; },
+      async delete() {},
+    };
+    const store = new ZToolsSyncStore(db);
+    const settings = await saveSyncConfiguration(store, keychain, {
+      enabled: false,
+      baseUrl: "",
+      username: "",
+    });
+    expect(settings.intervalMinutes).toBe(60);
+    expect((await store.getSettings()).intervalMinutes).toBe(60);
+  });
+
+  it("persists custom backup interval minutes", async () => {
+    const db = stateDatabaseForConfig();
+    const keychain: KeychainSecretStore = {
+      async save() {},
+      async load() { return undefined; },
+      async delete() {},
+    };
+    const store = new ZToolsSyncStore(db);
+    const settings = await saveSyncConfiguration(store, keychain, {
+      enabled: false,
+      baseUrl: "",
+      username: "",
+      intervalMinutes: 120,
+    });
+    expect(settings.intervalMinutes).toBe(120);
+    expect((await store.getSettings()).intervalMinutes).toBe(120);
+  });
 });
 
 function stateDatabaseForConfig(): ZToolsDocumentDatabase {

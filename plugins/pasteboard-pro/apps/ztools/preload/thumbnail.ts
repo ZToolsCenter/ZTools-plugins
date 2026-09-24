@@ -4,11 +4,14 @@ export type ItemThumbnail = Readonly<{
   itemId: string;
   mediaType: "image/jpeg";
   dataBase64: string;
+  originalWidth?: number | undefined;
+  originalHeight?: number | undefined;
 }>;
 
 export type NativeImageLike = Readonly<{
   isEmpty(): boolean;
-  resize(options: Readonly<{ width: number; height: number; quality: "good" }>): NativeImageLike;
+  getSize?(): { width: number; height: number };
+  resize(options: Readonly<{ width?: number; height?: number; quality?: "good" | "better" | "best" }>): NativeImageLike;
   toJPEG(quality: number): Uint8Array;
 }>;
 
@@ -22,10 +25,13 @@ export type NativeImageApi = Readonly<{
 
 export type ThumbnailRecordStore = Readonly<{
   listRecords(): Promise<CanonicalClipboardRecord[]>;
+  findRecordByItemId?(itemId: string): Promise<CanonicalClipboardRecord | undefined>;
 }>;
 
 const THUMBNAIL_WIDTH = 480;
 const THUMBNAIL_HEIGHT = 240;
+// 限制缩略图的最大单边像素（防止 20000px 极端全景长图在主进程/渲染进程耗尽显存）
+const MAX_SCALED_DIMENSION = 1920;
 const THUMBNAIL_QUALITY = 72;
 const MAX_BATCH_SIZE = 24;
 const MAX_CACHE_ENTRIES = 64;
@@ -82,13 +88,13 @@ export class ThumbnailService {
     const requestedIds = uniqueItemIds(itemIds);
     if (requestedIds.length === 0) return [];
 
-    const byId = await this.recordsById();
+    const byId = this.store.findRecordByItemId === undefined ? await this.recordsById() : undefined;
 
     const values = await concurrentMap(
       requestedIds,
       GENERATION_CONCURRENCY,
       async (itemId) => {
-        const record = byId.get(itemId);
+        const record = byId === undefined ? await this.store.findRecordByItemId!(itemId) : byId.get(itemId);
         return record === undefined ? null : await this.cachedThumbnail(record);
       },
     );
@@ -145,23 +151,57 @@ export class ThumbnailService {
     if (imagePath === undefined) return null;
 
     let image: NativeImageLike | undefined;
+    const directImage = this.nativeImage.createFromPath(imagePath);
+    if (directImage.isEmpty()) return null;
+
+    let targetWidth = THUMBNAIL_WIDTH;
+    let targetHeight = THUMBNAIL_HEIGHT;
+    let originalWidth: number | undefined;
+    let originalHeight: number | undefined;
+    if (typeof directImage.getSize === "function") {
+      const size = directImage.getSize();
+      if (size.width > 0 && size.height > 0) {
+        originalWidth = size.width;
+        originalHeight = size.height;
+        // 等比例缩放，长图或宽图均保留真实比例：
+        // 宽高比大于 1（横图/极宽图）：以高度不低于容器、宽度按原比例计算，基准最大高 240
+        // 宽高比小于等于 1（竖图/极长图）：以宽度最多 480，高度按原比例计算
+        if (size.width > size.height) {
+          targetHeight = Math.min(size.height, THUMBNAIL_HEIGHT);
+          targetWidth = Math.max(1, Math.round(targetHeight * (size.width / size.height)));
+          if (targetWidth > MAX_SCALED_DIMENSION) {
+            targetHeight = Math.max(1, Math.round(targetHeight * (MAX_SCALED_DIMENSION / targetWidth)));
+            targetWidth = MAX_SCALED_DIMENSION;
+          }
+        } else {
+          targetWidth = Math.min(size.width, THUMBNAIL_WIDTH);
+          targetHeight = Math.max(1, Math.round(targetWidth * (size.height / size.width)));
+          if (targetHeight > MAX_SCALED_DIMENSION) {
+            targetWidth = Math.max(1, Math.round(targetWidth * (MAX_SCALED_DIMENSION / targetHeight)));
+            targetHeight = MAX_SCALED_DIMENSION;
+          }
+        }
+      }
+    }
+
     if (this.nativeImage.createThumbnailFromPath !== undefined) {
       try {
         image = await this.nativeImage.createThumbnailFromPath(imagePath, {
-          width: THUMBNAIL_WIDTH,
-          height: THUMBNAIL_HEIGHT,
+          width: targetWidth,
+          height: targetHeight,
         });
       } catch {
         image = undefined;
       }
     }
     if (image === undefined || image.isEmpty()) {
-      image = this.nativeImage.createFromPath(imagePath);
+      image = directImage;
     }
     if (image.isEmpty()) return null;
+
     image = image.resize({
-      width: THUMBNAIL_WIDTH,
-      height: THUMBNAIL_HEIGHT,
+      width: targetWidth,
+      height: targetHeight,
       quality: "good",
     });
     if (image.isEmpty()) return null;
@@ -174,6 +214,8 @@ export class ThumbnailService {
       itemId: record.item.id,
       mediaType: "image/jpeg",
       dataBase64: Buffer.from(bytes).toString("base64"),
+      originalWidth,
+      originalHeight,
     };
   }
 }
