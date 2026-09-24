@@ -76,7 +76,15 @@
   }
 
   /* ---------------- 数据刷新（解耦独立更新，互不阻塞） ---------------- */
+  var refreshPending = null;
   function refresh(force) {
+    // 同窗口合并：定时刷新、回前台、广播通知、手动按钮重叠触发时复用进行中的这一轮
+    //（复现：重叠3次触发 = 3次请求 +101次读库 —— 慢接口下负担会叠加，test-slow-network-dedup 锁死）
+    if (refreshPending) return refreshPending;
+    refreshPending = refreshImpl(force).finally(function () { refreshPending = null; });
+    return refreshPending;
+  }
+  function refreshImpl(force) {
     // force === true（手动刷新按钮）：连非交易时段也强制重拉，透传给 preload 的 force 通道
     var fOpts = (force === true) ? { force: true } : undefined;
     // 1. 持仓实时行情（只请求持仓个股，拿到立刻更新持仓看板）
@@ -117,16 +125,27 @@
     }).catch(function (err) {
       failCount += 1;
       renderStatus();
-      setTimeout(refresh, Math.min(30000, 4000 * failCount));
+      // 隐藏期间不再后台重试，回前台由 visibilitychange 补
+      if (!document.hidden) setTimeout(refresh, Math.min(30000, 4000 * failCount));
     });
   }
 
   function loopRefresh() {
     clearTimeout(refreshTimer);
+    // 窗口隐藏时整条刷新链停住，回到前台由 visibilitychange 立刻补
+    if (document.hidden) return;
     refreshTimer = setTimeout(function () {
       refresh().catch(function () {}).then(loopRefresh);
     }, Math.max(2, settings.refreshSec || 5) * 1000);
   }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { clearTimeout(refreshTimer); return; }
+    loopRefresh(); // 恢复被隐藏期清掉的定时器
+    renderStatus();
+    // 刚刷新过就不再打一轮：快速切换标签页不产生多余请求（1.5s 内视为仍新鲜）
+    if (Date.now() - lastUpdate >= 1500) refresh().catch(function () {}).then(loopRefresh);
+  });
 
   function loadTrend(code, force) {
     var hit = trendCache[code];
@@ -1325,7 +1344,7 @@
     // 2. 远程实时最新行情在后台异步静默拉取
     refresh().catch(function () {});
     loopRefresh();
-    setInterval(renderStatus, 30000);
+    setInterval(function () { if (!document.hidden) renderStatus(); }, 30000);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

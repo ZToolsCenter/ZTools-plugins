@@ -92,9 +92,18 @@
   function fitText() {
     if (!elMain || !elSub) return;
     var bSize = settings.ballSize || 72;
+    // 内容+球径没变就跳过：fitSingle 每次测量都是强制同步布局（scrollWidth 读取），
+    // 以前每5秒的数据刷新会空转两三轮测量，现在未变化时零布局
+    var key = bSize + '|' + elMain.textContent + '|' + elSub.textContent;
+    if (elMain.__fitKey === key) return;
+    elMain.__fitKey = key;
     fitSingle(elMain, bSize * 0.82, Math.round(bSize * 0.26), 11);
     fitSingle(elSub, bSize * 0.76, Math.round(bSize * 0.18), 9);
   }
+
+  function setText(el, v) { if (el && el.textContent !== v) el.textContent = v; }
+  function setBallClass(c) { if (ball && ball.className !== c) ball.className = c; }
+  function setBadgeH(flag) { if (elBadge && elBadge.hidden !== flag) elBadge.hidden = flag; }
 
   function render() {
     if (isDragging) { needRender = true; return; } // 拖动中不重建 DOM，松手再补
@@ -109,10 +118,11 @@
         todayRate = prevMv > 0 ? (todayPl / prevMv) * 100 : null;
       }
 
-      ball.className = (todayPl > 0 ? 'profit' : (todayPl < 0 ? 'loss' : 'flat'));
-      elMain.textContent = fmtProfit(todayPl);
-      elSub.textContent = (todayRate !== null && !isNaN(todayRate)) ? fmtPct(todayRate) : '今日盈亏';
-      elBadge.hidden = failCount < 2;
+      // 幂等渲染：数据没变化时一个 DOM 都不碰（textContent 赋值本身就会弄脏布局）
+      setBallClass(todayPl > 0 ? 'profit' : (todayPl < 0 ? 'loss' : 'flat'));
+      setText(elMain, fmtProfit(todayPl));
+      setText(elSub, (todayRate !== null && !isNaN(todayRate)) ? fmtPct(todayRate) : '今日盈亏');
+      setBadgeH(failCount < 2);
       fitText();
       return;
     }
@@ -120,23 +130,30 @@
     // 备用：无持仓时显示自选股当天涨跌
     var q = current() || (quotes && quotes[0]);
     if (!q) {
-      ball.className = 'flat';
-      elMain.textContent = '0';
-      elSub.textContent = '今日盈亏';
-      elBadge.hidden = failCount < 2;
+      setBallClass('flat');
+      setText(elMain, '0');
+      setText(elSub, '今日盈亏');
+      setBadgeH(failCount < 2);
       fitText();
       return;
     }
     var chg = q.chg !== undefined && q.chg !== null ? q.chg : (q.price !== null && q.prevClose ? q.price - q.prevClose : 0);
-    ball.className = (chg > 0 ? 'profit' : (chg < 0 ? 'loss' : 'flat'));
-    elMain.textContent = fmtProfit(chg);
-    elSub.textContent = fmtPct(q.pct);
-    elBadge.hidden = failCount < 2;
+    setBallClass(chg > 0 ? 'profit' : (chg < 0 ? 'loss' : 'flat'));
+    setText(elMain, fmtProfit(chg));
+    setText(elSub, fmtPct(q.pct));
+    setBadgeH(failCount < 2);
     fitText();
   }
 
 
+  var refreshPending = null;
   function refresh() {
+    // 同窗口合并：定时刷新/唤醒/广播重叠触发时复用进行中的一轮
+    if (refreshPending) return refreshPending;
+    refreshPending = refreshImpl().finally(function () { refreshPending = null; });
+    return refreshPending;
+  }
+  function refreshImpl() {
     var pPos = Promise.resolve().then(function () {
       return (S.positions && S.positions.get) ? S.positions.get() : null;
     }).then(function (pos) {
@@ -233,16 +250,15 @@
       if (S.host && S.host.drag) S.host.drag('start', 0, 0, d.startBounds);
       return;
     }
-    if (S.host && typeof S.host.dragStart === 'function') {
-      S.host.dragStart().then(function () {
-        if (drag !== d) return;
-        d.ready = true;
-        if (d.lastDx || d.lastDy) S.host.drag('move', d.lastDx, d.lastDy); // 冲刷 ack 前积压的位移
-      });
-      return; // ready 之前不发 move，只更新 lastDx/lastDy
-    }
+    // 立即开火：主窗口侧有 pendingDragMove/end 缓冲，start 先到后到都能接住，
+    // 没必要等 ack —— 以前等 ack 时，主窗口隐藏被节流会让起手「死」掉几百毫秒到几秒，
+    // 表现就是「有时候拖不动」。ack 只作确认，不再参与门控
     d.ready = true;
-    if (S.host && S.host.drag) S.host.drag('start', 0, 0);
+    if (S.host && typeof S.host.dragStart === 'function') {
+      S.host.dragStart(); // 起手+ack，返回值不再 gating
+    } else if (S.host && S.host.drag) {
+      S.host.drag('start', 0, 0);
+    }
   }
 
   function moveDrag(d) {

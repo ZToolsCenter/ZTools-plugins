@@ -176,7 +176,8 @@ function stamp() { return Object.assign({}, dbMap.get('sb.quoteStamp') || {}); }
   ok(calls.quotes === 6, '拉完新数据后恢复拦截', calls);
 
   console.log('== 8. 总开关 offSessionFetchOnce=false 可整体关掉闸门 ==');
-  dbMap.set('sb.settings', Object.assign({}, dbMap.get('sb.settings') || {}, { offSessionFetchOnce: false }));
+  // 走正式写入路径：settings 有300ms微缓存，patchSettings 会写穿失效（原始 dbMap.set 绕过失效）
+  S.store.patchSettings({ offSessionFetchOnce: false });
   expireFreshness();
   await S.quotes();
   expireFreshness();
