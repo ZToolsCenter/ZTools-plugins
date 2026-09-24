@@ -62,6 +62,9 @@ const TOOL_CAPABILITIES = Object.freeze([
   ['prepare_lan_scan', 'prepare', 'lan_scan'],
   ['scan_lan_devices', 'write', 'lan_scan'],
   ['get_operation_result', 'read', null],
+  ['get_hardware_metrics', 'read', null],
+  ['inspect_archive_safety', 'read', null],
+  ['audit_installed_plugin', 'read', null],
 ].map(([name, mode, scope]) => Object.freeze({ name, mode, scope })))
 
 class RuntimeError extends Error {
@@ -682,7 +685,7 @@ function createSuiteRuntime(options = {}) {
       scopes: [...AGENT_SCOPES],
       limits: {
         actionTtlMs: ACTION_TTL_MS,
-        authorizationTtlMs: 10 * 60 * 1000,
+        authorizationTtlMs: null,
         inventoryTtlMs: INVENTORY_TTL_MS,
         journalEntries: JOURNAL_MAX_ENTRIES,
         journalTtlMs: JOURNAL_TTL_MS,
@@ -1116,6 +1119,89 @@ function createSuiteRuntime(options = {}) {
     }
   }
 
+  async function get_hardware_metrics(request) {
+    validation.plainObject(request, [])
+    if (lifecycle === 'shutdown') throw runtimeError('OPERATION_UNAVAILABLE', 'Runtime is shut down')
+    let adv = null
+    try { adv = runtimeRequire('./advanced-services.cjs') } catch {
+      try { adv = require('./advanced-services.cjs') } catch {}
+    }
+    if (!adv || typeof adv.getDetailedHardwareMetrics !== 'function') {
+      throw runtimeError('OPERATION_UNAVAILABLE', 'Hardware metrics service is unavailable')
+    }
+    const metrics = await adv.getDetailedHardwareMetrics()
+    return {
+      runtimeSessionId,
+      timestamp: new Date().toISOString(),
+      metrics,
+    }
+  }
+
+  async function inspect_archive_safety(request) {
+    const input = validation.plainObject(request, ['archivePath'])
+    if (typeof input.archivePath !== 'string' || !input.archivePath.trim()) {
+      throw runtimeError('INVALID_ARGUMENT', 'archivePath must be a non-empty string')
+    }
+    const archivePath = input.archivePath.trim()
+    if (lifecycle === 'shutdown') throw runtimeError('OPERATION_UNAVAILABLE', 'Runtime is shut down')
+    let adv = null
+    try { adv = runtimeRequire('./advanced-services.cjs') } catch {
+      try { adv = require('./advanced-services.cjs') } catch {}
+    }
+    if (!adv || typeof adv.inspectZipArchive !== 'function') {
+      throw runtimeError('OPERATION_UNAVAILABLE', 'Archive inspection service is unavailable')
+    }
+    const report = await adv.inspectZipArchive(archivePath)
+    return {
+      runtimeSessionId,
+      archivePath: cleanText(archivePath),
+      ok: Boolean(report && report.ok),
+      safeFromTraversal: Boolean(report && report.safeFromTraversal),
+      entryCount: Number((report && report.entryCount) || 0),
+      totalUncompressedBytes: Number((report && report.totalUncompressedBytes) || 0),
+      entries: Array.isArray(report && report.entries)
+        ? report.entries.slice(0, 100).map((e) => ({
+            name: cleanText(e.name),
+            size: Number(e.size || e.uncompressedSize || 0),
+            compressed: Number(e.compressed || 0),
+            encrypted: Boolean(e.encrypted),
+          }))
+        : [],
+    }
+  }
+
+  async function audit_installed_plugin(request) {
+    const input = validation.plainObject(request, ['pluginId'])
+    if (typeof input.pluginId !== 'string' || !input.pluginId.trim()) {
+      throw runtimeError('INVALID_ARGUMENT', 'pluginId must be a non-empty string')
+    }
+    const pluginId = input.pluginId.trim()
+    if (lifecycle === 'shutdown') throw runtimeError('OPERATION_UNAVAILABLE', 'Runtime is shut down')
+    let adv = null
+    try { adv = runtimeRequire('./advanced-services.cjs') } catch {
+      try { adv = require('./advanced-services.cjs') } catch {}
+    }
+    if (!adv || typeof adv.getInstalledPlugins !== 'function' || typeof adv.auditPluginSecurity !== 'function') {
+      throw runtimeError('OPERATION_UNAVAILABLE', 'Plugin audit service is unavailable')
+    }
+    const plugins = await adv.getInstalledPlugins()
+    const target = plugins.find((p) => p.id === pluginId || p.name === pluginId || (p.dirPath && p.dirPath.endsWith(pluginId)))
+    if (!target) {
+      throw runtimeError('NOT_FOUND', `Installed plugin not found: ${pluginId}`)
+    }
+    const auditReport = await adv.auditPluginSecurity(target.dirPath)
+    return {
+      runtimeSessionId,
+      pluginId: cleanText(target.id),
+      name: cleanText(target.name),
+      version: cleanText(target.version),
+      dirPath: redactAbsolutePaths(target.dirPath),
+      healthScore: Number(auditReport.healthScore || auditReport.score || 100),
+      summary: cleanText(auditReport.summary || 'Audit completed'),
+      issues: Array.isArray(auditReport.issues) ? auditReport.issues : [],
+    }
+  }
+
   return Object.freeze({
     get_capabilities,
     collect_diagnostic_report,
@@ -1139,6 +1225,9 @@ function createSuiteRuntime(options = {}) {
     prepare_lan_scan,
     scan_lan_devices,
     get_operation_result,
+    get_hardware_metrics,
+    inspect_archive_safety,
+    audit_installed_plugin,
     shutdown,
     isShuttingDown: () => lifecycle !== 'active',
     attachCurrentFeatureBridge,

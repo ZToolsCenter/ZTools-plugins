@@ -3,7 +3,7 @@
   "title": "系统管家",
   "description": "集中查看软硬件状态，并管理应用卸载、开机启动、垃圾清理与局域网设备。",
   "author": "Harris",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "main": "index.html",
   "preload": "preload/index.cjs",
   "logo": "logo.svg",
@@ -53,7 +53,7 @@
           },
           "tools": {
             "type": "array",
-            "maxItems": 22,
+            "maxItems": 25,
             "items": {
               "type": "object",
               "additionalProperties": false,
@@ -583,9 +583,85 @@
         },
         "required": ["runtimeSessionId", "found", "idempotencyKey"]
       }
+    },
+    "get_hardware_metrics": {
+      "description": "获取当前本机的实时硬件工况指标，包含 CPU 型号与利用率、GPU 架构与显存、物理内存多阶压力（活跃/联动/压缩/可用）、磁盘空间分布与消耗最高的 Top 5 进程。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "runtimeSessionId": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "timestamp": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "metrics": { "type": "object", "maxProperties": 32, "additionalProperties": {} }
+        },
+        "required": ["runtimeSessionId", "timestamp", "metrics"]
+      }
+    },
+    "inspect_archive_safety": {
+      "description": "对指定绝对路径的 ZIP 压缩包进行只读安全审查与文件层级树剖析，检测是否存在 Zip Slip 目录穿越攻击、超高压缩比或非法符号链接风险。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "archivePath": { "type": "string", "minLength": 1, "maxLength": 1024 }
+        },
+        "required": ["archivePath"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "runtimeSessionId": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "archivePath": { "type": "string", "maxLength": 1024 },
+          "ok": { "type": "boolean" },
+          "safeFromTraversal": { "type": "boolean" },
+          "entryCount": { "type": "integer", "minimum": 0 },
+          "totalUncompressedBytes": { "type": "number", "minimum": 0 },
+          "entries": { "type": "array", "maxItems": 100, "items": { "type": "object", "additionalProperties": {} } }
+        },
+        "required": ["runtimeSessionId", "archivePath", "ok", "safeFromTraversal", "entryCount", "totalUncompressedBytes"]
+      }
+    },
+    "audit_installed_plugin": {
+      "description": "对本地 ZTools 已安装插件执行静态安全体检与权限合规审计，审查清单规范、可疑敏感 API 调用并生成健康评分与治理建议。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pluginId": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "required": ["pluginId"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "runtimeSessionId": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "pluginId": { "type": "string", "maxLength": 128 },
+          "name": { "type": "string", "maxLength": 128 },
+          "version": { "type": "string", "maxLength": 64 },
+          "dirPath": { "type": "string", "maxLength": 1024 },
+          "healthScore": { "type": "number", "minimum": 0, "maximum": 100 },
+          "summary": { "type": "string", "maxLength": 1024 },
+          "issues": { "type": "array", "maxItems": 100, "items": { "type": "object", "additionalProperties": {} } }
+        },
+        "required": ["runtimeSessionId", "pluginId", "name", "version", "healthScore"]
+      }
     }
   },
   "features": [
+    {
+      "code": "system-manager",
+      "explain": "系统管家主页：集中查看软硬件工况看板，管理应用卸载、开机启动、垃圾清理与局域网设备",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["系统管家", "系统管理", "硬件看板", "仪表盘", "工况看板"]
+    },
     {
       "code": "system-diagnostic-report",
       "explain": "查看软硬件信息并生成脱敏诊断报告",
