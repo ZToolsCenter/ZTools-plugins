@@ -5,22 +5,85 @@ const path = require("node:path");
 const { escapeHtml } = require("./text-converter.cjs");
 const { runtimeRequire, runtimePath } = require("./runtime-loader.cjs");
 
-function imagePipeline(input, target, options = {}) {
-  const sharp = runtimeRequire("sharp");
-  let pipeline = sharp(input, { animated: true, limitInputPixels: options.maxImagePixels || 100_000_000 }).rotate();
+function isHeicBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return false;
+  if (buffer.subarray(4, 8).toString("latin1") !== "ftyp") return false;
+  const brand = buffer.subarray(8, 12).toString("latin1").toLowerCase();
+  return ["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs", "mif1", "msf1"].includes(brand);
+}
+
+async function prepareImageInput(input) {
+  let buffer;
+  if (Buffer.isBuffer(input)) {
+    buffer = input;
+  } else if (typeof input === "string") {
+    const ext = path.extname(input).toLowerCase();
+    if (ext === ".heic" || ext === ".heif") {
+      buffer = await fs.readFile(input);
+    } else {
+      const fd = await fs.open(input, "r");
+      try {
+        const header = Buffer.alloc(16);
+        const { bytesRead } = await fd.read(header, 0, 16, 0);
+        if (bytesRead >= 12 && isHeicBuffer(header)) {
+          buffer = await fs.readFile(input);
+        }
+      } finally {
+        await fd.close();
+      }
+    }
+  }
+
+  if (buffer && isHeicBuffer(buffer)) {
+    let decodeHeic;
+    try {
+      decodeHeic = runtimeRequire("heic-decode");
+    } catch {
+      decodeHeic = require("heic-decode");
+    }
+    const { data, width, height } = await decodeHeic({ buffer });
+    return {
+      input: Buffer.from(data),
+      options: {
+        raw: {
+          width,
+          height,
+          channels: 4
+        }
+      }
+    };
+  }
+
+  return { input, options: {} };
+}
+
+function applyImageTarget(pipeline, target, options = {}) {
   const quality = Math.min(Math.max(options.quality || 86, 20), 100);
-  if (target === "png") pipeline = pipeline.png({ compressionLevel: 9, palette: false });
-  else if (target === "jpeg") pipeline = pipeline.jpeg({ quality, mozjpeg: true });
-  else if (target === "webp") pipeline = pipeline.webp({ quality });
-  else if (target === "avif") pipeline = pipeline.avif({ quality: Math.min(quality, 90), effort: 5 });
-  else if (target === "tiff") pipeline = pipeline.tiff({ quality, compression: "lzw" });
-  else if (target === "gif") pipeline = pipeline.gif({ effort: 5 });
-  else throw new Error(`Unsupported image target: ${target}`);
+  if (target === "png") return pipeline.png({ compressionLevel: 9, palette: false });
+  if (target === "jpeg") return pipeline.jpeg({ quality, mozjpeg: true });
+  if (target === "webp") return pipeline.webp({ quality });
+  if (target === "avif") return pipeline.avif({ quality: Math.min(quality, 90), effort: 5 });
+  if (target === "tiff") return pipeline.tiff({ quality, compression: "lzw" });
+  if (target === "gif") return pipeline.gif({ effort: 5 });
+  throw new Error(`Unsupported image target: ${target}`);
+}
+
+async function imagePipeline(input, target, options = {}) {
+  const sharp = runtimeRequire("sharp");
+  const prepared = await prepareImageInput(input);
+  let pipeline = sharp(prepared.input, {
+    ...prepared.options,
+    animated: !prepared.options.raw,
+    limitInputPixels: options.maxImagePixels || 100_000_000
+  });
+  if (!prepared.options.raw) pipeline = pipeline.rotate();
+  pipeline = applyImageTarget(pipeline, target, options);
   return options.preserveMetadata ? pipeline.keepMetadata() : pipeline;
 }
 
 async function convertImage(inputPath, outputPath, target, options) {
-  await imagePipeline(inputPath, target, options).toFile(outputPath);
+  const pipeline = await imagePipeline(inputPath, target, options);
+  await pipeline.toFile(outputPath);
   return [outputPath];
 }
 
@@ -29,7 +92,13 @@ async function imageToPdf(inputPaths, outputPath, options = {}) {
   const { PDFDocument } = runtimeRequire("pdf-lib");
   const document = await PDFDocument.create();
   for (const input of inputPaths) {
-    const normalized = await sharp(input, { limitInputPixels: options.maxImagePixels || 100_000_000 }).rotate().png().toBuffer();
+    const prepared = await prepareImageInput(input);
+    let pipeline = sharp(prepared.input, {
+      ...prepared.options,
+      limitInputPixels: options.maxImagePixels || 100_000_000
+    });
+    if (!prepared.options.raw) pipeline = pipeline.rotate();
+    const normalized = await pipeline.png().toBuffer();
     const image = await document.embedPng(normalized);
     const width = image.width;
     const height = image.height;
@@ -68,7 +137,7 @@ async function textToImages(text, outputBase, target, options = {}) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754"><rect width="1240" height="1754" fill="#fff"/><g font-family="Arial, PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">${body}</g><text x="1144" y="1688" text-anchor="end" font-family="Arial,sans-serif" font-size="16" fill="#8490a4">${pageIndex + 1}</text></svg>`;
     const suffix = Math.ceil(lines.length / linesPerPage) > 1 ? `-page-${String(pageIndex + 1).padStart(4, "0")}` : "";
     const output = `${outputBase}${suffix}.${target === "jpeg" ? "jpg" : target}`;
-    await imagePipeline(Buffer.from(svg), target, options).toFile(output);
+    await (await imagePipeline(Buffer.from(svg), target, options)).toFile(output);
     pages.push(output);
   }
   return pages;
@@ -103,4 +172,4 @@ async function ocrImages(inputPaths, options = {}, onProgress) {
   } finally { if (worker) await worker.terminate().catch(() => undefined); }
 }
 
-module.exports = { imagePipeline, convertImage, imageToPdf, textToImages, ocrImages, wrapLines };
+module.exports = { imagePipeline, convertImage, imageToPdf, textToImages, ocrImages, wrapLines, isHeicBuffer, prepareImageInput };
