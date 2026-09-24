@@ -19,7 +19,7 @@ import test from 'node:test'
 
 import { upsertDoc } from '../src/lib/clipboard.ts'
 import { loadSettings, saveSettings, type Settings } from '../src/lib/settings.ts'
-import { addFavorite, loadFavorites } from '../src/lib/favorites.ts'
+import { addFavorite, addManualFavorite, loadFavorites, updateFavoriteText } from '../src/lib/favorites.ts'
 
 /* ---------------------------------------------------------------- 假宿主 */
 
@@ -97,13 +97,16 @@ test('设置存两次：第二次要成功，且读回来是后一次的值（�
     accent: 'teal',
     mark: 'border',
     bg: 'white',
-    foot: 'full',
+    foot: 'always',
+    footHints: ['select', 'page', 'type', 'enter', 'paste', 'fav', 'edit', 'del'],
+    footButtons: ['set', 'add', 'clear'],
     confirmDelete: true,
     tailType: true,
     tailIndex: false,
     tailSource: false,
     tailFav: true,
-    tailDel: true
+    tailDel: true,
+    tailEdit: true
   }
   const second: Settings = {
     peek: true,
@@ -111,13 +114,17 @@ test('设置存两次：第二次要成功，且读回来是后一次的值（�
     mark: 'solid',
     bg: 'warm',
     foot: 'none',
+    // 两份多选也给**不一样**的值：数组类字段最容易"看着在、其实没绕回来"
+    footHints: ['fav', 'add'],
+    footButtons: ['clear'],
     confirmDelete: false,
     tailType: false,
     // 两次给**不一样**的值，才验得出"读回来的是后一次那份"
     tailIndex: true,
     tailSource: true,
     tailFav: false,
-    tailDel: true
+    tailDel: true,
+    tailEdit: false
   }
 
   assert.equal(await saveSettings(first), true)
@@ -132,7 +139,7 @@ test('设置存两次：第二次要成功，且读回来是后一次的值（�
 test('连点两次（不 await 第一次）也不能互相撞掉 —— 同一个 id 的写入是串行的', async () => {
   resetHost()
 
-  const first = saveSettings({ peek: false, accent: 'teal', mark: 'border', bg: 'auto', foot: 'full' })
+  const first = saveSettings({ peek: false, accent: 'teal', mark: 'border', bg: 'auto', foot: 'always' })
   const second = saveSettings({
     peek: false,
     accent: 'amber',
@@ -172,4 +179,86 @@ test('第二次写是「更新」而不是「新建」—— rev 要换一版', 
   assert.notEqual(rows.get('doc')?._rev, storedRev)
   assert.equal(rows.get('doc')?.n, 2)
   assert.equal(rows.size, 1, '不能变成两条记录')
+})
+
+/* ------------------------------------------------ 手动新增 / 编辑正文（09-23） */
+
+test('手写一条收藏：存得下、排在最前、只有 type + content', async () => {
+  resetHost()
+
+  const one = await addManualFavorite('记得买牛奶', [])
+  assert.equal(one.length, 1)
+  assert.equal(one[0].type, 'text')
+  assert.equal(one[0].content, '记得买牛奶')
+  // 手写条目**不该**长出宿主那套字段 —— 有 undefined 会让 `favKeyOf` / 行渲染走上别的分支
+  assert.equal(one[0].hash, undefined)
+  assert.equal(one[0].imagePath, undefined)
+  assert.equal(one[0].files, undefined)
+  assert.ok(one[0].favId.startsWith('f_'))
+
+  const two = await addManualFavorite('第二件事', one)
+  assert.equal(two.length, 2)
+  // 新的在前面（列表按 addedAt 倒序，所以就是它在最上）
+  assert.equal(two[0].content, '第二件事')
+
+  const back = await loadFavorites()
+  assert.equal(back.length, 2, '两条都得真的进库')
+  assert.equal(conflictCount, 0)
+})
+
+test('手写收藏：空白内容不许进来、相同内容不许重复存', async () => {
+  resetHost()
+
+  assert.deepEqual(await addManualFavorite('   ', []), [], '纯空白不进来')
+  assert.deepEqual(await addManualFavorite('\n\t', []), [], '只有换行和制表符也不进来')
+
+  const one = await addManualFavorite('同一条', [])
+  const again = await addManualFavorite('同一条', one)
+  assert.equal(again, one, '已存在就原样返回（同一个引用），不重复存')
+
+  const back = await loadFavorites()
+  assert.equal(back.length, 1, '库里只该有一条')
+})
+
+test('★ 改正文：只动 content，hash / favId / addedAt 一个都不许动', async () => {
+  resetHost()
+
+  // 走 addFavorite 造一条**带 hash** 的（模拟"从历史收藏过来的"）
+  const list = await addFavorite({ type: 'text', content: '原文', hash: 'hA' }, [])
+  const before = list[0]
+
+  const after = await updateFavoriteText(before.favId, '改过的正文', list)
+  assert.equal(after.length, 1)
+  assert.equal(after[0].content, '改过的正文')
+
+  /*
+   * ⚠️ 这三条是这次的核心断言，别删：
+   *   · `hash` 丢了 ⇒ `favKeyOf` 退化成 `text:新内容` ⇒ 跟**历史行**（按 md5 算）对不上
+   *     ⇒ 明明还收藏着，历史那一行却**不再亮星**，而且不报错。
+   *   · `favId` 换了 ⇒ 界面上按 key 找行、按 key 删，全都指向一条不存在的记录。
+   *   · `addedAt` 动了 ⇒ 收藏视图按它倒序排，改一个字那一行就跳到列表顶上。
+   */
+  assert.equal(after[0].hash, 'hA', '★ hash 必须原样留着（丢了历史那一行就不亮星了）')
+  assert.equal(after[0].favId, before.favId, 'favId 是主键，不能变')
+  assert.equal(after[0].addedAt, before.addedAt, '★ 编辑不是重新收藏，位置不能动')
+  assert.equal(after[0].type, 'text')
+
+  const back = await loadFavorites()
+  assert.equal(back[0].content, '改过的正文', '改动要真的进库')
+})
+
+test('改正文：favId 找不到 / 内容空白 → 原样返回且不写库', async () => {
+  resetHost()
+
+  const list = await addFavorite({ type: 'text', content: '原文', hash: 'hA' }, [])
+  const writes = okCount
+  const favId = list[0].favId
+
+  assert.equal(await updateFavoriteText('f_不存在', '随便', list), list)
+  assert.equal(await updateFavoriteText(favId, '   ', list), list)
+  assert.equal(okCount, writes, '这两种情况都不该发出写请求')
+
+  // 改成跟原来一模一样的内容：没有变化，也不必写库
+  assert.equal(await updateFavoriteText(favId, '原文', list), list)
+  assert.equal(okCount, writes, '内容没变也不写库')
 })

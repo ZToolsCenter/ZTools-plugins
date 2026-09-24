@@ -2,8 +2,8 @@
 /*
  * x-clipboard —— 整个界面。
  *
- * 只有几块东西：列表、按需浮出的详情、右下角两个极淡的入口（设置 / 清空历史）、
- * 以及弹出来的确认框。
+ * 只有几块东西：列表、按需浮出的详情、右下角几个极淡的入口（设置 / 新增 / 清空历史）、
+ * 以及弹出来的确认框与输入浮层。
  * 没有分类栏、没有复选框、没有来源/时间/字符数、没有常驻按钮。
  * 分类（全部 / 文本 / 图像 / 文件 / 收藏）走 Tab / ⇧Tab 循环，都不占版面。
  *
@@ -29,16 +29,19 @@ import { rowText, splitHighlight, type Seg } from './lib/highlight'
 import { copyOne as copyToClipboard, pasteOne } from './lib/payload'
 import {
   addFavorite,
+  addManualFavorite,
   clearFavorites,
   favKeyOf,
   findFavorite,
   loadFavorites,
   removeFavorite,
+  updateFavoriteText,
   type FavItem
 } from './lib/favorites'
 import { ACCENT_KEYS, accentSwatch } from './lib/accent'
 import { BG_PRESETS, resolveBg } from './lib/surface'
 import { pasteSlot, resolveKey } from './lib/keys'
+import { firstRowAt, screenNumbers, slotRowIndex } from './lib/viewport'
 import { modKey } from './lib/platform'
 import {
   cursorOf,
@@ -47,6 +50,7 @@ import {
   moveSlot,
   rowIndex,
   toggleAt,
+  toggleMember,
   type Cursor
 } from './lib/panel'
 import { peekGeom, peekKindOf, type PeekGeom, type PeekKind } from './lib/peek'
@@ -62,8 +66,12 @@ import {
 import { resolveSelection } from './lib/selection'
 import {
   DEFAULT_SETTINGS,
+  FOOT_BUTTONS,
+  FOOT_HINTS,
   loadSettings,
   saveSettings,
+  type FootButton,
+  type FootHint,
   type FootMode,
   type MarkMode,
   type Settings
@@ -80,22 +88,143 @@ const MARK_CHOICES: readonly { v: MarkMode; label: string }[] = [
   { v: 'solid', label: '实心' }
 ]
 
-/** 设置面板里「底栏」那四个按钮。同上，写在一处 */
+/** 设置面板里「底栏」那三个按钮（**形态**：这一行在不在 / 占不占高度）。
+ *  ⚠️ 09-24 四档收成三档：「精简」退休，它的意思现在是「底栏按键提示」一条都不选。
+ *  老值 'full' / 'lean' 由 `lib/settings.ts` 的 `footOf()` 迁成 'always'。 */
 const FOOT_CHOICES: readonly { v: FootMode; label: string }[] = [
-  { v: 'full', label: '完整' },
-  { v: 'lean', label: '精简' },
+  { v: 'always', label: '常驻' },
   { v: 'fade', label: '淡入' },
   { v: 'none', label: '全隐' }
 ]
 
-/**
- * 「淡入」档下，鼠标离窗口底边多近才算「贴到底了」。单位 px。
+/*
+ * 底栏那两排东西**长什么样**（键帽 + 文字 / 按钮名）。
  *
- * 取 30 是有讲究的：底栏自身高约 29px（4 + 16 + 9 的 padding），
- * 所以判定范围跟浮出来那一行**一样高** —— 鼠标一碰到底栏将来会覆盖的区域，
- * 它就正好出现，不会出现「浮出来了但鼠标还在它下面」或「要挪很远才出来」的错位。
+ * ⚠️ 这两张表只管长相，**有哪几个**在 `lib/settings.ts` 的 `FOOT_HINTS` / `FOOT_BUTTONS` 里
+ *    （顺序也由它定）。分成两处是因为"加一条提示"和"这条提示怎么画"是两件事，
+ *    但两张表的**键必须一一对应** —— 少一个，那一格会渲染成 `undefined`
+ *    （不报错，界面上就是一段空白），所以 `tests/styles.test.ts` 会对着 id 扫一遍。
+ * ★ `mod: true` = 这个键帽要带修饰键（`modKey()` 按平台给 ⌘ / Ctrl）。
+ *   不带的（↑↓ / Tab / Enter / Delete / Esc / Backspace）两个平台写法一样，别顺手也套上 modKey。
  */
-const FOOT_REVEAL_ZONE = 30
+const FOOT_HINT_FACE: Record<FootHint, { mod?: true; key: string; label: string }> = {
+  select: { key: '↑↓', label: '选择' },
+  page: { mod: true, key: '↓', label: '翻页' },
+  type: { key: 'Tab', label: '分类' },
+  enter: { key: 'Enter', label: '粘贴' },
+  // ⚠️ 秒贴的键帽是 **`1–9`**（`⌘1–9` / Windows `Ctrl+1–9`）—— 整串都在键帽里，
+  //    09-24 从旧模板搬进这张表时**漏过那个 `–9`**（渲染成「⌘1 秒贴」），老大真机一眼看出来。
+  //    写成 `⌘1–⌘9` 光这一个键帽就 112px，Windows 那排本来就最紧（见下面底栏那段注释）。
+  paste: { mod: true, key: '1–9', label: '秒贴' },
+  fav: { mod: true, key: 'K', label: '收藏' },
+  edit: { mod: true, key: 'E', label: '编辑' },
+  settings: { mod: true, key: '/', label: '设置' },
+  add: { mod: true, key: 'N', label: '新增' },
+  del: { key: 'Delete', label: '删除' },
+  /*
+   * ★ `Esc 返回`（09-24 补回候选表）。
+   *
+   * v1.3.0 的底栏里本来就有它（`<span><kbd>Esc</kbd>返回</span>`），09-23 加
+   * 「Delete 删除」时因为那排是**定宽预算**，把它"拿一条换一条"换掉了。
+   * 现在放不下会换行 ⇒ 换掉它的理由没了；老大 09-24 盯着设置面板问「Esc返回呢」，
+   * 于是补成第 11 条候选（当时排在最末、既有的 10 条一条都不挪位置 —— 09-24 第二批又往
+   * 后接了 4 条，它就不是末位了；顺序规则见 `lib/settings.ts` 的 `FOOT_HINTS`）。
+   *
+   * ⚠️ 它**不在** `DEFAULT_FOOT_HINTS` 里（默认不勾）：取舍和"怎么改回去"写在
+   *    `lib/settings.ts` 那个数组的注释里。别看见它是灰的就以为"没给全"。
+   * ⚠️ 跟 `edit` / `add` 不同，它**不挑视图** —— Esc 阶梯（清关键词 → 清分类 → 关插件）
+   *    在所有视图里都一样，所以 `HINT_VIEW_ONLY` 里没有它。
+   * ⚠️ 这里的 `返回` 是**一步退**的意思，不是"回上一页"：词没退光就退词、词空了退分类、
+   *    都没有了才关插件。label 沿用 v1.3.0 那两个字的写法，改文案前先看 README 那张表。
+   */
+  esc: { key: 'Esc', label: '返回' },
+  /*
+   * ★ 下面 4 条是 09-24 **第二批**补的（老大：「既然现在加了解决方案是底栏加一行来解决一行
+   *   放不下的问题，那么我们系统现在有的按键都应该加进去啊。包括你说的 cmd+L 和 cmd+C」）。
+   *   到这一批为止，**界面上所有"焦点在插件里时按得动、效果发生在列表上"的键都在候选表里了**
+   *   （判据和"故意不收的那几条"写在 `lib/settings.ts` 的 `FOOT_HINTS` 注释里）。
+   */
+  /*
+   * 复制：`⌘C` —— **只复制、不粘贴、窗口不关**（跟 Enter 粘贴 是一对）。
+   *
+   * ⚠️ 它跟系统的"复制选中文字"同名不同事，所以这条提示比别的更有必要：
+   *    在列表里按 ⌘C 是把**当前这一条**写回剪贴板，不是复制你选中的那几个方块字。
+   * ⚠️ 前提跟 ⌘K / ⌘E / ⌘N 一样：**焦点得先在插件里**（先按一次 ↑↓ 或点过列表）。
+   */
+  copy: { mod: true, key: 'C', label: '复制' },
+  /*
+   * 收藏夹：`⌘L` —— 一步跳到「收藏」，再按一次退回「全部」（`toggleFavoritesView`）。
+   *
+   * ⚠️ 文案是「收藏夹」不是「收藏」：**`⌘K` 已经占了「收藏」那个词**（它是对当前这条的
+   *    动作），而 `⌘L` 换的是**视图**。两个都叫「收藏」，底栏上就会并排出现两个「收藏」。
+   *    想换文案（「切收藏」/「收藏视图」…）改这一个词即可，它是这一排里最长的一条之一（3 字）。
+   */
+  favview: { mod: true, key: 'L', label: '收藏夹' },
+  /*
+   * 搜索：`⌘F` —— 把焦点交回搜索框。
+   *
+   * ⚠️ 它还有一条路是**裸 `/`**（`keys.ts` 的 `case '/'`）。提示里只写 `⌘F`：
+   *    跟 `⌘↓` 之于 `PageDown` 同一个规矩 —— **只写那个更好的**。两条路的可用条件其实
+   *    一样（都得焦点在插件里），`⌘F` 是"找"的通用键、还能走 `modKey()` 给 Windows 出
+   *    `Ctrl+F`，比一个裸斜杠好认。两条 README 那张表里都列着。
+   */
+  search: { mod: true, key: 'F', label: '搜索' },
+  /*
+   * 退格：`Backspace` —— **只退搜索框，不删数据**（造这个分歧的是 09-17 那条改动：
+   * 删除改走 Delete，Backspace 专心退词）。
+   *
+   * ⚠️ 文案是「退格」而不是「删除」：这两个键在这插件里是**两件完全不同的事**，
+   *    底栏上并排写着「退格」和「删除」，用户才分得清哪个是退词、哪个是删数据。
+   * ⚠️ 它是这一排里键帽最长的（`Backspace` 9 个字母），键帽宽度约 62px —— 无所谓，
+   *    现在放不下会换行。
+   */
+  backspace: { key: 'Backspace', label: '退格' }
+}
+
+const FOOT_BUTTON_FACE: Record<FootButton, string> = {
+  set: '设置',
+  add: '新增',
+  // ⚠️ 面板里的名字恒是「清空」；底栏上那颗的文案随分类变（清空历史 / 清空收藏…），
+  //    那是 `clearLabel` 的事，别把两者合成一个。
+  clear: '清空'
+}
+
+/*
+ * ★ 只在**收藏视图**里有意义的提示。
+ *
+ * 「编辑」只在收藏视图能用（历史那一摊是宿主的账，改不了），「新增」同理。
+ * 这跟底栏那颗「新增」按钮是**同一个口径**（它的 `v-if` 里就写着 `view === 'favorites'`）：
+ * **这儿没有的东西，界面上就不写**。不然底栏会在历史视图里教人按一个按不出反应的键。
+ *
+ * ⚠️ 这是"多选"里唯一一处"勾了也可能不显示"的地方 —— 别把它当成 bug 抹掉：
+ *    抹掉就等于界面开始撒谎（底栏写着 ⌘E 编辑，按下去什么都不发生）。
+ */
+const HINT_VIEW_ONLY: Partial<Record<FootHint, View>> = { edit: 'favorites', add: 'favorites' }
+
+/**
+ * 「淡入」档下，鼠标离窗口底边多近才算「贴到底了」的**兜底**值。单位 px。
+ *
+ * ★ 09-24 的修正：这个判定范围**必须是底栏当下真实的高度**（见 `footH` / `measureFoot`），
+ *   写死一个数只在"底栏恒为一行"时成立。现在放不下会**换行**，底栏可能是两三行高，
+ *   拿 30 去判就等于"只盖住第一行"—— 鼠标停在第二行上时底栏反而收起来了（自己跟自己打架）。
+ *   所以底下那个数只剩"还没量过 / 底栏不在"时的兜底，真值每次量。
+ *   原来的 30 是这么来的：一行底栏约 29px（4 + 16 + 9 的 padding）。
+ */
+const FOOT_REVEAL_FALLBACK = 30
+
+/** 底栏这一行**量出来的**高度。`onPointerMove` 的判定用它，别再写死 */
+const footH = ref(FOOT_REVEAL_FALLBACK)
+
+const footRef = ref<HTMLElement | null>(null)
+
+/**
+ * 量一次底栏高度（含 padding）。底栏没挂载（「全隐」档）时留着上一次的数 —— 无所谓，
+ * 那一档根本不走浮现判定，而切回「淡入」时会被那个 watcher 重新量一遍。
+ */
+function measureFoot(): void {
+  const el = footRef.value
+  if (el) footH.value = el.getBoundingClientRect().height
+}
 
 /*
  * 列表里的一行。历史用宿主 id 当键，收藏用收藏自己的 id —— 两者渲染完全一样。
@@ -198,8 +327,22 @@ const footRevealed = ref(false)
  *    删除**不做**退场动画 —— 数据当场就没了，用户看得出来成功了。
  */
 
-/** 收藏 / 删除这两颗按钮开着几颗 */
-const actsShown = computed(() => (settings.value.tailFav ? 1 : 0) + (settings.value.tailDel ? 1 : 0))
+/**
+ * 行尾按钮这一格**要留几颗的位**（0 / 1 / 2 / 3）。
+ *
+ * ★ 收藏视图里文本行还可能多一颗「编辑」（09-23 加，可以在设置里关）——
+ *   这里**按最多的情况留位**，不是按每一行实际渲染几颗：要真按实际算，
+ *   文本行三颗、图片/文件行两颗，两种行的行尾宽窄不一，`.t` 的右边界就参差了。
+ *
+ * ⚠️ 那句 `+ 1`（编辑那颗）**不能写成"先判 n > 0"**：三颗全关时 n 本来是 0，
+ *    可编辑那颗照样会渲染 —— 那它就**没有被留位**（`.acts` 是绝对定位的），
+ *    会直接压在行尾的类型标签上。
+ */
+const actsShown = computed(() => {
+  const n = (settings.value.tailFav ? 1 : 0) + (settings.value.tailDel ? 1 : 0)
+  const edit = view.value === 'favorites' && settings.value.tailEdit ? 1 : 0
+  return n + edit
+})
 
 /** 瞬时星亮多久。⚠️ 跟样式里 `@keyframes fav-flash` 的时长是**同一个数**（`styles.test.ts` 钉着） */
 const FAV_FLASH_MS = 1100
@@ -253,6 +396,21 @@ interface PeekBox extends PeekGeom {
 const settings = ref<Settings>({ ...DEFAULT_SETTINGS })
 const settingsOpen = ref(false)
 const peek = ref<PeekBox | null>(null)
+
+/*
+ * 「新增 / 编辑收藏」那块输入浮层。
+ *
+ * 形状是老大 09-23 定的口径：**两个动作都弹出一个小框来输入，不做行内编辑** ——
+ * 原话「因为每一项可能展示不全。弹框能展示全」。所以输入区是 `textarea`（会折行），
+ * 不是单行 `input`（单行只能横向滚，长的照样看不全），而且高度跟着内容长（`fitComposer`）。
+ *
+ * `null` = 没开；`mode` 决定标题和保存时走哪条路。
+ * `favId` 只在 `edit` 时有 —— 它同时就是**那一行的 key**（收藏视图里 `makeRow` 用的正是它）。
+ */
+const composer = ref<{ mode: 'new' | 'edit'; favId?: string } | null>(null)
+/** 输入框里的草稿 */
+const composerText = ref('')
+const composerRef = ref<HTMLTextAreaElement | null>(null)
 
 /* ---------------------------------------------------------------- 派生数据 */
 
@@ -441,6 +599,54 @@ function growRenderWindow(): void {
   }
 }
 
+/*
+ * ───────────────────────── 屏首 ─────────────────────────
+ *
+ * `⌘1`–`⌘9` 和行尾那枚序号都**按屏**算（09-23 改）：
+ * `⌘N` = 你现在看得见的这一屏里，从上往下第 N 行。
+ *   ⚠️ 这里的 N 是**数字**（就是 `⌘1`–`⌘9` 那排）；09-24 又加了个**字母** `⌘N`（新增收藏），
+ *      两个含义撞了同一个写法 —— 读到这儿别混（那条在 `addActive()` 上面）。
+ *
+ * 以前取的是「列表第 N 条」那种绝对序号 —— 一翻页就作废：屏幕上的行既没有编号、
+ * 也没有能粘它的键（列表第 13 条往后 `⌘1` 永远指向屏外），键和眼睛看到的东西脱钩。
+ *
+ * `screenTop` 是这一屏第一行在 `rows` 里的下标，**滚动时它会变**。
+ * 全插件只有这一处"滚动会改快捷键含义"，别再另算第二份。
+ */
+const screenTop = ref(0)
+
+/**
+ * 量一次屏首。判定 =「底边越过视口上沿」—— **被上沿切掉半行的那一行也算屏首**，
+ * 跟 `pageMove()` 量翻页基准用的是同一句。两处必须同口径：不然翻完页按 ⌘1
+ * 粘到的不是屏幕上第一行。
+ *
+ * 怎么找在 `lib/viewport.ts` 的 `firstRowAt()` 里（二分 + 单测），这里只负责把 DOM 量给它。
+ */
+function measureFirstRow(): number {
+  const list = listRef.value
+  if (!list) return 0
+  const els = list.querySelectorAll<HTMLElement>('.row')
+  if (!els.length) return 0
+  const box = list.getBoundingClientRect()
+  return firstRowAt(els.length, (i) => els[i].getBoundingClientRect().bottom > box.top + 1)
+}
+
+/**
+ * 重采一次**屏首**。凡是会让行位挪动的事，做完都得叫它一声：
+ * 滚动、底栏高度变（换形态 / 提示换行）、列表整张换（改词 / 切分类）、数据刷新、窗口尺寸变。
+ *
+ * ⚠️ 漏掉任何一处，表现都是**"按 ⌘3 粘到别的行"** —— 不报错、也没有任何迹象。
+ *    所以全部收在这一个函数里，别再各写一遍 `screenTop.value = measureFirstRow()`。
+ * ⚠️ DOM 刚改过、这一帧还没渲染出来时要包一层：`void nextTick(remapScreenTop)` ——
+ *    那会儿量到的还是旧布局。
+ */
+function remapScreenTop(): void {
+  screenTop.value = measureFirstRow()
+}
+
+/** 本屏该显示哪几个序号（`行下标 → 1–9`）。只有 9 条，跟着滚动重算不心疼 */
+const rowNums = computed(() => screenNumbers(screenTop.value, rows.value.length))
+
 /* ---------------------------------------------------------------- 取数 */
 
 /**
@@ -453,6 +659,9 @@ function growRenderWindow(): void {
 async function reload(): Promise<void> {
   items.value = await fetchHistory()
   syncSelection()
+  // 新数据可能让整列挪位（比如别处刚复制了一条，全体后移一格）⇒ 屏首重采一次，
+  // 不然 ⌘1 指向的会是挪之前那一行
+  void nextTick(remapScreenTop)
 }
 
 async function refreshFavorites(): Promise<void> {
@@ -633,12 +842,24 @@ function commitTypedQuery(next: string): void {
 function backspaceSearch(): void {
   const next = backspaceQuery(keyword.value)
   if (next === null) return
+  writeSubInput(next)
+  commitTypedQuery(next)
+}
+
+/**
+ * 把值写进宿主那个搜索框（`backspaceSearch` / `writeQuery` 共用这一处）。
+ *
+ * ⚠️ 失败**只吞掉、不报错**：写不进框顶多让框里的字跟本地状态差一拍，
+ *    下一次打字或切分类会自己对齐；为这个弹一条错误出来，比不同步本身更糟。
+ * ⚠️ 它顺带把焦点还给搜索框 —— 宿主 `setSubInputValue` 的实现**末尾硬编码**调了
+ *    `subInputFocus(event)`，写值本身就会还焦点，这里不用再补一次（同 `typeIntoSearch`）。
+ */
+function writeSubInput(next: string): void {
   try {
     zt().setSubInputValue(next)
   } catch {
     /* 写不进框就只改状态 */
   }
-  commitTypedQuery(next)
 }
 
 /**
@@ -656,11 +877,7 @@ function backspaceSearch(): void {
  */
 function writeQuery(next: string): void {
   keyword.value = next
-  try {
-    zt().setSubInputValue(next)
-  } catch {
-    /* 写不进框就只改状态 */
-  }
+  writeSubInput(next)
   pinToTop = true
   syncSelection()
 }
@@ -731,19 +948,6 @@ function move(delta: number): void {
  *    所以打开插件就直接按是没反应的。详见 lib/keys.ts 里那两条 case 上面的说明。
  */
 
-/** 屏幕最上面那一行在（已渲染的）列表里的下标 */
-function topRowIndex(): number {
-  const list = listRef.value
-  if (!list) return 0
-  const box = list.getBoundingClientRect()
-  const els = list.querySelectorAll<HTMLElement>('.row')
-  for (let i = 0; i < els.length; i++) {
-    // 底边越过列表顶 = 这一行至少露出了一点点，就是它
-    if (els[i].getBoundingClientRect().bottom > box.top + 1) return i
-  }
-  return 0
-}
-
 /** 当前视口里**完整露出来**的行数。42px 的行自然少占一格，所以只能量 */
 function pageRows(): number {
   const list = listRef.value
@@ -762,7 +966,8 @@ function pageMove(dir: 1 | -1): void {
   if (!list || !rows.value.length) return
 
   const step = Math.max(1, pageRows() - 1)
-  const from = activeIndex.value < 0 ? 0 : topRowIndex()
+  // 基准 = 屏幕最上面那一行（跟 ⌘1 的起点同一处，见 `measureFirstRow()`）
+  const from = activeIndex.value < 0 ? 0 : measureFirstRow()
   const to = Math.min(rows.value.length - 1, Math.max(0, from + dir * step))
   const row = rows.value[to]
   if (!row) return
@@ -795,6 +1000,9 @@ function pageMove(dir: 1 | -1): void {
     // 两个 offsetTop 相减：行的定位基准是 `.root` 而不是 `.list`，但同一次相减
     // 会把那个基准抵消掉，差值就是内容坐标系里的真实距离（跟滚动位置无关）。
     el.scrollTop = target.offsetTop - first.offsetTop
+    // 屏首这一刻就换了（目标行顶到屏幕最上面）⇒ 顺手重采，
+    // 不用等下一个 scroll 事件 —— 等它的话，中间那一小段 ⌘1 还指着旧起点
+    remapScreenTop()
   })
 }
 
@@ -819,14 +1027,22 @@ async function pasteActive(): Promise<void> {
 }
 
 /**
- * `⌘1`–`⌘9`：直接粘贴列表里的第 N 条（0 基下标）。
+ * `⌘1`–`⌘9`：粘贴**本屏**第 N 行（`slot` 是 0 基下标）。
  *
- * ⚠️ 取的是 **`visibleRows`** —— 跟行尾显示的序号、跟模板里的 `v-for` 是同一份。
- * 另算一份「前 9 条」迟早会错位（渲染窗口、分类过滤、收藏视图三条路都得对上），
- * 到时候按 ⌘3 粘到的不是眼睛看到的第 3 条，而且极难复现。
+ * 起点是屏首 `screenTop`，**不是列表开头** —— 09-23 改的口径，为的是翻页 / 下滑之后
+ * 屏幕上那些行仍然有键可用。跟 `pageMove()` 量翻页基准用的是同一处，别分家。
+ *
+ * ⚠️ 取的是 **`visibleRows`** —— 跟行尾显示的序号（`rowNums`）、跟模板里的 `v-for`
+ * 是同一份。另算一份迟早会错位（渲染窗口、分类过滤、收藏视图三条路都得对上），
+ * 到时候按 ⌘3 粘到的不是眼睛看到的第 3 行，而且极难复现。
+ *
+ * ⚠️ 越界（翻到最后一屏、下方不足 9 行）就什么都不做 —— **不夹到最后一个**
+ * （夹了 ⌘7 / ⌘8 / ⌘9 会连着粘同一条）。判定在 `lib/viewport.ts` 的 `slotRowIndex()`。
  */
 async function pasteAt(slot: number): Promise<void> {
-  const row = visibleRows.value[slot]
+  const at = slotRowIndex(screenTop.value, slot, rows.value.length)
+  if (at === null) return
+  const row = visibleRows.value[at]
   if (!row) return
   await pasteRow(row)
 }
@@ -864,6 +1080,46 @@ async function toggleFavorite(): Promise<void> {
 }
 
 /**
+ * `⌘E`：编辑当前这条收藏。
+ *
+ * 它是行尾那颗 ✎ 的**键盘并行走廊** —— 那颗按钮能在设置里关掉（`tailEdit`），
+ * 关掉之后编辑就只剩这条路（跟 `tailFav` → `⌘K`、`tailDel` → `Delete` 同一个规矩）。
+ *
+ * 三个前提缺一不可，不满足就**什么都不做**（不报错、不提示 —— 跟 ⌘K 在空列表上一样，
+ * 是按到了一个"这儿没有的东西"，不是出错）：
+ *   ① 在收藏视图 —— 历史那一摊是宿主的账，插件改不了；
+ *   ② 当前行是文本 —— 图片改不了那张 png，文件改路径等于"换一个文件"；
+ *   ③ 那一行的 key 就是 `favId`（收藏视图的 `makeRow` 用的正是它，见 composer 那段注释）。
+ */
+function editActive(): void {
+  if (view.value !== 'favorites') return
+  const row = activeRow.value
+  if (!row || row.data.type !== 'text') return
+  openComposer('edit', row.key)
+}
+
+/**
+ * `⌘N`：新增一条收藏。
+ *
+ * 它是右下角那颗「新增」的**键盘并行走廊** —— 那颗按钮能在设置里关掉
+ * （`底栏按钮` 那组多选里取消「新增」，09-24 之前是老键 `footAdd`），
+ * 关掉之后新增就只剩这条路（跟 `tailEdit` → `⌘E`、`tailDel` → `Delete` 同一个规矩：
+ * 按钮管鼠标、键位管键盘，关哪边都不把功能关死）。
+ *
+ * ⚠️ **跟那颗按钮显不显示无关** —— 设置只管界面上画不画按钮，这条键不看它，
+ *    它正是关掉按钮之后的那条路（跟 `⌘E` 不看 `tailEdit` 完全同构）。
+ *    （底栏那条 `⌘N 新增` 的提示也一样：它是"要不要写出来"的问题，不是"键在不在"。）
+ *
+ * ⚠️ **只有收藏视图里有意义**：新增出来的东西本来就落在收藏里，
+ *    在历史那边弹出这个框会让人以为在改历史。别的视图按它**什么都不做**，这是对的。
+ *    下面那颗按钮不用再判一遍 —— 它的 `v-if` 里已经写着 `view === 'favorites'`。
+ */
+function addActive(): void {
+  if (view.value !== 'favorites') return
+  openComposer('new')
+}
+
+/**
  * 删当前这一条。
  *
  * 「要不要先问一句」是**设置项**（`confirmDelete`），默认问。
@@ -894,6 +1150,43 @@ async function runRemove(): Promise<void> {
     await reload()
   }
   syncSelection()
+}
+
+/* ---------------------------------------------------------------- 底栏显示什么 */
+
+/**
+ * 底栏左边这一刻**真该画**的提示（含键帽文案）。
+ *
+ * 顺序 = 设置里那份数组的顺序（也就是 `FOOT_HINTS` 的先后 —— `toggleMember`
+ * 和 `normalizeSettings` 两处都按定义顺序收，所以存进库里的就是有序的）。
+ * 「编辑 / 新增」在本视图里没意义时会被滤掉，见 `HINT_VIEW_ONLY`。
+ */
+const footHintItems = computed(() =>
+  settings.value.footHints
+    .filter((h) => {
+      const only = HINT_VIEW_ONLY[h]
+      return only === undefined || only === view.value
+    })
+    .map((h) => {
+      const f = FOOT_HINT_FACE[h]
+      return { id: h, key: f.mod ? modKey(f.key) : f.key, label: f.label }
+    })
+)
+
+/**
+ * 面板里点一颗提示药丸。
+ *
+ * ⚠️ 跟键盘那条路（`toggleAt` + `toggleMember`）**共用同一个 `toggleMember`** ——
+ *    鼠标和键盘必须落到同一句话上。各写一遍迟早分家：一个按定义顺序排、
+ *    一个按点击先后追加，存进库里的数组就不一样了（而它还直接决定底栏里的先后）。
+ */
+function toggleFootHint(id: FootHint): void {
+  updateSettings({ footHints: toggleMember(settings.value.footHints, id, FOOT_HINTS) })
+}
+
+/** 面板里点一颗按钮药丸。同上（设置 / 新增 / 清空） */
+function toggleFootButton(id: FootButton): void {
+  updateSettings({ footButtons: toggleMember(settings.value.footButtons, id, FOOT_BUTTONS) })
 }
 
 /* ---------------------------------------------------------------- 清空 */
@@ -990,13 +1283,17 @@ function onPointerMove(e: MouseEvent): void {
    * 底栏「淡入」档：鼠标贴到窗口底边才把那一行浮出来。
    *
    * 为什么用 mousemove 算距离，而不是给那条浮出来的栏挂 :hover ——
-   * 它压着的正是列表最后 30px（也就是最后一行**本身**）。挂 hover 的话，
+   * 它压着的正是列表最后几十 px（也就是最后一行**本身**）。挂 hover 的话，
    * 鼠标想去点最后一行 → 栏浮出来 → 栏盖住那一行 → 点不到。
    * 改成「离底边近就露出」之后，栏只负责显示；鼠标事件靠 `pointer-events: none`
-   * 穿透过去给底下的行，那两颗按钮再单独放行（见 .foot.fade 的样式）。
+   * 穿透过去给底下的行，那几颗按钮再单独放行（见 .foot.fade 的样式）。
+   *
+   * ⚠️ 判定范围用 `footH`（**量出来的**底栏高度），不是写死的数：
+   *    09-24 起底栏放不下会换行，它可能是两三行高 —— 只盖住一行的话，
+   *    鼠标停在第二行上底栏反倒收起来了。
    */
   if (settings.value.foot === 'fade') {
-    footRevealed.value = e.clientY >= window.innerHeight - FOOT_REVEAL_ZONE
+    footRevealed.value = e.clientY >= window.innerHeight - footH.value
   } else if (footRevealed.value) {
     // 从「淡入」换成别的档，或者干脆切走时，别把这个标记留在 true 上
     footRevealed.value = false
@@ -1005,6 +1302,10 @@ function onPointerMove(e: MouseEvent): void {
 
 function onViewportChange(): void {
   hidePeek()
+  // 窗口大小变了 ⇒ 底栏可能换行也可能不换行（宽度变了）⇒ 高度重量一次
+  measureFoot()
+  // 窗口高度变了 ⇒ 一屏装得下几行也变了 ⇒ 屏首重采（⌘1–⌘9 从它数起）
+  remapScreenTop()
 }
 
 /** 行尾的收藏 / 删除：先把这一行选成当前项，再走跟键位同一条路，避免两套逻辑 */
@@ -1032,6 +1333,16 @@ function textTruncated(el: HTMLElement): boolean {
 }
 
 let peekTimer: number | undefined
+
+/*
+ * 浮层「收掉之后隔多久才给新的一行重新摆」。
+ *
+ * 两个来源节奏不一样：**换行**（↑↓ / 点一行）是键盘连按，收得要快；
+ * **滚动**是手在滚，等它停下来再摆更稳。差 10ms，肉眼分不出，但故意留着两个名字 ——
+ * 将来只调其中一个时不必再猜"这个数是给谁的"。
+ */
+const PEEK_DELAY_MOVE = 150
+const PEEK_DELAY_SCROLL = 160
 
 function hidePeek(): void {
   window.clearTimeout(peekTimer)
@@ -1068,32 +1379,45 @@ function showPeek(): void {
 }
 
 /**
- * 选中项一变：先立刻收掉上一个浮层，停 150ms 再决定要不要给新的一行弹。
- * 收得干脆是要紧的 —— 连按上下键时浮层不能一路挂在后面。
+ * 收掉当前浮层，`delay` 之后再决定要不要给新的一行摆一个。
+ *
+ * 收得干脆是要紧的 —— 连按上下键、连着滚时，浮层不能一路挂在后面追。
+ * ⚠️ 两个来源（换行 / 滚动）共用这一个函数，只是 delay 不同 ——
+ *    别各写一份，`hidePeek` + `peekTimer` + `nextTick(showPeek)` 这三件事漏一件都是"浮层乱飘"。
  */
-function schedulePeek(): void {
+function schedulePeek(delay: number): void {
   hidePeek()
   if (!settings.value.peek) return
   peekTimer = window.setTimeout(() => {
     void nextTick(showPeek)
-  }, 150)
+  }, delay)
 }
 
-/** 列表一滚，浮层的坐标就废了：先收起来，滚停了再摆 */
+/**
+ * 列表一滚，浮层的坐标就废了：先收起来，滚停了再摆。
+ *
+ * ⚠️ **只认列表自己滚**（`e.target === .list`）。
+ *
+ * scroll 事件不冒泡，这个监听是挂在**捕获阶段**的 ⇒ 页面上**任何**可滚区域动一下都会打进来：
+ * 设置面板的 `.sheet-body`、输入浮层里那个 `<textarea>`、详情浮层内部……
+ * 而下面两句是"把整列 DOM 量一遍"：`growRenderWindow` 读 `.list` 的三个尺寸，
+ * `remapScreenTop` 要 `querySelectorAll('.row')` 再逐个 `getBoundingClientRect()`（二分几次）。
+ * **两样都是主线程上的强制布局** —— 在面板里滚一下、在输入框里滚一行，白干一整帧的活，
+ * 表现就是"该顺的地方顿一下"。
+ * 而屏首/续渲染只跟列表自己的滚动有关，所以别的来源直接退。
+ * （原写法只挡了 `.peek` 一处，面板和 textarea 这两条路一直在白跑。）
+ */
 function onAnyScroll(e: Event): void {
-  const target = e.target as HTMLElement | null
-  // 浮层自己内部的滚动不算（长文本要在里面滚着看）
-  if (target?.closest?.('.peek')) return
+  if ((e.target as Node | null) !== listRef.value) return
 
   // 触底续渲染：数据本来就在手里，只是还没建 DOM
   growRenderWindow()
 
+  // 屏首要跟着滚（⌘1–⌘9 和行尾那枚序号都按它算）
+  remapScreenTop()
+
   if (!peek.value && !peekTimer) return
-  hidePeek()
-  if (!settings.value.peek) return
-  peekTimer = window.setTimeout(() => {
-    void nextTick(showPeek)
-  }, 160)
+  schedulePeek(PEEK_DELAY_SCROLL)
 }
 
 /* ---------------------------------------------------------------- 设置 */
@@ -1135,10 +1459,12 @@ function openSettings(): void {
 }
 
 /*
- * 原来这里有个 `footHint` computed：给「底栏」那一组算一句说明（四档各一句）。
- * 09-17 面板去掉全部说明文字之后它没有出口了，**连同那四句一起删掉** ——
- * 那四句（尤其「淡入 / 全隐」两档的区别、以及全隐只能靠 ⌘/ 开设置）
+ * 原来这里有个 `footHint` computed：给「底栏」那一组算一句说明（当时四档各一句）。
+ * 09-17 面板去掉全部说明文字之后它没有出口了，**连同那几句一起删掉** ——
+ * 那几句（尤其「淡入 / 全隐」两档的区别、以及全隐只能靠 ⌘/ 开设置）
  * 已经搬进 README 的「设置」一节，改档位时记得同步那边。
+ * （09-24 起形态只剩三档，且"显示什么"搬去了「底栏按钮 / 底栏按键提示」两份多选 ——
+ *  README 那一段也是同批改的，两边别各说各话。）
  */
 
 /**
@@ -1156,9 +1482,118 @@ function updateSettings(patch: Partial<Settings>): void {
   if (patch.foot !== undefined) footRevealed.value = false
 
   if (patch.peek !== undefined) {
-    if (next.peek) schedulePeek()
+    if (next.peek) schedulePeek(PEEK_DELAY_MOVE)
     else hidePeek()
   }
+}
+
+/* ------------------------------------------------- 新增 / 编辑收藏（输入浮层） */
+
+/**
+ * 输入框高度。★ **上限**，也是老大 09-24 从效果图里挑的那一档 —— 他挑的是「撑满」。
+ *
+ * 401 是**档位名**，真正的高度取「401」和「弹框可用高度」里的小值（见 composerMaxH），
+ * 标准窗口下取到的就是撑满：
+ *   插件视口 550（真机实测；宿主常数写的是 542）− `.mask` 上下留边 24 = 可用 **526**
+ *   卡片里除输入框之外固定 **129**（上下内边距 32 + 标题行 33 + 键位行 34 + 按钮 30 ——
+ *   拿 09-23 那张截图反推的：卡片总高 261 − 当时输入框的 132 = 129）
+ *   ⇒ 526 − 129 = **397** —— 跟 401 这一档只差个取整，看着就是撑满。
+ *
+ * ★ 所以这一档是**定高**的：框永远占满可用高度、跟内容多少无关（长内容在框里滚）。
+ *   `.ctx` 的 `min-height` 写的是**同一个算式**，两边必须一起改：只改一边的话，
+ *   高的那一头说了算，卡片会顶破 `.box` 的 `max-height`、多出一层滚动条。
+ *   ⚠️ **机制没删**：把 `.ctx` 的 `min-height` 调小，`fitComposer` 那套
+ *      「归 auto 量 scrollHeight」立刻恢复成"跟内容长"，别再重写一遍。
+ */
+const COMPOSER_MAX_H = 401
+
+/**
+ * 弹框里除输入框之外的全部高度 = `.mask` 上下留边 24 + 卡片自身 129，再加 2px 余量。
+ *
+ * ⚠️ 那 2px 不是凑数：现在输入框顶到 397 时卡片正好等于 `.box` 的 `max-height`（`100vh - 24px`），
+ *    差一像素就会在卡片上再生一根滚动条，变成「框里滚」套「卡片滚」两层。留 2px 把这个边界断开。
+ */
+const COMPOSER_CHROME_H = 155
+
+/**
+ * 这一刻输入框最高能长到多少。
+ *
+ * ⚠️ 用 `window.innerHeight` 现算，而不是写死上面那个 542：**插件窗口可以被拖出来单独调整大小**
+ *    （宿主自己那套独立窗口能拖到 300 高），小窗口下还按 401 长就会把弹框顶穿。
+ *    `.box` 虽然有 `max-height` + 滚动兜底，但那样会变成「输入框在弹框里滚」这种两层滚动的怪样子。
+ *    下限 88 是给「窗口再小也别把输入框压成一条缝」。
+ */
+function composerMaxH(): number {
+  return Math.max(88, Math.min(COMPOSER_MAX_H, window.innerHeight - COMPOSER_CHROME_H))
+}
+
+/**
+ * 让输入框跟着内容长高。
+ *
+ * ★ 这一条就是「弹框能展示全」那句话的落地：固定高度的框里长一点的备忘照样看不全，
+ *   那弹框就白弹了。做法是先把高度归 `auto` 量出 `scrollHeight`，再取它跟上限的较小值。
+ *   ⚠️ 那个归零不能省 —— 不归零时量到的永远是上一次的高度，框只会越删越长。
+ *   （`.ctx` 的 `min-height` 顶着下限，所以内容少时量出来就是那个下限，不会缩成一条。）
+ * ★ 09-24 换成「撑满」那一档之后，`.ctx` 的 `min-height` 跟这里的上限是**同一个算式**，
+ *   于是量出来的数正好等于下限 —— 框就定死在撑满的高度上，内容多了在框里滚。
+ *   这是有意的，不是这段失效了：把 `.ctx` 的 `min-height` 改小，它立刻恢复「跟内容长」。
+ */
+function fitComposer(): void {
+  const el = composerRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.min(el.scrollHeight, composerMaxH())}px`
+}
+
+/**
+ * 开输入浮层。`edit` 时把原文填进去，并记住是哪一条。
+ *
+ * ⚠️ `takeKeyboard()` 是**必需的第一步**：宿主的搜索框默认握着焦点，不让一次的话
+ *    输入框一个字都收不到（跟 `⌘K` 失灵同一件事，见 takeKeyboard 上面的说明）。
+ *    09-23 真机验过：`takeKeyboard()` + `focus()` 这一套能让输入框正常收键，含中文输入法。
+ */
+function openComposer(mode: 'new' | 'edit', favId?: string): void {
+  composerText.value =
+    mode === 'edit' ? (favorites.value.find((f) => f.favId === favId)?.content ?? '') : ''
+  composer.value = { mode, favId }
+  takeKeyboard()
+  void nextTick(() => {
+    composerRef.value?.focus()
+    fitComposer()
+  })
+}
+
+function closeComposer(): void {
+  composer.value = null
+}
+
+/**
+ * 保存。
+ *
+ * 空白内容直接不动（按钮那边也是 `disabled`，这里是兜底）—— `addManualFavorite` /
+ * `updateFavoriteText` 自己又各判了一道。三层同一个规矩：**空内容不许进库**。
+ */
+async function saveComposer(): Promise<void> {
+  const text = composerText.value
+  const at = composer.value
+  if (!at || !text.trim()) return
+
+  if (at.mode === 'edit' && at.favId) {
+    favorites.value = await updateFavoriteText(at.favId, text, favorites.value)
+  } else {
+    const before = favorites.value.length
+    favorites.value = await addManualFavorite(text, favorites.value)
+    /*
+     * 新增的那条排在列表最上（`addedAt` 最新）⇒ **把它选中**。
+     * 不选的话，列表要是正滚在下面，新条目落在看不见的地方，用户拿不到"存上了"的反馈；
+     * `activeKey` 一变，那个 `watch` 自己会把它滚进视野。
+     * ⚠️ 判重命中时列表没变长 —— 那就别动选中，不然会跳到一条本来就有的行上。
+     */
+    if (favorites.value.length > before) activeKey.value = favorites.value[0].favId
+  }
+
+  composer.value = null
+  if (view.value === 'favorites') syncSelection()
 }
 
 /* ---------------------------------------------------------------- 键盘 */
@@ -1166,9 +1601,12 @@ function updateSettings(patch: Partial<Settings>): void {
 /**
  * 插件自己有没有「该退的一层」：浮层开着、或者搜索框里有东西（关键词 / 分类前缀）。
  * 决定 Esc 要不要从宿主手里抢过来。
+ *
+ * ⚠️ 输入浮层也在这一列：它开着时 Esc 必须被抢下来（浮层自己收层），
+ *    不然那一按穿透给宿主 = **整个插件退回搜索页**，敲了半天的东西一起没。
  */
 function hasSomethingToFold(): boolean {
-  return !!confirmBox.value || settingsOpen.value || !!keyword.value
+  return !!confirmBox.value || settingsOpen.value || !!composer.value || !!keyword.value
 }
 
 /**
@@ -1203,6 +1641,51 @@ function onKeydown(e: KeyboardEvent): void {
   if (import.meta.env.DEV && (e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'r') {
     e.preventDefault()
     location.reload()
+    return
+  }
+
+  /*
+   * ★★ 输入浮层（新增 / 编辑收藏）：**它是唯一的焦点**，跟确认框同一个位置、同一个道理。
+   *
+   * ── 为什么必须在最前面拦 ──
+   * 往下一段是那个「插件不认这个键」的分支，它对**任何可打印字符**都会 `preventDefault()`
+   * 再 `typeIntoSearch()` 转发给宿主的搜索框 —— 输入框一个字都收不到。而且 `Enter` 更狠：
+   * 它会一路走到粘贴那条 case → `pasteActive()`（**粘一条 + 关窗口**）；`Tab` 去切分类、
+   * `Backspace` 去退搜索框、`Delete` 去删记录。全都要挡在这条分支之上。
+   *
+   * ── ⚠️⚠️ 判据为什么是「浮层开着」而不是「焦点在输入框里」──
+   * 09-23 先在探针上踩过一次：那一版按 `e.target.closest('.probe')` 放行，结果在输入框里
+   * 连按两次 `Tab` —— 第一次焦点跑到框内的「关闭」按钮上（还在判据范围内），第二次就跑出
+   * 浮层了，**那一下直接漏下去切了分类**。老大的原话：「编辑框还没关呢，tab 还可以切换分类」。
+   * ⇒ 只要浮层开着，**除了输入框自己的原生输入，一个键都不许走**，焦点也别想溜出去。
+   *
+   * ── 放行的关键动作是「不 preventDefault」──
+   * 在输入框里那一路**不拦**，才是让浏览器自己把字打进去。只 `Tab` 例外（见下）。
+   */
+  if (composer.value) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closeComposer()
+      return
+    }
+    // ⇧Enter 留给换行（备忘可能是多行），裸 Enter 才是保存
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      void saveComposer()
+      return
+    }
+    if (e.target === composerRef.value) {
+      /*
+       * 输入框里：放行原生输入（不 preventDefault）。
+       * ⚠️ 但 `Tab` 要单独挡掉 —— 它是唯一一个能把焦点带出输入框的键，一旦让它跑掉，
+       *    下一次按键的 `e.target` 就在框外了，上面那条判据立刻失效（就是这个坑）。
+       *    浮层里只有一个输入区，`Tab` 本来也没有去处，挡掉不损失任何东西。
+       */
+      if (e.key === 'Tab') e.preventDefault()
+      return
+    }
+    // 焦点不知怎么到了别处（按钮上等）：吞掉，别让它操作到底下的列表
+    e.preventDefault()
     return
   }
 
@@ -1313,7 +1796,8 @@ function onKeydown(e: KeyboardEvent): void {
   e.preventDefault()
 
   /*
-   * ⌘1–⌘9 秒贴：直接粘第 N 条，不经过选中态。
+   * ⌘1–⌘9 秒贴：直接粘**本屏**第 N 行（从屏幕最上面那一行数起），不经过选中态。
+   * 翻页 / 下滑之后照样按 —— 这是 09-23 改的口径，见 `pasteAt()` 与 `lib/viewport.ts`。
    *
    * 放在 switch 前面而不是塞一个 case：它是一族（九条）动作，塞进 switch 只能靠 default 兜，
    * 而 default 的站位又容易读错。判定本身在 `lib/keys.ts` 的 `withMod` 里，这里只取下标。
@@ -1375,6 +1859,14 @@ function onKeydown(e: KeyboardEvent): void {
       break
     case 'favorite':
       void toggleFavorite()
+      break
+    case 'editFavorite':
+      // ⌘E —— 行尾那颗 ✎ 的键盘并行路（它能被设置关掉，关掉之后只剩这条）
+      editActive()
+      break
+    case 'addFavorite':
+      // ⌘N —— 右下角那颗「新增」的键盘并行路（那颗按钮能被设置关掉，关掉之后只剩这条）
+      addActive()
       break
     case 'toggleFavoritesView':
       // ⌘L 是 Tab 循环的捷径：一步跳到「收藏」那一站，再按一次退回「全部」
@@ -1489,7 +1981,10 @@ function scrollActiveIntoView(): void {
 watch(activeKey, () => {
   void nextTick(() => {
     scrollActiveIntoView()
-    schedulePeek()
+    // `scrollIntoView` 可能刚把列表挪了（光标走出视口时）⇒ 屏首重采一次，
+    // 不然 ⌘1 还指着挪之前的第一行
+    remapScreenTop()
+    schedulePeek(PEEK_DELAY_MOVE)
   })
 })
 
@@ -1498,9 +1993,48 @@ watch(activeKey, () => {
 watch([view, keyword], () => {
   hidePeek()
   renderLimit.value = RENDER_STEP
+  // 换了内容就等于回到顶（渲染窗口一收，滚动位置也没了）⇒ 屏首归零
+  void nextTick(remapScreenTop)
 })
 // 弹出确认框时也别留着浮层压在下面
 watch(confirmBox, hidePeek)
+
+/*
+ * ★ 底栏那一行的**高度**变了，两件事都得跟着重采 —— 所以并成**一个** watcher。
+ *
+ * 高度会变的原因有四个（都在这条 watch 里）：
+ *   · 换了形态（`foot`）：常驻 ⇄ 淡入 ⇄ 全隐，占不占高度就变了；
+ *   · 「底栏按键提示」多选变了：提示多了会**换行**（09-24 起允许）⇒ 两行甚至三行；
+ *   · 「底栏按钮」多选变了：少一颗按钮 ⇒ `.hints` 反而变宽 ⇒ 可能又不用换行了；
+ *   · 切了视图 / 开关设置面板：`⌘E 编辑` / `⌘N 新增` 这两条提示只在收藏视图出现，
+ *     而面板开着时底栏要**让出右边一条**（`.root.sheet-open .foot`）⇒ 变窄也更容易换行。
+ *
+ * 为什么要重采：
+ *   ① `footH` —— 「淡入」档的浮现判定范围必须等于真实高度（不然第二行点不到，
+ *      见 `onPointerMove` 与 `FOOT_REVEAL_FALLBACK` 的说明）；
+ *   ② `screenTop` —— 常驻档下底栏多占一行，列表就少一行，**屏首会跟着挪**
+ *      （`pageRows()` 数的是真正渲染出来的 `.row`），而 `⌘1`–`⌘9` 和行尾那枚序号
+ *      都按 `screenTop` 算。不重采的话：勾一条提示，⌘1 就指错一行，而且不报错。
+ *
+ * ⚠️ 两个 must 在**同一个** `nextTick` 里、按这个先后跑：`.hints` 先换成新高度，
+ *    列表才跟着变矮，屏首才量得准。
+ */
+watch(
+  [
+    settingsOpen,
+    view,
+    () => settings.value.foot,
+    // 用 `join()` 而不是 `.length`：勾掉「删除」、勾上「秒贴」条数一样，但**宽度差很多**
+    () => settings.value.footHints.join(),
+    () => settings.value.footButtons.join()
+  ],
+  () => {
+    void nextTick(() => {
+      measureFoot()
+      remapScreenTop()
+    })
+  }
+)
 
 onMounted(async () => {
   await attachSubInput()
@@ -1526,6 +2060,10 @@ onMounted(async () => {
   window.addEventListener('blur', onWindowBlur)
   document.addEventListener('visibilitychange', onVisibilityChange)
 
+  // 底栏高度先量一次（上面那条 watch 只在它**变**的时候才跑，开机这一趟得自己来）：
+  // 「淡入」档的浮现判定和常驻档下屏首的位置都按它算。
+  void nextTick(measureFoot)
+
   void zt().clipboard.onChange(() => {
     if (view.value === 'history') scheduleReload()
   })
@@ -1536,11 +2074,8 @@ onMounted(async () => {
   })
   void zt().onPluginOut(() => {
     resetSession()
-    try {
-      zt().setSubInputValue('')
-    } catch {
-      /* 忽略 */
-    }
+    // 走同一个出口：清空那个框，写不进去也无所谓（下次打开会对齐）
+    writeSubInput('')
   })
 })
 
@@ -1625,23 +2160,31 @@ onUnmounted(() => {
         <div class="t"><span v-for="(s, k) in row.seg" :key="k" :class="{ hl: s.hit }">{{ s.t }}</span></div>
 
         <!-- 行尾那一格。常驻四样，各自可以在设置里关掉：
-               · 序号（只给前 9 行）—— 配 ⌘1–⌘9 秒贴
+               · 序号（**本屏前 9 行**）—— 配 ⌘1–⌘9 秒贴，屏上写着 3 的那行就是 ⌘3
                · 来源（VSCode / Chrome…）—— 这条是在哪个软件里复制出来的
                · 类型标签（文本 / 链接 / 图像 / 文件）
-               · 收藏 / 删除两枚按钮 —— 09-21 起**各开各的**（原来「行尾按钮」一个总开关管两颗，
-                 想要"只要收藏、不要删除"做不到）；**鼠标划过、或这行是当前行**时出现（两者一致），
+               · 操作按钮 —— 收藏 / 删除（09-21 起**各开各的**，原来「行尾按钮」一个总开关管两颗，
+                 想要"只要收藏、不要删除"做不到）；**收藏视图里文本行还多一颗「编辑」**
+                 （09-23 加，见下）。鼠标划过、或这行是当前行时出现（两者一致），
                  它出现时上面三样在这一格让位（同一个位置叠着，见下面对应的 CSS）
              按钮是 absolute 叠在这一格的右端、靠透明度切换，所以它出现/消失都不改行宽
-             （`.tail-acts` 按**开着几颗**留位）。常驻那几样全关就是彻底没有行尾。
-             ⚠️ 序号必须取 `v-for` 的下标 —— 跟 `pasteAt()` 取的是同一个 `visibleRows`，
-                另算一份迟早错位（按 ⌘3 粘到第 4 条）。
+             （`.tail-acts` / `-one` / `-three` 按**这一格要留几颗**给宽度）。
+             常驻那几样全关、且不在收藏视图，就是彻底没有行尾。
+             ⚠️ 序号由 `rowNums`（本屏前 9 行 → 1–9）算，**不是** `i + 1`：
+                `i` 是它在整个列表里的位置，滚到第 3 屏就变成 13 打头了。
+                口径必须跟 `pasteAt()` 完全一致（同一个 `screenNumbers`），
+                另算一份迟早错位（按 ⌘3 粘到别的行）。
              按钮都得 .stop，不然点它们会连带触发行的 click（改选中）/ dblclick（复制）。 -->
         <div
           class="tail"
-          :class="{ 'tail-acts': actsShown > 0, 'tail-acts-one': actsShown === 1 }"
+          :class="{
+            'tail-acts': actsShown > 0,
+            'tail-acts-one': actsShown === 1,
+            'tail-acts-three': actsShown === 3
+          }"
           @dblclick.stop
         >
-          <span v-if="settings.tailIndex && i < 9" class="num">{{ i + 1 }}</span>
+          <span v-if="settings.tailIndex && rowNums.has(i)" class="num">{{ rowNums.get(i) }}</span>
           <!-- 来源排在类型标签**前面**：两个都是淡淡的纯文字，挨着放；类型标签是带底色的
                药丸，留在最右端当这一格的收尾。
                ⚠️ `row.source` 为空时**不渲染**（老数据 / 老收藏没有 appName）——
@@ -1649,6 +2192,34 @@ onUnmounted(() => {
           <span v-if="settings.tailSource && row.source" class="src">{{ row.source }}</span>
           <span v-if="settings.tailType" class="tag">{{ row.label }}</span>
           <div v-if="actsShown" class="acts">
+            <!-- ★ 编辑（09-23 加）：只在**收藏视图的文本行**上出。
+                 · 只有收藏能编辑 —— 历史那一摊是宿主的账，插件改不了；
+                 · 只有文本能编辑 —— 图片改不了那张 png，文件改路径其实是"换一个文件"，
+                   都超出「编辑」两个字（理由写在 lib/favorites.ts 的 updateFavoriteText）。
+                 它打开的是那块**输入浮层**，不是行内编辑（形状是老大 09-23 定的口径：
+                 「新增和编辑都是弹出一个小框出来输入……弹框能展示全」）。
+                 ⚠️ `.stop` 跟另外两颗一样，不挡的话点它会连带触发行 click（改选中）/ dblclick（复制）。
+                 ⚠️ 它多占一颗的位置 —— 留位在 `actsShown` 那边（收藏视图按最多算），别在这儿动宽度。
+                 ⚠️ 顺序跟设置面板「行尾操作」那一行一致（编辑 / 收藏 / 删除）——
+                    `lib/panel.ts` 的 `tailActs.values` 就是这三个，改顺序要两边一起改。 -->
+            <button
+              v-if="view === 'favorites' && row.data.type === 'text' && settings.tailEdit"
+              class="act"
+              title="编辑"
+              @click.stop="openComposer('edit', row.key)"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M2.9 13.1l.7-2.9 7.9-7.9 2.2 2.2-7.9 7.9z" />
+                <path d="M10.2 3.6l2.2 2.2" />
+              </svg>
+            </button>
             <button
               v-if="settings.tailFav"
               class="act"
@@ -1712,54 +2283,100 @@ onUnmounted(() => {
       </ul>
     </div>
 
-    <!-- 底栏：形态由设置里的「底栏」决定（完整 / 精简 / 淡入 / 全隐），四档见 lib/settings.ts 的 FootMode。
-         左边一条极淡的键位提示（键位不写在界面上就没人知道）—— 只有「完整」档才有；
-         右边两个入口，除「全隐」外三档都有。
+    <!-- 底栏：**里面显示什么**全由设置里那两份多选决定（`footHints` / `footButtons`），
+         而这一行**在不在、占不占高度**由「底栏」那三个形态档决定
+         （常驻 / 淡入 / 全隐，见 lib/settings.ts 的 FootMode）。
+         左边一条极淡的键位提示（键位不写在界面上就没人知道），右边几颗入口。
+         ⚠️ 「全隐」档下这一整块**不渲染** —— 连提示带按钮一起没有，
+            那时开设置只剩 `⌘/`（README 里写着这条退路）。
          「收藏」也提示：⌘K 是收藏当前项**唯一**的键盘入口（⌘D 被宿主拦给「分离插件」，
          界面改不掉），这条路径不给提示就等于没有。
          「⌘1–⌘9」也提示（09-17 老大提的，原话「怎么老是忘记这个」）：这一族键在界面上
          **一处都没有** —— 行尾那列「序号」默认还是**关**的，等于连"行尾有号码"这条线索
          默认也没有；不写进底栏它就跟不存在一样。⚠️ 序号关掉只是**看不见号码**，
-         键本身一直在（取的是渲染列表的下标，见下方 tail 那段）。所以提示是七项。
-         它排在 Enter 后面：两条都在说"粘贴"（Enter 粘选中的那条，⌘1–⌘9 直接粘第 N 条）。
+         键本身一直在（取的是**本屏**前 9 行，见 `pasteAt()` 与下方 tail 那段）。
+         它排在 Enter 后面：两条都在说"粘贴"（Enter 粘选中的那条，⌘1–9 粘本屏第 N 行）。
+         ⚠️ 键帽里只写一个修饰键（`⌘1–9` / Windows `Ctrl+1–9`）—— 写成 `⌘1–⌘9` /
+         `Ctrl+1–Ctrl+9` 光这一个键帽就要 112px，那一排本来就最紧（见下）。
          「设置」也提示：⌘/ 原先在整个界面上**一处都没写** —— 只在设置面板里那句
-         「全隐 = 只能按 ⌘/ 开设置」的解释里提过（09-17 面板去文案后**连那句也没了**，
-         不写进底栏就彻底没地方知道它）。
-         放在最末：`.hints` 是 `overflow: hidden`，窄窗口会**从右边静默截断**，
-         所以最不常用的那一项排最后，先被截掉的也是它。
+         「全隐 = 只能按 ⌘/ 开设置」的解释里提过（09-17 面板去文案后**连那句也没了**）。
          修饰键写法跟平台走（mac ⌘ / 其它 Ctrl），走 lib/platform.ts 的 modKey()——
          Windows 键盘上没有 ⌘ 键，硬写 ⌘ 那边看不懂。
-         「删除」不给提示：行尾那枚 🗑 就在眼前，不用占底栏；Delete 键自己会打。
-         「淡入」档：这一行是 absolute 的、不占高度 —— 列表因此一直铺到窗口底边，
-         鼠标贴到底边才浮出来（判定在 onPointerMove，长相在 .foot.fade）。
-         「精简」档不用另写分支：hints 空着但它仍是 flex:1，两个入口照样被顶到右边。
-         右边那个「清空」的文案随分类变（清空历史 / 清空文本历史 / … / 清空收藏）——
+         「删除」也提示（09-23 加的）。为它**挤掉了「Esc 返回」**：
+         Esc 是通用键、好猜（README 里照旧列着），而删除原先在界面上只有行尾那枚 🗑 ——
+         那只对鼠标有意义，**键盘删除（Delete / ⌘⌫）一处都没写**。
+         ★ 09-24 **「Esc 返回」又回到候选表**（当时是第 11 条，排在最末）—— 换掉它的唯一理由是
+         "那排塞不下"，而 09-24 起放不下会换行 ⇒ 理由没了。它默认不勾（见 settings.ts
+         里 `DEFAULT_FOOT_HINTS` 那段取舍），想要的人勾上就行。
+         ⚠️ 底栏**没显示**某条提示 ≠ 那条没给全：候选表是 `FOOT_HINTS`（15 条，= 界面上
+         所有能按的键），默认只勾其中 8 条。"给全了没"要对着 `FOOT_HINTS` 看，不是对着这一排看。
+         ⚠️ 「编辑」和「新增」**只在收藏视图出现**（跟右下角那颗「新增」按钮同一个口径：
+             这儿没有的东西就不写）—— 见 `HINT_VIEW_ONLY`。
+             ⌘E 只在收藏视图管用；⌘N 新增出来的东西也落在收藏里。
+
+         ── 换行（09-24 老大提的） ────────────────────────────────────────────
+         ★ 这一排从"定宽预算、超了从右边静默截断"改成了**放不下就换行**。
+         起因是它在设置面板开着的时候会被截掉一半（`.root.sheet-open .foot` 要让出
+         `--sheet-w` 那 300px，可用宽度掉到 ~448）—— 而那正是他在挑提示的时候。
+         现在勾多了就是两行、三行，一条都不会少。
+         ⚠️ 换行带来的**三处连带**（都是改错了不报错的那种，别漏）：
+           ① `.foot` 的 `align-items` 改成了 `flex-end` —— 两行时那几颗按钮要落在**最后一行**
+              上（不然它们悬在中间，读起来像掉队）；写法见样式那段。
+           ② 「淡入」档的浮现判定范围必须**量底栏的真实高度**（`footH` / `measureFoot`）——
+              还按写死的 30 判，第二行就"看得见点不到"。
+           ③ 常驻档下底栏高一行，列表就少一行 ⇒ **屏首会挪**，`screenTop` 得跟着重采
+              （不然 ⌘1–⌘9 和行尾那枚序号一起指错）。这三处都在那条
+              `[settingsOpen, view, foot, footHints, footButtons]` 的 watch 里收口。
+         ⚠️ 宽度预算仍然要算，只是不再是"超了就没了"：一行里能放几条决定的是**换不换行**，
+            所以**默认那 8 条**在 Windows 上仍然是贴着边的 ——
+            实测（清空取最长的「清空文本历史」⇒ 可用 624px）：**mac 526 ✅ 余 98；win 589 ✅ 余 35**；
+            收藏视图（可用 598，见下面那段算式）win 余 9px。默认值就是照这一档挑的。
+            量法：把 `.foot`/`.hints`/`kbd`/`.clr` 的样式抄进一个 800px 的 HTML，
+            跑无头 Chrome `--dump-dom`，脚本把 `clientWidth` 与「各项宽之和 + 间隙」写进 DOM 再读。
+         右边那颗「清空」的文案随分类变（清空历史 / 清空文本历史 / … / 清空收藏）——
          它就是清掉当前这一个分类里的东西，不随关键词变。 -->
     <div
       v-if="settings.foot !== 'none'"
+      ref="footRef"
       class="foot"
       :class="{ fade: settings.foot === 'fade', on: footRevealed }"
     >
       <div class="hints">
-        <template v-if="settings.foot === 'full'">
-          <span><kbd>↑↓</kbd>选择</span>
-          <!-- ★ 翻页提示（09-21）。跟 ⌘1–⌘9 那条同一个理由：**实现了键盘路径就必须在
-               界面上写出来**，否则只有翻过 README 的人知道。
-               这里写 ⌘↓ 不写 PageDown —— ⌘↓ 在搜索框里就能按（不用先按 ↑↓ 搬焦点），
-               是更该被看见的那一个；PageDown / PageUp 是给习惯标准键的人留的，
-               README 里两个都列着。
-               ⚠️ 这排提示是 `overflow: hidden` 的定宽预算，再加一条之前先想清楚要挤掉谁。 -->
-          <span><kbd>{{ modKey('↓') }}</kbd>翻页</span>
-          <span><kbd>Tab</kbd>分类</span>
-          <span><kbd>Enter</kbd>粘贴</span>
-          <span><kbd>{{ modKey('1') }}–{{ modKey('9') }}</kbd>秒贴</span>
-          <span><kbd>{{ modKey('K') }}</kbd>收藏</span>
-          <span><kbd>Esc</kbd>返回</span>
-          <span><kbd>{{ modKey('/') }}</kbd>设置</span>
-        </template>
+        <!-- 画哪几条、什么顺序，全在 `footHintItems` 里（设置里那份数组 ⇒ FOOT_HINTS 的先后）。
+             ⚠️ 这里**不许**再写一条 `v-if` 决定某条提示显不显示 —— 显不显示是用户勾的，
+                唯一的例外是"本视图里没有意义的那两条"，那个判断在 `HINT_VIEW_ONLY`（computed 里）。
+             每条的键帽 + 文字在 `FOOT_HINT_FACE` 里（`mod: true` 的走 modKey() 按平台给 ⌘ / Ctrl）。 -->
+        <span v-for="h in footHintItems" :key="h.id"><kbd>{{ h.key }}</kbd>{{ h.label }}</span>
       </div>
-      <button class="clr set" @click="openSettings">设置</button>
-      <button class="clr" @click="askClear">{{ clearLabel }}</button>
+      <!-- ★ 右边这几颗也全是多选（09-24 之前是写死的 + 一颗 `footAdd` 开关）：
+           「设置」应用级 / 「新增」只动收藏那一摊 / 「清空」动当前分类。
+           ⚠️ 三颗都可能在设置里被取消，包括「设置」—— 那时开面板只剩 `⌘/`。
+           ⚠️ 「新增」**只在收藏视图**（历史视图没什么可"新增"），它跟 `⌘N` 那条提示同生死；
+              而 `⌘N` 这个键**不归这里管**：取消按钮只是不画鼠标入口，键照旧能用
+              （见 `addActive`）。
+           ⚠️ 底栏仍然是**定宽预算**的（只是超了会换行）：它挤得进来，靠的是
+              **收藏视图的「清空收藏」比最长的「清空文本历史」短两格**：
+                内容区 772（800 − 左右各 14）
+                − 3×12(间隙) − 38(设置) − 38(新增) − 62(清空收藏) = **可用 598**
+                Windows 那排提示要 589 ⇒ **余 9px** ✅；mac 只要 526 ⇒ 余 72 ✅
+                （老基线：历史视图可用 624，win 余 35）
+                ⚠️ 取消一颗之后可用变大，那是**多出余量**，不用重算。
+              ★ 中文标签字宽恒 1em（12px 字号 ⇒ 每字 12px），所以这几个数是**算准**的，
+                跟字体无关；只有 `Ctrl+…` 那些拉丁串会随系统字体漂几 px。
+              ⚠️ **再加一个入口 / 再加长某条提示之前，先把这条式子重算一遍**（更细的量法见 §47.2）。 -->
+      <button v-if="settings.footButtons.includes('set')" class="clr set" @click="openSettings">
+        设置
+      </button>
+      <button
+        v-if="view === 'favorites' && settings.footButtons.includes('add')"
+        class="clr add"
+        @click="openComposer('new')"
+      >
+        新增
+      </button>
+      <button v-if="settings.footButtons.includes('clear')" class="clr" @click="askClear">
+        {{ clearLabel }}
+      </button>
     </div>
 
     <!-- 设置：宿主不给插件设置页，只能自己画一个。
@@ -1824,40 +2441,55 @@ onUnmounted(() => {
           ────────────────────────────────────────────────────────────────
           ★ 09-17 老大要求：按「控件类型」分三段，段内按行长**从短到长**（短的在上面，逐级变宽）。
             ① 色点段：底色（4 颗、一行）→ 强调色（13 颗、两行）
-            ② 多选段：行尾操作（2 颗）→ 行尾显示（3 颗）→ 选中项（3 颗）→ 底栏（4 颗）
+            ② 多选段：行尾操作（3 颗）→ 行尾显示（3 颗）→ 选中项（3 颗）
+                      → 底栏（3 颗）→ 底栏按钮（3 颗）→ 底栏按键提示（15 颗）
             ③ 开关段：显示详情 / 删除前确认
-          为什么不按"主题"排（比如让「行尾操作」贴着「行尾显示」的另一半）：那样三种控件形状会一格一格
+          为什么不按"主题"排（比如让「行尾操作」贴着「行尾显示」的另一半）：那样几种控件形状会一格一格
           交替出现 —— 色点、药丸、开关、药丸、开关…… 右边缘那一列开关被药丸行打断，看着毛躁。
           同形状的挨在一起，面板才有节奏。段与段之间靠 `.blk` 多留一点空。
 
           ⚠️ **方向是「短 → 长」**，别搞反（我第一版就做反了）：老大原话「为什么不是每个类都是从
              短到长呢，你是从长到短」。他给的判据很直接 —— 底色段 4 颗在 13 颗上面、行尾那几颗在
-             底栏 4 颗上面。别再拿"重的放上面更稳"这种直觉改回长→短。
+             底栏那几颗上面。别再拿"重的放上面更稳"这种直觉改回长→短。
              （09-18 行尾加了第 3 颗「来源」之后，行尾和选中项都是 3 颗 —— 这一段平了，
               两行谁前谁后都不违背判据，所以**保持原样不动**，别为"凑成一个严格递增"去调顺序。）
           ⚠️ 09-21「行尾按钮」从开关拆成「行尾操作」（收藏 / 删除两颗药丸）之后，
              它从**开关段**搬进了**多选段**：按短→长排在「行尾显示」（3 颗）**前面**。
              别按"先显示后操作"的语序把它俩对调 —— 那是往回走（`panel.ts` 里也写着这条）。
-          ⚠️ 开关那两行的控件宽度**完全一样**（都是"左标题 + 右侧开关"的满宽行），按颗数没有可排的；
-             按**标签字数**排恰好也就是现在的先后（显示详情 4 / 删除前确认 5），所以不动。
+          ⚠️ 09-24 底栏那两行也照短→长排：**按钮（3 颗）在按键提示（15 颗）前面**。
+             反过来就是 15 → 3 的下降，"逐级变宽"当场破掉。两行都是底栏的东西，挨着放正好。
+          ⚠️ 开关段只剩两行，宽度完全一样（"左标题 + 右侧开关"的满宽行），按颗数没有可排的；
+             按**标签字数**排也不减：显示详情 4 / 删除前确认 5。
+             （09-23 那行「新增按钮」**已撤** —— 它并进了上面「底栏按钮」那颗药丸里。）
         -->
-        <!-- 行尾**操作**：收藏 / 删除两颗按钮，各开各的（两颗都关 = 鼠标没有操作入口，
-             收藏 / 删除只剩 ⌘K 和 Delete —— 老大 09-21 要的就是这个自由度）。
-             跟下面「行尾显示」一样是**多选**：点一下选上、再点一下取消，两颗互不顶掉。
-             ⚠️ 这两颗的**先后必须跟 `panel.ts` 里 `PANEL_ROWS.tailActs.values` 的顺序一致**。 -->
+        <!-- 行尾**操作**：编辑 / 收藏 / 删除三颗按钮，各开各的（三颗都关 = 鼠标没有操作入口，
+             编辑只剩 ⌘E、收藏只剩 ⌘K、删除只剩 Delete —— 老大 09-21 要的就是这个自由度）。
+             跟下面「行尾显示」一样是**多选**：点一下选上、再点一下取消，三颗互不顶掉。
+             ⚠️ 这三颗的**先后必须跟 `panel.ts` 里 `PANEL_ROWS.tailActs.values` 的顺序一致**，
+                而且**跟行尾那三颗从左到右的先后也一致**（编辑 / 收藏 / 删除）——
+                面板和列表读同一句话，别在这儿按"哪个重要"重排。
+             ★ 「编辑」（09-23 加）：关掉之后行尾那颗 ✎ 就不出了（它本来也只在收藏视图的
+                文本行上出现），编辑改走 `⌘E`。 -->
         <div class="grp blk">
           <div class="lbl">行尾操作</div>
           <div class="chips">
             <button
               class="chip"
-              :class="{ on: settings.tailFav, cur: isCur('tailActs', 0) }"
+              :class="{ on: settings.tailEdit, cur: isCur('tailActs', 0) }"
+              @click="updateSettings({ tailEdit: !settings.tailEdit })"
+            >
+              编辑
+            </button>
+            <button
+              class="chip"
+              :class="{ on: settings.tailFav, cur: isCur('tailActs', 1) }"
               @click="updateSettings({ tailFav: !settings.tailFav })"
             >
               收藏
             </button>
             <button
               class="chip"
-              :class="{ on: settings.tailDel, cur: isCur('tailActs', 1) }"
+              :class="{ on: settings.tailDel, cur: isCur('tailActs', 2) }"
               @click="updateSettings({ tailDel: !settings.tailDel })"
             >
               删除
@@ -1912,6 +2544,12 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <!-- 底栏**形态**：这一行在不在、占不占高度（常驻 / 淡入 / 全隐）。
+             ★ 09-24 从四档收成三档 —— 老第四档「精简」退休了：它的意思就是
+                "整排键位提示一条不留"，而那件事现在由下面「底栏按键提示」表达
+                （一条都不勾）。同一个意思留两个说法迟早自相矛盾。
+             ⚠️ 老值 'full' / 'lean' 由 `lib/settings.ts` 的 `footOf()` 迁成 'always'
+                （'lean' 还要把 `footHints` 一起清空，见 `footHintsOf`）。 -->
         <div class="grp">
           <div class="lbl">底栏</div>
           <div class="chips">
@@ -1923,6 +2561,60 @@ onUnmounted(() => {
               @click="updateSettings({ foot: f.v })"
             >
               {{ f.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 底栏右边那几颗入口（09-24 加，老大提的「底栏右侧的按钮做到设置里可多选控制展示哪些」）。
+             ★ 09-23 那颗单独的「新增按钮」开关并进了这里 —— 当初它管的事
+                （「右下角的新增可不可以也加到设置里面去控制是否显示」）就是这一组里的一颗。
+             ⚠️ 三颗的**先后必须跟 `panel.ts` 里 `PANEL_ROWS.footButtons.values` 一致**
+                （= `FOOT_BUTTONS`：设置 / 新增 / 清空）—— 面板、库里存的数组、底栏三处同一句话。
+             ⚠️ 三颗**都可以取消**，包括「设置」：取消之后开面板只剩 `⌘/`（README 里写着退路）。 -->
+        <div class="grp">
+          <div class="lbl">底栏按钮</div>
+          <div class="chips">
+            <button
+              v-for="(b, i) in FOOT_BUTTONS"
+              :key="b"
+              class="chip"
+              :class="{ on: settings.footButtons.includes(b), cur: isCur('footButtons', i) }"
+              @click="toggleFootButton(b)"
+            >
+              {{ FOOT_BUTTON_FACE[b] }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 底栏左边那排键位提示（09-24 加）—— 跟「行尾显示」一样是多选，**15 条**里随便挑，
+             一条都不勾也行（那就是以前那个「精简」档的观感）。
+             ★ 09-24 起底栏**放不下会换行**，所以 `⌘/ 设置` 和 `⌘N 新增` 这两条也回来了
+                —— 以前是"拿一条换一条"挤出来的（Windows 上 8 条只剩 9px）。
+             ★★ **这一组现在是"界面上所有能按的键"的完整清单**（老大 09-24 的定案，
+                原话「我们系统现在有的按键都应该加进去啊」）—— 分两批补齐：
+                  第一批 第 11 条 `Esc 返回`（09-23 为给「Delete 删除」腾地方被换掉的那条）；
+                  第二批 `复制 ⌘C` / `收藏夹 ⌘L` / `搜索 ⌘F` / `退格 Backspace`。
+                「故意不收的」只有两类（←→ 只面板用、以及 PageDown/⌘⌫/`/` 这种别名），
+                判据写在 `lib/settings.ts` 的 `FOOT_HINTS` 那段注释里。
+                ⇒ **别再拿"放不下了"当理由删任何一条，也别再漏新的键**：新的键要同批加进来。
+             ⚠️ 面板药丸**不是**"勾上的样子" —— 没勾的那几颗是灰的（`chips` 的 `.on` 管颜色），
+                灰 ≠ 没给全。老大 09-24 连问两次「给全了吗 / Esc 返回呢」，看的就是这一组。
+             ⚠️ 本面板是**窄条**（`--sheet-w` 300px，减去左右内边距只剩 268），
+                15 颗药丸**一定会换行** —— `.chips` 上的 `flex-wrap: wrap` 就是为这一行加的，
+                少了它药丸会溢出到面板外面被 `overflow-x: hidden` 裁掉（不报错，只是后半截看不见）。
+             ⚠️ 「编辑」「新增」两条**只在收藏视图显示**（跟随视图，不是面板不认勾）——
+                解释在 `App.vue` 的 `HINT_VIEW_ONLY` 那段。 -->
+        <div class="grp">
+          <div class="lbl">底栏按键提示</div>
+          <div class="chips">
+            <button
+              v-for="(h, i) in FOOT_HINTS"
+              :key="h"
+              class="chip"
+              :class="{ on: settings.footHints.includes(h), cur: isCur('footHints', i) }"
+              @click="toggleFootHint(h)"
+            >
+              {{ FOOT_HINT_FACE[h].label }}
             </button>
           </div>
         </div>
@@ -1949,6 +2641,35 @@ onUnmounted(() => {
           <span class="nm">删除前确认</span>
           <span class="sw" :class="{ on: settings.confirmDelete }"><i /></span>
         </button>
+      </div>
+    </div>
+
+    <!-- 新增 / 编辑收藏：一块居中的输入浮层。
+         形状按老大 09-23 定的口径来 —— 原话「我希望交互，新增和编辑都是弹出一个小框出来输入，
+         而不是直接在项上面，因为每一项可能展示不全。弹框能展示全」。**别改成行内编辑。**
+         ⚠️ 它跟确认框一样是**模态**（`.mask` 铺满窗口、挡住底下的列表），但**故意不挂
+            `@click.self`**：里面可能已经敲了一段字，点歪一下就丢，代价比"少一条关法"大得多。
+            关法就两条：`Esc` / 「取消」按钮。键盘那一路（含 Tab 焦点陷阱）在 onKeydown 开头。 -->
+    <div v-if="composer" class="mask">
+      <div class="box composer">
+        <p class="msg">{{ composer.mode === 'edit' ? '编辑收藏' : '新增收藏' }}</p>
+        <!-- `textarea` 不是 `input`：单行框只能横向滚，长的备忘照样看不全 —— 那就白弹了。
+             高度靠 fitComposer() 跟着内容长。 -->
+        <textarea
+          ref="composerRef"
+          v-model="composerText"
+          class="ctx"
+          spellcheck="false"
+          :placeholder="composer.mode === 'edit' ? '' : '写下要记住的内容…'"
+          @input="fitComposer"
+        ></textarea>
+        <!-- ★ 键位必须写在界面上（不然只有翻过 README 的人知道）。沿用全局那套 `kbd` 键帽；
+             `⇧` 两个平台写法一样，不用走 modKey()。 -->
+        <p class="ckey"><kbd>Enter</kbd>保存 · <kbd>⇧Enter</kbd>换行 · <kbd>Esc</kbd>取消</p>
+        <div class="dlgacts">
+          <button @click="closeComposer">取消</button>
+          <button class="pri" :disabled="!composerText.trim()" @click="saveComposer">保存</button>
+        </div>
       </div>
     </div>
 
@@ -2230,6 +2951,19 @@ onUnmounted(() => {
   min-width: 26px;
   --acts-w: 22px;
 }
+/*
+ * ★ 三颗（09-23 加）：只有**收藏视图**会有 —— 编辑 + 收藏 + 删除。
+ *   22×3 + 2×2(缝) = 70，再各给 4px 当缝隙。
+ *
+ * ⚠️ 它必须排在 `.tail-acts` **后面** —— 两条特异性一样（都是 `.tail.X`），
+ *    靠源码顺序决出谁赢（理由同下面 `.tail-acts-one` 那条）。
+ * ⚠️ 收藏视图里**所有行**都按三颗留位（`actsShown` 那边按最多算），
+ *    哪怕图片/文件行上并没有「编辑」那颗 —— 不然两种行的行尾一宽一窄，`.t` 的右边界参差。
+ */
+.tail.tail-acts-three {
+  min-width: 74px;
+  --acts-w: 70px;
+}
 /* 序号：给 ⌘1–⌘9 用的，刻意做得很淡 —— 它是熟练之后的参考线，不是内容本身。
    tabular-nums 让每个数字占同样宽，几十行竖着排不会左右跳。 */
 .num {
@@ -2413,11 +3147,16 @@ onUnmounted(() => {
   color: var(--tx-3);
 }
 
-/* 底栏：没有分隔线，左边一条极淡的键位提示，右边两个极淡的入口 */
+/* 底栏：没有分隔线，左边一条极淡的键位提示，右边几颗极淡的入口。
+ *
+ * ⚠️ `align-items: flex-end`（09-24 从 `center` 改的）：底栏放不下时左边那排**会换行**
+ *    （见 `.hints`），两行时右边那几颗按钮要落在**最后一行**上 —— 居中的话它们会悬在
+ *    两行中间，看着像掉队了。一行时这个值和 `center` 没有可见差别（两边都一样高）。
+ */
 .foot {
   flex: none;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
   padding: 4px 14px 9px;
 }
@@ -2428,9 +3167,10 @@ onUnmounted(() => {
  * 底色用 --surface-float（浮层专用、**永不透明**）：它现在是压在内容之上的浮层，
  * 跟着面板一起透明会跟底下的行糊成一片。它跟不跟面板的底色走，见 `surface.ts` 的 resolveFloatBg。
  *
- * ⚠️ 容器本身必须 pointer-events: none —— 它压着列表最后 30px，
- * 而那 30px 正是「最后一行」的落脚处；吃掉鼠标事件的话最后一行就点不动了。
- * 只有那两颗按钮单独放行（见下）。判定在 onPointerMove，不在 CSS hover
+ * ⚠️ 容器本身必须 pointer-events: none —— 它压着列表最后几十 px（09-24 起底栏可能换行，
+ * 压住的不再恒是 30px；度量在 `measureFoot()`），而那正是「最后一行」的落脚处；
+ * 吃掉鼠标事件的话最后一行就点不动了。
+ * 只有那几颗按钮单独放行（见下）。判定在 onPointerMove，不在 CSS hover
  * —— 理由写在那段代码里。
  */
 .foot.fade {
@@ -2450,12 +3190,28 @@ onUnmounted(() => {
 .foot.fade.on .clr {
   pointer-events: auto;
 }
+/*
+ * 底栏左边那排键位提示。
+ *
+ * ★ 09-24 起 `flex-wrap: wrap`（老大提的「当选的过多超长时，能不能放不下时底栏再加一行」）：
+ *   以前是 `overflow: hidden` + `nowrap` 的**定宽预算** —— 超了就从右边**静默截断**
+ *   （不报错、不省略号，只是少一截字）。设置面板开着时尤其明显：那时底栏要让出
+ *   `--sheet-w` 那 300px，可用宽度掉到 ~448，8 条提示只能看见 5 条 ——
+ *   而那正是他挑提示的时候。现在放不下就换行，一条都不会少。
+ * ⚠️ `white-space: nowrap` **留着**：它管的是"每一条提示自己的字不许折行"
+ *    （`Tab 分类` 断成两行就成两坨了），**不拦** flex 的换行 —— flex 的行是按每个
+ *    item 的外框排的，跟 `white-space` 无关。别以为它是旧写法顺手删掉。
+ * ⚠️ `gap: 4px 11px`：列间还是 11px（跟以前一模一样），多出来的是**行间 4px** ——
+ *    两行提示之间要有一点缝才读得开，但也不能给大：这一行是"尽量薄"的东西。
+ * ⚠️ `overflow: hidden` 留着当最后一道保险（万一有哪条比整行还宽，宁可裁掉也别顶到按钮上）。
+ */
 .hints {
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 11px;
+  gap: 4px 11px;
   overflow: hidden;
   white-space: nowrap;
   font-size: 11px;
@@ -2475,12 +3231,14 @@ kbd {
   font-size: 11px;
   line-height: 1.5;
 }
-/* 右下角两个极淡的入口：设置 / 清空（文案随分类变）。
+/* 右下角几个极淡的入口：设置 / 新增（只在收藏视图，可在设置里关）/ 清空（文案随分类变）。
  *
- * ★ 这两颗的**悬停效果跟上面「选中项」那套走**（老大 09-16 提的）：
+ * ★ 这几颗的**悬停效果跟上面「选中项」那套走**（老大 09-16 提的）：
  *   形状随 `mark` 三档（描框 / 淡底 / 实心），颜色随强调色 ——
  *   这样在设置里调「选中项」时，界面上两处"被选中"的意思是同一套语言，
  *   不会出现「行是实心块、按钮只是换了个字色」这种两套规矩。
+ *   ⚠️「新增」跟「设置」同一档（强调色），只有「清空」是红的 —— 见上面那段注释：
+ *     加一个入口，`.set` / `.add` 那四条规则要成对加。
  *   · 设置 → 强调色（跟行的选中态完全同色）
  *   · 清空 → 容器里的 danger 红（它是要删东西的，红是它的语义），
  *            但**形状跟设置一模一样**：描框档红描边、淡底档红淡底、实心档红实底反白。
@@ -2501,11 +3259,15 @@ kbd {
   white-space: nowrap;
   transition: color 0.12s, background 0.12s, box-shadow 0.12s;
 }
-/* 两条兜底（`mark` 万一还没读出来）：清空恒红、设置恒强调色。 */
+/* 两条兜底（`mark` 万一还没读出来）：清空恒红、设置恒强调色。
+   ★「新增」跟「设置」共用这套强调色 —— 它俩都不是破坏性动作（红那档只留给清空），
+     所以下面四条规则都是 `.clr.set` 与 `.clr.add` 成对出现。**加一个入口就一起加两个选择器**，
+     漏掉一处那个档位下就没有反馈（不报错，只是"按下去没动静"）。 */
 .clr:hover {
   color: var(--danger);
 }
-.clr.set:hover {
+.clr.set:hover,
+.clr.add:hover {
   color: var(--accent);
 }
 
@@ -2514,14 +3276,16 @@ kbd {
 .root.mark-border .clr:hover {
   box-shadow: inset 0 0 0 1.5px var(--danger);
 }
-.root.mark-border .clr.set:hover {
+.root.mark-border .clr.set:hover,
+.root.mark-border .clr.add:hover {
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 /* 淡底档 */
 .root.mark-tint .clr:hover {
   background: var(--danger-soft);
 }
-.root.mark-tint .clr.set:hover {
+.root.mark-tint .clr.set:hover,
+.root.mark-tint .clr.add:hover {
   background: var(--accent-soft);
 }
 /* 实心档：整块铺满 + 字反白。
@@ -2531,7 +3295,8 @@ kbd {
   background: var(--danger);
   color: #fff;
 }
-.root.mark-solid .clr.set:hover {
+.root.mark-solid .clr.set:hover,
+.root.mark-solid .clr.add:hover {
   background: var(--accent);
   color: var(--row-on-tx);
 }
@@ -2608,12 +3373,16 @@ kbd {
  *
  * 以前面板是 `position: fixed` 压在它们上面，代价有三处：
  *   1. 行尾那一格（类型标签 ⇄ ☆/🗑）被盖住 —— 面板开着时鼠标动不了当前行；
- *   2. 底栏两颗按钮（设置 / 清空）被盖住点不到，所以 `openSettings()` 里那条 toggle
+ *   2. 底栏那几颗按钮（设置 / 新增 / 清空）被盖住点不到，所以 `openSettings()` 里那条 toggle
  *      一直没敢在文案里兑现；
  *   3. 面板底下压着字，面板就必须铺一层恒实底（`--surface-float`），
  *      于是「默认」档（面板透明、露宿主材质）下面板仍是白底，跟列表区有色差。
  *
  * 让位之后面板底下什么都没有，第 3 条自然消失 —— 面板改用 `--surface`，跟列表区同材质。
+ * ⚠️ 让位带来的**副作用**：底栏也变窄了（少了 `--sheet-w`），于是左边那排键位提示
+ *    更容易换行（09-24 起会换行，而不再是从右边静默截断 —— 见 `.hints`）。
+ *    这是**好事**：面板开着正是他在挑提示的时候，那时看到的就是"这一行真会长什么样"。
+ *    `screenTop` / `footH` 都跟着重采（那条 watcher 里有 `settingsOpen`）。
  *
  * 用 `margin-right`（缩盒子）而不是 `padding-right`（推内容）：`.list` 的盒子铺到哪儿，
  * 那根 7px 自绘滚动条就在哪儿 —— 给 padding 的话滚动条仍然留在窗口最右边、
@@ -2703,8 +3472,20 @@ kbd {
   font-weight: 500;
   color: var(--tx-label);
 }
+/*
+ * ★ `flex-wrap: wrap` 是 09-24 为「底栏按键提示」那一排加的，别删。
+ *
+ * 面板是个**窄条**（`--sheet-w` 300px，减掉左右各 16px 内边距只剩 268），
+ * 15 颗药丸约 800px（09-24 第二批补到 15 条之后更长了；`收藏夹` 那颗三字的最宽）
+ * —— 不换行的话它们会横向溢出，而 `.sheet-body` 是
+ * `overflow-x: hidden`：**超出的部分直接看不见**（不报错、也没有滚动条），
+ * 用户会以为"这行只有前几颗能选"。
+ * ⚠️ `gap: 10px` 一个值管两个方向：换行之后行间也是 10px。药丸 26px 高、
+ *    `.grp` 之间 16px —— 10px 的行间缝仍然读得出"这是同一组"，不用另配。
+ */
 .chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 /*
@@ -2972,6 +3753,10 @@ kbd {
   font-weight: 500;
   color: var(--tx-label);
 }
+/* ★ 原来是有一条 `.opt .mk`（开关行里那颗键帽的定位）—— 09-24 撤掉了：
+   它唯一的主人「新增按钮」那一行并进了「底栏按钮」那颗药丸，键帽跟着一起没了
+   （老大在"键帽放哪"那两条路里挑的是「药丸只写名字」）。
+   ⇒ 别为一个不存在的元素留规则；哪天再有开关行要挂键帽，按当时的样式重新写。 */
 .sw {
   flex: none;
   position: relative;
@@ -3068,5 +3853,75 @@ kbd {
 .dlgacts button.pri.danger {
   border-color: var(--danger);
   background: var(--danger);
+}
+
+/*
+ * 新增 / 编辑收藏那块输入浮层。
+ *
+ * 长相直接沿用确认框那套（`.mask` 居中 + `.box` 卡片），只是宽一点、正文左对齐 ——
+ * 它装的是内容，不是一句话。
+ *
+ * ⚠️ `.box` 是 `text-align: center`（确认框只有一句话，居中对），
+ *    所以输入框必须自己写回 `left`，不然敲进去的字全是居中的。
+ * ⚠️ 输入框的**高度是 JS 写的**（`fitComposer`，跟着内容长）——
+ *    这里**故意不写 `height`**：写了会被内联样式盖掉，看着像没生效，回头还找不着。
+ *    只留一条 `min-height` 兜第一帧（内联高度还没落上去的时候）。
+ */
+.box.composer {
+  /* ★ 尺寸对齐「弹框能展示全」那句话（09-23 真机反馈「改大点，这样才能看全收藏的信息」）：
+     开头是 440 宽 / 输入框 66 高，长一点的备忘一进去就得滚，等于白弹；
+     09-23 先放到 640×132，09-24 老大在效果图里挑了**最宽的那一档 776**。
+     776 = 插件视口 800 − 左右各 12px（那 12px 就是 `.mask` 自己的 padding）。
+     13px 字号一行约 55 个汉字；`100vw - 24px` 兜小窗口，跟上面这条算式同一个数。
+     ⚠️ 纵向不用在这里管：高度是 JS 算的（`composerMaxH()`），见上面那段推导。 */
+  width: min(776px, calc(100vw - 24px));
+  text-align: left;
+}
+.ctx {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  /* ★ 09-24 挑了「撑满」那一档：空框 = 弹框可用高度 − 卡片里除输入框之外的 129。
+     `100vh - 155` 跟 JS 那边 `composerMaxH()` 是**同一个算式**，两边必须一起改 ——
+     只改一边时高的那一头说了算，卡片会顶破 `.box` 的 `max-height` 多出一根滚动条。
+     内联高度（`fitComposer` 写的）第一帧还没落上去时，就靠这条顶着。 */
+  min-height: min(401px, calc(100vh - 155px));
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--tx-1);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left; /* ⚠️ 拦掉 `.box` 的居中 */
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+}
+.ctx:focus {
+  border-color: var(--accent);
+}
+/* 空的时候那行提示字，跟"还没收藏"那一档同色（三级文本） */
+.ctx::placeholder {
+  color: var(--tx-3);
+}
+/* 键位那一行：跟底栏提示同一档（三级文本），别跟正文抢注意力。
+   ★ 得写在界面上 —— 不然只有翻过 README 的人知道 Enter 能保存。 */
+.ckey {
+  margin: 8px 0 12px;
+  color: var(--tx-3);
+  font-size: 11px;
+}
+/* 内容为空时「保存」是灰的：点下去没反应，比灰着更让人困惑 */
+.dlgacts button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dlgacts button:disabled:hover {
+  background: transparent;
+}
+.dlgacts button.pri:disabled:hover {
+  filter: none;
 }
 </style>

@@ -27,9 +27,16 @@ import {
   rowIndex,
   slotsOf,
   toggleAt,
+  toggleMember,
   type Cursor
 } from '../src/lib/panel.ts'
-import { FOOT_MODES, MARK_MODES, type Settings } from '../src/lib/settings.ts'
+import {
+  FOOT_BUTTONS,
+  FOOT_HINTS,
+  FOOT_MODES,
+  MARK_MODES,
+  type Settings
+} from '../src/lib/settings.ts'
 import { BG_KEYS, BG_PRESETS } from '../src/lib/surface.ts'
 
 /** 一份设置（只写关心的那几项，其余取默认值 —— 跟 settings.ts 的默认保持一致） */
@@ -39,13 +46,16 @@ function set(partial: Partial<Settings> = {}): Settings {
     accent: 'auto',
     mark: 'border',
     bg: 'auto',
-    foot: 'full',
+    foot: 'always',
+    footHints: [...FOOT_HINTS],
+    footButtons: [...FOOT_BUTTONS],
     confirmDelete: true,
     tailType: true,
     tailIndex: false,
     tailSource: false,
     tailFav: true,
     tailDel: true,
+    tailEdit: true,
     ...partial
   }
 }
@@ -55,10 +65,21 @@ const id = (name: string): number => rowIndex(name)
 
 /* ---------------------------------------------------------------- 行表 */
 
-test('行表 8 行，顺序 = 面板里的先后', () => {
+test('行表 10 行，顺序 = 面板里的先后', () => {
   assert.deepEqual(
     PANEL_ROWS.map((r) => r.id),
-    ['bg', 'accent', 'tailActs', 'tail', 'mark', 'foot', 'peek', 'confirmDelete']
+    [
+      'bg',
+      'accent',
+      'tailActs',
+      'tail',
+      'mark',
+      'foot',
+      'footButtons',
+      'footHints',
+      'peek',
+      'confirmDelete'
+    ]
   )
 })
 
@@ -67,7 +88,7 @@ test('行表 8 行，顺序 = 面板里的先后', () => {
  * ⚠️ 底色那份 `BG_KEYS` **本身含 `'auto'`**，强调色那份 `ACCENT_KEYS` **不含**
  * （界面上那颗「默认」得自己补），两处不一样，这条断言顺带把这件事钉住。
  */
-test('每行的位置数：底色 6 / 强调色 13 / 行尾操作 2 / 行尾显示 3 / 选中项 3 / 底栏 4 / 开关各 1', () => {
+test('每行的位置数：底色 6 / 强调色 13 / 行尾操作 3 / 行尾显示 3 / 选中项 3 / 底栏 3 / 底栏按钮 3 / 提示 10 / 开关各 1', () => {
   assert.equal(slotsOf(PANEL_ROWS[id('bg')]), BG_KEYS.length)
   assert.equal(slotsOf(PANEL_ROWS[id('accent')]), ACCENT_KEYS.length + 1)
   assert.equal(PANEL_ROWS[id('accent')].values[0], 'auto', '强调色第一颗不是「默认」')
@@ -78,21 +99,41 @@ test('每行的位置数：底色 6 / 强调色 13 / 行尾操作 2 / 行尾显�
    */
   assert.deepEqual(PANEL_ROWS[id('tail')].values, ['tailType', 'tailIndex', 'tailSource'])
   /*
-   * 09-21「行尾按钮」拆成「行尾操作」两颗（收藏 / 删除），同样是多选、同样钉顺序。
-   * ⚠️ 这一行**排在三颗的「行尾显示」前面**：面板按段内**短→长**排（2 颗在前）。
+   * 09-21「行尾按钮」拆成「行尾操作」两颗（收藏 / 删除），09-23 又加了第三颗「编辑」。
+   * 同样是多选、同样钉顺序，而且**顺序要跟行尾那三颗从左到右的先后一致**
+   * （编辑 / 收藏 / 删除，模板里就是这么渲染的）。
+   * ⚠️ 这一行**排在三颗的「行尾显示」前面**：面板按段内**短→长**排。
+   *    它现在也是 3 颗了 ⇒ 跟「行尾显示」「选中项」一样长，谁前谁后都不违背判据
+   *    ⇒ **保持原位**，别为凑一个严格递增去调顺序。
    */
-  assert.equal(slotsOf(PANEL_ROWS[id('tailActs')]), 2)
-  assert.deepEqual(PANEL_ROWS[id('tailActs')].values, ['tailFav', 'tailDel'])
+  assert.equal(slotsOf(PANEL_ROWS[id('tailActs')]), 3)
+  assert.deepEqual(PANEL_ROWS[id('tailActs')].values, ['tailEdit', 'tailFav', 'tailDel'])
   assert.ok(
     id('tailActs') < id('tail'),
-    '「行尾操作」（2 颗）跑到「行尾显示」（3 颗）后面去了 —— 段内要从短到长'
+    '「行尾操作」跑到「行尾显示」后面去了 —— 段内要从短到长'
   )
   assert.equal(slotsOf(PANEL_ROWS[id('mark')]), MARK_MODES.length)
+  // 底栏形态从四档收成三档（09-24：'lean' 退休，它的意思现在由 footHints 表达）
   assert.equal(slotsOf(PANEL_ROWS[id('foot')]), FOOT_MODES.length)
+  assert.deepEqual(PANEL_ROWS[id('foot')].values, ['always', 'fade', 'none'])
+  /*
+   * ★ 09-24 那两行是 `list`（**一个数组设置**），不是 `multi`（N 个布尔键）——
+   *   认错了会在 `toggleAt` 里把数组当成布尔取反，一按 Enter 底栏整排提示就没了。
+   *   顺序同样必须 = 模板里药丸的先后 = 底栏里从左到右的先后。
+   */
+  assert.equal(PANEL_ROWS[id('footButtons')].kind, 'list')
+  assert.deepEqual(PANEL_ROWS[id('footButtons')].values, [...FOOT_BUTTONS])
+  assert.equal(PANEL_ROWS[id('footHints')].kind, 'list')
+  assert.deepEqual(PANEL_ROWS[id('footHints')].values, [...FOOT_HINTS])
+  // 段内短→长：15 颗那行必须排在 3 颗那行**后面**（反过来就是 15 → 3 的下降）
+  assert.ok(
+    id('footButtons') < id('footHints'),
+    '「底栏按键提示」跑到「底栏按钮」前面去了 —— 15 颗在 3 颗上面，段内就不是短→长了'
+  )
   for (const name of ['peek', 'confirmDelete']) {
     assert.equal(slotsOf(PANEL_ROWS[id(name)]), 1, `${name} 的位置数不是 1`)
   }
-  // 开关只剩两行 —— 「行尾按钮」已经变成药丸，别让它又变成开关回到开关段
+  // 开关只剩两行了 —— 09-23 那行「新增按钮」09-24 并进了「底栏按钮」那颗药丸
   assert.equal(PANEL_ROWS.filter((r) => r.kind === 'switch').length, 2)
 })
 
@@ -131,9 +172,10 @@ test('↑↓ 换行：落点重算成那一行的当前值，不沿用上一个�
     PANEL_ROWS[id('accent')].values.indexOf('teal'),
     '换行后没落到新那一行的当前值上'
   )
-  // 多选行没有"当前值"可言 → 落第一颗（行尾操作 / 行尾显示都是这样）
-  assert.equal(moveRow(at(id('tailActs') - 1), 1, set()).slot, 0)
-  assert.equal(moveRow(at(id('tail') - 1), 1, set()).slot, 0)
+  // 多选行没有"当前值"可言 → 落第一颗（行尾操作 / 行尾显示 / 底栏那两行都是这样）
+  for (const name of ['tailActs', 'tail', 'footButtons', 'footHints']) {
+    assert.equal(moveRow(at(id(name) - 1), 1, set()).slot, 0, `${name} 换行后没落到第一颗`)
+  }
 })
 
 test('↑↓ 换行：行与行之间也不绕圈（第一行再往上、最后一行再往下都停住）', () => {
@@ -164,11 +206,11 @@ test('←→ 落值：开关是「左关右开」', () => {
 })
 
 /*
- * ★ 多选行（行尾操作 / 行尾显示）—— `←→` 只挪光标。
+ * ★ 多选行（行尾操作 / 行尾显示 / 底栏那两行）—— `←→` 只挪光标。
  * 要是让它"移到哪颗点亮哪颗"，从「收藏」滑到「删除」就会顺手把「删除」也点亮。
  */
 test('★ ←→ 在多选行不给 patch：只挪光标，Enter 才切', () => {
-  for (const name of ['tailActs', 'tail']) {
+  for (const name of ['tailActs', 'tail', 'footButtons', 'footHints']) {
     const row = id(name)
     assert.equal(movePatch(at(row, 0), 1), null, `${name} 那一行按 → 落值了`)
     assert.equal(movePatch(at(row, 1), -1), null, `${name} 那一行按 ← 落值了`)
@@ -202,20 +244,85 @@ test('Enter：开关取反', () => {
 })
 
 /*
- * ★ 09-21：行尾操作拆成「收藏」「删除」两颗**独立**的药丸 ——
- * 面板里的先后就是 `tailFav` → `tailDel`，`Enter` 切的是光标那一颗，另一颗不动。
- * 「两颗都关」是老大要的合法状态（鼠标没有操作入口，收藏 / 删除只剩 ⌘K 和 Delete）。
+ * ★ 09-21：行尾操作拆成「收藏」「删除」两颗**独立**的药丸；09-23 又加了第三颗「编辑」。
+ * 面板里的先后就是 `tailEdit` → `tailFav` → `tailDel`（= 行尾那三颗从左到右），
+ * `Enter` 切的是光标那一颗，另外两颗不动。
+ * 「三颗都关」是老大要的合法状态（鼠标没有操作入口，编辑/收藏/删除只剩 ⌘E / ⌘K / Delete）。
  */
-test('★ Enter：行尾操作切那一颗、另一颗不受影响', () => {
+test('★ Enter：行尾操作切那一颗、另外两颗不受影响', () => {
   const row = id('tailActs')
-  // 默认两颗都开 ⇒ 点第一颗是关掉收藏，第二颗是关掉删除
-  assert.deepEqual(toggleAt(set(), at(row, 0)), { tailFav: false })
-  assert.deepEqual(toggleAt(set(), at(row, 1)), { tailDel: false })
-  // 只要收藏、不要删除这一档：点第一颗仍然是"改收藏"，不会把删除牵连进来
-  assert.deepEqual(toggleAt(set({ tailDel: false }), at(row, 0)), { tailFav: false })
-  // 两颗都关着也能重新点亮
-  assert.deepEqual(toggleAt(set({ tailFav: false, tailDel: false }), at(row, 0)), { tailFav: true })
-  assert.deepEqual(toggleAt(set({ tailFav: false, tailDel: false }), at(row, 1)), { tailDel: true })
+  // 默认三颗都开 ⇒ 第 0/1/2 颗分别对应 编辑 / 收藏 / 删除
+  assert.deepEqual(toggleAt(set(), at(row, 0)), { tailEdit: false })
+  assert.deepEqual(toggleAt(set(), at(row, 1)), { tailFav: false })
+  assert.deepEqual(toggleAt(set(), at(row, 2)), { tailDel: false })
+  // 只要收藏、不要编辑和删除这一档：点中间那颗仍然是"改收藏"，不会把邻居牵连进来
+  assert.deepEqual(toggleAt(set({ tailEdit: false, tailDel: false }), at(row, 1)), {
+    tailFav: false
+  })
+  // 三颗都关着也能重新点亮，而且是各点各的
+  const off = { tailEdit: false, tailFav: false, tailDel: false }
+  assert.deepEqual(toggleAt(set(off), at(row, 0)), { tailEdit: true })
+  assert.deepEqual(toggleAt(set(off), at(row, 1)), { tailFav: true })
+  assert.deepEqual(toggleAt(set(off), at(row, 2)), { tailDel: true })
+})
+
+/* ---------------------------------------------------------------- Enter（一个数组设置） */
+
+/*
+ * ★★ 09-24 新的一类行：`list` —— 整行对应**一个数组设置**（底栏按键提示 / 底栏按钮）。
+ *
+ * 跟 `multi`（几个独立布尔键）长得像、语义也像，但**改的东西完全不同**：
+ *   · `multi` —— 每颗改一个布尔键（`tailFav` / `tailType`…）；
+ *   · `list`  —— 每颗改的是**同一个数组里有没有这个成员**（`footHints` / `footButtons`）。
+ * ⚠️ 这是最容易写错的一处：`Enter` 落下去的必须是**新数组**，不是布尔取反。
+ *   写成 `!valueOf(...)` 的话数组会被取反成 `false`，底栏那整排在界面上直接消失。
+ * ⚠️ 顺序：切完必须**按定义数组的顺序**存回去（`FOOT_HINTS` / `FOOT_BUTTONS`），
+ *    不然底栏那排提示的先后会跟着"用户点它的先后"变。
+ */
+test('★ Enter：底栏提示 / 按钮是「数组里加一个 / 减一个」，不是布尔取反', () => {
+  const hints = id('footHints')
+  // 第一颗是 'select'、末一颗是 'backspace'（顺序由 FOOT_HINTS 定）
+  assert.deepEqual(toggleAt(set({ footHints: [] }), at(hints, 0)), { footHints: ['select'] })
+  assert.deepEqual(toggleAt(set({ footHints: ['select', 'del'] }), at(hints, 0)), {
+    footHints: ['del']
+  })
+  // 加进来的时候**按定义顺序排**，不是追加到末尾
+  assert.deepEqual(toggleAt(set({ footHints: ['del'] }), at(hints, 0)), {
+    footHints: ['select', 'del']
+  })
+  /*
+   * ★ 末位那颗也要能被 Enter 切到 —— 它排在最后，模板的 `v-for` 一变，
+   *   越界/对不上是最容易漏的地方（漏了不报错，只是那颗永远点不亮）。
+   *
+   * ⚠️ 末位是**跟着 `FOOT_HINTS` 走的**：09-24 第一批时它还是 `esc`（所以这里当时写死了
+   *    `['esc']`），第二批补了 4 条之后它变成 `backspace` —— 写死一个 id 就会在下次
+   *    往数组尾巴上加东西时**悄悄失效**（断言还在绿，但它验的已经不是"末位"了）。
+   *    ⇒ 一律取 `FOOT_HINTS[FOOT_HINTS.length - 1]`，让这条测试自己跟着定义走。
+   */
+  const lastHint = FOOT_HINTS[FOOT_HINTS.length - 1]
+  assert.equal(lastHint, 'backspace', '末位那条变了 —— 这条断言的前提（末位是 backspace）得一起改')
+  assert.deepEqual(toggleAt(set({ footHints: [] }), at(hints, FOOT_HINTS.length - 1)), {
+    footHints: [lastHint]
+  })
+  // 越界的位置回 null（模板改了颗数而行表没跟上时，不该改掉任何东西）
+  assert.equal(toggleAt(set(), at(hints, FOOT_HINTS.length)), null)
+
+  const buttons = id('footButtons')
+  assert.deepEqual(toggleAt(set({ footButtons: [...FOOT_BUTTONS] }), at(buttons, 0)), {
+    footButtons: ['add', 'clear']
+  })
+  assert.deepEqual(toggleAt(set({ footButtons: [] }), at(buttons, 2)), { footButtons: ['clear'] })
+})
+
+test('toggleMember：在就删、不在就补，且永远按定义顺序（丢弃不认识的成员）', () => {
+  assert.deepEqual(toggleMember([], 'fav', FOOT_HINTS), ['fav'])
+  assert.deepEqual(toggleMember(['fav'], 'fav', FOOT_HINTS), [])
+  // 补进去的位置按 order 决定，跟 list 原来的先后无关
+  assert.deepEqual(toggleMember(['del', 'select'], 'fav', FOOT_HINTS), ['select', 'fav', 'del'])
+  // 不在 order 里的成员会**被丢掉**（跟 normalizeSettings 同一套规矩：认不出的不留）
+  assert.deepEqual(toggleMember(['fav', '乱写'], 'del', FOOT_HINTS), ['fav', 'del'])
+  // 一份脏数组也能被收拾干净
+  assert.deepEqual(toggleMember(['fav', 'fav', 'x'], 'select', FOOT_HINTS), ['select', 'fav'])
 })
 
 /* ---------------------------------------------------------------- 接线 */

@@ -102,6 +102,60 @@ export async function addFavorite(item: ClipContent, list: FavItem[]): Promise<F
   return next
 }
 
+/**
+ * 手动新增一条**文本**收藏 —— 它不来自剪贴板。
+ *
+ * ── 为什么另开一个函数，不并进 `addFavorite` ──
+ * `addFavorite` 的入参是「宿主给的一条记录」，它会照着一份固定字段表去复制
+ * （`hash` / `imagePath` / `resolution` / `files` / `appName` / `bundleId`）。
+ * 手写的笔记这些**一个都没有**，硬走那边只会复制出一堆 `undefined`，还得再判一次 `type`。
+ * 这里要造的是另一头的东西：只有 `type` + `content`。
+ *
+ * ⚠️ **判重沿用 `addFavorite` 的语义**（已存在就原样返回）—— 不然收藏里能冒出两条
+ *    一模一样的备忘。手写条目没有 `hash` ⇒ `favKeyOf` 退化成 `text:${content}`，
+ *    所以「两条内容相同的笔记」会被正确判重。
+ *    （已知的、可解释的小瑕疵：跟**历史**里同样内容的那条**不算同一条** ——
+ *     历史那条的指纹是宿主的 md5，两边算不到一起去。手动条目本来就不属于任何历史记录。）
+ *
+ * ⚠️ 空白内容不许进来（粘出一条空字符串没有任何意义）。判空走 `trim()`，
+ *    但**存进去的是原样** —— 不替用户改他的字（首尾的空行也是他内容的一部分）。
+ */
+export async function addManualFavorite(content: string, list: FavItem[]): Promise<FavItem[]> {
+  if (!content.trim()) return list
+  const draft: ClipContent = { type: 'text', content }
+  if (isFavorite(draft, list)) return list
+  const next: FavItem[] = [{ ...draft, favId: newFavId(), addedAt: Date.now() }, ...list]
+  await persist(next)
+  return next
+}
+
+/**
+ * 改一条收藏的正文。**只对文本有意义** —— 图片改不了那张 png，
+ * 文件改路径其实是「换成另一个文件」，都超出「编辑」这两个字。
+ *
+ * ★ 先把整条摊开、只替换 `content`（`{ ...f, content }`），**别的字段一个都不动**：
+ *   · `hash` 尤其不能丢 —— `favKeyOf` 优先用它，而 `App.vue` 的 `favKeys` 是拿它跟
+ *     **历史行**比对的。丢了 hash，指纹就退化成 `text:新内容`，跟历史对不上 ⇒
+ *     **明明还收藏着，历史那一行却不再亮星**（而且不报错）。
+ *   · `addedAt` 也不能动：编辑不是「重新收藏」。收藏视图按 `addedAt` 倒序排，
+ *     一改它就跳到列表顶上，人回头找不到刚编辑的那一行。
+ *
+ * 找不到 `favId`、或者改完跟原来**一字不差**，都原样返回、**不写库**
+ * （避免一次无意义的写请求 —— `upsertDoc` 是"先读 rev 再写"，白写一次就是白跑一个来回）。
+ */
+export async function updateFavoriteText(
+  favId: string,
+  content: string,
+  list: FavItem[]
+): Promise<FavItem[]> {
+  if (!content.trim()) return list
+  const hit = list.find((f) => f.favId === favId)
+  if (!hit || hit.content === content) return list
+  const next = list.map((f) => (f.favId === favId ? { ...f, content } : f))
+  await persist(next)
+  return next
+}
+
 export async function removeFavorite(favId: string, list: FavItem[]): Promise<FavItem[]> {
   const next = list.filter((f) => f.favId !== favId)
   if (next.length !== list.length) await persist(next)
