@@ -16,6 +16,7 @@ class CanvasManager {
     this._isCropMode = false;
     this._resizeObserver = null;
     this._boundResize = null;
+    this._canvasListeners = [];
   }
 
   // ── 生命周期 ──
@@ -60,10 +61,21 @@ class CanvasManager {
     }
     if (this._historySaveTimer) {
       clearTimeout(this._historySaveTimer);
+      this._historySaveTimer = null;
     }
     if (this.canvas) {
+      // 先逐个解绑画布监听再 dispose()。
+      // 这些回调都通过闭包引用 this，仅在 dispose() 时清空内部监听表的话，
+      // 销毁后残留的回调仍会继续 emit 到全局 EventBus（旧画布被写入历史等）。
+      this._canvasListeners.forEach(({ event, handler }) => {
+        this.canvas.off(event, handler);
+      });
+      this._canvasListeners = [];
+
       this.canvas.dispose();
       this.canvas = null;
+    } else {
+      this._canvasListeners = [];
     }
     this.originalImage = null;
   }
@@ -316,49 +328,70 @@ class CanvasManager {
 
   toJSON() {
     if (!this.canvas) return null;
-    const json = this.canvas.toJSON([
-      'clipPath',
-      'filters',
-      'id',
-      'selectable',
-      'evented',
-      'hasControls',
-      'hasBorders',
-      'lockMovementX',
-      'lockMovementY',
-      'lockRotation',
-      'lockScalingX',
-      'lockScalingY',
-      'absolutePositioned',
-      'inverted',
-      'objectCaching',
-      'strokeLineCap',
-      'strokeLineJoin',
-      '_strokePosition',
-      '_layerName',
-      '_layerNameAuto',
-      '_layerBaseName',
-      '_layerKind',
-      '_layerShapeType',
-      '_layerColorPresetName',
-      '_layerWidthPresetName',
-      '_layerPresetName',
-      '_layerLocked',
-      '_mosaicDynamic',
-      '_mosaicMode',
-      '_mosaicSize',
-      '_mosaicBlurRadius',
-      '_mosaicWidth',
-      '_mosaicHeight',
-      '_mosaicMaskType',
-      '_mosaicBrushPoints',
-      '_mosaicBrushSize',
-      '_mosaicLassoPoints',
-      '_originalImage',
-    ]);
-    // 手动序列化 canvas.clipPath（Fabric.js canvas.toJSON 不包含此属性）
-    if (this.canvas.clipPath) {
-      json._canvasClipPath = this.canvas.clipPath.toJSON(CLIP_PATH_SERIALIZED_PROPS);
+
+    // 临时移出 excludeFromHistory 的辅助对象（画笔光标预览、马赛克选区框等），
+    // 避免它们被序列化进历史快照；序列化完成后立即按原下标放回，保持对象顺序不变。
+    const canvas = this.canvas;
+    const removed = [];
+    const objects = canvas._objects;
+    for (let i = objects.length - 1; i >= 0; i--) {
+      if (objects[i].excludeFromHistory) {
+        removed.push({ index: i, obj: objects.splice(i, 1)[0] });
+      }
+    }
+
+    let json = null;
+    try {
+      json = canvas.toJSON([
+        'clipPath',
+        'filters',
+        'id',
+        'selectable',
+        'evented',
+        'hasControls',
+        'hasBorders',
+        'lockMovementX',
+        'lockMovementY',
+        'lockRotation',
+        'lockScalingX',
+        'lockScalingY',
+        'absolutePositioned',
+        'inverted',
+        'objectCaching',
+        'strokeLineCap',
+        'strokeLineJoin',
+        '_strokePosition',
+        '_layerName',
+        '_layerNameAuto',
+        '_layerBaseName',
+        '_layerKind',
+        '_layerShapeType',
+        '_layerColorPresetName',
+        '_layerWidthPresetName',
+        '_layerPresetName',
+        '_layerLocked',
+        '_mosaicDynamic',
+        '_mosaicMode',
+        '_mosaicSize',
+        '_mosaicBlurRadius',
+        '_mosaicWidth',
+        '_mosaicHeight',
+        '_mosaicMaskType',
+        '_mosaicBrushPoints',
+        '_mosaicBrushSize',
+        '_mosaicLassoPoints',
+        '_originalImage',
+      ]);
+      // 手动序列化 canvas.clipPath（Fabric.js canvas.toJSON 不包含此属性）
+      if (canvas.clipPath) {
+        json._canvasClipPath = canvas.clipPath.toJSON(CLIP_PATH_SERIALIZED_PROPS);
+      }
+    } finally {
+      // 按原下标升序插回，保证对象顺序与序列化前完全一致
+      removed.sort((a, b) => a.index - b.index);
+      for (const { index, obj } of removed) {
+        objects.splice(Math.min(index, objects.length), 0, obj);
+      }
     }
     return json;
   }
@@ -549,49 +582,61 @@ class CanvasManager {
     }
   }
 
+  /**
+   * 注册画布监听，并记录解绑信息供 destroy() 使用。
+   * @param {string} event - Fabric 事件名
+   * @param {Function} handler
+   */
+  _onCanvas(event, handler) {
+    this.canvas.on(event, handler);
+    this._canvasListeners.push({ event, handler });
+  }
+
   _bindEvents() {
     if (!this.canvas) return;
 
+    this._canvasListeners = [];
+
     // 选择变化
-    this.canvas.on('selection:created', (e) => {
+    this._onCanvas('selection:created', (e) => {
       eventBus.emit('canvas:selectionCreated', e.selected);
     });
-    this.canvas.on('selection:updated', (e) => {
+    this._onCanvas('selection:updated', (e) => {
       eventBus.emit('canvas:selectionUpdated', e.selected);
     });
-    this.canvas.on('selection:cleared', () => {
+    this._onCanvas('selection:cleared', () => {
       eventBus.emit('canvas:selectionCleared');
     });
 
     // 物件修改
-    this.canvas.on('object:modified', (e) => {
+    this._onCanvas('object:modified', (e) => {
       eventBus.emit('canvas:objectModified', e.target);
     });
-    this.canvas.on('text:changed', (e) => {
+    this._onCanvas('text:changed', (e) => {
       eventBus.emit('canvas:objectMetadataChanged', e.target);
     });
-    this.canvas.on('text:editing:exited', (e) => {
+    this._onCanvas('text:editing:exited', (e) => {
       eventBus.emit('canvas:objectModified', e.target);
     });
 
     // 物件添加/删除
-    this.canvas.on('object:added', (e) => {
+    this._onCanvas('object:added', (e) => {
       eventBus.emit('canvas:objectAdded', e.target);
     });
 
     // 鼠标事件
-    this.canvas.on('mouse:down', (e) => {
+    this._onCanvas('mouse:down', (e) => {
       eventBus.emit('canvas:mouseDown', e);
     });
-    this.canvas.on('mouse:move', (e) => {
+    this._onCanvas('mouse:move', (e) => {
       eventBus.emit('canvas:mouseMove', e);
     });
-    this.canvas.on('mouse:up', (e) => {
+    this._onCanvas('mouse:up', (e) => {
       eventBus.emit('canvas:mouseUp', e);
     });
 
     // 渲染完成
-    this.canvas.on('after:render', () => {
+    this._onCanvas('after:render', () => {
       eventBus.emit('canvas:rendered');
     });
 

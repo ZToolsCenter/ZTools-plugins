@@ -6,13 +6,23 @@ class BaseModule {
    * @param {CanvasManager} canvasManager
    * @param {HistoryManager} historyManager
    * @param {object} [defaultOptions]
+   * @param {object} [host] - 宿主适配器，供需要宿主能力（如选择文件）的模块使用
    */
-  constructor(canvasManager, historyManager, defaultOptions = {}) {
+  constructor(canvasManager, historyManager, defaultOptions = {}, host = null) {
     this.canvasManager = canvasManager;
     this.history = historyManager;
     this.active = false;
     this.options = { ...defaultOptions };
+    this._host = host;
     this._savedInteractivity = new Map();
+  }
+
+  /**
+   * 注入宿主适配器（可在运行时设置）
+   * @param {object} host
+   */
+  setHost(host) {
+    this._host = host;
   }
 
   /**

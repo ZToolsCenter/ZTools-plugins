@@ -7,6 +7,7 @@ import BrushModule from './modules/BrushModule.js';
 import EraserModule from './modules/EraserModule.js';
 import TextModule from './modules/TextModule.js';
 import ShapeModule from './modules/ShapeModule.js';
+import StickerModule from './modules/StickerModule.js';
 import ExportModule from './modules/ExportModule.js';
 
 /**
@@ -50,7 +51,10 @@ class ToolManager {
    */
   setHost(host) {
     this._host = host;
-    this._modules['export']?.setHost(host);
+    // 向所有模块广播，使需要宿主能力的模块（贴纸、导出等）拿到最新 host
+    Object.values(this._modules).forEach(m => {
+      if (m && typeof m.setHost === 'function') m.setHost(host);
+    });
   }
 
   /**
@@ -133,6 +137,16 @@ class ToolManager {
       module: ShapeModule,
       defaultOptions: { shapeType: 'rect', fill: 'transparent', stroke: 'rgba(216, 59, 49, 1)', strokeWidth: 2 },
     });
+
+    // 贴纸：作为左侧工具栏的一次性动作按钮，点击/按 P 直接选图加图层，添加后自动切回移动/框选
+    this.registerTool({
+      name: 'sticker',
+      label: '贴纸',
+      icon: 'sticker',
+      group: 'annotate',
+      shortcut: 'P',
+      module: StickerModule,
+    });
   }
 
   /**
@@ -144,7 +158,7 @@ class ToolManager {
 
     // 如果有模块类，实例化
     if (toolDef.module) {
-      this._modules[toolDef.name] = new toolDef.module(this._cm, this._hm, toolDef.defaultOptions);
+      this._modules[toolDef.name] = new toolDef.module(this._cm, this._hm, toolDef.defaultOptions, this._host);
     }
   }
 
@@ -231,8 +245,18 @@ class ToolManager {
    */
   destroy() {
     Object.values(this._modules).forEach(m => {
-      if (m.deactivate) m.deactivate();
-      if (m.destroy) m.destroy();
+      // 逐个模块 try/catch：单个模块清理抛异常不得阻断其余模块的 deactivate/destroy，
+      // 否则后续模块的 eventBus 解绑会被整条跳过，造成订阅泄漏。
+      try {
+        if (m.deactivate) m.deactivate();
+      } catch (err) {
+        console.error('[ToolManager] 模块 deactivate 失败:', err);
+      }
+      try {
+        if (m.destroy) m.destroy();
+      } catch (err) {
+        console.error('[ToolManager] 模块 destroy 失败:', err);
+      }
     });
     this._modules = {};
     this._currentTool = null;

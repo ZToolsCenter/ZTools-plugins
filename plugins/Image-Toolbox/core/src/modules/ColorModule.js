@@ -5,17 +5,27 @@ import {
   FILTER_RANGES,
   FILTER_PRESETS,
   getFilterUiValue,
+  getPresetFilterValues,
   setFilter,
   clearFilters,
   applyFilterPreset,
   isPresetActive,
 } from '../utils/filters.js';
+import { createFilterPreviewDataURL, disposeFilterPreview, getPreviewSize } from '../utils/filterPreview.js';
+
+/**
+ * 预览对象标识种子
+ * 用模块级计数器而不是类静态字段，避免在旧版 Chromium（uTools / ZTools 内核）上
+ * 因不支持 static class fields 而报语法错误
+ */
+let previewIdSeed = 0;
 
 /**
  * 调色模块 — 左侧工具栏「调色」工具
  *
  * 激活后保持画布可选（与移动/框选一致），用户选中图片图层后：
- *   - 顶部预设栏显示滤镜预设（原图/暖色/冷色/复古/黑白/鲜艳/柔光/锐利）
+ *   - 顶部预设栏以「效果缩略图 + 名称」卡片展示滤镜预设（原图/暖色/冷色/复古/黑白/鲜艳/柔光/锐利），
+ *     缩略图取当前选中图层并实时套用对应预设，直观对比调色前后差异
  *   - 右侧属性面板显示调色滑块（亮度/对比/饱和/色相/模糊）+ 重置按钮
  */
 class ColorModule extends BaseModule {
@@ -24,6 +34,11 @@ class ColorModule extends BaseModule {
     // 标记：此模块接管属性面板，即使有选中对象也显示调色控件
     this.overridePropertyPanel = true;
     this._filterDragSaving = false;
+    // 预设效果缩略图缓存：key 为预设名，value 为 dataURL
+    // 同一张源图的缩略图只生成一次，避免每次重渲染都重新跑滤镜
+    this._previewCache = new Map();
+    this._previewCacheKey = null;
+    this._previewSource = null;
   }
 
   activate(options = {}) {
@@ -42,6 +57,71 @@ class ColorModule extends BaseModule {
 
   deactivate() {
     this.active = false;
+    this._clearPreviewCache();
+  }
+
+  /**
+   * 清空预设缩略图缓存并释放离屏画布
+   * 图片内容变化（换图 / 替换图层）或模块停用时调用
+   */
+  _clearPreviewCache() {
+    if (this._previewSource) {
+      disposeFilterPreview(this._previewSource);
+    }
+    this._previewCache.clear();
+    this._previewCacheKey = null;
+    this._previewSource = null;
+  }
+
+  /**
+   * 生成（或复用）预设效果缩略图
+   *
+   * @param {fabric.Image} reference 当前选中的图片图层
+   * @returns {Map<string, string>} 预设名 → dataURL
+   */
+  _getPreviewMap(reference) {
+    const cacheKey = this._getPreviewCacheKey(reference);
+    if (this._previewCacheKey !== cacheKey) {
+      if (this._previewSource && this._previewSource !== reference) {
+        disposeFilterPreview(this._previewSource);
+      }
+      this._previewCache.clear();
+      this._previewCacheKey = cacheKey;
+      this._previewSource = reference;
+    }
+
+    FILTER_PRESETS.forEach(preset => {
+      if (this._previewCache.has(preset.preset)) return;
+
+      const dataURL = createFilterPreviewDataURL(reference, getPresetFilterValues(preset));
+      if (dataURL) {
+        this._previewCache.set(preset.preset, dataURL);
+      }
+    });
+
+    return this._previewCache;
+  }
+
+  /**
+   * 预览缓存的判定键：图片对象 + 源图地址，二者变化时重建缩略图
+   * @param {fabric.Image} reference
+   * @returns {string}
+   */
+  _getPreviewCacheKey(reference) {
+    const src = reference?.getElement?.()?.src || '';
+    return `${this._objectId(reference)}|${src}`;
+  }
+
+  _objectId(obj) {
+    if (!obj) return 'none';
+    if (!obj.__colorPreviewId) {
+      Object.defineProperty(obj, '__colorPreviewId', {
+        value: ++previewIdSeed,
+        enumerable: false,
+        configurable: true,
+      });
+    }
+    return obj.__colorPreviewId;
   }
 
   // ── 顶部预设栏：滤镜预设 ──
@@ -55,18 +135,41 @@ class ColorModule extends BaseModule {
       return `<div class="options-group"><span class="options-hint">${hint}</span></div>`;
     }
 
+    // 缩略图取「当前选中图层」作为基准；作用范围为全部时以参考图层预览效果
+    const previews = this._getPreviewMap(reference);
+    // 卡片宽度按源图宽高比动态计算，避免固定宽度导致横图被裁、竖图留白
+    const { aspect } = getPreviewSize(reference);
+
     const presets = FILTER_PRESETS.map(preset => {
       const isActive = this._getFilterScope() === 'all'
         ? targets.every(image => isPresetActive(image, preset.preset))
         : isPresetActive(reference, preset.preset);
-      return `<button class="options-btn options-btn-sm filter-preset-btn ${isActive ? 'active' : ''}" data-preset="${preset.preset}">${preset.label}</button>`;
+      const previewURL = previews.get(preset.preset);
+      const preview = previewURL
+        ? `<img class="filter-preset-btn__preview" src="${previewURL}" alt="" draggable="false" />`
+        : `<span class="filter-preset-btn__preview filter-preset-btn__preview--empty"></span>`;
+      return `<button type="button" class="filter-preset-btn ${isActive ? 'active' : ''}" data-preset="${preset.preset}" title="${preset.label}">${preview}<span class="filter-preset-btn__label">${preset.label}</span></button>`;
     }).join('');
 
     const scopeHint = this._getFilterScope() === 'all'
       ? `<span class="options-hint">全部图片图层 (${targets.length})</span>`
       : '<span class="options-hint">当前图层</span>';
 
-    return `<div class="options-group">${scopeHint}${presets}</div>`;
+    return `<div class="options-group options-group--filter" style="--preset-aspect: ${aspect}">${scopeHint}<div class="filter-preset-scroll">${presets}</div></div>`;
+  }
+
+  /**
+   * 卡片总宽超过可用空间时给滚动区加标记，让它显示出横向滚动条并让出高度。
+   * 由 OptionsBar 在插入 DOM 后调用（此时才能量到真实布局尺寸）。
+   *
+   * @param {HTMLElement} container 选项栏内容容器
+   */
+  syncPresetScrollState(container) {
+    const scrollEl = container?.querySelector?.('.filter-preset-scroll');
+    if (!scrollEl) return;
+
+    const scrollable = scrollEl.scrollWidth > scrollEl.clientWidth + 1;
+    scrollEl.classList.toggle('is-scrollable', scrollable);
   }
 
   // ── 右侧属性面板：调色滑块 ──

@@ -17,6 +17,7 @@
  */
 
 import eventBus from '../EventBus.js';
+import { SAVE_STATUS, normalizeSaveResult } from '../adapters/BaseHostAdapter.js';
 
 const ORA_MIMETYPE = 'image/openraster';
 
@@ -340,9 +341,21 @@ export async function exportORA(canvasManager, layerManager, hostAdapter = null)
       compressionOptions: { level: 6 },
     });
 
-    // 7. 保存文件
-    await _saveOraFile(zipBlob, hostAdapter);
-    return true;
+    // 7. 保存文件 — 由 _saveOraFile 返回真实结果，统一在此提示，
+    //    确保写入失败时用户能看到错误，用户取消时不会误报。
+    const status = await _saveOraFile(zipBlob, hostAdapter);
+
+    if (status === SAVE_STATUS.CANCELED) {
+      // 用户主动取消：静默返回，不提示成功也不提示失败
+      return false;
+    }
+    if (status === SAVE_STATUS.SAVED) {
+      eventBus.emit('toast:show', { message: 'ORA 文件已保存', type: 'success' });
+      return true;
+    }
+
+    eventBus.emit('toast:show', { message: 'ORA 保存失败：无法写入文件', type: 'error' });
+    return false;
   } catch (err) {
     console.error('[ORA] 导出失败:', err);
     eventBus.emit('toast:show', { message: 'ORA 导出失败: ' + err.message, type: 'error' });
@@ -375,22 +388,33 @@ async function _saveOraFile(zipBlob, hostAdapter) {
   // 优先使用宿主 ORA 保存对话框（Electron 环境）
   if (typeof window.showSaveOraDialog === 'function' && typeof window.writeBinaryFile === 'function') {
     const filePath = window.showSaveOraDialog('project.ora');
-    if (!filePath) return;
+    // 用户主动取消：不是错误，也不应提示成功
+    if (!filePath) {
+      return SAVE_STATUS.CANCELED;
+    }
 
     const oraPath = filePath.replace(/\.[^.]+$/, '') + '.ora';
     const arrayBuffer = await zipBlob.arrayBuffer();
-    const saved = window.writeBinaryFile(oraPath, arrayBuffer);
-    eventBus.emit('toast:show', {
-      message: saved ? 'ORA 文件已保存' : '保存失败',
-      type: saved ? 'success' : 'error',
-    });
-    return;
+
+    // writeBinaryFile 失败时返回 false（异常已在 preload 内被吞掉），
+    // 这里必须转成明确失败，不能与「取消」混为一谈。
+    let saved = false;
+    try {
+      saved = window.writeBinaryFile(oraPath, arrayBuffer) !== false;
+    } catch (err) {
+      console.error('[ORA] 写入文件失败:', err);
+      saved = false;
+    }
+    return saved ? SAVE_STATUS.SAVED : SAVE_STATUS.FAILED;
   }
 
   // 降级 1：使用 host adapter 的图片保存能力
   if (hostAdapter?.showSaveImageDialog && hostAdapter?.writeImageFile) {
     const filePath = hostAdapter.showSaveImageDialog('project.ora');
-    if (!filePath) return;
+    // 用户主动取消
+    if (!filePath) {
+      return SAVE_STATUS.CANCELED;
+    }
 
     const oraPath = filePath.replace(/\.[^.]+$/, '') + '.ora';
     const arrayBuffer = await zipBlob.arrayBuffer();
@@ -404,12 +428,16 @@ async function _saveOraFile(zipBlob, hostAdapter) {
     const base64 = btoa(binary);
     const dataURL = `data:application/zip;base64,${base64}`;
 
-    const saved = hostAdapter.writeImageFile(oraPath, dataURL);
-    eventBus.emit('toast:show', {
-      message: saved ? 'ORA 文件已保存' : '保存失败',
-      type: saved ? 'success' : 'error',
-    });
-    return;
+    // adapter 的 writeImageFile 现在返回结构化结果；兼容返回值缺失的情况
+    let result;
+    try {
+      result = hostAdapter.writeImageFile(oraPath, dataURL);
+    } catch (err) {
+      console.error('[ORA] 写入文件失败:', err);
+      return SAVE_STATUS.FAILED;
+    }
+    const normalized = normalizeSaveResult(result);
+    return normalized.status === SAVE_STATUS.UNSUPPORTED ? SAVE_STATUS.FAILED : normalized.status;
   }
 
   // 降级 2：浏览器下载
@@ -421,7 +449,7 @@ async function _saveOraFile(zipBlob, hostAdapter) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-  eventBus.emit('toast:show', { message: 'ORA 文件已下载', type: 'success' });
+  return SAVE_STATUS.SAVED;
 }
 
 // ═══════════════════════════════════════

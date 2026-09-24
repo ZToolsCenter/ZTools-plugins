@@ -6,15 +6,69 @@
  * - platformId: 平台标识（如 'utools'、'ztools'）
  * - getDefaultHostName(): 默认宿主名称
  * - getHostApiPriority(): API 查找优先级数组
- * - getAppVersionPriority(): 版本获取方法优先级数组
+ * - getAppVersionPriority(): 宿主程序版本获取方法优先级数组
+ * - getPluginVersion(): 本插件版本号（读 preload 透传的插件版本，来源 plugin.json）
  * - getHostDisplayName(api): 获取宿主显示名称
  * - normalizeUser(user): 用户数据标准化
  * - getRawUser(api): 获取原始用户数据
  * - getContactUrl(): 联系链接
  */
 
+import { getBridgedApi } from '../utils/host.js';
+
 const _isUserValid = (user) => {
   return user && (user.nickname || user.name || user.userName || user.username || user.avatar || user.avatarUrl || user.photo);
+};
+
+// ═══ 保存结果结构化契约 ═══
+//
+// 历史问题：saveImage 返回裸 boolean，调用方无法区分
+// 「用户主动取消」「平台无此能力」「真实写入失败」三种情况，
+// 导致写入失败被当成正常分支静默丢弃，用户以为已保存而关闭窗口。
+//
+// status 取值：
+//   'saved'       — 写入成功
+//   'canceled'    — 用户在保存对话框中主动取消（不应报错）
+//   'unsupported' — 当前平台/环境没有保存能力（可走降级，不应直接报错）
+//   'failed'      — 能力可用但写入失败（权限不足/磁盘满/路径非法等，必须提示）
+const SAVE_STATUS = {
+  SAVED: 'saved',
+  CANCELED: 'canceled',
+  UNSUPPORTED: 'unsupported',
+  FAILED: 'failed',
+};
+
+/**
+ * 构造保存结果对象。
+ * @param {'saved'|'canceled'|'unsupported'|'failed'} status
+ * @param {object} [extra] - 附加信息（filePath、reason 等）
+ * @returns {{ ok: boolean, status: string, filePath: string|null, reason: string|null }}
+ */
+const createSaveResult = (status, extra = {}) => {
+  const filePath = extra.filePath ?? null;
+  return {
+    ok: status === SAVE_STATUS.SAVED,
+    status,
+    filePath,
+    reason: extra.reason ?? null,
+    // valueOf 让历史调用方沿用 `if (result)` / `!!result` 判断仍得到
+    // 「是否真正保存成功」的语义，不会把失败误判为成功。
+    valueOf() {
+      return this.ok;
+    },
+  };
+};
+
+/**
+ * 把历史返回值（boolean / undefined / 结果对象）归一化为保存结果对象。
+ * @param {*} value
+ * @returns {{ ok: boolean, status: string, filePath: string|null, reason: string|null }}
+ */
+const normalizeSaveResult = (value) => {
+  if (value && typeof value === 'object' && typeof value.status === 'string') {
+    return value;
+  }
+  return createSaveResult(value ? SAVE_STATUS.SAVED : SAVE_STATUS.FAILED);
 };
 
 const _normalizeUser = (user) => {
@@ -35,10 +89,15 @@ class BaseHostAdapter {
     this._api = this._getHostApi();
     this._isInitialized = false;
 
+    // platform.appVersion 是「本插件版本」（面向用户展示的发布版本），
+    // platform.version 是「宿主程序版本」（uTools / ZTools 自身版本）。
+    // 两者语义不同，不能互相顶替；历史上「关于」页取的正是更新记录首条，
+    // 与 plugin.json 的真实发布版本脱节。
     this.platform = {
       id: this.platformId,
       name: this.getHostDisplayName(),
       version: this.getHostAppVersion(),
+      appVersion: this.getPluginVersion(),
       runtime: 'electron',
     };
 
@@ -265,15 +324,32 @@ class BaseHostAdapter {
 
   /**
    * 保存图片到文件
+   *
+   * 返回结构化结果（见 SAVE_STATUS），调用方据此区分：
+   * - status === 'canceled'  → 用户取消，静默即可；
+   * - status === 'unsupported' → 本平台无保存能力，应走降级方案；
+   * - status === 'failed'    → 真实写入失败，必须提示用户。
+   *
+   * @param {string} data - 图片 dataURL
+   * @param {string} [suggestedName]
+   * @returns {{ ok: boolean, status: string, filePath: string|null, reason: string|null }}
    */
   saveImage(data, suggestedName = 'edited.png') {
-    if (typeof window === 'undefined') return false;
-    if (typeof window.showSaveImageDialog !== 'function' || typeof window.writeImageFile !== 'function') return false;
+    if (typeof window === 'undefined') {
+      return createSaveResult(SAVE_STATUS.UNSUPPORTED, { reason: 'no-window' });
+    }
+    if (typeof window.showSaveImageDialog !== 'function' || typeof window.writeImageFile !== 'function') {
+      return createSaveResult(SAVE_STATUS.UNSUPPORTED, { reason: 'no-native-save-api' });
+    }
 
+    // 对话框返回 null 表示用户取消，或对话框本身抛错被宿主吞掉；
+    // 二者都无法与「写入失败」区分，按用户取消处理避免误报错误。
     const filePath = window.showSaveImageDialog(suggestedName);
-    if (!filePath) return false;
+    if (!filePath) {
+      return createSaveResult(SAVE_STATUS.CANCELED);
+    }
 
-    return !!window.writeImageFile(filePath, data);
+    return this.writeImageFile(filePath, data);
   }
 
   /**
@@ -288,12 +364,28 @@ class BaseHostAdapter {
 
   /**
    * 写入图片文件
+   *
+   * @param {string} filePath
+   * @param {string} data - 图片 dataURL
+   * @returns {{ ok: boolean, status: string, filePath: string|null, reason: string|null }}
    */
   writeImageFile(filePath, data) {
-    if (typeof window !== 'undefined' && typeof window.writeImageFile === 'function') {
-      return !!window.writeImageFile(filePath, data);
+    if (typeof window === 'undefined' || typeof window.writeImageFile !== 'function') {
+      return createSaveResult(SAVE_STATUS.UNSUPPORTED, { filePath, reason: 'no-native-write-api' });
     }
-    return false;
+
+    try {
+      // preload 的 writeImageFile 写入失败时返回 false（异常已被其内部吞掉），
+      // 这里必须显式转成 failed，不能再让调用方拿到无法区分的裸 false。
+      const result = normalizeSaveResult(window.writeImageFile(filePath, data));
+      if (result.status === SAVE_STATUS.FAILED) {
+        return createSaveResult(SAVE_STATUS.FAILED, { filePath, reason: 'write-rejected' });
+      }
+      return createSaveResult(SAVE_STATUS.SAVED, { filePath: result.filePath || filePath });
+    } catch (err) {
+      console.error('[BaseHostAdapter] 写入图片文件失败:', err);
+      return createSaveResult(SAVE_STATUS.FAILED, { filePath, reason: err?.message || 'write-threw' });
+    }
   }
 
   /**
@@ -347,7 +439,7 @@ class BaseHostAdapter {
   }
 
   /**
-   * 获取宿主应用版本
+   * 获取宿主程序版本（uTools / ZTools 自身版本）。
    */
   getHostAppVersion() {
     const priorities = this.getAppVersionPriority();
@@ -361,7 +453,70 @@ class BaseHostAdapter {
         }
       }
     }
+
+    // contextIsolation 开启后宿主原始对象不再进入页面世界，this._api 为 null，
+    // 此时改走 preload 用 contextBridge 暴露的窄接口读取宿主版本。
+    const bridged = getBridgedApi();
+    if (bridged && typeof bridged.getHostAppVersion === 'function') {
+      try {
+        const version = bridged.getHostAppVersion();
+        if (version) return version;
+      } catch (e) {
+        console.warn(`[${this.platformId}HostAdapter] 从桥接接口获取宿主版本失败:`, e);
+      }
+    }
+
     return 'unknown';
+  }
+
+  /**
+   * 获取本插件版本号（面向用户展示的发布版本）。
+   *
+   * 取值顺序：
+   *   1. preload 桥接的 getPluginVersion()（contextIsolation 开启时页面唯一可读的入口）；
+   *   2. preload 直接挂在 window 上的 getPluginVersion()（未启用隔离的宿主）；
+   *   3. 宿主 API 自身的 getPluginVersion()（ZTools 支持）。
+   *
+   * 三者最终都指向插件根目录的 plugin.json，也就是应用市场读取的发布版本。
+   *
+   * 取不到时返回 ''，由调用方决定回退策略；绝不会回退成宿主程序版本，
+   * 否则「关于」页会把 uTools 的版本号当成插件版本号展示。
+   * @returns {string} 版本号，取不到时为空字符串
+   */
+  getPluginVersion() {
+    // 开启 contextIsolation 后 preload 与页面处在两个 JS 世界，
+    // preload 内部的 window.getPluginVersion 赋值页面侧读不到，
+    // 只能取 contextBridge 暴露的窄接口；漏掉这一步会让「关于」页
+    // 静默退回 core 常量，插件内版本又与市场发布版本脱节。
+    const bridged = getBridgedApi();
+    if (bridged && typeof bridged.getPluginVersion === 'function') {
+      try {
+        const version = bridged.getPluginVersion();
+        if (version && String(version).trim()) return String(version).trim();
+      } catch (e) {
+        console.warn(`[${this.platformId}HostAdapter] 从桥接接口获取插件版本失败:`, e);
+      }
+    }
+
+    if (typeof window !== 'undefined' && typeof window.getPluginVersion === 'function') {
+      try {
+        const version = window.getPluginVersion();
+        if (version && String(version).trim()) return String(version).trim();
+      } catch (e) {
+        console.warn(`[${this.platformId}HostAdapter] 获取插件版本失败:`, e);
+      }
+    }
+
+    try {
+      if (this._api && typeof this._api.getPluginVersion === 'function') {
+        const version = this._api.getPluginVersion();
+        if (version && String(version).trim()) return String(version).trim();
+      }
+    } catch (e) {
+      console.warn(`[${this.platformId}HostAdapter] 从宿主获取插件版本失败:`, e);
+    }
+
+    return '';
   }
 
   /**
@@ -468,3 +623,4 @@ class BaseHostAdapter {
 }
 
 export default BaseHostAdapter;
+export { BaseHostAdapter, SAVE_STATUS, createSaveResult, normalizeSaveResult };

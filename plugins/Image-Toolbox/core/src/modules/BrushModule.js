@@ -15,10 +15,13 @@ class BrushModule extends BaseModule {
 
     this._cursorPreview = null;
     this._savedBeforeStroke = false;
+    this._eventBusUnsubscribers = null;
     this._boundMouseDown = this._onMouseDown.bind(this);
     this._boundMouseMove = this._onMouseMove.bind(this);
+    this._boundMouseOver = this._onMouseOver.bind(this);
     this._boundMouseOut = this._hideCursorPreview.bind(this);
     this._boundPathCreated = this._onPathCreated.bind(this);
+    this._boundInvalidateCursorPreview = this._invalidateCursorPreview.bind(this);
   }
 
   activate(options = {}) {
@@ -35,10 +38,18 @@ class BrushModule extends BaseModule {
     this._ensureBrush();
     this._applyBrushOptions();
     canvas.on('mouse:down', this._boundMouseDown);
+    canvas.on('mouse:over', this._boundMouseOver);
     canvas.on('mouse:out', this._boundMouseOut);
     canvas.on('path:created', this._boundPathCreated);
     canvas.upperCanvasEl?.addEventListener('mousemove', this._boundMouseMove);
     canvas.upperCanvasEl?.addEventListener('mouseleave', this._boundMouseOut);
+
+    // 画布被重置（撤销/重做、打开新图、导入 ORA）后，旧的光标预览对象
+    // 已被清出画布，需要失效引用以便下次鼠标移动时重建。
+    this._eventBusUnsubscribers = [
+      eventBus.on('canvas:restored', this._boundInvalidateCursorPreview),
+      eventBus.on('image:loaded', this._boundInvalidateCursorPreview),
+    ];
 
     eventBus.emit('module:activated', 'brush');
   }
@@ -47,6 +58,7 @@ class BrushModule extends BaseModule {
     const canvas = this.canvasManager.canvas;
     if (canvas) {
       canvas.off('mouse:down', this._boundMouseDown);
+      canvas.off('mouse:over', this._boundMouseOver);
       canvas.off('mouse:out', this._boundMouseOut);
       canvas.off('path:created', this._boundPathCreated);
       canvas.upperCanvasEl?.removeEventListener('mousemove', this._boundMouseMove);
@@ -56,6 +68,11 @@ class BrushModule extends BaseModule {
       canvas.freeDrawingCursor = 'crosshair';
       canvas.hoverCursor = 'move';
       this._savedBeforeStroke = false;
+    }
+
+    if (this._eventBusUnsubscribers) {
+      this._eventBusUnsubscribers.forEach((unsub) => unsub && unsub());
+      this._eventBusUnsubscribers = null;
     }
 
     super.deactivate();
@@ -163,6 +180,7 @@ class BrushModule extends BaseModule {
 
     const pointer = canvas.getPointer(nativeEvent);
     const preview = this._ensureCursorPreview();
+    if (!preview) return;
     preview.set({
       left: pointer.x,
       top: pointer.y,
@@ -170,6 +188,13 @@ class BrushModule extends BaseModule {
     });
     canvas.bringToFront(preview);
     this._requestRender();
+  }
+
+  _onMouseOver(e) {
+    // 鼠标进入画布时立即显示光标预览，无需等待 mousemove
+    const nativeEvent = e?.e;
+    if (!nativeEvent) return;
+    this._onMouseMove({ e: nativeEvent });
   }
 
   _onPathCreated(e) {
@@ -191,28 +216,78 @@ class BrushModule extends BaseModule {
     });
     path.setCoords();
     this.canvasManager.canvas.discardActiveObject();
-    if (this._cursorPreview) {
-      this.canvasManager.canvas.bringToFront(this._cursorPreview);
+    const preview = this._cursorPreview;
+    const canvas = this.canvasManager.canvas;
+    if (preview && canvas.getObjects().includes(preview)) {
+      canvas.bringToFront(preview);
     }
-    this.canvasManager.canvas.renderAll();
+    canvas.renderAll();
     eventBus.emit('canvas:objectMetadataChanged', path);
     this._savedBeforeStroke = false;
   }
 
   _ensureCursorPreview() {
-    if (this._cursorPreview) return this._cursorPreview;
-
     const canvas = this.canvasManager.canvas;
-    const preview = new fabric.Circle({
+    if (!canvas) return null;
+
+    // 历史恢复/换图等操作会清空并重建画布对象，旧引用可能已不在画布上，
+    // 此时需移除失效引用并重新创建，否则画笔位置圆点不会显示。
+    if (this._cursorPreview && canvas.getObjects().includes(this._cursorPreview)) {
+      return this._cursorPreview;
+    }
+    if (this._cursorPreview) {
+      canvas.remove(this._cursorPreview);
+      this._cursorPreview = null;
+    }
+
+    const preview = this._createCursorPreviewObject();
+    this._cursorPreview = preview;
+    canvas.add(preview);
+    canvas.bringToFront(preview);
+    return preview;
+  }
+
+  /**
+   * 创建画笔位置光标预览。
+   * 由「深色外圈 + 画笔色主圈 + 中心点」组成，确保在浅色/深色背景上都清晰可见。
+   */
+  _createCursorPreviewObject() {
+    const color = normalizeColor(this.options.color, '#d83b31');
+    const r = Math.max(this.options.width / 2, 3);
+
+    return new fabric.Group([
+      // 外圈：半透明深色描边，保证在浅色/深色背景上都有对比
+      new fabric.Circle({
+        radius: r + 2,
+        fill: 'transparent',
+        stroke: 'rgba(0, 0, 0, 0.35)',
+        strokeWidth: 2,
+        strokeUniform: true,
+        objectCaching: false,
+      }),
+      // 主圈：画笔颜色
+      new fabric.Circle({
+        radius: r,
+        fill: this._colorToRgba(color, 0.18),
+        stroke: color,
+        strokeWidth: 1.5,
+        strokeUniform: true,
+        objectCaching: false,
+      }),
+      // 中心点：指示精确落笔位置
+      new fabric.Circle({
+        radius: Math.max(1.5, Math.min(3, r * 0.35)),
+        fill: color,
+        stroke: 'rgba(255, 255, 255, 0.55)',
+        strokeWidth: 0.5,
+        strokeUniform: true,
+        objectCaching: false,
+      }),
+    ], {
       left: 0,
       top: 0,
       originX: 'center',
       originY: 'center',
-      radius: this.options.width / 2,
-      fill: 'rgba(255,255,255,0.08)',
-      stroke: this.options.color,
-      strokeWidth: 1,
-      strokeUniform: true,
       selectable: false,
       evented: false,
       excludeFromLayer: true,
@@ -222,22 +297,58 @@ class BrushModule extends BaseModule {
       objectCaching: false,
       visible: false,
     });
-
-    this._cursorPreview = preview;
-    canvas.add(preview);
-    canvas.bringToFront(preview);
-    return preview;
   }
 
   _updateCursorPreviewStyle() {
-    if (!this._cursorPreview) return;
+    const preview = this._cursorPreview;
+    if (!preview) return;
 
-    this._cursorPreview.set({
-      radius: this.options.width / 2,
-      stroke: this.options.color,
-    });
-    this._cursorPreview.setCoords();
+    const color = normalizeColor(this.options.color, '#d83b31');
+    const r = Math.max(this.options.width / 2, 3);
+    const children = preview.getObjects ? preview.getObjects() : [];
+
+    if (children[0]) children[0].set({ radius: r + 2 });
+    if (children[1]) {
+      children[1].set({
+        radius: r,
+        fill: this._colorToRgba(color, 0.18),
+        stroke: color,
+      });
+    }
+    if (children[2]) {
+      children[2].set({
+        radius: Math.max(1.5, Math.min(3, r * 0.35)),
+        fill: color,
+      });
+    }
+
+    preview.setCoords();
     this._requestRender();
+  }
+
+  _colorToRgba(color, alpha) {
+    const value = normalizeColor(color, '#000000');
+    const hex = value.startsWith('#') ? value.slice(1) : '';
+    if (!/^[0-9a-f]{6}$/i.test(hex)) {
+      // 非 hex 输入（如 rgba()）时退化为半透明黑，避免解析出 NaN
+      return `rgba(0, 0, 0, ${alpha})`;
+    }
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  /**
+   * 画布被重置（撤销/重做、打开新图、导入 ORA）后调用，
+   * 移除旧的光标预览引用，待下次鼠标移动时重建。
+   */
+  _invalidateCursorPreview() {
+    const canvas = this.canvasManager.canvas;
+    if (this._cursorPreview && canvas) {
+      canvas.remove(this._cursorPreview);
+    }
+    this._cursorPreview = null;
   }
 
   _hideCursorPreview() {

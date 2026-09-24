@@ -52,8 +52,11 @@ class App {
     this.accountPage = null;
     this.hostAdapter = null;
     this._destroyed = false;
+    this._eventBusUnsubscribers = [];
     this._boundGlobalListeners = null;
     this._externalSourceTimer = null;
+    this._externalSourceFallbackTimer = null;
+    this._saveTimer = null;
     this._onPluginEnterCallback = null;
 
     this._init();
@@ -267,80 +270,98 @@ class App {
       this._updateZoomLabel();
     });
 
-    eventBus.on('canvas:zoomIn', () => {
-      this.canvasManager?.zoomIn();
-      this._updateZoomLabel();
-    });
-    eventBus.on('canvas:zoomOut', () => {
-      this.canvasManager?.zoomOut();
-      this._updateZoomLabel();
-    });
+    // ═══ EventBus 订阅 ═══
+    //
+    // EventBus 是模块级全局单例（EventBus.js），订阅不会随实例消亡。
+    // 所有订阅的取消函数必须收进 _eventBusUnsubscribers，由 destroy() 统一解绑；
+    // 否则每次 new App()（插件重复进入 / 热重载 / Web 换页）都会把闭包永久留在
+    // 单例里，既泄漏整棵已销毁的对象树，又导致旧实例响应事件（重复导出/导入/Toast）。
+    this._eventBusUnsubscribers.push(
+      eventBus.on('canvas:zoomIn', () => {
+        this.canvasManager?.zoomIn();
+        this._updateZoomLabel();
+      }),
+      eventBus.on('canvas:zoomOut', () => {
+        this.canvasManager?.zoomOut();
+        this._updateZoomLabel();
+      })
+    );
 
     // ═══ 导出 ═══
-    eventBus.on('export:requested', async (payload) => {
-      // 兼容旧调用方式：字符串 'clipboard' 或 { type: 'file', format }
-      const type = typeof payload === 'string' ? payload : payload?.type;
-      if (type === 'clipboard') {
-        await this.toolManager?.export('clipboard');
-      } else {
-        const exportModule = this.toolManager?.getModule('export');
-        if (exportModule) {
-          await exportModule.exportToFile(payload?.format);
+    this._eventBusUnsubscribers.push(
+      eventBus.on('export:requested', async (payload) => {
+        // 兼容旧调用方式：字符串 'clipboard' 或 { type: 'file', format }
+        const type = typeof payload === 'string' ? payload : payload?.type;
+        if (type === 'clipboard') {
+          await this.toolManager?.export('clipboard');
+        } else {
+          const exportModule = this.toolManager?.getModule('export');
+          if (exportModule) {
+            await exportModule.exportToFile(payload?.format);
+          }
         }
-      }
-    });
+      })
+    );
 
     // ═══ 打开文件（从状态栏「打开」按钮）═══
-    eventBus.on('file:open', async (source) => {
-      if (source) {
-        await this._loadImage(source);
-        this.hostAdapter?.setWindowHeight(560);
-      }
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('file:open', async (source) => {
+        if (source) {
+          await this._loadImage(source);
+          this.hostAdapter?.setWindowHeight(560);
+        }
+      })
+    );
 
     // ═══ ORA 导出/导入 ═══
-    eventBus.on('ora:export', async () => {
-      if (!this.canvasManager?.originalImage) {
-        eventBus.emit('toast:show', { message: '请先加载图片', type: 'error' });
-        return;
-      }
-      await exportORA(this.canvasManager, this.layerManager, this.hostAdapter);
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('ora:export', async () => {
+        if (!this.canvasManager?.originalImage) {
+          eventBus.emit('toast:show', { message: '请先加载图片', type: 'error' });
+          return;
+        }
+        await exportORA(this.canvasManager, this.layerManager, this.hostAdapter);
+      }),
 
-    eventBus.on('ora:import', async (file) => {
-      if (file instanceof Blob) {
-        document.getElementById('welcome')?.classList.add('hidden');
-        document.getElementById('canvas-container')?.classList.remove('hidden');
-        document.getElementById('zoom-control')?.classList.remove('hidden');
-        await importORA(file, this.canvasManager, this.layerManager, this.historyManager);
-        this.hostAdapter?.setWindowHeight(560);
-      }
-    });
+      eventBus.on('ora:import', async (file) => {
+        if (file instanceof Blob) {
+          document.getElementById('welcome')?.classList.add('hidden');
+          document.getElementById('canvas-container')?.classList.remove('hidden');
+          document.getElementById('zoom-control')?.classList.remove('hidden');
+          await importORA(file, this.canvasManager, this.layerManager, this.historyManager);
+          this.hostAdapter?.setWindowHeight(560);
+        }
+      })
+    );
 
     // ═══ 撤销 / 重做 ═══
-    eventBus.on('history:undo', () => {
-      this.historyManager?.undo();
-    });
-    eventBus.on('history:redo', () => {
-      this.historyManager?.redo();
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('history:undo', () => {
+        this.historyManager?.undo();
+      }),
+      eventBus.on('history:redo', () => {
+        this.historyManager?.redo();
+      })
+    );
 
     // ═══ 编辑器布局偏好 ═══
-    eventBus.on('sidePanel:layoutChanged', (layout) => {
-      this.sidePanelTabs?.applyLayout(layout, false);
-    });
+    this._eventBusUnsubscribers.push(
+      eventBus.on('sidePanel:layoutChanged', (layout) => {
+        this.sidePanelTabs?.applyLayout(layout, false);
+      }),
 
-    eventBus.on('editorBars:layoutChanged', (layout) => {
-      this._applyEditorBarsLayout(layout);
-    });
+      eventBus.on('editorBars:layoutChanged', (layout) => {
+        this._applyEditorBarsLayout(layout);
+      }),
 
-    eventBus.on('editorSidePanel:positionChanged', (position) => {
-      this._applyEditorSidePanelPosition(position);
-    });
+      eventBus.on('editorSidePanel:positionChanged', (position) => {
+        this._applyEditorSidePanelPosition(position);
+      }),
 
-    eventBus.on('toolbar:collapsedChanged', (value) => {
-      this._applyToolbarCollapsed(value);
-    });
+      eventBus.on('toolbar:collapsedChanged', (value) => {
+        this._applyToolbarCollapsed(value);
+      })
+    );
 
     // ═══ 快捷键 ═══
     const onKeyDown = (e) => {
@@ -378,8 +399,10 @@ class App {
         const active = this.canvasManager?.getActiveObject();
         if (active && active.isEditing) return;
 
+        const key = e.key.toUpperCase();
+
         const tools = this.toolManager?.getTools() || [];
-        const tool = tools.find(t => t.shortcut === e.key.toUpperCase());
+        const tool = tools.find(t => t.shortcut === key);
         if (tool) {
           e.preventDefault();
           this.toolManager?.activateTool(tool.name);
@@ -407,28 +430,30 @@ class App {
     this._boundGlobalListeners = { onDragOver, onDrop, onPaste, onKeyDown, onWheel };
 
     // ═══ 画布操作后自动保存历史 ═══
-    eventBus.on('canvas:objectModified', (target) => {
-      if (target?.excludeFromHistory) return;
+    this._eventBusUnsubscribers.push(
+      eventBus.on('canvas:objectModified', (target) => {
+        if (target?.excludeFromHistory) return;
 
-      if (this._saveTimer) clearTimeout(this._saveTimer);
-      this._saveTimer = setTimeout(() => {
+        if (this._saveTimer) clearTimeout(this._saveTimer);
+        this._saveTimer = setTimeout(() => {
+          this.historyManager?.saveState();
+        }, 300);
+      }),
+
+      eventBus.on('layer:reorderWillChange', () => {
         this.historyManager?.saveState();
-      }, 300);
-    });
+      }),
 
-    eventBus.on('layer:reorderWillChange', () => {
-      this.historyManager?.saveState();
-    });
+      // ═══ 工具自动切换 ═══
+      eventBus.on('tool:requestChange', (toolName) => {
+        this.toolManager?.activateTool(toolName);
+      }),
 
-    // ═══ 工具自动切换 ═══
-    eventBus.on('tool:requestChange', (toolName) => {
-      this.toolManager?.activateTool(toolName);
-    });
-
-    // ═══ Toast ═══
-    eventBus.on('toast:show', ({ message, type }) => {
-      this._showToast(message, type);
-    });
+      // ═══ Toast ═══
+      eventBus.on('toast:show', ({ message, type }) => {
+        this._showToast(message, type);
+      })
+    );
 
     // ═══ 插件重复进入 ═══
     // preload.js 已在插件加载时注册了 onPluginEnter，将首次进入的图片
@@ -472,6 +497,16 @@ class App {
       this._externalSourceTimer = null;
     }
 
+    if (this._externalSourceFallbackTimer) {
+      clearTimeout(this._externalSourceFallbackTimer);
+      this._externalSourceFallbackTimer = null;
+    }
+
+    // 解绑 EventBus 订阅。EventBus 是全局单例，不解绑会让本实例的闭包
+    // 永久驻留（连带整棵对象树无法 GC），并在下次 new App() 后重复响应事件。
+    this._eventBusUnsubscribers.forEach(unsub => unsub && unsub());
+    this._eventBusUnsubscribers = [];
+
     // 移除全局事件监听器
     if (this._boundGlobalListeners) {
       const { onDragOver, onDrop, onPaste, onKeyDown, onWheel } = this._boundGlobalListeners;
@@ -482,6 +517,9 @@ class App {
       document.getElementById('canvas-area')?.removeEventListener('wheel', onWheel);
       this._boundGlobalListeners = null;
     }
+
+    // 解绑宿主生命周期回调
+    this._onPluginEnterCallback = null;
 
     [
       this.accountPage,
@@ -587,8 +625,10 @@ class App {
     // 先等待 100ms 再开始检查，给 preload 回调留出时间
     this._externalSourceTimer = setTimeout(check, 100);
 
-    // 安全兜底：10 秒后清理定时器
-    setTimeout(() => {
+    // 安全兜底：10 秒后清理定时器。
+    // 必须保存句柄，否则 destroy() 后这个定时器仍会执行 10 秒（持有 this）。
+    this._externalSourceFallbackTimer = setTimeout(() => {
+      this._externalSourceFallbackTimer = null;
       if (this._externalSourceTimer) {
         clearTimeout(this._externalSourceTimer);
         this._externalSourceTimer = null;

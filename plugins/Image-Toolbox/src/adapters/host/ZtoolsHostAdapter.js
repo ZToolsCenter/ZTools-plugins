@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ZtoolsHostAdapter
  * ZTools 平台宿主适配器，继承 BaseHostAdapter。
  */
@@ -53,11 +53,8 @@ class ZtoolsHostAdapter extends BaseHostAdapter {
       console.warn('[ZtoolsHostAdapter] 获取宿主名称失败:', e);
     }
 
-    if (typeof window !== 'undefined') {
-      if (window.ztools) return 'ZTools';
-      if (window.utools) return 'uTools';
-    }
-
+    // 注意：这里不能再用 "window.utools 存在" 嗅探 uTools ——
+    // ZTools 环境下的 window.utools 是历史别名产物，据此判断会误报平台。
     return DEFAULT_HOST_NAME;
   }
 

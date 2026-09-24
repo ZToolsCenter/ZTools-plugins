@@ -3,7 +3,7 @@ import eventBus from '../EventBus.js';
 import { clamp, escapeAttr, normalizeColor } from '../utils/helpers.js';
 
 /**
- * 图形绘制模块 - 支持矩形、椭圆、星星、心形、梯形、平行四边形、菱形、直线、箭头等多种图形
+ * 图形绘制模块 - 支持矩形、椭圆、星星、心形、梯形、平行四边形、菱形、五边形、直线、箭头等多种图形
  */
 class ShapeModule extends BaseModule {
   static SHAPE_OPTIONS = [
@@ -15,6 +15,7 @@ class ShapeModule extends BaseModule {
     { type: 'trapezoid', preset: 'shape-type-trapezoid', label: '梯形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="10 8 22 8 28 24 4 24" /></svg>' },
     { type: 'parallelogram', preset: 'shape-type-parallelogram', label: '平行四边形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="9 8 26 8 23 24 6 24" /></svg>' },
     { type: 'diamond', preset: 'shape-type-diamond', label: '菱形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16 4 28 16 16 28 4 16" /></svg>' },
+    { type: 'pentagon', preset: 'shape-type-pentagon', label: '五边形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16 4 27.4 12.3 23.1 25.7 8.9 25.7 4.6 12.3" /></svg>' },
     { type: 'line', preset: 'shape-type-line', label: '直线', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><line x1="5" y1="24" x2="27" y2="8" /></svg>' },
     { type: 'arrow', preset: 'shape-type-arrow', label: '箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L25 8" /><path d="M16 7H26V17" /></svg>' },
     { type: 'double-arrow', preset: 'shape-type-double-arrow', label: '双箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L27 8" /><path d="M18 7H28V17" /><path d="M14 25H4V15" /></svg>' },
@@ -95,7 +96,7 @@ class ShapeModule extends BaseModule {
   }
 
   setShapeType(type) {
-    if (['rect', 'triangle', 'circle', 'star', 'heart', 'trapezoid', 'parallelogram', 'diamond', 'line', 'arrow', 'double-arrow'].includes(type)) {
+    if (['rect', 'triangle', 'circle', 'star', 'heart', 'trapezoid', 'parallelogram', 'diamond', 'pentagon', 'line', 'arrow', 'double-arrow'].includes(type)) {
       this.options.shapeType = type;
     }
   }
@@ -144,6 +145,7 @@ class ShapeModule extends BaseModule {
       'shape-type-trapezoid': { shapeType: 'trapezoid' },
       'shape-type-parallelogram': { shapeType: 'parallelogram' },
       'shape-type-diamond': { shapeType: 'diamond' },
+      'shape-type-pentagon': { shapeType: 'pentagon' },
       'shape-type-line': { shapeType: 'line' },
       'shape-type-arrow': { shapeType: 'arrow' },
       'shape-type-double-arrow': { shapeType: 'double-arrow' },
@@ -268,7 +270,7 @@ class ShapeModule extends BaseModule {
         <input type="range" class="property-range" data-module-prop="strokeWidth" min="1" max="20" value="${this.options.strokeWidth}" />
         <span class="property-value">${this.options.strokeWidth}px</span>
       </div>
-      <div class="property-empty">拖拽鼠标绘制图形，支持矩形、三角形、椭圆、星星、心形、菱形等。</div>
+      <div class="property-empty">拖拽鼠标绘制图形，支持矩形、三角形、椭圆、星星、心形、菱形、五边形等。</div>
     `;
   }
 
@@ -438,6 +440,9 @@ class ShapeModule extends BaseModule {
       case 'diamond':
         return this._createDiamond(left, top, width, height, commonProps);
 
+      case 'pentagon':
+        return this._createPentagon(left, top, width, height, commonProps);
+
       case 'line':
         return this._createLine(startPoint, endPoint, commonProps);
 
@@ -576,6 +581,29 @@ class ShapeModule extends BaseModule {
       top: centerY,
       originX: 'center',
       originY: 'center',
+    });
+  }
+
+  _createPentagon(left, top, width, height, props) {
+    const centerX = left + width / 2;
+    const centerY = top + height / 2;
+    const points = [];
+
+    for (let i = 0; i < 5; i++) {
+      const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+      points.push({
+        x: (width / 2) * Math.cos(angle),
+        y: (height / 2) * Math.sin(angle),
+      });
+    }
+
+    return new fabric.Polygon(points, {
+      ...props,
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+      strokeLineJoin: 'round',
     });
   }
 

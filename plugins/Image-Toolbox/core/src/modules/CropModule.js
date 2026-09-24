@@ -54,11 +54,14 @@ class CropModule extends BaseModule {
   }
 
   deactivate() {
+    // canvas 可能因销毁顺序变化已为 null，直接 off/renderAll 会抛 TypeError
+    // 并中断 ToolManager.destroy 的遍历链，导致后续模块 eventBus 解绑被跳过。
     const canvas = this.canvasManager.canvas;
-
-    canvas.off('mouse:down', this._boundMouseDown);
-    canvas.off('mouse:move', this._boundMouseMove);
-    canvas.off('mouse:up', this._boundMouseUp);
+    if (canvas) {
+      canvas.off('mouse:down', this._boundMouseDown);
+      canvas.off('mouse:move', this._boundMouseMove);
+      canvas.off('mouse:up', this._boundMouseUp);
+    }
 
     this._removeCropOverlay();
     if (this._applyingCrop) {
@@ -67,9 +70,11 @@ class CropModule extends BaseModule {
       this._restoreDetachedCanvasClipPath(false);
     }
     this._applyingCrop = false;
-    canvas.renderAll();
+    if (canvas) {
+      canvas.renderAll();
+    }
 
-    super.deactivate();  // 恢复所有对象交互
+    super.deactivate();  // 恢复所有对象交互（基类内部已带 canvas 空值守卫）
   }
 
   setAspectRatio(ratio) {
@@ -635,13 +640,15 @@ class CropModule extends BaseModule {
   }
 
   _removeCropOverlay() {
+    // canvas 可能已为 null（销毁顺序变化）：仅在有画布时 remove，否则只清理引用，
+    // 保证 deactivate 调用链不因遮罩残留对象而抛 TypeError。
     const canvas = this.canvasManager.canvas;
     if (this._maskRect) {
-      canvas.remove(this._maskRect);
+      if (canvas) canvas.remove(this._maskRect);
       this._maskRect = null;
     }
     if (this._cropRect) {
-      canvas.remove(this._cropRect);
+      if (canvas) canvas.remove(this._cropRect);
       this._cropRect = null;
     }
   }

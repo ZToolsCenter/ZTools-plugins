@@ -281,6 +281,36 @@ export function applyFilterPreset(image, presetName) {
 }
 
 /**
+ * 计算某个预设应用到图片后的滤镜参数列表（供预览缩略图使用）
+ *
+ * 与 applyFilterPreset 保持同一套取值规则：未在预设中声明的滤镜重置为默认值，
+ * 因而返回结果中会剔除默认值项（与 setFilter 的写入规则一致）。
+ *
+ * @param {object} preset - FILTER_PRESETS 中的一项
+ * @returns {Array<{type: string, attr: string, value: number}>}
+ */
+export function getPresetFilterValues(preset) {
+  if (!preset || !preset.filters) return [];
+
+  return ALL_RESETTABLE_TYPES.map(type => {
+    const uiValue = preset.filters[type] != null
+      ? preset.filters[type]
+      : (FILTER_RANGES[type] ? FILTER_RANGES[type].default : (PRESET_ONLY_DEFAULTS[type] != null ? PRESET_ONLY_DEFAULTS[type] : 0));
+
+    const defaultValue = FILTER_RANGES[type]
+      ? FILTER_RANGES[type].default
+      : (PRESET_ONLY_DEFAULTS[type] != null ? PRESET_ONLY_DEFAULTS[type] : 0);
+    if (uiValue === defaultValue) return null;
+
+    return {
+      type: FILTER_CLASS_NAME[type],
+      attr: FILTER_ATTR_NAME[type],
+      value: uiToFilterValue(type, uiValue),
+    };
+  }).filter(item => item && item.type && item.attr);
+}
+
+/**
  * 判断当前图片是否匹配某个预设（用于预设按钮高亮）
  * @param {fabric.Image} image
  * @param {string} presetName

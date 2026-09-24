@@ -214,6 +214,10 @@ class LayerManager {
       );
     }
 
+    if (this._isStickerLayerObject(obj)) {
+      return '贴纸';
+    }
+
     if (this._isMosaicLayerObject(obj)) {
       return this._joinLayerNameParts('马赛克', obj._layerPresetName || this._getMosaicPresetName(obj));
     }
@@ -267,6 +271,11 @@ class LayerManager {
     return obj?._layerKind === 'mosaic'
       || obj?._mosaicDynamic === true
       || (typeof obj?.id === 'string' && obj.id.startsWith('mosaic_'));
+  }
+
+  _isStickerLayerObject(obj) {
+    return obj?._layerKind === 'sticker'
+      || (typeof obj?.id === 'string' && obj.id.startsWith('sticker_'));
   }
 
   _isLegacyDefaultLayerName(name, obj) {
