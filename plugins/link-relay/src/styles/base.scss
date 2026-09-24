@@ -1,0 +1,290 @@
+// ════════════════════════════════════════════════════════════
+// 基础通用样式
+// 工具类 + 跨组件复用的基础元素（按钮 / 标签 / 弹窗 / 进度条 / 日志 / 骨架屏）
+// 组件特有的样式仍写在各 .vue 的 <style scoped> 中
+// ════════════════════════════════════════════════════════════
+@use 'variables' as *;
+
+// ────────────── 工具类 ──────────────
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  letter-spacing: -0.01em;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+// ────────────── 通用按钮 ──────────────
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  padding: 6px 14px;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  white-space: nowrap;
+  background: var(--bg);
+  transition:
+    background-color var(--t-base) var(--ease-out),
+    border-color var(--t-base) var(--ease-out),
+    color var(--t-base) var(--ease-out),
+    box-shadow var(--t-base) var(--ease-out);
+  min-height: 32px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    border-color: var(--ink-3);
+    color: var(--ink-1);
+  }
+
+  &.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    box-shadow: 0 1px 2px var(--glow);
+
+    &:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+  }
+
+  &.danger {
+    color: var(--bad-ink);
+    border-color: rgba($color-bad, 0.3);
+    background: var(--bad-soft);
+
+    &:hover {
+      background: rgba($color-bad, 0.18);
+    }
+  }
+
+  &.ghost {
+    border-color: transparent;
+
+    &:hover {
+      background: var(--panel-2);
+    }
+  }
+
+  &.sm {
+    padding: 4px 10px;
+    font-size: var(--fs-xs);
+    min-height: 26px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// ────────────── 状态标签 ──────────────
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  &.ok { background: var(--ok-soft); color: var(--ok-ink); }
+  &.warn { background: var(--warn-soft); color: var(--warn-ink); }
+  &.bad { background: var(--bad-soft); color: var(--bad-ink); }
+  &.info { background: var(--info-soft); color: var(--info-ink); }
+}
+
+// ────────────── 弹窗遮罩与容器 ──────────────
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 24, 23, 0.4);
+  z-index: $z-scrim;
+  backdrop-filter: blur(1px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-slow) var(--ease-out);
+
+  &.on {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -46%);
+  z-index: $z-modal;
+  width: min(620px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-radius: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out);
+  box-shadow: var(--shadow-modal);
+
+  &.on {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%);
+  }
+
+  > header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+
+    h3 {
+      font-size: var(--fs-md);
+      font-weight: 650;
+      color: var(--ink-1);
+    }
+
+    .close {
+      margin-left: auto;
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+  }
+
+  > .body {
+    padding: var(--space-md) var(--space-lg);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  > footer {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm) var(--space-lg);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+
+    .left {
+      font-size: var(--fs-xs);
+      color: var(--ink-3);
+    }
+
+    .right {
+      display: flex;
+      gap: 8px;
+    }
+  }
+}
+
+// ────────────── 进度条 ──────────────
+
+.progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--panel-2);
+  overflow: hidden;
+
+  > i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.3s var(--ease-out);
+  }
+}
+
+// ────────────── 日志终端 ──────────────
+
+.log-box {
+  background: var(--ink-1);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: #8fbfbd;
+  max-height: 140px;
+  overflow-y: auto;
+
+  .ok { color: #6fc99a; }
+  .warn { color: #e0a84e; }
+  .err { color: #e8837c; }
+}
+
+// ────────────── 骨架屏 ──────────────
+
+@keyframes skel {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skel {
+  background: linear-gradient(90deg, var(--panel-2), #e6ebea, var(--panel-2));
+  background-size: 200% 100%;
+  animation: skel 1.4s infinite linear;
+  height: 16px;
+  border-radius: 3px;
+  margin: 8px 16px;
+}
+
+// ────────────── 响应式断点 ──────────────
+
+// 超小屏（< 480px）
+@media (max-width: $bp-xs) {
+  .modal {
+    width: 96vw;
+    max-height: 92vh;
+
+    > header,
+    > .body,
+    > footer {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+  }
+}
+
+// 平板及以下（< 768px）
+@media (max-width: $bp-sm) {
+  :root {
+    --container-padding: 10px;
+  }
+}
