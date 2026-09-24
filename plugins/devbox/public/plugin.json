@@ -5,7 +5,7 @@
   "categories": ["development"],
   "description": "开发百宝箱——只做实际开发中会用到的工具，不做凑数功能，每个工具都对应真实开发场景里的具体问题，做到真正提效。支持多标签页同时使用多个工具",
   "author": "咖啡八杯",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
@@ -13,6 +13,12 @@
     "main": "http://localhost:5173"
   },
   "features": [
+    {
+      "code": "home",
+      "explain": "打开开发百宝箱首页",
+      "icon": "logo.png",
+      "cmds": ["devbox"]
+    },
     {
       "code": "identity",
       "explain": "随机生成虚拟身份信息（姓名、身份证号、手机号、地址等），支持批量和导出",
