@@ -17,6 +17,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 
+import { FOOT_BUTTONS, FOOT_HINTS } from '../src/lib/settings.ts'
+
 const SFC = fileURLToPath(new URL('../src/App.vue', import.meta.url))
 const src = readFileSync(SFC, 'utf8')
 
@@ -126,8 +128,23 @@ test('★ 底栏按钮的效果跟 mark 三档 + 强调色走（别退回"只变
       `${mark} 档：设置那颗没有规则`
     )
   }
-  assert.match(css, /\.root\.mark-border \.clr\.set:hover\s*\{[^}]*var\(--accent\)/)
-  assert.match(css, /\.root\.mark-solid \.clr\.set:hover\s*\{[^}]*var\(--row-on-tx\)/)
+  /*
+   * ⚠️ 09-23 起「新增」跟「设置」**共用同一个选择器组**（两颗都归强调色那一档），
+   *    所以判据不能写死 `:hover\s*\{` —— 组里最后一颗才是紧挨着 `{` 的那个。
+   *    改成先把整条规则切出来（选择器里不会有 `{}`，所以 `[^{}]*` 刚好卡在 `{` 上），
+   *    再断言**两颗都在组里**、且块里的颜色对。
+   *    ★ 后半条是**防漏**用的：加一个入口时只加 `<button>` 忘了加选择器，
+   *      那个档位下按下去就没动静（不报错），这条会红。
+   */
+  for (const [mark, want] of [
+    ['mark-border', /var\(--accent\)/],
+    ['mark-solid', /var\(--row-on-tx\)/]
+  ] as const) {
+    const rule = css.match(new RegExp(`\\.root\\.${mark} \\.clr\\.set:hover[^{}]*\\{[^}]*\\}`))
+    assert.ok(rule, `${mark} 档：找不到设置那颗的规则`)
+    assert.match(rule[0], /\.clr\.add:hover/, `${mark} 档：「新增」没跟「设置」共用同一条规则`)
+    assert.match(rule[0], want, `${mark} 档：颜色变量不对`)
+  }
   // 危险色已经收进 `--danger`，App.vue 里不该再有硬编码的红
   assert.doesNotMatch(css, /#ff453a/i, 'danger 收进 --danger 了，别在 App.vue 里再硬写')
   // 「设置」不是危险操作，永远别跟着红
@@ -178,7 +195,8 @@ test('★ 确认框居中：位置由 .mask 的 flex 给，别再让 JS 算坐�
  * ★ 设置面板的**排布**（09-17 老大要求）：按控件类型分三段、**段内按行长从短到长**。
  *
  *   ① 色点段：底色（4 颗）→ 强调色（13 颗）
- *   ② 多选段：行尾操作（2 颗）→ 行尾显示（3 颗）→ 选中项（3 颗）→ 底栏（4 颗）
+ *   ② 多选段：行尾操作（3 颗）→ 行尾显示（3 颗）→ 选中项（3 颗）
+ *             → 底栏（3 颗）→ 底栏按钮（3 颗）→ 底栏按键提示（15 颗）
  *   ③ 开关段：显示详情 → 删除前确认
  *
  * 改之前是「按主题」混排的（行尾、行尾按钮、底栏、显示详情…），三种控件形状一格一格交替，
@@ -189,6 +207,12 @@ test('★ 确认框居中：位置由 .mask 的 flex 给，别再让 JS 算坐�
  *
  * ⚠️ 09-21：「行尾按钮」从**开关**拆成「行尾操作」（收藏 / 删除两颗药丸），于是它从开关段
  *    搬进了多选段，按短→长排在「行尾显示」前面。别按"先显示后操作"的语序把它俩对调。
+ *    （09-23 加了第三颗「编辑」，这一行也变成 3 颗了 —— 它跟「行尾显示」「选中项」一样长，
+ *      谁前谁后都不违背判据 ⇒ **位置不动**，别为凑一个严格递增去调。）
+ * ⚠️ 09-24 底栏那两行照同一条规矩排：**按钮（3 颗）在按键提示（15 颗）前面**。
+ *    反过来就是 15 → 3 的下降，"逐级变宽"当场破掉。
+ * ⚠️ 09-23 那行「新增按钮」开关（4 字）**已经撤掉** —— 它并进了「底栏按钮」那颗药丸，
+ *    所以开关段只剩两行（4 / 5 字），仍然是不减的。
  *
  * ⚠️ 这是**有意锁住的**：以后再调整排布，请连这条断言一起改 —— 不要顺手把它删掉，
  *    否则"开关又被夹在两段药丸中间"这种回退没人拦得住。
@@ -208,20 +232,20 @@ test('★ 设置面板：按控件类型分三段（段内短→长），开关�
     '开关段被药丸组打断了 —— 同形状的控件要连着排，开关统一压在最下面'
   )
 
-  // 2) 各组标题的先后（开关段没有标题，所以只到「底栏」）
+  // 2) 各组标题的先后（开关段没有标题，所以只到「底栏按键提示」）
   const labels = [...panel.matchAll(/class="lbl">([^<]+)</g)].map((m) => m[1])
   assert.deepEqual(
     labels,
-    ['底色', '强调色', '行尾操作', '行尾显示', '选中项', '底栏'],
-    '面板分组顺序变了（期望：色点段 底色/强调色 → 多选段 行尾操作/行尾显示/选中项/底栏，段内短→长）'
+    ['底色', '强调色', '行尾操作', '行尾显示', '选中项', '底栏', '底栏按钮', '底栏按键提示'],
+    '面板分组顺序变了（期望：色点段 底色/强调色 → 多选段 行尾操作/…/底栏/底栏按钮/底栏按键提示，段内短→长）'
   )
 
-  // 3) 开关段的两行及其先后（标签 4/5 字，也正好是短→长；越靠下越危险，删除前确认压尾）
+  // 3) 开关段的两行及其先后（标签 4/5 字，也是短→长；越靠下越危险，删除前确认压尾）
   const switches = [...panel.matchAll(/class="nm">([^<]+)</g)].map((m) => m[1])
   assert.deepEqual(
     switches,
     ['显示详情', '删除前确认'],
-    '「行尾按钮」已经拆成药丸了，开关段只该剩这两行'
+    '开关段变了（期望：显示详情 / 删除前确认）—— 「新增按钮」已并进「底栏按钮」那颗药丸，别回来'
   )
 
   // 4) 段间空隙标记 `.blk` 正好两处：第②③ 段的第一行各一次
@@ -230,6 +254,216 @@ test('★ 设置面板：按控件类型分三段（段内短→长），开关�
     2,
     '`.blk` 应该正好两处（选中段首行、开关段首行）—— 重排时记得把它跟着搬'
   )
+})
+
+/*
+ * ★ 两个设置项的**接线**（09-23 的「编辑」+ 09-24 的底栏两份多选）。
+ *
+ * 设置面板里那几行只管**键盘光标能不能停上去**；「界面上那个按钮认不认这个设置」是另一回事 ——
+ * 忘了判的话，勾上/取消显示成一种样子而界面照旧，自相矛盾而且不报错。
+ *
+ * ⚠️ 这条是「登记了但没接线」这一类里最便宜的一根钉子：
+ *    上面那条面板测试会因为"行表里有、模板里没有"而红，但**反过来不成立** ——
+ *    模板里忘了写 `settings.footButtons.includes(...)`，面板测试照样绿。
+ */
+test('★ 行尾编辑按钮与底栏三颗按钮都认各自的设置（登记了还得接线）', () => {
+  assert.match(
+    src,
+    /view === 'favorites' && row\.data\.type === 'text' && settings\.tailEdit/,
+    '行尾编辑按钮没判 settings.tailEdit —— 关掉之后它照样出'
+  )
+  /*
+   * 底栏那三颗现在都是"在不在数组里"（09-24 之前「新增」是一颗 `footAdd` 开关）。
+   * ⚠️ 三颗**都要**接上：漏一颗，那一颗在设置里永远关不掉（或者说关了也还在）。
+   */
+  for (const id of ['set', 'add', 'clear']) {
+    assert.match(
+      src,
+      new RegExp(`settings\\.footButtons\\.includes\\('${id}'\\)`),
+      `底栏「${id}」那颗没判 settings.footButtons —— 关掉之后它照样出`
+    )
+  }
+  // 「新增」还多一条视图条件（历史视图没什么可"新增"）—— 这条别被顺手删掉
+  assert.match(
+    src,
+    /v-if="view === 'favorites' && settings\.footButtons\.includes\('add'\)"/,
+    '底栏「新增」丢了"只在收藏视图"这条 —— 历史视图里会冒出一颗点不动的按钮'
+  )
+  // 关掉编辑之后 `actsShown` 也得跟着少留一格，不然行尾白留一条空档
+  assert.match(
+    src,
+    /view\.value === 'favorites' && settings\.value\.tailEdit \? 1 : 0/,
+    'actsShown 没算 settings.tailEdit —— 关掉编辑后行尾会多留一颗的空位'
+  )
+})
+
+/*
+ * ★★ 底栏那排提示**放不下要换行**（09-24 老大提的）：
+ *   「底栏按键提示由于过多，选多了会超长，我想的是当选的过多超长时，
+ *     能不能放不下时底栏再加一行」。
+ *
+ * 改之前是 `overflow: hidden` + `white-space: nowrap` 的**定宽预算** —— 超了从右边
+ * **静默截断**（不报错、没有省略号，只是少一截字）。设置面板开着的时候尤其明显：
+ * 那时底栏要让出 `--sheet-w`（300px），可用宽度掉到 ~448，8 条只能看见 5 条 ——
+ * 而那正是他挑提示的时候。
+ *
+ * 连带的**两处**一起锁（都是"改错了不报错、只在真机上别扭"的那种）：
+ *   ① `.foot` 的 `align-items` 得是 `flex-end` —— 两行时按钮要落在**最后一行**上；
+ *   ② `.chips` 得能换行 —— 面板只有 268px 宽，15 颗药丸不换行会溢出到面板外面，
+ *      被 `.sheet-body` 的 `overflow-x: hidden` 直接裁掉（后半截看不见，也不报错）。
+ */
+test('★ 底栏提示放不下会换行：.hints 允许 wrap、按钮落在最后一行、面板药丸也能换行', () => {
+  const hints = css.match(/^\.hints\s*\{([^}]*)\}/m)
+  assert.ok(hints, '找不到 .hints 规则')
+  assert.match(
+    hints[1],
+    /flex-wrap:\s*wrap/,
+    '.hints 不能换行 —— 提示选多了会从右边静默截断（就是老大报的那个问题）'
+  )
+  // ⚠️ `nowrap` 必须留着：它管的是"每条提示自己的字不许折行"，不拦 flex 的换行
+  assert.match(hints[1], /white-space:\s*nowrap/, '.hints 的 nowrap 被删了 —— 提示自己的字会折行')
+
+  const foot = css.match(/^\.foot\s*\{([^}]*)\}/m)
+  assert.ok(foot, '找不到 .foot 规则')
+  assert.match(
+    foot[1],
+    /align-items:\s*flex-end/,
+    '换行之后那几颗按钮会悬在两行中间 —— 它们该落在最后一行（align-items: flex-end）'
+  )
+
+  const chips = css.match(/^\.chips\s*\{([^}]*)\}/m)
+  assert.ok(chips, '找不到 .chips 规则')
+  assert.match(
+    chips[1],
+    /flex-wrap:\s*wrap/,
+    '面板药丸不能换行 —— 15 颗会横着溢出面板，被 overflow-x: hidden 裁掉后半截'
+  )
+})
+
+/*
+ * ★★ 底栏的浮现判定范围必须**量底栏的真实高度**（09-24，跟"会换行"同批）。
+ *
+ * 写死一个数只在"底栏恒为一行"时成立。换行之后底栏可能是两三行高 ——
+ * 还按 30 判，就等于只盖住第一行：鼠标停在第二行上时底栏反倒收起来了，
+ * 那一行按钮"看得见、点不到"（而且不报错）。
+ */
+test('★ 「淡入」档的浮现判定用量的高度（footH），不是写死的数', () => {
+  const fn = src.slice(src.indexOf('function onPointerMove('))
+  const body = fn.slice(0, fn.indexOf('\n}'))
+  assert.match(body, /window\.innerHeight - footH\.value/, '浮现判定没用 footH —— 换行后第二行点不到')
+  assert.doesNotMatch(body, /FOOT_REVEAL_FALLBACK/, '浮现判定又用回那个写死的兜底值了')
+  assert.match(src, /function measureFoot\(/, '找不到 measureFoot —— 高度没人量')
+  // 量的那一头必须真的挂上 ref（挂错了量到的是 0，判定范围就成了"窗口最底下一条线"）
+  assert.match(src, /ref="footRef"/, '底栏那个 div 没挂 footRef —— 高度量不到')
+})
+
+/*
+ * ★ `⌘N` 的**界面存在**（09-24，跟上面那条同一个批次）。
+ *
+ * 老大提过三次「加了键就得在界面上写出来」。09-23 那版它写在设置面板「新增按钮」
+ * 那一行的键帽里（因为底栏那排塞不下第 9 条）；09-24 底栏**放不下会换行**之后，
+ * 它回到了它该在的地方 —— **底栏那排提示里的「新增」**（老大在"键帽放哪"那两条路
+ * 里挑的是「药丸只写名字」，所以面板里不再有键帽）。
+ *
+ * ⚠️ 这条钉两件事，两件都是"不做不报错、只是没人知道有这条键"：
+ *   ① 提示表里**真的有 `add` 这条**（有 id、有键帽、有文字）；
+ *   ② 每一条提示的**键帽和文字都非空** —— `FOOT_HINT_FACE` 少写一个 id 的话，
+ *      那一格会渲染成 `undefined`（界面上就是一段空白），而 JS 不会报错。
+ */
+test('★ 底栏的 15 条提示：每条都有键帽和文字（⌘N 那条就在里面）', () => {
+  // 表在 App.vue 里，形如 `  select: { key: '↑↓', label: '选择' },`
+  // ⚠️ 末一条没有尾逗号，所以 `,?` 不能省（第一版漏了它，`del` 那条就"不存在"了）
+  const modded = [...src.matchAll(/^\s{2}([a-z]+): \{ mod: true, key: '\S+', label: '[^']+' \},?$/gm)].map(
+    (m) => m[1]
+  )
+  const plain = [...src.matchAll(/^\s{2}([a-z]+): \{ key: '\S+', label: '[^']+' \},?$/gm)].map(
+    (m) => m[1]
+  )
+  const faces = [...modded, ...plain].sort()
+
+  assert.deepEqual(
+    faces,
+    [...FOOT_HINTS].sort(),
+    'FOOT_HINT_FACE 的键跟 FOOT_HINTS 对不上 —— 少一个那条提示就是一段空白（不报错）'
+  )
+
+  const add = src.match(/^\s{2}add: \{ mod: true, key: 'N', label: '新增' \},?$/m)
+  assert.ok(add, '⌘N 那条提示（add）没了 —— 这条键就只剩 README 知道它存在')
+  /*
+   * ★ `Esc 返回`（09-24 第一批补回来的那条）。
+   *
+   * 它 09-23 为了给出「Delete 删除」腾地方被删过一次 —— 那次删得很干净（模板里整行没了），
+   * 所以这里要**明确钉住它存在**：少一条提示不报错、也没人会发现，直到老大盯着面板问
+   * 「Esc返回呢」（09-24 真事）。
+   */
+  const esc = src.match(/^\s{2}esc: \{ key: 'Esc', label: '返回' \},?$/m)
+  assert.ok(esc, '「Esc 返回」那条提示没了 —— 老大 09-24 专门问过它，别再删')
+  /*
+   * ★ 09-24 **第二批**补的 4 条（老大：「我们系统现在有的按键都应该加进去啊」）。
+   *
+   * 跟 `esc` 一个道理逐条钉死：上面那个 `deepEqual(faces, FOOT_HINTS)` 只保证
+   * **两张表对得上**，它对"这一条该不该在候选表里"没有主张 —— 少一条，
+   * 只要 `FOOT_HINTS` 那边也一起删了，两边照样相等、测试照样绿。
+   * ⚠️ 所以**每个"老大点名要过"的 id 都单独钉一行**，别只图省事写成一个循环。
+   */
+  for (const [id, face] of [
+    ['copy', "copy: \\{ mod: true, key: 'C', label: '复制' \\}"],
+    ['favview', "favview: \\{ mod: true, key: 'L', label: '收藏夹' \\}"],
+    ['search', "search: \\{ mod: true, key: 'F', label: '搜索' \\}"],
+    // ⚠️ 末一条没有尾逗号，`},?$` 不能写成 `},$`
+    ['backspace', "backspace: \\{ key: 'Backspace', label: '退格' \\}"]
+  ] as const) {
+    assert.match(
+      src,
+      new RegExp(`^\\s{2}${face},?$`, 'm'),
+      `「${id}」那条提示没了 —— 老大 09-24 明确要求"所有按键都进候选表"，别再删`
+    )
+  }
+  // ⚠️ 收藏夹的文案必须是「收藏夹」不是「收藏」—— 后者跟 ⌘K 那条撞词（底栏并排两个「收藏」）
+  assert.match(
+    src,
+    /^\s{2}favview: \{ mod: true, key: 'L', label: '收藏夹' \},$/m,
+    '「⌘L 收藏夹」的文案被改回「收藏」了 —— 它会跟 ⌘K 那条撞词'
+  )
+  assert.match(
+    src,
+    /^\s{2}(fav|edit|settings): \{ mod: true,/m,
+    '带修饰键的提示没有 mod: true —— 键帽上会少 ⌘ / Ctrl'
+  )
+  // ⚠️ 不带修饰键的那几条不许挂 mod（↑↓ / Tab / Enter / Delete / Esc / Backspace 两个平台写法一样）
+  for (const id of ['select', 'type', 'enter', 'del', 'esc', 'backspace']) {
+    assert.match(
+      src,
+      new RegExp(`^\\s{2}${id}: \\{ key: '`, 'm'),
+      `${id} 那条不该挂 mod（它的键帽两个平台一样）`
+    )
+  }
+  // ⚠️ 带修饰键的那几条**必须**有 mod，漏一个键帽上就少个 ⌘ / Ctrl（09-24 新增 3 条容易漏）
+  for (const id of ['copy', 'favview', 'search']) {
+    assert.match(
+      src,
+      new RegExp(`^\\s{2}${id}: \\{ mod: true,`, 'm'),
+      `${id} 那条丢了 mod: true —— 键帽上会少 ⌘ / Ctrl`
+    )
+  }
+})
+
+/*
+ * ★ 右边那三颗按钮的**文案表**（`FOOT_BUTTON_FACE`）也必须跟 `FOOT_BUTTONS` 一一对应 ——
+ * 少一个，那一颗药丸在面板里就是一段空白。
+ */
+test('★ 底栏三颗按钮在面板里都有名字（FOOT_BUTTON_FACE 跟 FOOT_BUTTONS 一一对应）', () => {
+  const m = src.match(/const FOOT_BUTTON_FACE: Record<FootButton, string> = \{([\s\S]*?)\n\}/)
+  assert.ok(m, 'App.vue 里找不到 FOOT_BUTTON_FACE')
+  for (const id of FOOT_BUTTONS) {
+    assert.match(m[1], new RegExp(`\\b${id}: '`), `FOOT_BUTTON_FACE 里少了 ${id}`)
+  }
+  // 面板里是循环渲染的（15 颗/3 颗都靠 v-for），别再退回一条条写死
+  assert.match(template, /v-for="\(b, i\) in FOOT_BUTTONS"/, '底栏按钮那一组不是按定义表循环的')
+  assert.match(template, /v-for="\(h, i\) in FOOT_HINTS"/, '底栏提示那一组不是按定义表循环的')
+  // 点一下要能切（走 toggleMember 那条唯一的路，跟键盘 Enter 同一句话）
+  assert.match(template, /@click="toggleFootHint\(h\)"/, '提示药丸点了没接上 toggleFootHint')
+  assert.match(template, /@click="toggleFootButton\(b\)"/, '按钮药丸点了没接上 toggleFootButton')
 })
 
 /*
