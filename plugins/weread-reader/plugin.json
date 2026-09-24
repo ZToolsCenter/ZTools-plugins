@@ -1,0 +1,32 @@
+{
+  "name": "weread-reader",
+  "title": "微信读书",
+  "description": "在 ZTools 主窗口内容区直接继续微信读书",
+  "author": "ZTools WeRead Reader Contributors",
+  "version": "0.8.2",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "pluginSetting": {
+    "single": true,
+    "height": 620,
+    "backgroundRunning": true
+  },
+  "features": [
+    {
+      "code": "weread",
+      "explain": "打开微信读书，优先继续上次阅读",
+      "cmds": ["读书", "微信读书"]
+    },
+    {
+      "code": "weread_continue",
+      "explain": "继续上次打开的微信读书阅读页",
+      "cmds": ["微信续读", "继续微信读书"]
+    },
+    {
+      "code": "weread_shelf",
+      "explain": "打开微信读书书架",
+      "cmds": ["微信书架", "微信读书书架"]
+    }
+  ]
+}

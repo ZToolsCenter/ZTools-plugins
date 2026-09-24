@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>自选股行情</title>
+  <link rel="stylesheet" href="panel.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="head">
+      <div class="brand">
+        <div class="title">股票管家 · 持仓与行情</div>
+        <div class="meta"><span id="statusChip" class="chip">--</span><span id="updateAt" class="muted">未更新</span></div>
+      </div>
+      <div class="tools">
+        <button id="btnRefresh" class="icon" title="立即刷新">⟳</button>
+        <button id="btnSettings" class="icon" title="设置">⚙</button>
+        <button id="btnClose" class="icon danger" title="关闭面板（Esc）">✕</button>
+      </div>
+    </header>
+
+    <!-- 顶部Tab切换：持仓与自选 -->
+    <nav class="navTabs">
+      <button id="tabPositions" class="tabBtn active">持仓股票 <span id="posCountBadge" class="tabBadge">0</span></button>
+      <button id="tabWatchlist" class="tabBtn">自选行情</button>
+    </nav>
+
+    <!-- 持仓股票管理视图 -->
+    <section id="viewPositions">
+      <div class="posOverview">
+        <div class="ovCard">
+          <span class="ovLabel">持仓总市值</span>
+          <span id="ovTotalMv" class="ovValue">¥0.00</span>
+        </div>
+        <div class="ovCard highlight">
+          <span class="ovLabel">总盈亏</span>
+          <div class="ovRow">
+            <span id="ovTotalPl" class="ovValue flat">--</span>
+            <span id="ovTotalPlRate" class="ovSub flat">--</span>
+          </div>
+        </div>
+        <div class="ovCard">
+          <span class="ovLabel">今日盈亏</span>
+          <span id="ovTodayPl" class="ovValue flat">--</span>
+        </div>
+      </div>
+
+      <div id="posWrap" class="listWrap">
+        <div id="posList" class="posList"></div>
+        <div id="posEmpty" class="empty" hidden>
+          <p>暂无股票持仓记录</p>
+          <p class="muted">点击下方「+ 记录买入」录入您的第一笔股票持仓</p>
+        </div>
+      </div>
+
+      <div class="posBar">
+        <button id="btnNewTxBuy" class="primary"><span class="btnIco">+</span> 记录买入</button>
+        <button id="btnNewTxSell" class="ghost"><span class="btnIco">-</span> 记录卖出</button>
+        <button id="btnBallFromPos" class="ghost" title="显示或隐藏桌面悬浮球">悬浮球</button>
+      </div>
+    </section>
+
+    <!-- 自选行情列表视图 -->
+    <section id="viewList" hidden>
+      <div id="indexes" class="indexes"></div>
+      <div class="groupBar">
+        <div id="groupTabs" class="groupTabs"></div>
+        <button id="btnAddGroup" class="btnNewGroup" title="新建自选分组">+ 分组</button>
+      </div>
+      <div id="listWrap" class="listWrap">
+        <div id="listHeader" class="listHeader">
+          <div class="lhDrag"></div>
+          <div class="lhName">名称</div>
+          <div class="lhPrice sortable" id="sortPrice" title="按最新价排序">最新价 <span id="sortPriceIcon">⇅</span></div>
+          <div class="lhPct sortable" id="sortPct" title="按涨跌幅排序">涨跌幅 <span id="sortPctIcon">⇅</span></div>
+          <div class="lhOps">操作</div>
+        </div>
+        <div id="list" class="list"></div>
+        <div id="empty" class="empty" hidden>
+          <p>自选股是空的</p>
+          <p class="muted">在下面输入代码或名称添加，例如 600961 / 株冶集团</p>
+        </div>
+      </div>
+      <div class="addBar">
+        <input id="kw" type="text" placeholder="添加自选股：代码 / 名称 / 拼音" autocomplete="off" spellcheck="false" />
+        <button id="btnBall" class="ghost" title="显示或隐藏桌面悬浮球">悬浮球</button>
+      </div>
+      <div id="suggest" class="suggest" hidden></div>
+    </section>
+
+    <!-- 4. 设置视图 -->
+    <section id="viewSettings" hidden>
+      <div class="form">
+        <div class="settingsSecHeader">基础设置</div>
+        <label class="row2"><span>行情刷新间隔</span>
+          <select id="setRefresh">
+            <option value="3">3 秒</option>
+            <option value="5">5 秒</option>
+            <option value="10">10 秒</option>
+            <option value="30">30 秒</option>
+            <option value="60">60 秒</option>
+          </select>
+        </label>
+        <label class="row2"><span>球大小 <b id="valBallSize" style="font-size:12px;color:var(--primary);font-weight:600;margin-left:4px;">72px</b></span>
+          <input id="setBallSize" type="range" min="60" max="96" step="2" value="72" />
+        </label>
+        <label class="row2"><span>球透明度 <b id="valOpacity" style="font-size:12px;color:var(--primary);font-weight:600;margin-left:4px;">95%</b></span>
+          <input id="setOpacity" type="range" min="30" max="100" step="5" />
+        </label>
+        <label class="row2"><span>面板总在最前</span><input id="setOnTop" type="checkbox" /></label>
+
+        <div class="settingsSecHeader" style="margin-top:14px;">费率设置</div>
+        <div class="rateCard">
+          <div class="rateItem">
+            <div class="rateItemTop">
+              <span class="rateLabel">是否免五</span>
+              <label class="switchLabel">
+                <input id="setFreeFive" type="checkbox" checked />
+                <span class="switchSlider"></span>
+                <span id="txtFreeFive" class="switchText">免五</span>
+              </label>
+            </div>
+            <div class="rateDesc">免五：免除单笔交易佣金最低 5 元的收费限制</div>
+          </div>
+
+          <div class="rateItem">
+            <div class="rateItemTop">
+              <span class="rateLabel">沪深股票佣金费率</span>
+              <div class="rateInputWrap">
+                <input id="setStockComm" type="number" step="0.001" min="0" value="0.854" />
+                <span class="rateUnit">万分之一</span>
+              </div>
+            </div>
+            <div class="rateDesc">单位：万分之一，如 0.84 表示万0.84，3 表示万三</div>
+          </div>
+
+          <div class="rateItem">
+            <div class="rateItemTop">
+              <span class="rateLabel">ETF佣金费率</span>
+              <div class="rateInputWrap">
+                <input id="setEtfComm" type="number" step="0.001" min="0" value="0.6" />
+                <span class="rateUnit">万分之一</span>
+              </div>
+            </div>
+            <div class="rateDesc">单位：万分之一，如 0.84 表示万0.84，3 表示万三</div>
+          </div>
+
+          <div class="rateItem">
+            <div class="rateItemTop">
+              <span class="rateLabel">过户费（深股）</span>
+              <div class="rateInputWrap">
+                <input id="setShenzhenTransfer" type="number" step="0.01" min="0" value="0" />
+                <span class="rateUnit">万分之一</span>
+              </div>
+            </div>
+            <div class="rateDesc">单位：万分之一，如 0.1 表示万0.1（即 0.001%），1 表示万一</div>
+          </div>
+
+          <div class="rateItem">
+            <div class="rateItemTop">
+              <span class="rateLabel">过户费（沪股）</span>
+              <div class="rateInputWrap">
+                <input id="setShanghaiTransfer" type="number" step="0.01" min="0" value="0.1" />
+                <span class="rateUnit">万分之一</span>
+              </div>
+            </div>
+            <div class="rateDesc">单位：万分之一，如 0.1 表示万0.1（即 0.001%），1 表示万一</div>
+          </div>
+
+          <div class="rateItem">
+            <div class="rateItemTop">
+              <span class="rateLabel">印花税费率</span>
+              <div class="rateInputWrap">
+                <input id="setStampTax" type="number" step="0.1" min="0" value="5" />
+                <span class="rateUnit">万分之一</span>
+              </div>
+            </div>
+            <div class="rateDesc">单位：万分之一，如 5 表示千分之0.5（即万5），仅卖出收取</div>
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top:14px;">
+          <button id="btnSave" class="primary">保存设置</button>
+          <button id="btnReset" class="ghost">恢复默认</button>
+          <button id="btnBack" class="ghost">返回列表</button>
+        </div>
+
+        <p id="saveTip" class="muted tip" hidden>已保存 ✓ 球和面板会立刻按新设置工作</p>
+      </div>
+    </section>
+
+    <!-- 买入/卖出交易录入弹窗 -->
+    <div id="txModal" class="modalMask" hidden>
+      <div class="modalBox">
+        <div class="modalHeadClean">
+          <h3 id="txModalTitle" class="modalTitle text-up">买入</h3>
+          <button id="btnTxClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody">
+          <div id="txTypeSwitch" class="typeSwitch" style="display:none;">
+            <button id="txTypeBuy" class="typeBtn active buy" type="button">买入</button>
+            <button id="txTypeSell" class="typeBtn sell" type="button">卖出</button>
+          </div>
+          <div id="txCodeRow" class="formRow" style="display:none;">
+            <label>股票代码 / 拼音</label>
+            <input id="txCode" type="text" placeholder="输入代码或拼音搜索..." autocomplete="off" />
+            <div id="txSuggest" class="suggest suggestModal" hidden></div>
+          </div>
+          <input id="txName" type="hidden" />
+          <div class="formRow">
+            <label>交易价格 (元)</label>
+            <input id="txPrice" type="number" step="0.01" min="0" placeholder="0.00" />
+          </div>
+          <div class="formRow">
+            <label>交易数量 (股)</label>
+            <input id="txQty" type="number" step="100" min="100" placeholder="100" value="100" />
+          </div>
+          <div id="txSellable" class="txSellableHint" hidden></div>
+          <div class="txCalcBox">
+            <div class="txCalcRow">
+              <span class="txCalcLabel">预计成交额</span>
+              <span id="txTradeAmount" class="txCalcVal">¥0.00</span>
+            </div>
+            <div class="txCalcRow">
+              <span class="txCalcLabel">预估手续费</span>
+              <span id="txFeeAmount" class="txCalcVal fee">¥0.00</span>
+            </div>
+            <div id="txFeeDetail" class="txFeeDetail">佣金 ¥0.00 · 过户费 ¥0.00 · 印花税 ¥0.00</div>
+            <div class="txCalcTotalRow">
+              <span id="txTotalLabel">实付金额</span>
+              <span id="txTotalVal" class="txTotalVal">¥0.00</span>
+            </div>
+          </div>
+          <input id="txTotal" type="hidden" />
+          <input id="txDate" type="hidden" />
+          <div id="txError" class="txError" hidden></div>
+          <div class="modalActions">
+            <button id="btnTxCancel" class="btn-cancel" type="button">取消</button>
+            <button id="btnTxSubmit" class="btn-buy" type="button">确定</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 股票交易流水明细弹窗 -->
+    <div id="dtModal" class="modalMask" hidden>
+      <div class="modalBox modalBoxWide">
+        <div class="modalHeadClean">
+          <h3 id="dtModalTitle" class="modalTitle" style="color:#fff;">交易明细流水</h3>
+          <button id="btnDtClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody">
+          <div id="dtSummary" class="dtSummary"></div>
+          <div id="dtList" class="dtList"></div>
+          <div class="modalActions" style="margin-top:10px;">
+            <button id="btnDtDone" class="btn-cancel" type="button" style="margin-left:auto;">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自选股分组管理弹窗 -->
+    <div id="groupModal" class="modalMask" hidden>
+      <div class="modalBox modalBoxSmall">
+        <div class="modalHeadClean">
+          <h3 id="groupModalTitle" class="modalTitle" style="color:#fff;">新建分组</h3>
+          <button id="btnGroupModalClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody">
+          <div id="groupInputWrap" class="formRow">
+            <label id="groupModalLabel">分组名称</label>
+            <input id="groupInputName" type="text" placeholder="如：科技、消费、高股息" maxlength="12" autocomplete="off" />
+          </div>
+          <div id="groupModalSelectWrap" class="formRow" hidden>
+            <label>移动至分组</label>
+            <select id="groupSelectTarget"></select>
+          </div>
+          <div id="groupModalError" class="txError" hidden></div>
+          <div class="modalActions">
+            <button id="btnGroupDelete" class="btn-sell" type="button" style="margin-right:auto;" hidden>删除分组</button>
+            <button id="btnGroupCancel" class="btn-cancel" type="button">取消</button>
+            <button id="btnGroupSubmit" class="btn-buy" type="button">确定</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通用确认对话框 (替代系统 confirm) -->
+    <div id="confirmModal" class="modalMask" hidden>
+      <div class="modalBox modalBoxSmall">
+        <div class="modalHeadClean">
+          <h3 id="confirmTitle" class="modalTitle" style="color:#fff;">确认操作</h3>
+          <button id="btnConfirmClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody">
+          <p id="confirmMsg" class="confirmText">确定要执行此操作吗？</p>
+          <div class="modalActions">
+            <button id="btnConfirmCancel" class="btn-cancel" type="button">取消</button>
+            <button id="btnConfirmOk" class="btn-buy" type="button">确定删除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="panel.js"></script>
+</body>
+</html>

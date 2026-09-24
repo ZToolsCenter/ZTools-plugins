@@ -11,7 +11,9 @@
     "build-release": "cargo-cp-artifact -nc index.node -- cargo build --message-format=json-render-diagnostics --release",
     "install": "npm run build-release",
     "test": "cargo test",
-    "test:everything": "node ../scripts/test-everything-addon.cjs"
+    "test:everything": "node ../scripts/test-everything-addon.cjs",
+    "format": "cargo fmt",
+    "format:check": "cargo fmt --check"
   },
   "devDependencies": {
     "cargo-cp-artifact": "^0.1"

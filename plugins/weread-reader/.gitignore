@@ -1,0 +1,28 @@
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors and local tooling
+.idea/
+.vscode/
+*.log
+*.tmp
+
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Browser and login-session data must never enter the repository
+Cookies
+Cookies-journal
+Local Storage/
+Session Storage/
+IndexedDB/
+GPUCache/

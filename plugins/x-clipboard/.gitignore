@@ -1,0 +1,26 @@
+# ---- Node / Vite ----
+node_modules/
+dist/
+out/
+.vite/
+*.tsbuildinfo
+
+# ---- 插件打包产物 ----
+release/
+*.zpx
+
+# ---- 系统 / 编辑器 ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log*
+
+# ---- 本地环境变量 ----
+.env
+.env.local
+.env.*.local
+
+# ---- WorkBuddy 工作区数据（绝不入库、也绝不进 PR） ----
+.workbuddy/

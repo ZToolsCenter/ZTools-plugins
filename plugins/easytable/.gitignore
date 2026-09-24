@@ -1,0 +1,10 @@
+node_modules/
+dist/
+src-ztools/dist/
+*.local
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+*.tsbuildinfo

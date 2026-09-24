@@ -46,18 +46,18 @@ export function useContextMenu() {
     }
   }
 
-  function handleGlobalClick(event: MouseEvent) {
-    if (!visible.value || event.button !== 0) return;
-    if (event.target instanceof HTMLElement && event.target.closest(".context-menu")) return;
+  function handleGlobalPointerDown(event: PointerEvent) {
+    if (!visible.value) return;
+    if (event.target instanceof Element && event.target.closest(".context-menu")) return;
     close();
   }
 
   onMounted(() => {
-    window.addEventListener("click", handleGlobalClick);
+    window.addEventListener("pointerdown", handleGlobalPointerDown, true);
   });
 
   onUnmounted(() => {
-    window.removeEventListener("click", handleGlobalClick);
+    window.removeEventListener("pointerdown", handleGlobalPointerDown, true);
   });
 
   return {

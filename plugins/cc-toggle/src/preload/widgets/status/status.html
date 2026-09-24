@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>CCToggle 余额</title>
+    <link rel="stylesheet" href="../assets/widget-common.css" />
+    <style>
+      #widget {
+        position: relative;
+        height: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: opacity 0.2s;
+        -webkit-app-region: drag; /* 无 header，整个小组件作为拖拽区域 */
+      }
+      /* ── 主内容：左上信息 + 底部大号余额 ── */
+      .w-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 12px 14px 10px;
+        min-height: 0;
+      }
+      .w-head {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .w-agent-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .w-icon {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+      .w-agent {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .w-provider {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .w-provider.w-unactivated {
+        color: var(--text-faint);
+        font-weight: 500;
+      }
+      .w-sub {
+        font-size: 11px;
+        color: var(--text-faint);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .w-balance-wrap {
+        flex: 1;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        min-height: 0;
+      }
+      .w-balance {
+        font-size: 32px;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .w-balance--low {
+        color: var(--danger);
+      }
+      .w-balance--muted {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-muted);
+      }
+      /* ── 占位（无 preload 环境） ── */
+      .w-placeholder {
+        display: none;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        font-size: 12px;
+        padding: 12px;
+      }
+      /* ── 设置面板 ── */
+      .w-settings {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 20;
+        background: var(--bg-panel);
+        padding: 10px 12px;
+        overflow-y: auto;
+        border-radius: 12px;
+        -webkit-app-region: no-drag;
+      }
+      .w-settings.open {
+        display: block;
+      }
+      .ws-back {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        margin-bottom: 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .ws-back:hover {
+        border-color: var(--primary);
+        color: var(--text);
+      }
+      .ws-title {
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+      .ws-group {
+        margin-bottom: 14px;
+      }
+      .ws-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+      }
+      .ws-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 0;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .ws-toggle + .ws-toggle {
+        border-top: 1px solid var(--border);
+      }
+      .ws-toggle input {
+        accent-color: var(--primary);
+        cursor: pointer;
+      }
+      .ws-opacity-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .ws-range {
+        flex: 1;
+        accent-color: var(--primary);
+      }
+      .ws-val {
+        width: 34px;
+        text-align: right;
+        font-size: 11px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .ws-select {
+        width: 100%;
+        padding: 5px 8px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg-panel);
+        color: var(--text);
+        font-size: 12px;
+      }
+      .ws-select option {
+        background: var(--bg-panel);
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="widget">
+      <div class="w-tools">
+        <button id="btn-pin" class="w-icobtn w-icobtn--pin" title="置顶">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 3h6v2h1v4h1l1 2v2h-6v8l-1 1-1-1v-8H5v-2l1-2h1V5h1V3z" />
+          </svg>
+        </button>
+        <button id="btn-gear" class="w-icobtn" title="设置">⚙</button>
+        <button id="btn-close" class="w-icobtn w-icobtn--danger" title="关闭">×</button>
+      </div>
+
+      <div id="w-body" class="w-body">
+        <div class="w-head">
+          <div class="w-agent-row">
+            <img id="w-icon" class="w-icon" alt="" />
+            <span id="w-agent" class="w-agent"></span>
+          </div>
+          <span id="w-provider" class="w-provider"></span>
+          <span id="w-sub" class="w-sub"></span>
+        </div>
+        <div class="w-balance-wrap">
+          <span id="w-balance" class="w-balance"></span>
+        </div>
+      </div>
+      <div id="w-placeholder" class="w-placeholder">小组件仅支持 ZTools 环境</div>
+
+      <div id="w-settings" class="w-settings">
+        <button id="btn-settings-back" class="ws-back" title="返回">← 返回</button>
+        <div class="ws-title">小组件设置</div>
+        <div class="ws-group">
+          <label class="ws-toggle"
+            ><span>显示余额</span><input type="checkbox" id="cfg-balance"
+          /></label>
+          <label class="ws-toggle"
+            ><span>显示模型名</span><input type="checkbox" id="cfg-model"
+          /></label>
+          <label class="ws-toggle"
+            ><span>显示备注</span><input type="checkbox" id="cfg-remark"
+          /></label>
+        </div>
+        <div class="ws-group">
+          <div class="ws-label">透明度</div>
+          <div class="ws-opacity-row">
+            <input type="range" id="cfg-opacity" class="ws-range" min="0.5" max="1" step="0.05" />
+            <span id="cfg-opacity-val" class="ws-val">1.0</span>
+          </div>
+        </div>
+        <div class="ws-group">
+          <div class="ws-label">主题</div>
+          <select id="cfg-theme" class="ws-select">
+            <option value="auto">跟随系统</option>
+            <option value="light">浅色</option>
+            <option value="dark">深色</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var api = window.__cctoggleWidget;
+        var bodyEl = document.getElementById('w-body');
+        var settingsEl = document.getElementById('w-settings');
+        var placeholderEl = document.getElementById('w-placeholder');
+        var state = null;
+
+        if (!api) {
+          placeholderEl.style.display = 'flex';
+          return;
+        }
+
+        function applyConfig(cfg) {
+          var theme = cfg.theme || 'auto';
+          var isDark =
+            theme === 'dark' ||
+            (theme === 'auto' &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+          var op = Math.min(1, Math.max(0.4, Number(cfg.opacity) || 1));
+          document.body.style.opacity = String(op);
+          document.getElementById('cfg-balance').checked = !!cfg.showBalance;
+          document.getElementById('cfg-model').checked = !!cfg.showModel;
+          document.getElementById('cfg-remark').checked = !!cfg.showRemark;
+          document.getElementById('cfg-opacity').value = String(op);
+          document.getElementById('cfg-opacity-val').textContent = op.toFixed(2);
+          document.getElementById('cfg-theme').value = cfg.theme || 'auto';
+          document
+            .getElementById('btn-pin')
+            .classList.toggle('w-icobtn--active', !!cfg.alwaysOnTop);
+          document.getElementById('btn-pin').title = cfg.alwaysOnTop ? '取消置顶' : '置顶';
+        }
+
+        function render() {
+          state = api.getState();
+          applyConfig(state.config);
+          bodyEl.setAttribute('data-app', state.appType);
+          bodyEl.setAttribute('data-provider', state.providerName);
+
+          var img = document.getElementById('w-icon');
+          // icon 为相对本页面（preload/widgets/status/）的路径：../assets/images/agents/{appType}.png
+          img.src = state.icon;
+          img.alt = state.label;
+
+          document.getElementById('w-agent').textContent = state.label;
+
+          var prov = document.getElementById('w-provider');
+          prov.textContent = state.providerName;
+          prov.className = 'w-provider' + (state.providerId ? '' : ' w-unactivated');
+
+          document.getElementById('w-sub').textContent = [state.model, state.remark]
+            .filter(Boolean)
+            .join(' · ');
+
+          var bal = document.getElementById('w-balance');
+          var b = state.balance || { status: 'hidden' };
+          bal.className = 'w-balance';
+          if (b.status === 'ok') {
+            bal.textContent = b.text;
+            if (b.low) {
+              bal.classList.add('w-balance--low');
+              bal.title = '余额偏低';
+            }
+          } else if (b.status === 'none') {
+            bal.textContent = '未配置';
+            bal.classList.add('w-balance--muted');
+          } else if (b.status === 'err') {
+            bal.textContent = '—';
+            bal.title = b.error || '查询失败';
+            bal.classList.add('w-balance--muted');
+          } else if (b.status === 'loading') {
+            bal.textContent = '…';
+            bal.classList.add('w-balance--muted');
+          }
+        }
+
+        document.getElementById('btn-close').addEventListener('click', function () {
+          api.close();
+        });
+        document.getElementById('btn-pin').addEventListener('click', function () {
+          var next = !state.config.alwaysOnTop;
+          // 本地立即切换视觉状态，不依赖 setConfig/emitUpdate 链路
+          state.config.alwaysOnTop = next;
+          document.getElementById('btn-pin').classList.toggle('w-icobtn--active', next);
+          document.getElementById('btn-pin').title = next ? '取消置顶' : '置顶';
+          api.setConfig({ alwaysOnTop: next });
+        });
+        document.getElementById('btn-gear').addEventListener('click', function () {
+          settingsEl.classList.toggle('open');
+        });
+        document.getElementById('btn-settings-back').addEventListener('click', function () {
+          settingsEl.classList.remove('open');
+        });
+
+        function bindSettings() {
+          document.getElementById('cfg-balance').addEventListener('change', function (e) {
+            api.setConfig({ showBalance: e.target.checked });
+            render();
+          });
+          document.getElementById('cfg-model').addEventListener('change', function (e) {
+            api.setConfig({ showModel: e.target.checked });
+            render();
+          });
+          document.getElementById('cfg-remark').addEventListener('change', function (e) {
+            api.setConfig({ showRemark: e.target.checked });
+            render();
+          });
+          document.getElementById('cfg-opacity').addEventListener('input', function (e) {
+            var v = Number(e.target.value) || 1;
+            document.getElementById('cfg-opacity-val').textContent = v.toFixed(2);
+            document.body.style.opacity = String(v);
+            api.setConfig({ opacity: v });
+          });
+          document.getElementById('cfg-theme').addEventListener('change', function (e) {
+            api.setConfig({ theme: e.target.value });
+            render();
+          });
+        }
+
+        api.subscribe(function (s) {
+          state = s;
+          render();
+        });
+        bindSettings();
+        render();
+        var renderTimer = setInterval(function () {
+          render();
+        }, 15000);
+        // 窗口关闭时清理定时器，避免页面停留期悬挂引用
+        window.addEventListener('pagehide', function () {
+          if (renderTimer) {
+            clearInterval(renderTimer);
+            renderTimer = null;
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

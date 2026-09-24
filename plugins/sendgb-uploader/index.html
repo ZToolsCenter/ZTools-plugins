@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <title>SendGB 上传</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="bar">
+      <div class="brand"><span class="dot"></span>SendGB</div>
+      <div class="modes">
+        <button class="mode active" data-mode="up">上传</button>
+        <button class="mode" data-mode="down">接收下载</button>
+      </div>
+      <div class="actions">
+        <button id="btnSettings" class="ghost" title="设置">设置</button>
+      </div>
+    </header>
+
+    <div id="notReady" class="warn hidden"></div>
+
+    <div id="upBox">
+      <div id="drop" class="drop">
+        <div class="drop-main">把文件拖进来，或点击选择</div>
+        <div class="drop-sub">自动上传 → 链接自动复制，免注册，单次最多 5GB</div>
+      </div>
+      <ul id="files" class="files hidden"></ul>
+      <div class="progress-row">
+        <div class="bar-bg"><div id="upBar" class="bar-fill"></div></div>
+        <span id="upEta" class="eta"></span>
+        <span id="upPct" class="pct">0%</span>
+      </div>
+      <div id="upStatus" class="status">等待文件</div>
+      <div class="result" id="resultRow">
+        <input id="link" class="link" readonly placeholder="上传完成后这里出现上传分享链接" />
+        <button id="btnCopy" class="primary" disabled>复制上传链接</button>
+      </div>
+    </div>
+
+    <div id="downBox" class="hidden">
+      <div class="row dl-link-row">
+        <input id="dlLink" class="link" placeholder="粘贴 SendGB 链接，例如 https://www.sendgb.com/qHClop7TnVn" />
+        <button id="btnDlPaste" class="ghost" title="从剪贴板粘贴">粘贴</button>
+      </div>
+      <div id="dlInfo" class="dl-info hidden">
+        <div class="dl-head">
+          <span id="dlTitle">文件列表</span>
+          <span id="dlMeta" class="dl-meta"></span>
+        </div>
+        <ul id="dlFiles" class="files"></ul>
+      </div>
+      <div class="row">
+        <label>保存到</label>
+        <input id="dlDir" class="link" readonly />
+        <button id="btnDlDir" class="ghost">改目录</button>
+      </div>
+      <div class="row">
+        <label class="check-label" style="width:auto">
+          <input type="checkbox" id="chkZip" />
+          <span>打包成一个 ZIP</span>
+        </label>
+        <span style="flex:1"></span>
+        <button id="btnDlStart" class="primary" disabled>下载</button>
+        <button id="btnDlOpen" class="ghost" disabled>打开文件夹</button>
+      </div>
+      <div class="progress-row">
+        <div class="bar-bg"><div id="dlBar" class="bar-fill dl-fill"></div></div>
+        <span id="dlEta" class="eta"></span>
+        <span id="dlPct" class="pct">0%</span>
+      </div>
+      <div id="dlStatus" class="status">输入或粘贴 SendGB 链接即可开始下载</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="history">历史链接</button>
+      <button class="tab" data-tab="log">运行日志</button>
+      <button class="tab" data-tab="settings">设置</button>
+    </div>
+
+    <div class="panel" id="panel-history">
+      <div class="hist-toolbar">
+        <div class="hist-filters">
+          <button class="hist-filter active" data-filter="all">全部</button>
+          <button class="hist-filter" data-filter="up">上传链接</button>
+          <button class="hist-filter" data-filter="down">下载链接</button>
+        </div>
+      </div>
+      <div class="hist-header">
+        <span class="col-link" id="histColTitle">链接地址</span>
+        <span class="col-name">文件名称</span>
+        <span class="col-time" id="histTimeTitle">记录时间</span>
+        <span class="col-action">操作</span>
+      </div>
+      <ul id="history" class="hist"></ul>
+    </div>
+    <div class="panel hidden" id="panel-log"><pre id="log" class="log"></pre></div>
+    <div class="panel hidden" id="panel-settings">
+      <div class="setting-item">
+        <label class="check-label">
+          <input type="checkbox" id="chkShowBrowser" checked />
+          <span>上传时显示浏览器窗口（开箱即见上传进度，可在设置中关闭窗口后台运行）</span>
+        </label>
+      </div>
+      <div class="setting-item">
+        <label class="check-label">
+          <input type="checkbox" id="chkUseAria2" checked />
+          <span id="txtAria2Desc">优先使用 aria2c 多线程极速下载（内置 16 线程加速引擎，开箱即用跑满宽带）</span>
+        </label>
+      </div>
+      <div class="row">
+        <button id="btnEnv" class="ghost">检查环境</button>
+        <button id="btnKill" class="ghost">清理残留浏览器</button>
+        <button id="btnCancel" class="ghost danger">中止本次上传</button>
+        <button id="btnCancelDl" class="ghost danger">中止本次下载</button>
+      </div>
+      <pre id="env" class="log small"></pre>
+    </div>
+
+    <footer class="foot">
+      <span id="footText">免注册，单次最多 5GB（上传自动调用 Chrome / Edge，默认显示浏览器窗口）</span>
+    </footer>
+
+    <div id="confirmModal" class="modal-overlay hidden">
+      <div class="modal-box">
+        <div class="modal-title">删除确认</div>
+        <div id="confirmMsg" class="modal-body">确定要删除此条记录吗？</div>
+        <div class="modal-actions">
+          <button id="btnConfirmCancel" class="ghost">取消</button>
+          <button id="btnConfirmOk" class="danger-btn">确定删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="alertModal" class="modal-overlay hidden">
+      <div class="modal-box">
+        <div class="modal-title" style="display:flex;align-items:center;gap:6px;color:#e5484d;">
+          <span>⚠️</span>
+          <span id="alertTitle">文件大小超出限制</span>
+        </div>
+        <div id="alertMsg" class="modal-body" style="line-height:1.6;"></div>
+        <div class="modal-actions">
+          <button id="btnAlertOk" class="primary" style="padding:4px 18px;">我知道了</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

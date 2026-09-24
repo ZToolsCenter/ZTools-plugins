@@ -5,7 +5,7 @@ import path from "node:path";
 
 const rawPipelineReached = vi.hoisted(() => vi.fn());
 
-vi.mock("sharp", () => {
+vi.mock("../src/preload/sharp-runtime", () => {
   const sharpMock = vi.fn(() => ({
     metadata: vi.fn(async () => ({ width: 10000, height: 10000 })),
     rotate: vi.fn(() => {
@@ -13,7 +13,7 @@ vi.mock("sharp", () => {
       throw new Error("raw pipeline should not run");
     })
   }));
-  return { default: sharpMock };
+  return { sharp: sharpMock };
 });
 
 describe("merge image memory guard", () => {

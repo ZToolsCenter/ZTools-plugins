@@ -1,0 +1,292 @@
+:root,
+[data-theme='dark'] {
+  --bg: #0f1115;
+  --surface: #181b21;
+  --surface-2: #1e2229;
+  --border: #2a2f38;
+  --text: #e6e8ec;
+  --muted: #9aa3af;
+  --accent: #a8b4c4;
+  --accent-hover: #c8d3e0;
+  --accent-fg: #0f1115;
+  --danger: #f07178;
+  --danger-bg: #2a181a;
+  --danger-border: #5c2b30;
+  --ok: #7dba8c;
+  --warn: #d4a574;
+  --warn-bg: #2a2118;
+  --warn-border: #5c4a2e;
+  --selected: #252a33;
+  --hover: #1c2027;
+  --mask: rgba(15, 17, 21, 0.72);
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --json-bg: #12151a;
+  --json-fg: #d5dae3;
+  --spinner-track: #3a414d;
+  --radius: 4px;
+  --bs-border-radius: 0.25rem;
+  --bs-border-radius-sm: 0.2rem;
+  --bs-border-radius-lg: 0.3rem;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Cascadia Code', 'Consolas', 'SFMono-Regular', monospace;
+}
+
+[data-theme='light'] {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --surface-2: #f8f9fb;
+  --border: #e2e5ea;
+  --text: #1c1f26;
+  --muted: #6b7280;
+  --accent: #4b5568;
+  --accent-hover: #374151;
+  --accent-fg: #ffffff;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --ok: #15803d;
+  --warn: #b45309;
+  --warn-bg: #fffbeb;
+  --warn-border: #fde68a;
+  --selected: #e8eaee;
+  --hover: #f1f3f5;
+  --mask: rgba(243, 244, 246, 0.78);
+  --shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --json-bg: #f0f2f5;
+  --json-fg: #1c1f26;
+  --spinner-track: #c5cad3;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Keep Bootstrap btn sizing compact in plugin chrome; do not restyle colors/radius */
+.btn {
+  width: auto !important;
+  max-width: none !important;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.field label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* Theme-aware Bootstrap form colors only ? keep Bootstrap shape/radius */
+.form-control,
+.form-select {
+  color: var(--text);
+  background-color: var(--surface-2);
+  border-color: var(--border);
+}
+
+.form-control::placeholder {
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.form-control:focus,
+.form-select:focus {
+  color: var(--text);
+  background-color: var(--surface-2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(168, 180, 196, 0.28);
+}
+
+[data-theme='light'] .form-control:focus,
+[data-theme='light'] .form-select:focus {
+  box-shadow: 0 0 0 0.2rem rgba(75, 85, 104, 0.22);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  background-color: var(--hover);
+  opacity: 0.7;
+}
+
+.form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%239aa3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+
+[data-theme='light'] .form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+
+.form-check-input {
+  background-color: var(--surface-2);
+  border-color: var(--border);
+}
+
+.form-check-input:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--mask);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-panel {
+  width: min(640px, 100%);
+  max-height: min(80vh, 720px);
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+
+.hrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Do not fight Bootstrap btn/form padding ? only neutralize grid column width */
+.hrow > .btn,
+.hrow > .form-control,
+.hrow > .form-select,
+.hrow > label,
+.hrow > span,
+.hrow > strong,
+.hrow > .combo {
+  width: auto;
+  max-width: none;
+}
+
+.err {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.panel > strong {
+  display: block;
+  margin-bottom: 2px;
+  letter-spacing: 0.01em;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  padding: 7px 10px;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--muted);
+  font-weight: 600;
+  background: var(--surface-2);
+}
+
+.table tr.active {
+  background: var(--selected);
+}
+
+.table tbody tr:hover {
+  background: var(--hover);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.scroll {
+  overflow: auto;
+}
+
+.json-view {
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  background: var(--json-bg);
+  color: var(--json-fg);
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}

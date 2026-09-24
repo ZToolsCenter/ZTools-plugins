@@ -26,6 +26,18 @@ describe("output path helpers", () => {
     expect(output).toBe(path.join("/tmp/out", "Product Hero-3-1200x800-1.webp"));
   });
 
+  it("does not parse tokens introduced by replacement values", () => {
+    const output = buildOutputPath({
+      inputPath: "/tmp/{ext}.png",
+      outputDirectory: "/tmp/out",
+      targetFormat: "webp",
+      namingPattern: "{name}-{index}.{ext}",
+      index: 1
+    });
+
+    expect(output).toBe(path.join("/tmp/out", "{ext}-1.webp"));
+  });
+
   it("skips existing disk files when overwrite is disabled", async () => {
     const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "image-batch-paths-"));
     const existingPath = path.join(dir, "sample.png");

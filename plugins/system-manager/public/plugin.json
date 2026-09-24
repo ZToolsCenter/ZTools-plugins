@@ -1,0 +1,625 @@
+{
+  "name": "system-manager",
+  "title": "系统管家",
+  "description": "集中查看软硬件状态，并管理应用卸载、开机启动、垃圾清理与局域网设备。",
+  "author": "Harris",
+  "version": "0.2.1",
+  "main": "index.html",
+  "preload": "preload/index.cjs",
+  "logo": "logo.svg",
+  "tools": {
+    "get_capabilities": {
+      "description": "返回当前 renderer 会话标识、系统管家 Agent 工具版本、平台、短时授权状态、范围、硬上限与可用工具；不会读取业务数据或产生副作用。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": { "type": "string", "maxLength": 40 },
+          "runtimeSessionId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "platform": { "type": "string", "enum": ["darwin", "win32", "linux"], "maxLength": 10 },
+          "authorization": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "available": { "type": "boolean" },
+              "active": { "type": "boolean" },
+              "expiresAt": { "type": ["string", "null"], "maxLength": 40 },
+              "remainingMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
+              "scopes": { "type": "array", "maxItems": 5, "items": { "type": "string", "enum": ["report_export", "application_removal", "startup_changes", "system_cleanup", "lan_scan"], "maxLength": 32 } }
+            },
+            "required": ["available", "active", "expiresAt", "remainingMs", "scopes"]
+          },
+          "scopes": { "type": "array", "maxItems": 5, "items": { "type": "string", "enum": ["report_export", "application_removal", "startup_changes", "system_cleanup", "lan_scan"], "maxLength": 32 } },
+          "limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "actionTtlMs": { "type": "integer", "minimum": 90000, "maximum": 90000 },
+              "authorizationTtlMs": { "type": "integer", "minimum": 600000, "maximum": 600000 },
+              "inventoryTtlMs": { "type": "integer", "minimum": 300000, "maximum": 300000 },
+              "journalEntries": { "type": "integer", "minimum": 100, "maximum": 100 },
+              "journalTtlMs": { "type": "integer", "minimum": 600000, "maximum": 600000 },
+              "lanScanMinIntervalMs": { "type": "integer", "minimum": 15000, "maximum": 15000 },
+              "pageSizeMax": { "type": "integer", "minimum": 100, "maximum": 100 },
+              "reportSnapshots": { "type": "integer", "minimum": 3, "maximum": 3 },
+              "reportTtlMs": { "type": "integer", "minimum": 300000, "maximum": 300000 }
+            },
+            "required": ["actionTtlMs", "authorizationTtlMs", "inventoryTtlMs", "journalEntries", "journalTtlMs", "lanScanMinIntervalMs", "pageSizeMax", "reportSnapshots", "reportTtlMs"]
+          },
+          "tools": {
+            "type": "array",
+            "maxItems": 22,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string", "maxLength": 64 },
+                "mode": { "type": "string", "enum": ["read", "prepare", "write"], "maxLength": 8 },
+                "scope": { "type": ["string", "null"], "enum": [null, "report_export", "application_removal", "startup_changes", "system_cleanup", "lan_scan"], "maxLength": 32 }
+              },
+              "required": ["name", "mode", "scope"]
+            }
+          }
+        },
+        "required": ["version", "runtimeSessionId", "platform", "authorization", "scopes", "limits", "tools"]
+      }
+    },
+    "collect_diagnostic_report": {
+      "description": "在本机采集经过固定字段投影的软硬件诊断摘要并缓存 5 分钟；默认使用最小指纹模式，不上传数据。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "privacy": { "type": "string", "enum": ["fingerprint-minimal", "safe"], "maxLength": 20, "default": "fingerprint-minimal" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reportId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "generatedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "expiresAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "privacy": { "type": "string", "enum": ["fingerprint-minimal", "safe"], "maxLength": 20 },
+          "status": { "type": "string", "enum": ["ok", "warning", "partial", "failed", "unknown"], "maxLength": 16 },
+          "report": { "type": "object", "maxProperties": 20, "additionalProperties": {} }
+        },
+        "required": ["reportId", "generatedAt", "expiresAt", "privacy", "status", "report"]
+      }
+    },
+    "render_diagnostic_report": {
+      "description": "将仍在 5 分钟缓存期内的诊断报告渲染为有界 JSON 或 Markdown 文本；不写文件、不复制到剪贴板。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reportId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "format": { "type": "string", "enum": ["json", "markdown"], "maxLength": 8 }
+        },
+        "required": ["reportId", "format"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reportId": { "type": "string", "maxLength": 256 },
+          "format": { "type": "string", "enum": ["json", "markdown"], "maxLength": 8 },
+          "generatedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "content": { "type": "string", "maxLength": 20971520 }
+        },
+        "required": ["reportId", "format", "generatedAt", "content"]
+      }
+    },
+    "export_diagnostic_report": {
+      "description": "需要用户在系统管家界面短时授权；仅把缓存中的脱敏报告写入用户在系统保存对话框明确选择的位置，不接受任意路径或外部正文。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reportId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "format": { "type": "string", "enum": ["json", "markdown"], "maxLength": 8 },
+          "defaultName": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[^\\\\/\\u0000-\\u001f]+$" },
+          "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" }
+        },
+        "required": ["reportId", "format", "idempotencyKey"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reportId": { "type": "string", "maxLength": 256 },
+          "format": { "type": "string", "enum": ["json", "markdown"], "maxLength": 8 },
+          "canceled": { "type": "boolean" },
+          "fileName": { "type": "string", "maxLength": 255 },
+          "idempotencyKey": { "type": "string", "maxLength": 128 }
+        },
+        "required": ["reportId", "format", "canceled", "idempotencyKey"]
+      }
+    },
+    "scan_applications": {
+      "description": "只读扫描本机已安装应用并返回首个有界分页；结果使用短期 inventoryId，应用安装绝对路径不会向 Agent 暴露。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inventoryId": { "type": "string", "maxLength": 256 },
+          "platform": { "type": "string", "enum": ["darwin", "win32", "linux"], "maxLength": 10 },
+          "scannedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "total": { "type": "integer", "minimum": 0, "maximum": 5000 },
+          "items": { "type": "array", "maxItems": 100, "items": { "type": "object", "maxProperties": 16, "additionalProperties": {} } },
+          "nextCursor": { "type": ["string", "null"], "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" },
+          "warnings": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 1000 } }
+        },
+        "required": ["inventoryId", "platform", "scannedAt", "total", "items", "nextCursor", "warnings"]
+      }
+    },
+    "list_applications": {
+      "description": "继续读取指定短期应用 inventoryId 的有界分页；cursor 是与该清单绑定的不透明值，不能作为数字偏移解释。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inventoryId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "cursor": { "type": "string", "minLength": 20, "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+        },
+        "required": ["inventoryId"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inventoryId": { "type": "string", "maxLength": 256 },
+          "total": { "type": "integer", "minimum": 0, "maximum": 5000 },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100 },
+          "items": { "type": "array", "maxItems": 100, "items": { "type": "object", "maxProperties": 16, "additionalProperties": {} } },
+          "nextCursor": { "type": ["string", "null"], "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" }
+        },
+        "required": ["inventoryId", "total", "pageSize", "items", "nextCursor"]
+      }
+    },
+    "inspect_application": {
+      "description": "只读复核清单中的一个应用并创建短期卸载预览；返回脱敏候选项与原因，不返回候选绝对路径。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inventoryId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "appId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" }
+        },
+        "required": ["inventoryId", "appId"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inventoryId": { "type": "string", "maxLength": 256 },
+          "planId": { "type": "string", "maxLength": 256 },
+          "app": { "type": "object", "maxProperties": 16, "additionalProperties": {} },
+          "createdAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "expiresAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "candidates": { "type": "array", "maxItems": 200, "items": { "type": "object", "maxProperties": 16, "additionalProperties": {} } },
+          "warnings": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 1000 } }
+        },
+        "required": ["inventoryId", "planId", "app", "createdAt", "expiresAt", "candidates", "warnings"]
+      }
+    },
+    "prepare_application_removal": {
+      "description": "需要用户在系统管家界面短时授权；预览并锁定所选卸载候选，执行时仅将通过复验的项目移到废纸篓、可人工恢复，90 秒后 action 失效。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "planId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "selectedIds": { "type": "array", "minItems": 1, "maxItems": 200, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" } }
+        },
+        "required": ["planId", "selectedIds"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "actionId": { "type": "string", "maxLength": 256 },
+          "action": { "type": "string", "enum": ["application_removal"], "maxLength": 32 },
+          "actionDigest": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-f0-9]{64}$" },
+          "expiresAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "summary": { "type": "object", "maxProperties": 16, "additionalProperties": {} }
+        },
+        "required": ["actionId", "action", "actionDigest", "expiresAt", "summary"]
+      }
+    },
+    "execute_application_removal": {
+      "description": "需要用户在系统管家界面短时授权；消费 90 秒 action 并再次复验，且仅把所选项目移到系统废纸篓、可人工恢复，不执行注册表或包管理器中的可变卸载命令。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "actionId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" }
+        },
+        "required": ["actionId", "idempotencyKey"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "planId": { "type": "string", "maxLength": 256 },
+          "completedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "results": { "type": "array", "maxItems": 201, "items": { "type": "object", "maxProperties": 8, "additionalProperties": {} } },
+          "idempotencyKey": { "type": "string", "maxLength": 128 }
+        },
+        "required": ["planId", "completedAt", "results", "idempotencyKey"]
+      }
+    },
+    "scan_startup_items": {
+      "description": "只读扫描启动项并返回首个有界分页；命令摘要默认隐藏，仅返回用户级可管理性与风险说明。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+          "includeCommandSummary": { "type": "boolean", "default": false }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string", "maxLength": 256 },
+          "platform": { "type": "string", "enum": ["darwin", "win32", "linux"], "maxLength": 10 },
+          "generatedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "total": { "type": "integer", "minimum": 0, "maximum": 5000 },
+          "items": { "type": "array", "maxItems": 100, "items": { "type": "object", "maxProperties": 20, "additionalProperties": {} } },
+          "nextCursor": { "type": ["string", "null"], "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" },
+          "warnings": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 1000 } },
+          "includeCommandSummary": { "type": "boolean" }
+        },
+        "required": ["snapshotId", "platform", "generatedAt", "total", "items", "nextCursor", "warnings", "includeCommandSummary"]
+      }
+    },
+    "list_startup_items": {
+      "description": "继续读取指定短期启动项 snapshotId 的有界分页；cursor 与快照和命令摘要策略绑定，不能作为数字偏移解释。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "cursor": { "type": "string", "minLength": 20, "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+        },
+        "required": ["snapshotId"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string", "maxLength": 256 },
+          "total": { "type": "integer", "minimum": 0, "maximum": 5000 },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100 },
+          "items": { "type": "array", "maxItems": 100, "items": { "type": "object", "maxProperties": 20, "additionalProperties": {} } },
+          "nextCursor": { "type": ["string", "null"], "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" },
+          "includeCommandSummary": { "type": "boolean" }
+        },
+        "required": ["snapshotId", "total", "pageSize", "items", "nextCursor", "includeCommandSummary"]
+      }
+    },
+    "prepare_startup_change": {
+      "description": "需要用户在系统管家界面短时授权；预览并锁定一个用户级启动项变更，该副作用可能启用、禁用、启动或停止相应用户服务，90 秒后 action 失效。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "itemId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "enabled": { "type": "boolean" }
+        },
+        "required": ["snapshotId", "itemId", "enabled"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "actionId": { "type": "string", "maxLength": 256 },
+          "action": { "type": "string", "enum": ["startup_change"], "maxLength": 32 },
+          "actionDigest": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-f0-9]{64}$" },
+          "expiresAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "summary": { "type": "object", "maxProperties": 16, "additionalProperties": {} }
+        },
+        "required": ["actionId", "action", "actionDigest", "expiresAt", "summary"]
+      }
+    },
+    "set_startup_item_enabled": {
+      "description": "需要用户在系统管家界面短时授权；消费 90 秒 action、复验并修改用户级启动项，可能立即启动或停止相应用户服务，并返回可撤销 operationId。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "actionId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" }
+        },
+        "required": ["actionId", "idempotencyKey"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "changed": { "type": "boolean" },
+          "operationId": { "type": ["string", "null"], "maxLength": 256 },
+          "item": { "type": "object", "maxProperties": 20, "additionalProperties": {} },
+          "idempotencyKey": { "type": "string", "maxLength": 128 }
+        },
+        "required": ["changed", "operationId", "item", "idempotencyKey"]
+      }
+    },
+    "undo_startup_change": {
+      "description": "需要用户在系统管家界面短时授权；撤销最近一次仍有效的用户级启动项变更，可能立即恢复并启动或停止相应用户服务。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "operationId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" }
+        },
+        "required": ["operationId", "idempotencyKey"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "restored": { "type": "boolean" },
+          "item": { "type": "object", "maxProperties": 20, "additionalProperties": {} },
+          "idempotencyKey": { "type": "string", "maxLength": 128 }
+        },
+        "required": ["restored", "item", "idempotencyKey"]
+      }
+    },
+    "scan_system_junk": {
+      "description": "只读扫描当前用户白名单中的缓存、日志和临时项目并返回首个有界分页；标记近期项目且默认不选择，并跳过符号链接、非当前用户或无法完整复验的内容。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "categories": { "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": { "type": "string", "enum": ["cache", "logs", "temporary"], "maxLength": 16 } },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string", "maxLength": 256 },
+          "generatedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "expiresAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "total": { "type": "integer", "minimum": 0, "maximum": 2000 },
+          "totalBytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+          "items": { "type": "array", "maxItems": 100, "items": { "type": "object", "maxProperties": 16, "additionalProperties": {} } },
+          "nextCursor": { "type": ["string", "null"], "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" },
+          "warnings": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 1000 } }
+        },
+        "required": ["snapshotId", "generatedAt", "expiresAt", "total", "totalBytes", "items", "nextCursor", "warnings"]
+      }
+    },
+    "list_system_junk": {
+      "description": "继续读取指定短期垃圾扫描 snapshotId 的有界分页；cursor 是与快照绑定的不透明值，不能作为数字偏移解释。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "cursor": { "type": "string", "minLength": 20, "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+        },
+        "required": ["snapshotId"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string", "maxLength": 256 },
+          "total": { "type": "integer", "minimum": 0, "maximum": 2000 },
+          "totalBytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100 },
+          "items": { "type": "array", "maxItems": 100, "items": { "type": "object", "maxProperties": 16, "additionalProperties": {} } },
+          "nextCursor": { "type": ["string", "null"], "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" }
+        },
+        "required": ["snapshotId", "total", "totalBytes", "pageSize", "items", "nextCursor"]
+      }
+    },
+    "prepare_system_cleanup": {
+      "description": "需要用户在系统管家界面短时授权；预览并锁定所选垃圾项目，执行时仅将复验通过的项目移到废纸篓、可人工恢复，90 秒后 action 失效。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "candidateIds": { "type": "array", "minItems": 1, "maxItems": 2000, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" } }
+        },
+        "required": ["snapshotId", "candidateIds"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "actionId": { "type": "string", "maxLength": 256 },
+          "action": { "type": "string", "enum": ["system_cleanup"], "maxLength": 32 },
+          "actionDigest": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-f0-9]{64}$" },
+          "expiresAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "summary": { "type": "object", "maxProperties": 16, "additionalProperties": {} }
+        },
+        "required": ["actionId", "action", "actionDigest", "expiresAt", "summary"]
+      }
+    },
+    "clean_system_junk": {
+      "description": "需要用户在系统管家界面短时授权；消费 90 秒 action、复验所有候选，并仅把仍符合白名单与所有权约束的项目移到废纸篓、可人工恢复。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "actionId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" }
+        },
+        "required": ["actionId", "idempotencyKey"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "operationId": { "type": "string", "maxLength": 256 },
+          "completedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "results": { "type": "array", "maxItems": 2000, "items": { "type": "object", "maxProperties": 8, "additionalProperties": {} } },
+          "movedBytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+          "idempotencyKey": { "type": "string", "maxLength": 128 }
+        },
+        "required": ["operationId", "completedAt", "results", "movedBytes", "idempotencyKey"]
+      }
+    },
+    "list_network_interfaces": {
+      "description": "只读列出可用于受限局域网发现的本地 IPv4 接口；排除公网地址，并标记 VPN、虚拟或共享地址接口的额外风险。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "interfaces": { "type": "array", "maxItems": 100, "items": { "type": "object", "maxProperties": 12, "additionalProperties": {} } }
+        },
+        "required": ["interfaces"]
+      }
+    },
+    "prepare_lan_scan": {
+      "description": "需要用户在系统管家界面短时授权；预览一次会产生主动 ICMP 网络流量的受限局域网扫描，最多覆盖本机 /24。虚拟、VPN、共享或未知接口还必须在 prepare 请求中显式确认；可选 DNS 解析默认关闭，90 秒后 action 失效。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+      "properties": {
+          "interfaceId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "resolveHostnames": { "type": "boolean", "default": false },
+          "confirmRestrictedInterface": { "type": "boolean", "default": false, "description": "受限或虚拟接口必须显式确认后才能扫描" }
+        },
+        "required": ["interfaceId"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "actionId": { "type": "string", "maxLength": 256 },
+          "action": { "type": "string", "enum": ["lan_scan"], "maxLength": 32 },
+          "actionDigest": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-f0-9]{64}$" },
+          "expiresAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "summary": { "type": "object", "maxProperties": 16, "additionalProperties": {} }
+        },
+        "required": ["actionId", "action", "actionDigest", "expiresAt", "summary"]
+      }
+    },
+    "scan_lan_devices": {
+      "description": "需要用户在系统管家界面短时授权；消费 90 秒 action 并对选定接口发送有界 ICMP 探测，最多每 15 秒启动一次并产生主动局域网流量。受限接口只能使用已在 prepare 阶段显式确认的 action；仅在预览启用时执行 DNS 解析，不做端口或公网扫描。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "actionId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" }
+        },
+        "required": ["actionId", "idempotencyKey"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scanId": { "type": "string", "maxLength": 256 },
+          "status": { "type": "string", "enum": ["completed", "partial", "cancelled"], "maxLength": 16 },
+          "interface": { "type": "object", "maxProperties": 12, "additionalProperties": {} },
+          "devices": { "type": "array", "maxItems": 256, "items": { "type": "object", "maxProperties": 16, "additionalProperties": {} } },
+          "startedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "finishedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "durationMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+          "scannedHostCount": { "type": "integer", "minimum": 0, "maximum": 254 },
+          "truncated": { "type": "boolean" },
+          "warnings": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 1000 } },
+          "errors": { "type": "array", "maxItems": 100, "items": { "type": "object", "maxProperties": 8, "additionalProperties": {} } },
+          "idempotencyKey": { "type": "string", "maxLength": 128 }
+        },
+        "required": ["scanId", "status", "interface", "devices", "startedAt", "finishedAt", "durationMs", "scannedHostCount", "truncated", "warnings", "errors", "idempotencyKey"]
+      }
+    },
+    "get_operation_result": {
+      "description": "按幂等键读取当前 renderer 会话内最近 10 分钟、最多 100 条有副作用操作的执行状态或结果；不会重放操作，也不延长原授权或 action。刷新、导航或重启后会话变化，旧结果不可恢复。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$" }
+        },
+        "required": ["idempotencyKey"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "runtimeSessionId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$" },
+          "found": { "type": "boolean" },
+          "idempotencyKey": { "type": "string", "maxLength": 128 },
+          "tool": { "type": "string", "maxLength": 64 },
+          "status": { "type": "string", "enum": ["pending", "completed", "failed"], "maxLength": 16 },
+          "startedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+          "completedAt": { "type": ["string", "null"], "format": "date-time", "maxLength": 40 },
+          "result": { "type": "object", "maxProperties": 32, "additionalProperties": {} },
+          "error": { "type": "object", "maxProperties": 4, "additionalProperties": {} }
+        },
+        "required": ["runtimeSessionId", "found", "idempotencyKey"]
+      }
+    }
+  },
+  "features": [
+    {
+      "code": "system-diagnostic-report",
+      "explain": "查看软硬件信息并生成脱敏诊断报告",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["系统诊断", "系统信息", "诊断报告", "电脑配置", "硬件信息"]
+    },
+    {
+      "code": "application-uninstaller",
+      "explain": "卸载应用并清理关联残留",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["应用卸载", "彻底卸载", "软件卸载", "卸载助手"]
+    },
+    {
+      "code": "startup-manager",
+      "explain": "管理开机启动项",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["开机启动", "启动项", "登录项", "自启动管理"]
+    },
+    {
+      "code": "system-cleaner",
+      "explain": "扫描并安全清理系统垃圾",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["垃圾清理", "缓存清理", "释放空间", "系统清理"]
+    },
+    {
+      "code": "lan-device-discovery",
+      "explain": "发现当前局域网内的在线设备",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["局域网设备", "设备发现", "局域网扫描", "LAN", "网络设备"]
+    }
+  ]
+}

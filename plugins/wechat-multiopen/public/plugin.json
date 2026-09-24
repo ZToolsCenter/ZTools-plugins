@@ -1,0 +1,48 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "wechat-multiopen",
+  "title": "微信多开",
+  "description": "一键启动两个微信，或自定义启动多个微信。",
+  "author": "Kyle",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "single": true,
+    "backgroundRunning": false
+  },
+  "features": [
+    {
+      "code": "settings",
+      "explain": "微信多开设置",
+      "icon": "logo.png",
+      "cmds": [
+        "微信多开设置"
+      ]
+    },
+    {
+      "code": "launch-two",
+      "explain": "微信双开",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": [
+        "微信双开"
+      ]
+    },
+    {
+      "code": "custom-launch",
+      "explain": "微信多开",
+      "icon": "logo.png",
+      "cmds": [
+        "微信多开"
+      ]
+    }
+  ],
+  "platform": [
+    "win32"
+  ]
+}

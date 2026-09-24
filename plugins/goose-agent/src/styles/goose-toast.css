@@ -1,0 +1,164 @@
+/* ── 全局 Toast（鹅的 Agent · HeroUI）────────────────────────────────
+ * 实色 overlay / surface + 细边框；成功/错误靠 soft 语义底与图标色。
+ * uTools 旧内核：只用 hex / rgba，禁用 hsl(var(--x)/alpha)、color-mix、oklch。
+ */
+
+/* 区域：右上，避开顶栏标题/路径（原 sonner offset top:52 right:12） */
+.goose-toaster.toast-region,
+.goose-toaster[data-slot="toast-region"],
+[data-slot="toast-region"].goose-toaster {
+  top: 52px !important;
+  right: 12px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  z-index: 22000;
+  width: max-content !important;
+  max-width: min(320px, calc(100vw - 32px)) !important;
+  min-width: 0 !important;
+  font-family: inherit;
+}
+
+/* 单条 toast：实色底 + 边框 */
+.goose-toaster .toast,
+.goose-toaster [data-slot="toast"] {
+  background: var(--overlay, var(--color-surface)) !important;
+  color: var(--overlay-foreground, var(--color-fg)) !important;
+  border: 1px solid var(--border, var(--color-border)) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1) !important;
+  padding: 10px 14px !important;
+  gap: 10px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  max-width: min(320px, calc(100vw - 32px)) !important;
+}
+
+.dark .goose-toaster .toast,
+.dark .goose-toaster [data-slot="toast"] {
+  background: var(--overlay, var(--color-surface)) !important;
+  color: var(--overlay-foreground, var(--color-fg)) !important;
+  border-color: var(--border, var(--color-border)) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* 标题 / 描述 */
+.goose-toaster .toast__title,
+.goose-toaster [data-slot="toast-title"] {
+  color: var(--overlay-foreground, var(--color-fg)) !important;
+  font-weight: 550 !important;
+  font-size: 12.5px !important;
+  line-height: 1.35 !important;
+}
+
+.goose-toaster .toast__description,
+.goose-toaster [data-slot="toast-description"] {
+  color: var(--muted, var(--color-fg-muted)) !important;
+  font-weight: 400 !important;
+  font-size: 12px !important;
+  opacity: 1 !important;
+}
+
+/* 图标槽 */
+.goose-toaster .toast__indicator,
+.goose-toaster [data-slot="toast-indicator"] {
+  color: var(--muted, var(--color-fg-muted)) !important;
+}
+
+/* 成功：soft 绿底 */
+.goose-toaster .toast--success,
+.goose-toaster .toast[data-variant="success"] {
+  background: var(--success-soft, var(--color-copied-subtle)) !important;
+  border-color: var(--color-copied-border, var(--border)) !important;
+  color: var(--color-fg) !important;
+}
+
+.goose-toaster .toast--success .toast__title,
+.goose-toaster .toast--success [data-slot="toast-title"] {
+  color: var(--color-fg) !important;
+}
+
+.goose-toaster .toast--success .toast__indicator,
+.goose-toaster .toast--success [data-slot="toast-indicator"] {
+  color: var(--success, var(--color-copied)) !important;
+}
+
+/* 危险 / 错误：soft 红底 */
+.goose-toaster .toast--danger,
+.goose-toaster .toast[data-variant="danger"] {
+  background: var(--danger-soft, var(--color-danger-soft)) !important;
+  border-color: var(--color-danger-border, var(--border)) !important;
+  color: var(--color-timer-low, var(--danger)) !important;
+}
+
+.goose-toaster .toast--danger .toast__title,
+.goose-toaster .toast--danger [data-slot="toast-title"] {
+  color: var(--color-timer-low, var(--danger-soft-foreground)) !important;
+}
+
+.goose-toaster .toast--danger .toast__description,
+.goose-toaster .toast--danger [data-slot="toast-description"] {
+  color: var(--color-fg-muted) !important;
+}
+
+.goose-toaster .toast--danger .toast__indicator,
+.goose-toaster .toast--danger [data-slot="toast-indicator"] {
+  color: var(--color-timer-low, var(--danger)) !important;
+}
+
+/* 警告 */
+.goose-toaster .toast--warning,
+.goose-toaster .toast[data-variant="warning"] {
+  background: var(--warning-soft, #fef3c7) !important;
+  border-color: var(--border, var(--color-border)) !important;
+  color: var(--color-fg) !important;
+}
+
+.goose-toaster .toast--warning .toast__title,
+.goose-toaster .toast--warning [data-slot="toast-title"] {
+  color: var(--warning-soft-foreground, #b45309) !important;
+}
+
+.goose-toaster .toast--warning .toast__indicator,
+.goose-toaster .toast--warning [data-slot="toast-indicator"] {
+  color: var(--warning, #b45309) !important;
+}
+
+.dark .goose-toaster .toast--warning,
+.dark .goose-toaster .toast[data-variant="warning"] {
+  background: var(--warning-soft, #463619) !important;
+}
+
+.dark .goose-toaster .toast--warning .toast__title,
+.dark .goose-toaster .toast--warning [data-slot="toast-title"],
+.dark .goose-toaster .toast--warning .toast__indicator,
+.dark .goose-toaster .toast--warning [data-slot="toast-indicator"] {
+  color: var(--warning, #fbbf24) !important;
+}
+
+/* 信息 / 默认：surface 实色 */
+.goose-toaster .toast--accent .toast__indicator,
+.goose-toaster .toast--default .toast__indicator,
+.goose-toaster .toast[data-variant="info"] .toast__indicator,
+.goose-toaster .toast[data-variant="default"] .toast__indicator {
+  color: var(--color-fg-muted) !important;
+}
+
+/* 关闭钮：始终可见一点，hover 用预展开 rgba（非 color-mix） */
+.goose-toaster .toast__close-button,
+.goose-toaster [data-slot="toast-close"] {
+  background: var(--surface-secondary, var(--color-surface-hover)) !important;
+  border: 1px solid var(--border, var(--color-border)) !important;
+  color: var(--color-fg-faint) !important;
+  opacity: 0.85 !important;
+  pointer-events: auto !important;
+}
+
+.goose-toaster .toast[data-frontmost="true"]:hover .toast__close-button,
+.goose-toaster .toast[data-frontmost="true"] .toast__close-button:hover,
+.goose-toaster .toast[data-frontmost="true"] [data-slot="toast-close"]:hover {
+  opacity: 1 !important;
+  color: var(--color-fg) !important;
+  background: var(--surface-hover, var(--color-surface-hover)) !important;
+}

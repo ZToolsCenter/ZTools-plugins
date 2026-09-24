@@ -2,7 +2,7 @@
   "name": "ztool-vsc-recent",
   "title": "VSCode 最近项目",
   "description": "快速打开最近的 VSCode 项目、工作区与远程会话",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "derekxia1988",
   "main": "index.html",
   "logo": "logo.png",
@@ -11,8 +11,19 @@
     {
       "code": "vsc-recent",
       "explain": "最近打开的 VSCode 项目",
-      "platform": ["win32", "darwin", "linux"],
-      "cmds": ["vsc"]
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "cmds": [
+        "vsc"
+      ]
     }
+  ],
+  "platform": [
+    "linux",
+    "win32",
+    "darwin"
   ]
 }

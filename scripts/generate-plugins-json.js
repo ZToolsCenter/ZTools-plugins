@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, createReadStream, statSync } from 'fs';
-import { join, extname } from 'path';
+import { join, extname, resolve } from 'path';
+import { pathToFileURL } from 'url';
 import { execSync } from 'child_process';
 import sharp from 'sharp';
 import { Extract } from 'unzipper';
@@ -9,6 +10,7 @@ import { pipeline } from 'stream/promises';
 const RELEASE_DIR = 'release';
 const TEMP_DIR = join(RELEASE_DIR, 'temp');
 const BUILD_INFO_FILE = join(RELEASE_DIR, 'build-info.json');
+const PREVIOUS_MANIFEST_FILE = join(RELEASE_DIR, 'plugins.previous.json');
 const CATEGORIES_MAPPING_FILE = 'categories-mapping.json';
 
 /**
@@ -255,8 +257,7 @@ async function imageToBase64(imagePath) {
 
     return `data:image/png;base64,${buffer.toString('base64')}`;
   } catch (error) {
-    console.error(`处理图片失败: ${imagePath}`, error.message);
-    return null;
+    throw new Error(`处理图片失败: ${imagePath}: ${error.message}`, { cause: error });
   }
 }
 
@@ -294,10 +295,17 @@ async function processZipFile(zipFileName) {
       const logoPath = findLogoFile(extractDir, pluginInfo.logo);
       if (logoPath) {
         console.log(`  找到logo: ${logoPath}`);
-        logoBase64 = await imageToBase64(logoPath);
-        if (logoBase64) {
-          console.log(`  ✓ logo已转换为base64`);
+        try {
+          logoBase64 = await imageToBase64(logoPath);
+        } catch (error) {
+          const logoError = new Error(
+            `插件 ${pluginInfo.name || pluginName} 的 logo 无法转换为Base64: ${error.message}`,
+            { cause: error }
+          );
+          logoError.code = 'PLUGIN_LOGO_PROCESSING_FAILED';
+          throw logoError;
         }
+        console.log(`  ✓ logo已转换为base64`);
       } else {
         console.warn(`  ⚠ 找不到logo文件: ${pluginInfo.logo}`);
       }
@@ -324,6 +332,9 @@ async function processZipFile(zipFileName) {
     return result;
   } catch (error) {
     console.error(`  ✗ 处理失败: ${error.message}`);
+    if (error.code === 'PLUGIN_LOGO_PROCESSING_FAILED') {
+      throw error;
+    }
     return null;
   }
 }
@@ -335,6 +346,66 @@ function cleanupTemp() {
   if (existsSync(TEMP_DIR)) {
     execSync(`rm -rf "${TEMP_DIR}"`);
   }
+}
+
+function extractPluginsList(manifest) {
+  if (Array.isArray(manifest)) {
+    return manifest;
+  }
+
+  if (manifest && Array.isArray(manifest.plugins)) {
+    return manifest.plugins;
+  }
+
+  throw new Error('plugins.json 格式不正确，期望为插件数组或包含 plugins 数组的对象');
+}
+
+function readPreviousManifest() {
+  if (!existsSync(PREVIOUS_MANIFEST_FILE)) {
+    return null;
+  }
+
+  try {
+    return extractPluginsList(JSON.parse(readFileSync(PREVIOUS_MANIFEST_FILE, 'utf-8')));
+  } catch (error) {
+    throw new Error(`读取历史 plugins.json 失败: ${error.message}`);
+  }
+}
+
+function normalizePluginName(name) {
+  return typeof name === 'string' ? name.trim().toLowerCase() : '';
+}
+
+/**
+ * 以历史完整 manifest 为基线，仅替换本次构建的插件。
+ * 历史条目保留原 Release 地址，避免 main Release 再次携带所有 ZIP。
+ */
+function mergePluginManifests(currentPlugins, previousPlugins, buildInfo) {
+  if (!previousPlugins) {
+    return currentPlugins;
+  }
+
+  const changedNames = new Set((buildInfo.changedPlugins || []).map(normalizePluginName));
+  const deletedNames = new Set((buildInfo.deletedPlugins || []).map(normalizePluginName));
+  const previousByName = new Map(previousPlugins.map(plugin => [normalizePluginName(plugin.name), plugin]));
+  const currentNames = new Set(currentPlugins.map(plugin => normalizePluginName(plugin.name)));
+  const merged = currentPlugins.map(plugin => {
+    const key = normalizePluginName(plugin.name);
+    if (key && previousByName.has(key) && !changedNames.has(key)) {
+      return previousByName.get(key);
+    }
+    return plugin;
+  });
+
+  // 保留历史中未参与本次构建的插件；显式删除的插件不会被带回。
+  for (const plugin of previousPlugins) {
+    const key = normalizePluginName(plugin.name);
+    if (key && !currentNames.has(key) && !deletedNames.has(key) && !buildInfo.buildAll) {
+      merged.push(plugin);
+    }
+  }
+
+  return merged;
 }
 
 /**
@@ -356,9 +427,13 @@ async function main() {
 
     console.log(`找到 ${zipFiles.length} 个插件包\n`);
 
-    if (zipFiles.length === 0) {
-      console.error('错误: 没有找到任何zip文件');
-      process.exit(1);
+    const buildInfo = existsSync(BUILD_INFO_FILE)
+      ? JSON.parse(readFileSync(BUILD_INFO_FILE, 'utf-8'))
+      : { changedPlugins: [], deletedPlugins: [] };
+    const previousPlugins = readPreviousManifest();
+
+    if (zipFiles.length === 0 && !previousPlugins) {
+      throw new Error('没有找到任何zip文件，且不存在历史 plugins.json，无法生成完整 manifest');
     }
 
     // 处理所有zip文件
@@ -370,22 +445,30 @@ async function main() {
       }
     }
 
-    if (plugins.length === 0) {
-      console.error('\n错误: 没有成功处理任何插件');
-      process.exit(1);
+    if (plugins.length !== zipFiles.length) {
+      throw new Error(`有 ${zipFiles.length - plugins.length} 个当前构建 ZIP 未能生成插件条目，已停止发布`);
+    }
+
+    if (plugins.length === 0 && !previousPlugins) {
+      throw new Error('没有成功处理任何插件，无法生成 manifest');
+    }
+
+    const mergedPlugins = mergePluginManifests(plugins, previousPlugins, buildInfo);
+    if (mergedPlugins.length === 0) {
+      throw new Error('合并后的插件清单为空');
     }
 
     // 生成plugins.json
     const outputPath = join(RELEASE_DIR, 'plugins.json');
-    writeFileSync(outputPath, JSON.stringify(plugins, null, 2));
+    writeFileSync(outputPath, JSON.stringify(mergedPlugins, null, 2));
 
     // 生成categories.json
-    const categories = generateCategoriesData(plugins);
+    const categories = generateCategoriesData(mergedPlugins);
     const categoriesOutputPath = join(RELEASE_DIR, 'categories.json');
     writeFileSync(categoriesOutputPath, JSON.stringify(categories, null, 2));
 
     console.log(`\n========== 生成结果 ==========`);
-    console.log(`成功处理: ${plugins.length} 个插件`);
+    console.log(`本次处理: ${plugins.length} 个插件，合并后: ${mergedPlugins.length} 个插件`);
     console.log(`输出文件: ${outputPath}`);
     console.log(`文件大小: ${(readFileSync(outputPath).length / 1024).toFixed(2)} KB`);
     console.log(`输出文件: ${categoriesOutputPath}`);
@@ -393,17 +476,13 @@ async function main() {
 
     // 输出插件列表
     console.log('\n插件列表:');
-    plugins.forEach(p => {
+    mergedPlugins.forEach(p => {
       console.log(`  - ${p.name} v${p.version}: ${p.description}`);
     });
 
     // 生成变更日志（用于 GitHub Release）
-    const buildInfo = existsSync(BUILD_INFO_FILE)
-      ? JSON.parse(readFileSync(BUILD_INFO_FILE, 'utf-8'))
-      : { changedPlugins: [] };
-
     const changedPluginNames = buildInfo.changedPlugins || [];
-    const changedPluginsInfo = plugins.filter(p =>
+    const changedPluginsInfo = mergedPlugins.filter(p =>
       changedPluginNames.some(name =>
         p.name === name || p.name.toLowerCase() === name.toLowerCase()
       )
@@ -437,8 +516,15 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  console.error('执行失败:', error);
-  cleanupTemp();
-  process.exit(1);
-});
+export { mergePluginManifests };
+
+const isMainModule = process.argv[1]
+  && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+
+if (isMainModule) {
+  main().catch(error => {
+    console.error('执行失败:', error);
+    cleanupTemp();
+    process.exit(1);
+  });
+}

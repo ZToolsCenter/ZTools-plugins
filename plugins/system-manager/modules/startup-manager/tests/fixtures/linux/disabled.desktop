@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Disabled App
+Exec=/opt/disabled
+Hidden=true

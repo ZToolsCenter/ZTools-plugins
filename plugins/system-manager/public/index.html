@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <title>系统管家</title>
+    <link rel="icon" href="./logo.svg" />
+    <link rel="stylesheet" href="./dashboard/styles.css" />
+    <script src="./dashboard/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#modules">跳到功能模块</a>
+
+    <main class="shell">
+      <header class="suite-header">
+        <div class="brand-lockup">
+          <img class="brand-logo" src="./logo.svg" width="48" height="48" alt="" />
+          <div>
+            <p class="product-label">系统工具</p>
+            <h1>系统管家</h1>
+          </div>
+        </div>
+        <div class="suite-status" aria-label="运行边界">
+          <p class="privacy-note"><span aria-hidden="true"></span>设备数据仅在本机处理</p>
+          <p class="current-platform" aria-live="polite">正在识别当前平台…</p>
+        </div>
+      </header>
+
+      <section class="suite-intro" aria-labelledby="modules-title">
+        <div>
+          <h2 id="modules-title">先了解状态，再执行维护</h2>
+          <p>查看软硬件与运行环境；涉及系统变更时，始终先预览范围并明确确认。</p>
+        </div>
+        <ul class="boundary-list" aria-label="系统管家安全边界">
+          <li>本机执行</li>
+          <li>变更前预览</li>
+          <li>危险操作需确认</li>
+        </ul>
+      </section>
+
+      <nav id="modules" class="module-grid" aria-label="系统管家功能模块">
+        <a class="module-card module-card-featured" href="./modules/system-diagnostic-report/index.html" data-feature="system-diagnostic-report">
+          <div class="card-topline">
+            <span class="module-icon icon-diagnostic" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 5h16v12H4zM8 21h8M12 17v4M8 9h2l1.5 4L14 7l1.5 4H18" /></svg>
+            </span>
+            <span class="behavior behavior-readonly">只读 · 默认脱敏</span>
+          </div>
+          <div class="card-copy">
+            <h3>系统诊断报告</h3>
+            <p>集中查看操作系统、处理器、内存、存储、显卡、电池与运行环境，生成可复制或导出的安全报告。</p>
+          </div>
+          <dl class="feature-facts" aria-label="诊断报告能力">
+            <div><dt>范围</dt><dd>12 类软硬件摘要</dd></div>
+            <div><dt>隐私</dt><dd>敏感标识默认移除</dd></div>
+            <div><dt>输出</dt><dd>Markdown / JSON</dd></div>
+          </dl>
+          <span class="enter">开始检查 <b aria-hidden="true">→</b></span>
+        </a>
+
+        <a class="module-card module-card-network" href="./modules/lan-device-discovery/index.html" data-feature="lan-device-discovery">
+          <div class="card-topline">
+            <span class="module-icon icon-network" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 18h.01M8.5 14.5a5 5 0 0 1 7 0M5 11a10 10 0 0 1 14 0M3 7.5a13 13 0 0 1 18 0" /></svg>
+            </span>
+            <span class="behavior behavior-readonly">只读 · 当前子网</span>
+          </div>
+          <div class="card-copy">
+            <h3>局域网设备发现</h3>
+            <p>读取邻居表并使用受限 ICMP，整理当前网络中的可见设备与判断依据。</p>
+          </div>
+          <div class="card-footer">
+            <span>不执行端口扫描</span>
+            <span class="enter">进入 <b aria-hidden="true">→</b></span>
+          </div>
+        </a>
+
+        <a class="module-card" href="./modules/startup-manager/index.html" data-feature="startup-manager">
+          <div class="card-topline">
+            <span class="module-icon icon-startup" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3v9m-5-6.5a8 8 0 1 0 10 0" /></svg>
+            </span>
+            <span class="behavior behavior-reversible">可撤销</span>
+          </div>
+          <div class="card-copy">
+            <h3>开机启动管理</h3>
+            <p>查看登录项与后台服务，只修改受支持的当前用户项目，系统项保持只读。</p>
+          </div>
+          <div class="card-footer">
+            <span>系统项只读</span>
+            <span class="enter">进入 <b aria-hidden="true">→</b></span>
+          </div>
+        </a>
+
+        <a class="module-card" href="./modules/system-cleaner/index.html" data-feature="system-cleaner">
+          <div class="card-topline">
+            <span class="module-icon icon-cleaner" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="m14 4 6 6M13 5l2-2 6 6-2 2M4 20l8-8m-6 2 4 4m-8 2h12" /></svg>
+            </span>
+            <span class="behavior behavior-confirm">需预览</span>
+          </div>
+          <div class="card-copy">
+            <h3>垃圾清理</h3>
+            <p>扫描白名单缓存、日志与临时目录，逐项确认后移到系统废纸篓。</p>
+          </div>
+          <div class="card-footer">
+            <span>可恢复移除</span>
+            <span class="enter">进入 <b aria-hidden="true">→</b></span>
+          </div>
+        </a>
+
+        <a class="module-card" href="./modules/application-uninstaller/index.html" data-feature="application-uninstaller">
+          <div class="card-topline">
+            <span class="module-icon icon-uninstall" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 7h16M9 3h6l1 4H8l1-4Zm-3 4 1 14h10l1-14M10 11v6m4-6v6" /></svg>
+            </span>
+            <span class="behavior behavior-danger">需输入名称确认</span>
+          </div>
+          <div class="card-copy">
+            <h3>应用彻底卸载</h3>
+            <p>先展示应用本体与关联残留的完整范围，再将明确选择的项目移到废纸篓。</p>
+          </div>
+          <div class="card-footer">
+            <span>声明型残留默认不选</span>
+            <span class="enter">进入 <b aria-hidden="true">→</b></span>
+          </div>
+        </a>
+      </nav>
+
+      <section class="agent-access-panel" data-agent-access-state="loading" aria-labelledby="agent-access-title">
+        <div class="agent-access-copy">
+          <div class="agent-access-heading">
+            <h2 id="agent-access-title">Agent 短时授权</h2>
+            <span id="agent-access-badge" class="agent-access-badge">检测中</span>
+          </div>
+          <p>只读查看与预览无需授权；只有明确选择的副作用操作可在授权期内请求执行。</p>
+          <p class="agent-access-boundary">授权最多持续 10 分钟，可随时撤销；刷新、离开当前页面或重启会提前失效。授权不等于跳过每个工具的预览、确认与执行前复验。</p>
+        </div>
+        <div class="agent-access-controls">
+          <p id="agent-access-status" class="agent-access-status" aria-live="off">正在检查授权能力…</p>
+          <p id="agent-access-announcement" class="sr-only" role="status" aria-atomic="true"></p>
+          <button
+            id="agent-access-action"
+            class="agent-access-button agent-access-button-primary"
+            type="button"
+            aria-controls="agent-access-dialog"
+            aria-haspopup="dialog"
+            disabled
+          >正在检查…</button>
+        </div>
+      </section>
+
+      <dialog
+        id="agent-access-dialog"
+        class="agent-access-dialog"
+        aria-labelledby="agent-access-dialog-title"
+        aria-describedby="agent-access-dialog-description"
+      >
+        <form id="agent-access-form" class="agent-access-form" novalidate>
+          <header class="agent-access-dialog-header">
+            <p class="product-label">受控操作</p>
+            <h2 id="agent-access-dialog-title">选择 Agent 授权范围</h2>
+            <p id="agent-access-dialog-description">选择允许 Agent 在当前页面会话内、最多接下来 10 分钟请求执行的副作用操作。每个工具仍会保留预览、确认与执行前复验。</p>
+          </header>
+
+          <fieldset class="agent-scope-list" aria-describedby="agent-access-selection-hint">
+            <legend>授权范围</legend>
+            <label class="agent-scope-option">
+              <input type="checkbox" name="agent-scope" value="report_export" />
+              <span><strong>报告导出</strong><small>导出已经预览并确认的诊断报告</small></span>
+            </label>
+            <label class="agent-scope-option">
+              <input type="checkbox" name="agent-scope" value="lan_scan" />
+              <span><strong>主动局域网扫描（DNS 默认关闭）</strong><small>仅允许受限的主动发现，不执行端口扫描</small></span>
+            </label>
+            <label class="agent-scope-option">
+              <input type="checkbox" name="agent-scope" value="startup_changes" />
+              <span><strong>启动项变更/撤销</strong><small>变更受支持的当前用户启动项或撤销变更</small></span>
+            </label>
+            <label class="agent-scope-option">
+              <input type="checkbox" name="agent-scope" value="system_cleanup" />
+              <span><strong>垃圾移入废纸篓</strong><small>移动已预览、已选择的白名单垃圾项目</small></span>
+            </label>
+            <label class="agent-scope-option">
+              <input type="checkbox" name="agent-scope" value="application_removal" />
+              <span><strong>应用/残留处理</strong><small>仅将当前平台支持且已复验的所选项目移入废纸篓；部分平台只处理用户级残留</small></span>
+            </label>
+          </fieldset>
+
+          <p id="agent-access-selection-hint" class="agent-access-selection-hint" aria-live="polite">未选择任何范围。请至少选择一项。</p>
+          <div class="agent-access-dialog-actions">
+            <button id="agent-access-cancel" class="agent-access-button agent-access-button-secondary" type="button">取消</button>
+            <button
+              id="agent-access-confirm"
+              class="agent-access-button agent-access-button-primary"
+              type="submit"
+              aria-describedby="agent-access-selection-hint"
+              disabled
+            >授权 10 分钟</button>
+          </div>
+        </form>
+      </dialog>
+
+      <footer class="suite-footer">
+        <span>支持 macOS、Windows 与 Linux</span>
+        <span>系统管家不会上传扫描或诊断结果</span>
+      </footer>
+    </main>
+  </body>
+</html>

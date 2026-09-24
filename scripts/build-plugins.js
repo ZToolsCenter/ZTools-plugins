@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { existsSync, readFileSync, readdirSync, statSync, mkdirSync, writeFileSync } from 'fs';
-import { join, resolve } from 'path';
+import { dirname, join, resolve, sep } from 'path';
 import archiver from 'archiver';
 import { createWriteStream } from 'fs';
+import { detectPackageManager, getPackageManagerInvocation } from './package-manager.js';
 
 const PLUGINS_DIR = 'plugins';
 const RELEASE_DIR = 'release';
@@ -27,6 +28,7 @@ function getPluginInfo(pluginName) {
   const pluginJsonPaths = [
     join(PLUGINS_DIR, pluginName, 'plugin.json'),
     join(PLUGINS_DIR, pluginName, 'public', 'plugin.json'),
+    join(PLUGINS_DIR, pluginName, 'src-ztools', 'plugin.json'),
     join(PLUGINS_DIR, pluginName, 'dist', 'plugin.json'),
   ];
 
@@ -52,32 +54,6 @@ function getPluginInfo(pluginName) {
   }
 
   throw new Error(`找不到插件 ${pluginName} 的plugin.json`);
-}
-
-/**
- * 检测插件使用的包管理器
- */
-function detectPackageManager(pluginPath) {
-  // 1. 优先检查 package.json 中的 packageManager 字段
-  const packageJsonPath = join(pluginPath, 'package.json');
-  if (existsSync(packageJsonPath)) {
-    try {
-      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-      if (packageJson.packageManager) {
-        if (packageJson.packageManager.startsWith('pnpm')) return 'pnpm';
-        if (packageJson.packageManager.startsWith('npm')) return 'npm';
-      }
-    } catch (e) {
-      // 解析失败忽略，继续通过 lock 文件判断
-    }
-  }
-
-  // 2. 检查 lock 文件作为降级方案
-  if (existsSync(join(pluginPath, 'pnpm-lock.yaml'))) {
-    return 'pnpm';
-  }
-  
-  return 'npm';
 }
 
 /**
@@ -158,14 +134,20 @@ function buildPlugin(pluginName) {
   const { install, build } = buildConfig;
 
   if (install) {
-    const pm = detectPackageManager(pluginPath);
+    const packageManager = detectPackageManager(pluginPath);
+    const pm = packageManager.name;
+    const installArgs = pm === 'bun' && packageManager.lockfiles.length > 0
+      ? ['install', '--frozen-lockfile']
+      : ['install'];
     console.log(`检测到package.json，使用 ${pm} 安装依赖...`);
 
     try {
       // 安装依赖
-      execSync(`${pm} install`, {
+      const invocation = getPackageManagerInvocation(pm, installArgs);
+      execFileSync(invocation.command, invocation.args, {
         cwd: pluginPath,
-        stdio: 'inherit'
+        stdio: 'inherit',
+        shell: invocation.shell,
       });
       console.log('✓ 依赖安装完成');
     } catch (error) {
@@ -176,9 +158,11 @@ function buildPlugin(pluginName) {
     if (build) {
       console.log('检测到build脚本，执行构建...');
       try {
-        execSync(`${pm} run build`, {
+        const invocation = getPackageManagerInvocation(pm, ['run', 'build']);
+        execFileSync(invocation.command, invocation.args, {
           cwd: pluginPath,
-          stdio: 'inherit'
+          stdio: 'inherit',
+          shell: invocation.shell,
         });
         console.log('✓ 构建完成');
       } catch (error) {
@@ -193,6 +177,23 @@ function buildPlugin(pluginName) {
   }
 }
 
+function getManifestBuildDir(pluginPath) {
+  const pluginJsonPath = join(pluginPath, 'plugin.json');
+  if (!existsSync(pluginJsonPath)) return null;
+
+  const pluginInfo = JSON.parse(readFileSync(pluginJsonPath, 'utf8'));
+  if (typeof pluginInfo.main !== 'string' || pluginInfo.main.includes('://')) return null;
+
+  const mainDir = dirname(pluginInfo.main);
+  if (mainDir === '.') return null;
+
+  const pluginRoot = resolve(pluginPath);
+  const buildDir = resolve(pluginPath, mainDir);
+  if (!buildDir.startsWith(`${pluginRoot}${sep}`)) return null;
+
+  return existsSync(join(buildDir, 'plugin.json')) ? buildDir : null;
+}
+
 /**
  * 获取需要打包的目录
  */
@@ -204,6 +205,22 @@ function getPackageDir(pluginName) {
 
   // 如果有自定义构建脚本或执行了构建，检查dist目录
   if (buildConfig.customScript || buildConfig.build) {
+    // Standard Vue/React projects keep the distributable plugin under src-ztools.
+    const standardPluginDir = join(pluginPath, 'src-ztools');
+    if (
+      existsSync(join(standardPluginDir, 'plugin.json')) &&
+      existsSync(join(standardPluginDir, 'dist'))
+    ) {
+      console.log(`使用标准 src-ztools 目录作为打包源: ${standardPluginDir}`);
+      return standardPluginDir;
+    }
+
+    const manifestBuildDir = getManifestBuildDir(pluginPath);
+    if (manifestBuildDir) {
+      console.log(`使用plugin.json声明的构建目录作为打包源: ${manifestBuildDir}`);
+      return manifestBuildDir;
+    }
+
     const distPath = join(pluginPath, 'dist');
     if (existsSync(distPath)) {
       // 对于Ctool这种特殊情况，检查dist下是否有子目录

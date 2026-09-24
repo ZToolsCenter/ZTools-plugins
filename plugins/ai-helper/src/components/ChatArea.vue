@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useChat } from '../useChat'
+import MarkdownContent from './MarkdownContent.vue'
+import ReasoningPanel from './ReasoningPanel.vue'
 
-const { currentMessages, currentConvId, isLoading, selectedModel, models, sendMessage, stopGeneration, renderMarkdown, loadModels, setSelectedModel, editMessage, regenerateMessage } = useChat()
+const { currentMessages, currentConvId, isLoading, streamState, selectedModel, models, sendMessage, stopGeneration, loadModels, setSelectedModel, editMessage, regenerateMessage } = useChat()
 
 const inputText = ref('')
 const messagesRef = ref<HTMLElement>()
@@ -14,6 +16,13 @@ const pendingImages = ref<string[]>([])
 const editingMsgId = ref('')
 const editingText = ref('')
 const isComposing = ref(false)
+const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
+const isDarkMode = ref(colorSchemeQuery.matches)
+let outerScrollRaf = 0
+
+function updateColorScheme(event: MediaQueryListEvent) {
+  isDarkMode.value = event.matches
+}
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -56,6 +65,8 @@ async function handlePaste(e: ClipboardEvent) {
 }
 
 function onUserScrollIntent(e: WheelEvent | TouchEvent) {
+  const target = e.target as Element | null
+  if (target?.closest('.reasoning-content')) return
   if (e instanceof WheelEvent && e.deltaY < 0) {
     autoScroll.value = false
   }
@@ -81,9 +92,13 @@ function onMessagesScroll() {
 
 function scrollToBottom() {
   nextTick(() => {
-    if (messagesRef.value && autoScroll.value) {
-      messagesRef.value.scrollTop = messagesRef.value.scrollHeight
-    }
+    if (!messagesRef.value || !autoScroll.value || outerScrollRaf) return
+    outerScrollRaf = requestAnimationFrame(() => {
+      outerScrollRaf = 0
+      if (messagesRef.value && autoScroll.value) {
+        messagesRef.value.scrollTop = messagesRef.value.scrollHeight
+      }
+    })
   })
 }
 
@@ -98,10 +113,18 @@ function autoResize() {
 
 watch(inputText, () => nextTick(autoResize))
 
-watch(currentMessages, scrollToBottom, { deep: true })
+watch(() => currentMessages.value.length, scrollToBottom)
+
+watch(streamState, (state) => {
+  if (state.contentChanged) scrollToBottom()
+})
 
 watch(currentConvId, () => {
-  nextTick(() => textareaRef.value?.focus())
+  autoScroll.value = true
+  nextTick(() => {
+    textareaRef.value?.focus()
+    scrollToBottom()
+  })
 })
 
 async function handleSend() {
@@ -164,8 +187,14 @@ async function confirmEdit(msgId: string, images?: string[]) {
 }
 
 onMounted(() => {
+  colorSchemeQuery.addEventListener('change', updateColorScheme)
   loadModels()
   scrollToBottom()
+})
+
+onBeforeUnmount(() => {
+  colorSchemeQuery.removeEventListener('change', updateColorScheme)
+  if (outerScrollRaf) cancelAnimationFrame(outerScrollRaf)
 })
 </script>
 
@@ -196,15 +225,18 @@ onMounted(() => {
                 <div v-if="msg.images?.length" class="msg-images">
                   <img v-for="(img, i) in msg.images" :key="i" :src="img" class="msg-img" />
                 </div>
-                <div v-if="msg.content">{{ msg.content }}</div>
+                <MarkdownContent v-if="msg.content" :markdown="msg.content" :is-dark="isDarkMode" />
               </template>
             </div>
             <template v-else>
-              <details v-if="msg.reasoning" class="reasoning-block" :open="isLoading && msg === currentMessages[currentMessages.length - 1] && !msg.content">
-                <summary>思考过程</summary>
-                <div class="reasoning-content" v-html="renderMarkdown(msg.reasoning)"></div>
-              </details>
-              <div v-html="renderMarkdown(msg.content)"></div>
+              <ReasoningPanel
+                v-if="msg.reasoning"
+                :reasoning="msg.reasoning"
+                :is-dark="isDarkMode"
+                :is-streaming="isLoading && streamState.messageId === msg.id"
+                :is-thinking="isLoading && streamState.messageId === msg.id && streamState.phase === 'thinking'"
+              />
+              <MarkdownContent v-if="msg.content" :markdown="msg.content" :is-dark="isDarkMode" />
             </template>
           </div>
           <div class="msg-actions">
@@ -358,6 +390,16 @@ onMounted(() => {
 }
 .msg-bubble :deep(p) { margin: 0 0 8px; }
 .msg-bubble :deep(p:last-child) { margin-bottom: 0; }
+.msg-bubble :deep(.elx-xmarkdown-container) {
+  min-width: 0;
+  padding: 0;
+  background: transparent !important;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  word-break: break-word;
+}
 .msg-bubble :deep(pre) {
   background: var(--code-bg);
   padding: 10px 12px;
@@ -375,37 +417,39 @@ onMounted(() => {
   padding: 1px 5px;
   border-radius: 3px;
 }
+.msg-bubble :deep(.katex) {
+  font-size: 1.08em;
+}
+.msg-bubble :deep(.katex-display) {
+  max-width: 100%;
+  margin: 10px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+}
+.msg-bubble :deep(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.msg-bubble :deep(th),
+.msg-bubble :deep(td) {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.msg-bubble :deep(.markdown-mermaid) {
+  max-width: 100%;
+  overflow-x: auto;
+  background: transparent;
+}
 .cursor-blink::after {
   content: '▍';
   animation: blink 1s infinite;
   color: var(--text-secondary);
 }
 @keyframes blink { 50% { opacity: 0; } }
-
-.reasoning-block {
-  margin-bottom: 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-.reasoning-block summary {
-  padding: 4px 8px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  user-select: none;
-}
-.reasoning-block summary:hover {
-  background: var(--hover);
-}
-.reasoning-content {
-  padding: 6px 10px;
-  font-size: 12.5px;
-  color: var(--text-secondary);
-  border-top: 1px solid var(--border);
-  max-height: 200px;
-  overflow-y: auto;
-}
 
 .input-area {
   padding: 0 20px 12px;

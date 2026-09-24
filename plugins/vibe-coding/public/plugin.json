@@ -1,0 +1,24 @@
+{
+  "name": "vibe-coding",
+  "title": "Vibe Coding",
+  "description": "全能 AI 助手，支持对话、网页搜索、工具调用与 ZTools 插件开发",
+  "version": "0.1.3",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "author": "Zing",
+  "platform": ["win32", "darwin", "linux"],
+  "pluginSetting": {
+    "single": true
+  },
+  "development": {
+    "main": "http://127.0.0.1:15240/"
+  },
+  "features": [
+    {
+      "code": "zvc-home",
+      "explain": "打开全能 AI 助手，按需使用工具和 ZTools 插件开发能力",
+      "cmds": ["Vibe Coding", "AI 助手", "开发 ZTools 插件"]
+    }
+  ]
+}

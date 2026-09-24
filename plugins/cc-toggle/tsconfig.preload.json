@@ -1,0 +1,21 @@
+{
+  "watchOptions": {
+    "watchFile": "fixedPollingInterval"
+  },
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "public/preload",
+    "rootDir": "src/preload",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "sourceMap": false,
+    "types": ["@ztools-center/ztools-api-types", "node"]
+  },
+  "include": ["src/preload/**/*.ts"]
+}

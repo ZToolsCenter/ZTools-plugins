@@ -1,12 +1,11 @@
 {
   "name": "jet-plugin",
-  "version": "1.0.3",
-  "description": "A ZTools plugin",
+  "version": "1.2.2",
+  "description": "扫描本机已安装的 JetBrains IDE，聚合各 IDE 最近打开的项目，支持模糊搜索与一键启动",
   "author": "zl",
-  "main": "index.js",
+  "type": "commonjs",
   "devDependencies": {
-    "@ztools-center/ztools-api-types": "^1.0.1",
-    "iconv-lite": "^0.6.3"
+    "@ztools-center/ztools-api-types": "^1.0.1"
   },
   "dependencies": {
     "fast-xml-parser": "^5.5.9",

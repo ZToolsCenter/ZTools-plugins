@@ -1,0 +1,38 @@
+/* DM Sans 字体 - 本地文件 */
+@font-face {
+  font-family: 'DM Sans';
+  src: url('./fonts/dm-sans-latin-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('./fonts/dm-sans-latin-500-normal.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('./fonts/dm-sans-latin-700-normal.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Newsreader 衬线标题字体 - 本地可变字体（单文件覆盖 400-700 权重），仅用于标题。
+   CJK 标题由 --font-serif 链回退到系统 Songti SC / serif，不再远程拉取 Noto Serif SC。 */
+@font-face {
+  font-family: 'Newsreader';
+  src: url('./fonts/newsreader-variable.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+}

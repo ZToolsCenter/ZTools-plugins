@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
 
-const props = defineProps<{ pos: { x: number; y: number }; isFinished?: boolean }>()
+const props = defineProps<{ pos: { x: number; y: number }; isFinished?: boolean; isOnline?: boolean }>()
 const emit = defineEmits<{
   'book-info': []
   'chapter-list': []
@@ -44,8 +44,8 @@ watch(
 </script>
 
 <template>
-  <div class="ctx-backdrop" @click.self="emit('close')" @contextmenu.prevent>
-    <ul ref="menuRef" class="ctx-menu" :style="style" @click.stop>
+  <div class="ctx-backdrop">
+    <ul ref="menuRef" class="ctx-menu" :style="style" @click.stop @contextmenu.prevent>
       <li class="ctx-item" @click="emit('book-info')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         书籍信息
@@ -58,15 +58,15 @@ watch(
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         书签列表
       </li>
-      <li class="ctx-item" @click="emit('search-jump')">
+      <li v-if="!isOnline" class="ctx-item" @click="emit('search-jump')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         搜索跳转
       </li>
-      <li class="ctx-item" @click="emit('change-path')">
+      <li v-if="!isOnline" class="ctx-item" @click="emit('change-path')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         修改本地路径
       </li>
-      <li class="ctx-item" @click="emit('open-file-location')">
+      <li v-if="!isOnline" class="ctx-item" @click="emit('open-file-location')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         打开文件位置
       </li>
@@ -110,11 +110,15 @@ watch(
   position: fixed;
   inset: 0;
   z-index: 9000;
+  /* 遮罩只用于兜底，不拦截鼠标事件：否则盖住全屏会吞掉下方卡片的右键，
+     导致想从 A 的菜单直接右键切换到 B 时必须先点空白处关掉菜单 */
+  pointer-events: none;
 }
 
 .ctx-menu {
   position: fixed;
   z-index: 9001;
+  pointer-events: auto;
   min-width: 170px;
   margin: 0;
   padding: 6px;

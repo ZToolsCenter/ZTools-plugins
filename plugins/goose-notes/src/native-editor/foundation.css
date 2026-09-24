@@ -1,0 +1,212 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@import "../styles/goose-toast.css";
+
+@source "../components/editor/**/*.{ts,tsx}";
+@source "./*.{ts,tsx}";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
+  }
+
+  :root {
+    --editor-font-size: var(--type-body);
+    --editor-scale: 1;
+    --editor-ui-scale: 1;
+    --editor-module-sm-font-size: calc(14px * var(--editor-scale));
+    --editor-module-xs-font-size: calc(12px * var(--editor-scale));
+    --editor-module-2xs-font-size: calc(11px * var(--editor-scale));
+    --editor-control-height-sm: calc(24px * var(--editor-scale));
+    --editor-control-height-md: calc(28px * var(--editor-scale));
+    --editor-control-icon-size: calc(14px * var(--editor-scale));
+    --editor-control-icon-lg-size: calc(16px * var(--editor-scale));
+    --editor-inline-code-padding-y: calc(3px * var(--editor-scale));
+    --editor-inline-code-padding-x: calc(6px * var(--editor-scale));
+    --editor-inline-code-radius: calc(4px * var(--editor-scale));
+    --editor-inline-code-baseline-offset: 0.04em;
+    --editor-link-tooltip-font-size: calc(12px * var(--editor-scale));
+    --editor-link-tooltip-padding-y: calc(6px * var(--editor-scale));
+    --editor-link-tooltip-padding-x: calc(10px * var(--editor-scale));
+    --editor-link-tooltip-radius: calc(14px * var(--editor-scale));
+    --editor-code-block-padding-y: calc(12px * var(--editor-scale));
+    --editor-code-block-padding-x: calc(16px * var(--editor-scale));
+    --editor-code-block-radius: calc(8px * var(--editor-scale));
+    --editor-code-block-node-radius: calc(12px * var(--editor-scale));
+    --editor-code-toolbar-row-height: calc(36px * var(--editor-scale));
+    --editor-code-toolbar-padding-inline: calc(8px * var(--editor-scale));
+    --editor-code-toolbar-gap: calc(8px * var(--editor-scale));
+    --editor-code-toolbar-gap-sm: calc(6px * var(--editor-scale));
+    --editor-code-toolbar-surface-padding: calc(4px * var(--editor-scale));
+    --editor-code-summary-padding-x: calc(6px * var(--editor-scale));
+    --editor-code-line-number-width: calc(40px * var(--editor-scale));
+    --editor-code-line-number-padding-top: calc(12px * var(--editor-scale));
+    --editor-code-line-number-padding-right: calc(8px * var(--editor-scale));
+    --editor-code-line-number-offset: calc(48px * var(--editor-scale));
+    --editor-code-preview-padding: calc(16px * var(--editor-scale));
+    --editor-table-cell-font-size: calc(14px * var(--editor-scale));
+    --editor-table-cell-padding-y: calc(8px * var(--editor-scale));
+    --editor-table-cell-padding-x: calc(12px * var(--editor-scale));
+    --editor-file-action-height: calc(32px * var(--editor-scale));
+    --editor-file-icon-box-size: calc(40px * var(--editor-scale));
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-text-primary);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: 0.01em;
+  }
+
+  ::selection {
+    background: var(--color-selection);
+    color: inherit;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+.bn-editor::-webkit-scrollbar,
+.page-scroll-container::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+
+.bn-editor::-webkit-scrollbar-track,
+.page-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bn-editor::-webkit-scrollbar-thumb,
+.page-scroll-container::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  background: transparent;
+}
+
+.bn-editor:hover::-webkit-scrollbar-thumb,
+.page-scroll-container:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text-primary) 18%, transparent);
+}
+
+.inline-math-node {
+  display: inline-flex !important;
+  align-items: center;
+  margin-inline: 0.125rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  background: var(--goose-block-subtle-bg);
+  padding-inline: 0.25rem;
+  vertical-align: middle;
+}
+
+.inline-math-node:hover {
+  border-color: hsl(var(--border));
+}
+
+.details-wrapper {
+  margin-block: 0.5rem;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.details-wrapper summary {
+  display: flex;
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-weight: 500;
+}
+
+.details-wrapper summary:hover {
+  background: var(--goose-block-subtle-hover);
+}
+
+.details-wrapper summary::-webkit-details-marker {
+  display: none;
+}
+
+.details-wrapper div[data-type="detailsContent"],
+.details-wrapper > div[data-type="details-content"] {
+  border-top: 1px solid var(--goose-block-subtle-border);
+  background: var(--goose-block-subtle-inset);
+  padding: 0.25rem 0.75rem 0.75rem;
+}
+
+.callout-node {
+  transition: background-color var(--motion-standard) ease;
+}
+
+.callout-content p {
+  margin: 0;
+}
+
+/* 与主窗搜索遮罩一致：中等 blur + 独立合成层，不动画 filter */
+[cmdk-overlay] {
+  position: fixed;
+  inset: 0;
+  z-index: var(--layer-modal);
+  background-color: rgba(0, 0, 0, 0.34);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transform: translateZ(0);
+  will-change: opacity;
+}
+
+@supports not (
+  (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))
+) {
+  [cmdk-overlay] {
+    background-color: rgba(0, 0, 0, 0.55);
+  }
+}
+
+.lucide {
+  stroke-width: 1.75;
+}

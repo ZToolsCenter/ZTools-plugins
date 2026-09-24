@@ -1,0 +1,19 @@
+{
+  "name": "ssh-batch-exec",
+  "title": "批量命令执行",
+  "description": "一键批量执行服务器命令：服务器配置管理、快捷命令库、多服务器快捷指令，支持实时输出与结果统计",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "ssh-batch",
+      "explain": "一键批量执行服务器命令，例如批量拉取代码",
+      "cmds": ["批量执行", "批量命令", "ssh"]
+    }
+  ]
+}

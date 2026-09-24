@@ -44,6 +44,13 @@ function initCardOrder() {
       cardDefinitions.webdav
     ];
   }
+  
+  if (currentConfig.value && currentConfig.value.settingsCardCollapsed) {
+    collapsedCards.value = {
+      ...collapsedCards.value,
+      ...currentConfig.value.settingsCardCollapsed
+    };
+  }
 }
 
 const onOrderChange = async () => {
@@ -54,6 +61,13 @@ const onOrderChange = async () => {
 
 function toggleCard(cardName) {
   collapsedCards.value[cardName] = !collapsedCards.value[cardName];
+  
+  if (currentConfig.value) {
+    const plainState = JSON.parse(JSON.stringify(collapsedCards.value));
+    
+    currentConfig.value.settingsCardCollapsed = plainState;
+    saveSingleSetting('settingsCardCollapsed', plainState);
+  }
 }
 
 const isBackupManagerVisible = ref(false);
@@ -166,6 +180,27 @@ async function exportConfig() {
       delete configToExport.skillPath;
     }
 
+    if (window.api && window.api.exportMemoryData) {
+      const memories = await window.api.exportMemoryData();
+      if (memories && memories.length > 0) {
+        configToExport.memories = memories;
+      }
+    }
+
+    if (window.api && window.api.getCompactCache) {
+      try {
+        const compactCache = await window.api.getCompactCache();
+        const models = compactCache?.models && typeof compactCache.models === 'object'
+          ? compactCache.models
+          : null;
+        if (models && Object.keys(models).length > 0) {
+          configToExport.compactCache = { models };
+        }
+      } catch (error) {
+        console.warn('[exportConfig] compact cache export skipped:', error);
+      }
+    }
+
     const jsonString = JSON.stringify(configToExport, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -208,6 +243,19 @@ function importConfig() {
 
           if (currentSkillPath) {
             importedData.skillPath = currentSkillPath;
+          }
+
+          if (importedData.memories && window.api && window.api.importMemoryData) {
+            await window.api.importMemoryData(importedData.memories);
+            delete importedData.memories;
+          }
+
+          if (importedData.compactCache && window.api && window.api.importCompactCache) {
+            const compactModels = importedData.compactCache?.models && typeof importedData.compactCache.models === 'object'
+              ? importedData.compactCache.models
+              : (typeof importedData.compactCache === 'object' ? importedData.compactCache : {});
+            await window.api.importCompactCache(compactModels);
+            delete importedData.compactCache;
           }
 
           if (window.api && window.api.updateConfig) {
@@ -375,6 +423,27 @@ async function backupToWebdav() {
               delete configToBackup.skillPath;
             }
 
+            if (window.api && window.api.exportMemoryData) {
+              const memories = await window.api.exportMemoryData();
+              if (memories && memories.length > 0) {
+                configToBackup.memories = memories;
+              }
+            }
+
+            if (window.api && window.api.getCompactCache) {
+              try {
+                const compactCache = await window.api.getCompactCache();
+                const models = compactCache?.models && typeof compactCache.models === 'object'
+                  ? compactCache.models
+                  : null;
+                if (models && Object.keys(models).length > 0) {
+                  configToBackup.compactCache = { models };
+                }
+              } catch (error) {
+                console.warn('[backupToWebdav] compact cache export skipped:', error);
+              }
+            }
+
             const jsonString = JSON.stringify(configToBackup, null, 2);
             await client.putFileContents(remoteFilePath, jsonString, { overwrite: true });
 
@@ -490,6 +559,19 @@ async function restoreFromWebdav(file) {
       importedData.skillPath = currentSkillPath;
     }
 
+    if (importedData.memories && window.api && window.api.importMemoryData) {
+      await window.api.importMemoryData(importedData.memories);
+      delete importedData.memories;
+    }
+
+    if (importedData.compactCache && window.api && window.api.importCompactCache) {
+      const compactModels = importedData.compactCache?.models && typeof importedData.compactCache.models === 'object'
+        ? importedData.compactCache.models
+        : (typeof importedData.compactCache === 'object' ? importedData.compactCache : {});
+      await window.api.importCompactCache(compactModels);
+      delete importedData.compactCache;
+    }
+
     if (window.api && window.api.updateConfig) {
       await window.api.updateConfig({ config: importedData });
       const result = await window.api.getConfig();
@@ -577,6 +659,15 @@ async function selectLocalChatPath() {
     saveSingleSetting('webdav.localChatPath', path);
   }
 }
+
+async function selectSkillPath() {
+  const path = await window.api.selectDirectory();
+  if (path) {
+    currentConfig.value.skillPath = path;
+    saveSingleSetting('skillPath', path);
+  }
+}
+
 </script>
 
 <template>
@@ -671,14 +762,6 @@ async function selectLocalChatPath() {
                       <el-switch v-model="currentConfig.CtrlEnterToSend"
                         @change="(value) => saveSingleSetting('CtrlEnterToSend', value)" />
                     </div>
-                    <div class="setting-option-item">
-                      <div class="setting-text-content">
-                        <span class="setting-option-label">{{ t('setting.notification.label') }}</span>
-                        <span class="setting-option-description">{{ t('setting.notification.description') }}</span>
-                      </div>
-                      <el-switch v-model="currentConfig.showNotification"
-                        @change="(value) => saveSingleSetting('showNotification', value)" />
-                    </div>
                     <div class="setting-option-item no-border">
                       <div class="setting-text-content">
                         <span class="setting-option-label">{{ t('setting.fixPosition.label') }}</span>
@@ -720,7 +803,7 @@ async function selectLocalChatPath() {
                         t('setting.dataManagement.importButton')
                       }}</el-button>
                     </div>
-                    <div class="setting-option-item no-border">
+                    <div class="setting-option-item">
                       <div class="setting-text-content">
                         <span class="setting-option-label">{{ t('setting.webdav.localChatPath') }}</span>
                         <span class="setting-option-description">{{ t('setting.webdav.localChatPathPlaceholder') }}</span>
@@ -730,6 +813,19 @@ async function selectLocalChatPath() {
                         :placeholder="t('setting.webdav.localChatPathPlaceholder')" style="width: 320px;">
                         <template #append>
                           <el-button @click="selectLocalChatPath">{{ t('setting.webdav.selectFolder') }}</el-button>
+                        </template>
+                      </el-input>
+                    </div>
+                    <div class="setting-option-item no-border">
+                      <div class="setting-text-content">
+                        <span class="setting-option-label">{{ t('setting.dataManagement.skillPath') }}</span>
+                        <span class="setting-option-description">{{ t('setting.dataManagement.skillPathPlaceholder') }}</span>
+                      </div>
+                      <el-input v-model="currentConfig.skillPath"
+                        @change="(value) => saveSingleSetting('skillPath', value)"
+                        :placeholder="t('setting.dataManagement.skillPathPlaceholder')" style="width: 320px;">
+                        <template #append>
+                          <el-button @click="selectSkillPath">{{ t('setting.webdav.selectFolder') }}</el-button>
                         </template>
                       </el-input>
                     </div>
@@ -825,10 +921,10 @@ async function selectLocalChatPath() {
       <template #footer>
         <div class="dialog-footer">
           <div class="footer-left">
-            <el-button :icon="Refresh" @click="fetchBackupFiles">{{ t('common.refresh') }}</el-button>
+            <el-button :icon="Refresh" @click="fetchBackupFiles"></el-button>
             <el-button type="danger" :icon="DeleteIcon" @click="deleteSelectedFiles"
               :disabled="selectedFiles.length === 0">
-              {{ t('common.deleteSelected') }} ({{ selectedFiles.length }})
+              ({{ selectedFiles.length }})
             </el-button>
           </div>
           <div class="footer-center">
@@ -1171,6 +1267,35 @@ html.dark .settings-page-container {
   align-items: center;
   width: 100%;
   padding-top: 10px;
+  gap: 15px;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 0px;
+  flex-shrink: 0; 
+  white-space: nowrap;
+}
+
+.footer-left .el-button {
+  margin: 0;
+}
+
+.footer-center {
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0; 
+  overflow-x: auto;
+}
+
+.footer-center::-webkit-scrollbar {
+  display: none;
+}
+
+.footer-right {
+  flex-shrink: 0;
 }
 
 :deep(.el-table) {
@@ -1228,7 +1353,7 @@ html.dark .settings-page-container {
 }
 
 :deep(.backup-manager-dialog .el-dialog__footer) {
-  padding: 12px 20px;
+  padding: 0px 20px 12px;
   background-color: var(--panda-bg);
   border-top: 1px solid var(--panda-border);
 }

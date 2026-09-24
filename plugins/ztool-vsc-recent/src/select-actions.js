@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.decideSelectActions = decideSelectActions;
-const PATH_HINT = '。请确认 PATH 中包含 code 命令（在 VSCode 中按 Ctrl+Shift+P 运行 "Shell Command: Install code command in PATH"）。';
+const PATH_HINT = '。请确认已安装稳定版 Visual Studio Code；Windows 用户可通过页面中的“设置 VSCode”手动选择 Code.exe，Linux 用户需确保 code 命令可用。';
 function decideSelectActions(r) {
     if (r.ok) {
         return [{ kind: 'close-host' }];

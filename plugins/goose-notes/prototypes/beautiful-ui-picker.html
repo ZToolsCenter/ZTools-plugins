@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Beautiful UI 动效选型</title>
+  <style>
+    :root {
+      --ink: #1c1c1f;
+      --ink-2: #5c5c66;
+      --ink-3: #8b8b96;
+      --surface: #ffffff;
+      --inset: #f4f4f6;
+      --hover: #ececef;
+      --hover-2: #e6e6ea;
+      --line: #e4e4e8;
+      --line-strong: #d0d0d6;
+      --field: #f0f0f3;
+      --canvas: #f6f6f8;
+      --accent: #4f46e5;
+      --accent-ink: #3730a3;
+      --green: #16a34a;
+      --red: #dc2626;
+      --green-tint: #dcfce7;
+      --red-tint: #fee2e2;
+      --teal: #58d7b8;
+      --page: #efeff2;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }
+    html[data-theme="dark"] {
+      --ink: #f4f4f5;
+      --ink-2: #a1a1aa;
+      --ink-3: #71717a;
+      --surface: #1c1c1f;
+      --inset: #27272a;
+      --hover: #2e2e33;
+      --hover-2: #3f3f46;
+      --line: #3f3f46;
+      --line-strong: #52525b;
+      --field: #27272a;
+      --canvas: #111113;
+      --accent: #818cf8;
+      --accent-ink: #c7d2fe;
+      --green: #4ade80;
+      --red: #f87171;
+      --green-tint: #14532d;
+      --red-tint: #7f1d1d;
+      --page: #0c0c0e;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      font-family: "SF Pro Text", "PingFang SC", "Noto Sans SC", sans-serif;
+      color: var(--ink);
+      background: var(--page);
+    }
+    button, input { font: inherit; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 140px; }
+    header.hero { display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; margin-bottom: 22px; }
+    h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.04em; }
+    .sub { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.6; max-width: 680px; }
+    .hero-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .ghost {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .ghost:hover { background: var(--hover); }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+    .filters button {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 6px 11px;
+      color: var(--ink-2);
+      cursor: pointer;
+    }
+    .filters button[aria-pressed="true"] {
+      background: var(--ink);
+      color: var(--surface);
+      border-color: var(--ink);
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      min-height: 240px;
+      display: flex;
+      flex-direction: column;
+    }
+    .card.skipped { opacity: 0.72; }
+    .card[data-on="false"] { outline: 0; }
+    .card[data-on="true"] { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+    .preview {
+      min-height: 168px;
+      padding: 18px;
+      background: var(--canvas);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .meta { padding: 12px 14px 14px; border-top: 1px solid var(--line); display: grid; gap: 6px; }
+    .meta-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .title { font-size: 14px; font-weight: 650; }
+    .where { font-size: 12px; color: var(--ink-2); line-height: 1.45; }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pill {
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 2px 7px;
+      background: var(--field);
+      color: var(--ink-2);
+    }
+    .pill.note { background: #e0e7ff; color: #3730a3; }
+    .pill.agent { background: #dcfce7; color: #166534; }
+    html[data-theme="dark"] .pill.note { background: #312e81; color: #c7d2fe; }
+    html[data-theme="dark"] .pill.agent { background: #14532d; color: #bbf7d0; }
+    .pill.skip { background: var(--field); }
+    .pick {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--ink-2);
+      white-space: nowrap;
+    }
+    .pick input { accent-color: var(--accent); width: 15px; height: 15px; }
+    .wide { grid-column: 1 / -1; }
+    .dock {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      backdrop-filter: blur(16px);
+      border-top: 1px solid var(--line);
+      padding: 12px 20px;
+    }
+    /* uTools 旧内核会把 color-mix 塌掉；这里用实色兜底 */
+    @supports not (background: color-mix(in srgb, white 50%, black)) {
+      .dock { background: var(--surface); }
+    }
+    .dock-inner { max-width: 1180px; margin: 0 auto; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .sel { font-size: 13px; color: var(--ink-2); }
+    .sel b { color: var(--ink); }
+    .copy {
+      background: var(--ink); color: var(--surface);
+      border: 0; border-radius: 999px; padding: 9px 14px; cursor: pointer;
+    }
+    pre.out {
+      margin: 8px 0 0; white-space: pre-wrap; font: 12px/1.45 ui-monospace, Menlo, monospace;
+      color: var(--ink-2); max-height: 72px; overflow: auto;
+    }
+
+    /* ===== Beautiful UI motion (hex, same as shipped) ===== */
+    @keyframes pixel-on { 0%,100% { opacity:.15 } 50% { opacity:1 } }
+    @keyframes shimmer { 0% { background-position: 200% 50% } 100% { background-position: -200% 50% } }
+    @keyframes caret { 0%,49% { opacity:1 } 50%,100% { opacity:0 } }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    @keyframes fadeup { from { opacity:0; transform: translateY(6px) } to { opacity:1; transform: none } }
+    .loader { display:flex; align-items:center; gap:10px; }
+    .grid3 { display:grid; grid-template-columns:repeat(3,4px); gap:1.5px; }
+    .cell { width:4px; height:4px; border-radius:1px; background: var(--ink); opacity:.15; }
+    .cell.round { border-radius:999px; }
+    .cell.on { animation: pixel-on var(--dur,650ms) ease-in-out var(--delay,0ms) infinite; }
+    .shimmer-text {
+      font-size:13px; font-weight:500; color: transparent;
+      background-image: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%);
+      background-size: 200% 100%;
+      -webkit-background-clip: text; background-clip: text;
+      animation: shimmer 1.4s linear infinite;
+    }
+    .elapsed { font: 12px/1 ui-monospace, Menlo, monospace; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+    .think { width:100%; }
+    .think-btn { display:flex; align-items:center; gap:8px; border:0; background:transparent; color:var(--ink-2); cursor:pointer; padding:4px 6px; border-radius:8px; }
+    .think-btn:hover { background: var(--hover-2); }
+    .think-row { display:flex; align-items:center; gap:8px; min-height:28px; font-size:12.5px; }
+    .spin { width:12px; height:12px; border-radius:999px; border:1.5px solid var(--line-strong); border-top-color: var(--ink-2); animation: spin 700ms linear infinite; }
+    .muted { color: var(--ink-3); font-size:11.5px; }
+    .stream { font-size:14px; line-height:1.7; max-width: 420px; }
+    .caret { display:inline-block; width:2px; height:.85em; margin-left:2px; vertical-align:text-bottom; border-radius:999px; background:var(--ink); animation: caret 1s step-end infinite; }
+    .prompt {
+      width: min(420px, 100%);
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 18px;
+      padding: 10px 12px 8px;
+      position: relative;
+    }
+    .prompt.live::after {
+      content:""; position:absolute; left:10px; right:10px; top:0; height:2px; border-radius:2px;
+      background: linear-gradient(90deg, transparent, var(--teal), transparent);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s linear infinite;
+    }
+    .prompt input {
+      width:100%; border:0; background:transparent; color:var(--ink); outline:none; font-size:13px;
+    }
+    .prompt .bar { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; color:var(--ink-3); font-size:12px; }
+    .chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { height:22px; display:inline-flex; align-items:center; padding:0 8px; border-radius:7px; background:var(--field); color:var(--ink-2); font-size:11.5px; }
+    .chip.run { color: var(--ink); }
+    .chip.err { background: var(--red-tint); color: var(--red); }
+    .task {
+      width:100%; border-radius:12px; background: var(--surface); border:1px solid var(--line);
+    }
+    .task-h { display:flex; align-items:center; gap:10px; height:40px; padding:0 10px; }
+    .pill-done { background: var(--green-tint); color: var(--green); border-radius:999px; font-size:11.5px; padding:2px 8px; }
+    .pill-run { background: var(--field); color: var(--ink); border-radius:999px; font-size:11.5px; padding:2px 8px; }
+    .approval, .ctx, .code, .diff, .search, .reco {
+      width:100%; border:1px solid var(--line); border-radius:10px; background: var(--surface); overflow:hidden;
+    }
+    .ah { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); font-size:13px; font-weight:600; }
+    .status { font-size:10px; font-weight:500; border-radius:999px; padding:2px 8px; background: var(--field); color: var(--ink-2); }
+    .row { padding:8px 12px; font-size:12.5px; color:var(--ink-2); display:flex; gap:8px; align-items:center; }
+    .diff-del { background: var(--red-tint); color: var(--red); font: 11px/1.7 ui-monospace, Menlo, monospace; padding:6px 10px; }
+    .diff-add { background: var(--green-tint); color: var(--green); font: 11px/1.7 ui-monospace, Menlo, monospace; padding:6px 10px; }
+    .item { display:flex; width:100%; align-items:center; gap:8px; padding:6px 8px; border:0; background:transparent; border-radius:8px; text-align:left; cursor:pointer; color:var(--ink); }
+    .item:hover, .item.on { background: var(--ink); color: var(--surface); }
+    .selbar {
+      display:inline-flex; height:36px; align-items:center; gap:2px; padding:4px;
+      border-radius:999px; background: var(--surface); box-shadow: 0 8px 22px rgba(15,23,42,.08);
+    }
+    .selbar button { border:0; background:transparent; border-radius:999px; padding:6px 10px; cursor:pointer; color:var(--ink); font-size:12px; }
+    .selbar button:hover { background: var(--hover); }
+    .chat-demo {
+      width:100%; border:1px solid var(--line); border-radius:14px; background: var(--surface);
+      min-height: 140px; padding: 12px; display:flex; flex-direction:column; justify-content:space-between;
+    }
+    .bubble { align-self:flex-end; background:#eef2ff; color:#312e81; border-radius:14px; padding:6px 10px; font-size:12.5px; }
+    html[data-theme="dark"] .bubble { background:#312e81; color:#e0e7ff; }
+    .skip-box { color: var(--ink-3); font-size:13px; text-align:center; }
+    @media (prefers-reduced-motion: reduce) {
+      .cell.on, .shimmer-text, .caret, .spin, .prompt.live::after { animation: none !important; }
+      .shimmer-text { color: var(--ink-2); background: none; -webkit-background-clip: unset; background-clip: unset; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div>
+        <h1>Beautiful UI 动效选型</h1>
+        <p class="sub">
+          这是已经接到鹅的笔记 / 鹅的 Agent 上的那一套，按 <a href="https://www.beautifului.dev/" target="_blank" rel="noreferrer">beautifului.dev</a> 还原。
+          勾你想留的，去掉不想要的。下面「未接入」是站点有、产品里没有对应表面、按计划没硬造的。
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button class="ghost" id="theme" type="button">深色</button>
+        <button class="ghost" id="all-on" type="button">全选已接入</button>
+        <button class="ghost" id="all-off" type="button">全不选</button>
+      </div>
+    </header>
+    <div class="filters" id="filters">
+      <button type="button" data-f="all" aria-pressed="true">全部</button>
+      <button type="button" data-f="wired">已接入</button>
+      <button type="button" data-f="motion">动效本体</button>
+      <button type="button" data-f="note">笔记</button>
+      <button type="button" data-f="agent">Agent</button>
+      <button type="button" data-f="skip">未接入</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="dock">
+    <div class="dock-inner">
+      <div>
+        <div class="sel">已选 <b id="count">0</b> 项 · 把这份名单发我就行</div>
+        <pre class="out" id="out"></pre>
+      </div>
+      <button class="copy" id="copy" type="button">复制已选名单</button>
+    </div>
+  </div>
+
+  <script>
+    const CHEVRON = Array.from({ length: 9 }, (_, i) => {
+      const r = Math.floor(i / 3), c = i % 3;
+      return (c + Math.abs(r - 1)) * 90;
+    });
+    const ORBIT_ORDER = [0, 1, 2, 5, 8, 7, 6, 3];
+    const ORBIT = Array.from({ length: 9 }, (_, i) => {
+      const k = ORBIT_ORDER.indexOf(i);
+      return k === -1 ? null : k * 110;
+    });
+
+    function loaderGrid(delays, dur, round) {
+      return `<span class="grid3">${delays.map((d) => {
+        const cls = ["cell", round ? "round" : "", d == null ? "" : "on"].filter(Boolean).join(" ");
+        const style = d == null ? "opacity:.07" : `--dur:${dur}ms;--delay:${d}ms`;
+        return `<span class="${cls}" style="${style}"></span>`;
+      }).join("")}</span>`;
+    }
+
+    function fmt(ms) {
+      const t = ms / 1000;
+      if (t < 60) return t.toFixed(1) + "s";
+      return Math.floor(t / 60) + "m " + (t % 60).toFixed(1) + "s";
+    }
+
+    const items = [
+      {
+        id: "loading-drive",
+        title: "Loading · Drive",
+        tags: ["wired", "motion", "note", "agent"],
+        where: "笔记：思考占位 / 工具处理中 / 行内 AI busy。Agent：Composer 流式、思考气泡、工具卡、子代理、侧栏运行中。",
+        defaultOn: true,
+        preview() {
+          return `<div class="loader">${loaderGrid(CHEVRON, 650, false)}<span class="shimmer-text">思考中</span><span class="elapsed" data-clock></span></div>`;
+        },
+      },
+      {
+        id: "loading-dots",
+        title: "Loading · Dots",
+        tags: ["wired", "motion", "note"],
+        where: "笔记 Composer 流式时用圆点格。",
+        defaultOn: true,
+        preview() {
+          return `<div class="loader">${loaderGrid(CHEVRON, 650, true)}<span class="shimmer-text">生成中</span><span class="elapsed" data-clock></span></div>`;
+        },
+      },
+      {
+        id: "loading-orbit",
+        title: "Loading · Orbit",
+        tags: ["wired", "motion"],
+        where: "原语已实现，产品里默认用 Drive / Dots。想统一成绕圈就勾这个。",
+        defaultOn: false,
+        preview() {
+          return `<div class="loader">${loaderGrid(ORBIT, 950, false)}<span class="shimmer-text">运行中</span><span class="elapsed" data-clock></span></div>`;
+        },
+      },
+      {
+        id: "thinking",
+        title: "Thinking traces",
+        tags: ["wired", "motion", "note", "agent"],
+        where: "可展开步骤 / 推理 / 搜索 / 编码轨迹。笔记思考占位和工具展开；Agent 思考气泡。",
+        defaultOn: true,
+        preview() {
+          return `<div class="think">
+            <button class="think-btn" type="button" data-toggle>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#5c5c66"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
+              <span class="shimmer-text">Thinking</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8b96" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div data-rows>
+              <div class="think-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8b96" stroke-width="2.5"><path d="M5 12l5 5L20 7"/></svg>读取笔记</div>
+              <div class="think-row"><span class="spin"></span>比对段落 <span class="muted">3 处</span></div>
+            </div>
+          </div>`;
+        },
+      },
+      {
+        id: "streaming",
+        title: "Streaming Text",
+        tags: ["wired", "motion", "note", "agent"],
+        where: "助手流式正文旁的 caret / tail。Markdown 没拆掉。",
+        defaultOn: true,
+        preview() {
+          return `<div class="stream">这篇笔记的三个要点是：先把结构稳住，再补例子，最后压长度。<span class="caret"></span></div>`;
+        },
+      },
+      {
+        id: "prompt-bar",
+        title: "Prompt Bar",
+        tags: ["wired", "motion", "note", "agent"],
+        where: "底部输入条。流式时顶部一条 teal shimmer，没有 glimm 彩虹 shader。",
+        defaultOn: true,
+        preview() {
+          return `<div class="prompt live"><input value="继续把这段改短一点" readonly /><div class="bar">模型 · 发送</div></div>`;
+        },
+      },
+      {
+        id: "tool-chips",
+        title: "Tool Chips",
+        tags: ["wired", "note", "agent"],
+        where: "工具进度卡里的紧凑工具行。",
+        defaultOn: true,
+        preview() {
+          return `<div class="chip-row"><span class="chip">已读取笔记</span><span class="chip run">正在修改</span><span class="chip err">搜索失败</span></div>`;
+        },
+      },
+      {
+        id: "task-rows",
+        title: "Task Rows",
+        tags: ["wired", "note", "agent"],
+        where: "工具展开步骤 / 子代理任务行。",
+        defaultOn: true,
+        preview() {
+          return `<div class="task"><div class="task-h">${loaderGrid(CHEVRON, 650, false)}<span style="flex:1;font-size:13px;font-weight:500">生成变更计划</span><span class="pill-run">进行中</span></div></div>`;
+        },
+      },
+      {
+        id: "chat",
+        title: "Chat 面板",
+        tags: ["wired", "note", "agent"],
+        where: "笔记 AI 面板 / 消息列表；Agent 会话壳。",
+        defaultOn: true,
+        preview() {
+          return `<div class="chat-demo"><div class="bubble">@新手指南 列出这篇笔记的 3 个要点</div><div class="prompt" style="align-self:stretch"><input placeholder="向 AI 提问…" /></div></div>`;
+        },
+      },
+      {
+        id: "approval",
+        title: "Approval Card",
+        tags: ["wired", "note"],
+        where: "笔记 HITL 变更计划卡。Agent 一期没有审批，没硬造。",
+        defaultOn: true,
+        preview() {
+          return `<div class="approval"><div class="ah">笔记变更计划 <span class="status">待确认</span></div><div class="row">修改《新手指南》</div><div class="row">插入 3 个要点</div></div>`;
+        },
+      },
+      {
+        id: "diff",
+        title: "Diff Table",
+        tags: ["wired", "note", "agent"],
+        where: "笔记审批里的 search_replace；Agent 工具卡里的提议编辑（全页 Changes 仍是原来的 diff）。",
+        defaultOn: true,
+        preview() {
+          return `<div class="diff"><div class="diff-del">- 先写很长的一段说明</div><div class="diff-add">+ 先写三个短要点</div></div>`;
+        },
+      },
+      {
+        id: "recommend",
+        title: "Recommendation",
+        tags: ["wired", "note"],
+        where: "编辑器行内提示菜单 GoosePromptSuggestionMenu。",
+        defaultOn: true,
+        preview() {
+          return `<div class="reco" style="padding:6px"><button class="item on" type="button">润色这段</button><button class="item" type="button">解释选中内容</button><button class="item" type="button">翻译成英文</button></div>`;
+        },
+      },
+      {
+        id: "context",
+        title: "Context Cards",
+        tags: ["wired", "note", "agent"],
+        where: "笔记用户消息里的 @引用；Agent Composer 上下文条。",
+        defaultOn: true,
+        preview() {
+          return `<div class="ctx"><div class="ah" style="font-weight:500">鹅的笔记 · 新手指南 <span class="muted">笔记</span></div><div class="row">当前打开页，作为提问上下文</div></div>`;
+        },
+      },
+      {
+        id: "search",
+        title: "Search",
+        tags: ["wired", "note"],
+        where: "笔记 Composer 的 @ 下拉。Agent 没有独立命令搜索表面。",
+        defaultOn: true,
+        preview() {
+          return `<div class="search" style="padding:6px"><button class="item on" type="button">新手指南</button><button class="item" type="button">开发验证备忘</button></div>`;
+        },
+      },
+      {
+        id: "code",
+        title: "Code Block",
+        tags: ["wired", "note"],
+        where: "笔记流式代码块 chrome。Agent 用现有 streamdown 样式，没有再包一层。",
+        defaultOn: true,
+        preview() {
+          return `<div class="code"><div class="ah" style="font-weight:500;font-family:ui-monospace,Menlo,monospace;font-size:12px">ts</div><div class="row" style="font-family:ui-monospace,Menlo,monospace">const title = note.title</div></div>`;
+        },
+      },
+      {
+        id: "selection",
+        title: "Selection Actions",
+        tags: ["wired", "note"],
+        where: "编辑器选中文字后的行内 AI 条 GooseAIMenu。",
+        defaultOn: true,
+        preview() {
+          return `<div class="selbar"><button type="button">解释</button><button type="button">润色</button><button type="button">续写</button></div>`;
+        },
+      },
+      {
+        id: "records",
+        title: "Records Table",
+        tags: ["skip"],
+        where: "站点有，产品没有 AI 电子表格。按计划没造。",
+        defaultOn: false,
+        skipped: true,
+        preview() { return `<div class="skip-box">未接入 · 没有对应表面</div>`; },
+      },
+      {
+        id: "filter",
+        title: "Filter Table",
+        tags: ["skip"],
+        where: "站点有，产品没有任务筛选表。",
+        defaultOn: false,
+        skipped: true,
+        preview() { return `<div class="skip-box">未接入 · 没有对应表面</div>`; },
+      },
+      {
+        id: "insight",
+        title: "Insight Cards",
+        tags: ["skip"],
+        where: "站点依赖 liveline。现有图表仍是 ECharts 卡。",
+        defaultOn: false,
+        skipped: true,
+        preview() { return `<div class="skip-box">未接入 · 不替换现有图表卡</div>`; },
+      },
+      {
+        id: "finetune",
+        title: "Fine-tune Card",
+        tags: ["skip"],
+        where: "站点有参数 scrubber，产品没有微调面板。",
+        defaultOn: false,
+        skipped: true,
+        preview() { return `<div class="skip-box">未接入 · 没有对应表面</div>`; },
+      },
+      {
+        id: "flowchart",
+        title: "Flowchart",
+        tags: ["skip"],
+        where: "站点额外项。现有流程图仍是 Mermaid。",
+        defaultOn: false,
+        skipped: true,
+        preview() { return `<div class="skip-box">未接入 · 不替换 Mermaid</div>`; },
+      },
+    ];
+
+    const state = Object.fromEntries(items.map((it) => [it.id, it.defaultOn]));
+    let filter = "all";
+    const grid = document.getElementById("grid");
+
+    function render() {
+      grid.innerHTML = "";
+      items.filter((it) => filter === "all" || it.tags.includes(filter)).forEach((it) => {
+        const card = document.createElement("article");
+        card.className = "card" + (it.skipped ? " skipped" : "");
+        card.dataset.on = String(state[it.id]);
+        card.innerHTML = `
+          <div class="preview">${it.preview()}</div>
+          <div class="meta">
+            <div class="meta-top">
+              <div class="title">${it.title}</div>
+              <label class="pick"><input type="checkbox" ${state[it.id] ? "checked" : ""} ${it.skipped ? "disabled" : ""} data-id="${it.id}" /> 留下</label>
+            </div>
+            <div class="pills">${it.tags.map((t) => `<span class="pill ${t}">${t === "wired" ? "已接入" : t === "skip" ? "未接入" : t === "motion" ? "动效" : t === "note" ? "笔记" : t === "agent" ? "Agent" : t}</span>`).join("")}</div>
+            <div class="where">${it.where}</div>
+          </div>`;
+        grid.appendChild(card);
+      });
+      sync();
+    }
+
+    function selected() {
+      return items.filter((it) => state[it.id] && !it.skipped).map((it) => it.title);
+    }
+    function sync() {
+      document.getElementById("count").textContent = selected().length;
+      document.getElementById("out").textContent = selected().join(" · ") || "还没选";
+      document.querySelectorAll(".card").forEach((el) => {
+        const box = el.querySelector("input[data-id]");
+        if (box) el.dataset.on = String(box.checked);
+      });
+    }
+
+    grid.addEventListener("change", (e) => {
+      const t = e.target;
+      if (t.matches("input[data-id]")) {
+        state[t.dataset.id] = t.checked;
+        t.closest(".card").dataset.on = String(t.checked);
+        sync();
+      }
+    });
+    grid.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-toggle]");
+      if (!btn) return;
+      const rows = btn.parentElement.querySelector("[data-rows]");
+      rows.hidden = !rows.hidden;
+    });
+
+    document.getElementById("filters").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-f]");
+      if (!b) return;
+      filter = b.dataset.f;
+      document.querySelectorAll("#filters button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      render();
+    });
+    document.getElementById("all-on").onclick = () => {
+      items.forEach((it) => { if (!it.skipped) state[it.id] = true; });
+      render();
+    };
+    document.getElementById("all-off").onclick = () => {
+      items.forEach((it) => { state[it.id] = false; });
+      render();
+    };
+    document.getElementById("theme").onclick = () => {
+      const dark = document.documentElement.getAttribute("data-theme") === "dark";
+      document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+      document.getElementById("theme").textContent = dark ? "深色" : "浅色";
+    };
+    document.getElementById("copy").onclick = async () => {
+      const text = "留下这些 Beautiful UI：\n" + selected().map((x) => "- " + x).join("\n");
+      await navigator.clipboard.writeText(text);
+      const b = document.getElementById("copy");
+      b.textContent = "已复制";
+      setTimeout(() => { b.textContent = "复制已选名单"; }, 1200);
+    };
+
+    setInterval(() => {
+      document.querySelectorAll("[data-clock]").forEach((el) => {
+        if (!el.dataset.start) el.dataset.start = String(Date.now());
+        el.textContent = fmt(Date.now() - Number(el.dataset.start));
+      });
+    }, 100);
+
+    render();
+  </script>
+</body>
+</html>

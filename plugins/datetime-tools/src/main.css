@@ -1,0 +1,405 @@
+:root {
+  --blue: #409eff;
+  --success: #28a745;
+  --info: #17a2b8;
+  --primary: #007bff;
+  --danger: #dc3545;
+  --title-color: #2c3e50;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  color: #212529;
+  background-color: #fff;
+}
+
+/* —— Bootstrap 风格（对齐原插件外观，本地实现不引依赖） —— */
+.card {
+  background-color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 4px;
+}
+
+.card-body {
+  padding: 18px;
+}
+
+.card-title {
+  font-size: 17.5px;
+  font-weight: 500;
+  color: var(--title-color);
+  margin: 0 0 10px;
+}
+
+.card hr {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  margin: 14px 0;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.inline-form .item-name {
+  display: inline-block;
+  min-width: 70px;
+  color: var(--title-color);
+}
+
+.form-control {
+  display: inline-block;
+  width: 168px;
+  height: 34px;
+  padding: 5px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #495057;
+  background-color: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  outline: none;
+  vertical-align: middle;
+}
+
+.form-control:focus {
+  border-color: var(--blue);
+}
+
+select.form-control {
+  width: auto;
+  min-width: 70px;
+}
+
+.form-control.day-item {
+  width: 90px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 5px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.5;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  vertical-align: middle;
+  color: inherit;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-outline-success {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.btn-outline-success:not(:disabled):hover {
+  background-color: var(--success);
+  color: #fff;
+}
+
+.btn-outline-info {
+  color: var(--info);
+  border-color: var(--info);
+}
+
+.btn-outline-info:not(:disabled):hover {
+  background-color: var(--info);
+  color: #fff;
+}
+
+.btn-outline-primary {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-outline-primary:not(:disabled):hover {
+  background-color: var(--primary);
+  color: #fff;
+}
+
+.btn-outline-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn-outline-danger:not(:disabled):hover {
+  background-color: var(--danger);
+  color: #fff;
+}
+
+.btn-group {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 10px;
+}
+
+.btn-group .btn {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.btn-group .btn:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.btn-group .btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.text-success {
+  color: var(--success);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.text-danger {
+  color: #cc221a;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.alert {
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  margin-bottom: 14px;
+}
+
+.alert p {
+  margin: 4px 0 0;
+}
+
+.alert-success {
+  color: #155724;
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+}
+
+.alert-info {
+  color: #0c5460;
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+  margin-top: 24px;
+  margin-bottom: 0;
+}
+
+/* 数字输入框不显示上下箭头（对齐原插件外观） */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* 结果表格（日期格式 / 世界时间） */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 24px;
+  caption-side: top;
+}
+
+.table caption {
+  padding: 6px 0;
+  color: #6c757d;
+  text-align: left;
+}
+
+.table caption .float-right {
+  float: right;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  text-align: left;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.cursor-pointer:hover {
+  color: var(--blue);
+}
+
+/* 结果明细列表（节日放假 / 调休补班） */
+.output-group {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.output-group-item {
+  padding: 3px 0;
+}
+
+.list-group-item.list-group-item-primary {
+  color: #004085;
+  background-color: #b8daff;
+}
+
+.list-group-item.list-group-item-success {
+  color: #155724;
+  background-color: #c3e6cb;
+}
+
+/* 复制成功提示（Element UI message 风格） */
+.copy-message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  min-width: 380px;
+  padding: 15px 15px 15px 20px;
+  background-color: #f0f9eb;
+  border: 1px solid #e1f3d8;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+}
+
+.copy-message.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.copy-message-icon {
+  color: #67c23a;
+  flex-shrink: 0;
+}
+
+.copy-message-content {
+  margin: 0;
+  color: #67c23a;
+  font-size: 14px;
+}
+
+.float-right {
+  float: right;
+}
+
+.keep-label,
+.hms-label,
+.milli-label {
+  margin-left: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.keep-item {
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
+.list-group {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.list-group-item {
+  padding: 8px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  background-color: #fff;
+}
+
+.list-group-item + .list-group-item {
+  border-top: none;
+}
+
+.list-group-item:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.list-group-item:last-child {
+  border-radius: 0 0 4px 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #303133;
+    color: #e4e7ed;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: #303133;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #666;
+    border-color: #303133;
+  }
+
+  .card,
+  .list-group-item {
+    background-color: #3a3d40;
+    border-color: #555;
+  }
+
+  .card-title,
+  .inline-form .item-name {
+    color: #e4e7ed;
+  }
+
+  .card hr {
+    border-top-color: #555;
+  }
+
+  .form-control {
+    background-color: #303133;
+    border-color: #555;
+    color: #e4e7ed;
+  }
+
+  .form-control::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+
+  .alert-success {
+    color: #b7e1c1;
+    background-color: rgba(40, 167, 69, 0.15);
+    border-color: rgba(40, 167, 69, 0.4);
+  }
+
+  .alert-info {
+    color: #a6dce7;
+    background-color: rgba(23, 162, 184, 0.12);
+    border-color: rgba(23, 162, 184, 0.35);
+  }
+}

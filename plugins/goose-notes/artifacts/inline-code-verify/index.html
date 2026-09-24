@@ -1,0 +1,107 @@
+<!doctype html>
+<html class="dark" data-goose-accent="amber">
+<head>
+  <meta charset="utf-8" />
+  <title>inline-code accent verify</title>
+  <style>
+    :root {
+      --goose-inline-code-bg: #3d3e64;
+      --goose-inline-code-fg: #c7d2fe;
+      --goose-inline-code-border-hover: #6366f1;
+      --goose-interactive-selected: rgba(99, 102, 241, 0.2);
+      --goose-interactive-selected-fg: #a5b4fc;
+    }
+    body { margin: 24px; background: #2f2f2d; color: #e5e5e5; font: 16px/1.6 -apple-system, BlinkMacSystemFont, sans-serif; }
+    .workspace-editor-surface { background: #2f2f2d; padding: 20px; margin-bottom: 16px; border: 1px solid #444; border-radius: 12px; }
+    .swatch { display:inline-block; margin-right:12px; margin-bottom:12px; padding:8px 12px; border-radius:8px; }
+    .workspace-editor-surface code[data-goose-inline-code],
+    code[data-goose-inline-code] {
+      background-color: var(--goose-inline-code-bg);
+      color: var(--goose-inline-code-fg);
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.92em;
+      border: 1px solid transparent;
+    }
+    code[data-goose-inline-code] [data-goose-inline-code-content] {
+      color: var(--goose-inline-code-fg);
+    }
+    #out { white-space: pre-wrap; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; background:#1f1f1d; padding:12px; border-radius:8px; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+  </style>
+</head>
+<body>
+  <h1 id="title">dark amber inline code verify</h1>
+  <div class="swatch" id="selected" style="background: var(--goose-interactive-selected); color: var(--goose-interactive-selected-fg)">selected token</div>
+  <div class="workspace-editor-surface">
+    <div class="bn-inline-content">
+      用户1： <code data-goose-inline-code><span data-goose-inline-code-content>24016303 / 123456</span></code>
+    </div>
+  </div>
+  <pre id="out"></pre>
+  <script>
+    const ACCENT_RUNTIME_TOKENS = {
+      iris: {
+        dark: {
+          "--goose-interactive-selected": "rgba(99, 102, 241, 0.2)",
+          "--goose-interactive-selected-fg": "#a5b4fc",
+          "--goose-icon-chip-on-selected": "rgba(99, 102, 241, 0.14)",
+          "--goose-inline-code-bg": "#3d3e64",
+          "--goose-inline-code-fg": "#c7d2fe",
+          "--goose-inline-code-border-hover": "#6366f1",
+        },
+      },
+      amber: {
+        dark: {
+          "--goose-interactive-selected": "rgba(245, 158, 11, 0.2)",
+          "--goose-interactive-selected-fg": "#fbbf24",
+          "--goose-icon-chip-on-selected": "rgba(245, 158, 11, 0.14)",
+          "--goose-inline-code-bg": "#4a3b24",
+          "--goose-inline-code-fg": "#fde68a",
+          "--goose-inline-code-border-hover": "#f59e0b",
+        },
+      },
+    };
+
+    function applyAccentColor(accentColor) {
+      const root = document.documentElement;
+      root.classList.add("dark");
+      root.setAttribute("data-goose-accent", accentColor);
+      const tokens = (ACCENT_RUNTIME_TOKENS[accentColor] || ACCENT_RUNTIME_TOKENS.iris).dark;
+      for (const [name, value] of Object.entries(tokens)) {
+        root.style.setProperty(name, value);
+      }
+      document.getElementById('title').textContent = `dark ${accentColor} inline code verify`;
+    }
+
+    function measure(accentColor) {
+      applyAccentColor(accentColor);
+      const code = document.querySelector("code");
+      const cs = getComputedStyle(code);
+      const root = getComputedStyle(document.documentElement);
+      return {
+        accent: document.documentElement.getAttribute("data-goose-accent"),
+        dark: document.documentElement.classList.contains("dark"),
+        tokens: {
+          bg: root.getPropertyValue("--goose-inline-code-bg").trim(),
+          fg: root.getPropertyValue("--goose-inline-code-fg").trim(),
+          selected: root.getPropertyValue("--goose-interactive-selected").trim(),
+          selectedFg: root.getPropertyValue("--goose-interactive-selected-fg").trim(),
+        },
+        computed: {
+          bg: cs.backgroundColor,
+          color: cs.color,
+        },
+      };
+    }
+
+    window.applyAccentColor = applyAccentColor;
+    window.__measureAccent = measure;
+
+    const initial = new URLSearchParams(location.search).get("accent") || "amber";
+    const data = measure(initial);
+    document.getElementById("out").textContent = JSON.stringify(data, null, 2);
+  </script>
+</body>
+</html>

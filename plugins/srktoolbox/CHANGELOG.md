@@ -1,5 +1,6 @@
 # Changelog
 
+
 ## Versioning
 
 CyberChef uses the [semver](https://semver.org/) system to manage versioning: `<MAJOR>.<MINOR>.<PATCH>`.
@@ -13,7 +14,17 @@ All major and minor version changes will be documented in this file. Details of 
 
 ## Details
 
-### [10.22.0] - 2026-02-11
+## 10.22.1 - 2026-05-11
+
+- 初次发布，将插件提交至 ZTools 插件仓库。
+- 最终版本
+- 修改构建命令
+- 完整构建产物
+- 添加插件图标。
+- 插件图标处理失败时直接action失败
+
+## 10.22.0 - 2026-02-11
+
 - Separate npm publish out into separate job and run with Node 24.5 [@GCHQDeveloper581] | [#2188]
 - Fixed Percent delimiter for hex encoding [@beneri] [@C85297] | [#2137]
 - Added the ability to paste one or more Images from the Clipboard [@t-martine] [@a3957273] [@C85297] | [#1876]
@@ -23,7 +34,8 @@ All major and minor version changes will be documented in this file. Details of 
 - Add contents write permission to releases workflow [@C85297] | [#2182]
 - Fix release workflow permissions [@C85297] | [#2181]
 
-### [10.21.0] - 2026-02-05
+## 10.21.0 - 2026-02-05
+
 - Fix import operations with special chars in them [@d98762625] [@jg42526] | [#1040]
 - Remove custom CodeQL workflow [@C85297] | [#2176]
 - Fix code scanning warnings in workflows [@GCHQDeveloper581] | [#2177]
@@ -42,7 +54,8 @@ All major and minor version changes will be documented in this file. Details of 
 - Tiny typo fix in "To Base85" operation [@twostraws] | [#2118]
 - Bump jsonpath-plus [@C85297] | [#2166]
 
-### [10.20.0] - 2026-01-28
+## 10.20.0 - 2026-01-28
+
 - Fixed Optical Character Recognition and added tests [@n1474335] | [ab37c1e]
 - Fixed JA4 version fallback value [@n1474335] | [7a5225c]
 - Updated chromedriver [@n1474335] | [0e82e4b]
@@ -111,14 +124,17 @@ All major and minor version changes will be documented in this file. Details of 
 - Fixed ToDecimal signed logic [@starplanet] | [#1545]
 - Use BigInt for encoding/decoding VarInt [@mikecat] | [#1978]
 
-### [10.19.0] - 2024-06-21
+## 10.19.0 - 2024-06-21
+
 - Add support for ECDSA and DSA in 'Parse CSR' [@robinsandhu] | [#1828]
 - Fix typos in SIGABA.mjs [@eltociear] | [#1834]
 
-### [10.18.0] - 2024-04-24
+## 10.18.0 - 2024-04-24
+
 - Added 'XXTEA Encrypt' and 'XXTEA Decrypt' operations [@n1474335] | [0a353ee]
 
-### [10.17.0] - 2024-04-13
+## 10.17.0 - 2024-04-13
+
 - Fix unit test 'expectOutput' implementation [@zb3] | [#1783]
 - Add accessibility labels for icons [@e218736] | [#1743]
 - Add focus styling for keyboard navigation [@e218736] | [#1739]
@@ -130,10 +146,12 @@ All major and minor version changes will be documented in this file. Details of 
 - Added 'Public Key from Certificate' operation [@cplussharp] | [#1642]
 - Added 'Public Key from Private Key' operation [@cplussharp] | [#1642]
 
-### [10.16.0] - 2024-04-12
+## 10.16.0 - 2024-04-12
+
 - Added 'JA4Server Fingerprint' operation [@n1474335] | [#1789]
 
-### [10.15.0] - 2024-04-02
+## 10.15.0 - 2024-04-02
+
 - Fix Ciphersaber2 key concatenation [@zb3] | [#1765]
 - Fix DeriveEVPKey's array parsing [@zb3] | [#1767]
 - Fix JWT operations [@a3957273] | [#1769]
@@ -141,61 +159,76 @@ All major and minor version changes will be documented in this file. Details of 
 - Added 'Extract Hash Values' operation [@MShwed] | [#512]
 - Added 'DateTime Delta' operation [@tomgond] | [#1732]
 
-### [10.14.0] - 2024-03-31
+## 10.14.0 - 2024-03-31
+
 - Added 'To Float' and 'From Float' operations [@tcode2k16] | [#1762]
 - Fix ChaCha raw export option [@joostrijneveld] | [#1606]
 - Update x86 disassembler vendor library [@evanreichard] | [#1197]
 - Allow variable Blowfish key sizes [@cbeuw] | [#933]
 - Added 'XXTEA' operation [@devcydo] | [#1361]
 
-### [10.13.0] - 2024-03-30
+## 10.13.0 - 2024-03-30
+
 - Added 'FangURL' operation [@breakersall] [@arnydo] | [#1591] [#654]
 
-### [10.12.0] - 2024-03-29
+## 10.12.0 - 2024-03-29
+
 - Added 'Salsa20' and 'XSalsa20' operation [@joostrijneveld] | [#1750]
 
-### [10.11.0] - 2024-03-29
+## 10.11.0 - 2024-03-29
+
 - Add HEIC/HEIF file signatures [@simonw] | [#1757]
 - Update xmldom to fix medium security vulnerability [@chriswhite199] | [#1752]
 - Update JSONWebToken to fix medium security vulnerability [@chriswhite199] | [#1753]
 
-### [10.10.0] - 2024-03-27
+## 10.10.0 - 2024-03-27
+
 - Added 'JA4 Fingerprint' operation [@n1474335] | [#1759]
 
-### [10.9.0] - 2024-03-26
+## 10.9.0 - 2024-03-26
+
 - Line ending sequences and UTF-8 character encoding are now detected automatically [@n1474335] | [65ffd8d]
 
-### [10.8.0] - 2024-02-13
+## 10.8.0 - 2024-02-13
+
 - Add official Docker images [@AshCorr] | [#1699]
 
-### [10.7.0] - 2024-02-09
+## 10.7.0 - 2024-02-09
+
 - Added 'File Tree' operation [@sw5678] | [#1667]
 - Added 'RISON' operation [@sg5506844] | [#1555]
 - Added 'MurmurHash3' operation [@AliceGrey] | [#1694]
 
-### [10.6.0] -  2024-02-03
+## 10.6.0 - 2024-02-03
+
 - Updated 'Forensics Wiki' URLs to new domain [@a3957273] | [#1703]
 - Added 'LZNT1 Decompress' operation [@0xThiebaut] | [#1675]
 - Updated 'Regex Expression' UUID matcher [@cnotin] | [#1678]
 - Removed duplicate 'hover' message within baking info [@KevinSJ] | [#1541]
 
-### [10.5.0] - 2023-07-14
+## 10.5.0 - 2023-07-14
+
 - Added GOST Encrypt, Decrypt, Sign, Verify, Key Wrap, and Key Unwrap operations [@n1474335] | [#592]
 
-### [10.4.0] - 2023-03-24
+## 10.4.0 - 2023-03-24
+
 - Added 'Generate De Bruijn Sequence' operation [@gchq77703] | [#493]
 
-### [10.3.0] - 2023-03-24
+## 10.3.0 - 2023-03-24
+
 - Added 'Argon2' and 'Argon2 compare' operations [@Xenonym] | [#661]
 
-### [10.2.0] - 2023-03-23
+## 10.2.0 - 2023-03-23
+
 - Added 'Derive HKDF key' operation [@mikecat] | [#1528]
 
-### [10.1.0] - 2023-03-23
+## 10.1.0 - 2023-03-23
+
 - Added 'Levenshtein Distance' operation [@mikecat] | [#1498]
 - Added 'Swap case' operation [@mikecat] | [#1499]
 
-## [10.0.0] - 2023-03-22
+## 10.0.0 - 2023-03-22
+
 - [Full details explained here](https://github.com/gchq/CyberChef/wiki/Character-encoding,-EOL-separators,-and-editor-features)
 - Status bars added to the Input and Output [@n1474335] | [#1405]
 - Character encoding selection added to the Input and Output [@n1474335] | [#1405]
@@ -209,177 +242,233 @@ All major and minor version changes will be documented in this file. Details of 
 <details>
     <summary>Click to expand v9 minor versions</summary>
 
-### [9.55.0] - 2022-12-09
+## 9.55.0 - 2022-12-09
+
 - Added 'AMF Encode' and 'AMF Decode' operations [@n1474335] | [760eff4]
 
-### [9.54.0] - 2022-11-25
+## 9.54.0 - 2022-11-25
+
 - Added 'Rabbit' operation [@mikecat] | [#1450]
 
-### [9.53.0] - 2022-11-25
+## 9.53.0 - 2022-11-25
+
 - Added 'AES Key Wrap' and 'AES Key Unwrap' operations [@mikecat] | [#1456]
 
-### [9.52.0] - 2022-11-25
+## 9.52.0 - 2022-11-25
+
 - Added 'ChaCha' operation [@joostrijneveld] | [#1466]
 
-### [9.51.0] - 2022-11-25
+## 9.51.0 - 2022-11-25
+
 - Added 'CMAC' operation [@mikecat] | [#1457]
 
-### [9.50.0] - 2022-11-25
+## 9.50.0 - 2022-11-25
+
 - Added 'Shuffle' operation [@mikecat] | [#1472]
 
-### [9.49.0] - 2022-11-11
+## 9.49.0 - 2022-11-11
+
 - Added 'LZ4 Compress' and 'LZ4 Decompress' operations [@n1474335] | [31a7f83]
 
-### [9.48.0] - 2022-10-14
+## 9.48.0 - 2022-10-14
+
 - Added 'LM Hash' and 'NT Hash' operations [@n1474335] [@brun0ne] | [#1427]
 
-### [9.47.0] - 2022-10-14
+## 9.47.0 - 2022-10-14
+
 - Added 'LZMA Decompress' and 'LZMA Compress' operations [@mattnotmitt] | [#1421]
 
-### [9.46.0] - 2022-07-08
+## 9.46.0 - 2022-07-08
+
 - Added 'Cetacean Cipher Encode' and 'Cetacean Cipher Decode' operations [@valdelaseras] | [#1308]
 
-### [9.45.0] - 2022-07-08
+## 9.45.0 - 2022-07-08
+
 - Added 'ROT8000' operation [@thomasleplus] | [#1250]
 
-### [9.44.0] - 2022-07-08
+## 9.44.0 - 2022-07-08
+
 - Added 'LZString Compress' and 'LZString Decompress' operations [@crespyl] | [#1266]
 
-### [9.43.0] - 2022-07-08
+## 9.43.0 - 2022-07-08
+
 - Added 'ROT13 Brute Force' and 'ROT47 Brute Force' operations [@mikecat] | [#1264]
 
-### [9.42.0] - 2022-07-08
+## 9.42.0 - 2022-07-08
+
 - Added 'LS47 Encrypt' and 'LS47 Decrypt' operations [@n1073645] | [#951]
 
-### [9.41.0] - 2022-07-08
+## 9.41.0 - 2022-07-08
+
 - Added 'Caesar Box Cipher' operation [@n1073645] | [#1066]
 
-### [9.40.0] - 2022-07-08
+## 9.40.0 - 2022-07-08
+
 - Added 'P-list Viewer' operation [@n1073645] | [#906]
 
-### [9.39.0] - 2022-06-09
+## 9.39.0 - 2022-06-09
+
 - Added 'ELF Info' operation [@n1073645] | [#1364]
 
-### [9.38.0] - 2022-05-30
+## 9.38.0 - 2022-05-30
+
 - Added 'Parse TCP' operation [@n1474335] | [a895d1d]
 
-### [9.37.0] - 2022-03-29
+## 9.37.0 - 2022-03-29
+
 - 'SM4 Encrypt' and 'SM4 Decrypt' operations added [@swesven] | [#1189]
 - NoPadding options added for CBC and ECB modes in AES, DES and Triple DES Decrypt operations [@swesven] | [#1189]
 
-### [9.36.0] - 2022-03-29
+## 9.36.0 - 2022-03-29
+
 - 'SIGABA' operation added [@hettysymes] | [#934]
 
-### [9.35.0] - 2022-03-28
+## 9.35.0 - 2022-03-28
+
 - 'To Base45' and 'From Base45' operations added [@t-8ch] | [#1242]
 
-### [9.34.0] - 2022-03-28
+## 9.34.0 - 2022-03-28
+
 - 'Get All Casings' operation added [@n1073645] | [#1065]
 
-### [9.33.0] - 2022-03-25
+## 9.33.0 - 2022-03-25
+
 - Updated to support Node 17 [@n1474335] [@john19696] [@t-8ch] | [[#1326] [#1313] [#1244]
 - Improved CJS and ESM module support [@d98762625] | [#1037]
 
-### [9.32.0] - 2021-08-18
+## 9.32.0 - 2021-08-18
+
 - 'Protobuf Encode' operation added and decode operation modified to allow decoding with full and partial schemas [@n1474335] | [dd18e52]
 
-### [9.31.0] - 2021-08-10
+## 9.31.0 - 2021-08-10
+
 - 'HASSH Client Fingerprint' and 'HASSH Server Fingerprint' operations added [@n1474335] | [e9ca4dc]
 
-### [9.30.0] - 2021-08-10
+## 9.30.0 - 2021-08-10
+
 - 'JA3S Fingerprint' operation added [@n1474335] | [289a417]
 
-### [9.29.0] - 2021-07-28
+## 9.29.0 - 2021-07-28
+
 - 'JA3 Fingerprint' operation added [@n1474335] | [9a33498]
 
-### [9.28.0] - 2021-03-26
+## 9.28.0 - 2021-03-26
+
 - 'CBOR Encode' and 'CBOR Decode' operations added [@Danh4] | [#999]
 
-### [9.27.0] - 2021-02-12
+## 9.27.0 - 2021-02-12
+
 - 'Fuzzy Match' operation added [@n1474335] | [8ad18b]
 
-### [9.26.0] - 2021-02-11
+## 9.26.0 - 2021-02-11
+
 - 'Get Time' operation added [@n1073645] [@n1474335] | [#1045]
 
-### [9.25.0] - 2021-02-11
+## 9.25.0 - 2021-02-11
+
 - 'Extract ID3' operation added [@n1073645] [@n1474335] | [#1006]
 
-### [9.24.0] - 2021-02-02
+## 9.24.0 - 2021-02-02
+
 - 'SM3' hashing function added along with more configuration options for other hashing operations [@n1073645] [@n1474335] | [#1022]
 
-### [9.23.0] - 2021-02-01
+## 9.23.0 - 2021-02-01
+
 - Various RSA operations added to encrypt, decrypt, sign, verify and generate keys [@mattnotmitt] [@GCHQ77703] | [#652]
 
-### [9.22.0] - 2021-02-01
+## 9.22.0 - 2021-02-01
+
 - 'Unicode Text Format' operation added [@mattnotmitt] | [#1083]
 
-### [9.21.0] - 2020-06-12
+## 9.21.0 - 2020-06-12
+
 - Node API now exports `magic` operation [@d98762625] | [#1049]
 
-### [9.20.0] - 2020-03-27
+## 9.20.0 - 2020-03-27
+
 - 'Parse ObjectID Timestamp' operation added [@dmfj] | [#987]
 
-### [9.19.0] - 2020-03-24
+## 9.19.0 - 2020-03-24
+
 - Improvements to the 'Magic' operation, allowing it to recognise more data formats and provide more accurate results [@n1073645] [@n1474335] | [#966] [b765534b](https://github.com/gchq/CyberChef/commit/b765534b8b2a0454a5132a0a52d1d8844bcbdaaa)
 
-### [9.18.0] - 2020-03-13
+## 9.18.0 - 2020-03-13
+
 - 'Convert to NATO alphabet' operation added [@MarvinJWendt] | [#674]
 
-### [9.17.0] - 2020-03-13
+## 9.17.0 - 2020-03-13
+
 - 'Generate Image' operation added [@pointhi] | [#683]
 
-### [9.16.0] - 2020-03-06
+## 9.16.0 - 2020-03-06
+
 - 'Colossus' operation added [@VirtualColossus] | [#917]
 
-### [9.15.0] - 2020-03-05
+## 9.15.0 - 2020-03-05
+
 - 'CipherSaber2 Encrypt' and 'CipherSaber2 Decrypt' operations added [@n1073645] | [#952]
 
-### [9.14.0] - 2020-03-05
+## 9.14.0 - 2020-03-05
+
 - 'Luhn Checksum' operation added [@n1073645] | [#965]
 
-### [9.13.0] - 2020-02-13
+## 9.13.0 - 2020-02-13
+
 - 'Rail Fence Cipher Encode' and 'Rail Fence Cipher Decode' operations added [@Flavsditz] | [#948]
 
-### [9.12.0] - 2019-12-20
+## 9.12.0 - 2019-12-20
+
 - 'Normalise Unicode' operation added [@matthieuxyz] | [#912]
 
-### [9.11.0] - 2019-11-06
+## 9.11.0 - 2019-11-06
+
 - Implemented CFB, OFB, and CTR modes for Blowfish operations [@cbeuw] | [#653]
 
-### [9.10.0] - 2019-11-06
+## 9.10.0 - 2019-11-06
+
 - 'Lorenz' operation added [@VirtualColossus] | [#528]
 
-### [9.9.0] - 2019-11-01
+## 9.9.0 - 2019-11-01
+
 - Added support for 109 more character encodings [@n1474335]
 
-### [9.8.0] - 2019-10-31
+## 9.8.0 - 2019-10-31
+
 - 'Avro to JSON' operation added [@jarrodconnolly] | [#865]
 
-### [9.7.0] - 2019-09-13
+## 9.7.0 - 2019-09-13
+
 - 'Optical Character Recognition' operation added [@MShwed] [@n1474335] | [#632]
 
-### [9.6.0] - 2019-09-04
+## 9.6.0 - 2019-09-04
+
 - 'Bacon Cipher Encode' and 'Bacon Cipher Decode' operations added [@kassi] | [#500]
 
-### [9.5.0] - 2019-09-04
+## 9.5.0 - 2019-09-04
+
 - Various Steganography operations added: 'Extract LSB', 'Extract RGBA', 'Randomize Colour Palette', and 'View Bit Plane' [@Ge0rg3] | [#625]
 
-### [9.4.0] - 2019-08-30
+## 9.4.0 - 2019-08-30
+
 - 'Render Markdown' operation added [@j433866] | [#627]
 
-### [9.3.0] - 2019-08-30
+## 9.3.0 - 2019-08-30
+
 - 'Show on map' operation added [@j433866] | [#477]
 
-### [9.2.0] - 2019-08-23
+## 9.2.0 - 2019-08-23
+
 - 'Parse UDP' operation added [@h345983745] | [#614]
 
-### [9.1.0] - 2019-08-22
+## 9.1.0 - 2019-08-22
+
 - 'Parse SSH Host Key' operation added [@j433866] | [#595]
 - 'Defang IP Addresses' operation added [@h345983745] | [#556]
 
 </details>
 
-## [9.0.0] - 2019-07-09
+## 9.0.0 - 2019-07-09
+
 - [Multiple inputs](https://github.com/gchq/CyberChef/wiki/Multiple-Inputs) are now supported in the main web UI, allowing you to upload and process multiple files at once [@j433866] | [#566]
 - A [Node.js API](https://github.com/gchq/CyberChef/wiki/Node-API) has been implemented, meaning that CyberChef can now be used as a library, either to provide specific operations, or an entire baking environment [@d98762625] | [#291]
 - A [read-eval-print loop (REPL)](https://github.com/gchq/CyberChef/wiki/Node-API#repl) is also included to enable prototyping and experimentation with the API [@d98762625] | [#291]
@@ -388,130 +477,170 @@ All major and minor version changes will be documented in this file. Details of 
 <details>
     <summary>Click to expand v8 minor versions</summary>
 
-### [8.38.0] - 2019-07-03
+## 8.38.0 - 2019-07-03
+
 - 'Streebog' and 'GOST hash' operations added [@MShwed] [@n1474335] | [#530]
 
-### [8.37.0] - 2019-07-03
+## 8.37.0 - 2019-07-03
+
 - 'CRC-8 Checksum' operation added [@MShwed] | [#591]
 
-### [8.36.0] - 2019-07-03
+## 8.36.0 - 2019-07-03
+
 - 'PGP Verify' operation added [@artemisbot] | [#585]
 
-### [8.35.0] - 2019-07-03
+## 8.35.0 - 2019-07-03
+
 - 'Sharpen Image', 'Convert Image Format' and 'Add Text To Image' operations added [@j433866] | [#515]
 
-### [8.34.0] - 2019-06-28
+## 8.34.0 - 2019-06-28
+
 - Various new visualisations added to the 'Entropy' operation [@MShwed] | [#535]
 - Efficiency improvements made to the 'Entropy' operation for large file support [@n1474335]
 
-### [8.33.0] - 2019-06-27
+## 8.33.0 - 2019-06-27
+
 - 'Bzip2 Compress' operation added and 'Bzip2 Decompress' operation greatly improved [@artemisbot] | [#531]
 
-### [8.32.0] - 2019-06-27
+## 8.32.0 - 2019-06-27
+
 - 'Index of Coincidence' operation added [@Ge0rg3] | [#571]
 
-### [8.31.0] - 2019-04-12
+## 8.31.0 - 2019-04-12
+
 - The downloadable version of CyberChef is now a .zip file containing separate modules rather than a single .htm file. It is still completely standalone and will not make any external network requests. This change reduces the complexity of the build process significantly. [@n1474335]
 
-### [8.30.0] - 2019-04-12
+## 8.30.0 - 2019-04-12
+
 - 'Decode Protobuf' operation added [@n1474335] | [#533]
 
-### [8.29.0] - 2019-03-31
+## 8.29.0 - 2019-03-31
+
 - 'BLAKE2s' and 'BLAKE2b' hashing operations added [@h345983745] | [#525]
 
-### [8.28.0] - 2019-03-31
+## 8.28.0 - 2019-03-31
+
 - 'Heatmap Chart', 'Hex Density Chart', 'Scatter Chart' and 'Series Chart' operation added [@artemisbot] [@tlwr] | [#496] [#143]
 
-### [8.27.0] - 2019-03-14
+## 8.27.0 - 2019-03-14
+
 - 'Enigma', 'Typex', 'Bombe' and 'Multiple Bombe' operations added [@s2224834] | [#516]
 - See [this wiki article](https://github.com/gchq/CyberChef/wiki/Enigma,-the-Bombe,-and-Typex) for a full explanation of these operations.
 - New Bombe-style loading animation added for long-running operations [@n1474335]
 - New operation argument types added: `populateMultiOption` and `argSelector` [@n1474335]
 
-### [8.26.0] - 2019-03-09
+## 8.26.0 - 2019-03-09
+
 - Various image manipulation operations added [@j433866] | [#506]
 
-### [8.25.0] - 2019-03-09
+## 8.25.0 - 2019-03-09
+
 - 'Extract Files' operation added and more file formats supported [@n1474335] | [#440]
 
-### [8.24.0] - 2019-02-08
+## 8.24.0 - 2019-02-08
+
 - 'DNS over HTTPS' operation added [@h345983745] | [#489]
 
-### [8.23.1] - 2019-01-18
+## 8.23.1 - 2019-01-18
+
 - 'Convert co-ordinate format' operation added [@j433866] | [#476]
 
-### [8.23.0] - 2019-01-18
+## 8.23.0 - 2019-01-18
+
 - 'YARA Rules' operation added [@artemisbot] | [#468]
 
-### [8.22.0] - 2019-01-10
+## 8.22.0 - 2019-01-10
+
 - 'Subsection' operation added [@j433866] | [#467]
 
-### [8.21.0] - 2019-01-10
+## 8.21.0 - 2019-01-10
+
 - 'To Case Insensitive Regex' and 'From Case Insensitive Regex' operations added [@masq] | [#461]
 
-### [8.20.0] - 2019-01-09
+## 8.20.0 - 2019-01-09
+
 - 'Generate Lorem Ipsum' operation added [@klaxon1] | [#455]
 
-### [8.19.0] - 2018-12-30
+## 8.19.0 - 2018-12-30
+
 - UI test suite added to confirm that the app loads correctly in a reasonable time and that various operations from each module can be run [@n1474335] | [#458]
 
-### [8.18.0] - 2018-12-26
+## 8.18.0 - 2018-12-26
+
 - 'Split Colour Channels' operation added [@artemisbot] | [#449]
 
-### [8.17.0] - 2018-12-25
+## 8.17.0 - 2018-12-25
+
 - 'Generate QR Code' and 'Parse QR Code' operations added [@j433866] | [#448]
 
-### [8.16.0] - 2018-12-19
+## 8.16.0 - 2018-12-19
+
 - 'Play Media' operation added [@anthony-arnold] | [#446]
 
-### [8.15.0] - 2018-12-18
+## 8.15.0 - 2018-12-18
+
 - 'Text Encoding Brute Force' operation added [@Cynser] | [#439]
 
-### [8.14.0] - 2018-12-18
+## 8.14.0 - 2018-12-18
+
 - 'To Base62' and 'From Base62' operations added [@tcode2k16] | [#443]
 
-### [8.13.0] - 2018-12-15
+## 8.13.0 - 2018-12-15
+
 - 'A1Z26 Cipher Encode' and 'A1Z26 Cipher Decode' operations added [@jarmovanlenthe] | [#441]
 
-### [8.12.0] - 2018-11-21
+## 8.12.0 - 2018-11-21
+
 - 'Citrix CTX1 Encode' and 'Citrix CTX1 Decode' operations added [@bwhitn] | [#428]
 
-### [8.11.0] - 2018-11-13
+## 8.11.0 - 2018-11-13
+
 - 'CSV to JSON' and 'JSON to CSV' operations added [@n1474335] | [#277]
 
-### [8.10.0] - 2018-11-07
+## 8.10.0 - 2018-11-07
+
 - 'Remove Diacritics' operation added [@klaxon1] | [#387]
 
-### [8.9.0] - 2018-11-07
+## 8.9.0 - 2018-11-07
+
 - 'Defang URL' operation added [@arnydo] | [#394]
 
-### [8.8.0] - 2018-10-10
+## 8.8.0 - 2018-10-10
+
 - 'Parse TLV' operation added [@GCHQ77703] | [#351]
 
-### [8.7.0] - 2018-08-31
+## 8.7.0 - 2018-08-31
+
 - 'JWT Sign', 'JWT Verify' and 'JWT Decode' operations added [@GCHQ77703] | [#348]
 
-### [8.6.0] - 2018-08-29
+## 8.6.0 - 2018-08-29
+
 - 'To Geohash' and 'From Geohash' operations added [@GCHQ77703] | [#344]
 
-### [8.5.0] - 2018-08-23
+## 8.5.0 - 2018-08-23
+
 - 'To Braille' and 'From Braille' operations added [@n1474335] | [#255]
 
-### [8.4.0] - 2018-08-23
+## 8.4.0 - 2018-08-23
+
 - 'To Base85' and 'From Base85' operations added [@PenguinGeorge] | [#340]
 
-### [8.3.0] - 2018-08-21
+## 8.3.0 - 2018-08-21
+
 - 'To MessagePack' and 'From MessagePack' operations added [@artemisbot] | [#338]
 
-### [8.2.0] - 2018-08-21
+## 8.2.0 - 2018-08-21
+
 - Information links added to most operations, accessible in the description popover [@PenguinGeorge] | [#298]
 
-### [8.1.0] - 2018-08-19
+## 8.1.0 - 2018-08-19
+
 - 'Dechunk HTTP response' operation added [@sevzero] | [#311]
 
 </details>
 
-## [8.0.0] - 2018-08-05
+## 8.0.0 - 2018-08-05
+
 - Codebase rewritten using [ES modules](https://hacks.mozilla.org/2018/03/es-modules-a-cartoon-deep-dive/) and [classes](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes) [@n1474335] [@d98762625] [@artemisbot] [@picapi] | [#284]
 - Operation architecture restructured to make adding new operations a lot simpler [@n1474335] | [#284]
 - A script has been added to aid in the creation of new operations by running `npm run newop` [@n1474335] | [#284]
@@ -525,17 +654,21 @@ All major and minor version changes will be documented in this file. Details of 
 - 'Haversine distance' operation added [@Dachande663] | [#325]
 - Started keeping a changelog [@n1474335]
 
-## [7.0.0] - 2017-12-28
+## 7.0.0 - 2017-12-28
+
 - Added support for loading, processing and downloading files up to 500MB [@n1474335] | [#224]
 
-## [6.0.0] - 2017-09-19
+## 6.0.0 - 2017-09-19
+
 - Threading support added. All recipe processing moved into a [Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers) to increase performance and to allow long-running operations to be cancelled [@n1474335] | [#173]
 - Module system created so that operations relying on large libraries can be downloaded separately as required, reducing the initial loading time for the app [@n1474335] | [#173]
 
-## [5.0.0] - 2017-03-30
+## 5.0.0 - 2017-03-30
+
 -  Webpack build process configured with Babel transpilation and ES6 imports and exports [@n1474335] | [#95]
 
-## [4.0.0] - 2016-11-28
+## 4.0.0 - 2016-11-28
+
 -  Initial open source commit [@n1474335] | [b1d73a72](https://github.com/gchq/CyberChef/commit/b1d73a725dc7ab9fb7eb789296efd2b7e4b08306)
 
 [10.22.0]: https://github.com/gchq/CyberChef/releases/tag/v10.22.0
@@ -1010,4 +1143,3 @@ All major and minor version changes will be documented in this file. Details of 
 [#2183]: https://github.com/gchq/CyberChef/pull/2183
 [#2182]: https://github.com/gchq/CyberChef/pull/2182
 [#2181]: https://github.com/gchq/CyberChef/pull/2181
-

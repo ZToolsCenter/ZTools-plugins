@@ -1,0 +1,32 @@
+{
+  "name": "vibe-coding",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "prebuild": "node scripts/prepare-build.mjs",
+    "build": "vite build && node scripts/copy-preload-deps.mjs",
+    "preview": "vite preview --host 127.0.0.1",
+    "test:unit": "node --test tests/unit/*.spec.js",
+    "test:e2e": "playwright test --config=playwright.e2e.config.js"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.31.0",
+    "diff": "^8.0.4",
+    "highlight.js": "^11.12.0",
+    "katex": "^0.16.22",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-gfm": "^3.1.0",
+    "mdast-util-math": "^3.0.0",
+    "mdast-util-to-string": "^4.0.0",
+    "micromark-extension-gfm": "^3.0.0",
+    "micromark-extension-math": "^3.1.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.11"
+  }
+}

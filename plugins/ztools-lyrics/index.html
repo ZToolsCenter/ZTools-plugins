@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>歌词搜索</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部：搜索框 + 操作按钮 -->
+    <header id="topbar">
+      <button id="btn-back" class="btn ghost hidden" title="返回搜索列表">← 返回</button>
+      <input id="search-input" type="text" placeholder="输入歌名 / 歌手，回车搜索" spellcheck="false" />
+      <button id="btn-search" class="btn primary">搜索</button>
+    </header>
+
+    <!-- 歌曲列表视图 -->
+    <section id="view-list" class="view">
+      <div id="list-status" class="status">输入关键词搜索歌曲</div>
+      <ul id="song-list"></ul>
+    </section>
+
+    <!-- 歌词视图 -->
+    <section id="view-lyric" class="view hidden">
+      <div id="lyric-header">
+        <div id="lyric-title"></div>
+        <div id="lyric-sub"></div>
+        <div id="lyric-actions">
+          <label id="trans-toggle-wrap" class="hidden"><input type="checkbox" id="trans-toggle" /> 显示翻译</label>
+          <button id="btn-copy-all" class="btn">复制全部</button>
+          <button id="btn-save" class="btn">保存 TXT</button>
+          <button id="btn-fav" class="btn">☆ 收藏</button>
+        </div>
+      </div>
+      <div id="lyric-body"></div>
+      <div class="tip">点击歌词任意一行即可复制该行内容</div>
+    </section>
+  </div>
+  <script src="index.js"></script>
+</body>
+</html>

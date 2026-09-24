@@ -1,0 +1,61 @@
+{
+  "name": "uuid-kit",
+  "title": "UUID 百宝箱",
+  "description": "UUID 百宝箱：粘贴即解析互转（uuid62/base57/base58/base64url/hex），生成 v1/v3/v4/v5/v6/v7，时间戳/版本体检",
+  "author": "Junxin Gao",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "parse",
+      "explain": "粘贴任意 uuid/短 id 自动解析互转",
+      "icon": "logo.png",
+      "cmds": [
+        "uuid62",
+        "uuid转换",
+        {
+          "type": "regex",
+          "label": "短id → UUID",
+          "match": "/^\\s*[A-Za-z][A-Za-z0-9_]*-[0-9A-Za-z]{22}\\s*$/"
+        },
+        {
+          "type": "regex",
+          "label": "短id → UUID",
+          "match": "/^\\s*[0-9A-Za-z]{22}\\s*$/"
+        },
+        {
+          "type": "regex",
+          "label": "base64url → UUID",
+          "match": "/^\\s*(?=[A-Za-z0-9_-]*[-_])[A-Za-z0-9_-]{22}\\s*$/"
+        },
+        {
+          "type": "regex",
+          "label": "UUID → 短id",
+          "match": "/^\\s*([A-Za-z][A-Za-z0-9_]*-)?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\s*$/"
+        },
+        {
+          "type": "regex",
+          "label": "UUID → 短id",
+          "match": "/^\\s*([A-Za-z][A-Za-z0-9_]*-)?[0-9a-fA-F]{32}\\s*$/"
+        }
+      ]
+    },
+    {
+      "code": "gen",
+      "explain": "生成 UUID v1/v3/v4/v5/v6/v7",
+      "icon": "logo.png",
+      "cmds": [
+        "uuid",
+        "uuid1",
+        "uuid3",
+        "uuid4",
+        "uuid5",
+        "uuid6",
+        "uuid7",
+        "生成uuid"
+      ]
+    }
+  ]
+}

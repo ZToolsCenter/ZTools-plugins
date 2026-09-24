@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>微信读书</title>
+    <link rel="stylesheet" href="single-line.css" />
+  </head>
+  <body>
+    <main id="readerBar" class="reader-bar">
+      <section class="reader-row" aria-label="单行阅读器">
+        <div class="drag-handle" title="拖动窗口" aria-hidden="true">⠿</div>
+        <p id="lineText" class="line-text" tabindex="0">正在读取当前章节…</p>
+        <span id="lineProgress" class="line-progress" aria-label="阅读进度"></span>
+        <div class="reader-actions">
+          <button id="autoPlayButton" type="button" title="自动滚动（空格）" aria-pressed="false">▶</button>
+          <button id="settingsButton" type="button" title="阅读设置" aria-expanded="false">⚙</button>
+          <button id="hideButton" type="button" title="隐藏（Esc）">—</button>
+          <button id="closeButton" type="button" title="关闭">×</button>
+        </div>
+      </section>
+
+      <section id="settingsPanel" class="settings-panel" aria-label="单行阅读设置" hidden>
+        <label class="setting setting--wide">
+          <span>窗口长度</span>
+          <input id="widthInput" type="range" min="420" max="1400" step="20" />
+          <output id="widthOutput" for="widthInput"></output>
+        </label>
+
+        <div class="setting">
+          <label for="backgroundColorInput">背景颜色</label>
+          <div class="color-setting-control">
+            <input id="backgroundColorInput" type="color" />
+            <button id="backgroundScreenPickButton" type="button" title="从屏幕任意位置取色">取色</button>
+          </div>
+        </div>
+        <label class="setting">
+          <span>背景透明度</span>
+          <input id="backgroundOpacityInput" type="range" min="0.05" max="1" step="0.05" />
+        </label>
+
+        <div class="setting">
+          <label for="textColorInput">字体颜色</label>
+          <div class="color-setting-control">
+            <input id="textColorInput" type="color" />
+            <button id="textScreenPickButton" type="button" title="从屏幕任意位置取色">取色</button>
+          </div>
+        </div>
+        <label class="setting">
+          <span>字体透明度</span>
+          <input id="textOpacityInput" type="range" min="0.1" max="1" step="0.05" />
+        </label>
+
+        <label class="setting">
+          <span>字体</span>
+          <select id="fontFamilyInput">
+            <option value="system-ui, sans-serif">系统字体</option>
+            <option value='"Microsoft YaHei UI", "Microsoft YaHei", sans-serif'>微软雅黑</option>
+            <option value="SimSun, serif">宋体</option>
+            <option value="FangSong, serif">仿宋</option>
+            <option value="SimHei, sans-serif">黑体</option>
+            <option value="Consolas, monospace">等宽字体</option>
+          </select>
+        </label>
+        <label class="setting">
+          <span>字号</span>
+          <input id="fontSizeInput" type="range" min="12" max="36" step="1" />
+        </label>
+
+        <label class="setting">
+          <span>字重</span>
+          <select id="fontWeightInput">
+            <option value="400">常规</option>
+            <option value="700">粗体</option>
+          </select>
+        </label>
+        <label class="setting">
+          <span>自动滚动间隔</span>
+          <input id="autoPlayDelayInput" type="range" min="250" max="4000" step="50" />
+        </label>
+
+        <p class="shortcut-help">滚轮 / A D：逐字移动　W S：换行　空格：自动滚动　Esc：隐藏</p>
+      </section>
+    </main>
+
+    <script src="single-line.js"></script>
+  </body>
+</html>

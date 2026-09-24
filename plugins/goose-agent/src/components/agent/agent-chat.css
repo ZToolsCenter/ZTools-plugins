@@ -1,0 +1,674 @@
+/**
+ * Agent 会话轻量样式。
+ * 避免 oklch / color-mix / hsl(var(--x)/alpha)（uTools 旧内核）。
+ * 动效短、可降级；尊重 prefers-reduced-motion。
+ */
+
+/* -------------------------------------------------------------------------- */
+/* 消息入场                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/* 消息气泡入场：opacity + 微位移 */
+.agent-msg-user,
+.agent-msg-assistant {
+  animation: agent-msg-enter 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes agent-msg-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 空态：鹅标轻浮 + 标题淡入                                                    */
+/* -------------------------------------------------------------------------- */
+
+.agent-empty-mascot {
+  animation: agent-empty-float 2.8s ease-in-out infinite;
+}
+
+.agent-empty-title {
+  animation: agent-msg-enter 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes agent-empty-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 主内容面板 / 侧栏大卡入场                                                    */
+/* -------------------------------------------------------------------------- */
+
+.agent-panel-enter {
+  /* 仅淡入：translateY 会在挂载瞬间撑出 overflow，闪现滚动条并抖动布局 */
+  animation: agent-panel-enter 240ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes agent-panel-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 顶栏条件图标入场：有变更等状态出现时轻量反馈（仅 opacity，不位移） */
+.agent-header-icon-enter {
+  animation: agent-header-icon-enter 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes agent-header-icon-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 消息列表滚动：预留纵向槽；禁止横向溢出在底部画出异色条 */
+.agent-chat-scroller {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  min-width: 0;
+}
+
+/* 列表列收窄时不把宽代码/表格撑出整页横向滚动 */
+.agent-chat-scroller > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Composer：可发送时按钮就绪；图标 hover 轻弹                                   */
+/* -------------------------------------------------------------------------- */
+
+.agent-composer-action:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.agent-composer-action:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.agent-send-btn--ready {
+  animation: agent-send-ready 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes agent-send-ready {
+  from {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.agent-send-btn:not(:disabled):hover .agent-icon-pop {
+  transform: translate(1px, -1px);
+}
+
+.agent-composer-action:not(:disabled):hover .agent-icon-pop {
+  transform: scale(1.06);
+}
+
+.agent-icon-pop {
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* 工具进度卡入场 */
+.agent-tool-progress {
+  animation: agent-msg-enter 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 浅色模式：消息 / Composer / 子代理卡 层级（hex / rgba 实色，无 color-mix）   */
+/* html 上 .dark 由 App 切换；深色靠 bg/surface 阶梯，不额外加噪                */
+/* -------------------------------------------------------------------------- */
+
+/* 助手正文气泡：bg 凹在 surface 白板上，soft 内描边避免糊成一片 */
+html:not(.dark) .agent-msg-assistant .relative.bg-bg {
+  box-shadow: inset 0 0 0 1px var(--color-border-soft, #dedede);
+}
+
+/* 子代理卡：已有 border-soft；微抬阴影增强白卡可读 */
+html:not(.dark) .agent-subagent-card {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* Composer 输入卡：border-soft + bg 凹回；微阴影相对主面板抬一层 */
+html:not(.dark) .agent-composer .border-border-soft.bg-bg {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* -------------------------------------------------------------------------- */
+/* 子代理卡：折叠展开 150–250ms ease-out；prefers-reduced-motion 降级           */
+/* -------------------------------------------------------------------------- */
+
+.agent-subagent-card {
+  animation: agent-msg-enter 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* grid 0fr→1fr 展开，不引 Motion 库。
+ * 收起时外层也要 overflow:hidden + opacity:0，否则 ProgressCircle 等
+ * 会因 0fr 亚像素/描边外溢留下 1–2px 残影（见子代理卡收起态）。
+ * visibility 延迟到高度动画结束后再 hidden，避免内容瞬间消失。 */
+.agent-subagent-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    grid-template-rows 200ms cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.agent-subagent-body--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.agent-subagent-body-inner {
+  overflow: hidden;
+  min-height: 0;
+  visibility: hidden;
+  transition: visibility 0s linear 200ms;
+}
+
+.agent-subagent-body--open .agent-subagent-body-inner {
+  visibility: visible;
+  transition: visibility 0s;
+}
+
+.agent-subagent-header {
+  transition: background-color 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-subagent-card {
+    animation: none;
+  }
+
+  .agent-subagent-body {
+    transition: none;
+  }
+
+  .agent-subagent-body-inner,
+  .agent-subagent-body--open .agent-subagent-body-inner {
+    transition: none;
+  }
+
+  .agent-subagent-header {
+    transition: none;
+  }
+}
+
+/* loadSkill 能力名 tag：轻量边框微闪 + 内光；密度克制 */
+@keyframes agent-skill-tag-shimmer {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 transparent,
+      inset 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--color-border-soft, #e5e5e5),
+      inset 0 0 6px 0 var(--color-accent-subtle, #f5f5f5);
+  }
+}
+
+/* 仅 loading 态播放微闪；done 为静态精致 chip */
+.agent-skill-tag--active {
+  animation: agent-skill-tag-shimmer 2.4s ease-in-out infinite;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 图标控件：hover 微抬 + 图标轻弹（配合 .icon-control）                         */
+/* -------------------------------------------------------------------------- */
+
+.icon-control svg {
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.icon-control:hover svg {
+  transform: scale(1.08);
+}
+
+.icon-control:active svg {
+  transform: scale(0.96);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Markdown（Streamdown .agent-md）：对话气泡密度，无 oklch / color-mix         */
+/* -------------------------------------------------------------------------- */
+
+.agent-md {
+  font-size: var(--font-size-chat, 14px);
+  line-height: var(--line-height-chat, 1.65);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  color: var(--color-fg);
+  /* 可复制：与 index.css body user-select:none 白名单配合 */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* 子代理任务 / 输出 / 摘要 / 弹窗轨迹：可选中复制 */
+.agent-subagent-selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Streamdown 默认 space-y-4 在气泡内过松：收紧子元素间距 */
+.agent-md.space-y-4 > :not([hidden]) ~ :not([hidden]),
+.agent-md > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.4rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(0.4rem * var(--tw-space-y-reverse));
+}
+
+/* 收敛首尾外边距避免气泡内多余空白 */
+.agent-md > :first-child {
+  margin-top: 0;
+}
+
+.agent-md > :last-child {
+  margin-bottom: 0;
+}
+
+.agent-md h1,
+.agent-md h2,
+.agent-md h3,
+.agent-md h4,
+.agent-md h5,
+.agent-md h6 {
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-fg);
+  margin: 0.65em 0 0.3em;
+}
+
+.agent-md h1 {
+  font-size: 1.2em;
+}
+
+.agent-md h2 {
+  font-size: 1.1em;
+}
+
+.agent-md h3 {
+  font-size: 1.05em;
+}
+
+.agent-md h4,
+.agent-md h5,
+.agent-md h6 {
+  font-size: 1em;
+}
+
+.agent-md p {
+  margin: 0.35em 0;
+}
+
+.agent-md ul,
+.agent-md ol {
+  margin: 0.35em 0;
+  padding-left: 1.35em;
+}
+
+.agent-md li {
+  margin: 0.15em 0;
+}
+
+.agent-md li > ul,
+.agent-md li > ol {
+  margin: 0.1em 0;
+}
+
+.agent-md hr {
+  margin: 0.65em 0;
+  border: none;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.agent-md a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.agent-md a:hover {
+  color: #1d4ed8;
+}
+
+.dark .agent-md a {
+  color: #93c5fd;
+}
+
+.dark .agent-md a:hover {
+  color: #bfdbfe;
+}
+
+.agent-md strong {
+  font-weight: 600;
+}
+
+.agent-md blockquote {
+  margin: 0.45em 0;
+  padding: 0.15em 0 0.15em 0.75em;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-fg-muted);
+}
+
+.agent-md blockquote > :first-child {
+  margin-top: 0;
+}
+
+.agent-md blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* 行内 code */
+.agent-md :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--color-accent-subtle);
+  color: var(--color-fg);
+}
+
+/*
+ * 代码块（streamdown + shiki）：
+ * - 外层 code-block 容器：实色底 + 圆角，勿用 color-mix / oklch
+ * - token 色由 shiki 写到 --sdm-c / --shiki-dark，勿强行 color 覆盖
+ * - 复制/下载按钮始终可点；hover 提高对比
+ */
+.agent-md [data-streamdown="code-block"] {
+  margin: 0.45em 0;
+  padding: 0.4em;
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  line-height: 1.5;
+  /* 可选中复制正文 */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.agent-md [data-streamdown="code-block-header"] {
+  min-height: 1.75rem;
+  padding: 0 0.35rem;
+  color: var(--color-fg-muted);
+  font-size: 0.78em;
+  text-transform: lowercase;
+}
+
+.agent-md [data-streamdown="code-block-actions"] {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 6px;
+  background: var(--color-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.agent-md [data-streamdown="code-block-copy-button"],
+.agent-md [data-streamdown="code-block-download-button"] {
+  color: var(--color-fg-muted);
+  border-radius: 4px;
+}
+
+.agent-md [data-streamdown="code-block-copy-button"]:hover,
+.agent-md [data-streamdown="code-block-download-button"]:hover {
+  color: var(--color-fg);
+  background: var(--color-surface-hover);
+}
+
+.agent-md [data-streamdown="code-block-body"],
+.agent-md [data-streamdown="code-block"] pre {
+  margin: 0;
+  padding: 0.5em 0.65em;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-accent-subtle);
+  font-family: var(--font-mono);
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* 无 streamdown 外壳的裸 pre（兜底） */
+.agent-md > pre,
+.agent-md p > pre {
+  margin: 0.4em 0;
+  padding: 0.55em 0.7em;
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-accent-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  line-height: 1.5;
+}
+
+.agent-md [data-streamdown="code-block"] code,
+.agent-md [data-streamdown="code-block-body"] code,
+.agent-md pre code {
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  /* 勿写死 color：shiki token 用 var(--sdm-c) */
+}
+
+/* shiki 双主题：.dark 下走 --shiki-dark */
+.agent-md [data-streamdown="code-block-body"] span[style*="--sdm-c"],
+.agent-md [data-streamdown="code-block"] span[style*="--sdm-c"] {
+  color: var(--sdm-c);
+}
+
+.dark .agent-md [data-streamdown="code-block-body"] span[style*="--shiki-dark"],
+.dark .agent-md [data-streamdown="code-block"] span[style*="--shiki-dark"] {
+  color: var(--shiki-dark, var(--sdm-c));
+}
+
+/* Mermaid 图容器 */
+.agent-md [data-streamdown="mermaid"] {
+  margin: 0.5em 0;
+  padding: 0.5em;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface);
+  overflow: auto;
+}
+
+/* 图片复制 / 下载按钮（实色，旧内核友好） */
+.agent-md-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-fg-muted);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+
+.agent-md-icon-btn:hover {
+  color: var(--color-fg);
+  background: var(--color-surface-hover);
+}
+
+.agent-md-icon-btn:active {
+  background: var(--color-surface-active);
+}
+
+.agent-md-image-wrap {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/*
+ * 表格（streamdown table-wrapper）：
+ * 默认有「外卡 + 内框 + 单元格」三层边框，在对话里过重。
+ * 压成单层：去掉外壳/内框，只保留单元格网格；复制/下载条轻量右对齐。
+ */
+.agent-md [data-streamdown="table-wrapper"] {
+  margin: 0.45em 0;
+  padding: 0;
+  gap: 0.15rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  max-width: 100%;
+}
+
+/* 内层滚动容器：去掉第二层边框与背景 */
+.agent-md [data-streamdown="table-wrapper"] > div:last-child {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+}
+
+/* 操作条按钮：无额外边框壳，与正文同色阶 */
+.agent-md [data-streamdown="table-wrapper"] button {
+  color: var(--color-fg-muted);
+  border-radius: 4px;
+}
+
+.agent-md [data-streamdown="table-wrapper"] button:hover {
+  color: var(--color-fg);
+  background: var(--color-surface-hover);
+}
+
+.agent-md table,
+.agent-md [data-streamdown="table"] {
+  display: table;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  margin: 0;
+  border-collapse: collapse;
+  border: none;
+  font-size: 0.92em;
+  line-height: 1.45;
+}
+
+.agent-md th,
+.agent-md td,
+.agent-md [data-streamdown="table-header-cell"],
+.agent-md [data-streamdown="table-cell"] {
+  padding: 0.4em 0.65em;
+  border: 1px solid var(--color-border-soft);
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+}
+
+.agent-md th,
+.agent-md [data-streamdown="table-header-cell"] {
+  font-weight: 600;
+  background: var(--color-accent-subtle);
+  color: var(--color-fg);
+  white-space: nowrap;
+}
+
+/* 表头/表体自带 divide / muted 会再叠一层，关掉 */
+.agent-md [data-streamdown="table-header"] {
+  background: transparent;
+}
+
+.agent-md [data-streamdown="table-body"],
+.agent-md [data-streamdown="table-row"] {
+  border: none;
+}
+
+.agent-md img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+/* Streamdown 动画：尊重系统降级（styles.css 的 [data-sd-animate]） */
+@media (prefers-reduced-motion: reduce) {
+  .agent-md [data-sd-animate] {
+    animation: none !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* reduced-motion                                                             */
+/* -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-msg-user,
+  .agent-msg-assistant,
+  .agent-empty-title,
+  .agent-panel-enter,
+  .agent-header-icon-enter,
+  .agent-tool-progress {
+    animation: agent-msg-enter-fade 150ms ease both;
+  }
+
+  .agent-skill-tag--active {
+    animation: none;
+  }
+
+  .agent-empty-mascot,
+  .agent-send-btn--ready {
+    animation: none;
+  }
+
+  .agent-composer-action:not(:disabled):hover,
+  .agent-composer-action:not(:disabled):active,
+  .agent-send-btn:not(:disabled):hover .agent-icon-pop,
+  .agent-composer-action:not(:disabled):hover .agent-icon-pop,
+  .icon-control:hover svg,
+  .icon-control:active svg {
+    transform: none;
+  }
+
+  @keyframes agent-msg-enter-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

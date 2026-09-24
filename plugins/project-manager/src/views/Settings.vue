@@ -1,16 +1,33 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, toRaw } from 'vue';
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue';
 import { useSettingsStore } from '../stores/settings';
 import { useProjectStore } from '../stores/project';
 import { useNodeStore } from '../stores/node';
 import { api } from '../api';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
-import type { AiServiceConfig, NodeVersion, Project, Settings } from '../types';
-import { isAiServiceConfigured, normalizeAiApiType, requestAiText } from '../utils/ai';
+import type { AiServiceConfig, EditorConfig, NodeVersion, Project, Settings } from '../types';
+import { MAX_AI_FALLBACK_SLOTS } from '../types';
+import { normalizeAiApiType, requestAiText } from '../utils/ai';
+import { buildAiAttempts } from '../utils/aiFallback.ts';
+import { mergeDetectedEditors } from '../utils/editorDetection';
 import { isAbortError } from '../utils/network';
 import { ensureNodeInstallCommand } from '../utils/projectCommands';
+import { sortNodeVersions } from '../utils/nodeDefaultState';
 import { createTerminalConfig, getTerminalDuplicateKey, normalizeTerminalConfigs } from '../utils/terminalConfig';
+import {
+  DEFAULT_QUICK_SEARCH_APP_SHORTCUT,
+  DEFAULT_QUICK_SEARCH_GLOBAL_SHORTCUT,
+  DEFAULT_FOCUS_SEARCH_SHORTCUT,
+  DEFAULT_NEW_PROJECT_SHORTCUT,
+  DEFAULT_REFRESH_PROJECTS_SHORTCUT,
+  DEFAULT_SIDEBAR_MENU_SHORTCUTS,
+  normalizeShortcut,
+} from '../utils/shortcut';
+import { createImageDataUrl } from '../utils/backgroundImage';
+import { normalizeUiSize } from '../utils/uiSize';
+import ShortcutRecorder from '../components/ShortcutRecorder.vue';
+import SettingsSectionNav from '../components/settings/SettingsSectionNav.vue';
 
 type ImportChoice = 'keep' | 'incoming';
 type ImportDiff = { key: string; label: string; current: string; incoming: string };
@@ -18,6 +35,7 @@ type ProjectConflict = { existingIndex: number; existing: Project; incoming: Pro
 type NodeConflict = { existingIndex: number; existing: NodeVersion; incoming: NodeVersion; choice: ImportChoice; diffs: ImportDiff[] };
 type SettingsConflict = { key: keyof Settings; label: string; current: string; incoming: string; choice: ImportChoice; incomingValue: unknown };
 type ImportPlan = {
+  incomingProjects: Project[];
   projectAdds: Project[];
   projectConflicts: ProjectConflict[];
   nodeAdds: NodeVersion[];
@@ -50,13 +68,31 @@ function normalizeAiServiceConfig(value: unknown, fallback: AiServiceConfig): Ai
 }
 
 function normalizeAiSettings(settings: Settings): Settings {
+  const primaryFallback = normalizeAiServiceConfig(settings.gitAiPrimaryService, createDefaultAiService({
+    baseUrl: settings.gitAiBaseUrl || 'https://api.openai.com/v1',
+    apiKey: settings.gitAiApiKey || '',
+    model: settings.gitAiModel || 'gpt-4o-mini',
+  }));
+  const firstSingleModel = settings.gitAiSingleChannel?.models
+    ?.map(model => model.trim())
+    .find(Boolean);
+  const firstEnabledChannel = settings.gitAiChannels?.find(channel => channel.enabled !== false);
+  const activePrimary = settings.gitAiFallbackMode === 'multi_channel' && firstEnabledChannel
+    ? normalizeAiServiceConfig(firstEnabledChannel, primaryFallback)
+    : settings.gitAiSingleChannel
+      ? {
+          ...normalizeAiServiceConfig(settings.gitAiSingleChannel.service, primaryFallback),
+          model: firstSingleModel || settings.gitAiSingleChannel.service.model || primaryFallback.model,
+        }
+      : primaryFallback;
+
   return {
     ...settings,
-    gitAiPrimaryService: normalizeAiServiceConfig(settings.gitAiPrimaryService, createDefaultAiService({
-      baseUrl: settings.gitAiBaseUrl || 'https://api.openai.com/v1',
-      apiKey: settings.gitAiApiKey || '',
-      model: settings.gitAiModel || 'gpt-4o-mini',
-    })),
+    // 兼容旧版本：始终回写当前模式真正会尝试的第一个服务。
+    gitAiPrimaryService: activePrimary,
+    gitAiBaseUrl: activePrimary.baseUrl,
+    gitAiApiKey: activePrimary.apiKey,
+    gitAiModel: activePrimary.model,
     gitAiStream: typeof settings.gitAiStream === 'boolean' ? settings.gitAiStream : true,
   };
 }
@@ -73,14 +109,102 @@ const contextMenuSupported = ref(false);
 const autoLaunchEnabled = ref(false);
 const aiTestLoading = ref(false);
 const aiTestResult = ref<{ success: boolean; message: string } | null>(null);
+/** 逐槽测试结果，与 buildAiAttempts 展开出的顺序一一对应 */
+const aiSlotTestResults = ref<{ label: string; state: 'pending' | 'ok' | 'fail'; message: string }[]>([]);
 const updateCheckLoading = ref(false);
 const importDialogVisible = ref(false);
 const importPlan = ref<ImportPlan | null>(null);
 const importSourceName = ref('');
+const editorScanLoading = shallowRef(false);
+const editorDialogVisible = shallowRef(false);
+const editingEditorIndex = shallowRef<number | null>(null);
+const editorEditForm = ref<EditorConfig>({ id: '', name: '', path: '' });
+const backgroundPreviewUrl = ref('');
+const backgroundPreviewLoading = ref(false);
+
+/***********************设置页目录导航*********************/
+const settingsContent = useTemplateRef<HTMLElement>('settingsContent');
+const activeSettingsSectionId = ref('appearance');
+
+const settingsSectionItems = computed(() => {
+  const items = [
+    { id: 'appearance', label: t('settings.appearance'), icon: 'i-mdi-white-balance-sunny' },
+    ...(!isPlugin ? [{ id: 'window-behavior', label: t('settings.windowBehavior'), icon: 'i-mdi-dock-window' }] : []),
+    { id: 'shortcuts', label: t('settings.shortcuts'), icon: 'i-mdi-keyboard-outline' },
+    { id: 'editors', label: t('settings.editorManagement'), icon: 'i-mdi-monitor' },
+    { id: 'terminals', label: t('settings.terminalManagement'), icon: 'i-mdi-console' },
+    { id: 'updates', label: t('settings.update'), icon: 'i-mdi-update' },
+    { id: 'backup', label: t('settings.dataBackup'), icon: 'i-mdi-database-sync-outline' },
+    { id: 'git-ai', label: t('settings.gitAi'), icon: 'i-mdi-auto-fix' },
+  ] as const;
+  return items;
+});
+
+let settingsScrollAttached = false;
+let settingsScrollFrame = 0;
+
+function updateActiveSettingsSection() {
+  const root = settingsContent.value;
+  if (!root) return;
+
+  if (root.scrollTop + root.clientHeight >= root.scrollHeight - 2) {
+    activeSettingsSectionId.value = settingsSectionItems.value[settingsSectionItems.value.length - 1]?.id || 'appearance';
+    return;
+  }
+
+  const anchor = root.getBoundingClientRect().top + 32;
+  let currentId: string = settingsSectionItems.value[0]?.id || 'appearance';
+  for (const item of settingsSectionItems.value) {
+    const section = root.querySelector<HTMLElement>(`[data-settings-section="${item.id}"]`);
+    if (section && section.getBoundingClientRect().top <= anchor) currentId = item.id;
+  }
+  activeSettingsSectionId.value = currentId;
+}
+
+function scheduleActiveSettingsSectionUpdate() {
+  if (settingsScrollFrame) return;
+  settingsScrollFrame = requestAnimationFrame(() => {
+    settingsScrollFrame = 0;
+    updateActiveSettingsSection();
+  });
+}
+
+function attachSettingsNavigation() {
+  const root = settingsContent.value;
+  if (!root || settingsScrollAttached) return;
+  settingsScrollAttached = true;
+  root.addEventListener('scroll', scheduleActiveSettingsSectionUpdate, { passive: true });
+  scheduleActiveSettingsSectionUpdate();
+}
+
+function detachSettingsNavigation() {
+  const root = settingsContent.value;
+  if (root) root.removeEventListener('scroll', scheduleActiveSettingsSectionUpdate);
+  settingsScrollAttached = false;
+  if (settingsScrollFrame) cancelAnimationFrame(settingsScrollFrame);
+  settingsScrollFrame = 0;
+}
+
+function scrollToSettingsSection(id: string) {
+  const root = settingsContent.value;
+  const section = root?.querySelector<HTMLElement>(`[data-settings-section="${id}"]`);
+  if (!root || !section) return;
+  activeSettingsSectionId.value = id;
+  const top = section.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop - 16;
+  root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
 
 const deepClone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const draft = ref<Settings>(normalizeDefaultTerminalId(normalizeAiSettings(deepClone(toRaw(settingsStore.settings)))));
 const isDirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(settingsStore.settings));
+
+// 界面大小是即时设置：视觉档位立即落到根节点并写入现有 settings，其他设置仍保留草稿保存流程。
+watch(() => draft.value.uiSize, value => {
+  const normalized = normalizeUiSize(value);
+  if (draft.value.uiSize !== normalized) draft.value.uiSize = normalized;
+  if (settingsStore.settings.uiSize !== normalized) settingsStore.settings.uiSize = normalized;
+  settingsStore.applyUiSize();
+});
 
 const importSummary = computed(() => {
   const plan = importPlan.value;
@@ -98,12 +222,117 @@ function resetDraft() {
 }
 
 function handleSave() {
+  draft.value.uiSize = normalizeUiSize(draft.value.uiSize);
+  normalizeQuickSearchAppShortcut();
+  normalizeActionShortcuts();
+  if (!isPlugin) {
+    normalizeQuickSearchGlobalShortcut();
+  }
   Object.assign(settingsStore.settings, normalizeDefaultTerminalId(normalizeAiSettings(deepClone(toRaw(draft.value)))));
   ElMessage.success(t('common.success'));
 }
 
 function handleCancel() {
   resetDraft();
+  void refreshBackgroundPreview();
+  void settingsStore.applyBackgroundImage();
+}
+
+async function refreshBackgroundPreview() {
+  const imagePath = draft.value.backgroundImagePath?.trim() || '';
+  if (!imagePath) {
+    backgroundPreviewUrl.value = '';
+    return;
+  }
+
+  backgroundPreviewLoading.value = true;
+  try {
+    const base64 = await api.readBinaryFileBase64(imagePath);
+    backgroundPreviewUrl.value = createImageDataUrl(imagePath, base64);
+    await settingsStore.applyBackgroundImage(
+      imagePath,
+      draft.value.backgroundImageOpacity ?? 0.35,
+      backgroundPreviewUrl.value,
+    );
+  } catch (error) {
+    console.error('Failed to preview background image', error);
+    backgroundPreviewUrl.value = '';
+  } finally {
+    backgroundPreviewLoading.value = false;
+  }
+}
+
+async function selectBackgroundImage() {
+  try {
+    const selected = await api.openDialog({
+      multiple: false,
+      filters: [{ name: t('settings.backgroundImage'), extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif', 'svg'] }],
+    });
+    if (!selected || typeof selected !== 'string') return;
+    draft.value.backgroundImagePath = selected;
+    await refreshBackgroundPreview();
+    if (!backgroundPreviewUrl.value) {
+      ElMessage.error(t('settings.backgroundImageLoadFailed'));
+    }
+  } catch (error) {
+    console.error('Failed to select background image', error);
+    ElMessage.error(t('settings.backgroundImageLoadFailed'));
+  }
+}
+
+function clearBackgroundImage() {
+  draft.value.backgroundImagePath = '';
+  backgroundPreviewUrl.value = '';
+  void settingsStore.applyBackgroundImage('', draft.value.backgroundImageOpacity ?? 0.35);
+}
+
+function previewBackgroundOpacity(value: number | number[]) {
+  const opacity = Array.isArray(value) ? value[0] : value;
+  void settingsStore.applyBackgroundImage(
+    draft.value.backgroundImagePath?.trim() || '',
+    opacity,
+    backgroundPreviewUrl.value || undefined,
+  );
+}
+
+/***********************快捷键设置*********************/
+
+function normalizeQuickSearchAppShortcut() {
+  draft.value.quickSearchAppShortcut = normalizeShortcut(
+    draft.value.quickSearchAppShortcut || DEFAULT_QUICK_SEARCH_APP_SHORTCUT,
+  ) || DEFAULT_QUICK_SEARCH_APP_SHORTCUT;
+}
+
+function normalizeQuickSearchGlobalShortcut() {
+  draft.value.quickSearchGlobalShortcut = normalizeShortcut(
+    draft.value.quickSearchGlobalShortcut || DEFAULT_QUICK_SEARCH_GLOBAL_SHORTCUT,
+  ) || DEFAULT_QUICK_SEARCH_GLOBAL_SHORTCUT;
+}
+
+/** 项目列表常用操作快捷键：录空或录坏都回落到默认键位 */
+function normalizeActionShortcuts() {
+  draft.value.focusSearchShortcut = normalizeShortcut(
+    draft.value.focusSearchShortcut || DEFAULT_FOCUS_SEARCH_SHORTCUT,
+  ) || DEFAULT_FOCUS_SEARCH_SHORTCUT;
+  draft.value.newProjectShortcut = normalizeShortcut(
+    draft.value.newProjectShortcut || DEFAULT_NEW_PROJECT_SHORTCUT,
+  ) || DEFAULT_NEW_PROJECT_SHORTCUT;
+  draft.value.refreshProjectsShortcut = normalizeShortcut(
+    draft.value.refreshProjectsShortcut || DEFAULT_REFRESH_PROJECTS_SHORTCUT,
+  ) || DEFAULT_REFRESH_PROJECTS_SHORTCUT;
+  const currentMenus = Array.isArray(draft.value.sidebarMenuShortcuts)
+    ? draft.value.sidebarMenuShortcuts
+    : (draft.value.workspaceTabShortcuts || []);
+  draft.value.sidebarMenuShortcuts = DEFAULT_SIDEBAR_MENU_SHORTCUTS.map((fallback, index) =>
+    normalizeShortcut(currentMenus[index] || fallback) || fallback,
+  );
+  delete draft.value.workspaceTabShortcuts;
+}
+
+function handleShortcutRecordingChange(recording: boolean) {
+  window.dispatchEvent(new CustomEvent('quick-search-shortcut-recording', {
+    detail: recording,
+  }));
 }
 
 onMounted(async () => {
@@ -117,10 +346,28 @@ onMounted(async () => {
     await refreshAutoLaunchState();
   }
   window.addEventListener('manual-check-update-result', handleManualUpdateResult as EventListener);
+  await refreshBackgroundPreview();
+  await nextTick();
+  attachSettingsNavigation();
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('manual-check-update-result', handleManualUpdateResult as EventListener);
+  detachSettingsNavigation();
+});
+
+onDeactivated(() => {
+  detachSettingsNavigation();
+  if (isDirty.value) {
+    void settingsStore.applyBackgroundImage();
+  }
+});
+
+onActivated(() => {
+  void nextTick().then(attachSettingsNavigation);
+  if (isDirty.value) {
+    void refreshBackgroundPreview();
+  }
 });
 
 async function toggleContextMenu(val: boolean) {
@@ -173,6 +420,10 @@ async function selectExecutable() {
 function addEditor() {
   if (!draft.value.editors) draft.value.editors = [];
   draft.value.editors.push({ id: crypto.randomUUID(), name: '', path: '' });
+  if (!draft.value.defaultEditorId) {
+    draft.value.defaultEditorId = draft.value.editors[0].id;
+  }
+  openEditorDialog(draft.value.editors.length - 1);
 }
 
 function removeEditor(index: number) {
@@ -184,13 +435,77 @@ function removeEditor(index: number) {
   }
 }
 
-async function browseEditorPath(index: number) {
-  const selected = await selectExecutable();
-  if (!selected || !draft.value.editors?.[index]) return;
-  draft.value.editors[index].path = selected;
-  if (!draft.value.editors[index].name) {
-    draft.value.editors[index].name = selected.split(/[/\\]/).pop()?.replace(/\.\w+$/, '') || '';
+/***********************编辑器扫描与维护*********************/
+async function scanAvailableEditors() {
+  editorScanLoading.value = true;
+  try {
+    const currentEditors = draft.value.editors || [];
+    const detectedEditors = await api.detectAvailableEditors();
+    const mergedEditors = mergeDetectedEditors(currentEditors, detectedEditors);
+    const addedCount = mergedEditors.length - currentEditors.length;
+    draft.value.editors = mergedEditors;
+    normalizeDefaultEditorId(draft.value);
+    ElMessage.success(t('settings.editorScanDone', { count: addedCount }));
+  } catch (error) {
+    console.error(error);
+    ElMessage.error(t('settings.editorScanFailed'));
+  } finally {
+    editorScanLoading.value = false;
   }
+}
+
+function openEditorDialog(index: number) {
+  const editor = draft.value.editors?.[index];
+  if (!editor) return;
+  editingEditorIndex.value = index;
+  editorEditForm.value = { ...editor };
+  editorDialogVisible.value = true;
+}
+
+async function browseEditorDialogPath() {
+  const selected = await selectExecutable();
+  if (!selected) return;
+  editorEditForm.value.path = selected;
+  if (!editorEditForm.value.name) {
+    editorEditForm.value.name = selected.split(/[/\\]/).pop()?.replace(/\.\w+$/, '') || '';
+  }
+}
+
+function saveEditorDialog() {
+  const index = editingEditorIndex.value;
+  if (index === null || !draft.value.editors?.[index]) return;
+  draft.value.editors[index] = {
+    ...editorEditForm.value,
+    name: editorEditForm.value.name.trim() || 'Editor',
+    path: editorEditForm.value.path.trim(),
+  };
+  editorDialogVisible.value = false;
+}
+
+function removeEditingEditor() {
+  const index = editingEditorIndex.value;
+  if (index === null) return;
+  removeEditor(index);
+  editorDialogVisible.value = false;
+}
+
+function getEditorInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'E';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return words.slice(0, 2).map(word => word[0]).join('').toUpperCase();
+}
+
+async function openFileWithEditor(editor: EditorConfig) {
+  const selected = await api.openDialog({ multiple: false });
+  if (!selected || typeof selected !== 'string') return;
+  await api.openInEditor(selected, editor.path);
+}
+
+async function openDirectoryWithEditor(editor: EditorConfig) {
+  const selected = await api.openDialog({ directory: true, multiple: false });
+  if (!selected || typeof selected !== 'string') return;
+  await api.openInEditor(selected, editor.path);
 }
 
 /***********************自定义终端配置*********************/
@@ -265,11 +580,14 @@ function normalizeProject(project: any): Project | null {
     id: typeof project.id === 'string' && project.id ? project.id : crypto.randomUUID(),
     name: project.name || project.path.split(/[\\/]/).pop() || 'Untitled',
     path: project.path,
-    type: project.type === 'other' ? 'other' : 'node',
+    type: project.type === 'java' ? 'java' : (project.type === 'other' ? 'other' : 'node'),
+    buildTool: project.buildTool === 'maven' || project.buildTool === 'gradle' ? project.buildTool : undefined,
+    hasWrapper: typeof project.hasWrapper === 'boolean' ? project.hasWrapper : undefined,
     gitRemoteUrl: typeof project.gitRemoteUrl === 'string' && project.gitRemoteUrl ? project.gitRemoteUrl : undefined,
     gitBranch: typeof project.gitBranch === 'string' && project.gitBranch ? project.gitBranch : undefined,
     gitConfigured: typeof project.gitConfigured === 'boolean' ? project.gitConfigured : undefined,
     nodeVersion: project.nodeVersion || undefined,
+    nodeRuntimeId: typeof project.nodeRuntimeId === 'string' ? project.nodeRuntimeId : undefined,
     packageManager: project.packageManager || 'npm',
     scripts: Array.isArray(project.scripts) ? project.scripts : [],
     visibleScripts: Array.isArray(project.visibleScripts) ? project.visibleScripts : undefined,
@@ -279,23 +597,36 @@ function normalizeProject(project: any): Project | null {
     pinned: project.pinned ?? false,
     pinOrder: project.pinOrder ?? undefined,
     editorId: project.editorId || undefined,
+    parentId: typeof project.parentId === 'string' && project.parentId ? project.parentId : undefined,
   }, t('project.installDependencies'));
 }
 
 function normalizeSettingsPayload(settings: any): Settings {
   const hasCustomTerminals = Boolean(settings) && Object.prototype.hasOwnProperty.call(settings, 'customTerminals');
-  return normalizeDefaultTerminalId(normalizeAiSettings({
+  const merged = {
     ...deepClone(toRaw(settingsStore.settings)),
     ...settings,
     customTerminals: hasCustomTerminals
       ? normalizeTerminalConfigs(settings?.customTerminals)
       : deepClone(toRaw(settingsStore.settings.customTerminals || [])),
-  }));
+  };
+  if (Object.prototype.hasOwnProperty.call(settings || {}, 'uiSize')) {
+    merged.uiSize = normalizeUiSize(settings.uiSize);
+  } else {
+    merged.uiSize = normalizeUiSize(merged.uiSize);
+  }
+  return normalizeDefaultTerminalId(normalizeAiSettings(merged));
 }
 
 function normalizeCustomNode(node: any): NodeVersion | null {
   if (!node || !node.path) return null;
-  return { version: String(node.version || ''), path: String(node.path), source: 'custom' };
+  return {
+    runtimeId: typeof node.runtimeId === 'string' ? node.runtimeId : undefined,
+    version: String(node.version || ''),
+    path: String(node.path),
+    source: 'custom',
+    status: node.status || 'available',
+  };
 }
 
 type ImportValueOptions = {
@@ -395,17 +726,7 @@ function buildDiffs<T extends Record<string, any>>(
 }
 
 function sortNodes(nodes: NodeVersion[]) {
-  return [...nodes].sort((a, b) => {
-    if (a.source === 'system') return -1;
-    if (b.source === 'system') return 1;
-    const parse = (version: string) => version.replace(/^v/, '').split('.').map(Number);
-    const aParts = parse(a.version);
-    const bParts = parse(b.version);
-    for (let index = 0; index < 3; index += 1) {
-      if (aParts[index] !== bParts[index]) return (bParts[index] || 0) - (aParts[index] || 0);
-    }
-    return a.path.localeCompare(b.path);
-  });
+  return sortNodeVersions(nodes);
 }
 
 function normalizeDefaultEditorId(settings: Settings): Settings {
@@ -463,6 +784,9 @@ function buildImportPlan(payload: any): ImportPlan {
     { key: 'customTerminals', label: t('settings.customTerminals') },
     { key: 'locale', label: t('settings.language') },
     { key: 'themeMode', label: t('settings.theme') },
+    { key: 'uiSize', label: t('settings.uiSize') },
+    { key: 'backgroundImagePath', label: t('settings.backgroundImage') },
+    { key: 'backgroundImageOpacity', label: t('settings.backgroundImageOpacity') },
     { key: 'autoUpdate', label: t('settings.autoUpdate') },
     { key: 'trayEnabled', label: t('settings.trayEnabled') },
     { key: 'closeAction', label: t('settings.closeAction') },
@@ -476,7 +800,7 @@ function buildImportPlan(payload: any): ImportPlan {
   const normalizedSettings = payload.settings ? normalizeSettingsPayload(payload.settings) : null;
   const currentEditors = settingsStore.settings.editors || [];
   const incomingEditors = normalizedSettings?.editors || [];
-  const plan: ImportPlan = { projectAdds: [], projectConflicts: [], nodeAdds: [], nodeConflicts: [], settingsConflicts: [] };
+  const plan: ImportPlan = { incomingProjects: normalizedProjects, projectAdds: [], projectConflicts: [], nodeAdds: [], nodeConflicts: [], settingsConflicts: [] };
 
   normalizedProjects.forEach((incomingProject) => {
     const existingIndex = projectStore.projects.findIndex(project => project.path === incomingProject.path);
@@ -545,12 +869,35 @@ function applyImportPlan() {
   if (!plan) return;
 
   const nextProjects = deepClone(toRaw(projectStore.projects));
+  const projectIdMap = new Map<string, string>();
+  const existingIds = new Set(nextProjects.map(project => project.id));
+
+  for (const incomingProject of plan.incomingProjects) {
+    const existing = nextProjects.find(project => project.path === incomingProject.path);
+    if (existing) {
+      projectIdMap.set(incomingProject.id, existing.id);
+      continue;
+    }
+    const id = existingIds.has(incomingProject.id) ? crypto.randomUUID() : incomingProject.id;
+    existingIds.add(id);
+    projectIdMap.set(incomingProject.id, id);
+  }
+
+  const resolveImportedProject = (project: Project): Project => ({
+    ...deepClone(project),
+    id: projectIdMap.get(project.id) || project.id,
+    parentId: project.parentId ? projectIdMap.get(project.parentId) : undefined,
+  });
+
   plan.projectAdds.forEach(project => {
-    if (!nextProjects.some(item => item.path === project.path)) nextProjects.push(project);
+    if (!nextProjects.some(item => item.path === project.path)) nextProjects.push(resolveImportedProject(project));
   });
   plan.projectConflicts.forEach((conflict) => {
     if (conflict.choice !== 'incoming') return;
-    nextProjects[conflict.existingIndex] = { ...deepClone(conflict.incoming), id: nextProjects[conflict.existingIndex].id };
+    nextProjects[conflict.existingIndex] = {
+      ...resolveImportedProject(conflict.incoming),
+      id: nextProjects[conflict.existingIndex].id,
+    };
   });
   projectStore.projects = nextProjects;
 
@@ -560,15 +907,16 @@ function applyImportPlan() {
   });
   settingsStore.settings = normalizeDefaultEditorId(normalizeAiSettings(nextSettings));
 
-  const systemNodes = nodeStore.versions.filter(item => item.source !== 'custom');
   const customNodes = deepClone(toRaw(nodeStore.versions.filter(item => item.source === 'custom')));
   plan.nodeAdds.forEach(node => {
-    if (!customNodes.some(item => item.path === node.path)) customNodes.push(node);
+    if (!customNodes.some(item => item.path === node.path)) {
+      customNodes.push({ ...node, source: 'custom' });
+    }
   });
   plan.nodeConflicts.forEach((conflict) => {
     if (conflict.choice === 'incoming') customNodes[conflict.existingIndex] = deepClone(conflict.incoming);
   });
-  nodeStore.versions = sortNodes([...systemNodes, ...customNodes]);
+  nodeStore.replaceCustomNodes(sortNodes(customNodes));
 
   resetDraft();
   importDialogVisible.value = false;
@@ -616,283 +964,659 @@ function handleManualUpdateResult(event: Event) {
   ElMessage.error(t('settings.updateCheckFailed', { error: customEvent.detail.error || t('common.error') }));
 }
 
+/***********************AI 回退槽位增删*********************/
+
+function addAiModelSlot() {
+  const single = draft.value.gitAiSingleChannel;
+  if (!single || single.models.length >= MAX_AI_FALLBACK_SLOTS) return;
+  single.models.push('');
+}
+
+function removeAiModelSlot(index: number) {
+  const single = draft.value.gitAiSingleChannel;
+  // 至少留一个槽位，否则模式 A 会变成「一个模型都没配」
+  if (!single || single.models.length <= 1) return;
+  single.models.splice(index, 1);
+}
+
+function addAiChannelSlot() {
+  const channels = draft.value.gitAiChannels;
+  if (!channels || channels.length >= MAX_AI_FALLBACK_SLOTS) return;
+  // 新槽位沿用第一个渠道的 apiType，省得每次都要重选
+  channels.push({
+    id: crypto.randomUUID(),
+    apiType: channels[0]?.apiType ?? 'chat_completions',
+    baseUrl: '',
+    apiKey: '',
+    model: '',
+    enabled: true,
+  });
+}
+
+function removeAiChannelSlot(index: number) {
+  const channels = draft.value.gitAiChannels;
+  if (!channels || channels.length <= 1) return;
+  channels.splice(index, 1);
+}
+
+/**
+ * 逐个测试当前模式下的所有槽位。
+ *
+ * 回退能不能生效取决于**每一个**槽位是否可用，所以测试也要逐个报结果，
+ * 只测首选会让用户误以为回退链是通的。
+ */
 async function testAiConnection() {
-  const service = draft.value.gitAiPrimaryService;
-  if (!isAiServiceConfigured(service)) {
+  const attempts = buildAiAttempts(draft.value as Settings);
+  if (attempts.length === 0) {
+    aiSlotTestResults.value = [];
     aiTestResult.value = { success: false, message: t('settings.gitAiTestMissingConfig') };
     return;
   }
 
   aiTestLoading.value = true;
   aiTestResult.value = null;
-  try {
-    await requestAiText({
-      apiType: service.apiType,
-      baseUrl: service.baseUrl,
-      apiKey: service.apiKey,
-      model: service.model,
-      messages: [{ role: 'user', content: 'Reply with OK only.' }],
-      maxTokens: normalizeAiApiType(service.apiType) === 'responses' ? 64 : 32,
-      temperature: 0,
-      stream: draft.value.gitAiStream,
-      timeoutMs: 15000,
-    });
-    aiTestResult.value = { success: true, message: t('settings.gitAiTestSuccess') };
-  } catch (error: any) {
-    if (isAbortError(error)) aiTestResult.value = { success: false, message: t('settings.gitAiTestTimeout') };
-    else if (String(error?.message || '').includes('(401 ') || String(error?.message || '').includes('(403 ')) aiTestResult.value = { success: false, message: t('settings.gitAiTestAuthError') };
-    else if (String(error?.message || '').includes('(404 ')) aiTestResult.value = { success: false, message: t('settings.gitAiTestModelNotFound') };
-    else if (String(error?.message || '').includes('(429 ')) aiTestResult.value = { success: false, message: t('settings.gitAiTestRateLimit') };
-    else if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed')) aiTestResult.value = { success: false, message: t('settings.gitAiTestUnreachable') };
-    else aiTestResult.value = { success: false, message: t('settings.gitAiTestError', { error: String(error).slice(0, 200) }) };
-  } finally {
-    aiTestLoading.value = false;
+  aiSlotTestResults.value = attempts.map(attempt => ({ label: attempt.label, state: 'pending' as const, message: '' }));
+
+  for (let index = 0; index < attempts.length; index++) {
+    const attempt = attempts[index];
+    try {
+      await requestAiText({
+        apiType: attempt.apiType,
+        baseUrl: attempt.baseUrl,
+        apiKey: attempt.apiKey,
+        model: attempt.model,
+        messages: [{ role: 'user', content: 'Reply with OK only.' }],
+        maxTokens: normalizeAiApiType(attempt.apiType) === 'responses' ? 64 : 32,
+        temperature: 0,
+        stream: draft.value.gitAiStream,
+        timeoutMs: 15000,
+      });
+      aiSlotTestResults.value[index] = { label: attempt.label, state: 'ok', message: t('settings.gitAiTestSuccess') };
+    } catch (error: any) {
+      aiSlotTestResults.value[index] = {
+        label: attempt.label,
+        state: 'fail',
+        message: describeAiTestError(error),
+      };
+    }
   }
+
+  const okCount = aiSlotTestResults.value.filter(r => r.state === 'ok').length;
+  aiTestResult.value = {
+    success: okCount > 0,
+    message: t('settings.gitAiTestSummary', { ok: okCount, total: attempts.length }),
+  };
+  aiTestLoading.value = false;
+}
+
+/** 把 AI 请求错误翻译成人话；与逐槽测试共用 */
+function describeAiTestError(error: any): string {
+  const raw = String(error?.message || error || '');
+  if (isAbortError(error)) return t('settings.gitAiTestTimeout');
+  if (raw.includes('(401 ') || raw.includes('(403 ')) return t('settings.gitAiTestAuthError');
+  if (raw.includes('(404 ')) return t('settings.gitAiTestModelNotFound');
+  if (raw.includes('(429 ')) return t('settings.gitAiTestRateLimit');
+  if (raw.includes('fetch') || raw.includes('network') || raw.includes('Failed')) {
+    return t('settings.gitAiTestUnreachable');
+  }
+  return t('settings.gitAiTestError', { error: raw.slice(0, 200) });
 }
 </script>
 
 <template>
-  <div class="h-full flex flex-col overflow-hidden">
-    <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-slate-700/20 bg-white dark:bg-[#0f172a] shrink-0">
-      <div class="flex items-center gap-3">
-        <h1 class="text-lg font-semibold text-slate-800 dark:text-white">{{ t('settings.title') }}</h1>
-        <span v-if="isDirty" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/12 text-amber-600 dark:text-amber-400 font-medium">{{ t('settings.unsavedChanges') }}</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <el-button :disabled="!isDirty" @click="handleCancel">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :disabled="!isDirty" @click="handleSave">
-          <div class="i-mdi-content-save text-sm mr-1" />
-          {{ t('common.save') }}
-        </el-button>
-      </div>
-    </div>
-    <div class="flex-1 overflow-y-auto p-5">
-        <div
-        :class="isPlugin
-          ? 'max-w-5xl mx-auto space-y-4'
-          : 'max-w-7xl mx-auto xl:grid xl:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.25fr)] gap-4 items-start'"
-      >
-        <div class="space-y-4 min-w-0">
-        <el-card v-if="!isPlugin" class="settings-card">
-          <template #header><div class="section-title"><div class="i-mdi-rocket-launch-outline text-emerald-500 text-lg" />{{ t('settings.systemIntegration') }}</div></template>
-          <div class="space-y-4">
-            <div v-if="!isPlugin && contextMenuSupported" class="setting-row">
-              <div class="setting-label">{{ t('settings.contextMenu') }}</div>
-              <el-switch v-model="contextMenuEnabled" @change="toggleContextMenu" />
+  <div class="settings-page h-full overflow-hidden">
+      <header class="app-page-header settings-header">
+        <div class="app-content-container app-page-header-main">
+        <div class="app-page-heading flex items-center gap-3">
+          <h1 class="app-page-title">{{ t('settings.title') }}</h1>
+          <span v-if="isDirty" class="settings-dirty">{{ t('settings.unsavedChanges') }}</span>
+        </div>
+        <div class="settings-actions app-page-actions">
+          <el-button :disabled="!isDirty" @click="handleCancel">{{ t('common.cancel') }}</el-button>
+          <el-button type="primary" :disabled="!isDirty" @click="handleSave">
+            <div class="i-mdi-content-save text-sm mr-1" />
+            {{ t('common.save') }}
+          </el-button>
+        </div>
+        </div>
+      </header>
+    <div class="settings-layout">
+      <SettingsSectionNav
+        :title="t('settings.navigationTitle')"
+        :items="settingsSectionItems"
+        :active-id="activeSettingsSectionId"
+        @select="scrollToSettingsSection"
+      />
+      <div ref="settingsContent" class="settings-container">
+
+      <section id="settings-appearance" data-settings-section="appearance" class="settings-section">
+        <div class="settings-section-title">
+          <div class="i-mdi-white-balance-sunny settings-section-icon" />
+          {{ t('settings.appearance') }}
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.theme') }}</div>
+            <div class="settings-row-desc">{{ t('settings.themeHint') }}</div>
+          </div>
+          <el-segmented
+            v-model="draft.themeMode"
+            :options="[
+              { label: t('settings.themeMode.light'), value: 'light' },
+              { label: t('settings.themeMode.dark'), value: 'dark' },
+              { label: t('settings.themeMode.system'), value: 'auto' },
+            ]"
+          />
+        </div>
+        <div class="settings-row-line settings-ui-size-row">
+          <div>
+            <div class="settings-row-title">{{ t('settings.uiSize') }}</div>
+            <div class="settings-row-desc">{{ t('settings.uiSizeHint') }}</div>
+          </div>
+          <div class="settings-ui-size-control">
+            <el-segmented
+              v-model="draft.uiSize"
+              :options="[
+                { label: t('settings.uiSizeMode.compact'), value: 'compact' },
+                { label: t('settings.uiSizeMode.standard'), value: 'standard' },
+                { label: t('settings.uiSizeMode.comfortable'), value: 'comfortable' },
+              ]"
+            />
+            <div class="settings-ui-size-descriptions" aria-live="polite">
+              <span>{{ t('settings.uiSizeDescription.compact') }}</span>
+              <span>{{ t('settings.uiSizeDescription.standard') }}</span>
+              <span>{{ t('settings.uiSizeDescription.comfortable') }}</span>
             </div>
-            <div v-if="!isPlugin" class="setting-row">
-              <div class="setting-label">{{ t('settings.autoLaunch') }}</div>
-              <el-switch v-model="autoLaunchEnabled" @change="toggleAutoLaunch" />
+          </div>
+        </div>
+        <div class="settings-row-line settings-background-row">
+          <div>
+            <div class="settings-row-title">{{ t('settings.backgroundImage') }}</div>
+            <div class="settings-row-desc">{{ t('settings.backgroundImageHint') }}</div>
+          </div>
+          <div class="background-image-control">
+            <div
+              class="background-image-preview"
+              :class="{ 'background-image-preview-empty': !backgroundPreviewUrl }"
+              :style="backgroundPreviewUrl ? { backgroundImage: `url(${backgroundPreviewUrl})` } : undefined"
+            >
+              <div v-if="backgroundPreviewLoading" class="i-mdi-loading animate-spin text-xl" />
+              <div v-else-if="!backgroundPreviewUrl" class="i-mdi-image-off-outline text-2xl" />
             </div>
-            <div v-if="!isPlugin" class="setting-row">
-              <div class="setting-label">{{ t('settings.trayEnabled') }}</div>
-              <el-switch v-model="draft.trayEnabled" />
+            <div class="background-image-actions">
+              <div class="settings-inline-control">
+                <el-button @click="selectBackgroundImage">
+                  <div class="i-mdi-image-plus-outline text-sm mr-1" />
+                  {{ t('settings.selectBackgroundImage') }}
+                </el-button>
+                <el-button v-if="draft.backgroundImagePath" @click="clearBackgroundImage">
+                  {{ t('settings.clearBackgroundImage') }}
+                </el-button>
+              </div>
+              <div v-if="draft.backgroundImagePath" class="background-opacity-control">
+                <span>{{ t('settings.backgroundImageOpacity') }}</span>
+                <el-slider
+                  v-model="draft.backgroundImageOpacity"
+                  :min="0.1"
+                  :max="1"
+                  :step="0.05"
+                  @input="previewBackgroundOpacity"
+                />
+                <span>{{ Math.round((draft.backgroundImageOpacity ?? 0.35) * 100) }}%</span>
+              </div>
+              <div v-if="draft.backgroundImagePath" class="background-image-path" :title="draft.backgroundImagePath">
+                {{ draft.backgroundImagePath }}
+              </div>
             </div>
-            <div v-if="!isPlugin && draft.trayEnabled" class="panel">
-              <div class="setting-label mb-2">{{ t('settings.closeAction') }}</div>
-              <el-segmented
-                v-model="draft.closeAction"
-                :options="[
-                  { label: t('settings.closeActionOptions.ask'), value: 'ask' },
-                  { label: t('settings.closeActionOptions.tray'), value: 'tray' },
-                  { label: t('settings.closeActionOptions.exit'), value: 'exit' },
-                ]"
+          </div>
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.language') }}</div>
+            <div class="settings-row-desc">{{ t('settings.languageHint') }}</div>
+          </div>
+          <el-select v-model="draft.locale" class="settings-control">
+            <el-option label="中文" value="zh" />
+            <el-option label="English" value="en" />
+          </el-select>
+        </div>
+      </section>
+
+      <section v-if="!isPlugin" id="settings-window-behavior" data-settings-section="window-behavior" class="settings-section">
+        <div class="settings-section-title">
+          <div class="i-mdi-dock-window settings-section-icon" />
+          {{ t('settings.windowBehavior') }}
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.closeAction') }}</div>
+            <div class="settings-row-desc">{{ t('settings.closeActionHint') }}</div>
+          </div>
+          <el-segmented
+            v-model="draft.closeAction"
+            :disabled="!draft.trayEnabled"
+            :options="[
+              { label: t('settings.closeActionOptions.ask'), value: 'ask' },
+              { label: t('settings.closeActionOptions.tray'), value: 'tray' },
+              { label: t('settings.closeActionOptions.exit'), value: 'exit' },
+            ]"
+          />
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.trayEnabled') }}</div>
+            <div class="settings-row-desc">{{ t('settings.trayEnabledHint') }}</div>
+          </div>
+          <el-switch v-model="draft.trayEnabled" />
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.autoLaunch') }}</div>
+            <div class="settings-row-desc">{{ t('settings.autoLaunchHint') }}</div>
+          </div>
+          <el-switch v-model="autoLaunchEnabled" @change="toggleAutoLaunch" />
+        </div>
+        <div v-if="contextMenuSupported" class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.contextMenu') }}</div>
+            <div class="settings-row-desc">{{ t('settings.contextMenuHint') }}</div>
+          </div>
+          <el-switch v-model="contextMenuEnabled" @change="toggleContextMenu" />
+        </div>
+      </section>
+
+      <section id="settings-shortcuts" data-settings-section="shortcuts" class="settings-section">
+        <div class="settings-section-title">
+          <div class="i-mdi-keyboard-outline settings-section-icon" />
+          {{ t('settings.shortcuts') }}
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.quickSearchAppShortcut') }}</div>
+            <div class="settings-row-desc">{{ t('settings.quickSearchAppShortcutHint') }}</div>
+          </div>
+          <ShortcutRecorder
+            v-model="draft.quickSearchAppShortcut"
+            :placeholder="DEFAULT_QUICK_SEARCH_APP_SHORTCUT"
+            :aria-label="t('settings.quickSearchAppShortcut')"
+            @recording-change="handleShortcutRecordingChange"
+          />
+        </div>
+        <div v-if="!isPlugin" class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.quickSearchGlobalShortcutEnabled') }}</div>
+            <div class="settings-row-desc">{{ t('settings.quickSearchGlobalShortcutEnabledHint') }}</div>
+          </div>
+          <el-switch v-model="draft.quickSearchGlobalShortcutEnabled" />
+        </div>
+        <div v-if="!isPlugin && draft.quickSearchGlobalShortcutEnabled" class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.quickSearchGlobalShortcut') }}</div>
+            <div class="settings-row-desc">{{ t('settings.quickSearchGlobalShortcutHint') }}</div>
+          </div>
+          <ShortcutRecorder
+            v-model="draft.quickSearchGlobalShortcut"
+            :placeholder="DEFAULT_QUICK_SEARCH_GLOBAL_SHORTCUT"
+            :aria-label="t('settings.quickSearchGlobalShortcut')"
+            @recording-change="handleShortcutRecordingChange"
+          />
+        </div>
+
+        <!-- 应用内常用操作。关闭弹窗与逐级返回保留固定键位，侧边菜单切换可配置。 -->
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.focusSearchShortcut') }}</div>
+            <div class="settings-row-desc">{{ t('settings.focusSearchShortcutHint') }}</div>
+          </div>
+          <ShortcutRecorder
+            v-model="draft.focusSearchShortcut"
+            :placeholder="DEFAULT_FOCUS_SEARCH_SHORTCUT"
+            :aria-label="t('settings.focusSearchShortcut')"
+            @recording-change="handleShortcutRecordingChange"
+          />
+        </div>
+        <div class="settings-row-line settings-row-top">
+          <div>
+            <div class="settings-row-title">{{ t('settings.sidebarMenuShortcuts') }}</div>
+            <div class="settings-row-desc">{{ t('settings.sidebarMenuShortcutsHint') }}</div>
+          </div>
+          <div class="shortcut-tab-list">
+            <div
+              v-for="(shortcut, index) in (draft.sidebarMenuShortcuts || DEFAULT_SIDEBAR_MENU_SHORTCUTS)"
+              :key="index"
+              class="shortcut-tab-row"
+            >
+              <span class="shortcut-tab-label">{{ t(`settings.sidebarMenuLabels.${['dashboard', 'nodes', 'ports', 'commitCalendar', 'settings'][index]}`) }}</span>
+              <ShortcutRecorder
+                :model-value="shortcut"
+                :placeholder="DEFAULT_SIDEBAR_MENU_SHORTCUTS[index]"
+                :aria-label="`${t('settings.sidebarMenuShortcuts')} ${index + 1}`"
+                @update:model-value="value => {
+                  if (!draft.sidebarMenuShortcuts) draft.sidebarMenuShortcuts = [...DEFAULT_SIDEBAR_MENU_SHORTCUTS];
+                  draft.sidebarMenuShortcuts[index] = value;
+                }"
+                @recording-change="handleShortcutRecordingChange"
               />
             </div>
           </div>
-        </el-card>
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.newProjectShortcut') }}</div>
+            <div class="settings-row-desc">{{ t('settings.newProjectShortcutHint') }}</div>
+          </div>
+          <ShortcutRecorder
+            v-model="draft.newProjectShortcut"
+            :placeholder="DEFAULT_NEW_PROJECT_SHORTCUT"
+            :aria-label="t('settings.newProjectShortcut')"
+            @recording-change="handleShortcutRecordingChange"
+          />
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.refreshProjectsShortcut') }}</div>
+            <div class="settings-row-desc">{{ t('settings.refreshProjectsShortcutHint') }}</div>
+          </div>
+          <ShortcutRecorder
+            v-model="draft.refreshProjectsShortcut"
+            :placeholder="DEFAULT_REFRESH_PROJECTS_SHORTCUT"
+            :aria-label="t('settings.refreshProjectsShortcut')"
+            @recording-change="handleShortcutRecordingChange"
+          />
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.fixedShortcuts') }}</div>
+            <div class="settings-row-desc">{{ t('settings.fixedShortcutsHint') }}</div>
+          </div>
+        </div>
+      </section>
 
-        <el-card class="settings-card">
-          <template #header><div class="section-title"><div class="i-mdi-palette-outline text-fuchsia-500 text-lg" />{{ t('settings.appearanceUpdate') }}</div></template>
-          <div class="space-y-4">
-            <div class="panel">
-              <div class="setting-label mb-2">{{ t('settings.language') }}</div>
-              <el-select v-model="draft.locale" class="w-full">
-                <el-option label="中文" value="zh" />
-                <el-option label="English" value="en" />
-              </el-select>
+      <section id="settings-editors" data-settings-section="editors" class="settings-section">
+        <div class="settings-section-title">
+          <div class="i-mdi-monitor settings-section-icon" />
+          {{ t('settings.editorManagement') }}
+        </div>
+        <div class="settings-section-head">
+          <div class="settings-row-desc">{{ t('settings.editorManagementHint') }}</div>
+          <el-button :loading="editorScanLoading" @click="scanAvailableEditors">
+            <div v-if="!editorScanLoading" class="i-mdi-refresh text-sm mr-1" />
+            {{ t('settings.rescanEditors') }}
+          </el-button>
+        </div>
+        <div class="editor-list">
+          <div v-for="(editor, index) in (draft.editors || [])" :key="editor.id" class="editor-card">
+            <div class="editor-avatar">{{ getEditorInitials(editor.name || editor.path) }}</div>
+            <div class="editor-main">
+              <div class="editor-name">{{ editor.name || editor.path }}</div>
+              <div class="editor-path">{{ editor.path }}</div>
             </div>
-            <div class="panel">
-              <div class="setting-label mb-2">{{ t('settings.theme') }}</div>
-              <el-segmented
-                v-model="draft.themeMode"
-                :options="[
-                  { label: t('settings.themeMode.light'), value: 'light' },
-                  { label: t('settings.themeMode.dark'), value: 'dark' },
-                  { label: t('settings.themeMode.system'), value: 'auto' },
-                ]"
-              />
-            </div>
-            <div v-if="!isPlugin" class="setting-row">
-              <div class="setting-label">{{ t('settings.autoUpdate') }}</div>
-              <el-switch v-model="draft.autoUpdate" />
-            </div>
-            <div class="panel">
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <div class="setting-label">{{ t('settings.version') }}</div>
-                  <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">v{{ appVersion }}</div>
-                </div>
-                <el-button v-if="!isPlugin" :loading="updateCheckLoading" @click="triggerManualUpdateCheck">
-                  <el-icon class="mr-1" v-if="!updateCheckLoading"><div class="i-mdi-refresh" /></el-icon>
-                  {{ updateCheckLoading ? t('settings.checkingUpdate') : t('settings.checkNow') }}
-                </el-button>
-              </div>
-              <el-button link type="primary" class="!px-0 mt-2" @click="openReleases">
-                {{ t('settings.releases') }}
-                <el-icon class="ml-1"><div class="i-mdi-open-in-new" /></el-icon>
+            <div class="editor-actions">
+              <el-tag type="success" effect="light" round>{{ t('settings.editorInstalled') }}</el-tag>
+              <el-button v-if="draft.defaultEditorId !== editor.id" @click="draft.defaultEditorId = editor.id">
+                {{ t('settings.setAsDefault') }}
+              </el-button>
+              <el-tag v-else type="primary" effect="light" round>{{ t('settings.defaultEditorCurrent') }}</el-tag>
+              <el-button @click="openFileWithEditor(editor)">{{ t('settings.openFile') }}</el-button>
+              <el-button @click="openDirectoryWithEditor(editor)">{{ t('settings.openDirectory') }}</el-button>
+              <el-button class="editor-icon-button" :title="t('common.edit')" @click="openEditorDialog(index)">
+                <div class="i-mdi-pencil-outline text-base" />
               </el-button>
             </div>
           </div>
-        </el-card>
-
+          <button class="editor-add-button" type="button" @click="addEditor">
+            <span>+ {{ t('settings.addEditor') }}</span>
+          </button>
         </div>
+      </section>
 
-         <div :class="isPlugin ? 'space-y-4 min-w-0' : 'space-y-4 min-w-0 mt-4 xl:mt-0'">
-        <el-card class="settings-card">
-          <template #header><div class="section-title"><div class="i-mdi-application-brackets text-blue-500 text-lg" />{{ t('settings.editorsTerminal') }}</div></template>
-          <div class="space-y-5">
+      <section id="settings-terminals" data-settings-section="terminals" class="settings-section">
+        <div class="settings-section-title">
+          <div class="i-mdi-console settings-section-icon" />
+          {{ t('settings.terminalManagement') }}
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.defaultTerminal') }}</div>
+            <div class="settings-row-desc">{{ t('settings.terminalHint') }}</div>
+          </div>
+          <div class="settings-inline-control">
+            <el-select v-model="draft.defaultTerminal" class="settings-control">
+              <el-option-group :label="t('settings.detectedTerminals')">
+                <el-option v-for="term in settingsStore.availableTerminals" :key="term.id" :label="term.name" :value="term.id" />
+              </el-option-group>
+              <el-option-group v-if="draft.customTerminals?.length" :label="t('settings.customTerminals')">
+                <el-option v-for="term in draft.customTerminals" :key="term.id" :label="term.name || term.path" :value="term.id" />
+              </el-option-group>
+            </el-select>
+            <el-button @click="addCustomTerminal"><div class="i-mdi-plus text-sm" /></el-button>
+          </div>
+        </div>
+        <div v-if="draft.customTerminals?.length" class="terminal-list">
+          <div v-for="(term, index) in draft.customTerminals" :key="term.id" class="terminal-row">
+            <el-input v-model="term.name" :placeholder="t('settings.terminalName')" />
+            <el-input v-model="term.path" readonly :placeholder="t('settings.terminalPathPlaceholder')">
+              <template #append><el-button @click="browseCustomTerminalPath(index)">{{ t('settings.selectFile') }}</el-button></template>
+            </el-input>
+            <el-button v-if="draft.defaultTerminal !== term.id" @click="draft.defaultTerminal = term.id">
+              {{ t('settings.setAsDefault') }}
+            </el-button>
+            <el-tag v-else type="primary" effect="light" round>{{ t('settings.defaultEditorCurrent') }}</el-tag>
+            <el-button type="danger" text @click="removeCustomTerminal(term.id)">
+              <el-icon><div class="i-mdi-close" /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings-updates" data-settings-section="updates" class="settings-section">
+        <div class="settings-section-title">
+          <div class="i-mdi-update settings-section-icon" />
+          {{ t('settings.update') }}
+        </div>
+        <div v-if="!isPlugin" class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.autoUpdate') }}</div>
+            <div class="settings-row-desc">{{ t('settings.autoUpdateHint') }}</div>
+          </div>
+          <el-switch v-model="draft.autoUpdate" />
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.version') }}</div>
+            <div class="settings-row-desc">v{{ appVersion }}</div>
+          </div>
+          <div class="settings-inline-control">
+            <el-button v-if="!isPlugin" :loading="updateCheckLoading" @click="triggerManualUpdateCheck">
+              {{ updateCheckLoading ? t('settings.checkingUpdate') : t('settings.checkNow') }}
+            </el-button>
+            <el-button link type="primary" @click="openReleases">{{ t('settings.releases') }}</el-button>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings-backup" data-settings-section="backup" class="settings-section">
+        <div class="settings-section-title">
+          <div class="i-mdi-database-sync-outline settings-section-icon" />
+          {{ t('settings.dataBackup') }}
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.export') }}</div>
+            <div class="settings-row-desc">{{ t('settings.dataHint') }}</div>
+          </div>
+          <el-button type="primary" @click="exportData">{{ t('settings.export') }}</el-button>
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.import') }}</div>
+            <div class="settings-row-desc">{{ t('settings.importHint') }}</div>
+          </div>
+          <el-button @click="importData">{{ t('settings.import') }}</el-button>
+        </div>
+      </section>
+
+      <section id="settings-git-ai" data-settings-section="git-ai" class="settings-section">
+        <div class="settings-section-title">
+          <div class="i-mdi-auto-fix settings-section-icon" />
+          {{ t('settings.gitAi') }}
+        </div>
+        <div class="settings-row-line">
+          <div>
+            <div class="settings-row-title">{{ t('settings.gitAiEnabled') }}</div>
+            <div class="settings-row-desc">{{ t('settings.gitAiPrimaryService') }}</div>
+          </div>
+          <el-switch v-model="draft.gitAiEnabled" />
+        </div>
+        <div v-if="draft.gitAiEnabled" class="ai-settings">
+          <!-- 回退模式二选一：两种模式都是最多 3 次尝试，不叠加 -->
+          <div class="settings-row-line settings-row-compact">
             <div>
-              <div class="flex items-center justify-between mb-2">
-                <div class="setting-label">{{ t('settings.editors') }}</div>
-                <el-button type="primary" text @click="addEditor"><el-icon class="mr-1"><div class="i-mdi-plus" /></el-icon>{{ t('settings.addEditor') }}</el-button>
-              </div>
-              <div class="panel mb-3">
-                <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                  <div>
-                    <div class="setting-label">{{ t('settings.defaultEditor') }}</div>
-                  </div>
-                  <el-select v-model="draft.defaultEditorId" class="w-full xl:w-72">
-                    <el-option
-                      v-for="editor in (draft.editors || [])"
-                      :key="editor.id"
-                      :label="editor.name || editor.path"
-                      :value="editor.id"
-                    />
-                  </el-select>
-                </div>
-              </div>
-              <div class="space-y-2">
-                <div v-for="(editor, index) in (draft.editors || [])" :key="editor.id" class="panel">
-                  <div class="flex items-center gap-2">
-                    <el-tag v-if="draft.defaultEditorId === editor.id" type="primary" effect="light" round>
-                      {{ t('settings.defaultEditorCurrent') }}
-                    </el-tag>
-                    <el-button v-else text type="primary" @click="draft.defaultEditorId = editor.id">
-                      {{ t('settings.setAsDefault') }}
-                    </el-button>
-                    <el-input v-model="editor.name" :placeholder="t('settings.editorName')" class="!w-36" />
-                    <el-input v-model="editor.path" readonly :placeholder="t('settings.editorPathPlaceholder')" class="flex-1">
-                      <template #append><el-button @click="browseEditorPath(index)">{{ t('settings.selectFile') }}</el-button></template>
-                    </el-input>
-                    <el-button type="danger" text :disabled="(draft.editors?.length || 0) <= 1" @click="removeEditor(index)"><el-icon><div class="i-mdi-close" /></el-icon></el-button>
-                  </div>
-                </div>
-              </div>
+              <div class="settings-row-title">{{ t('settings.gitAiFallbackMode') }}</div>
+              <div class="settings-row-desc">{{ t('settings.gitAiFallbackModeHint') }}</div>
             </div>
-            <div class="panel">
-              <div class="setting-label mb-3">{{ t('settings.defaultTerminal') }}</div>
-              <div class="flex gap-2">
-                <el-select v-model="draft.defaultTerminal" class="flex-1">
-                  <el-option-group :label="t('settings.detectedTerminals')"><el-option v-for="term in settingsStore.availableTerminals" :key="term.id" :label="term.name" :value="term.id" /></el-option-group>
-                  <el-option-group v-if="draft.customTerminals?.length" :label="t('settings.customTerminals')"><el-option v-for="term in draft.customTerminals" :key="term.id" :label="term.name || term.path" :value="term.id" /></el-option-group>
-                </el-select>
-                <el-button @click="addCustomTerminal"><div class="i-mdi-plus text-sm" /></el-button>
-              </div>
-              <div v-if="draft.customTerminals?.length" class="mt-3 space-y-2">
-                <div v-for="(term, index) in draft.customTerminals" :key="term.id" class="panel">
-                  <div class="flex items-center gap-2">
-                    <el-tag v-if="draft.defaultTerminal === term.id" type="primary" effect="light" round>
-                      {{ t('settings.defaultEditorCurrent') }}
-                    </el-tag>
-                    <el-button v-else text type="primary" @click="draft.defaultTerminal = term.id">
-                      {{ t('settings.setAsDefault') }}
-                    </el-button>
-                    <el-input v-model="term.name" :placeholder="t('settings.terminalName')" class="!w-36" />
-                    <el-input v-model="term.path" readonly :placeholder="t('settings.terminalPathPlaceholder')" class="flex-1">
-                      <template #append><el-button @click="browseCustomTerminalPath(index)">{{ t('settings.selectFile') }}</el-button></template>
-                    </el-input>
-                    <el-button type="danger" text @click="removeCustomTerminal(term.id)"><el-icon><div class="i-mdi-close" /></el-icon></el-button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <el-radio-group v-model="draft.gitAiFallbackMode">
+              <el-radio-button value="single_channel">{{ t('settings.gitAiModeSingleChannel') }}</el-radio-button>
+              <el-radio-button value="multi_channel">{{ t('settings.gitAiModeMultiChannel') }}</el-radio-button>
+            </el-radio-group>
           </div>
-        </el-card>
-        <el-card class="settings-card">
-          <template #header><div class="section-title"><div class="i-mdi-database-sync-outline text-amber-500 text-lg" />{{ t('settings.dataBackup') }}</div></template>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="panel">
-              <div class="setting-label mb-2">{{ t('settings.export') }}</div>
-              <p class="setting-desc">{{ t('settings.dataHint') }}</p>
-              <el-button type="primary" class="mt-3" @click="exportData"><el-icon class="mr-1"><div class="i-mdi-export" /></el-icon>{{ t('settings.export') }}</el-button>
-            </div>
-            <div class="panel">
-              <div class="setting-label mb-2">{{ t('settings.import') }}</div>
-              <p class="setting-desc">{{ t('settings.importHint') }}</p>
-              <el-button class="mt-3" @click="importData"><el-icon class="mr-1"><div class="i-mdi-import" /></el-icon>{{ t('settings.import') }}</el-button>
-            </div>
-          </div>
-        </el-card>
 
-        <el-card class="settings-card">
-          <template #header><div class="section-title"><div class="i-mdi-auto-fix text-violet-500 text-lg" />{{ t('settings.gitAi') }}</div></template>
-          <div class="space-y-4">
-            <div class="setting-row">
-              <div class="setting-label">{{ t('settings.gitAiEnabled') }}</div>
-              <el-switch v-model="draft.gitAiEnabled" />
+          <!-- 模式 A：一套服务 + 最多 3 个候选模型 -->
+          <template v-if="draft.gitAiFallbackMode !== 'multi_channel' && draft.gitAiSingleChannel">
+            <el-select v-model="draft.gitAiSingleChannel.service.apiType">
+              <el-option :label="t('settings.gitAiApiTypeChat')" value="chat_completions" />
+              <el-option :label="t('settings.gitAiApiTypeResponses')" value="responses" />
+            </el-select>
+            <el-input v-model="draft.gitAiSingleChannel.service.baseUrl" :placeholder="t('settings.gitAiBaseUrlPlaceholder')" clearable />
+            <el-input v-model="draft.gitAiSingleChannel.service.apiKey" type="password" show-password :placeholder="t('settings.gitAiApiKeyPlaceholder')" />
+            <div class="ai-slot-list">
+              <div class="settings-row-desc">{{ t('settings.gitAiModelsHint', { max: MAX_AI_FALLBACK_SLOTS }) }}</div>
+              <div v-for="(_, index) in draft.gitAiSingleChannel.models" :key="index" class="ai-slot-row">
+                <span class="ai-slot-index">{{ index + 1 }}</span>
+                <el-input
+                  v-model="draft.gitAiSingleChannel.models[index]"
+                  :placeholder="t('settings.gitAiModelPlaceholder')"
+                  clearable
+                />
+                <el-button
+                  v-if="draft.gitAiSingleChannel.models.length > 1"
+                  text
+                  @click="removeAiModelSlot(index)"
+                >
+                  <div class="i-mdi-close text-base" />
+                </el-button>
+              </div>
+              <el-button
+                v-if="draft.gitAiSingleChannel.models.length < MAX_AI_FALLBACK_SLOTS"
+                text
+                type="primary"
+                @click="addAiModelSlot"
+              >
+                <div class="i-mdi-plus text-base mr-1" />{{ t('settings.gitAiAddModel') }}
+              </el-button>
             </div>
-            <div v-if="draft.gitAiEnabled" class="space-y-4">
-              <div class="panel space-y-3">
-                <div class="setting-label">{{ t('settings.gitAiPrimaryService') }}</div>
-                <div>
-                  <div class="setting-label mb-2">{{ t('settings.gitAiApiType') }}</div>
-                  <el-select v-model="draft.gitAiPrimaryService!.apiType" class="w-full">
-                    <el-option :label="t('settings.gitAiApiTypeChat')" value="chat_completions" />
-                    <el-option :label="t('settings.gitAiApiTypeResponses')" value="responses" />
-                  </el-select>
-                </div>
-                <div>
-                  <div class="setting-label mb-2">{{ t('settings.gitAiBaseUrl') }}</div>
-                  <el-input v-model="draft.gitAiPrimaryService!.baseUrl" :placeholder="t('settings.gitAiBaseUrlPlaceholder')" clearable />
-                </div>
-                <div>
-                  <div class="setting-label mb-2">{{ t('settings.gitAiModel') }}</div>
-                  <el-input v-model="draft.gitAiPrimaryService!.model" :placeholder="t('settings.gitAiModelPlaceholder')" clearable />
-                </div>
-                <div>
-                  <div class="setting-label mb-2">{{ t('settings.gitAiApiKey') }}</div>
-                  <el-input v-model="draft.gitAiPrimaryService!.apiKey" type="password" show-password :placeholder="t('settings.gitAiApiKeyPlaceholder')" />
-                </div>
-                <div class="setting-row !py-0">
-                  <div class="setting-label">{{ t('settings.gitAiStream') }}</div>
-                  <el-switch v-model="draft.gitAiStream" />
-                </div>
-                <div class="text-xs text-slate-500 dark:text-slate-400">
-                  {{ draft.gitAiStream ? t('settings.gitAiStreamEnabledHint') : t('settings.gitAiStreamDisabledHint') }}
-                </div>
-                <div class="flex items-center gap-3">
-                  <el-button :loading="aiTestLoading" type="primary" plain @click="testAiConnection()">
-                    <el-icon class="mr-1" v-if="!aiTestLoading"><div class="i-mdi-connection" /></el-icon>{{ t('settings.gitAiTestBtn') }}
+          </template>
+
+          <!-- 模式 B：最多 3 套各自独立的渠道 -->
+          <template v-else-if="draft.gitAiChannels">
+            <div class="ai-slot-list">
+              <div class="settings-row-desc">{{ t('settings.gitAiChannelsHint', { max: MAX_AI_FALLBACK_SLOTS }) }}</div>
+              <div v-for="(channel, index) in draft.gitAiChannels" :key="channel.id" class="ai-channel-card">
+                <div class="ai-channel-head">
+                  <span class="ai-slot-index">{{ index + 1 }}</span>
+                  <el-switch v-model="channel.enabled" :title="t('settings.gitAiChannelEnabled')" />
+                  <div class="flex-1" />
+                  <el-button v-if="draft.gitAiChannels.length > 1" text @click="removeAiChannelSlot(index)">
+                    <div class="i-mdi-close text-base" />
                   </el-button>
-                  <div v-if="aiTestResult" class="text-sm flex items-center gap-1">
-                    <div v-if="aiTestResult.success" class="i-mdi-check-circle text-green-500" />
-                    <div v-else class="i-mdi-close-circle text-red-500" />
-                    <span :class="aiTestResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">{{ aiTestResult.message }}</span>
-                  </div>
                 </div>
+                <el-select v-model="channel.apiType">
+                  <el-option :label="t('settings.gitAiApiTypeChat')" value="chat_completions" />
+                  <el-option :label="t('settings.gitAiApiTypeResponses')" value="responses" />
+                </el-select>
+                <el-input v-model="channel.baseUrl" :placeholder="t('settings.gitAiBaseUrlPlaceholder')" clearable />
+                <el-input v-model="channel.model" :placeholder="t('settings.gitAiModelPlaceholder')" clearable />
+                <el-input v-model="channel.apiKey" type="password" show-password :placeholder="t('settings.gitAiApiKeyPlaceholder')" />
               </div>
-              <div class="panel xl:col-span-2">
-                <div class="setting-label mb-2">{{ t('settings.gitAiPromptTemplate') }}</div>
-                <el-input v-model="draft.gitAiPromptTemplate" type="textarea" :rows="4" :placeholder="t('settings.gitAiPromptPlaceholder')" />
-              </div>
+              <el-button
+                v-if="draft.gitAiChannels.length < MAX_AI_FALLBACK_SLOTS"
+                text
+                type="primary"
+                @click="addAiChannelSlot"
+              >
+                <div class="i-mdi-plus text-base mr-1" />{{ t('settings.gitAiAddChannel') }}
+              </el-button>
+            </div>
+          </template>
+
+          <el-input v-model="draft.gitAiPromptTemplate" type="textarea" :rows="4" :placeholder="t('settings.gitAiPromptPlaceholder')" />
+          <div class="settings-row-line settings-row-compact">
+            <div>
+              <div class="settings-row-title">{{ t('settings.gitAiStream') }}</div>
+              <div class="settings-row-desc">{{ draft.gitAiStream ? t('settings.gitAiStreamEnabledHint') : t('settings.gitAiStreamDisabledHint') }}</div>
+            </div>
+            <el-switch v-model="draft.gitAiStream" />
+          </div>
+          <div class="flex items-center gap-3">
+            <el-button :loading="aiTestLoading" type="primary" plain @click="testAiConnection()">{{ t('settings.gitAiTestBtn') }}</el-button>
+            <div v-if="aiTestResult" class="text-sm flex items-center gap-1">
+              <div v-if="aiTestResult.success" class="i-mdi-check-circle text-green-500" />
+              <div v-else class="i-mdi-close-circle text-red-500" />
+              <span :class="aiTestResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">{{ aiTestResult.message }}</span>
             </div>
           </div>
-        </el-card>
-
+          <!-- 逐槽结果：回退能否生效取决于每一个槽位，只报总体结论会掩盖坏掉的那一环 -->
+          <div v-if="aiSlotTestResults.length > 0" class="ai-slot-results">
+            <div v-for="(result, index) in aiSlotTestResults" :key="index" class="ai-slot-result-row">
+              <div v-if="result.state === 'pending'" class="i-mdi-loading animate-spin text-slate-400 text-sm" />
+              <div v-else-if="result.state === 'ok'" class="i-mdi-check-circle text-green-500 text-sm" />
+              <div v-else class="i-mdi-close-circle text-red-500 text-sm" />
+              <span class="ai-slot-result-label">{{ result.label }}</span>
+              <span class="ai-slot-result-msg">{{ result.message }}</span>
+            </div>
+          </div>
         </div>
+      </section>
       </div>
     </div>
+
+    <el-dialog
+      v-model="editorDialogVisible"
+      :title="t('settings.editEditor')"
+      width="520px"
+      align-center
+      append-to-body
+      class="app-centered-dialog"
+    >
+      <div class="space-y-4">
+        <el-form-item :label="t('settings.editorName')">
+          <el-input v-model="editorEditForm.name" :placeholder="t('settings.editorName')" />
+        </el-form-item>
+        <el-form-item :label="t('settings.editorPath')">
+          <el-input v-model="editorEditForm.path" readonly :placeholder="t('settings.editorPathPlaceholder')">
+            <template #append>
+              <el-button @click="browseEditorDialogPath">{{ t('settings.selectFile') }}</el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+      </div>
+      <template #footer>
+        <div class="flex justify-between gap-2">
+          <el-button
+            type="danger"
+            text
+            :disabled="(draft.editors?.length || 0) <= 1"
+            @click="removeEditingEditor"
+          >
+            {{ t('common.delete') }}
+          </el-button>
+          <div class="flex gap-2">
+            <el-button @click="editorDialogVisible = false">{{ t('common.cancel') }}</el-button>
+            <el-button type="primary" @click="saveEditorDialog">{{ t('common.save') }}</el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
 
     <el-dialog
       v-model="importDialogVisible"
@@ -905,7 +1629,7 @@ async function testAiConnection() {
       <div v-if="importPlan" class="space-y-5 import-dialog-content">
         <div class="panel">
           <div class="setting-label">{{ t('settings.importSource') }}</div>
-          <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ importSourceName }}</div>
+          <div class="app-text-meta text-slate-500 dark:text-slate-400 mt-1">{{ importSourceName }}</div>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div class="summary-tile"><div class="summary-label">{{ t('settings.importProjectsAdded') }}</div><div class="summary-value">{{ importSummary.addedProjects }}</div></div>
@@ -915,7 +1639,7 @@ async function testAiConnection() {
           <div class="summary-tile"><div class="summary-label">{{ t('settings.importSettingsConflict') }}</div><div class="summary-value">{{ importSummary.conflictedSettings }}</div></div>
         </div>
         <div v-if="importSummary.conflictedProjects + importSummary.conflictedNodes + importSummary.conflictedSettings > 0" class="flex items-center gap-2">
-          <span class="text-xs text-slate-500 dark:text-slate-400">{{ t('settings.importBatchApply') }}</span>
+          <span class="app-text-meta text-slate-500 dark:text-slate-400">{{ t('settings.importBatchApply') }}</span>
           <el-button size="small" @click="applyAllKeep">{{ t('settings.importApplyAllCurrent') }}</el-button>
           <el-button size="small" type="primary" @click="applyAllIncoming">{{ t('settings.importApplyAllIncoming') }}</el-button>
         </div>
@@ -925,7 +1649,7 @@ async function testAiConnection() {
             <div class="flex flex-col gap-3 mb-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <div class="font-medium text-slate-700 dark:text-slate-200">{{ conflict.existing.name }}</div>
-                <div class="text-xs text-slate-500 dark:text-slate-400 font-mono break-all">{{ conflict.existing.path }}</div>
+                <div class="app-text-meta text-slate-500 dark:text-slate-400 font-mono break-all">{{ conflict.existing.path }}</div>
               </div>
               <el-radio-group v-model="conflict.choice" class="w-full md:w-auto">
                 <el-radio-button label="keep">{{ t('settings.importKeepCurrent') }}</el-radio-button>
@@ -934,7 +1658,7 @@ async function testAiConnection() {
             </div>
             <div class="space-y-2">
               <div v-for="diff in conflict.diffs" :key="diff.key" class="space-y-2">
-                <div class="text-xs font-semibold text-slate-500 dark:text-slate-300">{{ diff.label }}</div>
+                <div class="app-text-meta font-semibold text-slate-500 dark:text-slate-300">{{ diff.label }}</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div class="diff-box"><div class="diff-title">{{ t('settings.importCurrent') }}</div><pre class="diff-content">{{ diff.current }}</pre></div>
                   <div class="diff-box"><div class="diff-title">{{ t('settings.importIncoming') }}</div><pre class="diff-content">{{ diff.incoming }}</pre></div>
@@ -949,7 +1673,7 @@ async function testAiConnection() {
             <div class="flex flex-col gap-3 mb-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <div class="font-medium text-slate-700 dark:text-slate-200">{{ conflict.existing.version || conflict.incoming.version }}</div>
-                <div class="text-xs text-slate-500 dark:text-slate-400 font-mono break-all">{{ conflict.existing.path }}</div>
+                <div class="app-text-meta text-slate-500 dark:text-slate-400 font-mono break-all">{{ conflict.existing.path }}</div>
               </div>
               <el-radio-group v-model="conflict.choice" class="w-full md:w-auto">
                 <el-radio-button label="keep">{{ t('settings.importKeepCurrent') }}</el-radio-button>
@@ -958,7 +1682,7 @@ async function testAiConnection() {
             </div>
             <div class="space-y-2">
               <div v-for="diff in conflict.diffs" :key="diff.key" class="space-y-2">
-                <div class="text-xs font-semibold text-slate-500 dark:text-slate-300">{{ diff.label }}</div>
+                <div class="app-text-meta font-semibold text-slate-500 dark:text-slate-300">{{ diff.label }}</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div class="diff-box"><div class="diff-title">{{ t('settings.importCurrent') }}</div><pre class="diff-content">{{ diff.current }}</pre></div>
                   <div class="diff-box"><div class="diff-title">{{ t('settings.importIncoming') }}</div><pre class="diff-content">{{ diff.incoming }}</pre></div>
@@ -997,38 +1721,571 @@ async function testAiConnection() {
 </template>
 
 <style scoped>
-.settings-card {
-  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
-  border-radius: 18px;
-  border: 1px solid rgb(226 232 240 / 0.9) !important;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)) !important;
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--app-bg-muted);
+  color: var(--app-text);
 }
-.dark .settings-card {
-  border-color: rgb(51 65 85 / 0.7) !important;
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.96)) !important;
-  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.3);
+
+.settings-container {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  align-self: stretch;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 212px minmax(0, 1fr);
+  align-items: stretch;
+  flex: 1 1 0;
+  gap: var(--app-toolbar-gap);
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+  width: min(var(--app-content-max), calc(100vw - 80px));
+  margin: 0 auto;
+  padding: 10px 0;
+}
+
+.settings-header {
+  flex: 0 0 auto;
+  z-index: var(--app-z-sticky);
+}
+
+.settings-title {
+  margin: 0;
+  font-size: var(--app-font-page-title);
+  line-height: 1.2;
+  font-weight: 800;
+  color: var(--app-text);
+}
+
+.settings-dirty {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-warning) 12%, transparent);
+  padding: 3px 10px;
+  font-size: var(--app-font-caption);
+  font-weight: 600;
+  color: var(--app-warning);
+}
+
+.settings-actions,
+.settings-inline-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-section {
+  scroll-margin-top: 96px;
+  margin-bottom: 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  padding: var(--app-row-padding-y) var(--app-panel-padding) calc(var(--app-row-padding-y) + 2px);
+  box-shadow: var(--app-shadow-sm);
+}
+
+.settings-section:last-child {
+  margin-bottom: 0;
+}
+
+.settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--app-border);
+  padding-bottom: 10px;
+  font-size: var(--app-font-section-title);
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.settings-section-icon {
+  font-size: 18px;
+  color: var(--app-text-secondary);
+}
+
+.settings-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--app-border);
+  padding: 10px 0;
+}
+
+.settings-row-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: calc(var(--app-control-height) + 16px);
+  padding: var(--app-row-padding-y) 0;
+}
+
+.settings-section-title + .settings-row-line {
+  margin-top: 2px;
+}
+
+.settings-row-line + .settings-row-line {
+  border-top: 1px solid var(--app-border);
+}
+
+.settings-row-top {
+  align-items: flex-start;
+}
+
+.shortcut-tab-list {
+  width: 360px;
+  max-width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.shortcut-tab-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shortcut-tab-label {
+  width: 72px;
+  flex: 0 0 auto;
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-control);
+}
+
+.shortcut-tab-row :deep(.shortcut-recorder-wrap) {
+  flex: 1;
+  width: auto;
+}
+
+.background-image-control {
+  display: grid;
+  grid-template-columns: 128px minmax(260px, 420px);
+  align-items: center;
+  gap: 14px;
+}
+
+.background-image-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 128px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background-position: center;
+  background-size: cover;
+  color: var(--app-text-muted);
+}
+
+.background-image-preview-empty {
+  background: var(--app-surface-soft);
+}
+
+.background-image-actions {
+  min-width: 0;
+}
+
+.background-opacity-control {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) 42px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: var(--app-font-meta);
+  color: var(--app-text-secondary);
+}
+
+.background-image-path {
+  margin-top: 6px;
+  overflow: hidden;
+  color: var(--app-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--app-font-meta);
+  line-height: var(--app-line-height-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-row-line > :first-child {
+  min-width: 0;
+  max-width: 560px;
+}
+
+.settings-row-compact {
+  min-height: 0;
+  padding: 8px 0;
+}
+
+.settings-row-title {
+  font-size: var(--app-font-body);
+  line-height: var(--app-line-height-body);
+  font-weight: 500;
+  color: var(--app-text);
+}
+
+.settings-row-desc {
+  margin-top: 2px;
+  font-size: var(--app-font-control);
+  line-height: var(--app-line-height-control);
+  color: var(--app-text-secondary);
+}
+
+.settings-control {
+  width: 280px;
+}
+
+.settings-shortcut {
+  width: 172px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-surface-soft);
+  padding: 10px 16px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--app-text-secondary);
+}
+
+.editor-list,
+.terminal-list,
+.ai-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* AI 回退槽位 */
+.ai-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 槽位序号：顺序就是回退顺序，需要一眼看清 */
+.ai-slot-index {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-caption);
+  font-weight: 700;
+}
+
+.ai-channel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-soft);
+}
+
+.ai-channel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-slot-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-soft);
+}
+
+.ai-slot-result-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--app-font-meta);
+  line-height: var(--app-line-height-caption);
+  min-width: 0;
+}
+
+.ai-slot-result-label {
+  font-weight: 600;
+  color: var(--app-text-secondary);
+  white-space: nowrap;
+}
+
+.ai-slot-result-msg {
+  color: var(--app-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-soft);
+  padding: 8px 14px;
+  transition:
+    border-color var(--app-duration-fast) var(--app-ease),
+    background-color var(--app-duration-fast) var(--app-ease),
+    box-shadow var(--app-duration-fast) var(--app-ease);
+}
+
+.editor-card:hover {
+  border-color: var(--app-border-strong);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-sm);
+}
+
+.editor-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--app-radius-md);
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  font-size: var(--app-font-control);
+  font-weight: 800;
+}
+
+.editor-main {
+  min-width: 0;
+}
+
+.editor-name {
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: var(--app-font-subheading);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-path {
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--app-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--app-font-meta);
+  line-height: var(--app-line-height-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 500px;
+}
+
+.editor-actions :deep(.el-button) {
+  margin-left: 0;
+}
+
+.editor-icon-button {
+  width: 38px;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.editor-add-button {
+  width: 100%;
+  min-height: 44px;
+  border: 1px dashed var(--app-border-strong);
+  border-radius: var(--app-radius-md);
+  background: transparent;
+  color: var(--app-primary);
+  font-size: var(--app-font-control);
+  cursor: pointer;
+  transition:
+    border-color var(--app-duration-fast) var(--app-ease),
+    background-color var(--app-duration-fast) var(--app-ease),
+    color var(--app-duration-fast) var(--app-ease);
+}
+
+.editor-add-button:hover {
+  border-color: color-mix(in srgb, var(--app-primary) 48%, transparent);
+  background: var(--app-primary-soft);
+}
+
+.terminal-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-soft);
+  padding: 8px;
+}
+
+.settings-section :deep(.el-segmented) {
+  --el-segmented-bg-color: var(--app-surface-soft);
+  --el-segmented-item-selected-bg-color: var(--app-surface);
+  --el-segmented-item-selected-color: var(--app-text);
+  padding: 4px;
+}
+
+.settings-ui-size-control {
+  min-width: min(100%, 460px);
+}
+
+.settings-ui-size-descriptions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+  color: var(--app-text-muted);
+  font-size: var(--app-font-meta);
+  line-height: var(--app-line-height-caption);
+}
+
+.settings-ui-size-descriptions span {
+  min-width: 0;
+}
+
+.settings-section :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+@media (max-width: 900px) {
+  .settings-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: min(100% - 32px, 1050px);
+  }
+
+  .settings-container {
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .settings-header,
+  .settings-row-line,
+  .settings-section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-actions,
+  .settings-inline-control {
+    justify-content: flex-start;
+  }
+
+  .settings-control {
+    width: 100%;
+  }
+
+  .settings-ui-size-control {
+    width: 100%;
+  }
+
+  .settings-ui-size-descriptions {
+    grid-template-columns: 1fr;
+  }
+
+  .background-image-control {
+    width: 100%;
+    grid-template-columns: 128px minmax(0, 1fr);
+  }
+
+  .editor-card {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .editor-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .terminal-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-title {
+    font-size: var(--app-font-page-title);
+  }
+
+  .settings-section-title {
+    font-size: var(--app-font-section-title);
+  }
+
+  .settings-row-line {
+    min-height: 0;
+  }
+
+  .editor-card {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .editor-avatar {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+.settings-card {
+  box-shadow: var(--app-shadow-sm);
+  border-radius: var(--app-radius-lg);
+  border: 1px solid var(--app-border) !important;
+  background: var(--app-surface) !important;
 }
 .section-title { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .setting-row, .panel, .summary-tile, .conflict-card, .diff-box {
-  border-radius: 14px;
-  border: 1px solid rgb(226 232 240 / 0.8);
-  background: rgb(248 250 252 / 0.88);
-}
-.dark .setting-row, .dark .panel, .dark .summary-tile, .dark .conflict-card, .dark .diff-box {
-  border-color: rgb(51 65 85 / 0.7);
-  background: rgb(15 23 42 / 0.62);
+  border-radius: var(--app-radius-lg);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
 }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; }
 .panel, .conflict-card, .diff-box, .summary-tile { padding: 14px; }
-.setting-label { font-size: 14px; font-weight: 600; color: rgb(51 65 85); }
-.dark .setting-label { color: rgb(226 232 240); }
-.setting-desc, .summary-label, .diff-title { font-size: 12px; color: rgb(100 116 139); }
-.dark .setting-desc, .dark .summary-label, .dark .diff-title { color: rgb(148 163 184); }
-.summary-value { margin-top: 8px; font-size: 24px; line-height: 1; font-weight: 700; color: rgb(15 23 42); }
-.dark .summary-value { color: rgb(248 250 252); }
+.setting-label { font-size: var(--app-font-body); font-weight: 600; color: var(--app-text-secondary); }
+.setting-desc, .summary-label, .diff-title { font-size: var(--app-font-meta); line-height: var(--app-line-height-caption); color: var(--app-text-muted); }
+.summary-value { margin-top: 8px; font-size: 24px; line-height: 1; font-weight: 700; color: var(--app-text); }
 .diff-box { overflow: hidden; }
-.diff-content { margin: 0; max-height: 240px; overflow: auto; font-size: 12px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; color: rgb(30 41 59); font-family: var(--font-mono); }
-.dark .diff-content { color: rgb(226 232 240); }
+.diff-content { margin: 0; max-height: 240px; overflow: auto; font-size: var(--app-font-code); line-height: var(--app-line-height-code); white-space: pre-wrap; word-break: break-word; color: var(--app-text-secondary); font-family: var(--font-mono); }
 .import-dialog-content { max-height: 72vh; overflow-y: auto; padding-right: 4px; }
 :deep(.el-card__header) { padding: 14px 18px; }
 :deep(.el-card__body) { padding: 18px; }

@@ -1,0 +1,31 @@
+# 依赖与构建
+node_modules/
+dist/
+*.local
+
+# Vite / TypeScript 缓存
+.vite/
+*.tsbuildinfo
+
+# 日志
+logs/
+*.log
+npm-debug.log*
+
+# 环境变量
+.env
+.env.*
+!.env.example
+
+# 编辑器与系统
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 插件打包产物
+*.zpx
+*.zip

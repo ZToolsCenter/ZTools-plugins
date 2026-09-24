@@ -1,0 +1,24 @@
+{
+  "name": "ztools-petdex-desktop-pet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browse, install and run Petdex desktop pets in ZTools.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.31.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@ztools-center/ztools-api-types": "^1.0.3",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.6",
+    "vitest": "^4.0.18",
+    "vue-tsc": "^3.0.7"
+  }
+}

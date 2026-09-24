@@ -8,7 +8,7 @@
 |---|---|
 | Author | [derekxia1988](https://github.com/derekxia1988) |
 | License | [MIT](./LICENSE) |
-| Version | 0.1.0 |
+| Version | 0.1.2 |
 
 ## Features
 
@@ -30,18 +30,21 @@ For early access (or local development) you can side-load it via the **开发者
 2. Choose *Add Local Plugin* and point it at this project directory.
 3. ZTools loads `plugin.json` and registers the `vsc` keyword.
 
-To launch projects, VSCode's `code` command must be on your `PATH` (in VSCode: `Ctrl+Shift+P` → *Shell Command: Install code command in PATH*).
+VSCode is discovered automatically from standard installation directories or the `code` command on `PATH`.
+On Windows, if a portable or custom installation cannot be found, the plugin asks you to select
+`Code.exe` once and stores that path for later launches.
+You can also use the **设置 VSCode** button in the plugin page to replace the saved path manually.
 
 ## Architecture
 
 ```
 plugin.json (entry)
-  ├── preload.js   ← Node sandbox: reads VSCode storage, spawns `code`
+  ├── preload.js   ← Node sandbox: reads VSCode storage, launches VSCode without a shell
   │     ├── src/loader/vscode-stable.ts
   │     │     ├── workspace-storage-probe   (primary)
   │     │     ├── state-vscdb-probe         (secondary, sql.js)
   │     │     └── storage-json-probe        (fallback)
-  │     └── src/launcher/vscode-stable.ts   (child_process.spawn('code', …))
+  │     └── src/launcher/vscode-stable.ts   (platform-specific executable discovery)
   │
   └── index.html / index.js / index.css  ← sandboxed renderer: list UI, fuzzy search, keyboard nav
 ```
@@ -56,8 +59,8 @@ To add Insiders / Cursor / Windsurf support, drop a new file in `src/loader/` th
 
 ```bash
 npm install
-npx tsc          # compile TS to JS in-place (ZTools loads the .js)
-npm test         # vitest, 20 tests
+npm run build    # compile and assemble the production dist directory
+npm test         # run the Vitest suite
 ```
 
 The compiled `.js` files are checked in (ZTools loads them at runtime; per ZTools convention they must not be minified or bundled).

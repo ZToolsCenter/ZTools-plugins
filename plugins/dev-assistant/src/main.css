@@ -1,0 +1,59 @@
+:root {
+  --blue: rgb(88, 164, 246);
+  --light: #fff;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  border: none;
+  background: none var(--blue);
+  color: var(--light);
+  line-height: 2.5;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+
+button:disabled {
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+button:not(:disabled):active {
+  opacity: 0.6;
+}
+
+textarea {
+  display: block;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: #f4f4f4;
+  }
+  ::-webkit-scrollbar-track-piece {
+    background-color: #f4f4f4;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-color: #f4f4f4;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  &::-webkit-scrollbar-track-piece {
+    background-color: #303133;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #666;
+    border-color: #303133;
+  }
+  body {
+    background-color: #303133;
+    color: #fff;
+  }
+}

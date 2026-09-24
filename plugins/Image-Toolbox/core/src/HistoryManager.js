@@ -1,4 +1,4 @@
-﻿import eventBus from './EventBus.js';
+import eventBus from './EventBus.js';
 
 /**
  * 历史记录管理器 — 实现撤销/重做
@@ -24,6 +24,9 @@ class HistoryManager {
     const json = this._cm.toJSON();
     if (!json) return;
 
+    const last = this.undoStack[this.undoStack.length - 1];
+    if (last && this._isSameSnapshot(last, json)) return;
+
     this.undoStack.push(json);
 
     // 限制栈大小
@@ -46,14 +49,23 @@ class HistoryManager {
 
     this._isRestoring = true;
 
-    // 保存当前状态到重做栈
     const currentJson = this._cm.toJSON();
+    let prevJson = this.undoStack.pop();
+
+    while (prevJson && currentJson && this._isSameSnapshot(prevJson, currentJson) && this.undoStack.length > 0) {
+      prevJson = this.undoStack.pop();
+    }
+
+    if (!prevJson || (currentJson && this._isSameSnapshot(prevJson, currentJson))) {
+      this._isRestoring = false;
+      this._notify();
+      return;
+    }
+
     if (currentJson) {
       this.redoStack.push(currentJson);
     }
 
-    // 恢复上一个状态
-    const prevJson = this.undoStack.pop();
     try {
       await this._restoreState(prevJson);
     } catch (err) {
@@ -135,6 +147,35 @@ class HistoryManager {
       canUndo: this.canUndo(),
       canRedo: this.canRedo(),
       undoCount: this.undoStack.length,
+    });
+  }
+
+  _isSameSnapshot(a, b) {
+    if (a === b) return true;
+    if (!a || !b) return false;
+
+    try {
+      // 用轻量级签名对比，过滤掉图片对象的大体积 src（base64），
+      // 避免对大图做深度序列化导致高频保存历史（自由绘制、拖拽等）时卡顿。
+      // src 被替换为「长度:首段:尾段」的内容指纹，仍可识别图片是否被替换。
+      return this._snapshotSignature(a) === this._snapshotSignature(b);
+    } catch (err) {
+      return false;
+    }
+  }
+
+  _snapshotSignature(json) {
+    // 使用更强的内容指纹：首尾各 32 字符 + 长度 + 中间 16 字符，
+    // 显著降低碰撞概率，同时仍然避免对大图做完整序列化。
+    return JSON.stringify(json, (key, value) => {
+      if (key === 'src' && typeof value === 'string' && value.length > 64) {
+        const len = value.length;
+        const head = value.slice(0, 32);
+        const tail = value.slice(-32);
+        const mid = value.slice(Math.floor(len / 2) - 8, Math.floor(len / 2) + 8);
+        return `${len}:${head}:${mid}:${tail}`;
+      }
+      return value;
     });
   }
 }

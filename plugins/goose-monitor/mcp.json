@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "goose-monitor": {
+      "command": "node",
+      "args": ["scripts/goose-monitor-mcp.mjs"],
+      "cwd": "."
+    }
+  }
+}

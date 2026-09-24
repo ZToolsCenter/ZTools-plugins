@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { Octokit } from '@octokit/rest';
-import { existsSync, mkdirSync, createWriteStream, readdirSync, unlinkSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, createWriteStream, readdirSync, unlinkSync } from 'fs';
 import { join, extname } from 'path';
 import { get } from 'https';
 import { execSync } from 'child_process';
 
 const RELEASE_DIR = 'release';
+const PREVIOUS_MANIFEST_FILE = 'plugins.previous.json';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const DOWNLOAD_MAX_ATTEMPTS = 5;
 const DOWNLOAD_RETRY_DELAY_MS = 2000;
@@ -77,12 +78,23 @@ async function downloadFile(url, destPath) {
   return new Promise((resolve, reject) => {
     get(url, (response) => {
       if (response.statusCode === 302 || response.statusCode === 301) {
-        // 处理重定向
-        downloadFile(response.headers.location, destPath).then(resolve).catch(reject);
+        // Consume the redirect response so its HTTPS socket can be released.
+        const redirectUrl = response.headers.location;
+        response.resume();
+
+        if (!redirectUrl) {
+          reject(new Error('下载失败: 重定向响应缺少 Location'));
+          return;
+        }
+
+        downloadFile(redirectUrl, destPath).then(resolve).catch(reject);
         return;
       }
 
       if (response.statusCode !== 200) {
+        // Drain the response before retrying so failed requests do not leave
+        // an active socket waiting for the Node process to exit.
+        response.resume();
         reject(new Error(`下载失败: ${response.statusCode}`));
         return;
       }
@@ -231,47 +243,17 @@ async function main() {
     });
 
     console.log(`找到最新release: ${latestRelease.tag_name}`);
-    console.log(`资产数量: ${latestRelease.assets.length}`);
+    const manifestAsset = latestRelease.assets.find(asset => asset.name === 'plugins.json');
 
-    if (latestRelease.assets.length === 0) {
-      console.log('最新release没有资产，跳过下载');
+    if (!manifestAsset) {
+      console.log('最新release没有 plugins.json，跳过历史 manifest 下载');
       return;
     }
 
-    const failedAssets = [];
-
-    // 下载所有资产
-    for (const asset of latestRelease.assets) {
-      const destPath = join(RELEASE_DIR, asset.name);
-
-      // 如果文件已存在（本次构建的新文件），跳过
-      if (existsSync(destPath)) {
-        console.log(`跳过已存在的文件: ${asset.name}`);
-        continue;
-      }
-
-      console.log(`下载: ${asset.name} (${(asset.size / 1024).toFixed(2)} KB)`);
-
-      try {
-        await downloadFileWithRetry(asset.browser_download_url, destPath, asset.name);
-        console.log(`✓ 下载完成: ${asset.name}`);
-      } catch (error) {
-        console.error(`✗ 下载失败: ${asset.name} - ${error.message}`);
-        failedAssets.push({
-          name: asset.name,
-          error: error.message
-        });
-      }
-    }
-
-    if (failedAssets.length > 0) {
-      const failedList = failedAssets
-        .map(asset => `${asset.name} (${asset.error})`)
-        .join(', ');
-      throw new Error(`历史资产下载失败 ${failedAssets.length} 个: ${failedList}`);
-    }
-
-    console.log('\n✓ 所有历史资产下载完成');
+    const destPath = join(RELEASE_DIR, PREVIOUS_MANIFEST_FILE);
+    console.log(`下载历史 manifest: ${manifestAsset.name}`);
+    await downloadFileWithRetry(manifestAsset.browser_download_url, destPath, manifestAsset.name);
+    console.log(`✓ 历史 manifest 已保存到 ${destPath}`);
   } catch (error) {
     if (error.status === 404) {
       console.log('没有找到历史release，这可能是首次发布');

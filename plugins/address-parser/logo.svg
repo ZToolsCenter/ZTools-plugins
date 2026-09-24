@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="收货地址智能解析">
+  <rect width="256" height="256" rx="56" fill="#14213d"/>
+  <path fill="#fca311" d="M51 64h154v128H51z"/>
+  <path fill="#fffaf0" d="M70 83h116v90H70z"/>
+  <path fill="#14213d" d="M88 104h58v10H88zm0 24h80v10H88zm0 24h43v10H88z"/>
+  <circle cx="171" cy="105" r="21" fill="#1f8a70"/>
+  <path d="m161 105 7 7 14-16" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

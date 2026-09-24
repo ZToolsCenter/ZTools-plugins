@@ -6,7 +6,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { FileItem } from '@/core/types'
+import type { DirectoryBreadcrumb, FileItem } from '@/core/types'
 import {
   FROverflowTooltipText,
   FRTooltip,
@@ -28,6 +28,8 @@ import {
   FileCode2,
   FileArchive,
   Folder,
+  ChevronRight,
+  House,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -40,6 +42,7 @@ const { t } = useI18n()
 
 const props = defineProps<{
   files: FileItem[]
+  breadcrumbs: DirectoryBreadcrumb[]
 }>()
 
 const emit = defineEmits<{
@@ -48,6 +51,8 @@ const emit = defineEmits<{
   (e: 'revert-file', fileId: string): void
   (e: 'revert-files', fileIds: string[]): void
   (e: 'selection-change', selection: { count: number; ids: string[] }): void
+  (e: 'open-directory', file: FileItem): void
+  (e: 'navigate-breadcrumb', index: number): void
 }>()
 
 const selectedIds = ref<string[]>([])
@@ -78,6 +83,10 @@ function formatSize(bytes: number) {
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+function getSizeLabel(file: FileItem) {
+  return file.isDirectory ? '--' : formatSize(file.size)
 }
 
 function formatDate(timestamp: number) {
@@ -235,7 +244,7 @@ function canRevert(file: FileItem) {
 <template>
   <div class="file-preview-table flex-1 flex flex-col min-w-0 bg-background overflow-hidden relative">
     <!-- Empty State -->
-    <div v-if="files.length === 0" class="flex-1 flex flex-col items-center justify-center opacity-20 select-none">
+    <div v-if="files.length === 0 && breadcrumbs.length === 0" class="flex-1 flex flex-col items-center justify-center opacity-20 select-none">
       <div class="relative mb-6">
         <FileIcon class="w-20 h-20 stroke-1" />
         <div class="absolute -right-2 -bottom-2 p-2 bg-primary/20 rounded-full animate-pulse">
@@ -252,19 +261,46 @@ function canRevert(file: FileItem) {
 
     <div v-else
       class="mx-4 mt-4 mb-4 flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-border/75 bg-card shadow-xl shadow-primary/10">
-      <div class="flex items-center justify-between border-b border-border/75 px-3 py-2">
-        <span class="text-[11px] font-medium text-muted-foreground">
+      <div class="flex min-h-10 items-center justify-between gap-3 border-b border-border/75 px-3 py-2">
+        <nav class="flex min-w-0 items-center gap-1 text-[11px]" :aria-label="t('table.folder_navigation')">
+          <button
+            type="button"
+            class="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+            @click="$emit('navigate-breadcrumb', -1)"
+          >
+            <House class="h-3.5 w-3.5" />
+            <span>{{ t('table.imported_items') }}</span>
+          </button>
+          <template v-for="(crumb, index) in breadcrumbs" :key="crumb.path">
+            <ChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+            <button
+              type="button"
+              class="max-w-40 truncate rounded-md px-1.5 py-1 font-semibold text-foreground hover:bg-muted"
+              :title="crumb.path"
+              @click="$emit('navigate-breadcrumb', index)"
+            >
+              {{ crumb.name }}
+            </button>
+          </template>
+        </nav>
+        <span class="shrink-0 text-[11px] font-medium text-muted-foreground">
           {{ selectedCount > 0 ? t('table.selected_count', { count: selectedCount }) : t('table.batch_tip') }}
         </span>
       </div>
 
-      <FRTable wrapper-class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" class="w-full table-fixed text-[13px]">
+      <div v-if="files.length === 0" class="flex flex-1 flex-col items-center justify-center text-muted-foreground">
+        <Folder class="h-10 w-10 stroke-1 opacity-40" />
+        <p class="mt-3 text-sm font-semibold">{{ t('table.empty_folder') }}</p>
+      </div>
+
+      <FRTable v-else wrapper-class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" class="w-full table-fixed text-[13px]">
         <FRTableHeader class="sticky top-0 bg-background/92 backdrop-blur-xl z-20 border-b border-border/75">
           <FRTableRow class="hover:bg-transparent border-none">
             <FRTableHead class="w-12 text-center h-10 px-2">
               <FRTooltip :content="t('table.select_all')">
                 <button type="button"
                   class="mx-auto inline-flex h-5 w-5 items-center justify-center rounded border border-input bg-background text-muted-foreground transition-colors duration-200 hover:border-primary/45 hover:text-primary cursor-pointer"
+                  :aria-label="t('table.select_all')"
                   @click="toggleSelectAll">
                   <Check v-if="allSelected" class="h-3.5 w-3.5" />
                   <Circle v-else class="h-3.5 w-3.5" />
@@ -303,6 +339,7 @@ function canRevert(file: FileItem) {
                   :class="isSelected(file.id)
                     ? cn('shadow-sm', getStatusTone(file))
                     : 'border-input bg-background text-muted-foreground hover:border-primary/45 hover:text-primary'"
+                  :aria-label="t('table.select_named_item', { name: file.originalName })"
                   @click="toggleSelect(file.id)">
                   <Check v-if="isSelected(file.id)" class="h-3.5 w-3.5" />
                   <Circle v-else class="h-3.5 w-3.5" />
@@ -311,9 +348,22 @@ function canRevert(file: FileItem) {
             </FRTableCell>
             <!-- 原始名称列 -->
             <FRTableCell class="py-2.5 px-3 overflow-hidden">
-              <div class="flex min-w-0 items-center gap-3">
+              <button
+                v-if="file.isDirectory"
+                type="button"
+                class="flex w-full min-w-0 items-center gap-3 text-left hover:text-primary"
+                :title="t('table.open_folder', { name: file.originalName })"
+                @click="$emit('open-directory', file)"
+              >
                 <div
-                  :class="cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md border', file.isDirectory ? 'bg-amber-soft text-amber-foreground border-amber-soft/30' : getFileIconTone(file.extension))">
+                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-amber-soft text-amber-foreground border-amber-soft/30">
+                  <component :is="getFileIcon(file)" class="h-4 w-4" />
+                </div>
+                <FROverflowTooltipText :text="file.originalName" class="min-w-0"
+                  text-class="text-[13px] font-medium text-foreground" />
+              </button>
+              <div v-else class="flex min-w-0 items-center gap-3">
+                <div :class="cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md border', getFileIconTone(file.extension))">
                   <component :is="getFileIcon(file)" class="h-4 w-4" />
                 </div>
                 <FROverflowTooltipText :text="file.originalName" class="min-w-0"
@@ -334,7 +384,7 @@ function canRevert(file: FileItem) {
             </FRTableCell>
             <!-- 文件大小列 -->
             <FRTableCell class="hidden xl:table-cell py-2.5 px-2 whitespace-nowrap">
-              <span class="text-[12px] text-muted-foreground">{{ formatSize(file.size) }}</span>
+              <span class="text-[12px] text-muted-foreground">{{ getSizeLabel(file) }}</span>
             </FRTableCell>
             <!-- 最后修改时间列 -->
             <FRTableCell class="hidden 2xl:table-cell py-2.5 px-2 whitespace-nowrap">
@@ -364,6 +414,7 @@ function canRevert(file: FileItem) {
                 <FRTooltip :content="t('table.revert')">
                   <button type="button"
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-warning/30 bg-warning-soft text-warning-foreground transition-colors duration-200 hover:border-warning/45 hover:bg-warning-soft/80 cursor-pointer"
+                    :aria-label="t('table.revert_named_item', { name: file.originalName })"
                     :disabled="!canRevert(file)" @click="revertFileHandler(file.id)">
                     <Undo2 class="h-3.5 w-3.5" />
                   </button>
@@ -371,6 +422,7 @@ function canRevert(file: FileItem) {
                 <FRTooltip :content="t('table.delete')">
                   <button type="button"
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors duration-200 hover:border-destructive/35 hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+                    :aria-label="t('table.delete_named_item', { name: file.originalName })"
                     @click="removeFile(file.id)">
                     <Trash2 class="h-3.5 w-3.5" />
                   </button>

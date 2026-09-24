@@ -1,0 +1,40 @@
+const { createChatCompletion, getRandomItem } = require('./chat.js');
+const {
+  getBuiltinServers,
+  invokeBuiltinTool,
+} = require('./mcp_builtin.js');
+const {
+  initializeMcpClient,
+  invokeMcpTool,
+  closeMcpClient,
+  connectAndFetchTools,
+  getMcpAuthStatus,
+} = require('./mcp.js');
+const {
+  listSkills,
+  getSkillDetails,
+  generateSkillToolDefinition,
+  resolveSkillInvocation,
+  saveSkill,
+  deleteSkill,
+} = require('./skill.js');
+const compactApi = require('./compact.js');
+
+module.exports = {
+  createChatCompletion,
+  getRandomItem,
+  getBuiltinServers,
+  invokeBuiltinTool,
+  initializeMcpClient,
+  invokeMcpTool,
+  closeMcpClient,
+  connectAndFetchTools,
+  getMcpAuthStatus,
+  listSkills,
+  getSkillDetails,
+  generateSkillToolDefinition,
+  resolveSkillInvocation,
+  saveSkill,
+  deleteSkill,
+  ...compactApi,
+};

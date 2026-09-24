@@ -1,0 +1,15 @@
+Gomoku 3D for ZTools
+
+This plugin is a ZTools port and adaptation of:
+  crper/gomoku-3d
+  https://github.com/crper/gomoku-3d
+
+Upstream baseline commit:
+  fa6e266e4e9135aebb80e1487de88a6438380cf7
+
+The upstream project is Copyright (c) 2026 crper and licensed under the MIT License.
+The original LICENSE text is included in this distribution.
+
+ZTools-specific adaptations include plugin manifest and lifecycle integration,
+host-backed persistence, native save-dialog export, packaging, validation and
+Electron end-to-end tests.

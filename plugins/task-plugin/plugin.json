@@ -1,0 +1,19 @@
+{
+  "name": "task-plugin",
+  "title": "任务看板",
+  "description": "多项目任务看板，支持按列展示与拖拽管理",
+  "version": "0.1.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "tasks",
+      "explain": "多项目任务看板，按列展示、拖拽管理",
+      "cmds": ["任务", "todo", "task", "看板"]
+    }
+  ]
+}

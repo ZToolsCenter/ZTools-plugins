@@ -1,0 +1,43 @@
+{
+  "name": "huhabiaoqingbao",
+  "title": "呼哈表情包管理器",
+  "description": "一个优雅的表情包管理工具：本地收藏、在线搜索、批量导入、AI 生成与视频转 GIF",
+  "author": "HUHA",
+  "homepage": "https://www.huhage.fun/",
+  "version": "1.0.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "platform": ["darwin", "win32", "linux"],
+  "categories": ["media"],
+  "features": [
+    {
+      "code": "bqb",
+      "explain": "表情包管理器",
+      "cmds": [
+        "表情包",
+        "bqb",
+        "BiaoQingBao",
+        "表情",
+        "emoji"
+      ]
+    },
+    {
+      "code": "bqb_search_with_text",
+      "explain": "用呼哈表情包搜索",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "用呼哈表情包搜索",
+          "minLength": 1
+        }
+      ]
+    }
+  ],
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "single": true
+  }
+}

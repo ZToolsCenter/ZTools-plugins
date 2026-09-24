@@ -1,0 +1,154 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "snap-translate",
+  "title": "截图翻译",
+  "description": "截图 OCR 翻译",
+  "author": "Taitres",
+  "version": "0.9.0",
+  "platform": [
+    "win32"
+  ],
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5180"
+  },
+  "providers": {
+    "ocr": {
+      "type": "ocr",
+      "label": "微信 OCR",
+      "description": "调用本机微信内置 OCR 引擎，离线识别图片文字"
+    },
+    "paddle": {
+      "type": "ocr",
+      "label": "Paddle OCR",
+      "description": "离线 PaddleOCR-json / RapidOCR CLI（自备可执行文件）"
+    },
+    "baidu": {
+      "type": "translation",
+      "label": "百度翻译",
+      "description": "百度翻译 API（需 AppID/AppKey）"
+    },
+    "google": {
+      "type": "translation",
+      "label": "谷歌翻译",
+      "description": "谷歌翻译（免费端点，无需凭据）"
+    },
+    "youdao": {
+      "type": "translation",
+      "label": "有道翻译",
+      "description": "有道翻译 API（需 AppKey/AppSecret）"
+    },
+    "microsoft": {
+      "type": "translation",
+      "label": "微软翻译",
+      "description": "微软 Edge 翻译（免密钥，两种鉴权方案）"
+    },
+    "ai-translation": {
+      "type": "translation",
+      "label": "AI 翻译",
+      "description": "基于大语言模型翻译（复用 ZTools 已配置的 AI 模型，无需密钥）"
+    },
+    "ai-ocr": {
+      "type": "ocr",
+      "label": "AI 识图",
+      "description": "基于视觉模型识别图片文字（需选择支持视觉的模型）"
+    }
+  },
+  "native": {
+    "win": {
+      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/native-win.zip",
+      "sha256": "",
+      "version": "1.1.0"
+    },
+    "mac": {
+      "downloadUrl": "https://github.com/kaineooo/f-provider/releases/download/v1.1.0/native-mac.zip",
+      "sha256": "",
+      "version": "1.1.0"
+    }
+  },
+  "nativePaddle": {
+    "win": {
+      "downloadUrl": "https://github.com/hiroi-sora/PaddleOCR-json/releases/download/v1.4.1/PaddleOCR-json_v1.4.1_windows_x64.7z",
+      "sha256": "",
+      "version": "1.4.1"
+    },
+    "mac": {
+      "downloadUrl": "",
+      "sha256": "",
+      "version": "1.4.1"
+    }
+  },
+  "features": [
+    {
+      "code": "snap-translate",
+      "explain": "截屏成悬浮贴：OCR、翻译覆盖原文、标注划线",
+      "icon": "logo.png",
+      "cmds": [
+        "贴图"
+      ]
+    },
+    {
+      "code": "snap-ocr-only",
+      "explain": "截屏后识别文字，可在结果里选语言再翻译",
+      "icon": "logo.png",
+      "cmds": [
+        "OCR"
+      ]
+    },
+    {
+      "code": "snap-ocr-translate",
+      "explain": "截屏后识别并翻译，主窗左右对照",
+      "icon": "logo.png",
+      "cmds": [
+        "OCR翻译"
+      ]
+    },
+    {
+      "code": "image-translate",
+      "explain": "识别并翻译图片中的文字",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "img",
+          "label": "翻译图片"
+        },
+        {
+          "type": "files",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
+            "bmp",
+            "webp"
+          ],
+          "maxLength": 1,
+          "label": "翻译图片"
+        }
+      ]
+    },
+    {
+      "code": "text-translate",
+      "explain": "翻译选中的文本",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "翻译文本",
+          "match": "/^[\\s\\S]*$/",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "settings",
+      "explain": "配置 OCR 引擎、翻译提供商、AI 与图床",
+      "icon": "logo.png",
+      "cmds": [
+        "截图翻译设置"
+      ]
+    }
+  ]
+}

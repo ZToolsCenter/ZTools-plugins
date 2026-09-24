@@ -1,0 +1,449 @@
+/* ── 全局 Toast ──────────────────────────────────────────────────────
+ * 错误态走 goose-toast-error（红字 + 圆底 !）；成功态与默认 toast 同源，
+ * 仅勾号/操作使用产品 primary（鸢尾靛蓝），禁止默认 sonner 绿。
+ *
+ * uTools 旧内核注意：不要用 hsl(var(--token)/alpha) 或 Tailwind 的
+ * bg-foreground/8 一类写法，会退化成实心前景色（关闭按钮 hover 变黑圆）。
+ * hover 背景统一用 rgba。
+ */
+
+/* 宽度：短文案收成胶囊，长文案有上限；不强制 356px 固定宽 */
+.goose-toaster[data-sonner-toaster],
+[data-sonner-toaster].goose-toaster {
+  --width: 356px;
+}
+
+.goose-toaster [data-sonner-toast][data-styled="true"],
+[data-sonner-toaster].goose-toaster [data-sonner-toast][data-styled="true"] {
+  width: max-content !important;
+  max-width: min(356px, calc(100vw - 32px)) !important;
+  min-width: 0 !important;
+}
+
+/* 通用关闭按钮 hover：安全半透明底，覆盖所有 toast 类型 */
+.goose-toaster [data-sonner-toast] [data-close-button],
+[data-sonner-toaster] [data-sonner-toast] [data-close-button],
+.goose-toaster [data-sonner-toast] .goose-toast-close,
+[data-sonner-toaster] [data-sonner-toast] .goose-toast-close {
+  background: transparent !important;
+}
+
+.goose-toaster [data-sonner-toast] [data-close-button]:hover,
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]:hover,
+.goose-toaster [data-sonner-toast] .goose-toast-close:hover,
+[data-sonner-toaster] [data-sonner-toast] .goose-toast-close:hover {
+  background: rgba(15, 23, 42, 0.08) !important;
+}
+
+.dark .goose-toaster [data-sonner-toast] [data-close-button]:hover,
+.dark [data-sonner-toaster] [data-sonner-toast] [data-close-button]:hover,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast]
+  [data-close-button]:hover,
+.dark .goose-toaster [data-sonner-toast] .goose-toast-close:hover,
+.dark [data-sonner-toaster] [data-sonner-toast] .goose-toast-close:hover,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast]
+  .goose-toast-close:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* 错误态：与成功态同结构——干净表面 + 语义色边框/文字，无渐变装饰 */
+.goose-toaster [data-sonner-toast].goose-toast-error,
+.goose-toaster [data-sonner-toast][data-type="error"],
+[data-sonner-toaster] [data-sonner-toast].goose-toast-error,
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] {
+  position: relative;
+  overflow: hidden !important;
+  color: #c2414b !important;
+  border-color: rgba(194, 65, 75, 0.2) !important;
+  background: #fff !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
+}
+
+.dark .goose-toaster [data-sonner-toast].goose-toast-error,
+.dark .goose-toaster [data-sonner-toast][data-type="error"],
+.dark [data-sonner-toaster] [data-sonner-toast].goose-toast-error,
+.dark [data-sonner-toaster] [data-sonner-toast][data-type="error"],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-error,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast][data-type="error"] {
+  color: #f0a0a8 !important;
+  border-color: rgba(240, 160, 168, 0.22) !important;
+  background: rgba(22, 18, 20, 0.96) !important;
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.42) !important;
+}
+
+.goose-toaster [data-sonner-toast].goose-toast-error [data-title],
+.goose-toaster [data-sonner-toast][data-type="error"] [data-title],
+.goose-toaster [data-sonner-toast].goose-toast-error .goose-toast-error-title,
+[data-sonner-toaster] [data-sonner-toast].goose-toast-error [data-title],
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] [data-title] {
+  color: #b83a44 !important;
+  opacity: 1 !important;
+}
+
+.goose-toaster [data-sonner-toast].goose-toast-error [data-description],
+.goose-toaster [data-sonner-toast][data-type="error"] [data-description],
+.goose-toaster
+  [data-sonner-toast].goose-toast-error
+  .goose-toast-error-description,
+[data-sonner-toaster] [data-sonner-toast].goose-toast-error [data-description],
+[data-sonner-toaster]
+  [data-sonner-toast][data-type="error"]
+  [data-description] {
+  color: rgba(120, 40, 48, 0.72) !important;
+}
+
+.dark .goose-toaster [data-sonner-toast].goose-toast-error [data-title],
+.dark .goose-toaster [data-sonner-toast][data-type="error"] [data-title],
+.dark [data-sonner-toaster] [data-sonner-toast].goose-toast-error [data-title],
+.dark [data-sonner-toaster] [data-sonner-toast][data-type="error"] [data-title],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-error
+  [data-title],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast][data-type="error"]
+  [data-title] {
+  color: #f0a0a8 !important;
+}
+
+.dark .goose-toaster [data-sonner-toast].goose-toast-error [data-description],
+.dark .goose-toaster [data-sonner-toast][data-type="error"] [data-description],
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast].goose-toast-error
+  [data-description],
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast][data-type="error"]
+  [data-description],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-error
+  [data-description],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast][data-type="error"]
+  [data-description] {
+  color: rgba(240, 176, 182, 0.78) !important;
+}
+
+.goose-toaster [data-sonner-toast].goose-toast-error [data-icon],
+.goose-toaster [data-sonner-toast][data-type="error"] [data-icon],
+[data-sonner-toaster] [data-sonner-toast].goose-toast-error [data-icon],
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] [data-icon] {
+  position: relative;
+  z-index: 1;
+  width: 20px !important;
+  height: 20px !important;
+  margin: 0 !important;
+}
+
+.goose-toast-error-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(194, 65, 75, 0.1);
+  color: #c2414b;
+  box-shadow: inset 0 0 0 1px rgba(194, 65, 75, 0.14);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.dark .goose-toast-error-mark,
+[data-sonner-toaster][data-sonner-theme="dark"] .goose-toast-error-mark {
+  background: rgba(240, 160, 168, 0.12);
+  color: #f0a0a8;
+  box-shadow: inset 0 0 0 1px rgba(240, 160, 168, 0.16);
+}
+
+.goose-toaster [data-sonner-toast].goose-toast-error [data-close-button],
+.goose-toaster [data-sonner-toast][data-type="error"] [data-close-button],
+.goose-toaster [data-sonner-toast].goose-toast-error .goose-toast-error-close,
+[data-sonner-toaster] [data-sonner-toast].goose-toast-error [data-close-button],
+[data-sonner-toaster]
+  [data-sonner-toast][data-type="error"]
+  [data-close-button] {
+  position: absolute !important;
+  left: auto !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 22px !important;
+  height: 22px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: rgba(120, 40, 48, 0.48) !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+  z-index: 2;
+}
+
+.goose-toaster [data-sonner-toast].goose-toast-error [data-close-button]:hover,
+.goose-toaster [data-sonner-toast][data-type="error"] [data-close-button]:hover,
+[data-sonner-toaster]
+  [data-sonner-toast].goose-toast-error
+  [data-close-button]:hover,
+[data-sonner-toaster]
+  [data-sonner-toast][data-type="error"]
+  [data-close-button]:hover {
+  color: #9f2f38 !important;
+  background: rgba(194, 65, 75, 0.1) !important;
+}
+
+.dark .goose-toaster [data-sonner-toast].goose-toast-error [data-close-button],
+.dark .goose-toaster [data-sonner-toast][data-type="error"] [data-close-button],
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast].goose-toast-error
+  [data-close-button],
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast][data-type="error"]
+  [data-close-button],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-error
+  [data-close-button],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast][data-type="error"]
+  [data-close-button] {
+  color: rgba(240, 176, 182, 0.62) !important;
+}
+
+.dark
+  .goose-toaster
+  [data-sonner-toast].goose-toast-error
+  [data-close-button]:hover,
+.dark
+  .goose-toaster
+  [data-sonner-toast][data-type="error"]
+  [data-close-button]:hover,
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast].goose-toast-error
+  [data-close-button]:hover,
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast][data-type="error"]
+  [data-close-button]:hover,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-error
+  [data-close-button]:hover,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast][data-type="error"]
+  [data-close-button]:hover {
+  color: #fff !important;
+  background: rgba(240, 160, 168, 0.14) !important;
+}
+
+.goose-toaster [data-sonner-toast].goose-toast-error [data-content],
+.goose-toaster [data-sonner-toast][data-type="error"] [data-content],
+[data-sonner-toaster] [data-sonner-toast].goose-toast-error [data-content],
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] [data-content] {
+  position: relative;
+  z-index: 1;
+}
+
+/* 错误消息保持错误语义；其中的恢复/重试操作跟随产品强调色。 */
+.goose-toaster [data-sonner-toast].goose-toast-error [data-button][data-action],
+.goose-toaster
+  [data-sonner-toast][data-type="error"]
+  [data-button][data-action],
+[data-sonner-toaster]
+  [data-sonner-toast].goose-toast-error
+  [data-button][data-action],
+[data-sonner-toaster]
+  [data-sonner-toast][data-type="error"]
+  [data-button][data-action] {
+  background: hsl(var(--primary)) !important;
+  border-color: var(--goose-accent-focus) !important;
+  color: #fff !important;
+}
+
+.goose-toaster
+  [data-sonner-toast].goose-toast-error
+  [data-button][data-action]:hover,
+.goose-toaster
+  [data-sonner-toast][data-type="error"]
+  [data-button][data-action]:hover,
+[data-sonner-toaster]
+  [data-sonner-toast].goose-toast-error
+  [data-button][data-action]:hover,
+[data-sonner-toaster]
+  [data-sonner-toast][data-type="error"]
+  [data-button][data-action]:hover {
+  background: var(--goose-primary-hover-bg) !important;
+}
+
+/* 成功态：勾号保持 success 语义，附带操作按钮使用产品强调色。 */
+.goose-toaster [data-sonner-toast].goose-toast-success,
+.goose-toaster [data-sonner-toast][data-type="success"],
+[data-sonner-toaster] [data-sonner-toast].goose-toast-success,
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #1f1f1f !important;
+  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.14) !important;
+}
+
+.dark .goose-toaster [data-sonner-toast].goose-toast-success,
+.dark .goose-toaster [data-sonner-toast][data-type="success"],
+.dark [data-sonner-toaster] [data-sonner-toast].goose-toast-success,
+.dark [data-sonner-toaster] [data-sonner-toast][data-type="success"],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-success,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast][data-type="success"] {
+  background: rgba(18, 18, 20, 0.92) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f4f4f5 !important;
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.42) !important;
+}
+
+.goose-toaster [data-sonner-toast].goose-toast-success [data-title],
+.goose-toaster [data-sonner-toast][data-type="success"] [data-title],
+[data-sonner-toaster] [data-sonner-toast].goose-toast-success [data-title],
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-title] {
+  color: inherit !important;
+}
+
+.goose-toaster [data-sonner-toast].goose-toast-success [data-description],
+.goose-toaster [data-sonner-toast][data-type="success"] [data-description],
+[data-sonner-toaster]
+  [data-sonner-toast].goose-toast-success
+  [data-description],
+[data-sonner-toaster]
+  [data-sonner-toast][data-type="success"]
+  [data-description] {
+  color: rgba(63, 63, 70, 0.78) !important;
+}
+
+.dark .goose-toaster [data-sonner-toast].goose-toast-success [data-description],
+.dark
+  .goose-toaster
+  [data-sonner-toast][data-type="success"]
+  [data-description],
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast].goose-toast-success
+  [data-description],
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast][data-type="success"]
+  [data-description],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-success
+  [data-description],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast][data-type="success"]
+  [data-description] {
+  color: rgba(228, 228, 231, 0.72) !important;
+}
+
+/* 成功勾号不随强调色变化。 */
+.goose-toaster [data-sonner-toast].goose-toast-success [data-icon],
+.goose-toaster [data-sonner-toast][data-type="success"] [data-icon],
+[data-sonner-toaster] [data-sonner-toast].goose-toast-success [data-icon],
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-icon] {
+  color: var(--goose-color-success) !important;
+}
+
+.goose-toaster [data-sonner-toast].goose-toast-success [data-icon] svg,
+.goose-toaster [data-sonner-toast][data-type="success"] [data-icon] svg,
+[data-sonner-toaster] [data-sonner-toast].goose-toast-success [data-icon] svg,
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-icon] svg {
+  color: var(--goose-color-success) !important;
+  stroke: var(--goose-color-success) !important;
+}
+
+.dark .goose-toaster [data-sonner-toast].goose-toast-success [data-icon],
+.dark .goose-toaster [data-sonner-toast][data-type="success"] [data-icon],
+.dark [data-sonner-toaster] [data-sonner-toast].goose-toast-success [data-icon],
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast][data-type="success"]
+  [data-icon],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-success
+  [data-icon],
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast][data-type="success"]
+  [data-icon],
+.dark .goose-toaster [data-sonner-toast].goose-toast-success [data-icon] svg,
+.dark .goose-toaster [data-sonner-toast][data-type="success"] [data-icon] svg,
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast].goose-toast-success
+  [data-icon]
+  svg,
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast][data-type="success"]
+  [data-icon]
+  svg,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-success
+  [data-icon]
+  svg,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast][data-type="success"]
+  [data-icon]
+  svg {
+  color: var(--goose-color-success) !important;
+  stroke: var(--goose-color-success) !important;
+}
+
+/* 成功操作（如「撤回」）：浅底与选中态一致。 */
+.goose-toaster
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action,
+[data-sonner-toaster]
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action {
+  background: var(--goose-interactive-selected) !important;
+  border-color: var(--goose-inline-code-border-hover) !important;
+  color: var(--goose-interactive-selected-fg) !important;
+}
+
+.goose-toaster
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action:hover,
+[data-sonner-toaster]
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action:hover {
+  background: var(--goose-inline-code-border-hover) !important;
+}
+
+.dark
+  .goose-toaster
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action,
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action {
+  background: var(--goose-interactive-selected) !important;
+  border-color: var(--goose-inline-code-border-hover) !important;
+  color: var(--goose-interactive-selected-fg) !important;
+}
+
+.dark
+  .goose-toaster
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action:hover,
+.dark
+  [data-sonner-toaster]
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action:hover,
+[data-sonner-toaster][data-sonner-theme="dark"]
+  [data-sonner-toast].goose-toast-success
+  .goose-toast-success-action:hover {
+  background: var(--goose-inline-code-border-hover) !important;
+}

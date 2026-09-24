@@ -1,0 +1,10 @@
+allowBuilds:
+  '@parcel/watcher': false
+  cwebp-bin: true
+  esbuild: false
+  gifsicle: true
+  jpegtran-bin: true
+  mozjpeg: true
+  optipng-bin: true
+  pngquant-bin: true
+onlyBuiltDependencies: esbuild

@@ -1,58 +1,160 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { ElDialog, ElButton, ElInput, ElScrollbar, ElIcon } from 'element-plus';
-import { Search, Check } from '@element-plus/icons-vue';
+import { Search, Check, ArrowRight, ArrowDown } from '@element-plus/icons-vue';
 
 const props = defineProps({
     modelValue: Boolean, // for v-model
     modelList: Array,
     currentModel: String,
+    providerCollapseStates: {
+        type: Object,
+        default: () => ({})
+    }
 });
 
-const emit = defineEmits(['update:modelValue', 'select', 'save-model']);
+const emit = defineEmits(['update:modelValue', 'select', 'save-model', 'update:providerCollapseStates']);
 
 const searchQuery = ref('');
 const searchInputRef = ref(null);
+const dialogContentRef = ref(null);
 
-const handleOpened = () => {
+const ensureCurrentModelProviderExpanded = () => {
+    const current = props.currentModel;
+    if (!current) return false;
+
+    for (const group of groupedModels.value) {
+        if (!group.models.some((model) => model.value === current)) continue;
+        if (!isProviderExpanded(group.name)) {
+            const nextStates = {
+                ...localProviderCollapseStates.value,
+                [group.name]: true
+            };
+            localProviderCollapseStates.value = nextStates;
+            emit('update:providerCollapseStates', nextStates);
+        }
+        return true;
+    }
+    return false;
+};
+
+const scrollToCurrentModel = () => {
+    const root = dialogContentRef.value;
+    if (!root) return;
+    const activeItem = root.querySelector('.model-item.is-active');
+    if (!activeItem) return;
+    activeItem.scrollIntoView({ block: 'center', behavior: 'auto' });
+};
+
+const handleOpened = async () => {
     if (searchInputRef.value) {
         searchInputRef.value.focus();
     }
+
+    const hasCurrentModel = ensureCurrentModelProviderExpanded();
+    if (!hasCurrentModel) return;
+
+    await nextTick();
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            scrollToCurrentModel();
+        });
+    });
 };
 
 // 计算分组后的模型列表
 const groupedModels = computed(() => {
     const query = searchQuery.value.toLowerCase();
     const groups = {};
-    const groupOrder = []; // 保持插入顺序
+    const groupOrder = [];
+    const duplicateProviderNameSet = new Set();
 
     props.modelList.forEach(item => {
-        // 搜索过滤
-        if (query && !item.label.toLowerCase().includes(query)) {
-            return;
-        }
-
-        const parts = item.label.split('|');
-        const providerName = parts[0] || 'Unknown';
-        const modelName = parts[1] || item.label;
-
+        const providerName = item.providerName || String(item?.label || '').split('|')[0] || 'Unknown';
         if (!groups[providerName]) {
             groups[providerName] = [];
             groupOrder.push(providerName);
         }
-
-        groups[providerName].push({
-            ...item,
-            displayName: modelName,
-            providerName: providerName
-        });
+        if (groups[providerName].some(existing => existing.providerId !== item.providerId)) {
+            duplicateProviderNameSet.add(providerName);
+        }
+        groups[providerName].push(item);
     });
 
     return groupOrder.map(name => ({
-        name: name,
-        models: groups[name]
-    }));
+        name,
+        hasMultipleProviders: duplicateProviderNameSet.has(name),
+        models: groups[name].filter(item => {
+            if (!query) return true;
+            const searchable = `${item.providerName || ''} ${item.modelName || ''} ${item.providerUrl || ''} ${item.providerId || ''}`.toLowerCase();
+            return searchable.includes(query);
+        }).map(item => {
+            const parts = String(item.label || '').split('|');
+            const providerName = item.providerName || parts[0] || 'Unknown';
+            const modelName = item.modelName || parts[1] || item.label;
+            const rawKey = String(item.providerApiKey || '').trim();
+            const keyHint = rawKey.length > 12 ? `${rawKey.slice(0, 6)}...${rawKey.slice(-3)}` : rawKey;
+            return {
+                ...item,
+                displayName: modelName,
+                providerName,
+                providerUrl: item.providerUrl || '',
+                providerId: item.providerId || '',
+                keyHint,
+                showSourceHint: duplicateProviderNameSet.has(providerName)
+            };
+        })
+    })).filter(group => group.models.length > 0);
 });
+
+const localProviderCollapseStates = ref({});
+
+const syncProviderCollapseStates = () => {
+    const nextStates = { ...(props.providerCollapseStates || {}) };
+    const visibleProviderNames = new Set(groupedModels.value.map(group => group.name));
+
+    groupedModels.value.forEach((group) => {
+        if (typeof nextStates[group.name] !== 'boolean') {
+            nextStates[group.name] = true;
+        }
+    });
+
+    Object.keys(nextStates).forEach((providerName) => {
+        if (!visibleProviderNames.has(providerName)) {
+            delete nextStates[providerName];
+        }
+    });
+
+    const currentSerialized = JSON.stringify(localProviderCollapseStates.value);
+    const nextSerialized = JSON.stringify(nextStates);
+    if (currentSerialized !== nextSerialized) {
+        localProviderCollapseStates.value = nextStates;
+    }
+
+    const propSerialized = JSON.stringify(props.providerCollapseStates || {});
+    if (propSerialized !== nextSerialized) {
+        emit('update:providerCollapseStates', nextStates);
+    }
+};
+
+const isProviderExpanded = (providerName) => localProviderCollapseStates.value[providerName] !== false;
+
+const toggleProviderExpanded = (providerName) => {
+    const nextStates = {
+        ...localProviderCollapseStates.value,
+        [providerName]: !isProviderExpanded(providerName)
+    };
+    localProviderCollapseStates.value = nextStates;
+    emit('update:providerCollapseStates', nextStates);
+};
+
+watch(groupedModels, () => {
+    syncProviderCollapseStates();
+}, { immediate: true, deep: true });
+
+watch(() => props.providerCollapseStates, () => {
+    syncProviderCollapseStates();
+}, { deep: true });
 
 const onModelClick = (model, event) => {
     // 如果按住 Alt 键点击，或者是当前模型再次点击，则触发保存为默认
@@ -66,6 +168,15 @@ const onModelClick = (model, event) => {
 const handleClose = () => {
     searchQuery.value = ''; // 关闭时清空搜索词
     emit('update:modelValue', false);
+};
+
+const getProviderStyle = (providerName) => {
+    let hash = 0;
+    for (let i = 0; i < providerName.length; i++) {
+        hash = providerName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return { '--provider-hue': hue };
 };
 </script>
 
@@ -82,7 +193,7 @@ const handleClose = () => {
             <div style="display: none;"></div>
         </template>
 
-        <div class="dialog-content-wrapper">
+        <div ref="dialogContentRef" class="dialog-content-wrapper">
             <!-- 搜索栏 -->
             <div class="model-search-container">
                 <el-input 
@@ -102,10 +213,18 @@ const handleClose = () => {
                 </div>
 
                 <div v-else class="model-groups">
-                    <div v-for="group in groupedModels" :key="group.name" class="provider-group">
-                        <div class="provider-title">{{ group.name }}</div>
+                    <div v-for="group in groupedModels" :key="group.name" class="provider-group" :style="getProviderStyle(group.name)">
+                        <button type="button" class="provider-title" @click="toggleProviderExpanded(group.name)">
+                            <span class="provider-title-left">
+                                <el-icon class="provider-collapse-icon">
+                                    <component :is="isProviderExpanded(group.name) ? ArrowDown : ArrowRight" />
+                                </el-icon>
+                                <span>{{ group.name }}</span>
+                            </span>
+                            <span class="provider-title-count">{{ group.models.length }}</span>
+                        </button>
                         
-                        <div class="model-grid">
+                        <div v-show="isProviderExpanded(group.name)" class="model-grid">
                             <div 
                                 v-for="model in group.models" 
                                 :key="model.value" 
@@ -116,6 +235,7 @@ const handleClose = () => {
                             >
                                 <div class="model-info">
                                     <span class="model-name">{{ model.displayName }}</span>
+                                    <span v-if="model.showSourceHint && model.keyHint" class="model-meta">{{ model.keyHint }}</span>
                                 </div>
 
                                 <div class="model-status" v-if="model.value === currentModel">
@@ -172,18 +292,53 @@ const handleClose = () => {
 
 .provider-group {
     margin-bottom: 20px;
+    background-color: hsla(var(--provider-hue), 60%, 50%, 0.05); 
+    border: 1px solid hsla(var(--provider-hue), 60%, 50%, 0.1); 
+    border-radius: 12px;
+    padding: 12px 12px 4px 12px; 
 }
 
 .provider-group:last-child {
     margin-bottom: 0;
 }
 
+html.dark .provider-group {
+    background-color: hsla(var(--provider-hue), 60%, 50%, 0.08);
+    border-color: hsla(var(--provider-hue), 60%, 50%, 0.15);
+}
+
 .provider-title {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: transparent;
+    border: none;
+    padding: 0 4px 8px 4px;
+    cursor: pointer;
     font-size: 13px;
-    color: var(--el-text-color-placeholder);
-    margin-bottom: 8px;
-    padding-left: 12px; /* 与列表项文字对齐 */
-    font-weight: 500;
+    color: hsla(var(--provider-hue), 60%, 40%, 0.8);
+    margin-bottom: 0;
+    font-weight: 600;
+}
+
+.provider-title-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.provider-title-count {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}
+
+.provider-collapse-icon {
+    display: inline-flex;
+}
+
+html.dark .provider-title {
+    color: hsla(var(--provider-hue), 60%, 65%, 0.8);
 }
 
 .model-grid {
@@ -195,31 +350,45 @@ const handleClose = () => {
 .model-item {
     display: flex;
     align-items: center;
-    padding: 12px 16px; /* 增加内边距，让文字排版更舒适 */
+    padding: 10px 12px 8px 12px; 
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid transparent;
-    background-color: var(--el-bg-color);
+    background-color: transparent; /* 背景设为透明，融入彩色父级 */
 }
 
 .model-item:hover {
-    background-color: var(--el-fill-color-light);
+    background-color: hsla(var(--provider-hue), 60%, 50%, 0.1);
+}
+
+html.dark .model-item:hover {
+    background-color: hsla(var(--provider-hue), 60%, 50%, 0.15);
 }
 
 .model-item.is-active {
-    background-color: var(--el-color-primary-light-9);
-    border-color: var(--el-color-primary-light-5);
+    background-color: hsla(var(--provider-hue), 60%, 50%, 0.15);
+    border-color: hsla(var(--provider-hue), 60%, 50%, 0.3);
 }
 
 html.dark .model-item.is-active {
-    background-color: rgba(64, 158, 255, 0.15);
-    border-color: rgba(64, 158, 255, 0.3);
+    background-color: hsla(var(--provider-hue), 60%, 50%, 0.25);
+    border-color: hsla(var(--provider-hue), 60%, 50%, 0.4);
 }
 
 .model-info {
     flex-grow: 1;
     overflow: hidden;
+}
+
+.model-meta {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--el-text-color-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .model-name {
@@ -233,15 +402,23 @@ html.dark .model-item.is-active {
 }
 
 .model-item.is-active .model-name {
-    color: var(--el-color-primary);
+    color: hsla(var(--provider-hue), 80%, 40%, 1);
+}
+
+html.dark .model-item.is-active .model-name {
+    color: hsla(var(--provider-hue), 80%, 65%, 1);
 }
 
 .model-status {
-    color: var(--el-color-primary);
+    color: hsla(var(--provider-hue), 80%, 40%, 1);
     display: flex;
     align-items: center;
     justify-content: center;
     margin-left: 10px;
+}
+
+html.dark .model-status {
+    color: hsla(var(--provider-hue), 80%, 65%, 1);
 }
 
 .empty-state {

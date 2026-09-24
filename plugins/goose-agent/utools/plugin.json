@@ -1,0 +1,27 @@
+{
+  "pluginName": "鹅的 Agent",
+  "description": "独立的 uTools Agent 工作台",
+  "author": "goose",
+  "homepage": "https://github.com/eachann1024/eachann1024",
+  "version": "0.1.1",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "single": true,
+    "height": 800
+  },
+  "features": [
+    {
+      "code": "gooseAgent",
+      "explain": "打开鹅的 Agent",
+      "cmds": [
+        "鹅的 Agent",
+        "goose agent",
+        "Agent"
+      ]
+    }
+  ],
+  "main": "dist/index.html",
+  "preload": "preload/preload.cjs",
+  "name": "goose-agent",
+  "title": "鹅的 Agent"
+}

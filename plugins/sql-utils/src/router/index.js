@@ -4,6 +4,7 @@ import textJoint from '../views/textJoint.vue'
 import excelToSql from '../views/excelToSql.vue'
 import generateTestData from '../views/generateTestData.vue'
 import codeGenerator from '../views/codeGenerator/codeGenerator.vue'
+import gitCommit from '../views/gitCommit.vue'
 
 const routes = [
   {
@@ -29,6 +30,11 @@ const routes = [
     path: '/codeGenerator',
     name: 'codeGenerator',
     component: codeGenerator
+  },
+  {
+    path: '/gitCommit',
+    name: 'gitCommit',
+    component: gitCommit
   }
 ]
 

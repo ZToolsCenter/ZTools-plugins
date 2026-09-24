@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "base-converter",
+  "title": "进制转换",
+  "description": "简洁的数据进制转换，比如十进制转二进制、八进制、十六进制等",
+  "author": "lee",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "num-convert",
+      "explain": "数据进制转换，支持 2-36 任意进制互转",
+      "icon": "logo.png",
+      "cmds": [
+        "进制",
+        "转换",
+        "jz",
+        "进制转换",
+        "jzzh"
+      ]
+    }
+  ],
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ]
+}

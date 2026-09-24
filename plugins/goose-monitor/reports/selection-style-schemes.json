@@ -1,0 +1,446 @@
+{
+  "schemaVersion": 2,
+  "kind": "feature",
+  "title": "分组选中样式三方案决策",
+  "profile": "frontend",
+  "runtime": "native",
+  "delivery": "portable",
+  "sources": [
+    {
+      "id": "src-screenshot",
+      "label": "用户截图：浅色界面 Tab 下列表无明显选中态"
+    },
+    {
+      "id": "src-main",
+      "label": "packages/core/src/main.ts 选中态强制 transparent/none"
+    },
+    {
+      "id": "src-css",
+      "label": "packages/core/styles/app.css 仅 hover 有背景，选中只显示 PID"
+    },
+    {
+      "id": "src-tokens",
+      "label": "packages/core/styles/tokens.css 已有 --bg-row-sel / --bg-row-hover"
+    },
+    {
+      "id": "src-dense-test",
+      "label": "packages/core/src/dense-list-style.test.ts 当前断言禁止选中背景与左线"
+    },
+    {
+      "id": "src-user-goal",
+      "label": "用户目标：极简、可见、常用键盘流；分组选中要重构为 3 套方案"
+    }
+  ],
+  "claims": [
+    {
+      "id": "claim-current-invisible",
+      "text": "当前选中态几乎不可见，不是颜色太浅，而是主行选中背景与左边线被刻意关闭。",
+      "status": "confirmed",
+      "sourceIds": [
+        "src-screenshot",
+        "src-main",
+        "src-css",
+        "src-dense-test"
+      ]
+    },
+    {
+      "id": "claim-token-ready",
+      "text": "设计 token 里已有 --bg-row-sel 与 --bg-row-hover，可直接复用，不必引入彩色强调。",
+      "status": "confirmed",
+      "sourceIds": [
+        "src-tokens",
+        "src-css"
+      ]
+    },
+    {
+      "id": "claim-group-scope",
+      "text": "选中应以进程组为单位：主行与已展开 helper 共用同一当前组样式。",
+      "status": "confirmed",
+      "sourceIds": [
+        "src-user-goal",
+        "src-main"
+      ]
+    },
+    {
+      "id": "claim-recommend-a",
+      "text": "方案 A（轻底 + 左线）最适合当前目标：一眼可见、黑白极简、不破坏高密度。",
+      "status": "inferred",
+      "sourceIds": [
+        "src-user-goal",
+        "src-tokens",
+        "src-screenshot"
+      ]
+    },
+    {
+      "id": "claim-test-update",
+      "text": "落地任一套可见选中方案时，必须同步改 dense-list-style 测试，当前测试明确禁止背景和左线。",
+      "status": "confirmed",
+      "sourceIds": [
+        "src-dense-test",
+        "src-main"
+      ]
+    }
+  ],
+  "blocks": [
+    {
+      "id": "block-problem",
+      "type": "text",
+      "title": "问题判断",
+      "claimIds": [
+        "claim-current-invisible",
+        "claim-token-ready"
+      ],
+      "paragraphs": [
+        "你现在看到的不是“选中背景和面板背景差不多”，而是选中样式被关掉了。",
+        "updateRow 会把主行 background 强制写成 transparent，并把 boxShadow 写成 none。CSS 只给 hover 行铺底，选中行只靠显示 PID 提示位置。",
+        "浅色面板底是 #fafafa，行默认也是透明，所以截图里 Dia / ChatGPT / 企业微信几乎看不出当前行。",
+        "好消息是 token 已经准备好了：浅色 --bg-row-sel=#e8e8e8、--bg-row-hover=#f1f1f1；深色 --bg-row-sel=#202020、--bg-row-hover=#151515。重构时优先复用黑白体系，不引入彩色。"
+      ]
+    },
+    {
+      "id": "block-compare",
+      "type": "table",
+      "title": "三方案对比",
+      "claimIds": [
+        "claim-group-scope",
+        "claim-recommend-a"
+      ],
+      "columns": [
+        {
+          "key": "scheme",
+          "label": "方案"
+        },
+        {
+          "key": "look",
+          "label": "视觉"
+        },
+        {
+          "key": "strength",
+          "label": "优势"
+        },
+        {
+          "key": "risk",
+          "label": "风险"
+        },
+        {
+          "key": "fit",
+          "label": "适合场景"
+        }
+      ],
+      "rows": [
+        {
+          "scheme": "A. 轻底 + 左线（推荐）",
+          "look": "当前组浅灰底 + 2px 左线；hover 弱于 selected；展开 helper 与主行同底",
+          "strength": "位置一眼可见；符合任务管理器/Finder 习惯；黑白极简",
+          "risk": "比纯文字稍重一点",
+          "fit": "常用用户、键盘快速定位、默认落地"
+        },
+        {
+          "scheme": "B. 仅左线 + 名称加粗",
+          "look": "无整行底；2px 左线；名称 450→600；PID 常显",
+          "strength": "最干净；对一屏密度影响最小",
+          "risk": "快速扫列表时仍可能不够醒目",
+          "fit": "极度克制、讨厌色块"
+        },
+        {
+          "scheme": "C. 整组卡片块",
+          "look": "当前组圆角卡片 + 细边框；helper 包进同一卡片",
+          "strength": "分组结构最清楚；结束前最不容易点错组",
+          "risk": "视觉最重；长列表会有块状感",
+          "fit": "强调按应用分组结束"
+        }
+      ]
+    },
+    {
+      "id": "block-tokens",
+      "type": "table",
+      "title": "建议 token / 样式规则",
+      "claimIds": [
+        "claim-token-ready",
+        "claim-group-scope"
+      ],
+      "columns": [
+        {
+          "key": "state",
+          "label": "状态"
+        },
+        {
+          "key": "light",
+          "label": "浅色"
+        },
+        {
+          "key": "dark",
+          "label": "深色"
+        },
+        {
+          "key": "note",
+          "label": "规则"
+        }
+      ],
+      "rows": [
+        {
+          "state": "默认行",
+          "light": "透明",
+          "dark": "透明",
+          "note": "保持高密度表格感"
+        },
+        {
+          "state": "hover",
+          "light": "#f1f1f1",
+          "dark": "#151515",
+          "note": "只作用于未选中行；弱于 selected"
+        },
+        {
+          "state": "selected 组",
+          "light": "底 #e8e8e8 + 左线 #171717",
+          "dark": "底 #202020 + 左线 #f5f5f5",
+          "note": "主行与展开 helper 共用；方案 A 默认"
+        },
+        {
+          "state": "selected 文本",
+          "light": "名称可保持 450 或轻提到 500",
+          "dark": "同左",
+          "note": "方案 B 才强制 600，避免 A/C 过重"
+        },
+        {
+          "state": "PID 提示",
+          "light": "selected / hover / focus-within 显示",
+          "dark": "同左",
+          "note": "保留现有轻量定位，不单独承担选中识别"
+        }
+      ]
+    },
+    {
+      "id": "block-flow",
+      "type": "diagram",
+      "title": "选中状态如何落到 UI",
+      "claimIds": [
+        "claim-group-scope",
+        "claim-current-invisible"
+      ],
+      "spec": {
+        "version": 1,
+        "type": "flow",
+        "title": "当前组选中渲染链路",
+        "nodes": [
+          {
+            "id": "input",
+            "label": "打开 / 搜索 / 上下键 / 点击"
+          },
+          {
+            "id": "key",
+            "label": "selectedKey = 进程组快照键"
+          },
+          {
+            "id": "main",
+            "label": "主行 data-sel"
+          },
+          {
+            "id": "helpers",
+            "label": "展开 helper 继承同组选中"
+          },
+          {
+            "id": "style",
+            "label": "方案样式：底 / 线 / 卡片"
+          },
+          {
+            "id": "action",
+            "label": "回车关闭当前组"
+          }
+        ],
+        "edges": [
+          {
+            "from": "input",
+            "to": "key",
+            "label": "产生选择"
+          },
+          {
+            "from": "key",
+            "to": "main",
+            "label": "标记主行"
+          },
+          {
+            "from": "main",
+            "to": "helpers",
+            "label": "继承到 helper"
+          },
+          {
+            "from": "helpers",
+            "to": "style",
+            "label": "应用方案样式"
+          },
+          {
+            "from": "style",
+            "to": "action",
+            "label": "回车作用当前组"
+          }
+        ],
+        "sourceIds": [
+          "src-main",
+          "src-user-goal"
+        ]
+      }
+    },
+    {
+      "id": "block-journey",
+      "type": "journey",
+      "title": "常用交互验收路径",
+      "claimIds": [
+        "claim-group-scope",
+        "claim-recommend-a"
+      ],
+      "spec": {
+        "version": 1,
+        "title": "打开到关闭的选中可见性路径",
+        "lanes": [
+          "用户",
+          "列表",
+          "样式层"
+        ],
+        "steps": [
+          {
+            "id": "open",
+            "label": "打开插件",
+            "lane": "用户",
+            "step": 1,
+            "start": true
+          },
+          {
+            "id": "default",
+            "label": "默认选中第一组",
+            "lane": "列表",
+            "step": 2
+          },
+          {
+            "id": "paint",
+            "label": "当前组可见高亮",
+            "lane": "样式层",
+            "step": 3
+          },
+          {
+            "id": "search",
+            "label": "输入搜索词",
+            "lane": "用户",
+            "step": 4
+          },
+          {
+            "id": "reselect",
+            "label": "结果首组成为当前组",
+            "lane": "列表",
+            "step": 5
+          },
+          {
+            "id": "move",
+            "label": "上下键移动",
+            "lane": "用户",
+            "step": 6
+          },
+          {
+            "id": "expand",
+            "label": "展开 helper 仍同组高亮",
+            "lane": "样式层",
+            "step": 7
+          },
+          {
+            "id": "enter",
+            "label": "回车打开关闭确认",
+            "lane": "用户",
+            "step": 8,
+            "end": true
+          }
+        ],
+        "transitions": [
+          {
+            "from": "open",
+            "to": "default"
+          },
+          {
+            "from": "default",
+            "to": "paint"
+          },
+          {
+            "from": "paint",
+            "to": "search"
+          },
+          {
+            "from": "search",
+            "to": "reselect"
+          },
+          {
+            "from": "reselect",
+            "to": "move"
+          },
+          {
+            "from": "move",
+            "to": "expand"
+          },
+          {
+            "from": "expand",
+            "to": "enter"
+          }
+        ],
+        "sourceIds": [
+          "src-user-goal",
+          "src-main",
+          "src-screenshot"
+        ]
+      }
+    },
+    {
+      "id": "block-recommend",
+      "type": "text",
+      "title": "推荐结论",
+      "claimIds": [
+        "claim-recommend-a",
+        "claim-test-update"
+      ],
+      "paragraphs": [
+        "默认落地方案 A：轻底 + 左线。",
+        "原因：你当前最大痛点是看不见选中；A 能立刻解决，同时仍保持黑白极简，不会把列表做成彩色工具栏。",
+        "方案 B 作为备选：如果你确认讨厌任何行底色，再降到“线 + 字重”。",
+        "方案 C 不建议默认：分组感最强，但对这款高密度进程表偏重。",
+        "落地时同步改 dense-list-style 测试，把“禁止背景/左线”改成“必须有可见 selected 样式，且 hover 弱于 selected”。"
+      ]
+    },
+    {
+      "id": "block-checklist",
+      "type": "checklist",
+      "title": "落地检查清单",
+      "claimIds": [
+        "claim-recommend-a",
+        "claim-test-update",
+        "claim-group-scope"
+      ],
+      "items": [
+        {
+          "text": "主行 selected 在浅色/深色都肉眼可辨",
+          "status": "待做"
+        },
+        {
+          "text": "hover 弱于 selected，不互相覆盖",
+          "status": "待做"
+        },
+        {
+          "text": "展开 helper 后整组统一高亮",
+          "status": "待做"
+        },
+        {
+          "text": "打开与搜索默认第一组可见选中",
+          "status": "待做"
+        },
+        {
+          "text": "不引入彩色 accent，继续黑白 token",
+          "status": "待做"
+        },
+        {
+          "text": "更新 dense-list-style 测试断言",
+          "status": "待做"
+        },
+        {
+          "text": "浏览器 mock 验收 800/420 浅深两套主题",
+          "status": "待做"
+        }
+      ]
+    }
+  ]
+}

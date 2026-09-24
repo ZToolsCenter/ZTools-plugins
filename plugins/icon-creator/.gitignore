@@ -1,0 +1,24 @@
+node_modules
+dist
+out
+.DS_Store
+.eslintcache
+*.log*
+.vscode/extensions.json
+.vscode/launch.json
+.vscode/settings.json
+/.history
+.idea
+.yalc
+
+/.cursor
+/.shared
+.pnpm-store/*
+_*
+# 例外：__tests__ 测试目录以双下划线开头，会被上面的 _* 规则整体忽略，需显式放行入库
+!__tests__/
+# 例外：sass partial 约定以下划线开头，tokens 是构建必需文件，需放行入库
+!src/views/home/styles/_tokens.scss
+/.sanshu-memory
+yalc.lock
+yarn.lock

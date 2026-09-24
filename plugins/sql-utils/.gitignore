@@ -3,7 +3,7 @@ node_modules
 dist
 package-lock.json
 .qoderignore
-.agents
+
 
 # local env files
 .env.local

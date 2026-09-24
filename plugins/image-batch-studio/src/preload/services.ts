@@ -5,11 +5,22 @@ import type {
   GifOptions,
   ImageJobSettings,
   MergeImagesOptions,
+  SharpRuntimeProgress,
   SourceFile
 } from "../shared/types";
 import { imageDataUrlToBuffer } from "./data-url";
 import { createGif, mergeImages, mergePdfs, processImages } from "./processor";
-import { discoverFiles, inspectFile, isImagePath, isPdfPath } from "./file-discovery";
+import { discoverFiles, isBrowserRenderableImage, isImagePath } from "./file-discovery";
+import { hostCompatibility } from "../shared/host-compatibility";
+import { requestZToolsScreenCapture } from "../shared/ztools-screen-capture";
+import { createFileDragGrantStore } from "./file-drag-grants";
+import { prepareCompatibleImageInput } from "./heic-bridge";
+import {
+  installSharpRuntime,
+  sharp,
+  sharpRuntimeStatus
+} from "./sharp-runtime";
+import crypto from "node:crypto";
 
 declare global {
   interface Window {
@@ -19,9 +30,13 @@ declare global {
 }
 
 const electron = require("electron");
-const { clipboard, nativeImage, shell, webUtils } = electron;
+const { shell, webUtils } = electron;
 
-const tempRoot = path.join(getZToolsPath("temp"), "image-batch-studio");
+const initialHostCompatibility = hostCompatibility(window.ztools);
+const tempRoot = initialHostCompatibility.supported
+  ? path.join(getZToolsPath("temp"), "image-batch-studio")
+  : "";
+const dragGrants = createFileDragGrantStore();
 
 function getZToolsPath(name: string): string {
   if (typeof window !== "undefined" && window.ztools?.getPath) {
@@ -49,10 +64,89 @@ async function imagePayloadToFile(payload: unknown): Promise<string[]> {
   return [filePath];
 }
 
+async function captureScreenToFile(): Promise<{ paths: string[]; bounds?: unknown }> {
+  const capture = await requestZToolsScreenCapture(window.ztools);
+  return { paths: await imagePayloadToFile(capture.image), bounds: capture.bounds };
+}
+
 async function resolveLaunchFiles(action: any): Promise<SourceFile[]> {
   const directPaths = payloadPaths(action?.payload);
   const imagePaths = action?.type === "img" ? await imagePayloadToFile(action?.payload) : [];
-  return discoverFiles([...directPaths, ...imagePaths]);
+  if (directPaths.length > 0 || imagePaths.length > 0) await ensureSharpRuntime();
+  const files = await discoverFiles([...directPaths, ...imagePaths]);
+  return attachPreviewUrls(files);
+}
+
+const previewCache = new Map<string, string>();
+
+async function getPreviewUrl(filePath: string): Promise<string> {
+  if (isBrowserRenderableImage(filePath)) {
+    return pathToFileURL(filePath).toString();
+  }
+  const cached = previewCache.get(filePath);
+  if (cached) return cached;
+
+  try {
+    const previewDir = path.join(tempRoot, "previews");
+    await fs.mkdir(previewDir, { recursive: true });
+    const hash = crypto.createHash("md5").update(filePath).digest("hex");
+    const previewFilePath = path.join(previewDir, `${hash}.jpg`);
+
+    try {
+      await fs.access(previewFilePath);
+    } catch {
+      const { effectivePath } = await prepareCompatibleImageInput(filePath);
+      await sharp(effectivePath)
+        .rotate()
+        .resize({
+          width: 1600,
+          height: 1600,
+          fit: "inside",
+          withoutEnlargement: true
+        })
+        .jpeg({ quality: 80 })
+        .toFile(previewFilePath);
+    }
+
+    const url = pathToFileURL(previewFilePath).toString();
+    previewCache.set(filePath, url);
+    return url;
+  } catch (error) {
+    console.error("生成预览图失败:", error);
+    return pathToFileURL(filePath).toString();
+  }
+}
+
+async function attachPreviewUrls(files: SourceFile[]): Promise<SourceFile[]> {
+  return Promise.all(
+    files.map(async (file) => {
+      if (file.type === "image") {
+        return {
+          ...file,
+          previewUrl: await getPreviewUrl(file.path)
+        };
+      }
+      return file;
+    })
+  );
+}
+
+function dispatchRuntimeProgress(progress: SharpRuntimeProgress) {
+  window.dispatchEvent(new CustomEvent("image-batch-runtime-progress", { detail: progress }));
+}
+
+async function ensureSharpRuntime() {
+  const current = await sharpRuntimeStatus();
+  if (current.state === "ready") return current;
+  if (current.state === "unsupported") {
+    throw new Error(`当前平台暂不支持图像运行组件：${current.target}`);
+  }
+  const installed = await installSharpRuntime(dispatchRuntimeProgress);
+  window.dispatchEvent(new CustomEvent("image-batch-runtime-status", { detail: installed }));
+  if (installed.state !== "ready") {
+    throw new Error(installed.error || "图像运行组件安装失败");
+  }
+  return installed;
 }
 
 async function notifyEnter(action: any) {
@@ -64,37 +158,57 @@ async function notifyEnter(action: any) {
 
 const services = {
   async handlePluginEnter(action: any) {
+    if (!initialHostCompatibility.supported) return;
     await notifyEnter(action);
   },
 
   async resolveFiles(paths: string[]) {
-    return discoverFiles(paths);
+    if (paths.length > 0) await ensureSharpRuntime();
+    const files = await discoverFiles(paths);
+    return attachPreviewUrls(files);
   },
 
-  async inspectFile(filePath: string) {
-    return inspectFile(filePath);
+  runtimeStatus() {
+    return sharpRuntimeStatus();
+  },
+
+  async installRuntime() {
+    const status = await installSharpRuntime(dispatchRuntimeProgress);
+    window.dispatchEvent(new CustomEvent("image-batch-runtime-status", { detail: status }));
+    return status;
   },
 
   async processImages(paths: string[], settings: ImageJobSettings) {
-    return processImages(paths, settings, (completed, total, result) => {
+    await ensureSharpRuntime();
+    const results = await processImages(paths, settings, (completed, total, result) => {
       window.dispatchEvent(
         new CustomEvent("image-batch-progress", {
           detail: { completed, total, result }
         })
       );
     });
+    await dragGrants.grantMany(results.filter(result => result.ok && result.outputPath).map(result => result.outputPath));
+    return results;
   },
 
   async mergePdfs(paths: string[], outputPath: string) {
-    return mergePdfs(paths, outputPath);
+    const output = await mergePdfs(paths, outputPath);
+    await dragGrants.grant(output);
+    return output;
   },
 
   async mergeImages(paths: string[], outputPath: string, options: MergeImagesOptions) {
-    return mergeImages(paths, outputPath, options);
+    await ensureSharpRuntime();
+    const output = await mergeImages(paths, outputPath, options);
+    await dragGrants.grant(output);
+    return output;
   },
 
   async createGif(paths: string[], outputPath: string, options: GifOptions) {
-    return createGif(paths, outputPath, options);
+    await ensureSharpRuntime();
+    const output = await createGif(paths, outputPath, options);
+    await dragGrants.grant(output);
+    return output;
   },
 
   async chooseFiles() {
@@ -104,7 +218,24 @@ const services = {
         { name: "Images and PDFs", extensions: ["jpg", "jpeg", "png", "webp", "avif", "heif", "heic", "tiff", "gif", "pdf"] }
       ]
     });
-    return paths ? discoverFiles(paths) : [];
+    if (!paths?.length) return [];
+    await ensureSharpRuntime();
+    const files = await discoverFiles(paths);
+    return attachPreviewUrls(files);
+  },
+
+  async captureScreen() {
+    const capture = await captureScreenToFile();
+    if (!capture.paths.length) return [];
+    await ensureSharpRuntime();
+    const files = await discoverFiles(capture.paths);
+    const filesWithPreview = await attachPreviewUrls(files);
+    window.dispatchEvent(new CustomEvent("image-batch-screen-capture", { detail: { bounds: capture.bounds, files: filesWithPreview } }));
+    return filesWithPreview;
+  },
+
+  canCaptureScreen() {
+    return typeof window.ztools?.screenCapture === "function";
   },
 
   async chooseDirectory() {
@@ -119,7 +250,16 @@ const services = {
       properties: ["openFile"],
       filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "avif", "heif", "heic", "tiff"] }]
     });
-    return paths?.[0];
+    const imagePath = paths?.[0];
+    if (!imagePath) return undefined;
+    await ensureSharpRuntime();
+    const previewUrl = await getPreviewUrl(imagePath);
+    return { imagePath, previewUrl };
+  },
+
+  async getPreviewUrl(filePath: string) {
+    await ensureSharpRuntime();
+    return getPreviewUrl(filePath);
   },
 
   async savePath(defaultPath: string, extensions: string[]) {
@@ -142,30 +282,28 @@ const services = {
     return webUtils.getPathForFile(file);
   },
 
-  copyFile(filePath: string) {
-    if (window.ztools?.copyFile) return window.ztools.copyFile(filePath);
-    clipboard.writeBuffer("public.file-url", Buffer.from(pathToFileURL(filePath).toString()));
-    return true;
-  },
-
-  copyImage(filePath: string) {
-    if (!isImagePath(filePath)) return false;
-    if (window.ztools?.copyImage) return window.ztools.copyImage(filePath);
-    clipboard.writeImage(nativeImage.createFromPath(filePath));
-    return true;
-  },
-
   reveal(filePath: string) {
     shell.showItemInFolder(filePath);
   },
 
-  isImagePath,
-  isPdfPath
+  hostCompatibility() {
+    return initialHostCompatibility;
+  },
+
+  canStartDrag() {
+    return typeof window.ztools?.startDrag === "function";
+  },
+
+  async startDrag(paths: string[] | string) {
+    if (typeof window.ztools?.startDrag !== "function") throw new Error("请升级到 ZTools 3.2.0 以拖出文件。");
+    const values = await dragGrants.consume(paths);
+    await Promise.resolve(window.ztools.startDrag(values.length === 1 ? values[0] : values));
+  }
 };
 
 window.services = services;
 
-if (window.ztools?.onPluginEnter) {
+if (initialHostCompatibility.supported && window.ztools?.onPluginEnter) {
   window.ztools.onPluginEnter((action: any) => {
     services.handlePluginEnter(action).catch((error: unknown) => {
       window.ztools.showNotification?.(error instanceof Error ? error.message : String(error));
@@ -173,9 +311,10 @@ if (window.ztools?.onPluginEnter) {
   });
 }
 
-if (window.ztools?.onPluginOut) {
+if (initialHostCompatibility.supported && window.ztools?.onPluginOut) {
   window.ztools.onPluginOut(async (isKill: boolean) => {
     if (!isKill) return;
+    dragGrants.clear();
     await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => undefined);
   });
 }

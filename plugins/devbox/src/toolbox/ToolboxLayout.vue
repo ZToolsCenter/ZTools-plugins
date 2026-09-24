@@ -1,16 +1,31 @@
 <script lang="ts" setup>
 import { categories, type Tool } from './tools'
+import type { TabPaneName } from 'element-plus'
 
 const props = defineProps<{
+  /** 已打开的 tab（按打开顺序） */
+  tabs: Tool[]
+  /** 当前激活 tab 的工具 code */
   activeCode: string
 }>()
 
 const emit = defineEmits<{
+  /** 激活或新开某个工具 tab */
   select: [code: string]
+  /** 关闭某个工具 tab */
+  close: [code: string]
 }>()
 
 function isActive(tool: Tool): boolean {
   return tool.code === props.activeCode
+}
+
+function onTabChange(name: TabPaneName) {
+  emit('select', String(name))
+}
+
+function onTabRemove(name: TabPaneName) {
+  emit('close', String(name))
 }
 </script>
 
@@ -32,7 +47,23 @@ function isActive(tool: Tool): boolean {
       </template>
     </el-aside>
     <el-main class="content">
-      <slot />
+      <!-- 标签条：仅作为页签导航，工具内容在下方由 App.vue 统一渲染 -->
+      <el-tabs
+        v-if="tabs.length"
+        :model-value="activeCode"
+        type="card"
+        closable
+        class="tool-tabs"
+        @tab-change="onTabChange"
+        @tab-remove="onTabRemove"
+      >
+        <el-tab-pane v-for="tab in tabs" :key="tab.code" :name="tab.code">
+          <template #label>{{ tab.explain }}</template>
+        </el-tab-pane>
+      </el-tabs>
+      <div class="tool-container">
+        <slot />
+      </div>
     </el-main>
   </el-container>
 </template>
@@ -96,6 +127,43 @@ function isActive(tool: Tool): boolean {
 
 .content {
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 通过 Element Plus 的 CSS 变量把标签条配色对齐插件主题 */
+.tool-tabs {
+  flex-shrink: 0;
+  /* 压缩标签高度：默认 40px → 26px（再小会影响关闭图标可点击性） */
+  --el-tabs-header-height: 26px;
+  --el-color-primary: #667eea;
+  --el-bg-color-overlay: #fff;
+  --el-text-color-primary: var(--text-primary, #333);
+  --el-border-color-light: var(--border-color, #e5e5e5);
+}
+
+.tool-tabs :deep(.el-tabs__header) {
+  margin: 0;
+  padding: 4px 6px 0;
+  background: var(--sidebar-bg, #f7f8fa);
+  border-bottom: 1px solid var(--border-color, #e5e5e5);
+}
+
+/* 标签条只做导航，内容区由 slot 渲染，隐藏 pane 默认容器 */
+.tool-tabs :deep(.el-tabs__content) {
+  display: none;
+}
+
+.tool-tabs :deep(.el-tabs__item) {
+  font-size: 12px;
+  padding: 0 10px;
+}
+
+.tool-container {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 @media (max-width: 600px) {
@@ -152,6 +220,18 @@ function isActive(tool: Tool): boolean {
     background: #3a3a4a;
     color: #8ba4f7;
     border-left-color: #8ba4f7;
+  }
+
+  .tool-tabs {
+    --el-color-primary: #8ba4f7;
+    --el-bg-color-overlay: #3a3a4a;
+    --el-text-color-primary: #ccc;
+    --el-border-color-light: #444;
+  }
+
+  .tool-tabs :deep(.el-tabs__header) {
+    background: #2c2c2c;
+    border-bottom-color: #444;
   }
 }
 </style>

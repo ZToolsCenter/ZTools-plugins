@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>汉字转拼音</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app-header">
+        <div class="title-row">
+          <h1>汉字转拼音</h1>
+          <span class="badge">Ztools 插件</span>
+        </div>
+        <div class="header-right">
+          <button id="themeToggle" class="theme-toggle" type="button" title="切换深色模式" aria-label="切换深色模式">
+            <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+            </svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+          <div class="mode-switch" id="modeSwitch">
+            <button class="mode-btn active" data-mode="mode1">标准模式</button>
+            <button class="mode-btn" data-mode="mode2">变量命名模式</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- 上方：输入文本 -->
+      <section class="panel input-panel">
+        <div class="input-head">
+          <label class="panel-label" for="input">输入文本</label>
+          <button id="clearInputBtn" class="btn btn-sm" type="button" title="清空输入">清空</button>
+        </div>
+        <textarea
+          id="input"
+          class="input-area"
+          placeholder="在此输入要转换的中文，例如：示例文字 / 我是示例"
+          spellcheck="false"
+        ></textarea>
+      </section>
+
+      <!-- 中间：配置项 -->
+      <section class="panel config-panel">
+        <label class="panel-label">配置项</label>
+
+        <!-- 标准模式配置 -->
+        <div id="panel-mode1" class="config-block config-grid">
+          <div class="cfg-row">
+            <div class="cfg-field">
+              <label class="cfg-title" for="caseMode">拼音配置</label>
+              <select id="caseMode" name="caseMode" class="cfg-select">
+                <option value="lower" selected>小写（shi li）</option>
+                <option value="upper">大写（SHI LI）</option>
+                <option value="capitalize">首字母大写（Shi Li）</option>
+              </select>
+            </div>
+
+            <div class="cfg-field">
+              <label class="cfg-title" for="toneMode">音调配置</label>
+              <select id="toneMode" name="toneMode" class="cfg-select">
+                <option value="none" selected>不加音调（shili）</option>
+                <option value="symbol">拼音符号（shìlì）</option>
+                <option value="num">数字（shi4li4）</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cfg-row">
+            <div class="cfg-field">
+              <label class="cfg-title" for="resultMode">结果配置</label>
+              <select id="resultMode" name="resultMode" class="cfg-select">
+                <option value="pinyin" selected>拼音</option>
+                <option value="initialLetter">首字母</option>
+                <option value="initial">声母</option>
+                <option value="final">韵母</option>
+                <option value="tone">音调</option>
+              </select>
+            </div>
+
+            <div class="cfg-field">
+              <label class="cfg-title" for="nonHanMode">非汉字配置</label>
+              <select id="nonHanMode" name="nonHanMode" class="cfg-select">
+                <option value="normal" selected>正常输出</option>
+                <option value="space">空格替代</option>
+                <option value="underscore">下划线替代</option>
+                <option value="remove">移除非汉字字符</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cfg-group">
+            <div class="cfg-title">其他配置</div>
+            <div class="opts opts-check">
+              <label class="opt"><input type="checkbox" name="rmSpacing" /> 移除间隔</label>
+              <label class="opt"><input type="checkbox" name="rmNewline" /> 移除换行</label>
+              <label class="opt"><input type="checkbox" name="uvToV" /> 将拼音 ü 替换为 v</label>
+              <label class="opt"><input type="checkbox" name="surname" /> 姓氏模式</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 变量命名模式配置 -->
+        <div id="panel-mode2" class="config-block hidden">
+          <div class="cfg-row">
+            <div class="cfg-field">
+              <label class="cfg-title" for="formatMode">格式</label>
+              <select id="formatMode" name="formatMode" class="cfg-select">
+                <option value="camel" selected>小驼峰（woShiShiLi）</option>
+                <option value="pascal">大驼峰（WoShiShiLi）</option>
+                <option value="snake">下划线（wo_Shi_Shi_Li）</option>
+                <option value="constant">常量名（WO_SHI_SHI_LI）</option>
+                <option value="kebab">短横杠（wo-shi-shi-li）</option>
+                <option value="space">空格（wo shi shi li）</option>
+                <option value="initialsLower">首字母小写（wssl）</option>
+                <option value="initialsUpper">首字母大写（WSSL）</option>
+                <option value="initialsCamel">首字母小驼峰（wSSL）</option>
+                <option value="initialsPascal">首字母大驼峰（Wssl）</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 下方：转换结果 -->
+      <section class="panel result-panel">
+        <div class="result-head">
+          <label class="panel-label" for="result">转换结果</label>
+          <div class="result-actions">
+            <span id="toast" class="toast"></span>
+            <button id="copyBtn" class="btn btn-primary">复制结果</button>
+            <button id="clearBtn" class="btn">清空</button>
+          </div>
+        </div>
+        <textarea id="result" class="result-area" readonly placeholder="转换结果将显示在这里"></textarea>
+      </section>
+    </div>
+
+    <script src="vendor/pinyin-pro.js"></script>
+    <script src="converter.js"></script>
+    <script src="index.js"></script>
+  </body>
+</html>

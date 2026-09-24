@@ -3,28 +3,32 @@ import type {
   ImageJobSettings,
   MergeImagesOptions,
   ProcessResult,
+  SharpRuntimeStatus,
   SourceFile
 } from "../shared/types";
 
 export interface ZToolsImageBatchServices {
   resolveFiles(paths: string[]): Promise<SourceFile[]>;
-  inspectFile(filePath: string): Promise<SourceFile>;
+  runtimeStatus(): Promise<SharpRuntimeStatus>;
+  installRuntime(): Promise<SharpRuntimeStatus>;
   processImages(paths: string[], settings: ImageJobSettings): Promise<ProcessResult[]>;
   mergePdfs(paths: string[], outputPath: string): Promise<string>;
   mergeImages(paths: string[], outputPath: string, options: MergeImagesOptions): Promise<string>;
   createGif(paths: string[], outputPath: string, options: GifOptions): Promise<string>;
   chooseFiles(): Promise<SourceFile[]>;
+  captureScreen(): Promise<SourceFile[]>;
+  canCaptureScreen(): boolean;
   chooseDirectory(): Promise<string | undefined>;
-  chooseWatermarkImage(): Promise<string | undefined>;
+  chooseWatermarkImage(): Promise<{ imagePath: string; previewUrl: string } | undefined>;
+  getPreviewUrl(filePath: string): Promise<string>;
   savePath(defaultPath: string, extensions: string[]): Promise<string | undefined>;
   getDefaultOutputDirectory(): string;
   fileUrl(filePath: string): string;
   getPathForFile(file: File): string;
-  copyFile(filePath: string): boolean;
-  copyImage(filePath: string): boolean;
   reveal(filePath: string): void;
-  isImagePath(filePath: string): boolean;
-  isPdfPath(filePath: string): boolean;
+  hostCompatibility(): { version: string; supported: boolean };
+  canStartDrag(): boolean;
+  startDrag(paths: string[] | string): Promise<void>;
 }
 
 declare global {
@@ -32,6 +36,9 @@ declare global {
     services: ZToolsImageBatchServices;
     ztools?: {
       showNotification?: (body: string) => void;
+      getAppVersion?: () => string;
+      screenCapture?: (callback: (image: string, bounds?: unknown) => void) => unknown;
+      startDrag?: (paths: string[] | string) => unknown;
       dbStorage?: {
         getItem: (key: string) => unknown;
         setItem: (key: string, value: unknown) => void;

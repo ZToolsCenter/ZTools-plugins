@@ -11,7 +11,7 @@ import {
   parseEnvironmentBlocks,
   parseSourceToLines,
 } from '@/lib/hosts'
-import { ConfirmDialog, Toast, useConfirmDialog, useToast } from '@/components'
+import { ConfirmDialog, Toast, useConfirmDialog, useToast } from 'ztools-ui'
 import { createCustomEnvironmentId, normalizeStore, useEnvironmentStorage } from '@/composables'
 import EnvironmentEditor from '@/components/EnvironmentEditor.vue'
 import EnvironmentList from '@/components/EnvironmentList.vue'
@@ -606,6 +606,7 @@ onMounted(() => {
         @apply="applyEnvironment"
         @deactivate="deactivateEnvironment"
         @delete="deleteEnvironment"
+        @rename="updateName"
         @create="createEnvironment"
         @reorder="reorderEnvironments"
       />

@@ -1,6 +1,6 @@
 {
   "name": "remote-manager",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "description": "管理Windows远程桌面，快捷开启远程连接",
   "type": "module",
   "scripts": {

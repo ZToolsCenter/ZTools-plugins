@@ -1,0 +1,69 @@
+# ---- Dependencies ----
+node_modules/
+
+# ---- Build output ----
+dist/
+dist-ssr/
+*.local
+
+# ---- Test artifacts ----
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# ---- Logs ----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ---- Environment files ----
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+!.env.*.example
+
+# ---- Editor / IDE ----
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ---- OS files ----
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ---- Editor temp / backup files ----
+*~
+*.swp
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# ---- Misc ----
+.cache/
+.tmp/
+.temp/

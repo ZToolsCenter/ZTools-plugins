@@ -1,0 +1,21 @@
+{
+  "name": "system-cleaner",
+  "title": "垃圾清理",
+  "description": "安全预览缓存、日志和临时文件，确认后移入废纸篓",
+  "version": "0.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://127.0.0.1:5178/"
+  },
+  "features": [
+    {
+      "code": "system-cleaner",
+      "explain": "扫描并安全清理系统垃圾",
+      "icon": "logo.svg",
+      "platform": ["darwin", "win32", "linux"],
+      "cmds": ["垃圾清理", "缓存清理", "释放空间", "系统清理"]
+    }
+  ]
+}

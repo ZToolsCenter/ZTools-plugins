@@ -1,0 +1,34 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#18c9b4"/>
+      <stop offset="1" stop-color="#2b7cff"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.78"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0b3a6b" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <!-- 背景圆角方 -->
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#bg)"/>
+  <!-- 顶部高光 -->
+  <rect x="16" y="16" width="224" height="112" rx="52" fill="#ffffff" opacity="0.08"/>
+
+  <!-- 科研数据柱状（影响因子） -->
+  <g filter="url(#shadow)">
+    <rect x="70"  y="150" width="24" height="42" rx="7" fill="url(#bar)"/>
+    <rect x="104" y="126" width="24" height="66" rx="7" fill="url(#bar)"/>
+    <rect x="138" y="100" width="24" height="92" rx="7" fill="url(#bar)"/>
+  </g>
+
+  <!-- 放大镜（查询） -->
+  <g filter="url(#shadow)">
+    <circle cx="150" cy="104" r="40" fill="none" stroke="#ffffff" stroke-width="14"/>
+    <circle cx="150" cy="104" r="40" fill="#ffffff" opacity="0.12"/>
+    <rect x="176" y="128" width="46" height="16" rx="8" transform="rotate(45 176 128)" fill="#ffffff"/>
+  </g>
+</svg>

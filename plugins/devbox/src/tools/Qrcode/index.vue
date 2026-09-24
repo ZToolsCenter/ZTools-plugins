@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Upload, Camera, DocumentCopy, Download, Refresh } from '@element-plus/icons-vue'
 import QRCode from 'qrcode'
@@ -30,6 +30,16 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('paste', handlePaste)
+})
+
+// 多标签 KeepAlive：只有当前 tab 激活时才响应全局粘贴，切走即移除
+// （addEventListener 对同一函数引用幂等，首次挂载 mounted+activated 连续调用不会重复注册）
+onActivated(() => {
+  document.addEventListener('paste', handlePaste)
+})
+
+onDeactivated(() => {
   document.removeEventListener('paste', handlePaste)
 })
 

@@ -17,7 +17,7 @@
 ```
 .
 ├── public/
-│   ├── logo.svg              # 插件图标
+│   ├── logo.png              # 插件图标
 │   ├── plugin.json           # 插件配置文件
 │   └── preload/              # Preload 脚本目录
 │       ├── package.json      # Preload 依赖配置
@@ -120,7 +120,7 @@ A: 使用 `npm run dev` 启动开发服务器，在插件界面中点击插件�
 
 ### Q: 插件图标不显示？
 
-A: 确保 `public/logo.svg` 文件存在，且在 `plugin.json` 中正确配置了 `logo` 字段。
+A: 确保 `public/logo.png` 文件存在，且在 `plugin.json` 中正确配置了 `logo` 字段。
 
 ### Q: OCR 识别失败？
 

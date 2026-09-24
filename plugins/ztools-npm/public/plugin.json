@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ztools-npm",
+  "title": "Npm Lite",
+  "description": "一款面向前端与 Node.js 开发者的轻量级效率工具。它集成了 NPM 包检索、安装指令复制以及使用指南查看功能，让依赖管理不再依赖浏览器。",
+  "author": "康康学长",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    { "code": "npm-ui", "explain": "Npm 包检索与安装", "icon": "logo.png", "cmds": ["npm", "node"] },
+    {
+      "code": "npm-search",
+      "explain": "快速复制 npm 安装指令",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": [{ "type": "over", "label": "搜索 npm 包", "minLength": 1, "maxLength": 200 }]
+    }
+  ]
+}

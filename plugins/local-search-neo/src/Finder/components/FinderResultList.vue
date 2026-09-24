@@ -1,16 +1,21 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { LoaderCircle } from "@lucide/vue";
 import type { ContextMenuItem } from "../composables/useContextMenu";
 import { useFileIcons } from "../composables/useFileIcons";
 import type { ResultActions } from "../composables/useResultActions";
-import { formatBytes, type FinderResult } from "../core/finderLogic";
+import type { FinderResult, SelectionMode } from "../core/finderLogic";
+import { formatBytes } from "../core/formatters";
 
 const props = defineProps<{
   visibleResults: FinderResult[];
-  selectedPath: string;
+  activePath: string;
+  selectedPaths: string[];
+  selectedItems: FinderResult[];
   isLoading: boolean;
   statusText: string;
   previewOpen: boolean;
+  prefix: string;
   isFolderQuery: boolean;
   actions: ResultActions;
 }>();
@@ -22,10 +27,16 @@ interface HighlightSegment {
 
 const emit = defineEmits<{
   nearBottom: [];
-  select: [item: FinderResult];
-  open: [];
+  select: [item: FinderResult, mode?: SelectionMode];
+  open: [item: FinderResult];
   "context-menu": [event: MouseEvent, items: ContextMenuItem[]];
 }>();
+
+const selectedPathSet = computed(() => new Set(props.selectedPaths));
+
+function isRowSelected(fullPath: string): boolean {
+  return selectedPathSet.value.has(fullPath);
+}
 
 const { displayItem, iconFor } = useFileIcons({
   visibleResults: () => props.visibleResults,
@@ -36,6 +47,24 @@ function handleListScroll(event: Event) {
   const element = event.currentTarget as HTMLElement;
   const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
   if (distanceToBottom < 120) emit("nearBottom");
+}
+
+function handleRowClick(event: MouseEvent, item: FinderResult) {
+  let mode: SelectionMode = "single";
+  if (event.ctrlKey || event.metaKey) {
+    mode = "toggle";
+  } else if (event.shiftKey) {
+    mode = "range";
+  }
+  emit("select", item, mode);
+}
+
+function handleDragStart(event: DragEvent, item: FinderResult) {
+  event.preventDefault();
+  if (!selectedPathSet.value.has(item.fullPath)) {
+    emit("select", item, "single");
+  }
+  props.actions.startDrag(item, props.selectedPaths);
 }
 
 function fileInitial(item: FinderResult) {
@@ -56,19 +85,66 @@ function formatModified(value?: number) {
   )}:${pad(date.getSeconds())}`;
 }
 
-function highlightSegments(value: string | undefined, fallback = ""): HighlightSegment[] {
+/**
+ * 判断当前高亮片段是否属于搜索前缀目录本身。
+ *
+ * 背景与原理：
+ * 在「文件夹内搜索」模式下，前缀目录路径（如 "D:\Projects\App"）会被拼入 Everything 查询语句。
+ * Everything 会将前缀路径视作匹配项，导致返回的 `highlightedPath` 中前缀目录被包裹 `*...*` 高亮标记。
+ *
+ * 为消除前缀高亮并保留子路径中用户真实搜索词的高亮：
+ * 1. 在当前结果的所有路径中，前 [0, cleanPrefix.length] 字符区间物理上必定属于前缀目录；
+ * 2. 若当前片段的结束位置 `plainOffset + text.length` 未超出前缀目录长度，说明其纯粹由前缀匹配引起，应消除高亮；
+ * 3. `normText === normPrefix` 作为后备兜底，防止极端斜杠或分词切分差异。
+ */
+function isPrefixSegment(text: string, plainOffset: number, prefix: string): boolean {
+  if (!prefix) return false;
+  const cleanPrefix = prefix
+    .replace(/^"|"$/g, "")
+    .trim()
+    .replace(/[\\/]+$/, "");
+  if (!cleanPrefix) return false;
+
+  // 片段结束位置在前缀长度范围内（+1 兼容尾部路径分隔符 \），属于前缀路径
+  if (plainOffset + text.length <= cleanPrefix.length + 1) {
+    return true;
+  }
+
+  // 兜底：忽略大小写与斜杠差异的全等比对
+  const normText = text.replace(/\\+/g, "/").replace(/\/+$/, "").toLowerCase();
+  const normPrefix = cleanPrefix.replace(/\\+/g, "/").replace(/\/+$/, "").toLowerCase();
+  return normText === normPrefix;
+}
+
+/**
+ * 解析 Everything 返回的高亮标记字符串（成对的 `*` 包裹匹配项），拆分为片段列表供模板渲染。
+ *
+ * @param value Everything 返回的含 `*` 高亮标记文本（如 `*C:\path*\*file*.txt`）
+ * @param fallback 无高亮标记时的回退纯文本
+ * @param isPath 是否为路径字段；为 true 时会结合 props.prefix 消除前缀目录的高亮
+ */
+function highlightSegments(
+  value: string | undefined,
+  fallback = "",
+  isPath = false,
+): HighlightSegment[] {
   const source = value || fallback;
   if (!source) return [];
 
   const segments: HighlightSegment[] = [];
   let highlighted = false;
   let start = 0;
+  let plainOffset = 0;
 
   for (let index = 0; index < source.length; index += 1) {
     if (source[index] !== "*") continue;
 
     if (index > start) {
-      segments.push({ text: source.slice(start, index), highlighted });
+      const text = source.slice(start, index);
+      // 路径字段需检测是否为前缀目录本身；若为前缀匹配则消除高亮
+      const isPrefix = isPath && props.prefix && isPrefixSegment(text, plainOffset, props.prefix);
+      segments.push({ text, highlighted: !isPrefix && highlighted });
+      plainOffset += text.length;
     }
 
     highlighted = !highlighted;
@@ -83,42 +159,49 @@ function highlightSegments(value: string | undefined, fallback = ""): HighlightS
 }
 
 function openResultMenu(event: MouseEvent, item: FinderResult) {
-  emit("select", item);
-  const hasFullPath = !!item.fullPath;
-  const hasDirectoryPath = !!item.path;
+  if (!selectedPathSet.value.has(item.fullPath)) {
+    emit("select", item, "single");
+  }
+
+  const isMulti = selectedPathSet.value.has(item.fullPath) && props.selectedItems.length > 1;
+  const targetItems = isMulti ? props.selectedItems : [item];
+
+  const count = targetItems.length;
+  const countSuffix = isMulti ? ` (${count} 项)` : "";
 
   emit("context-menu", event, [
     {
-      id: "show-in-folder",
-      label: "打开所在目录",
-      disabled: !hasFullPath,
-      action: () => props.actions.showInFolder(item),
+      id: "open-file",
+      label: `打开文件${countSuffix}`,
+      action: () => props.actions.open(targetItems),
     },
     {
+      id: "show-in-folder",
+      label: `打开所在目录${countSuffix}`,
+      action: () => props.actions.showInFolder(targetItems),
+    },
+    { id: "separator-open", label: "", separator: true },
+    {
       id: "copy-full-path",
-      label: "复制路径",
-      disabled: !hasFullPath,
-      action: () => props.actions.copyFullPath(item),
+      label: `复制路径${countSuffix}`,
+      action: () => props.actions.copyFullPath(targetItems),
     },
     {
       id: "copy-directory-path",
-      label: "复制所在路径",
-      disabled: !hasDirectoryPath,
-      action: () => props.actions.copyDirectoryPath(item),
+      label: `复制所在路径${countSuffix}`,
+      action: () => props.actions.copyDirectoryPath(targetItems),
     },
     {
       id: "copy-file",
-      label: "复制文件",
-      disabled: !hasFullPath,
-      action: () => props.actions.copyFile(item),
+      label: `复制文件${countSuffix}`,
+      action: () => props.actions.copyFile(targetItems),
     },
     { id: "separator-delete", label: "", separator: true },
     {
       id: "trash-item",
-      label: "删除（回收站）",
+      label: isMulti ? `删除 ${count} 项（回收站）` : "删除（回收站）",
       danger: true,
-      disabled: !hasFullPath,
-      action: () => props.actions.trash(item),
+      action: () => props.actions.trash(targetItems),
     },
   ]);
 }
@@ -130,13 +213,17 @@ function openResultMenu(event: MouseEvent, item: FinderResult) {
       v-for="(item, index) in visibleResults"
       :key="item.fullPath"
       :data-result-index="index"
+      :draggable="true"
       class="result-row"
-      :class="{ selected: item.fullPath === selectedPath }"
+      :class="{
+        selected: isRowSelected(item.fullPath),
+        'active-focus': item.fullPath === activePath,
+      }"
       tabindex="-1"
-      @mousedown.left.prevent
+      @dragstart="handleDragStart($event, item)"
       @contextmenu.prevent.stop="openResultMenu($event, item)"
-      @click="emit('select', item)"
-      @dblclick="emit('open')"
+      @click="handleRowClick($event, item)"
+      @dblclick="emit('open', item)"
     >
       <span class="file-icon" :class="{ 'fallback-icon': !iconFor(item) }">
         <img v-if="iconFor(item)" :src="iconFor(item)" alt="" />
@@ -151,9 +238,13 @@ function openResultMenu(event: MouseEvent, item: FinderResult) {
             >{{ segment.text }}</span
           >
         </span>
-        <span class="file-path" :title="item.fullPath || item.path">
+        <span class="file-path" :title="item.fullPath">
           <span
-            v-for="(segment, segmentIndex) in highlightSegments(item.highlightedPath, item.path)"
+            v-for="(segment, segmentIndex) in highlightSegments(
+              item.highlightedPath,
+              item.path,
+              true,
+            )"
             :key="segmentIndex"
             :class="{ 'highlight-match': segment.highlighted }"
             >{{ segment.text }}</span
@@ -179,6 +270,7 @@ function openResultMenu(event: MouseEvent, item: FinderResult) {
   overflow: auto;
   min-height: 0;
   height: 100%;
+  outline: none;
 }
 
 .result-row {
@@ -198,6 +290,7 @@ function openResultMenu(event: MouseEvent, item: FinderResult) {
   border-bottom: 1px solid transparent;
   color: inherit;
   font: inherit;
+  user-select: none;
 }
 
 .result-row:focus,
@@ -207,11 +300,17 @@ function openResultMenu(event: MouseEvent, item: FinderResult) {
 
 .result-row:hover,
 .result-row.selected {
-  background: #4a4b4d;
+  background: var(--primary-color-dark-subtle-hover, #3c3e40);
 }
 
 .result-row.selected {
-  box-shadow: inset 3px 0 0 #3b82f6;
+  box-shadow: inset 2px 0 0 var(--primary-color-alpha-50);
+}
+
+.result-row.selected.active-focus,
+.result-row.active-focus {
+  background: var(--primary-color-dark-subtle-bg, #4a4b4d);
+  box-shadow: inset 2px 0 0 var(--primary-color);
 }
 
 .file-icon {
@@ -306,7 +405,7 @@ function openResultMenu(event: MouseEvent, item: FinderResult) {
 }
 
 .loading-icon {
-  color: #3b82f6;
+  color: var(--primary-color);
   animation: loading-spin 0.9s linear infinite;
 }
 
@@ -324,11 +423,17 @@ function openResultMenu(event: MouseEvent, item: FinderResult) {
 
   .result-row:hover,
   .result-row.selected {
-    background: #e8edf4;
+    background: var(--primary-color-subtle-hover);
   }
 
   .result-row.selected {
-    box-shadow: inset 3px 0 0 #2563eb;
+    box-shadow: inset 2px 0 0 var(--primary-color-alpha-50);
+  }
+
+  .result-row.selected.active-focus,
+  .result-row.active-focus {
+    background: var(--primary-color-subtle-bg);
+    box-shadow: inset 2px 0 0 var(--primary-color-text, var(--primary-color));
   }
 
   .file-name {

@@ -1,0 +1,30 @@
+{
+  "$schema": "../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "did-tool",
+  "title": "Docker 镜像下载工具",
+  "homepage": "https://github.com/z-hanzhe/ztools-did-tool",
+  "description": "无需安装 Docker，直接从镜像仓库下载并导出可由 docker load 导入的 tar 镜像包",
+  "author": "hanzhe",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5174"
+  },
+  "features": [
+    {
+      "code": "docker-pull",
+      "explain": "下载 Docker 镜像为离线 tar 包",
+      "icon": "logo.png",
+      "cmds": [
+        "docker pull"
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}

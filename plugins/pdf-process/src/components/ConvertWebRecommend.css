@@ -1,0 +1,55 @@
+.convert-web-recommend {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: rgba(91, 141, 239, 0.08);
+  border: 1px solid rgba(91, 141, 239, 0.25);
+  border-radius: 8px;
+}
+
+.convert-web-recommend-text {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #c5d4f0;
+  line-height: 1.5;
+}
+
+.convert-web-recommend-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.convert-web-recommend-link-btn {
+  padding: 6px 12px;
+  background: #2a3348;
+  border: 1px solid #5b8def;
+  border-radius: 6px;
+  color: #8ab4f8;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.convert-web-recommend-link-btn:hover {
+  background: #334060;
+  color: #fff;
+}
+
+.convert-web-recommend-empty {
+  margin: 0;
+  font-size: 12px;
+  color: #888;
+}
+
+.convert-web-recommend-settings-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #8ab4f8;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.convert-web-recommend-settings-link:hover {
+  color: #fff;
+}

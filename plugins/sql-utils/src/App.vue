@@ -28,6 +28,9 @@
               <n-tab name="codeGenerator">
                 <i class="ali-icon-daima"/> 代码生成
               </n-tab>
+              <n-tab name="gitCommit">
+                <i class="ali-icon-git"/> Git Commit
+              </n-tab>
             </n-tabs>
             <div class="toggle-theme-button">
               <ThemeSwitch/>
@@ -53,6 +56,7 @@ import { useRouter } from 'vue-router'
 import { darkTheme, dateZhCN, zhCN } from 'naive-ui'
 import { useAppStore } from '@/store'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
+import { Icon } from '@iconify/vue'
 
 const router = useRouter()
 const store = useAppStore()

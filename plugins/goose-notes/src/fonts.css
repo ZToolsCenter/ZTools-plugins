@@ -1,0 +1,40 @@
+/* HarmonyOS Sans SC：分包 unicode-range 由远程 CSS 提供，相对路径相对该 CSS URL 解析到 CDN。 */
+@import url("https://cdn.jsdelivr.net/npm/harmonyos-sans-webfont-splitted@1.2.1/dist/HarmonyOS_Sans_SC/Regular/Regular.css");
+
+/* 已安装系统鸿蒙时优先本地，避免再拉远程分包。 */
+@font-face {
+  font-family: "HarmonyOS Sans SC";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("HarmonyOS Sans SC"),
+    local("HarmonyOS Sans");
+}
+
+/* DM Mono Font Family
+ * 使用 swap 而非 optional，避免「首次进入页面 DM Mono 永久失效」与
+ * 「二次进入因缓存命中、加上 unicode-range 不含 CJK 导致字符回退到非等宽字体」
+ * 的行为差异。unicode-range 已移除，让浏览器对所有字符尝试 DM Mono，
+ * CJK 字符在 DM Mono 中无字形时会自然走到 monospace generic 的系统兜底。 */
+@font-face {
+  font-family: "DM Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("DM Mono"),
+    url("https://cdn.jsdelivr.net/npm/@fontsource/dm-mono@5.1.0/files/dm-mono-latin-400-normal.woff2")
+      format("woff2");
+}
+
+/* 仓耳今楷 Font Family */
+@font-face {
+  font-family: "仓耳今楷";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  /* 远程字节由 fontLoader 写入 Cache Storage 并动态安装，
+   * 这里仅保留系统本地字体兜底，避免每次启动又触发 CDN 请求。 */
+  src: local("仓耳今楷");
+}

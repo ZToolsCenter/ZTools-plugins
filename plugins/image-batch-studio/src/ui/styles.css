@@ -306,6 +306,83 @@ input[type="color"] {
   background: var(--panel);
 }
 
+.runtime-status {
+  min-width: 0;
+  min-height: 34px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.runtime-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.runtime-status--ready .runtime-dot {
+  background: #16a34a;
+}
+
+.runtime-status--error .runtime-dot,
+.runtime-status--unsupported .runtime-dot {
+  background: var(--danger);
+}
+
+.runtime-status--installing .runtime-dot {
+  background: var(--accent-2);
+}
+
+.runtime-copy {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  overflow: hidden;
+}
+
+.runtime-copy strong,
+.runtime-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runtime-copy strong {
+  font-size: 12px;
+}
+
+.runtime-copy small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.runtime-install-button {
+  min-height: 28px;
+  height: 28px;
+  font-size: 11px;
+}
+
+.runtime-progress {
+  width: 70px;
+  height: 5px;
+  border-radius: 3px;
+  background: #dbeafe;
+  overflow: hidden;
+}
+
+.runtime-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent-2);
+  transition: width 120ms ease;
+}
+
 .toolbar {
   padding: 12px;
   border-bottom: 1px solid var(--line);
@@ -714,6 +791,20 @@ input[type="color"] {
   border-color: var(--accent);
   background: #e0f2fe;
   color: #075985;
+}
+
+.panel-tip {
+  font-size: 11px;
+  line-height: 1.5;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.panel-tip.warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
 }
 
 .readout-grid {

@@ -126,7 +126,7 @@ async function resolveLanguage(highlighter: HighlighterCore, language: string) {
   display: flex;
   align-items: center;
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 34px 0 12px;
   color: #c3c8cf;
   border-bottom: 1px solid #282a2d;
   font-size: 12px;

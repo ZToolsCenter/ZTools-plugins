@@ -12,6 +12,28 @@ const searchQueries = reactive({});
 const tabsContainerRef = ref(null);
 const availableSkills = ref([]);
 
+const localProjectOptions = ref([]);
+
+const refreshLocalProjectOptions = async () => {
+  const localChatPath = currentConfig.value?.webdav?.localChatPath || '';
+  if (!localChatPath) {
+    localProjectOptions.value = [];
+    return;
+  }
+
+  try {
+    const result = await window.api.readLocalProjects(localChatPath);
+    const projects = Array.isArray(result?.projects) ? result.projects : [];
+    localProjectOptions.value = projects
+      .filter(project => project && typeof project === 'object' && String(project.id || '').trim())
+      .map(project => ({ label: project.name || project.id, value: project.id }))
+      .sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { numeric: true, sensitivity: 'base' }));
+  } catch (error) {
+    console.warn('[prompts] failed to load local projects:', error);
+    localProjectOptions.value = [];
+  }
+};
+
 const fetchAvailableSkills = async () => {
   // 确保 config 已加载且有 skillPath
   if (currentConfig.value && currentConfig.value.skillPath) {
@@ -33,6 +55,7 @@ const fetchAvailableSkills = async () => {
 // 在组件挂载时获取一次
 onMounted(() => {
   fetchAvailableSkills();
+  refreshLocalProjectOptions();
 });
 
 const openPromptWindow = (promptKey) => {
@@ -87,10 +110,28 @@ function getFilteredPrompts(prompts, query) {
     return prompts;
   }
   const lowerCaseQuery = query.toLowerCase();
-  return prompts.filter(item =>
-    (item.key && item.key.toLowerCase().includes(lowerCaseQuery)) ||
-    (item.prompt && item.prompt.toLowerCase().includes(lowerCaseQuery))
-  );
+  return prompts.filter(item => {
+    let modelName = '';
+    let providerName = '';
+
+    if (item.model) {
+      const parts = item.model.split('|');
+      if (parts.length >= 2) {
+        const providerId = parts[0];
+        modelName = parts.slice(1).join('|');
+        if (currentConfig.value && currentConfig.value.providers && currentConfig.value.providers[providerId]) {
+          providerName = currentConfig.value.providers[providerId].name || '';
+        }
+      } else {
+        modelName = item.model;
+      }
+    }
+
+    return (item.key && item.key.toLowerCase().includes(lowerCaseQuery)) ||
+           (item.prompt && item.prompt.toLowerCase().includes(lowerCaseQuery)) ||
+           (modelName && modelName.toLowerCase().includes(lowerCaseQuery)) ||
+           (providerName && providerName.toLowerCase().includes(lowerCaseQuery));
+  });
 }
 
 const showPromptEditDialog = ref(false);
@@ -124,6 +165,7 @@ const editingPrompt = reactive({
   backgroundOpacity: 0.6,
   backgroundBlur: 0,
   autoSaveChat: false,
+  autoSaveProjectId: '',
 });
 
 const showIconEditDialog = ref(false);
@@ -288,16 +330,51 @@ const assignPromptForm = reactive({
 
 // [新增] 替换模型弹窗的状态
 const showReplaceModelDialog = ref(false);
+const showDefaultAssistantRouteDialog = ref(false);
 const replaceModelForm = reactive({
   sourceModel: null,
   targetModel: null,
 });
 
+
+function openDefaultAssistantRouteDialog() {
+  showDefaultAssistantRouteDialog.value = true;
+}
+
+async function saveDefaultAssistantRouteModel(settingKey, value) {
+  await atomicSave(config => {
+    config[settingKey] = value;
+  }, true);
+  ElMessage.success(t('tasks.defaultModelUpdated'));
+}
+
 const availableModels = computed(() => {
   const models = [];
   if (!currentConfig.value || !currentConfig.value.providers) return models;
-  const providerOrder = currentConfig.value.providerOrder || [];
-  providerOrder.forEach(providerId => {
+
+  const folders = currentConfig.value.providerFolders || {};
+  const order = currentConfig.value.providerOrder || [];
+
+  // 1. 文件夹按字母序排序
+  const sortedFolderIds = Object.keys(folders).sort((a, b) =>
+    (folders[a].name || '').localeCompare(folders[b].name || '')
+  );
+
+  const orderedProviderIds = [];
+  // 2. 提取文件夹内的服务商
+  sortedFolderIds.forEach(folderId => {
+    order.forEach(id => {
+      const p = currentConfig.value.providers[id];
+      if (p && p.folderId === folderId) orderedProviderIds.push(id);
+    });
+  });
+  // 3. 提取根目录的服务商
+  order.forEach(id => {
+    const p = currentConfig.value.providers[id];
+    if (p && (!p.folderId || !folders[p.folderId])) orderedProviderIds.push(id);
+  });
+
+  orderedProviderIds.forEach(providerId => {
     const provider = currentConfig.value.providers[providerId];
     if (provider && provider.enable && provider.modelList && provider.modelList.length > 0) {
       provider.modelList.forEach(modelName => {
@@ -473,6 +550,7 @@ function areAllPromptsInTagEnabled(tagName) {
 
 function prepareAddPrompt() {
   fetchAvailableSkills(); // [新增] 打开前刷新 Skill 列表
+  refreshLocalProjectOptions();
   isNewPrompt.value = true;
   Object.assign(editingPrompt, {
     originalKey: null, key: "", type: "general", prompt: "", showMode: "window", model: "",
@@ -489,12 +567,14 @@ function prepareAddPrompt() {
     backgroundOpacity: 0.6,
     backgroundBlur: 0,
     autoSaveChat: currentConfig.value.autoSaveChat_global ?? false,
+    autoSaveProjectId: '',
   });
   showPromptEditDialog.value = true;
 }
 
 async function prepareEditPrompt(promptKey, currentTagName = null) {
   fetchAvailableSkills(); // [新增] 打开前刷新 Skill 列表
+  await refreshLocalProjectOptions();
   isNewPrompt.value = false;
 
   try {
@@ -521,7 +601,7 @@ async function prepareEditPrompt(promptKey, currentTagName = null) {
 
   Object.assign(editingPrompt, {
     originalKey: promptKey, key: promptKey, type: p.type, prompt: p.prompt,
-    showMode: p.showMode, model: p.model, enable: p.enable, icon: p.icon || "",
+    showMode: p.showMode, model: p.model ?? '', enable: p.enable, icon: p.icon || "",
     selectedTag: belongingTags,
     stream: p.stream ?? true, isTemperature: p.isTemperature ?? false,
     temperature: p.temperature ?? 0.7, isDirectSend_file: p.isDirectSend_file ?? false,
@@ -536,6 +616,7 @@ async function prepareEditPrompt(promptKey, currentTagName = null) {
     backgroundOpacity: p.backgroundOpacity ?? 0.6,
     backgroundBlur: p.backgroundBlur ?? 0,
     autoSaveChat: p.autoSaveChat ?? false,
+    autoSaveProjectId: p.autoSaveProjectId ?? '',
   });
   showPromptEditDialog.value = true;
 }
@@ -558,7 +639,7 @@ function savePrompt() {
 
     const promptData = {
       type: editingPrompt.type, prompt: editingPrompt.prompt, showMode: editingPrompt.showMode,
-      model: editingPrompt.model, enable: editingPrompt.enable, icon: editingPrompt.icon || "",
+      model: editingPrompt.model || '', enable: editingPrompt.enable, icon: editingPrompt.icon || "",
       stream: editingPrompt.stream, isTemperature: editingPrompt.isTemperature,
       temperature: editingPrompt.temperature, isDirectSend_file: editingPrompt.isDirectSend_file,
       isDirectSend_normal: editingPrompt.isDirectSend_normal, isDirectSend_image: editingPrompt.isDirectSend_image, ifTextNecessary: editingPrompt.ifTextNecessary,
@@ -571,7 +652,8 @@ function savePrompt() {
       backgroundImage: editingPrompt.backgroundImage,
       backgroundOpacity: editingPrompt.backgroundOpacity,
       backgroundBlur: editingPrompt.backgroundBlur,
-      autoSaveChat: editingPrompt.autoSaveChat,
+      autoSaveChat: !!editingPrompt.autoSaveChat,
+      autoSaveProjectId: editingPrompt.autoSaveChat ? (editingPrompt.autoSaveProjectId || '') : '',
     };
 
     // 1. 更新或创建 prompts 对象中的条目
@@ -836,8 +918,10 @@ async function refreshPromptsConfig() {
             :disabled="activeTabName === '__ALL_PROMPTS__' || !promptsAvailableToAssign(activeTabName) || promptsAvailableToAssign(activeTabName).length === 0" />
         </el-tooltip>
 
-        <el-button type="danger" :icon="Delete" circle plain size="small" @click.stop="deleteTag(activeTabName)"
-          class="delete-tag-btn" :disabled="activeTabName === '__ALL_PROMPTS__'" />
+        <el-tooltip :content="t('prompts.tooltips.deleteTag')" placement="top">
+          <el-button type="danger" :icon="Delete" circle plain size="small" @click.stop="deleteTag(activeTabName)"
+            class="delete-tag-btn" :disabled="activeTabName === '__ALL_PROMPTS__'" />
+        </el-tooltip>
       </div>
     </div>
 
@@ -892,6 +976,9 @@ async function refreshPromptsConfig() {
       </el-button>
       <el-button class="action-btn" @click="prepareReplaceModels" :icon="Switch">
         {{ t('prompts.replaceModels') }}
+      </el-button>
+      <el-button class="action-btn" @click="openDefaultAssistantRouteDialog" :icon="Position">
+        {{ t('prompts.defaultAssistantRoutesButton') }}
       </el-button>
       <el-button class="refresh-fab-button" :icon="Refresh" type="primary" circle @click="refreshPromptsConfig" />
     </div>
@@ -997,7 +1084,8 @@ async function refreshPromptsConfig() {
 
                 <label class="el-form-item__label">{{ t('prompts.modelLabel') }}</label>
                 <el-form-item class="grid-item full-width no-margin">
-                  <el-select v-model="editingPrompt.model" filterable clearable style="width: 100%;">
+                  <el-select v-model="editingPrompt.model" filterable clearable :empty-values="[null, undefined, '']"
+                    :value-on-clear="''" style="width: 100%;">
                     <el-option v-for="item in availableModels" :key="item.value" :label="item.label"
                       :value="item.value" />
                   </el-select>
@@ -1043,9 +1131,11 @@ async function refreshPromptsConfig() {
                     <div class="spacer"></div>
                     <el-select v-model="editingPrompt.reasoning_effort" size="small" style="width: 120px;">
                       <el-option :label="t('prompts.reasoningEffort.default')" value="default" />
+                      <el-option :label="t('prompts.reasoningEffort.none')" value="none" />
                       <el-option :label="t('prompts.reasoningEffort.low')" value="low" />
                       <el-option :label="t('prompts.reasoningEffort.medium')" value="medium" />
                       <el-option :label="t('prompts.reasoningEffort.high')" value="high" />
+                      <el-option :label="t('prompts.reasoningEffort.xhigh')" value="xhigh" />
                     </el-select>
                   </div>
                 </div>
@@ -1118,6 +1208,24 @@ async function refreshPromptsConfig() {
                       </el-icon></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.autoSaveChat" />
+                  </div>
+
+                  <div v-if="editingPrompt.showMode === 'window' && editingPrompt.autoSaveChat" class="param-item auto-save-project-row">
+                    <div class="auto-save-project-label-row">
+                      <span class="param-label">{{ t('prompts.autoSaveProjectLabel', '保存到') }}</span>
+                      <el-tooltip :content="t('prompts.tooltips.autoSaveProjectTooltip', '选择后，自动保存的对话会归档到该项目；留空则保持未分组。')" placement="top">
+                        <el-icon class="tip-icon">
+                          <QuestionFilled />
+                        </el-icon>
+                      </el-tooltip>
+                    </div>
+                    <el-select v-model="editingPrompt.autoSaveProjectId" clearable
+                      :placeholder="t('prompts.autoSaveProjectPlaceholder', '未分组')"
+                      class="auto-save-project-select">
+                      <el-option :label="t('prompts.autoSaveProjectUngrouped', '未分组')" value="" />
+                      <el-option v-for="project in localProjectOptions" :key="project.value" :label="project.label"
+                        :value="project.value" />
+                    </el-select>
                   </div>
 
                   <div class="param-item voice-param">
@@ -1281,7 +1389,50 @@ async function refreshPromptsConfig() {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showReplaceModelDialog" :title="t('prompts.replaceModelsDialog.title')" width="600px"
+
+
+    <el-dialog v-model="showDefaultAssistantRouteDialog" :title="t('prompts.defaultAssistantRoutesDialogTitle')" width="520px"
+      :close-on-click-modal="false">
+      <el-form label-position="top">
+        <el-form-item>
+          <template #label>
+            {{ t('tasks.defaultAssistantRoutes.superior.label') }}
+          </template>
+          <el-select v-model="currentConfig.defaultSuperiorModel" filterable style="width: 100%;"
+            @change="(val) => saveDefaultAssistantRouteModel('defaultSuperiorModel', val)">
+            <el-option v-for="item in availableModels" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <template #label>
+            {{ t('tasks.defaultAssistantRoutes.general.label') }}
+          </template>
+          <el-select v-model="currentConfig.defaultTaskModel" filterable style="width: 100%;"
+            @change="(val) => saveDefaultAssistantRouteModel('defaultTaskModel', val)">
+            <el-option v-for="item in availableModels" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <template #label>
+            <span>{{ t('tasks.defaultAssistantRoutes.fast.label') }}</span>
+            <el-tooltip :content="t('prompts.defaultAssistantRoutesFastTip')" placement="top">
+              <el-icon class="tip-icon" style="margin-left: 4px;">
+                <QuestionFilled />
+              </el-icon>
+            </el-tooltip>
+          </template>
+          <el-select v-model="currentConfig.defaultFastModel" filterable style="width: 100%;"
+            @change="(val) => saveDefaultAssistantRouteModel('defaultFastModel', val)">
+            <el-option v-for="item in availableModels" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showDefaultAssistantRouteDialog = false">{{ t('common.close') }}</el-button>
+      </template>
+    </el-dialog>
+
+<el-dialog v-model="showReplaceModelDialog" :title="t('prompts.replaceModelsDialog.title')" width="600px"
       :close-on-click-modal="false">
       <el-form :model="replaceModelForm" label-position="top">
         <el-row :gutter="20">
@@ -1473,7 +1624,7 @@ async function refreshPromptsConfig() {
 .content-wrapper {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0px 24px 80px 24px;
+  padding: 0px 24px 88px 24px;
 }
 
 .search-input-container {
@@ -1599,23 +1750,52 @@ async function refreshPromptsConfig() {
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: 16px;
-  padding: 12px 24px;
-  background-color: rgba(255, 255, 255, 0.7);
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-top: 1px solid var(--border-primary);
   z-index: 20;
+  box-sizing: border-box;
+  overflow-x: auto;
 }
 
 html.dark .bottom-actions-container {
-  background-color: rgba(23, 24, 28, 0.7);
+  background-color: rgba(23, 24, 28, 0.92);
 }
 
 .bottom-actions-container .action-btn {
-  flex-grow: 0;
-  min-width: 180px;
+  flex: 0 1 160px;
+  min-width: 0;
+  max-width: 170px;
   font-weight: 500;
+  font-size: 12px;
+  padding: 8px 10px;
+  margin: 0;
+}
+
+.bottom-actions-container .action-btn :deep(.el-icon) {
+  margin-right: 4px;
+}
+
+@media (max-width: 560px) {
+  .content-wrapper {
+    padding: 0px 16px 86px 16px;
+  }
+
+  .bottom-actions-container {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .bottom-actions-container .action-btn {
+    flex-basis: 140px;
+    max-width: 150px;
+    font-size: 11px;
+    padding: 7px 8px;
+  }
 }
 
 .action-btn.el-button--primary {
@@ -1880,6 +2060,27 @@ html.dark .canvas-wrapper {
 
 .spacer {
   flex-grow: 1;
+}
+
+
+.auto-save-project-row {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-save-project-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.auto-save-project-select {
+  width: 100%;
+  min-width: 0;
 }
 
 .param-item.voice-param .el-select {

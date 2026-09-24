@@ -1,0 +1,54 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "unlock",
+  "title": "解除占用",
+  "description": "解除文件占用、粉碎文件、检测端口占用，支持拖拽文件和手动输入路径",
+  "author": "Taitres",
+  "homepage": "https://github.com/Taitres",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "unlock",
+      "explain": "打开解除占用",
+      "cmds": ["解除占用"]
+    },
+    {
+      "code": "shredder",
+      "explain": "打开文件粉碎",
+      "cmds": ["文件粉碎"]
+    },
+    {
+      "code": "portscan",
+      "explain": "打开端口检测",
+      "cmds": ["端口检测"]
+    },
+    {
+      "code": "unlockfile",
+      "explain": "解除文件占用",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "files",
+          "fileType": "file",
+          "maxLength": 1,
+          "label": "解除占用"
+        },
+        {
+          "type": "files",
+          "fileType": "directory",
+          "maxLength": 1,
+          "label": "解除占用"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "win32"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "icon-index",
+  "title": "图标检索",
+  "description": "搜索开源图标库，复制或保存 SVG 与 PNG 图标",
+  "author": "serfend",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "icon-search",
+      "explain": "搜索、复制和保存 SVG / PNG 图标",
+      "icon": "logo.png",
+      "cmds": ["图标搜索", "SVG 图标", "icon", "svg icon"]
+    },
+    {
+      "code": "icon-search-query",
+      "explain": "按关键词搜索图标",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "搜索图标",
+          "match": "/^(?:icon|svg|图标)\\s+(.{2,})$/i",
+          "minLength": 4
+        }
+      ]
+    }
+  ]
+}

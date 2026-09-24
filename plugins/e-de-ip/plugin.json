@@ -1,0 +1,16 @@
+{
+    "name": "e-de-ip",
+    "title": "鹅的IP",
+    "description": "查看你电脑的 IP 信息：内网、公网、延迟与 DNS",
+    "author": "Hi",
+    "version": "1.0.2",
+    "main": "src/index.html",
+    "logo": "logo.png",
+    "preload": "src/preload.js",
+    "features": [{
+        "code": "ip-info",
+        "explain": "查看你电脑的ip信息",
+        "icon": "logo.png",
+        "cmds": ["鹅的IP", "鹅的ip", "ip-config", "ipconfig", "ip", "内网", "公网"]
+    }]
+}

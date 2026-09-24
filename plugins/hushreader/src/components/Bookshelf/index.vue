@@ -7,6 +7,7 @@ import { parseTxt } from '../../utils/txtParser'
 import { parseEpub } from '../../utils/epubParser'
 import { parseMobi } from '../../utils/mobiParser'
 import { saveCover, loadCover, removeCover, saveCustomCover, loadCustomCover, removeCustomCover, removeBookData, saveChapters, removeChapters } from '../../utils/db'
+import { optimizeCover } from '../../utils/cover'
 import SettingsModal from '../Settings/index.vue'
 import ContextMenu from './ContextMenu.vue'
 import BookCard from './BookCard.vue'
@@ -14,12 +15,24 @@ import Toast from './Toast.vue'
 import Modal from './Modal.vue'
 import BookInfoModal from './BookInfoModal.vue'
 import ThemeToggle from './ThemeToggle.vue'
+import OnlineSearchModal from './OnlineSearchModal.vue'
+import { fetchChapterMenu } from '../../utils/onlineBook'
+import { useOnlineStore } from '../../stores/online'
 
 const props = defineProps<{ enterAction?: any }>()
 
 const bookStore = useBookStore()
 const configStore = useConfigStore()
 const readerStore = useReaderStore()
+const onlineStore = useOnlineStore()
+
+/** Cookie Jar 上下文：书架内拉取目录时自动携带/保存书源域名 Cookie */
+function buildCookieCtx() {
+  return {
+    getCookie: (url: string) => onlineStore.jarCookie(url),
+    saveCookies: (url: string, cookies: string[]) => onlineStore.saveJarCookies(url, cookies)
+  }
+}
 
 const openBookAndHushreader = inject<(id: string) => void>('openBookAndHushreader')
 const hideHushreaderWindow = inject<() => void>('hideHushreaderWindow')
@@ -31,6 +44,20 @@ function handleHideHushreaderWindow() {
 
 const showSettings = ref(false)
 const isLoading = ref(false)
+const showOnlineSearch = ref(false)
+
+function isOnlineBook(book: any) {
+  return book?.format === 'online'
+}
+
+function bookToOnlineRef(book: any) {
+  return {
+    id: book.id,
+    bookUrl: book.bookUrl || '',
+    onlineKind: book.onlineKind || 'source',
+    source: book.source
+  }
+}
 
 // Toast
 const toastMsg = ref('')
@@ -87,7 +114,11 @@ async function openChapterList(bookId: string) {
   chapterListCurrentIndex.value = book.lastChapter ?? -1
 
   try {
-    if (book.format === 'txt') {
+    if (book.format === 'online') {
+      const menu = await fetchChapterMenu(bookToOnlineRef(book), { cookie: buildCookieCtx() })
+      chapterListItems.value = menu.map((m, i) => ({ index: i, title: m.title || `第${i + 1}章` }))
+      chapterListCurrentIndex.value = book.lastChapter ?? -1
+    } else if (book.format === 'txt') {
       const text = window.services?.readFile(book.filePath) ?? ''
       const chapters = parseTxt(text, configStore.config.other.chapterRegex || undefined)
       chapterListItems.value = chapters.map(c => ({ index: c.index, title: c.title }))
@@ -127,7 +158,7 @@ function jumpToChapter(chapterIndex: number) {
   showChapterList.value = false
   const bookId = chapterListBookId.value
   if (!bookId) return
-  bookStore.updateBook(bookId, { lastChapter: chapterIndex, lastPage: 0 })
+  bookStore.updateBook(bookId, { lastChapter: chapterIndex, lastPage: 0, progressIndex: 0 })
   openBookAndHushreader?.(bookId)
 }
 
@@ -196,13 +227,15 @@ function confirmPath() {
   toast('路径已更新', 'success')
 }
 
-function openFileLocation(bookId: string) {
+async function openFileLocation(bookId: string) {
   closeContextMenu()
   const book = bookStore.books.find(b => b.id === bookId)
   if (!book) return
   try {
-    const result = (window as any).ztools?.shellShowItemInFolder?.(book.filePath)
-    if (!result) toast('无法打开文件位置', 'error')
+    // shellShowItemInFolder 是异步 IPC，成功时会打开资源管理器定位文件，
+    // 但其返回值并不可靠（成功时也可能为 undefined/false），不能拿它判断成败。
+    // 仅当调用本身抛异常（如 ztools 不可用、路径非法）时才提示失败。
+    await (window as any).ztools?.shellShowItemInFolder?.(book.filePath)
   } catch {
     toast('无法打开文件位置', 'error')
   }
@@ -282,8 +315,8 @@ function openCoverPicker(bookId: string) {
     const file = input.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => {
-      const data = reader.result as string
+    reader.onload = async () => {
+      const data = await optimizeCover(reader.result as string)
       bookStore.updateBook(bookId, { customCoverImage: data, updatedAt: Date.now() })
       saveCustomCover(bookId, data).catch(() => { })
       toast('封面已更新', 'success')
@@ -311,8 +344,9 @@ async function repairCover(bookId: string) {
     const file = new File([blob], book.filePath.split(/[\\/]/).pop() ?? 'book.epub')
     const result = await parseEpub(file)
     if (result.coverUrl) {
-      bookStore.updateBook(bookId, { coverImage: result.coverUrl })
-      saveCover(bookId, result.coverUrl).catch(() => { })
+      const cover = await optimizeCover(result.coverUrl)
+      bookStore.updateBook(bookId, { coverImage: cover })
+      saveCover(bookId, cover).catch(() => { })
     } else {
       bookStore.updateBook(bookId, { coverImage: undefined })
       removeCover(bookId).catch(() => { })
@@ -358,12 +392,12 @@ async function restoreCover(bookId: string) {
       const blob = new Blob([content], { type: 'application/epub+zip' })
       const file = new File([blob], book.filePath.split(/[\\/]/).pop() ?? 'book.epub')
       const result = await parseEpub(file)
-      coverImage = result.coverUrl || undefined
+      coverImage = result.coverUrl ? await optimizeCover(result.coverUrl) : undefined
     } else if (book.format === 'mobi') {
       const blob = new Blob([content], { type: 'application/x-mobipocket-ebook' })
       const file = new File([blob], book.filePath.split(/[\\/]/).pop() ?? 'book.mobi')
       const result = await parseMobi(file)
-      if (!result.error) coverImage = result.coverUrl || undefined
+      if (!result.error) coverImage = result.coverUrl ? await optimizeCover(result.coverUrl) : undefined
     }
 
     if (coverImage) {
@@ -431,6 +465,20 @@ async function reloadMetadata(bookId: string, silent = false) {
   const book = bookStore.books.find(b => b.id === bookId)
   if (!book) return
 
+  // 在线书籍：重刷章节列表以更新章节数
+  if (book.format === 'online') {
+    try {
+      const menu = await fetchChapterMenu(bookToOnlineRef(book), { cookie: buildCookieCtx() })
+      bookStore.updateBook(bookId, { totalChapters: menu.length, updatedAt: Date.now(), customCoverImage: undefined })
+      removeCustomCover(bookId).catch(() => { })
+      if (!silent) toast(`《${book.title}》元数据已重载`, 'success')
+    } catch (e: any) {
+      if (!silent) toast(`重载失败：${e.message}`, 'error')
+      throw e
+    }
+    return
+  }
+
   try {
     let title = book.title
     let author = book.author
@@ -450,7 +498,7 @@ async function reloadMetadata(bookId: string, silent = false) {
       author = result.author || author
       description = result.description || description
       totalChapters = result.chapters?.length
-      if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = result.coverUrl
+      if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = await optimizeCover(result.coverUrl)
       if (result.chapters?.length) saveChapters(bookId, result.chapters).catch(() => { })
     } else if (book.format === 'mobi') {
       const content = window.services?.readFileBinary?.(book.filePath)
@@ -465,7 +513,7 @@ async function reloadMetadata(bookId: string, silent = false) {
       author = result.author || author
       description = result.description || description
       totalChapters = result.chapters?.length
-      if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = result.coverUrl
+      if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = await optimizeCover(result.coverUrl)
       if (result.chapters?.length) saveChapters(bookId, result.chapters).catch(() => { })
     } else {
       const text = window.services?.readFile(book.filePath)
@@ -862,7 +910,7 @@ async function importBook(filePath: string) {
           title = result.title || title
           author = result.author || ''
           description = result.description || ''
-          if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = result.coverUrl
+          if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = await optimizeCover(result.coverUrl)
         }
       } catch { }
     }
@@ -878,7 +926,7 @@ async function importBook(filePath: string) {
           title = result.title || title
           author = result.author || ''
           description = result.description || ''
-          if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = result.coverUrl
+          if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = await optimizeCover(result.coverUrl)
         }
       } catch (e: any) {
         toast(`MOBI导入失败：${e.message}`, 'error'); return
@@ -933,7 +981,7 @@ async function importDroppedFile(file: File) {
         title = result.title || title
         author = result.author || ''
         description = result.description || ''
-        if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = result.coverUrl
+        if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = await optimizeCover(result.coverUrl)
       } catch { }
     }
 
@@ -944,7 +992,7 @@ async function importDroppedFile(file: File) {
         title = result.title || title
         author = result.author || ''
         description = result.description || ''
-        if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = result.coverUrl
+        if (result.coverUrl && !configStore.config.other.plainTextCover) coverImage = await optimizeCover(result.coverUrl)
       } catch (e: any) {
         toast(`MOBI导入失败：${e.message}`, 'error'); return
       }
@@ -1000,7 +1048,11 @@ const showDropConfirmModal = ref(false)
 const pendingDropFiles = ref<File[]>([])
 
 function hasFilePayload(ev: DragEvent) {
-  return Array.from(ev.dataTransfer?.types ?? []).includes('Files')
+  const types = Array.from(ev.dataTransfer?.types ?? [])
+  if (!types.includes('Files')) return false
+  // 元素拖拽（如封面 <img>）会在 dataTransfer 里额外带上 text/uri-list、text/html，
+  // 真正的 OS 文件拖入通常只有 Files。据此排除误触，避免拖动封面被当成导入文件。
+  return !types.some(t => t === 'text/uri-list' || t === 'text/html')
 }
 
 function markDropCopy(ev: DragEvent) {
@@ -1040,6 +1092,7 @@ function onDrop(ev: DragEvent) {
   ev.preventDefault()
   hoverNestLevel = 0
   fileHovering.value = false
+  if (!hasFilePayload(ev)) return
   const files = ev.dataTransfer?.files
   if (!files?.length) return
   const validExts = /\.(epub|txt|mobi)$/i
@@ -1075,11 +1128,22 @@ function onDocClick(e: MouseEvent) {
   }
 }
 
+// 右键落在菜单或书籍卡片之外时关闭菜单。
+// 卡片上右键由卡片自身的 handler 完成「切换到该书的菜单」，这里不再重复处理。
+function onDocContextMenu(e: MouseEvent) {
+  if (!contextMenuBook.value) return
+  const target = e.target as HTMLElement | null
+  if (target?.closest?.('.ctx-menu') || target?.closest?.('.book-card')) return
+  closeContextMenu()
+}
+
 onMounted(() => {
   document.addEventListener('click', onDocClick)
+  document.addEventListener('contextmenu', onDocContextMenu)
 })
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocClick)
+  document.removeEventListener('contextmenu', onDocContextMenu)
 })
 
 function randomCoverColor(): string {
@@ -1106,8 +1170,9 @@ async function resolveEpubCovers() {
       const file = new File([blob], book.filePath.split(/[\\/]/).pop() ?? 'book.epub')
       const result = await parseEpub(file)
       if (result.coverUrl) {
-        book.coverImage = result.coverUrl
-        saveCover(book.id, result.coverUrl).catch(() => { })
+        const cover = await optimizeCover(result.coverUrl)
+        book.coverImage = cover
+        saveCover(book.id, cover).catch(() => { })
       }
     } catch { }
   }
@@ -1129,8 +1194,9 @@ async function resolveMobiCovers() {
       const file = new File([blob], book.filePath.split(/[\\/]/).pop() ?? 'book.mobi')
       const result = await parseMobi(file)
       if (result.coverUrl) {
-        book.coverImage = result.coverUrl
-        saveCover(book.id, result.coverUrl).catch(() => { })
+        const cover = await optimizeCover(result.coverUrl)
+        book.coverImage = cover
+        saveCover(book.id, cover).catch(() => { })
       }
     } catch { }
   }
@@ -1228,6 +1294,13 @@ function formatReadingTime(ms: number): string {
             <line x1="1" y1="1" x2="23" y2="23" />
           </svg>
         </button>
+        <button class="icon-btn" title="在线搜书" @click="showOnlineSearch = true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+        </button>
         <button class="icon-btn" title="设置" @click="showSettings = true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3" />
@@ -1300,6 +1373,7 @@ function formatReadingTime(ms: number): string {
     <!-- Context Menu -->
     <ContextMenu v-if="contextMenuBook" :pos="contextMenuPos"
       :is-finished="!!bookStore.books.find(b => b.id === contextMenuBook)?.finishedAt"
+      :is-online="isOnlineBook(bookStore.books.find(b => b.id === contextMenuBook))"
       @book-info="openBookInfo(contextMenuBook!)" @chapter-list="openChapterList(contextMenuBook!)"
       @bookmark-list="openBookmarkList(contextMenuBook!)" @search-jump="openSearchModal(contextMenuBook!)"
       @change-path="openPathModal(contextMenuBook!)" @open-file-location="openFileLocation(contextMenuBook!)"
@@ -1310,6 +1384,9 @@ function formatReadingTime(ms: number): string {
 
     <!-- Settings Modal -->
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
+
+    <!-- Online Search Modal -->
+    <OnlineSearchModal v-if="showOnlineSearch" @close="showOnlineSearch = false" />
 
     <!-- Chapter List Modal -->
     <Modal v-if="showChapterList" title="章节列表" @close="showChapterList = false">

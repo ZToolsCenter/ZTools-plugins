@@ -23,6 +23,11 @@ const displayCover = computed(() => {
   return props.book.customCoverImage || props.book.coverImage
 })
 
+const formatLabel = computed(() => {
+  if (props.book.format === 'online') return props.book.sourceName || '在线'
+  return props.book.format.toUpperCase()
+})
+
 function onImgError() {
   imgError.value = true
   emit('cover-error')
@@ -59,12 +64,13 @@ function progressText(book: Book): string {
     </div>
     <!-- Cover -->
     <div class="book-cover" :style="displayCover ? {} : { background: book.coverColor || '#4a7fa5' }">
-      <img v-if="displayCover" :src="displayCover" :alt="book.title" class="cover-img" @error="onImgError" />
+      <img v-if="displayCover" :src="displayCover" :alt="book.title" class="cover-img" draggable="false"
+        @error="onImgError" />
       <template v-else>
-        <span class="cover-format">{{ book.format.toUpperCase() }}</span>
+        <span class="cover-format">{{ formatLabel }}</span>
         <span class="cover-title">{{ book.title }}</span>
       </template>
-      <span class="format-badge" :class="book.format">{{ book.format.toUpperCase() }}</span>
+      <span class="format-badge" :class="book.format">{{ formatLabel }}</span>
       <span v-if="progressText(book)" class="cover-progress">
         <span class="progress-bar" :style="{ width: progressText(book) }"></span>
         <span class="progress-label">{{ progressText(book) }}</span>
@@ -314,6 +320,11 @@ function progressText(book: Book): string {
 
 .format-badge.mobi {
   background: rgba(234, 88, 12, 0.85);
+  color: #fff;
+}
+
+.format-badge.online {
+  background: rgba(16, 185, 129, 0.85);
   color: #fff;
 }
 

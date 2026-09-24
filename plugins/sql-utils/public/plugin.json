@@ -1,9 +1,9 @@
 {
   "name": "sql-utils",
   "title": "SQL工具箱",
-  "description": "一款集成了多种 SQL 相关的实用工具🧰，帮助开发者提高工作效率🚀。多字段测试数据生成 | Excel转SQL | 文本拼接 | DDL代码生成",
+  "description": "一款集成了多种 SQL 相关的实用工具🧰，帮助开发者提高工作效率🚀。多字段测试数据生成 | Excel转SQL | 文本拼接 | DDL代码生成 | Git Commit 生成",
   "author": "honvin",
-  "version": "1.0.30",
+  "version": "1.0.32",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

@@ -1,0 +1,10 @@
+const result = ENTER.payload.replace(/\b\w/g, char => char.toUpperCase())
+
+if (ENTER.from === 'panel') {
+  // 如果使用超级面板打开，直接粘贴，替换当前选中的文本
+  ztools.hideMainWindowPasteText(result)
+} else {
+  // 复制
+  ztools.copyText(result)
+  return '结果已复制'
+}

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue'
 import { ElMessage } from 'element-plus'
 
 const now = ref(new Date())
@@ -205,15 +205,29 @@ function setToNow() {
   parseError.value = ''
 }
 
-onMounted(() => {
+function startClock() {
+  // 幂等：首次挂载 mounted + activated 连续触发，避免重复起定时器
+  if (timer) return
   timer = setInterval(() => {
     now.value = new Date()
   }, 1000)
-})
+}
 
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
+function stopClock() {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+
+onMounted(startClock)
+
+onUnmounted(stopClock)
+
+// 多标签 KeepAlive：非激活 tab 停掉时钟，切回时恢复
+onActivated(startClock)
+
+onDeactivated(stopClock)
 </script>
 
 <template>

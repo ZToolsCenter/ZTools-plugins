@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist.zip
+*.log
+.DS_Store
+.idea/
+
+# 本地 AI 工具状态
+.serena/

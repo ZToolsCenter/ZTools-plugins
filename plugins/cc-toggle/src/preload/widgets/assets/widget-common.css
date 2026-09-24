@@ -1,0 +1,118 @@
+/* ZTools ccToggle - widgets/widget-common.css
+ * 小组件公共样式：主题变量、基础 reset、悬浮工具条、图标按钮（含置顶双态）。
+ * 所有小组件页面（{id}.html）在 <head> 中 <link rel="stylesheet" href="widget-common.css"> 引用。
+ */
+
+:root {
+  --bg: rgba(24, 26, 32, 0.92);
+  --bg-panel: rgba(34, 37, 45, 0.96);
+  --text: #e6e6e6;
+  --text-muted: #8b8f98;
+  --text-faint: #5c6068;
+  --primary: #d97706;
+  --border: rgba(255, 255, 255, 0.08);
+  --danger: #e5484d;
+  --success: #46a758;
+}
+html[data-theme='light'] {
+  --bg: rgba(255, 255, 255, 0.95);
+  --bg-panel: rgba(255, 255, 255, 0.98);
+  --text: #1f2328;
+  --text-muted: #6e7781;
+  --text-faint: #a0a6ad;
+  --primary: #d97706;
+  --border: rgba(0, 0, 0, 0.08);
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html,
+body {
+  height: 100%;
+  background: transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+body {
+  font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+}
+
+/* ── 悬浮控制按钮（右上角，hover 显示，可复用） ── */
+.w-tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  -webkit-app-region: no-drag;
+}
+#widget:hover .w-tools {
+  opacity: 1;
+}
+.w-icobtn {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 5px;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.w-icobtn:hover {
+  background: var(--border);
+  color: var(--text);
+}
+.w-icobtn--active {
+  color: var(--primary);
+}
+.w-icobtn--active:hover {
+  color: var(--primary);
+}
+.w-icobtn svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+  display: block;
+}
+
+/* ── 置顶按钮双态（可复用）：未激活=描边灰，激活=实心主题色 ── */
+.w-icobtn--pin svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.w-icobtn--pin.w-icobtn--active svg path {
+  fill: currentColor;
+  stroke: none;
+}

@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Goose Note · Chart Style Preview (2026)</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script>
+    <style>
+      :root {
+        --bg: #f4f4f4;
+        --card: rgba(255, 255, 255, 0.72);
+        --border: rgba(31, 30, 29, 0.08);
+        --tc: #141413;
+        --sc: #5c5b57;
+        --muted: #8a8880;
+        --gl: rgba(31, 30, 29, 0.08);
+        --gls: rgba(31, 30, 29, 0.14);
+        --tip-bg: rgba(255, 255, 255, 0.96);
+        --tip-bd: rgba(31, 30, 29, 0.08);
+        --tip-sh: 0 10px 28px rgba(15, 23, 42, 0.1), 0 1px 3px rgba(15, 23, 42, 0.06);
+        --axis-p: rgba(79, 70, 229, 0.08);
+        --pie-bd: #ffffff;
+        --surface: #ffffff;
+      }
+      html.dark {
+        --bg: #1f1f1e;
+        --card: rgba(255, 255, 255, 0.03);
+        --border: rgba(222, 220, 209, 0.1);
+        --tc: #faf9f5;
+        --sc: #c2c0b6;
+        --muted: #8a8880;
+        --gl: rgba(222, 220, 209, 0.08);
+        --gls: rgba(222, 220, 209, 0.14);
+        --tip-bg: rgba(46, 46, 45, 0.96);
+        --tip-bd: rgba(222, 220, 209, 0.12);
+        --tip-sh: 0 12px 32px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+        --axis-p: rgba(129, 140, 248, 0.12);
+        --pie-bd: #2e2e2d;
+        --surface: #2e2e2d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--tc);
+        padding: 28px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      .sub {
+        margin: 4px 0 0;
+        color: var(--sc);
+        font-size: 13px;
+      }
+      button.toggle {
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--tc);
+        border-radius: 10px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--card);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        overflow: hidden;
+      }
+      .card-title {
+        padding: 12px 14px 0;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .chart { width: 100%; height: 260px; }
+      .chart.tall { height: 280px; }
+      .notes {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--card);
+        font-size: 13px;
+        color: var(--sc);
+        line-height: 1.55;
+      }
+      .notes strong { color: var(--tc); }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        background: rgba(79, 70, 229, 0.08);
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>图表样式预览 · 2026 迭代</h1>
+        <p class="sub">
+          对齐 shadcn/ECharts 6 方向：圆角柱、渐变面积、环形饼、轻玻璃 tooltip、色盲友好色板
+        </p>
+      </div>
+      <button class="toggle" id="themeBtn" type="button">切换深色</button>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">季度营收对比</div>
+        <div id="bar" class="chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">用户增长趋势</div>
+        <div id="line" class="chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">渠道占比</div>
+        <div id="pie" class="chart tall"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">多系列对比</div>
+        <div id="multi" class="chart"></div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <strong>推荐依据：</strong>
+      2025–2026 开源/社区反馈最好的方向是
+      <code>shadcn/ui Charts (Recharts)</code> 的设计语言、
+      <code>ApexCharts</code> 的默认美观、以及
+      <code>Apache ECharts 6</code> 的新主题与性能。
+      本项目已在用 ECharts 6.1，因此不换库，把默认主题做到「开箱即美」。
+      关键改动在
+      <code>chartPalette.ts</code> /
+      <code>chartTheme.ts</code> /
+      <code>ChartCard.tsx</code>。
+    </div>
+
+    <script>
+      const PALETTE_LIGHT = [
+        "#4f46e5", "#0d9488", "#ea580c", "#7c3aed",
+        "#0284c7", "#db2777", "#ca8a04", "#059669",
+      ];
+      const PALETTE_DARK = [
+        "#818cf8", "#2dd4bf", "#fb923c", "#a78bfa",
+        "#38bdf8", "#f472b6", "#fbbf24", "#34d399",
+      ];
+
+      function hexToRgba(hex, a) {
+        const n = parseInt(hex.slice(1), 16);
+        return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+      }
+
+      function tokens(dark) {
+        return {
+          palette: dark ? PALETTE_DARK : PALETTE_LIGHT,
+          tc: getComputedStyle(document.documentElement).getPropertyValue("--tc").trim(),
+          sc: getComputedStyle(document.documentElement).getPropertyValue("--sc").trim(),
+          muted: getComputedStyle(document.documentElement).getPropertyValue("--muted").trim(),
+          gl: getComputedStyle(document.documentElement).getPropertyValue("--gl").trim(),
+          gls: getComputedStyle(document.documentElement).getPropertyValue("--gls").trim(),
+          tipBg: getComputedStyle(document.documentElement).getPropertyValue("--tip-bg").trim(),
+          tipBd: getComputedStyle(document.documentElement).getPropertyValue("--tip-bd").trim(),
+          tipSh: getComputedStyle(document.documentElement).getPropertyValue("--tip-sh").trim(),
+          axisP: getComputedStyle(document.documentElement).getPropertyValue("--axis-p").trim(),
+          pieBd: getComputedStyle(document.documentElement).getPropertyValue("--pie-bd").trim(),
+          surface: getComputedStyle(document.documentElement).getPropertyValue("--surface").trim(),
+        };
+      }
+
+      function base(t, dark, trigger) {
+        return {
+          backgroundColor: "transparent",
+          color: t.palette,
+          textStyle: {
+            fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
+            color: t.sc,
+          },
+          animationDuration: 720,
+          animationEasing: "cubicOut",
+          tooltip: {
+            trigger,
+            backgroundColor: t.tipBg,
+            borderColor: t.tipBd,
+            borderWidth: 1,
+            padding: [8, 12],
+            textStyle: { color: t.tc, fontSize: 12, fontWeight: 500 },
+            extraCssText: `border-radius:10px;box-shadow:${t.tipSh};backdrop-filter:blur(10px);`,
+            axisPointer: {
+              type: trigger === "axis" ? "line" : "shadow",
+              shadowStyle: { color: t.axisP },
+              lineStyle: {
+                color: dark ? "rgba(129,140,248,0.45)" : "rgba(79,70,229,0.35)",
+                width: 1,
+                type: "dashed",
+              },
+            },
+          },
+          grid: { containLabel: true, left: 16, right: 16, top: 18, bottom: 12 },
+        };
+      }
+
+      function axes(t, boundaryGap) {
+        return {
+          xAxis: {
+            type: "category",
+            boundaryGap,
+            axisTick: { show: false },
+            axisLine: { lineStyle: { color: t.gls } },
+            axisLabel: { color: t.muted, fontSize: 11, margin: 10 },
+            splitLine: { show: false },
+          },
+          yAxis: {
+            type: "value",
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: { color: t.muted, fontSize: 11 },
+            splitLine: { lineStyle: { color: t.gl, type: "dashed" } },
+            splitNumber: 4,
+          },
+        };
+      }
+
+      const charts = {};
+      function renderAll() {
+        const dark = document.documentElement.classList.contains("dark");
+        const t = tokens(dark);
+        const cats = ["Q1", "Q2", "Q3", "Q4"];
+        const months = ["1月", "2月", "3月", "4月", "5月", "6月", "7月"];
+
+        const barOpt = {
+          ...base(t, dark, "axis"),
+          ...axes(t, true),
+          xAxis: { ...axes(t, true).xAxis, data: cats },
+          yAxis: axes(t, true).yAxis,
+          series: [
+            {
+              type: "bar",
+              name: "营收",
+              data: [120, 200, 150, 240],
+              barMaxWidth: 40,
+              barCategoryGap: "42%",
+              itemStyle: {
+                borderRadius: [7, 7, 0, 0],
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: t.palette[0] },
+                  { offset: 1, color: hexToRgba(t.palette[0], 0.82) },
+                ]),
+              },
+              emphasis: {
+                itemStyle: {
+                  shadowBlur: 12,
+                  shadowColor: hexToRgba(t.palette[0], 0.35),
+                  shadowOffsetY: 3,
+                },
+              },
+            },
+          ],
+        };
+
+        const lineOpt = {
+          ...base(t, dark, "axis"),
+          ...axes(t, false),
+          xAxis: { ...axes(t, false).xAxis, data: months },
+          yAxis: axes(t, false).yAxis,
+          series: [
+            {
+              type: "line",
+              name: "活跃用户",
+              data: [420, 532, 501, 734, 890, 930, 1120],
+              smooth: 0.35,
+              showSymbol: false,
+              symbol: "circle",
+              symbolSize: 6,
+              lineStyle: {
+                width: 2.5,
+                color: t.palette[0],
+                shadowColor: hexToRgba(t.palette[0], 0.25),
+                shadowBlur: 6,
+                shadowOffsetY: 2,
+              },
+              itemStyle: {
+                color: t.palette[0],
+                borderColor: t.surface,
+                borderWidth: 2,
+              },
+              areaStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: hexToRgba(t.palette[0], 0.32) },
+                  { offset: 0.55, color: hexToRgba(t.palette[0], 0.1) },
+                  { offset: 1, color: hexToRgba(t.palette[0], 0.02) },
+                ]),
+              },
+            },
+          ],
+        };
+
+        const pieOpt = {
+          ...base(t, dark, "item"),
+          tooltip: {
+            ...base(t, dark, "item").tooltip,
+            formatter: "{b}<br/>{c}  ·  {d}%",
+          },
+          series: [
+            {
+              type: "pie",
+              radius: ["44%", "70%"],
+              center: ["50%", "50%"],
+              padAngle: 2,
+              minShowLabelAngle: 8,
+              itemStyle: {
+                borderRadius: 7,
+                borderColor: t.pieBd,
+                borderWidth: 2.5,
+              },
+              label: {
+                color: t.sc,
+                fontSize: 11,
+                fontWeight: 500,
+                formatter: "{b}\n{d}%",
+                lineHeight: 16,
+              },
+              labelLine: {
+                length: 12,
+                length2: 8,
+                smooth: 0.2,
+                lineStyle: { color: t.gls },
+              },
+              emphasis: {
+                scale: true,
+                scaleSize: 6,
+                itemStyle: { shadowBlur: 16, shadowColor: "rgba(0,0,0,0.18)" },
+              },
+              data: [
+                { name: "搜索", value: 1048 },
+                { name: "直访", value: 735 },
+                { name: "社媒", value: 580 },
+                { name: "邮件", value: 484 },
+                { name: "广告", value: 300 },
+              ],
+              animationType: "scale",
+            },
+          ],
+        };
+
+        const multiOpt = {
+          ...base(t, dark, "axis"),
+          ...axes(t, true),
+          legend: {
+            top: 0,
+            left: 16,
+            icon: "circle",
+            itemWidth: 8,
+            itemHeight: 8,
+            textStyle: { color: t.sc, fontSize: 12, fontWeight: 500 },
+          },
+          grid: { containLabel: true, left: 16, right: 16, top: 36, bottom: 12 },
+          xAxis: { ...axes(t, true).xAxis, data: cats },
+          yAxis: axes(t, true).yAxis,
+          series: [
+            {
+              type: "bar",
+              name: "产品 A",
+              data: [82, 93, 90, 114],
+              barMaxWidth: 28,
+              barGap: "28%",
+              itemStyle: {
+                borderRadius: [4, 4, 0, 0],
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: t.palette[0] },
+                  { offset: 1, color: hexToRgba(t.palette[0], 0.82) },
+                ]),
+              },
+            },
+            {
+              type: "bar",
+              name: "产品 B",
+              data: [60, 72, 88, 96],
+              barMaxWidth: 28,
+              itemStyle: {
+                borderRadius: [4, 4, 0, 0],
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: t.palette[1] },
+                  { offset: 1, color: hexToRgba(t.palette[1], 0.82) },
+                ]),
+              },
+            },
+          ],
+        };
+
+        for (const [id, opt] of Object.entries({
+          bar: barOpt,
+          line: lineOpt,
+          pie: pieOpt,
+          multi: multiOpt,
+        })) {
+          if (!charts[id]) charts[id] = echarts.init(document.getElementById(id), undefined, { renderer: "svg" });
+          charts[id].setOption(opt, true);
+        }
+      }
+
+      document.getElementById("themeBtn").addEventListener("click", () => {
+        document.documentElement.classList.toggle("dark");
+        document.getElementById("themeBtn").textContent =
+          document.documentElement.classList.contains("dark") ? "切换浅色" : "切换深色";
+        renderAll();
+      });
+
+      window.addEventListener("resize", () => {
+        Object.values(charts).forEach((c) => c.resize());
+      });
+
+      renderAll();
+    </script>
+  </body>
+</html>

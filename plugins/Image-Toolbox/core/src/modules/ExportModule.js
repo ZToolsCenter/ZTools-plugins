@@ -11,7 +11,7 @@ class ExportModule extends BaseModule {
    * @param {import('../CanvasManager.js').default} canvasManager
    * @param {import('../HistoryManager.js').default} historyManager
    * @param {object} [defaultOptions]
-   * @param {import('../interfaces/HostAdapter.js').default} [host]
+   * @param {object} [host]
    */
   constructor(canvasManager, historyManager, defaultOptions = {}, host = null) {
     super(canvasManager, historyManager, {
@@ -25,7 +25,7 @@ class ExportModule extends BaseModule {
 
   /**
    * 注入 host adapter（可在运行时设置）。
-   * @param {import('../interfaces/HostAdapter.js').default} host
+   * @param {object} host
    */
   setHost(host) {
     this._host = host;
@@ -33,14 +33,35 @@ class ExportModule extends BaseModule {
 
   /**
    * 导出为文件 — 先弹保存对话框，用户选择格式后自动匹配导出
+   * @param {string} [presetFormat] - 预设格式 ('png'|'jpeg'|'webp')，优先于对话框选择
    */
-  async exportToFile() {
-    const dataURL = this.exportToDataURL('png');
-    if (!dataURL) return;
+  async exportToFile(presetFormat) {
+    // 如果指定了预设格式，直接使用该格式导出
+    const format = presetFormat || null;
 
     // 优先使用 host adapter
+    if (this._host?.showSaveImageDialog && this._host?.writeImageFile) {
+      const ext = format || 'png';
+      // 传入格式，让保存对话框只显示该格式的过滤器
+      const filePath = this._host.showSaveImageDialog(`edited.${ext}`, ext);
+      if (!filePath) return;
+
+      // 如果有预设格式，强制使用；否则从文件名推断
+      const actualFormat = format || this._getFormatFromFilePath(filePath);
+      const dataURL = this.exportToDataURL(actualFormat);
+      if (!dataURL) return;
+
+      const saved = this._host.writeImageFile(filePath, dataURL);
+      this._notifyToast(saved ? '图片已保存' : '保存失败', saved ? 'success' : 'error');
+      return;
+    }
+
+    const actualFormat = format || 'png';
+    const dataURL = this.exportToDataURL(actualFormat);
+    if (!dataURL) return;
+
     if (this._host?.saveImage) {
-      const saved = await this._host.saveImage(dataURL, 'edited.png');
+      const saved = await this._host.saveImage(dataURL, `edited.${actualFormat}`);
       if (saved) {
         this._notifyToast('图片已保存', 'success');
       }
@@ -48,7 +69,7 @@ class ExportModule extends BaseModule {
     }
 
     // 降级：浏览器下载
-    this._browserDownload(dataURL, 'edited.png');
+    this._browserDownload(dataURL, `edited.${actualFormat}`);
   }
 
   /**
@@ -121,6 +142,13 @@ class ExportModule extends BaseModule {
       ...options,
     };
     return this.exportToDataURL(opts.format, opts.quality);
+  }
+
+  _getFormatFromFilePath(filePath) {
+    const ext = String(filePath || '').split('.').pop()?.toLowerCase();
+    if (ext === 'jpg' || ext === 'jpeg') return 'jpeg';
+    if (ext === 'webp') return 'webp';
+    return 'png';
   }
 
   _toDataURL(dataURLOptions, options = {}) {

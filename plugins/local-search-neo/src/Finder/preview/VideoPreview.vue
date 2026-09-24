@@ -20,7 +20,7 @@ defineProps<{
   min-width: 0;
   min-height: 0;
   box-sizing: border-box;
-  padding: 12px;
+  padding: 0;
   overflow: hidden;
   background: #0f1012;
 }

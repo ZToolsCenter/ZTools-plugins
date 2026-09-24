@@ -1,0 +1,105 @@
+:root {
+  color-scheme: light;
+  --app-background: #f4f6f8;
+  --surface-color: #ffffff;
+  --subtle-background: #f7f8fa;
+  --subtle-background-strong: #e8ebef;
+  --control-background: #ffffff;
+  --control-border: #d7dce2;
+  --border-color: #e1e5e9;
+  --text-primary: #1d242d;
+  --text-secondary: #4e5967;
+  --text-muted: #7b8592;
+  --placeholder-color: #a7afb8;
+  --accent-color: #1677c8;
+  --accent-hover: #1265aa;
+  --accent-border: #9bc6e8;
+  --accent-soft: #e8f3fb;
+  --success-color: #18815a;
+  --success-border: #a7dac5;
+  --success-soft: #eaf7f1;
+  --warning-color: #9a6717;
+  --danger-color: #c43d43;
+  --danger-border: #efb7ba;
+  --danger-soft: #fff0f0;
+  font-family: Inter, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body,
+#app {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  overflow: auto;
+  background: var(--app-background);
+}
+
+button,
+input,
+select {
+  letter-spacing: 0;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--text-muted) 52%, transparent);
+  background-clip: padding-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --app-background: #181b1f;
+    --surface-color: #202429;
+    --subtle-background: #252a30;
+    --subtle-background-strong: #343a42;
+    --control-background: #252a30;
+    --control-border: #424952;
+    --border-color: #343a41;
+    --text-primary: #edf0f3;
+    --text-secondary: #bac1c9;
+    --text-muted: #8e98a3;
+    --placeholder-color: #68727d;
+    --accent-color: #59a9e6;
+    --accent-hover: #75b7e9;
+    --accent-border: #376a91;
+    --accent-soft: #1d3547;
+    --success-color: #5dc69b;
+    --success-border: #386c59;
+    --success-soft: #20382f;
+    --warning-color: #e0ad55;
+    --danger-color: #ef8589;
+    --danger-border: #75474a;
+    --danger-soft: #42282b;
+  }
+
+  .runtime-notice {
+    color: #e7bf70 !important;
+    background: #3a3020 !important;
+    border-bottom-color: #5a492b !important;
+  }
+}

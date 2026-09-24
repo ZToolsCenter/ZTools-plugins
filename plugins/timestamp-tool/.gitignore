@@ -1,0 +1,47 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+.vite/
+*.zpx
+
+# 本地环境配置
+.env
+.env.*
+!.env.example
+*.local
+
+# 日志和调试文件
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 编辑器和 IDE 配置
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 临时文件
+*.tmp
+*.temp
+*.tsbuildinfo
+
+# AI 相关文件
+.pi
+.codex
+.claude
+.serena
+.spec-workflow
+.playwright-mcp
+.ai-ignore

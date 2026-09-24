@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "screenshot-annotate",
+  "title": "截图标注",
+  "description": "截图 → 标注 → 复制 / 保存 / 钉到桌面",
+  "version": "1.3.12",
+  "author": "zyy",
+  "homepage": "https://github.com/zhaoyuyang8520/screenshot-annotate",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "ui.capture",
+      "explain": "进入截图标注",
+      "icon": "./logo.png",
+      "cmds": ["截图标注", "截图", "截屏"]
+    },
+    {
+      "code": "function.capture-copy",
+      "explain": "截图标注并复制到剪贴板",
+      "icon": "./logo.png",
+      "cmds": ["截图标注并复制"]
+    },
+    {
+      "code": "function.capture-pin",
+      "explain": "截图直接钉到桌面",
+      "icon": "./logo.png",
+      "cmds": ["截图并钉图", "钉图"]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "base64",
+  "title": "Base64 编解码",
+  "author": "hulin",
+  "description": "文本与图片 Base64 编解码，自动识别图片、预览并保存",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    { "code": "base64", "explain": "Base64 编解码", "cmds": ["base64", "Base64", "base64编解码"] },
+    { "code": "encode", "explain": "Base64 编码", "cmds": ["base64编码", { "type": "over", "label": "Base64 编码", "minLength": 1 }] },
+    { "code": "decode", "explain": "Base64 解码", "cmds": ["base64解码", { "type": "regex", "label": "Base64 解码", "match": "/^(?:data:[^,]*;base64,)?[A-Za-z0-9+/_\\s-]+={0,2}$/", "minLength": 4 }] }
+  ]
+}

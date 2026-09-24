@@ -2,6 +2,9 @@
 
 借助 Everything 进行本地文件搜索、分类浏览和快速预览的 ZTools 插件。
 
+> 项目地址：[https://github.com/guopenghui/local-search-neo](https://github.com/guopenghui/local-search-neo)  
+> 如有任何 Bug 或功能请求，欢迎提 [Issue](https://github.com/guopenghui/local-search-neo/issues)。
+
 > [!TIP]
 > 推荐使用本地安装版 everything
 >
@@ -22,16 +25,17 @@
 - 支持按分类快速过滤：全部、文件夹、Office 文档、PDF、图片、视频、音频、压缩文件等。
 - 支持自定义分类规则。
 - 支持按名称、路径、大小、修改时间排序。
-- 支持结果懒加载，避免一次性渲染过多结果。
 
 ### 结果操作
 
 - 打开文件或文件夹。
 - 打开所在目录。
 - 复制完整路径。
-- 复制所在路径。
+- 复制所在目录路径。
 - 复制文件到系统剪贴板。
 - 删除文件到回收站。
+- 支持拖动文件到外部和其他软件
+- 支持多选，批量打开和删除
 
 ### 文件预览
 
@@ -48,10 +52,11 @@
 ### ZTools 集成
 
 - 支持主搜索面板 `mainPush` 快速返回搜索结果。
+- 注册 MCP Tool，可供外部 agent 调用 everything search 功能
 
 ### 设置项
 
-- 开启路径匹配功能，同时匹配路径和文件名
+- 开启路径匹配功能，同时匹配路径和文件名（文件名和路径片段用空格分隔）
 - 添加自定义分组规则
 
 ## 运行要求
@@ -120,15 +125,17 @@ node scripts/benchmark-everything-addon.cjs
 │   ├── src/                # Everything、文本预览、目录/压缩包树等原生能力
 │   └── index.d.ts          # addon 导出类型
 ├── public/
+│   ├── everything/         # 内置的 Everything.exe 二进制及配置文件 Everything.ini
 │   ├── plugin.json         # ZTools 插件配置
 │   └── preload/services.js # 预加载脚本，挂载 window.services，提供系统原生能力
 ├── scripts/                # addon 复制、验证和性能测试脚本
 ├── src/
 │   ├── App.vue             # 插件入口和 mainPush 处理
 │   ├── Finder/             # 搜索界面、结果列表、预览、设置等主要功能
+│   ├── assets/             # 静态资源目录
 │   ├── components/         # 通用组件
-│   ├── devMock.ts          # 浏览器开发 mock
 │   ├── env.d.ts            # window.services 等类型声明
+│   ├── main.css            # 主样式文件
 │   └── main.ts
 ├── AGENTS.md               # Agent 开发提示
 ├── package.json

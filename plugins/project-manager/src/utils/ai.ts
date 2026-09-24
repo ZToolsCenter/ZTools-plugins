@@ -267,6 +267,23 @@ async function readSseStream(
   const decoder = new TextDecoder();
   let buffer = '';
 
+  const dispatchFrame = (frame: string) => {
+    const lines = frame
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.startsWith('data:'))
+      .map(line => line.slice(5).trim());
+
+    for (const line of lines) {
+      if (!line || line === '[DONE]') continue;
+      try {
+        onEvent(JSON.parse(line));
+      } catch {
+        // Ignore malformed intermediary events from non-standard proxies.
+      }
+    }
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) {
@@ -277,26 +294,11 @@ async function readSseStream(
     const frames = buffer.split(/\r?\n\r?\n/);
     buffer = frames.pop() || '';
 
-    for (const frame of frames) {
-      const lines = frame
-        .split(/\r?\n/)
-        .map(line => line.trim())
-        .filter(line => line.startsWith('data:'))
-        .map(line => line.slice(5).trim());
-
-      for (const line of lines) {
-        if (!line || line === '[DONE]') {
-          continue;
-        }
-
-        try {
-          onEvent(JSON.parse(line));
-        } catch {
-          // Ignore malformed intermediary events from non-standard proxies.
-        }
-      }
-    }
+    for (const frame of frames) dispatchFrame(frame);
   }
+
+  buffer += decoder.decode();
+  if (buffer.trim()) dispatchFrame(buffer);
 }
 
 async function collectChatCompletionStream(response: Response): Promise<string> {
@@ -319,8 +321,18 @@ async function collectChatCompletionStream(response: Response): Promise<string> 
     if (!payload || typeof payload !== 'object') {
       return;
     }
-    const record = payload as { choices?: Array<{ delta?: { content?: unknown } }> };
-    const deltaContent = record.choices?.[0]?.delta?.content;
+    const record = payload as Record<string, unknown>;
+    const choice = Array.isArray(record.choices)
+      ? record.choices[0] as Record<string, unknown> | undefined
+      : undefined;
+    const delta = choice?.delta as Record<string, unknown> | undefined;
+    const message = choice?.message as Record<string, unknown> | undefined;
+    const deltaContent = delta?.content
+      ?? delta?.text
+      ?? message?.content
+      ?? choice?.text
+      ?? record.content
+      ?? record.text;
 
     if (typeof deltaContent === 'string') {
       chunks.push(deltaContent);
@@ -467,7 +479,7 @@ export async function requestAiChatCompletion(options: RequestAiTextOptions): Pr
     if (streamed) {
       return streamed;
     }
-    throw new Error('AI API stream returned no message content.');
+    return requestAiChatCompletion({ ...options, stream: false });
   }
 
   const response = await fetchWithTimeout(url, {

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>股票悬浮球</title>
+  <link rel="stylesheet" href="ball.css" />
+</head>
+<body>
+  <div id="root">
+    <div id="menu" class="menu" hidden></div>
+    <div id="ballWrap">
+      <div id="ball" title="双击打开股票插件 · 拖动改变位置">
+        <span id="badge" class="badge" hidden></span>
+        <div class="content">
+          <div id="main" class="main">--</div>
+          <div id="sub" class="sub">载入中</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="menuShield" hidden></div>
+  <script src="ball.js"></script>
+</body>
+</html>

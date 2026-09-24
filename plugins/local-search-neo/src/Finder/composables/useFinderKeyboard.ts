@@ -5,6 +5,7 @@ interface UseFinderKeyboardOptions {
   closeTransientOverlays: () => void;
   focusSubInput: () => void;
   moveSelection: (direction: -1 | 1) => void;
+  cycleCategory: (direction: -1 | 1) => void;
   openSelection: () => void;
   showSelectionInFolder: () => void;
   scrollSelectedIntoView: () => void;
@@ -15,6 +16,7 @@ export function useFinderKeyboard({
   closeTransientOverlays,
   focusSubInput,
   moveSelection,
+  cycleCategory,
   openSelection,
   showSelectionInFolder,
   scrollSelectedIntoView,
@@ -27,6 +29,13 @@ export function useFinderKeyboard({
       event.preventDefault();
       moveSelection(event.key === "ArrowDown" ? 1 : -1);
       nextTick(() => scrollSelectedIntoView());
+      return;
+    }
+
+    if (event.key === "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      if (isNavigationBlocked()) return;
+      event.preventDefault();
+      cycleCategory(event.shiftKey ? -1 : 1);
       return;
     }
 

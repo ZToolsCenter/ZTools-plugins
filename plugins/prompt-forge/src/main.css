@@ -1,0 +1,242 @@
+/* ========================================
+   PromptForge — Fresh Design System
+   Light/Dark Theme Support
+   ======================================== */
+
+:root {
+  --pf-accent: #6C5CE7;
+  --pf-accent-deep: #5A4BD1;
+  --pf-accent-soft: rgba(108, 92, 231, 0.08);
+  --pf-accent-hover: rgba(108, 92, 231, 0.12);
+  --pf-gradient: linear-gradient(135deg, #6C5CE7 0%, #A29BFE 100%);
+
+  --pf-success: #00B894;
+  --pf-success-soft: rgba(0, 184, 148, 0.08);
+  --pf-danger: #E17055;
+  --pf-danger-soft: rgba(225, 112, 85, 0.08);
+  --pf-warning: #FDCB6E;
+  --pf-warning-soft: rgba(253, 203, 110, 0.1);
+
+  --pf-radius: 12px;
+  --pf-radius-md: 8px;
+  --pf-radius-sm: 6px;
+  --pf-radius-xs: 4px;
+  --pf-radius-pill: 100px;
+
+  --pf-shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
+  --pf-shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --pf-shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --pf-shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+
+  --pf-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --pf-font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ====== Light Theme (Default) ====== */
+:root, [data-theme="light"] {
+  --pf-bg: #F8F9FA;
+  --pf-bg-elevated: #FFFFFF;
+  --pf-surface: #FFFFFF;
+  --pf-surface-raised: #F1F3F5;
+  --pf-surface-hover: #E9ECEF;
+  --pf-border: #DEE2E6;
+  --pf-border-hover: #ADB5BD;
+  --pf-border-accent: rgba(108, 92, 231, 0.3);
+
+  --pf-text: #212529;
+  --pf-text-secondary: #495057;
+  --pf-text-muted: #868E96;
+  --pf-text-faint: #CED4DA;
+
+  --pf-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --pf-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --pf-shadow-lg: 0 8px 30px rgba(0,0,0,0.1);
+}
+
+/* ====== Dark Theme ====== */
+[data-theme="dark"] {
+  --pf-bg: #1A1B1E;
+  --pf-bg-elevated: #25262B;
+  --pf-surface: #2C2D31;
+  --pf-surface-raised: #373A40;
+  --pf-surface-hover: #43464D;
+  --pf-border: rgba(255, 255, 255, 0.08);
+  --pf-border-hover: rgba(255, 255, 255, 0.15);
+  --pf-border-accent: rgba(108, 92, 231, 0.4);
+
+  --pf-text: #E9ECEF;
+  --pf-text-secondary: #ADB5BD;
+  --pf-text-muted: #868E96;
+  --pf-text-faint: #495057;
+
+  --pf-success-soft: rgba(0, 184, 148, 0.15);
+  --pf-danger-soft: rgba(225, 112, 85, 0.15);
+  --pf-warning-soft: rgba(253, 203, 110, 0.15);
+
+  --pf-shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+  --pf-shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --pf-shadow-lg: 0 8px 30px rgba(0,0,0,0.4);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--pf-font);
+  background: var(--pf-bg);
+  color: var(--pf-text);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s, color 0.3s;
+}
+
+#app { width: 100%; height: 100%; overflow: hidden; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--pf-text-faint); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--pf-text-muted); }
+
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea, select { font: inherit; color: inherit; background: none; border: none; outline: none; }
+
+/* ========= 按钮 ========= */
+.btn {
+  font-size: 13px;
+  font-weight: 500;
+  height: 34px;
+  border: 1px solid var(--pf-border);
+  background: var(--pf-surface);
+  color: var(--pf-text-secondary);
+  border-radius: var(--pf-radius-sm);
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--pf-surface-hover);
+  border-color: var(--pf-border-hover);
+  color: var(--pf-text);
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.primary {
+  background: var(--pf-accent);
+  color: #fff;
+  border-color: var(--pf-accent);
+}
+.btn.primary:hover {
+  background: var(--pf-accent-deep);
+  border-color: var(--pf-accent-deep);
+}
+.btn.danger {
+  color: var(--pf-danger);
+  border-color: var(--pf-danger-soft);
+  background: var(--pf-danger-soft);
+}
+.btn.danger:hover { background: var(--pf-danger); color: #fff; }
+
+kbd {
+  font: 10px/1 var(--pf-font-mono);
+  background: var(--pf-surface-raised);
+  border: 1px solid var(--pf-border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--pf-text-muted);
+  min-width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ========= 视图切换按钮（文本/Markdown、编辑/预览） ========= */
+.mode-toggle {
+  display: inline-flex; flex-shrink: 0;
+  border: 1px solid var(--pf-border);
+  border-radius: var(--pf-radius-xs);
+  overflow: hidden;
+}
+.mode-btn {
+  border: none; background: var(--pf-surface);
+  color: var(--pf-text-muted);
+  font-size: 11px; font-weight: 600;
+  padding: 4px 10px; cursor: pointer;
+  transition: all 0.12s;
+  line-height: 1.4;
+}
+.mode-btn + .mode-btn { border-left: 1px solid var(--pf-border); }
+.mode-btn:hover { color: var(--pf-accent); }
+.mode-btn.active { background: var(--pf-accent-soft); color: var(--pf-accent); }
+
+/* ========= Markdown 渲染样式 ========= */
+.markdown-body {
+  font-family: var(--pf-font);
+  white-space: normal;
+  line-height: 1.7;
+  word-break: break-word;
+  color: var(--pf-text-secondary);
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 1.2em 0 0.6em;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--pf-text);
+}
+.markdown-body h1 { font-size: 1.6em; border-bottom: 1px solid var(--pf-border); padding-bottom: 0.3em; }
+.markdown-body h2 { font-size: 1.4em; border-bottom: 1px solid var(--pf-border); padding-bottom: 0.3em; }
+.markdown-body h3 { font-size: 1.2em; }
+.markdown-body h4 { font-size: 1.05em; }
+.markdown-body h5,
+.markdown-body h6 { font-size: 1em; }
+.markdown-body p { margin: 0.6em 0; }
+.markdown-body ul,
+.markdown-body ol { padding-left: 1.6em; margin: 0.6em 0; }
+.markdown-body li { margin: 0.25em 0; }
+.markdown-body code {
+  font-family: var(--pf-font-mono);
+  font-size: 0.9em;
+  background: var(--pf-surface-raised);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  color: var(--pf-accent);
+}
+.markdown-body pre {
+  background: var(--pf-surface-raised);
+  border: 1px solid var(--pf-border);
+  border-radius: var(--pf-radius-sm);
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 0.8em 0;
+}
+.markdown-body pre code {
+  background: none; padding: 0; color: var(--pf-text);
+}
+.markdown-body blockquote {
+  margin: 0.8em 0;
+  padding: 0.4em 1em;
+  border-left: 3px solid var(--pf-accent);
+  background: var(--pf-accent-soft);
+  color: var(--pf-text-secondary);
+  border-radius: 0 var(--pf-radius-xs) var(--pf-radius-xs) 0;
+}
+.markdown-body blockquote p { margin: 0.3em 0; }
+.markdown-body a { color: var(--pf-accent); text-decoration: none; }
+.markdown-body a:hover { text-decoration: underline; }
+.markdown-body hr { border: none; border-top: 1px solid var(--pf-border); margin: 1.2em 0; }
+.markdown-body table { border-collapse: collapse; margin: 0.8em 0; width: 100%; }
+.markdown-body th,
+.markdown-body td { border: 1px solid var(--pf-border); padding: 6px 12px; font-size: 0.95em; }
+.markdown-body th { background: var(--pf-bg-elevated); font-weight: 600; }
+.markdown-body img { max-width: 100%; border-radius: var(--pf-radius-sm); }
+.markdown-body strong { font-weight: 700; color: var(--pf-text); }

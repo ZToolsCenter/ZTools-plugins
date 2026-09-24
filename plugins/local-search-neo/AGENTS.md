@@ -29,6 +29,7 @@
 - `npm --prefix addon test`：Rust addon 测试。
 - `npm --prefix addon run build-release`：构建 release addon。
 - `npm run build`：完整构建，会先准备 pdfjs 和 addon。
+- `npm run version:set -- <version|patch|minor|major>`：统一修改 `plugin.json`、`package.json` 和 `package-lock.json` 的版本号。
 - `node scripts/test-everything-addon.cjs`：简单验证 addon 导出、Everything 状态、版本和查询结果。
 - `node scripts/benchmark-everything-addon.cjs`：压测/对比 Everything addon 查询性能。
 
@@ -38,12 +39,11 @@
 - 新增/修改 preload 服务时，同步更新：
   - `addon/index.d.ts`（如果是 addon 导出）
   - `src/env.d.ts`
-  - `src/devMock.ts`
 - 修改 addon 导出时同步更新：
   - `addon/src/lib.rs`
   - `addon/index.d.ts`
   - `addon/README.md`
 - 预览相关逻辑优先看 `src/Finder/composables/useFilePreview.ts`。
-- 文件类型判断和纯逻辑测试优先放在 `src/Finder/core/finderLogic.ts` / `.test.ts`。
+- 文件类型判断与纯逻辑测试优先放在 `src/Finder/core/`（如 `previewCandidate.ts`、`finderLogic.ts` 及对应 `.test.ts`）。
 - 不要直接假设 ZTools API 签名；先查 `node_modules/@ztools-center/ztools-api-types/ztools.api.d.ts`。
 - 查 Rust crate API 时优先看 docs.rs 文档，不要直接翻依赖源码。

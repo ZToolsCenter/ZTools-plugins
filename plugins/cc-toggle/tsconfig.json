@@ -1,0 +1,19 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "types": ["@ztools-center/ztools-api-types"],
+    "allowJs": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "src/**/*.d.ts",
+    "auto-imports.d.ts",
+    "components.d.ts"
+  ],
+  "exclude": ["node_modules", "dist", "public", "src/preload"]
+}

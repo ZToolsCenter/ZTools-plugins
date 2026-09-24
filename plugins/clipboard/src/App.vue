@@ -6,6 +6,8 @@ import { useClipboardData } from '@/composables/useClipboardData'
 import { useSelection } from '@/composables/useSelection'
 import { useContextMenu } from '@/composables/useContextMenu'
 import { useFavoriteDialog } from '@/composables/useFavoriteDialog'
+import { supportsMultiSelectClipboard } from '@/utils/appVersion'
+import { buildClipboardPayload } from '@/utils/clipboardPayload'
 import TabBar from '@/components/TabBar.vue'
 import ClipboardList from '@/components/ClipboardList.vue'
 import SideBar from '@/components/SideBar.vue'
@@ -17,8 +19,40 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 const activeTab = ref('all')
 const searchText = ref('')
 
+const getCurrentAppVersion = () => {
+  try {
+    return window.ztools.getAppVersion()
+  } catch (error) {
+    console.error('获取 ZTools 版本失败:', error)
+    return ''
+  }
+}
+
+const appVersion = ref(getCurrentAppVersion())
+const supportsMultiSelect = computed(() => supportsMultiSelectClipboard(appVersion.value))
+let lastUpgradeNoticeTime = 0
+
+const showMultiSelectUpgradeNotice = () => {
+  const now = Date.now()
+  if (now - lastUpgradeNoticeTime < 2000) return
+  lastUpgradeNoticeTime = now
+
+  const currentVersion = appVersion.value ? `（当前版本 ${appVersion.value}）` : ''
+  const message = `多选复制需要 ZTools 3.0.2 或 3.0.2-beta.x 及更高版本${currentVersion}，请升级后使用。`
+
+  if (typeof window.ztools.showToast === 'function') {
+    window.ztools.showToast(message, { type: 'warning', duration: 4500 })
+  } else if (typeof window.ztools.showNotification === 'function') {
+    window.ztools.showNotification(message)
+  } else {
+    console.warn(message)
+  }
+}
+
 // ---- Composables ----
-const { favorites, loadFavorites, addFavorite, deleteFavorite } = useFavorites()
+const {
+  favorites, loadFavorites, addFavorite, deleteFavorite, deleteFavorites, moveFavorite
+} = useFavorites()
 
 const {
   clipboardData, loading, loadingMore, hasMore, needsExpand, expandedItems,
@@ -33,43 +67,65 @@ const tabs = computed(() =>
   )
 )
 
-// 复制到剪贴板
-const copyToClipboard = async (id, shouldPaste = true) => {
+const isSuccessfulWrite = (result) => result === true || result?.success === true
+
+// 将当前选择写入剪贴板
+const writeClipboardItems = async (items, shouldPaste = true) => {
+  if (!items.length) return
+  if (items.length > 1 && !supportsMultiSelect.value) {
+    showMultiSelectUpgradeNotice()
+    return
+  }
+
   try {
-    if (activeTab.value === 'favorite') {
-      const item = favorites.value.find(i => i.id === id)
-      if (!item) return
-      let content = item.content
-      if (item.type === 'image') {
-        content = item.imagePath || item.content.replace('file://', '')
+    let result
+    if (items.length === 1 && activeTab.value !== 'favorite') {
+      result = await window.ztools.clipboard.write(items[0].id, shouldPaste)
+    } else {
+      const payload = buildClipboardPayload(items)
+      if (!payload) {
+        console.error('无法合并选中的剪贴板内容')
+        return
       }
-      await window.ztools.clipboard.writeContent({ type: item.type, content }, shouldPaste)
-      return
+      result = await window.ztools.clipboard.writeContent(payload, shouldPaste)
     }
-    await window.ztools.clipboard.write(id, shouldPaste)
+
+    if (!isSuccessfulWrite(result)) {
+      console.error('写入剪贴板失败:', result)
+    }
   } catch (error) {
     console.error('复制失败:', error)
   }
 }
 
 const showDeleteConfirm = ref(false)
-const deleteTargetItem = ref(null)
+const deleteTargetItems = ref([])
+const deleteFromFavorites = ref(false)
 
-const handleDeleteSelected = (item) => {
-  deleteTargetItem.value = item
+const handleDeleteSelected = (items) => {
+  deleteTargetItems.value = items.slice()
+  deleteFromFavorites.value = activeTab.value === 'favorite'
   showDeleteConfirm.value = true
 }
 
 const {
-  selectedIndex, clipboardListRef, resetSelection,
-  handleKeydown, copySelected, pasteSelected
-} = useSelection(filteredData, tabs, activeTab, copyToClipboard, handleDeleteSelected)
+  activeIndex, selectedItemSet, selectedCount, clipboardListRef, resetSelection,
+  handleItemClick, handleContextSelection, handleDoubleClick,
+  handleKeydown, handleToggleClick, copySelected, pasteSelected
+} = useSelection(filteredData, tabs, activeTab, writeClipboardItems, handleDeleteSelected)
+
+watch(selectedCount, (count, previousCount = 0) => {
+  if (count > 1 && previousCount <= 1 && !supportsMultiSelect.value) {
+    showMultiSelectUpgradeNotice()
+  }
+})
 
 const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu()
 const { favoriteDialog, openFavoriteDialog, confirmFavorite, cancelFavoriteDialog } = useFavoriteDialog()
 
 // ---- 事件处理 ----
-const handleContextMenu = (event, item) => {
+const handleContextMenu = (event, item, index) => {
+  handleContextSelection(index)
   showContextMenu(event, item, activeTab.value)
 }
 
@@ -78,26 +134,36 @@ const handleFavoriteConfirm = async (remark) => {
 }
 
 const handleDeleteItem = () => {
-  deleteTargetItem.value = contextMenu.value.item
+  deleteTargetItems.value = [contextMenu.value.item]
+  deleteFromFavorites.value = false
   hideContextMenu()
   showDeleteConfirm.value = true
 }
 
 const handleDeleteConfirm = async () => {
   showDeleteConfirm.value = false
-  if (!deleteTargetItem.value) return
+  if (deleteTargetItems.value.length === 0) return
+
   try {
-    await window.ztools.clipboard.delete(deleteTargetItem.value.id)
+    if (deleteFromFavorites.value) {
+      await deleteFavorites(deleteTargetItems.value)
+    } else {
+      await Promise.all(
+        deleteTargetItems.value.map(item => window.ztools.clipboard.delete(item.id))
+      )
+    }
     doReload()
   } catch (error) {
     console.error('删除失败:', error)
   }
-  deleteTargetItem.value = null
+  deleteTargetItems.value = []
+  deleteFromFavorites.value = false
 }
 
 const handleDeleteCancel = () => {
   showDeleteConfirm.value = false
-  deleteTargetItem.value = null
+  deleteTargetItems.value = []
+  deleteFromFavorites.value = false
 }
 
 const handleOpenFavoriteDialog = () => {
@@ -111,6 +177,27 @@ const handleDeleteFavorite = async (index) => {
     fetchClipboardHistory()
   }
 }
+
+const handleReorderFavorite = async ({ fromIndex, toIndex }) => {
+  await moveFavorite(fromIndex, toIndex)
+  checkTextOverflow()
+}
+
+const deleteConfirmTitle = computed(() =>
+  deleteFromFavorites.value ? '删除收藏' : '删除记录'
+)
+
+const deleteConfirmMessage = computed(() => {
+  const count = deleteTargetItems.value.length
+  if (deleteFromFavorites.value) {
+    return count > 1
+      ? `确定要删除选中的 ${count} 条收藏吗？`
+      : '确定要删除这条收藏吗？'
+  }
+  return count > 1
+    ? `确定要删除选中的 ${count} 条剪贴板记录吗？`
+    : '确定要删除这条剪贴板记录吗？'
+})
 
 const handleScroll = (event) => {
   const container = event.target
@@ -179,6 +266,18 @@ const isAnyModalOpen = computed(() =>
 
 const handleGlobalKeydown = (event) => {
   if (isAnyModalOpen.value) return
+
+  if (
+    (event.metaKey || event.ctrlKey) &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === 'f'
+  ) {
+    event.preventDefault()
+    focusSearchInput()
+    return
+  }
+
   handleKeydown(event)
 }
 
@@ -221,20 +320,24 @@ onUnmounted(() => {
         :loading="loading"
         :loading-more="loadingMore"
         :has-more="hasMore"
-        :selected-index="selectedIndex"
+        :active-index="activeIndex"
+        :selected-items="selectedItemSet"
         :active-tab="activeTab"
         :expanded-items="expandedItems"
         :needs-expand="needsExpand"
-        @select="selectedIndex = $event"
-        @dblclick="copyToClipboard($event)"
+        @select="handleItemClick"
+        @toggle-selection="handleToggleClick"
+        @dblclick="handleDoubleClick"
         @contextmenu="handleContextMenu"
         @toggle-expand="toggleExpand"
         @delete-favorite="handleDeleteFavorite"
+        @reorder-favorite="handleReorderFavorite"
         @scroll="handleScroll"
       />
     </div>
 
     <SideBar
+      :selected-count="selectedCount"
       @copy="copySelected"
       @paste="pasteSelected"
       @clear="handleClearClick"
@@ -244,7 +347,7 @@ onUnmounted(() => {
       :show="contextMenu.show"
       :x="contextMenu.x"
       :y="contextMenu.y"
-      :can-favorite="contextMenu.item?.type === 'text' || contextMenu.item?.type === 'image'"
+      :can-favorite="['text', 'image', 'file'].includes(contextMenu.item?.type)"
       @favorite="handleOpenFavoriteDialog"
       @delete="handleDeleteItem"
     />
@@ -266,8 +369,8 @@ onUnmounted(() => {
 
     <ConfirmDialog
       :show="showDeleteConfirm"
-      title="删除记录"
-      message="确定要删除这条剪贴板记录吗？"
+      :title="deleteConfirmTitle"
+      :message="deleteConfirmMessage"
       @confirm="handleDeleteConfirm"
       @cancel="handleDeleteCancel"
     />

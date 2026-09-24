@@ -1,0 +1,32 @@
+{
+  "name": "sql-formatter",
+  "title": "SQL 格式化",
+  "description": "离线格式化多种 SQL 方言，支持一键复制与粘贴 SQL 自动识别。",
+  "author": "hulin",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.cjs",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "height": 600,
+    "single": true
+  },
+  "features": [
+    {
+      "code": "sql-formatter.open",
+      "explain": "格式化 SQL",
+      "icon": "logo.png",
+      "cmds": [
+        "SQL 格式化",
+        "格式化 SQL",
+        "SQL Formatter",
+        {
+          "type": "regex",
+          "match": "/^(?:\\s|--[^\\n]*(?:\\n|$)|\\/\\*[\\s\\S]*?\\*\\/)*(?:select|with|insert|update|delete|create|alter|drop|merge|replace|truncate|explain|grant|revoke)\\b[\\s\\S]{5,}$/i",
+          "label": "格式化这段 SQL",
+          "minLength": 8
+        }
+      ]
+    }
+  ]
+}

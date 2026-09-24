@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.zpx-stage/
+*.log
+*.tmp
+*.asar
+*.zpx
+coverage/
+.DS_Store
+Thumbs.db
+
+# 过滤AI目录
+.claude
+.codex
+.pi
+.serena
+.spec-workflow
+.playwright-mcp
+.ai-ignore

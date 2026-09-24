@@ -1,0 +1,217 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+
+  <!-- 背景渐变 -->
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#4338CA"/>
+    <stop offset="55%" stop-color="#7C3AED"/>
+    <stop offset="100%" stop-color="#A78BFA"/>
+  </linearGradient>
+
+  <!-- 锤头金属渐变 -->
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#FFFFFF"/>
+    <stop offset="45%" stop-color="#E2E8F0"/>
+    <stop offset="100%" stop-color="#94A3B8"/>
+  </linearGradient>
+
+  <!-- 锤柄 -->
+  <linearGradient id="handle" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#F8FAFC"/>
+    <stop offset="100%" stop-color="#CBD5E1"/>
+  </linearGradient>
+
+  <!-- 火花 -->
+  <radialGradient id="spark">
+    <stop offset="0%" stop-color="#FEF3C7"/>
+    <stop offset="60%" stop-color="#FBBF24"/>
+    <stop offset="100%" stop-color="#F59E0B"/>
+  </radialGradient>
+
+  <!-- 阴影 -->
+  <filter id="shadow">
+    <feGaussianBlur stdDeviation="8"/>
+  </filter>
+
+  <!-- 发光 -->
+  <filter id="glow">
+    <feGaussianBlur stdDeviation="5" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+
+  <clipPath id="radius">
+    <rect width="512" height="512" rx="110"/>
+  </clipPath>
+
+</defs>
+
+
+<!-- 背景 -->
+<g clip-path="url(#radius)">
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- 环境光 -->
+  <circle cx="390" cy="80" r="180"
+          fill="#FFFFFF"
+          opacity="0.08"/>
+
+  <circle cx="100" cy="430" r="160"
+          fill="#FFFFFF"
+          opacity="0.05"/>
+</g>
+
+
+<!-- 锤子投影 -->
+<ellipse cx="260"
+         cy="270"
+         rx="100"
+         ry="22"
+         fill="#111827"
+         opacity="0.25"
+         filter="url(#shadow)"/>
+
+
+<!-- ================= 锤子 ================= -->
+
+
+<!-- 锤柄 -->
+<line x1="205"
+      y1="145"
+      x2="300"
+      y2="270"
+      stroke="url(#handle)"
+      stroke-width="22"
+      stroke-linecap="round"/>
+
+
+<!-- 锤柄高光 -->
+<line x1="202"
+      y1="145"
+      x2="294"
+      y2="262"
+      stroke="#FFFFFF"
+      stroke-width="4"
+      opacity="0.35"
+      stroke-linecap="round"/>
+
+
+
+<!-- 锤头 -->
+<g transform="rotate(-35 205 125)">
+
+  <rect x="140"
+        y="90"
+        width="130"
+        height="65"
+        rx="18"
+        fill="url(#metal)"/>
+
+
+  <!-- 锤头顶部高光 -->
+  <rect x="165"
+        y="105"
+        width="85"
+        height="12"
+        rx="6"
+        fill="#FFFFFF"
+        opacity="0.55"/>
+
+
+  <!-- 边缘暗部 -->
+  <rect x="155"
+        y="140"
+        width="100"
+        height="8"
+        rx="4"
+        fill="#64748B"
+        opacity="0.18"/>
+
+</g>
+
+
+
+<!-- ================= 锻造火花 ================= -->
+
+<g filter="url(#glow)">
+
+  <!-- 能量光 -->
+  <path d="
+  M270 220
+  L285 190
+  L300 220
+  L330 235
+  L300 250
+  L285 285
+  L270 250
+  L240 235 Z"
+  fill="#FDE68A"
+  opacity="0.22"/>
+
+
+  <!-- 火花 -->
+  <circle cx="230" cy="190" r="7" fill="url(#spark)"/>
+  <circle cx="270" cy="175" r="5" fill="url(#spark)"/>
+  <circle cx="315" cy="195" r="6" fill="url(#spark)"/>
+
+</g>
+
+
+<!-- 火花轨迹 -->
+<g stroke="#FDE68A"
+   stroke-width="3"
+   stroke-linecap="round"
+   opacity="0.8">
+
+  <line x1="230"
+        y1="205"
+        x2="220"
+        y2="225"/>
+
+  <line x1="270"
+        y1="190"
+        x2="280"
+        y2="215"/>
+
+  <line x1="315"
+        y1="210"
+        x2="330"
+        y2="230"/>
+
+</g>
+
+
+
+<!-- ================= 品牌文字 ================= -->
+
+
+<text x="256"
+      y="355"
+      text-anchor="middle"
+      font-family="PingFang SC, Microsoft YaHei, sans-serif"
+      font-size="104"
+      font-weight="900"
+      letter-spacing="16"
+      fill="#FFFFFF">
+词匠
+</text>
+
+
+
+<!-- 英文副标题 -->
+<text x="256"
+      y="410"
+      text-anchor="middle"
+      font-family="Arial, sans-serif"
+      font-size="17"
+      font-weight="600"
+      letter-spacing="7"
+      fill="#FFFFFF"
+      opacity="0.5">
+PROMPT FORGE
+</text>
+
+
+</svg>

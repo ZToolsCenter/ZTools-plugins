@@ -1,0 +1,76 @@
+.bottom-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+   gap: var(--sp-4);
+  height: 28px;
+  padding: 0 var(--sp-4);
+  border-top: 1px solid var(--color-border-light);
+  background: var(--paper);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--clay);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.legend-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.legend-icon.swipe-right {
+  color: var(--color-success);
+}
+
+.legend-icon.swipe-left {
+  color: var(--color-danger);
+}
+
+.legend-icon.edit {
+  color: var(--teal);
+}
+
+.legend-icon.drag {
+  color: var(--indigo);
+}
+
+.legend-shortcut-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--clay);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.legend-shortcut-btn:hover {
+  background: var(--color-hover-bg);
+  color: var(--ink);
+}
+
+.legend-shortcut-btn .legend-key {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  background: var(--color-background-light);
+  border: 1px solid var(--color-border-light);
+  border-radius: 2px;
+  padding: 0 3px;
+  line-height: 1.4;
+}

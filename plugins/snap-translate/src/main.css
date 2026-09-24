@@ -1,0 +1,31 @@
+/* 全局重置；按钮 / 输入框具体样式由 ztools-ui/style 提供 */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#app {
+  height: 100%;
+  overflow: auto;
+}
+
+/* 成功/失败 toast 只显示，不能挡住后面的菜单和按钮 */
+.toast {
+  pointer-events: none;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: #f4f4f4;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #303133;
+    color: #fff;
+  }
+}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>固定截图</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #000000;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      cursor: move;
+      user-select: none;
+    }
+    #pin-image { width: 100%; height: 100%; display: block; object-fit: fill; }
+    #pin-close {
+      position: fixed; top: 6px; right: 6px;
+      width: 26px; height: 26px;
+      border: none; border-radius: 8px;
+      background: rgba(17, 20, 24, .62);
+      color: #ffffff; font-size: 14px; line-height: 1;
+      cursor: pointer; opacity: 0;
+      transition: opacity .15s ease, background .15s ease;
+    }
+    body:hover #pin-close { opacity: 1; }
+    #pin-close:hover { background: rgba(220, 38, 38, .85); }
+    #pin-hint {
+      position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(17, 20, 24, .68); color: #e5e7eb;
+      font-size: 12px; white-space: nowrap;
+      opacity: 0; transition: opacity .18s ease; pointer-events: none;
+    }
+    #pin-hint.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+  <img id="pin-image" alt="固定截图">
+  <button id="pin-close" title="关闭 (Esc)">✕</button>
+  <div id="pin-hint">滚轮缩放 · 拖动移动 · 双击或 Esc 关闭</div>
+  <script type="module" src="/src/capture/pin.js"></script>
+</body>
+</html>

@@ -1,8 +1,9 @@
 import BaseModule from './BaseModule.js';
 import eventBus from '../EventBus.js';
+import { clamp, escapeAttr, normalizeColor } from '../utils/helpers.js';
 
 /**
- * 图形绘制模块 - 支持矩形、椭圆、星星、心形、梯形、直线、箭头等多种图形
+ * 图形绘制模块 - 支持矩形、椭圆、星星、心形、梯形、平行四边形、菱形、直线、箭头等多种图形
  */
 class ShapeModule extends BaseModule {
   static SHAPE_OPTIONS = [
@@ -12,6 +13,8 @@ class ShapeModule extends BaseModule {
     { type: 'star', preset: 'shape-type-star', label: '星星', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16 4 19.4 12 28 12.6 21.4 18 23.4 26.4 16 21.8 8.6 26.4 10.6 18 4 12.6 12.6 12" /></svg>' },
     { type: 'heart', preset: 'shape-type-heart', label: '心形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27C8.3 20.6 4 16.6 4 11.3C4 7.3 6.9 4.5 10.7 4.5C13 4.5 15 5.8 16 7.8C17 5.8 19 4.5 21.3 4.5C25.1 4.5 28 7.3 28 11.3C28 16.6 23.7 20.6 16 27Z" /></svg>' },
     { type: 'trapezoid', preset: 'shape-type-trapezoid', label: '梯形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="10 8 22 8 28 24 4 24" /></svg>' },
+    { type: 'parallelogram', preset: 'shape-type-parallelogram', label: '平行四边形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="9 8 26 8 23 24 6 24" /></svg>' },
+    { type: 'diamond', preset: 'shape-type-diamond', label: '菱形', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><polygon points="16 4 28 16 16 28 4 16" /></svg>' },
     { type: 'line', preset: 'shape-type-line', label: '直线', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><line x1="5" y1="24" x2="27" y2="8" /></svg>' },
     { type: 'arrow', preset: 'shape-type-arrow', label: '箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L25 8" /><path d="M16 7H26V17" /></svg>' },
     { type: 'double-arrow', preset: 'shape-type-double-arrow', label: '双箭头', icon: '<svg class="shape-icon-svg" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24L27 8" /><path d="M18 7H28V17" /><path d="M14 25H4V15" /></svg>' },
@@ -58,10 +61,16 @@ class ShapeModule extends BaseModule {
 
     canvas.discardActiveObject();
     canvas.defaultCursor = 'crosshair';
-    canvas.upperCanvasEl?.addEventListener('mousedown', this._boundMouseDown);
-    canvas.upperCanvasEl?.addEventListener('mousemove', this._boundMouseMove);
-    canvas.upperCanvasEl?.addEventListener('mouseup', this._boundMouseUp);
-    canvas.upperCanvasEl?.addEventListener('mouseout', this._boundMouseOut);
+    // 禁用 Fabric.js 的目标查找，防止拖选绘制时意外移动图层
+    canvas.skipTargetFind = true;
+
+    // 使用 Fabric.js 合成事件（与其他模块一致），
+    // 确保在 Fabric 内部处理完事件后才接收，避免原生 DOM 事件与
+    // Fabric.js 内部 __onMouseDown 同时处理同一事件导致的状态冲突
+    canvas.on('mouse:down', this._boundMouseDown);
+    canvas.on('mouse:move', this._boundMouseMove);
+    canvas.on('mouse:up', this._boundMouseUp);
+    canvas.on('mouse:out', this._boundMouseOut);
 
     eventBus.emit('module:activated', 'shape');
   }
@@ -69,10 +78,12 @@ class ShapeModule extends BaseModule {
   deactivate() {
     const canvas = this.canvasManager.canvas;
     if (canvas) {
-      canvas.upperCanvasEl?.removeEventListener('mousedown', this._boundMouseDown);
-      canvas.upperCanvasEl?.removeEventListener('mousemove', this._boundMouseMove);
-      canvas.upperCanvasEl?.removeEventListener('mouseup', this._boundMouseUp);
-      canvas.upperCanvasEl?.removeEventListener('mouseout', this._boundMouseOut);
+      canvas.off('mouse:down', this._boundMouseDown);
+      canvas.off('mouse:move', this._boundMouseMove);
+      canvas.off('mouse:up', this._boundMouseUp);
+      canvas.off('mouse:out', this._boundMouseOut);
+      // 重置 skipTargetFind，避免影响后续工具（如 SelectModule）
+      canvas.skipTargetFind = false;
       this._removePreviewShape();
       this._isDrawing = false;
       this._startPoint = null;
@@ -84,20 +95,20 @@ class ShapeModule extends BaseModule {
   }
 
   setShapeType(type) {
-    if (['rect', 'triangle', 'circle', 'star', 'heart', 'trapezoid', 'line', 'arrow', 'double-arrow'].includes(type)) {
+    if (['rect', 'triangle', 'circle', 'star', 'heart', 'trapezoid', 'parallelogram', 'diamond', 'line', 'arrow', 'double-arrow'].includes(type)) {
       this.options.shapeType = type;
     }
   }
 
   setFill(fill) {
-    const normalized = this._normalizeColor(fill, this.options.fill, true);
+    const normalized = normalizeColor(fill, this.options.fill, true);
     this.options.fill = this._hasExplicitOpacity(normalized)
       ? normalized
       : this._withColorOpacity(normalized, this._getColorOpacity(this.options.fill));
   }
 
   setStroke(stroke) {
-    const normalized = this._normalizeColor(stroke, this.options.stroke, false);
+    const normalized = normalizeColor(stroke, this.options.stroke, false);
     this.options.stroke = this._hasExplicitOpacity(normalized)
       ? normalized
       : this._withColorOpacity(normalized, this._getColorOpacity(this.options.stroke));
@@ -131,6 +142,8 @@ class ShapeModule extends BaseModule {
       'shape-type-star': { shapeType: 'star' },
       'shape-type-heart': { shapeType: 'heart' },
       'shape-type-trapezoid': { shapeType: 'trapezoid' },
+      'shape-type-parallelogram': { shapeType: 'parallelogram' },
+      'shape-type-diamond': { shapeType: 'diamond' },
       'shape-type-line': { shapeType: 'line' },
       'shape-type-arrow': { shapeType: 'arrow' },
       'shape-type-double-arrow': { shapeType: 'double-arrow' },
@@ -172,8 +185,10 @@ class ShapeModule extends BaseModule {
           <span class="shape-picker-trigger__arrow">▾</span>
         </button>
       </div>
-      <div class="options-group">
-        ${colorPresets}
+      <div class="options-group options-group--scrollable shape-style-group">
+        <div class="shape-style-scroll">
+          ${colorPresets}
+        </div>
       </div>
       <div class="options-group">
         <button class="options-btn options-btn-sm ${strokeWidth === 1 ? 'active' : ''}" data-preset="shape-width-thin">细</button>
@@ -253,7 +268,7 @@ class ShapeModule extends BaseModule {
         <input type="range" class="property-range" data-module-prop="strokeWidth" min="1" max="20" value="${this.options.strokeWidth}" />
         <span class="property-value">${this.options.strokeWidth}px</span>
       </div>
-      <div class="property-empty">拖拽鼠标绘制图形，支持矩形、三角形、椭圆、星星、心形等。</div>
+      <div class="property-empty">拖拽鼠标绘制图形，支持矩形、三角形、椭圆、星星、心形、菱形等。</div>
     `;
   }
 
@@ -280,12 +295,14 @@ class ShapeModule extends BaseModule {
   }
 
   _onMouseDown(e) {
-    if (e.button !== 0) return;
+    // Fabric.js 合成事件：e.e 是原生 DOM 事件，e.pointer 是画布坐标
+    const nativeEvent = e?.e;
+    if (nativeEvent && typeof nativeEvent.button === 'number' && nativeEvent.button !== 0) return;
 
     const canvas = this.canvasManager.canvas;
     if (!canvas) return;
 
-    const pointer = canvas.getPointer(e);
+    const pointer = e.pointer || canvas.getPointer(nativeEvent);
     this._isDrawing = true;
     this._startPoint = { x: pointer.x, y: pointer.y };
     this.history.saveState();
@@ -298,7 +315,7 @@ class ShapeModule extends BaseModule {
     const canvas = this.canvasManager.canvas;
     if (!canvas) return;
 
-    const pointer = canvas.getPointer(e);
+    const pointer = e.pointer || canvas.getPointer(e.e);
     const endPoint = { x: pointer.x, y: pointer.y };
 
     // 移除旧的预览形状
@@ -319,7 +336,7 @@ class ShapeModule extends BaseModule {
     const canvas = this.canvasManager.canvas;
     if (!canvas) return;
 
-    const pointer = canvas.getPointer(e);
+    const pointer = e.pointer || canvas.getPointer(e.e);
     const endPoint = { x: pointer.x, y: pointer.y };
 
     // 移除预览形状
@@ -415,6 +432,12 @@ class ShapeModule extends BaseModule {
       case 'trapezoid':
         return this._createTrapezoid(left, top, width, height, commonProps);
 
+      case 'parallelogram':
+        return this._createParallelogram(left, top, width, height, commonProps);
+
+      case 'diamond':
+        return this._createDiamond(left, top, width, height, commonProps);
+
       case 'line':
         return this._createLine(startPoint, endPoint, commonProps);
 
@@ -498,6 +521,27 @@ class ShapeModule extends BaseModule {
     });
   }
 
+  _createParallelogram(left, top, width, height, props) {
+    const centerX = left + width / 2;
+    const centerY = top + height / 2;
+    const skewX = width * 0.22;
+    const baseWidth = width - 2 * skewX;
+    const points = [
+      { x: -baseWidth / 2 + skewX, y: -height / 2 },
+      { x: baseWidth / 2 + skewX, y: -height / 2 },
+      { x: baseWidth / 2 - skewX, y: height / 2 },
+      { x: -baseWidth / 2 - skewX, y: height / 2 },
+    ];
+
+    return new fabric.Polygon(points, {
+      ...props,
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+    });
+  }
+
   _createTriangle(left, top, width, height, props) {
     const centerX = left + width / 2;
     const centerY = top + height / 2;
@@ -505,6 +549,25 @@ class ShapeModule extends BaseModule {
       { x: 0, y: -height / 2 },
       { x: width / 2, y: height / 2 },
       { x: -width / 2, y: height / 2 },
+    ];
+
+    return new fabric.Polygon(points, {
+      ...props,
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+    });
+  }
+
+  _createDiamond(left, top, width, height, props) {
+    const centerX = left + width / 2;
+    const centerY = top + height / 2;
+    const points = [
+      { x: 0, y: -height / 2 },
+      { x: width / 2, y: 0 },
+      { x: 0, y: height / 2 },
+      { x: -width / 2, y: 0 },
     ];
 
     return new fabric.Polygon(points, {
@@ -611,22 +674,7 @@ class ShapeModule extends BaseModule {
   }
 
   _normalizeColor(color, fallback = '#000000', allowTransparent = false) {
-    if (allowTransparent && color === 'transparent') return 'transparent';
-
-    if (typeof color !== 'string') return fallback;
-
-    const value = color.trim().toLowerCase();
-
-    // 处理 rgba 格式
-    if (value.startsWith('rgba')) return value;
-
-    // 处理 hex 格式
-    if (/^#[0-9a-f]{6}$/i.test(value)) return value;
-    if (/^#[0-9a-f]{3}$/i.test(value)) {
-      return '#' + value.slice(1).split('').map(ch => ch + ch).join('');
-    }
-
-    return fallback;
+    return normalizeColor(color, fallback, allowTransparent);
   }
 
   _normalizeComparableColor(color) {
@@ -730,16 +778,11 @@ class ShapeModule extends BaseModule {
   }
 
   _clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+    return clamp(value, min, max);
   }
 
   _escapeAttr(value) {
-    return String(value ?? '').replace(/[&<>"]/g, ch => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-    }[ch]));
+    return escapeAttr(value);
   }
 }
 

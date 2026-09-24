@@ -1,7 +1,7 @@
 <script setup>
 import { ref, h, onMounted, onBeforeUnmount, nextTick, watch, computed } from 'vue';
-import { ElFooter, ElRow, ElCol, ElText, ElDivider, ElButton, ElInput, ElMessage, ElTooltip, ElScrollbar, ElIcon, ElImage } from 'element-plus';
-import { Close, Check, Document, Delete, Collection, Picture } from '@element-plus/icons-vue';
+import { ElFooter, ElRow, ElCol, ElText, ElDivider, ElButton, ElInput, ElMessage, ElMessageBox, ElTag, ElTooltip, ElScrollbar, ElIcon, ElImage, ElDialog, ElSwitch, ElInputNumber } from 'element-plus';
+import { Close, Check, Document, Delete, Collection, Picture, ChatLineRound, Fold, RefreshRight, InfoFilled, ArrowDown, ArrowRight } from '@element-plus/icons-vue';
 
 // --- Props and Emits ---
 const prompt = defineModel('prompt');
@@ -18,11 +18,33 @@ const props = defineProps({
     allMcpServers: { type: Array, default: () => [] },
     activeMcpIds: { type: Array, default: () => [] },
     activeSkillIds: { type: Array, default: () => [] },
-    allSkills: { type: Array, default: () => [] }
+    allSkills: { type: Array, default: () => [] },
+    appendBuffer: { type: Array, default: () => [] },
+    subAgentTasks: { type: Array, default: () => [] },
+    subAgentDetails: { type: Object, default: () => ({}) },
+    compacting: { type: Boolean, default: false },
+    compactProgress: {
+        type: Object,
+        default: () => ({ percent: 0, message: '', stage: '' })
+    },
+    compactConfig: {
+        type: Object,
+        default: () => ({
+            autoCompactEnabled: true,
+            triggerRatio: 0.9,
+            contextLength: 262144,
+            contextLengthSource: 'default',
+            contextLengthManual: false,
+            keepRecentRounds: 3,
+            compactPrompt: '',
+            resolvedId: ''
+        })
+    },
+    canRestoreCompact: { type: Boolean, default: false }
 });
 
 // 增加 toggle-mcp 事件
-const emit = defineEmits(['submit', 'cancel', 'clear-history', 'remove-file', 'upload', 'send-audio', 'open-mcp-dialog', 'pick-file-start', 'toggle-mcp', 'toggle-skill', 'open-skill-dialog']);
+const emit = defineEmits(['submit', 'cancel', 'clear-history', 'remove-file', 'upload', 'send-audio', 'open-mcp-dialog', 'pick-file-start', 'toggle-mcp', 'toggle-skill', 'open-skill-dialog', 'cancel-buffer', 'stop-subagent', 'acknowledge-subagent', 'acknowledge-all-subagents', 'rerun-subagent', 'open-subagent-detail', 'close-subagent-detail', 'open-compact-dialog', 'run-compact', 'cancel-compact', 'save-compact-config', 'apply-compact-advanced-global', 'reset-compact-config', 'refresh-compact-context', 'restore-compact']);
 
 // --- Refs and State ---
 const senderRef = ref(null);
@@ -31,6 +53,190 @@ const waveformCanvasContainer = ref(null);
 const isDragging = ref(false);
 const dragCounter = ref(0);
 const isRecording = ref(false);
+
+const subAgentDialogVisible = ref(false);
+const selectedSubAgentId = ref('');
+const compactDialogVisible = ref(false);
+const advancedCollapsed = ref(true);
+const localCompactConfig = ref({
+    autoCompactEnabled: true,
+    triggerRatio: 0.9,
+    contextLength: 262144,
+    contextLengthSource: 'default',
+    contextLengthManual: false,
+    keepRecentRounds: 3,
+    compactPrompt: '',
+    resolvedId: ''
+});
+
+const compactStatusText = computed(() => {
+    if (!props.compacting) return '';
+    return props.compactProgress?.message || '正在压缩…';
+});
+const interactionLocked = computed(() => Boolean(props.loading || props.compacting));
+
+watch(() => props.compactConfig, (next) => {
+    if (!next || typeof next !== 'object') return;
+    localCompactConfig.value = {
+        autoCompactEnabled: next.autoCompactEnabled !== false,
+        triggerRatio: Number.isFinite(Number(next.triggerRatio)) ? Number(next.triggerRatio) : 0.9,
+        contextLength: Number.isFinite(Number(next.contextLength)) ? Number(next.contextLength) : 262144,
+        contextLengthSource: next.contextLengthSource || 'default',
+        contextLengthManual: next.contextLengthManual === true || next.contextLengthSource === 'manual',
+        keepRecentRounds: Number.isFinite(Number(next.keepRecentRounds)) ? Number(next.keepRecentRounds) : 3,
+        compactPrompt: typeof next.compactPrompt === 'string' ? next.compactPrompt : '',
+        resolvedId: typeof next.resolvedId === 'string' ? next.resolvedId : ''
+    };
+}, { deep: true, immediate: true });
+
+const contextLengthSourceLabel = computed(() => {
+    const source = localCompactConfig.value.contextLengthSource || 'default';
+    if (source === 'manual' || localCompactConfig.value.contextLengthManual) return '手动';
+    if (source === 'api') return 'api';
+    if (source === 'cache') return '缓存';
+    if (source === 'default') return '默认';
+    return source;
+});
+
+// 自动压缩时不要强行打开配置弹窗；仅当用户已打开弹窗时，在弹窗内展示进度
+watch(() => props.compacting, (isCompacting, wasCompacting) => {
+    if (!isCompacting && wasCompacting && compactDialogVisible.value) {
+        // 手动压缩结束：保留弹窗（用户可继续改参数/关闭）；不自动跳回
+    }
+});
+
+const openCompactDialog = async () => {
+    compactDialogVisible.value = true;
+    if (props.compacting) return;
+    // Resolve context length immediately after opening so UI shows correct value ASAP.
+    emit('open-compact-dialog');
+};
+
+const saveCompactConfig = () => {
+    emit('save-compact-config', {
+        ...localCompactConfig.value,
+        contextLengthManual: true,
+        contextLengthSource: 'manual'
+    });
+};
+
+const resetCompactConfigToDefault = async () => {
+    try {
+        await ElMessageBox.confirm(
+            '将当前模型的压缩参数恢复为默认值（含触发阈值、高级参数与摘要 Prompt），并重新检索上下文长度。是否继续？',
+            '恢复默认参数',
+            {
+                type: 'warning',
+                confirmButtonText: '恢复默认',
+                cancelButtonText: '取消'
+            }
+        );
+    } catch {
+        return;
+    }
+    emit('reset-compact-config');
+};
+
+const applyAdvancedToGlobal = () => {
+    emit('apply-compact-advanced-global', {
+        autoCompactEnabled: localCompactConfig.value.autoCompactEnabled,
+        triggerRatio: localCompactConfig.value.triggerRatio,
+        keepRecentRounds: localCompactConfig.value.keepRecentRounds,
+        compactPrompt: localCompactConfig.value.compactPrompt
+    });
+};
+
+const runCompactNow = () => {
+    // Parent saves this patch before starting compaction so the new context length is in effect.
+    compactDialogVisible.value = true;
+    emit('run-compact', {
+        ...localCompactConfig.value,
+        contextLengthManual: true,
+        contextLengthSource: 'manual'
+    });
+};
+
+const cancelCompact = () => {
+    emit('cancel-compact');
+};
+
+const refreshCompactContext = () => {
+    emit('refresh-compact-context');
+};
+
+const restoreCompact = () => {
+    emit('restore-compact');
+};
+
+
+const selectedSubAgent = computed(() => {
+    const summary = props.subAgentTasks.find((item) => item?.subagent_id === selectedSubAgentId.value) || null;
+    const detail = props.subAgentDetails?.[selectedSubAgentId.value] || null;
+    return detail ? { ...summary, ...detail } : summary;
+});
+const subAgentStatusLabel = (status) => ({ running: '运行中', completed: '已完成', stopped: '已停止', failed: '出错' }[status] || '未知');
+const subAgentStatusType = (status) => ({ running: 'warning', completed: 'success', stopped: 'info', failed: 'danger' }[status] || 'info');
+const shortSubAgentId = (task) => String(task?.subagent_id || '').replace(/^subagent_/, '').slice(0, 4) || '----';
+const subAgentDisplayName = (task) => String(task?.task || '后台 Sub-Agent').replace(/\s+/g, ' ').trim() || '后台 Sub-Agent';
+const subAgentDetailOutput = computed(() => {
+    const task = selectedSubAgent.value;
+    if (!task) return '';
+    return task.final_result || task.error || task.latest_log || '正在加载运行输出…';
+});
+
+const openSubAgentDialog = (task) => {
+    if (!task?.subagent_id) return;
+    selectedSubAgentId.value = task.subagent_id;
+    subAgentDialogVisible.value = true;
+    emit('open-subagent-detail', task.subagent_id);
+};
+
+const requestStopSelectedSubAgent = async () => {
+    const task = selectedSubAgent.value;
+    if (!task || task.status !== 'running') return;
+    try {
+        await ElMessageBox.confirm(`确定结束 Sub-Agent「${subAgentDisplayName(task)}」吗？该操作只会停止此后台任务。`, '结束运行', {
+            confirmButtonText: '结束运行',
+            cancelButtonText: '取消',
+            type: 'warning'
+        });
+        emit('stop-subagent', task.subagent_id);
+    } catch {
+        // User cancelled the confirmation dialog.
+    }
+};
+
+const closeSubAgentDialog = () => {
+    subAgentDialogVisible.value = false;
+    emit('close-subagent-detail');
+};
+
+const acknowledgeSelectedSubAgent = () => {
+    const task = selectedSubAgent.value;
+    if (!task?.subagent_id) return;
+    emit('acknowledge-subagent', task.subagent_id);
+    closeSubAgentDialog();
+};
+
+const finishedSubAgentCount = computed(() =>
+    (props.subAgentTasks || []).filter((task) => task?.status && task.status !== 'running').length
+);
+
+const acknowledgeAllFinishedSubAgents = () => {
+    if (finishedSubAgentCount.value <= 0) return;
+    emit('acknowledge-all-subagents');
+    if (selectedSubAgent.value && selectedSubAgent.value.status !== 'running') {
+        closeSubAgentDialog();
+    }
+};
+
+const rerunSelectedSubAgent = () => {
+    const task = selectedSubAgent.value;
+    if (!task?.subagent_id || task.status === 'running') return;
+    emit('rerun-subagent', task.subagent_id);
+};
+
+
 
 // --- MCP Quick Select State ---
 const showMcpQuickSelect = ref(false);
@@ -68,7 +274,7 @@ watch(() => props.voiceList, (newVal) => {
 
 // --- Computed Properties ---
 const reasoningTooltipContent = computed(() => {
-    const map = { default: '默认', low: '低', medium: '中', high: '高' };
+    const map = { default: '默认', none:'关闭', low: '低', medium: '中', high: '高', xhigh: '极深'};
     return `思考预算: ${map[tempReasoningEffort.value] || '默认'}`;
 });
 
@@ -266,12 +472,12 @@ const handleKeyDown = (event) => {
             insertNewline();
         } else if (!event.shiftKey) {
             event.preventDefault();
-            if (!props.loading) emit('submit');
+            emit('submit');
         }
     } else {
         if (isCtrlOrMetaPressed) {
             event.preventDefault();
-            if (!props.loading) emit('submit');
+            emit('submit');
         }
     }
 };
@@ -286,10 +492,11 @@ const handleMcpClick = (server) => {
     handleToggleMcp(server.id);
 };
 
-const onSubmit = () => { if (props.loading) return; emit('submit'); };
+const onSubmit = () => { emit('submit'); };
 const onCancel = () => emit('cancel');
 const onClearHistory = () => emit('clear-history');
 const onRemoveFile = (index) => emit('remove-file', index);
+const onCancelBuffer = (index) => emit('cancel-buffer', index);
 
 const toggleReasoningSelector = () => {
     if (isRecording.value) return;
@@ -570,6 +777,52 @@ defineExpose({ focus, senderRef });
     </div>
 
     <el-footer class="input-footer">
+        <!-- 追加消息缓冲区（位于文件上传区上方） -->
+        <el-row v-if="appendBuffer && appendBuffer.length > 0 && !isRecording">
+            <el-col :span="24">
+                <div class="append-buffer-container">
+                    <div class="append-buffer-title">缓冲区 · 本轮结束后自动发送</div>
+                    <div v-for="(item, index) in appendBuffer" :key="index" class="append-buffer-item">
+                        <el-icon :size="13" class="append-buffer-icon"><ChatLineRound /></el-icon>
+                        <span class="append-buffer-text">{{ item.preview || item.text || '追问消息' }}</span>
+                        <el-button class="append-buffer-remove" type="danger" link :icon="Close" size="small"
+                            @click="onCancelBuffer(index)" />
+                    </div>
+                </div>
+            </el-col>
+        </el-row>
+
+
+        <!-- 后台 Sub-Agent 标签（位于输入框上方） -->
+        <el-row v-if="subAgentTasks && subAgentTasks.length > 0 && !isRecording">
+            <el-col :span="24">
+                <div class="subagent-tag-container">
+                    <div class="subagent-tag-header">
+                        <span class="subagent-tag-prefix">SubAgent</span>
+                        <el-button
+                            v-if="finishedSubAgentCount > 0"
+                            class="subagent-ack-all-btn"
+                            size="small"
+                            type="primary"
+                            plain
+                            @click="acknowledgeAllFinishedSubAgents"
+                        >
+                            一键已阅{{ finishedSubAgentCount > 1 ? ` (${finishedSubAgentCount})` : '' }}
+                        </el-button>
+                    </div>
+                    <div class="subagent-tag-scroll">
+                        <div class="subagent-tag-list">
+                            <el-tag v-for="task in subAgentTasks" :key="task.subagent_id" class="subagent-tag"
+                                :type="subAgentStatusType(task.status)" effect="plain" round
+                                :title="task.subagent_id" @click="openSubAgentDialog(task)">
+                                <code>{{ shortSubAgentId(task) }}</code>
+                            </el-tag>
+                        </div>
+                    </div>
+                </div>
+            </el-col>
+        </el-row>
+
         <!-- 文件列表 -->
         <el-row v-if="fileList.length > 0 && !isRecording">
             <el-col :span="0" />
@@ -590,6 +843,8 @@ defineExpose({ focus, senderRef });
                             >
                                 <template #error>
                                     <el-icon :size="20" style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;"><Picture /></el-icon>
+                                
+
                                 </template>
                             </el-image>
                             <!-- 非图片文件显示默认图标 -->
@@ -648,12 +903,16 @@ defineExpose({ focus, senderRef });
                         <el-divider direction="vertical" />
                         <el-button @click="handleReasoningSelection('default')"
                             :type="tempReasoningEffort === 'default' ? 'primary' : 'default'" round>默认</el-button>
+                        <el-button @click="handleReasoningSelection('none')"
+                            :type="tempReasoningEffort === 'none' ? 'primary' : 'default'" round>关闭</el-button>
                         <el-button @click="handleReasoningSelection('low')"
                             :type="tempReasoningEffort === 'low' ? 'primary' : 'default'" round>快速</el-button>
                         <el-button @click="handleReasoningSelection('medium')"
                             :type="tempReasoningEffort === 'medium' ? 'primary' : 'default'" round>均衡</el-button>
                         <el-button @click="handleReasoningSelection('high')"
                             :type="tempReasoningEffort === 'high' ? 'primary' : 'default'" round>深入</el-button>
+                        <el-button @click="handleReasoningSelection('xhigh')"
+                            :type="tempReasoningEffort === 'xhigh' ? 'primary' : 'default'" round>极深</el-button>
                     </div>
                 </div>
             </el-col>
@@ -821,14 +1080,10 @@ defineExpose({ focus, senderRef });
                                     :class="{ 'is-active-special': isMcpActive }" @click="$emit('open-mcp-dialog')">
                                     <el-icon :size="18">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hammer"
-                                            aria-hidden="true">
-                                            <path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"></path>
-                                            <path d="m18 15 4-4"></path>
-                                            <path
-                                                d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5">
-                                            </path>
+                                            viewBox="0 0 180 180" fill="none" aria-hidden="true">
+                                            <path d="M18 84.8528L85.8822 16.9706C95.2548 7.59798 110.451 7.59798 119.823 16.9706C129.196 26.3431 129.196 41.5391 119.823 50.9117L68.5581 102.177" stroke="currentColor" stroke-width="12" stroke-linecap="round" />
+                                            <path d="M69.2652 101.47L119.823 50.9117C129.196 41.5391 144.392 41.5391 153.765 50.9117L154.118 51.2652C163.491 60.6378 163.491 75.8338 154.118 85.2063L92.7248 146.6C89.6006 149.724 89.6006 154.789 92.7248 157.913L105.331 170.52" stroke="currentColor" stroke-width="12" stroke-linecap="round" />
+                                            <path d="M102.853 33.9411L52.6482 84.1457C43.2756 93.5183 43.2756 108.714 52.6482 118.087C62.0208 127.459 77.2167 127.459 86.5893 118.087L136.794 67.8822" stroke="currentColor" stroke-width="12" stroke-linecap="round" />
                                         </svg>
                                     </el-icon>
                                 </el-button>
@@ -839,6 +1094,15 @@ defineExpose({ focus, senderRef });
                                     @click="$emit('open-skill-dialog')">
                                     <el-icon :size="18">
                                         <Collection />
+                                    </el-icon>
+                                </el-button>
+                            </el-tooltip>
+                            <el-tooltip :content="compacting ? '压缩进行中…' : '会话压缩'">
+                                <el-button size="default" circle :disabled="isRecording"
+                                    :class="{ 'is-active-special': compacting || canRestoreCompact }"
+                                    @click="openCompactDialog">
+                                    <el-icon :size="18">
+                                        <Fold />
                                     </el-icon>
                                 </el-button>
                             </el-tooltip>
@@ -894,6 +1158,153 @@ defineExpose({ focus, senderRef });
             <el-col :span="0" />
         </el-row>
     </el-footer>
+
+
+    <el-dialog v-model="subAgentDialogVisible" title="Sub-Agent 运行详情" width="min(760px, 92vw)"
+        class="subagent-detail-dialog" append-to-body destroy-on-close @closed="closeSubAgentDialog">
+        <template v-if="selectedSubAgent">
+            <div class="subagent-detail-layout">
+                <div class="subagent-detail-meta">
+                    <el-tag :type="subAgentStatusType(selectedSubAgent.status)" effect="dark">{{ subAgentStatusLabel(selectedSubAgent.status) }}</el-tag>
+                    <span class="subagent-detail-id" :title="selectedSubAgent.subagent_id"><code>{{ shortSubAgentId(selectedSubAgent) }}</code></span>
+                    <span v-if="selectedSubAgent.model_name" class="subagent-detail-model" :title="selectedSubAgent.provider_name ? `${selectedSubAgent.provider_name} · ${selectedSubAgent.model_name}` : selectedSubAgent.model_name">
+                        {{ selectedSubAgent.model_name }}
+                    </span>
+                </div>
+                <section class="subagent-detail-section">
+                    <div class="subagent-detail-section-title">任务</div>
+                    <div class="subagent-detail-task-scroll">
+                        <div class="subagent-detail-task">{{ subAgentDisplayName(selectedSubAgent) }}</div>
+                    </div>
+                </section>
+                <section class="subagent-detail-section subagent-detail-result-section">
+                    <div class="subagent-detail-section-title">运行输出</div>
+                    <div class="subagent-detail-output-scroll">
+                        <pre class="subagent-detail-output">{{ subAgentDetailOutput }}</pre>
+                    </div>
+                </section>
+            </div>
+        </template>
+        <template #footer>
+            <el-button @click="closeSubAgentDialog">关闭</el-button>
+            <el-button v-if="selectedSubAgent?.status !== 'running'" @click="rerunSelectedSubAgent">重新运行</el-button>
+            <el-button v-if="selectedSubAgent?.status !== 'running'" type="primary" plain @click="acknowledgeSelectedSubAgent">已阅</el-button>
+            <el-button v-if="selectedSubAgent?.status === 'running'" type="danger" @click="requestStopSelectedSubAgent">结束运行</el-button>
+        </template>
+    </el-dialog>
+
+
+<el-dialog v-model="compactDialogVisible" width="min(620px, 94vw)"
+        class="compact-config-dialog glass-dialog" append-to-body destroy-on-close :close-on-click-modal="true"
+        :show-close="true" align-center>
+        <template #header>
+            <div class="compact-dialog-header">
+                <div class="compact-dialog-title-row">
+                    <div class="compact-dialog-title">会话压缩</div>
+                    <el-tooltip content="学习codex本地压缩功能" placement="top">
+                        <el-icon class="compact-info-icon"><InfoFilled /></el-icon>
+                    </el-tooltip>
+                </div>
+                <div class="compact-dialog-subtitle">级联检查点 · 摘要交接 · 可还原</div>
+            </div>
+        </template>
+
+        <div class="compact-dialog-scroll">
+            <!-- 压缩进行中：关闭仅切换为后台继续，取消才会中断压缩 -->
+            <div v-if="compacting" class="compact-progress-block">
+                <div class="compact-progress-heading">
+                    <div>
+                        <div class="compact-progress-title">{{ compactStatusText }}</div>
+                        <div class="compact-progress-hint">可关闭此窗口并在后台继续压缩</div>
+                    </div>
+                    <span class="compact-progress-state">处理中</span>
+                </div>
+                <div class="compact-progress-track" role="progressbar" aria-label="会话压缩进行中">
+                    <span class="compact-progress-flow"></span>
+                </div>
+                <div class="compact-progress-actions">
+                    <el-button type="danger" plain round @click="cancelCompact">取消压缩</el-button>
+                    <el-button round @click="compactDialogVisible = false">后台继续</el-button>
+                </div>
+            </div>
+            <div v-else class="compact-config-block">
+                <div class="compact-section-card">
+                    <div class="compact-section-title">基础设置</div>
+                    <div class="compact-grid-2">
+                        <div class="compact-field">
+                            <div class="compact-label">自动压缩</div>
+                            <el-switch v-model="localCompactConfig.autoCompactEnabled" active-text="回合结束后检测" />
+                        </div>
+                        <div class="compact-field">
+                            <div class="compact-label-row">
+                                <div class="compact-label">触发阈值</div>
+                                <span class="compact-inline-hint">默认 0.90（上下文 90%）</span>
+                            </div>
+                            <el-input-number v-model="localCompactConfig.triggerRatio" :min="0.1" :max="0.99" :step="0.05" :precision="2" />
+                        </div>
+                    </div>
+                    <div class="compact-field">
+                        <div class="compact-label">模型上下文长度（tokens）</div>
+                        <div class="compact-inline-row">
+                            <el-input-number v-model="localCompactConfig.contextLength" :min="1024" :step="1024" />
+                            <el-button :icon="RefreshRight" round @click="refreshCompactContext">重新检索</el-button>
+                        </div>
+                        <div class="compact-form-hint">
+                            来源：{{ contextLengthSourceLabel }}
+                            <span v-if="localCompactConfig.resolvedId"> · 缓存键：{{ localCompactConfig.resolvedId }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="compact-section-card">
+                    <button type="button" class="compact-advanced-toggle" @click="advancedCollapsed = !advancedCollapsed">
+                        <el-icon>
+                            <component :is="advancedCollapsed ? ArrowRight : ArrowDown" />
+                        </el-icon>
+                        <span>高级参数</span>
+                    </button>
+                    <div v-show="!advancedCollapsed" class="compact-advanced-body">
+                        <div class="compact-grid-2">
+                            <div class="compact-field">
+                                <div class="compact-label-row">
+                                    <div class="compact-label">额外保留最近 N 轮原文</div>
+                                    <el-tooltip
+                                        placement="top"
+                                        :show-after="200"
+                                        content="压缩时在摘要后额外保留最近 N 轮原文（user+assistant）。默认 3。设为 0 时仍会至少保留 1 条，保证可续聊。"
+                                    >
+                                        <el-icon class="compact-info-icon"><InfoFilled /></el-icon>
+                                    </el-tooltip>
+                                </div>
+                                <el-input-number v-model="localCompactConfig.keepRecentRounds" :min="0" :max="20" :step="1" />
+                            </div>
+                        </div>
+                        <div class="compact-field">
+                            <div class="compact-label">摘要 Prompt</div>
+                            <el-input v-model="localCompactConfig.compactPrompt" type="textarea" :autosize="{ minRows: 4, maxRows: 8 }" />
+                        </div>
+                        <div class="compact-advanced-actions">
+                            <el-button type="warning" plain round @click="applyAdvancedToGlobal">应用到全局</el-button>
+                            <div class="compact-form-hint">将高级参数同步到所有已缓存模型（不改各模型上下文长度）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 压缩中不渲染 footer，避免「取消压缩」旁边再出现无用的关闭 -->
+        <template v-if="!compacting" #footer>
+            <div class="compact-dialog-footer">
+                <el-button v-if="canRestoreCompact" round @click="restoreCompact">恢复最外层压缩</el-button>
+                <div class="compact-dialog-footer-right">
+                    <el-button round @click="compactDialogVisible = false">关闭</el-button>
+                    <el-button round @click="resetCompactConfigToDefault">恢复默认</el-button>
+                    <el-button round @click="saveCompactConfig">保存参数</el-button>
+                    <el-button type="primary" round @click="runCompactNow">立即压缩</el-button>
+                </div>
+            </div>
+        </template>
+    </el-dialog>
 </template>
 
 <style scoped>
@@ -1665,5 +2076,683 @@ html.dark .cancel-spinner {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* 追加消息缓冲区 */
+.append-buffer-container {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(8px) saturate(115%);
+    -webkit-backdrop-filter: blur(8px) saturate(115%);
+    border: 1px dashed var(--el-border-color);
+    box-sizing: border-box;
+}
+
+html.dark .append-buffer-container {
+    background-color: rgba(40, 40, 40, 0.4);
+}
+
+.append-buffer-title {
+    font-size: 11px;
+    color: var(--el-text-color-secondary);
+    margin-bottom: 6px;
+}
+
+.append-buffer-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 8px;
+}
+
+.append-buffer-item + .append-buffer-item {
+    margin-top: 2px;
+}
+
+.append-buffer-item:hover {
+    background-color: var(--el-fill-color);
+}
+
+.append-buffer-icon {
+    flex-shrink: 0;
+    color: var(--el-color-primary);
+}
+
+.append-buffer-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.append-buffer-remove {
+    flex-shrink: 0;
+}
+
+.subagent-tag-container {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 7px 9px;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 10px;
+    background: var(--el-fill-color-lighter);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.025);
+    box-sizing: border-box;
+}
+
+html.dark .subagent-tag-container {
+    background: rgba(42, 42, 42, 0.58);
+}
+
+.subagent-tag-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.subagent-tag-prefix {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.subagent-ack-all-btn {
+    flex-shrink: 0;
+    height: 22px;
+    padding: 0 8px;
+    font-size: 12px;
+}
+
+.subagent-tag-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--el-text-color-disabled, #c0c4cc) transparent;
+}
+
+.subagent-tag-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
+.subagent-tag-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.subagent-tag-scroll::-webkit-scrollbar-thumb {
+    background: var(--el-text-color-disabled, #c0c4cc);
+    border-radius: 999px;
+}
+
+.subagent-tag-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--el-text-color-secondary, #909399);
+}
+
+.subagent-tag-list {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    width: max-content;
+    min-width: 100%;
+    padding-bottom: 2px;
+}
+
+.subagent-tag {
+    flex: 0 0 auto;
+    cursor: pointer;
+    font-size: 12px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.subagent-tag code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 12px;
+}
+
+.subagent-tag:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.1);
+}
+
+.subagent-detail-layout {
+    display: flex;
+    max-height: min(58vh, 460px);
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+}
+
+.subagent-detail-meta {
+    display: flex;
+    flex-shrink: 0;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+
+.subagent-detail-id {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--el-text-color-secondary);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.subagent-detail-id code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.subagent-detail-model {
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+    color: var(--el-text-color-regular);
+    font-size: 12px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 46%;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--el-fill-color);
+    border: 1px solid var(--el-border-color-lighter);
+}
+
+.subagent-detail-section {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 10px;
+    background: var(--el-fill-color-lighter);
+    overflow: hidden;
+}
+
+.subagent-detail-result-section {
+    flex: 1 1 auto;
+    min-height: 140px;
+}
+
+.subagent-detail-section-title {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.subagent-detail-task-scroll,
+.subagent-detail-output-scroll {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: var(--el-text-color-disabled, #c0c4cc) transparent;
+}
+
+.subagent-detail-task-scroll {
+    flex: 0 0 auto;
+    height: 112px;
+    max-height: 112px;
+}
+
+.subagent-detail-output-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: min(34vh, 300px);
+}
+
+.subagent-detail-task-scroll::-webkit-scrollbar,
+.subagent-detail-output-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.subagent-detail-task-scroll::-webkit-scrollbar-track,
+.subagent-detail-output-scroll::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+}
+
+.subagent-detail-task-scroll::-webkit-scrollbar-thumb,
+.subagent-detail-output-scroll::-webkit-scrollbar-thumb {
+    background: var(--el-text-color-disabled, #c0c4cc);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.subagent-detail-task-scroll::-webkit-scrollbar-thumb:hover,
+.subagent-detail-output-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--el-text-color-secondary, #909399);
+    background-clip: content-box;
+}
+
+html.dark .subagent-detail-task-scroll::-webkit-scrollbar-thumb,
+html.dark .subagent-detail-output-scroll::-webkit-scrollbar-thumb {
+    background: #6b6b6b;
+    background-clip: content-box;
+}
+
+html.dark .subagent-detail-task-scroll::-webkit-scrollbar-thumb:hover,
+html.dark .subagent-detail-output-scroll::-webkit-scrollbar-thumb:hover {
+    background: #999;
+    background-clip: content-box;
+}
+
+.subagent-detail-task {
+    padding: 10px 12px 18px;
+    color: var(--el-text-color-primary);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.subagent-detail-output {
+    margin: 0;
+    padding: 12px 12px 24px;
+    color: var(--el-text-color-regular);
+    font-family: var(--el-font-family), ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+    box-sizing: border-box;
+}
+
+</style>
+
+<style>
+.subagent-detail-dialog.el-dialog {
+    margin-top: 8vh !important;
+    max-height: 84vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.subagent-detail-dialog .el-dialog__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 8px;
+}
+
+.subagent-detail-dialog .el-dialog__footer {
+    flex-shrink: 0;
+}
+
+
+/* conversation compact (ported) */
+.compact-config-dialog :deep(.el-dialog) {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--el-border-color-lighter);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
+    display: flex;
+    flex-direction: column;
+    max-height: min(82vh, 720px);
+    margin-top: 0 !important;
+}
+
+.compact-config-dialog :deep(.el-dialog__header) {
+    margin-right: 0;
+    padding: 16px 18px 8px;
+    flex-shrink: 0;
+}
+
+.compact-config-dialog :deep(.el-dialog__body) {
+    padding: 8px 18px 4px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.compact-config-dialog :deep(.el-dialog__footer) {
+    padding: 10px 18px 16px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--el-border-color-extra-light);
+}
+
+.compact-dialog-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: min(56vh, 480px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+.compact-dialog-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.compact-dialog-scroll::-webkit-scrollbar-thumb {
+    background: var(--el-border-color);
+    border-radius: 999px;
+}
+
+.compact-dialog-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+html.dark .compact-dialog-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.compact-dialog-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.compact-dialog-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.compact-dialog-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--el-text-color-primary);
+}
+
+.compact-info-icon {
+    color: var(--el-text-color-secondary);
+    cursor: help;
+    font-size: 15px;
+}
+
+.compact-advanced-toggle {
+    border: none;
+    background: transparent;
+    color: var(--el-text-color-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.compact-advanced-body {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.compact-advanced-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding-top: 4px;
+}
+
+.compact-dialog-subtitle {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}
+
+.compact-progress-block,
+
+.compact-config-block {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.compact-section-card {
+    border: 1px solid var(--el-border-color-lighter);
+    background: var(--el-fill-color-blank);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.compact-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+}
+
+.compact-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.compact-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.compact-label {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+}
+
+.compact-label-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-height: 18px;
+}
+
+.compact-inline-hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    line-height: 1.3;
+}
+
+.compact-label-row .compact-info-icon {
+    color: var(--el-text-color-secondary);
+    cursor: help;
+    font-size: 14px;
+}
+
+.compact-progress-block {
+    gap: 16px;
+    padding: 4px 0 2px;
+}
+
+.compact-progress-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.compact-progress-title {
+    color: var(--el-text-color-primary);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.compact-progress-hint {
+    margin-top: 4px;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.compact-progress-state {
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    border: 1px solid rgba(64, 158, 255, 0.2);
+    border-radius: 999px;
+    background: rgba(64, 158, 255, 0.1);
+    color: var(--el-color-primary);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.compact-progress-track {
+    position: relative;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--el-fill-color);
+}
+
+.compact-progress-flow {
+    position: absolute;
+    inset: 0 auto 0 -42%;
+    width: 42%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, transparent 0%, var(--el-color-primary-light-5) 20%, var(--el-color-primary) 50%, var(--el-color-primary-light-5) 80%, transparent 100%);
+    animation: compact-progress-flow 1.5s ease-in-out infinite;
+}
+
+@keyframes compact-progress-flow {
+    from { transform: translateX(0); }
+    to { transform: translateX(340%); }
+}
+
+html.dark .compact-progress-state {
+    border-color: rgba(121, 187, 255, 0.28);
+    background: rgba(64, 158, 255, 0.18);
+}
+
+html.dark .compact-progress-track {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.compact-progress-actions,
+
+.compact-inline-row,
+
+.compact-dialog-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.compact-progress-actions {
+    width: 100%;
+    justify-content: space-between;
+}
+
+.compact-dialog-footer {
+    width: 100%;
+    justify-content: space-between;
+}
+
+.compact-dialog-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.compact-form-hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    line-height: 1.4;
+}
+
+.compact-inline-row .el-input-number {
+    flex: 1;
+}
+
+html.dark .compact-section-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .compact-config-dialog :deep(.el-dialog) {
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 720px) {
+    .compact-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.compact-config-dialog.el-dialog {
+    margin-top: 6vh !important;
+    max-height: min(84vh, 760px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 16px;
+}
+
+.compact-config-dialog .el-dialog__header {
+    flex-shrink: 0;
+    margin-right: 0;
+    padding: 16px 18px 8px;
+}
+
+.compact-config-dialog .el-dialog__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 18px 4px;
+}
+
+.compact-config-dialog .el-dialog__footer {
+    flex-shrink: 0;
+    padding: 10px 18px 16px;
+    border-top: 1px solid var(--el-border-color-extra-light);
+}
+
+.compact-config-dialog .compact-dialog-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: min(58vh, 520px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+.compact-config-dialog .compact-dialog-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.compact-config-dialog .compact-dialog-scroll::-webkit-scrollbar-thumb {
+    background: var(--el-border-color);
+    border-radius: 999px;
+}
+
+html.dark .compact-config-dialog .el-dialog__footer {
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .compact-config-dialog .compact-dialog-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
 }
 </style>

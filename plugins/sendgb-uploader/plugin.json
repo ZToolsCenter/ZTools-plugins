@@ -1,0 +1,52 @@
+{
+  "name": "sendgb-uploader",
+  "title": "SendGB 上传下载",
+  "description": "文件上传转链 + 链接接收下载，免注册把文件传到 sendgb.com 并自动复制下载链接，粘贴链接即可直接下载收到的大文件",
+  "author": "zhanglei",
+  "version": "1.0.1",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "platform": ["win32"],
+  "features": [
+    {
+      "code": "sendgb-main",
+      "explain": "SendGB 文件上传：选文件或拖文件进来，自动上传并复制下载链接",
+      "icon": "logo.png",
+      "cmds": ["sendgb", "sendgb上传", "文件上传", "上传文件", "sg上传", "upload", "上传", "sc"]
+    },
+    {
+      "code": "sendgb-files",
+      "explain": "用 SendGB 上传这些文件",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "用 SendGB 上传",
+          "fileType": "file",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      ]
+    },
+    {
+      "code": "sendgb-download",
+      "explain": "下载 SendGB 链接里的文件（粘贴链接直接下载，不需要浏览器）",
+      "icon": "logo.png",
+      "cmds": [
+        "sendgb下载",
+        "下载sendgb",
+        "sendgb download",
+        "文件下载",
+        "下载文件",
+        "接收文件",
+        {
+          "type": "regex",
+          "match": "/sendgb\\.com\\//i",
+          "label": "下载这个 SendGB 链接",
+          "minLength": 10
+        }
+      ]
+    }
+  ]
+}

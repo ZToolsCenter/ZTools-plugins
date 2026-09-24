@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "flappybird",
+  "title": "Flappy Bird",
+  "description": "经典像素风小鸟闯关：点击扇翅穿过水管缝隙，挑战最高分。",
+  "author": "DowTao",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 600
+  },
+  "features": [
+    {
+      "code": "flappy",
+      "explain": "开始 Flappy Bird：点击扇翅，穿过水管得一分",
+      "icon": "logo.png",
+      "cmds": ["flappy", "Flappy Bird", "小鸟", "飞鸟", "像素鸟", "flappybird"]
+    }
+  ]
+}

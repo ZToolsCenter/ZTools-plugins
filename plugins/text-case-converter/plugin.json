@@ -1,0 +1,157 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "text-case-converter",
+  "title": "大小写转换",
+  "description": "智能大小写转换。支持智能转大小写、转大写、转小写、大小写反转、首字母大写、小驼峰命名、大驼峰命名、蛇形命名、尖叫蛇形命名。可在 插件详情-指令列表 设置全局快捷键或禁用无用指令",
+  "author": "UCPr",
+  "version": "1.1.0",
+  "preload": "preload.js",
+  "logo": "public/logo.png",
+  "features": [
+    {
+      "code": "smart",
+      "explain": "智能大小写转换（大写多则转小写，否则转大写）",
+      "icon": "public/smart.png",
+      "mainHide": true,
+      "cmds": [
+        "大小写",
+        "智能大小写",
+        "case",
+        {
+          "type": "regex",
+          "label": "智能大小写",
+          "match": "/[A-Za-z]/",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "upper",
+      "explain": "将文本转为大写",
+      "icon": "public/upper.png",
+      "mainHide": true,
+      "cmds": [
+        "转大写",
+        "uppercase",
+        {
+          "type": "regex",
+          "label": "转大写",
+          "match": "/[A-Za-z]/",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "lower",
+      "explain": "将文本转为小写",
+      "icon": "public/lower.png",
+      "mainHide": true,
+      "cmds": [
+        "转小写",
+        "lowercase",
+        {
+          "type": "regex",
+          "label": "转小写",
+          "match": "/[A-Za-z]/",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "invert",
+      "explain": "逐字符反转英文字母大小写",
+      "icon": "public/invert.png",
+      "mainHide": true,
+      "cmds": [
+        "大小写反转",
+        "invert case",
+        {
+          "type": "regex",
+          "label": "大小写反转",
+          "match": "/[A-Za-z]/",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "title",
+      "explain": "转为首字母大写（按词分割并空格连接）",
+      "icon": "public/title.png",
+      "mainHide": true,
+      "cmds": [
+        "首字母大写",
+        "title case",
+        {
+          "type": "regex",
+          "label": "首字母大写",
+          "match": "/[A-Za-z]/",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "camel",
+      "explain": "转为小驼峰命名",
+      "icon": "public/camel.png",
+      "mainHide": true,
+      "cmds": [
+        "小驼峰",
+        "camelCase",
+        {
+          "type": "regex",
+          "label": "小驼峰",
+          "match": "/[A-Za-z]/",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "pascal",
+      "explain": "转为大驼峰命名",
+      "icon": "public/pascal.png",
+      "mainHide": true,
+      "cmds": [
+        "大驼峰",
+        "PascalCase",
+        {
+          "type": "regex",
+          "label": "大驼峰",
+          "match": "/[A-Za-z]/",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "snake",
+      "explain": "转为蛇形命名（下划线连接，可含中文）",
+      "icon": "public/snake.png",
+      "mainHide": true,
+      "cmds": [
+        "蛇形命名",
+        "snake_case",
+        {
+          "type": "regex",
+          "label": "蛇形命名",
+          "match": "/[A-Za-z]/",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "code": "screaming",
+      "explain": "转为尖叫蛇形命名（大写下划线）",
+      "icon": "public/screaming.png",
+      "mainHide": true,
+      "cmds": [
+        "尖叫蛇形",
+        "SCREAMING_SNAKE",
+        {
+          "type": "regex",
+          "label": "尖叫蛇形",
+          "match": "/[A-Za-z]/",
+          "minLength": 1
+        }
+      ]
+    }
+  ]
+}

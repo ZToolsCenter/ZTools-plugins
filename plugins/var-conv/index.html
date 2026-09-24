@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>变量名转换</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      min-height: 48px;
+      background: #ffffff;
+      color: #1a1a1a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+    body:focus { outline: none; }
+    .list {
+      min-height: 48px;
+      max-height: 100vh;
+      overflow-y: auto;
+      padding: 0 0 2px 0;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 48px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .item.empty {
+      cursor: default;
+      pointer-events: none;
+    }
+    .item:hover,
+    .item.selected { background: rgba(0, 0, 0, 0.05); }
+    .list.ignore-hover .item:hover { background: transparent; }
+    .list.ignore-hover .item.selected { background: rgba(0, 0, 0, 0.05); }
+    .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .title {
+      min-height: 20px;
+      line-height: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1a1a1a;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .desc {
+      min-height: 16px;
+      line-height: 16px;
+      font-size: 12px;
+      color: #666666;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .shortcut {
+      flex-shrink: 0;
+      margin-left: auto;
+      font-size: 13px;
+      color: #8b8b8b;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body tabindex="-1">
+  <div id="list" class="list"></div>
+  <script>
+    (function () {
+      const listEl = document.getElementById('list')
+      const MIN_HEIGHT = 48
+      let fromOver = false
+      let sourceName = ''
+      let filterText = ''
+      let items = []
+      let selectedIndex = 0
+      let ignoreHover = false
+      let pasting = false
+      let ignoreSubInput = 0
+
+      function shortcutDigit(index) {
+        if (index >= 0 && index < 9) return String(index + 1)
+        if (index === 9) return '0'
+        return ''
+      }
+
+      function currentList() {
+        if (!window.varConv) return []
+        if (fromOver) return window.varConv.getList(sourceName, filterText)
+        return window.varConv.getList(filterText)
+      }
+
+      function syncHeight() {
+        const height = Math.max(listEl.scrollHeight || 0, MIN_HEIGHT)
+        ztools.setExpendHeight(Math.min(height, 541))
+      }
+
+      function focusPlugin() {
+        document.body.focus()
+        if (ztools.subInputBlur) ztools.subInputBlur()
+      }
+
+      function showSubInput(text) {
+        ignoreSubInput += 1
+        ztools.setSubInputValue(text)
+        setTimeout(function () {
+          ignoreSubInput = Math.max(0, ignoreSubInput - 1)
+        }, 50)
+      }
+
+      function updateSelection() {
+        const nodes = listEl.querySelectorAll('.item:not(.empty)')
+        for (let i = 0; i < nodes.length; i++) {
+          nodes[i].classList.toggle('selected', i === selectedIndex)
+        }
+        const selected = listEl.querySelector('.item.selected')
+        if (selected) selected.scrollIntoView({ block: 'nearest' })
+      }
+
+      function render() {
+        items = currentList()
+        if (selectedIndex >= items.length) selectedIndex = Math.max(0, items.length - 1)
+        const mod = window.varConv ? window.varConv.shortcutMod() : '⌘'
+        listEl.classList.toggle('ignore-hover', ignoreHover)
+        if (!items.length) {
+          listEl.innerHTML = '<div class="item empty"><div class="body"><div class="title"></div><div class="desc"></div></div></div>'
+          syncHeight()
+          focusPlugin()
+          return
+        }
+        listEl.innerHTML = items.map(function (item, index) {
+          const digit = shortcutDigit(index)
+          const selected = index === selectedIndex ? ' selected' : ''
+          const shortcut = digit
+            ? '<span class="shortcut">' + mod + '+' + digit + '</span>'
+            : ''
+          return (
+            '<div class="item' + selected + '" data-index="' + index + '">' +
+              '<div class="body">' +
+                '<div class="title"></div>' +
+                '<div class="desc"></div>' +
+              '</div>' +
+              shortcut +
+            '</div>'
+          )
+        }).join('')
+        const nodes = listEl.querySelectorAll('.item')
+        for (let i = 0; i < nodes.length; i++) {
+          nodes[i].querySelector('.title').textContent = items[i].title || ''
+          nodes[i].querySelector('.desc').textContent = items[i].description || ''
+        }
+        updateSelection()
+        syncHeight()
+        focusPlugin()
+      }
+
+      function selectIndex(index) {
+        const item = items[index]
+        if (!item || item.title == null || item.title === '' || pasting) return
+        pasting = true
+        Promise.resolve(window.varConv.paste(item.title)).finally(function () {
+          pasting = false
+        })
+      }
+
+      function applyFilter(text, fromHost) {
+        const next = typeof text === 'string' ? text : ''
+        if (next === filterText) {
+          focusPlugin()
+          return
+        }
+        filterText = next
+        selectedIndex = 0
+        ignoreHover = false
+        if (!fromHost) showSubInput(filterText)
+        render()
+      }
+
+      function shortcutIndex(event) {
+        if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return -1
+        const code = event.code || ''
+        if (code.indexOf('Digit') === 0) {
+          const digit = code.slice(5)
+          if (digit >= '1' && digit <= '9') return Number(digit) - 1
+          if (digit === '0') return 9
+        }
+        if (code.indexOf('Numpad') === 0) {
+          const digit = code.slice(6)
+          if (digit >= '1' && digit <= '9') return Number(digit) - 1
+          if (digit === '0') return 9
+        }
+        const key = event.key
+        if (key >= '1' && key <= '9') return Number(key) - 1
+        if (key === '0') return 9
+        return -1
+      }
+
+      function moveSelection(delta) {
+        if (!items.length) return
+        ignoreHover = true
+        listEl.classList.add('ignore-hover')
+        selectedIndex = (selectedIndex + delta + items.length) % items.length
+        updateSelection()
+      }
+
+      ztools.onPluginEnter(function (action) {
+        fromOver = action.type === 'over'
+        sourceName = fromOver && typeof action.payload === 'string' ? action.payload : ''
+        filterText = ''
+        selectedIndex = 0
+        pasting = false
+        const placeholder = fromOver ? '目标类型 or 新变量名' : '输入变量名'
+        ztools.setSubInput(function (details) {
+          if (ignoreSubInput) return
+          const text = details && typeof details === 'object' ? details.text : details
+          applyFilter(typeof text === 'string' ? text : '', true)
+        }, placeholder, false)
+        render()
+      })
+
+      listEl.addEventListener('mousemove', function (event) {
+        const item = event.target.closest('.item')
+        if (!item || item.classList.contains('empty') || item.dataset.index == null) return
+        if (ignoreHover) {
+          ignoreHover = false
+          listEl.classList.remove('ignore-hover')
+        }
+        const index = Number(item.dataset.index)
+        if (Number.isNaN(index) || index === selectedIndex) return
+        selectedIndex = index
+        updateSelection()
+      })
+
+      listEl.addEventListener('click', function (event) {
+        const item = event.target.closest('.item')
+        if (!item || item.classList.contains('empty') || item.dataset.index == null) return
+        selectIndex(Number(item.dataset.index))
+      })
+
+      document.addEventListener('keydown', function (event) {
+        const index = shortcutIndex(event)
+        if (index >= 0) {
+          if (!items[index]) return
+          event.preventDefault()
+          event.stopPropagation()
+          selectIndex(index)
+          return
+        }
+
+        if (event.metaKey || event.ctrlKey || event.altKey) return
+
+        if (event.key === 'ArrowUp' || event.key === 'Up') {
+          event.preventDefault()
+          moveSelection(-1)
+          return
+        }
+        if (event.key === 'ArrowDown' || event.key === 'Down') {
+          event.preventDefault()
+          moveSelection(1)
+          return
+        }
+        if (event.key === 'Enter' || event.key === 'Return') {
+          event.preventDefault()
+          selectIndex(selectedIndex)
+          return
+        }
+        if (event.key === 'Backspace') {
+          event.preventDefault()
+          applyFilter(filterText.slice(0, -1), false)
+          return
+        }
+        if (event.isComposing || event.key === 'Process') return
+        if (event.key.length === 1) {
+          event.preventDefault()
+          applyFilter(filterText + event.key, false)
+        }
+      }, true)
+    })()
+  </script>
+</body>
+</html>

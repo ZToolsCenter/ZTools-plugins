@@ -1,0 +1,39 @@
+{
+  "name": "github-stars",
+  "title": "GitHub 星标管理",
+  "description": "用 Token 拉取自己的 GitHub Star 仓库，支持多账号切换、给仓库写备注、模糊搜索（含备注）、Star 排序与主搜索框直出结果",
+  "author": "zhanglei",
+  "version": "1.0.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "platform": [
+    "win32"
+  ],
+  "features": [
+    {
+      "code": "ghstar",
+      "explain": "打开 GitHub 星标清单（管理账号 / 搜索 / 排序）",
+      "icon": "logo.png",
+      "cmds": [
+        "github", 
+        "ghstar",
+		"star"
+      ]
+    },
+    {
+      "code": "ghstar-search",
+      "explain": "在主搜索框直接搜索 GitHub 星标仓库，回车打开",
+      "icon": "logo.png",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "over",
+          "label": "搜索 GitHub 星标仓库",
+          "minLength": 2,
+          "maxLength": 60
+        }
+      ]
+    }
+  ]
+}

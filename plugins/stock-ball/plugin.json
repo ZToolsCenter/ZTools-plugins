@@ -1,0 +1,40 @@
+{
+  "name": "stock-ball",
+  "pluginName": "股票管家",
+  "title": "股票管家",
+  "description": "实时股票持仓管理、自选行情监控面板与桌面盈利悬浮球",
+  "author": "zhanglei",
+  "homepage": "",
+  "version": "1.0.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "platform": [
+    "win32"
+  ],
+  "pluginSetting": {
+    "single": true,
+    "height": 600
+  },
+  "features": [
+    {
+      "code": "stock",
+      "explain": "打开股票行情与持仓监控面板",
+      "icon": "logo.png",
+      "cmds": [
+        "股票管家",
+        "stock",
+        "股票",
+        "自选股",
+        "股票监控",
+        "行情面板",
+        "自选股面板",
+        "看盘",
+        "股市",
+        "持仓",
+        "买入",
+        "卖出"
+      ]
+    }
+  ]
+}

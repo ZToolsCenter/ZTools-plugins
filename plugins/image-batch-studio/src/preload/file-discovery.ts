@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
 import type { SourceFile } from "../shared/types";
+import { sharp } from "./sharp-runtime";
+import { prepareCompatibleImageInput } from "./heic-bridge";
 
 const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif", ".heif", ".heic", ".tif", ".tiff", ".gif"]);
 const pdfExtensions = new Set([".pdf"]);
@@ -31,6 +32,11 @@ interface DiscoveryState {
 
 export function isImagePath(filePath: string): boolean {
   return imageExtensions.has(path.extname(filePath).toLowerCase());
+}
+
+export function isBrowserRenderableImage(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase();
+  return ext === ".jpg" || ext === ".jpeg" || ext === ".png" || ext === ".webp" || ext === ".gif";
 }
 
 export function isPdfPath(filePath: string): boolean {
@@ -127,12 +133,23 @@ export async function inspectFile(filePath: string): Promise<SourceFile> {
   }
 
   if (isImagePath(filePath)) {
-    const metadata = await sharp(filePath, { animated: true }).metadata().catch(() => null);
+    let metadata: any = null;
+    try {
+      const { effectivePath } = await prepareCompatibleImageInput(filePath, { animated: true });
+      metadata = await sharp(effectivePath, { animated: true }).metadata().catch(() => null);
+    } catch {
+      metadata = await sharp(filePath, { animated: true }).metadata().catch(() => null);
+    }
+    const animated = (metadata?.pages ?? 1) > 1;
+    const width = animated ? metadata?.width : metadata?.autoOrient?.width ?? metadata?.width;
+    const height = animated
+      ? metadata?.pageHeight ?? metadata?.height
+      : metadata?.autoOrient?.height ?? metadata?.height;
     return {
       ...base,
       type: "image",
-      width: metadata?.width,
-      height: metadata?.pageHeight ?? metadata?.height,
+      width,
+      height,
       format: metadata?.format
     };
   }

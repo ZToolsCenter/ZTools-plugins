@@ -1,0 +1,100 @@
+{
+  "name": "format-converter",
+  "title": "格式转换",
+  "description": "Word、Excel、PPT、PDF、图片、文本与常见数据格式的本地批量转换中心。",
+  "author": "harris",
+  "version": "0.1.0",
+  "main": "index.html",
+  "preload": "preload/services.cjs",
+  "logo": "logo.svg",
+  "categories": ["productivity", "text", "media"],
+  "development": {
+    "main": "http://127.0.0.1:5192"
+  },
+  "pluginSetting": {
+    "single": true,
+    "height": 780,
+    "backgroundRunning": true
+  },
+  "features": [
+    {
+      "code": "format-converter",
+      "explain": "打开格式转换中心",
+      "icon": "logo.svg",
+      "cmds": [
+        "格式转换",
+        "文件转换",
+        "批量转换",
+        "Office 转换",
+        "PDF 转换",
+        "图片转换",
+        {
+          "type": "img",
+          "label": "转换图片"
+        },
+        {
+          "type": "files",
+          "fileType": "file",
+          "label": "批量转换文件",
+          "extensions": [
+            "docx", "xlsx", "pptx", "pdf",
+            "png", "jpg", "jpeg", "webp", "avif", "tif", "tiff", "gif", "bmp",
+            "txt", "md", "html", "htm", "csv", "tsv", "json"
+          ],
+          "maxLength": 200
+        }
+      ]
+    }
+  ],
+  "tools": {
+    "format_conversion_plan": {
+      "title": "规划格式转换",
+      "description": "检查输入、目标格式、转换质量和本机引擎，不写入文件。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inputs": { "type": "array", "minItems": 1, "maxItems": 50, "items": { "type": "string", "maxLength": 4096 } },
+          "target": { "type": "string", "enum": ["docx", "xlsx", "pptx", "pdf", "png", "jpeg", "webp", "avif", "tiff", "gif", "txt", "md", "html", "csv", "tsv", "json"] },
+          "profile": { "type": "string", "enum": ["visual", "editable", "extract"] }
+        },
+        "required": ["inputs", "target"]
+      }
+    },
+    "format_conversion_execute": {
+      "title": "执行格式转换",
+      "description": "在用户已授权的工作区内启动批量格式转换，返回可查询的作业 ID。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inputs": { "type": "array", "minItems": 1, "maxItems": 50, "items": { "type": "string", "maxLength": 4096 } },
+          "outputDirectory": { "type": "string", "maxLength": 4096 },
+          "target": { "type": "string", "enum": ["docx", "xlsx", "pptx", "pdf", "png", "jpeg", "webp", "avif", "tiff", "gif", "txt", "md", "html", "csv", "tsv", "json"] },
+          "profile": { "type": "string", "enum": ["visual", "editable", "extract"] },
+          "collision": { "type": "string", "enum": ["skip", "rename", "overwrite"] },
+          "options": { "type": "object", "additionalProperties": false, "properties": {
+            "dpi": { "type": "integer", "minimum": 72, "maximum": 300 },
+            "quality": { "type": "integer", "minimum": 20, "maximum": 100 },
+            "ocrLanguages": { "type": "array", "maxItems": 2, "items": { "type": "string", "enum": ["eng", "chi_sim"] } },
+            "allowFallback": { "type": "boolean" }
+          } }
+        },
+        "required": ["inputs", "outputDirectory", "target"]
+      }
+    },
+    "format_conversion_job": {
+      "title": "查询格式转换作业",
+      "description": "查询或取消格式转换作业。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "jobId": { "type": "string", "pattern": "^[a-f0-9-]{16,64}$" },
+          "action": { "type": "string", "enum": ["get", "cancel"] }
+        },
+        "required": ["jobId"]
+      }
+    }
+  }
+}

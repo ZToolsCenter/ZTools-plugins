@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>股票管家 · 实时看盘</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部标题与导航 -->
+    <header class="head">
+      <div class="brand">
+        <span class="title">📈 股票管家</span>
+        <span id="statusChip" class="chip">--</span>
+        <span id="updateAt" class="muted">未更新</span>
+      </div>
+
+      <nav class="navTabs">
+        <button id="tabPositions" class="tabBtn active">💼 我的持仓 <span id="posCountBadge" class="tabBadge">0</span></button>
+        <button id="tabClosed" class="tabBtn" title="查看已清仓的股票">🗂 已清仓 <span id="closedCountBadge" class="tabBadge">0</span></button>
+        <button id="tabWatchlist" class="tabBtn">📈 自选行情</button>
+        <button id="tabSettings" class="tabBtn">⚙️ 设置</button>
+      </nav>
+
+      <div class="tools">
+        <button id="btnToggleBall" class="btnAction" title="在桌面上常驻显示整体持仓盈利悬浮球">🟢 桌面悬浮球</button>
+        <button id="btnRefresh" class="icon" title="立即刷新">⟳</button>
+      </div>
+    </header>
+
+    <!-- 1. 持仓管理视图 -->
+    <section id="viewPositions">
+      <div class="posOverview">
+        <div class="ovCard">
+          <span class="ovLabel">持仓总市值</span>
+          <span id="ovTotalMv" class="ovValue">¥ 0.00</span>
+        </div>
+        <div class="ovCard highlight">
+          <span class="ovLabel">总盈亏</span>
+          <div class="ovRow">
+            <span id="ovTotalPl" class="ovValue flat">--</span>
+            <span id="ovTotalPlRate" class="ovSub flat">--</span>
+          </div>
+        </div>
+        <div class="ovCard">
+          <span class="ovLabel">今日盈亏</span>
+          <span id="ovTodayPl" class="ovValue flat">--</span>
+        </div>
+      </div>
+
+      <div id="posHeaderWrap" class="posHeaderWrap" hidden>
+        <div id="posTableHeader" class="posTableHeader">
+          <div class="thCol thName">股票名称/代码</div>
+          <div class="thCol thQty sortable" id="sortPosQty" title="按持仓金额排序">持仓/金额 <span id="sortPosQtyIcon" class="sortIcon">↕</span></div>
+          <div class="thCol thPriceCost" id="colHeaderPriceCost" title="当前最新价 / 持仓成本均价">当前价/成本</div>
+          <div class="thCol thTodayPl sortable" id="sortPosTodayPl" title="按今日涨跌幅排序">今日涨幅/盈亏 <span id="sortPosTodayPlIcon" class="sortIcon">↕</span></div>
+          <div class="thCol thPl sortable" id="sortPosPl" title="按累计涨跌幅/持仓盈亏排序">累计涨幅/盈亏 <span id="sortPosPlIcon" class="sortIcon">↕</span></div>
+          <div class="thCol thOps" id="thOpsHeader" title="点击自定义持仓显示列">
+            <span>操作</span>
+            <button type="button" id="btnPosColMenu" class="thColMenuBtn" title="自定义持仓显示列">
+              <span>⚙</span><span>显示列</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 持仓表头自定义列浮动菜单 -->
+        <div id="posColDropdown" class="posColDropdown" hidden>
+          <div class="posColDropdownHead">
+            <span>⚙️ 持仓显示列</span>
+            <button type="button" id="btnPosColClose" class="posColCloseBtn" title="关闭">&times;</button>
+          </div>
+          <div class="posColCheckList">
+            <label class="colCheckItem"><input type="checkbox" id="colCfgQty" value="qty" checked /><span>持仓/金额</span></label>
+            <label class="colCheckItem"><input type="checkbox" id="colCfgPriceCost" value="priceCost" checked /><span>当前价/成本</span></label>
+            <label class="colCheckItem"><input type="checkbox" id="colCfgTodayPl" value="todayPl" checked /><span>今日涨幅/盈亏</span></label>
+            <label class="colCheckItem"><input type="checkbox" id="colCfgPl" value="pl" checked /><span>累计涨幅/盈亏</span></label>
+          </div>
+          <div class="posColDropdownFoot">
+            <button type="button" id="btnPosColReset" class="btnSm ghost" style="width:100%;font-size:11px;">恢复全部显示</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="listWrap posListWrap">
+        <div id="posList" class="posList"></div>
+        <div id="posEmpty" class="empty" hidden>
+          <p style="font-size:15px;font-weight:600;color:#fff;">暂无股票持仓记录</p>
+          <p class="muted">点击下方「+ 记录买入 / 加仓」，录入您的第一笔股票持仓，实时跟踪盈亏变化！</p>
+        </div>
+      </div>
+
+      <div class="bottomBar">
+        <div class="actions">
+          <button id="btnNewTxBuy" class="primary">+ 记录买入 / 加仓</button>
+          <button id="btnNewTxSell" class="ghost">- 记录卖出 / 减仓</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 自选行情视图 -->
+    <section id="viewWatchlist" hidden>
+      <div id="indexes" class="indexes"></div>
+      <div class="groupBar">
+        <div id="groupTabs" class="groupTabs"></div>
+        <button id="btnAddGroup" class="btnNewGroup" title="新建自选分组">+ 分组</button>
+      </div>
+      <div class="listWrap">
+        <div id="stockListHeader" class="stockListHeader">
+          <div class="colNm">股票名称 / 代码</div>
+          <div class="colPx sortable" id="sortWatchlistPx" title="按最新价排序（从高到低 / 从低到高）">
+            最新价 <span id="sortPxIcon" class="sortIcon">↕</span>
+          </div>
+          <div class="colPct sortable" id="sortWatchlistPct" title="按涨跌幅排序（涨幅优先 / 跌幅优先）">
+            涨跌幅 <span id="sortPctIcon" class="sortIcon">↕</span>
+          </div>
+          <div class="colOps">操作</div>
+        </div>
+        <div id="stockList" class="stockList"></div>
+        <div id="wlEmpty" class="empty" hidden>
+          <p style="font-size:15px;font-weight:600;color:#fff;">自选股是空的</p>
+          <p class="muted">在下方输入股票代码、拼音或名称添加自选，随时关注大盘与个股行情</p>
+        </div>
+      </div>
+      <div class="searchBar">
+        <input id="kw" type="text" placeholder="添加自选股：输入股票代码 / 名称 / 拼音（例如 600961 / 川环科技）" autocomplete="off" spellcheck="false" />
+        <div id="suggest" class="suggest" hidden></div>
+      </div>
+    </section>
+
+    <!-- 3. 已清仓视图（与「我的持仓」同款：概览卡 + 表头 + 卡片列表） -->
+    <section id="viewClosed" hidden>
+      <div class="posOverview">
+        <div class="ovCard">
+          <span class="ovLabel">已清仓</span>
+          <span id="ovClosedCount" class="ovValue">0 只</span>
+        </div>
+        <div class="ovCard highlight">
+          <span class="ovLabel">累计清仓盈亏</span>
+          <span id="ovClosedPl" class="ovValue flat">¥ 0.00</span>
+        </div>
+        <div class="ovCard">
+          <span class="ovLabel">最近清仓</span>
+          <span id="ovClosedLast" class="ovValue flat">--</span>
+        </div>
+      </div>
+
+      <div id="closedHeaderWrap" class="posHeaderWrap" hidden>
+        <div id="closedTableHeader" class="closedTableHeader">
+          <div class="thCol thName">股票名称/代码</div>
+          <div class="thCol thDate">清仓日期</div>
+          <div class="thCol thPl">清仓盈亏/收益率</div>
+          <div class="thCol thOps">操作</div>
+        </div>
+      </div>
+
+      <div class="listWrap closedListWrap">
+        <div id="closedList" class="closedList"></div>
+        <div id="closedEmpty" class="empty" hidden>
+          <p style="font-size:15px;font-weight:600;color:#fff;">暂无已清仓股票</p>
+          <p class="muted">买入后又全部卖出（清仓）的股票会自动出现在这里</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 设置视图 -->
+    <section id="viewSettings" hidden>
+      <div class="form">
+        <div class="settingsSecHeader">基础设置</div>
+        <label class="row2"><span>行情刷新间隔</span>
+          <select id="setRefresh">
+            <option value="3">3 秒</option>
+            <option value="5">5 秒</option>
+            <option value="10">10 秒</option>
+            <option value="30">30 秒</option>
+            <option value="60">60 秒</option>
+          </select>
+        </label>
+        <label class="row2"><span>开机自动启动 <b style="font-weight:normal;color:#93a4bd;font-size:11px;">随 ZTools 启动并自动打开悬浮球</b></span>
+          <input id="setBootAutoStart" type="checkbox" />
+        </label>
+        <label class="row2"><span>桌面悬浮球大小 <b id="valBallSize" style="font-weight:normal;color:#4facfe;margin-left:6px;">72px</b></span>
+          <input id="setBallSize" type="range" min="60" max="96" step="2" value="72" />
+        </label>
+        <label class="row2"><span>桌面悬浮球透明度 <b id="valOpacity" style="font-weight:normal;color:#4facfe;margin-left:6px;">95%</b></span>
+          <input id="setOpacity" type="range" min="30" max="100" step="5" value="95" />
+        </label>
+
+
+        <div class="settingsSecHeader" style="margin-top:14px;">交易费率</div>
+        <div class="rateEntryCard" id="btnOpenRateModal" title="点击打开交易费率配置界面">
+          <div class="rateEntryInfo">
+            <div class="rateEntryTop">
+              <span class="rateEntryTitle">交易费率配置</span>
+              <span class="rateBadge" id="rateBadgeFreeFive">免五</span>
+            </div>
+            <div class="rateEntryDesc" id="rateSummaryDesc">股票佣金: 万0.854 · ETF佣金: 万0.6 · 印花税: 万5 · 沪市过户费: 万0.1</div>
+          </div>
+          <button type="button" class="btnSm ghost rateEntryBtn" id="btnOpenRateModalSub">配置费率 &gt;</button>
+        </div>
+
+        <div class="actions" style="margin-top:16px;">
+          <button id="btnSave" class="primary">保存设置</button>
+          <button id="btnReset" class="ghost">恢复默认</button>
+        </div>
+        <p id="saveTip" class="muted" style="color:#20e0aa;" hidden>已保存 ✓ 界面、悬浮球、交易费率与开机自动启动已生效</p>
+      </div>
+    </section>
+
+
+    <!-- 买入/卖出交易录入弹窗 -->
+    <div id="txModal" class="modalMask" hidden>
+      <div class="modalBox">
+        <div class="modalHeadClean">
+          <h3 id="txModalTitle" class="modalTitle text-up">买入</h3>
+          <button id="btnTxClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody">
+          <div id="txTypeSwitch" class="typeSwitch" style="display:none;">
+            <button id="txTypeBuy" class="typeBtn active buy" type="button">买入</button>
+            <button id="txTypeSell" class="typeBtn sell" type="button">卖出</button>
+          </div>
+          <div id="txCodeRow" class="formRow" style="display:none;">
+            <label>股票代码 / 拼音</label>
+            <input id="txCode" type="text" placeholder="输入代码或拼音搜索..." autocomplete="off" />
+            <div id="txSuggest" class="suggest suggestModal" hidden></div>
+          </div>
+          <input id="txName" type="hidden" />
+          <div class="formRow">
+            <label>交易价格 (元)</label>
+            <input id="txPrice" type="number" step="0.01" min="0" placeholder="0.00" />
+          </div>
+          <div class="formRow">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label>交易数量 (股)</label>
+              <div class="qtyStepGroup" style="display:flex; gap:4px;">
+                <button type="button" class="btnStep" id="btnQtyMinus" title="减少100股">-100</button>
+                <button type="button" class="btnStep" id="btnQtyPlus" title="增加100股">+100</button>
+              </div>
+            </div>
+            <input id="txQty" type="number" step="100" min="100" placeholder="100" value="100" />
+            <div id="txSellable" class="txSellableHint" hidden></div>
+          </div>
+          <div class="txCalcBox">
+            <div class="txCalcRow">
+              <span class="txCalcLabel">预计成交额</span>
+              <span id="txTradeAmount" class="txCalcVal">¥0.00</span>
+            </div>
+            <div class="txCalcRow">
+              <span class="txCalcLabel">预估手续费</span>
+              <span id="txFeeAmount" class="txCalcVal fee">¥0.00</span>
+            </div>
+            <div id="txFeeDetail" class="txFeeDetail">佣金 ¥0.00 · 过户费 ¥0.00 · 印花税 ¥0.00</div>
+            <div class="txCalcTotalRow">
+              <span id="txTotalLabel">实付金额</span>
+              <span id="txTotalVal" class="txTotalVal">¥0.00</span>
+            </div>
+          </div>
+          <input id="txTotal" type="hidden" />
+          <input id="txDate" type="hidden" />
+          <div id="txError" class="txError" hidden></div>
+          <div class="modalActions">
+            <button id="btnTxCancel" class="btn-cancel" type="button">取消</button>
+            <button id="btnTxSubmit" class="btn-buy" type="button">确定</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 股票交易流水明细弹窗 -->
+    <div id="dtModal" class="modalMask" hidden>
+      <div class="modalBox modalBoxWide">
+        <div class="modalHeadClean">
+          <h3 id="dtModalTitle" class="modalTitle" style="color:#fff;">交易明细流水</h3>
+          <button id="btnDtClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody">
+          <div id="dtSummary" class="dtSummary"></div>
+          <div id="dtChartContainer" class="dtChartContainer">
+            <div class="dtChartHead">
+              <span class="dtChartTitle">📊 交易持仓与成本均价走势<small id="dtChartHint" style="font-size:10.5px;color:#a0aec0;font-weight:normal;margin-left:6px;"></small></span>
+              <span class="dtChartLegend">
+                <span><i class="dot dot-buy"></i>加仓</span>
+                <span><i class="dot dot-t-up"></i>做T盈利</span>
+                <span><i class="dot dot-t-down"></i>做T亏损</span>
+                <span><i class="dot dot-sell"></i>减仓</span>
+                <span><i class="dot dot-cost"></i>成本价(折线)</span>
+              </span>
+            </div>
+            <div class="dtCanvasWrap">
+              <canvas id="dtChartCanvas"></canvas>
+              <div id="dtChartTooltip" class="dtChartTooltip" hidden></div>
+            </div>
+          </div>
+          <div id="dtList" class="dtList"></div>
+          <div class="modalActions" style="margin-top:10px;">
+            <button id="btnDtDone" class="btn-cancel" type="button" style="margin-left:auto;">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自选股分组管理弹窗 -->
+    <div id="groupModal" class="modalMask" hidden>
+      <div class="modalBox modalBoxSmall">
+        <div class="modalHeadClean">
+          <h3 id="groupModalTitle" class="modalTitle" style="color:#fff;">新建分组</h3>
+          <button id="btnGroupModalClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody">
+          <div id="groupInputWrap" class="formRow">
+            <label id="groupModalLabel">分组名称</label>
+            <input id="groupInputName" type="text" placeholder="如：科技、消费、高股息" maxlength="12" autocomplete="off" />
+          </div>
+          <div id="groupModalSelectWrap" class="formRow" hidden>
+            <label>移动至分组</label>
+            <select id="groupSelectTarget"></select>
+          </div>
+          <div id="groupModalError" class="txError" hidden></div>
+          <div class="modalActions">
+            <button id="btnGroupDelete" class="btn-sell" type="button" style="margin-right:auto;" hidden>删除分组</button>
+            <button id="btnGroupCancel" class="btn-cancel" type="button">取消</button>
+            <button id="btnGroupSubmit" class="btn-buy" type="button">确定</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通用确认对话框 (替代系统 confirm) -->
+    <div id="confirmModal" class="modalMask" hidden>
+      <div class="modalBox modalBoxSmall">
+        <div class="modalHeadClean">
+          <h3 id="confirmTitle" class="modalTitle" style="color:#fff;">确认操作</h3>
+          <button id="btnConfirmClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody">
+          <p id="confirmMsg" class="confirmText">确定要执行此操作吗？</p>
+          <div class="modalActions">
+            <button id="btnConfirmCancel" class="btn-cancel" type="button">取消</button>
+            <button id="btnConfirmOk" class="btn-buy" type="button">确定删除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 交易费率配置弹窗（二次界面） -->
+    <div id="rateModal" class="modalMask" hidden>
+      <div class="modalBox" style="width: 480px; max-width: 95vw;">
+        <div class="modalHeadClean">
+          <h3 class="modalTitle" style="color:#4facfe;">交易费率配置</h3>
+          <button id="btnRateClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody" style="max-height: 420px; overflow-y: auto;">
+          <div class="rateCard">
+            <div class="rateItem">
+              <div class="rateItemTop">
+                <span class="rateLabel">是否免五</span>
+                <label class="switchLabel">
+                  <input id="setFreeFive" type="checkbox" checked />
+                  <span class="switchSlider"></span>
+                  <span id="txtFreeFive" class="switchText">免五</span>
+                </label>
+              </div>
+              <div class="rateDesc">免五：免除单笔交易佣金最低 5 元的收费限制</div>
+            </div>
+
+            <div class="rateItem">
+              <div class="rateItemTop">
+                <span class="rateLabel">沪深股票佣金费率</span>
+                <div class="rateInputWrap">
+                  <input id="setStockComm" type="number" step="0.001" min="0" value="0.854" />
+                  <span class="rateUnit">万分之一</span>
+                </div>
+              </div>
+              <div class="rateDesc">单位：万分之一，如 0.854 表示万0.854，3 表示万三</div>
+            </div>
+
+            <div class="rateItem">
+              <div class="rateItemTop">
+                <span class="rateLabel">ETF佣金费率</span>
+                <div class="rateInputWrap">
+                  <input id="setEtfComm" type="number" step="0.001" min="0" value="0.6" />
+                  <span class="rateUnit">万分之一</span>
+                </div>
+              </div>
+              <div class="rateDesc">单位：万分之一，如 0.6 表示万0.6，3 表示万三</div>
+            </div>
+
+            <div class="rateItem">
+              <div class="rateItemTop">
+                <span class="rateLabel">过户费（深股）</span>
+                <div class="rateInputWrap">
+                  <input id="setShenzhenTransfer" type="number" step="0.01" min="0" value="0" />
+                  <span class="rateUnit">万分之一</span>
+                </div>
+              </div>
+              <div class="rateDesc">单位：万分之一，如 0.1 表示万0.1（即 0.001%），0 表示免收</div>
+            </div>
+
+            <div class="rateItem">
+              <div class="rateItemTop">
+                <span class="rateLabel">过户费（沪股）</span>
+                <div class="rateInputWrap">
+                  <input id="setShanghaiTransfer" type="number" step="0.01" min="0" value="0.1" />
+                  <span class="rateUnit">万分之一</span>
+                </div>
+              </div>
+              <div class="rateDesc">单位：万分之一，如 0.1 表示万0.1（即 0.001%），1 表示万一</div>
+            </div>
+
+            <div class="rateItem">
+              <div class="rateItemTop">
+                <span class="rateLabel">印花税费率</span>
+                <div class="rateInputWrap">
+                  <input id="setStampTax" type="number" step="0.1" min="0" value="5" />
+                  <span class="rateUnit">万分之一</span>
+                </div>
+              </div>
+              <div class="rateDesc">单位：万分之一，如 5 表示千分之0.5（即万5），仅卖出收取</div>
+            </div>
+          </div>
+        </div>
+        <div class="modalFoot" style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-top:1px solid var(--line);">
+          <button id="btnRateReset" class="ghost" type="button" style="font-size:12px;">恢复默认费率</button>
+          <div style="display:flex; gap:8px;">
+            <button id="btnRateCancel" class="ghost" type="button">取消</button>
+            <button id="btnRateDone" class="primary" type="button">保存并应用</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 股票预警提醒弹窗 -->
+    <div id="alertModal" class="modalMask" hidden>
+      <div class="modalBox" style="width: 440px; max-width: 95vw;">
+        <div class="modalHeadClean">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">🔔</span>
+            <div>
+              <h3 id="alertStockTitle" class="modalTitle" style="color:#fbbf24; margin:0; font-size:16px;">股票预警设置</h3>
+              <div id="alertStockSub" style="font-size:12px; color:var(--muted); margin-top:2px;">--</div>
+            </div>
+          </div>
+          <button id="btnAlertClose" class="modalClose" title="关闭">&times;</button>
+        </div>
+        <div class="modalBody" style="padding: 16px 20px;">
+          <input type="hidden" id="alertStockCode" />
+          <input type="hidden" id="alertStockName" />
+
+          <div class="alertFormGrid">
+            <!-- 股价预警 -->
+            <div class="alertSectionTitle">💰 股价突破预警</div>
+            <div class="alertFormRow">
+              <label for="alertHighPrice">股价高于 (元)</label>
+              <div class="alertInputWrap">
+                <input id="alertHighPrice" type="number" step="0.01" min="0" placeholder="0 表示不启用" />
+                <span class="alertInputHint">元</span>
+              </div>
+            </div>
+            <div class="alertFormRow">
+              <label for="alertLowPrice">股价低于 (元)</label>
+              <div class="alertInputWrap">
+                <input id="alertLowPrice" type="number" step="0.01" min="0" placeholder="0 表示不启用" />
+                <span class="alertInputHint">元</span>
+              </div>
+            </div>
+
+            <!-- 涨跌幅预警 -->
+            <div class="alertSectionTitle" style="margin-top:12px;">📈 当日涨跌幅预警</div>
+            <div class="alertFormRow">
+              <label for="alertHighChange">涨幅大于 (%)</label>
+              <div class="alertInputWrap">
+                <input id="alertHighChange" type="number" step="0.1" min="0" placeholder="例如 3.5 表示大涨3.5%" />
+                <span class="alertInputHint">%</span>
+              </div>
+            </div>
+            <div class="alertFormRow">
+              <label for="alertLowChange">跌幅大于 (%)</label>
+              <div class="alertInputWrap">
+                <input id="alertLowChange" type="number" step="0.1" max="0" placeholder="例如 -3 表示大跌3%" />
+                <span class="alertInputHint">%</span>
+              </div>
+            </div>
+
+            <!-- 提醒频率与冷却 -->
+            <div class="alertSectionTitle" style="margin-top:12px;">⏱️ 提醒频率与防打扰</div>
+            <div class="alertFormRow">
+              <label for="alertInterval">通知冷却间隔</label>
+              <div class="alertInputWrap">
+                <select id="alertInterval" style="width:100%;">
+                  <option value="1">1 分钟</option>
+                  <option value="3">3 分钟</option>
+                  <option value="5" selected>5 分钟（推荐）</option>
+                  <option value="10">10 分钟</option>
+                  <option value="30">30 分钟</option>
+                  <option value="60">60 分钟</option>
+                  <option value="1440">当日仅提醒 1 次</option>
+                </select>
+              </div>
+            </div>
+            <div class="alertHelpText">仅在交易时间段（9:30~11:30、13:00~15:00）触发桌面通知，非交易时段（早盘前、午休、收盘后及周末）静默防打扰。</div>
+          </div>
+        </div>
+        <div class="modalFoot" style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-top:1px solid var(--line);">
+          <button id="btnAlertDelete" class="ghost" type="button" style="color:#ff7b76; font-size:12px;">清除此股票提醒</button>
+          <div style="display:flex; gap:8px;">
+            <button id="btnAlertCancel" class="ghost" type="button">取消</button>
+            <button id="btnAlertSave" class="primary" type="button">保存提醒</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- K线弹窗（当日K线 / 历史K线），持仓·自选·已清仓三处的📈按钮共用 -->
+    <div id="kChartModal" class="modalMask" hidden>
+      <div class="modalBox modalBoxWide">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:18px;">📈</span>
+            <div>
+              <h3 id="kChartTitle" class="modalTitle" style="color:#4facfe;margin:0;font-size:16px;">K线</h3>
+              <div id="kChartSub" style="font-size:11.5px;color:#93a4bd;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="kTabs">
+          <button type="button" class="kTab active" data-kline-tab="5">当日K线</button>
+          <button type="button" class="kTab" data-kline-tab="101">历史K线</button>
+        </div>
+        <div id="kChartBox" class="kChartBox"></div>
+        <div class="kFoot"><button id="btnKClose" class="btnSm" type="button" style="padding:6px 22px;">关闭</button></div>
+      </div>
+    </div>
+  </div>
+  <script src="index.js"></script>
+</body>
+</html>

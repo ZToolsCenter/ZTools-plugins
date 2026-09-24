@@ -9,7 +9,7 @@
 - 会话历史持久化，重启后自动恢复
 - 侧边栏会话列表，支持搜索过滤
 - 多模型切换，自动记忆上次选择
-- Markdown 渲染（代码高亮、列表、表格等）
+- XMarkdown 渲染（KaTeX 公式、代码高亮、列表、表格等）
 - 深色 / 浅色主题自适应
 - 支持 over 模式，从搜索框直接发起对话
 - 输入框自动撑高，多行时发送按钮移至底部
@@ -31,7 +31,7 @@
 ## 技术栈
 
 - Vue 3 + TypeScript + Vite
-- marked（Markdown 渲染）
+- XMarkdown（Markdown、KaTeX 与代码高亮渲染）
 - ZTools API（AI 调用、数据存储）
 
 ## 开发

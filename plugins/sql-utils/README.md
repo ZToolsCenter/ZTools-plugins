@@ -76,6 +76,23 @@
 - 📦 包名和作者配置
 - 🔧 Lombok 和 Swagger 注解支持
 
+### 5️⃣ Git Commit 生成器 🔖
+按 Conventional Commits 规范快速生成 Git Commit 信息，一键复制。
+
+**支持的功能⚙️：**
+- 🏷️ 10 种类型选择（feat/fix/docs/style/refactor/perf/test/chore/build/ci）
+- 🎯 可选范围（scope）标注影响模块
+- 📝 简短描述 + 详细内容（body）
+- 👁️ 实时预览生成结果
+- 📋 一键复制到剪贴板
+
+**输出格式📤：**
+```
+type(scope): subject
+
+body
+```
+
 ## 🛠 技术栈
 
 - **前端框架：** Vue 3

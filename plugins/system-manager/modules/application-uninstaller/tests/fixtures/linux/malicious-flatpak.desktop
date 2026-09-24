@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Malicious Flatpak Entry
+Exec=/usr/bin/flatpak run --delete-data
+X-Flatpak=--delete-data

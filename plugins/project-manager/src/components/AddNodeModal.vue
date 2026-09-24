@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useNodeStore } from '../stores/node';
 import { api } from '../api';
 import { useI18n } from 'vue-i18n';
+import { ElMessage } from 'element-plus';
 
 const { t } = useI18n();
 const props = defineProps<{ modelValue: boolean }>();
@@ -19,6 +20,7 @@ const form = ref({
   version: '',
   path: ''
 });
+const loading = ref(false);
 
 async function selectFolder() {
   const selected = await api.openDialog({
@@ -36,18 +38,23 @@ async function selectFolder() {
   }
 }
 
-function submit() {
+async function submit() {
   if (!form.value.version || !form.value.path) return;
-  
-  nodeStore.addCustomNode({
-    version: form.value.version,
-    path: form.value.path,
-    source: 'custom'
-  });
-  
-  visible.value = false;
-  // Reset form
-  form.value = { version: '', path: '' };
+
+  try {
+    loading.value = true;
+    await nodeStore.addCustomNode({
+      version: form.value.version,
+      path: form.value.path,
+      source: 'custom',
+    });
+    visible.value = false;
+    form.value = { version: '', path: '' };
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('common.error'));
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 
@@ -81,7 +88,7 @@ function submit() {
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="visible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submit" :disabled="!form.version || !form.path">
+        <el-button type="primary" @click="submit" :loading="loading" :disabled="!form.version || !form.path">
           {{ t('common.confirm') }}
         </el-button>
       </div>

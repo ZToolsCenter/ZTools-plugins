@@ -8,8 +8,17 @@ import { onMounted, onUnmounted, ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { registry } from '@/core/registry'
 import { applyWorkflow } from '@/core/engine'
-import type { FileItem, ActionInstance } from '@/core/types'
+import type { FileItem, ActionInstance, ClipboardCopyRequest } from '@/core/types'
 import { fsBridge } from '@/core/bridge'
+import {
+  buildTargetPath,
+  formatClipboardItems,
+  getExtension,
+  isAbsoluteFilePath,
+  uniquePaths
+} from '@/core/file-items'
+import { collectTransferFiles, getPathsForFiles, isEditableElement } from '@/core/transfers'
+import { useFileQueue } from '@/composables/useFileQueue'
 import { driver } from 'driver.js'
 import type { DriveStep } from 'driver.js'
 import 'driver.js/dist/driver.css'
@@ -21,8 +30,16 @@ import RenamingTable from '@/components/preview/RenamingTable.vue'
 import SettingsDialog from '@/components/layout/SettingsDialog.vue'
 
 // --- 状态管理 ---
-/** List of files selected for renaming */
-const files = ref<FileItem[]>([])
+const {
+  visibleItems,
+  breadcrumbs,
+  importPaths,
+  appendFallbackFiles,
+  openDirectory,
+  navigateToBreadcrumb,
+  removeItems,
+  clear: clearFileQueue
+} = useFileQueue()
 /** Ordered list of actions to apply to files */
 const workflow = ref<ActionInstance[]>([])
 /** Whether the settings dialog is currently open */
@@ -277,129 +294,6 @@ watch(brandPreset, (nextPreset) => {
 
 const INVALID_FILE_NAME_CHARS = /[<>:"/\\|?*\x00-\x1F]/
 const WINDOWS_RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i
-const WINDOWS_ABSOLUTE_PATH = /^[a-zA-Z]:[\\/]/
-const UNC_ABSOLUTE_PATH = /^\\\\/
-const POSIX_ABSOLUTE_PATH = /^\//
-
-const isAbsoluteFilePath = (targetPath: string) => {
-  return WINDOWS_ABSOLUTE_PATH.test(targetPath)
-    || UNC_ABSOLUTE_PATH.test(targetPath)
-    || POSIX_ABSOLUTE_PATH.test(targetPath)
-}
-
-const getNameFromPath = (targetPath: string) => {
-  const normalizedPath = targetPath.replace(/\\/g, '/')
-  const lastSlash = normalizedPath.lastIndexOf('/')
-  return lastSlash === -1 ? normalizedPath : normalizedPath.slice(lastSlash + 1)
-}
-
-const buildTargetPath = (sourcePath: string, newName: string) => {
-  const lastSeparator = Math.max(sourcePath.lastIndexOf('/'), sourcePath.lastIndexOf('\\'))
-  if (lastSeparator === -1) return newName
-  return `${sourcePath.slice(0, lastSeparator + 1)}${newName}`
-}
-
-const getExtension = (name: string) => name.split('.').pop() || ''
-
-type ImportedFile = File & {
-  path?: string
-  webkitRelativePath?: string
-}
-
-type FileSystemFileEntryLike = {
-  isFile: true
-  file: (successCallback: (file: ImportedFile) => void, errorCallback?: (error: unknown) => void) => void
-}
-
-type FileSystemDirectoryReaderLike = {
-  readEntries: (
-    successCallback: (entries: FileSystemEntryLike[]) => void,
-    errorCallback?: (error: unknown) => void
-  ) => void
-}
-
-type FileSystemDirectoryEntryLike = {
-  isDirectory: true
-  createReader: () => FileSystemDirectoryReaderLike
-}
-
-type FileSystemEntryLike =
-  | FileSystemFileEntryLike
-  | FileSystemDirectoryEntryLike
-
-const readAllEntries = async (reader: FileSystemDirectoryReaderLike): Promise<FileSystemEntryLike[]> => {
-  const allEntries: FileSystemEntryLike[] = []
-
-  while (true) {
-    const chunk = await new Promise<FileSystemEntryLike[]>((resolve) => {
-      reader.readEntries(
-        (entries) => resolve(entries),
-        () => resolve([])
-      )
-    })
-
-    if (!chunk.length) break
-    allEntries.push(...chunk)
-  }
-
-  return allEntries
-}
-
-/**
- * 尝试通过 window.services.getPathForFile 获取 File 对象的绝对路径。
- * Electron 22+ 废弃了 File.path，官方替代方案是 webUtils.getPathForFile()。
- */
-const getFilePath = (file: File): string => {
-  try {
-    const svc = (window as any).services
-    if (typeof svc?.getPathForFile === 'function') {
-      return svc.getPathForFile(file) || ''
-    }
-  } catch {
-    // ignore
-  }
-  // 降级：尝试旧版 Electron 的 File.path
-  return ((file as any).path || '').trim()
-}
-
-const readEntryFiles = async (entry: FileSystemEntryLike): Promise<ImportedFile[]> => {
-  if ('isFile' in entry && entry.isFile) {
-    return new Promise<ImportedFile[]>((resolve) => {
-      entry.file(
-        (file) => resolve([file]),
-        () => resolve([])
-      )
-    })
-  }
-
-  if ('isDirectory' in entry && entry.isDirectory) {
-    const reader = entry.createReader()
-    const childEntries = await readAllEntries(reader)
-    const nestedFiles = await Promise.all(childEntries.map((child) => readEntryFiles(child)))
-    return nestedFiles.flat()
-  }
-
-  return []
-}
-
-const extractDroppedFiles = async (event: DragEvent): Promise<ImportedFile[]> => {
-  const dataTransfer = event.dataTransfer
-  if (!dataTransfer) return []
-
-  const items = Array.from(dataTransfer.items || [])
-  const entries = items
-    .map((item) => (item as any).webkitGetAsEntry?.() as FileSystemEntryLike | null)
-    .filter((entry): entry is FileSystemEntryLike => Boolean(entry))
-
-  if (entries.length) {
-    const filesFromEntries = (await Promise.all(entries.map((entry) => readEntryFiles(entry)))).flat()
-    if (filesFromEntries.length) {
-      return filesFromEntries
-    }
-  }
-
-  return Array.from(dataTransfer.files || []) as ImportedFile[]
-}
 
 const validateNewName = (name: string): string | null => {
   const trimmed = name.trim()
@@ -412,8 +306,8 @@ const validateNewName = (name: string): string | null => {
 
 // --- 实时预览计算 ---
 const previewFiles = computed(() => {
-  const workflowPreview = applyWorkflow(files.value, workflow.value)
-  const sourceById = new Map(files.value.map((file) => [file.id, file]))
+  const workflowPreview = applyWorkflow(visibleItems.value, workflow.value)
+  const sourceById = new Map(visibleItems.value.map((file) => [file.id, file]))
 
   return workflowPreview.map((previewFile) => {
     const sourceFile = sourceById.get(previewFile.id)
@@ -476,68 +370,29 @@ const moveAction = ({ from, to }: { from: number; to: number }) => {
   workflow.value = next
 }
 
-const appendImportedFiles = (importedFiles: ImportedFile[]) => {
-  if (!importedFiles.length) return
+const handleImportPaths = async (filePaths: string[], notifySkipped = true) => {
+  const result = await importPaths(filePaths)
+  selectedCount.value = 0
+  selectedIds.value = []
 
-  const newFiles: FileItem[] = importedFiles.map((f) => {
-    const rawPath = getFilePath(f)
-    const fallbackPath = (f.webkitRelativePath || f.name).trim()
-    const resolvedPath = rawPath || fallbackPath
-    const hasAbsolutePath = isAbsoluteFilePath(rawPath)
+  if (notifySkipped && result.skipped > 0) {
+    showToast(t('app.import_skipped_toast', { count: result.skipped }), 'warning')
+  }
 
-    return {
-      id: Math.random().toString(36).substring(2, 9),
-      originalName: f.name,
-      newName: f.name,
-      path: resolvedPath,
-      size: f.size,
-      lastModified: f.lastModified,
-      isDirectory: false,
-      status: hasAbsolutePath ? 'idle' : 'error',
-      errorMessage: hasAbsolutePath ? undefined : '无法获取文件绝对路径，请使用“导入文件”按钮选择本地文件',
-      extension: f.name.split('.').pop() || ''
-    }
-  })
-  
-  files.value = [...files.value, ...newFiles]
+  return result
 }
 
-const handleImportFiles = (fileList: FileList) => {
-  appendImportedFiles(Array.from(fileList) as ImportedFile[])
-}
+const appendImportedFiles = async (importedFiles: File[]) => {
+  if (!importedFiles.length) return 0
+  const filePaths = getPathsForFiles(importedFiles)
+  if (filePaths.length > 0) {
+    return (await handleImportPaths(filePaths)).imported
+  }
 
-const handleImportPaths = async (filePaths: string[]) => {
-  if (!filePaths.length) return
-
-  const imported: Array<FileItem | null> = await Promise.all(filePaths.map(async (rawPath) => {
-    const targetPath = (rawPath || '').trim()
-    if (!targetPath || !isAbsoluteFilePath(targetPath)) {
-      return null
-    }
-
-    const stats = await fsBridge.getStats(targetPath)
-    if (!stats || !stats.isFile) {
-      return null
-    }
-
-    const fileName = getNameFromPath(targetPath)
-    return {
-      id: Math.random().toString(36).substring(2, 9),
-      originalName: fileName,
-      newName: fileName,
-      path: targetPath,
-      size: stats.size,
-      lastModified: stats.mtimeMs,
-      isDirectory: false,
-      status: 'idle',
-      extension: fileName.split('.').pop() || ''
-    }
-  }))
-
-  const validFiles = imported.filter((file): file is FileItem => file !== null)
-  if (!validFiles.length) return
-
-  files.value = [...files.value, ...validFiles]
+  const imported = appendFallbackFiles(importedFiles)
+  selectedCount.value = 0
+  selectedIds.value = []
+  return imported
 }
 
 const handlePreviewDragEnter = (event: DragEvent) => {
@@ -566,23 +421,68 @@ const handlePreviewDrop = async (event: DragEvent) => {
   dragDepth.value = 0
   isDragOverPreview.value = false
 
-  const droppedFiles = await extractDroppedFiles(event)
-  appendImportedFiles(droppedFiles)
+  const droppedFiles = collectTransferFiles(event.dataTransfer)
+  await appendImportedFiles(droppedFiles)
 }
 
 const clearFiles = () => {
-  files.value = []
+  clearFileQueue()
   selectedCount.value = 0
+  selectedIds.value = []
 }
 
 const removeFileFromQueue = (fileId: string) => {
-  files.value = files.value.filter((file) => file.id !== fileId)
+  removeItems([fileId])
 }
 
 const removeFilesFromQueue = (fileIds: string[]) => {
-  if (fileIds.length === 0) return
-  const idSet = new Set(fileIds)
-  files.value = files.value.filter((file) => !idSet.has(file.id))
+  removeItems(fileIds)
+}
+
+const handlePaste = async (event: ClipboardEvent) => {
+  const pastedFiles = collectTransferFiles(event.clipboardData)
+  if (isEditableElement(event.target) && pastedFiles.length === 0) return
+
+  const eventPaths = getPathsForFiles(pastedFiles)
+  event.preventDefault()
+  const clipboardPaths = eventPaths.length > 0 ? [] : await fsBridge.getClipboardFilePaths()
+  const paths = uniquePaths([...eventPaths, ...clipboardPaths])
+
+  if (paths.length > 0) {
+    const result = await handleImportPaths(paths, false)
+    if (result.imported > 0) {
+      const messageKey = result.skipped > 0 ? 'app.paste_imported_with_skipped_toast' : 'app.paste_imported_toast'
+      showToast(t(messageKey, { count: result.imported, skipped: result.skipped }), result.skipped > 0 ? 'warning' : 'success')
+    } else if (result.duplicates > 0) {
+      showToast(t('app.import_duplicate_toast'), 'info')
+    }
+    return
+  }
+
+  const imported = await appendImportedFiles(pastedFiles)
+  if (imported > 0) {
+    showToast(t('app.paste_imported_toast', { count: imported }), 'success')
+  }
+}
+
+const handleOpenDirectory = async (file: FileItem) => {
+  const opened = await openDirectory(file)
+  if (!opened) {
+    showToast(t('app.folder_open_failed'), 'error')
+    return
+  }
+  selectedCount.value = 0
+  selectedIds.value = []
+}
+
+const handleNavigateBreadcrumb = async (index: number) => {
+  const opened = await navigateToBreadcrumb(index)
+  if (!opened) {
+    showToast(t('app.folder_open_failed'), 'error')
+    return
+  }
+  selectedCount.value = 0
+  selectedIds.value = []
 }
 
 const hasCommittedRename = (file: FileItem) => {
@@ -627,7 +527,7 @@ const revertCommittedRename = async (file: FileItem) => {
   file.path = previousPath
   file.originalName = previousName
   file.newName = previousName
-  file.extension = getExtension(previousName)
+  file.extension = getExtension(previousName, file.isDirectory)
   file.status = 'success'
   file.errorMessage = undefined
   file.lastRenamedFromPath = undefined
@@ -635,7 +535,7 @@ const revertCommittedRename = async (file: FileItem) => {
 }
 
 const revertFile = async (fileId: string) => {
-  const file = files.value.find((f) => f.id === fileId)
+  const file = visibleItems.value.find((f) => f.id === fileId)
   if (!file) return
 
   if (hasCommittedRename(file)) {
@@ -652,7 +552,7 @@ const revertFiles = async (fileIds: string[]) => {
   if (fileIds.length === 0) return
   const idSet = new Set(fileIds)
 
-  for (const file of files.value) {
+  for (const file of visibleItems.value) {
     if (idSet.has(file.id)) {
       if (hasCommittedRename(file)) {
         await revertCommittedRename(file)
@@ -680,9 +580,27 @@ const handleSelectionChange = (selection: { count: number; ids: string[] }) => {
   selectedIds.value = selection.ids
 }
 
+const copyItems = async (request: ClipboardCopyRequest) => {
+  const selected = new Set(selectedIds.value)
+  const items = selected.size > 0
+    ? visibleItems.value.filter((item) => selected.has(item.id))
+    : visibleItems.value
+
+  if (items.length === 0) return
+
+  const copied = await fsBridge.writeClipboardText(formatClipboardItems(items, request))
+  if (!copied) {
+    showToast(t('app.copy_failed_toast'), 'error')
+    return
+  }
+
+  const targetLabel = request.field === 'path' ? t('app.copy_target_paths') : t('app.copy_target_names')
+  showToast(t('app.copy_success_toast', { count: items.length, target: targetLabel }), 'success')
+}
+
 const runRenaming = async () => {
   const previewById = new Map(previewFiles.value.map((file) => [file.id, file]))
-  const plans = files.value
+  const plans = visibleItems.value
     .map((sourceFile) => {
       const previewFile = previewById.get(sourceFile.id)
       if (!previewFile) return null
@@ -776,7 +694,7 @@ const runRenaming = async () => {
       plan.source.newName = plan.nextName
       plan.source.lastRenamedFromPath = previousPath
       plan.source.lastRenamedFromName = previousName
-      plan.source.extension = getExtension(plan.nextName)
+      plan.source.extension = getExtension(plan.nextName, plan.source.isDirectory)
       plan.source.status = 'success'
       plan.source.errorMessage = undefined
     } else {
@@ -802,6 +720,7 @@ onMounted(() => {
   }
   applyTheme(theme.value)
   applyBrandPreset(brandPreset.value)
+  window.addEventListener('paste', handlePaste)
 
   window.setTimeout(() => {
     void startOnboarding(false)
@@ -810,6 +729,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearToastTimer()
+  window.removeEventListener('paste', handlePaste)
   systemThemeMedia.removeEventListener('change', handleSystemThemeChange)
 })
 </script>
@@ -819,11 +739,11 @@ onUnmounted(() => {
     <!-- 顶部操作栏 -->
     <ControlHeader 
       id="onboarding-header"
-      :file-count="files.length"
+      :file-count="visibleItems.length"
       :selected-count="selectedCount"
       @show-settings="isSettingsOpen = true"
-      @import-files="handleImportFiles"
       @import-paths="handleImportPaths"
+      @copy-items="copyItems"
       @clear-files="clearFiles"
       @run="runRenaming"
       @revert-files="revertSelectedFiles"
@@ -865,7 +785,17 @@ onUnmounted(() => {
             <p class="mt-1 text-xs font-medium text-muted-foreground">{{ t('app.drag_import_desc') }}</p>
           </div>
         </div>
-        <RenamingTable :files="previewFiles" @remove-file="removeFileFromQueue" @remove-files="removeFilesFromQueue" @revert-file="revertFile" @revert-files="revertFiles" @selection-change="handleSelectionChange" />
+        <RenamingTable
+          :files="previewFiles"
+          :breadcrumbs="breadcrumbs"
+          @open-directory="handleOpenDirectory"
+          @navigate-breadcrumb="handleNavigateBreadcrumb"
+          @remove-file="removeFileFromQueue"
+          @remove-files="removeFilesFromQueue"
+          @revert-file="revertFile"
+          @revert-files="revertFiles"
+          @selection-change="handleSelectionChange"
+        />
       </main>
     </div>
 

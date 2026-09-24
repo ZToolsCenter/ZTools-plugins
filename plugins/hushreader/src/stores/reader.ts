@@ -19,6 +19,11 @@ export const useReaderStore = defineStore('reader', () => {
   const hushreaderLineLength = ref(80)
   const hushreaderLineCount = ref(5)
 
+  // 在线阅读（在线书源 / 开源阅读）逐章加载相关状态
+  const onlineMode = ref(false)
+  const onlineChapterLoading = ref(false)
+  const onlineChapterError = ref('')
+
   const currentChapter = computed(() =>
     chapters.value[currentChapterIndex.value] ?? null
   )
@@ -34,7 +39,13 @@ export const useReaderStore = defineStore('reader', () => {
     )
   })
 
-  const hushreaderLines = computed(() => currentPageSlice.value.lines)
+  const hushreaderLines = computed(() => {
+    if (onlineMode.value) {
+      if (onlineChapterError.value) return [`加载失败：${onlineChapterError.value}`]
+      if (!currentChapter.value?.content) return ['章节加载中…']
+    }
+    return currentPageSlice.value.lines
+  })
 
   const pageStarts = computed(() => {
     const chapter = currentChapter.value
@@ -50,6 +61,13 @@ export const useReaderStore = defineStore('reader', () => {
 
   const readingPercent = computed(() => {
     if (chapters.value.length === 0) return 0
+    // 在线阅读：章节未全部加载，按章节位置估算进度
+    if (onlineMode.value) {
+      const n = chapters.value.length
+      const ratio = totalPages.value > 0 ? currentPage.value / totalPages.value : 0
+      const value = ((currentChapterIndex.value + Math.max(0, Math.min(ratio, 0.999))) / n) * 100
+      return Math.min(100, Math.floor(value * 100) / 100)
+    }
     const totalChars = chapters.value.reduce((sum, ch) => sum + ch.content.length, 0)
     if (totalChars === 0) return 0
     const isLastChapter = currentChapterIndex.value === chapters.value.length - 1
@@ -138,6 +156,17 @@ export const useReaderStore = defineStore('reader', () => {
     progressIndex.value = 0
     isLoading.value = false
     loadError.value = ''
+    onlineMode.value = false
+    onlineChapterLoading.value = false
+    onlineChapterError.value = ''
+  }
+
+  function setOnlineMode(flag: boolean) {
+    onlineMode.value = flag
+    if (!flag) {
+      onlineChapterLoading.value = false
+      onlineChapterError.value = ''
+    }
   }
 
   return {
@@ -145,6 +174,8 @@ export const useReaderStore = defineStore('reader', () => {
     currentPageSlice, hushreaderLines, pageStarts, currentPage, totalPages, readingPercent,
     hushreaderLineLength, hushreaderLineCount,
     isLoading, loadError, readerVisible,
-    setChapters, setHushreaderLayout, nextPage, prevPage, goToChapter, goToProgress, reset
+    onlineMode, onlineChapterLoading, onlineChapterError,
+    setChapters, setHushreaderLayout, nextPage, prevPage, goToChapter, goToProgress,
+    setOnlineMode, reset
   }
 })

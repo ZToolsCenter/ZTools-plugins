@@ -1,0 +1,51 @@
+const os = require('os')
+const dgram = require('dgram')
+// 沙箱上下文未注入 setTimeout，从 timers 模块取
+const { setTimeout: setTimer, clearTimeout: clearTimer } = require('timers')
+
+// 虚拟网卡名特征（VMware / VirtualBox / Hyper-V / WSL / Docker / 抓包与 VPN 虚拟网卡）
+const VIRTUAL_NIC = /vmware|virtualbox|vethernet|hyper-?v|docker|wsl|tap-|tun\b|npcap|bluetooth|蓝牙|virtual|vpn/i
+
+// 所有非回环的 IPv4 网卡
+const nics = []
+for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+  for (const addr of addrs || []) {
+    if (addr.internal) continue
+    if (addr.family !== 'IPv4' && addr.family !== 4) continue
+    nics.push({ name, address: addr.address })
+  }
+}
+if (!nics.length) throw new Error('未找到可用的内网 IPv4 地址')
+
+// UDP connect 不发送任何数据包，只让内核按路由表绑定源地址，
+// 以此选出真正承载默认路由（出网）的那张网卡，避开虚拟网卡干扰
+const routedIp = () => new Promise((resolve) => {
+  const socket = dgram.createSocket('udp4')
+  let settled = false
+  const done = (ip) => {
+    if (settled) return
+    settled = true
+    try { socket.close() } catch {}
+    resolve(ip)
+  }
+  const timer = setTimer(() => done(null), 1000)
+  socket.once('error', () => { clearTimer(timer); done(null) })
+  socket.connect(53, '8.8.8.8', () => {
+    clearTimer(timer)
+    const bound = socket.address()
+    done(bound && bound.address !== '0.0.0.0' ? bound.address : null)
+  })
+})
+
+// 路由探测失败时的兜底排序：网卡枚举顺序不稳定，不能直接取第一个
+const rank = (nic) => (nic.address.startsWith('169.254.') ? 100 : 0) + (VIRTUAL_NIC.test(nic.name) ? 50 : 0)
+
+return routedIp().then((ip) => {
+  const main = nics.find((nic) => nic.address === ip) || nics.slice().sort((a, b) => rank(a) - rank(b))[0]
+  const others = nics.filter((nic) => nic !== main)
+  ztools.copyText(main.address)
+  print('内网 IP 地址已复制')
+  print(`出口网卡：${main.name}`)
+  if (others.length) print('其它网卡：' + others.map((nic) => `${nic.address}（${nic.name}）`).join('、'))
+  return main.address
+})

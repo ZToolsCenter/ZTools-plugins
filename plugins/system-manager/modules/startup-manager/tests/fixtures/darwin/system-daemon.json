@@ -1,0 +1,5 @@
+{
+  "Label": "com.example.daemon",
+  "Program": "/Library/PrivilegedHelperTools/example",
+  "KeepAlive": true
+}

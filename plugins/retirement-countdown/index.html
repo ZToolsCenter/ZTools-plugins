@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>退休倒计时</title>
+    <style>
+      :root {
+        --bg0: #e8f2ef;
+        --bg1: #f7f1e8;
+        --ink: #1d2a28;
+        --muted: #5c6b67;
+        --accent: #c9783a;
+        --accent-soft: rgba(201, 120, 58, 0.14);
+        --card: rgba(255, 255, 255, 0.55);
+        --line: rgba(29, 42, 40, 0.08);
+        --tick: #2f6f66;
+        --ok: #2f6f66;
+        --danger: #b4483a;
+        --shadow: 0 18px 40px rgba(47, 72, 66, 0.08);
+      }
+
+      html.dark {
+        --bg0: #152422;
+        --bg1: #1e1a16;
+        --ink: #eef3f1;
+        --muted: #9aaba6;
+        --accent: #e09a5a;
+        --accent-soft: rgba(224, 154, 90, 0.16);
+        --card: rgba(255, 255, 255, 0.05);
+        --line: rgba(238, 243, 241, 0.1);
+        --tick: #6fc4b5;
+        --ok: #6fc4b5;
+        --danger: #ef8a7c;
+        --shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        color: var(--ink);
+        font-family: "Segoe UI Variable Text", "Segoe UI", "PingFang SC",
+          "Microsoft YaHei UI", sans-serif;
+        background:
+          radial-gradient(900px 420px at 12% -10%, #9fd4c8 0%, transparent 55%),
+          radial-gradient(780px 380px at 100% 0%, #f0c59a 0%, transparent 50%),
+          linear-gradient(160deg, var(--bg0), var(--bg1));
+        overflow: hidden;
+      }
+
+      html.dark body {
+        background:
+          radial-gradient(900px 420px at 12% -10%, #234842 0%, transparent 55%),
+          radial-gradient(780px 380px at 100% 0%, #4a3422 0%, transparent 50%),
+          linear-gradient(160deg, var(--bg0), var(--bg1));
+      }
+
+      .app {
+        height: 100%;
+        padding: 18px 20px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        line-height: 1.15;
+      }
+
+      .brand p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--ink);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        backdrop-filter: blur(8px);
+        transition: transform 0.15s ease, background 0.15s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-1px);
+      }
+
+      .btn.primary {
+        background: var(--accent);
+        border-color: transparent;
+        color: #fff;
+      }
+
+      .hero {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 16px;
+        padding: 8px 4px 0;
+      }
+
+      .target {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .target .label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .target .date {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .target .badge {
+        font-size: 12px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .digits {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .digit {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px 8px 12px;
+        text-align: center;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+        animation: rise 0.45s ease both;
+      }
+
+      .digit:nth-child(2) {
+        animation-delay: 0.05s;
+      }
+      .digit:nth-child(3) {
+        animation-delay: 0.1s;
+      }
+      .digit:nth-child(4) {
+        animation-delay: 0.15s;
+      }
+      .digit:nth-child(5) {
+        animation-delay: 0.2s;
+      }
+      .digit:nth-child(6) {
+        animation-delay: 0.25s;
+      }
+
+      .digit .num {
+        font-variant-numeric: tabular-nums;
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: var(--tick);
+        line-height: 1;
+      }
+
+      .digit .unit {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .subline {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .subline strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .progress {
+        height: 8px;
+        border-radius: 999px;
+        background: var(--line);
+        overflow: hidden;
+      }
+
+      .progress > i {
+        display: block;
+        height: 100%;
+        width: 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #2f6f66, var(--accent));
+        transition: width 0.6s ease;
+      }
+
+      .empty,
+      .done {
+        text-align: center;
+        padding: 36px 12px;
+      }
+
+      .empty h2,
+      .done h2 {
+        margin: 0 0 8px;
+        font-size: 24px;
+      }
+
+      .empty p,
+      .done p {
+        margin: 0 0 18px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .panel {
+        display: none;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+
+      .panel.show {
+        display: block;
+        animation: rise 0.25s ease both;
+      }
+
+      .form {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 12px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .field.full {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      input,
+      select {
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.7);
+        color: var(--ink);
+        padding: 0 10px;
+        font: inherit;
+        outline: none;
+      }
+
+      html.dark input,
+      html.dark select {
+        background: rgba(0, 0, 0, 0.25);
+      }
+
+      input:focus,
+      select:focus {
+        border-color: var(--accent);
+      }
+
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .hint {
+        margin: 8px 0 0;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="top">
+        <div class="brand">
+          <h1>退休倒计时</h1>
+          <p id="subtitle">离自由更近一点</p>
+        </div>
+        <button class="btn" id="toggleSettings" type="button">设置</button>
+      </div>
+
+      <div class="hero" id="mainView">
+        <div class="empty" id="emptyState">
+          <h2>先设置一下</h2>
+          <p>填写出生日期，即可按渐进式退休政策估算退休日</p>
+          <button class="btn primary" id="openSettings" type="button">开始设置</button>
+        </div>
+
+        <div class="done hidden" id="doneState">
+          <h2>你已经退休了</h2>
+          <p id="doneText">恭喜，法定退休日已到</p>
+        </div>
+
+        <div class="hidden" id="countState">
+          <div class="target">
+            <span class="label">预计退休日</span>
+            <span class="date" id="retireDateText">—</span>
+            <span class="badge" id="retireAgeText">—</span>
+          </div>
+          <div class="digits">
+            <div class="digit">
+              <div class="num" id="y">0</div>
+              <div class="unit">年</div>
+            </div>
+            <div class="digit">
+              <div class="num" id="mo">0</div>
+              <div class="unit">月</div>
+            </div>
+            <div class="digit">
+              <div class="num" id="d">0</div>
+              <div class="unit">天</div>
+            </div>
+            <div class="digit">
+              <div class="num" id="h">0</div>
+              <div class="unit">时</div>
+            </div>
+            <div class="digit">
+              <div class="num" id="m">0</div>
+              <div class="unit">分</div>
+            </div>
+            <div class="digit">
+              <div class="num" id="s">0</div>
+              <div class="unit">秒</div>
+            </div>
+          </div>
+          <div class="subline">
+            <span>还剩 <strong id="totalDays">0</strong> 天</span>
+            <span>·</span>
+            <span>已走过职业生涯约 <strong id="progressText">0%</strong></span>
+          </div>
+          <div class="progress"><i id="progressBar"></i></div>
+        </div>
+      </div>
+
+      <div class="panel" id="settingsPanel">
+        <div class="form">
+          <div class="field">
+            <label for="name">称呼（可选）</label>
+            <input id="name" type="text" maxlength="20" placeholder="例如：老王" />
+          </div>
+          <div class="field">
+            <label for="birth">出生日期</label>
+            <input id="birth" type="date" required />
+          </div>
+          <div class="field full">
+            <label for="mode">计算方式</label>
+            <select id="mode">
+              <option value="policy-male">男职工（原 60 → 63）</option>
+              <option value="policy-female-worker">女职工（原 50 → 55）</option>
+              <option value="policy-female-cadre">女干部（原 55 → 58）</option>
+              <option value="custom-age">自定义退休年龄</option>
+              <option value="custom-date">自定义退休日期</option>
+            </select>
+          </div>
+          <div class="field" id="customAgeField">
+            <label for="customAge">退休年龄（岁）</label>
+            <input id="customAge" type="number" min="40" max="75" step="0.5" value="60" />
+          </div>
+          <div class="field" id="customDateField">
+            <label for="customDate">退休日期</label>
+            <input id="customDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="workStart">参加工作日期（可选，用于进度）</label>
+            <input id="workStart" type="date" />
+          </div>
+        </div>
+        <p class="hint">
+          政策模式按 2025 年 1 月 1 日起施行的渐进式延迟法定退休年龄估算，结果仅供参考。
+        </p>
+        <div class="actions">
+          <button class="btn" id="cancelSettings" type="button">取消</button>
+          <button class="btn primary" id="saveSettings" type="button">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const REFORM_START = new Date(2025, 0, 1)
+      const POLICY = {
+        'policy-male': { originalYears: 60, intervalMonths: 4, maxDelayMonths: 36, label: '男职工' },
+        'policy-female-worker': { originalYears: 50, intervalMonths: 2, maxDelayMonths: 60, label: '女职工' },
+        'policy-female-cadre': { originalYears: 55, intervalMonths: 4, maxDelayMonths: 36, label: '女干部' }
+      }
+
+      const els = {
+        subtitle: document.getElementById('subtitle'),
+        emptyState: document.getElementById('emptyState'),
+        doneState: document.getElementById('doneState'),
+        doneText: document.getElementById('doneText'),
+        countState: document.getElementById('countState'),
+        settingsPanel: document.getElementById('settingsPanel'),
+        toggleSettings: document.getElementById('toggleSettings'),
+        openSettings: document.getElementById('openSettings'),
+        cancelSettings: document.getElementById('cancelSettings'),
+        saveSettings: document.getElementById('saveSettings'),
+        name: document.getElementById('name'),
+        birth: document.getElementById('birth'),
+        mode: document.getElementById('mode'),
+        customAge: document.getElementById('customAge'),
+        customDate: document.getElementById('customDate'),
+        customAgeField: document.getElementById('customAgeField'),
+        customDateField: document.getElementById('customDateField'),
+        workStart: document.getElementById('workStart'),
+        retireDateText: document.getElementById('retireDateText'),
+        retireAgeText: document.getElementById('retireAgeText'),
+        y: document.getElementById('y'),
+        mo: document.getElementById('mo'),
+        d: document.getElementById('d'),
+        h: document.getElementById('h'),
+        m: document.getElementById('m'),
+        s: document.getElementById('s'),
+        totalDays: document.getElementById('totalDays'),
+        progressText: document.getElementById('progressText'),
+        progressBar: document.getElementById('progressBar')
+      }
+
+      let config = null
+      let timer = null
+
+      function pad(n) {
+        return String(n).padStart(2, '0')
+      }
+
+      function parseDate(str) {
+        if (!str) return null
+        const [y, m, d] = str.split('-').map(Number)
+        if (!y || !m || !d) return null
+        return new Date(y, m - 1, d, 0, 0, 0, 0)
+      }
+
+      function formatDate(date) {
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+      }
+
+      function addMonths(date, months) {
+        const d = new Date(date.getTime())
+        const day = d.getDate()
+        d.setDate(1)
+        d.setMonth(d.getMonth() + months)
+        const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+        d.setDate(Math.min(day, last))
+        return d
+      }
+
+      function monthsBetween(from, to) {
+        let months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
+        if (to.getDate() < from.getDate()) months -= 1
+        return Math.max(0, months)
+      }
+
+      function ageOnDate(birth, date) {
+        let years = date.getFullYear() - birth.getFullYear()
+        let months = date.getMonth() - birth.getMonth()
+        if (date.getDate() < birth.getDate()) months -= 1
+        if (months < 0) {
+          years -= 1
+          months += 12
+        }
+        return { years, months }
+      }
+
+      function formatAge({ years, months }) {
+        return months > 0 ? `${years} 岁 ${months} 个月` : `${years} 岁`
+      }
+
+      /** 按日历拆分剩余：年 / 月 / 日 / 时 / 分 / 秒 */
+      function diffCountdown(now, target) {
+        let years = target.getFullYear() - now.getFullYear()
+        let months = target.getMonth() - now.getMonth()
+        let days = target.getDate() - now.getDate()
+        let hours = target.getHours() - now.getHours()
+        let minutes = target.getMinutes() - now.getMinutes()
+        let seconds = target.getSeconds() - now.getSeconds()
+
+        if (seconds < 0) {
+          seconds += 60
+          minutes -= 1
+        }
+        if (minutes < 0) {
+          minutes += 60
+          hours -= 1
+        }
+        if (hours < 0) {
+          hours += 24
+          days -= 1
+        }
+        if (days < 0) {
+          const daysInPrevMonth = new Date(
+            target.getFullYear(),
+            target.getMonth(),
+            0
+          ).getDate()
+          days += daysInPrevMonth
+          months -= 1
+        }
+        if (months < 0) {
+          months += 12
+          years -= 1
+        }
+
+        return { years, months, days, hours, minutes, seconds }
+      }
+
+      /** 渐进式延迟法定退休年龄估算 */
+      function calcPolicyRetirement(birth, policyKey) {
+        const policy = POLICY[policyKey]
+        const original = addMonths(birth, policy.originalYears * 12)
+        if (original < REFORM_START) {
+          return { date: original, note: '改革前按原法定年龄' }
+        }
+        const steps = Math.floor(monthsBetween(REFORM_START, original) / policy.intervalMonths)
+        const delay = Math.min(steps, policy.maxDelayMonths)
+        return {
+          date: addMonths(original, delay),
+          note: delay ? `相对原法定年龄延迟 ${delay} 个月` : '按原法定年龄'
+        }
+      }
+
+      function calcRetirement(cfg) {
+        const birth = parseDate(cfg.birth)
+        if (!birth) return null
+
+        if (cfg.mode === 'custom-date') {
+          const date = parseDate(cfg.customDate)
+          if (!date) return null
+          return { date, note: '自定义日期', age: ageOnDate(birth, date) }
+        }
+
+        if (cfg.mode === 'custom-age') {
+          const ageYears = Number(cfg.customAge)
+          if (!ageYears || ageYears < 40 || ageYears > 75) return null
+          const date = addMonths(birth, Math.round(ageYears * 12))
+          return { date, note: '自定义年龄', age: ageOnDate(birth, date) }
+        }
+
+        if (POLICY[cfg.mode]) {
+          const result = calcPolicyRetirement(birth, cfg.mode)
+          return {
+            date: result.date,
+            note: `${POLICY[cfg.mode].label} · ${result.note}`,
+            age: ageOnDate(birth, result.date)
+          }
+        }
+        return null
+      }
+
+      function loadConfig() {
+        if (window.retireApi && typeof window.retireApi.loadConfig === 'function') {
+          return window.retireApi.loadConfig()
+        }
+        try {
+          return JSON.parse(localStorage.getItem('retire-config') || 'null')
+        } catch (e) {
+          return null
+        }
+      }
+
+      function saveConfig(next) {
+        if (window.retireApi && typeof window.retireApi.saveConfig === 'function') {
+          window.retireApi.saveConfig(next)
+        } else {
+          localStorage.setItem('retire-config', JSON.stringify(next))
+        }
+      }
+
+      function applyTheme() {
+        const dark =
+          window.retireApi && typeof window.retireApi.isDark === 'function'
+            ? window.retireApi.isDark()
+            : false
+        document.documentElement.classList.toggle('dark', dark)
+      }
+
+      function syncModeFields() {
+        const mode = els.mode.value
+        els.customAgeField.classList.toggle('hidden', mode !== 'custom-age')
+        els.customDateField.classList.toggle('hidden', mode !== 'custom-date')
+      }
+
+      function fillForm(cfg) {
+        els.name.value = (cfg && cfg.name) || ''
+        els.birth.value = (cfg && cfg.birth) || ''
+        els.mode.value = (cfg && cfg.mode) || 'policy-male'
+        els.customAge.value = (cfg && cfg.customAge) || 60
+        els.customDate.value = (cfg && cfg.customDate) || ''
+        els.workStart.value = (cfg && cfg.workStart) || ''
+        syncModeFields()
+      }
+
+      function readForm() {
+        return {
+          name: els.name.value.trim(),
+          birth: els.birth.value,
+          mode: els.mode.value,
+          customAge: Number(els.customAge.value),
+          customDate: els.customDate.value,
+          workStart: els.workStart.value
+        }
+      }
+
+      function showSettings(show) {
+        els.settingsPanel.classList.toggle('show', show)
+        els.toggleSettings.textContent = show ? '关闭' : '设置'
+      }
+
+      function setView(kind) {
+        els.emptyState.classList.toggle('hidden', kind !== 'empty')
+        els.doneState.classList.toggle('hidden', kind !== 'done')
+        els.countState.classList.toggle('hidden', kind !== 'count')
+      }
+
+      function updateCountdown() {
+        applyTheme()
+        if (!config || !config.birth) {
+          els.subtitle.textContent = '离自由更近一点'
+          setView('empty')
+          return
+        }
+
+        const result = calcRetirement(config)
+        if (!result) {
+          setView('empty')
+          return
+        }
+
+        const name = config.name || '你'
+        els.subtitle.textContent = `${name}，继续加油`
+        els.retireDateText.textContent = formatDate(result.date)
+        els.retireAgeText.textContent = formatAge(result.age)
+
+        const now = new Date()
+        const diff = result.date.getTime() - now.getTime()
+        if (diff <= 0) {
+          els.doneText.textContent = `法定退休日：${formatDate(result.date)} · ${result.note}`
+          setView('done')
+          return
+        }
+
+        setView('count')
+        const parts = diffCountdown(now, result.date)
+        const totalDays = Math.floor(diff / 86400000)
+
+        els.y.textContent = String(parts.years)
+        els.mo.textContent = String(parts.months)
+        els.d.textContent = String(parts.days)
+        els.h.textContent = String(parts.hours)
+        els.m.textContent = String(parts.minutes)
+        els.s.textContent = String(parts.seconds)
+        els.totalDays.textContent = String(totalDays)
+
+        const birth = parseDate(config.birth)
+        const workStart = parseDate(config.workStart) || birth
+        const careerTotal = Math.max(1, result.date.getTime() - workStart.getTime())
+        const careerDone = Math.min(careerTotal, Math.max(0, now.getTime() - workStart.getTime()))
+        const pct = Math.round((careerDone / careerTotal) * 1000) / 10
+        els.progressText.textContent = `${pct}%`
+        els.progressBar.style.width = `${Math.min(100, pct)}%`
+      }
+
+      function startTimer() {
+        if (timer) clearInterval(timer)
+        updateCountdown()
+        timer = setInterval(updateCountdown, 1000)
+      }
+
+      els.mode.addEventListener('change', syncModeFields)
+      els.toggleSettings.addEventListener('click', () => {
+        const open = !els.settingsPanel.classList.contains('show')
+        if (open) fillForm(config)
+        showSettings(open)
+      })
+      els.openSettings.addEventListener('click', () => {
+        fillForm(config)
+        showSettings(true)
+      })
+      els.cancelSettings.addEventListener('click', () => showSettings(false))
+      els.saveSettings.addEventListener('click', () => {
+        const next = readForm()
+        if (!next.birth) {
+          alert('请填写出生日期')
+          return
+        }
+        if (next.mode === 'custom-date' && !next.customDate) {
+          alert('请填写自定义退休日期')
+          return
+        }
+        if (next.mode === 'custom-age' && !(next.customAge >= 40 && next.customAge <= 75)) {
+          alert('自定义退休年龄请填写 40–75')
+          return
+        }
+        config = next
+        saveConfig(config)
+        showSettings(false)
+        startTimer()
+      })
+
+      applyTheme()
+      config = loadConfig()
+      fillForm(config)
+      syncModeFields()
+      if (!config || !config.birth) {
+        showSettings(true)
+      }
+      startTimer()
+    </script>
+  </body>
+</html>

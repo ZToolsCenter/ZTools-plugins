@@ -1,0 +1,63 @@
+{
+  "name": "bookmark-history-search",
+  "title": "书签历史搜索",
+  "description": "搜索浏览器（Chrome/Edge）书签与历史记录，支持导入本地书签（浏览器导出的 HTML / Chrome JSON）。搜索框输入即搜：书签优先、历史兜底。",
+  "author": "一个成熟的剪辑猿",
+  "version": "1.0.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "search",
+      "explain": "搜索浏览器书签与历史记录（含导入书签）",
+      "mainPush": true,
+      "cmds": [
+        {
+          "type": "over",
+          "maxLength": 60,
+          "label": "书签历史搜索"
+        },
+        "书签",
+        "历史",
+        "书签历史",
+        "bookmark",
+        "history"
+      ]
+    },
+    {
+      "code": "import",
+      "explain": "导入本地书签文件（浏览器导出的 HTML 或 Chrome JSON）",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "导入书签",
+          "fileType": "file",
+          "extensions": [
+            "html",
+            "htm",
+            "json"
+          ]
+        },
+        "导入书签",
+        "import-bookmark"
+      ]
+    },
+    {
+      "code": "settings",
+      "explain": "选择抓取哪些浏览器的书签/历史数据",
+      "cmds": [
+        "书签设置",
+        "设置书签来源",
+        "bsource"
+      ]
+    }
+  ],
+  "platform": [
+    "win32",
+    "darwin"
+  ],
+  "categories": [
+    "productivity"
+  ]
+}

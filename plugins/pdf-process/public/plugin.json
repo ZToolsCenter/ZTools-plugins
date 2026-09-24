@@ -1,0 +1,95 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "pdf-process",
+  "title": "PDF处理",
+  "description": "PDF 压缩、合并、拆分、水印、格式转换等工具",
+  "author": "Taitres",
+  "homepage": "https://github.com/Taitres/pdf-process",
+  "version": "1.2.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "compress",
+      "explain": "PDF 压缩",
+      "cmds": [
+        "pdf压缩"
+      ]
+    },
+    {
+      "code": "merge",
+      "explain": "PDF 合并",
+      "cmds": [
+        "pdf合并"
+      ]
+    },
+    {
+      "code": "split",
+      "explain": "PDF 拆分",
+      "cmds": [
+        "pdf拆分"
+      ]
+    },
+    {
+      "code": "watermark",
+      "explain": "PDF 水印",
+      "cmds": [
+        "pdf水印"
+      ]
+    },
+    {
+      "code": "pdfToImage",
+      "explain": "PDF 转图片",
+      "cmds": [
+        "pdf转图片"
+      ]
+    },
+    {
+      "code": "pdfToWord",
+      "explain": "PDF 转 Word",
+      "cmds": [
+        "pdf转word"
+      ]
+    },
+    {
+      "code": "pdfToPpt",
+      "explain": "PDF 转 PPT",
+      "cmds": [
+        "pdf转ppt"
+      ]
+    },
+    {
+      "code": "pdfToExcel",
+      "explain": "PDF 转 Excel",
+      "cmds": [
+        "pdf转excel"
+      ]
+    },
+    {
+      "code": "settings",
+      "explain": "设置",
+      "cmds": ["pdf设置", "设置"],
+      "mainHide": true
+    },
+    {
+      "code": "pdf_open",
+      "explain": "处理PDF",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "处理PDF",
+          "fileType": "file",
+          "match": "extensions",
+          "extensions": ["pdf"],
+          "minLength": 1,
+          "maxLength": 20
+        }
+      ]
+    }
+  ],
+  "platform": ["win32"]
+}

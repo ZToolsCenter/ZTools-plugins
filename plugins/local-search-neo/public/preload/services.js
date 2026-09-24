@@ -131,3 +131,35 @@ window.services = {
 everythingManager.ensureReady().catch((error) => {
   console.warn("[local-search-neo] Everything 初始化失败:", error);
 });
+
+ztools.registerTool("everything_search", async (params) => {
+  const search = typeof params?.query === "string" ? params.query.trim() : "";
+  if (!search) {
+    return { total: 0, results: [] };
+  }
+
+  let maxResults = typeof params?.n === "number" ? Math.round(params.n) : 20;
+  if (maxResults < 10) maxResults = 10;
+  if (maxResults > 30) maxResults = 30;
+
+  await everythingManager.ensureReady({ autoStart: true, maxRetries: 30 });
+  if (!everythingAddon) {
+    throw new Error("Everything addon is not available");
+  }
+
+  const startupStatus = everythingManager.getStartupStatus();
+  if (startupStatus.state !== "ready") {
+    throw new Error(`Everything 未就绪: ${startupStatus.message}`);
+  }
+
+  const matchPath = search.includes("\\") || search.includes("/") || search.includes(" ");
+  const queryResult = everythingAddon.query(search, maxResults, "modified-desc", matchPath);
+  return {
+    total: queryResult.total,
+    results: queryResult.items.map((item) => ({
+      fullPath: item.fullPath,
+      size: item.size,
+      modified: new Date(item.modifiedAt).toISOString(),
+    })),
+  };
+});

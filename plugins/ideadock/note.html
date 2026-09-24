@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>便签</title>
+  <link rel="stylesheet" href="note.css">
+</head>
+<body>
+  <div id="note">
+    <div class="note-bar">
+      <div class="note-colors">
+        <button class="color-swatch" data-color="#fdf5b8" style="background:#fdf5b8" title="淡黄"></button>
+        <button class="color-swatch" data-color="#ffd6e0" style="background:#ffd6e0" title="淡粉"></button>
+        <button class="color-swatch" data-color="#d5f0c7" style="background:#d5f0c7" title="淡绿"></button>
+        <button class="color-swatch" data-color="#cfe6ff" style="background:#cfe6ff" title="淡蓝"></button>
+        <button class="color-swatch" data-color="#e7d9f7" style="background:#e7d9f7" title="淡紫"></button>
+        <button class="color-swatch" data-color="#ffe2c0" style="background:#ffe2c0" title="淡橙"></button>
+      </div>
+      <input type="range" id="note-opacity" class="note-opacity" min="0.3" max="1" step="0.05" value="1" title="背景透明度">
+      <div class="note-actions">
+<button id="btn-top" title="始终置顶">📌</button>
+        <button id="btn-unpin" title="取消固定">×</button>
+      </div>
+    </div>
+    <textarea id="note-text" placeholder="..." spellcheck="false"></textarea>
+    <div id="todo-note-actions" class="todo-note-actions" hidden>
+      <div class="todo-snooze-wrap">
+        <button id="btn-todo-snooze" class="todo-note-btn" type="button">延期</button>
+        <div id="todo-snooze-menu" class="todo-snooze-menu" hidden>
+          <button type="button" data-snooze="10m">10 分钟后</button>
+          <button type="button" data-snooze="1h">1 小时后</button>
+          <button type="button" data-snooze="tomorrow">明天 9:00</button>
+        </div>
+      </div>
+      <button id="btn-todo-done" class="todo-note-btn primary" type="button">完成</button>
+    </div>
+  </div>
+  <script src="host.js"></script>
+  <script src="note.js"></script>
+</body>
+</html>

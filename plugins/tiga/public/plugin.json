@@ -4,7 +4,7 @@
   "title": "提肛助手",
   "description": "定时提醒提肛运动，关爱久坐族盆底健康",
   "author": "咖啡八杯",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "categories": ["productivity"],
   "main": "index.html",
   "preload": "preload/services.js",

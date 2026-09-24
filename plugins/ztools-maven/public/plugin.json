@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ztools-maven",
+  "title": "Maven Lite",
+  "description": "一款旨在简化依赖管理的开发者效率工具。它打破了传统的“浏览器搜索 -> 复制 -> 切回 IDE”的繁琐流程，为用户提供了一个轻量级的Maven 包检索窗口。通过该插件，开发者可以快速查询海量构件，并一键复制依赖坐标或包文件路径。无论是查找最新版本的 Jar 包，还是快速引入依赖，ztools-maven 都能让您的构建配置工作变得前所未有的流畅。",
+  "author": "康康学长",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "index.html"
+  },
+  "features": [
+    {
+      "code": "maven-ui",
+      "explain": "Maven 包检索",
+      "icon": "logo.png",
+      "cmds": [
+        "maven"
+      ]
+    },
+    {
+      "code": "maven-search",
+      "explain": "快速复制 Maven 依赖",
+      "icon": "logo.png",
+      "mainHide": true,
+      "cmds": [
+        {
+          "type": "over",
+          "label": "搜索 Maven 依赖",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      ]
+    }
+  ]
+}

@@ -11,6 +11,36 @@ function formatLocalDate(d) {
   return `${y}-${m}-${day}`
 }
 
+// 首次使用的默认配置（与 src/types.ts 的 DEFAULT_CONFIG 保持一致）
+// 文案列表（normalTexts/funnyTexts）不在此声明：渲染层会用 TS 默认值合并兜底，
+// preload 侧 _getNotificationTexts 也有内置文案兜底
+const DEFAULT_CONFIG_SEED = {
+  interval: 30,
+  workTimeMode: 'single',
+  workTime: {
+    single: { start: '09:00', end: '18:00' },
+    multi: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '18:00' }],
+    weekly: {
+      0: null,  // 周日
+      1: { start: '09:00', end: '18:00' },
+      2: { start: '09:00', end: '18:00' },
+      3: { start: '09:00', end: '18:00' },
+      4: { start: '09:00', end: '18:00' },
+      5: { start: '09:00', end: '18:00' },
+      6: null,  // 周六
+    }
+  },
+  reminderMode: 'notify+popup',
+  countMode: 'manual',
+  exercise: {
+    contractSeconds: 5,
+    relaxSeconds: 10,
+    repeatCount: 2
+  },
+  style: 'random',
+  enabled: true
+}
+
 // 存储文件路径
 const getStoragePath = (key) => {
   const userDataPath = window.ztools.getPath('userData')
@@ -23,14 +53,18 @@ let exerciseWindowInstance = null
 window.services = {
   // ===== 定时器管理 =====
   timerId: null,
+  intervalMs: null,   // 当前定时器间隔（毫秒），用于推进 nextTickAt
+  nextTickAt: null,   // 下次触发的时间戳（毫秒），供 UI 展示「下次提醒时间」
 
   startTimer(intervalMinutes) {
     if (this.timerId) {
       clearInterval(this.timerId)
     }
+    this.intervalMs = intervalMinutes * 60 * 1000
+    this.nextTickAt = Date.now() + this.intervalMs
     this.timerId = setInterval(() => {
       this._onTimerTick()
-    }, intervalMinutes * 60 * 1000)
+    }, this.intervalMs)
   },
 
   stopTimer() {
@@ -38,9 +72,21 @@ window.services = {
       clearInterval(this.timerId)
       this.timerId = null
     }
+    this.intervalMs = null
+    this.nextTickAt = null
+  },
+
+  // 获取下次提醒时间戳（未启动返回 null）
+  getNextReminderAt() {
+    return this.nextTickAt || null
   },
 
   _onTimerTick() {
+    // 推进下次提醒时间（setInterval 按固定间隔触发，直接基于当前时间累加即可）
+    if (this.intervalMs) {
+      this.nextTickAt = Date.now() + this.intervalMs
+    }
+
     const config = this.getItem('tiga_config')
     if (!config || !config.enabled) return
 
@@ -270,9 +316,16 @@ window.services = {
 
   // ===== 初始化 =====
   init() {
-    // 读取配置,如果存在则启动定时器
-    const config = this.getItem('tiga_config')
-    if (config && config.enabled) {
+    // 读取配置，不存在则落一份默认配置（首次安装场景）。
+    // 否则 UI 会基于 DEFAULT_CONFIG 显示「已开启」，但定时器实际从未启动，
+    // 造成「状态显示开启却不提醒，手动开关一遍才正常」的问题。
+    let config = this.getItem('tiga_config')
+    if (!config) {
+      config = JSON.parse(JSON.stringify(DEFAULT_CONFIG_SEED))
+      this.setItem('tiga_config', config)
+    }
+
+    if (config.enabled) {
       this.startTimer(config.interval)
     }
 

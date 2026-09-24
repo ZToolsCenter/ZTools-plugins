@@ -1,5 +1,14 @@
 :root {
-  --blue: rgb(88, 164, 246);
+  --primary-color: var(--plugin-primary-color, #3b82f6);
+  --primary-color-light: color-mix(in srgb, var(--primary-color) 70%, white);
+  --primary-color-alpha-50: color-mix(in srgb, var(--primary-color) 50%, transparent);
+  --primary-color-hover: color-mix(in srgb, var(--primary-color) 88%, white);
+  --primary-color-active: color-mix(in srgb, var(--primary-color) 88%, black);
+  --primary-color-text: var(--primary-color);
+  --primary-color-subtle-bg: color-mix(in srgb, var(--primary-color) 14%, #ffffff);
+  --primary-color-subtle-hover: color-mix(in srgb, var(--primary-color) 7%, #ffffff);
+  --primary-color-dark-subtle-bg: color-mix(in srgb, var(--primary-color) 15%, #2f3133);
+  --primary-color-dark-subtle-hover: color-mix(in srgb, var(--primary-color) 6%, #2f3133);
   --light: #fff;
 }
 
@@ -11,6 +20,11 @@ body {
   height: 100%;
 }
 
+:focus,
+:focus-visible {
+  outline: none;
+}
+
 #app {
   width: 100%;
   height: 100vh;
@@ -19,7 +33,7 @@ body {
 
 button {
   border: none;
-  background: none var(--blue);
+  background: none var(--primary-color);
   color: var(--light);
   line-height: 2.5;
   cursor: pointer;
@@ -40,7 +54,17 @@ textarea {
   margin: 0;
 }
 
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 @media (prefers-color-scheme: light) {
+  :root {
+    --primary-color-text: color-mix(in srgb, var(--primary-color) 85%, black);
+  }
+
   body {
     background-color: #f4f4f4;
   }

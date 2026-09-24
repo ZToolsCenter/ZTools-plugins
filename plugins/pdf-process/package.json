@@ -1,0 +1,41 @@
+{
+  "name": "pdf-process",
+  "version": "1.2.0",
+  "description": "",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install-preload-deps.cjs",
+    "prebuild": "node scripts/install-preload-deps.cjs",
+    "dev": "vite",
+    "build": "tsc && vite build && node scripts/optimize-package.cjs",
+    "ci": "npm test && npm run test:convert && npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:convert": "vitest run --config vitest.preload.config.js"
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@electron/asar": "^3.2.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "archiver": "^7.0.1",
+    "esbuild": "^0.25.12",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vitest": "^4.1.10"
+  }
+}

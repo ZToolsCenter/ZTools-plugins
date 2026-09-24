@@ -1,0 +1,25 @@
+{
+  "name": "ztools-docker",
+  "version": "1.0.0",
+  "description": "Docker Lite 是一款可视化的 Docker 容器管理插件，旨在降低 Docker 的使用门槛，让容器管理变得一目了然。它不仅支持在线检索 Docker 镜像，更提供了强大的本地容器管理功能：用户可以直观地查看容器启停状态、Docker-Compose 聚合情况，以及关键的端口与目录映射信息。此外，插件集成了实时日志查看与一键进入 Shell 终端功能，无需记忆复杂命令。无论是排查问题还是日常运维，Docker Lite 都能帮助新手快速上手，让容器管理不再晦涩难懂，持续更新，欢迎探索。",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "simple-icons": "^16.28.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vitest": "^4.1.10",
+    "vue-tsc": "^2.0.0"
+  }
+}

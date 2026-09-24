@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ztools-docker",
+  "title": "Docker Lite",
+  "description": "一款可视化的 Docker 容器管理插件，旨在降低 Docker 的使用门槛，让容器管理变得一目了然。用户可以直观地查看容器启停状态、端口与目录映射信息，并一键完成启动、停止、重启、暂停、继续等操作，配合实时日志查看，无需记忆复杂命令。无论是排查问题还是日常运维，Docker Lite 都能帮助新手快速上手。持续更新，欢迎探索。",
+  "author": "康康学长",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "containers",
+      "explain": "容器管理",
+      "icon": "logo.png",
+      "cmds": ["docker", "容器", "容器管理"]
+    }
+  ]
+}

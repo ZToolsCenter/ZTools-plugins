@@ -1,0 +1,3 @@
+cloud-sync.service enabled enabled
+masked-agent.service masked enabled
+static-helper.service static -

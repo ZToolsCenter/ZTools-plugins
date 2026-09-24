@@ -1,5 +1,4 @@
-import { ref, reactive, computed, nextTick } from 'vue'
-import { marked } from 'marked'
+import { ref, computed } from 'vue'
 
 export interface Message {
   id: string
@@ -18,8 +17,15 @@ export interface Conversation {
   updatedAt: number
 }
 
-// 配置 marked
-marked.setOptions({ breaks: true, gfm: true })
+export type StreamPhase = 'idle' | 'waiting' | 'thinking' | 'answering' | 'done'
+
+export interface StreamState {
+  messageId: string
+  phase: StreamPhase
+  version: number
+  reasoningChanged: boolean
+  contentChanged: boolean
+}
 
 const DB_PREFIX = 'conv/'
 const conversations = ref<Conversation[]>([])
@@ -27,7 +33,141 @@ const currentConvId = ref<string>('')
 const isLoading = ref(false)
 const selectedModel = ref('')
 const models = ref<any[]>([])
+const streamState = ref<StreamState>({
+  messageId: '',
+  phase: 'idle',
+  version: 0,
+  reasoningChanged: false,
+  contentChanged: false
+})
 let abortHandle: any = null
+let streamVersion = 0
+
+interface ActiveStream {
+  message: Message
+  reasoning: string
+  content: string
+  phase: StreamPhase
+  lastFlushAt: number
+  flushTimer: ReturnType<typeof setTimeout> | null
+}
+
+let activeStream: ActiveStream | null = null
+
+function getStreamFlushDelay(totalLength: number) {
+  if (totalLength > 8000) return 400
+  if (totalLength > 4000) return 250
+  if (totalLength > 1500) return 160
+  return 100
+}
+
+function asErrorRecord(value: unknown): Record<string, any> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, any>)
+    : null
+}
+
+function parseErrorPayload(value: unknown): Record<string, any> | null {
+  const record = asErrorRecord(value)
+  if (record) return record
+  if (typeof value !== 'string') return null
+
+  try {
+    return asErrorRecord(JSON.parse(value.trim()))
+  } catch {
+    return null
+  }
+}
+
+/** 保留宿主或服务端返回的可读错误消息，兼容旧版 API 的不同包装方式。 */
+function getAiErrorMessage(error: unknown): string {
+  const source = asErrorRecord(error)
+  const response = asErrorRecord(source?.response)
+  const responseData = parseErrorPayload(response?.data)
+  const responseBody = parseErrorPayload(
+    source?.responseBody ?? source?.body ?? response?.body ?? response?.text
+  )
+  const payloads = [
+    source,
+    parseErrorPayload(source?.message),
+    parseErrorPayload(source?.error),
+    responseData,
+    parseErrorPayload(responseData?.error),
+    responseBody,
+    parseErrorPayload(responseBody?.error)
+  ].filter((payload): payload is Record<string, any> => Boolean(payload))
+
+  const messages = payloads
+    .flatMap(payload => [payload.message, payload.errorMessage, payload.detail])
+    .filter(value => typeof value === 'string')
+    .map(value => value.trim())
+    .filter(Boolean)
+
+  return messages[0] || '请求失败，请重试'
+}
+
+function publishStreamState(
+  messageId: string,
+  phase: StreamPhase,
+  reasoningChanged = false,
+  contentChanged = false
+) {
+  streamState.value = {
+    messageId,
+    phase,
+    version: ++streamVersion,
+    reasoningChanged,
+    contentChanged
+  }
+}
+
+function flushActiveStream(): { reasoningChanged: boolean; contentChanged: boolean } {
+  const stream = activeStream
+  if (!stream) return { reasoningChanged: false, contentChanged: false }
+
+  if (stream.flushTimer) {
+    clearTimeout(stream.flushTimer)
+    stream.flushTimer = null
+  }
+
+  const reasoningChanged = (stream.message.reasoning || '') !== stream.reasoning
+  const contentChanged = stream.message.content !== stream.content
+  if (reasoningChanged) stream.message.reasoning = stream.reasoning
+  if (contentChanged) stream.message.content = stream.content
+
+  stream.lastFlushAt = Date.now()
+  if (reasoningChanged || contentChanged) {
+    publishStreamState(stream.message.id, stream.phase, reasoningChanged, contentChanged)
+  }
+  return { reasoningChanged, contentChanged }
+}
+
+function scheduleActiveStreamFlush() {
+  const stream = activeStream
+  if (!stream) return
+
+  const delay = getStreamFlushDelay(stream.reasoning.length + stream.content.length)
+  const remaining = delay - (Date.now() - stream.lastFlushAt)
+  if (remaining <= 0) {
+    flushActiveStream()
+    return
+  }
+
+  if (!stream.flushTimer) {
+    stream.flushTimer = setTimeout(() => {
+      if (activeStream === stream) flushActiveStream()
+    }, remaining)
+  }
+}
+
+function finishActiveStream() {
+  const stream = activeStream
+  if (!stream) return
+
+  const changes = flushActiveStream()
+  activeStream = null
+  publishStreamState(stream.message.id, 'done', changes.reasoningChanged, changes.contentChanged)
+}
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
@@ -95,6 +235,7 @@ function removeConversation(id: string) {
 function stopGeneration() {
   if (abortHandle) {
     abortHandle.abort()
+    finishActiveStream()
     abortHandle = null
     isLoading.value = false
   }
@@ -121,6 +262,16 @@ async function sendMessage(content: string, images?: string[]) {
   conv.messages.push({ id: genId(), role: 'assistant', content: '', timestamp: Date.now() })
   const assistantMsg = conv.messages[conv.messages.length - 1]
 
+  activeStream = {
+    message: assistantMsg,
+    reasoning: '',
+    content: '',
+    phase: 'waiting',
+    lastFlushAt: 0,
+    flushTimer: null
+  }
+  publishStreamState(assistantMsg.id, 'waiting')
+
   isLoading.value = true
   conv.updatedAt = Date.now()
 
@@ -146,19 +297,33 @@ async function sendMessage(content: string, images?: string[]) {
 
     abortHandle = window.ztools.ai(aiParams, (chunk: any) => {
       if (chunk?.reasoning_content) {
-        assistantMsg.reasoning = (assistantMsg.reasoning || '') + chunk.reasoning_content
+        const stream = activeStream
+        if (stream?.message === assistantMsg) {
+          stream.reasoning += chunk.reasoning_content
+          if (stream.phase === 'waiting') stream.phase = 'thinking'
+        }
       }
       if (chunk?.content) {
-        assistantMsg.content += chunk.content
+        const stream = activeStream
+        if (stream?.message === assistantMsg) {
+          stream.content += chunk.content
+          stream.phase = 'answering'
+        }
       }
+      scheduleActiveStreamFlush()
     })
 
     await abortHandle
   } catch (e: any) {
     if (e?.name !== 'AbortError') {
-      assistantMsg.content = assistantMsg.content || '请求失败，请重试'
+      const stream = activeStream
+      if (stream?.message === assistantMsg && !stream.content) {
+        stream.content = getAiErrorMessage(e)
+        stream.phase = 'answering'
+      }
     }
   } finally {
+    finishActiveStream()
     isLoading.value = false
     abortHandle = null
     saveConv(conv)
@@ -184,11 +349,6 @@ async function loadModels() {
 function setSelectedModel(modelId: string) {
   selectedModel.value = modelId
   window.ztools.dbStorage.setItem(SELECTED_MODEL_KEY, modelId)
-}
-
-function renderMarkdown(text: string): string {
-  if (!text) return ''
-  return marked.parse(text, { async: false }) as string
 }
 
 // 编辑消息：截断该消息及之后的所有消息，用新内容重新发送
@@ -226,6 +386,7 @@ export function useChat() {
     currentConvId,
     currentMessages,
     isLoading,
+    streamState,
     selectedModel,
     models,
     loadConversations,
@@ -236,7 +397,6 @@ export function useChat() {
     stopGeneration,
     loadModels,
     setSelectedModel,
-    renderMarkdown,
     editMessage,
     regenerateMessage,
     currentConv

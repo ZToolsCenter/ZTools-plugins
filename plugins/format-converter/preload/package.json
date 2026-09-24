@@ -1,0 +1,10 @@
+{
+  "name": "format-converter-preload-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "license": "MIT",
+  "dependencies": {
+    "iconv-lite": "0.6.3"
+  }
+}

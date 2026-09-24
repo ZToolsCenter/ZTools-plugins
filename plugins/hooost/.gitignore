@@ -17,3 +17,6 @@ coverage
 /.shared
 .pnpm-store/*
 _*
+
+# ZCode 工作区缓存
+.zcode/

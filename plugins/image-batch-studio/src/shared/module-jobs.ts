@@ -43,7 +43,7 @@ export function buildModuleJobSettings(
     case "format":
       return settings.format ? { ...base, format: settings.format } : base;
     case "watermark":
-      return settings.watermark ? { ...base, watermark: { ...settings.watermark, enabled: true } } : base;
+      return settings.watermark ? { ...base, watermark: settings.watermark } : base;
     case "resize":
       return settings.resize ? { ...base, resize: settings.resize } : base;
     case "crop":
@@ -59,9 +59,9 @@ export function buildModuleJobSettings(
       return job;
     }
     case "border":
-      return settings.border ? { ...base, border: { ...settings.border, enabled: true } } : base;
+      return settings.border ? { ...base, border: settings.border } : base;
     case "round":
-      return settings.rounded ? { ...base, rounded: { ...settings.rounded, enabled: true } } : base;
+      return settings.rounded ? { ...base, rounded: settings.rounded } : base;
     case "pdf":
     case "merge":
     case "gif":

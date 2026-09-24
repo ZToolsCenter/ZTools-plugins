@@ -1,0 +1,16 @@
+if (ztools.isMacOS()) {
+  // 运行 AppleScript  激活终端 并执行脚本
+  runAppleScript(`tell application "Terminal"
+    activate
+    do script "ping -c 4 ${ENTER.payload.replace(/^ping\s*/i, '')}"
+  end tell`)
+  return
+}
+if (ztools.isWindows()) {
+  // 打开 CMD 并执行脚本
+  require('child_process').spawn(
+    'start', 
+    ['cmd', '/k', `"ping ${ENTER.payload.replace(/^ping\s*/i, '')}"`],
+    { shell: 'cmd.exe', detached: true, stdio: 'ignore' }
+  ).unref()
+}

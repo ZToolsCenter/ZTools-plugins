@@ -31,6 +31,15 @@
 - 阅读状态：已读完标记 + 标记为未读完、书架统计栏（总书籍/已读/阅读时长）
 - 筛选排序：书籍分类筛选栏、按添加时间/书名/作者/最近阅读排序
 
+### 在线阅读（书源）
+- 书源导入：全面兼容开源阅读（Legado）书源格式，支持文件 / 粘贴文本 / 链接导入，分组管理（新建/重命名/移动/批量启停）、单独启用/停用
+- 在线搜书：多书源并发搜索，结果按书名自动合并去重（命中书源多者优先），支持 CSS 选择器、XPath、JSONPath、正则提取等通用规则与关键词/页码占位符
+- 详情页入库：加入书架时自动拉取书籍详情，补全简介 / 封面 / 最新章节 / 字数 / 分类
+- 书源登录：表单登录 / 系统浏览器登录 / 手动粘贴 Cookie 三种方式，自动保存会话 Cookie，书源列表实时显示登录状态
+- 书源调试：按 搜索 / 目录 / 正文 三种模式逐步输出日志，便于排查问题
+- 净化规则：设置 → 净化，按书籍匹配的文本 / 正则替换规则，自动作用于章节标题与正文，支持导入开源阅读的净化规则
+- 开源阅读同步：对接「阅读」APP Web 服务，双向同步书架 / 目录 / 正文 / 封面 / 阅读进度，并带分组、简介、最新章节、字数、分类等完整信息
+
 ### 个性化设置
 - 外观控制：背景透明度与整体透明度分离控制、亮色/暗色主题切换、列表书架模式
 - 字体样式：自定义字体（支持添加系统字体）、十六进制颜色输入 + 颜色选择器
@@ -222,12 +231,20 @@ HTML/纯文本判断 → 分章解析或按 TXT 逻辑处理
 │   ├── stores/
 │   │   ├── books.ts              # 书籍数据 + 持久化
 │   │   ├── config.ts             # 配置数据 + 持久化
+│   │   ├── online.ts             # 在线书源分组 + 开源阅读同步
+│   │   ├── replace.ts            # 净化规则数据 + 持久化
 │   │   └── reader.ts             # 阅读器状态 + 分页
 │   ├── utils/
 │   │   ├── db.ts                 # 数据库操作工具（封面/章节缓存）
 │   │   ├── txtParser.ts          # TXT 解析 + 分页 + 预处理
 │   │   ├── epubParser.ts         # EPUB 解析
-│   │   └── mobiParser.ts         # MOBI 解析 + 加密检测 + 封面提取
+│   │   ├── mobiParser.ts         # MOBI 解析 + 加密检测 + 封面提取
+│   │   ├── ruleEngine.ts         # 书源规则引擎（CSS/XPath/JSONPath/正则替换）
+│   │   ├── onlineBook.ts         # 在线书源引擎（搜索/目录/正文/详情/封面）
+│   │   ├── cookieJar.ts          # 会话 Cookie 自动保存与附加
+│   │   ├── loginCheck.ts         # 登录状态检测表达式求值
+│   │   ├── replaceRules.ts       # 净化规则匹配与应用
+│   │   └── legado.ts             # 开源阅读 Web 服务同步
 │   └── components/
 │       ├── Bookshelf/            # 书架组件
 │       │   ├── index.vue
@@ -235,10 +252,23 @@ HTML/纯文本判断 → 分章解析或按 TXT 逻辑处理
 │       │   ├── BookInfoModal.vue # 书籍信息窗口
 │       │   ├── ContextMenu.vue   # 右键菜单
 │       │   ├── Modal.vue         # 通用弹窗
+│       │   ├── OnlineSearchModal.vue # 在线搜书弹窗
 │       │   ├── ThemeToggle.vue   # 主题切换
 │       │   └── Toast.vue         # Toast 提示
+│       ├── common/               # 通用弹窗组件
+│       │   ├── ConfirmDialog.vue # 确认弹窗
+│       │   └── PromptDialog.vue  # 输入弹窗
 │       └── Settings/             # 设置面板
-│           └── index.vue
+│           ├── index.vue
+│           ├── ReplaceTab.vue    # 净化规则设置
+│           └── online/           # 在线设置（书源管理 + 同步）
+│               ├── OnlineTab.vue # 容器（书源管理 / 同步 子导航）
+│               ├── SourceManager.vue
+│               ├── SourceItem.vue
+│               ├── SourceEditorModal.vue
+│               ├── SourceLoginModal.vue
+│               ├── SourceDebugModal.vue
+│               └── SyncPanel.vue
 ├── .gitignore
 ├── CHANGELOG.md                  # 更新日志
 ├── LICENSE

@@ -1,0 +1,55 @@
+{
+  "name": "ideadock",
+  "title": "IdeaDock 闪念文本工坊",
+  "description": "灵感闪现、文字临时落脚的桌面工坊。提供多槽位暂存、文本处理、对比、工作流、桌面便签等功能。",
+  "author": "kang",
+  "version": "2.5.0",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "ideadock",
+      "explain": "打开 IdeaDock 闪念文本工坊",
+      "icon": "logo.png",
+      "cmds": ["ideadock", "text", "文本处理"]
+    },
+    {
+      "code": "stash-text",
+      "explain": "把选中文字存入新的暂存槽",
+      "icon": "logo.png",
+      "cmds": [{ "type": "over", "label": "处理选中文本" }]
+    },
+    {
+      "code": "copy-plain-text",
+      "explain": "将选中文字以纯文本写入剪贴板",
+      "icon": "logo.png",
+      "cmds": [{ "type": "over", "label": "复制为纯文本" }]
+    },
+    {
+      "code": "stash-file",
+      "explain": "读取选中文件的文本内容并存入新的暂存槽",
+      "icon": "logo.png",
+      "cmds": [{ "type": "files", "fileType": "file", "label": "处理选中文件文本内容" }]
+    },
+    {
+      "code": "quick-input",
+      "explain": "根据暂存槽标题快捷输入",
+      "icon": "logo.png",
+      "cmds": ["="]
+    },
+    {
+      "code": "run-workflow",
+      "explain": "用默认工作流处理选中文字",
+      "icon": "logo.png",
+      "cmds": [{ "type": "over", "label": "执行默认工作流" }]
+    },
+    {
+      "code": "pin-text",
+      "explain": "把选中文字存入新暂存槽并钉到桌面",
+      "icon": "logo.png",
+      "cmds": [{ "type": "over", "label": "存入文本并钉到桌面" }]
+    }
+  ],
+  "platform": ["darwin", "win32", "linux"]
+}

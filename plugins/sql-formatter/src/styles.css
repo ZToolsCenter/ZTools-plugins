@@ -1,0 +1,309 @@
+:root {
+  color-scheme: light dark;
+  font-family:
+    Inter, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-synthesis: none;
+  --bg: #f4f1eb;
+  --surface: rgba(255, 255, 255, 0.76);
+  --surface-strong: #fff;
+  --ink: #20211e;
+  --muted: #76776f;
+  --line: rgba(32, 33, 30, 0.12);
+  --accent: #156f5b;
+  --accent-strong: #0e5848;
+  --accent-soft: rgba(21, 111, 91, 0.11);
+  --danger: #b33c36;
+  --success: #16705b;
+  --shadow: 0 12px 40px rgba(38, 38, 31, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 88% -10%, rgba(197, 157, 80, 0.17), transparent 33%),
+    var(--bg);
+  color: var(--ink);
+}
+
+button,
+select,
+textarea,
+input {
+  font: inherit;
+}
+
+button,
+select,
+input {
+  -webkit-app-region: no-drag;
+}
+
+.app-shell {
+  height: 600px;
+  display: grid;
+  grid-template-rows: 68px 56px minmax(0, 1fr) 34px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand,
+.toolbar-actions,
+.settings,
+.panel-heading,
+.statusbar {
+  display: flex;
+  align-items: center;
+}
+
+.brand {
+  gap: 10px;
+}
+
+.brand img {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(21, 111, 91, 0.2);
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-family: Georgia, "Songti SC", serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.brand p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.toolbar-actions {
+  gap: 7px;
+}
+
+.button,
+.copy-button {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 140ms ease;
+}
+
+.button {
+  min-width: 58px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.button.ghost {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.button.ghost:hover {
+  border-color: rgba(21, 111, 91, 0.32);
+  background: var(--surface-strong);
+}
+
+.button.primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(21, 111, 91, 0.2);
+}
+
+.button.primary:hover,
+.copy-button:hover:not(:disabled) {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+.settings {
+  gap: 14px;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.settings label:not(.checkbox-label) {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+select {
+  height: 30px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: none;
+  background: var(--surface-strong);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.checkbox-label input {
+  accent-color: var(--accent);
+}
+
+.workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.editor-panel {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 35px minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.panel-heading {
+  justify-content: space-between;
+  padding: 0 11px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.stats {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+textarea {
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 0;
+  outline: 0;
+  padding: 13px 14px 48px;
+  background: transparent;
+  color: var(--ink);
+  font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
+.output-panel textarea {
+  color: #125c4c;
+}
+
+.copy-button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  box-shadow: 0 4px 12px rgba(21, 111, 91, 0.19);
+}
+
+.copy-button:disabled {
+  cursor: default;
+  opacity: 0.35;
+  box-shadow: none;
+}
+
+.statusbar {
+  justify-content: space-between;
+  padding: 0 17px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#statusText[data-tone='success'] {
+  color: var(--success);
+}
+
+#statusText[data-tone='error'] {
+  color: var(--danger);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171a18;
+    --surface: rgba(35, 40, 37, 0.84);
+    --surface-strong: #292e2b;
+    --ink: #edf0eb;
+    --muted: #a0a69f;
+    --line: rgba(235, 242, 236, 0.11);
+    --accent: #55b69d;
+    --accent-strong: #3a967f;
+    --accent-soft: rgba(85, 182, 157, 0.15);
+    --danger: #ff8d84;
+    --success: #72d2b8;
+    --shadow: 0 14px 38px rgba(0, 0, 0, 0.18);
+  }
+
+  html,
+  body {
+    background:
+      radial-gradient(circle at 88% -10%, rgba(181, 135, 59, 0.13), transparent 34%),
+      var(--bg);
+  }
+
+  .settings {
+    background: rgba(255, 255, 255, 0.018);
+  }
+
+  .output-panel textarea {
+    color: #8bd8c3;
+  }
+}

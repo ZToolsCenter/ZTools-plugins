@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todos — Design Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Source+Sans+3:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       TOKENS
+       ═══════════════════════════════════════════════════════════ */
+    :root {
+      /* Palette — "Quiet Paper" */
+      --paper: #F7F5F0;
+      --ink: #1C1917;
+      --graphite: #57534E;
+      --clay: #A8A29E;
+      --teal: #0F766E;
+      --teal-soft: #14B8A6;
+      --sage: #6EE7B7;
+      --rose: #E11D48;
+      --amber: #D97706;
+      --indigo: #4F46E5;
+
+      /* Workspace accent colors */
+      --ws-work: #0F766E;
+      --ws-life: #D97706;
+      --ws-study: #4F46E5;
+
+      /* Typography */
+      --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+      --font-body: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+
+      /* Type scale */
+      --text-xs: 0.6875rem;   /* 11px */
+      --text-sm: 0.75rem;     /* 12px */
+      --text-base: 0.875rem;  /* 14px */
+      --text-md: 1rem;        /* 16px */
+      --text-lg: 1.125rem;    /* 18px */
+      --text-xl: 1.5rem;      /* 24px */
+      --text-2xl: 2rem;       /* 32px */
+      --text-3xl: 2.5rem;     /* 40px */
+
+      /* Spacing */
+      --sp-1: 0.25rem;   /* 4px */
+      --sp-2: 0.5rem;    /* 8px */
+      --sp-3: 0.75rem;   /* 12px */
+      --sp-4: 1rem;      /* 16px */
+      --sp-5: 1.25rem;   /* 20px */
+      --sp-6: 1.5rem;    /* 24px */
+      --sp-8: 2rem;      /* 32px */
+      --sp-10: 2.5rem;   /* 40px */
+      --sp-12: 3rem;     /* 48px */
+
+      /* Radii — subtle, not bubbly */
+      --r-sm: 3px;
+      --r-md: 5px;
+      --r-lg: 8px;
+
+      /* Shadows — warm, low-contrast */
+      --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.06);
+      --shadow-md: 0 2px 8px rgba(28, 25, 23, 0.08);
+      --shadow-lg: 0 4px 16px rgba(28, 25, 23, 0.1);
+
+      /* Transitions */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --duration-fast: 120ms;
+      --duration-normal: 200ms;
+      --duration-slow: 350ms;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       RESET & BASE
+       ═══════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body, #root {
+      height: 100%;
+      width: 100%;
+    }
+
+    body {
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      color: var(--ink);
+      background-color: var(--paper);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: inherit;
+    }
+
+    input, textarea {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      outline: none;
+      color: inherit;
+    }
+
+    ul, ol { list-style: none; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--clay); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--graphite); }
+
+    /* ═══════════════════════════════════════════════════════════
+       LAYOUT SHELL
+       ═══════════════════════════════════════════════════════════ */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .calendar-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(168, 162, 158, 0.3);
+      overflow: hidden;
+    }
+
+    .task-panel {
+      width: 380px;
+      min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════════════════════ */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-4) var(--sp-6);
+      border-bottom: 1px solid rgba(168, 162, 158, 0.3);
+      background: var(--paper);
+      z-index: 10;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-8);
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    /* Workspace Tabs — the signature element */
+    .workspace-tabs {
+      display: flex;
+      gap: var(--sp-1);
+    }
+
+    .ws-tab {
+      position: relative;
+      padding: var(--sp-2) var(--sp-4);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--graphite);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      transition: color var(--duration-fast) var(--ease-out);
+    }
+
+    .ws-tab::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: var(--sp-4);
+      right: var(--sp-4);
+      height: 2px;
+      background: transparent;
+      border-radius: 1px;
+      transition: all var(--duration-normal) var(--ease-out);
+    }
+
+    .ws-tab:hover {
+      color: var(--ink);
+    }
+
+    .ws-tab.active {
+      color: var(--ink);
+    }
+
+    .ws-tab.active::after {
+      background: var(--teal);
+      /* Extend slightly beyond text — pen mark effect */
+      left: calc(var(--sp-4) - 4px);
+      right: calc(var(--sp-4) - 4px);
+    }
+
+    .ws-tab[data-ws="life"].active::after { background: var(--ws-life); }
+    .ws-tab[data-ws="study"].active::after { background: var(--ws-study); }
+
+    .ws-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: var(--sp-2);
+      vertical-align: middle;
+    }
+
+    .ws-dot.work { background: var(--ws-work); }
+    .ws-dot.life { background: var(--ws-life); }
+    .ws-dot.study { background: var(--ws-study); }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+    }
+
+    /* View Toggle */
+    .view-toggle {
+      display: flex;
+      background: rgba(168, 162, 158, 0.15);
+      border-radius: var(--r-md);
+      padding: 2px;
+    }
+
+    .view-btn {
+      padding: var(--sp-1) var(--sp-3);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--graphite);
+      border-radius: var(--r-sm);
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+
+    .view-btn:hover {
+      color: var(--ink);
+    }
+
+    .view-btn.active {
+      background: var(--paper);
+      color: var(--ink);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       CALENDAR PANEL
+       ═══════════════════════════════════════════════════════════ */
+    .cal-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-4) var(--sp-6);
+    }
+
+    .cal-nav-left {
+      display: flex;
+      align-items: baseline;
+      gap: var(--sp-4);
+    }
+
+    .cal-month {
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+
+    .cal-year {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--clay);
+      font-weight: 400;
+    }
+
+    .cal-nav-right {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+
+    .nav-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--r-sm);
+      color: var(--graphite);
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+
+    .nav-btn:hover {
+      background: rgba(168, 162, 158, 0.15);
+      color: var(--ink);
+    }
+
+    .nav-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .today-btn {
+      padding: var(--sp-1) var(--sp-3);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--teal);
+      border: 1px solid rgba(15, 118, 110, 0.3);
+      border-radius: var(--r-sm);
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+
+    .today-btn:hover {
+      background: rgba(15, 118, 110, 0.08);
+      border-color: var(--teal);
+    }
+
+    /* Week View */
+    .week-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 0 var(--sp-6) var(--sp-6);
+      overflow-y: auto;
+      gap: var(--sp-2);
+    }
+
+    .day-row {
+      display: flex;
+      flex-direction: column;
+      padding: var(--sp-3) var(--sp-4);
+      border-radius: var(--r-md);
+      border: 1px solid transparent;
+      transition: all var(--duration-fast) var(--ease-out);
+      min-height: 72px;
+    }
+
+    .day-row:hover {
+      background: rgba(168, 162, 158, 0.06);
+    }
+
+    .day-row.today {
+      border-color: rgba(15, 118, 110, 0.2);
+      background: rgba(15, 118, 110, 0.03);
+    }
+
+    .day-row.drag-over {
+      border-color: var(--teal);
+      background: rgba(15, 118, 110, 0.06);
+    }
+
+    .day-header {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-2);
+    }
+
+    .day-name {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--graphite);
+      letter-spacing: 0.05em;
+      width: 36px;
+    }
+
+    .day-date {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: 400;
+      color: var(--ink);
+      line-height: 1;
+    }
+
+    .day-row.today .day-date {
+      color: var(--teal);
+    }
+
+    .today-label {
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--teal);
+      background: rgba(15, 118, 110, 0.1);
+      padding: 1px var(--sp-2);
+      border-radius: var(--r-sm);
+      letter-spacing: 0.03em;
+    }
+
+    .day-tasks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-2);
+      padding-left: 48px;
+    }
+
+    /* Task Chip (compact, for calendar) */
+    .task-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: var(--sp-1) var(--sp-3);
+      background: white;
+      border: 1px solid rgba(168, 162, 158, 0.25);
+      border-radius: var(--r-sm);
+      font-size: var(--text-sm);
+      color: var(--ink);
+      cursor: grab;
+      transition: all var(--duration-fast) var(--ease-out);
+      max-width: 200px;
+    }
+
+    .task-chip:hover {
+      box-shadow: var(--shadow-sm);
+      border-color: var(--clay);
+    }
+
+    .task-chip.dragging {
+      opacity: 0.5;
+      transform: rotate(2deg);
+    }
+
+    .task-chip .priority-bar {
+      width: 3px;
+      height: 14px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .task-chip .priority-bar.high { background: var(--rose); }
+    .task-chip .priority-bar.medium { background: var(--amber); }
+    .task-chip .priority-bar.low { background: var(--sage); }
+
+    .task-chip .chip-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-chip.done {
+      opacity: 0.5;
+      text-decoration: line-through;
+      color: var(--graphite);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TASK PANEL
+       ═══════════════════════════════════════════════════════════ */
+    .task-panel-header {
+      padding: var(--sp-4) var(--sp-5);
+      border-bottom: 1px solid rgba(168, 162, 158, 0.3);
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: var(--sp-2) var(--sp-4);
+      padding-left: var(--sp-8);
+      background: rgba(168, 162, 158, 0.08);
+      border: 1px solid transparent;
+      border-radius: var(--r-md);
+      font-size: var(--text-sm);
+      color: var(--ink);
+      transition: all var(--duration-fast) var(--ease-out);
+    }
+
+    .search-box input::placeholder {
+      color: var(--clay);
+    }
+
+    .search-box input:focus {
+      background: white;
+      border-color: rgba(168, 162, 158, 0.3);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: var(--sp-3);
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--clay);
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Task Groups */
+    .task-groups {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--sp-4) var(--sp-5);
+    }
+
+    .task-group {
+      margin-bottom: var(--sp-5);
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      margin-bottom: var(--sp-3);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .group-chevron {
+      width: 14px;
+      height: 14px;
+      color: var(--clay);
+      transition: transform var(--duration-fast) var(--ease-out);
+    }
+
+    .group-header.collapsed .group-chevron {
+      transform: rotate(-90deg);
+    }
+
+    .group-label {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--graphite);
+      letter-spacing: 0.02em;
+    }
+
+    .group-count {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--clay);
+      background: rgba(168, 162, 158, 0.12);
+      padding: 0 var(--sp-2);
+      border-radius: var(--r-sm);
+      line-height: 1.6;
+    }
+
+    .group-divider {
+      flex: 1;
+      height: 1px;
+      background: rgba(168, 162, 158, 0.2);
+      margin-left: var(--sp-2);
+    }
+
+    /* Overdue accent */
+    .group-header.overdue .group-label { color: var(--rose); }
+    .group-header.overdue .group-count { color: var(--rose); background: rgba(225, 29, 72, 0.08); }
+
+    /* Task List */
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+    }
+
+    /* Task Item */
+    .task-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-3);
+      padding: var(--sp-3) var(--sp-4);
+      background: white;
+      border: 1px solid rgba(168, 162, 158, 0.2);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: all var(--duration-fast) var(--ease-out);
+      position: relative;
+    }
+
+    .task-item:hover {
+      border-color: rgba(168, 162, 158, 0.4);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .task-item.selected {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 1px var(--teal);
+    }
+
+    .task-item.dragging {
+      opacity: 0.4;
+      transform: rotate(1deg);
+    }
+
+    .task-checkbox {
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid var(--clay);
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 2px;
+      transition: all var(--duration-fast) var(--ease-out);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .task-checkbox:hover {
+      border-color: var(--teal);
+    }
+
+    .task-checkbox.checked {
+      background: var(--teal);
+      border-color: var(--teal);
+    }
+
+    .task-checkbox.checked::after {
+      content: '';
+      width: 6px;
+      height: 3px;
+      border-left: 1.5px solid white;
+      border-bottom: 1.5px solid white;
+      transform: rotate(-45deg) translateY(-1px);
+    }
+
+    .task-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-title {
+      font-size: var(--text-base);
+      font-weight: 500;
+      color: var(--ink);
+      line-height: 1.4;
+      margin-bottom: 2px;
+    }
+
+    .task-item.done .task-title {
+      text-decoration: line-through;
+      color: var(--clay);
+    }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      font-size: var(--text-xs);
+      color: var(--clay);
+    }
+
+    .task-dates {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+
+    .task-priority-indicator {
+      width: 3px;
+      height: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+      border-radius: 0 2px 2px 0;
+    }
+
+    .task-priority-indicator.high { background: var(--rose); }
+    .task-priority-indicator.medium { background: var(--amber); }
+    .task-priority-indicator.low { background: var(--sage); }
+
+    .task-delete {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--r-sm);
+      color: var(--clay);
+      opacity: 0;
+      transition: all var(--duration-fast) var(--ease-out);
+      flex-shrink: 0;
+    }
+
+    .task-item:hover .task-delete {
+      opacity: 1;
+    }
+
+    .task-delete:hover {
+      background: rgba(225, 29, 72, 0.08);
+      color: var(--rose);
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--sp-12) var(--sp-6);
+      text-align: center;
+    }
+
+    .empty-icon {
+      font-size: 2rem;
+      margin-bottom: var(--sp-4);
+      opacity: 0.4;
+    }
+
+    .empty-title {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      color: var(--graphite);
+      margin-bottom: var(--sp-2);
+    }
+
+    .empty-desc {
+      font-size: var(--text-sm);
+      color: var(--clay);
+      max-width: 240px;
+    }
+
+    /* Input Area */
+    .task-input-area {
+      padding: var(--sp-4) var(--sp-5);
+      border-top: 1px solid rgba(168, 162, 158, 0.3);
+    }
+
+    .task-input {
+      width: 100%;
+      padding: var(--sp-3) var(--sp-4);
+      background: rgba(168, 162, 158, 0.06);
+      border: 1px solid rgba(168, 162, 158, 0.2);
+      border-radius: var(--r-md);
+      font-size: var(--text-sm);
+      color: var(--ink);
+      resize: none;
+      min-height: 60px;
+      transition: all var(--duration-fast) var(--ease-out);
+      line-height: 1.5;
+    }
+
+    .task-input::placeholder {
+      color: var(--clay);
+    }
+
+    .task-input:focus {
+      background: white;
+      border-color: rgba(15, 118, 110, 0.4);
+      box-shadow: 0 0 0 1px rgba(15, 118, 110, 0.1);
+    }
+
+    .input-hint {
+      margin-top: var(--sp-2);
+      font-size: var(--text-xs);
+      color: var(--clay);
+      text-align: right;
+    }
+
+    .input-hint kbd {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      background: rgba(168, 162, 158, 0.12);
+      padding: 1px 4px;
+      border-radius: 2px;
+      border: 1px solid rgba(168, 162, 158, 0.2);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       FOCUS STATES
+       ═══════════════════════════════════════════════════════════ */
+    *:focus-visible {
+      outline: 2px solid var(--teal);
+      outline-offset: 2px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SUBTLE PAGE LOAD
+       ═══════════════════════════════════════════════════════════ */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .app {
+      animation: fadeInUp 0.4s var(--ease-out) both;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       REDUCED MOTION
+       ═══════════════════════════════════════════════════════════ */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       RESPONSIVE
+       ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      .content {
+        flex-direction: column;
+      }
+      .calendar-panel {
+        border-right: none;
+        border-bottom: 1px solid rgba(168, 162, 158, 0.3);
+        max-height: 50vh;
+      }
+      .task-panel {
+        width: 100%;
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .header {
+        padding: var(--sp-3) var(--sp-4);
+        flex-wrap: wrap;
+        gap: var(--sp-3);
+      }
+      .header-left {
+        gap: var(--sp-4);
+      }
+      .ws-tab {
+        padding: var(--sp-1) var(--sp-2);
+        font-size: var(--text-xs);
+      }
+      .cal-nav {
+        padding: var(--sp-3) var(--sp-4);
+      }
+      .week-view {
+        padding: 0 var(--sp-4) var(--sp-4);
+      }
+      .task-groups {
+        padding: var(--sp-3) var(--sp-4);
+      }
+      .task-input-area {
+        padding: var(--sp-3) var(--sp-4);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="app">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-left">
+          <h1 class="logo">Todos</h1>
+          <nav class="workspace-tabs">
+            <button class="ws-tab active" data-ws="work">
+              <span class="ws-dot work"></span>工作
+            </button>
+            <button class="ws-tab" data-ws="life">
+              <span class="ws-dot life"></span>生活
+            </button>
+            <button class="ws-tab" data-ws="study">
+              <span class="ws-dot study"></span>学习
+            </button>
+          </nav>
+        </div>
+        <div class="header-right">
+          <div class="view-toggle">
+            <button class="view-btn active">周</button>
+            <button class="view-btn">月</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <div class="content">
+        <!-- Calendar Panel -->
+        <div class="calendar-panel">
+          <div class="cal-nav">
+            <div class="cal-nav-left">
+              <span class="cal-month">七月</span>
+              <span class="cal-year">2026</span>
+            </div>
+            <div class="cal-nav-right">
+              <button class="nav-btn" title="上一周">
+                <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <button class="today-btn">今天</button>
+              <button class="nav-btn" title="下一周">
+                <svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"></polyline></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="week-view">
+            <!-- 周一 -->
+            <div class="day-row">
+              <div class="day-header">
+                <span class="day-name">周一</span>
+                <span class="day-date">6</span>
+              </div>
+              <div class="day-tasks">
+                <div class="task-chip" draggable="true">
+                  <span class="priority-bar high"></span>
+                  <span class="chip-title">准备项目提案</span>
+                </div>
+                <div class="task-chip" draggable="true">
+                  <span class="priority-bar medium"></span>
+                  <span class="chip-title">回复客户邮件</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 周二 -->
+            <div class="day-row">
+              <div class="day-header">
+                <span class="day-name">周二</span>
+                <span class="day-date">7</span>
+              </div>
+              <div class="day-tasks">
+                <div class="task-chip" draggable="true">
+                  <span class="priority-bar medium"></span>
+                  <span class="chip-title">代码审查</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 周三 (今天) -->
+            <div class="day-row today">
+              <div class="day-header">
+                <span class="day-name">周三</span>
+                <span class="day-date">8</span>
+                <span class="today-label">今天</span>
+              </div>
+              <div class="day-tasks">
+                <div class="task-chip" draggable="true">
+                  <span class="priority-bar high"></span>
+                  <span class="chip-title">完成设计评审</span>
+                </div>
+                <div class="task-chip" draggable="true">
+                  <span class="priority-bar low"></span>
+                  <span class="chip-title">更新文档</span>
+                </div>
+                <div class="task-chip" draggable="true">
+                  <span class="priority-bar medium"></span>
+                  <span class="chip-title">团队周会</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 周四 -->
+            <div class="day-row">
+              <div class="day-header">
+                <span class="day-name">周四</span>
+                <span class="day-date">9</span>
+              </div>
+              <div class="day-tasks">
+                <div class="task-chip" draggable="true">
+                  <span class="priority-bar medium"></span>
+                  <span class="chip-title">数据库优化</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 周五 -->
+            <div class="day-row">
+              <div class="day-header">
+                <span class="day-name">周五</span>
+                <span class="day-date">10</span>
+              </div>
+              <div class="day-tasks">
+                <div class="task-chip" draggable="true">
+                  <span class="priority-bar low"></span>
+                  <span class="chip-title">整理笔记</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 周六 -->
+            <div class="day-row">
+              <div class="day-header">
+                <span class="day-name">周六</span>
+                <span class="day-date">11</span>
+              </div>
+              <div class="day-tasks"></div>
+            </div>
+
+            <!-- 周日 -->
+            <div class="day-row">
+              <div class="day-header">
+                <span class="day-name">周日</span>
+                <span class="day-date">12</span>
+              </div>
+              <div class="day-tasks"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task Panel -->
+        <div class="task-panel">
+          <div class="task-panel-header">
+            <div class="search-box">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" placeholder="搜索任务...">
+            </div>
+          </div>
+
+          <div class="task-groups">
+            <!-- Overdue -->
+            <div class="task-group">
+              <div class="group-header overdue">
+                <svg class="group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <span class="group-label">逾期任务</span>
+                <span class="group-count">2</span>
+                <div class="group-divider"></div>
+              </div>
+              <div class="task-list">
+                <div class="task-item">
+                  <div class="task-priority-indicator high"></div>
+                  <button class="task-checkbox"></button>
+                  <div class="task-body">
+                    <div class="task-title">提交季度报告</div>
+                    <div class="task-meta">
+                      <span class="task-dates">7月5日</span>
+                    </div>
+                  </div>
+                  <button class="task-delete">×</button>
+                </div>
+                <div class="task-item">
+                  <div class="task-priority-indicator medium"></div>
+                  <button class="task-checkbox"></button>
+                  <div class="task-body">
+                    <div class="task-title">预约牙医</div>
+                    <div class="task-meta">
+                      <span class="task-dates">7月3日</span>
+                    </div>
+                  </div>
+                  <button class="task-delete">×</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Today -->
+            <div class="task-group">
+              <div class="group-header">
+                <svg class="group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <span class="group-label">今天的任务</span>
+                <span class="group-count">3</span>
+                <div class="group-divider"></div>
+              </div>
+              <div class="task-list">
+                <div class="task-item">
+                  <div class="task-priority-indicator high"></div>
+                  <button class="task-checkbox"></button>
+                  <div class="task-body">
+                    <div class="task-title">完成设计评审</div>
+                    <div class="task-meta">
+                      <span class="task-dates">7月8日</span>
+                    </div>
+                  </div>
+                  <button class="task-delete">×</button>
+                </div>
+                <div class="task-item">
+                  <div class="task-priority-indicator medium"></div>
+                  <button class="task-checkbox"></button>
+                  <div class="task-body">
+                    <div class="task-title">团队周会</div>
+                    <div class="task-meta">
+                      <span class="task-dates">7月8日</span>
+                    </div>
+                  </div>
+                  <button class="task-delete">×</button>
+                </div>
+                <div class="task-item">
+                  <div class="task-priority-indicator low"></div>
+                  <button class="task-checkbox"></button>
+                  <div class="task-body">
+                    <div class="task-title">更新文档</div>
+                    <div class="task-meta">
+                      <span class="task-dates">7月8日</span>
+                    </div>
+                  </div>
+                  <button class="task-delete">×</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Unscheduled -->
+            <div class="task-group">
+              <div class="group-header">
+                <svg class="group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <span class="group-label">未安排任务</span>
+                <span class="group-count">2</span>
+                <div class="group-divider"></div>
+              </div>
+              <div class="task-list">
+                <div class="task-item" draggable="true">
+                  <div class="task-priority-indicator medium"></div>
+                  <button class="task-checkbox"></button>
+                  <div class="task-body">
+                    <div class="task-title">学习 React 新特性</div>
+                    <div class="task-meta">
+                      <span class="task-dates">无日期</span>
+                    </div>
+                  </div>
+                  <button class="task-delete">×</button>
+                </div>
+                <div class="task-item" draggable="true">
+                  <div class="task-priority-indicator low"></div>
+                  <button class="task-checkbox"></button>
+                  <div class="task-body">
+                    <div class="task-title">整理书架</div>
+                    <div class="task-meta">
+                      <span class="task-dates">无日期</span>
+                    </div>
+                  </div>
+                  <button class="task-delete">×</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Completed -->
+            <div class="task-group">
+              <div class="group-header collapsed">
+                <svg class="group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <span class="group-label">已完成任务</span>
+                <span class="group-count">4</span>
+                <div class="group-divider"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="task-input-area">
+            <textarea class="task-input" placeholder="添加新任务..."></textarea>
+            <div class="input-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 保存</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Interactive demo: workspace switching
+    document.querySelectorAll('.ws-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.ws-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+
+    // Interactive demo: view toggle
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // Interactive demo: collapse/expand groups
+    document.querySelectorAll('.group-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.classList.toggle('collapsed');
+        const list = header.nextElementSibling;
+        if (list && list.classList.contains('task-list')) {
+          list.style.display = header.classList.contains('collapsed') ? 'none' : 'flex';
+        }
+      });
+    });
+
+    // Interactive demo: complete task
+    document.querySelectorAll('.task-checkbox').forEach(cb => {
+      cb.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cb.classList.toggle('checked');
+        const item = cb.closest('.task-item');
+        if (item) item.classList.toggle('done');
+      });
+    });
+
+    // Interactive demo: hover to show delete
+    // (already handled via CSS)
+  </script>
+</body>
+</html>

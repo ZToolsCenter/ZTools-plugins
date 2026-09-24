@@ -1,0 +1,62 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建与打包产物
+dist/
+.vite/
+*.zpx
+*.upx
+*.upxs
+
+# 测试与覆盖率
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+.playwright-mcp/
+*.lcov
+
+# 本地环境配置
+.env
+.env.*
+!.env.example
+*.local
+
+# 日志和调试文件
+*.log
+*.pid
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 编辑器和 IDE 配置
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+*.orig
+*.rej
+*~
+
+# 临时文件
+*.tmp
+*.temp
+*.tsbuildinfo
+
+# 本地辅助工具与参考项目
+.claude
+.codex
+.pi
+.serena
+.spec-workflow
+.playwright-mcp
+.ai-ignore
+docker-pull-tar

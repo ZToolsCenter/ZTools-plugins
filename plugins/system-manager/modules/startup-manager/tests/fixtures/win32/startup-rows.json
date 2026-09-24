@@ -1,0 +1,5 @@
+[
+  {"kind":"run-key","scope":"user","name":"Cloud Sync","location":"HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run","trigger":"Run","command":"C:\\Users\\demo\\AppData\\Sync.exe","valueType":"String","enabled":true,"running":null},
+  {"kind":"scheduled-task","scope":"user","ownerIsCurrent":true,"principal":"S-1-5-21-test","uri":"\\Vendor\\Update Check","taskXml":"<Task><Settings><Enabled>false</Enabled></Settings><Actions><Exec>updater.exe</Exec></Actions></Task>","name":"Update Check","location":"\\Vendor\\","taskPath":"\\Vendor\\","trigger":"登录或开机","command":"updater.exe","enabled":false,"running":false,"state":"Disabled"},
+  {"kind":"service","scope":"system","name":"Audio Service","location":"AudioSrv","trigger":"系统启动","command":"C:\\Windows\\System32\\svchost.exe","enabled":true,"running":true,"startType":"Auto"}
+]

@@ -1,0 +1,28 @@
+{
+  "name": "system-diagnostic-report",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "本地生成软硬件系统信息与脱敏诊断报告的 ZTools 插件。",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "test": "node --import tsx --test tests/*.test.cjs tests/*.test.ts",
+    "typecheck": "vue-tsc --noEmit",
+    "build:dist": "npm run typecheck && npm test && vite build && node ../../scripts/finalize-module-dist.mjs system-diagnostic-report",
+    "build": "npm run build:dist",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "lucide-vue-next": "^0.468.0",
+    "systeminformation": "5.33.1",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.11",
+    "vue-tsc": "^3.3.8"
+  }
+}

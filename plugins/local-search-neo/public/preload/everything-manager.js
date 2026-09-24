@@ -5,6 +5,15 @@ const { execFile, spawn } = require("node:child_process");
 const EVERYTHING_READY_TIMEOUT_MS = 30_000;
 const EVERYTHING_POLL_INTERVAL_MS = 300;
 
+/**
+ * 将 ASAR 虚拟路径转换为 unpack 目录中的实体路径。
+ * @param {string} filePath 插件文件路径
+ * @returns {string} 可交给外部进程使用的实体路径
+ */
+function resolveUnpackedPath(filePath) {
+  return filePath.replace(/\.asar(?=[/\\]|$)/, ".asar.unpacked");
+}
+
 function createEverythingManager(everythingAddon) {
   let managedProcess = null;
   let ensureReadyPromise = null;
@@ -234,12 +243,20 @@ function createEverythingManager(everythingAddon) {
     });
   }
 
+  /**
+   * 获取 Everything 可执行文件的实体路径。
+   * @returns {string} Everything.exe 实体路径
+   */
   function getBundledEverythingExecutable() {
-    return path.resolve(__dirname, "..", "everything", "Everything.exe");
+    return resolveUnpackedPath(path.resolve(__dirname, "..", "everything", "Everything.exe"));
   }
 
+  /**
+   * 获取 Everything 配置文件的实体路径。
+   * @returns {string} Everything.ini 实体路径
+   */
   function getBundledEverythingConfigFile() {
-    return path.resolve(__dirname, "..", "everything", "Everything.ini");
+    return resolveUnpackedPath(path.resolve(__dirname, "..", "everything", "Everything.ini"));
   }
 
   return {

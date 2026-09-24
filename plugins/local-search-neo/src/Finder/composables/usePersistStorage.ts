@@ -1,11 +1,19 @@
 import { computed, shallowRef } from "vue";
-import type { FinderCategory, FinderSortMode } from "../core/finderLogic";
+import {
+  DEFAULT_CATEGORY_ORDER,
+  type FinderCategory,
+  type FinderSortMode,
+  normalizeCategoryOrder,
+} from "../core/finderLogic";
 
 interface FinderPreferences {
   previewEnabled: boolean;
   sortMode: FinderSortMode;
   matchPathEnabled: boolean;
+  resultListWidth: number;
+  sidebarWidth: number;
   categoryEnabled: Record<string, boolean>;
+  categoryOrder: string[];
 }
 
 const PREFERENCES_STORAGE_KEY = "preferences";
@@ -15,7 +23,10 @@ const DEFAULT_PREFERENCES: FinderPreferences = {
   previewEnabled: false,
   sortMode: "modified-desc",
   matchPathEnabled: true,
+  resultListWidth: 315,
+  sidebarWidth: 64,
   categoryEnabled: {},
+  categoryOrder: [...DEFAULT_CATEGORY_ORDER],
 };
 
 const preferences = shallowRef<FinderPreferences>({ ...DEFAULT_PREFERENCES });
@@ -33,6 +44,15 @@ const matchPathEnabled = computed({
   get: () => preferences.value.matchPathEnabled,
   set: setMatchPathEnabled,
 });
+const resultListWidth = computed({
+  get: () => preferences.value.resultListWidth,
+  set: setResultListWidth,
+});
+const sidebarWidth = computed({
+  get: () => preferences.value.sidebarWidth,
+  set: setSidebarWidth,
+});
+const categoryOrder = computed(() => preferences.value.categoryOrder);
 
 let loaded = false;
 
@@ -42,6 +62,13 @@ export function usePersistStorage() {
     previewEnabled,
     sortMode,
     matchPathEnabled,
+    resultListWidth,
+    setResultListWidth,
+    sidebarWidth,
+    setSidebarWidth,
+    categoryOrder,
+    setCategoryOrder,
+    resetCategoryOrder,
     customCategories,
     addCustomCategory,
     updateCustomCategory,
@@ -116,6 +143,44 @@ function setMatchPathEnabled(value: boolean) {
   savePreferences();
 }
 
+function setResultListWidth(value: number, persist = true) {
+  if (typeof value !== "number" || Number.isNaN(value)) return;
+  preferences.value = {
+    ...preferences.value,
+    resultListWidth: Math.round(value),
+  };
+  if (persist) {
+    savePreferences();
+  }
+}
+
+function setSidebarWidth(value: number, persist = true) {
+  if (typeof value !== "number" || Number.isNaN(value)) return;
+  preferences.value = {
+    ...preferences.value,
+    sidebarWidth: Math.round(value),
+  };
+  if (persist) {
+    savePreferences();
+  }
+}
+
+function setCategoryOrder(order: string[]) {
+  preferences.value = {
+    ...preferences.value,
+    categoryOrder: [...order],
+  };
+  savePreferences();
+}
+
+function resetCategoryOrder(allAvailableCategoryIds: string[]) {
+  preferences.value = {
+    ...preferences.value,
+    categoryOrder: normalizeCategoryOrder(DEFAULT_CATEGORY_ORDER, allAvailableCategoryIds),
+  };
+  savePreferences();
+}
+
 function addCustomCategory(label: string, rule: string) {
   const category = {
     id: `custom-${Date.now()}`,
@@ -125,7 +190,15 @@ function addCustomCategory(label: string, rule: string) {
   } satisfies FinderCategory;
 
   customCategories.value = [...customCategories.value, category];
-  setCategoryEnabled(category.id, true);
+  preferences.value = {
+    ...preferences.value,
+    categoryEnabled: {
+      ...preferences.value.categoryEnabled,
+      [category.id]: true,
+    },
+    categoryOrder: [...preferences.value.categoryOrder, category.id],
+  };
+  savePreferences();
   saveCustomCategories();
   return category;
 }
@@ -145,7 +218,13 @@ function updateCustomCategory(id: string, input: Pick<FinderCategory, "label" | 
 
 function removeCustomCategory(category: FinderCategory) {
   customCategories.value = customCategories.value.filter((item) => item.id !== category.id);
-  removeCategoryEnabledState(category.id);
+  const { [category.id]: _removed, ...categoryEnabled } = preferences.value.categoryEnabled;
+  preferences.value = {
+    ...preferences.value,
+    categoryEnabled,
+    categoryOrder: preferences.value.categoryOrder.filter((id) => id !== category.id),
+  };
+  savePreferences();
   saveCustomCategories();
 }
 
@@ -164,21 +243,25 @@ function setCategoryEnabled(categoryId: string, enabled: boolean) {
   savePreferences();
 }
 
-function removeCategoryEnabledState(categoryId: string) {
-  const { [categoryId]: _removed, ...categoryEnabled } = preferences.value.categoryEnabled;
-  preferences.value = {
-    ...preferences.value,
-    categoryEnabled,
-  };
-  savePreferences();
-}
-
 function normalizePreferences(stored: Partial<FinderPreferences>): FinderPreferences {
+  const rawOrder = Array.isArray(stored.categoryOrder)
+    ? stored.categoryOrder.filter((item): item is string => typeof item === "string")
+    : [...DEFAULT_CATEGORY_ORDER];
+
   return {
     previewEnabled: stored.previewEnabled ?? DEFAULT_PREFERENCES.previewEnabled,
     sortMode: stored.sortMode ?? DEFAULT_PREFERENCES.sortMode,
     matchPathEnabled: stored.matchPathEnabled ?? DEFAULT_PREFERENCES.matchPathEnabled,
+    resultListWidth:
+      typeof stored.resultListWidth === "number" && stored.resultListWidth >= 200
+        ? stored.resultListWidth
+        : DEFAULT_PREFERENCES.resultListWidth,
+    sidebarWidth:
+      typeof stored.sidebarWidth === "number" && stored.sidebarWidth >= 48
+        ? stored.sidebarWidth
+        : DEFAULT_PREFERENCES.sidebarWidth,
     categoryEnabled: { ...DEFAULT_PREFERENCES.categoryEnabled, ...stored.categoryEnabled },
+    categoryOrder: rawOrder,
   };
 }
 

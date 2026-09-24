@@ -1,5 +1,7 @@
 export type CategoryKind = "all" | "folder" | "extension" | "custom";
 
+export type SelectionMode = "single" | "toggle" | "range";
+
 export interface FinderCategory {
   id: string;
   label: string;
@@ -10,13 +12,13 @@ export interface FinderCategory {
 
 export interface FinderResult {
   name: string;
-  path?: string;
-  fullPath?: string;
-  highlightedName?: string;
-  highlightedPath?: string;
-  extension?: string;
-  size?: number;
-  modifiedAt?: number;
+  path: string;
+  fullPath: string;
+  highlightedName: string;
+  highlightedPath: string;
+  extension: string;
+  size: number;
+  modifiedAt: number;
   isDirectory?: boolean;
 }
 
@@ -43,102 +45,77 @@ export const DEFAULT_CATEGORIES: FinderCategory[] = [
   { id: "archive", label: "压缩文件", kind: "extension", rule: "ext:zip;rar;7z;tar;gz;iso" },
 ];
 
-const IMAGE_PREVIEW_EXTENSIONS = new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "gif",
-  "webp",
-  "bmp",
-  "svg",
-  "ico",
-]);
+export const DEFAULT_CATEGORY_ORDER: string[] = DEFAULT_CATEGORIES.map((c) => c.id);
 
-const VIDEO_PREVIEW_EXTENSIONS = new Set(["mp4", "webm", "ogv", "mov", "m4v", "mkv", "avi"]);
+export function normalizeCategoryOrder(
+  storedOrder: string[] | undefined,
+  allCategoryIds: string[],
+): string[] {
+  const validIdSet = new Set(allCategoryIds);
+  const result: string[] = [];
+  const seen = new Set<string>();
 
-const AUDIO_PREVIEW_EXTENSIONS = new Set(["mp3", "wav", "flac", "aac", "ogg", "m4a", "opus"]);
+  if (Array.isArray(storedOrder)) {
+    for (const id of storedOrder) {
+      if (typeof id === "string" && validIdSet.has(id) && !seen.has(id)) {
+        seen.add(id);
+        result.push(id);
+      }
+    }
+  }
 
-const PDF_PREVIEW_EXTENSIONS = new Set(["pdf"]);
+  for (const id of allCategoryIds) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      result.push(id);
+    }
+  }
 
-const ARCHIVE_TREE_PREVIEW_EXTENSIONS = new Set(["zip", "tar", "tgz", "gz"]);
+  return result;
+}
 
-const MARKDOWN_PREVIEW_EXTENSIONS = new Set(["md", "markdown", "mdown"]);
+export function reorderArray<T>(list: T[], fromIndex: number, toIndex: number): T[] {
+  if (
+    fromIndex < 0 ||
+    fromIndex >= list.length ||
+    toIndex < 0 ||
+    toIndex >= list.length ||
+    fromIndex === toIndex
+  ) {
+    return [...list];
+  }
+  const result = [...list];
+  const [removed] = result.splice(fromIndex, 1);
+  result.splice(toIndex, 0, removed);
+  return result;
+}
 
-const CODE_PREVIEW_LANGUAGE_BY_EXTENSION: Record<string, string> = {
-  bat: "bat",
-  c: "c",
-  cmd: "bat",
-  conf: "properties",
-  cpp: "cpp",
-  cs: "csharp",
-  css: "css",
-  go: "go",
-  h: "c",
-  html: "html",
-  ini: "ini",
-  java: "java",
-  js: "javascript",
-  json: "json",
-  jsx: "jsx",
-  ps1: "powershell",
-  py: "python",
-  rs: "rust",
-  sh: "bash",
-  sql: "sql",
-  toml: "toml",
-  ts: "typescript",
-  tsx: "tsx",
-  vue: "vue",
-  xml: "xml",
-  yaml: "yaml",
-  yml: "yaml",
-};
-
-const LOG_PREVIEW_EXTENSIONS = new Set(["log"]);
-
-const TEXT_PREVIEW_EXTENSIONS = new Set([
-  "bat",
-  "c",
-  "cmd",
-  "conf",
-  "cpp",
-  "cs",
-  "css",
-  "csv",
-  "go",
-  "h",
-  "html",
-  "ini",
-  "java",
-  "js",
-  "json",
-  "jsx",
-  "log",
-  "md",
-  "ps1",
-  "py",
-  "rs",
-  "sh",
-  "sql",
-  "text",
-  "toml",
-  "ts",
-  "tsx",
-  "txt",
-  "vue",
-  "xml",
-  "yaml",
-  "yml",
-]);
-
-const MAX_TEXT_PREVIEW_FILE_SIZE = 20 * 1024 * 1024;
-const MAX_TAR_ARCHIVE_TREE_PREVIEW_FILE_SIZE = 100 * 1024 * 1024;
-
-export function buildEverythingQuery(keyword: string, category: FinderCategory): string {
-  const trimmedKeyword = keyword.trim();
+/**
+ * 构建发送给 Everything 搜索引擎的最终查询语句。
+ *
+ * 组合逻辑：
+ * 1. `prefix`（可选）：限制搜索的目标前缀目录。
+ *    - 若前缀包含空格（如 `C:\Program Files\App`），根据 Everything 语法规则必须用双引号包裹 `"${prefix}"`，
+ *      否则空格会被解析为 AND 运算符导致拆词检索失效；若已有双引号则保留。
+ * 2. `keyword`：用户在输入框中键入的搜索词。
+ * 3. `category.rule`：当前分类的筛选规则（如 `ext:pdf`、`folder:` 等）。
+ */
+export function buildEverythingQuery(
+  keyword: string,
+  category: FinderCategory,
+  prefix: string = "",
+): string {
   const rule = normalizeCategoryRule(category.rule);
+  const trimmedPrefix = prefix.trim();
+  const formattedPrefix = trimmedPrefix
+    ? trimmedPrefix.startsWith('"') && trimmedPrefix.endsWith('"')
+      ? trimmedPrefix
+      : /\s/.test(trimmedPrefix)
+        ? `"${trimmedPrefix}"`
+        : trimmedPrefix
+    : "";
 
-  return [trimmedKeyword, rule].filter(Boolean).join(" ");
+  return [formattedPrefix, keyword.trim(), rule].filter(Boolean).join(" ");
 }
 
 export function getNextVisibleCount(current: number, total: number, pageSize: number): number {
@@ -159,18 +136,81 @@ export function getNextSelectedPath(
   return paths[nextIndex];
 }
 
+/**
+ * 循环切换分类列表。
+ *
+ * @param categories 启用的分类列表
+ * @param currentCategoryId 当前激活的分类 ID
+ * @param direction 切换方向：1 为向下切换（末尾循环至首项），-1 为向上切换（首项循环至末尾）
+ * @returns 切换后的目标分类对象，列表为空时返回 undefined
+ */
+export function getNextCyclicCategory<T extends { id: string }>(
+  categories: T[],
+  currentCategoryId: string,
+  direction: -1 | 1,
+): T | undefined {
+  if (categories.length === 0) return undefined;
+
+  const currentIndex = categories.findIndex((category) => category.id === currentCategoryId);
+  if (currentIndex === -1) {
+    return direction === 1 ? categories[0] : categories[categories.length - 1];
+  }
+
+  const nextIndex = (currentIndex + direction + categories.length) % categories.length;
+  return categories[nextIndex];
+}
+
 export function getRestoredSelectedPath(results: FinderResult[], currentPath: string): string {
   if (results.length === 0) return "";
 
   const exists = results.some((item) => item.fullPath === currentPath);
   if (exists) return currentPath;
 
-  return results[0]?.fullPath ?? "";
+  return results[0].fullPath;
 }
 
-export function mergeResultsByMatchPathPriority<
-  T extends Pick<FinderResult, "name" | "path" | "fullPath">,
->(nameResults: T[], matchPathResults: T[]): T[] {
+export function getRangeSelectedPaths(
+  visiblePaths: string[],
+  anchorPath: string,
+  targetPath: string,
+): string[] {
+  if (visiblePaths.length === 0 || !targetPath) return [];
+
+  const targetIndex = visiblePaths.indexOf(targetPath);
+  if (targetIndex === -1) return [];
+
+  const anchorIndex = visiblePaths.indexOf(anchorPath);
+  if (anchorIndex === -1) return [targetPath];
+
+  const start = Math.min(anchorIndex, targetIndex);
+  const end = Math.max(anchorIndex, targetIndex);
+  return visiblePaths.slice(start, end + 1);
+}
+
+export function filterResultsExcludingPaths<T extends Pick<FinderResult, "fullPath">>(
+  results: T[],
+  pathsToRemove: string[],
+): T[] {
+  if (pathsToRemove.length === 0) return results;
+  const toRemove = new Set(pathsToRemove);
+  return results.filter((item) => !toRemove.has(item.fullPath));
+}
+
+export function getDragTargetPaths(
+  itemPath: string,
+  selectedPaths: string[] = [],
+): string | string[] {
+  if (!itemPath) return "";
+  if (selectedPaths.length > 1 && selectedPaths.includes(itemPath)) {
+    return [...selectedPaths];
+  }
+  return itemPath;
+}
+
+export function mergeResultsByMatchPathPriority<T extends Pick<FinderResult, "fullPath">>(
+  nameResults: T[],
+  matchPathResults: T[],
+): T[] {
   const seen = new Set<string>();
   const merged: T[] = [];
 
@@ -185,105 +225,8 @@ export function mergeResultsByMatchPathPriority<
   return merged;
 }
 
-export function isImagePreviewCandidate(
-  file: Pick<FinderResult, "name" | "extension" | "isDirectory">,
-): boolean {
-  if (file.isDirectory) return false;
-  return IMAGE_PREVIEW_EXTENSIONS.has(getResultExtension(file));
-}
-
-export function isVideoPreviewCandidate(
-  file: Pick<FinderResult, "name" | "extension" | "isDirectory">,
-): boolean {
-  if (file.isDirectory) return false;
-  return VIDEO_PREVIEW_EXTENSIONS.has(getResultExtension(file));
-}
-
-export function isAudioPreviewCandidate(
-  file: Pick<FinderResult, "name" | "extension" | "isDirectory">,
-): boolean {
-  if (file.isDirectory) return false;
-  return AUDIO_PREVIEW_EXTENSIONS.has(getResultExtension(file));
-}
-
-export function isPdfPreviewCandidate(
-  file: Pick<FinderResult, "name" | "extension" | "isDirectory">,
-): boolean {
-  if (file.isDirectory) return false;
-  return PDF_PREVIEW_EXTENSIONS.has(getResultExtension(file));
-}
-
-export function isArchiveTreePreviewCandidate(
-  file: Pick<FinderResult, "name" | "extension" | "size" | "isDirectory">,
-): boolean {
-  if (file.isDirectory) return false;
-  return isArchiveTreePreviewSupported(file) && !getArchiveTreePreviewBlockedReason(file);
-}
-
-export function getArchiveTreePreviewBlockedReason(
-  file: Pick<FinderResult, "name" | "extension" | "size" | "isDirectory">,
-): string | undefined {
-  if (file.isDirectory || !isArchiveTreePreviewSupported(file)) return undefined;
-  if (isTarArchive(file) && (file.size ?? 0) > MAX_TAR_ARCHIVE_TREE_PREVIEW_FILE_SIZE) {
-    return `压缩包超过 ${formatBytes(MAX_TAR_ARCHIVE_TREE_PREVIEW_FILE_SIZE)}，不提供预览`;
-  }
-  return undefined;
-}
-
-export function isMarkdownPreviewCandidate(
-  file: Pick<FinderResult, "name" | "extension" | "isDirectory">,
-): boolean {
-  if (file.isDirectory) return false;
-  return MARKDOWN_PREVIEW_EXTENSIONS.has(getResultExtension(file));
-}
-
-export function getCodePreviewLanguage(
-  file: Pick<FinderResult, "name" | "extension" | "isDirectory">,
-): string | undefined {
-  if (file.isDirectory) return undefined;
-  return CODE_PREVIEW_LANGUAGE_BY_EXTENSION[getResultExtension(file)];
-}
-
-export function isCodePreviewCandidate(
-  file: Pick<FinderResult, "name" | "extension" | "isDirectory">,
-): boolean {
-  return getCodePreviewLanguage(file) !== undefined;
-}
-
-export function isLogPreviewCandidate(
-  file: Pick<FinderResult, "name" | "extension" | "isDirectory">,
-): boolean {
-  if (file.isDirectory) return false;
-  return LOG_PREVIEW_EXTENSIONS.has(getResultExtension(file));
-}
-
-export function isTextPreviewCandidate(
-  file: Pick<FinderResult, "name" | "extension" | "size" | "isDirectory">,
-): boolean {
-  if (file.isDirectory) return false;
-  if ((file.size ?? 0) > MAX_TEXT_PREVIEW_FILE_SIZE) return false;
-
-  return TEXT_PREVIEW_EXTENSIONS.has(getResultExtension(file));
-}
-
-export function formatBytes(bytes?: number): string {
-  if (bytes === undefined || Number.isNaN(bytes)) return "";
-  if (bytes < 1024) return `${bytes} B`;
-
-  const units = ["KB", "MB", "GB", "TB"];
-  let value = bytes / 1024;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${formatNumber(value)} ${units[unitIndex]}`;
-}
-
-function getResultDedupeKey(item: Pick<FinderResult, "name" | "path" | "fullPath">): string {
-  return (item.fullPath || `${item.path ?? ""}\\${item.name}`).toLowerCase();
+function getResultDedupeKey(item: Pick<FinderResult, "fullPath">): string {
+  return item.fullPath.toLowerCase();
 }
 
 function normalizeCategoryRule(rule: string): string {
@@ -299,26 +242,39 @@ function normalizeCategoryRule(rule: string): string {
   return extensions.length > 0 ? `ext:${extensions.join(";")}` : "";
 }
 
-function isArchiveTreePreviewSupported(file: Pick<FinderResult, "name" | "extension">): boolean {
-  const ext = getResultExtension(file);
-  return ARCHIVE_TREE_PREVIEW_EXTENSIONS.has(ext) || file.name.toLowerCase().endsWith(".tar.gz");
-}
+export type MatchPathQueryPlan =
+  | { mode: "single"; matchPath: false }
+  | { mode: "single"; matchPath: true }
+  | { mode: "dual" };
 
-function isTarArchive(file: Pick<FinderResult, "name" | "extension">): boolean {
-  const ext = getResultExtension(file);
-  const normalizedName = file.name.toLowerCase();
-  return ext === "tar" || ext === "tgz" || normalizedName.endsWith(".tar.gz");
-}
+/**
+ * 决定当前查询是否需要 MatchPath 以及具体的执行计划。
+ *
+ * 优化策略：
+ * 1. 若用户禁用了 matchPathEnabled，始终单次查询（matchPath: false）。
+ * 2. 若用户输入的关键词为空（例如仅点击切换分类，无 keyword）：
+ *    此时 matchPath=true 与 matchPath=false 的 Everything 返回结果严格一致，执行单次查询（matchPath: false）即可，
+ *    避免无意义的双重 IPC 检索与数百个重复对象的序列化。
+ * 3. 若用户输入的关键词包含路径分隔符（`\` 或 `/`）：
+ *    因为纯文件名中不可能包含路径字符，直接单次查询（matchPath: true），免去一次注定命中为空的 matchPath: false 查询。
+ * 4. 普通纯词搜索：执行两阶段双重查询并合并，优先呈现文件名命中的项。
+ */
+export function getMatchPathQueryPlan(
+  matchPathEnabled: boolean,
+  keyword: string,
+): MatchPathQueryPlan {
+  if (!matchPathEnabled) {
+    return { mode: "single", matchPath: false };
+  }
 
-function getResultExtension(file: Pick<FinderResult, "name" | "extension">): string {
-  return (file.extension || getExtension(file.name)).toLowerCase();
-}
+  const trimmed = keyword.trim();
+  if (!trimmed) {
+    return { mode: "single", matchPath: false };
+  }
 
-function getExtension(name: string): string {
-  const index = name.lastIndexOf(".");
-  return index >= 0 ? name.slice(index + 1).toLowerCase() : "";
-}
+  if (trimmed.includes("\\") || trimmed.includes("/")) {
+    return { mode: "single", matchPath: true };
+  }
 
-function formatNumber(value: number): string {
-  return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+  return { mode: "dual" };
 }

@@ -1,0 +1,184 @@
+/* 悬浮球窗口样式：窗口透明，只有球和菜单会画东西 */
+:root {
+  --ball-size: 72px;
+  --pad: 6px;
+  --opacity: 0.95;
+  --c-up: #ff4b4b;
+  --c-down: #12c48b;
+  --c-flat: #7c8ba1;
+  --c-bg: #2b3a55;
+  --ink: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+  font-family: "Microsoft YaHei", "PingFang SC", -apple-system, "Segoe UI", system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  opacity: var(--opacity, 0.95);
+  transition: opacity 0.15s ease;
+}
+#root.side-right { flex-direction: row; align-items: flex-start; }
+#root.side-left  { flex-direction: row-reverse; align-items: flex-start; }
+#root.vside-bottom { align-items: flex-end; }
+#root.vside-top { align-items: flex-start; }
+
+#ballWrap {
+  width: calc(var(--ball-size) + var(--pad) * 2);
+  height: calc(var(--ball-size) + var(--pad) * 2);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--pad);
+}
+
+/*
+ * 关键约束：这个窗口只有 球径+12px 那么大（84×84），四周全靠透明。
+ * 任何超出球体的外阴影（0 4px 14px、0 0 22px 这类）都会被窗口的矩形边界硬裁一刀，
+ * 于是球周围永远糊着一圈「若隐若现的方框」。所以这里一律只用内阴影 + 球内渐变，
+ * 圆形以外一个像素都不画，窗口矩形自然完全看不见。
+ */
+#ball {
+  position: relative;
+  width: var(--ball-size);
+  height: var(--ball-size);
+  border-radius: 50%;
+  overflow: hidden;
+  opacity: var(--opacity, 0.95);
+  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 62%), #334155;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  transition: transform 0.12s ease, background 0.3s ease, opacity 0.15s ease;
+  text-align: center;
+  line-height: 1.1;
+  padding: 4px;
+}
+/* 球体底部的内侧微光：发光感留在圆内，绝不外溢 */
+#ball::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 122%, var(--rim, rgba(255, 255, 255, 0.12)), transparent 56%);
+}
+#ball.profit {
+  --rim: rgba(255, 165, 165, 0.45);
+  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 62%), linear-gradient(150deg, #d32f2f, #f44336) !important;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.28) inset !important;
+}
+#ball.loss {
+  --rim: rgba(150, 255, 220, 0.4);
+  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 62%), linear-gradient(150deg, #0a7352, #10b981) !important;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.28) inset !important;
+}
+#ball.flat {
+  --rim: rgba(255, 255, 255, 0.1);
+  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%), linear-gradient(150deg, #334155, #475569) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset !important;
+}
+#ball:hover { transform: scale(1.06); }
+#ball.dragging { cursor: grabbing; transform: scale(1.02); }
+#ball.flash { animation: flash 0.5s ease 2; }
+
+/* 闪一下用亮度动画：box-shadow 的 !important 会压过动画，外阴影又绝对不能加 */
+@keyframes flash {
+  0%, 100% { filter: none; }
+  50% { filter: brightness(1.4); }
+}
+
+.content {
+  position: relative;
+  z-index: 1; /* 压在 #ball::before 内侧微光之上，保证文字始终清晰 */
+  padding: 0 4px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.main {
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  line-height: 1.15;
+}
+.sub {
+  font-weight: 600;
+  opacity: 0.95;
+  margin-top: 2px;
+  white-space: nowrap;
+  line-height: 1.15;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: #ffb020;
+  color: #3a2a00;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+
+/* 右键菜单：和球挤在同一个窗口里，由主窗口（管家）把窗口撑大 */
+.menu {
+  flex: 0 0 auto;
+  width: 152px;
+  margin: 4px;
+  padding: 5px;
+  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  color: #e6edf7;
+  font-size: 12.5px;
+  overflow: hidden;
+}
+.menu[hidden] { display: none; }
+.menu .item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.menu .item:hover { background: rgba(79, 172, 254, 0.22); }
+.menu .item.danger:hover { background: rgba(255, 75, 75, 0.24); }
+.menu .item .ico { width: 15px; text-align: center; font-size: 12px; opacity: 0.9; }
+.menu .sep { height: 1px; margin: 4px 6px; background: rgba(255, 255, 255, 0.1); }
+.menu .hint { padding: 3px 8px 4px; font-size: 11px; color: #9fb0c7; }

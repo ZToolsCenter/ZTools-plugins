@@ -1,0 +1,538 @@
+:root {
+  --primary: #3f51b5;
+  --primary-light: rgba(63, 81, 181, 0.08);
+  --bg: #f4f4f4;
+  --form-bg: #eaeef3;
+  --nav-header-bg: #f4f4f4;
+  --divider: #d0d0d0;
+  --text: rgba(0, 0, 0, 0.87);
+  --text-secondary: rgba(0, 0, 0, 0.6);
+  --text-disabled: rgba(0, 0, 0, 0.38);
+  --icon: rgba(0, 0, 0, 0.54);
+  --chip-bg: rgba(0, 0, 0, 0.08);
+  --chip-bg-hover: rgba(0, 0, 0, 0.12);
+  --primary-dark: #2c387e;
+  --nav-selected-hover: rgba(63, 81, 181, 0.12);
+  --paper: #ffffff;
+  --hover: rgba(0, 0, 0, 0.04);
+  --input-line: rgba(0, 0, 0, 0.42);
+  --btn-gray: #e0e0e0;
+  --switch-track: rgba(0, 0, 0, 0.38);
+  --danger: #d32f2f;
+  --success-bg: #edf7ed;
+  --success-text: #1e4620;
+  --error-bg: #fdeded;
+  --error-text: #5f2120;
+}
+
+.dark {
+  --primary: #7986cb;
+  --primary-light: rgba(121, 134, 203, 0.16);
+  --bg: #1e1e1e;
+  --form-bg: #26292e;
+  --nav-header-bg: #2a2a2a;
+  --divider: rgba(255, 255, 255, 0.16);
+  --text: rgba(255, 255, 255, 0.87);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --text-disabled: rgba(255, 255, 255, 0.38);
+  --icon: rgba(255, 255, 255, 0.54);
+  --chip-bg: rgba(255, 255, 255, 0.12);
+  --chip-bg-hover: rgba(255, 255, 255, 0.2);
+  --primary-dark: #9fa8da;
+  --nav-selected-hover: rgba(121, 134, 203, 0.24);
+  --paper: #2b2b2b;
+  --hover: rgba(255, 255, 255, 0.06);
+  --input-line: rgba(255, 255, 255, 0.42);
+  --btn-gray: #3a3d42;
+  --switch-track: rgba(255, 255, 255, 0.38);
+  --danger: #f44336;
+  --success-bg: #103c14;
+  --success-text: #cce8cd;
+  --error-bg: #451717;
+  --error-text: #f4c7c7;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Microsoft YaHei';
+  font-size: 16px;
+  color: #000;
+  background: var(--bg);
+  user-select: none;
+}
+
+/* ===== 文本按钮 / 实心按钮（MUI 风） ===== */
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.btn-text {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  line-height: 1.75;
+  color: var(--primary);
+  padding: 6px 8px;
+  min-width: 64px;
+  border-radius: 4px;
+  text-transform: none;
+  transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* MUI contained 主按钮（创建自动化脚本等） */
+.btn-contained {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  line-height: 1.75;
+  color: #fff;
+  background: var(--primary);
+  padding: 6px 16px;
+  min-width: 64px;
+  border-radius: 4px;
+  box-shadow: 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 2px 2px 0 rgba(0, 0, 0, 0.14),
+    0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-contained:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.2), 0 4px 5px 0 rgba(0, 0, 0, 0.14),
+    0 1px 10px 0 rgba(0, 0, 0, 0.12);
+}
+
+.btn-contained .icon {
+  font-size: 20px;
+  margin: 0 8px 0 -4px;
+}
+
+/* MUI text 按钮 hover 用 0.04（不要复用导航选中的 0.08） */
+.btn-text:hover {
+  background: rgba(63, 81, 181, 0.04);
+}
+
+.btn-text:disabled {
+  color: rgba(0, 0, 0, 0.26);
+  cursor: default;
+  background: none;
+}
+
+.icon-btn {
+  padding: 8px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon);
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 导航底部为 size="small"：padding 5px */
+.icon-btn.small {
+  padding: 5px;
+}
+
+.icon-btn:hover {
+  background: var(--hover);
+}
+
+.icon-btn:disabled {
+  color: rgba(0, 0, 0, 0.26);
+  cursor: default;
+  background: none;
+}
+
+.icon-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.icon-btn .icon {
+  font-size: 24px;
+}
+
+/* ===== Chip（MUI size=small，filled / outlined 两种变体） ===== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 19.5px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+  /* 原版是 background-color .3s + box-shadow .3s，这里刻意不给 background-color 加过渡：
+     该渲染器在「元素已存在 + 动态增删 class」时会把带 transition 的 background-color
+     变化吞掉（需强制重排才应用），实测表现为启用后仍是灰底白字、几乎看不见。
+     will-change 与 CSS 变量驱动均无效，唯一可靠解是去掉该属性的过渡。 */
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chip > .chip-label {
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip > .icon {
+  font-size: 18px;
+  margin: 0 -4px 0 2px;
+}
+
+/* 注意：统一用 background-color 长属性。
+   用 background 简写时，动态切换 class 触发的变化会被 transition 吞掉
+   （需强制重排才应用），实测表现为「灰底白字」。 */
+
+/* filled default —— 关键字指令·未启用 */
+.chip.filled {
+  background-color: var(--chip-bg);
+  color: var(--text);
+}
+
+.chip.filled:hover {
+  background-color: var(--chip-bg-hover);
+}
+
+/* outlined default —— 匹配类指令·未启用（描边 + 类型图标） */
+.chip.outlined {
+  background-color: transparent;
+  color: var(--text);
+  border-color: rgb(189, 189, 189);
+}
+
+.chip.outlined > .chip-label {
+  padding: 0 7px;
+}
+
+.chip.outlined > .icon {
+  color: rgb(97, 97, 97);
+}
+
+.chip.outlined:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* 已启用高亮：两种变体统一为主色实心 + 白字（含类型图标） */
+.chip.on {
+  background-color: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.chip.on > .icon {
+  color: inherit;
+}
+
+.chip.on:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+/* ===== Switch（MUI 风自绘） ===== */
+.mui-switch {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 14px;
+  margin: 12px;
+  flex-shrink: 0;
+}
+
+.mui-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.mui-switch .track {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: #000;
+  opacity: 0.38;
+  transition: background 0.2s;
+}
+
+.mui-switch .thumb {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14),
+    0 1px 3px 0 rgba(0, 0, 0, 0.12);
+  /* 不加 transition：transform/background 由 .on 类驱动，
+     该渲染器会吞掉「动态增删 class + 带 transition 的属性」的变化（同 chip 背景、label 浮动） */
+}
+
+/* 原版：轨道始终灰色，仅滑块在启用时变主色。
+   用类驱动而非 :checked 兄弟选择器——后者在框架渲染的节点上样式失效不可靠 */
+.mui-switch.on .thumb,
+.mui-switch input:checked ~ .thumb {
+  transform: translateX(20px);
+  background: var(--primary);
+}
+
+/* ===== Checkbox（MUI size=small：命中区 38×38，图标 20px） ===== */
+.mui-checkbox-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px;
+  border-radius: 50%;
+  color: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mui-checkbox-root:hover {
+  background: var(--hover);
+}
+
+.mui-checkbox-root input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.mui-checkbox-root .icon {
+  font-size: 20px;
+}
+
+.mui-checkbox-root.checked {
+  color: var(--primary);
+}
+
+/* ===== MUI Standard TextField：浮动 label + 下划线动画 ===== */
+.text-field {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  width: 100%;
+  padding-top: 16px;
+  vertical-align: top;
+}
+
+.text-field > label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(0, 20px) scale(1);
+  transform-origin: top left;
+  font-size: 16px;
+  line-height: 1.4375em;
+  color: var(--text-secondary);
+  pointer-events: none;
+  /* 只给 color 加过渡：transform 由 .shrink 类驱动，
+     该渲染器会吞掉「动态增删 class + 带 transition 的属性」的变化（同 chip 背景问题） */
+  transition: color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 有值或聚焦时上浮缩小 */
+.text-field.shrink > label {
+  transform: translate(0, 1.5px) scale(0.75);
+}
+
+.text-field.focused > label {
+  color: var(--primary);
+}
+
+.text-field > .input-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 静态下划线 */
+.text-field > .input-root::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-bottom: 1px solid var(--input-line);
+  pointer-events: none;
+  transition: border-bottom-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.text-field > .input-root:hover::before {
+  border-bottom: 2px solid var(--text);
+}
+
+/* 聚焦下划线：scaleX 展开动画 */
+.text-field > .input-root::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-bottom: 2px solid var(--primary);
+  transform: scaleX(0);
+  pointer-events: none;
+}
+
+.text-field.focused > .input-root::after {
+  transform: scaleX(1);
+}
+
+.text-field input,
+.text-field select {
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.4375em;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 4px 0 5px;
+  outline: none;
+  border-radius: 0;
+  width: 100%;
+}
+
+/* 只读（fieldset disabled）：复选框、图标按钮同步变灰，与原版一致 */
+fieldset:disabled .mui-checkbox-root,
+fieldset:disabled .mui-checkbox-root.checked {
+  color: rgba(0, 0, 0, 0.26);
+  cursor: default;
+}
+
+fieldset:disabled .mui-checkbox-root:hover {
+  background: none;
+}
+
+fieldset:disabled .mui-switch input,
+fieldset:disabled .mui-checkbox-root input {
+  cursor: default;
+}
+
+/* 禁用（只读查看）：虚线下划线 + 淡色文字 */
+.text-field input:disabled,
+.text-field select:disabled {
+  color: var(--text-disabled);
+  -webkit-text-fill-color: var(--text-disabled);
+}
+
+fieldset:disabled .text-field > .input-root::before {
+  border-bottom-style: dotted;
+}
+
+/* ===== 下拉菜单（MUI Menu 风） ===== */
+.menu-pop {
+  position: absolute;
+  z-index: 1300;
+  min-width: 16px;
+  animation: menu-fade 225ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--paper);
+  border-radius: 4px;
+  box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2), 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  padding: 8px 0;
+}
+
+.menu-pop > div {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  line-height: 24px;
+  min-height: 36px;
+  padding: 6px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* MUI ListItemIcon：固定 36px 槽宽、图标色 0.54（行操作菜单） */
+.menu-pop > div .icon {
+  font-size: 20px;
+  color: rgba(0, 0, 0, 0.54);
+  min-width: 36px;
+  flex-shrink: 0;
+}
+
+/* 新增指令菜单用的是 script-feature-type-lable：图标 20px + 文字 8px 间距，颜色继承 */
+.menu-pop.type-menu > div .icon {
+  color: inherit;
+  min-width: 0;
+  margin-right: 8px;
+}
+
+.menu-pop > div:hover {
+  background: var(--hover);
+}
+
+.menu-pop > div.danger {
+  color: var(--danger);
+}
+
+@keyframes menu-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* MUI 主题：Paper/菜单/对话框/表单容器内文字为 0.87，body 纯黑仅作用于列表区 */
+.menu-pop,
+.dialog-paper,
+.name-dialog,
+.pick-dialog,
+.script-feature-form,
+.feature-cmd {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* ===== 遮罩 ===== */
+.mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+
+/* ===== CodeMirror ===== */
+.code-editor-host {
+  width: 100%;
+  height: 100%;
+}
+
+.code-editor-host .cm-editor {
+  height: 100%;
+  font-size: 14px;
+}
+
+.code-editor-host .cm-editor.cm-focused {
+  outline: none;
+}

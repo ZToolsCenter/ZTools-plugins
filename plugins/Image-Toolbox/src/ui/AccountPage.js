@@ -2,6 +2,7 @@
 import { SIDE_PANEL_LAYOUT_KEY, SIDE_PANEL_LAYOUTS } from './SidePanelTabs.js';
 import { THEME_CHOICES, applyThemeChoice, getThemeChoice } from '../../core/src/utils/theme.js';
 import { updateCategories, updateRecords, PLATFORMS } from '../../core/src/updateRecords.js';
+import { escapeHTML, escapeAttr } from '../../core/src/utils/helpers.js';
 
 /**
  * 获取当前平台标识
@@ -53,6 +54,7 @@ class AccountPage {
     this._host = host;
     this._activeSection = 'mine';
     this._user = this._getHostUser();
+    this._eventBusUnsubscribers = [];
 
     this._render();
     this._bindEvents();
@@ -117,7 +119,9 @@ class AccountPage {
   _bindEvents() {
     if (!this._el) return;
 
-    eventBus.on('account:open', () => this.open());
+    this._eventBusUnsubscribers.push(
+      eventBus.on('account:open', () => this.open())
+    );
 
     this._el.addEventListener('click', (e) => {
       const navItem = this._closest(e.target, '[data-section]');
@@ -550,18 +554,16 @@ class AccountPage {
   }
 
   _escapeAttr(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/"/g, '&quot;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    return escapeAttr(value);
   }
 
   _escapeHTML(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    return escapeHTML(value);
+  }
+
+  destroy() {
+    this._eventBusUnsubscribers.forEach(unsub => unsub());
+    this._eventBusUnsubscribers = [];
   }
 }
 
