@@ -307,7 +307,7 @@ function runPreload(ctx, url) {
   let sizeCtl = null;
   ballSvc.onCtl((c) => { if (c.t === 'size') sizeCtl = c; });
   host.window.services.host.setBallSize(80);
-  await sleep(60);
+  await sleep(400); // settings 有300ms跨实例微缓存：写入实例已失效，读取实例等它过期
   ok(ballSvc.settings.get().ballSize === 80, 'settings 中 ballSize 更新为 80');
   const resized = ballWin._calls.filter((c) => c[0] === 'setBounds').pop();
   ok(!!resized && resized[1].width === 80 + 12 && resized[1].height === 80 + 12, '窗口 setBounds 变更为 92×92', resized && resized[1]);

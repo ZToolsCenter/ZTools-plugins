@@ -72,6 +72,15 @@ function createStore(injectedDb, options) {
   const opts = options || {};
   let dataFilePath = '';
   let fileStore = null;
+  // getSettings 微缓存：一次刷新里 proxy/闸门/新鲜度窗口等要读十几次设置，
+  // 每次都是一轮 db IPC + 一整套字段规范化；300ms 内复用，写入时（set）立即失效
+  let settingsMemo = null;
+  let settingsMemoAt = 0;
+  // 交易流水版本号：set(K.transactions) 自增。持仓内核/已清仓结果按它失效 ——
+  // 流水没变时每轮刷新零重复计算（旧实现：取代码扫一遍、建持仓扫一遍、已清仓再扫一遍）
+  let txVersion = 1;
+  let posCoreMemo = null; // { v, today, core }
+  let closedMemo = null;  // { v, list }
 
   if (!opts.isolated) {
     try {
@@ -291,6 +300,8 @@ function createStore(injectedDb, options) {
   const NO_FILE_MIRROR = { [K.ballHb]: 1, [K.cmd]: 1, [K.latestQuotes]: 1, [K.latestIndexes]: 1, [K.quoteStamp]: 1, [K.alertCooldowns]: 1 };
 
   function set(key, val) {
+    if (key === K.settings) { settingsMemo = null; settingsMemoAt = 0; }
+    if (key === K.transactions) txVersion += 1;
     try { db.setItem(key, val); } catch (e) { /* ignore */ }
     if (fileStore && db !== fileStore && !NO_FILE_MIRROR[key]) {
       try { fileStore.setItem(key, val); } catch (e) { /* ignore */ }
@@ -392,6 +403,7 @@ function createStore(injectedDb, options) {
   }
 
   function getSettings() {
+    if (settingsMemo && (Date.now() - settingsMemoAt) < 300) return settingsMemo;
     const raw = get(K.settings, null) || {};
     const s = Object.assign({}, DEFAULT_SETTINGS, raw);
     s.refreshSec = clampInt(s.refreshSec, 2, 120, DEFAULT_SETTINGS.refreshSec);
@@ -424,6 +436,8 @@ function createStore(injectedDb, options) {
     s.stampTaxRate = isFinite(Number(s.stampTaxRate)) ? Number(s.stampTaxRate) : (isFinite(Number(s.stamp_tax_rate)) ? Number(s.stamp_tax_rate) : DEFAULT_SETTINGS.stampTaxRate);
     s.stamp_tax_rate = s.stampTaxRate;
     s.posColumns = Array.isArray(s.posColumns) ? s.posColumns : DEFAULT_SETTINGS.posColumns.slice();
+    settingsMemo = s;
+    settingsMemoAt = Date.now();
     return s;
   }
 
@@ -634,18 +648,21 @@ function createStore(injectedDb, options) {
     return arr;
   }
 
-  function getAllPositions(latestQuotesMap) {
+  /* 持仓「交易流水内核」：把 O(全部流水) 的逐笔扫描（日期解析、买卖累计）按
+     (流水版本 + 当天日期) 缓存。取代码、建持仓、汇总、已清仓 全部复用这一份 ——
+     流水没变时，每轮刷新的重复计算归零（复现：一轮里被算了三遍，流水越多越卡）。 */
+  function getPositionsCore() {
+    const todayStr = getLocalDateStr(new Date());
+    if (posCoreMemo && posCoreMemo.v === txVersion && posCoreMemo.today === todayStr) {
+      return posCoreMemo.core;
+    }
     const txs = get(K.transactions, []) || [];
     const stockMap = {};
     for (const t of txs) {
       if (!stockMap[t.stock_code]) stockMap[t.stock_code] = [];
       stockMap[t.stock_code].push(t);
     }
-    const positions = [];
-    const todayStr = getLocalDateStr(new Date());
-    const cachedQuotes = getLatestQuotes();
-    const qMap = latestQuotesMap || cachedQuotes || {};
-
+    const core = [];
     for (const [code, list] of Object.entries(stockMap)) {
       let qty = 0;
       let totalBuy = 0;
@@ -658,8 +675,7 @@ function createStore(injectedDb, options) {
 
       for (const t of list) {
         if (t.stock_name) name = t.stock_name;
-        const tDate = getLocalDateStr(t.created_at);
-        const isToday = tDate === todayStr;
+        const isToday = getLocalDateStr(t.created_at) === todayStr;
         const tPrice = Number(t.total_price != null ? t.total_price : (t.price * t.quantity)) || 0;
         const tQty = Number(t.quantity) || 0;
 
@@ -679,6 +695,35 @@ function createStore(injectedDb, options) {
           }
         }
       }
+      core.push({ code, name, qty, totalBuy, totalSell, todayBuyQty, todayBuyAmt, todaySellQty, todaySellAmt });
+    }
+    posCoreMemo = { v: txVersion, today: todayStr, core };
+    return core;
+  }
+
+  /* 持仓/今日有动的代码集合（positions.get 请求用）：内核派生，零额外扫描 */
+  function getHoldingCodes() {
+    return getPositionsCore()
+      .filter((c) => c.qty > 0 || c.todayBuyQty > 0 || c.todaySellQty > 0)
+      .map((c) => c.code);
+  }
+
+  function getAllPositions(latestQuotesMap) {
+    const positions = [];
+    const cachedQuotes = getLatestQuotes();
+    const qMap = latestQuotesMap || cachedQuotes || {};
+
+    // 交易流水侧全部来自内核缓存；本函数只剩按行情组装行（O(持仓数)，不再碰流水）
+    for (const c of getPositionsCore()) {
+      const code = c.code;
+      const name = c.name;
+      const qty = c.qty;
+      const totalBuy = c.totalBuy;
+      const totalSell = c.totalSell;
+      const todayBuyQty = c.todayBuyQty;
+      const todayBuyAmt = c.todayBuyAmt;
+      const todaySellQty = c.todaySellQty;
+      const todaySellAmt = c.todaySellAmt;
 
       if (qty > 0 || todayBuyQty > 0 || todaySellQty > 0) {
         const netCost = totalBuy - totalSell;
@@ -757,6 +802,19 @@ function createStore(injectedDb, options) {
   }
 
   function getClosedPositions(latestQuotesMap) {
+    const hasQuotes = !!(latestQuotesMap && Object.keys(latestQuotesMap).length);
+    if (!hasQuotes) {
+      // 无行情参数的常用路径（preload getClosed / 已清仓页）按流水版本整表记忆化：
+      // 流水没变时刷新循环里零扫描零读库
+      if (closedMemo && closedMemo.v === txVersion) return closedMemo.list;
+      const list = computeClosedPositions(latestQuotesMap);
+      closedMemo = { v: txVersion, list };
+      return list;
+    }
+    return computeClosedPositions(latestQuotesMap);
+  }
+
+  function computeClosedPositions(latestQuotesMap) {
     const txs = get(K.transactions, []) || [];
     const stockMap = {};
     for (const t of txs) {
@@ -893,7 +951,7 @@ function createStore(injectedDb, options) {
     getWatchlistGroups, setWatchlistGroups, addWatchlistGroup, removeWatchlistGroup, renameWatchlistGroup,
     getSettings, patchSettings,
     getBallPos, setBallPos, setHeartbeat, getHeartbeat, postCmd, readCmd,
-    getSellable, getTransactions, addTransaction, deleteTransaction, calculateFees,
+    getSellable, getHoldingCodes, getTransactions, addTransaction, deleteTransaction, calculateFees,
     getAllPositions, getPositionsSummary, getClosedPositions,
     getLatestQuotes, setLatestQuotes,
     getLatestIndexes, setLatestIndexes, getQuoteStamp, setQuoteStamp,
