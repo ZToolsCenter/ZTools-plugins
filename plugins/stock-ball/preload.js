@@ -67,6 +67,7 @@ function workAreaNear(rect) {
 /* 窗口间通信桥（主窗口 ⇄ 子窗口），所有窗口共用                       */
 /* ------------------------------------------------------------------ */
 let hostId = null;
+let lastHostMsgAt = Date.now(); // 最近一次收到主窗口消息的时刻（球的通道存活探测基准）
 let greeted = false;
 let midSeq = 0;
 const listeners = [];
@@ -106,6 +107,9 @@ function dispatch(msg, senderId) {
 
 ipcRenderer.on(CH, (event, msg) => {
   const senderId = event && event.senderId;
+  // 入站自愈：任何来自主窗口的消息都刷新 hostId —— 主窗口重载后 id 可能变化，
+  // 陈旧 hostId 会让拖动/双击永久失联（sendToParent 渲染层并未暴露，这条路不存在）
+  if (ROLE !== 'main' && senderId) { hostId = senderId; lastHostMsgAt = Date.now(); }
   if (msg && msg.t === 'hello') {
     if (senderId) hostId = senderId;
     greeted = true;
@@ -380,7 +384,10 @@ function sharedFreshMs() {
   return Math.min(15000, Math.max(1200, Math.round(sec * 1000 * 0.6)));
 }
 
-function sharedWaitMs() { return 1500; }
+/* 等待对端在途请求的上限：覆盖单次 HTTP 尝试的 9s 超时 + 余量。
+   之前固定 1500ms —— 接口稍慢（复现：2.2s）就等不到，各窗口各自再发一遍同样的请求。
+   对端真挂了也最多空等 9.5s 随后自行请求（pendingAt 失活自动让行）。 */
+function sharedWaitMs() { return 9500; }
 
 function sleepMs(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
@@ -400,12 +407,20 @@ function takeFreshSharedQuotes(codes) {
   return out;
 }
 
-// 拉取成功：记录「时间 + 本次真正拉到的代码」，同时清掉竞争标记
+// 拉取成功：记录「时间 + 已覆盖的代码集合」，同时清掉竞争标记。
+// 必须是并集而不是覆盖：持仓与自选是两套不同的代码集合，先到的记档若被后到的
+// 覆盖掉，其它窗口按自己的集合校验时永远「未覆盖」→ 跨窗口复用形同虚设，
+// 三个窗口每轮各发一遍请求（性能回归测试 test-refresh-efficiency 锁死此行为）。
 function markSharedQuotes(codes) {
   const list = (codes || []).filter(Boolean);
   if (!list.length) return;
   const cur = store.getQuoteStamp() || {};
-  store.setQuoteStamp(Object.assign({}, cur, { at: Date.now(), codes: list, by: ROLE, pendingAt: 0 }));
+  let merged = list;
+  if (cur.at && (Date.now() - cur.at) < sharedFreshMs() && Array.isArray(cur.codes) && cur.codes.length) {
+    merged = cur.codes.slice();
+    list.forEach((c) => { if (merged.indexOf(c) < 0) merged.push(c); });
+  }
+  store.setQuoteStamp(Object.assign({}, cur, { at: Date.now(), codes: merged, by: ROLE, pendingAt: 0 }));
 }
 
 function markSharedFetchStart() {
@@ -443,8 +458,12 @@ async function reuseOrWaitSharedQuotes(codes) {
   if (fresh2) return fresh2;
   if (!peerIsFetching()) return null;
   const deadline = Date.now() + sharedWaitMs();
+  const waitStart = Date.now();
   while (Date.now() < deadline) {
-    await sleepMs(75);
+    // 自适应轮询：先密后疏（75→150→300ms），把等待期间的共享存储读取压到最低
+    //（固定75ms轮询 + 等待拉长会让读库次数反弹，复现里1.5s就产生了54次读）
+    const waited = Date.now() - waitStart;
+    await sleepMs(waited < 600 ? 75 : (waited < 1500 ? 150 : 300));
     const hit = takeFreshSharedQuotes(codes);
     if (hit) return hit;
     if (!peerIsFetching()) break;
@@ -642,8 +661,7 @@ const services = {
     getLocal: () => store.getPositionsSummary(),
     get: async (opts) => {
       if (offSessionGate(opts, 'P')) return store.getPositionsSummary(); // 非交易时段已拉过 → 吃缓存
-      const rawPositions = store.getAllPositions();
-      const codes = rawPositions.filter((p) => p.quantity > 0 || p.today_buy_quantity > 0 || p.today_sell_quantity > 0).map((p) => p.stock_code);
+      const codes = store.getHoldingCodes(); // 内核缓存取代码：不再整表扫流水（旧实现一轮要扫两遍）
       // 别的窗口刚拉过 / 正在拉这批持仓行情：复用它的结果，省一次网络请求
       if (codes.length > 0 && !(opts && opts.force)) {
         const shared = await reuseOrWaitSharedQuotes(codes);
@@ -840,6 +858,26 @@ const services = {
   store // 调试用
 };
 
+/* 同窗口合并（preload 层兜底）：同一服务进行中的调用直接共享同一个 Promise ——
+   定时刷新、回前台、广播通知、手动按钮同拍触发时，网络与存储只跑一趟
+   （复现：重叠3次触发 = 3次请求 +101次读库）。force 与普通刷新撞车时共享同一次
+   网络请求，同一时刻的新鲜度足够。 */
+const inflightFetch = {};
+function coalesceFetch(kind, fn) {
+  if (inflightFetch[kind]) return inflightFetch[kind];
+  const p = Promise.resolve().then(fn).finally(() => {
+    if (inflightFetch[kind] === p) inflightFetch[kind] = null;
+  });
+  inflightFetch[kind] = p;
+  return p;
+}
+const _quotesFn = services.quotes;
+services.quotes = Object.assign((opts) => coalesceFetch('quotes', () => _quotesFn(opts)), { getLocal: _quotesFn.getLocal });
+const _positionsGet = services.positions.get;
+services.positions.get = (opts) => coalesceFetch('positions', () => _positionsGet(opts));
+const _indexesFn = services.indexes;
+services.indexes = (opts) => coalesceFetch('indexes', () => _indexesFn(opts));
+
 try {
   window.services = Object.assign(window.services || {}, services);
   if (window.contextBridge && window.contextBridge.exposeInMainWorld) {
@@ -1005,6 +1043,17 @@ function startWatcher() {
     const panelAlive = alive(panelWin);
     if (!ballAlive && ballWin) { ballWin = null; menuOpen = false; }
     if (!panelAlive && panelWin) { panelWin = null; }
+    // 通道中断自愈：球自报 needsRestart 并关闭后（dbStorage 是不经过坏通道的旁路），
+    // 1秒内清标志并按保存的位置重建 —— 新窗口新握手，拖动/双击通道彻底恢复
+    try {
+      if (!ballWin) {
+        const hb = store.getHeartbeat();
+        if (hb && hb.needsRestart && (Date.now() - (hb.t || 0)) < 60000) {
+          store.setHeartbeat({ id: null, role: 'ball', needsRestart: false });
+          openBall(true);
+        }
+      }
+    } catch (e) { /* ignore */ }
   }, 1000);
 }
 function stopWatcher() {
@@ -1203,6 +1252,10 @@ onHostMsg((msg, senderId) => {
     }
     case 'pong':
       break;
+    case 'ping':
+      // 子窗口（悬浮球）存活探测：必须应答，否则它45秒后走通道中断自愈
+      toWindow(senderId, { t: 'pong' });
+      return;
     case 'drag': {
       if (senderId !== wcId(ballWin)) return;
       if (menuOpen) expandMenu(false);
@@ -1383,6 +1436,17 @@ if (IS_HOST) {
       .then((on) => { if (on && !bootEntered) openBall(true); })
       .catch(() => { /* ignore */ });
   }, 2500);
+  // 主窗口句柄补偿：主窗口重载/重建后本上下文没有球句柄，拖动会因 wcId 守卫被静默丢弃
+  //（表现就是「有时候拖不动」）—— 心跳显示球还活着就让旧球自毁，并按保存位置立即重建，
+  // 新窗口 = 新握手 + 新句柄，拖动与双击通道一并恢复
+  try {
+    const hb0 = store.getHeartbeat();
+    if (!ballWin && hb0 && hb0.role === 'ball' && hb0.id && !hb0.needsRestart &&
+        (Date.now() - (hb0.t || 0)) < HEARTBEAT_FRESH_MS) {
+      toWindow(hb0.id, { t: 'ctl', c: { t: 'die' } });
+      setTimeout(() => { try { if (!ballWin) openBall(true); } catch (e) { /* ignore */ } }, 500);
+    }
+  } catch (e) { /* ignore */ }
   // 主窗口页面上的按钮也能直接调用
   services.host.showBall = () => openBall(true);
   services.host.isBallAlive = () => alive(ballWin);
@@ -1533,6 +1597,19 @@ if (IS_HOST) {
         return;
       }
       store.setHeartbeat({ id: safe(() => Z.getWebContentsId(), null), role: 'ball' });
+      // 存活探测：主窗口必须有回音（入站任意消息都会刷新 lastHostMsgAt）。
+      // 45秒无回音 = 控制通道已断（拖动、双击都会失效）→ 经 dbStorage 旁路自报
+      // needsRestart 后自毁，主窗口守望进程1秒内用保存的位置重建球
+      try { toHost({ t: 'ping' }); } catch (e) { /* ignore */ }
+      if ((Date.now() - lastHostMsgAt) > 45000) {
+        try {
+          store.setHeartbeat({ id: safe(() => Z.getWebContentsId(), null), role: 'ball', needsRestart: true });
+          if (typeof Z.showNotification === 'function') Z.showNotification('悬浮球连接中断，正在自动重启…');
+        } catch (e) { /* ignore */ }
+        clearInterval(hbTimer);
+        setTimeout(() => { try { window.close(); } catch (e) { /* ignore */ } }, 400);
+        return;
+      }
       const cmd = store.readCmd(lastCmdSeq);
       if (cmd) { lastCmdSeq = cmd.seq; fireCtl({ t: 'cmd', cmd: cmd.t }); }
     }, 5000);
