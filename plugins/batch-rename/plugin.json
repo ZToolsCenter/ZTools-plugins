@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "batch-rename",
+  "title": "文件智能重命名",
+  "description": "从文件上下文批量重命名，支持 AI 预览、规则预览、执行和单级撤销",
+  "author": "yyxxd",
+  "version": "1.0.0",
+  "platform": ["win32"],
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "batch-rename",
+      "explain": "打开文件智能重命名",
+      "icon": "logo.png",
+      "cmds": ["文件智能重命名", "批量重命名", "重命名"]
+    },
+    {
+      "code": "batch-rename-files",
+      "explain": "读取当前选中的文件",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "文件智能重命名",
+          "fileType": "file",
+          "minLength": 1,
+          "maxLength": 10000
+        }
+      ]
+    }
+  ]
+}
