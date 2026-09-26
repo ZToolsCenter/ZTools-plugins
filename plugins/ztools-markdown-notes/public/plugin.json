@@ -2,7 +2,7 @@
   "name": "ztools-markdown-notes",
   "title": "Markdown 笔记",
   "description": "基于真实本地 Markdown 文件的轻量笔记插件",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "main": "index.html",
   "development": {
     "main": "http://localhost:5173"
