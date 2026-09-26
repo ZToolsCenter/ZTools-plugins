@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "calc-draft",
+  "title": "计算草稿",
+  "description": "计算草稿纸，记录多步计算，友好且现代的交互界面",
+  "author": "Agitator",
+  "version": "1.0.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "height": 840,
+    "single": true
+  },
+  "features": [
+    {
+      "code": "calc",
+      "explain": "计算草稿：多步计算，中间结果可引用",
+      "icon": "logo.png",
+      "cmds": ["计算", "草稿", "calc"]
+    }
+  ]
+}

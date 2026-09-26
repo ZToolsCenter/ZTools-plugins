@@ -1,0 +1,1162 @@
+/* ============================================================
+   calc-draft · 蓝墨手稿
+   信纸上的钢笔算式：横线信纸 + 红色页边线，
+   霞鹜文楷书写体，结果用墨水色重描，批注为红笔旁注。
+   ============================================================ */
+
+/* 调色板放 :root，Portal（body 直挂）的浮层也能取到变量 */
+:root {
+  --ink: #1e2c56;          /* 深蓝墨 */
+  --ink-soft: #6a76a0;     /* 淡墨 */
+  --ink-faint: #8b94b5;    /* 极淡墨（注脚） */
+  --paper: #fbf9f2;        /* 纸面 */
+  --paper-desk: #f6f3ea;   /* 桌面 */
+  --rule: rgba(30, 88, 180, 0.16);  /* 信纸横线 */
+  --margin-red: rgba(200, 70, 70, 0.45); /* 红页边线 */
+  --error: #c8464a;        /* 红笔批改 */
+  --rule-strong: rgba(30, 88, 180, 0.3);
+  --ink-body: #24325e;     /* 公式正文 */
+  --ink-note: #46537f;     /* 次要内容 */
+  --wash-ink: rgba(30, 88, 180, 0.07);   /* 蓝墨晕染 */
+  --wash-red: rgba(200, 70, 70, 0.08);   /* 红笔晕染 */
+  --shadow-ink: rgba(30, 88, 180, 0.2);  /* 常规偏移阴影 */
+  --shadow-ink-strong: rgba(30, 88, 180, 0.25);
+  --paper-shadow-a: rgba(30, 44, 86, 0.12);
+  --paper-shadow-b: rgba(30, 44, 86, 0.14);
+  --mask: rgba(30, 44, 86, 0.28);
+  --paper-solid: #fbf9f2;
+  --ink-hover: #2a3c74;
+  --error-hover: #a83a3e;
+}
+
+.calc-draft {
+  box-sizing: border-box;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper-desk);
+  color: var(--ink);
+  font-family: 'Source Han Serif SC', 'Noto Serif SC', 'STSong', 'SimSun', serif;
+}
+
+/* ---- 工作空间悬浮签：右下角墨戳，点开向上展开换一本 ---- */
+
+.cd-workspace-bar {
+  position: absolute;
+  right: 26px;
+  bottom: 74px;
+  z-index: 80;
+}
+
+.cd-workspace-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--paper-solid);
+  border: 1.5px solid var(--ink-soft);
+  border-radius: 2px;
+  padding: 7px 13px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--shadow-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cd-workspace-current:hover {
+  border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--shadow-ink-strong);
+}
+
+.cd-workspace-name {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  max-width: 6.8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cd-workspace-caret {
+  font-size: 11px;
+  color: var(--ink-faint);
+  transition: transform 0.2s ease;
+}
+
+.cd-workspace-caret.is-open {
+  transform: rotate(180deg);
+}
+
+/* 工作空间下拉：与 toast 同款的墨框纸签 */
+.cd-workspace-dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 240px;
+  background: var(--paper-solid);
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  box-shadow: 4px 4px 0 var(--shadow-ink-strong);
+  z-index: 90;
+  overflow: hidden;
+}
+
+.cd-workspace-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.cd-workspace-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.cd-workspace-item:hover {
+  background: var(--wash-ink);
+}
+
+.cd-workspace-item.is-active {
+  background: var(--wash-ink);
+}
+
+/* 当前工作空间：页边线外的红笔指示 */
+.cd-workspace-item.is-active::before {
+  content: '▸';
+  color: var(--error);
+  font-size: 11px;
+  margin-left: -4px;
+}
+
+.cd-workspace-item-name {
+  flex: 1;
+  text-align: left;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cd-workspace-active-badge {
+  font-size: 11px;
+  color: var(--error);
+  border: 1px solid var(--margin-red);
+  border-radius: 2px;
+  padding: 1px 6px;
+  letter-spacing: 0.08em;
+}
+
+.cd-workspace-item-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.cd-workspace-item:hover .cd-workspace-item-actions,
+.cd-workspace-item.is-active .cd-workspace-item-actions {
+  opacity: 1;
+}
+
+.cd-workspace-action-btn {
+  background: none;
+  border: none;
+  color: var(--ink-faint);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 2px;
+  line-height: 1;
+}
+
+.cd-workspace-action-btn:hover {
+  color: var(--ink);
+  background: var(--wash-ink);
+}
+
+.cd-workspace-delete-btn:hover {
+  color: var(--error);
+  background: var(--wash-red);
+}
+
+.cd-workspace-rename-input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 14px;
+  border: none;
+  border-bottom: 1.5px dashed var(--error);
+  background: transparent;
+  color: var(--ink);
+  padding: 2px 0;
+  outline: none;
+  caret-color: var(--error);
+}
+
+.cd-workspace-dropdown-footer {
+  border-top: 1.5px dashed var(--rule);
+  padding: 8px 12px;
+}
+
+.cd-workspace-add {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  letter-spacing: 0.04em;
+}
+
+.cd-workspace-add:hover {
+  color: var(--ink);
+}
+
+/* ---- 稿纸 ---- */
+
+.cd-sheet {
+  flex: 1;
+  min-height: 0;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  box-shadow:
+    0 1px 3px var(--paper-shadow-a),
+    0 14px 44px var(--paper-shadow-b);
+  position: relative;
+  overflow: hidden;
+}
+
+.cd-sheet::before {
+  /* 红色页边线 */
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: var(--margin-red);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 70%;
+}
+
+/* ---- 页头 ---- */
+
+.cd-topbar {
+  padding: 24px 0 12px;
+  border-bottom: 1.5px solid var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.cd-title {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  margin-right: 6px;
+  /* 固定宽度：切换草稿时页签不左右跑动 */
+  width: 200px;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+/* 省略号在内层做，外层 overflow 放开让 hover 浮层能溢出容器 */
+.cd-title-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* hover 展开全名：真实子元素浮层，覆盖页签但不挤压布局，过宽自动换行。
+   浮层是 .cd-title 的子节点，鼠标移入浮层时 :hover 沿祖先链保持成立，
+   因此离开标题区域、只要还在浮层上，浮层就不消失；移出浮层才隐藏。 */
+.cd-title-pop {
+  display: none;
+}
+
+.cd-title.is-truncated:hover .cd-title-pop {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: -8px;
+  z-index: 60;
+  width: max-content;
+  max-width: min(560px, 80vw);
+  white-space: normal;
+  word-break: break-all;
+  font-size: 24px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper-solid);
+  box-shadow: 0 2px 18px var(--shadow-ink-strong), 0 0 0 1.5px var(--ink);
+  padding: 8px 18px;
+  cursor: default;
+}
+
+.cd-meta {
+  order: 3;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-faint);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+/* ---- 页签 ---- */
+
+.cd-tabs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.cd-tab-wrap {
+  position: relative;
+}
+
+.cd-tab {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink-soft);
+  padding: 4px 10px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 每个草稿一个身份色下划线，未选中时淡化 */
+  border-bottom: 2px solid color-mix(in srgb, var(--tab-color, var(--ink)) 30%, transparent);
+}
+
+.cd-tab:hover {
+  color: var(--ink);
+}
+
+.cd-tab-active {
+  color: var(--ink);
+  font-weight: 600;
+  /* 选中：下划线全色 + 同色阴影 */
+  border-bottom-color: var(--tab-color, var(--ink));
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--tab-color, var(--ink)) 40%, transparent);
+}
+
+/* 删除草稿：页面右上角 */
+.cd-page-delete {
+  order: 4;
+  margin-left: 14px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink-faint);
+  background: none;
+  padding: 3px 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.cd-page-delete:hover {
+  color: var(--error);
+  border-color: var(--margin-red);
+}
+
+.cd-shortcuts-btn {
+  order: 5;
+  margin-left: 4px;
+  align-self: center;
+}
+
+.cd-tab-add {
+  font-family: inherit;
+  color: var(--ink-faint);
+  font-size: 15px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.cd-tab-add:hover {
+  color: var(--ink);
+}
+
+.cd-tab-input {
+  font-family: inherit;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  padding: 4px 10px;
+  width: 110px;
+  border-bottom: 1.5px dashed var(--error);
+}
+
+/* ---- 正文 ---- */
+
+.cd-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 12px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cd-empty {
+  flex: 0 0 auto;
+  min-height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-faint);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+
+.cd-rows {
+  display: grid;
+  /* 行号列由全表最宽的行号决定，公式列弹开，结果列贴右 */
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  flex: 0 0 auto;
+}
+
+/* 空白补行：真实盒子画线，与内容行同一布局体系，不会漂移；双击新建行 */
+.cd-fill {
+  flex: 1 0 auto;
+  min-height: 44px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cd-fill i {
+  display: block;
+  flex: 0 0 auto;
+  height: 44px;
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+}
+
+/* 最后一行下方的次要提示：淡墨小字，与表达式起点对齐 */
+.cd-fill-hint {
+  position: absolute;
+  left: 54px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--ink-faint);
+  opacity: 0.65;
+  letter-spacing: 0.06em;
+  user-select: none;
+}
+
+.cd-row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: baseline;
+  column-gap: 14px;
+  padding: 0 8px 0 0;
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+  transition: opacity 0.2s ease, background 0.15s ease;
+}
+
+.cd-row-active {
+  background: linear-gradient(
+    90deg,
+    transparent 0,
+    var(--wash-ink) 90px,
+    transparent 78%
+  );
+}
+
+/* 上游行 / 聚焦行：左侧红笔指示 */
+.cd-row-upstream::before,
+.cd-row-active::before {
+  content: '▸';
+  position: absolute;
+  left: -18px;
+  top: 10px;
+  color: var(--error);
+  font-size: 12px;
+}
+
+/* 被引用的上游行：整行按其墨色晕染，左侧透明渐入，避免生硬切边 */
+.cd-row-upstream {
+  background: linear-gradient(
+    90deg,
+    transparent 0,
+    color-mix(in srgb, var(--row-color, var(--ink)) 10%, transparent) 90px,
+    transparent 78%
+  );
+}
+
+/* 聚焦行内的引用 token：加重，表明数据正是从这些地方流入 */
+.cd-row-active .cd-ref {
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.cd-row-editing {
+  background: linear-gradient(90deg, var(--wash-ink), transparent 70%);
+}
+
+/* ---- 序号 ---- */
+
+.cd-seq {
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 44px;
+  color: var(--row-color, var(--ink));
+  background: none;
+  padding: 0;
+}
+
+.cd-seq::before {
+  content: '＃';
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+/* 上游行直接被聚焦行引用：红笔旁注 */
+.cd-inbound {
+  position: absolute;
+  right: 56px;
+  top: 8px;
+  font-size: 12px;
+  color: var(--error);
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+
+/* ---- 表达式 ---- */
+
+/* 行内容文本流：备注 + 公式连成一段，超宽横向滚动 */
+.cd-flow {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  gap: 4px;
+}
+
+.cd-flow::-webkit-scrollbar {
+  height: 4px;
+}
+
+.cd-flow::-webkit-scrollbar-thumb {
+  background: var(--rule-strong);
+}
+
+.cd-expr {
+  flex: 1 0 auto;
+  min-width: 10ch;
+  cursor: default;
+  position: relative;
+}
+
+/* # 引用自动补全：纸签候选列表 */
+.cd-ac {
+  position: fixed;
+  z-index: 200;
+  transform-origin: top left;
+  min-width: 200px;
+  max-height: 264px;
+  overflow-y: auto;
+  background: var(--paper-solid);
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  box-shadow: 4px 4px 0 var(--shadow-ink-strong);
+}
+
+.cd-ac.is-flipped {
+  transform: translateY(-100%);
+}
+
+.cd-ac-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.cd-ac-item.is-empty-hint {
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.cd-ac-item.is-hot,
+.cd-ac-item:hover {
+  background: var(--wash-ink);
+}
+
+.cd-ac-num {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.cd-ac-note {
+  color: var(--ink-faint);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 行备注：宽度严格随内容；空时不出现在文本流里 */
+.cd-subtitle {
+  flex: 0 0 auto;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 44px;
+  color: var(--ink-note);
+  cursor: text;
+  white-space: nowrap;
+}
+
+/* 空备注：槽位宽度 = "[备注]" 占位文字的自然宽度（在流内撑开） */
+.cd-subtitle.is-empty {
+  width: auto;
+}
+
+.cd-subtitle-colon {
+  color: var(--ink-faint);
+}
+
+.cd-subtitle-placeholder {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  font-size: 12px;
+}
+
+.cd-row:hover .cd-subtitle-placeholder,
+.cd-row-active .cd-subtitle-placeholder {
+  opacity: 0.55;
+}
+
+/* 隐藏镜像：测量备注文本实际宽度，中英文都精确 */
+.cd-subtitle-sizer {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.cd-subtitle-input {
+  flex: 0 0 auto;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 44px;
+  height: 44px;
+  padding: 0;
+  caret-color: var(--error);
+}
+
+.cd-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 44px;
+  height: 44px;
+  padding: 0;
+  caret-color: var(--error);
+  border-bottom: 1px dashed var(--rule-strong);
+}
+
+.cd-input::placeholder {
+  color: var(--ink-faint);
+  opacity: 0.7;
+}
+
+.cd-expr-view {
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 44px;
+  color: var(--ink-body);
+  white-space: nowrap;
+}
+
+.cd-ref {
+  font-weight: 400;
+  cursor: pointer;
+}
+
+/* @ 跨草稿引用：@页序号 用页签色下划线，#行序号 用行色 */
+.cd-at-page {
+  font-weight: 600;
+  border-bottom: 2px solid;
+  padding-bottom: 1px;
+}
+
+.cd-at-row {
+  font-weight: 400;
+}
+
+/* 引用内嵌的备注：次要内容，淡墨小字 */
+.cd-ref-note {
+  font-size: 13px;
+  color: var(--ink-faint);
+  margin-left: 3px;
+}
+
+.cd-ref:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.cd-ref::before {
+  content: '[';
+}
+
+.cd-ref::after {
+  content: ']';
+}
+
+.cd-placeholder {
+  color: var(--ink-faint);
+  opacity: 0.7;
+}
+
+/* ---- 结果 ---- */
+
+.cd-result {
+  text-align: right;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.cd-num {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  padding: 0 2px;
+  cursor: pointer;
+  line-height: 44px;
+  position: relative;
+}
+
+.cd-num:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.cd-num-result {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cd-num-inline {
+  font-size: 15px;
+  color: var(--row-color, var(--ink));
+}
+
+.cd-error {
+  color: var(--error);
+  font-size: 14px;
+  line-height: 44px;
+}
+
+.cd-error::before {
+  content: '✗ ';
+  font-size: 12px;
+}
+
+.cd-result-empty {
+  color: var(--ink-faint);
+  font-size: 15px;
+  line-height: 44px;
+}
+
+/* ---- 确认对话框：墨框纸签 + 遮罩 ---- */
+
+.cd-dialog-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: var(--mask);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cd-dialog {
+  width: min(360px, calc(100vw - 48px));
+  background: var(--paper-solid);
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  box-shadow: 6px 6px 0 var(--shadow-ink-strong);
+  padding: 20px 24px;
+}
+
+.cd-dialog-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+
+.cd-dialog-message {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--ink-soft);
+  word-break: break-all;
+}
+
+.cd-dialog-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cd-dialog-cancel,
+.cd-dialog-confirm {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 7px 18px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.cd-dialog-cancel {
+  color: var(--ink-soft);
+  background: none;
+  border: 1.5px solid var(--ink-faint);
+}
+
+.cd-dialog-cancel:hover {
+  color: var(--ink);
+  border-color: var(--ink-soft);
+}
+
+.cd-dialog-confirm {
+  color: var(--paper-solid);
+  background: var(--ink);
+  border: 1.5px solid var(--ink);
+}
+
+.cd-dialog-confirm:hover {
+  background: var(--ink-hover);
+}
+
+.cd-dialog-confirm.is-danger {
+  background: var(--error);
+  border-color: var(--error);
+}
+
+.cd-dialog-confirm.is-danger:hover {
+  background: var(--error-hover);
+  border-color: var(--error-hover);
+}
+
+.cd-dialog-cancel:focus-visible,
+.cd-dialog-confirm:focus-visible {
+  outline: 2px dashed var(--ink-soft);
+  outline-offset: 2px;
+}
+
+/* 跳转闪烁：目标行按其墨色闪一下 */
+.cd-row-flash {
+  animation: cd-flash 1.2s ease;
+}
+
+@keyframes cd-flash {
+  0%,
+  55% {
+    background: color-mix(in srgb, var(--row-color, var(--ink)) 20%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+/* ---- 页脚 ---- */
+
+.cd-statusbar {
+  padding: 10px 0;
+  border-top: 1.5px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- 快捷键按钮 ---- */
+
+.cd-shortcuts-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.cd-shortcuts-btn svg {
+  display: block;
+}
+
+.cd-shortcuts-btn:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+/* ---- 快捷键弹窗 ---- */
+
+.cd-shortcuts-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, #000 40%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: cd-shortcuts-fade 0.15s ease;
+}
+
+@keyframes cd-shortcuts-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.cd-shortcuts-modal {
+  background: var(--paper-solid);
+  border: 1.5px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--shadow-ink);
+  max-width: 520px;
+  width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cd-shortcuts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.cd-shortcuts-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ink);
+}
+
+.cd-shortcuts-close {
+  font-family: inherit;
+  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.cd-shortcuts-close:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.cd-shortcuts-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.cd-shortcuts-body section + section {
+  margin-top: 20px;
+}
+
+.cd-shortcuts-body h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 0 0 10px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.cd-shortcuts-body dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 16px;
+  row-gap: 8px;
+  margin: 0;
+}
+
+.cd-shortcuts-body dt {
+  font-size: 12px;
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  color: var(--ink);
+  white-space: nowrap;
+  align-self: center;
+}
+
+.cd-shortcuts-body dd {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin: 0;
+  align-self: center;
+}
+
+/* ---- 提示 ---- */
+
+.cd-toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #1e58b4;
+  background: var(--paper-solid);
+  border: 1.5px solid #1e58b4;
+  padding: 8px 18px;
+  border-radius: 2px;
+  box-shadow: 3px 3px 0 var(--shadow-ink);
+  animation: cd-toast-in 0.18s ease;
+  z-index: 100;
+}
+
+@keyframes cd-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- 其他 ---- */
+
+.cd-body.is-dragging {
+  cursor: grabbing;
+}
+
+.cd-row.cd-row-active.is-dragging-target {
+  outline: 1.5px dashed var(--error);
+  outline-offset: -1.5px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(30, 88, 180, 0.04);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--shadow-ink-strong);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 88, 180, 0.5);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-toast,
+  .cd-row-flash {
+    animation: none;
+  }
+  .cd-row {
+    transition: none;
+  }
+  .cd-row-flash {
+    background: color-mix(in srgb, var(--row-color, var(--ink)) 20%, transparent);
+  }
+}
+
+/* ---- 深色模式：夜抄手稿（由 ztools 主题回调或系统偏好驱动） ---- */
+:root.theme-dark {
+  --ink: #d9e0f5;
+  --ink-soft: #97a3cc;
+  --ink-faint: #626e9c;
+  --paper: transparent;    /* 主背景全透明，透出浏览器原生底色 */
+  --paper-solid: #242a3d;  /* 浮层实底 */
+  --paper-desk: transparent;
+  --rule: rgba(130, 160, 240, 0.15);
+  --rule-strong: rgba(130, 160, 240, 0.32);
+  --margin-red: rgba(235, 125, 125, 0.55);
+  --error: #e58585;
+  --ink-body: #cdd6f2;
+  --ink-note: #8d99c9;
+  --wash-ink: rgba(130, 160, 240, 0.12);
+  --wash-red: rgba(235, 125, 125, 0.14);
+  --shadow-ink: rgba(0, 0, 0, 0.4);
+  --shadow-ink-strong: rgba(0, 0, 0, 0.5);
+  --paper-shadow-a: rgba(0, 0, 0, 0.3);
+  --paper-shadow-b: rgba(0, 0, 0, 0.45);
+  --mask: rgba(0, 0, 0, 0.55);
+  --ink-hover: #3d4a80;
+  --error-hover: #b95c60;
+  --paper-solid: #242a3d;
+}
