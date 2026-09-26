@@ -158,7 +158,7 @@ if (-not $forkChanges) {
 Invoke-Git -Repository $forkPath -Arguments @('commit', '-m', "Update plugin Markdown Notes v$version")
 Invoke-Git -Repository $forkPath -Arguments @('push', '-u', 'origin', $branch)
 
-$pullRequestUrl = "https://github.com/dufan1032/ZTools-plugins/compare/main...$branch?expand=1"
+$pullRequestUrl = "https://github.com/ZToolsCenter/ZTools-plugins/compare/main...dufan1032:${branch}?expand=1"
 Write-Host ''
 Write-Host 'Release branch pushed. Create the pull request:' -ForegroundColor Green
 Write-Host $pullRequestUrl

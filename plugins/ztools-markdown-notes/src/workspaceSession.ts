@@ -9,9 +9,21 @@ const GLOBAL_NOTE_SEARCH_KEY = 'global-note-search-enabled'
 const GLOBAL_WORKSPACE_SEARCH_KEY = 'global-workspace-search-enabled'
 const HIDDEN_GLOBAL_NOTES_KEY = 'hidden-global-notes'
 
-export type EditorSettings = { fontSize: number; lineHeight: number; findHighlightColor: string }
+export type EditorSettings = {
+  fontSize: number
+  lineHeight: number
+  findHighlightColor: string
+  textHighlightColor: string
+  textHighlightOpacity: number
+}
 export type RegisteredWorkspace = { id: string; name: string; path: string }
-export const defaultEditorSettings: EditorSettings = { fontSize: 16, lineHeight: 1.4, findHighlightColor: '#facc15' }
+export const defaultEditorSettings: EditorSettings = {
+  fontSize: 16,
+  lineHeight: 1.4,
+  findHighlightColor: '#FACC15',
+  textHighlightColor: '#FACC15',
+  textHighlightOpacity: 45,
+}
 export type NoteDraft = {
   workspaceId: string
   relativePath: string
@@ -101,7 +113,9 @@ export function loadEditorSettings(): EditorSettings {
   return {
     fontSize: typeof value?.fontSize === 'number' && value.fontSize >= 12 && value.fontSize <= 24 ? value.fontSize : defaultEditorSettings.fontSize,
     lineHeight: typeof value?.lineHeight === 'number' && value.lineHeight >= 1.2 && value.lineHeight <= 2.4 ? value.lineHeight : defaultEditorSettings.lineHeight,
-    findHighlightColor: typeof value?.findHighlightColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.findHighlightColor) ? value.findHighlightColor : defaultEditorSettings.findHighlightColor,
+    findHighlightColor: normalizeHexColor(value?.findHighlightColor) ?? defaultEditorSettings.findHighlightColor,
+    textHighlightColor: normalizeHexColor(value?.textHighlightColor) ?? defaultEditorSettings.textHighlightColor,
+    textHighlightOpacity: isHighlightOpacity(value?.textHighlightOpacity) ? value.textHighlightOpacity : defaultEditorSettings.textHighlightOpacity,
   }
 }
 
@@ -109,8 +123,20 @@ export function saveEditorSettings(settings: EditorSettings) {
   window.ztools.dbStorage.setItem(EDITOR_SETTINGS_KEY, {
     fontSize: settings.fontSize,
     lineHeight: settings.lineHeight,
-    findHighlightColor: settings.findHighlightColor,
+    findHighlightColor: normalizeHexColor(settings.findHighlightColor) ?? defaultEditorSettings.findHighlightColor,
+    textHighlightColor: normalizeHexColor(settings.textHighlightColor) ?? defaultEditorSettings.textHighlightColor,
+    textHighlightOpacity: isHighlightOpacity(settings.textHighlightOpacity) ? settings.textHighlightOpacity : defaultEditorSettings.textHighlightOpacity,
   })
+}
+
+export function normalizeHexColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const match = value.trim().match(/^#?([0-9a-f]{6})$/i)
+  return match ? `#${match[1].toUpperCase()}` : null
+}
+
+function isHighlightOpacity(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 100
 }
 
 export function loadTrashRetentionDays(): number | null {

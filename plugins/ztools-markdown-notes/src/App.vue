@@ -8,7 +8,7 @@ import TrashPanel from './components/TrashPanel.vue'
 import WorkspaceTree from './components/WorkspaceTree.vue'
 import { extractOutline } from './outline'
 import { endWorkspaceDrag, getWorkspaceDragPath } from './workspaceDrag'
-import { clearNoteDraft, clearNoteDraftPath, defaultEditorSettings, loadEditorMode, loadEditorSettings, loadGlobalNoteSearchEnabled, loadGlobalWorkspaceSearchEnabled, loadHiddenGlobalNotePaths, loadLastWorkspacePath, loadNoteDraft, loadPinnedNotePaths, loadRegisteredWorkspaces, loadTrashRetentionDays, replaceNoteDraftPath, saveEditorMode, saveEditorSettings, saveGlobalNoteSearchEnabled, saveGlobalWorkspaceSearchEnabled, saveHiddenGlobalNotePaths, saveLastWorkspacePath, saveNoteDraft, savePinnedNotePaths, saveRegisteredWorkspaces, saveTrashRetentionDays, type NoteDraft, type RegisteredWorkspace } from './workspaceSession'
+import { clearNoteDraft, clearNoteDraftPath, defaultEditorSettings, loadEditorMode, loadEditorSettings, loadGlobalNoteSearchEnabled, loadGlobalWorkspaceSearchEnabled, loadHiddenGlobalNotePaths, loadLastWorkspacePath, loadNoteDraft, loadPinnedNotePaths, loadRegisteredWorkspaces, loadTrashRetentionDays, normalizeHexColor, replaceNoteDraftPath, saveEditorMode, saveEditorSettings, saveGlobalNoteSearchEnabled, saveGlobalWorkspaceSearchEnabled, saveHiddenGlobalNotePaths, saveLastWorkspacePath, saveNoteDraft, savePinnedNotePaths, saveRegisteredWorkspaces, saveTrashRetentionDays, type NoteDraft, type RegisteredWorkspace } from './workspaceSession'
 
 const workspace = ref<WorkspaceScan | null>(null)
 const previousWorkspace = ref<WorkspaceScan | null>(null)
@@ -144,6 +144,8 @@ const editorStyle = computed(() => ({
   '--editor-font-size': `${editorSettings.value.fontSize}px`,
   '--editor-line-height': String(editorSettings.value.lineHeight),
   '--find-highlight-color': editorSettings.value.findHighlightColor,
+  '--text-highlight-color': editorSettings.value.textHighlightColor,
+  '--text-highlight-opacity': `${editorSettings.value.textHighlightOpacity}%`,
 }))
 const pinnedNotes = computed(() => {
   const notes = new Map(flattenNoteEntries(workspace.value?.entries ?? []).map((note) => [note.relativePath, note]))
@@ -428,10 +430,15 @@ function dropIntoRoot(event: DragEvent) {
   if (allowed) void moveEntry(sourcePath, '')
 }
 
-function showOperationError(message: string) {
+function showOperationError(message: string, autoDismiss = false) {
   window.clearTimeout(operationTimer)
   operationTone.value = 'error'
   operationMessage.value = message
+  if (autoDismiss) {
+    operationTimer = window.setTimeout(() => {
+      operationMessage.value = ''
+    }, 2200)
+  }
 }
 
 function showOperationSuccess(message: string) {
@@ -475,6 +482,20 @@ function closeTransientUi() {
 
 function updateEditorSettings() {
   saveEditorSettings(editorSettings.value)
+}
+
+function updateHighlightColor(setting: 'findHighlightColor' | 'textHighlightColor', event: Event) {
+  const input = event.target as HTMLInputElement
+  const color = normalizeHexColor(input.value)
+  if (!color) return
+  editorSettings.value[setting] = color
+  input.value = color
+  updateEditorSettings()
+}
+
+function restoreHighlightColor(setting: 'findHighlightColor' | 'textHighlightColor', event: Event) {
+  const input = event.target as HTMLInputElement
+  input.value = editorSettings.value[setting]
 }
 
 function resetDefaultSettings() {
@@ -2237,10 +2258,12 @@ watch(activeNotePath, () => {
             </div>
           </section>
           <section class="settings-group">
-            <header class="settings-group-title"><h3>编辑器</h3><small>调整正文显示和当前笔记查找效果。</small></header>
+            <header class="settings-group-title"><h3>编辑器</h3><small>调整正文显示、文本高亮和当前笔记查找效果。</small></header>
             <label>正文字号 <input v-model.number="editorSettings.fontSize" type="range" min="12" max="24" step="1" @input="updateEditorSettings" /><span>{{ editorSettings.fontSize }} px</span></label>
             <label>正文行高 <input v-model.number="editorSettings.lineHeight" type="range" min="1.2" max="2.4" step="0.1" @input="updateEditorSettings" /><span>{{ editorSettings.lineHeight.toFixed(1) }}</span></label>
-            <label>查找匹配颜色 <input v-model="editorSettings.findHighlightColor" type="color" @input="updateEditorSettings" /></label>
+            <label>文本高亮颜色 <span class="color-setting-control"><input v-model="editorSettings.textHighlightColor" type="color" @input="updateHighlightColor('textHighlightColor', $event)" /><input :value="editorSettings.textHighlightColor" type="text" size="8" maxlength="7" inputmode="text" aria-label="文本高亮颜色，支持十六进制" title="支持 #RRGGBB 或 RRGGBB" @input="updateHighlightColor('textHighlightColor', $event)" @change="restoreHighlightColor('textHighlightColor', $event)" /></span></label>
+            <label>文本高亮透明度 <input v-model.number="editorSettings.textHighlightOpacity" type="range" min="0" max="100" step="1" @input="updateEditorSettings" /><span>{{ editorSettings.textHighlightOpacity }}%</span></label>
+            <label>查找匹配颜色 <span class="color-setting-control"><input v-model="editorSettings.findHighlightColor" type="color" @input="updateHighlightColor('findHighlightColor', $event)" /><input :value="editorSettings.findHighlightColor" type="text" size="8" maxlength="7" inputmode="text" aria-label="查找匹配颜色，支持十六进制" title="支持 #RRGGBB 或 RRGGBB" @input="updateHighlightColor('findHighlightColor', $event)" @change="restoreHighlightColor('findHighlightColor', $event)" /></span></label>
           </section>
           <section class="settings-group">
             <header class="settings-group-title"><h3>zTools 集成</h3><small>控制哪些内容可以从 zTools 主搜索中直接打开。</small></header>
