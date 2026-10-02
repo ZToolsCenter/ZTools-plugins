@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="1" stop-color="#243b68"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="210" fill="url(#bg)"/>
+  <circle cx="850" cy="160" r="190" fill="#38bdf8" opacity=".12"/>
+  <circle cx="115" cy="900" r="260" fill="#5eead4" opacity=".08"/>
+  <path d="M154 246c0-48 39-87 87-87h310c48 0 87 39 87 87v204c0 48-39 87-87 87H372l-112 91v-91h-19c-48 0-87-39-87-87V246Z" fill="#f8fafc"/>
+  <path d="M650 416h119c48 0 87 39 87 87v174c0 48-39 87-87 87h-26v78l-105-78h-170c-48 0-87-39-87-87v-11h182c48 0 87-39 87-87V416Z" fill="url(#accent)"/>
+  <text x="205" y="445" fill="#172033" font-family="Arial, Helvetica, sans-serif" font-size="190" font-weight="800" letter-spacing="-10">V2</text>
+  <path d="M698 545h93M698 603h93M698 661h58" stroke="#0f3751" stroke-width="22" stroke-linecap="round" opacity=".78"/>
+  <circle cx="196" cy="700" r="13" fill="#5eead4"/>
+  <circle cx="238" cy="700" r="13" fill="#38bdf8"/>
+  <circle cx="280" cy="700" r="13" fill="#f8fafc" opacity=".7"/>
+</svg>

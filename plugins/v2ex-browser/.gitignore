@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build and release artifacts
+src-ztools/dist/
+*.zip
+
+# Project documentation
+docs/
+
+# Local Vite state
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# macOS and editor files
+.DS_Store
+.idea/
+.vscode/
