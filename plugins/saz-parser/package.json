@@ -1,0 +1,7 @@
+{
+  "name": "saz-parser-preload",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Preload runtime for the saz-parser ZTools plugin. CommonJS on purpose: preload scripts must stay readable and must not be bundled or minified.",
+  "type": "commonjs"
+}
