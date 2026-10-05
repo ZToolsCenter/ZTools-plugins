@@ -104,6 +104,7 @@
       "clipboard-image-paintbrush",
       "colors",
       "doutu",
+      "extract-audio",
       "ibox-wallpaper",
       "imgbatch",
       "long-screenshot",
@@ -137,7 +138,13 @@
     "title": "游戏娱乐",
     "description": "休闲娱乐小游戏",
     "icon": "https://raw.githubusercontent.com/ZToolsCenter/ZTools-plugins/refs/heads/main/icons/game.png",
-    "list": ["2048", "fidget", "flyfont", "rogue-shooter", "super-mario"]
+    "list": [
+      "2048",
+      "fidget",
+      "flyfont",
+      "rogue-shooter",
+      "super-mario"
+    ]
   },
   {
     "key": "network",
