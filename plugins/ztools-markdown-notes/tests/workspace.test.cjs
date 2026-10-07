@@ -359,10 +359,16 @@ test('moves notes into directories and preserves their relative link targets', a
     await workspace.createDirectory(directory, '', '目标')
     await workspace.createNote(directory, '', '笔记')
     await fs.writeFile(path.join(directory, '资料.txt'), 'data')
-    await fs.writeFile(path.join(directory, '笔记.md'), '[资料](资料.txt)')
+    await fs.writeFile(path.join(directory, '笔记.md'), [
+      '[资料](资料.txt)',
+      '![图片](资料.txt?version=1#预览)<!-- znotes:image-width=640 -->',
+    ].join('\n'))
 
     assert.equal(await workspace.moveEntry(directory, '笔记.md', '目标'), '目标/笔记.md')
-    assert.equal(await fs.readFile(path.join(directory, '目标', '笔记.md'), 'utf8'), '[资料](../%E8%B5%84%E6%96%99.txt)')
+    assert.equal(await fs.readFile(path.join(directory, '目标', '笔记.md'), 'utf8'), [
+      '[资料](../%E8%B5%84%E6%96%99.txt)',
+      '![图片](../%E8%B5%84%E6%96%99.txt?version=1#预览)<!-- znotes:image-width=640 -->',
+    ].join('\n'))
     await assert.rejects(() => workspace.moveEntry(directory, '目标', '目标'), { code: 'INVALID_MOVE_TARGET' })
   })
 })
