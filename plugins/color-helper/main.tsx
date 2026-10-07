@@ -5,7 +5,6 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import './index.css';
 
-// 创建主题配置
 const theme = createTheme({
   palette: {
     primary: {

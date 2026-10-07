@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Dialog from '@mui/material/Dialog';
@@ -37,7 +36,10 @@ interface AIPaletteItem {
   description: string;
 }
 
-/** 解析 AI 返回的 JSON 字符串 */
+/**
+ * 解析 AI 返回的 JSON 字符串。
+ * 提示词已要求裸 JSON, 但模型仍可能带上 ```json 围栏, 这里兜底剥掉
+ */
 function parseAIResponse(content: string): AIPaletteItem[] {
   if (content.startsWith("{")) return JSON.parse(content);
   return JSON.parse(content.replace(/^```json\n/, "").replace(/\n```$/, ""));
@@ -171,7 +173,7 @@ function IroPicker({ color, onChange }: IroPickerProps) {
       if (c) pickerRef.current.color.hexString = c.hex();
       return;
     }
-    pickerRef.current = new iro.ColorPicker(containerRef.current, {
+    pickerRef.current = iro.ColorPicker(containerRef.current, {
       width: 190,
       borderWidth: 1,
       handleSvg: "#colorHandle",
@@ -262,7 +264,8 @@ function ColorPickerDialog({ color, open, onClose, onSubmit }: ColorPickerDialog
   );
 }
 
-/** AI配色主页面 - 上次生成结果缓存 */
+// 模块级缓存: 页面随导航切换卸载、useState 清零, 用它保活上次的主色与生成结果;
+// 主色取随机初值是为了首次进入页面时也有非空的主色
 let lastMainColor = chroma.random().hex();
 let lastPalettes: AIPaletteItem[] = [];
 
@@ -309,38 +312,34 @@ const AIPalettePage = memo(function AIPalettePage(props: AIPaletteProps) {
 
     try {
       const result = await aiChat([
-          {
-            role: "system",
-            content: `
-# Role
-你是一个颜色配色大师
-## Skills
-- 读取用户输入的颜色值
-- 给读取的颜色选择合适的配色方案,共需要给用户提供 ${count} 个颜色, 配色中不要有 ${mainColor}
-- 生成的配色方案必须符合 ${style} 风格
-- 生成的配色方案必须符合 ${theme} 色系
-- 你给出的每个配色方案必须包含颜色hex值、颜色名称以及颜色描述
-- 返回的配色方案以 JSON 数组格式返回
-## Actions
-- 根据用户输入的颜色值生成合适的配色方案
-- 你直接输出 JSON 数组，不再额外输出其他内容
-## Example
-[{
-  "hex": "#E797B7",
-  "name": "芭比粉",
-  "description": "比主色调更浅淡一些，粉色调更明显，与主色调搭配能营造出柔和温暖且具有现代感的氛围。"
-}]
-## Input
-输入：{颜色值}
-## Output
-{JSON}
-`,
-          },
-          { role: "user", content: `输入: ${[mainColor]}` },
-        ]
-      );
+        {
+          role: "system",
+          content: `
+# 角色
+你是颜色配色大师，围绕用户给出的基准色设计可搭配的颜色。
 
-      const parsed = parseAIResponse(result.content);
+# 任务
+生成恰好 ${count} 个颜色，每个都满足：
+- 符合${style}风格、属于${theme}色系
+- 不是基准色本身
+- 与基准色以及彼此之间都有明显的色相或明度差别
+
+# 输出格式
+只输出一个 JSON 数组，不要输出解释、标题或代码块标记。
+数组长度恰好 ${count}，每个元素包含三个字段：
+- hex：以 # 开头的六位十六进制颜色值，字母大写，例如 #E797B7
+- name：颜色名称
+- description：这个颜色与基准色如何搭配，以及它带来什么氛围
+
+# 示例
+下面只演示字段写法，实际数组长度以上面的任务要求为准：
+[{"hex":"#E797B7","name":"芭比粉","description":"比基准色更浅淡，粉调更明显，搭配起来柔和温暖，能冲淡基准色偏冷的感觉。"}]
+`,
+        },
+        { role: "user", content: `基准色: ${mainColor}` },
+      ]);
+
+      const parsed = parseAIResponse(result.content ?? '');
       if (!Array.isArray(parsed)) {
         props.showMessage("AI 生成配色失败");
         return;
@@ -499,8 +498,8 @@ const AIPalettePage = memo(function AIPalettePage(props: AIPaletteProps) {
   );
 });
 
-// 解析颜色输入
-function parseColorInput(input: string | null): chroma.Color | null {
+// 解析颜色输入(宽松实现, 直接交给 chroma; 导出以供回归测试)
+export function parseColorInput(input: string | null): chroma.Color | null {
   if (!input) return null;
   try {
     return chroma(input);

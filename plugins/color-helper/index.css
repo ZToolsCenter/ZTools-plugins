@@ -10,6 +10,19 @@ html, body {
   height: 100%;
 }
 
+/* 兜底: 懒加载 chunk 取不到时 React 会卸载整棵树, 用户只看到纯白页面。
+   此时 #root 为空, 用伪元素给出可读提示, 避免"点了没反应还退不回来" */
+#root:empty::after {
+  content: "页面加载失败，请重新进入插件重试";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #888;
+  font-size: 14px;
+}
+
 /* ============ App 布局 ============ */
 .app-body {
   width: 100%;
@@ -36,6 +49,11 @@ html, body {
   border-top-left-radius: 16px;
   border-bottom-left-radius: 16px;
   border-top-right-radius: 16px;
+}
+
+/* 懒加载页面的占位, 避免切页瞬间出现白屏 */
+.app-body .app-content > .page-loading {
+  height: 100%;
 }
 
 .app-body .app-setting {
@@ -91,15 +109,6 @@ html, body {
   border-radius: 10px;
 }
 
-.color-content .color-value .color-title {
-  padding-top: 0;
-  font-weight: 700;
-  color: #212121;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .color-content .color-value .color-hub {
   display: flex;
   align-items: center;
@@ -114,7 +123,7 @@ html, body {
 
 .color-content .color-value .color-hub .color-hub-wrapper .color-hub-value {
   display: flex;
-  margin-right: 8px;
+  margin-right: 6px;
   width: 36px;
   height: 36px;
   border-radius: 4px;
@@ -327,31 +336,6 @@ html, body {
 }
 
 /* Open Color / Ant Design / Material Design 通用 */
-.ui-colors {
-  width: 100%;
-  display: flex;
-  padding-bottom: 10px;
-}
-
-.ui-colors > div {
-  flex: 1;
-  height: 36px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ui-colors > div span {
-  color: #fff;
-  display: none;
-  font-size: 12px;
-}
-
-.ui-colors > div:hover span {
-  display: block;
-}
-
 .ui-color-row,
 .ui-color-header {
   display: flex;
@@ -446,6 +430,7 @@ html, body {
   padding: 12px 20px;
   box-sizing: border-box;
   align-items: center;
+  border-bottom: 1px solid #e6e6e6;
 }
 
 .traditional-header > div:first-child {
@@ -925,336 +910,6 @@ html, body {
 .app-side-list .MuiListItem-root .MuiListItemIcon-root {
   min-width: 0px;
   margin-right: 9px;
-}
-
-/* ============ TraditionalColorsPage 新布局 ============ */
-.traditional-body {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  flex-direction: column;
-}
-
-.traditional-header {
-  display: flex;
-  padding: 12px 20px;
-  box-sizing: border-box;
-  align-items: center;
-  border-bottom: 1px solid #e6e6e6;
-}
-
-.traditional-tabs {
-  display: flex;
-  gap: 16px;
-}
-
-.traditional-tab {
-  cursor: pointer;
-  padding: 6px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #666;
-  transition: all .2s;
-}
-
-.traditional-tab:hover {
-  background-color: #f0f0f0;
-}
-
-.traditional-tab.traditional-tab-active {
-  background-color: #e0e0e0;
-  color: #333;
-  font-weight: 500;
-}
-
-.traditional-search {
-  margin-left: auto !important;
-  width: 200px;
-}
-
-.traditional-colors {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  box-sizing: border-box;
-  display: flex;
-  flex-wrap: wrap;
-  color: #fff;
-  padding: 0 20px 20px;
-}
-
-.traditional-china .traditional-color-item,
-.traditional-japan .traditional-color-item {
-  cursor: pointer;
-  position: relative;
-}
-
-.traditional-china .traditional-color-item {
-  width: 25%;
-}
-
-.traditional-japan .traditional-color-item {
-  width: 20%;
-}
-
-.traditional-color-item:before {
-  content: "";
-  padding-top: 50%;
-  float: left;
-}
-
-.traditional-color-item > div {
-  font-size: 10px;
-  padding: 0 5px 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.traditional-color-item > div:first-child {
-  padding-top: 5px;
-  font-size: 14px;
-}
-
-/* ============ UIPalettesPage 新布局 ============ */
-.ui-palette-body {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.ui-palette-tabs {
-  display: flex;
-  gap: 8px;
-  padding: 12px 20px;
-  box-sizing: border-box;
-  border-bottom: 1px solid #e6e6e6;
-}
-
-.ui-palette-tab {
-  cursor: pointer;
-  padding: 6px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #666;
-  transition: all .2s;
-}
-
-.ui-palette-tab:hover {
-  background-color: #f0f0f0;
-}
-
-.ui-palette-tab.ui-palette-tab-active {
-  background-color: #e0e0e0;
-  color: #333;
-  font-weight: 500;
-}
-
-.ui-palette-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0 20px 20px;
-  box-sizing: border-box;
-}
-
-.ui-palette-flat {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.ui-palette-flat-item {
-  width: 20%;
-  cursor: pointer;
-  position: relative;
-}
-
-.ui-palette-flat-item:before {
-  content: "";
-  padding-top: 75%;
-  float: left;
-}
-
-.ui-palette-flat-item > div {
-  font-size: 10px;
-  padding: 0 8px 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ui-palette-flat-item > div:first-child {
-  padding-top: 8px;
-  font-size: 14px;
-}
-
-.ui-palette-grouped {
-  display: flex;
-  flex-direction: column;
-}
-
-.ui-palette-group {
-  display: flex;
-  margin: 8px 0;
-}
-
-.ui-palette-group-name {
-  color: #666;
-  width: 100px;
-  display: flex;
-  align-items: center;
-  white-space: pre-wrap;
-  line-height: 20px;
-  font-size: 13px;
-}
-
-.ui-palette-group-colors {
-  flex: 1;
-  display: flex;
-}
-
-.ui-palette-group-item {
-  flex: 1;
-  cursor: pointer;
-  position: relative;
-  box-sizing: border-box;
-  padding: .5px;
-}
-
-.ui-palette-group-item:before {
-  content: "";
-  padding-top: 100%;
-  float: left;
-}
-
-.ui-palette-group-item > span {
-  display: none;
-  font-size: 12px;
-}
-
-.ui-palette-group-item:hover {
-  border-radius: 50%;
-}
-
-/* ============ ImagePalettePage 新布局 ============ */
-.image-palette-body {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-.image-palette-upload {
-  width: 100%;
-  height: 300px;
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background-size: cover;
-  background-position: center;
-  transition: border-color .2s;
-}
-
-.image-palette-upload:hover {
-  border-color: #999;
-}
-
-.image-palette-upload-hint {
-  text-align: center;
-  color: #999;
-}
-
-.image-palette-upload-hint > div {
-  padding: 4px 0;
-}
-
-.image-palette-loading {
-  text-align: center;
-  padding: 20px;
-  color: #666;
-}
-
-.image-palette-colors {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.image-palette-color-item {
-  width: 80px;
-  height: 80px;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-}
-
-.image-palette-color-item > div {
-  padding: 1px 0;
-}
-
-/* ============ AIPalettePage 新布局 ============ */
-.ai-palette-body {
-  width: 100%;
-  height: 100%;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-.ai-palette-controls {
-  display: flex;
-  align-items: center;
-  padding-bottom: 16px;
-}
-
-.ai-palette-error {
-  color: #d32f2f;
-  padding: 8px 0;
-}
-
-.ai-palette-result {
-  margin-top: 16px;
-}
-
-.ai-palette-preview {
-  width: 100%;
-  height: 120px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-}
-
-.ai-palette-colors {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ai-palette-color-item {
-  width: 100px;
-  height: 80px;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-}
-
-.ai-palette-color-item > div {
-  padding: 1px 0;
 }
 
 /* ============ CollectColorsPage 新布局补充 ============ */

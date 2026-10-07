@@ -1,4 +1,4 @@
-import React, { Component, PureComponent } from 'react';
+import { Component, PureComponent } from 'react';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { db } from '../utils/platform';
@@ -7,6 +7,9 @@ import fluentData from '../data/ui-fluent.json';
 import openColorData from '../data/ui-open-color.json';
 import antDesignData from '../data/ui-ant-design.json';
 import materialDesignData from '../data/ui-material-design.json';
+import type {
+  FlatUIColorCategory, MaterialColorCategory, UIColorCategory,
+} from '../types';
 
 /**
  * UIPalettesPage - UI色卡页面
@@ -15,12 +18,11 @@ import materialDesignData from '../data/ui-material-design.json';
  * 点击色块可复制颜色值
  */
 
-// FlatUI子组件
-class FlatUIColors extends PureComponent<{ onColorClick: (e: any) => void }> {
+class FlatUIColors extends PureComponent<{ onColorClick: (e: any) => void; data: FlatUIColorCategory[] }> {
   render() {
     return (
       <div className="ui-color-body">
-        {flatUIData.map((group, gi) => (
+        {this.props.data.map((group, gi) => (
           <div className="flat-ui-box" key={gi}>
             <div className="flat-ui-title">{group.title}</div>
             <div className="flat-ui-colors">
@@ -45,12 +47,11 @@ class FlatUIColors extends PureComponent<{ onColorClick: (e: any) => void }> {
   }
 }
 
-//  Fluent子组件
-class FluentColors extends PureComponent<{ onColorClick: (e: any) => void }> {
+class FluentColors extends PureComponent<{ onColorClick: (e: any) => void; data: UIColorCategory[] }> {
   render() {
     return (
       <div className="ui-color-body">
-        {fluentData.map((group, gi) => (
+        {this.props.data.map((group, gi) => (
           <div className="flat-ui-box" key={gi}>
             <div className="flat-ui-title">{group.title}</div>
             <div className="fluent-ui-colors">
@@ -72,8 +73,7 @@ class FluentColors extends PureComponent<{ onColorClick: (e: any) => void }> {
   }
 }
 
-//  OpenColor子组件
-class OpenColors extends PureComponent<{ onColorClick: (e: any) => void }> {
+class OpenColors extends PureComponent<{ onColorClick: (e: any) => void; data: UIColorCategory[] }> {
   render() {
     return (
       <div className="ui-color-body">
@@ -84,7 +84,7 @@ class OpenColors extends PureComponent<{ onColorClick: (e: any) => void }> {
           </div>
         </div>
         <div>
-          {openColorData.map((group, gi) => (
+          {this.props.data.map((group, gi) => (
             <div className="ui-color-row" key={gi}>
               <div>{group.title}</div>
               <div style={{ fontSize: '1.5vw' }}>
@@ -94,6 +94,7 @@ class OpenColors extends PureComponent<{ onColorClick: (e: any) => void }> {
                       style={{ backgroundColor: color }}
                       onClick={this.props.onColorClick}
                     >
+                      {/* 色阶按浅→深排列: 前 5 档是浅色档配深字, 其余深色档配白字 */}
                       <span style={{ color: ci < 5 ? '#000' : '#FFF' }}>{color.substr(1)}</span>
                     </div>
                   </div>
@@ -107,8 +108,7 @@ class OpenColors extends PureComponent<{ onColorClick: (e: any) => void }> {
   }
 }
 
-// AntDesign子组件
-class AntDesignColors extends PureComponent<{ onColorClick: (e: any) => void }> {
+class AntDesignColors extends PureComponent<{ onColorClick: (e: any) => void; data: UIColorCategory[] }> {
   render() {
     return (
       <div className="ui-color-body">
@@ -119,7 +119,7 @@ class AntDesignColors extends PureComponent<{ onColorClick: (e: any) => void }> 
           </div>
         </div>
         <div>
-          {antDesignData.map((group, gi) => (
+          {this.props.data.map((group, gi) => (
             <div className="ui-color-row" key={gi}>
               <div>{group.title}</div>
               <div style={{ fontSize: '1.5vw' }}>
@@ -129,6 +129,7 @@ class AntDesignColors extends PureComponent<{ onColorClick: (e: any) => void }> 
                       style={{ backgroundColor: color }}
                       onClick={this.props.onColorClick}
                     >
+                      {/* 色阶按浅→深排列: 前 5 档是浅色档配深字, 其余深色档配白字 */}
                       <span style={{ color: ci < 5 ? '#000' : '#FFF' }}>{color.substr(1)}</span>
                     </div>
                   </div>
@@ -142,8 +143,7 @@ class AntDesignColors extends PureComponent<{ onColorClick: (e: any) => void }> 
   }
 }
 
-//  MaterialDesign子组件
-class MaterialDesignColors extends PureComponent<{ onColorClick: (e: any) => void }> {
+class MaterialDesignColors extends PureComponent<{ onColorClick: (e: any) => void; data: MaterialColorCategory[] }> {
   render() {
     return (
       <div className="ui-color-body">
@@ -151,7 +151,7 @@ class MaterialDesignColors extends PureComponent<{ onColorClick: (e: any) => voi
           <div />
           <div>
             {["50","100","200","300","400","500","600","700","800","900"].map(n => (
-              <div key={n} style={n === "A100" ? { borderLeft: '1px solid #EEE', marginLeft: '-1px' } : {}}>{n}</div>
+              <div key={n}>{n}</div>
             ))}
             {["A100","A200","A300","A400"].map(n => (
               <div key={n} style={n === "A100" ? { borderLeft: '1px solid #EEE', marginLeft: '-1px' } : {}}>{n}</div>
@@ -159,7 +159,7 @@ class MaterialDesignColors extends PureComponent<{ onColorClick: (e: any) => voi
           </div>
         </div>
         <div>
-          {materialDesignData.map((group, gi) => (
+          {this.props.data.map((group, gi) => (
             <div className="ui-color-row" key={gi}>
               <div>{group.title}</div>
               <div style={{ fontSize: '1.1vw' }}>
@@ -170,7 +170,8 @@ class MaterialDesignColors extends PureComponent<{ onColorClick: (e: any) => voi
                         style={{ backgroundColor: color }}
                         onClick={this.props.onColorClick}
                       >
-                        <span style={{ color: ci < 5 ? '#000' : '#FFF' }}>{color.substr(1)}</span>
+                      {/* 色阶按浅→深排列: 前 5 档是浅色档配深字, 其余深色档配白字 */}
+                      <span style={{ color: ci < 5 ? '#000' : '#FFF' }}>{color.substr(1)}</span>
                       </div>
                     ) : <div />}
                   </div>
@@ -184,7 +185,6 @@ class MaterialDesignColors extends PureComponent<{ onColorClick: (e: any) => voi
   }
 }
 
-// 主组件
 interface UIPalettesState {
   ui: string;
 }
@@ -208,16 +208,22 @@ class UIPalettesPage extends Component<{ onColorClick: (e: any) => void }, UIPal
   }
 
   getTabContent() {
+    const flatData = flatUIData as unknown as FlatUIColorCategory[];
+    const fluentDataT = fluentData as unknown as UIColorCategory[];
+    const openColorDataT = openColorData as unknown as UIColorCategory[];
+    const antDesignDataT = antDesignData as unknown as UIColorCategory[];
+    const materialDesignDataT = materialDesignData as unknown as MaterialColorCategory[];
     switch (this.state.ui) {
-      case "flat": return <FlatUIColors onColorClick={this.props.onColorClick} />;
-      case "fluent": return <FluentColors onColorClick={this.props.onColorClick} />;
-      case "open": return <OpenColors onColorClick={this.props.onColorClick} />;
-      case "antd": return <AntDesignColors onColorClick={this.props.onColorClick} />;
-      case "material": return <MaterialDesignColors onColorClick={this.props.onColorClick} />;
+      case "flat": return <FlatUIColors onColorClick={this.props.onColorClick} data={flatData} />;
+      case "fluent": return <FluentColors onColorClick={this.props.onColorClick} data={fluentDataT} />;
+      case "open": return <OpenColors onColorClick={this.props.onColorClick} data={openColorDataT} />;
+      case "antd": return <AntDesignColors onColorClick={this.props.onColorClick} data={antDesignDataT} />;
+      case "material": return <MaterialDesignColors onColorClick={this.props.onColorClick} data={materialDesignDataT} />;
       default: return false;
     }
   }
 
+  // Tab 切换只更新 state, 离开页面时才持久化: 避免每次点 Tab 都写一次 db
   componentWillUnmount() {
     const saved = db.get("uicolor") || { _id: "uicolor", ui: "flat" };
     if (saved.ui !== this.state.ui) {

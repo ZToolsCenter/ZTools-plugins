@@ -1,9 +1,8 @@
 import React, { Component, PureComponent } from 'react';
-import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import { copyText as platformCopyText, screenColorPick } from '../utils/platform';
+import { screenColorPick } from '../utils/platform';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import CheckIcon from '@mui/icons-material/Check';
@@ -12,6 +11,7 @@ import ColorizeIcon from '@mui/icons-material/Colorize';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import chroma from 'chroma-js';
 import iro from '@jaames/iro';
+import { isDarkColor } from '../utils/color';
 
 /**
  * ColorPage - 颜色转换页面
@@ -97,8 +97,9 @@ function convertStateColor(color: chroma.Color): ColorState {
   };
 }
 
-/** 按指定格式解析颜色字符串，返回 chroma.Color 或 null */
-function parseColorByType(type: string, value: string): chroma.Color | null {
+/** 按指定格式解析颜色字符串，返回 chroma.Color 或 null
+ *  导出以供回归测试(另一处同名实现在 AIPalettePage, 行为不同, 见 tests/color-parsing.test.ts) */
+export function parseColorByType(type: string, value: string): chroma.Color | null {
   if (type === "hex") {
     if (/^[0-9a-fA-F]{6}$/.test(value)) return chroma("#" + value);
     return null;
@@ -140,8 +141,8 @@ function parseColorByType(type: string, value: string): chroma.Color | null {
   return null;
 }
 
-/** 自动识别颜色格式并解析输入字符串 */
-function parseColorInput(input: string): chroma.Color | null {
+/** 自动识别颜色格式并解析输入字符串(导出以供回归测试) */
+export function parseColorInput(input: string): chroma.Color | null {
   if (!input || input.length < 4) return null;
   let type: string;
   let value = input;
@@ -174,7 +175,7 @@ class IroColorPicker extends PureComponent<IroPickerProps> {
 
   componentDidMount() {
     if (!this.containerRef.current) return;
-    this.colorPicker = new iro.ColorPicker(this.containerRef.current, {
+    this.colorPicker = iro.ColorPicker(this.containerRef.current, {
       width: 300,
       borderWidth: 1,
       handleSvg: "#handle",
@@ -226,7 +227,8 @@ class IroColorPicker extends PureComponent<IroPickerProps> {
 
 interface ColorPageProps {
   value: (string | null)[];
-  onColorClick: (e: any) => void;
+  /** (复制出去的原文, 该色的 hex) —— 原文用于复制与提示条回显, hex 用于定位操作对象 */
+  onColorClick: (copied: string, hex: string) => void;
   setting: boolean;
   showMessage: (msg: string) => void;
 }
@@ -236,21 +238,18 @@ interface ColorPageState {
   activeIndex: number;
 }
 
-/** 配色方案标签映射 */
-const schemeLabels: Record<string, string> = {
-  complementary: "互补色",
-  triadic: "对比色",
-  analogous: "类似色",
-  tetradic: "中差色",
-};
+/**
+ * 色板槽位数。
+ * 扣掉导航栏 136 与色卡内边距后, 一行放得下 6 个 36px 色块 + 间距 + 加号按钮。
+ * 填空规则: 未满追加到尾部, 已满挤掉最早的(见 setNewColor)。
+ */
+export const MAX_COLOR_HUB_SLOTS = 6;
 
 class ColorPage extends Component<ColorPageProps, ColorPageState> {
-  private _currentChromaColor: chroma.Color | null = null;
-
-  /** 添加新颜色到色板(最多8个，超出时移除最早的) */
+  /** 添加新颜色到色板: 未满追加, 已满挤掉最早的 */
   setNewColor = (color: ColorState) => {
     const colors = [...this.state.colors, color];
-    if (colors.length > 8) colors.shift();
+    if (colors.length > MAX_COLOR_HUB_SLOTS) colors.shift();
     this.setState({ colors, activeIndex: colors.length - 1 });
   };
 
@@ -272,27 +271,35 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
     this.setState({ colors: [...this.state.colors], activeIndex: index });
   };
 
-  /** 复制指定格式的颜色值到剪贴板 */
+  /**
+   * 复制当前色值并弹提示条
+   *
+   * 原文(chroma 解析不了 rgb/hsl/hsv/hsi/cmyk/lab)与当前色的 hex 一起交给
+   * props.onColorClick —— 原文用于复制与提示条回显, hex 用于定位
+   * 收藏 / 查看 / 配色 三个操作。颜色页上该提示条不显示「查看」(见 App.tsx)。
+   */
   handleCssCodeCopy = (format: string) => () => {
-    const color = this.state.colors[this.state.activeIndex];
-    let copyText: string;
-    if (this.props.setting) {
-      if (format === "hex") copyText = color.hex.substring(1);
-      else if (format === "rgb") copyText = color.rgb;
-      else if (format === "cmyk") copyText = color.cmyk;
-      else if (["hsl", "hsi", "hsv"].includes(format)) copyText = (color as any)[format];
-      else if (format === "lab") copyText = color.lab;
-      else return;
-    } else {
-      if (format === "hex") copyText = color.hex;
-      else if (format === "rgb") copyText = "rgb(" + color.rgb + ")";
-      else if (format === "cmyk") copyText = "cmyk(" + color.cmyk + ")";
-      else if (["hsl", "hsi", "hsv"].includes(format)) copyText = format + "(" + (color as any)[format] + ")";
-      else if (format === "lab") copyText = "lab(" + color.lab + ")";
-      else return;
-    }
-    platformCopyText(copyText);
+    const text = this.getCssCode(format);
+    if (!text) return;
+    this.props.onColorClick(text, this.state.colors[this.state.activeIndex].hex);
   };
+
+  /**
+   * 按格式拼出当前色的完整色值串, 未知格式返回空串
+   *
+   * 一律带标识(hex 带 "#", 其余带 "rgb(...)" 等): 复制出去的内容由 App 按
+   * "色值去 #" 设置处理 —— 该设置只对 hex 有意义, 各格式串里没有 #。
+   * 这里跟着 setting 变的话, 同一格式会产出两种文本, 反而看不出复制了什么。
+   */
+  getCssCode(format: string): string {
+    const color = this.state.colors[this.state.activeIndex];
+    if (format === "hex") return color.hex;
+    if (format === "rgb") return "rgb(" + color.rgb + ")";
+    if (format === "cmyk") return "cmyk(" + color.cmyk + ")";
+    if (format === "lab") return "lab(" + color.lab + ")";
+    if (["hsl", "hsi", "hsv"].includes(format)) return format + "(" + (color as any)[format] + ")";
+    return "";
+  }
 
   /** 颜色值输入变更: 解析输入并更新颜色状态，解析失败则保留输入草稿 */
   handleValueChange = (format: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -325,6 +332,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
 
     if (props.value?.[0]) {
       const parsed = parseColorInput(props.value[0]!);
+      // 一次性载荷, 消费即清空: 防止组件重挂载时同一个色值再次入色板
       props.value[0] = null;
       if (parsed) initialColor = convertStateColor(parsed);
     }
@@ -332,7 +340,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
     if (cachedState) {
       if (initialColor) {
         cachedState.colors.push(initialColor);
-        if (cachedState.colors.length > 8) cachedState.colors.shift();
+        if (cachedState.colors.length > MAX_COLOR_HUB_SLOTS) cachedState.colors.shift();
         cachedState.activeIndex = cachedState.colors.length - 1;
       }
       this.state = cachedState;
@@ -411,7 +419,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
                           key={i}
                           data-key={color}
                           className="color-extend-value"
-                          onClick={() => onColorClick({ currentTarget: { style: { backgroundColor: hex } } })}
+                          onClick={() => onColorClick(hex, hex)}
                           style={{
                             backgroundColor: color,
                             boxSizing: 'border-box',
@@ -457,7 +465,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
                 />
               </div>
               <div className="css-code-copy">
-                <Tooltip placement="right" title={`复制 "${setting ? u.rgb : "rgb(" + u.rgb + ")"}"`}>
+                <Tooltip placement="right" title={`复制 "${this.getCssCode("rgb")}"`}>
                   <IconButton disableFocusRipple tabIndex={-1} onClick={this.handleCssCodeCopy("rgb")} size="small">
                     <ContentCopyIcon />
                   </IconButton>
@@ -476,7 +484,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
                 />
               </div>
               <div className="css-code-copy">
-                <Tooltip placement="right" title={`复制 "${setting ? u.hsv : "hsv(" + u.hsv + ")"}"`}>
+                <Tooltip placement="right" title={`复制 "${this.getCssCode("hsv")}"`}>
                   <IconButton disableFocusRipple tabIndex={-1} onClick={this.handleCssCodeCopy("hsv")} size="small">
                     <ContentCopyIcon />
                   </IconButton>
@@ -495,7 +503,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
                 />
               </div>
               <div className="css-code-copy">
-                <Tooltip placement="right" title={`复制 "${setting ? u.hsl : "hsl(" + u.hsl + ")"}"`}>
+                <Tooltip placement="right" title={`复制 "${this.getCssCode("hsl")}"`}>
                   <IconButton disableFocusRipple tabIndex={-1} onClick={this.handleCssCodeCopy("hsl")} size="small">
                     <ContentCopyIcon />
                   </IconButton>
@@ -514,7 +522,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
                 />
               </div>
               <div className="css-code-copy">
-                <Tooltip placement="right" title={`复制 "${setting ? u.cmyk : "cmyk(" + u.cmyk + ")"}"`}>
+                <Tooltip placement="right" title={`复制 "${this.getCssCode("cmyk")}"`}>
                   <IconButton disableFocusRipple tabIndex={-1} onClick={this.handleCssCodeCopy("cmyk")} size="small">
                     <ContentCopyIcon />
                   </IconButton>
@@ -533,7 +541,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
                 />
               </div>
               <div className="css-code-copy">
-                <Tooltip placement="right" title={`复制 "${setting ? u.hsi : "hsi(" + u.hsi + ")"}"`}>
+                <Tooltip placement="right" title={`复制 "${this.getCssCode("hsi")}"`}>
                   <IconButton disableFocusRipple tabIndex={-1} onClick={this.handleCssCodeCopy("hsi")} size="small">
                     <ContentCopyIcon />
                   </IconButton>
@@ -552,7 +560,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
                 />
               </div>
               <div className="css-code-copy">
-                <Tooltip placement="right" title={`复制 "${setting ? u.lab : "lab(" + u.lab + ")"}"`}>
+                <Tooltip placement="right" title={`复制 "${this.getCssCode("lab")}"`}>
                   <IconButton disableFocusRipple tabIndex={-1} onClick={this.handleCssCodeCopy("lab")} size="small">
                     <ContentCopyIcon />
                   </IconButton>
@@ -564,7 +572,7 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
             <div className="color-hub">
               <div className="color-hub-wrapper">
                 {colors.map((color, index) => {
-                  const isDark = chroma(color.hex).get('lab.l') < 70;
+                  const isDark = isDarkColor(color.hex);
                   return (
                     <Typography
                       key={index}
@@ -582,7 +590,10 @@ class ColorPage extends Component<ColorPageProps, ColorPageState> {
                   );
                 })}
               </div>
-              <Tooltip placement="right" title="新建随机颜色">
+              <Tooltip
+                placement="right"
+                title={colors.length >= MAX_COLOR_HUB_SLOTS ? `已满 ${MAX_COLOR_HUB_SLOTS} 个，将替换最早的颜色` : "新建随机颜色"}
+              >
                 <IconButton
                   disableFocusRipple
                   tabIndex={-1}

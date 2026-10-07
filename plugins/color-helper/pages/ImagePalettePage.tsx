@@ -9,8 +9,6 @@ import Dialog from '@mui/material/Dialog';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
 import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -18,9 +16,9 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import CropIcon from '@mui/icons-material/Crop';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import chroma from 'chroma-js';
+import { isDarkColor } from '../utils/color';
 import { quantize } from '../utils/quantize';
-import { isDarkColor, textColorFor, dimColor } from '../utils/color';
-import { screenCapture, copyText, hideMainWindow, aiChat, isAIAvailable } from '../utils/platform';
+import { screenCapture, aiChat, isAIAvailable } from '../utils/platform';
 
 // 导入模板封面图
 import cover01 from '../assets/color-card-01.jpg';
@@ -89,7 +87,6 @@ function getColor(img: HTMLImageElement, quality: number = 10): number[] | null 
  * @param quality 采样间隔，默认10
  */
 function getPalette(img: HTMLImageElement, colorCount?: number, quality?: number): number[][] | null {
-  // 参数校验 -
   let count = colorCount;
   let q = quality;
   if (count !== undefined && Number.isInteger(count)) {
@@ -106,19 +103,18 @@ function getPalette(img: HTMLImageElement, colorCount?: number, quality?: number
   const imageData = getImageData(img);
   const pixels = filterPixels(imageData.data, imageData.width * imageData.height, q);
   const cmap = quantize(pixels, count);
-  return cmap && cmap !== false ? cmap.palette() : null;
+  return cmap ? cmap.palette() : null;
 }
 
 /**
  * 从图片中提取主色和配色
- * 主色: getColor 提取5色中的第一个
- * 配色: getPalette 提取10色，排除主色后的列表
+ * 主色: 取样粗一些(quality 10)取 5 色的首个, 作为整图的代表色
+ * 配色: 取样细一些取 10 色, 排除主色后的列表
  */
-// 原始: const o = new Uu; s = a4(o.getColor(n.target)); c = o.getPalette(n.target).map(u => a4(u))
 function extractColorsFromImage(img: HTMLImageElement): { mainColor: string; paletteColors: string[] } | null {
   try {
-    const mainRgb = getColor(img, 10);  // getColor(target, 10) → getPalette(target, 5, 10)[0]
-    const paletteRgbs = getPalette(img);  // getPalette(target) → colorCount=10, quality=10
+    const mainRgb = getColor(img, 10);
+    const paletteRgbs = getPalette(img);
 
     if (!mainRgb) return null;
 
@@ -133,6 +129,9 @@ function extractColorsFromImage(img: HTMLImageElement): { mainColor: string; pal
   }
 }
 
+/** AI 名称缓存，避免重复调用 */
+const nameCache = new Map<string, string>();
+
 /**
  * AI 色卡名称生成 Hook
  * 调用 AI 根据颜色值生成文艺名称，支持缓存和自动生成
@@ -140,13 +139,16 @@ function extractColorsFromImage(img: HTMLImageElement): { mainColor: string; pal
  * @param style 命名风格，默认"文艺优雅"
  * @param nameLength 名称字数，默认4
  * @param autoGenerate 是否在挂载时自动生成
+ *
+ * status 表示名字是否已经有定论: idle 是"还没开始", loading 中,
+ * done / error 都算"有定论了" —— 调用方要等它落定再开始画图,
+ * 否则会先画一版占位名。
  */
-/** AI 名称缓存，避免重复调用 */
-const nameCache = new Map<string, string>();
+type NameStatus = 'idle' | 'loading' | 'done' | 'error';
 
 function useGenerateName(color: string, style: string = '文艺优雅', nameLength: number = 4, autoGenerate: boolean = false) {
   const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<NameStatus>('idle');
   const [error, setError] = useState('');
 
   const cacheKey = useMemo(() => color + style + nameLength, [color, style, nameLength]);
@@ -161,129 +163,83 @@ function useGenerateName(color: string, style: string = '文艺优雅', nameLeng
     };
   }, [cacheKey]);
 
-  const generateName = useCallback((targetCacheKey: string, excludeName?: string) => {
+  const generateName = useCallback((excludeName?: string) => {
     const ai = isAIAvailable();
     if (!ai) {
       setError('当前版本不支持 AI 功能');
-      return null;
+      setStatus('error');
+      return;
     }
 
     const systemPrompt = `
-# Role
-你是一个颜色命名大师
-## Skills
-- 读取用户输入的颜色值
-- 给读取的颜色起一个好听的名字，名字风格${style}
-## Actions
-- 根据用户输入的颜色起一个名字
-- 你直接输出名字，不再额外输出其他内容
-- 名字必须是${nameLength}个汉字组成
-${excludeName ? `- 名字不能是${excludeName}` : ''}
-## Input
-输入：{颜色值}
-## 输出
-{名字}
+# 角色
+你是颜色命名大师，给颜色起好听的名字。
+
+# 任务
+给用户给出的颜色起一个名字，要求：
+- 名字恰好 ${nameLength} 个汉字
+- 风格${style}
+${excludeName ? `- 不能是${excludeName}\n` : ''}
+# 输出格式
+只输出名字本身，不要引号、标点、解释或代码块标记。
+
+# 示例
+暮色青岚
 `;
 
-    setLoading(true);
+    // 记下发起时的 key, 回调里对比它判断这次结果是否已经过期
+    const target = cacheKey;
+    setStatus('loading');
     setName('');
     setError('');
 
-    const promise = aiChat([
+    aiChat([
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: `输入: ${color}` },
-    ]);
-
-    promise.then(result => {
-      if (!isMounted.current || targetCacheKey !== latestCacheKey.current) return;
-      setLoading(false);
-      setName(result.content);
-      nameCache.set(targetCacheKey, result.content);
+      { role: 'user', content: `颜色: ${color}` },
+    ]).then(result => {
+      if (!isMounted.current || target !== latestCacheKey.current) return;
+      // ai() 返回的 content 是可选字段, 缺失时按空串处理
+      const next = result.content ?? '';
+      setName(next);
+      setStatus('done');
+      // 只在非"重新生成"时写缓存, 否则换过的名字会污染下次打开弹窗的命中结果
+      if (!excludeName) nameCache.set(target, next);
     }).catch(() => {
-      if (!isMounted.current || targetCacheKey !== latestCacheKey.current) return;
-      setLoading(false);
+      if (!isMounted.current || target !== latestCacheKey.current) return;
       setError('AI 调用异常');
+      setStatus('error');
     });
-
-    return promise;
-  }, [style, nameLength, color]);
+  }, [style, nameLength, color, cacheKey]);
 
   // 自动生成
   useEffect(() => {
     if (!autoGenerate || !color) return;
 
-    const key = color + style + nameLength;
-    if (nameCache.has(key)) {
-      setName(nameCache.get(key)!);
+    const cached = nameCache.get(cacheKey);
+    if (cached !== undefined) {
+      setName(cached);
+      setStatus('done');
       return;
     }
 
-    generateName(key);
-  }, [color, style, nameLength, generateName, autoGenerate]);
+    generateName();
+  }, [cacheKey, color, autoGenerate, generateName]);
 
-  return [name, { loading, error, generateName, cacheKey }] as const;
+  return { name, status, error, generateName };
 }
 
-/** 画面场景选项(用于 AI 色卡描述) */
-const SCENE_OPTIONS = ["明星影视", "游戏动漫", "生活家居", "文旅出行", "时尚美妆", "体育赛事", "科技数码", "汽车交通", "艺术设计"];
-
-/** 画面场景选择器 - 下拉菜单选择场景标签 */
-interface SceneSelectorProps {
-  data: string[];
-  value: string | null;
-  disabled?: boolean;
-  onChange: (value: string | null) => void;
-}
-
-function SceneSelector({ data, value, disabled, onChange }: SceneSelectorProps) {
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-
-  if (value) {
-    return (
-      <Stack direction="row" gap={0.5} alignItems="center" border="#aaa solid 1px" borderRadius={999} py={0.3} px={0.8} sx={{
-        '.MuiSvgIcon-root': { fontSize: 16, cursor: 'pointer' },
-        fontSize: 12, opacity: disabled ? 0.5 : 1,
-      }}>
-        {value}
-        <CloseIcon onClick={() => { if (!disabled) onChange(null); }} />
-      </Stack>
-    );
-  }
-
-  return (
-    <>
-      <Stack direction="row" gap={0.5} alignItems="center" border="#aaa solid 1px" borderRadius={999} py={0.3} px={0.8} sx={{
-        '.MuiSvgIcon-root': { fontSize: 16 },
-        fontSize: 12, cursor: 'pointer', opacity: disabled ? 0.5 : 1,
-      }} onClick={(e) => { if (!disabled) setAnchorEl(e.currentTarget); }}>
-        <AutoAwesomeIcon />
-        画面
-      </Stack>
-      <Menu anchorEl={anchorEl} open={!!anchorEl} onClose={() => setAnchorEl(null)}
-        MenuListProps={{ dense: true, disablePadding: true }}>
-        {data.map(item => (
-          <MenuItem key={item} selected={item === value} onClick={() => { onChange(item); setAnchorEl(null); }}>
-            {item}
-          </MenuItem>
-        ))}
-      </Menu>
-    </>
-  );
-}
-
-/** 色卡模板定义: id/尺寸/封面图/名称字数 */
+/** 色卡模板定义: id/尺寸/封面图 */
 interface TemplateDef {
   id: string;
   sizes: number | [number, number];
   cover: string;
-  nameLength: number;
 }
 
 const TEMPLATES: TemplateDef[] = [
-  { id: '01', sizes: 1200, cover: cover01, nameLength: 4 },
-  { id: '02', sizes: 1200, cover: cover02, nameLength: 4 },
-  { id: '03', sizes: [1200 * 3 / 4, 1200], cover: cover03, nameLength: 4 },
-  { id: '04', sizes: [1800 * 9 / 16, 1800], cover: cover04, nameLength: 4 },
+  { id: '01', sizes: 1200, cover: cover01 },
+  { id: '02', sizes: 1200, cover: cover02 },
+  { id: '03', sizes: [1200 * 3 / 4, 1200], cover: cover03 },
+  { id: '04', sizes: [1800 * 9 / 16, 1800], cover: cover04 },
 ];
 
 /** 获取模板的画布尺寸 [宽, 高] */
@@ -297,8 +253,11 @@ function getTemplateSize(template: TemplateDef): [number, number] {
 
 /**
  * 色卡 Canvas 渲染
- * 根据模板类型在 Canvas 上绘制色卡: 背景色/图片 + 名称 + 配色色块
- * 支持4种模板: 01(渐变遮罩)/02(模糊大背景)/03(cover填充)/04(底部横条)
+ * 四个模板分别对应一种版式: 01 右下横向色块 / 02 底部全宽等分 / 03 左上竖排圆形 / 04 白底内缩留白, 上 3/4 图片 + 下方居左名称与色块
+ * 背景图一律 cover: 01-03 铺满整张卡片, 04 只铺内容区上 3/4
+ * 主色铺底兜住没有背景图的情况, 04 用白底
+ *
+ * withText=false 时只画背景与色块(供 UI 里的占位预览用), 不画任何文字
  */
 function renderColorCard(
   canvas: HTMLCanvasElement,
@@ -308,195 +267,297 @@ function renderColorCard(
     paletteColors: string[];
     name: string;
     templateId: string;
+    withText?: boolean;
   }
 ) {
-  const { bgImage, primaryColor, paletteColors, name, templateId } = options;
+  const { bgImage, primaryColor, paletteColors, name, templateId, withText = true } = options;
   const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
   const [w, h] = getTemplateSize(template);
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d')!;
-  const dark = isDarkColor(primaryColor);
-  const textCol = dark ? '#fff' : '#000';
-  const dimCol = dimColor(primaryColor, 0.3);
-  const semiCol = dimColor(primaryColor, 0.6);
 
-  // 通用渲染：背景色填充
-  ctx.fillStyle = primaryColor;
+  // 所有尺寸按卡片宽度的百分比取(q = 1cqw), 换画布比例时元素占比不变
+  const q = (v: number) => (w * v) / 100;
+
+  /** 把背景图 cover 画进指定矩形, 超出部分裁掉 */
+  const drawCover = (x: number, y: number, boxW: number, boxH: number) => {
+    if (!bgImage) return;
+    const scale = Math.max(boxW / bgImage.width, boxH / bgImage.height);
+    const dw = bgImage.width * scale;
+    const dh = bgImage.height * scale;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, boxW, boxH);
+    ctx.clip();
+    ctx.drawImage(bgImage, x + (boxW - dw) / 2, y + (boxH - dh) / 2, dw, dh);
+    ctx.restore();
+  };
+
+  // 通用渲染：背景色填充, 04 是白底
+  ctx.fillStyle = templateId === '04' ? '#fff' : primaryColor;
   ctx.fillRect(0, 0, w, h);
 
   // 背景图（如果有）
   if (bgImage) {
-    const coverFit = (cw: number, ch: number) => {
-      const scale = Math.max(cw / bgImage.width, ch / bgImage.height) * 1.8;
-      const dw = bgImage.width * scale;
-      const dh = bgImage.height * scale;
-      return { dx: (cw - dw) / 2, dy: 0, dw, dh };
-    };
-
     if (templateId === '01') {
-      // 01: 图片居中上半部分，下半渐变遮罩
-      const scale = Math.min(w / bgImage.width, h / bgImage.height);
+      // 01: 图片整幅 cover 铺满
+      const scale = Math.max(w / bgImage.width, h / bgImage.height);
       const dw = bgImage.width * scale;
       const dh = bgImage.height * scale;
-      ctx.drawImage(bgImage, (w - dw) / 2, 0, dw, dh);
+      ctx.drawImage(bgImage, (w - dw) / 2, (h - dh) / 2, dw, dh);
 
-      // 下半渐变遮罩
-      const grad = ctx.createLinearGradient(0, h * 0.5, 0, h * 0.65);
+      // 底部 1/4 纯色阻挡, 上缘一小段渐变过渡
+      const bandTop = (h * 3) / 4;
+      const grad = ctx.createLinearGradient(0, bandTop, 0, bandTop + h * 0.08);
       grad.addColorStop(0, chroma(primaryColor).alpha(0.01).hex());
       grad.addColorStop(0.1, chroma(primaryColor).alpha(0.5).hex());
       grad.addColorStop(0.25, primaryColor);
       grad.addColorStop(1, primaryColor);
       ctx.fillStyle = grad;
-      ctx.fillRect(0, h * 0.5, w, h * 0.5);
+      ctx.fillRect(0, bandTop, w, h - bandTop);
     } else if (templateId === '02') {
-      // 002: 图片模糊大背景 + 居中裁剪
-      const { dx, dy, dw, dh } = coverFit(w, h);
-      ctx.globalAlpha = 0.3;
-      ctx.filter = 'blur(40px)';
-      ctx.drawImage(bgImage, dx, dy, dw, dh);
-      ctx.filter = 'none';
-      ctx.globalAlpha = 1;
-
-      // 居中裁剪图
-      const scale2 = Math.min(w * 0.95 / bgImage.width, h * 0.95 / bgImage.height);
-      const dw2 = bgImage.width * scale2;
-      const dh2 = bgImage.height * scale2;
-      ctx.drawImage(bgImage, (w - dw2) / 2, (h - dh2) / 2, dw2, dh2);
+      // 02: 图片整幅 cover 铺满
+      const scale = Math.max(w / bgImage.width, h / bgImage.height);
+      const dw = bgImage.width * scale;
+      const dh = bgImage.height * scale;
+      ctx.drawImage(bgImage, (w - dw) / 2, (h - dh) / 2, dw, dh);
     } else if (templateId === '03') {
-      // 003: 图片 cover 填充
+      // 图片 cover 填充
       const scale = Math.max(w / bgImage.width, h / bgImage.height);
       const dw = bgImage.width * scale;
       const dh = bgImage.height * scale;
       ctx.drawImage(bgImage, (w - dw) / 2, (h - dh) / 2, dw, dh);
     } else if (templateId === '04') {
-      // 004: 图片 cover 填充
-      const scale = Math.max(w / bgImage.width, h / bgImage.height);
-      const dw = bgImage.width * scale;
-      const dh = bgImage.height * scale;
-      ctx.drawImage(bgImage, (w - dw) / 2, (h - dh) / 2, dw, dh);
+      // 04: 内容整体内缩留白, 图片铺满内容区上方 3/4
+      const inset = q(6);
+      const contentW = w - inset * 2;
+      const contentH = h - inset * 2;
+      drawCover(inset, inset, contentW, contentH * 0.75);
     }
   }
 
-  // 文字和配色色块
+  // 配色色块。四个模板版式不同, 文字统一走 label(),
+  // 占位预览(withText=false)时只出色块
+  const label = (value: string, x: number, y: number) => {
+    if (withText) ctx.fillText(value, x, y);
+  };
+  /** 该模板要显示的色: 主色在前, 再补配色; 配色为空时只显示主色 */
+  const pick = (n: number) => [primaryColor, ...paletteColors].slice(0, n);
+
+  /** 色块内色值的颜色: 深色块用白字, 浅色块用深字 */
+  const hexOn = (color: string) => (isDarkColor(color) ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.75)');
+
+  // 字号一律由它要放的槽位反推, 保证"字号变大 + 槽位固定"时文字还能缩回去
+  // 文本框按 'M' 量, 比按平均字宽估更保守
+  let measureCtx: CanvasRenderingContext2D | null = null;
+  const textW = (text: string, font: string): number => {
+    if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d')!;
+    measureCtx.font = font;
+    return measureCtx.measureText(text).width;
+  };
+  /** 在 [min,max] 内找能塞进 maxW 的最大字号; 连 min 都放不下时返回 0, 由调用方跳过不写 */
+  const fitFont = (text: string, weight: string, maxW: number, min: number, max: number): number => {
+    if (maxW <= 0) return 0;
+    const fontAt = (size: number) => weight ? `${weight} ${size}px sans-serif` : `${size}px sans-serif`;
+    if (textW(text, fontAt(max)) <= maxW) return max;
+    let lo = 0;
+    let hi = max;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      if (textW(text, fontAt(mid)) <= maxW) lo = mid;
+      else hi = mid;
+    }
+    return lo >= min ? lo : 0;
+  };
+
+  const shadowOn = () => {
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = q(1);
+  };
+  const shadowOff = () => { ctx.shadowBlur = 0; };
+
   if (templateId === '01') {
-    // 01 模板：下半部分文字 + 配色
-    const baseY = h * 2.1 / 3;
-    ctx.fillStyle = semiCol;
-    ctx.font = `bold ${w / 9}px serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText(name || '配色方案', w / 20, baseY);
+    // 01 右下角矩形色块组, 整组对齐右下角
+    // 名称在左侧、顶部与色块组齐平
+    const colors = pick(5);
+    const gap = q(1);
+    const blockH = q(16);
+    const margin = q(4);
+    const widths = colors.map((_, i) => (i === 0 ? q(12) : q(9)));
+    const totalW = widths.reduce((a, b) => a + b, 0) + gap * (colors.length - 1);
+    const groupX = w - margin - totalW;
+    const groupY = h - margin - blockH;
 
-    // 主色圆 + 色值
-    const circleR = w / 50;
-    const circleY = baseY + h / 6;
-    ctx.beginPath();
-    ctx.arc(w / 20 + circleR, circleY, circleR, 0, Math.PI * 2);
-    ctx.fillStyle = semiCol;
-    ctx.fill();
-    ctx.fillStyle = semiCol;
-    ctx.font = `bold ${w / 30}px sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText(primaryColor, w / 20 + circleR * 2 + w / 30, circleY + w / 80);
-
-    // 配色色块
-    const colors = paletteColors.slice(0, 4);
-    const blockSize = w / 7;
-    const startX = w / 2;
+    let x = groupX;
     colors.forEach((color, i) => {
-      const y = circleY + w / 60 + i * (blockSize + w / 60);
       ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(startX, y, blockSize, blockSize, 8);
-      ctx.fill();
-      ctx.fillStyle = textColorFor(color);
-      ctx.font = `${w / 38}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText(color, startX + blockSize / 2, y + blockSize / 2 + w / 76);
+      ctx.fillRect(x, groupY, widths[i], blockH);
+      // 主色块不写色号, 只让配色块带自己的值
+      if (i > 0) {
+        const text = color.toUpperCase();
+        const size = fitFont(text, '', widths[i] - q(1.2), q(0.5), q(2.5));
+        if (size > 0) {
+          ctx.fillStyle = hexOn(color);
+          ctx.font = `${size}px sans-serif`;
+          ctx.textAlign = 'center';
+          label(text, x + widths[i] / 2, groupY + blockH / 2 + size / 3);
+        }
+      }
+      x += widths[i] + gap;
     });
 
-    // 签名
-    // ctx.fillStyle = dimCol;
-    // ctx.font = `${w / 32}px sans-serif`;
-    // ctx.textAlign = 'left';
-    // ctx.fillText('色卡', w / 20, baseY + h / 6 + w / 20);
+    if (withText) {
+      const nameText = name || '配色方案';
+      const nameMax = groupX - margin - q(2);
+      const nameSize = fitFont(nameText, 'bold', nameMax, q(1.6), q(3.2));
+      if (nameSize > 0) {
+        shadowOn();
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${nameSize}px sans-serif`;
+        ctx.fillText(nameText, margin, groupY + nameSize * 0.8);
+
+        // 主色号跟在名称下面
+        const hexSize = fitFont(primaryColor.toUpperCase(), '', nameMax, q(0.8), nameSize * 0.5);
+        if (hexSize > 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.75)';
+          ctx.font = `${hexSize}px sans-serif`;
+          ctx.fillText(primaryColor.toUpperCase(), margin, groupY + nameSize * 0.8 + hexSize * 1.6);
+        }
+        shadowOff();
+      }
+    }
   } else if (templateId === '02') {
-    // 002 模板：底部配色横排
-    const allColors = [primaryColor, ...paletteColors.slice(0, 5)];
-    const blockSize = w / 6;
-    const startX = w / 20;
-    const startY = h - h / 4;
+    // 02 底部全宽等分矩形: 色值内嵌居中, 名称左上角
+    const colors = pick(6);
+    const blockH = q(10);
+    const blockW = w / colors.length;
+    const blockY = h - blockH;
 
-    allColors.forEach((color, i) => {
-      const x = startX + i * (blockSize + w / 60);
+    colors.forEach((color, i) => {
+      const text = color.toUpperCase();
+      const x = i * blockW;
+      const size = fitFont(text, '', blockW - q(1.2), q(0.5), q(2.5));
       ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(x, startY, blockSize, blockSize, 8);
-      ctx.fill();
-      ctx.fillStyle = textColorFor(color);
-      ctx.font = `${w / 38}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText(color, x + blockSize / 2, startY + blockSize / 2 + w / 76);
+      ctx.fillRect(x, blockY, blockW, blockH);
+      if (size > 0) {
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        ctx.shadowBlur = q(0.2);
+        ctx.font = `${size}px sans-serif`;
+        ctx.textAlign = 'center';
+        label(text, x + blockW / 2, blockY + blockH / 2 + size / 3);
+        shadowOff();
+      }
     });
 
-    // 签名
-    ctx.fillStyle = dimColor(primaryColor, 0.6);
-    ctx.font = `${w / 35}px sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText(name || '配色方案', startX, startY + blockSize + w / 20);
+    if (withText) {
+      const nameText = name || '配色方案';
+      const nameSize = fitFont(nameText, 'bold', w - q(8), q(1.4), q(2.5));
+      shadowOn();
+      ctx.fillStyle = '#fff';
+      if (nameSize > 0) {
+        ctx.font = `bold ${nameSize}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(nameText, q(4), q(4) + nameSize);
+      }
+      shadowOff();
+    }
   } else if (templateId === '03') {
-    // 003 模板：左上圆环 + 右下标题
-    const circleR = w / 12;
-    const allColors = [primaryColor, ...paletteColors.slice(0, 2)];
-    allColors.forEach((color, i) => {
-      const y = w / 18 + i * (circleR * 2 + w / 20);
+    // 03 左上竖排圆形: 色值内嵌圆中, 名称在左下角
+    // 圆组的顶部距离与名称的底部距离取同一个值, 上下对称
+    const colors = pick(3);
+    const gap = q(3);
+    const d = q(9.6);
+    const step = d + gap;
+    const margin = q(6);
+    const cx = q(4) + d / 2;
+    const hexSize = q(2);
+
+    colors.forEach((color, i) => {
+      const cy = margin + d / 2 + i * step;
       ctx.beginPath();
-      ctx.arc(w / 20 + circleR, y + circleR, circleR, 0, Math.PI * 2);
+      ctx.arc(cx, cy, d / 2, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.strokeStyle = textCol;
-      ctx.lineWidth = w / 250;
-      ctx.stroke();
-      ctx.fillStyle = textColorFor(color);
-      ctx.font = `${w / 38}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText(color, w / 20 + circleR, y + circleR + w / 76);
+      // 圆内一行, 宽度按圆心处的弦长收一点余量
+      const text = color.toUpperCase();
+      const size = fitFont(text, '', d * 0.8, q(0.6), hexSize);
+      if (size > 0) {
+        ctx.fillStyle = hexOn(color);
+        ctx.font = `${size}px sans-serif`;
+        ctx.textAlign = 'center';
+        label(text, cx, cy + size / 3);
+      }
     });
 
-    // 标题
-    ctx.fillStyle = textCol;
-    ctx.font = `bold ${w / 10}px serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText(name || '配色方案', w / 20, h - h / 4.8);
-
-    // ctx.fillStyle = dimColor(primaryColor, 0.5);
-    // ctx.font = `${w / 32}px sans-serif`;
-    // ctx.fillText('色卡', w / 20, h - h / 4.8 + w / 7.5);
+    if (withText) {
+      const nameText = name || '配色方案';
+      const nameSize = fitFont(nameText, 'bold', w - q(8), q(1.8), q(3));
+      if (nameSize > 0) {
+        shadowOn();
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${nameSize}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(nameText, q(4), h - margin);
+        shadowOff();
+      }
+    }
   } else if (templateId === '04') {
-    // 004 模板：底部横条配色
-    const barH = h * 0.18;
-    const barY = h - barH - h * 0.05;
-    const barX = w * 0.1;
-    const barW = w * 0.8;
-    const allColors = [primaryColor, ...paletteColors.slice(0, 5)];
-    const colW = barW / allColors.length;
+    // 04 白底卡片: 内容整体内缩留出白边, 上 3/4 图片, 下方名称居左、色块横排
+    const inset = q(6);
+    const contentW = w - inset * 2;
+    const contentH = h - inset * 2;
+    const imageH = contentH * 0.75;
+    const bottom = inset + contentH;
+    const colors = pick(5);
+    const gap = q(1.5);
+    const d = q(12);
+    const step = d + gap;
+    const hexSize = q(2.2);
+    const gapLabel = q(1);
 
-    allColors.forEach((color, i) => {
-      ctx.fillStyle = color;
+    const zoneLeft = inset;
+    const zoneRight = inset + contentW;
+
+    const nameText = name || '配色方案';
+    const nameSize = fitFont(nameText, 'bold', zoneRight - zoneLeft, q(2), q(3.6));
+
+    // 名称行 + 色块行整体在图片下缘与内容区下缘之间居中
+    const gapV = q(3);
+    const blockH = nameSize + gapV + d + gapLabel + hexSize;
+    const top = inset + imageH + Math.max(q(2), (bottom - inset - imageH - blockH) / 2);
+
+    if (withText && nameSize > 0) {
+      ctx.fillStyle = '#212121';
+      ctx.font = `bold ${nameSize}px sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(nameText, zoneLeft, top + nameSize);
+    }
+
+    const cy = top + nameSize + gapV + d / 2;
+    const totalW = colors.length * step - gap;
+    const startX = (zoneRight - zoneLeft > totalW
+      ? zoneLeft + (zoneRight - zoneLeft - totalW) / 2
+      : zoneLeft) + d / 2;
+
+    colors.forEach((color, i) => {
+      const cx = startX + i * step;
       ctx.beginPath();
-      ctx.roundRect(barX + i * colW + 2, barY, colW - 4, barH, 8);
+      ctx.arc(cx, cy, d / 2, 0, Math.PI * 2);
+      ctx.fillStyle = color;
       ctx.fill();
-      ctx.fillStyle = textColorFor(color);
-      ctx.font = `${w / 30}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText(color, barX + i * colW + colW / 2, barY + barH / 2 + w / 60);
+      const text = color.toUpperCase();
+      const maxW = Math.min(step * 1.6, (zoneRight - cx) * 2);
+      const size = fitFont(text, '', maxW, q(0.6), hexSize);
+      if (size > 0) {
+        ctx.fillStyle = '#666';
+        ctx.font = `${size}px sans-serif`;
+        ctx.textAlign = 'center';
+        label(text, cx, cy + d / 2 + gapLabel + size * 0.8);
+      }
     });
-
-    // 标题
-    ctx.fillStyle = textCol;
-    ctx.font = `bold ${w / 8}px serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText(name || '配色方案', w / 20, barY - h * 0.05);
   }
 }
 
@@ -507,27 +568,27 @@ interface ColorCardDialogProps {
   bgImage: string;
   primaryColor: string;
   paletteColors: string[];
-  showMessage: (msg: string) => void;
 }
 
-function ColorCardDialog({ open, onClose, bgImage, primaryColor, paletteColors, showMessage }: ColorCardDialogProps) {
+function ColorCardDialog({ open, onClose, bgImage, primaryColor, paletteColors }: ColorCardDialogProps) {
   const [previewUrl, setPreviewUrl] = useState('');
-  const [generating, setGenerating] = useState(false);
   const [description, setDescription] = useState('');
-  const [descriptionDraft, setDescriptionDraft] = useState('');
-  const [scene, setScene] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState('01');
-  const [rerender, setRerender] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
+  const drawSeq = useRef(0);
 
   // AI 名称生成
-  const [aiName, { loading: aiLoading, error: aiError, generateName }] = useGenerateName(
+  const { name: aiName, status: nameStatus, error: nameError, generateName } = useGenerateName(
     primaryColor, '文艺优雅', 4, open
   );
 
-  // 色卡名称: AI 生成的名称优先，用户可手动修改
-  const cardName = description || aiName || '配色方案';
+  // 色卡名称: 用户输入的描述优先, 其次 AI 名称, 都还没有时留空
+  const cardName = description || aiName;
+
+  // 名字没落定之前不画图 —— 否则会先用占位名画一版,
+  // 用户在这期间导出拿到的是占位名色卡
+  const nameSettled = nameStatus === 'done' || nameStatus === 'error';
 
   // 预加载背景图
   useEffect(() => {
@@ -539,69 +600,64 @@ function ColorCardDialog({ open, onClose, bgImage, primaryColor, paletteColors, 
     }
   }, [bgImage]);
 
-  // 生成色卡预览
-  const generatePreview = useCallback(() => {
-    setGenerating(true);
-    setTimeout(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) { setGenerating(false); return; }
-
-      renderColorCard(canvas, {
-        bgImage: bgImgRef.current,
-        primaryColor,
-        paletteColors,
-        name: cardName,
-        templateId,
-      });
-
-      setPreviewUrl(canvas.toDataURL('image/png'));
-      setGenerating(false);
-    }, 500);
-  }, [primaryColor, paletteColors, cardName, templateId]);
-
-  // 打开时自动生成
-  useEffect(() => {
-    if (open) {
-      generatePreview();
-    } else {
-      setPreviewUrl('');
-      setTemplateId('01');
-      setDescription('');
-      setDescriptionDraft('');
-      setScene(null);
-    }
-  }, [open]);
-
-  // 模板/AI名称变化时重新生成
-  useEffect(() => {
-    if (open) {
-      generatePreview();
-    }
-  }, [templateId, aiName]);
-
-  // 用户手动修改描述时重新生成
-  useEffect(() => {
-    if (open && description !== undefined) {
-      generatePreview();
-    }
-  }, [description]);
-
-  // 切换模板
-  const handleTemplateChange = (id: string) => {
-    if (id !== templateId) {
-      setTemplateId(id);
-      setRerender(true);
-    }
-  };
-
-  // 导出色卡
-  const handleExport = () => {
+  // 画一版到 canvas 并刷新预览。withText=false 先只出色块占位,
+  // 等 AI 名称落定后再画带名称的完整版
+  const drawCard = useCallback((withText: boolean) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    renderColorCard(canvas, {
+      bgImage: bgImgRef.current,
+      primaryColor,
+      paletteColors,
+      name: withText ? cardName : '',
+      templateId,
+      withText,
+    });
+    setPreviewUrl(canvas.toDataURL('image/png'));
+  }, [primaryColor, paletteColors, cardName, templateId]);
+
+  // 重绘的唯一入口: 打开 / 模板 / 描述 / 名称是否落定 变化都会走到这里。
+  // 不在这里 setPreviewUrl(''), 否则每敲一个字都会闪一次 loading。
+  useEffect(() => {
+    if (!open) {
+      setPreviewUrl('');
+      return;
+    }
+
+    const seq = ++drawSeq.current;
+    const timer = setTimeout(() => {
+      if (seq !== drawSeq.current) return;
+      drawCard(nameSettled);
+    }, 300);
+
+    return () => { clearTimeout(timer); };
+  }, [open, nameSettled, drawCard]);
+
+  // 关闭时复位
+  useEffect(() => {
+    if (open) return;
+    setPreviewUrl('');
+    setDescription('');
+    setTemplateId('01');
+  }, [open]);
+
+  // 导出色卡: 按当前参数重画一版带名称的, 不复用可能还是占位版的预览
+  const handleExport = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !nameSettled) return;
+    renderColorCard(canvas, {
+      bgImage: bgImgRef.current,
+      primaryColor,
+      paletteColors,
+      name: cardName || '配色方案',
+      templateId,
+    });
     const dataUrl = canvas.toDataURL('image/png');
     if (window.services?.saveColorCard) {
-      const buffer = Uint8Array.from(atob(dataUrl.split(',')[1]), c => c.charCodeAt(0));
-      window.services.saveColorCard(Array.from(buffer));
+      const binary = atob(dataUrl.split(',')[1]);
+      const buffer = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) buffer[i] = binary.charCodeAt(i);
+      window.services.saveColorCard(buffer.buffer);
     } else {
       const a = document.createElement('a');
       a.href = dataUrl;
@@ -610,14 +666,12 @@ function ColorCardDialog({ open, onClose, bgImage, primaryColor, paletteColors, 
     }
   };
 
-  // 预览图尺寸计算
-  const previewSize = useMemo((): [string, string] => {
+  // 预览尺寸交给 flex 算: 预览区是 flex 列, 由它自己的高宽反推出"能占多少",
+  // 不用 vw 换算 —— 换不换算得出准确值, 也就不用担心描述框/右侧面板把它挤小
+  const previewRatio = useMemo((): number => {
     const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
     const [tw, th] = getTemplateSize(template);
-    if (tw === th) return ['50vw', '50vw'];
-    const ratio = tw / th;
-    if (ratio > 1) return ['50vw', `${50 / ratio}vw`];
-    return [`${50 * ratio}vw`, '50vw'];
+    return tw / th;
   }, [templateId]);
 
   return (
@@ -634,59 +688,50 @@ function ColorCardDialog({ open, onClose, bgImage, primaryColor, paletteColors, 
         </IconButton>
 
         {/* 中间区域：色卡预览 + 描述输入 */}
-        <Stack flex={1} display="flex" justifyContent="center" alignItems="center" px={8} gap={3}>
-          {/* 色卡预览图 */}
-          <Stack>
-            {previewUrl && !generating ? (
+        <Stack flex={1} minWidth={0} minHeight={0} justifyContent="center" alignItems="center" px={8} py={3} gap={3}>
+          {/* 色卡预览: 撑满剩余空间, 宽高出多少就缩多少, 不用 vw 硬算 */}
+          <Stack flex={1} minHeight={0} width="100%" justifyContent="center" alignItems="center">
+            {previewUrl ? (
               <img
                 draggable="false"
                 alt="preview"
                 src={previewUrl}
-                style={{ width: previewSize[0], height: previewSize[1], objectFit: 'contain' }}
+                style={{ maxWidth: '100%', maxHeight: '100%', aspectRatio: String(previewRatio), objectFit: 'contain' }}
               />
             ) : (
-              <Stack alignItems="center" justifyContent="center" width={previewSize[0]} height={previewSize[1]}>
+              <Stack alignItems="center" justifyContent="center" gap={1} sx={{ aspectRatio: String(previewRatio), maxWidth: '100%', maxHeight: '100%' }}>
                 <CircularProgress size="3rem" sx={{ color: '#666' }} />
+                {!nameSettled && <Typography color="#888" fontSize={13}>AI 正在起名</Typography>}
               </Stack>
             )}
           </Stack>
 
-          {/* 描述输入 + 画面选择 + 重新生成 */}
-          <Stack width="100%" height={75} bgcolor="#fff" overflow="hidden" borderRadius="10px" px={1.5} py={1} boxSizing="border-box">
+          {/* 描述输入 + 重新生成 */}
+          <Stack width="100%" flexShrink={0} height={75} bgcolor="#fff" overflow="hidden" borderRadius="10px" px={1.5} py={1} boxSizing="border-box">
             <TextField
-              disabled={generating || aiLoading}
-              placeholder={aiName || "描述画面主体，可调整色卡名称"}
-              value={descriptionDraft}
-              onChange={(e) => setDescriptionDraft(e.target.value)}
-              onBlur={() => { if (descriptionDraft !== description) setDescription(descriptionDraft); }}
+              placeholder={aiName || '描述画面主体，可调整色卡名称'}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               variant="standard"
               fullWidth
               sx={{ '& .MuiInput-root': { fontSize: 14, paddingRight: 0 } }}
               InputProps={{
-                endAdornment: descriptionDraft ? (
-                  <IconButton size="small" onClick={() => { setDescription(''); setDescriptionDraft(''); }} sx={{ p: 0.3 }}>
+                endAdornment: description ? (
+                  <IconButton size="small" onClick={() => setDescription('')} sx={{ p: 0.3 }}>
                     <ClearIcon sx={{ fontSize: 14 }} />
                   </IconButton>
                 ) : null,
               }}
             />
             <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <SceneSelector
-                disabled={generating || aiLoading}
-                data={SCENE_OPTIONS}
-                value={scene}
-                onChange={setScene}
-              />
+              {nameError ? (
+                <Typography color="error" fontSize={12}>{nameError}</Typography>
+              ) : <span />}
               <Tooltip title="重新生成">
                 <IconButton
                   size="small"
-                  disabled={generating || aiLoading}
-                  onClick={() => {
-                    // 重新调用 AI 生成名称（排除当前名称）
-                    const key = primaryColor + '文艺优雅' + 4;
-                    generateName(key, aiName || undefined);
-                    generatePreview();
-                  }}
+                  disabled={nameStatus === 'loading'}
+                  onClick={() => { generateName(aiName || undefined); }}
                 >
                   <RefreshIcon />
                 </IconButton>
@@ -709,7 +754,7 @@ function ColorCardDialog({ open, onClose, bgImage, primaryColor, paletteColors, 
                 boxSizing="border-box"
                 overflow="hidden"
                 position="relative"
-                onClick={() => handleTemplateChange(t.id)}
+                onClick={() => setTemplateId(t.id)}
                 sx={{ cursor: 'pointer' }}
               >
                 <img src={t.cover} alt="cover" draggable="false" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -724,7 +769,7 @@ function ColorCardDialog({ open, onClose, bgImage, primaryColor, paletteColors, 
           <Stack boxSizing="border-box" py={2} px={3} position="sticky" bottom={0} bgcolor="#000" width="100%">
             <Button
               fullWidth
-              disabled={generating || !previewUrl}
+              disabled={!previewUrl}
               variant="contained"
               onClick={handleExport}
             >
@@ -745,13 +790,10 @@ interface ColorCardButtonProps {
   bgImage: string;
   primaryColor: string;
   paletteColors: string[];
-  onColorClick: (e: any) => void;
-  showMessage: (msg: string) => void;
 }
 
-function ColorCardButton({ bgImage, primaryColor, paletteColors, onColorClick, showMessage }: ColorCardButtonProps) {
+function ColorCardButton({ bgImage, primaryColor, paletteColors }: ColorCardButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [generating, setGenerating] = useState(false);
 
   return (
     <>
@@ -775,7 +817,7 @@ function ColorCardButton({ bgImage, primaryColor, paletteColors, onColorClick, s
           variant="contained"
           color="inherit"
           fullWidth
-          onClick={() => { setDialogOpen(true); setGenerating(true); }}
+          onClick={() => setDialogOpen(true)}
           startIcon={<AutoAwesomeIcon />}
         >
           生成 AI 色卡
@@ -783,24 +825,29 @@ function ColorCardButton({ bgImage, primaryColor, paletteColors, onColorClick, s
       </Typography>
       <ColorCardDialog
         open={dialogOpen}
-        onClose={() => { setDialogOpen(false); setGenerating(false); }}
+        onClose={() => setDialogOpen(false)}
         bgImage={bgImage}
         primaryColor={primaryColor}
         paletteColors={paletteColors}
-        showMessage={showMessage}
       />
     </>
   );
 }
 
-// 图片取色主页面
+interface ImagePaletteProps {
+  onColorClick: (e: any) => void;
+  showMessage?: (msg: string) => void;
+  /** 平台入口传入的图片: type=img 时为 base64/dataURL, type=files 时为文件路径 */
+  initialImage?: string | null;
+}
+
 interface ImagePaletteState {
   imageUrl: string | null;
   primaryColor: string | null;
   paletteColors: string[] | null;
 }
 
-class ImagePalettePage extends Component<{ onColorClick: (e: any) => void; showMessage?: (msg: string) => void }, ImagePaletteState> {
+class ImagePalettePage extends Component<ImagePaletteProps, ImagePaletteState> {
   private fileInputRef = createRef<HTMLInputElement>();
 
   state: ImagePaletteState = {
@@ -808,6 +855,18 @@ class ImagePalettePage extends Component<{ onColorClick: (e: any) => void; showM
     primaryColor: null,
     paletteColors: null,
   };
+
+  componentDidMount() {
+    if (this.props.initialImage) {
+      this.setState({ imageUrl: this.props.initialImage, primaryColor: null, paletteColors: null });
+    }
+  }
+
+  componentDidUpdate(prevProps: ImagePaletteProps) {
+    if (prevProps.initialImage !== this.props.initialImage && this.props.initialImage) {
+      this.setState({ imageUrl: this.props.initialImage, primaryColor: null, paletteColors: null });
+    }
+  }
 
   handleImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     try {
@@ -836,8 +895,9 @@ class ImagePalettePage extends Component<{ onColorClick: (e: any) => void; showM
   };
 
   handleScreenCapture = () => {
-    screenCapture((imagePath) => {
-      this.setState({ imageUrl: imagePath, primaryColor: null, paletteColors: null });
+    // 回调给的是 base64 data URL(data:image/png;base64,...), 不是文件路径
+    screenCapture((imgBase64) => {
+      this.setState({ imageUrl: imgBase64, primaryColor: null, paletteColors: null });
     });
   };
 
@@ -880,8 +940,6 @@ class ImagePalettePage extends Component<{ onColorClick: (e: any) => void; showM
                       bgImage={imageUrl}
                       primaryColor={primaryColor}
                       paletteColors={paletteColors?.filter(c => c !== primaryColor) || []}
-                      onColorClick={this.props.onColorClick}
-                      showMessage={this.props.showMessage || (() => {})}
                     />
                   </Stack>
                 </Card>
