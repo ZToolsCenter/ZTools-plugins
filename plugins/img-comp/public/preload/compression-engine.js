@@ -49,15 +49,16 @@ async function loadOxipng() {
 }
 
 /**
- * 使用 MozJPEG WebAssembly 重新编码 JPEG。
- * 质量 85 在肉眼上几乎无损（含文字与锐利边缘），仍有可观的压缩收益。
+ * @param {Buffer} buffer 原始 JPEG 数据
+ * @param {number} quality JPEG 质量
+ * @returns {Promise<Buffer>} 压缩后的 JPEG 数据
  */
-async function compressJpeg(buffer) {
+async function compressJpeg(buffer, quality = 75) {
   const { decode, encode } = await loadJpegCodecs();
   const image = await decode(toArrayBuffer(buffer));
   const output = await encode(image, {
-    quality: 85,
-    chroma_quality: 85,
+    quality,
+    chroma_quality: quality,
     progressive: true,
     optimize_coding: true,
     trellis_multipass: false
@@ -183,12 +184,16 @@ async function compressSvg(buffer) {
 
 /**
  * 按文件扩展名选择压缩器。
+ * @param {string} name 文件名
+ * @param {Buffer} buffer 原始图片数据
+ * @param {{jpegQuality?:number}} options 压缩选项
+ * @returns {Promise<Buffer>} 压缩后的数据
  */
-async function compressByName(name, buffer) {
+async function compressByName(name, buffer, options = {}) {
   switch (path.extname(name).toLowerCase()) {
     case '.jpg':
     case '.jpeg':
-      return compressJpeg(buffer);
+      return compressJpeg(buffer, options.jpegQuality);
     case '.png':
       return compressPng(buffer);
     case '.gif':

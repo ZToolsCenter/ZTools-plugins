@@ -9,6 +9,8 @@ const { Worker } = require('node:worker_threads');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const WORKER_PATH = path.join(__dirname, '..', 'public', 'preload', 'compression-worker.js');
+
 test('压缩工作线程会返回单张图片的压缩结果', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'img-comp-worker-'));
   const inputPath = path.join(root, 'input.svg');
@@ -16,7 +18,7 @@ test('压缩工作线程会返回单张图片的压缩结果', async () => {
   const input = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><!-- comment --><rect width="100" height="100" fill="#ff0000"/></svg>';
   fs.writeFileSync(inputPath, input);
 
-  const worker = new Worker(path.join(__dirname, '..', 'compression-worker.js'));
+  const worker = new Worker(WORKER_PATH);
   try {
     worker.postMessage({ id: 'task-1', inputPath, filename: 'input.svg', resultPath });
     const [response] = await once(worker, 'message');
@@ -38,7 +40,7 @@ test('压缩子进程会通过 IPC 返回单张图片的压缩结果', async () 
   const input = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><!-- comment --><rect width="100" height="100" fill="#00ff00"/></svg>';
   fs.writeFileSync(inputPath, input);
 
-  const child = fork(path.join(__dirname, '..', 'compression-worker.js'), [], {
+  const child = fork(WORKER_PATH, [], {
     execArgv: [],
     stdio: ['ignore', 'ignore', 'ignore', 'ipc']
   });

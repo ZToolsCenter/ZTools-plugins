@@ -13,9 +13,12 @@ window.imgCompRuntime = Object.freeze({
   execute: service.executeBatch,
   formatBytes: service.formatBytes,
   fromHistory: service.fromHistoryRecord,
+  getSettings: service.getSettings,
   history: service.readHistory,
   removeHistory: service.removeHistory,
   replaceInputs: service.replaceInputs,
+  replaceOne: service.replaceOne,
+  saveSettings: service.saveSettings,
   toHistory: service.toHistoryRecord,
   writeHistory: service.writeHistory
 });

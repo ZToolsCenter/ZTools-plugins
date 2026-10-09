@@ -7,14 +7,16 @@ const { compressByName } = require('./compression-engine');
 
 /**
  * 压缩单张图片，并仅在结果更小时写入临时目录。
- * @param {{inputPath:string,filename:string,resultPath:string}} task 压缩任务
+ * @param {{inputPath:string,filename:string,resultPath:string,jpegQuality?:number}} task 压缩任务
  * @returns {Promise<{resultPath:string,resultBytes:number,savedPercent:number}>} 压缩结果
  */
 async function compressImage(task) {
   const original = await fsp.readFile(task.inputPath);
   if (original.length === 0) throw new Error('文件内容为空');
 
-  const compressed = await compressByName(task.filename, original);
+  const compressed = await compressByName(task.filename, original, {
+    jpegQuality: task.jpegQuality
+  });
   if (compressed.length >= original.length) {
     return {
       resultPath: task.inputPath,
@@ -46,7 +48,7 @@ function sendResponse(message) {
 
 /**
  * 处理主控端发来的单个压缩任务。
- * @param {{id:string,inputPath:string,filename:string,resultPath:string}} task 压缩任务
+ * @param {{id:string,inputPath:string,filename:string,resultPath:string,jpegQuality?:number}} task 压缩任务
  * @returns {Promise<void>} 完成信号
  */
 async function handleTask(task) {

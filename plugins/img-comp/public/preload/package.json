@@ -1,0 +1,13 @@
+{
+  "name": "img-comp-preload",
+  "version": "1.0.2",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@jsquash/jpeg": "1.6.0",
+    "@jsquash/oxipng": "2.3.0",
+    "gifenc": "1.0.3",
+    "gifuct-js": "2.1.2",
+    "svgo": "3.3.5"
+  }
+}

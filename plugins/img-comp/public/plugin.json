@@ -1,13 +1,17 @@
 {
+  "$schema": "../node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
   "name": "img-comp",
   "title": "图片压缩",
   "homepage": "https://github.com/z-hanzhe/ztools-img-comp",
   "description": "本地图片压缩，支持 JPG、PNG、GIF、SVG。基于 JavaScript 与 WebAssembly 实现。",
   "author": "hanzhe",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "index.html",
-  "logo": "assets/logo.png",
-  "preload": "preload.js",
+  "logo": "logo.png",
+  "preload": "preload/services.js",
+  "development": {
+    "main": "http://localhost:5173"
+  },
   "platform": [
     "win32",
     "darwin"
