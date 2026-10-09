@@ -348,6 +348,7 @@ const HISTORY_CHANGED_CHANNEL = "pasteboard-pro:history-changed";
 const WINDOW_PREFERENCES_CHANGED_CHANNEL = "pasteboard-pro:window-preferences-changed";
 const PASTE_STACK_CHANGED_CHANNEL = "pasteboard-pro:paste-stack-changed";
 const SYNC_SETTINGS_CHANGED_CHANNEL = "pasteboard-pro:sync-settings-changed";
+const REQUEST_HISTORY_MIRROR_CHANNEL = "pasteboard-pro:request-history-mirror";
 
 const canonicalClipboardHost = withRichClipboard(ztools.clipboard, {
   write: (data) => clipboard.write(data),
@@ -519,6 +520,19 @@ function reportSynchronizationError(error: unknown): void {
   );
 }
 
+function triggerFastHistoryMirror(attempts = 4, intervalMs = 250): void {
+  void scheduleHistoryMirror()
+    .then((result) => {
+      if (result && typeof (result as Record<string, unknown>).imported === "number" && ((result as Record<string, unknown>).imported as number) > 0) {
+        return;
+      }
+      if (attempts > 1) {
+        window.setTimeout(() => triggerFastHistoryMirror(attempts - 1, intervalMs), intervalMs);
+      }
+    })
+    .catch(reportSynchronizationError);
+}
+
 function scheduleVaultSync(): Promise<SyncSettings> {
   vaultSyncRequested = true;
   if (vaultSynchronization !== undefined) return vaultSynchronization;
@@ -642,6 +656,9 @@ if (ownsClipboardHistoryMirror(windowRole)) {
   ipcRenderer.on(WINDOW_PREFERENCES_CHANGED_CHANNEL, () => {
     shelfWindows.notifyWindowPreferencesChanged();
   });
+  ipcRenderer.on(REQUEST_HISTORY_MIRROR_CHANNEL, () => {
+    triggerFastHistoryMirror(4, 250);
+  });
   ipcRenderer.on(SYNC_SETTINGS_CHANGED_CHANNEL, (_event, settings) => {
     if (isRecord(settings)) {
       configureVaultSyncInterval(settings as unknown as SyncSettings);
@@ -721,8 +738,8 @@ if (isPrimaryWindow) {
 const bridge: PasteboardProBridge = {
   getHostCompatibility: () => hostCompatibility,
   getPlatformCapabilities: () => platformCapabilities,
-  captureScreenshot: () =>
-    importScreenCapture(
+  captureScreenshot: async () => {
+    const result = await importScreenCapture(
       ztools,
       nativeImage as NativeImageApi & ScreenshotNativeImageApi,
       clipboard,
@@ -732,7 +749,14 @@ const bridge: PasteboardProBridge = {
           return !isCapturePaused(privacy.pause);
         },
       },
-    ),
+    );
+    if (isPrimaryWindow) {
+      triggerFastHistoryMirror(4, 250);
+    } else {
+      ztools.sendToParent?.(REQUEST_HISTORY_MIRROR_CHANNEL);
+    }
+    return result;
+  },
   async searchHistory(query = "", limit = 1_000) {
     const normalizedLimit = Math.max(1, Math.min(10_000, Math.floor(limit)));
     const { result, records } = await store.searchWithRecords(query, normalizedLimit);

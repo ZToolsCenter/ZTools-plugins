@@ -584,8 +584,23 @@ async function captureScreen(): Promise<void> {
     if (result === undefined) throw new Error("当前 ZTools 版本不支持截图导入");
     const bounds = result.bounds;
     status.value = bounds === undefined
-      ? "截图已写入剪贴板，正在同步历史"
-      : `截图已写入剪贴板（${Math.round(bounds.width)} × ${Math.round(bounds.height)}），正在同步历史`;
+      ? "截图已写入剪贴板，正在载入时间线…"
+      : `截图已写入剪贴板（${Math.round(bounds.width)} × ${Math.round(bounds.height)}），正在载入…`;
+
+    window.setTimeout(() => {
+      void loadHistory().then(() => {
+        if (status.value.includes("正在")) {
+          status.value = "截图已存入历史并写入剪贴板";
+        }
+      }).catch(() => undefined);
+    }, 350);
+    window.setTimeout(() => {
+      void loadHistory().then(() => {
+        if (status.value.includes("正在")) {
+          status.value = "截图已存入历史并写入剪贴板";
+        }
+      }).catch(() => undefined);
+    }, 850);
   } catch (error) {
     status.value = error instanceof Error ? error.message : "截图导入失败";
   }
@@ -647,7 +662,11 @@ function loadMoreHistory(): void {
 }
 
 function onHistoryChanged(): void {
-  void loadHistory().catch((error: unknown) => {
+  void loadHistory().then(() => {
+    if (status.value.includes("正在同步历史") || status.value.includes("正在载入")) {
+      status.value = "截图已存入历史并写入剪贴板";
+    }
+  }).catch((error: unknown) => {
     status.value = error instanceof Error ? error.message : "历史加载失败";
   });
 }
