@@ -88,7 +88,7 @@ const PANEL_SIZES: Readonly<Record<AuxiliaryPanel, Readonly<{ width: number; hei
   sync: { width: 700, height: 660 },
   preview: { width: 820, height: 680 },
   editor: { width: 660, height: 520 },
-  whatsnew: { width: 560, height: 640 },
+  whatsnew: { width: 560, height: 660 },
 };
 
 const requestedWindowBounds = new WeakMap<BrowserWindowHandle, BrowserWindowOptions>();

@@ -55,9 +55,9 @@ describe("ZTools shelf window geometry", () => {
   it("centers whatsnew panel in the visible work area", () => {
     expect(buildPanelWindowOptions(primaryDisplay, "whatsnew")).toMatchObject({
       x: 440,
-      y: 142,
+      y: 132,
       width: 560,
-      height: 640,
+      height: 660,
       transparent: false,
       backgroundColor: "#F7F7FB",
       frame: false,

@@ -139,15 +139,20 @@ onUnmounted(() => {
 }
 
 .whats-new-backdrop--standalone {
-  position: static;
-  inset: auto;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  min-height: 0;
+  max-height: 100%;
   padding: 0;
   background: var(--pb-window-bg);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   animation: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .whats-new-modal {
@@ -155,6 +160,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 540px;
   max-height: 90vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: color-mix(in srgb, var(--pb-glass-strong) 94%, transparent);
@@ -170,13 +176,15 @@ onUnmounted(() => {
 .whats-new-modal--standalone {
   width: 100%;
   height: 100%;
-  max-width: none;
-  max-height: none;
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   background: var(--pb-window-bg);
   animation: none;
+  overflow: hidden;
 }
 
 .whats-new-modal--standalone .whats-new-header {
@@ -190,6 +198,7 @@ onUnmounted(() => {
 
 .whats-new-header {
   position: relative;
+  flex-shrink: 0;
   padding: 22px 24px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--pb-line) 50%, transparent);
   background: radial-gradient(circle at 80% -20%, color-mix(in srgb, var(--pb-violet) 22%, transparent), transparent 70%);
@@ -260,9 +269,29 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  flex: 1;
+}
+
+.whats-new-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.whats-new-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.whats-new-body::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--pb-ink) 18%, transparent);
+  border-radius: 3px;
+}
+
+.whats-new-body::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--pb-ink) 30%, transparent);
 }
 
 .feature-card {
@@ -373,6 +402,9 @@ onUnmounted(() => {
 }
 
 .whats-new-footer {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
   padding: 14px 20px 18px;
   display: flex;
   justify-content: flex-end;
