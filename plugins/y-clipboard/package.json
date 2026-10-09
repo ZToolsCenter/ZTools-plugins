@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build"
+    "build": "vue-tsc && vite build",
+    "test": "node --experimental-strip-types --import ./design/ts-register.mjs design/check-images.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-layout.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-search.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-files.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-code.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-focus.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-cats.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-star.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-shell.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-link.mts && node --experimental-strip-types --import ./design/ts-register.mjs design/check-zoom.mts"
   },
   "dependencies": {
     "vue": "^3.5.13"

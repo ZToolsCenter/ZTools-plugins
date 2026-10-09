@@ -25,6 +25,29 @@
 
   --row-h: 72px;
   --radius: 8px;
+
+  /* 图片卡片：底色 + 棋盘格（用于显示透明 PNG 的边界） */
+  --img-bg: #eceef1;
+  --checker: rgba(15, 20, 32, 0.055);
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Cascadia Code',
+    'Courier New', monospace;
+
+  /* ===== 代码块：恒定暗色，不随浅色/深色主题切换 =====
+   * 理由：代码在暗底上更接近编辑器观感，且在浅色卡片里形成一块明确的
+   * "异色区域"，扫视时能立刻把代码从普通文本里区分出来。
+   * 因此这组变量**只能定义在 :root**，.dark 里不得再覆盖 —— 否则又变回随主题走。
+   * 着色方案参照主流编辑器暗色主题（GitHub Dark 一类），六类 token 彼此可区分。 */
+  --code-bg: #17191d;
+  --code-bg-hover: #20242b;
+  --code-fg: #c9d1d9;
+  --code-border: rgba(235, 240, 250, 0.09);
+  --tk-kw: #ff7b72;
+  --tk-str: #a5d6ff;
+  --tk-com: #8b949e;
+  --tk-num: #79c0ff;
+  --tk-fn: #d2a8ff;
+  --tk-type: #ffa657;
 }
 
 .dark {
@@ -45,6 +68,14 @@
   --c-color: #f286b5;
   --c-image: #4fc9b8;
   --c-file: #eeb25f;
+
+  --img-bg: #191a1d;
+  --checker: rgba(235, 240, 250, 0.055);
+
+  /* 代码块底色与着色不在这里覆盖：恒定用暗色方案（见 :root）。
+     只有边框要随主题调 —— 深色面板本身很暗，暗底与它的明度差小，
+     描边得再加一档才看得出代码块的边界。 */
+  --code-border: rgba(235, 240, 250, 0.14);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -95,8 +126,13 @@ button {
 /* ===== 图标 ===== */
 .icon-svg { width: 16px; height: 16px; flex: none; }
 
-/* ===== 动画 ===== */
+/* ===== 动画 =====
+ * 注意：本文件里的关键帧一律不得包含 transform。
+ * 虚拟列表的行用内联 transform 定位，任何带 transform 的关键帧都会
+ * 在动画期间覆盖行内 transform，导致行临时塌到容器顶部（视觉上是错位/重叠）。
+ * 需要位移请把动画写在内层元素上。
+ */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
