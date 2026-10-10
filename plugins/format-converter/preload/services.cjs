@@ -2,6 +2,7 @@
 
 const path = require("node:path");
 const os = require("node:os");
+const fs = require("node:fs/promises");
 const { FORMAT_DEFINITIONS, TARGET_IDS, buildAllRoutes } = require("./format-registry.cjs");
 const { probeRuntimes } = require("./runtime-probe.cjs");
 const { createPathPolicy, isWithin } = require("./path-policy.cjs");
@@ -9,6 +10,9 @@ const { createConversionEngine } = require("./conversion-engine.cjs");
 const { createJobManager } = require("./job-manager.cjs");
 const { createOfficeCliInstaller } = require("./officecli-installer.cjs");
 const { createRuntimeInstaller } = require("./runtime-installer.cjs");
+const { getHostCompatibility, runtimeRoot } = require("./host-compatibility.cjs");
+const { requestScreenCapture } = require("./screen-capture.cjs");
+const { DEFAULT_MAX_CAPTURE_BYTES, createCaptureTempStore } = require("./capture-temp-store.cjs");
 
 const TOOL_NAMES = Object.freeze({ plan: "format_conversion_plan", execute: "format_conversion_execute", job: "format_conversion_job" });
 const registeredHosts = new WeakMap();
@@ -25,6 +29,42 @@ function dialogPaths(result) {
   if (Array.isArray(result)) return result.filter(item => typeof item === "string");
   if (Array.isArray(result.filePaths)) return result.filePaths.filter(item => typeof item === "string");
   return [];
+}
+
+async function captureToTemporaryFile(ztools, captureStore) {
+  const result = await requestScreenCapture(ztools);
+  if (!result?.image || typeof result.image !== "string") throw Object.assign(new Error("未获取到截图。"), { code: "SCREEN_CAPTURE_CANCELLED" });
+  const output = await captureStore.createFromDataUrl(result.image);
+  return { ...output, bounds: result.bounds };
+}
+
+async function canonicalApprovedOutput(filePath, approvedRoots) {
+  if (typeof filePath !== "string" || !path.isAbsolute(filePath)) {
+    throw Object.assign(new Error("拖出的输出路径无效。"), { code: "INVALID_OUTPUT_PATH" });
+  }
+  if (!approvedRoots.some(root => isWithin(root, filePath))) {
+    throw Object.assign(new Error("只能拖出已授权输出目录中的文件。"), { code: "PATH_NOT_APPROVED" });
+  }
+  let stat;
+  try {
+    stat = await fs.lstat(filePath);
+  } catch {
+    throw Object.assign(new Error("拖出的输出文件不存在。"), { code: "INVALID_OUTPUT_PATH" });
+  }
+  if (stat.isSymbolicLink()) {
+    throw Object.assign(new Error("不能拖出符号链接。"), { code: "OUTPUT_SYMLINK_NOT_ALLOWED" });
+  }
+  if (!stat.isFile()) {
+    throw Object.assign(new Error("只能拖出常规文件。"), { code: "INVALID_OUTPUT_PATH" });
+  }
+  const canonicalPath = await fs.realpath(filePath);
+  const canonicalRoots = (await Promise.all(approvedRoots.map(async root => {
+    try { return await fs.realpath(root); } catch { return null; }
+  }))).filter(Boolean);
+  if (!canonicalRoots.some(root => isWithin(root, canonicalPath))) {
+    throw Object.assign(new Error("文件真实路径不在已授权输出目录内。"), { code: "PATH_NOT_APPROVED" });
+  }
+  return canonicalPath;
 }
 
 function validateObject(input, allowed, label) {
@@ -66,15 +106,27 @@ function createFormatConverterServices(target, dependencies = {}) {
   const ztools = target?.ztools || {};
   const storage = dependencies.storage || ztools.dbStorage;
   const pathPolicy = dependencies.pathPolicy || createPathPolicy({ storage });
+  const captureLimit = Number.isSafeInteger(pathPolicy.limits?.maxFileBytes)
+    ? Math.min(pathPolicy.limits.maxFileBytes, DEFAULT_MAX_CAPTURE_BYTES)
+    : DEFAULT_MAX_CAPTURE_BYTES;
+  const captureStore = dependencies.captureStore || createCaptureTempStore({ maxBytes: captureLimit });
   const installer = dependencies.installer || createOfficeCliInstaller();
-  const runtimeRoot = dependencies.runtimeRoot || (() => {
+  const legacyRuntimeRoot = (() => {
     try { if (typeof ztools.getPath === "function") return path.join(ztools.getPath("userData"), "format-converter", "runtime", "v1"); } catch {}
     return path.join(os.homedir(), ".ztools", "format-converter", "runtime", "v1");
   })();
-  const runtimeInstaller = dependencies.runtimeInstaller || createRuntimeInstaller({ runtimeRoot });
+  const runtimeLocation = dependencies.runtimeRoot ? { root: dependencies.runtimeRoot, modern: false } : runtimeRoot(ztools, legacyRuntimeRoot);
+  const runtimeInstaller = dependencies.runtimeInstaller || createRuntimeInstaller({ runtimeRoot: runtimeLocation.root });
   let runtimes = dependencies.runtimes || [];
   const engine = dependencies.engine || createConversionEngine({ pathPolicy, runtimes });
-  const jobs = dependencies.jobs || createJobManager({ conversionEngine: engine, pathPolicy, concurrency: 2 });
+  const jobs = dependencies.jobs || createJobManager({
+    conversionEngine: engine,
+    pathPolicy,
+    concurrency: 2,
+    onJobSettled(job) { captureStore.settleJob(job.request?.inputGrantId, job); }
+  });
+
+  if (typeof ztools.onPluginOut === "function") ztools.onPluginOut(() => captureStore.cleanupInactiveSync());
 
   async function refreshRuntimes() {
     runtimes = await (dependencies.probeRuntimes || probeRuntimes)();
@@ -104,6 +156,20 @@ function createFormatConverterServices(target, dependencies = {}) {
         return paths.length ? pathPolicy.createInputGrant(paths, "ui") : null;
       }, "INPUT_SELECTION_FAILED");
     },
+    captureScreen() {
+      return safe(async () => {
+        const capture = await captureToTemporaryFile(ztools, captureStore);
+        try {
+          const grant = await pathPolicy.createInputGrant([capture.path], "ui");
+          captureStore.associateGrant(grant.id, capture.path, grant.expiresAt);
+          return grant;
+        } catch (error) {
+          captureStore.discardFile(capture.path);
+          throw error;
+        }
+      }, "SCREEN_CAPTURE_FAILED");
+    },
+    canCaptureScreen() { return typeof ztools.screenCapture === "function"; },
     acceptInputs(paths) { return safe(() => pathPolicy.createInputGrant(paths, "ui"), "INPUT_VALIDATION_FAILED"); },
     selectOutputDirectory() {
       return safe(async () => {
@@ -116,12 +182,25 @@ function createFormatConverterServices(target, dependencies = {}) {
     getApprovedRoots() { return safe(() => pathPolicy.approvedRoots()); },
     removeApprovedRoot(root) { return safe(() => pathPolicy.removeApprovedRoot(root)); },
     planConversion(request) { return safe(async () => { await ensureRuntimes(); return engine.plan(request); }, "CONVERSION_PLAN_FAILED"); },
-    startConversion(request) { return safe(async () => { await ensureRuntimes(); const plan = engine.plan(request); if (!plan.executable) throw Object.assign(new Error("转换路线缺少所需引擎。"), { code: "ENGINE_UNAVAILABLE", details: plan.warnings }); return jobs.start(request, plan); }, "CONVERSION_START_FAILED"); },
+    startConversion(request) { return safe(async () => { await ensureRuntimes(); captureStore.assertConsumable(request?.inputGrantId); const plan = engine.plan(request); if (!plan.executable) throw Object.assign(new Error("转换路线缺少所需引擎。"), { code: "ENGINE_UNAVAILABLE", details: plan.warnings }); const job = jobs.start(request, plan); captureStore.markConsumed(request.inputGrantId, job.id); return job; }, "CONVERSION_START_FAILED"); },
     getJob(jobId) { return safe(() => jobs.get(jobId), "JOB_QUERY_FAILED"); },
     cancelJob(jobId) { return safe(() => jobs.cancel(jobId), "JOB_CANCEL_FAILED"); },
-    retryFailed(jobId) { return safe(() => jobs.retryFailed(jobId), "JOB_RETRY_FAILED"); },
+    retryFailed(jobId) { return safe(() => { const job = jobs.retryFailed(jobId); captureStore.markJobActive(job.id); return job; }, "JOB_RETRY_FAILED"); },
     installRuntime(runtimeId) { return safe(async () => { await runtimeInstaller.install(runtimeId); return refreshRuntimes(); }, "RUNTIME_INSTALL_FAILED"); },
     installOfficeCli() { return safe(async () => { await installer.install(); const next = await refreshRuntimes(); return next.find(item => item.id === "officecli"); }, "OFFICECLI_INSTALL_FAILED"); },
+    hostCompatibility() { return getHostCompatibility(target?.ztools); },
+    canStartDrag() { return typeof ztools.startDrag === "function"; },
+    startDrag(paths) {
+      return safe(async () => {
+        const values = Array.isArray(paths) ? paths : [paths];
+        if (!values.length || values.some(item => typeof item !== "string" || !path.isAbsolute(item))) throw Object.assign(new Error("拖出的输出路径无效。"), { code: "INVALID_OUTPUT_PATH" });
+        const roots = await pathPolicy.approvedRoots();
+        const canonicalPaths = await Promise.all(values.map(item => canonicalApprovedOutput(item, roots)));
+        if (typeof ztools.startDrag !== "function") throw Object.assign(new Error("请升级到 ZTools 3.2.0 以拖出文件。"), { code: "START_DRAG_UNAVAILABLE" });
+        await Promise.resolve(ztools.startDrag(canonicalPaths.length === 1 ? canonicalPaths[0] : canonicalPaths));
+        return true;
+      }, "START_DRAG_FAILED");
+    },
     revealPath(filePath) {
       return safe(async () => {
         if (typeof filePath !== "string" || !path.isAbsolute(filePath)) throw Object.assign(new Error("输出路径无效。"), { code: "INVALID_OUTPUT_PATH" });
@@ -155,7 +234,7 @@ function createFormatConverterServices(target, dependencies = {}) {
   }
 
   async function jobForMcp(input) { const value = validateJobToolInput(input); return value.action === "cancel" ? jobs.cancel(value.jobId) : jobs.get(value.jobId); }
-  return { services, tools: { planForMcp, executeForMcp, jobForMcp }, internals: { pathPolicy, engine, jobs, runtimeInstaller } };
+  return { services, tools: { planForMcp, executeForMcp, jobForMcp }, internals: { pathPolicy, engine, jobs, runtimeInstaller, captureStore } };
 }
 
 function throwToolFailure(result) { if (result?.ok) return result.data; const error = new Error(result?.error?.message || "格式转换失败。"); error.code = result?.error?.code || "FORMAT_CONVERTER_ERROR"; error.details = result?.error?.details; throw error; }
@@ -173,6 +252,12 @@ function registerTools(target, bundle) {
 
 function attachFormatConverter(target, dependencies) {
   if (!target || (typeof target !== "object" && typeof target !== "function")) throw new Error("需要 window-like 目标挂载格式转换服务。");
+  const compatibility = getHostCompatibility(target.ztools);
+  if (!compatibility.supported) {
+    const services = Object.freeze({ hostCompatibility: () => compatibility });
+    target.formatConverter = services;
+    return { services, tools: Object.freeze({}), internals: Object.freeze({}) };
+  }
   const bundle = createFormatConverterServices(target, dependencies);
   target.formatConverter = bundle.services;
   registerTools(target, bundle);
@@ -182,4 +267,4 @@ function attachFormatConverter(target, dependencies) {
 let defaultBundle = null;
 if (typeof window !== "undefined") defaultBundle = attachFormatConverter(window);
 
-module.exports = { TOOL_NAMES, envelope, failure, safe, dialogPaths, validatePlanToolInput, validateExecuteToolInput, validateJobToolInput, createFormatConverterServices, registerTools, attachFormatConverter, defaultBundle };
+module.exports = { TOOL_NAMES, envelope, failure, safe, dialogPaths, captureToTemporaryFile, canonicalApprovedOutput, validatePlanToolInput, validateExecuteToolInput, validateJobToolInput, createFormatConverterServices, registerTools, attachFormatConverter, defaultBundle };

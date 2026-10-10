@@ -1,6 +1,6 @@
 {
   "name": "ztools-format-converter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Cross-platform batch format conversion workbench for ZTools.",
@@ -23,6 +23,7 @@
     "@tesseract.js-data/chi_sim": "1.0.0",
     "@tesseract.js-data/eng": "1.0.0",
     "exceljs": "4.4.0",
+    "heic-decode": "^2.1.0",
     "iconv-lite": "0.6.3",
     "lucide-react": "1.17.0",
     "pdf-lib": "1.17.1",

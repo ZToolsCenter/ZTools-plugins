@@ -1,6 +1,6 @@
 export type FormatId =
   | "docx" | "xlsx" | "pptx" | "pdf"
-  | "png" | "jpeg" | "webp" | "avif" | "tiff" | "gif" | "bmp"
+  | "png" | "jpeg" | "webp" | "avif" | "tiff" | "gif" | "bmp" | "heic"
   | "txt" | "md" | "html" | "csv" | "tsv" | "json";
 
 export type ConversionProfile = "visual" | "editable" | "extract";
@@ -141,6 +141,8 @@ export interface FormatConverterApi {
   getCapabilities(): Promise<ApiEnvelope<ConversionCapabilities>>;
   refreshRuntimes(): Promise<ApiEnvelope<RuntimeInfo[]>>;
   selectInputs(): Promise<ApiEnvelope<InputGrant | null>>;
+  captureScreen(): Promise<ApiEnvelope<InputGrant>>;
+  canCaptureScreen(): boolean;
   acceptInputs(paths: string[]): Promise<ApiEnvelope<InputGrant>>;
   selectOutputDirectory(): Promise<ApiEnvelope<OutputGrant | null>>;
   getApprovedRoots(): Promise<ApiEnvelope<string[]>>;
@@ -153,6 +155,9 @@ export interface FormatConverterApi {
   installRuntime(runtimeId: string): Promise<ApiEnvelope<RuntimeInfo[]>>;
   installOfficeCli(): Promise<ApiEnvelope<RuntimeInfo>>;
   revealPath(path: string): Promise<ApiEnvelope<true>>;
+  hostCompatibility(): { version: string; supported: boolean };
+  canStartDrag(): boolean;
+  startDrag(paths: string[]): Promise<ApiEnvelope<true>>;
 }
 
 export interface ZToolsLaunchParam {
@@ -166,6 +171,8 @@ export interface ZToolsApi {
   onPluginOut?(callback: () => void): void;
   getPathForFile?(file: File): string;
   getPath?(name: string): string;
+  getAppVersion?(): string;
+  screenCapture?(callback: (image: string, bounds?: unknown) => void, autoConfirm?: boolean): unknown;
 }
 
 declare global {

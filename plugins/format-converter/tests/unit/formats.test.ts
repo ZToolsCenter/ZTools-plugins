@@ -7,6 +7,7 @@ describe("renderer format metadata", () => {
     expect(new Set(ids).size).toBe(ids.length);
     ids.forEach(id => expect(formatDefinition(id).id).toBe(id));
     expect(FORMAT_DEFINITIONS.some(item => item.id === "bmp")).toBe(true);
+    expect(FORMAT_DEFINITIONS.some(item => item.id === "heic")).toBe(true);
   });
 
   it("explains every quality profile", () => {

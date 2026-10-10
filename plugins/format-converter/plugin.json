@@ -3,7 +3,7 @@
   "title": "格式转换",
   "description": "Word、Excel、PPT、PDF、图片、文本与常见数据格式的本地批量转换中心。",
   "author": "harris",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "index.html",
   "preload": "preload/services.cjs",
   "logo": "logo.svg",
@@ -38,7 +38,7 @@
           "label": "批量转换文件",
           "extensions": [
             "docx", "xlsx", "pptx", "pdf",
-            "png", "jpg", "jpeg", "webp", "avif", "tif", "tiff", "gif", "bmp",
+            "png", "jpg", "jpeg", "webp", "avif", "tif", "tiff", "gif", "bmp", "heic", "heif",
             "txt", "md", "html", "htm", "csv", "tsv", "json"
           ],
           "maxLength": 200

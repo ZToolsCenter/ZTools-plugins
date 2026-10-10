@@ -14,6 +14,7 @@ const FORMAT_DEFINITIONS = Object.freeze([
   { id: "tiff", label: "TIFF", family: "image", extensions: ["tif", "tiff"], color: "#4d6674" },
   { id: "gif", label: "GIF", family: "image", extensions: ["gif"], color: "#8d4b9d" },
   { id: "bmp", label: "BMP", family: "image", extensions: ["bmp"], color: "#596a7d" },
+  { id: "heic", label: "HEIC", family: "image", extensions: ["heic", "heif"], color: "#1a8a99" },
   { id: "txt", label: "纯文本", family: "text", extensions: ["txt"], color: "#53606e" },
   { id: "md", label: "Markdown", family: "text", extensions: ["md"], color: "#202b36" },
   { id: "html", label: "HTML", family: "text", extensions: ["html", "htm"], color: "#e35c30" },
@@ -22,7 +23,7 @@ const FORMAT_DEFINITIONS = Object.freeze([
   { id: "json", label: "JSON", family: "data", extensions: ["json"], color: "#8c741c" }
 ]);
 
-const TARGET_IDS = new Set(FORMAT_DEFINITIONS.map(item => item.id).filter(id => id !== "bmp"));
+const TARGET_IDS = new Set(FORMAT_DEFINITIONS.map(item => item.id).filter(id => id !== "bmp" && id !== "heic"));
 const EXTENSION_MAP = new Map();
 for (const definition of FORMAT_DEFINITIONS) {
   for (const extension of definition.extensions) EXTENSION_MAP.set(extension, definition.id);
@@ -38,6 +39,7 @@ function normalizeFormat(value) {
   if (normalized === "jpg") return "jpeg";
   if (normalized === "tif") return "tiff";
   if (normalized === "htm") return "html";
+  if (normalized === "heif") return "heic";
   return TARGET_IDS.has(normalized) ? normalized : EXTENSION_MAP.get(normalized) || null;
 }
 
@@ -55,6 +57,12 @@ function sniffMagic(buffer, expected) {
   if (buffer.subarray(0, 4).toString("hex") === "49492a00" || buffer.subarray(0, 4).toString("hex") === "4d4d002a") return "tiff";
   if (buffer.subarray(0, 2).toString("ascii") === "BM") return "bmp";
   if (buffer.subarray(4, 12).toString("ascii").includes("ftypavif")) return "avif";
+  if (buffer.length >= 12 && buffer.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brand = buffer.subarray(8, 12).toString("ascii").toLowerCase();
+    if (["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs", "mif1", "msf1"].includes(brand)) {
+      return "heic";
+    }
+  }
   if (buffer.subarray(0, 4).toString("hex") === "504b0304" && ["docx", "xlsx", "pptx"].includes(expected)) return expected;
   if (["txt", "md", "csv", "tsv", "json", "html"].includes(expected)) {
     const nulCount = buffer.subarray(0, Math.min(buffer.length, 4096)).reduce((count, byte) => count + (byte === 0 ? 1 : 0), 0);
