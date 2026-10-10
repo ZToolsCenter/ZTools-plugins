@@ -383,6 +383,7 @@ window.services = {
 	},
 
 	injectBoardUpdate,
+	injectSideResult,
 	getBoardBounds,
 
 	/**
@@ -632,6 +633,42 @@ window.services = {
 		}
 
 		const inject = () => injectSideResult(payload);
+
+		if (sideWin && !sideWin.isDestroyed?.()) {
+			try {
+				let cur = null;
+				try {
+					cur = typeof sideWin.getBounds === "function" ? sideWin.getBounds() : null;
+				} catch (_) {}
+				let targetX = cur ? cur.x : Math.round(x);
+				let targetY = cur ? cur.y : Math.round(y);
+				if (targetX + boxW > work.x + work.width) {
+					targetX = Math.max(work.x, work.x + work.width - boxW - 16);
+				}
+				if (targetY + boxH > work.y + work.height) {
+					targetY = Math.max(work.y, work.y + work.height - boxH - 16);
+				}
+				if (typeof sideWin.setBounds === "function") {
+					sideWin.setBounds({
+						x: Math.round(targetX),
+						y: Math.round(targetY),
+						width: boxW,
+						height: boxH,
+					});
+				} else if (typeof sideWin.setSize === "function") {
+					sideWin.setSize(boxW, boxH);
+					if (typeof sideWin.setPosition === "function") {
+						sideWin.setPosition(Math.round(targetX), Math.round(targetY));
+					}
+				}
+				inject();
+				raiseBoard();
+				setTimeout(inject, 200);
+				return true;
+			} catch (e) {
+				console.error("[snap-translate] update existing sideWin failed, fallback recreate", e);
+			}
+		}
 
 		try {
 			if (sideWin && !sideWin.isDestroyed?.()) {

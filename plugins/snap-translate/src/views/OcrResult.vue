@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useToast } from 'ztools-ui'
-import { LANG_OPTIONS, loadSavedFromLang, loadSavedTargetLang, persistLangPair } from '../composables/useLang'
+import { LANG_OPTIONS, loadSavedFromLang, loadSavedTargetLang, persistLangPair, isTextInTargetLang } from '../composables/useLang'
 import { translateLines, prettyProviderName } from '../composables/useOcrTranslate'
 
 /**
@@ -25,7 +25,7 @@ const emit = defineEmits<{
   (e: 'exit'): void
 }>()
 
-const { success, error: errorToast } = useToast()
+const { success, error: errorToast, info: infoToast } = useToast()
 
 const viewMode = ref(props.mode)
 const fromLang = ref(loadSavedFromLang() || 'auto')
@@ -88,7 +88,14 @@ async function doTranslate(): Promise<void> {
       lastError.value = r.translateError || '翻译不可用'
       errorToast(lastError.value)
     } else {
-      success('翻译完成')
+      const allAlreadyTarget =
+        blocks.length > 0 &&
+        blocks.every((s) => isTextInTargetLang(s, r.targetLang, fromLang.value))
+      if (allAlreadyTarget) {
+        infoToast('原文已是目标语言，未重复翻译')
+      } else {
+        success('翻译完成')
+      }
     }
   } catch (e: any) {
     lastError.value = e?.message ? String(e.message) : String(e)

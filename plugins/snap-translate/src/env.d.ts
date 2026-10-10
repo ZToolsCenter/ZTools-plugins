@@ -192,6 +192,7 @@ declare global {
     saveImageFile: (dataUrl: string, destPath: string) => string
     /** 贴在悬浮图旁的结果侧窗。 */
     openSideResult: (payload: SnapResultPayload) => boolean
+    injectSideResult?: (payload: SnapResultPayload) => void
     closeSideResult?: () => void
     ocrImageDetail?: (image: string) => Promise<{
       ok: boolean

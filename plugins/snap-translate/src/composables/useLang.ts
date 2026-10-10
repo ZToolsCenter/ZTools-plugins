@@ -40,6 +40,83 @@ export function resolveTargetLang(text: string): string {
   return cjk / chars.length > 0.3 ? 'en' : 'zh-CN'
 }
 
+/**
+ * 判断文本是否已经属于目标语言。
+ * 若已是目标语言，跳过翻译直接保留原文，避免二次翻译导致乱码或变异。
+ * 例如：文本本身是中文且目标语言是 zh-CN 时，返回 true。
+ */
+export function isTextInTargetLang(text: string, toLang: string, fromLang?: string): boolean {
+  if (!text || !toLang || toLang === 'auto') return false
+  const trimmed = text.trim()
+  if (!trimmed) return true
+
+  const to = toLang.toLowerCase()
+  const from = fromLang?.toLowerCase()
+
+  // 若明确指定了源语言与目标语言且一致（如 zh-CN → zh-CN），直接判定匹配
+  if (from && from !== 'auto' && (from === to || (from.startsWith('zh') && to.startsWith('zh')))) {
+    return true
+  }
+
+  // 纯符号、数字、标点（如 "123", "---", "..."），无需翻译，视为保留
+  const hasLetters = /[a-zA-Z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0E00-\u0E7F\u3040-\u30FF\uAC00-\uD7AF\u4E00-\u9FFF\u3400-\u4DBF]/.test(trimmed)
+  if (!hasLetters) return true
+
+  // 各语种脚本特征字符计数
+  const cjkChars = (trimmed.match(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g) || []).length
+  const kanaChars = (trimmed.match(/[\u3040-\u30ff]/g) || []).length
+  const hangulChars = (trimmed.match(/[\uac00-\ud7af\u1100-\u11ff]/g) || []).length
+  const cyrillicChars = (trimmed.match(/[\u0400-\u04ff]/g) || []).length
+  const arabicChars = (trimmed.match(/[\u0600-\u06ff]/g) || []).length
+  const thaiChars = (trimmed.match(/[\u0e00-\u0e7f]/g) || []).length
+  const latinChars = (trimmed.match(/[a-zA-Z]/g) || []).length
+
+  if (to.startsWith('zh')) {
+    // 目标语言是中文（zh / zh-CN / zh-TW）：
+    // 若含有汉字，且无日文假名、无韩文字母：
+    // 即使夹杂少量英文单词/缩写（如“打开 Chrome”、“点击确定(OK)”），整体也是中文，不需要译为中文
+    if (cjkChars > 0 && kanaChars === 0 && hangulChars === 0) {
+      if (cjkChars >= latinChars || cjkChars / (cjkChars + latinChars) >= 0.25) {
+        return true
+      }
+    }
+    return false
+  }
+
+  if (to.startsWith('ja')) {
+    return kanaChars > 0
+  }
+
+  if (to.startsWith('ko')) {
+    return hangulChars > 0
+  }
+
+  if (to.startsWith('ru')) {
+    return cyrillicChars > 0
+  }
+
+  if (to.startsWith('ar')) {
+    return arabicChars > 0
+  }
+
+  if (to.startsWith('th')) {
+    return thaiChars > 0
+  }
+
+  if (to.startsWith('en')) {
+    // 目标是英文：有拉丁字母且不含中、日、韩、俄、阿、泰等字符，且为长文本或带空格（排除单字母测试数据）
+    const hasNonLatin = cjkChars > 0 || kanaChars > 0 || hangulChars > 0 || cyrillicChars > 0 || arabicChars > 0 || thaiChars > 0
+    if (latinChars >= 4 && !hasNonLatin) {
+      if (/\s/.test(trimmed) || latinChars >= 8) {
+        return true
+      }
+    }
+    return false
+  }
+
+  return false
+}
+
 const TARGET_LANG_KEY = 'snap-translate.targetLang'
 const FROM_LANG_KEY = 'snap-translate.fromLang'
 

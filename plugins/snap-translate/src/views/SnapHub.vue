@@ -12,6 +12,7 @@ import { openResultWindow } from '../composables/useResultWindow'
 import { buildOcrResultPayload } from '../pinGeometry'
 import { hasRealBoxes, zipOverlay, type PinOverlayLine } from '../pinOverlay'
 import { loadBoardSettings } from '../composables/useBoardSettings'
+import { resolveTargetLang, isTextInTargetLang } from '../composables/useLang'
 import OcrResult from './OcrResult.vue'
 
 /**
@@ -156,12 +157,15 @@ function paintPinOverlay(translated: string[]): boolean {
   return true
 }
 
-/** 按通用设置决定翻译结果：弹窗（默认）或原文覆盖。 */
+/** 按通用设置决定翻译结果：弹窗（默认）或原文覆盖。若 options.forcePopup 为 true 则强制使用弹窗。 */
 async function presentTranslateResult(
   payload: SnapResultPayload,
-  translated: string[]
+  translated: string[],
+  options?: { forcePopup?: boolean }
 ): Promise<void> {
-  const mode = loadBoardSettings().translateResultMode || 'popup'
+  const mode = options?.forcePopup
+    ? 'popup'
+    : (loadBoardSettings().translateResultMode || 'popup')
   console.info('[snap-translate] presentTranslateResult mode=' + mode)
   if (mode === 'overlay') {
     // 覆盖模式：若尚无检测框，现场再取一次（微信/Paddle优先）
@@ -183,7 +187,14 @@ async function presentTranslateResult(
     infoToast('无法原位覆盖（无检测框），已改用弹窗')
   }
   openSide(payload)
-  success('翻译完成')
+  if (
+    payload.lines.length > 0 &&
+    payload.lines.every((l) => isTextInTargetLang(l.text, payload.targetLang || ''))
+  ) {
+    infoToast('原文已是目标语言，未重复翻译')
+  } else {
+    success('翻译完成')
+  }
 }
 
 function wireBoardHandlers(): void {
@@ -206,11 +217,14 @@ function wireBoardHandlers(): void {
         })
         if (!result.lines.length) infoToast('未识别到文字')
         else success('识别完成')
+        const ocrText = result.lines.map((l) => l.text).join('\n')
+        const inferredTarget = resolveTargetLang(ocrText)
         openSide(
           compactPayload({
             lines: result.lines,
             translateOk: false,
             translateError: '仅识别',
+            targetLang: inferredTarget,
             ocrProvider: result.ocrProvider,
             diagnostics: result.diagnostics
           })
@@ -220,7 +234,11 @@ function wireBoardHandlers(): void {
       }
     },
     async onTranslate(data: any) {
-      inject({ type: 'status', working: true, message: '翻译中…' })
+      const forcePopup =
+        data?.target === 'popup' || data?.fromResultWindow === true || !data?.image
+      if (!forcePopup) {
+        inject({ type: 'status', working: true, message: '翻译中…' })
+      }
       try {
         const source: string[] = Array.isArray(data?.sourceLines) ? data.sourceLines : []
         if (!source.length) throw new Error('请先 OCR 再翻译')
@@ -228,11 +246,37 @@ function wireBoardHandlers(): void {
         const result = await translateLines(source, data?.to, data?.from)
         diagnostics.value = result.diagnostics
         if (!result.translateOk) {
-          inject({ type: 'error', working: false, message: result.translateError || '翻译不可用' })
+          if (!forcePopup) {
+            inject({ type: 'error', working: false, message: result.translateError || '翻译不可用' })
+          }
           errorToast('翻译不可用：' + (result.translateError || '见日志'))
+          if (forcePopup) {
+            try {
+              window.services.injectSideResult?.(
+                compactPayload({
+                  lines: result.lines.length
+                    ? result.lines
+                    : source.map((text) => ({ text, translated: '' })),
+                  translateOk: false,
+                  translateError: result.translateError || '翻译不可用',
+                  targetLang: result.targetLang,
+                  detectedFrom: result.detectedFrom,
+                  ocrProvider: lastOcrProvider.value || undefined,
+                  translateProvider: result.translateProvider,
+                  diagnostics: result.diagnostics
+                })
+              )
+            } catch (_) {}
+          }
           return
         }
-        inject({ type: 'translate', working: false, message: '翻译完成' })
+        if (!forcePopup) {
+          const allAlreadyTarget =
+            source.length > 0 &&
+            source.every((s) => isTextInTargetLang(s, result.targetLang, data?.from))
+          const doneMsg = allAlreadyTarget ? '已是目标语言' : '翻译完成'
+          inject({ type: 'translate', working: false, message: doneMsg })
+        }
         await presentTranslateResult(
           compactPayload({
             lines: result.lines,
@@ -243,7 +287,8 @@ function wireBoardHandlers(): void {
             translateProvider: result.translateProvider,
             diagnostics: result.diagnostics
           }),
-          result.lines.map((l) => l.translated)
+          result.lines.map((l) => l.translated),
+          { forcePopup }
         )
       } catch (err: any) {
         handleErr(err, true)

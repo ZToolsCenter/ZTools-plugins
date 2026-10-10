@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { ZButton, useToast } from 'ztools-ui'
-import { LANG_OPTIONS, resolveTargetLang } from '../composables/useLang'
+import { LANG_OPTIONS, resolveTargetLang, isTextInTargetLang } from '../composables/useLang'
 
 /**
  * 文本翻译轻量浮层（feature: text-translate，regex 入口）。
@@ -40,6 +40,10 @@ async function translate(): Promise<void> {
   errorText.value = ''
   try {
     const to = toLang.value === 'auto' ? resolveTargetLang(text) : toLang.value
+    if (isTextInTargetLang(text, to, fromLang.value)) {
+      resultText.value = text
+      return
+    }
     const opts: { from?: string; to?: string } = { to }
     if (fromLang.value !== 'auto') opts.from = fromLang.value
     const out = await window.ztools.translate(text, opts)

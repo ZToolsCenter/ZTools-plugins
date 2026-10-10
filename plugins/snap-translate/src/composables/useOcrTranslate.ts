@@ -14,7 +14,7 @@
  * 宿主「设置 → 提供商」里启用/设默认。
  */
 
-import { resolveTargetLang, loadSavedTargetLang, loadSavedFromLang } from './useLang'
+import { resolveTargetLang, loadSavedTargetLang, loadSavedFromLang, isTextInTargetLang } from './useLang'
 import { boxFromOcrLine, type PinOverlayLine } from '../pinOverlay'
 
 /** OCR 不可用（无默认 provider / provider 报错）。 */
@@ -297,6 +297,66 @@ async function translateMerged(
   return { lines, detectedFrom: out.detectedFrom, provider: out.provider }
 }
 
+/**
+ * 翻译文本块列表：
+ * 若某一行识别出来已是目标语言，跳过翻译保留原文，避免翻译 API 将同一语言二次翻译导致乱码或变异。
+ * 若全部行都已是目标语言，直接返回原文，不发起翻译请求。
+ */
+async function translateBlocks(
+  blocks: string[],
+  to: string,
+  logs: string[],
+  from = 'auto'
+): Promise<{ lines: string[]; detectedFrom?: string; provider?: string }> {
+  if (blocks.length === 0) {
+    return { lines: [], provider: undefined }
+  }
+
+  // 检查哪些块已是目标语言，无需翻译
+  const needsTranslate: boolean[] = blocks.map((b) => !isTextInTargetLang(b, to, from))
+  const toTranslateIndices: number[] = []
+  const toTranslateBlocks: string[] = []
+
+  blocks.forEach((b, i) => {
+    if (needsTranslate[i]) {
+      toTranslateIndices.push(i)
+      toTranslateBlocks.push(b)
+    }
+  })
+
+  // 如果全部行都已是目标语言，无需发起翻译 API 请求
+  if (toTranslateBlocks.length === 0) {
+    pushLog(logs, `all ${blocks.length} blocks already in target lang (${to}), skipped translate`)
+    return {
+      lines: blocks.slice(),
+      detectedFrom: to,
+      provider: undefined
+    }
+  }
+
+  // 如果部分行已是目标语言，只将需要翻译的行送入引擎
+  if (toTranslateBlocks.length < blocks.length) {
+    pushLog(
+      logs,
+      `translating ${toTranslateBlocks.length}/${blocks.length} blocks (${blocks.length - toTranslateBlocks.length} already ${to})`
+    )
+  }
+
+  const translatedNeeded = await translateMerged(toTranslateBlocks, to, logs, from)
+
+  // 组装结果：已是目标语言的行保留原文，需翻译的行填入翻译结果
+  const resultLines: string[] = blocks.slice()
+  toTranslateIndices.forEach((origIdx, neededIdx) => {
+    resultLines[origIdx] = translatedNeeded.lines[neededIdx] ?? ''
+  })
+
+  return {
+    lines: resultLines,
+    detectedFrom: translatedNeeded.detectedFrom,
+    provider: translatedNeeded.provider
+  }
+}
+
 /** 纯 OCR（快速路径）。 */
 export async function ocrOnly(image: string): Promise<OcrOnlyResult> {
   const diagnostics: string[] = []
@@ -441,7 +501,7 @@ export async function ocrTranslate(
   let translateProvider: string | undefined
 
   try {
-    translated = await translateMerged(blocks, to, diagnostics, from)
+    translated = await translateBlocks(blocks, to, diagnostics, from)
     if (translated && translated.lines.every((l) => !l)) {
       translateError = '翻译结果为空'
       pushLog(diagnostics, translateError)
@@ -495,7 +555,7 @@ export async function translateLines(
   let translated: { lines: string[]; detectedFrom?: string; provider?: string } | null = null
   let translateError: string | undefined
   try {
-    translated = await translateMerged(blocks, to, diagnostics, from)
+    translated = await translateBlocks(blocks, to, diagnostics, from)
     if (translated && translated.lines.every((l) => !l)) {
       translated = null
       translateError = '翻译结果为空'

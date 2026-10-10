@@ -42,6 +42,9 @@ function load(data: SnapResultPayload): void {
   applyTheme(data.isDark)
   fromLang.value = loadSavedFromLang() || 'auto'
   toLang.value = data.targetLang || loadSavedTargetLang() || 'auto'
+  if (data.translateError && !data.translateOk && data.translateError !== '仅识别') {
+    showCopyTip(data.translateError)
+  }
 }
 
 function showCopyTip(text: string): void {
@@ -76,7 +79,9 @@ function requestTranslate(): void {
       action: 'translate',
       sourceLines,
       from: fromLang.value,
-      to: toLang.value
+      to: toLang.value,
+      target: 'popup',
+      fromResultWindow: true
     })
   } catch (_) {
     showCopyTip('无法翻译')
