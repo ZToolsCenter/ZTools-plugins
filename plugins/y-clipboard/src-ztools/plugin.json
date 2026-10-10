@@ -4,7 +4,7 @@
   "title": "Y剪贴板",
   "description": "分类清晰、响应飞快的剪贴板历史管理：文本 / 链接 / 代码 / 图片 / 文件，支持收藏、搜索与键盘流操作",
   "author": "ysysyss",
-  "version": "1.0.0",
+  "version": "1.0.19",
   "main": "dist/index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
@@ -16,7 +16,12 @@
       "code": "clipboard",
       "explain": "剪贴板历史管理",
       "icon": "logo.png",
-      "cmds": ["剪贴板", "clipboard", "clip", "历史"]
+      "cmds": [
+        "剪贴板",
+        "clipboard",
+        "clip",
+        "历史"
+      ]
     }
   ]
 }

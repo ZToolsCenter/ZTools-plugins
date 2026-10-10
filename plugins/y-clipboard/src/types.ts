@@ -15,6 +15,12 @@ export interface ClipboardRecord {
   content: string
   /** 文件类记录的完整路径列表 */
   files?: string[]
+  /** 图片分辨率 "W * H"（宿主提供时） */
+  resolution?: string
+  /** 复制来源应用（宿主提供时） */
+  appName?: string
+  /** 宿主的预览文案（图片超大未保存时作为显示兜底） */
+  preview?: string
   /** 创建时间戳（ms），未知为 0 */
   createdAt: number
   /** 原始记录，写回宿主时可能需要 */
@@ -24,6 +30,8 @@ export interface ClipboardRecord {
 export interface PageResult {
   items: ClipboardRecord[]
   hasMore: boolean
+  /** 宿主侧历史总数；宿主没给时为 0，由调用方用 items.length 兜底 */
+  total: number
 }
 
 export interface FavoriteSnapshot {

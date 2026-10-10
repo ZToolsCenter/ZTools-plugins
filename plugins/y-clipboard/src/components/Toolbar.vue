@@ -1,37 +1,74 @@
 <script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
 import { useStore } from '../composables/useStore'
 import { isDevMock } from '../api'
 
 const store = useStore()
 
-function onSearch(e: Event): void {
-  store.setQuery((e.target as HTMLInputElement).value)
+/**
+ * 正常情况下搜索走宿主子输入框，页面顶部**什么都没有** —— 列表直接顶到窗口上沿，
+ * 多出来的高度全部给内容（这一行原本只放一句指向宿主搜索框的说明文案，
+ * 既占 44px 又没有任何操作）。
+ *
+ * 只有子输入框注册失败（或浏览器开发模式）时才退回页面内搜索框兜底：
+ * 那时它是唯一的输入入口，不能连入口一起省掉。
+ */
+const showOwnInput = computed(() => isDevMock() || !store.subInputReady.value)
+
+const searchPlaceholder = computed(() =>
+  isDevMock() ? '搜索剪贴板历史（浏览器开发模式）' : '搜索剪贴板历史'
+)
+
+/**
+ * 宿主子输入框不可用时，这个框就是唯一的输入入口 —— 打开插件时必须已经聚焦，
+ * 否则用户得先点一下才能打字。聚焦请求由 store 的 searchFocusTick 驱动。
+ */
+const inputEl = ref<HTMLInputElement | null>(null)
+
+function focusInput(): void {
+  const el = inputEl.value
+  if (!el) return
+  el.focus()
+  // 已有关键词时全选：新输入直接覆盖，而不是拼在旧词后面
+  if (store.query.value) el.select()
 }
 
-function onClear(): void {
-  if (window.confirm('确定清空全部剪贴板历史？收藏的内容会保留。')) {
-    void store.clearAll()
+onMounted(() => {
+  if (showOwnInput.value) focusInput()
+})
+
+watch(
+  () => store.searchFocusTick.value,
+  () => {
+    if (showOwnInput.value) focusInput()
   }
+)
+
+watch(showOwnInput, (v) => {
+  if (v) focusInput()
+})
+
+function onSearch(e: Event): void {
+  store.setQuery((e.target as HTMLInputElement).value)
 }
 </script>
 
 <template>
-  <header class="toolbar">
-    <div v-if="isDevMock()" class="search">
+  <header v-if="showOwnInput" class="toolbar">
+    <div class="search">
       <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="1.7"
         stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="7" stroke="currentColor" />
         <path d="M20 20l-3.5-3.5" stroke="currentColor" />
       </svg>
       <input
+        ref="inputEl"
         class="search-input"
         :value="store.query.value"
-        placeholder="搜索剪贴板历史（浏览器开发模式）"
+        :placeholder="searchPlaceholder"
         @input="onSearch"
       />
     </div>
-
-    <div v-else class="hint">在上方搜索框输入关键词过滤</div>
 
     <div class="spacer" />
 
@@ -39,13 +76,6 @@ function onClear(): void {
     <span v-else-if="store.loading.value" class="status">加载中…</span>
 
     <span class="count">{{ store.filtered.value.length }} 条</span>
-
-    <button class="btn-danger" title="清空历史（收藏保留）" @click="onClear">
-      <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="1.7"
-        stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5m4-5v5" stroke="currentColor" />
-      </svg>
-    </button>
   </header>
 </template>
 
@@ -84,8 +114,6 @@ function onClear(): void {
 
 .search-input::placeholder { color: var(--text-3); }
 
-.hint { color: var(--text-3); font-size: 12px; }
-
 .spacer { flex: 1; }
 
 .status { color: var(--text-3); font-size: 12px; }
@@ -94,21 +122,5 @@ function onClear(): void {
   font-size: 12px;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
-}
-
-.btn-danger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  color: var(--text-3);
-  transition: background 0.12s, color 0.12s;
-}
-
-.btn-danger:hover {
-  background: var(--danger-weak);
-  color: var(--danger);
 }
 </style>
