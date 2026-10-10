@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'">
+  <title>快捷输入</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="commands.js"></script>
+  <script defer src="preview.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="identity">
+      <img src="logo.png" width="38" height="38" alt="">
+      <div><h1>快捷输入</h1><p>存好常用文字，按快捷键输入。</p></div>
+    </div>
+    <button id="new-command" class="primary" type="button"><span aria-hidden="true">＋</span> 新增命令</button>
+  </header>
+
+  <div id="preview-banner" class="preview-banner" hidden>浏览器预览 · 可以编辑并保存，模拟输入和快捷键绑定请在 ZTools 中使用。</div>
+  <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+
+  <main class="workspace">
+    <section class="library" aria-label="已保存的命令">
+      <div class="library-heading"><h2>我的命令</h2><span id="command-count">0 条</span></div>
+      <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" aria-label="搜索命令" placeholder="搜索名称、触发词或内容" autocomplete="off"></label>
+      <div id="command-list" class="command-list"></div>
+      <div class="library-footer"><span class="focus-dot" aria-hidden="true"></span> 本地保存 · 不自动回车</div>
+    </section>
+
+    <section class="editor" aria-labelledby="editor-title">
+      <div class="editor-heading"><h2 id="editor-title">新增命令</h2><span id="editor-state" class="editor-state">新命令</span></div>
+      <form id="command-form" novalidate>
+        <label for="command-name">命令名称</label>
+        <input id="command-name" name="name" maxlength="60" placeholder="给这条命令起个名字" autocomplete="off" required>
+
+        <label for="command-keyword">触发词</label>
+        <input id="command-keyword" name="keyword" maxlength="80" placeholder="在 ZTools 中搜索的词" aria-describedby="keyword-help" autocomplete="off" required>
+        <p id="keyword-help" class="field-help">用于搜索和绑定快捷键，不能重复或包含 /。</p>
+
+        <div class="content-label"><label for="command-text">输入内容</label><span id="text-count">0 字符</span></div>
+        <textarea id="command-text" name="text" rows="3" maxlength="10000" spellcheck="false" placeholder="输入要模拟键入的文字" aria-describedby="text-help text-spaces" required></textarea>
+        <div class="content-help"><p id="text-help" class="field-help">仅支持单行文字；首尾空格会保留。</p><span id="text-spaces" class="field-help"></span></div>
+
+        <label class="enable-control"><input id="command-enabled" name="enabled" type="checkbox" checked><span>启用此命令</span></label>
+        <div class="save-row"><button class="primary" id="save-command" type="submit">保存命令</button><button class="text-button danger" id="delete-command" type="button" disabled>删除命令</button></div>
+      </form>
+
+      <div class="shortcut-panel">
+        <div class="shortcut-copy"><strong>在原窗口输入</strong><p id="action-help">保存命令后，给它绑定一个快捷键。</p></div>
+        <div class="shortcut-actions"><button id="bind-command" type="button" disabled>绑定快捷键</button><button id="type-command" class="text-button" type="button" disabled>输入到原窗口</button></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">把光标放在目标输入框 → 按绑定的快捷键 → 继续输入参数</footer>
+
+  <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-help">
+    <h2 id="delete-title">删除这条命令？</h2>
+    <p id="delete-help">命令会从本地列表中移除。已绑定的快捷键请在 ZTools 设置里删除。</p>
+    <div class="dialog-actions"><button id="cancel-delete" type="button">取消</button><button id="confirm-delete" class="danger-button" type="button">确认删除</button></div>
+  </dialog>
+</body>
+</html>

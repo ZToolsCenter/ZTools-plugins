@@ -1,0 +1,17 @@
+{
+  "name": "quick-input",
+  "title": "快捷输入",
+  "description": "给常用命令绑定快捷键，在当前窗口模拟输入 adb、git 等文字。",
+  "version": "1.0.2",
+  "author": "Hilary",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "manage",
+      "explain": "管理常用命令、设置快捷输入",
+      "cmds": ["快捷输入", "命令管理", "quick input"]
+    }
+  ]
+}

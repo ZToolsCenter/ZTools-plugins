@@ -1,0 +1,15 @@
+{
+  "name": "quick-input",
+  "version": "1.0.2",
+  "private": true,
+  "description": "ZTools 常用命令快捷输入插件",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "node tests/ui-check.cjs",
+    "build": "node scripts/build.cjs",
+    "package": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1",
+    "dev": "node scripts/dev.cjs"
+  },
+  "engines": { "node": ">=18" }
+}
