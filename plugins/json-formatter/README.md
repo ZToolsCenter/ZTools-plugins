@@ -9,6 +9,7 @@
 - 标准 JSON 与 JSON5（注释、尾逗号、未加引号 key）解析
 - 固定 2 空格缩进与递归 Key 排序
 - 可折叠树形视图、类型着色、节点路径/值复制与节点编辑
+- 树形、文本预览及节点值编辑区（包括根节点）直接显示字符串中的 JSON 引号；复制完整结果或根节点保留转义，复制子节点值按反转义后的内容输出
 - 清晰的解析错误行列提示
 - 粘贴自动识别、输入自动格式化、本地偏好保存与快捷键
 - 浅色/深色主题与自适应全屏布局，所有数据仅在本地处理
@@ -26,8 +27,8 @@ npm run verify
 
 发布产物位于 `release/`：
 
-- `json-formatter-1.0.0.zpx`：ZTools 安装包
-- `json-formatter-1.0.0.zip`：兼容 ZIP 安装包
+- `json-formatter-1.0.1.zpx`：ZTools 安装包
+- `json-formatter-1.0.1.zip`：兼容 ZIP 安装包
 
 快捷键：`Ctrl + Enter` 立即格式化，`Ctrl + Shift + C` 复制结果，`Ctrl + Shift + V` 从剪贴板粘贴。
 
@@ -58,7 +59,7 @@ git status
 
 ```bash
 git add .
-git commit -m "chore: release v1.0.0"
+git commit -m "chore: release v1.0.1"
 ```
 
 ### 3. 创建发布 PR
