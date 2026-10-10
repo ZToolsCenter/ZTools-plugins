@@ -24,3 +24,6 @@ npm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# 本地工作文档(不入库)
+docs/

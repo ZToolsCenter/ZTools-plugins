@@ -9,7 +9,9 @@ import chroma from 'chroma-js';
 import gradientsET from '../data/gradients-eT.json';
 import gradientsTT from '../data/gradients-tT.json';
 import gradientsNT from '../data/gradients-nT.json';
-import { copyText, copyImage, hideMainWindow } from '../utils/platform';
+import { copyText, copyImage, hideMainWindow, isPlatform } from '../utils/platform';
+import { calculateGradientLine } from '../utils/gradient';
+import type { GradientPreset } from '../types';
 
 /**
  * GradientsPage - 渐变色页面
@@ -34,8 +36,8 @@ const filterColors = [
   { id: "black", color: "#333333" },
 ];
 
-/** 根据颜色 HSL 值分类到对应色系 */
-function classifyColor(color: string): string {
+/** 根据颜色 HSL 值分类到对应色系(供测试与筛选共用) */
+export function classifyColor(color: string): string {
   const [h, s, l] = chroma(color).hsl();
   const hue = isNaN(h) ? 0 : h;
   if (l < 0.2) return "black";
@@ -61,7 +63,7 @@ function getGradients(): GradientItem[] {
   if (allGradients) return allGradients;
   allGradients = [];
   [gradientsET, gradientsTT, gradientsNT].forEach(group => {
-    (group as string[][]).forEach(colors => {
+    (group as unknown as GradientPreset[]).forEach(colors => {
       allGradients!.push({
         colors,
         tags: colors.map(c => classifyColor(c)),
@@ -71,18 +73,8 @@ function getGradients(): GradientItem[] {
   return allGradients;
 }
 
-/** 计算渐变线的起止坐标(用于 Canvas 渲染) */
-function calculateGradientLine(width: number, height: number, angle: number) {
-  const rad = angle * Math.PI / 180 + Math.PI / 2;
-  const len = Math.sqrt(width / 2 * width / 2 + height / 2 * height / 2);
-  const tx = Math.cos(rad) * len + width / 2;
-  const ty = Math.sin(rad) * len + height / 2;
-  return { tx, ty, bx: width / 2, by: height / 2 };
-}
-
-/** 默认渐变角度和尺寸 */
+/** 默认渐变角度 */
 const DEFAULT_ANGLE = 135;
-const DEFAULT_SIZE = 500;
 
 /** 方向编辑器 - 可视化调整渐变角度的圆形控件 */
 interface DirectionEditorProps {
@@ -160,6 +152,8 @@ class DirectionEditor extends PureComponent<DirectionEditorProps> {
 /** 渐变色详情弹窗 - 角度/尺寸调整、CSS代码复制、导出图片 */
 interface GradientDialogProps {
   gradientData: string[] | null;
+  /** 浏览器模式下的操作反馈(平台模式靠窗口隐藏反馈, 不需要) */
+  showMessage: (msg: string) => void;
 }
 
 interface GradientDialogState {
@@ -202,14 +196,15 @@ class GradientDialog extends Component<GradientDialogProps, GradientDialogState>
   handleCssCodeCopy = () => {
     const cssCode = `linear-gradient(${this.state.angle}deg,${this.props.gradientData!.join(",").toLowerCase()})`;
     copyText(cssCode);
-    hideMainWindow();
+    if (isPlatform) hideMainWindow();
+    else this.props.showMessage(`已复制 ${cssCode}`);
   };
 
   handleImageExport = () => {
     const { angle, imageWidth, imageHeight } = this.state;
     const w = parseInt(imageWidth);
     const h = parseInt(imageHeight);
-    if (w < 1 || h < 1) return;
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 1 || h < 1) return;
 
     const canvas = document.createElement("canvas");
     canvas.width = w;
@@ -237,9 +232,10 @@ class GradientDialog extends Component<GradientDialogProps, GradientDialogState>
 
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
-    copyImage(canvas.toDataURL());
+    copyImage(canvas.toDataURL(), `gradient-${w}x${h}.png`);
     canvas.remove();
-    hideMainWindow();
+    if (isPlatform) hideMainWindow();
+    else this.props.showMessage(`已下载图片 ${w}×${h}`);
   };
 
   componentDidUpdate(prev: GradientDialogProps) {
@@ -333,10 +329,15 @@ interface GradientsPageState {
   gradientData: string[] | null;
 }
 
-class GradientsPage extends Component<{ onColorClick: (e: any) => void }, GradientsPageState> {
+interface GradientsPageProps {
+  onColorClick: (e: any) => void;
+  showMessage: (msg: string) => void;
+}
+
+class GradientsPage extends Component<GradientsPageProps, GradientsPageState> {
   private gradientContentRef: HTMLDivElement | null = null;
 
-  constructor(props: { onColorClick: (e: any) => void }) {
+  constructor(props: GradientsPageProps) {
     super(props);
     this.state = {
       gradients: getGradients(),
@@ -387,7 +388,7 @@ class GradientsPage extends Component<{ onColorClick: (e: any) => void }, Gradie
             <Card className="gradient-item" key={i} variant="outlined">
               <div
                 onClick={this.handleGradientOpen(gradient)}
-                style={{ background: `linear-gradient(135deg, ${gradient.colors.join(",")})` }}
+                style={{ background: `linear-gradient(135deg, ${gradient.colors.join(",").toLowerCase()})` }}
               />
               <div>
                 {gradient.colors.map((color, j) => (
@@ -402,7 +403,7 @@ class GradientsPage extends Component<{ onColorClick: (e: any) => void }, Gradie
             </Card>
           ))}
         </div>
-        <GradientDialog gradientData={gradientData} />
+        <GradientDialog gradientData={gradientData} showMessage={this.props.showMessage} />
       </div>
     );
   }
