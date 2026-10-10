@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+release/
+.superpowers/
+.worktrees/
+*.log
+.DS_Store

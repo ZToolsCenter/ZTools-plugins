@@ -1,0 +1,17 @@
+{
+  "name": "top-screenshot",
+  "title": "截图置顶",
+  "description": "好用的截图置顶工具，框选屏幕区域并原地置顶显示截图",
+  "version": "0.1.1",
+  "author": "Timi",
+  "main": "dist/index.html",
+  "logo": "assets/logo.png",
+  "preload": "dist/preload.cjs",
+  "features": [
+    {
+      "code": "capture-pin",
+      "explain": "截图命令",
+      "cmds": ["截图置顶", "截图", "置顶截图"]
+    }
+  ]
+}
