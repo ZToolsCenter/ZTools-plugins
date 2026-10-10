@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<!-- 开发预览：在普通浏览器里用假数据渲染 UI（不依赖 ZTools 宿主）。
+     用法：python -m http.server 8123 → 打开 http://127.0.0.1:8123/tests/preview.html
+     原理：fetch index.html 抽出 body 结构 + 引入同一份 app.js，
+           services 全部换成下面的 mock，交互走的是假数据。 -->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Scoop 包管理器 · 预览</title>
+  <link rel="stylesheet" href="../style.css">
+  <script>
+    // mock services：固定假数据。只服务预览，插件里不用它。
+    // URL 带 ?setup=1 时模拟"没有 scoop 环境"，走配置页分支。
+    window.services = (function () {
+      const SETUP = /(?:\?|&)setup=1/.test(location.search);
+      const CONFIGURED = /(?:\?|&)configured=1/.test(location.search);
+      const apps = [
+        { name: '7zip', version: '26.03', source: 'main', updated: Date.now() - 86400000 * 5, info: 'Global install' },
+        { name: 'aria2', version: '1.37.0-1', source: 'main', updated: Date.now() - 86400000 * 300, info: 'Global install' },
+        { name: 'bypass', version: '1.16.60', source: 'apps', updated: Date.now() - 86400000 * 40, info: 'Global install, Held package' },
+        { name: 'BaiduNetdisk', version: '', source: '', updated: Date.now() - 86400000 * 3, info: 'Install failed' },
+        { name: 'fastfetch', version: '2.69.0', source: 'main', updated: Date.now() - 86400000 * 1, info: 'Global install' },
+        { name: 'git', version: '2.55.0.5', source: 'main', updated: Date.now() - 86400000 * 12, info: 'Global install' },
+        { name: 'tesseract', version: '5.5.0', source: 'main', updated: Date.now() - 86400000 * 60, info: '' }
+      ];
+      const outdated = [
+        { name: 'git', installed: '2.55.0.5', latest: '2.56.0', missing: '', info: '' },
+        { name: 'nvm', installed: '1.2.2', latest: '2.0.0', missing: '', info: '' }
+      ];
+      const broken = [
+        { name: 'BaiduNetdisk', installed: '', latest: '', missing: '', info: 'Install failed, Manifest removed' }
+      ];
+      return {
+        theme: () => ({ isDark: false }),
+        onThemeChange: () => true,
+        detect: async () => SETUP
+          ? { ok: false, reason: 'scoop --version 没有输出 JSON（新机器上没有 git）', configured: '', autoFound: '' }
+          : { ok: true, version: '0.6.0', warnings: [], shims: 'D:\\scoop\\shims', root: 'D:\\scoop' },
+        installScoop: async (onLine) => {
+          for (const l of ['Initializing...', 'Downloading scoop...', 'Extracting...', 'Adding ~\\scoop\\shims to PATH.', 'scoop was installed successfully!']) {
+            onLine(l); await new Promise(r => setTimeout(r, 500));
+          }
+          return { shims: 'C:\\Users\\demo\\scoop\\shims' };
+        },
+        pickShimsDir: async () => SETUP ? 'C:\\mock\\scoop\\shims' : null,
+        clearShimsDir: () => true,
+        getSetupInfo: () => {
+          if (!SETUP) return { configured: 'D:\\scoop\\shims', configuredRaw: 'D:\\scoop\\shims', autoFound: 'D:\\scoop\\shims' };
+          // configured=1：模拟"配置的目录其实还有效，只是检测失败"的场景
+          return CONFIGURED
+            ? { configured: 'C:\\Users\\Administrator\\scoop\\shims', configuredRaw: 'C:\\Users\\Administrator\\scoop\\shims', autoFound: '' }
+            : { configured: '', configuredRaw: '', autoFound: '' };
+        },
+        installed: async () => ({ apps, warnings: ["WARN Scoop bucket(s) out of date. Run 'scoop update' to get the latest changes."] }),
+        status: async () => ({ outdated, broken, warnings: [] }),
+        searchApps: async () => ({
+          results: [
+            { name: 'fzf', version: '0.74.4', source: 'main', binaries: 'fzf.exe' },
+            { name: 'fzf@0.52.0', version: '0.42.0', source: 'apps', binaries: '' }
+          ], warnings: []
+        }),
+        listBuckets: async () => ({
+          buckets: [
+            { name: 'main', source: 'https://gitee.com/scoop-bucket/main.git', updated: Date.now() - 3600000, manifests: 1658 },
+            { name: 'apps', source: 'https://scoop.201704.xyz/https://github.com/kkzzhizhou/scoop-apps', updated: Date.now() - 86400000, manifests: 17667 }
+          ], warnings: []
+        }),
+        cacheInfo: async () => ({ total: { files: 240, sizeText: '30.2 GB' }, apps: [
+          { name: 'godot', files: 12, bytes: 4.2e9 }, { name: 'unityhub', files: 8, bytes: 2.1e9 }
+        ], warnings: [] }),
+        infoApp: async () => ({ info: { Website: 'https://example.com' } }),
+        prefixOf: async (n) => 'D:\\scoop\\apps\\' + n + '\\current',
+        install: async (n, onLine) => { for (const l of ['Starting download...', 'Progress 50%', 'Linking ~\\scoop\\apps\\' + n]) { onLine(l); await new Promise(r => setTimeout(r, 400)); } },
+        uninstall: async () => {}, updateApp: async () => {}, updateScoop: async () => {},
+        addBucket: async () => {}, removeBucket: async () => {}, clearCache: async () => {}, cleanup: async () => {}, holdApp: async () => {},
+        stopOp: () => true, isBusy: () => false, busyLabel: () => '',
+        openUrl: () => {}, openPath: () => {}, notify: (m) => console.log('notify:', m), copy: () => {}
+      };
+    })();
+  </script>
+</head>
+<body>
+  <script>
+    // 拉取 index.html 的 body 结构，再加载同一份 app.js
+    (async () => {
+      const res = await fetch('../index.html');
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      document.body.innerHTML = doc.body.innerHTML;
+      const logo = document.querySelector('img.logo');
+      if (logo) logo.src = '../logo.png';
+      // 配置页卡片里的 logo 同样指到上层
+      document.querySelectorAll('#setup img').forEach((im) => { im.src = '../logo.png'; });
+      const s = document.createElement('script');
+      s.src = '../app.js';
+      document.body.appendChild(s);
+    })();
+  </script>
+</body>
+</html>

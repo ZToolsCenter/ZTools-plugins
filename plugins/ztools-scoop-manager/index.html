@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Scoop 包管理器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="topbar">
+    <img src="logo.png" alt="" class="logo">
+    <div class="title-box">
+      <div class="title">Scoop 包管理器</div>
+      <div id="scoop-chip" class="chip">检测中…</div>
+    </div>
+    <div class="spacer"></div>
+    <button id="btn-check-update" class="btn ghost" title="检查可更新软件">检查更新</button>
+    <button id="btn-update-all" class="btn primary" title="scoop update *">全部更新</button>
+  </header>
+
+  <nav id="tabs">
+    <button class="tab active" data-tab="installed">已安装 <span id="cnt-installed" class="cnt"></span></button>
+    <button class="tab" data-tab="status">可更新 <span id="cnt-outdated" class="cnt"></span></button>
+    <button class="tab" data-tab="search">搜索安装</button>
+    <button class="tab" data-tab="bucket">Bucket <span id="cnt-bucket" class="cnt"></span></button>
+    <button class="tab" data-tab="cache">缓存 <span id="cnt-cache" class="cnt"></span></button>
+  </nav>
+
+  <!-- 配置页：未检测到 scoop 时的自举（一键安装 / 指定已有位置） -->
+  <section id="setup" hidden>
+    <div class="setup-card">
+      <img src="logo.png" alt="">
+      <h2>需要配置 Scoop 环境</h2>
+      <p id="setup-desc">没有在本机找到可用的 scoop 命令。可以一键安装，或指定已有的 scoop 安装位置。</p>
+      <div class="setup-actions">
+        <button id="btn-scoop-install" class="btn primary" title="执行官方安装脚本 irm get.scoop.sh | iex">一键安装 Scoop</button>
+        <button id="btn-scoop-pick" class="btn" title="scoop 装在别处但不在 PATH 里时，选择它的 shims 目录">选择已有的 scoop 位置…</button>
+        <button id="btn-scoop-redetect" class="btn ghost">重新检测</button>
+      </div>
+      <p class="setup-hint">
+        一键安装运行官方脚本 <code>irm get.scoop.sh | iex</code>，默认装到
+        <code>%USERPROFILE%\scoop</code>，全程几分钟，实时日志见下方抽屉。
+        如果网络不通装不上，可以先手动安装，再回到这里点「重新检测」或指定安装位置。
+      </p>
+      <p class="setup-hint" id="setup-scan" hidden></p>
+    </div>
+  </section>
+
+  <main id="main">
+    <!-- 已安装 -->
+    <section id="pane-installed" class="pane active">
+      <div class="toolbar">
+        <input id="filter-installed" type="text" placeholder="筛选已安装的应用…" spellcheck="false">
+        <span id="installed-meta" class="meta"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl" id="tbl-installed">
+          <thead><tr><th>名称</th><th>版本</th><th>更新时间</th><th class="th-ops">操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty" data-empty-for="tbl-installed" hidden>没有匹配的应用</div>
+      </div>
+      <div id="installed-warnings" class="warnings" hidden></div>
+    </section>
+
+    <!-- 可更新 -->
+    <section id="pane-status" class="pane">
+      <div class="toolbar">
+        <span class="meta" id="status-meta">点击「检查更新」获取最新状态</span>
+        <div class="spacer"></div>
+        <button id="btn-refresh-status" class="btn ghost small">刷新</button>
+        <button id="btn-update-outdated" class="btn primary small">更新全部可更新项</button>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl" id="tbl-outdated">
+          <thead><tr><th>名称</th><th>已装</th><th>最新</th><th>状态</th><th class="th-ops">操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty" data-empty-for="tbl-outdated" hidden>暂无可更新项 🎉</div>
+      </div>
+      <div id="broken-box" hidden>
+        <div class="group-title">异常包（清单已移除 / 安装失败，建议卸载重装）</div>
+        <div class="table-wrap">
+          <table class="tbl" id="tbl-broken">
+            <thead><tr><th>名称</th><th>版本</th><th>状态</th><th class="th-ops">操作</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="status-warnings" class="warnings" hidden></div>
+    </section>
+
+    <!-- 搜索安装 -->
+    <section id="pane-search" class="pane">
+      <div class="toolbar">
+        <input id="search-input" type="text" placeholder="搜索 bucket 里的软件，如 fzf、nodejs-lts…" spellcheck="false">
+        <button id="btn-search" class="btn primary">搜索</button>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl" id="tbl-search">
+          <thead><tr><th>名称</th><th>版本</th><th>bucket</th><th class="th-ops">操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty" data-empty-for="tbl-search" hidden>输入关键词开始搜索（搜索的是本地已有 bucket）</div>
+      </div>
+      <div id="search-warnings" class="warnings" hidden></div>
+    </section>
+
+    <!-- Bucket -->
+    <section id="pane-bucket" class="pane">
+      <div class="toolbar">
+        <input id="bucket-input" type="text" placeholder="bucket 名称、git 地址，或「名称 地址」；如 extras / https://… / my https://…">
+        <button id="btn-bucket-add" class="btn primary">添加</button>
+      </div>
+      <div class="meta" style="margin-bottom:6px">快捷添加（全部为国内可直连源，无需代理；悬停查看真实地址）：</div>
+      <div class="known-buckets" id="known-buckets"></div>
+      <div class="table-wrap">
+        <table class="tbl" id="tbl-bucket">
+          <thead><tr><th>名称</th><th>来源</th><th>清单数</th><th>更新时间</th><th class="th-ops">操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 缓存 -->
+    <section id="pane-cache" class="pane">
+      <div class="toolbar">
+        <span class="meta" id="cache-total">加载中…</span>
+        <div class="spacer"></div>
+        <button id="btn-cleanup" class="btn ghost small">清理旧版本（cleanup）</button>
+        <button id="btn-cache-clear" class="btn danger small">清空下载缓存</button>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl" id="tbl-cache">
+          <thead><tr><th>应用</th><th>缓存文件数</th><th>占用</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty" data-empty-for="tbl-cache" hidden>缓存是空的 🎉</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 运行日志抽屉 -->
+  <div id="drawer" class="drawer" hidden>
+    <div class="drawer-head">
+      <span id="drawer-title">任务输出</span>
+      <div class="spacer"></div>
+      <button id="btn-op-stop" class="btn danger small">终止</button>
+      <button id="btn-drawer-close" class="btn ghost small">收起</button>
+    </div>
+    <pre id="drawer-log" class="drawer-log"></pre>
+  </div>
+
+  <footer id="statusbar">
+    <span id="status-text">就绪</span>
+    <div class="spacer"></div>
+    <button id="btn-drawer-toggle" class="btn ghost small" hidden>查看输出</button>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

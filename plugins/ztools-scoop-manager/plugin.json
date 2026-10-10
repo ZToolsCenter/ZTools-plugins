@@ -1,0 +1,30 @@
+{
+  "name": "ztools-scoop-manager",
+  "title": "Scoop 包管理器",
+  "description": "Scoop 图形化管理面板：已装软件一览、一键更新/卸载、搜索安装、Bucket 管理与缓存清理，全部走本地 scoop 命令，无需任何账号",
+  "author": "zhanglei",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "platform": ["win32"],
+  "pluginSetting": {
+    "single": true,
+    "height": 620
+  },
+  "features": [
+    {
+      "code": "scoop",
+      "explain": "打开 Scoop 包管理器（已装软件 / 更新 / 搜索安装 / Bucket / 缓存）",
+      "icon": "logo.png",
+      "cmds": [
+        "scoop",
+        "包管理",
+        "软件管理",
+        "更新软件",
+        "卸载软件",
+        "包管理器"
+      ]
+    }
+  ]
+}
