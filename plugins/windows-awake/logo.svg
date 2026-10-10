@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="logoTitle logoDesc">
+  <title id="logoTitle">Windows 唤醒控制</title>
+  <desc id="logoDesc">蓝色渐变圆角方块中央是一只冒着热气的咖啡杯，代表保持系统唤醒。</desc>
+  <defs>
+    <linearGradient id="awakeBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb" />
+      <stop offset="0.55" stop-color="#2f7cf6" />
+      <stop offset="1" stop-color="#22d3ee" />
+    </linearGradient>
+    <linearGradient id="awakeCup" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" />
+      <stop offset="1" stop-color="#dbeafe" />
+    </linearGradient>
+  </defs>
+
+  <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#awakeBg)" />
+
+  <g fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round" opacity="0.92">
+    <path d="M106 56c-8 8 8 16 0 24" />
+    <path d="M128 46c-8 10 8 20 0 30" />
+    <path d="M150 56c-8 8 8 16 0 24" />
+  </g>
+
+  <path d="M76 108h104v30a52 52 0 0 1-52 52 52 52 0 0 1-52-52z" fill="url(#awakeCup)" />
+
+  <path
+    d="M180 126h8a23 23 0 0 1 0 46h-8"
+    fill="none"
+    stroke="#dbeafe"
+    stroke-width="12"
+    stroke-linecap="round"
+  />
+
+  <path
+    d="M64 202h128"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="12"
+    stroke-linecap="round"
+    opacity="0.9"
+  />
+</svg>

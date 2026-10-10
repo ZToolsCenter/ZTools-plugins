@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "windows-awake",
+  "title": "Windows 唤醒控制",
+  "description": "保持 Windows 唤醒，可设置唤醒时长并选择是否允许息屏",
+  "author": "404isfun",
+  "version": "1.0.0",
+  "platform": [
+    "win32"
+  ],
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "awake",
+      "explain": "保持 Windows 唤醒，调节唤醒时长与息屏策略",
+      "icon": "logo.png",
+      "cmds": ["保持唤醒", "唤醒控制", "不锁屏", "windows awake", "awake"]
+    }
+  ]
+}

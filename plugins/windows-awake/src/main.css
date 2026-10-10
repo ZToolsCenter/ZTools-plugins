@@ -1,0 +1,86 @@
+:root {
+  color-scheme: light dark;
+
+  --awake-primary: var(--plugin-primary-color, #2f7cf6);
+  --awake-primary-soft: rgba(47, 124, 246, 0.12);
+  --awake-primary-soft: color-mix(in srgb, var(--awake-primary) 12%, transparent);
+  --awake-text: #1c2230;
+  --awake-text-weak: #5f6a7d;
+  --awake-surface: #ffffff;
+  --awake-surface-muted: #f1f3f7;
+  --awake-border: rgba(28, 34, 48, 0.13);
+  --awake-shadow: 0 1px 2px rgba(28, 34, 48, 0.06);
+  --awake-success: #10795a;
+  --awake-success-soft: rgba(16, 121, 90, 0.12);
+  --awake-success-border: rgba(16, 121, 90, 0.35);
+  --awake-danger: #c2352a;
+  --awake-danger-solid: #c2352a;
+  --awake-danger-soft: rgba(194, 53, 42, 0.12);
+  --awake-danger-border: rgba(194, 53, 42, 0.35);
+  --awake-radius: 12px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+body {
+  font-family: 'Microsoft YaHei UI', 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--awake-text);
+  background-color: #f4f5f8;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font-family: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--awake-primary);
+  outline-offset: 1px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background-color: rgba(120, 130, 148, 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --awake-primary-soft: rgba(84, 152, 255, 0.18);
+    --awake-primary-soft: color-mix(in srgb, var(--awake-primary) 18%, transparent);
+    --awake-text: #eef1f7;
+    --awake-text-weak: #a3adbe;
+    --awake-surface: #262b35;
+    --awake-surface-muted: #20242d;
+    --awake-border: rgba(255, 255, 255, 0.14);
+    --awake-shadow: none;
+    --awake-success: #4fd6a0;
+    --awake-success-soft: rgba(79, 214, 160, 0.16);
+    --awake-success-border: rgba(79, 214, 160, 0.4);
+    --awake-danger: #ff8f83;
+    --awake-danger-solid: #c0453a;
+    --awake-danger-soft: rgba(255, 143, 131, 0.16);
+    --awake-danger-border: rgba(255, 143, 131, 0.4);
+  }
+
+  body {
+    background-color: #1b1f27;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(180, 190, 205, 0.35);
+  }
+}
