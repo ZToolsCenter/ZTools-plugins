@@ -1,0 +1,38 @@
+{
+  "name": "extract-audio",
+  "title": "音频提取",
+  "description": "一键把视频里的音频无损提取出来（不重编码，位深/采样率原样；相机大端 PCM 按 WAV 规范重排字节后出 .wav）。中键/超级面板/粘贴触发=无界面静默模式：不弹窗，提取完系统通知「音频已提取」，视频自动归入待删文件夹；搜索关键词进入=界面模式：选文件、看进度。优先用系统 ffmpeg，无则回退 ZTools 内置。",
+  "author": "一个成熟的剪辑猿",
+  "version": "1.2.5",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "extract",
+      "explain": "从视频无损提取音频（无界面，提取完通知）",
+      "mainHide": true,
+      "cmds": [
+        {
+          "type": "files",
+          "label": "提取音频",
+          "fileType": "file",
+          "extensions": [
+            "mp4", "mov", "m4v", "mkv", "avi", "flv", "wmv", "webm",
+            "ts", "mts", "m2ts", "m2t", "mpg", "mpeg", "mxf", "f4v",
+            "asf", "3gp", "3g2", "rmvb", "rm", "vob", "ogv", "dv", "mod"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "extract-ui",
+      "explain": "音频提取（界面模式：选择视频文件，查看进度）",
+      "cmds": [
+        "提取音频",
+        "音频提取",
+        "extractaudio"
+      ]
+    }
+  ]
+}

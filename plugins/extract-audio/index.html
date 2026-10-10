@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>音频提取</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --text: #1f2328; --sub: #6b7280;
+    --border: #e4e6ea; --hover: #eef3ff; --accent: #2f6fed;
+    --ok: #1a9e55; --err: #d9483b; --bar: #e8ebf0;
+  }
+  body.dark {
+    --bg: #1b1d21; --card: #24272c; --text: #e6e8ea; --sub: #98a0aa;
+    --border: #34383f; --hover: #2c3340; --accent: #6a9bff;
+    --ok: #3ecf8e; --err: #ff6b5e; --bar: #34383f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 12px 14px; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 13px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .head .t { font-weight: 600; font-size: 14px; }
+  .opt {
+    display: flex; align-items: center; gap: 6px; color: var(--sub); font-size: 12px;
+    cursor: pointer; max-width: 72%; text-align: right;
+  }
+  .opt input { accent-color: var(--accent); flex: 0 0 auto; }
+  .list { display: flex; flex-direction: column; gap: 7px; }
+  .row {
+    background: var(--card); border: 1px solid var(--border); border-radius: 9px;
+    padding: 8px 11px;
+  }
+  .row .l1 { display: flex; align-items: center; gap: 8px; }
+  .row .name {
+    flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-weight: 500;
+  }
+  .row .st { flex: 0 0 auto; font-size: 12px; }
+  .st.run { color: var(--accent); }
+  .st.ok { color: var(--ok); }
+  .st.err { color: var(--err); }
+  .st.wait { color: var(--sub); }
+  .row .l2 {
+    margin-top: 3px; color: var(--sub); font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .row .l2 .msg { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .bar {
+    margin-top: 6px; height: 4px; border-radius: 2px; background: var(--bar);
+    overflow: hidden; display: none;
+  }
+  .row.run .bar { display: block; }
+  .row .bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .2s; }
+  .link {
+    flex: 0 0 auto; border: none; background: none; color: var(--accent);
+    font-size: 12px; cursor: pointer; padding: 0;
+  }
+  .link:hover { text-decoration: underline; }
+  .foot {
+    margin-top: 10px; display: flex; align-items: center; gap: 10px;
+  }
+  .foot .sum { color: var(--sub); font-size: 12px; flex: 1 1 auto; }
+  .foot .total { flex: 1 1 auto; height: 4px; border-radius: 2px; background: var(--bar); overflow: hidden; }
+  .foot .total i { display: block; height: 100%; background: var(--accent); transition: width .25s; }
+  button.act {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 8px; padding: 5px 14px; font-size: 13px; cursor: pointer;
+  }
+  button.act.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.act:hover { filter: brightness(1.06); }
+  .empty { text-align: center; color: var(--sub); padding: 30px 10px; }
+  .empty b { color: var(--text); font-weight: 600; }
+  .note { margin-top: 8px; text-align: center; color: var(--sub); font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function () {
+  'use strict'
+
+  var zt = (typeof window.ztools !== 'undefined') ? window.ztools : window.utools
+  var bridge = window.audioBridge
+  var $app = document.getElementById('app')
+
+  try { if (zt && zt.isDarkColors && zt.isDarkColors()) document.body.classList.add('dark') } catch (e) {}
+
+  var rows = []      // {src, name, status: wait|run|ok|err, percent, out, err, moved, moveErr}
+  var running = false
+  var done = false
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    })
+  }
+
+  function firstMeaningfulLine(msg) {
+    var lines = String(msg || '').split('\n')
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i].trim()
+      if (l && l.indexOf('ffmpeg 退出码') !== 0 && l.indexOf('Metadata:') !== 0) return l
+    }
+    return lines[0] || '失败'
+  }
+
+  function okCount() { return rows.filter(function (r) { return r.status === 'ok' }).length }
+  function errCount() { return rows.filter(function (r) { return r.status === 'err' }).length }
+
+  function render() {
+    if (!rows.length) {
+      $app.innerHTML =
+        '<div class="empty">' +
+        '<div><b>把视频的音频无损提出来</b></div>' +
+        '<div style="margin-top:6px">在资源管理器选中视频 → 长按中键 → 「提取音频」<br>或复制视频后粘贴到 ZTools 输入框</div>' +
+        '<div style="margin-top:14px"><button class="act primary" id="pick">选择视频文件</button></div>' +
+        '</div>'
+      var btn = document.getElementById('pick')
+      if (btn) btn.addEventListener('click', pickFiles)
+      try { zt.setExpendHeight(240) } catch (e) {}
+      return
+    }
+
+    var html = '<div class="head">' +
+      '<div class="t">音频提取 <span style="color:var(--sub);font-weight:400">原编码无损</span></div>' +
+      '<label class="opt" title="只移动不删除；提取失败的视频会留在原地不动">' +
+      '<input type="checkbox" id="moveOpt"' + (moveOptChecked() ? ' checked' : '') + '>' +
+      '<span>完成后把已提取的视频移入「已提取音频的视频」文件夹</span></label>' +
+      '</div><div class="list">'
+
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i]
+      var st = { wait: '等待', run: '提取中 ' + (r.percent || 0) + '%', ok: '✓ 已完成', err: '✗ 失败' }[r.status]
+      var l2 = ''
+      if (r.status === 'ok') {
+        var detail = r.alreadyArchived
+          ? '源视频已在归档文件夹'
+          : (r.moved
+            ? '已归入「已提取音频的视频」' + (r.moveErr ? '（移动失败: ' + esc(r.moveErr) + '）' : '')
+            : esc(r.out))
+        l2 = '<div class="l2"><div class="msg">' + detail + '</div>' +
+          '<button class="link" data-loc="' + i + '">定位音频</button></div>'
+      } else if (r.status === 'err') {
+        l2 = '<div class="l2"><div class="msg" style="color:var(--err)">' + esc(r.err) + '</div></div>'
+      } else if (r.status === 'run') {
+        l2 = '<div class="l2"><div class="msg">' + esc(r.name) + '</div></div>'
+      }
+      html += '<div class="row ' + r.status + '">' +
+        '<div class="l1"><div class="name">' + esc(r.name) + '</div>' +
+        '<div class="st ' + r.status + '">' + st + '</div></div>' +
+        '<div class="bar"><i style="width:' + (r.percent || 0) + '%"></i></div>' +
+        l2 + '</div>'
+    }
+    html += '</div>'
+
+    var finished = done
+    var total = rows.length
+    html += '<div class="foot">' +
+      '<div class="total"><i style="width:' + (total ? (okCount() + errCount()) / total * 100 : 0) + '%"></i></div>' +
+      '<div class="sum">' + (finished
+        ? '完成：' + okCount() + ' 成功' + (errCount() ? '，' + errCount() + ' 失败' : '')
+        : '处理中 ' + (okCount() + errCount()) + '/' + total) + '</div>' +
+      (finished && okCount() ? '<button class="act" id="openFolder">打开音频文件夹</button>' : '') +
+      (finished ? '<button class="act" id="newBatch">＋ 选择新文件</button>' : '') +
+      '</div>'
+    if (finished && errCount()) {
+      html += '<div class="note">失败的视频没有移动，还在原目录，可重新提取或单独处理</div>'
+    }
+
+    $app.innerHTML = html
+
+    var moveCb = document.getElementById('moveOpt')
+    if (moveCb) moveCb.addEventListener('change', function () {
+      try { zt.dbStorage.setItem('archive_default', moveCb.checked) } catch (e) {}
+    })
+
+    Array.prototype.forEach.call($app.querySelectorAll('[data-loc]'), function (el) {
+      el.addEventListener('click', function () {
+        var r = rows[parseInt(el.getAttribute('data-loc'), 10)]
+        if (r && r.out) { try { zt.shellShowItemInFolder(r.out) } catch (e) {} }
+      })
+    })
+    var openBtn = document.getElementById('openFolder')
+    if (openBtn) openBtn.addEventListener('click', function () {
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].status === 'ok' && rows[i].out) {
+          try { zt.shellShowItemInFolder(rows[i].out) } catch (e) {}
+          break
+        }
+      }
+    })
+    var newBtn = document.getElementById('newBatch')
+    if (newBtn) newBtn.addEventListener('click', pickFiles)
+
+    try { zt.setExpendHeight(Math.min(620, 120 + rows.length * 56 + (finished ? 60 : 20))) } catch (e) {}
+  }
+
+  // 选项在「本次批处理结束时」读取：提取过程中也可以改主意。
+  // 勾选状态存 dbStorage，无界面模式（中键批处理）读同一份偏好。
+  function moveOptChecked() {
+    var cb = document.getElementById('moveOpt')
+    if (cb) return cb.checked
+    try { return zt.dbStorage.getItem('archive_default') !== false } catch (e) { return true }
+  }
+
+  function pickFiles() {
+    try {
+      var picked = zt.showOpenDialog({
+        title: '选择要提取音频的视频文件',
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Video', extensions: ['mp4', 'mov', 'm4v', 'mkv', 'avi', 'flv', 'wmv', 'webm', 'ts', 'mts', 'm2ts', 'mpg', 'mpeg', 'mxf', '3gp', 'rmvb'] }]
+      })
+      if (picked && typeof picked.then === 'function') {
+        picked.then(function (p) { start(normalizePick(p)) }).catch(function () {})
+        return
+      }
+      start(normalizePick(picked))
+    } catch (e) {}
+  }
+
+  function normalizePick(p) {
+    if (p && !Array.isArray(p) && Array.isArray(p.filePaths)) p = p.filePaths
+    return Array.isArray(p) ? p : []
+  }
+
+  function start(files) {
+    rows = files.map(function (f) {
+      var name = String(f).replace(/[\\/]+$/, '').split(/[\\/]/).pop()
+      return { src: f, name: name, status: 'wait', percent: 0, out: '', err: '', moved: '', moveErr: '' }
+    })
+    done = false
+    render()
+    if (rows.length) run()
+  }
+
+  async function run() {
+    if (!bridge) {
+      rows.forEach(function (r) { r.status = 'err'; r.err = '插件加载异常（缺少 audioBridge），请重新进入' })
+      done = true; render(); return
+    }
+    running = true
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i]
+      r.status = 'run'; r.percent = 0
+      render()
+      try {
+        r.out = await bridge.extractFile(r.src, {
+          onProgress: function (p) {
+            r.percent = p
+            var bar = $app.querySelector('.row.run .bar i')
+            var st = $app.querySelector('.row.run .st')
+            if (bar) bar.style.width = p + '%'
+            if (st) st.textContent = '提取中 ' + p + '%'
+          }
+        })
+        r.status = 'ok'
+      } catch (e) {
+        r.status = 'err'
+        r.err = firstMeaningfulLine(e && e.message)
+      }
+      render()
+    }
+    // 全部提取结束后：把成功项的源视频归档（只移动，不删除；失败的不动）
+    if (moveOptChecked()) {
+      for (var j = 0; j < rows.length; j++) {
+        var rr = rows[j]
+        if (rr.status !== 'ok') continue
+        try {
+          var dest = bridge.moveExtractedVideo(rr.src)
+          rr.moved = dest ? '1' : ''
+          if (!dest) rr.alreadyArchived = true
+        }
+        catch (e) { rr.moveErr = firstMeaningfulLine(e && e.message) }
+        render()
+      }
+    }
+    running = false
+    done = true
+    render()
+    // 完成：提示音（界面本身可见，声音做辅助信号）
+    try { if (zt.shellBeep) zt.shellBeep() } catch (e) {}
+    // 提取进行中又触发过一次：自动接续处理排队的那批
+    if (pendingFiles) {
+      var next = pendingFiles
+      pendingFiles = null
+      if (next.length) start(next)
+    }
+  }
+
+  window.addEventListener('audio-extract-enter', function (e) {
+    handleIncoming((e.detail || []).filter(function (f) { return !!f }))
+  })
+
+  // —— 文件接收主通道 ——
+  // 带界面插件（extract-ui，关键词进入）的进入参数由宿主派发给渲染层 onPluginEnter。
+  // 无界面批处理（extract，files 指令）走 preload 的 mode:'none'，这里不要抢，
+  // 否则同一次触发会提取两遍。视图复用期间重复触发也靠这里接收新文件。
+  if (zt && typeof zt.onPluginEnter === 'function') {
+    zt.onPluginEnter(function (param) {
+      if (param && param.code && param.code !== 'extract-ui') return
+      handleIncoming(normalizePayload(param && param.payload))
+    })
+  }
+
+  var VIDEO_EXT = /\.(mp4|mov|m4v|mkv|avi|flv|wmv|webm|ts|mts|m2ts|m2t|mpg|mpeg|mxf|f4v|asf|3gp|3g2|rmvb|rm|vob|ogv|dv|mod)$/i
+
+  function normalizePayload(payload) {
+    var list = Array.isArray(payload) ? payload : (payload != null ? [payload] : [])
+    var out = []
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i]
+      if (typeof it === 'string') { out.push(it); continue }
+      if (it && typeof it === 'object') {
+        var p = it.path || it.filePath || it.realPath || (it.data && (it.data.path || it.data.filePath))
+        if (typeof p === 'string') out.push(p)
+      }
+    }
+    // 关键词触发时 payload 是输入的文字（如「提取音频」），不是文件路径，过滤掉
+    out = out.filter(function (f) { return VIDEO_EXT.test(f) })
+    return out
+  }
+
+  // 提取进行中又触发一次：排队，当前批处理结束后自动接续（最新一批优先）
+  var pendingFiles = null
+  function handleIncoming(files) {
+    if (running) {
+      if (files.length) pendingFiles = files
+      return
+    }
+    // 关键词空触发不覆盖已有结果（结果页有「＋ 选择新文件」按钮可用）
+    if (!files.length && rows.length) return
+    start(files)
+  }
+
+  render()
+})()
+</script>
+</body>
+</html>
