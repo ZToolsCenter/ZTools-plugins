@@ -885,6 +885,16 @@ watch(() => props.enterAction, (action) => {
   display: flex;
   height: 100vh;
   overflow: hidden;
+  /* 悬浮操作按钮的背景色，需与列表项 hover / 选中时的底色一致，避免遮挡文字时露底 */
+  --list-item-hover-bg: #e4ecf4;
+  --list-item-active-bg: #d5e4f4;
+}
+
+@media (prefers-color-scheme: dark) {
+  .snippets {
+    --list-item-hover-bg: #343c44;
+    --list-item-active-bg: #384758;
+  }
 }
 
 .sidebar {
@@ -921,9 +931,9 @@ watch(() => props.enterAction, (action) => {
 }
 
 .template-item {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 8px 10px;
   border-radius: 6px;
   cursor: pointer;
@@ -1014,15 +1024,28 @@ watch(() => props.enterAction, (action) => {
 }
 
 .template-actions {
+  /* 绝对定位悬浮在列表项右侧，不占用布局宽度，模板名可占满整行 */
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   gap: 4px;
-  margin-left: 8px;
+  padding-left: 20px;
+  background: linear-gradient(to right, transparent, var(--list-item-hover-bg) 18px);
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s;
 }
 
 .template-item:hover .template-actions {
   opacity: 1;
+  pointer-events: auto;
+}
+
+/* 选中项被 hover 时以选中底色作遮罩，避免与列表项背景不一致 */
+.template-item.active .template-actions {
+  background: linear-gradient(to right, transparent, var(--list-item-active-bg) 18px);
 }
 
 .editor {
