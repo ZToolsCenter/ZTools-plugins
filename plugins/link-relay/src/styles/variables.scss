@@ -1,0 +1,112 @@
+// ════════════════════════════════════════════════════════════
+// 全局主题变量
+// ────────────────────────────────────────────────────────────
+// 两层变量体系：
+//   1. SCSS 编译期变量（$ 前缀）：调色板原始值、断点、z-index，
+//      仅用于编译期颜色派生与媒体查询，不输出到产物；
+//   2. CSS 自定义属性（-- 前缀）：运行期主题令牌，全部挂在 :root，
+//      后期扩展暗色/自定义主题只需新增 [data-theme="xxx"] 覆盖即可。
+// ════════════════════════════════════════════════════════════
+
+// ────────────── SCSS 编译期变量 ──────────────
+
+// 基础色值（用于 rgba() 派生 soft / border 等透明度色阶）
+$color-page: #e9eeed;
+$color-ink: #102626;
+$color-accent: #176c6b;
+$color-ok: #2f7a55;
+$color-warn: #b77a16;
+$color-bad: #c0453c;
+$color-info: #4a6fa5;
+
+// 品牌主色 hover 加深值
+$accent-hover: #135e5d;
+
+// 响应式断点（与媒体查询配合使用）
+$bp-xs: 479px;   // 超小屏
+$bp-sm: 767px;   // 平板及以下
+
+// z-index 层级
+$z-scrim: 30;
+$z-modal: 31;
+$z-toast: 40;
+
+// ────────────── CSS 运行期主题令牌 ──────────────
+
+:root {
+  // ── 基底 ──
+  --page: #e9eeed;
+  --bg: #ffffff;
+  --panel-2: #f1f5f4;
+  --border: rgba($color-ink, 0.07);
+  --border-strong: rgba($color-ink, 0.13);
+
+  // ── 墨色（文字三级层级） ──
+  --ink-1: #0f2322;  // 主标题 / 强调
+  --ink-2: #3a4b4a;  // 正文
+  --ink-3: #6b7d7c;  // 辅助 / 占位
+
+  // ── 品牌色 — 深青 ──
+  --accent: #176c6b;
+  --accent-hover: #{$accent-hover};
+  --accent-soft: rgba($color-accent, 0.10);
+  --accent-soft-2: rgba($color-accent, 0.16);
+  --on-accent: #fff;
+  --glow: rgba($color-accent, 0.28);
+
+  // ── 语义色（每色三档：实心 / 文字 / 浅底） ──
+  --ok: #2f7a55;
+  --ok-ink: #1a5c3e;
+  --ok-soft: rgba($color-ok, 0.12);
+
+  --warn: #b77a16;
+  --warn-ink: #8a5a08;
+  --warn-soft: rgba($color-warn, 0.13);
+
+  --bad: #c0453c;
+  --bad-ink: #8e2a24;
+  --bad-soft: rgba($color-bad, 0.11);
+
+  --info: #4a6fa5;
+  --info-ink: #2e4f7a;
+  --info-soft: rgba($color-info, 0.11);
+
+  // ── 圆角 ──
+  --r: 6px;          // 卡片 / 按钮
+  --r-control: 4px;  // 小型控件
+  --r-pill: 999px;   // 胶囊标签
+
+  // ── 阴影 ──
+  --shadow-card: 0 1px 2px rgba(15, 35, 34, 0.04), 0 6px 16px -8px rgba(15, 35, 34, 0.08);
+  --shadow-modal: 0 2px 8px rgba(15, 35, 34, 0.06), 0 24px 56px -12px rgba(15, 35, 34, 0.22);
+
+  // ── 字体族 ──
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
+
+  // ── 流体间距（随视口缩放，无需 JS 测量） ──
+  --space-xs: clamp(4px, 0.5vw, 6px);
+  --space-sm: clamp(6px, 0.8vw, 10px);
+  --space-md: clamp(10px, 1.2vw, 16px);
+  --space-lg: clamp(14px, 1.8vw, 24px);
+  --space-xl: clamp(20px, 2.5vw, 32px);
+
+  // ── 流体排版 ──
+  --fs-xs: clamp(10.5px, 0.75vw, 11.5px);
+  --fs-sm: clamp(11.5px, 0.85vw, 12.5px);
+  --fs-base: clamp(12.5px, 0.95vw, 13.5px);
+  --fs-md: clamp(13.5px, 1.05vw, 15px);
+  --fs-lg: clamp(15px, 1.3vw, 17px);
+  --fs-xl: clamp(18px, 1.8vw, 22px);
+  --fs-2xl: clamp(22px, 2.5vw, 30px);
+
+  // ── 布局容器 ──
+  --container-max: 1280px;
+  --container-padding: clamp(12px, 2vw, 24px);
+
+  // ── 动效时长 ──
+  --t-fast: 0.12s;
+  --t-base: 0.15s;
+  --t-slow: 0.18s;
+  --ease-out: ease;
+}
