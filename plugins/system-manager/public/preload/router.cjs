@@ -4,6 +4,7 @@ const path = require('node:path')
 const { fileURLToPath, pathToFileURL } = require('node:url')
 
 const FEATURE_ROUTES = Object.freeze(Object.assign(Object.create(null), {
+  'system-manager': 'index.html',
   'system-diagnostic-report': 'modules/system-diagnostic-report/index.html',
   'application-uninstaller': 'modules/application-uninstaller/index.html',
   'startup-manager': 'modules/startup-manager/index.html',
@@ -33,6 +34,7 @@ function trustedPages(suiteRoot, platform = process.platform) {
   const dashboardPath = pathApi.join(root, 'index.html')
   const pages = new Map([[pathKey(dashboardPath, platform), Object.freeze({ kind: 'dashboard', featureCode: null, hashes: Object.freeze(['', '#modules']), filePath: dashboardPath, href: fileHref(dashboardPath, platform) })]])
   for (const [featureCode, route] of Object.entries(FEATURE_ROUTES)) {
+    if (featureCode === 'system-manager') continue
     const hashes = featureCode === 'system-cleaner'
       ? Object.freeze(['', '#main'])
       : featureCode === 'system-diagnostic-report'
@@ -41,6 +43,16 @@ function trustedPages(suiteRoot, platform = process.platform) {
     const filePath = pathApi.join(root, ...route.split('/'))
     pages.set(pathKey(filePath, platform), Object.freeze({ kind: 'module', featureCode, hashes, filePath, href: fileHref(filePath, platform) }))
   }
+
+  const toolRoutes = {
+    'plugin-guard': 'modules/plugin-guard/index.html',
+    'archive-workbench': 'modules/archive-workbench/index.html',
+  }
+  for (const [toolCode, route] of Object.entries(toolRoutes)) {
+    const filePath = pathApi.join(root, ...route.split('/'))
+    pages.set(pathKey(filePath, platform), Object.freeze({ kind: 'tool', featureCode: toolCode, hashes: Object.freeze(['']), filePath, href: fileHref(filePath, platform) }))
+  }
+
   return pages
 }
 
@@ -91,6 +103,17 @@ function createSuiteRouter(hostWindow, suiteRoot, currentPage = null, platform =
   return Object.freeze({ openFeature })
 }
 
+const DIAGNOSTIC_CMDS = Object.freeze(new Set(['系统诊断', '系统信息', '诊断报告', '电脑配置', '硬件信息']))
+
+function isExplicitDiagnosticIntent(launchParam) {
+  if (!launchParam || typeof launchParam !== 'object') return false
+  const payload = typeof launchParam.payload === 'string' ? launchParam.payload.trim() : ''
+  if (DIAGNOSTIC_CMDS.has(payload)) return true
+  const cmd = typeof launchParam.cmd === 'string' ? launchParam.cmd.trim() : ''
+  if (DIAGNOSTIC_CMDS.has(cmd)) return true
+  return false
+}
+
 function installSuiteRouter(hostWindow, suiteRoot, platform = process.platform) {
   const page = resolveSuitePage(hostWindow?.location?.href, suiteRoot, platform)
   if (!page) return null
@@ -100,6 +123,14 @@ function installSuiteRouter(hostWindow, suiteRoot, platform = process.platform) 
   if (api && typeof api.onPluginEnter === 'function') {
     api.onPluginEnter((launchParam) => {
       const code = launchParam && typeof launchParam === 'object' ? launchParam.code : null
+      if (!code || code === 'system-manager') {
+        router.openFeature('system-manager')
+        return
+      }
+      if (code === 'system-diagnostic-report' && !isExplicitDiagnosticIntent(launchParam)) {
+        router.openFeature('system-manager')
+        return
+      }
       router.openFeature(code)
     })
   }
@@ -107,9 +138,11 @@ function installSuiteRouter(hostWindow, suiteRoot, platform = process.platform) 
 }
 
 module.exports = Object.freeze({
+  DIAGNOSTIC_CMDS,
   FEATURE_ROUTES,
   createSuiteRouter,
   installSuiteRouter,
+  isExplicitDiagnosticIntent,
   resolveSuitePage,
   targetForFeature,
 })

@@ -3,7 +3,7 @@ import { readFile, rm, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
 
-import { distRoot, releaseRoot } from '../scripts/config.mjs'
+import { distRoot, releaseRoot, root } from '../scripts/config.mjs'
 import { createZip, inspectZip, portableEntryKey, safeEntryName, sha256 } from '../scripts/zip.mjs'
 
 test('safeEntryName accepts canonical relative names and rejects traversal/path ambiguity', () => {
@@ -39,7 +39,8 @@ test('createZip rejects duplicate entries and symlink inputs', async (context) =
 })
 
 test('inspectZip compares central method, CRC, sizes and local offset with local records', async () => {
-  const original = await readFile(path.join(releaseRoot, 'system-manager-0.2.1.zip'))
+  const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
+  const original = await readFile(path.join(releaseRoot, `system-manager-${packageJson.version}.zip`))
   const endOffset = original.length - 22
   assert.equal(original.readUInt32LE(endOffset), 0x06054b50)
   const centralOffset = original.readUInt32LE(endOffset + 16)

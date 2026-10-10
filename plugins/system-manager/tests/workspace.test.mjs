@@ -19,7 +19,7 @@ async function testFiles(directory) {
 test('root package declares one workspace for every fixed system manager module', async () => {
   const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
   assert.equal(packageJson.name, 'system-manager')
-  assert.equal(packageJson.version, '0.2.1')
+  assert.equal(packageJson.version, '0.3.0')
   assert.deepEqual(packageJson.workspaces, ['modules/*'])
   assert.equal(packageJson.scripts.build, 'node scripts/build.mjs')
   assert.match(packageJson.scripts.test, /npm run build/)
