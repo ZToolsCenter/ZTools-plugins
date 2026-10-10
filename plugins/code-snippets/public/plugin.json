@@ -5,7 +5,7 @@
   "description": "保存和管理常用代码模板，支持一键复制、搜索过滤、按使用频率排序、导入导出 JSON 文件。",
   "author": "咖啡八杯",
   "categories": ["development", "productivity"],
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
