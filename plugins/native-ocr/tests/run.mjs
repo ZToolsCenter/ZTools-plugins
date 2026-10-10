@@ -615,13 +615,15 @@ test('gridToTsv/Csv/Markdown 序列化', () => {
   assert.equal(gridToTsv(grid), 'A\tB\n1\tx,y');
   assert.equal(gridToCsv(grid), 'A,B\n1,"x,y"');
   assert.equal(gridToMarkdown(grid), '| A | B |\n| --- | --- |\n| 1 | x,y |');
-  assert.equal(gridToMarkdown([['h', 'a|b']]), '| h | a\\|b |\n| --- | --- |');
+  // v1.1.0：单行网格不再把唯一一行当表头然后丢掉表体。改为输出空表头 + 该行作为数据行，
+  // 保证内容不丢失（旧行为 `| h | a\|b |\n| --- | --- |` 会让整行内容在重导入时变成表头）。
+  assert.equal(gridToMarkdown([['h', 'a|b']]), '|  |  |\n| --- | --- |\n| h | a\\|b |');
   assert.equal(gridToMarkdown([]), '');
   assert.equal(gridToMarkdown([[null, undefined]]).startsWith('|  |  |'), true);
 })
 
 // ===== 0.7.8：onnx_mixed_merge.mjs 混排去重（公式字形不再重复输出为文本） =====
-import { splitLinePieces, mergeSegments } from '../bin/onnx_mixed_merge.mjs'
+import { splitLinePieces, mergeSegments, groupIntoLines, horizontalCoverage } from '../bin/onnx_mixed_merge.mjs'
 
 test('splitLinePieces 公式框外扩：边缘字符归公式不残留文本', () => {
   // 公式框 [14,26] 较窄；字符 c=[27,33] 中心 30 在原框外，但外扩 pad=3 后（[11,29]+1 容差）归入公式
@@ -701,6 +703,90 @@ test('mergeSegments 降级丢弃要求垂直重叠 >0.5', () => {
   const textLines = [{ text: 'abcdef', box: [0, 0, 100, 20] }];
   const { segments } = mergeSegments(boxes, textLines);
   assert.equal(segments.filter((s) => s.type === 'text').length, 1);
+})
+
+// ===== v1.1.0 回归：服务端**非降级**路径 —— chars 齐备时行内公式不得吞掉整行正文 =====
+// 注意与 tests/mixed-layout.mjs 的同名边界用例区分：那条调用的是**前端回退**
+// mergeAndOrderSegments（src/lib/mixedLayout.js）；本条调用真正出结果的
+// bin/onnx_mixed_merge.mjs#mergeSegments，且刻意构造「有 chars」以走非降级切分路径。
+test('mergeSegments 有 chars：embedding 覆盖 >60% 仍保留正文（v1.1.0 修复的真实路径）', () => {
+  // 逐字符框：每字符 10px 宽、行框 [0,0,300,20]。chars 长度必须与 text 严格相等，
+  // 否则 splitLinePieces 会返回 null 并静默退化到降级路径（测不到本次修复）。
+  const text = 'thus x=a_{1}+b_{1}+c_{1} holds'; // 30 字符 = 5 前缀 + 19 公式 + 6 后缀
+  const chars = [...text].map((c, i) => ({ c, box: [i * 10, 0, i * 10 + 10, 20] }));
+  // 公式框精确覆盖索引 5..23（像素 [50,240]）：覆盖 190/300 = 63.3% > 规则2 的 60% 阈值。
+  const boxes = [{ type: 'embedding', score: 0.9, latex: 'x=a_{1}+b_{1}+c_{1}', box: [50, 0, 240, 20] }];
+  const textLines = [{ text, box: [0, 0, 300, 20], chars }];
+  // 前提校验：覆盖率确实 > 60%。若无 v1.1.0 的 `b.type !== 'isolated'` 守卫，
+  // 该行会在规则2（整行丢弃）就被删掉，根本到不了切分器。
+  assert.ok(horizontalCoverage(textLines[0].box, boxes) > 0.6, '前提：embedding 覆盖率必须 > 60%');
+  assert.equal(chars.length, text.length, '前提：chars 长度须等于 text 长度（否则走降级）');
+
+  const warnings = [];
+  const { segments } = mergeSegments(boxes, textLines, warnings);
+
+  // 修复判据 1：正文两侧都在（整行没有消失）
+  const prose = segments.filter((s) => s.type === 'text').map((s) => s.text).join('');
+  assert.ok(prose.includes('thus'), `前缀正文丢失：${JSON.stringify(prose)}`);
+  assert.ok(prose.includes('holds'), `后缀正文丢失：${JSON.stringify(prose)}`);
+  // 修复判据 2：逐字符框切分成功，输出是「文本 / 行内公式 / 文本」的交错顺序
+  assert.deepEqual(segments.map((s) => s.type), ['text', 'embedding', 'text']);
+  assert.equal(segments.filter((s) => s.type === 'embedding').length, 1, '公式应恰好出现一次');
+  // 修复判据 3：证明走的是非降级路径 —— 未推入任何降级丢弃 warning
+  assert.deepEqual(warnings, [], `不应有降级 warning，实际：${JSON.stringify(warnings)}`);
+})
+
+// ===== 已存在的限制（非本次修复目标）：无 chars 时 embedding 覆盖明显仍整行丢弃 =====
+test('mergeSegments 无 chars：embedding 覆盖 ≥0.35 仍丢弃整行并告警（已记录的限制）', () => {
+  // v1.1.0 只把「整行丢弃」的两条规则（IoU>0.1 / 覆盖>60%）限定给 isolated。
+  // 另一条**降级**路径仍在：splitLinePieces 拿不到 chars 时切不开行内公式，为免公式字形
+  // 以文本重复输出，覆盖 ≥0.35（embedding 阈值）且垂直重叠 >0.5 时丢整行——这是既有设计，
+  // 与 v1.1.0 无关。本测试固定住它：既防止被误「修掉」，也让这处限制在套件里可见。
+  const boxes = [{ type: 'embedding', score: 0.9, latex: 'x', box: [0, 0, 80, 20] }];
+  const textLines = [{ text: 'inline host text', box: [0, 0, 200, 20] }]; // 无 chars
+  const warnings = [];
+  const { segments } = mergeSegments(boxes, textLines, warnings);
+  // 整行被丢弃
+  assert.equal(segments.some((s) => s.type === 'text'), false, '无 chars 且覆盖 0.4 时应丢整行');
+  // 公式保留且只输出一次（丢弃的目的就是避免公式重复输出）
+  assert.equal(segments.filter((s) => s.type === 'embedding').length, 1);
+  // 告警必须点名被丢文本。注意：该行嵌入公式的 IoU=0.4>0.1，若 type 守卫缺失会在规则2 被丢，
+  // 那里给出的是另一条警告文案；断言「切分失败」可区分出这里走的是降级路径。
+  assert.equal(warnings.length, 1);
+  assert.ok(warnings[0].includes('inline host text'), `warning 应点名被丢文本：${warnings[0]}`);
+  assert.ok(warnings[0].includes('切分失败'), `warning 应说明降级原因：${warnings[0]}`);
+})
+
+// ===== 防御：文本行 box 缺失（undefined/null）不得抛错，也不得静默丢文本 =====
+test('groupIntoLines 容忍缺失/非法 box：不抛错，无框项按原相对顺序排最后', () => {
+  const lines = groupIntoLines([
+    { kind: 'text', text: 'b', box: [0, 40, 10, 60] },
+    { kind: 'text', text: 'n', box: null },
+    { kind: 'text', text: 'a', box: [0, 0, 10, 20] },
+    { kind: 'text', text: 'u', box: undefined }
+  ]);
+  assert.equal(lines.length, 4, '无框项各自独占一行，不与有框项聚行');
+  assert.deepEqual(lines.map((l) => l.items[0].text), ['a', 'b', 'n', 'u']);
+})
+
+test('mergeSegments 文本行 box 为 undefined：不抛错、文本保留在末尾并告警', () => {
+  const boxes = [{ type: 'embedding', score: 0.9, latex: 'x', box: [0, 0, 40, 20] }];
+  const textLines = [
+    { text: 'no geometry', box: undefined },
+    { text: 'with geometry', box: [0, 40, 200, 60] }
+  ];
+  const warnings = [];
+  // 旧实现：groupIntoLines 的排序比较器读 a.box[1] → TypeError（生产不可达，纯防御）
+  const { segments } = mergeSegments(boxes, textLines, warnings);
+  // 无框文本不丢失，且被排到有框行之后（顺序确定，不靠 NaN 比较的偶然结果）
+  assert.deepEqual(
+    segments.filter((s) => s.type === 'text').map((s) => s.text),
+    ['with geometry', 'no geometry']
+  );
+  assert.ok(
+    warnings.some((w) => w.includes('no geometry') && w.includes('缺少有效坐标框')),
+    `应就无框文本告警：${JSON.stringify(warnings)}`
+  );
 })
 
 // ===== 0.7.14：filterCjkFormulaBoxes —— MFD 正文误检框（框内 CJK ≥2）剔除 =====

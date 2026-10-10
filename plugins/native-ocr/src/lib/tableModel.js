@@ -153,8 +153,13 @@ export function buildGrid(cells, rowSeps, colSeps, edits = {}) {
 
 // ============ 网格序列化（P2-8 从 App.vue 拆入；P2-10 新增 Markdown） ============
 
+// TSV 无标准转义语法：单元格里的制表符/换行会直接改写列结构与行结构，
+// 导致导出结果无法回读（CSV 用引号解决，TSV 没有等价写法）。
+// 这里取最小破坏策略——把 \t \n \r 一律压成空格，只保证列/行结构正确，
+// 单元格内容被「拍平」（换行信息丢失，与 Markdown 表格的处理一致）。
 export function gridToTsv(grid) {
-  return (grid || []).map((row) => row.map((cell) => cell || '').join('\t')).join('\n')
+  const flat = (cell) => String(cell == null ? '' : cell).replace(/\s*[\t\r\n]+\s*/g, ' ')
+  return (grid || []).map((row) => row.map(flat).join('\t')).join('\n')
 }
 
 export function csvEscape(value) {
@@ -170,15 +175,19 @@ export function gridToCsv(grid) {
 }
 
 // Markdown 表格：首行加粗为表头；单元格内换行/竖线转义。
+// 网格只有 1 行时无法判断它到底是「只有表头的表」还是「只有一行的数据表」，
+// 直接把它当表头会让数据行消失（旧行为），因此改为输出「空表头 + 该行数据」：
+// 内容不丢失也不重复，且仍是合法的 GFM 表格。多行网格仍按首行表头输出，逐字不变。
 export function gridToMarkdown(grid) {
   const g = (grid || []).filter((row) => Array.isArray(row) && row.length)
   if (!g.length) return ''
   const esc = (v) => String(v == null ? '' : v).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
   const width = Math.max(...g.map((row) => row.length))
   const pad = (row) => Array.from({ length: width }, (_, i) => esc(row[i] || ''))
+  const single = g.length === 1
   const lines = []
-  lines.push('| ' + pad(g[0]).join(' | ') + ' |')
+  lines.push('| ' + (single ? Array.from({ length: width }, () => '') : pad(g[0])).join(' | ') + ' |')
   lines.push('| ' + Array.from({ length: width }, () => '---').join(' | ') + ' |')
-  for (let r = 1; r < g.length; r += 1) lines.push('| ' + pad(g[r]).join(' | ') + ' |')
+  for (let r = single ? 0 : 1; r < g.length; r += 1) lines.push('| ' + pad(g[r]).join(' | ') + ' |')
   return lines.join('\n')
 }

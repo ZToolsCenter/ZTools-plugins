@@ -21,6 +21,13 @@
         title="识别后 ONNX 模型常驻内存（免 2-4s 冷启动）；点此立即释放，下次识别自动重启"
         @click="releaseOnnxServers"
       >释放内存</button>
+      <button
+        type="button"
+        class="mini-button mem-release"
+        title="删除已下载的 ONNX 模型缓存文件（约 300MB+）以释放磁盘空间；下次使用 ONNX OCR / 公式识别 / 图文混排需重新下载，微信 OCR 运行时不受影响"
+        :disabled="onnxCacheClearing"
+        @click="clearModelCache"
+      >{{ onnxCacheClearing ? '清理中…' : '清理 ONNX 模型缓存' }}</button>
     </div>
 
     <section class="workbench">
@@ -218,8 +225,9 @@
           <div class="batch-head">
             <span class="batch-title">批量识别 · {{ batchItems.length }} 项</span>
             <span class="actions-spacer"></span>
-            <button type="button" class="mini-button" :disabled="!batchMergedText" @click="copyBatchText">复制全部</button>
-            <button type="button" class="mini-button" :disabled="!batchMergedText" @click="exportBatchTxt">导出 TXT</button>
+            <button type="button" class="mini-button" :disabled="!batchMergedText || batchRunning" @click="copyBatchText">复制全部</button>
+            <button type="button" class="mini-button" :disabled="!batchMergedText || batchRunning" @click="exportBatchTxt">导出 TXT</button>
+            <button v-if="batchRunning" type="button" class="mini-button" @click="stopBatch">停止</button>
             <button type="button" class="mini-button" :disabled="batchRunning" @click="closeBatch">关闭</button>
           </div>
           <ul class="batch-list">
@@ -750,7 +758,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as XLSX from 'xlsx'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-import './styles/katex-fonts.css'
 import {
   buildGrid,
   clusterTable,
@@ -770,6 +777,10 @@ import {
   segmentsToLatex,
   segmentsToHtml
 } from './lib/mixedLayout.js'
+import { planEngineSwitch, shouldFlushPendingRerun } from './lib/engineRerun.js'
+
+// ONNX 系引擎（共用 ONNX 子进程），切到其它引擎时需要释放这些常驻进程。
+const ONNX_ENGINES = new Set(['rapidocr', 'formula', 'mixed'])
 
 const OCR_IMAGE_STORAGE_KEY = 'native_ocr_image'
 const OCR_IMAGE_EVENT = 'native-ocr-image'
@@ -799,9 +810,15 @@ const runtimeProgress = ref({
 })
 const engine = ref(localStorage.getItem('native_ocr_engine') || 'wechat')
 const lastRecognizedSource = ref('')
+// 切引擎时若识别在途，则登记一次待补跑的重识别（loading 结束后由 finally 消费）。
+const pendingEngineRerun = ref(false)
 const visionAvailable = ref(false)
+// Windows 视觉探针细节（非 Windows / 未探针恒为 null）。仅用于把「缺中文语言包」等解释性
+// 文案透出给用户；绝不参与启用/禁用决策，也绝不据此改变 visionAvailable 的布尔契约。
+const visionSupportDetail = ref(null)
 const onnxReady = ref(false)
 const onnxDownloading = ref(false)
+const onnxCacheClearing = ref(false)
 const onnxMessage = ref('')
 const formulaReady = ref(false)
 const formulaDownloading = ref(false)
@@ -953,6 +970,8 @@ const panX = ref(0)
 const panY = ref(0)
 const batchItems = ref([])
 const batchRunning = ref(false)
+// 批量「停止」标志：runBatch 每轮开头检查，置位后当前项跑完即跳出循环。
+const batchCancelled = ref(false)
 let panState = null
 let pdfjsPromise = null
 const clusterFactor = ref(Number(localStorage.getItem('native_ocr_cluster_factor')) || 0.6)
@@ -972,6 +991,14 @@ const runtimeReady = computed(() => runtimeStatus.value === 'ready')
 const isMacPlatform = (window.nativeOcr?.getPlatform?.() || 'darwin') === 'darwin'
 const wechatReady = computed(() => runtimeReady.value)
 const wechatSupported = computed(() => runtimeStatus.value !== 'unsupported')
+// Windows 视觉探针的补充提示：仅当探针结论明确（known === true）且给出非空 message 时采用，
+// 否则返回空串，由 engineTabs 回落到原有文案（探针无结论时不得改变任何措辞）。
+const visionDetailHint = computed(() => {
+  const detail = visionSupportDetail.value
+  if (!detail || detail.known !== true) return ''
+  const message = detail.message
+  return typeof message === 'string' && message.trim() !== '' ? message : ''
+})
 // 引擎页签排序：Windows 上 ONNX OCR（识别率最优）排第一；
 // macOS 保持 macOS Vision → ONNX OCR → 微信 OCR。
 const engineTabs = computed(() => {
@@ -992,7 +1019,8 @@ const engineTabs = computed(() => {
     : {
         id: 'vision', label: 'Windows OCR', pending: false,
         disabled: !visionAvailable.value, badge: '',
-        title: visionAvailable.value ? '' : '需要 Windows 10 及 PowerShell'
+        // 探针给出明确提示（如缺中文语言包）时优先展示；否则保持原有文案。
+        title: visionDetailHint.value || (visionAvailable.value ? '' : '需要 Windows 10 及 PowerShell')
       }
   const formulaTab = {
     id: 'formula',
@@ -1309,11 +1337,27 @@ function exportHistoryTxt() {
   }
 }
 
+// 历史判重用的内容指纹：对「未截断」的完整文本做 FNV-1a（32 位，转 16 进制字符串）。
+// 存储的 text 只有前 HISTORY_TEXT_LIMIT 个字符，拿它判重会把「前 5000 字相同、后面不同」
+// 的两条不同文本误判成重复、并把旧条目删掉；截断后已无法还原原文，所以额外记录完整文本的指纹。
+// 存储格式不变（text 仍是截断文本），只是多一个 textHash 字段。
+function historyFingerprint(text) {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(16)
+}
+
 function pushHistory(text, engineName) {
   const trimmed = String(text || '').trim()
   if (!trimmed) return
   const stored = trimmed.length > HISTORY_TEXT_LIMIT ? trimmed.slice(0, HISTORY_TEXT_LIMIT) : trimmed
-  const existingIndex = history.value.findIndex((item) => item.text === stored)
+  // 判重用完整文本的指纹；老记录没有 textHash，退化为比长度兜底（长度不同即不误删）。
+  const fingerprint = historyFingerprint(trimmed)
+  const existingIndex = history.value.findIndex((item) => item.text === stored
+    && (typeof item.textHash === 'string' ? item.textHash === fingerprint : item.text.length === trimmed.length))
   if (existingIndex === 0) return
   const next = history.value.slice()
   if (existingIndex > 0) {
@@ -1324,6 +1368,7 @@ function pushHistory(text, engineName) {
     id,
     engine: engineName === 'vision' || engineName === 'rapidocr' || engineName === 'formula' || engineName === 'mixed' ? engineName : 'wechat',
     text: stored,
+    textHash: fingerprint,
     ts: Date.now()
   })
   if (next.length > HISTORY_LIMIT) next.length = HISTORY_LIMIT
@@ -1374,7 +1419,6 @@ function engineLabel(engineName) {
   if (engineName === 'vision') return '系统 OCR'
   if (engineName === 'rapidocr') return 'ONNX OCR'
   if (engineName === 'formula') return '公式识别'
-  if (engineName === 'mixed') return '图文混排'
   if (engineName === 'mixed') return '图文混排'
   return '微信 OCR'
 }
@@ -1880,6 +1924,9 @@ async function copyTable() {
     showToast('暂无表格可复制')
     return
   }
+  // 不加 BOM：TSV 只有剪贴板这一个出口（文件导出走 CSV / Markdown），
+  // 剪贴板本身按 Unicode 传递，不存在「按 ANSI 打开乱码」的场景；加了反而会把 BOM
+  // 变成首格里的隐形字符，粘进 Excel / 编辑器后极难排查。
   await copyTextValue(gridToTsv(tableGrid.value.grid))
 }
 
@@ -1899,7 +1946,8 @@ function exportTableMd() {
   }
   const md = gridToMarkdown(tableGrid.value.grid)
   try {
-    downloadBlob(new Blob([md], { type: 'text/markdown;charset=utf-8;' }), `native-ocr-table-${Date.now()}.md`)
+    // 与 CSV 导出一致：加 UTF-8 BOM，避免 Windows 记事本/Excel 按 ANSI 打开时中文乱码。
+    downloadBlob(new Blob([`\ufeff${md}`], { type: 'text/markdown;charset=utf-8;' }), `native-ocr-table-${Date.now()}.md`)
     showToast('已导出 Markdown')
   } catch (_) {
     showToast('导出失败')
@@ -1932,7 +1980,8 @@ function exportCsv() {
 }
 
 function exportXlsx() {
-  if (!tableGrid.value) {
+  // 空网格守卫：buildGrid 无单元格时返回 { grid: [] }，XLSX 会写出零范围工作表（空/损坏文件）。
+  if (!tableGrid.value || !tableGrid.value.grid.length) {
     showToast('暂无表格可导出')
     return
   }
@@ -2194,6 +2243,16 @@ async function recognizeSource(source, preview = '', force = false) {
     if (attemptedRecognition) hasRecognizedOnce = true
     loading.value = false
     isFirstRunLoading.value = false
+    // 切引擎时因识别在途而排队的重跑：loading 一结束就补上。
+    // 必须先清空标志再调用，这样这一次补跑自己（进入/退出 finally）不会再次触发补跑 —— 防死循环。
+    if (shouldFlushPendingRerun({
+      pending: pendingEngineRerun.value,
+      hasSource: Boolean(lastRecognizedSource.value),
+      ready: readyToRecognize.value
+    })) {
+      pendingEngineRerun.value = false
+      recognizeSource(lastRecognizedSource.value, previewSrc.value, true)
+    }
   }
 }
 
@@ -2242,10 +2301,27 @@ function extractMixedTextLines(result) {
   return out
 }
 
-// 与 formulaHtml 同款的 KaTeX 三级容错渲染（renderMath 回调用）。
+// KaTeX 渲染 memo：键 = displayMode + 原始 latex。renderMixedMathUncached 的其余输入
+// （options 里的 throwOnError/strict/trust/output、errorColor、sanitizeLatexForRender）
+// 都是函数体内的字面量或纯函数，输出完全由 (latex, displayMode) 决定，键覆盖全部输入，
+// 不可能出现陈旧结果；命中时跳过昂贵的 katex.renderToString（公式行 / 混排预览共用）。
+// 上限 500 条，超出整体清空（纯性能优化，不影响正确性）。
+const mixedMathCache = new Map()
+const MIXED_MATH_CACHE_MAX = 500
 function renderMixedMath(latex, displayMode) {
   const raw = String(latex || '').trim()
   if (!raw) return ''
+  const key = `${displayMode ? 'D' : 'I'}|${raw}`
+  const cached = mixedMathCache.get(key)
+  if (cached !== undefined) return cached
+  const html = renderMixedMathUncached(raw, displayMode)
+  if (mixedMathCache.size >= MIXED_MATH_CACHE_MAX) mixedMathCache.clear()
+  mixedMathCache.set(key, html)
+  return html
+}
+
+// 与 formulaHtml 同款的 KaTeX 三级容错渲染（renderMath 回调用）。
+function renderMixedMathUncached(raw, displayMode) {
   const options = { displayMode, throwOnError: true, strict: false, trust: false, output: 'htmlAndMathml' }
   try {
     return katex.renderToString(raw, options)
@@ -2282,18 +2358,35 @@ const mixedRenderHtml = computed(() => {
   return html
 })
 
+// 标注框样式 memo（公式 / 混排 overlay 共用）：输出完全由「框四坐标 + 图片宽高 W/H + 外扩
+// 像素 pad」决定，键覆盖全部输入，命中时复用同一对象，避免指针高频移动 / 组件重渲染时反复
+// 拼接字符串。W/H 仍每次调用重新读取（img 尚未 load 时回落 naturalWidth 的自愈行为不变）。
+// 上限 512 条，超出整体清空（纯性能优化，不影响正确性）。
+const boxStyleCache = new Map()
+const BOX_STYLE_CACHE_MAX = 512
+function boxPercentStyle(box, pad, W, H) {
+  const [x1, y1, x2, y2] = box || [0, 0, 0, 0]
+  const key = `${W}|${H}|${pad}|${x1},${y1},${x2},${y2}`
+  const cached = boxStyleCache.get(key)
+  if (cached) return cached
+  const [ex1, ey1, ex2, ey2] = expandBoxForDisplay([x1, y1, x2, y2], pad, { w: W, h: H })
+  const style = {
+    left: `${(ex1 / W) * 100}%`,
+    top: `${(ey1 / H) * 100}%`,
+    width: `${((ex2 - ex1) / W) * 100}%`,
+    height: `${((ey2 - ey1) / H) * 100}%`
+  }
+  if (boxStyleCache.size >= BOX_STYLE_CACHE_MAX) boxStyleCache.clear()
+  boxStyleCache.set(key, style)
+  return style
+}
+
 // 把预览图按比例定位到 overlay 容器（overlay 覆盖在 img 之上，随 transform 缩放/平移）。
 function mixedBoxStyle(box) {
   const img = previewImageRef.value
   const W = (mixedImageSize.value && mixedImageSize.value.w) || (img && img.naturalWidth) || 1
   const H = (mixedImageSize.value && mixedImageSize.value.h) || (img && img.naturalHeight) || 1
-  const [x1, y1, x2, y2] = expandBoxForDisplay(box, mixedBoxPad.value, { w: W, h: H })
-  return {
-    left: `${(x1 / W) * 100}%`,
-    top: `${(y1 / H) * 100}%`,
-    width: `${((x2 - x1) / W) * 100}%`,
-    height: `${((y2 - y1) / H) * 100}%`
-  }
+  return boxPercentStyle(box, mixedBoxPad.value, W, H)
 }
 
 // 把 [x1,y1,x2,y2] 按 pad 外扩并 clamp 到图片尺寸（仅用于 overlay 显示，不改动源数据）。
@@ -2321,13 +2414,7 @@ function formulaBoxStyle(box) {
   const img = previewImageRef.value
   const W = (formulaImageSize.value && formulaImageSize.value.w) || (img && img.naturalWidth) || 1
   const H = (formulaImageSize.value && formulaImageSize.value.h) || (img && img.naturalHeight) || 1
-  const [x1, y1, x2, y2] = expandBoxForDisplay(box, formulaBoxPad.value, { w: W, h: H })
-  return {
-    left: `${(x1 / W) * 100}%`,
-    top: `${(y1 / H) * 100}%`,
-    width: `${((x2 - x1) / W) * 100}%`,
-    height: `${((y2 - y1) / H) * 100}%`
-  }
+  return boxPercentStyle(box, formulaBoxPad.value, W, H)
 }
 
 // 多公式每行预览：独立公式用 displayMode，行内公式用行内模式（三档容错同 mixed）。
@@ -2748,6 +2835,37 @@ async function releaseOnnxServers() {
     showToast(n > 0 ? `已释放 ${n} 个模型进程` : '当前没有常驻模型进程')
   } catch (_) {
     showToast('释放失败')
+  }
+}
+
+// P2-12：清理已下载的 ONNX 模型缓存（磁盘），下次使用 ONNX 系引擎需重新下载。
+// preload 的 clearModelCache 可能尚未落地，用可选调用兜底，缺失时给出明确提示而非报错。
+// 契约（fix-runtime）：Promise<{ freedBytes }>，永不 reject；清完会杀掉 ONNX 子进程，
+// 故需重新拉一次 isOnnxOcrAvailable() 让 onnxReady 反映真实状态。
+async function clearModelCache() {
+  if (onnxCacheClearing.value) return
+  if (!window.confirm('确定要清理 ONNX 模型缓存吗？将释放约 300MB+ 磁盘空间，下次使用 ONNX OCR / 公式识别 / 图文混排引擎需要重新下载。微信 OCR 运行时不受影响。')) return
+  onnxCacheClearing.value = true
+  try {
+    const result = await window.nativeOcr?.clearModelCache?.()
+    if (!result) {
+      showToast('当前版本不支持清理模型缓存')
+      return
+    }
+    const freedBytes = Number(result.freedBytes || 0)
+    showToast(freedBytes > 0
+      ? `已清理模型缓存，释放 ${(freedBytes / 1024 / 1024).toFixed(1)} MB`
+      : '暂无可清理的模型缓存')
+  } catch (error) {
+    showToast(`清理失败：${formatError(error)}`)
+  } finally {
+    onnxCacheClearing.value = false
+  }
+  // 缓存被清后 ONNX 引擎不再可用，刷新页签状态（失败时保持原值，避免误判）。
+  try {
+    onnxReady.value = await window.nativeOcr?.isOnnxOcrAvailable?.() || false
+  } catch (_) {
+    // Ignore host API failures.
   }
 }
 
@@ -3362,9 +3480,12 @@ async function runBatch() {
     return
   }
   // 公式引擎无 MFD 时为单公式模式（batchEngine='plain' → recognizeWithEngine 兜底），合法不拦截。
+  batchCancelled.value = false
   batchRunning.value = true
   try {
     for (const item of batchItems.value) {
+      // 用户点「停止」后：当前项跑完即跳出，剩余项保持 pending，可再次「开始」续跑。
+      if (batchCancelled.value) break
       if (item.status !== 'pending') continue
       item.status = 'running'
       try {
@@ -3404,10 +3525,19 @@ async function runBatch() {
         item.error = formatError(error)
       }
     }
-    showToast('批量识别完成')
+    showToast(batchCancelled.value ? '已停止批量识别' : '批量识别完成')
   } finally {
+    // 唯一复位点：正常结束、用户停止、以及任何一项抛错导致循环外退出，都会走到这里。
     batchRunning.value = false
   }
+}
+
+// 停止批量识别：只置标志，不 kill 子进程、不强拆 Promise 链。
+// runBatch 在当前项跑完后的下一轮开头 break，剩余项保持 pending 可续跑。
+function stopBatch() {
+  if (!batchRunning.value) return
+  batchCancelled.value = true
+  showToast('正在停止批量识别…')
 }
 
 async function handleFiles(files) {
@@ -3432,6 +3562,11 @@ async function handleFiles(files) {
 }
 
 function copyBatchText() {
+  // 跑批中不导出半成品（按钮已 disabled，这里再兜一层，防止非点击路径调用）。
+  if (batchRunning.value) {
+    showToast('批量识别进行中，请等待完成或先停止')
+    return
+  }
   if (!batchMergedText.value) {
     showToast('暂无批量结果')
     return
@@ -3440,6 +3575,10 @@ function copyBatchText() {
 }
 
 function exportBatchTxt() {
+  if (batchRunning.value) {
+    showToast('批量识别进行中，请等待完成或先停止')
+    return
+  }
   if (!batchMergedText.value) {
     showToast('暂无批量结果')
     return
@@ -3510,6 +3649,7 @@ function clearAll() {
   lastResult.value = null
   lastSource = ''
   lastRecognizedSource.value = ''
+  pendingEngineRerun.value = false
   translatedText.value = ''
   translationActive.value = false
   cellEdits.value = {}
@@ -3565,9 +3705,29 @@ watch(engine, (value) => {
   if (resultView.value === 'table' && !tableAvailable.value) {
     resultView.value = 'text'
   }
-  // 切换引擎后自动用新引擎重新识别当前图片（新引擎未就绪时跳过，遮罩会引导下载）
-  if (lastRecognizedSource.value && !loading.value && readyToRecognize.value) {
+  // 切到非 ONNX 系引擎时释放常驻 ONNX 子进程（重跑用新引擎，不该让旧子进程继续占内存）。
+  // 识别在途时必须跳过：releaseOnnxServers 直接 kill 子进程，会让在途请求失败并弹一次
+  // 假的「识别失败」。内存回收不急于这一刻，留给下一次切换或手动「释放内存」。
+  if (!ONNX_ENGINES.has(value) && !loading.value) {
+    try {
+      const released = window.nativeOcr?.releaseOnnxServers?.()
+      if (released && typeof released.catch === 'function') released.catch(() => {})
+    } catch (_) {
+      // Ignore release failures.
+    }
+  }
+  // 切换引擎后自动用新引擎重新识别当前图片（新引擎未就绪时跳过，遮罩会引导下载）。
+  // 识别在途时不能立刻重跑（在途请求仍在用旧引擎），改为登记排队，
+  // 由 recognizeSource 的 finally 在 loading 结束后补跑 —— 否则会出现「新引擎页签 + 旧引擎结果」。
+  const engineSwitchPlan = planEngineSwitch({
+    loading: loading.value,
+    hasSource: Boolean(lastRecognizedSource.value),
+    ready: readyToRecognize.value
+  })
+  if (engineSwitchPlan === 'run') {
     recognizeSource(lastRecognizedSource.value, previewSrc.value, true)
+  } else if (engineSwitchPlan === 'defer') {
+    pendingEngineRerun.value = true
   }
 })
 
@@ -3596,6 +3756,13 @@ onMounted(async () => {
   }
   try {
     visionAvailable.value = await window.nativeOcr?.isVisionAvailable?.() || false
+  } catch (_) {
+    // Ignore host API failures.
+  }
+  // 探针细节只用于解释性文案：宿主未暴露该 API（旧版 ZTools）或调用失败时保持 null，
+  // 绝不因此影响启动或引擎可用性判断。
+  try {
+    visionSupportDetail.value = await window.nativeOcr?.getVisionSupportDetail?.() || null
   } catch (_) {
     // Ignore host API failures.
   }

@@ -12,8 +12,18 @@ const OCR_IMAGE_EVENT = "native-ocr-image";
 const RUNTIME_REGISTRY_URL = "https://registry.npmmirror.com/@ztools-center/wechat-ocr-native";
 const RUNTIME_DIST_PREFIX = "package/dist/";
 // 运行时下载文件统一存放在 ZTools 插件数据目录（ztools.getPath("pluginData")），
-// 插件卸载时由 ZTools 自动清理；无法获取该目录时退回传统缓存位置。
-const LEGACY_CACHE_ROOT = path.join(os.homedir(), "Library", "Application Support", "ZTools", "native-ocr");
+// 插件卸载时由 ZTools 自动清理；拿不到该目录时才退回下面的传统缓存位置 —— 那是
+// ZTools 托管目录之外的路径，卸载时不会被清理，因此只作最后兜底：一旦托管目录
+// 可用就把旧数据搬过去（迁移逻辑见 getRuntimeCacheRoot），另提供 clearModelCache()
+// 供用户手动回收 ONNX 模型。
+const LEGACY_CACHE_ROOT = path.join(os.homedir(), "Library", "Application Support", "ZTools", "native-ocr"); // macOS
+const LEGACY_WIN_CACHE_ROOT = process.env.APPDATA ? path.join(process.env.APPDATA, "ZTools", "native-ocr") : ""; // Windows
+
+function legacyCacheRoot() {
+  if (process.platform === "win32" && LEGACY_WIN_CACHE_ROOT) return LEGACY_WIN_CACHE_ROOT;
+  return LEGACY_CACHE_ROOT;
+}
+
 let runtimeCacheRootCache = "";
 function getRuntimeCacheRoot() {
   if (runtimeCacheRootCache) return runtimeCacheRootCache;
@@ -25,14 +35,14 @@ function getRuntimeCacheRoot() {
   } catch (_) {
     // ztools API 不可用时使用回退目录
   }
-  if (!root && process.platform === "win32" && process.env.APPDATA) {
-    root = path.join(process.env.APPDATA, "ZTools", "native-ocr");
-  }
-  if (!root) root = LEGACY_CACHE_ROOT;
+  const legacyRoot = legacyCacheRoot();
+  if (!root) root = legacyRoot;
   try {
-    if (root !== LEGACY_CACHE_ROOT && fs.existsSync(LEGACY_CACHE_ROOT) && !fs.existsSync(root)) {
+    // 历史版本可能把运行时写进了回退目录（mac / win 各一套路径），此前只有 mac 做了迁移。
+    // 托管目录可用时搬过去：既避免已下载的运行时重复下载，也消除卸载后的残留。
+    if (root !== legacyRoot && fs.existsSync(legacyRoot) && !fs.existsSync(root)) {
       fs.mkdirSync(path.dirname(root), { recursive: true });
-      fs.renameSync(LEGACY_CACHE_ROOT, root); // 迁移旧缓存，避免已下载的运行时重复下载
+      fs.renameSync(legacyRoot, root);
     }
   } catch (_) {
     // 迁移失败不影响后续流程（大不了重新下载）
@@ -110,27 +120,61 @@ async function fetchJson(url) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+// 关闭写流并等待句柄真正释放（最多等 2s，避免异常路径卡住）。
+// createWriteStream 的 open 是异步的：不等 'close' 就删目标文件，
+// 可能删在文件被创建之前，随后半截文件才落盘（Windows 上句柄没释放还删不掉）。
+function closeWriteStream(output) {
+  return new Promise((resolve) => {
+    if (!output || output.closed) {
+      resolve();
+      return;
+    }
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    output.once("close", finish);
+    const timer = setTimeout(finish, 2000);
+    if (typeof timer.unref === "function") timer.unref();
+    try {
+      output.destroy();
+    } catch (_) {
+      finish();
+    }
+  });
+}
+
 async function downloadFile(url, destination, version, onProgress) {
   const res = await getResponse(url);
   const total = Number(res.headers["content-length"] || 0);
   let downloaded = 0;
-  await new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(destination);
-    res.on("data", (chunk) => {
-      downloaded += chunk.length;
-      emitProgress(onProgress, {
-        phase: "download",
-        version,
-        downloaded,
-        total,
-        percent: total ? Math.round((downloaded / total) * 100) : 0
+  const output = fs.createWriteStream(destination);
+  try {
+    await new Promise((resolve, reject) => {
+      res.on("data", (chunk) => {
+        downloaded += chunk.length;
+        emitProgress(onProgress, {
+          phase: "download",
+          version,
+          downloaded,
+          total,
+          percent: total ? Math.round((downloaded / total) * 100) : 0
+        });
       });
+      res.on("error", reject);
+      output.on("error", reject);
+      output.on("finish", resolve);
+      res.pipe(output);
     });
-    res.on("error", reject);
-    output.on("error", reject);
-    output.on("finish", resolve);
-    res.pipe(output);
-  });
+  } catch (error) {
+    // 下载失败（网络中断 / 超时）就地清理半截文件：调用方无法安全代劳 ——
+    // 目标流的句柄可能还开着、文件甚至可能还没被 open 创建出来。
+    await closeWriteStream(output);
+    try { fs.rmSync(destination, { force: true }); } catch (_) {}
+    throw error;
+  }
 }
 
 async function fetchLatestRuntime() {
@@ -864,15 +908,87 @@ async function translateSegments(segments, toLang) {
   return translated;
 }
 
+// Windows 系统 OCR 走内置 PowerShell + WinRT，无 OCR 语言包时引擎不可用。
+// 只验证「powershell 能跑」会把英文版 Windows（或未装中文语言包）也判成可用，
+// 实际识别中文会失败或极差，所以这里做一次真实探针，查 AvailableRecognizerLanguages。
+// 探针与 PS 版本检查合并成同一次调用（避免启动时多一次 powershell 冷启动），
+// 输出只用 ASCII 标签，不受中文控制台的代码页影响。
+const WIN_VISION_PROBE_SCRIPT = [
+  "$psv = $PSVersionTable.PSVersion.Major",
+  "$probe = 'ERR'",
+  "$langs = ''",
+  "try {",
+  "  $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]",
+  "  $langs = (@([Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages) | ForEach-Object { $_.LanguageTag }) -join ','",
+  "  $probe = 'OK'",
+  "} catch { }",
+  "Write-Output ('PSV=' + $psv + ';PROBE=' + $probe + ';LANGS=' + $langs)"
+].join("\n");
+const WIN_VISION_PROBE_TIMEOUT_MS = 8000;
+
+let lastWindowsVisionProbe = null;
+
+// 返回 { known, powershellAvailable, languages, chinese, message }。
+// known=false 表示探针本身没结论（异常 / 超时 / 输出不可解析 / WinRT 查询失败），
+// 调用方必须退回旧的乐观判断，绝不能因此把可用环境判成不可用。
+function probeWindowsVision() {
+  let probe;
+  try {
+    probe = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WIN_VISION_PROBE_SCRIPT], {
+      encoding: "utf8",
+      timeout: WIN_VISION_PROBE_TIMEOUT_MS,
+      windowsHide: true
+    });
+  } catch (_) {
+    return {
+      known: false,
+      powershellAvailable: true,
+      languages: [],
+      chinese: false,
+      message: "无法检测 Windows 系统 OCR，已按兼容策略视为可用"
+    };
+  }
+  // 只有确定 powershell.exe 缺失（ENOENT）才算不可用；超时 / 被终止 / 非零退出
+  // 都可能只是慢或被安全软件拦截，按旧判断乐观处理。
+  const powershellAvailable = !(probe.error && probe.error.code === "ENOENT");
+  const stdout = typeof probe.stdout === "string" ? probe.stdout : "";
+  const versionMatch = /PSV=(\d+)/.exec(stdout);
+  const probeMatch = /PROBE=([A-Z]+)/.exec(stdout);
+  const langsMatch = /LANGS=([^\r\n]*)/.exec(stdout);
+  if (probe.status !== 0 || !versionMatch || !probeMatch || !langsMatch || probeMatch[1] !== "OK") {
+    return {
+      known: false,
+      powershellAvailable,
+      languages: [],
+      chinese: false,
+      message: "未能确认 Windows 系统 OCR 语言包，已按兼容策略视为可用"
+    };
+  }
+  const languages = langsMatch[1].split(",").map((tag) => tag.trim()).filter(Boolean);
+  const chinese = languages.some((tag) => /^zh/i.test(tag));
+  return {
+    known: true,
+    powershellAvailable: true,
+    languages,
+    chinese,
+    message: languages.length
+      ? (chinese ? "" : "Windows 系统 OCR 未安装中文识别语言包，请在「设置 > 时间和语言 > 语言」中添加中文并安装语言包")
+      : "Windows 系统 OCR 引擎不可用，请安装 OCR 语言包（设置 > 时间和语言 > 语言）"
+  };
+}
+
 function isVisionAvailable() {
   if (process.platform === "win32") {
-    // Windows 系统 OCR 走内置 PowerShell + WinRT，Windows 10+ 必有。
-    try {
-      const probe = spawnSync("powershell.exe", ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"], { timeout: 15000 });
-      return probe.status === 0;
-    } catch (_) {
-      return false;
-    }
+    const probe = probeWindowsVision();
+    lastWindowsVisionProbe = probe;
+    // 探针没结论 → 退回旧的「powershell 能跑就算可用」，宁可乐观也不制造假阴性
+    // （假阴性会让 UI 直接禁用系统 OCR 引擎）。
+    if (!probe.known) return probe.powershellAvailable;
+    // 探到 WinRT OCR 但一个识别语言都没有，说明引擎确实不可用。
+    if (!probe.languages.length) return false;
+    // 有 OCR 但缺中文语言包时仍返回 true（引擎可用，只是中文效果差），
+    // 提示信息放在 getVisionSupportDetail() 里，不改变本函数的布尔契约。
+    return true;
   }
   if (process.platform !== "darwin") {
     return false;
@@ -885,6 +1001,12 @@ function isVisionAvailable() {
   } catch (_) {
     return false;
   }
+}
+
+// 附件能力（不改变 isVisionAvailable 的布尔契约）：UI 想提示「需安装中文语言包」
+// 时可读上一次探针细节；未探针过（非 Windows）返回 null。
+function getVisionSupportDetail() {
+  return lastWindowsVisionProbe ? { ...lastWindowsVisionProbe } : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -927,6 +1049,11 @@ const ONNX_PACKAGES = [
 ];
 const ONNX_ASSETS = ["ch_PP-OCRv4_det_infer.onnx", "ch_PP-OCRv4_rec_infer.onnx", "ppocr_keys_v1.txt"];
 const ONNX_REGISTRY_BASE = "https://registry.npmmirror.com";
+// 标记内容从清单派生：改动 ONNX_PACKAGES 的版本 / sha1 / 增删包，tag 必然变化，
+// 不必再靠人工同步一个常量（旧写法只比常量 ONNX_RUNTIME_VERSION，改了清单里的
+// shasum 却忘了改常量时，新模型不会下载、旧模型静默残留）。
+const ONNX_RUNTIME_TAG = crypto.createHash("sha1").update(JSON.stringify(ONNX_PACKAGES)).digest("hex").slice(0, 12);
+const ONNX_MARKER_FILE = ".native-ocr-onnx.json";
 
 function onnxModelsPaths() {
   return {
@@ -936,14 +1063,50 @@ function onnxModelsPaths() {
   };
 }
 
+function onnxMarkerPath() {
+  return path.join(getOnnxRuntimeDir(), ONNX_MARKER_FILE);
+}
+
+function onnxMarkerPayload(previous) {
+  return {
+    ...(previous && typeof previous === "object" ? previous : {}),
+    version: ONNX_RUNTIME_VERSION,
+    tag: ONNX_RUNTIME_TAG,
+    installedAt: (previous && previous.installedAt) || new Date().toISOString()
+  };
+}
+
+function writeOnnxMarker(previous) {
+  fs.writeFileSync(onnxMarkerPath(), JSON.stringify(onnxMarkerPayload(previous), null, 2));
+}
+
+// 标记只证明「曾经装过」；文件被手动删除、解包不全时同样不可用，两条必须同时满足。
+function onnxRuntimeFilesPresent() {
+  const dir = getOnnxRuntimeDir();
+  const packagesPresent = ONNX_PACKAGES
+    .filter((pkg) => !pkg.assetsOnly)
+    .every((pkg) => fs.existsSync(path.join(dir, "node_modules", pkg.name, "package.json")));
+  return packagesPresent
+    && fs.existsSync(path.join(dir, "onnx_ocr_server.mjs"))
+    && ONNX_ASSETS.every((file) => fs.existsSync(path.join(dir, "assets", file)));
+}
+
 function checkOnnxRuntime() {
-  const meta = readJsonFile(path.join(getOnnxRuntimeDir(), ".native-ocr-onnx.json"));
-  const installed = Boolean(
-    meta && meta.version === ONNX_RUNTIME_VERSION
-    && fs.existsSync(path.join(getOnnxRuntimeDir(), "node_modules", "@gutenye", "ocr-common", "package.json"))
-    && fs.existsSync(path.join(getOnnxRuntimeDir(), "onnx_ocr_server.mjs"))
-    && ONNX_ASSETS.every((file) => fs.existsSync(path.join(getOnnxRuntimeDir(), "assets", file)))
+  const meta = readJsonFile(onnxMarkerPath());
+  const filesPresent = onnxRuntimeFilesPresent();
+  // 向后兼容：v1.0.0 的标记只有 { version: 1 }，没有 tag。老用户不该因为新增了 tag
+  // 校验就重下 300MB —— 文件齐全说明装的正是当前清单，直接补写 tag 完成迁移。
+  if (filesPresent && meta && !meta.tag && meta.version === ONNX_RUNTIME_VERSION) {
+    try {
+      writeOnnxMarker(meta);
+    } catch (_) {
+      // 迁移写入失败不影响本次判定（仍按旧 version 规则视为已安装），下次检查再试。
+    }
+  }
+  const markerMatches = Boolean(
+    meta && (meta.tag ? meta.tag === ONNX_RUNTIME_TAG : meta.version === ONNX_RUNTIME_VERSION)
   );
+  const installed = Boolean(filesPresent && markerMatches);
   return {
     installed,
     ready: installed,
@@ -1010,57 +1173,53 @@ async function installOnnxRuntime(onProgress) {
         throw new Error(`无法解析 ${pkg.name} 的下载地址`);
       }
       const tmpTgz = path.join(getRuntimeCacheRoot(), `onnx-${pkg.name.replace(/[^\w.-]/g, "_")}-${pkg.version}.tgz`);
-      const previousTotal = doneBytes.value;
-      await downloadFile(tarball, tmpTgz, pkg.name, (progress) => {
-        if (progress.total) {
-          doneBytes.value = previousTotal + (progress.downloaded || 0);
-          emitProgress(onProgress, {
-            phase: "download",
-            message: `下载 ${pkg.name}`,
-            percent: Math.round(((index + (progress.downloaded || 0) / progress.total) / ONNX_PACKAGES.length) * 100)
-          });
-        }
-      });
-      const shasum = crypto.createHash("sha1").update(fs.readFileSync(tmpTgz)).digest("hex");
-      if (metadata.dist && metadata.dist.shasum && shasum !== metadata.dist.shasum) {
-        fs.rmSync(tmpTgz, { force: true });
-        throw new Error(`${pkg.name} 下载校验失败`);
-      }
-      if (pkg.shasum && shasum !== pkg.shasum) {
-        fs.rmSync(tmpTgz, { force: true });
-        throw new Error(`${pkg.name} 版本与清单不一致（sha1 校验失败），请更新插件`);
-      }
-      emitProgress(onProgress, { phase: "extract", message: `解包 ${pkg.name}`, percent: Math.round(((index + 0.5) / ONNX_PACKAGES.length) * 100) });
-      const tarBuffer = zlib.gunzipSync(fs.readFileSync(tmpTgz));
-      if (pkg.assetsOnly) {
-        for (const asset of ONNX_ASSETS) {
-          extractTarBuffer(tarBuffer, getOnnxRuntimeDir(), {
-            entryFilter: (rel) => rel === `assets/${asset}`,
-            mapPath: (rel) => `assets/${path.basename(rel)}`
-          });
-        }
-      } else {
-        const platformBinPrefix = `bin/napi-v3/${process.platform}/${process.arch}`;
-        extractTarBuffer(tarBuffer, path.join(getOnnxRuntimeDir(), "node_modules", pkg.name), {
-          entryFilter: pkg.trimPlatformBin
-            ? (rel) => !rel.startsWith("bin/") || rel.startsWith(platformBinPrefix)
-            : undefined
+      try {
+        const previousTotal = doneBytes.value;
+        await downloadFile(tarball, tmpTgz, pkg.name, (progress) => {
+          if (progress.total) {
+            doneBytes.value = previousTotal + (progress.downloaded || 0);
+            emitProgress(onProgress, {
+              phase: "download",
+              message: `下载 ${pkg.name}`,
+              percent: Math.round(((index + (progress.downloaded || 0) / progress.total) / ONNX_PACKAGES.length) * 100)
+            });
+          }
         });
+        const shasum = crypto.createHash("sha1").update(fs.readFileSync(tmpTgz)).digest("hex");
+        if (metadata.dist && metadata.dist.shasum && shasum !== metadata.dist.shasum) {
+          throw new Error(`${pkg.name} 下载校验失败`);
+        }
+        if (pkg.shasum && shasum !== pkg.shasum) {
+          throw new Error(`${pkg.name} 版本与清单不一致（sha1 校验失败），请更新插件`);
+        }
+        emitProgress(onProgress, { phase: "extract", message: `解包 ${pkg.name}`, percent: Math.round(((index + 0.5) / ONNX_PACKAGES.length) * 100) });
+        const tarBuffer = zlib.gunzipSync(fs.readFileSync(tmpTgz));
+        if (pkg.assetsOnly) {
+          for (const asset of ONNX_ASSETS) {
+            extractTarBuffer(tarBuffer, getOnnxRuntimeDir(), {
+              entryFilter: (rel) => rel === `assets/${asset}`,
+              mapPath: (rel) => `assets/${path.basename(rel)}`
+            });
+          }
+        } else {
+          const platformBinPrefix = `bin/napi-v3/${process.platform}/${process.arch}`;
+          extractTarBuffer(tarBuffer, path.join(getOnnxRuntimeDir(), "node_modules", pkg.name), {
+            entryFilter: pkg.trimPlatformBin
+              ? (rel) => !rel.startsWith("bin/") || rel.startsWith(platformBinPrefix)
+              : undefined
+          });
+        }
+      } finally {
+        // 与微信 OCR 路径一致：下载中断（网络错误 / 30s 超时）或校验失败都不能留下半截 tgz。
+        // 此处单独 try/catch，避免清理失败反过来吞掉真正的下载错误。
+        try { fs.rmSync(tmpTgz, { force: true }); } catch (_) {}
       }
-      fs.rmSync(tmpTgz, { force: true });
     }
-    fs.copyFileSync(
-      path.join(__dirname, "bin", "onnx_ocr_backend.mjs"),
-      path.join(getOnnxRuntimeDir(), "onnx_ocr_backend.mjs")
-    );
     fs.copyFileSync(
       path.join(__dirname, "bin", "onnx_ocr_server.mjs"),
       path.join(getOnnxRuntimeDir(), "onnx_ocr_server.mjs")
     );
-    fs.writeFileSync(path.join(getOnnxRuntimeDir(), ".native-ocr-onnx.json"), JSON.stringify({
-      version: ONNX_RUNTIME_VERSION,
-      installedAt: new Date().toISOString()
-    }, null, 2));
+    writeOnnxMarker(null);
     emitProgress(onProgress, { phase: "done", percent: 100 });
     return checkOnnxRuntime();
   })();
@@ -1091,7 +1250,7 @@ function ensureOnnxServer() {
     try {
       scriptNames = fs.readdirSync(path.join(__dirname, "bin")).filter((n) => n.endsWith(".mjs"));
     } catch (_) {
-      scriptNames = ["onnx_ocr_server.mjs", "onnx_ocr_backend.mjs", "onnx_table_split.mjs", "onnx_text_order.mjs"];
+      scriptNames = ["onnx_ocr_server.mjs", "onnx_table_split.mjs", "onnx_text_order.mjs"];
     }
     for (const name of scriptNames) {
       const src = path.join(__dirname, "bin", name);
@@ -1484,7 +1643,7 @@ function ensureOnnxFormulaServer() {
     try {
       scriptNames = fs.readdirSync(path.join(__dirname, "bin")).filter((n) => n.endsWith(".mjs"));
     } catch (_) {
-      scriptNames = ["onnx_ocr_server.mjs", "onnx_ocr_backend.mjs", "onnx_table_split.mjs", "onnx_text_order.mjs", "onnx_formula_server.mjs", "onnx_gray_resize.mjs", "onnx_image_raw.mjs", "onnx_formula_core.mjs", "onnx_mfd_core.mjs", "onnx_mixed_server.mjs"];
+      scriptNames = ["onnx_ocr_server.mjs", "onnx_table_split.mjs", "onnx_text_order.mjs", "onnx_formula_server.mjs", "onnx_gray_resize.mjs", "onnx_image_raw.mjs", "onnx_formula_core.mjs", "onnx_mfd_core.mjs", "onnx_mixed_server.mjs"];
     }
     for (const name of scriptNames) {
       const src = path.join(__dirname, "bin", name);
@@ -1581,7 +1740,6 @@ function ensureOnnxMixedServer() {
     } catch (_) {
       scriptNames = [
         "onnx_ocr_server.mjs",
-        "onnx_ocr_backend.mjs",
         "onnx_table_split.mjs",
         "onnx_text_order.mjs",
         "onnx_formula_server.mjs",
@@ -1967,12 +2125,80 @@ function releaseOnnxServers() {
   return released;
 }
 
+// 目录 / 文件占用的字节数（符号链接不计入，避免顺着链接统计到目录外）。
+function pathSizeBytes(target) {
+  let stat;
+  try {
+    stat = fs.lstatSync(target);
+  } catch (_) {
+    return 0;
+  }
+  if (stat.isFile()) return stat.size;
+  if (!stat.isDirectory()) return 0;
+  let entries;
+  try {
+    entries = fs.readdirSync(target, { withFileTypes: true });
+  } catch (_) {
+    return 0;
+  }
+  let total = 0;
+  for (const entry of entries) {
+    try {
+      const full = path.join(target, entry.name);
+      if (entry.isDirectory()) total += pathSizeBytes(full);
+      else if (entry.isFile()) total += fs.statSync(full).size;
+    } catch (_) {
+      // 单个条目统计失败不影响整体。
+    }
+  }
+  return total;
+}
+
+// 删除单个目标并返回实际释放的字节数；不存在或删除失败都返回 0（不抛错、不中断整体清理）。
+function removePathAndMeasure(target) {
+  if (!target) return 0;
+  const size = pathSizeBytes(target);
+  try {
+    fs.rmSync(target, { recursive: true, force: true });
+  } catch (_) {
+    return 0;
+  }
+  return size;
+}
+
+// P2：清理 ONNX 模型缓存（node_modules 依赖 + 全部模型，约 300MB+）+ 下载中断残留的临时包。
+// 契约：返回 Promise<{ freedBytes: number }>，freedBytes 是本次真实释放的字节数
+// （目录本就不存在 / 删除被拒时为 0）。本函数不会抛出未捕获异常，UI 直接 await 即可。
+// 注意：只清 ONNX（含公式 / MFD 模型，它们都在 onnx-runtime 下）；微信 OCR 运行时
+// （ocr-runtime）不在「模型缓存」范围内，保持不动。
+async function clearModelCache() {
+  // 子进程还持有已删除模型的句柄，必须先释放，否则 Windows 上目录删不掉。
+  releaseOnnxServers();
+  const targets = [getOnnxRuntimeDir()];
+  // 历史中断的下载可能把半截包留在缓存根目录（命名与安装流程一致）。
+  try {
+    for (const name of fs.readdirSync(getRuntimeCacheRoot())) {
+      if (/^onnx-.*\.tgz$/.test(name) || /^formula-.*\.tmp$/.test(name) || /^mfd-.*\.tmp$/.test(name)) {
+        targets.push(path.join(getRuntimeCacheRoot(), name));
+      }
+    }
+  } catch (_) {
+    // 缓存根目录不存在时无需处理临时文件。
+  }
+  let freedBytes = 0;
+  for (const target of targets) {
+    freedBytes += removePathAndMeasure(target); // 单个目标失败不中断整体清理
+  }
+  return { freedBytes };
+}
+
 window.nativeOcr = {
   checkRuntime,
   installRuntime,
   recognize,
   recognizeVision,
   isVisionAvailable,
+  getVisionSupportDetail,
   recognizeOnnxOcr,
   isOnnxOcrAvailable,
   installOnnxRuntime,
@@ -1985,6 +2211,7 @@ window.nativeOcr = {
   recognizeOnnxMixed,
   recognizeOnnxFormulas,
   releaseOnnxServers,
+  clearModelCache,
   getPlatform() {
     return process.platform;
   },

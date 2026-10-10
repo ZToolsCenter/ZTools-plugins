@@ -251,9 +251,10 @@ export function splitTextLinePieces(line, formulaItems) {
 // 合并与排序：把文本行 + 公式框按阅读顺序整理成 segments
 //
 // 规则（与服务端一致）：
-//  1) 文本行若与任一**独立公式**框 IoU > 0.1，或公式框横向跨度覆盖了该文本行 >60% 宽度，
+//  1) 文本行若与任一**独立公式**框 IoU > 0.1，或被**独立公式**框横向覆盖 >60% 宽度，
 //     则视为「文本行处于公式区域内」，丢弃该文本行（公式由公式识别负责）。
-//     注意：行内公式的重合**不**触发丢弃（见下方注释）。
+//     注意：这两条都只对独立公式（isolated）生效；行内公式（embedding）的重合**不**触发丢弃
+//     （见下方注释）。
 //  2) 剩余 item 按纵向重叠 > 0.5 归到同一行。
 //  3) 行间按 y 自上而下，行内按 x 自左向右，生成最终 segments。
 //  4) lineNumber 从 0 开始，每行递增。
@@ -290,15 +291,15 @@ export function mergeAndOrderSegments({ textLines = [], formulaBoxes = [] } = {}
   const kept = items.filter((item) => {
     if (item.kind !== 'text') return true
     for (const f of formulas) {
-      // 只有「独立公式」才可能整行就是公式，此时丢弃该文本行是正确的。
-      // 行内公式（embedding）按定义就嵌在文本行内部，它与宿主行的重合绝不能
-      // 导致整行被丢弃 —— 实测 Vision 会把整行文字读成一条 observation，
-      // 若按 IoU>0.1 一刀切，含行内公式的整行文字会被静默丢掉（已复现：
-      // mixed.jpg 底行「其中～利用 Gumbel-Softmax…」整行消失）。
-      if (f.kind === 'isolated' && iou(item.box, f.box) > 0.1) return false
+      // 两条丢弃规则都**只对独立公式生效**。行内公式（embedding）按定义就嵌在文本行内部，
+      // 它与宿主行的重合绝不能导致整行被丢弃 —— 实测 Vision 会把含行内公式的整行文字读成
+      // 一条 observation，若按 IoU>0.1 或覆盖率一刀切，整行文字会被静默丢掉（已复现：
+      // mixed.jpg 底行「其中～利用 Gumbel-Softmax…」整行消失）。保留最多是公式字形重复出现
+      // （可由切分器消除），而丢弃是数据丢失 —— 后者严重得多。
+      if (f.kind !== 'isolated') continue
+      if (iou(item.box, f.box) > 0.1) return false
       // 仅当公式框与文本行在纵向上真正重叠（同一行）时，才用横向覆盖率判断，
       // 避免远处（不同行）但横向跨度很大的公式框误伤无关文本行。
-      // 该规则仍然适用于行内公式：整行几乎被公式占满时，文本行确实没有多少文字。
       if (verticalOverlap(item.box, f.box) > 0) {
         const overlapW = horizontalOverlap(item.box, f.box)
         const coverage = boxWidth(item.box) > 0 ? overlapW / boxWidth(item.box) : 0

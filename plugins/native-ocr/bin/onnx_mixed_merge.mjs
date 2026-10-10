@@ -5,7 +5,17 @@
 // 合并规则（冻结，前端依赖）
 // ---------------------------------------------------------------------------
 
+// box 合法性：4 元有限数数组。生产调用方已保证 textLines 是 4 元数值数组，此处纯防御——
+// 只要有一个 NaN/Infinity/undefined 混进来，Math.min/max 会把 NaN 传染给整条判定链，
+// 让「该丢的没丢、该留的没留」且完全静默。非法输入一律退化为「无重叠（0）」。
+function isFiniteBox(b) {
+  return Array.isArray(b) && b.length === 4
+    && Number.isFinite(b[0]) && Number.isFinite(b[1])
+    && Number.isFinite(b[2]) && Number.isFinite(b[3]);
+}
+
 export function vOverlapRatio(a, b) {
+  if (!isFiniteBox(a) || !isFiniteBox(b)) return 0;
   const inter = Math.min(a[3], b[3]) - Math.max(a[1], b[1]);
   if (inter <= 0) return 0;
   const ha = a[3] - a[1];
@@ -15,6 +25,7 @@ export function vOverlapRatio(a, b) {
 }
 
 export function iouOf(a, b) {
+  if (!isFiniteBox(a) || !isFiniteBox(b)) return 0;
   const ix1 = Math.max(a[0], b[0]);
   const iy1 = Math.max(a[1], b[1]);
   const ix2 = Math.min(a[2], b[2]);
@@ -28,8 +39,10 @@ export function iouOf(a, b) {
 
 // 文本行被公式框覆盖的水平比例（仅统计与文本行在垂直方向有交叠的公式框）。
 export function horizontalCoverage(lineBox, formulaBoxes) {
+  if (!isFiniteBox(lineBox) || !Array.isArray(formulaBoxes)) return 0;
   let covered = 0;
   for (const fb of formulaBoxes) {
+    if (!fb || !isFiniteBox(fb.box)) continue;
     const iy1 = Math.max(fb.box[1], lineBox[1]);
     const iy2 = Math.min(fb.box[3], lineBox[3]);
     if (iy2 <= iy1) continue;
@@ -41,10 +54,19 @@ export function horizontalCoverage(lineBox, formulaBoxes) {
   return lw > 0 ? covered / lw : 0;
 }
 
+// 排序键：无几何信息的项（box 非 4 元有限数组）没有可比坐标，一律排到所有有框项之后。
+// 生产调用链（preload / App.vue）已保证 textLines 为 4 元数值数组，此处纯防御：早期版本
+// 直接读 `a.box[1]`，box 为 undefined/null 时整条合并直接抛 TypeError 而不是降级。
+// 选择「排最后」而非「捏造坐标」：不改变输出里的 box（仍是调用方给的原值），只让顺序确定。
+const GEO_LAST = Number.MAX_SAFE_INTEGER;
+const orderTop = (box) => (isFiniteBox(box) ? box[1] : GEO_LAST);
+const orderLeft = (box) => (isFiniteBox(box) ? box[0] : GEO_LAST);
+const orderRight = (box) => (isFiniteBox(box) ? box[2] : GEO_LAST);
+
 // 规则1：把所有项（公式框 + 文本行）按垂直重叠比 > 0.5 聚成行（贪心）。
 export function groupIntoLines(items) {
   const sorted = [...items].sort(
-    (a, b) => a.box[1] - b.box[1] || a.box[0] - b.box[0]
+    (a, b) => orderTop(a.box) - orderTop(b.box) || orderLeft(a.box) - orderLeft(b.box)
   );
   const lines = [];
   for (const it of sorted) {
@@ -62,7 +84,9 @@ export function groupIntoLines(items) {
         break;
       }
     }
-    if (!placed) lines.push({ items: [it], box: [...it.box] });
+    // 无框项永远不满足 vOverlapRatio>0.5（isFiniteBox 使其返回 0），故必然独占一行；
+    // 行 box 记 null，后续排序同样把它排到有框行之后。
+    if (!placed) lines.push({ items: [it], box: isFiniteBox(it.box) ? [...it.box] : null });
   }
   return lines;
 }
@@ -252,25 +276,46 @@ export function filterCjkFormulaBoxes(boxes, textLines, warnings) {
 // 合并：返回 segments（按阅读顺序）与 markdown 字符串。warnings（可选数组）用于把
 // 降级丢弃决策透传给前端展示，便于「公式被重复输出/文本丢失」类反馈定位。
 export function mergeSegments(boxes, textLines, warnings) {
-  // 规则2：丢弃与**独立公式**框 IoU>0.1、或被公式框覆盖>60%宽度的文本行。
+  const warn = (msg) => {
+    if (Array.isArray(warnings)) warnings.push(msg);
+  };
+  // 规则2：丢弃与**独立公式**框 IoU>0.1、或被**独立公式**框覆盖>60%宽度的文本行。
+  // 关键：两条规则都只对 isolated 生效。行内公式（embedding）按定义嵌在文本行内部，其与宿主行
+  // 的重合**绝不能**导致整行被丢弃 —— 实测 Vision 把含行内公式的整行读成一条 observation，
+  // 若按 IoU>0.1 / 覆盖率一刀切，`we define [大公式] as follows` 这类行的两侧正常文字会被
+  // 静默丢掉（丢失是数据丢失，而保留最多只是公式字形重复，可由切分器消除）。
   const keptText = [];
   for (const tl of textLines) {
     const box = tl.box;
     let drop = false;
+    let reason = '';
     for (const b of boxes) {
-      // 只有独立公式才可能「整行就是公式」。行内公式（embedding）按定义嵌在文本行内部，
-      // 其与宿主行的重合绝不能导致整行被丢弃 —— 实测 Vision 把含行内公式的整行读成一条
-      // observation，若按 IoU>0.1 一刀切，整行文字会被静默丢掉（已复现）。
-      if (b.type === 'isolated' && iouOf(box, b.box) > 0.1) {
+      if (b.type !== 'isolated') continue; // embedding 完全跳过整行丢弃判定
+      if (iouOf(box, b.box) > 0.1) {
         drop = true;
+        reason = '与独立公式框 IoU>0.1';
         break;
       }
-      if (horizontalCoverage(box, [b]) > 0.6) {
+      const coverage = horizontalCoverage(box, [b]);
+      if (coverage > 0.6) {
         drop = true;
+        reason = `被独立公式框覆盖 ${Math.round(coverage * 100)}%`;
         break;
       }
     }
-    if (!drop) keptText.push(tl);
+    if (drop) {
+      warn(`已丢弃文本行（${reason}）：${String(tl.text == null ? '' : tl.text).slice(0, 30)}`);
+    } else {
+      // 防御：无有效坐标框的文本行不参与几何判定（isFiniteBox 使重叠/覆盖恒为 0），
+      // 必须保留其文字——只把它排到末尾并如实报告，绝不静默丢弃。
+      if (!isFiniteBox(tl.box)) {
+        warn(
+          `文本行缺少有效坐标框（box=${JSON.stringify(tl.box)}），`
+          + `已保留文本并排到末尾：${String(tl.text == null ? '' : tl.text).slice(0, 30)}`
+        );
+      }
+      keptText.push(tl);
+    }
   }
 
   // 规则1：公式框 + 保留文本行 一起聚行。
@@ -283,14 +328,14 @@ export function mergeSegments(boxes, textLines, warnings) {
   }
 
   const lines = groupIntoLines(items);
-  // 规则4：行自上而下排序。
-  lines.sort((a, b) => a.box[1] - b.box[1]);
+  // 规则4：行自上而下排序（无框行 box=null，由 orderTop 排到最后）。
+  lines.sort((a, b) => orderTop(a.box) - orderTop(b.box));
 
   const segments = [];
   const mdLines = [];
   lines.forEach((line, lineNumber) => {
-    // 规则3：行内按 x1 排序。
-    line.items.sort((a, b) => a.box[0] - b.box[0]);
+    // 规则3：行内按 x1 排序（无框项排到最后）。
+    line.items.sort((a, b) => orderLeft(a.box) - orderLeft(b.box));
     const formulaItems = line.items.filter((it) => it.kind !== 'text');
     const textItems = line.items.filter((it) => it.kind === 'text');
 
@@ -325,8 +370,8 @@ export function mergeSegments(boxes, textLines, warnings) {
       if (split && consumed.has(fi)) return;
       pieces.push(f);
     });
-    // 文本段的 box 由字符框推出，因此能与公式段正确交错排序。
-    pieces.sort((a, b) => a.box[0] - b.box[0] || a.box[2] - b.box[2]);
+    // 文本段的 box 由字符框推出，因此能与公式段正确交错排序（无框段排到最后）。
+    pieces.sort((a, b) => orderLeft(a.box) - orderLeft(b.box) || orderRight(a.box) - orderRight(b.box));
 
     const mdParts = [];
     for (const it of pieces) {

@@ -16,7 +16,10 @@ $ErrorActionPreference = 'Stop'
 $scriptVersion = "0.6.10"
 
 # Emit stdout/stderr as UTF-8 so the Node side decodes Chinese messages correctly.
+# stderr 也要设：Fail() 把中文错误写到 stderr，Node 侧按 utf8 读取，中文 Windows
+# （代码页 936/GBK）下会乱码。老版本 PowerShell 可能没有该属性，失败不能中断脚本。
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+try { [Console]::ErrorEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 # Required for [System.WindowsRuntimeSystemExtensions] (AsTask reflection below).
 # Some systems do not auto-load it when resolving WinRT types.

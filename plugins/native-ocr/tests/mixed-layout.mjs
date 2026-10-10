@@ -129,11 +129,13 @@ test('边界：纯公式（无文本行）', () => {
   assert.deepEqual(segs.map((s) => s.type), ['embedding', 'isolated'])
 })
 
-test('边界：行内公式(embedding)与文本行重合时不丢弃文本行', () => {
+test('边界[前端回退 mergeAndOrderSegments]：行内公式(embedding)与文本行重合时不丢弃文本行', () => {
   const segs = mergeAndOrderSegments({
     textLines: [{ text: 'whole', box: [0, 0, 200, 30] }],
     formulaBoxes: [{ type: 'embedding', box: [10, 5, 60, 25], latex: 'f' }]
   })
+  // 覆盖对象是 **前端回退** src/lib/mixedLayout.js#mergeAndOrderSegments，不是服务端
+  // bin/onnx_mixed_merge.mjs#mergeSegments；后者的同规则用例在 tests/run.mjs。
   // 行内公式按定义嵌在文本行内部，IoU≈0.16 也不能吞掉宿主行（否则整行文字静默丢失）。
   // 横向覆盖 50/200 = 25% < 60%，故文本行保留。
   assert.equal(segs.length, 2)
@@ -151,23 +153,41 @@ test('边界：独立公式(isolated) IoU > 0.1 时丢弃该文本行', () => {
   assert.ok(!segs.some((s) => s.type === 'text'))
 })
 
-test('边界：公式横向覆盖文本行 > 60% 时丢弃（任意类型）', () => {
+test('边界：独立公式(isolated)横向覆盖文本行 > 60% 时丢弃', () => {
   const segs = mergeAndOrderSegments({
     textLines: [{ text: 'whole', box: [0, 0, 100, 30] }],
-    formulaBoxes: [{ type: 'embedding', box: [0, 5, 90, 25], latex: 'f' }]
+    formulaBoxes: [{ type: 'isolated', box: [0, 5, 90, 25], latex: 'f' }]
   })
   // 覆盖 90/100 = 90% > 60% → 该行几乎没有文字，丢弃
+  // 注：v1.1.0 起覆盖率规则**只对 isolated 生效**；行内公式(embedding)绝不触发整行丢弃。
   assert.ok(!segs.some((s) => s.type === 'text'))
 })
 
-test('边界：文本行被超宽公式覆盖 >60% 宽度时丢弃', () => {
+test('边界：文本行被超宽独立公式覆盖 >60% 宽度时丢弃', () => {
   const segs = mergeAndOrderSegments({
     textLines: [{ text: 'wide', box: [0, 0, 100, 20] }],
-    formulaBoxes: [{ type: 'embedding', box: [0, 0, 80, 20], latex: 'f' }]
+    formulaBoxes: [{ type: 'isolated', box: [0, 0, 80, 20], latex: 'f' }]
   })
   // 覆盖 80/100 = 80% > 60% → 丢弃文本
   assert.ok(!segs.some((s) => s.type === 'text'))
   assert.equal(segs.length, 1)
+})
+
+test('边界[前端回退 mergeAndOrderSegments]：行内公式(embedding)覆盖 > 60% 也不得丢弃整行（v1.1.0 回归）', () => {
+  // 覆盖对象是 **前端回退** src/lib/mixedLayout.js#mergeAndOrderSegments（App.vue 在拿不到
+  // 服务端结果时走它），**不是**服务端 bin/onnx_mixed_merge.mjs#mergeSegments。服务端真正
+  // 出结果的那条「非降级」路径由 tests/run.mjs 的
+  // 「mergeSegments 有 chars：embedding 覆盖 >60% 仍保留正文」用例守护——那条才会调用
+  // splitLinePieces 做逐字符交错切分。此处前端回退无 chars 概念，故只断言整行不丢。
+  // 回归防线：v1.0.0 的覆盖率规则漏了 type 守卫，导致「we define [宽公式] as follows」
+  // 这类行连公式两侧的正常文字一起被静默丢弃。行内公式按定义嵌在文本行内部，
+  // 绝不允许导致整行丢弃——保留最多是字形重复（可由逐字符切分消除），丢弃则是数据丢失。
+  const segs = mergeAndOrderSegments({
+    textLines: [{ text: 'left formula right', box: [0, 0, 100, 20] }],
+    formulaBoxes: [{ type: 'embedding', box: [10, 0, 90, 20], latex: 'f' }]
+  })
+  // 覆盖 80/100 = 80% > 60%，但类型是 embedding → 该行必须保留
+  assert.ok(segs.some((s) => s.type === 'text'))
 })
 
 test('边界：空输入返回空数组', () => {

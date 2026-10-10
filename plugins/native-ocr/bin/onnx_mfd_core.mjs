@@ -207,10 +207,50 @@ export function clampBoxPad(v, max = 40) {
   return Math.min(max, Math.round(n));
 }
 
+// CJK 字符集（与 onnx_mixed_merge.mjs 的 CJK_CHAR_RE 口径一致；本文件不 import 它，避免
+// 纯函数模块之间产生无谓依赖）。
+const CJK_CHAR_RE = /[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff01-\uff5e]/;
+
+// 统计与 box 相交的字符框数量。相交口径（二选一即算命中，注释写清以便复核）：
+//   ① 矩形相交面积 > 0（宽、高同时有正重叠）；
+//   ② 字符框中心点落在 box 内（容纳「字符框比公式框略大、只有边缘擦过」的情形）。
+// filter 可选：仅统计满足条件的字符（例如只数 CJK）。
+// 非法输入（box 非 4 元有限数 / textLines 非数组）一律返回 0，不让 NaN 传播。
+function countOverlappingChars(box, textLines, filter) {
+  if (!Array.isArray(box) || box.length !== 4) return 0;
+  if (!box.every((v) => Number.isFinite(v))) return 0;
+  if (!Array.isArray(textLines)) return 0;
+  let n = 0;
+  for (const tl of textLines) {
+    if (!tl || !Array.isArray(tl.chars)) continue;
+    for (const ch of tl.chars) {
+      const cb = ch && Array.isArray(ch.box) ? ch.box : null;
+      if (!cb || cb.length !== 4 || !cb.every((v) => Number.isFinite(v))) continue;
+      const ow = Math.min(cb[2], box[2]) - Math.max(cb[0], box[0]);
+      const oh = Math.min(cb[3], box[3]) - Math.max(cb[1], box[1]);
+      const cx = (cb[0] + cb[2]) / 2;
+      const cy = (cb[1] + cb[3]) / 2;
+      const hit = (ow > 0 && oh > 0)
+        || (cx >= box[0] && cx <= box[2] && cy >= box[1] && cy <= box[3]);
+      if (!hit) continue;
+      if (filter && !filter(ch)) continue;
+      n += 1;
+    }
+  }
+  return n;
+}
+
+// 该公式框是否真的压在正文文字上（与至少 minOverlapChars 个字符框相交）。
+// 用于区分「MFD 在正文里误检的单字母」（与文字重叠）与「真正的孤立小公式」（不重叠）。
+export function overlapsTextChars(box, textLines, minOverlapChars = 1) {
+  return countOverlappingChars(box, textLines, null) >= minOverlapChars;
+}
+
 // 「疑似普通文字」判定（保守版）：LaTeX 去空格后是纯 1–2 个字母/数字（无 \ ^ _ { } 等任何数学结构）。
 // MFD 对普通段落里的单字母/双字母常误检为行内公式；识别结果本身是最好的证据——
 // 公式引擎读出来只是 "ab"/"1" 的框几乎不可能是真公式。
-// 适用于 isolated（独立公式）：单符号真公式（γ、∧ 等）几乎都是独立类型，不动。
+// 注意：本函数只做**字形**判定，没有文本上下文时无法区分「正文误检的 x」与「真的孤立小公式 $x$」。
+// 判据所缺的上下文由 isTrivialFormulaLatex 补齐（见下）。
 export function isTinyTextLatex(latex) {
   const s = String(latex || "").replace(/\s+/g, "");
   return /^[0-9a-zA-Z]{1,2}$/.test(s);
@@ -241,10 +281,47 @@ export function isTinyTextLatexLoose(latex) {
   return /^[0-9a-zA-Z]{1,2}$/.test(glyphs);
 }
 
-// 按框类型套用对应过滤档位。
-export function isTrivialFormulaLatex(latex, type) {
-  if (String(type) === "isolated") return isTinyTextLatex(latex);
-  return isTinyTextLatex(latex) || isTinyTextLatexLoose(latex);
+// 按框类型套用对应过滤档位，并用**文本上下文**区分「正文误检」与「真正的孤立小公式」。
+//
+// 背景（v1.1.0 修复）：旧实现只看识别结果字形，把 MFD 正文误检（段落里的单/双字母）与真实的
+// 孤立小公式（论文里的 $x$、$n$、$2$）一并丢掉，后者是论文/试卷里的高频内容，属于数据丢失。
+// 新判据：字形 tiny **且**该公式框真的压在文本行字符框上，才判为正文误检。
+//
+// context（可选）：{ box, textLines, warnings }
+//   - box：该公式框 [x1,y1,x2,y2]（原图像素坐标）；缺 box 或 textLines 视为「无上下文」。
+//   - textLines：[{ text, box, chars:[{c,box}] }]；无 chars 的行走不到重叠判定。
+//   - warnings：可选数组，用于透传「无上下文时退化为旧规则」的提示。
+// 无上下文时**退化为旧行为**（保持既有调用方语义不变），并写一条 warning 说明原因。
+export function isTrivialFormulaLatex(latex, type, context) {
+  const isolated = String(type) === "isolated";
+  const tiny = isolated
+    ? isTinyTextLatex(latex)
+    : isTinyTextLatex(latex) || isTinyTextLatexLoose(latex);
+  if (!tiny) return false; // 非 tiny（含 \alpha、x^2、Softmax…）一律保留
+
+  const ctx = context && typeof context === 'object' ? context : null;
+  const warnings = ctx && Array.isArray(ctx.warnings) ? ctx.warnings : null;
+  const box = ctx && Array.isArray(ctx.box) ? ctx.box : null;
+  const textLines = ctx && Array.isArray(ctx.textLines) && ctx.textLines.length ? ctx.textLines : null;
+  const tag = String(latex == null ? '' : latex).slice(0, 12);
+
+  if (!box || !textLines) {
+    // 没有文本上下文（例如只有 boxes、没有 textLines 的调用路径）：无法区分真假，退化为旧规则。
+    if (warnings) {
+      warnings.push(`缺少文本上下文，tiny 公式「${tag}」已按旧规则过滤（可能误杀孤立小公式）`);
+    }
+    return true;
+  }
+
+  const overlaps = overlapsTextChars(box, textLines, 1);
+  if (isolated) {
+    // 独立框：与正文文字重叠 → MFD 正文误检，丢弃；完全不重叠 → 真正的孤立小公式，保留。
+    return overlaps;
+  }
+  // 行内框：要求「框内无 CJK 且压在正文文字上」才判为误检。框内出现 CJK 时不做 tiny 过滤，
+  // 交给 filterCjkFormulaBoxes（框内 CJK ≥2 才丢）统一处置，避免两处口径打架。
+  const hasCjk = countOverlappingChars(box, textLines, (ch) => CJK_CHAR_RE.test(ch.c || '')) > 0;
+  return !hasCjk && overlaps;
 }
 
 // 反 letterbox：画布坐标 → 原图坐标。
@@ -286,6 +363,15 @@ export async function detectFormulaBoxes(session, image, opts = {}) {
   const longSide = opts.longSide ?? 768;
   const conf = opts.conf ?? 0.25;
   const iouThresh = opts.iou ?? 0.7;
+  // 零/负尺寸守卫：ImageRaw.decode 对合法的 0×0 PNG 不抛错，能一路走到这里。若无守卫，
+  // computeTarget → newH = Math.max(1, Math.round(0/0)) = NaN → letterbox r = NaN →
+  // inverseLetterbox 除以 NaN → 框全为 NaN（且不报错）。直接返回与正常路径**同构**的空结果。
+  if (!image || !(image.width > 0) || !(image.height > 0)) {
+    return {
+      boxes: [],
+      image: { w: (image && image.width) || 0, h: (image && image.height) || 0 },
+    };
+  }
   const { data, width: w, height: h } = image;
   // RGBA → RGB
   const rgb = new Uint8ClampedArray(w * h * 3);

@@ -115,6 +115,12 @@ async function main() {
       let request;
       try { request = JSON.parse(line); } catch (_) { continue; }
       const response = { id: request.id };
+      // 临时裁切目录（cropToTempPng 用 mkdtempSync 建 mfd-crop-*）：声明在 try 之外、
+      // 清理统一放 finally —— 循环中途抛错（cropToTempPng / recognizeFormula 等）也会被回收，
+      // 不会在 os.tmpdir() 里长期堆积。op="formulas" 与 op="mixed" 共用这一个数组。
+      const tmpFiles = [];
+      // 非致命告警（mixed 分支随 response.warnings 外发；formulas 分支不外发，仅内部使用）。
+      const warnings = [];
       try {
         const imagePath = String(request.imagePath || '');
         if (!imagePath) throw new Error('imagePath is required');
@@ -141,46 +147,8 @@ async function main() {
           : await detectFormulaBoxes(mfd, src, { longSide, conf, iou });
         const boxes = mfdResult.boxes;
 
-        if (op === 'detect') {
-          response.ok = true;
-          response.image = mfdResult.image;
-          response.boxes = boxes;
-          process.stdout.write(JSON.stringify(response) + '\n');
-          timer.refresh?.();
-          continue;
-        }
-
-        // op === "formulas"：多公式模式 —— 只检测+逐框识别，不做文本合并（供「公式识别」页签使用）。
-        if (op === 'formulas') {
-          const items = [];
-          const tmpFiles = [];
-          for (const b of boxes) {
-            const item = { type: b.type, score: b.score, box: b.box, latex: '' };
-            const crop = cropToTempPng(src, b.box, boxPad);
-            if (crop) {
-              tmpFiles.push(crop);
-              // decodeScore = 解码器长度归一平均对数概率（raw），供前端置信度可视化。
-              try {
-                const r = await recognizeFormula(formula, crop.path, { withScore: true });
-                item.latex = r.text;
-                item.decodeScore = Number.isFinite(r.raw) ? r.raw : null;
-              } catch (_) { item.latex = ''; }
-            }
-            // 疑似普通文字（纯 1–2 字母/数字）框：MFD 对段落单字母/双字母的误检，直接丢弃。
-            if (filterTiny && isTrivialFormulaLatex(item.latex, item.type)) continue;
-            items.push(item);
-          }
-          for (const c of tmpFiles) { try { rmSync(c.dir, { recursive: true, force: true }); } catch (_) {} }
-          response.ok = true;
-          response.engine = 'formulas';
-          response.image = mfdResult.image;
-          response.items = items;
-          process.stdout.write(JSON.stringify(response) + '\n');
-          timer.refresh?.();
-          continue;
-        }
-
-        // op === "mixed"：识别每个公式框 + 合并
+        // 文本行归一化：三个 op 共用（formulas 分支用于 tiny 公式的文本上下文判定，
+        // mixed 分支用于合并）。构造是纯函数、无副作用，提到 op 分派之前不影响任何分支语义。
         const textLines = Array.isArray(request.textLines)
           ? request.textLines
               .filter((t) => t && t.text != null && Array.isArray(t.box) && t.box.length === 4)
@@ -200,22 +168,65 @@ async function main() {
               })
           : [];
 
+        if (op === 'detect') {
+          response.ok = true;
+          response.image = mfdResult.image;
+          response.boxes = boxes;
+          process.stdout.write(JSON.stringify(response) + '\n');
+          timer.refresh?.();
+          continue;
+        }
+
+        // op === "formulas"：多公式模式 —— 只检测+逐框识别，不做文本合并（供「公式识别」页签使用）。
+        if (op === 'formulas') {
+          const items = [];
+          for (const b of boxes) {
+            const item = { type: b.type, score: b.score, box: b.box, latex: '' };
+            const crop = cropToTempPng(src, b.box, boxPad);
+            if (crop) {
+              tmpFiles.push(crop);
+              // decodeScore = 解码器长度归一平均对数概率（raw），供前端置信度可视化。
+              try {
+                const r = await recognizeFormula(formula, crop.path, { withScore: true });
+                item.latex = r.text;
+                item.decodeScore = Number.isFinite(r.raw) ? r.raw : null;
+              } catch (_) { item.latex = ''; }
+            }
+            // 疑似普通文字（纯 1–2 字母/数字）框：MFD 对段落单字母/双字母的误检，直接丢弃。
+            // 传入文本上下文：只有「真的压在正文文字上」的 tiny 框才丢，真正孤立的小公式保留。
+            // 本 op 的调用方（preload.recognizeOnnxFormulas）不传 textLines → 退化为旧规则。
+            if (filterTiny && isTrivialFormulaLatex(item.latex, item.type, { box: b.box, textLines, warnings })) continue;
+            items.push(item);
+          }
+          response.ok = true;
+          response.engine = 'formulas';
+          response.image = mfdResult.image;
+          response.items = items;
+          process.stdout.write(JSON.stringify(response) + '\n');
+          timer.refresh?.();
+          continue;
+        }
+
         // 防呆：本服务要求 textLines 用「原图像素坐标、左上原点」。各文本引擎的坐标空间不同
         // （macOS Vision 返回归一化 0..1 且原点在左下），调用方必须先换算。这里只做提示，
         // 避免坐标空间不匹配时静默合并出乱序结果。
-        const warnings = [];
+        // 按**比例**判定：坐标空间混合时（一行像素、一行归一化）原 every 会判 false 而漏报，
+        // 但合并照跑并返回 ok —— 故选「整行坐标全在 0..1」的行占比 ≥0.5 即告警。
+        const normalizedLikeLines = textLines.filter(
+          (t) => Array.isArray(t.box) && t.box.every((v) => v >= -0.001 && v <= 1.001)
+        ).length;
         if (
           textLines.length > 0
           && mfdResult.image.w > 2
-          && textLines.every((t) => t.box.every((v) => v >= -0.001 && v <= 1.001))
+          && normalizedLikeLines / textLines.length >= 0.5
         ) {
           warnings.push(
-            'textLines 的所有坐标都落在 0..1，疑似归一化坐标；'
+            `疑似归一化坐标：${normalizedLikeLines}/${textLines.length} 行坐标全部落在 0..1；`
             + '本服务要求原图像素坐标（左上原点），否则合并顺序与丢弃判定都会错。'
           );
         }
 
-        const tmpFiles = [];
+        // op === "mixed"：识别每个公式框 + 与文本行合并
         const keptBoxes = [];
         // 0.7.14：先用逐字符框剔除「套在中文正文上」的 MFD 误检框（框内 CJK ≥2），
         // 既避免正文前缀被吞成乱码公式，也省掉这些误检框的公式解码开销。
@@ -238,11 +249,9 @@ async function main() {
           }
           // 疑似普通文字（纯 1–2 字母/数字）框：MFD 对段落单字母/双字母的误检，
           // 从 boxes 移除后再合并——文本行保持原样，不会被切成假公式段。
-          if (filterTiny && isTrivialFormulaLatex(b.latex, b.type)) continue;
+          // 传文本上下文：仅当该框真的压在正文文字上才丢，真正孤立的小公式（$x$/$n$/$2$）保留。
+          if (filterTiny && isTrivialFormulaLatex(b.latex, b.type, { box: b.box, textLines, warnings })) continue;
           keptBoxes.push(b);
-        }
-        for (const c of tmpFiles) {
-          try { rmSync(c.dir, { recursive: true, force: true }); } catch (_) {}
         }
 
         const { segments, markdown } = mergeSegments(keptBoxes, textLines, warnings);
@@ -257,6 +266,12 @@ async function main() {
       } catch (err) {
         response.ok = false;
         response.error = err && err.message ? err.message : String(err);
+      } finally {
+        // 无论成功、抛错还是 continue（detect/formulas 分支），临时裁切目录都必然回收。
+        // 逐个 try/catch：单个删除失败不影响其余，也不会把异常抛出内层。
+        for (const c of tmpFiles) {
+          try { rmSync(c.dir, { recursive: true, force: true }); } catch (_) {}
+        }
       }
       process.stdout.write(JSON.stringify(response) + '\n');
       timer.refresh?.();
