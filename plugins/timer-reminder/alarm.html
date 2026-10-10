@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>定时提醒</title>
+    <link rel="stylesheet" href="alarm.css" />
+  </head>
+  <body>
+    <div class="alarm">
+      <div class="alarm-icon">⏰</div>
+      <h1 id="alarmTitle">提醒</h1>
+      <p id="alarmTime" class="alarm-time"></p>
+      <p id="alarmNote" class="alarm-note" hidden></p>
+      <div class="alarm-actions">
+        <button id="btnDone" class="primary">完成</button>
+        <button id="btnSnooze10" class="ghost">稍后 10 分钟</button>
+        <button id="btnSnooze60" class="ghost">稍后 1 小时</button>
+      </div>
+      <p class="alarm-tip">关闭本窗口等同于「稍后」，到点会再次提醒。</p>
+    </div>
+    <script src="lib/schedule.js"></script>
+    <script src="lib/time-format.js"></script>
+    <script src="alarm.js"></script>
+  </body>
+</html>
