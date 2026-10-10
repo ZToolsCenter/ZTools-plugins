@@ -3,7 +3,7 @@
   "title": "收货地址智能解析",
   "description": "批量提取收货人、电话、省市区和详细地址，检查缺失字段并导出 CSV 表格。",
   "author": "harris",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.svg",
