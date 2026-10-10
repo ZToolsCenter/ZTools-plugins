@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>字数统计</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+
+    <div class="app">
+      <header class="header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">字</span>
+          <h1>字数统计</h1>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn ghost" id="btn-paste">粘贴</button>
+          <button type="button" class="btn ghost" id="btn-clear">清空</button>
+          <button type="button" class="btn primary" id="btn-copy">复制</button>
+        </div>
+      </header>
+
+      <main class="main">
+        <section class="editor-wrap">
+          <label class="sr-only" for="input-text">文本</label>
+          <textarea
+            id="input-text"
+            class="editor"
+            placeholder="粘贴或输入文本…"
+            spellcheck="false"
+          ></textarea>
+        </section>
+
+        <section class="stats" id="stats" aria-live="polite">
+          <article class="stat-card hero">
+            <div class="stat-label">汉字</div>
+            <div class="stat-value" data-key="han">0</div>
+          </article>
+          <article class="stat-card hero">
+            <div class="stat-label">英文</div>
+            <div class="stat-value" data-key="latinWords">0</div>
+          </article>
+          <article class="stat-card hero">
+            <div class="stat-label">阅读</div>
+            <div class="stat-value reading" data-key="readingLabel">0 秒</div>
+          </article>
+        </section>
+
+        <section class="stats secondary" id="stats-secondary">
+          <article class="stat-card">
+            <div class="stat-label">总字符</div>
+            <div class="stat-value" data-key="charCount">0</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">不含空白</div>
+            <div class="stat-value" data-key="charNoSpace">0</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">数字</div>
+            <div class="stat-value" data-key="numbers">0</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">标点</div>
+            <div class="stat-value" data-key="punctuation">0</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">行</div>
+            <div class="stat-value" data-key="lines">0</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-label">段落</div>
+            <div class="stat-value" data-key="paragraphs">0</div>
+          </article>
+        </section>
+      </main>
+
+      <div class="toast" id="toast" hidden></div>
+    </div>
+
+    <script src="count.js"></script>
+    <script src="index.js"></script>
+  </body>
+</html>

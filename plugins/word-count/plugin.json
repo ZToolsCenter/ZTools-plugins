@@ -1,0 +1,28 @@
+{
+  "name": "word-count",
+  "title": "字数统计",
+  "description": "写作向字数统计：汉字、英文单词、标点与预估阅读时长，支持粘贴输入与搜索框即时结果。",
+  "version": "1.0.1",
+  "author": "ZToolsWordCount",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "word-count",
+      "explain": "统计汉字 / 英文单词 / 预估阅读时长",
+      "cmds": [
+        "字数统计",
+        "字数",
+        "wc",
+        "wordcount",
+        {
+          "type": "over",
+          "label": "字数统计",
+          "minLength": 1,
+          "maxLength": 10000
+        }
+      ]
+    }
+  ]
+}
