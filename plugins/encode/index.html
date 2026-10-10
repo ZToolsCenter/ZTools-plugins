@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>编码助手</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #666;
+    --border: #d9d9d9;
+    --box-bg: #fafafa;
+    --accent: #7c3aed;
+    --accent-fg: #ffffff;
+    --chip-bg: rgba(0, 0, 0, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1e;
+      --fg: #e5e5e5;
+      --muted: #999;
+      --border: #3a3a3a;
+      --box-bg: #252525;
+      --accent: #8b5cf6;
+      --accent-fg: #ffffff;
+      --chip-bg: rgba(255, 255, 255, 0.08);
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--fg);
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px 12px;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .tabs { display: flex; gap: 6px; }
+  .tab {
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--box-bg);
+    color: var(--fg);
+    cursor: pointer;
+    font-size: 13px;
+    user-select: none;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .panel { flex: 1; display: none; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden; }
+  .panel.active { display: flex; }
+  .label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  textarea, input[type="text"], input[type="number"] {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--box-bg);
+    color: var(--fg);
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    padding: 8px;
+    outline: none;
+    resize: none;
+  }
+  textarea:focus, input:focus { border-color: var(--accent); }
+  textarea.in { height: 108px; }
+  .results { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .res {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--box-bg);
+    padding: 7px 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .res .head { display: flex; align-items: center; }
+  .res .name { font-size: 12px; color: var(--muted); flex: 1; }
+  .res .val {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    user-select: text;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  button {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  button.primary:hover { color: var(--accent-fg); opacity: 0.9; }
+  .rowline { display: flex; gap: 8px; align-items: center; }
+  .rowline input[type="number"] { width: 110px; }
+  .hint { font-size: 12px; color: var(--muted); }
+  .toast {
+    position: fixed; left: 50%; top: 12px; transform: translateX(-50%);
+    background: var(--fg); color: var(--bg);
+    padding: 5px 14px; border-radius: 6px; font-size: 12px;
+    opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9;
+  }
+  .toast.show { opacity: 0.92; }
+</style>
+</head>
+<body>
+  <div class="tabs" id="tabs">
+    <div class="tab" data-tab="base64">Base64</div>
+    <div class="tab" data-tab="url">URL</div>
+    <div class="tab" data-tab="unicode">Unicode</div>
+    <div class="tab" data-tab="uuid">UUID</div>
+    <div class="tab" data-tab="timestamp">时间戳</div>
+  </div>
+
+  <!-- Base64 / URL / Unicode 共用结构 -->
+  <div class="panel" id="panel-base64">
+    <div class="label">输入(文本或 Base64 串,自动双向转换)</div>
+    <textarea class="in" id="in-base64" placeholder="粘贴文本或 Base64 字符串…" spellcheck="false"></textarea>
+    <div class="results" id="res-base64"></div>
+  </div>
+
+  <div class="panel" id="panel-url">
+    <div class="label">输入(文本或含 %XX 的 URL 编码串,自动双向转换)</div>
+    <textarea class="in" id="in-url" placeholder="粘贴文本或 URL 编码字符串…" spellcheck="false"></textarea>
+    <div class="results" id="res-url"></div>
+  </div>
+
+  <div class="panel" id="panel-unicode">
+    <div class="label">输入(中文或 \uXXXX 转义串,自动双向转换)</div>
+    <textarea class="in" id="in-unicode" placeholder="粘贴中文或 你好 形式的转义串…" spellcheck="false"></textarea>
+    <div class="results" id="res-unicode"></div>
+  </div>
+
+  <div class="panel" id="panel-uuid">
+    <div class="rowline">
+      <span class="label">数量</span>
+      <input type="number" id="uuid-count" min="1" max="100" value="1" />
+      <button class="primary" id="uuid-gen">重新生成</button>
+      <button id="uuid-copyall">复制全部</button>
+      <span class="hint">数量为 1 时给出 4 种格式;&gt;1 时批量生成标准格式</span>
+    </div>
+    <div class="results" id="res-uuid"></div>
+  </div>
+
+  <div class="panel" id="panel-timestamp">
+    <div class="rowline">
+      <input type="text" id="in-timestamp" placeholder="输入时间戳或日期(秒/毫秒/微秒/纳秒、yyyy-MM-dd、yyyy年M月d日…),空=当前时间" spellcheck="false" />
+      <button class="primary" id="ts-now">现在</button>
+    </div>
+    <div class="label" id="ts-unit"></div>
+    <div class="results" id="res-timestamp"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script src="codec.js"></script>
+<script src="time.js"></script>
+<script>
+(function () {
+  'use strict';
+  var z = window.ztools || window.utools || null;
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ZTools 的插件视图初始高度为 1px,必须主动撑开
+  if (z && z.setExpendHeight) z.setExpendHeight(600);
+
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); }, 1100);
+  }
+
+  function copy(text) {
+    if (z && z.copyText) z.copyText(text);
+    else if (navigator.clipboard) navigator.clipboard.writeText(text);
+    toast('已复制');
+  }
+
+  /* ------------------------------ tab 切换 ------------------------------ */
+  var current = 'base64';
+  function switchTab(name) {
+    current = name;
+    var tabs = document.querySelectorAll('.tab');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle('active', tabs[i].dataset.tab === name);
+    var panels = document.querySelectorAll('.panel');
+    for (var j = 0; j < panels.length; j++) panels[j].classList.toggle('active', panels[j].id === 'panel-' + name);
+    var input = $('in-' + name);
+    if (input) input.focus();
+    if (name === 'uuid' && !$('res-uuid').childElementCount) genUuid();
+    if (name === 'timestamp') renderTime($('in-timestamp').value);
+  }
+  $('tabs').addEventListener('click', function (e) {
+    var t = e.target.closest('.tab');
+    if (t) switchTab(t.dataset.tab);
+  });
+
+  /* --------------------------- 结果块渲染 --------------------------- */
+  function renderResults(containerId, pairs, emptyTip) {
+    var box = $(containerId);
+    box.innerHTML = '';
+    if (!pairs || !pairs.length) {
+      if (emptyTip) {
+        var tip = document.createElement('div');
+        tip.className = 'hint';
+        tip.textContent = emptyTip;
+        box.appendChild(tip);
+      }
+      return;
+    }
+    pairs.forEach(function (p) {
+      var div = document.createElement('div');
+      div.className = 'res';
+      var head = document.createElement('div');
+      head.className = 'head';
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = p.label;
+      var btn = document.createElement('button');
+      btn.textContent = '复制';
+      btn.addEventListener('click', function () { copy(p.value); });
+      head.appendChild(name);
+      head.appendChild(btn);
+      var val = document.createElement('div');
+      val.className = 'val';
+      val.textContent = p.value;
+      div.appendChild(head);
+      div.appendChild(val);
+      box.appendChild(div);
+    });
+  }
+
+  /* ------------------- Base64 / URL / Unicode:输入即转换 ------------------- */
+  var codecMap = { base64: window.Codec.base64, url: window.Codec.url, unicode: window.Codec.unicode };
+  Object.keys(codecMap).forEach(function (name) {
+    var timer = null;
+    $('in-' + name).addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () { convertText(name); }, 120);
+    });
+  });
+  function convertText(name) {
+    var text = $('in-' + name).value;
+    if (!text) return renderResults('res-' + name, [], '输入内容后自动给出转换结果,点「复制」带走');
+    renderResults('res-' + name, codecMap[name](text));
+  }
+
+  /* ------------------------------ UUID ------------------------------ */
+  function genUuid() {
+    var n = parseInt($('uuid-count').value, 10) || 1;
+    renderResults('res-uuid', window.Codec.uuid(String(n)));
+  }
+  $('uuid-gen').addEventListener('click', genUuid);
+  $('uuid-count').addEventListener('change', genUuid);
+  $('uuid-copyall').addEventListener('click', function () {
+    var vals = Array.prototype.map.call(document.querySelectorAll('#res-uuid .val'), function (el) { return el.textContent; });
+    if (vals.length) copy(vals.join('\n'));
+  });
+
+  /* ------------------------------ 时间戳 ------------------------------ */
+  var tsTimer = null;
+  $('in-timestamp').addEventListener('input', function () {
+    clearTimeout(tsTimer);
+    tsTimer = setTimeout(function () { renderTime($('in-timestamp').value); }, 120);
+  });
+  $('ts-now').addEventListener('click', function () {
+    $('in-timestamp').value = '';
+    renderTime('');
+  });
+  function renderTime(raw) {
+    raw = String(raw || '').trim();
+    var input = raw || window.TimeLib.nowString();
+    var r = window.TimeLib.parse(input);
+    if (!r.ok) {
+      $('ts-unit').textContent = '';
+      renderResults('res-timestamp', [], r.error || '无法识别的时间格式');
+      return;
+    }
+    $('ts-unit').textContent = (raw ? '识别为:' : '当前时间 · 识别为:') + r.unit + ' — ' + input;
+    renderResults('res-timestamp', window.TimeLib.format(r.ms));
+  }
+
+  /* ------------------------ 进入插件:自动识别带入 ------------------------ */
+  function handleEnter(action) {
+    var code = action && action.code ? action.code : 'base64';
+    if (!document.querySelector('.tab[data-tab="' + code + '"]')) code = 'base64';
+    switchTab(code);
+    // regex 进入:payload 是被识别的原文,直接带入转换;关键字进入 payload 是指令词,忽略
+    if (action && action.type === 'regex' && typeof action.payload === 'string') {
+      var payload = action.payload.trim();
+      if (code === 'timestamp') {
+        $('in-timestamp').value = payload;
+        renderTime(payload);
+      } else if (codecMap[code]) {
+        $('in-' + code).value = payload;
+        convertText(code);
+      }
+    }
+  }
+  if (z && z.onPluginEnter) z.onPluginEnter(handleEnter);
+  else switchTab('base64');
+})();
+</script>
+</body>
+</html>
