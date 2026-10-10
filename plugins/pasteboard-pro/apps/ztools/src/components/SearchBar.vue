@@ -1,6 +1,17 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
+import { primaryModifierLabel, resolveShortcutPlatform } from "../platform-shortcuts";
+
 defineProps<{ modelValue: string }>();
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
+
+const searchShortcutLabel = computed(() => {
+  const platform = resolveShortcutPlatform(
+    window.pasteboardPro?.getPlatformCapabilities().platform,
+  );
+  return `${primaryModifierLabel(platform)} F`;
+});
 </script>
 
 <template>
@@ -18,7 +29,7 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>();
       autocomplete="off"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
-    <kbd>⌘ F</kbd>
+    <kbd>{{ searchShortcutLabel }}</kbd>
   </label>
 </template>
 

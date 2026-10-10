@@ -20,12 +20,17 @@ import {
   type WebDavCredentials,
   type WebDavVaultClient,
 } from "./sync";
-import type { SyncSettings, ZToolsSyncStore } from "./sync-store";
+import {
+  DEFAULT_SYNC_INTERVAL_MINUTES,
+  type SyncSettings,
+  type ZToolsSyncStore,
+} from "./sync-store";
 
 export type SaveSyncConfigurationInput = Readonly<{
   enabled: boolean;
   baseUrl: string;
   username: string;
+  intervalMinutes?: number;
   webdavPassword?: string;
   syncPassword?: string;
 }>;
@@ -180,11 +185,19 @@ export async function saveSyncConfiguration(
     await keychain.save(current.vaultKeyAccount, candidateEncodedKey);
   }
 
+  const intervalMinutes =
+    typeof input.intervalMinutes === "number" &&
+    Number.isSafeInteger(input.intervalMinutes) &&
+    input.intervalMinutes >= 1
+      ? input.intervalMinutes
+      : (current.intervalMinutes ?? DEFAULT_SYNC_INTERVAL_MINUTES);
+
   const settings: SyncSettings = {
     ...current,
     enabled: input.enabled,
     baseUrl,
     username,
+    intervalMinutes,
     ...(vaultSaltHex === undefined ? {} : { vaultSaltHex }),
     status: {
       state: input.enabled ? "idle" : "disabled",

@@ -1,12 +1,15 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { DockEdge } from "@pasteboard-pro/design-tokens";
 
+import { primaryModifierName, resolveShortcutPlatform } from "../platform-shortcuts";
 import SearchBar from "./SearchBar.vue";
 
 defineProps<{
   query: string;
   paused: boolean;
   compact: boolean;
+  canCaptureScreen: boolean;
   edge: DockEdge;
 }>();
 
@@ -16,7 +19,15 @@ const emit = defineEmits<{
   toggleCompact: [];
   openPrivacySettings: [];
   createText: [];
+  captureScreen: [];
 }>();
+
+const createTextShortcutTitle = computed(() => {
+  const platform = resolveShortcutPlatform(
+    window.pasteboardPro?.getPlatformCapabilities().platform,
+  );
+  return `新建文本（${primaryModifierName(platform)}-N）`;
+});
 </script>
 
 <template>
@@ -27,7 +38,14 @@ const emit = defineEmits<{
     </div>
     <SearchBar :model-value="query" @update:model-value="emit('update:query', $event)" />
     <div class="toolbar__actions">
-      <button type="button" class="tool-button" title="新建文本（Command-N）" @click="emit('createText')"><span aria-hidden="true">＋</span>新建</button>
+      <button type="button" class="tool-button" :title="createTextShortcutTitle" @click="emit('createText')"><span aria-hidden="true">＋</span>新建</button>
+      <button
+        v-if="canCaptureScreen"
+        type="button"
+        class="tool-button"
+        title="截取屏幕并加入剪贴板历史"
+        @click="emit('captureScreen')"
+      ><span aria-hidden="true">⌗</span>截图</button>
       <button
         type="button"
         class="tool-button"

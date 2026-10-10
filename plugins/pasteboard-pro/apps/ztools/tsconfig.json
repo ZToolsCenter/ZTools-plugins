@@ -8,6 +8,7 @@
     "types": ["vite/client"]
   },
   "include": [
+    "window-ready.ts",
     "preload/**/*.ts",
     "src/**/*.ts",
     "src/**/*.vue",

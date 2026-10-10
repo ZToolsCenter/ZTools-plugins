@@ -1,9 +1,10 @@
+import { statSync } from "node:fs";
 import path from "node:path";
 
 import type { CanonicalClipboardRecord } from "./clipboard-store";
 
 type NativeFileDragHost = Readonly<{
-  startDrag(file: string | string[]): void;
+  startDrag?(file: string | string[]): void;
 }>;
 
 type NativeFileDragStore = Readonly<{
@@ -16,6 +17,13 @@ export class NativeFileDragService {
   constructor(
     private readonly store: NativeFileDragStore,
     private readonly host: NativeFileDragHost,
+    private readonly isFile: (filePath: string) => boolean = (filePath) => {
+      try {
+        return statSync(filePath).isFile();
+      } catch {
+        return false;
+      }
+    },
   ) {}
 
   refresh(records: readonly CanonicalClipboardRecord[]): void {
@@ -32,7 +40,14 @@ export class NativeFileDragService {
 
   start(itemId: string): boolean {
     const filePaths = this.paths.get(itemId);
-    if (filePaths === undefined) return false;
+    if (
+      filePaths === undefined ||
+      this.host.startDrag === undefined ||
+      filePaths.some((filePath) => !this.isFile(filePath))
+    ) {
+      this.paths.delete(itemId);
+      return false;
+    }
     try {
       this.host.startDrag(filePaths.length === 1 ? filePaths[0]! : [...filePaths]);
       return true;

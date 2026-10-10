@@ -1,3 +1,4 @@
+import { markRecordChanged, rememberRecord, recordDocumentFor } from "./record-index";
 import {
   compareStableOrder,
   orderKeyBetween,
@@ -57,6 +58,7 @@ export type DeleteRecordsResult = Readonly<{
 export type CanonicalStoreOptions = Readonly<{
   deviceId?: string;
   now?: () => number;
+  ready?: Promise<void>;
 }>;
 
 export interface HostClipboardApi {
@@ -157,7 +159,7 @@ async function getOptionalDocument(
   }
 }
 
-function storedRecord(value: unknown): CanonicalClipboardRecord | undefined {
+export function storedRecord(value: unknown): CanonicalClipboardRecord | undefined {
   if (
     !isRecord(value) ||
     value.type !== "pasteboard-pro-record" ||
@@ -246,6 +248,7 @@ async function putWithConflictRetry(
 export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   private readonly deviceId: string;
   private readonly now: () => number;
+  private readonly ready: Promise<void>;
 
   constructor(
     private readonly database: ZToolsDocumentDatabase,
@@ -253,9 +256,11 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   ) {
     this.deviceId = options.deviceId?.trim() || "ztools-local";
     this.now = options.now ?? Date.now;
+    this.ready = options.ready ?? Promise.resolve();
   }
 
   async findByFingerprint(fingerprint: string): Promise<PasteItem | undefined> {
+    await this.ready;
     const document = await getOptionalDocument(
       this.database,
       this.recordDocumentId(fingerprint),
@@ -264,6 +269,7 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   }
 
   async put(record: CanonicalClipboardRecord): Promise<void> {
+    await this.ready;
     const id = this.recordDocumentId(record.item.contentFingerprint);
     await putWithConflictRetry(this.database, id, (revision) => ({
       _id: id,
@@ -271,6 +277,8 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
       type: "pasteboard-pro-record",
       record: structuredClone(record),
     } satisfies StoredRecordDocument));
+    rememberRecord(this.database, record.item.id, id);
+    markRecordChanged(this.database, id);
   }
 
   async putSyncedItem(item: PasteItem): Promise<void> {
@@ -320,6 +328,7 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
     }
     const current = await this.findRecordByItemId(itemId);
     if (current === undefined) return;
+    markRecordChanged(this.database, this.recordDocumentId(current.item.contentFingerprint));
     try {
       await this.database.remove(
         await this.database.get(this.recordDocumentId(current.item.contentFingerprint)),
@@ -330,12 +339,14 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
   }
 
   async getCursor(): Promise<HostCursor | undefined> {
+    await this.ready;
     return storedCursor(
       await getOptionalDocument(this.database, CURSOR_DOCUMENT_ID),
     );
   }
 
   async setCursor(cursor: HostCursor): Promise<void> {
+    await this.ready;
     await putWithConflictRetry(
       this.database,
       CURSOR_DOCUMENT_ID,
@@ -348,7 +359,44 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
     );
   }
 
+  async readHistoryDocuments(): Promise<unknown[]> {
+    await this.ready;
+    if (this.database.allDocs === undefined) throw new TypeError("ZTools database does not expose allDocs");
+    const result = await this.database.allDocs({
+      include_docs: true, startkey: "pasteboard-pro:record:", endkey: "pasteboard-pro:record:\uffff",
+    });
+    const documents = documentsFromAllDocs(result, "ZTools database returned invalid record rows");
+    // Only inspect IDs here. Full schema validation and search run in the worker.
+    for (let offset = 0; offset < documents.length; offset += 500) {
+      for (const document of documents.slice(offset, offset + 500)) {
+        if (isRecord(document) && typeof document._id === "string" && isRecord(document.record) &&
+            isRecord(document.record.item) && typeof document.record.item.id === "string") {
+          rememberRecord(this.database, document.record.item.id, document._id);
+        }
+      }
+      if (offset + 500 < documents.length) await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    return documents;
+  }
+
+  async readHistoryChanges(ids: readonly string[]): Promise<unknown[]> {
+    await this.ready;
+    const documents: unknown[] = [];
+    for (let offset = 0; offset < ids.length; offset += 50) {
+      const batch = await Promise.all(ids.slice(offset, offset + 50).map(id => getOptionalDocument(this.database, id)));
+      for (const document of batch) {
+        const record = storedRecord(document);
+        if (record !== undefined && isRecord(document) && typeof document._id === "string") {
+          rememberRecord(this.database, record.item.id, document._id);
+          documents.push(document);
+        }
+      }
+    }
+    return documents;
+  }
+
   async listRecords(): Promise<CanonicalClipboardRecord[]> {
+    await this.ready;
     if (this.database.allDocs === undefined) {
       throw new TypeError("ZTools database does not expose allDocs");
     }
@@ -363,6 +411,7 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
     )
       .flatMap((document) => {
         const record = storedRecord(document);
+        if (record !== undefined) rememberRecord(this.database, record.item.id, this.recordDocumentId(record.item.contentFingerprint));
         return record === undefined ? [] : [record];
       })
       .sort(
@@ -376,6 +425,13 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
     query: string,
     limit: number,
   ): Promise<Readonly<{ items: PasteItem[]; total: number }>> {
+    return (await this.searchWithRecords(query, limit)).result;
+  }
+
+  async searchWithRecords(query: string, limit: number): Promise<Readonly<{
+    result: Readonly<{ items: PasteItem[]; total: number }>;
+    records: CanonicalClipboardRecord[];
+  }>> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 10_000) {
       throw new RangeError("Search limit must be an integer between 1 and 10000");
     }
@@ -384,12 +440,18 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
       records.map((record) => record.item),
       query,
     );
-    return { items: matched.slice(0, limit), total: matched.length };
+    return { result: { items: matched.slice(0, limit), total: matched.length }, records };
   }
 
   async findRecordByItemId(
     itemId: string,
   ): Promise<CanonicalClipboardRecord | undefined> {
+    const documentId = recordDocumentFor(this.database, itemId);
+    if (documentId !== undefined) {
+      await this.ready;
+      const record = storedRecord(await getOptionalDocument(this.database, documentId));
+      return record?.item.id === itemId ? record : undefined;
+    }
     return (await this.listRecords()).find((record) => record.item.id === itemId);
   }
 
@@ -572,9 +634,11 @@ export class ZToolsCanonicalClipboardStore implements CanonicalClipboardStore {
         }));
         const document = await this.database.get(documentId);
         await this.database.remove(document);
+        markRecordChanged(this.database, documentId);
         deletedIds.push(record.item.id);
       } catch (error) {
         if (isDatabaseStatus(error, 404)) {
+          markRecordChanged(this.database, documentId);
           deletedIds.push(record.item.id);
         } else {
           failures.push({

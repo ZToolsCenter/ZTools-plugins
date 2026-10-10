@@ -191,10 +191,35 @@ describe("PasteboardPro WebDAV sync", () => {
       { id: "item-1", path: "objects/item/item-1/rev.enc", body: new Uint8Array([1]) },
     ]);
 
-    expect(await store.getSettings()).toMatchObject({ enabled: true, username: "alice" });
+    expect(await store.getSettings()).toMatchObject({ enabled: true, username: "alice", intervalMinutes: 60 });
     expect(await store.listObjects()).toEqual([
       expect.objectContaining({ id: "item-1", bodyBase64: "AQ==" }),
     ]);
     expect(JSON.stringify(document)).not.toMatch(/password|super-secret|syncPassword/i);
+  });
+
+  it("falls back to default 60 minutes interval for legacy sync documents", async () => {
+    const database: ZToolsDocumentDatabase = {
+      async get() {
+        return {
+          _id: "pasteboard-pro:settings:sync",
+          type: "pasteboard-pro-sync-state",
+          settings: {
+            enabled: true,
+            baseUrl: "https://dav.example.com/PasteboardPro/v1/",
+            username: "bob",
+            webdavCredentialAccount: "webdav",
+            vaultKeyAccount: "vault-key",
+            status: { state: "idle", pendingObjects: 0 },
+          },
+          queue: [],
+          retryRequired: false,
+        };
+      },
+      async put() { return { ok: true }; },
+    };
+    const store = new ZToolsSyncStore(database);
+    const settings = await store.getSettings();
+    expect(settings.intervalMinutes).toBe(60);
   });
 });
