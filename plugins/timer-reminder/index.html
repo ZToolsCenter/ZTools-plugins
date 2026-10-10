@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>自然语言定时提醒</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <div class="app">
+      <!-- 顶栏 -->
+      <header class="topbar">
+        <div class="brand">
+          <img class="brand-logo" src="logo.png" alt="logo" />
+          <div class="brand-text">
+            <h1>自然语言定时提醒</h1>
+            <p id="statusLine" class="status">调度器启动中…</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="btnTest" class="icon-btn" title="发送测试通知" aria-label="发送测试通知">🔔</button>
+          <button id="btnNew" class="primary-btn" title="新建提醒">＋ 新建</button>
+        </div>
+      </header>
+
+      <!-- 快速创建 -->
+      <section class="quick">
+        <div class="quick-row">
+          <input
+            id="quickInput"
+            class="quick-input"
+            type="text"
+            placeholder="自然语言创建：10分钟后 喝水 / 明天9点 开会 / 每天8:30 吃药"
+            autocomplete="off"
+          />
+          <button id="quickAdd" class="primary-btn">添加</button>
+        </div>
+        <div id="quickPreview" class="quick-preview" hidden></div>
+      </section>
+
+      <!-- 页签 -->
+      <nav class="tabs">
+        <button class="tab active" data-tab="active">待提醒<span id="countActive" class="badge"></span></button>
+        <button class="tab" data-tab="done">已完成<span id="countDone" class="badge"></span></button>
+        <button class="tab" data-tab="settings">设置</button>
+      </nav>
+
+      <!-- 待提醒 -->
+      <main class="pane active" id="pane-active">
+        <ul id="listActive" class="list"></ul>
+        <div id="emptyActive" class="empty">
+          <div class="empty-icon">⏰</div>
+          <p>还没有待提醒事项</p>
+          <p class="empty-sub">在上方输入「10分钟后 喝水」试试，或点击「＋ 新建」</p>
+        </div>
+        <div class="pane-footer">
+          <button id="btnImport" class="ghost-btn">导入 Excel</button>
+        </div>
+      </main>
+
+      <!-- 已完成 -->
+      <main class="pane" id="pane-done">
+        <ul id="listDone" class="list"></ul>
+        <div id="emptyDone" class="empty">
+          <div class="empty-icon">🗂️</div>
+          <p>暂无已完成 / 已停用的提醒</p>
+        </div>
+        <div class="pane-footer">
+          <button id="btnExportDone" class="ghost-btn">导出 Excel</button>
+          <button id="btnClearDone" class="ghost-btn">清空已完成</button>
+        </div>
+      </main>
+
+      <!-- 设置 -->
+      <main class="pane" id="pane-settings">
+        <div class="settings">
+          <h3>默认行为</h3>
+          <label class="field-row">
+            <span>新建提醒默认响铃</span>
+            <input type="checkbox" id="setSound" />
+          </label>
+          <label class="field-row">
+            <span>新建提醒默认弹窗强提醒</span>
+            <input type="checkbox" id="setPopup" />
+          </label>
+          <label class="field-row">
+            <span>响铃次数</span>
+            <input type="number" id="setBeep" min="1" max="10" />
+          </label>
+          <label class="field-row">
+            <span>「稍后提醒」默认分钟数</span>
+            <input type="number" id="setSnooze" min="1" max="720" />
+          </label>
+
+          <h3>调度器</h3>
+          <div class="field-row static">
+            <span>运行状态</span>
+            <span id="setStatus" class="muted">—</span>
+          </div>
+          <p class="hint">
+            提醒由插件后台进程调度。请保持 ZTools 运行、且不要「结束」本插件（隐藏到后台即可），
+            否则到点不会触发。插件重启后会自动续上未完成的提醒，并补发错过的提醒。
+          </p>
+          <div class="settings-actions">
+            <button id="btnTestNotify" class="ghost-btn">发送测试通知</button>
+            <button id="btnTick" class="ghost-btn">立即扫描一次</button>
+          </div>
+
+          <h3>提醒通道（邮件 / 短信）</h3>
+          <label class="field-row">
+            <span>启用额外通道（到点除系统通知外额外发送）</span>
+            <input type="checkbox" id="chEnabled" />
+          </label>
+
+          <div class="channel">
+            <div class="channel-head">
+              <label class="channel-title"><input type="checkbox" id="smtpEnabled" /> 邮件（SMTP）</label>
+              <button id="btnTestSmtp" class="mini">发送测试邮件</button>
+            </div>
+            <div class="form-grid">
+              <label class="form-field"><span>SMTP 服务器</span><input id="smtpHost" placeholder="smtp.qq.com" /></label>
+              <label class="form-field"><span>端口</span><input id="smtpPort" type="number" value="465" /></label>
+              <label class="form-field"><span>加密方式</span><select id="smtpSecure"><option value="1">SSL/TLS（465）</option><option value="0">STARTTLS（587/25）</option></select></label>
+              <label class="form-field"><span>账号</span><input id="smtpUser" placeholder="you@qq.com" /></label>
+              <label class="form-field"><span>发件人（默认同账号）</span><input id="smtpFrom" /></label>
+              <label class="form-field"><span>收件人（多个用逗号分隔）</span><input id="smtpTo" /></label>
+              <label class="form-field"><span>密码 / 授权码</span><input id="smtpPass" type="password" placeholder="留空表示不修改" /></label>
+              <div class="form-field"><span>密钥状态</span><div id="smtpPassState" class="muted small"></div></div>
+            </div>
+          </div>
+
+          <div class="channel">
+            <div class="channel-head">
+              <label class="channel-title"><input type="checkbox" id="smsEnabled" /> 短信（短信宝）</label>
+              <button id="btnTestSms" class="mini">发送测试短信</button>
+            </div>
+            <div class="form-grid">
+              <label class="form-field"><span>短信宝账号</span><input id="smsUser" /></label>
+              <label class="form-field"><span>接收手机号</span><input id="smsPhone" /></label>
+              <label class="form-field"><span>密钥</span><input id="smsKey" type="password" placeholder="留空表示不修改" /></label>
+              <div class="form-field"><span>密钥状态</span><div id="smsKeyState" class="muted small"></div></div>
+            </div>
+          </div>
+
+          <div class="channel">
+            <div class="channel-head">
+              <label class="channel-title"><input type="checkbox" id="webhookEnabled" /> 自定义 Webhook（可接任意短信/推送服务）</label>
+              <button id="btnTestWebhook" class="mini">发送测试</button>
+            </div>
+            <div class="form-grid">
+              <label class="form-field"><span>URL</span><input id="webhookUrl" placeholder="https://…" /></label>
+              <label class="form-field"><span>Method</span><select id="webhookMethod"><option>POST</option><option>PUT</option></select></label>
+              <label class="form-field"><span>Content-Type</span><select id="webhookCt"><option value="json">application/json</option><option value="form">x-www-form-urlencoded</option><option value="text">text/plain</option></select></label>
+              <label class="form-field"><span>模板（占位符 {title} {time} {note} {repeat} {text}）</span><input id="webhookTemplate" placeholder="留空则发送完整 JSON" /></label>
+            </div>
+          </div>
+
+          <h3>大语言模型（智能解析）</h3>
+          <label class="field-row">
+            <span>启用大模型</span>
+            <input type="checkbox" id="llmEnabled" />
+          </label>
+          <label class="field-row">
+            <span>规则解析失败时自动使用 AI 解析</span>
+            <input type="checkbox" id="llmFallback" />
+          </label>
+          <div class="form-grid">
+            <label class="form-field"><span>服务商预设</span><select id="llmPreset"></select></label>
+            <label class="form-field"><span>模型</span><input id="llmModel" placeholder="deepseek-chat" /></label>
+            <label class="form-field"><span>Base URL</span><input id="llmBaseUrl" placeholder="https://api.deepseek.com" /></label>
+            <label class="form-field"><span>Temperature</span><input id="llmTemp" type="number" step="0.1" min="0" max="2" value="0.2" /></label>
+            <label class="form-field"><span>API Key</span><input id="llmKey" type="password" placeholder="留空表示不修改" /></label>
+            <div class="form-field"><span>密钥状态</span><div id="llmKeyState" class="muted small"></div></div>
+          </div>
+          <div class="settings-actions">
+            <button id="btnTestLlm" class="ghost-btn">测试连接</button>
+          </div>
+          <p class="hint">密钥仅存于 ZTools 加密存储（dbCryptoStorage），不写入明文配置、也不包含在导出文件中。</p>
+        </div>
+      </main>
+    </div>
+
+    <!-- 新建 / 编辑弹窗 -->
+    <div class="modal" id="modal" hidden>
+      <div class="modal-card">
+        <h2 id="modalTitle">新建提醒</h2>
+        <form id="form" autocomplete="off">
+          <label class="form-field">
+            <span>提醒内容</span>
+            <input id="fTitle" type="text" required maxlength="60" placeholder="例如：喝水、站起来活动一下" />
+          </label>
+
+          <div class="seg" id="fModeSeg">
+            <button type="button" data-mode="once" class="active">单次</button>
+            <button type="button" data-mode="repeat">重复</button>
+          </div>
+
+          <div id="onceFields" class="form-grid">
+            <label class="form-field">
+              <span>日期</span>
+              <input id="fDate" type="date" />
+            </label>
+            <label class="form-field">
+              <span>时间</span>
+              <input id="fTime" type="time" />
+            </label>
+          </div>
+
+          <div id="repeatFields" hidden>
+            <div class="seg small" id="fKindSeg">
+              <button type="button" data-kind="interval">间隔</button>
+              <button type="button" data-kind="hourly">每小时</button>
+              <button type="button" data-kind="daily" class="active">每天</button>
+              <button type="button" data-kind="weekly">每周</button>
+              <button type="button" data-kind="workday">工作日</button>
+              <button type="button" data-kind="monthly">每月</button>
+            </div>
+            <div class="form-grid">
+              <label class="form-field" id="rfInterval">
+                <span>间隔（分钟）</span>
+                <input id="fEvery" type="number" min="1" max="43200" value="30" />
+              </label>
+              <label class="form-field" id="rfTime">
+                <span>时间</span>
+                <input id="fRepeatTime" type="time" value="09:00" />
+              </label>
+              <label class="form-field" id="rfMonthDay">
+                <span>每月几号</span>
+                <input id="fMonthDay" type="number" min="1" max="31" value="1" />
+              </label>
+            </div>
+            <div class="weekdays" id="rfWeekdays">
+              <label><input type="checkbox" value="1" />一</label>
+              <label><input type="checkbox" value="2" />二</label>
+              <label><input type="checkbox" value="3" />三</label>
+              <label><input type="checkbox" value="4" />四</label>
+              <label><input type="checkbox" value="5" />五</label>
+              <label><input type="checkbox" value="6" />六</label>
+              <label><input type="checkbox" value="0" />日</label>
+            </div>
+          </div>
+
+          <label class="form-field">
+            <span>备注（可选）</span>
+            <textarea id="fNote" rows="2" maxlength="200" placeholder="补充说明，会一并显示在通知里"></textarea>
+          </label>
+
+          <div class="form-opts">
+            <label><input type="checkbox" id="fSound" checked /> 响铃</label>
+            <label><input type="checkbox" id="fPopup" /> 弹窗强提醒</label>
+          </div>
+
+          <div id="formPreview" class="form-preview"></div>
+
+          <div class="modal-actions">
+            <button type="button" id="btnCancel" class="ghost-btn">取消</button>
+            <button type="submit" class="primary-btn">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="lib/schedule.js"></script>
+    <script src="lib/time-format.js"></script>
+    <script src="lib/time-parse.js"></script>
+    <script src="index.js"></script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+{
+  "name": "timer-reminder",
+  "title": "自然语言定时提醒",
+  "description": "创建一次性 / 周期性定时提醒，到点弹出系统通知并响铃。支持自然语言快速创建（如「10分钟后 喝水」「每天8:30 吃药」）、Excel 导入导出、邮件/短信通道、大模型解析与置顶弹窗强提醒。",
+  "author": "tom-fn",
+  "version": "1.2.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "reminder",
+      "explain": "定时提醒 · 查看与管理我的提醒",
+      "icon": "logo.png",
+      "cmds": ["定时提醒", "提醒", "闹钟", "reminder", "alarm"]
+    },
+    {
+      "code": "quick-add",
+      "explain": "快速创建提醒，如「10分钟后 喝水」",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "创建提醒",
+          "match": "/^(提醒我|提醒一下|提醒|remind)\\s*\\S+/i",
+          "minLength": 3
+        },
+        {
+          "type": "regex",
+          "label": "创建提醒",
+          "match": "/^\\d+\\s*(秒钟?|分钟?|小时|天|周|个月)后/i",
+          "minLength": 3
+        },
+        {
+          "type": "regex",
+          "label": "创建提醒",
+          "match": "/^(今天|今晚|明早|明天|后天|每天|每日|每周|每小时|工作日)\\s*\\S+/i",
+          "minLength": 3
+        },
+        {
+          "type": "regex",
+          "label": "创建提醒",
+          "match": "/^\\d{1,2}:\\d{2}\\s*\\S+/i",
+          "minLength": 5
+        }
+      ]
+    }
+  ]
+}
