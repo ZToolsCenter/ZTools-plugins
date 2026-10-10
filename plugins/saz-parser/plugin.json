@@ -1,0 +1,181 @@
+{
+  "name": "saz-parser",
+  "title": "SAZ 抓包解析",
+  "description": "把 Fiddler .saz 抓包归档转换为可供 AI 分析的结构化素材：秒级索引全部会话，自动解压 gzip/br/zstd，解析 WebSocket 帧日志（_w.txt，原解析脚本未处理），按 L0–L3 四档生成体积可控（可设 token 预算、自动分卷）的分析包，含接口清单、字段结构、鉴权链与跨会话参数传递摘要；同时保留与原解析脚本同构的目录树导出。隐私字段默认完整保留，纯本地处理不联网、不调用任何模型。",
+  "version": "0.2.4",
+  "author": "乐幻",
+  "platform": ["win32", "darwin", "linux"],
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload/preload.js",
+  "features": [
+    {
+      "code": "saz-quick",
+      "mainHide": true,
+      "explain": "一键解析：不打开界面，直接把同构目录树落盘到归档旁的 <归档名>_解析结果",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "一键解析（直接落盘，不打开界面）",
+          "fileType": "file",
+          "extensions": ["saz"],
+          "minLength": 1,
+          "maxLength": 1
+        },
+        {
+          "type": "regex",
+          "label": "一键解析该路径（直接落盘）",
+          "match": "/(?:^|\\s)[\"']?(?:[A-Za-z]:[\\\\/]|\\\\\\\\|\\/)[^\"'\\r\\n]*\\.[Ss][Aa][Zz][\"']?/i",
+          "minLength": 5
+        }
+      ]
+    },
+    {
+      "code": "saz-view",
+      "explain": "打开 SAZ 分析界面：分析包 / 字段索引 / 跨会话传递链 / 解析历史。关键词只留这一条（与 title 全等）：宿主搜索忽略大小写且做双向包含，多列几个同义词只会多出几行重复结果，想加别的叫法请在宿主里给本指令配“自定义别名”",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "SAZ 分析（打开界面）",
+          "fileType": "file",
+          "extensions": ["saz"],
+          "minLength": 1,
+          "maxLength": 1
+        },
+        {
+          "type": "regex",
+          "label": "SAZ 分析该路径（打开界面）",
+          "match": "/(?:^|\\s)[\"']?(?:[A-Za-z]:[\\\\/]|\\\\\\\\|\\/)[^\"'\\r\\n]*\\.[Ss][Aa][Zz][\"']?/i",
+          "minLength": 5
+        },
+        "SAZ 抓包解析"
+      ]
+    }
+  ],
+  "tools": {
+    "saz_parse": {
+      "description": "索引指定绝对路径的 Fiddler .saz 归档，返回归档概览、全局统计与分析元特征（方法、状态、域名、归一 URL、字段名集合、鉴权标记、内容类型、体积、耗时），不解码正文因而不受大样本体积影响。会话清单默认只返回前 200 行并给出总条数，取后续请配合 saz_query 的条件筛选。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": ".saz 文件的绝对路径"
+          },
+          "limit": {
+            "type": "number",
+            "description": "本次返回的会话行数上限，默认 200"
+          }
+        },
+        "required": ["path"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "description": "{ archive, summary, sessionsTotal, sessionsReturned, sessions[], next }"
+      }
+    },
+    "saz_query": {
+      "description": "对最近一次已索引的 .saz 按条件对象筛选会话，返回命中清单与其所属档位建议，用于决定后续取哪些正文喂给分析。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "type": "object",
+            "description": "条件对象：domains[]、urlRegex、methods[]、status[]、contentType[]、transferEncoding[]、chunkedOnly、eventStreamOnly、hasAuth、bodyContains[]、flow、sidRange[]、category。用 chunkedOnly:true 枚举带 Transfer-Encoding 的会话，eventStreamOnly:true 枚举 SSE 会话（两者都是只看响应头，零正文开销）"
+          },
+          "limit": {
+            "type": "number",
+            "description": "最多返回条数，默认 200"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "description": "{ total, matched, items[], estTokens }"
+      }
+    },
+    "saz_body": {
+      "description": "按会话号读取已解码的请求/响应正文与头部，隐私字段值原样返回（不做任何抹除）。正文已按 RFC 9112 做过 transfer-decoding（chunked 分块框架不会混进正文，see decode.response.dechunk），再按 Content-Encoding 解压。超大正文按 limitBytes 截断并标记截断点与原始长度。事件流/多帧 JSON 的逐条结构请用 saz_stream。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sid": {
+            "type": "number",
+            "description": "Fiddler SessionID（会话号）"
+          },
+          "part": {
+            "type": "string",
+            "description": "request | response | all，默认 all"
+          },
+          "limitBytes": {
+            "type": "number",
+            "description": "正文最多返回字节数，默认 262144"
+          },
+          "withFields": {
+            "type": "boolean",
+            "description": "是否附带 KV 字段结构视图，默认 true"
+          }
+        },
+        "required": ["sid"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "description": "{ sid, session, request, response, decode{request,response}, fields }；正文文本在 text、二进制在 hex，截断看 bodyTruncated"
+      }
+    },
+    "saz_ws": {
+      "description": "读取某会话的 WebSocket 帧日志（Fiddler raw/<sid>_w.txt）：返回已按 RFC 6455 去掩码解帧的方向、操作码、时间戳与应用数据；文本帧给原文，二进制帧给十六进制。长连接业务数据只存在于此处。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sid": {
+            "type": "number",
+            "description": "Fiddler SessionID（需为 101 升级会话）"
+          },
+          "from": {
+            "type": "number",
+            "description": "起始帧序号，默认 0"
+          },
+          "count": {
+            "type": "number",
+            "description": "返回帧数，默认 200"
+          }
+        },
+        "required": ["sid"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "description": "{ sid, total, stats, frames[], hasWebSocketLog }"
+      }
+    },
+    "saz_stream": {
+      "description": "按会话号逐条读取流式正文（功能 F28）：text/event-stream 返回每个事件的 id/event/retry/data（data 能解成 JSON 时同时给结构与键名）；整块解不开但确为多份顶层 JSON 拼接的响应按值逐条返回（含字符偏移）。带 Transfer-Encoding: chunked 的会话已先解框。用于 AI 不必吞下整坨事件流就能按事件定位业务数据。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sid": {
+            "type": "number",
+            "description": "Fiddler SessionID（响应为 event-stream 或多值 JSON 的会话）"
+          },
+          "from": {
+            "type": "number",
+            "description": "起始事件/值序号，默认 0"
+          },
+          "count": {
+            "type": "number",
+            "description": "返回条数，默认 200"
+          },
+          "limitBytes": {
+            "type": "number",
+            "description": "正文读取上限字节，默认 0 = 不限制（拆帧需要完整正文）"
+          }
+        },
+        "required": ["sid"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "description": "{ sid, kind: 'event-stream'|'multi-value'|'none', stats, eventTypes, total, returned, events[] }"
+      }
+    }
+  }
+}
