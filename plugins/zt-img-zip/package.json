@@ -1,0 +1,29 @@
+{
+  "name": "zt-img-zip",
+  "version": "0.1.4",
+  "description": "ZTools image compression and format conversion plugin powered by bundled sharp.",
+  "type": "module",
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc && vite build && node scripts/copy-plugin-files.mjs",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "4.7.0",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sharp": "^0.34.5",
+    "vite": "6.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@ztools-center/plugin-cli": "^1.2.0",
+    "typescript": "^5.6.3"
+  }
+}

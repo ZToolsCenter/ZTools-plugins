@@ -1,0 +1,5 @@
+node_modules/
+.helloagents/
+.tmp-sharp-test/
+.DS_Store
+npm-debug.log*
