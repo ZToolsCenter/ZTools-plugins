@@ -2,7 +2,7 @@ import * as asar from '@electron/asar'
 import AdmZip from 'adm-zip'
 import { constants, createBrotliCompress } from 'node:zlib'
 import { createReadStream, createWriteStream, existsSync } from 'node:fs'
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
@@ -11,12 +11,14 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.join(root, 'dist')
 const release = path.join(root, 'release')
 const asarPath = path.join(release, 'json-formatter.asar')
-const zpxPath = path.join(release, 'json-formatter-1.0.0.zpx')
-const zipPath = path.join(release, 'json-formatter-1.0.0.zip')
 
 if (!existsSync(path.join(dist, 'plugin.json'))) {
   throw new Error('dist/plugin.json 不存在，请先执行 npm run build')
 }
+
+const { name, version } = JSON.parse(await readFile(path.join(dist, 'plugin.json'), 'utf8'))
+const zpxPath = path.join(release, `${name}-${version}.zpx`)
+const zipPath = path.join(release, `${name}-${version}.zip`)
 
 await rm(release, { recursive: true, force: true })
 await mkdir(release, { recursive: true })

@@ -8,12 +8,14 @@ import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const zpxPath = path.join(root, 'release', 'json-formatter-1.0.0.zpx')
-const zipPath = path.join(root, 'release', 'json-formatter-1.0.0.zip')
+const { name, version } = JSON.parse(await readFile(path.join(root, 'plugin.json'), 'utf8'))
+const zpxPath = path.join(root, 'release', `${name}-${version}.zpx`)
+const zipPath = path.join(root, 'release', `${name}-${version}.zip`)
 const tempAsar = path.join(root, 'release', '.verify.asar')
 const requiredFiles = ['plugin.json', 'index.html', 'preload.cjs', 'logo.png']
 
 function validateConfig(config, files) {
+  if (config.name !== name || config.version !== version) throw new Error('安装包的插件名称或版本与项目配置不一致')
   for (const field of ['name', 'version', 'main', 'preload', 'logo']) {
     if (!config[field]) throw new Error(`plugin.json 缺少 ${field}`)
   }

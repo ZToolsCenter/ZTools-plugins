@@ -1,13 +1,13 @@
 import './styles.css'
 import {
+  createJsonPreview,
+  createNodeEditor,
   extractJsonFromAction,
   formatJson,
   formatJsonPath,
   getJsonType,
-  parseJson,
   replaceValueAtPath,
-  valueToClipboardText,
-  valueToEditorText
+  valueToClipboardText
 } from './json-utils.js'
 import { renderJsonTree, setAllTreeNodesOpen } from './tree-view.js'
 
@@ -25,7 +25,9 @@ const SAMPLE_JSON = `{
 
 let currentValue
 let currentText = ''
+let currentPreview = createJsonPreview('')
 let selectedPath = null
+let selectedEditor = null
 let autoFormatTimer
 
 const elements = {
@@ -111,7 +113,9 @@ function renderResult({ quiet = false } = {}) {
     currentValue = result.value
     currentText = result.text
     selectedPath = null
-    elements.output.value = currentText
+    selectedEditor = null
+    currentPreview = createJsonPreview(currentText)
+    elements.output.value = currentPreview.text
     elements.inspector.hidden = true
     elements.treeEmpty.hidden = true
     elements.tree.hidden = false
@@ -124,7 +128,9 @@ function renderResult({ quiet = false } = {}) {
   } catch (error) {
     currentValue = undefined
     currentText = ''
+    currentPreview = createJsonPreview('')
     selectedPath = null
+    selectedEditor = null
     elements.output.value = ''
     elements.tree.replaceChildren()
     elements.tree.hidden = true
@@ -152,7 +158,9 @@ function scheduleFormat() {
 function clearResult() {
   currentValue = undefined
   currentText = ''
+  currentPreview = createJsonPreview('')
   selectedPath = null
+  selectedEditor = null
   elements.output.value = ''
   elements.tree.replaceChildren()
   elements.tree.hidden = true
@@ -169,7 +177,8 @@ function selectNode({ path, value }) {
   elements.nodeType.textContent = getJsonType(value)
   elements.nodeType.dataset.type = getJsonType(value)
   elements.nodePath.textContent = formatJsonPath(path)
-  elements.nodeValue.value = valueToEditorText(value)
+  selectedEditor = createNodeEditor(value)
+  elements.nodeValue.value = selectedEditor.text
 }
 
 async function writeClipboard(text, successMessage) {
@@ -200,7 +209,7 @@ function saveSelectedNode() {
   if (!selectedPath) return
   try {
     const path = selectedPath
-    const nextValue = parseJson(elements.nodeValue.value, { allowJson5: elements.allowJson5.checked }).value
+    const nextValue = selectedEditor.parse(elements.nodeValue.value, { allowJson5: elements.allowJson5.checked })
     currentValue = replaceValueAtPath(currentValue, path, nextValue)
     currentText = JSON.stringify(currentValue, null, 2)
     elements.input.value = currentText
@@ -257,9 +266,23 @@ elements.clearButton.addEventListener('click', () => {
   elements.input.focus()
 })
 elements.copyButton.addEventListener('click', () => writeClipboard(currentText, '已复制格式化结果'))
+elements.output.addEventListener('copy', (event) => {
+  if (!event.clipboardData || elements.output.selectionStart === elements.output.selectionEnd) return
+  event.preventDefault()
+  event.clipboardData.setData('text/plain', currentPreview.getSourceText(elements.output.selectionStart, elements.output.selectionEnd))
+})
+elements.nodeValue.addEventListener('copy', (event) => {
+  if (!selectedEditor || !event.clipboardData || elements.nodeValue.selectionStart === elements.nodeValue.selectionEnd) return
+  event.preventDefault()
+  const text = selectedPath.length === 0
+    ? selectedEditor.getSourceText(elements.nodeValue.value, elements.nodeValue.selectionStart, elements.nodeValue.selectionEnd)
+    : elements.nodeValue.value.slice(elements.nodeValue.selectionStart, elements.nodeValue.selectionEnd)
+  event.clipboardData.setData('text/plain', text)
+})
+elements.nodeValue.addEventListener('input', () => selectedEditor?.update(elements.nodeValue.value))
 elements.copyPathButton.addEventListener('click', () => writeClipboard(elements.nodePath.textContent, '已复制节点路径'))
 elements.copyValueButton.addEventListener('click', () => {
-  if (selectedPath) void writeClipboard(valueToClipboardText(selectedPath.length ? selectedPath.reduce((value, key) => value[key], currentValue) : currentValue), '已复制节点值')
+  if (selectedPath) void writeClipboard(valueToClipboardText(selectedPath.reduce((value, key) => value[key], currentValue), { isRoot: selectedPath.length === 0 }), '已复制节点值')
 })
 elements.saveNodeButton.addEventListener('click', saveSelectedNode)
 elements.expandButton.addEventListener('click', () => setAllTreeNodesOpen(elements.tree, true))

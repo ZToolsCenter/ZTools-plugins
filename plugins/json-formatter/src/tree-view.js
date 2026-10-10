@@ -1,4 +1,4 @@
-import { formatJsonPath, getJsonType } from './json-utils.js'
+import { createJsonPreview, formatJsonPath, getJsonType } from './json-utils.js'
 
 const MAX_RENDERED_NODES = 12000
 
@@ -50,7 +50,7 @@ export function renderJsonTree(container, value, { onSelect } = {}) {
       const count = Object.keys(nodeValue).length
       valueElement.textContent = type === 'array' ? `Array(${count})` : `Object(${count})`
     } else if (type === 'string') {
-      valueElement.textContent = JSON.stringify(nodeValue)
+      valueElement.textContent = createJsonPreview(JSON.stringify(nodeValue)).text
     } else {
       valueElement.textContent = String(nodeValue)
     }
