@@ -55,14 +55,16 @@ public/
 
 **首页与常用统计**：`HomePage.vue` 展示「常用」（`frequentTools`：按 `usageCounts` 降序 Top 8，次数相同按注册顺序）与全部工具分组网格，点击走 `openTab`。`usageCounts` 在 `openTab` 时自增，持久化到 ZTools dbStorage（key：`devbox.toolUsage`），无宿主环境时仅内存。
 
-**`setRoute(action)` 逻辑**：仅当 action 为**真实 feature 触发**时 `openTab(action.code)`（保留已开标签），`isFeatureTrigger` 三层判定：① `type !== 'text'`（划词/图片/文件）→ 触发；② 有搜索词 → payload 命中该 feature 的 cmds（精确或前缀，忽略大小写；cmds 维护在 `tools.ts` 的 `Tool.cmds`，需与 plugin.json 同步）→ 触发；③ 无搜索词 → `from` 非 `'main'` 或 **code 不是第一个 feature**（快捷键形态）→ 触发，否则（图标点击）保持现状（无已开标签则显示首页）。详见 skill pitfalls「onPluginEnter 图标进入」条目。
+**`setRoute(action)` 逻辑**：`action.code` 命中工具注册表（`toolMap`）即 `openTab(code)`（保留已开标签），否则保持现状（无已开标签则显示首页）。plugin.json 首位是一个专用的 `home` 入口 feature（cmds: `["devbox"]`）——宿主把图标点击伪装成第一个 feature 的 code 回传，`home` 承接了该伪装使判定极简：真实工具的进入（含拼音/模糊搜索词，如「suiji」）code 必然命中注册表，无需 payload 与 cmds 比对。详见 skill pitfalls「onPluginEnter 图标进入」条目。
+
+**onPluginEnter 重注册（3.0.1 修复，勿删）**：宿主在插件隐藏时会重载开发插件视图（重跑 preload 并替换 `window.ztools`），已注册的 enter 回调失效，后续进入事件被宿主缓冲不再派发（表现为重进不切换标签）。App.vue 通过 800ms 定时重注册 + visibilitychange 补注册保证回调挂在最新接口对象上，宿主会回放缓冲的 enter 事件。
 
 **新增工具时注意 KeepAlive**：若工具组件有全局副作用（document 级监听、定时器、matchMedia 监听等），必须同时适配 `onUnmounted`（tab 关闭）与 `onActivated`/`onDeactivated`（tab 切换，挂载/恢复、停用/清理），且挂载函数要幂等（首次挂载 mounted + activated 会连续触发）。参考 Qrcode / TimeConvert / JsonTool / HTMLPreview 的写法。
 
 ### 添加新工具的步骤
 
 1. 在 `src/tools/<ToolName>/index.vue` 创建组件
-2. 在 `src/toolbox/tools.ts` 的 `categories` 数组中注册（导入组件，定义 code/explain/icon/cmds——**cmds 必须与 plugin.json 同步**，入口判定依赖它）
+2. 在 `src/toolbox/tools.ts` 的 `categories` 数组中注册（导入组件，定义 code/explain/icon）
 3. 在 `public/plugin.json` 的 features 数组中添加匹配条目（code + cmds）
 4. 如需 Node.js 能力，在 `public/preload/services.js` 添加方法，通过 `window.services` 调用
 5. 如有全局监听/定时器，按「路由系统」一节适配 KeepAlive 生命周期

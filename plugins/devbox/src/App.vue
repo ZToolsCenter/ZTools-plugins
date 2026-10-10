@@ -2,7 +2,7 @@
 import { onMounted, ref, computed, watch, nextTick } from 'vue'
 import ToolboxLayout from './toolbox/ToolboxLayout.vue'
 import HomePage from './toolbox/HomePage.vue'
-import { toolMap, categories, type Tool } from './toolbox/tools'
+import { toolMap, type Tool } from './toolbox/tools'
 
 const route = ref('')
 const isDev = ref(false)
@@ -82,43 +82,24 @@ function closeTab(code: string) {
   setActive(next ?? '')
 }
 
-// feature cmds 来自 tools.ts 注册表（新增工具时需与 public/plugin.json 的 cmds 同步维护）。
-// 用于区分「真实 feature 触发」与「点击插件图标进入」：后者宿主会伪装成第一个 feature 的
-// text 触发（code=第一个feature，payload=用户搜索词，实测搜 "dev" 点图标 → payload="dev"），
-// 搜索词命中的是插件名而非 feature 的 cmds；真实关键词触发时 payload 与 cmds 精确或前缀匹配。
-const featureCmds = new Map<string, string[]>(
-  [...toolMap.values()].map((t) => [t.code, t.cmds.map((c) => c.toLowerCase())])
-)
-
-// 宿主对「主界面点击插件图标」固定回传 plugin.json 第一个 feature 的 code；
-// 快捷键进入则回传绑定的 feature 的 code（实测 payload 为空、from 不填充）
-const FIRST_FEATURE_CODE = categories[0].tools[0].code
+// 宿主把各入口都包装成 feature 触发传给 onPluginEnter，图标点击伪装固定回传 plugin.json
+// 第一位的 home feature 的 code。因此判定逻辑可以极简：action.code 命中工具注册表即切换，
+// 否则（home / 未知 code）保持现状——真实工具的进入不再依赖 payload 与 cmds 的比对，
+// 拼音/模糊搜索词（如「suiji」）也能正确切换。
 
 function setRoute(action?: any) {
   route.value = 'toolbox'
-  if (isFeatureTrigger(action)) {
-    // 关键词/划词/图片/文件等 feature 触发：打开/激活对应工具，保留已开的其他 tab
-    openTab(action.code)
+  // 只有携带真实工具 code 的进入才切换标签；图标点击伪装（回传首位的 home feature）、
+  // 无指令进入等非工具 code 一律保持现状（无已开标签时显示首页）
+  const code = action?.code
+  if (code && toolMap.has(code)) {
+    openTab(code)
   }
-  // 点击插件图标进入或无指令进入：保持现状，无已开标签时显示首页
 }
 
-/** 是否为真实的 feature 触发（区别于点击插件图标进入） */
-function isFeatureTrigger(action?: any): boolean {
-  const code = action?.code
-  if (!code || !toolMap.has(code)) return false
-  if (action.type && action.type !== 'text') return true // 划词/图片/文件等，payload 即内容本身
-  const payload = String(action.payload ?? '').trim().toLowerCase()
-  if (payload) {
-    // 有搜索词：命中该 feature 的 cmds（精确或前缀）才是关键词触发，否则是图标点击
-    const cmds = featureCmds.get(code)
-    if (!cmds || !cmds.length) return true // cmds 缺失时退化为「有 payload 即触发」
-    return cmds.some((cmd) => cmd === payload || cmd.startsWith(payload))
-  }
-  // 无搜索词的 text 进入：快捷键（from 非 main，或 code 不是首个 feature）→ 真实触发；
-  // 主界面图标点击（宿主固定回传首个 feature）→ 保持现状/首页
-  if (action.from && action.from !== 'main') return true
-  return code !== FIRST_FEATURE_CODE
+/** enter 事件统一处理（注册可能因宿主重载 preload 而多次进行，处理逻辑必须稳定） */
+function handlePluginEnter(action: any) {
+  setRoute(action)
 }
 
 onMounted(async () => {
@@ -134,8 +115,21 @@ onMounted(async () => {
 
   ztools.setExpendHeight(600)
 
-  ztools.onPluginEnter((action: any) => {
-    setRoute(action)
+  // 【修复】宿主在插件隐藏时会重载开发插件的视图（重跑 preload 并替换 window.ztools），
+  // 导致已注册的 enter 回调失效，后续 onPluginEnter 事件被宿主缓冲、不再派发
+  // （表现为重进插件停留在上次的标签页）。定时重注册保证回调始终挂在最新的宿主接口
+  // 对象上；注册动作本身会触发宿主回放缓冲的 enter 事件，重进即可正确激活对应标签。
+  const registerEnter = () => {
+    // 每次都从 window 上重新取 ztools——重跑 preload 后旧引用不再是宿主当前使用的接口对象
+    ;(window as any).ztools?.onPluginEnter?.(handlePluginEnter)
+  }
+
+  registerEnter()
+  setInterval(registerEnter, 800)
+
+  // 页面由不可见变为可见时（部分宿主版本通过可见性触发重载）也补一次注册
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') registerEnter()
   })
 
   ztools.onPluginOut(() => {
