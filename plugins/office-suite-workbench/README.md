@@ -1,5 +1,7 @@
 # Office 全家桶
 
+> 需要 ZTools 2.4.0 或更高版本。ZTools 3.2.0 会显示官方模型的能力信息，并支持宿主提供的思考深度；在 2.4–3.1 中会自动省略不可用能力。
+
 一个基于 [iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI) 的 ZTools 本地文档工作台，覆盖 Word、Excel、PowerPoint 的读取、检查、编辑、批处理与 MCP 调用。
 
 > 当前范围是 OOXML 三件套：`.docx`、`.xlsx`、`.pptx`。它不等同于 Microsoft 365 全部产品，不包含 Outlook、Access、OneNote、Visio，也不承诺旧格式 `.doc/.xls/.ppt`。
@@ -11,6 +13,7 @@
 - 受控 OfficeCLI 命令台和三种格式的常用命令配方。
 - 直接复用 ZTools 设置中的 AI 模型和提供商凭据，插件不接触 API Key。
 - AI 文件权限提供“只读”“本次允许修改”“始终允许修改”三档；长期授权仅在当前插件会话有效。
+- 停止生成或隐藏插件时，会同时中止模型请求与进行中的 AI OfficeCLI 子进程；下一轮会等待旧进程退出，最多等待 2.5 秒并明确报告超时。
 - `shell:false` 的 preload 执行桥；UI 不接触 `child_process`、`fs` 或任意 shell。
 - OfficeCLI 一键安装、每日后台版本检测与用户确认后的一键更新；国内镜像优先、GitHub 兜底。
 - OfficeCLI 环境变量/常见路径自动发现、超时和输出上限。

@@ -40,9 +40,25 @@ import {
   normalizeFilePayload,
   type QuickActionId
 } from "./lib/commands";
-import { OFFICE_AI_TOOL, normalizeOfficeAiToolInput } from "./lib/ai";
+import {
+  AI_CANCEL_UNSETTLED_MESSAGE,
+  createOfficeAiTurn,
+  createOfficeAiTurnToolHandler,
+  normalizeAiCancelResult,
+  officeAiToolForTurn,
+  type OfficeAiTurn
+} from "./lib/ai";
 import { parseStoredHistory, type HistoryItem } from "./lib/history";
+import {
+  defaultReasoningEffort,
+  detectZToolsHostCompatibility,
+  modelLabel,
+  modelProviderLabel,
+  modelValue,
+  reasoningEffortOptions,
+} from "./lib/ztools-compat";
 import type {
+  AiCancelResult,
   ApiResult,
   McpConfigurations,
   McpProbe,
@@ -190,7 +206,7 @@ function configText(value: unknown): string {
   return JSON.stringify(value ?? {}, null, 2);
 }
 
-export default function App() {
+function OfficeWorkbenchApp() {
   const [view, setView] = useState<ViewId>("home");
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState("");
@@ -217,9 +233,11 @@ export default function App() {
   const [aiModels, setAiModels] = useState<ZToolsAiModel[]>([]);
   const [aiModel, setAiModel] = useState("");
   const [aiModelsLoading, setAiModelsLoading] = useState(false);
+  const [aiReasoningEffort, setAiReasoningEffort] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiMessages, setAiMessages] = useState<AiChatMessage[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiStopping, setAiStopping] = useState(false);
   const [aiError, setAiError] = useState("");
   const [aiPermissionMode, setAiPermissionMode] = useState<AiPermissionMode>("read");
   const [showAiPermissionMenu, setShowAiPermissionMenu] = useState(false);
@@ -228,13 +246,62 @@ export default function App() {
   const settingsDialogRef = useRef<HTMLDialogElement>(null);
   const settingsReturnFocusRef = useRef<HTMLElement | null>(null);
   const aiRequestRef = useRef<ZToolsAiRequest | null>(null);
+  const aiRequestGenerationRef = useRef(0);
   const aiPermissionRef = useRef<HTMLDivElement>(null);
-  const allowAiWriteRef = useRef(false);
-  const selectedFileRef = useRef("");
+  const aiActiveTurnRef = useRef<OfficeAiTurn | null>(null);
+  const aiTurnHandlersRef = useRef(new Map<string, (input: Record<string, unknown>) => Promise<unknown>>());
+  const aiCancelBarrierRef = useRef<Promise<AiCancelResult>>(Promise.resolve({ cancelled: 0, settled: true }));
+  const aiCancelPendingRef = useRef(false);
+  const aiStartTokenRef = useRef<symbol | null>(null);
+  const aiToolSessionNonceRef = useRef("");
+  if (!aiToolSessionNonceRef.current) {
+    aiToolSessionNonceRef.current = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+  }
 
   const selectedFormat = selectedFile ? detectFormat(selectedFile) : null;
   const resultText = useMemo(() => executionText(lastExecution), [lastExecution]);
   const allowAiWrite = aiPermissionMode !== "read";
+  const selectedAiModel = aiModels.find(model => modelValue(model) === aiModel);
+  const availableReasoningEfforts = useMemo(
+    () => reasoningEffortOptions(selectedAiModel),
+    [selectedAiModel],
+  );
+
+  const releaseAiTurnHandlerEntries = useCallback((
+    entries: Array<[string, (input: Record<string, unknown>) => Promise<unknown>]>
+  ) => {
+    const toolWindow = window as unknown as Record<string, unknown>;
+    for (const [toolName, handler] of entries) {
+      if (toolWindow[toolName] === handler) delete toolWindow[toolName];
+      if (aiTurnHandlersRef.current.get(toolName) === handler) {
+        aiTurnHandlersRef.current.delete(toolName);
+      }
+    }
+  }, []);
+
+  const releaseAiTurnHandler = useCallback((turn: OfficeAiTurn) => {
+    const handler = aiTurnHandlersRef.current.get(turn.toolName);
+    if (handler) releaseAiTurnHandlerEntries([[turn.toolName, handler]]);
+  }, [releaseAiTurnHandlerEntries]);
+
+  const beginAiCancellation = useCallback((): Promise<AiCancelResult> => {
+    let requested: unknown = { cancelled: 0, settled: true };
+    try {
+      requested = window.officeSuite?.cancelAiRuns?.() ?? requested;
+    } catch {
+      requested = Promise.reject(new Error("OfficeCLI cancellation bridge failed."));
+    }
+    const barrier = Promise.resolve(requested).then(
+      normalizeAiCancelResult,
+      () => ({ cancelled: 0, settled: false })
+    );
+    aiCancelPendingRef.current = true;
+    aiCancelBarrierRef.current = barrier;
+    void barrier.then(() => {
+      if (aiCancelBarrierRef.current === barrier) aiCancelPendingRef.current = false;
+    });
+    return barrier;
+  }, []);
 
   const addFiles = useCallback((
     incoming: string[],
@@ -322,15 +389,30 @@ export default function App() {
   }, [addFiles]);
 
   useEffect(() => {
+    const resetAiSession = () => {
+      aiRequestGenerationRef.current += 1;
+      aiStartTokenRef.current = null;
+      aiActiveTurnRef.current = null;
+      const inactiveHandlers = Array.from(aiTurnHandlersRef.current.entries());
+      const cancelBarrier = beginAiCancellation();
+      void cancelBarrier.then(() => releaseAiTurnHandlerEntries(inactiveHandlers));
+      aiRequestRef.current?.abort();
+      aiRequestRef.current = null;
+      setAiBusy(false);
+      setAiStopping(false);
+      setAiPermissionMode("read");
+      setShowAiPermissionMenu(false);
+    };
+    window.ztools?.onPluginOut?.(resetAiSession);
+    return resetAiSession;
+  }, [beginAiCancellation, releaseAiTurnHandlerEntries]);
+
+  useEffect(() => {
     if (statusPhase === "ready") return;
     setMcpConfigs(null);
     setMcpProbe(null);
     setMcpStatus(null);
   }, [statusPhase]);
-
-  useEffect(() => {
-    allowAiWriteRef.current = allowAiWrite;
-  }, [allowAiWrite]);
 
   useEffect(() => {
     if (!showAiPermissionMenu) return;
@@ -349,10 +431,6 @@ export default function App() {
   }, [showAiPermissionMenu]);
 
   useEffect(() => {
-    selectedFileRef.current = selectedFile;
-  }, [selectedFile]);
-
-  useEffect(() => {
     setResultExpanded(false);
   }, [lastExecution]);
 
@@ -368,11 +446,12 @@ export default function App() {
     setAiError("");
     void window.ztools.allAiModels().then(models => {
       if (!active) return;
-      setAiModels(models);
-      setAiModel(previous => previous && models.some(model => model.id === previous)
+      const usableModels = models.filter(model => Boolean(modelValue(model)));
+      setAiModels(usableModels);
+      setAiModel(previous => previous && usableModels.some(model => modelValue(model) === previous)
         ? previous
-        : models[0]?.id ?? "");
-      if (!models.length) setAiError("请先在 ZTools 设置中添加 AI 模型。");
+        : modelValue(usableModels[0]));
+      if (!usableModels.length) setAiError("请先在 ZTools 设置中添加 AI 模型。");
     }).catch(error => {
       if (!active) return;
       setAiModels([]);
@@ -384,37 +463,25 @@ export default function App() {
   }, [view]);
 
   useEffect(() => {
-    const officeDocument = async (input: Record<string, unknown>) => {
-      if (!window.officeSuite) {
-        return { ok: false, error: { code: "BRIDGE_UNAVAILABLE", message: "OfficeCLI bridge unavailable." } };
-      }
-      let command: string | string[];
-      try {
-        command = normalizeOfficeAiToolInput(input, selectedFileRef.current);
-      } catch (error) {
-        const failure: ApiResult<OfficeCliRunOutput> = {
-          ok: false,
-          error: {
-            code: "AI_TOOL_INPUT_INVALID",
-            message: error instanceof Error ? error.message : "Invalid office_document input."
-          }
-        };
-        setLastExecution({ label: "AI 工具调用", command: "参数校验失败", result: failure });
-        return failure;
-      }
-      const result = await window.officeSuite.runForAi(command, {
-        allowWrite: allowAiWriteRef.current
-      });
-      const printable = Array.isArray(command) ? formatCommand(command) : command;
-      setLastExecution({ label: "AI 工具调用", command: printable, result });
-      if (!result.ok) return result;
-      const { previewImages: _previewImages, ...safeOutput } = result.data;
-      return { ok: true, ...safeOutput };
-    };
-    window.office_document = officeDocument;
-    return () => {
-      if (window.office_document === officeDocument) delete window.office_document;
-    };
+    if (!selectedAiModel) {
+      setAiReasoningEffort("");
+      return;
+    }
+    const effortIds = availableReasoningEfforts.map(effort => effort.id);
+    const defaultEffort = defaultReasoningEffort(selectedAiModel);
+    setAiReasoningEffort(previous => previous && effortIds.includes(previous)
+      ? previous
+      : defaultEffort && effortIds.includes(defaultEffort)
+        ? defaultEffort
+        : effortIds[0] ?? "");
+  }, [availableReasoningEfforts, selectedAiModel]);
+
+  useEffect(() => () => {
+    const toolWindow = window as unknown as Record<string, unknown>;
+    for (const [toolName, handler] of aiTurnHandlersRef.current) {
+      if (toolWindow[toolName] === handler) delete toolWindow[toolName];
+    }
+    aiTurnHandlersRef.current.clear();
   }, []);
 
   useEffect(() => {
@@ -565,7 +632,7 @@ export default function App() {
   const sendAiMessage = async () => {
     const prompt = aiPrompt.trim();
     const permissionModeForRequest = aiPermissionMode;
-    if (!prompt || aiBusy) return;
+    if (!prompt || aiBusy || aiStartTokenRef.current) return;
     if (!window.ztools?.ai) {
       setAiError("当前 ZTools 版本未提供原生 AI API。");
       return;
@@ -574,6 +641,31 @@ export default function App() {
       setAiError("请先在 ZTools 设置中添加并选择 AI 模型。");
       return;
     }
+
+    const startToken = Symbol("office-ai-start");
+    const preflightGeneration = aiRequestGenerationRef.current;
+    const cancelBarrier = aiCancelBarrierRef.current;
+    aiStartTokenRef.current = startToken;
+    setAiBusy(true);
+    if (aiCancelPendingRef.current) setAiStopping(true);
+    const cancelResult = normalizeAiCancelResult(await cancelBarrier);
+    if (
+      aiStartTokenRef.current !== startToken ||
+      aiRequestGenerationRef.current !== preflightGeneration ||
+      aiCancelBarrierRef.current !== cancelBarrier
+    ) {
+      // stop/plugin-out may already own the visible reset. Only clear state when
+      // this preflight still owns the single-flight token.
+      if (aiStartTokenRef.current === startToken) {
+        aiStartTokenRef.current = null;
+        setAiStopping(false);
+        setAiBusy(false);
+      }
+      return;
+    }
+    aiStartTokenRef.current = null;
+    setAiStopping(false);
+    const cancellationWarning = cancelResult.settled ? "" : AI_CANCEL_UNSETTLED_MESSAGE;
 
     const userMessage: AiChatMessage = {
       id: `user-${Date.now()}`,
@@ -589,17 +681,46 @@ export default function App() {
     const conversation = [...aiMessages, userMessage];
     setAiMessages([...conversation, assistantMessage]);
     setAiPrompt("");
-    setAiError("");
-    setAiBusy(true);
+    setAiError(cancellationWarning);
     setShowAiPermissionMenu(false);
+    const requestGeneration = ++aiRequestGenerationRef.current;
+    const aiTurn = createOfficeAiTurn(aiToolSessionNonceRef.current, requestGeneration);
+    aiActiveTurnRef.current = aiTurn;
+
+    const officeDocument = createOfficeAiTurnToolHandler({
+      turn: aiTurn,
+      getActiveTurn: () => aiActiveTurnRef.current,
+      selectedFile,
+      allowWrite: permissionModeForRequest !== "read",
+      runForAi: async (command, options) => {
+        if (!window.officeSuite?.runForAi) {
+          return {
+            ok: false,
+            error: { code: "BRIDGE_UNAVAILABLE", message: "OfficeCLI bridge unavailable." }
+          };
+        }
+        return window.officeSuite.runForAi(command, options);
+      },
+      onResult: (command, result) => {
+        const printable = command === null
+          ? "参数校验失败"
+          : Array.isArray(command)
+            ? formatCommand(command)
+            : command;
+        setLastExecution({ label: "AI 工具调用", command: printable, result });
+      }
+    });
+    const toolWindow = window as unknown as Record<string, unknown>;
+    toolWindow[aiTurn.toolName] = officeDocument;
+    aiTurnHandlersRef.current.set(aiTurn.toolName, officeDocument);
 
     const selectedContext = selectedFile
       ? `The currently selected document is: ${selectedFile}`
       : "No document is currently selected. Ask for an absolute path when one is required.";
     const systemPrompt = [
       "You are the native Office assistant inside ZTools.",
-      "Use the office_document function for factual document inspection and every claimed file operation.",
-      "Call office_document with operation, filePath, and args. To read content use operation=view and args=[\"text\"]; never use read as an operation.",
+      `Use the provided Office document function (${aiTurn.toolName}) for factual document inspection and every claimed file operation.`,
+      `Call ${aiTurn.toolName} with operation, filePath, and args. To read content use operation=view and args=[\"text\"]; never use read as an operation.`,
       "Use absolute paths and read operations before edits.",
       "Use help or load_skill when OfficeCLI syntax is uncertain.",
       "If a tool returns AI_WRITE_APPROVAL_REQUIRED, explain that the user must choose a modification permission mode below the prompt; never claim the file changed.",
@@ -611,12 +732,14 @@ export default function App() {
     try {
       request = window.ztools.ai({
         model: aiModel,
+        ...(aiReasoningEffort ? { reasoningEffort: aiReasoningEffort } : {}),
         messages: [
           { role: "system", content: systemPrompt },
           ...conversation.map(message => ({ role: message.role, content: message.content }))
         ],
-        tools: [OFFICE_AI_TOOL]
+        tools: [officeAiToolForTurn(aiTurn)]
       }, chunk => {
+        if (aiRequestGenerationRef.current !== requestGeneration) return;
         const content = typeof chunk.content === "string" ? chunk.content : "";
         const reasoning = chunk.reasoning_content ?? "";
         if (!content && !reasoning) return;
@@ -629,11 +752,14 @@ export default function App() {
           : message));
       });
     } catch (error) {
-      setAiError(error instanceof Error ? error.message : "ZTools AI 请求启动失败。");
-      setAiBusy(false);
-      if (permissionModeForRequest === "once") {
-        setAiPermissionMode("read");
-        allowAiWriteRef.current = false;
+      releaseAiTurnHandler(aiTurn);
+      if (aiRequestGenerationRef.current === requestGeneration) {
+        if (aiActiveTurnRef.current?.token === aiTurn.token) aiActiveTurnRef.current = null;
+        setAiError(error instanceof Error ? error.message : "ZTools AI 请求启动失败。");
+        setAiBusy(false);
+        if (permissionModeForRequest === "once") {
+          setAiPermissionMode("read");
+        }
       }
       return;
     }
@@ -642,27 +768,48 @@ export default function App() {
     try {
       await request;
     } catch (error) {
-      setAiError(error instanceof Error ? error.message : "ZTools AI 请求失败。");
+      if (aiRequestGenerationRef.current === requestGeneration) {
+        setAiError(error instanceof Error ? error.message : "ZTools AI 请求失败。");
+      }
     } finally {
-      if (aiRequestRef.current === request) aiRequestRef.current = null;
-      setAiBusy(false);
-      if (permissionModeForRequest === "once") {
-        setAiPermissionMode("read");
-        allowAiWriteRef.current = false;
+      if (aiRequestGenerationRef.current !== requestGeneration) {
+        await aiCancelBarrierRef.current;
+      }
+      releaseAiTurnHandler(aiTurn);
+      if (aiRequestGenerationRef.current === requestGeneration) {
+        if (aiActiveTurnRef.current?.token === aiTurn.token) aiActiveTurnRef.current = null;
+        if (aiRequestRef.current === request) aiRequestRef.current = null;
+        setAiBusy(false);
+        if (permissionModeForRequest === "once") {
+          setAiPermissionMode("read");
+        }
       }
     }
   };
 
-  const stopAiMessage = () => {
+  const stopAiMessage = async () => {
+    if (aiStopping) return;
+    const stopGeneration = ++aiRequestGenerationRef.current;
+    aiStartTokenRef.current = null;
+    aiActiveTurnRef.current = null;
+    const cancelBarrier = beginAiCancellation();
     aiRequestRef.current?.abort();
     aiRequestRef.current = null;
-    setAiBusy(false);
+    setAiBusy(true);
+    setAiStopping(true);
     setShowAiPermissionMenu(false);
     if (aiPermissionMode === "once") {
       setAiPermissionMode("read");
-      allowAiWriteRef.current = false;
     }
-    setAiError("已停止本次生成。");
+    const result = normalizeAiCancelResult(await cancelBarrier);
+    if (
+      aiRequestGenerationRef.current === stopGeneration &&
+      aiCancelBarrierRef.current === cancelBarrier
+    ) {
+      setAiStopping(false);
+      setAiBusy(false);
+      setAiError(result.settled ? "已停止本次生成。" : AI_CANCEL_UNSETTLED_MESSAGE);
+    }
   };
 
   const createDocument = async (format: OfficeFormat) => {
@@ -1061,9 +1208,31 @@ export default function App() {
             onChange={event => setAiModel(event.target.value)}
           >
             {!aiModels.length && <option value="">{aiModelsLoading ? "正在读取…" : "暂无模型"}</option>}
-            {aiModels.map(model => <option value={model.id} key={model.id}>{model.label}</option>)}
+            {aiModels.map(model => <option value={modelValue(model)} key={modelValue(model)}>{modelLabel(model)}</option>)}
           </select>
-          <small>{aiModels.find(model => model.id === aiModel)?.description || "来自 ZTools 设置"}</small>
+          <small>{selectedAiModel?.description || "来自 ZTools 设置"}</small>
+          {selectedAiModel && (
+            <small className="ai-model-capabilities">
+              {[
+                modelProviderLabel(selectedAiModel),
+                selectedAiModel.contextWindow ? `${selectedAiModel.contextWindow.toLocaleString()} context` : "",
+                selectedAiModel.inputModalities?.length ? selectedAiModel.inputModalities.join(" / ") : ""
+              ].filter(Boolean).join(" · ") || "模型能力由 ZTools 管理"}
+            </small>
+          )}
+          {availableReasoningEfforts.length > 0 && (
+            <label className="ai-reasoning-picker">
+              <span>思考深度</span>
+              <select
+                aria-label="AI 思考深度"
+                value={aiReasoningEffort}
+                disabled={aiBusy}
+                onChange={event => setAiReasoningEffort(event.target.value)}
+              >
+                {availableReasoningEfforts.map(effort => <option key={effort.id} value={effort.id}>{effort.label}</option>)}
+              </select>
+            </label>
+          )}
         </label>
       </section>
 
@@ -1135,7 +1304,7 @@ export default function App() {
                       role="menuitemradio"
                       aria-checked={aiPermissionMode === "read"}
                       className={aiPermissionMode === "read" ? "selected" : ""}
-                      onClick={() => { setAiPermissionMode("read"); allowAiWriteRef.current = false; setShowAiPermissionMenu(false); }}
+                      onClick={() => { setAiPermissionMode("read"); setShowAiPermissionMenu(false); }}
                     >
                       <FileText size={18} />
                       <span><strong>只读模式</strong><small>允许读取、检查和预览，不修改文件</small></span>
@@ -1146,7 +1315,7 @@ export default function App() {
                       role="menuitemradio"
                       aria-checked={aiPermissionMode === "once"}
                       className={aiPermissionMode === "once" ? "selected write" : "write"}
-                      onClick={() => { setAiPermissionMode("once"); allowAiWriteRef.current = true; setShowAiPermissionMenu(false); }}
+                      onClick={() => { setAiPermissionMode("once"); setShowAiPermissionMenu(false); }}
                     >
                       <ShieldCheck size={18} />
                       <span><strong>本次允许修改</strong><small>允许下一次发送修改文件，完成后自动恢复只读</small></span>
@@ -1157,7 +1326,7 @@ export default function App() {
                       role="menuitemradio"
                       aria-checked={aiPermissionMode === "always"}
                       className={aiPermissionMode === "always" ? "selected always" : "always"}
-                      onClick={() => { setAiPermissionMode("always"); allowAiWriteRef.current = true; setShowAiPermissionMenu(false); }}
+                      onClick={() => { setAiPermissionMode("always"); setShowAiPermissionMenu(false); }}
                     >
                       <CircleAlert size={18} />
                       <span><strong>始终允许修改</strong><small>当前插件会话内持续允许；关闭或重新加载后失效</small></span>
@@ -1167,7 +1336,11 @@ export default function App() {
                 )}
               </div>
               {aiBusy ? (
-                <button className="ai-send stop" onClick={stopAiMessage}><X size={16} />停止</button>
+                <button
+                  className="ai-send stop"
+                  disabled={aiStopping}
+                  onClick={() => void stopAiMessage()}
+                ><X size={16} />{aiStopping ? "正在停止…" : "停止"}</button>
               ) : (
                 <button
                   className="ai-send"
@@ -1423,6 +1596,24 @@ export default function App() {
       {toast && <div className="toast"><Check size={15} /> {toast}</div>}
     </div>
   );
+}
+
+export default function App() {
+  const compatibility = detectZToolsHostCompatibility(window.ztools);
+  if (compatibility.requiresUpgrade) {
+    return (
+      <main className="app-shell upgrade-required" role="alert">
+        <section className="panel">
+          <span className="section-index">ZTOOLS VERSION REQUIRED</span>
+          <h1>请升级 ZTools 后使用 Office 全家桶</h1>
+          <p>{compatibility.version
+            ? `当前版本 ${compatibility.version} 低于 2.4.0。`
+            : "无法确认当前 ZTools 版本。"} 为了获得更完整、稳定的体验，请升级至 ZTools 2.4.0 或更高版本。</p>
+        </section>
+      </main>
+    );
+  }
+  return <OfficeWorkbenchApp />;
 }
 
 function DependencyNotice({

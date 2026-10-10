@@ -321,11 +321,27 @@ function createOfficeCliRunner(dependencies = {}) {
       }
       cwd = path.resolve(options.cwd)
     }
-    return { timeoutMs, maxOutputBytes, cwd, env: buildEnvironment(options) }
+    let signal
+    if (options.signal != null) {
+      const candidate = options.signal
+      if (
+        typeof candidate !== 'object' ||
+        typeof candidate.aborted !== 'boolean' ||
+        typeof candidate.addEventListener !== 'function' ||
+        typeof candidate.removeEventListener !== 'function'
+      ) {
+        throw new OfficeCliRunnerError('INVALID_OPTIONS', 'signal must be an AbortSignal.')
+      }
+      signal = candidate
+    }
+    return { timeoutMs, maxOutputBytes, cwd, env: buildEnvironment(options), signal }
   }
 
   function execute(binaryPath, args, options, input, fallbackTimeout = DEFAULT_TIMEOUT_MS) {
     const settings = processSettings(options, fallbackTimeout)
+    if (settings.signal?.aborted) {
+      return Promise.reject(new OfficeCliRunnerError('OFFICECLI_ABORTED', 'OfficeCLI operation was cancelled.'))
+    }
     return new Promise((resolve, reject) => {
       const startedAt = now()
       let child
@@ -351,6 +367,7 @@ function createOfficeCliRunner(dependencies = {}) {
       let forceKillTimer = null
       let exitWaitTimer = null
       let terminationError = null
+      let abortHandler = null
       const stdoutDecoder = new StringDecoder('utf8')
       const stderrDecoder = new StringDecoder('utf8')
 
@@ -360,6 +377,7 @@ function createOfficeCliRunner(dependencies = {}) {
         if (timer) clearTimeout(timer)
         if (forceKillTimer) clearTimeout(forceKillTimer)
         if (exitWaitTimer) clearTimeout(exitWaitTimer)
+        if (abortHandler && settings.signal) settings.signal.removeEventListener('abort', abortHandler)
         if (error) reject(error)
         else resolve(result)
       }
@@ -442,6 +460,18 @@ function createOfficeCliRunner(dependencies = {}) {
           durationMs: Math.max(0, now() - startedAt)
         })
       })
+
+      if (settings.signal) {
+        abortHandler = () => {
+          terminateWithError(new OfficeCliRunnerError('OFFICECLI_ABORTED', 'OfficeCLI operation was cancelled.'))
+        }
+        settings.signal.addEventListener('abort', abortHandler, { once: true })
+        // Cover an abort racing with process creation and listener setup.
+        if (settings.signal.aborted) {
+          abortHandler()
+          return
+        }
+      }
 
       timer = setTimeout(() => {
         terminateWithError(new OfficeCliRunnerError(

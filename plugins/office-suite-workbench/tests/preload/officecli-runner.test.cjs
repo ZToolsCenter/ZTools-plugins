@@ -30,9 +30,11 @@ function fakeSpawn(responder) {
     child.stdout = new PassThrough()
     child.stderr = new PassThrough()
     child.killed = false
+    child.killSignals = []
     child.kill = (signal) => {
       child.killed = true
       child.killSignal = signal
+      child.killSignals.push(signal)
       return true
     }
 
@@ -335,4 +337,28 @@ test('timeout and output-limit failures wait for child close before resolving', 
   const output = await outputPromise
   assert.equal(output.ok, false)
   assert.equal(output.error.code, 'OUTPUT_LIMIT_EXCEEDED')
+})
+
+test('abort terminates a running OfficeCLI process and returns OFFICECLI_ABORTED', async (t) => {
+  const fixture = await executableFixture(t)
+  const fake = fakeSpawn(() => undefined)
+  const runner = createOfficeCliRunner({ spawn: fake.spawn, env: { PATH: '' }, commonPaths: [] })
+  const controller = new AbortController()
+
+  let settled = false
+  const runPromise = runner
+    .run(['get', '/tmp/report.docx'], { binaryPath: fixture.binaryPath, signal: controller.signal })
+    .then((result) => { settled = true; return result })
+  await new Promise((resolve) => setImmediate(resolve))
+  controller.abort()
+  await new Promise((resolve) => setTimeout(resolve, 10))
+
+  assert.equal(settled, false)
+  assert.equal(fake.calls[0].child.killSignal, 'SIGTERM')
+  await new Promise((resolve) => setTimeout(resolve, 260))
+  assert.deepEqual(fake.calls[0].child.killSignals, ['SIGTERM', 'SIGKILL'])
+  fake.calls[0].child.emit('close', null, 'SIGTERM')
+  const result = await runPromise
+  assert.equal(result.ok, false)
+  assert.equal(result.error.code, 'OFFICECLI_ABORTED')
 })
