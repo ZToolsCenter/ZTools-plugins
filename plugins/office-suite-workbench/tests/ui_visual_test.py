@@ -12,6 +12,12 @@ OUTPUT_DIR = Path(os.environ.get("OFFICE_SUITE_VISUAL_OUTPUT", "/tmp/office-suit
 
 MOCK_BRIDGE = r"""
 window.officeSuite = {
+  cancelAiRuns() {
+    if (window.__holdCancel) {
+      return new Promise(resolve => { window.__resolveCancel = resolve; });
+    }
+    return Promise.resolve({ cancelled: 0, settled: true });
+  },
   async getStatus() {
     return { ok: true, data: { installed: true, binaryPath: '/opt/homebrew/bin/officecli', version: '1.0.141' } };
   },
@@ -78,6 +84,8 @@ window.officeSuite = {
 };
 window.ztools = {
   onPluginEnter(callback) { window.__pluginEnter = callback; },
+  onPluginOut(callback) { window.__pluginOut = callback; },
+  getAppVersion() { return '3.2.0'; },
   async showOpenDialog() {
     return ['/tmp/Annual Report.docx', '/tmp/Budget 2026.xlsx', '/tmp/Launch Deck.pptx'];
   },
@@ -87,15 +95,25 @@ window.ztools = {
   async shellOpenPath() {},
   async allAiModels() {
     return [
-      { id: 'deepseek-chat', label: 'DeepSeek Chat', description: 'ZTools configured model' },
+      { id: 'deepseek-chat', value: 'deepseek-chat', label: 'DeepSeek Chat', description: 'ZTools configured model', providerId: 'ztools', providerLabel: 'ZTools 官方模型', contextWindow: 128000, inputModalities: ['text', 'image'], reasoning: { efforts: [{ id: 'low', label: '低' }, { id: 'medium', label: '中' }, { id: 'high', label: '高' }], defaultEffort: 'medium' } },
       { id: 'qwen-plus', label: 'Qwen Plus', description: 'Backup model' }
     ];
   },
   ai(options, onChunk) {
     window.__lastAiOptions = options;
     window.__aiCallCount = (window.__aiCallCount || 0) + 1;
+    if (window.__holdAi) {
+      let resolveRequest;
+      const heldRequest = new Promise(resolve => { resolveRequest = resolve; });
+      heldRequest.abort = () => {
+        window.__aiAborted = true;
+        if (!window.__keepAbortedRequestPending) resolveRequest();
+      };
+      return heldRequest;
+    }
     const request = Promise.resolve().then(async () => {
-      const toolResult = await window.office_document({
+      const toolName = options.tools[0].function.name;
+      const toolResult = await window[toolName]({
         operation: 'get',
         filePath: '/tmp/Annual Report.docx',
         args: ['/body']
@@ -170,6 +188,8 @@ def main() -> None:
         page.get_by_title("AI 助手").click()
         page.get_by_role("heading", name="使用你已经配置的 AI。").wait_for()
         assert page.get_by_role("combobox", name="ZTools AI 模型").input_value() == "deepseek-chat"
+        assert page.get_by_role("combobox", name="AI 思考深度").input_value() == "medium"
+        assert page.get_by_text("ZTools 官方模型 · 128,000 context · text / image").is_visible()
         page.evaluate("window.ztools.showOpenDialog = async () => ['/tmp/Replacement.docx']")
         page.get_by_role("button", name="更换").click()
         page.get_by_role("heading", name="使用你已经配置的 AI。").wait_for()
@@ -194,7 +214,8 @@ def main() -> None:
         page.get_by_role("button", name="发送").click()
         page.get_by_text("已通过 ZTools AI 检查当前文档。").wait_for()
         assert page.evaluate("window.__lastAiOptions.model") == "deepseek-chat"
-        assert page.evaluate("window.__lastAiOptions.tools[0].function.name") == "office_document"
+        assert page.evaluate("window.__lastAiOptions.reasoningEffort") == "medium"
+        assert re.fullmatch(r"office_document_[A-Za-z0-9_]+_[1-9][0-9]*", page.evaluate("window.__lastAiOptions.tools[0].function.name"))
         assert page.evaluate("window.__lastAiOptions.tools[0].function.parameters.properties.operation.enum.includes('view')") is True
         assert page.evaluate("window.__lastAiToolResult.ok") is True
         assert page.evaluate("window.__lastAiAllowWrite") is True
@@ -207,7 +228,8 @@ def main() -> None:
         page.wait_for_function("window.__aiCallCount === 2")
         page.get_by_role("button", name=re.compile(r"始终允许修改")).wait_for()
         ai_hero_height = page.locator(".ai-hero").bounding_box()["height"]
-        assert ai_hero_height < 100
+        # 3.2 model capability and reasoning controls add a compact second row.
+        assert ai_hero_height < 170
         compact_result = page.locator(".result-drawer.ai-compact")
         compact_result.wait_for()
         assert compact_result.bounding_box()["height"] < 110
@@ -217,6 +239,32 @@ def main() -> None:
         assert compact_result.get_by_title("收起详情").is_visible()
         assert compact_result.bounding_box()["height"] < 370
         compact_result.get_by_title("关闭").click()
+
+        page.evaluate("window.__holdAi = true; window.__holdCancel = true")
+        ai_prompt.fill("验证停止屏障")
+        page.get_by_role("button", name="发送").click()
+        page.wait_for_function("window.__aiCallCount === 3")
+        page.get_by_role("button", name="停止").click()
+        stopping_button = page.get_by_role("button", name="正在停止…")
+        stopping_button.wait_for()
+        assert stopping_button.is_disabled()
+        page.wait_for_timeout(100)
+        assert stopping_button.is_visible()
+        page.evaluate("window.__resolveCancel({ cancelled: 0, settled: false }); window.__holdCancel = false; window.__holdAi = false")
+        page.get_by_role("button", name="发送").wait_for()
+        page.get_by_text(re.compile(r"2\.5 秒.*短暂重叠")).wait_for()
+        page.wait_for_function("typeof window[window.__lastAiOptions.tools[0].function.name] === 'undefined'")
+
+        page.evaluate("window.__holdAi = true; window.__holdCancel = true; window.__keepAbortedRequestPending = true")
+        ai_prompt.fill("验证隐藏后的 handler 回收")
+        page.get_by_role("button", name="发送").click()
+        page.wait_for_function("window.__aiCallCount === 4")
+        hidden_turn_tool = page.evaluate("window.__lastAiOptions.tools[0].function.name")
+        page.evaluate("window.__pluginOut()")
+        page.get_by_role("button", name=re.compile(r"只读模式")).wait_for()
+        assert page.evaluate("name => typeof window[name]", hidden_turn_tool) == "function"
+        page.evaluate("window.__resolveCancel({ cancelled: 0, settled: true }); window.__holdCancel = false; window.__holdAi = false")
+        page.wait_for_function("name => typeof window[name] === 'undefined'", arg=hidden_turn_tool)
 
         page.get_by_title("MCP 接入").click()
         page.get_by_role("heading", name="让 AI 直接操作 Office。").wait_for()
