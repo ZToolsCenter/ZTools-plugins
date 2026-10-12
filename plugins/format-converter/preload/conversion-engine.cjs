@@ -100,7 +100,15 @@ function createConversionEngine(options) {
       return imageToPdf([input.path], output, { ...request.options, maxImagePixels: pathPolicy.limits.maxImagePixels });
     }
     if (["text", "data"].includes(targetDef.family)) {
-      const results = await ocrImages([input.path], request.options, progress => onProgress(Math.round(progress * 75)));
+      const { prepareImageInput } = require("./image-converter.cjs");
+      const prepared = await prepareImageInput(input.path);
+      let ocrPath = input.path;
+      if (prepared.options?.raw) {
+        const sharp = runtimes.require?.("sharp") || require("sharp");
+        ocrPath = path.join(tempDir, `${stem}-ocr-source.png`);
+        await sharp(prepared.input, prepared.options).png().toFile(ocrPath);
+      }
+      const results = await ocrImages([ocrPath], request.options, progress => onProgress(Math.round(progress * 75)));
       const result = results[0];
       const source = { text: result.text, rows: result.text.split(/\r?\n/).filter(Boolean).map(line => [line]), json: [{ source: result.source, confidence: result.confidence, text: result.text }], html: null };
       return writeTextResult(tempDir, stem, request.target, convertStructured(source, "txt", request.target));
@@ -108,10 +116,27 @@ function createConversionEngine(options) {
     if (targetDef.family === "office") {
       const output = path.join(tempDir, `${stem}.${request.target}`);
       if (request.profile === "editable") {
-        const [result] = await ocrImages([input.path], request.options, progress => onProgress(Math.round(progress * 70)));
+        const { prepareImageInput } = require("./image-converter.cjs");
+        const prepared = await prepareImageInput(input.path);
+        let ocrPath = input.path;
+        if (prepared.options?.raw) {
+          const sharp = runtimes.require?.("sharp") || require("sharp");
+          ocrPath = path.join(tempDir, `${stem}-ocr-source.png`);
+          await sharp(prepared.input, prepared.options).png().toFile(ocrPath);
+        }
+        const [result] = await ocrImages([ocrPath], request.options, progress => onProgress(Math.round(progress * 70)));
         return generateOfficeFromText(result.text, request.target, output, runtimes, tempDir, { ...request.options, rows: result.text.split(/\r?\n/).filter(Boolean).map(line => [line]), signal });
       }
-      return imagesToOffice([input.path], request.target, output, runtimes, tempDir, { ...request.options, signal });
+      let sourcePath = input.path;
+      const ext = path.extname(input.path).toLowerCase();
+      if (ext === ".heic" || ext === ".heif") {
+        const { prepareImageInput } = require("./image-converter.cjs");
+        const prepared = await prepareImageInput(input.path);
+        const sharp = runtimes.require?.("sharp") || require("sharp");
+        sourcePath = path.join(tempDir, `${stem}-office-source.png`);
+        await sharp(prepared.input, prepared.options).png().toFile(sourcePath);
+      }
+      return imagesToOffice([sourcePath], request.target, output, runtimes, tempDir, { ...request.options, signal });
     }
     throw conversionError("ROUTE_NOT_IMPLEMENTED", `尚未实现 ${input.format} → ${request.target}。`);
   }
