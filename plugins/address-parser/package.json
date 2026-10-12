@@ -1,11 +1,11 @@
 {
   "name": "ztools-address-parser",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "ZTools shipping address parser and CSV exporter.",
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "check": "node --check app.js && node --check preload.js && node --check core/address-parser.js && node --check core/csv.js && node --check core/exporter.cjs && npm test"
+    "check": "node --check app.js && node --check preload.js && node --check core/address-parser.js && node --check core/csv.js && node --check core/exporter.cjs && node --check core/file-drag-grants.cjs && npm test"
   },
   "engines": {
     "node": ">=16.17.0"
