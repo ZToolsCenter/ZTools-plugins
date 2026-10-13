@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6C5CE7"/>
+      <stop offset="1" stop-color="#4A90E2"/>
+    </linearGradient>
+    <linearGradient id="screen-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5A4BD8"/>
+      <stop offset="1" stop-color="#3E7BC9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 底板：圆角方形，圆角约 22% -->
+  <g id="background">
+    <rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bg-grad)"/>
+  </g>
+
+  <!-- 手机轮廓：机身 + 屏幕 + 屏内音符（播放源） -->
+  <g id="phone">
+    <rect id="phone-body" x="100" y="150" width="136" height="212" rx="30" fill="#FFFFFF"/>
+    <rect id="phone-screen" x="112" y="162" width="112" height="188" rx="20" fill="url(#screen-grad)"/>
+    <g id="screen-note">
+      <rect id="note-stem" x="158" y="216" width="9" height="78" rx="4.5" fill="#FFFFFF"/>
+      <ellipse id="note-head" cx="153" cy="293" rx="16" ry="12" transform="rotate(-18 153 293)" fill="#FFFFFF"/>
+      <path id="note-flag" d="M162.5 216 C184 220 194 240 186 258 C189 244 180 235 167 232 Z" fill="#FFFFFF"/>
+    </g>
+  </g>
+
+  <!-- 歌词行：从手机向外投送，高亮行为当前推送的句子 -->
+  <g id="lyric-lines">
+    <rect id="line-1" x="258" y="196" width="148" height="24" rx="12" fill="#FFFFFF"/>
+    <rect id="line-2-active" x="274" y="246" width="156" height="24" rx="12" fill="#FFD166"/>
+    <rect id="line-3" x="258" y="296" width="110" height="24" rx="12" fill="#FFFFFF" opacity="0.7"/>
+  </g>
+</svg>

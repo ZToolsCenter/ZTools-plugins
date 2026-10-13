@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "lyriccast",
+  "title": "歌词投屏",
+  "description": "将手机上正在播放的歌曲歌词投屏到电脑上",
+  "author": "皮皮虾我们走",
+  "version": "0.4.0",
+  "categories": ["media"],
+  "main": "dist/index.html",
+  "preload": "preload/server.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5236"
+  },
+  "pluginSetting": {
+    "backgroundRunning": true
+  },
+  "features": [
+    {
+      "code": "lyrics",
+      "explain": "实时歌词:手机在局域网投送正在播放的歌曲,PC 端同步展示",
+      "icon": "logo.png",
+      "cmds": ["词投", "歌词", "lyriccast", "lyrics"]
+    }
+  ]
+}

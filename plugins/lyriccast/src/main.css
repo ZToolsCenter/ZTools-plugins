@@ -1,0 +1,120 @@
+/* 词投 LyricCast — 深浅色跟随系统(ZTools 主题) */
+
+:root {
+  --accent: #58a4f6;
+  --ok: #67c23a;
+  --warn: #e6a23c;
+  --err: #f56c6c;
+  --radius: 10px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 13px;
+  color: var(--text-1);
+  background: var(--bg-1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-1: #f4f5f7;
+    --bg-2: #ffffff;
+    --bg-3: #eceef1;
+    --text-1: #26272b;
+    --text-2: #6b6f76;
+    --border: #e3e5e9;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-1: #1f2124;
+    --bg-2: #2a2c30;
+    --bg-3: #34363b;
+    --text-1: #e8eaed;
+    --text-2: #9aa0a8;
+    --border: #3d4046;
+  }
+}
+
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+button {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-3);
+  color: var(--text-1);
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+button:hover {
+  opacity: 0.85;
+}
+
+button:disabled {
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+input,
+select {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-1);
+  padding: 5px 9px;
+  font-size: 12px;
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--accent);
+}
+
+.muted {
+  color: var(--text-2);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.dot.ok { background: var(--ok); }
+.dot.warn { background: var(--warn); }
+.dot.err { background: var(--err); }
