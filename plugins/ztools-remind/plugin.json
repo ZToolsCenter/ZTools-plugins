@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ztools-remind",
+  "title": "提醒",
+  "description": "多种定时方式选择（一次、每周、每天、循环），到达设定时间弹窗提醒\n移植于“zivxzf”大佬的U同名插件",
+  "author": "5Up",
+  "version": "2.2.8",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "backgroundRunning": true
+  },
+  "features": [
+    {
+      "code": "alarmClock",
+      "explain": "根据您设定时间，弹窗提醒，提示文案自定义",
+      "icon": "logo.png",
+      "cmds": [
+        "提醒",
+        "闹钟",
+        "定时任务",
+        "定时"
+      ]
+    }
+  ],
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ]
+}

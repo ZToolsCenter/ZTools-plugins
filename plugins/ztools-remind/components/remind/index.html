@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="./popup-compat.js"></script>
+    <script src="../../plugins/jquery-3.2.1.min.js"></script>
+    <script src="../../utils/UToolsUtils.js"></script>
+    <title>提醒</title>
+    <style>
+        /* body {
+            -webkit-app-region: drag;
+        } */
+        .remind-center{
+            text-align: center;
+            box-sizing: border-box;
+            width: calc(100vw - 20px);
+            height: calc(100vh - 20px);
+            display: flex;
+            background-color: #fff;
+            border-radius: 10px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            display: none;
+            cursor: pointer;
+            /* box-shadow: 0 0 30px 0 rgba(64,74,127,.1); */
+        }
+        .title{
+            width: 100%;;
+        }
+        .rightBottom,.rightCenter,.rightTop,
+        .leftBottom,.leftCenter,.leftTop
+        {flex-direction: row;}
+        .remind-logo{
+            width: 200px;
+            height: 200px;
+            object-fit: contain;
+        }
+        .hidden{display: none;}
+
+        /* 暗黑主题 */
+        .dark-mode .title{
+            color: #fff;
+        }
+        .dark-mode .remind-center{
+            background-color: #303133;
+        }
+
+        .remind-center.colorful_bg{
+            animation: bgColorfulBlink 1.5s infinite;
+        }
+        #canvas{
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+            z-index: 9999;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .title.colorful_font{
+            animation: colorfulBlink 1.5s infinite;
+        }
+        @keyframes colorfulBlink {
+            0% {
+                color: red;
+            }
+            14% {
+                color: orange;
+            }
+            28% {
+                color: yellow;
+            }
+            42% {
+                color: green;
+            }
+            57% {
+                color: blue;
+            }
+            71% {
+                color: indigo;
+            }
+            85% {
+                color: violet;
+            }
+            100% {
+                color: red;
+            }
+        }
+        @keyframes bgColorfulBlink {
+            0% {
+                background-color: orange;
+            }
+            14% {
+                background-color: yellow;
+            }
+            28% {
+                background-color: green;
+            }
+            42% {
+                background-color: blue;
+            }
+            57% {
+                background-color: indigo;
+            }
+            71% {
+                background-color: violet;
+            }
+            85% {
+                background-color: red;
+            }
+            100% {
+                background-color: orange;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="tool">
+        <div title="点击关闭" id="box" class="remind-center">
+            <img class="remind-logo" src="" alt="">
+            <h1 class="title"></h1>
+        </div>
+        <audio loop class="remind-audio"></audio>
+    </div>
+    <script src="../../assets/js-min/remind.min.js"></script>
+</body>
+</html>
