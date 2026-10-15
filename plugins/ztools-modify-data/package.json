@@ -1,0 +1,15 @@
+{
+  "name": "ztools-modify-data",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ZTools 已安装插件数据编辑器",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "package": "node scripts/package.js",
+    "verify-package": "node scripts/verify-package.js",
+    "preview": "node scripts/preview.js"
+  },
+  "dependencies": { "lmdb": "3.4.4" },
+  "devDependencies": { "fflate": "0.8.2" },
+  "engines": { "node": ">=18" }
+}
