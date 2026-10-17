@@ -1,0 +1,49 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "video-enhancer",
+  "title": "AI 视频画质修复",
+  "description": "傻瓜式 AI 视频超分辨率与插帧工具，支持动漫修复、实拍增强与动态补帧",
+  "author": "harris",
+  "version": "1.0.0",
+  "categories": [
+    "media"
+  ],
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "single": true,
+    "height": 720
+  },
+  "features": [
+    {
+      "code": "video-enhancer",
+      "explain": "打开 AI 视频画质修复",
+      "cmds": [
+        "AI 视频画质修复",
+        "视频超分辨率",
+        "视频插帧",
+        "动漫高清修复",
+        "老视频修复",
+        "Video2X",
+        "视频清晰度增强",
+        {
+          "type": "files",
+          "fileType": "file",
+          "label": "使用 AI 增强此视频",
+          "extensions": [
+            "mp4",
+            "mkv",
+            "mov",
+            "avi",
+            "flv",
+            "webm",
+            "m4v",
+            "wmv"
+          ],
+          "maxLength": 1
+        }
+      ]
+    }
+  ]
+}
