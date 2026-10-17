@@ -1,9 +1,10 @@
 <script setup>
 defineProps({
-  selectedCount: { type: Number, default: 0 }
+  selectedCount: { type: Number, default: 0 },
+  isTextMasked: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['copy', 'paste', 'clear'])
+const emit = defineEmits(['copy', 'paste', 'toggle-text-mask', 'clear'])
 </script>
 
 <template>
@@ -35,6 +36,27 @@ const emit = defineEmits(['copy', 'paste', 'clear'])
             fill="currentColor" />
         </svg>
         <span v-if="selectedCount > 1" class="selection-count">{{ selectedCount }}</span>
+      </button>
+
+      <!-- 文本掩码显示切换 -->
+      <button
+        class="sidebar-btn mask-btn"
+        :class="{ active: isTextMasked }"
+        type="button"
+        :aria-pressed="isTextMasked"
+        :aria-label="isTextMasked ? '切换为明文显示' : '切换为掩码显示'"
+        :data-tooltip="isTextMasked ? '切换为明文显示' : '切换为掩码显示'"
+        @click="emit('toggle-text-mask')"
+      >
+        <svg v-if="isTextMasked" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 3l18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 4.2A10.8 10.8 0 0 1 12 4c5.5 0 9 5.5 9 8a10.8 10.8 0 0 1-2.1 3.5M6.6 6.7C4.4 8.1 3 10.4 3 12c0 2.5 3.5 8 9 8 1.4 0 2.7-.4 3.8-1"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 12c0-2.5 3.5-8 9-8s9 5.5 9 8-3.5 8-9 8-9-5.5-9-8z"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+        </svg>
       </button>
     </div>
 
@@ -166,6 +188,12 @@ const emit = defineEmits(['copy', 'paste', 'clear'])
 .sidebar-btn.paste-btn:hover {
   color: #4caf50;
   border-color: #4caf50;
+}
+
+.sidebar-btn.mask-btn.active {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background: var(--bg-accent-light);
 }
 
 .sidebar-btn.clear-btn {
