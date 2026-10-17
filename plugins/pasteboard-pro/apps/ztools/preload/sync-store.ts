@@ -23,12 +23,14 @@ export type SyncSettings = Readonly<{
   enabled: boolean;
   baseUrl: string;
   username: string;
+  intervalMinutes: number;
   webdavCredentialAccount: string;
   vaultKeyAccount: string;
   vaultSaltHex?: string;
   status: SyncStatus;
 }>;
 
+export const DEFAULT_SYNC_INTERVAL_MINUTES = 60;
 export const WEBDAV_CREDENTIAL_ACCOUNT = "webdav";
 export const VAULT_KEY_ACCOUNT = "vault-key";
 
@@ -36,6 +38,7 @@ export const defaultSyncSettings: SyncSettings = {
   enabled: false,
   baseUrl: "",
   username: "",
+  intervalMinutes: DEFAULT_SYNC_INTERVAL_MINUTES,
   webdavCredentialAccount: WEBDAV_CREDENTIAL_ACCOUNT,
   vaultKeyAccount: VAULT_KEY_ACCOUNT,
   status: { state: "disabled", pendingObjects: 0 },
@@ -106,10 +109,19 @@ function parsedSettings(value: unknown): SyncSettings | undefined {
   ) {
     return undefined;
   }
+  const rawInterval = (value as Record<string, unknown>).intervalMinutes;
+  const intervalMinutes =
+    typeof rawInterval === "number" &&
+    Number.isSafeInteger(rawInterval) &&
+    rawInterval >= 1
+      ? rawInterval
+      : DEFAULT_SYNC_INTERVAL_MINUTES;
+
   return {
     enabled: value.enabled,
     baseUrl: value.baseUrl,
     username: value.username,
+    intervalMinutes,
     webdavCredentialAccount: value.webdavCredentialAccount,
     vaultKeyAccount: value.vaultKeyAccount,
     ...(typeof value.vaultSaltHex === "string" ? { vaultSaltHex: value.vaultSaltHex } : {}),

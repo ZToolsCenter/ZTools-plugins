@@ -14,6 +14,8 @@ import Toolbar from "./Toolbar.vue";
 
 const props = defineProps<{
   items: readonly PasteItem[];
+  total?: number;
+  hasMore?: boolean;
   pinboards: readonly Pinboard[];
   smartPinboards: readonly SmartPinboard[];
   selectedIds: readonly string[];
@@ -26,10 +28,12 @@ const props = defineProps<{
   pasteStackCount: number;
   pasteStackDirection: PasteStackDirection;
   reorderEnabled: boolean;
+  canCaptureScreen: boolean;
 }>();
 
 const emit = defineEmits<{
   "update:query": [value: string];
+  loadMore: [];
   select: [itemId: string, extend: boolean, toggle: boolean];
   paste: [itemId: string, plainText?: boolean];
   preview: [itemId: string];
@@ -47,11 +51,15 @@ const emit = defineEmits<{
   clearStack: [];
   openPrivacySettings: [];
   createText: [];
+  captureScreen: [];
   reorder: [value: ListReorderRequest];
 }>();
 
 const style = computed(() => visualState(props.edge, props.density));
 const pinboardStrip = ref<InstanceType<typeof PinboardStrip>>();
+const timeline = ref<InstanceType<typeof Timeline>>();
+
+defineExpose({ focusItem: (itemId: string) => timeline.value?.focusItem(itemId) });
 
 function forwardSelect(itemId: string, extend: boolean, toggle: boolean): void {
   emit("select", itemId, extend, toggle);
@@ -86,12 +94,14 @@ function requestCreatePinboard(): void {
       :paused="paused"
       :compact="density === 'compact'"
       :reorder-enabled="reorderEnabled"
+      :can-capture-screen="canCaptureScreen"
       :edge="edge"
       @update:query="emit('update:query', $event)"
       @toggle-pause="emit('togglePause')"
       @toggle-compact="emit('toggleCompact')"
       @open-privacy-settings="emit('openPrivacySettings')"
       @create-text="emit('createText')"
+      @capture-screen="emit('captureScreen')"
     />
     <PinboardStrip
       ref="pinboardStrip"
@@ -107,7 +117,12 @@ function requestCreatePinboard(): void {
       @assign="forwardAssignPinboard"
     />
     <Timeline
+      ref="timeline"
+      :reorder-enabled="reorderEnabled"
       :items="items"
+      :total="total ?? items.length"
+      :has-more="hasMore ?? false"
+      @load-more="emit('loadMore')"
       :pinboards="pinboards"
       :selected-ids="selectedIds"
       :focused-id="focusedItemId"

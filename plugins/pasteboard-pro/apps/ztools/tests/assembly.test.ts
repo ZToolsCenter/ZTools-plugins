@@ -29,6 +29,7 @@ async function packageFixture(): Promise<string> {
   await Promise.all([
     writeFile(path.join(root, "index.html"), "<!doctype html>"),
     writeFile(path.join(root, "preload.js"), ""),
+    writeFile(path.join(root, "history-worker.cjs"), ""),
     writeFile(path.join(root, "logo.svg"), "<svg/>", "utf8"),
     writeFile(path.join(root, "package.json"), '{"type":"commonjs"}'),
     writeFile(path.join(root, "pasteboard-vision"), "binary"),
@@ -44,6 +45,12 @@ describe("ZTools package assembly verifier", () => {
     const result = await verifyAssembledPackage(root);
     expect(result.files).toContain("pasteboard-vision");
     expect(result.files).toContain(path.join("assets", "index.js"));
+  });
+
+  it("rejects packages missing the search worker", async () => {
+    const root = await packageFixture();
+    await rm(path.join(root, "history-worker.cjs"));
+    await expect(verifyAssembledPackage(root)).rejects.toThrow();
   });
 
   it("rejects source maps and credential-like files", async () => {

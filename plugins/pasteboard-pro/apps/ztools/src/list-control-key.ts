@@ -1,13 +1,16 @@
+import { hasAnyCommandModifier } from "./platform-shortcuts";
+
 export type ListControlKeyboardEvent = Readonly<{
   key: string;
   metaKey: boolean;
+  ctrlKey?: boolean;
   altKey: boolean;
 }>;
 
 export function shouldResumeListControl(
   event: ListControlKeyboardEvent,
 ): boolean {
-  if (event.metaKey || event.altKey) return false;
+  if (hasAnyCommandModifier(event)) return false;
   return isListNavigationKey(event.key) || event.key === "Enter";
 }
 

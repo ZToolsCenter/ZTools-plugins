@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, ref } from "vue";
 
 import type { Pinboard } from "@pasteboard-pro/core";
+
+import { primaryModifierLabel, resolveShortcutPlatform } from "../platform-shortcuts";
 import type { SmartPinboard } from "../smart-pinboards";
 import { containContextMenuKeydown } from "../context-menu-keyboard";
 
@@ -19,6 +21,13 @@ const emit = defineEmits<{
   delete: [id: string];
   assign: [pinboardId: string | undefined, itemId: string];
 }>();
+
+const quickPasteShortcutLabel = computed(() => {
+  const platform = resolveShortcutPlatform(
+    window.pasteboardPro?.getPlatformCapabilities().platform,
+  );
+  return `${primaryModifierLabel(platform)} 1–9 快捷粘贴`;
+});
 
 const creating = ref(false);
 const editingId = ref<string>();
@@ -204,7 +213,7 @@ onBeforeUnmount(closeManagementMenu);
       @blur="commitCreate"
     />
     <button v-else type="button" class="add-button" aria-label="新建分组" @click="beginCreate">+</button>
-    <span class="pinboards__hint">⌘ 1–9 快捷粘贴</span>
+    <span class="pinboards__hint">{{ quickPasteShortcutLabel }}</span>
   </nav>
   <Teleport to="body">
     <div

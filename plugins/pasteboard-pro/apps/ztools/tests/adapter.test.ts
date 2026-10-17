@@ -463,3 +463,21 @@ describe("ZTools clipboard adapter", () => {
     });
   });
 });
+
+
+describe("shared history search snapshot", () => {
+  it("uses one database read for search results and native drag records", async () => {
+    const allDocs = vi.fn(async () => ({ rows: [] }));
+    const store = new ZToolsCanonicalClipboardStore({
+      get: async () => undefined,
+      put: async () => ({ ok: true }),
+      allDocs,
+    });
+    await expect(store.searchWithRecords("", 10000)).resolves.toEqual({
+      result: { items: [], total: 0 }, records: [],
+    });
+    expect(allDocs).toHaveBeenCalledTimes(1);
+    await expect(store.searchWithRecords("", 0)).rejects.toThrow(RangeError);
+    expect(allDocs).toHaveBeenCalledTimes(1);
+  });
+});

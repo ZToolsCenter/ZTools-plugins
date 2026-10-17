@@ -19,11 +19,15 @@ const emit = defineEmits<{
 const previewUrl = ref<string>();
 const previewMediaType = ref<string>();
 const previewError = ref<string>();
+const isActualSize = ref(false);
+const isRotating = ref(false);
 let previewGeneration = 0;
 
 watch(
   () => [props.item.id, props.item.payload.revision] as const,
   async () => {
+    isActualSize.value = false;
+    isRotating.value = false;
     const generation = ++previewGeneration;
     previewUrl.value = undefined;
     previewMediaType.value = undefined;
@@ -41,6 +45,17 @@ watch(
   },
   { immediate: true },
 );
+
+function toggleActualSize() {
+  isActualSize.value = !isActualSize.value;
+}
+
+function handleRotate(quarterTurns: -1 | 1) {
+  if (isRotating.value) return;
+  isRotating.value = true;
+  isActualSize.value = false;
+  emit("rotate", { itemId: props.item.id, quarterTurns });
+}
 </script>
 
 <template>
@@ -53,7 +68,15 @@ watch(
       <button type="button" aria-label="关闭预览" @click="emit('close')">×</button>
     </header>
     <div v-if="previewUrl && previewMediaType?.startsWith('image/')" class="preview-body">
-      <div class="media"><img :src="previewUrl" :alt="item.title ?? '剪贴板图片预览'" /></div>
+      <div class="media" :class="{ 'media--actual-size': isActualSize }">
+        <img
+          :src="previewUrl"
+          :alt="item.title ?? '剪贴板图片预览'"
+          :class="{ 'media-img--actual-size': isActualSize }"
+          :title="isActualSize ? '双击恢复适应窗口' : '双击查看 1:1 实际尺寸'"
+          @dblclick="toggleActualSize"
+        />
+      </div>
       <pre v-if="item.ocrText" class="ocr-text">{{ item.ocrText }}</pre>
     </div>
     <div v-else-if="previewUrl && previewMediaType === 'application/pdf'" class="media">
@@ -66,8 +89,22 @@ watch(
       <span>{{ item.sourceApp?.name ?? "Unknown app" }}</span>
       <div>
         <span v-if="item.kind === 'image'" class="rotation-group" aria-label="旋转图片">
-          <button type="button" class="secondary icon-button" aria-label="向左旋转" title="向左旋转" @click="emit('rotate', { itemId: item.id, quarterTurns: -1 })">↶</button>
-          <button type="button" class="secondary icon-button" aria-label="向右旋转" title="向右旋转" @click="emit('rotate', { itemId: item.id, quarterTurns: 1 })">↷</button>
+          <button
+            type="button"
+            class="secondary icon-button"
+            :disabled="isRotating"
+            aria-label="向左旋转"
+            title="向左旋转"
+            @click="handleRotate(-1)"
+          >↶</button>
+          <button
+            type="button"
+            class="secondary icon-button"
+            :disabled="isRotating"
+            aria-label="向右旋转"
+            title="向右旋转"
+            @click="handleRotate(1)"
+          >↷</button>
         </span>
         <button v-if="item.kind === 'image'" type="button" class="secondary" @click="emit('ocr', item.id)">
           识别文字
@@ -168,25 +205,41 @@ pre {
 }
 
 .media {
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: safe center;
+  align-items: safe center;
   min-height: 0;
   margin: 14px 0;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--pb-line);
   border-radius: 15px;
   background: rgba(0, 0, 0, 0.08);
+  scrollbar-width: thin;
 }
 
 .preview-body .media { margin-bottom: 0; }
+
 .media img {
   display: block;
-  width: auto;
-  height: auto;
   max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
+  margin: auto;
   border: 0;
   object-fit: contain;
+  border-radius: 6px;
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: max-width 160ms ease, max-height 160ms ease;
+}
+
+.media img.media-img--actual-size {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
 }
 
 .media object {
@@ -243,6 +296,11 @@ footer button.secondary {
   border: 0;
   border-radius: 0;
   font-size: 17px;
+}
+
+.rotation-group .icon-button:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 .rotation-group .icon-button + .icon-button {

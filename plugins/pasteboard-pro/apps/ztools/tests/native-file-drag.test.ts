@@ -24,6 +24,7 @@ describe("ZTools native file drag", () => {
     const service = new NativeFileDragService(
       { findRecordByItemId: async () => undefined },
       { startDrag },
+      () => true,
     );
 
     service.refresh([image]);
@@ -46,6 +47,7 @@ describe("ZTools native file drag", () => {
     const service = new NativeFileDragService(
       { findRecordByItemId: async () => undefined },
       { startDrag },
+      () => true,
     );
 
     service.refresh([files]);
@@ -68,6 +70,7 @@ describe("ZTools native file drag", () => {
     const service = new NativeFileDragService(
       { findRecordByItemId: async () => files },
       { startDrag },
+      () => true,
     );
 
     await expect(service.prepare(files.item.id)).resolves.toBe(true);
@@ -92,6 +95,7 @@ describe("ZTools native file drag", () => {
     const service = new NativeFileDragService(
       { findRecordByItemId: async () => undefined },
       { startDrag },
+      () => true,
     );
 
     service.refresh([text, relativeFiles]);
@@ -115,10 +119,35 @@ describe("ZTools native file drag", () => {
           throw new Error("missing file");
         },
       },
+      () => true,
     );
     service.refresh([files]);
 
     expect(service.start(files.item.id)).toBe(false);
     expect(service.start(files.item.id)).toBe(false);
+  });
+
+  it("falls back when the host API is absent or a source file no longer exists", () => {
+    const files = record({
+      id: "files-stale",
+      type: "file",
+      timestamp: 700,
+      files: [{ path: "/tmp/stale.pdf", name: "stale.pdf" }],
+    });
+    const withoutApi = new NativeFileDragService(
+      { findRecordByItemId: async () => undefined },
+      {},
+      () => true,
+    );
+    const missingFile = new NativeFileDragService(
+      { findRecordByItemId: async () => undefined },
+      { startDrag: vi.fn() },
+      () => false,
+    );
+    withoutApi.refresh([files]);
+    missingFile.refresh([files]);
+
+    expect(withoutApi.start(files.item.id)).toBe(false);
+    expect(missingFile.start(files.item.id)).toBe(false);
   });
 });
