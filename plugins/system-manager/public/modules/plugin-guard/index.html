@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>插件安全体检 - 系统管家</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="guard-suite-page">
+      <!-- 统一 macOS 仪表盘顶栏 -->
+      <header class="guard-page-header">
+        <div class="header-left">
+          <a href="../../index.html" class="nav-back-link" title="返回系统管家总览">
+            <span class="nav-back-arrow">←</span>
+            <span>返回系统管家</span>
+          </a>
+          <div class="header-divider"></div>
+          <div class="header-title-group">
+            <span class="hw-header-pill">安全体检引擎就绪</span>
+            <h1 class="header-title">插件安全体检与权限审计</h1>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn-ghost" id="btn-refresh-list" title="重新从本地扫描已安装插件">
+            <span class="btn-icon">🔄</span>
+            <span>刷新列表</span>
+          </button>
+          <button type="button" class="btn-primary" id="btn-choose-dir" title="选择外部未安装目录进行安全体检">
+            <span class="btn-icon">📂</span>
+            <span>手选外部目录</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- 快捷搜索与发现状态横幅 -->
+      <section class="guard-filter-strip">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="pg-filter-input" placeholder="输入插件名称、ID 或作者实时搜索本地插件..." autocomplete="off" />
+        </div>
+        <div class="stats-badge-pill" id="pg-status-summary">
+          <span class="pulse-dot"></span>
+          <span id="pg-summary-text">正在自动检测本地插件...</span>
+        </div>
+      </section>
+
+      <!-- 核心双栏工作台：左侧插件选择器，右侧安全审计仪表盘 -->
+      <div class="guard-layout-grid">
+        <!-- 左侧已安装插件卡片列表 -->
+        <aside class="guard-sidebar-col">
+          <div class="sidebar-header">
+            <span class="sidebar-title">已安装插件清单</span>
+            <span class="sidebar-count-badge" id="pg-badge-count">0</span>
+          </div>
+          <div class="plugins-scroll-list" id="pg-plugins-list">
+            <div class="list-placeholder">正在读取本地插件...</div>
+          </div>
+        </aside>
+
+        <!-- 右侧体检报告面板 -->
+        <section class="guard-report-col">
+          <div class="report-card" id="guard-report-card">
+            <div class="report-header-banner">
+              <div class="banner-left">
+                <div class="banner-icon-box" id="guard-target-icon">🧩</div>
+                <div class="banner-text">
+                  <h2 class="banner-plugin-name" id="guard-target-name">等待选择插件</h2>
+                  <div class="banner-meta" id="guard-target-meta">版本号与路径就绪后呈现</div>
+                </div>
+              </div>
+              <div class="banner-actions">
+                <button type="button" class="btn-ghost btn-sm" id="btn-re-scan">重新体检此插件</button>
+                <button type="button" class="btn-secondary btn-sm" id="btn-copy-guard-md">复制 Markdown 报告</button>
+              </div>
+            </div>
+
+            <!-- 三大核心指标 -->
+            <div class="report-metrics-row">
+              <div class="metric-box box-score">
+                <span class="metric-label">安全健康评分</span>
+                <div class="metric-value-wrap">
+                  <strong class="score-number score-excellent" id="guard-score-val">--</strong>
+                  <span class="score-unit">/ 100</span>
+                </div>
+                <span class="metric-sub" id="guard-score-desc">等待体检</span>
+              </div>
+              <div class="metric-box box-risks">
+                <span class="metric-label">发现风险项</span>
+                <div class="metric-value-wrap">
+                  <strong class="risk-number text-emerald" id="guard-risks-count">0</strong>
+                  <span class="risk-unit">项</span>
+                </div>
+                <span class="metric-sub" id="guard-risks-desc">静态代码规则扫描</span>
+              </div>
+              <div class="metric-box box-files">
+                <span class="metric-label">扫描代码文件</span>
+                <div class="metric-value-wrap">
+                  <strong class="file-number" id="guard-files-count">0</strong>
+                  <span class="file-unit">个文件</span>
+                </div>
+                <span class="metric-sub">全量只读无害解析</span>
+              </div>
+            </div>
+
+            <!-- 详细风险清单 -->
+            <div class="report-section">
+              <div class="section-title-row">
+                <h3 class="section-title">代码与权限安全审计明细</h3>
+                <span class="section-hint">基于 AST 静态分析与高危 API 规则库</span>
+              </div>
+              <div class="findings-container" id="guard-risks-list">
+                <div class="empty-state-card">
+                  <span class="empty-icon">🛡️</span>
+                  <span>未发现高危代码调用与违规权限声明，插件健康良好。</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 插件功能与清单结构审查 -->
+            <div class="report-section">
+              <div class="section-title-row">
+                <h3 class="section-title">清单结构与功能声明审查</h3>
+                <span class="section-hint">plugin.json 规范性与必要元数据核验</span>
+              </div>
+              <div class="inventory-container" id="guard-inventory-box">
+                <div class="meta-row"><span>插件标识 (ID):</span><strong id="meta-id">—</strong></div>
+                <div class="meta-row"><span>作者信息:</span><strong id="meta-author">—</strong></div>
+                <div class="meta-row"><span>声明功能特性数:</span><strong id="meta-features">—</strong></div>
+                <div class="meta-row"><span>物理绝对路径:</span><code id="meta-path">—</code></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

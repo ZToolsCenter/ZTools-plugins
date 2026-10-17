@@ -1,6 +1,6 @@
 {
   "name": "system-manager",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "系统管家：系统诊断、应用卸载、开机启动、垃圾清理和局域网设备发现。",
