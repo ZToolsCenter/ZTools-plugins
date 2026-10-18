@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "link-relay",
+  "title": "目录迁移助手",
+  "description": "将任意目录（IDE 扩展/配置、缓存、用户数据等）从系统盘迁移到其他磁盘，通过 Junction/符号链接保持程序无感知运行。内置常见 IDE 目录预设，支持自定义任意目录、系统重装一键重建链接、冲突处理与失败自动回滚。",
+  "author": "2029364173@qq.com",
+  "license": "MIT",
+  "version": "1.0.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "dashboard",
+      "explain": "目录迁移助手：把系统盘目录迁移到其他磁盘并建立 Junction 链接，内置 IDE 预设，支持自定义任意目录迁移与链接重建",
+      "icon": "logo.png",
+      "cmds": [
+        "目录迁移",
+        "ide迁移",
+        "vscode迁移",
+        "c盘清理",
+        "junction",
+        "符号链接",
+        "目录搬家",
+        "扩展迁移",
+        "设置迁移",
+        "缓存迁移"
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}
