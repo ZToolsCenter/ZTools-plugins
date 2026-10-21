@@ -231,13 +231,10 @@ function writeBytes(dir, name, buf) {
 }
 
 /**
- * 执行同构导出。
- * @param {object} archive openArchive 结果
- * @param {string} outDir 输出根目录（不存在则创建；**不会删除已有内容**）
- * @param {object} [options] 覆盖 DEFAULTS
- * @param {(p:object)=>void} [onProgress]
+ * 导出前的准备：解析选项、建目录、算目标集合。
+ * 抽出来是为了让同步导出与**分批异步导出**共用同一套口径（清单、计数、选择规则只能有一份）。
  */
-function exportLegacy(archive, outDir, options, onProgress) {
+function prepareExport(archive, outDir, options) {
   const o = Object.assign({}, DEFAULTS, options || {});
   if (o.purge) throw new Error('purge 已被禁用：原算法的 shutil.rmtree 属破坏性操作（缺陷 B3），请改用空目录或 onConflict');
   const ctx = {
@@ -269,32 +266,52 @@ function exportLegacy(archive, outDir, options, onProgress) {
     }
     selectionNote = '按 selection 选取 ' + targets.length + '/' + totalTargets + ' 个会话目录';
   }
-  const t0 = Date.now();
-  let writtenFiles = 0, bytes = 0;
-  for (let i = 0; i < targets.length; i++) {
-    const s = targets[i];
-    let detail;
-    try {
-      detail = archive.detail(s, { withFields: false, maxBodyBytes: o.maxBodyBytes, keepRawBody: true });
-    } catch (e) {
-      ctx.skipped.push({ sid: s.sid, reason: '读取失败 ' + e.message });
-      continue;
-    }
-    if (detail.response && detail.response.rawBodyBuf === undefined) detail.response.rawBodyBuf = detail.response.bodyBuf;
-    const r = writeSessionDir(outDir, s, detail, ctx);
-    if (r) {
-      writtenFiles += r.files.length;
-      for (const f of r.files) bytes += f.bytes;
-      ctx.dirs.push({ sid: s.sid, dir: r.dir, files: r.files.length, ws: r.websocket });
-    }
-    if (onProgress && (i % 25 === 0 || i === targets.length - 1)) onProgress({ done: i + 1, total: targets.length, phase: 'legacy', sid: s.sid });
-  }
+  return {
+    archive, outDir, o, ctx, targets, totalTargets, selectionNote,
+    t0: Date.now(), writtenFiles: 0, bytes: 0,
+  };
+}
 
+/** 写一个会话目录。读取失败只记 skipped，不中断整批（与原实现一致）。 */
+function exportOne(job, s) {
+  let detail;
+  try {
+    detail = job.archive.detail(s, { withFields: false, maxBodyBytes: job.o.maxBodyBytes, keepRawBody: true });
+  } catch (e) {
+    job.ctx.skipped.push({ sid: s.sid, reason: '读取失败 ' + e.message });
+    return false;
+  }
+  if (detail.response && detail.response.rawBodyBuf === undefined) detail.response.rawBodyBuf = detail.response.bodyBuf;
+  const r = writeSessionDir(job.outDir, s, detail, job.ctx);
+  if (r) {
+    job.writtenFiles += r.files.length;
+    for (const f of r.files) job.bytes += f.bytes;
+    job.ctx.dirs.push({ sid: s.sid, dir: r.dir, files: r.files.length, ws: r.websocket });
+  }
+  return true;
+}
+
+/** 进度载荷：除了 done/total/sid，还带“已写文件/字节/耗时”，让 UI 不必自己猜。 */
+function progressOf(job, i) {
+  return {
+    done: i + 1,
+    total: job.targets.length,
+    phase: 'legacy',
+    sid: job.targets[i].sid,
+    files: job.writtenFiles,
+    bytes: job.bytes,
+    elapsedMs: Date.now() - job.t0,
+  };
+}
+
+/** 收尾：写清单与可读说明（产物字段与顺序保持不变）。 */
+function finishExport(job) {
+  const { o, ctx, targets, totalTargets, selectionNote, outDir } = job;
   const manifest = {
     mode: 'legacy-tree',
     generatedAt: new Date().toISOString(),
-    elapsedMs: Date.now() - t0,
-    source: { name: archive.name, path: archive.path, sizeBytes: archive.fileSize },
+    elapsedMs: Date.now() - job.t0,
+    source: { name: job.archive.name, path: job.archive.path, sizeBytes: job.archive.fileSize },
     output: outDir,
     options: o,
     selectionNote,
@@ -302,8 +319,8 @@ function exportLegacy(archive, outDir, options, onProgress) {
       sessions: targets.length,
       sessionsInArchive: totalTargets,
       dirs: ctx.dirs.length,
-      files: writtenFiles,
-      bytes,
+      files: job.writtenFiles,
+      bytes: job.bytes,
       decodeFailed: ctx.decodeFailed.length,
       dechunkFailed: ctx.dechunkFailed.length,
       skipped: ctx.skipped.length,
@@ -329,6 +346,50 @@ function exportLegacy(archive, outDir, options, onProgress) {
   fs.writeFileSync(path.join(outDir, '_导出清单.json'), JSON.stringify(manifest, null, 2), 'utf8');
   fs.writeFileSync(path.join(outDir, '_导出清单.md'), renderLegacyReadme(manifest), 'utf8');
   return manifest;
+}
+
+/**
+ * 执行同构导出（同步）。
+ * @param {object} archive openArchive 结果
+ * @param {string} outDir 输出根目录（不存在则创建；**不会删除已有内容**）
+ * @param {object} [options] 覆盖 DEFAULTS
+ * @param {(p:object)=>void} [onProgress]
+ */
+function exportLegacy(archive, outDir, options, onProgress) {
+  const job = prepareExport(archive, outDir, options);
+  for (let i = 0; i < job.targets.length; i++) {
+    exportOne(job, job.targets[i]);
+    if (onProgress && (i % 25 === 0 || i === job.targets.length - 1)) onProgress(progressOf(job, i));
+  }
+  return finishExport(job);
+}
+
+/**
+ * 分批异步导出（一键解析专用）。
+ *
+ * 为什么必须让出主线程：preload 与页面在**同一个渲染进程**里，同步循环跑满 3756 条会话时
+ * 页面一次都画不出来——进度事件发了也看不见，用户只会觉得“窗口开着但卡死”。
+ * 每 batch 条 `setTimeout(0)` 让一次，浏览器才有机会绘制进度条。
+ *
+ * @param {object} archive
+ * @param {string} outDir
+ * @param {object} [options]
+ * @param {(p:object)=>void} [onProgress]
+ * @param {{batch?:number, yieldFn?:()=>Promise<void>}} [asyncOpts]
+ */
+function exportLegacyAsync(archive, outDir, options, onProgress, asyncOpts) {
+  const batch = Math.max(1, (asyncOpts && asyncOpts.batch) || 40);
+  const yieldFn = (asyncOpts && asyncOpts.yieldFn) || (() => new Promise((r) => setTimeout(r, 0)));
+  return (async () => {
+    const job = prepareExport(archive, outDir, options);
+    for (let i = 0; i < job.targets.length; i++) {
+      exportOne(job, job.targets[i]);
+      const last = i === job.targets.length - 1;
+      if (onProgress && ((i + 1) % batch === 0 || last)) onProgress(progressOf(job, i));
+      if (!last && (i + 1) % batch === 0) await yieldFn();
+    }
+    return finishExport(job);
+  })();
 }
 
 /** 兼容层导出的可读说明。 */
@@ -373,6 +434,8 @@ function renderLegacyReadme(m) {
 module.exports = {
   DEFAULTS,
   exportLegacy,
+  exportLegacyAsync,
+  prepareExport,
   writeSessionDir,
   bodyExt,
   renderLegacyReadme,

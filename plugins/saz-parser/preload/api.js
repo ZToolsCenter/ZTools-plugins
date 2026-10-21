@@ -51,8 +51,16 @@ function cleanPathArg(v) {
  */
 const DEFAULT_SETTINGS = {
   autoClose: true,       // 一键解析跑完就 outPlugin（仅当仍走 enter 通路时相干）
+  autoCopyPath: true,    // 解析成功后把路径写进剪贴板（默认开：交给 AI 前少一步手输）
   beautifyLevel: 'json', // none | json | all
 };
+
+/**
+ * 设置的内存镜像按 **api 实例** 持有（见 createApi）：`open()` 是同步函数，没法 await settingsGet()，
+ * 而“解析后复制路径”必须与解析同一拍完成（一键解析随后就可能 autoClose 关窗）。
+ * 预热由 preload.js 启动时调一次 settingsGet() 完成；settingsGet / settingsSet 会同步镜像。
+ * 未读到时按默认值走（默认开启）——这不影响“用户关掉后不复制”，只是冷启动瞬间的口径。
+ */
 
 /**
  * 默认输出目录 = 归档所在目录 + `<归档名>_分析包` / `<归档名>_解析结果`。
@@ -232,12 +240,41 @@ function createApi(deps) {
   // 进度一律由**内部事件总线**播，不接收渲染端传进来的回调：
   // 跳桥传函数在新版 Electron 里才可用，与其依赖版本行为，不如让 UI 订阅事件（两种挂载下都一致）。
   const emitProgress = deps.progress || (() => {});
+  // 事件总线（可选）：复制成败要能让 UI 立刻提示，而不是只躺在日志里
+  const emitEvent = deps.event || (() => {});
+  // 设置镜像：每个 api 实例一份，避免测试里多个实例互相污染
+  const settingsCache = Object.assign({}, DEFAULT_SETTINGS);
+  function mirrorSettings(v) {
+    if (v && typeof v === 'object') Object.assign(settingsCache, v);
+    return v;
+  }
 
   /** 取"当前归档"，没有就报可操作的错误。 */
   function needCurrent() {
     const arc = store.current;
     if (!arc) throw new Error('尚未解析任何 .saz 文件：请先拖入文件或调用 saz_parse 指定绝对路径');
     return arc;
+  }
+
+  /**
+   * 解析成功后把路径写进剪贴板（autoCopyPath，默认开）。
+   * 两种落点刻意不同：打开归档复制 .saz 绝对路径（可以直接交给能读盘的 AI/工具），
+   * 一键解析复制产出目录（那才是这次解析的交付物）。
+   * 失败绝不拖垮解析：返回 {ok:false} 并广播，由 UI 决定怎么提示。
+   */
+  function copyResultPath(kind, p) {
+    if (settingsCache.autoCopyPath === false) return null;
+    let r;
+    try { r = api.copyText(p); } catch (e) { r = { ok: false, via: 'none', error: e.message }; }
+    const payload = {
+      kind, path: p,
+      ok: !!(r && r.ok), via: (r && r.via) || 'none',
+      error: (r && r.error) || null,
+      at: Date.now(),
+    };
+    emitEvent('clipboard', payload);
+    log('复制路径（' + kind + '，' + payload.via + (payload.ok ? '' : '，失败') + '）：' + p);
+    return payload;
   }
   function pickArchive(sazPath) {
     if (!sazPath) return needCurrent();
@@ -276,10 +313,13 @@ function createApi(deps) {
       if (!fs.existsSync(abs)) throw new Error('文件不存在：' + abs);
       if (fs.statSync(abs).isDirectory()) throw new Error('需要 .saz 文件，给的是目录：' + abs);
       const arc = store.open(abs, options || {});
+      // 工具调用（MCP saz_parse）会显式传 autoCopy:false：替 AI 取数不该改用户的剪贴板。
+      const copied = (options && options.autoCopy === false) ? null : copyResultPath('archive', arc.path);
       return {
         archive: { name: arc.name, path: arc.path, sizeBytes: arc.fileSize, entries: arc.entryCount, elapsedMs: arc.elapsedMs },
         summary: arc.summary,
         sessions: arc.sessions.map(projectSession),
+        copied,
       };
     },
     reindex(sazPath, options) {
@@ -574,7 +614,14 @@ function createApi(deps) {
       const arc = needCurrent();
       const dir = resolveOutDir(arc, outDir, 'legacy');
       const t0 = Date.now();
-      const m = legacy.exportLegacy(arc, dir, options || {}, (e) => emitProgress(Object.assign({ kind: 'legacy' }, e)));
+      /*
+       * progressKind 只改进度事件的标签（一键解析要显示成“一键解析”而不是“同构导出”），
+       * 它属于内部参数，绝不能漏进导出清单——所以先摘掉再传给导出器。
+       */
+      const o = Object.assign({}, options || {});
+      const kind = o.progressKind === 'quick' ? 'quick' : 'legacy';
+      delete o.progressKind;
+      const m = legacy.exportLegacy(arc, dir, o, (e) => emitProgress(Object.assign({ kind }, e)));
       return { outDir: dir, elapsedMs: Date.now() - t0, manifest: m };
     },
 
@@ -582,30 +629,47 @@ function createApi(deps) {
      * F27 一键解析：与旧 `解析SAZ.py` 同效 —— 索引后直接把同构目录树落盘，全程不需要界面。
      * 落点用默认规则（归档旁 `<名>_解析结果`）；失败以数据返回，不抛（抛出后宿主只能看到超时）。
      * 故意不注册成 MCP 工具：给 AI 取数可以，替人写盘不行（D17）。
+     *
+     * v0.2.6：宿主仍可能先把窗口展开（无界面通路不是所有场景都成立），
+     * 所以这一路必须自己播报进度——否则用户看到的就是“窗口开着但什么都不动”。
+     * 进度分两段：index（索引归档，带 sid）与 legacy（逐会话写盘），都由本函数统一打上 kind:'quick'。
      */
     async quickParse(sazPath, options) {
       const t0 = Date.now();
       const o = Object.assign({}, options || {});
-      const opened = api.open(sazPath, o.openOptions || {});
+      // 先播一条“索引开始”，再让出一次主线程：宿主把窗口展开后需要一帧才能画出进度条，
+      // 否则紧接着的同步索引（大归档 1–3s）会把它压住，看起来仍像卡死。
+      emitProgress({ kind: 'quick', phase: 'index', done: 0, total: 0, elapsedMs: 0 });
+      await new Promise((r) => setTimeout(r, 30));
+      const opened = api.open(sazPath, Object.assign({}, o.openOptions, {
+        autoCopy: false,
+        onProgress: (e) => emitProgress(Object.assign({ kind: 'quick', elapsedMs: Date.now() - t0 }, e)),
+      }));
       const settings = await api.settingsGet();
       const legacyOptions = Object.assign(
         { beautifyLevel: o.beautifyLevel || settings.beautifyLevel },
         o.legacy || {},
       );
-      const r = api.exportLegacy(o.outDir, legacyOptions);
-      const m = r.manifest;
+      // 分批异步导出：每 40 个会话让出一次主线程，进度条才真的会动（渲染进程与 preload 同线程）。
+      const arc = store.current;
+      const dir = resolveOutDir(arc, o.outDir, 'legacy');
+      const m = await legacy.exportLegacyAsync(arc, dir, legacyOptions,
+        (e) => emitProgress(Object.assign({ kind: 'quick' }, e)), { batch: 40 });
       const rec = {
         path: opened.archive.path, name: opened.archive.name, mode: 'quick',
-        sessions: opened.summary.sessionCount, outDir: r.outDir,
+        sessions: opened.summary.sessionCount, outDir: dir,
         files: m.counts.files, dirs: m.counts.dirs, bytes: m.counts.bytes,
         at: Date.now(),
       };
       // 历史写入不能影响主路：一闪而过的场景里，这份记录是唯一能回查的线索
       try { await api.historyPut(rec); } catch (e) { log('写入解析历史失败（不影响结果）：' + e.message); }
-      api.notify('一键解析完成', r.outDir + '（' + m.counts.dirs + ' 会话目录 / ' + m.counts.files + ' 文件）');
+      // 一键解析的“结果路径”是产出目录（归档路径在上一步已被显式跳过，剪贴板里只留最终交付物）
+      const copied = copyResultPath('quick', dir);
+      api.notify('一键解析完成', dir + '（' + m.counts.dirs + ' 会话目录 / ' + m.counts.files + ' 文件）');
       return {
-        ok: true, outDir: r.outDir, archive: opened.archive, summary: opened.summary,
+        ok: true, outDir: dir, archive: opened.archive, summary: opened.summary,
         counts: m.counts, options: m.options, elapsedMs: Date.now() - t0,
+        copied,
       };
     },
 
@@ -749,11 +813,11 @@ function createApi(deps) {
      */
     async settingsGet() {
       if (!host || typeof host.dbStorageGet !== 'function') {
-        return Object.assign({ persisted: false }, DEFAULT_SETTINGS);
+        return mirrorSettings(Object.assign({ persisted: false }, DEFAULT_SETTINGS));
       }
       let cur = null;
       try { cur = await host.dbStorageGet('saz-parser:settings'); } catch (e) { log('读设置失败：' + e.message); }
-      return Object.assign({ persisted: true }, DEFAULT_SETTINGS, cur && typeof cur === 'object' ? cur : {});
+      return mirrorSettings(Object.assign({ persisted: true }, DEFAULT_SETTINGS, cur && typeof cur === 'object' ? cur : {}));
     },
     async settingsSet(patch) {
       /*
@@ -766,6 +830,7 @@ function createApi(deps) {
         (patch && typeof patch === 'object') ? patch : {});
       const canPersist = !!(host && typeof host.dbStorageSet === 'function');
       const { persisted, ...toStore } = merged;   // 不把“这台宿主存不住”的标记存进用户数据里
+      mirrorSettings(toStore);                    // 同步镜像：下一次 open() 立刻按新开关生效
       if (!canPersist) return Object.assign({ persisted: false }, toStore);
       await host.dbStorageSet('saz-parser:settings', toStore);
       return Object.assign({ persisted: true }, toStore);

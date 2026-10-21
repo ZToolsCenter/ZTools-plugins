@@ -2,7 +2,7 @@
   "name": "saz-parser",
   "title": "SAZ 抓包解析",
   "description": "把 Fiddler .saz 抓包归档转换为可供 AI 分析的结构化素材：秒级索引全部会话，自动解压 gzip/br/zstd，解析 WebSocket 帧日志（_w.txt，原解析脚本未处理），按 L0–L3 四档生成体积可控（可设 token 预算、自动分卷）的分析包，含接口清单、字段结构、鉴权链与跨会话参数传递摘要；同时保留与原解析脚本同构的目录树导出。隐私字段默认完整保留，纯本地处理不联网、不调用任何模型。",
-  "version": "0.2.4",
+  "version": "0.2.6",
   "author": "乐幻",
   "platform": ["win32", "darwin", "linux"],
   "main": "index.html",

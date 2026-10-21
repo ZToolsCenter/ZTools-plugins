@@ -84,10 +84,19 @@ const api = createApi({
   host,
   logger: (m) => bus.emit('log', m),
   progress: (p) => bus.emit('progress', p),
+  event: (name, payload) => bus.emit(name, payload),
 });
 
 /*
- * 设置里只留 autoClose / beautifyLevel。
+ * 预热设置镜像：open() 是同步函数，而“解析后复制路径”必须在解析同一拍就决定做不做。
+ * 读失败不影响任何主路（api 内部按默认值走，默认开启）。
+ */
+Promise.resolve()
+  .then(() => api.settingsGet())
+  .catch((e) => bus.emit('log', '预热设置失败（按默认值工作）：' + e.message));
+
+/*
+ * 设置里只留 autoClose / autoCopyPath / beautifyLevel。
  * 早期版本在这包一层刷新 quickMode 缓存，现在 quickMode 已取消（由两条指令区分），
  * 所以下面必须是真正的赋值：不能留个调空函数的包装（它会在线上报 ReferenceError）。
  */
@@ -419,7 +428,8 @@ function buildToolHandlers() {
     saz_parse(input) {
       const p = input && input.path;
       if (!p) throw new Error('saz_parse 需要 path（.saz 的绝对路径）');
-      const r = api.open(p, { headerReadBytes: input.headerReadBytes });
+      // autoCopy:false —— 工具是替 AI 取数，不该悄悄覆盖用户正在用的剪贴板
+      const r = api.open(p, { headerReadBytes: input.headerReadBytes, autoCopy: false });
       // 实测：3756 会话 × 40 字段全量返回是 2MB+ JSON，一次就把分析方的上下文吃干，
       // 与唯一第一目的（把结果交给 AI 分析）直接相反。因此工具侧默认只给概览 + 前 N 行；
       // UI 走 api.open() 拿全量。两个入口的差别在这里写明，而不是让人靠试验去发现。
