@@ -49,12 +49,35 @@
     }, 1800);
   };
 
-  const setWindowHeight = () => {
+  let isDetached = false;
+
+  const isZToolsMainWindow = () => {
+    if (isDetached) {
+      return false;
+    }
     if (!window.ztools?.setExpendHeight) {
+      return false;
+    }
+    if (typeof window.ztools.getWindowType === "function") {
+      try {
+        return window.ztools.getWindowType() === "main";
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const setWindowHeight = () => {
+    if (!isZToolsMainWindow()) {
       return;
     }
 
-    window.ztools.setExpendHeight(getWindowHeightLimit());
+    try {
+      window.ztools.setExpendHeight(getWindowHeightLimit());
+    } catch {
+      // ignore
+    }
   };
 
   const levelTextToTree = (input) => {
@@ -120,13 +143,11 @@
   const renderTree = () => {
     elements.output.value = levelTextToTree(elements.input.value);
     saveInput();
-    setWindowHeight();
   };
 
   const syncInputFromTree = () => {
     elements.input.value = treeToLevelText(elements.output.value);
     saveInput();
-    setWindowHeight();
   };
 
   const loadSavedInput = () => {
@@ -145,14 +166,46 @@
       return;
     }
 
+    // 1. ZTools 宿主环境
     if (window.ztools?.copyText) {
       window.ztools.copyText(content);
       showToast("ASCII Tree 已复制");
       return;
     }
 
-    await navigator.clipboard.writeText(content);
-    showToast("ASCII Tree 已复制");
+    // 2. 现代浏览器 Clipboard API (仅在 Secure Context / HTTPS / localhost 下可用)
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(content);
+        showToast("ASCII Tree 已复制");
+        return;
+      } catch {
+        // 若剪贴板权限被拒绝等则继续降级
+      }
+    }
+
+    // 3. 传统浏览器降级方案：document.execCommand('copy')（兼容 file:// 协议与 HTTP 环境）
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = content;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "-9999px";
+      textarea.setAttribute("readonly", "");
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textarea);
+
+      if (success) {
+        showToast("ASCII Tree 已复制");
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    showToast("复制失败，请手动选择右侧结果复制");
   };
 
   const saveOutput = () => {
@@ -163,23 +216,41 @@
       return;
     }
 
-    const targetPath = window.ztools?.showSaveDialog?.({
-      title: "导出 ASCII Tree",
-      defaultPath: "ascii-tree.txt",
-      filters: [{ name: "Text File", extensions: ["txt"] }]
-    });
+    // 1. ZTools 宿主环境
+    if (window.ztools?.showSaveDialog) {
+      const targetPath = window.ztools.showSaveDialog({
+        title: "导出 ASCII Tree",
+        defaultPath: "ascii-tree.txt",
+        filters: [{ name: "Text File", extensions: ["txt"] }]
+      });
 
-    if (!targetPath) {
-      return;
+      if (!targetPath) {
+        return;
+      }
+
+      if (window.asciiTreeServices?.writeTextFile) {
+        window.asciiTreeServices.writeTextFile(targetPath, content);
+        showToast("ASCII Tree 已导出");
+        return;
+      }
     }
 
-    if (window.asciiTreeServices?.writeTextFile) {
-      window.asciiTreeServices.writeTextFile(targetPath, content);
+    // 2. 纯浏览器环境降级（使用 Blob 触发下载）
+    try {
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "ascii-tree.txt";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
       showToast("ASCII Tree 已导出");
       return;
+    } catch {
+      showToast("当前环境不支持直接写文件，结果已保留在右侧");
     }
-
-    showToast("当前环境不支持直接写文件，结果已保留在右侧");
   };
 
   const clearInput = () => {
@@ -205,7 +276,33 @@
     elements.fillSampleButton.addEventListener("click", fillSample);
 
     window.addEventListener("beforeunload", saveInput);
-    window.addEventListener("resize", setWindowHeight);
+
+    // 监听窗口分离，防止独立窗口误调用 setExpendHeight 导致尺寸循环膨胀
+    const markDetached = () => {
+      isDetached = true;
+    };
+    window.addEventListener("ascii-tree:plugin-detach", markDetached);
+    if (window.ztools?.onPluginDetach) {
+      try {
+        window.ztools.onPluginDetach(markDetached);
+      } catch {
+        // ignore
+      }
+    }
+
+    // 监听重新进入主窗口
+    const onEnter = () => {
+      isDetached = false;
+      setWindowHeight();
+    };
+    window.addEventListener("ascii-tree:plugin-enter", onEnter);
+    if (window.ztools?.onPluginEnter) {
+      try {
+        window.ztools.onPluginEnter(onEnter);
+      } catch {
+        // ignore
+      }
+    }
   };
 
   const init = () => {
