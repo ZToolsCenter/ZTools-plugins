@@ -12,6 +12,7 @@ export const FORMAT_DEFINITIONS: FormatDefinition[] = [
   { id: "tiff", label: "TIFF", family: "image", extensions: ["tif", "tiff"], color: "#4d6674" },
   { id: "gif", label: "GIF", family: "image", extensions: ["gif"], color: "#8d4b9d" },
   { id: "bmp", label: "BMP", family: "image", extensions: ["bmp"], color: "#596a7d" },
+  { id: "heic", label: "HEIC", family: "image", extensions: ["heic", "heif"], color: "#1a8a99" },
   { id: "txt", label: "纯文本", family: "text", extensions: ["txt"], color: "#53606e" },
   { id: "md", label: "Markdown", family: "text", extensions: ["md"], color: "#202b36" },
   { id: "html", label: "HTML", family: "text", extensions: ["html", "htm"], color: "#e35c30" },
@@ -25,6 +26,8 @@ export const TARGET_GROUPS = [
   { label: "图片", ids: ["png", "jpeg", "webp", "avif", "tiff", "gif"] as FormatId[] },
   { label: "文本与数据", ids: ["txt", "md", "html", "csv", "tsv", "json"] as FormatId[] }
 ];
+
+export const TARGET_FORMATS = TARGET_GROUPS.flatMap(group => group.ids);
 
 export const PROFILE_COPY: Record<ConversionProfile, { label: string; short: string; description: string }> = {
   visual: { label: "视觉保真", short: "外观优先", description: "优先保持页面外观；转回 Office 时内容可能以整页图片呈现。" },
