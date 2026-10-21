@@ -1,6 +1,6 @@
 {
   "name": "ztools-office-suite-workbench",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "A ZTools workbench for Word, Excel and PowerPoint powered by OfficeCLI, with native MCP access.",
@@ -13,6 +13,7 @@
     "test:preload": "node --test tests/preload/*.test.cjs",
     "test:integration": "node --test tests/integration/*.test.cjs",
     "build": "npm test && npm run typecheck && vite build && node scripts/prepare-dist.mjs && npm run verify:dist",
+    "publish": "ztools publish",
     "verify:dist": "node scripts/verify-dist.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4188"
   },
@@ -26,6 +27,7 @@
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
+    "@ztools-center/plugin-cli": "^1.2.0",
     "typescript": "6.0.3",
     "vite": "^8.1.5",
     "vitest": "4.1.7"
