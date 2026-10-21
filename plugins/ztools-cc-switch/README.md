@@ -1,5 +1,12 @@
 # AI Provider Switch for ZTools
 
+## ZTools 3.2 与旧版兼容
+
+- 3.2 首次启动会把默认 Provider、备份、日志、凭据及 runtime 校验迁移到 `ztools.getPath('pluginData')` 并删除旧目录；用户主动配置的外部数据目录保持不动。2.4–3.1 直接安装仍使用原 `userData` 目录，完成迁移后不保证降级的数据可见性。
+- 导出的备份在 3.2 可调用 `startDrag` 拖往外部应用；旧版保持原保存对话框流程。
+- ESC 隐藏只关闭临时弹窗；路由、sidecar 与同步任务保持单例，并在再次进入时用 single-flight 恢复。
+- 低于 ZTools 2.4 仅显示升级提示。
+
 版本变更请参阅 [CHANGELOG.md](CHANGELOG.md)。
 
 一个基于 Vue 3、Vite、TailwindCSS 与 Rust sidecar 的 ZTools AI 客户端管理插件。对照 [cc-switch](https://github.com/farion1231/cc-switch) 的公开配置语义，统一管理 Provider、Skills、本地 API 路由、Thinking 整流、用量与请求日志。
@@ -224,7 +231,7 @@ ztools publish
 
 - 前端只调用 `window.ccSwitch` 的业务方法，不直接获得 `fs`、`path` 等 Node 原语。
 - Web UI 仅借用 ZTools 生命周期、目录选择、Shell 打开与隔离存储能力；路径实化、工具命令白名单、Provider 环境变量和凭据注入均在 Preload 内完成。
-- Provider 数据默认保存在 ZTools `userData/ztools-cc-switch/providers.json`，也可覆盖插件数据目录；文件权限按当前用户写入。
+- Provider 数据在 ZTools 3.2 默认保存在插件专属 `pluginData/providers.json`，2.4–3.1 使用 `userData/ztools-cc-switch/providers.json`；也可覆盖插件数据目录，文件权限按当前用户写入。
 - OAuth Token 不写入 Provider JSON 或 WebDAV 备份；前端只能读取脱敏账号元数据，无法调用内部 Token 获取方法。
 - WebDAV 密码与 S3 Secret Access Key 使用系统 `safeStorage` 加密，设置页只显示“已保存”状态。
 - WebDAV 与自定义 S3 Endpoint 的远程地址必须使用 HTTPS；仅 `localhost`、`127.0.0.1` 与 `::1` 允许 HTTP。

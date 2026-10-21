@@ -5,6 +5,17 @@ const fsp = require('node:fs/promises')
 const os = require('node:os')
 const path = require('node:path')
 const { binaryFilename, isAsarPath, createSidecarClient } = require('../preload/sidecarClient')
+const { getHostCompatibility, resolveSidecarRuntimeDir } = require('../preload/ztoolsCompatibility')
+
+test('ZTools 3.2 resolves sidecar runtime in pluginData while older hosts use the legacy cache', () => {
+  assert.deepEqual(getHostCompatibility(undefined), { supported: true, detected: false, version: null })
+  assert.equal(getHostCompatibility({ getAppVersion: () => '2.3.9' }).supported, false)
+  assert.equal(getHostCompatibility({ getAppVersion: () => '2.4.0' }).supported, true)
+  assert.equal(getHostCompatibility({ getAppVersion: () => '3.1.9' }).supported, true)
+  assert.equal(getHostCompatibility({ getAppVersion: () => '3.2.0' }).supported, true)
+  assert.deepEqual(resolveSidecarRuntimeDir({ getPath: () => '/tmp/plugin-data' }, '/tmp/legacy'), { path: path.join('/tmp/plugin-data', 'runtime', 'sidecar'), usingPluginData: true })
+  assert.deepEqual(resolveSidecarRuntimeDir({ getPath: () => { throw new Error('unknown path') } }, '/tmp/legacy'), { path: path.join('/tmp/legacy', 'runtime', 'sidecar'), usingPluginData: false })
+})
 
 test('sidecar filenames cover macOS, Windows and Linux', () => {
   assert.equal(binaryFilename('darwin', 'arm64'), 'cc-switch-sidecar-darwin-arm64')
