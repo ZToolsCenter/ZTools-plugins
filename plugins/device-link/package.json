@@ -1,6 +1,6 @@
 {
   "name": "device-link",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "type": "module",
   "description": "以聊天方式安全连接电脑与手机，实时分享文本、链接、图片和文件。",
@@ -8,6 +8,7 @@
     "dev": "vite",
     "typecheck": "vue-tsc --noEmit",
     "test": "node --test tests/*.test.cjs",
+    "publish": "ztools publish",
     "build": "node build.mjs"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/plugin-cli": "^1.2.0",
     "@ztools-center/ztools-api-types": "^1.0.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.3",
