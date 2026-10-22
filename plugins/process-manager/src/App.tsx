@@ -1,25 +1,25 @@
-import { useEffect, useState } from 'react'
+import {useEffect, useState} from 'react'
 import ProcessManager from './ProcessManager'
 
 export default function App() {
-  const [keyword, setKeyword] = useState('')
+    const [keyword, setKeyword] = useState('')
 
-  useEffect(() => {
-    window.ztools.onPluginEnter((action) => {
-      if (action.code === 'process') {
-        setKeyword('')
-        window.ztools.setSubInput(
-          (input) => setKeyword(input.text),
-          '输入 PID / 端口 / 进程名 / 路径搜索...'
-        )
-      }
-    })
-    window.ztools.onPluginOut(() => {
-      setKeyword('')
-      window.ztools.removeSubInput()
-    })
-  }, [])
+    useEffect(() => {
+        window.ztools.onPluginEnter((action) => {
+            if (action.code === 'process') {
+                setKeyword('')
+                window.ztools.setSubInput(
+                    (input) => setKeyword(input.text),
+                    '输入 PID / 端口 / 进程名，或粘贴文件路径...'
+                )
+            }
+        })
+        window.ztools.onPluginOut(() => {
+            setKeyword('')
+            window.ztools.removeSubInput()
+        })
+    }, [])
 
-  return <ProcessManager keyword={keyword} />
+    return <ProcessManager keyword={keyword}/>
 
 }
