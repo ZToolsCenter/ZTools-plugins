@@ -1,22 +1,53 @@
-:root {
-  --blue: rgb(88, 164, 246);
-  --blue-dark: color-mix(in srgb, var(--blue) 78%, #0a0a0a);
-  --light: #fff;
-  --scrollbar-width: 6px;
-  --scrollbar-thumb: rgba(127, 127, 127, 0.35);
-  --scrollbar-thumb-hover: color-mix(in srgb, var(--blue) 65%, transparent);
-}
-
 html,
-body {
+body,
+#root {
   margin: 0;
   padding: 0;
+  height: 100%;
 }
 
-/* ===== 自定义滚动条 ===== */
+body {
+  background: transparent;
+  color: var(--ct-text, #162129);
+  font-family: var(--ct-font-ui, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ct-accent, #58a4f6) 26%, transparent);
+}
+
 ::-webkit-scrollbar {
-  width: var(--scrollbar-width);
-  height: var(--scrollbar-width);
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -24,80 +55,36 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
+  background: var(--ct-scrollbar, rgba(127, 127, 127, 0.32));
   border-radius: 999px;
-  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+  background: var(--ct-scrollbar-hover, rgba(127, 127, 127, 0.52));
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-color: var(--ct-scrollbar, rgba(127, 127, 127, 0.32)) transparent;
 }
 
-button {
-  border: none;
-  background: none var(--blue);
-  color: var(--light);
-  line-height: 2.5;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-button:disabled {
-  filter: grayscale(1);
-  cursor: not-allowed;
-}
-
-button:not(:disabled):active {
-  opacity: 0.6;
-}
-
-textarea {
-  display: block;
-  margin: 0;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --scrollbar-thumb: rgba(0, 0, 0, 0.18);
-    --scrollbar-thumb-hover: color-mix(in srgb, var(--blue) 70%, transparent);
-  }
-  ::-webkit-scrollbar-track-piece {
-    background-color: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    border-color: transparent;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --scrollbar-thumb: rgba(255, 255, 255, 0.18);
-    --scrollbar-thumb-hover: color-mix(in srgb, var(--blue) 70%, transparent);
-  }
-  ::-webkit-scrollbar-track-piece {
-    background-color: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background-color: var(--scrollbar-thumb);
-    border-color: transparent;
-  }
-  body {
-    color: #fff;
-  }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .ct-app {
-  box-sizing: border-box;
   height: 100vh;
   width: 100%;
   display: flex;

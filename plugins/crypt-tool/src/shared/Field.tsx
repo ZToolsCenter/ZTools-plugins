@@ -1,4 +1,6 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import Icon from './Icon'
+import { useFieldNotes } from './FieldNoteContext'
 
 export type FieldType = 'text' | 'secret' | 'textarea' | 'select'
 
@@ -18,6 +20,7 @@ export interface FieldProps {
   variant?: 'input' | 'output'
   copyable?: boolean
   onClear?: () => void
+  action?: ReactNode
 }
 
 export default function Field({
@@ -35,52 +38,116 @@ export default function Field({
   style,
   variant,
   copyable,
-  onClear
+  onClear,
+  action
 }: FieldProps) {
-  const id = `f-${label.replace(/\s+/g, '-')}`
+  const generatedId = useId().replace(/:/g, '')
+  const id = `field-${generatedId}`
+  const helpId = `${id}-help`
   const isOutput = variant === 'output'
+  const notes = useFieldNotes()
+  const [copied, setCopied] = useState(false)
+  const copyTimer = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (copyTimer.current !== null) window.clearTimeout(copyTimer.current)
+    }
+  }, [])
+
+  const fieldNote = { label, hint, help }
+
+  const rememberNote = () => {
+    notes?.setActiveNote(fieldNote)
+  }
 
   const onCopy = () => {
-    window.ztools.copyText?.(value ?? '')
+    if (!value) return
+    try {
+      window.ztools?.copyText?.(value)
+    } catch {
+      return
+    }
+    setCopied(true)
+    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current)
+    copyTimer.current = window.setTimeout(() => setCopied(false), 1400)
+  }
+
+  const resolvedPlaceholder = placeholder ?? (isOutput ? '结果会显示在这里' : undefined)
+
+  const controlProps = {
+    id,
+    readOnly,
+    placeholder: resolvedPlaceholder,
+    onFocus: rememberNote,
+    'aria-describedby': help ? helpId : undefined
   }
 
   return (
     <div className={`ct-field ${isOutput ? 'ct-field-output' : ''}`} style={style}>
-      <label htmlFor={id}>
-        <span>{label}</span>
-        {hint ? <em>{hint}</em> : null}
-        {copyable ? (
-          <button
-            type="button"
-            className="ct-field-copy"
-            onClick={onCopy}
-            title="复制"
-          >
-            ⧉
-          </button>
-        ) : null}
-        {onClear ? (
-          <button
-            type="button"
-            className="ct-field-clear"
-            onClick={onClear}
-            title="清除"
-          >
-            ×
-          </button>
-        ) : null}
-      </label>
+      <div className="ct-field-head">
+        <label htmlFor={id}>{label}</label>
+        {hint ? <span className="ct-field-hint">{hint}</span> : null}
+        <div className="ct-field-side">
+          {action ? <span className="ct-field-action">{action}</span> : null}
+          <div className="ct-field-tools">
+            {help && notes ? (
+              <button
+                type="button"
+                className="ct-mini-btn"
+                onClick={() => {
+                  notes.setActiveNote(fieldNote)
+                  notes.openNotes()
+                }}
+                title="查看字段说明"
+                aria-label={`查看「${label}」的边注`}
+              >
+                <Icon name="note" size={13} />
+              </button>
+            ) : null}
+            {copyable ? (
+              <button
+                type="button"
+                className={`ct-mini-btn ${copied ? 'is-done' : ''}`}
+                onClick={onCopy}
+                disabled={!value}
+                title={copied ? '已复制' : '复制'}
+                aria-label={copied ? '已复制' : `复制${label}`}
+              >
+                <Icon name={copied ? 'check' : 'copy'} size={13} />
+              </button>
+            ) : null}
+            {onClear ? (
+              <button
+                type="button"
+                className="ct-mini-btn"
+                onClick={onClear}
+                title="清除"
+                aria-label={`清除${label}`}
+              >
+                <Icon name="x" size={13} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
       {type === 'textarea' ? (
         <textarea
-          id={id}
+          {...controlProps}
           rows={rows}
           value={value}
-          readOnly={readOnly}
-          placeholder={placeholder}
+          spellCheck={false}
           onChange={(e) => onChange(e.target.value)}
         />
       ) : type === 'select' ? (
-        <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+        <select
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={rememberNote}
+          aria-describedby={help ? helpId : undefined}
+        >
           {(options ?? []).map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -89,16 +156,18 @@ export default function Field({
         </select>
       ) : (
         <input
-          id={id}
+          {...controlProps}
           type={type === 'secret' ? 'password' : 'text'}
           value={value}
-          readOnly={readOnly}
-          placeholder={placeholder}
+          spellCheck={false}
+          autoComplete={type === 'secret' ? 'new-password' : 'off'}
           onChange={(e) => onChange(e.target.value)}
         />
       )}
-      {error ? <div className="ct-field-error">{error}</div> : null}
-      {help ? <div className="ct-field-help">{help}</div> : null}
+
+      {help && notes ? <p id={helpId} className="sr-only">{help}</p> : null}
+      {help && !notes ? <p id={helpId} className="ct-field-help">{help}</p> : null}
+      {error ? <p className="ct-field-error">{error}</p> : null}
     </div>
   )
 }

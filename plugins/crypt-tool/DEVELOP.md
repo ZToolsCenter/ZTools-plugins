@@ -36,16 +36,16 @@ crypt-tool
 │   ├── algorithms.ts            # 算法数组 + helpers
 │   └── categories.ts            # 分类列表
 ├── src/shared/                  # 公共 UI 组件
-│   ├── Field.tsx                # 支持 copyable / variant / onClear
-│   ├── Actions.tsx              # 顶部 Tab 式操作按钮组
-│   ├── CopyButton.tsx           # 独立复制按钮（已逐步迁移为 Field.copyable）
-│   ├── crypt-shell.css          # 整个插件的样式
-│   └── TeachCard.tsx            # 算法简要卡片（页面底部）
-├── src/shell/                   # 页面壳
+│   ├── Field.tsx                # 字段（text/secret/textarea/select）与复制反馈
+│   ├── FieldNoteContext.ts      # 字段焦点 -> 右侧边注
+│   ├── Icon.tsx                 # 线性图标
+│   └── crypt-shell.css          # 整个插件的视觉系统
+├── src/shell/                   # 信号台外壳
 │   ├── Shell.tsx
-│   ├── AlgorithmHost.tsx        # 算法页核心：head + Component + TeachCard
-│   ├── Sidebar.tsx              # 左侧分类导航
-│   └── SettingsPage.tsx         # 设置页（搜索 + 标签启停）
+│   ├── AlgorithmHost.tsx        # 标题、方向、信号路径与边注容器
+│   ├── NotesPanel.tsx           # 右侧边注面板
+│   ├── Sidebar.tsx              # 分类索引 + 搜索
+│   └── SettingsPage.tsx         # 设置页（开关启停）
 └── src/config/
     ├── settings.ts              # Settings 管理（dbStorage 持久化）
     └── features.ts              # syncFeatures() 同步到 ZTools 直达指令
@@ -146,109 +146,121 @@ export const algorithms = [ /* ... */ chacha ]
 
 ## UI 规范
 
-算法 UI 必须保持一致的视觉结构。以下结构已通过所有实装算法验证：
+所有算法页共用一层「信号台」外壳（`AlgorithmHost`）。外壳负责顶部标题、方向切换、边注栏和滚动容器；算法组件只负责自己的字段、动作和输出，不再各自绘制方向按钮或页面卡片。
 
-### 整体布局
-
-从顶到底顺序固定：
+### 页面结构
 
 ```
-[ct-tabs]            ← 仅 reversible 算法：编码/加密 + 解密 + 可选 ghost 操作
-[ct-input-zone]      ← 输入区
-  [ct-zone-label]     "输入"
-  [ct-grid2]          ← 2 列网格，单字段时占满宽度
-    [Field] × N
-[ct-actions]         ← 按钮区：占满宽度，flex: 1
-[ct-output-zone]     ← 输出区
-  [ct-zone-label]     "输出"
-  [Field variant="output"]
-[TeachCard]           ← 已在 AlgorithmHost 中自动渲染
+[ct-main]
+  [ct-head]
+    crumb            分类 / alg:<id>
+    direction        编码/解码 或 加密/解密（仅 meta.reversible）
+    note toggle      打开/收起边注
+    title + badges   标题 / 可逆或单向 / 本地运算
+  [ct-work]
+    [ct-signal]      带信号线的滚动容器
+      [ct-tabs]      可选：算法内部模式（如签名/验证、Base58/Base58check）
+      [ct-input-zone]
+      [ct-actions]
+      [ct-output-zone]
+    [ct-notes]       右侧边注（窄窗下变为覆盖面板）
 ```
 
-### 输入区（.ct-input-zone）
+### 必须遵守的规则
 
-- 带灰色边框卡片包裹，顶部 `ct-zone-label` 显示"输入"
-- 字段用 `ct-grid2` 2 列网格排布
-- 同一行只有一个字段时（奇数总字段）占满宽度（由 CSS `:last-child:nth-child(odd)` 自动处理）
+1. **方向只出现一次。** 编码/解码、加密/解密只由 `AlgorithmHost` 顶部渲染。算法 UI 必须读取 `direction` prop，禁止在主体里再放一组方向按钮。算法自身的模式（签名/验证、哈希/验证、变体切换）用 `.ct-tabs`，不要用 `.ct-dir`。
+2. **教学说明从 meta 读取。** `meta.teach.summary` 会自动出现在边注里，不需要单独的教学卡片。
+3. **字段说明写进 `help`。** 字段聚焦时，`Field` 会把 `label / hint / help` 送入右侧边注；不要在字段下面重复一长段说明。仅在字段需要生成随机值时，传入 `action`。
+4. **输出区负责撑开页面。** `Field variant="output"` 会自动使用等宽字体、只读底色和贴底扩展。输出字段保持 `readOnly + variant="output" + copyable`。
+5. **一个主动作。** 主按钮用 `.ct-btn-primary`，次级动作（互换、载入示例）用 `.ct-btn-ghost`。主按钮会自动占据更宽的空间。
+6. **不要给算法页加外层卡片。** 外壳的 `.ct-signal` 已经是唯一的仪器面板；算法 UI 返回标准的 `ct-input-zone / ct-actions / ct-output-zone` 即可。
+7. **换向只属于可逆算法。** 哈希、HMAC、KDF 等单向算法不要提供把结果塞回输入的按钮。可逆算法如果提供「转入解密/解码」，必须同时切换方向、把结果载入输入，并且只在已有输出时出现。
 
-### 输出区（.ct-output-zone）
-
-- 带蓝色边框卡片包裹，顶部 `ct-zone-label` 显示"输出"
-- 仅存放输出字段，每个字段 `variant="output"` + `readOnly` + `copyable`
-
-### 操作区（.ct-actions）
-
-- 位于输入区与输出区之间
-- 按钮 `flex: 1` 等宽占满一行
-- 主操作 `className="ct-btn ct-btn-primary"`
-- 附加操作（如互换） `className="ct-btn ct-btn-ghost"`
-
-### Tab 切换（仅 reversible 算法）
+### 算法 UI 骨架
 
 ```tsx
-<div className="ct-tabs">
-  <button className={`ct-tab ${dir === 'encode' ? 'on' : ''}`} onClick={() => setDir('encode')}>编码</button>
-  <button className={`ct-tab ${dir === 'decode' ? 'on' : ""`} onClick={() => setDir('decode')}>解码</button>
-  <button className="ct-tab ct-tab-ghost" onClick={keygen}>生成密钥对</button> {/* 可选 */}
-</div>
+return (
+  <>
+    {/* 可选：算法内部模式 */}
+    <div className="ct-tabs">
+      <button type="button" className="ct-tab on">签名</button>
+      <button type="button" className="ct-tab">验证</button>
+    </div>
+
+    <div className="ct-input-zone">
+      <div className="ct-zone-label">输入</div>
+      <div className="ct-grid2">
+        <Field
+          label="密钥 Key"
+          hint="32 字节"
+          help="加密解密共用；右侧「生成」会创建随机密钥"
+          value={key}
+          onChange={setKey}
+          copyable
+          action={
+            <button type="button" className="ct-inline-btn" onClick={keygen}>
+              生成
+            </button>
+          }
+        />
+        {/* 其余字段 */}
+      </div>
+    </div>
+
+    <div className="ct-actions">
+      <button type="button" className="ct-btn ct-btn-primary" onClick={run}>
+        执行
+      </button>
+      <button type="button" className="ct-btn ct-btn-ghost" onClick={swap}>
+        互换输入输出
+      </button>
+    </div>
+
+    <div className="ct-output-zone">
+      <div className="ct-zone-label">输出</div>
+      <Field
+        label="结果"
+        type="textarea"
+        value={output}
+        onChange={() => {}}
+        readOnly
+        variant="output"
+        copyable
+      />
+    </div>
+    {error ? <div className="ct-field-error">{error}</div> : null}
+  </>
+)
 ```
 
-Tab 下方紧跟输入区，**而非**把 Tab 作为输入的一部分。
-
-### Field 组件参数
+### Field 参数
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `label` | string | 标签 |
-| `hint?` | string | 行内小提示（如 "16 字节"） |
-| `help?` | string | 字段下方帮助文字 |
-| `type?` | `'text' \| 'secret' \| 'textarea' \| 'select'` | 默认 text |
-| `copyable?` | boolean | 标签行末尾显示内联复制按钮 ⧉ |
-| `variant?` | `'input' \| 'output'` | output 时蓝色高亮 + 输出标签 |
-| `onClear?` | () => void | 标签行末尾显示清除按钮 ×（仅需要时） |
-| `readOnly?` | boolean | 只读（输出字段必须） |
+| `label` | string | 字段名；聚焦时作为边注标题 |
+| `hint` | string? | 行内格式/长度提示 |
+| `help` | string? | 字段说明；聚焦时显示在边注里 |
+| `type` | text / secret / textarea / select | 默认 text |
+| `variant` | input / output | output 使用等宽字体与读数底色 |
+| `copyable` | boolean? | 提供复制图标与已复制反馈 |
+| `onClear` | () => void? | 提供清除图标 |
+| `action` | ReactNode? | 字段头部的行内动作（如生成随机值） |
+| `readOnly` | boolean? | 只读 |
+| `error` | string? | 字段级错误 |
 
-### 非 reversible 算法（如 MD5）
+### 布局与响应式
 
-跳过 Tabs，直接输入区 → actions → 输出区：
+- 宽窗：侧栏约 200px，主区右侧保留约 220px 边注栏。
+- `max-width: 1040px`：字段改为单列。
+- `max-width: 1000px`：边注变成覆盖面板；关闭按钮位于面板右上角。
+- `max-width: 620px`：顶部工具栏换行，边注按钮收成图标，侧栏缩到 154px。
+- 页面高度使用 `100vh`；主区、边注、侧栏各自滚动，不产生整页滚动。
 
-```tsx
-<div className="ct-input-zone">
-  <div className="ct-zone-label">输入</div>
-  <div className="ct-grid2">
-    <Field label="明文" ... />
-  </div>
-</div>
-<div className="ct-actions">
-  <button className="ct-btn ct-btn-primary" onClick={run}>计算</button>
-</div>
-<div className="ct-output-zone">
-  <div className="ct-zone-label">输出</div>
-  <Field label="摘要" variant="output" readOnly copyable />
-</div>
-```
+### 主题
 
-### 调用运算
-
-使用 `runCodec` + `showError` + `showData`：
-
-```ts
-import { runCodec, showError, showData } from '../codec'
-
-const r = runCodec(() =>
-  window.services.crypt.<algo>.<fn>({ /* 参数 */ })
-)
-setError(showError(r))
-setOutput(showData(r))
-```
-
-接收外部传入内容用 `useEffect`：
-
-```ts
-useEffect(() => { if (enterPayload) setInput(enterPayload) }, [enterPayload])
-```
-
----
+- 宿主主色写入 `--blue`，UI 通过 `--ct-accent` 引用；`useZtoolsTheme` 会同步写入 `theme-dark / theme-light` 与 `--ct-on-accent`。
+- 不要硬编码彩色背景；面板、输入井、边注的底色必须使用 `--ct-surface / --ct-well / --ct-readout` 等变量。
+- 动效只用于按钮反馈与面板开关；`prefers-reduced-motion` 下全部关闭。
 
 ## 已有算法清单
 

@@ -32,6 +32,8 @@ declare global {
         aes: {
           encrypt: (a: { key: string; iv: string; mode: string; plaintext: string }) => CryptResult
           decrypt: (a: { key: string; iv: string; mode: string; ciphertext: string }) => CryptResult
+          keygen: () => CryptResult
+          ivgen: () => CryptResult
         }
         chacha: {
           encrypt: (a: { key: string; nonce: string; plaintext: string }) => CryptResult
