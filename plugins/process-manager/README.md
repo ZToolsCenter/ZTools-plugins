@@ -39,7 +39,7 @@
 - **⚡ 一键 Kill** — 确认后通过 `taskkill /F` 强制终止进程
 - **🔄 自动刷新** — 5 秒缓存 TTL，进度条直观展示缓存倒计时
 - **🌙 暗色模式** — 跟随系统主题自适应
-- **🪟 Windows 原生** — 基于 `wmic` / `netstat` / `tasklist`，无第三方依赖
+- **🪟 Windows 原生** — 基于 PowerShell (CIM) / `netstat` / `tasklist`，无第三方依赖，兼容已移除 `wmic` 的 Windows 11
 
 
 ## 🚀 快速开始
@@ -99,7 +99,7 @@ npm run build
 ```
 ┌─────────────────────┐
 │   services.js       │  ← Node.js preload
-│  ─ listProcesses()  │     wmic / tasklist
+│  ─ listProcesses()  │     PowerShell CIM / wmic / tasklist
 │  ─ scanPorts()      │     netstat -ano
 │  ─ killProcess()    │     taskkill /F
 └────────┬────────────┘
@@ -126,7 +126,7 @@ npm run build
 
 | 模块                       | 职责                                                                  |
 | -------------------------- | --------------------------------------------------------------------- |
-| `services.js`              | 通过 `wmic` 枚举进程、`netstat -ano` 扫描端口、`taskkill /F` 终止进程 |
+| `services.js`              | 通过 PowerShell `Get-CimInstance` 枚举进程（`wmic` / `tasklist` 兜底）、`netstat -ano` 扫描端口、`taskkill /F` 终止进程 |
 | `useProcessData.ts`        | 管理进程数据状态，5 秒缓存 TTL，自动/手动刷新                         |
 | `search.ts`                | 多字段模糊匹配：进程名、PID、端口、路径                               |
 | `ProcessManager/index.tsx` | 主界面：搜索栏、结果列表、Kill 按钮、Toast 提示                       |
@@ -153,7 +153,7 @@ npm run build
 
 触发指令：`pid` / `port` / `process` / `端口` / `进程` / `进程管理`
 
-> ⚠ 当前仅支持 Windows 平台（依赖 `wmic`、`netstat`、`taskkill`）。
+> ⚠ 当前仅支持 Windows 平台（依赖 PowerShell、`netstat`、`taskkill`）。
 
 ## 📦 构建与发布
 

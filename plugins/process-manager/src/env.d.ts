@@ -18,6 +18,19 @@ interface KillResult {
   error?: string
 }
 
+interface FileHolder {
+  pid: number
+  name: string
+  service?: string
+  type?: number
+}
+
+interface WhoLocksResult {
+  success: boolean
+  holders?: FileHolder[]
+  error?: string
+}
+
 interface ProcessInfo {
   pid: number
   name: string
@@ -28,6 +41,7 @@ interface ProcessInfo {
 interface Services {
   listProcesses: () => Promise<ProcessRaw[]>
   scanPorts: () => Promise<PortEntry[]>
+  whoLocks: (filePath: string) => Promise<WhoLocksResult>
   killProcess: (pid: number) => Promise<KillResult>
 }
 
