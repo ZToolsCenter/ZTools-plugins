@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>社区漫游</title><link rel="stylesheet" href="reader.css"><link rel="stylesheet" href="enhancements.css"><script defer src="reader-core.js"></script><script defer src="layout.js"></script><script defer src="avatars.js"></script><script defer src="media.js"></script><script defer src="reader.js"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><img src="logo.svg" width="35" height="35" alt=""><div><strong>社区漫游</strong><small>COMMUNITY READER</small></div></div>
+    <div class="section-label">我的社区<span>03</span></div><nav id="sites" aria-label="选择社区"></nav>
+    <div class="side-divider"></div>
+    <button class="library-nav" id="bookmarks-nav"><span data-icon="bookmark"></span>我的收藏<span class="count" id="bookmarks-count">0</span></button>
+    <button class="library-nav" id="history-nav"><span data-icon="history"></span>阅读足迹<span class="count" id="history-count">0</span></button>
+    <div class="sidebar-bottom"><p class="reading-note"><i></i>把注意力留给内容。</p><div class="bottom-row"><button class="quiet" id="theme-button"><span data-icon="sun"></span><span id="theme-name">跟随系统</span></button><button class="icon-button" id="settings-button" aria-label="阅读设置" title="阅读设置" data-icon="settings"></button></div></div>
+    <div id="sidebar-resize" role="separator" tabindex="0" aria-label="调整社区栏宽度" aria-orientation="vertical" aria-valuemin="153" title="拖动调整宽度，双击恢复默认"></div>
+  </aside>
+  <main class="workspace">
+    <header class="main-header"><div class="heading-group"><button class="icon-button" id="sidebar-toggle" aria-controls="sidebar" data-icon="panel"></button><div class="heading-copy"><p class="eyebrow" id="header-eyebrow">分享与探索</p><h1 id="header-title">V2EX</h1></div></div><div class="header-actions"><button class="quiet" id="verify-button" title="在独立窗口手动登录或完成站点验证"><span data-icon="shield"></span><span>登录 / 验证</span></button><button class="icon-button" id="refresh-button" title="刷新帖子 · Ctrl R" aria-label="刷新帖子" data-icon="reload"></button></div></header>
+    <div class="feed-toolbar"><nav id="channels" aria-label="帖子分类"></nav><div class="filter-box"><span data-icon="search"></span><input id="filter" type="search" placeholder="筛选已加载的帖子" aria-label="筛选已加载的帖子"><kbd>Ctrl K</kbd></div></div>
+    <section class="reading-layout">
+      <section class="feed-pane" aria-label="帖子列表"><div class="feed-caption"><span id="feed-count">正在加载</span><span id="feed-updated"></span></div><div id="feed-notice" class="notice" role="status" hidden></div><div class="topic-list" id="topic-list"></div><div class="feed-bottom"><button class="secondary" id="load-more" hidden>加载更多帖子</button><span id="feed-end"></span></div></section>
+      <section class="reader-pane" id="reader-pane" aria-label="帖子阅读"><div class="reader-toolbar"><button class="quiet" id="back-to-list"><span data-icon="back"></span>返回列表</button><span class="reader-source" id="reader-source">专注阅读</span><div class="reader-actions"><button class="icon-button" id="save-topic" title="收藏帖子 · Ctrl D" aria-label="收藏帖子" data-icon="bookmark" disabled></button><button class="icon-button" id="copy-topic" title="复制帖子链接" aria-label="复制帖子链接" data-icon="copy" disabled></button><button class="icon-button" id="open-topic" title="在原站打开" aria-label="在原站打开" data-icon="external" disabled></button></div></div>
+        <div class="reader-scroll" id="reader-scroll"><div class="reader-empty" id="reader-empty"><img src="logo.svg" alt="" width="58" height="58"><p class="eyebrow">A LITTLE ROOM FOR CURIOSITY</p><h2>从一个话题开始。</h2><p>选择左侧帖子，在这里阅读正文与回复。<br>有趣的讨论，值得停留一会儿。</p></div><div class="reader-notice notice" id="reader-notice" hidden role="status"></div><article id="article" hidden><header class="article-header"><div class="article-tags" id="article-tags"></div><h2 id="article-title"></h2><div class="article-meta" id="article-meta"></div></header><div class="article-body" id="article-body"></div><section class="replies-section"><div class="replies-heading"><h3>讨论 <span id="reply-total"></span></h3><span id="replies-caption"></span></div><div id="reply-notice" class="notice" hidden></div><div id="replies-list"></div><button class="secondary replies-more" id="replies-more" hidden>加载更多回复</button></section></article></div>
+      </section>
+    </section>
+    <footer class="statusbar"><span><i></i><span id="status-text">正在连接社区</span></span><span id="status-mode">原生列表 · 正文与回复</span></footer>
+  </main>
+  <dialog id="settings-dialog"><div class="dialog-header"><div><p class="eyebrow">YOUR READING PREFERENCES</p><h2>阅读设置</h2></div><button class="icon-button" id="close-settings" aria-label="关闭设置" data-icon="close"></button></div><label class="setting-row"><div><strong>显示正文图片</strong><p>默认显示正文和回复中的图片，支持点击放大。关闭时保留图片链接。</p></div><input type="checkbox" id="images-setting"></label><div class="settings-block"><h3>站点连接方式</h3><p>默认直接请求帖子数据。需要登录或站点验证时，点击顶部“登录 / 验证”，在弹窗中手动完成，再刷新帖子。主界面始终显示原生列表和正文。</p><div id="session-settings"></div></div><div class="settings-block"><h3>关于阅读</h3><p>关键词只筛选已加载的帖子标题、作者和分类。当前支持这三个已适配站点，插件只提供浏览。发帖、回复、点赞等操作请在浏览器打开原帖后进行。</p><p>V2EX 使用公开 API；LINUX DO 使用 Discourse JSON；LINUX SB 提取帖子页面内容。浏览器会话与默认浏览器的登录状态独立。不会自动完成验证码或复制登录 Cookie。</p></div><div class="settings-footer"><span>社区漫游 1.0.0</span><button class="quiet danger" id="clear-history">清空阅读足迹</button></div></dialog>
+  <dialog id="image-viewer" aria-label="图片预览"><div class="image-viewer-tools"><button id="image-size" class="secondary">切换原始大小</button><button id="image-original" class="secondary">在浏览器查看原图</button><button id="image-close" class="icon-button" aria-label="关闭图片" data-icon="close"></button></div><div class="image-viewer-scroll"><img id="image-full" alt="帖子图片预览"></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body></html>

@@ -1,0 +1,18 @@
+{
+  "name": "community-hub",
+  "title": "社区漫游",
+  "pluginName": "社区漫游",
+  "description": "浏览 V2EX、LINUX DO、LINUX SB 的原生帖子、图片与讨论，支持头像、侧栏调整、收藏和阅读足迹。",
+  "version": "1.0.0",
+  "author": "zhanglei",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "platform": ["win32", "darwin", "linux"],
+  "features": [
+    { "code": "community-hub", "explain": "浏览常用社区", "cmds": ["社区漫游", "社区", "community"] },
+    { "code": "community-v2ex", "explain": "在社区漫游中打开 V2EX", "cmds": ["v2ex"] },
+    { "code": "community-linuxdo", "explain": "在社区漫游中打开 LINUX DO", "cmds": ["linux.do", "linuxdo"] },
+    { "code": "community-linuxsb", "explain": "在社区漫游中打开 LINUX SB", "cmds": ["linux.sb", "linuxsb", "烧饼社区"] }
+  ]
+}
