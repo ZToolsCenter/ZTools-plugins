@@ -3,7 +3,9 @@ import { reorderItemGroupIds, listOrderScope, type ListReorderRequest } from "..
 import { HistorySearchService } from "./history-search";
 import { rememberRecord, takeRecordChanges } from "./record-index";
 import type { HistoryPage, HistoryRequest } from "./history-page";
-import { readFile, rm, stat } from "node:fs/promises";
+import { readFile, rm, stat, writeFile, access } from "node:fs/promises";
+import { statSync } from "node:fs";
+import { randomUUID, createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 
@@ -34,6 +36,10 @@ import {
   type ScreenshotNativeImageApi,
 } from "./screenshot-import";
 import { localizeMirroredImage } from "./mirrored-image";
+import {
+  createLayeredImageDetectionHook,
+  type LayeredImageDetectionDependencies,
+} from "./layered-image-detection";
 import { openQuickLook } from "./quick-look";
 import { rotateImageFile } from "./image-rotation";
 import {
@@ -116,7 +122,14 @@ type IpcRendererLike = Readonly<{
 }>;
 
 const { clipboard, ipcRenderer, nativeImage, safeStorage } = require("electron") as {
-  clipboard: ClipboardWriter & Readonly<{ clear(): void }>;
+  clipboard: ClipboardWriter &
+    Readonly<{
+      clear(): void;
+      read?(type?: string): unknown;
+      readImage?(): unknown;
+      readBuffer?(type: string): unknown;
+      has?(type: string): boolean;
+    }>;
   ipcRenderer: IpcRendererLike;
   nativeImage: NativeImageApi;
   safeStorage?: SafeStorageLike;
@@ -311,6 +324,26 @@ const syncRepository = new ZToolsSyncEntityRepository(
   dataPaths.legacyBlobRoots,
   dataMigration,
 );
+const layeredImageDetectionDeps: LayeredImageDetectionDependencies = {
+  clipboard,
+  fs: {
+    readFile: (filePath) => readFile(filePath),
+    writeFile: (filePath, data) => writeFile(filePath, data),
+    access: (filePath, mode) => access(filePath, mode),
+  },
+  imageDir: dataPaths.blobRoot,
+  uuid: () => randomUUID(),
+  cryptoHash: (data: Buffer) => createHash("md5").update(data).digest("hex"),
+  now: () => Date.now(),
+  isFile: (filePath) => {
+    try {
+      return statSync(filePath).isFile();
+    } catch {
+      return false;
+    }
+  },
+};
+const layeredImageDetectionHook = createLayeredImageDetectionHook(layeredImageDetectionDeps);
 const shelfWindows = new ShelfWindowManager(ztools);
 const panelWindows = new PanelWindowManager(ztools);
 const thumbnailService = new ThumbnailService(store, nativeImage);
@@ -601,7 +634,8 @@ function scheduleHistoryMirror(): Promise<MirrorHostHistoryResult> {
           ),
         prepareRecord: async (_rawItem, record) => {
           try {
-            return await localizeMirroredImage(record, {
+            const detectedRecord = await layeredImageDetectionHook(_rawItem, record);
+            return await localizeMirroredImage(detectedRecord, {
               readFile,
               storeLocalBlob: (bytes, mediaType) =>
                 syncRepository.storeLocalBlob(bytes, mediaType),
