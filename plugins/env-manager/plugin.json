@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "env-manager",
+  "title": "环境变量管理器",
+  "description": "Windows 环境变量管理 - 图形化管理系统和用户环境变量",
+  "author": "caolib",
+  "version": "0.0.8",
+  "main": "web/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "env-manager",
+      "explain": "Windows 环境变量管理 - 图形化管理系统和用户环境变量",
+      "icon": "logo.png",
+      "cmds": [
+        "环境变量",
+        "环境变量管理",
+        "env",
+        "environment",
+        {
+          "type": "over",
+          "label": "环境变量管理"
+        }
+      ]
+    }
+  ],
+  "platform": [
+    "win32"
+  ]
+}
