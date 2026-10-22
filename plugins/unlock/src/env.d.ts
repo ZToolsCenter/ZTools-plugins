@@ -78,12 +78,15 @@ export interface ProcessInfo {
   detectSource?: 'witr' | 'resourcemanager' | string
   confidence?: 'high' | 'medium' | 'low'
   source?: string
-  reason?: string
   cmdLine?: string
   user?: string
   startedAt?: string
   /** Windows 服务短名（重启管理器可提供） */
   service?: string
+  /** 检测到的进程工作目录（文件夹扫描时提供） */
+  workingDir?: string
+  /** 命中证据：working-directory / child-file 等 */
+  evidence?: string[]
   score?: number
   why?: WhyInfo
 }
@@ -93,7 +96,7 @@ export type MessageLevel = 'success' | 'info' | 'warning' | 'error'
 
 export interface LockScanResult {
   locked: boolean | null
-  /** 文件当前能否被独占打开；null = 无法确认（例如文件夹） */
+  /** 目标当前是否真的无法删除；null = 无法确认（例如权限不足） */
   blocked?: boolean | null
   /** 占用者数量 */
   holders?: number
@@ -103,6 +106,19 @@ export interface LockScanResult {
   note?: string
   noteLevel?: MessageLevel
   engine: string
+  /** 目标是文件夹 */
+  isDirectory?: boolean
+  /** 检测能力不完整（权限不足 / 内容被截断 / 某个引擎失败） */
+  degraded?: boolean
+  /** 各检测手段的实际覆盖情况 */
+  coverage?: {
+    cwd: boolean
+    resourceManager: boolean
+    deleteProbe: boolean
+    filesRegistered: number
+    truncated: boolean
+    denied: number
+  }
 }
 
 export interface OperationResult {
@@ -125,6 +141,10 @@ export interface ReleaseVerifyResult {
   state: string
   attempts: number
   elapsedMs: number
+  /** 文件用独占打开验证，文件夹用删除权限探测验证 */
+  verification?: 'exclusive-open' | 'delete-probe'
+  /** 文件夹验证时：是否仍无法删除 */
+  blocked?: boolean | null
 }
 
 export interface PortInfo {
@@ -143,6 +163,10 @@ export interface ShredderResult extends OperationResult {
   locked?: boolean
   /** 失败原因是权限不足（此时不必去查找占用进程） */
   permissionDenied?: boolean
+  /** 部分文件已处理，但仍有内容未删除 */
+  partial?: boolean
+  failedFiles?: number
+  remaining?: boolean
 }
 
 export interface Services {

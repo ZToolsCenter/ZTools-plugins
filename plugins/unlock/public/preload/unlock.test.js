@@ -120,17 +120,75 @@ describe('findLockingProcesses', () => {
     assert.match(result.note, /未检测到占用/)
   })
 
-  it('explains directories instead of leaving the state unknown', windowsOnly, async () => {
+  it('scans directories and reports an empty folder as free', windowsOnly, async () => {
     const { findLockingProcesses } = require('./unlock')
     const dir = path.join(TMP, 'a-directory')
     fs.mkdirSync(dir, { recursive: true })
 
     const result = await findLockingProcesses(dir)
     assert.equal(result.state, 'directory')
-    assert.equal(result.blocked, null)
+    assert.equal(result.isDirectory, true)
     assert.equal(result.holders, 0)
-    assert.equal(result.noteLevel, 'warning')
-    assert.match(result.note, /文件夹/)
+    assert.equal(result.processes.length, 0)
+    assert.equal(result.blocked, false)
+    assert.equal(result.locked, false)
+    assert.equal(result.noteLevel, 'success')
+    assert.match(result.note, /文件夹当前没有被占用/)
+  })
+
+  it('finds a process holding a file inside a folder and verifies release', windowsOnly, async () => {
+    const { findLockingProcesses, verifyRelease } = require('./unlock')
+    const dir = path.join(TMP, 'locked-folder')
+    fs.mkdirSync(dir, { recursive: true })
+    const file = path.join(dir, 'inside.txt')
+    fs.writeFileSync(file, 'hello')
+
+    const holder = await startExclusiveHolder(file)
+    try {
+      const scan = await findLockingProcesses(dir)
+      assert.equal(scan.isDirectory, true)
+      assert.equal(scan.blocked, true)
+      assert.equal(scan.locked, true)
+      assert.ok(
+        scan.processes.some(p => p.pid === holder.pid),
+        '期望文件夹扫描包含 PID ' + holder.pid + '，实际: ' + JSON.stringify(scan.processes.map(p => p.pid))
+      )
+
+      const verify = await verifyRelease(dir, { attempts: 2, intervalMs: 100 })
+      assert.equal(verify.released, false)
+      assert.equal(verify.verification, 'delete-probe')
+    } finally {
+      holder.dispose()
+    }
+
+    await sleep(800)
+    const after = await findLockingProcesses(dir)
+    assert.equal(after.blocked, false)
+    assert.equal(after.locked, false)
+    assert.equal(after.noteLevel, 'success')
+  })
+
+  it('finds a process whose working directory is the folder', windowsOnly, async () => {
+    const { findLockingProcesses } = require('./unlock')
+    const dir = path.join(TMP, 'cwd-folder')
+    fs.mkdirSync(dir, { recursive: true })
+
+    const proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Start-Sleep -Seconds 45'], {
+      cwd: dir,
+      windowsHide: true,
+      stdio: 'ignore'
+    })
+    try {
+      await sleep(1200)
+      const scan = await findLockingProcesses(dir)
+      assert.equal(scan.isDirectory, true)
+      const hit = scan.processes.find(p => p.pid === proc.pid)
+      assert.ok(hit, '期望按工作目录找到 PID ' + proc.pid + '，实际: ' + JSON.stringify(scan.processes.map(p => p.pid)))
+      assert.match(String(hit.detectSource), /cwd/)
+      assert.deepEqual(hit.evidence, ['working-directory'])
+    } finally {
+      try { proc.kill() } catch (e) {}
+    }
   })
 
   it('finds the real holder of a locked file via witr or Restart Manager', windowsOnly, async () => {

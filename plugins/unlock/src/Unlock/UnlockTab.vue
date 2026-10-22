@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import type { ProcessInfo, WhyInfo, MessageLevel } from '../env'
+import { sourceLabel } from './labels'
 
 const props = defineProps<{
   addLog: (msg: string) => void
@@ -15,40 +16,47 @@ const status = ref<{ text: string; level: MessageLevel } | null>(null)
 const locked = ref<boolean | null>(null)
 const blocked = ref<boolean | null>(null)
 const pathState = ref('')
-const engine = ref('')
+const isDirectory = ref(false)
+const degraded = ref(false)
 const loading = ref('')
 const isDragOver = ref(false)
 let dragCounter = 0
 
-const whyEngineLabel = computed(() => {
-  try {
-    return window.services.getWhyEngine() === 'witr' ? 'witr 溯源' : '原生溯源'
-  } catch (e) {
-    return '溯源'
-  }
-})
-
-const engineLabel = computed(() => {
-  if (!engine.value) return ''
-  return engine.value
-    .split('+')
-    .map(function (e) { return e === 'resourcemanager' ? '重启管理器' : e })
-    .join(' + ')
-})
-
 const stateLabel = computed(() => {
-  if (pathState.value === 'directory') return '文件夹'
   if (pathState.value === 'missing') return '路径已不存在'
   if (processes.value.length > 0 || pathState.value === 'locked') {
-    return blocked.value === false ? '句柄打开，但可独占访问' : '正在被占用'
+    return blocked.value === false ? '已打开，但仍可删除' : (isDirectory.value ? '文件夹被占用' : '正在被占用')
   }
-  if (pathState.value === 'free') return '未被占用'
+  if (pathState.value === 'directory') {
+    if (blocked.value === true) return '文件夹被占用'
+    if (blocked.value === false) return '文件夹未被占用'
+    return '状态未知'
+  }
+  if (pathState.value === 'free') return isDirectory.value ? '文件夹未被占用' : '未被占用'
   return '状态未知'
+})
+
+const scanHint = computed(() => {
+  if (!degraded.value) return ''
+  return isDirectory.value
+    ? '检测没有覆盖全部内容（权限不足或文件夹过大），可能还有占用者没有列出。以管理员身份运行 ZTools 可提高检出率。'
+    : '检测没有全部完成，可能还有占用者没有列出。'
+})
+
+const processRows = computed(function () {
+  return processes.value.map(function (proc) {
+    return Object.assign({}, proc, { sourceText: sourceLabel(proc.why) })
+  })
 })
 
 const stateTone = computed(() => {
   if (pathState.value === 'free') return 'ok'
-  if (pathState.value === 'directory' || pathState.value === 'unknown' || pathState.value === 'missing') return 'warn'
+  if (pathState.value === 'directory') {
+    if (blocked.value === false) return 'ok'
+    if (blocked.value === true) return 'bad'
+    return 'warn'
+  }
+  if (pathState.value === 'unknown' || pathState.value === 'missing') return 'warn'
   return blocked.value === false ? 'warn' : 'bad'
 })
 
@@ -58,32 +66,6 @@ function showStatus(text: string, level: MessageLevel) {
 
 function clearStatus() {
   status.value = null
-}
-
-function sourceLabel(why?: WhyInfo): string {
-  if (!why) return ''
-  if (why.sourceLine) return why.sourceLine
-  if (!why.source) return ''
-  const t = why.source.type || 'unknown'
-  const n = why.source.name || ''
-  const map: Record<string, string> = {
-    windows_service: 'Windows 服务',
-    shell: '交互式 Shell',
-    init: '系统进程',
-    cron: '计划任务',
-    container: '容器',
-    supervisor: '守护进程',
-    ssh: 'SSH 会话',
-    unknown: '未知来源'
-  }
-  const label = map[t] || t
-  return n ? n + '（' + label + '）' : label
-}
-
-function detectLabel(source?: string): string {
-  if (source === 'witr') return 'witr 溯源'
-  if (source === 'resourcemanager') return '重启管理器确认'
-  return source || ''
 }
 
 function gitLabel(why?: WhyInfo): string {
@@ -153,27 +135,30 @@ async function handleFind(options?: { keepStatus?: boolean }) {
   if (!options || !options.keepStatus) clearStatus()
   loading.value = '正在检查占用情况…'
   processes.value = []
-  engine.value = ''
   locked.value = null
   blocked.value = null
   pathState.value = ''
+  isDirectory.value = false
+  degraded.value = false
   props.addLog('查找: ' + filePath.value.trim())
   try {
     var result = await window.services.findLockingProcesses(filePath.value.trim())
     props.flushDebugLog()
     processes.value = result.processes
-    engine.value = result.engine
     locked.value = result.locked
     blocked.value = result.blocked === undefined ? null : result.blocked
     pathState.value = result.state || ''
+    isDirectory.value = !!result.isDirectory
+    degraded.value = !!result.degraded
     props.addLog('结果: ' + result.processes.length + ' 个占用进程, engine=' + result.engine + ', state=' + result.state)
     result.processes.forEach(function (p) {
       if (p.why && p.why.ancestryText) props.addLog('  启动链 ' + p.name + ': ' + p.why.ancestryText)
     })
 
     if (!options || !options.keepStatus) {
+      const kind = result.isDirectory ? '文件夹' : '文件'
       if (result.processes.length > 0) {
-        showStatus('发现 ' + result.processes.length + ' 个占用进程。' + (result.note || ''), result.noteLevel || 'warning')
+        showStatus('发现 ' + result.processes.length + ' 个进程正在使用该' + kind + '。' + (result.note || ''), result.noteLevel || 'warning')
       } else {
         showStatus(result.note || '未检测到占用。', result.noteLevel || 'info')
       }
@@ -242,29 +227,22 @@ async function handleKillAll() {
       <button class="btn" @click="handleBrowse">浏览</button>
     </div>
 
-    <div class="hint-row">
-      <span class="engine-tag">{{ whyEngineLabel }}</span>
-      <span class="hint-text">先看清是谁在占用、它为什么在运行，再决定是否结束进程</span>
-    </div>
-
     <div v-if="isDragOver" class="drop-hint">松开鼠标即可检查</div>
     <div v-if="loading" class="loading">{{ loading }}</div>
 
     <div v-if="status && !loading" :class="['status', status.level]">{{ status.text }}</div>
+    <div v-if="scanHint && !loading" class="scan-hint">{{ scanHint }}</div>
 
     <div v-if="processes.length > 0" class="results">
       <div class="kill-all-bar">
-        <span class="count">
-          {{ processes.length }} 个占用进程
-          <span v-if="engineLabel" class="engine">· {{ engineLabel }}</span>
-        </span>
+        <span class="count">{{ processes.length }} 个进程正在使用该{{ isDirectory ? '文件夹' : '文件' }}</span>
         <button
           :disabled="!!loading"
           class="kill-all-btn"
           @click="handleKillAll"
         >全部结束</button>
       </div>
-      <div v-for="(proc, idx) in processes" :key="proc.pid + '-' + idx" class="card">
+      <div v-for="(proc, idx) in processRows" :key="proc.pid + '-' + idx" class="card">
         <div class="info">
           <span class="name">{{ proc.name }}</span>
           <span class="pid">PID {{ proc.pid }}</span>
@@ -275,20 +253,17 @@ async function handleKillAll() {
           <div class="why-label">它是怎么跑起来的</div>
           <div class="why-chain" :title="proc.why.ancestryText">{{ proc.why.ancestryText }}</div>
           <div class="why-meta">
-            <span v-if="sourceLabel(proc.why)" class="why-source">来源：{{ sourceLabel(proc.why) }}</span>
-            <span v-if="proc.detectSource" class="why-detect">{{ detectLabel(proc.detectSource) }}</span>
+            <span v-if="proc.sourceText" class="why-source">来源：{{ proc.sourceText }}</span>
           </div>
           <div v-if="workingDirLabel(proc.why)" class="why-cwd">工作目录：{{ workingDirLabel(proc.why) }}</div>
           <div v-if="gitLabel(proc.why)" class="why-cwd">代码仓库：{{ gitLabel(proc.why) }}</div>
           <div v-if="userLabel(proc.why)" class="why-cwd">运行用户：{{ userLabel(proc.why) }}</div>
           <div v-if="startedLabel(proc.why)" class="why-cwd">启动时间：{{ startedLabel(proc.why) }}</div>
-          <div v-for="(w, wi) in (proc.why.warnings || [])" :key="wi" class="why-warn">提示：{{ w }}</div>
         </div>
 
         <div v-if="proc.service" class="service-hint">
-          该进程承载 Windows 服务「{{ proc.service }}」。直接结束可能会让服务自动重启，建议先停止该服务再操作。
+          该进程属于 Windows 服务「{{ proc.service }}」。直接结束可能触发服务自动重启，建议先停止该服务。
         </div>
-        <div v-if="proc.reason" class="reason">{{ proc.reason }}</div>
         <div class="card-actions">
           <button
             :disabled="!!loading"
@@ -303,7 +278,7 @@ async function handleKillAll() {
       <span class="state-chip" :class="stateTone">{{ stateLabel }}</span>
     </div>
     <div v-else-if="!loading && !status && filePath.trim()" class="idle-hint">
-      点击「浏览」选择文件，或直接按回车开始检查。
+      按回车开始检查。
     </div>
   </div>
 </template>
@@ -317,9 +292,6 @@ async function handleKillAll() {
 .input::placeholder { color: var(--text-secondary, #888); }
 .btn { padding: 4px 12px; border: 1px solid var(--border-color, #555); border-radius: 4px; background: transparent; cursor: pointer; font-size: 13px; color: var(--text-color, #e0e0e0); }
 .btn:hover { background: var(--hover-color, #333); }
-.hint-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.engine-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(66, 184, 131, 0.15); color: var(--primary-color, #42b883); font-weight: 600; }
-.hint-text { font-size: 12px; color: var(--text-secondary, #888); }
 .loading { margin-top: 12px; text-align: center; color: var(--text-secondary, #aaa); }
 .idle-hint { margin-top: 12px; text-align: center; font-size: 13px; color: var(--text-secondary, #888); }
 .status { margin-top: 12px; padding: 10px 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; border-left: 3px solid transparent; }
@@ -327,6 +299,7 @@ async function handleKillAll() {
 .status.info { background: rgba(66, 184, 131, 0.10); color: #9fd8bd; border-left-color: #42b883; }
 .status.warning { background: rgba(250, 173, 20, 0.12); color: #ffd666; border-left-color: #faad14; }
 .status.error { background: rgba(255, 77, 79, 0.12); color: #ff9c9e; border-left-color: #ff4d4f; }
+.scan-hint { margin-top: 8px; font-size: 12px; line-height: 1.6; color: var(--text-secondary, #999); }
 .state-chip { display: inline-block; margin-top: 12px; padding: 4px 10px; border-radius: 10px; font-size: 12px; }
 .state-chip.ok { background: rgba(82, 196, 26, 0.15); color: #95de64; }
 .state-chip.warn { background: rgba(250, 173, 20, 0.15); color: #ffd666; }
@@ -342,9 +315,7 @@ async function handleKillAll() {
 .why-chain { font-size: 12px; line-height: 1.5; color: var(--text-color, #e0e0e0); word-break: break-all; font-family: ui-monospace, Consolas, monospace; }
 .why-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .why-source { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: rgba(66, 184, 131, 0.2); color: var(--primary-color, #42b883); }
-.why-detect { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); color: var(--text-secondary, #999); }
 .why-cwd { margin-top: 4px; font-size: 11px; color: var(--text-secondary, #888); word-break: break-all; }
-.why-warn { margin-top: 4px; font-size: 11px; color: #faad14; }
 .service-hint { margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: rgba(250, 173, 20, 0.10); color: #ffd666; font-size: 12px; line-height: 1.6; }
 .card-actions { margin-top: 8px; display: flex; justify-content: flex-end; }
 .kill-btn { padding: 6px 14px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; background: #fff1f0; color: #cf1322; }
@@ -352,9 +323,7 @@ async function handleKillAll() {
 .kill-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .kill-all-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; margin-bottom: 8px; }
 .kill-all-bar .count { font-size: 13px; color: #aaa; }
-.kill-all-bar .engine { color: #777; }
 .kill-all-btn { padding: 6px 16px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; background: #ff4d4f; color: white; font-weight: 600; }
 .kill-all-btn:hover:not(:disabled) { background: #ff7875; }
 .kill-all-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.reason { margin-top: 4px; font-size: 12px; color: var(--text-secondary, #999); }
 </style>
