@@ -5,7 +5,7 @@ button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 .v2ex-browser { max-width: 1060px; min-height: 100vh; margin: auto; padding: 24px; }
-.toolbar { display: flex; align-items: center; gap: 12px; min-height: 48px; }
+.toolbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 12px 0; border-bottom: 1px solid #dfe4ec; background: #f4f5f7; }
 .brand { display: flex; align-items: center; gap: 8px; min-width: 116px; }
 .brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; color: #fff; background: #1f2937; font-size: 13px; font-weight: 800; }
 .segmented { display: flex; padding: 3px; border: 1px solid #d9dee7; border-radius: 6px; background: #fff; }
@@ -48,4 +48,4 @@ h1 { margin: 0; color: #172033; font-size: 24px; line-height: 1.3; }
 .reply-meta { margin-bottom: 8px; }
 .reply-meta strong { color: #344054; }
 @media (max-width: 640px) { .v2ex-browser { padding: 16px; } .toolbar { flex-wrap: wrap; } .brand { min-width: auto; } .search { order: 2; flex-basis: 100%; max-width: none; } .feed-heading { margin-top: 26px; } .topic-row { padding: 12px; } .back-button span { display: none; } }
-@media (prefers-color-scheme: dark) { :root { color: #e2e8f0; background: #141b28; } .brand-mark { color: #192131; background: #e6edf7; } .segmented, .search, .icon-button, .topic-list, .topic-row, .notice, .topic-detail, .replies-section { border-color: #344155; background: #1d2635; } .topic-row:hover { background: #222e40; } .segmented button { color: #aab6c7; } .icon-button, .back-button, .notice button { color: #d7e0ec; background: #1d2635; } h1, .topic-title, .replies-section h2, .reply-meta strong { color: #f1f5f9; } .topic-content, .reply p { color: #c6d0df; } .topic-row, .reply { border-color: #2e3a4d; } .replies { color: #c3cfdf; background: #2e3a4d; } .notice.error { border-color: #7f1d1d; background: #351c24; } }
+@media (prefers-color-scheme: dark) { :root { color: #e2e8f0; background: #141b28; } .brand-mark { color: #192131; background: #e6edf7; } .segmented, .search, .icon-button, .topic-list, .topic-row, .notice, .topic-detail, .replies-section { border-color: #344155; background: #1d2635; } .toolbar { border-color: #344155; background: #141b28; } .topic-row:hover { background: #222e40; } .segmented button { color: #aab6c7; } .icon-button, .back-button, .notice button { color: #d7e0ec; background: #1d2635; } h1, .topic-title, .replies-section h2, .reply-meta strong { color: #f1f5f9; } .topic-content, .reply p { color: #c6d0df; } .topic-row, .reply { border-color: #2e3a4d; } .replies { color: #c3cfdf; background: #2e3a4d; } .notice.error { border-color: #7f1d1d; background: #351c24; } }
