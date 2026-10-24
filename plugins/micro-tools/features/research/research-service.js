@@ -1,22 +1,40 @@
-// Keys stay in process memory. Only non-secret settings are persisted.
+// Settings use the host database; credentials use a separate device-local store.
 const http = require('http')
 const https = require('https')
 const fs = require('fs')
 const path = require('path')
-module.exports = function createResearchService(getHost) {
+const crypto = require('crypto')
+module.exports = function createResearchService(getHost, options = {}) {
   let settings = { mode: 'host', protocol: 'openai', baseUrl: '', model: '', hostModel: '', provider: 'custom' }
-  let key = '', active = null, initialized = false
+  let key = '', active = null, initialized = false, persisted = false, keys = {}
+  const credentials = options.credentials || require('../../shared/local-credentials')()
+  let health = null, healthPending = null
   const STORE = 'research-settings-v1'
   function host() { return getHost() || {} }
   function init() {
     if (initialized) return
-    initialized = true
     try {
       const saved = host().dbStorage && host().dbStorage.getItem(STORE)
-      if (saved && typeof saved === 'object') Object.keys(settings).forEach(k => { if (typeof saved[k] === 'string') settings[k] = saved[k] })
-    } catch (_) {}
+      if (saved && typeof saved === 'object') { Object.keys(settings).forEach(k => { if (typeof saved[k] === 'string') settings[k] = saved[k] }); persisted = true }
+    } catch (_) { throw new Error('无法读取模型配置，请检查本机存储后重试。') }
+    const savedKeys = credentials.read('research')
+    for (const [id, value] of Object.entries(savedKeys)) if (/^[a-f0-9]{64}$/.test(id) && validKey(value)) keys[id] = value
+    key = keys[scope(settings)] || ''
+    initialized = true
   }
-  function getSettings() { init(); return Object.assign({}, settings, { hasKey: !!key, hostAvailable: typeof host().ai === 'function' }) }
+  function validKey(value) { return typeof value === 'string' && value.length > 0 && value.length <= 2048 && !/[\r\n\0]/.test(value) }
+  function scope(config) {
+    let base = config.baseUrl
+    try {
+      const url = new URL(base)
+      url.pathname = url.pathname.replace(/\/+$/, '')
+      if (config.protocol === 'openai') url.pathname = url.pathname.replace(/\/chat\/completions$/, '')
+      if (config.protocol === 'anthropic') url.pathname = url.pathname.replace(/\/messages$/, '')
+      base = url.href.replace(/\/+$/, '')
+    } catch (_) {}
+    return crypto.createHash('sha256').update(JSON.stringify([config.provider, config.protocol, base])).digest('hex')
+  }
+  function getSettings() { init(); return Object.assign({}, settings, { hasKey: !!key, persisted, credentialStorage: credentials.mode(), hostAvailable: typeof host().ai === 'function' }) }
   function endpoint(config) {
     let url
     try { url = new URL(config.baseUrl) } catch (_) { throw new Error('请输入完整的 API 地址。') }
@@ -34,16 +52,34 @@ module.exports = function createResearchService(getHost) {
   function saveSettings(input) {
     init()
     if (active) throw new Error('请先停止当前分析，再修改模型配置。')
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('模型配置格式无效。')
     const next = Object.assign({}, settings)
     Object.keys(settings).forEach(k => { if (typeof input[k] === 'string') next[k] = input[k].trim() })
     if (!['host', 'direct'].includes(next.mode)) throw new Error('请选择模型接入方式。')
     if (next.mode === 'direct') { if (!next.model || next.model.length > 200) throw new Error('请填写平台实际提供的模型 ID。'); endpoint(next) }
-    if (input.clearKey || next.baseUrl !== settings.baseUrl || next.protocol !== settings.protocol) key = ''
-    if (typeof input.apiKey === 'string' && input.apiKey.trim()) key = input.apiKey.trim()
-    settings = next
-    let persisted = false
-    try { if (host().dbStorage) { host().dbStorage.setItem(STORE, next); persisted = true } } catch (_) {}
-    return Object.assign(getSettings(), { persisted })
+    const id = scope(next), nextKeys = Object.assign({}, keys)
+    if (input.clearKey) delete nextKeys[id]
+    if (input.apiKey !== undefined && (typeof input.apiKey !== 'string' || input.apiKey.length > 2048 || /[\r\n\0]/.test(input.apiKey))) throw new Error('API key 格式无效。')
+    if (typeof input.apiKey === 'string' && input.apiKey.trim()) {
+      // A key may only be attached to a validated provider/protocol/endpoint combination.
+      endpoint(next)
+      nextKeys[id] = input.apiKey.trim()
+    }
+    const changed = JSON.stringify(nextKeys) !== JSON.stringify(keys)
+    if (changed) credentials.write('research', nextKeys)
+    let saved = false
+    try {
+      if (typeof host().dbStorage?.setItem === 'function') {
+        const result = host().dbStorage.setItem(STORE, next)
+        if (result === false || result?.error) throw Error('write failed')
+        saved = true
+      }
+    } catch (_) {
+      if (changed) { try { credentials.write('research', keys) } catch (_) { throw new Error('模型配置保存失败，凭据回退也失败；请重新打开设置核对已保存状态。') } }
+      throw new Error('模型配置保存失败，请检查本机存储后重试。')
+    }
+    keys = nextKeys; key = keys[id] || ''; settings = next; persisted = saved; health = null
+    return getSettings()
   }
   async function models() {
     try {
@@ -53,7 +89,8 @@ module.exports = function createResearchService(getHost) {
   }
   function safeError(err) { let message = String(err && err.message || err || '请求失败'); if (key) message = message.split(key).join('[已隐藏]'); return new Error(message.slice(0, 400)) }
   function cancel() { if (active) active.cancel() }
-  async function call(messages) {
+  async function call(messages, requestOptions = {}) {
+    const timeout = requestOptions.probe ? (options.probeTimeoutMs || 20000) : 180000
     init()
     if (active) throw new Error('已有模型请求正在进行。')
     if (!Array.isArray(messages) || !messages.length) throw new Error('请求内容为空。')
@@ -66,7 +103,7 @@ module.exports = function createResearchService(getHost) {
       try {
         const option = { messages }; if (settings.hostModel) option.model = settings.hostModel
         pending = h.ai(option)
-        const response = await Promise.race([Promise.resolve(pending), new Promise((_, reject) => { control.reject = reject; timer = setTimeout(() => { if (pending && typeof pending.abort === 'function') pending.abort(); reject(new Error('模型请求超时，请重试。')) }, 180000) })])
+        const response = await Promise.race([Promise.resolve(pending), new Promise((_, reject) => { control.reject = reject; timer = setTimeout(() => { if (pending && typeof pending.abort === 'function') pending.abort(); reject(new Error('模型请求超时，请重试。')) }, timeout) })])
         if (cancelled) throw new Error('已停止分析。')
         const content = response && (response.content || response.message && response.message.content)
         if (typeof content !== 'string' || !content.trim()) throw new Error('模型没有返回文本内容。')
@@ -75,7 +112,7 @@ module.exports = function createResearchService(getHost) {
       finally { clearTimeout(timer); active = null }
     }
     const config = Object.assign({}, settings), url = endpoint(config)
-    if (!key && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) throw new Error('请填写 API key；key 只在本次插件会话中保留。')
+    if (!key && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) throw new Error('请填写并保存此服务地址对应的 API key。')
     let payload, headers = { 'Content-Type': 'application/json' }
     const system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n')
     if (config.protocol === 'openai') {
@@ -83,9 +120,9 @@ module.exports = function createResearchService(getHost) {
       // Reasoning models differ on temperature/token parameters. Use provider defaults.
       if (key) headers.Authorization = 'Bearer ' + key
     } else if (config.protocol === 'anthropic') {
-      payload = { model: config.model, system, messages: messages.filter(m => m.role !== 'system'), max_tokens: 8192 }; headers['x-api-key'] = key; headers['anthropic-version'] = '2023-06-01'
+      payload = { model: config.model, system, messages: messages.filter(m => m.role !== 'system'), max_tokens: requestOptions.probe ? 64 : 8192 }; headers['x-api-key'] = key; headers['anthropic-version'] = '2023-06-01'
     } else {
-      payload = { systemInstruction: { parts: [{ text: system }] }, contents: messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })), generationConfig: { responseMimeType: 'application/json' } }; headers['x-goog-api-key'] = key
+      payload = { systemInstruction: { parts: [{ text: system }] }, contents: messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })), generationConfig: { responseMimeType: 'application/json', ...(requestOptions.probe ? { maxOutputTokens: 64 } : {}) } }; headers['x-goog-api-key'] = key
     }
     const body = JSON.stringify(payload); headers['Content-Length'] = Buffer.byteLength(body)
     return new Promise((resolve, reject) => {
@@ -108,12 +145,34 @@ module.exports = function createResearchService(getHost) {
         })
       })
       active = { cancel() { req.destroy(new Error('已停止分析。')) } }
-      timer = setTimeout(() => req.destroy(new Error('模型请求超时，请重试。')), 180000)
+      timer = setTimeout(() => req.destroy(new Error('模型请求超时，请重试。')), timeout)
       req.on('error', err => finish(err)); req.end(body)
     })
   }
-  return { getSettings, saveSettings, models, call, cancel,
+  async function checkAvailability({ force = false } = {}) {
+    if (healthPending) return healthPending
+    if (active) return { ok: false, state: 'busy', message: '模型正在处理任务，请完成或停止后重试检测。' }
+    try {
+      init()
+      if (settings.mode === 'host' && typeof host().ai !== 'function') return { ok: false, state: 'unconfigured', message: '未连接 ZTools AI。请配置模型，或使用自己的 AI Agent。' }
+      if (settings.mode === 'direct') {
+        if (!settings.model) throw Error('请先填写并保存模型 ID。')
+        const url = endpoint(settings)
+        if (!key && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) throw Error('当前连接尚未保存 API key，请先配置模型。')
+      }
+    } catch (err) { return { ok: false, state: 'unconfigured', message: safeError(err).message } }
+    if (!force && health && Date.now() - health.checkedAt < (health.ok ? 300000 : 60000)) return { ...health }
+    healthPending = (async () => {
+      try {
+        await call([{ role: 'user', content: 'Connection test. Reply only with {"ok":true}.' }], { probe: true })
+        health = { ok: true, state: 'ready', message: '连接正常，可以使用当前模型。', checkedAt: Date.now() }
+      } catch (err) { health = { ok: false, state: 'unavailable', message: '连接检测未通过：' + safeError(err).message, checkedAt: Date.now() } }
+      return { ...health }
+    })()
+    try { return await healthPending } finally { healthPending = null }
+  }
+  return { getSettings, saveSettings, models, call, cancel, checkAvailability,
     // No caller-supplied paths: only public runtime assets can enter a report.
-    reportAssets() { const read = name => fs.readFileSync(path.join(__dirname, name), 'utf8'); return { css: read('index.css') + '\n' + read('research.css'), core: read('research-core.js'), metrics: read('research-metrics.js') } },
+    reportAssets() { const read = name => fs.readFileSync(path.join(__dirname, '../..', name), 'utf8'); return { css: read('index.css') + '\n' + read('features/research/research.css'), core: read('features/research/research-core.js'), metrics: read('features/research/research-metrics.js') } },
     openHostSettings() { const h = host(); if (typeof h.redirectAiModelsSetting === 'function') h.redirectAiModelsSetting(); else throw new Error('请在 ZTools 主程序的设置中打开 AI 模型管理。') } }
 }

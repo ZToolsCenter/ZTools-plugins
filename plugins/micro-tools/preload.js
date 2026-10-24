@@ -10,7 +10,14 @@
 
 const fs = require('fs')
 const path = require('path')
-window.researchApi = require('./research-service.js')(() => window.ztools)
+// Host dbStorage may sync PLUGIN/ records. Keep credentials in a separate local file.
+const localCredentials = require('./shared/local-credentials')({ directory() {
+  if (!window.ztools || typeof window.ztools.getPath !== 'function') return null
+  const userData = window.ztools.getPath('userData')
+  if (typeof userData !== 'string' || !path.isAbsolute(userData)) throw new Error('无法取得本机凭据目录，请更新 ZTools 后重试。')
+  return path.join(userData, 'micro-tools-local')
+} })
+window.researchApi = require('./features/research/research-service.js')(() => window.ztools, { credentials: localCredentials })
 const zlib = require('zlib')
 
 const DATA_FILE = 'journals.json.gz'
@@ -306,4 +313,20 @@ window.journalApi = {
     ensureLoaded()
     return DATA.slice().sort(function (a, b) { return b.jifNum - a.jifNum }).slice(0, n)
   }
+}
+
+// Agent workflows share this plugin process with the UI; they never call researchApi.call.
+const journalTools = require('./features/journals/journal-tools.js')(window.journalApi, __dirname)
+window.researchAgent = require('./features/research/research-tools.js')(window.journalApi, journalTools, __dirname)
+window.microToolsVersion = require('./plugin.json').version
+const preparedEnglishAudio = require('./features/english/english-prepared-audio')({directory(){const dir=window.ztools?.getPath?.('userData');return dir?require('path').join(dir,'micro-tools-local','english-audio'):null}})
+window.englishApi = require('./features/english/english-service.js')({
+  getItem(key) { if (!window.ztools?.dbStorage) throw new Error('请在 ZTools 中使用持久题库'); return window.ztools.dbStorage.getItem(key) },
+  setItem(key,value) { if (!window.ztools?.dbStorage) throw new Error('请在 ZTools 中保存题库'); window.ztools.dbStorage.setItem(key,value) }
+}, { credentials: localCredentials, audio: preparedEnglishAudio, activityDirectory(){const dir=window.ztools?.getPath?.('userData');return dir?path.join(dir,'micro-tools-local'):null} })
+window.englishApi.speech = require('./features/english/english-speech.js')
+// Old ZTools versions and browser previews can still use the UI without MCP.
+if (window.ztools && typeof window.ztools.registerTool === 'function') {
+  const tools = { ...journalTools, ...window.researchAgent.tools, ...window.englishApi.tools }
+  for (const [name, handler] of Object.entries(tools)) window.ztools.registerTool(name, handler)
 }

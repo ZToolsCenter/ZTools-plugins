@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "courses": [
+    {
+      "id": "research-communication",
+      "title": "科研交流与博后面试",
+      "domain": "communication",
+      "level": "B1–B2",
+      "count": 60,
+      "description": "60 句原创教学表达：1–20 研究介绍，21–40 博后面试，41–60 会议交流。练习说明研究问题、表达个人贡献、回应现场追问；第一人称内容请按真实经历修改。",
+      "url": "v1/courses/research-communication.json",
+      "sha256": "4e6cea208893492b75a207405e641e6bb1af17b519c22508979a8eb5e38b4ca8",
+      "lessonId": "english-a1a25e13a5d094062be61bcb",
+      "audio": {
+        "voice": "andrew",
+        "url": "v1/audio/research-communication-andrew.json",
+        "sha256": "8a18c4de13ca7391c5092f84ee3c2b8abd2c6e5fef423780dccdb886d99a7892",
+        "bytes": 2326846,
+        "count": 60
+      }
+    },
+    {
+      "id": "bioinformatics-reproducibility",
+      "title": "生信分析与可复现研究",
+      "domain": "methods",
+      "level": "B1–B2",
+      "count": 60,
+      "description": "60 句原创教学表达：1–20 生信分析流程，21–40 模型验证，41–60 可复现研究。练习讲清质量控制、数据划分、模型评价及分析记录；方法选择需结合实际研究设计。",
+      "url": "v1/courses/bioinformatics-reproducibility.json",
+      "sha256": "2ef8cecbc3459a269926152b96f6780940bd5438039a1943870c0d991802f401",
+      "lessonId": "english-3587ba2880c28b0e8fb20ca8",
+      "audio": {
+        "voice": "andrew",
+        "url": "v1/audio/bioinformatics-reproducibility-andrew.json",
+        "sha256": "799d0261513d2224c9da2af32959c174f4eb988b03f0a4d6e3cbd6e4d8846d12",
+        "bytes": 2335721,
+        "count": 60
+      }
+    },
+    {
+      "id": "microbiome-environment",
+      "title": "微生物生态与环境研究",
+      "domain": "environment",
+      "level": "B1–B2",
+      "count": 60,
+      "description": "60 句原创教学表达：1–20 微生物生态，21–40 土壤与环境，41–60 统计解释。练习描述群落差异、环境关联及不确定性；表达模板中的研究情境请替换为真实项目。",
+      "url": "v1/courses/microbiome-environment.json",
+      "sha256": "fc191f68dd13a2349329f189f60af613f2fef113b980e95d4653ad6822d7396b",
+      "lessonId": "english-c14efd20a28f5b02eff6f7cb",
+      "audio": {
+        "voice": "andrew",
+        "url": "v1/audio/microbiome-environment-andrew.json",
+        "sha256": "d1feb94a3121a2e85ba7581035426509bcaf54147930fe41165b7ea4412cdc5d",
+        "bytes": 2494408,
+        "count": 60
+      }
+    },
+    {
+      "id": "reading-discussion",
+      "title": "论文精读与学术讨论",
+      "domain": "reading",
+      "level": "B1–B2",
+      "count": 60,
+      "description": "60 句原创教学表达：1–20 论文阅读，21–40 讲图与研究限制，41–60 合作与组会。练习提炼问题、解释结果图、提出建设性问题与商定下一步；并非具体论文的原文摘录。",
+      "url": "v1/courses/reading-discussion.json",
+      "sha256": "026f9fde82af721c92ecf341ed77d75cf8fb65dfc0fca3dd06b32b4bffe6be55",
+      "lessonId": "english-5fec9ca57cdb6be91533a52c",
+      "audio": {
+        "voice": "andrew",
+        "url": "v1/audio/reading-discussion-andrew.json",
+        "sha256": "2959c957bc392698380fd3a8b9228ee9ece3cf8d8bf2bd7553421f755efc892f",
+        "bytes": 2165518,
+        "count": 60
+      }
+    }
+  ],
+  "wordbooks": [
+    {
+      "id": "monash-biomedical-cn",
+      "title": "Monash 生物医学词表 · 中英",
+      "description": "生物医学中英词汇，含原表英美音标。已合并 17 个重复词条。",
+      "count": 3290,
+      "url": "v1/wordbooks/monash-biomedical-cn.json",
+      "sha256": "d57f598b43eeeebba2186a68ddb864f054845fdc721dd02951eada0e92b07d60",
+      "contentHash": "ece9c71b05cfff5117a1ddc2db08146a36db8e0baf9446a71d38cdfd811b105e"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "courses": [
+    {
+      "id": "communication",
+      "title": "示例素材 · 科研交流短句",
+      "domain": "communication",
+      "level": "B1–B2",
+      "count": 4,
+      "description": "4 句原创表达，练习提出研究问题、解释贡献与回答追问。请按真实项目替换内容。",
+      "url": "communication.json",
+      "sha256": "5d4b44a54026f9bd2feb76d20bd0f5661af3e65079b8f2064dc99e28fc7b08d3"
+    },
+    {
+      "id": "bioinformatics",
+      "title": "示例素材 · 生信分析表达",
+      "domain": "methods",
+      "level": "B2",
+      "count": 4,
+      "description": "4 句原创方法表达，围绕质量检查、批次效应、验证与可复现性。",
+      "url": "bioinformatics.json",
+      "sha256": "0f0e05846aa61237155ea703840e28fb96e810d1401ba4ee097bbe8476495dcd"
+    },
+    {
+      "id": "paper-reading",
+      "title": "示例素材 · 论文阅读与讨论",
+      "domain": "reading",
+      "level": "B1–B2",
+      "count": 4,
+      "description": "4 句原创讨论表达，练习读摘要、提出设计问题和区分关联与因果。",
+      "url": "paper-reading.json",
+      "sha256": "6e803af2725f0aa65d303f10b6ac3e2350b010bafa3254ad9a2bd5eeb45a2c11"
+    }
+  ]
+}

@@ -22,9 +22,15 @@ OUT="${1:-../micro-tools-v${VERSION}.zpx}"
 
 FILE_LIST="$(mktemp)"
 trap 'rm -f "$FILE_LIST"' EXIT
-printf '%s\n' plugin.json preload.js index.html index.js index.css research.css \
-  research-core.js research-metrics.js research-report.js research-prompts.js research-service.js research-ui.js \
-  journals.json.gz ccf.json.gz logo.png logo.svg README.md CHANGELOG.md > "$FILE_LIST"
+printf '%s\n' plugin.json preload.js features/journals/journal-tools.js index.html index.js index.css features/research/research.css \
+  features/research/research-core.js features/research/research-metrics.js features/research/research-report.js features/research/research-prompts.js features/research/research-service.js features/research/research-ui.js shared/local-credentials.js shared/ai-connection.js \
+  features/research/research-tools.js features/research/research-agent-report.js \
+  features/english/english-core.js features/english/english-generation.js features/english/english-ui.js features/english/english-extras.js features/english/english-translation.js features/english/english-network.js features/english/english-catalog.js assets/data/english-catalog-default.json features/english/english.css assets/data/english-seed.json assets/data/english-wordbook-biomedical.json features/english/english-service.js features/english/english-activity.js features/english/english-dictionary.js features/english/english-wordbooks.js features/english/english-wordbook-ui.js features/english/english-sheet-worker.js vendor/sheetjs/xlsx.full.min.js vendor/sheetjs/LICENSE vendor/sheetjs/README.md \
+  features/english/english-recorder.js features/english/english-sounds.js features/english/english-prepared-audio.js assets/audio/english-starter-audio.json features/english/english-speech.js vendor/ms-edge-tts/english-speech-token.js vendor/ms-edge-tts/english-speech-vendor.cjs features/english/english-audio-loader.js features/english/english-pdf.mjs vendor/pdfjs/english-pdf-vendor.mjs vendor/pdfjs/english-pdf-worker.mjs vendor/ENGLISH-LICENSES.txt \
+  assets/audio/english-voice-samples/andrew.mp3 assets/audio/english-voice-samples/ava.mp3 assets/audio/english-voice-samples/emma.mp3 assets/audio/english-voice-samples/ryan.mp3 assets/audio/english-voice-samples/sonia.mp3 assets/audio/english-voice-samples/manifest.json \
+  assets/data/english-catalog-samples/catalog.json assets/data/english-catalog-samples/communication.json assets/data/english-catalog-samples/bioinformatics.json assets/data/english-catalog-samples/paper-reading.json assets/data/english-catalog-samples/README.md \
+  journals.json.gz ccf.json.gz assets/images/logo.png assets/images/logo.svg README.md CHANGELOG.md docs/images/home.png docs/images/english-materials.png docs/images/english-wordbooks.png docs/images/english-calendar.png > "$FILE_LIST"
+printf '%s\n' vendor/proxy/node_modules/https-proxy-agent/LICENSE vendor/proxy/node_modules/https-proxy-agent/package.json vendor/proxy/node_modules/https-proxy-agent/dist/index.js vendor/proxy/node_modules/https-proxy-agent/dist/parse-proxy-response.js vendor/proxy/node_modules/agent-base/LICENSE vendor/proxy/node_modules/agent-base/package.json vendor/proxy/node_modules/agent-base/dist/index.js vendor/proxy/node_modules/agent-base/dist/helpers.js vendor/proxy/node_modules/debug/LICENSE vendor/proxy/node_modules/debug/package.json vendor/proxy/node_modules/debug/src/index.js vendor/proxy/node_modules/debug/src/node.js vendor/proxy/node_modules/debug/src/common.js vendor/proxy/node_modules/debug/src/browser.js vendor/proxy/node_modules/ms/index.js vendor/proxy/node_modules/ms/license.md vendor/proxy/node_modules/ms/package.json vendor/proxy/README.md >> "$FILE_LIST"
 while IFS= read -r f; do
   [ -f "$f" ] || { echo "❌ 缺少运行文件：$f" >&2; exit 1; }
 done < "$FILE_LIST"
@@ -41,7 +47,9 @@ const list = fs.readFileSync(process.argv[3], "utf8").trim().split("\n").filter(
 const chunks = []; let off = 0; const tree = {};
 for (const f of list) {
   const buf = fs.readFileSync(path.join(SRC, f));
-  tree[f] = { size: buf.length, offset: String(off) };
+  const parts = f.split("/"); let dir = tree;
+  for (const segment of parts.slice(0, -1)) dir = (dir[segment] ||= {files:{}}).files;
+  dir[parts[parts.length-1]] = { size: buf.length, offset: String(off) };
   off += buf.length; chunks.push(buf);
 }
 const json = Buffer.from(JSON.stringify({ files: tree }), "utf8");
@@ -65,7 +73,8 @@ const fs = require("fs"), zlib = require("zlib");
 const b = zlib.brotliDecompressSync(fs.readFileSync(process.argv[1]));
 const jl = b.readUInt32LE(12);
 const h = JSON.parse(b.slice(16, 16 + jl).toString("utf8"));
-for (const [n, m] of Object.entries(h.files)) console.log("  /" + n + "  " + m.size + " B");
+function listFiles(files, prefix="") { for (const [n,m] of Object.entries(files)) { const name=prefix+n; if(m.files) listFiles(m.files,name+"/"); else console.log("  /"+name+"  "+m.size+" B"); } }
+listFiles(h.files);
 ' "$OUT"
 
 echo "✅ 打包完成：${OUT}"

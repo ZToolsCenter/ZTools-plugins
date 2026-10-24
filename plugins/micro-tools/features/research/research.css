@@ -272,3 +272,22 @@ a.secondary,a.text-button { display: inline-block; text-decoration: none; }
   .network-options .compact-control { flex-direction:column; align-items:flex-start; }
   .network-canvas svg { min-height:300px; }.shortlist-nav a { font-size:10px; }
 }
+
+/* The two AI routes share one visual language across submission and English. */
+.ai-routes{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:8px 0}
+.ai-route{min-width:0;padding:20px;border:1px solid #dfe6ed;border-radius:16px;background:#fbfcff;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.ai-route--agent{background:#f4f9f8;border-color:#d2e5e0}
+.ai-route-label{font-size:12px;font-weight:600;color:#64807e;letter-spacing:.03em}
+.ai-route h3,.ai-route p{margin:0}.ai-route h3{font-size:18px}.ai-route>p{line-height:1.6;color:#637388;font-size:14px}
+.ai-route .action-row{margin-top:auto;gap:8px}.ai-route>.en-agent-button{margin-top:auto}
+.ai-route .ai-route-state{font-size:13px;min-height:2em;color:#637388}.ai-route-state[data-state="ready"]{color:#168373}.ai-route-state[data-state="unavailable"],.ai-route-state[data-state="unconfigured"]{color:#a45938}
+.ai-route .ai-route-prerequisite{font-weight:550;color:#46756b}.ai-check-note{margin:0!important;font-size:12px!important}
+.ai-agent-guide{padding:18px;border:1px solid #d2e5e0;border-radius:14px;background:#f5faf9}.ai-agent-guide ol{padding-left:22px;line-height:1.9}
+.ai-route button:disabled{opacity:.48;cursor:not-allowed}
+@media(max-width:780px){.ai-routes{grid-template-columns:1fr}.ai-route{padding:16px}}
+
+/* These three workspaces use the available window; other tools retain their compact layout. */
+.app:has(#view-submission:not([hidden])),.app:has(#view-literature:not([hidden])),.app:has(#view-english:not([hidden])){max-width:none;width:100%;box-sizing:border-box}
+
+/* Keep report navigation from covering content now that the report spans the window. */
+.submission-side-nav{width:auto;right:20px;top:auto;bottom:78px;transform:none}.submission-side-nav>button{display:block;box-shadow:0 5px 20px #4d426522;font-size:11px}.submission-side-nav>div{display:none;position:absolute;bottom:44px;right:0;min-width:154px}.submission-side-nav.is-open>div{display:block}
