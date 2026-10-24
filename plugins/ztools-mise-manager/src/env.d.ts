@@ -7,6 +7,8 @@ import type {
   ConfigFile,
   Project,
   SystemInfo,
+  GlobalTask,
+  NodeMigrationInfo,
 } from "./types";
 
 interface MiseManagerApi {
@@ -40,6 +42,17 @@ interface MiseManagerApi {
   openInstallDir(tool: string, version: string): boolean;
   notify(title: string, body: string): void;
   openExternal(url: string): void;
+
+  // Node.js 全局包迁移
+  getNodeGlobalPackages(nodeVersion: string): Promise<string[]>;
+  installGlobalPackages(
+    nodeVersion: string,
+    packages: string[],
+    cb?: { onLog?: (text: string) => void; onProgress?: (p: number) => void }
+  ): Promise<void>;
+  readNpmrc(): string;
+  getCorepackStatus(nodeVersion: string): Promise<boolean>;
+  enableCorepack(nodeVersion: string): Promise<void>;
 }
 
 declare global {

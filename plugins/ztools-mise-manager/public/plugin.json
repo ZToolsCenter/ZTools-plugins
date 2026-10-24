@@ -2,7 +2,7 @@
   "name": "ztools-mise-manager",
   "title": "Mise 控制台",
   "description": "🚀 可视化管理 mise 开发工具版本。支持已装工具总览、安装/卸载/切换版本、工具市场浏览、项目 .mise.toml 配置管理。",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "main": "index.html",
   "author": "wangtao",
   "logo": "logo.png",
