@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Local main window can use validated Askills commands; no arbitrary filesystem or shell access",
+  "windows": ["main"],
+  "permissions": ["core:default", "workspace-access"]
+}

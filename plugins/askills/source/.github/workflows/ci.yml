@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm check
+      - run: pnpm test:ztools
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: test-results/
+
+  desktop:
+    name: Windows portable build
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - run: pnpm install --frozen-lockfile
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked --lib
+      - name: Build release executable
+        run: pnpm tauri build --ci --no-bundle -- --locked
+      - name: Collect standalone EXE and checksums
+        shell: pwsh
+        run: ./scripts/collect-windows-packages.ps1
+      - name: Upload Windows packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Askills-windows-x64-${{ github.sha }}-${{ github.run_attempt }}
+          path: artifacts/windows-x64/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Build local ZTools plugin
+        run: pnpm build:ztools
+      - name: Test real ZTools helper
+        run: pnpm test:ztools:helper
+      - name: Upload ZTools plugin package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Askills-ztools-windows-x64-${{ github.sha }}-${{ github.run_attempt }}
+          path: artifacts/ztools/
+          if-no-files-found: error
+          retention-days: 14

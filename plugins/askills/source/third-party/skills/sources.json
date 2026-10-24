@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "purpose": "Project-local development guidance; not official Rust or Tauri endorsement.",
+  "skills": [
+    {
+      "name": "rust-async-patterns",
+      "official": false,
+      "repository": "https://github.com/wshobson/agents",
+      "commit": "0874a27b17a22e2b7c2e2bcd725768e0803cad06",
+      "upstream_path": "plugins/systems-programming/skills/rust-async-patterns",
+      "license": "MIT",
+      "license_file": "third-party/skills/wshobson-agents.LICENSE",
+      "installed_on": "2026-10-18",
+      "installer": "Codex skill-installer/scripts/install-skill-from-github.py --method download",
+      "upstream_skill_sha256": "8e9a951c21bb1ee671dd2e7391b193e8e3d362b95ef29c470915837d73bf87df",
+      "changes": [
+        "Added upstream root LICENSE to installed skill directory."
+      ],
+      "files": [
+        {
+          "path": ".agents/skills/rust-async-patterns/LICENSE",
+          "sha256": "f89abb55d9f073f38f1703e4518f0613c788c6174be7f13b8dfe48a1c076c746"
+        },
+        {
+          "path": ".agents/skills/rust-async-patterns/references/details.md",
+          "sha256": "cd8a987c59cf704b7a2145e0dea6891b10194e7304b894bd14a5692d9fdfa76d"
+        },
+        {
+          "path": ".agents/skills/rust-async-patterns/SKILL.md",
+          "sha256": "8e9a951c21bb1ee671dd2e7391b193e8e3d362b95ef29c470915837d73bf87df"
+        }
+      ]
+    },
+    {
+      "name": "tauri-setup",
+      "official": false,
+      "repository": "https://github.com/fxckcode/tauri-skills",
+      "commit": "d3959ffae74a04ae0ae8e4ad577e72b66c5e02d4",
+      "upstream_path": "skills/tauri-setup",
+      "license": "MIT",
+      "license_file": "third-party/skills/fxckcode-tauri-skills.LICENSE",
+      "installed_on": "2026-10-18",
+      "installer": "Codex skill-installer/scripts/install-skill-from-github.py --method download",
+      "upstream_skill_sha256": "d6fb8c8c63ec684a5f01b3727e8f4e3b19f9ca5859a3f4279c2be43ffb1d6a32",
+      "changes": [
+        "Added upstream root LICENSE to installed skill directory.",
+        "Vendored upstream references/official-docs.md and references/version-sensitive.md under skill-local references/.",
+        "Changed ../../references/version-sensitive.md to references/version-sensitive.md to preserve reference resolution after standalone installation."
+      ],
+      "files": [
+        {
+          "path": ".agents/skills/tauri-setup/LICENSE",
+          "sha256": "04143c4edb190b2ad26c17e03da0b25f017ce037c23ae5d9dc99b9f193be2893"
+        },
+        {
+          "path": ".agents/skills/tauri-setup/references/official-docs.md",
+          "sha256": "29f397a578d8bd9d371f698c52a411f0418e251744f232ca7fcaba456c3dbb7f"
+        },
+        {
+          "path": ".agents/skills/tauri-setup/references/version-sensitive.md",
+          "sha256": "2fc7ca113d0647ba2114c5383e9ca8a104d5ba8346e4e0ea7660179a64028ffb"
+        },
+        {
+          "path": ".agents/skills/tauri-setup/SKILL.md",
+          "sha256": "694fdf787802d6c9f5d4d0e590cb12042023203ac8f002981e3d8daeb3d70fa7"
+        }
+      ]
+    },
+    {
+      "name": "tauri-security",
+      "official": false,
+      "repository": "https://github.com/fxckcode/tauri-skills",
+      "commit": "d3959ffae74a04ae0ae8e4ad577e72b66c5e02d4",
+      "upstream_path": "skills/tauri-security",
+      "license": "MIT",
+      "license_file": "third-party/skills/fxckcode-tauri-skills.LICENSE",
+      "installed_on": "2026-10-18",
+      "installer": "Codex skill-installer/scripts/install-skill-from-github.py --method download",
+      "upstream_skill_sha256": "677ad25482257b33103d556104211d977e135e698464c87922e1ada53cd076c5",
+      "changes": [
+        "Added upstream root LICENSE to installed skill directory."
+      ],
+      "files": [
+        {
+          "path": ".agents/skills/tauri-security/LICENSE",
+          "sha256": "04143c4edb190b2ad26c17e03da0b25f017ce037c23ae5d9dc99b9f193be2893"
+        },
+        {
+          "path": ".agents/skills/tauri-security/SKILL.md",
+          "sha256": "677ad25482257b33103d556104211d977e135e698464c87922e1ada53cd076c5"
+        }
+      ]
+    }
+  ]
+}

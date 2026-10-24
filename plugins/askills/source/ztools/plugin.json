@@ -1,0 +1,34 @@
+{
+  "name": "askills",
+  "title": "Askills",
+  "author": "Candquarzy",
+  "description": "管理本地 skills 库，并为项目添加、更新与移除 skills。",
+  "version": "1.0.2",
+  "platform": ["win32"],
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "unpack": "helper/**",
+  "features": [
+    {
+      "code": "library",
+      "explain": "Askills · skills 库",
+      "cmds": ["Askills", "skills库"]
+    },
+    {
+      "code": "projects",
+      "explain": "Askills · 项目",
+      "cmds": ["skills项目"]
+    },
+    {
+      "code": "sources",
+      "explain": "Askills · 来源",
+      "cmds": ["skills来源"]
+    },
+    {
+      "code": "settings",
+      "explain": "Askills · 设置",
+      "cmds": ["skills设置"]
+    }
+  ]
+}
