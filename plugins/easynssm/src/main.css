@@ -1,0 +1,52 @@
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-size: 13px;
+}
+
+.app {
+  padding: 0 12px 12px;
+}
+
+/* 表单/详情下的灰色小注释 */
+.tip {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 2px;
+  white-space: pre-wrap;
+}
+
+/* 命令预览块 */
+.cmd-preview {
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.kv {
+  margin: 0 0 8px;
+}
+
+.kv .k {
+  color: var(--el-text-color-secondary);
+  margin-right: 8px;
+}
+
+.kv .v {
+  word-break: break-all;
+  user-select: text;
+}

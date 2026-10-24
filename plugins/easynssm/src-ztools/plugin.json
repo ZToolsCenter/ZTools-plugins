@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "easynssm",
+  "title": "EasyNssm 服务管理",
+  "description": "nssm 的友好图形界面：安装/编辑/卸载 nssm 服务、查看服务日志；同时支持系统服务的查看与启停",
+  "author": "咖啡八杯",
+  "version": "1.0.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "main",
+      "explain": "nssm 与 Windows 服务的图形化管理",
+      "icon": "logo.png",
+      "cmds": ["nssm", "服务", "svc"]
+    }
+  ]
+}
