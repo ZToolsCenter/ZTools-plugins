@@ -37,6 +37,7 @@
   </head>
   <body class="h-dvh w-screen">
     <div id="app"></div>
+    <script src="./sortable.min.js"></script>
     <script>
       ;(function () {
         const media = window.matchMedia('(prefers-color-scheme: dark)')
@@ -50,6 +51,2704 @@
         })
         setFavicon(media.matches)
       })()
+    </script>
+    <script>
+      ;(function () {
+        'use strict';
+
+        /* ===== CSS ===== */
+        var style = document.createElement('style');
+        style.textContent =
+          /* 步骤栏背景：浅色#f5f5f7，深色#333235 */
+          ':root{--sc-step-bg:#f5f5f7}' +
+          '[data-theme=dark]{--sc-step-bg:#333235}' +
+          /* SetupPage 入口：无横线 */
+          '.sc-crash-entry{display:flex;align-items:center;justify-content:space-between;padding:0.25rem 0 0}' +
+          '.sc-crash-entry .sc-entry-left{display:flex;align-items:center;gap:0.5rem}' +
+          '.sc-crash-entry .sc-entry-title{font-size:0.875rem;font-weight:500}' +
+          /* 配置页状态栏固定两行高度，防止卡片抖动 */
+          '.sc-setup-entry + div{min-height:2.25rem;display:flex;align-items:center}' +
+          /* 提交按钮固定在卡片底部，不受状态栏高度影响 */
+          '.sc-setup-entry ~ button.btn-primary{margin-top:auto}' +
+          /* tooltip 支持换行 */
+          '.tooltip::before{white-space:pre-line!important;text-align:center;max-width:16rem}' +
+          /* 右侧 tooltip：保留 daisyUI 原生样式，只覆盖位置，去掉箭头 */
+          '.tooltip.sc-tooltip-right::before{left:100%!important;bottom:auto!important;top:50%!important;transform:translateY(-50%)!important;margin-left:0.5rem!important;margin-bottom:0!important}' +
+          '.tooltip.sc-tooltip-right::after{display:none!important}' +
+          /* 输入框错误时 placeholder 变红（边框不变红） */
+          '.sc-ph-error::placeholder{color:#ef4444!important;opacity:0.7!important}' +
+          /* 反色按钮：浅色黑底白字，深色白底黑字 */
+          '.sc-btn-solid{background:var(--color-base-content,#000)!important;color:var(--color-base-100,#fff)!important;border-color:var(--color-base-content,#000)!important}' +
+          '.sc-btn-solid:hover{opacity:0.85}' +
+          '.sc-entry-status{font-size:0.72rem;padding:0.1rem 0.5rem;border-radius:9999px}' +
+          '.sc-entry-status.off{background:var(--color-base-200,#f3f4f6);color:var(--color-base-content,#6b7280);opacity:0.7}' +
+          '.sc-entry-status.on{background:rgba(22,163,74,0.12);color:#16a34a}' +
+          /* SSH 内容容器（在原卡片内滑动） */
+          '#sc-crash-content{width:100%;display:flex;flex-direction:column;gap:0.5rem;transform:translateX(110%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);flex:1}' +
+          '#sc-crash-content.open{transform:translateX(0)}' +
+          /* 头部返回区域：与配置页标题对齐（text-lg=1.125rem, mb-1=0.25rem），默认无左右padding，hover时加 */
+          '#sc-card-head{display:inline-flex;align-items:center;gap:0.5rem;padding:0.1rem 0;margin:0 0 0.25rem;border-radius:0.5rem;cursor:pointer;transition:background 0.15s, padding 0.15s, margin 0.15s;align-self:flex-start;max-width:fit-content}' +
+          '#sc-card-head:hover{background:var(--color-base-200,#f3f4f6);padding-left:0.4rem;padding-right:0.4rem;margin-left:-0.4rem}' +
+          '#sc-card-head.sc-no-hover{cursor:default!important;transition:none!important;background:transparent!important;padding:0.1rem!important;margin-left:0!important}' +
+          '#sc-card-head.sc-no-hover:hover{background:transparent!important;padding:0.1rem!important;margin-left:0!important}' +
+          '#sc-card-head svg{flex:none;color:var(--color-base-content,#1d1d1f)}' +
+          '#sc-card-head .sc-head-title{font-size:1.125rem;font-weight:400;color:var(--color-base-content,#1d1d1f);white-space:nowrap;line-height:1.5}' +
+          /* 弹窗模式下底部按钮与原生取消/保存一致（daisyUI btn class 原生样式） */
+          '.sc-modal-crash .sc-card-foot{display:flex;justify-content:flex-end;gap:0.5rem;margin-top:auto!important;padding:0}' +
+          /* 表单区域：与配置页一致 gap-2 (0.5rem) */
+          '.sc-field{display:flex;flex-direction:column;gap:0.25rem}' +
+          '.sc-field label{font-size:0.875rem;font-weight:400}' +
+          '.sc-row{display:flex;gap:0.5rem;align-items:flex-start}' +
+          '.sc-row .sc-field{flex:1;min-width:0}' +
+          '.sc-row .sc-field.sc-proto{flex:0 0 5rem}' +
+          '.sc-row .sc-field.sc-port{flex:0 0 5rem}' +
+          /* 状态框 */
+          '.sc-status-box{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.7rem;border-radius:0.5rem;font-size:0.75rem;min-height:2rem}' +
+          '.sc-status-box.testing{background:rgba(107,114,128,0.1);color:#6b7280}' +
+          '.sc-status-box.ok{background:rgba(22,163,74,0.1);color:#16a34a}' +
+          '.sc-status-box.warning{background:rgba(245,158,11,0.1);color:#f59e0b}' +
+          '.sc-status-box.fail{background:rgba(220,38,38,0.1);color:#dc2626}' +
+          '.sc-status-box .dot{width:7px;height:7px;border-radius:50%;flex:none}' +
+          '.sc-status-box.testing .dot{background:#6b7280;animation:sc-pulse 1s infinite}' +
+          '.sc-status-box.ok .dot{background:#16a34a}' +
+          '.sc-status-box.warning .dot{background:#f59e0b}' +
+          '.sc-status-box.fail .dot{background:#dc2626}' +
+          '.sc-retry-btn{display:none;margin-left:auto;background:transparent;border:none;font-size:0.75rem;cursor:pointer;padding:0.25rem 0.5rem;border-radius:0.25rem;color:inherit;white-space:nowrap;flex:none;transition:background 0.15s,color 0.15s}' +
+          '.sc-status-box.fail .sc-retry-btn,.sc-status-box.warning .sc-retry-btn{display:inline-block}' +
+          '.sc-status-box.fail .sc-retry-btn:hover{background:#dc2626;color:#fff}' +
+          '[data-theme="dark"] .sc-status-box.fail .sc-retry-btn:hover,[data-theme*="dark"] .sc-status-box.fail .sc-retry-btn:hover{background:#C33F45;color:#fff}' +
+          /* 底部按钮：无横线 */
+          '.sc-card-foot{display:flex;gap:0.5rem;padding:0.25rem 0 0;margin-top:auto}' +
+          '#sc-crash-content:not(.sc-modal-crash) .sc-card-foot button{flex:1;padding:0.5rem;border-radius:0.5rem;font-size:0.875rem;cursor:pointer;border:1px solid var(--color-base-300,#d1d5db)}' +
+          '.sc-btn-close{background:var(--color-base-100,#fff);color:var(--color-base-content,#1d1d1f)}' +
+          '.sc-btn-close:hover{background:var(--color-base-200,#f3f4f6)}' +
+          '.sc-btn-enable{background:var(--color-primary,#3b82f6);color:var(--color-primary-content,#fff);border-color:transparent;font-weight:500}' +
+          '.sc-btn-enable:disabled{background:var(--color-base-300,#d1d5db);color:var(--color-base-content,#9ca3af);cursor:not-allowed}' +
+          '.sc-btn-enable:not(:disabled):hover{opacity:0.9}' +
+          /* 侧边栏 BackendSwitch 菜单中的 ShellCrash 管理入口 */
+          '.sc-sidebar-crash-btn{display:flex;align-items:center;gap:0.5rem;border-radius:0.375rem;padding:0.375rem 0.5rem;font-size:0.875rem;cursor:pointer;transition:background 0.15s;width:100%;text-align:left;background:transparent;border:none;color:inherit}' +
+          '.sc-sidebar-crash-btn:hover{background:var(--color-base-200,#f3f4f6)}' +
+          '.sc-sidebar-crash-btn svg{width:1rem;height:1rem;flex:none;opacity:0.6}' +
+          '.sc-sidebar-crash-btn .sc-crash-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+          '.sc-sidebar-crash-btn .sc-crash-arrow{width:1rem;height:1rem;flex:none;opacity:0.5}' +
+          /* ShellCrash 子菜单面板 */
+          '.sc-crash-submenu{position:fixed;z-index:999;background:var(--color-base-100,#fff);border:1px solid var(--color-base-300,#d1d5db);border-radius:0.5rem;padding:0.25rem;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);display:flex;flex-direction:column;gap:0.125rem;min-width:10rem}' +
+          '.sc-crash-submenu button{display:flex;align-items:center;gap:0.5rem;border-radius:0.375rem;padding:0.375rem 0.5rem;font-size:0.875rem;cursor:pointer;background:transparent;border:none;color:inherit;text-align:left;width:100%;transition:background 0.15s}' +
+          '.sc-crash-submenu button:hover{background:var(--color-base-200,#f3f4f6)}' +
+          '.sc-crash-submenu button .sc-crash-num{width:1.25rem;height:1.25rem;flex:none;display:flex;align-items:center;justify-content:center;font-size:0.75rem;opacity:0.7;border-radius:0.25rem;background:transparent}' +
+          '@keyframes sc-pulse{0%,100%{opacity:1}50%{opacity:0.3}}';
+        document.head.appendChild(style);
+
+        /* ===== 工具 ===== */
+        function getScConfig(key) {
+          key = key || 'sc-ssh-config';
+          try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; }
+        }
+        function saveScConfig(cfg, key) {
+          key = key || 'sc-ssh-config';
+          try { localStorage.setItem(key, JSON.stringify(cfg)); } catch (e) {}
+        }
+
+        /* 获取容器对应的配置 key（按 host 区分，SetupPage 用全局） */
+        function getContainerConfigKey(container) {
+          if (!container) return 'sc-ssh-config';
+          if (container.classList && container.classList.contains('border-base-border')) return 'sc-ssh-config';
+          var hostInput = getHostInput(container);
+          var host = hostInput ? hostInput.value.trim() : '';
+          if (host) return 'sc-ssh-config-' + host;
+          return 'sc-ssh-config';
+        }
+
+        /* 判断容器模式：setup / create / edit */
+        function getContainerMode(container) {
+          if (!container) return 'setup';
+          if (container.classList && container.classList.contains('border-base-border')) return 'setup';
+          var modal = container.closest('[role="dialog"]') || container.closest('.modal');
+          if (modal) {
+            var titleEl = modal.querySelector('h3');
+            if (!titleEl) {
+              var all = modal.querySelectorAll('*');
+              for (var i = 0; i < all.length; i++) {
+                if (all[i].children.length === 0 && /添加后端|编辑后端/.test(all[i].textContent)) {
+                  titleEl = all[i]; break;
+                }
+              }
+            }
+            if (titleEl) {
+              if (titleEl.textContent.includes('添加')) return 'create';
+              if (titleEl.textContent.includes('编辑')) return 'edit';
+            }
+          }
+          return 'unknown';
+        }
+
+        function findSetupCard() {
+          var hostInput = document.querySelector('input[placeholder="127.0.0.1"]');
+          if (!hostInput) return null;
+          return findContainerForInput(hostInput);
+        }
+
+        /* 通用：找到输入框所在的容器（SetupPage 卡片 或 BackendManager 弹窗内容） */
+        function findContainerForInput(input) {
+          // SetupPage 卡片
+          var card = input.closest('.border-base-border');
+          if (card) return card;
+          // 弹窗内容容器：向上找包含 btn-primary 的 flex flex-col 容器
+          var el = input;
+          while (el && el.parentElement) {
+            el = el.parentElement;
+            if (el.classList && el.classList.contains('flex') && el.classList.contains('flex-col') && el.querySelector('button.btn-primary')) {
+              return el;
+            }
+          }
+          return null;
+        }
+
+        /* 找到所有包含 BackendForm 的容器 */
+        function findAllFormContainers() {
+          var inputs = document.querySelectorAll('input[placeholder="127.0.0.1"]');
+          var containers = [];
+          for (var i = 0; i < inputs.length; i++) {
+            var c = findContainerForInput(inputs[i]);
+            if (c && containers.indexOf(c) === -1) containers.push(c);
+          }
+          return containers;
+        }
+
+        function getHostInput(card) {
+          var inputs = card.querySelectorAll('input');
+          for (var i = 0; i < inputs.length; i++) {
+            if (inputs[i].placeholder === '127.0.0.1') return inputs[i];
+          }
+          return null;
+        }
+
+        function getBackendForm(card) {
+          var hostInput = getHostInput(card);
+          if (!hostInput) return null;
+          var el = hostInput;
+          while (el && el.parentElement !== card) { el = el.parentElement; }
+          return (el && el.parentElement === card) ? el : null;
+        }
+
+        /* ===== 状态 ===== */
+        var hiddenElements = [];
+        var testTimer = null;
+        var testRunning = false;
+        var testOk = false;
+        var hostSyncHandler = null;
+        var activeContainer = null;
+        var modalTitleTextNode = null;
+        var modalOriginalHTML = '';
+
+        /* ===== 构建 SSH 内容 ===== */
+        function buildCrashContent() {
+          var content = document.createElement('div');
+          content.id = 'sc-crash-content';
+          content.innerHTML =
+            '<div id="sc-card-head">' +
+              '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>' +
+              '<span class="sc-head-title">ShellCrash 管理</span>' +
+            '</div>' +
+            '<div class="sc-row">' +
+              '<div class="sc-field sc-proto"><label>协议</label><input class="input input-sm w-full" value="SSH" readonly></div>' +
+              '<div class="sc-field"><label>SSH 主机</label><input id="sc-p-host" class="input input-sm w-full" type="text" placeholder="127.0.0.1"></div>' +
+              '<div class="sc-field sc-port"><label>端口</label><input id="sc-p-port" class="input input-sm w-full" type="text" placeholder="22"></div>' +
+            '</div>' +
+            '<div class="sc-field"><label>用户名</label><input id="sc-p-user" class="input input-sm w-full" type="text"></div>' +
+            '<div class="sc-field"><label>密码</label><input id="sc-p-pass" class="input input-sm w-full" type="password"></div>' +
+            '<div class="sc-field"><label>进入命令</label><input id="sc-p-cmd" class="input input-sm w-full" type="text"></div>' +
+            '<div class="sc-status-box testing" id="sc-p-status"><span class="dot"></span><span id="sc-p-status-text">等待输入…</span><button class="sc-retry-btn" id="sc-p-retry">重试</button></div>' +
+            '<div class="sc-card-foot">' +
+              '<button class="sc-btn-close" id="sc-p-close">取消</button>' +
+              '<button class="sc-btn-enable" id="sc-p-enable" disabled>开启</button>' +
+            '</div>';
+
+          content.querySelector('#sc-card-head').addEventListener('click', function () {
+            // 仅弹窗模式下标题栏可点击返回，配置页只是纯文字标题
+            if (content.classList.contains('sc-modal-crash')) {
+              closeCrashPage('back');
+            }
+          });
+          content.querySelector('#sc-p-close').addEventListener('click', function () { closeCrashPage('close'); });
+          content.querySelector('#sc-p-retry').addEventListener('click', function () { runTest(); });
+          content.querySelector('#sc-p-enable').addEventListener('click', function () {
+            if (!testOk) return;
+            var key = activeContainer ? getContainerConfigKey(activeContainer) : 'sc-ssh-config';
+            var cfg = {
+              enabled: true,
+              host: content.querySelector('#sc-p-host').value.trim(),
+              port: content.querySelector('#sc-p-port').value.trim() || '22',
+              user: content.querySelector('#sc-p-user').value.trim() || 'root',
+              pass: content.querySelector('#sc-p-pass').value,
+              cmd: content.querySelector('#sc-p-cmd').value.trim() || 'crash'
+            };
+            saveScConfig(cfg, key);
+            closeCrashPage('enable');
+          });
+
+          ['sc-p-host', 'sc-p-port', 'sc-p-user', 'sc-p-pass', 'sc-p-cmd'].forEach(function (id) {
+            content.querySelector('#' + id).addEventListener('input', function () { scheduleTest(); });
+          });
+
+          return content;
+        }
+
+        function setStatus(state, text) {
+          var content = document.getElementById('sc-crash-content');
+          if (!content) return;
+          var box = content.querySelector('#sc-p-status');
+          box.className = 'sc-status-box ' + state;
+          content.querySelector('#sc-p-status-text').textContent = text;
+          testOk = (state === 'ok');
+          content.querySelector('#sc-p-enable').disabled = !testOk;
+        }
+
+        function scheduleTest() {
+          if (testTimer) clearTimeout(testTimer);
+          testTimer = setTimeout(runTest, 600);
+        }
+
+        function translateSshError(msg) {
+          if (!msg) return '连接失败';
+          if (/All configured authentication methods failed/i.test(msg)) return '用户名或密码错误';
+          if (/ECONNREFUSED/i.test(msg)) return '连接被拒绝，请检查 SSH 端口是否正确';
+          if (/ETIMEDOUT|connect ETIMEDOUT/i.test(msg)) return '连接超时，请检查地址是否正确';
+          if (/Timed out while waiting for handshake/i.test(msg)) return '连接超时，请检查网络';
+          if (/ENOTFOUND|getaddrinfo/i.test(msg)) return '地址解析失败，请检查主机地址';
+          if (/Connection lost|Connection reset/i.test(msg)) return '连接已断开';
+          if (/No matching host key/i.test(msg)) return '主机密钥不匹配';
+          return msg;
+        }
+
+        function runTest() {
+          var content = document.getElementById('sc-crash-content');
+          if (!content) return;
+          var host = content.querySelector('#sc-p-host').value.trim();
+          var port = content.querySelector('#sc-p-port').value.trim() || '22';
+          var user = content.querySelector('#sc-p-user').value.trim() || 'root';
+          var pass = content.querySelector('#sc-p-pass').value;
+          var cmd = content.querySelector('#sc-p-cmd').value.trim() || 'crash';
+          if (!host) { setStatus('fail', '请填写 SSH 主机地址'); return; }
+          if (!window.services || !window.services.testSshAndCrash) {
+            setStatus('fail', '需在 ZTools 中运行才能测试');
+            return;
+          }
+          if (testRunning) return;
+          testRunning = true;
+          setStatus('testing', '正在连接 SSH…');
+          window.services.testSshAndCrash({ host: host, port: port, user: user, pass: pass, cmd: cmd }).then(function (res) {
+            testRunning = false;
+            if (res && res.ok && res.status === 'running') {
+              setStatus('ok', 'ShellCrash 服务运行中');
+            } else if (res && res.ok && res.status === 'not_installed') {
+              setStatus('warning', 'SSH 连接成功，ShellCrash未安装');
+            } else if (res && res.ok && res.status === 'stopped') {
+              setStatus('warning', 'ShellCrash 服务未运行');
+            } else if (res && res.ok) {
+              setStatus('ok', 'SSH 连接成功');
+            } else {
+              setStatus('fail', translateSshError(res && res.error));
+            }
+          }).catch(function (err) {
+            testRunning = false;
+            setStatus('fail', translateSshError(err && err.message ? err.message : String(err)));
+          });
+        }
+
+        /* ===== 打开 SSH 页面 ===== */
+        function openCrashPage(container) {
+          var card = container || findSetupCard();
+          if (!card) return;
+          activeContainer = card;
+
+          // 记录卡片当前高度，设置 min-height 防止切换时收缩（不固定 height，内容可扩展不被裁剪）
+          var cardHeight = card.getBoundingClientRect().height;
+          if (cardHeight > 50) {
+            card.dataset.scOrigMinHeight = card.style.minHeight;
+            card.style.minHeight = cardHeight + 'px';
+          }
+
+          // 保存并隐藏所有直接子元素
+          hiddenElements = [];
+          var children = card.children;
+          for (var i = 0; i < children.length; i++) {
+            hiddenElements.push(children[i]);
+            children[i].style.display = 'none';
+          }
+
+          // 只隐藏水平溢出，防止滑入动画出现水平滚动条；垂直不限制避免内容裁剪
+          card.dataset.scPrevOverflowX = card.style.overflowX;
+          card.style.overflowX = 'hidden';
+
+          var content = buildCrashContent();
+          card.appendChild(content);
+
+          // 弹窗模式：替换弹窗标题为"ShellCrash 管理"
+          modalOriginalHTML = '';
+          var modal = card.closest('[role="dialog"], .modal, .modal-box, [class*="dialog"], [class*="modal"]');
+          if (!modal) {
+            var el = card;
+            while (el && el.parentElement) {
+              el = el.parentElement;
+              var pos = getComputedStyle(el).position;
+              if (pos === 'fixed' || pos === 'absolute') { modal = el; break; }
+            }
+          }
+          if (modal) {
+            content.classList.add('sc-modal-crash');
+            var head = content.querySelector('#sc-card-head');
+            if (head) head.style.display = 'none';
+            // 查找标题文本节点（标题文字是直接文本节点，旁边有关闭按钮）
+            var titleTextNode = null;
+            var all = modal.querySelectorAll('*');
+            for (var ti = 0; ti < all.length; ti++) {
+              var el = all[ti];
+              for (var ni = 0; ni < el.childNodes.length; ni++) {
+                var node = el.childNodes[ni];
+                if (node.nodeType === 3) {
+                  var txt = node.textContent.trim();
+                  if (txt === '添加后端' || txt === '编辑后端' || txt === '修改后端配置') {
+                    titleTextNode = node;
+                    break;
+                  }
+                }
+              }
+              if (titleTextNode) break;
+            }
+            if (titleTextNode) {
+              modalTitleTextNode = titleTextNode;
+              modalOriginalHTML = titleTextNode.textContent;
+              titleTextNode.textContent = 'ShellCrash 管理';
+            }
+            // 弹窗按钮使用 daisyUI 原生样式，与取消/保存一致
+            var closeBtn = content.querySelector('#sc-p-close');
+            var enableBtn = content.querySelector('#sc-p-enable');
+            if (closeBtn) closeBtn.className = 'btn btn-sm';
+            if (enableBtn) enableBtn.className = 'btn btn-primary btn-sm';
+          } else {
+            // 配置页：标题栏只保留文字，去掉 SVG 图标、点击返回和 hover 背景
+            var setupHead = content.querySelector('#sc-card-head');
+            if (setupHead) {
+              var svgEl = setupHead.querySelector('svg');
+              if (svgEl) svgEl.remove();
+              setupHead.classList.add('sc-no-hover');
+              setupHead.style.cursor = 'default';
+            }
+          }
+
+          var hostInput = getHostInput(card);
+          var mode = getContainerMode(card);
+          var key = getContainerConfigKey(card);
+          var saved = getScConfig(key);
+          var hostEl = content.querySelector('#sc-p-host');
+
+          if (mode === 'setup' || mode === 'create' || !saved) {
+            // 配置页/创建模式/无保存配置：只继承主机地址，其他用默认值
+            hostEl.value = hostInput ? hostInput.value.trim() : '';
+            content.querySelector('#sc-p-port').value = '22';
+            content.querySelector('#sc-p-user').value = '';
+            content.querySelector('#sc-p-pass').value = '';
+            content.querySelector('#sc-p-cmd').value = 'crash';
+          } else {
+            // 编辑模式有保存配置：从配置读取，主机地址优先用表单值
+            hostEl.value = (hostInput ? hostInput.value.trim() : '') || (saved && saved.host) || '';
+            content.querySelector('#sc-p-port').value = (saved && saved.port) || '22';
+            content.querySelector('#sc-p-user').value = (saved && saved.user) || '';
+            content.querySelector('#sc-p-pass').value = (saved && saved.pass) || '';
+            content.querySelector('#sc-p-cmd').value = (saved && saved.cmd) || 'crash';
+          }
+          testOk = false;
+          setStatus('testing', '正在连接 SSH…');
+          content.querySelector('#sc-p-enable').disabled = true;
+
+          if (hostInput) {
+            hostSyncHandler = function () {
+              hostEl.value = hostInput.value.trim();
+              scheduleTest();
+            };
+            hostInput.addEventListener('input', hostSyncHandler);
+          }
+
+          requestAnimationFrame(function () {
+            content.classList.add('open');
+          });
+
+          // 所有模式进入后自动尝试连接
+          setTimeout(runTest, 400);
+        }
+
+        /* ===== 关闭 SSH 页面 ===== */
+        function closeCrashPage(action) {
+          var content = document.getElementById('sc-crash-content');
+          if (!content) return;
+          var card = activeContainer;
+
+          if (hostSyncHandler) {
+            var hostInput = card ? getHostInput(card) : null;
+            if (hostInput) hostInput.removeEventListener('input', hostSyncHandler);
+            hostSyncHandler = null;
+          }
+
+          content.classList.remove('open');
+
+          if (action === 'close') {
+            var key = activeContainer ? getContainerConfigKey(activeContainer) : 'sc-ssh-config';
+            var cfg = getScConfig(key) || {};
+            cfg.enabled = false;
+            saveScConfig(cfg, key);
+          }
+
+          setTimeout(function () {
+            content.remove();
+            // 恢复弹窗标题文字（只恢复文本节点，不影响关闭按钮）
+            if (modalTitleTextNode && document.body.contains(modalTitleTextNode)) {
+              modalTitleTextNode.textContent = modalOriginalHTML;
+            }
+            modalTitleTextNode = null;
+            modalOriginalHTML = '';
+            for (var i = 0; i < hiddenElements.length; i++) {
+              hiddenElements[i].style.display = '';
+            }
+            hiddenElements = [];
+            if (card) {
+              if (card.dataset.scPrevOverflowX !== undefined) {
+                card.style.overflowX = card.dataset.scPrevOverflowX;
+                delete card.dataset.scPrevOverflowX;
+              }
+              if (card.dataset.scOrigMinHeight !== undefined) {
+                card.style.minHeight = card.dataset.scOrigMinHeight;
+                delete card.dataset.scOrigMinHeight;
+              }
+            }
+            activeContainer = null;
+            updateAllEntryStatus();
+          }, 300);
+        }
+
+        /* ===== 入口状态更新（所有容器独立配置） ===== */
+        function updateAllEntryStatus() {
+          var entries = document.querySelectorAll('.sc-crash-entry');
+          for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i];
+            var container = entry.parentElement;
+            var mode = getContainerMode(container);
+            var key = getContainerConfigKey(container);
+            var cfg = getScConfig(key);
+            var on = !!(cfg && cfg.enabled);
+            // 创建模式默认关闭（新后端还没保存过配置）
+            if (mode === 'create' && !cfg) on = false;
+            // 配置页每次都相当于重新添加，默认关闭，不看保存配置
+            if (mode === 'setup') on = false;
+            var toggle = entry.querySelector('.sc-crash-toggle');
+            if (toggle) toggle.checked = on;
+            var statusEl = entry.querySelector('.sc-entry-status');
+            if (statusEl) {
+              statusEl.textContent = on ? '已启用' : '未启用';
+              statusEl.className = 'sc-entry-status ' + (on ? 'on' : 'off');
+            }
+          }
+        }
+
+        /* ===== 通用注入 ShellCrash 入口 ===== */
+        function injectCrashEntry(container) {
+          if (!container) return false;
+          if (container.querySelector('.sc-crash-entry')) return true;
+
+          var formDiv = getBackendForm(container);
+          if (!formDiv) return false;
+
+          var entry = document.createElement('div');
+          entry.className = 'sc-crash-entry';
+          entry.innerHTML =
+            '<div class="sc-entry-left">' +
+              '<span class="sc-entry-title">ShellCrash 管理</span>' +
+              '<div class="tooltip" data-tip="通过 SSH 指令管理 Shellcrash，\n若无相关知识，谨慎开启">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.55;cursor:help"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+              '</div>' +
+              '<span class="sc-entry-status off">未启用</span>' +
+            '</div>' +
+            '<input type="checkbox" class="sc-crash-toggle toggle toggle-sm">';
+
+          var toggle = entry.querySelector('.sc-crash-toggle');
+          toggle.addEventListener('change', function () {
+            var key = getContainerConfigKey(container);
+            if (toggle.checked) {
+              openCrashPage(container);
+            } else {
+              var cfg = getScConfig(key) || {};
+              cfg.enabled = false;
+              saveScConfig(cfg, key);
+              updateAllEntryStatus();
+            }
+          });
+
+          formDiv.parentElement.insertBefore(entry, formDiv.nextSibling);
+          // SetupPage 卡片加专属 class，用于状态栏/提交按钮的特殊 CSS
+          if (container.classList && container.classList.contains('border-base-border')) {
+            entry.classList.add('sc-setup-entry');
+          }
+          return true;
+        }
+
+        function injectSetupEntry() {
+          // 清理残留的弹窗标题状态（弹窗被关闭或切换模式后）
+          if (modalTitleTextNode) {
+            if (!document.body.contains(modalTitleTextNode)) {
+              modalTitleTextNode = null;
+              modalOriginalHTML = '';
+            }
+          }
+          var containers = findAllFormContainers();
+          var injected = false;
+          for (var i = 0; i < containers.length; i++) {
+            if (injectCrashEntry(containers[i])) injected = true;
+          }
+          if (injected) {
+            updateAllEntryStatus();
+            fixCardHeight();
+          }
+          return injected;
+        }
+
+        /* ===== 锁定容器最大高度，防止状态栏行数变化导致抖动 ===== */
+        function fixCardHeight() {
+          if (document.getElementById('sc-crash-content')) return;
+          var containers = findAllFormContainers();
+          for (var i = 0; i < containers.length; i++) {
+            var card = containers[i];
+            var h = card.offsetHeight;
+            var prev = parseFloat(card.dataset.scMaxHeight || '0');
+            if (h > prev && h > 150) {
+              card.dataset.scMaxHeight = h;
+              card.style.minHeight = h + 'px';
+            }
+          }
+        }
+
+        /* ===== 侧边栏 BackendSwitch 菜单注入 ShellCrash 管理 ===== */
+        var crashSubmenu = null;
+        var crashCloseHandler = null;
+        var crashCloseTimer = null;
+
+        /* ===== 指令编辑 ===== */
+        var crashFuncList = ['启动/重启服务', '功能设置', '停止服务', '启动设置', '自动任务', '配置文件管理', '访问与控制', '工具与优化', '更新与支持'];
+        var crashDefaultSteps = {
+          '启动/重启服务': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '1', desc: '启动/重启服务' }
+          ],
+          '停止服务': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '3', desc: '停止服务' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待新菜单出现' },
+            { type: '输入数字', content: '0', desc: '退出菜单' }
+          ],
+          '跳过证书验证': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '2', desc: '进入功能设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待功能设置菜单' },
+            { type: '输入数字', content: '4', desc: '跳过证书验证' },
+            { type: '等待输出', content: '请输入|请选择|是否确认', desc: '等待确认菜单' },
+            { type: '输入数字', content: '1', desc: '确认修改' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待返回' },
+            { type: '输入数字', content: '0', desc: '返回上级菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待主菜单' },
+            { type: '输入数字', content: '0', desc: '退出 ShellCrash' }
+          ],
+          '启用域名嗅探': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '2', desc: '进入功能设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待功能设置菜单' },
+            { type: '输入数字', content: '5', desc: '启用域名嗅探' },
+            { type: '等待输出', content: '请输入|请选择|是否确认', desc: '等待确认菜单' },
+            { type: '输入数字', content: '1', desc: '确认修改' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待返回' },
+            { type: '输入数字', content: '0', desc: '返回上级菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待主菜单' },
+            { type: '输入数字', content: '0', desc: '退出 ShellCrash' }
+          ],
+          '路由模式设置': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '2', desc: '进入功能设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待功能设置菜单' },
+            { type: '输入数字', content: '1', desc: '进入路由模式设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待路由模式菜单' },
+            { type: '输入数字', content: '{1-4}', desc: '选择模式：1 Redir 2 Mix 3 Tproxy 4 Tun' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待设置完成' },
+            { type: '输入数字', content: '0', desc: '返回上级菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待主菜单' },
+            { type: '输入数字', content: '0', desc: '退出 ShellCrash' }
+          ],
+          'DNS模式设置': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '2', desc: '进入功能设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待功能设置菜单' },
+            { type: '输入数字', content: '2', desc: '进入DNS设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待DNS设置菜单' },
+            { type: '输入数字', content: '{1-3}', desc: '选择模式：1 MIX 2 Route 3 Redir' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待设置完成' },
+            { type: '输入数字', content: '0', desc: '返回上级菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待主菜单' },
+            { type: '输入数字', content: '0', desc: '退出 ShellCrash' }
+          ],
+          'IPv6透明路由': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '2', desc: '进入功能设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待功能设置菜单' },
+            { type: '输入数字', content: '7', desc: '进入IPv6设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待IPv6设置菜单' },
+            { type: '输入数字', content: '1', desc: '切换IPv6透明路由' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待设置完成' },
+            { type: '输入数字', content: '0', desc: '返回上级菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待主菜单' },
+            { type: '输入数字', content: '0', desc: '退出 ShellCrash' }
+          ],
+          'IPv6-DNS解析': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '2', desc: '进入功能设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待功能设置菜单' },
+            { type: '输入数字', content: '7', desc: '进入IPv6设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待IPv6设置菜单' },
+            { type: '输入数字', content: '2', desc: '切换IPv6-DNS解析' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待设置完成' },
+            { type: '输入数字', content: '0', desc: '返回上级菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待主菜单' },
+            { type: '输入数字', content: '0', desc: '退出 ShellCrash' }
+          ],
+          '备份脚本设置': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '2', desc: '进入功能设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待功能设置菜单' },
+            { type: '输入数字', content: 'a', desc: '进入重置/备份/还原' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待子菜单' },
+            { type: '输入数字', content: '1', desc: '备份脚本设置' },
+            { type: '等待输出', content: '操作成功|备份完成', desc: '等待备份完成' }
+          ],
+          '还原脚本设置': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '2', desc: '进入功能设置' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待功能设置菜单' },
+            { type: '输入数字', content: 'a', desc: '进入重置/备份/还原' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待子菜单' },
+            { type: '输入数字', content: '2', desc: '还原脚本设置' },
+            { type: '等待输出', content: '请输入|请选择|是否确认', desc: '等待确认菜单' },
+            { type: '输入数字', content: '1', desc: '确认还原' },
+            { type: '等待输出', content: '操作成功|还原完成|root@', desc: '等待还原完成并自动退出' }
+          ],
+          '添加订阅': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '6', desc: '进入配置文件管理' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待配置管理菜单' },
+            { type: '输入数字', content: 'a', desc: '添加提供者' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待添加页面' },
+            { type: '输入数字', content: '1', desc: '设置名称' },
+            { type: '等待输出', content: '请输入', desc: '等待名称输入提示' },
+            { type: '输入文本', content: '{订阅名称}', desc: '输入订阅名称' },
+            { type: '等待输出', content: '操作成功', desc: '等待名称设置成功' },
+            { type: '输入数字', content: '2', desc: '设置链接' },
+            { type: '等待输出', content: '请输入', desc: '等待链接输入提示' },
+            { type: '输入文本', content: '{订阅链接}', desc: '输入订阅链接' },
+            { type: '等待输出', content: '操作成功', desc: '等待链接设置成功' },
+            { type: '输入数字', content: 'e', desc: '在线获取配置文件' },
+            { type: '等待输出', content: '请输入|请选择|我确认', desc: '等待确认不兼容提示' },
+            { type: '输入数字', content: '1', desc: '确认继续' },
+            { type: '等待输出', content: '是否启动服务|配置文件获取失败', desc: '等待下载完成或失败' },
+            { type: '输入数字', content: '1', desc: '启动服务使配置生效' },
+            { type: '等待输出', content: '服务已启动|root@', desc: '等待服务启动并自动退出' }
+          ],
+          '编辑订阅': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '6', desc: '进入配置文件管理' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待配置管理菜单' },
+            { type: '输入数字', content: '{订阅编号}', desc: '选择要编辑的订阅编号' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待编辑页面' },
+            { type: '输入数字', content: '{1或2}', desc: '1修改名称 2修改链接' },
+            { type: '等待输出', content: '请输入', desc: '等待输入提示' },
+            { type: '输入文本', content: '{新名称或新链接}', desc: '输入新内容' },
+            { type: '等待输出', content: '操作成功|输入错误', desc: '等待修改结果' },
+            { type: '输入数字', content: 'a', desc: '保存此提供者' },
+            { type: '等待输出', content: '操作成功', desc: '等待保存成功' },
+            { type: '输入数字', content: '0', desc: '返回上级菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待配置管理菜单' },
+            { type: '输入数字', content: '0', desc: '退出 ShellCrash' }
+          ],
+          '删除订阅': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '6', desc: '进入配置文件管理' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待配置管理菜单' },
+            { type: '输入数字', content: '{订阅编号}', desc: '选择要删除的订阅编号' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待编辑页面' },
+            { type: '输入数字', content: 'd', desc: '删除此提供者' },
+            { type: '等待输出', content: '请输入|请选择|是否确认', desc: '等待确认菜单' },
+            { type: '输入数字', content: '1', desc: '确认删除' },
+            { type: '等待输出', content: '操作成功|删除成功', desc: '等待删除完成' },
+            { type: '输入数字', content: '0', desc: '返回上级菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待配置管理菜单' },
+            { type: '输入数字', content: '0', desc: '退出 ShellCrash' }
+          ],
+          '使用此订阅': [
+            { type: '输入指令', content: 'crash', desc: '进入 ShellCrash 菜单' },
+            { type: '等待输出', content: '请输入|请选择|输入对应数字|菜单', desc: '等待菜单出现' },
+            { type: '输入数字', content: '6', desc: '进入配置文件管理' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待配置管理菜单' },
+            { type: '输入数字', content: '{订阅编号}', desc: '选择要使用的订阅编号' },
+            { type: '等待输出', content: '请输入|请选择|输入对应字母或数字', desc: '等待编辑页面' },
+            { type: '输入数字', content: 'e', desc: '在线获取配置文件' },
+            { type: '等待输出', content: '请输入|请选择|我确认', desc: '等待确认不兼容提示' },
+            { type: '输入数字', content: '1', desc: '确认继续' },
+            { type: '等待输出', content: '是否启动服务|配置文件获取失败', desc: '等待下载完成或失败' },
+            { type: '输入数字', content: '1', desc: '启动服务使配置生效' },
+            { type: '等待输出', content: '服务已启动|root@', desc: '等待服务启动并自动退出' }
+          ]
+        };
+        var crashEditorModal = null;
+
+        function getCrashSteps(name) {
+          try {
+            var saved = localStorage.getItem('sc-crash-steps-' + name);
+            if (saved) {
+              var steps = JSON.parse(saved);
+              // 检测旧版本步骤（等待输出为"请输入"），自动重置为新默认
+              var isOld = steps.some(function (s) { return s.type === '等待输出' && s.content === '请输入'; });
+              if (isOld) {
+                localStorage.removeItem('sc-crash-steps-' + name);
+              } else {
+                return steps;
+              }
+            }
+          } catch (e) {}
+          return crashDefaultSteps[name] ? JSON.parse(JSON.stringify(crashDefaultSteps[name])) : [];
+        }
+
+        function saveCrashSteps(name, steps) {
+          localStorage.setItem('sc-crash-steps-' + name, JSON.stringify(steps));
+        }
+
+        /* ===== 运行状态指示器（终端风格） ===== */
+        var runIndicator = null;
+        function showRunIndicator(title) {
+          if (runIndicator) runIndicator.remove();
+          // 检测当前主题（zashboard 把 data-theme 设在 body 上）
+          var isDark = true;
+          var bodyTheme = document.body.getAttribute('data-theme');
+          if (bodyTheme === 'light' || document.body.classList.contains('light')) {
+            isDark = false;
+          }
+          var bgColor = isDark ? '#1e1e1e' : '#f5f5f7';
+          var textColor = isDark ? '#d4d4d4' : '#333333';
+          var borderColor = isDark ? '#333' : '#ddd';
+          var btnBg = isDark ? '#333' : '#e5e5e5';
+          var btnText = isDark ? '#d4d4d4' : '#333';
+          var btnBorder = isDark ? '#555' : '#ccc';
+          var cursorColor = isDark ? '#d4d4d4' : '#838995';
+          var successColor = isDark ? '#4ade80' : '#08916a';
+          var modal = document.createElement('div');
+          modal.className = 'modal modal-open';
+          modal.style.zIndex = '999999';
+          modal.style.background = 'rgba(0,0,0,0.5)';
+          var box = document.createElement('div');
+          box.style.cssText = 'background:' + bgColor + ';border:1px solid ' + borderColor + ';border-radius:6px;max-width:280px;width:280px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+          var body = document.createElement('div');
+          body.style.cssText = 'padding:14px 16px;display:flex;align-items:flex-start;gap:8px;min-height:44px;font-family:monospace;font-size:12px;color:' + textColor + ';';
+          var prompt = document.createElement('span');
+          prompt.style.cssText = 'color:' + successColor + ';flex-shrink:0;line-height:1.5;';
+          prompt.textContent = '$';
+          var spinner = document.createElement('span');
+          spinner.style.cssText = 'display:inline-block;width:8px;height:14px;background:' + cursorColor + ';animation:sc-blink 1s step-end infinite;flex-shrink:0;';
+          var text = document.createElement('span');
+          text.style.cssText = 'color:' + textColor + ';line-height:1.5;word-break:break-all;flex:1;';
+          text.textContent = ' connecting...';
+          body.appendChild(prompt);
+          body.appendChild(spinner);
+          body.appendChild(text);
+          box.appendChild(body);
+          modal.appendChild(box);
+          document.body.appendChild(modal);
+          runIndicator = modal;
+          if (!document.getElementById('sc-spin-style')) {
+            var style = document.createElement('style');
+            style.id = 'sc-spin-style';
+            style.textContent = '@keyframes sc-blink { 0%,100%{opacity:1} 50%{opacity:0} }';
+            document.head.appendChild(style);
+          }
+          return {
+            setStep: function (txt) { text.textContent = ' ' + txt; },
+            success: function (msg) {
+              spinner.style.display = 'none';
+              prompt.textContent = '✓';
+              prompt.style.color = successColor;
+              text.style.color = successColor;
+              text.textContent = ' ' + (msg || '执行成功');
+              setTimeout(function () { modal.remove(); runIndicator = null; }, 1500);
+            },
+            fail: function (msg) {
+              spinner.style.display = 'none';
+              prompt.textContent = '✗';
+              prompt.style.color = '#f87171';
+              text.style.color = '#f87171';
+              text.textContent = ' ' + (msg || '执行失败');
+              var btnRow = document.createElement('div');
+              btnRow.style.cssText = 'padding:0 16px 12px;display:flex;justify-content:flex-end;';
+              var btn = document.createElement('button');
+              btn.style.cssText = 'background:' + btnBg + ';color:' + btnText + ';border:1px solid ' + btnBorder + ';border-radius:4px;padding:4px 14px;font-family:monospace;font-size:11px;cursor:pointer;';
+              btn.textContent = '确定';
+              btn.addEventListener('click', function () { modal.remove(); runIndicator = null; });
+              btnRow.appendChild(btn);
+              box.appendChild(btnRow);
+            }
+          };
+        }
+
+        /* ===== SSH 调试窗口（临时，做完删除） ===== */
+        var sshDebugWindow = null;
+        function showSshDebugWindow(title) {
+          // SSH调试窗口已禁用，返回一个隐藏的输出元素以兼容现有调用
+          if (sshDebugWindow) sshDebugWindow.remove();
+          var output = document.createElement('div');
+          output.style.display = 'none';
+          sshDebugWindow = output;
+          return output;
+        }
+
+        function appendSshOutput(text) {
+          if (!sshDebugWindow) return;
+          var output = sshDebugWindow.querySelector('.ssh-debug-output');
+          if (output) {
+            output.textContent += text;
+            output.scrollTop = output.scrollHeight;
+          }
+        }
+
+        /* ===== 执行 ShellCrash 功能 ===== */
+        function getCurrentSshConfig() {
+          var host = getCurrentBackendHost();
+          var cfg = getScConfig('sc-ssh-config-' + host) || getScConfig('sc-ssh-config') || {};
+          if (!cfg.host && host) cfg.host = host;
+          return cfg;
+        }
+
+        function runCrashFunction(name, opts) {
+          opts = opts || {};
+          var host = getCurrentBackendHost();
+          var cfg = getScConfig('sc-ssh-config-' + host) || getScConfig('sc-ssh-config') || {};
+          if (!cfg.host && host) cfg.host = host;
+          var indicator = opts.showIndicator ? showRunIndicator(name) : null;
+          if (!cfg.host || !cfg.pass) {
+            if (indicator && indicator.fail) indicator.fail('请先填写 SSH 信息');
+            if (opts.onError) opts.onError('请先填写 SSH 信息');
+            return Promise.resolve({ ok: false, error: '请先填写 SSH 信息' });
+          }
+          var outputEl = showSshDebugWindow('执行 · ' + name);
+          outputEl.textContent = '正在连接 ' + cfg.host + ':' + (cfg.port || 22) + ' ...\n';
+          if (!window.services) {
+            if (indicator) indicator.fail('需在 ZTools 中运行');
+            if (opts.onError) opts.onError('需在 ZTools 中运行');
+            outputEl.textContent += '\n[错误] 需在 ZTools 中运行才能执行 SSH 指令\n';
+            return Promise.resolve({ ok: false, error: '需在 ZTools 中运行' });
+          }
+          var onOutput = function (chunk) { appendSshOutput(chunk); };
+          var onStep = function (idx, label) {
+            if (indicator) indicator.setStep(label || ('步骤 ' + (idx + 1)));
+          };
+          var promise;
+          if (name === '启动/重启服务' && window.services.restartService) {
+            promise = window.services.restartService(cfg, onOutput, onStep);
+          } else if (name === '停止服务' && window.services.stopService) {
+            promise = window.services.stopService(cfg, onOutput, onStep);
+          } else {
+            var steps = getCrashSteps(name);
+            if (steps.length === 0) {
+              if (indicator) indicator.fail('该功能暂无指令步骤');
+              if (opts.onError) opts.onError('该功能暂无指令步骤');
+              outputEl.textContent += '\n[提示] 该功能暂无指令步骤\n';
+              return Promise.resolve({ ok: false, error: '该功能暂无指令步骤' });
+            }
+            promise = window.services.runSteps(cfg, steps, onOutput);
+          }
+          return promise.then(function (res) {
+            if (res && res.ok) {
+              if (indicator) indicator.success('执行成功');
+              if (opts.onSuccess) opts.onSuccess();
+              appendSshOutput('\n[完成] 执行成功\n');
+            } else {
+              var err = res && res.error ? res.error : '未知错误';
+              if (indicator) indicator.fail(err);
+              if (opts.onError) opts.onError(err);
+              appendSshOutput('\n[失败] ' + err + '\n');
+            }
+            return res;
+          });
+        }
+
+        /* ===== ShellCrash 功能列表弹窗（设置页面用） ===== */
+        var crashFuncModal = null;
+        function openCrashFuncModal() {
+          try {
+          if (crashFuncModal) crashFuncModal.remove();
+          var modal = document.createElement('div');
+          modal.className = 'modal modal-open';
+          modal.style.zIndex = '999999';
+          var box = document.createElement('div');
+          box.className = 'modal-box bg-base-100 relative flex flex-col overflow-hidden p-0 outline-none max-w-md max-h-[85vh]';
+          // 标题栏
+          var header = document.createElement('div');
+          header.className = 'border-base-content/10 relative shrink-0 border-b px-4 py-2 text-base font-bold flex items-center justify-between';
+          var titleEl = document.createElement('span');
+          titleEl.textContent = 'ShellCrash 管理';
+          var closeBtn = document.createElement('button');
+          closeBtn.className = 'btn btn-circle btn-ghost btn-xs';
+          closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+          closeBtn.addEventListener('click', function () { modal.remove(); crashFuncModal = null; });
+          header.appendChild(titleEl);
+          header.appendChild(closeBtn);
+          box.appendChild(header);
+          // 功能列表
+          var content = document.createElement('div');
+          content.className = 'min-h-0 overflow-y-auto p-4 flex flex-col gap-1';
+          var funcs = ['订阅管理', '功能设置', '停止服务', '启动/重启服务', '备份/还原设置'];
+          var funcIcons = {
+            '订阅管理': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>',
+            '功能设置': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>',
+            '停止服务': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><rect x="9" y="9" width="6" height="6"></rect></svg>',
+            '启动/重启服务': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>',
+            '备份/还原设置': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>'
+          };
+          for (var i = 0; i < funcs.length; i++) {
+            (function (name) {
+              var item = document.createElement('div');
+              item.className = 'flex items-center gap-2 rounded-lg pr-2 py-2.5 transition-colors hover:bg-base-200 cursor-pointer';
+              var icon = document.createElement('span');
+              icon.className = 'text-base-content/70 flex-shrink-0';
+              icon.innerHTML = funcIcons[name] || '';
+              var label = document.createElement('span');
+              label.className = 'flex-1 text-sm';
+              label.textContent = name;
+              var arrow = document.createElement('span');
+              arrow.className = 'text-base-content/40';
+              arrow.innerHTML = '›';
+              item.appendChild(icon);
+              item.appendChild(label);
+              item.appendChild(arrow);
+              item.addEventListener('click', function () {
+                if (name === '功能设置') {
+                  modal.remove();
+                  crashFuncModal = null;
+                  setTimeout(function () { openCrashSettingsModal(); }, 50);
+                  return;
+                }
+                if (name === '订阅管理') {
+                  modal.remove();
+                  crashFuncModal = null;
+                  setTimeout(function () { openCrashConfigModal(); }, 50);
+                  return;
+                }
+                if (name === '备份/还原设置') {
+                  modal.remove();
+                  crashFuncModal = null;
+                  setTimeout(function () {
+                    var cfg = getCurrentSshConfig();
+                    if (cfg) openBackupRestoreModal(cfg);
+                    else showToast('未找到 SSH 配置', 'error');
+                  }, 50);
+                  return;
+                }
+                // 关闭弹窗后执行该功能
+                modal.remove();
+                crashFuncModal = null;
+                setTimeout(function () { runCrashFunction(name, { showIndicator: true }); }, 50);
+              });
+              content.appendChild(item);
+            })(funcs[i]);
+          }
+          // 分隔线 + 指令编辑
+          var divider = document.createElement('div');
+          divider.style.cssText = 'height:1px;background:var(--border-color,rgba(0,0,0,0.1));margin:8px 0;';
+          content.appendChild(divider);
+          var editItem = document.createElement('div');
+          editItem.className = 'flex items-center gap-2 rounded-lg pr-2 py-2.5 transition-colors hover:bg-base-200 cursor-pointer';
+          var editIcon = document.createElement('span');
+          editIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>';
+          var editLabel = document.createElement('span');
+          editLabel.className = 'flex-1 text-sm';
+          editLabel.textContent = '指令编辑';
+          var editArrow = document.createElement('span');
+          editArrow.className = 'text-base-content/40';
+          editArrow.innerHTML = '›';
+          editItem.appendChild(editIcon);
+          editItem.appendChild(editLabel);
+          editItem.appendChild(editArrow);
+          editItem.addEventListener('click', function () {
+            modal.remove();
+            crashFuncModal = null;
+            setTimeout(function () { openCrashStepEditor(); }, 50);
+          });
+          content.appendChild(editItem);
+          box.appendChild(content);
+          modal.appendChild(box);
+          modal.addEventListener('click', function (e) {
+            if (e.target === modal) { modal.remove(); crashFuncModal = null; }
+          });
+          document.body.appendChild(modal);
+          crashFuncModal = modal;
+          } catch (e) { alert('功能列表弹窗错误: ' + e.message); }
+        }
+
+        /* ===== ShellCrash 功能设置弹窗 ===== */
+        var crashSettingsModal = null;
+        var crashSettingsData = null;
+
+        // 解析菜单输出，提取设置值
+        function parseCrashSettings(menus) {
+          var result = {
+            routeMode: '',
+            routeScope: '',
+            containerHijack: '',
+            dnsMode: '',
+            dnsLeak: '',
+            hostsOpt: '',
+            ecsOpt: '',
+            dnsPort: '',
+            filterPorts: '',
+            filterDevices: '',
+            filterQuic: '',
+            filterCnIp: '',
+            ipv6Transparent: '',
+            ipv6Dns: '',
+            ipv6Enabled: '',
+            skipCert: '',
+            domainSniff: '',
+            language: ''
+          };
+          // 清理 ANSI 转义字符和控制字符
+          function clean(text) {
+            if (!text) return '';
+            return text
+              .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+              .replace(/\x1b\[[0-9;]*[a-zA-Z]?/g, '')
+              .replace(/\x1b[()][AB012]/g, '')
+              .replace(/\x1b[>=]?/g, '')
+              .replace(/\r/g, '')
+              .replace(/\t/g, ' ')
+              .replace(/[ ]+/g, ' ')
+              .trim();
+          }
+          // 主菜单：解析4、5的状态，以及路由模式和DNS模式
+          if (menus.main) {
+            var main = clean(menus.main);
+            // 按行解析，确保匹配到正确的行
+            var lines = main.split('\n');
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i];
+              var skipMatch = line.match(/跳过.*证书验证[：:]\s*(ON|OFF)/i);
+              if (skipMatch) {
+                result.skipCert = skipMatch[1].toUpperCase();
+              }
+              var sniffMatch = line.match(/启用域名嗅探[：:]\s*(ON|OFF)/i);
+              if (sniffMatch) {
+                result.domainSniff = sniffMatch[1].toUpperCase();
+              }
+              // 从主菜单直接读取路由模式和DNS模式
+              var routeMainMatch = line.match(/路由模式设置[：:]\s*([^\s|]+)/);
+              if (routeMainMatch && !result.routeMode) {
+                result.routeMode = routeMainMatch[1].trim();
+              }
+              var dnsMainMatch = line.match(/DNS设置[：:]\s*([^\s|]+)/i);
+              if (dnsMainMatch && !result.dnsMode) {
+                var dnsVal = dnsMainMatch[1].trim();
+                // ShellCrash 中 redir 模式显示为 redir_host，映射为 redir
+                if (dnsVal === 'redir_host') dnsVal = 'redir';
+                result.dnsMode = dnsVal;
+              }
+            }
+            if (main.match(/Please enter|Current|Select|Return/i) && !main.match(/请输入|当前|选择|返回/)) {
+              result.isEnglish = true;
+            }
+          }
+          // 路由模式（子菜单，作为补充）
+          if (menus.route) {
+            var route = clean(menus.route);
+            var modeMatch = route.match(/当前路由模式为[：:]\s*([^；;\n|]+)/);
+            if (modeMatch && !result.routeMode) result.routeMode = modeMatch[1].trim();
+            var scopeMatch = route.match(/当前路由劫持范围[：:]\s*([^；;\n|]+)/);
+            if (scopeMatch) result.routeScope = scopeMatch[1].trim();
+            var containerMatch = route.match(/容器\/虚拟机劫持[：:]\s*(ON|OFF)/i);
+            if (containerMatch) result.containerHijack = containerMatch[1].toUpperCase();
+          }
+          // DNS设置（子菜单，作为补充）
+          if (menus.dns) {
+            var dns = clean(menus.dns);
+            var dnsModeMatch = dns.match(/当前DNS运行模式为[：:]\s*([^；;\n|]+)/i);
+            if (dnsModeMatch && !result.dnsMode) {
+              var dnsVal2 = dnsModeMatch[1].trim();
+              if (dnsVal2 === 'redir_host') dnsVal2 = 'redir';
+              result.dnsMode = dnsVal2;
+            }
+            var leakMatch = dns.match(/DNS防泄漏[：:]\s*(ON|OFF)/i);
+            if (leakMatch) result.dnsLeak = leakMatch[1].toUpperCase();
+            var hostsMatch = dns.match(/Hosts优化[：:]\s*(ON|OFF)/i);
+            if (hostsMatch) result.hostsOpt = hostsMatch[1].toUpperCase();
+            var ecsMatch = dns.match(/ECS优化[：:]\s*(ON|OFF)/i);
+            if (ecsMatch) result.ecsOpt = ecsMatch[1].toUpperCase();
+            var portMatch = dns.match(/DNS劫持端口[：:]\s*(\d+)/i);
+            if (portMatch) result.dnsPort = portMatch[1];
+          }
+          // IPv6
+          if (menus.ipv6) {
+            var ipv6 = clean(menus.ipv6);
+            var ip6tMatch = ipv6.match(/IPv6透明路由[^：:]*[：:]\s*(ON|OFF)/i);
+            if (ip6tMatch) result.ipv6Transparent = ip6tMatch[1].toUpperCase();
+            var ip6dMatch = ipv6.match(/IPv6-DNS解析[^：:]*[：:]\s*(ON|OFF)/i);
+            if (ip6dMatch) result.ipv6Dns = ip6dMatch[1].toUpperCase();
+          }
+          return result;
+        }
+
+        // 创建开关控件
+        function createToggle(checked, onChange) {
+          var isOn = checked === true || checked === 'ON';
+          var label = document.createElement('label');
+          label.className = 'flex items-center gap-2 cursor-pointer';
+          var input = document.createElement('input');
+          input.type = 'checkbox';
+          input.className = 'toggle toggle-sm';
+          input.checked = isOn;
+          input.addEventListener('change', function () { if (onChange) onChange(input.checked ? 'ON' : 'OFF'); });
+          label.appendChild(input);
+          var text = document.createElement('span');
+          text.className = 'text-xs';
+          text.textContent = isOn ? 'ON' : 'OFF';
+          input.addEventListener('change', function () { text.textContent = input.checked ? 'ON' : 'OFF'; });
+          label.appendChild(text);
+          return label;
+        }
+
+        // 创建设置行
+        function createSettingRow(label, control, hint) {
+          var row = document.createElement('div');
+          row.className = 'flex items-center justify-between py-2.5 border-b border-base-content/5';
+          var left = document.createElement('div');
+          left.className = 'flex-1 min-w-0';
+          var labelEl = document.createElement('div');
+          labelEl.className = 'text-sm';
+          labelEl.textContent = label;
+          left.appendChild(labelEl);
+          if (hint) {
+            var hintEl = document.createElement('div');
+            hintEl.className = 'text-xs text-base-content/50 mt-0.5';
+            hintEl.textContent = hint;
+            left.appendChild(hintEl);
+          }
+          row.appendChild(left);
+          if (control) row.appendChild(control);
+          return row;
+        }
+
+        function openBackupRestoreModal(cfg) {
+          try {
+          var modal = document.createElement('div');
+          modal.className = 'modal modal-open';
+          modal.style.zIndex = '999999';
+          var box = document.createElement('div');
+          box.className = 'modal-box bg-base-100 relative flex flex-col overflow-hidden p-0 outline-none max-w-sm';
+          // 标题栏
+          var header = document.createElement('div');
+          header.className = 'border-base-content/10 relative shrink-0 border-b px-4 py-2 text-base font-bold flex items-center justify-between';
+          var titleEl = document.createElement('span');
+          titleEl.textContent = '备份/还原';
+          var closeBtn = document.createElement('button');
+          closeBtn.className = 'btn btn-circle btn-ghost btn-xs';
+          closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+          closeBtn.addEventListener('click', function () { modal.remove(); });
+          header.appendChild(titleEl);
+          header.appendChild(closeBtn);
+          box.appendChild(header);
+          // 内容区
+          var content = document.createElement('div');
+          content.className = 'p-4 flex flex-col gap-2 flex-1';
+          // 提示
+          var hint = document.createElement('div');
+          hint.className = 'text-xs text-base-content/60 mb-2';
+          hint.textContent = '备份或还原 ShellCrash 脚本设置';
+          content.appendChild(hint);
+          box.appendChild(content);
+          // 底部按钮组
+          var btnGroup = document.createElement('div');
+          btnGroup.className = 'flex justify-end gap-2 px-4 pb-4';
+          // 取消按钮
+          var cancelBtn = document.createElement('button');
+          cancelBtn.className = 'btn btn-sm';
+          cancelBtn.textContent = '取消';
+          cancelBtn.addEventListener('click', function () { modal.remove(); });
+          btnGroup.appendChild(cancelBtn);
+          // 备份按钮
+          var backupBtn = document.createElement('button');
+          backupBtn.className = 'btn btn-sm sc-btn-solid';
+          backupBtn.textContent = '备份';
+          backupBtn.addEventListener('click', function () { runBackupRestoreAction('backup', cfg, backupBtn, restoreBtn); });
+          btnGroup.appendChild(backupBtn);
+          // 还原按钮
+          var restoreBtn = document.createElement('button');
+          restoreBtn.className = 'btn btn-sm sc-btn-solid';
+          restoreBtn.textContent = '还原';
+          restoreBtn.addEventListener('click', function () {
+            // 自定义确认弹窗
+            var confirmModal = document.createElement('div');
+            confirmModal.className = 'modal modal-open';
+            confirmModal.style.zIndex = '1000000';
+            var confirmBox = document.createElement('div');
+            confirmBox.className = 'modal-box bg-base-100 p-6 max-w-xs';
+            var confirmTitle = document.createElement('div');
+            confirmTitle.className = 'text-base font-bold mb-2';
+            confirmTitle.textContent = '确认还原';
+            var confirmText = document.createElement('div');
+            confirmText.className = 'text-sm text-base-content/70 mb-4';
+            confirmText.textContent = '确定要还原脚本设置吗？将覆盖当前设置！';
+            var btnGroup = document.createElement('div');
+            btnGroup.className = 'flex justify-end gap-2';
+            var cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn btn-sm btn-ghost';
+            cancelBtn.textContent = '取消';
+            cancelBtn.addEventListener('click', function () { confirmModal.remove(); });
+            var okBtn = document.createElement('button');
+            okBtn.className = 'btn btn-sm btn-error';
+            okBtn.textContent = '确认还原';
+            okBtn.addEventListener('click', function () {
+              confirmModal.remove();
+              runBackupRestoreAction('restore', cfg, backupBtn, restoreBtn);
+            });
+            btnGroup.appendChild(cancelBtn);
+            btnGroup.appendChild(okBtn);
+            confirmBox.appendChild(confirmTitle);
+            confirmBox.appendChild(confirmText);
+            confirmBox.appendChild(btnGroup);
+            confirmModal.appendChild(confirmBox);
+            confirmModal.addEventListener('click', function (e) {
+              if (e.target === confirmModal) confirmModal.remove();
+            });
+            document.body.appendChild(confirmModal);
+          });
+          btnGroup.appendChild(restoreBtn);
+          box.appendChild(btnGroup);
+          modal.appendChild(box);
+          modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+          document.body.appendChild(modal);
+          } catch (e) { showToast('打开失败: ' + e.message, 'error'); }
+        }
+
+        function runBackupRestoreAction(action, cfg, backupBtn, restoreBtn) {
+          if (!cfg || !cfg.host || !cfg.pass) {
+            showToast('SSH 配置缺失', 'error');
+            return;
+          }
+          if (!window.services || !window.services.runBackupRestore) {
+            showToast('功能不可用', 'error');
+            return;
+          }
+          var actionNames = { backup: '备份脚本设置', restore: '还原脚本设置' };
+          var btns = [backupBtn, restoreBtn].filter(Boolean);
+          btns.forEach(function (b) { b.disabled = true; });
+          // 显示运行状态指示器和 SSH 调试窗口
+          var indicator = showRunIndicator(actionNames[action]);
+          var outputEl = showSshDebugWindow(actionNames[action]);
+          outputEl.textContent = '正在连接 ' + cfg.host + ':' + (cfg.port || 22) + ' ...\n';
+          var onOutput = function (chunk) { appendSshOutput(chunk); };
+          var onStep = function (idx, label) {
+            if (indicator) indicator.setStep(label || ('步骤 ' + idx));
+          };
+          window.services.runBackupRestore(cfg, action, onOutput, onStep).then(function () {
+            if (indicator) indicator.success('操作成功');
+            appendSshOutput('\n[完成] ' + actionNames[action] + '成功\n');
+            showToast(actionNames[action] + '成功', 'success');
+            btns.forEach(function (b) { b.disabled = false; });
+          }).catch(function (err) {
+            if (indicator) indicator.fail(err.message || '操作失败');
+            appendSshOutput('\n[失败] ' + (err.message || err) + '\n');
+            showToast(actionNames[action] + '失败: ' + (err.message || err), 'error');
+            btns.forEach(function (b) { b.disabled = false; });
+          });
+        }
+
+        /* ===== 订阅管理弹窗 ===== */
+        var crashConfigModal = null;
+        var crashProviders = [];
+
+        function openCrashConfigModal() {
+          try {
+          if (crashConfigModal) crashConfigModal.remove();
+          var cfg = getCurrentSshConfig();
+          if (!cfg || !cfg.host || !cfg.pass) {
+            showToast('请先填写 SSH 信息', 'error');
+            return;
+          }
+          var modal = document.createElement('div');
+          modal.className = 'modal modal-open';
+          modal.style.zIndex = '999999';
+          var box = document.createElement('div');
+          box.className = 'modal-box bg-base-100 relative flex flex-col overflow-hidden p-0 outline-none max-w-md max-h-[85vh]';
+          var header = document.createElement('div');
+          header.className = 'border-base-content/10 relative shrink-0 border-b px-4 py-2 text-base font-bold flex items-center justify-between';
+          var titleEl = document.createElement('span');
+          titleEl.textContent = '订阅管理';
+          var closeBtn = document.createElement('button');
+          closeBtn.className = 'btn btn-circle btn-ghost btn-xs';
+          closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+          closeBtn.addEventListener('click', function () { modal.remove(); crashConfigModal = null; });
+          header.appendChild(titleEl);
+          header.appendChild(closeBtn);
+          box.appendChild(header);
+          var content = document.createElement('div');
+          content.className = 'min-h-0 overflow-y-auto p-4 flex flex-col';
+          var loading = document.createElement('div');
+          loading.className = 'text-center py-8 text-sm text-base-content/60';
+          loading.textContent = '正在读取配置列表...';
+          content.appendChild(loading);
+          box.appendChild(content);
+          modal.appendChild(box);
+          modal.addEventListener('click', function (e) { if (e.target === modal) { modal.remove(); crashConfigModal = null; } });
+          document.body.appendChild(modal);
+          crashConfigModal = modal;
+
+          if (!window.services || !window.services.readCrashProviders) {
+            loading.textContent = '功能不可用';
+            return;
+          }
+          var outputEl = showSshDebugWindow('订阅管理');
+          outputEl.textContent = '正在连接 ' + cfg.host + ':' + (cfg.port || 22) + ' ...\n';
+          var onOutput = function (chunk) { appendSshOutput(chunk); };
+          window.services.readCrashProviders(cfg, onOutput).then(function (res) {
+            crashProviders = res.providers || [];
+            renderConfigList(content, cfg);
+          }).catch(function (err) {
+            loading.textContent = '读取失败: ' + (err.message || err);
+            appendSshOutput('\n[失败] ' + (err.message || err) + '\n');
+          });
+          } catch (e) { showToast('打开失败: ' + e.message, 'error'); }
+        }
+
+        function renderConfigList(content, cfg) {
+          content.innerHTML = '';
+          if (crashProviders.length === 0) {
+            var empty = document.createElement('div');
+            empty.className = 'text-center py-6 text-sm text-base-content/50';
+            empty.textContent = '暂无订阅';
+            content.appendChild(empty);
+          } else {
+            crashProviders.forEach(function (p) {
+              var item = document.createElement('div');
+              item.className = 'flex items-center gap-2 rounded-lg p-2 mb-2 hover:bg-base-200 transition-colors';
+              var info = document.createElement('div');
+              info.className = 'flex-1 min-w-0';
+              var nameEl = document.createElement('div');
+              nameEl.className = 'text-sm font-medium truncate';
+              nameEl.textContent = p.name;
+              var urlEl = document.createElement('div');
+              urlEl.className = 'text-xs text-base-content/50 truncate';
+              urlEl.textContent = p.url;
+              info.appendChild(nameEl);
+              info.appendChild(urlEl);
+              item.appendChild(info);
+              // 使用按钮
+              var useBtn = document.createElement('button');
+              useBtn.className = 'btn btn-ghost btn-xs btn-square';
+              useBtn.title = '使用此订阅';
+              useBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+              useBtn.addEventListener('click', function (e) { e.stopPropagation(); runUseProvider(cfg, p.index); });
+              item.appendChild(useBtn);
+              // 编辑按钮
+              var editBtn = document.createElement('button');
+              editBtn.className = 'btn btn-ghost btn-xs btn-square';
+              editBtn.title = '编辑';
+              editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon></svg>';
+              editBtn.addEventListener('click', function (e) { e.stopPropagation(); openProviderEdit(cfg, p); });
+              item.appendChild(editBtn);
+              // 删除按钮
+              var deleteBtn = document.createElement('button');
+              deleteBtn.className = 'btn btn-ghost btn-xs btn-square';
+              deleteBtn.title = '删除';
+              deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+              deleteBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                showConfirmModal('确认删除', '确定要删除订阅「' + p.name + '」吗？', function () {
+                  runDeleteProvider(cfg, p.index);
+                });
+              });
+              item.appendChild(deleteBtn);
+              content.appendChild(item);
+            });
+          }
+          var addBtn = document.createElement('button');
+          addBtn.className = 'btn btn-sm sc-btn-solid mt-2';
+          addBtn.textContent = '+ 添加订阅';
+          addBtn.addEventListener('click', function () { openProviderAdd(cfg); });
+          content.appendChild(addBtn);
+        }
+
+        function showConfirmModal(title, message, onConfirm) {
+          var modal = document.createElement('div');
+          modal.className = 'modal modal-open';
+          modal.style.zIndex = '1000001';
+          var box = document.createElement('div');
+          box.className = 'modal-box bg-base-100 max-w-sm p-6';
+          var titleEl = document.createElement('h3');
+          titleEl.className = 'font-bold text-lg mb-3';
+          titleEl.textContent = title;
+          var msgEl = document.createElement('p');
+          msgEl.className = 'text-sm text-base-content/70 mb-6';
+          msgEl.textContent = message;
+          var btnGroup = document.createElement('div');
+          btnGroup.className = 'flex justify-end gap-2 mt-4';
+          var cancelBtn = document.createElement('button');
+          cancelBtn.className = 'btn btn-sm';
+          cancelBtn.textContent = '取消';
+          cancelBtn.addEventListener('click', function () { modal.remove(); });
+          var confirmBtn = document.createElement('button');
+          confirmBtn.className = 'btn btn-sm btn-error';
+          confirmBtn.textContent = '确认删除';
+          confirmBtn.addEventListener('click', function () {
+            modal.remove();
+            onConfirm();
+          });
+          btnGroup.appendChild(cancelBtn);
+          btnGroup.appendChild(confirmBtn);
+          box.appendChild(titleEl);
+          box.appendChild(msgEl);
+          box.appendChild(btnGroup);
+          modal.appendChild(box);
+          modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+          document.body.appendChild(modal);
+        }
+
+        function validateProviderName(name) {
+          if (!name) return '请填写名称';
+          if (/^\d+$/.test(name)) return '名称不支持纯数字';
+          var chineseCount = (name.match(/[\u4e00-\u9fa5]/g) || []).length;
+          if (chineseCount > 4) return '名称不可超过4个汉字';
+          return null;
+        }
+
+        function openProviderAdd(cfg) {
+          var modal = document.createElement('div');
+          modal.className = 'modal modal-open';
+          modal.style.zIndex = '1000000';
+          var box = document.createElement('div');
+          box.className = 'modal-box bg-base-100 relative flex flex-col overflow-hidden p-0 outline-none max-w-md';
+          var header = document.createElement('div');
+          header.className = 'border-base-content/10 relative shrink-0 border-b px-4 py-2 text-base font-bold flex items-center justify-between';
+          var titleEl = document.createElement('span');
+          titleEl.textContent = '添加订阅';
+          var closeBtn = document.createElement('button');
+          closeBtn.className = 'btn btn-circle btn-ghost btn-xs';
+          closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+          closeBtn.addEventListener('click', function () { modal.remove(); });
+          header.appendChild(titleEl);
+          header.appendChild(closeBtn);
+          box.appendChild(header);
+          var content = document.createElement('div');
+          content.className = 'p-4 flex flex-col gap-3';
+          var nameLabel = document.createElement('div');
+          nameLabel.className = 'text-sm flex items-center gap-1';
+          nameLabel.innerHTML = '名称或代号' +
+            '<div class="tooltip sc-tooltip-right" data-tip="名称或代号不可重复，不支持\n纯数字且不要超过4个汉字">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.55;cursor:help"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+            '</div>';
+          var nameWrap = document.createElement('div');
+          nameWrap.className = 'relative';
+          var nameInput = document.createElement('input');
+          nameInput.type = 'text';
+          nameInput.className = 'input input-sm w-full pr-24';
+          nameInput.placeholder = '请输入名称';
+          var nameErr = document.createElement('span');
+          nameErr.className = 'absolute right-3 top-1/2 -translate-y-1/2 text-xs text-error hidden';
+          nameWrap.appendChild(nameInput);
+          nameWrap.appendChild(nameErr);
+          content.appendChild(nameLabel);
+          content.appendChild(nameWrap);
+          var urlLabel = document.createElement('div');
+          urlLabel.className = 'text-sm mt-2 flex items-center gap-1';
+          urlLabel.innerHTML = '订阅链接或路径' +
+            '<div class="tooltip sc-tooltip-right" data-tip="链接太长会截断部分链接显示，\n截断的链接是错误的，请勿复制">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.55;cursor:help"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+            '</div>';
+          var urlInput = document.createElement('input');
+          urlInput.type = 'text';
+          urlInput.className = 'input input-sm w-full';
+          urlInput.placeholder = '请输入订阅链接';
+          content.appendChild(urlLabel);
+          content.appendChild(urlInput);
+          // 输入时清除错误样式
+          nameInput.addEventListener('input', function () { nameInput.classList.remove('sc-ph-error'); });
+          urlInput.addEventListener('input', function () { urlInput.classList.remove('sc-ph-error'); });
+          var saveBtn = document.createElement('button');
+          saveBtn.className = 'btn btn-sm btn-primary mt-4';
+          saveBtn.textContent = '保存并获取订阅';
+          saveBtn.addEventListener('click', function () {
+            var name = nameInput.value.trim();
+            var url = urlInput.value.trim();
+            if (!name) { nameInput.classList.add('sc-ph-error'); nameInput.focus(); return; }
+            if (!url) { urlInput.classList.add('sc-ph-error'); urlInput.focus(); return; }
+            var nameErrMsg = validateProviderName(name);
+            if (nameErrMsg) {
+              nameErr.textContent = nameErrMsg;
+              nameErr.classList.remove('hidden');
+              return;
+            }
+            nameErr.classList.add('hidden');
+            // 检查名称是否重复
+            var dup = crashProviders.some(function (p) { return p.name === name; });
+            if (dup) {
+              nameErr.textContent = '名称已存在';
+              nameErr.classList.remove('hidden');
+              return;
+            }
+            saveBtn.disabled = true;
+            modal.remove();
+            runSaveProvider(cfg, { name: name, url: url });
+          });
+          content.appendChild(saveBtn);
+          box.appendChild(content);
+          modal.appendChild(box);
+          modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+          document.body.appendChild(modal);
+        }
+
+        function openProviderEdit(cfg, provider) {
+          var modal = document.createElement('div');
+          modal.className = 'modal modal-open';
+          modal.style.zIndex = '1000000';
+          var box = document.createElement('div');
+          box.className = 'modal-box bg-base-100 relative flex flex-col overflow-hidden p-0 outline-none max-w-md';
+          var header = document.createElement('div');
+          header.className = 'border-base-content/10 relative shrink-0 border-b px-4 py-2 text-base font-bold flex items-center justify-between';
+          var titleEl = document.createElement('span');
+          titleEl.textContent = '编辑订阅';
+          var closeBtn = document.createElement('button');
+          closeBtn.className = 'btn btn-circle btn-ghost btn-xs';
+          closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+          closeBtn.addEventListener('click', function () { modal.remove(); });
+          header.appendChild(titleEl);
+          header.appendChild(closeBtn);
+          box.appendChild(header);
+          var content = document.createElement('div');
+          content.className = 'p-4 flex flex-col gap-3';
+          var nameLabel = document.createElement('div');
+          nameLabel.className = 'text-sm flex items-center gap-1';
+          nameLabel.innerHTML = '名称或代号' +
+            '<div class="tooltip sc-tooltip-right" data-tip="名称或代号不可重复，不支持\n纯数字且不要超过4个汉字">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.55;cursor:help"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+            '</div>';
+          var nameWrap = document.createElement('div');
+          nameWrap.className = 'relative';
+          var nameInput = document.createElement('input');
+          nameInput.type = 'text';
+          nameInput.className = 'input input-sm w-full pr-24';
+          nameInput.value = provider.name;
+          var nameErr = document.createElement('span');
+          nameErr.className = 'absolute right-3 top-1/2 -translate-y-1/2 text-xs text-error hidden';
+          nameWrap.appendChild(nameInput);
+          nameWrap.appendChild(nameErr);
+          content.appendChild(nameLabel);
+          content.appendChild(nameWrap);
+          var urlLabel = document.createElement('div');
+          urlLabel.className = 'text-sm mt-2 flex items-center gap-1';
+          urlLabel.innerHTML = '订阅链接或路径' +
+            '<div class="tooltip sc-tooltip-right" data-tip="链接太长会截断部分链接显示，\n截断的链接是错误的，请勿复制">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.55;cursor:help"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+            '</div>';
+          var urlInput = document.createElement('input');
+          urlInput.type = 'text';
+          urlInput.className = 'input input-sm w-full';
+          urlInput.value = provider.url;
+          content.appendChild(urlLabel);
+          content.appendChild(urlInput);
+          var btnGroup = document.createElement('div');
+          btnGroup.className = 'flex justify-end gap-2 mt-6';
+          var cancelBtn = document.createElement('button');
+          cancelBtn.className = 'btn';
+          cancelBtn.textContent = '取消';
+          cancelBtn.addEventListener('click', function () { modal.remove(); });
+          var saveBtn = document.createElement('button');
+          saveBtn.className = 'btn btn-primary';
+          saveBtn.textContent = '保存';
+          saveBtn.disabled = true;
+          function checkDirty() {
+            var name = nameInput.value.trim();
+            var url = urlInput.value.trim();
+            saveBtn.disabled = (name === provider.name && url === provider.url) || !name || !url;
+            nameInput.classList.remove('sc-ph-error');
+            urlInput.classList.remove('sc-ph-error');
+          }
+          nameInput.addEventListener('input', checkDirty);
+          urlInput.addEventListener('input', checkDirty);
+          saveBtn.addEventListener('click', function () {
+            var name = nameInput.value.trim();
+            var url = urlInput.value.trim();
+            if (!name) { nameInput.classList.add('sc-ph-error'); nameInput.focus(); return; }
+            if (!url) { urlInput.classList.add('sc-ph-error'); urlInput.focus(); return; }
+            if (name === provider.name && url === provider.url) { modal.remove(); return; }
+            var nameErrMsg = validateProviderName(name);
+            if (nameErrMsg) {
+              nameErr.textContent = nameErrMsg;
+              nameErr.classList.remove('hidden');
+              return;
+            }
+            // 检查名称是否重复（排除当前编辑的订阅）
+            var dup = crashProviders.some(function (p) { return p.index !== provider.index && p.name === name; });
+            if (dup) {
+              nameErr.textContent = '名称已存在';
+              nameErr.classList.remove('hidden');
+              return;
+            }
+            nameErr.classList.add('hidden');
+            saveBtn.disabled = true;
+            modal.remove();
+            // 只传有改动的字段
+            var updateData = { index: provider.index };
+            if (name !== provider.name) updateData.name = name;
+            if (url !== provider.url) updateData.url = url;
+            runUpdateProvider(cfg, updateData);
+          });
+          btnGroup.appendChild(cancelBtn);
+          btnGroup.appendChild(saveBtn);
+          content.appendChild(btnGroup);
+          box.appendChild(content);
+          modal.appendChild(box);
+          modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+          document.body.appendChild(modal);
+        }
+
+        function runSaveProvider(cfg, provider) {
+          if (!window.services || !window.services.saveCrashProvider) {
+            showToast('功能不可用', 'error');
+            return;
+          }
+          var indicator = showRunIndicator(provider.index ? '编辑订阅' : '添加订阅');
+          var outputEl = showSshDebugWindow(provider.index ? '编辑订阅' : '添加订阅');
+          outputEl.textContent = '正在连接 ' + cfg.host + ':' + (cfg.port || 22) + ' ...\n';
+          var onOutput = function (chunk) { appendSshOutput(chunk); };
+          var onStep = function (idx, label) { if (indicator) indicator.setStep(label || ('步骤 ' + idx)); };
+          window.services.saveCrashProvider(cfg, provider, onOutput, onStep).then(function () {
+            if (indicator) indicator.success('保存成功');
+            appendSshOutput('\n[完成] 保存成功\n');
+            if (crashConfigModal) {
+              var content = crashConfigModal.querySelector('.min-h-0');
+              if (content) {
+                content.innerHTML = '<div class="text-center py-8 text-sm text-base-content/60">正在刷新...</div>';
+                window.services.readCrashProviders(cfg, function () {}).then(function (res) {
+                  crashProviders = res.providers || [];
+                  renderConfigList(content, cfg);
+                }).catch(function () {});
+              }
+            }
+          }).catch(function (err) {
+            if (indicator) indicator.fail(err.message || '保存失败');
+            appendSshOutput('\n[失败] ' + (err.message || err) + '\n');
+            // 获取失败但提供者可能已保存，刷新列表
+            if (crashConfigModal) {
+              var content = crashConfigModal.querySelector('.min-h-0');
+              if (content) {
+                content.innerHTML = '<div class="text-center py-8 text-sm text-base-content/60">正在刷新...</div>';
+                window.services.readCrashProviders(cfg, function () {}).then(function (res) {
+                  crashProviders = res.providers || [];
+                  renderConfigList(content, cfg);
+                }).catch(function () {});
+              }
+            }
+          });
+        }
+
+        function runDeleteProvider(cfg, index) {
+          if (!window.services || !window.services.deleteCrashProvider) {
+            showToast('功能不可用', 'error');
+            return;
+          }
+          var indicator = showRunIndicator('删除提供者');
+          var outputEl = showSshDebugWindow('删除提供者');
+          outputEl.textContent = '正在连接 ' + cfg.host + ':' + (cfg.port || 22) + ' ...\n';
+          var onOutput = function (chunk) { appendSshOutput(chunk); };
+          var onStep = function (idx, label) { if (indicator) indicator.setStep(label || ('步骤 ' + idx)); };
+          window.services.deleteCrashProvider(cfg, index, onOutput, onStep).then(function () {
+            if (indicator) indicator.success('删除成功');
+            appendSshOutput('\n[完成] 删除成功\n');
+            if (crashConfigModal) {
+              var content = crashConfigModal.querySelector('.min-h-0');
+              if (content) {
+                content.innerHTML = '<div class="text-center py-8 text-sm text-base-content/60">正在刷新...</div>';
+                window.services.readCrashProviders(cfg, function () {}).then(function (res) {
+                  crashProviders = res.providers || [];
+                  renderConfigList(content, cfg);
+                }).catch(function () {});
+              }
+            }
+          }).catch(function (err) {
+            if (indicator) indicator.fail(err.message || '删除失败');
+            appendSshOutput('\n[失败] ' + (err.message || err) + '\n');
+          });
+        }
+
+        function runUpdateProvider(cfg, data) {
+          var index = data.index;
+          var name = data.name;
+          var url = data.url;
+          if (!window.services || !window.services.updateCrashProvider) {
+            showToast('功能不可用', 'error');
+            return;
+          }
+          var indicator = showRunIndicator('编辑订阅');
+          var outputEl = showSshDebugWindow('编辑订阅');
+          outputEl.textContent = '正在连接 ' + cfg.host + ':' + (cfg.port || 22) + ' ...\n';
+          var onOutput = function (chunk) { appendSshOutput(chunk); };
+          var onStep = function (idx, label) { if (indicator) indicator.setStep(label || ('步骤 ' + idx)); };
+          // 只传有改动的字段，一次连接完成
+          var updateData = { index: index };
+          if (name !== undefined) updateData.name = name;
+          if (url !== undefined) updateData.url = url;
+          window.services.updateCrashProvider(cfg, updateData, onOutput, onStep).then(function () {
+            if (indicator) indicator.success('修改成功');
+            appendSshOutput('\n[完成] 修改成功\n');
+            if (crashConfigModal) {
+              var content = crashConfigModal.querySelector('.min-h-0');
+              if (content) {
+                content.innerHTML = '<div class="text-center py-8 text-sm text-base-content/60">正在刷新...</div>';
+                window.services.readCrashProviders(cfg, function () {}).then(function (res) {
+                  crashProviders = res.providers || [];
+                  renderConfigList(content, cfg);
+                }).catch(function () {});
+              }
+            }
+          }).catch(function (err) {
+            if (indicator) indicator.fail(err.message || '修改失败');
+            appendSshOutput('\n[失败] ' + (err.message || err) + '\n');
+          });
+        }
+
+        function runUseProvider(cfg, index) {
+          if (!window.services || !window.services.useCrashProvider) {
+            showToast('功能不可用', 'error');
+            return;
+          }
+          var indicator = showRunIndicator('使用此订阅');
+          var outputEl = showSshDebugWindow('使用此订阅');
+          outputEl.textContent = '正在连接 ' + cfg.host + ':' + (cfg.port || 22) + ' ...\n';
+          var onOutput = function (chunk) { appendSshOutput(chunk); };
+          var onStep = function (idx, label) { if (indicator) indicator.setStep(label || ('步骤 ' + idx)); };
+          window.services.useCrashProvider(cfg, index, onOutput, onStep).then(function () {
+            if (indicator) indicator.success('配置已生效');
+            appendSshOutput('\n[完成] 配置已生效\n');
+          }).catch(function (err) {
+            if (indicator) indicator.fail(err.message || '应用失败');
+            appendSshOutput('\n[失败] ' + (err.message || err) + '\n');
+          });
+        }
+
+        function openCrashSettingsModal() {
+          try {
+          if (crashSettingsModal) crashSettingsModal.remove();
+          var modal = document.createElement('div');
+          modal.className = 'modal modal-open';
+          modal.style.zIndex = '999999';
+          var box = document.createElement('div');
+          box.className = 'modal-box bg-base-100 relative flex flex-col overflow-hidden p-0 outline-none max-w-md max-h-[85vh]';
+          // 标题栏
+          var header = document.createElement('div');
+          header.className = 'border-base-content/10 relative shrink-0 border-b px-4 py-2 text-base font-bold flex items-center justify-between';
+          var titleEl = document.createElement('span');
+          titleEl.textContent = '功能设置';
+          var closeBtn = document.createElement('button');
+          closeBtn.className = 'btn btn-circle btn-ghost btn-xs';
+          closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+          closeBtn.addEventListener('click', function () { modal.remove(); crashSettingsModal = null; });
+          header.appendChild(titleEl);
+          header.appendChild(closeBtn);
+          box.appendChild(header);
+          // 内容区
+          var content = document.createElement('div');
+          content.className = 'min-h-0 overflow-y-auto p-4 flex flex-col';
+          var loading = document.createElement('div');
+          loading.className = 'text-center py-8 text-sm text-base-content/60';
+          loading.textContent = '正在读取当前设置...';
+          content.appendChild(loading);
+          // 保存状态变量（在函数顶部定义，避免作用域问题）
+          var currentValues = { skipCert: '', domainSniff: '', ipv6Transparent: '', ipv6Dns: '' };
+          var originalValues = { skipCert: '', domainSniff: '', ipv6Transparent: '', ipv6Dns: '' };
+          var saveCfg = null;
+          box.appendChild(content);
+          // 底部按钮
+          var footer = document.createElement('div');
+          footer.className = 'border-base-content/10 shrink-0 border-t p-3 flex gap-2 justify-end';
+          var cancelBtn = document.createElement('button');
+          cancelBtn.className = 'btn btn-sm';
+          cancelBtn.textContent = '取消';
+          cancelBtn.addEventListener('click', function () { modal.remove(); crashSettingsModal = null; });
+          var saveBtn = document.createElement('button');
+          saveBtn.className = 'btn btn-sm btn-primary';
+          saveBtn.textContent = '保存修改';
+          saveBtn.disabled = true;
+          saveBtn.addEventListener('click', function () {
+            try {
+              // 收集所有需要修改的设置项（混合类型）
+              var allChanges = [];
+              if (currentValues.skipCert !== originalValues.skipCert) {
+                allChanges.push({ type: 'toggle', num: 4, name: '跳过证书验证' });
+              }
+              if (currentValues.domainSniff !== originalValues.domainSniff) {
+                allChanges.push({ type: 'toggle', num: 5, name: '启用域名嗅探' });
+              }
+              // 路由模式改动
+              var routeMap = { 'Redir模式': 1, 'Mix模式': 2, 'Tproxy模式': 3, 'Tun模式': 4 };
+              if (currentValues.routeMode !== originalValues.routeMode && routeMap[currentValues.routeMode]) {
+                allChanges.push({ type: 'submenu', menuNum: 1, optionNum: routeMap[currentValues.routeMode], name: '路由模式-' + currentValues.routeMode });
+              }
+              // DNS模式改动
+              var dnsMap = { 'mix': 1, 'route': 2, 'redir': 3 };
+              if (currentValues.dnsMode !== originalValues.dnsMode && dnsMap[currentValues.dnsMode]) {
+                allChanges.push({ type: 'submenu', menuNum: 2, optionNum: dnsMap[currentValues.dnsMode], name: 'DNS模式-' + currentValues.dnsMode.toUpperCase() });
+              }
+              // IPv6开关改动（子菜单中的开关）
+              if (currentValues.ipv6Transparent !== originalValues.ipv6Transparent) {
+                allChanges.push({ type: 'submenuToggle', menuNum: 7, optionNum: 1, name: 'IPv6透明路由' });
+              }
+              if (currentValues.ipv6Dns !== originalValues.ipv6Dns) {
+                allChanges.push({ type: 'submenuToggle', menuNum: 7, optionNum: 2, name: 'IPv6-DNS解析' });
+              }
+              if (allChanges.length === 0) {
+                showToast('没有需要保存的修改', 'info');
+                return;
+              }
+              if (!saveCfg || !saveCfg.host || !saveCfg.pass) {
+                showToast('SSH 配置缺失，无法保存', 'error');
+                return;
+              }
+              if (!window.services || !window.services.saveCrashMixed) {
+                showToast('保存功能不可用', 'error');
+                return;
+              }
+              saveBtn.disabled = true;
+              saveBtn.textContent = '保存中...';
+              // 显示运行状态指示器和 SSH 调试窗口
+              var indicator = showRunIndicator('保存设置');
+              var outputEl = showSshDebugWindow('保存设置');
+              outputEl.textContent = '正在连接 ' + saveCfg.host + ':' + (saveCfg.port || 22) + ' ...\n';
+              var onOutput = function (chunk) { appendSshOutput(chunk); };
+              var onStep = function (idx, label) {
+                if (indicator) indicator.setStep(label || ('步骤 ' + idx));
+              };
+              var names = allChanges.map(function (c) { return c.name; }).join('、');
+              appendSshOutput('\n=== 保存：' + names + ' ===\n');
+              window.services.saveCrashMixed(saveCfg, allChanges, onOutput, onStep).then(function () {
+                if (indicator) indicator.success('保存成功');
+                appendSshOutput('\n[完成] 全部保存成功，服务已重启\n');
+                showToast('保存成功，服务已重启', 'success');
+                saveBtn.textContent = '保存修改';
+                saveBtn.disabled = false;
+                setTimeout(function () {
+                  if (crashSettingsModal) {
+                    modal.remove();
+                    crashSettingsModal = null;
+                  }
+                }, 1500);
+              }).catch(function (err) {
+                if (indicator) indicator.fail(err.message || '保存失败');
+                appendSshOutput('\n[失败] ' + (err.message || err) + '\n');
+                showToast('保存失败：' + (err.message || err), 'error');
+                saveBtn.textContent = '保存修改';
+                saveBtn.disabled = false;
+              });
+            } catch (e) {
+              showToast('保存出错：' + e.message, 'error');
+              saveBtn.textContent = '保存修改';
+              saveBtn.disabled = false;
+            }
+          });
+          footer.appendChild(cancelBtn);
+          footer.appendChild(saveBtn);
+          box.appendChild(footer);
+          modal.appendChild(box);
+          modal.addEventListener('click', function (e) {
+            if (e.target === modal) { modal.remove(); crashSettingsModal = null; }
+          });
+          document.body.appendChild(modal);
+          crashSettingsModal = modal;
+
+          // 读取设置
+          var host = getCurrentBackendHost();
+          var cfg = getScConfig('sc-ssh-config-' + host) || getScConfig('sc-ssh-config') || {};
+          if (!cfg.host && host) cfg.host = host;
+          saveCfg = cfg;
+          if (!cfg.host || !cfg.pass || !window.services || !window.services.readCrashSettings) {
+            loading.textContent = '无法读取设置：请先配置 SSH 信息';
+            return;
+          }
+          // 清空之前的数据，确保每次重新读取
+          crashSettingsData = null;
+          originalValues = { skipCert: '', domainSniff: '', routeMode: '', dnsMode: '' };
+          currentValues = { skipCert: '', domainSniff: '', routeMode: '', dnsMode: '' };
+          window.services.readCrashSettings(cfg).then(function (menus) {
+            var data = parseCrashSettings(menus);
+            crashSettingsData = data;
+            // 保存原始值，用于比较修改
+            originalValues.skipCert = data.skipCert;
+            originalValues.domainSniff = data.domainSniff;
+            originalValues.routeMode = data.routeMode || '';
+            originalValues.dnsMode = data.dnsMode || '';
+            originalValues.ipv6Transparent = data.ipv6Transparent;
+            originalValues.ipv6Dns = data.ipv6Dns;
+            currentValues.skipCert = data.skipCert;
+            currentValues.domainSniff = data.domainSniff;
+            currentValues.routeMode = data.routeMode || '';
+            currentValues.dnsMode = data.dnsMode || '';
+            currentValues.ipv6Transparent = data.ipv6Transparent;
+            currentValues.ipv6Dns = data.ipv6Dns;
+            content.innerHTML = '';
+            // 渲染设置项
+            content.appendChild(createSettingRow('路由模式设置', (function () {
+              var sel = document.createElement('select');
+              sel.className = 'select select-sm w-32';
+              ['Redir模式', 'Mix模式', 'Tproxy模式', 'Tun模式'].forEach(function (m) {
+                var opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                if (data.routeMode && data.routeMode.indexOf(m.replace('模式', '')) !== -1) opt.selected = true;
+                sel.appendChild(opt);
+              });
+              sel.addEventListener('change', function () { currentValues.routeMode = sel.value; });
+              return sel;
+            })()));
+            content.appendChild(createSettingRow('DNS设置', (function () {
+              var sel = document.createElement('select');
+              sel.className = 'select select-sm w-32';
+              ['mix', 'route', 'redir'].forEach(function (m) {
+                var opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m.toUpperCase();
+                if (data.dnsMode && data.dnsMode.toLowerCase() === m) opt.selected = true;
+                sel.appendChild(opt);
+              });
+              sel.addEventListener('change', function () { currentValues.dnsMode = sel.value; });
+              return sel;
+            })()));
+            // 跳过证书验证开关
+            content.appendChild(createSettingRow('跳过证书验证', createToggle(data.skipCert === 'ON', function (val) {
+              currentValues.skipCert = val;
+            })));
+            // 启用域名嗅探开关
+            content.appendChild(createSettingRow('启用域名嗅探', createToggle(data.domainSniff === 'ON', function (val) {
+              currentValues.domainSniff = val;
+            })));
+            // IPv6设置（直接显示）
+            content.appendChild(createSettingRow('IPv6透明路由', createToggle(data.ipv6Transparent === 'ON', function (val) {
+              currentValues.ipv6Transparent = val;
+            })));
+            content.appendChild(createSettingRow('IPv6-DNS解析', createToggle(data.ipv6Dns === 'ON', function (val) {
+              currentValues.ipv6Dns = val;
+            })));
+            // 语言检测提示
+            if (data.isEnglish) {
+              var warn = document.createElement('div');
+              warn.className = 'mt-3 p-2 rounded text-xs';
+              warn.style.cssText = 'background:rgba(245,158,11,0.15);color:#f59e0b;';
+              warn.textContent = '检测到 ShellCrash 当前为英文界面，部分设置可能无法正确读取。请在 ShellCrash 中切换为简体中文后重试。';
+              content.appendChild(warn);
+            }
+            saveBtn.disabled = false;
+          }).catch(function (err) {
+            loading.textContent = '读取失败: ' + (err.message || err);
+          });
+          } catch (e) { alert('功能设置弹窗错误: ' + e.message); }
+        }
+
+        function openCrashStepEditor(autoOpenName) {
+          try {
+          if (crashEditorModal) crashEditorModal.remove();
+          var modal = document.createElement('div');
+          modal.className = 'modal modal-open';
+          modal.style.zIndex = '999999';
+          var box = document.createElement('div');
+          box.className = 'modal-box bg-base-100 relative flex flex-col overflow-hidden p-0 outline-none max-w-md';
+          box.style.height = '450px';
+          // 标题栏
+          var header = document.createElement('div');
+          header.className = 'border-base-content/10 relative shrink-0 border-b px-4 py-2 text-base font-bold flex items-center justify-between';
+          var titleEl = document.createElement('span');
+          titleEl.textContent = '指令编辑';
+          var closeBtn = document.createElement('button');
+          closeBtn.className = 'btn btn-circle btn-ghost btn-xs';
+          closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+          closeBtn.addEventListener('click', function () { modal.remove(); crashEditorModal = null; });
+          header.appendChild(titleEl);
+          header.appendChild(closeBtn);
+          box.appendChild(header);
+          var content = document.createElement('div');
+          content.className = 'min-h-0 overflow-y-auto p-4';
+          box.appendChild(content);
+          modal.appendChild(box);
+          modal.addEventListener('click', function (e) {
+            if (e.target === modal) { modal.remove(); crashEditorModal = null; }
+          });
+          document.body.appendChild(modal);
+          crashEditorModal = modal;
+
+          var currentName = null;
+          var editMode = false;
+          var editingSteps = [];
+
+          // 功能列表页
+          function renderFuncList() {
+            editMode = false;
+            titleEl.textContent = '指令编辑';
+            content.innerHTML = '';
+            content.className = 'min-h-0 overflow-y-auto p-4 flex flex-col gap-1';
+            var funcs = ['启动/重启服务', '停止服务', '跳过证书验证', '启用域名嗅探', '路由模式设置', 'DNS模式设置', 'IPv6透明路由', 'IPv6-DNS解析', '备份脚本设置', '还原脚本设置', '添加订阅', '编辑订阅', '删除订阅', '使用此订阅'];
+            for (var i = 0; i < funcs.length; i++) {
+              (function (name) {
+                var item = document.createElement('div');
+                item.className = 'flex items-center gap-2 rounded-lg pr-2 py-2.5 transition-colors hover:bg-base-200 cursor-pointer';
+                var label = document.createElement('span');
+                label.className = 'flex-1 text-sm';
+                label.textContent = name;
+                var count = getCrashSteps(name).length;
+                var countBadge = document.createElement('span');
+                countBadge.className = 'text-xs text-base-content/50';
+                countBadge.textContent = count + ' 步骤';
+                var arrow = document.createElement('span');
+                arrow.className = 'text-base-content/40';
+                arrow.innerHTML = '›';
+                item.appendChild(label);
+                item.appendChild(countBadge);
+                item.appendChild(arrow);
+                item.addEventListener('click', function () { renderStepPage(name); });
+                content.appendChild(item);
+              })(funcs[i]);
+            }
+          }
+
+          // 步骤页（只读/编辑）
+          function renderStepPage(name) {
+            currentName = name;
+            editMode = false;
+            editingSteps = JSON.parse(JSON.stringify(getCrashSteps(name)));
+            renderStepView();
+          }
+
+          function renderStepView() {
+            titleEl.textContent = currentName;
+            content.innerHTML = '';
+            content.className = 'min-h-0 overflow-y-auto p-4 flex flex-col gap-2';
+
+            // 顶部操作栏：返回 | 标题区 | 编辑按钮
+            var topBar = document.createElement('div');
+            topBar.className = 'flex items-center justify-between -mt-1 -mx-1 mb-1';
+            var backBtn = document.createElement('button');
+            backBtn.className = 'btn btn-ghost btn-sm';
+            backBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg> 返回';
+            backBtn.addEventListener('click', renderFuncList);
+            var rightArea = document.createElement('div');
+            rightArea.className = 'flex items-center gap-2';
+            if (!editMode) {
+              var editBtn = document.createElement('button');
+              editBtn.className = 'btn btn-primary btn-sm';
+              editBtn.textContent = '编辑';
+              editBtn.addEventListener('click', function () { editMode = true; renderStepView(); });
+              rightArea.appendChild(editBtn);
+            }
+            topBar.appendChild(backBtn);
+            topBar.appendChild(rightArea);
+            content.appendChild(topBar);
+
+            // 步骤列表
+            var stepsList = document.createElement('div');
+            stepsList.className = 'flex flex-col gap-2';
+            if (editMode) {
+              renderStepsEditable(stepsList);
+            } else {
+              renderStepsReadonly(stepsList);
+            }
+            content.appendChild(stepsList);
+
+            // 编辑模式底部操作区
+            if (editMode) {
+              var actionBar = document.createElement('div');
+              actionBar.className = 'flex items-center justify-between mt-2 pt-2 border-t border-base-300';
+              var leftGroup = document.createElement('div');
+              leftGroup.className = 'flex gap-2';
+              var addBtn = document.createElement('button');
+              addBtn.className = 'btn btn-outline btn-sm';
+              addBtn.textContent = '+ 添加步骤';
+              addBtn.addEventListener('click', function () {
+                editingSteps.push({ type: '输入数字', content: '', desc: '' });
+                renderStepView();
+              });
+              var resetBtn = document.createElement('button');
+              resetBtn.className = 'btn btn-ghost btn-sm';
+              resetBtn.textContent = '恢复默认';
+              resetBtn.addEventListener('click', function () {
+                if (crashDefaultSteps[currentName]) {
+                  editingSteps = JSON.parse(JSON.stringify(crashDefaultSteps[currentName]));
+                } else {
+                  editingSteps = [];
+                }
+                renderStepView();
+              });
+              leftGroup.appendChild(addBtn);
+              leftGroup.appendChild(resetBtn);
+              var rightGroup = document.createElement('div');
+              rightGroup.className = 'flex gap-2';
+              var cancelBtn = document.createElement('button');
+              cancelBtn.className = 'btn btn-sm';
+              cancelBtn.textContent = '取消';
+              cancelBtn.addEventListener('click', function () {
+                editMode = false;
+                editingSteps = JSON.parse(JSON.stringify(getCrashSteps(currentName)));
+                renderStepView();
+              });
+              var saveBtn = document.createElement('button');
+              saveBtn.className = 'btn btn-primary btn-sm';
+              saveBtn.textContent = '保存';
+              saveBtn.addEventListener('click', function () {
+                saveCrashSteps(currentName, editingSteps);
+                editMode = false;
+                renderStepView();
+              });
+              rightGroup.appendChild(cancelBtn);
+              rightGroup.appendChild(saveBtn);
+              actionBar.appendChild(leftGroup);
+              actionBar.appendChild(rightGroup);
+              content.appendChild(actionBar);
+            }
+          }
+
+          // 只读模式
+          function renderStepsReadonly(container) {
+            if (editingSteps.length === 0) {
+              var empty = document.createElement('div');
+              empty.className = 'text-center py-6 text-base-content/40 text-sm';
+              empty.textContent = '暂无步骤';
+              container.appendChild(empty);
+              return;
+            }
+            for (var i = 0; i < editingSteps.length; i++) {
+              (function (idx) {
+                var step = editingSteps[idx];
+                var row = document.createElement('div');
+                row.className = 'flex items-center gap-2 text-sm py-1.5';
+                var num = document.createElement('span');
+                num.className = 'text-base-content/40 w-5 text-center flex-shrink-0';
+                num.textContent = (idx + 1);
+                // 类型：独立badge框，背景色跟内容容器一致
+                var type = document.createElement('span');
+                type.className = 'badge badge-sm flex-shrink-0';
+                type.style.backgroundColor = 'var(--sc-step-bg)';
+                type.style.borderColor = 'transparent';
+                type.textContent = step.type;
+                // 内容+说明：独立背景框，高度圆角跟badge一致
+                var contentWrap = document.createElement('div');
+                contentWrap.className = 'flex items-center gap-2 rounded-md px-2 h-5 flex-1 min-w-0';
+                contentWrap.style.backgroundColor = 'var(--sc-step-bg)';
+                var val = document.createElement('span');
+                val.className = 'font-mono text-sm text-base-content truncate flex-1';
+                val.textContent = step.content || '(空)';
+                contentWrap.appendChild(val);
+                if (step.desc) {
+                  var desc = document.createElement('span');
+                  desc.className = 'text-sm text-base-content/50 flex-shrink-0';
+                  desc.textContent = step.desc;
+                  contentWrap.appendChild(desc);
+                }
+                row.appendChild(num);
+                row.appendChild(type);
+                row.appendChild(contentWrap);
+                container.appendChild(row);
+              })(i);
+            }
+          }
+
+          // 编辑模式
+          function renderStepsEditable(container) {
+            for (var i = 0; i < editingSteps.length; i++) {
+              (function (idx) {
+                var row = document.createElement('div');
+                row.className = 'flex items-center gap-2 rounded-lg px-2 py-2';
+                row.style.backgroundColor = 'var(--sc-step-bg)';
+                row.setAttribute('data-idx', idx);
+                // 拖动手柄
+                var dragHandle = document.createElement('span');
+                dragHandle.className = 'cursor-grab text-base-content/40 text-base px-1 select-none flex-shrink-0 sc-drag-handle';
+                dragHandle.innerHTML = '≡';
+                row.appendChild(dragHandle);
+                // 类型：select-sm，缩短框长
+                var typeSelect = document.createElement('select');
+                typeSelect.className = 'select select-sm select-bordered flex-shrink-0';
+                typeSelect.style.width = 'auto';
+                typeSelect.style.minWidth = '4rem';
+                var types = ['输入指令', '输入数字', '输入文本', '等待输出'];
+                for (var t = 0; t < types.length; t++) {
+                  var opt = document.createElement('option');
+                  opt.value = types[t];
+                  opt.textContent = types[t];
+                  if (editingSteps[idx].type === types[t]) opt.selected = true;
+                  typeSelect.appendChild(opt);
+                }
+                typeSelect.addEventListener('change', function () { editingSteps[idx].type = typeSelect.value; });
+                row.appendChild(typeSelect);
+                // 内容
+                var contentInput = document.createElement('input');
+                contentInput.type = 'text';
+                contentInput.value = editingSteps[idx].content;
+                contentInput.placeholder = '指令内容';
+                contentInput.className = 'input input-sm input-bordered flex-1 min-w-0';
+                contentInput.addEventListener('change', function () { editingSteps[idx].content = contentInput.value; });
+                row.appendChild(contentInput);
+                // 说明
+                var descInput = document.createElement('input');
+                descInput.type = 'text';
+                descInput.value = editingSteps[idx].desc || '';
+                descInput.placeholder = '说明';
+                descInput.className = 'input input-sm input-bordered w-24 flex-shrink-0';
+                descInput.addEventListener('change', function () { editingSteps[idx].desc = descInput.value; });
+                row.appendChild(descInput);
+                // 删除
+                var delBtn = document.createElement('button');
+                delBtn.className = 'btn btn-ghost btn-sm btn-square text-error';
+                delBtn.innerHTML = '✕';
+                delBtn.addEventListener('click', function () {
+                  editingSteps.splice(idx, 1);
+                  renderStepView();
+                });
+                row.appendChild(delBtn);
+                container.appendChild(row);
+              })(i);
+            }
+            if (editingSteps.length === 0) {
+              var empty = document.createElement('div');
+              empty.className = 'text-center py-4 text-base-content/40 text-sm';
+              empty.textContent = '暂无步骤，点击下方添加';
+              container.appendChild(empty);
+            }
+            // 用 SortableJS 实现拖拽排序（跟后端管理一致）
+            if (window.Sortable && editingSteps.length > 0) {
+              Sortable.create(container, {
+                handle: '.sc-drag-handle',
+                animation: 150,
+                ghostClass: 'opacity-50',
+                chosenClass: 'bg-base-300',
+                // 用透明图像作为拖拽预览，去掉跟随鼠标的淡影
+                setData: function (dataTransfer) {
+                  var img = new Image();
+                  img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                  dataTransfer.setDragImage(img, 0, 0);
+                },
+                onEnd: function (evt) {
+                  if (evt.oldIndex === evt.newIndex) return;
+                  var moved = editingSteps.splice(evt.oldIndex, 1)[0];
+                  editingSteps.splice(evt.newIndex, 0, moved);
+                }
+              });
+            }
+          }
+
+          if (autoOpenName) {
+            renderStepPage(autoOpenName);
+          } else {
+            renderFuncList();
+          }
+          } catch (e) { alert('编辑页错误: ' + e.message); }
+        }
+
+
+        function findBackendSwitchPanel() {
+          var fixedEls = document.querySelectorAll('.fixed');
+          for (var i = 0; i < fixedEls.length; i++) {
+            var panel = fixedEls[i];
+            if (!panel.classList.contains('flex') || !panel.classList.contains('flex-col')) continue;
+            var btns = panel.querySelectorAll('button');
+            for (var j = 0; j < btns.length; j++) {
+              var txt = btns[j].textContent.trim();
+              if (txt === '管理后端' || txt === '添加后端' || txt === '新增後端') return panel;
+            }
+          }
+          return null;
+        }
+
+        function getCurrentBackendHost() {
+          // 优先从 zashboard 的 localStorage 读取当前后端，更准确
+          try {
+            var activeUuid = localStorage.getItem('setup/active-uuid');
+            if (activeUuid) {
+              activeUuid = activeUuid.replace(/^"|"$/g, ''); // 去掉可能的引号
+              var list = JSON.parse(localStorage.getItem('setup/api-list') || '[]');
+              for (var i = 0; i < list.length; i++) {
+                if (list[i].uuid === activeUuid && list[i].host) return list[i].host;
+              }
+            }
+          } catch (e) {}
+          // 兜底：从 DOM 中找当前选中的后端
+          var panel = findBackendSwitchPanel();
+          if (!panel) return null;
+          var btns = panel.querySelectorAll('button');
+          for (var i = 0; i < btns.length; i++) {
+            if (btns[i].classList.contains('bg-base-200')) {
+              var text = btns[i].textContent.trim();
+              var match = text.match(/(\d{1,3}\.){3}\d{1,3}/);
+              if (match) return match[0];
+            }
+          }
+          return null;
+        }
+
+        function isCrashEnabledForCurrentBackend() {
+          var host = getCurrentBackendHost();
+          if (!host) return false;
+          var cfg = getScConfig('sc-ssh-config-' + host);
+          return !!(cfg && cfg.enabled);
+        }
+
+        function closeCrashSubmenu() {
+          if (crashCloseTimer) { clearTimeout(crashCloseTimer); crashCloseTimer = null; }
+          if (crashSubmenu) { crashSubmenu.remove(); crashSubmenu = null; }
+          if (crashCloseHandler) {
+            document.removeEventListener('mousedown', crashCloseHandler, true);
+            crashCloseHandler = null;
+          }
+        }
+
+        function showCrashSubmenu(anchorBtn) {
+          closeCrashSubmenu();
+          var rect = anchorBtn.getBoundingClientRect();
+          var menu = document.createElement('div');
+          menu.className = 'sc-crash-submenu';
+          var items = [
+            '订阅管理', '功能设置', '停止服务', '启动/重启服务', '备份/还原设置'
+          ];
+          var submenuIcons = {
+            '订阅管理': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>',
+            '功能设置': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>',
+            '停止服务': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><rect x="9" y="9" width="6" height="6"></rect></svg>',
+            '启动/重启服务': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>',
+            '备份/还原设置': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>'
+          };
+          for (var i = 0; i < items.length; i++) {
+            (function (idx, label) {
+              var btn = document.createElement('button');
+              btn.innerHTML = '<span class="sc-crash-num" style="display:inline-flex;align-items:center;">' + (submenuIcons[label] || '') + '</span><span>' + label + '</span>';
+              btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                closeCrashSubmenu();
+                if (label === '功能设置') {
+                  setTimeout(function () { openCrashSettingsModal(); }, 50);
+                } else if (label === '订阅管理') {
+                  setTimeout(function () { openCrashConfigModal(); }, 50);
+                } else if (label === '备份/还原设置') {
+                  setTimeout(function () {
+                    var cfg = getCurrentSshConfig();
+                    if (cfg && cfg.host && cfg.pass) openBackupRestoreModal(cfg);
+                    else showToast('请先填写 SSH 信息', 'error');
+                  }, 50);
+                } else {
+                  setTimeout(function () { runCrashFunction(label, { showIndicator: true }); }, 50);
+                }
+              });
+              menu.appendChild(btn);
+            })(i, items[i]);
+          }
+          // 分隔线 + 指令编辑入口
+          var divider = document.createElement('div');
+          divider.style.cssText = 'height:1px;background:var(--border-color,rgba(0,0,0,0.1));margin:4px 8px;';
+          menu.appendChild(divider);
+          var editBtn = document.createElement('button');
+          editBtn.innerHTML = '<span class="sc-crash-num" style="display:inline-flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg></span><span>指令编辑</span>';
+          editBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            closeCrashSubmenu();
+            setTimeout(function () { openCrashStepEditor(); }, 10);
+          });
+          menu.appendChild(editBtn);
+          document.body.appendChild(menu);
+          var menuRect = menu.getBoundingClientRect();
+          var left = rect.right + 4;
+          var top = rect.top;
+          if (left + menuRect.width > window.innerWidth - 8) left = rect.left - menuRect.width - 4;
+          if (top + menuRect.height > window.innerHeight - 8) top = window.innerHeight - menuRect.height - 8;
+          menu.style.left = left + 'px';
+          menu.style.top = top + 'px';
+          crashSubmenu = menu;
+          // 鼠标移入子菜单：取消延迟关闭
+          menu.addEventListener('mouseenter', function () {
+            if (crashCloseTimer) { clearTimeout(crashCloseTimer); crashCloseTimer = null; }
+          });
+          // 鼠标离开子菜单：延迟关闭（给用户移回按钮的时间）
+          menu.addEventListener('mouseleave', function (e) {
+            if (anchorBtn && e.relatedTarget && anchorBtn.contains(e.relatedTarget)) return;
+            if (crashCloseTimer) clearTimeout(crashCloseTimer);
+            crashCloseTimer = setTimeout(closeCrashSubmenu, 200);
+          });
+          // 用 mousedown 捕获阶段监听，点击外部关闭；点击按钮或子菜单内部不关闭（否则 click 事件无法触发）
+          crashCloseHandler = function (e) {
+            if (anchorBtn && anchorBtn.contains(e.target)) return;
+            if (menu && menu.contains(e.target)) return;
+            closeCrashSubmenu();
+          };
+          document.addEventListener('mousedown', crashCloseHandler, true);
+        }
+
+        function injectSidebarCrashMenu() {
+          var panel = findBackendSwitchPanel();
+          if (!panel) return;
+          var existing = panel.querySelector('.sc-sidebar-crash-btn');
+          // 当前后端没开启 shellcrash，移除已注入的入口
+          if (!isCrashEnabledForCurrentBackend()) {
+            if (existing) existing.remove();
+            return;
+          }
+          // 已注入则跳过
+          if (existing) return;
+
+          var btns = panel.querySelectorAll('button');
+          var manageBtn = null;
+          for (var j = 0; j < btns.length; j++) {
+            var txt = btns[j].textContent.trim();
+            if (txt === '管理后端' || txt === '添加后端' || txt === '新增後端') {
+              manageBtn = btns[j]; break;
+            }
+          }
+          if (!manageBtn) return;
+
+          // 判断是否是侧边栏磁盘菜单（在视口左侧）
+          var rect = panel.getBoundingClientRect();
+          var isSidebar = rect.left < 100;
+
+          var crashBtn = document.createElement('button');
+          crashBtn.className = 'sc-sidebar-crash-btn';
+          crashBtn.innerHTML =
+            '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
+              '<path stroke-linejoin="round" d="M27.19,42.5a89.0444,89.0444,0,0,1-14.6813-1.5725S13.94,12.3721,17.9209,5.5357c-.13-.297,2.9919,1.2125,4.4218,6.2665a25.5569,25.5569,0,0,1,4.8471-.47"/>' +
+              '<ellipse stroke-linejoin="round" cx="21.2404" cy="20.3089" rx="1.6708" ry="2.1301"/>' +
+              '<path stroke-linejoin="round" d="M27.19,42.5a89.0444,89.0444,0,0,0,14.6813-1.5725S40.44,12.3721,36.4583,5.5357c.03-.2006-3.59,1.7549-4.4218,6.2665a25.5582,25.5582,0,0,0-4.8471-.47"/>' +
+              '<ellipse stroke-linejoin="round" cx="33.1398" cy="20.3089" rx="1.6708" ry="2.1301"/>' +
+              '<path stroke-miterlimit="5.7143" d="M12.5083,40.927C10.5777,40.6,7.56,40.6178,6.4685,37.44c-1.0674-3.107.4377-6.6708,3.7411-7.0453"/>' +
+              '<path stroke-miterlimit="5.7143" d="M25.4634,26.3872a1.4666,1.4666,0,0,0,1.4726-1.4725"/>' +
+              '<path stroke-miterlimit="5.7143" d="M28.4091,26.3872a1.4666,1.4666,0,0,1-1.4726-1.4725"/>' +
+            '</svg>' +
+            '<span class="sc-crash-label">ShellCrash 管理</span>' +
+            (isSidebar ? '<svg class="sc-crash-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>' : '');
+
+          if (isSidebar) {
+            // 侧边栏：悬停展开子菜单
+            crashBtn.addEventListener('mouseenter', function () {
+              var actionBtn = null;
+              var actionBtns = panel.querySelectorAll('button');
+              for (var i = 0; i < actionBtns.length; i++) {
+                if (actionBtns[i].textContent.trim() === '操作') {
+                  actionBtn = actionBtns[i]; break;
+                }
+              }
+              if (actionBtn && actionBtn.classList.contains('bg-base-200')) {
+                actionBtn.click();
+              }
+              var fixedEls = document.querySelectorAll('.fixed');
+              for (var i = 0; i < fixedEls.length; i++) {
+                if (fixedEls[i] !== panel && fixedEls[i].style.zIndex === '998') {
+                  fixedEls[i].remove();
+                }
+              }
+              showCrashSubmenu(crashBtn);
+            });
+            crashBtn.addEventListener('mouseleave', function (e) {
+              if (crashCloseTimer) clearTimeout(crashCloseTimer);
+              crashCloseTimer = setTimeout(closeCrashSubmenu, 200);
+            });
+            crashBtn.addEventListener('click', function (e) {
+              e.stopPropagation();
+              showCrashSubmenu(crashBtn);
+            });
+          } else {
+            // 设置页面：点击弹出功能列表窗口
+            crashBtn.addEventListener('click', function (e) {
+              e.stopPropagation();
+              openCrashFuncModal();
+            });
+          }
+          manageBtn.parentElement.insertBefore(crashBtn, manageBtn);
+        }
+
+        /* ===== 连接失败全屏弹窗注入"启动shellcrash服务"按钮 ===== */
+        function findFailModal() {
+          var overlays = document.querySelectorAll('[class*="z-[100000]"]');
+          for (var i = 0; i < overlays.length; i++) {
+            var overlay = overlays[i];
+            var title = overlay.querySelector('h1');
+            if (!title) continue;
+            var titleText = title.textContent.trim();
+            if (titleText.indexOf('连接失败') === -1 && titleText.indexOf('Connection failed') === -1) continue;
+            // 找到重试按钮和按钮区
+            var btns = overlay.querySelectorAll('button');
+            var retryBtn = null;
+            var btnContainer = null;
+            for (var j = 0; j < btns.length; j++) {
+              var b = btns[j];
+              var bt = b.textContent.trim();
+              if (bt.indexOf('重试') !== -1 || bt.indexOf('Retry') !== -1 || bt.indexOf('正在连接') !== -1) {
+                retryBtn = b;
+                btnContainer = b.parentElement;
+                break;
+              }
+            }
+            if (!btnContainer) continue;
+            // 提示框是按钮区的前一个兄弟元素
+            var tipBox = btnContainer.previousElementSibling;
+            return { overlay: overlay, btnContainer: btnContainer, retryBtn: retryBtn, tipBox: tipBox };
+          }
+          return null;
+        }
+
+        // Toast 提示
+        var scToastEl = null;
+        var scToastTimer = null;
+        function showToast(msg, type, persistent) {
+          // 新提示替代旧提示
+          if (scToastEl && scToastEl.parentNode) {
+            scToastEl.parentNode.removeChild(scToastEl);
+          }
+          if (scToastTimer) {
+            clearTimeout(scToastTimer);
+            scToastTimer = null;
+          }
+          var toast = document.createElement('div');
+          toast.className = 'bg-base-100 shadow-lg';
+          var colorStyle = '';
+          if (type === 'success') {
+            colorStyle = 'color:#16a34a;';
+          } else if (type === 'error') {
+            colorStyle = 'color:#dc2626;';
+          }
+          toast.style.cssText = 'padding:10px 20px;border-radius:8px;font-size:14px;pointer-events:auto;animation:sc-toast-in 0.3s ease;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999999;' + colorStyle;
+          toast.textContent = msg;
+          document.body.appendChild(toast);
+          scToastEl = toast;
+          // persistent 为 true 时不自动消失（如"正在启动"提示）
+          if (!persistent) {
+            scToastTimer = setTimeout(function () {
+              toast.style.animation = 'sc-toast-out 0.3s ease forwards';
+              setTimeout(function () {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+                if (scToastEl === toast) scToastEl = null;
+              }, 300);
+            }, 2500);
+          }
+          if (!document.getElementById('sc-toast-style')) {
+            var style = document.createElement('style');
+            style.id = 'sc-toast-style';
+            style.textContent = '@keyframes sc-toast-in { from { opacity:0; transform:translateX(-50%) translateY(-10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } } @keyframes sc-toast-out { from { opacity:1; transform:translateX(-50%) translateY(0); } to { opacity:0; transform:translateX(-50%) translateY(-10px); } }';
+            document.head.appendChild(style);
+          }
+        }
+
+        function updateFailModalTip(msg, type) {
+          var modal = findFailModal();
+          if (!modal || !modal.tipBox) return;
+          var tipBox = modal.tipBox;
+          tipBox.textContent = msg;
+          if (type === 'success') {
+            tipBox.style.background = 'rgba(22, 163, 74, 0.1)';
+            tipBox.style.color = '#16a34a';
+          } else {
+            tipBox.style.background = '';
+            tipBox.style.color = '';
+          }
+        }
+
+        function injectFailModalButton() {
+          var modal = findFailModal();
+          if (!modal) return;
+          var btnContainer = modal.btnContainer;
+          var retryBtn = modal.retryBtn;
+          if (!retryBtn || !btnContainer) return;
+          if (btnContainer.querySelector('.sc-start-crash-btn')) return;
+          // 按钮容器允许换行
+          btnContainer.style.flexWrap = 'wrap';
+          // 修改后端配置按钮移到下一行
+          var btns = btnContainer.querySelectorAll('button');
+          for (var i = 0; i < btns.length; i++) {
+            var bt = btns[i].textContent.trim();
+            if (bt.indexOf('修改后端配置') !== -1 || bt.indexOf('Edit backend') !== -1) {
+              btns[i].style.flexBasis = '100%';
+              break;
+            }
+          }
+          // 创建启动按钮
+          var startBtn = retryBtn.cloneNode(true);
+          startBtn.className = retryBtn.className + ' sc-start-crash-btn';
+          startBtn.textContent = '启动shellcrash服务';
+          startBtn.disabled = false;
+          startBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            if (startBtn.disabled) return;
+            if (!isCrashEnabledForCurrentBackend()) {
+              showToast('未启用 ShellCrash 管理功能', 'info');
+              return;
+            }
+            startBtn.disabled = true;
+            // 正在启动提示持续显示，等结果出来后替换
+            showToast('正在启动 shellcrash 服务...', 'info', true);
+            runCrashFunction('启动/重启服务').then(function (res) {
+              if (res && res.ok) {
+                showToast('shellcrash 服务启动成功', 'success');
+              } else {
+                var err = res && res.error ? res.error : '未知错误';
+                showToast('启动失败: ' + err, 'error');
+              }
+              startBtn.disabled = false;
+            });
+          });
+          btnContainer.insertBefore(startBtn, retryBtn.nextSibling);
+        }
+
+        /* ===== 启动注入 ===== */
+        var moThrottle = 0;
+        var mo = new MutationObserver(function () {
+          var now = Date.now();
+          if (now - moThrottle < 50) return;
+          moThrottle = now;
+          injectSetupEntry();
+          fixCardHeight();
+          injectSidebarCrashMenu();
+          injectFailModalButton();
+        });
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+
+        // 立即尝试注入，减少延迟
+        injectSetupEntry();
+        injectSidebarCrashMenu();
+        injectFailModalButton();
+        setTimeout(injectSetupEntry, 50);
+        setTimeout(injectSidebarCrashMenu, 50);
+        setTimeout(injectFailModalButton, 50);
+        setTimeout(injectSetupEntry, 150);
+        setTimeout(injectSidebarCrashMenu, 150);
+        setTimeout(injectFailModalButton, 150);
+        setTimeout(injectSetupEntry, 300);
+        setTimeout(injectSidebarCrashMenu, 300);
+        setTimeout(injectFailModalButton, 300);
+        setTimeout(injectSetupEntry, 500);
+        setTimeout(injectSidebarCrashMenu, 500);
+        setTimeout(injectFailModalButton, 500);
+
+        var timer = setInterval(function () { injectSetupEntry(); injectFailModalButton(); }, 500);
+        setTimeout(function () { clearInterval(timer); }, 15000);
+      })();
     </script>
   </body>
 </html>
