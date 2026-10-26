@@ -21,6 +21,8 @@ const MAX_PREVIEW_IMAGE_BYTES = 12 * 1024 * 1024
 const MAX_PREVIEW_TOTAL_BYTES = 24 * 1024 * 1024
 const MAX_PREVIEW_IMAGES = 8
 const AI_TOOL_TIMEOUT_MS = 120_000
+const AI_CANCEL_SETTLE_TIMEOUT_MS = 2_500
+const MINIMUM_ZTOOLS_VERSION = Object.freeze([2, 4, 0])
 const AI_WRITE_COMMANDS = new Set([
   'add',
   'batch',
@@ -43,6 +45,41 @@ const EXTERNAL_MCP_BLOCKED_PROPERTY_KEYS = new Set([
   'src'
 ])
 const EXTERNAL_MCP_IMAGE_VALUE_KEYS = new Set(['background', 'fill'])
+
+function getHostCompatibility(api) {
+  if (api === undefined) {
+    return { mode: 'browser-preview', requiresUpgrade: false, reason: 'browser-preview' }
+  }
+  let value
+  try {
+    if (typeof api?.getAppVersion !== 'function') {
+      return { mode: 'upgrade-required', requiresUpgrade: true, reason: 'version-unavailable' }
+    }
+    value = api.getAppVersion()
+  } catch {
+    return { mode: 'upgrade-required', requiresUpgrade: true, reason: 'version-unavailable' }
+  }
+  const version = typeof value === 'string' ? value.trim() : ''
+  const match = /^v?(\d+)\.(\d+)(?:\.(\d+))?([+-][0-9A-Za-z.-]+)?$/u.exec(version)
+  if (!match) return { mode: 'upgrade-required', requiresUpgrade: true, reason: 'version-invalid' }
+  const parts = [match[1], match[2], match[3] || '0'].map((part) => Number.parseInt(part, 10))
+  if (parts.some((part) => !Number.isSafeInteger(part))) {
+    return { mode: 'upgrade-required', requiresUpgrade: true, reason: 'version-invalid' }
+  }
+  let belowMinimum = false
+  for (let index = 0; index < MINIMUM_ZTOOLS_VERSION.length; index += 1) {
+    if (parts[index] === MINIMUM_ZTOOLS_VERSION[index]) continue
+    belowMinimum = parts[index] < MINIMUM_ZTOOLS_VERSION[index]
+    break
+  }
+  if (!belowMinimum && parts.every((part, index) => part === MINIMUM_ZTOOLS_VERSION[index])) {
+    belowMinimum = Boolean(match[4]?.startsWith('-'))
+  }
+  if (belowMinimum) {
+    return { mode: 'upgrade-required', version, requiresUpgrade: true, reason: 'below-minimum' }
+  }
+  return { mode: 'supported', version, requiresUpgrade: false, reason: 'supported' }
+}
 
 async function safeInvoke(runner, method, args) {
   try {
@@ -216,7 +253,7 @@ async function safeUiRun(runner, command, options) {
   return withPreviewImages(result)
 }
 
-async function safeAiRun(runner, command, options) {
+async function safeAiRun(runner, command, options, signal) {
   try {
     if (!options || typeof options !== 'object' || Array.isArray(options)) {
       throw new OfficeCliRunnerError('INVALID_OPTIONS', 'AI tool options must be an object.')
@@ -238,7 +275,8 @@ async function safeAiRun(runner, command, options) {
     }
     const result = await safeInvoke(runner, 'run', [parsed.argv, {
       timeoutMs: AI_TOOL_TIMEOUT_MS,
-      env: { OFFICECLI_NO_AUTO_RESIDENT: '1' }
+      env: { OFFICECLI_NO_AUTO_RESIDENT: '1' },
+      signal
     }])
     return withPreviewImages(result)
   } catch (error) {
@@ -247,6 +285,26 @@ async function safeAiRun(runner, command, options) {
 }
 
 function createOfficeSuiteServices(runner = createOfficeCliRunner(), installer = createOfficeCliInstaller()) {
+  const aiRuns = new Set()
+  let aiCancelBarrier = Promise.resolve({ cancelled: 0, settled: true })
+  let aiCancelBarrierPending = false
+  let aiCancelEpoch = 0
+
+  function waitForRunSnapshot(snapshot) {
+    if (!snapshot.length) return Promise.resolve({ cancelled: 0, settled: true })
+    return new Promise((resolve) => {
+      let finished = false
+      const finish = (settled) => {
+        if (finished) return
+        finished = true
+        clearTimeout(timer)
+        resolve({ cancelled: snapshot.length, settled })
+      }
+      const timer = setTimeout(() => finish(false), AI_CANCEL_SETTLE_TIMEOUT_MS)
+      void Promise.allSettled(snapshot.map((run) => run.pending)).then(() => finish(true))
+    })
+  }
+
   return Object.freeze({
     getStatus(options) {
       return safeUiInvoke(runner, 'getStatus', [], options, STATUS_OPTION_FIELDS)
@@ -263,8 +321,44 @@ function createOfficeSuiteServices(runner = createOfficeCliRunner(), installer =
     run(command, options) {
       return safeUiRun(runner, command, options)
     },
-    runForAi(command, options) {
-      return safeAiRun(runner, command, options)
+    async runForAi(command, options) {
+      const runEpoch = aiCancelEpoch
+      while (aiCancelBarrierPending) {
+        const barrier = aiCancelBarrier
+        await barrier
+        if (barrier === aiCancelBarrier) break
+      }
+      if (runEpoch !== aiCancelEpoch) {
+        return failure(new OfficeCliRunnerError(
+          'AI_RUN_CANCELLED',
+          'The queued AI OfficeCLI run was cancelled before it started.'
+        ), 'OFFICE_SUITE_AI_TOOL_ERROR')
+      }
+      const controller = new AbortController()
+      const run = {
+        controller,
+        pending: safeAiRun(runner, command, options, controller.signal)
+      }
+      aiRuns.add(run)
+      try {
+        return await run.pending
+      } finally {
+        aiRuns.delete(run)
+      }
+    },
+    cancelAiRuns() {
+      aiCancelEpoch += 1
+      const snapshot = Array.from(aiRuns)
+      for (const run of snapshot) run.controller.abort()
+      const previousBarrier = aiCancelBarrier
+      const snapshotBarrier = waitForRunSnapshot(snapshot)
+      const barrier = Promise.all([previousBarrier, snapshotBarrier]).then(([, current]) => current)
+      aiCancelBarrierPending = true
+      aiCancelBarrier = barrier
+      void barrier.then(() => {
+        if (aiCancelBarrier === barrier) aiCancelBarrierPending = false
+      })
+      return barrier
     },
     getMcpStatus(options) {
       return safeUiInvoke(runner, 'getMcpStatus', [], options, STATUS_OPTION_FIELDS)
@@ -529,17 +623,26 @@ function attachOfficeSuite(target, runner = createOfficeCliRunner(), installer =
 
 let defaultServices = null
 if (typeof window !== 'undefined') {
-  defaultServices = attachOfficeSuite(window)
+  const compatibility = getHostCompatibility(window.ztools)
+  if (compatibility.requiresUpgrade) {
+    // Do not create a runner or register the native tool before the renderer's
+    // upgrade-only view is shown.
+    window.officeSuite = Object.freeze({})
+  } else {
+    defaultServices = attachOfficeSuite(window)
+  }
 }
 
 module.exports = {
   MCP_TOOL_TIMEOUT_MS,
   AI_TOOL_TIMEOUT_MS,
+  AI_CANCEL_SETTLE_TIMEOUT_MS,
   OFFICE_DOCUMENT_TOOL,
   attachOfficeSuite,
   collectPreviewImages,
   createOfficeSuiteServices,
   defaultServices,
+  getHostCompatibility,
   registerOfficeDocumentTool,
   sanitizeUiOptions,
   validateExternalToolCommand,
