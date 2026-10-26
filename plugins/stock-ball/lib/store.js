@@ -1,6 +1,7 @@
 'use strict';
 /*
- * 持久化：优先 ZTools/uTools 的 dbStorage（跨窗口共享），没有就退回本地 JSON 文件。
+ * 个人数据：优先 dbStorage，没有就退回本地 JSON 文件。
+ * 高频临时状态：独立的跨窗口临时缓存，绝不写入 dbStorage / 个人数据文件。
  */
 const K = {
   watchlist: 'sb.watchlist',
@@ -16,6 +17,8 @@ const K = {
   quoteStamp: 'sb.quoteStamp',
   alertCooldowns: 'sb.alertCooldowns'
 };
+
+const RUNTIME_KEYS = new Set([K.ballHb, K.cmd, K.latestQuotes, K.latestIndexes, K.quoteStamp, K.alertCooldowns]);
 
 const DEFAULT_GROUPS = ['默认', '核心持仓', '观察池'];
 
@@ -77,6 +80,10 @@ function guessSecid(code) {
 
 function createStore(injectedDb, options) {
   const opts = options || {};
+  const runtime = opts.runtimeStorage || require('./runtime-store.js').createRuntimeStorage({
+    isolated: !!opts.isolated,
+    directory: opts.runtimeDirectory
+  });
   let dataFilePath = '';
   let fileStore = null;
   // getSettings 微缓存：一次刷新里 proxy/闸门/新鲜度窗口等要读十几次设置，
@@ -108,7 +115,7 @@ function createStore(injectedDb, options) {
        * 性能：本地 JSON 文件只作为 dbStorage 的兜底 / 镜像，不做高频读写。
        * 1) 解析结果常驻内存，用 mtime+size 判断文件是否被别的窗口改过（避免每次 getItem 都整文件 parse）；
        * 2) 同一个 tick 内的多次 setItem 合并成一次 writeFileSync（避免启动同步 / 批量写入时反复整文件落盘）；
-       * 3) 高频易变的缓存类键（行情、心跳、命令）完全不落文件，只留在 dbStorage 里。
+       * 3) 高频临时状态走 runtime，既不镜像到这里，也不写 dbStorage。
        */
       let cacheObj = null;
       let cacheMtime = -1;
@@ -220,7 +227,7 @@ function createStore(injectedDb, options) {
         fileStore.setItem(K.watchlist, dbWl);
       }
 
-      // 3. 其余项互相补充（行情缓存不参与文件同步：它只存在于 dbStorage，写文件纯属浪费）
+      // 3. 其余个人数据互相补充（临时状态不参与文件同步）
       const keys = [K.watchlistGroups, K.settings, K.ballPos];
       keys.forEach((k) => {
         const dbVal = db.getItem(k);
@@ -307,19 +314,20 @@ function createStore(injectedDb, options) {
 
   function get(key, dflt) {
     let v = null;
-    try { v = db.getItem(key); } catch (e) { v = null; }
+    try { v = (RUNTIME_KEYS.has(key) ? runtime : db).getItem(key); } catch (e) { v = null; }
     if (v === undefined || v === null) return dflt;
     return v;
   }
 
-  // 这些键变化频繁且只是进程间缓存 / 一次性信号，镜像到 JSON 文件没有意义（每次都是整文件读+写）
-  const NO_FILE_MIRROR = { [K.ballHb]: 1, [K.cmd]: 1, [K.latestQuotes]: 1, [K.latestIndexes]: 1, [K.quoteStamp]: 1, [K.alertCooldowns]: 1 };
-
   function set(key, val) {
+    if (RUNTIME_KEYS.has(key)) {
+      try { runtime.setItem(key, val); } catch (e) { /* ignore */ }
+      return val;
+    }
     if (key === K.settings) { settingsMemo = null; settingsMemoAt = 0; }
     if (key === K.transactions) txVersion += 1;
     try { db.setItem(key, val); } catch (e) { /* ignore */ }
-    if (fileStore && db !== fileStore && !NO_FILE_MIRROR[key]) {
+    if (fileStore && db !== fileStore) {
       try { fileStore.setItem(key, val); } catch (e) { /* ignore */ }
     }
     return val;
@@ -638,12 +646,21 @@ function createStore(injectedDb, options) {
     if (!quotesMap || typeof quotesMap !== 'object') return;
     const cur = getLatestQuotes();
     const merged = Object.assign({}, cur, quotesMap);
+    // 旧版把每条行情同时写成 600961 / sz600961 / sh600961 三份。
+    // 内部统一用裸代码，顺手清掉旧别名；读取持仓时仍兼容外部传入的前缀代码。
+    Object.keys(merged).forEach((key) => {
+      if (/^(sz|sh)\d{6}$/.test(key)) {
+        const code = key.slice(2);
+        if (!merged[code] || (!quotesMap[code] && quotesMap[key])) merged[code] = merged[key];
+        delete merged[key];
+      }
+    });
     set(K.latestQuotes, merged);
     return merged;
   }
 
   /*
-   * 跨窗口「行情新鲜度」标记（只放 dbStorage，全局共享）。
+   * 跨窗口「行情新鲜度」标记（只放独立临时缓存，不进版本化数据库）。
    * 主窗口 / 悬浮球 / 面板各有自己的刷新循环，之前同一份行情会被三个窗口各拉一遍；
    * 这里记录「最近一次成功拉取的时刻 + 覆盖到的代码」，
    * 其它窗口只要发现数据够新且代码覆盖完整，就直接用缓存渲染，不再重复发网络请求。
@@ -730,8 +747,8 @@ function createStore(injectedDb, options) {
 
   function getAllPositions(latestQuotesMap) {
     const positions = [];
-    const cachedQuotes = getLatestQuotes();
-    const qMap = latestQuotesMap || cachedQuotes || {};
+    // 已传入本轮行情时不再同步读一遍整个行情文件。
+    const qMap = latestQuotesMap || getLatestQuotes() || {};
 
     // 交易流水侧全部来自内核缓存；本函数只剩按行情组装行（O(持仓数)，不再碰流水）
     for (const c of getPositionsCore()) {
@@ -925,8 +942,8 @@ function createStore(injectedDb, options) {
    * 预警通知冷却表。
    * 以前它是 preload.js 里的模块级变量，也就是「每个窗口各一份」，于是同一条预警
    * 会在主窗口 / 悬浮球 / 面板各弹一次（再加上持仓与自选两条评估路径，最多弹 4 次）。
-   * 现在放进跨窗口共享的 dbStorage，谁先提醒谁占坑，其它窗口在整个冷却期内静默。
-   * 只是运行期缓存，不镜像到 JSON 文件（同行情缓存）。
+   * 现在放进跨窗口共享的临时缓存，由主窗口认领，其它窗口在整个冷却期内静默。
+   * 只是运行期缓存，不镜像到个人数据 JSON 文件（同行情缓存）。
    */
   const COOLDOWN_TTL = 6 * 60 * 60 * 1000;   // 超过 6 小时的老记录清理掉
   const COOLDOWN_MAX = 200;
