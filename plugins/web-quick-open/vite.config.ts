@@ -14,6 +14,12 @@ function copyReadmePlugin() {
 
       mkdirSync(distPath, { recursive: true })
       copyFileSync(readmePath, resolve(distPath, 'README.md'))
+      copyFileSync(resolve(__dirname, 'CHANGELOG.md'), resolve(distPath, 'CHANGELOG.md'))
+      const developmentPath = resolve(__dirname, 'docs/development.md')
+      if (existsSync(developmentPath)) {
+        mkdirSync(resolve(distPath, 'docs'), { recursive: true })
+        copyFileSync(developmentPath, resolve(distPath, 'docs/development.md'))
+      }
     }
   }
 }

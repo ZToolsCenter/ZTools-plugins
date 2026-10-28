@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   Download,
   ExternalLink,
   Globe,
@@ -14,6 +15,7 @@ import {
   Upload
 } from 'lucide-vue-next'
 import { ZButton, ZInput, ZSwitch, ZTag } from 'ztools-ui'
+import DownSelect from './components/DownSelect.vue'
 
 function debugUi(event: string, details: Record<string, string | number | boolean> = {}): void {
   try {
@@ -21,7 +23,11 @@ function debugUi(event: string, details: Record<string, string | number | boolea
       window.webQuickOpen.writeDebugLog(event, details)
       return
     }
-    console.debug('[WebQuickOpen][ui]', { timestamp: new Date().toISOString(), event, ...details })
+    console.debug('[WebQuickOpen][ui]', {
+      timestamp: new Date().toISOString(),
+      event,
+      ...details
+    })
   } catch {
     // Logging must never interrupt UI interactions
   }
@@ -29,7 +35,9 @@ function debugUi(event: string, details: Record<string, string | number | boolea
 
 function debugUiError(event: string, error: unknown): void {
   const code = String((error as { code?: unknown })?.code || '')
-  debugUi(event, { errorCode: /^[A-Z][A-Z0-9_]{0,39}$/.test(code) ? code : 'UNSPECIFIED' })
+  debugUi(event, {
+    errorCode: /^[A-Z][A-Z0-9_]{0,39}$/.test(code) ? code : 'UNSPECIFIED'
+  })
 }
 
 type NoticeType = 'success' | 'error' | 'info'
@@ -65,6 +73,17 @@ const groups = ref<string[]>([])
 const browserProfiles = ref<WebQuickOpenBrowserProfile[]>([])
 const selectedGroup = ref(ALL_GROUPS)
 const loading = ref(true)
+const batchTask = ref<WebQuickOpenBatchIcons | null>(null)
+const batchRunning = computed(() =>
+  ['running', 'cancelling'].includes(batchTask.value?.status || '')
+)
+const refreshMenuOpen = ref(false)
+const refreshMenuRoot = ref<HTMLElement | null>(null)
+let batchPollTimer = 0
+let batchPollingStopped = false
+let completedBatchId = 0
+let shownBatchRevision = -1
+let batchStarting = false
 const saving = ref(false)
 const fetchingIcon = ref(false)
 const quickSavingPreset = ref('')
@@ -140,6 +159,17 @@ const filteredBrowserProfiles = computed(() => {
 const selectedBrowserProfile = computed(() =>
   browserProfiles.value.find((profile) => profile.id === formData.value.browserId)
 )
+const browserSelectOptions = computed(() => {
+  const profiles = [...visibleBrowserProfiles.value]
+  const selected = selectedBrowserProfile.value
+  if (selected && !profiles.some((profile) => profile.id === selected.id)) {
+    profiles.push(selected)
+  }
+  return [
+    { label: '系统默认浏览器打开', value: 0 },
+    ...profiles.map((profile) => ({ label: profile.name, value: profile.id }))
+  ]
+})
 const emptyText = computed(() => {
   if (query.value.trim()) return '没有匹配的网页快开'
   return selectedGroup.value === ALL_GROUPS
@@ -359,7 +389,7 @@ async function toggleEnabled(engine: WebSearchEngine, enabled: boolean): Promise
   const previous = engine.enabled
   engine.enabled = enabled
   try {
-    const result = await window.webQuickOpen.update({ ...engine, enabled })
+    const result = await window.webQuickOpen.update({ ...engine, enabled }, true)
     if (!result.success) {
       engine.enabled = previous
       showNotice('error', result.error || '更新失败')
@@ -383,7 +413,11 @@ async function saveEngine(): Promise<void> {
   saving.value = true
   try {
     const result = isEditing.value
-      ? await window.webQuickOpen.update(normalized.engine)
+      ? await window.webQuickOpen.update(
+          normalized.engine,
+          normalized.engine.icon === editingEngine.value?.icon &&
+            normalized.engine.iconSource === editingEngine.value?.iconSource
+        )
       : await window.webQuickOpen.add(normalized.engine)
 
     if (!result.success) {
@@ -417,6 +451,7 @@ async function quickAddSearchPreset(preset: SearchPreset): Promise<void> {
       name: preset.name,
       url: preset.url,
       icon: iconResult.success && iconResult.data ? iconResult.data : '',
+      iconSource: iconResult.success && iconResult.data ? 'auto' : undefined,
       enabled: true,
       type: 'search',
       keyword: ''
@@ -467,6 +502,7 @@ async function fetchFavicon(): Promise<void> {
     const result = await window.webQuickOpen.fetchFavicon(formData.value.url)
     if (result.success && result.data) {
       formData.value.icon = result.data
+      formData.value.iconSource = 'auto'
       showNotice('success', '已获取图标')
     } else {
       showNotice('error', result.error || '未能获取图标')
@@ -815,6 +851,7 @@ function handleIconFileChange(event: Event): void {
   reader.onload = () => {
     if (typeof reader.result === 'string') {
       formData.value.icon = reader.result
+      formData.value.iconSource = 'manual'
       showNotice('success', '已上传图标')
     }
   }
@@ -836,6 +873,7 @@ function validateEngine(engine: WebSearchEngine):
     name: engine.name.trim(),
     url: engine.url.trim(),
     icon: engine.icon || '',
+    iconSource: engine.icon ? engine.iconSource : undefined,
     enabled: engine.enabled,
     type: engine.type,
     keyword: engine.keyword?.trim() || '',
@@ -972,7 +1010,126 @@ watch([showEditor, showBrowserManager, browserProfileDialog], () => {
   })
 })
 
+async function toggleRefreshMenu(): Promise<void> {
+  refreshMenuOpen.value = !refreshMenuOpen.value
+  if (refreshMenuOpen.value) {
+    await nextTick()
+    refreshMenuRoot.value?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()
+  }
+}
+
+function closeRefreshMenu(restoreFocus = false): void {
+  refreshMenuOpen.value = false
+  if (restoreFocus)
+    refreshMenuRoot.value?.querySelector<HTMLButtonElement>('[aria-haspopup]')?.focus()
+}
+
+function onDocumentClick(event: MouseEvent): void {
+  if (!refreshMenuRoot.value?.contains(event.target as Node)) closeRefreshMenu()
+}
+
+async function startBatchIcons(): Promise<void> {
+  closeRefreshMenu(true)
+  if (batchRunning.value || importing.value || batchStarting) return
+  batchStarting = true
+  try {
+    const result = await window.webQuickOpen.getAll()
+    if (!result.success) {
+      showNotice('error', result.error || '读取入口失败')
+      return
+    }
+    const entries = result.data || []
+    const count = entries.filter((entry) => !entry.icon || entry.iconSource === 'auto').length
+    if (!count) {
+      showNotice('info', '没有可获取图标的入口，已有手动或未知来源图标将被跳过')
+      return
+    }
+    if (
+      !window.confirm(
+        '将为全部入口中的 ' +
+          count +
+          ' 个入口获取图标，跳过 ' +
+          (entries.length - count) +
+          ' 个受保护图标（含手动及未知来源图标）。包含禁用入口，不受当前搜索和分组影响。是否继续？'
+      )
+    )
+      return
+    const started = await window.webQuickOpen.startBatchIcons()
+    if (!started.success) {
+      showNotice('error', started.error || '启动失败')
+      return
+    }
+    batchTask.value = started.data || null
+    shownBatchRevision = -1
+  } catch (error) {
+    debugUiError('icons.batch.startFailed', error)
+    showNotice('error', '启动图标获取任务失败')
+  } finally {
+    batchStarting = false
+  }
+}
+
+async function cancelBatchIcons(): Promise<void> {
+  if (!batchTask.value) return
+  try {
+    const result = await window.webQuickOpen.cancelBatchIcons(batchTask.value.id)
+    if (result.success) batchTask.value = result.data || null
+    else showNotice('error', result.error || '取消失败')
+  } catch (error) {
+    debugUiError('icons.batch.cancelFailed', error)
+    showNotice('error', '取消失败')
+  }
+}
+
+function dismissBatchIcons(): void {
+  if (batchTask.value) completedBatchId = batchTask.value.id
+  batchTask.value = null
+}
+
+async function pollBatchIcons(): Promise<void> {
+  try {
+    if (!window.webQuickOpen?.getBatchIconsStatus) return
+    const result = await window.webQuickOpen.getBatchIconsStatus()
+    const task = result.data
+    if (!task || batchPollingStopped) return
+    if (
+      !batchTask.value &&
+      completedBatchId === task.id &&
+      !['running', 'cancelling'].includes(task.status)
+    )
+      return
+    const previousId = batchTask.value?.id
+    batchTask.value = task
+    if (previousId !== task.id || shownBatchRevision !== task.revision) {
+      const entries = await window.webQuickOpen.getAll()
+      if (entries.success && !batchPollingStopped) {
+        engines.value = entries.data || []
+        shownBatchRevision = task.revision
+      }
+    }
+    if (!['running', 'cancelling'].includes(task.status) && completedBatchId !== task.id) {
+      completedBatchId = task.id
+      showNotice(
+        task.status === 'failed' ? 'error' : 'info',
+        (task.error || (task.status === 'cancelled' ? '已取消' : '图标获取完成')) +
+          '：更新 ' +
+          task.updated +
+          '，失败 ' +
+          task.failed +
+          '，跳过 ' +
+          task.skipped
+      )
+    }
+  } catch (error) {
+    debugUiError('icons.batch.pollFailed', error)
+  } finally {
+    if (!batchPollingStopped) batchPollTimer = window.setTimeout(pollBatchIcons, 500)
+  }
+}
+
 onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+  void pollBatchIcons()
   debugUi('runtime.mounted')
   loadEngines()
   window.ztools?.onPluginEnter?.((param) => {
@@ -981,6 +1138,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  batchPollingStopped = true
+  window.clearTimeout(batchPollTimer)
+  document.removeEventListener('click', onDocumentClick)
+  if (batchTask.value && batchRunning.value)
+    void window.webQuickOpen.cancelBatchIcons(batchTask.value.id)
   debugUi('runtime.unmounted')
   window.clearTimeout(noticeTimer)
 })
@@ -1002,19 +1164,64 @@ onUnmounted(() => {
           </template>
         </ZInput>
         <div class="toolbar-actions">
-          <ZButton size="medium" :disabled="loading || importing" @click="loadEngines">
-            <template #icon>
-              <RotateCw :size="15" />
-            </template>
-            刷新
-          </ZButton>
+          <div
+            ref="refreshMenuRoot"
+            class="refresh-split"
+            @keydown.esc.prevent="closeRefreshMenu(true)"
+          >
+            <ZButton
+              size="medium"
+              :disabled="loading || importing || batchRunning"
+              @click="loadEngines"
+            >
+              <template #icon>
+                <RotateCw :size="15" />
+              </template>
+              刷新
+            </ZButton>
+            <ZButton
+              class="refresh-arrow"
+              size="medium"
+              title="刷新选项"
+              aria-label="刷新选项"
+              aria-haspopup="menu"
+              :aria-expanded="refreshMenuOpen"
+              :disabled="loading || importing || batchRunning"
+              @click="toggleRefreshMenu"
+              @keydown.down.prevent="toggleRefreshMenu"
+            >
+              <ChevronDown :size="14" />
+            </ZButton>
+            <div
+              v-if="refreshMenuOpen"
+              class="create-dropdown refresh-menu"
+              role="menu"
+              aria-label="刷新选项"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                class="create-dropdown-item"
+                @click="startBatchIcons"
+                @keydown.down.prevent
+                @keydown.up.prevent
+                @keydown.tab="closeRefreshMenu()"
+              >
+                批量获取网页图标
+              </button>
+            </div>
+          </div>
           <ZButton size="medium" type="primary" @click="() => openAddEditor()">
             <template #icon>
               <Plus :size="15" />
             </template>
             添加
           </ZButton>
-          <ZButton size="medium" :disabled="loading || importing" @click="pickImportFile">
+          <ZButton
+            size="medium"
+            :disabled="loading || importing || batchRunning"
+            @click="pickImportFile"
+          >
             <template #icon>
               <Upload :size="15" />
             </template>
@@ -1040,6 +1247,38 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <div v-if="batchTask" class="batch-icon-progress" role="status" aria-live="polite">
+        <span v-if="batchRunning"
+          >{{ batchTask.status === 'cancelling' ? '正在取消' : '获取图标' }}：已处理
+          {{ batchTask.processed }} / {{ batchTask.total }}</span
+        >
+        <span v-else
+          >{{
+            batchTask.status === 'cancelled'
+              ? '已取消'
+              : batchTask.status === 'failed'
+                ? '任务失败'
+                : '图标获取完成'
+          }}：更新 {{ batchTask.updated }}，失败 {{ batchTask.failed }}，跳过
+          {{ batchTask.skipped }}</span
+        >
+        <ZButton
+          v-if="batchRunning"
+          size="small"
+          :disabled="batchTask.status === 'cancelling'"
+          @click="cancelBatchIcons"
+          >取消</ZButton
+        >
+        <button
+          v-else
+          class="icon-button"
+          aria-label="关闭图标任务结果"
+          title="关闭"
+          @click="dismissBatchIcons"
+        >
+          ×
+        </button>
+      </div>
       <div class="manager-layout">
         <aside class="group-sidebar" :class="{ 'editing-group': groupDialogMode }">
           <nav class="group-nav" aria-label="入口分组">
@@ -1202,9 +1441,9 @@ onUnmounted(() => {
           <article
             v-for="profile in filteredBrowserProfiles"
             :key="profile.id"
-            class="browser-profile-card"
+            class="engine-card browser-profile-card"
           >
-            <div class="browser-profile-icon">
+            <div class="engine-icon browser-profile-icon">
               <img
                 v-if="isBrowserImage(profile.icon)"
                 :src="profile.icon"
@@ -1214,7 +1453,9 @@ onUnmounted(() => {
               <Globe v-else :size="24" />
             </div>
             <div class="browser-profile-main">
-              <strong>{{ profile.name }}</strong>
+              <div class="engine-heading">
+                <h2>{{ profile.name }}</h2>
+              </div>
               <div class="browser-profile-details">
                 <span :title="profile.path">{{ profile.path }}</span>
                 <code :title="stringifyBrowserArgs(profile.args)">{{
@@ -1406,26 +1647,28 @@ onUnmounted(() => {
         <div class="form-grid">
           <div class="form-field">
             <label>分组</label>
-            <select v-model="formData.group" class="native-select">
-              <option :value="null">默认</option>
-              <option v-for="group in groups" :key="group" :value="group">
-                {{ group }}
-              </option>
-            </select>
+            <DownSelect
+              :model-value="formData.group ?? 0"
+              :options="[
+                { label: DEFAULT_GROUP, value: 0 },
+                ...groups.map((group) => ({ label: group, value: group }))
+              ]"
+              @update:model-value="
+                (value) => (formData.group = typeof value === 'string' && value ? value : null)
+              "
+            />
           </div>
           <div class="form-field browser-select-field">
             <label>打开方式</label>
             <div class="browser-select-row">
-              <select v-model="formData.browserId" class="native-select">
-                <option :value="null">系统默认浏览器打开</option>
-                <option
-                  v-for="profile in visibleBrowserProfiles"
-                  :key="profile.id"
-                  :value="profile.id"
-                >
-                  {{ profile.name }}
-                </option>
-              </select>
+              <DownSelect
+                :model-value="formData.browserId ?? 0"
+                :options="browserSelectOptions"
+                @update:model-value="
+                  (value) =>
+                    (formData.browserId = typeof value === 'string' && value ? value : null)
+                "
+              />
               <ZButton size="small" @click="openBrowserManager">管理浏览器</ZButton>
             </div>
             <p v-if="formData.browserId && !selectedBrowserProfile" class="hint warning-hint">
