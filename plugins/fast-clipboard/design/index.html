@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>y-clipboard logo design</title>
+<style>
+  body { margin: 0; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #fff; }
+  .grid { display: flex; gap: 48px; padding: 36px 40px; align-items: flex-start; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .row { display: flex; gap: 10px; align-items: flex-end; }
+  .lbl { font-size: 13px; color: #333; font-weight: 500; }
+  .hint { font-size: 11px; color: #999; margin-top: -8px; }
+</style>
+</head>
+<body>
+<div class="grid" id="grid"></div>
+<script>
+const SVGS = {
+  a: `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="ga" gradientUnits="userSpaceOnUse" x1="40" y1="24" x2="472" y2="488">
+      <stop offset="0" stop-color="#4E8DF7"/>
+      <stop offset="1" stop-color="#2F5BE8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#ga)"/>
+  <rect x="158" y="118" width="196" height="282" rx="30" fill="#FFFFFF"/>
+  <rect x="222" y="92" width="68" height="52" rx="16" fill="#FFFFFF"/>
+  <path d="M265 167 L170 281 L256 281 L246 357 L341 243 L256 243 Z" fill="url(#ga)"/>
+</svg>`,
+  b: `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="gb" gradientUnits="userSpaceOnUse" x1="40" y1="24" x2="472" y2="488">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#gb)"/>
+  <g transform="rotate(-10 268 256)">
+    <rect x="180" y="112" width="180" height="258" rx="26" fill="#FFFFFF"/>
+    <rect x="238" y="88" width="64" height="48" rx="14" fill="#FFFFFF"/>
+    <rect x="206" y="176" width="128" height="13" rx="6.5" fill="url(#gb)"/>
+    <rect x="206" y="210" width="128" height="13" rx="6.5" fill="url(#gb)"/>
+    <rect x="206" y="244" width="86" height="13" rx="6.5" fill="url(#gb)"/>
+  </g>
+  <rect x="44" y="176" width="72" height="15" rx="7.5" fill="#FFFFFF" opacity="0.95"/>
+  <rect x="28" y="230" width="104" height="15" rx="7.5" fill="#FFFFFF" opacity="0.8"/>
+  <rect x="52" y="284" width="64" height="15" rx="7.5" fill="#FFFFFF" opacity="0.65"/>
+</svg>`,
+  c: `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="gc" gradientUnits="userSpaceOnUse" x1="40" y1="24" x2="472" y2="488">
+      <stop offset="0" stop-color="#2A3B5F"/>
+      <stop offset="1" stop-color="#141E38"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#gc)"/>
+  <rect x="160" y="140" width="192" height="268" rx="28" fill="#FFFFFF"/>
+  <rect x="194" y="204" width="124" height="13" rx="6.5" fill="url(#gc)"/>
+  <rect x="194" y="238" width="124" height="13" rx="6.5" fill="url(#gc)"/>
+  <rect x="194" y="272" width="82" height="13" rx="6.5" fill="url(#gc)"/>
+  <path d="M272 112 L232 158 L252 158 L236 194 L284 146 L262 146 Z" fill="#FFB020"/>
+</svg>`
+}
+
+const key = new URLSearchParams(location.search).get('src')
+
+if (key && SVGS[key]) {
+  // 单个导出模式：SVG → 512px 透明背景 PNG 下载
+  const url = URL.createObjectURL(new Blob([SVGS[key]], { type: 'image/svg+xml' }))
+  const img = new Image()
+  img.onload = () => {
+    const c = document.createElement('canvas')
+    c.width = 512
+    c.height = 512
+    const ctx = c.getContext('2d')
+    ctx.drawImage(img, 0, 0, 512, 512)
+    const corner = ctx.getImageData(4, 4, 1, 1).data
+    const middle = ctx.getImageData(256, 256, 1, 1).data
+    const clip = ctx.getImageData(256, 118, 1, 1).data
+    window.__probe = {
+      cornerAlpha: corner[3],
+      centerRGBA: [middle[0], middle[1], middle[2], middle[3]],
+      clipRGBA: [clip[0], clip[1], clip[2], clip[3]]
+    }
+    c.toBlob((b) => {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(b)
+      a.download = 'logo-' + key + '.png'
+      document.body.appendChild(a)
+      a.click()
+    }, 'image/png')
+  }
+  img.src = url
+} else {
+  // 预览模式：三方案大图 + 小尺寸模拟
+  const labels = {
+    a: 'A · 闪电速贴（推荐）',
+    b: 'B · 疾影',
+    c: 'C · 闪电夹'
+  }
+  const grid = document.getElementById('grid')
+  for (const k of Object.keys(SVGS)) {
+    const col = document.createElement('div')
+    col.className = 'col'
+    const big = document.createElement('div')
+    big.innerHTML = SVGS[k]
+    big.firstElementChild.setAttribute('width', 180)
+    big.firstElementChild.setAttribute('height', 180)
+    const row = document.createElement('div')
+    row.className = 'row'
+    for (const s of [44, 28]) {
+      const w = document.createElement('div')
+      w.innerHTML = SVGS[k]
+      w.firstElementChild.setAttribute('width', s)
+      w.firstElementChild.setAttribute('height', s)
+      row.appendChild(w)
+    }
+    const lbl = document.createElement('div')
+    lbl.className = 'lbl'
+    lbl.textContent = labels[k]
+    const hint = document.createElement('div')
+    hint.className = 'hint'
+    hint.textContent = '180px / 44px / 28px'
+    col.appendChild(big)
+    col.appendChild(row)
+    col.appendChild(lbl)
+    col.appendChild(hint)
+    grid.appendChild(col)
+  }
+}
+</script>
+</body>
+</html>
