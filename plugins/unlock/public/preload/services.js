@@ -27,10 +27,14 @@ function getDebugLog() {
   return logs
 }
 
-function execWithTimeout(cmd, args, label) {
+function execWithTimeout(cmd, args, label, options) {
   return new Promise(function (resolve, reject) {
     debugPush('  [' + (label || 'exec') + '] ' + cmd + ' ' + args.map(function (a) { return a.includes(' ') ? '"' + a + '"' : a }).join(' '))
-    var proc = spawn(cmd, args, { timeout: TIMEOUT_MS, windowsHide: true })
+    var proc = spawn(cmd, args, {
+      timeout: TIMEOUT_MS,
+      windowsHide: true,
+      cwd: options && options.cwd ? options.cwd : undefined
+    })
     var stdout = ''
     var stderr = ''
     proc.stdout.setEncoding('utf8')
@@ -74,14 +78,20 @@ async function shredPath(filePath, mode) {
     var scriptPath = require('node:path').join(tmpDir, 'unlock-shred-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.ps1')
     require('node:fs').writeFileSync(scriptPath, '﻿' + script, 'utf8')
     debugPush('[shred] temp script: ' + scriptPath)
+    // 辅助进程用自己的空目录作为 cwd，避免它占住正在删除的文件夹
+    var helperDir = ''
+    try { helperDir = require('node:fs').mkdtempSync(require('node:path').join(tmpDir, 'unlock-shred-cwd-')) } catch (e) {}
 
     var raw
     try {
       raw = await execWithTimeout('powershell.exe', [
         '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath
-      ], 'shred')
+      ], 'shred', helperDir ? { cwd: helperDir } : undefined)
     } finally {
       try { require('node:fs').unlinkSync(scriptPath) } catch (e) {}
+      if (helperDir) {
+        try { require('node:fs').rmSync(helperDir, { recursive: true, force: true }) } catch (e) {}
+      }
     }
 
     var result = parseShredResult(raw)

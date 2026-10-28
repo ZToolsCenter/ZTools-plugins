@@ -1,0 +1,158 @@
+{
+  "format": "research-english-course-v1",
+  "title": "示例素材 · 生信分析表达",
+  "domain": "methods",
+  "description": "4 句原创方法表达，围绕质量检查、批次效应、验证与可复现性。",
+  "level": "★★★",
+  "source": {
+    "title": "科研小盒原创练习",
+    "url": "",
+    "kind": "original"
+  },
+  "sentences": [
+    {
+      "en": "We checked sample quality before comparing the two groups.",
+      "zh": "我们在比较两组之前检查了样本质量。",
+      "note": "before comparing 简洁交代分析步骤的先后关系。",
+      "quote": "",
+      "question": "What quality checks are relevant to your data?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "We",
+          "zh": "我们"
+        },
+        {
+          "role": "谓语",
+          "en": "checked",
+          "zh": "检查了"
+        },
+        {
+          "role": "宾语",
+          "en": "sample quality",
+          "zh": "样本质量"
+        },
+        {
+          "role": "时间",
+          "en": "before comparing the two groups",
+          "zh": "在比较两组之前"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "quality",
+          "ipa": "ˈkwɑːləti",
+          "meaning": "质量"
+        }
+      ],
+      "phonetics": []
+    },
+    {
+      "en": "Batch effects can obscure biological differences between sample groups.",
+      "zh": "批次效应可能掩盖样本组之间的生物学差异。",
+      "note": "can 表示可能性；不能仅凭组间差异判断其是否源于批次。",
+      "quote": "",
+      "question": "How would you explain a batch effect to a collaborator?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "Batch effects",
+          "zh": "批次效应"
+        },
+        {
+          "role": "谓语",
+          "en": "can obscure",
+          "zh": "可能掩盖"
+        },
+        {
+          "role": "宾语",
+          "en": "biological differences",
+          "zh": "生物学差异"
+        },
+        {
+          "role": "范围",
+          "en": "between sample groups",
+          "zh": "样本组之间"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "obscure",
+          "ipa": "əbˈskjʊr",
+          "meaning": "掩盖；使不清楚"
+        }
+      ],
+      "phonetics": []
+    },
+    {
+      "en": "An independent dataset can help assess whether the findings generalize.",
+      "zh": "独立数据集可以帮助评估研究发现能否推广。",
+      "note": "whether 引出尚待回答的问题，can help assess 不承诺验证必定成功。",
+      "quote": "",
+      "question": "Which dataset would be suitable for evaluating your findings?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "An independent dataset",
+          "zh": "独立数据集"
+        },
+        {
+          "role": "谓语",
+          "en": "can help assess",
+          "zh": "可以帮助评估"
+        },
+        {
+          "role": "宾语从句",
+          "en": "whether the findings generalize",
+          "zh": "研究发现能否推广"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "independent",
+          "ipa": "ˌɪndɪˈpendənt",
+          "meaning": "独立的"
+        }
+      ],
+      "phonetics": []
+    },
+    {
+      "en": "We recorded software versions so that others could reproduce the analysis.",
+      "zh": "我们记录了软件版本，以便他人复现分析。",
+      "note": "so that 引出目的；实际复现通常还需要代码、数据与参数。",
+      "quote": "",
+      "question": "What information would you include in a reproducible workflow?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "We",
+          "zh": "我们"
+        },
+        {
+          "role": "谓语",
+          "en": "recorded",
+          "zh": "记录了"
+        },
+        {
+          "role": "宾语",
+          "en": "software versions",
+          "zh": "软件版本"
+        },
+        {
+          "role": "目的从句",
+          "en": "so that others could reproduce the analysis",
+          "zh": "以便他人复现分析"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "reproduce",
+          "ipa": "ˌriːprəˈduːs",
+          "meaning": "复现"
+        }
+      ],
+      "phonetics": []
+    }
+  ],
+  "tags": []
+}

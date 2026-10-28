@@ -1,0 +1,11 @@
+{
+  "name": "ztools-community-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "社区漫游 ZTools 插件，无需 npm 安装或编译。",
+  "scripts": {
+    "check": "node --check reader.js && node --check reader-core.js && node --check preload.js && node --check transport.cjs && node --check layout.js && node --check avatars.js && node --check media.js",
+    "pack": "node scripts/pack.mjs"
+  },
+  "devDependencies": { "@electron/asar": "4.1.0" }
+}

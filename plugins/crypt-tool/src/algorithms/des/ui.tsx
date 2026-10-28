@@ -3,7 +3,7 @@ import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function DesUI({ direction = 'encrypt' }: AlgorithmProps) {
+export default function DesUI({ direction = 'encrypt', onDirectionChange }: AlgorithmProps) {
   const dir = direction
   const [key, setKey] = useState('')
   const [iv, setIv] = useState('')
@@ -52,14 +52,12 @@ export default function DesUI({ direction = 'encrypt' }: AlgorithmProps) {
             value={key}
             onChange={setKey}
             copyable
-          />
-          <div className="ct-field">
-            <div className="ct-actions" style={{ marginTop: '18px' }}>
-              <button type="button" className="ct-btn ct-btn-ghost" onClick={keygen}>
-                生成密钥
+            action={
+              <button type="button" className="ct-inline-btn" onClick={keygen} title="生成随机密钥" aria-label="生成随机密钥">
+                生成
               </button>
-            </div>
-          </div>
+            }
+          />
           <Field
             label="IV"
             hint="8 字节 Base64"
@@ -67,14 +65,12 @@ export default function DesUI({ direction = 'encrypt' }: AlgorithmProps) {
             value={iv}
             onChange={setIv}
             copyable
-          />
-          <div className="ct-field">
-            <div className="ct-actions" style={{ marginTop: '18px' }}>
-              <button type="button" className="ct-btn ct-btn-ghost" onClick={ivgen}>
-                生成 IV
+            action={
+              <button type="button" className="ct-inline-btn" onClick={ivgen} title="生成随机 IV" aria-label="生成随机 IV">
+                生成
               </button>
-            </div>
-          </div>
+            }
+          />
           <Field
             label={inputLabel}
             help={inputHelp}
@@ -89,17 +85,21 @@ export default function DesUI({ direction = 'encrypt' }: AlgorithmProps) {
         <button type="button" className="ct-btn ct-btn-primary" onClick={run}>
           执行
         </button>
-        <button
-          type="button"
-          className="ct-btn ct-btn-ghost"
-          onClick={() => {
-            setInput(output)
-            setOutput('')
-            setError('')
-          }}
-        >
-          互换输入输出
-        </button>
+        {output && onDirectionChange ? (
+          <button
+            type="button"
+            className="ct-btn ct-btn-ghost"
+            onClick={() => {
+              setInput(output)
+              setOutput('')
+              setError('')
+              onDirectionChange(dir === 'encrypt' ? 'decrypt' : 'encrypt')
+            }}
+            title={dir === 'encrypt' ? '切换到解密并把当前结果作为输入' : '切换到加密并把当前结果作为输入'}
+          >
+            {dir === 'encrypt' ? '转入解密' : '转入加密'}
+          </button>
+        ) : null}
       </div>
       <div className="ct-output-zone">
         <div className="ct-zone-label">输出</div>

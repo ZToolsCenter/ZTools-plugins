@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    html, body { margin: 0; padding: 0; background-color: #ffffff; overflow: hidden; }
+    .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+    .markdown-body table { overflow: hidden!important; word-break: break-all; }
+    .markdown-body pre { overflow: hidden!important; }
+    @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+  </style>
+  <link rel="stylesheet" href="./github-markdown.css">
+  <link rel="stylesheet" href="../katex.min.css">
+</head>
+<body>
+  <article class="markdown-body"></article>
+  <script>
+    window.waitAllImageLoaded = () => {
+      return new Promise(resolve => {
+        if (document.images.length === 0) return resolve()
+        const timeout = setTimeout(() => { resolve() }, 10000)
+        Promise.all(Array.from(document.images)
+          .filter(img => !img.complete)
+          .map(img => new Promise(resolve => { img.onload = img.onerror = resolve })))
+          .then(() => {
+            clearTimeout(timeout)
+            resolve()
+          })
+      })
+    }
+  </script>
+</body>
+</html>

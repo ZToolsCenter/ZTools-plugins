@@ -299,9 +299,19 @@ button:active {
 /* ---------- 页签 ---------- */
 .tabs {
   display: flex;
+  align-items: center;
   gap: 4px;
   border-bottom: 1px solid var(--border);
   flex: none;
+}
+
+/* 搜索框并入页签行：占剩余宽度，省出一整行给列表 */
+.tabs-search {
+  flex: 1;
+  min-width: 0;
+  margin-left: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
 }
 
 .tab {
@@ -461,6 +471,29 @@ button:active {
   border-color: var(--danger);
 }
 
+/* 「稍后」快捷推迟下拉：收拢 5/10/30/60 分钟预设，避免操作按钮排满整行 */
+.item-actions select.mini {
+  width: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text-sub);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='6' viewBox='0 0 8 6'><path d='M1 1l3 3 3-3' stroke='%236b7285' stroke-width='1.4' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  padding-right: 16px;
+}
+
+.item-actions select.mini:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='6' viewBox='0 0 8 6'><path d='M1 1l3 3 3-3' stroke='%235b6cff' stroke-width='1.4' fill='none' stroke-linecap='round'/></svg>");
+}
+
 /* 开关 */
 .switch {
   position: relative;
@@ -533,6 +566,11 @@ button:active {
 .pane-footer {
   margin-top: 12px;
   text-align: right;
+  /* 常驻底部：列表滚动时导入/导出/清空按钮始终可见 */
+  position: sticky;
+  bottom: 0;
+  padding: 8px 0 2px;
+  background: var(--bg);
 }
 
 /* ---------- 设置 ---------- */
@@ -612,11 +650,37 @@ button:active {
   background: var(--panel-2);
 }
 
+/* 通道卡片默认折叠成开关行，点开才展开表单，缩短设置页滚动距离 */
+.channel .form-grid {
+  display: none;
+}
+
+.channel.open .form-grid {
+  display: grid;
+}
+
 .channel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.channel-head::after {
+  content: '▾';
+  color: var(--text-sub);
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.channel.open .channel-head::after {
+  content: '▴';
+}
+
+.channel.open .channel-head {
   margin-bottom: 8px;
 }
 

@@ -15,11 +15,18 @@
     editingId: null,
     formMode: 'once',
     formKind: 'daily',
-    rowRefs: {}, // id -> { countdown, human }
+    rowRefs: {}, // id -> { countdown, human, nextRunAt }
     fingerprint: '', // 数据指纹：跨窗口变更检测
     query: '', // 搜索关键词
     focusId: null, // 键盘焦点条目
-    visibleIds: [] // 当前页签可见条目顺序（键盘导航用）
+    visibleIds: [], // 当前页签可见条目顺序（键盘导航用）
+    lastPoll: 0, // 上次跨窗口数据轮询时间
+    doneRendered: false, // 已完成列表是否已渲染（懒加载，首屏只渲染待提醒）
+    historyLoaded: false, // 「记录」页签是否已加载（懒加载）
+    statusDot: null, // 状态栏圆点元素缓存（避免每秒重建 DOM）
+    statusDotCls: '',
+    statusNode: null, // 状态栏文本节点缓存
+    statusText: ''
   };
 
   /* ------------------------------------------------------------------ *
@@ -67,9 +74,14 @@
   /* ------------------------------------------------------------------ *
    * 列表渲染
    * ------------------------------------------------------------------ */
-  function refresh() {
-    state.items = api.list();
-    state.fingerprint = fingerprintOf(state.items);
+  function refresh(items) {
+    applyItems(items || api.list());
+  }
+
+  /** 用给定的条目集合重建界面（items 已由调用方读取，避免重复访问数据库） */
+  function applyItems(items) {
+    state.items = items;
+    state.fingerprint = fingerprintOf(items);
     renderLists();
     renderStatus();
   }
@@ -142,30 +154,73 @@
       var g = groupOf(item, now);
       (buckets[g] = buckets[g] || []).push(item);
     });
+    var fragActive = document.createDocumentFragment();
     GROUP_ORDER.forEach(function (g) {
       var list = buckets[g];
       if (!list || !list.length) return;
-      listActive.appendChild(groupHeader(GROUP_LABELS[g], list.length));
+      fragActive.appendChild(groupHeader(GROUP_LABELS[g], list.length));
       list.forEach(function (item) {
-        listActive.appendChild(buildRow(item, now, true));
+        fragActive.appendChild(buildRow(item, now, true));
       });
     });
+    listActive.appendChild(fragActive);
 
-    done.forEach(function (item) {
-      listDone.appendChild(buildRow(item, now, false));
-    });
+    // 已完成列表懒加载：首次切到「已完成」页签后才渲染，首屏只渲染待提醒，提醒多时打开更快
+    if (state.doneRendered) {
+      var fragDone = document.createDocumentFragment();
+      done.forEach(function (item) {
+        fragDone.appendChild(buildRow(item, now, false));
+      });
+      listDone.appendChild(fragDone);
+    }
 
-    // 键盘导航顺序 = 当前页签的可见条目
+    // 触发记录（懒加载）：首次切到「记录」页签后渲染
+    if (state.historyLoaded) renderHistory();
+
+    // 键盘导航顺序 = 当前页签的可见条目（记录页签无操作，不参与导航）
     var currentPane = document.querySelector('.pane.active');
-    var onActiveTab = !currentPane || currentPane.id === 'pane-active';
-    state.visibleIds = (onActiveTab ? active : done).map(function (i) {
-      return i._id;
-    });
+    var paneId = currentPane ? currentPane.id : 'pane-active';
+    if (paneId === 'pane-active') {
+      state.visibleIds = active.map(function (i) {
+        return i._id;
+      });
+    } else if (paneId === 'pane-done') {
+      state.visibleIds = (state.doneRendered ? done : []).map(function (i) {
+        return i._id;
+      });
+    } else {
+      state.visibleIds = [];
+    }
     if (state.focusId && state.visibleIds.indexOf(state.focusId) === -1) state.focusId = null;
     if (state.focusId) {
       var focused = document.querySelector('.item[data-id="' + state.focusId + '"]');
       if (focused) focused.classList.add('focused');
     }
+  }
+
+  /** 渲染「记录」页签：最近触发历史（最新在前，最多 100 条） */
+  function renderHistory() {
+    var hist = api.history && api.history.list ? api.history.list() : [];
+    $('countHistory').textContent = hist.length || '';
+    var ul = $('listHistory');
+    ul.textContent = '';
+    $('emptyHistory').style.display = hist.length ? 'none' : '';
+    var frag = document.createDocumentFragment();
+    hist.forEach(function (h) {
+      var li = el('li', 'item');
+      var main = el('div', 'item-main');
+      main.appendChild(el('div', 'item-title', h.title));
+      var meta = el('div', 'item-meta');
+      meta.appendChild(el('span', 'chip time', Fmt.formatHuman(h.at, Date.now())));
+      if (h.note) meta.appendChild(el('span', 'chip', h.note));
+      if (h.late > 60 * 1000) {
+        meta.appendChild(el('span', 'chip', '迟到 ' + Math.round(h.late / 60000) + ' 分'));
+      }
+      main.appendChild(meta);
+      li.appendChild(main);
+      frag.appendChild(li);
+    });
+    ul.appendChild(frag);
   }
 
   function buildRow(item, now, isActive) {
@@ -194,7 +249,7 @@
       var countdown = el('span', 'chip countdown', Fmt.formatCountdown(item.nextRunAt - now));
       meta.appendChild(human);
       meta.appendChild(countdown);
-      state.rowRefs[item._id] = { human: human, countdown: countdown };
+      state.rowRefs[item._id] = { human: human, countdown: countdown, nextRunAt: item.nextRunAt };
     } else if (item.lastFiredAt) {
       meta.appendChild(el('span', 'chip', '上次 ' + Fmt.formatHuman(item.lastFiredAt, now)));
     }
@@ -211,11 +266,24 @@
     // 操作
     var actions = el('div', 'item-actions');
     if (isActive) {
-      actions.appendChild(actionBtn('稍后', function () {
-        api.snooze(item._id);
-        toast('已推迟 ' + api.settings.get().snoozeMinutes + ' 分钟', 'ok');
+      // 「稍后」快捷推迟下拉：默认/5/10/30/60 分钟，收拢操作按钮避免排满整行
+      var snoozeSel = document.createElement('select');
+      snoozeSel.className = 'mini snooze-mini';
+      snoozeSel.title = '稍后提醒';
+      [['default', '稍后（默认）'], ['5', '稍后5分'], ['10', '稍后10分'], ['30', '稍后30分'], ['60', '稍后60分']].forEach(function (o) {
+        var opt = document.createElement('option');
+        opt.value = o[0];
+        opt.textContent = o[1];
+        snoozeSel.appendChild(opt);
+      });
+      snoozeSel.addEventListener('change', function () {
+        var v = snoozeSel.value;
+        var minutes = v === 'default' ? null : parseInt(v, 10);
+        api.snooze(item._id, minutes == null ? undefined : minutes);
+        toast('已推迟 ' + (minutes == null ? api.settings.get().snoozeMinutes : minutes) + ' 分钟', 'ok');
         refresh();
-      }));
+      });
+      actions.appendChild(snoozeSel);
       actions.appendChild(actionBtn('完成', function () {
         api.complete(item._id);
         refresh();
@@ -267,52 +335,74 @@
   /* ------------------------------------------------------------------ *
    * 每秒刷新倒计时 / 状态
    * ------------------------------------------------------------------ */
+  // 跨窗口数据变更的轮询间隔：倒计时靠本地缓存计算，无需每秒读库；
+  // 仅低频轮询指纹，检测到其它窗口改动时才重建列表。
+  var POLL_MS = 5000;
+
   function tickUI() {
     var now = Date.now();
-    // 调度事件只在触发窗口内传播，其它窗口靠指纹检测数据变化后重建列表
-    if (fingerprintOf(api.list()) !== state.fingerprint) {
-      refresh();
-      return;
+    var hidden = !!document.hidden;
+
+    // 倒计时：基于 buildRow 时缓存的 nextRunAt 本地计算，避免每秒同步读库阻塞主线程；
+    // 页面不可见时跳过每秒倒计时与状态渲染（Chromium 不一定会节流 ZTools 内的隐藏页面）
+    if (!hidden) {
+      var ids = Object.keys(state.rowRefs);
+      for (var i = 0; i < ids.length; i++) {
+        var ref = state.rowRefs[ids[i]];
+        if (ref.nextRunAt == null) continue;
+        var cd = Fmt.formatCountdown(ref.nextRunAt - now);
+        if (ref.countdown.textContent !== cd) ref.countdown.textContent = cd;
+      }
     }
-    Object.keys(state.rowRefs).forEach(function (id) {
-      var ref = state.rowRefs[id];
-      var item = api.get(id);
-      if (!item || item.nextRunAt == null) return;
-      ref.countdown.textContent = Fmt.formatCountdown(item.nextRunAt - now);
-      ref.human.textContent = Fmt.formatHuman(item.nextRunAt, now);
-    });
-    renderStatus();
+
+    // 调度事件只在触发窗口内传播，其它窗口靠低频轮询指纹检测数据变化后重建列表
+    if (now - state.lastPoll >= POLL_MS) {
+      state.lastPoll = now;
+      var items = api.list();
+      if (fingerprintOf(items) !== state.fingerprint) {
+        applyItems(items);
+        return;
+      }
+    }
+
+    if (!hidden) renderStatus();
   }
 
   function renderStatus() {
     var st = api.status();
+    var next = null;
+    for (var i = 0; i < state.items.length; i++) {
+      var it = state.items[i];
+      if (it.enabled !== false && it.nextRunAt) { next = it; break; }
+    }
+
+    var text;
+    if (!st.running) text = '调度器未运行';
+    else if (!st.owner) text = '调度由另一窗口持有';
+    else if (next) text = '运行中 · 下一条「' + next.title + '」' + Fmt.formatRelative(next.nextRunAt, Date.now());
+    else text = '运行中 · 暂无待提醒';
+
     var line = $('statusLine');
-    var next = state.items.filter(function (i) {
-      return i.enabled !== false && i.nextRunAt;
-    })[0];
+    var dotCls = 'dot' + (st.running && st.owner ? '' : ' off');
 
-    var dot = el('span', 'dot' + (st.running && st.owner ? '' : ' off'));
-    line.textContent = '';
-    line.appendChild(dot);
-
-    if (!st.running) {
-      line.appendChild(document.createTextNode('调度器未运行'));
-    } else if (!st.owner) {
-      line.appendChild(document.createTextNode('调度由另一窗口持有'));
-    } else if (next) {
-      line.appendChild(
-        document.createTextNode(
-          '运行中 · 下一条「' + next.title + '」' + Fmt.formatRelative(next.nextRunAt, Date.now())
-        )
-      );
-    } else {
-      line.appendChild(document.createTextNode('运行中 · 暂无待提醒'));
+    // 圆点状态变化时才重建节点；否则仅按需更新文本，避免每秒重排状态栏
+    if (!state.statusDot || state.statusDot.parentNode !== line || state.statusDotCls !== dotCls) {
+      line.textContent = '';
+      state.statusDot = el('span', dotCls);
+      line.appendChild(state.statusDot);
+      state.statusDotCls = dotCls;
+      state.statusNode = document.createTextNode(text);
+      line.appendChild(state.statusNode);
+      state.statusText = text;
+    } else if (text !== state.statusText) {
+      state.statusNode.nodeValue = text;
+      state.statusText = text;
     }
 
     var setStatus = $('setStatus');
     if (setStatus) {
-      setStatus.textContent =
-        (st.running ? '已启动' : '未启动') + (st.owner ? '（本窗口持锁）' : '（锁在其它窗口）');
+      var s = (st.running ? '已启动' : '未启动') + (st.owner ? '（本窗口持锁）' : '（锁在其它窗口）');
+      if (setStatus.textContent !== s) setStatus.textContent = s;
     }
   }
 
@@ -806,6 +896,16 @@
   }
 
   function bindChannels() {
+    // 通道卡片折叠交互：点头部（除测试按钮外）展开/收起表单
+    Array.prototype.forEach.call(document.querySelectorAll('.channel'), function (card) {
+      var head = card.querySelector('.channel-head');
+      if (!head) return;
+      head.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('button')) return; // 测试按钮不触发折叠
+        card.classList.toggle('open');
+      });
+    });
+
     [
       'chEnabled', 'smtpEnabled', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpFrom', 'smtpTo',
       'smsEnabled', 'smsUser', 'smsPhone',
@@ -956,6 +1056,9 @@
         Array.prototype.forEach.call(document.querySelectorAll('.pane'), function (p) {
           p.classList.toggle('active', p.id === 'pane-' + tab.dataset.tab);
         });
+        // 懒加载：首次切到「已完成」/「记录」页签时再渲染
+        if (tab.dataset.tab === 'done') state.doneRendered = true;
+        if (tab.dataset.tab === 'history') state.historyLoaded = true;
         renderLists(); // 刷新键盘导航的可见条目
       });
     });
@@ -994,6 +1097,13 @@
       });
       refresh();
       toast('已清空 ' + done.length + ' 条', 'ok');
+    });
+
+    // 触发记录
+    $('btnClearHistory').addEventListener('click', function () {
+      api.history.clear();
+      renderHistory();
+      toast('已清空触发记录', 'ok');
     });
 
     // 弹窗：模式 / 重复类型切换

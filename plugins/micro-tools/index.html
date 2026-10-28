@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>科研小盒</title>
   <link rel="stylesheet" href="index.css" />
-  <link rel="stylesheet" href="research.css" />
+  <link rel="stylesheet" href="features/research/research.css" />
+  <link rel="stylesheet" href="features/english/english.css" />
 </head>
 <body>
   <main class="app">
@@ -13,14 +14,17 @@
     <header class="topbar">
       <button class="topbar__back" id="backBtn" hidden>‹ 返回</button>
       <div class="topbar__title">
-        <img class="topbar__logo" src="logo.png" alt="logo" />
+        <img class="topbar__logo" src="assets/images/logo.png" alt="logo" />
         <span id="viewTitle">科研小盒</span>
       </div>
     </header>
 
     <!-- ① 首页启动器 -->
     <section class="view" id="view-home">
-      <p class="home__sub">科研常用小工具集合 · 选择一个开始</p>
+      <div class="home__intro">
+        <p class="home__sub">科研常用小工具集合 · 选择一个开始</p>
+        <a id="homeStar" class="project-star" href="https://github.com/Asa12138/micro-tools" target="_blank" rel="noopener noreferrer">☆ 去github点个Star</a>
+      </div>
       <div class="grid">
         <button class="tool" data-open="journal">
           <span class="tool__icon tool__icon--blue">📊</span>
@@ -40,12 +44,14 @@
           <span class="tool__desc">文献计量 / 作者合作 / 交互图谱</span>
           <span class="tool__badge tool__badge--on">本地分析</span>
         </button>
+        <button class="tool" data-open="english"><span class="tool__icon tool__icon--teal">Aa</span><span class="tool__name">科研英语</span><span class="tool__desc">整句听写 / 论文精读 / 科研口语</span><span class="tool__badge tool__badge--on">支持AI自建题库</span></button>
         <button class="tool" data-open="database">
           <span class="tool__icon tool__icon--teal">🧬</span>
           <span class="tool__name">数据库查询</span>
           <span class="tool__desc">NCBI / PubMed / UniProt</span>
           <span class="tool__badge tool__badge--beta">体验版</span>
         </button>
+
         <button class="tool tool--soon" disabled>
           <span class="tool__icon tool__icon--gray">🔬</span>
           <span class="tool__name">单位换算</span>
@@ -87,14 +93,24 @@
     </section>
 
     <section class="view research" id="view-submission" hidden>
-      <div class="research-hero"><span class="eyebrow">SUBMISSION ASSISTANT</span><h2>让摘要找到合适的读者</h2><p>梳理研究亮点，结合本地期刊库比较投稿方向。</p><div class="privacy-badges"><span>本地期刊匹配 · 无需联网</span><span>自选模型 · 插件不设中转服务器</span></div><p class="help-text">AI 按所选接入方式调用模型（直连 API 或 ZTools AI）；使用在线模型时，摘要会发送至相应服务。外部链接仅在点击时打开。</p><span class="model-status" data-model-status></span></div>
+      <div class="research-hero"><span class="eyebrow">SUBMISSION ASSISTANT</span><h2>让摘要找到合适的读者</h2><p>梳理研究亮点，结合本地期刊库比较投稿方向。</p><div class="privacy-badges"><span>本地期刊匹配 · 无需联网</span><span>自选模型 · 插件不设中转服务器</span></div><p class="help-text">AI 按所选接入方式调用模型（直连 API 或 ZTools AI）；使用在线模型时，摘要会发送至相应服务。外部链接仅在点击时打开。</p></div>
       <form id="submissionForm" class="panel form-stack">
+        <div class="en-create-step"><span>1</span><div><h4>填写文章信息</h4></div></div>
         <label>论文标题（可选）<input id="paperTitle" maxlength="600" placeholder="可留空，仅凭摘要也能分析" autocomplete="off"></label>
         <label>论文摘要<textarea id="paperAbstract" required minlength="80" maxlength="18000" rows="8" placeholder="粘贴摘要，建议包含研究问题、方法、主要结果与结论"></textarea></label>
         <div class="form-row"><label>稿件类型<select id="paperType"><option value="auto">由模型判断（默认）</option><option value="研究论文">研究论文</option><option value="综述">综述</option><option value="方法论文">方法论文</option><option value="病例报告">病例报告</option><option value="简报 / 短篇论文">简报 / 短篇论文</option></select></label><label>投稿偏好（可选）<input id="paperPreferences" maxlength="600" placeholder="如：领域期刊、开放获取、费用预算"></label></div>
         <div class="submission-preferences"><fieldset class="if-range"><legend>预期 IF 分数段（可选）</legend><div><input id="paperIfMin" type="number" min="0" max="1000" step="0.1" placeholder="最低 IF" aria-label="最低 IF"><span>至</span><input id="paperIfMax" type="number" min="0" max="1000" step="0.1" placeholder="最高 IF" aria-label="最高 IF"></div><p class="help-text">可只填一端。按本地 JIF 快照筛选；留空不限制，缺失指标在设置范围时排除。</p></fieldset><label class="general-toggle"><input id="paperIncludeGeneral" type="checkbox" checked><span>包含综合期刊<small>与专科刊一起比较，不限制最终入选数量</small></span></label></div>
-        <p class="privacy-note">点击分析后，标题、摘要与偏好会发送至你选择的模型服务。使用本地模型可避免外部传输。</p>
-        <div class="action-row"><button class="primary" id="submissionRun" type="submit">✦ 分析与推荐</button><button class="secondary" id="submissionCancel" type="button" hidden>停止</button><button class="text-button" type="button" data-open-settings>配置模型</button></div>
+        <div class="en-create-step"><span>2</span><div><h4>选择一条分析路径</h4><p>使用已配置的 AI，或将材料交给自己的 AI Agent；任选一种即可。</p></div></div>
+        <div class="ai-routes" aria-label="选择投稿分析方式">
+          <section class="ai-route"><span class="ai-route-label">在科研小盒内完成</span><h3>使用已配置的 AI</h3><p>调用 ZTools AI 或自己的 API，直接生成投稿建议。</p><span class="model-status" data-model-status></span><p id="submissionAIState" class="ai-route-state" role="status">正在检测 AI 连接…</p><div class="action-row"><button class="primary" id="submissionRun" type="submit" disabled>✦ 分析与推荐</button><button class="secondary" id="submissionCancel" type="button" hidden>停止</button><button class="text-button" type="button" data-open-settings>配置模型</button><button class="text-button" type="button" id="submissionAIRetry">重新检测</button></div><p class="help-text">分析时发送标题、摘要和偏好至所选模型。</p></section>
+          <section class="ai-route ai-route--agent"><span class="ai-route-label">在自己的 Agent 中完成</span><h3>使用自己的 AI Agent</h3><p>让已连接 MCP 的 Agent 用自身模型分析；无需在插件配置 API。</p><p class="ai-route-prerequisite">复制提示词即可使用；也支持已连接的 ZTools MCP。</p><div class="action-row"><button class="primary" type="button" id="submissionAgentToggle" aria-expanded="false" aria-controls="submissionAgentGuide">自己的 AI Agent</button><button class="text-button" id="submissionAgent" type="button">载入 Agent 结果</button></div></section>
+        </div>
+        <p class="help-text ai-check-note">自动检测会发送一次简短测试文字，不包含论文内容；可能消耗少量模型额度。成功结果缓存 5 分钟，可手动重新检测。</p>
+        <section id="submissionAgentGuide" class="ai-agent-guide" hidden>
+          <div class="list-heading"><h3>交给自己的 AI Agent</h3><button type="button" class="text-button" id="submissionAgentClose">收起</button></div>
+          <ol><li>在 <strong>ZTools 设置 → MCP</strong> 开启服务，将连接配置添加到 Agent，确认能发现科研小盒的工具。</li><li>填写上方摘要与偏好，再复制提示词交给 Agent；也可以复制模板后在 Agent 中补充材料。</li><li>Agent 完成后，保持插件会话，点击「载入 Agent 结果」查看与导出。插件重载后会话会清空。</li></ol>
+          <button type="button" class="secondary" id="submissionCopyAgent">复制投稿分析提示词</button><p id="submissionAgentStatus" class="help-text" role="status"></p>
+        </section>
         <div id="submissionStatus" class="status" role="status" aria-live="polite"></div>
       </form>
       <div id="submissionResults" hidden></div>
@@ -103,6 +119,7 @@
     <section class="view research" id="view-literature" hidden>
       <div class="research-hero research-hero--teal"><span class="eyebrow">LITERATURE AT A GLANCE</span><h2>把参考文献变成一张地图</h2><p>沿着时间、期刊、影响因子与作者关系，探索你的文献集合。</p><span class="local-badge">● 默认本地处理</span></div>
       <label class="dropzone" id="bibDrop"><input type="file" id="bibFile" accept=".bib,text/plain,application/x-bibtex" hidden><span class="upload-symbol">↑</span><strong>选择或拖入 .bib 文件</strong><span>支持 Zotero、EndNote 等导出的 BibTeX · 最多 8 MB / 3000 条</span></label>
+      <div class="action-row"><button class="secondary" id="bibAgent" type="button">载入 Agent 结果</button><span class="help-text">载入最近一份 MCP 文献分析，继续查看图谱与导出。</span></div>
       <div id="bibStatus" class="status" role="status" aria-live="polite"></div>
       <div id="bibWorkspace" hidden>
         <div class="action-row literature-toolbar"><strong id="bibFilename"></strong><button class="secondary" id="bibCsv">导出 CSV</button><button class="secondary" id="bibReport">导出报告</button><button class="secondary" id="bibClear">清除</button></div>
@@ -116,35 +133,147 @@
     </section>
 
     <section class="view research" id="view-settings" hidden>
-      <div class="research-hero"><span class="eyebrow">YOUR MODEL, YOUR CHOICE</span><h2>连接自己的 AI</h2><p>投稿助手与文献分类共用配置，按你的平台和模型使用。</p></div>
-      <form class="panel form-stack" id="settingsForm">
+      <div class="research-hero"><span class="eyebrow">RESEARCH BOX · SETTINGS</span><h2>科研小盒 <span id="appVersion" class="app-version">版本读取中</span></h2><p>管理 AI 连接，了解数据来源与保存方式。</p><div class="action-row"><a class="secondary" data-external href="https://github.com/Asa12138/micro-tools" target="_blank" rel="noopener noreferrer">☆ 在 GitHub 点个 Star</a><a class="text-button" data-external href="https://github.com/Asa12138/micro-tools/issues" target="_blank" rel="noopener noreferrer">问题反馈 ↗</a></div></div>
+      <details class="panel app-release-notes"><summary id="appReleaseTitle">当前版本更新记录</summary><p class="help-text">显示当前运行的版本。安装更新后，退出插件并重新打开即可使用新版。</p><ul id="appReleaseNotes"></ul></details>
+      <form class="panel form-stack" id="settingsForm"><h3>连接 AI</h3><p class="help-text">投稿助手、文献分类与英语素材处理共用配置。</p>
         <label>接入方式<select id="aiMode"><option value="host">使用 ZTools 已配置的 AI（推荐）</option><option value="direct">直接连接自己的 API / 本地模型</option></select></label>
         <div id="hostSettings" class="form-stack"><label>模型<select id="hostModel"><option value="">ZTools 默认模型</option></select></label><button type="button" class="secondary" id="openHostSettings">打开 ZTools AI 模型设置</button><p class="help-text">在 ZTools 主程序中添加平台、API key 和模型，再回到这里选择。凭据由 ZTools 管理。</p></div>
         <div id="directSettings" class="form-stack" hidden>
           <label>平台预设<select id="aiProvider"><option value="custom">自定义 / OpenAI 兼容平台</option><option value="deepseek">DeepSeek</option><option value="qwen">阿里云百炼 / 通义千问</option><option value="siliconflow">硅基流动</option><option value="moonshot">Moonshot / Kimi</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic / Claude</option><option value="gemini">Google / Gemini</option><option value="ollama">Ollama 本地模型</option></select></label>
           <div class="form-row"><label>请求协议<select id="aiProtocol"><option value="openai">OpenAI 兼容</option><option value="anthropic">Anthropic Messages</option><option value="gemini">Gemini GenerateContent</option></select></label><label>模型 ID<input id="aiModel" placeholder="填写平台实际提供的模型 ID" autocomplete="off" maxlength="200"></label></div>
           <label>API Base URL<input id="aiBaseUrl" placeholder="https://api.example.com/v1" autocomplete="off" maxlength="1000"></label>
-          <label>API key<input id="aiKey" type="password" placeholder="仅在本次插件会话保留，不写入本地存储" autocomplete="off" spellcheck="false"></label>
-          <div class="action-row"><button class="text-button" type="button" id="clearApiKey">清除已保存的会话 key</button><span class="help-text" id="keyState"></span></div>
+          <label>API key<input id="aiKey" type="password" placeholder="填写 API key，保存后在本机保留" autocomplete="off" spellcheck="false"></label>
+          <div class="action-row"><button class="text-button" type="button" id="clearApiKey">清除已保存的 API key</button><span class="help-text" id="keyState"></span></div>
           <div class="notice" id="providerGuide"></div>
         </div>
         <div class="action-row"><button class="primary" type="submit">保存配置</button><button class="secondary" type="button" id="testApi">保存并测试连接</button><button class="secondary" type="button" id="testApiCancel" hidden>停止测试</button></div>
         <div id="settingsStatus" class="status" role="status" aria-live="polite"></div>
       </form>
-      <section class="panel"><h3>数据如何处理</h3><ul class="help-list"><li>BibTeX 解析、统计和主题网络在本机完成，文件不会自动上传。</li><li>使用在线模型时，分析内容会发给你选定的服务商；数据政策以该平台为准。</li><li>本插件直连 key 只存在会话内存中；重新加载插件后需重新填写。地址、模型等非敏感配置可保存。</li><li>本插件不保存摘要、BibTeX 或分析历史。关闭插件前请导出需要保留的结果。</li></ul></section>
+      <section class="panel"><h3>数据如何处理</h3><ul class="help-list"><li>BibTeX 解析、统计和主题网络在本机完成，文件不会自动上传。</li><li>使用在线模型时，分析内容会发给你选定的服务商；使用本地模型时按你的本地服务配置处理。</li><li>划词翻译仅发送所选文字。在线语音生成发送当前英文句子；附带音频和录音在本机播放，录音不会自动上传。</li><li>直连 AI 与翻译密钥保存在本机独立凭据文件中，重启可继续使用；可随时清除，题库备份不包含密钥。</li><li>投稿助手不保存摘要、BibTeX 或分析历史；英语题库与学习记录通过 ZTools 插件存储保存，若宿主开启同步，请同时留意 ZTools 的同步设置。音频与录音保存在当前设备。关闭插件前请导出需要保留的结果。</li></ul></section>
+      <section class="panel"><h3>数据来源说明</h3><dl class="about-sources"><dt>期刊指标</dt><dd>本地 JCR 2026 快照（2025 JIF），查询时无需联网；期刊指标用于参考，不代表单篇论文质量。</dd><dt>CCF 推荐目录</dt><dd>中国计算机学会第七版目录（2026.3），包含推荐会议与期刊。</dd><dt>科研英语</dt><dd>内置表达与四个官方素材包为原创教学材料；自建课程保留用户提供的来源。Andrew 配音由 Microsoft 在线语音生成。下载素材时连接官方 GitHub Pages。</dd></dl><div class="action-row"><a class="text-button" data-external href="https://asa12138.github.io/apps/research-english/materials/catalog.json" target="_blank" rel="noopener noreferrer">官方素材目录 ↗</a><a class="text-button" data-external href="https://github.com/Asa12138/micro-tools/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">更新记录 ↗</a></div></section>
+      <section class="panel"><h3>使用与反馈</h3><p class="help-text">作者 Asa12138 · 开源科研工具。反馈问题时请附上科研小盒版本、ZTools 版本、操作系统与报错截图；请隐藏 API 密钥和未公开研究内容。</p></section>
+    </section>
+
+    <section class="view research english" id="view-english" hidden>
+      <section id="enWordPractice" class="en-word-practice" aria-label="单词打字练习" hidden></section>
+      <section id="enStartupError" class="panel" role="alert" hidden><h3>本机数据未能载入</h3><p id="enStartupErrorText"></p><p class="help-text">请重新加载插件。若仍失败，请安装完整的修复包，无需卸载或清空数据。</p><button id="enStartupRetry" class="primary">重新加载插件</button></section>
+      <div id="enHub">
+        <header class="en-hub-overview"><div class="en-hub-intro"><h2>科研英语</h2><p id="enHubSummary" class="help-text">题库与学习记录保存在本机</p></div><div class="en-today" aria-label="今日学习"><div><strong id="enTodayTime">0 分钟</strong><span>今日学习</span></div><div><strong id="enTodaySentences">0 句</strong><span>今日已学</span></div><button id="enActivityDetails" class="text-button">详情 →</button></div></header>
+        <nav class="en-tabs" aria-label="科研英语导航"><button id="enLibraryTab" aria-current="page">内置素材库 <span id="enBuiltinCount">1</span></button><button id="enCustomTab">我的素材库 <span id="enCustomCount">0</span></button><button id="enCommunityTab">素材广场</button><button id="enWordsTab">单词本</button><button id="enSettingsTab">主页与设置</button></nav>
+        <div id="enHubWorkspace" class="en-hub-workspace"><nav id="enHubNav" class="en-preferences-nav" aria-label="素材分类"></nav><div id="enHubContent">
+        <section id="enCommunity" class="panel" hidden></section>
+        <section id="enLibrary" class="panel en-library-panel">
+          <div class="list-heading"><div><h3 id="enLibraryTitle">内置素材库</h3><p id="enLibraryCaption" class="help-text">已加入本机，点击课程即可练习。</p></div><span id="enLibraryCount"></span></div>
+          <div id="enLibraryActions" class="action-row" hidden><button class="primary" id="enCreateTab">＋ 自建题库</button><button class="secondary" id="enImportBank">导入题库</button><button class="text-button" id="enRefresh">↻ 刷新 MCP 题库</button></div>
+          <div id="enImportPanel" class="en-mcp form-stack" hidden><p class="help-text">导入科研英语课程 JSON，核对预览后保存；本地 JSON 也支持恢复题库与记录备份。</p><div class="action-row"><label class="secondary en-file">选择本地 JSON<input id="enImportLocal" type="file" accept=".json,application/json" hidden></label><input id="enImportUrl" type="text" aria-label="题库 JSON 文件地址或网址" placeholder="拖入 JSON 文件，或填写文件地址 / https://…" spellcheck="false"><button class="secondary" id="enImportUrlButton">读取并预览</button></div></div><div class="en-filters" id="enFilters" hidden><input id="enSearch" aria-label="搜索英语课程" placeholder="搜索标题、来源或标签"><select id="enDomain" aria-label="题库领域"><option value="">全部领域</option></select><select id="enKindFilter" aria-label="素材来源筛选"></select><select id="enLevelFilter" aria-label="难度筛选"></select></div>
+          <div id="enReviewActions" class="action-row" hidden><button id="enNewFolder" class="secondary">＋ 新建收藏夹</button></div>
+          <div id="enCourses" class="en-courses"></div>
+          <div id="enCatalog" hidden><div class="list-heading"><div><h3>可选素材包 <span id="enCatalogCount" class="en-section-count"></span></h3><p class="help-text">下载后加入上方内置素材，学习记录长期保留。</p></div><button id="enCatalogRefresh" class="secondary">↻ 获取素材</button></div><p id="enCatalogStatus" class="help-text" role="status"></p><div id="enCatalogCards" class="en-courses"></div></div>
+        </section>
+        <section id="enWordbook" class="panel" hidden><div id="enWordbookContent"></div></section>
+        <section id="enPreferences" class="panel en-preferences-layout" hidden><nav class="en-preferences-nav" role="tablist" aria-label="主页与设置分类" aria-orientation="vertical"><button type="button" id="enPrefTab-activity" role="tab" aria-selected="true" aria-controls="enPrefPane-activity" tabindex="0">学习足迹</button><button type="button" id="enPrefTab-practice" role="tab" aria-selected="false" aria-controls="enPrefPane-practice" tabindex="-1">练习偏好</button><button type="button" id="enPrefTab-sound" role="tab" aria-selected="false" aria-controls="enPrefPane-sound" tabindex="-1">声音与音效</button><button type="button" id="enPrefTab-theme" role="tab" aria-selected="false" aria-controls="enPrefPane-theme" tabindex="-1">主题外观</button><button type="button" id="enPrefTab-translation" role="tab" aria-selected="false" aria-controls="enPrefPane-translation" tabindex="-1">翻译与网络</button><button type="button" id="enPrefTab-materials" role="tab" aria-selected="false" aria-controls="enPrefPane-materials" tabindex="-1">素材与题库</button><button type="button" id="enPrefTab-agent" role="tab" aria-selected="false" aria-controls="enPrefPane-agent" tabindex="-1">AI / Agent 说明</button><button type="button" id="enPrefTab-backup" role="tab" aria-selected="false" aria-controls="enPrefPane-backup" tabindex="-1">模型与备份</button></nav><div class="en-preferences-content"><section id="enPrefPane-activity" class="en-preferences-pane form-stack" role="tabpanel" aria-labelledby="enPrefTab-activity" tabindex="0"><section id="enAttendance" class="en-attendance" aria-label="个人学习打卡"><div class="list-heading"><span class="en-journal-label">我的学习足迹</span><button id="enCheckIn" class="secondary">今日打卡</button></div><div class="en-learning-counts"><div><strong id="enLearnedSentences">0</strong><span>句已练习</span></div><div><strong id="enLearnedWords">0</strong><span>词已练习</span></div><p id="enLearningToday"></p></div><div class="en-attendance-stats"><div><strong id="enAttendanceDays">0 天</strong><small>累计打卡</small></div><div><strong id="enAttendanceTime">0 分钟</strong><small>累计学习</small></div><div><strong id="enAttendanceStreak">0 天</strong><small>连续打卡</small></div></div><div class="en-calendar-heading"><span id="enActivityRange"></span><div><button id="enActivityPrev" class="text-button" aria-label="查看上个月">‹</button><button id="enActivityRecent" class="text-button">本月</button><button id="enActivityNext" class="text-button" aria-label="查看下个月">›</button></div></div><div id="enActivityWeek" class="en-activity-week" aria-label="月度学习日历"></div><div id="enActivityHistory" class="en-activity-detail" aria-live="polite"></div><div class="en-activity-charts"><section><div class="list-heading"><h4>近 7 天学习时长</h4><span id="enWeeklyTime"></span></div><div id="enWeeklyChart" class="en-weekly-chart" aria-label="最近七天学习分钟数"></div></section><section><div class="list-heading"><h4>本月练习分布</h4><span id="enMonthPractice"></span></div><div id="enPracticeMix"></div></section></div><div class="en-attendance-bottom"><span id="enAttendanceToday"></span><span title="有效学习满 1 分钟自动打卡，也可手动打卡">本机记录</span></div><p id="enActivityNote" class="help-text"></p></section></section><section id="enPrefPane-practice" class="en-preferences-pane form-stack" role="tabpanel" aria-labelledby="enPrefTab-practice" tabindex="0" hidden><div id="enPracticeOptionsHome"><fieldset id="enPracticeOptions" class="en-practice-settings"><legend>练习偏好</legend><p class="help-text">自动保存，与练习中的「设置」共用。</p><div class="en-option-list">
+<label class="en-option"><span><b>错误后自动展开答案</b><small>本轮错误达到次数后展开解析；错误提交会记入错题本。</small></span><select id="enRevealAfter"><option value="0">关闭</option><option value="1">1 次</option><option value="2">2 次</option><option value="3">3 次</option><option value="5">5 次</option></select></label>
+<label class="en-option"><span><b>显示音标</b><small>控制答案解析中的逐词音标和词汇音标。</small></span><input type="checkbox" id="enShowPhonetics"></label>
+<label class="en-option"><span><b>显示中文提示</b><small>关闭后隐藏练习提示和下一句中文，适合听写自测。</small></span><input type="checkbox" id="enShowChinese"></label>
+<label class="en-option"><span><b>显示句子配图</b><small>课程提供配图时显示；在线图片按需加载。</small></span><input type="checkbox" id="enShowImages"></label>
+<label class="en-option"><span><b>自动播放</b><small>进入课程、切换句子或重练时自动朗读当前句。四种模式共用，遵循在线语音设置。</small></span><input type="checkbox" id="enAutoPlay" checked></label>
+<label class="en-option"><span><b>下一句预览</b><small>在输入区下方、练习框底部显示下一句中文。</small></span><input type="checkbox" id="enNextPreviewEnabled"></label>
+<label class="en-option"><span><b>答对庆祝动画</b><small>整句答对时显示短暂彩纸；遵循系统减少动态效果设置。</small></span><input type="checkbox" id="enCelebrate"></label>
+<label class="en-option"><span><b>语音波形动画</b><small>播放时在提交按钮上方提示，不改变按钮位置。</small></span><input type="checkbox" id="enShowWave"></label>
+<label class="en-option"><span><b>底部工具栏</b><small>紧凑模式仅显示图标，悬停查看功能；快捷键提示可按住 Ctrl / ⌘ 查看。</small></span><select id="enToolbarStyle"><option value="normal">常规</option><option value="compact">紧凑</option></select></label>
+<label class="en-option"><span><b>Ctrl / ⌘ 快捷键提示</b><small>按住 Ctrl 或 ⌘ 查看快捷键，松开隐藏。</small></span><input type="checkbox" id="enShortcutHints"></label>
+<label class="en-option"><span><b>允许在线语音</b><small>默认开启。无配套音频时将句子发送给微软，并在本机缓存；本课可单独关闭。查词发音点击时将所选文字发送给 Google。全局关闭后仍可播放附带或已缓存的课程音频，并可使用本机朗读。</small></span><input type="checkbox" id="enOnlineVoice"></label>
+<label class="en-option" id="enBrowserFallback" hidden><span><b>微软连接失败时自动使用本机英语声音</b><small>本机声音不生成下载文件；也可在声音列表主动选择 Google 兼容发音。</small></span><input type="checkbox" id="enFallbackSpeech" checked></label>
+<label class="en-option"><span><b>后台准备本课语音</b><small>关闭后点击播放时再准备。</small></span><input type="checkbox" id="enPreload"></label>
+<label class="en-option"><span><b>答对后自动展开解析</b></span><input type="checkbox" id="enAutoAnalysis"></label>
+</div></fieldset></div><p class="help-text">空格 / Tab 换词；← → 在词内移动，到边缘切换单词；↑ ↓ 切换输入框；Enter 提交整句；Alt + P 播放；Alt + A / F8 打开解析；Esc 关闭浮层。</p></section><section id="enPrefPane-sound" class="en-preferences-pane form-stack" role="tabpanel" aria-labelledby="enPrefTab-sound" tabindex="0" hidden><h3>声音与音效</h3><label>朗读声音<select id="enVoice"></select></label><div class="action-row"><button class="secondary" id="enVoicePreview">▶ 试听声音</button><span id="enVoiceStatus" class="help-text" role="status"></span></div><p class="help-text">微软自然语音 · 3 个美式声音、2 个英式声音。五种音色均附带本地试听，无需联网。内置 24 句及官方素材包附带 Andrew 音频，下载后可离线播放；其他声音按需在线生成，按音色缓存。解析音标默认美式。</p><div id="enSoundOptionsHome"><fieldset id="enSoundOptions" class="en-sound-settings"><legend>练习音效</legend><div class="action-row"><label class="en-check"><input type="checkbox" id="enSoundsEnabled">开启音效</label><label class="en-check"><input type="checkbox" id="enTypingSound">键盘与拼图</label><label class="en-check"><input type="checkbox" id="enFeedbackSound">答对 / 答错</label><label class="en-check"><input type="checkbox" id="enSoundsDuringSpeech">朗读时保留键盘与答题音效</label><p class="help-text">适用于四种练习和单词本；录音时自动暂停音效，避免收进麦克风。</p></div><div class="action-row"><label class="en-sound-volume" for="enSoundVolume">音效音量 <input id="enSoundVolume" type="range" min="0" max="100" step="5" value="30"><output id="enSoundVolumeValue" for="enSoundVolume">30%</output></label><label class="en-key-sound-label">键盘音色<select id="enKeySound"><option value="soft">轻柔</option><option value="mechanical">机械键盘</option><option value="typewriter">打字机</option><option value="bubble">气泡</option></select></label><button id="enTestKey" class="secondary">试听键盘</button><button id="enTestCorrect" class="secondary">试听答对</button><button id="enTestIncorrect" class="secondary">试听答错</button></div><p class="help-text">本机合成，无需联网。句子提交或单词判定后播放反馈音；朗读与回放是否保留音效由上方开关控制；录音时暂停音效。设置自动保存。</p></fieldset></div></section><section id="enPrefPane-theme" class="en-preferences-pane form-stack" role="tabpanel" aria-labelledby="enPrefTab-theme" tabindex="0" hidden><h3>主题外观</h3><fieldset id="enThemeMode" class="en-theme-modes"><legend>显示模式</legend><div class="en-theme-mode-buttons"><button type="button" data-en-mode="dark" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 13.1A9 9 0 0 1 10.9 3.2a9 9 0 1 0 9.9 9.9Z"/></svg><span>深色</span></button><button type="button" data-en-mode="light" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>浅色</span></button><button type="button" data-en-mode="system" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span>跟随系统</span></button></div></fieldset><fieldset class="en-theme-colors"><legend>主题颜色</legend><div class="action-row"><button type="button" data-en-accent="green" aria-pressed="false">松绿</button><button type="button" data-en-accent="blue" aria-pressed="true">商务蓝</button><button type="button" data-en-accent="violet" aria-pressed="false">鸢紫</button><button type="button" data-en-accent="amber" aria-pressed="false">琥珀</button><button type="button" data-en-accent="cyan" aria-pressed="false">青蓝</button><button type="button" data-en-accent="rose" aria-pressed="false">玫瑰</button><button type="button" data-en-accent="indigo" aria-pressed="false">靛蓝</button><button type="button" data-en-accent="slate" aria-pressed="false">石墨</button></div></fieldset></section><section id="enPrefPane-translation" class="en-preferences-pane form-stack" role="tabpanel" aria-labelledby="enPrefTab-translation" tabindex="0" hidden><h3>翻译与网络</h3><div class="form-stack"><p class="help-text">在答案与解析的英文句子中点击单词，或拖选词组查询。只发送选中的文字。</p><p id="enTranslationPersistence" class="help-text">密钥保存在本机，不包含在题库备份中。</p><label>当前翻译引擎<select id="enTranslator"></select></label><p id="enTranslateNote" class="help-text"></p><div id="enTranslateFields" class="form-stack"></div><section class="en-translation-network en-settings-section"><h4>谷歌翻译与单词发音 · 网络设置</h4><label>连接方式<select id="enGoogleNetwork"><option value="auto">自动读取系统 HTTP 代理</option><option value="direct">直连</option><option value="manual">手动 HTTP / HTTPS 代理</option></select></label><label id="enGoogleProxyField" hidden>HTTP / Mixed 代理地址<input id="enGoogleProxy" placeholder="http://127.0.0.1:7897" autocomplete="off"></label><p class="help-text">支持 macOS / Windows 的静态 HTTP 代理与代理环境变量。若只开启了 PAC 或浏览器代理扩展，请填写代理软件的 HTTP / Mixed 端口；不要填写 SOCKS 端口。此设置只影响谷歌翻译与单词在线发音。</p></section><div class="action-row"><button id="enTranslationSave" class="primary">保存翻译设置</button><button id="enTranslationTest" class="secondary">测试翻译</button><button id="enTranslationClear" class="text-button">清除已保存凭据</button></div><p id="enTranslationStatus" role="status"></p></div></section><section id="enPrefPane-materials" class="en-preferences-pane form-stack" role="tabpanel" aria-labelledby="enPrefTab-materials" tabindex="0" hidden><h3>素材与题库</h3><section class="en-mcp en-settings-section"><h4>素材下载来源</h4><label>素材目录 JSON 地址<input id="enCatalogUrl" placeholder="https://asa12138.github.io/apps/research-english/materials/catalog.json"></label><button id="enCatalogSave" class="secondary">保存素材来源</button><p id="enCatalogSettingStatus" class="help-text">默认使用科研小盒官方素材目录；可填写自己的公开 HTTPS JSON 地址。留空保存可恢复默认，点击「获取素材」后联网更新。</p></section><section class="en-mcp en-settings-section"><h4>历史版本与最近删除</h4><div id="enTrashList"></div></section></section><section id="enPrefPane-agent" class="en-preferences-pane form-stack en-agent-manual" role="tabpanel" aria-labelledby="enPrefTab-agent" tabindex="0" hidden>
+<h3>用自己的 AI 或 Agent，把材料做成英语题库</h3><p>ChatGPT、DeepSeek、Claude、Gemini 等普通文本 AI，都可以按「复制完整提示词 → 返回 JSON → 导入」操作，无需 MCP，也无需在科研小盒里填写 API key。支持 MCP 的 WorkBuddy、Codex 等 Agent 还可以连接 ZTools，直接校验并保存题库。</p>
+<div class="en-agent-summary"><strong>第一次使用，按下面 3 步操作</strong><p>准备材料 → 让 AI 整理 → 导入预览并保存。模型不能读取文件或网页时，粘贴正文即可；扫描 PDF 先提取文字。</p></div>
+<ol class="en-agent-steps">
+<li><h4>填写这次想练什么</h4><p>进入「我的素材库 → 自建题库」，填写素材名称、领域、星级难度、标签和目标句数，再粘贴原文或上传 PDF / TXT / Markdown。截图以教学材料为例，练习科研方法表达，目标为 2 句。</p><a href="assets/images/agent-guide-material.png" target="_blank" rel="noopener"><img src="assets/images/agent-guide-material.png" loading="lazy" alt="实际界面截图：填写素材名称、领域、星级、标签、目标句数和演示原文"></a></li>
+<li><h4>选择文本 AI 或支持 MCP 的 Agent</h4><p>展开「通过 AI 或 Agent 建题库」。使用 ChatGPT、DeepSeek、Claude、Gemini 等文本模型时，点击「复制完整提示词（无需 MCP）」，在聊天窗口粘贴并发送；提示词已包含正文、句数和 JSON 格式。无法读取链接或附件时，补充粘贴正文。若使用已连接 ZTools MCP 的 WorkBuddy、Codex 等 Agent，则选择「复制给 Agent 的建库指令（推荐）」，由 Agent 校验并保存。</p><a href="assets/images/agent-guide-prompt.png" target="_blank" rel="noopener"><img src="assets/images/agent-guide-prompt.png" loading="lazy" alt="实际界面截图：不同建库方式的复制按钮及图文说明入口"></a><p class="help-text">可以补充：「请输出完整课程 JSON，不要省略句子；保留原文依据，拿不准的结果不要编造。」等待 AI 返回完整 JSON；能生成文件时，也可下载 .json 文件。</p></li>
+<li><h4>带回结果，预览后开始打字或听写</h4><p>在第 3 步「导入 AI 返回的素材」粘贴完整 JSON，或选择 / 拖入 .json 文件，点击「校验并预览素材」。检查英文、中文、解析与来源，再点击「保存题库并开始练习」。也可以在自建素材库点击「导入题库」选择 .json 文件。</p><a href="assets/images/agent-guide-preview.png" target="_blank" rel="noopener"><img src="assets/images/agent-guide-preview.png" loading="lazy" alt="实际界面截图：校验后的课程预览、解析和保存按钮"></a><p class="help-text">截图使用教学演示材料，不代表你的研究结果。保留第一步原文再粘贴结果，程序才能校验句数和原文依据。</p></li>
+</ol><button id="enAgentStart" class="primary">去自建题库，开始操作</button>
+<details class="en-mcp-help"><summary>已经连接 MCP？可以让 Agent 直接保存到 ZTools</summary><ol><li>在 ZTools 设置中开启 MCP，把它显示的连接配置添加到 Agent 的 MCP 设置；使用该机器实际显示的地址和参数。</li><li>让 Agent 检查是否能找到 <code>list_english_lessons</code>、<code>prepare_english_material</code>、<code>save_english_lesson</code>。工具名可能带 <code>micro_tools_</code> 前缀。</li><li>在建库页面复制「给 Agent 的建库指令」。Agent 读取材料、按格式整理、校验并追加保存。</li><li>回到自建素材库点击「刷新 MCP 题库」。MCP 写入连接着的 ZTools；网页版仍需导入 JSON。</li></ol><p>WorkBuddy、Codex 的具体连接入口随版本不同。能发现上述工具才表示已连通；仅安装 Agent 不会自动连接 ZTools。</p></details>
+<details><summary>遇到问题怎么处理？</summary><ul><li>找不到 MCP 工具：先用上面的 JSON 流程，不影响建库。</li><li>JSON 校验失败：把报错和原 JSON 发回所用 AI，让它修正并返回完整 JSON。</li><li>保存后找不到课程：JSON 导入后需点击保存；MCP 保存后刷新自建素材库。</li><li>素材含未公开研究内容：先确认所选 Agent 和模型适合处理这些材料。</li></ul></details></section><section id="enPrefPane-backup" class="en-preferences-pane form-stack" role="tabpanel" aria-labelledby="enPrefTab-backup" tabindex="0" hidden><h3>模型与备份</h3><div class="action-row"><button class="secondary" data-open-settings>配置 AI 模型</button><button class="secondary" id="enExport">备份题库与记录</button><button class="text-button" id="enRestore">导入题库 / 备份</button></div><p class="help-text">课程和练习记录长期保留。备份包含题库与记录；录音请在口语练习中单独下载。</p></section></div></section>
+      </div>
+      </div></div>
+      <div id="enNotice" class="status" role="status" aria-live="polite"></div>
+      <section id="enCreate" class="panel form-stack" hidden>
+        <div class="list-heading"><button class="text-button" id="enCreateBack">‹ 自建素材库</button><h3>导入学习素材</h3></div>
+        <div class="en-create-step"><span>1</span><div><h4>填写素材信息</h4></div></div>
+        <div class="en-material-fields">
+          <label class="en-material-title">素材名称<input id="enTitle" maxlength="160" placeholder="例如：我的土壤研究项目"></label>
+          <label>领域<input id="enImportDomain" list="enDomainSuggestions" maxlength="80" placeholder="例如：微生物生态" autocomplete="off"></label>
+          <label>难度（1–5 星）<select id="enLevel"><option value="">请选择难度（默认 3 星）</option><option value="★">★☆☆☆☆ · 1 星 · 入门</option><option value="★★">★★☆☆☆ · 2 星 · 基础</option><option value="★★★">★★★☆☆ · 3 星 · 进阶</option><option value="★★★★">★★★★☆ · 4 星 · 较难</option><option value="★★★★★">★★★★★ · 5 星 · 挑战</option></select></label>
+          <label class="en-material-tags">标签<input id="enTags" maxlength="180" placeholder="用逗号分隔，最多 6 个"></label>
+          <label class="en-material-url">原文链接（可选）<input id="enSourceUrl" placeholder="https://doi.org/…"></label>
+        </div><datalist id="enDomainSuggestions"></datalist>
+        <label class="en-generation-only">素材正文<textarea id="enMaterial" placeholder="粘贴素材正文，或上传 PDF / TXT / Markdown"></textarea></label>
+        <div class="action-row en-material-actions"><label class="secondary en-file">上传 PDF / 文本<input id="enFile" type="file" accept=".pdf,.txt,.md" hidden></label><label class="en-count">目标句数<input id="enCount" type="number" min="1" max="120" step="1" placeholder="例如30" inputmode="numeric" aria-describedby="enCountHelp"></label><button class="text-button" id="enParse">不使用 AI，直接分句</button></div>
+        <div class="en-create-step en-generation-only"><span>2</span><div><h4>选择建库方式</h4></div></div>
+        <div class="ai-routes" aria-label="选择题库整理方式">
+          <section class="ai-route"><span class="ai-route-label">在科研小盒内完成</span><h3>使用已配置的 AI <span id="enAIAvailability" class="en-ai-availability" role="status">检测中</span></h3><p id="enAIState" class="ai-route-state" role="status">正在检测 AI 连接…</p><div class="action-row"><button class="primary" id="enAI" disabled>✦ AI 整理</button><button class="text-button" id="enConfigureAI" data-open-settings>配置模型</button><button class="text-button" id="enAIRetry">重新检测</button><button class="secondary" id="enStopAI" hidden>停止生成</button><button class="secondary" id="enResumeAI" hidden>继续未完成部分</button></div></section>
+          <section class="ai-route ai-route--agent"><span class="ai-route-label">在自己的 AI 或 Agent 中完成</span><h3>使用自己的 AI 或 Agent</h3><p class="en-ai-examples">ChatGPT、DeepSeek、Claude 等文本 AI 也能建库。</p><button class="primary" id="enAgentToggle" aria-expanded="false" aria-controls="enAgentGuide">通过 AI 或 Agent 建题库</button></section>
+        </div>
+        <div id="enCreateNoticeSlot"></div>
+        <div id="enGenerationProgress" hidden><progress id="enGenerationMeter" max="1" value="0"></progress><span id="enGenerationStatus" class="help-text" role="status"></span></div><details id="enFailedDraft" hidden><summary>查看本批未通过的模型返回（已保留）</summary><textarea id="enFailedJson" readonly aria-label="未通过校验的模型返回"></textarea></details>
+        <section class="en-mcp en-agent-guide" id="enAgentGuide" aria-label="AI 或 Agent 建库方式" hidden>
+          <div class="list-heading"><h3>通过 AI 或 Agent 建题库</h3><button class="text-button" id="enAgentClose" aria-label="收起 AI 建库方式">收起</button></div>
+          <p class="en-ai-copy-help"><b>文本 AI：</b>把完整提示词复制到 ChatGPT、DeepSeek、Claude 等任意文本大语言模型，将返回的 JSON 导入第 3 步。</p>
+          <p id="enMCPHint" class="en-ai-copy-help"><b>MCP Agent：</b>将建库指令交给已连接 ZTools MCP 的 WorkBuddy、Codex 等 Agent，可直接保存题库。</p>
+          <div class="action-row en-agent-options"><button id="enCopyMCP" class="primary">复制给 Agent 的建库指令（推荐）</button><button id="enCopyAgent" class="primary">复制完整提示词（无需 MCP）</button><button id="enAgentHelp" class="text-button">查看完整图文说明</button></div>
+        </section>
+        <p id="enImportedSummary" class="help-text" hidden></p>
+        <section class="en-agent-return" id="enAgentReturn" aria-labelledby="enAgentReturnTitle">
+          <div class="en-create-step"><span>3</span><div><h4 id="enAgentReturnTitle">导入 AI 返回的素材</h4></div></div>
+          <div class="action-row en-json-file-row"><label class="secondary en-file">选择 JSON 文件<input id="enAgentFile" type="file" accept=".json,application/json" hidden></label><input id="enAgentFilePath" type="text" aria-label="素材 JSON 文件地址" placeholder="拖入 JSON 文件，或填写本机文件地址" spellcheck="false"></div>
+          <textarea id="enAgentJson" aria-label="素材 JSON" placeholder="粘贴 AI 返回的完整 JSON 或 json 代码块"></textarea>
+          <button id="enImportAgent" class="primary">校验并预览素材</button>
+        </section>
+        <details class="en-create-notes"><summary>格式与隐私说明</summary><p id="enCountHelp" class="help-text">目标句数为 1–120 的整数；JSON 文件最大 2 MB。</p><p class="privacy-note">PDF 在本机提取；点击「AI 整理」才将正文发送给已配置的模型。</p><p class="help-text ai-check-note">连接检测只发送测试文字，不发送素材；可能消耗少量模型额度。</p></details>
+        <div id="enDraft" hidden><div class="list-heading"><h3>预览与修订</h3><span id="enDraftCount"></span></div><div id="enPreview"></div><details><summary>编辑课程 JSON</summary><textarea id="enDraftJson" aria-label="课程 JSON" spellcheck="false"></textarea><button class="secondary" id="enValidate">重新校验并预览</button></details><label class="en-check"><input type="checkbox" id="enCloud">为本课启用微软在线语音，将句子发送给微软生成音频</label><button class="primary" id="enSave">保存题库并开始练习</button></div>
+      </section>
+      <section id="enPractice" class="en-workspace" hidden>
+        <div class="en-toolbar"><button class="text-button" id="enPracticeBack">‹ 课程中心</button><div class="en-course-heading"><h3 id="enCourseTitle"></h3><span class="panel-caption" id="enCourseMeta"></span></div><select id="enMode" aria-label="英语练习模式"><option value="dictation">听写</option><option value="puzzle">拼图</option><option value="typing">打字</option><option value="speaking">口语</option></select><span class="en-practice-times"><span id="enPracticeToday">今日 00:00</span><button class="text-button" id="enTimer" title="暂停 / 继续计时">00:00</button></span><span id="enDone"></span><button id="enQuickSettings" class="text-button" aria-haspopup="dialog">设置</button></div>
+        <div class="panel en-stage"><div class="en-stage-meta"><span id="enPosition"></span><div><button class="text-button" id="enFavorite">☆ 收藏</button><button class="text-button" id="enFavoriteFolder" aria-label="选择句子收藏夹">收藏到…</button><button class="text-button" id="enDirectoryToggle" aria-expanded="false">句子目录</button></div></div>
+          <div class="en-exercise"><div class="en-prompt"><h2 id="enChinese"></h2><img id="enSentenceImage" hidden alt="" referrerpolicy="no-referrer"></div><div id="enAnswer"></div></div>
+          <div id="enSpeaking" hidden><div class="action-row en-center"><button class="primary" id="enRecord">● 开始录音</button><button class="secondary" id="enSpoken">标记已练习</button><a id="enDownloadRecord" hidden>下载录音</a></div><audio id="enRecorded" controls hidden></audio><div class="en-record-status"><meter id="enMicLevel" min="0" max="1" value="0" aria-label="麦克风音量"></meter><span id="enRecordStatus" class="help-text" role="status">录音时请留意输入音量</span></div><div class="en-speaking-options"><details id="enMicDetails" class="en-speaking-tools"><summary>麦克风设置与测试</summary><div class="en-mic-controls"><label>输入设备<select id="enMicDevice"><option value="">系统默认麦克风</option></select></label><button class="text-button" id="enMicRefresh" type="button">刷新设备</button><button class="secondary" id="enMicTest" type="button">测试麦克风（4 秒）</button></div><p class="help-text">跟读后回放对照，录音以 WAV 格式保存在本机。</p></details><details id="enSpeakingDetails"><summary>科研追问与笔记</summary><h3 id="enQuestion"></h3><textarea id="enNotes" placeholder="记录真实项目细节、回答提纲和需要改进的表达…" aria-label="英语口语笔记"></textarea><button class="secondary" id="enCopyCoach">复制 AI 口语教练提示</button></details></div></div>
+          <p id="enNextPreview" class="en-next-preview" hidden></p>
+        </div>
+        <div class="panel en-player" id="enPlayerBar" aria-label="练习操作栏">
+          <div class="en-player-status"><div id="enFeedback" class="status" role="status"></div><div class="en-playback-cue"><span id="enWave" class="en-wave" aria-hidden="true" hidden><i></i><i></i><i></i><i></i><i></i></span></div></div>
+          <div class="en-dock-controls"><div class="en-dock-answer"><button class="primary" id="enCheck">提交整句</button><button class="secondary" id="enRetry">重练</button><button class="secondary" id="enReveal" aria-expanded="false" aria-controls="enAnalysis">答案与解析</button></div><div class="en-dock-audio"><button class="secondary" id="enPrev">← 上一句</button><button class="primary" id="enPlay" aria-pressed="false">▶ 听一句</button><label class="en-rate-control" title="播放速度"><select id="enRate" aria-label="英语播放速度"><option value="0.75">0.75×</option><option value="0.85">0.85×</option><option value="1">1×</option><option value="1.15">1.15×</option></select></label><button class="secondary en-loop-control" id="enLoopButton" type="button" aria-pressed="false" title="循环播放">循环</button><input type="checkbox" id="enLoop" hidden aria-hidden="true" tabindex="-1"><button class="secondary" id="enNext">下一句 →</button><button class="secondary" id="enSoundToggle" aria-expanded="false">声音</button></div></div>
+          <p id="enHelp" class="help-text en-keyboard-help"></p><div class="en-cache"><progress id="enCacheProgress" max="1" value="0"></progress><span id="enCacheText"></span><button class="text-button" id="enRetryAudio" hidden>重试</button><span id="enAudioStatus" role="status"></span></div></div>
+        <div id="enCelebration" class="en-celebration" aria-hidden="true"></div><div id="enShortcutOverlay" class="en-shortcut-overlay" hidden><b>练习快捷键</b><span>Alt + P 播放 / 停止</span><span>Alt + A / F8 答案与解析</span><span>Enter 提交 / 下一句</span><span>Esc 关闭浮层</span><small>听写：空格换词 · 方向键移动</small></div><dialog id="enQuickDialog" class="en-quick-dialog"><header><h3>练习设置</h3><button id="enQuickClose" class="text-button" aria-label="关闭练习设置">×</button></header><div id="enQuickContent"></div></dialog><section id="enAnalysis" class="panel en-analysis-float" role="region" aria-label="答案与解析浮层" hidden><header><strong>答案与解析</strong><span>可滚动查看 · 可继续输入 · Esc 关闭</span><button class="text-button" id="enAnalysisClose" aria-label="关闭解析">×</button></header><div id="enAnalysisBody"></div></section>
+        <section class="panel en-directory-float" id="enDirectory" hidden><header><strong>句子目录</strong><select id="enFilter" aria-label="筛选英语句子"><option value="all">全部句子</option><option value="favorite">收藏</option><option value="mistake">错句复习</option></select><button class="text-button" id="enDirectoryClose" aria-label="关闭目录">×</button></header><div id="enOutline"></div><p id="enSource"></p></section>
+        <section class="panel en-sound-float" id="enSound" hidden><header><strong>本课声音</strong><button class="text-button" id="enSoundClose" aria-label="关闭声音设置">×</button></header><label class="en-check"><input type="checkbox" id="enAllowCloud">允许本课在线语音</label><p class="help-text">附带的 Andrew 音频在本机播放。启用在线生成时，英文句子发送给微软，生成音频缓存在本机。声音与预加载偏好在课程中心设置。</p><button class="text-button" id="enOpenPreferences">主页与设置 →</button></section>
+      </section>
     </section>
 
     <footer class="app__footer" id="footer">
       提示：ZTools 搜索框输入 <code>期刊 Nature</code>、<code>ccf CVPR</code> 或 <code>数据库 BRCA1</code> 可直接触发。
     </footer>
   </main>
-  <button class="settings-fab" id="settingsBtn" aria-label="打开模型与 API 设置">⚙ <span>设置</span></button>
+  <button class="settings-fab" id="settingsBtn" aria-label="打开科研小盒设置">⚙ <span>设置</span></button>
 
-  <script src="research-core.js"></script>
-  <script src="research-metrics.js"></script>
-  <script src="research-report.js"></script>
-  <script src="research-prompts.js"></script>
+  <script src="features/research/research-core.js"></script>
+  <script src="features/research/research-metrics.js"></script>
+  <script src="features/research/research-report.js"></script>
+  <script src="features/research/research-prompts.js"></script>
   <script src="index.js"></script>
-  <script src="research-ui.js"></script>
+  <script src="shared/ai-connection.js"></script>
+  <script src="features/research/research-ui.js"></script>
+  <script src="features/english/english-core.js"></script>
+  <script src="features/english/english-audio-loader.js"></script>
+  <script src="features/english/english-recorder.js"></script>
+  <script src="features/english/english-generation.js"></script>
+  <script src="features/english/english-agent.js"></script>
+  <script src="features/english/english-wordbook-ui.js"></script>
+  <script src="features/english/english-extras.js"></script>
+  <script src="features/english/english-sounds.js"></script>
+  <script src="features/english/english-domains.js"></script>
+  <script src="features/english/english-community.js"></script>
+  <script src="features/english/english-ui.js"></script>
 </body>
 </html>

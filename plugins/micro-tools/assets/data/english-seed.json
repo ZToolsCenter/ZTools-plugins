@@ -1,0 +1,2151 @@
+[
+  {
+    "format": "research-english-course-v1",
+    "title": "介绍一个环境微生物项目",
+    "domain": "environment",
+    "description": "原创科研表达练习。讲述自己的项目时请替换为真实经历和结果。",
+    "level": "★★★",
+    "source": {
+      "title": "科研小盒原创表达练习",
+      "url": "",
+      "kind": "original"
+    },
+    "sentences": [
+      {
+        "en": "Our study examines how environmental change shapes soil microbial communities.",
+        "zh": "我们的研究探讨环境变化如何塑造土壤微生物群落。",
+        "note": "用 examines how 引出具体研究问题。把 environmental change 替换为你的真实研究因素。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "Our study",
+            "zh": "我们的研究"
+          },
+          {
+            "role": "谓语",
+            "en": "examines",
+            "zh": "探讨"
+          },
+          {
+            "role": "从句引导词",
+            "en": "how",
+            "zh": "如何"
+          },
+          {
+            "role": "从句主语",
+            "en": "environmental change",
+            "zh": "环境变化"
+          },
+          {
+            "role": "从句谓语",
+            "en": "shapes",
+            "zh": "塑造"
+          },
+          {
+            "role": "从句宾语",
+            "en": "soil microbial communities.",
+            "zh": "土壤微生物群落"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "environmental",
+            "ipa": "ɪnˌvaɪɹənˈmɛntəl / ɪnˌvaɪɹənˈmɛnəl",
+            "meaning": "环境的"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "Our",
+            "ipa": "aʊɚ / aʊɹ / ɑɹ"
+          },
+          {
+            "word": "study",
+            "ipa": "ˈstʌdi"
+          },
+          {
+            "word": "examines",
+            "ipa": "ɪɡˈzæmənz"
+          },
+          {
+            "word": "how",
+            "ipa": "haʊ"
+          },
+          {
+            "word": "environmental",
+            "ipa": "ɪnˌvaɪɹənˈmɛntəl / ɪnˌvaɪɹənˈmɛnəl"
+          },
+          {
+            "word": "change",
+            "ipa": "tʃeɪndʒ"
+          },
+          {
+            "word": "shapes",
+            "ipa": "ʃeɪps"
+          },
+          {
+            "word": "soil",
+            "ipa": "sɔɪl"
+          },
+          {
+            "word": "microbial",
+            "ipa": "maɪˈkɹoʊbiəl"
+          },
+          {
+            "word": "communities",
+            "ipa": "kəmˈjunətiz / kəmˈjunɪtiz"
+          }
+        ]
+      },
+      {
+        "en": "We compared microbial communities across sites with different soil properties.",
+        "zh": "我们比较了具有不同土壤性质的地点之间的微生物群落。",
+        "note": "across sites 表达跨地点比较；with different soil properties 修饰 sites。这里只是表达模板，请按实际设计修改。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "We",
+            "zh": "我们"
+          },
+          {
+            "role": "谓语",
+            "en": "compared",
+            "zh": "比较了"
+          },
+          {
+            "role": "宾语",
+            "en": "microbial communities",
+            "zh": "微生物群落"
+          },
+          {
+            "role": "范围状语",
+            "en": "across sites",
+            "zh": "跨地点"
+          },
+          {
+            "role": "后置定语",
+            "en": "with different soil properties.",
+            "zh": "具有不同土壤性质的"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "properties",
+            "ipa": "ˈpɹɑpɚtiz",
+            "meaning": "性质；属性"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "We",
+            "ipa": "wi"
+          },
+          {
+            "word": "compared",
+            "ipa": "kəmˈpɛɹd"
+          },
+          {
+            "word": "microbial",
+            "ipa": "maɪˈkɹoʊbiəl"
+          },
+          {
+            "word": "communities",
+            "ipa": "kəmˈjunətiz / kəmˈjunɪtiz"
+          },
+          {
+            "word": "across",
+            "ipa": "əˈkɹɔs"
+          },
+          {
+            "word": "sites",
+            "ipa": "saɪts"
+          },
+          {
+            "word": "with",
+            "ipa": "wɪð / wɪθ"
+          },
+          {
+            "word": "different",
+            "ipa": "ˈdɪfɚənt / ˈdɪfɹənt"
+          },
+          {
+            "word": "soil",
+            "ipa": "sɔɪl"
+          },
+          {
+            "word": "properties",
+            "ipa": "ˈpɹɑpɚtiz"
+          }
+        ]
+      },
+      {
+        "en": "An association between two taxa does not establish a direct interaction.",
+        "zh": "两个分类单元之间存在关联，并不能确立它们存在直接互作。",
+        "note": "between two taxa 修饰 association；establish 表示确立证据，比 suggest 更强。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语核心",
+            "en": "An association",
+            "zh": "一种关联"
+          },
+          {
+            "role": "主语后置定语",
+            "en": "between two taxa",
+            "zh": "两个分类单元之间的"
+          },
+          {
+            "role": "谓语",
+            "en": "does not establish",
+            "zh": "不能确立"
+          },
+          {
+            "role": "宾语",
+            "en": "a direct interaction.",
+            "zh": "直接互作"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "association",
+            "ipa": "əˌsoʊsiˈeɪʃən / əˌsoʊʃiˈeɪʃən",
+            "meaning": "关联"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "An",
+            "ipa": "æn / ən"
+          },
+          {
+            "word": "association",
+            "ipa": "əˌsoʊsiˈeɪʃən / əˌsoʊʃiˈeɪʃən"
+          },
+          {
+            "word": "between",
+            "ipa": "bɪtˈwin / bitˈwin"
+          },
+          {
+            "word": "two",
+            "ipa": "tu"
+          },
+          {
+            "word": "taxa",
+            "ipa": ""
+          },
+          {
+            "word": "does",
+            "ipa": "dʌz / dɪz"
+          },
+          {
+            "word": "not",
+            "ipa": "nɑt"
+          },
+          {
+            "word": "establish",
+            "ipa": "ɪˈstæblɪʃ"
+          },
+          {
+            "word": "a",
+            "ipa": "ə / eɪ"
+          },
+          {
+            "word": "direct",
+            "ipa": "dɚˈɛkt / daɪˈɹɛkt / dɪˈɹɛkt"
+          },
+          {
+            "word": "interaction",
+            "ipa": "ˌɪntɚˈækʃən / ˌɪnɚˈækʃən"
+          }
+        ]
+      },
+      {
+        "en": "This result suggests a possible link that requires further investigation.",
+        "zh": "这一结果提示了一种需要进一步研究的可能联系。",
+        "note": "suggests a possible link 表达候选解释；that 引导定语从句，修饰 link。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "This result",
+            "zh": "这一结果"
+          },
+          {
+            "role": "谓语",
+            "en": "suggests",
+            "zh": "提示"
+          },
+          {
+            "role": "宾语",
+            "en": "a possible link",
+            "zh": "一种可能联系"
+          },
+          {
+            "role": "定语从句主语",
+            "en": "that",
+            "zh": "该联系"
+          },
+          {
+            "role": "定语从句谓语",
+            "en": "requires",
+            "zh": "需要"
+          },
+          {
+            "role": "定语从句宾语",
+            "en": "further investigation.",
+            "zh": "进一步研究"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "investigation",
+            "ipa": "ˌɪnˌvɛstəˈɡeɪʃən",
+            "meaning": "进一步研究；调查"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "This",
+            "ipa": "ðɪs"
+          },
+          {
+            "word": "result",
+            "ipa": "ɹɪˈzʌlt / ɹiˈzʌlt"
+          },
+          {
+            "word": "suggests",
+            "ipa": "səˈdʒɛsts"
+          },
+          {
+            "word": "a",
+            "ipa": "ə / eɪ"
+          },
+          {
+            "word": "possible",
+            "ipa": "ˈpɑsəbəl"
+          },
+          {
+            "word": "link",
+            "ipa": "lɪŋk"
+          },
+          {
+            "word": "that",
+            "ipa": "ðæt / ðət"
+          },
+          {
+            "word": "requires",
+            "ipa": "ɹikˈwaɪɚz / ɹikˈwaɪɹz"
+          },
+          {
+            "word": "further",
+            "ipa": "ˈfɝðɚ"
+          },
+          {
+            "word": "investigation",
+            "ipa": "ˌɪnˌvɛstəˈɡeɪʃən"
+          }
+        ]
+      },
+      {
+        "en": "One limitation is that the available samples cover a narrow range of conditions.",
+        "zh": "一个局限是现有样本仅覆盖较窄的条件范围。",
+        "note": "One limitation is that… 先点明一个具体局限，再说明它影响哪一类推断。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "One limitation",
+            "zh": "一个局限"
+          },
+          {
+            "role": "系动词",
+            "en": "is",
+            "zh": "是"
+          },
+          {
+            "role": "表语从句引导词",
+            "en": "that",
+            "zh": "引出局限的内容"
+          },
+          {
+            "role": "从句主语",
+            "en": "the available samples",
+            "zh": "现有样本"
+          },
+          {
+            "role": "从句谓语",
+            "en": "cover",
+            "zh": "覆盖"
+          },
+          {
+            "role": "从句宾语",
+            "en": "a narrow range of conditions.",
+            "zh": "较窄的条件范围"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "limitation",
+            "ipa": "ˌlɪmɪˈteɪʃən",
+            "meaning": "局限"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "One",
+            "ipa": "wʌn"
+          },
+          {
+            "word": "limitation",
+            "ipa": "ˌlɪmɪˈteɪʃən"
+          },
+          {
+            "word": "is",
+            "ipa": "ɪz"
+          },
+          {
+            "word": "that",
+            "ipa": "ðæt / ðət"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "available",
+            "ipa": "əˈveɪləbəl"
+          },
+          {
+            "word": "samples",
+            "ipa": "ˈsæmpəlz"
+          },
+          {
+            "word": "cover",
+            "ipa": "ˈkʌvɚ"
+          },
+          {
+            "word": "a",
+            "ipa": "ə / eɪ"
+          },
+          {
+            "word": "narrow",
+            "ipa": "ˈnɛɹoʊ / ˈnæɹoʊ"
+          },
+          {
+            "word": "range",
+            "ipa": "ɹeɪndʒ"
+          },
+          {
+            "word": "of",
+            "ipa": "ʌv"
+          },
+          {
+            "word": "conditions",
+            "ipa": "kənˈdɪʃənz"
+          }
+        ]
+      },
+      {
+        "en": "The next step is to connect the computational findings with a testable biological question.",
+        "zh": "下一步是将计算分析发现与一个可检验的生物学问题联系起来。",
+        "note": "connect A with B 强调两者之间的联系。testable 指问题可以通过证据加以检验。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "The next step",
+            "zh": "下一步"
+          },
+          {
+            "role": "系动词",
+            "en": "is",
+            "zh": "是"
+          },
+          {
+            "role": "表语·不定式",
+            "en": "to connect",
+            "zh": "将……联系起来"
+          },
+          {
+            "role": "不定式宾语",
+            "en": "the computational findings",
+            "zh": "计算发现"
+          },
+          {
+            "role": "介词补语",
+            "en": "with a testable biological question.",
+            "zh": "与可检验的生物学问题"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "testable",
+            "ipa": "",
+            "meaning": "可检验的"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "The",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "next",
+            "ipa": "nɛkst / nɛks"
+          },
+          {
+            "word": "step",
+            "ipa": "stɛp"
+          },
+          {
+            "word": "is",
+            "ipa": "ɪz"
+          },
+          {
+            "word": "to",
+            "ipa": "tu / tɪ / tə"
+          },
+          {
+            "word": "connect",
+            "ipa": "kəˈnɛkt"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "computational",
+            "ipa": "ˌkɑmpjuˈteɪʃənəl"
+          },
+          {
+            "word": "findings",
+            "ipa": "ˈfaɪndɪŋz"
+          },
+          {
+            "word": "with",
+            "ipa": "wɪð / wɪθ"
+          },
+          {
+            "word": "a",
+            "ipa": "ə / eɪ"
+          },
+          {
+            "word": "testable",
+            "ipa": ""
+          },
+          {
+            "word": "biological",
+            "ipa": "ˌbaɪəˈlɑdʒɪkəl"
+          },
+          {
+            "word": "question",
+            "ipa": "kˈwɛstʃən / kˈwɛʃən"
+          }
+        ]
+      }
+    ],
+    "tags": [],
+    "id": "english-starter-environment",
+    "builtin": true
+  },
+  {
+    "format": "research-english-course-v1",
+    "title": "把分析选择讲清楚",
+    "domain": "methods",
+    "description": "原创科研表达练习。讲述自己的项目时请替换为真实经历和结果。",
+    "level": "★★★",
+    "source": {
+      "title": "科研小盒原创表达练习",
+      "url": "",
+      "kind": "original"
+    },
+    "sentences": [
+      {
+        "en": "Before interpreting the results, we checked the sample metadata.",
+        "zh": "在解释结果之前，我们检查了样本元数据。",
+        "note": "Before + 动名词短语可交代分析顺序。metadata 是集合概念，通常不使用 metadatas。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "时间状语",
+            "en": "Before interpreting the results,",
+            "zh": "在解释结果之前"
+          },
+          {
+            "role": "主语",
+            "en": "we",
+            "zh": "我们"
+          },
+          {
+            "role": "谓语",
+            "en": "checked",
+            "zh": "检查了"
+          },
+          {
+            "role": "宾语",
+            "en": "the sample metadata.",
+            "zh": "样本元数据"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "metadata",
+            "ipa": "",
+            "meaning": "元数据"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "Before",
+            "ipa": "bɪˈfɔɹ / ˌbiˈfɔɹ"
+          },
+          {
+            "word": "interpreting",
+            "ipa": "ˈɪntɚˌpɹɛtɪŋ"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "results",
+            "ipa": "ɹɪˈzʌlts / ɹiˈzʌlts"
+          },
+          {
+            "word": "we",
+            "ipa": "wi"
+          },
+          {
+            "word": "checked",
+            "ipa": "tʃɛkt"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "sample",
+            "ipa": "ˈsæmpəl"
+          },
+          {
+            "word": "metadata",
+            "ipa": ""
+          }
+        ]
+      },
+      {
+        "en": "We adjusted for measured covariates to reduce potential confounding.",
+        "zh": "我们对测得的协变量进行了调整，以减少潜在混杂。",
+        "note": "adjust for 是固定搭配；to reduce 表示目的，不能单凭调整就声称排除了所有混杂。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "We",
+            "zh": "我们"
+          },
+          {
+            "role": "谓语与介词",
+            "en": "adjusted for",
+            "zh": "调整了"
+          },
+          {
+            "role": "介词宾语",
+            "en": "measured covariates",
+            "zh": "测得的协变量"
+          },
+          {
+            "role": "目的状语",
+            "en": "to reduce potential confounding.",
+            "zh": "以减少潜在混杂"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "confounding",
+            "ipa": "kənˈfaʊndɪŋ",
+            "meaning": "混杂"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "We",
+            "ipa": "wi"
+          },
+          {
+            "word": "adjusted",
+            "ipa": "əˈdʒʌstɪd"
+          },
+          {
+            "word": "for",
+            "ipa": "fɔɹ / fɚ / fɹɚ"
+          },
+          {
+            "word": "measured",
+            "ipa": "ˈmɛʒɚd"
+          },
+          {
+            "word": "covariates",
+            "ipa": ""
+          },
+          {
+            "word": "to",
+            "ipa": "tu / tɪ / tə"
+          },
+          {
+            "word": "reduce",
+            "ipa": "ɹəˈdus / ɹɪˈdus / ɹiˈdus"
+          },
+          {
+            "word": "potential",
+            "ipa": "pəˈtɛnʃəl"
+          },
+          {
+            "word": "confounding",
+            "ipa": "kənˈfaʊndɪŋ"
+          }
+        ]
+      },
+      {
+        "en": "The background set should reflect the genes eligible for selection.",
+        "zh": "背景集合应反映有资格被选入分析的基因。",
+        "note": "eligible for + 名词表示有资格参与某事。说明你的基因筛选范围，有助于解释富集分析。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "The background set",
+            "zh": "背景集合"
+          },
+          {
+            "role": "情态谓语",
+            "en": "should reflect",
+            "zh": "应反映"
+          },
+          {
+            "role": "宾语核心",
+            "en": "the genes",
+            "zh": "基因"
+          },
+          {
+            "role": "后置定语",
+            "en": "eligible for selection.",
+            "zh": "有资格被选入的"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "eligible",
+            "ipa": "ˈɛlədʒəbəl / ˈɛlɪdʒəbəl",
+            "meaning": "符合纳入条件的"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "The",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "background",
+            "ipa": "ˈbækˌɡɹaʊnd"
+          },
+          {
+            "word": "set",
+            "ipa": "sɛt"
+          },
+          {
+            "word": "should",
+            "ipa": "ʃʊd"
+          },
+          {
+            "word": "reflect",
+            "ipa": "ɹɪˈflɛkt"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "genes",
+            "ipa": "dʒinz"
+          },
+          {
+            "word": "eligible",
+            "ipa": "ˈɛlədʒəbəl / ˈɛlɪdʒəbəl"
+          },
+          {
+            "word": "for",
+            "ipa": "fɔɹ / fɚ / fɹɚ"
+          },
+          {
+            "word": "selection",
+            "ipa": "səˈlɛkʃən"
+          }
+        ]
+      },
+      {
+        "en": "My contribution was to make the analysis workflow easier to reproduce.",
+        "zh": "我的贡献是让分析流程更容易复现。",
+        "note": "My contribution was to… 后接具体行动。使用前确认这确实是你的个人贡献。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "My contribution",
+            "zh": "我的贡献"
+          },
+          {
+            "role": "系动词",
+            "en": "was",
+            "zh": "是"
+          },
+          {
+            "role": "表语·不定式",
+            "en": "to make",
+            "zh": "使"
+          },
+          {
+            "role": "不定式宾语",
+            "en": "the analysis workflow",
+            "zh": "分析流程"
+          },
+          {
+            "role": "宾语补足语",
+            "en": "easier to reproduce.",
+            "zh": "更容易复现"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "reproduce",
+            "ipa": "ˌɹipɹəˈdus",
+            "meaning": "复现"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "My",
+            "ipa": "maɪ"
+          },
+          {
+            "word": "contribution",
+            "ipa": "ˌkɑntɹəˈbjuʃən"
+          },
+          {
+            "word": "was",
+            "ipa": "wɑz / wəz"
+          },
+          {
+            "word": "to",
+            "ipa": "tu / tɪ / tə"
+          },
+          {
+            "word": "make",
+            "ipa": "meɪk"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "analysis",
+            "ipa": "əˈnæləsəs / əˈnælɪsɪs"
+          },
+          {
+            "word": "workflow",
+            "ipa": "ˈwɝkˌfloʊ"
+          },
+          {
+            "word": "easier",
+            "ipa": "ˈiziɚ"
+          },
+          {
+            "word": "to",
+            "ipa": "tu / tɪ / tə"
+          },
+          {
+            "word": "reproduce",
+            "ipa": "ˌɹipɹəˈdus"
+          }
+        ]
+      },
+      {
+        "en": "I would test whether the finding holds in an independent dataset.",
+        "zh": "我会检验这一发现能否在独立数据集中成立。",
+        "note": "would test 明确这是拟议行动；holds 表示结论依然成立。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "I",
+            "zh": "我"
+          },
+          {
+            "role": "谓语",
+            "en": "would test",
+            "zh": "会检验"
+          },
+          {
+            "role": "宾语从句引导词",
+            "en": "whether",
+            "zh": "是否"
+          },
+          {
+            "role": "从句主语",
+            "en": "the finding",
+            "zh": "这一发现"
+          },
+          {
+            "role": "从句谓语",
+            "en": "holds",
+            "zh": "仍然成立"
+          },
+          {
+            "role": "从句范围状语",
+            "en": "in an independent dataset.",
+            "zh": "在独立数据集中"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "independent",
+            "ipa": "ˌɪndɪˈpɛndənt",
+            "meaning": "独立的"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "I",
+            "ipa": "aɪ"
+          },
+          {
+            "word": "would",
+            "ipa": "wʊd"
+          },
+          {
+            "word": "test",
+            "ipa": "tɛst"
+          },
+          {
+            "word": "whether",
+            "ipa": "ˈwɛðɚ / hˈwɛðɚ"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "finding",
+            "ipa": "ˈfaɪndɪŋ"
+          },
+          {
+            "word": "holds",
+            "ipa": "hoʊldz"
+          },
+          {
+            "word": "in",
+            "ipa": "ɪn"
+          },
+          {
+            "word": "an",
+            "ipa": "æn / ən"
+          },
+          {
+            "word": "independent",
+            "ipa": "ˌɪndɪˈpɛndənt"
+          },
+          {
+            "word": "dataset",
+            "ipa": "ˈdeɪtəˌsɛt"
+          }
+        ]
+      },
+      {
+        "en": "Could you clarify which part of the analysis you would like me to explain?",
+        "zh": "您能说明希望我解释分析中的哪一部分吗？",
+        "note": "Could you clarify… 是礼貌的澄清请求，有助于在面试中避免答非所问。",
+        "quote": "",
+        "question": "How would you explain this idea using your own research?",
+        "chunks": [
+          {
+            "role": "助动词",
+            "en": "Could",
+            "zh": "能否"
+          },
+          {
+            "role": "主语",
+            "en": "you",
+            "zh": "您"
+          },
+          {
+            "role": "谓语",
+            "en": "clarify",
+            "zh": "澄清"
+          },
+          {
+            "role": "从句前置宾语",
+            "en": "which part of the analysis",
+            "zh": "分析的哪一部分"
+          },
+          {
+            "role": "从句主语",
+            "en": "you",
+            "zh": "您"
+          },
+          {
+            "role": "从句谓语",
+            "en": "would like",
+            "zh": "希望"
+          },
+          {
+            "role": "从句宾语",
+            "en": "me",
+            "zh": "我"
+          },
+          {
+            "role": "宾语补足语",
+            "en": "to explain?",
+            "zh": "来解释"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "clarify",
+            "ipa": "ˈklɛɹəˌfaɪ",
+            "meaning": "澄清；说明"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "Could",
+            "ipa": "kʊd"
+          },
+          {
+            "word": "you",
+            "ipa": "ju"
+          },
+          {
+            "word": "clarify",
+            "ipa": "ˈklɛɹəˌfaɪ"
+          },
+          {
+            "word": "which",
+            "ipa": "wɪtʃ / hwɪtʃ"
+          },
+          {
+            "word": "part",
+            "ipa": "pɑɹt"
+          },
+          {
+            "word": "of",
+            "ipa": "ʌv"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "analysis",
+            "ipa": "əˈnæləsəs / əˈnælɪsɪs"
+          },
+          {
+            "word": "you",
+            "ipa": "ju"
+          },
+          {
+            "word": "would",
+            "ipa": "wʊd"
+          },
+          {
+            "word": "like",
+            "ipa": "laɪk"
+          },
+          {
+            "word": "me",
+            "ipa": "mi"
+          },
+          {
+            "word": "to",
+            "ipa": "tu / tɪ / tə"
+          },
+          {
+            "word": "explain",
+            "ipa": "ɪkˈspleɪn"
+          }
+        ]
+      }
+    ],
+    "tags": [],
+    "id": "english-starter-methods",
+    "builtin": true
+  },
+  {
+    "format": "research-english-course-v1",
+    "title": "读论文：问题、证据与解释",
+    "domain": "reading",
+    "description": "原创科研表达练习。讲述自己的项目时请替换为真实经历和结果。",
+    "level": "★★★",
+    "source": {
+      "title": "科研小盒原创表达练习",
+      "url": "",
+      "kind": "original"
+    },
+    "sentences": [
+      {
+        "en": "What question does this study address?",
+        "zh": "这项研究回答了什么问题？",
+        "note": "这是特殊疑问句。What question 是 address 的宾语，前置后用 does + 主语 + 动词原形；address a question 表示探讨一个问题。",
+        "quote": "",
+        "question": "What makes this question important?",
+        "chunks": [
+          {
+            "role": "前置宾语",
+            "en": "What question",
+            "zh": "什么问题"
+          },
+          {
+            "role": "助动词",
+            "en": "does",
+            "zh": "构成一般现在时疑问句"
+          },
+          {
+            "role": "主语",
+            "en": "this study",
+            "zh": "这项研究"
+          },
+          {
+            "role": "谓语",
+            "en": "address?",
+            "zh": "探讨"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "address",
+            "ipa": "ˈæˌdɹɛs / əˈdɹɛs",
+            "meaning": "处理；探讨"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "What",
+            "ipa": "wʌt / hwʌt"
+          },
+          {
+            "word": "question",
+            "ipa": "kˈwɛstʃən / kˈwɛʃən"
+          },
+          {
+            "word": "does",
+            "ipa": "dʌz / dɪz"
+          },
+          {
+            "word": "this",
+            "ipa": "ðɪs"
+          },
+          {
+            "word": "study",
+            "ipa": "ˈstʌdi"
+          },
+          {
+            "word": "address",
+            "ipa": "ˈæˌdɹɛs / əˈdɹɛs"
+          }
+        ]
+      },
+      {
+        "en": "The authors used an independent dataset to evaluate the model.",
+        "zh": "作者使用独立数据集评估模型。",
+        "note": "主干为 The authors used an independent dataset；to evaluate the model 是目的状语，说明使用数据集的用途。",
+        "quote": "",
+        "question": "Why is an independent dataset useful?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "The authors",
+            "zh": "作者"
+          },
+          {
+            "role": "谓语",
+            "en": "used",
+            "zh": "使用了"
+          },
+          {
+            "role": "宾语",
+            "en": "an independent dataset",
+            "zh": "一个独立数据集"
+          },
+          {
+            "role": "目的状语",
+            "en": "to evaluate the model.",
+            "zh": "来评估模型"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "evaluate",
+            "ipa": "ɪˈvæljuˌeɪt / iˈvæljuˌeɪt",
+            "meaning": "评估"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "The",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "authors",
+            "ipa": "ˈɔθɚz"
+          },
+          {
+            "word": "used",
+            "ipa": "juzd"
+          },
+          {
+            "word": "an",
+            "ipa": "æn / ən"
+          },
+          {
+            "word": "independent",
+            "ipa": "ˌɪndɪˈpɛndənt"
+          },
+          {
+            "word": "dataset",
+            "ipa": "ˈdeɪtəˌsɛt"
+          },
+          {
+            "word": "to",
+            "ipa": "tu / tɪ / tə"
+          },
+          {
+            "word": "evaluate",
+            "ipa": "ɪˈvæljuˌeɪt / iˈvæljuˌeɪt"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "model",
+            "ipa": "ˈmɑdəl"
+          }
+        ]
+      },
+      {
+        "en": "The reported effect was smaller after adjustment.",
+        "zh": "校正后报告的效应较小。",
+        "note": "主干是主语 + 系动词 + 比较级表语。after adjustment 说明调整后的状态；比较对象需由上下文交代。这里是表达示例，具体效应大小应以论文结果为准。",
+        "quote": "",
+        "question": "Which variables were included in the adjustment?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "The reported effect",
+            "zh": "报告的效应"
+          },
+          {
+            "role": "系动词",
+            "en": "was",
+            "zh": "是"
+          },
+          {
+            "role": "表语",
+            "en": "smaller",
+            "zh": "更小的"
+          },
+          {
+            "role": "时间状语",
+            "en": "after adjustment.",
+            "zh": "在调整后"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "adjustment",
+            "ipa": "əˈdʒʌstmənt",
+            "meaning": "校正；调整"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "The",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "reported",
+            "ipa": "ˌɹiˈpɔɹtɪd / ɹɪˈpɔɹtɪd"
+          },
+          {
+            "word": "effect",
+            "ipa": "ɪˈfɛkt / ˈifɛkt / əˈfɛkt"
+          },
+          {
+            "word": "was",
+            "ipa": "wɑz / wəz"
+          },
+          {
+            "word": "smaller",
+            "ipa": "sˈmɔlɚ"
+          },
+          {
+            "word": "after",
+            "ipa": "ˈæftɚ"
+          },
+          {
+            "word": "adjustment",
+            "ipa": "əˈdʒʌstmənt"
+          }
+        ]
+      },
+      {
+        "en": "The abstract does not provide enough detail to assess this claim.",
+        "zh": "摘要没有提供足够细节来评估这一论断。",
+        "note": "does not provide 构成否定谓语。enough detail to assess this claim 表示足以评估这一主张的细节；不定式说明所需细节的用途。",
+        "quote": "",
+        "question": "Where would you look for more detail?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "The abstract",
+            "zh": "摘要"
+          },
+          {
+            "role": "谓语",
+            "en": "does not provide",
+            "zh": "未提供"
+          },
+          {
+            "role": "宾语",
+            "en": "enough detail",
+            "zh": "足够的细节"
+          },
+          {
+            "role": "不定式后置修饰",
+            "en": "to assess this claim.",
+            "zh": "以评估这一主张"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "assess",
+            "ipa": "əˈsɛs",
+            "meaning": "评估；判断"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "The",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "abstract",
+            "ipa": "æbˈstɹækt / ˈæbˌstɹækt"
+          },
+          {
+            "word": "does",
+            "ipa": "dʌz / dɪz"
+          },
+          {
+            "word": "not",
+            "ipa": "nɑt"
+          },
+          {
+            "word": "provide",
+            "ipa": "pɹəˈvaɪd"
+          },
+          {
+            "word": "enough",
+            "ipa": "ɪˈnʌf / iˈnʌf"
+          },
+          {
+            "word": "detail",
+            "ipa": "dɪˈteɪl / ˈditeɪl"
+          },
+          {
+            "word": "to",
+            "ipa": "tu / tɪ / tə"
+          },
+          {
+            "word": "assess",
+            "ipa": "əˈsɛs"
+          },
+          {
+            "word": "this",
+            "ipa": "ðɪs"
+          },
+          {
+            "word": "claim",
+            "ipa": "kleɪm"
+          }
+        ]
+      },
+      {
+        "en": "I would check the methods before interpreting the figure.",
+        "zh": "在解读这张图之前，我会先查阅方法。",
+        "note": "would check 表达拟议行动；before interpreting the figure 是时间状语，before 后接动名词短语。",
+        "quote": "",
+        "question": "What information do you need to interpret the figure?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "I",
+            "zh": "我"
+          },
+          {
+            "role": "谓语",
+            "en": "would check",
+            "zh": "会查看"
+          },
+          {
+            "role": "宾语",
+            "en": "the methods",
+            "zh": "方法部分"
+          },
+          {
+            "role": "时间状语",
+            "en": "before interpreting the figure.",
+            "zh": "在解释图形之前"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "interpret",
+            "ipa": "ˌɪnˈtɝpɹət",
+            "meaning": "解释；解读"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "I",
+            "ipa": "aɪ"
+          },
+          {
+            "word": "would",
+            "ipa": "wʊd"
+          },
+          {
+            "word": "check",
+            "ipa": "tʃɛk"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "methods",
+            "ipa": "ˈmɛθədz"
+          },
+          {
+            "word": "before",
+            "ipa": "bɪˈfɔɹ / ˌbiˈfɔɹ"
+          },
+          {
+            "word": "interpreting",
+            "ipa": "ˈɪntɚˌpɹɛtɪŋ"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "figure",
+            "ipa": "ˈfɪɡjɚ"
+          }
+        ]
+      },
+      {
+        "en": "The main conclusion should be considered in the context of the study design.",
+        "zh": "主要结论应结合研究设计来理解。",
+        "note": "should be considered 是情态动词 + 被动结构。in the context of the study design 提供理解结论时所依据的背景。",
+        "quote": "",
+        "question": "How does the design affect the interpretation?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "The main conclusion",
+            "zh": "主要结论"
+          },
+          {
+            "role": "被动谓语",
+            "en": "should be considered",
+            "zh": "应被理解或考量"
+          },
+          {
+            "role": "背景状语",
+            "en": "in the context of",
+            "zh": "结合……的背景"
+          },
+          {
+            "role": "介词宾语",
+            "en": "the study design.",
+            "zh": "研究设计"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "context",
+            "ipa": "ˈkɑntɛkst",
+            "meaning": "背景；语境"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "The",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "main",
+            "ipa": "meɪn"
+          },
+          {
+            "word": "conclusion",
+            "ipa": "kənˈkluʒən"
+          },
+          {
+            "word": "should",
+            "ipa": "ʃʊd"
+          },
+          {
+            "word": "be",
+            "ipa": "bi"
+          },
+          {
+            "word": "considered",
+            "ipa": "kənˈsɪdɚd"
+          },
+          {
+            "word": "in",
+            "ipa": "ɪn"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "context",
+            "ipa": "ˈkɑntɛkst"
+          },
+          {
+            "word": "of",
+            "ipa": "ʌv"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "study",
+            "ipa": "ˈstʌdi"
+          },
+          {
+            "word": "design",
+            "ipa": "dɪˈzaɪn"
+          }
+        ]
+      }
+    ],
+    "tags": [],
+    "id": "english-starter-reading",
+    "builtin": true
+  },
+  {
+    "format": "research-english-course-v1",
+    "title": "实验室面试与学术交流",
+    "domain": "communication",
+    "description": "原创科研表达练习。讲述自己的项目时请替换为真实经历和结果。",
+    "level": "★★★",
+    "source": {
+      "title": "科研小盒原创表达练习",
+      "url": "",
+      "kind": "original"
+    },
+    "sentences": [
+      {
+        "en": "My research focuses on computational approaches to biological questions.",
+        "zh": "我的研究聚焦于用计算方法回答生物学问题。",
+        "note": "主干为 My research focuses on computational approaches；to biological questions 修饰 approaches。focus on 表示聚焦于，approaches to 表示针对某问题的方法。",
+        "quote": "",
+        "question": "Can you give one concrete example?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "My research",
+            "zh": "我的研究"
+          },
+          {
+            "role": "谓语与介词",
+            "en": "focuses on",
+            "zh": "侧重于"
+          },
+          {
+            "role": "介词宾语",
+            "en": "computational approaches",
+            "zh": "计算方法"
+          },
+          {
+            "role": "后置定语",
+            "en": "to biological questions.",
+            "zh": "用于解决生物学问题的"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "approach",
+            "ipa": "əˈpɹoʊtʃ",
+            "meaning": "方法；途径"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "My",
+            "ipa": "maɪ"
+          },
+          {
+            "word": "research",
+            "ipa": "ɹiˈsɝtʃ / ˈɹisɚtʃ"
+          },
+          {
+            "word": "focuses",
+            "ipa": "ˈfoʊkəsɪz / ˈfoʊkɪsɪz"
+          },
+          {
+            "word": "on",
+            "ipa": "ɑn / ɔn"
+          },
+          {
+            "word": "computational",
+            "ipa": "ˌkɑmpjuˈteɪʃənəl"
+          },
+          {
+            "word": "approaches",
+            "ipa": "əˈpɹoʊtʃəz / əˈpɹoʊtʃɪz"
+          },
+          {
+            "word": "to",
+            "ipa": "tu / tɪ / tə"
+          },
+          {
+            "word": "biological",
+            "ipa": "ˌbaɪəˈlɑdʒɪkəl"
+          },
+          {
+            "word": "questions",
+            "ipa": "kˈwɛstʃənz"
+          }
+        ]
+      },
+      {
+        "en": "I am particularly interested in how your group integrates different types of data.",
+        "zh": "我尤其感兴趣的是你们团队如何整合不同类型的数据。",
+        "note": "主干为 I am interested in…，particularly 修饰 interested。how 引导介词 in 的宾语从句；从句使用 your group integrates… 的陈述语序。",
+        "quote": "",
+        "question": "How would your skills contribute to this work?",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "I",
+            "zh": "我"
+          },
+          {
+            "role": "系动词",
+            "en": "am",
+            "zh": "是"
+          },
+          {
+            "role": "程度状语",
+            "en": "particularly",
+            "zh": "尤其"
+          },
+          {
+            "role": "表语",
+            "en": "interested",
+            "zh": "感兴趣的"
+          },
+          {
+            "role": "介词与从句引导词",
+            "en": "in how",
+            "zh": "对……如何"
+          },
+          {
+            "role": "从句主语",
+            "en": "your group",
+            "zh": "您的团队"
+          },
+          {
+            "role": "从句谓语",
+            "en": "integrates",
+            "zh": "整合"
+          },
+          {
+            "role": "从句宾语",
+            "en": "different types of data.",
+            "zh": "不同类型的数据"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "integrate",
+            "ipa": "ˈɪntəˌɡɹeɪt / ˈɪnəˌɡɹeɪt",
+            "meaning": "整合"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "I",
+            "ipa": "aɪ"
+          },
+          {
+            "word": "am",
+            "ipa": "æm / eɪɛm"
+          },
+          {
+            "word": "particularly",
+            "ipa": "ˌpɑɹˈtɪkjəlɚli / pɚˈtɪkjəlɚli"
+          },
+          {
+            "word": "interested",
+            "ipa": "ˈɪntɹəstɪd / ˈɪntɹɪstɪd / ˈɪntɚəstəd / ˈɪntɚɪstɪd"
+          },
+          {
+            "word": "in",
+            "ipa": "ɪn"
+          },
+          {
+            "word": "how",
+            "ipa": "haʊ"
+          },
+          {
+            "word": "your",
+            "ipa": "jɔɹ / jʊɹ"
+          },
+          {
+            "word": "group",
+            "ipa": "ɡɹup"
+          },
+          {
+            "word": "integrates",
+            "ipa": "ˈɪntəˌɡɹeɪts / ˈɪnəˌɡɹeɪts"
+          },
+          {
+            "word": "different",
+            "ipa": "ˈdɪfɚənt / ˈdɪfɹənt"
+          },
+          {
+            "word": "types",
+            "ipa": "taɪps"
+          },
+          {
+            "word": "of",
+            "ipa": "ʌv"
+          },
+          {
+            "word": "data",
+            "ipa": "ˈdeɪtə / ˈdætə"
+          }
+        ]
+      },
+      {
+        "en": "I can explain the overall idea first and then discuss the technical details.",
+        "zh": "我可以先解释总体思路，再讨论技术细节。",
+        "note": "can explain 与 discuss 是并列谓语，共用主语 I 和情态动词 can。first 与 then 标示讲述顺序，两个动词后分别接自己的宾语。",
+        "quote": "",
+        "question": "Explain the idea to someone outside your field.",
+        "chunks": [
+          {
+            "role": "主语",
+            "en": "I",
+            "zh": "我"
+          },
+          {
+            "role": "情态谓语",
+            "en": "can explain",
+            "zh": "可以解释"
+          },
+          {
+            "role": "宾语",
+            "en": "the overall idea",
+            "zh": "整体思路"
+          },
+          {
+            "role": "顺序状语",
+            "en": "first",
+            "zh": "先"
+          },
+          {
+            "role": "并列连接与顺序",
+            "en": "and then",
+            "zh": "然后"
+          },
+          {
+            "role": "并列谓语",
+            "en": "discuss",
+            "zh": "讨论"
+          },
+          {
+            "role": "宾语",
+            "en": "the technical details.",
+            "zh": "技术细节"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "overall",
+            "ipa": "ˈoʊvɚˌɔl",
+            "meaning": "总体的"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "I",
+            "ipa": "aɪ"
+          },
+          {
+            "word": "can",
+            "ipa": "kæn / kən"
+          },
+          {
+            "word": "explain",
+            "ipa": "ɪkˈspleɪn"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "overall",
+            "ipa": "ˈoʊvɚˌɔl"
+          },
+          {
+            "word": "idea",
+            "ipa": "aɪˈdiə"
+          },
+          {
+            "word": "first",
+            "ipa": "fɝst"
+          },
+          {
+            "word": "and",
+            "ipa": "ənd / ænd"
+          },
+          {
+            "word": "then",
+            "ipa": "ðɛn"
+          },
+          {
+            "word": "discuss",
+            "ipa": "dɪˈskʌs"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "technical",
+            "ipa": "ˈtɛknɪkəl"
+          },
+          {
+            "word": "details",
+            "ipa": "dɪˈteɪlz / ˈditeɪlz"
+          }
+        ]
+      },
+      {
+        "en": "Could you give me a moment to organize my thoughts?",
+        "zh": "可以给我一点时间整理思路吗？",
+        "note": "Could you… 用于礼貌请求。give me a moment 是 give + 间接宾语 + 直接宾语；to organize my thoughts 说明这段时间用于整理思路。",
+        "quote": "",
+        "question": "Summarize your answer in two sentences.",
+        "chunks": [
+          {
+            "role": "助动词",
+            "en": "Could",
+            "zh": "能否"
+          },
+          {
+            "role": "主语",
+            "en": "you",
+            "zh": "您"
+          },
+          {
+            "role": "谓语",
+            "en": "give",
+            "zh": "给"
+          },
+          {
+            "role": "间接宾语",
+            "en": "me",
+            "zh": "我"
+          },
+          {
+            "role": "直接宾语",
+            "en": "a moment",
+            "zh": "一点时间"
+          },
+          {
+            "role": "不定式后置修饰",
+            "en": "to organize my thoughts?",
+            "zh": "来整理思路"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "organize",
+            "ipa": "ˈɔɹɡəˌnaɪz",
+            "meaning": "组织；整理"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "Could",
+            "ipa": "kʊd"
+          },
+          {
+            "word": "you",
+            "ipa": "ju"
+          },
+          {
+            "word": "give",
+            "ipa": "ɡɪv"
+          },
+          {
+            "word": "me",
+            "ipa": "mi"
+          },
+          {
+            "word": "a",
+            "ipa": "ə / eɪ"
+          },
+          {
+            "word": "moment",
+            "ipa": "ˈmoʊmənt"
+          },
+          {
+            "word": "to",
+            "ipa": "tu / tɪ / tə"
+          },
+          {
+            "word": "organize",
+            "ipa": "ˈɔɹɡəˌnaɪz"
+          },
+          {
+            "word": "my",
+            "ipa": "maɪ"
+          },
+          {
+            "word": "thoughts",
+            "ipa": "θɔts"
+          }
+        ]
+      },
+      {
+        "en": "What would success look like during the first six months?",
+        "zh": "前六个月做到什么程度算是成功？",
+        "note": "What 是介词 like 的宾语，疑问句中前置；主干为 success would look like what。during 引出时间范围，整句用于询问具体的成功标准。",
+        "quote": "",
+        "question": "What would be a realistic first milestone?",
+        "chunks": [
+          {
+            "role": "前置介词宾语",
+            "en": "What",
+            "zh": "什么样"
+          },
+          {
+            "role": "助动词",
+            "en": "would",
+            "zh": "表示假设或委婉询问"
+          },
+          {
+            "role": "主语",
+            "en": "success",
+            "zh": "成功"
+          },
+          {
+            "role": "谓语与介词",
+            "en": "look like",
+            "zh": "呈现为"
+          },
+          {
+            "role": "时间状语",
+            "en": "during the first six months?",
+            "zh": "在最初六个月内"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "success",
+            "ipa": "səkˈsɛs",
+            "meaning": "成功；达成目标"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "What",
+            "ipa": "wʌt / hwʌt"
+          },
+          {
+            "word": "would",
+            "ipa": "wʊd"
+          },
+          {
+            "word": "success",
+            "ipa": "səkˈsɛs"
+          },
+          {
+            "word": "look",
+            "ipa": "lʊk"
+          },
+          {
+            "word": "like",
+            "ipa": "laɪk"
+          },
+          {
+            "word": "during",
+            "ipa": "ˈdʊɹɪŋ / ˈdjʊɹɪŋ / dɝɪŋ"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "first",
+            "ipa": "fɝst"
+          },
+          {
+            "word": "six",
+            "ipa": "sɪks"
+          },
+          {
+            "word": "months",
+            "ipa": "mʌnθs"
+          }
+        ]
+      },
+      {
+        "en": "Thank you for the discussion; it helped me understand the project more clearly.",
+        "zh": "谢谢这次讨论，它帮助我更清楚地理解这个项目。",
+        "note": "分号连接两部分。Thank you 是常用感谢表达；it 指前面的 discussion。helped me understand 使用 help + 宾语 + 不带 to 的不定式，more clearly 修饰 understand。",
+        "quote": "",
+        "question": "What did you learn from the conversation?",
+        "chunks": [
+          {
+            "role": "谓语",
+            "en": "Thank",
+            "zh": "感谢"
+          },
+          {
+            "role": "宾语",
+            "en": "you",
+            "zh": "您"
+          },
+          {
+            "role": "原因状语",
+            "en": "for the discussion;",
+            "zh": "就这次讨论"
+          },
+          {
+            "role": "第二分句主语",
+            "en": "it",
+            "zh": "这次讨论"
+          },
+          {
+            "role": "第二分句谓语",
+            "en": "helped",
+            "zh": "帮助了"
+          },
+          {
+            "role": "宾语",
+            "en": "me",
+            "zh": "我"
+          },
+          {
+            "role": "宾语补足语",
+            "en": "understand the project",
+            "zh": "理解项目"
+          },
+          {
+            "role": "方式状语",
+            "en": "more clearly.",
+            "zh": "更清楚地"
+          }
+        ],
+        "vocabulary": [
+          {
+            "term": "discussion",
+            "ipa": "dɪˈskʌʃən",
+            "meaning": "讨论"
+          }
+        ],
+        "phonetics": [
+          {
+            "word": "Thank",
+            "ipa": "θæŋk"
+          },
+          {
+            "word": "you",
+            "ipa": "ju"
+          },
+          {
+            "word": "for",
+            "ipa": "fɔɹ / fɚ / fɹɚ"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "discussion",
+            "ipa": "dɪˈskʌʃən"
+          },
+          {
+            "word": "it",
+            "ipa": "ɪt"
+          },
+          {
+            "word": "helped",
+            "ipa": "hɛlpt"
+          },
+          {
+            "word": "me",
+            "ipa": "mi"
+          },
+          {
+            "word": "understand",
+            "ipa": "ˌʌndɚˈstænd"
+          },
+          {
+            "word": "the",
+            "ipa": "ðə / ðʌ / ði"
+          },
+          {
+            "word": "project",
+            "ipa": "ˈpɹɑdʒɛkt / pɹəˈdʒɛkt"
+          },
+          {
+            "word": "more",
+            "ipa": "mɔɹ"
+          },
+          {
+            "word": "clearly",
+            "ipa": "ˈklɪɹli"
+          }
+        ]
+      }
+    ],
+    "tags": [],
+    "id": "english-starter-communication",
+    "builtin": true
+  }
+]

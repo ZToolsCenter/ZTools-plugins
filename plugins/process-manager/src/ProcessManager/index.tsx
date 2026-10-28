@@ -1,18 +1,66 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { FiRefreshCw } from 'react-icons/fi'
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
+import { FiRefreshCw, FiLock, FiUnlock, FiAlertTriangle, FiCheck } from 'react-icons/fi'
 import './index.css'
 import { searchProcesses } from './search'
 import { useProcessData, CACHE_TTL } from './useProcessData'
+import { basename, isPathLike, normalizePath } from './fileLock'
 
 interface Props {
   keyword: string
 }
 
+type LockStatus = 'idle' | 'loading' | 'done' | 'error'
+type LockSource = 'keyword' | 'row'
+type PathKind = 'file' | 'directory' | 'missing' | null
+type DirectoryMode = 'handles' | 'files'
+
+interface KillTarget {
+  pid: number
+  name: string
+  isHolder: boolean
+}
+
+interface StateBlockProps {
+  kind: 'lock' | 'unlock' | 'success' | 'error'
+  icon: ReactNode
+  title: string
+  text: string
+  actions: ReactNode
+}
+
+function StateBlock({ kind, icon, title, text, actions }: StateBlockProps) {
+  return (
+    <div className="pm-state">
+      <span className={`pm-state-icon ${kind}`}>{icon}</span>
+      <div className="pm-state-title">{title}</div>
+      <div className="pm-state-text">{text}</div>
+      <div className="pm-state-actions">{actions}</div>
+    </div>
+  )
+}
+
 export default function ProcessManager({ keyword }: Props) {
   const { processes, loading, refresh, lastUpdated } = useProcessData()
   const [toast, setToast] = useState('')
-  const [killModal, setKillModal] = useState<{ pid: number; name: string } | null>(null)
+  const [killModal, setKillModal] = useState<KillTarget | null>(null)
   const [killing, setKilling] = useState(false)
+
+  const [lockView, setLockView] = useState(false)
+  const [lockStatus, setLockStatus] = useState<LockStatus>('idle')
+  const [lockPath, setLockPath] = useState('')
+  const [lockSource, setLockSource] = useState<LockSource>('keyword')
+  const [lockKind, setLockKind] = useState<'file' | 'directory'>('file')
+  const [lockMode, setLockMode] = useState<DirectoryMode>('files')
+  const [lockPartial, setLockPartial] = useState(false)
+  const [lockSkipped, setLockSkipped] = useState(0)
+  const [holders, setHolders] = useState<FileHolder[]>([])
+  const [lockError, setLockError] = useState('')
+  const [clearedByKill, setClearedByKill] = useState(false)
+  const [pathKind, setPathKind] = useState<PathKind>(null)
+  const [directoryMode, setDirectoryMode] = useState<DirectoryMode>('handles')
+  const lockRequest = useRef(0)
+  const lockKeyword = useRef('')
+
   const barRef = useRef<HTMLDivElement>(null)
   const startRef = useRef(0)
   const rafRef = useRef(0)
@@ -35,6 +83,44 @@ export default function ProcessManager({ keyword }: Props) {
     startRef.current = Date.now()
   }, [lastUpdated])
 
+  // 宿主搜索词一变，占用视图就回到进程列表
+  useEffect(() => {
+    if (!lockView) return
+    if (normalizePath(keyword) !== lockKeyword.current) {
+      lockRequest.current++
+      setLockView(false)
+      setLockStatus('idle')
+      setHolders([])
+      setLockError('')
+      setClearedByKill(false)
+    }
+  }, [keyword, lockView])
+
+  // 区分文件与目录；目录默认做句柄检测
+  useEffect(() => {
+    setDirectoryMode('handles')
+    const target = normalizePath(keyword)
+    if (!isPathLike(target)) {
+      setPathKind(null)
+      return
+    }
+    if (!window.services?.pathInfo) {
+      setPathKind(null)
+      return
+    }
+    const info = window.services.pathInfo(target)
+    setPathKind(info.exists ? (info.isDirectory ? 'directory' : 'file') : 'missing')
+  }, [keyword])
+
+  useEffect(() => {
+    if (!killModal) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !killing) setKillModal(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [killModal, killing])
+
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     clearTimeout(toastTimer.current)
@@ -45,37 +131,500 @@ export default function ProcessManager({ keyword }: Props) {
     navigator.clipboard.writeText(text).then(() => showToast('已复制: ' + text))
   }, [showToast])
 
-  const confirmKill = useCallback((pid: number, name: string) => {
-    setKillModal({ pid, name })
+  const runWhoLocks = useCallback(async (
+    path: string,
+    source: LockSource,
+    options?: { mode?: DirectoryMode }
+  ) => {
+    const target = normalizePath(path)
+    if (!target) return
+
+    const checkingDirectory = source === 'keyword' && pathKind === 'directory'
+    const selectedMode: DirectoryMode = source === 'row'
+      ? 'files'
+      : checkingDirectory
+        ? (options?.mode || directoryMode)
+        : 'files'
+
+    lockKeyword.current = normalizePath(keyword)
+    const requestId = ++lockRequest.current
+
+    setLockView(true)
+    setLockPath(target)
+    setLockSource(source)
+    setLockKind(checkingDirectory ? 'directory' : 'file')
+    setLockMode(selectedMode)
+    setLockPartial(false)
+    setLockSkipped(0)
+    setLockStatus('loading')
+    setHolders([])
+    setLockError('')
+    setClearedByKill(false)
+
+    if (!window.services?.whoLocks) {
+      setLockError('文件占用服务不可用')
+      setLockStatus('error')
+      return
+    }
+
+    try {
+      const result = await window.services.whoLocks(target, { mode: selectedMode })
+      if (requestId !== lockRequest.current) return
+      if (result.success) {
+        setHolders(result.holders || [])
+        setLockMode(result.mode === 'handles' ? 'handles' : 'files')
+        setLockKind(result.kind === 'directory' ? 'directory' : 'file')
+        setLockPartial(!!result.partial)
+        setLockSkipped(result.skipped || 0)
+        setLockStatus('done')
+      } else {
+        setLockError(result.error || '查询失败')
+        setLockStatus('error')
+      }
+    } catch (err) {
+      if (requestId !== lockRequest.current) return
+      console.error('whoLocks error:', err)
+      setLockError('查询失败')
+      setLockStatus('error')
+    }
+  }, [keyword, pathKind, directoryMode])
+
+  const backToList = useCallback(() => {
+    lockRequest.current++
+    setLockView(false)
+    setLockStatus('idle')
+    setLockKind('file')
+    setLockMode('files')
+    setLockPartial(false)
+    setLockSkipped(0)
+    setHolders([])
+    setLockError('')
+    setClearedByKill(false)
+  }, [])
+
+  const confirmKill = useCallback((pid: number, name: string, isHolder: boolean) => {
+    setKillModal({ pid, name, isHolder })
   }, [])
 
   const executeKill = useCallback(async () => {
     if (!killModal || killing) return
+    const target = killModal
 
     setKilling(true)
-    const result = await window.services.killProcess(killModal.pid)
+    const result = await window.services.killProcess(target.pid)
     setKilling(false)
     setKillModal(null)
 
     if (result.success) {
-      showToast(`已 Kill ${killModal.name} (PID: ${killModal.pid})`)
+      if (lockView && target.isHolder) {
+        const remaining = holders.filter(holder => holder.pid !== target.pid)
+        setHolders(remaining)
+        if (remaining.length === 0) setClearedByKill(true)
+      }
+      showToast(`已 Kill ${target.name} (PID: ${target.pid})`)
       refresh(true)
     } else {
       showToast(`Kill 失败: ${result.error}`)
     }
-  }, [killModal, killing, showToast, refresh])
+  }, [killModal, killing, lockView, holders, showToast, refresh])
 
   const cancelKill = useCallback(() => {
     if (killing) return
     setKillModal(null)
   }, [killing])
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, pid: number, name: string) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent, pid: number, name: string, isHolder = false) => {
     e.preventDefault()
-    confirmKill(pid, name)
+    confirmKill(pid, name, isHolder)
   }, [confirmKill])
 
   const filtered = searchProcesses(keyword, processes)
+  const pathLike = isPathLike(keyword)
+  const holderViews = holders.map(holder => ({
+    holder,
+    process: processes.find(p => p.pid === holder.pid)
+  }))
+
+  const footerCount = (() => {
+    if (!lockView) return `共 ${filtered.length} 个结果`
+    const isDirectory = lockKind === 'directory'
+    if (lockStatus === 'loading') return '正在检测…'
+    if (lockStatus === 'error') return '检查失败'
+    if (holders.length > 0) {
+      if (lockMode === 'handles') return `${holders.length} 个句柄持有者`
+      return isDirectory ? `${holders.length} 个文件句柄持有者` : `${holders.length} 个占用进程`
+    }
+    if (clearedByKill) {
+      if (lockMode === 'handles') return '已结束目录句柄占用'
+      return isDirectory ? '已结束目录内占用' : '占用已解除'
+    }
+    if (lockMode === 'handles') return '未发现目录句柄'
+    return isDirectory ? '未发现文件句柄占用' : '未发现占用'
+  })()
+
+  const renderContext = () => {
+    if (!lockView) {
+      if (!pathLike) return null
+      const target = normalizePath(keyword)
+      const isDirectory = pathKind === 'directory'
+      const missing = pathKind === 'missing'
+      const handlesMode = isDirectory && directoryMode === 'handles'
+
+      return (
+        <div className="pm-check-card">
+          <span className="pm-lock-mark"><FiLock size={16} /></span>
+          <div className="pm-check-main">
+            <div className="pm-check-title">
+              {isDirectory ? '检查目录占用' : missing ? '检查路径' : '检查文件占用'}
+            </div>
+            <div className="pm-check-path" title={target}>{target}</div>
+            {isDirectory && (
+              <div className="pm-mode-switch" role="group" aria-label="检测方式">
+                <button
+                  type="button"
+                  className={directoryMode === 'handles' ? 'active' : ''}
+                  onClick={() => setDirectoryMode('handles')}
+                >
+                  目录句柄
+                </button>
+                <button
+                  type="button"
+                  className={directoryMode === 'files' ? 'active' : ''}
+                  onClick={() => setDirectoryMode('files')}
+                >
+                  目录内文件
+                </button>
+              </div>
+            )}
+            <div className="pm-check-note">
+              {missing
+                ? '路径不存在或无法访问'
+                : isDirectory
+                  ? (handlesMode
+                      ? '检测目录及子目录的文件夹句柄 · 需要管理员权限'
+                      : '检测目录内文件（含子目录）的句柄 · 需要管理员权限')
+                  : 'Restart Manager · 首次约 1 秒'}
+            </div>
+          </div>
+          <button
+            className="pm-btn-lock"
+            onClick={() => runWhoLocks(target, 'keyword', {
+              mode: isDirectory ? directoryMode : 'files'
+            })}
+          >
+            {isDirectory ? '检测' : '检查'}
+          </button>
+        </div>
+      )
+    }
+
+    if (lockStatus === 'loading') {
+      const isDirectory = lockKind === 'directory'
+      const handlesMode = lockMode === 'handles'
+      return (
+        <div className="pm-check-card loading" aria-busy="true">
+          <span className="pm-lock-mark"><FiLock size={16} /></span>
+          <div className="pm-check-main">
+            <div className="pm-check-title">
+              {handlesMode
+                ? '正在检测目录句柄'
+                : isDirectory
+                  ? '正在检测目录内文件'
+                  : '正在检查文件占用'} <span className="pm-spinner" />
+            </div>
+            <div className="pm-check-path" title={lockPath}>{lockPath}</div>
+            <div className="pm-check-note">
+              {handlesMode
+                ? '正在枚举系统句柄，通常需要 1–3 秒'
+                : isDirectory
+                  ? '正在枚举系统句柄并筛选目录内文件'
+                  : '正在通过 Restart Manager 查询'}
+            </div>
+          </div>
+          <button className="pm-btn-lock" disabled>{handlesMode ? '检测中…' : '检查中…'}</button>
+        </div>
+      )
+    }
+
+    if (lockStatus === 'error') {
+      const isDirectory = lockKind === 'directory'
+      const handlesMode = lockMode === 'handles'
+      return (
+        <div className="pm-check-card error">
+          <span className="pm-lock-mark error"><FiAlertTriangle size={16} /></span>
+          <div className="pm-check-main">
+            <div className="pm-check-title">
+              {handlesMode ? '无法检测目录句柄' : `无法检查这个${isDirectory ? '目录' : '文件'}`}
+            </div>
+            <div className="pm-check-path" title={lockError}>{lockError}</div>
+            <div className="pm-check-note">
+              {isDirectory
+                ? '完整检测需要管理员权限，或路径不可访问。'
+                : '如果路径位于受保护目录，尝试以管理员身份运行 ZTools。'}
+            </div>
+          </div>
+          <div className="pm-check-actions">
+            <button className="pm-btn-ghost" onClick={backToList}>返回</button>
+            <button
+              className="pm-btn-lock"
+              onClick={() => runWhoLocks(lockPath, lockSource, { mode: lockMode })}
+            >
+              重试
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    const count = holders.length
+    const cleared = count === 0 && clearedByKill
+    const isDirectory = lockKind === 'directory'
+    const handlesMode = lockMode === 'handles'
+    const title = handlesMode
+      ? (count > 0
+          ? `${count} 个进程持有目录/子目录句柄`
+          : cleared ? '已结束目录句柄占用' : '未发现目录句柄持有者')
+      : (count > 0
+          ? (isDirectory ? `${count} 个进程持有目录内文件句柄` : `${count} 个进程正在占用`)
+          : cleared
+            ? (isDirectory ? '已结束目录内占用' : '占用已解除')
+            : (isDirectory ? '未发现目录内文件句柄持有者' : '未发现占用'))
+
+    return (
+      <div className="pm-lock-summary">
+        <span className={`pm-lock-mark${cleared ? ' success' : ''}`}>
+          {cleared ? <FiUnlock size={16} /> : <FiLock size={16} />}
+        </span>
+        <div className="pm-check-main">
+          <div className="pm-check-title">{title}</div>
+          <div className="pm-check-path" title={lockPath}>{lockPath}</div>
+          {isDirectory ? (
+            <div className="pm-check-note">
+              {handlesMode ? '目录与子目录文件夹句柄' : '目录内文件句柄（含子目录）'}
+              {lockPartial
+                ? ` · ${lockSkipped > 0 ? `${lockSkipped} 个进程无法检查` : '部分进程无法检查'}，需管理员权限`
+                : ''}
+            </div>
+          ) : null}
+        </div>
+        <button className="pm-btn-ghost" onClick={backToList}>返回进程列表</button>
+      </div>
+    )
+  }
+
+  const renderLockBody = () => {
+    if (lockStatus === 'loading') {
+      const isDirectory = lockKind === 'directory'
+      const handlesMode = lockMode === 'handles'
+      return (
+        <div className="pm-state">
+          <span className="pm-state-icon"><FiLock size={20} /></span>
+          <div className="pm-state-title">
+            {handlesMode
+              ? '正在检测目录句柄…'
+              : isDirectory
+                ? '正在检测目录内文件…'
+                : '正在检查文件占用…'}
+          </div>
+          <div className="pm-state-text">
+            {handlesMode
+              ? '正在枚举系统句柄，进程较多时可能需要几秒。'
+              : isDirectory
+                ? '正在枚举系统句柄并筛选目录内文件。'
+                : '正在通过 Restart Manager 查询文件占用。'}
+          </div>
+        </div>
+      )
+    }
+
+    if (lockStatus === 'error') {
+      const isDirectory = lockKind === 'directory'
+      return (
+        <StateBlock
+          kind="error"
+          icon={<FiAlertTriangle size={20} />}
+          title="检查失败"
+          text={isDirectory
+            ? '句柄枚举没有返回结果。完整检测需要管理员权限，或路径不可访问。'
+            : 'Restart Manager 没有返回结果。可以重试，或检查文件是否位于受保护目录。'}
+          actions={(
+            <>
+              <button
+                className="pm-btn-lock"
+                onClick={() => runWhoLocks(lockPath, lockSource, { mode: lockMode })}
+              >
+                重试
+              </button>
+              <button className="pm-btn-lock pm-btn-secondary" onClick={backToList}>返回进程列表</button>
+            </>
+          )}
+        />
+      )
+    }
+
+    if (holderViews.length > 0) {
+      if (lockKind === 'directory') {
+        const filesMode = lockMode === 'files'
+        return (
+          <>
+            <div className="pm-lock-hint">
+              {filesMode
+                ? '这些进程持有目录内文件的句柄（含子目录），路径为其中一个被占用的文件。'
+                : '这些进程持有目录或子目录本身的文件夹句柄，不是目录内文件。Explorer、终端和同步盘通常属于这种情况。'}
+            </div>
+            {holderViews.map(({ holder, process: proc }) => {
+              const name = proc ? proc.name : (holder.name || `PID ${holder.pid}`)
+              const handlePath = holder.handlePath || proc?.path || ''
+              const pathCount = holder.handlePaths?.length || 1
+
+              return (
+                <div
+                  className="pm-item pm-item-held"
+                  key={holder.pid}
+                  onContextMenu={(e) => handleContextMenu(e, holder.pid, name, true)}
+                >
+                  <div className="pm-item-top">
+                    <div className="pm-item-info">
+                      <div className="pm-item-row1">
+                        <span className="pm-tag pm-tag-name" title={proc?.path} onClick={() => copy(name)}>{name}</span>
+                        <span className="pm-tag pm-tag-pid" onClick={() => copy(String(holder.pid))}>{holder.pid}</span>
+                        <span className="pm-tag pm-tag-handle">{filesMode ? '文件句柄' : '目录句柄'}</span>
+                        {handlePath ? (
+                          <span className="pm-path" onClick={() => copy(handlePath)} title={handlePath}>{handlePath}</span>
+                        ) : null}
+                      </div>
+                      <div className="pm-tags">
+                        <span className="pm-friendly">
+                          {pathCount > 1 ? `${pathCount} 个句柄路径` : (filesMode ? '持有目录内文件句柄' : '持有目录/子目录句柄')}
+                        </span>
+                        {!proc ? <span className="pm-missing">进程信息未在列表中，可能已退出或列表缓存过期</span> : null}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </>
+        )
+      }
+
+      return (
+        <>
+          {holderViews.map(({ holder, process: proc }) => {
+            const name = proc ? proc.name : (holder.name || `PID ${holder.pid}`)
+            const friendly = proc && holder.name && holder.name.toLowerCase() !== name.toLowerCase()
+              ? holder.name
+              : ''
+            const ports = proc?.ports || []
+
+            return (
+              <div
+                className="pm-item pm-item-held"
+                key={holder.pid}
+                onContextMenu={(e) => handleContextMenu(e, holder.pid, name, true)}
+              >
+                <div className="pm-item-top">
+                  <div className="pm-item-info">
+                    <div className="pm-item-row1">
+                      <span className="pm-tag pm-tag-name" onClick={() => copy(name)}>{name}</span>
+                      <span className="pm-tag pm-tag-pid" onClick={() => copy(String(holder.pid))}>{holder.pid}</span>
+                      {holder.service ? (
+                        <span className="pm-tag pm-tag-service" title={holder.service}>服务</span>
+                      ) : null}
+                      {proc?.path ? (
+                        <span className="pm-path" onClick={() => copy(proc.path)} title={proc.path}>{proc.path}</span>
+                      ) : null}
+                    </div>
+                    <div className="pm-tags">
+                      {ports.length > 0
+                        ? ports.map(port => (
+                            <span key={port} className="pm-tag pm-tag-port" onClick={() => copy(String(port))}>{port}</span>
+                          ))
+                        : <span className="pm-tag pm-tag-none">无端口占用</span>}
+                      {friendly ? <span className="pm-friendly">{friendly}</span> : null}
+                      {!proc ? <span className="pm-missing">进程信息未在列表中，可能已退出或列表缓存过期</span> : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </>
+      )
+    }
+
+    const isDirectory = lockKind === 'directory'
+    const handlesMode = lockMode === 'handles'
+
+    if (clearedByKill) {
+      return (
+        <StateBlock
+          kind="success"
+          icon={<FiCheck size={20} />}
+          title={handlesMode ? '已结束目录句柄占用' : isDirectory ? '已结束目录内占用' : '占用已解除'}
+          text={handlesMode
+            ? '所有检测到的目录句柄持有者已结束。现在可以尝试删除目录。'
+            : isDirectory
+              ? '所有占用目录内文件的进程已结束。如果目录仍无法删除，可能是文件夹句柄被占用。'
+              : '最后一个占用进程已被 Kill。现在可以删除或修改这个文件。'}
+          actions={(
+            <button className="pm-btn-lock pm-btn-secondary" onClick={backToList}>返回进程列表</button>
+          )}
+        />
+      )
+    }
+
+    if (handlesMode) {
+      return (
+        <StateBlock
+          kind="unlock"
+          icon={<FiUnlock size={20} />}
+          title="未发现目录句柄持有者"
+          text={lockPartial
+            ? `已扫描全部可访问进程${lockSkipped > 0 ? `，其中 ${lockSkipped} 个无法检查` : ''}。如果目录仍无法删除，尝试以管理员身份运行 ZTools 获取完整结果。`
+            : '已扫描全部进程。如果目录仍无法删除，可能是受保护进程或权限不足。'}
+          actions={(
+            <>
+              <button className="pm-btn-lock" onClick={() => runWhoLocks(lockPath, lockSource, { mode: 'handles' })}>重新检测</button>
+              <button className="pm-btn-lock pm-btn-secondary" onClick={backToList}>返回进程列表</button>
+            </>
+          )}
+        />
+      )
+    }
+
+    if (isDirectory) {
+      return (
+        <StateBlock
+          kind="unlock"
+          icon={<FiUnlock size={20} />}
+          title="未发现目录内文件被占用"
+          text="没有进程持有目录内文件的句柄。如果目录仍然无法删除，可能是 Explorer、终端或同步盘持有文件夹本身的句柄；可以切回“目录句柄”模式检测。"
+          actions={(
+            <>
+              <button className="pm-btn-lock" onClick={() => runWhoLocks(lockPath, lockSource, { mode: 'files' })}>重新检测</button>
+              <button className="pm-btn-lock pm-btn-secondary" onClick={backToList}>返回进程列表</button>
+            </>
+          )}
+        />
+      )
+    }
+
+    return (
+      <StateBlock
+        kind="unlock"
+        icon={<FiUnlock size={20} />}
+        title="未发现占用此文件的进程"
+        text="如果文件仍然无法删除，可能是系统服务或杀毒软件在瞬时扫描。稍等片刻再检查。"
+        actions={(
+          <>
+            <button className="pm-btn-lock" onClick={() => runWhoLocks(lockPath, lockSource, { mode: 'files' })}>重新检查</button>
+            <button className="pm-btn-lock pm-btn-secondary" onClick={backToList}>返回进程列表</button>
+          </>
+        )}
+      />
+    )
+  }
 
   return (
     <div className="pm">
@@ -84,53 +633,80 @@ export default function ProcessManager({ keyword }: Props) {
           <span className="pm-hint pm-hint-name">进程名</span>
           <span className="pm-hint pm-hint-pid">PID</span>
           <span className="pm-hint pm-hint-port">端口号</span>
-          <span className="pm-hint pm-hint-path">文件路径</span>
+          <span className={`pm-hint pm-hint-path${pathLike && !lockView ? ' active' : ''}`}>文件路径</span>
         </div>
-        <span className="pm-hint pm-hint-tip">右键可 Kill 进程</span>
+        <span className="pm-hint pm-hint-tip">
+          {lockView
+            ? (lockMode === 'handles' ? '右键 Kill 会释放句柄' : '右键 Kill 会解除占用')
+            : '右键 Kill · 粘贴路径查占用'}
+        </span>
       </div>
 
-      {toast && <div className="pm-toast">{toast}</div>}
+      <div className="pm-context" aria-live="polite">{renderContext()}</div>
 
       <div className="pm-body">
-        {loading && processes.length === 0 && (
-          <div className="pm-empty">正在获取进程列表...</div>
-        )}
+        {lockView ? renderLockBody() : (
+          <>
+            {loading && processes.length === 0 && (
+              <div className="pm-empty">正在获取进程列表...</div>
+            )}
 
-        {!loading && filtered.length === 0 && (
-          <div className="pm-empty">
-            {keyword ? '没有匹配的进程' : '暂无进程数据，请刷新'}
-          </div>
-        )}
+            {!loading && filtered.length === 0 && (
+              <div className="pm-empty">
+                {pathLike ? (
+                  <>
+                    没有进程匹配这个路径
+                    <br />
+                    <span className="pm-empty-sub">
+                      {pathKind === 'directory'
+                        ? '可以在上方检测目录句柄，或切换为「目录内文件」检测。'
+                        : '可以在上方检查是哪个进程占用了该文件。'}
+                    </span>
+                  </>
+                ) : keyword ? '没有匹配的进程' : '暂无进程数据，请刷新'}
+              </div>
+            )}
 
-        {filtered.map(p => (
-          <div
-            className="pm-item"
-            key={p.pid}
-            onContextMenu={(e) => handleContextMenu(e, p.pid, p.name)}
-          >
-            <div className="pm-item-top">
-              <div className="pm-item-info">
-                <div className="pm-item-row1">
-                  <span className="pm-tag pm-tag-name" onClick={() => copy(p.name)}>{p.name}</span>
-                  <span className="pm-tag pm-tag-pid" onClick={() => copy(String(p.pid))}>{p.pid}</span>
-                  <span className="pm-path" onClick={() => copy(p.path)} title={p.path}>{p.path}</span>
-                </div>
-                <div className="pm-tags">
-                  {p.ports.length > 0
-                    ? p.ports.map(port => (
-                        <span key={port} className="pm-tag pm-tag-port" onClick={() => copy(String(port))}>{port}</span>
-                      ))
-                    : <span className="pm-tag pm-tag-none">无端口占用</span>
-                  }
+            {filtered.map(p => (
+              <div
+                className="pm-item"
+                key={p.pid}
+                onContextMenu={(e) => handleContextMenu(e, p.pid, p.name)}
+              >
+                <div className="pm-item-top">
+                  <div className="pm-item-info">
+                    <div className="pm-item-row1">
+                      <span className="pm-tag pm-tag-name" onClick={() => copy(p.name)}>{p.name}</span>
+                      <span className="pm-tag pm-tag-pid" onClick={() => copy(String(p.pid))}>{p.pid}</span>
+                      <span className="pm-path" onClick={() => copy(p.path)} title={p.path}>{p.path}</span>
+                    </div>
+                    <div className="pm-tags">
+                      {p.ports.length > 0
+                        ? p.ports.map(port => (
+                            <span key={port} className="pm-tag pm-tag-port" onClick={() => copy(String(port))}>{port}</span>
+                          ))
+                        : <span className="pm-tag pm-tag-none">无端口占用</span>}
+                    </div>
+                  </div>
+                  {p.path ? (
+                    <button
+                      className="pm-row-lock"
+                      title="查看文件占用"
+                      aria-label={`查看 ${p.name} 的文件占用`}
+                      onClick={() => runWhoLocks(p.path, 'row')}
+                    >
+                      <FiLock size={14} />
+                    </button>
+                  ) : null}
                 </div>
               </div>
-            </div>
-          </div>
-        ))}
+            ))}
+          </>
+        )}
       </div>
 
       <div className="pm-footer">
-        <span>共 {filtered.length} 个结果</span>
+        <span>{footerCount}</span>
         <span className="pm-footer-right">
           <span className="pm-updated">{lastUpdated || '--:--:--'}</span>
           <span className="pm-progress-tag"><span className="pm-progress-fill" ref={barRef} /></span>
@@ -149,6 +725,18 @@ export default function ProcessManager({ keyword }: Props) {
                 ? <>正在 Kill <strong>{killModal.name}</strong> (PID: {killModal.pid})...</>
                 : <>确定要 Kill 进程 <strong>{killModal.name}</strong> (PID: {killModal.pid}) 吗？</>
               }
+              {killModal.isHolder && (
+                <div className="pm-kill-note">
+                  <FiAlertTriangle size={14} />
+                  <span>
+                    {lockMode === 'handles'
+                      ? <>该进程持有目录或子目录句柄。Kill 后句柄会释放；如果是 Explorer，建议关闭对应文件夹窗口，而不是结束整个 Explorer。</>
+                      : lockKind === 'directory'
+                        ? <>该进程正在占用目录内的文件。Kill 后相关文件占用会解除，未保存的工作可能丢失。</>
+                        : <>该进程正在占用 <strong>{basename(lockPath)}</strong>。Kill 后文件占用会解除，未保存的工作可能丢失。</>}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="pm-modal-actions">
               <button className="pm-modal-btn pm-modal-btn-cancel" onClick={cancelKill} disabled={killing}>取消</button>

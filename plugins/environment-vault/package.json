@@ -1,0 +1,13 @@
+{
+  "name": "ztools-environment-sync",
+  "version": "0.0.2",
+  "private": true,
+  "dependencies": {
+    "@xmldom/xmldom": "0.8.15",
+    "adm-zip": "0.6.1"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/test-*.cjs"
+  }
+}

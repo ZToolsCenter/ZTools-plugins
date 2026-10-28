@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { PortInfo, WhyInfo, MessageLevel } from '../env'
+import { ref, computed } from 'vue'
+import type { PortInfo, MessageLevel } from '../env'
+import { sourceLabel, stateLabel } from './labels'
 
 const props = defineProps<{
   addLog: (msg: string) => void
@@ -12,28 +13,17 @@ const entries = ref<PortInfo[]>([])
 const loading = ref('')
 const status = ref<{ text: string; level: MessageLevel } | null>(null)
 
+const rows = computed(function () {
+  return entries.value.map(function (entry) {
+    return Object.assign({}, entry, {
+      stateText: stateLabel(entry.state),
+      sourceText: sourceLabel(entry.why)
+    })
+  })
+})
+
 function showStatus(text: string, level: MessageLevel) {
   status.value = { text: text, level: level }
-}
-
-function sourceLabel(why?: WhyInfo): string {
-  if (!why) return ''
-  if (why.sourceLine) return why.sourceLine
-  if (!why.source) return ''
-  const t = why.source.type || 'unknown'
-  const n = why.source.name || ''
-  const map: Record<string, string> = {
-    windows_service: 'Windows 服务',
-    shell: '交互式 Shell',
-    init: '系统进程',
-    cron: '计划任务',
-    container: '容器',
-    supervisor: '守护进程',
-    ssh: 'SSH 会话',
-    unknown: '未知来源'
-  }
-  const label = map[t] || t
-  return n ? n + '（' + label + '）' : label
 }
 
 async function handleScan() {
@@ -57,7 +47,7 @@ async function handleScan() {
     if (result.length === 0) {
       showStatus('端口 ' + portNum + ' 当前没有程序在监听，可以放心使用。', 'success')
     } else {
-      showStatus('端口 ' + portNum + ' 正被 ' + result.length + ' 条连接占用。结束监听进程前请先确认它们可以安全关闭。', 'info')
+      showStatus('端口 ' + portNum + ' 上有 ' + result.length + ' 条监听或连接记录。结束进程前请先确认它们可以安全关闭。', 'info')
     }
   } catch (err: any) {
     props.flushDebugLog()
@@ -117,16 +107,12 @@ async function handleKillAll() {
       />
       <button class="btn" @click="handleScan">检查</button>
     </div>
-    <div class="hint-row">
-      <span class="hint-text">先看清楚端口被谁监听、它是怎么跑起来的，再决定是否结束进程</span>
-    </div>
-
     <div v-if="loading" class="loading">{{ loading }}</div>
     <div v-if="status && !loading" :class="['status', status.level]">{{ status.text }}</div>
 
     <div v-if="entries.length > 0" class="table-wrap">
       <div class="kill-all-bar">
-        <span class="count">{{ entries.length }} 条监听记录</span>
+        <span class="count">{{ entries.length }} 条监听或连接记录</span>
         <button
           :disabled="!!loading"
           class="kill-all-btn"
@@ -136,7 +122,7 @@ async function handleKillAll() {
       <table class="port-table">
         <thead>
           <tr>
-            <th>进程 / 启动链</th>
+            <th>进程</th>
             <th>PID</th>
             <th>协议</th>
             <th>状态</th>
@@ -145,23 +131,23 @@ async function handleKillAll() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(entry, idx) in entries" :key="idx">
+          <tr v-for="(row, idx) in rows" :key="idx">
             <td>
-              <div class="proc-name">{{ entry.processName }}</div>
-              <div v-if="entry.exePath" class="proc-path">{{ entry.exePath }}</div>
-              <div v-if="entry.why && entry.why.ancestryText" class="why-chain" :title="entry.why.ancestryText">{{ entry.why.ancestryText }}</div>
-              <div v-if="entry.why && sourceLabel(entry.why)" class="why-source">来源：{{ sourceLabel(entry.why) }}</div>
-              <div v-if="entry.why && entry.why.workingDir" class="why-source">工作目录：{{ entry.why.workingDir }}</div>
+              <div class="proc-name">{{ row.processName }}</div>
+              <div v-if="row.exePath" class="proc-path">{{ row.exePath }}</div>
+              <div v-if="row.why && row.why.ancestryText" class="why-chain" :title="row.why.ancestryText">{{ row.why.ancestryText }}</div>
+              <div v-if="row.sourceText" class="why-source">来源：{{ row.sourceText }}</div>
+              <div v-if="row.why && row.why.workingDir" class="why-source">工作目录：{{ row.why.workingDir }}</div>
             </td>
-            <td>{{ entry.pid }}</td>
-            <td><span :class="['proto', entry.protocol === 'TCP' ? 'tcp' : 'udp']">{{ entry.protocol }}</span></td>
-            <td>{{ entry.state }}</td>
-            <td>{{ entry.localAddress }}:{{ entry.localPort }}</td>
+            <td>{{ row.pid }}</td>
+            <td><span :class="['proto', row.protocol === 'TCP' ? 'tcp' : 'udp']">{{ row.protocol }}</span></td>
+            <td>{{ row.stateText }}</td>
+            <td>{{ row.localAddress }}:{{ row.localPort }}</td>
             <td>
               <button
                 :disabled="!!loading"
                 class="kill-btn"
-                @click="handleKill(entry)"
+                @click="handleKill(row)"
               >结束进程</button>
             </td>
           </tr>
@@ -179,8 +165,6 @@ async function handleKillAll() {
 .input[type=number]::-webkit-inner-spin-button { display: none; }
 .btn { padding: 4px 12px; border: 1px solid var(--border-color, #555); border-radius: 4px; background: transparent; cursor: pointer; font-size: 13px; color: var(--text-color, #e0e0e0); }
 .btn:hover { background: var(--hover-color, #333); }
-.hint-row { margin-top: 8px; }
-.hint-text { font-size: 12px; color: var(--text-secondary, #888); }
 .loading { margin-top: 12px; text-align: center; color: var(--text-secondary, #aaa); }
 .status { margin-top: 12px; padding: 10px 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; border-left: 3px solid transparent; }
 .status.success { background: rgba(82, 196, 26, 0.12); color: #95de64; border-left-color: #52c41a; }

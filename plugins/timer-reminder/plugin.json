@@ -3,7 +3,7 @@
   "title": "自然语言定时提醒",
   "description": "创建一次性 / 周期性定时提醒，到点弹出系统通知并响铃。支持自然语言快速创建（如「10分钟后 喝水」「每天8:30 吃药」）、Excel 导入导出、邮件/短信通道、大模型解析与置顶弹窗强提醒。",
   "author": "tom-fn",
-  "version": "1.3.0",
+  "version": "1.5.1",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.png",

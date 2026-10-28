@@ -40,8 +40,8 @@ export default function RsaUI({ direction = 'encrypt' }: AlgorithmProps) {
   }
 
   const primaryKey = dir === 'encrypt'
-    ? { label: '公钥 Public Key', hint: 'PEM', help: '用于加密；可粘贴或点击「生成密钥对」获取', value: publicKey, setter: setPublicKey }
-    : { label: '私钥 Private Key', hint: 'PEM', help: '用于解密；请勿泄露', value: privateKey, setter: setPrivateKey }
+    ? { label: '公钥 Public Key', hint: 'PEM', help: '用于加密；可粘贴，或用字段右上角的「生成」创建一对新密钥', value: publicKey, setter: setPublicKey }
+    : { label: '私钥 Private Key', hint: 'PEM', help: '用于解密；请勿泄露。可用字段右上角的「生成」创建一对新密钥', value: privateKey, setter: setPrivateKey }
   const secondaryKey = dir === 'encrypt'
     ? { label: '私钥 Private Key (可选)', hint: 'PEM', help: '如已有密钥对，可一并粘贴以便轮换使用', value: privateKey, setter: setPrivateKey }
     : { label: '公钥 Public Key (可选)', hint: 'PEM', help: '如已有密钥对，可一并粘贴以便轮换使用', value: publicKey, setter: setPublicKey }
@@ -57,15 +57,6 @@ export default function RsaUI({ direction = 'encrypt' }: AlgorithmProps) {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-        <button
-          type="button"
-          className="ct-tab ct-tab-ghost"
-          onClick={keygen}
-        >
-          生成密钥对
-        </button>
-      </div>
       <div className="ct-input-zone">
         <div className="ct-zone-label">输入</div>
         <div className="ct-grid2">
@@ -78,6 +69,11 @@ export default function RsaUI({ direction = 'encrypt' }: AlgorithmProps) {
             value={primaryKey.value}
             onChange={primaryKey.setter}
             copyable
+            action={
+              <button type="button" className="ct-inline-btn" onClick={keygen} title="生成一对新的 RSA 密钥" aria-label="生成 RSA 密钥对">
+                生成
+              </button>
+            }
           />
           <Field
             label={secondaryKey.label}

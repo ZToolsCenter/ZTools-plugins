@@ -1,0 +1,21 @@
+[[permission]]
+identifier = "workspace-access"
+description = "Manage skills through backend-validated selections, IDs and plans from the local main window."
+commands.allow = [
+  "set_locale",
+  "set_appearance",
+  "list_system_fonts",
+  "remember_repository",
+  "get_download_progress",
+  "resolve_git", "get_git_version",
+  "set_skill_display_name",
+  "set_project_display_name", "remove_library_skills", "remove_projects",
+  "get_app_info",
+  "open_repository",
+  "get_snapshot", "pick_directory", "prepare_import", "finish_import",
+  "discard_import", "register_project", "discover_projects", "scan_project",
+  "get_document", "get_revisions", "preview_deployment", "apply_deployment",
+  "remove_deployment", "rollback_deployment", "resolve_github", "prepare_github",
+  "set_library_root", "preview_library_migration", "discard_selections",
+  "cancel_operation", "get_revision_diff"
+]

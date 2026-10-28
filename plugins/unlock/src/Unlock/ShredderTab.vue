@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { ProcessInfo, MessageLevel } from '../env'
 
 const props = defineProps<{
@@ -17,6 +17,11 @@ let dragCounter = 0
 // 占用确认弹窗状态
 const lockedProcesses = ref<ProcessInfo[]>([])
 const showLockConfirm = ref(false)
+const isDirectory = ref(false)
+// 结束进程后重试仍被占用时，只自动重新扫描并弹出一次，避免死循环
+let reopenUsed = false
+
+const targetKind = computed(() => isDirectory.value ? '文件夹' : '文件')
 
 function showStatus(text: string, level: MessageLevel) {
   status.value = { text: text, level: level }
@@ -50,6 +55,8 @@ async function handleStart() {
   if (!filePath.value.trim()) { showStatus('请先拖入文件，或输入完整路径。', 'warning'); return }
   showLockConfirm.value = false
   lockedProcesses.value = []
+  reopenUsed = false
+  isDirectory.value = false
   await doShred()
 }
 
@@ -62,19 +69,15 @@ async function doShred() {
     var res = await window.services.shredPath(filePath.value.trim(), mode.value)
     props.flushDebugLog()
 
-    // 权限问题与占用问题不是一回事：权限不足时不必去找占用进程
-    if (res.permissionDenied) {
-      props.addLog('权限不足: ' + res.message)
-      showStatus(res.message, 'warning')
-      return
-    }
-
+    // 有占用时优先走结束进程流程；只有纯权限问题才直接提示
     if (res.locked) {
-      props.addLog('文件被占用，正在查找占用进程...')
-      loading.value = '文件正被占用，正在查找占用它的程序…'
+      props.addLog('目标被占用，正在查找占用进程...')
+      loading.value = '正在查找占用它的程序…'
       var scan = await window.services.findLockingProcesses(filePath.value.trim())
       props.flushDebugLog()
+      isDirectory.value = !!scan.isDirectory
       var procs = scan.processes || []
+      var kind = scan.isDirectory ? '文件夹' : '文件'
 
       if (procs.length > 0) {
         lockedProcesses.value = procs
@@ -86,9 +89,15 @@ async function doShred() {
       // 没能查到具体进程：给出可执行的下一步，而不是"未知错误"
       props.addLog('未找到占用进程，无法自动解除')
       showStatus(
-        '文件正被占用，但没能查到具体是哪个程序。' + (scan.note || '可以尝试以管理员身份运行 ZTools 后重试。'),
+        kind + '正被占用，但没能查到具体是哪个程序。' + (scan.note || '可以尝试以管理员身份运行 ZTools 后重试。'),
         'warning'
       )
+      return
+    }
+
+    if (res.permissionDenied) {
+      props.addLog('权限不足: ' + res.message)
+      showStatus(res.message, 'warning')
       return
     }
 
@@ -96,7 +105,7 @@ async function doShred() {
       showStatus('已完成：' + res.message + '。', 'success')
       props.addLog('完成: ' + res.message)
     } else {
-      showStatus(res.message || (actionName() + '失败，请重试。'), 'error')
+      showStatus(res.message || (actionName() + '失败，请重试。'), res.partial ? 'warning' : 'error')
       props.addLog('失败: ' + res.message)
     }
   } catch (err: any) {
@@ -135,10 +144,30 @@ async function handleConfirmUnlock() {
     if (res.success) {
       showStatus('已解除占用并完成' + actionName() + '：' + res.message + '。', 'success')
       props.addLog('完成: ' + res.message)
-    } else {
-      showStatus(res.message || (actionName() + '失败，请重试。'), 'error')
-      props.addLog('失败: ' + res.message)
+      return
     }
+
+    // 结束后重试仍被占用：自动重新扫描并再弹出一次占用确认，最多一次
+    if (res.locked && !reopenUsed) {
+      reopenUsed = true
+      loading.value = '仍有占用，正在重新检查…'
+      var again = await window.services.findLockingProcesses(target)
+      props.flushDebugLog()
+      isDirectory.value = !!again.isDirectory
+      var remain = again.processes || []
+      if (remain.length > 0) {
+        lockedProcesses.value = remain
+        showLockConfirm.value = true
+        loading.value = ''
+        showStatus('还有 ' + remain.length + ' 个进程在使用该' + targetKind.value + '。', 'warning')
+        return
+      }
+      showStatus(res.message || ('仍有内容被占用，无法继续' + actionName() + '。'), 'warning')
+      return
+    }
+
+    showStatus(res.message || (actionName() + '失败，请重试。'), res.locked ? 'warning' : 'error')
+    props.addLog('失败: ' + res.message)
   } catch (err: any) {
     props.flushDebugLog()
     showStatus(err.message || '操作失败，请重试。', 'error')
@@ -149,7 +178,7 @@ async function handleConfirmUnlock() {
 function handleCancelUnlock() {
   showLockConfirm.value = false
   lockedProcesses.value = []
-  showStatus('已取消，文件保持不变。', 'info')
+  showStatus('已取消，' + targetKind.value + '保持不变。', 'info')
 }
 </script>
 
@@ -184,7 +213,7 @@ function handleCancelUnlock() {
     </div>
 
     <div class="hint-row">
-      <span class="hint-text">粉碎会先用随机数据覆写文件内容再删除，无法恢复；删除只移除文件本身</span>
+      <span class="hint-text">粉碎：覆写内容后再删除，无法恢复；删除：直接移除，不覆写内容</span>
     </div>
 
     <button class="start-btn" :disabled="!!loading" @click="handleStart">
@@ -197,9 +226,10 @@ function handleCancelUnlock() {
     <!-- 占用确认弹窗 -->
     <div v-if="showLockConfirm" class="lock-confirm-overlay">
       <div class="lock-confirm-dialog">
-        <div class="lock-confirm-title">文件正被占用</div>
+        <div class="lock-confirm-title">{{ targetKind }}正被占用</div>
         <div class="lock-confirm-desc">
-          下面 {{ lockedProcesses.length }} 个程序正在使用这个文件。结束它们后即可继续{{ actionName() }}，未保存的内容可能会丢失。
+          <template v-if="isDirectory">下面 {{ lockedProcesses.length }} 个程序打开了这个文件夹里的内容，或工作目录就在其中。结束它们后即可继续{{ actionName() }}，未保存的内容可能会丢失。</template>
+          <template v-else>下面 {{ lockedProcesses.length }} 个程序正在使用这个文件。结束它们后即可继续{{ actionName() }}，未保存的内容可能会丢失。</template>
         </div>
         <div class="lock-proc-list">
           <div v-for="(proc, idx) in lockedProcesses" :key="idx" class="lock-proc-item">
@@ -208,7 +238,7 @@ function handleCancelUnlock() {
               <span class="lock-proc-pid">PID {{ proc.pid }}</span>
             </div>
             <div v-if="proc.why && proc.why.ancestryText" class="lock-proc-why">{{ proc.why.ancestryText }}</div>
-            <div v-if="proc.service" class="lock-proc-why">承载 Windows 服务：{{ proc.service }}</div>
+            <div v-if="proc.service" class="lock-proc-why">Windows 服务：{{ proc.service }}</div>
           </div>
         </div>
         <div class="lock-confirm-actions">

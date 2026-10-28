@@ -5,7 +5,7 @@
   "description": "解除文件占用、粉碎文件、检测端口占用，支持拖拽文件和手动输入路径",
   "author": "Taitres",
   "homepage": "https://github.com/Taitres/unlock",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

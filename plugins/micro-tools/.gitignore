@@ -9,3 +9,7 @@ dist/
 
 # Logs
 *.log
+
+# Small, pinned proxy runtime shipped with the plugin.
+!vendor/proxy/node_modules/
+!vendor/proxy/node_modules/**

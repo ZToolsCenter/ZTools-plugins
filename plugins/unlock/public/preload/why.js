@@ -691,9 +691,9 @@ function explainProcess(pid) {
 /**
  * witr 多目标文本里的条目 → ProcessInfo（逐个用 witr --pid 补全溯源信息）。
  */
-function targetToProcessInfo(target, reason) {
+function targetToProcessInfo(target) {
   return explainByWitr(target.pid).then(function (why) {
-    if (why) return whyToProcessInfo(why, reason)
+    if (why) return whyToProcessInfo(why)
     // 进程可能在两次调用之间退出：先给出基本信息，后续 withWhyAll 会再尝试补全
     return {
       pid: target.pid,
@@ -701,7 +701,6 @@ function targetToProcessInfo(target, reason) {
       exePath: '',
       detectSource: 'witr',
       confidence: 'medium',
-      reason: reason,
       cmdLine: '',
       user: '',
       startedAt: ''
@@ -709,9 +708,9 @@ function targetToProcessInfo(target, reason) {
   })
 }
 
-function resolveTargets(targets, reason) {
+function resolveTargets(targets) {
   return Promise.all(targets.map(function (t) {
-    return targetToProcessInfo(t, reason)
+    return targetToProcessInfo(t)
   })).then(function (list) {
     return list.filter(Boolean)
   })
@@ -727,10 +726,10 @@ function findFileHoldersByWitr(filePath) {
     if (!res.ok) return null
     if (res.multiple && res.multiple.length > 0) {
       debugPush('[witr] file → ' + res.multiple.length + ' holder(s) (multi-target)')
-      return resolveTargets(res.multiple, 'witr --file 确证占用')
+      return resolveTargets(res.multiple)
     }
     return res.results.map(function (why) {
-      return whyToProcessInfo(why, 'witr --file 确证占用')
+      return whyToProcessInfo(why)
     }).filter(Boolean)
   })
 }
@@ -800,7 +799,7 @@ function whyToPortInfo(why, onlyPort) {
   })
 }
 
-function whyToProcessInfo(why, reason) {
+function whyToProcessInfo(why) {
   if (!why || !why.ancestry || why.ancestry.length === 0) return null
   const p = why.process || {}
   const self = why.ancestry[why.ancestry.length - 1]
@@ -810,7 +809,6 @@ function whyToProcessInfo(why, reason) {
     exePath: p.exe || self.exe || '',
     detectSource: 'witr',
     confidence: 'high',
-    reason: reason || 'witr 确证',
     cmdLine: p.cmdLine || self.cmd || '',
     user: p.user || '',
     startedAt: p.startedAt || '',

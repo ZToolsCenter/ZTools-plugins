@@ -37,7 +37,7 @@ export default function Ed25519UI({}: AlgorithmProps) {
       setError(showError(r))
       if (r.ok) {
         setVerifyResult(r.data ? 'true' : 'false')
-        setOutput(r.data ? '✅ 签名验证通过' : '❌ 签名无效')
+        setOutput(r.data ? '签名验证通过' : '签名无效')
       } else {
         setVerifyResult('')
       }
