@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "easyenv",
+  "title": "EasyEnv 环境变量管理",
+  "description": "Windows 环境变量的可视化管理器：用户/系统变量查看与增删改、PATH 逐条编辑与无效路径检测、备选值一键切换、批量提权写入、快照回滚",
+  "author": "咖啡八杯",
+  "version": "1.0.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "categories": ["system"],
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "main",
+      "explain": "可视化管理 Windows 用户 / 系统环境变量",
+      "icon": "logo.png",
+      "platform": "win32",
+      "cmds": ["环境变量", "env", "easyenv"]
+    }
+  ]
+}

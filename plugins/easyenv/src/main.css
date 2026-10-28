@@ -1,0 +1,28 @@
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-size: 13px;
+}
+
+.app {
+  padding: 0 12px 12px;
+}
+
+/* 表单/弹窗里的灰色小注释 */
+.tip {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 4px;
+  white-space: pre-wrap;
+}
+
+/* 表格里的等宽值文本可选可复制 */
+.env-table .cell {
+  user-select: text;
+}
