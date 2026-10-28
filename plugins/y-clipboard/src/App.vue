@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from './api'
 import { useStore } from './composables/useStore'
 import { CAT_ICONS_LG } from './utils/icons'
@@ -9,6 +9,7 @@ import Toolbar from './components/Toolbar.vue'
 import VirtualList from './components/VirtualList.vue'
 import ImagePreview from './components/ImagePreview.vue'
 import CodePreview from './components/CodePreview.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 
 const store = useStore()
 
@@ -43,6 +44,22 @@ function movePreview(delta: number): void {
   if (len === 0) return
   previewIndex.value = (previewIndex.value + delta + len) % len
 }
+
+/**
+ * 预览层的左右切换同样按**身份**记，不按下标记。
+ * 轮询会往列表里插新记录，下标一动，正在看的大图会悄悄变成另一张，
+ * 回车复制出去的也就不是这一张了。
+ */
+watch(previewableRecords, (list, before) => {
+  const anchorId = before?.[previewIndex.value]?.id
+  if (!anchorId) {
+    if (previewIndex.value >= list.length) previewIndex.value = Math.max(0, list.length - 1)
+    return
+  }
+  const i = list.findIndex((r) => r.id === anchorId)
+  if (i >= 0) previewIndex.value = i
+  else if (previewIndex.value >= list.length) previewIndex.value = Math.max(0, list.length - 1)
+})
 
 function closePreview(): void {
   previewOpen.value = false
@@ -80,6 +97,21 @@ function applyTheme(): void {
 
 function onKeyDown(e: KeyboardEvent): void {
   const inInput = e.target instanceof HTMLInputElement
+
+  /*
+   * 确认弹窗是模态：它的按键优先级最高。
+   * Esc = 取消、Enter = 主操作，其余按键一律吃掉（否则 ↓ 会去动列表，
+   * 用户在弹窗前看到的列表却在动，看着像弹窗没挡住）。
+   */
+  if (store.confirmRequest.value) {
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      e.preventDefault() // 顺带挡掉"焦点在按钮上时 Enter 再触发一次 click"
+      store.settleConfirm(e.key === 'Enter' ? 'ok' : 'cancel')
+    } else {
+      e.preventDefault()
+    }
+    return
+  }
 
   // 预览层打开时接管键盘：Esc 关闭 / ←→ 切换 / Enter 复制
   if (previewOpen.value) {
@@ -226,6 +258,16 @@ onBeforeUnmount(() => {
       @prev="movePreview(-1)"
       @next="movePreview(1)"
       @copy="copyPreview"
+    />
+
+    <!--
+      确认弹窗画在最上层：插件窗口内的自定义弹窗，取代 window.confirm。
+      结果由 store 的状态机回收（谁问谁等自己的 Promise）。
+    -->
+    <ConfirmDialog
+      v-if="store.confirmRequest.value"
+      :req="store.confirmRequest.value"
+      @pick="(c) => store.settleConfirm(c)"
     />
   </div>
 </template>

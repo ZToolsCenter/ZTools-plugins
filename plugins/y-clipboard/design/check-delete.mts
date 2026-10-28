@@ -63,7 +63,8 @@ check(
 )
 check(
   '清空同样以界面为准（宿主返回 0 也要清空）',
-  /const n = records\.value\.length[\s\S]{0,200}void api\.clear\(\)\.catch/.test(store),
+  // 条数取 records 与 totalCount 的较大者：列表可能只加载了一部分
+  /const n = Math\.max\(records\.value\.length, totalCount\.value\)[\s\S]{0,240}void api\.clear\(\)\.catch/.test(store),
   true
 )
 check('清空提示用界面上的真实条数', /已清空 \$\{n\} 条记录/.test(store), true)

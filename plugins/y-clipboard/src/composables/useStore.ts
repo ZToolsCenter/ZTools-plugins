@@ -3,6 +3,8 @@ import { api, favoritesStore, prefsStore, contentId, toImgSrc } from '../api'
 import type { Category, ClipboardRecord, FavoriteSnapshot, ItemKind } from '../types'
 import { IMG_SCALES, IMG_SCALE_ORDER, type ImgScale } from '../utils/layout'
 import { webUrlOf } from '../utils/format'
+import { clearFileCache, forgetFile } from '../utils/fs'
+import { localPathsOf, staleVerdict } from '../utils/stale'
 
 const PAGE_SIZE = 60
 const SEARCH_DEBOUNCE = 100
@@ -255,15 +257,13 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
  * 返回确实新增了几条（0 表示没变化），调用方据此决定是否要更新计数。
  */
 async function syncLatest(): Promise<number> {
+  const anchorId = filtered.value[selectedIndex.value]?.id ?? null
   try {
     const res = await api.getHistory(1, HEAD_SIZE)
     const seen = new Set(records.value.map((r) => r.id))
     const fresh = res.items.filter((r) => !seen.has(r.id))
     if (fresh.length === 0) return 0
     records.value = fresh.concat(records.value)
-    // 头部插入会把所有行往下推，选中下标要跟着挪，
-    // 否则用户盯着的那条会在回车复制时变成别人（下标是位置，不是记录）
-    if (selectedIndex.value > 0) selectedIndex.value += fresh.length
     // 总数也要跟上：看着列表变长了、侧栏计数却不动，一样是"没实时更新"
     if (res.total) totalCount.value = res.total
     else totalCount.value += fresh.length
@@ -272,6 +272,29 @@ async function syncLatest(): Promise<number> {
   } catch {
     /* 宿主忙/窗口正在关闭：这一拍不算事，下一拍还会再来 */
     return 0
+  } finally {
+    restoreSelection(anchorId)
+  }
+}
+
+/**
+ * 按**记录身份**重新落位，而不是按下标挪数。
+ *
+ * 列表在用户眼皮底下会变（轮询把新复制的内容插到最前面、远端搜索结果回来、
+ * 切换分类），只改下标的话，正盯着的那条会被别人顶掉 —— 回车复制出来就不是
+ *   const anchor = 当前选中记录的 id; ...改数据...; restoreSelection(anchor)
+ */
+function restoreSelection(id: string | null): void {
+  if (!id) {
+    if (selectedIndex.value >= filtered.value.length) {
+      selectedIndex.value = Math.max(0, filtered.value.length - 1)
+    }
+    return
+  }
+  const i = filtered.value.findIndex((r) => r.id === id)
+  if (i >= 0) selectedIndex.value = i
+  else if (selectedIndex.value >= filtered.value.length) {
+    selectedIndex.value = Math.max(0, filtered.value.length - 1)
   }
 }
 
@@ -320,6 +343,7 @@ function setQuery(q: string): void {
   }
   searchTimer = setTimeout(async () => {
     remoteSearching.value = true
+    const anchorId = filtered.value[selectedIndex.value]?.id ?? null
     try {
       const remote = await api.search(kw)
       // 期间用户又改了关键词：丢弃这次过期结果
@@ -328,7 +352,12 @@ function setQuery(q: string): void {
     } catch {
       /* 远端搜索失败不致命：本地已加载历史仍然即时过滤 */
     } finally {
-      if (query.value.trim() === kw) remoteSearching.value = false
+      if (query.value.trim() === kw) {
+        // 远端结果是**插在前面的**，回来时按身份落位，
+        // 否则等待期间用户挪过光标的话，回车复制的就是另一条了
+        restoreSelection(anchorId)
+        remoteSearching.value = false
+      }
     }
   }, SEARCH_DEBOUNCE)
 }
@@ -337,20 +366,75 @@ function setQuery(q: string): void {
 /* 动作                                                                */
 /* ------------------------------------------------------------------ */
 
-async function copyRecord(r: ClipboardRecord, exit = true): Promise<void> {
-  try {
-    const isSnapshot = activeCat.value === 'star' || !r.raw
-    if (isSnapshot) {
-      if (r.kind === 'file' && r.files) await api.writeContent('file', r.files)
-      else if (r.kind === 'image') await api.writeContent('image', r.content)
-      else await api.writeContent('text', r.content)
-    } else {
-      await api.write(r.id)
-    }
-    if (exit) api.outPlugin()
-  } catch (e) {
-    api.toast('复制失败：' + (e instanceof Error ? e.message : String(e)))
+/**
+ * 已经按 id 写回过的宿主记录。
+ *
+ * 宿主 `writeToClipboard` 写回时会先把原纪录从库里删掉（删了才会让你再看到
+ * "最新"的一份），所以**同一个 id 第二次写必然失败**；而 `clipboard:write`
+ * 失败了照样 `simulatePaste()` —— 粘出来的就是剪贴板上一条内容。
+ * 记住这些 id，第二次不再去撞墙（见 copyRecord）。
+ */
+const spentIds = new Set<string>()
+
+/** 一条图片记录的 content 是不是真的图片数据（不是"过大未保存"之类的占位文案） */
+function isRealImageData(c: string): boolean {
+  if (!c) return false
+  if (/^data:image\//i.test(c)) return true
+  // 裸 base64（够长才可能是一张图）
+  if (/^[A-Za-z0-9+/=\s]{256,}$/.test(c)) return true
+  return /\.(png|jpe?g|gif|webp|bmp|ico)$/i.test(c.trim())
+}
+
+/**
+ * 把一条记录整理成"按内容写回"的载荷。拿不到内容时返回 null
+ * —— 那种情况只能怪宿主 id 那条路（超大图只留了占位文案之类）。
+ */
+function contentPayload(
+  r: ClipboardRecord
+): { type: 'text' | 'image' | 'file'; content: string | string[] } | null {
+  if (r.kind === 'file') {
+    return r.files && r.files.length > 0 ? { type: 'file', content: r.files } : null
   }
+  if (r.kind === 'image') {
+    return isRealImageData(r.content) ? { type: 'image', content: r.content } : null
+  }
+  return r.content ? { type: 'text', content: r.content } : null
+}
+
+/**
+ * 复制一条记录到系统剪贴板。
+ *
+ * **按内容写优先**，这是被宿主的实现方式逼出来的：
+ *   - `write-content`：写成功才粘贴 → 失败时什么都不会粘，安全；
+ *   - `write(id)`：**写失败也粘贴** → 失败时把剪贴板上一条内容粘出去了，
+ *     就是用户遇到的"我要的是 A，粘出来是 B"。
+ * 而宿主记录并不总是还在库里（写回会删原纪录、过期清理会删旧记录、
+ * 图片空间回收会删原图），所以能不依赖 id 就不依赖。
+ */
+async function copyRecord(r: ClipboardRecord, exit = true): Promise<void> {
+  let ok = false
+  let why = ''
+  try {
+    const payload = contentPayload(r)
+    if (payload) ok = await api.writeContent(payload.type, payload.content)
+
+    // 拿不到内容（只能按 id 写）或内容写失败时，退回按 id 写一次。
+    // 已经写回过的 id 宿主早删了，不去撞墙 —— 撞墙就是一次必粘的错误粘贴。
+    if (!ok && !spentIds.has(r.id)) {
+      ok = await api.write(r.id)
+      if (ok) spentIds.add(r.id)
+    }
+  } catch (e) {
+    why = e instanceof Error ? e.message : String(e)
+  }
+
+  if (!ok) {
+    // 如实告知，并且**不要退出**：这时候退出，用户顺手 Ctrl+V 粘出来的
+    // 会是剪贴板里旧的内容，比留在原地更糟。
+    api.toast(why ? '复制失败：' + why : '这条记录已经失效，无法写入剪贴板')
+    return
+  }
+  if (exit) api.outPlugin()
 }
 
 /* ------------------------------------------------------------------ */
@@ -508,7 +592,9 @@ function toggleStar(r: ClipboardRecord): void {
  * 提示里的条数用界面上真实存在的条数，不用宿主的返回值。
  */
 async function clearAll(): Promise<void> {
-  const n = records.value.length
+  // 条数以宿主总数为准：列表可能只加载了一部分（HYDRATE_SIZE），
+  // 拿 records.length 会提示"清空 500 条"而实际清了 2000 条
+  const n = Math.max(records.value.length, totalCount.value)
   void api.clear().catch((e: unknown) => {
     console.warn('[y-clipboard] 宿主侧清空未成功（界面已清空）：', e)
   })
@@ -519,6 +605,241 @@ async function clearAll(): Promise<void> {
   scannedCats.clear()
   recount()
   api.toast(n > 0 ? `已清空 ${n} 条记录` : '已清空')
+}
+
+/**
+ * 「清空历史」按钮走的入口：先在插件内问一句，再调 clearAll。
+ * 同样是插件内弹窗（不用 window.confirm）。
+ */
+async function requestClearAll(ask: ConfirmAsk = askConfirm): Promise<void> {
+  const n = Math.max(records.value.length, totalCount.value)
+  if (n === 0) {
+    api.toast('已经没有历史了')
+    return
+  }
+  const choice = await ask({
+    title: `清空全部 ${n} 条历史？`,
+    lines: ['收藏的内容会保留', '清空后无法恢复'],
+    okText: '清空',
+    danger: true
+  })
+  if (choice !== 'ok') return
+  await clearAll()
+}
+
+/**
+ * 本地移除若干条宿主记录。
+ *
+ * 与 deleteRecord 同源的三条约定：
+ *   records 与 remoteResults 两边一起删（只删一边搜索结果会让它"复活"）；
+ *   总数跟着减（列表变短、计数不动一样像没生效）；
+ *   宿主侧 fire-and-forget，失败不回滚 —— 以界面为准。
+ */
+function removeRecords(list: ClipboardRecord[]): void {
+  if (list.length === 0) return
+  const ids = new Set(list.map((r) => r.id))
+  const anchorId = filtered.value[selectedIndex.value]?.id ?? null
+
+  records.value = records.value.filter((r) => !ids.has(r.id))
+  remoteResults.value = remoteResults.value.filter((r) => !ids.has(r.id))
+  // 路径存在与否的缓存是这次会话攒的，这些路径已经随记录一起走了
+  for (const r of list) {
+    for (const p of localPathsOf(r)) forgetFile(p)
+  }
+  totalCount.value = Math.max(0, totalCount.value - ids.size)
+  recount()
+  // 列表变短后按下标会指到别人身上，按身份重新落位
+  restoreSelection(anchorId)
+
+  for (const r of list) {
+    void api.remove(r.id).catch((e: unknown) => {
+      console.warn('[y-clipboard] 宿主侧删除未成功（界面已移除）：', e)
+    })
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 清理失效历史                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 一次清理最多检查多少条历史。
+ *
+ * 宿主的 getHistory 本身就是"全量取出再切片"，放大 pageSize 不增加宿主的开销，
+ * 但 IPC 序列化的量会跟着涨（一条含 data URL 的图片记录能有几百 KB），
+ * 所以设个上限，宁可少清一点也不要在这里卡住界面。
+ */
+export const SCAN_LIMIT = 2000
+
+/**
+ * 每批判定多少条之后让出一帧。
+ *
+ * 存在性查询是**同步**调用（preload 里直接读 fs），上千次连着问会把主线程
+ * 钉死 —— 分批 + 让出一帧，界面才有机会显示进度、也不至于像卡死。
+ */
+export const SCAN_BATCH = 40
+
+/** 清理进度：0~1（null = 没在扫） */
+const cleanProgress = ref<number | null>(null)
+
+const cleaning = computed(() => cleanProgress.value !== null)
+
+interface StaleScan {
+  /** 实际检查了多少条历史 */
+  scanned: number
+  /** 原文件全没了：整条废掉 */
+  stale: ClipboardRecord[]
+  /** 缺了一部分文件：还有几个活着，但整条复制已经会失败 */
+  partial: ClipboardRecord[]
+  /** 判断不了（未知）的条数 —— 不清理 */
+  unknown: number
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise((r) => setTimeout(r, 0))
+}
+
+/**
+ * 扫一遍历史，找出"原文件已经不在了"的记录。
+ *
+ * 扫描前清空路径缓存：缓存是这次会话里攒的，磁盘早变了，照着缓存判定
+ * 会把刚失效的记录漏掉。
+ */
+async function scanStale(): Promise<StaleScan> {
+  // 取全量（受上限保护），而不是只扫已加载的那一页 —— 用户要的是"清干净"
+  const want = Math.min(Math.max(totalCount.value, records.value.length, PAGE_SIZE), SCAN_LIMIT)
+  const res = await api.getHistory(1, want)
+  const list = res.items
+
+  clearFileCache()
+  const stale: ClipboardRecord[] = []
+  const partial: ClipboardRecord[] = []
+  let unknown = 0
+  cleanProgress.value = 0
+  try {
+    for (let i = 0; i < list.length; i++) {
+      const v = staleVerdict(list[i])
+      if (v === 'stale') stale.push(list[i])
+      else if (v === 'partial') partial.push(list[i])
+      else if (v === 'unknown') unknown++
+      if ((i + 1) % SCAN_BATCH === 0) {
+        cleanProgress.value = (i + 1) / Math.max(1, list.length)
+        await nextFrame()
+      }
+    }
+    return { scanned: list.length, stale, partial, unknown }
+  } finally {
+    cleanProgress.value = null
+  }
+}
+
+/** 弹窗结果：ok = 主操作；alt = 次操作（更保守的那一档）；cancel = 取消 */
+export type ConfirmChoice = 'ok' | 'alt' | 'cancel'
+
+export interface ConfirmRequest {
+  /** 主问句 */
+  title: string
+  /** 补充说明，逐行展示 */
+  lines: string[]
+  /** 主按钮文案 */
+  okText: string
+  /** 次按钮文案；没有就不显示这一档 */
+  altText?: string
+  /** 主操作是破坏性的 → 红色 */
+  danger?: boolean
+}
+
+export type ConfirmAsk = (req: ConfirmRequest) => ConfirmChoice | Promise<ConfirmChoice>
+
+/* ------------------------------------------------------------------ */
+/* 插件内确认弹窗                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 确认一律在插件窗口内问，**不用 window.confirm**。
+ *
+ * 在 Electron 里 `confirm` 弹的是系统级原生窗口：会跳到插件窗口外面、样式与
+ * 主题无关、还挡住整个屏幕 —— 在一个 500px 的面板里这么做很突兀。
+ * 这里改成状态机：谁想问都往这里登记，App 负责画，结果回到 Promise。
+ */
+const confirmRequest = ref<ConfirmRequest | null>(null)
+let confirmResolve: ((c: ConfirmChoice) => void) | null = null
+
+/** 问一句，等用户点按钮。没人接手（自动化测试）会一直挂着，所以必须注入 ask */
+function askConfirm(req: ConfirmRequest): Promise<ConfirmChoice> {
+  // 只保留一个弹窗：上一个没回答就又来一个，旧的直接按取消处理，
+  // 否则它的 Promise 永远悬着、await 的那条链路再也不会往下走
+  if (confirmResolve) {
+    const prev = confirmResolve
+    confirmResolve = null
+    prev('cancel')
+  }
+  confirmRequest.value = req
+  return new Promise<ConfirmChoice>((resolve) => {
+    confirmResolve = resolve
+  })
+}
+
+/** 弹窗/键盘把结果送回来 */
+function settleConfirm(choice: ConfirmChoice): void {
+  confirmRequest.value = null
+  const resolve = confirmResolve
+  confirmResolve = null
+  if (resolve) resolve(choice)
+}
+
+/**
+ * 清理失效历史：扫一遍 → 弹窗问 → 按选择删。
+ *
+ * 两档是刻意分开的：
+ *   - 全没了的（stale）删掉毫无争议；
+ *   - 只缺一部分的（partial）还有文件活着，清掉整条等于把那几个一起丢了。
+ * 所以默认给的是"全部清理"，同时留一个"只清理完全失效的"退路 —— 由用户选，
+ * 不替他决定。（`ask` 可注入，测试与"无界面环境"直接给答案。）
+ *
+ * 收藏是用户主动留下的、且是本插件自己的快照，不在清理范围内。
+ */
+async function cleanStale(ask: ConfirmAsk = askConfirm): Promise<void> {
+  if (cleaning.value) return
+
+  let scan: StaleScan
+  try {
+    scan = await scanStale()
+  } catch (e) {
+    api.toast('扫描失败：' + (e instanceof Error ? e.message : String(e)))
+    return
+  }
+
+  const total = scan.stale.length + scan.partial.length
+  if (total === 0) {
+    api.toast(
+      scan.scanned > 0 ? `没有发现失效记录（已检查 ${scan.scanned} 条）` : '暂无历史记录'
+    )
+    return
+  }
+
+  const lines: string[] = []
+  if (scan.stale.length > 0) lines.push(`${scan.stale.length} 条的原文件已经全部不在了`)
+  if (scan.partial.length > 0) {
+    lines.push(`${scan.partial.length} 条只有部分文件还在（卡片上标着"已不存在"）`)
+  }
+  if (scan.unknown > 0) lines.push(`另有 ${scan.unknown} 条读不到原位置，已保留`)
+  if (scan.scanned >= SCAN_LIMIT) lines.push(`本次只检查了最近 ${SCAN_LIMIT} 条历史`)
+  lines.push('清理后无法恢复；收藏的内容不受影响')
+
+  const choice = await ask({
+    title: `发现 ${total} 条失效记录`,
+    lines,
+    okText: `清理 ${total} 条`,
+    // 只有两档都非空时才有"退一步"的必要
+    altText: scan.stale.length > 0 && scan.partial.length > 0 ? `只清理 ${scan.stale.length} 条` : undefined,
+    danger: true
+  })
+  if (choice === 'cancel') return
+
+  const target = choice === 'alt' ? scan.stale : [...scan.stale, ...scan.partial]
+  removeRecords(target)
+  api.toast(`已清理 ${target.length} 条失效记录`)
 }
 
 function setCat(cat: Category): void {
@@ -612,9 +933,12 @@ export function useStore() {
     loading, hydrating, remoteSearching, hasMore, counts, filtered, listKey,
     subInputReady, searchFocusTick, focusSearch,
     imgScale, imgScaleLabel, cycleImgScale,
+    cleaning, cleanProgress,
     init, loadFirst, loadMore, setQuery, setCat,
-    copyRecord, deleteRecord, toggleStar, clearAll, moveSelection,
+    copyRecord, deleteRecord, toggleStar, clearAll, requestClearAll, moveSelection,
     revealFile, openLink, favKey,
+    scanStale, cleanStale,
+    confirmRequest, askConfirm, settleConfirm,
     syncLatest, stopWatching
   }
 }

@@ -32,3 +32,13 @@ export function fileExists(p: string): boolean | null {
 export function forgetFile(p: string): void {
   cache.delete(p)
 }
+
+/**
+ * 清空全部缓存。
+ *
+ * 「清理失效」前必须清一次：缓存是这次会话里攒下来的，而磁盘状态一直在变
+ * （用户在别处删了文件），照着缓存判定会漏掉刚失效的记录。
+ */
+export function clearFileCache(): void {
+  cache.clear()
+}

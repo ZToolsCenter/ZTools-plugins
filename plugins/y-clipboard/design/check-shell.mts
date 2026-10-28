@@ -73,10 +73,11 @@ check('兜底搜索框仍会自动聚焦', /focusInput\(\)/.test(toolbar), true)
 
 console.log('\n--- 图片档位 / 清空历史 迁到侧栏 ---')
 
-check('侧栏有清空历史', /clearAll/.test(sidebar), true)
+check('侧栏有清空历史', /void store\.requestClearAll\(\)/.test(sidebar), true)
 check('侧栏有图片档位', /cycleImgScale/.test(sidebar), true)
-check('清空历史保留二次确认', /confirm\(/.test(sidebar), true)
-check('清空历史说明收藏保留', /收藏的内容会保留/.test(sidebar), true)
+// 二次确认搬进 store（插件内弹窗），侧栏只负责喊它
+check('清空历史保留二次确认（走 requestClearAll）', /@click="onClear"/.test(sidebar), true)
+check('清空历史说明收藏保留', /清空历史（收藏保留）/.test(sidebar), true)
 check('清空历史用危险色 hover', /\.foot-btn\.danger:hover[\s\S]{0,120}--danger/.test(sidebar), true)
 
 // 规则 5：开关类按钮按分类上下文显隐，不要常驻

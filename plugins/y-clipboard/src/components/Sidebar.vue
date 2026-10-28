@@ -15,11 +15,23 @@ const showImgScale = computed(() => {
   return c === 'all' || c === 'image'
 })
 
+/**
+ * 清空历史：确认在插件窗口内弹（store.requestClearAll），不用 window.confirm
+ * —— 后者在 Electron 里是系统级弹窗，会跳出插件窗口、也不跟主题。
+ */
 function onClear(): void {
-  if (window.confirm('确定清空全部剪贴板历史？收藏的内容会保留。')) {
-    void store.clearAll()
-  }
+  void store.requestClearAll()
 }
+
+/**
+ * 「清理失效」按钮的文案 = 进度牌。
+ * 用属性字符串切换而不是额外加一行：底部这一块是贴着底边的，
+ * 多一行整块就会往上顶，上面两个按钮跟着跳。
+ */
+const cleanLabel = computed(() => {
+  const p = store.cleanProgress.value
+  return p === null ? '清理失效' : `扫描 ${Math.round(p * 100)}%`
+})
 </script>
 
 <template>
@@ -50,6 +62,23 @@ function onClear(): void {
       不响应指针），但位置纹丝不动。
     -->
     <div class="sidebar-foot">
+      <button
+        class="foot-btn"
+        :class="{ busy: store.cleaning.value }"
+        :disabled="store.cleaning.value"
+        title="清理失效记录（原文件已经不存在的历史），收藏不受影响"
+        @click="void store.cleanStale()"
+      >
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="1.7"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 21l-4.2-4.2a2 2 0 0 1 0-2.8l9.6-9.6a2 2 0 0 1 2.8 0l5.6 5.6a2 2 0 0 1 0 2.8L13 21"
+            stroke="currentColor" />
+          <path d="M21.5 21H7" stroke="currentColor" />
+          <path d="M5 11.5l8.5 8.5" stroke="currentColor" />
+        </svg>
+        <span>{{ cleanLabel }}</span>
+      </button>
+
       <button class="foot-btn danger" title="清空历史（收藏保留）" @click="onClear">
         <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke-width="1.7"
           stroke-linecap="round" stroke-linejoin="round">
@@ -133,6 +162,7 @@ function onClear(): void {
 /* 底部操作区：margin-top:auto 把它压到侧栏最下沿 */
 .sidebar-foot {
   margin-top: auto;
+  flex: none; /* 窗口再矮也不许把这个区域压扁，宁可上面的分类列表先挤 */
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -154,6 +184,11 @@ function onClear(): void {
 }
 
 .foot-btn:hover { background: var(--hover); color: var(--text); }
+.foot-btn:disabled { opacity: 0.55; cursor: progress; }
+.foot-btn:disabled:hover { background: transparent; color: var(--text-2); }
+
+/* 扫描中：给了进度牌就够了，不再闪来闪去打扰眼睛 */
+.foot-btn.busy { color: var(--accent); }
 
 /* 不适用的分类里"占位不显"：省得整块 footer 高度变化带动上面的按钮跳动 */
 .foot-btn.is-off { visibility: hidden; }

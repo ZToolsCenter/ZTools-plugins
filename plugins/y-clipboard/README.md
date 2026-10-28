@@ -8,21 +8,20 @@
 
 ### 全部
 
-![preview-all](design\preview-all.png)
+![preview-all](design/preview-all.png)
 
 ### 代码
 
-![preview-code](design\preview-code.png)
+![preview-code](design/preview-code.png)
 
 ### 图片
 
-![preview-image](design\preview-image.png)
+![preview-image](design/preview-image.png)
 
 ### 文件
 
-![preview-file](design\preview-file.png)
+![preview-file](design/preview-file.png)
 
 ### 收藏
 
-![preview-favorite](design\preview-favorite.png)
-
+![preview-favorite](design/preview-favorite.png)

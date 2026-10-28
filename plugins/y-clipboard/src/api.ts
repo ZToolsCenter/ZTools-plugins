@@ -364,9 +364,20 @@ export const host = {
     return !res || (res as any).success !== false
   },
 
-  /** 写回剪贴板（默认同时模拟粘贴到之前焦点窗口） */
-  async write(id: string, paste = true): Promise<void> {
-    await (window.ztools as any).clipboard.write(id, paste)
+  /**
+   * 写回剪贴板（默认同时模拟粘贴到之前焦点窗口）。
+   *
+   * **返回值必须被关心**，原因在宿主源码里：
+   * `clipboard:write` 的处理是「先 writeToClipboard(id)，然后**不管成功与否**
+   * 都 `simulatePaste()`」。而 `writeToClipboard` 找不到记录时直接 return false，
+   * 剪贴板保持原样 —— 于是粘贴出来的是**上一条留在剪贴板里的内容**。
+   * 这正是「我复制的是 A，粘贴出来的是 B」。
+   *
+   * @returns 是否真的写进了系统剪贴板（宿主没给返回值时按成功处理）
+   */
+  async write(id: string, paste = true): Promise<boolean> {
+    const res = await (window.ztools as any).clipboard.write(id, paste)
+    return (res as { success?: boolean } | null)?.success !== false
   },
 
   /** 按内容写剪贴板（收藏快照等无宿主 id 的场景） */
@@ -374,8 +385,9 @@ export const host = {
     type: 'text' | 'image' | 'file',
     content: string | string[],
     paste = true
-  ): Promise<void> {
-    await (window.ztools as any).clipboard.writeContent({ type, content }, paste)
+  ): Promise<boolean> {
+    const res = await (window.ztools as any).clipboard.writeContent({ type, content }, paste)
+    return (res as { success?: boolean } | null)?.success !== false
   },
 
   async clear(): Promise<number> {
@@ -582,13 +594,17 @@ const MOCK_TEXTS: Array<[string, string]> = [
 
 /**
  * 开发用文件记录。刻意覆盖几种形态：
- *   单文件 / 多文件 / 深长路径（验证折叠）/ 已删除的文件（验证"已不存在"提示）
+ *   单文件 / 多文件 / 深长路径（验证折叠）/ 全删（验证"已不存在"）/ 缺一部分
+ * （"缺一部分"是清理失效里最容易被漏掉的一种：卡片上标着"已不存在"，
+ *   但还有文件活着，旧逻辑会直接保留 —— 现在它能被扫出来并单独成一档）
  */
 const MOCK_FILES = [
   ['E:\\A_YSYSYSS_workspace\\y-clipboard\\src-ztools\\plugin.json'],
   ['D:\\Downloads\\设计稿-首页-v3.fig', 'D:\\Downloads\\设计稿-详情-v3.fig'],
   ['C:\\Users\\someone\\Documents\\2026 年度预算\\Q3 合并报表-final-v7.xlsx', 'C:\\Users\\someone\\Documents\\2026 年度预算\\口径说明.txt'],
-  ['E:\\A_YSYSYSS_workspace\\y-clipboard\\已删除的旧归档.zip']
+  ['E:\\A_YSYSYSS_workspace\\y-clipboard\\已删除的旧归档.zip'],
+  // 缺一部分：第二个文件没了，第一个还在
+  ['E:\\A_YSYSYSS_workspace\\y-clipboard\\package.json', 'E:\\A_YSYSYSS_workspace\\y-clipboard\\已删除的旧截图.png']
 ]
 
 function mockSvgText(i: number, w = 480, h = 280): string {
@@ -745,6 +761,15 @@ let mockDb = buildMockData()
 let lastExternalUrl = ''
 export const devLastExternalUrl = (): string => lastExternalUrl
 
+/**
+ * 开发模式探针：记下最近一次写回的方式与成败。
+ * 和 `__lastExternalUrl` 一个道理 —— 界面上"粘对了/粘错了"看不出来，
+ * 探针需要区分"压根没调" / "按内容写" / "按 id 写失败"。
+ */
+function noteCopy(mode: 'content' | 'id', ok: boolean): void {
+  ;(window as unknown as Record<string, unknown>).__lastCopy = { mode, ok }
+}
+
 const mock = {
   async getHistory(page: number, pageSize: number): Promise<PageResult> {
     await sleep(60)
@@ -772,12 +797,28 @@ const mock = {
     return true
   },
 
-  async write(_id: string): Promise<void> {
+  /**
+   * 开发模式忠实模仿宿主语义：`writeToClipboard` 写回时会**把原纪录删掉**
+   * （见 clipboardManager 第 778 行 `remove(docId)`），所以同一个 id
+   * 第二次写必然找不到、返回 false —— 这是本次 bug 的复现条件，
+   * 开发模式下也要能验证"第二次复制同一条"的兜底路径，不能一味返回成功。
+   */
+  async write(id: string): Promise<boolean> {
+    const hit = mockDb.findIndex((r: any) => r.id === id)
+    noteCopy('id', hit >= 0)
+    if (hit < 0) {
+      mock.toast('这条记录在宿主里已经不存在了（开发模式：模拟写回失败）')
+      return false
+    }
+    mockDb.splice(hit, 1)
     mock.toast('已复制（开发模式不执行真实粘贴）')
+    return true
   },
 
-  async writeContent(): Promise<void> {
+  async writeContent(): Promise<boolean> {
+    noteCopy('content', true)
     mock.toast('已复制（开发模式不执行真实粘贴）')
+    return true
   },
 
   async clear(): Promise<number> {
@@ -880,6 +921,18 @@ export const api = isHost() ? host : mock
 // 开发模式把"模拟复制"挂到 window 上，探针用它验证实时更新链路（见 mock.copyFake）
 if (!isHost() && typeof window !== 'undefined') {
   ;(window as unknown as Record<string, unknown>).__mockCopy = (t: string) => mock.copyFake(t)
+
+  /**
+   * 浏览器里没有 preload，`utils/fs` 的 fileExists 会恒返回 null（判断不了），
+   * 「清理失效」就永远扫不出东西。这里补一个假的 services：**路径里带"已删除"
+   * 的当作不存在**（mock 数据里恰好有一条这样的文件记录），其余当存在。
+   * 够把"扫描 → 确认 → 删除 → 计数更新"整条链路在浏览器里跑一遍。
+   */
+  if (!(window as unknown as { services?: unknown }).services) {
+    ;(window as unknown as Record<string, unknown>).services = {
+      fileExists: (p: string) => !/已删除/.test(String(p ?? ''))
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ */
