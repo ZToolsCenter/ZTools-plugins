@@ -6,10 +6,12 @@
   'use strict';
 
   var SVC = null;          // window.services
-  var state = { accounts: [], current: null, cache: null, notes: {} };
-  var activeLang = new Set();
+  var state = { accounts: [], current: null, cache: null, notes: {}, groups: [] };
+  var activeGroup = '';
   var query = '';
   var focusRepo = '';      // 由主搜索框跳转过来时高亮/预填
+  var indexedGroups = null;
+  var membershipsByRepo = new Map();
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -56,6 +58,19 @@
   function items() { return (state.cache && state.cache.items) || []; }
   function noteOf(name) { var n = state.notes && state.notes[name]; return (n && n.t) ? n.t : ''; }
   function noteTime(name) { var n = state.notes && state.notes[name]; return (n && n.u) ? n.u : 0; }
+  function repoGroups(name) {
+    if (indexedGroups !== state.groups) {
+      membershipsByRepo = new Map();
+      state.groups.forEach(function (g) {
+        (g.repos || []).forEach(function (repo) {
+          if (!membershipsByRepo.has(repo)) membershipsByRepo.set(repo, []);
+          membershipsByRepo.get(repo).push(g);
+        });
+      });
+      indexedGroups = state.groups;
+    }
+    return membershipsByRepo.get(name) || [];
+  }
 
   /* ---------------- 筛选 + 排序 ---------------- */
   function currentRows() {
@@ -63,60 +78,57 @@
     var q = query.trim();
     var onlyNotes = $('onlynotes').checked;
     var rows = [];
-    all.forEach(function (it) {
-      if (activeLang.size && !activeLang.has(it.l || '其他')) return;
+    all.forEach(function (it, index) {
+      var memberships = repoGroups(it.n);
+      if (activeGroup === 'ungrouped' && memberships.length) return;
+      if (activeGroup && activeGroup !== 'ungrouped' && !memberships.some(function (g) { return g.id === activeGroup; })) return;
       var note = noteOf(it.n);
       if (onlyNotes && !note) return;
       if (q) {
         var nm = nameMatch(it.n, q);
         var nt = nm ? null : subMatch(note, q);          // 备注优先级仅次于仓库名
-        var dm = (nm || nt) ? null : subMatch([it.d || '', it.l || '', (it.t || []).join(' ')].join(' \n '), q);
+        var dm = (nm || nt) ? null : subMatch([it.d || '', (it.t || []).join(' ')].join(' \n '), q);
         if (!nm && !nt && !dm) return;
         rows.push({
-          it: it, note: note,
+          it: it, note: note, index: index,
           nameIdx: nm ? nm.idx : [], noteIdx: nt ? nt.idx : [],
           score: nm ? 500 + nm.score : (nt ? 400 + nt.score : dm.score)
         });
       } else {
-        rows.push({ it: it, note: note, nameIdx: [], noteIdx: [], score: 0 });
+        rows.push({ it: it, note: note, index: index, nameIdx: [], noteIdx: [], score: 0 });
       }
     });
     var s = $('sort').value;
     var byName = function (a, b) { return a.it.n.toLowerCase().localeCompare(b.it.n.toLowerCase()); };
-    if (q) rows.sort(function (a, b) { return b.score - a.score || b.it.s - a.it.s || byName(a, b); });
-    else if (s === 'star-asc') rows.sort(function (a, b) { return a.it.s - b.it.s || byName(a, b); });
-    else if (s === 'name') rows.sort(byName);
-    else if (s === 'note') rows.sort(function (a, b) {
+    var order;
+    if (s === 'starred-desc' || s === 'starred-asc') {
+      // 旧缓存没有时间戳，但 API 原始顺序已是收藏时间新→旧，按原始位置兼容。
+      var hasTimes = all.every(function (it) { return !!it.starredAt && Number.isFinite(Date.parse(it.starredAt)); });
+      order = function (a, b) {
+        var diff = hasTimes ? Date.parse(b.it.starredAt) - Date.parse(a.it.starredAt) : a.index - b.index;
+        return (s === 'starred-asc' ? -diff : diff) || a.index - b.index;
+      };
+    } else if (s === 'star-asc') order = function (a, b) { return a.it.s - b.it.s || byName(a, b); };
+    else if (s === 'name') order = byName;
+    else if (s === 'note') order = function (a, b) {
       var ta = noteTime(a.it.n), tb = noteTime(b.it.n);
       if (tb !== ta) return tb - ta;                     // 有备注的先、按备注时间新→旧
       return (b.it.p || '').localeCompare(a.it.p || '');
-    });
-    else if (s === 'pushed') rows.sort(function (a, b) { return (b.it.p || '').localeCompare(a.it.p || '') || b.it.s - a.it.s; });
-    else if (s === 'lang') {
-      var size = {};
-      all.forEach(function (i) { var k = i.l || '其他'; size[k] = (size[k] || 0) + 1; });
-      rows.sort(function (a, b) {
-        var ka = a.it.l || '其他', kb = b.it.l || '其他';
-        if (ka !== kb) { if (size[kb] !== size[ka]) return size[kb] - size[ka]; return ka.localeCompare(kb); }
-        return b.it.s - a.it.s || byName(a, b);
-      });
-    } else rows.sort(function (a, b) { return b.it.s - a.it.s || byName(a, b); });
+    };
+    else if (s === 'pushed') order = function (a, b) { return (b.it.p || '').localeCompare(a.it.p || '') || b.it.s - a.it.s; };
+    else order = function (a, b) { return b.it.s - a.it.s || byName(a, b); };
+    rows.sort(function (a, b) { return (q ? b.score - a.score : 0) || order(a, b); });
     return rows;
   }
 
   /* ---------------- 渲染 ---------------- */
   function render() {
     var rows = currentRows();
-    var s = $('sort').value;
-    var grouped = (s === 'lang' && !query.trim());
-    var gcount = {};
-    if (grouped) rows.forEach(function (r) { var k = r.it.l || '其他'; gcount[k] = (gcount[k] || 0) + 1; });
-    var html = '', last = null;
+    var html = '';
     rows.forEach(function (r) {
-      var it = r.it, lg = it.l || '其他';
-      if (grouped && lg !== last) { html += '<h2>' + esc(lg) + '<span class="cnt">' + gcount[lg] + ' 个</span></h2>'; last = lg; }
+      var it = r.it;
       var tags = [];
-      if (!grouped && it.l) tags.push('<span class="tag">' + esc(it.l) + '</span>');
+      if (it.l) tags.push('<span class="tag">' + esc(it.l) + '</span>');
       if (it.a) tags.push('<span class="badge arch">已归档</span>');
       var sel = (focusRepo && it.n === focusRepo) ? ' sel' : '';
       var note = r.note || '';
@@ -125,6 +137,10 @@
         + '<span class="tag star">⭐ ' + kfmt(it.s) + '</span>' + tags.join('') + '</div>'
         + (it.d ? '<div class="desc">' + esc(it.d) + '</div>' : '')
         + (it.p ? '<div class="en">最近推送 ' + esc(it.p) + '</div>' : '')
+        + (it.starredAt ? '<div class="en">Star 时间 ' + esc(new Date(it.starredAt).toLocaleString()) + '</div>' : '')
+        + '<div class="repo-groups">'
+        + repoGroups(it.n).map(function (g) { return '<span class="tag group-tag">' + esc(g.name) + '</span>'; }).join('')
+        + '<button class="group-set" data-name="' + esc(it.n) + '">设置分组</button></div>'
         + '<div class="notebox"><span class="notetag">备注</span>'
         + '<input class="note-input' + (note ? ' has-note' : '') + '" type="text" data-name="' + esc(it.n) + '"'
         + ' placeholder="写点备注（回车或失焦自动保存）" value="' + esc(note) + '" autocomplete="off" spellcheck="false">'
@@ -135,13 +151,19 @@
 
     $('count').textContent = items().length ? ('显示 ' + rows.length + ' / ' + items().length) : '';
 
-    var langs = {};
-    items().forEach(function (i) { var k = i.l || '其他'; langs[k] = (langs[k] || 0) + 1; });
-    var chip = '<span class="chip' + (activeLang.size ? '' : ' on') + '" data-lg="">全部 ' + items().length + '</span>';
-    Object.keys(langs).sort(function (a, b) { return langs[b] - langs[a]; }).forEach(function (k) {
-      chip += '<span class="chip' + (activeLang.has(k) ? ' on' : '') + '" data-lg="' + esc(k) + '">' + esc(k) + ' ' + langs[k] + '</span>';
+    var counts = {}, ungrouped = 0;
+    items().forEach(function (it) {
+      var memberships = repoGroups(it.n);
+      if (!memberships.length) ungrouped++;
+      memberships.forEach(function (g) { counts[g.id] = (counts[g.id] || 0) + 1; });
     });
-    $('chips').innerHTML = items().length ? chip : '';
+    function chip(id, name, count) {
+      return '<button class="chip' + (activeGroup === id ? ' on' : '') + '" data-group="' + esc(id)
+        + '" aria-pressed="' + (activeGroup === id) + '">' + esc(name) + ' ' + count + '</button>';
+    }
+    $('chips').innerHTML = chip('', '全部', items().length) + chip('ungrouped', '未分组', ungrouped)
+      + state.groups.map(function (g) { return chip(g.id, g.name, counts[g.id] || 0); }).join('');
+    $('groups-manage').disabled = !state.current;
 
     var acc = state.accounts.filter(function (a) { return a.id === state.current; })[0];
     if (acc) {
@@ -153,7 +175,7 @@
     var noteCount = Object.keys(state.notes || {}).length;
     $('foot').textContent = state.cache
       ? ('数据时间 ' + new Date(state.cache.fetchedAt).toLocaleString()
-         + ' · 备注 ' + noteCount + ' 条 · 账号与备注都只存本机')
+         + ' · 备注 ' + noteCount + ' 条 · 分组 ' + state.groups.length + ' 个 · 数据只存本机')
       : '需要 GitHub Token（插件通过 /user/starred 拉取，含私有星标）；Token 只存本机 dbStorage。';
   }
 
@@ -183,10 +205,13 @@
   /* ---------------- 数据流 ---------------- */
   function loadState(keepFocus) {
     var r = SVC.listAccounts();
+    if (state.current !== r.current) activeGroup = '';
     state.accounts = r.accounts || [];
     state.current = r.current || null;
     state.cache = SVC.getCache ? SVC.getCache(state.current) : null;
     try { state.notes = (SVC.notes && SVC.notes()) || {}; } catch (e) { state.notes = {}; }
+    state.groups = SVC.groups(state.current);
+    if (activeGroup && activeGroup !== 'ungrouped' && !state.groups.some(function (g) { return g.id === activeGroup; })) activeGroup = '';
     if (!keepFocus) focusRepo = '';
     renderAccounts();
     render();
@@ -277,6 +302,64 @@
     } catch (e) { say('保存备注失败：' + e.message, 'err'); }
   }
 
+  /* ---------------- 自定义分组 ---------------- */
+  var groupTarget = null;
+  var draftGroups = new Set();
+  var groupReturnFocus = null;
+  function groupError(message) {
+    $('groups-error').textContent = message || '';
+    $('groups-error').classList.toggle('hidden', !message);
+  }
+  function renderGroupDialog() {
+    var assigning = groupTarget !== null;
+    $('groups-title').textContent = assigning ? '设置仓库分组' : '管理分组';
+    $('groups-hint').textContent = assigning ? groupTarget + ' · 可选择多个分组，取消全部勾选即移至未分组。' : '分组仅保存在本机，当前账号独立使用。删除分组会保留仓库和备注。';
+    $('groups-cancel').textContent = assigning ? '取消' : '关闭';
+    $('groups-save').classList.toggle('hidden', !assigning);
+    $('groups-list').innerHTML = state.groups.length ? state.groups.map(function (g) {
+      if (assigning) {
+        return '<label class="group-choice"><input type="checkbox" data-group="' + esc(g.id) + '"'
+          + (draftGroups.has(g.id) ? ' checked' : '') + '> <span>' + esc(g.name) + '</span></label>';
+      }
+      return '<div class="group-row" data-group="' + esc(g.id) + '">'
+        + '<input class="group-rename" type="text" maxlength="40" aria-label="分组名称" value="' + esc(g.name) + '">'
+        + '<button data-action="rename">重命名</button><button data-action="delete">删除</button></div>';
+    }).join('') : '<p class="muted">还没有分组，在上方输入名称即可新建。</p>';
+  }
+  function openGroups(name, trigger) {
+    groupTarget = name == null ? null : name;
+    draftGroups = new Set(name == null ? [] : repoGroups(name).map(function (g) { return g.id; }));
+    groupReturnFocus = trigger || document.activeElement;
+    $('group-name').value = '';
+    groupError('');
+    renderGroupDialog();
+    $('groups-modal').classList.remove('hidden');
+    $('group-name').focus();
+  }
+  function closeGroups() {
+    $('groups-modal').classList.add('hidden');
+    groupTarget = null;
+    if (groupReturnFocus && groupReturnFocus.isConnected) groupReturnFocus.focus();
+    else $('groups-manage').focus();
+  }
+  function updateGroups(result) {
+    state.groups = result.groups || [];
+    indexedGroups = null;
+    if (activeGroup && activeGroup !== 'ungrouped' && !state.groups.some(function (g) { return g.id === activeGroup; })) activeGroup = '';
+    groupError('');
+    render();
+    renderGroupDialog();
+  }
+  function saveRepoGroups() {
+    if (groupTarget === null) return;
+    try {
+      var name = groupTarget;
+      updateGroups(SVC.setRepoGroups(name, Array.from(draftGroups)));
+      closeGroups();
+      say('已保存分组：' + name);
+    } catch (e) { groupError(e.message); }
+  }
+
   /* ---------------- 确认弹窗 ---------------- */
   var confirmResolver = null;
   function showConfirm(opts) {
@@ -344,16 +427,59 @@
         say('已导出 ' + r.total + ' 条到：' + r.path);
       } catch (e) { say('导出失败：' + e.message, 'err'); }
     });
+    $('groups-manage').addEventListener('click', function () { openGroups(null, this); });
+    $('group-create').addEventListener('submit', function (e) {
+      e.preventDefault();
+      try {
+        var result = SVC.createGroup($('group-name').value);
+        if (groupTarget !== null) draftGroups.add(result.group.id);
+        updateGroups(result);
+        $('group-name').value = '';
+        $('group-name').focus();
+      } catch (err) { groupError(err.message); }
+    });
+    $('groups-list').addEventListener('change', function (e) {
+      if (!e.target.matches('input[type="checkbox"]')) return;
+      if (e.target.checked) draftGroups.add(e.target.dataset.group);
+      else draftGroups.delete(e.target.dataset.group);
+    });
+    $('groups-list').addEventListener('click', function (e) {
+      var button = e.target.closest('button[data-action]');
+      if (!button) return;
+      var row = button.closest('.group-row');
+      var id = row.dataset.group;
+      if (button.dataset.action === 'rename') {
+        try { updateGroups(SVC.renameGroup(id, row.querySelector('input').value)); }
+        catch (err) { groupError(err.message); }
+      } else {
+        var group = state.groups.filter(function (g) { return g.id === id; })[0];
+        if (!group) return;
+        showConfirm({ title: '删除分组', sub: '仅删除分组，仓库和备注会保留', msg: '确定删除分组「' + group.name + '」吗？', okText: '删除分组' }).then(function (ok) {
+          if (!ok) return;
+          try { updateGroups(SVC.deleteGroup(id)); }
+          catch (err) { groupError(err.message); }
+        });
+      }
+    });
+    $('groups-save').addEventListener('click', saveRepoGroups);
+    $('groups-cancel').addEventListener('click', closeGroups);
+    $('groups-modal').addEventListener('click', function (e) { if (e.target === this) closeGroups(); });
+    $('groups-modal').addEventListener('keydown', function (e) {
+      if (e.key !== 'Tab') return;
+      var controls = Array.from(this.querySelectorAll('button, input')).filter(function (el) { return !el.disabled && !el.classList.contains('hidden'); });
+      var first = controls[0], last = controls[controls.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
     $('chips').addEventListener('click', function (e) {
       var c = e.target.closest ? e.target.closest('.chip') : null;
       if (!c) return;
-      var lg = c.dataset.lg;
-      if (!lg) activeLang.clear();
-      else if (activeLang.has(lg)) activeLang.delete(lg);
-      else activeLang.add(lg);
+      activeGroup = c.dataset.group;
       render();
     });
     $('list').addEventListener('click', function (e) {
+      var button = e.target.closest ? e.target.closest('.group-set') : null;
+      if (button) { openGroups(button.dataset.name, button); return; }
       var a = e.target.closest ? e.target.closest('a.repo') : null;
       if (a) { e.preventDefault(); SVC.openExternal(a.dataset.url); }
     });
@@ -386,10 +512,11 @@
     document.addEventListener('keydown', function (e) {
       var active = document.activeElement;
       var isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
-      if (e.key === '/' && !isInput && $('confirm-modal').classList.contains('hidden') && $('modal').classList.contains('hidden')) {
+      if (e.key === '/' && !isInput && $('confirm-modal').classList.contains('hidden') && $('modal').classList.contains('hidden') && $('groups-modal').classList.contains('hidden')) {
         e.preventDefault(); $('q').focus();
       } else if (e.key === 'Escape') {
         if (!$('confirm-modal').classList.contains('hidden')) closeConfirm(false);
+        else if (!$('groups-modal').classList.contains('hidden')) closeGroups();
         else if (!$('modal').classList.contains('hidden')) closeModal();
         else { $('q').value = ''; query = ''; render(); }
       }
@@ -423,7 +550,7 @@
         var note = noteOf(it.n);
         var nm = nameMatch(it.n, q);
         var nt = nm ? null : subMatch(note, q);
-        var dm = (nm || nt) ? null : subMatch([it.d || '', it.l || '', (it.t || []).join(' ')].join(' \n '), q);
+        var dm = (nm || nt) ? null : subMatch([it.d || '', (it.t || []).join(' ')].join(' \n '), q);
         if (!nm && !nt && !dm) return;
         rows.push({ it: it, note: note, score: (nm ? 500 + nm.score : (nt ? 400 + nt.score : dm.score)) });
       });
