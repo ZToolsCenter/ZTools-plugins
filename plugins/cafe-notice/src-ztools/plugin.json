@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "cafe-notice",
+  "title": "通知美化（弹幕/卡片）",
+  "description": "把 Windows 系统通知重新展示为跨屏弹幕或角落卡片，支持按应用静音/接管原生横幅、历史留存与导出",
+  "author": "咖啡八杯",
+  "version": "1.0.0",
+  "categories": ["productivity", "system"],
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "backgroundRunning": true
+  },
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "notice",
+      "explain": "通知美化 - 系统通知重展示为弹幕/卡片",
+      "icon": "logo.png",
+      "platform": "win32",
+      "cmds": ["通知", "弹幕", "cafe notice", "notice"]
+    }
+  ]
+}
