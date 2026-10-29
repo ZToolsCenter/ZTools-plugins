@@ -21,6 +21,11 @@
   --amber: #f2b769;
 }
 
+.compatibility-gate { min-height: 100vh; display: grid; place-content: center; grid-template-columns: auto minmax(0, 560px); gap: 20px; padding: 36px; color: #d7e5e7; background: #0d141a; }
+.compatibility-gate p { margin: 0 0 8px; color: #9eafb7; }
+.compatibility-gate h1 { margin: 0 0 12px; font-size: clamp(22px, 4vw, 34px); line-height: 1.25; }
+.compatibility-mark { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 50%; color: white; background: #d3634d; font-size: 28px; font-weight: 700; }
+
 * { box-sizing: border-box; }
 html, body, #app { min-width: 320px; min-height: 100%; margin: 0; }
 body {
