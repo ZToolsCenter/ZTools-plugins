@@ -107,10 +107,13 @@ header.bar {
 /* ============ 工具条 ============ */
 .toolbar { display: flex; align-items: center; gap: 8px; padding: 9px 12px 6px; flex-wrap: wrap; }
 .toolbar input[type=search] { flex: 1; min-width: 170px; padding: 6px 10px; }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 12px 8px; }
+.groupbar { display: flex; align-items: flex-start; gap: 8px; padding: 0 12px 8px; }
+.groupbar > button { flex: none; font-size: 12px; padding: 2px 10px; }
+.chips { display: flex; flex: 1; min-width: 0; gap: 6px; flex-wrap: wrap; max-height: 100px; overflow-y: auto; }
 .chip {
   border: 1px solid var(--line); background: var(--chip); border-radius: 999px;
   padding: 2px 10px; font-size: 12px; cursor: pointer; user-select: none;
+  max-width: 100%; overflow-wrap: anywhere; white-space: normal;
 }
 .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .msg {
@@ -181,6 +184,7 @@ footer { padding: 6px 12px 8px; border-top: 1px solid var(--line); }
 .modal {
   background: var(--bg); border: 1px solid var(--line); border-radius: 11px; padding: 16px 18px;
   width: min(460px, 92vw); box-shadow: 0 12px 40px rgba(0, 0, 0, .35);
+  max-height: 90vh; overflow-y: auto;
 }
 .modal h3 { margin: 0 0 12px; font-size: 15px; }
 .modal label { display: block; margin-bottom: 10px; font-size: 12.5px; color: var(--fg); }
@@ -188,6 +192,23 @@ footer { padding: 6px 12px 8px; border-top: 1px solid var(--line); }
 .modal code { background: var(--chip); padding: 0 4px; border-radius: 4px; font-size: 11.5px; }
 .modal .hint { font-size: 11.5px; color: var(--muted); margin: 6px 0 12px; }
 .modal-acts { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ============ 自定义分组 ============ */
+.repo-groups { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 5px; }
+.group-tag { color: var(--accent); max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+.group-set { font-size: 11.5px; padding: 1px 7px; color: var(--muted); }
+.group-create { display: flex; gap: 8px; margin-bottom: 10px; }
+.group-create input { flex: 1; min-width: 0; }
+.groups-list { max-height: 36vh; overflow-y: auto; margin-bottom: 12px; }
+.group-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; }
+.group-row input { flex: 1; min-width: 0; }
+.group-choice { display: flex !important; align-items: center; gap: 8px; padding: 7px; border-radius: 6px; overflow-wrap: anywhere; }
+.group-choice:hover { background: var(--chip); }
+.group-choice input { width: auto !important; margin: 0 !important; flex: none; accent-color: var(--accent); }
+.group-error { color: #cf222e; font-size: 12px; margin-bottom: 8px; overflow-wrap: anywhere; }
+body.dark .group-error { color: #ff9b9f; }
+#groups-hint { overflow-wrap: anywhere; }
+#confirm-modal { z-index: 30; }
 
 /* ============ 确认弹窗 & 危险按钮 ============ */
 button.btn-danger {

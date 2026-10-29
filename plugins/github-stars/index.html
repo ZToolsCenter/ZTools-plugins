@@ -27,11 +27,12 @@
   </header>
 
   <div class="toolbar">
-    <input id="q" type="search" placeholder="模糊搜索：仓库名 / 备注 / 简介 / 语言 / 标签（按 / 聚焦，Esc 清空）" autocomplete="off" spellcheck="false">
+    <input id="q" type="search" placeholder="模糊搜索：仓库名 / 备注 / 简介 / 标签（按 / 聚焦，Esc 清空）" autocomplete="off" spellcheck="false">
     <select id="sort" title="排序方式">
+      <option value="starred-desc" selected>Star 时间 从新到旧</option>
+      <option value="starred-asc">Star 时间 从旧到新</option>
       <option value="star-desc">⭐ Star 从多到少</option>
       <option value="star-asc">⭐ Star 从少到多</option>
-      <option value="lang">按语言分组</option>
       <option value="note">按备注时间</option>
       <option value="name">按名称 A→Z</option>
       <option value="pushed">最近更新</option>
@@ -40,7 +41,10 @@
     <span id="count" class="muted"></span>
   </div>
 
-  <div id="chips" class="chips"></div>
+  <div class="groupbar">
+    <div id="chips" class="chips" aria-label="自定义分组筛选"></div>
+    <button id="groups-manage">管理分组</button>
+  </div>
   <div id="msg" class="msg hidden"></div>
   <main id="list"></main>
   <footer id="foot" class="muted"></footer>
@@ -61,6 +65,23 @@
       <div class="modal-acts">
         <button id="modal-cancel">取消</button>
         <button id="modal-ok" class="primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="groups-modal" class="mask hidden" role="dialog" aria-modal="true" aria-labelledby="groups-title">
+    <div class="modal">
+      <h3 id="groups-title">管理分组</h3>
+      <p id="groups-hint" class="hint">分组仅保存在本机，当前账号独立使用。</p>
+      <form id="group-create" class="group-create">
+        <input id="group-name" type="text" maxlength="40" placeholder="输入新分组名称" aria-label="新分组名称" autocomplete="off">
+        <button type="submit" class="primary">新建分组</button>
+      </form>
+      <div id="groups-error" class="group-error hidden" role="alert"></div>
+      <div id="groups-list" class="groups-list"></div>
+      <div class="modal-acts">
+        <button id="groups-cancel">关闭</button>
+        <button id="groups-save" class="primary hidden">保存分组</button>
       </div>
     </div>
   </div>
