@@ -1,0 +1,59 @@
+{
+  "name": "project-cost",
+  "title": "项目费用管理",
+  "author": "Samson",
+  "description": "多项目费用台账：明细自动汇总金额链、付款跟踪与逾期提醒、品类预算预警、支付对象欠款排行，支持 Excel/CSV/JSON 导出。",
+  "version": "1.9.1",
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "project",
+      "explain": "项目费用管理（多项目 / 明细 / 付款 / 预算预警）",
+      "cmds": [
+        "项目费用",
+        "项目管理",
+        "费用管理",
+        "费用台账",
+        "项目记账",
+        "装修费用",
+        "装修",
+        "renovation",
+        "project",
+        "xm"
+      ]
+    },
+    {
+      "code": "project-add",
+      "explain": "记一笔项目支出",
+      "cmds": [
+        "记项目支出",
+        "项目支出",
+        "新增支出",
+        "记账",
+        "记装修支出",
+        "装修支出"
+      ]
+    },
+    {
+      "code": "project-pay",
+      "explain": "项目付款跟踪与逾期提醒",
+      "cmds": [
+        "项目付款",
+        "付款跟踪",
+        "待付",
+        "付款",
+        "装修付款"
+      ]
+    }
+  ],
+  "pluginSetting": {
+    "single": true
+  }
+}

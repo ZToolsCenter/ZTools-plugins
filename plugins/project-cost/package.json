@@ -1,0 +1,19 @@
+{
+  "name": "ztools-project-cost",
+  "version": "1.9.1",
+  "private": true,
+  "type": "module",
+  "description": "ZTools 项目费用管理插件：多项目台账、明细驱动金额链、付款跟踪与预算预警",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "package": "node build.cjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.44"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "vite": "^5.4.21"
+  }
+}

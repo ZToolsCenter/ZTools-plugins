@@ -1,0 +1,142 @@
+%% v1.2 新增 / 变更模块的接口与关系（只列本批涉及的）
+%% 对应 docs/增量设计-v1.2.md 第 1、2 节
+
+classDiagram
+    direction LR
+
+    class Core {
+        <<module core.js>>
+        +round2(n) number
+        +detailSum(p) number
+        +projectTotal(p) number
+        +syncTotalFromDetails(p) void
+        +payableOf(p) number
+        +paidOf(p) number
+        +dueOf(p) number
+        +calc(book) CalcResult
+        +catRows(book) CatRow[]
+        +payeeRows(book) PayeeRow[]
+        +sumBudget(book) number ★新
+        +syncTotalBudget(book) number ★新
+        +catBudgetHint(book, catName, amount, excludeId) BudgetHint ★新
+        +checkup(book) CheckupResult ★新
+        +todayLocal() string
+        +normDate(s) string
+        +uid() string
+    }
+
+    class BudgetHint {
+        +state string  'ok|near|over|no-budget|no-cat'
+        +budget number
+        +used number      应付口径 ΣpayableOf
+        +remain number    budget - used
+        +after number     used + 本笔应付
+        +over number      max(after - budget, 0)
+    }
+
+    class CheckupResult {
+        +issues Issue[]
+        +fixable number
+        +warnable number
+        +stat object
+    }
+
+    class Issue {
+        +code string
+        +level string  'fix|warn'
+        +title string
+        +count number
+        +unit string
+        +amount number
+        +samples Sample[]
+        +fix string|null
+        +fixLabel string
+    }
+
+    class Snapshot {
+        <<module snapshot.js 新建>>
+        +SNAP_KEY string
+        +loadSnaps() SnapStore
+        +listSnaps() SnapMeta[]
+        +saveSnapshot(kind, reason, state) Result
+        +maybeDailySnapshot(state) boolean
+        +readSnapshot(id) Snap|null
+        +pruneTo(items) Snap[]
+        +snapStatOf(books, activeBookId) object
+        +fmtSnapTime(ts) string
+    }
+
+    class SnapItem {
+        +id string
+        +ts number
+        +day string        'YYYY-MM-DD'
+        +kind string       'daily|pre'
+        +reason string
+        +bytes number
+        +imgDropped number
+        +stat object       {items,details,pays,payable,paid,due}
+        +data object       {books,activeBookId,templates,warnThreshold}
+    }
+
+    class Filters {
+        <<module filters.js 新建>>
+        +filterProjects(projects, f) Project[]
+        +hasFilter(f) boolean
+        +filterTag(f) string
+        +FILTER_TEXT object
+    }
+
+    class Store {
+        <<module store.js 变更>>
+        +state object
+        +book Computed
+        +stats Computed
+        +boot() BootState ★改包装
+        +normalizeBook(b) Book ★补 note/ref
+        +upsertPayment(projectId, rec, index) Result ★加字段+必填
+        +finishPayment...
+        +snapshotNow(kind, reason) Result ★新
+        +snapshotList() SnapMeta[] ★新
+        +restoreSnapshot(id) Result ★新
+        +clearUndo() void ★新
+        +fixCheckup(codes) FixResult ★新
+        +importState(data) Result ★加快照+撤销
+        +resetActiveBook(toSeed) Result ★加快照
+        +setBudget(name, value) void ★加 syncTotalBudget
+        +upsertCategory(prev, o) Result ★加 syncTotalBudget
+        +pushUndo() void
+        -persistNow() boolean   ※ 一行不改
+    }
+
+    class Export {
+        <<module export.js 变更>>
+        +HEADS object ★pay 加 2 列
+        +projRows(...)
+        +detailRows(book)
+        +payRows(book) ★加 note/ref
+        +exportXlsx(book, today, helpers, projects, tag) ★签名
+        +exportCsv(book, today, helpers, projects, tag) ★签名
+        +exportAllCsv(book, today, helpers, projects, tag) ★签名
+        -scopeOf(book, projects) Book ★新，三表一致的关键
+    }
+
+    class Ui {
+        <<module ui.js 变更>>
+        +ui.filterDateFrom string ★新
+        +ui.filterDateTo string ★新
+        +ui.query string
+        +ui.filterStatus string
+        +ui.filterCat string
+        +clearListFilters() void ★新
+        +toast(msg, opts) number
+    }
+
+    Core --> BudgetHint : 生产
+    Core --> CheckupResult : 生产
+    CheckupResult o-- Issue
+    Snapshot --> SnapItem
+    Snapshot ..> Core : calc / round2 / todayLocal
+    Store ..> Snapshot : saveSnapshot / readSnapshot
+    Store ..> Core : checkup / syncTotalBudget / calc
+    Filters ..> Core : statusOf
+    Export ..> Core : fmt
