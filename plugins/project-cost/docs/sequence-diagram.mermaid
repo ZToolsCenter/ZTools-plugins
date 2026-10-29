@@ -1,0 +1,70 @@
+%% v1.2 关键调用序列（快照写入 / 回滚 / 体检修复 / 筛选导出）
+%% 对应 docs/增量设计-v1.2.md 第 1.1、1.2、1.7 节
+
+sequenceDiagram
+    autonumber
+    participant App as App.vue
+    participant Store as store.js
+    participant Snap as snapshot.js
+    participant LS as localStorage
+    participant View as SettingsView / ItemsView / ItemSheet
+
+    Note over App,LS: ① 启动：当日日快照（失败静默）
+    App->>Store: boot()
+    Store->>Store: bootInner()（原有装载/搬迁逻辑不变）
+    Store->>Snap: maybeDailySnapshot(payload)
+    Snap->>Snap: loadSnaps() → 已有今日 daily？→ 跳过
+    Snap->>Snap: clone + 剥离 p.img → JSON.stringify → bytes
+    Snap->>Snap: pruneTo([...items, new])（7 daily / 3 pre / 1.5MB）
+    Snap-->>Store: {ok:true} | {ok:false,msg}（永不 throw）
+    Store-->>App: bootState
+
+    Note over Store,LS: ② 破坏性操作前：强制 pre 快照 + 5 秒撤销
+    View->>Store: importState(data)
+    Store->>Store: pushUndo()（内存，5.2s）
+    Store->>Snap: snapshotNow('pre','import')
+    Snap->>LS: setItem('ztools_project_cost_snap_v1')
+    alt 写入失败（配额）
+        Snap-->>Store: {ok:false,msg}
+        Store->>Store: 仅记 snapWarn，主流程继续
+    end
+    Store->>Store: state.books = data.books.map(normalizeBook)
+    Store->>Store: books.forEach(syncTotalBudget)
+    Store->>LS: persistNow()
+    Store-->>View: {ok:true, msg, snapWarn}
+
+    Note over View,LS: ③ 一键回滚（回滚前先给"当前"存档）
+    View->>View: window.confirm
+    View->>Store: restoreSnapshot(id)
+    Store->>Snap: readSnapshot(id)（深读，data 与 importState 入参同构）
+    Snap-->>Store: snap | null
+    Store->>Snap: snapshotNow('pre','before-rollback')
+    Store->>Store: state.books/templates/warnThreshold/activeBookId ← snap.data
+    Store->>Store: clearUndo()（旧 5 秒撤销失效）
+    Store->>LS: persistNow()
+    Store-->>View: {ok:true, msg, stat}
+    View->>View: closeDrawer(); ui.selId=''
+
+    Note over View,LS: ④ 数据体检与一键修复（金额不变）
+    View->>View: checkup(book)（core 纯函数，只读）
+    View->>View: 渲染 issues（code / count / amount / samples / fix）
+    View->>Store: fixCheckup(codes)
+    Store->>Store: targets = issues.filter(i => i.fix)
+    alt targets.length === 0
+        Store-->>View: {ok:true, msg:'没有可自动修复的问题'}（不写快照）
+    else 有可修项
+        Store->>Snap: snapshotNow('pre','checkup-fix')
+        Store->>Store: 全量遍历 projects / budget 执行 fix（不用 samples）
+        Store->>Store: syncTotalBudget(book)
+        Store->>LS: persistNow()
+        Store-->>View: {ok:true, deltas:{payable:0, totalBudget:0}}
+    end
+
+    Note over View,Store: ⑤ 按筛选导出（三表作用域一致）
+    View->>View: f = {query,cat,status,from,to}
+    View->>View: filterProjects(book.projects, f) → rows
+    View->>View: list = rows.map(x=>x.p)；空则 toast 并返回
+    View->>View: exportXlsx(book, today, helpers, list, filterTag(f))
+    View->>View: b = scopeOf(book, list)  ← 作用域对象
+    View->>View: projRows(b) / detailRows(b) / payRows(b)（同一 b）
+    View->>View: download(`项目费用_${book.name}_${today}_${tag}.xlsx`)
