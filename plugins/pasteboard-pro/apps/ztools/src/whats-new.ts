@@ -1,5 +1,5 @@
-export const CURRENT_APP_VERSION = "1.3.0";
-export const WHATS_NEW_STORAGE_KEY = "pasteboard_pro_whats_new_release_1_3_0";
+export const CURRENT_APP_VERSION = "1.4.0";
+export const WHATS_NEW_STORAGE_KEY = `pasteboard_pro_whats_new_release_${CURRENT_APP_VERSION.replaceAll(".", "_")}`;
 
 export function shouldShowWhatsNew(
   storage: Pick<Storage, "getItem"> = localStorage,

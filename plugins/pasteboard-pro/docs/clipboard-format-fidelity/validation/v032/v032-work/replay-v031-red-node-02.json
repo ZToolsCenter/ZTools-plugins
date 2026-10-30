@@ -1,0 +1,318 @@
+{
+  "execution": "FAIL",
+  "runtime": {
+    "node": "24.15.0",
+    "electron": null
+  },
+  "scope": "assembled preload CJS graph with synthetic SDK and owned data; no installed host, real clipboard, or cross-call pagination-stability claim",
+  "packageRole": "frozen-v031-graph",
+  "scriptSha256": "fd1cd21f2783d07d4d68fb0aeb231cedfb712a9e159ceffd21b18d01cc06c9a6",
+  "fixtureSha256": "91c4c84826d31bec73c6799b51a88f5455cbdeed2ab5f6d3cc006b23bcaad11f",
+  "preloadSha256": "e8dc8086fd64135666bbc73947969f2a7eef3566619d167e63bf55ca25daa217",
+  "phases": {
+    "initial": {
+      "mirrorErrorObserved": true,
+      "historyCallbacks": 1,
+      "oldTextRecords": 1,
+      "imageRecords": 0,
+      "mainCursorExists": false,
+      "imageReadFailures": 1,
+      "imageReadAttempts": 1,
+      "clipboardReads": 0
+    },
+    "clearOutcome": {
+      "status": "resolved",
+      "deleted": 1,
+      "failed": 0,
+      "blobFailures": 0
+    },
+    "afterClear": {
+      "records": 0,
+      "boundaryDocuments": 0,
+      "boundaryThroughOldText": null,
+      "clipboardClears": 1,
+      "clipboardReads": 0
+    },
+    "oldOnlyOutcome": {
+      "status": "rejected"
+    },
+    "recoveredOldOnlyOutcome": {
+      "status": "resolved"
+    },
+    "afterClearMirrorOutcome": {
+      "status": "resolved"
+    },
+    "afterClearReplay": {
+      "mirrorOutcome": "resolved",
+      "historyNotifications": 3,
+      "appendedIds": 2,
+      "oldHistoryReimports": 2,
+      "oldTextReimports": 1,
+      "newCopyRecords": 0,
+      "rollbackCopyRecords": 0,
+      "totalRecords": 2,
+      "cursorId": "fixture-clear-old-text",
+      "boundaryStillCoversOldTail": false,
+      "imageReadFailures": 2,
+      "imageReadAttempts": 3,
+      "clipboardReads": 0,
+      "clipboardClears": 1,
+      "deniedOperations": 0,
+      "diagnosticsSafe": true
+    }
+  },
+  "checks": [
+    {
+      "phase": "initial",
+      "name": "image-failure-observed",
+      "actual": true,
+      "expected": true,
+      "passed": true
+    },
+    {
+      "phase": "initial",
+      "name": "one-host-history-callback-installed",
+      "actual": 1,
+      "expected": 1,
+      "passed": true
+    },
+    {
+      "phase": "initial",
+      "name": "healthy-pre-clear-text-was-saved",
+      "actual": 1,
+      "expected": 1,
+      "passed": true
+    },
+    {
+      "phase": "initial",
+      "name": "failed-image-was-not-saved",
+      "actual": 0,
+      "expected": 0,
+      "passed": true
+    },
+    {
+      "phase": "initial",
+      "name": "main-cursor-held-after-image-failure",
+      "actual": false,
+      "expected": false,
+      "passed": true
+    },
+    {
+      "phase": "initial",
+      "name": "one-synthetic-image-read-failed",
+      "actual": 1,
+      "expected": 1,
+      "passed": true
+    },
+    {
+      "phase": "initial",
+      "name": "system-clipboard-never-read",
+      "actual": 0,
+      "expected": 0,
+      "passed": true
+    },
+    {
+      "phase": "clear",
+      "name": "clear-bridge-resolved",
+      "actual": "resolved",
+      "expected": "resolved",
+      "passed": true
+    },
+    {
+      "phase": "clear",
+      "name": "one-old-record-deleted",
+      "actual": 1,
+      "expected": 1,
+      "passed": true
+    },
+    {
+      "phase": "clear",
+      "name": "no-delete-failures",
+      "actual": 0,
+      "expected": 0,
+      "passed": true
+    },
+    {
+      "phase": "clear",
+      "name": "all-plugin-records-cleared",
+      "actual": 0,
+      "expected": 0,
+      "passed": true
+    },
+    {
+      "phase": "clear",
+      "name": "one-persistent-history-boundary-written",
+      "actual": 0,
+      "expected": 1,
+      "passed": false
+    },
+    {
+      "phase": "clear",
+      "name": "boundary-covers-pre-clear-tail",
+      "actual": null,
+      "expected": "fixture-clear-old-text",
+      "passed": false
+    },
+    {
+      "phase": "clear",
+      "name": "system-clipboard-cleared-once",
+      "actual": 1,
+      "expected": 1,
+      "passed": true
+    },
+    {
+      "phase": "clear",
+      "name": "system-clipboard-never-read",
+      "actual": 0,
+      "expected": 0,
+      "passed": true
+    },
+    {
+      "phase": "old-only",
+      "name": "cleared-history-remains-empty",
+      "actual": 1,
+      "expected": 0,
+      "passed": false
+    },
+    {
+      "phase": "old-only",
+      "name": "cleared-rows-do-not-advance-main-cursor",
+      "actual": false,
+      "expected": false,
+      "passed": true
+    },
+    {
+      "phase": "recovered-old-only",
+      "name": "recovered-image-is-still-excluded",
+      "actual": 2,
+      "expected": 0,
+      "passed": false
+    },
+    {
+      "phase": "recovered-old-only",
+      "name": "cleared-rows-still-do-not-advance-main-cursor",
+      "actual": true,
+      "expected": false,
+      "passed": false
+    },
+    {
+      "phase": "clear",
+      "name": "exact-cleared-identities-persisted",
+      "expected": 2,
+      "passed": false
+    },
+    {
+      "phase": "replay",
+      "name": "three-history-changes-notified",
+      "actual": 3,
+      "expected": 3,
+      "passed": true
+    },
+    {
+      "phase": "replay",
+      "name": "after-clear-mirror-resolved",
+      "actual": "resolved",
+      "expected": "resolved",
+      "passed": true
+    },
+    {
+      "phase": "replay",
+      "name": "two-after-clear-items-appended",
+      "actual": 2,
+      "expected": 2,
+      "passed": true
+    },
+    {
+      "phase": "replay",
+      "name": "no-pre-clear-item-reimported",
+      "actual": 2,
+      "expected": 0,
+      "passed": false
+    },
+    {
+      "phase": "replay",
+      "name": "healthy-pre-clear-text-not-reimported",
+      "actual": 1,
+      "expected": 0,
+      "passed": false
+    },
+    {
+      "phase": "replay",
+      "name": "after-clear-copy-was-saved",
+      "actual": 0,
+      "expected": 1,
+      "passed": false
+    },
+    {
+      "phase": "replay",
+      "name": "unseen-rollback-copy-was-saved",
+      "actual": 0,
+      "expected": 1,
+      "passed": false
+    },
+    {
+      "phase": "replay",
+      "name": "main-cursor-advanced-to-new-copy",
+      "actual": "fixture-clear-old-text",
+      "expected": "fixture-clear-after-text",
+      "passed": false
+    },
+    {
+      "phase": "replay",
+      "name": "only-after-clear-copies-remain",
+      "actual": 2,
+      "expected": 2,
+      "passed": true
+    },
+    {
+      "phase": "replay",
+      "name": "clear-boundary-remains-through-old-tail",
+      "actual": false,
+      "expected": true,
+      "passed": false
+    },
+    {
+      "phase": "replay",
+      "name": "old-image-was-not-read-again",
+      "actual": 3,
+      "expected": 1,
+      "passed": false
+    },
+    {
+      "phase": "replay",
+      "name": "system-clipboard-never-read",
+      "actual": 0,
+      "expected": 0,
+      "passed": true
+    },
+    {
+      "phase": "replay",
+      "name": "system-clipboard-cleared-once",
+      "actual": 1,
+      "expected": 1,
+      "passed": true
+    },
+    {
+      "phase": "replay",
+      "name": "filesystem-or-network-denials",
+      "actual": 0,
+      "expected": 0,
+      "passed": true
+    },
+    {
+      "phase": "replay",
+      "name": "diagnostics-omit-private-errors-and-temp-path",
+      "actual": true,
+      "expected": true,
+      "passed": true
+    }
+  ],
+  "loadedModuleHashes": {
+    "preload.js": "e8dc8086fd64135666bbc73947969f2a7eef3566619d167e63bf55ca25daa217",
+    "chunks/history-search-index-CXhy0P51.cjs": "59ed105f20ee39fe8b47f2e9aca084740c2026eede82bf82afd33a7585cfaddf",
+    "chunks/clipboard-tombstone-v2-D5n9v-1z.cjs": "5e48088fe2a284144bc0645cb6da4525b5eb51b0ef642ba4db98dba937ff3b0c",
+    "chunks/index-B159MLaM.cjs": "4136ec83ce50265a20186716784e66e19c99d5ff2d02eac4fe39fe6d7798637d"
+  },
+  "fixtureClosed": true,
+  "temporaryRemoved": true
+}

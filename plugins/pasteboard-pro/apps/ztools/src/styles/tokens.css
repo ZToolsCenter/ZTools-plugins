@@ -29,3 +29,26 @@
     --pb-window-bg: #24212d;
   }
 }
+
+
+:root[data-pb-ui-version="modern"] {
+  --pb-ink: #272c33;
+  --pb-muted: #68727d;
+  --pb-glass: rgb(241 244 248 / 94%);
+  --pb-glass-strong: #fff;
+  --pb-line: rgb(61 72 87 / 14%);
+  --pb-shadow: rgb(12 17 24 / 20%);
+  --pb-window-bg: #f5f6f8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-pb-ui-version="modern"] {
+    --pb-ink: #e9edf2;
+    --pb-muted: #a0a8b2;
+    --pb-glass: rgb(36 40 46 / 94%);
+    --pb-glass-strong: #2f343b;
+    --pb-line: rgb(210 220 232 / 14%);
+    --pb-shadow: rgb(0 0 0 / 42%);
+    --pb-window-bg: #24282e;
+  }
+}

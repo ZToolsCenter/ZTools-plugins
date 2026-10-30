@@ -1,15 +1,22 @@
+import type { HistoryClearReply } from "./history-clear-rpc";
 import type { HistoryReply } from "./history-rpc";
-import {
-  clampShelfBounds,
-  type DockEdge,
-  type Rect,
-} from "@pasteboard-pro/design-tokens";
+import { type DockEdge, type Rect } from "@pasteboard-pro/design-tokens";
 import type { PasteStackState } from "@pasteboard-pro/core";
 import { waitForWindowReadyScript } from "../window-ready";
+import {
+  buildPanelWindowOptions,
+  buildShelfWindowOptions,
+} from "./window-presentation";
+import { applyWindowTopLevel, moveWindowToTop } from "./window-layer";
+import type { ShelfUiVersion } from "./window-preferences";
+
+export { buildPanelWindowOptions, buildShelfWindowOptions } from "./window-presentation";
+export type { ShelfUiVersion } from "./window-preferences";
 
 export type ShelfDisplay = Readonly<{
   id: string | number;
   workArea: Rect;
+  bounds?: Rect;
 }>;
 
 export type SavedShelfPlacement = Readonly<{
@@ -55,6 +62,8 @@ export interface BrowserWindowHandle {
   getBounds?(): Rect;
   setOpacity?(opacity: number): void;
   setContentProtection(enabled: boolean): void;
+  setAlwaysOnTop?(flag: boolean, level?: "screen-saver"): void;
+  moveTop?(): void;
 }
 
 export interface ShelfWindowHost {
@@ -69,6 +78,7 @@ export interface ShelfWindowHost {
 export type OpenShelfOptions = Readonly<{
   edge: DockEdge;
   contentProtection: boolean;
+  uiVersion?: ShelfUiVersion;
 }>;
 
 export type AuxiliaryPanel = "privacy" | "sync" | "preview" | "editor" | "whatsnew";
@@ -77,19 +87,6 @@ export type PanelRequest = Readonly<{
   panel: AuxiliaryPanel;
   params?: Readonly<Record<string, string>>;
 }>;
-
-const BOTTOM_SHELF_HEIGHT = 280;
-const SIDE_SHELF_WIDTH = 380;
-const FLOATING_MARGIN = 24;
-const FLOATING_SHELF_WIDTH = 1_120;
-const PANEL_BACKGROUND = "#F7F7FB";
-const PANEL_SIZES: Readonly<Record<AuxiliaryPanel, Readonly<{ width: number; height: number }>>> = {
-  privacy: { width: 700, height: 660 },
-  sync: { width: 700, height: 660 },
-  preview: { width: 820, height: 680 },
-  editor: { width: 660, height: 520 },
-  whatsnew: { width: 560, height: 660 },
-};
 
 const requestedWindowBounds = new WeakMap<BrowserWindowHandle, BrowserWindowOptions>();
 
@@ -129,9 +126,11 @@ function scheduleBoundsCorrection(
 // native frame after show/focus before exposing any pixels. Older hosts without
 // opacity support still receive the immediate post-show correction.
 function revealWindow(handle: BrowserWindowHandle): void {
+  applyWindowTopLevel(handle);
   handle.setOpacity?.(0);
   handle.show();
   handle.focus();
+  moveWindowToTop(handle);
   const bounds = requestedWindowBounds.get(handle);
   if (bounds !== undefined) setWindowBounds(handle, bounds);
   handle.setOpacity?.(1);
@@ -166,108 +165,8 @@ function createReadyWindow(
       }
     });
   });
+  applyWindowTopLevel(handle);
   return handle;
-}
-
-function preferredBounds(display: ShelfDisplay, edge: DockEdge): Rect {
-  const { workArea } = display;
-
-  if (edge === "left" || edge === "right") {
-    const width = Math.min(SIDE_SHELF_WIDTH, workArea.width);
-    return {
-      x: edge === "left" ? workArea.x : workArea.x + workArea.width - width,
-      y: workArea.y,
-      width,
-      height: workArea.height,
-    };
-  }
-
-  if (edge === "top" || edge === "bottom") {
-    const height = Math.min(BOTTOM_SHELF_HEIGHT, workArea.height);
-    return {
-      x: workArea.x,
-      y: edge === "top" ? workArea.y : workArea.y + workArea.height - height,
-      width: workArea.width,
-      height,
-    };
-  }
-
-  const width = Math.min(FLOATING_SHELF_WIDTH, workArea.width);
-  const height = Math.min(BOTTOM_SHELF_HEIGHT, workArea.height);
-  return {
-    x: workArea.x + (workArea.width - width) / 2,
-    y: workArea.y + workArea.height - height - FLOATING_MARGIN,
-    width,
-    height,
-  };
-}
-
-export function buildShelfWindowOptions(
-  display: ShelfDisplay,
-  edge: DockEdge,
-  preloadPath = "preload.js",
-): BrowserWindowOptions {
-  const bounds = clampShelfBounds(preferredBounds(display, edge), display);
-
-  return {
-    x: Math.round(bounds.x),
-    y: Math.round(bounds.y),
-    width: Math.round(bounds.width),
-    height: Math.round(bounds.height),
-    useContentSize: true,
-    transparent: true,
-    backgroundColor: "#00000000",
-    frame: false,
-    hasShadow: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    resizable: edge === "floating",
-    show: false,
-    webPreferences: {
-      preload: preloadPath,
-      nodeIntegration: false,
-      contextIsolation: false,
-      backgroundThrottling: false,
-    },
-  };
-}
-
-export function buildPanelWindowOptions(
-  display: ShelfDisplay,
-  panel: AuxiliaryPanel,
-  preloadPath = "preload.js",
-): BrowserWindowOptions {
-  const size = PANEL_SIZES[panel];
-  const width = Math.min(size.width, display.workArea.width);
-  const height = Math.min(size.height, display.workArea.height);
-
-  return {
-    x: Math.round(display.workArea.x + (display.workArea.width - width) / 2),
-    y: Math.round(display.workArea.y + (display.workArea.height - height) / 2),
-    width: Math.round(width),
-    height: Math.round(height),
-    useContentSize: true,
-    transparent: false,
-    backgroundColor: PANEL_BACKGROUND,
-    frame: false,
-    hasShadow: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    resizable: true,
-    show: false,
-    webPreferences: {
-      preload: preloadPath,
-      nodeIntegration: false,
-      contextIsolation: false,
-      backgroundThrottling: false,
-    },
-  };
 }
 
 function sameDisplayId(left: string | number, right: string | number): boolean {
@@ -333,6 +232,7 @@ export class ShelfWindowManager {
       display,
       options.edge,
       this.preloadPath,
+      options.uiVersion ?? "classic",
     );
     if (
       this.current !== undefined &&
@@ -381,6 +281,14 @@ export class ShelfWindowManager {
     if (this.current !== undefined && !this.current.isDestroyed()) {
       this.current.setContentProtection(enabled);
     }
+  }
+
+  notifyClearHistoryResult(result: HistoryClearReply): void {
+    if (this.current === undefined || this.current.isDestroyed()) return;
+    const detail = JSON.stringify(result).replaceAll("<", "\\u003c");
+    void this.current.webContents.executeJavaScript(
+      `window.dispatchEvent(new CustomEvent('pasteboard-pro:clear-history-result', { detail: ${detail} }))`,
+    ).catch(() => undefined);
   }
 
   notifyHistoryResult(result: HistoryReply): void {
@@ -469,5 +377,12 @@ export class PanelWindowManager {
     scheduleBoundsCorrection(handle, windowOptions);
 
     return handle;
+  }
+  notifyClearHistoryResult(result: HistoryClearReply): void {
+    if (this.current === undefined || this.current.handle.isDestroyed()) return;
+    const detail = JSON.stringify(result).replaceAll("<", "\\u003c");
+    void this.current.handle.webContents.executeJavaScript(
+      `window.dispatchEvent(new CustomEvent('pasteboard-pro:clear-history-result', { detail: ${detail} }))`,
+    ).catch(() => undefined);
   }
 }

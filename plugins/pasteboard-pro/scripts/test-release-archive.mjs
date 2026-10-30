@@ -24,6 +24,9 @@ async function makePackage(directory, preload = "module.exports = {};\n") {
   await writeFile(path.join(directory, "package.json"), '{"type":"commonjs"}\n');
   await writeFile(path.join(directory, "index.html"), "<!doctype html><div id=app></div>\n");
   await writeFile(path.join(directory, "preload.js"), preload);
+  await writeFile(path.join(directory, "history-worker.cjs"), "module.exports = {};\n");
+  await writeFile(path.join(directory, "content-scan-worker.cjs"), "module.exports = {};\n");
+  await writeFile(path.join(directory, "HTML_PARSER_NOTICES.txt"), "Synthetic parser notice fixture\n");
   await writeFile(path.join(directory, "logo.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n");
   await writeFile(path.join(directory, "assets", "index.js"), "console.log('fixture');\n");
   await writeFile(path.join(directory, "pasteboard-vision"), "fixture helper\n");

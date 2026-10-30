@@ -66,30 +66,81 @@ function accessibleAccent(accentColor: string, backgroundColor: string): string 
   return target;
 }
 
+function accessibleForeground(backgroundColor: string): string {
+  return contrastRatio("#000000", backgroundColor) >=
+    contrastRatio("#ffffff", backgroundColor)
+    ? "#000000"
+    : "#ffffff";
+}
+
+function rgba(color: string, opacity: number): string {
+  const { red, green, blue } = parseHex(color);
+  return `rgb(${red} ${green} ${blue} / ${opacity})`;
+}
+
 export function themeCssVariables(
   theme: ThemePreferences,
   darkMode: boolean,
+  surfaceBase?: string,
+  surfacePreferences: Pick<ThemePreferences, "cardBackground" | "backgroundBaseColor"> = theme,
 ): Record<string, string> {
   const windowBackground = darkMode ? DARK_BACKGROUND : LIGHT_BACKGROUND;
-  const accentColor = accessibleAccent(theme.accentColor, windowBackground);
-  const onAccent =
-    contrastRatio("#000000", accentColor) >= contrastRatio("#ffffff", accentColor)
-      ? "#000000"
-      : "#ffffff";
+  const accentSurface = surfaceBase ?? windowBackground;
+  const accentColor = accessibleAccent(theme.accentColor, accentSurface);
+  const onAccent = accessibleForeground(accentColor);
+  const accentSoft = mixColor(accentColor, accentSurface, darkMode ? 0.58 : 0.78);
+  const backgroundBaseColor =
+    theme.background.type === "color"
+      ? theme.background.color
+      : theme.background.type === "image"
+        ? windowBackground
+        : surfacePreferences.backgroundBaseColor ?? windowBackground;
   const backgroundColor =
     theme.background.type === "color"
       ? theme.background.color
-      : windowBackground;
+      : backgroundBaseColor;
   const backgroundImage =
     theme.background.type === "image"
       ? `linear-gradient(${darkMode ? "rgb(18 16 24 / 24%)" : "rgb(255 255 255 / 12%)"}, ${darkMode ? "rgb(18 16 24 / 24%)" : "rgb(255 255 255 / 12%)"}), url("${theme.background.imageDataUrl}")`
       : "none";
+  const cardBackground = surfacePreferences.cardBackground;
+  const cardSurface = cardBackground === undefined
+    ? undefined
+    : mixColor(cardBackground.color, backgroundBaseColor, 1 - cardBackground.opacity);
+  const cardInk = cardSurface === undefined ? "initial" : accessibleForeground(cardSurface);
+  const cardMuted = cardSurface === undefined
+    ? "initial"
+    : contrastRatio(mixColor(cardInk, cardSurface, 0.24), cardSurface) >= 4.5
+      ? mixColor(cardInk, cardSurface, 0.24)
+      : cardInk;
+  const cardAccent = cardSurface === undefined
+    ? "initial"
+    : accessibleAccent(theme.accentColor, cardSurface);
+  const cardAccentOn = cardAccent === "initial"
+    ? "initial"
+    : accessibleForeground(cardAccent);
 
   return {
     "--pb-violet": accentColor,
-    "--pb-violet-soft": mixColor(accentColor, windowBackground, darkMode ? 0.58 : 0.78),
+    "--pb-violet-soft": accentSoft,
     "--pb-on-accent": onAccent,
+    "--pb-theme-accent": accentColor,
+    "--pb-theme-on-accent": onAccent,
+    "--pb-theme-accent-soft": accentSoft,
     "--pb-theme-background-color": backgroundColor,
     "--pb-theme-background-image": backgroundImage,
+    "--pb-theme-card-background": cardBackground === undefined
+      ? "initial"
+      : rgba(cardBackground.color, cardBackground.opacity),
+    "--pb-theme-card-ink": cardInk,
+    "--pb-theme-card-muted": cardMuted,
+    "--pb-theme-card-line": cardSurface === undefined
+      ? "initial"
+      : rgba(cardInk, 0.16),
+    "--pb-theme-card-accent": cardAccent,
+    "--pb-theme-card-accent-soft": cardSurface === undefined
+      ? "initial"
+      : mixColor(cardAccent, cardSurface, 0.88),
+    "--pb-theme-card-on-accent": cardAccentOn,
   };
 }

@@ -6,15 +6,21 @@
     "build": "pnpm --filter @pasteboard-pro/atools build && pnpm --filter @pasteboard-pro/ztools build",
     "publish": "ztools publish",
     "benchmark:search": "node scripts/benchmark-pasteboardpro.mjs",
-    "test": "vitest run",
+    "test": "node scripts/prepare-native-test-fixture.mjs && vitest run",
     "test:release-archive": "node scripts/test-release-archive.mjs",
     "test:visual-artifact": "node scripts/test-visual-artifact.mjs",
     "test:visual": "playwright test --config playwright.config.ts",
+    "test:visual:refined": "playwright test --config playwright.refined.config.ts",
     "test:visual-contract": "node scripts/test-visual-contract.mjs",
     "typecheck": "tsc -b --pretty false",
     "typecheck:visual": "tsc --noEmit -p tsconfig.visual.json --pretty false",
     "verify:visual-artifact": "node scripts/verify-visual-artifact.mjs",
-    "test:contract": "node scripts/test-workspace-contract.mjs"
+    "test:contract": "node scripts/test-workspace-contract.mjs",
+    "test:clipboard-format-g0": "node scripts/clipboard-format-g0.mjs --self-test",
+    "test:clipboard-format-g0-report": "node --test scripts/test-clipboard-format-g0.mjs",
+    "test:clipboard-format-watchdog": "node --test scripts/test-bounded-process.mjs",
+    "test:clipboard-format-native-watchdog": "node --test scripts/test-clipboard-native-watchdog.mjs",
+    "test:clipboard-format-g0-sources": "node --test scripts/test-clipboard-format-g0-sources.mjs"
   },
   "devDependencies": {
     "@pasteboard-pro/contract-fixtures": "workspace:*",

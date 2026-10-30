@@ -30,6 +30,8 @@ async function packageFixture(): Promise<string> {
     writeFile(path.join(root, "index.html"), "<!doctype html>"),
     writeFile(path.join(root, "preload.js"), ""),
     writeFile(path.join(root, "history-worker.cjs"), ""),
+    writeFile(path.join(root, "content-scan-worker.cjs"), ""),
+    writeFile(path.join(root, "HTML_PARSER_NOTICES.txt"), "fixture dependency notices"),
     writeFile(path.join(root, "logo.svg"), "<svg/>", "utf8"),
     writeFile(path.join(root, "package.json"), '{"type":"commonjs"}'),
     writeFile(path.join(root, "pasteboard-vision"), "binary"),

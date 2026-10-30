@@ -4,3 +4,5 @@ dist-types/
 coverage/
 artifacts/
 *.tsbuildinfo
+
+.cache/

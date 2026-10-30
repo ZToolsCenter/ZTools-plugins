@@ -189,6 +189,8 @@ export class PasteboardState {
     });
   }
 
+  clearSelection(): void { this.selection = { selected: [] }; }
+
   replaceResolvedItems(items: readonly unknown[]): void {
     this.resolvedItems = true;
     this.items = items.map(item => PasteItemSchema.parse(item));

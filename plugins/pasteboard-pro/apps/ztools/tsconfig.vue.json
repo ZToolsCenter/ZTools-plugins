@@ -5,6 +5,6 @@
     "declaration": false,
     "noEmit": true
   },
-  "references": [],
+  "references": [{ "path": "../../packages/snapshot-store" }],
   "include": ["preload/**/*.ts", "src/**/*.ts", "src/**/*.vue", "tests/**/*.ts"]
 }
