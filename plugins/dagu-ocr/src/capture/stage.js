@@ -167,14 +167,17 @@ export function createStage({ container, fabric = globalThis.fabric, backgroundC
 
     exportDataUrl(rect) {
       const region = roundRect(rect);
+      // fabric toDataURL 的裁剪选项是视口坐标：图像空间选区需换算到视口，并放大 1/zoom 保持原图分辨率导出。
+      const scale = transform.scale || 1;
+      const topLeft = imageToViewport({ x: region.left, y: region.top }, transform);
       canvas.renderAll();
       return canvas.toDataURL({
         format: 'png',
-        multiplier: 1,
-        left: region.left,
-        top: region.top,
-        width: region.width,
-        height: region.height
+        multiplier: 1 / scale,
+        left: topLeft.x,
+        top: topLeft.y,
+        width: region.width * scale,
+        height: region.height * scale
       });
     },
 
