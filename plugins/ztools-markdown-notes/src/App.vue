@@ -10,9 +10,12 @@ import WorkspaceTree from './components/WorkspaceTree.vue'
 import { extractOutline } from './outline'
 import { isDarkColor, resolveTheme, type ColorTheme } from './themes'
 import { endWorkspaceDrag, getWorkspaceDragPath } from './workspaceDrag'
+import { reorderWorkspaceEntry, replaceWorkspaceOrderPath, sortWorkspaceEntries } from './workspaceOrder'
 import { clearNoteDraft, clearNoteDraftPath, defaultEditorSettings, loadEditorMode, loadEditorSettings, loadGlobalNoteSearchEnabled, loadGlobalWorkspaceSearchEnabled, loadHiddenGlobalNotePaths, loadLastWorkspacePath, loadNoteDraft, loadPinnedNotePaths, loadRegisteredWorkspaces, loadTrashRetentionDays, replaceNoteDraftPath, saveEditorMode, saveEditorSettings, saveGlobalNoteSearchEnabled, saveGlobalWorkspaceSearchEnabled, saveHiddenGlobalNotePaths, saveLastWorkspacePath, saveNoteDraft, savePinnedNotePaths, saveRegisteredWorkspaces, saveTrashRetentionDays, type EditorSettings, type NoteDraft, type RegisteredWorkspace } from './workspaceSession'
 
 const workspace = ref<WorkspaceScan | null>(null)
+const orderedTreeEntries = ref<WorkspaceTreeEntry[]>([])
+const treeOrderError = ref('')
 const previousWorkspace = ref<WorkspaceScan | null>(null)
 const workspaceName = ref('我的笔记')
 const selectedPath = ref('')
@@ -374,6 +377,40 @@ function toggleGlobalWorkspaceSearchEnabled() {
   void syncGlobalNoteFeatures()
 }
 
+function reloadTreeOrder() {
+  const current = workspace.value
+  if (!current) {
+    orderedTreeEntries.value = []
+    return
+  }
+  try {
+    orderedTreeEntries.value = sortWorkspaceEntries(current.workspace.id, current.entries)
+  } catch (error) {
+    orderedTreeEntries.value = current.entries
+    treeOrderError.value = `读取排序失败，已使用默认顺序：${error instanceof Error ? error.message : '未知错误'}`
+  }
+}
+
+function reorderEntry(sourcePath: string, targetPath: string, position: 'before' | 'after') {
+  if (!workspace.value) return
+  try {
+    if (reorderWorkspaceEntry(workspace.value.workspace.id, workspace.value.entries, sourcePath, targetPath, position)) {
+      reloadTreeOrder()
+    }
+  } catch (error) {
+    treeOrderError.value = `保存排序失败：${error instanceof Error ? error.message : '未知错误'}`
+  }
+}
+
+function replaceTreeOrderPath(oldPath: string, newPath: string) {
+  if (!workspace.value) return
+  try {
+    replaceWorkspaceOrderPath(workspace.value.workspace.id, workspace.value.entries, oldPath, newPath)
+  } catch (error) {
+    treeOrderError.value = `文件操作已完成，但更新排序失败：${error instanceof Error ? error.message : '未知错误'}`
+  }
+}
+
 function replacePinnedPath(oldPath: string, newPath: string) {
   const oldPrefix = `${oldPath}/`
   const nextPaths = pinnedNotePaths.value.map((path) => {
@@ -424,6 +461,7 @@ async function moveEntry(sourcePath: string, targetDirectoryPath: string) {
     }
     const root = workspace.value.workspace.path
     const newPath = await window.znotes.moveEntry(root, sourcePath, targetDirectoryPath)
+    replaceTreeOrderPath(sourcePath, newPath)
     replacePinnedPath(sourcePath, newPath)
     replaceHiddenGlobalPath(sourcePath, newPath)
     const movedOpenNotePath = activeNotePath.value === sourcePath
@@ -1197,6 +1235,7 @@ async function submitRename() {
   try {
     const root = workspace.value.workspace.path
     const newPath = await window.znotes.renameEntry(root, oldPath, renameName.value)
+    replaceTreeOrderPath(oldPath, newPath)
     replacePinnedPath(oldPath, newPath)
     replaceHiddenGlobalPath(oldPath, newPath)
     replaceNoteDraftPath(workspace.value.workspace.id, oldPath, newPath)
@@ -1920,6 +1959,10 @@ function scheduleAutoSave() {
 
 watch(editorContent, scheduleAutoSave)
 watch(searchQuery, scheduleSearch)
+watch(workspace, (current, previous) => {
+  if (current?.workspace.id !== previous?.workspace.id) treeOrderError.value = ''
+  reloadTreeOrder()
+})
 watch(workspace, (currentWorkspace) => {
   if (!currentWorkspace) {
     pinnedNotePaths.value = []
@@ -2061,9 +2104,13 @@ watch(activeNotePath, () => {
               <button type="button" class="pinned-note-remove" aria-label="取消置顶" title="取消置顶" @click="togglePinnedNote(note)">×</button>
             </div>
           </section>
+          <div v-if="treeOrderError" class="tree-order-error" role="alert">
+            <span>{{ treeOrderError }}</span>
+            <button type="button" aria-label="关闭排序错误提示" @click="treeOrderError = ''">×</button>
+          </div>
           <WorkspaceTree
             v-if="workspace.entries.length"
-            :entries="workspace.entries"
+            :entries="orderedTreeEntries"
             :active-path="activeNotePath"
             :selected-path="selectedEntry?.relativePath ?? ''"
             :create-parent-path="selectedDirectory"
@@ -2092,6 +2139,7 @@ watch(activeNotePath, () => {
             @cancel-rename="cancelRename"
             @toggle-menu="openEntryMenuPath = $event"
             @request-move="moveEntry"
+            @request-reorder="reorderEntry"
             @show-in-folder="showEntryInFolder"
           />
           <p v-else class="muted">工作区中还没有 Markdown 笔记。</p>
