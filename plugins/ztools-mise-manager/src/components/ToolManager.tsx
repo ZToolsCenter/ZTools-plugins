@@ -1,29 +1,37 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Download, FolderOpen, RefreshCw, Star, Trash2 } from "lucide-react";
 import { toolIcon } from "@/lib/toolIcons";
-import type { InstalledTool, TaskProgress } from "../types";
+import type { GlobalTask, InstalledTool, NodeMigrationInfo } from "../types";
 
 interface Props {
   tools: InstalledTool[];
   selectedTool: string | null;
   onSelectTool: (t: string) => void;
   onChanged: (silent?: boolean) => void;
+  globalTask: GlobalTask | null;
+  onStartInstall: (tool: string, version?: string) => Promise<void>;
+  onNodeMigration: (info: NodeMigrationInfo) => void;
 }
 
-export default function ToolManager({ tools, selectedTool, onSelectTool, onChanged }: Props) {
+export default function ToolManager({
+  tools,
+  selectedTool,
+  onSelectTool,
+  onChanged,
+  globalTask,
+  onStartInstall,
+  onNodeMigration,
+}: Props) {
   const [query, setQuery] = useState("");
   const [remoteVersions, setRemoteVersions] = useState<string[]>([]);
   const [remoteQuery, setRemoteQuery] = useState("");
   const [loadingRemote, setLoadingRemote] = useState(false);
   const [toolInfo, setToolInfo] = useState("");
-  const [task, setTask] = useState<TaskProgress | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const taskRef = useRef<{ tool: string; version: string } | null>(null);
 
   const tool = tools.find((t) => t.name === selectedTool) || null;
 
@@ -57,53 +65,69 @@ export default function ToolManager({ tools, selectedTool, onSelectTool, onChang
     return remoteVersions.filter((v) => v.toLowerCase().includes(q));
   }, [remoteVersions, remoteQuery]);
 
-  const onProgressRef = useRef<(p: number) => void>(() => {});
-  const onLogRef = useRef<(t: string) => void>(() => {});
-  onProgressRef.current = (p) => {
-    setTask((prev) => (prev ? { ...prev, percent: p } : prev));
-  };
-  onLogRef.current = (t) => {
-    setTask((prev) => (prev ? { ...prev, logs: [...prev.logs.slice(-200), t] } : prev));
+  // 检测 Node.js 旧版本全局包与 corepack，若存在则触发迁移弹窗
+  const checkAndTriggerMigration = async (oldVersion: string, newVersion: string) => {
+    if (!oldVersion || !newVersion || oldVersion === newVersion) return;
+    try {
+      const [packages, hasCorepack] = await Promise.all([
+        window.miseManager.getNodeGlobalPackages(oldVersion),
+        window.miseManager.getCorepackStatus(oldVersion),
+      ]);
+      if (packages.length > 0 || hasCorepack) {
+        const npmrcSummary = window.miseManager.readNpmrc();
+        onNodeMigration({
+          oldVersion,
+          newVersion,
+          packages,
+          hasCorepack,
+          npmrcSummary,
+        });
+      }
+    } catch (e) {
+      console.error("Node.js 迁移检测失败:", e);
+    }
   };
 
   const runInstall = async (version: string, projectMode = false) => {
-    if (!tool || task?.running) return;
-    taskRef.current = { tool: tool.name, version };
-    setTask({ tool: tool.name, version, percent: 0, logs: [], running: true });
-    setBusy(`install:${version}`);
-    try {
-      if (projectMode) {
-        const projPath = await window.miseManager.selectFolder();
-        if (!projPath) {
-          setTask(null);
-          return;
-        }
+    if (!tool || globalTask?.running) return;
+    if (projectMode) {
+      const projPath = await window.miseManager.selectFolder();
+      if (!projPath) return;
+      setBusy(`project:${version}`);
+      try {
         await window.miseManager.setProject(tool.name, version, projPath);
         window.miseManager.notify("mise", `已写入 ${projPath} 的 .mise.toml: ${tool.name}@${version}`);
-      } else {
-        await window.miseManager.install(tool.name, version, {
-          onProgress: onProgressRef.current,
-          onLog: onLogRef.current,
-        });
-        window.miseManager.notify("mise", `安装成功: ${tool.name}@${version}`);
+        onChanged();
+      } catch (e) {
+        window.miseManager.notify("设置项目版本失败", String(e).slice(0, 200));
+      } finally {
+        setBusy(null);
       }
-      onChanged();
-      setTimeout(() => setTask(null), 800);
-    } catch (e) {
-      setTask((prev) => (prev ? { ...prev, running: false, error: String(e) } : prev));
-      window.miseManager.notify("mise 安装失败", String(e).slice(0, 200));
-    } finally {
-      setBusy(null);
+    } else {
+      const oldVersion = tool.activeVersion || (tool.versions.length > 0 ? tool.versions[0].version : null);
+      try {
+        await onStartInstall(tool.name, version);
+        onChanged();
+        if (tool.name === "node" && oldVersion && oldVersion !== version) {
+          await checkAndTriggerMigration(oldVersion, version);
+        }
+      } catch (e) {
+        // 错误已由 startInstallTask 处理
+      }
     }
   };
 
   const runSetGlobal = async (version: string) => {
-    if (!tool || busy) return;
+    if (!tool || busy || globalTask?.running) return;
+    const oldVersion = tool.activeVersion;
     setBusy(`global:${version}`);
     try {
       await window.miseManager.setGlobal(tool.name, version);
       window.miseManager.notify("mise", `全局切换: ${tool.name}@${version}`);
       onChanged();
+      if (tool.name === "node" && oldVersion && oldVersion !== version) {
+        await checkAndTriggerMigration(oldVersion, version);
+      }
     } catch (e) {
       window.miseManager.notify("切换失败", String(e).slice(0, 200));
     } finally {
@@ -219,7 +243,11 @@ export default function ToolManager({ tools, selectedTool, onSelectTool, onChang
                 </div>
                 <div className="flex shrink-0 gap-1.5">
                   {!v.active && (
-                    <Button size="sm" disabled={!!busy} onClick={() => runSetGlobal(v.version)}>
+                    <Button
+                      size="sm"
+                      disabled={!!busy || !!globalTask?.running}
+                      onClick={() => runSetGlobal(v.version)}
+                    >
                       <Star className="h-3.5 w-3.5" /> 设为全局
                     </Button>
                   )}
@@ -239,7 +267,7 @@ export default function ToolManager({ tools, selectedTool, onSelectTool, onChang
                     size="icon"
                     className="h-8 w-8"
                     title="卸载"
-                    disabled={!!busy}
+                    disabled={!!busy || !!globalTask?.running}
                     onClick={() => runUninstall(v.version)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -279,7 +307,12 @@ export default function ToolManager({ tools, selectedTool, onSelectTool, onChang
                         key={v}
                         v={v}
                         installed={installedVersions.some((i) => i.version === v)}
-                        busy={!!busy || !!task?.running}
+                        busy={!!busy || !!globalTask?.running}
+                        installing={
+                          !!globalTask?.running &&
+                          globalTask.tool === tool.name &&
+                          globalTask.version === v
+                        }
                         onInstall={() => runInstall(v)}
                       />
                     ))}
@@ -291,24 +324,6 @@ export default function ToolManager({ tools, selectedTool, onSelectTool, onChang
                 )}
               </div>
             )}
-
-            {task && (
-              <div className="mt-4 fade-in rounded-md border p-3">
-                <Progress value={task.percent} />
-                <div className="mt-2 flex items-center justify-between text-xs">
-                  <span className={task.error ? "text-destructive" : "text-muted-foreground"}>
-                    {task.running ? "⏳ 正在安装" : task.error ? "❌ 失败" : "✅ 完成"}: {task.tool}@{task.version}
-                  </span>
-                  <span className="mono text-muted-foreground">{task.percent}%</span>
-                </div>
-                {task.logs.length > 0 && <div className="log-box">{task.logs.join("")}</div>}
-                {task.error && (
-                  <div className="mt-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {task.error}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
       </Card>
@@ -316,7 +331,19 @@ export default function ToolManager({ tools, selectedTool, onSelectTool, onChang
   );
 }
 
-function RemoteRow({ v, installed, busy, onInstall }: { v: string; installed: boolean; busy: boolean; onInstall: () => void }) {
+function RemoteRow({
+  v,
+  installed,
+  busy,
+  installing,
+  onInstall,
+}: {
+  v: string;
+  installed: boolean;
+  busy: boolean;
+  installing: boolean;
+  onInstall: () => void;
+}) {
   return (
     <div className="flex items-center justify-between border-b px-3 py-1.5 text-sm last:border-b-0 hover:bg-accent/50">
       <span className="mono min-w-0 truncate">
@@ -327,8 +354,14 @@ function RemoteRow({ v, installed, busy, onInstall }: { v: string; installed: bo
           </Badge>
         )}
       </span>
-      <Button size="sm" className="ml-2 shrink-0" disabled={installed || busy} onClick={onInstall}>
-        <Download className="h-3.5 w-3.5" /> 安装
+      <Button
+        size="sm"
+        className="ml-2 shrink-0"
+        disabled={installed || busy}
+        onClick={onInstall}
+      >
+        <Download className={`h-3.5 w-3.5 ${installing ? "animate-bounce" : ""}`} />
+        {installing ? "安装中" : "安装"}
       </Button>
     </div>
   );

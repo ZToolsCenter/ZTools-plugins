@@ -1,10 +1,11 @@
 {
   "name": "ztools-mise-manager",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "main": "preload.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build && cd dist && npm install --omit=dev",
+    "pack": "npm run build && node scripts/pack.js",
     "preview": "vite preview"
   },
   "keywords": [
