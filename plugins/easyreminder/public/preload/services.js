@@ -1,6 +1,7 @@
 ﻿const https = require('node:https')
 
 const STORAGE_KEY = 'easyremind_reminders'
+const GROUPS_KEY = 'easyremind_groups'
 const LOG_KEY = 'easyremind_logs'
 const HOLIDAY_KEY = 'easyremind_holidays'
 const HOLIDAY_API = 'https://timor.tech/api/holiday/year/'
@@ -76,7 +77,7 @@ function readReminders() {
     storageReadFailed = false
     if (!data) return []
     const raw = typeof data === 'string' ? JSON.parse(data) : data
-    return Array.isArray(raw) ? raw : []
+    return Array.isArray(raw) ? normalizeReminderOrders(raw) : []
   } catch (e) {
     storageReadFailed = true
     console.error('[easyremind] readReminders error:', e)
@@ -86,6 +87,79 @@ function readReminders() {
 
 function writeReminders(list) {
   window.ztools.dbStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+}
+
+// 排序字段迁移：旧数据没有 order，按原显示顺序补齐（任务按创建时间倒序、以分组为桶）
+function normalizeReminderOrders(list) {
+  if (list.every(r => typeof r.order === 'number')) return list
+  const buckets = new Map()
+  for (const r of list) {
+    const key = r.groupId || ''
+    if (!buckets.has(key)) buckets.set(key, [])
+    buckets.get(key).push(r)
+  }
+  for (const bucket of buckets.values()) {
+    bucket.sort((a, b) => b.createdAt - a.createdAt)
+    const len = bucket.length
+    bucket.forEach((r, i) => { r.order = len - i })
+  }
+  try {
+    writeReminders(list)
+  } catch (e) {}
+  return list
+}
+
+// 某分组（空串表示未分组）当前最大 order，用于把新任务/移入任务排到最前或最后
+function maxOrderInBucket(list, bucketKey) {
+  let max = 0
+  for (const r of list) {
+    if ((r.groupId || '') !== bucketKey) continue
+    if (typeof r.order === 'number' && r.order > max) max = r.order
+  }
+  return max
+}
+
+// ==================== 分组数据 ====================
+function readGroups() {
+  try {
+    const data = window.ztools.dbStorage.getItem(GROUPS_KEY)
+    if (!data) return []
+    const raw = typeof data === 'string' ? JSON.parse(data) : data
+    return Array.isArray(raw) ? normalizeGroupOrders(raw) : []
+  } catch (e) {
+    console.error('[easyremind] readGroups error:', e)
+    return []
+  }
+}
+
+function writeGroups(list) {
+  window.ztools.dbStorage.setItem(GROUPS_KEY, JSON.stringify(list))
+}
+
+// 分组排序迁移：旧数据按创建时间正序补齐 order
+function normalizeGroupOrders(list) {
+  if (list.every(g => typeof g.order === 'number')) return list
+  const sorted = [...list].sort((a, b) => a.createdAt - b.createdAt)
+  sorted.forEach((g, i) => { g.order = i })
+  try {
+    writeGroups(list)
+  } catch (e) {}
+  return list
+}
+
+// 按名称查找，找不到就新建；供表单直接输入新组名时复用
+function ensureGroupByName(name) {
+  const trimmed = String(name || '').trim()
+  if (!trimmed) return null
+  const groups = readGroups()
+  const existing = groups.find(g => g.name === trimmed)
+  if (existing) return existing
+  const order = groups.reduce((max, g) => Math.max(max, typeof g.order === 'number' ? g.order : 0), 0)
+  const group = { id: generateId(), name: trimmed, createdAt: Date.now(), order: order + 1 }
+  groups.push(group)
+  writeGroups(groups)
+  addLog('[新建组] ' + group.name)
+  return group
 }
 
 // ==================== 法定节假日数据 ====================
@@ -671,6 +745,75 @@ function checkHolidayData(now) {
   ensureHolidayData(false).catch(() => {})
 }
 
+// ==================== 批量操作 ====================
+// 批量启停：已是目标状态的任务跳过，返回是否发生变化
+function applyEnabledByIds(ids, enabled, groupId) {
+  const idSet = new Set(ids)
+  const reminders = readReminders()
+  let changed = false
+  for (const r of reminders) {
+    if (!idSet.has(r.id) || r.enabled === enabled) continue
+    r.enabled = enabled
+    changed = true
+    if (enabled) {
+      const next = getNextTriggerTime(r, Date.now())
+      addLog('[启用] ' + r.title + (next ? ' · 下次触发 ' + formatNextTime(next) : ' · 当前不会触发'), {
+        id: r.id,
+        groupId,
+        nextTriggerAt: next || undefined
+      })
+    } else {
+      addLog('[停用] ' + r.title, { id: r.id, groupId })
+    }
+  }
+  if (changed) {
+    writeReminders(reminders)
+    scheduleNext()
+  }
+  return changed
+}
+
+// groupId 为空表示移出分组；分组不存在时不做任何修改
+function applyAssignGroup(ids, groupId) {
+  const groups = readGroups()
+  const group = groupId ? groups.find(g => g.id === groupId) : null
+  if (groupId && !group) return false
+
+  const idSet = new Set(ids)
+  const reminders = readReminders()
+  let order = maxOrderInBucket(reminders, groupId || '')
+  let changed = false
+  for (const r of reminders) {
+    if (!idSet.has(r.id)) continue
+    if (groupId) {
+      if (r.groupId === groupId) continue
+      r.groupId = groupId
+      r.order = ++order
+      addLog('[移入组] ' + r.title + ' → ' + group.name, { id: r.id, groupId })
+    } else {
+      if (!r.groupId) continue
+      delete r.groupId
+      r.order = ++order
+      addLog('[移出组] ' + r.title, { id: r.id })
+    }
+    changed = true
+  }
+  if (changed) writeReminders(reminders)
+  return changed
+}
+
+function applyDeleteByIds(ids) {
+  const idSet = new Set(ids)
+  const reminders = readReminders()
+  const removed = reminders.filter(r => idSet.has(r.id))
+  if (!removed.length) return false
+
+  writeReminders(reminders.filter(r => !idSet.has(r.id)))
+  for (const r of removed) addLog('[删除] ' + r.title, { id: r.id })
+  scheduleNext()
+  return true
+}
+
 // ==================== 暴露服务 ====================
 window.services = {
   // ===== 提醒数据 CRUD =====
@@ -678,7 +821,18 @@ window.services = {
     return readReminders()
   },
 
+  getGroups() {
+    return readGroups()
+  },
+
+  // 按名称复用已有分组，不存在则新建（表单里直接输入组名）
+  addGroup(name) {
+    return ensureGroupByName(name)
+  },
+
   addReminder(formData) {
+    const reminders = readReminders()
+    const bucketKey = formData.groupId || ''
     const reminder = {
       id: generateId(),
       title: formData.title,
@@ -691,12 +845,13 @@ window.services = {
       weekdays: formData.weekdays,
       triggerTime: formData.triggerTime,
       dayFilter: formData.dayFilter || 'all',
+      groupId: formData.groupId || undefined,
+      order: maxOrderInBucket(reminders, bucketKey) + 1,
       enabled: true,
       lastTriggered: 0,
       lastFiredSlot: 0,
       createdAt: Date.now()
     }
-    const reminders = readReminders()
     reminders.push(reminder)
     writeReminders(reminders)
     const next = getNextTriggerTime(reminder, Date.now())
@@ -714,6 +869,14 @@ window.services = {
     const index = reminders.findIndex(r => r.id === id)
     if (index === -1) return false
 
+    const prevBucket = reminders[index].groupId || ''
+    const nextGroupId = formData.groupId || undefined
+    const nextBucket = nextGroupId || ''
+    // 换了分组就排到新分组最前面；同组内编辑保持原排序
+    const order = prevBucket === nextBucket
+      ? reminders[index].order
+      : maxOrderInBucket(reminders, nextBucket) + 1
+
     reminders[index] = {
       ...reminders[index],
       title: formData.title,
@@ -726,6 +889,8 @@ window.services = {
       weekdays: formData.weekdays,
       triggerTime: formData.triggerTime,
       dayFilter: formData.dayFilter || 'all',
+      groupId: nextGroupId,
+      order,
       // 改了调度参数，旧的「已触发时刻」不能再挡住重新算出来的同一时刻
       lastFiredSlot: 0
     }
@@ -767,6 +932,141 @@ window.services = {
       addLog('[停用] ' + reminder.title, { id })
     }
     scheduleNext()
+    return true
+  },
+
+  // 复制提醒：配置与启用状态保持不变，重置触发记录作为一条全新任务
+  copyReminder(id) {
+    const reminders = readReminders()
+    const src = reminders.find(r => r.id === id)
+    if (!src) return null
+
+    const copy = JSON.parse(JSON.stringify(src))
+    copy.id = generateId()
+    copy.title = (src.title + '（副本）').slice(0, 50)
+    copy.createdAt = Date.now()
+    copy.order = maxOrderInBucket(reminders, src.groupId || '') + 1
+    copy.lastTriggered = 0
+    copy.lastFiredSlot = 0
+    reminders.push(copy)
+    writeReminders(reminders)
+
+    const next = getNextTriggerTime(copy, Date.now())
+    addLog('[复制] ' + copy.title + ' · ' + TYPE_LABELS[copy.type] + (next ? ' · 下次触发 ' + formatNextTime(next) : ' · 当前不会触发'), {
+      id: copy.id,
+      from: src.id,
+      type: copy.type,
+      nextTriggerAt: next || undefined
+    })
+    scheduleNext()
+    return copy
+  },
+
+  // ===== 分组操作 =====
+  // 批量启停组内任务
+  setGroupEnabled(groupId, enabled) {
+    const group = readGroups().find(g => g.id === groupId)
+    if (!group) return false
+    const ids = readReminders().filter(r => r.groupId === groupId).map(r => r.id)
+    applyEnabledByIds(ids, enabled, groupId)
+    return true
+  },
+
+  // 解散分组：只移除分组本身，组内任务保留为未分组
+  dissolveGroup(groupId) {
+    const groups = readGroups()
+    const group = groups.find(g => g.id === groupId)
+    if (!group) return false
+
+    writeGroups(groups.filter(g => g.id !== groupId))
+    const reminders = readReminders()
+    // 原未分组任务的 order 不与解散出来的任务冲突，解散出来的追加到末尾
+    let order = maxOrderInBucket(reminders, '')
+    let touched = false
+    for (const r of reminders) {
+      if (r.groupId !== groupId) continue
+      delete r.groupId
+      r.order = ++order
+      touched = true
+    }
+    if (touched) writeReminders(reminders)
+    addLog('[解散组] ' + group.name)
+    return true
+  },
+
+  // 删除分组：连同组内任务一起删除
+  deleteGroup(groupId) {
+    const groups = readGroups()
+    const group = groups.find(g => g.id === groupId)
+    if (!group) return false
+
+    writeGroups(groups.filter(g => g.id !== groupId))
+    addLog('[删除组] ' + group.name)
+    applyDeleteByIds(readReminders().filter(r => r.groupId === groupId).map(r => r.id))
+    return true
+  },
+
+  // ===== 批量任务操作 =====
+  assignGroup(ids, groupId) {
+    return applyAssignGroup(ids, groupId || '')
+  },
+
+  setRemindersEnabled(ids, enabled) {
+    applyEnabledByIds(ids, enabled)
+    return true
+  },
+
+  deleteReminders(ids) {
+    return applyDeleteByIds(ids)
+  },
+
+  // ===== 排序 =====
+  // 分组拖拽排序：ids 为拖拽后的完整顺序
+  reorderGroups(ids) {
+    const groups = readGroups()
+    const orderMap = new Map(ids.map((id, i) => [id, i]))
+    let changed = false
+    for (const g of groups) {
+      const order = orderMap.get(g.id)
+      if (order === undefined || g.order === order) continue
+      g.order = order
+      changed = true
+    }
+    if (changed) writeGroups(groups)
+    return true
+  },
+
+  // 任务拖拽排序/换组：items = [{ id, groupId, order }]，只更新传入的任务
+  updateReminderOrder(items) {
+    if (!Array.isArray(items) || !items.length) return false
+    const groups = readGroups()
+    const groupName = (gid) => {
+      const g = groups.find(x => x.id === gid)
+      return g ? g.name : gid
+    }
+    const itemMap = new Map(items.map(it => [it.id, it]))
+    const reminders = readReminders()
+    let changed = false
+    for (const r of reminders) {
+      const it = itemMap.get(r.id)
+      if (!it) continue
+      if (it.groupId) {
+        if (r.groupId !== it.groupId) {
+          r.groupId = it.groupId
+          addLog('[移入组] ' + r.title + ' → ' + groupName(it.groupId), { id: r.id, groupId: it.groupId })
+          changed = true
+        }
+      } else if (r.groupId) {
+        delete r.groupId
+        addLog('[移出组] ' + r.title, { id: r.id })
+        changed = true
+      }
+      if (typeof it.order === 'number' && r.order !== it.order) {
+        r.order = it.order
+        changed = true
+      }
+    }
+    if (changed) writeReminders(reminders)
     return true
   },
 

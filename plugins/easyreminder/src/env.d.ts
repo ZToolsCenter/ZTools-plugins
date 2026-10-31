@@ -17,10 +17,19 @@ interface ReminderLike {
   triggerAt?: number
   weekdays?: number[]
   triggerTime?: string
+  groupId?: string
+  order?: number
   enabled: boolean
   lastTriggered: number
   lastFiredSlot?: number
   createdAt: number
+}
+
+interface ReminderGroupLike {
+  id: string
+  name: string
+  createdAt: number
+  order?: number
 }
 
 interface LogEntryLike {
@@ -37,6 +46,18 @@ interface Services {
   updateReminder: (id: string, formData: Record<string, any>) => boolean
   deleteReminder: (id: string) => boolean
   toggleReminder: (id: string) => boolean
+  copyReminder: (id: string) => ReminderLike | null
+
+  getGroups: () => ReminderGroupLike[]
+  addGroup: (name: string) => ReminderGroupLike | null
+  setGroupEnabled: (id: string, enabled: boolean) => boolean
+  dissolveGroup: (id: string) => boolean
+  deleteGroup: (id: string) => boolean
+  assignGroup: (ids: string[], groupId: string) => boolean
+  setRemindersEnabled: (ids: string[], enabled: boolean) => boolean
+  deleteReminders: (ids: string[]) => boolean
+  reorderGroups: (ids: string[]) => boolean
+  updateReminderOrder: (items: Array<{ id: string; groupId: string | null; order: number }>) => boolean
 
   refreshScheduler: () => void
   getSchedulerState: () => { ready: boolean; nextTriggerText: string }

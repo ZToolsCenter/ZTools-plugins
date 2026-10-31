@@ -12,6 +12,13 @@ export interface DaySchedule {
   endTime: string   // "18:00"
 }
 
+export interface ReminderGroup {
+  id: string
+  name: string
+  createdAt: number
+  order?: number
+}
+
 export interface Reminder {
   id: string
   title: string
@@ -29,6 +36,10 @@ export interface Reminder {
   triggerTime?: string // "14:30"
   // 触发日过滤（once 类型不适用）
   dayFilter?: DayFilter
+  // 所属分组（缺省为未分组）
+  groupId?: string
+  // 组内/未分组内的拖拽排序值，越大越靠前
+  order?: number
   // 通用
   enabled: boolean
   lastTriggered: number
@@ -48,6 +59,7 @@ export interface ReminderFormData {
   weekdays?: number[]
   triggerTime?: string
   dayFilter?: DayFilter
+  groupId?: string
 }
 
 export const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
@@ -79,7 +91,8 @@ export function createEmptyReminder(): ReminderFormData {
     align: 'start',
     weekdays: [],
     triggerTime: '09:00',
-    dayFilter: 'all'
+    dayFilter: 'all',
+    groupId: ''
   }
 }
 

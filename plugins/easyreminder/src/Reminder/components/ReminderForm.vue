@@ -1,20 +1,24 @@
 ﻿<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { Reminder, ReminderFormData, ReminderType } from '../../types/reminder'
+import type { Reminder, ReminderFormData, ReminderGroup, ReminderType } from '../../types/reminder'
 import { REMINDER_TYPE_LABELS, DAY_FILTER_LABELS, createEmptyReminder } from '../../types/reminder'
+import { useReminders } from '../../composables/useReminders'
 import OnceForm from './form/OnceForm.vue'
 import DailyForm from './form/DailyForm.vue'
 import IntervalForm from './form/IntervalForm.vue'
 
 const props = defineProps<{
   editReminder?: Reminder | null
+  groups?: ReminderGroup[]
 }>()
 
 const emit = defineEmits<{
   save: [data: ReminderFormData]
   cancel: []
 }>()
+
+const { addGroup } = useReminders()
 
 const form = ref<ReminderFormData>(createEmptyReminder())
 const onceFormRef = ref<InstanceType<typeof OnceForm> | null>(null)
@@ -56,7 +60,8 @@ function loadFromReminder(r: Reminder) {
     align: r.align === 'start' ? 'start' : 'create',
     weekdays: r.weekdays ? [...r.weekdays] : [],
     triggerTime: r.triggerTime || '09:00',
-    dayFilter: r.dayFilter || 'all'
+    dayFilter: r.dayFilter || 'all',
+    groupId: r.groupId || ''
   }
 }
 
@@ -74,6 +79,16 @@ watch(() => props.editReminder, (val) => {
   }
 })
 
+// 下拉里直接输入的新组名会以文本为值，保存时换成真实分组 id
+function resolveGroupId(value?: string): string | undefined {
+  const v = (value || '').trim()
+  if (!v) return undefined
+  if ((props.groups || []).some(g => g.id === v)) return v
+  if (typeof window.services?.addGroup !== 'function') return undefined
+  const group = addGroup(v)
+  return group ? group.id : undefined
+}
+
 function handleSubmit() {
   if (!form.value.title.trim()) {
     ElMessage.warning('请输入提醒标题')
@@ -86,7 +101,8 @@ function handleSubmit() {
     type: form.value.type,
     schedules: [],
     interval: form.value.interval,
-    dayFilter: form.value.dayFilter || 'all'
+    dayFilter: form.value.dayFilter || 'all',
+    groupId: resolveGroupId(form.value.groupId)
   }
 
   if (form.value.type === 'once') {
@@ -136,6 +152,21 @@ function handleSubmit() {
       <div class="form-item">
         <label>提醒内容</label>
         <el-input v-model="form.content" type="textarea" placeholder="输入提醒内容（可选）" :rows="2" maxlength="200" show-word-limit />
+      </div>
+
+      <div class="form-item">
+        <label>分组</label>
+        <el-select
+          v-model="form.groupId"
+          filterable
+          allow-create
+          default-first-option
+          placeholder="不分组，输入新组名可直接创建"
+          style="width: 100%"
+        >
+          <el-option label="不分组" value="" />
+          <el-option v-for="g in groups || []" :key="g.id" :label="g.name" :value="g.id" />
+        </el-select>
       </div>
 
       <!-- 触发日过滤（once 为指定日期，不适用） -->

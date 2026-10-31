@@ -2,14 +2,20 @@
 import type { Reminder, DaySchedule } from '../../types/reminder'
 import { WEEKDAY_LABELS, REMINDER_TYPE_LABELS, DAY_FILTER_LABELS, ALIGN_MODE_LABELS } from '../../types/reminder'
 
-const props = defineProps<{
+defineProps<{
   reminder: Reminder
+  selected?: boolean
+  draggable?: boolean
 }>()
 
 const emit = defineEmits<{
   toggle: [id: string]
   edit: [reminder: Reminder]
+  copy: [reminder: Reminder]
   delete: [id: string]
+  select: [id: string]
+  dragstart: [event: DragEvent, id: string]
+  dragend: []
 }>()
 
 function formatWeekdays(days: number[]): string {
@@ -67,21 +73,33 @@ function isOncePast(timestamp: number): boolean {
 
 <template>
   <div :class="['reminder-item', { disabled: !reminder.enabled }]">
+    <span
+      v-if="draggable"
+      class="drag-handle"
+      draggable="true"
+      title="拖拽排序 / 拖到分组"
+      @click.stop
+      @dragstart="emit('dragstart', $event, reminder.id)"
+      @dragend="emit('dragend')"
+    >
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+        <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+        <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+        <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+      </svg>
+    </span>
+    <label class="item-check" @click.stop>
+      <input
+        type="checkbox"
+        :checked="selected"
+        @change="emit('select', reminder.id)"
+      />
+    </label>
     <div class="item-main">
       <div class="item-header">
         <div class="item-title-row">
           <span class="item-title">{{ reminder.title }}</span>
           <span class="item-desc" v-if="reminder.content">{{ reminder.content }}</span>
-        </div>
-        <div class="item-toggle">
-          <label class="switch">
-            <input
-              type="checkbox"
-              :checked="reminder.enabled"
-              @change="emit('toggle', reminder.id)"
-            />
-            <span class="slider"></span>
-          </label>
         </div>
       </div>
       <div class="item-meta">
@@ -126,6 +144,20 @@ function isOncePast(timestamp: number): boolean {
       </div>
     </div>
     <div class="item-actions">
+      <label class="switch" title="启用/停用">
+        <input
+          type="checkbox"
+          :checked="reminder.enabled"
+          @change="emit('toggle', reminder.id)"
+        />
+        <span class="slider"></span>
+      </label>
+      <button class="action-btn" @click="emit('copy', reminder)" title="复制">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
       <button class="action-btn" @click="emit('edit', reminder)" title="编辑">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -164,6 +196,34 @@ function isOncePast(timestamp: number): boolean {
   opacity: 0.5;
 }
 
+.item-check {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  margin-right: 6px;
+  flex-shrink: 0;
+  color: var(--el-text-color-placeholder);
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.item-check input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--el-color-primary);
+  cursor: pointer;
+}
+
 .item-main {
   flex: 1;
   min-width: 0;
@@ -172,8 +232,6 @@ function isOncePast(timestamp: number): boolean {
 .item-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
   margin-bottom: 4px;
 }
 
@@ -251,6 +309,7 @@ function isOncePast(timestamp: number): boolean {
 
 .item-actions {
   display: flex;
+  align-items: center;
   gap: 4px;
   margin-left: 12px;
   flex-shrink: 0;
@@ -288,6 +347,8 @@ function isOncePast(timestamp: number): boolean {
   display: inline-block;
   width: 36px;
   height: 20px;
+  margin-right: 6px;
+  flex-shrink: 0;
 }
 
 .switch input {
