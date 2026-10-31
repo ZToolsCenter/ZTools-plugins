@@ -15,7 +15,7 @@ const market = require('./lib/market.js');
 const storeModule = require('./lib/store.js');
 
 const CH = 'sb:cmd';
-const VERSION = '1.0.0';
+const VERSION = '1.0.4';
 const HEARTBEAT_FRESH_MS = 15000;
 const BALL_PAD = 6;          // 球窗口四周留白（放光晕，别裁掉阴影）
 const MENU_W = 152;
@@ -245,7 +245,7 @@ async function hostLaunchGet() {
 
 /*
  * 预警提醒的「已提醒」时间表。
- * 放在跨窗口共享的 dbStorage（store.getAlertCooldowns）而不是模块变量：
+ * 放在跨窗口共享的临时缓存（store.getAlertCooldowns）而不是模块变量：
  * 主窗口 / 悬浮球 / 面板各有一份 preload 实例，再加上「持仓」和「自选行情」
  * 两条评估路径（代码集合不同，跨窗口复用判断不适用），同一条预警以前最多会弹 4 次。
  * 现在谁先提醒谁占坑，其它窗口在冷却期内一律静默。
@@ -319,8 +319,8 @@ function isTradingTime(now) {
 
 function evaluateAlerts(quotesMap, options) {
   const opts = options || {};
-  // 非交易时间段（周末、早盘盘前 <9:10、午间休市 11:30~13:00、盘后 >15:00）静默防打扰，不弹出股票通知
-  if (!opts.ignoreTradingTime && !isTradingTime(opts.currentTime)) {
+  // 通知仅在北京时间 9:25–11:30、13:00–15:00 放行；行情获取仍可从 9:10 开始。
+  if (!opts.ignoreTradingTime && !market.isAlertTime(opts.currentTime)) {
     return;
   }
   if (!quotesMap || Object.keys(quotesMap).length === 0) return;
@@ -431,23 +431,26 @@ function markSharedQuotes(codes) {
   store.setQuoteStamp(Object.assign({}, cur, { at: Date.now(), codes: merged, by: ROLE, pendingAt: 0 }));
 }
 
-function markSharedFetchStart() {
+function markSharedFetchStart(kind) {
   try {
     const cur = store.getQuoteStamp() || {};
-    store.setQuoteStamp(Object.assign({}, cur, { pendingAt: Date.now(), pendingBy: ROLE }));
+    const key = kind === 'I' ? 'idxPendingAt' : 'pendingAt';
+    store.setQuoteStamp(Object.assign({}, cur, { [key]: Date.now() }));
   } catch (e) { /* ignore */ }
 }
 
-function markSharedFetchEnd() {
+function markSharedFetchEnd(kind) {
   try {
     const cur = store.getQuoteStamp() || {};
-    if (cur.pendingAt) store.setQuoteStamp(Object.assign({}, cur, { pendingAt: 0 }));
+    const key = kind === 'I' ? 'idxPendingAt' : 'pendingAt';
+    if (cur[key]) store.setQuoteStamp(Object.assign({}, cur, { [key]: 0 }));
   } catch (e) { /* ignore */ }
 }
 
-function peerIsFetching() {
+function peerIsFetching(kind) {
   const st = store.getQuoteStamp();
-  return !!(st && st.pendingAt && (Date.now() - st.pendingAt) < sharedWaitMs());
+  const at = st && st[kind === 'I' ? 'idxPendingAt' : 'pendingAt'];
+  return !!(at && (Date.now() - at) < sharedWaitMs());
 }
 
 /*
@@ -685,8 +688,6 @@ const services = {
           qs.forEach((q) => {
             if (q && q.code) {
               quotesMap[q.code] = q;
-              quotesMap['sz' + q.code] = q;
-              quotesMap['sh' + q.code] = q;
             }
           });
         } catch (e) {
@@ -695,8 +696,6 @@ const services = {
             qs.forEach((q) => {
               if (q && q.code) {
                 quotesMap[q.code] = q;
-                quotesMap['sz' + q.code] = q;
-                quotesMap['sh' + q.code] = q;
               }
             });
           } catch (err) { /* ignore */ }
@@ -731,7 +730,7 @@ const services = {
       return res;
     },
     evaluate: (quotesMap, opts) => evaluateAlerts(quotesMap, opts),
-    isTradingTime: (now) => isTradingTime(now)
+    isTradingTime: (now) => market.isAlertTime(now)
   },
   isTradingTime: (now) => isTradingTime(now),
   notify: (title, body) => sendDesktopNotification(title, body),
@@ -760,32 +759,40 @@ const services = {
 
   indexes: async (opts) => {
     if (offSessionGate(opts, 'I')) return store.getLatestIndexes() || []; // 非交易时段已拉过 → 吃缓存
-    // 指数行情同样三窗口重复请求，这里用共享缓存 + 竞争协调复用
-    const st = store.getQuoteStamp() || {};
-    if (!(opts && opts.force) && st.idxAt && (Date.now() - st.idxAt) < sharedFreshMs()) {
+    // 指数单独协调，不能被慢个股请求拖住，也不能提前清除个股的在途标记。
+    function freshIndexes() {
+      const st = store.getQuoteStamp() || {};
+      if (!st.idxAt || (Date.now() - st.idxAt) >= sharedFreshMs()) return null;
       const cached = store.getLatestIndexes();
-      if (cached.length) return cached;
+      return cached.length ? cached : null;
     }
-    if (!(opts && opts.force) && peerIsFetching()) {
-      const deadline = Date.now() + sharedWaitMs();
-      while (Date.now() < deadline) {
-        await sleepMs(75);
-        const hit = store.getLatestIndexes();
-        const cur = store.getQuoteStamp() || {};
-        if (hit.length && cur.idxAt && (Date.now() - cur.idxAt) < sharedFreshMs()) return hit;
-        if (!peerIsFetching()) break;
+    if (!(opts && opts.force)) {
+      let hit = freshIndexes();
+      if (hit) return hit;
+      await sleepMs(0); // 同时启动的窗口先让先行者登记，再检查一次
+      hit = freshIndexes();
+      if (hit) return hit;
+      if (peerIsFetching('I')) {
+        const start = Date.now();
+        while (Date.now() - start < sharedWaitMs()) {
+          const waited = Date.now() - start;
+          await sleepMs(waited < 600 ? 75 : (waited < 1500 ? 150 : 300));
+          hit = freshIndexes();
+          if (hit) return hit;
+          if (!peerIsFetching('I')) break;
+        }
       }
     }
-    markSharedFetchStart();
+    markSharedFetchStart('I');
     let list = [];
     try {
       list = await market.indexes({ proxy: proxyOf(opts) });
     } finally {
-      if (!Array.isArray(list) || !list.length) markSharedFetchEnd();
+      if (!Array.isArray(list) || !list.length) markSharedFetchEnd('I');
     }
     if (Array.isArray(list) && list.length) {
       store.setLatestIndexes(list);
-      store.setQuoteStamp(Object.assign({}, store.getQuoteStamp() || {}, { idxAt: Date.now(), pendingAt: 0 }));
+      store.setQuoteStamp(Object.assign({}, store.getQuoteStamp() || {}, { idxAt: Date.now(), idxPendingAt: 0 }));
       noteSessionFetched('I');
     }
     return list;
@@ -1112,7 +1119,7 @@ function startWatcher() {
             } catch (e) { /* ignore */ }
           }, 600);
         } else if (hb && hb.needsRestart && (now - (hb.t || 0)) < 60000) {
-          // ④ 兜底自愈：球自报 needsRestart 并关闭后（dbStorage 是不经过坏通道的旁路），
+          // ④ 兜底自愈：球自报 needsRestart 并关闭后（临时缓存是不经过坏通道的旁路），
           //    清标志并按保存的位置重建 —— 新窗口新握手，拖动/双击通道彻底恢复
           store.setHeartbeat({ id: null, role: 'ball', needsRestart: false });
           openBall(true);
@@ -1422,6 +1429,8 @@ onHostMsg((msg, senderId) => {
       return;
     case 'alert-fire': {
       // 子窗口转发来的预警触发：主窗口统一认领冷却坑位后弹出（跨窗口绝不双弹）
+      // 转发可能跨过午休/收盘边界，按实际发送时刻再次校验，静默时不占冷却坑位。
+      if (!market.isAlertTime()) return;
       if (!msg.k) return;
       const cd = store.getAlertCooldowns();
       if (claimAlertNotify(String(msg.k), cd, Date.now(), Number(msg.intervalMs) || 5 * 60 * 1000)) {
@@ -1655,7 +1664,7 @@ if (IS_HOST) {
       }
       store.setHeartbeat({ id: safe(() => Z.getWebContentsId(), null), role: 'ball' });
       // 存活探测：主窗口必须有回音（入站任意消息都会刷新 lastHostMsgAt）。
-      // 45秒无回音 = 控制通道已断（拖动、双击都会失效）→ 经 dbStorage 旁路自报
+      // 45秒无回音 = 控制通道已断（拖动、双击都会失效）→ 经临时缓存旁路自报
       // needsRestart 后自毁，主窗口守望进程1秒内用保存的位置重建球
       try { toHost({ t: 'ping' }); } catch (e) { /* ignore */ }
       if ((Date.now() - lastHostMsgAt) > 45000) {

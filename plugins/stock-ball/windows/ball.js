@@ -150,7 +150,12 @@
   function refresh() {
     // 同窗口合并：定时刷新/唤醒/广播重叠触发时复用进行中的一轮
     if (refreshPending) return refreshPending;
-    refreshPending = refreshImpl().finally(function () { refreshPending = null; });
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+    refreshPending = refreshImpl().finally(function () {
+      refreshPending = null;
+      loopRefresh(); // 成功、失败、手动刷新都只续接同一个定时器
+    });
     return refreshPending;
   }
   function refreshImpl() {
@@ -186,7 +191,6 @@
         lastOkAt = Date.now();
       }
       render();
-      if (anyFail) setTimeout(refresh, Math.min(20000, 3000 * failCount));
       return res;
     }).catch(function () {
       failCount += 1;
@@ -196,9 +200,14 @@
 
   function loopRefresh() {
     clearTimeout(refreshTimer);
+    refreshTimer = null;
+    if (refreshPending) return;
+    var interval = Math.max(2, settings.refreshSec || 5) * 1000;
+    // 失败时在同一条链上退避，不另开重试链，也不快于用户设置的间隔。
+    if (failCount > 0) interval = Math.max(interval, Math.min(20000, 3000 * failCount));
     refreshTimer = setTimeout(function () {
-      refresh().catch(function () {}).then(loopRefresh);
-    }, Math.max(2, settings.refreshSec || 5) * 1000);
+      refresh().catch(function () {});
+    }, interval);
   }
 
   function loopRotate() {
