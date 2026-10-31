@@ -7,12 +7,16 @@ const os = require('os');
 const { spawn, execFileSync } = require('child_process');
 const { parseNcm } = require('./ncmdump.cjs');
 
+// 完成提示的小窗停留时长（毫秒）。宿主在 enter 的 Promise resolve 后才退出插件，
+// 所以这里必须「等小窗自毁」再 resolve，否则窗口会被一起带走。
+const TOAST_MS = 5000;
+
 // 立即隐藏主窗口：ZTools 启动任何插件都会先 show 主窗口（AppsAPI.launch 无 headless 豁免），
 // preload 一加载就把它藏掉，比 enter() 更早，尽量压缩「闪屏」空隙。
 (function silentHide() {
   try {
     if (typeof window !== 'undefined' && window.ztools && typeof window.ztools.hideMainWindow === 'function') {
-      // 实验版 v4.2：false = 不恢复 explorer 焦点，排查「任务栏/资源管理器闪烁」是否是闪屏来源
+      // false = 不恢复 explorer 焦点，排查「任务栏/资源管理器闪烁」是否是闪屏来源
       window.ztools.hideMainWindow(false);
     }
   } catch (e) {}
@@ -229,6 +233,103 @@ async function convertFile(filePath) {
   return outPath;
 }
 
+// ── 完成反馈：提示音 + 右下角小窗 + 通知中心 toast ──────────────────────
+// 宿主系统通知在缺 AUMID 注册的 Windows 构建上会静默失败，
+// 所以自己弹一个右下角自毁小窗（真实窗口，不依赖系统通知权限）。
+// 小窗属于插件进程，宿主在 enter 的 Promise resolve 后才退出插件，
+// 所以调用方必须等小窗自毁（dwell）之后再 resolve。
+
+// 弹窗位置：'br' = 右下角（默认），'bl' = 左下角。可用 dbStorage 的 toast_corner 调整。
+function toastCorner() {
+  try {
+    const v = window.ztools.dbStorage.getItem('toast_corner');
+    return v === 'bl' ? 'bl' : 'br';
+  } catch (e) {
+    return 'br';
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// 弹出一个右下角（或左下角）的自毁小窗，列出转换结果。
+function showToastWindow(title, lines, closeAfterMs) {
+  try {
+    if (typeof window === 'undefined' || !window.ztools || typeof window.ztools.createBrowserWindow !== 'function') return;
+    const disp = typeof window.ztools.getPrimaryDisplay === 'function' ? window.ztools.getPrimaryDisplay() : null;
+    const wa = (disp && disp.workArea) || { x: 0, y: 0, width: 1920, height: 1080 };
+    const W = 380;
+    const shown = (lines || []).slice(0, 8);
+    const H = 74 + shown.length * 22;
+    const items = shown.map(l => {
+      const bad = l.indexOf('✗') === 0;
+      return `<div class="l${bad ? ' bad' : ''}">${escapeHtml(l)}</div>`;
+    }).join('');
+    const more = (lines || []).length > shown.length
+      ? `<div class="l dim">…等 ${lines.length} 个文件</div>`
+      : '';
+    const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+      body{margin:0;padding:12px 14px;font:13px/1.55 "Microsoft YaHei",system-ui,sans-serif;
+        background:#1b1d21;color:#e6e8ea;user-select:none}
+      .t{font-weight:600;font-size:14px;margin-bottom:4px;color:#fff}
+      .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#c9ced6}
+      .l.bad{color:#ff6b5e}
+      .l.dim{color:#7d8590}
+    </style></head><body>
+      <div class="t">${escapeHtml(title)}</div>${items}${more}
+      <script>setTimeout(function(){try{window.close()}catch(e){}},${closeAfterMs})</script>
+    </body></html>`;
+    const file = path.join(os.tmpdir(), 'ztools-toast-' + Date.now() + '.html');
+    fs.writeFileSync(file, html);
+    const url = 'file:///' + file.replace(/\\/g, '/');
+    const corner = toastCorner();
+    const x = corner === 'bl' ? wa.x + 16 : wa.x + wa.width - W - 16;
+    window.ztools.createBrowserWindow(url, {
+      width: W,
+      height: H,
+      frame: false,
+      alwaysOnTop: true,
+      resizable: false,
+      skipTaskbar: true,
+      focusable: false,
+      show: true,
+      x: x,
+      y: wa.y + wa.height - H - 16
+    });
+    setTimeout(() => { try { fs.unlinkSync(file); } catch (e) {} }, (closeAfterMs || TOAST_MS) + 8000);
+    log('toast 窗口已弹出: ' + url);
+  } catch (e) {
+    log('toast 窗口失败: ' + (e && e.message ? e.message : e));
+  }
+}
+
+// 进 Windows 通知中心（Action Center）的原生 toast：横幅显示后留在通知中心可查历史。
+// 用 PowerShell WinRT 发送，挂在 PowerShell 自己的 AUMID 下（永远已注册，不受宿主
+// AUMID 缺失影响）；走 -EncodedCommand 避免引号/中文转义问题；子进程独立于插件进程存活。
+function sendActionCenterToast(title, lines) {
+  try {
+    const texts = [escapeHtml(title)].concat((lines || []).slice(0, 8).map(escapeHtml))
+      .map(t => '<text>' + t + '</text>').join('');
+    const xml =
+      '<toast><visual><binding template="ToastGeneric">' + texts + '</binding></visual>' +
+      '<audio silent="true"/></toast>'; // 声音由 shellBeep 负责，toast 静音避免双重响
+    const ps = `
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+$x = New-Object Windows.Data.Xml.Dom.XmlDocument
+$x.LoadXml('${xml.replace(/'/g, "''")}')
+$t = [Windows.UI.Notifications.ToastNotification]::new($x)
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe').Show($t)
+`;
+    const b64 = Buffer.from(ps, 'utf16le').toString('base64');
+    spawn('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', b64], { windowsHide: true, stdio: 'ignore' });
+    log('通知中心 toast 已发送');
+  } catch (e) {
+    log('通知中心 toast 失败: ' + (e && e.message ? e.message : e));
+  }
+}
+
 // 统一的入口处理
 async function handle(action) {
   try {
@@ -267,9 +368,7 @@ async function handle(action) {
 
     if (!files.length) {
       log('未获取到文件，放弃')
-      if (typeof window !== 'undefined' && window.ztools && typeof window.ztools.showNotification === 'function') {
-        window.ztools.showNotification('未获取到音频文件。\naction:\n' + summarize(action));
-      }
+      notify('未获取到音频文件。');
       return;
     }
 
@@ -277,6 +376,8 @@ async function handle(action) {
     notify(`开始转换 ${files.length} 个文件…`);
 
     const lines = [];
+    let okCount = 0;
+    let outDir = '';
     for (const f of files) {
       const fp = typeof f === 'string' ? f : (f && f.path) || '';
       if (!fp) {
@@ -285,6 +386,8 @@ async function handle(action) {
       }
       try {
         const out = await convertFile(fp);
+        okCount++;
+        if (!outDir) outDir = path.dirname(out);
         lines.push('✓ ' + path.basename(out));
       } catch (e) {
         const msg = (e && e.message ? e.message : String(e));
@@ -293,13 +396,23 @@ async function handle(action) {
       }
     }
 
-    if (typeof window !== 'undefined' && window.ztools && typeof window.ztools.showNotification === 'function') {
-      window.ztools.showNotification('转 MP3 完成\n' + lines.join('\n'));
-    }
+    const head = okCount === files.length
+      ? `✅ 转换完成（${okCount}/${files.length}）`
+      : `转换完成（${okCount}/${files.length}）`;
+    const body = lines.slice(0, 10).join('\n');
+
+    // 三通道反馈：提示音（听得到）+ 右下角小窗（看得见）+ 通知中心原生 toast（可查历史）。
+    // 小窗属于插件进程，宿主要等 enter resolve 才退插件，所以 dwell 要略长于小窗时长。
+    try { if (window.ztools && typeof window.ztools.shellBeep === 'function') window.ztools.shellBeep(); } catch (e) {}
+    showToastWindow(head, lines, TOAST_MS);
+    sendActionCenterToast(head, lines);
+    notify(head + '\n' + body);
+    // 等小窗自己关掉再退出插件，否则窗口会被一起销毁（看不到提示）
+    await new Promise(r => setTimeout(r, TOAST_MS + 500));
+    log('完成: ' + head);
   } catch (e) {
-    if (typeof window !== 'undefined' && window.ztools && typeof window.ztools.showNotification === 'function') {
-      window.ztools.showNotification('转 MP3 失败: ' + (e && e.message ? e.message : e));
-    }
+    log('整体失败: ' + (e && e.message ? e.message : e));
+    notify('转 MP3 失败: ' + (e && e.message ? e.message : e));
   }
 }
 
@@ -310,5 +423,8 @@ window.exports = {
 
 // 本地测试导出
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { collectPaths, toBuffer, convertFile, findFfmpeg, runFfmpeg };
+  module.exports = {
+    collectPaths, toBuffer, convertFile, findFfmpeg, runFfmpeg,
+    showToastWindow, sendActionCenterToast, toastCorner, handle, TOAST_MS
+  };
 }
