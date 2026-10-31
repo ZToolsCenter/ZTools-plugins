@@ -1,0 +1,13 @@
+node_modules/
+dist/
+src-ztools/dist/
+test-results/
+playwright-report/
+*.zip
+*.zpx
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.vscode/
+*.log
