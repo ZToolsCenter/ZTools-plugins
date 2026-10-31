@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { filterItems, kindLabel, summarize, type Filters } from './composables/startupLogic'
 import { useStartupManager } from './composables/useStartupManager'
+import { useStartupGrouping, type StartupGroup } from './composables/useStartupGrouping'
 import type { StartupItem } from './types/startup'
 
 const manager = useStartupManager()
@@ -11,6 +12,8 @@ const visibleItems = computed(() => filterItems(items.value, filters))
 const summary = computed(() => summarize(items.value))
 const kinds = computed(() => [...new Set(items.value.map((item) => item.kind))])
 const platformName = computed(() => ({ darwin: 'macOS', win32: 'Windows', linux: 'Linux' })[manager.report.value?.platform || 'linux'])
+
+const { groups, toggleGroupExpand } = useStartupGrouping(visibleItems)
 
 function stateLabel(item: StartupItem) {
   if (item.running) return '运行中'
@@ -22,9 +25,21 @@ function stateLabel(item: StartupItem) {
 async function requestToggle(item: StartupItem) {
   if (!item.action.canToggle || item.enabled == null) return
   const enabled = !item.enabled
-  const action = enabled ? '启用' : '停用'
-  if (!window.confirm(`${action}“${item.name}”？\n\n操作只影响当前用户，并可在本次会话中撤销。`)) return
   await manager.toggle(item, enabled)
+}
+
+async function toggleGroup(group: StartupGroup) {
+  if (!group.canToggleAll) return
+  // If not all enabled, toggle all to enabled; otherwise disable all
+  const targetState = !group.allEnabled
+  const actionText = targetState ? '启用' : '停用'
+  
+  const manageableItems = group.items.filter(i => i.action?.canToggle && i.enabled !== targetState)
+  if (manageableItems.length === 0) return
+
+  for (const item of manageableItems) {
+    await manager.toggle(item, targetState)
+  }
 }
 
 function resetFilters() {
@@ -43,7 +58,7 @@ onMounted(manager.scan)
       <div>
         <p class="eyebrow">SYSTEM STARTUP</p>
         <h1>开机启动管理</h1>
-        <p class="subtitle">看清谁会随电脑启动，只修改安全可回滚的用户项目。</p>
+        <p class="subtitle">看清谁会随电脑启动，支持按父应用一键全部开启/关闭，或单独管理子进程。</p>
       </div>
       <button class="refresh" :disabled="manager.loading.value || !manager.bridgeAvailable.value" @click="manager.scan">
         <span :class="{ spin: manager.loading.value }">↻</span>{{ manager.loading.value ? '扫描中' : '重新扫描' }}
@@ -71,26 +86,91 @@ onMounted(manager.scan)
     </section>
 
     <section class="list" aria-live="polite" :aria-busy="manager.loading.value">
-      <article v-for="item in visibleItems" :key="item.id" class="item-card">
-        <div class="item-main">
-          <div class="app-icon" aria-hidden="true">{{ item.name.slice(0, 1).toUpperCase() }}</div>
-          <div class="identity">
-            <div class="title-row"><h2>{{ item.name }}</h2><span class="badge" :class="`impact-${item.impact.level}`">{{ item.impact.level === 'high' ? '高影响' : item.impact.level === 'medium' ? '中影响' : item.impact.level === 'low' ? '低影响' : '影响未知' }}</span></div>
-            <p>{{ kindLabel(item.kind) }} · {{ item.source.label }} · {{ item.trigger }}</p>
+      <!-- 按应用/服务分组列表展示 -->
+      <article v-for="group in groups" :key="group.key" class="group-card">
+        <!-- 父级卡片 Header -->
+        <div class="group-header">
+          <div class="group-info" @click="toggleGroupExpand(group.key)">
+            <div class="group-icon-wrap">
+              <img v-if="group.icon" :src="group.icon" class="group-app-icon" alt="" />
+              <div v-else class="app-icon-fallback">{{ group.name.slice(0, 1).toUpperCase() }}</div>
+            </div>
+            <div class="group-meta">
+              <div class="group-title-row">
+                <h2 class="group-name">{{ group.name }}</h2>
+                <span class="sub-count-badge">{{ group.items.length }} 个子服务/进程</span>
+              </div>
+              <p class="group-status-desc">
+                已启用 {{ group.enabledCount }} / {{ group.totalCount }}
+                <span v-if="group.items.length > 1" class="expand-hint">（点击{{ group.isExpanded ? '收起' : '展开' }}明细）</span>
+              </p>
+            </div>
           </div>
-          <div class="state" :class="{ running: item.running, disabled: item.enabled === false }"><i />{{ stateLabel(item) }}</div>
-          <button v-if="item.action.canToggle && item.enabled != null" class="switch" :class="{ on: item.enabled }" role="switch" :aria-checked="item.enabled" :aria-label="`${item.enabled ? '停用' : '启用'} ${item.name}`" :disabled="manager.busyItems.value.has(item.id)" @click="requestToggle(item)"><span /></button>
-          <span v-else class="readonly" :title="item.action.reason || ''">只读</span>
+
+          <div class="group-actions">
+            <button 
+              v-if="group.canToggleAll" 
+              class="switch" 
+              :class="{ on: group.allEnabled, partial: !group.allEnabled && !group.noneEnabled }" 
+              role="switch" 
+              :aria-checked="group.allEnabled" 
+              :title="group.allEnabled ? '一键全部停用' : '一键全部开启'"
+              @click.stop="toggleGroup(group)"
+            >
+              <span />
+            </button>
+            <span v-else class="readonly">系统级</span>
+            <button class="btn-expand" @click="toggleGroupExpand(group.key)" :aria-label="group.isExpanded ? '收起' : '展开'">
+              {{ group.isExpanded ? '▲' : '▼' }}
+            </button>
+          </div>
         </div>
-        <details>
-          <summary>查看来源与判断依据</summary>
-          <dl>
-            <div><dt>位置</dt><dd>{{ item.source.location || '未提供' }}</dd></div>
-            <div><dt>启动命令</dt><dd>{{ item.commandSummary || '未提供' }}</dd></div>
-            <div><dt>影响判断</dt><dd>{{ item.impact.reasons.join('；') }}（启发式判断）</dd></div>
-            <div v-if="!item.action.canToggle"><dt>管理限制</dt><dd>{{ item.action.reason }}</dd></div>
-          </dl>
-        </details>
+
+        <!-- 子进程/子项明细列表 -->
+        <div v-show="group.isExpanded" class="group-children">
+          <div v-for="item in group.items" :key="item.id" class="child-item-row">
+            <div class="child-main">
+              <div class="child-identity">
+                <div class="child-title-row">
+                  <span class="child-name">{{ item.name }}</span>
+                  <span class="badge" :class="`impact-${item.impact.level}`">
+                    {{ item.impact.level === 'high' ? '高影响' : item.impact.level === 'medium' ? '中影响' : item.impact.level === 'low' ? '低影响' : '影响未知' }}
+                  </span>
+                </div>
+                <p class="child-sub">{{ kindLabel(item.kind) }} · {{ item.source.label }} · {{ item.trigger }}</p>
+              </div>
+              
+              <div class="child-state" :class="{ running: item.running, disabled: item.enabled === false }">
+                <i />{{ stateLabel(item) }}
+              </div>
+
+              <div class="child-control">
+                <button 
+                  v-if="item.action.canToggle && item.enabled != null" 
+                  class="switch sub-switch" 
+                  :class="{ on: item.enabled }" 
+                  role="switch" 
+                  :aria-checked="item.enabled" 
+                  :disabled="manager.busyItems.value.has(item.id)" 
+                  @click="requestToggle(item)"
+                >
+                  <span />
+                </button>
+                <span v-else class="readonly" :title="item.action.reason || ''">只读</span>
+              </div>
+            </div>
+
+            <details class="child-details">
+              <summary>查看位置与运行命令</summary>
+              <dl>
+                <div><dt>位置</dt><dd>{{ item.source.location || '未提供' }}</dd></div>
+                <div><dt>启动命令</dt><dd>{{ item.commandSummary || '未提供' }}</dd></div>
+                <div><dt>影响判断</dt><dd>{{ item.impact.reasons.join('；') }}（启发式判断）</dd></div>
+                <div v-if="!item.action.canToggle"><dt>管理限制</dt><dd>{{ item.action.reason }}</dd></div>
+              </dl>
+            </details>
+          </div>
+        </div>
       </article>
 
       <div v-if="!manager.loading.value && visibleItems.length === 0" class="empty">
@@ -104,6 +184,6 @@ onMounted(manager.scan)
       <span>已更新 {{ manager.lastOperation.value.itemName }}</span><button @click="manager.undo">撤销</button>
     </div>
 
-    <footer><span>系统级项目始终只读</span><span v-if="manager.report.value">扫描于 {{ new Date(manager.report.value.generatedAt).toLocaleTimeString() }}</span></footer>
+    <footer><span>系统级项目始终只读 · 支持按父应用多服务联动开启/关闭</span><span v-if="manager.report.value">扫描于 {{ new Date(manager.report.value.generatedAt).toLocaleTimeString() }}</span></footer>
   </main>
 </template>

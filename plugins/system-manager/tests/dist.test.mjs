@@ -12,7 +12,7 @@ const TOOL_NAMES = Object.freeze([
   'execute_application_removal', 'scan_startup_items', 'list_startup_items', 'prepare_startup_change',
   'set_startup_item_enabled', 'undo_startup_change', 'scan_system_junk', 'list_system_junk',
   'prepare_system_cleanup', 'clean_system_junk', 'list_network_interfaces', 'prepare_lan_scan',
-  'scan_lan_devices', 'get_operation_result',
+  'scan_lan_devices', 'get_operation_result', 'get_hardware_metrics', 'inspect_archive_safety', 'audit_installed_plugin',
 ])
 
 async function walk(directory) {
@@ -25,11 +25,11 @@ async function walk(directory) {
   return output
 }
 
-test('assembled manifest publishes five features, 22 tools and auditable root preload files', async () => {
+test('assembled manifest publishes six features, 25 tools and auditable root preload files', async () => {
   const manifest = JSON.parse(await readFile(path.join(distRoot, 'plugin.json'), 'utf8'))
   assert.equal(manifest.name, 'system-manager')
   assert.equal(manifest.preload, 'preload/index.cjs')
-  assert.deepEqual(manifest.features.map((feature) => feature.code), modules.map((module) => module.id))
+  assert.deepEqual(manifest.features.map((feature) => feature.code), ['system-manager', ...modules.map((module) => module.id)])
   assert.deepEqual(Object.keys(manifest.tools), TOOL_NAMES)
   for (const feature of manifest.features) assert.deepEqual(feature.platform, ['darwin', 'win32', 'linux'])
   for (const declaration of Object.values(manifest.tools)) {
