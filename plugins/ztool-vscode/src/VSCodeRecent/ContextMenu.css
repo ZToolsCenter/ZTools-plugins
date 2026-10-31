@@ -1,0 +1,90 @@
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 160px;
+  padding: 4px 0;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  animation: context-menu-fade-in 120ms ease-out;
+}
+
+@keyframes context-menu-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+  transition: background 80ms ease;
+}
+
+.context-menu-item:hover {
+  background: #f0f0f0;
+}
+
+.context-menu-item.disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.context-menu-item.disabled:hover {
+  background: transparent;
+}
+
+.context-menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: #666;
+}
+
+.context-menu-label {
+  flex: 1;
+}
+
+.context-menu-divider {
+  height: 1px;
+  margin: 4px 8px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* 暗色主题 */
+@media (prefers-color-scheme: dark) {
+  .context-menu {
+    background: #2d2d2d;
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .context-menu-item {
+    color: #ddd;
+  }
+
+  .context-menu-item:hover {
+    background: #3d3d3d;
+  }
+
+  .context-menu-icon {
+    color: #aaa;
+  }
+
+  .context-menu-divider {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}

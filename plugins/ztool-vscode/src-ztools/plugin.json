@@ -1,0 +1,28 @@
+{
+  "": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "ztool-vscode",
+  "title": "VS Code 启动器",
+  "description": "快速打开最近的 VSCode 项目",
+  "author": "Mortar",
+  "version": "0.0.1",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.svg",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "vscode",
+      "explain": "打开最近使用的 VSCode 项目",
+      "icon": "logo.svg",
+      "cmds": ["vscode"]
+    },
+    {
+      "code": "vsc-settings",
+      "explain": "配置 VSCode 启动器",
+      "icon": "logo.svg",
+      "cmds": ["vscode配置"]
+    }
+  ]
+}
