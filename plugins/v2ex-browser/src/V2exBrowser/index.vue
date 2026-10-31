@@ -4,6 +4,10 @@ import { fetchReplies, fetchTopic, fetchTopics } from '../v2ex/client'
 import { filterTopics, formatRelativeTime } from '../v2ex/presentation'
 import { createAvatarStore } from '../v2ex/avatar'
 import { FeedCache } from '../v2ex/feed-cache'
+import { buildReplyThreads } from '../v2ex/reply-threads'
+import { normalizeContentUrl, openExternalUrl } from '../v2ex/rich-content'
+import RichContent from './RichContent.vue'
+import ReplyThread from './ReplyThread.vue'
 import type { FeedKind, TopicDetail, TopicReply, TopicSummary } from '../v2ex/types'
 
 defineProps<{ enterAction: Record<string, unknown> }>()
@@ -26,14 +30,14 @@ let feedRequestVersion = 0
 let detailRequestVersion = 0
 
 const visibleTopics = computed(() => filterTopics(topics.value, keyword.value))
+const replyThreads = computed(() => buildReplyThreads(replies.value))
 const selectedTopic = computed(() => topic.value)
 const feedTitle = computed(() => (feed.value === 'hot' ? '最热帖子' : '最新帖子'))
 const feeds = new FeedCache(fetchTopics)
-const avatars = createAvatarStore(async (url) => {
-  const image = await window.services.getV2exAvatar(normalizeAvatarUrl(url))
-  avatarVersion.value += 1
-  return image
-})
+const avatars = createAvatarStore(
+  (url) => window.services.getV2exAvatar(normalizeAvatarUrl(url)),
+  () => { avatarVersion.value += 1 }
+)
 
 async function loadFeed(forceRefresh = false) {
   const requestVersion = ++feedRequestVersion
@@ -122,12 +126,7 @@ function refreshDetail() {
 
 function openInBrowser() {
   if (!selectedTopic.value) return
-  const url = selectedTopic.value.url
-  if (window.ztools?.shellOpenExternal) {
-    window.ztools.shellOpenExternal(url)
-    return
-  }
-  window.open(url, '_blank', 'noopener,noreferrer')
+  openExternalUrl(normalizeContentUrl(selectedTopic.value.url))
 }
 
 function normalizeAvatarUrl(url: string): string {
@@ -210,7 +209,7 @@ onMounted(() => {
           <p class="eyebrow">{{ selectedTopic.node.title }} / {{ selectedTopic.member.username }}</p>
           <h1>{{ selectedTopic.title }}</h1>
           <div class="author-line"><img class="avatar" :src="avatarUrl(selectedTopic.member.avatar_normal)" alt="" /><span>{{ selectedTopic.member.username }}</span><span>{{ formatRelativeTime(selectedTopic.created) }}</span><span>{{ selectedTopic.replies }} 条回复</span></div>
-          <p class="topic-content">{{ selectedTopic.content || '这篇帖子没有正文。' }}</p>
+          <RichContent :content-rendered="selectedTopic.content_rendered" :content="selectedTopic.content" empty-text="这篇帖子没有正文。" />
           <div v-if="detailError" class="notice error" role="alert"><strong>帖子刷新失败，当前显示上次加载的内容</strong><span>{{ detailError }}</span></div>
         </article>
 
@@ -219,10 +218,7 @@ onMounted(() => {
           <div v-if="repliesLoading && !replies.length" class="notice loading">正在加载回复...</div>
           <div v-else-if="repliesError" class="notice error"><span>{{ repliesError }}</span><button @click="refreshDetail">重试</button></div>
           <div v-else-if="!replies.length" class="notice empty">暂时还没有回复。</div>
-          <article v-for="(reply, index) in replies" :key="reply.id" class="reply">
-            <img class="avatar" :src="avatarUrl(reply.member.avatar_normal)" alt="" />
-            <div><div class="reply-meta"><strong>{{ reply.member.username }}</strong><span>#{{ index + 1 }}</span><span>{{ formatRelativeTime(reply.created) }}</span></div><p>{{ reply.content || '（无文字内容）' }}</p></div>
-          </article>
+          <ReplyThread v-for="thread in replyThreads" :key="thread.reply.id" :thread="thread" :topic-author="selectedTopic.member.username" :avatar-url="avatarUrl" />
         </section>
       </template>
     </section>

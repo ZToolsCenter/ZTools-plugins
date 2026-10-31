@@ -5,7 +5,7 @@
   "description": "查看 V2EX 最热和最新帖子，阅读详情与回复",
   "author": "xiewz",
   "homepage": "https://github.com/XiewzHub/ztools-v2ex-browser",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "main": "dist/index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

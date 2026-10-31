@@ -41,11 +41,43 @@ h1 { margin: 0; color: #172033; font-size: 24px; line-height: 1.3; }
 .topic-detail, .replies-section { padding: 24px; border: 1px solid #dfe4ec; border-radius: 7px; background: #fff; }
 .topic-detail { margin-bottom: 16px; }
 .author-line { margin: 18px 0 22px; }
-.topic-content, .reply p { margin: 0; color: #344054; line-height: 1.75; white-space: pre-wrap; word-break: break-word; }
+.rich-content-text { margin: 0; color: #344054; line-height: 1.75; white-space: pre-wrap; word-break: break-word; }
+.rich-content { min-width: 0; color: #344054; line-height: 1.75; overflow-wrap: anywhere; }
+.rich-content > :first-child { margin-top: 0; }
+.rich-content > :last-child { margin-bottom: 0; }
+.rich-content p { margin: 0 0 .8em; }
+.rich-content h1, .rich-content h2, .rich-content h3, .rich-content h4, .rich-content h5, .rich-content h6 { margin: 1.35em 0 .55em; color: #172033; line-height: 1.4; }
+.rich-content h1 { font-size: 22px; } .rich-content h2 { font-size: 19px; } .rich-content h3 { font-size: 17px; }
+.rich-content h4, .rich-content h5, .rich-content h6 { font-size: 15px; }
+.rich-content ol, .rich-content ul { margin: .7em 0; padding-left: 1.7em; }
+.rich-content li + li { margin-top: .3em; }
+.rich-content blockquote { margin: .9em 0; padding: .55em .9em; border-left: 3px solid #bfd0e4; color: #526177; background: #f5f8fc; }
+.rich-content pre { overflow-x: auto; margin: .9em 0; padding: 14px 16px; border-radius: 6px; color: #dbe7f3; background: #202a3a; line-height: 1.65; white-space: pre; }
+.rich-content code { padding: .14em .35em; border-radius: 3px; color: #8a3b12; background: #f2f4f7; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
+.rich-content pre code { padding: 0; color: inherit; background: transparent; font-size: inherit; }
+.rich-content a { color: #1677ff; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.rich-content img { display: block; max-width: 100%; height: auto; margin: .8em 0; border-radius: 5px; }
+.rich-content img.rich-content-emoji { display: inline; width: auto; height: auto; max-width: min(100%, 28px); margin: 0 .08em; border-radius: 3px; vertical-align: middle; }
+.rich-content p > img:not(.embedded_image):only-child { display: block; width: auto; max-width: 100%; margin: .8em 0; border-radius: 5px; }
+.rich-content hr { margin: 1.3em 0; border: 0; border-top: 1px solid #dfe4ec; }
 .replies-section h2 { margin: 0 0 16px; color: #172033; font-size: 17px; }
 .replies-section h2 span { color: #7b8798; font-size: 13px; font-weight: 500; }
-.reply { display: flex; gap: 12px; padding: 16px 0; border-top: 1px solid #eef1f5; }
-.reply-meta { margin-bottom: 8px; }
+.reply { padding: 20px 0; border-top: 1px solid #eef1f5; }
+.reply-row { display: flex; align-items: flex-start; gap: 14px; }
+.reply-avatar { width: 40px; height: 40px; }
+.reply-main { flex: 1; min-width: 0; }
+.reply-meta { min-height: 24px; margin-bottom: 4px; }
 .reply-meta strong { color: #344054; }
+.reply .rich-content, .reply .rich-content-text { font-size: 14px; }
+.reply-floor { margin-left: auto; color: #94a3b8; white-space: nowrap; }
+.reply-op { padding: 2px 4px; border: 1px solid #86efac; border-radius: 4px; color: #15803d; background: #f0fdf4; font-size: 10px; line-height: 1; }
+.reply-children { margin: 12px 0 0 10px; padding: 0 14px; border-left: 2px solid #cdd8e6; background: #f1f5f9; }
+.reply-children > .reply { padding: 12px 0; border-top: 0; }
+.reply-children .reply-avatar { width: 26px; height: 26px; }
+.reply-children .reply-meta { min-height: 22px; }
+.reply-children .reply-children { margin-left: 12px; padding-right: 0; }
+.reply-children .reply-children .reply-children .reply-children { margin-left: 0; padding-left: 0; border-left: 0; }
+@media (max-width: 640px) { .replies-section { padding: 16px; } .reply-row { gap: 10px; } .reply-meta { gap: 6px; } .reply-meta time { font-size: 11px; } .reply-children { margin-left: 0; padding: 0 10px; } .reply-children .reply-children { margin-left: 8px; } }
+@media (prefers-color-scheme: dark) { .reply-children { border-color: #3b4c65; background: #222e40; } .reply-op { border-color: #166534; color: #86efac; background: #163426; } .rich-content, .rich-content-text { color: #c6d0df; } .rich-content h1, .rich-content h2, .rich-content h3, .rich-content h4, .rich-content h5, .rich-content h6 { color: #f1f5f9; } .rich-content blockquote { border-color: #46617f; color: #c6d0df; background: #222e40; } .rich-content code { color: #fdba74; background: #2b3748; } .rich-content pre code { color: inherit; background: transparent; } .rich-content hr { border-color: #344155; } }
 @media (max-width: 640px) { .v2ex-browser { padding: 16px; } .toolbar { flex-wrap: wrap; } .brand { min-width: auto; } .search { order: 2; flex-basis: 100%; max-width: none; } .feed-heading { margin-top: 26px; } .topic-row { padding: 12px; } .back-button span { display: none; } }
-@media (prefers-color-scheme: dark) { :root { color: #e2e8f0; background: #141b28; } .brand-mark { color: #192131; background: #e6edf7; } .segmented, .search, .icon-button, .topic-list, .topic-row, .notice, .topic-detail, .replies-section { border-color: #344155; background: #1d2635; } .toolbar { border-color: #344155; background: #141b28; } .topic-row:hover { background: #222e40; } .segmented button { color: #aab6c7; } .icon-button, .back-button, .notice button { color: #d7e0ec; background: #1d2635; } h1, .topic-title, .replies-section h2, .reply-meta strong { color: #f1f5f9; } .topic-content, .reply p { color: #c6d0df; } .topic-row, .reply { border-color: #2e3a4d; } .replies { color: #c3cfdf; background: #2e3a4d; } .notice.error { border-color: #7f1d1d; background: #351c24; } }
+@media (prefers-color-scheme: dark) { :root { color: #e2e8f0; background: #141b28; } .brand-mark { color: #192131; background: #e6edf7; } .segmented, .search, .icon-button, .topic-list, .topic-row, .notice, .topic-detail, .replies-section { border-color: #344155; background: #1d2635; } .toolbar { border-color: #344155; background: #141b28; } .topic-row:hover { background: #222e40; } .segmented button { color: #aab6c7; } .icon-button, .back-button, .notice button { color: #d7e0ec; background: #1d2635; } h1, .topic-title, .replies-section h2, .reply-meta strong { color: #f1f5f9; } .topic-row, .reply { border-color: #2e3a4d; } .replies { color: #c3cfdf; background: #2e3a4d; } .notice.error { border-color: #7f1d1d; background: #351c24; } }
