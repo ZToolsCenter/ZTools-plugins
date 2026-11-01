@@ -1,0 +1,224 @@
+/* 结果面板：原文 / 译文 双栏 */
+
+.shell {
+  max-width: none;
+  background: var(--bg);
+  backdrop-filter: none;
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 10px 0 14px;
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+  flex: none;
+}
+
+.titlebar h1 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.titlebar .spacer {
+  flex: 1;
+}
+
+.titlebar button {
+  -webkit-app-region: no-drag;
+}
+
+.dot-group {
+  display: inline-flex;
+  gap: 5px;
+  margin-right: 2px;
+}
+
+.dot-group i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.icon-btn:hover {
+  background: rgba(220, 70, 70, 0.16);
+  color: #f0a3a3;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.tabs {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--panel-strong);
+  gap: 2px;
+}
+
+.tabs button {
+  height: 24px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.tabs button.active {
+  background: var(--bg-soft);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+.status {
+  font-size: 11.5px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+select.mini {
+  width: auto;
+  height: 26px;
+  padding: 0 24px 0 9px;
+  font-size: 12px;
+  background-position: calc(100% - 13px) 11px, calc(100% - 8px) 11px;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.pane {
+  min-width: 0;
+  min-height: 0;
+}
+
+.pane.preview {
+  flex: 1;
+  overflow: auto;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.014) 25%, transparent 25%) 0 0/16px 16px,
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.014) 25%, transparent 25%) 0 0/16px 16px,
+    var(--bg);
+}
+
+body.light .pane.preview {
+  background:
+    linear-gradient(45deg, rgba(0, 0, 0, 0.02) 25%, transparent 25%) 0 0/16px 16px,
+    linear-gradient(-45deg, rgba(0, 0, 0, 0.02) 25%, transparent 25%) 0 0/16px 16px,
+    var(--bg-soft);
+}
+
+.canvas-wrap {
+  position: relative;
+  margin: auto;
+  max-width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.28);
+  line-height: 0;
+}
+
+.canvas-wrap img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  line-height: 1.25;
+}
+
+#overlay .trans {
+  position: absolute;
+  background: rgba(250, 250, 248, 0.965);
+  color: #14171c;
+  border-radius: 3px;
+  padding: 1px 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+  overflow: visible;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  line-height: 1.22;
+}
+
+.pane.side {
+  width: 340px;
+  flex: none;
+  border-left: 1px solid var(--line);
+  display: flex;
+  padding: 12px;
+  background: var(--bg);
+}
+
+#text {
+  flex: 1;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  outline: none;
+  resize: none;
+  background: var(--bg-soft);
+  color: var(--text);
+  font-size: 12.8px;
+  line-height: 1.72;
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#text:focus {
+  border-color: var(--line-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  color: var(--faint);
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.8;
+}
