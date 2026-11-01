@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>文字识别</title>
+  <link rel="stylesheet" href="src/app.css" />
+  <link rel="stylesheet" href="src/result.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="titlebar">
+      <h1 id="title">文字识别</h1>
+      <span class="spacer"></span>
+      <button class="btn small ghost" id="btn-copy">复制原文</button>
+      <button class="btn small primary" id="btn-translate">翻译</button>
+      <button class="icon-btn" id="btn-close" title="关闭">✕</button>
+    </header>
+
+    <div class="toolbar">
+      <div class="tabs">
+        <button data-tab="text" class="active">原文</button>
+        <button data-tab="trans">译文</button>
+      </div>
+      <span class="spacer"></span>
+      <span class="status" id="status">准备中…</span>
+      <select class="mini" id="dstLang" title="译成"></select>
+      <button class="btn small ghost" id="btn-retry">重试</button>
+    </div>
+
+    <div class="content">
+      <div class="pane preview" id="preview">
+        <div class="canvas-wrap" id="canvas-wrap">
+          <img id="shot" alt="" />
+          <div id="overlay" hidden></div>
+        </div>
+      </div>
+      <div class="pane side">
+        <textarea id="text" spellcheck="false" placeholder="识别结果会出现在这里"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="src/shared.js"></script>
+  <script src="src/result.js"></script>
+</body>
+</html>
