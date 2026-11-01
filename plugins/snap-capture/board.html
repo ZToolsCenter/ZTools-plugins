@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>轻影 · 贴图板</title>
+  <link rel="stylesheet" href="src/board.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="dot"></span>
+      <span class="name">轻影</span>
+      <span class="sub" id="topSub">贴图板</span>
+    </div>
+    <div class="top-actions">
+      <button id="btnFolder" class="ghost" title="打开历史文件夹">打开文件夹</button>
+      <button id="btnClose" class="ghost icon" title="关闭 (Esc)">✕</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="pins">贴图板<span id="pinCount" class="pill">0</span></button>
+    <button class="tab" data-tab="history">历史记录</button>
+    <div class="tab-tools">
+      <button id="pinShowAll" class="ghost small">全部显示</button>
+      <button id="pinHideAll" class="ghost small">全部收起</button>
+      <button id="pinCloseAll" class="ghost small danger">全部关闭</button>
+    </div>
+    <div class="tab-tools" id="historyTools" hidden>
+      <input id="search" class="search" type="search" placeholder="搜时间、尺寸、来源…" />
+      <button id="btnClear" class="ghost small danger">清空</button>
+    </div>
+  </nav>
+
+  <main id="panePins" class="pane">
+    <div id="pinGrid" class="grid"></div>
+    <div id="pinEmpty" class="empty" hidden>
+      <p>现在还没有贴图。</p>
+      <p class="tip">截完图按「悬浮」，图就会钉在屏幕上；同一批贴图都会出现在这里。</p>
+    </div>
+  </main>
+
+  <main id="paneHistory" class="pane" hidden>
+    <div id="historyGrid" class="grid"></div>
+    <div id="historyEmpty" class="empty" hidden>
+      <p>还没有截图历史。</p>
+      <p class="tip">每次截图都会自动在本机留一份，截完忘了复制也能找回来。</p>
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="src/shared.js"></script>
+  <script src="src/board.js"></script>
+</body>
+</html>
