@@ -1,44 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { PasteItem } from "@pasteboard-pro/core";
-
 import {
   MAX_CLIPBOARD_TEXT_BYTES,
   mirrorHostHistory,
   normalizeHostClipboardItem,
   ZToolsCanonicalClipboardStore,
   type CanonicalClipboardRecord,
-  type CanonicalClipboardStore,
   type HostClipboardApi,
-  type HostCursor,
   type ZToolsDocumentDatabase,
 } from "../preload/clipboard-store";
 
-class MemoryStore implements CanonicalClipboardStore {
-  readonly records = new Map<string, CanonicalClipboardRecord>();
-  private readonly fingerprints = new Map<string, PasteItem>();
-  private cursor: HostCursor | undefined;
-
-  async findByFingerprint(fingerprint: string): Promise<PasteItem | undefined> {
-    return this.fingerprints.get(fingerprint);
-  }
-
-  async put(record: CanonicalClipboardRecord): Promise<void> {
-    this.records.set(record.item.id, structuredClone(record));
-    this.fingerprints.set(
-      record.item.contentFingerprint,
-      structuredClone(record.item),
-    );
-  }
-
-  async getCursor(): Promise<HostCursor | undefined> {
-    return this.cursor === undefined ? undefined : { ...this.cursor };
-  }
-
-  async setCursor(cursor: HostCursor): Promise<void> {
-    this.cursor = { ...cursor };
-  }
-}
+import { MemoryStore } from "./memory-clipboard-store";
 
 const hostItems = [
   {
@@ -93,6 +65,22 @@ describe("ZTools clipboard adapter", () => {
       imagePath: "/tmp/capture.png",
     });
     expect(records[2]?.item.payload.filePaths).toEqual(["/tmp/brief.pdf"]);
+  });
+
+  it("accepts the host bundleId alias for source app metadata", () => {
+    const record = normalizeHostClipboardItem({
+      id: "text-source-bundle",
+      type: "text",
+      timestamp: 400,
+      content: "bundle alias",
+      appName: "Preview",
+      bundleId: "com.apple.Preview",
+    }, "ztools-device");
+
+    expect(record?.item.sourceApp).toEqual({
+      name: "Preview",
+      bundleId: "com.apple.Preview",
+    });
   });
 
   it("pages through history, persists a restart cursor, and deduplicates unchanged items", async () => {
@@ -262,7 +250,7 @@ describe("ZTools clipboard adapter", () => {
           ...structuredClone(document),
           _rev: `${revision}-test`,
         });
-        return { ok: true };
+        return { ok: true, id, rev: `${revision}-test` };
       },
       async allDocs(options) {
         const start = String(options.startkey ?? "");
@@ -405,7 +393,7 @@ describe("ZTools clipboard adapter", () => {
         }
         revision += 1;
         documents.set(id, { ...structuredClone(document), _rev: `${revision}-test` });
-        return { ok: true };
+        return { ok: true, id, rev: `${revision}-test` };
       },
       async allDocs(options) {
         const start = String(options.startkey ?? "");
@@ -426,7 +414,7 @@ describe("ZTools clipboard adapter", () => {
 
     await expect(
       store.assignToPinboard([first.item.id, second.item.id], "board-work"),
-    ).rejects.toThrow("simulated assignment failure");
+    ).rejects.toThrow("Storage operation failed");
     await expect(store.findRecordByItemId(first.item.id)).resolves.not.toHaveProperty(
       "item.pinboardId",
     );

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import type { PasteItem, Pinboard } from "@pasteboard-pro/core";
 
@@ -9,8 +9,15 @@ import {
 } from "../thumbnail-loader";
 import { containContextMenuKeydown } from "../context-menu-keyboard";
 import { writeSourceDragData } from "../drag-content";
-import { LIST_REORDER_MIME } from "../list-order";
 import { hasPrimaryShortcutModifier, resolveShortcutPlatform } from "../platform-shortcuts";
+import "../styles/popover-theme.css";
+import { placePopover, type PopupPlacement } from "./popup-position";
+
+import { shelfUiVersionKey } from "../shelf-presentation";
+import ModernCardMeta from "./ModernCardMeta.vue";
+import ModernCardPreview from "./ModernCardPreview.vue";
+
+const uiVersion = inject(shelfUiVersionKey, ref("classic"));
 
 const props = defineProps<{
   item: PasteItem;
@@ -23,7 +30,6 @@ const props = defineProps<{
   reorderEnabled?: boolean;
   reorderActive: boolean;
   reorderHidden: boolean;
-  reorderItemIds: readonly string[];
   reorderShift: number;
 }>();
 
@@ -33,8 +39,7 @@ const emit = defineEmits<{
   preview: [itemId: string];
   assignPinboard: [value: { pinboardId: string | undefined; itemId: string }];
   createPinboard: [];
-  reorderDragStart: [itemId: string];
-  reorderDragEnd: [];
+  reorderPointerStart: [itemId: string, event: PointerEvent, card: HTMLElement];
 }>();
 const card = ref<HTMLElement>();
 const thumbnailUrl = ref<string>();
@@ -42,15 +47,22 @@ const imageDimensions = ref<string>();
 const imageWidth = ref<number>();
 const imageHeight = ref<number>();
 const thumbnailRequested = ref(false);
-const reorderDragging = ref(false);
-const shortcutPlatform = resolveShortcutPlatform(
-  window.pasteboardPro?.getPlatformCapabilities().platform,
-);
-const contextMenu = ref<{ x: number; y: number }>();
+const platformCapabilities = window.pasteboardPro?.getPlatformCapabilities();
+const shortcutPlatform = resolveShortcutPlatform(platformCapabilities?.platform);
+const cardDragTitle = computed(() => {
+  const isFileSource =
+    props.item.kind === "image" || props.item.payload.filePaths !== undefined;
+  return isFileSource && platformCapabilities?.supportsNativeFileDrag === false
+    ? "当前 ZTools 宿主不支持将图片或文件拖到其他应用"
+    : undefined;
+});
+const contextMenuOpen = ref(false);
+const contextMenuPanel = ref<HTMLElement>();
+const contextMenuPlacement = ref<PopupPlacement>({ left: 8, top: 8 });
+let contextMenuAnchor = { x: 8, y: 8 };
 let stopObservingThumbnail: (() => void) | undefined;
-let reorderDragPreview: HTMLElement | undefined;
 const reorderTransformStyle = computed<Record<string, string> | undefined>(() => {
-  if (props.reorderShift === 0 || props.reorderHidden || reorderDragging.value) return undefined;
+  if (props.reorderShift === 0 || props.reorderHidden) return undefined;
   const gap = props.vertical && props.compact ? 8 : 12;
   const percent = props.reorderShift * 100;
   const gapOffset = props.reorderShift * gap;
@@ -62,24 +74,54 @@ const reorderTransformStyle = computed<Record<string, string> | undefined>(() =>
     : `translateX(calc(${distance}))`;
   return { "--pb-reorder-transform": transform };
 });
-
-function closeContextMenu(): void {
-  document.removeEventListener("pointerdown", closeContextMenu);
-  window.removeEventListener("keydown", closeContextMenuOnEscape);
-  contextMenu.value = undefined;
+function closeContextMenu(restoreFocus = false): void {
+  if (!contextMenuOpen.value) return;
+  contextMenuOpen.value = false;
+  document.removeEventListener("pointerdown", onContextMenuOutsidePointerDown, true);
+  window.removeEventListener("keydown", closeContextMenuOnEscape, true);
+  window.removeEventListener("resize", updateContextMenuPlacement);
+  window.removeEventListener("scroll", updateContextMenuPlacement, true);
+  if (restoreFocus) card.value?.focus({ preventScroll: true });
 }
 
-function openContextMenu(event: MouseEvent): void {
+function updateContextMenuPlacement(): void {
+  const panel = contextMenuPanel.value;
+  if (panel === undefined) return;
+  contextMenuPlacement.value = placePopover(
+    {
+      left: contextMenuAnchor.x,
+      right: contextMenuAnchor.x,
+      top: contextMenuAnchor.y,
+      bottom: contextMenuAnchor.y,
+    },
+    { width: panel.offsetWidth, height: panel.offsetHeight },
+    { width: window.innerWidth, height: window.innerHeight },
+    { align: "start", margin: 8, gap: 4 },
+  );
+}
+
+async function openContextMenu(event: MouseEvent): Promise<void> {
   if (!props.selected) emit("select", props.item.id, false, false);
-  contextMenu.value = {
-    x: Math.max(8, Math.min(event.clientX, window.innerWidth - 208)),
-    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 280)),
-  };
-  document.addEventListener("pointerdown", closeContextMenu);
-  window.addEventListener("keydown", closeContextMenuOnEscape);
+  contextMenuAnchor = { x: event.clientX, y: event.clientY };
+  contextMenuOpen.value = true;
+  document.addEventListener("pointerdown", onContextMenuOutsidePointerDown, true);
+  window.addEventListener("keydown", closeContextMenuOnEscape, true);
+  window.addEventListener("resize", updateContextMenuPlacement);
+  window.addEventListener("scroll", updateContextMenuPlacement, true);
+  await nextTick();
+  updateContextMenuPlacement();
+  contextMenuPanel.value?.querySelector<HTMLElement>("[role='menuitem']")
+    ?.focus({ preventScroll: true });
+}
+
+function onContextMenuOutsidePointerDown(event: PointerEvent): void {
+  if (event.target instanceof Node && contextMenuPanel.value?.contains(event.target)) return;
+  closeContextMenu();
 }
 
 function selectCard(event: MouseEvent): void {
+  const target = event.target instanceof Element ? event.target : undefined;
+  if (target !== undefined && target.closest("[data-pb-reorder-handle]") !== null && props.selected) return;
   emit(
     "select",
     props.item.id,
@@ -90,7 +132,7 @@ function selectCard(event: MouseEvent): void {
 
 function assignToPinboard(pinboardId: string | undefined): void {
   emit("assignPinboard", { pinboardId, itemId: props.item.id });
-  closeContextMenu();
+  closeContextMenu(true);
 }
 
 function requestCreatePinboard(): void {
@@ -99,141 +141,48 @@ function requestCreatePinboard(): void {
 }
 
 function closeContextMenuOnEscape(event: KeyboardEvent): void {
-  if (event.key === "Escape") closeContextMenu();
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  closeContextMenu(true);
 }
 
 function handleContextMenuKeydown(event: KeyboardEvent): void {
   containContextMenuKeydown(event, closeContextMenu);
 }
 
-function beginSourceDrag(event: DragEvent): void {
-  if (props.item.kind === "image" || props.item.payload.filePaths !== undefined) {
+function beginCardDrag(event: DragEvent): void {
+  const target = event.target instanceof Element ? event.target : undefined;
+  const isReorderHandle = target !== undefined &&
+    target.closest("[data-pb-reorder-handle]") !== null;
+  if (isReorderHandle) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  if (event.dataTransfer === null) return;
+
+  const isFileSource =
+    props.item.kind === "image" || props.item.payload.filePaths !== undefined;
+  if (isFileSource) {
     beginNativeFileDrag(event);
     return;
   }
-  if (event.dataTransfer !== null) writeSourceDragData(props.item, event.dataTransfer);
-}
-
-function removeReorderDragPreview(): void {
-  reorderDragPreview?.remove();
-  reorderDragPreview = undefined;
-}
-
-function reorderPreviewCards(): readonly HTMLElement[] {
-  const cards = [...document.querySelectorAll<HTMLElement>("[data-pb-item-id]")];
-  return props.reorderItemIds.flatMap((itemId) => {
-    const sourceCard = cards.find((candidate) => candidate.dataset.pbItemId === itemId);
-    return sourceCard === undefined ? [] : [sourceCard];
-  });
-}
-
-function installReorderDragPreview(event: DragEvent): void {
-  const source = event.currentTarget;
-  if (!(source instanceof HTMLElement) || event.dataTransfer === null) return;
-  removeReorderDragPreview();
-  const sourceBounds = source.getBoundingClientRect();
-  const sourceCards = reorderPreviewCards();
-  if (sourceCards.length === 0) return;
-
-  const gap = sourceCards.length > 1 ? 10 : 0;
-  const maximumWidth = Math.max(320, Math.min(window.innerWidth * 0.86, 920));
-  const unscaledWidth = sourceCards.reduce(
-    (width, sourceCard) => width + sourceCard.getBoundingClientRect().width,
-    gap * Math.max(0, sourceCards.length - 1),
-  );
-  const scale = Math.min(0.96, maximumWidth / Math.max(1, unscaledWidth));
-  const scaledGap = gap * scale;
-  const preview = document.createElement("div");
-  preview.className = "paste-card-drag-group";
-  preview.dataset.pbDragPreviewCount = String(sourceCards.length);
-  preview.setAttribute("aria-hidden", "true");
-  Object.assign(preview.style, {
-    position: "fixed",
-    zIndex: "10000",
-    top: "-9999px",
-    left: "-9999px",
-    display: "flex",
-    gap: `${scaledGap}px`,
-    alignItems: "flex-start",
-    pointerEvents: "none",
-  });
-
-  let sourceOffset = 0;
-  let maximumHeight = 0;
-  const sourceIndex = sourceCards.findIndex((candidate) => candidate === source);
-  sourceCards.forEach((sourceCard, index) => {
-    const bounds = sourceCard.getBoundingClientRect();
-    const slot = document.createElement("div");
-    const slotWidth = bounds.width * scale;
-    const slotHeight = bounds.height * scale;
-    Object.assign(slot.style, {
-      position: "relative",
-      flex: `0 0 ${slotWidth}px`,
-      width: `${slotWidth}px`,
-      height: `${slotHeight}px`,
-      zIndex: String(sourceCards.length - index),
-    });
-
-    const cardPreview = sourceCard.cloneNode(true) as HTMLElement;
-    cardPreview.classList.remove(
-      "paste-card--dragging",
-      "paste-card--reorder-active",
-      "paste-card--shift-backward",
-      "paste-card--shift-forward",
-    );
-    cardPreview.classList.add("paste-card--drag-preview");
-    cardPreview.dataset.pbDragPreviewIndex = String(index);
-    cardPreview.setAttribute("aria-hidden", "true");
-    cardPreview.removeAttribute("tabindex");
-    cardPreview.setAttribute("draggable", "false");
-    Object.assign(cardPreview.style, {
-      width: `${bounds.width}px`,
-      height: `${bounds.height}px`,
-      transformOrigin: "top left",
-    });
-    cardPreview.style.setProperty(
-      "--pb-drag-preview-yaw",
-      `${index % 2 === 0 ? -7 : 7}deg`,
-    );
-    cardPreview.style.setProperty("--pb-drag-preview-scale", String(scale));
-    slot.append(cardPreview);
-    preview.append(slot);
-
-    if (sourceCard === source) {
-      sourceOffset += Math.max(
-        0,
-        Math.min(bounds.width, event.clientX - sourceBounds.left),
-      ) * scale;
-    } else if (index < sourceIndex) {
-      sourceOffset += slotWidth + scaledGap;
-    }
-    maximumHeight = Math.max(maximumHeight, slotHeight);
-  });
-  preview.style.height = `${maximumHeight}px`;
-
-  document.body.append(preview);
-  reorderDragPreview = preview;
-  const offsetY = Math.max(
-    0,
-    Math.min(sourceBounds.height, event.clientY - sourceBounds.top),
-  ) * scale;
-  event.dataTransfer.setDragImage(preview, sourceOffset, offsetY);
-}
-
-function beginReorderDrag(event: DragEvent): void {
-  if (event.dataTransfer === null || props.reorderEnabled === false) return;
   writeSourceDragData(props.item, event.dataTransfer);
-  event.dataTransfer.setData(LIST_REORDER_MIME, JSON.stringify(props.reorderItemIds));
-  event.dataTransfer.effectAllowed = "copyMove";
-  reorderDragging.value = true;
-  installReorderDragPreview(event);
-  emit("reorderDragStart", props.item.id);
 }
 
-function finishReorderDrag(): void {
-  reorderDragging.value = false;
-  removeReorderDragPreview();
-  emit("reorderDragEnd");
+function handleCardPointerDown(event: PointerEvent): void {
+  const target = event.target instanceof Element ? event.target : undefined;
+  const isReorderHandle = target !== undefined &&
+    target.closest("[data-pb-reorder-handle]") !== null;
+  if (isReorderHandle) {
+    if (props.reorderEnabled !== false && card.value !== undefined) {
+      event.preventDefault();
+      emit("reorderPointerStart", props.item.id, event, card.value);
+    }
+    return;
+  }
+  prepareNativeFileDrag();
 }
 
 function prepareNativeFileDrag(): void {
@@ -245,7 +194,6 @@ function prepareNativeFileDrag(): void {
 }
 
 function beginNativeFileDrag(event: DragEvent): void {
-  // Stop nested image/file drag events from reaching the card reorder handler.
   event.stopPropagation();
   const started = window.pasteboardPro?.startNativeFileDrag(props.item.id) ?? false;
   if (started) {
@@ -329,7 +277,6 @@ const isFitWidth = computed<boolean>(() => {
 
 onBeforeUnmount(() => {
   stopObservingThumbnail?.();
-  removeReorderDragPreview();
   closeContextMenu();
 });
 </script>
@@ -338,45 +285,61 @@ onBeforeUnmount(() => {
   <article
     ref="card"
     class="paste-card"
-    :class="[`paste-card--${item.kind}`, { 'paste-card--selected': selected, 'paste-card--vertical': vertical, 'paste-card--compact': compact, 'paste-card--dragging': reorderDragging || reorderHidden, 'paste-card--reorder-active': reorderActive, 'paste-card--shift-backward': reorderShift < 0, 'paste-card--shift-forward': reorderShift > 0 }]"
+    :class="[`paste-card--${item.kind}`, { 'paste-card--modern': uiVersion === 'modern', 'paste-card--selected': selected, 'paste-card--vertical': vertical, 'paste-card--compact': compact, 'paste-card--dragging': reorderHidden, 'paste-card--reorder-active': reorderActive, 'paste-card--shift-backward': reorderShift < 0, 'paste-card--shift-forward': reorderShift > 0 }]"
     :style="reorderTransformStyle"
+    :title="cardDragTitle"
     :aria-selected="selected"
     :aria-posinset="index + 1"
     :aria-setsize="total"
     :data-pb-item-id="item.id"
     role="option"
     tabindex="0"
-    :draggable="reorderEnabled !== false"
+    draggable="true"
     @click="selectCard"
     @dblclick="emit('paste', item.id)"
     @contextmenu.prevent.stop="openContextMenu"
-    @dragstart="beginReorderDrag"
-    @dragend="finishReorderDrag"
+    @pointerdown="handleCardPointerDown"
+    @dragstart="beginCardDrag"
   >
-    <header>
+    <ModernCardMeta
+      v-if="uiVersion === 'modern'"
+      :item="item"
+      :index="index"
+      :reorder-enabled="reorderEnabled"
+      placement="header"
+    />
+    <header v-else>
       <span class="kind">
         {{ item.kind.replace('_', ' ') }}
         <span v-if="item.kind === 'image' && imageDimensions" class="kind-meta">· {{ imageDimensions }}</span>
       </span>
       <span class="card-tools">
-        <span
+        <button
           v-if="reorderEnabled !== false"
-          class="reorder-indicator"
-          aria-hidden="true"
+          class="reorder-handle"
+          type="button"
+          data-pb-reorder-handle
+          aria-label="拖动排序"
+          draggable="false"
           title="拖动排序"
-        >⠿</span>
+          @click.stop="selectCard"
+        >⠿</button>
         <kbd v-if="index < 9">{{ index + 1 }}</kbd>
       </span>
     </header>
-    <div v-if="item.kind === 'color'" class="color-preview" :style="{ background: item.payload.text }"></div>
+    <ModernCardPreview
+      v-if="uiVersion === 'modern' && item.kind !== 'image'"
+      :item="item"
+      :fallback-text="bodyText"
+      :drag-title="cardDragTitle"
+    />
+    <div v-else-if="item.kind === 'color'" class="color-preview" :style="{ background: item.payload.text }"></div>
     <div
       v-else-if="item.kind === 'image'"
       class="image-preview"
       :class="isFitWidth ? 'image-preview--ratio-gt-1' : 'image-preview--ratio-lt-1'"
       aria-label="图片缩略图"
       draggable="true"
-      @pointerdown="prepareNativeFileDrag"
-      @dragstart="beginNativeFileDrag"
     >
       <img
         v-if="thumbnailUrl"
@@ -384,8 +347,6 @@ onBeforeUnmount(() => {
         :alt="item.title ?? '剪贴板图片缩略图'"
         decoding="async"
         draggable="true"
-        @pointerdown="prepareNativeFileDrag"
-        @dragstart="beginNativeFileDrag"
         @load="handleImageLoad"
       />
       <span v-else>IMAGE</span>
@@ -394,26 +355,26 @@ onBeforeUnmount(() => {
       v-else
       :class="{ 'file-drag-source': item.payload.filePaths !== undefined }"
       :draggable="item.payload.filePaths !== undefined"
-      @pointerdown="prepareNativeFileDrag"
-      @dragstart.stop="beginSourceDrag"
     >{{ bodyText }}</p>
-    <footer>
+    <ModernCardMeta v-if="uiVersion === 'modern'" :item="item" :index="index" :image-dimensions="imageDimensions" placement="footer" />
+    <footer v-else>
       <strong>{{ item.title ?? item.sourceApp?.name ?? "Untitled" }}</strong>
       <span>{{ item.sourceApp?.name ?? "Unknown app" }}</span>
     </footer>
   </article>
   <Teleport to="body">
     <div
-      v-if="contextMenu"
-      class="pinboard-context-menu glass-surface"
+      v-if="contextMenuOpen"
+      ref="contextMenuPanel"
+      class="pinboard-context-menu glass-surface popover-surface"
       role="menu"
       aria-label="添加到分组"
-      :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+      :style="{ left: `${contextMenuPlacement.left}px`, top: `${contextMenuPlacement.top}px` }"
       @pointerdown.stop
       @contextmenu.prevent
       @keydown="handleContextMenuKeydown"
     >
-      <strong>添加到分组</strong>
+      <strong class="popover-caption">添加到分组</strong>
       <span v-if="pinboards.length === 0" class="pinboard-context-menu__empty">
         暂无分组，
         <button type="button" role="menuitem" @click="requestCreatePinboard">去创建</button>
@@ -423,6 +384,7 @@ onBeforeUnmount(() => {
         :key="pinboard.id"
         type="button"
         role="menuitem"
+        class="popover-item"
         :class="{ 'pinboard-context-menu__current': item.pinboardId === pinboard.id }"
         @click="assignToPinboard(pinboard.id)"
       >
@@ -434,7 +396,7 @@ onBeforeUnmount(() => {
         v-if="item.pinboardId !== undefined"
         type="button"
         role="menuitem"
-        class="pinboard-context-menu__remove"
+        class="popover-item popover-danger pinboard-context-menu__remove"
         @click="assignToPinboard(undefined)"
       >
         <span>移出分组</span>
@@ -443,388 +405,5 @@ onBeforeUnmount(() => {
   </Teleport>
 </template>
 
-<style scoped>
-.paste-card {
-  position: relative;
-  display: grid;
-  flex: 0 0 var(--pb-card-width);
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  width: var(--pb-card-width);
-  height: 142px;
-  padding: 11px;
-  overflow: hidden;
-  border: 1px solid var(--pb-line);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--pb-glass-strong) 82%, transparent);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--pb-shadow) 45%, transparent);
-  cursor: default;
-  outline: 0;
-  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
-  contain: layout paint style;
-  content-visibility: auto;
-  contain-intrinsic-size: var(--pb-card-width) 142px;
-}
-
-.paste-card[draggable="true"] {
-  cursor: grab;
-  user-select: none;
-}
-
-.paste-card[draggable="true"]:active {
-  cursor: grabbing;
-}
-
-.paste-card.paste-card--dragging {
-  opacity: 0;
-  transform: none;
-}
-
-.paste-card.paste-card--drag-preview {
-  position: absolute !important;
-  inset: 0 auto auto 0 !important;
-  margin: 0 !important;
-  opacity: .98;
-  box-shadow:
-    22px 28px 44px rgba(20, 14, 44, .34),
-    0 12px 24px rgba(20, 14, 44, .2),
-    inset 0 1px 0 rgba(255, 255, 255, .78);
-  pointer-events: none;
-  transform:
-    perspective(900px)
-    rotateX(7deg)
-    rotateY(var(--pb-drag-preview-yaw, -7deg))
-    translateZ(28px)
-    scale(var(--pb-drag-preview-scale, .96));
-  transform-origin: center;
-  contain: none;
-  content-visibility: visible;
-}
-
-.paste-card.paste-card--shift-backward {
-  transform: var(--pb-reorder-transform);
-}
-
-.paste-card.paste-card--shift-forward {
-  transform: var(--pb-reorder-transform);
-}
-
-.paste-card:not(.paste-card--reorder-active):hover {
-  transform: translateY(-2px);
-}
-
-.pinboard-context-menu {
-  position: fixed;
-  z-index: 100;
-  display: grid;
-  width: 200px;
-  max-height: min(272px, calc(100vh - 16px));
-  padding: 7px;
-  overflow-y: auto;
-  border: 1px solid var(--pb-line);
-  border-radius: 13px;
-  background: color-mix(in srgb, var(--pb-glass-strong) 96%, transparent);
-  box-shadow: 0 18px 48px var(--pb-shadow);
-}
-
-.pinboard-context-menu > strong,
-.pinboard-context-menu__empty {
-  padding: 7px 9px;
-  color: var(--pb-muted);
-  font-size: 10px;
-}
-
-.pinboard-context-menu__empty > button {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--pb-violet);
-  cursor: pointer;
-  font: inherit;
-  font-weight: 750;
-}
-
-.pinboard-context-menu__empty > button:hover,
-.pinboard-context-menu__empty > button:focus-visible {
-  text-decoration: underline;
-  outline: 0;
-}
-
-.pinboard-context-menu > button {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 9px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--pb-ink);
-  cursor: pointer;
-  text-align: left;
-}
-
-.pinboard-context-menu > button:hover,
-.pinboard-context-menu > button:focus-visible,
-.pinboard-context-menu__current {
-  background: color-mix(in srgb, var(--pb-violet) 12%, transparent) !important;
-  outline: 0;
-}
-
-.pinboard-context-menu > button i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.pinboard-context-menu > button span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pinboard-context-menu > button small {
-  color: var(--pb-violet);
-  font-size: 9px;
-}
-
-.pinboard-context-menu__remove {
-  grid-template-columns: 1fr !important;
-  margin-top: 4px;
-  border-top: 1px solid var(--pb-line) !important;
-  border-radius: 0 0 9px 9px !important;
-  color: var(--pb-muted) !important;
-}
-
-.paste-card--vertical {
-  flex: 0 0 auto;
-  width: 100%;
-}
-
-.paste-card--vertical.paste-card--compact {
-  height: 108px;
-  padding: 9px;
-  border-radius: 15px;
-  contain-intrinsic-size: 100% 108px;
-}
-
-.paste-card--vertical.paste-card--compact p {
-  margin: 6px 0;
-  font-size: 11px;
-  line-height: 1.35;
-  -webkit-line-clamp: 2;
-}
-
-.paste-card--vertical.paste-card--compact .color-preview,
-.paste-card--vertical.paste-card--compact .image-preview {
-  min-height: 38px;
-  height: 38px;
-  margin: 5px 0;
-  border-radius: 9px;
-}
-
-.paste-card--vertical.paste-card--compact kbd {
-  width: 16px;
-  height: 16px;
-}
-
-.paste-card--selected,
-.paste-card:focus-visible {
-  border-color: color-mix(in srgb, var(--pb-violet) 72%, transparent);
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--pb-violet) 15%, transparent),
-    0 12px 28px color-mix(in srgb, var(--pb-shadow) 55%, transparent);
-}
-
-header,
-footer {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-header {
-  justify-content: space-between;
-}
-
-.card-tools {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-}
-
-.reorder-indicator {
-  display: grid;
-  width: 18px;
-  height: 18px;
-  color: var(--pb-muted);
-  font: 13px/1 system-ui, sans-serif;
-  opacity: .55;
-  pointer-events: none;
-  place-items: center;
-}
-
-.paste-card:hover .reorder-indicator,
-.paste-card:focus-visible .reorder-indicator {
-  color: var(--pb-violet);
-  opacity: 1;
-}
-
-.kind {
-  color: var(--pb-violet);
-  font-size: 9px;
-  font-weight: 760;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.kind-meta {
-  color: var(--pb-muted);
-  font-weight: 500;
-  letter-spacing: normal;
-  text-transform: none;
-}
-
-kbd {
-  display: grid;
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--pb-line);
-  border-radius: 6px;
-  color: var(--pb-muted);
-  font-size: 9px;
-  place-items: center;
-}
-
-p {
-  display: -webkit-box;
-  margin: 10px 0;
-  overflow: hidden;
-  color: var(--pb-ink);
-  font-size: 12px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.color-preview,
-.image-preview {
-  min-height: 62px;
-  height: 62px;
-  margin: 8px 0;
-  border-radius: 11px;
-}
-
-.image-preview {
-  display: flex;
-  overscroll-behavior: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
-  background:
-    radial-gradient(circle at 28% 30%, rgba(255, 255, 255, 0.7), transparent 30%),
-    linear-gradient(135deg, #8e82e8, #423c72);
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: 0.18em;
-  will-change: scroll-position;
-}
-
-.image-preview::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-.image-preview::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.35);
-  border-radius: 4px;
-}
-
-/* 宽高比大于 1：宽度 100%，高度滚动 */
-.image-preview--ratio-gt-1 {
-  overflow-x: hidden;
-  overflow-y: auto;
-  align-items: flex-start;
-  justify-content: center;
-}
-
-.image-preview--ratio-gt-1 img {
-  display: block;
-  width: 100%;
-  height: auto;
-  min-width: 100%;
-  max-width: 100%;
-  max-height: none;
-  flex-shrink: 0;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-drag: element;
-}
-
-/* 宽高比小于等于 1：高度 100%，宽度滚动 */
-.image-preview--ratio-lt-1 {
-  overflow-x: auto;
-  overflow-y: hidden;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.image-preview--ratio-lt-1 img {
-  display: block;
-  height: 100%;
-  width: auto;
-  min-height: 100%;
-  max-height: 100%;
-  max-width: none;
-  flex-shrink: 0;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-drag: element;
-}
-
-.image-preview img:active {
-  cursor: grabbing;
-}
-
-.file-drag-source {
-  cursor: grab;
-}
-
-.file-drag-source:active {
-  cursor: grabbing;
-}
-
-footer {
-  min-width: 0;
-  justify-content: space-between;
-  color: var(--pb-muted);
-  font-size: 9px;
-  flex-shrink: 0;
-}
-
-footer strong,
-footer span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-footer strong {
-  color: var(--pb-ink);
-  font-size: 10px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .paste-card {
-    transition: none;
-  }
-
-  .paste-card.paste-card--dragging,
-  .paste-card.paste-card--drag-preview,
-  .paste-card.paste-card--shift-backward,
-  .paste-card.paste-card--shift-forward {
-    transform: none;
-  }
-}
-</style>
+<style scoped src="../styles/paste-card.css"></style>
+<style scoped src="../styles/modern-card.css"></style>

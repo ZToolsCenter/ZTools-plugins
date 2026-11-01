@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+    "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/scripts/test-preload-history-clear-replay-package.mjs",
+    "--package-dir",
+    "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v032-plugin-snapshot/dist/ztools",
+    "--output",
+    "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v032-work/replay-v032-green-electron-01.json"
+  ],
+  "expectedExitCode": 0,
+  "actualExitCode": 0,
+  "durationMs": 854,
+  "output": "v032-work/replay-v032-green-electron-01.json",
+  "outputSha256": "03504d8da5da2b8a67b5f8a9d8dd615253d35a7402f021962b1aea8ddfb49c9a",
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

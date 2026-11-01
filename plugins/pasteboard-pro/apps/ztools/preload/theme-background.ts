@@ -1,8 +1,9 @@
 import path from "node:path";
 
 import type { NativeImageApi } from "./thumbnail";
+import { MAX_THEME_BACKGROUND_BYTES } from "./window-theme-preferences";
 
-export const MAX_THEME_BACKGROUND_BYTES = 8 * 1_024 * 1_024;
+export { MAX_THEME_BACKGROUND_BYTES } from "./window-theme-preferences";
 
 type ThemeImageFileSystem = Readonly<{
   stat(filePath: string): Promise<Readonly<{ isFile(): boolean; size: number }>>;

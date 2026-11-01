@@ -1,0 +1,252 @@
+.pinboards {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 38px;
+  padding: 6px 16px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pinboards::-webkit-scrollbar {
+  display: none;
+}
+
+.pinboards button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--pb-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pinboards button.active {
+  background: color-mix(in srgb, var(--pb-violet) 13%, transparent);
+  color: var(--pb-violet);
+}
+
+.pinboards .smart-pinboard {
+  gap: 5px;
+}
+
+.smart-pinboard__icon {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  place-items: center;
+}
+
+.pinboard-chip {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 9px;
+  transition: transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.manage-button {
+  width: 22px;
+  min-width: 22px;
+  padding: 0 !important;
+  overflow: hidden;
+  cursor: grab;
+  opacity: 0;
+  touch-action: none;
+  transition: opacity 120ms ease;
+  user-select: none;
+}
+
+.manage-button-icon {
+  display: block;
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+
+.manage-button:active {
+  cursor: grabbing;
+}
+
+.pinboard-chip:hover .manage-button,
+.pinboard-chip:focus-within .manage-button {
+  opacity: 1;
+}
+
+.pinboard-chip > button {
+  min-height: 26px;
+}
+
+.pinboard-chip--active {
+  background: color-mix(in srgb, var(--pb-violet) 13%, transparent);
+}
+
+.pinboard-chip--active > button {
+  color: var(--pb-violet);
+}
+
+.pinboard-chip--dragging {
+  opacity: 0.22;
+}
+
+.pinboard-chip[data-pb-reorder-target="before"]::before,
+.pinboard-chip[data-pb-reorder-target="after"]::after {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 3px;
+  height: 20px;
+  border-radius: 3px;
+  background: var(--pb-violet);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--pb-violet) 16%, transparent);
+  content: "";
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.pinboard-chip[data-pb-reorder-target="before"]::before {
+  left: -5px;
+}
+
+.pinboard-chip[data-pb-reorder-target="after"]::after {
+  right: -5px;
+}
+
+.pinboard-reorder-preview {
+  z-index: 2147483647 !important;
+  border-color: color-mix(in srgb, var(--pb-violet) 64%, var(--pb-line)) !important;
+  background: color-mix(in srgb, var(--pb-glass-strong) 96%, transparent) !important;
+  box-shadow: 0 14px 32px var(--pb-shadow), 0 0 0 1px color-mix(in srgb, var(--pb-violet) 22%, transparent) !important;
+  opacity: 0.96;
+  backdrop-filter: blur(14px) saturate(125%);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+}
+
+.pinboard-inline-name {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+}
+
+.pinboard-inline-name input {
+  width: min(168px, 28vw);
+  min-width: 88px;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--pb-violet) 55%, var(--pb-line));
+  border-radius: 8px;
+  outline: 0;
+  background: var(--pb-glass-strong);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pb-violet) 12%, transparent);
+  color: var(--pb-ink);
+  font: inherit;
+  font-size: 11px;
+}
+
+.pinboard-inline-name input:focus-visible {
+  border-color: var(--pb-violet);
+}
+
+.pinboard-inline-name input::placeholder {
+  color: var(--pb-muted);
+}
+
+.pinboards button:focus-visible {
+  outline: 2px solid var(--pb-violet);
+  outline-offset: 1px;
+}
+
+.pinboard-manage-menu {
+  position: fixed;
+  z-index: 2147483647;
+  display: grid;
+  width: min(224px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  gap: 2px;
+  padding: 6px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.pinboard-manage-menu > .popover-caption {
+  margin-bottom: 1px;
+}
+
+.pinboard-manage-menu > .popover-danger {
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid var(--popover-line);
+  border-radius: 0 0 8px 8px;
+}
+
+.color-action {
+  position: relative;
+  cursor: pointer;
+}
+
+.color-input {
+  flex: none;
+  width: 20px;
+  height: 24px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.add-button {
+  width: 30px;
+  min-height: 30px !important;
+  justify-content: center;
+  padding: 0 !important;
+  border: 1px solid var(--pb-line) !important;
+  border-radius: 9px !important;
+  color: var(--pb-ink) !important;
+  font-size: 19px !important;
+  font-weight: 450 !important;
+}
+
+.add-button:hover {
+  border-color: color-mix(in srgb, var(--pb-violet) 48%, var(--pb-line)) !important;
+  background: color-mix(in srgb, var(--pb-violet) 8%, transparent) !important;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.pinboards__hint {
+  margin-left: auto;
+  padding-left: 16px;
+  color: var(--pb-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pinboard-chip,
+  .manage-button {
+    transition: none;
+  }
+}

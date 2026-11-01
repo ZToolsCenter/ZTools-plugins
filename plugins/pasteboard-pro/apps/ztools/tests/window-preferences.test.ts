@@ -35,11 +35,13 @@ describe("ZTools window preferences", () => {
 
     await store.put({
       dockEdge: "left",
+      uiVersion: "classic",
       multiPasteMode: "queue",
       theme: defaultWindowPreferences.theme,
     });
     await expect(store.get()).resolves.toEqual({
       dockEdge: "left",
+      uiVersion: "classic",
       multiPasteMode: "queue",
       theme: defaultWindowPreferences.theme,
     });
@@ -55,9 +57,21 @@ describe("ZTools window preferences", () => {
 
     await expect(store.get()).resolves.toEqual({
       dockEdge: "top",
+      uiVersion: "modern",
       multiPasteMode: "batch",
       theme: defaultWindowPreferences.theme,
     });
+  });
+
+  it("defaults invalid saved UI versions to the modern interface", async () => {
+    const store = new ZToolsWindowPreferencesStore({
+      async get() {
+        return { settings: { ...defaultWindowPreferences, uiVersion: "unknown" } };
+      },
+      async put() { return { ok: true }; },
+    });
+
+    await expect(store.get()).resolves.toEqual(defaultWindowPreferences);
   });
 
   it("rejects invalid persisted and requested edges safely", async () => {
@@ -72,5 +86,8 @@ describe("ZTools window preferences", () => {
     await expect(
       store.put({ dockEdge: "floating" } as never),
     ).rejects.toThrow(/top, bottom, left, or right/i);
+    await expect(
+      store.put({ ...defaultWindowPreferences, uiVersion: "next" } as never),
+    ).rejects.toThrow(/modern or classic/i);
   });
 });

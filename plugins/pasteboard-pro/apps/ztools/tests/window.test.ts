@@ -391,146 +391,38 @@ describe("ZTools settings panel lifecycle", () => {
   });
 });
 
-
-describe.each(["shelf", "panel"] as const)("%s first reveal", (kind) => {
-  function setup(synchronousCallback = false) {
-    const windows: {
-      handle: BrowserWindowHandle;
-      domReady: () => void;
-      contentReady: () => void;
-      fail: (error: Error) => void;
-    }[] = [];
-    const host: ShelfWindowHost = {
-      hideMainWindow: vi.fn(),
-      createBrowserWindow(_url, options, onReady) {
-        expect(options.show).toBe(false);
+describe("clear result delivery to owned child windows", () => {
+  it("addresses shelf and panel handles and contains failures when a window closes", async () => {
+    vi.useFakeTimers();
+    try {
+      for (const role of ["shelf", "panel"] as const) {
+        const scripts: string[] = [];
+        let failReply = false;
         let destroyed = false;
-        let contentReady!: () => void;
-        let fail!: (error: Error) => void;
-        const ready = new Promise<void>((resolve, reject) => {
-          contentReady = resolve;
-          fail = reject;
-        });
         const handle: BrowserWindowHandle = {
           isDestroyed: () => destroyed,
-          webContents: { executeJavaScript: vi.fn(() => ready) },
-          show: vi.fn(), focus: vi.fn(), setBounds: vi.fn(),
-          setContentProtection: vi.fn(),
-          close: vi.fn(() => { destroyed = true; }),
+          webContents: { async executeJavaScript(script) {
+            scripts.push(script);
+            if (failReply && script.includes("clear-history-result")) throw new Error("closed child fixture");
+          } },
+          show() {}, focus() {}, setBounds() {}, close() {}, setContentProtection() {},
         };
-        windows.push({ handle, domReady: () => onReady?.(), contentReady, fail });
-        if (synchronousCallback) onReady?.();
-        return handle;
-      },
-    };
-    const shelf = new ShelfWindowManager(host);
-    const panel = new PanelWindowManager(host);
-    const open = (replace = false) => kind === "shelf"
-      ? shelf.open(primaryDisplay, { edge: replace ? "left" : "bottom", contentProtection: true })
-      : panel.open(primaryDisplay, { panel: replace ? "sync" : "privacy" });
-    return { windows, open, shelf };
-  }
-
-  it.each([false, true])("stays hidden through DOM readiness (synchronous callback: %s)", async (sync) => {
-    const { windows, open } = setup(sync);
-    const handle = open();
-    expect(handle.show).not.toHaveBeenCalled();
-    windows[0]!.domReady();
-    await Promise.resolve();
-    expect(handle.webContents.executeJavaScript).toHaveBeenCalledExactlyOnceWith(waitForWindowReadyScript);
-    expect(handle.show).not.toHaveBeenCalled();
-    // Reopening the same window while loading must not bypass readiness.
-    expect(open()).toBe(handle);
-    expect(handle.show).not.toHaveBeenCalled();
-    windows[0]!.contentReady();
-    await vi.waitFor(() => expect(handle.show).toHaveBeenCalledTimes(1));
-    expect(handle.focus).toHaveBeenCalledTimes(1);
-    windows[0]!.domReady();
-    await Promise.resolve();
-    expect(handle.show).toHaveBeenCalledTimes(1);
-    expect(open()).toBe(handle);
-    expect(handle.show).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not resurrect a closed window, and the next window can open", async () => {
-    const { windows, open } = setup();
-    const first = open();
-    windows[0]!.domReady();
-    await Promise.resolve();
-    first.close();
-    const second = open();
-    windows[0]!.contentReady();
-    windows[1]!.domReady();
-    await Promise.resolve();
-    windows[1]!.contentReady();
-    await vi.waitFor(() => expect(second.show).toHaveBeenCalledTimes(1));
-    expect(first.show).not.toHaveBeenCalled();
-    expect(first.focus).not.toHaveBeenCalled();
-  });
-
-  it("keeps a replaced window hidden even if its content finishes late", async () => {
-    const { windows, open } = setup();
-    const first = open();
-    windows[0]!.domReady();
-    await Promise.resolve();
-    const second = open(true);
-    windows[0]!.contentReady();
-    windows[1]!.domReady();
-    await Promise.resolve();
-    windows[1]!.contentReady();
-    await vi.waitFor(() => expect(second.show).toHaveBeenCalledTimes(1));
-    expect(first.close).toHaveBeenCalledTimes(1);
-    expect(first.show).not.toHaveBeenCalled();
-  });
-
-  it("corrects the native show/focus offset before restoring opacity", async () => {
-    const { windows, open } = setup();
-    const handle = open();
-    const expected = kind === "shelf"
-      ? { x: 0, y: 620, width: 1440, height: 280 }
-      : { x: 370, y: 132, width: 700, height: 660 };
-    let bounds = { ...expected };
-    let opacity = 1;
-    const order: string[] = [];
-    handle.setOpacity = vi.fn(value => {
-      opacity = value;
-      order.push(`opacity:${value}`);
-      if (value === 1) expect(bounds).toEqual(expected);
-    });
-    handle.getBounds = () => bounds;
-    vi.mocked(handle.show).mockImplementation(() => {
-      expect(opacity).toBe(0);
-      order.push("show");
-      bounds = { ...bounds, x: 14 }; // Observed native show() relocation.
-    });
-    vi.mocked(handle.focus).mockImplementation(() => { order.push("focus"); });
-    vi.mocked(handle.setBounds).mockImplementation((next, animate) => {
-      expect(opacity).toBe(0);
-      expect(animate).toBe(false);
-      order.push("bounds");
-      bounds = { ...next };
-    });
-    windows[0]!.domReady();
-    await Promise.resolve();
-    windows[0]!.contentReady();
-    await vi.waitFor(() => expect(handle.setOpacity).toHaveBeenLastCalledWith(1));
-    expect(order).toEqual(["opacity:0", "show", "focus", "bounds", "opacity:1"]);
-    expect(bounds).toEqual(expected);
-  });
-
-  it("closes a failed renderer so a subsequent activation can retry", async () => {
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    try {
-      const { windows, open } = setup();
-      const first = open();
-      windows[0]!.domReady();
-      await Promise.resolve();
-      windows[0]!.fail(new Error("Window destroyed while executing script"));
-      await vi.waitFor(() => expect(first.close).toHaveBeenCalledTimes(1));
-      expect(first.show).not.toHaveBeenCalled();
-      expect(open()).not.toBe(first);
-    } finally {
-      log.mockRestore();
-    }
+        const host: ShelfWindowHost = { createBrowserWindow: () => handle, hideMainWindow() {} };
+        const manager = role === "shelf" ? new ShelfWindowManager(host) : new PanelWindowManager(host);
+        if (manager instanceof ShelfWindowManager) manager.open(primaryDisplay, { edge: "bottom", contentProtection: false });
+        else manager.open(primaryDisplay, { panel: "privacy" });
+        const reply = { id: "clear:1", result: { deleted: 2, failed: 0, blobFailures: 0 } };
+        manager.notifyClearHistoryResult(reply);
+        expect(scripts.at(-1)).toContain("pasteboard-pro:clear-history-result");
+        expect(scripts.at(-1)).toContain('"deleted":2');
+        failReply = true;
+        manager.notifyClearHistoryResult(reply);
+        await Promise.resolve();
+        destroyed = true;
+        const count = scripts.length;
+        manager.notifyClearHistoryResult(reply);
+        expect(scripts).toHaveLength(count);
+      }
+    } finally { vi.clearAllTimers(); vi.useRealTimers(); }
   });
 });

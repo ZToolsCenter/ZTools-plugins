@@ -221,6 +221,7 @@ describe("ZTools encrypted vault runtime", () => {
       entityType: "window_preferences",
       settings: {
         dockEdge: "bottom",
+        uiVersion: "modern",
         multiPasteMode: "batch",
         theme: {
           accentColor: "#345678",

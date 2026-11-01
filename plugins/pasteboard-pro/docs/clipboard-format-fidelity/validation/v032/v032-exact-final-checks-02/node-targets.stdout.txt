@@ -1,0 +1,27 @@
+
+ RUN  v3.2.7 /Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro
+
+ ✓ apps/ztools/tests/window.test.ts (14 tests) 123ms
+ ✓ apps/ztools/tests/adapter.test.ts (12 tests) 65ms
+ ✓ apps/ztools/tests/history-image-admission.test.ts (4 tests) 302ms
+ ✓ apps/ztools/tests/clipboard-document-database.test.ts (22 tests) 94ms
+ ✓ apps/ztools/tests/mirror-image-retry-progress.test.ts (7 tests) 646ms
+ ✓ apps/ztools/tests/history-mirror-failure-isolation.test.ts (9 tests) 813ms
+ ✓ apps/ztools/tests/mirrored-image-admission.test.ts (14 tests) 13ms
+ ✓ apps/ztools/tests/host-history-boundary.test.ts (26 tests) 1210ms
+   ✓ readHostHistoryBoundary > accepts exactly 100,000 unique identities and rejects the 100,001st  1198ms
+ ✓ apps/ztools/tests/history-clear-rpc.test.ts (9 tests) 12ms
+ ✓ apps/ztools/tests/mirrored-image.test.ts (1 test) 4ms
+ ✓ apps/ztools/tests/history-clear-replay.test.ts (9 tests) 1011ms
+ ✓ apps/ztools/tests/clear-history.test.ts (3 tests) 4ms
+ ✓ apps/ztools/tests/history-clear-boundary.test.ts (9 tests) 1102ms
+   ✓ persistent per-device history clear boundary > persists and reopens the 100000-identity limit and fails closed on overflow  454ms
+ ✓ apps/ztools/tests/clipboard-write-confirmation.test.ts (11 tests) 796ms
+ ✓ apps/ztools/tests/history-image-retry-rotation.test.ts (7 tests) 1178ms
+   ✓ persistent history-image retry rotation > covers forty permanently failing images in three bounded rounds, then recovers and advances  673ms
+
+ Test Files  15 passed (15)
+      Tests  157 passed (157)
+   Start at  06:53:45
+   Duration  2.85s (transform 2.22s, setup 0ms, collect 11.46s, tests 7.37s, environment 2ms, prepare 1.71s)
+

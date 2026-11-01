@@ -18,7 +18,7 @@ assert.equal(pkg.private, true);
 assert.equal(pkg.packageManager, "pnpm@9.15.9");
 assert.deepEqual(manifest, ztoolsManifest);
 assert.deepEqual(manifest.platform, ["darwin", "win32", "linux"]);
-assert.equal(pkg.scripts.test, "vitest run");
+assert.equal(pkg.scripts.test, "node scripts/prepare-native-test-fixture.mjs && vitest run");
 assert.equal(
   pkg.scripts["test:release-archive"],
   "node scripts/test-release-archive.mjs",

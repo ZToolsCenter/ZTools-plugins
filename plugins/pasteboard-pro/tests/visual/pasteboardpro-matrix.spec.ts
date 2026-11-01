@@ -63,6 +63,7 @@ for (const host of hosts) {
     const { page, errors } = await visualPage(browser, host, "bottom", "dark", "full");
     const search = page.getByRole("searchbox");
 
+    if (host === "ztools") await page.locator(".search-bar").click();
     await search.fill("invoice");
     await expect(page.getByRole("option")).toHaveCount(3);
     await captureNamedState(page, host, "search", errors);
@@ -96,7 +97,14 @@ for (const host of hosts) {
     } else {
       await page.getByTitle(/粘贴队列/).click();
     }
-    await expect(page.getByRole("status")).toContainText("粘贴队列");
+    if (host === "ztools") {
+      await expect(page.locator(".modern-stack__direction")).toHaveAttribute(
+        "aria-label",
+        /粘贴队列 1 项/,
+      );
+    } else {
+      await expect(page.getByRole("status")).toContainText("粘贴队列");
+    }
     await captureNamedState(page, host, "paste-stack", errors);
 
     expect(errors).toEqual([]);
@@ -138,7 +146,7 @@ test("ztools type-to-search, smart groups, reorder, and appearance settings", as
       throw new Error("Reorder fixtures are missing");
     }
     const transfer = new DataTransfer();
-    source.dispatchEvent(new DragEvent("dragstart", {
+    source.querySelector("[data-pb-reorder-handle]")!.dispatchEvent(new DragEvent("dragstart", {
       bubbles: true,
       cancelable: true,
       dataTransfer: transfer,
@@ -147,12 +155,12 @@ test("ztools type-to-search, smart groups, reorder, and appearance settings", as
     const preview = document.querySelector<HTMLElement>(".paste-card-drag-group");
     const previewCards = preview?.querySelectorAll(".paste-card--drag-preview");
     const draggedCards = [...document.querySelectorAll<HTMLElement>("[data-pb-item-id]")]
-      .filter((card) => getComputedStyle(card).opacity === "0");
+      .filter((card) => card.classList.contains("paste-card--dragging") && Number(getComputedStyle(card).opacity) > 0);
     if (preview?.dataset.pbDragPreviewCount !== "2" || previewCards?.length !== 2) {
       throw new Error("Multi-selection drag preview does not contain every selected card");
     }
     if (draggedCards.length !== 2) {
-      throw new Error("Multi-selection drag sources are not hidden as a group");
+      throw new Error("Multi-selection drag sources do not retain visible placeholders");
     }
     for (const previewCard of previewCards) {
       if (
@@ -199,7 +207,7 @@ test("ztools type-to-search, smart groups, reorder, and appearance settings", as
   await settings.getByRole("tab", { name: "外观" }).click();
   await expect(settings.getByLabel("选择主题色")).toBeVisible();
   await expect(settings.getByRole("button", { name: "选择图片" })).toBeVisible();
-  const header = settings.locator(".settings-header");
+  const header = settings.locator(".settings-titlebar");
   const footer = settings.locator(".settings-footer");
   const scroller = settings.locator(".settings-scroll");
   const before = { header: await header.boundingBox(), footer: await footer.boundingBox() };
@@ -234,16 +242,43 @@ test.afterAll(async () => {
   expect(uniqueScreenshots.size).toBe(expectedScreenshots);
 });
 
+
+async function setMatrixDensity(page: Page, host: Host, density: Density): Promise<void> {
+  if (host === "atools") {
+    const compactButton = page.getByTitle("切换紧凑模式");
+    if (density === "compact") {
+      await compactButton.click();
+      await expect(compactButton).toHaveAttribute("aria-pressed", "true");
+    }
+    return;
+  }
+
+  const moreButton = page.getByRole("button", { name: "更多操作", exact: true });
+  await moreButton.click();
+  if (density === "compact") {
+    const enableCompact = page.getByRole("menuitemcheckbox", { name: "紧凑卡片", exact: true });
+    await expect(enableCompact).toHaveAttribute("aria-checked", "false");
+    await enableCompact.click();
+    await moreButton.click();
+    await expect(
+      page.getByRole("menuitemcheckbox", { name: "展开卡片", exact: true }),
+    ).toHaveAttribute("aria-checked", "true");
+  } else {
+    await expect(
+      page.getByRole("menuitemcheckbox", { name: "紧凑卡片", exact: true }),
+    ).toHaveAttribute("aria-checked", "false");
+  }
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu", { name: "更多操作" })).toBeHidden();
+}
+
 async function captureMatrixState(
   browser: Browser,
   host: Host,
   options: { dock: Dock; theme: Theme; density: Density; motion: Motion; state: string },
 ): Promise<VisualRecord> {
   const { page, errors } = await visualPage(browser, host, options.dock, options.theme, options.motion);
-  if (options.density === "compact") {
-    await page.getByTitle("切换紧凑模式").click();
-    await expect(page.getByTitle("切换紧凑模式")).toHaveAttribute("aria-pressed", "true");
-  }
+  await setMatrixDensity(page, host, options.density);
   await settle(page);
   const shelf = page.getByLabel("Paste剪切板").filter({ has: page.getByRole("option") }).first();
   const box = await shelf.boundingBox();
@@ -347,6 +382,9 @@ async function visualPage(
   });
   const page = await context.newPage();
   const errors = collectConsoleErrors(page);
+  // Native Shelf closes on OS blur; browser contexts manage focus independently.
+  // Keep this host boundary inert while exercising renderer drag/selection.
+  if (host === "ztools") await page.addInitScript(() => { window.close = () => undefined; });
   const port = host === "atools" ? 5180 : 5179;
   const shelfQuery = host === "ztools" ? "&shelf=1" : "";
   await page.goto(`http://127.0.0.1:${port}/?visual=1&dock=${dock}${shelfQuery}`, { waitUntil: "networkidle" });

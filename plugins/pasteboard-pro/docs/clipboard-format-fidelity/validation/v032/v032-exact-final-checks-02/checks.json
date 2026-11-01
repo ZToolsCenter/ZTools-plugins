@@ -1,0 +1,133 @@
+[
+  {
+    "name": "node-targets",
+    "command": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+    "args": [
+      "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/node_modules/vitest/vitest.mjs",
+      "run",
+      "apps/ztools/tests/adapter.test.ts",
+      "apps/ztools/tests/clipboard-write-confirmation.test.ts",
+      "apps/ztools/tests/history-image-admission.test.ts",
+      "apps/ztools/tests/history-mirror-failure-isolation.test.ts",
+      "apps/ztools/tests/mirrored-image.test.ts",
+      "apps/ztools/tests/mirrored-image-admission.test.ts",
+      "apps/ztools/tests/mirror-image-retry-progress.test.ts",
+      "apps/ztools/tests/history-image-retry-rotation.test.ts",
+      "apps/ztools/tests/clear-history.test.ts",
+      "apps/ztools/tests/history-clear-rpc.test.ts",
+      "apps/ztools/tests/window.test.ts",
+      "apps/ztools/tests/history-clear-boundary.test.ts",
+      "apps/ztools/tests/host-history-boundary.test.ts",
+      "apps/ztools/tests/history-clear-replay.test.ts",
+      "apps/ztools/tests/clipboard-document-database.test.ts"
+    ],
+    "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro",
+    "electronNode": false,
+    "exitCode": 0,
+    "durationMs": 3401
+  },
+  {
+    "name": "electron-targets",
+    "command": "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+    "args": [
+      "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/node_modules/vitest/vitest.mjs",
+      "run",
+      "apps/ztools/tests/adapter.test.ts",
+      "apps/ztools/tests/clipboard-write-confirmation.test.ts",
+      "apps/ztools/tests/history-image-admission.test.ts",
+      "apps/ztools/tests/history-mirror-failure-isolation.test.ts",
+      "apps/ztools/tests/mirrored-image.test.ts",
+      "apps/ztools/tests/mirrored-image-admission.test.ts",
+      "apps/ztools/tests/mirror-image-retry-progress.test.ts",
+      "apps/ztools/tests/history-image-retry-rotation.test.ts",
+      "apps/ztools/tests/clear-history.test.ts",
+      "apps/ztools/tests/history-clear-rpc.test.ts",
+      "apps/ztools/tests/window.test.ts",
+      "apps/ztools/tests/history-clear-boundary.test.ts",
+      "apps/ztools/tests/host-history-boundary.test.ts",
+      "apps/ztools/tests/history-clear-replay.test.ts",
+      "apps/ztools/tests/clipboard-document-database.test.ts"
+    ],
+    "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro",
+    "electronNode": true,
+    "exitCode": 0,
+    "durationMs": 3019
+  },
+  {
+    "name": "root-types",
+    "command": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+    "args": [
+      "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/node_modules/typescript/bin/tsc",
+      "-b",
+      "--pretty",
+      "false"
+    ],
+    "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro",
+    "electronNode": false,
+    "exitCode": 0,
+    "durationMs": 2735
+  },
+  {
+    "name": "app-types",
+    "command": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+    "args": [
+      "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/apps/ztools/node_modules/vue-tsc/bin/vue-tsc.js",
+      "--noEmit",
+      "-p",
+      "tsconfig.vue.json",
+      "--pretty",
+      "false"
+    ],
+    "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/apps/ztools",
+    "electronNode": false,
+    "exitCode": 0,
+    "durationMs": 3877
+  },
+  {
+    "name": "workspace-contract",
+    "command": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+    "args": [
+      "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/scripts/test-workspace-contract.mjs"
+    ],
+    "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro",
+    "electronNode": false,
+    "exitCode": 0,
+    "durationMs": 75
+  },
+  {
+    "name": "preload-build",
+    "command": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+    "args": [
+      "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/node_modules/vite/bin/vite.js",
+      "build",
+      "--config",
+      "vite.preload.config.ts"
+    ],
+    "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/apps/ztools",
+    "electronNode": false,
+    "exitCode": 0,
+    "durationMs": 698
+  },
+  {
+    "name": "assemble",
+    "command": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+    "args": [
+      "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/apps/ztools/scripts/assemble-dist.mjs"
+    ],
+    "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/apps/ztools",
+    "electronNode": false,
+    "exitCode": 0,
+    "durationMs": 82
+  },
+  {
+    "name": "package-contract",
+    "command": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+    "args": [
+      "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/apps/ztools/scripts/verify-package.mjs"
+    ],
+    "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/apps/ztools",
+    "electronNode": false,
+    "exitCode": 0,
+    "durationMs": 94
+  }
+]

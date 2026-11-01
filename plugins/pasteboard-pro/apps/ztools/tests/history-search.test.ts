@@ -120,10 +120,23 @@ it("routes only the current shelf session's response and cleans up pending RPCs"
 });
 
 it("indexes IDs once and reads only changed/requested documents across store instances", async () => {
-  const documents = new Map([[doc(item(0))._id, doc(item(0))]]);
+  const documents = new Map<string, Record<string, unknown>>([
+    [doc(item(0))._id, doc(item(0))],
+  ]);
   const allDocs = vi.fn(async () => [...documents.values()]);
   const get = vi.fn(async (id: string) => documents.get(id));
-  const database = { allDocs, get, put: async (value: Record<string, unknown>) => { documents.set(String(value._id), value as ReturnType<typeof doc>); } };
+  let revision = 0;
+  const database = {
+    allDocs,
+    get,
+    put: async (value: Record<string, unknown>) => {
+      const id = String(value._id);
+      revision += 1;
+      const rev = `${revision}-test`;
+      documents.set(id, { ...value, _rev: rev });
+      return { ok: true, id, rev };
+    },
+  };
   const store = new ZToolsCanonicalClipboardStore(database);
   const syncStore = new ZToolsCanonicalClipboardStore(database);
   await store.readHistoryDocuments();

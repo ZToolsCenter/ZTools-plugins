@@ -1,0 +1,29 @@
+/* Optional surfaces stay local to clipboard cards, including drag previews. */
+.shelf--custom-card-background .paste-card {
+  --pb-ink: var(--pb-theme-card-ink);
+  --pb-muted: var(--pb-theme-card-muted);
+  --pb-line: var(--pb-theme-card-line);
+  --pb-violet: var(--pb-theme-card-accent);
+  --pb-violet-soft: var(--pb-theme-card-accent-soft);
+  --pb-on-accent: var(--pb-theme-card-on-accent);
+  --pb-glass-strong: var(--pb-theme-card-background);
+  --pb-glass: var(--pb-theme-card-background);
+  color: var(--pb-ink);
+}
+
+.shelf--custom-card-background .paste-card.paste-card--modern:not(.paste-card--dragging),
+.shelf--custom-card-background .paste-card:not(.paste-card--modern):not(.paste-card--dragging),
+.shelf--custom-card-background .paste-card.paste-card--modern.paste-card--selected:not(.paste-card--dragging),
+.shelf--custom-card-background .paste-card.paste-card--selected:not(.paste-card--modern):not(.paste-card--dragging) {
+  background: var(--pb-theme-card-background);
+}
+
+.shelf.shelf--custom-base-background:not(.shelf--theme-background-image) {
+  background-color: var(--pb-theme-background-color);
+  background-image: none;
+}
+
+/* Keep toolbar labels readable regardless of the background image layout. */
+.shelf.shelf--modern.shelf--theme-background-image .modern-toolbar {
+  background: var(--pb-theme-opaque-surface);
+}

@@ -1,0 +1,193 @@
+.shelf-filter-trigger {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.modern-control {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--pb-line);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--pb-glass-strong) 72%, transparent);
+  color: var(--pb-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 130ms ease, border-color 130ms ease, color 130ms ease;
+}
+
+.modern-control:hover,
+.modern-control:focus-visible {
+  border-color: color-mix(in srgb, var(--pb-violet) 42%, var(--pb-line));
+  color: var(--pb-ink);
+  outline: none;
+}
+
+.modern-filter-button svg {
+  width: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.7;
+}
+
+.modern-control--active {
+  border-color: color-mix(in srgb, var(--pb-violet) 38%, var(--pb-line));
+  background: color-mix(in srgb, var(--pb-violet) 12%, var(--pb-glass-strong));
+  color: var(--pb-violet);
+}
+
+.modern-filter-count {
+  display: grid;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--pb-violet) 18%, transparent);
+  font-size: 10px;
+  line-height: 1;
+  place-items: center;
+}
+
+.shelf-filter-popover {
+  position: fixed;
+  z-index: 2147483647;
+  display: grid;
+  width: min(420px, calc(100vw - 20px));
+  max-height: calc(100vh - 20px);
+  overflow: auto;
+  gap: 17px;
+  padding: 18px;
+}
+
+.shelf-filter-popover__header,
+.shelf-filter-popover__header > div,
+.shelf-filter-group__title,
+.shelf-filter-popover__footer {
+  display: flex;
+  align-items: center;
+}
+
+.shelf-filter-popover__header,
+.shelf-filter-group__title {
+  justify-content: space-between;
+}
+
+.shelf-filter-popover__header > div {
+  gap: 9px;
+}
+
+.shelf-filter-popover__header strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.shelf-filter-popover__header span,
+.shelf-filter-popover__footer span {
+  color: var(--popover-muted);
+  font-size: 10px;
+}
+
+.shelf-filter-reset,
+.shelf-filter-group__title button,
+.shelf-filter-popover__footer button {
+  border: 0;
+  background: transparent;
+  color: var(--popover-accent);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.shelf-filter-reset:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.shelf-filter-group {
+  display: grid;
+  gap: 9px;
+}
+
+.shelf-filter-group__title {
+  color: var(--popover-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.shelf-filter-group__title button {
+  color: var(--popover-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.shelf-filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.shelf-filter-options--apps {
+  max-height: 94px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.shelf-filter-chip {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--popover-muted) 10%, var(--popover-surface));
+  color: var(--popover-ink);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 550;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.shelf-filter-chip:hover {
+  background: var(--popover-hover);
+}
+
+.shelf-filter-chip--selected {
+  border-color: color-mix(in srgb, var(--popover-accent) 72%, transparent);
+  background: color-mix(in srgb, var(--popover-accent) 12%, var(--popover-surface));
+  color: var(--popover-accent);
+}
+
+.shelf-filter-empty {
+  padding: 6px 2px;
+  color: var(--popover-muted);
+  font-size: 11px;
+}
+
+.shelf-filter-popover__footer {
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--popover-line);
+}
+
+.shelf-filter-popover__footer button {
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: var(--popover-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modern-control,
+  .shelf-filter-chip {
+    transition: none;
+  }
+}

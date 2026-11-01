@@ -1,0 +1,334 @@
+.color-picker-field {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--pb-ink, #272c33);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
+}
+
+.color-picker-field__swatch {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 4px;
+  border: 1px solid var(--pb-line, rgb(61 72 87 / 18%));
+  border-radius: 10px;
+  background: var(--pb-glass-strong, #fff);
+  cursor: pointer;
+  place-items: center;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.color-picker-field__swatch:hover:not(:disabled) {
+  border-color: var(--pb-theme-accent, #2f6bc1);
+  transform: translateY(-1px);
+}
+
+.color-picker-field__swatch:focus-visible,
+.color-picker-field__hex:focus-visible,
+.color-picker-dialog button:focus-visible,
+.color-picker-dialog input:focus-visible,
+.color-picker-dialog__plane:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--pb-theme-accent, #2f6bc1) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.color-picker-field__swatch:disabled,
+.color-picker-field__hex:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.color-picker-field__swatch-color,
+.color-picker-dialog__preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgb(20 24 30 / 16%);
+  border-radius: 6px;
+}
+
+.color-picker-field__value {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.color-picker-field__hex,
+.color-picker-dialog__hex-field input {
+  width: 92px;
+  min-width: 0;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--pb-line, rgb(61 72 87 / 18%));
+  border-radius: 9px;
+  background: var(--pb-glass-strong, #fff);
+  color: var(--pb-ink, #272c33);
+  font: 600 12px/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+  letter-spacing: .02em;
+}
+
+.color-picker-field__hex[aria-invalid="true"] { border-color: #c34455; }
+.color-picker-field__error { color: #b34352; font-size: 10px; line-height: 1.35; }
+
+.color-picker-dialog {
+  --picker-accent: var(--pb-theme-accent, #2f6bc1);
+  --picker-on-accent: var(--pb-theme-on-accent, #fff);
+  --picker-surface: var(--pb-window-bg, #f5f6f8);
+  --picker-raised: var(--pb-glass-strong, #fff);
+  --picker-ink: var(--pb-ink, #272c33);
+  --picker-muted: var(--pb-muted, #68727d);
+  --picker-line: var(--pb-line, rgb(61 72 87 / 16%));
+  box-sizing: border-box;
+  width: min(340px, calc(100vw - 24px));
+  height: min(520px, calc(100dvh - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--picker-line) 82%, var(--picker-muted));
+  border-radius: 18px;
+  background: var(--picker-surface);
+  color: var(--picker-ink);
+  box-shadow: 0 26px 76px rgb(10 14 20 / 34%), 0 4px 14px rgb(10 14 20 / 12%);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
+  color-scheme: light dark;
+}
+
+.color-picker-dialog::backdrop {
+  background: rgb(9 12 17 / 36%);
+  backdrop-filter: blur(3px);
+}
+
+.color-picker-dialog[open] { display: grid; }
+
+.color-picker-dialog__layout {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.color-picker-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 12px;
+}
+
+.color-picker-dialog__header h2 {
+  margin: 2px 0 0;
+  color: var(--picker-ink);
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -.02em;
+}
+
+.color-picker-dialog__eyebrow {
+  color: var(--picker-muted);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .14em;
+}
+
+.color-picker-dialog__close {
+  display: grid;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--picker-line);
+  border-radius: 9px;
+  background: var(--picker-raised);
+  color: var(--picker-muted);
+  cursor: pointer;
+  font: 500 20px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+  place-items: center;
+}
+
+.color-picker-dialog__controls {
+  display: grid;
+  min-height: 0;
+  gap: 14px;
+  padding: 4px 20px 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.color-picker-dialog__plane {
+  position: relative;
+  min-height: 140px;
+  border: 1px solid color-mix(in srgb, var(--picker-ink) 12%, transparent);
+  border-radius: 12px;
+  background-color: hsl(var(--picker-hue) 100% 50%);
+  background-image: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.color-picker-dialog__marker {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 45%), 0 0 0 1px rgb(0 0 0 / 24%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.color-picker-dialog__hue {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: var(--picker-muted);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.color-picker-dialog__hue input {
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.color-picker-dialog__hue input::-webkit-slider-runnable-track {
+  height: 9px;
+  border: 1px solid rgb(0 0 0 / 14%);
+  border-radius: 99px;
+  background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+
+.color-picker-dialog__hue input::-moz-range-track {
+  height: 9px;
+  border: 1px solid rgb(0 0 0 / 14%);
+  border-radius: 99px;
+  background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+
+.color-picker-dialog__hue input::-webkit-slider-thumb {
+  width: 15px;
+  height: 15px;
+  margin-top: -4px;
+  appearance: none;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: hsl(var(--picker-hue) 100% 50%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 35%), 0 1px 3px rgb(0 0 0 / 24%);
+}
+
+.color-picker-dialog__hue input::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: hsl(var(--picker-hue) 100% 50%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 35%);
+}
+
+.color-picker-dialog__hex-row {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.color-picker-dialog__hex-field {
+  display: grid;
+  gap: 6px;
+  color: var(--picker-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.color-picker-dialog__hex-field input { width: 126px; }
+.color-picker-dialog__preview { width: 34px; height: 34px; border-color: var(--picker-line); border-radius: 9px; }
+
+.color-picker-dialog__presets {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.color-picker-dialog__presets legend {
+  padding: 0;
+  color: var(--picker-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.color-picker-dialog__swatches {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.color-picker-dialog__preset {
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: 32px;
+  border: 2px solid var(--picker-raised);
+  border-radius: 9px;
+  background: var(--preset-color);
+  box-shadow: 0 0 0 1px var(--picker-line);
+  cursor: pointer;
+}
+
+.color-picker-dialog__preset:hover { transform: translateY(-1px); }
+.color-picker-dialog__preset.is-selected { box-shadow: 0 0 0 2px var(--picker-accent); }
+
+.color-picker-dialog__actions {
+  display: flex;
+  justify-content: end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--picker-line);
+  background: var(--picker-surface);
+}
+
+.color-picker-dialog__actions button {
+  min-width: 78px;
+  height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--picker-line);
+  border-radius: 9px;
+  background: var(--picker-raised);
+  color: var(--picker-ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.color-picker-dialog__actions .color-picker-dialog__apply {
+  border-color: var(--picker-accent);
+  background: var(--picker-accent);
+  color: var(--picker-on-accent);
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--picker-accent) 22%, transparent);
+}
+
+@media (max-height: 400px) {
+  .color-picker-dialog__header { padding-top: 12px; }
+  .color-picker-dialog__plane { min-height: 100px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .color-picker-field__swatch { transition: none; }
+}
+
+.color-picker-dialog__actions button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}

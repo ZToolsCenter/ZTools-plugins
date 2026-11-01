@@ -1,3 +1,4 @@
+import type { ApplicationCatalogResult } from "../preload/application-catalog";
 import type { ListReorderRequest } from "./list-order";
 import type { HistoryPage, HistoryRequest } from "../preload/history-page";
 /// <reference types="vite/client" />
@@ -26,6 +27,11 @@ declare global {
         supportsNativeFileDrag: boolean;
         supportsScreenCapture: boolean;
       };
+      listApplications?(refresh?: boolean): Promise<ApplicationCatalogResult>;
+      getSourceAppIcon?(sourceApp: {
+        name?: string;
+        bundleId?: string;
+      }): Promise<string | undefined>;
       getPlatformCapabilities(): {
         platform: NodeJS.Platform;
         supportsGlobalPasteQueue: boolean;
