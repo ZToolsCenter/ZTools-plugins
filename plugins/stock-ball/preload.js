@@ -3,8 +3,8 @@
  * 股票管家 —— ZTools 插件 preload（主窗口 / 球窗口 / 面板窗口 共用一份）
  *
  * 关键约束（ZTools 现状，见 easynote / datatimeutc 的实践）：
- *  1. 只有「创建窗口的那个窗口」持有 WindowInstance 句柄，子窗口操作不了自己
- *     —— 所以球的拖动、展开菜单、面板开关全部由主窗口（管家）代劳。
+ *  1. 创建者持有 WindowInstance，握手时把 BrowserWindow.id 交给球；
+ *     球通过宿主同插件校验的同步窗口接口自行拖动，旧宿主回退主页面转发。
  *  2. plugin.json 的 preload 只保证注入插件主窗口，新建窗口必须显式传 webPreferences.preload。
  *  3. preload 里 require('electron') 只拿得到渲染端模块（ipcRenderer），没有 ipcMain/screen，
  *     屏幕信息一律走 ztools.* API。
@@ -67,6 +67,7 @@ function workAreaNear(rect) {
 /* 窗口间通信桥（主窗口 ⇄ 子窗口），所有窗口共用                       */
 /* ------------------------------------------------------------------ */
 let hostId = null;
+let selfWindowId = null; // BrowserWindow.id，与 webContents.id 不同，由创建者握手告知
 let lastHostMsgAt = Date.now(); // 最近一次收到主窗口消息的时刻（球的通道存活探测基准）
 let greeted = false;
 let midSeq = 0;
@@ -112,6 +113,7 @@ ipcRenderer.on(CH, (event, msg) => {
   if (ROLE !== 'main' && senderId) { hostId = senderId; lastHostMsgAt = Date.now(); }
   if (msg && msg.t === 'hello') {
     if (senderId) hostId = senderId;
+    if (ROLE === 'ball' && Number.isInteger(msg.windowId) && msg.windowId > 0) selfWindowId = msg.windowId;
     greeted = true;
     try { ipcRenderer.sendTo(senderId, CH, { t: 'hello-ack', role: ROLE }); } catch (e) { /* ignore */ }
     while (pending.length) {
@@ -823,7 +825,7 @@ const services = {
     importFromFile: (p) => store.importFromFile(p),
     broadcast: (c) => toHost({ t: 'broadcast', c: c || { t: 'refresh' } }),
     setBallOpacity: (op) => {
-      const val = typeof op === 'number' ? Math.min(1, Math.max(0.2, op)) : 0.95;
+      const val = normalizeBallOpacity(op);
       store.patchSettings({ ballOpacity: val });
       applyBallOpacityToWindow(val);
       toHost({ t: 'set-opacity', opacity: val });
@@ -955,10 +957,15 @@ function applyBounds(win, b) {
   if (win === ballWin) lastBallBounds = Object.assign({}, lastBallBounds || {}, next);
 }
 
+function normalizeBallOpacity(op) {
+  return typeof op === 'number' && Number.isFinite(op) ? Math.min(1, Math.max(0, op)) : 0.95;
+}
+
 function applyBallOpacityToWindow(op) {
-  const val = typeof op === 'number' ? Math.min(1, Math.max(0.2, op)) : 0.95;
+  const val = normalizeBallOpacity(op);
   if (alive(ballWin)) {
-    safe(() => { if (typeof ballWin.setOpacity === 'function') ballWin.setOpacity(val); });
+    // 原生窗口始终不透明，背景淡化交给球页面，避免文字也被一起淡化。
+    safe(() => { if (typeof ballWin.setOpacity === 'function') ballWin.setOpacity(1); });
     toWindow(wcId(ballWin), { t: 'ctl', c: { t: 'opacity', opacity: val } });
   }
 }
@@ -993,7 +1000,19 @@ async function activatePlugin(cmd) {
   } catch (e) { log('显示主窗口失败', e); }
   safe(() => { if (typeof Z.setExpendHeight === 'function') Z.setExpendHeight(600); });
   try {
-    if (typeof Z.redirect === 'function') {
+    let launched = false;
+    // 按安装路径唤起当前实例。直接 redirect('stock') 在正式版和开发版并存时
+    // 只会显示两个搜索结果，宿主仍返回 true，导致双击看似成功却没有打开面板。
+    if (typeof __dirname === 'string' && __dirname && typeof ipcRenderer.invoke === 'function') {
+      try {
+        const result = await ipcRenderer.invoke('launch', {
+          path: __dirname, type: 'plugin', featureCode: cmd || 'stock',
+          name: '股票管家', cmdType: 'text', param: { type: 'text' }
+        });
+        launched = !!(result && result.success === true);
+      } catch (e) { log('按路径打开插件失败，尝试指令跳转', e); }
+    }
+    if (!launched && typeof Z.redirect === 'function') {
       const result = await Z.redirect(cmd || 'stock');
       if (result === false) return false;
     }
@@ -1034,7 +1053,9 @@ function childOptions(extra) {
     fullscreenable: false,
     alwaysOnTop: true,
     show: true,
-    focusable: false, // 关键：悬浮球不抢夺宿主焦点，防止 ZTools 主窗口因失焦而被自动关闭隐藏
+    // Windows 下不可聚焦的透明窗口可能只收到 mouseup，收不到 mousedown。
+    // 保留点击聚焦能力；悬浮球通过 showInactive 展示，避免创建时抢焦点。
+    focusable: true,
     parent: null,
     // 关键：新建窗口要自己带上 preload，否则窗口里没有 window.services
     webPreferences: {
@@ -1068,7 +1089,7 @@ function greet(kind, win) {
   greetTimers[kind] = setInterval(() => {
     n += 1;
     if (n > 10 || !alive(win)) { clearInterval(greetTimers[kind]); return; }
-    toWindow(id, { t: 'hello' });
+    toWindow(id, { t: 'hello', windowId: win.id });
   }, 350);
 }
 function startWatcher() {
@@ -1076,6 +1097,8 @@ function startWatcher() {
   let lastKeepaliveAt = 0;   // 上次给球推通道保活消息的时刻
   let lastRebuildAt = 0;     // 上次杀掉聋球重建的时刻（冷却防循环）
   let lastOrphanDieAt = 0;   // 上次给无句柄孤儿球发 die 的时刻
+  let lastWatchAt = Date.now();
+  let wakeGraceUntil = 0;
   watcher = setInterval(() => {
     const ballAlive = alive(ballWin);
     const panelAlive = alive(panelWin);
@@ -1083,6 +1106,9 @@ function startWatcher() {
     if (!panelAlive && panelWin) { panelWin = null; }
     try {
       const now = Date.now();
+      // 休眠/进程暂停期间所有心跳都会停；恢复后的首轮先给球续心跳的机会。
+      if (now - lastWatchAt > 15000) wakeGraceUntil = now + 15000;
+      lastWatchAt = now;
       if (ballWin) {
         // ① 通道保活：球的上行（拖动/双击/心跳 ping）全靠 sendTo(hostId)，而 hostId
         //    只能在收到主窗口消息时刷新。主窗口隐藏后若长期不发消息，球的 hostId 一旦
@@ -1097,7 +1123,7 @@ function startWatcher() {
         //    心跳 id 必须与当前球句柄匹配才判定，避免已被 die 的旧球残写误伤新球。
         const hb = store.getHeartbeat();
         const hbMatches = !!(hb && hb.id && hb.role === 'ball' && String(hb.id) === String(wcId(ballWin)));
-        if (hbMatches && (now - (hb.t || 0)) >= 20000 && now - lastRebuildAt >= 12000) {
+        if (hbMatches && now >= wakeGraceUntil && (now - (hb.t || 0)) >= 20000 && now - lastRebuildAt >= 12000) {
           lastRebuildAt = now;
           closeBall();
           setTimeout(() => { try { if (!alive(ballWin)) openBall(true); } catch (e) { /* ignore */ } }, 300);
@@ -1146,7 +1172,7 @@ function openBall(force) {
   const s = store.getSettings();
   const size = ballWindowSize(s);
   if (alive(ballWin)) {
-    safe(() => ballWin.show && ballWin.show());
+    showBallInactive(ballWin);
     return ballWin;
   }
   if (!force) {
@@ -1159,19 +1185,26 @@ function openBall(force) {
   return createBall(size);
 }
 
+function showBallInactive(win) {
+  safe(() => {
+    if (!alive(win)) return;
+    if (typeof win.showInactive === 'function') win.showInactive();
+    else if (typeof win.show === 'function') win.show();
+  });
+}
+
 function createBall(size) {
   const pos = store.getBallPos() || defaultBallPos(size);
-  const s = store.getSettings();
-  const initOpacity = typeof s.ballOpacity === 'number' ? s.ballOpacity : 0.95;
   let win = null;
   try {
     win = Z.createBrowserWindow(localUrl('windows/ball.html'), childOptions({
       x: pos.x, y: pos.y, width: size, height: size, title: '股票悬浮球',
-      opacity: initOpacity
+      opacity: 1, show: false
     }), () => {
       lastBallBounds = { x: pos.x, y: pos.y, width: size, height: size };
       store.setHeartbeat({ id: wcId(win), role: 'ball' });
-      safe(() => { if (win && typeof win.setOpacity === 'function') win.setOpacity(initOpacity); });
+      safe(() => { if (win && typeof win.setOpacity === 'function') win.setOpacity(1); });
+      showBallInactive(win);
     });
   } catch (e) {
     log('创建悬浮球窗口失败', e);
@@ -1308,14 +1341,14 @@ onHostMsg((msg, senderId) => {
         clearInterval(greetTimers.ball);
         const s = store.getSettings();
         if (alive(ballWin)) {
-          safe(() => { if (typeof ballWin.setOpacity === 'function') ballWin.setOpacity(s.ballOpacity || 0.95); });
+          safe(() => { if (typeof ballWin.setOpacity === 'function') ballWin.setOpacity(1); });
           toWindow(senderId, { t: 'ctl', c: { t: 'settings', settings: s } });
         }
       }
       if (msg.role === 'panel') clearInterval(greetTimers.panel);
       break;
     case 'set-opacity': {
-      const val = typeof msg.opacity === 'number' ? Math.min(1, Math.max(0.2, msg.opacity)) : 0.95;
+      const val = normalizeBallOpacity(msg.opacity);
       store.patchSettings({ ballOpacity: val });
       applyBallOpacityToWindow(val);
       return;
@@ -1546,7 +1579,7 @@ if (IS_HOST) {
   services.host.syncFromFile = () => store.syncFromFile();
   services.host.importFromFile = (p) => store.importFromFile(p);
   services.host.setBallOpacity = (op) => {
-    const val = typeof op === 'number' ? Math.min(1, Math.max(0.2, op)) : 0.95;
+    const val = normalizeBallOpacity(op);
     store.patchSettings({ ballOpacity: val });
     applyBallOpacityToWindow(val);
   };
@@ -1568,6 +1601,56 @@ if (IS_HOST) {
   let lastCmdSeq = 0;
   const ackWaiters = new Map();
   let hbTimer = null;
+  let localDrag = null;
+
+  // 与 ZTools createBrowserWindow 返回的同步代理使用同一接口。
+  // 宿主主进程会校验调用者与窗口所属插件；只控制握手取得的本球窗口。
+  // 不再经隐藏的插件主页面转发，也不依赖新版 Electron 已移除的 remote。
+  function selfWindowCall(method, args) {
+    if (ROLE !== 'ball' || !selfWindowId || typeof ipcRenderer.sendSync !== 'function') throw new Error('self window unavailable');
+    const result = ipcRenderer.sendSync('plugin.api', 'pluginBrowserWindowMethod', { id: selfWindowId, method, args });
+    if (result instanceof Error) throw result;
+    return result;
+  }
+  function selfBounds() {
+    const b = selfWindowCall('getBounds', []);
+    if (!b || !['x', 'y', 'width', 'height'].every((k) => Number.isFinite(b[k])) || b.width <= 0 || b.height <= 0) {
+      throw new Error('invalid self bounds');
+    }
+    return { x: b.x, y: b.y, width: b.width, height: b.height };
+  }
+  function canMoveSelf() {
+    try { selfBounds(); return true; } catch (e) { return false; }
+  }
+  function dragSelf(phase, dx, dy, gesture) {
+    if (ROLE !== 'ball' || !selfWindowId) return false;
+    try {
+      if (phase === 'start') {
+        // 每次手势重新读位置，系统移动窗口或前一次吸附后不会使用旧坐标。
+        localDrag = { b: selfBounds(), gesture };
+        return true;
+      }
+      if (!localDrag) return false;
+      if (gesture && gesture !== localDrag.gesture) return true;
+      const base = localDrag.b;
+      let next = { x: Math.round(base.x + dx), y: Math.round(base.y + dy), width: base.width, height: base.height };
+      if (phase === 'end') next = snapBounds(next, next.width);
+      selfWindowCall('setBounds', [next]);
+      if (phase === 'end') {
+        store.setBallPos({ x: next.x, y: next.y });
+        localDrag = null;
+      }
+      return true;
+    } catch (e) {
+      // 宿主不支持此接口或调用失败时，补发原始基准再退回已有转发路径。
+      const started = localDrag;
+      localDrag = null;
+      if (phase !== 'start' && started) {
+        toHost({ t: 'drag', phase: 'start', dx: 0, dy: 0, b: started.b, gesture: started.gesture });
+      }
+      return false;
+    }
+  }
 
   onHostMsg((msg) => {
     if (!msg) return;
@@ -1576,6 +1659,7 @@ if (IS_HOST) {
       if (w) { ackWaiters.delete(msg.for); w(msg.ok !== false); }
       return;
     }
+    if (msg.t === 'ping') { toHost({ t: 'pong' }); return; }
     if (msg.t === 'ctl') {
       const c = msg.c || {};
       fireCtl(c);
@@ -1609,7 +1693,14 @@ if (IS_HOST) {
   }
 
   /** 拖动起手确认；球端可立即发送位移。gesture 隔离连续的两次拖动。 */
-  services.host.dragStart = (b, gesture) => sendWithAck({ t: 'drag', phase: 'start', b: b || null, gesture }, 400);
+  services.host.dragStart = (b, gesture) => {
+    if (dragSelf('start', 0, 0, gesture)) return Promise.resolve(true);
+    return sendWithAck({ t: 'drag', phase: 'start', b: b || null, gesture }, 400);
+  };
+  services.host.drag = (phase, dx, dy, b, gesture) => {
+    if (dragSelf(phase, dx || 0, dy || 0, gesture)) return;
+    toHost({ t: 'drag', phase, dx: dx || 0, dy: dy || 0, b: b || null, gesture });
+  };
 
   /** 主窗口（管家）失联时，球自己也能把面板开出来 */
   async function openPanelSmart() {
@@ -1634,7 +1725,7 @@ if (IS_HOST) {
     });
   };
   services.host.setBallOpacity = (op) => {
-    const val = typeof op === 'number' ? Math.min(1, Math.max(0.2, op)) : 0.95;
+    const val = normalizeBallOpacity(op);
     store.patchSettings({ ballOpacity: val });
     toHost({ t: 'set-opacity', opacity: val });
   };
@@ -1656,7 +1747,11 @@ if (IS_HOST) {
   if (ROLE === 'ball') {
     // 球一启动就写心跳，好让下次进入插件时知道桌上已经有球了
     store.setHeartbeat({ id: safe(() => Z.getWebContentsId(), null), role: 'ball' });
+    let lastHeartbeatAt = Date.now();
     hbTimer = setInterval(() => {
+      const now = Date.now();
+      if (now - lastHeartbeatAt > 15000) lastHostMsgAt = now;
+      lastHeartbeatAt = now;
       const cur = store.getHeartbeat();
       if (cur && cur.closed) {
         clearInterval(hbTimer);
@@ -1664,10 +1759,10 @@ if (IS_HOST) {
       }
       store.setHeartbeat({ id: safe(() => Z.getWebContentsId(), null), role: 'ball' });
       // 存活探测：主窗口必须有回音（入站任意消息都会刷新 lastHostMsgAt）。
-      // 45秒无回音 = 控制通道已断（拖动、双击都会失效）→ 经临时缓存旁路自报
-      // needsRestart 后自毁，主窗口守望进程1秒内用保存的位置重建球
+      // 45秒无回音且无法直接控制自身时，经临时缓存旁路自报 needsRestart。
+      // 能自行拖动时保留球，双击另有直接唤起兜底，继续处理缓存指令。
       try { toHost({ t: 'ping' }); } catch (e) { /* ignore */ }
-      if ((Date.now() - lastHostMsgAt) > 45000) {
+      if ((Date.now() - lastHostMsgAt) > 45000 && !canMoveSelf()) {
         try {
           store.setHeartbeat({ id: safe(() => Z.getWebContentsId(), null), role: 'ball', needsRestart: true });
           if (typeof Z.showNotification === 'function') Z.showNotification('悬浮球连接中断，正在自动重启…');
