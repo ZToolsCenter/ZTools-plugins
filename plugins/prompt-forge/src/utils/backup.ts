@@ -17,6 +17,7 @@ import { normalizePromptItem } from './prompt'
 
 export const BACKUP_FORMAT = 'promptforge-backup'
 export const BACKUP_VERSION = 1
+const PROJECT_GROUPS = new Set(['开发', '学习', '写作', '研究', '其他'])
 
 /** 内置种子提示词 ID（非用户资产，备份时排除） */
 export const SEED_PROMPT_IDS = new Set(['welcome', 'tutorial-vars', 'frag-style', 'frag-markdown'])
@@ -29,6 +30,10 @@ export interface BackupPackage {
   projects: Project[]
   settings: Record<string, any>
   history: HistoryEntry[]
+}
+
+export interface ParsedBackupPackage extends BackupPackage {
+  skipped: { prompts: number; projects: number; history: number; settings: number }
 }
 
 export interface BackupSource {
@@ -56,33 +61,48 @@ export function buildBackup(source: BackupSource): BackupPackage {
 }
 
 /** 解析导入内容，识别备份包或旧版裸数组（向后兼容） */
-export function parseBackup(raw: unknown): BackupPackage | null {
+export function parseBackup(raw: unknown): ParsedBackupPackage | null {
   // 旧版格式：裸提示词数组
   if (Array.isArray(raw)) {
+    const prompts = raw.map(normalizePromptItem).filter((p): p is PromptItem => p !== null)
     return {
       format: BACKUP_FORMAT,
       version: 1,
       exportedAt: Date.now(),
-      prompts: raw.map(normalizePromptItem).filter((p): p is PromptItem => p !== null),
+      prompts,
       projects: [],
       settings: {},
       history: [],
+      skipped: { prompts: raw.length - prompts.length, projects: 0, history: 0, settings: 0 },
     }
   }
 
   if (typeof raw === 'object' && raw !== null) {
     const obj = raw as Record<string, any>
     if (obj.format === BACKUP_FORMAT) {
+      const version = typeof obj.version === 'number' ? obj.version : 1
+      if (!Number.isInteger(version) || version < 1 || version > BACKUP_VERSION) return null
+      if (!Array.isArray(obj.prompts) || !Array.isArray(obj.projects) || !isRecord(obj.settings) || !Array.isArray(obj.history)) {
+        return null
+      }
+      const prompts = obj.prompts.map(normalizePromptItem).filter((p): p is PromptItem => p !== null)
+      const projects = obj.projects.filter(isProject)
+      const history = obj.history.filter(isHistoryEntry)
+      const normalizedSettings = normalizeSettings(obj.settings)
       return {
         format: obj.format,
-        version: typeof obj.version === 'number' ? obj.version : 1,
+        version,
         exportedAt: typeof obj.exportedAt === 'number' ? obj.exportedAt : Date.now(),
-        prompts: Array.isArray(obj.prompts)
-          ? obj.prompts.map(normalizePromptItem).filter((p): p is PromptItem => p !== null)
-          : [],
-        projects: Array.isArray(obj.projects) ? obj.projects.filter(isProject) : [],
-        settings: isRecord(obj.settings) ? obj.settings : {},
-        history: Array.isArray(obj.history) ? obj.history.filter(isHistoryEntry) : [],
+        prompts,
+        projects,
+        settings: normalizedSettings.settings,
+        history,
+        skipped: {
+          prompts: obj.prompts.length - prompts.length,
+          projects: obj.projects.length - projects.length,
+          history: obj.history.length - history.length,
+          settings: normalizedSettings.skipped,
+        },
       }
     }
   }
@@ -134,9 +154,51 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isProject(value: unknown): value is Project {
-  return isRecord(value) && typeof value.id === 'string' && typeof value.name === 'string'
+  return isRecord(value)
+    && typeof value.id === 'string'
+    && value.id.trim().length > 0
+    && typeof value.name === 'string'
+    && value.name.trim().length > 0
+    && typeof value.group === 'string'
+    && PROJECT_GROUPS.has(value.group)
+    && typeof value.createdAt === 'number'
+    && Number.isFinite(value.createdAt)
+    && typeof value.updatedAt === 'number'
+    && Number.isFinite(value.updatedAt)
 }
 
 function isHistoryEntry(value: unknown): value is HistoryEntry {
-  return isRecord(value) && typeof value.id === 'string' && typeof value.promptId === 'string'
+  return isRecord(value)
+    && typeof value.id === 'string'
+    && value.id.trim().length > 0
+    && typeof value.promptId === 'string'
+    && value.promptId.trim().length > 0
+    && typeof value.promptTitle === 'string'
+    && typeof value.copiedContent === 'string'
+    && typeof value.usedAt === 'number'
+    && Number.isFinite(value.usedAt)
+    && (value.variableValues === undefined || isStringRecord(value.variableValues))
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.values(value).every(item => typeof item === 'string')
+}
+
+function normalizeSettings(value: Record<string, unknown>): { settings: Record<string, unknown>; skipped: number } {
+  const settings: Record<string, unknown> = {}
+  let skipped = 0
+
+  for (const [key, item] of Object.entries(value)) {
+    if ((key === 'closeAfterCopy' || key === 'autoFocus') && typeof item === 'boolean') {
+      settings[key] = item
+    } else if (key === 'maxHistory' && typeof item === 'number' && Number.isFinite(item) && item >= 50 && item <= 500) {
+      settings[key] = item
+    } else if (key === 'theme' && (item === 'light' || item === 'dark')) {
+      settings[key] = item
+    } else {
+      skipped++
+    }
+  }
+
+  return { settings, skipped }
 }

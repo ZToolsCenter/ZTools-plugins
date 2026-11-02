@@ -21,22 +21,41 @@ const projectStore = useProjectStore()
 const appSettings = useAppSettings()
 const themeStore = useTheme()
 const ready = ref(false)
+const startupError = ref('')
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : '无法读取本地数据'
+}
+
+async function initialize() {
+  ready.value = false
+  startupError.value = ''
+  try {
+    await promptStore.ensureReady()
+    await projectStore.ensureReady()
+    await appSettings.load()
+    await themeStore.init()
+    ready.value = true
+  } catch (error) {
+    startupError.value = errorMessage(error)
+  }
+}
+
+async function retryPersist() {
+  try {
+    await promptStore.persistAll()
+  } catch {}
+}
 
 function flushPendingChanges() {
-  void promptStore.flushPendingPersist()
+  void promptStore.flushPendingPersist().catch(() => {})
 }
 
 function handleVisibilityChange() {
   if (document.visibilityState === 'hidden') flushPendingChanges()
 }
 
-onMounted(async () => {
-  await promptStore.ensureReady()
-  await projectStore.ensureReady()
-  await appSettings.load()
-  await themeStore.init()
-  ready.value = true
-
+onMounted(() => {
   window.addEventListener('pagehide', flushPendingChanges)
   document.addEventListener('visibilitychange', handleVisibilityChange)
 
@@ -69,6 +88,8 @@ onMounted(async () => {
       }
     })
   }
+
+  void initialize()
 })
 
 onUnmounted(() => {
@@ -92,11 +113,20 @@ const activeComponent = computed(() => viewMap[router.currentView.value] || Spac
   <div class="app-shell">
     <template v-if="ready">
       <CommandBar />
+      <div v-if="promptStore.persistError.value" class="persist-error" role="alert">
+        <span>本地保存失败：{{ promptStore.persistError.value }}</span>
+        <button class="btn" @click="retryPersist">重试</button>
+      </div>
       <div class="view-container">
         <component :is="activeComponent" />
       </div>
       <AppModal />
     </template>
+    <div v-else-if="startupError" class="loading error-state" role="alert">
+      <span>无法读取本地数据</span>
+      <small>{{ startupError }}</small>
+      <button class="btn primary" @click="initialize">重试</button>
+    </div>
     <div v-else class="loading">
       <div class="loading-spinner"></div>
       <span>PromptForge</span>
@@ -116,6 +146,20 @@ const activeComponent = computed(() => viewMap[router.currentView.value] || Spac
   flex: 1; min-height: 0; overflow: hidden;
   display: flex; flex-direction: column;
 }
+.persist-error {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--pf-danger);
+  background: var(--pf-danger-soft);
+  border-bottom: 1px solid var(--pf-danger);
+  font-size: 12px;
+}
+.persist-error .btn { height: 28px; }
 .loading {
   flex: 1; display: flex;
   flex-direction: column;
@@ -131,5 +175,6 @@ const activeComponent = computed(() => viewMap[router.currentView.value] || Spac
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+.error-state small { color: var(--pf-text-muted); }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

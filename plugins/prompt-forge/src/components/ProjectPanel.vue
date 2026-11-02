@@ -4,7 +4,7 @@ import { FolderInput, Trash2, Check, ArrowLeft } from 'lucide-vue-next'
 import { usePromptStore } from '../stores/prompt'
 import { useProjectStore } from '../stores/project'
 import { showNotification } from '../utils/platform'
-import type { Project, ProjectGroup } from '../types'
+import type { Project, ProjectGroup, PromptItem } from '../types'
 
 const prompt = usePromptStore()
 const projectStore = useProjectStore()
@@ -31,29 +31,44 @@ function closeCtxMenu() {
   showMoveGroup.value = false
 }
 
-function createProject() {
+async function createProject() {
   if (!newProjectName.value.trim()) return
-  projectStore.addProject(newProjectName.value.trim(), newProjectGroup.value, newProjectDesc.value)
-  newProjectName.value = ''; newProjectDesc.value = ''; showNewProject.value = false
-  showNotification('✓ 项目已创建')
+  try {
+    await projectStore.addProject(newProjectName.value.trim(), newProjectGroup.value, newProjectDesc.value)
+    newProjectName.value = ''; newProjectDesc.value = ''; showNewProject.value = false
+    showNotification('✓ 项目已创建')
+  } catch (error) {
+    showNotification(`创建失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 
-function deleteProject(p: Project) {
+async function deleteProject(p: Project) {
+  const previousPrompts = JSON.parse(JSON.stringify(prompt.rawItems.value)) as PromptItem[]
   let changed = false
   prompt.rawItems.value.forEach(item => {
     if (item.projectId === p.id) { item.projectId = undefined; item.updatedAt = Date.now(); changed = true }
   })
-  if (changed) prompt.persistAll()
-  projectStore.removeProject(p.id)
-  if (prompt.filterProjectId.value === p.id) prompt.filterProjectId.value = ''
-  showNotification(`已删除项目「${p.name}」`)
-  closeCtxMenu()
+  try {
+    if (changed) await prompt.persistAll()
+    await projectStore.removeProject(p.id)
+    if (prompt.filterProjectId.value === p.id) prompt.filterProjectId.value = ''
+    showNotification(`已删除项目「${p.name}」`)
+    closeCtxMenu()
+  } catch (error) {
+    prompt.rawItems.value = previousPrompts
+    if (changed) await prompt.persistAll().catch(() => {})
+    showNotification(`删除失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 
-function moveProjectGroup(p: Project, group: ProjectGroup) {
-  projectStore.updateProject(p.id, { group })
-  showNotification(`「${p.name}」已移至「${group}」`)
-  closeCtxMenu()
+async function moveProjectGroup(p: Project, group: ProjectGroup) {
+  try {
+    await projectStore.updateProject(p.id, { group })
+    showNotification(`「${p.name}」已移至「${group}」`)
+    closeCtxMenu()
+  } catch (error) {
+    showNotification(`移动失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 
 defineExpose({ closeCtxMenu })
@@ -148,4 +163,12 @@ defineExpose({ closeCtxMenu })
 .ctx-check { width: 14px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ctx-menu-item.danger { color: var(--pf-danger, #ef4444); }
 .ctx-menu-item.danger:hover { background: rgba(239, 68, 68, 0.08); }
+
+@media (max-width: 700px) {
+  .project-panel { width: 150px; }
+  .project-header, .new-project-form { padding: 8px; }
+  .project-header .btn { padding: 0 8px; }
+  .project-list { padding: 4px; }
+  .project-item { padding: 7px 6px; }
+}
 </style>

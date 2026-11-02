@@ -1,9 +1,21 @@
 <script setup lang="ts">
 import { useRouter } from '../stores/router'
 import { useTheme } from '../stores/theme'
+import { showNotification } from '../utils/platform'
 
 const router = useRouter()
 const theme = useTheme()
+
+async function toggleTheme() {
+  const previous = theme.theme.value
+  theme.toggle()
+  try {
+    await theme.persist()
+  } catch (error) {
+    theme.set(previous)
+    showNotification(`主题保存失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
+}
 </script>
 
 <template>
@@ -18,6 +30,8 @@ const theme = useTheme()
         ]"
         :key="item.key"
         :class="['nav-btn', { active: router.currentView.value === item.key }]"
+        :title="item.label"
+        :aria-label="item.label"
         @click="router.navigateTo(item.key as any)"
       >
         <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -34,7 +48,7 @@ const theme = useTheme()
           <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
         </svg>
       </button>
-      <button class="icon-btn theme-toggle" :title="theme.theme.value === 'dark' ? '切换到浅色' : '切换到深色'" @click="theme.toggle(); theme.persist()">
+      <button class="icon-btn theme-toggle" :title="theme.theme.value === 'dark' ? '切换到浅色' : '切换到深色'" @click="toggleTheme">
         <svg v-if="theme.theme.value === 'dark'" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round">
           <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
         </svg>
@@ -83,4 +97,9 @@ const theme = useTheme()
 }
 .icon-btn:hover { background: var(--pf-surface-raised); color: var(--pf-text); }
 .theme-toggle:hover { color: var(--pf-accent); }
+
+@media (max-width: 620px) {
+  .header { gap: 8px; padding: 0 8px; }
+  .nav-btn { width: 38px; padding: 6px; justify-content: center; font-size: 0; }
+}
 </style>
