@@ -2,9 +2,9 @@
   "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
   "name": "easyreminder",
   "title": "定时提醒",
-  "description": "支持间隔提醒、每日定点提醒、一次性定时提醒，后台稳定触发",
+  "description": "同一任务可配置多条提醒规则（间隔 / 每日 / 一次性自由组合），后台稳定触发",
   "author": "咖啡八杯",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "categories": ["productivity"],
   "main": "index.html",
   "preload": "preload/services.js",
@@ -18,7 +18,7 @@
   "features": [
     {
       "code": "easyreminder",
-      "explain": "定时提醒 - 支持间隔提醒、每日定点提醒、一次性定时提醒",
+      "explain": "定时提醒 - 同一任务可配置多条提醒规则（间隔 / 每日 / 一次性），后台稳定触发",
       "icon": "logo.png",
       "cmds": ["提醒", "定时提醒", "easyreminder"]
     }

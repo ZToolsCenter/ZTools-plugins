@@ -7,23 +7,9 @@ declare module '*.vue' {
   export default component
 }
 
-interface ReminderLike {
-  id: string
-  title: string
-  content: string
-  type: string
-  schedules: any[]
-  interval: number
-  triggerAt?: number
-  weekdays?: number[]
-  triggerTime?: string
-  groupId?: string
-  order?: number
-  enabled: boolean
-  lastTriggered: number
-  lastFiredSlot?: number
-  createdAt: number
-}
+// preload 存储层的任务数据：新格式是「任务 + rules 数组」，旧格式（1.4.x 及更早）
+// 是单类型字段。渲染层统一用 migrateReminder 迁移，这里只声明边界，不做逐字段约束
+type ReminderLike = Record<string, any>
 
 interface ReminderGroupLike {
   id: string
@@ -41,6 +27,9 @@ interface LogEntryLike {
 
 // Preload services 类型声明（对应 public/preload/services.js）
 interface Services {
+  // 能力标记：1.5.0 起支持「任务 + 多规则」，旧版 preload 没有该字段
+  supportsMultiRules?: boolean
+
   getReminders: () => ReminderLike[]
   addReminder: (formData: Record<string, any>) => ReminderLike
   updateReminder: (id: string, formData: Record<string, any>) => boolean

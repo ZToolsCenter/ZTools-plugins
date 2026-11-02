@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Reminder, DaySchedule } from '../../types/reminder'
-import { WEEKDAY_LABELS, REMINDER_TYPE_LABELS, DAY_FILTER_LABELS, ALIGN_MODE_LABELS } from '../../types/reminder'
+import type { Reminder, TriggerRule } from '../../types/reminder'
+import { describeRule } from '../../types/reminder'
 
 defineProps<{
   reminder: Reminder
@@ -18,56 +18,11 @@ const emit = defineEmits<{
   dragend: []
 }>()
 
-function formatWeekdays(days: number[]): string {
-  if (days.length === 7) return '每天'
-  return days.map(d => WEEKDAY_LABELS[d]).join('、')
-}
-
-function formatInterval(minutes: number): string {
-  if (minutes < 60) return `${minutes}分钟`
-  const h = minutes / 60
-  return Number.isInteger(h) ? `${h}小时` : `${minutes}分钟`
-}
-
-interface TimeGroup {
-  days: string
-  time: string
-}
-
-function groupByTime(schedules: DaySchedule[]): TimeGroup[] {
-  if (schedules.length === 0) return []
-  const sorted = [...schedules].sort((a, b) => a.weekday - b.weekday)
-  // 全部星期集合：某组覆盖了全部已选星期时，不再重复显示星期前缀（如全选时就是"每天"）
-  const allDays = [...new Set(sorted.map(s => s.weekday))].sort((a, b) => a - b)
-  const map = new Map<string, number[]>()
-  for (const s of sorted) {
-    const key = `${s.startTime}-${s.endTime}`
-    if (!map.has(key)) map.set(key, [])
-    if (!map.get(key)!.includes(s.weekday)) map.get(key)!.push(s.weekday)
-  }
-  const groups: TimeGroup[] = []
-  for (const [time, weekdays] of map) {
-    const ws = weekdays.sort((a, b) => a - b)
-    const coversAll = ws.length === allDays.length && ws.every((w, i) => w === allDays[i])
-    groups.push({
-      days: coversAll ? '' : ws.map(w => WEEKDAY_LABELS[w]).join('、'),
-      time
-    })
-  }
-  return groups
-}
-
-function formatOnceTime(timestamp: number): string {
-  const d = new Date(timestamp)
-  const month = d.getMonth() + 1
-  const day = d.getDate()
-  const h = String(d.getHours()).padStart(2, '0')
-  const m = String(d.getMinutes()).padStart(2, '0')
-  return `${month}月${day}日 ${h}:${m}`
-}
-
-function isOncePast(timestamp: number): boolean {
-  return Date.now() >= timestamp
+// 一次性规则的过期/已触发标记（一次性规则消费后不再触发）
+function ruleMarker(rule: TriggerRule): string {
+  if (rule.type !== 'once') return ''
+  if (rule.firedAt) return '已触发'
+  return rule.triggerAt < Date.now() ? '已过期' : ''
 }
 </script>
 
@@ -103,44 +58,15 @@ function isOncePast(timestamp: number): boolean {
         </div>
       </div>
       <div class="item-meta">
-        <span class="tag tag-type">{{ REMINDER_TYPE_LABELS[reminder.type] }}</span>
-
-        <!-- 触发日过滤标签 -->
+        <!-- 每条规则一个标签：同一任务可配置多条规则 -->
         <span
-          v-if="reminder.type !== 'once' && reminder.dayFilter && reminder.dayFilter !== 'all'"
-          class="tag tag-dayfilter"
+          v-for="rule in reminder.rules"
+          :key="rule.id"
+          :class="['tag', 'tag-rule', { 'tag-rule-off': !rule.enabled, 'tag-past': ruleMarker(rule) === '已过期' }]"
+          :title="rule.enabled ? '' : '该规则已停用'"
         >
-          {{ DAY_FILTER_LABELS[reminder.dayFilter] }}
+          {{ describeRule(rule) }}<template v-if="ruleMarker(rule)"> · {{ ruleMarker(rule) }}</template>
         </span>
-
-        <!-- once 类型 -->
-        <template v-if="reminder.type === 'once'">
-          <span class="tag" :class="{ 'tag-past': isOncePast(reminder.triggerAt || 0) }">
-            {{ formatOnceTime(reminder.triggerAt || 0) }}
-            <template v-if="isOncePast(reminder.triggerAt || 0)"> · 已过期</template>
-          </span>
-        </template>
-
-        <!-- daily 类型 -->
-        <template v-if="reminder.type === 'daily'">
-          <span class="tag">{{ formatWeekdays(reminder.weekdays || []) }}</span>
-          <span class="tag">{{ reminder.triggerTime }}</span>
-        </template>
-
-        <!-- interval 类型 -->
-        <template v-if="reminder.type === 'interval'">
-          <span class="tag">{{ formatWeekdays([...new Set(reminder.schedules.map(s => s.weekday))].sort((a, b) => a - b)) }}</span>
-          <template v-if="groupByTime(reminder.schedules).length <= 1">
-            <span class="tag">{{ groupByTime(reminder.schedules)[0]?.time }}</span>
-          </template>
-          <template v-else>
-            <span v-for="(g, i) in groupByTime(reminder.schedules)" :key="i" class="tag tag-group">
-              {{ g.days ? g.days + ' ' : '' }}{{ g.time }}
-            </span>
-          </template>
-          <span class="tag">每{{ formatInterval(reminder.interval) }}</span>
-          <span v-if="reminder.align === 'create'" class="tag tag-align-create">{{ ALIGN_MODE_LABELS.create }}</span>
-        </template>
       </div>
     </div>
     <div class="item-actions">
@@ -282,24 +208,14 @@ function isOncePast(timestamp: number): boolean {
   white-space: nowrap;
 }
 
-.tag-type {
-  background: var(--el-color-warning-light-9);
-  color: var(--el-color-warning);
-}
-
-.tag-dayfilter {
-  background: var(--el-color-success-light-9);
-  color: var(--el-color-success);
-}
-
-.tag-group {
+.tag-rule {
   background: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
 }
 
-.tag-align-create {
-  background: var(--el-color-info-light-9);
-  color: var(--el-color-info);
+.tag-rule-off {
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-placeholder);
 }
 
 .tag-past {
