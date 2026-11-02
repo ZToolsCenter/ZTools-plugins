@@ -96,27 +96,39 @@ function selectAll() {
 async function batchDelete() {
   if (!selectedIds.value.size) return
   if (!await modal.confirm(`确定删除选中的 ${selectedIds.value.size} 项？`)) return
+  const previous = JSON.parse(JSON.stringify(prompt.rawItems.value)) as PromptItem[]
   let changed = false
   const now = Date.now()
   prompt.rawItems.value.forEach(item => {
     if (selectedIds.value.has(item.id)) { item.deleted = true; item.updatedAt = now; changed = true }
   })
-  if (changed) prompt.persistAll()
-  selectedIds.value = new Set()
-  showNotification('✓ 已删除')
+  try {
+    if (changed) await prompt.persistAll()
+    selectedIds.value = new Set()
+    showNotification('✓ 已删除')
+  } catch (error) {
+    prompt.rawItems.value = previous
+    showNotification(`删除失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 
-function batchMoveProject(e: Event) {
+async function batchMoveProject(e: Event) {
   const v = (e.target as HTMLSelectElement).value
   if (!v) return
+  const previous = JSON.parse(JSON.stringify(prompt.rawItems.value)) as PromptItem[]
   let changed = false
   const now = Date.now()
   prompt.rawItems.value.forEach(item => {
     if (selectedIds.value.has(item.id)) { item.projectId = v; item.updatedAt = now; changed = true }
   })
-  if (changed) prompt.persistAll()
-  ;(e.target as HTMLSelectElement).value = ''
-  showNotification('✓ 已移入项目')
+  try {
+    if (changed) await prompt.persistAll()
+    ;(e.target as HTMLSelectElement).value = ''
+    showNotification('✓ 已移入项目')
+  } catch (error) {
+    prompt.rawItems.value = previous
+    showNotification(`移动失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 
 function selectItem(id: string) {
@@ -143,10 +155,14 @@ async function handleRestoreSnapshot(snap: Snapshot) {
     return { name: d.name, required: existing?.required ?? d.required, defaultValue: existing?.defaultValue ?? d.defaultValue }
   })
   const newVersion = (u.version || 1) + 1
-  prompt.updateItem(u.id, { content: snap.body, variables: vars, version: newVersion, snapshots })
-  editBody.value = snap.body
-  editVars.value = vars
-  showNotification(`✓ 已恢复 v${snap.version} 的内容 → 当前 v${newVersion}`)
+  try {
+    await prompt.updateItem(u.id, { content: snap.body, variables: vars, version: newVersion, snapshots })
+    editBody.value = snap.body
+    editVars.value = vars
+    showNotification(`✓ 已恢复 v${snap.version} 的内容 → 当前 v${newVersion}`)
+  } catch (error) {
+    showNotification(`恢复失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 
 async function saveEdit() {
@@ -165,19 +181,28 @@ async function saveEdit() {
   const now = Date.now()
   const snapshots = u.snapshots ? [...u.snapshots] : []
   if (bodyChanged) { snapshots.push({ version: u.version || 1, body: u.content, note: '编辑前保存', createdAt: now }) }
-  prompt.updateItem(u.id, {
-    title: editTitle.value.trim() || u.title,
-    content: editBody.value, tags: editTags.value, variables: vars,
-    type: editType.value, projectId: editProjectId.value || undefined,
-    version: newVersion, snapshots,
-  })
-  showNotification('✓ 保存成功')
+  try {
+    await prompt.updateItem(u.id, {
+      title: editTitle.value.trim() || u.title,
+      content: editBody.value, tags: editTags.value, variables: vars,
+      type: editType.value, projectId: editProjectId.value || undefined,
+      version: newVersion, snapshots,
+    })
+    showNotification('✓ 保存成功')
+  } catch (error) {
+    showNotification(`保存失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 
 async function deleteUnit() {
   const u = selectedUnit.value; if (!u) return
   if (!await modal.confirm(`确定删除「${u.title}」？`)) return
-  prompt.softDelete(u.id); selectedId.value = ''
+  try {
+    await prompt.softDelete(u.id)
+    selectedId.value = ''
+  } catch (error) {
+    showNotification(`删除失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 
 onMounted(() => {
@@ -347,4 +372,17 @@ onMounted(() => {
 
 .ef { flex-shrink: 0; height: 48px; border-top: 1px solid var(--pf-border); padding: 0 16px; display: flex; align-items: center; gap: 8px; background: var(--pf-bg-elevated); }
 .m-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--pf-text-faint); font-size: 13px; }
+
+@media (max-width: 720px) {
+  .manage {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(180px, 42%) minmax(0, 58%);
+  }
+  .m-sidebar { border-right: 0; border-bottom: 1px solid var(--pf-border); }
+  .m-editor { min-height: 0; }
+  .tabs { overflow-x: auto; padding: 0 8px; }
+  .tabs button { flex: 0 0 auto; padding: 4px 8px; }
+  .ec { padding: 12px; }
+  .m-empty { min-height: 0; }
+}
 </style>

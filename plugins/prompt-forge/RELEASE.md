@@ -58,13 +58,13 @@ git status
 
 ---
 
-## 四、构建
+## 四、自动化质量检查
 
 ```powershell
-npm run build
+npm run check
 ```
 
-等价于 `vue-tsc && vite build`，包含 TypeScript 类型检查 + 打包，产物输出到 `dist/`。
+依次执行 ESLint、Vitest、TypeScript 类型检查和 Vite 构建。任一步失败都应停止发布；构建产物输出到 `dist/`。
 
 构建成功后 `dist/` 应包含：
 
@@ -161,7 +161,7 @@ git push origin prompt-forge --tags
 | 同步分支 | `git pull --rebase origin prompt-forge`                   |
 | 版本号   | `package.json` + `plugin.json` + `public/plugin.json` |
 | 变更记录 | `CHANGELOG.md`                                            |
-| 构建     | `npm run build`                                           |
+| 质量检查 | `npm run check`                                           |
 | 打包     | `.NET ZipFile::CreateFromDirectory("dist", "...zpx")`     |
 | 提交     | `git commit` + `git tag vX.Y.Z` + `git push`          |
 

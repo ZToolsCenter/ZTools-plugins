@@ -23,4 +23,14 @@ describe('变量解析与渲染', () => {
     expect(renderVariables(template, { 角色: '架构师', 需求描述: '用户登录模块' }))
       .toBe('请以 架构师 的身份，对 用户登录模块 进行评审。')
   })
+
+  it('忽略括号不匹配的变量语法', () => {
+    const template = '错误示例：{{role} 和 ${topic}}，正确示例：{{language}}。'
+
+    expect(extractVariables(template)).toEqual([
+      { name: 'language', required: true, defaultValue: undefined },
+    ])
+    expect(renderVariables(template, { role: '工程师', topic: '导入', language: '中文' }))
+      .toBe('错误示例：{{role} 和 ${topic}}，正确示例：中文。')
+  })
 })

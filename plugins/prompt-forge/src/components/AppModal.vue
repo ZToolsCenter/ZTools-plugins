@@ -1,43 +1,55 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
 import { useModal } from '../composables/useModal'
+import { useDialogFocus } from '../composables/useDialogFocus'
 
 const modal = useModal()
-const inputRef = ref<HTMLInputElement | null>(null)
-
-watch(() => modal.state.value.visible, (v) => {
-  if (v && modal.state.value.mode === 'prompt') {
-    nextTick(() => inputRef.value?.focus())
-  }
-})
+const { dialogRef, trapFocus } = useDialogFocus(() => modal.state.value.visible)
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); modal.handleConfirm() }
-  if (e.key === 'Escape') { e.preventDefault(); modal.handleCancel() }
+  trapFocus(e)
+  if (e.defaultPrevented) return
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    modal.handleCancel()
+  } else if (e.key === 'Enter' && !e.isComposing && (e.target as HTMLElement)?.tagName !== 'BUTTON') {
+    e.preventDefault()
+    modal.handleConfirm()
+  }
 }
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="modal.state.value.visible" class="modal-mask" @click.self="modal.handleCancel()" @keydown="onKeydown">
-        <div class="modal-card" @click.stop>
-          <div class="modal-header">{{ modal.state.value.title }}</div>
+      <div v-if="modal.state.value.visible" class="modal-mask" @click.self="modal.handleCancel()">
+        <div
+          ref="dialogRef"
+          class="modal-card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="app-modal-title"
+          aria-describedby="app-modal-message"
+          tabindex="-1"
+          @click.stop
+          @keydown="onKeydown"
+        >
+          <div id="app-modal-title" class="modal-header">{{ modal.state.value.title }}</div>
           <div class="modal-body">
-            <p class="modal-message">{{ modal.state.value.message }}</p>
+            <p id="app-modal-message" class="modal-message">{{ modal.state.value.message }}</p>
             <input
               v-if="modal.state.value.mode === 'prompt'"
-              ref="inputRef"
               v-model="modal.state.value.inputValue"
               class="modal-input"
               :placeholder="modal.state.value.inputPlaceholder"
+              data-autofocus
             />
           </div>
           <div class="modal-footer">
             <button v-if="modal.state.value.mode !== 'alert'" class="btn" @click="modal.handleCancel()">
               {{ modal.state.value.cancelText }}
             </button>
-            <button class="btn primary" @click="modal.handleConfirm()">
+            <button class="btn primary" :data-autofocus="modal.state.value.mode === 'prompt' ? undefined : ''" @click="modal.handleConfirm()">
               {{ modal.state.value.confirmText }}
             </button>
           </div>

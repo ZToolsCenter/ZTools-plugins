@@ -88,14 +88,18 @@ async function saveAsNew() {
   const name = await modal.prompt('请输入标题：', `组合 ${new Date().toLocaleDateString()}`, { title: '另存为新提示词' })
   if (!name?.trim()) return
   const now = Date.now()
-  promptStore.addItem({
-    id: generateId(), title: name.trim(), content: composedText.value,
-    type: 'prompt', tags: ['Composed'], variables: composedVars.value,
-    favorite: false, usageCount: 0, version: 1, snapshots: [],
-    createdAt: now, updatedAt: now,
-  })
-  showNotification('✓ 已另存')
-  router.navigateTo('manage')
+  try {
+    await promptStore.addItem({
+      id: generateId(), title: name.trim(), content: composedText.value,
+      type: 'prompt', tags: ['Composed'], variables: composedVars.value,
+      favorite: false, usageCount: 0, version: 1, snapshots: [],
+      createdAt: now, updatedAt: now,
+    })
+    showNotification('✓ 已另存')
+    router.navigateTo('manage')
+  } catch (error) {
+    showNotification(`保存失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 </script>
 
@@ -103,7 +107,7 @@ async function saveAsNew() {
   <div class="compose">
     <div class="compose-body">
       <!-- 左：基础 -->
-      <div class="col"><div class="ch">基础提示词</div><div class="cl"><div v-for="p in basePrompts" :key="p.id" :class="['mini-card', { active: p.id === selectedBaseId }]" @click="selectedBaseId = p.id"><div class="ct">{{ p.title }}</div><div class="cd">{{ p.content }}</div></div></div></div>
+      <div class="col base-col"><div class="ch">基础提示词</div><div class="cl"><div v-for="p in basePrompts" :key="p.id" :class="['mini-card', { active: p.id === selectedBaseId }]" @click="selectedBaseId = p.id"><div class="ct">{{ p.title }}</div><div class="cd">{{ p.content }}</div></div></div></div>
       <!-- 中：画布 -->
       <div class="canvas">
         <!-- 前置片段 -->
@@ -125,7 +129,7 @@ async function saveAsNew() {
         </div>
       </div>
       <!-- 右：片段/约束 -->
-      <div class="col">
+      <div class="col resource-col">
         <div class="ch">
           <span :class="['tab', { active: rightTab === 'snippet' }]" @click="rightTab = 'snippet'">片段</span>
           <span class="tab-sep">/</span>
@@ -197,4 +201,17 @@ async function saveAsNew() {
 .compose-foot { height: 48px; flex-shrink: 0; border-top: 1px solid var(--pf-border); background: var(--pf-bg-elevated); display: flex; align-items: center; gap: 8px; padding: 0 14px; }
 .ok { font-size: 12px; color: var(--pf-success); font-weight: 600; }
 .spacer { flex: 1; }
+
+@media (max-width: 820px) {
+  .compose-body {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(150px, 38%) minmax(0, 62%);
+  }
+  .base-col { grid-column: 1; grid-row: 1; border-bottom: 1px solid var(--pf-border); }
+  .resource-col {
+    grid-column: 2; grid-row: 1;
+    border-right: 0; border-bottom: 1px solid var(--pf-border);
+  }
+  .canvas { grid-column: 1 / -1; grid-row: 2; }
+}
 </style>

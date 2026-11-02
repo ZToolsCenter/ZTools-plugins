@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
+import { useDialogFocus } from '../composables/useDialogFocus'
 
-defineProps<{
+const props = defineProps<{
   visible: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
+
+const { dialogRef, trapFocus } = useDialogFocus(() => props.visible)
+
+function onKeydown(event: KeyboardEvent) {
+  trapFocus(event)
+  if (event.defaultPrevented) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    emit('close')
+  }
+}
 
 interface Shortcut {
   keys: string
@@ -27,7 +40,8 @@ const shortcuts: { title: string; items: Shortcut[] }[] = [
   {
     title: '空间 - 填写模式',
     items: [
-      { keys: 'Enter', desc: '复制填写后的内容' },
+      { keys: 'Enter', desc: '单行输入时复制填写后的内容' },
+      { keys: 'Ctrl + Enter', desc: '多行输入时复制填写后的内容' },
       { keys: 'Esc', desc: '返回搜索结果' },
     ],
   },
@@ -43,10 +57,18 @@ const shortcuts: { title: string; items: Shortcut[] }[] = [
 <template>
   <teleport to="body">
     <div v-if="visible" class="shortcut-overlay" @click.self="emit('close')">
-      <div class="shortcut-panel">
+      <div
+        ref="dialogRef"
+        class="shortcut-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcut-panel-title"
+        tabindex="-1"
+        @keydown="onKeydown"
+      >
         <div class="shortcut-header">
-          <span>快捷键</span>
-          <button class="shortcut-close" @click="emit('close')"><X :size="16" /></button>
+          <span id="shortcut-panel-title">快捷键</span>
+          <button class="shortcut-close" title="关闭快捷键面板" aria-label="关闭快捷键面板" data-autofocus @click="emit('close')"><X :size="16" /></button>
         </div>
         <div class="shortcut-body">
           <div v-for="(group, gi) in shortcuts" :key="gi" class="shortcut-group">

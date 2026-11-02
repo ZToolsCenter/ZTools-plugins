@@ -9,7 +9,6 @@ let _initialized = false
 export function useTheme() {
   async function init() {
     if (_initialized) return
-    _initialized = true
     try {
       const saved = await getSettings()
       if (saved?.theme === 'dark' || saved?.theme === 'light') {
@@ -17,9 +16,13 @@ export function useTheme() {
       } else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
         theme.value = 'dark'
       }
-    } catch {}
-    applyTheme()
-    watch(theme, applyTheme)
+      applyTheme()
+      watch(theme, applyTheme)
+      _initialized = true
+    } catch (error) {
+      console.error('Failed to load theme:', error)
+      throw error
+    }
   }
 
   function applyTheme() {
@@ -42,7 +45,10 @@ export function useTheme() {
     try {
       const existing = await getSettings() || {}
       await setSettings({ ...existing, theme: theme.value })
-    } catch {}
+    } catch (error) {
+      console.error('Failed to save theme:', error)
+      throw error
+    }
   }
 
   return { theme, init, toggle, set, reset, persist }

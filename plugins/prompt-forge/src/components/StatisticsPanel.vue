@@ -362,4 +362,11 @@ function shortDate(date: string): string {
 .trend-card { min-height: 240px; }
 .trend-svg { width: 100%; height: 200px; display: block; margin-top: 8px; }
 .trend-label { font-size: 9px; fill: var(--pf-text-faint); font-family: var(--pf-font-mono); }
+
+@media (max-width: 760px) {
+  .stats-panel { padding: 12px; }
+  .stats-cards { grid-template-columns: repeat(2, 1fr); }
+  .stats-mid { grid-template-columns: 1fr; }
+  .top-title { width: 90px; }
+}
 </style>

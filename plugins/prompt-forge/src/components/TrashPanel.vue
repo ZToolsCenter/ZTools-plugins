@@ -3,6 +3,24 @@ import { usePromptStore } from '../stores/prompt'
 import { showNotification } from '../utils/platform'
 
 const prompt = usePromptStore()
+
+async function restoreItem(id: string) {
+  try {
+    await prompt.restore(id)
+    showNotification('✓ 已恢复')
+  } catch (error) {
+    showNotification(`恢复失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
+}
+
+async function deleteItem(id: string) {
+  try {
+    await prompt.hardDelete(id)
+    showNotification('已永久删除')
+  } catch (error) {
+    showNotification(`删除失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
+}
 </script>
 
 <template>
@@ -14,8 +32,8 @@ const prompt = usePromptStore()
         <div class="trash-meta">{{ item.type }} · {{ item.tags.slice(0, 3).map(t => '#' + t).join(' ') }}</div>
       </div>
       <div class="trash-actions">
-        <button class="btn" @click="prompt.restore(item.id); showNotification('✓ 已恢复')">恢复</button>
-        <button class="btn danger" @click="prompt.hardDelete(item.id); showNotification('已永久删除')">永久删除</button>
+        <button class="btn" @click="restoreItem(item.id)">恢复</button>
+        <button class="btn danger" @click="deleteItem(item.id)">永久删除</button>
       </div>
     </div>
   </div>

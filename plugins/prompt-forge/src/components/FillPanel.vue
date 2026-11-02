@@ -256,4 +256,16 @@ function onTextareaInput(name: string, e: Event) {
   white-space: normal;
   line-height: 1.7;
 }
+
+@media (max-width: 700px) {
+  .fill-body:not(.single) {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(180px, 1fr) minmax(180px, 1fr);
+  }
+  .fill-form { border-right: 0; border-bottom: 1px solid var(--pf-border); }
+  .form-header, .preview-header { padding: 10px 12px; }
+  .form-scroll, .preview-body { padding: 12px; }
+  .preview-header { flex-wrap: wrap; }
+  .form-actions { padding: 10px 12px; }
+}
 </style>
