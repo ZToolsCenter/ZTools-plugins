@@ -33,6 +33,18 @@ export function defaultValue(type: FieldType): FieldValue {
   }
 }
 
+/**
+ * 空值判定：null / '' / 空数组 / 只含空白算空。
+ * 0 和 false 是有效值，不算空（否则数字 0、是否「否」会被误判）。
+ * 必填校验与筛选的「为空 / 不为空」共用同一判定，保证两处语义一致。
+ */
+export function isEmptyValue(value: unknown): boolean {
+  if (value == null) return true
+  if (Array.isArray(value)) return value.length === 0
+  if (typeof value === 'string') return value.trim() === ''
+  return false
+}
+
 /** 新建行时取字段默认值：配置了 default 用之，否则按类型给空值 */
 export function initialFieldDefault(field: FieldDef): FieldValue {
   if (field.default !== undefined) return field.default

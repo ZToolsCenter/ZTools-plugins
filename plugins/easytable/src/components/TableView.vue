@@ -9,6 +9,7 @@ import {
   hasOptions
 } from '../types/table'
 import { displayValue, defaultValue, searchTextOf, backfillField, coerceRowsToFields, coerceFieldValue, batchSetFieldValue, addFieldOptions, collectFieldOptions } from '../domain/fieldTypes'
+import { validateBatchSetValue, validateRowValues } from '../domain/constraints'
 import {
   cellTextOf,
   estimateColumnWidth,
@@ -299,13 +300,19 @@ async function copyRow(row: Row) {
 function onSaveRow(values: Record<string, FieldValue>, rowId: string | null) {
   const table = activeTable.value
   if (!table) return
-  // 补默认值 + 自动把单选/多选新值写进 schema 的选项
+  // 补默认值
   const nextValues: Record<string, FieldValue> = {}
+  for (const f of table.fields) nextValues[f.id] = values[f.id] ?? defaultValue(f.type)
+  // 表单里已经校验过；这里兜底一次，保证从任何路径写入都过约束
+  const issues = validateRowValues(table.fields, nextValues, activeRows.value, rowId)
+  if (issues.length) {
+    ElMessage.error(issues[0].message)
+    return
+  }
+  // 自动把单选/多选新值写进 schema 的选项（校验通过后再改 schema）
   let schemaChanged = false
   for (const f of table.fields) {
-    const v = values[f.id] ?? defaultValue(f.type)
-    nextValues[f.id] = v
-    if (addFieldOptions(f, v)) schemaChanged = true
+    if (addFieldOptions(f, nextValues[f.id])) schemaChanged = true
   }
   if (schemaChanged) updateTableSchema({ ...table, fields: [...table.fields] })
   if (rowId) saveRow(rowId, table.id, nextValues)
@@ -355,6 +362,11 @@ async function onBatchApply(fieldId: string, rawValue: FieldValue) {
   if (!targetIds.size) return
   // 按字段类型归一化，保证存下的值和界面显示的一致
   const value = coerceFieldValue(field, rawValue)
+  const issue = validateBatchSetValue(field, value, activeRows.value, targetIds)
+  if (issue) {
+    ElMessage.warning(issue.message)
+    return
+  }
   const shown = displayValue(field, value, multiSeparator.value) || '（空）'
   const label = shown.length > 30 ? `${shown.slice(0, 30)}…` : shown
   batchApplying.value = true
@@ -1014,6 +1026,15 @@ defineExpose({ applyEnterAction })
             :tooltip-formatter="colTooltip"
             :sort-orders="['ascending', 'descending', null]"
           >
+            <template #header>
+              <span class="col-head">
+                <span>{{ f.name }}</span>
+                <span v-if="f.required" class="req-star">*</span>
+                <el-tooltip v-if="f.unique" content="唯一：同表内不允许重复" placement="top">
+                  <span class="uniq-badge">唯</span>
+                </el-tooltip>
+              </span>
+            </template>
             <template #default="{ row }">
               <template v-if="f.type === 'multi_select' || f.type === 'list'">
                 <el-tag v-for="tag in multiTags(f, row)" :key="tag" size="small" class="tag">
@@ -1343,6 +1364,23 @@ defineExpose({ applyEnterAction })
 .link {
   color: var(--el-color-primary);
   text-decoration: none;
+}
+.col-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.req-star {
+  color: var(--el-color-danger);
+  font-weight: 600;
+}
+.uniq-badge {
+  font-size: 10px;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 3px;
+  color: var(--el-color-warning);
+  background: var(--el-color-warning-light-9);
 }
 .link:hover {
   text-decoration: underline;

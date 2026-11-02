@@ -14,19 +14,24 @@ export type FieldValue = string | number | boolean | string[] | null
 /** 字段默认值：新建行预填；新增字段保存时可选回填到已有数据（回填与否是一次性决策，不持久化） */
 export type FieldDefault = FieldValue
 
+/** 字段约束：required=必填，unique=同表内不允许重复 */
+export interface FieldConstraints {
+  required?: boolean
+  unique?: boolean
+}
+
+interface FieldBase extends FieldConstraints {
+  id: string
+  name: string
+}
+
 export type FieldDef =
-  | ({ id: string; name: string; type: 'text' | 'longtext' | 'url'; default?: FieldDefault })
-  | ({ id: string; name: string; type: 'list'; default?: FieldDefault })
-  | ({
-      id: string
-      name: string
-      type: 'select' | 'multi_select'
-      options: string[]
-      default?: FieldDefault
-    })
-  | ({ id: string; name: string; type: 'number'; default?: FieldDefault })
-  | ({ id: string; name: string; type: 'date'; default?: FieldDefault })
-  | ({ id: string; name: string; type: 'checkbox'; default?: FieldDefault })
+  | (FieldBase & { type: 'text' | 'longtext' | 'url'; default?: FieldDefault })
+  | (FieldBase & { type: 'list'; default?: FieldDefault })
+  | (FieldBase & { type: 'select' | 'multi_select'; options: string[]; default?: FieldDefault })
+  | (FieldBase & { type: 'number'; default?: FieldDefault })
+  | (FieldBase & { type: 'date'; default?: FieldDefault })
+  | (FieldBase & { type: 'checkbox'; default?: FieldDefault })
 
 export interface TableSchema {
   id: string
@@ -105,4 +110,14 @@ export function hasOptions(
 
 export function isMultiValue(field: FieldDef): boolean {
   return field.type === 'list' || field.type === 'multi_select'
+}
+
+/** 「必填」只对有空值语义的类型开放：是否字段的 false 也是有效值 */
+export function canBeRequired(field: Pick<FieldDef, 'type'>): boolean {
+  return field.type !== 'checkbox'
+}
+
+/** 「唯一」只对有单一可比较值的类型开放：多选/列表是集合，是否只有真假两值，做唯一没有实际意义 */
+export function canBeUnique(field: Pick<FieldDef, 'type'>): boolean {
+  return field.type !== 'list' && field.type !== 'multi_select' && field.type !== 'checkbox'
 }

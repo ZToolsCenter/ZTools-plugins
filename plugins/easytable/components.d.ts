@@ -32,6 +32,7 @@ declare module 'vue' {
     ElTable: typeof import('element-plus/es')['ElTable']
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
     ElTag: typeof import('element-plus/es')['ElTag']
+    ElTooltip: typeof import('element-plus/es')['ElTooltip']
     FieldManagerDialog: typeof import('./src/components/FieldManagerDialog.vue')['default']
     ImportDialog: typeof import('./src/components/ImportDialog.vue')['default']
     QuickRecord: typeof import('./src/components/QuickRecord.vue')['default']

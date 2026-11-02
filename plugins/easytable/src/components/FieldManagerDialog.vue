@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FieldDef, FieldValue, FieldType, Row, TableSchema } from '../types/table'
-import { FIELD_TYPE_LABELS, FIELD_TYPE_OPTIONS, createField, collectFieldOptions, coerceFieldValue } from '../domain/fieldTypes'
+import type { FieldConstraints, FieldDef, FieldValue, FieldType, Row, TableSchema } from '../types/table'
+import {
+  FIELD_TYPE_LABELS,
+  FIELD_TYPE_OPTIONS,
+  backfillField,
+  coerceFieldValue,
+  coerceRowsToFields,
+  collectFieldOptions,
+  createField
+} from '../domain/fieldTypes'
 import { DEFAULT_MULTI_SEP, VALUE_SPLIT_LABEL, splitMultiValue } from '../domain/separators'
-import { hasOptions } from '../types/table'
+import { describeViolation, inspectConstraints } from '../domain/constraints'
+import { canBeRequired, canBeUnique, hasOptions } from '../types/table'
 
 const props = defineProps<{
   visible: boolean
@@ -29,6 +38,10 @@ interface DraftField {
   optionsText: string
   /** 默认值编辑态：checkbox 用 'yes'/'no'，其余类型用文本输入（空串表示未设置） */
   defaultText: string
+  /** 必填：保存 / 新增时该字段不能为空 */
+  required: boolean
+  /** 唯一：同表内该字段的值不允许重复 */
+  unique: boolean
   /** 上一次的类型，用于切换类型时迁移默认值（checkbox 的 yes/no 编码不能直接留给其他类型） */
   lastType: FieldType
 }
@@ -53,6 +66,8 @@ function toDraft(f: FieldDef): DraftField {
     type: f.type,
     optionsText: hasOptions(f) ? f.options.join(DEFAULT_MULTI_SEP) : '',
     defaultText: defaultToText(f.type, f.default),
+    required: f.required === true && canBeRequired(f),
+    unique: f.unique === true && canBeUnique(f),
     lastType: f.type
   }
 }
@@ -83,20 +98,44 @@ function parseDefault(d: DraftField): FieldValue | undefined {
   }
 }
 
+/** 约束标记只写 true，没勾的字段不落库，保持 meta 精简 */
+function constraintFlags(d: DraftField): FieldConstraints {
+  const flags: FieldConstraints = {}
+  if (d.required && requiredEnabled(d.type)) flags.required = true
+  if (d.unique && uniqueEnabled(d.type)) flags.unique = true
+  return flags
+}
+
 function fromDraft(d: DraftField): FieldDef {
   const base = createField(d.name.trim() || '未命名', d.type)
   base.id = d.id
   const def = parseDefault(d)
+  const flags = constraintFlags(d)
   if (d.type === 'select' || d.type === 'multi_select') {
     return {
       id: d.id,
       name: base.name,
       type: d.type,
       options: splitMultiValue(d.optionsText),
+      ...flags,
       ...(def !== undefined ? { default: def } : {})
     }
   }
-  return { id: d.id, name: base.name, type: d.type, ...(def !== undefined ? { default: def } : {}) } as FieldDef
+  return {
+    id: d.id,
+    name: base.name,
+    type: d.type,
+    ...flags,
+    ...(def !== undefined ? { default: def } : {})
+  } as FieldDef
+}
+
+/** 该类型的字段能否勾选「必填 / 唯一」（是否、多选等类型语义不成立） */
+function requiredEnabled(type: FieldType): boolean {
+  return canBeRequired({ type })
+}
+function uniqueEnabled(type: FieldType): boolean {
+  return canBeUnique({ type })
 }
 
 watch(
@@ -118,6 +157,8 @@ function addField() {
     type: 'text',
     optionsText: '',
     defaultText: '',
+    required: false,
+    unique: false,
     lastType: 'text'
   })
 }
@@ -195,6 +236,9 @@ async function onTypeChange(f: DraftField) {
     migrateDefault(f, f.lastType)
     f.lastType = f.type
   }
+  // 新类型不支持约束时把勾选清掉，避免落库出自相矛盾的字段定义
+  if (!requiredEnabled(f.type)) f.required = false
+  if (!uniqueEnabled(f.type)) f.unique = false
   if (f.type !== 'select' && f.type !== 'multi_select') return
   await collectOptions(f, true)
 }
@@ -204,6 +248,52 @@ async function onCollectOptions(f: DraftField) {
   const n = await collectOptions(f, false)
   if (n) ElMessage.success(`已收集 ${n} 个取值`)
   else ElMessage.info('已有数据里没有新的取值')
+}
+
+/**
+ * 保存前检查存量数据是否满足新约束：只提示本次「新引入/加重」的违规，
+ * 避免改个无关字段也反复弹窗。用户可选择仍然保存（约束只对之后的新增/修改生效）。
+ */
+async function checkExistingViolations(
+  nextFields: FieldDef[],
+  coerceFieldIds: string[],
+  backfillFieldIds: string[]
+): Promise<boolean> {
+  if ((props.rowCount ?? 0) <= 0) return true
+  // 用和宿主一致的数据迁移逻辑预演：改类型按新类型转换，回填默认值补进缺失字段
+  let previewRows = props.rows ?? []
+  if (coerceFieldIds.length) {
+    previewRows = coerceRowsToFields(previewRows, nextFields, coerceFieldIds)?.rows ?? previewRows
+  }
+  for (const fieldId of backfillFieldIds) {
+    const field = nextFields.find((f) => f.id === fieldId)
+    if (field) previewRows = backfillField(previewRows, field)?.rows ?? previewRows
+  }
+  const before = new Map(
+    inspectConstraints(props.table.fields, props.rows ?? []).map((v) => [
+      `${v.fieldId}:${v.kind}`,
+      v.count
+    ])
+  )
+  const added = inspectConstraints(nextFields, previewRows).filter(
+    (v) => v.count > (before.get(`${v.fieldId}:${v.kind}`) ?? 0)
+  )
+  if (!added.length) return true
+  try {
+    await ElMessageBox.confirm(
+      `现有数据不满足新约束：\n\n${added.map(describeViolation).join('\n')}\n\n保存后约束只对之后的新增 / 修改生效，已有记录不会被自动清理。继续保存吗？`,
+      '约束检查',
+      {
+        type: 'warning',
+        confirmButtonText: '仍然保存',
+        cancelButtonText: '取消',
+        closeOnClickModal: false
+      }
+    )
+    return true
+  } catch {
+    return false
+  }
 }
 
 async function save() {
@@ -268,6 +358,7 @@ async function save() {
       if (backfill) backfillFieldIds.push(f.id)
     }
   }
+  if (!(await checkExistingViolations(nextFields, coerceFieldIds, backfillFieldIds))) return
   emit('save', {
     ...props.table,
     name: draftName.value.trim() || props.table.name,
@@ -342,6 +433,22 @@ function defaultPlaceholder(type: FieldType): string {
             从已有数据收集
           </el-button>
         </div>
+        <div class="constraint-row">
+          <span class="default-label">约束</span>
+          <el-tooltip content="该字段不允许为空" placement="top">
+            <el-checkbox v-model="f.required" :disabled="!requiredEnabled(f.type)" size="small">
+              必填
+            </el-checkbox>
+          </el-tooltip>
+          <el-tooltip
+            content="同表内该字段的值不允许重复（忽略首尾空白与大小写，空值不算重复）"
+            placement="top"
+          >
+            <el-checkbox v-model="f.unique" :disabled="!uniqueEnabled(f.type)" size="small">
+              唯一
+            </el-checkbox>
+          </el-tooltip>
+        </div>
         <div class="default-row">
           <span class="default-label">默认值</span>
           <el-select
@@ -415,6 +522,15 @@ function defaultPlaceholder(type: FieldType): string {
   align-items: center;
   gap: 8px;
   margin-top: 8px;
+}
+.constraint-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.constraint-row :deep(.el-checkbox) {
+  margin-right: 0;
 }
 .default-label {
   font-size: 12px;
