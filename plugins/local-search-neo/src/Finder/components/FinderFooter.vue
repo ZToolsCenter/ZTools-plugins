@@ -311,23 +311,30 @@ onUnmounted(() => {
 }
 
 .toggle-track {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 2px;
   width: 30px;
   height: 16px;
   border-radius: 999px;
   background: #80848a;
-  position: relative;
+  flex-shrink: 0;
+  transition: background-color 0.18s ease;
 }
 
 .toggle-track::after {
   content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
+  display: block;
   width: 12px;
   height: 12px;
+  flex-shrink: 0;
   border-radius: 50%;
-  background: #e8eaed;
-  transition: transform 0.15s ease;
+  background: #ffffff;
+  box-shadow:
+    0 0 2px rgba(0, 0, 0, 0.35),
+    0 0 1px rgba(0, 0, 0, 0.2);
+  transition: transform 0.18s ease;
 }
 
 .preview-toggle input:checked + .toggle-track {
@@ -413,6 +420,9 @@ onUnmounted(() => {
 
   .toggle-track::after {
     background: #ffffff;
+    box-shadow:
+      0 0 2px rgba(0, 0, 0, 0.22),
+      0 0 1px rgba(0, 0, 0, 0.12);
   }
 
   .preview-toggle input:checked + .toggle-track {

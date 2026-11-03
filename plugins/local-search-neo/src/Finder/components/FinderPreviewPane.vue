@@ -13,8 +13,9 @@ import VideoPreview from "../preview/VideoPreview.vue";
 import { useFilePreview } from "../composables/useFilePreview";
 import type { ContextMenuItem } from "../composables/useContextMenu";
 
-const { activeItem } = defineProps<{
+const { activeItem, autoPlayAudio = true } = defineProps<{
   activeItem: ComputedRef<FinderResult | undefined>;
+  autoPlayAudio?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -78,7 +79,11 @@ function openImagePreviewMenu(event: MouseEvent) {
         @context-menu="openImagePreviewMenu"
       />
       <VideoPreview v-else-if="previewKind === 'video' && previewSource" :source="previewSource" />
-      <AudioPreview v-else-if="previewKind === 'audio' && previewSource" :source="previewSource" />
+      <AudioPreview
+        v-else-if="previewKind === 'audio' && previewSource"
+        :source="previewSource"
+        :autoplay="autoPlayAudio"
+      />
       <EmptyPreview v-else :status="previewStatus" />
     </div>
   </aside>

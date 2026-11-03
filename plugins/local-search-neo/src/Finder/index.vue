@@ -43,6 +43,7 @@ const {
   previewEnabled,
   sortMode,
   matchPathEnabled,
+  autoPlayAudio,
   resultListWidth,
   setResultListWidth,
   sidebarWidth,
@@ -283,19 +284,25 @@ function setActiveCategory(category: FinderCategory) {
       floating-label="悬浮预览窗口"
       placeholder="预览已放大显示"
     >
-      <FinderPreviewPane :active-item="finderSearch.activeItem" @context-menu="contextMenu.open" />
+      <FinderPreviewPane
+        :active-item="finderSearch.activeItem"
+        :auto-play-audio="autoPlayAudio"
+        @context-menu="contextMenu.open"
+      />
     </FloatingZoom>
 
     <SettingsDrawer
       :open="showSettingsDrawer"
       :categories="allCategories"
       :match-path-enabled="matchPathEnabled"
+      :auto-play-audio="autoPlayAudio"
       @close="closeSettingsDrawer"
       @add-category="handleAddCustomCategory"
       @update-category="handleUpdateCustomCategory"
       @remove-category="handleRemoveCustomCategory"
       @set-category-enabled="handleSetCategoryEnabled"
       @set-match-path-enabled="matchPathEnabled = $event"
+      @set-auto-play-audio="autoPlayAudio = $event"
       @reorder-categories="handleReorderCategories"
       @reset-category-order="handleResetCategoryOrder"
     />

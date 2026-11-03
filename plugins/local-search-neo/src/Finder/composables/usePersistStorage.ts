@@ -10,6 +10,7 @@ interface FinderPreferences {
   previewEnabled: boolean;
   sortMode: FinderSortMode;
   matchPathEnabled: boolean;
+  autoPlayAudio: boolean;
   resultListWidth: number;
   sidebarWidth: number;
   categoryEnabled: Record<string, boolean>;
@@ -23,6 +24,7 @@ const DEFAULT_PREFERENCES: FinderPreferences = {
   previewEnabled: false,
   sortMode: "modified-desc",
   matchPathEnabled: true,
+  autoPlayAudio: true,
   resultListWidth: 315,
   sidebarWidth: 64,
   categoryEnabled: {},
@@ -44,6 +46,10 @@ const matchPathEnabled = computed({
   get: () => preferences.value.matchPathEnabled,
   set: setMatchPathEnabled,
 });
+const autoPlayAudio = computed({
+  get: () => preferences.value.autoPlayAudio,
+  set: setAutoPlayAudio,
+});
 const resultListWidth = computed({
   get: () => preferences.value.resultListWidth,
   set: setResultListWidth,
@@ -62,6 +68,8 @@ export function usePersistStorage() {
     previewEnabled,
     sortMode,
     matchPathEnabled,
+    autoPlayAudio,
+    setAutoPlayAudio,
     resultListWidth,
     setResultListWidth,
     sidebarWidth,
@@ -139,6 +147,14 @@ function setMatchPathEnabled(value: boolean) {
   preferences.value = {
     ...preferences.value,
     matchPathEnabled: value,
+  };
+  savePreferences();
+}
+
+function setAutoPlayAudio(value: boolean) {
+  preferences.value = {
+    ...preferences.value,
+    autoPlayAudio: value,
   };
   savePreferences();
 }
@@ -252,6 +268,7 @@ function normalizePreferences(stored: Partial<FinderPreferences>): FinderPrefere
     previewEnabled: stored.previewEnabled ?? DEFAULT_PREFERENCES.previewEnabled,
     sortMode: stored.sortMode ?? DEFAULT_PREFERENCES.sortMode,
     matchPathEnabled: stored.matchPathEnabled ?? DEFAULT_PREFERENCES.matchPathEnabled,
+    autoPlayAudio: stored.autoPlayAudio ?? DEFAULT_PREFERENCES.autoPlayAudio,
     resultListWidth:
       typeof stored.resultListWidth === "number" && stored.resultListWidth >= 200
         ? stored.resultListWidth
