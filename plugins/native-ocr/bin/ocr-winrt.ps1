@@ -1,11 +1,24 @@
 # Windows system OCR (WinRT Windows.Media.Ocr) for the native-ocr ZTools plugin.
 # macOS equivalent of ocr-vision.swift. Runs on built-in PowerShell 5.1+ with
-# zero dependencies. Output contract (stdout, single JSON line):
-#   { "width": int, "height": int, "lines": [ { "text": str,
-#       "box": { "x","y","w","h" } } ] }
+# zero dependencies.
+#
+# OUTPUT CONTRACT (single line on stdout):
+#   NOCR1:<base64 of UTF-8 JSON>
+#   success: { "ok": true, "width": int, "height": int,
+#              "lines": [ { "text": str, "box": { "x","y","w","h" } } ] }
+#   failure: { "ok": false, "code": int, "message": str }
+#
+# WHY BASE64: stdout bytes are encoded by [Console]::OutputEncoding, which is
+# silently ignored in some hosts (no real console + redirected pipe), falling
+# back to the OEM code page (936/GBK on Chinese Windows). Node would then decode
+# GBK bytes as UTF-8 and every Chinese line becomes mojibake. Base64 uses only
+# [A-Za-z0-9+/=], so the bytes are identical under ANY code page.
+# This file is deliberately pure ASCII: PowerShell 5.1 reads UTF-8 files WITHOUT
+# a BOM using the system ANSI code page, which would corrupt non-ASCII comments.
+#
 # Box convention matches the macOS Vision engine: normalized to [0,1] with
 # the origin at the image's lower-left corner (y measured from the bottom).
-# Exit codes: 0 ok / 2 bad args / 4 engine unavailable / 5 ocr failed
+# Exit codes: 0 ok / 2 bad args / 3 image missing / 4 engine unavailable / 5 ocr failed
 
 param(
     [Parameter(Mandatory = $true)][string]$ImagePath
@@ -15,11 +28,18 @@ $ErrorActionPreference = 'Stop'
 
 $scriptVersion = "0.6.10"
 
-# Emit stdout/stderr as UTF-8 so the Node side decodes Chinese messages correctly.
-# stderr 也要设：Fail() 把中文错误写到 stderr，Node 侧按 utf8 读取，中文 Windows
-# （代码页 936/GBK）下会乱码。老版本 PowerShell 可能没有该属性，失败不能中断脚本。
+# Best effort only: keeps the human-readable stderr line from mojibake.
+# The data channel does NOT depend on this succeeding (see Write-Payload).
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 try { [Console]::ErrorEncoding = [System.Text.Encoding]::UTF8 } catch {}
+
+# Emit the payload as ASCII-only base64 so no console code page can alter it.
+function Write-Payload($payload) {
+    $json = $payload | ConvertTo-Json -Compress -Depth 6
+    $b64 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($json))
+    [Console]::Out.Write("NOCR1:$b64`r`n")
+    [Console]::Out.Flush()
+}
 
 # Required for [System.WindowsRuntimeSystemExtensions] (AsTask reflection below).
 # Some systems do not auto-load it when resolving WinRT types.
@@ -44,7 +64,10 @@ function Await($WinRtTask, $ResultType) {
 }
 
 function Fail($code, $message) {
-    [Console]::Error.WriteLine("[winrt-$scriptVersion] $message")
+    # stderr is for humans and may be re-encoded by the console code page; the
+    # authoritative text travels in the base64 envelope on stdout.
+    try { [Console]::Error.WriteLine("[winrt-$scriptVersion] $message") } catch {}
+    try { Write-Payload @{ ok = $false; code = $code; message = $message } } catch {}
     exit $code
 }
 
@@ -97,8 +120,8 @@ try {
         $transform,
         [Windows.Graphics.Imaging.ExifOrientationMode]::IgnoreExifOrientation,
         [Windows.Graphics.Imaging.ColorManagementMode]::DoNotColorManage)) ([Windows.Graphics.Imaging.PixelDataProvider])
-    # PowerShell 的 byte[] 不能直接匹配 IBuffer 重载，需转成 IBuffer。
-    # 任何失败都回退到原始不放大路径，保证 OCR 始终可用。
+    # PowerShell cannot bind byte[] to the IBuffer overload directly; convert it.
+    # Any failure falls back to the plain (no upscale) path so OCR keeps working.
     $bitmap = $null
     try {
         $pixels = $pixelData.DetachPixelData()
@@ -151,8 +174,7 @@ try {
         }
     }
 
-    $payload = @{ width = $width; height = $height; lines = $lines }
-    [Console]::Out.Write(($payload | ConvertTo-Json -Compress -Depth 5))
+    Write-Payload @{ ok = $true; width = $width; height = $height; lines = $lines }
     exit 0
 } catch {
     Fail 5 "ocr failed: $($_.Exception.Message)"
