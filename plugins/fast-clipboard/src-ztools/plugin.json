@@ -4,7 +4,7 @@
   "title": "极速剪贴板",
   "description": "主打一个响应迅速",
   "author": "ysysyss",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "main": "dist/index.html",
   "preload": "preload/services.js",
   "logo": "logo.png",

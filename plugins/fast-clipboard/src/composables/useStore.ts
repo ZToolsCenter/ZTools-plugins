@@ -245,10 +245,29 @@ async function loadMore(): Promise<void> {
 /** 运行期间的轮询间隔（毫秒） */
 export const POLL_INTERVAL_MS = 1200
 
+/**
+ * 插件"不在台前"时的轮询间隔。
+ *
+ * 宿主隐藏插件时会 `applyBackgroundThrottlingByPolicy(view, path, true)`，
+ * 隐藏页的定时器本身就会被 Chromium 降频，这里再放慢一档，纯当兜底：
+ * 只多发一次很便宜的 `getStatus()`，别为了"实时"去白拉历史。
+ */
+export const IDLE_POLL_INTERVAL_MS = 5000
+
 /** 每次"探新"拉多少条最新的历史（够覆盖一次连续复制） */
 const HEAD_SIZE = 5
 
+/**
+ * "重新亮出来"时一次补多少条。
+ *
+ * 插件关着的这段时间用户可能复制了一串东西，只补 5 条会在列表中间留个断层
+ * （新的一批之后直接接上很旧的记录）。离开越久越明显，所以这里放宽到 50。
+ */
+const WAKE_SYNC_SIZE = 50
+
 let pollTimer: ReturnType<typeof setInterval> | null = null
+/** 当前计时器的间隔，用来判断"已经是这个档位了就别重置" */
+let pollEvery = 0
 
 /**
  * 把宿主库里最新的一批记录并入列表。
@@ -256,10 +275,10 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
  * 只补"本地没有的"，并且是 prepend —— 新复制的一定在最前面。
  * 返回确实新增了几条（0 表示没变化），调用方据此决定是否要更新计数。
  */
-async function syncLatest(): Promise<number> {
+async function syncLatest(limit = HEAD_SIZE): Promise<number> {
   const anchorId = filtered.value[selectedIndex.value]?.id ?? null
   try {
-    const res = await api.getHistory(1, HEAD_SIZE)
+    const res = await api.getHistory(1, limit)
     const seen = new Set(records.value.map((r) => r.id))
     const fresh = res.items.filter((r) => !seen.has(r.id))
     if (fresh.length === 0) return 0
@@ -307,21 +326,97 @@ async function hasNewRecords(): Promise<boolean> {
   return true
 }
 
-function startWatching(): void {
-  stopWatching()
-  // 进来先看一眼：打开插件之前复制的内容，推出来就该在最新的位置上
-  void syncLatest()
-  pollTimer = setInterval(() => {
+/**
+ * 轮询只有一个计时器，切档位时才重建（同档位重复调用不重置，
+ * 免得每次"亮出来"都把计时器推回起点、反而拖慢探测）。
+ */
+function poll(every: number): void {
+  if (pollTimer && pollEvery === every) return
+  if (pollTimer) clearInterval(pollTimer)
+  pollEvery = every
+  const timer = setInterval(() => {
     void hasNewRecords().then((yes) => {
-      if (yes) void syncLatest()
+      if (yes) void syncLatest(every === POLL_INTERVAL_MS ? HEAD_SIZE : WAKE_SYNC_SIZE)
     })
-  }, POLL_INTERVAL_MS)
+  }, every)
+  // Node（单元测试）里定时器会挂住事件循环；浏览器里 setInterval 返回 number，
+  // 没有 unref，这行只是空操作。
+  ;(timer as unknown as { unref?: () => void }).unref?.()
+  pollTimer = timer
+}
+
+/**
+ * 插件到了台前：立刻补一批，并把轮询切回快速档。
+ *
+ * `bulk` 用于"刚被重新打开"的场景 —— 关着的时候可能复制了一串。
+ */
+function startWatching(bulk = false): void {
+  void syncLatest(bulk ? WAKE_SYNC_SIZE : HEAD_SIZE)
+  poll(POLL_INTERVAL_MS)
+}
+
+/** 插件退到台后：不彻底停，切到慢速档兜底（隐藏页的定时器本来就会被降频） */
+function idleWatching(): void {
+  poll(IDLE_POLL_INTERVAL_MS)
 }
 
 function stopWatching(): void {
   if (pollTimer) clearInterval(pollTimer)
   pollTimer = null
+  pollEvery = 0
 }
+
+/* ------------------------------------------------------------------ */
+/* "插件又被打开了"的判定                                               */
+/* ------------------------------------------------------------------ */
+
+let lastShownAt = 0
+/** 用来把"同一次打开"里的多个信号（focus + visibility + PluginEnter）合并成一次同步 */
+const SHOW_DEDUPE_MS = 300
+
+/**
+ * 插件被重新亮出来时该做的事。
+ *
+ * 为什么要单独有这么一个入口：
+ *   宿主 `createPluginView` 里有个 `shouldSkipReEnter()` —— 当插件**已经是当前视图**、
+ *   并且用户又是用同一条文本指令打开时，它直接
+ *   `abortCurrentSession('singleton-skip-reenter')` 返回，**不发 `PluginEnter`**。
+ *   于是只挂 `onPluginEnter` 的插件：不知道窗口又开了 → 不一上来同步、轮询还停在
+ *   `onPluginOut` 之后的慢速档 → 列表就像冻住了，只有"结束运行再打开"（整页重载）才好。
+ *   实测就是用户报的："复制完再按快捷键打开，不刷新"。
+ *
+ * 所以这里改用**页面自己能感知到的信号**：窗口显示出来时 `visibilitychange` 必然触发，
+ * 窗口获得焦点时还会有 `focus`；再加上宿主的 `PluginEnter`，三路任意一路都能唤醒。
+ */
+function onShown(): void {
+  const now = Date.now()
+  if (now - lastShownAt < SHOW_DEDUPE_MS) return
+  lastShownAt = now
+  focusSearch()
+  startWatching(true)
+}
+
+/**
+ * 挂上渲染进程侧的"窗口又出现"监听。返回解绑函数（单例 store 用不到，但方便测试）。
+ */
+function watchWindowShow(): () => void {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+    return () => undefined
+  }
+  const onFocus = (): void => onShown()
+  const onVisible = (): void => {
+    if (typeof document === 'undefined' || !document.hidden) onShown()
+  }
+  window.addEventListener('focus', onFocus)
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('visibilitychange', onVisible)
+  }
+  return () => {
+    window.removeEventListener?.('focus', onFocus)
+    document?.removeEventListener?.('visibilitychange', onVisible)
+  }
+}
+
 
 /* ------------------------------------------------------------------ */
 /* 搜索：本地即时过滤 + 远端防抖补充                                   */
@@ -900,16 +995,19 @@ function init(): void {
   // 注册宿主子输入框。失败（宿主版本差异 / 非插件环境）时页面会显示自带搜索框兜底
   subInputReady.value = api.setSubInput(setQuery, '搜索剪贴板历史')
 
-  // 每次打开插件都把焦点抢回搜索框（挂载时那次会被宿主的 view.focus() 抢走）
+  /**
+   * 宿主说"插件进来了"。**不能只信这个** —— 同指令重入时宿主会直接跳过它
+   * （见 onShown 的注释），所以这里和 visibilitychange / focus 一并接。
+   */
   api.onPluginEnter(() => {
-    focusSearch()
-    // 运行期开始"盯着"宿主：推送不保证到，见下面 startWatching 的说明
-    startWatching()
+    onShown()
   })
-  // 退出插件时取消尚未执行的重试，并停止轮询
+  // 渲染进程侧的"窗口又出现了"：这一路不依赖宿主的生命周期事件
+  watchWindowShow()
+  // 退出插件：取消尚未执行的重试，轮询降到慢速档（别彻底停，见 idleWatching）
   api.onPluginOut(() => {
     cancelFocus()
-    stopWatching()
+    idleWatching()
   })
 
   /**
