@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>附件预览</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #eee;
+            -webkit-app-region: drag;
+        }
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #222;
+            border-bottom: 1px solid #333;
+            -webkit-app-region: drag;
+            flex-shrink: 0;
+        }
+        .toolbar-title {
+            font-size: 12px;
+            color: #aaa;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 50%;
+        }
+        .toolbar-actions {
+            display: flex;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+        .btn {
+            background: #333;
+            border: 1px solid #555;
+            color: #eee;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn:hover { background: #444; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-danger { background: #c0392b; border-color: #e74c3c; }
+        .btn-danger:hover { background: #e74c3c; }
+        .btn-close { background: #555; border-color: #666; }
+        .btn-close:hover { background: #666; }
+        .preview-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            padding: 16px;
+            -webkit-app-region: no-drag;
+        }
+        .preview-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .preview-container .error {
+            color: #e74c3c;
+            text-align: center;
+        }
+        .preview-container .loading {
+            color: #888;
+        }
+        .status-bar {
+            padding: 6px 12px;
+            background: #222;
+            border-top: 1px solid #333;
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .status-bar.success { color: #27ae60; }
+        .status-bar.error { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <span class="toolbar-title" id="title">加载中...</span>
+        <div class="toolbar-actions">
+            <button class="btn" id="open-external">浏览器打开</button>
+            <button class="btn btn-danger" id="delete-btn">删除 OSS 对象</button>
+            <button class="btn btn-close" id="close-btn">关闭</button>
+        </div>
+    </div>
+    <div class="preview-container" id="container">
+        <span class="loading">正在加载预览...</span>
+    </div>
+    <div class="status-bar" id="status-bar">预览模式 · Esc 关闭</div>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const url = decodeURIComponent(params.get('url') || '');
+        const name = decodeURIComponent(params.get('name') || '附件预览');
+        const kind = params.get('kind') || 'image';
+        const objectKey = decodeURIComponent(params.get('objectKey') || '');
+        const attachmentId = decodeURIComponent(params.get('attachmentId') || '');
+        const PREVIEW_DELETE_REQUEST_STORAGE_KEY = 'wf_preview_delete_request';
+        const PREVIEW_DELETE_RESULT_STORAGE_KEY = 'wf_preview_delete_result';
+
+        const titleEl = document.getElementById('title');
+        const container = document.getElementById('container');
+        const statusBar = document.getElementById('status-bar');
+        const deleteBtn = document.getElementById('delete-btn');
+
+        titleEl.textContent = name;
+        document.title = name;
+
+        let deleteArmed = false;
+        let deleted = false;
+        let pendingDeleteRequestId = '';
+
+        let canDelete = false;
+        let moduleLoadError = '';
+        if (objectKey) {
+            canDelete = true;
+        } else {
+            moduleLoadError = 'objectKey 为空';
+        }
+
+        // 没有 objectKey 或无法删除时按钮显示但点击会提示
+        if (!canDelete) {
+            deleteBtn.textContent = '删除（不可用）';
+            deleteBtn.disabled = true;
+            deleteBtn.title = moduleLoadError;
+        }
+
+        function setStatus(msg, type) {
+            statusBar.textContent = msg;
+            statusBar.className = 'status-bar' + (type ? ' ' + type : '');
+        }
+
+        function consumeDeleteResult(event) {
+            let raw = '';
+            if (event && event.key === PREVIEW_DELETE_RESULT_STORAGE_KEY) {
+                raw = event.newValue || '';
+            } else {
+                raw = localStorage.getItem(PREVIEW_DELETE_RESULT_STORAGE_KEY) || '';
+            }
+            if (!raw) return;
+
+            try {
+                const payload = JSON.parse(raw);
+                if (!pendingDeleteRequestId || payload.requestId !== pendingDeleteRequestId) return;
+                localStorage.removeItem(PREVIEW_DELETE_RESULT_STORAGE_KEY);
+                pendingDeleteRequestId = '';
+                if (payload.ok) {
+                    deleted = true;
+                    deleteBtn.textContent = '已删除';
+                    setStatus('OSS 对象已删除，窗口将自动关闭', 'success');
+                    setTimeout(() => window.close(), 1200);
+                    return;
+                }
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '删除失败，重试';
+                deleteArmed = false;
+                setStatus('删除失败: ' + (payload.error || '未知错误'), 'error');
+            } catch (err) {
+                localStorage.removeItem(PREVIEW_DELETE_RESULT_STORAGE_KEY);
+                pendingDeleteRequestId = '';
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '删除失败，重试';
+                deleteArmed = false;
+                setStatus('删除失败: 响应解析失败', 'error');
+            }
+        }
+
+        deleteBtn.addEventListener('click', async () => {
+            if (deleted) return;
+
+            if (!canDelete) {
+                setStatus('无法删除：' + moduleLoadError, 'error');
+                return;
+            }
+
+            if (!deleteArmed) {
+                deleteArmed = true;
+                deleteBtn.textContent = '确认删除？';
+                setStatus('再次点击确认删除，或按 Esc 取消', '');
+                return;
+            }
+
+            // 执行删除
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = '删除中...';
+            setStatus('正在删除 OSS 对象...', '');
+
+            try {
+                pendingDeleteRequestId = 'preview-delete-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+                localStorage.setItem(PREVIEW_DELETE_RESULT_STORAGE_KEY, '');
+                localStorage.setItem(PREVIEW_DELETE_REQUEST_STORAGE_KEY, JSON.stringify({
+                    requestId: pendingDeleteRequestId,
+                    attachmentId: attachmentId,
+                    objectKey: objectKey,
+                    timestamp: Date.now()
+                }));
+            } catch (err) {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '删除失败，重试';
+                deleteArmed = false;
+                setStatus('删除失败: ' + (err.message || '未知错误'), 'error');
+            }
+        });
+
+        document.getElementById('close-btn').addEventListener('click', () => {
+            window.close();
+        });
+
+        document.getElementById('open-external').addEventListener('click', () => {
+            if (url && typeof require === 'function') {
+                try {
+                    const { shell } = require('electron');
+                    shell.openExternal(url);
+                } catch (e) {
+                    window.open(url, '_blank');
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (deleteArmed) {
+                    deleteArmed = false;
+                    deleteBtn.textContent = '删除 OSS 对象';
+                    setStatus('预览模式 · Esc 关闭', '');
+                    return;
+                }
+                window.close();
+            }
+        });
+
+        window.addEventListener('storage', (event) => {
+            if (event?.key === PREVIEW_DELETE_RESULT_STORAGE_KEY) {
+                consumeDeleteResult(event);
+            }
+        });
+
+        if (!url) {
+            container.innerHTML = '<span class="error">没有可预览的链接</span>';
+        } else if (kind === 'markdown') {
+            container.innerHTML = '<span class="loading">Markdown 文件无法直接预览，请使用浏览器打开</span>';
+        } else {
+            const img = new Image();
+            img.onload = () => {
+                container.innerHTML = '';
+                container.appendChild(img);
+                setStatus(`预览模式 · objectKey: ${objectKey ? '有' : '无'} · 删除经主窗口执行 · Esc 关闭`, '');
+            };
+            img.onerror = () => {
+                container.innerHTML = '<span class="error">图片加载失败，请检查 OSS 链接是否可访问</span>';
+            };
+            img.src = url;
+        }
+    </script>
+</body>
+</html>

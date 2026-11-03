@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workflowy 长文本</title>
+  <script>
+    try {
+      const dark = window.utools?.isDarkColors?.()
+        ?? window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
+        ?? false;
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    } catch (error) {
+      document.documentElement.dataset.theme = 'light';
+    }
+  </script>
+  <style>
+    :root {
+      --bg: #f4f6fa;
+      --surface: #ffffff;
+      --surface-soft: #fafbfd;
+      --border: #d5dde9;
+      --border-focus: #4a90e2;
+      --text: #20242b;
+      --muted: #7d8493;
+      --accent: #347cf4;
+      --accent-hover: #2b6de0;
+      --accent-text: #ffffff;
+      --danger: #c53b3b;
+      --danger-bg: #fff1f1;
+      --danger-border: #e6b8b8;
+      --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+      color-scheme: light;
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #171920;
+      --surface: #20232c;
+      --surface-soft: #1b1e26;
+      --border: #3a3f4f;
+      --border-focus: #5f8dff;
+      --text: #e8eaf0;
+      --muted: #9299a8;
+      --accent: #5f8dff;
+      --accent-hover: #7aa1ff;
+      --accent-text: #0d1117;
+      --danger: #ff8a8a;
+      --danger-bg: #3a2226;
+      --danger-border: #6b3b40;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    main {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #editor {
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 0;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 16px;
+      line-height: 1.7;
+      resize: none;
+      outline: none;
+      box-shadow: var(--shadow);
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      caret-color: var(--accent);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    #editor:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 1px var(--border-focus), var(--shadow);
+    }
+
+    #editor::placeholder {
+      color: var(--muted);
+    }
+
+    #editor[readonly] {
+      opacity: 0.72;
+    }
+
+    #notice {
+      flex: 0 0 auto;
+      margin: 0;
+      padding: 9px 12px;
+      border: 1px solid var(--danger-border);
+      border-radius: 8px;
+      background: var(--danger-bg);
+      color: var(--danger);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    #notice[hidden] {
+      display: none;
+    }
+
+    footer {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .hints {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    #shortcut-hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    button {
+      min-width: 82px;
+      height: 34px;
+      padding: 0 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--surface-soft);
+      border-color: var(--border-focus);
+    }
+
+    button:focus-visible {
+      box-shadow: 0 0 0 2px var(--border-focus);
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: var(--accent-text);
+    }
+
+    button.primary:hover:not(:disabled) {
+      border-color: var(--accent-hover);
+      background: var(--accent-hover);
+      color: var(--accent-text);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <textarea id="editor" aria-label="长文本内容" spellcheck="false"
+      placeholder="输入长文本…"></textarea>
+    <p id="notice" role="alert" hidden></p>
+  </main>
+
+  <footer>
+    <div class="hints">
+      <span id="shortcut-hint">Ctrl+Enter 发送 · Esc 取消并回填 · Enter 换行</span>
+    </div>
+    <div class="actions">
+      <button type="button" id="cancel-button">取消</button>
+      <button type="button" id="send-button" class="primary" disabled>发送</button>
+    </div>
+  </footer>
+
+  <script>
+    const bridge = window.composeBridge || null;
+    const editor = document.getElementById('editor');
+    const sendButton = document.getElementById('send-button');
+    const cancelButton = document.getElementById('cancel-button');
+    const notice = document.getElementById('notice');
+    const shortcutHint = document.getElementById('shortcut-hint');
+
+    const sendShortcutLabel = bridge?.isMac ? 'Cmd+Enter' : 'Ctrl+Enter';
+    let composeId = '';
+    let standalone = false;
+    let pending = false;
+    let finished = false;
+    let resultTimer = null;
+
+    function applyTheme() {
+      const dark = bridge?.isDark?.()
+        ?? window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
+        ?? false;
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    }
+
+    function setNotice(message) {
+      notice.textContent = String(message || '');
+      notice.hidden = !message;
+    }
+
+    function updateUi() {
+      const text = editor.value;
+      sendButton.disabled = pending || !composeId || !bridge?.canSend || bridge.isTextEmpty(text);
+      cancelButton.disabled = pending;
+      sendButton.textContent = pending ? '发送中…' : '发送';
+    }
+
+    function finish() {
+      finished = true;
+      if (resultTimer) {
+        clearTimeout(resultTimer);
+        resultTimer = null;
+      }
+    }
+
+    function cancel() {
+      if (finished || pending || !bridge) return;
+      finish();
+      try {
+        bridge.cancel(editor.value);
+      } catch (error) {
+        console.error('Failed to return compose text:', error);
+      }
+    }
+
+    function send() {
+      if (finished || pending) return;
+      const text = editor.value;
+      if (!bridge) {
+        setNotice('长文本通道未加载。请打开 wfs 查看版本后重新加载插件');
+        return;
+      }
+      if (bridge.isTextEmpty(text)) {
+        setNotice('内容为空，未发送');
+        editor.focus();
+        return;
+      }
+      if (!composeId) {
+        setNotice('缺少编辑会话，请关闭后从 wf 重新打开');
+        return;
+      }
+      if (!bridge.canSend) {
+        setNotice('当前 uTools 版本不支持长文本发送，请更新 uTools');
+        return;
+      }
+
+      setNotice('');
+      pending = true;
+      updateUi();
+      editor.readOnly = true;
+
+      try {
+        bridge.submit(text);
+      } catch (error) {
+        pending = false;
+        editor.readOnly = false;
+        setNotice(`发送失败：${error?.message || '无法连接主窗口'}`);
+        updateUi();
+        return;
+      }
+
+      resultTimer = setTimeout(() => {
+        resultTimer = null;
+        pending = false;
+        editor.readOnly = false;
+        setNotice('发送超时，内容已保留，可重试；发送失败的内容也会进入待发送消息');
+        updateUi();
+        editor.focus();
+      }, 60000);
+    }
+
+    function handleResult(result) {
+      if (resultTimer) {
+        clearTimeout(resultTimer);
+        resultTimer = null;
+      }
+      if (result.ok) {
+        finish();
+        return;
+      }
+      pending = false;
+      editor.readOnly = false;
+      setNotice(`${result.error || '发送失败'}；内容已保留，可重试或关闭后从待发送消息重试`);
+      updateUi();
+      editor.focus();
+    }
+
+    function applySession(session) {
+      composeId = String(session?.id || '');
+      standalone = session?.standalone === true;
+      finished = false;
+      pending = false;
+      if (resultTimer) {
+        clearTimeout(resultTimer);
+        resultTimer = null;
+      }
+      editor.readOnly = false;
+      editor.value = session?.text || '';
+      shortcutHint.textContent = standalone
+        ? `${sendShortcutLabel} 发送 · Esc 关闭 · Enter 换行`
+        : `${sendShortcutLabel} 发送 · Esc 取消并回填 · Enter 换行`;
+      setNotice(bridge ? '' : '长文本通道未加载。请打开 wfs 查看版本后重新加载插件');
+      updateUi();
+    }
+
+    function placeCaret() {
+      if (!composeId || finished || document.visibilityState === 'hidden') return;
+      const textLength = editor.value.length;
+      editor.focus();
+      try {
+        editor.setSelectionRange(textLength, textLength);
+      } catch (error) {
+        editor.focus();
+      }
+    }
+
+    if (typeof bridge?.onSession === 'function') bridge.onSession(applySession);
+    else applySession({ id: bridge?.id || '', text: bridge?.text || '', standalone: bridge?.standalone === true });
+    window.addEventListener('focus', placeCaret);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') placeCaret();
+    });
+    if (!bridge) setNotice('长文本通道未加载。请打开 wfs 查看版本后重新加载插件');
+
+    editor.addEventListener('input', () => {
+      if (bridge) setNotice('');
+      updateUi();
+    });
+
+    function shortcutSnapshot(event) {
+      return {
+        key: event.key,
+        ctrlKey: !!event.ctrlKey,
+        metaKey: !!event.metaKey,
+        altKey: !!event.altKey,
+        shiftKey: !!event.shiftKey,
+        isComposing: !!event.isComposing,
+        keyCode: event.keyCode
+      };
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const snapshot = shortcutSnapshot(event);
+      if (bridge?.isSendShortcut?.(snapshot)) {
+        event.preventDefault();
+        send();
+        return;
+      }
+      if (bridge?.isCancelKey?.(snapshot)) {
+        event.preventDefault();
+        cancel();
+      }
+    });
+
+    sendButton.addEventListener('click', send);
+    cancelButton.addEventListener('click', cancel);
+
+    window.addEventListener('beforeunload', () => {
+      if (finished || !bridge) return;
+      try {
+        bridge.cancel(editor.value);
+      } catch (error) {
+        console.warn('Failed to return compose text on unload:', error);
+      }
+    });
+
+    bridge?.onResult?.(handleResult);
+    bridge?.onThemeChange?.(() => applyTheme());
+    applyTheme();
+  </script>
+</body>
+
+</html>
