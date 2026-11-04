@@ -17,6 +17,8 @@ interface Services {
   openPath: (filePath: string) => boolean
   /** 读磁盘上 dist/BUILD_ID（最新构建戳）；读不到返回 null */
   readBuildStamp: () => string | null
+  /** dev 诊断日志：追加一行到插件根 .debug-live.log；市场版返回 false */
+  debugLog: (line: string) => boolean
 }
 
 /** vite define 注入：本次页面构建的唯一戳（版本-时间戳），详见 vite.config.js */

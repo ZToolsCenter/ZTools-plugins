@@ -184,8 +184,6 @@ async function loadFirst(): Promise<void> {
     page.value = 1
     hasMore.value = res.hasMore
     totalCount.value = res.total || res.items.length
-    // 整页重拉过就是"追平"了，避免刚打开就白白再探一次
-    syncedCount = totalCount.value
     selectedIndex.value = 0
     scannedCats.clear()
     recount()
@@ -211,7 +209,6 @@ async function hydrate(): Promise<void> {
     records.value = records.value.concat(res.items.filter((r) => !seen.has(r.id)))
 
     totalCount.value = res.total || records.value.length
-    syncedCount = totalCount.value
     hasMore.value = res.hasMore
     // 分页游标跟进到实际数据末尾，否则后续翻页会重复拉取已加载区间
     page.value = Math.max(page.value, Math.ceil(records.value.length / PAGE_SIZE))
@@ -272,17 +269,6 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 /** 上一拍的时间，用来识别"定时器被挂起了很久，刚恢复" */
 let lastTickAt = 0
 
-/**
- * **已经确认"本地列表追平宿主"的那个计数**。
- *
- * 这个值必须和 `totalCount`（显示用的计数）分开：
- * v1.0.26 的写法是"探到宿主计数变了就先把 totalCount 改掉，再异步去同步"，
- * 只要紧接着那次同步没把记录并进来（宿主正在写库 / 返回的 id 全都已存在 /
- * 这一拍抛错被吞掉），`totalCount` 就已经等于宿主计数了 —— 下一拍直接判定
- * "没变化"，**从此再也不同步**，直到整页重载。用户看到的就是"第二次打开
- * 数据不是最新的，必须关掉重开"。所以这里只在**确实对齐**之后才推进它。
- */
-let syncedCount = 0
 
 /**
  * 把宿主库里最新的一批记录并入列表。
@@ -290,8 +276,7 @@ let syncedCount = 0
  * 只补"本地没有的"，并且是 prepend —— 新复制的一定在最前面。
  * 返回确实新增了几条（0 表示没变化）。
  *
- * 同步成功才推进 `syncedCount`；失败（异常、或取回来的头部跟本地对不上）
- * 就**保持原值**，让下一拍重试 —— 宁可多拉一次，也不要进入"永远不更新"的僵死态。
+ * 拉取失败（异常）直接返回 0，下一拍重试 —— 宁可多拉一次，也不要僵死。
  */
 async function syncLatest(limit = HEAD_SIZE): Promise<number> {
   const anchorId = filtered.value[selectedIndex.value]?.id ?? null
@@ -299,23 +284,27 @@ async function syncLatest(limit = HEAD_SIZE): Promise<number> {
     const res = await api.getHistory(1, limit)
     const seen = new Set(records.value.map((r) => r.id))
     const fresh = res.items.filter((r) => !seen.has(r.id))
+    // 没有新增时，头部必须跟宿主一致；不一致说明本地漏了/顺序变了 ——
+    // 最典型的场景：**宿主历史有上限（满 1000 条）**，每复制一条旧的被挤掉，
+    // 计数恒定不变，靠数量探路永远发现不了，只能比对真实的头部 id。
+    if (fresh.length === 0 && res.items[0] && records.value[0]?.id !== res.items[0].id) {
+      dbg('syncLatest: 头部与宿主不一致 → 整页重拉')
+      await loadFirst()
+      return 0
+    }
     if (fresh.length > 0) {
       records.value = fresh.concat(records.value)
-    }
-    const total = res.total || records.value.length
-    // 先更新总数再重算计数 —— 反过来的话侧栏"全部"会停在上一次的值上，
-    // 看着就是"列表长了、计数没动"。
-    totalCount.value = total
-    if (fresh.length > 0) recount()
-    // 没有增量的情况要额外确认"头部跟宿主一致"，否则可能是宿主还没写进去，
-    // 这时候推进计数就会把后续的重试挡掉。
-    const hostTop = res.items[0]?.id ?? null
-    if (fresh.length > 0 || !hostTop || records.value[0]?.id === hostTop) {
-      syncedCount = total
+      const total = res.total || records.value.length
+      // 先更新总数再重算计数 —— 反过来的话侧栏"全部"会停在上一次的值上，
+      // 看着就是"列表长了、计数没动"。
+      totalCount.value = total
+      recount()
+      dbg(`syncLatest: +${fresh.length} 条，total=${total}`)
     }
     return fresh.length
-  } catch {
-    /* 宿主忙/窗口正在关闭：这一拍不算事，不推进 syncedCount，下一拍还会再来 */
+  } catch (e) {
+    dbg(`syncLatest(${limit}) ERROR: ${errLine(e)}`)
+    /* 宿主忙/窗口正在关闭：这一拍不算事，下一拍还会再来 */
     return 0
   } finally {
     restoreSelection(anchorId)
@@ -341,13 +330,6 @@ function restoreSelection(id: string | null): void {
   else if (selectedIndex.value >= filtered.value.length) {
     selectedIndex.value = Math.max(0, filtered.value.length - 1)
   }
-}
-
-/** 用一次轻量查询判断"库里是不是多了东西"（只读，不改任何计数状态） */
-async function hasNewRecords(): Promise<boolean> {
-  const n = await api.clipboardCount()
-  if (n === null) return true // 老宿主没有 getStatus：不看也查，反正只是多一次 IPC
-  return n !== syncedCount
 }
 
 /**
@@ -379,10 +361,14 @@ async function tick(): Promise<void> {
   const jumped = lastTickAt > 0 && now - lastTickAt > POLL_INTERVAL_MS * 2.5
   lastTickAt = now
   if (jumped) {
+    dbg('tick: 跳拍（页面被挂起过）→ refreshOnShow')
     await refreshOnShow()
     return
   }
-  if (await hasNewRecords()) await syncLatest(HEAD_SIZE)
+  // **不做任何计数预判**：宿主历史有上限（满 1000 后每复制一条 = 加一条删一条，
+  // itemCount 恒定），数量探路在满库时永远返回"没变化" —— 1.0.30 之前所有实时
+  // 路径（轮询/对账/onChange 推送）都被这道闸门挡死。直接拉最新一批比对 id。
+  await syncLatest(HEAD_SIZE)
 }
 
 /**
@@ -403,32 +389,8 @@ async function refreshOnShow(): Promise<void> {
   if (since >= 0 && since < REFRESH_DEDUPE_MS) return
   lastRefreshAt = now
 
-  const anchorId = filtered.value[selectedIndex.value]?.id ?? null
-  try {
-    // 先用最便宜的一步挡掉"其实什么都没变"的常见情况（只是打开又关上）：
-    // 一次 getStatus 往往不到 1ms，比拉 50 条历史快得多。
-    const n = await api.clipboardCount()
-    if (n !== null && n === syncedCount) return
-
-    const res = await api.getHistory(1, WAKE_SYNC_SIZE)
-    const seen = new Set(records.value.map((r) => r.id))
-    const fresh = res.items.filter((r) => !seen.has(r.id))
-    // 没有新增时，头部必须跟宿主一致；不一致说明本地漏了/顺序变了，整页重拉
-    if (fresh.length === 0 && res.items[0] && records.value[0]?.id !== res.items[0].id) {
-      await loadFirst()
-      return
-    }
-    if (fresh.length > 0) records.value = fresh.concat(records.value)
-    const total = res.total || records.value.length
-    // 先更新总数再重算：反过来侧栏"全部"会停在上一次的值上
-    totalCount.value = total
-    if (fresh.length > 0) recount()
-    syncedCount = total
-  } catch {
-    /* 宿主忙：交给轮询兜底，不推进 syncedCount */
-  } finally {
-    restoreSelection(anchorId)
-  }
+  dbg('refreshOnShow: 对账（拉最新 50 条比对）')
+  await syncLatest(WAKE_SYNC_SIZE)
 }
 
 /**
@@ -507,13 +469,36 @@ const SHOW_DEDUPE_MS = 300
  */
 declare const __BUILD_STAMP__: string
 
+/**
+ * dev 诊断：把实时链路的每一步写进插件根目录 `.debug-live.log`（services 里
+ * 只在非 asar 环境真正落盘，市场版是 no-op）。渲染进程的 console 在宿主里
+ * 看不见，而同步失败的 catch 全是静默的 —— 没有这份文件，真机问题只能靠猜。
+ */
+function dbg(line: string): void {
+  try {
+    if (typeof window === 'undefined') return
+    window.services?.debugLog?.(line)
+  } catch {
+    /* 测试环境没有 services */
+  }
+}
+
+/** 给日志用的错误摘要（message + 前两帧堆栈） */
+function errLine(e: unknown): string {
+  if (e instanceof Error) return e.message + ' | ' + String(e.stack ?? '').split('\n')[1]?.trim()
+  return String(e)
+}
+
 function checkNewBuild(): void {
   if (typeof location === 'undefined' || location.protocol !== 'file:') return
   // dev server（import.meta.env.DEV 构建）没有注入这个量；typeof 对未声明标识符是安全的
   if (typeof __BUILD_STAMP__ !== 'string') return
   const services = (typeof window !== 'undefined' ? (window as unknown as { services?: { readBuildStamp?: () => string | null } }).services : undefined)
   const stamp = services?.readBuildStamp?.()
-  if (stamp && stamp !== __BUILD_STAMP__) location.reload()
+  if (stamp && stamp !== __BUILD_STAMP__) {
+    dbg(`checkNewBuild: 磁盘 ${stamp} ≠ 页面 ${__BUILD_STAMP__} → reload`)
+    location.reload()
+  }
 }
 
 /**
@@ -530,14 +515,18 @@ function checkNewBuild(): void {
  * 所以这里改用**页面自己能感知到的信号**：窗口显示出来时 `visibilitychange` 必然触发，
  * 窗口获得焦点时还会有 `focus`；再加上宿主的 `PluginEnter`，三路任意一路都能唤醒。
  */
-function onShown(): void {
+function onShown(source = 'unknown'): void {
   // 先查构建戳再谈别的：真要重载的话，后面的刷新都是白做
   checkNewBuild()
   const now = Date.now()
   const since = now - lastShownAt
   // 同上：时间回拨时不要把自己锁在"刚打开过"里
-  if (since >= 0 && since < SHOW_DEDUPE_MS) return
+  if (since >= 0 && since < SHOW_DEDUPE_MS) {
+    dbg(`onShown(${source}): 去重窗口内（${since}ms），跳过`)
+    return
+  }
   lastShownAt = now
+  dbg(`onShown(${source}) → startWatching(bulk)`)
   focusSearch()
   startWatching(true)
 }
@@ -555,16 +544,19 @@ function watchWindowShow(): () => void {
   if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
     return () => undefined
   }
-  const onFocus = (): void => onShown()
+  const onFocus = (): void => onShown('focus')
   const onVisible = (): void => {
-    if (typeof document === 'undefined' || !document.hidden) onShown()
+    if (typeof document === 'undefined' || !document.hidden) onShown('visibility')
   }
   // 距上次交互超过这个间隔，才算"人刚回到插件"（避免连续打字时每一下都拉一次）
   const INTERACT_GAP_MS = 2000
   let lastInteractAt = 0
   const onInteract = (): void => {
     const now = Date.now()
-    if (lastInteractAt > 0 && now - lastInteractAt > INTERACT_GAP_MS) void refreshOnShow()
+    if (lastInteractAt > 0 && now - lastInteractAt > INTERACT_GAP_MS) {
+      dbg('onInteract（鼠标/键盘）→ refreshOnShow')
+      void refreshOnShow()
+    }
     lastInteractAt = now
   }
 
@@ -1155,6 +1147,8 @@ function init(): void {
   if (inited) return
   inited = true
 
+  dbg(`init: 页面加载 stamp=${typeof __BUILD_STAMP__ === 'string' ? __BUILD_STAMP__ : '(dev)'} href=${typeof location !== 'undefined' ? location.href : ''}`)
+
   favorites.value = favoritesStore.load()
 
   // 注册宿主子输入框。失败（宿主版本差异 / 非插件环境）时页面会显示自带搜索框兜底
@@ -1165,7 +1159,8 @@ function init(): void {
    * （见 onShown 的注释），所以这里和 visibilitychange / focus 一并接。
    */
   api.onPluginEnter(() => {
-    onShown()
+    dbg('onPluginEnter（宿主）')
+    onShown('enter')
   })
   // 渲染进程侧的"窗口又出现了"：这一路不依赖宿主的生命周期事件
   watchWindowShow()
@@ -1173,6 +1168,7 @@ function init(): void {
   watchFrames()
   // 退出插件：取消尚未执行的重试，轮询降到慢速档（别彻底停，见 idleWatching）
   api.onPluginOut(() => {
+    dbg('onPluginOut（宿主）→ idleWatching')
     cancelFocus()
     idleWatching()
   })
@@ -1184,9 +1180,8 @@ function init(): void {
    * 所以这里只当它是**加速器**：收到就立刻同步一次，收不到另有下面的轮询兜底。
    */
   api.onChange(() => {
-    void hasNewRecords().then((yes) => {
-      if (yes) void syncLatest()
-    })
+    dbg('onChange（宿主推送）→ sync')
+    void syncLatest()
   })
 
   void loadFirst()

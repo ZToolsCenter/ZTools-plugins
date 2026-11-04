@@ -395,25 +395,6 @@ export const host = {
     return Number((res as any)?.count ?? 0)
   },
 
-  /**
-   * 宿主剪贴板库里的记录总数（`clipboard.getStatus()` → `itemCount`）。
-   *
-   * 用来"探头"：数量变了才值得去拉一次历史。比每次都 getHistory 便宜得多
-   * （历史是全量取出的 IPC，序列号化才是成本）。
-   * 宿主没有这个接口时返回 null，调用方退化为定时拉头部。
-   */
-  async clipboardCount(): Promise<number | null> {
-    const zt = window.ztools as any
-    if (typeof zt?.clipboard?.getStatus !== 'function') return null
-    try {
-      const s = await zt.clipboard.getStatus()
-      const n = Number(s?.itemCount)
-      return Number.isFinite(n) ? n : null
-    } catch {
-      return null
-    }
-  },
-
   onChange(cb: () => void): void {
     ;(window.ztools as any).clipboard.onChange(cb)
   },
@@ -825,10 +806,6 @@ const mock = {
     const n = mockDb.length
     mockDb = []
     return n
-  },
-
-  async clipboardCount(): Promise<number | null> {
-    return mockDb.length
   },
 
   /**
