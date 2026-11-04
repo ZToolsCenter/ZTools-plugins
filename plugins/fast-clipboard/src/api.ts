@@ -1,4 +1,5 @@
 import type { ClipboardRecord, FavoriteSnapshot, PageResult } from './types'
+import { isColorValue } from './utils/format'
 
 /**
  * 宿主 API 封装层。
@@ -99,7 +100,7 @@ export function looksLikeShell(text: string): boolean {
 export function detectKind(text: string): Exclude<ClipboardRecord['kind'], 'image' | 'file'> {
   const t = text.trim()
   if (!t) return 'text'
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(t)) return 'color'
+  if (isColorValue(t)) return 'color'
   if (/^(https?:\/\/|www\.)\S+$/i.test(t)) return 'link'
   if (t.length >= 24) {
     const hits = CODE_HINTS.reduce((n, h) => (t.includes(h) ? n + 1 : n), 0)
@@ -569,6 +570,8 @@ const MOCK_TEXTS: Array<[string, string]> = [
   ['code', '/* 多行块注释\n   跨行也要保持注释色 */\nconst KEY = "value" // 行注释'],
   ['color', '#5B8DEF'],
   ['color', '#0F6E56'],
+  ['color', 'rgba(91, 141, 239, 0.45)'],
+  ['color', 'hsl(152, 69%, 31%)'],
   ['text', 'ssh -p 2222 dev@10.0.0.12'],
   ['text', '取件码 8-2-3069，丰巢快递柜'],
 ]

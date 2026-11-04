@@ -89,6 +89,37 @@ export function isHexColor(t: string): boolean {
 }
 
 /**
+ * rgb/rgba/hsl/hsla 颜色函数的整串判定。
+ *
+ * 逗号分隔（`rgb(255, 0, 0)`）与 CSS4 空格/斜杠（`rgb(255 0 0 / 50%)`）两种写法都认；
+ * 分量允许数字与百分比，hsl 色相允许 `deg` 后缀，alpha 允许 0~1 小数与百分比。
+ * 刻意宽松 —— 这是剪贴板的分类启发式，宁可多认一点，也不要把真复制过的颜色漏掉；
+ * 但整串锚定：散文里出现颜色函数不会被误判（与 isHexColor 同一原则）。
+ */
+const CSS_NUM = String.raw`\d{1,3}(?:\.\d+)?(?:deg)?%?`
+const CSS_ALPHA = String.raw`(?:0?\.\d+|0|1(?:\.0+)?|\d{1,3}(?:\.\d+)?%?)`
+const CSS_SEP = String.raw`\s*(?:,|\s|/)\s*`
+const CSS_FUNC_COLOR_RE = new RegExp(
+  `^(?:rgba?|hsla?)\\(\\s*${CSS_NUM}${CSS_SEP}${CSS_NUM}${CSS_SEP}${CSS_NUM}(?:${CSS_SEP}${CSS_ALPHA})?\\s*\\)$`,
+  'i'
+)
+
+export function isCssColorFunc(t: string): boolean {
+  return CSS_FUNC_COLOR_RE.test(t.trim())
+}
+
+/** 颜色分类判据：#hex 或 rgb/rgba/hsl/hsla 颜色函数 */
+export function isColorValue(t: string): boolean {
+  return isHexColor(t) || isCssColorFunc(t)
+}
+
+/** 色块的 background 值：颜色类内容原样交给 CSS（hex / rgb() / hsl() 都是合法 CSS 颜色） */
+export function colorSwatchOf(t: string): string {
+  const s = t.trim()
+  return isColorValue(s) ? s : ''
+}
+
+/**
  * 把一段文本规范成"能交给系统浏览器打开"的网址，不能打开时返回 null。
  *
  * 只放行 http/https（外加裸 `www.` 自动补协议）：

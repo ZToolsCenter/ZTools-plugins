@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ClipboardRecord } from '../types'
-import { KIND_META, previewText, relTime, recordMeta, isHexColor, webUrlOf } from '../utils/format'
+import { KIND_META, previewText, relTime, recordMeta, colorSwatchOf, webUrlOf } from '../utils/format'
 
 const props = defineProps<{
   record: ClipboardRecord
@@ -35,7 +35,7 @@ const preview = computed(() => {
   return previewText(r.content)
 })
 
-const colorSwatch = computed(() => (isHexColor(props.record.content) ? props.record.content.trim() : ''))
+const colorSwatch = computed(() => colorSwatchOf(props.record.content))
 </script>
 
 <template>
