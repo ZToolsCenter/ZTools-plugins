@@ -1,3 +1,4 @@
+const { getAppIconDataUrl, getLetterSvgIcon } = require('./icon-helper.cjs');
 'use strict'
 
 const crypto = require('node:crypto')
@@ -240,6 +241,30 @@ function createCleaner(options = {}) {
               rootId: root.id,
               category: root.category,
               label: cleanText(entry.name) || '未命名项目',
+              appName: (function() {
+                const l = cleanText(entry.name) || '';
+                if (/^com\.apple\./i.test(l)) return 'Apple 系统服务';
+                if (/^com\.google\.Gemini/i.test(l)) return 'Google Gemini';
+                if (/chrome/i.test(l)) return 'Google Chrome';
+                if (/^com\.google\./i.test(l)) return 'Google 服务';
+                if (/^com\.microsoft\.|OneDrive/i.test(l)) return 'Microsoft 办公套件';
+                if (/^com\.figma\./i.test(l)) return 'Figma';
+                if (/^dev\.zcode\./i.test(l)) return 'ZCode 开发者工具';
+                if (/^com\.openai\./i.test(l)) return 'ChatGPT / OpenAI';
+                const parts = l.split('.');
+                if (parts.length >= 3 && ['com', 'org', 'net', 'io', 'dev', 'cn'].includes(parts[0].toLowerCase())) {
+                  return parts[2];
+                }
+                return l;
+              })(),
+              icon: (function() {
+                const l = cleanText(entry.name) || '';
+                if (/^com\.apple\./i.test(l)) {
+                  const sysIcon = getAppIconDataUrl('/System/Applications/System Settings.app');
+                  if (sysIcon) return sysIcon;
+                }
+                return getAppIconDataUrl(l) || (root.label ? getAppIconDataUrl(root.label) : '') || getLetterSvgIcon(l || root.label);
+              })(),
               location: displayPath(realCandidate, root.realHome, root.realTemp),
               sizeBytes,
               ageDays: Math.floor(ageDays),

@@ -1,7 +1,7 @@
 'use strict'
 
 const CATEGORY_LABELS = { cache: '缓存', logs: '日志', temporary: '临时' }
-const state = { snapshotId: '', candidates: [], busy: false }
+const state = { snapshotId: '', candidates: [], busy: false, expandedGroups: new Set() }
 const elements = {
   scanButton: document.querySelector('#scanButton'),
   cleanButton: document.querySelector('#cleanButton'),
@@ -41,7 +41,25 @@ function updateSelection() {
   const bytes = selected.reduce((sum, item) => sum + item.sizeBytes, 0)
   elements.selectedSize.textContent = formatBytes(bytes)
   elements.selectedCount.textContent = `已选 ${selected.length} 项`
-  elements.cleanButton.disabled = state.busy || selected.length === 0
+  elements.cleanButton.disabled = state.busy || selected.length === 0;
+
+  document.querySelectorAll('.group-card').forEach((card) => {
+    const groupCheck = card.querySelector('.group-check');
+    if (!groupCheck) return;
+    const childChecks = [...card.querySelectorAll('.child-item .candidate-check')];
+    if (!childChecks.length) return;
+    const checkedCount = childChecks.filter(c => c.checked).length;
+    if (checkedCount === 0) {
+      groupCheck.checked = false;
+      groupCheck.indeterminate = false;
+    } else if (checkedCount === childChecks.length) {
+      groupCheck.checked = true;
+      groupCheck.indeterminate = false;
+    } else {
+      groupCheck.checked = false;
+      groupCheck.indeterminate = true;
+    }
+  });
 }
 
 function setBusy(busy) {
@@ -52,43 +70,231 @@ function setBusy(busy) {
   document.querySelectorAll('input[name=category]').forEach((input) => { input.disabled = busy })
 }
 
-function render(result) {
-  state.snapshotId = result.snapshotId
-  state.candidates = result.candidates || []
-  elements.candidateList.replaceChildren()
-  elements.totalSize.textContent = formatBytes(result.totalBytes)
-  elements.scanMeta.textContent = `${state.candidates.length} 项 · ${new Date(result.generatedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
-  elements.warnings.hidden = !result.warnings?.length
-  elements.warnings.textContent = (result.warnings || []).map((warning) => warning.message || warning.code).join('；')
+function createGroupCard(group, groupId) {
+  const isExpanded = state.expandedGroups.has(groupId);
+  const groupTotalBytes = group.items.reduce((s, i) => s + i.sizeBytes, 0);
 
-  if (!state.candidates.length) {
-    const empty = document.createElement('p')
-    empty.className = 'empty'
-    empty.textContent = '所选分类中没有可安全清理的项目。'
-    elements.candidateList.append(empty)
+  const card = document.createElement('div');
+  card.className = 'group-card';
+  card.dataset.groupId = groupId;
+
+  const header = document.createElement('div');
+  header.className = 'candidate group-header';
+
+  const selectLabel = document.createElement('label');
+  selectLabel.className = 'candidate-select';
+  const groupCheck = document.createElement('input');
+  groupCheck.type = 'checkbox';
+  groupCheck.className = 'candidate-check group-check';
+  groupCheck.checked = group.items.some(i => i.selectedByDefault);
+  const selectSpan = document.createElement('span');
+  selectSpan.setAttribute('aria-hidden', 'true');
+  selectLabel.appendChild(groupCheck);
+  selectLabel.appendChild(selectSpan);
+
+  const iconImg = document.createElement('img');
+  iconImg.className = 'candidate-icon';
+  iconImg.alt = '';
+  iconImg.setAttribute('aria-hidden', 'true');
+  iconImg.src = group.icon || '';
+
+  const mainDiv = document.createElement('div');
+  mainDiv.className = 'candidate-main';
+  const titleRow = document.createElement('div');
+  titleRow.style.display = 'flex';
+  titleRow.style.alignItems = 'center';
+  titleRow.style.gap = '8px';
+  const strong = document.createElement('strong');
+  strong.className = 'candidate-label';
+  strong.textContent = group.appName;
+  const countBadge = document.createElement('span');
+  countBadge.className = 'candidate-badge group-count-badge';
+  countBadge.textContent = `${group.items.length} 处项目`;
+  titleRow.appendChild(strong);
+  titleRow.appendChild(countBadge);
+
+  const locP = document.createElement('p');
+  locP.className = 'candidate-location';
+  locP.textContent = `共 ${group.items.length} 处子项，点击右侧可展开明细`;
+  mainDiv.appendChild(titleRow);
+  mainDiv.appendChild(locP);
+
+  const infoDiv = document.createElement('div');
+  infoDiv.className = 'candidate-info';
+  const sizeStrong = document.createElement('strong');
+  sizeStrong.className = 'candidate-size';
+  sizeStrong.textContent = formatBytes(groupTotalBytes);
+  infoDiv.appendChild(sizeStrong);
+
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  toggleBtn.className = 'reveal-button group-toggle-btn quiet';
+  toggleBtn.textContent = isExpanded ? '收起 ▲' : '展开 ▼';
+
+  header.appendChild(selectLabel);
+  header.appendChild(iconImg);
+  header.appendChild(mainDiv);
+  header.appendChild(infoDiv);
+  header.appendChild(toggleBtn);
+
+  const childrenContainer = document.createElement('div');
+  childrenContainer.className = 'group-children';
+  if (!isExpanded) {
+    childrenContainer.style.display = 'none';
   }
-  for (const candidate of state.candidates) {
-    const fragment = elements.template.content.cloneNode(true)
-    const article = fragment.querySelector('.candidate')
-    const checkbox = fragment.querySelector('.candidate-check')
-    checkbox.dataset.id = candidate.id
-    checkbox.setAttribute('aria-label', `选择 ${candidate.label}`)
-    checkbox.checked = candidate.selectedByDefault
-    checkbox.addEventListener('change', updateSelection)
-    fragment.querySelector('.candidate-label').textContent = candidate.label
-    fragment.querySelector('.candidate-badge').textContent = CATEGORY_LABELS[candidate.category] || candidate.category
-    fragment.querySelector('.candidate-location').textContent = candidate.location
-    fragment.querySelector('.candidate-size').textContent = formatBytes(candidate.sizeBytes)
-    fragment.querySelector('.candidate-age').textContent = candidate.ageDays ? `${candidate.ageDays} 天未更新` : '近期项目'
-    const revealButton = fragment.querySelector('.reveal-button')
-    revealButton.setAttribute('aria-label', `在文件管理器中定位 ${candidate.label}`)
-    revealButton.addEventListener('click', () => api.reveal({ snapshotId: state.snapshotId, candidateId: candidate.id }))
-    article.dataset.candidateId = candidate.id
-    elements.candidateList.append(fragment)
+
+  group.items.forEach((item) => {
+    const childNode = elements.template.content.firstElementChild.cloneNode(true);
+    childNode.classList.add('child-item');
+    const check = childNode.querySelector('.candidate-check');
+    check.dataset.id = item.id;
+    check.checked = Boolean(item.selectedByDefault);
+    check.addEventListener('change', updateSelection);
+
+    const childIcon = childNode.querySelector('.candidate-icon');
+    if (item.icon) {
+      childIcon.src = item.icon;
+      childIcon.style.display = '';
+    } else {
+      childIcon.style.display = 'none';
+    }
+
+    childNode.querySelector('.candidate-label').textContent = item.label;
+    const badge = childNode.querySelector('.candidate-badge');
+    badge.textContent = CATEGORY_LABELS[item.category] || item.category;
+    childNode.querySelector('.candidate-location').textContent = item.location;
+    childNode.querySelector('.candidate-size').textContent = formatBytes(item.sizeBytes);
+    childNode.querySelector('.candidate-age').textContent = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('zh-CN') : '近期';
+
+    const reveal = childNode.querySelector('.reveal-button');
+    reveal.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (api?.reveal) {
+        api.reveal(item.location).catch((error) => alert(error?.message || '无法定位路径'));
+      }
+    });
+
+    childrenContainer.appendChild(childNode);
+  });
+
+  groupCheck.addEventListener('change', () => {
+    const checked = groupCheck.checked;
+    childrenContainer.querySelectorAll('.child-item .candidate-check').forEach((c) => {
+      c.checked = checked;
+    });
+    updateSelection();
+  });
+
+  header.addEventListener('click', (e) => {
+    if (e.target.closest('.candidate-select') || e.target.closest('.reveal-button')) {
+      return;
+    }
+    toggleBtn.click();
+  });
+
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const expanded = state.expandedGroups.has(groupId);
+    if (expanded) {
+      state.expandedGroups.delete(groupId);
+      childrenContainer.style.display = 'none';
+      toggleBtn.textContent = '展开 ▼';
+    } else {
+      state.expandedGroups.add(groupId);
+      childrenContainer.style.display = 'block';
+      toggleBtn.textContent = '收起 ▲';
+    }
+  });
+
+  card.appendChild(header);
+  card.appendChild(childrenContainer);
+  return card;
+}
+
+function render(result) {
+  state.snapshotId = result.snapshotId;
+  state.candidates = result.candidates || [];
+  elements.totalSize.textContent = formatBytes(result.totalBytes || 0);
+  elements.scanMeta.textContent = `${state.candidates.length} 项候选 · ${new Date().toLocaleTimeString('zh-CN')}`;
+  elements.candidateList.innerHTML = "";
+
+  if (result.warnings?.length) {
+    elements.warnings.hidden = false;
+    elements.warnings.textContent = result.warnings.map(w => typeof w === 'string' ? w : (w?.message || w?.code || JSON.stringify(w))).join('；');
+  } else {
+    elements.warnings.hidden = true;
+    elements.warnings.textContent = '';
   }
-  elements.statusPanel.hidden = true
-  elements.resultPanel.hidden = false
-  updateSelection()
+
+  if (state.candidates.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-card';
+    empty.innerHTML = '<strong>当前无可安全清理的文件</strong><p>系统运行良好，未发现符合白名单的冗余项目。</p>';
+    elements.candidateList.appendChild(empty);
+    updateSelection();
+    return;
+  }
+
+  const appMap = new Map();
+  state.candidates.forEach((item) => {
+    const appKey = item.appName || item.label || '系统项目';
+    if (!appMap.has(appKey)) {
+      appMap.set(appKey, {
+        appName: appKey,
+        icon: item.icon,
+        category: item.category,
+        items: []
+      });
+    }
+    appMap.get(appKey).items.push(item);
+  });
+
+  let groupIndex = 0;
+  appMap.forEach((group, appKey) => {
+    groupIndex++;
+    if (group.items.length > 1) {
+      const groupId = `group_${groupIndex}_${encodeURIComponent(appKey)}`;
+      const groupCard = createGroupCard(group, groupId);
+      elements.candidateList.appendChild(groupCard);
+    } else {
+      const item = group.items[0];
+      const node = elements.template.content.firstElementChild.cloneNode(true);
+      const check = node.querySelector('.candidate-check');
+      check.dataset.id = item.id;
+      check.checked = Boolean(item.selectedByDefault);
+      check.addEventListener('change', updateSelection);
+
+      const iconImg = node.querySelector('.candidate-icon');
+      if (item.icon) {
+        iconImg.src = item.icon;
+      } else {
+        iconImg.style.display = 'none';
+      }
+
+      node.querySelector('.candidate-label').textContent = item.appName ? `${item.appName} · ${item.label}` : item.label;
+      const badge = node.querySelector('.candidate-badge');
+      badge.textContent = CATEGORY_LABELS[item.category] || item.category;
+      node.querySelector('.candidate-location').textContent = item.location;
+      node.querySelector('.candidate-size').textContent = formatBytes(item.sizeBytes);
+      node.querySelector('.candidate-age').textContent = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('zh-CN') : '近期';
+
+      const reveal = node.querySelector('.reveal-button');
+      reveal.addEventListener('click', () => {
+        if (api?.reveal) {
+          const res = typeof api.reveal === 'function' ? api.reveal({ snapshotId: state.snapshotId, candidateId: item.id }) : null;
+          if (res && typeof res.catch === 'function') {
+            res.catch((error) => alert(error?.message || '无法定位路径'));
+          }
+        }
+      });
+
+      elements.candidateList.appendChild(node);
+    }
+  });
+
+  updateSelection();
+  elements.statusPanel.hidden = true;
+  elements.resultPanel.hidden = false;
 }
 
 async function scan() {
