@@ -134,5 +134,23 @@ window.services = {
       /* ignore */
     }
     return false
+  },
+
+  /**
+   * 读磁盘上 dist/BUILD_ID（vite 构建时写入的"最新构建戳"）。
+   *
+   * 渲染进程把它和自己构建时注入的 __BUILD_STAMP__ 对比：不一致说明磁盘上
+   * 有了更新的构建 —— dev 模式的插件视图是持久化的，页面不重载就一直跑旧 JS，
+   * 这是"改了代码、快捷键打开还是旧行为"的根源。渲染层据此 location.reload()。
+   * 读不到（市场版 asar 没有这个文件 / 无 fs 权限）返回 null，调用方不动作。
+   */
+  readBuildStamp() {
+    try {
+      const file = path.join(__dirname, '..', 'dist', 'BUILD_ID')
+      const stamp = fs.readFileSync(file, 'utf8').trim()
+      return stamp || null
+    } catch (e) {
+      return null
+    }
   }
 }

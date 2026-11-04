@@ -491,6 +491,32 @@ let lastShownAt = 0
 const SHOW_DEDUPE_MS = 300
 
 /**
+ * dev 模式的构建戳自检（每次"被打开"都查一遍，放在去重闸门之前）。
+ *
+ * 背景：dev 插件的视图是**持久化**的 —— 失焦关闭只是隐藏窗口，页面里那次加载
+ * 的 JS 会一直跑下去。也就是说磁盘上 dist 换了新构建，视图里还是旧代码，
+ * 用户在旧代码上测新修复，怎么测都是旧行为（1.0.26~28 连续三轮"没修好"的真相）。
+ *
+ * 做法：vite 构建时把唯一戳写进 dist/BUILD_ID，并注入进本次页面（__BUILD_STAMP__）。
+ * 这里用 preload 的 fs 读磁盘上的戳，不一致就整页 location.reload() ——
+ * 重新构建完，下次打开插件自动跑上新代码，不用手动"结束运行"。
+ *
+ * 守卫：
+ *   - 只在 file:// 下生效（dev server 是 http，Vite HMR 自己管；市场版走宿主更新流）
+ *   - 读不到 BUILD_ID（无 fs / 老宿主）→ 不动作
+ */
+declare const __BUILD_STAMP__: string
+
+function checkNewBuild(): void {
+  if (typeof location === 'undefined' || location.protocol !== 'file:') return
+  // dev server（import.meta.env.DEV 构建）没有注入这个量；typeof 对未声明标识符是安全的
+  if (typeof __BUILD_STAMP__ !== 'string') return
+  const services = (typeof window !== 'undefined' ? (window as unknown as { services?: { readBuildStamp?: () => string | null } }).services : undefined)
+  const stamp = services?.readBuildStamp?.()
+  if (stamp && stamp !== __BUILD_STAMP__) location.reload()
+}
+
+/**
  * 插件被重新亮出来时该做的事。
  *
  * 为什么要单独有这么一个入口：
@@ -505,6 +531,8 @@ const SHOW_DEDUPE_MS = 300
  * 窗口获得焦点时还会有 `focus`；再加上宿主的 `PluginEnter`，三路任意一路都能唤醒。
  */
 function onShown(): void {
+  // 先查构建戳再谈别的：真要重载的话，后面的刷新都是白做
+  checkNewBuild()
   const now = Date.now()
   const since = now - lastShownAt
   // 同上：时间回拨时不要把自己锁在"刚打开过"里

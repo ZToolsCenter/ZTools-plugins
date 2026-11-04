@@ -3,6 +3,9 @@ import { computed } from 'vue'
 import { useStore } from '../composables/useStore'
 import { CATS } from '../utils/categories'
 
+/** 构建时由 vite define 注入（plugin.json 的 version） */
+const appVersion = __APP_VERSION__
+
 const store = useStore()
 
 /**
@@ -103,6 +106,12 @@ const cleanLabel = computed(() => {
 
       <!-- 不配图标：132px 的侧栏装不下"图标 + Enter 复制 · Esc 退出"（会溢出 16px） -->
       <div class="foot-tip">Enter 复制 · Esc 退出</div>
+
+      <!--
+        版本徽标：dev 模式的插件视图是持久化的，页面不重载就一直跑旧 JS ——
+        "明明修了怎么还在"十有八九是跑着旧版本。把它常亮在这里，一眼对账。
+      -->
+      <div class="foot-ver">v{{ appVersion }}</div>
     </div>
   </nav>
 </template>
@@ -203,5 +212,13 @@ const cleanLabel = computed(() => {
   color: var(--text-3);
   font-size: 11px;
   white-space: nowrap;
+}
+.foot-ver {
+  padding: 1px 10px 4px;
+  color: var(--text-3);
+  font-size: 10px;
+  opacity: 0.75;
+  flex: none;
+  user-select: text;
 }
 </style>

@@ -24,7 +24,7 @@
  *      用"定时器跳拍"识别刚从隐藏/挂起恢复。
  */
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -68,6 +68,19 @@ check(
   true
 )
 check('退出插件后轮询继续（不再降档/停死）', /function idleWatching\(\): void \{[\s\S]{0,80}poll\(\)/.test(store), true)
+
+console.log('\n--- 契约：dev 视图持久化 → 新构建要能自动生效 ---')
+check(
+  '构建戳自检只在 file:// 下生效（dev server 有 HMR；市场版走宿主更新流）',
+  /location\.protocol !== 'file:'\) return/.test(store),
+  true
+)
+check('磁盘戳与页面戳不一致就整页重载', /stamp !== __BUILD_STAMP__\) location\.reload\(\)/.test(store), true)
+check('onShown 第一件事就是查构建戳（真要重载的话后面都是白做）', /function onShown\(\): void \{[\s\S]{0,120}checkNewBuild\(\)/.test(store), true)
+check('preload 提供 readBuildStamp（读 dist/BUILD_ID）', /readBuildStamp\(\) \{[\s\S]{0,300}BUILD_ID/.test(readFileSync(join(root, 'src-ztools/preload/services.js'), 'utf8')), true)
+check('vite 构建时写 BUILD_ID 并注入页面戳', /__BUILD_STAMP__[\s\S]{0,80}closeBundle/.test(readFileSync(join(root, 'vite.config.js'), 'utf8')) || /closeBundle[\s\S]{0,400}BUILD_ID/.test(readFileSync(join(root, 'vite.config.js'), 'utf8')), true)
+check('dist/BUILD_ID 已随最近一次构建生成', existsSync(join(root, 'src-ztools/dist/BUILD_ID')), true)
+check('侧栏常亮版本徽标（对账"跑的是哪版"）', /foot-ver[\s\S]{0,120}appVersion/.test(readFileSync(join(root, 'src/components/Sidebar.vue'), 'utf8')), true)
 check('间隔是 1.2 秒', /export const POLL_INTERVAL_MS = 1200/.test(store), true)
 check(
   '定时器跳拍 = 刚从隐藏/挂起恢复（不依赖宿主事件）',
