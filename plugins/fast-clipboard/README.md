@@ -6,22 +6,36 @@
 
 ## 演示
 
+> 截图均来自演示模式（开发服务器加 `?demo=1`），数据全部是编造的假数据，不包含任何真实信息。
+
 ### 全部
 
-![preview-all](design/preview-all.png)
+![全部分类](design/preview-all.png)
+
+### 文本
+
+![文本分类](design/preview-text.png)
+
+### 链接
+
+![链接分类](design/preview-link.png)
 
 ### 代码
 
-![preview-code](design/preview-code.png)
+![代码分类](design/preview-code.png)
+
+### 颜色
+
+![颜色分类](design/preview-color.png)
 
 ### 图片
 
-![preview-image](design/preview-image.png)
+![图片分类](design/preview-image.png)
 
 ### 文件
 
-![preview-file](design/preview-file.png)
+![文件分类](design/preview-file.png)
 
 ### 收藏
 
-![preview-favorite](design/preview-favorite.png)
+![收藏分类](design/preview-favorite.png)
