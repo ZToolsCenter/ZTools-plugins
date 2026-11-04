@@ -2,6 +2,18 @@
 
 Native OCR 从官方 `wechat-ocr` 插件 fork 而来，作者署名 Samson。以下版本历史已按里程碑整合。
 
+## 1.1.1 - 2026-11-03
+
+基于 1.1.0 的补丁发布：修复 Windows 系统 OCR 的中文乱码。仅此一项功能变更，其余为配套的传输协议测试与脚本编码调整。
+
+### 修复
+
+- **修复 Windows 系统 OCR 中文乱码（根本修复）**：原实现依赖 `[Console]::OutputEncoding = UTF8` 让 stdout 输出 UTF-8，但该设置在「无真实控制台 + stdout 被重定向到管道」的宿主里可能被**静默忽略**（脚本里的 `try/catch` 把失败吞掉了），输出退回系统 OEM 代码页 —— 中文 Windows 是 936(GBK)；Node 侧固定按 UTF-8 解码，GBK 字节于是被解成乱码，**识别结果与错误信息都会乱**。现改为与代码页无关的传输：PowerShell 端把 JSON 转成 UTF-8 再 Base64 输出（`NOCR1:` 前缀），Base64 只含 `[A-Za-z0-9+/=]`，任何代码页写出的字节完全相同，936 / 950 / 932 / 1252 下行为一致；Node 侧按**原始字节**读取（`encoding: "latin1"`）再解码，并兼容旧版明文 JSON。失败信息也走同一信封，即使 stderr 已被代码页搞乱也能拿到正确文案。脚本本身改为**纯 ASCII**（PowerShell 5.1 会把无 BOM 的 UTF-8 文件按 ANSI 代码页读取，中文注释有被误读的风险）。
+
+### 工程
+
+- **新增 Windows OCR 传输协议测试** `tests/winrt-payload.mjs`（15 项）：把「线上字节必须全部 < 0x80」写成**不变量断言** —— 这是「任何代码页都不影响结果」的可验证形式；另覆盖中文 / emoji 往返、旧协议 / BOM / 前导 warning、单元素数组折叠、失败信封优先于乱码 stderr。`npm test` 现串联 6 个文件。
+
 ## 1.1.0 - 2026-09-24
 
 针对 2026-09-21 全量检查发现的约 30 项问题做修复加固，覆盖识别正确性、导出、磁盘、跨平台与性能。
@@ -31,7 +43,6 @@ Native OCR 从官方 `wechat-ocr` 插件 fork 而来，作者署名 Samson。以
 
 ### 跨平台
 
-- **修复 Windows 系统 OCR 错误信息乱码**：`ocr-winrt.ps1` 此前只为 stdout 设置 UTF-8，错误经 stderr 输出未设编码，中文 Windows（代码页 936）下报错显示乱码；现一并设置。
 - **Windows 系统 OCR 可用性探针加强**：不再只看 PowerShell 版本就判定「可用」，改为实际探测 WinRT OCR 能力；缺少中文语言包时给出明确提示（此前在英文版 Windows 上会显示「可用」，但识别中文失败或质量极差）。
 
 ### 性能

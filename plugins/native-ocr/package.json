@@ -1,6 +1,6 @@
 {
   "name": "native-ocr",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "type": "module",
   "description": "本地多引擎 OCR（微信 OCR / macOS Vision / ONNX / 公式识别）",
@@ -11,7 +11,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/run.mjs && node tests/mixed-layout.mjs && node tests/table.mjs && node tests/engine-rerun.mjs && node tests/check-sfc.mjs"
+    "test": "node tests/run.mjs && node tests/mixed-layout.mjs && node tests/table.mjs && node tests/engine-rerun.mjs && node tests/winrt-payload.mjs && node tests/check-sfc.mjs"
   },
   "dependencies": {
     "katex": "^0.16.11",
