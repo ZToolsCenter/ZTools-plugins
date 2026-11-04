@@ -271,3 +271,24 @@ button:disabled { cursor: default; opacity: .5; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+ .upgrade-required {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.upgrade-required__card {
+  width: min(520px, 100%);
+  padding: 28px;
+  border: 1px solid var(--line, #31414a);
+  border-radius: 18px;
+  background: var(--surface, #101820);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.22);
+}
+
+.upgrade-required__card > span {
+  color: var(--accent, #68d8c3);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
