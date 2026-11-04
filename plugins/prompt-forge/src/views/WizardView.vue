@@ -55,7 +55,7 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
       projectId: selectedProjectId.value || undefined,
       createdAt: now, updatedAt: now,
     }
-    promptStore.addItem(item)
+    await promptStore.addItem(item)
     router.navigateTo('space')
   } catch (e: any) { error.value = e.message || '保存失败' } finally { saving.value = false }
 }
@@ -166,4 +166,13 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
 .empty { padding: 24px; text-align: center; color: var(--pf-text-muted); }
 .wiz-foot { height: 50px; flex-shrink: 0; padding: 8px 24px; background: var(--pf-bg-elevated); border-top: 1px solid var(--pf-border); display: flex; align-items: center; gap: 8px; }
 .spacer { flex: 1; }
+
+@media (max-width: 640px) {
+  .stepper { gap: 8px; }
+  .div { width: 20px; }
+  .wiz-body { padding: 16px; }
+  .vr { grid-template-columns: 1fr; }
+  .vr.header { display: none; }
+  .wiz-foot { padding: 8px 12px; }
+}
 </style>

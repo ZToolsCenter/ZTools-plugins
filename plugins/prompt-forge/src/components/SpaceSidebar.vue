@@ -29,8 +29,10 @@ function switchTab(key: typeof prompt.spaceTab.value) {
 
 <template>
   <aside class="space-sidebar">
-    <div v-for="nav in sideNav" :key="nav.key"
+    <button v-for="nav in sideNav" :key="nav.key" type="button"
       :class="['side-btn', { active: prompt.spaceTab.value === nav.key }]"
+      :aria-current="prompt.spaceTab.value === nav.key ? 'page' : undefined"
+      :title="nav.label"
       @click="switchTab(nav.key)"
     >
       <span class="side-icon"><component :is="nav.icon" :size="16" /></span>
@@ -38,10 +40,10 @@ function switchTab(key: typeof prompt.spaceTab.value) {
       <span v-if="nav.key === 'all'" class="side-count">{{ prompt.liveItems.value.length }}</span>
       <span v-if="nav.key === 'history'" class="side-count">{{ prompt.historyItems.value.length }}</span>
       <span v-if="nav.key === 'trash'" class="side-count">{{ prompt.trashItems.value.length }}</span>
-    </div>
+    </button>
     <div v-if="prompt.spaceTab.value !== 'trash' && prompt.spaceTab.value !== 'history' && prompt.allTags.value.length" class="side-tags">
       <div class="side-tags-title">标签</div>
-      <div
+      <button type="button"
         v-for="tag in prompt.allTags.value.slice(0, 20)"
         :key="tag"
         :class="['side-tag', { active: prompt.filterTag.value === tag }]"
@@ -49,7 +51,7 @@ function switchTab(key: typeof prompt.spaceTab.value) {
       >
         <span class="side-tag-dot">#</span>
         <span class="side-tag-name">{{ tag }}</span>
-      </div>
+      </button>
     </div>
   </aside>
 </template>
@@ -63,6 +65,7 @@ function switchTab(key: typeof prompt.spaceTab.value) {
   padding: 8px 0; overflow-y: auto;
 }
 .side-btn {
+  width: calc(100% - 16px); border: 0; text-align: left;
   display: flex; align-items: center; gap: 8px;
   padding: 8px 16px; margin: 0 8px; border-radius: var(--pf-radius-sm);
   font-size: 13px; color: var(--pf-text-muted);
@@ -75,9 +78,16 @@ function switchTab(key: typeof prompt.spaceTab.value) {
 .side-count { font-size: 11px; font-weight: 600; color: var(--pf-text-faint); font-family: var(--pf-font-mono); }
 .side-tags { margin-top: 4px; padding: 0 8px; border-top: 1px solid var(--pf-border); }
 .side-tags-title { font-size: 10px; font-weight: 700; color: var(--pf-text-faint); text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 8px 4px; }
-.side-tag { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: var(--pf-radius-sm); font-size: 12px; color: var(--pf-text-muted); cursor: pointer; transition: all 0.12s; }
+.side-tag { width: 100%; border: 0; text-align: left; display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: var(--pf-radius-sm); font-size: 12px; color: var(--pf-text-muted); cursor: pointer; transition: all 0.12s; }
 .side-tag:hover { background: var(--pf-surface-hover); color: var(--pf-text); }
 .side-tag.active { background: var(--pf-accent-soft); color: var(--pf-accent); font-weight: 600; }
 .side-tag-dot { font-size: 11px; opacity: 0.5; }
 .side-tag-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 700px) {
+  .space-sidebar { width: 58px; }
+  .side-btn { justify-content: center; padding: 9px; margin: 0 6px; width: calc(100% - 12px); }
+  .side-label, .side-count, .side-tags { display: none; }
+  .side-icon { width: auto; }
+}
 </style>

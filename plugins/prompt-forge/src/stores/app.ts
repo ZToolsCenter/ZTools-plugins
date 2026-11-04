@@ -26,6 +26,7 @@ export function useAppSettings() {
       }
     } catch (e) {
       console.error('Failed to load settings:', e)
+      throw e
     }
   }
 
@@ -36,6 +37,7 @@ export function useAppSettings() {
       await setSettings({ ...existing, ...settings.value })
     } catch (e) {
       console.error('Failed to save settings:', e)
+      throw e
     }
   }
 
