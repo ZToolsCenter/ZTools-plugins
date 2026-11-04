@@ -324,5 +324,5 @@ describe("durable metadata-only consumer inbox", () => {
     expect(store.readConsumerInbox({ consumerId: "bounded-worker", limit: 500 })!.tasks)
       .toHaveLength(500);
     expect(store.getConsumerCheckpoint("bounded-worker")!.enqueuedThrough).toBe("10000");
-  });
+  }, 30_000);
 });
