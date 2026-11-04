@@ -1,6 +1,6 @@
 {
   "name": "local-search-neo",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "借助 Everything 来进行文件搜索",
   "type": "module",
   "scripts": {

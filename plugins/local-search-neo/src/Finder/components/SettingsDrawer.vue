@@ -7,6 +7,7 @@ const props = defineProps<{
   open: boolean;
   categories: FinderCategory[];
   matchPathEnabled: boolean;
+  autoPlayAudio: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -16,6 +17,7 @@ const emit = defineEmits<{
   removeCategory: [category: FinderCategory];
   setCategoryEnabled: [id: string, enabled: boolean];
   setMatchPathEnabled: [enabled: boolean];
+  setAutoPlayAudio: [enabled: boolean];
   reorderCategories: [fromIndex: number, toIndex: number];
   resetCategoryOrder: [];
 }>();
@@ -102,6 +104,10 @@ function handleCategoryEnabledChange(category: FinderCategory, event: Event) {
 
 function handleMatchPathEnabledChange(event: Event) {
   emit("setMatchPathEnabled", readChecked(event));
+}
+
+function handleAutoPlayAudioChange(event: Event) {
+  emit("setAutoPlayAudio", readChecked(event));
 }
 
 function readChecked(event: Event) {
@@ -213,6 +219,18 @@ function resetDragState() {
               />
               <span class="switch-track"></span>
               <span>同时搜索路径</span>
+            </label>
+          </section>
+
+          <section class="settings-card audio-autoplay-settings">
+            <div>
+              <h3>音频自动播放</h3>
+              <p>启用后，预览音频文件时将自动开始播放。</p>
+            </div>
+            <label class="settings-switch">
+              <input type="checkbox" :checked="autoPlayAudio" @change="handleAutoPlayAudioChange" />
+              <span class="switch-track"></span>
+              <span>自动播放</span>
             </label>
           </section>
 
@@ -374,8 +392,7 @@ function resetDragState() {
   position: fixed;
   inset: 0;
   z-index: 500;
-  display: grid;
-  align-items: end;
+  overflow: hidden;
 }
 
 .settings-backdrop {
@@ -385,13 +402,14 @@ function resetDragState() {
 }
 
 .settings-drawer {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  position: absolute;
+  top: 48px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-  position: relative;
-  width: 100%;
-  height: calc(100% - 48px);
-  max-height: calc(100% - 48px);
   box-sizing: border-box;
   padding: 18px 4px 0 0;
   overflow: hidden;
@@ -448,6 +466,7 @@ function resetDragState() {
 }
 
 .settings-header {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -498,6 +517,7 @@ function resetDragState() {
 }
 
 .settings-section {
+  flex: 1;
   display: grid;
   align-content: start;
   gap: 14px;
@@ -522,11 +542,18 @@ function resetDragState() {
   border-radius: 8px;
 }
 
-.search-settings {
+.search-settings,
+.audio-autoplay-settings {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.search-settings > div,
+.audio-autoplay-settings > div {
+  min-width: 0;
+  word-break: break-word;
 }
 
 .category-settings {
@@ -555,6 +582,8 @@ function resetDragState() {
 }
 
 .settings-switch {
+  position: relative;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -566,6 +595,10 @@ function resetDragState() {
 
 .settings-switch input {
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity: 0;
   pointer-events: none;
 }
@@ -686,37 +719,48 @@ function resetDragState() {
 }
 
 .category-switch {
+  position: relative;
   display: inline-flex;
+  align-items: center;
   justify-self: start;
   cursor: pointer;
 }
 
 .category-switch input {
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity: 0;
   pointer-events: none;
 }
 
 .switch-track {
-  position: relative;
-  width: 32px;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 2px;
+  width: 30px;
   height: 16px;
   flex: 0 0 auto;
   border-radius: 999px;
   background: #6c7178;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.18s ease;
 }
 
 .switch-track::after {
   content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
+  display: block;
   width: 12px;
   height: 12px;
+  flex-shrink: 0;
   border-radius: 50%;
-  background: #f2f4f7;
-  transition: transform 0.15s ease;
+  background: #ffffff;
+  box-shadow:
+    0 0 2px rgba(0, 0, 0, 0.35),
+    0 0 1px rgba(0, 0, 0, 0.2);
+  transition: transform 0.18s ease;
 }
 
 .settings-switch input:checked + .switch-track,
@@ -726,7 +770,7 @@ function resetDragState() {
 
 .settings-switch input:checked + .switch-track::after,
 .category-switch input:checked + .switch-track::after {
-  transform: translateX(16px);
+  transform: translateX(14px);
 }
 
 .category-name,
@@ -826,11 +870,13 @@ function resetDragState() {
 
   .settings-header h2,
   .search-settings h3,
+  .audio-autoplay-settings h3,
   .category-section-header h3 {
     color: #111827;
   }
 
   .search-settings p,
+  .audio-autoplay-settings p,
   .category-section-header p,
   .category-list-header,
   .category-group-arrow,
@@ -904,6 +950,12 @@ function resetDragState() {
 
   .switch-track {
     background: #b9c2ce;
+  }
+
+  .switch-track::after {
+    box-shadow:
+      0 0 2px rgba(0, 0, 0, 0.22),
+      0 0 1px rgba(0, 0, 0, 0.12);
   }
 
   .settings-switch input:checked + .switch-track,
