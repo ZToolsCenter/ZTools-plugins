@@ -4,7 +4,7 @@
   "title": "ASCII Tree",
   "description": "将分级文本转换为 ASCII Tree，并支持复制与导出。",
   "author": "fetasty",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.jpg",
