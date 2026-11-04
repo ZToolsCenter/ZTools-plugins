@@ -386,21 +386,78 @@ async function tick(): Promise<void> {
 }
 
 /**
- * "又被打开了"时的一次对账。
+ * "又被打开了"时的一次对账 —— **只有一次 IPC**。
  *
- * 先增量补一批；补完再确认列表头是不是跟宿主一致 —— 不一致（顺序变了、或者
- * 关着的时候复制得太多超过了一批的容量）就整页重拉，按"刚打开插件"对待。
- * 宁可丢滚动位置，也不要留一个半旧的列表。
+ * 拉一批最新的，直接拿这次的结果判断：
+ *   - 有新增 → prepend（新的一定在最前）
+ *   - 没新增但**头部跟宿主不一致**（顺序变了 / 关着时复制太多超过一批）→ 整页重拉
+ * 一次调用搞定，省掉"先补一批再单独查头部"那一趟，越快，用户越看不到数据被追加。
  */
+let lastRefreshAt = 0
+const REFRESH_DEDUPE_MS = 120
+
 async function refreshOnShow(): Promise<void> {
-  await syncLatest(WAKE_SYNC_SIZE)
+  const now = Date.now()
+  const since = now - lastRefreshAt
+  // 负数是"系统时间回拨/校时"：不能据此判定"刚刷过"，否则会一直跳过
+  if (since >= 0 && since < REFRESH_DEDUPE_MS) return
+  lastRefreshAt = now
+
+  const anchorId = filtered.value[selectedIndex.value]?.id ?? null
   try {
-    const head = await api.getHistory(1, 1)
-    const hostTop = head.items[0]?.id ?? null
-    if (hostTop && records.value[0]?.id !== hostTop) await loadFirst()
+    // 先用最便宜的一步挡掉"其实什么都没变"的常见情况（只是打开又关上）：
+    // 一次 getStatus 往往不到 1ms，比拉 50 条历史快得多。
+    const n = await api.clipboardCount()
+    if (n !== null && n === syncedCount) return
+
+    const res = await api.getHistory(1, WAKE_SYNC_SIZE)
+    const seen = new Set(records.value.map((r) => r.id))
+    const fresh = res.items.filter((r) => !seen.has(r.id))
+    // 没有新增时，头部必须跟宿主一致；不一致说明本地漏了/顺序变了，整页重拉
+    if (fresh.length === 0 && res.items[0] && records.value[0]?.id !== res.items[0].id) {
+      await loadFirst()
+      return
+    }
+    if (fresh.length > 0) records.value = fresh.concat(records.value)
+    const total = res.total || records.value.length
+    // 先更新总数再重算：反过来侧栏"全部"会停在上一次的值上
+    totalCount.value = total
+    if (fresh.length > 0) recount()
+    syncedCount = total
   } catch {
-    /* 宿主忙：交给下一拍 */
+    /* 宿主忙：交给轮询兜底，不推进 syncedCount */
+  } finally {
+    restoreSelection(anchorId)
   }
+}
+
+/**
+ * 恢复检测（最快的一路）：**动画帧**。
+ *
+ * 窗口隐藏 / 被遮挡时浏览器会暂停 `requestAnimationFrame`，重新显示后的第一帧
+ * 与上一帧的间隔必然很大。这是唯一能在"窗口刚出现"这一帧就察觉的信号 ——
+ * 定时器最慢要等一整拍（1.2 秒），用户就会亲眼看到数据被补上去的那一下。
+ * 检测延迟约一帧（16ms），等于"打开即最新"。
+ */
+const FRAME_GAP_MS = 250
+let frameWatchStop: (() => void) | null = null
+
+function watchFrames(): void {
+  if (frameWatchStop) return
+  if (typeof requestAnimationFrame !== 'function') return
+  let last = 0
+  let stopped = false
+  const loop = (): void => {
+    if (stopped) return
+    const now = Date.now()
+    if (last > 0 && now - last > FRAME_GAP_MS) void refreshOnShow()
+    last = now
+    requestAnimationFrame(loop)
+  }
+  frameWatchStop = () => {
+    stopped = true
+  }
+  requestAnimationFrame(loop)
 }
 
 /**
@@ -449,7 +506,9 @@ const SHOW_DEDUPE_MS = 300
  */
 function onShown(): void {
   const now = Date.now()
-  if (now - lastShownAt < SHOW_DEDUPE_MS) return
+  const since = now - lastShownAt
+  // 同上：时间回拨时不要把自己锁在"刚打开过"里
+  if (since >= 0 && since < SHOW_DEDUPE_MS) return
   lastShownAt = now
   focusSearch()
   startWatching(true)
@@ -1082,6 +1141,8 @@ function init(): void {
   })
   // 渲染进程侧的"窗口又出现了"：这一路不依赖宿主的生命周期事件
   watchWindowShow()
+  // 最快的一路：动画帧停摆后恢复（窗口刚出现的那一帧就能察觉）
+  watchFrames()
   // 退出插件：取消尚未执行的重试，轮询降到慢速档（别彻底停，见 idleWatching）
   api.onPluginOut(() => {
     cancelFocus()

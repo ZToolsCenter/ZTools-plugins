@@ -75,8 +75,8 @@ check(
   true
 )
 check(
-  '跳拍后做一次完整对账（先补一批，再核头部）',
-  /async function refreshOnShow\(\)[\s\S]{0,400}syncLatest\(WAKE_SYNC_SIZE\)[\s\S]{0,300}loadFirst\(\)/.test(store),
+  '跳拍后做一次完整对账（补一批，头部对不上就整页重拉）',
+  /async function refreshOnShow\(\)[\s\S]{0,900}getHistory\(1, WAKE_SYNC_SIZE\)[\s\S]{0,400}loadFirst\(\)/.test(store),
   true
 )
 
@@ -87,6 +87,9 @@ check('监听 window focus', /addEventListener\('focus'/.test(store), true)
 check('同一次打开的多个信号会去重', /SHOW_DEDUPE_MS/.test(store), true)
 check('用户一动（键盘）也顺手对账一次', /addEventListener\('keydown', onInteract, true\)/.test(store), true)
 check('用户一动（鼠标）也顺手对账一次', /addEventListener\('mousemove', onInteract/.test(store), true)
+check('用动画帧停摆来识别"窗口刚出现"（一帧内就能察觉）', /function watchFrames\(\)[\s\S]{0,400}requestAnimationFrame\(loop\)/.test(store), true)
+check('对账只拉一次历史（不再先补一批再单独查头部）', /async function refreshOnShow\(\)[\s\S]{0,900}const res = await api\.getHistory\(1, WAKE_SYNC_SIZE\)/.test(store), true)
+check('恢复时先用最便宜的 getStatus 挡掉"没变化"', /const n = await api\.clipboardCount\(\)[\s\S]{0,60}n === syncedCount\) return/.test(store), true)
 
 console.log('\n--- 契约：其余基础能力 ---')
 check('轮询先用轻量的 getStatus 探路', /async function hasNewRecords\(\)[\s\S]{0,200}api\.clipboardCount\(\)/.test(store), true)
@@ -114,6 +117,17 @@ let enterCb: (() => void) | null = null
 let outCb: ((killed: boolean) => void) | null = null
 let changeCb: (() => void) | null = null
 const mem = new Map<string, string>()
+
+/** 手动驱动的动画帧桩：store 的"恢复检测"就挂在这上面 */
+const rafQueue: Array<() => void> = []
+;(globalThis as any).requestAnimationFrame = (cb: () => void): number => {
+  rafQueue.push(cb)
+  return rafQueue.length
+}
+function nextFrame(): void {
+  const pending = rafQueue.splice(0)
+  pending.forEach((cb) => cb())
+}
 
 let visCb: (() => void) | null = null
 let focusCb: (() => void) | null = null
@@ -254,12 +268,26 @@ Date.now = realNow
 check('跳拍后被识别为"重新打开"并追平', s.records.value[0].content, '挂起期间复制的')
 check('对账是一次拉一批（不止 5 条）', pageSizes.includes(50), true)
 
+console.log('\n--- ★ 关键回归：窗口重新出现的第一帧就追平（不靠定时器）---')
+s.stopWatching() // 先把轮询兜底停掉，证明这一路是"帧"触发的（不要调用 outCb，它会重启轮询）
+pushNew('第一帧就该看到')
+await sleep(200) // 跨过对账去重窗口
+nextFrame() // 建立帧基线
+nextFrame()
+const realNow2 = Date.now
+Date.now = () => realNow2() + 1_000 // 模拟窗口隐藏了一段时间后重新出现
+nextFrame() // 恢复后的第一帧
+Date.now = realNow2
+await sleep(150)
+check('一帧之内就补齐了', s.records.value[0].content, '第一帧就该看到')
+enterCb?.() // 重新打开，把轮询兜底恢复起来，供后面的用例使用
+
 console.log('\n--- 关着的时候复制了一串：重新打开要一次补齐 ---')
 outCb?.(false)
 for (let i = 0; i < 8; i++) pushNew('批量 ' + i)
 await sleep(400) // 跨过"同一次打开"的去重窗口
 focusCb?.()
-await sleep(250)
+await sleep(350)
 check('8 条全部补上', s.records.value.filter((r) => r.content.startsWith('批量')).length, 8)
 check('最新的一条在最前面', s.records.value[0].content, '批量 7')
 
