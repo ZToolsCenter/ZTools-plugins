@@ -440,7 +440,7 @@ function createStore(injectedDb, options) {
       s.ballSize = clampInt(s.ballSize, 56, 110, DEFAULT_SETTINGS.ballSize);
     }
     const op = Number(s.ballOpacity);
-    s.ballOpacity = isFinite(op) ? Math.min(1, Math.max(0.2, op)) : DEFAULT_SETTINGS.ballOpacity;
+    s.ballOpacity = isFinite(op) ? Math.min(1, Math.max(0, op)) : DEFAULT_SETTINGS.ballOpacity;
     if (['profit', 'profitRate', 'todayProfit', 'both', 'pct', 'price'].indexOf(s.ballMode) < 0) s.ballMode = DEFAULT_SETTINGS.ballMode;
     if (['positions', 'watchlist'].indexOf(s.defaultView) < 0) s.defaultView = DEFAULT_SETTINGS.defaultView;
     s.panelOnTop = !!s.panelOnTop;

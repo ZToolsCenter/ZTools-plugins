@@ -62,13 +62,51 @@
   }
   function current() { return quotes.length ? quotes[((cursor % quotes.length) + quotes.length) % quotes.length] : null; }
 
+  function hoverNumber(value) {
+    if ((typeof value !== 'number' && typeof value !== 'string') || String(value).trim() === '') return null;
+    var n = Number(value);
+    return isFinite(n) ? n : null;
+  }
+
+  function updateHoverTitle() {
+    if (!ball || isDragging) return;
+    var hasPositions = posSummary && posSummary.count > 0;
+    var items = hasPositions ? (posSummary.positions || []).filter(function (p) {
+      return p && p.quantity > 0;
+    }).map(function (p) {
+      return { code: p.stock_code, name: p.stock_name, price: p.current_price, pct: p.change_percent };
+    }) : quotes.map(function (q) {
+      return { code: q.code, name: q.watchName || q.name, price: q.price, pct: q.pct };
+    });
+    var seenCodes = Object.create(null);
+    var movers = items.filter(function (item) {
+      item.pct = hoverNumber(item.pct);
+      if (!item.code || item.pct === null || Math.abs(item.pct) <= 3 || seenCodes[item.code]) return false;
+      seenCodes[item.code] = true;
+      return true;
+    }).sort(function (a, b) { return Math.abs(b.pct) - Math.abs(a.pct); });
+    var lines = [(hasPositions ? '持仓' : '自选') + ' · 今日涨跌幅超过 3%'];
+    if (!movers.length) lines.push('暂无符合条件的股票');
+    movers.forEach(function (item) {
+      var price = hoverNumber(item.price);
+      lines.push((item.name || item.code) + '（' + item.code + '）  ' +
+        (item.pct > 0 ? '+' : '-') + Math.abs(item.pct).toFixed(2) + '%  现价 ' +
+        (price !== null && price > 0 ? fmtPrice(price) : '--'));
+    });
+    lines.push('双击打开股票插件 · 拖动改变位置');
+    // 使用宿主原生悬停提示，可越过小球窗口边界显示完整列表。
+    var title = lines.join('\n');
+    if (ball.title !== title) ball.title = title;
+  }
+
   function applyOpacity(val) {
     var op = Number(val);
-    if (!isFinite(op) || op <= 0 || op > 1) op = 0.95;
+    if (!isFinite(op)) op = 0.95;
+    op = Math.min(1, Math.max(0, op));
     settings.ballOpacity = op;
-    document.documentElement.style.setProperty('--opacity', String(op));
-    if (root) root.style.opacity = String(op);
-    if (ball) ball.style.opacity = String(op);
+    // 只淡化背景层，文字和拖动区域始终保留；低背景不透明度时用文字表达涨跌。
+    document.documentElement.style.setProperty('--ball-bg-opacity', String(op));
+    if (root) root.classList.toggle('transparent-bg', op <= 0.3);
   }
 
   function applySettings(s) {
@@ -107,6 +145,7 @@
 
   function render() {
     if (isDragging) { needRender = true; return; } // 拖动中不重建 DOM，松手再补
+    updateHoverTitle();
     var hasPositions = posSummary && posSummary.count > 0;
 
     if (hasPositions) {
@@ -175,7 +214,7 @@
     var pQuotes = Promise.resolve().then(function () {
       return S.quotes ? S.quotes() : [];
     }).then(function (list) {
-      if (list && list.length) {
+      if (Array.isArray(list)) {
         quotes = list.filter(function (x) { return x && x.code; });
         if (cursor >= quotes.length) cursor = 0;
         render();
@@ -234,11 +273,10 @@
   var dragSeq = 0;
 
   /*
-   * 拖动两条路径（老实现的卡顿有两个来源，这里各治一个）：
-   *  1) 快速路径：宿主允许 electron.remote 时，球窗口直接 setBounds 移动自己，零 IPC，
-   *     跟手度等同系统原生拖动。老实现每帧要走「球→IPC→主窗口→setBounds」，
-   *     而主窗口此时多半是隐藏的（进插件就 hideMainWindow），渲染进程被节流，越拖越滞。
-   *  2) IPC 路径：起手后立即发送位移，主窗口用同步 bounds 或已知位置作为基准。
+   * 服务层优先用 ZTools 的同步窗口接口直接移动本球，不经过隐藏的插件主页面。
+   * 老宿主若还提供 electron.remote，也保留直接 setBounds 的兼容路径。
+   * 不支持直接控制时，服务层回退到主页面转发；起手后立即发送位移，
+   * 主页面用同步 bounds 或已知位置作为基准。
    *     每次手势有独立标识，旧手势的延迟消息和异步快照不会干扰下一次拖动。
    */
   var nativeWin = null;
@@ -377,6 +415,7 @@
   }
 
   ball.addEventListener('pointerdown', onPointerDown);
+  ball.addEventListener('pointerenter', updateHoverTitle);
   ball.addEventListener('pointermove', onPointerMove);
   ball.addEventListener('pointerup', onPointerUp);
   function cancelPointer(e) { finishPointer(e, true); }
