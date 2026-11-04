@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { FieldDef, FieldValue, Row, TableSchema } from '../types/table'
 import { hasOptions } from '../types/table'
-import { FIELD_TYPE_LABELS, collectFieldOptions, defaultValue } from '../domain/fieldTypes'
+import { FIELD_TYPE_LABELS, collectFieldOptions, defaultValue, isEmptyValue } from '../domain/fieldTypes'
 import { DEFAULT_MULTI_SEP, splitMultiValue } from '../domain/separators'
 
 const props = defineProps<{
@@ -127,7 +127,14 @@ function submit() {
           <el-option
             v-for="f in fields"
             :key="f.id"
-            :label="f.name + '（' + FIELD_TYPE_LABELS[f.type] + '）'"
+            :label="
+                f.name +
+                '（' +
+                FIELD_TYPE_LABELS[f.type] +
+                (f.unique ? ' · 唯一' : '') +
+                (f.required ? ' · 必填' : '') +
+                '）'
+              "
             :value="f.id"
           />
         </el-select>
@@ -215,6 +222,12 @@ function submit() {
         />
       </el-form-item>
     </el-form>
+    <p v-if="field?.required && isEmptyValue(value)" class="constraint-tip">
+      该字段必填，留空无法保存
+    </p>
+    <p v-else-if="field?.unique && targets.length > 1 && !isEmptyValue(value)" class="constraint-tip">
+      该字段唯一，不能给多条记录批量改成同一个非空值
+    </p>
     <template #footer>
       <el-button @click="close">取消</el-button>
       <el-button type="primary" :disabled="!field" @click="submit">应用修改</el-button>
@@ -231,6 +244,11 @@ function submit() {
 }
 .list-editor {
   width: 100%;
+}
+.constraint-tip {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--el-color-warning);
 }
 .tag-row {
   display: flex;

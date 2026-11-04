@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import type { FieldDef, FieldValue, Row, TableSchema } from '../types/table'
 import { defaultValue, initialFieldDefault, collectFieldOptions, addFieldOptions } from '../domain/fieldTypes'
+import { validateRowValues } from '../domain/constraints'
 import { DEFAULT_MULTI_SEP, splitMultiValue } from '../domain/separators'
 import { hasOptions } from '../types/table'
 
@@ -21,9 +23,12 @@ const emit = defineEmits<{
 
 const form = reactive<Record<string, FieldValue>>({})
 const rowId = ref<string | null>(null)
+/** 字段 id → 校验错误文案（提交时生成，改动任意字段后清掉） */
+const errors = ref<Record<string, string>>({})
 
 function fillFromRow() {
   rowId.value = props.row?.id ?? null
+  errors.value = {}
   const values: Record<string, FieldValue> = {}
   for (const f of props.table.fields) {
     values[f.id] =
@@ -43,6 +48,15 @@ watch(
     if (props.visible) fillFromRow()
   },
   { immediate: true }
+)
+
+// 用户改动任意字段后清掉上一次的校验提示，避免错误一直挂着
+watch(
+  form,
+  () => {
+    if (Object.keys(errors.value).length) errors.value = {}
+  },
+  { deep: true }
 )
 
 /**
@@ -76,7 +90,25 @@ function setListText(f: FieldDef, text: string) {
 
 const title = computed(() => (props.row ? '编辑记录' : '新增记录'))
 
+/** 必填字段在标签后加星号，保存前统一校验 */
+function fieldLabel(f: FieldDef): string {
+  return f.required ? `${f.name} *` : f.name
+}
+
 function submit() {
+  const issues = validateRowValues(props.table.fields, { ...form }, props.rows ?? [], rowId.value)
+  if (issues.length) {
+    const next: Record<string, string> = {}
+    for (const issue of issues) {
+      next[issue.fieldId] = next[issue.fieldId]
+        ? `${next[issue.fieldId]}；${issue.message}`
+        : issue.message
+    }
+    errors.value = next
+    ElMessage.warning(issues[0].message)
+    return
+  }
+  errors.value = {}
   emit('save', { ...form }, rowId.value)
   emit('update:visible', false)
 }
@@ -106,7 +138,7 @@ function toggleMulti(f: FieldDef, opt: string) {
     @update:model-value="emit('update:visible', $event)"
   >
     <el-form label-width="88px" label-position="left" @submit.prevent="submit">
-      <el-form-item v-for="f in table.fields" :key="f.id" :label="f.name">
+      <el-form-item v-for="f in table.fields" :key="f.id" :label="fieldLabel(f)" :error="errors[f.id]">
         <!-- 文本 / 链接 -->
         <el-input
           v-if="f.type === 'text' || f.type === 'url'"

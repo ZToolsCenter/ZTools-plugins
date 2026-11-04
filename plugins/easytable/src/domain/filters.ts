@@ -3,7 +3,7 @@
 
 import type { FieldDef, FilterCond, FilterOp } from '../types/table.ts'
 import { CREATED_AT_FIELD_ID, UPDATED_AT_FIELD_ID } from '../types/table.ts'
-import { coerceFieldValue, displayValue } from './fieldTypes.ts'
+import { coerceFieldValue, displayValue, isEmptyValue } from './fieldTypes.ts'
 
 /** 系统列的虚拟字段定义（筛选/表单共用） */
 export function systemField(id: string): FieldDef {
@@ -55,16 +55,6 @@ export function opsForField(f: FieldDef): Array<{ op: FilterOp; label: string }>
     list.push({ op: 'today', label: '今天' }, { op: 'thisWeek', label: '本周' }, { op: 'thisMonth', label: '本月' })
   }
   return list
-}
-
-/**
- * 空值判定：null / '' / 空数组算空。
- * checkbox 不走这里（改为「是 / 否」，见 opsForField），因为它的 false 和未填在表格里都显示为空。
- */
-export function isEmptyValue(v: unknown): boolean {
-  if (v == null) return true
-  if (Array.isArray(v)) return v.length === 0
-  return String(v) === ''
 }
 
 /**

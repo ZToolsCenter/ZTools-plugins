@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FieldDef, FieldValue, Row, TableSchema } from '../types/table'
 import { defaultValue, initialFieldDefault, addFieldOptions, collectFieldOptions } from '../domain/fieldTypes'
+import { validateRowValues } from '../domain/constraints'
 import { hasOptions } from '../types/table'
 import { generateId } from '../utils/id'
 
@@ -21,6 +22,8 @@ const emit = defineEmits<{
 
 const tableId = ref(props.quickTableId || props.tables[0]?.id || '')
 const form = reactive<Record<string, FieldValue>>({})
+/** 字段 id → 校验错误文案（保存时生成，改动任意字段后清掉） */
+const errors = ref<Record<string, string>>({})
 
 const table = computed(
   () => props.tables.find((t) => t.id === tableId.value) ?? props.tables[0] ?? null
@@ -28,6 +31,7 @@ const table = computed(
 
 function fill() {
   const t = table.value
+  errors.value = {}
   Object.keys(form).forEach((k) => delete form[k])
   if (!t) return
   for (const f of t.fields) {
@@ -52,6 +56,15 @@ watch(
   (id) => {
     if (id && props.tables.some((t) => t.id === id)) tableId.value = id
   }
+)
+
+// 改动任意字段后清掉校验提示，避免错误一直挂着
+watch(
+  form,
+  () => {
+    if (Object.keys(errors.value).length) errors.value = {}
+  },
+  { deep: true }
 )
 
 function onTableChange(id: string) {
@@ -91,9 +104,22 @@ function save() {
     ElMessage.warning('请先选择表格')
     return
   }
-  const now = Date.now()
   const values: Record<string, FieldValue> = {}
   for (const f of t.fields) values[f.id] = form[f.id] ?? defaultValue(f.type)
+  const issues = validateRowValues(t.fields, values, props.rowsByTable?.[t.id] ?? [])
+  if (issues.length) {
+    const next: Record<string, string> = {}
+    for (const issue of issues) {
+      next[issue.fieldId] = next[issue.fieldId]
+        ? `${next[issue.fieldId]}；${issue.message}`
+        : issue.message
+    }
+    errors.value = next
+    ElMessage.warning(issues[0].message)
+    return
+  }
+  errors.value = {}
+  const now = Date.now()
   emit('save', {
     id: generateId('row'),
     tableId: t.id,
@@ -138,7 +164,12 @@ function cancel() {
       class="quick-form"
       @submit.prevent="save"
     >
-      <el-form-item v-for="f in table.fields" :key="f.id" :label="f.name">
+      <el-form-item
+        v-for="f in table.fields"
+        :key="f.id"
+        :label="f.required ? f.name + ' *' : f.name"
+        :error="errors[f.id]"
+      >
         <el-input
           v-if="f.type === 'text' || f.type === 'url'"
           v-model="(form[f.id] as string)"
