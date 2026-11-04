@@ -1,4 +1,5 @@
 import type { ClipboardRecord, FavoriteSnapshot, PageResult } from './types'
+import { isColorValue } from './utils/format'
 
 /**
  * 宿主 API 封装层。
@@ -99,7 +100,7 @@ export function looksLikeShell(text: string): boolean {
 export function detectKind(text: string): Exclude<ClipboardRecord['kind'], 'image' | 'file'> {
   const t = text.trim()
   if (!t) return 'text'
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(t)) return 'color'
+  if (isColorValue(t)) return 'color'
   if (/^(https?:\/\/|www\.)\S+$/i.test(t)) return 'link'
   if (t.length >= 24) {
     const hits = CODE_HINTS.reduce((n, h) => (t.includes(h) ? n + 1 : n), 0)
@@ -395,25 +396,6 @@ export const host = {
     return Number((res as any)?.count ?? 0)
   },
 
-  /**
-   * 宿主剪贴板库里的记录总数（`clipboard.getStatus()` → `itemCount`）。
-   *
-   * 用来"探头"：数量变了才值得去拉一次历史。比每次都 getHistory 便宜得多
-   * （历史是全量取出的 IPC，序列号化才是成本）。
-   * 宿主没有这个接口时返回 null，调用方退化为定时拉头部。
-   */
-  async clipboardCount(): Promise<number | null> {
-    const zt = window.ztools as any
-    if (typeof zt?.clipboard?.getStatus !== 'function') return null
-    try {
-      const s = await zt.clipboard.getStatus()
-      const n = Number(s?.itemCount)
-      return Number.isFinite(n) ? n : null
-    } catch {
-      return null
-    }
-  },
-
   onChange(cb: () => void): void {
     ;(window.ztools as any).clipboard.onChange(cb)
   },
@@ -588,6 +570,8 @@ const MOCK_TEXTS: Array<[string, string]> = [
   ['code', '/* 多行块注释\n   跨行也要保持注释色 */\nconst KEY = "value" // 行注释'],
   ['color', '#5B8DEF'],
   ['color', '#0F6E56'],
+  ['color', 'rgba(91, 141, 239, 0.45)'],
+  ['color', 'hsl(152, 69%, 31%)'],
   ['text', 'ssh -p 2222 dev@10.0.0.12'],
   ['text', '取件码 8-2-3069，丰巢快递柜'],
 ]
@@ -757,6 +741,92 @@ function buildMockData(): any[] {
 
 let mockDb = buildMockData()
 
+/* ------------------------------------------------------------------ */
+/* 演示模式（?demo=1）：README 截图专用                                  */
+/*                                                                      */
+/* 数据全是编的：假项目名（Aurora）、假路径（C:\Users\demo）、假文案，     */
+/* 图片用 canvas 现画（渐变 + 标题），不含任何真实信息。                  */
+/* ------------------------------------------------------------------ */
+
+/** 演示用假图片：渐变底 + 半透明圆 + 居中标题，按标题散列出不同色相 */
+function demoImage(title: string, w = 560, h = 320): string {
+  try {
+    const c = document.createElement('canvas')
+    c.width = w
+    c.height = h
+    const ctx = c.getContext('2d')
+    if (!ctx) return ''
+    const hue = [...title].reduce((n, ch) => n + ch.charCodeAt(0), 0) % 360
+    const g = ctx.createLinearGradient(0, 0, w, h)
+    g.addColorStop(0, `hsl(${hue}, 58%, 72%)`)
+    g.addColorStop(1, `hsl(${(hue + 46) % 360}, 62%, 52%)`)
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, w, h)
+    ctx.fillStyle = `hsla(${(hue + 120) % 360}, 70%, 88%, 0.5)`
+    ctx.beginPath()
+    ctx.arc(w * 0.78, h * 0.3, Math.min(w, h) * 0.18, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(w * 0.2, h * 0.72, Math.min(w, h) * 0.12, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.92)'
+    ctx.font = `600 ${Math.round(Math.min(w, h) * 0.11)}px "PingFang SC", "Microsoft YaHei", sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(title, w / 2, h * 0.52, w * 0.86)
+    return c.toDataURL('image/png')
+  } catch {
+    return ''
+  }
+}
+
+function buildDemoData(): any[] {
+  const now = Date.now()
+  const out: any[] = []
+  const mk = (o: any): void => {
+    const i = out.length
+    out.push({
+      id: 'demo-' + i,
+      hash: 'dh' + i,
+      timestamp: now - i * 9 * 60 * 1000 - (i % 5) * 61_000,
+      ...o
+    })
+  }
+
+  mk({ type: 'text', content: '明早 10:00 和设计对齐 v2.3 交互稿，重点看搜索结果页的空态', appName: 'VSCode' })
+  mk({ type: 'image', content: demoImage('登录页 · 设计稿'), resolution: '560 * 320', preview: '[图片] 46KB', appName: 'Snipaste' })
+  mk({ type: 'color', content: 'rgba(91, 141, 239, 0.45)' })
+  mk({ type: 'code', content: 'const debounce = (fn, ms) => {\n  let t\n  return (...a) => {\n    clearTimeout(t)\n    t = setTimeout(() => fn(...a), ms)\n  }\n}', appName: 'VSCode' })
+  mk({ type: 'link', content: 'https://developer.mozilla.org/zh-CN/docs/Web/CSS/color_value' })
+  mk({ type: 'file', files: [{ path: 'D:\\Projects\\Aurora\\docs\\架构方案-v2.docx', name: '架构方案-v2.docx', isDirectory: false, exists: true }], preview: '[文件] 架构方案-v2.docx' })
+  mk({ type: 'text', content: '取件码 7-3-2086（菜鸟驿站，今天 22:00 前取）', appName: '微信' })
+  mk({ type: 'image', content: demoImage('数据看板 · Q4', 560, 340), resolution: '560 * 340', preview: '[图片] 52KB', appName: 'Chrome' })
+  mk({ type: 'color', content: '#5B8DEF' })
+  mk({ type: 'code', content: 'def load(path: str) -> dict:\n    with open(path, encoding="utf-8") as f:\n        return json.load(f)', appName: 'VSCode' })
+  mk({ type: 'link', content: 'https://github.com/vuejs/core/releases' })
+  mk({ type: 'text', content: '验证码 824193（10 分钟内有效，请勿泄露）', appName: 'Chrome' })
+  mk({ type: 'image', content: demoImage('组件库 · 色板', 560, 300), resolution: '560 * 300', preview: '[图片] 41KB', appName: 'Snipaste' })
+  mk({ type: 'color', content: 'hsl(152, 69%, 31%)' })
+  mk({ type: 'text', content: '会议室已订：B2-天狼星 14:00-15:00（6 人，有投屏）', appName: '微信' })
+  mk({ type: 'file', files: [{ path: 'D:\\Projects\\Aurora\\assets\\banner-spring.png', name: 'banner-spring.png', isDirectory: false, exists: true }, { path: 'D:\\Projects\\Aurora\\assets\\banner-summer.png', name: 'banner-summer.png', isDirectory: false, exists: true }], preview: '[文件] 2 个文件' })
+  mk({ type: 'code', content: '.card {\n  padding: 12px 16px;\n  border-radius: 8px;\n  background: var(--panel);\n}', appName: 'VSCode' })
+  mk({ type: 'link', content: 'https://cn.vuejs.org/guide/introduction.html' })
+  mk({ type: 'image', content: demoImage('插画 · 春季活动', 560, 280), resolution: '560 * 280', preview: '[图片] 38KB', appName: 'Chrome' })
+  mk({ type: 'color', content: '#0F6E56' })
+  mk({ type: 'text', content: '依赖升级清单：vite 6.4 → 6.5，vue 3.5.13 → 3.5.14，ts 5.7 不动', appName: 'VSCode' })
+  mk({ type: 'text', content: '发票抬头：云栖科技有限公司 税号 91330106MA2XXXXX0A', appName: '微信' })
+  mk({ type: 'image', content: demoImage('图标集 · 线性 24px', 560, 320), resolution: '560 * 320', preview: '[图片] 44KB', appName: 'Snipaste' })
+  mk({ type: 'code', content: 'SELECT id, content, created_at\nFROM clipboard\nWHERE kind = \'code\'\nORDER BY created_at DESC\nLIMIT 50;', appName: 'DataGrip' })
+  mk({ type: 'color', content: '#E5484D' })
+  mk({ type: 'link', content: 'https://ztoolscenter.github.io/ZTools-doc/first-plugin.html' })
+
+  return out
+}
+
+const useDemoData =
+  typeof location !== 'undefined' && location.search.includes('demo=1')
+mockDb = useDemoData ? buildDemoData() : mockDb
+
 /** 开发模式下最后一次"要交给浏览器打开"的网址（见 mock.openExternal） */
 let lastExternalUrl = ''
 export const devLastExternalUrl = (): string => lastExternalUrl
@@ -825,10 +895,6 @@ const mock = {
     const n = mockDb.length
     mockDb = []
     return n
-  },
-
-  async clipboardCount(): Promise<number | null> {
-    return mockDb.length
   },
 
   /**

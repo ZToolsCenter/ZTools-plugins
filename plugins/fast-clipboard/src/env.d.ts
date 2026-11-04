@@ -15,6 +15,17 @@ interface Services {
   /** 在文件管理器中选中该文件；失败返回 false */
   revealInFolder: (filePath: string) => boolean
   openPath: (filePath: string) => boolean
+  /** 读磁盘上 dist/BUILD_ID（最新构建戳）；读不到返回 null */
+  readBuildStamp: () => string | null
+  /** dev 诊断日志：追加一行到插件根 .debug-live.log；市场版返回 false */
+  debugLog: (line: string) => boolean
+}
+
+/** vite define 注入：本次页面构建的唯一戳（版本-时间戳），详见 vite.config.js */
+declare global {
+  const __BUILD_STAMP__: string
+  /** vite define 注入：插件版本号（来自 plugin.json），显示在侧栏底部 */
+  const __APP_VERSION__: string
 }
 
 declare global {

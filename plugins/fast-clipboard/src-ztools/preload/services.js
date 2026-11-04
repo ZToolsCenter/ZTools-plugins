@@ -134,5 +134,46 @@ window.services = {
       /* ignore */
     }
     return false
+  },
+
+  /**
+   * 读磁盘上 dist/BUILD_ID（vite 构建时写入的"最新构建戳"）。
+   *
+   * 渲染进程把它和自己构建时注入的 __BUILD_STAMP__ 对比：不一致说明磁盘上
+   * 有了更新的构建 —— dev 模式的插件视图是持久化的，页面不重载就一直跑旧 JS，
+   * 这是"改了代码、快捷键打开还是旧行为"的根源。渲染层据此 location.reload()。
+   * 读不到（市场版 asar 没有这个文件 / 无 fs 权限）返回 null，调用方不动作。
+   */
+  readBuildStamp() {
+    try {
+      const file = path.join(__dirname, '..', 'dist', 'BUILD_ID')
+      const stamp = fs.readFileSync(file, 'utf8').trim()
+      return stamp || null
+    } catch (e) {
+      return null
+    }
+  },
+
+  /**
+   * dev 诊断日志：把一行追加到插件根目录 `.debug-live.log`。
+   *
+   * 只为排查"实时链路在真机上到底走到哪一步" —— 渲染进程的 console 在宿主里
+   * 根本看不见，同步失败又全是静默 catch，没有这份文件就只能靠猜。
+   * 市场版（asar 内）直接跳过；文件超过 256KB 从头写，不会无限膨胀。
+   */
+  debugLog(line) {
+    try {
+      if (String(location.href).includes('.asar')) return false
+      const file = path.join(__dirname, '..', '.debug-live.log')
+      try {
+        if (fs.statSync(file).size > 256 * 1024) fs.writeFileSync(file, '')
+      } catch (e) {
+        /* 还没有这个文件，正常 */
+      }
+      fs.appendFileSync(file, `${new Date().toISOString()} ${line}\n`)
+      return true
+    } catch (e) {
+      return false
+    }
   }
 }

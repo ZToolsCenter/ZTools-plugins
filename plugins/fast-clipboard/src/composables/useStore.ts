@@ -242,34 +242,68 @@ async function loadMore(): Promise<void> {
 /* 实时性：宿主推送 + 运行期轮询兜底                                    */
 /* ------------------------------------------------------------------ */
 
-/** 运行期间的轮询间隔（毫秒） */
+/**
+ * 轮询间隔。
+ *
+ * **不再区分"台前/台后"** —— v1.0.26 把退出后的轮询降到 5 秒，结果用户
+ * "复制完马上再打开"时正好落在空窗里，看着还是旧的。一次 `getStatus()`
+ * 只是取 4 个字段，1.2 秒一次的代价远小于"看着不动"的体验损失。
+ */
 export const POLL_INTERVAL_MS = 1200
+
+/** 旧名字保留（外部/测试可能还在引用），现在与快速档一致 */
+export const IDLE_POLL_INTERVAL_MS = POLL_INTERVAL_MS
 
 /** 每次"探新"拉多少条最新的历史（够覆盖一次连续复制） */
 const HEAD_SIZE = 5
 
+/**
+ * "重新亮出来"时一次补多少条。
+ *
+ * 插件关着的这段时间用户可能复制了一串东西，只补 5 条会在列表中间留个断层
+ * （新的一批之后直接接上很旧的记录）。离开越久越明显，所以这里放宽到 50。
+ */
+const WAKE_SYNC_SIZE = 50
+
 let pollTimer: ReturnType<typeof setInterval> | null = null
+/** 上一拍的时间，用来识别"定时器被挂起了很久，刚恢复" */
+let lastTickAt = 0
+
 
 /**
  * 把宿主库里最新的一批记录并入列表。
  *
  * 只补"本地没有的"，并且是 prepend —— 新复制的一定在最前面。
- * 返回确实新增了几条（0 表示没变化），调用方据此决定是否要更新计数。
+ * 返回确实新增了几条（0 表示没变化）。
+ *
+ * 拉取失败（异常）直接返回 0，下一拍重试 —— 宁可多拉一次，也不要僵死。
  */
-async function syncLatest(): Promise<number> {
+async function syncLatest(limit = HEAD_SIZE): Promise<number> {
   const anchorId = filtered.value[selectedIndex.value]?.id ?? null
   try {
-    const res = await api.getHistory(1, HEAD_SIZE)
+    const res = await api.getHistory(1, limit)
     const seen = new Set(records.value.map((r) => r.id))
     const fresh = res.items.filter((r) => !seen.has(r.id))
-    if (fresh.length === 0) return 0
-    records.value = fresh.concat(records.value)
-    // 总数也要跟上：看着列表变长了、侧栏计数却不动，一样是"没实时更新"
-    if (res.total) totalCount.value = res.total
-    else totalCount.value += fresh.length
-    recount()
+    // 没有新增时，头部必须跟宿主一致；不一致说明本地漏了/顺序变了 ——
+    // 最典型的场景：**宿主历史有上限（满 1000 条）**，每复制一条旧的被挤掉，
+    // 计数恒定不变，靠数量探路永远发现不了，只能比对真实的头部 id。
+    if (fresh.length === 0 && res.items[0] && records.value[0]?.id !== res.items[0].id) {
+      dbg('syncLatest: 头部与宿主不一致 → 整页重拉')
+      await loadFirst()
+      return 0
+    }
+    if (fresh.length > 0) {
+      records.value = fresh.concat(records.value)
+      const total = res.total || records.value.length
+      // 先更新总数再重算计数 —— 反过来的话侧栏"全部"会停在上一次的值上，
+      // 看着就是"列表长了、计数没动"。
+      totalCount.value = total
+      recount()
+      dbg(`syncLatest: +${fresh.length} 条，total=${total}`)
+    }
     return fresh.length
-  } catch {
+  } catch (e) {
+    dbg(`syncLatest(${limit}) ERROR: ${errLine(e)}`)
     /* 宿主忙/窗口正在关闭：这一拍不算事，下一拍还会再来 */
     return 0
   } finally {
@@ -298,30 +332,248 @@ function restoreSelection(id: string | null): void {
   }
 }
 
-/** 用一次轻量查询判断"库里是不是多了东西" */
-async function hasNewRecords(): Promise<boolean> {
-  const n = await api.clipboardCount()
-  if (n === null) return true // 老宿主没有 getStatus：不看也查，反正只是多一次 IPC
-  if (n === totalCount.value) return false
-  totalCount.value = n
-  return true
+/**
+ * 轮询只有这一个计时器。
+ *
+ * 台前台后都跑：隐藏期间 Chromium 会自己降频（1 秒下限），恢复时会立刻补拍，
+ * 所以不需要我们再分档 —— 分档反而制造出"刚打开时正好没拍"的空窗。
+ */
+function poll(): void {
+  if (pollTimer) return
+  const timer = setInterval(() => {
+    void tick()
+  }, POLL_INTERVAL_MS)
+  // Node（单元测试）里定时器会挂住事件循环；浏览器里 setInterval 返回 number，
+  // 没有 unref，这行只是空操作。
+  ;(timer as unknown as { unref?: () => void }).unref?.()
+  pollTimer = timer
 }
 
-function startWatching(): void {
-  stopWatching()
-  // 进来先看一眼：打开插件之前复制的内容，推出来就该在最新的位置上
-  void syncLatest()
-  pollTimer = setInterval(() => {
-    void hasNewRecords().then((yes) => {
-      if (yes) void syncLatest()
-    })
-  }, POLL_INTERVAL_MS)
+/**
+ * 一拍的心跳。
+ *
+ * 除了"探新"，还顺便判断**上一拍离现在是不是远超正常间隔** —— 隐藏/挂起的页面
+ * 定时器会被暂停，恢复后的第一拍就会出现明显跳拍。这就是"窗口刚被重新打开"的
+ * 一个不依赖任何宿主事件的信号（`visibilitychange`、`focus` 在某些隐藏方式下并不触发）。
+ */
+async function tick(): Promise<void> {
+  const now = Date.now()
+  const jumped = lastTickAt > 0 && now - lastTickAt > POLL_INTERVAL_MS * 2.5
+  lastTickAt = now
+  if (jumped) {
+    dbg('tick: 跳拍（页面被挂起过）→ refreshOnShow')
+    await refreshOnShow()
+    return
+  }
+  // **不做任何计数预判**：宿主历史有上限（满 1000 后每复制一条 = 加一条删一条，
+  // itemCount 恒定），数量探路在满库时永远返回"没变化" —— 1.0.30 之前所有实时
+  // 路径（轮询/对账/onChange 推送）都被这道闸门挡死。直接拉最新一批比对 id。
+  await syncLatest(HEAD_SIZE)
+}
+
+/**
+ * "又被打开了"时的一次对账 —— **只有一次 IPC**。
+ *
+ * 拉一批最新的，直接拿这次的结果判断：
+ *   - 有新增 → prepend（新的一定在最前）
+ *   - 没新增但**头部跟宿主不一致**（顺序变了 / 关着时复制太多超过一批）→ 整页重拉
+ * 一次调用搞定，省掉"先补一批再单独查头部"那一趟，越快，用户越看不到数据被追加。
+ */
+let lastRefreshAt = 0
+const REFRESH_DEDUPE_MS = 120
+
+async function refreshOnShow(): Promise<void> {
+  const now = Date.now()
+  const since = now - lastRefreshAt
+  // 负数是"系统时间回拨/校时"：不能据此判定"刚刷过"，否则会一直跳过
+  if (since >= 0 && since < REFRESH_DEDUPE_MS) return
+  lastRefreshAt = now
+
+  dbg('refreshOnShow: 对账（拉最新 50 条比对）')
+  await syncLatest(WAKE_SYNC_SIZE)
+}
+
+/**
+ * 恢复检测（最快的一路）：**动画帧**。
+ *
+ * 窗口隐藏 / 被遮挡时浏览器会暂停 `requestAnimationFrame`，重新显示后的第一帧
+ * 与上一帧的间隔必然很大。这是唯一能在"窗口刚出现"这一帧就察觉的信号 ——
+ * 定时器最慢要等一整拍（1.2 秒），用户就会亲眼看到数据被补上去的那一下。
+ * 检测延迟约一帧（16ms），等于"打开即最新"。
+ */
+const FRAME_GAP_MS = 250
+let frameWatchStop: (() => void) | null = null
+
+function watchFrames(): void {
+  if (frameWatchStop) return
+  if (typeof requestAnimationFrame !== 'function') return
+  let last = 0
+  let stopped = false
+  const loop = (): void => {
+    if (stopped) return
+    const now = Date.now()
+    if (last > 0 && now - last > FRAME_GAP_MS) void refreshOnShow()
+    last = now
+    requestAnimationFrame(loop)
+  }
+  frameWatchStop = () => {
+    stopped = true
+  }
+  requestAnimationFrame(loop)
+}
+
+/**
+ * 插件到了台前：立刻对账一次，并确保轮询在跑。
+ *
+ * `bulk` 用于"刚被重新打开"的场景 —— 关着的时候可能复制了一串。
+ */
+function startWatching(bulk = false): void {
+  if (bulk) void refreshOnShow()
+  else void syncLatest(HEAD_SIZE)
+  poll()
+}
+
+/** 插件退到台后：轮询继续保持（隐藏期间本来就会被降频），只记一笔"已离开" */
+function idleWatching(): void {
+  poll()
 }
 
 function stopWatching(): void {
   if (pollTimer) clearInterval(pollTimer)
   pollTimer = null
+  lastTickAt = 0
 }
+
+/* ------------------------------------------------------------------ */
+/* "插件又被打开了"的判定                                               */
+/* ------------------------------------------------------------------ */
+
+let lastShownAt = 0
+/** 用来把"同一次打开"里的多个信号（focus + visibility + PluginEnter）合并成一次同步 */
+const SHOW_DEDUPE_MS = 300
+
+/**
+ * dev 模式的构建戳自检（每次"被打开"都查一遍，放在去重闸门之前）。
+ *
+ * 背景：dev 插件的视图是**持久化**的 —— 失焦关闭只是隐藏窗口，页面里那次加载
+ * 的 JS 会一直跑下去。也就是说磁盘上 dist 换了新构建，视图里还是旧代码，
+ * 用户在旧代码上测新修复，怎么测都是旧行为（1.0.26~28 连续三轮"没修好"的真相）。
+ *
+ * 做法：vite 构建时把唯一戳写进 dist/BUILD_ID，并注入进本次页面（__BUILD_STAMP__）。
+ * 这里用 preload 的 fs 读磁盘上的戳，不一致就整页 location.reload() ——
+ * 重新构建完，下次打开插件自动跑上新代码，不用手动"结束运行"。
+ *
+ * 守卫：
+ *   - 只在 file:// 下生效（dev server 是 http，Vite HMR 自己管；市场版走宿主更新流）
+ *   - 读不到 BUILD_ID（无 fs / 老宿主）→ 不动作
+ */
+declare const __BUILD_STAMP__: string
+
+/**
+ * dev 诊断：把实时链路的每一步写进插件根目录 `.debug-live.log`（services 里
+ * 只在非 asar 环境真正落盘，市场版是 no-op）。渲染进程的 console 在宿主里
+ * 看不见，而同步失败的 catch 全是静默的 —— 没有这份文件，真机问题只能靠猜。
+ */
+function dbg(line: string): void {
+  try {
+    if (typeof window === 'undefined') return
+    window.services?.debugLog?.(line)
+  } catch {
+    /* 测试环境没有 services */
+  }
+}
+
+/** 给日志用的错误摘要（message + 前两帧堆栈） */
+function errLine(e: unknown): string {
+  if (e instanceof Error) return e.message + ' | ' + String(e.stack ?? '').split('\n')[1]?.trim()
+  return String(e)
+}
+
+function checkNewBuild(): void {
+  if (typeof location === 'undefined' || location.protocol !== 'file:') return
+  // dev server（import.meta.env.DEV 构建）没有注入这个量；typeof 对未声明标识符是安全的
+  if (typeof __BUILD_STAMP__ !== 'string') return
+  const services = (typeof window !== 'undefined' ? (window as unknown as { services?: { readBuildStamp?: () => string | null } }).services : undefined)
+  const stamp = services?.readBuildStamp?.()
+  if (stamp && stamp !== __BUILD_STAMP__) {
+    dbg(`checkNewBuild: 磁盘 ${stamp} ≠ 页面 ${__BUILD_STAMP__} → reload`)
+    location.reload()
+  }
+}
+
+/**
+ * 插件被重新亮出来时该做的事。
+ *
+ * 为什么要单独有这么一个入口：
+ *   宿主 `createPluginView` 里有个 `shouldSkipReEnter()` —— 当插件**已经是当前视图**、
+ *   并且用户又是用同一条文本指令打开时，它直接
+ *   `abortCurrentSession('singleton-skip-reenter')` 返回，**不发 `PluginEnter`**。
+ *   于是只挂 `onPluginEnter` 的插件：不知道窗口又开了 → 不一上来同步、轮询还停在
+ *   `onPluginOut` 之后的慢速档 → 列表就像冻住了，只有"结束运行再打开"（整页重载）才好。
+ *   实测就是用户报的："复制完再按快捷键打开，不刷新"。
+ *
+ * 所以这里改用**页面自己能感知到的信号**：窗口显示出来时 `visibilitychange` 必然触发，
+ * 窗口获得焦点时还会有 `focus`；再加上宿主的 `PluginEnter`，三路任意一路都能唤醒。
+ */
+function onShown(source = 'unknown'): void {
+  // 先查构建戳再谈别的：真要重载的话，后面的刷新都是白做
+  checkNewBuild()
+  const now = Date.now()
+  const since = now - lastShownAt
+  // 同上：时间回拨时不要把自己锁在"刚打开过"里
+  if (since >= 0 && since < SHOW_DEDUPE_MS) {
+    dbg(`onShown(${source}): 去重窗口内（${since}ms），跳过`)
+    return
+  }
+  lastShownAt = now
+  dbg(`onShown(${source}) → startWatching(bulk)`)
+  focusSearch()
+  startWatching(true)
+}
+
+/**
+ * 挂上渲染进程侧的"窗口又出现"监听。返回解绑函数（单例 store 用不到，但方便测试）。
+ *
+ * 四路信号，任一路都能唤醒：
+ *   - `visibilitychange`：窗口显示（某些隐藏方式下不触发，所以不能只靠它）
+ *   - `focus`：窗口重新获得焦点
+ *   - **用户一动（鼠标/键盘）**：插件打开后用户迟早要按方向键或打字，这时列表必须是对的
+ *   - 定时器跳拍（见 tick）
+ */
+function watchWindowShow(): () => void {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+    return () => undefined
+  }
+  const onFocus = (): void => onShown('focus')
+  const onVisible = (): void => {
+    if (typeof document === 'undefined' || !document.hidden) onShown('visibility')
+  }
+  // 距上次交互超过这个间隔，才算"人刚回到插件"（避免连续打字时每一下都拉一次）
+  const INTERACT_GAP_MS = 2000
+  let lastInteractAt = 0
+  const onInteract = (): void => {
+    const now = Date.now()
+    if (lastInteractAt > 0 && now - lastInteractAt > INTERACT_GAP_MS) {
+      dbg('onInteract（鼠标/键盘）→ refreshOnShow')
+      void refreshOnShow()
+    }
+    lastInteractAt = now
+  }
+
+  window.addEventListener('focus', onFocus)
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('visibilitychange', onVisible)
+    document.addEventListener('keydown', onInteract, true)
+    document.addEventListener('mousemove', onInteract, { passive: true })
+  }
+  return () => {
+    window.removeEventListener?.('focus', onFocus)
+    document?.removeEventListener?.('visibilitychange', onVisible)
+    document?.removeEventListener?.('keydown', onInteract, true)
+    document?.removeEventListener?.('mousemove', onInteract)
+  }
+}
+
 
 /* ------------------------------------------------------------------ */
 /* 搜索：本地即时过滤 + 远端防抖补充                                   */
@@ -895,21 +1147,30 @@ function init(): void {
   if (inited) return
   inited = true
 
+  dbg(`init: 页面加载 stamp=${typeof __BUILD_STAMP__ === 'string' ? __BUILD_STAMP__ : '(dev)'} href=${typeof location !== 'undefined' ? location.href : ''}`)
+
   favorites.value = favoritesStore.load()
 
   // 注册宿主子输入框。失败（宿主版本差异 / 非插件环境）时页面会显示自带搜索框兜底
   subInputReady.value = api.setSubInput(setQuery, '搜索剪贴板历史')
 
-  // 每次打开插件都把焦点抢回搜索框（挂载时那次会被宿主的 view.focus() 抢走）
+  /**
+   * 宿主说"插件进来了"。**不能只信这个** —— 同指令重入时宿主会直接跳过它
+   * （见 onShown 的注释），所以这里和 visibilitychange / focus 一并接。
+   */
   api.onPluginEnter(() => {
-    focusSearch()
-    // 运行期开始"盯着"宿主：推送不保证到，见下面 startWatching 的说明
-    startWatching()
+    dbg('onPluginEnter（宿主）')
+    onShown('enter')
   })
-  // 退出插件时取消尚未执行的重试，并停止轮询
+  // 渲染进程侧的"窗口又出现了"：这一路不依赖宿主的生命周期事件
+  watchWindowShow()
+  // 最快的一路：动画帧停摆后恢复（窗口刚出现的那一帧就能察觉）
+  watchFrames()
+  // 退出插件：取消尚未执行的重试，轮询降到慢速档（别彻底停，见 idleWatching）
   api.onPluginOut(() => {
+    dbg('onPluginOut（宿主）→ idleWatching')
     cancelFocus()
-    stopWatching()
+    idleWatching()
   })
 
   /**
@@ -919,9 +1180,8 @@ function init(): void {
    * 所以这里只当它是**加速器**：收到就立刻同步一次，收不到另有下面的轮询兜底。
    */
   api.onChange(() => {
-    void hasNewRecords().then((yes) => {
-      if (yes) void syncLatest()
-    })
+    dbg('onChange（宿主推送）→ sync')
+    void syncLatest()
   })
 
   void loadFirst()

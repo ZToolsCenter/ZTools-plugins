@@ -1,0 +1,9 @@
+# 插件 dev 诊断日志（services.debugLog 写入，市场版不生成）
+.debug-live.log
+
+# 依赖（历史原因已被跟踪的文件不受影响，只是不再新增）
+node_modules/
+
+# 临时分析产物
+design/tmp-*
+design/appMain-*.js
