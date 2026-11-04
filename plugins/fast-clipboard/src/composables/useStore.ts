@@ -184,6 +184,8 @@ async function loadFirst(): Promise<void> {
     page.value = 1
     hasMore.value = res.hasMore
     totalCount.value = res.total || res.items.length
+    // 整页重拉过就是"追平"了，避免刚打开就白白再探一次
+    syncedCount = totalCount.value
     selectedIndex.value = 0
     scannedCats.clear()
     recount()
@@ -209,6 +211,7 @@ async function hydrate(): Promise<void> {
     records.value = records.value.concat(res.items.filter((r) => !seen.has(r.id)))
 
     totalCount.value = res.total || records.value.length
+    syncedCount = totalCount.value
     hasMore.value = res.hasMore
     // 分页游标跟进到实际数据末尾，否则后续翻页会重复拉取已加载区间
     page.value = Math.max(page.value, Math.ceil(records.value.length / PAGE_SIZE))
@@ -242,17 +245,17 @@ async function loadMore(): Promise<void> {
 /* 实时性：宿主推送 + 运行期轮询兜底                                    */
 /* ------------------------------------------------------------------ */
 
-/** 运行期间的轮询间隔（毫秒） */
+/**
+ * 轮询间隔。
+ *
+ * **不再区分"台前/台后"** —— v1.0.26 把退出后的轮询降到 5 秒，结果用户
+ * "复制完马上再打开"时正好落在空窗里，看着还是旧的。一次 `getStatus()`
+ * 只是取 4 个字段，1.2 秒一次的代价远小于"看着不动"的体验损失。
+ */
 export const POLL_INTERVAL_MS = 1200
 
-/**
- * 插件"不在台前"时的轮询间隔。
- *
- * 宿主隐藏插件时会 `applyBackgroundThrottlingByPolicy(view, path, true)`，
- * 隐藏页的定时器本身就会被 Chromium 降频，这里再放慢一档，纯当兜底：
- * 只多发一次很便宜的 `getStatus()`，别为了"实时"去白拉历史。
- */
-export const IDLE_POLL_INTERVAL_MS = 5000
+/** 旧名字保留（外部/测试可能还在引用），现在与快速档一致 */
+export const IDLE_POLL_INTERVAL_MS = POLL_INTERVAL_MS
 
 /** 每次"探新"拉多少条最新的历史（够覆盖一次连续复制） */
 const HEAD_SIZE = 5
@@ -266,14 +269,29 @@ const HEAD_SIZE = 5
 const WAKE_SYNC_SIZE = 50
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
-/** 当前计时器的间隔，用来判断"已经是这个档位了就别重置" */
-let pollEvery = 0
+/** 上一拍的时间，用来识别"定时器被挂起了很久，刚恢复" */
+let lastTickAt = 0
+
+/**
+ * **已经确认"本地列表追平宿主"的那个计数**。
+ *
+ * 这个值必须和 `totalCount`（显示用的计数）分开：
+ * v1.0.26 的写法是"探到宿主计数变了就先把 totalCount 改掉，再异步去同步"，
+ * 只要紧接着那次同步没把记录并进来（宿主正在写库 / 返回的 id 全都已存在 /
+ * 这一拍抛错被吞掉），`totalCount` 就已经等于宿主计数了 —— 下一拍直接判定
+ * "没变化"，**从此再也不同步**，直到整页重载。用户看到的就是"第二次打开
+ * 数据不是最新的，必须关掉重开"。所以这里只在**确实对齐**之后才推进它。
+ */
+let syncedCount = 0
 
 /**
  * 把宿主库里最新的一批记录并入列表。
  *
  * 只补"本地没有的"，并且是 prepend —— 新复制的一定在最前面。
- * 返回确实新增了几条（0 表示没变化），调用方据此决定是否要更新计数。
+ * 返回确实新增了几条（0 表示没变化）。
+ *
+ * 同步成功才推进 `syncedCount`；失败（异常、或取回来的头部跟本地对不上）
+ * 就**保持原值**，让下一拍重试 —— 宁可多拉一次，也不要进入"永远不更新"的僵死态。
  */
 async function syncLatest(limit = HEAD_SIZE): Promise<number> {
   const anchorId = filtered.value[selectedIndex.value]?.id ?? null
@@ -281,15 +299,23 @@ async function syncLatest(limit = HEAD_SIZE): Promise<number> {
     const res = await api.getHistory(1, limit)
     const seen = new Set(records.value.map((r) => r.id))
     const fresh = res.items.filter((r) => !seen.has(r.id))
-    if (fresh.length === 0) return 0
-    records.value = fresh.concat(records.value)
-    // 总数也要跟上：看着列表变长了、侧栏计数却不动，一样是"没实时更新"
-    if (res.total) totalCount.value = res.total
-    else totalCount.value += fresh.length
-    recount()
+    if (fresh.length > 0) {
+      records.value = fresh.concat(records.value)
+    }
+    const total = res.total || records.value.length
+    // 先更新总数再重算计数 —— 反过来的话侧栏"全部"会停在上一次的值上，
+    // 看着就是"列表长了、计数没动"。
+    totalCount.value = total
+    if (fresh.length > 0) recount()
+    // 没有增量的情况要额外确认"头部跟宿主一致"，否则可能是宿主还没写进去，
+    // 这时候推进计数就会把后续的重试挡掉。
+    const hostTop = res.items[0]?.id ?? null
+    if (fresh.length > 0 || !hostTop || records.value[0]?.id === hostTop) {
+      syncedCount = total
+    }
     return fresh.length
   } catch {
-    /* 宿主忙/窗口正在关闭：这一拍不算事，下一拍还会再来 */
+    /* 宿主忙/窗口正在关闭：这一拍不算事，不推进 syncedCount，下一拍还会再来 */
     return 0
   } finally {
     restoreSelection(anchorId)
@@ -317,28 +343,24 @@ function restoreSelection(id: string | null): void {
   }
 }
 
-/** 用一次轻量查询判断"库里是不是多了东西" */
+/** 用一次轻量查询判断"库里是不是多了东西"（只读，不改任何计数状态） */
 async function hasNewRecords(): Promise<boolean> {
   const n = await api.clipboardCount()
   if (n === null) return true // 老宿主没有 getStatus：不看也查，反正只是多一次 IPC
-  if (n === totalCount.value) return false
-  totalCount.value = n
-  return true
+  return n !== syncedCount
 }
 
 /**
- * 轮询只有一个计时器，切档位时才重建（同档位重复调用不重置，
- * 免得每次"亮出来"都把计时器推回起点、反而拖慢探测）。
+ * 轮询只有这一个计时器。
+ *
+ * 台前台后都跑：隐藏期间 Chromium 会自己降频（1 秒下限），恢复时会立刻补拍，
+ * 所以不需要我们再分档 —— 分档反而制造出"刚打开时正好没拍"的空窗。
  */
-function poll(every: number): void {
-  if (pollTimer && pollEvery === every) return
-  if (pollTimer) clearInterval(pollTimer)
-  pollEvery = every
+function poll(): void {
+  if (pollTimer) return
   const timer = setInterval(() => {
-    void hasNewRecords().then((yes) => {
-      if (yes) void syncLatest(every === POLL_INTERVAL_MS ? HEAD_SIZE : WAKE_SYNC_SIZE)
-    })
-  }, every)
+    void tick()
+  }, POLL_INTERVAL_MS)
   // Node（单元测试）里定时器会挂住事件循环；浏览器里 setInterval 返回 number，
   // 没有 unref，这行只是空操作。
   ;(timer as unknown as { unref?: () => void }).unref?.()
@@ -346,24 +368,61 @@ function poll(every: number): void {
 }
 
 /**
- * 插件到了台前：立刻补一批，并把轮询切回快速档。
+ * 一拍的心跳。
+ *
+ * 除了"探新"，还顺便判断**上一拍离现在是不是远超正常间隔** —— 隐藏/挂起的页面
+ * 定时器会被暂停，恢复后的第一拍就会出现明显跳拍。这就是"窗口刚被重新打开"的
+ * 一个不依赖任何宿主事件的信号（`visibilitychange`、`focus` 在某些隐藏方式下并不触发）。
+ */
+async function tick(): Promise<void> {
+  const now = Date.now()
+  const jumped = lastTickAt > 0 && now - lastTickAt > POLL_INTERVAL_MS * 2.5
+  lastTickAt = now
+  if (jumped) {
+    await refreshOnShow()
+    return
+  }
+  if (await hasNewRecords()) await syncLatest(HEAD_SIZE)
+}
+
+/**
+ * "又被打开了"时的一次对账。
+ *
+ * 先增量补一批；补完再确认列表头是不是跟宿主一致 —— 不一致（顺序变了、或者
+ * 关着的时候复制得太多超过了一批的容量）就整页重拉，按"刚打开插件"对待。
+ * 宁可丢滚动位置，也不要留一个半旧的列表。
+ */
+async function refreshOnShow(): Promise<void> {
+  await syncLatest(WAKE_SYNC_SIZE)
+  try {
+    const head = await api.getHistory(1, 1)
+    const hostTop = head.items[0]?.id ?? null
+    if (hostTop && records.value[0]?.id !== hostTop) await loadFirst()
+  } catch {
+    /* 宿主忙：交给下一拍 */
+  }
+}
+
+/**
+ * 插件到了台前：立刻对账一次，并确保轮询在跑。
  *
  * `bulk` 用于"刚被重新打开"的场景 —— 关着的时候可能复制了一串。
  */
 function startWatching(bulk = false): void {
-  void syncLatest(bulk ? WAKE_SYNC_SIZE : HEAD_SIZE)
-  poll(POLL_INTERVAL_MS)
+  if (bulk) void refreshOnShow()
+  else void syncLatest(HEAD_SIZE)
+  poll()
 }
 
-/** 插件退到台后：不彻底停，切到慢速档兜底（隐藏页的定时器本来就会被降频） */
+/** 插件退到台后：轮询继续保持（隐藏期间本来就会被降频），只记一笔"已离开" */
 function idleWatching(): void {
-  poll(IDLE_POLL_INTERVAL_MS)
+  poll()
 }
 
 function stopWatching(): void {
   if (pollTimer) clearInterval(pollTimer)
   pollTimer = null
-  pollEvery = 0
+  lastTickAt = 0
 }
 
 /* ------------------------------------------------------------------ */
@@ -398,6 +457,12 @@ function onShown(): void {
 
 /**
  * 挂上渲染进程侧的"窗口又出现"监听。返回解绑函数（单例 store 用不到，但方便测试）。
+ *
+ * 四路信号，任一路都能唤醒：
+ *   - `visibilitychange`：窗口显示（某些隐藏方式下不触发，所以不能只靠它）
+ *   - `focus`：窗口重新获得焦点
+ *   - **用户一动（鼠标/键盘）**：插件打开后用户迟早要按方向键或打字，这时列表必须是对的
+ *   - 定时器跳拍（见 tick）
  */
 function watchWindowShow(): () => void {
   if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
@@ -407,13 +472,26 @@ function watchWindowShow(): () => void {
   const onVisible = (): void => {
     if (typeof document === 'undefined' || !document.hidden) onShown()
   }
+  // 距上次交互超过这个间隔，才算"人刚回到插件"（避免连续打字时每一下都拉一次）
+  const INTERACT_GAP_MS = 2000
+  let lastInteractAt = 0
+  const onInteract = (): void => {
+    const now = Date.now()
+    if (lastInteractAt > 0 && now - lastInteractAt > INTERACT_GAP_MS) void refreshOnShow()
+    lastInteractAt = now
+  }
+
   window.addEventListener('focus', onFocus)
   if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
     document.addEventListener('visibilitychange', onVisible)
+    document.addEventListener('keydown', onInteract, true)
+    document.addEventListener('mousemove', onInteract, { passive: true })
   }
   return () => {
     window.removeEventListener?.('focus', onFocus)
     document?.removeEventListener?.('visibilitychange', onVisible)
+    document?.removeEventListener?.('keydown', onInteract, true)
+    document?.removeEventListener?.('mousemove', onInteract)
   }
 }
 
