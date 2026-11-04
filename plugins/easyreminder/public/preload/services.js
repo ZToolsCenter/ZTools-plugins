@@ -77,7 +77,16 @@ function readReminders() {
     storageReadFailed = false
     if (!data) return []
     const raw = typeof data === 'string' ? JSON.parse(data) : data
-    return Array.isArray(raw) ? normalizeReminderOrders(raw) : []
+    if (!Array.isArray(raw)) return []
+    const migrated = normalizeReminders(raw)
+    const ordered = normalizeReminderOrders(migrated.list)
+    if (migrated.changed || ordered.changed) {
+      // 迁移结果落库，避免每次读取都重算（单个任务读失败不影响整体）
+      try {
+        writeReminders(ordered.list)
+      } catch (e) {}
+    }
+    return ordered.list
   } catch (e) {
     storageReadFailed = true
     console.error('[easyremind] readReminders error:', e)
@@ -89,9 +98,138 @@ function writeReminders(list) {
   window.ztools.dbStorage.setItem(STORAGE_KEY, JSON.stringify(list))
 }
 
+function normalizeWeekdays(raw) {
+  return Array.isArray(raw) ? raw.filter(d => Number.isInteger(d) && d >= 0 && d <= 6) : []
+}
+
+function normalizeSchedules(raw) {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(s => s && Number.isInteger(s.weekday) && s.startTime && s.endTime)
+    .map(s => ({ weekday: s.weekday, startTime: s.startTime, endTime: s.endTime }))
+}
+
+// 1.4.x 及更早：一条提醒只有一种调度类型，参数直接挂在提醒上。
+// 现在改为「任务 + 多条规则」，旧数据在这里就地迁移成单规则任务。
+function migrateLegacyReminder(r) {
+  const createdAt = r.createdAt || Date.now()
+  const prevFired = r.lastTriggered || 0
+  const ruleBase = { enabled: true, createdAt, lastTriggered: prevFired || undefined }
+  let enabled = r.enabled ?? true
+  let rules
+
+  if (r.type === 'once') {
+    // 旧版一次性提醒触发后会把整条提醒停用，这里还原任务级启用，由规则的 firedAt 表示已消费
+    const firedAt = prevFired > 0 ? prevFired : undefined
+    if (firedAt) enabled = true
+    rules = [{ ...ruleBase, id: r.id + '-r1', type: 'once', triggerAt: r.triggerAt || 0, firedAt }]
+  } else if (r.type === 'daily') {
+    rules = [{
+      ...ruleBase,
+      id: r.id + '-r1',
+      type: 'daily',
+      weekdays: normalizeWeekdays(r.weekdays),
+      triggerTime: r.triggerTime || '09:00',
+      dayFilter: r.dayFilter || 'all'
+    }]
+  } else {
+    let schedules = normalizeSchedules(r.schedules)
+    // 最旧格式：weekdays + startTime + endTime，没有 schedules
+    if (!schedules.length && Array.isArray(r.weekdays)) {
+      schedules = normalizeWeekdays(r.weekdays).map(w => ({
+        weekday: w,
+        startTime: r.startTime || '09:00',
+        endTime: r.endTime || '18:00'
+      }))
+    }
+    rules = [{
+      ...ruleBase,
+      id: r.id + '-r1',
+      type: 'interval',
+      schedules,
+      interval: r.interval || 60,
+      align: r.align === 'start' ? 'start' : 'create',
+      dayFilter: r.dayFilter || 'all'
+    }]
+  }
+
+  return { ...r, rules, enabled, lastFiredSlot: r.lastFiredSlot || 0 }
+}
+
+// 单条规则的形状校验：补齐 id/createdAt 等公共字段与各类型缺省值
+function normalizeRuleShape(rule, fallbackId, fallbackCreatedAt) {
+  if (!rule || typeof rule !== 'object') return null
+  const base = {
+    id: rule.id || fallbackId,
+    enabled: rule.enabled !== false,
+    createdAt: rule.createdAt || fallbackCreatedAt
+  }
+  if (typeof rule.lastTriggered === 'number') base.lastTriggered = rule.lastTriggered
+  if (rule.type === 'once') {
+    base.type = 'once'
+    base.triggerAt = Number(rule.triggerAt) || 0
+    if (typeof rule.firedAt === 'number') base.firedAt = rule.firedAt
+    return base
+  }
+  if (rule.type === 'daily') {
+    base.type = 'daily'
+    base.weekdays = normalizeWeekdays(rule.weekdays)
+    base.triggerTime = rule.triggerTime || '09:00'
+    base.dayFilter = rule.dayFilter || 'all'
+    return base
+  }
+  if (rule.type === 'interval') {
+    base.type = 'interval'
+    base.schedules = normalizeSchedules(rule.schedules)
+    base.interval = rule.interval || 60
+    base.align = rule.align === 'start' ? 'start' : 'create'
+    base.dayFilter = rule.dayFilter || 'all'
+    return base
+  }
+  return null
+}
+
+// 不依赖键顺序的结构比较：迁移前后只是字段顺序不同时不应反复重写存储
+function stableStringify(value) {
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']'
+  if (value && typeof value === 'object') {
+    return '{' + Object.keys(value).sort()
+      .map(k => JSON.stringify(k) + ':' + stableStringify(value[k]))
+      .join(',') + '}'
+  }
+  return JSON.stringify(value)
+}
+
+// 任务数据迁移：旧结构 → 多规则结构，返回 { list, changed }
+function normalizeReminders(list) {
+  let changed = false
+  const out = list.map(r => {
+    // 完全没有 rules 字段才是旧格式；rules: [] 视为已被清空的新任务，不再反推
+    if (!Array.isArray(r.rules)) {
+      changed = true
+      return migrateLegacyReminder(r)
+    }
+    if (!r.rules.length) return r
+    const rules = r.rules
+      .map((rule, i) => normalizeRuleShape(rule, r.id + '-r' + (i + 1), r.createdAt || Date.now()))
+      .filter(Boolean)
+    if (rules.length !== r.rules.length || stableStringify(rules) !== stableStringify(r.rules)) {
+      changed = true
+      return { ...r, rules }
+    }
+    if (typeof r.lastFiredSlot !== 'number') {
+      changed = true
+      return { ...r, lastFiredSlot: 0 }
+    }
+    return r
+  })
+  return { list: out, changed }
+}
+
 // 排序字段迁移：旧数据没有 order，按原显示顺序补齐（任务按创建时间倒序、以分组为桶）
 function normalizeReminderOrders(list) {
-  if (list.every(r => typeof r.order === 'number')) return list
+  const missing = list.some(r => typeof r.order !== 'number')
+  if (!missing) return { list, changed: false }
   const buckets = new Map()
   for (const r of list) {
     const key = r.groupId || ''
@@ -103,10 +241,7 @@ function normalizeReminderOrders(list) {
     const len = bucket.length
     bucket.forEach((r, i) => { r.order = len - i })
   }
-  try {
-    writeReminders(list)
-  } catch (e) {}
-  return list
+  return { list, changed: true }
 }
 
 // 某分组（空串表示未分组）当前最大 order，用于把新任务/移入任务排到最前或最后
@@ -310,30 +445,51 @@ function matchDayFilter(d, dayFilter) {
 }
 
 // ==================== 触发时间计算 ====================
+// 任务的「下次触发」= 所有启用规则里最近的一个时刻；规则之间互不影响
 function getNextTriggerTime(r, atTime) {
   if (!r || !r.enabled) return null
+  let next = null
+  for (const rule of r.rules || []) {
+    const t = getRuleNextTime(rule, r, atTime)
+    if (t !== null && (next === null || t < next)) next = t
+  }
+  return next
+}
 
-  switch (r.type) {
+function getRuleNextTime(rule, reminder, atTime) {
+  if (!rule || !rule.enabled) return null
+  switch (rule.type) {
     case 'once': {
-      if (!r.triggerAt || r.lastTriggered !== 0) return null
-      return r.triggerAt
+      // firedAt 有值表示这条一次性规则已消费，不再参与调度
+      if (!rule.triggerAt || rule.firedAt) return null
+      return rule.triggerAt
     }
     case 'daily': {
-      if (!r.weekdays || !r.weekdays.length || !r.triggerTime) return null
-      return calcNextDailyTime(r, atTime)
+      if (!rule.weekdays || !rule.weekdays.length || !rule.triggerTime) return null
+      return calcNextDailyTime(rule, atTime)
     }
     case 'interval': {
-      if (!r.schedules || !r.schedules.length) return null
-      return calcNextIntervalTime(r, atTime)
+      if (!rule.schedules || !rule.schedules.length) return null
+      return calcNextIntervalTime(rule, reminder, atTime)
     }
     default:
       return null
   }
 }
 
+// 某个计划时刻命中了任务里的哪些规则（同一时刻可能多条规则同时到点，只提醒一次）
+function matchRulesAt(reminder, target) {
+  const hit = []
+  for (const rule of reminder.rules || []) {
+    const t = getRuleNextTime(rule, reminder, target)
+    if (t !== null && Math.abs(t - target) < TRIGGER_MATCH_WINDOW_MS) hit.push(rule)
+  }
+  return hit
+}
+
 // 向前找 31 天：最长法定假期 8 天左右，即使叠加「仅工作日/仅节假日」过滤也足够
-function calcNextDailyTime(r, atTime) {
-  const parts = (r.triggerTime || '').split(':')
+function calcNextDailyTime(rule, atTime) {
+  const parts = (rule.triggerTime || '').split(':')
   if (parts.length < 2) return null
   const h = Number(parts[0])
   const m = Number(parts[1])
@@ -342,34 +498,34 @@ function calcNextDailyTime(r, atTime) {
   for (let i = 0; i <= 30; i++) {
     const next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, h, m, 0, 0)
     if (next.getTime() < atTime) continue
-    if (!r.weekdays.includes(next.getDay())) continue
-    if (!matchDayFilter(next, r.dayFilter)) continue
+    if (!rule.weekdays.includes(next.getDay())) continue
+    if (!matchDayFilter(next, rule.dayFilter)) continue
     return next.getTime()
   }
   return null
 }
 
-function calcNextIntervalTime(r, atTime) {
-  const intervalMs = r.interval * 60 * 1000
+function calcNextIntervalTime(rule, reminder, atTime) {
+  const intervalMs = rule.interval * 60 * 1000
 
   // 对齐起点模式：触发点 = 每天 startTime + k × 间隔，与创建时刻无关
-  if (r.align === 'start') {
-    return calcNextIntervalAligned(r, atTime)
+  if (rule.align === 'start') {
+    return calcNextIntervalAligned(rule, atTime)
   }
 
-  // 随创建时间起算（旧默认）：锚点 = 上次触发时间（首次为创建时间）
-  const anchor = r.lastTriggered > 0 ? r.lastTriggered : (r.createdAt || atTime)
+  // 随创建时间起算：锚点 = 该规则上次触发时间（首次为规则创建时间）
+  const anchor = rule.lastTriggered > 0 ? rule.lastTriggered : (rule.createdAt || reminder.createdAt || atTime)
   const elapsed = atTime - anchor
   const periods = Math.max(1, Math.ceil(elapsed / intervalMs))
   let current = anchor + periods * intervalMs
 
-  const schedules = r.schedules
+  const schedules = rule.schedules
   if (!schedules.length) return null
 
   // 跳过不满足「工作日/节假日」过滤的整天
   for (let attempt = 0; attempt < 40; attempt++) {
     const d = new Date(current)
-    if (!matchDayFilter(d, r.dayFilter)) {
+    if (!matchDayFilter(d, rule.dayFilter)) {
       current = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0).getTime()
       continue
     }
@@ -400,15 +556,15 @@ function calcNextIntervalTime(r, atTime) {
 // 对齐起点模式：枚举每天的触发点（startTime、startTime+间隔、…、≤ endTime，含 endTime 端点），
 // 返回第一个不早于 atTime 的触发点；跨天/跳过节假日由外层循环处理。
 // 每次都重新对格，错过（如睡眠唤醒）不会拖累后续序列。
-function calcNextIntervalAligned(r, atTime) {
-  const intervalMs = r.interval * 60 * 1000
+function calcNextIntervalAligned(rule, atTime) {
+  const intervalMs = rule.interval * 60 * 1000
   const base = new Date(atTime)
 
   for (let i = 0; i <= 40; i++) {
     const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i)
-    if (!matchDayFilter(d, r.dayFilter)) continue
+    if (!matchDayFilter(d, rule.dayFilter)) continue
 
-    const daySchedules = r.schedules.filter(s => s.weekday === d.getDay()).sort((a, b) => a.startTime.localeCompare(b.startTime))
+    const daySchedules = rule.schedules.filter(s => s.weekday === d.getDay()).sort((a, b) => a.startTime.localeCompare(b.startTime))
     for (const s of daySchedules) {
       const sp = s.startTime.split(':')
       const ep = s.endTime.split(':')
@@ -423,6 +579,27 @@ function calcNextIntervalAligned(r, atTime) {
 }
 
 const TYPE_LABELS = { daily: '每日提醒', interval: '间隔提醒', once: '定时提醒' }
+
+// 任务第一条规则的类别标签（列表与日志里代表这条任务）
+function ruleTypeLabel(r) {
+  const rule = (r.rules || [])[0]
+  return (rule && TYPE_LABELS[rule.type]) || '提醒'
+}
+
+function ruleCountSuffix(r) {
+  const n = (r.rules || []).length
+  return n > 1 ? ' · ' + n + ' 条规则' : ''
+}
+
+// 一次触发可能同时命中多条规则，日志里逐条标出
+function ruleLabel(rules) {
+  return (rules || []).map(rule => {
+    if (rule.type === 'daily') return '每日 ' + (rule.triggerTime || '')
+    if (rule.type === 'interval') return '间隔 每' + (rule.interval || 60) + '分钟'
+    if (rule.type === 'once') return '定时 ' + formatNextTime(rule.triggerAt || 0)
+    return '规则'
+  }).join(' + ')
+}
 
 function formatTime(ts) {
   const d = new Date(ts)
@@ -527,8 +704,8 @@ function triggerDue() {
 
   for (const r of reminders) {
     if (!r.enabled) continue
-    const t = getNextTriggerTime(r, target)
-    if (t !== null && Math.abs(t - target) < TRIGGER_MATCH_WINDOW_MS) {
+    // 命中规则以任务级匹配结果为准：同一任务同一时刻可能有多条规则同时到点
+    if (matchRulesAt(r, target).length) {
       // 单条提醒出错不影响同一时刻的其他提醒
       try {
         doTrigger(r, target)
@@ -540,8 +717,19 @@ function triggerDue() {
   }
 }
 
-// 已经发过通知的 once 提醒：状态写库失败时防止每轮重排都重复通知
-const firedOnceIds = new Set()
+// 同一计划时刻已发过通知的任务：状态写库失败时防止每轮重排都重复通知
+const notifiedSlots = new Map()
+
+// 标记命中规则的触发状态：一次性规则记 firedAt（已消费，不再参与调度），
+// 其余规则记 lastTriggered（「随创建时间」对齐的锚点）
+function markRulesFired(target, hitRules, scheduled, now) {
+  for (const rule of hitRules) {
+    rule.lastTriggered = now
+    if (rule.type === 'once') rule.firedAt = now
+  }
+  target.lastTriggered = now
+  target.lastFiredSlot = scheduled
+}
 
 function doTrigger(reminder, scheduled) {
   const now = Date.now()
@@ -559,26 +747,23 @@ function doTrigger(reminder, scheduled) {
     return
   }
 
-  if (target.type === 'once') {
-    if (firedOnceIds.has(target.id)) {
-      // 已通知过，不再重复发；但仍要重试把「已触发」状态落库，
-      // 否则这条过期数据会一直占住 calcNextTick 的最小值，饿死其他提醒
-      if (target.enabled || target.lastTriggered === 0) {
-        target.enabled = false
-        target.lastTriggered = now
-        try {
-          writeReminders(reminders)
-        } catch (e) {
-          console.error('[easyremind] writeReminders retry error:', e)
-        }
-      }
-      return
+  // 命中规则以最新存储为准：并发窗口里可能已被其他视图消费
+  const hitRules = matchRulesAt(target, scheduled)
+  if (!hitRules.length) return
+
+  // 上次已经发过通知但状态没落库：这次只补状态，不再重复通知。
+  // 否则过期数据会一直占住 calcNextTick 的最小值，饿死其他提醒
+  if (notifiedSlots.get(target.id) === scheduled) {
+    markRulesFired(target, hitRules, scheduled, now)
+    try {
+      writeReminders(reminders)
+    } catch (e) {
+      console.error('[easyremind] writeReminders retry error:', e)
     }
-    firedOnceIds.add(target.id)
-    target.enabled = false
+    return
   }
-  target.lastTriggered = now
-  target.lastFiredSlot = scheduled
+
+  markRulesFired(target, hitRules, scheduled, now)
   try {
     writeReminders(reminders)
   } catch (e) {
@@ -587,14 +772,20 @@ function doTrigger(reminder, scheduled) {
     console.error('[easyremind] writeReminders error:', e)
     addLog('[异常] 「' + target.title + '」触发状态保存失败：' + ((e && e.message) || String(e)), { id: target.id })
   }
+  notifiedSlots.set(target.id, scheduled)
 
   const drift = now - scheduled
-  addLog('[触发] ' + target.title + ' · ' + formatTime(scheduled) + (drift ? '（偏差 ' + (drift > 0 ? '+' : '') + drift + 'ms）' : '（准点）'), {
-    id: target.id,
-    type: target.type,
-    scheduledTime: formatTime(scheduled),
-    actualTime: formatTime(now)
-  })
+  addLog(
+    '[触发] ' + target.title + ' · ' + formatTime(scheduled) + ' · ' + ruleLabel(hitRules) +
+      (drift ? '（偏差 ' + (drift > 0 ? '+' : '') + drift + 'ms）' : '（准点）'),
+    {
+      id: target.id,
+      rules: hitRules.map(rule => rule.id),
+      ruleCount: (target.rules || []).length,
+      scheduledTime: formatTime(scheduled),
+      actualTime: formatTime(now)
+    }
+  )
 
   // 发送系统通知：标题=任务名，内容=描述
   try {
@@ -815,7 +1006,54 @@ function applyDeleteByIds(ids) {
 }
 
 // ==================== 暴露服务 ====================
+
+// 表单提交的规则 → 存储结构：补齐 id/公共字段与各类型缺省值
+function normalizeRulesForSave(rules) {
+  const list = []
+  ;(Array.isArray(rules) ? rules : []).forEach((rule, i) => {
+    const normalized = normalizeRuleShape(rule, generateId() + '-' + i, Date.now())
+    if (normalized) list.push(normalized)
+  })
+  return list
+}
+
+// 编辑保存时，规则的触发状态（lastTriggered、once 的 firedAt）只由调度器维护：
+// 表单打开期间规则可能刚好触发，用表单里的快照写回会丢状态（重启后重复提醒）。
+// 调度参数没变就沿用存储里的已消费状态；一次性规则换了时刻则按表单重新武装。
+function mergeRuleRuntimeState(rules, prevById) {
+  return rules.map(rule => {
+    const prev = prevById.get(rule.id)
+    if (!prev || prev.type !== rule.type) return rule
+    const merged = { ...rule }
+    if (prev.lastTriggered) merged.lastTriggered = prev.lastTriggered
+    if (rule.type === 'once' && prev.firedAt && prev.triggerAt === rule.triggerAt) {
+      merged.firedAt = prev.firedAt
+    }
+    return merged
+  })
+}
+
+// 按第一条规则回写旧的单类型字段：仅为回退到 1.4.x 时还能按第一条规则提醒，
+// 新版本读取一律以 rules 为准
+function mirrorLegacyFields(r) {
+  const rule = (r.rules || [])[0]
+  if (!rule) return
+  r.type = rule.type
+  r.dayFilter = rule.type === 'once' ? 'all' : (rule.dayFilter || 'all')
+  r.schedules = rule.type === 'interval' ? rule.schedules : []
+  r.interval = rule.type === 'interval' ? rule.interval : 60
+  r.align = rule.type === 'interval' ? rule.align : 'create'
+  r.weekdays = rule.type === 'daily' ? rule.weekdays : []
+  r.triggerTime = rule.type === 'daily' ? rule.triggerTime : ''
+  r.triggerAt = rule.type === 'once' ? rule.triggerAt : undefined
+}
+
 window.services = {
+  // 能力标记：渲染层据此判断当前加载的 preload 是否支持「任务 + 多规则」。
+  // 未声明时说明 ZTools 还没重启、跑的还是 1.4.x 的旧 preload，表单会拒绝保存并提示重启，
+  // 避免按旧结构落库出「规则缺失、永不触发」的任务
+  supportsMultiRules: true,
+
   // ===== 提醒数据 CRUD =====
   getReminders() {
     return readReminders()
@@ -833,18 +1071,12 @@ window.services = {
   addReminder(formData) {
     const reminders = readReminders()
     const bucketKey = formData.groupId || ''
+    const rules = normalizeRulesForSave(formData.rules)
     const reminder = {
       id: generateId(),
       title: formData.title,
       content: formData.content || '',
-      type: formData.type,
-      schedules: formData.schedules || [],
-      interval: formData.interval || 60,
-      align: formData.align === 'start' ? 'start' : 'create',
-      triggerAt: formData.triggerAt,
-      weekdays: formData.weekdays,
-      triggerTime: formData.triggerTime,
-      dayFilter: formData.dayFilter || 'all',
+      rules,
       groupId: formData.groupId || undefined,
       order: maxOrderInBucket(reminders, bucketKey) + 1,
       enabled: true,
@@ -852,12 +1084,13 @@ window.services = {
       lastFiredSlot: 0,
       createdAt: Date.now()
     }
+    mirrorLegacyFields(reminder)
     reminders.push(reminder)
     writeReminders(reminders)
     const next = getNextTriggerTime(reminder, Date.now())
-    addLog('[新建] ' + reminder.title + ' · ' + TYPE_LABELS[reminder.type] + (next ? ' · 下次触发 ' + formatNextTime(next) : ' · 当前不会触发'), {
+    addLog('[新建] ' + reminder.title + ' · ' + ruleTypeLabel(reminder) + ruleCountSuffix(reminder) + (next ? ' · 下次触发 ' + formatNextTime(next) : ' · 当前不会触发'), {
       id: reminder.id,
-      type: reminder.type,
+      rules: rules.map(rule => rule.type),
       nextTriggerAt: next || undefined
     })
     scheduleNext()
@@ -877,28 +1110,23 @@ window.services = {
       ? reminders[index].order
       : maxOrderInBucket(reminders, nextBucket) + 1
 
+    const prevRules = new Map((reminders[index].rules || []).map(rule => [rule.id, rule]))
     reminders[index] = {
       ...reminders[index],
       title: formData.title,
       content: formData.content || '',
-      type: formData.type,
-      schedules: formData.schedules || [],
-      interval: formData.interval || 60,
-      align: formData.align === 'start' ? 'start' : 'create',
-      triggerAt: formData.triggerAt,
-      weekdays: formData.weekdays,
-      triggerTime: formData.triggerTime,
-      dayFilter: formData.dayFilter || 'all',
+      rules: mergeRuleRuntimeState(normalizeRulesForSave(formData.rules), prevRules),
       groupId: nextGroupId,
       order,
       // 改了调度参数，旧的「已触发时刻」不能再挡住重新算出来的同一时刻
       lastFiredSlot: 0
     }
+    mirrorLegacyFields(reminders[index])
     writeReminders(reminders)
     const next = getNextTriggerTime(reminders[index], Date.now())
-    addLog('[修改] ' + reminders[index].title + ' · ' + TYPE_LABELS[formData.type] + (next ? ' · 下次触发 ' + formatNextTime(next) : ' · 当前不会触发'), {
+    addLog('[修改] ' + reminders[index].title + ' · ' + ruleTypeLabel(reminders[index]) + ruleCountSuffix(reminders[index]) + (next ? ' · 下次触发 ' + formatNextTime(next) : ' · 当前不会触发'), {
       id,
-      type: formData.type,
+      rules: reminders[index].rules.map(rule => rule.type),
       nextTriggerAt: next || undefined
     })
     scheduleNext()
@@ -948,14 +1176,18 @@ window.services = {
     copy.order = maxOrderInBucket(reminders, src.groupId || '') + 1
     copy.lastTriggered = 0
     copy.lastFiredSlot = 0
+    // 规则状态原样保留、只换规则 id：已消费的一次性规则复制出来仍是已消费，
+    // 不会因为过去的触发时刻被立即补发
+    copy.rules = (copy.rules || []).map(rule => ({ ...rule, id: generateId() }))
+    mirrorLegacyFields(copy)
     reminders.push(copy)
     writeReminders(reminders)
 
     const next = getNextTriggerTime(copy, Date.now())
-    addLog('[复制] ' + copy.title + ' · ' + TYPE_LABELS[copy.type] + (next ? ' · 下次触发 ' + formatNextTime(next) : ' · 当前不会触发'), {
+    addLog('[复制] ' + copy.title + ' · ' + ruleTypeLabel(copy) + ruleCountSuffix(copy) + (next ? ' · 下次触发 ' + formatNextTime(next) : ' · 当前不会触发'), {
       id: copy.id,
       from: src.id,
-      type: copy.type,
+      rules: copy.rules.map(rule => rule.type),
       nextTriggerAt: next || undefined
     })
     scheduleNext()

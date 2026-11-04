@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ReminderForm from './components/ReminderForm.vue'
 import ReminderItem from './components/ReminderItem.vue'
-import type { Reminder, ReminderFormData, ReminderGroup } from '../types/reminder'
+import type { Reminder, ReminderFormData, ReminderGroup, TriggerRule } from '../types/reminder'
 import { useReminders } from '../composables/useReminders'
 import { useLog } from '../composables/useLog'
 import { useHoliday } from '../composables/useHoliday'
@@ -57,8 +57,20 @@ const activeTab = ref<TabKey>('active')
 const nowTs = ref(Date.now())
 let nowTimer: number | undefined
 
+// 一次性规则已过期/已触发，或规则本身配置成永远不会触发，都视为「这条规则不会再响」
+function isDeadRule(rule: TriggerRule): boolean {
+  if (rule.type === 'once') return !!rule.firedAt || rule.triggerAt <= nowTs.value
+  if (rule.type === 'daily') return rule.weekdays.length === 0
+  return rule.schedules.length === 0
+}
+
+// 任务级「已过期」：还有启用的规则、但它们全都不会再触发，且其中至少有一次性的过期规则。
+// 全部规则被手动停用时不进已过期，仍归「未启用」。
 function isExpired(r: Reminder): boolean {
-  return r.type === 'once' && r.triggerAt != null && r.triggerAt < nowTs.value
+  const live = (r.rules || []).filter(rule => rule.enabled)
+  if (!live.length) return false
+  if (live.some(rule => !isDeadRule(rule))) return false
+  return live.some(rule => rule.type === 'once')
 }
 
 const activeReminders = computed(() => sortedReminders.value.filter(r => r.enabled && !isExpired(r)))
@@ -522,8 +534,8 @@ const holidayText = computed(() => {
 const showHolidayBar = computed(() => {
   const s = holidayStatus.value
   if (!s) return false
-  // 旧 preload / 无数据 / 有任意提醒启用过滤 或 已有数据时展示
-  return s.legacy || s.years.length > 0 || sortedReminders.value.some(r => r.dayFilter && r.dayFilter !== 'all')
+  // 旧 preload / 无数据 / 有任意规则启用过滤 或 已有数据时展示
+  return s.legacy || s.years.length > 0 || sortedReminders.value.some(r => (r.rules || []).some(rule => rule.type !== 'once' && rule.dayFilter !== 'all'))
 })
 
 async function handleUpdateHoliday() {
@@ -965,11 +977,8 @@ async function handleUpdateHoliday() {
   align-items: center;
   gap: 8px;
   min-height: 34px;
-  padding: 3px 10px;
-  margin-bottom: 10px;
-  border: 1px solid var(--el-color-primary-light-7);
-  border-radius: 8px;
-  background: var(--el-color-primary-light-9);
+  padding: 0 2px 6px;
+  margin-bottom: 4px;
 }
 
 .select-all {
