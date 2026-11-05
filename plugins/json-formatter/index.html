@@ -38,10 +38,14 @@
           <div class="panel-heading">
             <span>原始数据</span>
             <span id="inputStats" class="stats">0 字符</span>
+            <button id="inputSearchButton" class="mini-button" type="button" aria-expanded="false" aria-controls="inputSearch">查找 / 替换</button>
           </div>
+          <div id="inputSearch" class="search-panel" aria-label="原始数据查找替换" hidden></div>
           <div class="editor-wrap">
             <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
-            <textarea id="inputJson" spellcheck="false" autocomplete="off" placeholder='粘贴 JSON 或 JSON5，例如 { name: "ZTools" }' aria-label="原始 JSON"></textarea>
+            <div class="input-editor">
+              <textarea id="inputJson" spellcheck="false" autocomplete="off" placeholder='粘贴 JSON 或 JSON5，例如 { name: "ZTools" }' aria-label="原始 JSON"></textarea>
+            </div>
           </div>
         </article>
 
