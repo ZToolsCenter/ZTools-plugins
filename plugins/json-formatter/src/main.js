@@ -10,6 +10,7 @@ import {
   valueToClipboardText
 } from './json-utils.js'
 import { renderJsonTree, setAllTreeNodesOpen } from './tree-view.js'
+import { createSearch } from './search.js'
 
 
 const SETTINGS_KEY = 'ztools-json-formatter-settings-v1'
@@ -64,6 +65,21 @@ const elements = {
   }
 }
 
+const inputSearch = createSearch({
+  container: document.querySelector('#inputSearch'),
+  toggle: document.querySelector('#inputSearchButton'),
+  editor: elements.input,
+  label: '原始数据',
+  onReplace(matches, replacement) {
+    let text = elements.input.value
+    for (const { start, end } of [...matches].reverse()) text = text.slice(0, start) + replacement + text.slice(end)
+    elements.input.value = text
+    scheduleFormat()
+    setStatus(`原始数据已替换 ${matches.length} 处`, 'success')
+    return true
+  }
+})
+
 function getSettings() {
   return {
     allowJson5: elements.allowJson5.checked,
@@ -92,6 +108,7 @@ function updateLineNumbers() {
   const lineCount = Math.max(1, elements.input.value.split('\n').length)
   elements.lineNumbers.textContent = Array.from({ length: lineCount }, (_, index) => index + 1).join('\n')
   elements.inputStats.textContent = `${elements.input.value.length.toLocaleString()} 字符${elements.input.value ? ` · ${lineCount.toLocaleString()} 行` : ''}`
+  inputSearch.refresh()
 }
 
 function updateResultStats() {
@@ -289,6 +306,11 @@ elements.expandButton.addEventListener('click', () => setAllTreeNodesOpen(elemen
 elements.collapseButton.addEventListener('click', () => setAllTreeNodesOpen(elements.tree, false))
 for (const tab of elements.tabs) tab.addEventListener('click', () => switchView(tab.dataset.view))
 document.addEventListener('keydown', (event) => {
+  if (event.defaultPrevented || event.isComposing) return
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && ['f', 'h'].includes(event.key.toLowerCase())) {
+    event.preventDefault()
+    inputSearch.open(event.key.toLowerCase() === 'h')
+  }
   if (event.ctrlKey && event.key === 'Enter') {
     event.preventDefault()
     renderResult()

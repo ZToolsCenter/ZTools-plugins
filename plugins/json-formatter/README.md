@@ -4,6 +4,8 @@
 
 ![JSON 格式化插件界面](docs/screenshot.png)
 
+![原始数据查找高亮](docs/search-highlight.png)
+
 ## 功能
 
 - 标准 JSON 与 JSON5（注释、尾逗号、未加引号 key）解析
@@ -11,6 +13,7 @@
 - 可折叠树形视图、类型着色、节点路径/值复制与节点编辑
 - 树形、文本预览及节点值编辑区（包括根节点）直接显示字符串中的 JSON 引号；复制完整结果或根节点保留转义，复制子节点值按反转义后的内容输出
 - 清晰的解析错误行列提示
+- 原始数据支持查找、匹配计数、前后跳转、区分大小写、单个替换与全部替换；所有匹配项持续高亮，当前项以橙色边框突出显示，替换后自动重新格式化
 - 粘贴自动识别、输入自动格式化、本地偏好保存与快捷键
 - 浅色/深色主题与自适应全屏布局，所有数据仅在本地处理
 
@@ -27,10 +30,12 @@ npm run verify
 
 发布产物位于 `release/`：
 
-- `json-formatter-1.0.1.zpx`：ZTools 安装包
-- `json-formatter-1.0.1.zip`：兼容 ZIP 安装包
+- `json-formatter-1.0.2.zpx`：ZTools 安装包
+- `json-formatter-1.0.2.zip`：兼容 ZIP 安装包
 
 快捷键：`Ctrl + Enter` 立即格式化，`Ctrl + Shift + C` 复制结果，`Ctrl + Shift + V` 从剪贴板粘贴。
+
+使用 `Ctrl + F` 打开原始数据的查找替换栏，`Ctrl + H` 直接聚焦替换框。查找框中 `Enter` / `Shift + Enter` 跳转下一个 / 上一个匹配；替换框中 `Enter` 替换当前项，`Ctrl + Enter` 全部替换；`Esc` 关闭。查找按字面量匹配，替换内容可留空以删除匹配文本。
 
 ## 发布到 ZTools 插件中心
 
@@ -59,7 +64,7 @@ git status
 
 ```bash
 git add .
-git commit -m "chore: release v1.0.1"
+git commit -m "chore: release v1.0.2"
 ```
 
 ### 3. 创建发布 PR
