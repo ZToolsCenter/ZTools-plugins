@@ -144,6 +144,12 @@ JSON 上限 20 MB。优先使用临时 Web Worker，其次 Node Worker；不可�
 
 ## 8. 日志与排查
 
+保存返回错误时，普通保存的 `storage.engines.save.rejected` 和批量任务的 `icons.batch.storageRejected` 会完整打印宿主返回对象，不截断或脱敏该对象；成功时不打印返回对象
+
+批量图标任务开始时用 `icons.batch.entries` 汇总全部入口名称，结束时用 `icons.batch.failedEntries` 汇总获取或保存失败的入口名称，名称列表各占一行，不逐条记录成功入口。没有失败时不输出失败名称日志，取消和受保护而跳过的入口不算失败
+
+批量图标写入及普通入口保存会检查 `dbStorage.setItem()` 的返回值；返回 `false`、错误对象或 `ok: false` 时按保存失败处理，不计为更新成功，也不同步失败批次的指令图标
+
 Debug 通过宿主 electron-log 5 的 `__ELECTRON_LOG__` IPC 接入日志收集，不可用时回退 console。使用宿主 DEBUG 等级筛选 `WebQuickOpen`，不增加独立日志开关
 
 记录操作 ID、关联 trace、耗时、请求来源、状态码、进度和脱敏错误，不输出 URL、完整参数、图标数据或令牌，日志失败不影响业务
@@ -191,3 +197,9 @@ if ($LASTEXITCODE -eq 0) { npm run build }
 - 网络人工验证：BeJSON、OneCompiler、YAML Tools，以及代理失败和总超时路径
 
 单元测试和构建不能替代宿主视觉验收。格式化遵循插件 `.prettierrc.json`：单引号、无分号、100 列、无尾随逗号、LF。仅格式化修改文件，保留无关工作区变更；不在验证过程中推送、发布或修改授权
+
+## 10. TODO List
+
+| type| name | description | finished |
+| --- | --- | --- | --- |
+| feature | 图标独立存储 | 网页与图标集中存储超过宿主单文档 1 MiB 限制，导致保存失败；拆分图标存储，网页保留引用，兼容旧数据和导入导出 | |

@@ -6,7 +6,7 @@ const { execFileSync, spawn } = require('node:child_process')
 const { Worker } = require('node:worker_threads')
 const { AsyncLocalStorage } = require('node:async_hooks')
 const { getBrowserIcon } = require('./browser-icons.cjs')
-const { createBatchIcons } = require('./batch-icons.cjs')
+const { createBatchIcons, assertStorageWrite } = require('./batch-icons.cjs')
 
 let logIpc = null
 try {
@@ -514,7 +514,9 @@ async function saveEngines(engines) {
       entry.iconSource = current.iconSource
     }
   }
-  getZtools().dbStorage.setItem(STORAGE_KEY, normalized)
+  assertStorageWrite(getZtools().dbStorage.setItem(STORAGE_KEY, normalized), (result) =>
+    debugLog('storage.engines.save.rejected', { result })
+  )
   trace('complete', { entryCount: normalized.length })
   return normalized
 }
@@ -2062,7 +2064,15 @@ const batchIcons = createBatchIcons({
   fetchIcon: fetchFavicon,
   compress: compressIconToPng,
   sync: setEngineFeature,
-  trace: (stage, details) => debugLog('icons.batch.' + stage, details)
+  trace: (stage, details) => {
+    if (stage === 'entries' || stage === 'failedEntries') {
+      debugLog(`icons.batch.${stage} ${JSON.stringify(details.entryNames)}`, {
+        taskId: details.taskId
+      })
+      return
+    }
+    debugLog('icons.batch.' + stage, details)
+  }
 })
 window.addEventListener?.('beforeunload', () => {
   const current = batchIcons.status()

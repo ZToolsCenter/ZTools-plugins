@@ -1,3 +1,13 @@
+function assertStorageWrite(result, logFailure = () => {}) {
+  if (
+    result === false ||
+    (result && typeof result === 'object' && (result.error || result.ok === false))
+  ) {
+    logFailure(result)
+    throw new Error('保存网页数据失败')
+  }
+}
+
 function createBatchIcons({ read, write, fetchIcon, compress, sync, trace = () => {} }) {
   let task = null
   let sequence = 0
@@ -52,6 +62,10 @@ function createBatchIcons({ read, write, fetchIcon, compress, sync, trace = () =
       totalCount: entries.length,
       candidateCount: candidates.length
     })
+    trace('entries', {
+      taskId: current.state.id,
+      entryNames: entries.map((entry) => entry.name || '')
+    })
     void run(current, [...jobs.values()])
     return { success: true, data: status() }
   }
@@ -61,6 +75,7 @@ function createBatchIcons({ read, write, fetchIcon, compress, sync, trace = () =
     let pending = []
     let flushTimer
     let storageFailed = false
+    const failedNames = []
     const active = () => task === current && !storageFailed
     const flush = () => {
       clearTimeout(flushTimer)
@@ -89,7 +104,11 @@ function createBatchIcons({ read, write, fetchIcon, compress, sync, trace = () =
           entry.iconSource = 'auto'
           changed.push(entry)
         }
-        if (changed.length) write(latest)
+        if (changed.length) {
+          assertStorageWrite(write(latest), (result) =>
+            trace('storageRejected', { taskId: current.state.id, result })
+          )
+        }
         current.state.updated += changed.length
         current.state.skipped += skipped
         current.state.processed += results.length
@@ -109,6 +128,7 @@ function createBatchIcons({ read, write, fetchIcon, compress, sync, trace = () =
         })
         if (pending.length) flushTimer = setTimeout(flush, pending.length >= 10 ? 0 : 500)
       } catch {
+        failedNames.push(...results.map(({ snapshot }) => snapshot.name || ''))
         storageFailed = true
         current.state.failed += results.length
         current.state.processed += results.length
@@ -129,6 +149,7 @@ function createBatchIcons({ read, write, fetchIcon, compress, sync, trace = () =
           else if (!flushTimer) flushTimer = setTimeout(flush, 500)
         } catch {
           if (!active() || current.controller.signal.aborted) break
+          failedNames.push(...entries.map((entry) => entry.name || ''))
           current.state.failed += entries.length
           current.state.processed += entries.length
         }
@@ -162,10 +183,13 @@ function createBatchIcons({ read, write, fetchIcon, compress, sync, trace = () =
         failedCount: current.state.failed,
         skippedCount: current.state.skipped
       })
+      if (failedNames.length) {
+        trace('failedEntries', { taskId: current.state.id, entryNames: failedNames })
+      }
     }
   }
 
   return { start, status, cancel }
 }
 
-module.exports = { createBatchIcons }
+module.exports = { createBatchIcons, assertStorageWrite }
