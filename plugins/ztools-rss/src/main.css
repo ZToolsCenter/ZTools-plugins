@@ -1,0 +1,69 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* 主题变量 */
+@media (prefers-color-scheme: light) {
+  :root {
+    --rss-bg: #f5f6f7;
+    --rss-panel: #ffffff;
+    --rss-bar: #fafafa;
+    --rss-text: #1f2329;
+    --rss-text-soft: #4b5158;
+    --rss-text-dim: #9aa0a6;
+    --rss-border: #e4e6eb;
+    --rss-border-soft: #eef0f2;
+    --rss-hover: #f0f2f5;
+    --rss-input: #ffffff;
+    --rss-accent: #2e7df6;
+    --rss-accent-soft: #e8f1ff;
+    --rss-code-bg: #f5f6f7;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: var(--rss-bg);
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #c8ccd1;
+    border-radius: 4px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --rss-bg: #1c1d1f;
+    --rss-panel: #25262a;
+    --rss-bar: #202124;
+    --rss-text: #e8eaed;
+    --rss-text-soft: #b6b9bd;
+    --rss-text-dim: #7a7d82;
+    --rss-border: #36383d;
+    --rss-border-soft: #2c2d31;
+    --rss-hover: #2f3136;
+    --rss-input: #2a2b2f;
+    --rss-accent: #6ea8ff;
+    --rss-accent-soft: #2a3a55;
+    --rss-code-bg: #1c1d1f;
+  }
+
+  ::-webkit-scrollbar-track-piece {
+    background-color: var(--rss-bg);
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #4a4d52;
+    border-radius: 4px;
+  }
+}
