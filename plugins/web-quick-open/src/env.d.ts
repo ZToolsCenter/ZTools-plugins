@@ -119,6 +119,7 @@ declare global {
       profile: WebQuickOpenBrowserProfile
     ) => Promise<WebSearchResult>
     openEngine: (engineId: string, query?: string) => Promise<WebSearchResult>
+    openGroup: (name: string) => Promise<WebSearchResult<{ opened: number; failed: number }>>
     openExternal: (url: string) => unknown
     hideMainWindow: () => unknown
     outPlugin: () => unknown

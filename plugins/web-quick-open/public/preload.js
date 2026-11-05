@@ -111,6 +111,7 @@ const STORAGE_KEY = 'web-quick-open-engines'
 const GROUPS_STORAGE_KEY = 'web-quick-open-groups'
 const BROWSER_PROFILES_STORAGE_KEY = 'web-quick-open-browser-profiles'
 const FEATURE_PREFIX = 'quick-open-'
+const GROUP_FEATURE_PREFIX = 'quick-group-'
 const DEFAULT_GROUP = '默认'
 const ALL_GROUPS = '全部'
 const ICON_SIZE = 128
@@ -564,6 +565,21 @@ function buildFeatureCode(engineId) {
   return `${FEATURE_PREFIX}${engineId}`
 }
 
+function buildGroupFeatureCode(name) {
+  return `${GROUP_FEATURE_PREFIX}${encodeURIComponent(name)}`
+}
+
+function syncGroupFeatures(existingFeatures, activeCodes) {
+  for (const name of getGroups()) {
+    const code = buildGroupFeatureCode(name)
+    activeCodes.add(code)
+    setDynamicFeature(
+      { code, explain: `打开分组：${name}`, icon: 'logo.png', mainHide: true, cmds: [name] },
+      existingFeatures
+    )
+  }
+}
+
 function buildEngineFeature(engine) {
   const baseFeature = {
     code: buildFeatureCode(engine.id),
@@ -622,7 +638,10 @@ function getCurrentFeatureMap() {
     return new Map(
       features
         .filter(
-          (feature) => typeof feature?.code === 'string' && feature.code.startsWith(FEATURE_PREFIX)
+          (feature) =>
+            typeof feature?.code === 'string' &&
+            (feature.code.startsWith(FEATURE_PREFIX) ||
+              feature.code.startsWith(GROUP_FEATURE_PREFIX))
         )
         .map((feature) => [feature.code, feature])
     )
@@ -646,7 +665,11 @@ function setEngineFeature(engine, existingFeatures = null) {
     return
   }
 
-  const feature = buildEngineFeature(engine)
+  setDynamicFeature(buildEngineFeature(engine), existingFeatures)
+}
+
+function setDynamicFeature(feature, existingFeatures = null) {
+  const code = feature.code
   const signature = JSON.stringify(feature)
   const currentFeature = existingFeatures?.get(code)
   if (
@@ -721,6 +744,7 @@ async function syncImportedEngineFeatures(engines) {
   })
   const existingFeatures = getCurrentFeatureMap()
   const activeCodes = new Set()
+  syncGroupFeatures(existingFeatures, activeCodes)
   for (let index = 0; index < engines.length; index++) {
     if (index % 25 === 0) {
       trace('batch', { processedCount: index, totalCount: engines.length })
@@ -748,6 +772,7 @@ function syncEngineFeatures(engines) {
   })
   const existingFeatures = getCurrentFeatureMap()
   const activeCodes = new Set()
+  syncGroupFeatures(existingFeatures, activeCodes)
   for (const engine of engines) {
     activeCodes.add(buildFeatureCode(engine.id))
     setEngineFeature(engine, existingFeatures)
@@ -1033,6 +1058,36 @@ async function openEngine(engineId, query = '') {
     return
   }
   await openProfile(url, profile)
+}
+
+async function openGroup(name) {
+  const group = resolveGroupName(name)
+  if (!group) return { success: false, error: '未找到该分组' }
+  const entries = getAllEngines().filter(
+    (engine) => engine.group === group && engine.enabled && engine.type === 'webpage'
+  )
+  if (!entries.length) return { success: false, error: '该分组没有已启用的网页' }
+
+  let opened = 0
+  for (const engine of entries) {
+    try {
+      await openEngine(engine.id)
+      opened++
+    } catch (error) {
+      debugLog('group.open.entryFailed', debugError(error))
+    }
+  }
+  const failed = entries.length - opened
+  debugLog('group.open.complete', {
+    entryCount: entries.length,
+    openedCount: opened,
+    failedCount: failed
+  })
+  return {
+    success: opened > 0,
+    data: { opened, failed },
+    ...(failed ? { error: `${failed} 个网页打开失败` } : {})
+  }
 }
 
 async function pickBrowserExecutable() {
@@ -1968,6 +2023,7 @@ async function importFromJsonText(jsonText) {
       await syncImportedEngineFeatures(savedEngines)
     } else if (addedGroups > 0) {
       getZtools().dbStorage.setItem(GROUPS_STORAGE_KEY, nextGroups)
+      await syncImportedEngineFeatures(existingEngines)
     }
   } catch (error) {
     trace('rollback', debugError(error))
@@ -2158,6 +2214,7 @@ window.webQuickOpen = {
     if (!validated.success) return validated
     groups.push(validated.name)
     getZtools().dbStorage.setItem(GROUPS_STORAGE_KEY, groups)
+    syncEngineFeatures(getAllEngines())
     return { success: true, data: groups }
   },
   async renameGroup(oldName, newName) {
@@ -2190,6 +2247,7 @@ window.webQuickOpen = {
       storage.setItem(GROUPS_STORAGE_KEY, groups)
       throw error
     }
+    syncEngineFeatures(nextEngines)
     return { success: true, data: nextGroups }
   },
   async deleteGroup(name) {
@@ -2218,6 +2276,7 @@ window.webQuickOpen = {
       storage.setItem(GROUPS_STORAGE_KEY, groups)
       throw error
     }
+    syncEngineFeatures(nextEngines)
     return { success: true, data: nextGroups }
   },
   async add(engine) {
@@ -2355,6 +2414,9 @@ window.webQuickOpen = {
         error: error instanceof Error ? error.message : '启动浏览器失败'
       }
     }
+  },
+  async openGroup(name) {
+    return openGroup(name)
   },
   async openEngine(engineId, query = '') {
     try {

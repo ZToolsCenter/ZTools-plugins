@@ -4,7 +4,7 @@
 
 ## 1. 项目结构
 
-插件使用 Vue 3、TypeScript、Vite、ztools-ui，当前版本为 1.0.4
+插件使用 Vue 3、TypeScript、Vite、ztools-ui，当前版本为 1.0.5
 
 | 文件 | 职责 |
 | --- | --- |
@@ -61,6 +61,16 @@ UI 通过 `window.webQuickOpen` 调用 preload，不直接访问数据库、启�
 - 颜色沿用宿主主题变量；新增控件同时检查亮色、暗色和窄窗口
 
 ## 4. 打开网页与程序安全
+
+### 分组指令
+
+非默认分组以 `quick-group-${encodeURIComponent(name)}` 注册动态指令，`cmds` 使用分组名字符串，与网页关键字采用相同的宿主匹配方式。分组与网页使用不同的指令前缀，避免冲突
+
+启动时恢复已有分组指令；创建、重命名、删除和导入后同步，清理旧指令时保留静态入口。空分组也注册指令，执行时提示没有可打开的网页
+
+前端识别分组指令后调用 `openGroup(name)`，按顺序打开组内已启用的 `webpage` 入口，沿用各自的浏览器配置。默认分组、停用入口和需要搜索词的 `search` 入口不参与批量打开。单项失败不影响其余入口，返回打开和失败数量；全部失败不隐藏主窗口，部分失败提示数量。浏览器配置中的新窗口或隐私参数仍生效，不保证全部网页进入同一窗口
+
+### 浏览器启动
 
 默认浏览器通过宿主打开外部链接，自定义配置通过 `spawn(path, args, { shell: false })` 启动，URL 限定为 HTTP/HTTPS，拒绝脚本扩展名
 
@@ -168,10 +178,11 @@ npm run detect
 if ($LASTEXITCODE -eq 0) { npm run build }
 ```
 
-安装包位于 `release/web-quick-open-1.0.4.zip`，版本来自插件声明。更新版本时同步 package.json、锁文件及 public/plugin.json，勿手改 dist 或 ZIP
+安装包位于 `release/web-quick-open-1.0.5.zip`，版本来自插件声明。更新版本时同步 package.json、锁文件及 public/plugin.json，勿手改 dist 或 ZIP
 
 ### 验证清单
 
+- 分组指令：注册、重命名、删除、导入与启动恢复，跳过停用和搜索入口，浏览器配置、部分失败和空分组提示；宿主内检查分组名搜索及点击打开
 - `npm test`：入口迁移、分组、浏览器启动与图标、导入导出、网络、批量队列及取消
 - 选择器定位测试：固定向下、空间不足滚动、滚动和缩放后重算、关闭后释放监听
 - `npm run build`：类型检查和生产构建

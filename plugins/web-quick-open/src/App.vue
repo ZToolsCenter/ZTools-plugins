@@ -47,6 +47,7 @@ type SearchPreset = {
 }
 
 const FEATURE_PREFIX = 'quick-open-'
+const GROUP_FEATURE_PREFIX = 'quick-group-'
 const ALL_GROUPS = '全部'
 const DEFAULT_GROUP = '默认'
 const searchPresets: SearchPreset[] = [
@@ -953,9 +954,17 @@ async function handlePluginEnter(param: LaunchParam): Promise<void> {
     }
     return
   }
-  if (!code.startsWith(FEATURE_PREFIX)) return
+  if (!code.startsWith(FEATURE_PREFIX) && !code.startsWith(GROUP_FEATURE_PREFIX)) return
 
   try {
+    if (code.startsWith(GROUP_FEATURE_PREFIX)) {
+      const name = decodeURIComponent(code.slice(GROUP_FEATURE_PREFIX.length))
+      const result = await window.webQuickOpen.openGroup(name)
+      if (result.error) window.ztools.showNotification?.(result.error)
+      if (result.success) window.webQuickOpen.hideMainWindow()
+      window.webQuickOpen.outPlugin()
+      return
+    }
     const result = await window.webQuickOpen.getAll()
     const engine = result.data?.find((item) => `${FEATURE_PREFIX}${item.id}` === code)
     if (!engine) {

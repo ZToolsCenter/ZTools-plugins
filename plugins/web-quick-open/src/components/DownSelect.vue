@@ -71,6 +71,11 @@ onBeforeUnmount(removeListeners)
   width: 100%;
 }
 
+.down-select :deep(.z-select) {
+  min-width: 0;
+  width: 100%;
+}
+
 .down-select :deep(.select-menu) {
   max-height: var(--down-select-height, 300px);
   overflow-y: auto;
