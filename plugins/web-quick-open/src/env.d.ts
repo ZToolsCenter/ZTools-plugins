@@ -3,11 +3,24 @@
 declare global {
   type WebSearchEngineType = 'search' | 'webpage'
 
+  interface WebQuickOpenBatchIcons {
+    id: number
+    status: 'running' | 'cancelling' | 'cancelled' | 'completed' | 'failed'
+    total: number
+    processed: number
+    updated: number
+    failed: number
+    skipped: number
+    error: string
+    revision: number
+  }
+
   interface WebSearchEngine {
     id: string
     name: string
     url: string
     icon: string
+    iconSource?: 'auto' | 'manual'
     enabled: boolean
     type: WebSearchEngineType
     keyword?: string
@@ -70,6 +83,9 @@ declare global {
   }
 
   interface WebQuickOpenApi {
+    startBatchIcons: () => Promise<WebSearchResult<WebQuickOpenBatchIcons>>
+    getBatchIconsStatus: () => Promise<WebSearchResult<WebQuickOpenBatchIcons | null>>
+    cancelBatchIcons: (id: number) => Promise<WebSearchResult<WebQuickOpenBatchIcons | null>>
     writeDebugLog: (event: string, details?: Record<string, string | number | boolean>) => void
     fetchBrowserIcon: (profile: WebQuickOpenBrowserProfile) => Promise<WebSearchResult<string>>
     getAll: () => Promise<WebSearchResult<WebSearchEngine[]>>
@@ -87,7 +103,7 @@ declare global {
     ) => Promise<WebSearchResult<WebQuickOpenBrowserProfile[]>>
     resetBrowserProfiles: () => Promise<WebSearchResult<WebQuickOpenBrowserProfile[]>>
     add: (engine: WebSearchEngine) => Promise<WebSearchResult>
-    update: (engine: WebSearchEngine) => Promise<WebSearchResult>
+    update: (engine: WebSearchEngine, preserveIcon?: boolean) => Promise<WebSearchResult>
     delete: (engineId: string) => Promise<WebSearchResult>
     getGroups: () => Promise<WebSearchResult<string[]>>
     createGroup: (name: string) => Promise<WebSearchResult<string[]>>
@@ -103,6 +119,7 @@ declare global {
       profile: WebQuickOpenBrowserProfile
     ) => Promise<WebSearchResult>
     openEngine: (engineId: string, query?: string) => Promise<WebSearchResult>
+    openGroup: (name: string) => Promise<WebSearchResult<{ opened: number; failed: number }>>
     openExternal: (url: string) => unknown
     hideMainWindow: () => unknown
     outPlugin: () => unknown

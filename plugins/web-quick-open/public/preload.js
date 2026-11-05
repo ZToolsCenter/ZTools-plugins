@@ -6,6 +6,7 @@ const { execFileSync, spawn } = require('node:child_process')
 const { Worker } = require('node:worker_threads')
 const { AsyncLocalStorage } = require('node:async_hooks')
 const { getBrowserIcon } = require('./browser-icons.cjs')
+const { createBatchIcons, assertStorageWrite } = require('./batch-icons.cjs')
 
 let logIpc = null
 try {
@@ -110,6 +111,7 @@ const STORAGE_KEY = 'web-quick-open-engines'
 const GROUPS_STORAGE_KEY = 'web-quick-open-groups'
 const BROWSER_PROFILES_STORAGE_KEY = 'web-quick-open-browser-profiles'
 const FEATURE_PREFIX = 'quick-open-'
+const GROUP_FEATURE_PREFIX = 'quick-group-'
 const DEFAULT_GROUP = '默认'
 const ALL_GROUPS = '全部'
 const ICON_SIZE = 128
@@ -401,6 +403,10 @@ function normalizeEngine(engine) {
     name: typeof engine?.name === 'string' ? engine.name.trim() : '',
     url: typeof engine?.url === 'string' ? engine.url.trim() : '',
     icon: typeof engine?.icon === 'string' ? engine.icon : '',
+    iconSource:
+      engine?.icon && ['auto', 'manual'].includes(engine.iconSource)
+        ? engine.iconSource
+        : undefined,
     enabled: typeof engine?.enabled === 'boolean' ? engine.enabled : true,
     type,
     keyword: typeof engine?.keyword === 'string' ? engine.keyword.trim() : '',
@@ -468,20 +474,49 @@ function compressIconToPng(icon) {
 }
 
 async function saveEngines(engines) {
-  const trace = startDebugTrace('storage.engines.save', { entryCount: engines.length })
+  const trace = startDebugTrace('storage.engines.save', {
+    entryCount: engines.length
+  })
+  const before = new Map(getAllEngines().map((entry) => [entry.id, entry]))
+  const inputs = new Map(engines.map((entry) => [entry.id, entry]))
   const normalized = []
   for (let index = 0; index < engines.length; index += 20) {
     await yieldToEventLoop()
     const batch = await Promise.all(
       engines.slice(index, index + 20).map(async (engine) => {
         const normalizedEngine = normalizeEngine(engine)
-        return { ...normalizedEngine, icon: await compressIconToPng(normalizedEngine.icon) }
+        return {
+          ...normalizedEngine,
+          icon: await compressIconToPng(normalizedEngine.icon)
+        }
       })
     )
     normalized.push(...batch)
-    trace('batch', { processedCount: normalized.length, totalCount: engines.length })
+    trace('batch', {
+      processedCount: normalized.length,
+      totalCount: engines.length
+    })
   }
-  getZtools().dbStorage.setItem(STORAGE_KEY, normalized)
+  const latest = new Map(getAllEngines().map((entry) => [entry.id, entry]))
+  for (const entry of normalized) {
+    const old = before.get(entry.id)
+    const current = latest.get(entry.id)
+    const input = inputs.get(entry.id)
+    if (
+      old &&
+      current &&
+      input?.icon === old.icon &&
+      input?.iconSource === old.iconSource &&
+      (current.icon !== old.icon || current.iconSource !== old.iconSource) &&
+      entry.url === current.url
+    ) {
+      entry.icon = current.icon
+      entry.iconSource = current.iconSource
+    }
+  }
+  assertStorageWrite(getZtools().dbStorage.setItem(STORAGE_KEY, normalized), (result) =>
+    debugLog('storage.engines.save.rejected', { result })
+  )
   trace('complete', { entryCount: normalized.length })
   return normalized
 }
@@ -530,6 +565,21 @@ function validateEngine(engine, requireId, context = null) {
 
 function buildFeatureCode(engineId) {
   return `${FEATURE_PREFIX}${engineId}`
+}
+
+function buildGroupFeatureCode(name) {
+  return `${GROUP_FEATURE_PREFIX}${encodeURIComponent(name)}`
+}
+
+function syncGroupFeatures(existingFeatures, activeCodes) {
+  for (const name of getGroups()) {
+    const code = buildGroupFeatureCode(name)
+    activeCodes.add(code)
+    setDynamicFeature(
+      { code, explain: `打开分组：${name}`, icon: 'logo.png', mainHide: true, cmds: [name] },
+      existingFeatures
+    )
+  }
 }
 
 function buildEngineFeature(engine) {
@@ -590,7 +640,10 @@ function getCurrentFeatureMap() {
     return new Map(
       features
         .filter(
-          (feature) => typeof feature?.code === 'string' && feature.code.startsWith(FEATURE_PREFIX)
+          (feature) =>
+            typeof feature?.code === 'string' &&
+            (feature.code.startsWith(FEATURE_PREFIX) ||
+              feature.code.startsWith(GROUP_FEATURE_PREFIX))
         )
         .map((feature) => [feature.code, feature])
     )
@@ -614,7 +667,11 @@ function setEngineFeature(engine, existingFeatures = null) {
     return
   }
 
-  const feature = buildEngineFeature(engine)
+  setDynamicFeature(buildEngineFeature(engine), existingFeatures)
+}
+
+function setDynamicFeature(feature, existingFeatures = null) {
+  const code = feature.code
   const signature = JSON.stringify(feature)
   const currentFeature = existingFeatures?.get(code)
   if (
@@ -684,9 +741,12 @@ function registerMainPush() {
 }
 
 async function syncImportedEngineFeatures(engines) {
-  const trace = startDebugTrace('features.importSync', { entryCount: engines.length })
+  const trace = startDebugTrace('features.importSync', {
+    entryCount: engines.length
+  })
   const existingFeatures = getCurrentFeatureMap()
   const activeCodes = new Set()
+  syncGroupFeatures(existingFeatures, activeCodes)
   for (let index = 0; index < engines.length; index++) {
     if (index % 25 === 0) {
       trace('batch', { processedCount: index, totalCount: engines.length })
@@ -709,9 +769,12 @@ async function syncImportedEngineFeatures(engines) {
 }
 
 function syncEngineFeatures(engines) {
-  const trace = startDebugTrace('features.sync', { entryCount: engines.length })
+  const trace = startDebugTrace('features.sync', {
+    entryCount: engines.length
+  })
   const existingFeatures = getCurrentFeatureMap()
   const activeCodes = new Set()
+  syncGroupFeatures(existingFeatures, activeCodes)
   for (const engine of engines) {
     activeCodes.add(buildFeatureCode(engine.id))
     setEngineFeature(engine, existingFeatures)
@@ -826,7 +889,9 @@ function validateProfileTarget(profile) {
 }
 
 function resolveProfileExecutable(executablePath) {
-  const trace = startDebugTrace('browser.resolve', { platform: process.platform })
+  const trace = startDebugTrace('browser.resolve', {
+    platform: process.platform
+  })
   const target = validateExecutablePath(executablePath)
   const isAbsolute =
     process.platform === 'win32'
@@ -882,7 +947,10 @@ function buildProfileArgs(profile, url) {
 }
 
 function spawnBrowser(executablePath, args) {
-  const trace = startDebugTrace('browser.spawn', { argumentCount: args.length, shell: false })
+  const trace = startDebugTrace('browser.spawn', {
+    argumentCount: args.length,
+    shell: false
+  })
   return new Promise((resolve, reject) => {
     let child
     try {
@@ -994,6 +1062,36 @@ async function openEngine(engineId, query = '') {
   await openProfile(url, profile)
 }
 
+async function openGroup(name) {
+  const group = resolveGroupName(name)
+  if (!group) return { success: false, error: '未找到该分组' }
+  const entries = getAllEngines().filter(
+    (engine) => engine.group === group && engine.enabled && engine.type === 'webpage'
+  )
+  if (!entries.length) return { success: false, error: '该分组没有已启用的网页' }
+
+  let opened = 0
+  for (const engine of entries) {
+    try {
+      await openEngine(engine.id)
+      opened++
+    } catch (error) {
+      debugLog('group.open.entryFailed', debugError(error))
+    }
+  }
+  const failed = entries.length - opened
+  debugLog('group.open.complete', {
+    entryCount: entries.length,
+    openedCount: opened,
+    failedCount: failed
+  })
+  return {
+    success: opened > 0,
+    data: { opened, failed },
+    ...(failed ? { error: `${failed} 个网页打开失败` } : {})
+  }
+}
+
 async function pickBrowserExecutable() {
   debugLog('browser.filePicker.open', { platform: process.platform })
   const ztools = getZtools()
@@ -1016,7 +1114,7 @@ async function pickBrowserExecutable() {
   }
 }
 
-async function fetchFavicon(url) {
+async function fetchFavicon(url, externalSignal) {
   const input = String(url || '')
     .replace('{q}', 'test')
     .trim()
@@ -1029,8 +1127,13 @@ async function fetchFavicon(url) {
     throw new Error('请输入有效的 HTTP 或 HTTPS 地址')
   }
 
-  const trace = startDebugTrace('favicon.fetch', { timeoutMs: REQUEST_TIMEOUT_MS })
+  const trace = startDebugTrace('favicon.fetch', {
+    timeoutMs: REQUEST_TIMEOUT_MS
+  })
   const controller = new AbortController()
+  const cancel = () => controller.abort()
+  externalSignal?.addEventListener('abort', cancel, { once: true })
+  if (externalSignal?.aborted) cancel()
   const options = { signal: controller.signal, parentTraceId: trace.traceId }
   const iconRequests = new Map()
   let timer
@@ -1040,7 +1143,10 @@ async function fetchFavicon(url) {
         iconUrl,
         downloadAsDataUrl(iconUrl, { ...options, source }).then((icon) => {
           if (!icon) {
-            trace('candidateFailed', { source, cancelled: controller.signal.aborted })
+            trace('candidateFailed', {
+              source,
+              cancelled: controller.signal.aborted
+            })
             throw new Error('未获取到有效图标')
           }
           trace('candidateReady', { source, dataCharacters: icon.length })
@@ -1059,30 +1165,61 @@ async function fetchFavicon(url) {
       stopAtHead: true
     })
     const pageUrl = response.url || parsed.href
-    const candidates = [new URL('/favicon.ico', pageUrl).href]
+    const candidates = []
     if (response.statusCode >= 200 && response.statusCode < 300) {
       candidates.push(...extractFaviconUrls(response.body.toString('utf8'), pageUrl))
     }
-    trace('pageParsed', { candidateCount: candidates.length, statusCode: response.statusCode })
-    return Promise.any([...new Set(candidates)].map((candidate) => requireIcon(candidate)))
+    trace('pageParsed', {
+      candidateCount: candidates.length,
+      statusCode: response.statusCode
+    })
+    if (!candidates.length) {
+      return requireIcon(new URL('/favicon.ico', pageUrl).href, 'root')
+    }
+    const results = [...new Set(candidates)].map((candidate) =>
+      requireIcon(candidate).catch(() => '')
+    )
+    for (const result of results) {
+      const icon = await result
+      if (icon) return icon
+    }
+    return requireIcon(new URL('/favicon.ico', pageUrl).href, 'root')
   }
-  // Reuse the 1.0.3 service URL and host encoding alongside direct requests
+  // Download concurrently, but do not let a fast service placeholder replace the site icon
   const faviconUrl = `${FAVICON_API_URL}?url=${encodeURIComponent(parsed.host)}`
+  let rootIcon = ''
+  let serviceIcon = ''
+  const rootResult = requireIcon(new URL('/favicon.ico', parsed.href).href, 'root')
+    .then((icon) => (rootIcon = icon))
+    .catch(() => '')
+  const serviceResult = requireIcon(faviconUrl, 'service')
+    .then((icon) => (serviceIcon = icon))
+    .catch(() => '')
+  const preferredResult = async () => {
+    const pageIcon = await fromPage().catch(() => '')
+    if (pageIcon) return pageIcon
+    const fallback = (await rootResult) || (await serviceResult)
+    if (fallback) return fallback
+    throw new AggregateError([], 'No favicon source succeeded')
+  }
   try {
     const icon = await Promise.race([
-      Promise.any([
-        fromPage(),
-        requireIcon(new URL('/favicon.ico', parsed.href).href, 'root'),
-        requireIcon(faviconUrl, 'service')
-      ]),
-      new Promise((_, reject) => {
+      preferredResult(),
+      new Promise((resolve, reject) => {
         timer = setTimeout(() => {
           trace('timeout')
+          if (rootIcon || serviceIcon) {
+            resolve(rootIcon || serviceIcon)
+            return
+          }
           reject(new Error('获取图标超时（整体限时 5 秒）'))
         }, REQUEST_TIMEOUT_MS)
       })
     ])
-    trace('complete', { dataCharacters: icon.length, requestedCount: iconRequests.size })
+    trace('complete', {
+      dataCharacters: icon.length,
+      requestedCount: iconRequests.size
+    })
     return icon
   } catch (error) {
     trace('failed', debugError(error))
@@ -1092,6 +1229,7 @@ async function fetchFavicon(url) {
   } finally {
     clearTimeout(timer)
     controller.abort()
+    externalSignal?.removeEventListener('abort', cancel)
     trace('cancelRemaining', { requestedCount: iconRequests.size })
   }
 }
@@ -1190,12 +1328,33 @@ function findHtmlHeadEnd(html) {
 }
 
 function extractFaviconUrls(html, pageUrl) {
-  if (typeof window.DOMParser !== 'function') return []
-
   try {
-    const document = new window.DOMParser().parseFromString(html, 'text/html')
+    const document =
+      typeof window.DOMParser === 'function'
+        ? new window.DOMParser().parseFromString(html, 'text/html')
+        : null
+    // Plugin preload contexts do not always expose DOMParser. Keep parsing
+    // lightweight and independent of the host document implementation
+    const parseAttributes = (source) => {
+      const attributes = {}
+      const pattern = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g
+      for (const match of source.matchAll(pattern)) {
+        attributes[match[1].toLowerCase()] = match[2] ?? match[3] ?? match[4] ?? ''
+      }
+      return attributes
+    }
+    const fallbackLinks = [...String(html).matchAll(/<link\b([^>]*)>/gi)].map((match) => {
+      const attributes = parseAttributes(match[1])
+      return { getAttribute: (name) => attributes[name] }
+    })
+    const fallbackBase = String(html).match(/<base\b([^>]*)>/i)
+    const fallbackBaseAttributes = fallbackBase ? parseAttributes(fallbackBase[1]) : {}
     let baseUrl = pageUrl
-    const baseElement = document.querySelector('base[href]')
+    const baseElement =
+      document?.querySelector('base[href]') ||
+      (fallbackBaseAttributes.href
+        ? { getAttribute: (name) => fallbackBaseAttributes[name] }
+        : null)
     const baseHref = baseElement && baseElement.getAttribute('href')
     if (baseHref) {
       try {
@@ -1206,7 +1365,9 @@ function extractFaviconUrls(html, pageUrl) {
     }
 
     const icons = []
-    for (const link of document.querySelectorAll('link[rel][href]')) {
+    const parsedLinks = document?.querySelectorAll('link[rel][href]')
+    const links = parsedLinks?.length ? parsedLinks : fallbackLinks
+    for (const link of links) {
       const relTokens = String(link.getAttribute('rel') || '')
         .toLowerCase()
         .split(/\s+/)
@@ -1292,7 +1453,10 @@ async function requestChromiumUrl(url, options) {
         }
       }
     }
-    trace('complete', { statusCode: response.status, byteCount: receivedBytes })
+    trace('complete', {
+      statusCode: response.status,
+      byteCount: receivedBytes
+    })
     return {
       statusCode: response.status,
       headers: Object.fromEntries(response.headers.entries()),
@@ -1387,7 +1551,10 @@ function requestUrl(url, options, redirectCount = 0) {
             finish(reject, new Error('重定向次数过多'))
             return
           }
-          trace('redirect', { statusCode: response.statusCode, redirectCount: redirectCount + 1 })
+          trace('redirect', {
+            statusCode: response.statusCode,
+            redirectCount: redirectCount + 1
+          })
           response.resume()
           finish(resolve, requestUrl(new URL(location, url).href, options, redirectCount + 1))
           return
@@ -1569,6 +1736,7 @@ function normalizeImportedEngine(engine) {
     name: typeof engine?.name === 'string' ? engine.name : '',
     url: typeof engine?.url === 'string' ? engine.url : '',
     icon: typeof engine?.icon === 'string' ? engine.icon : '',
+    iconSource: engine?.iconSource,
     enabled: typeof engine?.enabled === 'boolean' ? engine.enabled : true,
     type,
     keyword: typeof engine?.keyword === 'string' ? engine.keyword : '',
@@ -1589,13 +1757,19 @@ function buildEngineDedupKey(engine) {
 }
 
 async function parseImportedJson(jsonText) {
-  const trace = startDebugTrace('import.parse', { inputCharacters: jsonText.length })
+  const trace = startDebugTrace('import.parse', {
+    inputCharacters: jsonText.length
+  })
   const parseError = () =>
-    Object.assign(new Error('JSON 解析失败，请确认文件内容正确'), { code: 'INVALID_IMPORT_JSON' })
+    Object.assign(new Error('JSON 解析失败，请确认文件内容正确'), {
+      code: 'INVALID_IMPORT_JSON'
+    })
   const runWorker = (create, browser = false) =>
     new Promise((resolve, reject) => {
       const worker = create()
-      trace('workerCreated', { strategy: browser ? 'webWorker' : 'nodeWorker' })
+      trace('workerCreated', {
+        strategy: browser ? 'webWorker' : 'nodeWorker'
+      })
       let settled = false
       const finish = (callback, value) => {
         if (settled) return
@@ -1613,7 +1787,12 @@ async function parseImportedJson(jsonText) {
       }
       const timer = setTimeout(() => {
         trace('timeout')
-        finish(reject, Object.assign(new Error('导入解析超时'), { code: 'IMPORT_PARSE_TIMEOUT' }))
+        finish(
+          reject,
+          Object.assign(new Error('导入解析超时'), {
+            code: 'IMPORT_PARSE_TIMEOUT'
+          })
+        )
       }, 30000)
       const receive = (result) => {
         if (result.error) finish(reject, parseError())
@@ -1661,7 +1840,10 @@ async function parseImportedJson(jsonText) {
       return data
     } catch (error) {
       if (shouldFail(error)) throw error
-      trace('workerUnavailable', { strategy: 'webWorker', ...debugError(error) })
+      trace('workerUnavailable', {
+        strategy: 'webWorker',
+        ...debugError(error)
+      })
     } finally {
       if (objectUrl) window.URL.revokeObjectURL(objectUrl)
     }
@@ -1678,7 +1860,10 @@ async function parseImportedJson(jsonText) {
     return data
   } catch (error) {
     if (shouldFail(error)) throw error
-    trace('workerUnavailable', { strategy: 'nodeWorker', ...debugError(error) })
+    trace('workerUnavailable', {
+      strategy: 'nodeWorker',
+      ...debugError(error)
+    })
   }
   // Last-resort compatibility path keeps import usable when both worker APIs are disabled
   await yieldToEventLoop()
@@ -1706,7 +1891,10 @@ async function importFromJsonText(jsonText) {
     parsed = await parseImportedJson(jsonText)
   } catch (error) {
     trace('parseFailed', debugError(error))
-    return { success: false, error: error.message || 'JSON 解析失败，请确认文件内容正确' }
+    return {
+      success: false,
+      error: error.message || 'JSON 解析失败，请确认文件内容正确'
+    }
   }
 
   const extracted = extractImportedData(parsed)
@@ -1837,6 +2025,7 @@ async function importFromJsonText(jsonText) {
       await syncImportedEngineFeatures(savedEngines)
     } else if (addedGroups > 0) {
       getZtools().dbStorage.setItem(GROUPS_STORAGE_KEY, nextGroups)
+      await syncImportedEngineFeatures(existingEngines)
     }
   } catch (error) {
     trace('rollback', debugError(error))
@@ -1869,7 +2058,37 @@ async function importFromJsonText(jsonText) {
 
 registerMainPush()
 
+const batchIcons = createBatchIcons({
+  read: getAllEngines,
+  write: (entries) => getZtools().dbStorage.setItem(STORAGE_KEY, entries),
+  fetchIcon: fetchFavicon,
+  compress: compressIconToPng,
+  sync: setEngineFeature,
+  trace: (stage, details) => {
+    if (stage === 'entries' || stage === 'failedEntries') {
+      debugLog(`icons.batch.${stage} ${JSON.stringify(details.entryNames)}`, {
+        taskId: details.taskId
+      })
+      return
+    }
+    debugLog('icons.batch.' + stage, details)
+  }
+})
+window.addEventListener?.('beforeunload', () => {
+  const current = batchIcons.status()
+  if (current) batchIcons.cancel(current.id)
+})
+
 window.webQuickOpen = {
+  async startBatchIcons() {
+    return batchIcons.start()
+  },
+  async getBatchIconsStatus() {
+    return { success: true, data: batchIcons.status() }
+  },
+  async cancelBatchIcons(id) {
+    return { success: true, data: batchIcons.cancel(id) }
+  },
   writeDebugLog(event, details = {}) {
     if (typeof event !== 'string' || !/^[a-z][a-z\d.]{0,79}$/i.test(event)) return
     const safe = {}
@@ -1909,7 +2128,10 @@ window.webQuickOpen = {
     debugLog(event, safe, 'ui')
   },
   async fetchBrowserIcon(profile) {
-    const trace = startDebugTrace('browser.icon', { platform: process.platform, timeoutMs: 2000 })
+    const trace = startDebugTrace('browser.icon', {
+      platform: process.platform,
+      timeoutMs: 2000
+    })
     try {
       const icon = await getBrowserIcon(profile, { trace })
       trace('complete', { dataCharacters: icon.length })
@@ -2002,6 +2224,7 @@ window.webQuickOpen = {
     if (!validated.success) return validated
     groups.push(validated.name)
     getZtools().dbStorage.setItem(GROUPS_STORAGE_KEY, groups)
+    syncEngineFeatures(getAllEngines())
     return { success: true, data: groups }
   },
   async renameGroup(oldName, newName) {
@@ -2034,6 +2257,7 @@ window.webQuickOpen = {
       storage.setItem(GROUPS_STORAGE_KEY, groups)
       throw error
     }
+    syncEngineFeatures(nextEngines)
     return { success: true, data: nextGroups }
   },
   async deleteGroup(name) {
@@ -2062,6 +2286,7 @@ window.webQuickOpen = {
       storage.setItem(GROUPS_STORAGE_KEY, groups)
       throw error
     }
+    syncEngineFeatures(nextEngines)
     return { success: true, data: nextGroups }
   },
   async add(engine) {
@@ -2080,7 +2305,7 @@ window.webQuickOpen = {
     setEngineFeature(savedEngines.find((item) => item.id === nextEngine.id) || nextEngine)
     return { success: true }
   },
-  async update(engine) {
+  async update(engine, preserveIcon = false) {
     const validated = validateEngine(engine, true)
     if (!validated.success) return validated
     const engines = getAllEngines()
@@ -2088,7 +2313,13 @@ window.webQuickOpen = {
     if (index === -1) {
       return { success: false, error: '未找到该入口' }
     }
-    engines[index] = validated.engine
+    engines[index] = preserveIcon
+      ? {
+          ...validated.engine,
+          icon: engines[index].icon,
+          iconSource: engines[index].iconSource
+        }
+      : validated.engine
     const savedEngines = await saveEngines(engines)
     setEngineFeature(savedEngines[index] || validated.engine)
     return { success: true }
@@ -2114,6 +2345,8 @@ window.webQuickOpen = {
     }
   },
   async importFromJsonText(jsonText) {
+    if (['running', 'cancelling'].includes(batchIcons.status()?.status))
+      return { success: false, error: '请先取消图标获取任务再导入' }
     try {
       return await importFromJsonText(jsonText)
     } catch (error) {
@@ -2130,6 +2363,7 @@ window.webQuickOpen = {
         name: engine.name,
         url: engine.url,
         icon: engine.icon,
+        iconSource: engine.iconSource,
         enabled: engine.enabled,
         type: engine.type,
         keyword: engine.keyword,
@@ -2191,6 +2425,9 @@ window.webQuickOpen = {
       }
     }
   },
+  async openGroup(name) {
+    return openGroup(name)
+  },
   async openEngine(engineId, query = '') {
     try {
       await openEngine(engineId, query)
@@ -2215,9 +2452,11 @@ window.webQuickOpen = {
 
 // Keep synchronous APIs synchronous and preserve existing Promise results
 for (const [name, operation] of Object.entries(window.webQuickOpen)) {
-  if (name === 'writeDebugLog') continue
+  if (name === 'writeDebugLog' || name === 'getBatchIconsStatus') continue
   window.webQuickOpen[name] = function (...args) {
-    const trace = startDebugTrace(`api.${name}`, { argumentCount: args.length })
+    const trace = startDebugTrace(`api.${name}`, {
+      argumentCount: args.length
+    })
     const complete = (result) => {
       trace(result?.success === false ? 'failed' : 'complete', debugResult(result))
       return result

@@ -16,7 +16,7 @@ body {
     Inter,
     -apple-system,
     BlinkMacSystemFont,
-    'Segoe UI',
+    "Segoe UI",
     sans-serif;
   color: var(--text-color, #1d2430);
 }
@@ -65,9 +65,9 @@ button {
   align-items: center;
   justify-content: center;
   flex: none;
-  background: #e8f2f3;
-  color: #207274;
-  border: 1px solid rgba(32, 114, 116, 0.14);
+  background: var(--icon-bg, #e8f2f3);
+  color: var(--icon-color, #207274);
+  border: 1px solid var(--icon-border, rgba(32, 114, 116, 0.14));
 }
 
 h1,
@@ -114,6 +114,45 @@ h2 {
   gap: 8px;
   flex-wrap: wrap;
   flex: none;
+}
+
+.refresh-split {
+  position: relative;
+  display: inline-flex;
+  gap: 0;
+}
+
+.refresh-split > .zt-button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.refresh-split > .refresh-arrow {
+  min-width: 30px;
+  padding: 0 8px;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.refresh-menu {
+  left: 0;
+  right: auto;
+  min-width: 190px;
+  z-index: 25;
+}
+
+.batch-icon-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 22px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--divider-color, #e5e7eb);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary, #687386);
 }
 
 .manager-layout {
@@ -310,9 +349,9 @@ h2 {
   right: 0;
   min-width: 152px;
   padding: 4px;
-  border: 1px solid rgba(30, 42, 56, 0.12);
+  border: 1px solid var(--divider-color, rgba(30, 42, 56, 0.12));
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--button-bg, #ffffff);
   box-shadow: 0 8px 20px rgba(30, 42, 56, 0.1);
   z-index: 24;
 }
@@ -332,9 +371,10 @@ h2 {
   font: inherit;
 }
 
-.create-dropdown-item:hover:not(:disabled) {
-  background: #f3f8f8;
-  color: #207274;
+.create-dropdown-item:hover:not(:disabled),
+.create-dropdown-item:focus-visible {
+  background: var(--menu-hover-bg, #f3f8f8);
+  color: var(--menu-hover-color, #207274);
 }
 
 .create-dropdown-item:disabled {
@@ -496,17 +536,6 @@ h2 {
   min-width: 0;
 }
 
-.native-select {
-  width: 100%;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--button-border, rgba(30, 42, 56, 0.12));
-  border-radius: 6px;
-  background: var(--button-bg, #ffffff);
-  color: var(--text-color, #1d2430);
-  font: inherit;
-}
-
 .browser-config {
   display: grid;
   gap: 14px;
@@ -664,8 +693,7 @@ h2 {
 }
 
 .dark .group-sidebar,
-.dark .group-editor,
-.dark .native-select {
+.dark .group-editor {
   background: #20252c;
 }
 
@@ -762,32 +790,7 @@ h2 {
 }
 
 .browser-profile-card {
-  display: flex;
-  align-items: center;
   gap: 12px;
-  min-height: 76px;
-  padding: 12px 14px;
-  border: 1px solid var(--divider-color, rgba(30, 42, 56, 0.1));
-  border-radius: 8px;
-  background: var(--button-bg, #fff);
-}
-
-.browser-profile-icon {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  flex: none;
-  border-radius: 9px;
-  background: #e8f2f3;
-  color: #207274;
-  font-weight: 700;
-}
-
-.browser-profile-icon img {
-  width: 30px;
-  height: 30px;
-  object-fit: contain;
 }
 
 .browser-profile-main {
@@ -824,7 +827,6 @@ h2 {
 .browser-profile-card .engine-actions {
   width: auto;
   flex: none;
-  gap: 6px;
 }
 
 .browser-profile-main code,
@@ -876,8 +878,18 @@ h2 {
   gap: 8px;
 }
 
-.browser-select-row .native-select {
+.browser-select-row .down-select {
   flex: 1;
+  min-width: 0;
+  width: 0;
+}
+
+.dark {
+  --menu-hover-bg: rgba(97, 190, 192, 0.12);
+  --menu-hover-color: #8ad0d2;
+  --icon-bg: rgba(97, 190, 192, 0.1);
+  --icon-color: #8ad0d2;
+  --icon-border: rgba(97, 190, 192, 0.2);
 }
 
 .warning-hint {
