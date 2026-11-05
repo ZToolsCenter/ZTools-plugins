@@ -1,0 +1,163 @@
+{
+  "name": "workflowy",
+  "pluginName": "Workflowy",
+  "description": "快速新建、管理您的 Workflowy 内容。",
+  "author": "namkit",
+  "version": "2.13.1",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "pluginSetting": {
+    "single": true,
+    "height": 0
+  },
+  "features": [
+    {
+      "code": "workflowy-add",
+      "explain": "新建到 Workflowy",
+      "icon": "logo.png",
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "cmds": [
+        "wf",
+        "workflowy",
+        {
+          "type": "over",
+          "label": "新增到 Workflowy"
+        }
+      ]
+    },
+    {
+      "code": "workflowy-add-image",
+      "explain": "发送图片到 Workflowy",
+      "icon": "logo.png",
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "cmds": [
+        {
+          "type": "img",
+          "label": "发送图片到 Workflowy"
+        },
+        {
+          "type": "files",
+          "label": "发送图片文件到 Workflowy",
+          "fileType": "file",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
+            "webp"
+          ],
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "workflowy-add-markdown",
+      "explain": "发送 Markdown 文件到 Workflowy",
+      "icon": "logo.png",
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "cmds": [
+        {
+          "type": "files",
+          "label": "发送 Markdown 文件到 Workflowy",
+          "fileType": "file",
+          "extensions": [
+            "md",
+            "markdown",
+            "txt"
+          ],
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "workflowy-remember-web-source",
+      "explain": "已记住摘录来源",
+      "icon": "logo.png",
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "已记住摘录来源",
+          "match": "/^https?:\\/\\/[^\\s]+$/i",
+          "minLength": 8,
+          "maxLength": 2000
+        }
+      ]
+    },
+    {
+      "code": "workflowy-compose",
+      "explain": "长文本发送：独立窗口编辑并发送到 Workflowy",
+      "icon": "logo.png",
+      "mainHide": true,
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "cmds": [
+        "wfl",
+        "长文本",
+        "workflowy-long",
+        {
+          "type": "over",
+          "label": "长文本发送",
+          "exclude": "/^\\s*(wf|wfl|workflowy|workflowy-add|workflowy-long|长文本)\\s*$/i",
+          "minLength": 20,
+          "maxLength": 2000
+        }
+      ]
+    },
+    {
+      "code": "workflowy-view",
+      "explain": "查看节点内容",
+      "icon": "logo.png",
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "cmds": [
+        "wfv",
+        "查看指定workflowy"
+      ]
+    },
+    {
+      "code": "workflowy-settings",
+      "explain": "Workflowy 设置",
+      "icon": "logo.png",
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "cmds": [
+        "wfs",
+        "workflowy设置"
+      ]
+    }
+  ],
+  "title": "Workflowy"
+}
