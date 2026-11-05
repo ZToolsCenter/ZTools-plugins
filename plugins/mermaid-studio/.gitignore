@@ -1,0 +1,32 @@
+# 依赖与构建缓存
+node_modules/
+.vite/
+
+# 注意：web/ 是插件页面构建产物，必须提交，不要忽略
+
+# 测试与调试产物
+test-results/
+playwright-report/
+*.log
+
+# 本地分发包（ZIP 只用于手动安装，不进仓库）
+release/
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 环境变量与密钥
+.env
+.env.*
+
+# 本地网络代理补丁（仅用于本机发布，不进仓库）
+ztools-proxy.cjs
+
+# 临时验证脚本
+app/verify.mjs
+
+# 临时验证脚本
+app/verify.mjs

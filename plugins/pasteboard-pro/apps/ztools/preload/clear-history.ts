@@ -1,5 +1,7 @@
+import type { HostClipboardApi } from "./clipboard-store-types";
 import type { ZToolsCanonicalClipboardStore } from "./clipboard-store";
 import type { RetentionBlobStore } from "./retention";
+import { readHostHistoryClearBoundary } from "./host-history-boundary";
 
 export type ClearClipboardHistoryResult = Readonly<{
   deleted: number;
@@ -11,7 +13,12 @@ export async function clearClipboardHistory(
   store: ZToolsCanonicalClipboardStore,
   blobStore: RetentionBlobStore,
   systemClipboard: Readonly<{ clear(): void }>,
+  host: HostClipboardApi,
 ): Promise<ClearClipboardHistoryResult> {
+  const boundary = await readHostHistoryClearBoundary(host);
+  if (boundary !== undefined) await store.advanceHistoryClearBoundary(boundary);
+
+  await store.setImageRetryBoundary(undefined);
   const records = await store.listRecords();
   const result = await store.deleteRecords(records.map((record) => record.item.id));
   const deleted = new Set(result.deletedIds);

@@ -8,6 +8,7 @@
  *   ghstar.accounts       [{id, user, token, label, login, avatar, createdAt}]
  *   ghstar.current        当前账号 id
  *   ghstar.cache.<id>     {fetchedAt, mode, items:[...]}
+ *   ghstar.groups.<id>    [{id, name, repos:[owner/repo]}]
  */
 
 const fs = require('fs');
@@ -32,6 +33,7 @@ function dbDel(key) {
 const K_ACCOUNTS = 'ghstar.accounts';
 const K_CURRENT = 'ghstar.current';
 const kCache = (id) => 'ghstar.cache.' + id;
+const kGroups = (id) => 'ghstar.groups.' + id;
 
 // ---------- 账号簿 ----------
 function accounts() {
@@ -97,6 +99,7 @@ function removeAccount(id) {
   const list = accounts().filter((a) => a.id !== id);
   saveAccounts(list);
   dbDel(kCache(id));
+  dbDel(kGroups(id));
   if (currentId() === id) dbSet(K_CURRENT, list[0] ? list[0].id : null);
   return { accounts: list.map(publicAccount), current: currentId() };
 }
@@ -131,12 +134,73 @@ function deleteNote(name) {
   return { notes: all };
 }
 
+// ---------- 自定义分组（账号独立，一个仓库可属于多个分组） ----------
+function groups(id) {
+  const cid = id || currentId();
+  const list = cid ? dbGet(kGroups(cid)) : null;
+  return Array.isArray(list) ? list : [];
+}
+function saveGroups(id, list) {
+  const z = ZT();
+  if (!z.dbStorage) throw new Error('本地存储不可用');
+  z.dbStorage.setItem(kGroups(id), list);
+  return { groups: list };
+}
+function groupAccount() {
+  const acc = currentAccount();
+  if (!acc) throw new Error('请先添加账号');
+  return acc.id;
+}
+function groupName(name, list, exceptId) {
+  const text = String(name || '').trim();
+  if (!text) throw new Error('分组名称不能为空');
+  if (text.length > 40) throw new Error('分组名称不能超过 40 个字符');
+  if (list.some((g) => g.id !== exceptId && g.name.toLowerCase() === text.toLowerCase())) {
+    throw new Error('已存在同名分组');
+  }
+  return text;
+}
+function createGroup(name) {
+  const id = groupAccount();
+  const list = groups(id);
+  const text = groupName(name, list);
+  const group = { id: 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name: text, repos: [] };
+  list.push(group);
+  return Object.assign(saveGroups(id, list), { group: group });
+}
+function renameGroup(groupId, name) {
+  const id = groupAccount();
+  const list = groups(id);
+  const group = list.find((g) => g.id === groupId);
+  if (!group) throw new Error('分组不存在');
+  group.name = groupName(name, list, groupId);
+  return saveGroups(id, list);
+}
+function deleteGroup(groupId) {
+  const id = groupAccount();
+  return saveGroups(id, groups(id).filter((g) => g.id !== groupId));
+}
+function setRepoGroups(name, groupIds) {
+  const id = groupAccount();
+  const cache = getCache(id);
+  if (!cache || !(cache.items || []).some((it) => it.n === name)) throw new Error('仓库不在当前账号的缓存中');
+  if (!Array.isArray(groupIds)) throw new Error('分组列表无效');
+  const list = groups(id);
+  if (groupIds.some((gid) => !list.some((g) => g.id === gid))) throw new Error('分组不存在，请重新选择');
+  const selected = new Set(groupIds);
+  list.forEach((g) => {
+    g.repos = (g.repos || []).filter((repo) => repo !== name);
+    if (selected.has(g.id)) g.repos.push(name);
+  });
+  return saveGroups(id, list);
+}
+
 // ---------- GitHub API ----------
 const API = 'https://api.github.com';
 const UA = 'ztools-github-stars';
 
-async function apiGet(url, token) {
-  const headers = { 'Accept': 'application/vnd.github+json', 'User-Agent': UA };
+async function apiGet(url, token, accept) {
+  const headers = { 'Accept': accept || 'application/vnd.github+json', 'User-Agent': UA };
   if (token) headers.Authorization = 'token ' + token;
   let res, lastErr = '';
   for (let attempt = 1; attempt <= 3; attempt++) {         // 网络抖动重试（不改 HTTP 状态类错误）
@@ -174,7 +238,8 @@ async function verifyAccount(acc) {
   return { login: me.login, avatar: me.avatar_url || '', scope: 'with-token', name: me.name || '' };
 }
 
-function slim(r) {
+function slim(entry) {
+  const r = entry.repo || entry;
   return {
     n: r.full_name,
     u: r.html_url,
@@ -182,6 +247,7 @@ function slim(r) {
     l: r.language || '',
     t: r.topics || [],
     s: r.stargazers_count || 0,
+    starredAt: entry.starred_at || '',
     p: (r.pushed_at || '').slice(0, 10),
     a: !!r.archived
   };
@@ -202,7 +268,7 @@ async function fetchStars(id) {
 
   const items = [];
   for (let page = 1; page <= 30; page++) {
-    const data = await apiGet(url + '?per_page=100&page=' + page + '&sort=created&direction=desc', acc.token);
+    const data = await apiGet(url + '?per_page=100&page=' + page + '&sort=created&direction=desc', acc.token, 'application/vnd.github.star+json');
     if (!Array.isArray(data)) break;
     data.forEach((r) => items.push(slim(r)));
     if (data.length < 100) break;
@@ -248,7 +314,7 @@ function exportJson() {
   const file = path.join(dir, 'github-stars-' + (acc.login || acc.user) + '-' + stamp + '.json');
   fs.writeFileSync(file, JSON.stringify({
     user: acc.login || acc.user, mode: c.mode, fetchedAt: new Date(c.fetchedAt).toISOString(),
-    total: (c.items || []).length, notes: notes(), items: c.items || []
+    total: (c.items || []).length, notes: notes(), groups: groups(acc.id), items: c.items || []
   }, null, 1), 'utf8');
   return { path: file, total: (c.items || []).length };
 }
@@ -289,6 +355,12 @@ const services = {
   notes: notes,
   setNote: setNote,
   deleteNote: deleteNote,
+  // 自定义分组
+  groups: groups,
+  createGroup: createGroup,
+  renameGroup: renameGroup,
+  deleteGroup: deleteGroup,
+  setRepoGroups: setRepoGroups,
   // 系统
   openExternal: openExternal,
   copy: copy,

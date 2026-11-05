@@ -3,7 +3,7 @@
   "title": "Markdown 笔记",
   "description": "基于真实本地 Markdown 文件的轻量笔记插件",
   "author": "dufan1032",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "main": "index.html",
   "development": {
     "main": "http://localhost:5173"

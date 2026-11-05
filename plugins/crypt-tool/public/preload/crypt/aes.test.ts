@@ -35,6 +35,21 @@ describe('aes', () => {
     expect(enc.error).toMatch(/IV/)
   })
 
+  it('generates usable key and iv values', () => {
+    const generatedKey = aes.keygen()
+    const generatedIv = aes.ivgen()
+    expect(generatedKey.ok).toBe(true)
+    expect(generatedIv.ok).toBe(true)
+    if (!generatedKey.ok || !generatedIv.ok) return
+    expect(Buffer.byteLength(generatedKey.data, 'utf-8')).toBe(32)
+    expect(Buffer.byteLength(generatedIv.data, 'utf-8')).toBe(16)
+    const enc = aes.encrypt({ key: generatedKey.data, iv: generatedIv.data, mode: 'CBC', plaintext: 'roundtrip' })
+    expect(enc.ok).toBe(true)
+    if (!enc.ok) return
+    const dec = aes.decrypt({ key: generatedKey.data, iv: generatedIv.data, mode: 'CBC', ciphertext: enc.data })
+    expect(dec).toEqual({ ok: true, data: 'roundtrip' })
+  })
+
   it('GCM fails on tampered ciphertext', () => {
     const enc = aes.encrypt({ key, iv, mode: 'GCM', plaintext: 'Hello ZTools' })
     expect(enc.ok).toBe(true)

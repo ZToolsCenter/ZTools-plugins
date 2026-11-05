@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>网安 CTF 工具箱</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app">
+      <header class="top">
+        <div class="brand">
+          <img src="logo.png" width="36" height="36" alt="">
+          <div>
+            <h1>网安 CTF 工具箱</h1>
+            <p>编码转换 · 哈希 / JWT · 古典密码 · PHP 绕过构造 · Payload 速查</p>
+          </div>
+        </div>
+        <p class="notice">仅用于 CTF、本地靶场与已授权测试。Payload 为公开知识点，不提供漏洞利用程序。</p>
+      </header>
+
+      <nav class="nav" aria-label="功能切换">
+        <button type="button" data-tab="encode" class="active">编码转换</button>
+        <button type="button" data-tab="hash">哈希</button>
+        <button type="button" data-tab="jwt">JWT</button>
+        <button type="button" data-tab="cipher">古典密码</button>
+        <button type="button" data-tab="php-bypass">PHP 绕过构造</button>
+        <button type="button" data-tab="payload">Payload 速查</button>
+      </nav>
+
+      <section class="panel active" id="panel-encode">
+        <div class="toolbar">
+          <select id="encode-op" aria-label="编码操作"></select>
+          <span id="caesar-wrap" hidden>
+            <label class="label">位移 <input id="caesar-shift" type="number" value="3" min="-25" max="25" style="width:72px"></label>
+          </span>
+          <button class="btn" id="encode-swap" type="button">结果回填</button>
+          <button class="btn" id="encode-copy" type="button">复制结果</button>
+          <button class="btn" id="encode-clear" type="button">清空</button>
+        </div>
+        <div class="split">
+          <div>
+            <div class="label">输入</div>
+            <textarea id="encode-in" placeholder="粘贴文本、Base64、Hex、URL 编码、Unicode 转义…" spellcheck="false"></textarea>
+            <div class="detect" id="encode-detect"></div>
+          </div>
+          <div>
+            <div class="label">输出</div>
+            <div class="outbox" id="encode-out"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-hash">
+        <div class="toolbar">
+          <span class="label">HMAC 密钥（可选）</span>
+          <input id="hmac-key" type="text" placeholder="填写后额外计算 HMAC-SHA256" style="max-width:280px">
+        </div>
+        <div class="split">
+          <div>
+            <div class="label">原文</div>
+            <textarea id="hash-in" placeholder="输入要计算哈希的文本" spellcheck="false"></textarea>
+          </div>
+          <div>
+            <div class="label">结果</div>
+            <div class="hash-grid list" id="hash-out"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-jwt">
+        <div class="toolbar">
+          <button class="btn primary" id="jwt-copy-payload" type="button">复制 Payload</button>
+          <span class="label">只解析，不尝试伪造签名</span>
+        </div>
+        <div class="jwt-stack">
+          <div>
+            <div class="label">JWT</div>
+            <textarea id="jwt-in" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...." spellcheck="false"></textarea>
+          </div>
+          <div class="jwt-grid">
+            <div class="card hash-item"><b>Header</b><pre id="jwt-header"></pre></div>
+            <div class="card hash-item"><b>Payload</b><pre id="jwt-payload"></pre></div>
+          </div>
+          <div class="card hash-item"><b>Signature</b><pre id="jwt-sig"></pre></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-cipher">
+        <div class="toolbar">
+          <label class="label">Caesar 位移 <input id="cipher-shift" type="number" value="3" min="-25" max="25" style="width:72px"></label>
+          <label class="label">栅栏栏数 <input id="rail-count" type="number" value="3" min="2" max="12" style="width:72px"></label>
+        </div>
+        <div class="split">
+          <div>
+            <div class="label">输入</div>
+            <textarea id="cipher-in" placeholder="古典密码：Caesar / ROT13 / 栅栏" spellcheck="false"></textarea>
+          </div>
+          <div>
+            <div class="label">Caesar</div>
+            <div class="outbox" id="cipher-rot"></div>
+            <div class="label">ROT13</div>
+            <div class="outbox" id="cipher-rot13"></div>
+            <div class="label">栅栏密码</div>
+            <div class="outbox" id="cipher-rail"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-php-bypass">
+        <div class="example-card" id="php-example">
+          <div class="example-head">
+            <strong>示例：eval 被过滤字母数字</strong>
+            <span class="label">来自笔记「无数字字母 RCE」常见题型</span>
+          </div>
+          <pre class="example-code">preg_match('/[a-z0-9]/is', $code) && die('filtered');
+eval($code);</pre>
+          <p class="example-copy">目标：在 <code>$code</code> 里执行 <code>phpinfo()</code>，但不能出现任何字母或数字。点下面的示例会填入函数名并生成四类绕过。</p>
+          <div class="example-actions">
+            <button class="btn primary" type="button" data-fn="phpinfo" data-arg="">填入示例 phpinfo()</button>
+            <button class="btn" type="button" data-fn="system" data-arg="id">填入示例 system('id')</button>
+            <button class="btn" type="button" data-fn="assert" data-arg="">填入示例 assert</button>
+          </div>
+        </div>
+        <div class="toolbar">
+          <label class="label">函数名
+            <input id="php-gen-fn" type="text" value="phpinfo" placeholder="phpinfo / system / assert" style="width:160px">
+          </label>
+          <label class="label">参数
+            <input id="php-gen-arg" type="text" placeholder="空=无参，如 id" style="width:140px">
+          </label>
+          <button class="btn primary" id="php-gen-btn" type="button">重新构造</button>
+        </div>
+        <div id="php-gen-out" class="php-gen-grid"></div>
+      </section>
+
+      <section class="panel" id="panel-payload">
+        <div class="toolbar">
+          <input id="payload-q" type="text" placeholder="搜索：php、xss、ssti、取反、异或、自增…" style="max-width:320px">
+        </div>
+        <div class="payload-layout">
+          <div class="list cat-list" id="payload-cats"></div>
+          <div class="list payload-list" id="payload-items"></div>
+        </div>
+      </section>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="codec.js"></script>
+    <script src="payloads.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

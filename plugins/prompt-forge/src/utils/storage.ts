@@ -78,20 +78,23 @@ export async function loadPrompts(): Promise<PromptItem[]> {
   const kv = getKv()
   if (!kv) return seedPrompts()
   try {
-    const raw = kv.get(PROMPTS_KEY)
+    const raw = await kv.get(PROMPTS_KEY)
     // 空数组表示用户主动清空了词库，不能在下次启动时重新写入种子数据。
     if (Array.isArray(raw)) return raw
     const defaults = seedPrompts()
-    kv.set(PROMPTS_KEY, defaults)
+    await kv.set(PROMPTS_KEY, defaults)
     return defaults
-  } catch (e) { console.error('[storage] loadPrompts failed:', e); return seedPrompts() }
+  } catch (e) {
+    console.error('[storage] loadPrompts failed:', e)
+    throw e
+  }
 }
 
 export async function savePrompts(items: PromptItem[]): Promise<void> {
   const kv = getKv()
   if (!kv) return
-  try { kv.set(PROMPTS_KEY, JSON.parse(JSON.stringify(items))) }
-  catch (e) { console.error('[storage] savePrompts failed:', e) }
+  try { await kv.set(PROMPTS_KEY, cloneForStorage(items)) }
+  catch (e) { console.error('[storage] savePrompts failed:', e); throw e }
 }
 
 // ====== Projects ======
@@ -99,15 +102,15 @@ export async function savePrompts(items: PromptItem[]): Promise<void> {
 export async function loadProjects(): Promise<Project[]> {
   const kv = getKv()
   if (!kv) return []
-  try { return kv.get(PROJECTS_KEY) || [] }
-  catch (e) { console.error('[storage] loadProjects failed:', e); return [] }
+  try { return await kv.get(PROJECTS_KEY) || [] }
+  catch (e) { console.error('[storage] loadProjects failed:', e); throw e }
 }
 
 export async function saveProjects(items: Project[]): Promise<void> {
   const kv = getKv()
   if (!kv) return
-  try { kv.set(PROJECTS_KEY, JSON.parse(JSON.stringify(items))) }
-  catch (e) { console.error('[storage] saveProjects failed:', e) }
+  try { await kv.set(PROJECTS_KEY, cloneForStorage(items)) }
+  catch (e) { console.error('[storage] saveProjects failed:', e); throw e }
 }
 
 // ====== History ======
@@ -115,15 +118,15 @@ export async function saveProjects(items: Project[]): Promise<void> {
 export async function loadHistory(): Promise<HistoryEntry[]> {
   const kv = getKv()
   if (!kv) return []
-  try { return kv.get(HISTORY_KEY) || [] }
-  catch (e) { console.error('[storage] loadHistory failed:', e); return [] }
+  try { return await kv.get(HISTORY_KEY) || [] }
+  catch (e) { console.error('[storage] loadHistory failed:', e); throw e }
 }
 
 export async function saveHistory(entries: HistoryEntry[]): Promise<void> {
   const kv = getKv()
   if (!kv) return
-  try { kv.set(HISTORY_KEY, JSON.parse(JSON.stringify(entries))) }
-  catch (e) { console.error('[storage] saveHistory failed:', e) }
+  try { await kv.set(HISTORY_KEY, cloneForStorage(entries)) }
+  catch (e) { console.error('[storage] saveHistory failed:', e); throw e }
 }
 
 // ====== Settings ======
@@ -131,15 +134,15 @@ export async function saveHistory(entries: HistoryEntry[]): Promise<void> {
 export async function getSettings(): Promise<Record<string, any> | null> {
   const kv = getKv()
   if (!kv) return null
-  try { return kv.get(SETTINGS_KEY) }
-  catch (e) { console.error('[storage] getSettings failed:', e); return null }
+  try { return await kv.get(SETTINGS_KEY) }
+  catch (e) { console.error('[storage] getSettings failed:', e); throw e }
 }
 
 export async function setSettings(settings: Record<string, any>): Promise<void> {
   const kv = getKv()
   if (!kv) return
-  try { kv.set(SETTINGS_KEY, settings) }
-  catch (e) { console.error('[storage] setSettings failed:', e) }
+  try { await kv.set(SETTINGS_KEY, cloneForStorage(settings)) }
+  catch (e) { console.error('[storage] setSettings failed:', e); throw e }
 }
 
 // ====== Seed ======

@@ -1,0 +1,138 @@
+{
+  "format": "research-english-course-v1",
+  "title": "示例素材 · 科研交流短句",
+  "domain": "communication",
+  "description": "4 句原创表达，练习提出研究问题、解释贡献与回答追问。请按真实项目替换内容。",
+  "level": "★★★",
+  "source": {
+    "title": "科研小盒原创练习",
+    "url": "",
+    "kind": "original"
+  },
+  "sentences": [
+    {
+      "en": "Let me start with the main question of our study.",
+      "zh": "我先介绍一下我们研究的核心问题。",
+      "note": "Let me start with 引出报告的第一部分。",
+      "quote": "",
+      "question": "What is the main question of your research?",
+      "chunks": [
+        {
+          "role": "开场",
+          "en": "Let me start with",
+          "zh": "让我先介绍"
+        },
+        {
+          "role": "主题",
+          "en": "the main question of our study",
+          "zh": "我们研究的核心问题"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "question",
+          "ipa": "ˈkwestʃən",
+          "meaning": "问题；研究问题"
+        }
+      ],
+      "phonetics": []
+    },
+    {
+      "en": "My main contribution was developing a reproducible analysis workflow.",
+      "zh": "我的主要贡献是开发了一套可复现的分析流程。",
+      "note": "was developing 用动名词说明具体贡献；仅在符合本人经历时使用。",
+      "quote": "",
+      "question": "Which part of the project did you lead?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "My main contribution",
+          "zh": "我的主要贡献"
+        },
+        {
+          "role": "系动词",
+          "en": "was",
+          "zh": "是"
+        },
+        {
+          "role": "表语",
+          "en": "developing a reproducible analysis workflow",
+          "zh": "开发可复现的分析流程"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "contribution",
+          "ipa": "ˌkɑːntrɪˈbjuːʃən",
+          "meaning": "贡献"
+        }
+      ],
+      "phonetics": []
+    },
+    {
+      "en": "Could you clarify which part you would like me to explain?",
+      "zh": "您能明确一下希望我解释哪一部分吗？",
+      "note": "Could you clarify 是礼貌确认问题的常用表达。",
+      "quote": "",
+      "question": "How would you ask for clarification during an interview?",
+      "chunks": [
+        {
+          "role": "礼貌请求",
+          "en": "Could you clarify",
+          "zh": "您能明确一下吗"
+        },
+        {
+          "role": "宾语从句",
+          "en": "which part you would like me to explain",
+          "zh": "您希望我解释哪一部分"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "clarify",
+          "ipa": "ˈklærəfaɪ",
+          "meaning": "澄清；说明清楚"
+        }
+      ],
+      "phonetics": []
+    },
+    {
+      "en": "We would need additional evidence to support that interpretation.",
+      "zh": "我们还需要额外证据来支持这一解释。",
+      "note": "would need 表达有条件的判断，不把解释直接当作已证实结论。",
+      "quote": "",
+      "question": "What evidence would strengthen your interpretation?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "We",
+          "zh": "我们"
+        },
+        {
+          "role": "谓语",
+          "en": "would need",
+          "zh": "还需要"
+        },
+        {
+          "role": "宾语",
+          "en": "additional evidence",
+          "zh": "额外证据"
+        },
+        {
+          "role": "目的",
+          "en": "to support that interpretation",
+          "zh": "来支持这一解释"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "evidence",
+          "ipa": "ˈevɪdəns",
+          "meaning": "证据"
+        }
+      ],
+      "phonetics": []
+    }
+  ],
+  "tags": []
+}

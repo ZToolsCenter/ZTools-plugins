@@ -6,15 +6,15 @@
 
 ### 最新帖子
 
-![最新帖子列表](assets/screenshots/latest-posts.png)
+![最新帖子列表](https://img.naixiai.cn/2026/10/26/latest-posts.png)
 
 ### 最热帖子
 
-![最热帖子列表](assets/screenshots/hot-posts.png)
+![最热帖子列表](https://img.naixiai.cn/2026/10/26/hot-posts.png)
 
 ### 帖子详情与回复
 
-![帖子详情与回复](assets/screenshots/topic-detail.png)
+![帖子详情与回复](https://img.naixiai.cn/2026/10/26/imagee5cb8aa382caf871.png)
 
 ## 功能
 
@@ -28,10 +28,10 @@
 
 ## ZTools 指令
 
-| 指令 | 初始列表 |
-| --- | --- |
-| `v2ex` | 最热 |
-| `v2` | 最热 |
+| 指令     | 初始列表 |
+| ------ | ---- |
+| `v2ex` | 最热   |
+| `v2`   | 最热   |
 
 ## 开发
 

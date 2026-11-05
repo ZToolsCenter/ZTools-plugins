@@ -7,6 +7,16 @@ const zlib = require("node:zlib");
 const { clipboard } = require("electron");
 const { execFile, spawn, spawnSync } = require("node:child_process");
 
+// Windows 系统 OCR 的 stdout 解码（ASCII base64 协议，见 public/winrt-payload.cjs）。
+// 单独成模块是为了能在纯 Node 下单测：preload.js 顶层 require("electron")，测试里跑不起来。
+// 缺该文件时不让整个 preload 崩掉 —— 只有 Windows 系统 OCR 这条路会报错。
+let winrtPayload = null;
+try {
+  winrtPayload = require("./winrt-payload.cjs");
+} catch (_) {
+  winrtPayload = null;
+}
+
 const OCR_IMAGE_STORAGE_KEY = "native_ocr_image";
 const OCR_IMAGE_EVENT = "native-ocr-image";
 const RUNTIME_REGISTRY_URL = "https://registry.npmmirror.com/@ztools-center/wechat-ocr-native";
@@ -644,33 +654,39 @@ function runWinRtOcrScript(scriptPath, imagePath) {
     execFile("powershell.exe", [
       "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
       "-File", scriptReal, "-ImagePath", imagePath
-    ], { timeout: 60000, maxBuffer: 8 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
+    ], {
+      timeout: 60000,
+      maxBuffer: 8 * 1024 * 1024,
+      windowsHide: true,
+      // 取原始字节，不让 Node 提前做有损解码。
+      // 新协议是纯 ASCII base64（任何代码页字节相同）；旧协议再按 utf8 解。
+      // 若用默认 utf8，GBK 输出会先被解成 U+FFFD，后面任何补救都无效。
+      encoding: "latin1"
+    }, (err, stdout, stderr) => {
+      const outBuf = Buffer.from(String(stdout || ""), "latin1");
       if (err) {
-        reject(new Error(String(stderr || err.message || "Windows OCR 识别失败")));
+        // 失败信息优先取 stdout 里的 base64 信封（不受本机代码页影响）；
+        // stderr 先按字节还原成 utf8，若已是替换字符则不再把乱码抛给用户。
+        const stderrText = Buffer.from(String(stderr || ""), "latin1").toString("utf8");
+        const fallbackMessage = err.message || "Windows OCR 识别失败";
+        reject(new Error(
+          winrtPayload
+            ? winrtPayload.errorMessageFromOutput(outBuf, stderrText, fallbackMessage)
+            : fallbackMessage
+        ));
         return;
       }
-      resolve(String(stdout || "").trim());
+      resolve(outBuf);
     });
   });
 }
 
 function parseWinRtOutput(raw) {
-  const output = String(raw || "").trim();
-  if (!output) {
-    return { engine: "vision", text: "", lines: [] };
+  if (!winrtPayload) {
+    throw new Error("Windows OCR 解码模块缺失（winrt-payload.cjs），请重新安装插件");
   }
-  const parsed = JSON.parse(output);
-  const lines = [];
-  for (const item of (parsed && parsed.lines) || []) {
-    if (!item || typeof item.text !== "string") continue;
-    const line = { text: item.text };
-    const box = item.box;
-    if (box && Number.isFinite(Number(box.x))) {
-      line.box = { x: Number(box.x), y: Number(box.y), w: Number(box.w), h: Number(box.h) };
-    }
-    lines.push(line);
-  }
-  return { engine: "vision", text: lines.map((line) => line.text).join("\n"), lines };
+  const { text, lines } = winrtPayload.payloadToOcrResult(winrtPayload.decodeWinRtStdout(raw));
+  return { engine: "vision", text, lines };
 }
 
 async function recognizeWinRtOcr(source) {

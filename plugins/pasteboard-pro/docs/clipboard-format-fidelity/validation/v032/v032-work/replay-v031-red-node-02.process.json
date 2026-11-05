@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+    "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/scripts/test-preload-history-clear-replay-package.mjs",
+    "--package-dir",
+    "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v032-inputs/plugin-v031/dist/ztools",
+    "--output",
+    "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v032-work/replay-v031-red-node-02.json"
+  ],
+  "expectedExitCode": 1,
+  "actualExitCode": 1,
+  "durationMs": 824,
+  "output": "v032-work/replay-v031-red-node-02.json",
+  "outputSha256": "75340d43e94eedd52057a7b18bf5395da6d766dd0679f99dd230528c0e8ce0aa",
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

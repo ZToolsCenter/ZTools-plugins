@@ -1,0 +1,20 @@
+{
+  "repository": "https://github.com/Candquarzy/Askills",
+  "sourceCommit": "2cae1ce27c1467466840bea918f9e4ca9c845d24",
+  "pluginVersion": "1.0.2",
+  "files": {
+    "assets/askills-CZozaj9z.svg": "6dd0a3ab4912523786b0d0b1fca32a6698f9b2054787b43cf12cc7c06c8122ae",
+    "assets/index-1SCNgD4k.css": "93fcb85a38278ce55efebee07e8af7376a7b776cf020b48189161b439d1ab73a",
+    "assets/index-D-ZBUY2P.js": "5b42baeda758e89ed08473a13ed604887388046af5d316c4c638005528c3f340",
+    "bridge.cjs": "f3d7631b979938acbb57995a601a6ed5d7063cd1cb5c5422c29c270a934634c0",
+    "helper/askills-ztools.exe": "75346ec19e1e21b8fc739ec2f6b71ce32006a6f911b1a4825c52ae6277896eb0",
+    "index.html": "1f9c5529d28904a494fb16fe4d417c19fa389cc7cc302aa8fd360b3ddc70f47b",
+    "LICENSE.txt": "669dc961db24578a075818c7bdf1b698d93f861c32c029ae293223c37bcb1d79",
+    "licenses/MiSans.LICENSE.txt": "daf1d02d050a4b0135fcd8d519572b0ff72e41008fab29a761e0795559a4462c",
+    "logo.png": "62d8f42eff6e99df2310c9771228935fb5f3fa56eecad5f63f35ea63c847d5fd",
+    "package.json": "a51bff776fdd53226e2e67d8f654d17dadfe3decc8bf8bf869cba3aff9813826",
+    "plugin.json": "b43da7e7ca183837691aeead9e0ef00b2c53e3e3f14317bfc7a6d798d4843775",
+    "preload.js": "fcbda11b452bb4488e798db315b7d3055b0b5b58ef8914accd69ab58e8b6b4ec",
+    "third-party/octicons-LICENSE.txt": "c410affc7f6a97e410ff3598a473ad8159df49ee8a5d9df2cef77bb8ef53b726"
+  }
+}

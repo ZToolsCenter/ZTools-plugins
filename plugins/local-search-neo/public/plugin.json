@@ -5,7 +5,7 @@
   "homepage": "https://github.com/guopenghui/local-search-neo",
   "title": "本地搜索Neo",
   "description": "借助 Everything 来进行文件搜索",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "unpack": "Everything.*",

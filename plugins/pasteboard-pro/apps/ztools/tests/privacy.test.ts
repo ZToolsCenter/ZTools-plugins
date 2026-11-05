@@ -168,6 +168,53 @@ describe("clipboard privacy", () => {
     await expect(store.get()).resolves.toEqual(settings);
   });
 
+  it("defaults screen-share protection off for absent settings and legacy documents", async () => {
+    expect(defaultPrivacySettings.screenShareProtection).toBe(false);
+    const missingDatabase: ZToolsDocumentDatabase = {
+      async get() { throw { status: 404 }; },
+      async put() { return { ok: true }; },
+    };
+    await expect(new ZToolsPrivacySettingsStore(missingDatabase).get()).resolves.toMatchObject({
+      screenShareProtection: false,
+    });
+
+    const legacyDatabase: ZToolsDocumentDatabase = {
+      async get() {
+        return {
+          _id: "pasteboard-pro:settings:privacy",
+          settings: {
+            pause: { paused: false },
+            rules: { ignoredBundleIds: [], blockLikelySecrets: true, contentRules: [] },
+          },
+        };
+      },
+      async put() { return { ok: true }; },
+    };
+    await expect(new ZToolsPrivacySettingsStore(legacyDatabase).get()).resolves.toMatchObject({
+      screenShareProtection: false,
+    });
+  });
+
+  it("preserves explicitly saved screen-share protection choices", async () => {
+    let document: Record<string, unknown> | undefined;
+    const database: ZToolsDocumentDatabase = {
+      async get() {
+        if (document === undefined) throw { status: 404 };
+        return structuredClone(document);
+      },
+      async put(next) {
+        document = { ...structuredClone(next), _rev: "test-revision" };
+        return { ok: true };
+      },
+    };
+    const store = new ZToolsPrivacySettingsStore(database);
+
+    for (const screenShareProtection of [true, false]) {
+      await store.put({ ...defaultPrivacySettings, screenShareProtection });
+      await expect(store.get()).resolves.toMatchObject({ screenShareProtection });
+    }
+  });
+
   it("upgrades legacy privacy documents with safe retention and screen-share defaults", async () => {
     const database: ZToolsDocumentDatabase = {
       async get() {
@@ -189,7 +236,7 @@ describe("clipboard privacy", () => {
     };
     await expect(new ZToolsPrivacySettingsStore(database).get()).resolves.toMatchObject({
       retention: { days: 90, maxBlobBytes: 1_073_741_824 },
-      screenShareProtection: true,
+      screenShareProtection: false,
     });
   });
 

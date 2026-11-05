@@ -1,0 +1,25 @@
+{
+  "name": "environment-vault",
+  "title": "环境备份与恢复",
+  "description": "WebDAV 定时备份设置和插件清单，按版本选择恢复",
+  "author": "Victwang",
+  "version": "0.0.2",
+  "platform": [
+    "darwin",
+    "win32"
+  ],
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "environment-vault",
+      "explain": "WebDAV 环境备份与恢复",
+      "cmds": [
+        "环境备份",
+        "环境恢复",
+        "WebDAV 备份"
+      ]
+    }
+  ]
+}

@@ -4,11 +4,25 @@ const path = require('node:path')
 const os = require('node:os')
 const { getKillCommand } = require('./utils')
 const why = require('./why')
+const { buildFolderProbeScript, parseFolderProbeOutput } = require('./folder-probe')
+const {
+  collectFolderCandidates,
+  buildCwdScanScript,
+  parseCwdScanOutput,
+  filterCwdHolders,
+  buildFolderResourceManagerScript,
+  parseFolderRmOutput
+} = require('./folder-scan')
 
 const TIMEOUT_MS = 30000
 /** 结束进程后轮询确认占用已解除的次数与间隔（约 1.8s 上限） */
 const RELEASE_POLL_ATTEMPTS = 6
 const RELEASE_POLL_INTERVAL_MS = 300
+/** 文件夹探测较慢，轮询次数少一些，间隔长一点 */
+const FOLDER_POLL_ATTEMPTS = 4
+const FOLDER_POLL_INTERVAL_MS = 400
+/** 只为前 N 个进程补全启动链路，避免大文件夹扫描后卡顿 */
+const MAX_WHY_ENRICH = 20
 
 let _debugLog = []
 
@@ -24,10 +38,13 @@ function getDebugLog() {
   return logs
 }
 
-function execWithTimeout(cmd, args, label) {
+function execWithTimeout(cmd, args, label, options) {
   return new Promise((resolve, reject) => {
     debugPush('  [' + (label || 'exec') + '] ' + cmd + ' ' + args.map(a => a.includes(' ') ? '"' + a + '"' : a).join(' '))
-    const proc = spawn(cmd, args, { timeout: TIMEOUT_MS, windowsHide: true })
+    // cwd 固定到临时目录：辅助进程不能继承 ZTools 的当前目录，
+    // 否则扫描文件夹时，它自己会以“工作目录在其中”被误认为占用者。
+    const cwd = options && options.cwd ? options.cwd : os.tmpdir()
+    const proc = spawn(cmd, args, { timeout: TIMEOUT_MS, windowsHide: true, cwd: cwd })
     let stdout = ''
     let stderr = ''
     proc.stdout.setEncoding('utf8')
@@ -242,10 +259,7 @@ async function findByResourceManager(resolvedPath) {
         exePath: String(p.exePath || ''),
         service: service,
         detectSource: 'resourcemanager',
-        confidence: 'high',
-        reason: service
-          ? 'Windows 服务「' + service + '」经重启管理器确认持有该文件'
-          : 'Windows 重启管理器确认持有该文件'
+        confidence: 'high'
       }
     }).filter(function (p) { return p.pid > 0 })
   } catch (e) {
@@ -254,6 +268,235 @@ async function findByResourceManager(resolvedPath) {
     return []
   } finally {
     try { fs.unlinkSync(scriptPath) } catch (e) {}
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * 文件夹占用检测：工作目录 + 内部文件 + 删除权限探测
+ * ------------------------------------------------------------------ */
+
+function isDirectoryPath(value) {
+  try { return fs.statSync(value).isDirectory() } catch (e) { return false }
+}
+
+/**
+ * 非破坏性删除探测：以 DELETE 权限打开目录/内部条目后立即关闭。
+ * @returns {Promise<{ok:boolean, deletable:'yes'|'no'|'unknown', locked:number, denied:number, other:number, checked:number, truncated:boolean}>}
+ */
+async function probeFolderState(folderPath) {
+  const scriptPath = writeTempScript(buildFolderProbeScript(folderPath))
+  try {
+    const raw = await execWithTimeout('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath
+    ], 'folder-probe')
+    return parseFolderProbeOutput(stripBom(raw))
+  } catch (e) {
+    debugPush('[unlock] 文件夹删除探测失败: ' + e.message)
+    return { ok: false, deletable: 'unknown', locked: 0, denied: 0, other: 0, checked: 0, truncated: false }
+  } finally {
+    try { fs.unlinkSync(scriptPath) } catch (e) {}
+  }
+}
+
+/** 找出工作目录位于该文件夹（含子目录）的进程。 */
+async function findByWorkingDirectory(dir) {
+  // 给辅助进程一个唯一的空目录作为 cwd，扫描时据此排除它自己。
+  let helperDir = ''
+  try { helperDir = fs.mkdtempSync(path.join(os.tmpdir(), 'unlock-cwd-')) } catch (e) { helperDir = os.tmpdir() }
+  const scriptPath = writeTempScript(buildCwdScanScript(process.pid, helperDir))
+  try {
+    const raw = await execWithTimeout('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath
+    ], 'cwd-scan', { cwd: helperDir })
+    const parsed = parseCwdScanOutput(stripBom(raw))
+    const holders = filterCwdHolders(parsed.rows, dir)
+    debugPush('[unlock] 工作目录扫描: 读到 ' + parsed.scanned + ' 个进程, 匹配 ' + holders.length +
+      ', 无权限 ' + parsed.denied + ', WOW64 跳过 ' + parsed.wow64Skipped)
+    return {
+      ok: true,
+      holders: holders,
+      scanned: parsed.scanned,
+      denied: parsed.denied,
+      wow64Skipped: parsed.wow64Skipped
+    }
+  } catch (e) {
+    debugPush('[unlock] 工作目录扫描失败: ' + e.message)
+    return { ok: false, holders: [], scanned: 0, denied: 0, wow64Skipped: 0, error: e.message }
+  } finally {
+    try { fs.unlinkSync(scriptPath) } catch (e) {}
+    if (helperDir && path.resolve(helperDir) !== path.resolve(os.tmpdir())) {
+      try { fs.rmSync(helperDir, { recursive: true, force: true }) } catch (e) {}
+    }
+  }
+}
+
+/** 把文件夹内的文件分批交给重启管理器，找出打开了这些文件的进程。 */
+async function findByResourceManagerForFolder(dir) {
+  const candidates = collectFolderCandidates(dir)
+  if (candidates.files.length === 0) {
+    debugPush('[unlock] 重启管理器(文件夹): 没有可注册的文件')
+    return {
+      ok: true,
+      holders: [],
+      registered: 0,
+      failedBatches: 0,
+      lastError: '',
+      truncated: candidates.truncated,
+      errors: candidates.errors
+    }
+  }
+
+  const manifestPath = path.join(os.tmpdir(), 'unlock-files-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.json')
+  const scriptPath = writeTempScript(buildFolderResourceManagerScript(manifestPath))
+  try {
+    fs.writeFileSync(manifestPath, JSON.stringify(candidates.files), 'utf8')
+    const raw = await execWithTimeout('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath
+    ], 'rm-folder')
+    const parsed = parseFolderRmOutput(stripBom(raw))
+    debugPush('[unlock] 重启管理器(文件夹): 注册 ' + parsed.registered + ' 个文件, 找到 ' +
+      parsed.holders.length + ' 个进程' + (parsed.failedBatches ? ', 失败批次 ' + parsed.failedBatches : ''))
+    return Object.assign({}, parsed, { truncated: candidates.truncated, errors: candidates.errors })
+  } catch (e) {
+    debugPush('[unlock] 重启管理器(文件夹)失败: ' + e.message)
+    return {
+      ok: false,
+      holders: [],
+      registered: candidates.files.length,
+      failedBatches: 0,
+      lastError: e.message,
+      truncated: candidates.truncated,
+      errors: candidates.errors
+    }
+  } finally {
+    try { fs.unlinkSync(scriptPath) } catch (e) {}
+    try { fs.unlinkSync(manifestPath) } catch (e) {}
+  }
+}
+
+/** 按 PID 合并多个来源的占用证据，保留名称、路径、服务与 why。 */
+function mergeHoldersByPid(list) {
+  const byPid = new Map()
+  for (const p of Array.isArray(list) ? list : []) {
+    if (!p || !p.pid) continue
+    const existing = byPid.get(p.pid)
+    if (!existing) {
+      byPid.set(p.pid, Object.assign({}, p, {
+        evidence: Array.isArray(p.evidence) ? p.evidence.slice() : []
+      }))
+      continue
+    }
+    if (!existing.name && p.name) existing.name = p.name
+    if (!existing.exePath && p.exePath) existing.exePath = p.exePath
+    if (!existing.service && p.service) existing.service = p.service
+    if (!existing.workingDir && p.workingDir) existing.workingDir = p.workingDir
+    if (!existing.why && p.why) existing.why = p.why
+    const sources = String(existing.detectSource || '').split('+').filter(Boolean)
+    for (const s of String(p.detectSource || '').split('+')) {
+      if (s && sources.indexOf(s) < 0) sources.push(s)
+    }
+    existing.detectSource = sources.join('+')
+    for (const e of (Array.isArray(p.evidence) ? p.evidence : [])) {
+      if (existing.evidence.indexOf(e) < 0) existing.evidence.push(e)
+    }
+  }
+  return Array.from(byPid.values())
+}
+
+async function enrichHolders(holders) {
+  const head = holders.slice(0, MAX_WHY_ENRICH)
+  const rest = holders.slice(MAX_WHY_ENRICH)
+  const enriched = head.length > 0 ? await why.withWhyAll(head) : []
+  for (const p of enriched) {
+    if (p.workingDir && p.why && !p.why.workingDir) p.why.workingDir = p.workingDir
+  }
+  return enriched.concat(rest)
+}
+
+function buildFolderScanNote(holderCount, blocked, probe, cwdResult, rmResult) {
+  if (holderCount > 0) {
+    if (blocked === false) {
+      return { note: '这些程序打开了文件夹内的内容，但目前不影响删除。', noteLevel: 'info' }
+    }
+    return { note: '结束这些进程前，请先确认它们可以安全关闭。', noteLevel: 'warning' }
+  }
+  if (blocked === true) {
+    return {
+      note: '文件夹被占用，但没能定位到具体程序。可能是系统服务、杀毒软件或其他用户的进程，可尝试以管理员身份运行 ZTools 后重新扫描。',
+      noteLevel: 'warning'
+    }
+  }
+  if (blocked === false) {
+    if (probe.truncated || rmResult.truncated) {
+      return { note: '文件夹当前没有被占用，但内容较多，只检查了其中一部分。', noteLevel: 'info' }
+    }
+    return { note: '文件夹当前没有被占用。', noteLevel: 'success' }
+  }
+  if (!probe.ok || !cwdResult.ok || !rmResult.ok) {
+    return {
+      note: '文件夹占用检测没有全部完成，可能是权限不足。可尝试以管理员身份运行 ZTools 后重新扫描。',
+      noteLevel: 'warning'
+    }
+  }
+  return {
+    note: '无法确认文件夹是否被占用，可能是权限不足或内容过多。可尝试以管理员身份运行 ZTools 后重新扫描。',
+    noteLevel: 'warning'
+  }
+}
+
+async function findFolderLockingProcesses(resolved) {
+  const cwdPromise = findByWorkingDirectory(resolved)
+  const rmPromise = findByResourceManagerForFolder(resolved)
+  const probePromise = probeFolderState(resolved)
+
+  const results = await Promise.all([cwdPromise, rmPromise, probePromise])
+  const cwdResult = results[0]
+  const rmResult = results[1]
+  const probe = results[2]
+
+  let holders = mergeHoldersByPid([].concat(cwdResult.holders, rmResult.holders))
+  holders = holders.filter(function (p) {
+    // 排除本工具自己，以及注册清单的辅助 PowerShell（目标可能正好是临时目录）
+    return p.pid !== process.pid && (!rmResult.helperPid || p.pid !== rmResult.helperPid)
+  })
+  const processes = await enrichHolders(holders)
+
+  const blocked = probe.deletable === 'no' ? true : probe.deletable === 'yes' ? false : null
+  const locked = processes.length > 0 ? true : (blocked === null ? null : blocked)
+  const info = buildFolderScanNote(processes.length, blocked, probe, cwdResult, rmResult)
+
+  const degraded = !probe.ok || probe.truncated || probe.denied > 0 || !cwdResult.ok ||
+    !rmResult.ok || rmResult.failedBatches > 0 || !!rmResult.truncated
+  const coverage = {
+    cwd: cwdResult.ok,
+    resourceManager: rmResult.ok,
+    deleteProbe: probe.ok,
+    filesRegistered: rmResult.registered || 0,
+    truncated: !!probe.truncated || !!rmResult.truncated,
+    denied: (cwdResult.denied || 0) + (probe.denied || 0)
+  }
+
+  const engines = []
+  if (cwdResult.ok) engines.push('cwd')
+  if (rmResult.ok) engines.push('resourcemanager-child')
+  if (probe.ok) engines.push('delete-probe')
+
+  debugPush('[unlock] 文件夹结果: ' + processes.length + ' 个进程, locked=' + locked +
+    ', blocked=' + blocked + ', deletable=' + probe.deletable +
+    ', 检查 ' + probe.checked + ' 项, 截断=' + probe.truncated)
+
+  return {
+    locked: locked,
+    blocked: blocked,
+    holders: processes.length,
+    state: 'directory',
+    processes: processes,
+    note: info.note,
+    noteLevel: info.noteLevel,
+    engine: engines.join('+') || 'none',
+    isDirectory: true,
+    degraded: degraded,
+    coverage: coverage
   }
 }
 
@@ -317,23 +560,42 @@ async function probeExclusiveLock(resolvedPath) {
  */
 async function verifyRelease(filePath, options) {
   const opts = options || {}
-  const attempts = Math.max(1, Number(opts.attempts) || RELEASE_POLL_ATTEMPTS)
-  const intervalMs = Number(opts.intervalMs) || RELEASE_POLL_INTERVAL_MS
   const resolved = path.resolve(filePath)
+  const isDir = isDirectoryPath(resolved)
+  const attempts = Math.max(1, Number(opts.attempts) ||
+    (isDir ? FOLDER_POLL_ATTEMPTS : RELEASE_POLL_ATTEMPTS))
+  const intervalMs = Number(opts.intervalMs) ||
+    (isDir ? FOLDER_POLL_INTERVAL_MS : RELEASE_POLL_INTERVAL_MS)
   const started = Date.now()
 
   let state = 'unknown'
   let used = 0
   for (let i = 0; i < attempts; i++) {
     used = i + 1
-    state = await probePathState(resolved)
-    if (state !== 'locked') break
+    if (isDir) {
+      const probe = await probeFolderState(resolved)
+      state = probe.deletable === 'yes' ? 'free'
+        : probe.deletable === 'no' ? 'locked'
+          : 'unknown'
+    } else {
+      state = await probePathState(resolved)
+    }
+    if (state === 'free') break
+    if (isDir && state === 'unknown') break
     if (i < attempts - 1) await delay(intervalMs)
   }
 
   const released = state === 'free' ? true : state === 'locked' ? false : null
   debugPush('[unlock] 解除验证: state=' + state + ' released=' + released + ' 用时 ' + (Date.now() - started) + 'ms')
-  return { released: released, state: state, attempts: used, elapsedMs: Date.now() - started }
+  const result = {
+    released: released,
+    state: state,
+    attempts: used,
+    elapsedMs: Date.now() - started,
+    verification: isDir ? 'delete-probe' : 'exclusive-open'
+  }
+  if (isDir) result.blocked = released === null ? null : !released
+  return result
 }
 
 /* ------------------------------------------------------------------ *
@@ -355,7 +617,7 @@ function buildScanNote(holderCount, state) {
   if (holderCount > 0) {
     if (state === 'free') {
       return {
-        note: '这些进程打开了该文件，但文件目前仍可独占打开，通常不影响删除或重命名。',
+        note: '这些程序打开了该文件，但不影响删除或重命名。',
         noteLevel: 'info'
       }
     }
@@ -364,15 +626,9 @@ function buildScanNote(holderCount, state) {
       noteLevel: 'warning'
     }
   }
-  if (state === 'directory') {
-    return {
-      note: '这是一个文件夹。文件夹被占用通常是因为某个程序把它当作工作目录，或正在读写其中的文件；本工具暂时无法定位到具体进程。可以尝试关闭最近用过该文件夹的程序（编辑器、终端、同步盘、杀毒软件）后重试。',
-      noteLevel: 'warning'
-    }
-  }
   if (state === 'locked') {
     return {
-      note: '文件确实被占用，但没能查到具体进程。可能是系统服务、杀毒软件，或属于其他用户的进程；以管理员身份运行 ZTools 后重新扫描通常可以查到。',
+      note: '文件被占用，但没能查到具体进程。可能是系统服务、杀毒软件或其他用户的进程，可尝试以管理员身份运行 ZTools 后重新扫描。',
       noteLevel: 'warning'
     }
   }
@@ -419,6 +675,12 @@ async function findLockingProcesses(filePath) {
 
   if (!fs.existsSync(resolved)) {
     throw new Error('路径不存在: ' + resolved)
+  }
+
+  if (isDirectoryPath(resolved)) {
+    const folderResult = await findFolderLockingProcesses(resolved)
+    debugPush('=== done ===')
+    return folderResult
   }
 
   // 占用探测与占用者检测互不依赖，并行执行以省掉一次 PowerShell 启动
@@ -482,7 +744,8 @@ async function findLockingProcesses(filePath) {
     processes: processes,
     note: info.note,
     noteLevel: info.noteLevel,
-    engine: engine
+    engine: engine,
+    isDirectory: false
   }
 }
 
@@ -505,6 +768,10 @@ function looksLikePermissionDenied(text) {
 function processLabel(pid, name) {
   const n = String(name || '').trim()
   return n ? '「' + n + '」' : ('进程 ' + pid)
+}
+
+function targetKind(filePath) {
+  return isDirectoryPath(path.resolve(filePath)) ? '文件夹' : '文件'
 }
 
 /** Kill is an attached action after diagnosis — never auto-fired from find. */
@@ -574,6 +841,7 @@ async function killProcess(pid, name) {
  */
 async function killLockingProcess(filePath, pid, name) {
   const label = processLabel(pid, name)
+  const kind = targetKind(filePath)
   const killed = await killProcess(pid, name)
   if (!killed.success) {
     return {
@@ -592,7 +860,7 @@ async function killLockingProcess(filePath, pid, name) {
       success: true,
       released: true,
       level: 'success',
-      message: '已解除占用：' + label + '已结束，文件不再被占用。',
+      message: '已解除占用：' + label + '已结束，' + kind + '不再被占用。',
       kill: killed,
       verify: verify
     }
@@ -602,7 +870,7 @@ async function killLockingProcess(filePath, pid, name) {
       success: true,
       released: false,
       level: 'warning',
-      message: label + '已结束，但文件仍被占用：可能还有其他程序或系统服务在访问。请查看下面的剩余占用者。',
+      message: label + '已结束，但' + kind + '仍被占用：可能还有其他程序或系统服务在访问。请查看下面的剩余占用者。',
       kill: killed,
       verify: verify
     }
@@ -611,7 +879,7 @@ async function killLockingProcess(filePath, pid, name) {
     success: true,
     released: null,
     level: 'warning',
-    message: label + '已结束。请重新扫描确认文件是否已释放。',
+    message: label + '已结束。请重新扫描确认' + kind + '是否已释放。',
     kill: killed,
     verify: verify
   }
@@ -621,6 +889,7 @@ async function killLockingProcess(filePath, pid, name) {
  * 一键结束全部占用进程，并统一验证是否解除。
  */
 async function killAllLockingProcesses(filePath, procs) {
+  const kind = targetKind(filePath)
   const list = dedupeByPid(Array.isArray(procs) ? procs : [])
   if (list.length === 0) {
     return { success: false, released: false, level: 'warning', message: '没有需要结束的占用进程。', killed: 0, failed: 0, results: [] }
@@ -640,18 +909,18 @@ async function killAllLockingProcesses(filePath, procs) {
   let level = 'success'
   let message
   if (failList.length === 0 && verify.released === true) {
-    message = '已解除占用：' + okList.length + ' 个占用进程已全部结束，文件不再被占用。'
+    message = '已解除占用：' + okList.length + ' 个占用进程已全部结束，' + kind + '不再被占用。'
   } else if (failList.length === 0 && verify.released === false) {
     level = 'warning'
-    message = '已结束 ' + okList.length + ' 个进程，但文件仍被占用：可能还有其他程序或系统服务在访问。请查看下面的剩余占用者。'
+    message = '已结束 ' + okList.length + ' 个进程，但' + kind + '仍被占用：可能还有其他程序或系统服务在访问。请查看下面的剩余占用者。'
   } else if (failList.length === 0) {
     level = 'warning'
-    message = '已结束 ' + okList.length + ' 个进程。请重新扫描确认文件是否已释放。'
+    message = '已结束 ' + okList.length + ' 个进程。请重新扫描确认' + kind + '是否已释放。'
   } else if (okList.length > 0) {
     level = 'warning'
     message = '已结束 ' + okList.length + ' 个进程，另有 ' + failList.length + ' 个无法结束' +
       (needsAdmin ? '（需要管理员权限）' : '') + '。' +
-      (verify.released === true ? '文件已不再被占用。' : '文件可能仍被占用。')
+      (verify.released === true ? kind + '已不再被占用。' : kind + '可能仍被占用。')
   } else {
     level = 'error'
     message = '未能结束任何占用进程。' +
@@ -681,8 +950,14 @@ module.exports = {
   // exposed for tests
   probeExclusiveLock,
   probePathState,
+  probeFolderState,
+  isDirectoryPath,
   dedupeByPid,
+  mergeHoldersByPid,
   findByResourceManager,
+  findByWorkingDirectory,
+  findByResourceManagerForFolder,
+  findFolderLockingProcesses,
   buildResourceManagerScript,
   buildProbeScript,
   psLiteral

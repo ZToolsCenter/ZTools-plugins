@@ -42,10 +42,11 @@ function projectById(id) {
 }
 function editorByPath(p) {
   if (p == null) return null;
-  return state.editors.find(e => e.path === p) || null;
+  const key = normalizePath(p);
+  return state.editors.find(e => normalizePath(e.path) === key) || null;
 }
 function normalizePath(s) {
-  return String(s || '').replace(/[\\/]+$/, '').toLowerCase();
+  return String(s || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
 }
 
 function getTagColor(tag) {
@@ -70,8 +71,6 @@ function renderTagBadges(p) {
       <span class="tag-badge-add" data-tagmgr="${esc(p.id)}" title="点击管理项目分类标签">+ 标签</span>
     </div>`;
 }
-
-console.log('app.js loaded at top level');
 
 function parseUnityVersion(v) {
   const match = String(v || '').match(/^(\d+)\.(\d+)\.(\d+)([a-z]*)(\d*)/i);
@@ -103,7 +102,6 @@ function compareUnityVersions(v1, v2) {
 }
 
 function load() {
-  console.log('load() executing...');
   const rawProjects = services.dbGet(KEY_PROJECTS);
   const rawEditors = services.dbGet(KEY_EDITORS);
   state.projects = Array.isArray(rawProjects) ? rawProjects.filter(p => p && p.path) : [];
@@ -119,11 +117,17 @@ function load() {
   ensureProjectIds();
   sortProjects();
   state.editors.sort((a, b) => compareUnityVersions(a.version, b.version));
-  console.log('Loaded state:', JSON.stringify(state));
 }
 function save() {
-  services.dbSet(KEY_PROJECTS, state.projects);
-  services.dbSet(KEY_EDITORS, state.editors);
+  try {
+    services.dbSet(KEY_PROJECTS, state.projects);
+    services.dbSet(KEY_EDITORS, state.editors);
+    return true;
+  } catch (err) {
+    console.error('save failed:', err);
+    if (ztools.showNotification) ztools.showNotification(`保存失败: ${err.message}`);
+    return false;
+  }
 }
 
 const helpHtml = `
@@ -215,109 +219,104 @@ function renderTabs() {
   };
 }
 
+let scanInProgress = false;
+
 async function addItem() {
-  if (state.tab === 'projects') {
-    const selectedDir = services.selectFolder ? services.selectFolder() : null;
+  if (scanInProgress) return;
+  const importingProjects = state.tab === 'projects';
+  const label = importingProjects ? '项目' : '编辑器';
+  const options = { cancelled: false };
+  scanInProgress = true;
+  try {
+    const selectedDir = importingProjects ? services.selectFolder() : services.selectEditorFolder();
     if (!selectedDir) return;
-
-    const progressHtml = `
-      <div style="padding: 10px 0; text-align: center;">
-        <div style="font-weight: 600; color: #6366f1; margin-bottom: 6px; font-size: 13px;">正在深度扫描 Unity 项目，请稍候...</div>
-        <div id="scanCurrentDirText" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 14px; word-break: break-all; opacity: 0.85; font-family: monospace; height: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 0 10px;">${esc(selectedDir)}</div>
-        <div class="progress-container">
-          <div class="progress-track">
-            <div class="progress-bar-fill progress-bar-animated" style="background: linear-gradient(90deg, #6366f1 0%, #3b82f6 50%, #10b981 100%);"></div>
-          </div>
-          <div class="progress-status-text" style="margin-top: 10px; display: flex; justify-content: space-between; padding: 0 4px;">
-            <span id="scanProgressDirCount">已扫描目录: 0</span>
-            <span id="scanProgressFoundCount" style="color: #10b981; font-weight: 600;">已识别项目: 0 个</span>
-          </div>
-        </div>
-      </div>
-    `;
-
     openModal({
-      title: '🔍 批量扫描 Unity 项目',
-      content: progressHtml,
+      title: `🔍 批量扫描 Unity ${label}`,
+      content: `
+        <div style="text-align: center;">
+          <div id="scanStatusText">正在扫描 Unity ${label}，可随时取消...</div>
+          <div id="scanCurrentDirText" style="font-size: 11px; word-break: break-all; height: 48px; overflow: hidden; margin-top: 8px;">${esc(selectedDir)}</div>
+          <div class="progress-container" role="status" aria-live="polite">
+            <div class="progress-track"><div class="progress-bar-fill progress-bar-animated" style="background: var(--primary-gradient);"></div></div>
+            <div class="progress-status-text">
+              <span id="scanProgressDirCount">已扫描目录: 0</span>
+              <span id="scanProgressFoundCount">已识别${label}: 0 个</span>
+            </div>
+            <div id="scanSkippedText" style="font-size: 11px;">遇到无权访问的子目录将自动跳过</div>
+          </div>
+          <button class="modal-btn cancel" id="scanCancelBtn" style="margin-top: 16px;">取消扫描</button>
+        </div>`,
       isHtml: true,
       showFooter: false
     });
-
-    const dirTextEl = document.getElementById('scanCurrentDirText');
-    const dirCountEl = document.getElementById('scanProgressDirCount');
-    const foundCountEl = document.getElementById('scanProgressFoundCount');
-
-    let list = [];
-    try {
-      if (services.scanFolderAsync) {
-        list = await services.scanFolderAsync(selectedDir, ({ scannedCount, foundCount, currentDir }) => {
-          if (dirTextEl) dirTextEl.textContent = currentDir;
-          if (dirCountEl) dirCountEl.textContent = `已扫描目录: ${scannedCount}`;
-          if (foundCountEl) foundCountEl.textContent = `已识别项目: ${foundCount} 个`;
-        });
-      } else {
-        list = services.pickFolder() || [];
-      }
-    } catch (err) {
-      console.error('Scan failed:', err);
-    } finally {
-      const overlay = document.getElementById('modalOverlay');
-      if (overlay) overlay.classList.remove('active');
-    }
-
-    if (!list || !list.length) {
-      if (ztools.showNotification) {
-        ztools.showNotification('没有检测到新的 Unity 项目');
-      }
+    const dirText = document.getElementById('scanCurrentDirText');
+    const dirCount = document.getElementById('scanProgressDirCount');
+    const foundCount = document.getElementById('scanProgressFoundCount');
+    const skippedText = document.getElementById('scanSkippedText');
+    const cancelBtn = document.getElementById('scanCancelBtn');
+    cancelBtn.onclick = () => {
+      options.cancelled = true;
+      cancelBtn.disabled = true;
+      cancelBtn.textContent = '正在取消...';
+      document.getElementById('scanStatusText').textContent = '正在停止扫描，本次结果不会导入';
+    };
+    let skippedCount = 0;
+    const progress = info => {
+      dirText.textContent = info.currentDir;
+      dirCount.textContent = `已扫描目录: ${info.scannedCount}`;
+      foundCount.textContent = `已识别${label}: ${info.foundCount} 个`;
+      skippedCount = info.skippedCount || 0;
+      skippedText.textContent = `无法读取的目录或文件: ${skippedCount} 个`;
+    };
+    // Give the progress dialog a chance to paint before starting disk I/O.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const list = await (importingProjects
+      ? services.scanFolderAsync(selectedDir, progress, options)
+      : services.scanEditorsAsync(selectedDir, progress, options));
+    document.getElementById('modalOverlay').classList.remove('active');
+    if (options.cancelled) {
+      if (ztools.showNotification) ztools.showNotification('已取消扫描，本次结果未导入');
       return;
     }
 
-    let addedCount = 0;
+    const target = importingProjects ? state.projects : state.editors;
+    const knownPaths = new Set(target.map(item => normalizePath(item.path)));
+    const additions = [];
     const now = Date.now();
-    list.forEach(r => {
-      if (state.projects.some(p => normalizePath(p.path) === normalizePath(r.path))) return;
-      state.projects.push({
-        path: r.path,
-        name: r.path.split(/[\\/]/).filter(Boolean).pop() || r.path,
-        version: r.detectedVersion,
+    for (const item of list) {
+      const key = normalizePath(item.path);
+      if (knownPaths.has(key)) continue;
+      knownPaths.add(key);
+      additions.push(importingProjects ? {
+        path: item.path,
+        name: item.path.split(/[\\/]/).filter(Boolean).pop() || item.path,
+        version: item.detectedVersion,
         editorPath: null,
-        remark: "",
+        remark: '',
+        pinned: false,
+        tags: [],
         addedAt: now,
         lastOpenedAt: 0
-      });
-      addedCount++;
-    });
-
-    if (ztools.showNotification) {
-      if (addedCount > 0) {
-        ztools.showNotification(`成功识别并添加 ${addedCount} 个 Unity 项目`);
-      } else {
-        ztools.showNotification('未扫描到新的 Unity 项目或项目已存在');
-      }
+      } : item);
     }
-  } else {
-    const list = services.pickExe();
-    if (!list || !list.length) return;
-
-    let addedCount = 0;
-    list.forEach(e => {
-      if (state.editors.some(x => normalizePath(x.path) === normalizePath(e.path))) return;
-      state.editors.push(e);
-      addedCount++;
-    });
-
-    if (ztools.showNotification) {
-      if (addedCount > 0) {
-        ztools.showNotification(`成功识别并添加 ${addedCount} 个 Unity 编辑器`);
-      } else {
-        ztools.showNotification('未扫描到新的 Unity.exe 或编辑器已存在');
-      }
+    if (additions.length) {
+      for (const item of additions) target.push(item);
+      ensureProjectIds();
+      sortProjects();
+      state.editors.sort((a, b) => compareUnityVersions(a.version, b.version));
+      save();
+      render();
     }
+    if (ztools.showNotification) {
+      const summary = `扫描完成：发现 ${list.length} 个 Unity ${label}，新增 ${additions.length} 个，已存在 ${list.length - additions.length} 个`;
+      ztools.showNotification(summary + (skippedCount ? `；${skippedCount} 个目录或文件无法读取` : ''));
+    }
+  } catch (err) {
+    console.error('Scan/import failed:', err);
+    openModal({ title: `导入 Unity ${label}失败`, content: err.message || String(err), showCancel: false });
+  } finally {
+    scanInProgress = false;
   }
-  ensureProjectIds();
-  sortProjects();
-  state.editors.sort((a, b) => compareUnityVersions(a.version, b.version));
-  save(); render();
 }
 
 function createProjectForm() {
@@ -591,7 +590,6 @@ function openTagManagerModal(projectId) {
 }
 
 function render() {
-  console.log('render() executing with state.tab =', state.tab);
   renderTabs();
   
   const searchBarWrapper = document.getElementById('searchBarWrapper');
@@ -700,7 +698,7 @@ function render() {
         <div class="empty">
           <span class="empty-icon">⚙️</span>
           <span>暂无关联的 Unity 编辑器</span>
-          <span class="warn">点击右上角「添加编辑器」选择包含 Unity.exe 的文件夹<br>（会递归查找，例如 &lt;Unity安装目录&gt;/Editor/Unity.exe）</span>
+          <span class="warn">点击右上角「添加编辑器」选择磁盘（如 D:\\）或安装目录<br>将异步递归扫描其中的 Unity.exe，支持查看进度和取消</span>
         </div>`;
       return bindContent(c);
     }
@@ -728,7 +726,6 @@ function render() {
   }
 
   bindContent(c);
-  console.log('render() complete');
 }
 
 function editorSelect(p) {
@@ -745,61 +742,83 @@ function editorSelect(p) {
     </div>`;
 }
 
+function pickEditorForProject(project, editors) {
+  if (!project || !Array.isArray(editors) || editors.length === 0) return null;
+
+  // 1. 手动指定优先（路径大小写/斜杠不敏感）
+  if (project.editorPath) {
+    const pinned = editors.find(e => normalizePath(e.path) === normalizePath(project.editorPath));
+    if (pinned) return pinned;
+  }
+
+  const projectVersion = String(project.version || '').trim();
+  if (projectVersion) {
+    // 2.1 精确版本匹配 (e.g. 2022.3.20f1)
+    const exact = editors.find(e => String(e.version).trim() === projectVersion);
+    if (exact) return exact;
+
+    // 2.2 补丁版本匹配 (e.g. 2022.3.20)
+    const getV3 = v => (String(v).match(/^(\d+\.\d+\.\d+)/) || [])[1];
+    const pV3 = getV3(projectVersion);
+    if (pV3) {
+      const patch = editors.find(e => getV3(e.version) === pV3);
+      if (patch) return patch;
+    }
+
+    // 2.3 次版本匹配 (e.g. 2022.3)
+    const getV2 = v => (String(v).match(/^(\d+\.\d+)/) || [])[1];
+    const pV2 = getV2(projectVersion);
+    if (pV2) {
+      const minor = editors.find(e => getV2(e.version) === pV2);
+      if (minor) return minor;
+    }
+  }
+
+  // 3. 只有一个编辑器时直接使用
+  return editors.length === 1 ? editors[0] : null;
+}
+
 function bindContent(c) {
   c.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
     const p = projectById(b.dataset.open);
     if (!p) return;
-    let editor = null;
-    
-    // 1. 如果手动指定了编辑器，使用指定的
-    if (p.editorPath) {
-      editor = state.editors.find(e => e.path === p.editorPath);
-    }
-    
-    // 2. 如果是“自动选择”，且项目检测到了版本号，尝试自动智能匹配
-    if (!editor && p.version && state.editors.length > 0) {
-      // 2.1 精确版本匹配 (e.g. 2022.3.20f1)
-      editor = state.editors.find(e => e.version === p.version);
-      
-      // 2.2 补丁版本匹配 (e.g. 2022.3.20)
-      if (!editor) {
-        const getV3 = v => (String(v).match(/^(\d+\.\d+\.\d+)/) || [])[1];
-        const pV3 = getV3(p.version);
-        if (pV3) {
-          editor = state.editors.find(e => getV3(e.version) === pV3);
-        }
+    // 打开前重新读取 ProjectVersion.txt，避免项目升级 Unity 后仍按旧版本匹配
+    let versionChanged = false;
+    try {
+      const fresh = services.readProjectVersion ? services.readProjectVersion(p.path) : null;
+      if (fresh && fresh !== p.version) {
+        p.version = fresh;
+        versionChanged = true;
+        save();
       }
-      
-      // 2.3 次版本匹配 (e.g. 2022.3)
-      if (!editor) {
-        const getV2 = v => (String(v).match(/^(\d+\.\d+)/) || [])[1];
-        const pV2 = getV2(p.version);
-        if (pV2) {
-          editor = state.editors.find(e => getV2(e.version) === pV2);
-        }
-      }
+    } catch (err) {
+      console.warn('读取项目版本失败:', err);
     }
-    
-    // 3. 如果依然没有匹配到，且目前只录入了一个编辑器，直接用这唯一的编辑器
-    if (!editor && state.editors.length === 1) {
-      editor = state.editors[0];
-    }
-    
+
+    let editor = pickEditorForProject(p, state.editors);
+
     // 4. 启动编辑器或弹窗提示手动选择
     let launched = false;
-    if (editor) {
-      services.launch(editor.path, p.path);
-      launched = true;
-    } else if (ztools.showOpenDialog) {
-      const r = ztools.showOpenDialog({ 
-        title: `选择用于打开项目「${p.name}」(${p.version || '未知版本'}) 的 Unity.exe`, 
-        properties: ['openFile'], 
-        filters: [{ name: 'Unity Editor', extensions: ['exe'] }] 
-      });
-      if (r && r.length) {
-        services.launch(r[0], p.path);
+    try {
+      if (editor) {
+        services.launch(editor.path, p.path);
         launched = true;
+      } else if (ztools.showOpenDialog) {
+        const r = ztools.showOpenDialog({
+          title: `选择用于打开项目「${p.name}」(${p.version || '未知版本'}) 的 Unity.exe`,
+          properties: ['openFile'],
+          filters: [{ name: 'Unity Editor', extensions: ['exe'] }]
+        });
+        if (r && r.length) {
+          services.launch(r[0], p.path);
+          launched = true;
+        }
+      } else if (ztools.showNotification) {
+        ztools.showNotification('未找到匹配的 Unity 编辑器，请先在「编辑器」标签中添加');
       }
+    } catch (err) {
+      console.error('启动失败:', err);
+      if (ztools.showNotification) ztools.showNotification(`启动失败: ${err.message}`);
     }
 
     if (launched) {
@@ -807,8 +826,11 @@ function bindContent(c) {
       sortProjects();
       save();
       render(); // 关键：顺序变了必须重绘，否则 DOM 与 state 错位（会删错项目）
+      // 只有真正启动成功才隐藏主窗口；取消选择或启动失败时保持窗口可见
+      if (ztools.hideMainWindow) ztools.hideMainWindow();
+    } else if (versionChanged) {
+      render();
     }
-    if (ztools.hideMainWindow) ztools.hideMainWindow();
   });
 
   c.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => {
@@ -833,7 +855,12 @@ function bindContent(c) {
 
   c.querySelectorAll('[data-exp]').forEach(b => b.onclick = () => {
     const p = projectById(b.dataset.exp);
-    if (p) services.openInExplorer(p.path);
+    if (!p) return;
+    try {
+      services.openInExplorer(p.path);
+    } catch (err) {
+      if (ztools.showNotification) ztools.showNotification(`打开目录失败: ${err.message}`);
+    }
   });
 
   c.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
@@ -854,11 +881,19 @@ function bindContent(c) {
   c.querySelectorAll('[data-rmdir]').forEach(b => b.onclick = () => {
     const proj = projectById(b.dataset.rmdir);
     if (!proj) return;
-    
+
+    // Unity 运行时会占用 Temp/UnityLockfile，此时删除必然失败，提前提示
+    let locked = false;
+    try {
+      locked = services.isProjectLocked ? services.isProjectLocked(proj.path) : false;
+    } catch (err) {
+      locked = false;
+    }
+
     // 第一阶段：严重警告
     openModal({
       title: '⚠️ 极其危险的删除操作',
-      content: `您确定要彻底删除本地项目文件夹吗？\n\n项目名称: ${proj.name}\n项目路径: ${proj.path}\n\n警告: 此操作将在您的硬盘上彻底抹除该文件夹（包含 Assets、Library、工程代码等所有资源），数据将永久丢失且不可恢复！`,
+      content: `您确定要彻底删除本地项目文件夹吗？\n\n项目名称: ${proj.name}\n项目路径: ${proj.path}\n\n警告: 此操作将在您的硬盘上彻底抹除该文件夹（包含 Assets、Library、工程代码等所有资源），数据将永久丢失且不可恢复！${locked ? '\n\n⚠️ 检测到 Unity 似乎正在打开该项目（存在 Temp/UnityLockfile）。请先关闭 Unity，否则删除会失败。' : ''}`,
       onConfirm: () => {
         // 第二阶段：二次防误触验证输入项目名称
         setTimeout(() => {
@@ -964,6 +999,8 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
+let searchTimer = null;
+
 function setupSearchListeners() {
   const searchInput = document.getElementById('searchInput');
   const searchClearBtn = document.getElementById('searchClearBtn');
@@ -973,10 +1010,13 @@ function setupSearchListeners() {
   searchInput.oninput = () => {
     state.searchQuery = searchInput.value;
     searchClearBtn.style.display = state.searchQuery ? 'block' : 'none';
-    render();
+    // 防抖：避免每敲一个字符就重建整个项目列表
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(render, 120);
   };
   
   searchClearBtn.onclick = () => {
+    clearTimeout(searchTimer);
     state.searchQuery = '';
     searchInput.value = '';
     searchClearBtn.style.display = 'none';
@@ -1006,7 +1046,6 @@ function applyTheme() {
 }
 
 function boot() {
-  console.log('boot() executing...');
   try {
     if (typeof services === 'undefined') {
       console.error('services is undefined!');

@@ -1,0 +1,22 @@
+{
+  "format": "research-english-wordbook-v1",
+  "title": "科研基础词汇",
+  "description": "科研交流中常见的词汇。",
+  "domain": "methods",
+  "level": "★★",
+  "tags": [
+    "科研词汇"
+  ],
+  "source": {
+    "title": "原创词表示例",
+    "kind": "original"
+  },
+  "words": [
+    {
+      "term": "method",
+      "meaning": "方法",
+      "usphone": "ˈmeθəd",
+      "ukphone": "ˈmeθəd"
+    }
+  ]
+}

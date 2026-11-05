@@ -10,8 +10,9 @@ import type {
   WebDavSettings,
 } from '../types'
 
-export function useDeviceLink() {
-  const loading = ref(true)
+export function useDeviceLink(options: { enabled?: boolean } = {}) {
+  const enabled = options.enabled !== false
+  const loading = ref(enabled)
   const busy = ref(false)
   const messages = ref<DeviceLinkMessage[]>([])
   const devices = ref<PairedDevice[]>([])
@@ -235,6 +236,10 @@ export function useDeviceLink() {
   }
 
   onMounted(() => {
+    if (!enabled) {
+      loading.value = false
+      return
+    }
     void load()
     registerLaunchHandlers()
     unsubscribe = window.deviceLink.subscribe((event) => {

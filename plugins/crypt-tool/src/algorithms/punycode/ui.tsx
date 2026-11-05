@@ -3,7 +3,7 @@ import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function PunycodeUI({ direction = 'encode' }: AlgorithmProps) {
+export default function PunycodeUI({ direction = 'encode', onDirectionChange }: AlgorithmProps) {
   const dir = direction
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
@@ -47,17 +47,21 @@ export default function PunycodeUI({ direction = 'encode' }: AlgorithmProps) {
         <button type="button" className="ct-btn ct-btn-primary" onClick={run}>
           执行
         </button>
-        <button
-          type="button"
-          className="ct-btn ct-btn-ghost"
-          onClick={() => {
-            setInput(output)
-            setOutput('')
-            setError('')
-          }}
-        >
-          互换输入输出
-        </button>
+        {output && onDirectionChange ? (
+          <button
+            type="button"
+            className="ct-btn ct-btn-ghost"
+            onClick={() => {
+              setInput(output)
+              setOutput('')
+              setError('')
+              onDirectionChange(dir === 'encode' ? 'decode' : 'encode')
+            }}
+            title={dir === 'encode' ? '切换到解码并把当前结果作为输入' : '切换到编码并把当前结果作为输入'}
+          >
+            {dir === 'encode' ? '转入解码' : '转入编码'}
+          </button>
+        ) : null}
       </div>
       <div className="ct-output-zone">
         <div className="ct-zone-label">输出</div>

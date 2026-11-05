@@ -1,9 +1,9 @@
 {
   "name": "github-stars",
   "title": "GitHub 星标管理",
-  "description": "用 Token 拉取自己的 GitHub Star 仓库，支持多账号切换、给仓库写备注、模糊搜索（含备注）、Star 排序与主搜索框直出结果",
+  "description": "用 Token 拉取自己的 GitHub Star 仓库，支持按收藏时间排序、自定义分组、多账号切换、本地备注、模糊搜索与主搜索框直出结果",
   "author": "zhanglei",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "logo": "logo.png",
   "main": "index.html",
   "preload": "preload.js",

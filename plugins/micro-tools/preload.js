@@ -2,7 +2,7 @@
 // 规则：遵循 CommonJS 规范，可 require Node.js / Electron 原生能力；
 // 本文件源码保持清晰可读，未压缩混淆，并与插件一起发布。
 //
-// 职责：读取并解压同目录下的两个数据集，映射回完整字段后供前端检索：
+// 职责：按 assets/data/journals/manifest.json 读取配套版本数据集，映射回完整字段后供前端检索：
 //   1. journals.json.gz —— JCR 2026 期刊（影响因子 / 分区 / JCI …）
 //   2. ccf.json.gz      —— CCF 第七版（2026.3）推荐国际学术会议与期刊目录
 // 两者在加载时按 ISSN 关联合并：同一本刊既显示影响因子，也显示 CCF 等级；
@@ -10,11 +10,19 @@
 
 const fs = require('fs')
 const path = require('path')
-window.researchApi = require('./research-service.js')(() => window.ztools)
+// Host dbStorage may sync PLUGIN/ records. Keep credentials in a separate local file.
+const localCredentials = require('./shared/local-credentials')({ directory() {
+  if (!window.ztools || typeof window.ztools.getPath !== 'function') return null
+  const userData = window.ztools.getPath('userData')
+  if (typeof userData !== 'string' || !path.isAbsolute(userData)) throw new Error('无法取得本机凭据目录，请更新 ZTools 后重试。')
+  return path.join(userData, 'micro-tools-local')
+} })
+window.researchApi = require('./features/research/research-service.js')(() => window.ztools, { credentials: localCredentials })
 const zlib = require('zlib')
 
-const DATA_FILE = 'journals.json.gz'
-const CCF_FILE = 'ccf.json.gz'
+const journalDatasets = require('./assets/data/journals/manifest.json')
+const DATA_FILE = journalDatasets.jcr.file
+const CCF_FILE = journalDatasets.ccf.file
 
 let DATA = []          // JCR 期刊（合并后会挂上 CCF 字段）
 let CCF = []           // 未关联 JCR 的独立 CCF 条目
@@ -306,4 +314,25 @@ window.journalApi = {
     ensureLoaded()
     return DATA.slice().sort(function (a, b) { return b.jifNum - a.jifNum }).slice(0, n)
   }
+}
+
+// Agent workflows share this plugin process with the UI; they never call researchApi.call.
+const journalTools = require('./features/journals/journal-tools.js')(window.journalApi, __dirname)
+window.researchAgent = require('./features/research/research-tools.js')(window.journalApi, journalTools, __dirname)
+window.microToolsVersion = require('./plugin.json').version
+try { window.microToolsChangelog = fs.readFileSync(path.join(__dirname, 'CHANGELOG.md'), 'utf8') } catch { window.microToolsChangelog = '' }
+const preparedEnglishAudio = require('./features/english/english-prepared-audio')({directory(){const dir=window.ztools?.getPath?.('userData');return dir?require('path').join(dir,'micro-tools-local','english-audio'):null}})
+window.englishApi = require('./features/english/english-service.js')({
+  getItem(key) { if (!window.ztools?.dbStorage) throw new Error('请在 ZTools 中使用持久题库'); return window.ztools.dbStorage.getItem(key) },
+  setItem(key,value) { if (!window.ztools?.dbStorage) throw new Error('请在 ZTools 中保存题库'); window.ztools.dbStorage.setItem(key,value) }
+}, { credentials: localCredentials, audio: preparedEnglishAudio, activityDirectory(){const dir=window.ztools?.getPath?.('userData');return dir?path.join(dir,'micro-tools-local'):null} })
+window.englishApi.speech = require('./features/english/english-speech.js')
+window.englishApi.filePath = file => {
+  try { const { webUtils } = require('electron'); if (webUtils?.getPathForFile) return webUtils.getPathForFile(file) } catch {}
+  return typeof file?.path === 'string' ? file.path : ''
+}
+// Old ZTools versions and browser previews can still use the UI without MCP.
+if (window.ztools && typeof window.ztools.registerTool === 'function') {
+  const tools = { ...journalTools, ...window.researchAgent.tools, ...window.englishApi.tools }
+  for (const [name, handler] of Object.entries(tools)) window.ztools.registerTool(name, handler)
 }

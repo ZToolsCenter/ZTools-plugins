@@ -54,3 +54,22 @@ export interface TaskProgress {
   running: boolean;
   error?: string;
 }
+
+export interface GlobalTask {
+  displayLabel?: string;
+  tool: string;
+  version: string;
+  percent: number;
+  logs: string[];
+  running: boolean;
+  error?: string;
+}
+
+export interface NodeMigrationInfo {
+  oldVersion: string;
+  newVersion: string;
+  packages: string[];
+  hasCorepack: boolean;
+  npmrcSummary: string;
+}
+

@@ -1,17 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from "vue";
 
 import type { PasteItem, Pinboard } from "@pasteboard-pro/core";
 
-import {
-  collapsedDragSourcesShifts,
-  LIST_REORDER_MIME,
-  reorderItemGroupShifts,
-  type ListDropPosition,
-  type ListReorderRequest,
-} from "../list-order";
-import PasteCard from "./PasteCard.vue";
+import type { ListReorderRequest } from "../list-order";
+import { usePointerCardReorder } from "../use-pointer-card-reorder";
 import { timelineFocusOffset, timelineRange } from "../virtual-timeline";
+import PasteCard from "./PasteCard.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -24,8 +19,9 @@ const props = withDefaults(
     vertical?: boolean;
     compact?: boolean;
     reorderEnabled?: boolean;
+    reorderScope?: string;
   }>(),
-  { vertical: false, compact: false, reorderEnabled: true },
+  { vertical: false, compact: false, reorderEnabled: true, reorderScope: "all" },
 );
 
 const emit = defineEmits<{
@@ -37,7 +33,9 @@ const emit = defineEmits<{
   assignPinboard: [pinboardId: string | undefined, itemId: string];
   createPinboard: [];
   reorder: [value: ListReorderRequest];
+  pointerReorderActive: [active: boolean];
 }>();
+
 const track = ref<HTMLElement | null>();
 const followLatest = ref(true);
 const offset = ref(0);
@@ -46,44 +44,39 @@ const cardSize = ref(240);
 const gap = computed(() => props.vertical && props.compact ? 8 : 12);
 const stride = computed(() => cardSize.value + gap.value);
 const selectedIdSet = computed(() => new Set(props.selectedIds));
-const itemPositions = computed(() => new Map(props.items.map((item, index) => [item.id, index])));
-const orderedSelectedIds = computed(() => props.items
-  .filter((item) => selectedIdSet.value.has(item.id)).map((item) => item.id));
-const dragOriginId = ref<string>();
-const mountedDragIds = ref<readonly string[]>([]);
-let resizeObserver: ResizeObserver | undefined;
-let itemsRevision = 0;
-const draggedItemIds = ref<readonly string[]>([]);
-const draggedItemIdSet = computed(() => new Set(draggedItemIds.value));
-const reorderTarget = ref<Readonly<{ itemId: string; position: ListDropPosition }>>();
-const LEADING_EDGE_THRESHOLD = 8;
-const reorderShifts = computed(() => {
-  const sourceIds = draggedItemIds.value;
-  const target = reorderTarget.value;
-  if (sourceIds.length === 0) return new Map<string, number>();
-  if (target === undefined) {
-    return collapsedDragSourcesShifts(
-      props.items.map((item) => item.id),
-      sourceIds,
-    );
-  }
-  return reorderItemGroupShifts(
-    props.items.map((item) => item.id),
-    sourceIds,
-    target.itemId,
-    target.position,
-  );
+let getRenderedReorderIds: (itemId: string, sourceIds: readonly string[]) => readonly string[] = () => [];
+const reorder = usePointerCardReorder({
+  items: toRef(props, "items"),
+  selectedIds: toRef(props, "selectedIds"),
+  reorderEnabled: toRef(props, "reorderEnabled"),
+  reorderScope: toRef(props, "reorderScope"),
+  vertical: toRef(props, "vertical"),
+  cardSize,
+  stride,
+  track,
+  getMountedItemIds: (itemId, sourceIds) => getRenderedReorderIds(itemId, sourceIds),
+  onReorder: (request) => emit("reorder", request),
+  onActiveChange: (active) => emit("pointerReorderActive", active),
+  onItemsRefresh: restoreViewportForItems,
 });
-
+const {
+  activeReorder,
+  effectiveItems,
+  itemPositions,
+  draggedItemIds,
+  draggedItemIdSet,
+  mountedDragIds,
+  reorderTarget,
+  reorderShifts,
+  beginPointerReorder,
+} = reorder;
 const range = computed(() => timelineRange(
-  props.items.length, stride.value, offset.value, viewport.value,
+  effectiveItems.value.length, stride.value, offset.value, viewport.value,
 ));
-// Project drag shifts before selecting visible cards: a distant card can move
-// into the viewport when a large selection is dragged. Keep only the actual
-// drag source and initially mounted selected cards alive until dragend.
 const projectedIndexes = computed(() => {
-  const indexes: Array<number | undefined> = new Array(props.items.length);
-  props.items.forEach((item, index) => {
+  const items = effectiveItems.value;
+  const indexes: Array<number | undefined> = new Array(items.length);
+  items.forEach((item, index) => {
     if (!draggedItemIdSet.value.has(item.id)) {
       indexes[index + (reorderShifts.value.get(item.id) ?? 0)] = index;
     }
@@ -91,28 +84,54 @@ const projectedIndexes = computed(() => {
   return indexes;
 });
 const renderedItems = computed(() => {
+  const items = effectiveItems.value;
   const indexes = projectedIndexes.value.slice(range.value.start, range.value.end)
     .filter((index): index is number => index !== undefined);
-  const originIndex = dragOriginId.value === undefined
-    ? undefined : itemPositions.value.get(dragOriginId.value);
+  const originIndex = activeReorder.value === undefined
+    ? undefined : itemPositions.value.get(activeReorder.value.itemId);
   if (originIndex !== undefined && !indexes.includes(originIndex)) indexes.push(originIndex);
   for (const itemId of mountedDragIds.value) {
     const index = itemPositions.value.get(itemId);
     if (index !== undefined && !indexes.includes(index)) indexes.push(index);
   }
-  return indexes.sort((a, b) => a - b).map((index) => ({ item: props.items[index]!, index }));
+  return indexes.sort((a, b) => a - b).map((index) => ({ item: items[index]!, index }));
 });
+getRenderedReorderIds = (itemId, sourceIds) => renderedItems.value
+  .filter(({ item }) => item.id === itemId || sourceIds.includes(item.id))
+  .map(({ item }) => item.id);
 const contentStyle = computed(() => {
-  const extent = Math.max(0, props.items.length * stride.value - gap.value);
+  const extent = Math.max(0, effectiveItems.value.length * stride.value - gap.value);
   return props.vertical
     ? { height: `${extent}px`, width: "100%" }
     : { width: `${extent}px`, height: "var(--pb-card-height)" };
 });
+let resizeObserver: ResizeObserver | undefined;
+let itemsRevision = 0;
 
 function slotStyle(index: number): Record<string, string> {
   return props.vertical
     ? { top: `${index * stride.value}px`, left: "0", width: "100%" }
     : { left: `${index * stride.value}px`, top: "0", width: `${cardSize.value}px` };
+}
+
+function scrollOffset(element: HTMLElement): number {
+  return props.vertical ? element.scrollTop : element.scrollLeft;
+}
+
+function setScrollOffset(element: HTMLElement, value: number): void {
+  if (props.vertical) element.scrollTop = value;
+  else element.scrollLeft = value;
+  updateFollowLatest();
+}
+
+function updateFollowLatest(): void {
+  const element = track.value;
+  if (element == null) return;
+  offset.value = scrollOffset(element);
+  followLatest.value = offset.value <= 8;
+  if (props.hasMore && offset.value + viewport.value >= (effectiveItems.value.length - 15) * stride.value) {
+    emit("loadMore");
+  }
 }
 
 function measureTrack(): void {
@@ -133,115 +152,45 @@ function forwardSelect(itemId: string, extend: boolean, toggle: boolean): void {
   emit("select", itemId, extend, toggle);
 }
 
-function scrollOffset(element: HTMLElement): number {
-  return props.vertical ? element.scrollTop : element.scrollLeft;
-}
-
-function setScrollOffset(element: HTMLElement, value: number): void {
-  if (props.vertical) element.scrollTop = value;
-  else element.scrollLeft = value;
-  updateFollowLatest();
-}
-
-function updateFollowLatest(): void {
-  const element = track.value;
-  if (element == null) return;
-  offset.value = scrollOffset(element);
-  followLatest.value = offset.value <= LEADING_EDGE_THRESHOLD;
-  if (props.hasMore && offset.value + viewport.value >= (props.items.length - 15) * stride.value) emit("loadMore");
-}
-
-function beginReorder(itemId: string): void {
-  if (!props.reorderEnabled) return;
-  mountedDragIds.value = renderedItems.value
-    .filter(({ item }) => item.id === itemId || selectedIdSet.value.has(item.id))
-    .map(({ item }) => item.id);
-  dragOriginId.value = itemId;
-  draggedItemIds.value = selectedIdSet.value.has(itemId) ? orderedSelectedIds.value : [itemId];
-}
-
-function clearReorder(): void {
-  mountedDragIds.value = [];
-  dragOriginId.value = undefined;
-  draggedItemIds.value = [];
-  reorderTarget.value = undefined;
-}
-
-function reorderItemIdsFor(itemId: string): readonly string[] {
-  return selectedIdSet.value.has(itemId) ? orderedSelectedIds.value : [itemId];
-}
-
-function updateReorderTarget(event: DragEvent): void {
-  if (!props.reorderEnabled || draggedItemIds.value.length === 0) return;
-  if (!event.dataTransfer?.types.includes(LIST_REORDER_MIME)) return;
-  const target = event.target instanceof Element
-    ? event.target.closest<HTMLElement>("[data-pb-item-id]")
-    : null;
-  const itemId = target?.dataset.pbItemId;
-  if (target === null || itemId === undefined || draggedItemIdSet.value.has(itemId)) {
-    if (reorderTarget.value !== undefined) {
-      event.preventDefault();
-      if (event.dataTransfer !== null) event.dataTransfer.dropEffect = "move";
-    }
-    return;
-  }
-  event.preventDefault();
-  event.dataTransfer.dropEffect = "move";
-  const bounds = target.getBoundingClientRect();
-  const position: ListDropPosition = props.vertical
-    ? event.clientY < bounds.top + bounds.height / 2 ? "before" : "after"
-    : event.clientX < bounds.left + bounds.width / 2 ? "before" : "after";
-  reorderTarget.value = { itemId, position };
-}
-
-function commitReorder(event: DragEvent): void {
-  const sourceIds = draggedItemIds.value;
-  const target = reorderTarget.value;
-  if (sourceIds.length > 0 && target !== undefined) {
-    event.preventDefault();
-    emit("reorder", { sourceIds, targetId: target.itemId, position: target.position });
-  }
-  clearReorder();
-}
-
-watch(
-  () => props.items,
-  async (items, previousItems) => {
-    const revision = ++itemsRevision;
-    const shouldFollow = followLatest.value;
-    const previousIndex = Math.min(previousItems.length - 1, Math.floor(offset.value / stride.value));
-    const anchorId = previousItems[previousIndex]?.id;
-    const withinCard = offset.value - previousIndex * stride.value;
-    clearReorder();
-    // Set the range before patching DOM, otherwise a shortened search result
-    // could briefly mount a blank window at the old scroll position.
-    const anchorIndex = anchorId === undefined ? undefined : itemPositions.value.get(anchorId);
-    const nextOffset = shouldFollow || anchorIndex === undefined
-      ? 0 : Math.max(0, anchorIndex * stride.value + withinCard);
-    offset.value = nextOffset;
-    await nextTick();
+function restoreViewportForItems(
+  items: readonly PasteItem[],
+  previousItems: readonly PasteItem[],
+): void {
+  const revision = ++itemsRevision;
+  const shouldFollow = followLatest.value;
+  const previousIndex = previousItems.length === 0
+    ? 0 : Math.min(previousItems.length - 1, Math.floor(offset.value / stride.value));
+  const anchorId = previousItems[previousIndex]?.id;
+  const withinCard = previousItems.length === 0 ? 0 : offset.value - previousIndex * stride.value;
+  const anchorIndex = anchorId === undefined ? -1 : items.findIndex((item) => item.id === anchorId);
+  const nextOffset = shouldFollow || anchorIndex < 0
+    ? 0 : Math.max(0, anchorIndex * stride.value + withinCard);
+  offset.value = nextOffset;
+  void nextTick(() => {
     if (revision !== itemsRevision || track.value == null) return;
     measureTrack();
     setScrollOffset(track.value, nextOffset);
     if (nextOffset === 0 && items[0] !== undefined && items[0].id !== previousItems[0]?.id) {
       emit("latestVisible", items[0].id);
     }
-  },
-);
+  });
+}
 
-watch(
-  () => props.focusedId,
-  async (itemId, previousItemId) => {
-    if (itemId === undefined || itemId === previousItemId) return;
-    await nextTick();
-    if (track.value == null || props.focusedId !== itemId) return;
-    const index = itemPositions.value.get(itemId);
-    if (index === undefined) return;
-    setScrollOffset(track.value, timelineFocusOffset(
-      index, stride.value, cardSize.value, offset.value, viewport.value,
-    ));
-  },
-);
+watch(() => props.items, (items, previousItems) => {
+  if (reorder.handleItemsChanged(items)) return;
+  restoreViewportForItems(items, previousItems);
+});
+
+watch(() => props.focusedId, async (itemId, previousItemId) => {
+  if (itemId === undefined || itemId === previousItemId) return;
+  await nextTick();
+  if (track.value == null || props.focusedId !== itemId) return;
+  const index = itemPositions.value.get(itemId);
+  if (index === undefined) return;
+  setScrollOffset(track.value, timelineFocusOffset(
+    index, stride.value, cardSize.value, offset.value, viewport.value,
+  ));
+});
 
 async function focusItem(itemId: string): Promise<void> {
   await nextTick();
@@ -266,11 +215,12 @@ watch(track, (element) => {
   measureTrack();
   resizeObserver = new ResizeObserver(measureTrack);
   resizeObserver.observe(element);
-  const itemId = props.items[0]?.id;
+  const itemId = effectiveItems.value[0]?.id;
   if (itemId !== undefined && followLatest.value) emit("latestVisible", itemId);
 }, { flush: "post" });
 
 watch(() => [props.vertical, props.compact], async () => {
+  reorder.cancelPointerReorder();
   const index = Math.floor(offset.value / stride.value);
   await nextTick();
   if (track.value == null) return;
@@ -278,7 +228,10 @@ watch(() => [props.vertical, props.compact], async () => {
   setScrollOffset(track.value, index * stride.value);
 });
 
-onBeforeUnmount(() => resizeObserver?.disconnect());
+onBeforeUnmount(() => {
+  reorder.dispose();
+  resizeObserver?.disconnect();
+});
 </script>
 
 <template>
@@ -287,7 +240,7 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
     :class="{ 'timeline--vertical': props.vertical, 'timeline--compact': props.compact }"
     aria-label="剪贴板时间线"
   >
-    <div v-if="props.items.length === 0" class="empty-state" aria-live="polite">
+    <div v-if="effectiveItems.length === 0" class="empty-state" aria-live="polite">
       <span>LOCAL HISTORY</span>
       <strong>复制内容后会出现在这里</strong>
       <p>Paste剪切板只保存通过隐私规则的本地记录。</p>
@@ -298,11 +251,11 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
       class="timeline__track"
       role="listbox"
       aria-multiselectable="true"
+      :data-pb-reorder-active="activeReorder ? 'true' : undefined"
+      :data-pb-reorder-source-count="activeReorder?.sourceIds.length"
+      :data-pb-reorder-target-id="reorderTarget?.itemId"
+      :data-pb-reorder-target-position="reorderTarget?.position"
       @scroll.passive="updateFollowLatest"
-      @dragover="updateReorderTarget"
-      @drop="commitReorder"
-      @dragend="clearReorder"
-      @dragleave.self="reorderTarget = undefined"
     >
       <div class="timeline__content" :style="contentStyle">
         <div
@@ -322,15 +275,13 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
             :reorder-enabled="props.reorderEnabled"
             :reorder-active="draggedItemIds.length > 0"
             :reorder-hidden="draggedItemIdSet.has(item.id)"
-            :reorder-item-ids="reorderItemIdsFor(item.id)"
             :reorder-shift="reorderShifts.get(item.id) ?? 0"
             @select="forwardSelect"
             @paste="emit('paste', $event)"
             @preview="emit('preview', $event)"
             @assign-pinboard="emit('assignPinboard', $event.pinboardId, $event.itemId)"
             @create-pinboard="emit('createPinboard')"
-            @reorder-drag-start="beginReorder"
-            @reorder-drag-end="clearReorder"
+            @reorder-pointer-start="beginPointerReorder"
           />
         </div>
       </div>

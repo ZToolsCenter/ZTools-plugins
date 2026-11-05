@@ -14,9 +14,10 @@ export default function ScryptUI({}: AlgorithmProps) {
   const [error, setError] = useState('')
 
   const generateSalt = () => {
-    const arr = new Uint8Array(16)
-    crypto.getRandomValues(arr)
-    setSalt(Array.from(arr).map((b) => b.toString(16).padStart(2, '0')).join(''))
+    const result = runCodec(() =>
+      window.services.crypt.randomBytes.generate({ length: 16, encoding: 'hex' })
+    )
+    if (result.ok) setSalt(result.data)
   }
 
   const run = () => {
@@ -53,14 +54,12 @@ export default function ScryptUI({}: AlgorithmProps) {
             value={salt}
             onChange={setSalt}
             copyable
-          />
-          <div className="ct-field">
-            <div className="ct-actions" style={{ marginTop: '18px' }}>
-              <button type="button" className="ct-btn ct-btn-ghost" onClick={generateSalt}>
-                生成随机盐
+            action={
+              <button type="button" className="ct-inline-btn" onClick={generateSalt} title="生成 16 字节随机盐" aria-label="生成随机盐">
+                生成
               </button>
-            </div>
-          </div>
+            }
+          />
           <Field label="密钥长度（字节）" help="输出密钥字节数，常用 32 / 64" value={keylen} onChange={setKeylen} />
           <Field label="N（成本）" hint="2 的幂" help="CPU/成本因子，常用 16384" value={N} onChange={setN} />
           <Field label="r（块大小）" help="块大小参数，常用 8" value={r} onChange={setR} />

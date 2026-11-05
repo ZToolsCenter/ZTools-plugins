@@ -1,0 +1,148 @@
+{
+  "format": "research-english-course-v1",
+  "title": "示例素材 · 论文阅读与讨论",
+  "domain": "reading",
+  "description": "4 句原创讨论表达，练习读摘要、提出设计问题和区分关联与因果。",
+  "level": "★★★",
+  "source": {
+    "title": "科研小盒原创练习",
+    "url": "",
+    "kind": "original"
+  },
+  "sentences": [
+    {
+      "en": "The abstract gives a brief overview of the research question.",
+      "zh": "摘要简要概述了研究问题。",
+      "note": "an overview of 用于概括主题；brief 强调简要。",
+      "quote": "",
+      "question": "How would you summarize the research question in one sentence?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "The abstract",
+          "zh": "摘要"
+        },
+        {
+          "role": "谓语",
+          "en": "gives",
+          "zh": "给出了"
+        },
+        {
+          "role": "宾语",
+          "en": "a brief overview of the research question",
+          "zh": "研究问题的简要概述"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "overview",
+          "ipa": "ˈoʊvərvjuː",
+          "meaning": "概述"
+        }
+      ],
+      "phonetics": []
+    },
+    {
+      "en": "I would like to understand how the authors selected their samples.",
+      "zh": "我想了解作者是如何选择样本的。",
+      "note": "I would like to understand 用于礼貌提出方法问题。",
+      "quote": "",
+      "question": "What would you check about the sample selection process?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "I",
+          "zh": "我"
+        },
+        {
+          "role": "谓语",
+          "en": "would like to understand",
+          "zh": "想了解"
+        },
+        {
+          "role": "宾语从句",
+          "en": "how the authors selected their samples",
+          "zh": "作者如何选择样本"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "selected",
+          "ipa": "sɪˈlektɪd",
+          "meaning": "选择了"
+        }
+      ],
+      "phonetics": []
+    },
+    {
+      "en": "An observed association does not by itself establish a causal relationship.",
+      "zh": "观察到的关联本身并不能确立因果关系。",
+      "note": "by itself 限定证据力度；association 与 causal relationship 的含义不同。",
+      "quote": "",
+      "question": "What additional evidence would support a causal explanation?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "An observed association",
+          "zh": "观察到的关联"
+        },
+        {
+          "role": "谓语",
+          "en": "does not by itself establish",
+          "zh": "本身并不能确立"
+        },
+        {
+          "role": "宾语",
+          "en": "a causal relationship",
+          "zh": "因果关系"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "association",
+          "ipa": "əˌsoʊsiˈeɪʃən",
+          "meaning": "关联"
+        }
+      ],
+      "phonetics": []
+    },
+    {
+      "en": "The discussion should connect the findings to the original research question.",
+      "zh": "讨论部分应将研究发现与最初的研究问题联系起来。",
+      "note": "connect A to B 表示把两者联系起来。",
+      "quote": "",
+      "question": "How do the main findings address the original question?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "The discussion",
+          "zh": "讨论部分"
+        },
+        {
+          "role": "谓语",
+          "en": "should connect",
+          "zh": "应联系"
+        },
+        {
+          "role": "宾语",
+          "en": "the findings",
+          "zh": "研究发现"
+        },
+        {
+          "role": "联系对象",
+          "en": "to the original research question",
+          "zh": "与最初的研究问题"
+        }
+      ],
+      "vocabulary": [
+        {
+          "term": "findings",
+          "ipa": "ˈfaɪndɪŋz",
+          "meaning": "研究发现"
+        }
+      ],
+      "phonetics": []
+    }
+  ],
+  "tags": []
+}

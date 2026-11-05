@@ -1577,6 +1577,36 @@ pre {
   white-space: nowrap;
 }
 
+.ai-model-picker .ai-model-capabilities {
+  color: #97aaa4;
+}
+
+.ai-reasoning-picker {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #9aa8a5;
+  font-size: 9px;
+}
+
+.ai-reasoning-picker select {
+  flex: 1;
+  min-width: 0;
+}
+
+.upgrade-required {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.upgrade-required .panel {
+  width: min(560px, 100%);
+  padding: 28px;
+}
+
 .ai-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(290px, 0.5fr);

@@ -36,6 +36,9 @@ const EXPECTED_TOOL_NAMES = Object.freeze([
   'prepare_lan_scan',
   'scan_lan_devices',
   'get_operation_result',
+  'get_hardware_metrics',
+  'inspect_archive_safety',
+  'audit_installed_plugin',
 ])
 
 const manifest = JSON.parse(await readFile(path.join(root, 'public', 'plugin.json'), 'utf8'))

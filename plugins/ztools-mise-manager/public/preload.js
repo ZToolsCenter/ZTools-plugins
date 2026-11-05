@@ -402,6 +402,53 @@ window.miseManager = {
     if (window.ztools && window.ztools.shellOpenExternal) window.ztools.shellOpenExternal(url);
     else window.open(url, "_blank");
   },
+
+  // --- Node.js 全局包迁移相关 ---
+  getNodeGlobalPackages: async (nodeVersion) => {
+    const cmd = `mise exec node@${nodeVersion} -- npm list -g --depth=0 --json`;
+    return new Promise((resolve) => {
+      exec(cmd, { shell: true, timeout: 30000 }, (error, stdout) => {
+        const output = decodeOutput(stdout || (error && error.stdout) || "");
+        try {
+          const json = JSON.parse(output);
+          const deps = json.dependencies || {};
+          const excluded = new Set(["npm", "corepack", "npx"]);
+          const list = Object.keys(deps).filter((name) => !excluded.has(name.toLowerCase()));
+          resolve(list);
+        } catch (e) {
+          resolve([]);
+        }
+      });
+    });
+  },
+
+  installGlobalPackages: (nodeVersion, packages, { onLog, onProgress } = {}) => {
+    if (!packages || packages.length === 0) return Promise.resolve("");
+    const pkgArgs = packages.map((p) => `"${p}"`).join(" ");
+    const cmd = `mise exec node@${nodeVersion} -- npm install -g ${pkgArgs}`;
+    return runLongTask(cmd, { onLog, onProgress });
+  },
+
+  readNpmrc: () => {
+    try {
+      const home = process.env.USERPROFILE || process.env.HOME || "";
+      const p = path.join(home, ".npmrc");
+      if (fs.existsSync(p)) {
+        return fs.readFileSync(p, "utf-8");
+      }
+    } catch (e) { /* ignore */ }
+    return "";
+  },
+
+  getCorepackStatus: async (nodeVersion) => {
+    const res = await runCommand(`mise exec node@${nodeVersion} -- corepack --version`);
+    return res.ok && res.stdout.trim().length > 0;
+  },
+
+  enableCorepack: async (nodeVersion) => {
+    const res = await runCommand(`mise exec node@${nodeVersion} -- corepack enable`);
+    if (!res.ok) throw new Error(res.stderr || "启用 corepack 失败");
+  },
 };
 
 // --- 快速指令处理 ---

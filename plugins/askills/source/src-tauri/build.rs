@@ -1,0 +1,43 @@
+fn main() {
+    // Windows icon resources are compiled here, so artwork changes must rerun it.
+    println!("cargo:rerun-if-changed=icons");
+    tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
+        tauri_build::AppManifest::new().commands(&[
+            "get_app_info",
+            "open_repository",
+            "get_snapshot",
+            "set_locale",
+            "set_appearance",
+            "list_system_fonts",
+            "remember_repository",
+            "set_skill_display_name",
+            "set_project_display_name",
+            "remove_library_skills",
+            "remove_projects",
+            "pick_directory",
+            "prepare_import",
+            "finish_import",
+            "discard_import",
+            "register_project",
+            "discover_projects",
+            "scan_project",
+            "get_document",
+            "get_revisions",
+            "preview_deployment",
+            "apply_deployment",
+            "remove_deployment",
+            "rollback_deployment",
+            "resolve_github",
+            "resolve_git",
+            "get_git_version",
+            "prepare_github",
+            "get_download_progress",
+            "set_library_root",
+            "preview_library_migration",
+            "discard_selections",
+            "cancel_operation",
+            "get_revision_diff",
+        ]),
+    ))
+    .expect("failed to generate Askills application permissions");
+}

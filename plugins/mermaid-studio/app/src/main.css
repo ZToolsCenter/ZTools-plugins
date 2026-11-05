@@ -1,0 +1,59 @@
+:root {
+  --plugin-text: #1f2430;
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  /* 保持透明，交给插件自身的面板与宿主背景 */
+  background: transparent;
+  color: var(--plugin-text);
+  font-family: 'Inter', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+#app {
+  height: 100vh;
+  min-height: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --plugin-text: #e7e9f2;
+  }
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track-piece {
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+  background-color: rgb(128 134 156 / 55%);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(128 134 156 / 80%);
+}
+
+button,
+select,
+input,
+textarea {
+  font-family: inherit;
+}

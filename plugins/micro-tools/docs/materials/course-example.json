@@ -1,0 +1,49 @@
+{
+  "format": "research-english-course-v1",
+  "title": "科研方法表达",
+  "domain": "methods",
+  "description": "描述方法选择的英语练习。",
+  "level": "★★★",
+  "tags": [
+    "组会",
+    "方法"
+  ],
+  "source": {
+    "title": "原创表达示例",
+    "url": "",
+    "kind": "original"
+  },
+  "sentences": [
+    {
+      "en": "We compare the two methods using the same data.",
+      "zh": "我们使用相同的数据比较这两种方法。",
+      "note": "",
+      "quote": "",
+      "question": "How would you compare the two methods?",
+      "chunks": [
+        {
+          "role": "主语",
+          "en": "We",
+          "zh": "我们"
+        },
+        {
+          "role": "谓语",
+          "en": "compare",
+          "zh": "比较"
+        },
+        {
+          "role": "宾语",
+          "en": "the two methods",
+          "zh": "这两种方法"
+        },
+        {
+          "role": "状语",
+          "en": "using the same data",
+          "zh": "使用相同的数据"
+        }
+      ],
+      "vocabulary": [],
+      "phonetics": []
+    }
+  ]
+}

@@ -36,6 +36,8 @@ export async function verifyAssembledPackage(root) {
     manifest.logo,
     "package.json",
     "history-worker.cjs",
+    "content-scan-worker.cjs",
+    "HTML_PARSER_NOTICES.txt",
     ...(includeVisionHelper ? ["pasteboard-vision"] : []),
   ]) {
     assert.equal(typeof relative, "string");

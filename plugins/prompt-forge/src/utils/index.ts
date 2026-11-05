@@ -4,6 +4,15 @@ import type { Variable } from '../types'
 const TEXTAREA_KEYWORDS = ['描述', '内容', '上下文', '正文', '摘要', '备注', '说明', '详情',
   'prompt', 'content', 'context', 'description', 'body', 'text', 'input', 'output', 'message', 'summary']
 
+const VARIABLE_NAME_PATTERN = '[\\u4e00-\\u9fff\\u3400-\\u4dbfa-zA-Z0-9_-]+'
+
+function createVariablePattern(): RegExp {
+  return new RegExp(
+    `\\{\\{(${VARIABLE_NAME_PATTERN})(?:=([^}]+))?\\}\\}(?!\\})|\\$\\{(${VARIABLE_NAME_PATTERN})(?:=([^}]+))?\\}(?!\\})`,
+    'g',
+  )
+}
+
 export function shouldUseTextarea(v: { name: string; defaultValue?: string }): boolean {
   const lower = v.name.toLowerCase()
   if (TEXTAREA_KEYWORDS.some(kw => lower.includes(kw))) return true
@@ -13,13 +22,13 @@ export function shouldUseTextarea(v: { name: string; defaultValue?: string }): b
 
 /** 从文本中提取 {{name}} 或 ${name} 变量 */
 export function extractVariables(text: string): Variable[] {
-  const regex = /(?:\{\{|\$\{)([\u4e00-\u9fff\u3400-\u4dbfa-zA-Z0-9_-]+)(?:=([^}]+))?(?:\}\}|\})/g
+  const regex = createVariablePattern()
   const vars: Variable[] = []
   const seen = new Set<string>()
   let match: RegExpExecArray | null
   while ((match = regex.exec(text)) !== null) {
-    const name = match[1]
-    const defaultVal = match[2] || ''
+    const name = match[1] || match[3]
+    const defaultVal = match[2] || match[4] || ''
     if (!seen.has(name)) {
       seen.add(name)
       vars.push({ name, required: !defaultVal, defaultValue: defaultVal || undefined })
@@ -31,7 +40,8 @@ export function extractVariables(text: string): Variable[] {
 /** 替换文本中的变量为实际值 */
 export function renderVariables(text: string, values: Record<string, string>): string {
   if (!text) return ''
-  return text.replace(/(?:\{\{|\$\{)([\u4e00-\u9fff\u3400-\u4dbfa-zA-Z0-9_-]+)(?:=[^}]+)?(?:\}\}|\})/g, (_, name) => {
+  return text.replace(createVariablePattern(), (_, mustacheName: string, _mustacheDefault: string, dollarName: string) => {
+    const name = mustacheName || dollarName
     return values[name] ?? `{{${name}}}`
   })
 }

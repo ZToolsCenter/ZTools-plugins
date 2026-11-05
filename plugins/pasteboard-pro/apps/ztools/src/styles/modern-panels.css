@@ -1,0 +1,86 @@
+/* All auxiliary surfaces follow the same saved version as the shelf. */
+:root[data-pb-ui-version="modern"] .editor-backdrop:not(.editor-backdrop--standalone),
+:root[data-pb-ui-version="modern"] .selection-paste-backdrop,
+:root[data-pb-ui-version="modern"] .whats-new-backdrop:not(.whats-new-backdrop--standalone) {
+  background: rgb(14 18 24 / 30%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-pb-ui-version="modern"] .editor,
+:root[data-pb-ui-version="modern"] .selection-paste-dialog,
+:root[data-pb-ui-version="modern"] .whats-new-modal,
+:root[data-pb-ui-version="modern"] .preview {
+  border-color: var(--pb-line);
+  background: var(--pb-glass-strong);
+  color: var(--pb-ink);
+  border-radius: 14px;
+  box-shadow: 0 18px 46px var(--pb-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-pb-ui-version="modern"] .editor-backdrop--standalone .editor,
+:root[data-pb-ui-version="modern"] .whats-new-modal--standalone,
+:root[data-pb-ui-version="modern"] .preview--standalone {
+  border: 0;
+  border-radius: 0;
+  background: var(--pb-window-bg);
+  box-shadow: none;
+}
+
+:root[data-pb-ui-version="modern"] .editor header p {
+  color: var(--pb-muted);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+:root[data-pb-ui-version="modern"] .editor h2 {
+  font-size: 17px;
+  font-weight: 650;
+}
+
+:root[data-pb-ui-version="modern"] .editor header button,
+:root[data-pb-ui-version="modern"] .preview header button {
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pb-muted);
+}
+
+:root[data-pb-ui-version="modern"] .editor input,
+:root[data-pb-ui-version="modern"] .editor textarea {
+  border-radius: 9px;
+  background: var(--pb-window-bg);
+}
+
+:root[data-pb-ui-version="modern"] .selection-paste-dialog__primary {
+  color: var(--pb-on-accent);
+}
+
+:root[data-pb-ui-version="modern"] .whats-new-header {
+  background: transparent;
+}
+
+:root[data-pb-ui-version="modern"] .whats-new-title {
+  color: var(--pb-ink);
+  font-size: 23px;
+  letter-spacing: -.02em;
+}
+
+:root[data-pb-ui-version="modern"] .whats-new-tag {
+  border-color: var(--pb-line);
+  background: var(--pb-glass);
+  color: var(--pb-muted);
+  letter-spacing: 0;
+}
+
+:root[data-pb-ui-version="modern"] .whats-new-modal .pulse-dot {
+  box-shadow: none;
+}
+
+:root[data-pb-ui-version="modern"] .whats-new-btn {
+  border-radius: 9px;
+  background: var(--pb-violet);
+  color: var(--pb-on-accent);
+  box-shadow: none;
+}

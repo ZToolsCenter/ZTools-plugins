@@ -40,7 +40,7 @@ export default function BcryptUI({}: AlgorithmProps) {
     const err = showError(r)
     setError(err)
     if (!err && r.ok) {
-      setOutput(r.data ? '✅ 密码匹配' : '❌ 密码不匹配')
+      setOutput(r.data ? '密码匹配' : '密码不匹配')
     }
   }
 
@@ -49,8 +49,30 @@ export default function BcryptUI({}: AlgorithmProps) {
     setHashInput(PRESET_HASH)
   }
 
+  const switchMode = (verify: boolean) => {
+    setIsVerifyMode(verify)
+    setOutput('')
+    setError('')
+  }
+
   return (
     <>
+      <div className="ct-tabs">
+        <button
+          type="button"
+          className={`ct-tab ${!isVerifyMode ? 'on' : ''}`}
+          onClick={() => switchMode(false)}
+        >
+          哈希
+        </button>
+        <button
+          type="button"
+          className={`ct-tab ${isVerifyMode ? 'on' : ''}`}
+          onClick={() => switchMode(true)}
+        >
+          验证
+        </button>
+      </div>
       <div className="ct-input-zone">
         <div className="ct-zone-label">输入</div>
         <div className="ct-grid2">
@@ -90,13 +112,6 @@ export default function BcryptUI({}: AlgorithmProps) {
           onClick={isVerifyMode ? verify : generate}
         >
           {isVerifyMode ? '验证' : '哈希'}
-        </button>
-        <button
-          type="button"
-          className="ct-btn ct-btn-ghost"
-          onClick={() => setIsVerifyMode(!isVerifyMode)}
-        >
-          {isVerifyMode ? '↩ 哈希模式' : '→ 验证模式'}
         </button>
         {isVerifyMode && (
           <button

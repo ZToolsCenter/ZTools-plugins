@@ -70,11 +70,35 @@ html, body {
 }
 
 /* ---------------- 首页 ---------------- */
-.home__sub {
+.home__intro {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   margin: 14px 2px 12px;
+}
+.home__sub {
+  margin: 0;
   color: var(--muted);
   font-size: 12.5px;
 }
+.home__intro .project-star { margin-left: auto; }
+.project-star {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.project-star:hover { border-color: var(--brand); color: var(--brand); }
+.project-star:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 
 .grid {
   display: grid;
@@ -511,3 +535,5 @@ code {
 }
 .mol-form input:focus { border-color: var(--brand); }
 .mol-form .mol-full { grid-column: 1 / -1; }
+
+.app-release-notes summary{cursor:pointer;font-weight:600;color:#3d6674}.app-release-notes ul{padding-left:20px;color:#63798a;font-size:13px;line-height:1.9}.app-release-notes li+li{margin-top:7px}

@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "科研英语素材内容 v1",
+  "description": "规范化后的课程或词本内容。社区发布属性属于 manifest，教学约束与上传门槛另行校验。",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/course"
+    },
+    {
+      "$ref": "#/$defs/wordbook"
+    }
+  ],
+  "$defs": {
+    "course": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "research-english-course-v1"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 160,
+          "minLength": 1
+        },
+        "domain": {
+          "type": "string",
+          "maxLength": 80,
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1200
+        },
+        "level": {
+          "enum": [
+            null,
+            "★",
+            "★★",
+            "★★★",
+            "★★★★",
+            "★★★★★"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1
+          },
+          "maxItems": 6,
+          "uniqueItems": true
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "maxLength": 300
+            },
+            "url": {
+              "type": "string",
+              "maxLength": 2000,
+              "pattern": "^(https://|$)"
+            },
+            "kind": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "required": [
+            "title",
+            "url",
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        "sentences": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "en": {
+                "type": "string",
+                "maxLength": 1000,
+                "minLength": 1
+              },
+              "zh": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "quote": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "question": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "chunks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "maxLength": 50
+                    },
+                    "en": {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "zh": {
+                      "type": "string",
+                      "maxLength": 500
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "en",
+                    "zh"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 20
+              },
+              "vocabulary": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "term": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "minLength": 1
+                    },
+                    "ipa": {
+                      "type": "string",
+                      "maxLength": 150
+                    },
+                    "meaning": {
+                      "type": "string",
+                      "maxLength": 500
+                    }
+                  },
+                  "required": [
+                    "term",
+                    "ipa",
+                    "meaning"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 30
+              },
+              "phonetics": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "word": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "minLength": 1
+                    },
+                    "ipa": {
+                      "type": "string",
+                      "maxLength": 150
+                    }
+                  },
+                  "required": [
+                    "word",
+                    "ipa"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 150
+              },
+              "image": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "minLength": 1,
+                    "pattern": "^https://"
+                  },
+                  "alt": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "url",
+                  "alt"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "en",
+              "zh",
+              "note",
+              "quote",
+              "question",
+              "chunks",
+              "vocabulary",
+              "phonetics"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 120,
+          "minItems": 1
+        }
+      },
+      "required": [
+        "format",
+        "title",
+        "domain",
+        "description",
+        "level",
+        "tags",
+        "source",
+        "sentences"
+      ],
+      "additionalProperties": false
+    },
+    "wordbook": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "research-english-wordbook-v1"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "domain": {
+          "type": "string",
+          "maxLength": 80,
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1200
+        },
+        "level": {
+          "enum": [
+            null,
+            "★",
+            "★★",
+            "★★★",
+            "★★★★",
+            "★★★★★"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1
+          },
+          "maxItems": 6,
+          "uniqueItems": true
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "url": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "kind": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "file": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "sha256": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "words": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "term": {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              "meaning": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "usphone": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "ukphone": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "term",
+              "meaning",
+              "usphone",
+              "ukphone"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 20000,
+          "minItems": 1
+        }
+      },
+      "required": [
+        "format",
+        "title",
+        "domain",
+        "description",
+        "level",
+        "tags",
+        "words"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

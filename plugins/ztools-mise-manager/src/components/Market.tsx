@@ -1,23 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Download, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, RefreshCw } from "lucide-react";
 import { toolIcon } from "@/lib/toolIcons";
-import type { RegistryTool, TaskProgress } from "../types";
+import type { GlobalTask, RegistryTool } from "../types";
 
 interface Props {
   onChanged: (silent?: boolean) => void;
+  globalTask: GlobalTask | null;
+  onStartInstall: (tool: string, version?: string) => Promise<void>;
 }
 
-export default function Market({ onChanged }: Props) {
+export default function Market({ onChanged, globalTask, onStartInstall }: Props) {
   const [registry, setRegistry] = useState<RegistryTool[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [task, setTask] = useState<TaskProgress | null>(null);
-  const [busyName, setBusyName] = useState<string | null>(null);
-  const logRef = useRef<(t: string) => void>(() => {});
+
+  // 展开的版本选择面板
+  const [expandedTool, setExpandedTool] = useState<string | null>(null);
+  const [versionsMap, setVersionsMap] = useState<Record<string, string[]>>({});
+  const [loadingVersionsTool, setLoadingVersionsTool] = useState<string | null>(null);
+  const [versionQuery, setVersionQuery] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,27 +50,51 @@ export default function Market({ onChanged }: Props) {
     );
   }, [registry, query]);
 
-  logRef.current = (t) => {
-    setTask((prev) => (prev ? { ...prev, logs: [...prev.logs.slice(-200), t] } : prev));
+  // 加载远程版本
+  const loadRemoteVersions = async (toolName: string) => {
+    setLoadingVersionsTool(toolName);
+    try {
+      const res = await window.miseManager.getRemoteVersions(toolName);
+      if (res.ok) {
+        setVersionsMap((prev) => ({ ...prev, [toolName]: res.versions }));
+      }
+    } catch (e) {
+      console.error("Failed to get remote versions", e);
+    } finally {
+      setLoadingVersionsTool(null);
+    }
   };
 
-  const runInstall = async (name: string) => {
-    if (task?.running) return;
-    setTask({ tool: name, version: "latest", percent: 0, logs: [], running: true });
-    setBusyName(name);
+  // 展开/收起面板
+  const toggleExpand = (toolName: string) => {
+    if (expandedTool === toolName) {
+      setExpandedTool(null);
+      return;
+    }
+    setExpandedTool(toolName);
+    setVersionQuery("");
+    if (!versionsMap[toolName]) {
+      loadRemoteVersions(toolName);
+    }
+  };
+
+  // 过滤后的版本列表（新版本排在前面）
+  const filteredVersions = useMemo(() => {
+    if (!expandedTool) return [];
+    const list = versionsMap[expandedTool] || [];
+    const reversed = [...list].reverse();
+    const q = versionQuery.trim().toLowerCase();
+    if (!q) return reversed;
+    return reversed.filter((v) => v.toLowerCase().includes(q));
+  }, [expandedTool, versionsMap, versionQuery]);
+
+  const handleInstall = async (toolName: string, version?: string) => {
+    if (globalTask?.running) return;
     try {
-      await window.miseManager.install(name, undefined, {
-        onLog: logRef.current,
-        onProgress: (p) => setTask((prev) => (prev ? { ...prev, percent: p } : prev)),
-      });
-      window.miseManager.notify("mise", `安装成功: ${name} (latest)`);
+      await onStartInstall(toolName, version);
       onChanged();
-      setTimeout(() => setTask(null), 800);
     } catch (e) {
-      setTask((prev) => (prev ? { ...prev, running: false, error: String(e) } : prev));
-      window.miseManager.notify("mise 安装失败", String(e).slice(0, 200));
-    } finally {
-      setBusyName(null);
+      // 错误由顶层 startInstallTask 捕获与提示
     }
   };
 
@@ -100,28 +129,148 @@ export default function Market({ onChanged }: Props) {
             <tbody>
               {filtered.map((t) => {
                 const Icon = toolIcon(t.name);
+                const isExpanded = expandedTool === t.name;
+                const isToolInstalling = globalTask?.running && globalTask.tool === t.name;
+
                 return (
-                  <tr key={t.name} className="border-b last:border-b-0 hover:bg-accent/50">
-                    <td className="px-4 py-2">
-                      <span className="flex items-center gap-2">
-                        <span className="tool-icon-sm">
-                          <Icon strokeWidth={2} />
+                  <Fragment key={t.name}>
+                    <tr
+                      className={`border-b hover:bg-accent/50 cursor-pointer transition-colors ${
+                        isExpanded ? "bg-accent/40" : ""
+                      }`}
+                      onClick={() => toggleExpand(t.name)}
+                    >
+                      <td className="px-4 py-2.5">
+                        <span className="flex items-center gap-2">
+                          <span className="tool-icon-sm">
+                            <Icon strokeWidth={2} />
+                          </span>
+                          <span className="mono font-semibold">{t.name}</span>
+                          {isToolInstalling && (
+                            <Badge variant="secondary" className="text-[10px] animate-pulse">
+                              安装中…
+                            </Badge>
+                          )}
                         </span>
-                        <span className="mono font-semibold">{t.name}</span>
-                      </span>
-                    </td>
-                    <td className="max-w-[380px] px-4 py-2 text-xs text-muted-foreground">
-                      {t.description || "—"}
-                    </td>
-                    <td className="mono hidden px-4 py-2 text-[11px] text-muted-foreground md:table-cell">
-                      {t.backends[0] || "—"}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <Button size="sm" disabled={!!busyName} onClick={() => runInstall(t.name)}>
-                        <Download className="h-3.5 w-3.5" /> 安装
-                      </Button>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="max-w-[380px] px-4 py-2.5 text-xs text-muted-foreground">
+                        {t.description || "—"}
+                      </td>
+                      <td className="mono hidden px-4 py-2.5 text-[11px] text-muted-foreground md:table-cell">
+                        {t.backends[0] || "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant={isExpanded ? "secondary" : "default"}
+                          onClick={() => toggleExpand(t.name)}
+                          className="gap-1 text-xs"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          {isExpanded ? "收起" : "安装"}
+                          {isExpanded ? (
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </td>
+                    </tr>
+
+                    {/* 展开的版本选择面板 */}
+                    {isExpanded && (
+                      <tr className="border-b bg-card/60">
+                        <td colSpan={4} className="p-4 bg-muted/20">
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  disabled={globalTask?.running}
+                                  onClick={() => handleInstall(t.name, "latest")}
+                                  className="gap-1 font-semibold"
+                                >
+                                  <Download className="h-3.5 w-3.5" /> 快捷安装 latest
+                                </Button>
+                                <span className="text-xs text-muted-foreground">
+                                  {loadingVersionsTool === t.name
+                                    ? "正在获取远程版本…"
+                                    : `共 ${(versionsMap[t.name] || []).length} 个可用版本`}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  placeholder="搜索版本 (如 22.11.0)..."
+                                  value={versionQuery}
+                                  onChange={(e) => setVersionQuery(e.target.value)}
+                                  className="h-8 w-48 text-xs"
+                                />
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8"
+                                  onClick={() => loadRemoteVersions(t.name)}
+                                  disabled={loadingVersionsTool === t.name}
+                                  title="刷新远程版本"
+                                >
+                                  <RefreshCw
+                                    className={`h-3.5 w-3.5 ${
+                                      loadingVersionsTool === t.name ? "animate-spin" : ""
+                                    }`}
+                                  />
+                                </Button>
+                              </div>
+                            </div>
+
+                            {loadingVersionsTool === t.name ? (
+                              <div className="py-6 text-center text-xs text-muted-foreground">
+                                🔄 正在获取 {t.name} 的远程版本列表…
+                              </div>
+                            ) : filteredVersions.length === 0 ? (
+                              <div className="py-5 text-center text-xs text-muted-foreground">
+                                {versionQuery ? "无匹配版本" : "暂无可用版本信息"}
+                              </div>
+                            ) : (
+                              <div className="max-h-52 overflow-y-auto rounded-md border bg-card p-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
+                                  {filteredVersions.slice(0, 60).map((v) => {
+                                    const isCurrentInstalling =
+                                      globalTask?.running &&
+                                      globalTask.tool === t.name &&
+                                      globalTask.version === v;
+                                    return (
+                                      <div
+                                        key={v}
+                                        className="flex items-center justify-between rounded border px-2.5 py-1.5 text-xs hover:bg-accent/60 transition-colors"
+                                      >
+                                        <span className="mono font-medium truncate mr-1.5" title={v}>
+                                          {v}
+                                        </span>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-6 px-2 text-[11px] shrink-0"
+                                          disabled={globalTask?.running}
+                                          onClick={() => handleInstall(t.name, v)}
+                                        >
+                                          {isCurrentInstalling ? "安装中" : "安装"}
+                                        </Button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {filteredVersions.length > 60 && (
+                                  <div className="mt-2 text-center text-[11px] text-muted-foreground border-t pt-1.5">
+                                    显示最新 60 个版本（共 {filteredVersions.length} 个匹配），可输入关键词精确搜索
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -130,24 +279,6 @@ export default function Market({ onChanged }: Props) {
             <div className="py-10 text-center text-sm text-muted-foreground">无匹配工具</div>
           )}
         </Card>
-      )}
-
-          {task && (
-            <div className="mt-4 fade-in rounded-md border p-3">
-              <Progress value={task.percent} />
-              <div className="mt-2 flex items-center justify-between text-xs">
-                <span className={task.error ? "text-destructive" : "text-muted-foreground"}>
-                  {task.running ? "⏳ 正在安装" : task.error ? "❌ 失败" : "✅ 完成"}: {task.tool} (latest)
-                </span>
-            <span className="mono text-muted-foreground">{task.percent}%</span>
-          </div>
-          {task.logs.length > 0 && <div className="log-box">{task.logs.join("")}</div>}
-          {task.error && (
-            <div className="mt-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {task.error}
-            </div>
-          )}
-        </div>
       )}
     </div>
   );

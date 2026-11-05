@@ -1,0 +1,106 @@
+:root {
+  /* 主色：科技蓝 */
+  --plugin-primary-color: #2563eb;
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --surface-sunken: #f1f5f9;
+  --page-bg: #f6f8fc;
+  --text-primary: #0f172a;
+  --text-secondary: #5b6b82;
+  --text-tertiary: #94a3b8;
+  --border-color: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+
+  --danger: #dc2626;
+  --info-bg: rgba(37, 99, 235, 0.06);
+  --info-text: #1d4ed8;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--page-bg);
+  font-family: 'Microsoft YaHei UI', 'Microsoft YaHei', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+textarea {
+  display: block;
+  margin: 0;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.28);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --plugin-primary-color: #60a5fa;
+    --brand-50: rgba(59, 130, 246, 0.12);
+    --brand-100: rgba(59, 130, 246, 0.2);
+    --brand-200: rgba(96, 165, 250, 0.35);
+    --brand-500: #60a5fa;
+    --brand-600: #93c5fd;
+    --brand-700: #bfdbfe;
+
+    --surface: #1e293b;
+    --surface-muted: rgba(255, 255, 255, 0.045);
+    --surface-sunken: rgba(15, 23, 42, 0.55);
+    --page-bg: #0f172a;
+    --text-primary: #f1f5f9;
+    --text-secondary: #a3b3c9;
+    --text-tertiary: #7c8da6;
+    --border-color: rgba(148, 163, 184, 0.18);
+    --border-strong: rgba(148, 163, 184, 0.32);
+
+    --danger: #f87171;
+    --info-bg: rgba(96, 165, 250, 0.1);
+    --info-text: #93c5fd;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 10px 26px rgba(0, 0, 0, 0.36);
+  }
+}

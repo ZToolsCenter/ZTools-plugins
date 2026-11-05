@@ -43,13 +43,6 @@ export default function EcdhUI({}: AlgorithmProps) {
               { value: 'secp384r1', label: 'secp384r1 (P-384)' }
             ]}
           />
-          <div className="ct-field">
-            <div className="ct-actions" style={{ marginTop: '18px' }}>
-              <button type="button" className="ct-btn ct-btn-primary" onClick={generateKeyPair}>
-                生成密钥对
-              </button>
-            </div>
-          </div>
           <Field
             label="私钥 Private Key"
             help="您的私钥（十六进制）"
@@ -57,6 +50,17 @@ export default function EcdhUI({}: AlgorithmProps) {
             value={privateKey}
             onChange={setPrivateKey}
             copyable
+            action={
+              <button
+                type="button"
+                className="ct-inline-btn"
+                onClick={generateKeyPair}
+                title="生成一对新的 ECDH 密钥"
+                aria-label="生成 ECDH 密钥对"
+              >
+                生成密钥对
+              </button>
+            }
           />
           <Field
             label="公钥 Public Key"

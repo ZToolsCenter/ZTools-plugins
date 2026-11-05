@@ -389,6 +389,25 @@ function isTradingTime(now) {
   return !!(st && st.open);
 }
 
+// 交易所年度休市安排；新年度公布后补充对应日期，未收录年份仍按周末规则判断。
+// 2026: https://www.sse.com.cn/disclosure/announcement/general/c/c_20251222_10802507.shtml
+const ALERT_HOLIDAYS = {
+  2026: [[101, 103], [215, 223], [404, 406], [501, 505], [619, 621], [925, 927], [1001, 1007]]
+};
+
+// 提醒窗口与行情获取窗口分开：行情可从 9:10 获取，通知从北京时间 9:25 开始。
+function isAlertTime(now) {
+  const d = new Date(new Date(now === undefined ? Date.now() : now).getTime() + 8 * 60 * 60 * 1000);
+  const day = d.getUTCDay();
+  if (day === 0 || day === 6 || !isFinite(d.getTime())) return false;
+  const monthDay = (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+  const holidays = ALERT_HOLIDAYS[d.getUTCFullYear()] || [];
+  if (holidays.some(([start, end]) => monthDay >= start && monthDay <= end)) return false;
+  const time = d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds() + d.getUTCMilliseconds() / 1000;
+  return (time >= 9 * 3600 + 25 * 60 && time <= 11 * 3600 + 30 * 60) ||
+    (time >= 13 * 3600 && time <= 15 * 3600);
+}
+
 /** 获取日K线数据（支持东财与腾讯双通道） */
 async function kline(stockCode, opts) {
   const code = digits(stockCode);
@@ -453,6 +472,7 @@ module.exports = {
   search,
   marketStatus,
   isTradingTime,
+  isAlertTime,
   toSecid,
   fromSecid,
   INDEX_LIST,

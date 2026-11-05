@@ -1,0 +1,171 @@
+.popover-surface {
+  --popover-canvas: #f5f6f8;
+  --popover-surface: #fff;
+  --popover-raised: #fff;
+  --popover-ink: #272c33;
+  --popover-muted: #65707d;
+  --popover-line: #e1e5ea;
+  --popover-accent: var(--pb-theme-accent, #2f6bc1);
+  --popover-on-accent: var(--pb-theme-on-accent, #fff);
+  --popover-danger: #b34352;
+  --popover-hover: color-mix(in srgb, var(--popover-accent) 8%, var(--popover-surface));
+  box-sizing: border-box;
+  border: 1px solid var(--popover-line);
+  border-radius: 14px;
+  background: var(--popover-surface);
+  box-shadow: 0 14px 38px rgb(12 17 24 / 20%), 0 2px 7px rgb(12 17 24 / 9%);
+  color: var(--popover-ink);
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.popover-surface *,
+.popover-surface *::before,
+.popover-surface *::after {
+  box-sizing: border-box;
+}
+
+.glass-surface.popover-surface {
+  border-color: var(--popover-line);
+  background: var(--popover-surface);
+  box-shadow: 0 14px 38px rgb(12 17 24 / 20%), 0 2px 7px rgb(12 17 24 / 9%);
+  color: var(--popover-ink);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.popover-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--popover-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.popover-item:hover,
+.popover-item:focus-visible,
+.popover-item:focus-within {
+  background: var(--popover-hover);
+  outline: none;
+}
+
+.popover-danger {
+  color: var(--popover-danger) !important;
+}
+
+.popover-danger:hover,
+.popover-danger:focus-visible {
+  background: color-mix(in srgb, var(--popover-danger) 9%, var(--popover-surface));
+}
+
+.popover-caption {
+  display: block;
+  min-width: 0;
+  padding: 7px 9px 8px;
+  overflow: hidden;
+  color: var(--popover-muted);
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--popover-accent);
+  color: var(--popover-on-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.popover-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.popover-primary:disabled {
+  cursor: default;
+  opacity: .48;
+}
+
+.popover-surface :focus-visible,
+.popover-primary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--popover-accent) 72%, white);
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .popover-surface {
+    --popover-canvas: #24282e;
+    --popover-surface: #2f343b;
+    --popover-raised: #363c44;
+    --popover-ink: #e9edf2;
+    --popover-muted: #a0a8b2;
+    --popover-line: rgb(210 220 232 / 14%);
+    --popover-accent: var(--pb-theme-accent, #7faaff);
+    --popover-on-accent: var(--pb-theme-on-accent, #15243d);
+    --popover-danger: #ef8995;
+    --popover-hover: color-mix(in srgb, var(--popover-accent) 12%, var(--popover-surface));
+    border-color: var(--popover-line);
+    background: var(--popover-surface);
+    box-shadow: 0 18px 46px rgb(0 0 0 / 42%), 0 2px 7px rgb(0 0 0 / 22%);
+    color: var(--popover-ink);
+    color-scheme: dark;
+  }
+
+  .glass-surface.popover-surface {
+    box-shadow: 0 18px 46px rgb(0 0 0 / 42%), 0 2px 7px rgb(0 0 0 / 22%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover-surface *,
+  .popover-surface *::before,
+  .popover-surface *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+
+/* Body-teleported menus share the saved version with every app window. */
+:root[data-pb-ui-version="classic"] .popover-surface {
+  --popover-canvas: var(--pb-window-bg);
+  --popover-surface: var(--pb-glass-strong);
+  --popover-raised: var(--pb-glass);
+  --popover-ink: var(--pb-ink);
+  --popover-muted: var(--pb-muted);
+  --popover-line: var(--pb-line);
+  --popover-accent: var(--pb-theme-accent, var(--pb-violet, #6f61ea));
+  --popover-on-accent: var(--pb-theme-on-accent, var(--pb-on-accent, #fff));
+  --popover-hover: color-mix(in srgb, var(--popover-accent) 15%, transparent);
+  border-radius: 16px;
+  box-shadow: 0 20px 56px var(--pb-shadow);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}

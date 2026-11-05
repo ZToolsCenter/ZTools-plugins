@@ -1,0 +1,492 @@
+.settings-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 21;
+  display: grid;
+  padding: 12px;
+  place-items: center;
+  background: rgb(14 17 21 / 38%);
+  backdrop-filter: blur(13px) saturate(112%);
+  -webkit-backdrop-filter: blur(13px) saturate(112%);
+}
+
+.settings-panel {
+  --settings-canvas: #f5f6f8;
+  --settings-surface: #fff;
+  --settings-raised: #fafbfc;
+  --settings-ink: #272c33;
+  --settings-muted: #65707d;
+  --settings-line: #e1e5ea;
+  --settings-accent: var(--pb-theme-accent, #2f6bc1);
+  --settings-on-accent: var(--pb-theme-on-accent, #fff);
+  --settings-danger: #b34352;
+  --pb-ink: var(--settings-ink);
+  --pb-muted: var(--settings-muted);
+  --pb-line: var(--settings-line);
+  --pb-glass: var(--settings-canvas);
+  --pb-glass-strong: var(--settings-surface);
+  --pb-violet: var(--settings-accent);
+  --pb-on-accent: var(--settings-on-accent);
+  --pb-window-bg: var(--settings-canvas);
+  width: min(760px, 100%);
+  height: min(680px, calc(100% - 8px));
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--settings-line) 88%, #9da7b1);
+  border-radius: 18px;
+  background: var(--settings-canvas);
+  color: var(--settings-ink);
+  box-shadow: 0 28px 88px rgb(10 14 20 / 38%), 0 2px 8px rgb(10 14 20 / 10%);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+.settings-panel.glass-surface {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.settings-panel[data-ui-version="classic"] {
+  --settings-canvas: #f7f7fb;
+  --settings-surface: rgb(255 255 255 / 92%);
+  --settings-raised: #fff;
+  --settings-ink: #29263a;
+  --settings-muted: #817c94;
+  --settings-line: rgb(111 97 234 / 16%);
+  --settings-accent: var(--pb-theme-accent, #6f61ea);
+  --settings-on-accent: var(--pb-theme-on-accent, #fff);
+  --settings-danger: #c34455;
+  width: min(680px, 100%);
+  border-color: color-mix(in srgb, var(--settings-line) 88%, #9da7b1);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--settings-surface) 94%, transparent);
+  box-shadow: 0 28px 80px rgb(25 20 43 / 32%);
+}
+
+.settings-panel[data-ui-version="classic"] .settings-titlebar {
+  background: color-mix(in srgb, var(--pb-window-bg) 94%, transparent);
+  box-shadow: 0 9px 24px rgb(37 29 62 / 5%);
+}
+
+.settings-panel[data-ui-version="classic"] .settings-layout {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.settings-panel[data-ui-version="classic"] .settings-tabs {
+  flex-direction: row;
+  gap: 6px;
+  padding: 0 22px;
+  overflow: auto hidden;
+  border-right: 0;
+  border-bottom: 1px solid var(--settings-line);
+  background: color-mix(in srgb, var(--pb-window-bg) 94%, transparent);
+}
+
+.settings-panel[data-ui-version="classic"] .settings-tabs button {
+  position: relative;
+  flex: 0 0 auto;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-width: 84px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 11px 11px 0 0;
+  background: transparent;
+  color: var(--settings-muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.settings-panel[data-ui-version="classic"] .settings-tabs button::after {
+  position: absolute;
+  right: 12px;
+  bottom: -1px;
+  left: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+  content: "";
+}
+
+.settings-panel[data-ui-version="classic"] .settings-tabs button:hover,
+.settings-panel[data-ui-version="classic"] .settings-tabs button:focus-visible {
+  background: color-mix(in srgb, var(--settings-accent) 5%, transparent);
+  color: var(--settings-ink);
+}
+
+.settings-panel[data-ui-version="classic"] .settings-tabs button.settings-tab--active {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--settings-accent) 8%, transparent);
+  color: var(--settings-accent);
+}
+
+.settings-panel[data-ui-version="classic"] .settings-tabs button.settings-tab--active::after {
+  background: var(--settings-accent);
+}
+
+.settings-panel[data-ui-version="classic"] .settings-page {
+  padding: 20px 22px 28px;
+}
+
+.settings-panel[data-ui-version="classic"] .settings-page__intro strong {
+  font-size: 14px;
+}
+
+.settings-panel[data-ui-version="classic"] .settings-footer {
+  min-height: 64px;
+  padding: 12px 22px;
+  background: color-mix(in srgb, var(--pb-window-bg) 96%, transparent);
+  box-shadow: 0 -9px 24px rgb(37 29 62 / 5%);
+}
+
+.settings-panel[data-ui-version="classic"] .settings-footer button {
+  border-radius: 11px;
+  font-weight: 700;
+}
+
+.settings-panel[data-ui-version="classic"] .settings-footer .primary {
+  background: var(--settings-accent);
+  color: var(--settings-on-accent);
+}
+
+.settings-panel :focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--settings-accent) 66%, white);
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .settings-panel {
+    --settings-canvas: #24282e;
+    --settings-surface: #2f343b;
+    --settings-raised: #363c44;
+    --settings-ink: #e9edf2;
+    --settings-muted: #9aa3ad;
+    --settings-line: rgb(210 220 232 / 13%);
+    --settings-accent: var(--pb-theme-accent, #7faaff);
+    --settings-on-accent: var(--pb-theme-on-accent, #15243d);
+    --settings-danger: #ef8995;
+    box-shadow: 0 30px 90px rgb(0 0 0 / 54%), 0 2px 8px rgb(0 0 0 / 28%);
+    color-scheme: dark;
+  }
+
+  .settings-panel[data-ui-version="classic"] {
+    --settings-canvas: #24212d;
+    --settings-surface: rgb(46 41 59 / 94%);
+    --settings-raised: #39334a;
+    --settings-ink: #f2efff;
+    --settings-muted: #aea8c3;
+    --settings-line: rgb(207 196 255 / 15%);
+    --settings-accent: var(--pb-theme-accent, #897ef0);
+    --settings-on-accent: var(--pb-theme-on-accent, #fff);
+  }
+}
+
+.settings-backdrop--standalone {
+  padding: 0;
+  background: var(--pb-window-bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.settings-backdrop--standalone .settings-panel {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--settings-canvas);
+  box-shadow: none;
+}
+
+.settings-shell {
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.settings-titlebar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--settings-line);
+  background: color-mix(in srgb, var(--settings-surface) 92%, transparent);
+  -webkit-app-region: drag;
+}
+
+.settings-brand {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--settings-muted);
+  font-size: 12px;
+}
+
+.settings-brand img {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.settings-brand strong {
+  color: var(--settings-ink);
+  font-size: 13px;
+  font-weight: 720;
+  letter-spacing: -.02em;
+}
+
+.settings-brand__divider {
+  width: 1px;
+  height: 14px;
+  margin: 0 3px;
+  background: var(--settings-line);
+}
+
+.settings-titlebar h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.settings-titlebar > button {
+  display: grid;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--settings-muted);
+  cursor: pointer;
+  font: 21px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+  place-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.settings-titlebar > button:hover {
+  border-color: var(--settings-line);
+  background: var(--settings-raised);
+  color: var(--settings-ink);
+}
+
+.settings-titlebar > button:disabled { cursor: wait; opacity: .45; }
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 164px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.settings-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 10px;
+  overflow: auto;
+  border-right: 1px solid var(--settings-line);
+  background: color-mix(in srgb, var(--settings-surface) 54%, var(--settings-canvas));
+}
+
+.settings-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--settings-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 560;
+  line-height: 1.2;
+  text-align: left;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.settings-tabs button svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+}
+
+.settings-tabs button:hover {
+  background: color-mix(in srgb, var(--settings-ink) 5%, transparent);
+  color: var(--settings-ink);
+}
+
+.settings-tabs button.settings-tab--active {
+  border-color: color-mix(in srgb, var(--settings-accent) 17%, transparent);
+  background: color-mix(in srgb, var(--settings-accent) 11%, var(--settings-surface));
+  color: var(--settings-accent);
+  font-weight: 680;
+}
+
+.settings-tab__status {
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--settings-muted);
+}
+
+.settings-tab__status--success { background: #36b37e; }
+.settings-tab__status--warning { background: #e99a35; }
+.settings-tab__status--error { background: #e45568; }
+.settings-tab__status--progress { background: var(--settings-accent); }
+
+.settings-scroll {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.settings-page {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  padding: 22px 26px 28px;
+}
+
+.settings-page:focus-visible {
+  outline-offset: -3px;
+}
+
+.settings-page__intro {
+  display: grid;
+  gap: 5px;
+  padding-bottom: 17px;
+}
+
+.settings-page__intro strong { font-size: 16px; font-weight: 680; letter-spacing: -.02em; }
+.settings-page__intro span { color: var(--settings-muted); font-size: 11px; line-height: 1.5; }
+
+.settings-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 60px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--settings-line);
+  background: color-mix(in srgb, var(--settings-surface) 92%, transparent);
+  box-shadow: 0 -8px 20px rgb(10 14 20 / 4%);
+}
+
+.settings-footer > span { flex: 1; color: var(--settings-muted); font-size: 11px; }
+.settings-footer > div { display: flex; gap: 8px; }
+.settings-footer button { min-height: 36px; padding: 0 14px; border: 1px solid var(--settings-line); border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 620; line-height: 1; }
+.settings-footer .quiet { background: transparent; color: var(--settings-muted); }
+.settings-footer .primary { border-color: transparent; background: var(--settings-accent); color: var(--settings-on-accent); }
+.settings-footer button:disabled { cursor: wait; opacity: .55; }
+.settings-footer__error { flex: 1 0 100%; margin: 0; padding: 8px 10px; overflow-wrap: anywhere; border: 1px solid color-mix(in srgb, var(--settings-danger) 24%, var(--settings-line)); border-radius: 8px; background: color-mix(in srgb, var(--settings-danger) 6%, transparent); line-height: 1.45; }
+
+@keyframes sync-breathe { 50% { transform: scale(1.25); box-shadow: 0 0 0 8px color-mix(in srgb, var(--settings-accent) 4%, transparent); } }
+
+@media (max-width: 620px) {
+  .settings-panel { width: 100%; height: 100%; border-radius: 0; }
+  .settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .settings-tabs { flex-direction: row; gap: 4px; padding: 7px 10px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--settings-line); }
+  .settings-tabs button { flex: 1 0 auto; justify-content: center; gap: 6px; min-width: 68px; min-height: 36px; padding: 0 8px; white-space: nowrap; }
+  .settings-tabs button svg { width: 16px; height: 16px; }
+  .settings-page { padding: 17px 18px 24px; }
+  .settings-footer { gap: 6px 10px; padding: 9px 12px; }
+  .settings-footer > span { display: none; }
+  .settings-footer__error { order: 1; }
+  .settings-footer > div { flex: 1 0 100%; justify-content: flex-end; order: 2; }
+
+  .settings-panel[data-ui-version="classic"] {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .settings-panel[data-ui-version="classic"] .settings-tabs {
+    flex-direction: row;
+    gap: 4px;
+    padding: 7px 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--settings-line);
+  }
+
+  .settings-panel[data-ui-version="classic"] .settings-tabs button {
+    flex: 1 0 auto;
+    min-width: 68px;
+    min-height: 36px;
+    padding: 0 8px;
+    white-space: nowrap;
+  }
+
+  .settings-panel[data-ui-version="classic"] .settings-page {
+    padding: 17px 18px 24px;
+  }
+
+  .settings-panel[data-ui-version="classic"] .settings-footer {
+    gap: 6px 10px;
+    padding: 9px 12px;
+  }
+
+  .settings-panel[data-ui-version="classic"] .settings-footer > span {
+    display: none;
+  }
+}
+
+@media (max-height: 420px) {
+  .settings-shell { grid-template-rows: 50px minmax(0, 1fr) auto; }
+  .settings-titlebar { padding-right: 12px; padding-left: 12px; }
+  .settings-layout { grid-template-columns: 138px minmax(0, 1fr); }
+  .settings-page { padding-top: 14px; }
+  .settings-footer { min-height: 52px; }
+}
+
+@media (max-width: 620px) and (max-height: 420px) {
+  .settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-tabs button { transition: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-panel[data-ui-version="classic"] .settings-tabs button {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .settings-backdrop { background: rgb(14 17 21 / 58%); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .settings-titlebar,
+  .settings-footer { background: var(--settings-surface); }
+}
+
+@media (prefers-contrast: more) {
+  .settings-panel { --settings-line: color-mix(in srgb, var(--settings-ink) 38%, transparent); }
+  .settings-tabs button:focus-visible,
+  .settings-footer button:focus-visible { outline-width: 3px; }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@pasteboard-pro/snapshot-store",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/runtime/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "node ./scripts/build-runtime.mjs",
+    "test:runtime": "node ./scripts/test-runtime.mjs"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "@pasteboard-pro/core": "workspace:*",
+    "lmdb": "3.4.4",
+    "zod": "^3.24.2"
+  }
+}

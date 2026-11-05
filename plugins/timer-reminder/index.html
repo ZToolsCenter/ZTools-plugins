@@ -38,22 +38,19 @@
         <div id="quickPreview" class="quick-preview" hidden></div>
       </section>
 
-      <!-- 搜索过滤 -->
-      <div class="list-toolbar">
-        <input
-          id="searchInput"
-          class="search-input"
-          type="search"
-          placeholder="搜索提醒内容 / 备注…（↑↓ 选择，Enter 完成，Del 删除）"
-          autocomplete="off"
-        />
-      </div>
-
-      <!-- 页签 -->
+      <!-- 搜索过滤（并入页签行，省出一行给列表） -->
       <nav class="tabs">
         <button class="tab active" data-tab="active">待提醒<span id="countActive" class="badge"></span></button>
         <button class="tab" data-tab="done">已完成<span id="countDone" class="badge"></span></button>
+        <button class="tab" data-tab="history">记录<span id="countHistory" class="badge"></span></button>
         <button class="tab" data-tab="settings">设置</button>
+        <input
+          id="searchInput"
+          class="search-input tabs-search"
+          type="search"
+          placeholder="搜索提醒 / 备注…"
+          autocomplete="off"
+        />
       </nav>
 
       <!-- 待提醒 -->
@@ -81,6 +78,19 @@
           <button id="btnExportDone" class="ghost-btn">导出 Excel</button>
           <button id="btnExportIcs" class="ghost-btn">导出日历 ICS</button>
           <button id="btnClearDone" class="ghost-btn">清空已完成</button>
+        </div>
+      </main>
+
+      <!-- 记录（触发历史） -->
+      <main class="pane" id="pane-history">
+        <ul id="listHistory" class="list"></ul>
+        <div id="emptyHistory" class="empty">
+          <div class="empty-icon">🕘</div>
+          <p>暂无触发记录</p>
+          <p class="empty-sub">提醒到点触发后会在这里留下记录（最近 100 条）</p>
+        </div>
+        <div class="pane-footer">
+          <button id="btnClearHistory" class="ghost-btn">清空记录</button>
         </div>
       </main>
 

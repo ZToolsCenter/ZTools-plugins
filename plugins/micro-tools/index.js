@@ -20,7 +20,7 @@ const els = {
   dbGrid: $('#dbGrid')
 }
 
-const VIEW_TITLE = { home: '科研小盒', journal: '期刊 · 会议查询', database: '数据库查询', submission: '投稿助手', literature: '文献图谱', settings: '模型与 API 设置' }
+const VIEW_TITLE = { home: '科研小盒', journal: '期刊 · 会议查询', database: '数据库查询', submission: '投稿助手', literature: '文献图谱', settings: '设置与关于', english: '科研英语' }
 let currentView = 'home'
 let journalInited = false
 let jFilter = 'all'   // all | journal | conf
@@ -30,7 +30,7 @@ function showView(view) {
   const previousView = currentView
   currentView = VIEW_TITLE[view] ? view : 'home'
   document.querySelectorAll('main > .view').forEach(section => { section.hidden = section.id !== 'view-' + currentView })
-  document.querySelector('.app').classList.toggle('app--wide', ['submission', 'literature', 'settings'].includes(currentView))
+  document.querySelector('.app').classList.toggle('app--wide', ['submission', 'literature', 'settings', 'english'].includes(currentView))
   els.backBtn.hidden = currentView === 'home'
   els.footer.hidden = currentView !== 'home'
   els.viewTitle.textContent = VIEW_TITLE[currentView]
@@ -39,6 +39,7 @@ function showView(view) {
     document.body.scrollTop = 0
   }
   if (window.ResearchUI) window.ResearchUI.onView(currentView)
+  if (window.EnglishUI) window.EnglishUI.onView(currentView)
 
   if (currentView === 'journal') initJournal()
   if (currentView === 'database') {
@@ -200,7 +201,7 @@ function initJournal() {
     const info = api.ensureLoaded()
     if (!info.ok) {
       els.jHint.textContent = '数据加载失败：' + info.error
-      els.jResults.innerHTML = '<div class="empty">无法读取 journals.json.gz，请确认它与插件在同一目录。</div>'
+      els.jResults.innerHTML = '<div class="empty">无法读取期刊数据，请确认插件的版本数据文件完整。</div>'
       return
     }
     journalInited = true
@@ -313,7 +314,13 @@ els.dSearch.addEventListener('keydown', (e) => {
 })
 
 /* ================= 导航事件 ================= */
-els.backBtn.addEventListener('click', () => showView('home'))
+$('#homeStar').addEventListener('click', (e) => {
+  if (window.ztools && typeof window.ztools.shellOpenExternal === 'function') {
+    e.preventDefault()
+    openExternal(e.currentTarget.href)
+  }
+})
+els.backBtn.addEventListener('click', () => { if (currentView === 'english' && window.EnglishUI?.back()) return; showView('home') })
 els.home.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-open]')
   if (btn && !btn.disabled) showView(btn.dataset.open)
@@ -342,7 +349,7 @@ if (window.ztools && window.ztools.onPluginEnter) {
     } else if (code === 'database') {
       showView('database')
       if (payload) els.dSearch.value = payload
-    } else if (['submission', 'literature', 'settings'].includes(code)) {
+    } else if (['submission', 'literature', 'settings', 'english'].includes(code)) {
       showView(code)
     } else {
       showView('home')
@@ -351,4 +358,11 @@ if (window.ztools && window.ztools.onPluginEnter) {
 }
 
 /* ================= 初始化 ================= */
-showView('home')
+showView('home');
+
+// Installed version comes from the same manifest as the package.
+(async()=>{
+ let version;
+ try{version=window.microToolsVersion||(await fetch('plugin.json',{cache:'no-store'}).then(r=>r.json())).version;document.getElementById('appVersion').textContent='v'+version}catch{document.getElementById('appVersion').textContent='开发预览';return}
+ try{const changelog=window.microToolsChangelog??await fetch('CHANGELOG.md',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.text()});const sections=changelog.split(/^## /m),section=sections.find(s=>s.startsWith(version+' - ')||s.startsWith('v'+version+'（'));if(!section)throw Error();document.getElementById('appReleaseTitle').textContent=section.split('\n')[0];const list=document.getElementById('appReleaseNotes');for(const line of section.split('\n').filter(l=>l.startsWith('- '))){const li=document.createElement('li');li.textContent=line.slice(2);list.append(li)}}catch{document.getElementById('appReleaseTitle').textContent='v'+version+' · 暂无对应更新记录'}
+})();

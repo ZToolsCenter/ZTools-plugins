@@ -1,12 +1,20 @@
 <script setup lang="ts">
-defineProps<{
+const { source, autoplay = true } = defineProps<{
   source: string;
+  autoplay?: boolean;
 }>();
 </script>
 
 <template>
   <div class="preview-audio-shell">
-    <audio class="preview-audio" :src="source" controls autoplay preload="metadata"></audio>
+    <audio
+      :key="source"
+      class="preview-audio"
+      :src="source"
+      controls
+      :autoplay="autoplay"
+      preload="metadata"
+    ></audio>
   </div>
 </template>
 

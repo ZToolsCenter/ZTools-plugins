@@ -21,15 +21,17 @@ async function createFixture() {
   await fs.mkdir(outputs, { recursive: true });
   const textPath = path.join(inputs, "notes.txt");
   const imagePath = path.join(inputs, "sample.png");
+  const heicPath = path.join(inputs, "sample.heic");
   const pdfPath = path.join(inputs, "searchable.pdf");
   await fs.writeFile(textPath, "Name\tScore\nAlice\t98\nBob\t87\n", "utf8");
   await sharp({ create: { width: 96, height: 64, channels: 4, background: "#2f6bff" } }).png().toFile(imagePath);
+  await fs.copyFile(path.join(__dirname, "../fixtures/sample.heic"), heicPath);
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const page = pdf.addPage([300, 200]);
   page.drawText("Format converter integration", { x: 24, y: 150, size: 18, font });
   await fs.writeFile(pdfPath, await pdf.save());
-  return { inputs, outputs, textPath, imagePath, pdfPath };
+  return { inputs, outputs, textPath, imagePath, heicPath, pdfPath };
 }
 
 async function convert(engine, policy, inputPath, outputRoot, target, profile = "visual", options = {}) {
@@ -64,6 +66,13 @@ test("converts text, image, PDF and spreadsheet routes with real engines", async
   assert.equal((await sharp(jpegPath).metadata()).format, "jpeg");
   const [imagePdf] = await convert(engine, policy, fixture.imagePath, fixture.outputs, "pdf");
   assert.equal((await fs.readFile(imagePdf)).subarray(0, 4).toString("ascii"), "%PDF");
+
+  const [heicPngPath] = await convert(engine, policy, fixture.heicPath, fixture.outputs, "png");
+  assert.equal((await sharp(heicPngPath).metadata()).format, "png");
+  const [heicJpegPath] = await convert(engine, policy, fixture.heicPath, fixture.outputs, "jpeg");
+  assert.equal((await sharp(heicJpegPath).metadata()).format, "jpeg");
+  const [heicPdfPath] = await convert(engine, policy, fixture.heicPath, fixture.outputs, "pdf");
+  assert.equal((await fs.readFile(heicPdfPath)).subarray(0, 4).toString("ascii"), "%PDF");
 
   const [pdfPng] = await convert(engine, policy, fixture.pdfPath, fixture.outputs, "png");
   assert.equal((await sharp(pdfPng).metadata()).format, "png");

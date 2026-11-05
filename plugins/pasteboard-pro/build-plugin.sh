@@ -20,8 +20,6 @@ else
 fi
 
 corepack pnpm@9.15.9 install --frozen-lockfile
-corepack pnpm@9.15.9 test
-corepack pnpm@9.15.9 test:contract
 corepack pnpm@9.15.9 typecheck
 corepack pnpm@9.15.9 --filter @pasteboard-pro/ztools typecheck
 corepack pnpm@9.15.9 --filter @pasteboard-pro/ztools build

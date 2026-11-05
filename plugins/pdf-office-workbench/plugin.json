@@ -3,7 +3,7 @@
   "title": "PDF 办公工坊",
   "description": "本地 PDF 和票据处理工作台：真实合并拆分、批量重命名、票据字段提取和批次汇总。",
   "author": "harris",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "index.html",
   "preload": "preload/services.js",
   "logo": "logo.svg",

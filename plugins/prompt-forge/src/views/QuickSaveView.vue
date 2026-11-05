@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { TriangleAlert, X } from 'lucide-vue-next'
+import { TriangleAlert } from 'lucide-vue-next'
 import { useRouter } from '../stores/router'
 import { usePromptStore } from '../stores/prompt'
 import { useProjectStore } from '../stores/project'
@@ -40,20 +40,24 @@ function handleKey(e: KeyboardEvent) {
 
 async function saveNew() {
   if (dupPhase.value === 'exact' || !title.value.trim()) return
-  await promptStore.ensureReady()
-  const now = Date.now()
-  promptStore.addItem({
-    id: generateId(), title: title.value.trim(), content: content.value,
-    type: 'prompt', tags: tags.value, variables: detectedVars.value,
-    favorite: false, usageCount: 0, version: 1, snapshots: [],
-    projectId: selectedProjectId.value || undefined,
-    createdAt: now, updatedAt: now,
-  })
-  const projName = selectedProjectId.value
-    ? projectStore.items.value.find(p => p.id === selectedProjectId.value)?.name || '项目'
-    : '资产'
-  showNotification(`✓ 已保存至${projName}`)
-  setTimeout(() => router.navigateTo('space'), 300)
+  try {
+    await promptStore.ensureReady()
+    const now = Date.now()
+    await promptStore.addItem({
+      id: generateId(), title: title.value.trim(), content: content.value,
+      type: 'prompt', tags: tags.value, variables: detectedVars.value,
+      favorite: false, usageCount: 0, version: 1, snapshots: [],
+      projectId: selectedProjectId.value || undefined,
+      createdAt: now, updatedAt: now,
+    })
+    const projName = selectedProjectId.value
+      ? projectStore.items.value.find(p => p.id === selectedProjectId.value)?.name || '项目'
+      : '资产'
+    showNotification(`✓ 已保存至${projName}`)
+    setTimeout(() => router.navigateTo('space'), 300)
+  } catch (error) {
+    showNotification(`保存失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 </script>
 
@@ -108,4 +112,11 @@ async function saveNew() {
 .qsv-footer { height: 48px; flex-shrink: 0; border-top: 1px solid var(--pf-border); background: var(--pf-bg-elevated); display: flex; align-items: center; gap: 10px; padding: 0 20px; }
 .spacer { flex: 1; }
 .hint-t { font-size: 11px; color: var(--pf-text-faint); display: flex; gap: 6px; align-items: center; }
+
+@media (max-width: 640px) {
+  .qsv-body { padding: 12px; }
+  .qsv-form { grid-template-columns: 1fr; }
+  .ff.span-2 { grid-column: auto; }
+  .qsv-footer { padding: 0 12px; }
+}
 </style>

@@ -38,7 +38,7 @@ export default function Argon2UI({}: AlgorithmProps) {
         const r = await window.services.crypt.argon2.verify({ password, hash: hashString })
         setError(showError(r))
         if (r.ok) {
-          setOutput(r.data ? '✅ 密码匹配' : '❌ 密码不匹配')
+          setOutput(r.data ? '密码匹配' : '密码不匹配')
         }
       }
     } catch (e) {

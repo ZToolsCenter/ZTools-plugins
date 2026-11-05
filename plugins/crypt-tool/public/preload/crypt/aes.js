@@ -64,4 +64,14 @@ function decrypt({ key, iv, mode, ciphertext }) {
   })
 }
 
-module.exports = { encrypt, decrypt }
+function keygen() {
+  // 24 random bytes -> 32 Base64 chars -> 32 UTF-8 bytes (AES-256)
+  return tryCrypt(() => ok(crypto.randomBytes(24).toString('base64')))
+}
+
+function ivgen() {
+  // 12 random bytes -> 16 Base64 chars -> 16 UTF-8 bytes
+  return tryCrypt(() => ok(crypto.randomBytes(12).toString('base64')))
+}
+
+module.exports = { encrypt, decrypt, keygen, ivgen }

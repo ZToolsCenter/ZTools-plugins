@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 
 import { normalizeHostClipboardItem } from "../preload/clipboard-store";
 import { localizeMirroredImage } from "../preload/mirrored-image";
@@ -12,9 +13,14 @@ describe("mirrored image persistence", () => {
       imagePath: "/host/temporary.png",
     }, "device-1");
     expect(record).not.toBeNull();
-    const readFile = vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3]));
+    const sourceBytes = new Uint8Array([1, 2, 3]);
+    const blobId = `blob-${createHash("sha256").update(sourceBytes).digest("hex")}`;
+    const readFile = vi.fn(async (filePath: string) => {
+      expect(["/host/temporary.png", "/plugin/blobs/hash.png"]).toContain(filePath);
+      return sourceBytes;
+    });
     const storeLocalBlob = vi.fn().mockResolvedValue({
-      id: "blob-hash",
+      id: blobId,
       imagePath: "/plugin/blobs/hash.png",
       blobBytes: 3,
     });
@@ -22,12 +28,13 @@ describe("mirrored image persistence", () => {
     const localized = await localizeMirroredImage(record!, { readFile, storeLocalBlob });
 
     expect(readFile).toHaveBeenCalledWith("/host/temporary.png");
-    expect(storeLocalBlob).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]), "image/png");
+    expect(readFile).toHaveBeenCalledWith("/plugin/blobs/hash.png");
+    expect(storeLocalBlob).toHaveBeenCalledWith(sourceBytes, "image/png");
     expect(localized.origin).toMatchObject({
       host: "ztools",
       hostItemId: "image-1",
       imagePath: "/plugin/blobs/hash.png",
-      pluginBlobId: "blob-hash",
+      pluginBlobId: blobId,
       blobBytes: 3,
     });
   });

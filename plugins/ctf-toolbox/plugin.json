@@ -1,0 +1,108 @@
+{
+  "name": "ctf-toolbox",
+  "title": "网安 CTF 工具箱",
+  "description": "CTF / 授权安全测试用编码转换、哈希、JWT 解析、古典密码与公开 Payload 速查。",
+  "author": "海湾上的北辰",
+  "version": "1.2.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "categories": [
+    "developer",
+    "security"
+  ],
+  "pluginSetting": {
+    "single": true,
+    "height": 720
+  },
+  "features": [
+    {
+      "code": "toolbox",
+      "explain": "打开网安 CTF 工具箱",
+      "icon": "logo.png",
+      "cmds": [
+        "ctf",
+        "ctf工具箱",
+        "网安工具箱",
+        "payload",
+        "编码转换",
+        "ctf-toolbox"
+      ]
+    },
+    {
+      "code": "encode",
+      "explain": "编码 / 解码：Base64、Hex、URL、HTML、Unicode 等",
+      "cmds": [
+        "base64",
+        "hex",
+        "urlencode",
+        "unicode编码",
+        {
+          "type": "regex",
+          "label": "识别并解码 Base64",
+          "match": "/^\\s*(?=.*[A-Za-z])[A-Za-z0-9+/_-]{12,}={0,2}\\s*$/",
+          "minLength": 12
+        },
+        {
+          "type": "regex",
+          "label": "识别并解码 URL 编码",
+          "match": "/^\\s*\\S*%[0-9A-Fa-f]{2}\\S*\\s*$/",
+          "minLength": 3
+        }
+      ]
+    },
+    {
+      "code": "hash",
+      "explain": "计算 MD5 / SHA1 / SHA256 / SHA512",
+      "cmds": [
+        "md5",
+        "sha1",
+        "sha256",
+        "哈希",
+        "hash"
+      ]
+    },
+    {
+      "code": "jwt",
+      "explain": "解析 JWT Header / Payload",
+      "cmds": [
+        "jwt",
+        "jwt解码",
+        {
+          "type": "regex",
+          "label": "解析 JWT",
+          "match": "/^\\s*eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*\\s*$/",
+          "minLength": 20
+        }
+      ]
+    },
+    {
+      "code": "php-bypass",
+      "explain": "PHP 无字母数字 RCE：按函数名构造取反 / 异或 / 或 / 自增",
+      "cmds": [
+        "php绕过",
+        "无字母rce",
+        "取反绕过",
+        "异或绕过",
+        "自增绕过"
+      ]
+    },
+    {
+      "code": "payload",
+      "explain": "公开 Payload 速查：PHP 伪协议、无字母 RCE、XSS、SSTI 等",
+      "cmds": [
+        "php伪协议",
+        "xss绕过",
+        "ssti",
+        "lfi",
+        "xxe",
+        "payload库"
+      ]
+    }
+  ]
+}

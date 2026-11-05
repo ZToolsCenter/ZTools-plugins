@@ -2,7 +2,7 @@
 :root {
   --ball-size: 72px;
   --pad: 6px;
-  --opacity: 0.95;
+  --ball-bg-opacity: 0.95;
   --c-up: #ff4b4b;
   --c-down: #12c48b;
   --c-flat: #7c8ba1;
@@ -32,8 +32,6 @@ html, body {
   flex-direction: row;
   align-items: flex-start;
   justify-content: flex-start;
-  opacity: var(--opacity, 0.95);
-  transition: opacity 0.15s ease;
 }
 #root.side-right { flex-direction: row; align-items: flex-start; }
 #root.side-left  { flex-direction: row-reverse; align-items: flex-start; }
@@ -62,49 +60,54 @@ html, body {
   height: var(--ball-size);
   border-radius: 50%;
   overflow: hidden;
-  opacity: var(--opacity, 0.95);
-  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 62%), #334155;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+  --ball-bg: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 62%), linear-gradient(#334155, #334155);
+  --ball-border: 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
   color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: grab;
   touch-action: none;
-  transition: transform 0.12s ease, background 0.3s ease, opacity 0.15s ease;
+  transition: transform 0.12s ease, color 0.15s ease;
   text-align: center;
   line-height: 1.1;
   padding: 4px;
 }
-/* 球体底部的内侧微光：发光感留在圆内，绝不外溢 */
+/* 背景、边框和内侧微光合为一层，透明度不影响文字，0% 时完全消失。 */
 #ball::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 122%, var(--rim, rgba(255, 255, 255, 0.12)), transparent 56%);
+  background: radial-gradient(circle at 50% 122%, var(--rim, rgba(255, 255, 255, 0.12)), transparent 56%), var(--ball-bg);
+  box-shadow: var(--ball-border);
+  opacity: var(--ball-bg-opacity, 0.95);
+  transition: opacity 0.15s ease;
 }
 #ball.profit {
   --rim: rgba(255, 165, 165, 0.45);
-  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 62%), linear-gradient(150deg, #d32f2f, #f44336) !important;
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.28) inset !important;
+  --ball-bg: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 62%), linear-gradient(150deg, #d32f2f, #f44336);
+  --ball-border: 0 0 0 1.5px rgba(255, 255, 255, 0.28) inset;
 }
 #ball.loss {
   --rim: rgba(150, 255, 220, 0.4);
-  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 62%), linear-gradient(150deg, #0a7352, #10b981) !important;
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.28) inset !important;
+  --ball-bg: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 62%), linear-gradient(150deg, #0a7352, #10b981);
+  --ball-border: 0 0 0 1.5px rgba(255, 255, 255, 0.28) inset;
 }
 #ball.flat {
   --rim: rgba(255, 255, 255, 0.1);
-  background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%), linear-gradient(150deg, #334155, #475569) !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset !important;
+  --ball-bg: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%), linear-gradient(150deg, #334155, #475569);
+  --ball-border: 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
 }
+#root.transparent-bg #ball.profit { color: var(--c-up); }
+#root.transparent-bg #ball.loss { color: var(--c-down); }
+#root.transparent-bg #ball.flat { color: var(--c-flat); }
 #ball:hover { transform: scale(1.06); }
 #ball.dragging { cursor: grabbing; transform: scale(1.02); }
 #ball.flash { animation: flash 0.5s ease 2; }
 
-/* 闪一下用亮度动画：box-shadow 的 !important 会压过动画，外阴影又绝对不能加 */
+/* 闪一下用亮度动画，避免添加会被窗口边界裁切的外阴影。 */
 @keyframes flash {
   0%, 100% { filter: none; }
   50% { filter: brightness(1.4); }

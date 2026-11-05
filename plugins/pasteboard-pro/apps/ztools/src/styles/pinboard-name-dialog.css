@@ -1,0 +1,122 @@
+.pinboard-name-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  padding: 16px;
+  overflow: auto;
+  place-items: center;
+  background: rgb(14 18 24 / 30%);
+}
+
+.pinboard-name-dialog {
+  width: min(360px, 100%);
+  max-height: calc(100vh - 32px);
+  padding: 18px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.pinboard-name-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 17px;
+}
+
+.pinboard-name-dialog__header h2 {
+  margin: 0;
+  color: var(--popover-ink);
+  font-size: 14px;
+  font-weight: 680;
+  line-height: 1.35;
+}
+
+.pinboard-name-dialog__header p {
+  margin: 5px 0 0;
+  color: var(--popover-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.pinboard-name-dialog__close {
+  display: grid;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: -3px -3px 0 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--popover-muted);
+  cursor: pointer;
+  font: 20px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+  place-items: center;
+}
+
+.pinboard-name-dialog__close:hover {
+  border-color: var(--popover-line);
+  background: var(--popover-raised);
+  color: var(--popover-ink);
+}
+
+.pinboard-name-dialog__form {
+  display: grid;
+  gap: 8px;
+}
+
+.pinboard-name-dialog__form label {
+  color: var(--popover-ink);
+  font-size: 12px;
+  font-weight: 610;
+}
+
+.pinboard-name-dialog__form input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--popover-line);
+  border-radius: 9px;
+  outline: none;
+  background: var(--popover-canvas);
+  color: var(--popover-ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.pinboard-name-dialog__form input::placeholder {
+  color: var(--popover-muted);
+  opacity: .72;
+}
+
+.pinboard-name-dialog__form input:focus {
+  border-color: color-mix(in srgb, var(--popover-accent) 64%, var(--popover-line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--popover-accent) 15%, transparent);
+}
+
+.pinboard-name-dialog__form footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.pinboard-name-dialog__cancel {
+  min-width: 72px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--popover-line);
+  border-radius: 9px;
+  background: var(--popover-raised);
+  color: var(--popover-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.pinboard-name-dialog__cancel:hover {
+  background: var(--popover-hover);
+}

@@ -1,0 +1,1092 @@
+{
+  "version": "v0.32",
+  "createdAt": "2026-10-28T06:58:44.842954-07:00",
+  "scope": "plugin-only V1 exact clear identity persistence and replay suppression",
+  "branch": "plugin/pasteboard-pro",
+  "workdir": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro",
+  "gateComplete": false,
+  "userConstraint": "All implementation, documentation, build/test outputs and temporary files limited to this plugin directory; host integration excluded from current writes",
+  "priorPhase": {
+    "file": "v032-inputs/v031-root-evidence.json",
+    "sha256": "15ef150f27c48aea73fe9d6420f726cae2fa0d7006cfc3f7fef3ba240830cd14"
+  },
+  "sourceHashes": {
+    "apps/ztools/package.json": "6b531c176eee6d2285e7ff8708d654fc6f161171f3bca7e62699d2c662a3aa2b",
+    "apps/ztools/preload/application-catalog.ts": "96c8b8c31f430224239aea3566db65f60f3a75e7fa180d9423584e1b5f70c98d",
+    "apps/ztools/preload/auto-start.ts": "af88f84731177bfc12d84ca2fc401d9161ed2840e7589860ffcc4be67e8a7e18",
+    "apps/ztools/preload/clear-history.ts": "0ba2d6ea75ca053b41cb200be941552c7f264e4239432b367623971e354120ff",
+    "apps/ztools/preload/clipboard-document-database.ts": "10c9b0e371bbe50c422c0396a97dcb5291633e64dd0e678356cb07f491b4823f",
+    "apps/ztools/preload/clipboard-history-mirror.ts": "f3ab81b59a0fb63b09710d1f351c3ec46d9b0bb3382f78aaa0c43bdd4e08a3eb",
+    "apps/ztools/preload/clipboard-host-normalization.ts": "ba8d73abe2b2ec7a6cbc20525840eae148ae61b666998b909e0d2385fd2792d1",
+    "apps/ztools/preload/clipboard-record-codec.ts": "d18afff09438ab1ac49f79cdff041283ac23f1941bbef94f638f929f8644f623",
+    "apps/ztools/preload/clipboard-record-commands.ts": "25f4a71ee8d4d64c3c12bd5b931877135ed211e080599962c7a91be1ac00c006",
+    "apps/ztools/preload/clipboard-record-groups.ts": "100b80953662f325ae46930e5fe1a81dedf2128b7ed3ca68317430ed14c89bfc",
+    "apps/ztools/preload/clipboard-record-store.ts": "cdcf33a12be6219e3246b3e94eebd28915f6afb28227670b721b6b057666d8e9",
+    "apps/ztools/preload/clipboard-store-types.ts": "759c6c67b1b444ed750fc099000261d45d8f0352f6217bf99a9ec7f1ba0af792",
+    "apps/ztools/preload/clipboard-store.ts": "35c09f3f9f88cac9776ec4d0ee8a36c58ea1beff2f56fd15bd16d68eb8d6fcb6",
+    "apps/ztools/preload/clipboard-window-role.ts": "7a5820b7899b5c0541f6c0ce125753f4d7b87d2e65fd46cdb86927231358a7c0",
+    "apps/ztools/preload/content-cf-html-projector.ts": "6eab8f80da6ce860e79f97e76d41a34fe779669f7b81fa9f34633bcf80596ec9",
+    "apps/ztools/preload/content-css-projector.ts": "13b90f49ac002b03b289058ccf7a901ac453a9223c8b2080d9edc6ad7a8f167d",
+    "apps/ztools/preload/content-html-projector.ts": "6f8c667f72117b4db2a64670f2dc92f5b913f9dc65597695c458b4512fba386a",
+    "apps/ztools/preload/content-rtf-annotations.ts": "78f0c3e32be213fbf577e63c2c8700ce7df4f9bec4242b4dcba96fe7281445ec",
+    "apps/ztools/preload/content-rtf-charset.ts": "55e3f0e44cb2392a023e5a9c07ae8ec722e1f193e01f60ff2984bf0933ee5d95",
+    "apps/ztools/preload/content-rtf-controls.ts": "8af0c1c074b23f4520e3b4b0cb8e1d37e3b38fd4aa6bd0cc5df9bdfffadbcfc0",
+    "apps/ztools/preload/content-rtf-links.ts": "9a1539eb3ea0d485c459a650cb6dd07697fa34997fe6a7b70458bf1ef01436b2",
+    "apps/ztools/preload/content-rtf-projections.ts": "2c75e7d42c4cd137e261d51c844625e4416a861572ac499bffa2c73f966fb0bf",
+    "apps/ztools/preload/content-rtf-projector.ts": "eb38de5a6f57908a8f5d4c7e3975eb0b57fe076edc4446ec520fc39645733e01",
+    "apps/ztools/preload/content-rtf-tokenizer.ts": "8e59d016765733983892db6ed8f98ff74920d1c7479b5cfb36428dcd84721b9c",
+    "apps/ztools/preload/content-scan-rules.ts": "3d4678eef1884ba1f5ebdff1fb383bce159d22845986a38a029fd1b8232756dd",
+    "apps/ztools/preload/content-scan-worker.ts": "1426896dea43f103296462a76c13bdac4c29781b82177a8bc3711de79c04ae0a",
+    "apps/ztools/preload/content-scanner-v2-contracts.ts": "c039954f2b156109dadeec0e92d4f918a50bd2ab1c2e8240ee377f427ec7041e",
+    "apps/ztools/preload/content-scanner-v2.ts": "d0ab1bcf7c178f5a9d45059fe005aa0201532344e0a440fbac062d4c3658a299",
+    "apps/ztools/preload/content-scanner-worker-session.ts": "0c8b785adf96182fafed0b0f195a79a1cc0bad9409789300ffd62fb3d7593b2e",
+    "apps/ztools/preload/history-clear-boundary.ts": "cccaa6062801ac6410df51466386bb67e853eac52d7bb092be0df0b991783d2a",
+    "apps/ztools/preload/history-clear-identity.ts": "ab703c76c4550db35c7c33897b041d661480da0f6007cab6724b8b1969078e1b",
+    "apps/ztools/preload/history-clear-rpc.ts": "4cd65415e0888be407a3c070a69418409dcdd8f1b8718b270a9d2f9b1af43462",
+    "apps/ztools/preload/history-page.ts": "785cb33ad5e8bf1a2d62542a13bf52920b4b7de0ab7ff3745bb1318256a0d41e",
+    "apps/ztools/preload/history-rpc.ts": "ca4cb43436e62cf38db7e8288937325883330f1b6b53e84a3b0d47d1e232a2b5",
+    "apps/ztools/preload/history-search-index.ts": "52f773103b6d42ff5a866ffd90ec3be1f18913f24085f7a9ee5ce5f201aa3a59",
+    "apps/ztools/preload/history-search.ts": "81859108a0c79fe20ca46153e83164de9dab4a6f1c087d2ff600b0f763e4b443",
+    "apps/ztools/preload/history-worker.ts": "e0272f0868ef6bf9b0b707141c306b2244f4625f4a3f1f1f15a6266599d11afc",
+    "apps/ztools/preload/host-compatibility.ts": "5b8327fd48e37e78ff340e0aae2f694b91d27e112505ced1d6a6adad92674840",
+    "apps/ztools/preload/host-history-boundary.ts": "802bcdb297f1214aadb1174e93cb17a85a81e6fe3cc065992df1d1f294c8648d",
+    "apps/ztools/preload/image-rotation.ts": "f2cf7d990d0f141f8c881b1a558237178e354a6f910506e4a8334ec909d082b2",
+    "apps/ztools/preload/index.ts": "6cb0fe5ccb334e7e7adc17dbcba060818265b2dc5ad18958e3b11fa932de277f",
+    "apps/ztools/preload/keychain.ts": "fa387936acce91a1ed13f2e6295d1cdbc14fcdf2371e09a95d6c40a2379fffc8",
+    "apps/ztools/preload/layered-image-detection.ts": "46fa1d768e648b1f89b9835f5886b9523cf66cf9b3951c67a5cd2e3b323ba6ea",
+    "apps/ztools/preload/list-order-store.ts": "db2b9e819d292a4cfc00d5018f730c7afffd494f08bd66f9bef7c4092750272e",
+    "apps/ztools/preload/mirror-image-retry-progress.ts": "a918a01c4362e5417567d5974cbf37a654c0cd7986ce68935847664257baef09",
+    "apps/ztools/preload/mirrored-image.ts": "8d7ae8384f73ea61cbecf3ff6cadec276648f5d0e3937f16674c1c8dd45aed97",
+    "apps/ztools/preload/native-capture-adapter.ts": "90680b1fc83ab648962c3184ac0fa72b34a3cabbcf7b6ef9c32c3e6afe96a632",
+    "apps/ztools/preload/native-capture-codec.ts": "f00034829ec2500e1d7e74d95634870e8745e90eef5f3b9c545ef4027632c8d5",
+    "apps/ztools/preload/native-capture-wire-schema.ts": "354180f9423c5a846c833ce1d24f8578a8a4ca7555b37f06087d8eeaaed45a7c",
+    "apps/ztools/preload/native-capture-wire.ts": "e536a7c0fe43e7840d17ebb6365f8fb7b2349c2e0cb4b9d4dc69aa0d04ddf47b",
+    "apps/ztools/preload/native-file-drag.ts": "bbc8524343e7d9142085ff187c52e0f11b69ac1c9d5428eca67f4a67402129ad",
+    "apps/ztools/preload/native-format-evidence.ts": "6f1bc47c86e1df961490d40c9b7d013faf94a41b872cff044f82446e776558de",
+    "apps/ztools/preload/native-format-registry.ts": "41727c035e2ea1b0ca9e8f9b9b6314490b0c58df8b715851f0b2e242a6d5d3c5",
+    "apps/ztools/preload/ocr.ts": "56c922c8261659cb69ff5fbdf7f43ce72debe8bddc4e05a1543230800643ebab",
+    "apps/ztools/preload/paste-item.ts": "f6085df2eb87d919be4c583ed72f5735d965d94494cddd38f2aff77eec1e06ff",
+    "apps/ztools/preload/paste-stack-runtime.ts": "6b4d593a45883587ee666c2b63d31055fc4d548fa798f79f8b6c424edef33fd1",
+    "apps/ztools/preload/paste-stack-store.ts": "7945694d80a28c17436ea6797decd9745ca1fd585d71d6591e73a987eecc3406",
+    "apps/ztools/preload/pinboard-store.ts": "f768eb739d4b03a9199c356c2664882db427f8747d6960fe47603ff8409eef60",
+    "apps/ztools/preload/plugin-data-migration.ts": "56ddf7b4ce7dc1c17c22082a6c1ef69d5769d0c602e0ab7879b82eb762c4f978",
+    "apps/ztools/preload/plugin-data.ts": "3c4ca3b5829fc15ac061c6d758a5a6ca70432149f3eefdde2e45563c6ae37de5",
+    "apps/ztools/preload/privacy.ts": "3eb5b522180c063c41a28f5cfbea9732c8767e657f246d572a05f514ff20d4ba",
+    "apps/ztools/preload/quick-look.ts": "facaad3c676596aec58b713154172e0818474885d97fa794b343599401a8598d",
+    "apps/ztools/preload/record-index.ts": "9f887fb9b08044736a3e6b86be9ed479bc3cb8660bd108437aa118edd9d42178",
+    "apps/ztools/preload/retention.ts": "c456eb618e304667d99fb721b9b5410942f9817190cb4b01d83c5174bc6ee903",
+    "apps/ztools/preload/screenshot-import.ts": "f19ba0aa284af5118c823adfc6b768c3f9d265457aad58c68c4dce4983af6331",
+    "apps/ztools/preload/source-app-icons.ts": "18545b263d8c8ce04af53218d901ac2db48c92996362012c4b43a15d7165a6e2",
+    "apps/ztools/preload/sync-blob-directory.ts": "d426e39f1c49fa76b311487b444b237d19f8d07565b1a3436486477928e1249b",
+    "apps/ztools/preload/sync-blob-files.ts": "6ce70bb2146adca5346f62fc36c1bab8f93c21340ce088f3ed7bcfaa9d45654a",
+    "apps/ztools/preload/sync-blob-read.ts": "435915776e592ec2f22822d081db304c711cdbb7c66edd54cf4fc076281c51bc",
+    "apps/ztools/preload/sync-config.ts": "995ffec2862a1a5519497971afc8dcbb3f06365fc61b1b4967930cad8fdfb769",
+    "apps/ztools/preload/sync-controller.ts": "9b8c864d69e4062df486b11cd4bc22f128194ef7e24a3449433aaf40bef33c39",
+    "apps/ztools/preload/sync-repository.ts": "d7e49a59abf4e2fda65de2812f182208e0664751f2c4d4e5d7ff70ed2e1fa662",
+    "apps/ztools/preload/sync-runtime.ts": "6f38f28dfb6cfc58886b9a3d0fe43acd1730af0058912e7c739259c4d7cbfc90",
+    "apps/ztools/preload/sync-store.ts": "475674292d26bf1543bc1fe4ce72f226ff5b1f9ae33481e9f4bc6ba5146d56cf",
+    "apps/ztools/preload/sync.ts": "5e8fb01ee85f812288052995a6b4564d55a2d4540cf6851c0c023a81c0abe769",
+    "apps/ztools/preload/theme-background.ts": "3e44af48a3ee094ac9ae7d36f154f030dede8e42c04cd67991feaabdb1d52a0d",
+    "apps/ztools/preload/thumbnail.ts": "8d7057d765ccf9825b364ebb6fbca4a08cd0587abbbb2542c3361e0b809cc412",
+    "apps/ztools/preload/tools.ts": "0840f223e863120d96cd86311b107bae48019873d747a620086bdae81ac2da99",
+    "apps/ztools/preload/window-layer.ts": "52a753418fd289392959eaffa479fda7cdf988eb452b8c7c3a374c429ab4208f",
+    "apps/ztools/preload/window-preferences-sync.ts": "e254eb1ff0c2b86e3f4ae4b32aad0d67e78f3bc48139e6a81b54bf32ee71b0f3",
+    "apps/ztools/preload/window-preferences.ts": "957215143658f0acf7113a940f817c58db08d375f2321f64bac814170db3a6c1",
+    "apps/ztools/preload/window-presentation.ts": "22838e308ee60809d1095fde6f587b774709efaea897153090fb8a2f58f89522",
+    "apps/ztools/preload/window-theme-preferences.ts": "40158b23dfabe9a0bab5ff5af63f908be273a718cbcc40eddb498d57dae8587b",
+    "apps/ztools/preload/window.ts": "1ce3be3db6615f938049e60511502ede6e5bb3971f3e1d4c4209b67e06a29c69",
+    "apps/ztools/preload/ztools-history-coordinator.ts": "be0ac778c1c2a4ccd07e7f6b030d5595487a1728f9d1138ef593c6f267695161",
+    "apps/ztools/preload/ztools-preload-bridge.ts": "75ddcd9ae8e4ec4d600c9484d1892b0d6dc6bb5c6a87521657b835b6a3e35748",
+    "apps/ztools/preload/ztools-preload-contracts.ts": "d50931268e1eab4a56c960613217dc3b17417df71938c3414c20cfb270d603dd",
+    "apps/ztools/preload/ztools-preload-services.ts": "c2c858d84248b0b8d52b719ac41f9246f3065621b20ba5fe1c13de5fe0c41023",
+    "apps/ztools/public/HTML_PARSER_NOTICES.txt": "6f3a74069119a82a798fda3019b6778000c3b76571fa27e6f4e8338dd794c73e",
+    "apps/ztools/scripts/assemble-dist.mjs": "9b532451fd437fde9fac799d002a0661195b6d440b712d2e356d7417dad83259",
+    "apps/ztools/scripts/verify-package.mjs": "3c38c7e5c9144c147b39cbdbe8012b0060133b99e77b6b3ab4cef09b799713e9",
+    "apps/ztools/tests/adapter.test.ts": "153d51eea3b9d9401d4082b968033d08afc312a5d364b6eb4101c05e0ef5be7e",
+    "apps/ztools/tests/assembly.test.ts": "55612969c9efdddb801863e1861a7443dc087b87ba7f57bafe81c8de52d7adfd",
+    "apps/ztools/tests/cf-html-fixtures.ts": "c6a468cc6f91eb13418f4a347d8e71074a93fb5996feb85f821e35f18664230e",
+    "apps/ztools/tests/clear-history.test.ts": "4f1d6724eda5c50e2f72646d105b9aa66f3fcd78ef5970c52692235ddfd0afda",
+    "apps/ztools/tests/clipboard-database-fixture.ts": "b7c2009661f5319e3acf5bd740bf3cf5694412f5fc0eaf5204349fadbbea2427",
+    "apps/ztools/tests/clipboard-document-database.test.ts": "e33e3d29567bf1b284fd122df781f4f0a367db18e892158332ad8c65571c1a9b",
+    "apps/ztools/tests/clipboard-write-confirmation.test.ts": "ea14d574a1e620b54d06a16b6b2b6f0453a83bdac6263342b83d66607368ab48",
+    "apps/ztools/tests/content-html-projection-budget.test.ts": "8ff8d3a6957eee799294bacb2d775763c85ec358348c6d99dcb884b034c0157e",
+    "apps/ztools/tests/content-rtf-charset.test.ts": "0676a394c76b9cfc09cb3155a193b8c2213d8de4db9fd0c09c6feab2edf63da4",
+    "apps/ztools/tests/content-rtf-destinations.test.ts": "3800ef747aa3f5f0a00dafcb30078eaf4e62ad3c51cc04cdddcb99a0124d6eef",
+    "apps/ztools/tests/content-rtf-fixtures.ts": "bef484914a875ddd6af38fb8cd29c3fe1ba6855755e6d7872fd91d8714a3a4e5",
+    "apps/ztools/tests/content-rtf-links.test.ts": "1a55cccb35ce0634ebdb3febbbfbf6c024457ad50e6c9d52635dfb0b0d6c56b0",
+    "apps/ztools/tests/content-rtf-projections.test.ts": "03f1ce435d22be3106b3a1600799f4644928e23d4283222495d5842ae4b9cd9e",
+    "apps/ztools/tests/content-rtf-storage-integration.test.ts": "a58183cd06ca68a2019ca3ee3a29d65f320c724f8fd388a9cf38ef221c9b4446",
+    "apps/ztools/tests/content-rtf-tokenizer.test.ts": "f15640c062db92a5934fb1b61825bc4d10fb9f8a0278dbe3353f11c5989e737a",
+    "apps/ztools/tests/content-scanner-cf-html.test.ts": "d44823b2830af2e2a8aefb5eda478bc2e4195ab18080bfa7340d7045b8d1520d",
+    "apps/ztools/tests/content-scanner-html.test.ts": "052d04ab47827a14e016eff630dfd9cad2c981b92cb7bbd6ff6d2cf403f97679",
+    "apps/ztools/tests/content-scanner-rtf-annotations.test.ts": "2dce6911f58af648ae95a95e1a0b391269a4267c854d3646f70a8d611e61617c",
+    "apps/ztools/tests/content-scanner-rtf.test.ts": "356d3c46fc70e057157be4fefcb9a8f1ecf631df7cbe6d0f4ec9a93979465338",
+    "apps/ztools/tests/content-scanner-v2-fixtures.ts": "af466811fd5336ba73e94753e1c864d0aff1092fe46ea0140077f48fa1b41aad",
+    "apps/ztools/tests/content-scanner-v2-lifecycle.test.ts": "cbb1420fc93990f4124056f52c173399189653900eaa87e3c3bf4d4ce7b3dc38",
+    "apps/ztools/tests/content-scanner-v2.test.ts": "b367e4cbe167e31dff496c9df876b3fac75e99f37428a84308cf83d25e6f37f2",
+    "apps/ztools/tests/history-clear-boundary.test.ts": "b54b7ee733fe1483b1948c796f8811b770ce7515dc776a4a32acb7af831263bc",
+    "apps/ztools/tests/history-clear-replay.test.ts": "c3998bfc78ca042e1b7d2398ece0cf997a511d05ea0304c9ccc641f1a9578c7d",
+    "apps/ztools/tests/history-clear-rpc.test.ts": "300ae767d7175f4dbc596d21902f698bc31e3b0193c351a14a96ad670c47aba2",
+    "apps/ztools/tests/history-image-admission.test.ts": "b9e33835c189f07c92b6df59803c7a17fda2a72b521bf6b9691f47aeb2c68b5e",
+    "apps/ztools/tests/history-image-retry-rotation.test.ts": "bb46c82c2982cef48904122df47738c89d81decc1b84c90470d0c262c739d0c5",
+    "apps/ztools/tests/history-mirror-failure-isolation.test.ts": "f6c6834cf13672dd795a25e67a9f04fddf365e67b29ea1f77cbbe2196fbf7935",
+    "apps/ztools/tests/history-search.test.ts": "283691f209d2a5b0c6c093288ab2725bc67f9d36c5db0ced5693ab35b83654db",
+    "apps/ztools/tests/host-history-boundary.test.ts": "cb345b95fcf665f38bf637d3ece90f7d6a1b9b26d5a63fc2a4e03148398e1ffe",
+    "apps/ztools/tests/memory-clipboard-store.ts": "73da4977f620bebc80e06cc890cec40a8ccc458645ebfc5ac8ac95fcaa8d1102",
+    "apps/ztools/tests/mirror-image-retry-progress.test.ts": "31c49e3a3946175ca5be33e41a1c32eeba66762bb69f46dd34ee1deb29a7cf7e",
+    "apps/ztools/tests/mirrored-image-admission.test.ts": "f537de32fc8f436ba88dd7fc49f83abb83f3774d89c6e3e245f638e36058ebff",
+    "apps/ztools/tests/mirrored-image.test.ts": "b1bc14ffa238f0395d8dcb3bed6f6ccf598d3992ae725fb5efd7062704d32d67",
+    "apps/ztools/tests/native-capture-consumer-integration.test.ts": "46c608616af809a3a4d769a9102142f7bd5fce83fe0f235e31d1e215c224a514",
+    "apps/ztools/tests/native-capture-framing.test.ts": "07954be3e7ac295ff90da638ce11d12dac0edae96abe15337f31957d7171e5a9",
+    "apps/ztools/tests/native-capture-helper-fixture.ts": "90706f457f3a0f38cd023491c1140118b04a1e1302b0205072592a6325ab0bd5",
+    "apps/ztools/tests/native-capture-integration.test.ts": "92dc745233d0e023b474f041fcd26c209f60fe61de3d4992b9d8b89739c0230a",
+    "apps/ztools/tests/native-capture-storage-integration.test.ts": "8a3cfca528e99e4c72c559ea376d28a7d51de853f34354c87f027e72c9eebbc6",
+    "apps/ztools/tests/native-capture-v2-fixtures.ts": "66db71b2fc96897f2b06a59d57fc4a83afde99f3da6d89fd59e6eefc774199fc",
+    "apps/ztools/tests/native-capture-v2-integration.test.ts": "ced7989c0f6558b7a7e2f63f1e83eba423f1ce509f45512fd6599090121a9390",
+    "apps/ztools/tests/native-capture-v2.test.ts": "6044cd9dd6346d973091c2654355e67d96b0441d319bcc9d71d17eef1b13bd34",
+    "apps/ztools/tests/native-capture-wire-fixtures.ts": "e3c95d2a8bfbfdac59d6fe62bc02f3bf4f7a3bd98462dc7deefdad7323a65359",
+    "apps/ztools/tests/native-capture-wire.test.ts": "c0089eacd131dffe330f845ed8c5258e88c3954b7213b8936db0b078d95a3eb9",
+    "apps/ztools/tests/native-format-registry.test.ts": "0e2044eb1a801cca2c0ef6f969d30513540d85aefa0a3e0e83d1c05e4a98896b",
+    "apps/ztools/tests/native-storage-fixtures.ts": "1f75147d9e00ce113efbe71f5baa46b962e59751a742d7d83d6568c71cc319f4",
+    "apps/ztools/tests/plugin-data-migration.test.ts": "a34a96dfb4fd85e1da6ccf922333cad5804c4a2f60fb718910fcf000683c3bc6",
+    "apps/ztools/tests/retention.test.ts": "5145525fd56d4ddbb3b9ce06216d159f50c5f2ae98e29f65c4cf26eed31b889e",
+    "apps/ztools/tests/sync-blob-files.test.ts": "55c4ab5a0ebc74bacaacac10743613e8fcfe3c5b5644c9c27f9dada4e9018863",
+    "apps/ztools/tests/sync-blob-read.test.ts": "e811bf4d7bf5024f672f42b69156823969efd0e24dc165b5ee89a91798392147",
+    "apps/ztools/tests/sync-repository.test.ts": "a7ff1fc142215223f98678da03ac29aed77aac25bb4dabed664c60ec6682e894",
+    "apps/ztools/tests/window.test.ts": "3df4df71c00a0e2952da9e3e5d6ded5d9e0c9130315a47e6f5c9806589228c13",
+    "apps/ztools/tsconfig.json": "7bb5b65937c0c18552ef2368f8c224c6ef2e36b8d11d003df8a023db72baca82",
+    "apps/ztools/tsconfig.vue.json": "0d44014e25a9367d2bf61fb883c9543a4a84b1cf44725dd4d211e6727108f550",
+    "apps/ztools/vite.preload.config.ts": "e2290d8dcee6ed9afb96d2d5f6e2ecbc34af4c019b3f4b9877e831107000a342",
+    "docs/clipboard-format-fidelity/NATIVE_CAPTURE_WIRE.md": "241f78cdefb9766a9828939524b942def5ac6b3649f98ace519bc6280b94a272",
+    "docs/clipboard-format-fidelity/NATIVE_CAPTURE_WIRE_V2.md": "9f6c21a52363586288f4af5cdf8f9def3882c33d38039f10f7469235465f9e6b",
+    "docs/clipboard-format-fidelity/RTF_PRIVACY_PROJECTION.md": "6468443219b193224f98ea4a4c7d2bb4d64e4885acacaa1cfcd24bc186072cd9",
+    "native/clipboard-format/codec-tests/CMakeLists.txt": "bb989e49fe140ecffcbb89c5e8bf161ee8c4918cc17acc1400642e39134ea0bd",
+    "native/clipboard-format/codec-tests/capture_wire_cases.cpp": "776cc5bf35af1da3edfd9f9dd39821ed82b7cfa2f0b795b22e9040f24d779079",
+    "native/clipboard-format/codec-tests/capture_wire_cases.h": "e055b49e38badee4bf338d61c144a5ef7e1fba484eb0a4e57fac51abc1f3e93c",
+    "native/clipboard-format/codec-tests/capture_wire_v2_cases.cpp": "fc0d1bc23a3198615f5ec42e04d96c0c33cee2c896f772d45155fc7cd8c61218",
+    "native/clipboard-format/codec-tests/capture_wire_v2_cases.h": "f78574ef147d7fe04a6af9e717f3d544b43dabd05742b748119329bb34b588be",
+    "native/clipboard-format/codec-tests/cf_html_cases.cpp": "476fe564656b8cf9a7de7f1e3958b7a9dce73cf3d572e5cced18e565bd3a2174",
+    "native/clipboard-format/codec-tests/cf_html_cases.h": "5289f20ed8a021b3d8df75c4d3993903476b26713e23f2ca0271c30edab08512",
+    "native/clipboard-format/codec-tests/main.cpp": "39d63e3185b0978e397c3c8026c1e182e5ea6714dda9e70b896fa949d4028227",
+    "native/clipboard-format/codec-tests/png_cases.cpp": "ae83cb9059b3c583ced091057b94e62465b86bc477ed8a7cdd84c86c74b59b41",
+    "native/clipboard-format/codec-tests/png_cases.h": "65e59740e15ba5a7cdb29ecc262a59aa97504bd4e4d30dc655409cdd5a8b1447",
+    "native/clipboard-format/codec-tests/policy_cases.cpp": "59a139c701de13dd586c8c76cfdf123509fa1766651456009ea6e8ecd5ba340b",
+    "native/clipboard-format/codec-tests/policy_cases.h": "545a0682a04a80ddaaad0a06c0272cb8afe42907e4faf8b5a32bbd9efd3ca9c5",
+    "native/clipboard-format/codec-tests/reparse_cases.cpp": "77271d39bd146645a253e71ee4afeaf5eb9203094426b4ab8a652497eb1a4840",
+    "native/clipboard-format/codec-tests/reparse_cases.h": "cac8ab5863b6c4d034a45d31d3105100ef595aac49c714461d94ea483884d51e",
+    "native/clipboard-format/codec-tests/rtf_cases.cpp": "c8a5a9a141c5b5a546d5f528f44a9eda19efab4ee86d597df4c592a8e2654a77",
+    "native/clipboard-format/codec-tests/rtf_cases.h": "6edd2d55d2d2461e7e860ed5c0bd0dd212cb4f870c82c3a6885b993c56769ca9",
+    "native/clipboard-format/codec-tests/tiff_case_builder.cpp": "db20e45592017ddb8d84571145a0a1bc0c7479e3a134b2759125014caa53d83f",
+    "native/clipboard-format/codec-tests/tiff_case_builder.h": "ddcc2e5bc5ba7d06fb2493e6af2ba1a00bd0282cfe1ead5a1fd76e8b693825f3",
+    "native/clipboard-format/codec-tests/tiff_cases.cpp": "094a52f08c7a78375a806d72a89590c5fd89192cc7c9b23de95fa30796c0f4ff",
+    "native/clipboard-format/codec-tests/tiff_cases.h": "855f3d1117bb3b05a3508abf6daf9af1fd20eb61b5e45c62e6db867eb9fc476f",
+    "native/clipboard-format/codec-tests/tiff_reference_cases.cpp": "e61de36c13dc9e838687aeb82fd4973f337fe2b19fe545c7b6ba6bf8edd7a874",
+    "native/clipboard-format/codec-tests/url_cases.cpp": "1006e198de5ab5d2c113ae715f7d6d7c30424bfc16e8f84e1dac4d938fbe1469",
+    "native/clipboard-format/codec-tests/url_cases.h": "3086c8e9c9afa5ea37161dac9250104dc424b90fcd957a69f505ec8d43fb66e0",
+    "native/clipboard-format/common/clipboard_capture_codec.cpp": "debdd12b0f3b399f326769bb392d47e2aa156a2fee76306575be5f97818d7675",
+    "native/clipboard-format/common/clipboard_capture_codec.h": "7fbcd57e99461cc78f749071f1c1b587f09394bdad22d94656292e589cc32ad0",
+    "native/clipboard-format/common/clipboard_capture_policy.cpp": "364981dffb8839090930d3972c08ff506d219ade85faad3cf191b6fe2d068ca2",
+    "native/clipboard-format/common/clipboard_capture_policy.h": "81f5b451b8363db419138c81e8281e8c2ec53824ac4b8848b18703c49901a832",
+    "native/clipboard-format/common/clipboard_capture_wire.cpp": "7d9643c6c30fea3d2dc8264e421f2ce5ed4b8b2dbf97fcba488d1c3422ef2eb3",
+    "native/clipboard-format/common/clipboard_capture_wire.h": "977ce3c2cc249d4577014165cad0d3361c98c55d2488f81823d75983f2b0c802",
+    "native/clipboard-format/common/clipboard_cf_html.cpp": "ff819c214b9728234dad8466661e92d503dbbba632a0ba4b213558355b777d58",
+    "native/clipboard-format/common/clipboard_cf_html.h": "c7e06f4e84f7140e33cb1426e101bb33354cec6ab2a87642f3d012c84ad6e766",
+    "native/clipboard-format/common/clipboard_codecs.cpp": "8130a07860fb33da5e2de63612a89ec57cdfb8043bcaf8ab4eef2fa100c48344",
+    "native/clipboard-format/common/clipboard_codecs.h": "3e1faf3e0dc204ab9b4b75f25d80a25cfdd4eb83d5ccb5ceeca5754fb9002d8d",
+    "native/clipboard-format/common/clipboard_palette.cpp": "1d49a1f5e1d36fa4f2bc5387db60262bb0462e4fa8521e30459b6fca28dbb216",
+    "native/clipboard-format/common/clipboard_palette.h": "0a5d37bed30245243d84262e26ad8ec8ab1d2a6a98bc0e64db85cb343a5e5a0c",
+    "native/clipboard-format/common/clipboard_png.cpp": "db9a6ac189a4bff2b83d475ea56d4bcd3cdf7bc4ec16de0bd3d9ea8f68a8af52",
+    "native/clipboard-format/common/clipboard_png.h": "f832f596ece0ddbf37708c36e3bc88e4ef87a67e55bfaecef5bc69a3d58db56d",
+    "native/clipboard-format/common/clipboard_reparse.cpp": "a0a0f12160582d65951fa2b2420800bcc6ac0bb94cd7befbb4f5c7315a9b4bf0",
+    "native/clipboard-format/common/clipboard_reparse.h": "bc7d8bd9034694d3be0f5988be9c952ba928d8bd8f7ba08f7dda45b9f6544441",
+    "native/clipboard-format/common/clipboard_rtf.cpp": "5b61ad501f2370609705d3b334aa95a27bcaa80c11decd0fdaeb9e8bb08a9ec0",
+    "native/clipboard-format/common/clipboard_rtf.h": "1c86572dcc5348502ca29dc1e3e8a0c11d17d0a7f5e3d71d09012d238e61f9fe",
+    "native/clipboard-format/common/clipboard_sha256.cpp": "ca002b5aafba5d0ebf5f3ab4dcd9e01d58611e799497f7e890221cf29cbb9898",
+    "native/clipboard-format/common/clipboard_sha256.h": "dd2574bd72874261e16e411f724ecd0c99d134267d1fc926c338203449fc42a3",
+    "native/clipboard-format/common/clipboard_tiff.cpp": "2bed31d4cbbf1244ab11617fd3cd42f7395793b3d41eaccfb5359a5add430da0",
+    "native/clipboard-format/common/clipboard_tiff.h": "0ba98de82821e6d8b41cc4921d196d6708a07f57e8c5fb3265764d07399a1193",
+    "native/clipboard-format/common/clipboard_tiff_graph.cpp": "da96eb9ba3e85b88db17917d53c255863b87083e97a8c7cdd8a4bf6208c20c03",
+    "native/clipboard-format/common/clipboard_tiff_image.cpp": "09c70e48baf20b1c0f786a4a8d63c4c522988335e56d365c6e529efe8e8626ca",
+    "native/clipboard-format/common/clipboard_tiff_internal.h": "5a7b4d7dc60821d7f88c68d19ad60b6090f0e75fd157581883d8a60cbeca8867",
+    "native/clipboard-format/common/clipboard_tiff_reader.cpp": "ff39607d0cbe1dbb78bdbf8c12d8a50b380e9480e8bf56040b1548d8c7ae2ac4",
+    "native/clipboard-format/common/clipboard_uri_syntax.cpp": "529fd3c01d75d615bdc4b6aba40627fa2a725a51d9f206eb410526af2a5e0826",
+    "native/clipboard-format/common/clipboard_uri_syntax.h": "680ee73c4a1ddf9b59f427c39819fa811756aec3ec85536a066abbb00304f804",
+    "native/clipboard-format/common/clipboard_url.cpp": "26cbf432972557792d1e189ec37a9c46c4cd0fecddeb6dcb4e3a9126588d0da9",
+    "native/clipboard-format/common/clipboard_url.h": "c4a556c34359eee9076b841c46048c09f6d0677cb7ce53844a4b893e802f5f7c",
+    "native/clipboard-format/macos/ClipboardCapture.mm": "b37dadb6b3d96d4d8b2616c88f6b8f8b2ceb148d7926ff481ff27f90f8161770",
+    "native/clipboard-format/macos/ClipboardCaptureCodecEvidence.h": "16c853eedafce28f17fe07297efa8bad375fa9533b13d6837560c2784c10aa68",
+    "native/clipboard-format/macos/ClipboardCaptureCodecEvidence.mm": "6acbdfaac2e9e20ec13274c238889c4d3c309874a05060be6002aa8e828ed4f4",
+    "native/clipboard-format/macos/ClipboardCapturePolicy.h": "cc6d8ea34b8c22e74e6a956593d1616d633b8ed3e95ff737e83531de670b37a0",
+    "native/clipboard-format/macos/ClipboardCapturePolicy.mm": "1a266d50e80eb07cf9b1a4d6ca6745cbdbe0d84af834a0443eba0d5c2eb5cc7a",
+    "native/clipboard-format/macos/ClipboardCapturePolicyTests.h": "1225f6bde88f6084fe2d0b10a9170dc32c4a602fae54fd9c0c07e53a8fbf1adb",
+    "native/clipboard-format/macos/ClipboardCapturePolicyTests.mm": "61e0a6f6d17fabcee1f3002ef57438ef0b5bf7a983ff682340a82474514584fc",
+    "native/clipboard-format/macos/ClipboardCaptureTimingPublishTests.h": "fdd9d97ae2b3965e2a3836133cd8604314d03a620fa49c47e5a9e1b03d7d5965",
+    "native/clipboard-format/macos/ClipboardCaptureTimingPublishTests.mm": "a20bf756f4fb7703443fc3a8c09095044b0bcde779ccb7a3cae0faff36ad0d62",
+    "native/clipboard-format/macos/ClipboardCaptureTimingTests.h": "ddff867a3f3bd96ead8662c48752856e26b1b463c31d48534b2f4a8b57f5a8a0",
+    "native/clipboard-format/macos/ClipboardCaptureTimingTests.mm": "ed780ad9a9c710c83b1b66cc422aeba4dfaf92253b04bb641ff5c23c8548d776",
+    "native/clipboard-format/macos/ClipboardFileReferences.h": "2c8edfcd9def94b586d2bfe5a252173776de25b774ba4e34628e0208c9542ebf",
+    "native/clipboard-format/macos/ClipboardFileReferences.mm": "46ba0cd479e428e2b4f6769f3f2397c2524e064512821391e7ff134b248fe5d0",
+    "native/clipboard-format/macos/ClipboardFileReferencesTests.h": "3c9f6ff09e68b7caa1b38c94c65463693c7aa7c2a60783675751c8eede5e204b",
+    "native/clipboard-format/macos/ClipboardFileReferencesTests.mm": "41223648eb94665eb799cf47e170452920476fba049621434d6c786b857c9846",
+    "native/clipboard-format/macos/ClipboardFormatCodecs.h": "46955bfdd19086b519c1ab8a77cc9e52c4bc0f6535f4a2de45b3e2b2d4fb7fba",
+    "native/clipboard-format/macos/ClipboardFormatCodecs.mm": "9c8c89f88ca52a181d98d88987b46f244fb6ff649bd8444b1da4787d84285cd2",
+    "native/clipboard-format/macos/ClipboardOwnedCapture.h": "af3e75810d1f2ebc1c65a8ae8b925eed3486e3f2e5144b028fd3ad9354b0d31e",
+    "native/clipboard-format/macos/ClipboardOwnedCapture.mm": "2d7ae590532ee05cafc9613df322fe2bd93f42b0d1b4deeb73b36efd5b9768e1",
+    "native/clipboard-format/macos/ClipboardPayloadTransport.h": "91b8a2467c8d9ed02aaf444e5a0780ea4a3750f93a63d49e5110f6d549a7396c",
+    "native/clipboard-format/macos/ClipboardPayloadTransport.mm": "c14253437c179bb350aa6232a60e8ac73226fb83c186c7136c4b909de76d69b5",
+    "native/clipboard-format/macos/ClipboardProbe.h": "85041dade3420b119134d565d8c44a4ef88bf19464a253b63c1ef0f3aca115ee",
+    "native/clipboard-format/macos/ClipboardProbe.mm": "e7ed42c4baa80bd9ee94c7fb78ffe99253f6a417e4a415f308e1b56326fe0f89",
+    "native/clipboard-format/macos/ClipboardProbeArchiveTests.h": "c002ddb9c6fb7805ee6bafb90173c670e36986521bf1966b8e8e2c74ba29660c",
+    "native/clipboard-format/macos/ClipboardProbeArchiveTests.mm": "6c5a1cffd9aa71cf589dff9fcf23b51844ec3659c5ec146fed6a1abb2c42d596",
+    "native/clipboard-format/macos/ClipboardProbeBoundaryTests.mm": "af069d25069b490337f71cb3ce8215b05e42833af420793e3f33e8784784305f",
+    "native/clipboard-format/macos/ClipboardProbeContracts.h": "21bade893a20e667291ad5f16ef10a4414ee58b42f873df0cb4250b80cf88eaf",
+    "native/clipboard-format/macos/ClipboardProbeContracts.mm": "c31d0d63ad350e8144deb46d0012fe96869896e3e746b45b2521714fde01824a",
+    "native/clipboard-format/macos/ClipboardProbeExtendedFormatTests.mm": "6a6473f2102aae667fc98141b51f3ffb9fe92e004732a430c78b4bf98767be8a",
+    "native/clipboard-format/macos/ClipboardProbeFaults.h": "1f8b753622d75acd0fc83fd40b5826526dfedb73d286e3091f5c8d4cff5b6c47",
+    "native/clipboard-format/macos/ClipboardProbeFaults.mm": "fb20716361c6d94a532dadb61906897ae05016a82f075df97335e5c11ad61cc5",
+    "native/clipboard-format/macos/ClipboardProbeTestSupport.h": "df0e86044e6bc5ea3da9196cced030573f4c8e544e0ab1a0034ce56e7ada344b",
+    "native/clipboard-format/macos/ClipboardProbeTestSupport.mm": "a98aba9c35e70153eb12bbd81535dfbb00ca111fe79093f6b1a1404a884397c9",
+    "native/clipboard-format/macos/ClipboardProbeTests.mm": "84b497ba73d9ee21ff3b891f2b1bec4674d92aee74059c80444e26a5991d7487",
+    "native/clipboard-format/macos/ClipboardRtfFramingTests.h": "cdac384551c3449ca09037496cf912f6f698b05f8470958c6476d711ae0dca11",
+    "native/clipboard-format/macos/ClipboardRtfFramingTests.mm": "b77ad04674b0959519a5be58ff89c2fa8ded6bb3aae5449e45629f2a8d81000c",
+    "native/clipboard-format/macos/ClipboardURLCodecs.h": "11294936dea078e80113f191f8bccb443d4c6d86e0f823865ce4bfd4f480e527",
+    "native/clipboard-format/macos/ClipboardURLCodecs.mm": "856fef3eed38c2ff5800def8af9a77d4d63bdf92fd779d85e1d0bf724f1b6e15",
+    "native/clipboard-format/macos/main.mm": "9f78e6c0ccc8ba3b3d75b9f68da5b0a4bc457b1ef8dfe4a4bfaab0931af4b208",
+    "native/clipboard-format/windows/CMakeLists.txt": "5c87acefe87dd4b0dbbb331b0be14e3dae61663a15e696ade48e925478e67fb6",
+    "native/clipboard-format/windows/clipboard_api_capture_fault_tests.cpp": "dcd1ddfb0e279125fc0ebc5d843cba1cd2fc02c181b87a4d7b17e4265584f689",
+    "native/clipboard-format/windows/clipboard_api_fault_test_support.cpp": "63eb551ecf119b0de77d0a3eae4a05081104d48080f206281ed977514390cb8c",
+    "native/clipboard-format/windows/clipboard_api_fault_test_support.h": "4f49d2d8b4f5c84a898c6679d2cea24a0c1f2b4f81f5305bf14baadbe6201da6",
+    "native/clipboard-format/windows/clipboard_api_fault_tests.h": "4af2050760c8244112edf9a87ac2cb34e54c1031234db5f201a6d123235ff99f",
+    "native/clipboard-format/windows/clipboard_api_publish_fault_tests.cpp": "596e4137fce902654abe15f6bc652ca2d202bc6db93e263af779f3309de97fed",
+    "native/clipboard-format/windows/clipboard_capture.cpp": "7ee9e079cc62d57db1e209450d7f9a3004e0c31422280034273e836e0ef66ee4",
+    "native/clipboard-format/windows/clipboard_capture_policy.cpp": "c224112f40c43b7d6e55a029314f3e5b97eec8357e985b5930ec20ee02f5c424",
+    "native/clipboard-format/windows/clipboard_capture_policy.h": "8272c79f8169242ec5f060659fc7fb50b9f2ecfdf80c63e5a5210aa4487d1236",
+    "native/clipboard-format/windows/clipboard_capture_validation.cpp": "e46635a79c62ea5c8197793d4a9fb705c52c39e2283662ac143b6e9634e43337",
+    "native/clipboard-format/windows/clipboard_capture_validation.h": "b71eed668dca3937724bd4dfc82875f16349169ae582805bea2f04fd8bc97aad",
+    "native/clipboard-format/windows/clipboard_delayed_read_fixture.cpp": "ba7b1a8ef0345cbd56e2b20375c2e66bb2bd292a7a78d893c26e8e7a64f891e6",
+    "native/clipboard-format/windows/clipboard_delayed_read_fixture.h": "7852e9117c677373e37d9a39bf15a5e2c6b0c20cde7cae125a5ea1705bf38ac5",
+    "native/clipboard-format/windows/clipboard_file_reference_access.cpp": "7e33b170e4877329d60a5acee85f775260cceea67200f8b6e3e806f15d1380ad",
+    "native/clipboard-format/windows/clipboard_file_reference_fixture.cpp": "2bbf2f7a10ed4a73360665ac259af257f79badf3e5a677f35a511451963efd5a",
+    "native/clipboard-format/windows/clipboard_file_reference_fixture.h": "0dec2dc6f4ccea423f59f36f618709a2d0b84e8edca8428b12f4df1dbda34cb0",
+    "native/clipboard-format/windows/clipboard_file_reference_paths.cpp": "da569b0d5fa3cdf746f897e364d308fb94e47380dc150a2738333ef0c00edc05",
+    "native/clipboard-format/windows/clipboard_file_reference_paths.h": "2159238fea2696aff5fee7bd1d014a29069b10c23996bf6d54bf3e5f5462262d",
+    "native/clipboard-format/windows/clipboard_file_references.cpp": "5c5868d7b7e9619c41a920d60d77976b6d869cb5071b1e27d8774d3bd42cbecd",
+    "native/clipboard-format/windows/clipboard_file_references.h": "7b0b858e013ffbf0fce76a1ec7ea814fa62000b894cfd3e70a86cfe2181201d6",
+    "native/clipboard-format/windows/clipboard_file_references_tests.cpp": "f20305eb52f7a9e579a028a37ef6f82d95e38678766bffbd23fce8b169ad7588",
+    "native/clipboard-format/windows/clipboard_file_references_tests.h": "421656d82a3afddb8ccc4994cff52f5cde52174b48f9026ee8c972c3e5152e6c",
+    "native/clipboard-format/windows/clipboard_format_equivalence.cpp": "fadc587445d884b636b670cb102e291f839863f6b31ddaa09dfc3063580537f3",
+    "native/clipboard-format/windows/clipboard_format_equivalence.h": "cd5e40038a97c9cf01a2c3a7ee14e721b302561212c351c9ebdc9e0d2c7a6a04",
+    "native/clipboard-format/windows/clipboard_format_receipt_tests.cpp": "3ee97a5971b764318951e70af836fef39fd9d9d7ad3880e02e8c84f54dea0229",
+    "native/clipboard-format/windows/clipboard_format_receipt_tests.h": "8797fec6fc774275995d04a1f9c2868b589c27a24bfce0115bccb0d3bec2a4a5",
+    "native/clipboard-format/windows/clipboard_format_receipts.cpp": "87852312b1e759cdb146296235fa841103baa000ff5184c31a28b4bd55df5b3e",
+    "native/clipboard-format/windows/clipboard_format_receipts.h": "7ad463c9a7f6348bdf92df78dcce30ba3b6c4e9c05cdea00c94489ce2e7103ee",
+    "native/clipboard-format/windows/clipboard_format_receipts_json.cpp": "061acca4b531302238b123a36d65c22c4bc0cf5e21cca8125064836c8c6c39d9",
+    "native/clipboard-format/windows/clipboard_formats.cpp": "02f959df11cfc35ef069f1d2b84ecef3a8614903a33df5b52ab8c4d307c70160",
+    "native/clipboard-format/windows/clipboard_formats.h": "625a4eb7410c758c46b8d77802d1833a5be465101cc9a7b1185f365e49503cf4",
+    "native/clipboard-format/windows/clipboard_gdi.cpp": "80df32811cf104a8af9659c8cd0a4252d1a41b98bb1c3ff53528d37ac122d604",
+    "native/clipboard-format/windows/clipboard_html.cpp": "22876bb03ec780d56f03dc4d3561d1fc0ae588a0ef9f059de93254dfad984675",
+    "native/clipboard-format/windows/clipboard_html.h": "b6e6b53ebc6946a65282827a26056d7ae7a04b657ab10478199a68b590452763",
+    "native/clipboard-format/windows/clipboard_isolation.cpp": "742e61bdcde7a5a2da5cdc56e4b4ea99f57bb3bae39b8406eddde33dd8934bc7",
+    "native/clipboard-format/windows/clipboard_native_api.cpp": "a999d3077d7581ede87ef994a9b17863866fb4638dc459d31961f8527d0aa7b9",
+    "native/clipboard-format/windows/clipboard_native_api.h": "0081306e27debe54b491990299c6a3687ee4539603fbbc5eedec2d2dc0f87e3f",
+    "native/clipboard-format/windows/clipboard_native_formats.cpp": "8f75cd92e9cb52751c74b12a904bde5822ee922e9e2a778ffe9142f4c29c72df",
+    "native/clipboard-format/windows/clipboard_payload_transport.cpp": "6e1c2e91c14b6004ad195ddcdd319ede90829b41b7a77b5bd2bc784ec9f94084",
+    "native/clipboard-format/windows/clipboard_payload_transport.h": "58c92d4e06576b070cbab63365415c68e09b3514aad41228dc9ed9f74a069c37",
+    "native/clipboard-format/windows/clipboard_png_tests.cpp": "e7bdd1dc449b132788fdc71b2bb83b12e5fcea83767632f1052a2b750bb8eff2",
+    "native/clipboard-format/windows/clipboard_png_tests.h": "309dfa1586c4553b14a6deed4d745bc64b5efd2c5ab6a0432dcdbcecbadad2b8",
+    "native/clipboard-format/windows/clipboard_png_wic.cpp": "e7868bee1d72aa52e5c4b0d20f8ff839e0123677b7df75219972b6af0ea6afe3",
+    "native/clipboard-format/windows/clipboard_png_wic.h": "005e037e4fc2ef1c163627758d07a86664fe492a0bedd88007c2a2af32f5bf94",
+    "native/clipboard-format/windows/clipboard_policy_tests.cpp": "af2b1b28a8f5ab8500a6286659efe43fd07c93aa37b7942231a5d3bbd59aec75",
+    "native/clipboard-format/windows/clipboard_policy_tests.h": "8d17b162426e124e13463407766be93af8425973dd37f6eb0dc34b063ab19d54",
+    "native/clipboard-format/windows/clipboard_prepared_format.cpp": "8d977b7a810f924d83fe8264f83b096e22ad733550adc412b67f4bf999966196",
+    "native/clipboard-format/windows/clipboard_probe.cpp": "bd103797cbe28139039101e55af90cded3c208f666f03157138a2cc3feb8a4eb",
+    "native/clipboard-format/windows/clipboard_probe.h": "1f52b62a047277f92efae7cdbb559cea46760c23b8d813ed6123b7460dcc4bdf",
+    "native/clipboard-format/windows/clipboard_publish.cpp": "6f97015324e8d0c7d9e0b7224eb6df0f762ffd572c7487021224cf8f34bb7fd2",
+    "native/clipboard-format/windows/clipboard_publish_tests.cpp": "0aa4eababda3bd0309ad9708dc8e5edd1a06b0000b1ce31e087328144d613877",
+    "native/clipboard-format/windows/clipboard_publish_tests.h": "d1d71b79bf7957def32540cc2705d923bcb728df1c775be645219bca01252163",
+    "native/clipboard-format/windows/clipboard_publish_verification.cpp": "866980091e7577c62967445bbbfe3823f329cea26228d028de86a9205e157b56",
+    "native/clipboard-format/windows/clipboard_publish_verification.h": "544f1aa8357792b65d7171ca194cc5fe72a610767358a84826e9b8b917fd0dd6",
+    "native/clipboard-format/windows/clipboard_receipt_hash.cpp": "31fa479909e2c4d5d0da59856240ef3100519e797e902710804a39ccdf5473b8",
+    "native/clipboard-format/windows/clipboard_reparse_fixture.cpp": "2008d12e83d7ca954c88d9799a16c26ef9da26f38c86925b4e4158ab2ca6356b",
+    "native/clipboard-format/windows/clipboard_reparse_fixture.h": "f60cf30e92a418ae85b2cb77257928e638299e8cc2fe106dde0d174811c23c89",
+    "native/clipboard-format/windows/clipboard_reparse_tests.cpp": "3360d9c3bfcf47510a96d116c98c57997e311e0cff062cd3bdab63ac8d9f46f6",
+    "native/clipboard-format/windows/clipboard_reparse_tests.h": "5c0f4a715b4cb8d05c0599e34e4662e6833bd2340ca5f66514f483006d950e1e",
+    "native/clipboard-format/windows/clipboard_resource_session.h": "671ef83d868f166d149eb56faf064c64c6e0330642dfb6a59b3903000254757d",
+    "native/clipboard-format/windows/clipboard_self_test.cpp": "3d68d164958cafef7c8ca754b33578acf18b07015b268643499598dec2dad5b4",
+    "native/clipboard-format/windows/clipboard_self_test.h": "0b6aeee2ad18dce7a9f91acf3ad31e831a054417ce839fd1a0aaadaeb0741396",
+    "native/clipboard-format/windows/clipboard_self_test_comparison.cpp": "158edf8df2e69017931d69b632f79706c804e9ecf824947f17d909772261dc0f",
+    "native/clipboard-format/windows/clipboard_self_test_comparison.h": "3d3950f027d1e002345e478886991e3b65e1adac033dbb798d3b318b9d887cac",
+    "native/clipboard-format/windows/clipboard_self_test_fixtures.cpp": "541ad77dffdf87c6ee5f699bb690a754ee6d3b1463d83a2d71a9997cba420948",
+    "native/clipboard-format/windows/clipboard_self_test_fixtures.h": "841c6304a05e5a5cae31289d4ae531d9a8ba1398933d7c9b1badc6582da108ce",
+    "native/clipboard-format/windows/clipboard_self_test_native.cpp": "a3830e0eff3466654abb69ba2e7cfce4b2a483ef7f73da70f82fb5fe0ebf6627",
+    "native/clipboard-format/windows/clipboard_self_test_native.h": "ecdd69d4db5f0cfadaf31d2b44f22204d3ea81f5eada801613f36c0ae25f98f6",
+    "native/clipboard-format/windows/clipboard_self_test_registry.cpp": "821f729122d92ecfedfa537cf96a20367b46dafca43ec555a76191596d2b2bf6",
+    "native/clipboard-format/windows/clipboard_self_test_registry.h": "5781199a0c444ee230e2f1c6ea8237eaabbf218d123b73253916cff47533225d",
+    "native/clipboard-format/windows/clipboard_self_test_report.cpp": "3b4f81f37ad55810e112ac812da406fe95af9da2d2a0ecb8e3e423ba52ef2861",
+    "native/clipboard-format/windows/clipboard_tiff_fixture.cpp": "5d8396428a2af53e4bd9213435ae5e9ea384a38735a8ed8b7f0aafda33dd5173",
+    "native/clipboard-format/windows/clipboard_tiff_fixture.h": "05f12fbf8d0371b457a683a3b1560bc440c09cca20f1b5c25c3a652e4b04fe14",
+    "native/clipboard-format/windows/clipboard_tiff_tests.cpp": "8788fa62ca41630a0f54ecf62669f7e709bd065b8cf8112ecbd3c76035e69fef",
+    "native/clipboard-format/windows/clipboard_tiff_tests.h": "09cceb793973b0b21ccf756b3b06ca10e2ad50b06dde99f0b607e452f11aff61",
+    "native/clipboard-format/windows/clipboard_tiff_wic.cpp": "688653c370649c64a305197a5594b5e0bfdaf8c35607168fb1e4e7f3461cceb8",
+    "native/clipboard-format/windows/clipboard_tiff_wic.h": "e875884f5568d5cf85ba3a913c9a7df432a6de524288da28c67e41773369dc82",
+    "native/clipboard-format/windows/clipboard_url_formats.cpp": "e5792f689dacc9d3f3075aa04c6da68c29f84df630179d8ef5870e06c3a7258c",
+    "native/clipboard-format/windows/clipboard_url_formats.h": "4252db86b5688ff010c7b422fb2af468e4fe4eb0b76518f1fed422706818237b",
+    "native/clipboard-format/windows/clipboard_url_tests.cpp": "4c9fb1e951cc7533cf84117bf6d38c8a9a09539823eb93335e477c739c647b7b",
+    "native/clipboard-format/windows/clipboard_url_tests.h": "2c1715d8878c6e313f2834bc5055425fffde73335d794ffac0fe790dced4e713",
+    "native/clipboard-format/windows/clipboard_wic_decode.cpp": "43871524d86d3a2a86757ef5a1feb978a9fc7b3ac950bbb85ade8ca392d9d5d3",
+    "native/clipboard-format/windows/clipboard_wic_decode.h": "fdb3cd4bf7df8096e81486310fe8c5c710e23592fb5625829d8bdef0231276fd",
+    "native/clipboard-format/windows/main.cpp": "adeb0c41a38d473b3195a555f37183d65a1b65a5b32d2f2d9a03befc77ca24fe",
+    "native/clipboard-storage/windows/CMakeLists.txt": "c6ff48dd7114eb953302c3e90694163805a6e3bb076f0d458da48c7db7c1964c",
+    "native/clipboard-storage/windows/private_creation.cpp": "d42eea3b4271b80181e28b587a1e2ad54c17facf036d5352186c7f8243c5e6c3",
+    "native/clipboard-storage/windows/private_handles.cpp": "e780ee253a35a5943ca8ecea4c122111f848aba7e9fdecb95f755d863c5a65da",
+    "native/clipboard-storage/windows/private_security.cpp": "31be1d900a54e530d91bcdc9e12fac28791aa1b414082cafb1986638f004ade4",
+    "native/clipboard-storage/windows/private_security_internal.h": "4a94809f08a9fea44ca90644288d5602530932a484a46a74c0208fc1f69c8c2d",
+    "native/clipboard-storage/windows/private_storage.h": "1b60eaa41f5ed2ed8c871c174c58074f18a50d834884739f677e7ac4094af825",
+    "native/clipboard-storage/windows/storage_probe.cpp": "03e86d301f38b17aee0274c692bf7627eb467ffc7cf9a5fe96c01181b0f0e20a",
+    "native/clipboard-storage/windows/storage_probe_acl_cases.cpp": "6a95b26cc37f7d4342e60380f5b9164b6cecdf4dcd3eae582b33f6cbf170b82c",
+    "native/clipboard-storage/windows/storage_probe_acl_cases.h": "7c34af8d25b19fa0c6c02225936dac12c3e9009858c1cd0a90e235df59c090e3",
+    "native/clipboard-storage/windows/storage_probe_cases.h": "86c0459feb0cc0f275d1634996eddf362374ecccdab5d4ce168702e2662157d1",
+    "native/clipboard-storage/windows/storage_probe_link_cases.cpp": "519e44ddd6ef23a5af266f29f89dbd9c867fce618025d718872e91972d23cdd6",
+    "native/clipboard-storage/windows/storage_probe_link_cases.h": "ab5a68e8e8f48e8ac2e19868b68159c351921fc2effb719664e5831d7878bc6f",
+    "native/clipboard-storage/windows/storage_probe_report.cpp": "46094ac34ab6f9e0026407b07f7898ad14775a60905422a29e3a4aa0abdb035a",
+    "native/clipboard-storage/windows/storage_probe_report.h": "4634abb7c7a672e3266f8344987c42431eef8a85c9b3eff50993c1ac96a35e26",
+    "package.json": "1510c9718dadd3a3254e8b132639cd7f6f749e83a22cf5486bfaa33b3e439a0a",
+    "packages/core/src/clipboard-content-policy-bytes.ts": "48a10b39db187cd26c8023e4c67ba582a259f2ef60ef62f2db86261e803639e3",
+    "packages/core/src/clipboard-content-policy-v2-types.ts": "efa0929c02ec7a9cc9be89f179c81715d748989d87a875740c9045fc9725d1a7",
+    "packages/core/src/clipboard-content-policy-v2.ts": "bb367ce2571d3828b4e9e65cda63ce2d94a1efa598fefaa15863186518904767",
+    "packages/core/src/clipboard-tombstone-v2.ts": "5db02db2cb95172d0047ccb246f5a4ac9196e16ca3ebb08ca44f7ffbda001b35",
+    "packages/core/src/index.ts": "ed64dc5576f54ea3465d79698ee3356b0a975768ea919cd07a9089d988a77a28",
+    "packages/core/tsconfig.json": "45cb9e5f240eb0e36de76f3b12ee9476760204c914d3eecbf3d7cf7b8f4b6a15",
+    "packages/snapshot-store/package.json": "b2693321eff75b3a4f1c918978f694d33ef308c151a83d7d918eabfa279619f7",
+    "packages/snapshot-store/scripts/build-runtime.mjs": "2fbffa17d0845fbb0acedd5628a8c387ba16803eb1759358097c3f33283343e8",
+    "packages/snapshot-store/scripts/test-runtime.mjs": "b91fd4e541a352f98052940ceccf0865ad0115a15a49a9747ba54648c37e5afe",
+    "packages/snapshot-store/src/blob-paths.ts": "2c8fff6ba33dd5b4e86f4d2126e7312befb768dd93610f9c3ff786d7226d758d",
+    "packages/snapshot-store/src/blob-store.ts": "5ce6637a1a096425189be2eb6e4a9bcf69686e3ea5a3d8ca1149ed0bb4e4a97c",
+    "packages/snapshot-store/src/capture-commit.ts": "43cd83c3da11980292965345d3d7a24bd781a18390826d10ab5afaa8cffd11b4",
+    "packages/snapshot-store/src/consumer-inbox.ts": "2d57b83098722e072d7afd8002b3133495156e03cb82f193f79a33fd6403246e",
+    "packages/snapshot-store/src/consumer-leases.ts": "de87c79c83aee42ace1e33e3b18b7ad2be018839e6402b0666829bec67540c7f",
+    "packages/snapshot-store/src/consumer-records.ts": "26a621aa3a547d8f0dc49cbaaff0b58a8c373f3743b92ae01489e6a389bec196",
+    "packages/snapshot-store/src/consumer-roots.ts": "184f949ebf6ba902954f58223be7f944d59fb808217058f8285319245c4a98ca",
+    "packages/snapshot-store/src/consumer-staging.ts": "8fe8df8c2d05f291e3a19796988c160a9b191285d6576dd27aec9f0c2397220a",
+    "packages/snapshot-store/src/consumer-types.ts": "a3e516eb8dbcb514b5557b2473296ef88ff8562ac6fbed6839de29b5de07f27b",
+    "packages/snapshot-store/src/consumer-validation.ts": "7120a0d8e3b84693f84e9c73210ed119b27352b3a9d611e35ca50a60d951a742",
+    "packages/snapshot-store/src/deletion-records.ts": "a8b2e45e17b2b66eb02f334d0074aa420b21d2efff536ce93d7c50cd83d1a7e7",
+    "packages/snapshot-store/src/deletion-write.ts": "232bb69cef9d1095d7102c7ae39d091b0cbf9a460155bf754a8b41b6f5d243e2",
+    "packages/snapshot-store/src/errors.ts": "9908ffb40d3b546a8b39a9183ee20863c7df0583f5f096570dc7cd8886799bef",
+    "packages/snapshot-store/src/fs-directory.ts": "5d5ad20dabf4badfde800dc83128ffdaece21411afbaa2d8611819a0424d8bac",
+    "packages/snapshot-store/src/index.ts": "400d09d7ee7a4bc0018e650e85094578b23aaba921f804f35033f19d67d2f780",
+    "packages/snapshot-store/src/journal-files.ts": "120dc076d061d3dc55245ccb028cc1cd973e5c47c9e5a053f7e3b31fe28efdd5",
+    "packages/snapshot-store/src/journal-read.ts": "e560a314985e27579cd18731fc9d0aabc45f459597d58e9cc3b38651e51b0ce9",
+    "packages/snapshot-store/src/journal-records.ts": "ce1c9cff911f00bee111c21cb7397c6a8e040004aa6f418b0b5f07a700fd6a9e",
+    "packages/snapshot-store/src/journal-roots.ts": "5b27e7da8936e522d23b77a88762a1428641841142452e6edacc9ca8909f1be5",
+    "packages/snapshot-store/src/journal-validation.ts": "235f3f11fde00f7d014dc5bdee032483c7bd7355585db43a3dcd0cdb54ba5c1a",
+    "packages/snapshot-store/src/journal-write.ts": "e032e23544860603eee66b022fb7bd2fb45a0012a598db056da2508c931fe5f1",
+    "packages/snapshot-store/src/journal.ts": "e19570a525c6f3a67ab6cc624a3a5f5fdbb6d48639da46ec7f0399a7a4d140c9",
+    "packages/snapshot-store/src/outbox-acknowledgements.ts": "459a3e4fdc4fc482d10a4f6a95e12385c879b082bc2387dd15890d26f3c227d6",
+    "packages/snapshot-store/src/payload-expiry.ts": "efd706e6d8be5166d86970fa43ef5e52a94747a10a5f09497edbb5d0c02a67ce",
+    "packages/snapshot-store/src/payload-leases.ts": "489353d686584da1b5c55c0b67b0145766791002bfec8a36fb0aefa76ab47de9",
+    "packages/snapshot-store/src/payload-lifecycle-records.ts": "f1ce3d1b85bea4d24bc5d90f66ea615b254c63c93f31cf3ba6c7b232b86a9e82",
+    "packages/snapshot-store/src/payload-lifecycle-types.ts": "d3b29f4676c995f38c6368b04fb61199744f7d4f9a74dfcb6097216c5d686815",
+    "packages/snapshot-store/src/policy-authority.ts": "9c597eed504793833ade143c700d9c9dd3f44dabd9f89c08a48c9257bee5b01f",
+    "packages/snapshot-store/src/snapshot-store.ts": "2b3879bf752f3a8d4fd079e5096832b9bed0aa5a5c469b7fd48e42d9090fc1a2",
+    "packages/snapshot-store/src/types.ts": "4c21e9d9bb26a685a6d2169c32cbc29cab982567afed16c50a763b873aa94542",
+    "packages/snapshot-store/tests/blob-store.test.ts": "7e150cf9e7c2c74b000468b5a58ab1dee557919610ad16ca2100e4eb0d9ae998",
+    "packages/snapshot-store/tests/consumer-drain-benchmark.test.ts": "f50a696fb11e27de1d69c7dffc2bd08df1da34316221a8b9e91b15b6472da1de",
+    "packages/snapshot-store/tests/consumer-inbox.test.ts": "8ab3ff8385f41dcc2f81712d604604651ae2471a79c5a4a69b283460e3bf17d8",
+    "packages/snapshot-store/tests/consumer-prefix-integrity.test.ts": "0199c9ccbfb6f4f2bc1e122b342b5379db409480f5c12c30a1eedd7a51f72463",
+    "packages/snapshot-store/tests/consumer-recovery.test.ts": "3cf49de297e1e52814a081908621790e6eb833ed41135d0ec1236549ec955aa5",
+    "packages/snapshot-store/tests/consumer-sequence-boundaries.test.ts": "d75c5475635a4490c2bbc35cad558cfcc15ec1eb59c41b3fc7646499baadab5b",
+    "packages/snapshot-store/tests/deletion-integrity.test.ts": "2578fb4be991138e4fa2b50a83fae945d88a266ed6cdc1742452bab2f76e4507",
+    "packages/snapshot-store/tests/deletion-process-fixture.test.ts": "ba55275e9ddad1304fa02ef9c748caf1294f69ad83f31564561485fdd7bd61e5",
+    "packages/snapshot-store/tests/deletion-process-recovery.test.ts": "847d7c59ecc719b360d9a1ff26c0b48e9b8db5930afb371bffa39702ea04a0d5",
+    "packages/snapshot-store/tests/deletion.test.ts": "424d3e8d5c553fb854b32eb1bc95708f843a13b83c7c8d3dfba6882a0a9e95f5",
+    "packages/snapshot-store/tests/helperconsumer-fixtures.ts": "a2e6afaa5f0336e2f0d7682ad1c96e91ae091c1ecff26e52be7016b00b29ff41",
+    "packages/snapshot-store/tests/inbox-process-fixture.test.ts": "e0e6b787933f567b0daf1a377a53eac0c67bca1e77efb034c77aacfc8402c02d",
+    "packages/snapshot-store/tests/inbox-process-recovery.test.ts": "34eb6970145269bf367f081b96d6bac4cb58c7d0b892129b369f317230e9ab55",
+    "packages/snapshot-store/tests/journal-bootstrap.test.ts": "a8537163306c63a2253a17d065c451aea3c141f92ae6d48c448415ec57acc7c3",
+    "packages/snapshot-store/tests/journal-check-capture.test.ts": "12b04e56cd53418b01e341197336da8a21eadce8c00a39981cac6e7c2cb77d1c",
+    "packages/snapshot-store/tests/journal-delete-boundary.test.ts": "e9e1277bf3f5b8645eeec5029508bff3cfd802be9e4370d52fdac793f3e211d0",
+    "packages/snapshot-store/tests/journal-fixtures.ts": "645c636510ced4136c3145398d058ebfcd9eb2d437a8d5758dee95a098a37931",
+    "packages/snapshot-store/tests/journal-outcome-replay.test.ts": "57d87b392531aa1d82cea57e3e58e02331c55483424a4854ac6568fcd4c93f3b",
+    "packages/snapshot-store/tests/journal-process-controls.ts": "6a404a632520333033324258311995bedb2022cc800781e09e287c6a434a04db",
+    "packages/snapshot-store/tests/journal-process-fixture.test.ts": "a815e0ca19c3f13aa2b54c20f7a777179ef39933b4d61116b27195b87b41306e",
+    "packages/snapshot-store/tests/journal-process-markers.ts": "ed15559075cc0447381a91f85056c9a8bdfd648411105f5be5af8493b08a9a9a",
+    "packages/snapshot-store/tests/journal-process-polling.test.ts": "1a5b0241ed76ad8e1438536439222ef4d27829fcaf1ccbf82d037f657ccc8442",
+    "packages/snapshot-store/tests/journal-replay-integrity.test.ts": "1015d296bc4ab99cd2968d5d6001b9e0544c563380a9d9185ec721db7e4b68c0",
+    "packages/snapshot-store/tests/journal-roots.test.ts": "7daf71d35d171ac67ab10d869cd7a2e1f5bc558a2c31696eb2fcae7410294641",
+    "packages/snapshot-store/tests/journal.test.ts": "8aec035a7f884ab022bcd789e0bd2b36b96e6360889da12556b9bf6fe2ed89b5",
+    "packages/snapshot-store/tests/outbox-acknowledgements.test.ts": "5c740204289501e4d6045a73980e68785f324e2968e4b729977bdf7ab4ba7679",
+    "packages/snapshot-store/tests/payload-leases.test.ts": "b12a7db315ee9386d1d14e9718b5ef471b9306b49c499eef6c5592b2e4098cb5",
+    "packages/snapshot-store/tests/payload-process-fixture.test.ts": "dc17607a5708e91b7e48433c9216683389240d85e359021013773f5931a96e2b",
+    "packages/snapshot-store/tests/payload-process-recovery.test.ts": "eb635004b9f5e60cbf89a1f179af527d7891f9fcd3cb9ef5381530eaba27641c",
+    "packages/snapshot-store/tests/payload-reclamation.test.ts": "f2d59cf2ea1117562dceed4ddf6d8fe86ec02ecf63fb11e60ee2e5a3192244b1",
+    "packages/snapshot-store/tests/policy-authority.test.ts": "dcdf7ea7635034ac095234627b454fdde42782cf2640e8124972f57e887b223c",
+    "packages/snapshot-store/tests/process-recovery-fixture.test.ts": "5b3908e0eb02a30e56119bfed1de0b771cd48f7c332cb703b033b93f28684f28",
+    "packages/snapshot-store/tests/process-recovery.test.ts": "557c987cb43451230c9b4318ec2f747a744885ed8bf47e329a06d9c53938ef5d",
+    "packages/snapshot-store/tests/store-fixtures.ts": "dcabeeb148744e20185f28b37268ef0ae517742f3a46a0281c469ad7186b210e",
+    "packages/snapshot-store/tests/store-gc-integrity.test.ts": "169525eb59f796b179bd126f89fd23027d0443c4d4b77cad1c29d99887e58b42",
+    "packages/snapshot-store/tests/store-recovery.test.ts": "78920a83059dca08179a1f9c7b798ee3dc7b93eb3cf2d70666eb70c8852fe62c",
+    "packages/snapshot-store/tests/store-replay-integrity.test.ts": "b2d491ca57a6fbe9f405806184dfd4564228efd574e08310689d8a4175852d6d",
+    "packages/snapshot-store/tests/store.test.ts": "aeefe1b5890c9db5da19e3c71dbb7dc59a6e03701d6c60b311058a78b4c3c56c",
+    "packages/snapshot-store/tsconfig.json": "87ee3922f6c0064a7111bf4476d9b8c6440112a09fecde27302366c5116cd3dc",
+    "pnpm-lock.yaml": "7cb5dbeccf65ac5c3f9cdb7a5c2171c016a44cc24740a2a5c6266b1dee4f34b8",
+    "scripts/clipboard-storage-g1.mjs": "c9a8991595f2d5f1b4f1068acfd614d0920f41781eba3b72ebdaa74edfc8ecb8",
+    "scripts/lib/clipboard-format-g0-cases.mjs": "00dd3322377a1a421b8c03876d0a03b50b6ed6834866aa0e084e2a890f823a5f",
+    "scripts/lib/clipboard-format-g0-sources.d.mts": "8665a336cbcbd2ecc8e7b791f7ce9ab4cf49fd0801f4eccdcaa1b426da2257b7",
+    "scripts/lib/clipboard-format-g0-sources.mjs": "b450084c583e8dc483ea7cead447bff0c69321e1dacdcae327bd02332eeb3a07",
+    "scripts/lib/preload-database-fixture.mjs": "91c4c84826d31bec73c6799b51a88f5455cbdeed2ab5f6d3cc006b23bcaad11f",
+    "scripts/lib/rtf-destination-package-cases.mjs": "51c9ec97c906772aac3f60f17b65ed4590e3dc734fe5e9c13ef61ffd9e498423",
+    "scripts/lib/source-kit-files.mjs": "accb9bddd3fe60b3d8300daa4b32d122e834498e415bf59eee329a53abb02336",
+    "scripts/lib/source-kit-zip.mjs": "c4bfde5990c5dda979d1e8b01ff1d367a3f3228e80be15caf4383914e954eb20",
+    "scripts/lib/windows-source-kit.mjs": "3041943f911ee5939a47fb64766db65dda2aa34760c8cd1346bf8577eb0be729",
+    "scripts/lib/windows-storage-probe.mjs": "81845cf29c62650835c10fc10f814b0b234e75ff4239b3324225cedfe9a840e0",
+    "scripts/lib/windows-storage-report.mjs": "18e1b1e3ed1709a5a0e1a6a43053c40a18661cbad8acfcc11c39f34f3b508e6a",
+    "scripts/lib/windows-storage-sources.mjs": "67198d6ce6191c40b400aed92601db489665f8a4fa43cf47df651e92ab69d907",
+    "scripts/package-clipboard-format-windows-source-kit.mjs": "2015b1de5bca0afb6baa04b6099c1544e54b1f3bd4188c8cac12fe3811f57a23",
+    "scripts/test-clipboard-format-g0-sources.mjs": "cd5f225c51dc0f120c2469d1df9ed3864e41b23b4570f9c6f107b10c49796f53",
+    "scripts/test-content-scanner-package.mjs": "c439ee5079118a9e46f786e32d78baae95e999dc62766381217c54340fdb4760",
+    "scripts/test-package-clipboard-format-windows-source-kit.mjs": "4468129451b38bf4867f0d95b4daacc94cb1f32145701a89abf7b003a3ebae13",
+    "scripts/test-preload-database-package.mjs": "cc86cafbd61c049a30f594773f21d8d31265ce144a8a8cfdfaeae18f39299dcf",
+    "scripts/test-preload-history-clear-queue-package.mjs": "e9d82a9ca696de26d9be5f1226bdbf26a04c57b4a0c1ae5af1b902a6b87a503e",
+    "scripts/test-preload-history-clear-replay-package.mjs": "fd1cd21f2783d07d4d68fb0aeb231cedfb712a9e159ceffd21b18d01cc06c9a6",
+    "scripts/test-preload-image-package.mjs": "bcdf1b7619fc40a0fee00382b006c439b7cdfd6032195dac1e6a7ff46eb175c9",
+    "scripts/test-preload-image-retry-rotation-package.mjs": "c87ef61c35f0c3a1c8ff18679b989ffff620e1ecc2b9d6b086be201579e08d0e",
+    "scripts/test-preload-mirror-isolation-package.mjs": "eff8058252ce87b635e2e9f8a9ef976db7a76f34a10f8da18e478cb864f8e55b",
+    "scripts/test-windows-storage-report.mjs": "c8dcd6c1b6cdf1d5ce0cd6e8434065b1efa939b807ebca72a88fde49ceee5dc7",
+    "scripts/test-windows-storage-sources.mjs": "8ad6cc51102b45e6a6945d4272f5183eb91fa5ea7bb143e901a4baf2aaa47ab3",
+    "tsconfig.base.json": "2c896db1f478675dc1a82e44a924aa42adbe1530e37adf8c940de8e10ffad975",
+    "tsconfig.json": "10e22749384d18eb72539048d62b5e477df58d50509a1cb0cb73fa0c8064d786"
+  },
+  "sourceSnapshot": "v032-source-snapshot",
+  "sourceScope": "445 selected paths, not whole repository or earlier UI audit",
+  "newSourcePaths": [
+    "apps/ztools/preload/history-clear-boundary.ts",
+    "apps/ztools/preload/history-clear-identity.ts",
+    "apps/ztools/preload/host-history-boundary.ts",
+    "apps/ztools/tests/history-clear-boundary.test.ts",
+    "apps/ztools/tests/host-history-boundary.test.ts",
+    "apps/ztools/tests/history-clear-replay.test.ts",
+    "scripts/test-preload-history-clear-replay-package.mjs"
+  ],
+  "priorPhaseChangedSourcePaths": [
+    "apps/ztools/preload/clear-history.ts",
+    "apps/ztools/preload/clipboard-document-database.ts",
+    "apps/ztools/preload/clipboard-history-mirror.ts",
+    "apps/ztools/preload/clipboard-record-store.ts",
+    "apps/ztools/preload/clipboard-store-types.ts",
+    "apps/ztools/preload/ztools-history-coordinator.ts",
+    "apps/ztools/tests/clear-history.test.ts",
+    "apps/ztools/tests/memory-clipboard-store.ts",
+    "scripts/lib/preload-database-fixture.mjs"
+  ],
+  "changedAndNewLineCounts": {
+    "apps/ztools/preload/clear-history.ts": 61,
+    "apps/ztools/preload/clipboard-document-database.ts": 320,
+    "apps/ztools/preload/clipboard-history-mirror.ts": 216,
+    "apps/ztools/preload/clipboard-record-store.ts": 317,
+    "apps/ztools/preload/clipboard-store-types.ts": 103,
+    "apps/ztools/preload/ztools-history-coordinator.ts": 444,
+    "apps/ztools/tests/clear-history.test.ts": 87,
+    "apps/ztools/tests/memory-clipboard-store.ts": 53,
+    "scripts/lib/preload-database-fixture.mjs": 340,
+    "apps/ztools/preload/history-clear-boundary.ts": 278,
+    "apps/ztools/preload/history-clear-identity.ts": 32,
+    "apps/ztools/preload/host-history-boundary.ts": 282,
+    "apps/ztools/tests/history-clear-boundary.test.ts": 357,
+    "apps/ztools/tests/host-history-boundary.test.ts": 330,
+    "apps/ztools/tests/history-clear-replay.test.ts": 336,
+    "scripts/test-preload-history-clear-replay-package.mjs": 365
+  },
+  "baselinePreservation": {
+    "priorSelectedSources": 438,
+    "changed": 9,
+    "unchanged": 429,
+    "nativeSelectedSourcesUnchanged": 190,
+    "priorRootsUnchanged": true,
+    "priorFullWorkspaceSuiteRerun": false
+  },
+  "checks": [
+    {
+      "file": "v032-exact-final-checks-02/checks.json",
+      "sha256": "19411e5687738db2abe42571d48e09e67a68b6f50976f3bd7a5a6a6ba915a0d9"
+    },
+    {
+      "file": "v032-exact-final-checks-02/node-targets.stdout.txt",
+      "sha256": "4f147fc258337ae0b44dd508f50bf69bfc75c8b530e765ad9129f5f0592fea15"
+    },
+    {
+      "file": "v032-exact-final-checks-02/node-targets.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/electron-targets.stdout.txt",
+      "sha256": "2baefe73d8174ceb2c1739bd123feb0653fcc5d1e56ff8c3ae6d5d81bc833001"
+    },
+    {
+      "file": "v032-exact-final-checks-02/electron-targets.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/root-types.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/root-types.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/app-types.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/app-types.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/workspace-contract.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/workspace-contract.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/preload-build.stdout.txt",
+      "sha256": "590e1237299fa0c2d0b66ba626b54049e32fedc7efed96a309c93b46e9cd9d4d"
+    },
+    {
+      "file": "v032-exact-final-checks-02/preload-build.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/assemble.stdout.txt",
+      "sha256": "79431471a4340e4a26914d5b55d9d50ba79f1fdd8964cf200f4bbc80d633a921"
+    },
+    {
+      "file": "v032-exact-final-checks-02/assemble.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/package-contract.stdout.txt",
+      "sha256": "9f1935ef2c09f6099266cbc59c290685ae2f479692ddb63269e95a4ad49faca9"
+    },
+    {
+      "file": "v032-exact-final-checks-02/package-contract.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "testBreakdown": {
+    "scope": "15 relevant Vitest files; no full workspace rerun",
+    "node": {
+      "pass": 157,
+      "fail": 0,
+      "skip": 0
+    },
+    "electronNode": {
+      "pass": 157,
+      "fail": 0,
+      "skip": 0
+    },
+    "clearStore": 9,
+    "sourceReader": 26,
+    "clearReplay": 9,
+    "typesBuildContracts": 6
+  },
+  "packagedChecks": {
+    "scope": "actual assembled CJS graph with synthetic SDK; VM platform linux; no installed-host or real-clipboard claim",
+    "checksPerRuntime": 35,
+    "redGreen": [
+      {
+        "phase": "v031-red",
+        "runtime": "node",
+        "checks": 35,
+        "receipt": {
+          "file": "v032-work/replay-v031-red-node-02.json",
+          "sha256": "75340d43e94eedd52057a7b18bf5395da6d766dd0679f99dd230528c0e8ce0aa"
+        },
+        "processReceipt": {
+          "file": "v032-work/replay-v031-red-node-02.process.json",
+          "sha256": "420a96f4cd5ba7ff10f42e29a0d2ec1287aaefc29d07e0729e1f663bea8bc407"
+        }
+      },
+      {
+        "phase": "v031-red",
+        "runtime": "electron",
+        "checks": 35,
+        "receipt": {
+          "file": "v032-work/replay-v031-red-electron-02.json",
+          "sha256": "b2605668a266e0381581c98906e609338a1d21802434a22fb79b8bce2be984dc"
+        },
+        "processReceipt": {
+          "file": "v032-work/replay-v031-red-electron-02.process.json",
+          "sha256": "69af2c7ea4c38a0990d384443738fb3eef432734a66c204926dfb0ac0050626e"
+        }
+      },
+      {
+        "phase": "v032-green",
+        "runtime": "node",
+        "checks": 35,
+        "receipt": {
+          "file": "v032-work/replay-v032-green-node-01.json",
+          "sha256": "a1072789df1507e2b95af7fd2f715381fc2d653bca199decf86b3178da680fe8"
+        },
+        "processReceipt": {
+          "file": "v032-work/replay-v032-green-node-01.process.json",
+          "sha256": "5c25146ae066126629407d6830ddacc0ffcc75f785860cefa07d10cf8e9bcf11"
+        }
+      },
+      {
+        "phase": "v032-green",
+        "runtime": "electron",
+        "checks": 35,
+        "receipt": {
+          "file": "v032-work/replay-v032-green-electron-01.json",
+          "sha256": "03504d8da5da2b8a67b5f8a9d8dd615253d35a7402f021962b1aea8ddfb49c9a"
+        },
+        "processReceipt": {
+          "file": "v032-work/replay-v032-green-electron-01.process.json",
+          "sha256": "82d83d75eb24d93e6af82bff8c7f024e28decee89afe36ed502db53da407960b"
+        }
+      }
+    ]
+  },
+  "sourceRegressionLogs": [
+    {
+      "file": "v032-clear-replay-tests/node-red.02.log",
+      "sha256": "a511920a384a83ee7d1fc697d1efffa3e824fa3e805cd53b8c3119654a8a2884"
+    },
+    {
+      "file": "v032-clear-replay-tests/node-red.03.log",
+      "sha256": "9ff4aacf58c3305bf7ddac31c7cef9684260a543127680473be54b625cdeef96"
+    },
+    {
+      "file": "v032-clear-replay-tests/node-red.04.log",
+      "sha256": "e3a14a66c3e1ecaf872c984e3f435bc8494baba010d9e6f06abcfacf0983cb53"
+    },
+    {
+      "file": "v032-clear-replay-tests/node-green.03.log",
+      "sha256": "01140772a1dac715d24bdeb2606a04b3c3a8803a393b4a9ecadaa7091ce702c9"
+    },
+    {
+      "file": "v032-clear-replay-tests/electron-green.03.log",
+      "sha256": "15908b0df0af78c12f3d4b8ee849461ca64dbac3f9be21435ed619311b7d87c6"
+    }
+  ],
+  "capacityFixtureReceipts": [
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-electron-83306-53b09419-4d3f-48ad-8a8b-829e8f75680f.json",
+      "sha256": "62bb77c9c0298e6c49af82e132c9ee5aca5484bd462a07b116e8d795230067fe"
+    },
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-electron-85715-db1c3a04-2b13-4c4c-b459-102225f80dce.json",
+      "sha256": "d88505a29a650ae50a502de28d537c9966568bd925d4658b42905f3d1f06112c"
+    },
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-node-82667-e0207fb7-0058-4260-bc9b-4c3eff880bf5.json",
+      "sha256": "c13a999a729df636dd5ef2f08fe6df5af869a1ea11f811a148d66bc73161f71e"
+    },
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-node-83297-e4537860-4b55-461a-be74-dd8b70c179f8.json",
+      "sha256": "8b1e62bcb99f28155133eb0773cabe70726ad62315ddf62b33f65c11357d3822"
+    },
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-node-85693-d6486dcf-b12e-4fc2-b8d9-5685b05d26d9.json",
+      "sha256": "ec45c21417d309b33b598e11e06894d14c7da68fcc88bc4bb8a0535048cc9323"
+    }
+  ],
+  "pluginPackage": {
+    "fileHashes": {
+      "dist/ztools/HTML_PARSER_NOTICES.txt": "6f3a74069119a82a798fda3019b6778000c3b76571fa27e6f4e8338dd794c73e",
+      "dist/ztools/assets/index-BFrHjs0q.js": "ce2188c174ab7daf6a7f74c235ee9cd2b72e9f700786f4539768d28672f72e64",
+      "dist/ztools/assets/index-D5kNhuCE.css": "c7e38219dd96bd3cea345072773d23d06e7b04bcf06f1ea5823c737792c09d6e",
+      "dist/ztools/chunks/clipboard-tombstone-v2-D5n9v-1z.cjs": "5e48088fe2a284144bc0645cb6da4525b5eb51b0ef642ba4db98dba937ff3b0c",
+      "dist/ztools/chunks/history-search-index-CXhy0P51.cjs": "59ed105f20ee39fe8b47f2e9aca084740c2026eede82bf82afd33a7585cfaddf",
+      "dist/ztools/chunks/index-B159MLaM.cjs": "4136ec83ce50265a20186716784e66e19c99d5ff2d02eac4fe39fe6d7798637d",
+      "dist/ztools/content-scan-worker.cjs": "0e6e885b0b00fd307b657e89750a3827b89b5f7e2ed0522c3096e0a891c3d1c0",
+      "dist/ztools/history-worker.cjs": "4210166ad7341b52b93a9309c660ba997dc6df68b094cbb4522da166e47c92d6",
+      "dist/ztools/index.html": "906cef4ec896cc4976e2edb49090d2b92d3bbb79f600abba2b148be5a5d8b96c",
+      "dist/ztools/logo.png": "fd3e919353fb07c5ef8bb4c1214a50b308a96d1705d569e01797bcb950611ef0",
+      "dist/ztools/package.json": "8005a3491db7d92f36ac66369861589f9c47123d3a7c71e643fc2c06168cd45a",
+      "dist/ztools/paste-stack-key-monitor.py": "17b3cb5bbad34ef2de9ed27784277bb4b3e480600fda837ebc5f7e62149d3012",
+      "dist/ztools/pasteboard-vision": "5e403ada937efacabf58794b64b9b6ee2999bf3a616a70e886695a8f13aed5f3",
+      "dist/ztools/plugin.json": "58e89b2e6b9d3c95711fe5f41852b24e2de32e0c2575c4866eb9fc1cc9e62ae8",
+      "dist/ztools/preload.js": "e2449b46193cad68b113b48ce855a58fe91d465b4aa43333bdb4245e65b09f3e"
+    },
+    "snapshot": "v032-plugin-snapshot",
+    "changedPaths": [
+      "dist/ztools/preload.js"
+    ],
+    "preloadRebuilt": true,
+    "rendererRebuilt": false
+  },
+  "runtimePackageHashes": {
+    "packages/snapshot-store/dist/runtime/index.mjs": "edb392f61d5b30f7b558c47509f63bbd0624c527deb6394176a1fb55cd3a4a4b",
+    "packages/snapshot-store/dist/src/index.d.ts": "400d09d7ee7a4bc0018e650e85094578b23aaba921f804f35033f19d67d2f780"
+  },
+  "runtimePackageSnapshot": "v032-inputs/runtime-v031",
+  "runtimePackageChanged": false,
+  "runtimePackageRebuilt": false,
+  "clearIdentity": {
+    "identityEncoding": "sha256(JSON.stringify([normalizedHostId, timestamp]) UTF-8)",
+    "deviceSpecificKey": true,
+    "exactMembershipOnly": true,
+    "throughIsReferenceOnly": true,
+    "excludedRowsAdvanceMainCursor": false,
+    "sortedUniqueUnionOnConflict": true,
+    "maximumIdentities": 100000,
+    "capacityOverflowBeforeDeletion": true,
+    "automaticTruncationOrReset": false,
+    "crossDevicePermanentDeletion": false
+  },
+  "host": {
+    "sourceWrites": false,
+    "systemConfigurationWrites": false,
+    "integration": "external dependency excluded from this phase; not a pending request to resume host edits"
+  },
+  "windows": {
+    "userEnvironmentAvailable": false,
+    "g0Cases": 105,
+    "storageFoundationCases": 15,
+    "execution": "NOT-RUN",
+    "windows12AndLater": "separate gates not executed"
+  },
+  "boundaries": [
+    "V1 main cursor still timestamp/id ordered; pre-existing cursor can filter later clock-rollback or same-timestamp lower-ID copies",
+    "exact same ID+timestamp reuse cannot be distinguished",
+    "offset pagination not an atomic snapshot; host may fold errors into valid empty pages",
+    "100k identity document approximately 6.7MB; real-host IPC capacity and latency not validated; monotonic union can reach hard cap",
+    "per-run marker validation/copy and repeated history scans remain possible; binary lookup avoids an additional Set",
+    "clear and OS external copies are not atomic; partial database/blob deletion does not roll back marker",
+    "single-item deletion replay and vault sync writes remain separate gaps",
+    "host history cannot recover representations discarded before plugin visibility",
+    "no full G0-G4, Windows SDK/native/application, migration or production-sync acceptance",
+    "no git add/commit/push/publish"
+  ],
+  "historicalEvidenceGap": "v0.26 Node journal timing body remains HISTORICAL_EVIDENCE_UNAVAILABLE; no substitute or claimed recovery",
+  "evidenceAssemblyRecipe": {
+    "file": "v032-work/recipes/assemble-evidence.py",
+    "sha256": "311b7744734147ce5c4686d186d58d69620462052ff1213fc68b9ee600d3e47b"
+  },
+  "checkRecipe": {
+    "file": "v032-work/recipes/run-checks.py",
+    "sha256": "886de10350f4d05815d214817b89b6b1899d9667f84dec013cd8abde02b87bfc"
+  },
+  "packagedRecipe": {
+    "file": "v032-work/recipes/run-packaged-replay.py",
+    "sha256": "eeee48961412a47c606f2faeb5c7d39a002a82d4e006e56c6879c1e155bba6fc"
+  },
+  "evidenceFiles": [
+    {
+      "file": "v032-exact-final-checks-02/checks.json",
+      "sha256": "19411e5687738db2abe42571d48e09e67a68b6f50976f3bd7a5a6a6ba915a0d9"
+    },
+    {
+      "file": "v032-exact-final-checks-02/node-targets.stdout.txt",
+      "sha256": "4f147fc258337ae0b44dd508f50bf69bfc75c8b530e765ad9129f5f0592fea15"
+    },
+    {
+      "file": "v032-exact-final-checks-02/node-targets.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/electron-targets.stdout.txt",
+      "sha256": "2baefe73d8174ceb2c1739bd123feb0653fcc5d1e56ff8c3ae6d5d81bc833001"
+    },
+    {
+      "file": "v032-exact-final-checks-02/electron-targets.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/root-types.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/root-types.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/app-types.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/app-types.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/workspace-contract.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/workspace-contract.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/preload-build.stdout.txt",
+      "sha256": "590e1237299fa0c2d0b66ba626b54049e32fedc7efed96a309c93b46e9cd9d4d"
+    },
+    {
+      "file": "v032-exact-final-checks-02/preload-build.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/assemble.stdout.txt",
+      "sha256": "79431471a4340e4a26914d5b55d9d50ba79f1fdd8964cf200f4bbc80d633a921"
+    },
+    {
+      "file": "v032-exact-final-checks-02/assemble.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-exact-final-checks-02/package-contract.stdout.txt",
+      "sha256": "9f1935ef2c09f6099266cbc59c290685ae2f479692ddb63269e95a4ad49faca9"
+    },
+    {
+      "file": "v032-exact-final-checks-02/package-contract.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-work/replay-v031-red-node-02.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-work/replay-v031-red-node-02.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-work/replay-v031-red-node-02.json",
+      "sha256": "75340d43e94eedd52057a7b18bf5395da6d766dd0679f99dd230528c0e8ce0aa"
+    },
+    {
+      "file": "v032-work/replay-v031-red-node-02.process.json",
+      "sha256": "420a96f4cd5ba7ff10f42e29a0d2ec1287aaefc29d07e0729e1f663bea8bc407"
+    },
+    {
+      "file": "v032-work/replay-v031-red-electron-02.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-work/replay-v031-red-electron-02.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-work/replay-v031-red-electron-02.json",
+      "sha256": "b2605668a266e0381581c98906e609338a1d21802434a22fb79b8bce2be984dc"
+    },
+    {
+      "file": "v032-work/replay-v031-red-electron-02.process.json",
+      "sha256": "69af2c7ea4c38a0990d384443738fb3eef432734a66c204926dfb0ac0050626e"
+    },
+    {
+      "file": "v032-work/replay-v032-green-node-01.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-work/replay-v032-green-node-01.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-work/replay-v032-green-node-01.json",
+      "sha256": "a1072789df1507e2b95af7fd2f715381fc2d653bca199decf86b3178da680fe8"
+    },
+    {
+      "file": "v032-work/replay-v032-green-node-01.process.json",
+      "sha256": "5c25146ae066126629407d6830ddacc0ffcc75f785860cefa07d10cf8e9bcf11"
+    },
+    {
+      "file": "v032-work/replay-v032-green-electron-01.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-work/replay-v032-green-electron-01.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "v032-work/replay-v032-green-electron-01.json",
+      "sha256": "03504d8da5da2b8a67b5f8a9d8dd615253d35a7402f021962b1aea8ddfb49c9a"
+    },
+    {
+      "file": "v032-work/replay-v032-green-electron-01.process.json",
+      "sha256": "82d83d75eb24d93e6af82bff8c7f024e28decee89afe36ed502db53da407960b"
+    },
+    {
+      "file": "v032-clear-replay-tests/node-red.02.log",
+      "sha256": "a511920a384a83ee7d1fc697d1efffa3e824fa3e805cd53b8c3119654a8a2884"
+    },
+    {
+      "file": "v032-clear-replay-tests/node-red.03.log",
+      "sha256": "9ff4aacf58c3305bf7ddac31c7cef9684260a543127680473be54b625cdeef96"
+    },
+    {
+      "file": "v032-clear-replay-tests/node-red.04.log",
+      "sha256": "e3a14a66c3e1ecaf872c984e3f435bc8494baba010d9e6f06abcfacf0983cb53"
+    },
+    {
+      "file": "v032-clear-replay-tests/node-green.03.log",
+      "sha256": "01140772a1dac715d24bdeb2606a04b3c3a8803a393b4a9ecadaa7091ce702c9"
+    },
+    {
+      "file": "v032-clear-replay-tests/electron-green.03.log",
+      "sha256": "15908b0df0af78c12f3d4b8ee849461ca64dbac3f9be21435ed619311b7d87c6"
+    },
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-electron-83306-53b09419-4d3f-48ad-8a8b-829e8f75680f.json",
+      "sha256": "62bb77c9c0298e6c49af82e132c9ee5aca5484bd462a07b116e8d795230067fe"
+    },
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-electron-85715-db1c3a04-2b13-4c4c-b459-102225f80dce.json",
+      "sha256": "d88505a29a650ae50a502de28d537c9966568bd925d4658b42905f3d1f06112c"
+    },
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-node-82667-e0207fb7-0058-4260-bc9b-4c3eff880bf5.json",
+      "sha256": "c13a999a729df636dd5ef2f08fe6df5af869a1ea11f811a148d66bc73161f71e"
+    },
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-node-83297-e4537860-4b55-461a-be74-dd8b70c179f8.json",
+      "sha256": "8b1e62bcb99f28155133eb0773cabe70726ad62315ddf62b33f65c11357d3822"
+    },
+    {
+      "file": "v032-clear-boundary-tests/capacity-result-node-85693-d6486dcf-b12e-4fc2-b8d9-5685b05d26d9.json",
+      "sha256": "ec45c21417d309b33b598e11e06894d14c7da68fcc88bc4bb8a0535048cc9323"
+    },
+    {
+      "file": "v032-inputs/v031-root-evidence.json",
+      "sha256": "15ef150f27c48aea73fe9d6420f726cae2fa0d7006cfc3f7fef3ba240830cd14"
+    },
+    {
+      "file": "v032-work/recipes/assemble-evidence.py",
+      "sha256": "311b7744734147ce5c4686d186d58d69620462052ff1213fc68b9ee600d3e47b"
+    },
+    {
+      "file": "v032-work/recipes/run-checks.py",
+      "sha256": "886de10350f4d05815d214817b89b6b1899d9667f84dec013cd8abde02b87bfc"
+    },
+    {
+      "file": "v032-work/recipes/run-packaged-replay.py",
+      "sha256": "eeee48961412a47c606f2faeb5c7d39a002a82d4e006e56c6879c1e155bba6fc"
+    }
+  ],
+  "localPhaseStatus": "plugin-only implementation, independent source review, related tests, actual packaged CJS regression and documentation audit complete; original G0-G4 objective incomplete",
+  "independentReview": {
+    "file": "v032-independent-review.json",
+    "sha256": "8e2b7bf2feec19e647721f00e58316876f8a47491c1e75ce2863f3196e03e69f"
+  },
+  "documentationAudit": {
+    "files": 20,
+    "localLinksChecked": 735,
+    "fileHashesAndLines": {
+      "docs/clipboard-format-fidelity/ACCEPTANCE.md": {
+        "sha256": "5b812129e1c74681cbb4e31e70ca37903608ede03a172d456d5d0557b5b21ee8",
+        "lines": 426
+      },
+      "docs/clipboard-format-fidelity/G0_REMAINING.md": {
+        "sha256": "64cb87dd9a70e37a8e4503dfce9a57f476150450ebfe88bd22b87e1cc670a03e",
+        "lines": 177
+      },
+      "docs/clipboard-format-fidelity/G0_RUNBOOK.md": {
+        "sha256": "224e2afb7d33bed73a6fad29c188e7395deb4aaab975591ba40c85a5dd7af0a8",
+        "lines": 310
+      },
+      "docs/clipboard-format-fidelity/G1_CONSUMER_INBOX.md": {
+        "sha256": "a16ca6c7b9a9aeac94cafab45303483a7d9115cddfe354566a63170bef7a583e",
+        "lines": 129
+      },
+      "docs/clipboard-format-fidelity/G1_DELETION.md": {
+        "sha256": "da9f7ec47f807556200a24ad6b4b5a0310853749741dcd13979c561a907366b3",
+        "lines": 58
+      },
+      "docs/clipboard-format-fidelity/G1_DURABLE_STORE.md": {
+        "sha256": "1ad5c26655c54f13aa81d4317712cf909673cef724e02e64e5fdce966e695f8f",
+        "lines": 143
+      },
+      "docs/clipboard-format-fidelity/G1_RECLAMATION.md": {
+        "sha256": "411c35b823712921ae1d3f3fb2ae98f2b7d5489c81b2868cffaa9afd708aba0a",
+        "lines": 96
+      },
+      "docs/clipboard-format-fidelity/HISTORY_CLEAR_BOUNDARY.md": {
+        "sha256": "36d8b4aab54a33e299ccd25b2f80627a782ff50ada6b801d8eba2ce20baababe",
+        "lines": 90
+      },
+      "docs/clipboard-format-fidelity/HISTORY_IMAGE_RETRY_ROTATION.md": {
+        "sha256": "cdb23494b927b0b36309b0f97493e4f2a640a8a9d17ede3c8f6ac12a6aff4253",
+        "lines": 56
+      },
+      "docs/clipboard-format-fidelity/HOST_V2_INTEGRATION_CONTRACT.md": {
+        "sha256": "25f6211fb9c8516b438e870d710e522c14366dd6bdad461f4b4bcac3fa6c2bd7",
+        "lines": 214
+      },
+      "docs/clipboard-format-fidelity/IMPLEMENTATION_HISTORY.md": {
+        "sha256": "9040c00b225c3d6fc9d63b63ff2558d7b7511c8be530f0826f3d8ecd137d6c47",
+        "lines": 174
+      },
+      "docs/clipboard-format-fidelity/IMPLEMENTATION_STATUS.md": {
+        "sha256": "b206d110ad7956e5533ad54dc7c3cf82818c93f92a34145b5ceffd086854a357",
+        "lines": 313
+      },
+      "docs/clipboard-format-fidelity/LEGACY_DATABASE_CONFIRMATION.md": {
+        "sha256": "643be6fecc9506f4097308e2b5877d5fa625b173f62f84ae57244d06007b802a",
+        "lines": 97
+      },
+      "docs/clipboard-format-fidelity/NATIVE_CAPTURE_WIRE.md": {
+        "sha256": "241f78cdefb9766a9828939524b942def5ac6b3649f98ace519bc6280b94a272",
+        "lines": 33
+      },
+      "docs/clipboard-format-fidelity/NATIVE_CAPTURE_WIRE_V2.md": {
+        "sha256": "9f6c21a52363586288f4af5cdf8f9def3882c33d38039f10f7469235465f9e6b",
+        "lines": 33
+      },
+      "docs/clipboard-format-fidelity/REVIEW.md": {
+        "sha256": "3bfb988972618d8fb25932665481a74718718dfc72b031c1f24db486183b4d39",
+        "lines": 430
+      },
+      "docs/clipboard-format-fidelity/RTF_PRIVACY_PROJECTION.md": {
+        "sha256": "6468443219b193224f98ea4a4c7d2bb4d64e4885acacaa1cfcd24bc186072cd9",
+        "lines": 83
+      },
+      "docs/clipboard-format-fidelity/TECHNICAL_PLAN.md": {
+        "sha256": "08b0581ba0301927c66d71c272de9cd72076f664fac26acacc973e4d63f6d9e5",
+        "lines": 495
+      },
+      "docs/clipboard-format-fidelity/V2_PLANNER_PORTABLE_CONTRACT.md": {
+        "sha256": "44f5c720759a0c12a932702ed4997a303c8bd71dbd7039c2f1c2169ae4de395a",
+        "lines": 145
+      },
+      "docs/clipboard-format-fidelity/WINDOWS_STORAGE_FOUNDATION.md": {
+        "sha256": "733145c4c2b37b91ba936a9d7ed980a5d493f2569528b3f9f53304c0b7032c60",
+        "lines": 84
+      }
+    },
+    "snapshot": "v032-docs-snapshot",
+    "changedDocuments": [
+      "ACCEPTANCE.md",
+      "HISTORY_CLEAR_BOUNDARY.md",
+      "HISTORY_IMAGE_RETRY_ROTATION.md",
+      "IMPLEMENTATION_STATUS.md",
+      "REVIEW.md",
+      "TECHNICAL_PLAN.md"
+    ],
+    "maxLines": 495,
+    "originalPlanSections1Through11Unchanged": true
+  },
+  "finalAuditRecipe": {
+    "file": "v032-work/recipes/final-audit.py",
+    "sha256": "0728124c4b6c052d50b46ab7e3149be245ee15e504b6585fabc12e51292eb62f"
+  },
+  "closedLocalPhaseAt": "2026-10-28T07:00:39.960895-07:00",
+  "finalAudit": {
+    "selectedSourcesVerified": 445,
+    "sourceSnapshotVerified": true,
+    "packageFilesVerified": 15,
+    "onlyPackagedPreloadChanged": true,
+    "rendererRebuilt": false,
+    "runtimeFilesVerifiedUnchanged": 2,
+    "independentReview": "APPROVE limited; reviewer did not execute tests",
+    "documentationPassed": true,
+    "originalPlanSections1Through11Unchanged": true,
+    "directEvidenceReferencesVerified": 88,
+    "fullWorkspaceSuiteRerun": false,
+    "nativePlatformTestsRerun": false,
+    "allGatesComplete": false,
+    "hostWrites": false,
+    "gitAddCommitPushPublish": false
+  }
+}

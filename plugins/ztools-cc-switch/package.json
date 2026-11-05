@@ -1,6 +1,6 @@
 {
   "name": "ztools-cc-switch",
-  "version": "1.53.0",
+  "version": "1.54.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "npm run install:preload && npm run build:sidecar && vite build && node scripts/verify-dist.mjs",
+    "publish": "ztools publish",
     "build:sidecar": "node scripts/build-sidecar.mjs",
     "preview": "vite preview",
     "test": "node --test tests/*.test.cjs",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
+    "@ztools-center/plugin-cli": "^1.2.0",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",

@@ -103,3 +103,36 @@ test('database read failures are not mistaken for missing records', async (conte
   await assert.rejects(repository.get('settings'), (error) => error.code === 'DEVICE_LINK_STORAGE_FAILED')
   await assert.rejects(repository.listDevices(), (error) => error.code === 'DEVICE_LINK_STORAGE_FAILED')
 })
+
+test('history cleanup removes pluginData attachments but never files outside the managed root', async (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'device-link-attachment-roots-'))
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const pluginData = path.join(root, 'plugin-data')
+  const currentAttachment = path.join(pluginData, 'attachments', 'current.txt')
+  const unrelatedFile = path.join(root, 'unrelated.txt')
+  for (const file of [currentAttachment, unrelatedFile]) {
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, 'fixture')
+  }
+
+  const message = {
+    _id: 'device-link:message:cleanup',
+    type: 'device-link-message',
+    id: 'cleanup',
+    attachments: [
+      { path: currentAttachment },
+      { path: unrelatedFile },
+    ],
+  }
+  let removed = false
+  const repository = createRepository({
+    async allDocs() { return [] },
+    async get(id) { return id === message._id && !removed ? message : null },
+    async put() {},
+    async remove() { removed = true },
+  }, pluginData)
+
+  assert.equal(await repository.removeMessage('cleanup', { removeOwnedAttachments: true }), true)
+  assert.equal(fs.existsSync(currentAttachment), false)
+  assert.equal(fs.existsSync(unrelatedFile), true)
+})

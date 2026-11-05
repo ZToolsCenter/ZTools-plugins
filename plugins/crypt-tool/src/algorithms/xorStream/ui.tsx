@@ -3,7 +3,7 @@ import type { AlgorithmProps } from '../../registry/types'
 import { Field } from '../../shared'
 import { runCodec, showError, showData } from '../codec'
 
-export default function XorStreamUI({ direction = 'encrypt' }: AlgorithmProps) {
+export default function XorStreamUI({ direction = 'encrypt', onDirectionChange }: AlgorithmProps) {
   const dir = direction
   const [key, setKey] = useState('')
   const [input, setInput] = useState('')
@@ -66,17 +66,21 @@ export default function XorStreamUI({ direction = 'encrypt' }: AlgorithmProps) {
         <button type="button" className="ct-btn ct-btn-primary" onClick={run}>
           {dir === 'encrypt' ? '加密' : '解密'}
         </button>
-        <button
-          type="button"
-          className="ct-btn ct-btn-ghost"
-          onClick={() => {
-            setInput(output)
-            setOutput('')
-            setError('')
-          }}
-        >
-          互换输入输出
-        </button>
+        {output && onDirectionChange ? (
+          <button
+            type="button"
+            className="ct-btn ct-btn-ghost"
+            onClick={() => {
+              setInput(output)
+              setOutput('')
+              setError('')
+              onDirectionChange(dir === 'encrypt' ? 'decrypt' : 'encrypt')
+            }}
+            title={dir === 'encrypt' ? '切换到解密并把当前结果作为输入' : '切换到加密并把当前结果作为输入'}
+          >
+            {dir === 'encrypt' ? '转入解密' : '转入加密'}
+          </button>
+        ) : null}
       </div>
       <div className="ct-output-zone">
         <div className="ct-zone-label">输出</div>

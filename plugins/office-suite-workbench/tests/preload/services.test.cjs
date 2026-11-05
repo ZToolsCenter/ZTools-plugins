@@ -7,10 +7,27 @@ const os = require('node:os')
 const path = require('node:path')
 
 const {
+  AI_CANCEL_SETTLE_TIMEOUT_MS,
   AI_TOOL_TIMEOUT_MS,
   MCP_TOOL_TIMEOUT_MS,
-  attachOfficeSuite
+  attachOfficeSuite,
+  getHostCompatibility
 } = require('../../preload/services.cjs')
+
+test('preload stays inert for real hosts without a trustworthy 2.4+ version', () => {
+  assert.deepEqual(getHostCompatibility(undefined), {
+    mode: 'browser-preview',
+    requiresUpgrade: false,
+    reason: 'browser-preview'
+  })
+  assert.equal(getHostCompatibility({}).requiresUpgrade, true)
+  assert.equal(getHostCompatibility({ getAppVersion() { throw new Error('bridge failure') } }).requiresUpgrade, true)
+  assert.equal(getHostCompatibility({ getAppVersion() { return 'invalid' } }).requiresUpgrade, true)
+  assert.equal(getHostCompatibility({ getAppVersion() { return '2.3.9' } }).requiresUpgrade, true)
+  assert.equal(getHostCompatibility({ getAppVersion() { return '2.4.0-beta.1' } }).requiresUpgrade, true)
+  assert.equal(getHostCompatibility({ getAppVersion() { return '2.4.0' } }).requiresUpgrade, false)
+  assert.equal(getHostCompatibility({ getAppVersion() { return '3.2.0' } }).requiresUpgrade, false)
+})
 
 function runnerMock() {
   const calls = []
@@ -51,6 +68,7 @@ test('attachOfficeSuite exposes only the fixed narrow UI methods', () => {
   const target = {}
   attachOfficeSuite(target, mock.runner, mock.installer)
   assert.deepEqual(Object.keys(target.officeSuite).sort(), [
+    'cancelAiRuns',
     'checkOfficeCliUpdate',
     'getMcpConfigs',
     'getMcpStatus',
@@ -108,16 +126,11 @@ test('native AI bridge enforces per-turn write approval without weakening MCP po
     { allowWrite: false }
   )
   assert.equal(read.ok, true)
-  assert.deepEqual(mock.calls[0], {
-    name: 'run',
-    args: [
-      ['get', '/tmp/report.docx', '/body'],
-      {
-        timeoutMs: AI_TOOL_TIMEOUT_MS,
-        env: { OFFICECLI_NO_AUTO_RESIDENT: '1' }
-      }
-    ]
-  })
+  assert.equal(mock.calls[0].name, 'run')
+  assert.deepEqual(mock.calls[0].args[0], ['get', '/tmp/report.docx', '/body'])
+  assert.equal(mock.calls[0].args[1].timeoutMs, AI_TOOL_TIMEOUT_MS)
+  assert.deepEqual(mock.calls[0].args[1].env, { OFFICECLI_NO_AUTO_RESIDENT: '1' })
+  assert.equal(mock.calls[0].args[1].signal instanceof AbortSignal, true)
 
   const blockedWrite = await target.officeSuite.runForAi(
     ['set', '/tmp/report.docx', '/body/p[1]', '--prop', 'bold=true'],
@@ -137,6 +150,121 @@ test('native AI bridge enforces per-turn write approval without weakening MCP po
   const invalidOptions = await target.officeSuite.runForAi('help', { allowWrite: true, env: {} })
   assert.equal(invalidOptions.ok, false)
   assert.equal(invalidOptions.error.code, 'INVALID_OPTIONS')
+})
+
+test('AI OfficeCLI runs can be cancelled as a group', async () => {
+  const signals = []
+  const runner = {
+    run(_command, options) {
+      signals.push(options.signal)
+      return new Promise((resolve) => {
+        options.signal.addEventListener('abort', () => resolve({
+          ok: false,
+          error: { code: 'OFFICECLI_ABORTED', message: 'OfficeCLI operation was cancelled.' }
+        }), { once: true })
+      })
+    }
+  }
+  const target = {}
+  attachOfficeSuite(target, runner)
+
+  const first = target.officeSuite.runForAi(['get', '/tmp/first.docx', '/body'], { allowWrite: false })
+  const second = target.officeSuite.runForAi(['get', '/tmp/second.docx', '/body'], { allowWrite: false })
+  const cancellation = target.officeSuite.cancelAiRuns()
+  assert.equal(signals.every((signal) => signal.aborted), true)
+  assert.equal((await first).error.code, 'OFFICECLI_ABORTED')
+  assert.equal((await second).error.code, 'OFFICECLI_ABORTED')
+  assert.deepEqual(await cancellation, { cancelled: 2, settled: true })
+  assert.deepEqual(await target.officeSuite.cancelAiRuns(), { cancelled: 0, settled: true })
+})
+
+test('a new AI run waits for the cancelled snapshot to settle and is not aborted with it', async () => {
+  const calls = []
+  let finishFirst
+  const runner = {
+    run(command, options) {
+      calls.push({ command, signal: options.signal })
+      if (calls.length === 1) {
+        return new Promise((resolve) => { finishFirst = resolve })
+      }
+      return Promise.resolve({
+        ok: true,
+        data: { command: command[0], args: command.slice(1), exitCode: 0, stdout: 'second', stderr: '' }
+      })
+    }
+  }
+  const target = {}
+  attachOfficeSuite(target, runner)
+
+  const first = target.officeSuite.runForAi(['set', '/tmp/first.docx', '/body', '--prop', 'bold=true'], { allowWrite: true })
+  const cancellation = target.officeSuite.cancelAiRuns()
+  const second = target.officeSuite.runForAi(['get', '/tmp/second.docx', '/body'], { allowWrite: false })
+  await Promise.resolve()
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].signal.aborted, true)
+
+  finishFirst({ ok: false, error: { code: 'OFFICECLI_ABORTED', message: 'cancelled after close' } })
+  assert.equal((await first).error.code, 'OFFICECLI_ABORTED')
+  assert.deepEqual(await cancellation, { cancelled: 1, settled: true })
+  assert.equal((await second).ok, true)
+  assert.equal(calls.length, 2)
+  assert.equal(calls[1].signal.aborted, false)
+})
+
+test('a queued AI run cancelled by a later epoch never reaches the runner', async () => {
+  const calls = []
+  let finishFirst
+  const runner = {
+    run(command, options) {
+      calls.push({ command, signal: options.signal })
+      return new Promise((resolve) => { finishFirst = resolve })
+    }
+  }
+  const target = {}
+  attachOfficeSuite(target, runner)
+
+  const first = target.officeSuite.runForAi(['set', '/tmp/first.docx', '/body', '--prop', 'bold=true'], { allowWrite: true })
+  const firstCancellation = target.officeSuite.cancelAiRuns()
+  const queued = target.officeSuite.runForAi(['set', '/tmp/queued.docx', '/body', '--prop', 'italic=true'], { allowWrite: true })
+  const secondCancellation = target.officeSuite.cancelAiRuns()
+  await Promise.resolve()
+  assert.equal(calls.length, 1)
+
+  finishFirst({ ok: false, error: { code: 'OFFICECLI_ABORTED', message: 'cancelled after close' } })
+  assert.equal((await first).error.code, 'OFFICECLI_ABORTED')
+  assert.deepEqual(await firstCancellation, { cancelled: 1, settled: true })
+  assert.deepEqual(await secondCancellation, { cancelled: 1, settled: true })
+  assert.equal((await queued).error.code, 'AI_RUN_CANCELLED')
+  assert.equal(calls.length, 1)
+})
+
+test('a new AI run starts only after the fixed cancellation timeout and reports unsettled', async () => {
+  assert.equal(AI_CANCEL_SETTLE_TIMEOUT_MS, 2_500)
+  const calls = []
+  const runner = {
+    run(command, options) {
+      calls.push({ command, signal: options.signal, at: Date.now() })
+      if (calls.length === 1) return new Promise(() => {})
+      return Promise.resolve({
+        ok: true,
+        data: { command: command[0], args: command.slice(1), exitCode: 0, stdout: 'after-timeout', stderr: '' }
+      })
+    }
+  }
+  const target = {}
+  attachOfficeSuite(target, runner)
+
+  void target.officeSuite.runForAi(['set', '/tmp/hung.docx', '/body', '--prop', 'bold=true'], { allowWrite: true })
+  const startedAt = Date.now()
+  const cancellation = target.officeSuite.cancelAiRuns()
+  const second = target.officeSuite.runForAi(['get', '/tmp/second.docx', '/body'], { allowWrite: false })
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  assert.equal(calls.length, 1)
+
+  assert.deepEqual(await cancellation, { cancelled: 1, settled: false })
+  assert.equal((await second).ok, true)
+  assert.equal(calls.length, 2)
+  assert.ok(calls[1].at - startedAt >= AI_CANCEL_SETTLE_TIMEOUT_MS - 100)
 })
 
 test('renderer bridge rejects hidden runner options before invocation', async () => {

@@ -52,18 +52,33 @@ function encryptAesGcm(value, key) {
   return Buffer.concat([nonce, cipher.getAuthTag(), body]).toString('base64')
 }
 
-function createCredentialStorage({ dataDir, safeStorage, legacyKey }) {
+function createCredentialStorage({
+  dataDir,
+  safeStorage,
+  legacyKey,
+  localKeyDataDir = dataDir,
+  fallbackLocalKeyDataDirs = [],
+}) {
   if (!dataDir) throw new TypeError('dataDir is required')
-  const keyPath = path.join(dataDir, 'credential-key-v2')
+  if (!localKeyDataDir) throw new TypeError('localKeyDataDir is required')
+  const keyPath = path.join(localKeyDataDir, 'credential-key-v2')
+  const fallbackKeyPaths = [...new Set(fallbackLocalKeyDataDirs
+    .filter((directory) => typeof directory === 'string' && directory)
+    .map((directory) => path.join(directory, 'credential-key-v2')))]
+    .filter((candidate) => candidate !== keyPath)
   let cachedLocalKey = null
 
-  function readLocalKey() {
-    const stat = fs.lstatSync(keyPath)
+  function readLocalKeyAt(candidate) {
+    const stat = fs.lstatSync(candidate)
     if (!stat.isFile() || stat.isSymbolicLink()) throw unavailable('本机设备授权密钥路径无效')
-    const key = fs.readFileSync(keyPath)
+    const key = fs.readFileSync(candidate)
     if (key.length !== KEY_BYTES) throw unavailable('本机设备授权密钥无效')
-    try { fs.chmodSync(keyPath, 0o600) } catch {}
+    try { fs.chmodSync(candidate, 0o600) } catch {}
     return key
+  }
+
+  function readLocalKey() {
+    return readLocalKeyAt(keyPath)
   }
 
   function localKey() {
@@ -79,9 +94,9 @@ function createCredentialStorage({ dataDir, safeStorage, legacyKey }) {
     }
 
     const generated = crypto.randomBytes(KEY_BYTES)
-    const temporaryPath = path.join(dataDir, `.credential-key-${process.pid}-${crypto.randomBytes(8).toString('hex')}.tmp`)
+    const temporaryPath = path.join(localKeyDataDir, `.credential-key-${process.pid}-${crypto.randomBytes(8).toString('hex')}.tmp`)
     try {
-      fs.mkdirSync(dataDir, { recursive: true })
+      fs.mkdirSync(localKeyDataDir, { recursive: true })
       const descriptor = fs.openSync(temporaryPath, 'wx', 0o600)
       try {
         let offset = 0
@@ -110,6 +125,19 @@ function createCredentialStorage({ dataDir, safeStorage, legacyKey }) {
       try { fs.unlinkSync(temporaryPath) } catch {}
     }
     return cachedLocalKey
+  }
+
+  function localKeysForUnseal() {
+    const keys = [localKey()]
+    for (const fallbackPath of fallbackKeyPaths) {
+      try {
+        keys.push(readLocalKeyAt(fallbackPath))
+      } catch (error) {
+        if (error?.code === 'ENOENT') continue
+        throw error
+      }
+    }
+    return keys
   }
 
   function seal(value) {
@@ -160,7 +188,16 @@ function createCredentialStorage({ dataDir, safeStorage, legacyKey }) {
     }
     if (sealed.startsWith(LOCAL_V2_PREFIX)) {
       try {
-        return decryptAesGcm(sealed.slice(LOCAL_V2_PREFIX.length), localKey())
+        const encoded = sealed.slice(LOCAL_V2_PREFIX.length)
+        let lastError
+        for (const key of localKeysForUnseal()) {
+          try {
+            return decryptAesGcm(encoded, key)
+          } catch (error) {
+            lastError = error
+          }
+        }
+        throw lastError || invalid()
       } catch (error) {
         if (error?.code === 'CREDENTIAL_BACKEND_UNAVAILABLE' || error?.code === 'CREDENTIAL_INVALID') throw error
         throw invalid(error)

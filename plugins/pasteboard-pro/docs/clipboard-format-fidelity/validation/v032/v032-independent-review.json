@@ -1,0 +1,143 @@
+{
+  "version": "v0.32",
+  "reviewer": "/root/v32_independent_review",
+  "conclusion": "APPROVE limited",
+  "scope": {
+    "repository": "/Users/harris/Desktop/ZTools-plugins",
+    "branch": "plugin/pasteboard-pro",
+    "worktree": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro",
+    "reviewed": "V0.32 exact clear-boundary sources, targeted tests, assembled preload CJS graph and the clear-boundary documentation",
+    "notReviewed": "Host implementation, installed ZTools integration, operating-system clipboard behavior and target-application paste behavior"
+  },
+  "reviewerDidNotRunTests": true,
+  "testEvidenceInspected": {
+    "sourceV031Control": {
+      "node": "EXPECTED_FAIL",
+      "electron": "EXPECTED_FAIL",
+      "checksPerRuntime": 35,
+      "passedPerRuntime": 22,
+      "failedPerRuntime": 13,
+      "receipts": {
+        "node": {
+          "path": "artifacts/pasteboardpro/clipboard-format-g0/v032-work/replay-v031-red-node-02.json",
+          "sha256": "75340d43e94eedd52057a7b18bf5395da6d766dd0679f99dd230528c0e8ce0aa"
+        },
+        "electron": {
+          "path": "artifacts/pasteboardpro/clipboard-format-g0/v032-work/replay-v031-red-electron-02.json",
+          "sha256": "b2605668a266e0381581c98906e609338a1d21802434a22fb79b8bce2be984dc"
+        }
+      }
+    },
+    "sourceV032": {
+      "node": "PASS",
+      "electron": "PASS",
+      "checksPerRuntime": 35,
+      "passedPerRuntime": 35,
+      "failedPerRuntime": 0,
+      "receipts": {
+        "node": {
+          "path": "artifacts/pasteboardpro/clipboard-format-g0/v032-work/replay-v032-green-node-01.json",
+          "sha256": "a1072789df1507e2b95af7fd2f715381fc2d653bca199decf86b3178da680fe8"
+        },
+        "electron": {
+          "path": "artifacts/pasteboardpro/clipboard-format-g0/v032-work/replay-v032-green-electron-01.json",
+          "sha256": "03504d8da5da2b8a67b5f8a9d8dd615253d35a7402f021962b1aea8ddfb49c9a"
+        }
+      },
+      "packagePreloadSha256": "e2449b46193cad68b113b48ce855a58fe91d465b4aa43333bdb4245e65b09f3e",
+      "loadedModuleHashes": {
+        "preload.js": "e2449b46193cad68b113b48ce855a58fe91d465b4aa43333bdb4245e65b09f3e",
+        "chunks/history-search-index-CXhy0P51.cjs": "59ed105f20ee39fe8b47f2e9aca084740c2026eede82bf82afd33a7585cfaddf",
+        "chunks/clipboard-tombstone-v2-D5n9v-1z.cjs": "5e48088fe2a284144bc0645cb6da4525b5eb51b0ef642ba4db98dba937ff3b0c",
+        "chunks/index-B159MLaM.cjs": "4136ec83ce50265a20186716784e66e19c99d5ff2d02eac4fe39fe6d7798637d"
+      },
+      "scope": "Synthetic SDK and Linux VM only; no installed host or real clipboard"
+    },
+    "targetedChecks": {
+      "node": "15 files, 157/157 passed",
+      "electron": "15 files, 157/157 passed",
+      "typesBuildContracts": "6 checks passed",
+      "receipt": "artifacts/pasteboardpro/clipboard-format-g0/v032-exact-final-checks-02/checks.json",
+      "receiptSha256": "19411e5687738db2abe42571d48e09e67a68b6f50976f3bd7a5a6a6ba915a0d9"
+    }
+  },
+  "reviewedSourceHashes": {
+    "apps/ztools/preload/clear-history.ts": "0ba2d6ea75ca053b41cb200be941552c7f264e4239432b367623971e354120ff",
+    "apps/ztools/preload/clipboard-history-mirror.ts": "f3ab81b59a0fb63b09710d1f351c3ec46d9b0bb3382f78aaa0c43bdd4e08a3eb",
+    "apps/ztools/preload/history-clear-boundary.ts": "cccaa6062801ac6410df51466386bb67e853eac52d7bb092be0df0b991783d2a",
+    "apps/ztools/preload/host-history-boundary.ts": "802bcdb297f1214aadb1174e93cb17a85a81e6fe3cc065992df1d1f294c8648d",
+    "apps/ztools/preload/history-clear-identity.ts": "ab703c76c4550db35c7c33897b041d661480da0f6007cab6724b8b1969078e1b",
+    "apps/ztools/preload/clipboard-document-database.ts": "10c9b0e371bbe50c422c0396a97dcb5291633e64dd0e678356cb07f491b4823f",
+    "apps/ztools/preload/clipboard-record-store.ts": "cdcf33a12be6219e3246b3e94eebd28915f6afb28227670b721b6b057666d8e9",
+    "apps/ztools/preload/clipboard-store-types.ts": "759c6c67b1b444ed750fc099000261d45d8f0352f6217bf99a9ec7f1ba0af792",
+    "apps/ztools/preload/ztools-history-coordinator.ts": "be0ac778c1c2a4ccd07e7f6b030d5595487a1728f9d1138ef593c6f267695161"
+  },
+  "frozenV031SourceHashesCompared": {
+    "apps/ztools/preload/clear-history.ts": "870bf16d8199a5f0ba6e1a93a663cb39251f5b71d890d63b7e229954d79bbf82",
+    "apps/ztools/preload/clipboard-history-mirror.ts": "2fdd301f36f06d10144603203a7a748a5c6deab5d758c64a6d32ba9a15a849e7",
+    "apps/ztools/preload/clipboard-record-store.ts": "8a7326575e828cdcd3e73edd5b0d98dfa1c70b968f6f9552ffea6622dcacd91f",
+    "apps/ztools/preload/clipboard-store-types.ts": "f14f3bc520138c714c2684e76b4f12732666a2aa207a81c7db1ef03eb32c229e",
+    "apps/ztools/preload/ztools-history-coordinator.ts": "88357247be87d3c01971ee6989abb821718b135e68e381ab997e9f1d4b53b876"
+  },
+  "reviewedTestHashes": {
+    "apps/ztools/tests/history-clear-boundary.test.ts": "b54b7ee733fe1483b1948c796f8811b770ce7515dc776a4a32acb7af831263bc",
+    "apps/ztools/tests/host-history-boundary.test.ts": "cb345b95fcf665f38bf637d3ece90f7d6a1b9b26d5a63fc2a4e03148398e1ffe",
+    "apps/ztools/tests/history-clear-replay.test.ts": "c3998bfc78ca042e1b7d2398ece0cf997a511d05ea0304c9ccc641f1a9578c7d",
+    "apps/ztools/tests/memory-clipboard-store.ts": "73da4977f620bebc80e06cc890cec40a8ccc458645ebfc5ac8ac95fcaa8d1102",
+    "apps/ztools/tests/clear-history.test.ts": "4f1d6724eda5c50e2f72646d105b9aa66f3fcd78ef5970c52692235ddfd0afda",
+    "apps/ztools/tests/clipboard-document-database.test.ts": "e33e3d29567bf1b284fd122df781f4f0a367db18e892158332ad8c65571c1a9b",
+    "apps/ztools/tests/history-clear-rpc.test.ts": "300ae767d7175f4dbc596d21902f698bc31e3b0193c351a14a96ad670c47aba2"
+  },
+  "reviewedHarnessHashes": {
+    "scripts/test-preload-history-clear-replay-package.mjs": "fd1cd21f2783d07d4d68fb0aeb231cedfb712a9e159ceffd21b18d01cc06c9a6",
+    "scripts/lib/preload-database-fixture.mjs": "91c4c84826d31bec73c6799b51a88f5455cbdeed2ab5f6d3cc006b23bcaad11f",
+    "artifacts/pasteboardpro/clipboard-format-g0/v032-plugin-snapshot/dist/ztools/preload.js": "e2449b46193cad68b113b48ce855a58fe91d465b4aa43333bdb4245e65b09f3e"
+  },
+  "reviewedDocumentHashes": {
+    "docs/clipboard-format-fidelity/HISTORY_CLEAR_BOUNDARY.md": "36d8b4aab54a33e299ccd25b2f80627a782ff50ada6b801d8eba2ce20baababe",
+    "docs/clipboard-format-fidelity/REVIEW.md": "3bfb988972618d8fb25932665481a74718718dfc72b031c1f24db486183b4d39"
+  },
+  "closedFindings": [
+    {
+      "severity": "P1",
+      "finding": "A timestamp/id cursor range used as a clear cutoff can suppress an unseen new row at the same timestamp with a smaller ID, or after timestamp rollback.",
+      "fix": "Clear suppression now uses membership in the confirmed SHA-256 identity set for exact (id,timestamp) pairs; `through` is retained only as a monotonic reference.",
+      "evidence": "Same-timestamp lower-ID and lower-timestamp unseen-copy tests; replay harness asserts both new copies are retained while cleared rows remain excluded."
+    },
+    {
+      "severity": "P2",
+      "finding": "A host page could report more returned items than its declared total and be accepted as a complete clear snapshot.",
+      "fix": "Reader rejects `items.length > total` before boundary construction.",
+      "evidence": "apps/ztools/preload/host-history-boundary.ts:136-149; apps/ztools/tests/host-history-boundary.test.ts:278-287."
+    },
+    {
+      "severity": "P2",
+      "finding": "The packaged replay harness did not protect its evidence-root path from symlink escape.",
+      "fix": "Evidence root is lstat/realpath checked and required inside the real plugin root; descendant directories reject symlinks.",
+      "evidence": "scripts/test-preload-history-clear-replay-package.mjs:48-76."
+    },
+    {
+      "severity": "P2",
+      "finding": "The VM loader could follow a package-local CJS symlink outside the supplied package, and successful recovery reads were not counted by the old-image replay assertion.",
+      "fix": "Each loaded chunk is realpath-contained in the package and rejected if it is a symlink; fixture counts both failed and successful source-image reads.",
+      "evidence": "scripts/lib/preload-database-fixture.mjs:271-280 and 216-231; replay check `old-image-was-not-read-again` requires exactly the initial read."
+    }
+  ],
+  "remainingFindings": [],
+  "v1Limitations": [
+    "The host source provides no monotonic sequence. The existing main cursor still sorts by (timestamp,id); a genuinely new row at or behind an already saved main cursor can still be skipped. This patch does not establish end-to-end no-loss behavior.",
+    "The clear marker identifies rows only by (id,timestamp); host reuse of the exact pair is indistinguishable from the cleared row.",
+    "Offset pagination has no stable snapshot guarantee. Inserts, deletes, reorderings, or total changes between pages can omit rows; omitted identities may later reappear. The host may also fold a read error into a valid empty page that the plugin cannot distinguish from an empty history.",
+    "Per-device identity union is permanently bounded at 100,000 entries. Once union capacity is exceeded, a later nonempty clear fails closed before record deletion. The host's real database IPC size and latency for the roughly 6.7 MB marker were not tested.",
+    "Repeated old-row pagination and full boundary validation/cloning costs are not measured against the installed host. No real ZTools host, OS clipboard, Windows 10/11/12, or target-application paste acceptance was run; the package replay VM reports Linux and uses a synthetic SDK."
+  ],
+  "documentationReview": {
+    "files": [
+      "docs/clipboard-format-fidelity/HISTORY_CLEAR_BOUNDARY.md",
+      "docs/clipboard-format-fidelity/REVIEW.md"
+    ],
+    "result": "Consistent with reviewed source and evidence; it explicitly preserves the V1 limits and non-host acceptance boundary."
+  },
+  "noSourceChangesByReviewer": true,
+  "receiptWriteScope": "This JSON is the only file written by this reviewer."
+}

@@ -1,0 +1,931 @@
+{
+  "format": "research-english-wordbook-v1",
+  "title": "生物基础词表",
+  "description": "保留原表中文释义与英美音标，支持顺序和随机打字练习。",
+  "domain": "biomedical",
+  "tags": [
+    "生物基础",
+    "中英词表"
+  ],
+  "source": {
+    "note": "用户提供的双语整理词表；名称沿用原文件，释义与音标未另行修订。",
+    "file": "biomedical_english_with_pronunciation.xls",
+    "sha256": "ffb97fc26ad7fd62e131b14259576c79af3618a95f49452699b6e6be8ec114ac"
+  },
+  "words": [
+    {
+      "term": "cell",
+      "meaning": "细胞",
+      "usphone": "sɛl",
+      "ukphone": "sɛl"
+    },
+    {
+      "term": "tissue",
+      "meaning": "组织",
+      "usphone": "ˈtɪsjuː",
+      "ukphone": "ˈtɪsjuː"
+    },
+    {
+      "term": "organ",
+      "meaning": "器官",
+      "usphone": "ˈɔːɡən",
+      "ukphone": "ˈɔːɡən"
+    },
+    {
+      "term": "organelle",
+      "meaning": "细胞器",
+      "usphone": "ˌɔɹɡənˈɛl",
+      "ukphone": "ˌɔɹɡənˈɛl"
+    },
+    {
+      "term": "cytoplasm",
+      "meaning": "细胞质",
+      "usphone": "ˈsaɪtəʊˌplæzəm",
+      "ukphone": "ˈsaɪtəʊˌplæzəm"
+    },
+    {
+      "term": "nucleus",
+      "meaning": "细胞核",
+      "usphone": "ˈnjuːkliəs",
+      "ukphone": "ˈnjuːkliəs"
+    },
+    {
+      "term": "membrane",
+      "meaning": "细胞膜",
+      "usphone": "ˈmembɹeɪn",
+      "ukphone": "ˈmembɹeɪn"
+    },
+    {
+      "term": "ribosome",
+      "meaning": "核糖体",
+      "usphone": "ˈɹaɪbəˌsəʊm",
+      "ukphone": "ˈɹaɪbəˌsəʊm"
+    },
+    {
+      "term": "mitochondria",
+      "meaning": "线粒体",
+      "usphone": "ˌmaɪtəˈkɑndriə",
+      "ukphone": "ˌmaɪtəˈkɒndrɪə"
+    },
+    {
+      "term": "chloroplast",
+      "meaning": "叶绿体",
+      "usphone": "ˈklɔːrəʊˌplæst",
+      "ukphone": "ˈklɔːrəʊˌplæst"
+    },
+    {
+      "term": "chromosome",
+      "meaning": "染色体",
+      "usphone": "ˈkɹəʊməˌsəʊm",
+      "ukphone": "ˈkɹəʊməˌsəʊm"
+    },
+    {
+      "term": "gene",
+      "meaning": "基因",
+      "usphone": "dʒiːn",
+      "ukphone": "dʒiːn"
+    },
+    {
+      "term": "genome",
+      "meaning": "基因组",
+      "usphone": "ˈdʒiːnəʊm",
+      "ukphone": "ˈdʒiːnəʊm"
+    },
+    {
+      "term": "DNA",
+      "meaning": "脱氧核糖核酸",
+      "usphone": "ˌdiːɛnˈeɪ",
+      "ukphone": "ˌdiːɛnˈeɪ"
+    },
+    {
+      "term": "RNA",
+      "meaning": "核糖核酸",
+      "usphone": "ˌɑrɛnˈeɪ",
+      "ukphone": "ˌɑːrɛnˈeɪ"
+    },
+    {
+      "term": "protein",
+      "meaning": "蛋白质",
+      "usphone": "ˈpɹəʊtiɪn",
+      "ukphone": "ˈpɹəʊtiɪn"
+    },
+    {
+      "term": "enzyme",
+      "meaning": "酶",
+      "usphone": "ˈɛnzaɪm",
+      "ukphone": "ˈɛnzaɪm"
+    },
+    {
+      "term": "peptide",
+      "meaning": "肽",
+      "usphone": "ˈpɛpteɪd",
+      "ukphone": "ˈpɛpteɪd"
+    },
+    {
+      "term": "amino acid",
+      "meaning": "氨基酸",
+      "usphone": "əˈminoʊ ˈæsɪd",
+      "ukphone": "əˈmiːnəʊ ˈasɪd"
+    },
+    {
+      "term": "molecule",
+      "meaning": "分子",
+      "usphone": "ˈmɒləkjuːl",
+      "ukphone": "ˈmɒləkjuːl"
+    },
+    {
+      "term": "metabolism",
+      "meaning": "新陈代谢",
+      "usphone": "mɪˈtabəlɪzəm",
+      "ukphone": "mɪˈtabəlɪzəm"
+    },
+    {
+      "term": "synthesis",
+      "meaning": "合成",
+      "usphone": "ˈsɪnθəsɪs",
+      "ukphone": "ˈsɪnθəsɪs"
+    },
+    {
+      "term": "replication",
+      "meaning": "复制",
+      "usphone": "ɹɛplɪˈkeɪʃən",
+      "ukphone": "ɹɛplɪˈkeɪʃən"
+    },
+    {
+      "term": "transcription",
+      "meaning": "转录",
+      "usphone": "tɹænˈskɹɪpʃən",
+      "ukphone": "tɹænˈskɹɪpʃən"
+    },
+    {
+      "term": "translation",
+      "meaning": "翻译（蛋白质合成）",
+      "usphone": "tɹæns-",
+      "ukphone": "tɹæns-"
+    },
+    {
+      "term": "mutation",
+      "meaning": "突变",
+      "usphone": "mjuˈteɪʃən",
+      "ukphone": "mjuˈteɪʃən"
+    },
+    {
+      "term": "genotype",
+      "meaning": "基因型",
+      "usphone": "ˈdʒɛnəʊtaɪp",
+      "ukphone": "ˈdʒɛnəʊtaɪp"
+    },
+    {
+      "term": "phenotype",
+      "meaning": "表型",
+      "usphone": "ˈfiːnə(ʊ)ˌtaɪp",
+      "ukphone": "ˈfiːnə(ʊ)ˌtaɪp"
+    },
+    {
+      "term": "allele",
+      "meaning": "等位基因",
+      "usphone": "ˈæliːl",
+      "ukphone": "ˈæliːl"
+    },
+    {
+      "term": "trait",
+      "meaning": "性状",
+      "usphone": "tɹeɪ",
+      "ukphone": "tɹeɪ"
+    },
+    {
+      "term": "inheritance",
+      "meaning": "遗传",
+      "usphone": "ɪnˈhɛɹətəns",
+      "ukphone": "ɪnˈhɛɹətəns"
+    },
+    {
+      "term": "stem cell",
+      "meaning": "干细胞",
+      "usphone": "stɛm sɛl",
+      "ukphone": "stɛm sɛl"
+    },
+    {
+      "term": "clone",
+      "meaning": "克隆",
+      "usphone": "kləʊn",
+      "ukphone": "kləʊn"
+    },
+    {
+      "term": "vector",
+      "meaning": "载体",
+      "usphone": "ˈvɛktə",
+      "ukphone": "ˈvɛktə"
+    },
+    {
+      "term": "CRISPR",
+      "meaning": "规律间隔成簇短回文重复序列（基因编辑技术）",
+      "usphone": "ˈkrɪspər",
+      "ukphone": "ˈkrɪspə"
+    },
+    {
+      "term": "neuron",
+      "meaning": "神经元",
+      "usphone": "ˈnjəɹɑn",
+      "ukphone": "ˈnjəɹɑn"
+    },
+    {
+      "term": "synapse",
+      "meaning": "突触",
+      "usphone": "sɪˈnæps",
+      "ukphone": "sɪˈnæps"
+    },
+    {
+      "term": "receptor",
+      "meaning": "受体",
+      "usphone": "ɹɪˈsɛptə",
+      "ukphone": "ɹɪˈsɛptə"
+    },
+    {
+      "term": "hormone",
+      "meaning": "激素",
+      "usphone": "ˈhɔːməʊn",
+      "ukphone": "ˈhɔːməʊn"
+    },
+    {
+      "term": "hormonal",
+      "meaning": "激素的",
+      "usphone": "hɔɹˈmoʊnəl",
+      "ukphone": "hɔɹˈmoʊnəl"
+    },
+    {
+      "term": "plasma",
+      "meaning": "血浆",
+      "usphone": "ˈplazmə",
+      "ukphone": "ˈplazmə"
+    },
+    {
+      "term": "serum",
+      "meaning": "血清",
+      "usphone": "ˈsiɹəm",
+      "ukphone": "ˈsiɹəm"
+    },
+    {
+      "term": "blood",
+      "meaning": "血液",
+      "usphone": "blʊd",
+      "ukphone": "blʊd"
+    },
+    {
+      "term": "vessel",
+      "meaning": "血管",
+      "usphone": "ˈvɛsl̩",
+      "ukphone": "ˈvɛsl̩"
+    },
+    {
+      "term": "artery",
+      "meaning": "动脉",
+      "usphone": "ˈɑːtəɹi",
+      "ukphone": "ˈɑːtəɹi"
+    },
+    {
+      "term": "vein",
+      "meaning": "静脉",
+      "usphone": "veɪn",
+      "ukphone": "veɪn"
+    },
+    {
+      "term": "lymph",
+      "meaning": "淋巴",
+      "usphone": "lɪmf",
+      "ukphone": "lɪmf"
+    },
+    {
+      "term": "lung",
+      "meaning": "肺",
+      "usphone": "ˈlʌŋ",
+      "ukphone": "ˈlʌŋ"
+    },
+    {
+      "term": "heart",
+      "meaning": "心脏",
+      "usphone": "hɑːt",
+      "ukphone": "hɑːt"
+    },
+    {
+      "term": "liver",
+      "meaning": "肝脏",
+      "usphone": "ˈlɪvə",
+      "ukphone": "ˈlɪvə"
+    },
+    {
+      "term": "kidney",
+      "meaning": "肾脏",
+      "usphone": "ˈkɪdni",
+      "ukphone": "ˈkɪdni"
+    },
+    {
+      "term": "stomach",
+      "meaning": "胃",
+      "usphone": "ˈstʌmək",
+      "ukphone": "ˈstʌmək"
+    },
+    {
+      "term": "intestine",
+      "meaning": "肠",
+      "usphone": "ɪnˈtɛstaɪn",
+      "ukphone": "ɪnˈtɛstaɪn"
+    },
+    {
+      "term": "brain",
+      "meaning": "脑",
+      "usphone": "bɹeɪn",
+      "ukphone": "bɹeɪn"
+    },
+    {
+      "term": "spinal cord",
+      "meaning": "脊髓",
+      "usphone": "ˈspaɪnl kɔrd",
+      "ukphone": "ˈspaɪnl kɔːd"
+    },
+    {
+      "term": "muscle",
+      "meaning": "肌肉",
+      "usphone": "ˈmʌsəl",
+      "ukphone": "ˈmʌsəl"
+    },
+    {
+      "term": "bone",
+      "meaning": "骨",
+      "usphone": "bəʉn",
+      "ukphone": "bəʉn"
+    },
+    {
+      "term": "cartilage",
+      "meaning": "软骨",
+      "usphone": "ˈkɑːtɪlɪd͡ʒ",
+      "ukphone": "ˈkɑːtɪlɪd͡ʒ"
+    },
+    {
+      "term": "tendon",
+      "meaning": "肌腱",
+      "usphone": "ˈtɛndən",
+      "ukphone": "ˈtɛndən"
+    },
+    {
+      "term": "virus",
+      "meaning": "病毒",
+      "usphone": "ˈvaɪɹəs",
+      "ukphone": "ˈvaɪɹəs"
+    },
+    {
+      "term": "bacteria",
+      "meaning": "细菌",
+      "usphone": "bækˈtɪəɹɪə",
+      "ukphone": "bækˈtɪəɹɪə"
+    },
+    {
+      "term": "pathogen",
+      "meaning": "病原体",
+      "usphone": "ˈpæθədʒn̩",
+      "ukphone": "ˈpæθədʒn̩"
+    },
+    {
+      "term": "antibody",
+      "meaning": "抗体",
+      "usphone": "ˈæntɪˌbɑdi",
+      "ukphone": "ˈæntɪbɒdi"
+    },
+    {
+      "term": "antigen",
+      "meaning": "抗原",
+      "usphone": "ˈæntɪdʒən",
+      "ukphone": "ˈæntɪdʒən"
+    },
+    {
+      "term": "vaccine",
+      "meaning": "疫苗",
+      "usphone": "vækˈsaɪn",
+      "ukphone": "vækˈsaɪn"
+    },
+    {
+      "term": "vaccination",
+      "meaning": "疫苗接种",
+      "usphone": "ˌvæksɪˈneɪʃn̩",
+      "ukphone": "ˌvæksɪˈneɪʃn̩"
+    },
+    {
+      "term": "immune",
+      "meaning": "免疫的",
+      "usphone": "ɪˈmjuːn",
+      "ukphone": "ɪˈmjuːn"
+    },
+    {
+      "term": "immunity",
+      "meaning": "免疫力",
+      "usphone": "ɪˈmjuːnəti",
+      "ukphone": "ɪˈmjuːnəti"
+    },
+    {
+      "term": "autoimmune",
+      "meaning": "自身免疫的",
+      "usphone": "ˌɔtoʊˈimjun",
+      "ukphone": "ˌɔːtəʊˈiːmjuːn"
+    },
+    {
+      "term": "allergy",
+      "meaning": "过敏",
+      "usphone": "[ˈælədʒi]",
+      "ukphone": "[ˈælədʒi]"
+    },
+    {
+      "term": "lymphocyte",
+      "meaning": "淋巴细胞",
+      "usphone": "ˈlɪmfəsaɪt",
+      "ukphone": "ˈlɪmfəsaɪt"
+    },
+    {
+      "term": "cytokine",
+      "meaning": "细胞因子",
+      "usphone": "ˈsaɪtəkaɪn",
+      "ukphone": "ˈsaɪtəkaɪn"
+    },
+    {
+      "term": "phagocyte",
+      "meaning": "吞噬细胞",
+      "usphone": "ˈfæɡəsaɪt",
+      "ukphone": "ˈfæɡəsaɪt"
+    },
+    {
+      "term": "macrophage",
+      "meaning": "巨噬细胞",
+      "usphone": "ˈmækrəfeɪdʒ",
+      "ukphone": "ˈmakrəfeɪdʒ"
+    },
+    {
+      "term": "white blood cell",
+      "meaning": "白细胞",
+      "usphone": "waɪt blʌd sɛl",
+      "ukphone": "waɪt blʌd sɛl"
+    },
+    {
+      "term": "red blood cell",
+      "meaning": "红细胞",
+      "usphone": "rɛd blʌd sɛl",
+      "ukphone": "rɛd blʌd sɛl"
+    },
+    {
+      "term": "platelet",
+      "meaning": "血小板",
+      "usphone": "ˈpleɪtlət",
+      "ukphone": "ˈpleɪtlət"
+    },
+    {
+      "term": "hemoglobin",
+      "meaning": "血红蛋白",
+      "usphone": "ˈhiːməˌɡloʊbɪn",
+      "ukphone": "ˈhiːməˌɡləʊbɪn"
+    },
+    {
+      "term": "infection",
+      "meaning": "感染",
+      "usphone": "ɪnˈfɛkʃən",
+      "ukphone": "ɪnˈfɛkʃən"
+    },
+    {
+      "term": "inflammation",
+      "meaning": "炎症",
+      "usphone": "ɪnfləˈmeɪʃən",
+      "ukphone": "ɪnfləˈmeɪʃən"
+    },
+    {
+      "term": "disease",
+      "meaning": "疾病",
+      "usphone": "dɪˈziːz",
+      "ukphone": "dɪˈziːz"
+    },
+    {
+      "term": "tumor",
+      "meaning": "肿瘤",
+      "usphone": "tjuːmə",
+      "ukphone": "tjuːmə"
+    },
+    {
+      "term": "benign",
+      "meaning": "良性的",
+      "usphone": "bɪˈnaɪn",
+      "ukphone": "bɪˈnaɪn"
+    },
+    {
+      "term": "malignant",
+      "meaning": "恶性的",
+      "usphone": "məˈlɪɡnənt",
+      "ukphone": "məˈlɪɡnənt"
+    },
+    {
+      "term": "cancer",
+      "meaning": "癌症",
+      "usphone": "ˈkæːnsə",
+      "ukphone": "ˈkæːnsə"
+    },
+    {
+      "term": "metastasis",
+      "meaning": "转移",
+      "usphone": "mɪˈtæstəsɪs",
+      "ukphone": "mɪˈtæstəsɪs"
+    },
+    {
+      "term": "symptom",
+      "meaning": "症状",
+      "usphone": "ˈsɪm(p)təm",
+      "ukphone": "ˈsɪm(p)təm"
+    },
+    {
+      "term": "diagnosis",
+      "meaning": "诊断",
+      "usphone": "daɪəɡˈnəʊsɪs",
+      "ukphone": "daɪəɡˈnəʊsɪs"
+    },
+    {
+      "term": "prognosis",
+      "meaning": "预后",
+      "usphone": "pɹɒɡˈnəʊsɪs",
+      "ukphone": "pɹɒɡˈnəʊsɪs"
+    },
+    {
+      "term": "therapy",
+      "meaning": "治疗",
+      "usphone": "ˈθɛɹəpi",
+      "ukphone": "ˈθɛɹəpi"
+    },
+    {
+      "term": "treatment",
+      "meaning": "治疗；处理",
+      "usphone": "ˈtɹiːtmənt",
+      "ukphone": "ˈtɹiːtmənt"
+    },
+    {
+      "term": "clinical",
+      "meaning": "临床的",
+      "usphone": "ˈklɪnɪkəl",
+      "ukphone": "ˈklɪnɪkəl"
+    },
+    {
+      "term": "biopsy",
+      "meaning": "活体组织检查",
+      "usphone": "ˈbaɪɑpsi",
+      "ukphone": "ˈbaɪɑpsi"
+    },
+    {
+      "term": "surgery",
+      "meaning": "外科手术",
+      "usphone": "ˈsɜːdʒəɹi",
+      "ukphone": "ˈsɜːdʒəɹi"
+    },
+    {
+      "term": "acute",
+      "meaning": "急性的",
+      "usphone": "əˈkjuːt",
+      "ukphone": "əˈkjuːt"
+    },
+    {
+      "term": "chronic",
+      "meaning": "慢性的",
+      "usphone": "ˈkɹɒnɪk",
+      "ukphone": "ˈkɹɒnɪk"
+    },
+    {
+      "term": "congenital",
+      "meaning": "先天的",
+      "usphone": "kənˈdʒɛnɪtəl",
+      "ukphone": "kənˈdʒɛnɪtəl"
+    },
+    {
+      "term": "hereditary",
+      "meaning": "遗传的",
+      "usphone": "həˈɹɛdɪt(ə)ɹi",
+      "ukphone": "həˈɹɛdɪt(ə)ɹi"
+    },
+    {
+      "term": "syndrome",
+      "meaning": "综合征",
+      "usphone": "ˈsɪndɹəʊm",
+      "ukphone": "ˈsɪndɹəʊm"
+    },
+    {
+      "term": "disorder",
+      "meaning": "障碍；紊乱",
+      "usphone": "dɪsˈɔːdə(ɹ)",
+      "ukphone": "dɪsˈɔːdə(ɹ)"
+    },
+    {
+      "term": "etiology",
+      "meaning": "病因学",
+      "usphone": "ˌiːtiˈɑlədʒi",
+      "ukphone": "ˌiːtɪˈɒlədʒi"
+    },
+    {
+      "term": "antibiotic",
+      "meaning": "抗生素",
+      "usphone": "ˌæntaɪbaɪˈɒtɪk",
+      "ukphone": "ˌæntaɪbaɪˈɒtɪk"
+    },
+    {
+      "term": "drug",
+      "meaning": "药物",
+      "usphone": "dɹʌɡ",
+      "ukphone": "dɹʌɡ"
+    },
+    {
+      "term": "dose",
+      "meaning": "剂量",
+      "usphone": "doʊs",
+      "ukphone": "dəʊs"
+    },
+    {
+      "term": "dosage",
+      "meaning": "给药剂量",
+      "usphone": "ˈdoʊsɪdʒ",
+      "ukphone": "ˈdəʊsɪdʒ"
+    },
+    {
+      "term": "side effect",
+      "meaning": "副作用",
+      "usphone": "saɪd ɪˈfɛkt",
+      "ukphone": "saɪd ɪˈfɛkt"
+    },
+    {
+      "term": "toxicity",
+      "meaning": "毒性",
+      "usphone": "tɒkˈsɪsəti",
+      "ukphone": "tɒkˈsɪsəti"
+    },
+    {
+      "term": "injection",
+      "meaning": "注射",
+      "usphone": "ɪnˈdʒɛkʃən",
+      "ukphone": "ɪnˈdʒɛkʃən"
+    },
+    {
+      "term": "tablet",
+      "meaning": "片剂",
+      "usphone": "ˈtæblət",
+      "ukphone": "ˈtæblət"
+    },
+    {
+      "term": "capsule",
+      "meaning": "胶囊",
+      "usphone": "ˈkæpsjuːl",
+      "ukphone": "ˈkæpsjuːl"
+    },
+    {
+      "term": "intravenous",
+      "meaning": "静脉内的",
+      "usphone": "ɪntɹəˈviːnəs",
+      "ukphone": "ɪntɹəˈviːnəs"
+    },
+    {
+      "term": "adjuvant",
+      "meaning": "佐剂；辅助的",
+      "usphone": "ˈædʒəvənt",
+      "ukphone": "ˈædʒəvənt"
+    },
+    {
+      "term": "bioavailability",
+      "meaning": "生物利用度",
+      "usphone": "ˌbaɪoʊəˌveɪləˈbɪləti",
+      "ukphone": "ˌbaɪəʊəˌveɪləˈbɪləti"
+    },
+    {
+      "term": "contraindication",
+      "meaning": "禁忌证",
+      "usphone": "ˌkɑntrəˌɪndɪˈkeɪʃən",
+      "ukphone": "ˌkɒntrəˌɪndɪˈkeɪʃən"
+    },
+    {
+      "term": "regimen",
+      "meaning": "治疗方案",
+      "usphone": "ˈɹɛdʒɪmən",
+      "ukphone": "ˈɹɛdʒɪmən"
+    },
+    {
+      "term": "epidemiology",
+      "meaning": "流行病学",
+      "usphone": "ˈɛpɪdiːmiːɒlədʒi",
+      "ukphone": "ˈɛpɪdiːmiːɒlədʒi"
+    },
+    {
+      "term": "placebo",
+      "meaning": "安慰剂",
+      "usphone": "pləˈsiːbəʊ",
+      "ukphone": "pləˈsiːbəʊ"
+    },
+    {
+      "term": "trial",
+      "meaning": "试验",
+      "usphone": "ˈtɹaɪəl",
+      "ukphone": "ˈtɹaɪəl"
+    },
+    {
+      "term": "biomarker",
+      "meaning": "生物标志物",
+      "usphone": "ˈbaɪəʊˌmɑːkə",
+      "ukphone": "ˈbaɪəʊˌmɑːkə"
+    },
+    {
+      "term": "pathology",
+      "meaning": "病理学",
+      "usphone": "pəˈθɒlədʒi",
+      "ukphone": "pəˈθɒlədʒi"
+    },
+    {
+      "term": "physiology",
+      "meaning": "生理学",
+      "usphone": "ˌfɪziˈɒləd͡ʒi",
+      "ukphone": "ˌfɪziˈɒləd͡ʒi"
+    },
+    {
+      "term": "pharmacology",
+      "meaning": "药理学",
+      "usphone": "ˌfɑɹməˈkɒlədʒi",
+      "ukphone": "ˌfɑɹməˈkɒlədʒi"
+    },
+    {
+      "term": "anatomy",
+      "meaning": "解剖学",
+      "usphone": "əˈnætəmi",
+      "ukphone": "əˈnætəmi"
+    },
+    {
+      "term": "histology",
+      "meaning": "组织学",
+      "usphone": "hɪˈstɑlədʒi",
+      "ukphone": "hɪˈstɒlədʒi"
+    },
+    {
+      "term": "embryo",
+      "meaning": "胚胎",
+      "usphone": "ˈɛmbɹiəʊ",
+      "ukphone": "ˈɛmbɹiəʊ"
+    },
+    {
+      "term": "fetus",
+      "meaning": "胎儿",
+      "usphone": "ˈfiːtəs",
+      "ukphone": "ˈfiːtəs"
+    },
+    {
+      "term": "gestation",
+      "meaning": "妊娠；孕期",
+      "usphone": "dʒesˈteɪʃən",
+      "ukphone": "dʒesˈteɪʃən"
+    },
+    {
+      "term": "secrete",
+      "meaning": "分泌",
+      "usphone": "sɪˈkɹiːt",
+      "ukphone": "sɪˈkɹiːt"
+    },
+    {
+      "term": "excrete",
+      "meaning": "排泄",
+      "usphone": "ɛkˈskɹiːt",
+      "ukphone": "ɛkˈskɹiːt"
+    },
+    {
+      "term": "absorb",
+      "meaning": "吸收",
+      "usphone": "əbˈsɔːb",
+      "ukphone": "əbˈsɔːb"
+    },
+    {
+      "term": "diffusion",
+      "meaning": "扩散",
+      "usphone": "dɪˈfjuːʒən",
+      "ukphone": "dɪˈfjuːʒən"
+    },
+    {
+      "term": "osmosis",
+      "meaning": "渗透",
+      "usphone": "ɑzˈmoʊsɪs",
+      "ukphone": "ɒzˈməʊsɪs"
+    },
+    {
+      "term": "homeostasis",
+      "meaning": "体内平衡",
+      "usphone": "ˌhɒmiə(ʊ)ˈsteɪsɪs",
+      "ukphone": "ˌhɒmiə(ʊ)ˈsteɪsɪs"
+    },
+    {
+      "term": "apoptosis",
+      "meaning": "细胞凋亡",
+      "usphone": "ˌapɒpˈtəʊsɪs",
+      "ukphone": "ˌapɒpˈtəʊsɪs"
+    },
+    {
+      "term": "necrosis",
+      "meaning": "坏死",
+      "usphone": "nɛˈkroʊsɪs",
+      "ukphone": "nɛˈkrəʊsɪs"
+    },
+    {
+      "term": "proliferation",
+      "meaning": "增殖",
+      "usphone": "pɹəˌlɪfəˈɹeɪʃən",
+      "ukphone": "pɹəˌlɪfəˈɹeɪʃən"
+    },
+    {
+      "term": "differentiation",
+      "meaning": "分化",
+      "usphone": "ˌdɪfəˌrɛnʃiˈeɪʃən",
+      "ukphone": "ˌdɪfəˌrɛnʃiˈeɪʃən"
+    },
+    {
+      "term": "morbidity",
+      "meaning": "发病率（患病）",
+      "usphone": "mɔrˈbɪdəti",
+      "ukphone": "mɔːˈbɪdəti"
+    },
+    {
+      "term": "mortality",
+      "meaning": "死亡率",
+      "usphone": "mɔɹˈtælɪti",
+      "ukphone": "mɔɹˈtælɪti"
+    },
+    {
+      "term": "incidence",
+      "meaning": "发病率（新发）",
+      "usphone": "ˈɪnsɪdəns",
+      "ukphone": "ˈɪnsɪdəns"
+    },
+    {
+      "term": "prevalence",
+      "meaning": "患病率",
+      "usphone": "ˈprɛvələns",
+      "ukphone": "ˈprɛvələns"
+    },
+    {
+      "term": "prognostic",
+      "meaning": "预后性的",
+      "usphone": "prɑgˈnɑstɪk",
+      "ukphone": "prɒɡˈnɒstɪk"
+    },
+    {
+      "term": "therapeutic",
+      "meaning": "治疗性的",
+      "usphone": "θɛɹəˈpjuːtɪk",
+      "ukphone": "θɛɹəˈpjuːtɪk"
+    },
+    {
+      "term": "microscope",
+      "meaning": "显微镜",
+      "usphone": "ˈmaɪkɹəˌskəʊp",
+      "ukphone": "ˈmaɪkɹəˌskəʊp"
+    },
+    {
+      "term": "culture",
+      "meaning": "培养（物）",
+      "usphone": "ˈkʌlt͡ʃə",
+      "ukphone": "ˈkʌlt͡ʃə"
+    },
+    {
+      "term": "assay",
+      "meaning": "测定；分析",
+      "usphone": "əˈseɪ",
+      "ukphone": "əˈseɪ"
+    },
+    {
+      "term": "PCR",
+      "meaning": "聚合酶链式反应",
+      "usphone": "ˌpiːsiːˈɑr",
+      "ukphone": "ˌpiːsiːˈɑː"
+    },
+    {
+      "term": "electrophoresis",
+      "meaning": "电泳",
+      "usphone": "ɪˌlɛktrəfəˈrisis",
+      "ukphone": "ɪˌlɛktrəfəˈriːsɪs"
+    },
+    {
+      "term": "centrifuge",
+      "meaning": "离心机",
+      "usphone": "ˈsɛntɹɪˌfjuːdʒ",
+      "ukphone": "ˈsɛntɹɪˌfjuːdʒ"
+    },
+    {
+      "term": "pipette",
+      "meaning": "移液器",
+      "usphone": "pɪˈpɛt",
+      "ukphone": "pɪˈpɛt"
+    },
+    {
+      "term": "sample",
+      "meaning": "样本",
+      "usphone": "sæːmpəl",
+      "ukphone": "sæːmpəl"
+    },
+    {
+      "term": "stain",
+      "meaning": "染色（剂）",
+      "usphone": "steɪn",
+      "ukphone": "steɪn"
+    }
+  ],
+  "level": null,
+  "id": "biomedical-basics"
+}

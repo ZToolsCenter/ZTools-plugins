@@ -25,6 +25,27 @@
 const ITEM_PREFIX = 'reminder_item_';
 const SETTINGS_ID = 'reminder_settings';
 const SECRETS_ID = 'reminder_secrets';
+const HISTORY_ID = 'reminder_history';
+const MAX_HISTORY = 100; // 触发记录最多保留条数
+
+// 内存缓存：ztools.db 为同步桥接（每次调用都会阻塞渲染进程主线程并往返主进程），
+// 调度器每秒扫描 + 界面每秒刷新若每次都全量读库，会随窗口数量成倍拖慢整个 ZTools。
+// 采用「短 TTL + 写操作即时失效」：保证数据新鲜（跨窗口变更最多延迟 ~10s 可见），
+// 同时把全量读库降到每 10 秒一次（覆盖可见 1s 与隐藏 5s 两种调度频率）、设置读取降到 30 秒一次。
+const ITEMS_CACHE_TTL = 10000;
+const SETTINGS_CACHE_TTL = 30000;
+
+let itemsCache = null;
+let itemsCacheAt = 0;
+let settingsCache = null;
+let settingsCacheAt = 0;
+
+function invalidateCaches() {
+  itemsCache = null;
+  itemsCacheAt = 0;
+  settingsCache = null;
+  settingsCacheAt = 0;
+}
 
 const DEFAULT_SETTINGS = {
   sound: true, // 新建提醒默认响铃
@@ -65,7 +86,9 @@ function putDoc(doc) {
   const existing = safeGet(doc._id);
   const merged = Object.assign({}, existing || {}, doc);
   if (existing && existing._rev) merged._rev = existing._rev;
-  return db().put(merged);
+  const result = db().put(merged);
+  invalidateCaches();
+  return result;
 }
 
 function newId() {
@@ -77,23 +100,28 @@ function newId() {
  * ------------------------------------------------------------------ */
 
 function listReminders() {
-  let docs = [];
-  try {
-    docs = db().allDocs(ITEM_PREFIX) || [];
-  } catch (e) {
-    docs = [];
+  if (!itemsCache || Date.now() - itemsCacheAt >= ITEMS_CACHE_TTL) {
+    let docs = [];
+    try {
+      docs = db().allDocs(ITEM_PREFIX) || [];
+    } catch (e) {
+      docs = [];
+    }
+    itemsCache = docs
+      .map(unwrap)
+      .filter((d) => d && d._id && d._id.indexOf(ITEM_PREFIX) === 0)
+      .sort((a, b) => {
+        // 启用中的按 nextRunAt 升序；已完成的沉底并按更新时间降序
+        const aActive = a.enabled !== false;
+        const bActive = b.enabled !== false;
+        if (aActive !== bActive) return aActive ? -1 : 1;
+        if (aActive && bActive) return (a.nextRunAt || 0) - (b.nextRunAt || 0);
+        return (b.updatedAt || 0) - (a.updatedAt || 0);
+      });
+    itemsCacheAt = Date.now();
   }
-  return docs
-    .map(unwrap)
-    .filter((d) => d && d._id && d._id.indexOf(ITEM_PREFIX) === 0)
-    .sort((a, b) => {
-      // 启用中的按 nextRunAt 升序；已完成的沉底并按更新时间降序
-      const aActive = a.enabled !== false;
-      const bActive = b.enabled !== false;
-      if (aActive !== bActive) return aActive ? -1 : 1;
-      if (aActive && bActive) return (a.nextRunAt || 0) - (b.nextRunAt || 0);
-      return (b.updatedAt || 0) - (a.updatedAt || 0);
-    });
+  // 返回副本，避免调用方改动污染缓存
+  return itemsCache.slice();
 }
 
 function getReminder(id) {
@@ -144,6 +172,7 @@ function removeReminder(id) {
   if (!doc) return false;
   try {
     db().remove(doc);
+    invalidateCaches();
     return true;
   } catch (e) {
     return false;
@@ -181,8 +210,12 @@ function deepMerge(base, patch) {
 }
 
 function getSettings() {
-  const stored = safeGet(SETTINGS_ID);
-  return deepMerge(DEFAULT_SETTINGS, (stored && stored.value) || {});
+  if (!settingsCache || Date.now() - settingsCacheAt >= SETTINGS_CACHE_TTL) {
+    const stored = safeGet(SETTINGS_ID);
+    settingsCache = deepMerge(DEFAULT_SETTINGS, (stored && stored.value) || {});
+    settingsCacheAt = Date.now();
+  }
+  return settingsCache;
 }
 
 function setSettings(patch) {
@@ -220,6 +253,44 @@ function setSecrets(patch) {
   return next;
 }
 
+/* ------------------------------------------------------------------ *
+ * 触发历史（最近触发记录，最多保留 MAX_HISTORY 条）
+ * ------------------------------------------------------------------ */
+
+function getHistory() {
+  try {
+    const doc = safeGet(HISTORY_ID);
+    return doc && Array.isArray(doc.value) ? doc.value : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function appendHistory(item, firedAt, late) {
+  try {
+    const list = getHistory().slice();
+    list.unshift({
+      id: item._id,
+      title: item.title || '提醒',
+      note: item.note || '',
+      at: firedAt || Date.now(),
+      late: late || 0
+    });
+    if (list.length > MAX_HISTORY) list.length = MAX_HISTORY;
+    putDoc({ _id: HISTORY_ID, value: list });
+  } catch (e) {
+    /* 历史记录失败不影响提醒主流程 */
+  }
+}
+
+function clearHistory() {
+  try {
+    putDoc({ _id: HISTORY_ID, value: [] });
+  } catch (e) {
+    /* 忽略 */
+  }
+}
+
 module.exports = {
   ITEM_PREFIX,
   DEFAULT_SETTINGS,
@@ -231,5 +302,8 @@ module.exports = {
   getSettings,
   setSettings,
   getSecrets,
-  setSecrets
+  setSecrets,
+  getHistory,
+  appendHistory,
+  clearHistory
 };

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import InlineCreate from './InlineCreate.vue'
-import { beginWorkspaceDrag, endWorkspaceDrag, getWorkspaceDragPath } from '../workspaceDrag'
+import { beginWorkspaceDrag, endWorkspaceDrag, getWorkspaceDragPath, getTreeDropPosition, workspaceDragPath } from '../workspaceDrag'
+import { parentDirectory } from '../workspaceOrder'
 
 defineProps<{
   entries: WorkspaceTreeEntry[]
@@ -20,7 +21,8 @@ defineProps<{
   globalNoteSearchEnabled: boolean
 }>()
 
-const dropTarget = ref<{ path: string; allowed: boolean } | null>(null)
+const dropTarget = ref<{ path: string; allowed: boolean; position: 'before' | 'after' | 'inside' } | null>(null)
+watch(workspaceDragPath, () => { dropTarget.value = null }, { flush: 'sync' })
 
 function canDropInto(sourcePath: string, targetPath: string) {
   const parentPath = sourcePath.includes('/') ? sourcePath.slice(0, sourcePath.lastIndexOf('/')) : ''
@@ -43,6 +45,7 @@ const emit = defineEmits<{
   cancelRename: []
   toggleMenu: [relativePath: string | null]
   requestMove: [sourcePath: string, targetDirectoryPath: string]
+  requestReorder: [sourcePath: string, targetPath: string, position: 'before' | 'after']
   showInFolder: [entry: WorkspaceTreeEntry]
 }>()
 
@@ -52,17 +55,41 @@ function startDrag(event: DragEvent, path: string) {
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
 }
 
-function dropInto(event: DragEvent, targetDirectoryPath: string) {
+function resolveDrop(event: DragEvent, entry: WorkspaceTreeEntry) {
+  const row = event.currentTarget as HTMLElement
+  const rect = row.getBoundingClientRect()
+  const position = getTreeDropPosition(entry.kind, (event.clientY - rect.top) / Math.max(1, rect.height))
   const sourcePath = getWorkspaceDragPath()
-  const allowed = sourcePath ? canDropInto(sourcePath, targetDirectoryPath) : false
-  dropTarget.value = null
-  if (sourcePath && allowed) emit('requestMove', sourcePath, targetDirectoryPath)
+  const allowed = position === 'inside'
+    ? canDropInto(sourcePath, entry.relativePath)
+    : Boolean(sourcePath) && sourcePath !== entry.relativePath && parentDirectory(sourcePath) === parentDirectory(entry.relativePath)
+  return { path: entry.relativePath, allowed, position }
 }
 
-function showDropTarget(event: DragEvent, targetDirectoryPath: string) {
+function dropOnEntry(event: DragEvent, entry: WorkspaceTreeEntry) {
   const sourcePath = getWorkspaceDragPath()
-  dropTarget.value = { path: targetDirectoryPath, allowed: canDropInto(sourcePath, targetDirectoryPath) }
+  const target = resolveDrop(event, entry)
+  dropTarget.value = null
+  endWorkspaceDrag()
+  if (!target.allowed) return
+  if (target.position === 'inside') emit('requestMove', sourcePath, target.path)
+  else emit('requestReorder', sourcePath, target.path, target.position)
+}
+
+function showDropTarget(event: DragEvent, entry: WorkspaceTreeEntry) {
+  dropTarget.value = resolveDrop(event, entry)
   if (event.dataTransfer) event.dataTransfer.dropEffect = dropTarget.value.allowed ? 'move' : 'none'
+}
+
+function dropClasses(entry: WorkspaceTreeEntry) {
+  const target = dropTarget.value
+  if (target?.path !== entry.relativePath) return {}
+  return {
+    'tree-row--drop-target': target.allowed && target.position === 'inside',
+    'tree-row--drop-invalid': !target.allowed,
+    'tree-row--insert-before': target.allowed && target.position === 'before',
+    'tree-row--insert-after': target.allowed && target.position === 'after',
+  }
 }
 </script>
 
@@ -83,20 +110,20 @@ function showDropTarget(event: DragEvent, targetDirectoryPath: string) {
         <summary
           draggable="true"
           class="tree-row"
-          :class="{ 'tree-row--selected': entry.relativePath === selectedPath, 'tree-row--drop-target': dropTarget?.path === entry.relativePath && dropTarget.allowed, 'tree-row--drop-invalid': dropTarget?.path === entry.relativePath && !dropTarget.allowed }"
+          :class="[{ 'tree-row--selected': entry.relativePath === selectedPath }, dropClasses(entry)]"
           @click.stop="emit('selectEntry', entry)"
           @dragstart.stop="startDrag($event, entry.relativePath)"
           @dragend="endWorkspaceDrag(); dropTarget = null"
-          @dragenter.prevent.stop="showDropTarget($event, entry.relativePath)"
-          @dragover.prevent.stop="showDropTarget($event, entry.relativePath)"
+          @dragenter.prevent.stop="showDropTarget($event, entry)"
+          @dragover.prevent.stop="showDropTarget($event, entry)"
           @dragleave.stop="dropTarget = null"
-          @drop.prevent.stop="dropInto($event, entry.relativePath)"
+          @drop.prevent.stop="dropOnEntry($event, entry)"
         >
           <span class="tree-label">
             <svg class="folder-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4 4.5-4 4.5" /></svg>
             <svg class="entry-icon folder-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h5l2 2h8A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" /></svg>
             {{ entry.name }}
-            <small v-if="dropTarget?.path === entry.relativePath" class="tree-drop-hint">{{ dropTarget.allowed ? '移动到这里' : '无法移动' }}</small>
+            <small v-if="dropTarget?.path === entry.relativePath" class="tree-drop-hint">{{ !dropTarget.allowed ? '无法放置' : dropTarget.position === 'inside' ? '移动到这里' : '调整顺序' }}</small>
           </span>
           <div class="entry-menu" :class="{ 'entry-menu--open': openMenuPath === entry.relativePath }" @click.stop>
             <button type="button" class="entry-menu-trigger" aria-label="更多操作" @click="emit('toggleMenu', openMenuPath === entry.relativePath ? null : entry.relativePath)">
@@ -129,6 +156,7 @@ function showDropTarget(event: DragEvent, targetDirectoryPath: string) {
           @cancel-rename="emit('cancelRename')"
           @toggle-menu="emit('toggleMenu', $event)"
           @request-move="(sourcePath, targetPath) => emit('requestMove', sourcePath, targetPath)"
+          @request-reorder="(sourcePath, targetPath, position) => emit('requestReorder', sourcePath, targetPath, position)"
           @show-in-folder="emit('showInFolder', $event)"
         />
         <InlineCreate
@@ -145,10 +173,14 @@ function showDropTarget(event: DragEvent, targetDirectoryPath: string) {
       <div
         v-else
         class="tree-row"
-        :class="{ 'tree-row--active': entry.relativePath === activePath, 'tree-row--selected': entry.relativePath === selectedPath }"
+        :class="[{ 'tree-row--active': entry.relativePath === activePath, 'tree-row--selected': entry.relativePath === selectedPath }, dropClasses(entry)]"
         draggable="true"
         @dragstart.stop="startDrag($event, entry.relativePath)"
         @dragend="endWorkspaceDrag(); dropTarget = null"
+        @dragenter.prevent.stop="showDropTarget($event, entry)"
+        @dragover.prevent.stop="showDropTarget($event, entry)"
+        @dragleave.stop="dropTarget = null"
+        @drop.prevent.stop="dropOnEntry($event, entry)"
       >
         <button type="button" class="tree-note" :title="entry.relativePath" @click="emit('selectEntry', entry); emit('openNote', entry.relativePath)">
           <svg class="entry-icon note-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4M9 12h6M9 16h6"/></svg>

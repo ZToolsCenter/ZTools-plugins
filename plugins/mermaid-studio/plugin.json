@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "mermaid-studio",
+  "title": "Mermaid 图表工作室",
+  "description": "编辑、实时预览并导出 Mermaid 图表为 PNG/SVG/PDF",
+  "author": "Abel.yang",
+  "version": "1.0.0",
+  "main": "web/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "open",
+      "explain": "打开 Mermaid 图表工作室，编辑并导出图表",
+      "icon": "logo.png",
+      "cmds": ["Mermaid 图表工作室", "mermaid", "图表工作室"]
+    },
+    {
+      "code": "convert",
+      "explain": "把选中的 Mermaid 代码转换为可编辑图表",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "用 Mermaid 图表工作室打开",
+          "minLength": 3,
+          "maxLength": 20000
+        }
+      ]
+    }
+  ]
+}

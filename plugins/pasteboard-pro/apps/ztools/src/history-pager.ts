@@ -28,6 +28,9 @@ export class HistoryPager {
     return this.run(true);
   }
 
+  /** Let explicit keyboard actions await an already running read without reissuing it. */
+  whenIdle(): Promise<void> { return this.pending ?? Promise.resolve(); }
+
   invalidate(): void { this.revision++; this.dirty = false; }
   dispose(): void { this.disposed = true; this.invalidate(); }
 

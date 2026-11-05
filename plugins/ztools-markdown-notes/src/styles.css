@@ -67,6 +67,10 @@ input { min-width: 0; padding: 10px 12px; border: 1px solid #cbd5e1; border-radi
 .tree-directory > summary { cursor: pointer; list-style: none; user-select: none; }
 .tree-directory > summary::-webkit-details-marker { display: none; }
 .tree-row { position: relative; display: flex; min-width: 0; align-items: center; border-radius: 5px; }
+.tree-row--insert-before::before, .tree-row--insert-after::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: var(--accent-color, #3b82f6); pointer-events: none; z-index: 2; }
+.tree-row--insert-before::before { top: 0; }
+.tree-row--insert-after::after { bottom: 0; }
+.tree-order-error { display: flex; gap: 6px; align-items: start; margin: 8px 0; color: #dc2626; font-size: 12px; overflow-wrap: anywhere; }
 .tree-row:hover { background: #f1f5f9; }
 .tree-row--drop-target { outline: 2px solid #3b82f6; outline-offset: -1px; background: #dbeafe !important; }
 .tree-row--drop-invalid { outline: 2px solid #ef4444; outline-offset: -1px; cursor: not-allowed !important; background: #fee2e2 !important; }

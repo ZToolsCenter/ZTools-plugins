@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from "vue";
+import { CURRENT_APP_VERSION } from "../whats-new";
 
-defineProps<{
+withDefaults(defineProps<{
   version?: string;
   standalone?: boolean;
-}>();
+}>(), { version: CURRENT_APP_VERSION });
 
 const emit = defineEmits<{
   close: [];
@@ -12,53 +13,46 @@ const emit = defineEmits<{
 
 const features = [
   {
-    icon: "☁️",
-    title: "WebDAV 自动定时加密备份",
-    badge: "数据随行",
+    icon: "✨",
+    title: "新版浮窗与界面切换",
+    badge: "全新外观",
     tagClass: "badge--violet",
-    desc: "支持按需自定义备份周期（每 15 分钟至 24 小时），默认每小时后台无感加密上传 WebDAV；休眠唤醒自动补漏，历史数据与自定义分组多端永久安全随行。",
+    desc: "保留 Paste 标识，短搜索框与收藏分组集中在顶部；新版卡片和设置保持统一风格，通用设置中可随时切回旧版界面。",
   },
   {
-    icon: "🖼️",
-    title: "长图宽图顺畅滑动与分辨率",
-    badge: "视觉进化",
+    icon: "🔎",
+    title: "搜索展开与多选粘贴",
+    badge: "操作优化",
     tagClass: "badge--blue",
-    desc: "智能感知图片宽高比：竖图长截图垂直滑动，全景宽图水平滑动；鼠标悬停即刻展示原始物理分辨率（如 1920×1080），底部信息留白呼吸，绝不遮挡。",
-  },
-  {
-    icon: "⚡",
-    title: "十万级历史毫秒秒搜",
-    badge: "性能突破",
-    tagClass: "badge--amber",
-    desc: "后台专属轻量 Worker 检索引掣与按页动态水合，即使本地累积 100,000+ 条记录依然秒打秒搜，浮窗轻盈秒开不占电脑内存。",
-  },
-  {
-    icon: "🚀",
-    title: "虚拟化时间线与零闪烁唤起",
-    badge: "丝滑流畅",
-    tagClass: "badge--emerald",
-    desc: "动态视口虚拟滚动，极大削减海量卡片下的渲染压力；首屏数据就绪后平滑显现，彻底消除启动闪烁，并深度校准多屏幕与外接显示器坐标。",
+    desc: "搜索框展开、收起加入过渡动画，输入时合并重复检索；完善多选计数、混合类型粘贴提示与连续粘贴队列。",
   },
   {
     icon: "🖱️",
-    title: "原生拖拽直发与截图入库",
-    badge: "顺畅流转",
-    tagClass: "badge--pink",
-    desc: "从时间线直接原生拖拽卡片到微信、飞书或桌面；一键静默截屏自动沉淀入库，无需手动另存转存。",
+    title: "卡片与分组拖动排序",
+    badge: "拖动整理",
+    tagClass: "badge--amber",
+    desc: "改进列表内卡片排序和拖动预览，收藏分组通过拖动把手调整顺序；新建分组和分组菜单也采用新版样式。",
   },
   {
-    icon: "⌨️",
-    title: "跨平台原生操控心流",
-    badge: "键盘掌控",
-    tagClass: "badge--cyan",
-    desc: "macOS 保持原生 ⌘ 习惯，Windows/Linux 深度适配 Ctrl；方向键游走、回车即贴、空格大图预览、快捷键直达设置中心，全键盘行云流水。",
+    icon: "🖼️",
+    title: "背景图片与主题编辑",
+    badge: "自定义",
+    tagClass: "badge--emerald",
+    desc: "背景图片支持裁切、旋转、缩放和比例调整，并可设置平铺等渲染方式；磨砂效果可选，卡片和背景底色可单独调整。",
   },
   {
     icon: "🛡️",
-    title: "专属数据隔离与安全守护",
-    badge: "安全加固",
-    tagClass: "badge--slate",
-    desc: "数据全面迁移至插件专属 pluginData 存储目录；附件清理采用 SHA-256 内容寻址白名单双重安全复核，坚如磐石不误删。",
+    title: "应用来源与隐私设置",
+    badge: "设置完善",
+    tagClass: "badge--pink",
+    desc: "通过应用图标辨认复制来源，用应用选择列表设置屏蔽项；屏幕共享隐藏浮窗默认关闭，开关选择可持久保存。",
+  },
+  {
+    icon: "🗂️",
+    title: "历史保存与清空修复",
+    badge: "可靠性",
+    tagClass: "badge--cyan",
+    desc: "改进历史图片保存失败后的重试，并抑制清空后已清理旧项再次导入；读取或保存清理状态失败时停止后续清空操作。",
   },
 ];
 
@@ -91,11 +85,11 @@ onUnmounted(() => {
       <header class="whats-new-header">
         <div class="whats-new-tag">
           <span class="pulse-dot"></span>
-          <span>🚀 版本更新 {{ version ?? "v1.3.0" }} · 7 大生产力升级</span>
+          <span>🚀 版本更新 {{ version }} · {{ features.length }} 项更新</span>
         </div>
         <button type="button" class="whats-new-close" aria-label="关闭更新日志" @click="emit('close')">×</button>
-        <h2 id="whats-new-title" class="whats-new-title">全新特性，助你效率翻倍</h2>
-        <p class="whats-new-subtitle">给你更顺手、更丝滑、更稳定的下一代剪贴板生产力体验</p>
+        <h2 id="whats-new-title" class="whats-new-title">新版界面与使用体验优化</h2>
+        <p class="whats-new-subtitle">更集中地浏览、搜索和整理剪贴板历史</p>
       </header>
 
       <div class="whats-new-body">

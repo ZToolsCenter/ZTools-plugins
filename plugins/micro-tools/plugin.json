@@ -1,18 +1,1000 @@
 {
   "name": "micro-tools",
   "title": "科研小盒",
-  "description": "科研常用小工具集合：期刊·会议查询（JCR / CCF）、AI 投稿助手（摘要解读、期刊匹配与投稿准备）、文献图谱（BibTeX 本地分析与可视化）、数据库检索。支持 ZTools AI 或用户自己的 API，纯 Preload 模式，无构建步骤。",
-  "version": "1.4.0",
+  "description": "科研常用小工具集合：期刊·会议查询（JCR / CCF）、AI 投稿助手（摘要解读、期刊匹配与投稿准备）、文献图谱（BibTeX 本地分析与可视化）、数据库检索、科研英语训练与个人题库。支持 ZTools AI 或用户自己的 API，纯 Preload 模式，无构建步骤。",
+  "version": "1.7.7",
   "author": "Asa12138",
   "email": "bfzede@gmail.com",
   "main": "index.html",
-  "logo": "logo.png",
+  "logo": "assets/images/logo.png",
   "preload": "preload.js",
+  "tools": {
+    "search_journals": {
+      "description": "只读搜索科研小盒本地 JCR/CCF 快照。按期刊或会议名称、缩写、ISSN、CCF 中文领域检索，返回 JIF、数据年、JCR 分区、CCF 等级和详情 ID。默认只查期刊；会议用 type=conference。related 是候选，不等于精确识别；数据不是实时指标。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "期刊/会议名称、缩写、ISSN 或 CCF 中文领域"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "journal",
+              "conference",
+              "all"
+            ],
+            "default": "journal"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "get_journal": {
+      "description": "按 search_journals 返回的 ID，只读获取期刊/会议完整信息：JIF 与数据年、JCR 分区及各学科详情、JCI、五年 JIF、被引量、OA 比例和 CCF 等级。缺失指标为 null；更新数据后需重新搜索。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{16}:\\d{1,8}$",
+            "description": "search_journals 返回的记录 ID，包含快照标识"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "prepare_submission": {
+      "description": "开始无需插件 API 的投稿分析。传入摘要与偏好，返回会话 ID、研究画像指引及结构。由当前 Agent 自身推理，再调用 get_submission_candidates；本工具不调用模型。会话仅存内存，最多 4 个，闲置 60 分钟或插件重载后失效。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "abstract": {
+            "type": "string",
+            "maxLength": 30000,
+            "minLength": 80
+          },
+          "preferences": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "manuscript_type": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "screening": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "include_general": {
+                "type": "boolean",
+                "default": true
+              },
+              "if_range": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "min": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  "max": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000
+                  }
+                },
+                "required": []
+              }
+            },
+            "required": []
+          }
+        },
+        "required": [
+          "abstract"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "get_submission_candidates": {
+      "description": "投稿分析第二步：提交当前 Agent 根据 prepare_submission 指引生成的 profile。逐字校验摘要高亮，按原有逻辑从本地库召回最多 65 个候选，返回候选集标识及比较任务。不调用模型；候选不等于推荐。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "description": "前序工具返回的 session_id；仅在本次插件进程内有效"
+          },
+          "profile": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "summary": {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              "field": {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              "study_type": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "keywords": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "minLength": 1
+                },
+                "maxItems": 10
+              },
+              "search_terms": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "minLength": 1
+                },
+                "maxItems": 10
+              },
+              "journal_seeds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "minLength": 1
+                },
+                "maxItems": 10
+              },
+              "highlights": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "enum": [
+                        "问题",
+                        "方法",
+                        "结果",
+                        "结论",
+                        "局限"
+                      ]
+                    },
+                    "quote": {
+                      "type": "string",
+                      "maxLength": 240,
+                      "minLength": 15
+                    },
+                    "explanation": {
+                      "type": "string",
+                      "maxLength": 1000
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "quote",
+                    "explanation"
+                  ]
+                },
+                "maxItems": 5
+              },
+              "strengths": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "minLength": 1
+                    },
+                    "evidence": {
+                      "type": "string",
+                      "maxLength": 1000,
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "evidence"
+                  ]
+                },
+                "maxItems": 6
+              },
+              "concerns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "minLength": 1
+                    },
+                    "evidence": {
+                      "type": "string",
+                      "maxLength": 1000,
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "evidence"
+                  ]
+                },
+                "maxItems": 6
+              },
+              "missing_information": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "minLength": 1
+                },
+                "maxItems": 8
+              },
+              "novelty_note": {
+                "type": "string",
+                "maxLength": 1500
+              }
+            },
+            "required": [
+              "summary",
+              "field",
+              "study_type",
+              "keywords",
+              "search_terms",
+              "journal_seeds",
+              "highlights",
+              "strengths",
+              "concerns",
+              "missing_information",
+              "novelty_note"
+            ]
+          }
+        },
+        "required": [
+          "session_id",
+          "profile"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "finalize_submission": {
+      "description": "投稿分析第三步：提交当前 Agent 的 assessment，校验候选集、期刊 ID、综合刊评估与选择一致性；返回含本地期刊指标的完整建议。允许没有适配推荐，不为凑数选刊。不调用模型。结果可导出，也可在插件中载入。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "description": "前序工具返回的 session_id；仅在本次插件进程内有效"
+          },
+          "candidate_set_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64
+          },
+          "assessment": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "strategy": {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              "recommendations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1000000
+                    },
+                    "tier": {
+                      "type": "string",
+                      "enum": [
+                        "优先比较",
+                        "拓展考虑",
+                        "补充候选"
+                      ]
+                    },
+                    "fit": {
+                      "type": "string",
+                      "enum": [
+                        "较高",
+                        "中等",
+                        "待核实"
+                      ]
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 1000,
+                        "minLength": 1
+                      },
+                      "maxItems": 5,
+                      "minItems": 1
+                    },
+                    "concerns": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 1000,
+                        "minLength": 1
+                      },
+                      "maxItems": 4
+                    },
+                    "to_verify": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 1000,
+                        "minLength": 1
+                      },
+                      "maxItems": 6
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "tier",
+                    "fit",
+                    "reasons",
+                    "concerns",
+                    "to_verify"
+                  ]
+                },
+                "maxItems": 6
+              },
+              "general_assessment": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1000000
+                    },
+                    "decision": {
+                      "type": "string",
+                      "enum": [
+                        "入选",
+                        "待核实",
+                        "暂不优先"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "maxLength": 1500,
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "decision",
+                    "reason"
+                  ]
+                },
+                "maxItems": 65
+              },
+              "checklist": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "minLength": 1
+                    },
+                    "detail": {
+                      "type": "string",
+                      "maxLength": 1000,
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "detail"
+                  ]
+                },
+                "maxItems": 6
+              },
+              "limitations": {
+                "type": "string",
+                "maxLength": 4000
+              }
+            },
+            "required": [
+              "strategy",
+              "recommendations",
+              "general_assessment",
+              "checklist",
+              "limitations"
+            ]
+          }
+        },
+        "required": [
+          "session_id",
+          "candidate_set_id",
+          "assessment"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "analyze_literature": {
+      "description": "无需 API 本地分析 BibTeX：解析、元数据完整性、期刊 JIF 匹配、年度、作者及词项统计。bibtex 文本与 file_path 二选一；本机 .bib 文件最多 8 MB/3000 条。较大文件使用绝对路径以避免 MCP 请求体限制。不联网、不自动推断缺失结论。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bibtex": {
+            "type": "string",
+            "maxLength": 200000,
+            "minLength": 1
+          },
+          "file_path": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1
+          },
+          "filename": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1
+          }
+        },
+        "required": []
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "get_literature_entries": {
+      "description": "分页读取文献分析会话中的标题、已有摘要、元数据类型、期刊匹配及分类依据，并提供 Agent 自主分类指引。摘要最多 4000 字符，截断会明确标记；不读取原文件附件。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "description": "前序工具返回的 session_id；仅在本次插件进程内有效"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3000
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "review",
+              "research",
+              "other",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "session_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "classify_literature": {
+      "description": "提交当前 Agent 对已有文献的类型判断。evidence 必须逐字来自该文献标题、摘要或明确类型字段；否则整批拒绝。无法判断用 unknown。禁止覆盖明确元数据或人工分类，所有 Agent 判断标为待复核。不调用模型。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "description": "前序工具返回的 session_id；仅在本次插件进程内有效"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2999
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "review",
+                    "research",
+                    "other",
+                    "unknown"
+                  ]
+                },
+                "evidence": {
+                  "type": "string",
+                  "maxLength": 400
+                },
+                "reason": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "evidence",
+                "reason"
+              ]
+            },
+            "maxItems": 50,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "session_id",
+          "items"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "get_literature_network": {
+      "description": "计算已有文献会话的作者合作或标题/关键词共现网络，返回节点、连线、文献数、权重及截断规模。支持类型筛选和完整/分数计数；不构造引文网络。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "description": "前序工具返回的 session_id；仅在本次插件进程内有效"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "author",
+              "term"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "review",
+              "research",
+              "other",
+              "unknown"
+            ]
+          },
+          "max_nodes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 80
+          },
+          "min_documents": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3000
+          },
+          "counting": {
+            "type": "string",
+            "enum": [
+              "full",
+              "fractional"
+            ]
+          }
+        },
+        "required": [
+          "session_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "export_research_report": {
+      "description": "将完成的 Agent 投稿分析或文献图谱导出到指定本机绝对路径。HTML 为完整离线报告，文献报告含交互图表；CSV 仅支持文献。会创建文件，拒绝覆盖已有文件；不联网。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "description": "前序工具返回的 session_id；仅在本次插件进程内有效"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "html",
+              "csv"
+            ]
+          },
+          "output_path": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "session_id",
+          "format",
+          "output_path"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "list_english_lessons": {
+      "description": "读取科研英语内置与自建题库目录，包括课程 ID、领域、句数和来源。只读，不调用模型。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "get_english_lesson": {
+      "description": "按课程 ID 读取完整科研英语课程，含双语句子、词汇音标、解析和科研追问。只读。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lesson_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "lesson_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "prepare_english_material": {
+      "description": "为自建科研英语课程准备素材。text 与本机 file_path 二选一；支持 PDF/TXT/MD（10 MB），PDF 仅提取文字，不做 OCR。网络内容请先由 Agent 自己抓取并传入 text 和真实 source。返回文本、schema、会话 ID；由当前 Agent 自行生成课程，无需配置插件 API。会话保留 60 分钟。 返回 sources 编号片段；生成时使用 source_id，程序自动回填原文 quote。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 180000,
+            "minLength": 1
+          },
+          "file_path": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1
+          },
+          "domain": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "用户自定义领域；也兼容 environment、methods 等既有分类"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120,
+            "default": 6
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "kind": {
+                "type": "string",
+                "maxLength": 80,
+                "description": "用户自定义素材类型，例如 paper、会议报告"
+              }
+            },
+            "required": []
+          },
+          "level": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "用户自定义难度或学习目标，例如 B2、博士面试"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "用户填写的题库名称；提供后会保留，不被模型输出改名"
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 30
+            }
+          }
+        },
+        "required": []
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    },
+    "save_english_lesson": {
+      "description": "校验 Agent 课程及原文出处：支持 prepare 返回的 source_id 自动回填 quote，也兼容 quote 排版归一化匹配；不接受找不到出处的依据。save:false 返回预览；save:true 追加保存，不覆盖旧课。必须达到所请求的句数。不调用模型。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "lesson": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "domain": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "description": {
+                "type": "string"
+              },
+              "level": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "tags": {
+                "type": "array",
+                "maxItems": 6,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 30
+                }
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "maxLength": 80
+                  }
+                }
+              },
+              "sentences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "image": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        },
+                        "alt": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "source_id": {
+                      "type": "string",
+                      "maxLength": 50
+                    },
+                    "en": {
+                      "type": "string"
+                    },
+                    "zh": {
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "quote": {
+                      "type": "string"
+                    },
+                    "question": {
+                      "type": "string"
+                    },
+                    "vocabulary": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "term": {
+                            "type": "string"
+                          },
+                          "ipa": {
+                            "type": "string"
+                          },
+                          "meaning": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "chunks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string"
+                          },
+                          "en": {
+                            "type": "string"
+                          },
+                          "zh": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "phonetics": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "word": {
+                            "type": "string"
+                          },
+                          "ipa": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "en",
+                    "zh",
+                    "note",
+                    "question",
+                    "vocabulary",
+                    "chunks"
+                  ],
+                  "anyOf": [
+                    {
+                      "required": [
+                        "source_id"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "quote"
+                      ]
+                    }
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 120
+              }
+            },
+            "required": [
+              "title",
+              "domain",
+              "source",
+              "sentences"
+            ]
+          },
+          "save": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "session_id",
+          "lesson"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    }
+  },
   "features": [
     {
       "code": "home",
       "explain": "打开科研小盒工具箱",
-      "cmds": ["科研小盒", "kyxh", "科研工具"]
+      "cmds": [
+        "科研小盒",
+        "kyxh",
+        "科研工具"
+      ]
     },
     {
       "code": "journal",
@@ -43,22 +1025,47 @@
     {
       "code": "submission",
       "explain": "投稿助手：分析标题与摘要，比较期刊与投稿准备事项",
-      "cmds": ["投稿助手", "投稿建议", "submission"]
+      "cmds": [
+        "投稿助手",
+        "投稿建议",
+        "submission"
+      ]
     },
     {
       "code": "literature",
       "explain": "文献图谱：导入 BibTeX 分析年代、期刊、类型与主题共现",
-      "cmds": ["文献图谱", "bib分析", "literature"]
+      "cmds": [
+        "文献图谱",
+        "bib分析",
+        "literature"
+      ]
     },
     {
       "code": "settings",
       "explain": "科研小盒模型与 API 设置",
-      "cmds": ["科研小盒设置"]
+      "cmds": [
+        "科研小盒设置"
+      ]
     },
     {
       "code": "database",
       "explain": "常用科研数据库查询，例如 数据库 BRCA1 / ncbi genome",
-      "cmds": ["数据库", "database", "ncbi", "pubmed", "genome"]
+      "cmds": [
+        "数据库",
+        "database",
+        "ncbi",
+        "pubmed",
+        "genome"
+      ]
+    },
+    {
+      "code": "english",
+      "explain": "科研英语：听写、拼句、打字与口语；AI / MCP 创建个人题库",
+      "cmds": [
+        "科研英语",
+        "英语练习",
+        "research english"
+      ]
     }
   ]
 }

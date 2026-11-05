@@ -1,7 +1,7 @@
 {
   "name": "ztools-cc-switch",
   "title": "AI Provider Switch",
-  "version": "1.53.0",
+  "version": "1.54.0",
   "description": "统一管理 AI 编程客户端 Provider、Skills、本地路由、用量与日志",
   "author": "ZTools Community",
   "main": "index.html",

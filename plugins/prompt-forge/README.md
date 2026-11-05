@@ -62,8 +62,8 @@ npm install
 # 启动开发服务器（http://localhost:5174）
 npm run dev
 
-# 构建
-npx vite build
+# 发布前完整检查（lint + test + build）
+npm run check
 ```
 
 在 ZTools 的插件配置中将开发地址设为 `http://localhost:5174` 即可实时预览。
@@ -84,7 +84,9 @@ prompt-forge/
 │   ├── types/index.ts       # PromptUnit、Variable 等类型定义
 │   ├── stores/
 │   │   ├── router.ts        # 路由状态管理
-│   │   ├── prompt.ts        # 提示词数据、搜索、筛选
+│   │   ├── prompt.ts        # 提示词 Store 对外接口与交互状态
+│   │   ├── prompt-collections.ts # 纯集合筛选、排序与标签归集
+│   │   ├── prompt-persistence.ts # 初始化、延迟写入与失败回滚
 │   │   ├── app.ts           # 应用设置
 │   │   └── theme.ts         # 主题切换
 │   ├── utils/

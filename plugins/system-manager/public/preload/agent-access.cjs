@@ -11,6 +11,13 @@ const AGENT_SCOPES = Object.freeze([
   'lan_scan',
 ])
 const SCOPE_SET = new Set(AGENT_SCOPES)
+const AGENT_MODES = Object.freeze(['ask', 'auto', 'full'])
+
+const DEFAULT_MODE_SCOPES = Object.freeze({
+  ask: Object.freeze([]),
+  auto: Object.freeze(['report_export', 'lan_scan', 'system_cleanup']),
+  full: Object.freeze([...AGENT_SCOPES]),
+})
 
 function orderedScopes(scopes) {
   const selected = new Set(scopes)
@@ -19,9 +26,8 @@ function orderedScopes(scopes) {
 
 function createAgentAccess(hostWindow, options = {}) {
   const clock = typeof options.now === 'function' ? options.now : Date.now
-  const ttlMs = Number.isSafeInteger(options.ttlMs) && options.ttlMs > 0 && options.ttlMs <= ACCESS_TTL_MS
-    ? options.ttlMs
-    : ACCESS_TTL_MS
+  // 默认 null（无超时限制常驻），显式传 ttlMs 时遵循指定过期时间
+  const customTtl = typeof options.ttlMs === 'number' && options.ttlMs > 0 ? options.ttlMs : null
   const available = Boolean(hostWindow && hostWindow.ztools && typeof hostWindow.ztools.registerTool === 'function')
   let record = null
   let expiryTimer = null
@@ -32,7 +38,7 @@ function createAgentAccess(hostWindow, options = {}) {
   }
 
   function expireIfNeeded() {
-    if (record && record.expiresAt <= clock()) {
+    if (record && record.expiresAt !== null && record.expiresAt <= clock()) {
       record = null
       clearTimer()
     }
@@ -41,7 +47,7 @@ function createAgentAccess(hostWindow, options = {}) {
 
   function scheduleExpiry() {
     clearTimer()
-    if (!record) return
+    if (!record || record.expiresAt === null) return
     expiryTimer = setTimeout(() => {
       record = null
       expiryTimer = null
@@ -51,37 +57,70 @@ function createAgentAccess(hostWindow, options = {}) {
 
   function getState() {
     const activeRecord = expireIfNeeded()
-    const remainingMs = available && activeRecord
+    const active = Boolean(available && activeRecord)
+    const mode = active ? (activeRecord.mode || null) : null
+    const scopes = active ? [...activeRecord.scopes] : []
+    const expiresAt = active && activeRecord.expiresAt !== null
+      ? new Date(activeRecord.expiresAt).toISOString()
+      : null
+    const remainingMs = active && activeRecord.expiresAt !== null
       ? Math.max(0, Math.floor(activeRecord.expiresAt - clock()))
-      : 0
-    const active = Boolean(available && activeRecord && remainingMs > 0)
+      : (active ? null : 0)
+
     return Object.freeze({
       available,
       active,
-      expiresAt: active ? new Date(activeRecord.expiresAt).toISOString() : null,
-      remainingMs: active ? remainingMs : 0,
-      scopes: Object.freeze(active ? [...activeRecord.scopes] : []),
+      mode,
+      scopes: Object.freeze(scopes),
+      expiresAt,
+      remainingMs,
     })
   }
 
   function grant(request) {
-    const input = plainObject(request, ['scopes'])
-    const scopes = stringArray(input.scopes, 'scopes', {
-      min: 1,
-      max: AGENT_SCOPES.length,
-      itemMax: 40,
-      values: AGENT_SCOPES,
-    })
+    const input = plainObject(request, ['mode', 'scopes'])
+    let mode = null
+    let scopes = null
+
+    if (input.mode !== undefined) {
+      if (typeof input.mode !== 'string' || !AGENT_MODES.includes(input.mode)) {
+        const error = new Error('request.mode is invalid')
+        error.name = 'ValidationError'
+        error.code = 'INVALID_ARGUMENT'
+        error.expose = true
+        throw error
+      }
+      mode = input.mode
+      scopes = [...DEFAULT_MODE_SCOPES[mode]]
+    }
+
+    if (input.scopes !== undefined) {
+      const validatedScopes = stringArray(input.scopes, 'scopes', {
+        min: 1,
+        max: AGENT_SCOPES.length,
+        itemMax: 40,
+        values: AGENT_SCOPES,
+      })
+      scopes = orderedScopes(validatedScopes)
+      if (!mode) {
+        mode = scopes.length === AGENT_SCOPES.length
+          ? 'full'
+          : (scopes.length === 0 ? 'ask' : 'auto')
+      }
+    }
+
     if (!available) {
       record = null
       clearTimer()
       return getState()
     }
+
     const grantedAt = clock()
     record = {
       grantedAt,
-      expiresAt: grantedAt + ttlMs,
-      scopes: orderedScopes(scopes),
+      expiresAt: customTtl ? grantedAt + customTtl : null,
+      mode,
+      scopes,
     }
     scheduleExpiry()
     return getState()
@@ -96,7 +135,10 @@ function createAgentAccess(hostWindow, options = {}) {
   function hasScope(scope) {
     if (!available || !SCOPE_SET.has(scope)) return false
     const activeRecord = expireIfNeeded()
-    return Boolean(activeRecord && activeRecord.expiresAt > clock() && activeRecord.scopes.includes(scope))
+    if (!activeRecord) return false
+    if (activeRecord.expiresAt !== null && activeRecord.expiresAt <= clock()) return false
+    if (activeRecord.mode === 'full') return true
+    return activeRecord.scopes.includes(scope)
   }
 
   return Object.freeze({ getState, grant, revoke, hasScope })
@@ -118,6 +160,7 @@ function installAgentAccess(hostWindow, page, options = {}) {
 
 module.exports = Object.freeze({
   ACCESS_TTL_MS,
+  AGENT_MODES,
   AGENT_SCOPES,
   createAgentAccess,
   installAgentAccess,

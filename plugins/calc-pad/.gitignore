@@ -1,0 +1,21 @@
+node_modules/
+src-ztools/dist/
+.idea
+.DS_Store
+*.local
+
+# agent/tool process artifacts
+.catpaw/
+.claude/
+.codeium/
+.codex/
+.copilot/
+.dsh/
+.gemini/
+.opencode/
+.qoder/
+.trae-cn/
+.zcode/
+.superpowers/
+.zcodeignore
+

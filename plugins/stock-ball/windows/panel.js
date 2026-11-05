@@ -83,10 +83,16 @@
   /* ---------------- 数据刷新（解耦独立更新，互不阻塞） ---------------- */
   var refreshPending = null;
   function refresh(force) {
+    if (document.hidden && force !== true) return Promise.resolve();
     // 同窗口合并：定时刷新、回前台、广播通知、手动按钮重叠触发时复用进行中的这一轮
     //（复现：重叠3次触发 = 3次请求 +101次读库 —— 慢接口下负担会叠加，test-slow-network-dedup 锁死）
     if (refreshPending) return refreshPending;
-    refreshPending = refreshImpl(force).finally(function () { refreshPending = null; });
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+    refreshPending = refreshImpl(force).finally(function () {
+      refreshPending = null;
+      loopRefresh(); // 成功、失败、手动刷新都只续接同一个定时器
+    });
     return refreshPending;
   }
   function refreshImpl(force) {
@@ -134,8 +140,6 @@
         lastUpdate = Date.now();
       }
       renderStatus();
-      // 隐藏期间不再后台重试，回前台由 visibilitychange 补
-      if (anyFail && !document.hidden) setTimeout(refresh, Math.min(30000, 4000 * failCount));
     }).catch(function () {
       failCount += 1;
       renderStatus();
@@ -144,11 +148,16 @@
 
   function loopRefresh() {
     clearTimeout(refreshTimer);
-    // 窗口隐藏时整条刷新链停住，回到前台由 visibilitychange 立刻补
+    refreshTimer = null;
+    // 隐藏时不安排下一轮，回到前台由 visibilitychange 补拉。
     if (document.hidden) return;
+    if (refreshPending) return;
+    var interval = Math.max(2, settings.refreshSec || 5) * 1000;
+    // 失败时在同一条链上退避，不另开重试链，也不快于用户设置的间隔。
+    if (failCount > 0) interval = Math.max(interval, Math.min(30000, 4000 * failCount));
     refreshTimer = setTimeout(function () {
-      refresh().catch(function () {}).then(loopRefresh);
-    }, Math.max(2, settings.refreshSec || 5) * 1000);
+      refresh().catch(function () {});
+    }, interval);
   }
 
   document.addEventListener('visibilitychange', function () {
@@ -156,7 +165,7 @@
     loopRefresh(); // 恢复被隐藏期清掉的定时器
     renderStatus();
     // 刚刷新过就不再打一轮：快速切换标签页不产生多余请求（1.5s 内视为仍新鲜）
-    if (Date.now() - lastUpdate >= 1500) refresh().catch(function () {}).then(loopRefresh);
+    if (Date.now() - lastUpdate >= 1500) refresh().catch(function () {});
   });
 
   /* ---------------- 状态与指数 ---------------- */

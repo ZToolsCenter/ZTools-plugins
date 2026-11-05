@@ -18,6 +18,41 @@ interface KillResult {
   error?: string
 }
 
+interface FileHolder {
+  pid: number
+  name: string
+  service?: string
+  type?: string
+  handleCount?: number
+  handlePath?: string
+  handlePaths?: string[]
+}
+
+interface WhoLocksOptions {
+  mode?: 'files' | 'handles'
+}
+
+interface WhoLocksResult {
+  success: boolean
+  holders?: FileHolder[]
+  error?: string
+  mode?: 'files' | 'handles'
+  kind?: 'file' | 'directory'
+  method?: 'restart-manager' | 'handle-scan'
+  partial?: boolean
+  skipped?: number
+  timedOut?: number
+  examined?: number
+}
+
+interface PathInfoResult {
+  success: boolean
+  exists: boolean
+  isFile: boolean
+  isDirectory: boolean
+  path: string
+}
+
 interface ProcessInfo {
   pid: number
   name: string
@@ -28,6 +63,8 @@ interface ProcessInfo {
 interface Services {
   listProcesses: () => Promise<ProcessRaw[]>
   scanPorts: () => Promise<PortEntry[]>
+  pathInfo: (filePath: string) => PathInfoResult
+  whoLocks: (filePath: string, options?: WhoLocksOptions) => Promise<WhoLocksResult>
   killProcess: (pid: number) => Promise<KillResult>
 }
 

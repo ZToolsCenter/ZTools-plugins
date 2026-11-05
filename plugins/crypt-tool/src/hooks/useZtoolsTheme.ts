@@ -1,9 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 
-// 默认主题色（与当前 --blue 一致）
 const DEFAULT_PRIMARY = 'rgb(88, 164, 246)'
 
-// 尝试从 ztools 注入的 CSS 变量中读取主题色
+interface ZtoolsThemeInfo {
+  isDark?: boolean
+  primaryColor?: string
+  customColor?: string
+  windowMaterial?: string
+}
+
+interface ThemeCapableZtools {
+  isDarkColors?: () => boolean
+  onThemeChange?: (listener: (info: ZtoolsThemeInfo) => void) => void | (() => void)
+}
+
+export interface ZtoolsTheme {
+  primaryColor: string
+  isDark: boolean
+}
+
 function readThemeColorFromCSS(): string | null {
   if (typeof window === 'undefined') return null
   try {
@@ -14,50 +29,108 @@ function readThemeColorFromCSS(): string | null {
       '--ztools-theme-color',
       '--theme-primary',
       '--accent-color',
-      '--primary-color',
+      '--primary-color'
     ]
     for (const name of candidates) {
       const val = style.getPropertyValue(name).trim()
       if (val) return val
     }
   } catch {
-    // ignore
+    // 宿主未注入主题变量时使用默认色
   }
   return null
 }
 
-export interface ZtoolsTheme {
-  /** 主色调 */
-  primaryColor: string
-  /** 是否为深色模式 */
-  isDark: boolean
+function parseRgb(color: string): [number, number, number] | null {
+  const input = color.trim()
+  const hex = input.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)
+  if (hex) {
+    const raw = hex[1]
+    const expanded = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw
+    return [
+      Number.parseInt(expanded.slice(0, 2), 16),
+      Number.parseInt(expanded.slice(2, 4), 16),
+      Number.parseInt(expanded.slice(4, 6), 16)
+    ]
+  }
+  const rgb = input.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i)
+  if (rgb) return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])]
+  return null
+}
+
+function relativeLuminance(color: string): number {
+  const rgb = parseRgb(color)
+  if (!rgb) return 0.5
+  const [r, g, b] = rgb.map((value) => {
+    const channel = value / 255
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+function accentInk(color: string): string {
+  return relativeLuminance(color) > 0.179 ? '#08131e' : '#f7fafc'
+}
+
+function readInitialTheme(): ZtoolsTheme {
+  if (typeof window === 'undefined') return { primaryColor: DEFAULT_PRIMARY, isDark: false }
+  const ztools = window.ztools as unknown as ThemeCapableZtools | undefined
+  const cssColor = readThemeColorFromCSS()
+  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+  const isDark = ztools?.isDarkColors?.() ?? prefersDark
+  return {
+    primaryColor: cssColor || DEFAULT_PRIMARY,
+    isDark
+  }
+}
+
+function applyTheme(theme: ZtoolsTheme) {
+  const root = document.documentElement
+  root.style.setProperty('--blue', theme.primaryColor)
+  root.style.setProperty('--ct-on-accent', accentInk(theme.primaryColor))
+  root.classList.toggle('theme-dark', theme.isDark)
+  root.classList.toggle('theme-light', !theme.isDark)
 }
 
 export function useZtoolsTheme(): ZtoolsTheme {
-  const [theme, setTheme] = useState<ZtoolsTheme>(() => {
-    const isDark = (typeof window !== 'undefined' && window.ztools?.isDarkColors?.()) ?? false
-    const cssColor = readThemeColorFromCSS()
-    return {
-      primaryColor: cssColor && cssColor.length > 0 ? cssColor : DEFAULT_PRIMARY,
-      isDark,
-    }
-  })
+  const [theme, setTheme] = useState<ZtoolsTheme>(readInitialTheme)
+
+  useLayoutEffect(() => {
+    applyTheme(theme)
+  }, [theme])
 
   useEffect(() => {
-    const cssColor = readThemeColorFromCSS()
-    if (cssColor && cssColor.length > 0) {
-      document.documentElement.style.setProperty('--blue', cssColor)
-      setTheme((prev) => ({ ...prev, primaryColor: cssColor }))
-    }
-
-    // 监听系统主题变化
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = () => {
-      const isDark = window.ztools?.isDarkColors?.() ?? mq.matches
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)')
+    const handleSystem = () => {
+      const ztools = window.ztools as unknown as ThemeCapableZtools | undefined
+      const isDark = ztools?.isDarkColors?.() ?? media?.matches ?? false
       setTheme((prev) => ({ ...prev, isDark }))
     }
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
+    media?.addEventListener('change', handleSystem)
+
+    let unsubscribe: void | (() => void)
+    try {
+      const ztools = window.ztools as unknown as ThemeCapableZtools | undefined
+      unsubscribe = ztools?.onThemeChange?.((info) => {
+        setTheme((prev) => ({
+          primaryColor: info.primaryColor || prev.primaryColor,
+          isDark: typeof info.isDark === 'boolean' ? info.isDark : prev.isDark
+        }))
+        if (info.customColor) {
+          document.documentElement.style.setProperty('--custom-color', info.customColor)
+        }
+        if (info.windowMaterial) {
+          document.documentElement.dataset.windowMaterial = info.windowMaterial
+        }
+      })
+    } catch {
+      // 宿主未提供 onThemeChange 扩展时忽略
+    }
+
+    return () => {
+      media?.removeEventListener('change', handleSystem)
+      if (typeof unsubscribe === 'function') unsubscribe()
+    }
   }, [])
 
   return theme

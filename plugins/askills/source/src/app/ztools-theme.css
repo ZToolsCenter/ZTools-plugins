@@ -1,0 +1,66 @@
+/* Match the host's acrylic/mica backdrop without fading text or controls. */
+:root[data-host="ztools"] {
+  --plugin-canvas: transparent;
+  --plugin-surface: rgb(255 255 255 / 52%);
+  --plugin-surface-strong: rgb(255 255 255 / 76%);
+  --plugin-selected: color-mix(in srgb, var(--accent-soft) 80%, transparent);
+  --plugin-blur: blur(18px) saturate(125%);
+}
+
+:root[data-host="ztools"]:where([data-theme="dark"]) {
+  --plugin-surface: rgb(24 25 32 / 46%);
+  --plugin-surface-strong: rgb(35 37 46 / 72%);
+}
+
+/* A manual app theme can differ from ZTools. Tint that backdrop so the
+   chosen text colors stay readable, without changing the host's settings. */
+:root[data-host="ztools"]:where(
+    [data-theme="dark"][data-host-theme="light"],
+    [data-theme="light"][data-host-theme="dark"]
+  ) {
+  --plugin-canvas: color-mix(in srgb, var(--canvas) 90%, transparent);
+}
+
+:root[data-host="ztools"],
+:root[data-host="ztools"] body {
+  background: transparent;
+}
+
+:root[data-host="ztools"] .main-shell,
+:root[data-host="ztools"] .sidebar {
+  background: var(--plugin-canvas);
+}
+
+:root[data-host="ztools"]
+  :is(
+    .skill-card,
+    .project-card,
+    .detail-panel,
+    .project-detail,
+    .source-form,
+    .catalog,
+    .settings-section
+  ) {
+  background: var(--plugin-surface);
+  backdrop-filter: var(--plugin-blur);
+}
+
+:root[data-host="ztools"] :is(.search, input:not([type="checkbox"]), select),
+:root[data-host="ztools"] :is(.skill-card, .project-card):hover:enabled {
+  background: var(--plugin-surface-strong);
+}
+
+:root[data-host="ztools"] :is(.skill-card, .project-card).selected {
+  background: var(--plugin-selected);
+}
+
+/* Preserve the OS's readability preference instead of forcing transparency. */
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  :root[data-host="ztools"] {
+    --plugin-canvas: var(--canvas);
+    --plugin-surface: var(--surface);
+    --plugin-surface-strong: var(--surface);
+    --plugin-selected: var(--accent-soft);
+    --plugin-blur: none;
+  }
+}

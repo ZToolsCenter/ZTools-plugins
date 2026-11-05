@@ -1,140 +1,70 @@
-import { ref, computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import Fuse from 'fuse.js'
-import type { PromptItem, HistoryEntry } from '../types'
-import { loadPrompts, savePrompts, loadHistory, saveHistory } from '../utils/storage'
-import { useAppSettings } from './app'
+import type { HistoryEntry, PromptItem } from '../types'
 import { generateId } from '../utils/index'
+import { useAppSettings } from './app'
+import {
+  collectTags,
+  selectLiveItems,
+  selectRecentItems,
+  selectSortedHistory,
+  selectSpaceItems,
+  type PromptSortBy,
+  type PromptSpaceTab,
+  type SortDirection,
+} from './prompt-collections'
+import { createPromptPersistence } from './prompt-persistence'
 
 const rawItems = ref<PromptItem[]>([])
 const historyItems = ref<HistoryEntry[]>([])
 const isLoading = ref(false)
-let _initPromise: Promise<void> | null = null
+const persistError = ref('')
 
-// Debounce 持久化：频繁操作合并为单次写入，降低 I/O 次数
-let _persistTimer: ReturnType<typeof setTimeout> | null = null
-const DEBOUNCE_MS = 300
-
-function schedulePersist() {
-  if (_persistTimer) clearTimeout(_persistTimer)
-  _persistTimer = setTimeout(() => {
-    _persistTimer = null
-    void savePrompts(rawItems.value)
-  }, DEBOUNCE_MS)
-}
-
-// 有挂起的 debounce 时先 flush，确保数据不丢（用于关键操作）
-async function flushPersist() {
-  if (_persistTimer) {
-    clearTimeout(_persistTimer)
-    _persistTimer = null
-  }
-  await savePrompts(rawItems.value)
-}
-
-/** 仅落盘仍在 debounce 队列中的修改，供页面隐藏或退出时调用。 */
-async function flushPendingPersist() {
-  if (!_persistTimer) return
-  clearTimeout(_persistTimer)
-  _persistTimer = null
-  await savePrompts(rawItems.value)
-}
-
-// 筛选 & 排序状态（模块级，确保所有组件共享同一份）
-const spaceTab = ref<'all' | 'recent' | 'favorite' | 'project' | 'asset' | 'history' | 'trash' | 'stats'>('recent')
+const spaceTab = ref<PromptSpaceTab>('recent')
 const query = ref('')
 const filterTag = ref('')
 const filterProjectId = ref('')
 const activePromptId = ref('')
-const sortBy = ref<'createdAt' | 'updatedAt' | 'title' | 'usageCount'>('createdAt')
-const sortDir = ref<'desc' | 'asc'>('desc')
-const historySortDir = ref<'desc' | 'asc'>('desc')
+const sortBy = ref<PromptSortBy>('createdAt')
+const sortDir = ref<SortDirection>('desc')
+const historySortDir = ref<SortDirection>('desc')
 
-// 调用阶段
 const phase = ref<'search' | 'fill'>('search')
 const selectedPrompt = ref<PromptItem | null>(null)
 const variableValues = ref<Record<string, string>>({})
 const keyboardIndex = ref(0)
 
+const persistence = createPromptPersistence({ rawItems, historyItems, isLoading, persistError })
+
 export function usePromptStore() {
-  /** 不含已删除项 */
-  const liveItems = computed(() => rawItems.value.filter(i => !i.deleted))
+  const liveItems = computed(() => selectLiveItems(rawItems.value))
+  const recentItems = computed(() => selectRecentItems(liveItems.value))
+  const sortedHistoryItems = computed(() => selectSortedHistory(historyItems.value, historySortDir.value))
+  const favoriteItems = computed(() => liveItems.value.filter(item => item.favorite))
+  const assetItems = computed(() => liveItems.value.filter(item => !item.projectId))
+  const trashItems = computed(() => rawItems.value.filter(item => item.deleted))
 
-  /** 最近使用（按 lastUsedAt 降序） */
-  const recentItems = computed(() =>
-    [...liveItems.value]
-      .filter(i => i.lastUsedAt)
-      .sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0))
-      .slice(0, 20)
-  )
+  const spaceItems = computed(() => selectSpaceItems({
+    tab: spaceTab.value,
+    tag: filterTag.value,
+    projectId: filterProjectId.value,
+    sortBy: sortBy.value,
+    sortDir: sortDir.value,
+    liveItems: liveItems.value,
+    recentItems: recentItems.value,
+    favoriteItems: favoriteItems.value,
+    assetItems: assetItems.value,
+    trashItems: trashItems.value,
+  }))
 
-  /** 历史记录列表（按时间排序） */
-  const sortedHistoryItems = computed(() => {
-    const items = [...historyItems.value]
-    items.sort((a, b) => {
-      const dir = historySortDir.value === 'desc' ? -1 : 1
-      return dir * (a.usedAt - b.usedAt)
-    })
-    return items
-  })
-
-  /** 收藏 */
-  const favoriteItems = computed(() => liveItems.value.filter(i => i.favorite))
-
-  /** 资产（prompt + snippet + template + constraint，不在项目中） */
-  const assetItems = computed(() => liveItems.value.filter(i => !i.projectId))
-
-  /** 回收站 */
-  const trashItems = computed(() => rawItems.value.filter(i => i.deleted))
-
-  /** 当前空间页显示的列表 */
-  const spaceItems = computed(() => {
-    const currentTab = spaceTab.value
-    const currentFilterTag = filterTag.value
-    const currentFilterProjectId = filterProjectId.value
-    const currentSortBy = sortBy.value
-    const currentSortDir = sortDir.value
-
-    let items: PromptItem[]
-    switch (currentTab) {
-      case 'all': items = liveItems.value; break
-      case 'recent': items = recentItems.value; break
-      case 'favorite': items = favoriteItems.value; break
-      case 'project': items = currentFilterProjectId
-        ? liveItems.value.filter(i => i.projectId === currentFilterProjectId)
-        : liveItems.value.filter(i => i.projectId)
-        break
-      case 'asset': items = assetItems.value; break
-      case 'trash': items = trashItems.value; break
-      default: items = liveItems.value
-    }
-    // 标签筛选
-    if (currentFilterTag) items = items.filter(i => i.tags.includes(currentFilterTag))
-    // 排序
-    items = [...items].sort((a, b) => {
-      const dir = currentSortDir === 'desc' ? -1 : 1
-      if (currentSortBy === 'title') return dir * (a.title || '').localeCompare(b.title || '')
-      if (currentSortBy === 'usageCount') return dir * ((a.usageCount || 0) - (b.usageCount || 0))
-      return dir * ((a[currentSortBy] as number || 0) - (b[currentSortBy] as number || 0))
-    })
-    return items
-  })
-
-  /** 所有标签 */
-  const allTags = computed(() => {
-    const set = new Set<string>()
-    for (const i of liveItems.value) for (const t of i.tags) set.add(t)
-    return [...set].sort()
-  })
-
-  // ====== Fuse.js 模糊搜索（懒加载 + 缓存，仅在搜索时按需构建索引） ======
+  const allTags = computed(() => collectTags(liveItems.value))
   const fuseIndex = ref<Fuse<PromptItem> | null>(null)
 
-  // spaceItems 变化时标记索引失效，下次搜索时惰性重建
   watch(spaceItems, () => { fuseIndex.value = null })
 
   const filteredCallItems = computed(() => {
-    const q = query.value.trim()
-    if (!q) return spaceItems.value
+    const currentQuery = query.value.trim()
+    if (!currentQuery) return spaceItems.value
     if (!fuseIndex.value) {
       fuseIndex.value = new Fuse(spaceItems.value, {
         keys: [
@@ -148,21 +78,18 @@ export function usePromptStore() {
         minMatchCharLength: 1,
       })
     }
-    return fuseIndex.value.search(q).map(r => r.item)
+    return fuseIndex.value.search(currentQuery).map(result => result.item)
   })
 
   const activeItem = computed(() => {
-    if (filteredCallItems.value.length === 0) return null
+    if (!filteredCallItems.value.length) return null
     return filteredCallItems.value[keyboardIndex.value] || filteredCallItems.value[0]
   })
 
-  // ====== 操作 ======
-
-  function moveSelection(dir: 'up' | 'down') {
-    const items = filteredCallItems.value
-    if (!items.length) return
-    if (dir === 'down') { if (keyboardIndex.value < items.length - 1) keyboardIndex.value++ }
-    else { if (keyboardIndex.value > 0) keyboardIndex.value-- }
+  function moveSelection(direction: 'up' | 'down') {
+    if (!filteredCallItems.value.length) return
+    if (direction === 'down' && keyboardIndex.value < filteredCallItems.value.length - 1) keyboardIndex.value++
+    if (direction === 'up' && keyboardIndex.value > 0) keyboardIndex.value--
   }
 
   function selectActive() {
@@ -171,7 +98,9 @@ export function usePromptStore() {
     selectedPrompt.value = item
     phase.value = 'fill'
     variableValues.value = {}
-    if (item.variables) for (const v of item.variables) variableValues.value[v.name] = v.defaultValue || ''
+    for (const variable of item.variables || []) {
+      variableValues.value[variable.name] = variable.defaultValue || ''
+    }
   }
 
   function resetSelection() {
@@ -182,104 +111,85 @@ export function usePromptStore() {
     variableValues.value = {}
   }
 
-  async function init() {
-    if (_initPromise) return _initPromise
-    _initPromise = (async () => {
-      isLoading.value = true
-      rawItems.value = await loadPrompts()
-      historyItems.value = await loadHistory()
-      isLoading.value = false
-    })()
-    return _initPromise
-  }
-
-  async function ensureReady() { await init() }
-
-  /** 立即持久化（flush 挂起的 debounce 后写入），用于批量操作或关键操作 */
-  async function persistAll() { await flushPersist() }
-
-  // ====== 历史记录（独立存储，不使用 debounce） ======
-
   async function addHistory(entry: Omit<HistoryEntry, 'id' | 'usedAt'>) {
-    const record: HistoryEntry = {
-      id: generateId(),
-      ...entry,
-      usedAt: Date.now(),
-    }
-    historyItems.value.unshift(record)
-    const max = useAppSettings().settings.value.maxHistory || 200
-    if (historyItems.value.length > max) {
-      historyItems.value = historyItems.value.slice(0, max)
-    }
-    await saveHistory(historyItems.value)
+    const record: HistoryEntry = { id: generateId(), ...entry, usedAt: Date.now() }
+    await persistence.commitHistoryMutation(() => {
+      historyItems.value.unshift(record)
+      const maxHistory = useAppSettings().settings.value.maxHistory || 200
+      if (historyItems.value.length > maxHistory) historyItems.value = historyItems.value.slice(0, maxHistory)
+    })
   }
 
   async function clearHistory() {
-    historyItems.value = []
-    await saveHistory(historyItems.value)
+    await persistence.commitHistoryMutation(() => { historyItems.value = [] })
   }
 
   async function deleteHistoryEntry(id: string) {
-    historyItems.value = historyItems.value.filter(h => h.id !== id)
-    await saveHistory(historyItems.value)
+    await persistence.commitHistoryMutation(() => {
+      historyItems.value = historyItems.value.filter(item => item.id !== id)
+    })
   }
 
-  // ====== 提示词操作（高频使用 debounce，关键操作立即 flush） ======
-
   async function recordUsage(id: string) {
-    const item = rawItems.value.find(i => i.id === id)
-    if (item) {
+    await persistence.commitPromptMutation(() => {
+      const item = rawItems.value.find(candidate => candidate.id === id)
+      if (!item) return
       item.usageCount = (item.usageCount || 0) + 1
       item.lastUsedAt = Date.now()
-      await persistAll()
-    }
+    })
   }
 
   function toggleFavorite(id: string) {
-    const item = rawItems.value.find(i => i.id === id)
-    if (item) { item.favorite = !item.favorite; schedulePersist() }
+    const item = rawItems.value.find(candidate => candidate.id === id)
+    if (!item) return
+    item.favorite = !item.favorite
+    persistence.schedulePromptPersist()
   }
 
-  function softDelete(id: string) {
-    const item = rawItems.value.find(i => i.id === id)
-    if (item) { item.deleted = true; item.updatedAt = Date.now(); schedulePersist() }
+  async function softDelete(id: string) {
+    await persistence.commitPromptMutation(() => {
+      const item = rawItems.value.find(candidate => candidate.id === id)
+      if (item) { item.deleted = true; item.updatedAt = Date.now() }
+    })
   }
 
-  function restore(id: string) {
-    const item = rawItems.value.find(i => i.id === id)
-    if (item) { item.deleted = false; item.updatedAt = Date.now(); schedulePersist() }
+  async function restore(id: string) {
+    await persistence.commitPromptMutation(() => {
+      const item = rawItems.value.find(candidate => candidate.id === id)
+      if (item) { item.deleted = false; item.updatedAt = Date.now() }
+    })
   }
 
-  function hardDelete(id: string) {
-    rawItems.value = rawItems.value.filter(i => i.id !== id)
-    schedulePersist()
+  async function hardDelete(id: string) {
+    await persistence.commitPromptMutation(() => {
+      rawItems.value = rawItems.value.filter(item => item.id !== id)
+    })
   }
 
-  function addItem(item: PromptItem) {
-    rawItems.value.push(item)
-    schedulePersist()
+  async function addItem(item: PromptItem) {
+    await persistence.commitPromptMutation(() => { rawItems.value.push(item) })
   }
 
-  function updateItem(id: string, patch: Partial<PromptItem>) {
-    const idx = rawItems.value.findIndex(i => i.id === id)
-    if (idx !== -1) {
-      rawItems.value[idx] = { ...rawItems.value[idx], ...patch, updatedAt: Date.now() }
-      schedulePersist()
-    }
+  async function updateItem(id: string, patch: Partial<PromptItem>) {
+    await persistence.commitPromptMutation(() => {
+      const index = rawItems.value.findIndex(item => item.id === id)
+      if (index !== -1) rawItems.value[index] = { ...rawItems.value[index], ...patch, updatedAt: Date.now() }
+    })
   }
 
   return {
-    rawItems, historyItems, isLoading,
+    rawItems, historyItems, isLoading, persistError,
     spaceTab, query, filterTag, filterProjectId, activePromptId,
     sortBy, sortDir, historySortDir,
     phase, selectedPrompt, variableValues, keyboardIndex,
     liveItems, recentItems, favoriteItems, assetItems, trashItems,
-    sortedHistoryItems,
-    spaceItems, allTags, filteredCallItems, activeItem,
+    sortedHistoryItems, spaceItems, allTags, filteredCallItems, activeItem,
     moveSelection, selectActive, resetSelection,
-    init, ensureReady, persistAll, flushPendingPersist, recordUsage,
-    addHistory, clearHistory, deleteHistoryEntry,
-    toggleFavorite, softDelete, restore, hardDelete,
-    addItem, updateItem,
+    init: persistence.ensureReady,
+    ensureReady: persistence.ensureReady,
+    persistAll: persistence.persistAll,
+    flushPendingPersist: persistence.flushPendingPersist,
+    recordUsage, addHistory, clearHistory, deleteHistoryEntry,
+    toggleFavorite, softDelete, restore, hardDelete, addItem, updateItem,
   }
 }

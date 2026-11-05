@@ -1,0 +1,10 @@
+{
+  "name": "askills-ztools-submission",
+  "version": "1.0.2",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}

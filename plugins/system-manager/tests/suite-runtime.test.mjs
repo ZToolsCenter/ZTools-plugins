@@ -614,3 +614,21 @@ test('a consumed action with a possible side effect keeps a sticky failed idempo
     idempotencyKey: 'lan-sticky-failure-002',
   }), expectCode('ACTION_NOT_FOUND'))
 })
+
+test('new extended MCP tools (hardware metrics, archive inspection, plugin audit) execute safely', async () => {
+  const harness = createHarness({})
+  // 1. get_hardware_metrics
+  const hw = await harness.runtime.get_hardware_metrics({})
+  assert.equal(typeof hw.timestamp, 'string')
+  assert.equal(typeof hw.metrics, 'object')
+  assert.ok(hw.metrics.cpu)
+
+  // 2. inspect_archive_safety invalid arguments
+  await assert.rejects(harness.runtime.inspect_archive_safety({}), expectCode('INVALID_ARGUMENT'))
+  await assert.rejects(harness.runtime.inspect_archive_safety({ archivePath: '' }), expectCode('INVALID_ARGUMENT'))
+
+  // 3. audit_installed_plugin invalid arguments
+  await assert.rejects(harness.runtime.audit_installed_plugin({}), expectCode('INVALID_ARGUMENT'))
+  await assert.rejects(harness.runtime.audit_installed_plugin({ pluginId: '' }), expectCode('INVALID_ARGUMENT'))
+})
+

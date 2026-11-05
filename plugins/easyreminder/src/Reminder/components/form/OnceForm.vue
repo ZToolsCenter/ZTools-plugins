@@ -5,6 +5,9 @@ import { ElMessage } from 'element-plus'
 const props = defineProps<{
   initialDate?: string
   initialTime?: string
+  // 编辑已有任务里的历史一次性规则时传原始时刻：时刻没改动就允许保留过去的值，
+  // 否则整条任务都保存不了；一旦改成别的过去时刻仍然拦下
+  originalTriggerAt?: number
 }>()
 
 const onceDate = ref('')
@@ -29,7 +32,13 @@ function validate(): boolean {
   }
   
   const triggerAt = buildTriggerAt()
-  if (triggerAt <= Date.now()) {
+  // 时间输入允许被清空（原生 time input 可整段删掉），此时 buildTriggerAt 是 NaN：
+  // 存下去会变成 triggerAt=0 的「永不触发」规则，必须拦下
+  if (!Number.isFinite(triggerAt)) {
+    ElMessage.warning('请填写有效的提醒时间')
+    return false
+  }
+  if (triggerAt <= Date.now() && triggerAt !== props.originalTriggerAt) {
     ElMessage.warning('提醒时间必须在当前时间之后')
     return false
   }

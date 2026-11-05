@@ -14,21 +14,24 @@ import {
   type WindowPreferencesStoreOptions,
 } from "./window-preferences-sync";
 
-export type { ThemeBackground, ThemePreferences } from "./window-theme-preferences";
+export type { ThemeBackground, ThemeImageLayout, ThemePreferences } from "./window-theme-preferences";
 export { isThemeColor, isThemeImageDataUrl } from "./window-theme-preferences";
 export type { SyncedWindowPreferences } from "./window-preferences-sync";
 
 export type ShelfDockEdge = Exclude<DockEdge, "floating">;
 export type MultiPasteMode = "batch" | "queue";
+export type ShelfUiVersion = "modern" | "classic";
 
 export type WindowPreferences = Readonly<{
   dockEdge: ShelfDockEdge;
+  uiVersion: ShelfUiVersion;
   multiPasteMode: MultiPasteMode;
   theme: ThemePreferences;
 }>;
 
 export const defaultWindowPreferences: WindowPreferences = {
   dockEdge: "bottom",
+  uiVersion: "modern",
   multiPasteMode: "batch",
   theme: defaultThemePreferences,
 };
@@ -50,6 +53,10 @@ function isShelfDockEdge(value: unknown): value is ShelfDockEdge {
   return value === "top" || value === "bottom" || value === "left" || value === "right";
 }
 
+function isShelfUiVersion(value: unknown): value is ShelfUiVersion {
+  return value === "modern" || value === "classic";
+}
+
 function isMultiPasteMode(value: unknown): value is MultiPasteMode {
   return value === "batch" || value === "queue";
 }
@@ -59,6 +66,9 @@ function parseWindowPreferences(value: unknown): WindowPreferences | undefined {
   return isShelfDockEdge(value.settings.dockEdge)
     ? {
         dockEdge: value.settings.dockEdge,
+        uiVersion: isShelfUiVersion(value.settings.uiVersion)
+          ? value.settings.uiVersion
+          : defaultWindowPreferences.uiVersion,
         multiPasteMode: isMultiPasteMode(value.settings.multiPasteMode)
           ? value.settings.multiPasteMode
           : defaultWindowPreferences.multiPasteMode,
@@ -105,6 +115,9 @@ export class ZToolsWindowPreferencesStore {
   async put(settings: WindowPreferences): Promise<void> {
     if (!isShelfDockEdge(settings.dockEdge)) {
       throw new TypeError("Shelf dock edge must be top, bottom, left, or right");
+    }
+    if (!isShelfUiVersion(settings.uiVersion)) {
+      throw new TypeError("Shelf UI version must be modern or classic");
     }
     if (!isMultiPasteMode(settings.multiPasteMode)) {
       throw new TypeError("Multi-paste mode must be batch or queue");

@@ -1,0 +1,204 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  color: #333;
+  background: #fff;
+}
+
+#toolbar[hidden] { display: none; }
+
+#toolbar {
+  position: fixed;
+  top: 8px;
+  right: 10px;
+  z-index: 10;
+}
+
+#configure-vscode {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 50%;
+  color: #666;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+#configure-vscode svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  transition: transform 160ms ease;
+}
+
+#configure-vscode:hover {
+  color: #007acc;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+
+#configure-vscode:hover svg { transform: rotate(30deg); }
+#configure-vscode:focus-visible { outline: 2px solid #007acc; outline-offset: 2px; }
+#configure-vscode:disabled { cursor: default; opacity: 0.6; }
+
+/* 容器样式 */
+.vscode-recent-container {
+  padding: 8px 0;
+}
+
+/* 列表样式 */
+.vscode-recent-list {
+  list-style: none;
+  overflow-y: auto;
+}
+
+/* 列表项：左右布局 */
+.vscode-recent-item {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 120ms ease;
+}
+
+/* 图标 */
+.vscode-recent-item .item-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 内容区域 */
+.vscode-recent-item .item-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.vscode-recent-item:hover {
+  background: #f7f7f7;
+}
+
+.vscode-recent-item.active {
+  background: #007acc;
+  color: #fff;
+}
+
+/* 标题行 */
+.vscode-recent-item .title {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+  color: inherit;
+}
+.pin-icon {
+  position: absolute;
+  top: 0px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  opacity: 0.8;
+}
+
+/* 路径行 */
+.vscode-recent-item .subtitle {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+.vscode-recent-item.pinned {
+  background-color: rgba(0, 0, 0);
+}
+
+.vscode-recent-item.active .subtitle {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* 空状态 */
+.vscode-recent-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: #888;
+}
+
+/* 加载状态 */
+.vscode-recent-loading {
+  padding: 40px 16px;
+  text-align: center;
+  color: #888;
+}
+
+/* 错误状态 */
+.vscode-recent-error {
+  padding: 40px 16px;
+  text-align: center;
+  color: #c00;
+}
+
+/* 暗色主题 */
+@media (prefers-color-scheme: dark) {
+  html, body { background: #1e1e1e; color: #ddd; }
+  
+  .vscode-recent-item { border-bottom-color: #2d2d2d; }
+  
+  #configure-vscode {
+    color: #bbb;
+    background: rgba(37, 37, 37, 0.92);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+  #configure-vscode:hover { color: #75beff; background: #303030; }
+  
+  .vscode-recent-item:hover { background: #2a2a2a; }
+  
+  .vscode-recent-item .subtitle { color: #888; }
+  
+  .vscode-recent-item.active .subtitle { color: rgba(255, 255, 255, 0.75); }
+  
+.vscode-recent-empty { color: #aaa; }
+}
+
+/* 编辑输入框 */
+.vscode-recent-item .edit-input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 600;
+  color: #333;
+  background: #fff;
+  border: 1px solid #007acc;
+  border-radius: 4px;
+  outline: none;
+}
+
+.vscode-recent-item.active .edit-input {
+  color: #333;
+  background: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .vscode-recent-item .edit-input {
+    color: #ddd;
+    background: #1e1e1e;
+    border-color: #75beff;
+  }
+}

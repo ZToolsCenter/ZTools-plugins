@@ -1,0 +1,53 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "labor-pay-tax-calculator",
+  "title": "劳务报酬计算器",
+  "description": "按中国劳务报酬个税预扣标准，计算税后金额，并用税后金额反推税前金额。",
+  "author": "Xhelyz",
+  "version": "1.0.1",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "features": [
+    {
+      "code": "open",
+      "explain": "打开劳务报酬计算器",
+      "icon": "logo.png",
+      "cmds": [
+        "劳务报酬计算器",
+        "劳务报酬",
+        "劳务税",
+        "劳务报酬计算"
+      ]
+    },
+    {
+      "code": "forward-calc",
+      "explain": "把输入的税前金额换算为税后金额与预扣个税",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "regex",
+          "match": "[0-9]+(\\.[0-9]{1,2})?",
+          "label": "税前金额"
+        }
+      ]
+    },
+    {
+      "code": "reverse-calc",
+      "explain": "把输入的税后金额反推为税前金额与预扣个税",
+      "icon": "logo.png",
+      "cmds": [
+        {
+          "type": "regex",
+          "match": "[0-9]+(\\.[0-9]{1,2})?\\s*(税后|后税|到手)",
+          "label": "税后金额"
+        },
+        {
+          "type": "regex",
+          "match": "(税后|后税|到手)[\\s\uFF08]([0-9]+(\\.[0-9]{1,2})?)",
+          "label": "税后金额"
+        }
+      ]
+    }
+  ]
+}

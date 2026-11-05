@@ -131,12 +131,14 @@ function normalizeGraphics(info = {}) {
   return {
     controllers: controllers.map((controller = {}) => {
       const vramMiB = nonNegativeNumber(controller.vram)
+      const isDynamic = boolOrNull(controller.vramDynamic)
+      // 若为 Apple Silicon / 动态共享内存且 vramBytes 为 0，标记显存为动态统一内存
       return {
         vendor: cleanText(controller.vendor, 120),
         model: cleanText(controller.model, 180),
         bus: cleanText(controller.bus, 60),
         vramBytes: vramMiB == null ? null : Math.round(vramMiB * 1024 * 1024),
-        dynamicMemory: boolOrNull(controller.vramDynamic)
+        dynamicMemory: isDynamic ?? (vramMiB === 0)
       }
     })
   }

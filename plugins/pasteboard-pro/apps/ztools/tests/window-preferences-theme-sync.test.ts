@@ -24,6 +24,7 @@ describe("ZTools window preference themes and sync", () => {
 
     const settings = {
       dockEdge: "right" as const,
+      uiVersion: "classic" as const,
       multiPasteMode: "batch" as const,
       theme: {
         accentColor: "#224466",
@@ -67,6 +68,7 @@ describe("ZTools window preference themes and sync", () => {
       entityType: "window_preferences",
       settings: {
         ...defaultWindowPreferences,
+        uiVersion: "classic",
         theme: {
           accentColor: "#123456",
           background: { type: "color", color: "#abcdef" },
@@ -78,6 +80,7 @@ describe("ZTools window preference themes and sync", () => {
     });
 
     await expect(store.get()).resolves.toMatchObject({
+      uiVersion: "classic",
       theme: {
         accentColor: "#123456",
         background: { type: "color", color: "#abcdef" },
@@ -106,6 +109,7 @@ describe("ZTools window preference themes and sync", () => {
     await expect(
       store.put({
         dockEdge: "bottom",
+        uiVersion: "modern",
         multiPasteMode: "batch",
         theme: { accentColor: "red", background: { type: "default" } },
       }),

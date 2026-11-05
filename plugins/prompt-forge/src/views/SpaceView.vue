@@ -6,6 +6,7 @@ import { useProjectStore } from '../stores/project'
 import { useAppSettings } from '../stores/app'
 import { copyText, showNotification, hideMainWindow } from '../utils/platform'
 import { renderVariables } from '../utils/index'
+import { getSpaceShortcutAction } from '../utils/space-shortcuts'
 import PromptList from '../components/PromptList.vue'
 import FillPanel from '../components/FillPanel.vue'
 import ShortcutPanel from '../components/ShortcutPanel.vue'
@@ -22,9 +23,13 @@ const appSettings = useAppSettings()
 
 const showShortcuts = ref(false)
 
-function handlePromptDelete(id: string) {
-  prompt.softDelete(id)
-  showNotification('✓ 已移至回收站')
+async function handlePromptDelete(id: string) {
+  try {
+    await prompt.softDelete(id)
+    showNotification('✓ 已移至回收站')
+  } catch (error) {
+    showNotification(`删除失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
 }
 
 function handlePromptEdit(id: string) {
@@ -38,6 +43,31 @@ const emptyState = computed(() => {
   return { title: '', desc: '' }
 })
 
+async function copyAndRecord(unit: { id: string; title: string }, text: string, variableValues?: Record<string, string>) {
+  try {
+    await copyText(text)
+  } catch (error) {
+    showNotification(`复制失败: ${error instanceof Error ? error.message : '剪贴板不可用'}`)
+    return false
+  }
+
+  try {
+    await prompt.recordUsage(unit.id)
+    await prompt.addHistory({
+      promptId: unit.id,
+      promptTitle: unit.title,
+      copiedContent: text,
+      variableValues,
+    })
+    showNotification('✓ 已复制')
+  } catch (error) {
+    showNotification(`已复制，但使用记录保存失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+  }
+
+  if (appSettings.settings.value.closeAfterCopy) hideMainWindow()
+  return true
+}
+
 async function handleCopy() {
   const unit = prompt.selectedPrompt.value
   if (!unit) return
@@ -50,24 +80,15 @@ async function handleCopy() {
     } else {
       text = unit.content
     }
-    await copyText(text)
-    showNotification('✓ 已复制')
-    await prompt.recordUsage(unit.id)
-    await prompt.addHistory({
-      promptId: unit.id,
-      promptTitle: unit.title,
-      copiedContent: text,
-      variableValues: unit.variables?.length
-        ? unit.variables.reduce((acc, v) => {
-            if (prompt.variableValues.value[v.name] !== undefined) {
-              acc[v.name] = prompt.variableValues.value[v.name]
-            }
-            return acc
-          }, {} as Record<string, string>)
-        : undefined,
-    })
-    if (appSettings.settings.value.closeAfterCopy) hideMainWindow()
-    prompt.resetSelection()
+    const values = unit.variables?.length
+      ? unit.variables.reduce((acc, v) => {
+          if (prompt.variableValues.value[v.name] !== undefined) {
+            acc[v.name] = prompt.variableValues.value[v.name]
+          }
+          return acc
+        }, {} as Record<string, string>)
+      : undefined
+    if (await copyAndRecord(unit, text, values)) prompt.resetSelection()
   } catch (e: any) { showNotification(`复制失败: ${e.message}`) }
 }
 
@@ -77,6 +98,14 @@ function currentProjectId(): string {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
+  const shortcutAction = getSpaceShortcutAction({
+    key: e.key,
+    phase: prompt.phase.value,
+    targetTag: (e.target as HTMLElement | null)?.tagName,
+    ctrlKey: e.ctrlKey,
+    metaKey: e.metaKey,
+  })
+
   // 快捷键面板
   if (e.key === '?' && !(e.ctrlKey || e.metaKey)) {
     const tag = (e.target as HTMLElement)?.tagName
@@ -91,6 +120,14 @@ function handleKeyDown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') { e.preventDefault(); router.enterWizard(prompt.query.value.trim(), currentProjectId()); return }
 
   if (prompt.phase.value === 'search') {
+    if (shortcutAction === 'edit-active') {
+      const item = prompt.activeItem.value
+      if (item) {
+        e.preventDefault()
+        handlePromptEdit(item.id)
+      }
+      return
+    }
     if (e.key === 'Enter' && prompt.filteredCallItems.value.length === 0 && prompt.query.value.trim()) {
       e.preventDefault(); router.enterWizard(prompt.query.value.trim(), currentProjectId()); return
     }
@@ -102,21 +139,12 @@ function handleKeyDown(e: KeyboardEvent) {
       if (!item) return
       if (item.variables && item.variables.length > 0) prompt.selectActive()
       else {
-        copyText(item.content).then(async () => {
-          showNotification('✓ 已复制')
-          await prompt.recordUsage(item.id)
-          await prompt.addHistory({
-            promptId: item.id,
-            promptTitle: item.title,
-            copiedContent: item.content,
-          })
-          if (appSettings.settings.value.closeAfterCopy) hideMainWindow()
-        })
+        void copyAndRecord(item, item.content)
       }
     }
   } else if (prompt.phase.value === 'fill') {
     if (e.key === 'Escape') { e.preventDefault(); prompt.phase.value = 'search'; prompt.selectedPrompt.value = null }
-    else if (e.key === 'Enter') { e.preventDefault(); handleCopy() }
+    else if (shortcutAction === 'submit-fill') { e.preventDefault(); handleCopy() }
   }
 }
 

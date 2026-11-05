@@ -1,0 +1,19 @@
+{
+  "format": "researchbox-journal-datasets-v1",
+  "snapshotVersion": "2026-v1",
+  "organizedOn": "2026-10-27",
+  "jcr": {
+    "edition": "JCR 2026",
+    "file": "assets/data/journals/2026-v1/journals.json.gz",
+    "sha256": "2174c18211f2a845b906163a3b41e0bda4324d6aa2add48580930427f94f0a1e",
+    "records": 22643,
+    "jifYear": 2025
+  },
+  "ccf": {
+    "edition": "第七版（2026.3）",
+    "file": "assets/data/journals/2026-v1/ccf.json.gz",
+    "sha256": "bb53da6d1ccc6856848a79843ede824e2e9ec638a643b991c28d182b35b11d3c",
+    "records": 677,
+    "linkedJcrSha256": "2174c18211f2a845b906163a3b41e0bda4324d6aa2add48580930427f94f0a1e"
+  }
+}

@@ -1,0 +1,520 @@
+{
+  "schemaVersion": 1,
+  "plugin": "pasteboard-pro",
+  "version": "1.4.0",
+  "clientDate": "2026-10-29",
+  "timezone": "America/Los_Angeles",
+  "branch": "plugin/pasteboard-pro",
+  "scope": "Fresh plugin-source checkout with independent locked dependencies; synthetic private-board and browser fixtures only",
+  "sourceBinding": {
+    "candidateSourceFiles": 838,
+    "sourceManifestSha256": "bf9a9e34972f52f07020fd8ad00716a4ddaf012b963e00dccc4849937a4bb590",
+    "sourceManifestLocalOnly": "artifacts/pasteboardpro/pr-preparation/fresh-validation/source-file-manifest-post-visual-assertion.json",
+    "nonDocumentationSourceFiles": 777,
+    "nonDocumentationTreeSha256": "5235d1efd592fd09f96f876f19258930c728ba8547589ce17006b402017221d3",
+    "treeDigestAlgorithm": "SHA256 of UTF-8 JSON map {relativePath:fileSHA256}, sorted keys, compact separators; exclude docs/ and *.md",
+    "canonicalAndFreshSourceHashesMatch": true,
+    "controlledPostFreezeUpdates": [
+      {
+        "file": "CHANGELOG.md",
+        "oldSha256": "126adc961fb5a83bc2d1532599be5e09db6b3d002307943b63d3807535f2bf3e",
+        "newSha256": "d618401f58b714cebbc2daa4529b1fed23dd6e75e588bd7e5832a05040616301",
+        "reason": "controlled release documentation/metadata refresh"
+      },
+      {
+        "file": "vitest.config.ts",
+        "oldSha256": "230248f9160e5dd996b9fe2843c88816674a4185c0b10af24ec03bce81d45ca4",
+        "newSha256": "de9fbb70c5519de506e11008b6e3dc28bd8aaca2e775887a073da42a426448ff",
+        "reason": "explicit test-worker resource budget"
+      },
+      {
+        "file": "scripts/test-release-archive.mjs",
+        "oldSha256": "a7d2e114bd439ce21e9298a61d47618f0aca93104f9deed0df02218219222892",
+        "newSha256": "b913d5e0fb522429e5806146a3ded689197f003398f2ab87b668a5e7769e7202",
+        "reason": "release archive fixture matches existing required package workers and parser notices"
+      },
+      {
+        "file": "tests/visual/ui-version.spec.ts",
+        "oldSha256": "045acaade12f373084731cb16d5eabd74129be10226c8996c0cdc77c2985c4d8",
+        "newSha256": "f5505bd59e964ddc02486ec2abcf6fd49693b9a1fd52fad17787a3f62f680303",
+        "reason": "announcement expectation follows 1.4.0 heading and shared runtime version; themes and timeout unchanged"
+      }
+    ]
+  },
+  "environment": {
+    "node": "24.15.0",
+    "pnpm": "9.15.9",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "logicalCpus": 10,
+    "vitestMaxWorkers": 4,
+    "defaultTestTimeoutMs": 5000,
+    "chromeBundleVersion": "156.0.8078.74",
+    "playwright": "1.61.1"
+  },
+  "dependencies": {
+    "independentInstall": true,
+    "frozenLockfile": true,
+    "workspaceSymlinksWithinFreshCopy": true,
+    "originalNodeModulesReused": false,
+    "storeAndCachesPluginOwned": true,
+    "offlineAttempt": "Missing tarball in empty dedicated store; preserved failure, then frozen-lockfile online install succeeded"
+  },
+  "currentResults": {
+    "defaultUnitIntegration": {
+      "command": "pnpm run test",
+      "pass": 1370,
+      "skip": 6,
+      "fail": 0,
+      "filesPassed": 150,
+      "fixtureFilesSkipped": 5,
+      "totalFiles": 155,
+      "skipReasons": [
+        "Five child-process fixture entry tests exercised by parent suites",
+        "Installed-application catalog smoke requires explicit opt-in and was not enabled"
+      ]
+    },
+    "nativePreparation": {
+      "privateBoardCases": 87,
+      "execution": "PASS",
+      "generalClipboardAccess": false
+    },
+    "browser": {
+      "configuration": "playwright.refined.config.ts",
+      "specFiles": 22,
+      "initialFullRun": {
+        "pass": 122,
+        "skip": 1,
+        "fail": 2
+      },
+      "affectedRerun": {
+        "pass": 2,
+        "skip": 0,
+        "fail": 0
+      },
+      "aggregateDistinctCases": {
+        "pass": 124,
+        "skip": 1,
+        "fail": 0
+      },
+      "singleAllGreenFullRun": false,
+      "skipReason": "Real macOS native icon-addon test not opted in; no addon path supplied"
+    },
+    "packaged-release140": {
+      "scope": "Current built 1.4.0 assembled CJS graph with synthetic SDK and owned fixture data",
+      "vmPlatform": "linux",
+      "platformMeaning": "Node/Electron entry compatibility only; does not exercise macOS native branches or installed host",
+      "generalClipboardAccess": false,
+      "sourceTreeSha256": "5235d1efd592fd09f96f876f19258930c728ba8547589ce17006b402017221d3",
+      "packageHashesMatchCurrentAssembledFiles": true,
+      "snapshotManifestSha256": "80b937a4a0c6e11851bfea8f450e74b99118f14ace84783798c93312bc6331d7",
+      "preloadSha256": "a9364af6cec7bccfc0fd66163f792918b47761219c6b882202276316e84c6524",
+      "loadedModuleHashes": {
+        "preload.js": "a9364af6cec7bccfc0fd66163f792918b47761219c6b882202276316e84c6524",
+        "chunks/history-search-index-EXCz0FQK.cjs": "b7b3cf0a3f39a36a80e9c38393050a8e9a9b392c09e4bd183a9eccbbe4f462d2",
+        "chunks/clipboard-tombstone-v2-28uC8Qy5.cjs": "d9d739344096da02dcdf31ee98ea9a1ed2c9ab53ae16891fcfdc1addc1116711",
+        "chunks/index-Cy80EH4d.cjs": "4df269f98e289aba0c308095ac2d478779d50aca8324adb0dd8196914ed88fe4"
+      },
+      "runtimes": {
+        "node": {
+          "runtime": {
+            "node": "24.15.0",
+            "electron": null
+          },
+          "pass": 35,
+          "fail": 0,
+          "execution": "PASS",
+          "durationMs": 798,
+          "receiptSha256": "0b9771626209e88f9a76335d1821c903e655af45d7528f4d0e747f95c04f6aea",
+          "receiptLocalOnly": "artifacts/pasteboardpro/pr-preparation/clean-checkout-01/artifacts/pasteboardpro/clipboard-format-g0/v032-work/release140-green-node.json",
+          "scriptSha256": "fd1cd21f2783d07d4d68fb0aeb231cedfb712a9e159ceffd21b18d01cc06c9a6",
+          "fixtureSha256": "91c4c84826d31bec73c6799b51a88f5455cbdeed2ab5f6d3cc006b23bcaad11f",
+          "fixtureClosed": true,
+          "temporaryRemoved": true
+        },
+        "electron": {
+          "runtime": {
+            "node": "24.15.0",
+            "electron": "41.4.0"
+          },
+          "pass": 35,
+          "fail": 0,
+          "execution": "PASS",
+          "durationMs": 954,
+          "receiptSha256": "2574589257b8b9c8fd75db05a328c9bb229171dc9c647df604eda644ba019455",
+          "receiptLocalOnly": "artifacts/pasteboardpro/pr-preparation/clean-checkout-01/artifacts/pasteboardpro/clipboard-format-g0/v032-work/release140-green-electron.json",
+          "scriptSha256": "fd1cd21f2783d07d4d68fb0aeb231cedfb712a9e159ceffd21b18d01cc06c9a6",
+          "fixtureSha256": "91c4c84826d31bec73c6799b51a88f5455cbdeed2ab5f6d3cc006b23bcaad11f",
+          "fixtureClosed": true,
+          "temporaryRemoved": true
+        }
+      }
+    }
+  },
+  "checksPassed": [
+    "install-online",
+    "test-default-budget",
+    "root-types",
+    "ztools-types",
+    "atools-types",
+    "visual-types-final",
+    "workspace-contract",
+    "vision-build",
+    "vision-sign",
+    "build",
+    "package-verify",
+    "atools-verify",
+    "release-archive-fixed",
+    "visual-artifact-contract",
+    "visual-contract",
+    "visual-whatsnew-target"
+  ],
+  "initialFailuresRetained": [
+    {
+      "stage": "Initial default full test",
+      "result": "1369 pass, 6 skip, one 5000 ms concurrent 3 MiB blob-write timeout",
+      "followup": "Same entire file 9/9 at original timeout; all original tests passed with four workers, then canonical default maxWorkers:4 passed. Internal eight-write Promise.all unchanged."
+    },
+    {
+      "stage": "Release archive contract",
+      "result": "Fixture lacked the two workers and parser notice required by existing verifier",
+      "followup": "Only three fixture writes added; verifier unchanged; targeted contract passed."
+    },
+    {
+      "stage": "Full browser run",
+      "result": "Two standalone announcement checks expected obsolete text 全新特性",
+      "followup": "Only announcement assertions now check current heading and shared version; original theme/layer/timeout/skip assertions preserved; exactly those two cases passed."
+    }
+  ],
+  "packaging": {
+    "manifestVersion": "1.4.0",
+    "atoolsAndZtoolsBuilt": true,
+    "visionHelper": "Built from copied Swift source with plugin-owned module cache; ad-hoc signed",
+    "assembledFiles": 15,
+    "assembledFileHashes": {
+      "HTML_PARSER_NOTICES.txt": "6f3a74069119a82a798fda3019b6778000c3b76571fa27e6f4e8338dd794c73e",
+      "assets/index-CPGfqBJg.js": "5f64c7c3a321259cbcf28de7a38da410e6dc35c98859e90e3e4f890f80afdb51",
+      "assets/index-DsbodLfA.css": "208edd86fa1784d8c90e89b5aedb76312ded9d62af3714e47b88f60fa3a5abc0",
+      "chunks/clipboard-tombstone-v2-28uC8Qy5.cjs": "d9d739344096da02dcdf31ee98ea9a1ed2c9ab53ae16891fcfdc1addc1116711",
+      "chunks/history-search-index-EXCz0FQK.cjs": "b7b3cf0a3f39a36a80e9c38393050a8e9a9b392c09e4bd183a9eccbbe4f462d2",
+      "chunks/index-Cy80EH4d.cjs": "4df269f98e289aba0c308095ac2d478779d50aca8324adb0dd8196914ed88fe4",
+      "content-scan-worker.cjs": "09228265c43277d62f89f233189e4cae5f8f4509529ed2478ab524e21303781f",
+      "history-worker.cjs": "522709515769a717555f53636d2128c5ea23610b094bb9488e54e0fd29543de5",
+      "index.html": "9aa408c3073d964f72e17eb840a37b580a3df966a147412cfc4264f384557b62",
+      "logo.png": "fd3e919353fb07c5ef8bb4c1214a50b308a96d1705d569e01797bcb950611ef0",
+      "package.json": "8005a3491db7d92f36ac66369861589f9c47123d3a7c71e643fc2c06168cd45a",
+      "paste-stack-key-monitor.py": "17b3cb5bbad34ef2de9ed27784277bb4b3e480600fda837ebc5f7e62149d3012",
+      "pasteboard-vision": "2f29ea933d8e8d019d54488e5b708365a68a83f245ef2058226a6d7e44f0da04",
+      "plugin.json": "c56457879db7cfea1b9b39de1e62ea9953f737651cba16ab56c4cc5c2c964939",
+      "preload.js": "a9364af6cec7bccfc0fd66163f792918b47761219c6b882202276316e84c6524"
+    },
+    "releaseArchiveContractPassed": true,
+    "productionSigningOrNotarizationAccepted": false
+  },
+  "screenshots": {
+    "browserSyntheticDemonstrationOnly": true,
+    "noActualClipboardOrUserPhotos": true,
+    "files": [
+      {
+        "sourceInFreshCopy": "artifacts/pasteboardpro/refined-dark.png",
+        "destination": "docs/screenshots/paste-1.4.0-shelf.png",
+        "sha256": "05be3cc95f4b1875f766dd57da01844b25eef4ed60801559368ad95291038e35",
+        "width": 1440,
+        "height": 360,
+        "sourceSpec": "tests/visual/refined-shelf.spec.ts",
+        "sourceSpecSha256": "21bc6b05dc309a31104fe07928c14d69db197b20917470cfa5da07f8ab9bc0bf",
+        "scope": "browser synthetic fixture screenshot; no installed host or real clipboard",
+        "contentReview": "public example.test records or programmatically generated SVG background; no user photos, actual clipboard or credentials"
+      },
+      {
+        "sourceInFreshCopy": "artifacts/pasteboardpro/image-background-editor/modern-light-image-editor.png",
+        "destination": "docs/screenshots/paste-1.4.0-settings.png",
+        "sha256": "20c4e92ce468c1c78a0e878687818ea38c041ab0e9a50c4f4f0c84dea2b46f65",
+        "width": 980,
+        "height": 760,
+        "sourceSpec": "tests/visual/background-image-editor.spec.ts",
+        "sourceSpecSha256": "48f0b4f67eca60700566872f51a574e8fb03fa04c30581aa306ef2d98b778ef5",
+        "scope": "browser synthetic fixture screenshot; no installed host or real clipboard",
+        "contentReview": "public example.test records or programmatically generated SVG background; no user photos, actual clipboard or credentials"
+      }
+    ]
+  },
+  "boundaries": [
+    "No installed ZTools host, real general clipboard, actual target-application or Windows acceptance",
+    "Windows 10/11/12 not available; prior 105 G0 and 15 storage native cases remain NOT-RUN",
+    "G0-G4 full objective remains incomplete; 87 private-board checks do not satisfy full system coverage",
+    "Raw local logs and full source manifest stay ignored; this is a reviewable summary, not a claim that CI or production passed",
+    "No Git staging, commit, push or PR action performed by this validation worker"
+  ],
+  "rawEvidenceLocalOnly": "artifacts/pasteboardpro/pr-preparation/fresh-validation/",
+  "receiptHashes": {
+    "atools-types.process.json": "1b8bceffc3d49ca19916fd3d33975e8487b316161791bfce91c88a9bad5831bb",
+    "atools-verify.process.json": "a50093f48fe247760f93e61b4d831a7185a2110ad53378533c958e4e4e939044",
+    "build.process.json": "90f6a75703a5c0ed46ee8fd2c75eba4ba07514ae847cbd88ba2e9e50592f9c6e",
+    "install-offline.process.json": "1a3bb7fac9e1b9f093086df9c75a5d37b3b01587e785851078a6b4572dec523e",
+    "install-online.process.json": "116be768aad38d66e15984ef5ef305d2ce2a1092863c9510db281ce38c2a23a5",
+    "package-verify.process.json": "a94cb45b65362b323b2e4fca79e0c9779323aa70f10f6c50ea77c94783e78520",
+    "release-archive-fixed.process.json": "9c8dfcc16eee720eced9a8f0f50d4fe86a942e8668900c9e7f3bd417c4f77c32",
+    "release-archive.process.json": "4f5f79223ad54dc841f61ffa0e0236b1982b14d1bffbba3692c66e6245a78120",
+    "root-types.process.json": "021ec67627b744389fb56a9d199d62286f21bf7484ffe581568e4c87622e55ea",
+    "sync-blob-target.process.json": "eb55bb89ee06904041142ff7ebe4a39fd3488782637d34c5746644d655a1da51",
+    "test-default-budget.process.json": "cc455f71ba91b9b85d97a3b1ed07f80288055c3b6fac68d5106d6efcb756b27c",
+    "test-workers-4-run.process.json": "11a51e7a3d236373d9120c68490ee88c2aa0487c1ea9dea3154dfac02f342921",
+    "test-workers-4.process.json": "bec1c0c1e325e89a4a052064c539cbad58bde2552040f438abad5a4b9c45023d",
+    "test.process.json": "407d0b9b8c5b636b052d0bf2ef6d5f8dc742209516cd9d2ab71b7d23f240cac6",
+    "vision-build.process.json": "2af4488e7877a3badaf39d5004a252f1b0404d36ee70e5e7c79842123399e56d",
+    "vision-sign.process.json": "27b7a439d679a27903eaf44e9e02b10522b7dc19c6f423ccc035305d20ddc999",
+    "visual-artifact-contract.process.json": "b74e36194b53adaf0c9ff7044384fd6117044c2cba571a0c9bd0a7c1c30d1d4b",
+    "visual-contract.process.json": "08d0c0687e1e5de81bcf9b009b56202692fb4739cf34ee0577f47ddf82017b6a",
+    "visual-types-final.process.json": "0ce4c0e0743d246719e2d1bb4c5cd588504b133840d15e2e249a9a4442a0f2f0",
+    "visual-types.process.json": "af44ec6957d4e3e66aea0e81dce20f30ef10af477dd98d455cd3d136547f6cbb",
+    "visual-whatsnew-target.process.json": "f9e210984347e66ffcf8c8fda54622424db0b48baa9179b26a37201db1d41709",
+    "visual.process.json": "0b3415eb79fa69dfe488d8a97b383d36a1090120bd855edd2f803fa14b57d268",
+    "workspace-contract.process.json": "b040cb6628724086ed3f621ac0061f6af42743cf966491bde61b802feaa7ebec",
+    "ztools-types.process.json": "9cee8a20fdbc6e412f00ee4e7a010f7961d4aaa50235d2e5ba737f500d55556f",
+    "packaged-release140-node.process.json": "d9ed9b2933fea983034bc9b848f94358a6b9bf895f6944a8a62855c1375a1e43",
+    "packaged-release140-electron.process.json": "69aa30e97acf828c19c1ea2b6d5a99779133b0dfd9b324876f615f2a1ca33e4c",
+    "post-format-native.process.json": "8169cc60385c9e7c62963bdc742feb7b0d224426586e1a1096b8f336713d25ae",
+    "build-post-format.process.json": "996181e720e81aa66760e4cfeb9747cca7817f8fb470253cb8d878f293164881"
+  },
+  "postApprovalFormatting": {
+    "approvedPlanSha256": "ca9ff99e712f6f61a86ff3aad4d76b552403d159de54d14f8a385d377527b890",
+    "proofSha256": "1a4287113c405cfd62d3274500d49cf57f2f9478c8294764cc7b9867c4da9a5c",
+    "proofLocalOnly": "artifacts/pasteboardpro/pr-preparation/commit-execution/post-approval-formatting.json",
+    "paths": [
+      "apps/ztools/preload/native-capture-wire-schema.ts",
+      "apps/ztools/preload/privacy-retention.ts",
+      "native/clipboard-format/codec-tests/tiff_cases.cpp",
+      "native/clipboard-format/macos/ClipboardProbeContracts.mm",
+      "packages/core/src/clipboard-content-policy-bytes.ts",
+      "packages/core/src/clipboard-content-policy-v2-types.ts",
+      "packages/core/src/clipboard-content-policy-v2.ts",
+      "packages/core/src/clipboard-publish-v2.ts",
+      "packages/core/src/clipboard-snapshot-v2.ts",
+      "packages/core/tests/clipboard-publish-v2.test.ts",
+      "packages/core/tests/clipboard-snapshot-v2.test.ts",
+      "tests/visual/mixed-batch-paste.spec.ts",
+      "tests/visual/privacy-settings.spec.ts"
+    ],
+    "independentlyVerifiedChanges": "Each file removed exactly one final LF; fresh old SHA and canonical new SHA match proof; all non-EOF bytes identical",
+    "behaviorChange": false,
+    "newSourceManifestSha256": "58865a789100965fbf5c3532fb1b17d6d2f67e61b858de6a6affdb77827697e0",
+    "newSourceManifestLocalOnly": "artifacts/pasteboardpro/pr-preparation/fresh-validation/source-file-manifest-post-format.json",
+    "newNonDocumentationTreeSha256": "eca87addf87a8a11748849780cfc5a1a70faa4bfb4029ae1ead8f2c544e47533",
+    "originalMeasuredSourceBindingRetained": true,
+    "fullUnitAndBrowserSuitesRerun": false,
+    "nativeSelfTest": {
+      "execution": "PASS",
+      "pass": 87,
+      "fail": 0,
+      "generalClipboardAccess": false,
+      "receiptSha256": "9699b2690d35388e810e105a95cd5a76d63eed590fc6c99fe9c9b094a285f198",
+      "binarySha256": "fdc9f715e48c0fe39a6ba87f6058b9cdc13804f7ff5af6f0b142c5918affac82",
+      "receiptLocalOnly": "artifacts/pasteboardpro/pr-preparation/clean-checkout-01/artifacts/pasteboardpro/post-format-native/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/darwin/receipt.json"
+    },
+    "build": {
+      "atoolsAndZtoolsPassed": true,
+      "processReceiptSha256": "996181e720e81aa66760e4cfeb9747cca7817f8fb470253cb8d878f293164881",
+      "assembledFiles": 15,
+      "allDistributableFilesByteIdenticalToPriorValidatedPackage": true,
+      "comparisonSha256": "1c2c77a62b8a2173d10b9f5bcc99b7b289f6bb4e35dd0227a38eb0f710883a4f",
+      "packagedNodeAndElectron35EachResultsStillApplicable": true
+    },
+    "noNewFunctionalityOrCandidateFiles": true
+  },
+  "postPublicationCiAssertionFix": {
+    "recordedDate": "2026-10-30",
+    "pullRequest": {
+      "repository": "ZToolsCenter/ZTools-plugins",
+      "number": 717,
+      "head": "95fe8855ad969702081ba5ff9355eec5e74b1795",
+      "sourceFile": "plugins/pasteboard-pro/apps/ztools/tests/sync-blob-files.test.ts",
+      "githubHeadBlobSha": "c1d5d9ad989653b8c4a47856750f9fd69484c181",
+      "localBaseBlobSha": "c1d5d9ad989653b8c4a47856750f9fd69484c181",
+      "sourceFileSha256": "55c4ab5a0ebc74bacaacac10743613e8fcfe3c5b5644c9c27f9dada4e9018863",
+      "exactCiInputConfirmed": true
+    },
+    "originalLinuxCi": {
+      "runId": 41015696633,
+      "jobId": 123931540681,
+      "runner": "ubuntu-latest",
+      "result": "FAIL",
+      "testFile": "apps/ztools/tests/sync-blob-files.test.ts",
+      "failedCase": "uses collision-resistant temporary files for concurrent writes of the same hash",
+      "timeoutMs": 5000,
+      "observedTestFileDurationMs": 16097,
+      "rawJobJson": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/remote-job-123931540681.json",
+      "rawJobLog": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/remote-job-123931540681.log",
+      "rawJobLogSha256": "664e5dfe0ff84dfa939fdd4d7bd7a2410b8c15a0575804976bb357924606fdf9",
+      "rawJobJsonSha256": "36a9dd49507b09f9b8ed7f1491ee3da297cda055abb55a25db459d2d22c33b32"
+    },
+    "localPhaseDiagnosis": {
+      "runtime": "Node 24.15.0, local only; distinct from Linux CI",
+      "payloadBytes": 3145728,
+      "concurrentWrites": 8,
+      "writePhaseMs": 42.815584,
+      "firstReadPhaseMs": 0.595958,
+      "bufferToEqualFullByteComparisonMs": 2374.489,
+      "comparisonShareOfTestBodyPercent": 98.1,
+      "receipt": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/timed.stdout.txt",
+      "processReceipt": {
+        "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/timed.process.json",
+        "sha256": "5c63a0b85a513496c59485536e6178396f3f9c329d4e0fd6c4a922886fd694cd"
+      }
+    },
+    "candidate": {
+      "change": "expect((await readFile(filePath)).equals(Buffer.from(bytes))).toBe(true);",
+      "oldSourceSha256": "55c4ab5a0ebc74bacaacac10743613e8fcfe3c5b5644c9c27f9dada4e9018863",
+      "newSourceSha256": "0aa4c8d66d018b165e984b21357fbce24d579e5eafad3d583db21002f8554e80",
+      "onlyMatcherChanged": true,
+      "unchanged": [
+        "3 MiB payload",
+        "8 concurrent Promise.all writes",
+        "5000 ms test timeout",
+        "path, digest, and temporary-file assertions"
+      ],
+      "productionCodeChanged": false,
+      "fullFileTestRuns": [
+        {
+          "runtime": "Node 20.19.3",
+          "pass": 9,
+          "fail": 0,
+          "processReceipt": {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/postfix-whole-file-node20.process.json",
+            "sha256": "f07783c05faddb71db453631ed7b908bf5dd5d2eb7daf0b55c9b5efbe17ae2f3"
+          },
+          "resultReceipt": {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/postfix-whole-file-node20.result.json",
+            "sha256": "1c77bf62c12580a83d5c5069bcdc4785eb7209a113b0886e7f21c27c7d5d3235"
+          },
+          "sourceTestSha256": "0aa4c8d66d018b165e984b21357fbce24d579e5eafad3d583db21002f8554e80"
+        },
+        {
+          "runtime": "Node 24.15.0",
+          "pass": 9,
+          "fail": 0,
+          "processReceipt": {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/postfix-whole-file-node24.process.json",
+            "sha256": "fb1550fba2d3ed36bf1bd694f7331b2bc723f95de9b60361810fa06cd1a644d2"
+          },
+          "resultReceipt": {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/postfix-whole-file-node24.result.json",
+            "sha256": "74090057e2763ef31572a6c952abde08b0892063a41ee5f580c1b356e82e880b"
+          },
+          "sourceTestSha256": "0aa4c8d66d018b165e984b21357fbce24d579e5eafad3d583db21002f8554e80"
+        },
+        {
+          "runtime": "Electron Node mode",
+          "pass": 9,
+          "fail": 0,
+          "processReceipt": {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/postfix-whole-file-electron.process.json",
+            "sha256": "203c5a452206f64147be7112d734993c2d232a9f0864e295ed6977f2f9239fa3"
+          },
+          "resultReceipt": {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/postfix-whole-file-electron.result.json",
+            "sha256": "1eacc3443b6456cb58568e12effbc2ad7157cd4c8d6940d6047012fb2929ead6"
+          },
+          "sourceTestSha256": "0aa4c8d66d018b165e984b21357fbce24d579e5eafad3d583db21002f8554e80"
+        }
+      ],
+      "fourProcessPressure": {
+        "original": "4 of 4 timed out; total wall time 6.748–7.013 seconds",
+        "candidate": "4 of 4 passed with the original timeout and payload"
+      },
+      "strictByteNegativeControls": {
+        "sameBytesAccepted": true,
+        "oneChangedByteRejected": true,
+        "differentLengthRejected": true,
+        "receipt": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/candidate-negative-controls.json",
+        "receiptSha256": "fd3ac612669d1b37e704d6ec05044ce3bd00f7625974774e19eb37bc31187a54"
+      }
+    },
+    "newCiStatus": "NOT_RUN",
+    "newCiPassClaim": false,
+    "gitWrites": {
+      "staged": false,
+      "committed": false,
+      "pushed": false,
+      "prUpdated": false
+    },
+    "pressureRunReceipts": {
+      "originalMatcher": {
+        "processes": [
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-original-1.process.json",
+            "sha256": "bd465bdc3a2d532d158234e2a9ae5001f51a4d79367ebd022bba1ae588e7ad31"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-original-2.process.json",
+            "sha256": "83f9cc6127bbc74c3c8f5ea7d8857faac8196e0f848e0a231a0449393cd1deaf"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-original-3.process.json",
+            "sha256": "425b765d6c92ed69d44f8570faec1a4dca27a93e6a60f38b8813252dd37d01a6"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-original-4.process.json",
+            "sha256": "adf54fc0619b0463aaa6097337476b2796bbed764f1a673730fb0dcd965eafee"
+          }
+        ],
+        "stdout": [
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-original-1.stdout.txt",
+            "sha256": "688aa61652487e93ca6dbe6a86e963b05532467d01de1eff2f68a3f4012e355e"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-original-2.stdout.txt",
+            "sha256": "4cd3559a3d9eb7f7213fa79b0abf69258f8828d265f76e75a7b16f59a43bd2fa"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-original-3.stdout.txt",
+            "sha256": "4a86d447290d79bf15aad0819c241c082a9ab35a4748e318a3b5822c95e0e476"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-original-4.stdout.txt",
+            "sha256": "c139eeb6606f49182f75416e0fd648640c2eb629dc953d60fb44f6baca0df777"
+          }
+        ]
+      },
+      "nativeBufferEqualsMatcher": {
+        "processes": [
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-exact-candidate-1.process.json",
+            "sha256": "a639694260dadd353612fdfffe501d51eb82c71432e97e8160ebbf5c063e69e9"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-exact-candidate-2.process.json",
+            "sha256": "1d5d2a89e0f85b2efb74b91910cb2c70f4210bca8aa2d971b8f4357e31189cd2"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-exact-candidate-3.process.json",
+            "sha256": "ce87cab96d6bf24c7a29e35817a6f564a7fb921de9c578a62dd26d576fbaaba8"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-exact-candidate-4.process.json",
+            "sha256": "178da588b37dcc64a1c745f5b54290ef01ca9c9f4eb7f29f9152aa9f799c110c"
+          }
+        ],
+        "results": [
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-exact-candidate-1.result.json",
+            "sha256": "24f24290ef1ca919c7f3e5a5111002719d842e29e289887eb6048040416cd0ed"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-exact-candidate-2.result.json",
+            "sha256": "318ae1567867d1228cf8e6352bd45c550b89613199b152635514786822a3f99d"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-exact-candidate-3.result.json",
+            "sha256": "d5ed1fca4712cc9cee018d48dcb5214c27a4dde82aa68f6d9d2302579ec345bd"
+          },
+          {
+            "path": "artifacts/pasteboardpro/pr-preparation/ci-timeout-audit/pressure-exact-candidate-4.result.json",
+            "sha256": "8980a8cf98806b5c1050001de98992a6d2b1f4daffa6ae84526498ed7b743749"
+          }
+        ]
+      }
+    }
+  }
+}

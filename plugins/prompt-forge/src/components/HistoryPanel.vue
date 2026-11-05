@@ -3,14 +3,37 @@ import { X } from 'lucide-vue-next'
 import { usePromptStore } from '../stores/prompt'
 import { useRouter } from '../stores/router'
 import { copyText, showNotification } from '../utils/platform'
+import { useModal } from '../composables/useModal'
 
 const prompt = usePromptStore()
 const router = useRouter()
+const modal = useModal()
 
-function handleClearHistory() {
-  if (confirm('确定清空所有历史记录？')) {
-    prompt.clearHistory()
-    showNotification('✓ 已清空')
+async function handleClearHistory() {
+  if (await modal.confirm('确定清空所有历史记录？')) {
+    try {
+      await prompt.clearHistory()
+      showNotification('✓ 已清空')
+    } catch (error) {
+      showNotification(`清空失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
+    }
+  }
+}
+
+async function copyHistory(content: string) {
+  try {
+    await copyText(content)
+    showNotification('✓ 已复制')
+  } catch (error) {
+    showNotification(`复制失败: ${error instanceof Error ? error.message : '剪贴板不可用'}`)
+  }
+}
+
+async function deleteHistory(id: string) {
+  try {
+    await prompt.deleteHistoryEntry(id)
+  } catch (error) {
+    showNotification(`删除失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
   }
 }
 </script>
@@ -40,8 +63,8 @@ function handleClearHistory() {
         </div>
         <div class="history-item-actions">
           <button class="btn" :disabled="!prompt.liveItems.value.some(i => i.id === h.promptId)" @click="router.navigateToManage(h.promptId)" title="查看原始提示词">查看</button>
-          <button class="btn" @click="copyText(h.copiedContent); showNotification('✓ 已复制')">复制</button>
-          <button class="btn icon-btn" title="删除" @click="prompt.deleteHistoryEntry(h.id)"><X :size="13" /></button>
+          <button class="btn" @click="copyHistory(h.copiedContent)">复制</button>
+          <button class="btn icon-btn" title="删除" @click="deleteHistory(h.id)"><X :size="13" /></button>
         </div>
       </div>
     </div>

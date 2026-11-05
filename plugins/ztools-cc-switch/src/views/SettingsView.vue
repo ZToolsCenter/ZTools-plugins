@@ -37,6 +37,8 @@ const appConfigDir = ref({ path: '', activePath: '', defaultPath: '', restartReq
 const backupSettings = ref({ intervalHours: 24, retainCount: 10 })
 const localBackups = ref([])
 const backupBusy = ref('')
+const lastExportPath = ref('')
+const canStartDrag = typeof window.ztools?.startDrag === 'function'
 const commonConfigClient = ref('claude')
 const commonConfigText = ref('')
 const commonConfigBusy = ref('')
@@ -130,7 +132,19 @@ async function s3Action(action, options = {}) {
   try { const result = await window.ccSwitch[action](options); if (result.state === 'conflict') emit('toast', result.message, 'warning'); else emit('toast', result.message); if (result.direction === 'download') emit('reload') } catch (error) { emit('toast', error.message, 'error') }
 }
 async function exportBackup() {
-  try { const target = await window.ccSwitch.chooseBackupExportPath(); if (!target) return; const result = await window.ccSwitch.exportBackup(target, { includeSecrets: true, includeLogs: true }); emit('toast', `已导出 ${result.fileCount} 项数据`) } catch (error) { emit('toast', error.message, 'error') }
+  try {
+    const target = await window.ccSwitch.chooseBackupExportPath(); if (!target) return
+    const result = await window.ccSwitch.exportBackup(target, { includeSecrets: true, includeLogs: true })
+    lastExportPath.value = result.path || ''
+    emit('toast', `已导出 ${result.fileCount} 项数据`)
+  } catch (error) { emit('toast', error.message, 'error') }
+}
+async function dragExport(event) {
+  event.preventDefault()
+  if (!lastExportPath.value || !window.ccSwitch.startDrag) return
+  const started = await window.ccSwitch.startDrag(lastExportPath.value)
+  emit('toast', started ? '已开始拖出备份' : '拖出授权已失效，请重新导出', started ? 'success' : 'warning')
+  if (started) lastExportPath.value = ''
 }
 async function importBackup() {
   try { const source = await window.ccSwitch.chooseBackupImportPath(); if (!source) return; if (!window.confirm('导入会覆盖插件数据，并为原文件保留备份。继续？')) return; const result = await window.ccSwitch.importBackup(source); emit('toast', `已导入 ${result.imported} 项数据`); emit('reload') } catch (error) { emit('toast', error.message, 'error') }
@@ -480,7 +494,7 @@ async function runToolAction(tool, action) {
         <span class="card-label">PORTABLE BACKUP</span>
         <h2>导入与导出</h2>
         <p>打包 Provider、Skills、MCP、Prompts、路由配置与请求日志。导入前自动保留原文件。</p>
-        <div class="backup-actions"><button class="secondary-button" @click="importBackup">导入备份</button><button class="primary-button" @click="exportBackup">导出完整备份</button></div>
+        <div class="backup-actions"><button class="secondary-button" @click="importBackup">导入备份</button><button v-if="lastExportPath && canStartDrag" class="secondary-button" draggable="true" title="按住并拖到外部应用" @dragstart="dragExport">拖出刚导出的备份</button><button class="primary-button" @click="exportBackup">导出完整备份</button></div>
       </article>
       <article v-show="settingsTab === 'sync'" class="settings-card webdav-card">
         <div class="settings-card-header"><div><span class="card-label">ZTOOLS SECURE SYNC</span><h2>WebDAV 云同步</h2></div><span class="secure-badge" :class="{ warning: !webdav.secureStorage }">{{ webdav.secureStorage ? '系统加密' : '降级存储' }}</span></div>

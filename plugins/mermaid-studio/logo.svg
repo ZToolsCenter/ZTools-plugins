@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c5cff" />
+      <stop offset="1" stop-color="#38bdf8" />
+    </linearGradient>
+  </defs>
+
+  <!-- 圆角底板 -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)" />
+
+  <!-- 连线：上->菱形，菱形->左下，菱形->右下 -->
+  <g stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none" opacity="0.92">
+    <path d="M 256 168 V 208" />
+    <path d="M 208 288 L 160 340" />
+    <path d="M 304 288 L 352 340" />
+  </g>
+
+  <!-- 箭头 -->
+  <g fill="#ffffff" opacity="0.92">
+    <polygon points="256,214 239,190 273,190" />
+    <polygon points="160,352 152,322 178,334" />
+    <polygon points="352,352 334,334 360,322" />
+  </g>
+
+  <!-- 顶部胶囊起点 -->
+  <rect x="184" y="100" width="144" height="72" rx="36" fill="#ffffff" />
+  <!-- 中间判定菱形（白底 + 内描边） -->
+  <rect x="184" y="212" width="144" height="144" rx="30" fill="#ffffff"
+        transform="rotate(45 256 284)" />
+  <!-- 左下 / 右下 结果节点 -->
+  <rect x="88" y="352" width="144" height="76" rx="22" fill="#ffffff" opacity="0.96" />
+  <rect x="280" y="352" width="144" height="76" rx="22" fill="#ffffff" opacity="0.96" />
+
+  <!-- 图形语义点缀：菱形中央的小菱形挖空，暗示“判断” -->
+  <rect x="238" y="266" width="36" height="36" rx="8" fill="#6d5cff"
+        transform="rotate(45 256 284)" />
+</svg>

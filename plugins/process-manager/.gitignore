@@ -26,6 +26,7 @@ dist-ssr
 # vibe coding
 .agents
 .reasonix
+.claude
 reasonix*
 .opencode
 skills-lock.json

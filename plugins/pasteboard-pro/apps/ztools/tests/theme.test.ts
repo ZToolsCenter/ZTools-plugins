@@ -18,6 +18,19 @@ describe("theme CSS variables", () => {
     expect(
       contrastRatio(light["--pb-violet"]!, light["--pb-on-accent"]!),
     ).toBeGreaterThanOrEqual(4.5);
+    expect(light["--pb-theme-accent"]).toBe(light["--pb-violet"]);
+    expect(light["--pb-theme-on-accent"]).toBe(light["--pb-on-accent"]);
+    expect(light["--pb-theme-accent-soft"]).toBe(light["--pb-violet-soft"]);
+  });
+
+  it("derives a single accent for legacy and semantic tokens against the supplied surface", () => {
+    const theme = { accentColor: "#26906f", background: { type: "default" as const } };
+    const variables = themeCssVariables(theme, true, "#2f343b");
+
+    expect(variables["--pb-theme-accent"]).toBe(variables["--pb-violet"]);
+    expect(variables["--pb-theme-on-accent"]).toBe(variables["--pb-on-accent"]);
+    expect(contrastRatio(variables["--pb-theme-accent"]!, "#2f343b")).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(variables["--pb-theme-accent"]!, variables["--pb-theme-on-accent"]!)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("maps solid colors and embedded images to stage background variables", () => {

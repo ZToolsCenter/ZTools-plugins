@@ -101,6 +101,18 @@ window.reminder = {
     scheduler.tick();
   },
 
+  /* ---------------- 触发历史 ---------------- */
+  history: {
+    /** 最近触发记录（最新在前，最多 100 条） */
+    list() {
+      return store.getHistory();
+    },
+    /** 清空触发记录 */
+    clear() {
+      store.clearHistory();
+    }
+  },
+
   /* ---------------- 导入 / 导出（Excel） ---------------- */
   data: {
     /** 导出到 Excel 文件；filter: 'all' | 'active' | 'done' */
@@ -295,6 +307,41 @@ window.reminder = {
 try {
   if (window.ztools.getWindowType() !== 'browser') {
     scheduler.start();
+
+    // 可见性感知调度：ZTools 隐藏插件视图时缓存保留（进程存活），
+    // 若不降频，每个缓存的隐藏视图都会持续每秒向主进程发起同步 IPC，
+    // 打开的插件视图越多，主进程压力越大（ZTools 卡顿的根源之一）。
+    // 隐藏 → 调度降频 60s（触发误差 ≤60s）；重新进入 → 恢复 1s 并立即对齐。
+    try {
+      if (typeof window.ztools.onPluginOut === 'function') {
+        window.ztools.onPluginOut(function (isKill) {
+          if (isKill) {
+            scheduler.stop();
+          } else {
+            scheduler.setVisibility(false);
+          }
+        });
+      }
+    } catch (e) {
+      /* 生命周期事件不可用时保持默认 1s 调度 */
+    }
+    try {
+      if (typeof window.ztools.onPluginEnter === 'function') {
+        window.ztools.onPluginEnter(function () {
+          scheduler.setVisibility(true);
+        });
+      }
+    } catch (e) {
+      /* 忽略 */
+    }
+    // 兜底：以 document 可见性变化作为第二信号
+    try {
+      document.addEventListener('visibilitychange', function () {
+        scheduler.setVisibility(!document.hidden);
+      });
+    } catch (e) {
+      /* 忽略 */
+    }
   }
 } catch (e) {
   scheduler.start();

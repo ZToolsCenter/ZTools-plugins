@@ -2,12 +2,45 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { PDFDocument } = require('pdf-lib')
+const { createFileDragGrantStore } = require('./file-drag-grants.js')
 
 let shell
 try {
   shell = require('electron').shell
 } catch (_) {
   shell = null
+}
+
+const MINIMUM_VERSION = '2.4.0'
+const dragGrants = createFileDragGrantStore({ fs, path, requiredExtension: '.pdf' })
+
+function parseVersion(value) {
+  if (typeof value !== 'string') return null
+  const match = value.match(/^\s*v?(\d+)\.(\d+)(?:\.(\d+))?(?:[-+][0-9A-Za-z.-]+)?\s*$/)
+  if (!match) return null
+  const parts = [Number(match[1]), Number(match[2]), Number(match[3] || 0)]
+  return parts.every(Number.isSafeInteger) ? parts : null
+}
+
+function isPrereleaseVersion(value) {
+  return typeof value === 'string' && /^\s*v?\d+\.\d+(?:\.\d+)?-/.test(value)
+}
+
+function isSupportedHost() {
+  const ztools = window.ztools
+  if (!ztools) return { version: '', supported: true }
+  let getAppVersion
+  try { getAppVersion = ztools.getAppVersion } catch (_) { return { version: '', supported: false } }
+  if (typeof getAppVersion !== 'function') return { version: '', supported: false }
+  let version
+  try { version = getAppVersion.call(ztools) } catch (_) { return { version: '', supported: false } }
+  const current = parseVersion(version)
+  const minimum = parseVersion(MINIMUM_VERSION)
+  const atMinimum = Boolean(current && minimum) && current.every((part, index) => part === minimum[index])
+  const supported = Boolean(current && minimum) && !(
+    atMinimum && isPrereleaseVersion(version)
+  ) && (current[0] > minimum[0] || (current[0] === minimum[0] && (current[1] > minimum[1] || (current[1] === minimum[1] && current[2] >= minimum[2]))))
+  return { version: typeof version === 'string' ? version : '', supported }
 }
 
 function hostPath(name, fallback) {
@@ -128,6 +161,7 @@ async function mergePdfs(paths, outputPath) {
   }
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, await merged.save())
+  dragGrants.grant(output)
   return { path: output, pages: totalPages, size: fs.statSync(output).size }
 }
 
@@ -154,6 +188,7 @@ async function splitPdf(sourcePath, expression, outputDirectory) {
     fs.writeFileSync(output, await document.save())
     outputs.push({ path: output, pages: pages.length, size: fs.statSync(output).size })
   }
+  outputs.forEach(item => dragGrants.grant(item.path))
   return outputs
 }
 
@@ -179,6 +214,7 @@ async function renameFiles(paths, template) {
   for (const operation of operations) {
     if (operation.source !== operation.target) fs.renameSync(operation.source, operation.target)
   }
+  operations.forEach(operation => dragGrants.grant(operation.target))
   return operations.map(operation => ({ path: operation.target, name: path.basename(operation.target) }))
 }
 
@@ -195,7 +231,17 @@ const services = {
   reveal(filePath) {
     if (shell?.showItemInFolder) shell.showItemInFolder(filePath)
   },
+  hostCompatibility: isSupportedHost,
+  canStartDrag() {
+    return typeof window.ztools?.startDrag === 'function'
+  },
+  async startDrag(paths) {
+    if (typeof window.ztools?.startDrag !== 'function') throw new Error('请升级到 ZTools 3.2.0 以拖出文件。')
+    const values = dragGrants.consume(normalizePaths(paths))
+    await Promise.resolve(window.ztools.startDrag(values.length === 1 ? values[0] : values))
+  },
   async handlePluginEnter(action) {
+    if (!isSupportedHost().supported) return
     const paths = normalizePaths(action?.payload)
     if (!paths.length) return
     const files = []
@@ -212,8 +258,12 @@ const services = {
 
 window.services = services
 
-window.ztools?.onPluginEnter?.(action => {
-  services.handlePluginEnter(action).catch(error => {
-    window.ztools?.showNotification?.(error instanceof Error ? error.message : String(error))
+if (isSupportedHost().supported) {
+  window.ztools?.onPluginEnter?.(action => {
+    services.handlePluginEnter(action).catch(error => {
+      window.ztools?.showNotification?.(error instanceof Error ? error.message : String(error))
+    })
   })
-})
+}
+
+module.exports = { MINIMUM_VERSION, parseVersion, isSupportedHost, normalizePaths, parsePageRanges, services }

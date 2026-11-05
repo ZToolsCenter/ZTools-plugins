@@ -1,15 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { loadPrompts, replaceStorageSnapshot } from './storage'
+import { loadPrompts, replaceStorageSnapshot, savePrompts } from './storage'
 
 const storage = new Map<string, unknown>()
 let failNextWriteFor: string | null = null
+let failNextReadFor: string | null = null
 
 beforeEach(() => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
   storage.clear()
   failNextWriteFor = null
+  failNextReadFor = null
   vi.stubGlobal('window', {
     kvStorage: {
-      get: (key: string) => storage.get(key) ?? null,
+      get: (key: string) => {
+        if (key === failNextReadFor) {
+          failNextReadFor = null
+          throw new Error('read failed')
+        }
+        return storage.get(key) ?? null
+      },
       set: (key: string, value: unknown) => {
         if (key === failNextWriteFor) {
           failNextWriteFor = null
@@ -22,13 +31,28 @@ beforeEach(() => {
   })
 })
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe('本地存储', () => {
   it('保留用户主动清空后的空词库', async () => {
     storage.set('prompts', [])
 
     await expect(loadPrompts()).resolves.toEqual([])
+  })
+
+  it('读取失败时向调用方报告错误而不是回退到种子数据', async () => {
+    failNextReadFor = 'prompts'
+
+    await expect(loadPrompts()).rejects.toThrow('read failed')
+  })
+
+  it('写入失败时向调用方报告错误', async () => {
+    failNextWriteFor = 'prompts'
+
+    await expect(savePrompts([])).rejects.toThrow('write failed')
   })
 
   it('整包替换会一起写入所有数据类别', async () => {

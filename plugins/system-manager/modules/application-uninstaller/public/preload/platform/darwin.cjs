@@ -1,3 +1,4 @@
+const { getAppIconDataUrl, getLetterSvgIcon } = require('../icon-helper.cjs');
 'use strict'
 
 const path = require('node:path')
@@ -99,7 +100,8 @@ async function scanApps(ctx) {
         const key = bundleId || appPath
         apps.push({
           id: opaqueId('app', `darwin:${root.scope}:${appPath}`, ctx.secret),
-          platform: 'darwin', name, version: cleanMetadataText(plist.CFBundleShortVersionString || plist.CFBundleVersion, '', 120) || null,
+          platform: 'darwin',
+        icon: getAppIconDataUrl(appPath) || getLetterSvgIcon(name), name, version: cleanMetadataText(plist.CFBundleShortVersionString || plist.CFBundleVersion, '', 120) || null,
           publisher: null, appKey: key, bundleId: bundleId || null,
           install: { kind: 'bundle', path: appPath, scope: root.scope },
           uninstall: {

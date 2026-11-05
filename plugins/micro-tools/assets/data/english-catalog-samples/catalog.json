@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "courses": [
+    {
+      "id": "communication",
+      "title": "示例素材 · 科研交流短句",
+      "domain": "communication",
+      "level": "★★★",
+      "count": 4,
+      "description": "4 句原创表达，练习提出研究问题、解释贡献与回答追问。请按真实项目替换内容。",
+      "url": "communication.json",
+      "sha256": "8bcff6a90e05e89b2c1874527daab72ca416fdf3173ed265f826f903e7b8a10f",
+      "tags": [],
+      "lessonId": "english-5059d0b7cae73e47ab407295",
+      "contentId": "english-2b844e990c11ed08dfdfe858"
+    },
+    {
+      "id": "bioinformatics",
+      "title": "示例素材 · 生信分析表达",
+      "domain": "methods",
+      "level": "★★★",
+      "count": 4,
+      "description": "4 句原创方法表达，围绕质量检查、批次效应、验证与可复现性。",
+      "url": "bioinformatics.json",
+      "sha256": "71767ca629579e651fc873d54324ec7c0435304ad18c267cca0c09441733bd6c",
+      "tags": [],
+      "lessonId": "english-42a2516ebc90fb1220fb66cc",
+      "contentId": "english-90beac70c9c2293fd6f3cea0"
+    },
+    {
+      "id": "paper-reading",
+      "title": "示例素材 · 论文阅读与讨论",
+      "domain": "reading",
+      "level": "★★★",
+      "count": 4,
+      "description": "4 句原创讨论表达，练习读摘要、提出设计问题和区分关联与因果。",
+      "url": "paper-reading.json",
+      "sha256": "879a76e7b7efe8d4e18233fc1c63293088d3322adbee01fa7a1bbcadf6925373",
+      "tags": [],
+      "lessonId": "english-ee9fcc46362d42212858b72f",
+      "contentId": "english-a429961d7d8a363cf8982905"
+    }
+  ]
+}

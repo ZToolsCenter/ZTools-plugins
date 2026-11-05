@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "calc-pad",
+  "title": "演算本",
+  "description": "多步计算稿纸，中间结果可跨行、跨草稿引用",
+  "author": "Agitator",
+  "version": "1.0.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "pluginSetting": {
+    "height": 840,
+    "single": true
+  },
+  "features": [
+    {
+      "code": "calc",
+      "explain": "演算本：多步计算，中间结果可引用",
+      "icon": "logo.png",
+      "cmds": ["计算", "演算", "草稿", "calc"]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "cmark",
+  "pluginName": "CMark",
+  "title": "CMark",
+  "version": "1.2.0",
+  "description": "本地 Markdown 笔记，用 Git 管理版本、同步多端",
+  "author": "Lancc",
+  "homepage": "https://github.com/LanccBy2016/cmark",
+  "platform": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "single": false
+  },
+  "features": [
+    {
+      "code": "cmark",
+      "explain": "使用 Git 管理你的 Markdown 笔记",
+      "cmds": [
+        "markdown",
+        "md",
+        "cm"
+      ]
+    }
+  ]
+}

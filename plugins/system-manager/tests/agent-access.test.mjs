@@ -25,6 +25,7 @@ test('legacy hosts report unavailable and cannot activate a grant', () => {
     active: false,
     expiresAt: null,
     remainingMs: 0,
+    mode: null,
     scopes: [],
   })
   assert.deepEqual(access.grant({ scopes: ['lan_scan'] }), {
@@ -32,6 +33,7 @@ test('legacy hosts report unavailable and cannot activate a grant', () => {
     active: false,
     expiresAt: null,
     remainingMs: 0,
+    mode: null,
     scopes: [],
   })
   assert.equal(access.hasScope('lan_scan'), false)
@@ -45,9 +47,37 @@ test('modern hosts start closed and expose no scope before an explicit grant', (
     active: false,
     expiresAt: null,
     remainingMs: 0,
+    mode: null,
     scopes: [],
   })
   for (const scope of AGENT_SCOPES) assert.equal(access.hasScope(scope), false)
+})
+
+test('grant supports codex modes (ask, auto, full)', () => {
+  const access = createAgentAccess(modernHost())
+  // full 模式：授予所有 scope
+  const fullState = access.grant({ mode: 'full' })
+  assert.equal(fullState.active, true)
+  assert.equal(fullState.mode, 'full')
+  assert.deepEqual(fullState.scopes, AGENT_SCOPES)
+  for (const scope of AGENT_SCOPES) assert.equal(access.hasScope(scope), true)
+
+  // ask 模式：不预授权任何 scope
+  const askState = access.grant({ mode: 'ask' })
+  assert.equal(askState.active, true)
+  assert.equal(askState.mode, 'ask')
+  assert.deepEqual(askState.scopes, [])
+  for (const scope of AGENT_SCOPES) assert.equal(access.hasScope(scope), false)
+
+  // auto 模式：仅授予低危 scope（除启动项和卸载残留）
+  const autoState = access.grant({ mode: 'auto' })
+  assert.equal(autoState.active, true)
+  assert.equal(autoState.mode, 'auto')
+  assert.equal(access.hasScope('report_export'), true)
+  assert.equal(access.hasScope('lan_scan'), true)
+  assert.equal(access.hasScope('system_cleanup'), true)
+  assert.equal(access.hasScope('startup_changes'), false)
+  assert.equal(access.hasScope('application_removal'), false)
 })
 
 test('grant accepts only the five unique allowlisted scopes and rejects extra keys', () => {
@@ -64,23 +94,37 @@ test('grant accepts only the five unique allowlisted scopes and rejects extra ke
   assert.equal(access.hasScope('startup_changes'), false)
 })
 
-test('authorization never exceeds ten minutes and expires fail-closed', () => {
+test('authorization stays active without 10-minute expiry limit, and custom ttlMs expires fail-closed if specified', () => {
   let now = Date.parse('2026-07-31T08:00:00.000Z')
-  const access = createAgentAccess(modernHost(), { now: () => now, ttlMs: ACCESS_TTL_MS + 1 })
-  const granted = access.grant({ scopes: ['system_cleanup'] })
-  assert.equal(granted.remainingMs, ACCESS_TTL_MS)
-  assert.equal(Date.parse(granted.expiresAt) - now, ACCESS_TTL_MS)
-  now += ACCESS_TTL_MS - 1
-  assert.equal(access.getState().active, true)
+  // 默认模式：无超时限制（常驻）
+  const permanentAccess = createAgentAccess(modernHost(), { now: () => now })
+  const permanentGranted = permanentAccess.grant({ scopes: ['system_cleanup'] })
+  assert.equal(permanentGranted.active, true)
+  assert.equal(permanentGranted.expiresAt, null)
+  assert.equal(permanentGranted.remainingMs, null)
+  // 过去数小时后依然有效
+  now += 24 * 60 * 60 * 1000
+  assert.equal(permanentAccess.getState().active, true)
+  assert.equal(permanentAccess.hasScope('system_cleanup'), true)
+
+  // 支持可选 custom ttlMs
+  const customTtl = 60 * 1000
+  const timedAccess = createAgentAccess(modernHost(), { now: () => now, ttlMs: customTtl })
+  const timedGranted = timedAccess.grant({ scopes: ['system_cleanup'] })
+  assert.equal(timedGranted.remainingMs, customTtl)
+  assert.equal(Date.parse(timedGranted.expiresAt) - now, customTtl)
+  now += customTtl - 1
+  assert.equal(timedAccess.getState().active, true)
   now += 1
-  assert.deepEqual(access.getState(), {
+  assert.deepEqual(timedAccess.getState(), {
     available: true,
     active: false,
     expiresAt: null,
     remainingMs: 0,
+    mode: null,
     scopes: [],
   })
-  assert.equal(access.hasScope('system_cleanup'), false)
+  assert.equal(timedAccess.hasScope('system_cleanup'), false)
 })
 
 test('dbStorage is ignored and grants never cross renderer controllers', () => {
@@ -102,6 +146,7 @@ test('dbStorage is ignored and grants never cross renderer controllers', () => {
     active: false,
     expiresAt: null,
     remainingMs: 0,
+    mode: null,
     scopes: [],
   })
   assert.equal(second.hasScope('application_removal'), false)

@@ -10,7 +10,7 @@
 ![Vite](https://img.shields.io/badge/Vite-6-646CFF)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> 🤖 **本项目由 [Vibe Coding](https://github.com/nicepkg/vibe-coding) 维护** — AI 辅助驱动的开发模式，让想法快速变为代码。
+> 🤖 **本项目由 Vibe Coding 维护** — AI 辅助驱动的开发模式，让想法快速变为代码。
 
 ---
 
@@ -39,7 +39,7 @@
 - **⚡ 一键 Kill** — 确认后通过 `taskkill /F` 强制终止进程
 - **🔄 自动刷新** — 5 秒缓存 TTL，进度条直观展示缓存倒计时
 - **🌙 暗色模式** — 跟随系统主题自适应
-- **🪟 Windows 原生** — 基于 `wmic` / `netstat` / `tasklist`，无第三方依赖
+- **🪟 Windows 原生** — 进程枚举基于 PowerShell (CIM) / `netstat` / `tasklist`，文件与目录占用检测使用内置的 `win-file-lock-detector.exe`（Restart Manager + 系统句柄扫描），兼容已移除 `wmic` 的 Windows 11
 
 
 ## 🚀 快速开始
@@ -73,8 +73,9 @@ npm run build
 ├── public/
 │   ├── logo.svg                  # 插件图标（SVG）
 │   ├── plugin.json               # 插件配置（功能指令、平台等）
+│   ├── win-file-lock-detector.exe # 文件/目录占用检测（Restart Manager + 句柄扫描）
 │   └── preload/
-│       └── services.js           # Node.js 层：进程枚举、端口扫描、Kill
+│       └── services.js           # Node.js 层：进程枚举、端口扫描、占用检测、Kill
 ├── src/
 │   ├── main.tsx                  # 入口文件
 │   ├── main.css                  # 全局样式（含暗色模式）
@@ -99,8 +100,9 @@ npm run build
 ```
 ┌─────────────────────┐
 │   services.js       │  ← Node.js preload
-│  ─ listProcesses()  │     wmic / tasklist
+│  ─ listProcesses()  │     PowerShell CIM / wmic / tasklist
 │  ─ scanPorts()      │     netstat -ano
+│  ─ whoLocks()       │     win-file-lock-detector.exe
 │  ─ killProcess()    │     taskkill /F
 └────────┬────────────┘
          │ window.services.*
@@ -126,34 +128,11 @@ npm run build
 
 | 模块                       | 职责                                                                  |
 | -------------------------- | --------------------------------------------------------------------- |
-| `services.js`              | 通过 `wmic` 枚举进程、`netstat -ano` 扫描端口、`taskkill /F` 终止进程 |
+| `services.js`              | 通过 PowerShell `Get-CimInstance` 枚举进程（`wmic` / `tasklist` 兜底）、`netstat -ano` 扫描端口、内置检测器查询文件/目录占用、`taskkill /F` 终止进程 |
 | `useProcessData.ts`        | 管理进程数据状态，5 秒缓存 TTL，自动/手动刷新                         |
 | `search.ts`                | 多字段模糊匹配：进程名、PID、端口、路径                               |
 | `ProcessManager/index.tsx` | 主界面：搜索栏、结果列表、Kill 按钮、Toast 提示                       |
 
-## 🔧 插件配置
-
-编辑 `public/plugin.json`：
-
-```json
-{
-  "name": "process-manager",
-  "title": "进程端口管理",
-  "description": "快速搜索进程、端口、PID、路径，支持一键 Kill 进程，支持深色模式",
-  "features": [
-    {
-      "code": "process",
-      "explain": "快速搜索进程、端口、PID，支持一键 Kill",
-      "cmds": ["pid", "port", "process", "端口", "进程", "进程管理"]
-    }
-  ],
-  "platform": ["win32"]
-}
-```
-
-触发指令：`pid` / `port` / `process` / `端口` / `进程` / `进程管理`
-
-> ⚠ 当前仅支持 Windows 平台（依赖 `wmic`、`netstat`、`taskkill`）。
 
 ## 📦 构建与发布
 

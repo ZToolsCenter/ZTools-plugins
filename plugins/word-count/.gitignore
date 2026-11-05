@@ -1,0 +1,6 @@
+﻿publish.log
+publish.err
+publish.pid
+dist/
+run-publish.ps1
+

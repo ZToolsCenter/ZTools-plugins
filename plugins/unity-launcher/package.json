@@ -1,0 +1,12 @@
+{
+  "name": "ztools-unity-launcher",
+  "version": "1.0.4",
+  "private": true,
+  "description": "zTools 插件：独立管理 Unity 项目与编辑器版本",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

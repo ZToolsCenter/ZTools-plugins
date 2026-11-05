@@ -1,0 +1,24 @@
+/* Plugin details follow their card in document order, at every window width. */
+.library-layout.ztools-inline-layout,
+.library-layout.with-detail.ztools-inline-layout,
+.projects-layout.ztools-inline-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.library-layout.ztools-inline-layout .skill-list.ztools-inline-list,
+.projects-layout.ztools-inline-layout .project-list.ztools-inline-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  min-width: 0;
+}
+
+.ztools-inline-layout > .ztools-inline-list > .detail-panel,
+.ztools-inline-layout > .ztools-inline-list > .project-detail {
+  min-width: 0;
+  width: 100%;
+}
+
+.ztools-inline-layout .detail-heading {
+  flex-wrap: wrap;
+}

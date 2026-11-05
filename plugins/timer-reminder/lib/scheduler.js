@@ -16,9 +16,10 @@ const channels = require('./channels.js');
 const Schedule = require('./schedule.js');
 
 const LOCK_ID = 'reminder_scheduler_lock';
-const TICK_MS = 1000; // 调度精度
-const LOCK_TTL = 8000; // 超过该时长没有心跳即视为锁失效
-const LOCK_REFRESH = 4000; // 心跳写入间隔
+const TICK_MS = 1000; // 可见时调度精度
+const HIDDEN_TICK_MS = 60000; // 隐藏到后台时的扫描间隔（降频，误差 ≤60s，即用户可接受的一分钟上限；对主进程的同步 IPC 压力降至最低）
+const LOCK_TTL = 180000; // 锁有效期：需显著大于隐藏调度间隔（60s×2+余量），防止多个隐藏视图因心跳变稀而互相抢锁、重复触发
+const LOCK_REFRESH = 50000; // 心跳写入间隔（隐藏 60s 时每 tick 写一次；可见 1s 时每 50s 写一次）
 const MISSED_THRESHOLD = 5 * 60 * 1000; // 超过该时长视为“错过”
 const ESCALATE_MS = 5 * 60 * 1000; // 弹窗强提醒未处理时的升级间隔
 
@@ -26,6 +27,7 @@ let timer = null;
 let isOwner = false;
 let ownerId = null;
 let lastLockWrite = 0;
+let visible = true; // 插件视图是否对用户可见（ZTools 隐藏视图会缓存保留，需降频以降低后台开销）
 const listeners = [];
 const escalations = new Map(); // id -> Timeout，弹窗未处理时的升级提醒
 
@@ -154,6 +156,15 @@ function fire(item, now, settings, options) {
 
   const updated = store.updateReminder(item._id, patch);
 
+  // 触发历史留痕（仅非静默触发；停机补发的批量静默推进不写，避免刷屏）
+  if (!silent) {
+    try {
+      store.appendHistory(item, now, late);
+    } catch (e) {
+      /* 忽略 */
+    }
+  }
+
   // 额外通道（邮件 / 短信 / Webhook），异步且不阻塞主流程；静默补发时不轰炸外部通道
   if (!silent) {
     channels
@@ -228,6 +239,9 @@ function tick() {
 
 /**
  * 启动调度器。重复调用无副作用。
+ * 可见视图以 1 秒精度扫描；隐藏到后台的视图降频到 60 秒，
+ * 提醒仍能准点触发（误差 ≤60 秒，即一分钟上限），
+ * 但同步 IPC 对主进程的压力降至最低。
  */
 function start() {
   if (timer) return;
@@ -238,8 +252,22 @@ function start() {
   }
   // 立即扫一次，补发插件未运行期间错过的提醒
   tick();
-  timer = setInterval(tick, TICK_MS);
+  timer = setInterval(tick, visible ? TICK_MS : HIDDEN_TICK_MS);
   emit({ type: 'started', owner: ownerId });
+}
+
+/**
+ * 插件视图可见性变化时调整调度频率：
+ *  - visible=true ：恢复 1 秒精度并立即扫一次，让界面马上对齐状态；
+ *  - visible=false：降频到 60 秒（误差 ≤60 秒），减少隐藏视图对主进程的同步 IPC 负担。
+ * 调度器不彻底停摆——持锁窗口仍需在后台准点触发提醒。
+ */
+function setVisibility(v) {
+  visible = !!v;
+  if (!timer) return;
+  clearInterval(timer);
+  if (visible) tick(); // 回到前台立即对齐一次，避免倒计时/状态滞后
+  timer = setInterval(tick, visible ? TICK_MS : HIDDEN_TICK_MS);
 }
 
 function stop() {
@@ -298,6 +326,7 @@ module.exports = {
   tick,
   status,
   on,
+  setVisibility,
   snooze,
   complete,
   MISSED_THRESHOLD

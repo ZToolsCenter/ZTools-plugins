@@ -1,0 +1,46 @@
+{
+  "name": "askills",
+  "private": true,
+  "version": "1.0.2",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:ztools": "node scripts/build-ztools.mjs",
+    "prepare:ztools:publish": "node scripts/prepare-ztools-publish.mjs",
+    "test:ztools": "node --test tests/ztools/*.test.cjs",
+    "test:ztools:helper": "node scripts/ztools-helper-smoke.mjs",
+    "test:ztools:host": "node scripts/ztools-host-smoke.mjs",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "check": "tsc --noEmit",
+    "test:ui": "playwright test",
+    "test:native": "node scripts/native-smoke.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "lucide-react": "^1.58.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@electron/asar": "4.3.1",
+    "@playwright/test": "^1.64.1",
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^6.0.2",
+    "prettier": "^3",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

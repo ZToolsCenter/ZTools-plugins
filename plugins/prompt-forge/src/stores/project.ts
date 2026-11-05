@@ -14,7 +14,12 @@ export function useProjectStore() {
     _initPromise = (async () => {
       items.value = await loadProjects()
     })()
-    return _initPromise
+    try {
+      await _initPromise
+    } catch (error) {
+      _initPromise = null
+      throw error
+    }
   }
 
   async function ensureReady() { await init() }
@@ -27,25 +32,40 @@ export function useProjectStore() {
     return map
   })
 
-  function addProject(name: string, group: ProjectGroup, description?: string) {
+  async function persistMutation<T>(mutate: () => T): Promise<T> {
+    const previous = items.value.map(project => ({ ...project }))
+    const result = mutate()
+    try {
+      await saveProjects(items.value)
+      return result
+    } catch (error) {
+      items.value = previous
+      throw error
+    }
+  }
+
+  async function addProject(name: string, group: ProjectGroup, description?: string) {
     const now = Date.now()
     const project: Project = { id: generateId(), name, group, description, createdAt: now, updatedAt: now }
-    items.value.push(project)
-    saveProjects(items.value)
-    return project
+    return persistMutation(() => {
+      items.value.push(project)
+      return project
+    })
   }
 
-  function removeProject(id: string) {
-    items.value = items.value.filter(p => p.id !== id)
-    saveProjects(items.value)
+  async function removeProject(id: string) {
+    await persistMutation(() => {
+      items.value = items.value.filter(p => p.id !== id)
+    })
   }
 
-  function updateProject(id: string, patch: Partial<Project>) {
-    const idx = items.value.findIndex(p => p.id === id)
-    if (idx !== -1) {
-      items.value[idx] = { ...items.value[idx], ...patch, updatedAt: Date.now() }
-      saveProjects(items.value)
-    }
+  async function updateProject(id: string, patch: Partial<Project>) {
+    await persistMutation(() => {
+      const idx = items.value.findIndex(p => p.id === id)
+      if (idx !== -1) {
+        items.value[idx] = { ...items.value[idx], ...patch, updatedAt: Date.now() }
+      }
+    })
   }
 
   return { items, groupedProjects, init, ensureReady, addProject, removeProject, updateProject, GROUPS }

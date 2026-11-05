@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import type { Row, TableSchema } from '../types/table'
-import { initialFieldDefault, addFieldOptions } from '../domain/fieldTypes'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FieldValue, Row, TableSchema } from '../types/table'
+import { addFieldOptions } from '../domain/fieldTypes'
+import { checkIncomingRows, type IncomingCheck } from '../domain/constraints'
 import {
   autoColumnMap,
   mapRowValues,
@@ -61,35 +62,73 @@ const fieldOptions = computed(() =>
   props.table.fields.map((f) => ({ label: f.name, value: f.id }))
 )
 
+/** 每行映射后的字段值：预览和导入共用，避免重复跑 mapRowValues */
+const incomingValues = computed<Array<Record<string, FieldValue>>>(() =>
+  dataRows.value.map((cells) =>
+    mapRowValues(props.table.fields, headers.value, cells, columnMap.value)
+  )
+)
+
+/** 导入前的约束校验：必填缺失 / 与存量或本批次内重复 */
+const check = computed<IncomingCheck | null>(() => {
+  if (!parsed.value || !dataRows.value.length) return null
+  return checkIncomingRows(props.table.fields, incomingValues.value, store.activeRows.value)
+})
+
+const badRowCount = computed(() => (check.value ? check.value.rowIssues.filter(Boolean).length : 0))
+
 const previewRows = computed(() => {
-  return dataRows.value.slice(0, 5).map((cells) => {
-    const values = mapRowValues(props.table.fields, headers.value, cells, columnMap.value)
-    return props.table.fields.map((f) => {
+  return incomingValues.value.slice(0, 5).map((values) =>
+    props.table.fields.map((f) => {
       const v = values[f.id]
       if (Array.isArray(v)) return v.join(props.multiSeparator)
       if (v == null) return ''
       return String(v)
     })
-  })
+  )
 })
+
+/** 预览里某行不合规的原因（悬停提示） */
+function rowIssueText(index: number): string {
+  const issues = check.value?.rowIssues[index]
+  return issues ? issues.map((issue) => issue.message).join('；') : ''
+}
 
 /** 直接走 store.bulk：420 行也只 ~2 IPC，避免主线程卡半分钟 */
 async function confirmImport() {
   if (importing.value) return
   if (!parsed.value || !dataRows.value.length) return
+  const result = check.value
+  const okIndexes = result?.okIndexes ?? []
+  const skipped = dataRows.value.length - okIndexes.length
+  if (!okIndexes.length) {
+    ElMessage.warning('所有行都不符合字段约束，没有可导入的数据')
+    return
+  }
+  if (skipped > 0) {
+    try {
+      await ElMessageBox.confirm(
+        `共 ${dataRows.value.length} 行：符合约束 ${okIndexes.length} 行，另有 ${skipped} 行会被跳过（必填缺失 ${result!.requiredRows} 行、重复 ${result!.duplicateRows} 行）。继续导入这 ${okIndexes.length} 行？`,
+        '约束校验',
+        {
+          type: 'warning',
+          confirmButtonText: `导入 ${okIndexes.length} 行`,
+          cancelButtonText: '取消'
+        }
+      )
+    } catch {
+      return
+    }
+  }
   importing.value = true
   const now = Date.now()
-  const incoming: Row[] = dataRows.value.map((cells, i) => {
-    // mapRowValues 已按字段预填默认值（initialFieldDefault），未映射列也会带上
-    const values = mapRowValues(props.table.fields, headers.value, cells, columnMap.value)
-    return {
-      id: generateId('row'),
-      tableId: props.table.id,
-      values,
-      createdAt: now + i,
-      updatedAt: now + i
-    }
-  })
+  const incoming: Row[] = okIndexes.map((rowIndex, i) => ({
+    id: generateId('row'),
+    tableId: props.table.id,
+    values: incomingValues.value[rowIndex],
+    createdAt: now + i,
+    updatedAt: now + i
+  }))
   const merged = [...store.activeRows.value, ...incoming]
   try {
     await store.replaceRows(props.table.id, merged)
@@ -102,7 +141,9 @@ async function confirmImport() {
       }
     }
     if (schemaChanged) store.updateTableSchema({ ...table, fields: [...table.fields] })
-    ElMessage.success(`已导入 ${incoming.length} 行`)
+    ElMessage.success(
+      skipped > 0 ? `已导入 ${incoming.length} 行，跳过 ${skipped} 行` : `已导入 ${incoming.length} 行`
+    )
     emit('update:visible', false)
   } catch (e: any) {
     ElMessage.error(e?.message || '导入失败')
@@ -172,6 +213,13 @@ async function pasteFromClipboard() {
         </div>
       </div>
       <h4 class="sec">预览（前 {{ previewRows.length }} 行）</h4>
+      <p v-if="check" class="check-tip" :class="{ ok: !badRowCount }">
+        <template v-if="badRowCount">
+          ⚠ {{ badRowCount }} 行不符合约束：必填缺失 {{ check.requiredRows }} 行、重复
+          {{ check.duplicateRows }} 行（导入时跳过）
+        </template>
+        <template v-else>✓ {{ dataRows.length }} 行全部通过约束校验</template>
+      </p>
       <div class="preview-wrap">
         <table class="preview">
           <thead>
@@ -180,7 +228,12 @@ async function pasteFromClipboard() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(r, i) in previewRows" :key="i">
+            <tr
+              v-for="(r, i) in previewRows"
+              :key="i"
+              :class="{ bad: check?.rowIssues[i] }"
+              :title="rowIssueText(i)"
+            >
               <td v-for="(c, j) in r" :key="j">{{ c }}</td>
             </tr>
           </tbody>
@@ -193,10 +246,10 @@ async function pasteFromClipboard() {
       <el-button
         type="primary"
         :loading="importing"
-        :disabled="!parsed || !dataRows.length"
+        :disabled="!parsed || !dataRows.length || !check?.okIndexes.length"
         @click="confirmImport"
       >
-        {{ importing ? '导入中…' : `导入 ${dataRows.length} 行` }}
+        {{ importing ? '导入中…' : `导入 ${check?.okIndexes.length ?? dataRows.length} 行` }}
       </el-button>
     </template>
   </el-dialog>
@@ -254,6 +307,17 @@ async function pasteFromClipboard() {
   padding: 6px 8px;
   text-align: left;
   white-space: nowrap;
+}
+.preview tr.bad td {
+  background: var(--el-color-danger-light-9);
+}
+.check-tip {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--el-color-danger);
+}
+.check-tip.ok {
+  color: var(--el-color-success);
 }
 .count {
   float: left;

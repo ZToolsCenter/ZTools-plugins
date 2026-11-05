@@ -19,6 +19,7 @@
     { "path": "../../packages/core" },
     { "path": "../../packages/design-tokens" },
     { "path": "../../packages/sync-protocol" },
-    { "path": "../../packages/contract-fixtures" }
+    { "path": "../../packages/contract-fixtures" },
+    { "path": "../../packages/snapshot-store" }
   ]
 }
