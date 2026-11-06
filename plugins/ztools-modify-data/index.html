@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <title>插件数据编辑器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="logo.png" alt=""><div><strong>插件数据编辑器</strong><span>ZTOOLS · DATA EDITOR</span></div></div>
+    <div class="top-actions"><span id="connection" class="connection">连接中</span><button id="large-window" class="primary">大窗口编辑 ↗</button><button id="refresh" class="subtle">刷新</button></div>
+  </header>
+  <div id="notice" class="notice" hidden></div>
+  <div class="layout-bar"><button id="back-to-list" class="text-button" hidden>← 返回数据列表</button><div><button id="toggle-plugins" class="text-button" aria-pressed="true">插件列表</button><button id="toggle-records" class="text-button" aria-pressed="true">数据记录</button></div><span id="layout-hint">选择插件，再点击一条记录进入编辑页面</span><button id="focus-mode" class="text-button" aria-pressed="false">专注编辑</button></div>
+  <main id="main-layout">
+    <aside class="plugins panel">
+      <div class="section-label">数据空间 <span id="plugin-count">0</span></div>
+      <label class="search"><span>⌕</span><input id="plugin-search" placeholder="搜索插件" aria-label="搜索插件"></label>
+      <div id="plugin-list" class="scroll-list"></div>
+      <div class="sidebar-foot"><span class="dot"></span> 保存前自动备份 <button id="backups" title="打开备份目录">↗</button></div>
+    </aside>
+    <div id="plugin-divider" class="divider" role="separator" aria-label="调整插件列表宽度" aria-orientation="vertical" tabindex="0"></div>
+    <section class="records panel">
+      <div class="section-label">数据记录 <span id="record-count">0</span></div>
+      <label class="search"><span>⌕</span><input id="record-search" placeholder="搜索键名或内容" aria-label="搜索数据记录"></label>
+      <div id="record-list" class="scroll-list"><p class="list-empty">选择左侧插件以查看数据</p></div>
+      <button id="export" class="export" disabled>↓ 导出插件 JSON</button>
+    </section>
+    <div id="record-divider" class="divider" role="separator" aria-label="调整记录列表宽度" aria-orientation="vertical" tabindex="0"></div>
+    <section class="workspace">
+      <div id="empty-state" class="empty-state"><div class="empty-icon">{ }</div><h1>让插件数据一目了然</h1><p>选择插件和记录，查看并修改 JSON 数据。</p><div class="empty-features"><span>✓ 保存前备份</span><span>✓ 自动检测冲突</span><span>✓ 备份可回填</span></div><small>支持 ztools.db / dbStorage · ZTools 3.x</small></div>
+      <div id="editor-pane" class="editor-pane" hidden>
+        <div class="editor-heading"><div class="breadcrumb" id="breadcrumb"></div><div class="heading-row"><h1 id="record-title"></h1><span id="kind-badge" class="badge"></span></div><div class="meta"><span id="revision"></span><span id="attachment-info"></span></div></div>
+        <div class="editor-toolbar"><div class="editor-tabs"><button id="value-mode" class="tab" hidden>存储值</button><button id="document-mode" class="tab">文档字段</button></div><div class="editor-tools"><button id="find-toggle" class="text-button" title="查找 Ctrl+F">查找</button><button id="wrap-toggle" class="text-button" aria-pressed="false">自动换行</button><label class="font-control"><span>字号</span><select id="font-size" aria-label="编辑器字号"><option value="12">12</option><option value="14" selected>14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option></select></label><button id="format" class="text-button">格式化</button><button id="reload-record" class="text-button">重读</button></div></div>
+        <div id="find-bar" class="find-bar" hidden><input id="find-input" placeholder="查找文本，Enter 下一个" aria-label="查找编辑器文本"><span id="find-count"></span><button id="find-prev" title="上一个 Shift+Enter">↑</button><button id="find-next" title="下一个 Enter">↓</button><button id="find-close" aria-label="关闭查找">×</button></div>
+        <div class="code-area"><div class="line-gutter" aria-hidden="true"><pre id="line-numbers">1</pre></div><textarea id="editor" aria-label="JSON 数据编辑器" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off"></textarea></div>
+        <div class="editor-status"><span id="json-status">有效 JSON</span><span id="caret-status"></span><span id="size-status"></span></div>
+        <details class="history-tools"><summary>历史备份与恢复</summary><div class="history-row"><label for="history">历史备份</label><select id="history"><option value="">暂无备份</option></select><button id="restore" class="text-button" disabled>回填到编辑器</button></div></details>
+        <div class="save-bar"><div><strong id="dirty-status">已保存</strong><small>系统版本和附件字段由程序保留</small></div><button id="save" class="primary" disabled>检查并保存 <kbd>Ctrl S</kbd></button></div>
+      </div>
+    </section>
+  </main>
+  <footer><span id="root-path" title="数据根目录">正在查找 ZTools 数据目录…</span><span id="account-label"></span></footer>
+  <div id="toast" role="status" class="toast" hidden></div>
+  <dialog id="modal"><div class="modal-body"><span class="modal-eyebrow" id="modal-eyebrow">保存数据</span><h2 id="modal-title"></h2><p id="modal-description"></p><pre id="modal-preview" hidden></pre><div class="modal-actions"><button id="modal-cancel">取消</button><button id="modal-confirm" class="primary">确认</button></div></div></dialog>
+  <script src="demo.js"></script>
+  <script src="editor-layout.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
