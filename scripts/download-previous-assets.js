@@ -234,6 +234,12 @@ async function main() {
     mkdirSync(RELEASE_DIR, { recursive: true });
   }
 
+  // 不允许将复用工作目录中的旧清单当作本次下载结果。
+  const previousManifestPath = join(RELEASE_DIR, PREVIOUS_MANIFEST_FILE);
+  if (existsSync(previousManifestPath)) {
+    unlinkSync(previousManifestPath);
+  }
+
   try {
     // 获取最新的release
     console.log('获取最新release...');

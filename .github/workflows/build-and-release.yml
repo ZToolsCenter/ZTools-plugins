@@ -6,8 +6,16 @@ on:
       - main
   workflow_dispatch:
     inputs:
+      operation:
+        description: '操作：build 构建插件；remove 从最新清单中下架插件（保留源码和历史 Release）'
+        required: true
+        type: choice
+        options:
+          - build
+          - remove
+        default: build
       plugins:
-        description: '指定要构建的插件文件夹名，多个可用逗号、空格或换行分隔'
+        description: 'build 填插件文件夹名；remove 必填最新 Release 的 plugins.json 中的 name；多个用逗号、空格或换行分隔'
         required: false
         type: string
         default: ''
@@ -42,27 +50,23 @@ jobs:
           CURRENT_RUN_ID: ${{ github.run_id }}
           CURRENT_RUN_NUMBER: ${{ github.run_number }}
           WORKFLOW_NAME: ${{ github.workflow }}
-          BRANCH_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
-          echo "Waiting for older ${WORKFLOW_NAME} runs on ${BRANCH_NAME}..."
+          echo "Waiting for older ${WORKFLOW_NAME} runs across all branches..."
 
           while true; do
             older_runs=$(
               gh api --paginate -X GET "/repos/${GITHUB_REPOSITORY}/actions/runs" \
-                -f branch="${BRANCH_NAME}" \
                 -F per_page=100 |
               jq -r \
                 --arg workflow_name "${WORKFLOW_NAME}" \
-                --arg branch_name "${BRANCH_NAME}" \
                 --argjson current_run_id "${CURRENT_RUN_ID}" \
                 --argjson current_run_number "${CURRENT_RUN_NUMBER}" \
                 '
                   .workflow_runs[]
                   | select(
                       .name == $workflow_name
-                      and .head_branch == $branch_name
                       and .id != $current_run_id
                       and .run_number < $current_run_number
                       and .status != "completed"
@@ -95,6 +99,7 @@ jobs:
         id: detect
         run: node scripts/detect-changes.js
         env:
+          RELEASE_OPERATION: ${{ github.event.inputs.operation || 'build' }}
           BUILD_ALL: ${{ github.event.inputs.build_all || 'false' }}
           BUILD_PLUGINS: ${{ github.event.inputs.plugins || '' }}
 
@@ -143,6 +148,7 @@ jobs:
     needs: [detect, build-linux, build-windows, build-macos]
     if: |
       always() &&
+      needs.detect.result == 'success' &&
       needs.detect.outputs.has_changes == 'true' &&
       (needs.build-linux.result == 'success' || needs.build-linux.result == 'skipped') &&
       (needs.build-windows.result == 'success' || needs.build-windows.result == 'skipped') &&
@@ -204,6 +210,10 @@ jobs:
 
       - name: Prepare release body
         run: |
+          if [ -s release/removed-plugins.md ]; then
+            cp release/removed-plugins.md release/release-body.md
+            exit 0
+          fi
           echo "## 更新的插件" > release/release-body.md
           echo "" >> release/release-body.md
           if [ -f release/changelog.txt ]; then

@@ -6,6 +6,7 @@ import { execSync } from 'child_process';
 import sharp from 'sharp';
 import { Extract } from 'unzipper';
 import { pipeline } from 'stream/promises';
+import { removePluginsFromManifest, formatRemovalNotes } from './remove-plugins.js';
 
 const RELEASE_DIR = 'release';
 const TEMP_DIR = join(RELEASE_DIR, 'temp');
@@ -425,6 +426,15 @@ async function main() {
       ? JSON.parse(readFileSync(BUILD_INFO_FILE, 'utf-8'))
       : { changedPlugins: [], deletedPlugins: [] };
     const previousPlugins = readPreviousManifest();
+    const isRemoval = buildInfo.operation === 'remove';
+    let removal;
+
+    if (isRemoval) {
+      if (zipFiles.length > 0 || buildInfo.buildAll || buildInfo.changedPlugins?.length > 0) {
+        throw new Error('下架操作不能包含构建任务或 ZIP 文件，已停止发布');
+      }
+      removal = removePluginsFromManifest(previousPlugins, buildInfo.requestedRemovals);
+    }
 
     if (zipFiles.length === 0 && !previousPlugins) {
       throw new Error('没有找到任何zip文件，且不存在历史 plugins.json，无法生成完整 manifest');
@@ -447,8 +457,8 @@ async function main() {
       throw new Error('没有成功处理任何插件，无法生成 manifest');
     }
 
-    const mergedPlugins = mergePluginManifests(plugins, previousPlugins, buildInfo);
-    if (mergedPlugins.length === 0) {
+    const mergedPlugins = isRemoval ? removal.plugins : mergePluginManifests(plugins, previousPlugins, buildInfo);
+    if (mergedPlugins.length === 0 && !isRemoval) {
       throw new Error('合并后的插件清单为空');
     }
 
@@ -460,6 +470,9 @@ async function main() {
     const categories = generateCategoriesData(mergedPlugins);
     const categoriesOutputPath = join(RELEASE_DIR, 'categories.json');
     writeFileSync(categoriesOutputPath, JSON.stringify(categories, null, 2));
+
+    // 每次覆盖，避免复用工作目录时将旧下架说明用于普通构建。
+    writeFileSync(join(RELEASE_DIR, 'removed-plugins.md'), isRemoval ? formatRemovalNotes(removal.removedPlugins) : '');
 
     console.log(`\n========== 生成结果 ==========`);
     console.log(`本次处理: ${plugins.length} 个插件，合并后: ${mergedPlugins.length} 个插件`);

@@ -9,6 +9,14 @@ const PLUGINS_DIR = 'plugins';
 const args = process.argv.slice(2);
 const BUILD_ALL = args.includes('--all') || process.env.BUILD_ALL === 'true';
 const BUILD_PLUGINS = parsePluginList(process.env.BUILD_PLUGINS || '');
+const OPERATION = process.env.RELEASE_OPERATION || 'build';
+
+if (!['build', 'remove'].includes(OPERATION)) {
+  throw new Error(`不支持的发布操作: ${OPERATION}`);
+}
+if (OPERATION === 'remove' && (BUILD_ALL || BUILD_PLUGINS.length === 0)) {
+  throw new Error('remove 操作必须指定 plugins，且不能同时启用 build_all');
+}
 
 function parsePluginList(value) {
   return [...new Set(
@@ -49,6 +57,11 @@ function validatePluginNames(pluginNames) {
  * 检测变动的插件
  */
 function detectChangedPlugins() {
+  if (OPERATION === 'remove') {
+    console.log(`请求下架插件: ${BUILD_PLUGINS.join(', ')}，跳过构建`);
+    return { changedPlugins: [], deletedPlugins: [] };
+  }
+
   // 手动指定插件时优先构建指定插件
   if (BUILD_PLUGINS.length > 0) {
     validatePluginNames(BUILD_PLUGINS);
@@ -115,13 +128,17 @@ function generateReleaseVersion() {
   const hour = String(now.getHours()).padStart(2, '0');
   const minute = String(now.getMinutes()).padStart(2, '0');
 
-  return `${year}.${month}.${day}.${hour}${minute}`;
+  const timestamp = `${year}.${month}.${day}.${hour}${minute}`;
+  // 下架无需构建，可能在同一分钟发布多次；重跑也要使用新的 tag。
+  return process.env.GITHUB_RUN_ID
+    ? `${timestamp}.${process.env.GITHUB_RUN_ID}.${process.env.GITHUB_RUN_ATTEMPT || '1'}`
+    : timestamp;
 }
 
 // 主逻辑
 const { changedPlugins, deletedPlugins } = detectChangedPlugins();
 
-if (changedPlugins.length === 0 && deletedPlugins.length === 0) {
+if (OPERATION !== 'remove' && changedPlugins.length === 0 && deletedPlugins.length === 0) {
   console.log('没有检测到插件变动');
 
   // 写入GitHub Actions输出
@@ -159,11 +176,13 @@ console.log(`  - 变动插件: ${changedPlugins.join(', ')}`);
 
 // 保存到文件供后续步骤使用
 const output = {
+  operation: OPERATION,
   hasChanges: true,
   releaseVersion,
   changedPlugins: changedPlugins,
   buildAll: BUILD_ALL,
   requestedPlugins: BUILD_PLUGINS,
+  requestedRemovals: OPERATION === 'remove' ? BUILD_PLUGINS : [],
   deletedPlugins
 };
 
