@@ -20,31 +20,46 @@ function publicURL(value,base){
  if([...url.searchParams.keys()].some(k=>/^(?:token|access_token|api[_-]?key|key|password|secret|authorization|auth)$/i.test(k)))throw Error('请使用公开素材地址，不要在链接中填写密钥');
  return url.href;
 }
-function requestBytes(value,{maxBytes=MAX_BYTES,timeoutMs=TIMEOUT,headers={},method='GET',body}={}){
+function requestBytes(value,{maxBytes=MAX_BYTES,timeoutMs=TIMEOUT,headers={},method='GET',body,proxyOrigins=[]}={}){
  let headerOrigin;try{headerOrigin=new URL(publicURL(value)).origin}catch(error){return Promise.reject(error)}
  const deadline=Date.now()+Math.min(60000,timeoutMs);
- function follow(value,redirects){return new Promise((resolve,reject)=>{
-  let url;try{url=publicURL(value)}catch(error){reject(error);return}
+ const retryable=new Set(['ECONNRESET','ECONNREFUSED','EPIPE','ETIMEDOUT','EAI_AGAIN']);
+ async function follow(value,redirects,retry){
+  const url=publicURL(value);let agent;
+  // Only the community's fixed, validated service origins may use the OS proxy.
+  // Custom catalog/import URLs retain the public-DNS checks below.
+  if(proxyOrigins.includes(new URL(url).origin)){
+   const {proxy}=await require('./english-network').route({mode:'auto'});
+   if(proxy){const {HttpsProxyAgent}=require('../../vendor/proxy/node_modules/https-proxy-agent');agent=new HttpsProxyAgent(proxy)}
+  }
+  return new Promise((resolve,reject)=>{
   const remaining=deadline-Date.now();if(remaining<=0){reject(Error('素材请求超时，请稍后刷新'));return}
-  let finished=false,req;const finish=(error,value)=>{if(finished)return;finished=true;clearTimeout(timer);error?reject(error):resolve(value)};
+  let finished=false,req;const finish=(error,value)=>{if(finished)return;finished=true;clearTimeout(timer);agent?.destroy();error?reject(error):resolve(value)};
   const timer=setTimeout(()=>{finish(Error('素材请求超时，请稍后刷新'));req?.destroy()},remaining);
-  req=(method==='POST'?https.request:https.get)(url,{method,headers:{Accept:'application/json,text/plain','User-Agent':'Research-English-Catalog/1.0','Accept-Encoding':'identity',...(new URL(url).origin===headerOrigin?headers:{})},lookup(host,options,callback){
+  req=(method==='POST'?https.request:https.get)(url,{method,agent:agent||(retry?false:undefined),headers:{Accept:'application/json,text/plain','User-Agent':'Research-English-Catalog/1.0','Accept-Encoding':'identity',...(new URL(url).origin===headerOrigin?headers:{})},lookup(host,options,callback){
    dns.lookup(host,{all:true},(error,addresses)=>{if(error){callback(error);return}if(!addresses.length||addresses.some(a=>!isPublicAddress(a.address))){callback(Error('素材域名不能指向本机或内网地址'));return}if(options?.all)callback(null,addresses);else callback(null,addresses[0].address,addresses[0].family)})
   }},res=>{
    if([301,302,303,307,308].includes(res.statusCode)){
     if(method!=='GET'){res.resume();finish(Error('统计请求不接受重定向'));return}
     res.resume();if(redirects>=3||!res.headers.location){finish(Error('素材地址重定向次数过多或缺少跳转地址'));return}
     let next;try{next=publicURL(res.headers.location,url)}catch(error){finish(error);return}
-    clearTimeout(timer);follow(next,redirects+1).then(v=>finish(null,v),finish);return;
+    clearTimeout(timer);follow(next,redirects+1,retry).then(v=>finish(null,v),finish);return;
    }
    if(res.statusCode!==200){res.resume();finish(Error('素材网站返回 HTTP '+res.statusCode));return}
    if(Number(res.headers['content-length'])>maxBytes){finish(Error('素材文件超过 '+(maxBytes/1024/1024)+' MB'));res.destroy();return}
    let size=0;const chunks=[];res.on('data',chunk=>{size+=chunk.length;if(size>maxBytes){finish(Error('素材文件超过 '+(maxBytes/1024/1024)+' MB'));res.destroy();return}chunks.push(chunk)});
-   res.on('end',()=>finish(null,Buffer.concat(chunks)));res.on('error',finish);res.on('aborted',()=>finish(Error('素材下载中断，请重试')));
+   res.on('end',()=>finish(null,Buffer.concat(chunks)));res.on('error',finish);res.on('aborted',()=>finish(Object.assign(Error('素材下载中断，请重试'),{code:'ECONNRESET'})));
   });
-  req.on('error',error=>finish(Error('无法获取素材：'+error.message)));
+  req.on('error',error=>finish(Object.assign(Error('无法获取素材：'+error.message),{code:error.code})));
   if(method==='POST')req.end(body);
- })}return follow(value,0);
+ })}
+ return (async()=>{
+  for(let retry=0;;retry++)try{return await follow(value,0,retry)}catch(error){
+   if(method==='GET'&&retry<2&&retryable.has(error.code)&&Date.now()<deadline)continue;
+   if(error.code==='ECONNRESET')throw Object.assign(Error('素材连接被重置（ECONNRESET），请检查网络或系统代理后重试。'),{code:error.code});
+   throw error;
+  }
+ })();
 }
 function parseBytes(value){const bytes=Buffer.isBuffer(value)?value:Buffer.from(value);if(bytes.length>MAX_BYTES)throw Error('素材文件超过 2 MB');try{return JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/,''))}catch{throw Error('素材网站未返回有效 JSON，请使用文件的原始内容地址')} }
 function string(value,label,max,required=false){if(value==null&&!required)return '';if(typeof value!=='string'||value.length>max||required&&!value.trim())throw Error(label+'无效');return value.trim()}

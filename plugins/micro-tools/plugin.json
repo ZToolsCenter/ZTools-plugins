@@ -2,7 +2,7 @@
   "name": "micro-tools",
   "title": "科研小盒",
   "description": "科研常用小工具集合：期刊·会议查询（JCR / CCF）、AI 投稿助手（摘要解读、期刊匹配与投稿准备）、文献图谱（BibTeX 本地分析与可视化）、数据库检索、科研英语训练与个人题库。支持 ZTools AI 或用户自己的 API，纯 Preload 模式，无构建步骤。",
-  "version": "1.7.7",
+  "version": "1.8.3",
   "author": "Asa12138",
   "email": "bfzede@gmail.com",
   "main": "index.html",
@@ -825,7 +825,9 @@
                 "maxLength": 80
               },
               "description": {
-                "type": "string"
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 1200
               },
               "level": {
                 "type": "string",
@@ -967,6 +969,7 @@
             "required": [
               "title",
               "domain",
+              "description",
               "source",
               "sentences"
             ]
