@@ -1,0 +1,107 @@
+:root {
+  color-scheme: light dark;
+
+  /* 强调色统一来源于宿主注入的 --plugin-primary-color */
+  --plugin-accent: var(--plugin-primary-color, #2f6bff);
+  --plugin-accent-soft: rgba(47, 107, 255, 0.14);
+  --plugin-accent-soft: color-mix(in srgb, var(--plugin-accent) 14%, transparent);
+
+  --plugin-surface: #ffffff;
+  --plugin-sidebar: #f6f7f9;
+  --plugin-surface-alt: #f2f4f7;
+  --plugin-text: #1f2329;
+  --plugin-text-muted: #8a919f;
+  --plugin-border: #e6e8eb;
+  --plugin-danger: #e5484d;
+  --plugin-danger-soft: rgba(229, 72, 77, 0.12);
+  --plugin-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  --plugin-radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --plugin-surface: #2b2d31;
+    --plugin-sidebar: #232529;
+    --plugin-surface-alt: #35383d;
+    --plugin-text: #e8eaed;
+    --plugin-text-muted: #9aa0a6;
+    --plugin-border: #3d4046;
+    --plugin-accent-soft: rgba(88, 156, 255, 0.18);
+    --plugin-danger-soft: rgba(229, 72, 77, 0.18);
+    --plugin-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+body {
+  overflow: hidden;
+  color: var(--plugin-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei',
+    'PingFang SC', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--plugin-accent);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--plugin-text-muted) 45%, transparent);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--plugin-text-muted) 75%, transparent);
+  background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
