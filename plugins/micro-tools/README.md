@@ -4,7 +4,7 @@
 
 [下载安装包](https://github.com/Asa12138/micro-tools/releases) · [科研英语网页版](https://asa12138.github.io/apps/research-english/) · [素材广场](https://asa-english-community.netlify.app/) · [反馈问题](https://github.com/Asa12138/micro-tools/issues) · [去 GitHub 点个 Star ⭐](https://github.com/Asa12138/micro-tools)
 
-当前版本：**1.7.7** · [更新记录](CHANGELOG.md)
+当前版本：**1.8.3** · [更新记录](CHANGELOG.md)
 
 ## 安装
 
@@ -27,7 +27,9 @@
 ## 科研英语
 
 - **选素材就能练**：内置科研表达与生物词表，也可从 [素材广场](https://asa-english-community.netlify.app/) 获取课程、单词本，分享自己的文本素材。
-- **用自己的材料建课**：导入 PDF、TXT、Markdown 或粘贴正文，交给 AI 整理；也可复制完整提示词给自己的 Agent，生成课程 JSON 后导入，无需 MCP。
+- **用自己的材料建课**：导入 PDF、TXT、Markdown 或粘贴正文，论文可在本机按章节预筛选；已配置 AI 自动分批生成并填入预览。也可复制提示词、附上素材文件交给自己的 AI 或 Agent；对话型 AI 建议每次生成 30 句以下。
+- **导入前自由选择**：教学格式问题按句提示警告，可保留、逐句取消或批量剔除；JSON 结构与可核对的原文依据仍需通过校验。详见 [手动导入校验规则](docs/english-import-validation.md)。
+- **发音与翻译**：单词发音默认有道，可切换 Google；翻译可选免密钥 Google、MyMemory 或自有 API，桌面支持配置 Google 网络代理。
 - **听读与复习**：微软语音按需生成并缓存，支持五种音色、跟读录音、单词发音、错题与学习足迹。
 - **直接在浏览器使用**：[科研英语网页版](https://asa12138.github.io/apps/research-english/) 与 ZTools 共享英语模块源码和版本。微软在线语音目前已验证 Edge 可用，其他浏览器可选择系统声音。
 

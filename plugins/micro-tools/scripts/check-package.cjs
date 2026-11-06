@@ -55,7 +55,8 @@ function smoke(files){
    require(path.resolve('preload.js'));
    assert.equal(registered.search_journals({query:'Nature',limit:1}).items[0].name,'NATURE','期刊数据必须从安装清单中的版本目录载入');
    const api=window.englishApi;assert(api,'英语服务必须由 preload 完整载入');
-   for(const method of ['list','communityList','communityGet','communityDownload','wordbooks','settings'])assert.equal(typeof api[method],'function',method);
+   for(const method of ['list','communityList','communityGet','communityDownload','wordbooks','settings','achievements','exportFullBackup','restoreFullBackup'])assert.equal(typeof api[method],'function',method);
+   assert.equal(api.achievements().total,24,'安装包必须包含 24 枚新成就');
    const seed=api.list()[0];api.saveProgress(seed.id,{seconds:37});assert.equal(api.progress(seed.id).seconds,37);
    assert.equal(typeof registered.list_english_lessons,'function');
    assert.equal(Object.keys(registered).length,Object.keys(require(path.resolve('plugin.json')).tools).length);

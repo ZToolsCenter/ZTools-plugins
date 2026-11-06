@@ -1,13 +1,13 @@
 // One connection state shared by research and English UI; never reads API keys.
 (function(){
  'use strict';
- let current={ok:false,state:'idle',message:'进入页面后自动检测当前 AI。'},pending=null,revision=0;
+ let current={ok:false,state:'idle',message:'进入页面后检查模型配置，不发送请求。'},pending=null,revision=0;
  const listeners=new Set();
  function publish(value){current=value;for(const listener of listeners)listener({...current});return {...current}}
  async function refresh(force=false){
   if(pending)return pending;
   const token=revision,api=window.researchApi;
-  publish({ok:false,state:'checking',message:'正在检测 AI 连接…'});
+  publish({ok:false,state:'checking',message:'正在检查 AI 配置…'});
   pending=(async()=>{
    let result;
    try{result=api?.checkAvailability?await api.checkAvailability({force}):{ok:false,state:'unconfigured',message:api?'当前连接无法检测，请重新加载最新版插件。':'请配置 AI，或使用自己的 AI / Agent。'}}

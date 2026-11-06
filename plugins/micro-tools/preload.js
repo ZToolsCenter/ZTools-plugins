@@ -326,6 +326,14 @@ window.englishApi = require('./features/english/english-service.js')({
   getItem(key) { if (!window.ztools?.dbStorage) throw new Error('请在 ZTools 中使用持久题库'); return window.ztools.dbStorage.getItem(key) },
   setItem(key,value) { if (!window.ztools?.dbStorage) throw new Error('请在 ZTools 中保存题库'); window.ztools.dbStorage.setItem(key,value) }
 }, { credentials: localCredentials, audio: preparedEnglishAudio, activityDirectory(){const dir=window.ztools?.getPath?.('userData');return dir?path.join(dir,'micro-tools-local'):null} })
+// PNG clipboard support for ZTools, with a browser Clipboard API fallback in the UI.
+window.englishApi.copyCardImage = async bytes => {
+  if (!(bytes instanceof Uint8Array) || bytes.length > 8 * 1024 * 1024 || !Buffer.from(bytes).subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new Error('卡片图片格式无效')
+  const { clipboard, nativeImage } = require('electron')
+  const image = nativeImage.createFromBuffer(Buffer.from(bytes))
+  if (image.isEmpty()) throw new Error('卡片图片生成失败')
+  clipboard.writeImage(image)
+}
 window.englishApi.speech = require('./features/english/english-speech.js')
 window.englishApi.filePath = file => {
   try { const { webUtils } = require('electron'); if (webUtils?.getPathForFile) return webUtils.getPathForFile(file) } catch {}
