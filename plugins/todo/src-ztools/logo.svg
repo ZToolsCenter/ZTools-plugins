@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="todoBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f8bff" />
+      <stop offset="1" stop-color="#2f6bff" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#todoBg)" />
+  <g transform="translate(-11,-11)">
+    <rect x="70" y="68" width="120" height="18" rx="9" fill="#ffffff" fill-opacity="0.92" />
+    <rect x="70" y="104" width="78" height="18" rx="9" fill="#ffffff" fill-opacity="0.6" />
+    <path
+      d="M78 162 L114 198 L200 112"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="26"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

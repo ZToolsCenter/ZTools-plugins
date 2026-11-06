@@ -1,0 +1,20 @@
+# 依赖与构建产物
+node_modules/
+dist/
+src-ztools/dist/
+
+# 测试产物
+test-results/
+playwright-report/
+coverage/
+
+# 本地打包产物
+src-ztools.zip
+
+# 环境与本地配置
+.env
+.env.*
+*.log
+.DS_Store
+.vscode/
+.idea/
